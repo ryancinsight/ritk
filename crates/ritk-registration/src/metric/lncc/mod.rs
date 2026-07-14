@@ -22,6 +22,8 @@
 //! evaluation, reducing the computational payload strictly to $M$-dependent convolutions
 //! and eliminating $O(N)$ operations per forward pass.
 
+pub mod native;
+
 use super::cache_slot::CacheSlot;
 use super::histogram::cache::collect_array;
 use super::trait_::Metric;

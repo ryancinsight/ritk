@@ -123,10 +123,9 @@ impl CannyEdgeDetector {
     /// `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let dims = image.shape();
-        let [nz, ny, nx] = dims;
         let sp = *image.spacing();
 
-        // ── Stage 1: Gaussian smoothing ───────────────────────────────────
+        // ── Stage 1: Gaussian smoothing (Burn conv1d) ─────────────────────
         let smoothed = {
             let gauss = crate::GaussianFilter::<B>::new(vec![self.sigma, self.sigma, self.sigma]);
             gauss.apply(image)
@@ -140,28 +139,86 @@ impl CannyEdgeDetector {
                 dims_smoothed
             );
         }
-        let vals = &vals_vec;
 
-        // ── Stage 2: Gradient magnitude and direction ─────────────────────
-        let (mag, dir_z, dir_y, dir_x) = compute_gradient(vals, dims, sp);
-
-        // ── Stage 3: Non-maximum suppression ──────────────────────────────────
-        let nms = non_maximum_suppression(&mag, &dir_x, &dir_y, &dir_z, &dims);
-
-        // ── Stage 4: Double hysteresis thresholding with BFS ──────────────
-        let edges = hysteresis_threshold(
-            &nms,
+        // ── Stages 2–4: gradient / NMS / hysteresis (shared host core) ────
+        let out_vals = canny_edges_flat(
+            &vals_vec,
             dims,
+            sp,
             self.low_threshold as f32,
             self.high_threshold as f32,
         );
 
-        // Build output image
-        let n = nz * ny * nx;
-        let out_vals: Vec<f32> = (0..n).map(|i| if edges[i] { 1.0 } else { 0.0 }).collect();
-
         Ok(rebuild(out_vals, dims, image))
     }
+
+    /// Coeus-native sister of [`CannyEdgeDetector::apply`].
+    ///
+    /// Smooths natively via the burn-free
+    /// `gaussian_smooth_native_flat`
+    /// core, then runs the identical gradient / non-maximum-suppression /
+    /// hysteresis pipeline via the shared `canny_edges_flat` host core. No Burn
+    /// tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Parity
+    /// Stages 2–4 are bitwise-identical to the Burn path (shared core). The
+    /// native Gaussian (`convolve_zero_pad_3d`) and the Burn Gaussian (`conv1d`)
+    /// evaluate the same kernels but sum taps in different orders, so the
+    /// pre-threshold magnitude field differs by accumulation rounding only
+    /// (`O(width·ε·‖I‖∞)`); the binary edge map is unaffected except for voxels
+    /// whose magnitude sits within that bound of a threshold.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let sp = *image.spacing();
+        let sigma = self.sigma.get();
+        let spacing = [sp[0], sp[1], sp[2]];
+        let low = self.low_threshold as f32;
+        let high = self.high_threshold as f32;
+        crate::native_support::map_flat_image(image, backend, move |vals, dims| {
+            let smoothed = crate::gaussian::gaussian_smooth_native_flat(
+                vals,
+                dims,
+                [sigma, sigma, sigma],
+                spacing,
+                // Matches `GaussianFilter::new`'s default max kernel width.
+                32,
+            );
+            canny_edges_flat(&smoothed, dims, sp, low, high)
+        })
+    }
+}
+
+/// Substrate-agnostic host core for [`CannyEdgeDetector`] stages 2–4: gradient
+/// magnitude/direction, non-maximum suppression along the continuous gradient,
+/// and double-hysteresis thresholding with BFS connectivity, on an
+/// already-smoothed flat z-major buffer. Returns the binary edge map (`1.0`
+/// edge, `0.0` else). Single source of truth for the Burn
+/// [`apply`](CannyEdgeDetector::apply) and Coeus-native
+/// [`apply_native`](CannyEdgeDetector::apply_native) paths.
+fn canny_edges_flat(
+    smoothed: &[f32],
+    dims: [usize; 3],
+    spacing: Spacing<3>,
+    low_threshold: f32,
+    high_threshold: f32,
+) -> Vec<f32> {
+    let [nz, ny, nx] = dims;
+    let (mag, dir_z, dir_y, dir_x) = compute_gradient(smoothed, dims, spacing);
+    let nms = non_maximum_suppression(&mag, &dir_x, &dir_y, &dir_z, &dims);
+    let edges = hysteresis_threshold(&nms, dims, low_threshold, high_threshold);
+    let n = nz * ny * nx;
+    (0..n).map(|i| if edges[i] { 1.0 } else { 0.0 }).collect()
 }
 
 /// Gradient magnitude threshold below which a pixel is treated as flat.
@@ -442,3 +499,69 @@ fn hysteresis_threshold(nms: &[f32], dims: [usize; 3], low: f32, high: f32) -> V
 #[cfg(test)]
 #[path = "tests_canny.rs"]
 mod tests_canny;
+
+#[cfg(test)]
+mod tests_native {
+    use super::{CannyEdgeDetector, GaussianSigma};
+    use crate::native_support::{make_native_image, native_vals};
+    use coeus_core::SequentialBackend;
+    use ritk_image::test_support as ts;
+
+    fn detector() -> CannyEdgeDetector {
+        CannyEdgeDetector::new(GaussianSigma::new_unchecked(1.0), 50.0, 150.0)
+    }
+
+    /// Differential vs Burn. Stages 2–4 share `canny_edges_flat`; the only
+    /// substrate difference is the Gaussian tap-summation order (`conv1d` vs
+    /// `convolve_zero_pad_3d`), an `O(width·ε·‖I‖∞)` rounding difference. On a
+    /// high-contrast, well-separated cube the pre-threshold magnitudes sit far
+    /// from the thresholds, so no voxel classification flips and the binary edge
+    /// maps are identical.
+    #[test]
+    fn matches_burn_high_contrast() {
+        let dims = [7, 7, 7];
+        let n = 7 * 7 * 7;
+        let mut vals = vec![0.0f32; n];
+        // A solid bright cube centred in a dark field.
+        for z in 2..5 {
+            for y in 2..5 {
+                for x in 2..5 {
+                    vals[z * 49 + y * 7 + x] = 1000.0;
+                }
+            }
+        }
+        let burn_img = ts::make_image::<burn_ndarray::NdArray<f32>, 3>(vals.clone(), dims);
+        let burn_out = detector().apply(&burn_img).expect("burn canny");
+        let burn_vals = burn_out
+            .data()
+            .clone()
+            .into_data()
+            .as_slice::<f32>()
+            .expect("burn slice")
+            .to_vec();
+
+        let native_out = detector()
+            .apply_native(&make_native_image(vals, dims), &SequentialBackend)
+            .expect("native canny");
+        assert_eq!(
+            native_vals(&native_out),
+            burn_vals,
+            "native and Burn Canny edge maps must match on a high-contrast input"
+        );
+    }
+
+    /// Oracle: an all-zero volume has a zero gradient everywhere, so no voxel is
+    /// a non-maximum-suppression seed and the edge map is empty.
+    #[test]
+    fn oracle_zero_field_has_no_edges() {
+        let out = detector()
+            .apply_native(
+                &make_native_image(vec![0.0f32; 64], [4, 4, 4]),
+                &SequentialBackend,
+            )
+            .expect("native canny");
+        for &v in &native_vals(&out) {
+            assert_eq!(v, 0.0, "zero field must yield no edges");
+        }
+    }
+}

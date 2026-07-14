@@ -1,5 +1,7 @@
 //! Mean Squared Error metric implementation.
 
+pub mod native;
+
 use super::trait_::Metric;
 use ritk_image::grid;
 use ritk_image::tensor::Backend;

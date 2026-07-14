@@ -4,8 +4,7 @@ use super::super::types::BinarizationThreshold;
 use super::core::euclidean_dt;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_tensor_ops::extract_vec_infallible;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Signed Euclidean distance transform (voxel-centre convention).
 ///
@@ -71,15 +70,7 @@ impl SignedDistanceTransformImageFilter {
         super::unsigned::validate_input(&vals, dims, spacing, self.threshold)?;
         let result = signed_values(&fg, &bg, dims, spacing);
 
-        let device = image.data().device();
-        let td_out = TensorData::new(result, Shape::new([nz, ny, nx]));
-        let tensor = Tensor::<B, 3>::from_data(td_out, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(result, [nz, ny, nx], image))
     }
 
     pub fn apply_native<B>(

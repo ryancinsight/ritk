@@ -11,11 +11,9 @@
 //! the neighbourhood half-width, using introselect (select_nth_unstable_by)
 //! rather than a full sort.  Parallelised over z-slices via Rayon.
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Sliding-window median filter for 3-D volumes.
 ///
@@ -47,36 +45,30 @@ impl MedianFilter {
 
         let filtered = median_3d(&vals, shape, self.radius);
 
-        let device = image.data().device();
-        let out_td = TensorData::new(filtered, Shape::new(shape));
-        let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(filtered, shape, image))
     }
 
-    /// Apply the median kernel to a Coeus-native image.
+    /// Coeus-native sister of [`MedianFilter::apply`].
+    ///
+    /// Runs the identical sliding-window lower-median (replicate boundary) via
+    /// the shared `median_3d` host core on the image's contiguous host buffer,
+    /// so the result is bitwise-identical to the Burn path. No Burn tensor is
+    /// constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt tensor fails shape validation.
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B,
     ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
-        B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+        B: coeus_core::ComputeBackend + Default,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
-            median_3d(image.data_slice()?, image.shape(), self.radius),
-            image.shape(),
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            backend,
-        )
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let filtered = median_3d(&vals, dims, self.radius);
+        ritk_tensor_ops::native::rebuild_image(filtered, dims, image, &B::default())
     }
 }
 
@@ -197,6 +189,10 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[path = "tests_median_native.rs"]
+mod tests_native;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use burn_ndarray::NdArray;
@@ -267,9 +263,7 @@ mod tests {
             &backend,
         )
         .unwrap();
-        let output = MedianFilter::new(1)
-            .apply_native(&source, &backend)
-            .unwrap();
+        let output = MedianFilter::new(1).apply_native(&source).unwrap();
 
         assert_eq!(output.data_slice().unwrap(), &[0.0, 0.0, 0.0]);
         assert_eq!(output.shape(), source.shape());

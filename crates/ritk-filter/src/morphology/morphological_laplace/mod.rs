@@ -62,8 +62,7 @@
 
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 // ── Filter struct ─────────────────────────────────────────────────────────────
 
@@ -100,28 +99,49 @@ impl MorphologicalLaplacian {
     /// Returns `Err` if the underlying tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-
-        let dilated = dilate_3d_reflect(&vals, dims, self.radius);
-        let eroded = erode_3d_reflect(&vals, dims, self.radius);
-
-        // Elementwise combination: auto-vectorised by LLVM (independent per voxel).
-        let out: Vec<f32> = vals
-            .iter()
-            .zip(dilated.iter())
-            .zip(eroded.iter())
-            .map(|((&f, &d), &e)| d + e - 2.0 * f)
-            .collect();
-
-        let device = image.data().device();
-        let out_td = TensorData::new(out, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        let out = laplace_vec(&vals, dims, self.radius);
+        Ok(rebuild(out, dims, image))
     }
+
+    /// Coeus-native sister of [`MorphologicalLaplacian::apply`].
+    ///
+    /// Runs the identical `dilate + erode − 2·f` (reflect-boundary cubic SE) via
+    /// the shared `laplace_vec` host core on the image's contiguous host
+    /// buffer, so the result is bitwise-identical to the Burn path. No Burn
+    /// tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let radius = self.radius;
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            laplace_vec(vals, dims, radius)
+        })
+    }
+}
+
+/// Substrate-agnostic host core for [`MorphologicalLaplacian`].
+///
+/// `L_B(f) = D_B(f) + E_B(f) − 2·f` over the reflect-boundary cubic SE of the
+/// given `radius` (scipy `mode='reflect'` parity). Zero on locally-constant
+/// regions.
+pub(crate) fn laplace_vec(vals: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
+    let dilated = dilate_3d_reflect(vals, dims, radius);
+    let eroded = erode_3d_reflect(vals, dims, radius);
+    vals.iter()
+        .zip(dilated.iter())
+        .zip(eroded.iter())
+        .map(|((&f, &d), &e)| d + e - 2.0 * f)
+        .collect()
 }
 
 // ── Core computation ──────────────────────────────────────────────────────────

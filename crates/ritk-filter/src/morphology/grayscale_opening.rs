@@ -43,9 +43,8 @@
 use super::grayscale_dilation::dilate_3d;
 use super::grayscale_erosion::erode_3d;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 // ── Filter struct ─────────────────────────────────────────────────────────────
 
@@ -85,20 +84,20 @@ impl GrayscaleOpeningFilter {
     /// Returns `Err` if the underlying tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        let opened = self.open_values(&vals, dims);
-
-        let device = image.data().device();
-        let out_td = TensorData::new(opened, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        let opened = open_3d(&vals, dims, self.radius);
+        Ok(rebuild(opened, dims, image))
     }
 
-    /// Apply grayscale opening to a Coeus-native image.
+    /// Coeus-native sister of [`GrayscaleOpeningFilter::apply`].
+    ///
+    /// Runs the identical safe-border erode→dilate opening via the shared
+    /// `open_3d` host core on the image's contiguous host buffer, so the result
+    /// is bitwise-identical to the Burn path. No Burn tensor is constructed.
+    /// Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
@@ -108,23 +107,24 @@ impl GrayscaleOpeningFilter {
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
-            self.open_values(image.data_slice()?, image.shape()),
-            image.shape(),
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            backend,
-        )
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            open_3d(vals, dims, self.radius)
+        })
     }
+}
 
-    fn open_values(&self, values: &[f32], dims: [usize; 3]) -> Vec<f32> {
-        let r = self.radius;
-        let (padded, pdims) = super::pad_replicate_3d(values, dims, r);
-        let eroded = erode_3d(&padded, pdims, r);
-        let dilated = dilate_3d(&eroded, pdims, r);
-        super::crop_border_3d(&dilated, pdims, r).0
-    }
+/// Substrate-agnostic host core for [`GrayscaleOpeningFilter`].
+///
+/// `O_B(f) = D_B(E_B(f))` with ITK's safe border: replicate-pad by `radius`,
+/// run the erode/dilate pair on the padded volume, then crop. This keeps the
+/// border band bit-exact to `sitk.GrayscaleMorphologicalOpening` (naive
+/// erode→dilate diverges within `radius` of the edge).
+pub(crate) fn open_3d(vals: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
+    let (padded, pdims) = super::pad_replicate_3d(vals, dims, radius);
+    let eroded = erode_3d(&padded, pdims, radius);
+    let dilated = dilate_3d(&eroded, pdims, radius);
+    let (opened, _) = super::crop_border_3d(&dilated, pdims, radius);
+    opened
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

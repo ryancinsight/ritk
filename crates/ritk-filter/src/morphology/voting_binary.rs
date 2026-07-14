@@ -30,9 +30,8 @@
 
 use super::types::ForegroundValue;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Voting binary image filter.
 ///
@@ -82,20 +81,28 @@ impl VotingBinaryImageFilter {
     /// Apply a single voting step to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        let out = self.vote_values(&vals, dims);
-        let device = image.data().device();
-        let shape = Shape::new(dims);
-        let data = TensorData::new(out, shape);
-        let tensor = Tensor::<B, 3>::from_data(data, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        let out = voting_binary_vec(
+            &vals,
+            dims,
+            self.radius,
+            self.birth_threshold,
+            self.survival_threshold,
+            f32::from(self.foreground_value),
+            self.background_value,
+        );
+        Ok(rebuild(out, dims, image))
     }
 
-    /// Apply a voting step to a Coeus-native image.
+    /// Coeus-native sister of [`VotingBinaryImageFilter::apply`].
+    ///
+    /// Runs the identical single voting step via the shared `voting_binary_vec`
+    /// host core on the image's contiguous host buffer, so the result is
+    /// bitwise-identical to the Burn path. No Burn tensor is constructed.
+    /// Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
@@ -105,45 +112,74 @@ impl VotingBinaryImageFilter {
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
-            self.vote_values(image.data_slice()?, image.shape()),
-            image.shape(),
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            backend,
-        )
-    }
-
-    fn vote_values(&self, values: &[f32], [nz, ny, nx]: [usize; 3]) -> Vec<f32> {
         let (r, birth, survival) = (self.radius, self.birth_threshold, self.survival_threshold);
-        let (fg, bg) = (f32::from(self.foreground_value), self.background_value);
-        let slab = ny * nx;
-        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(values.len(), |flat| {
-            let z = flat / slab;
-            let rem = flat - z * slab;
-            let y = rem / nx;
-            let x = rem - y * nx;
-            let count = (z.saturating_sub(r)..=(z + r).min(nz - 1))
-                .flat_map(|z| (y.saturating_sub(r)..=(y + r).min(ny - 1)).map(move |y| (z, y)))
-                .flat_map(|(z, y)| {
-                    (x.saturating_sub(r)..=(x + r).min(nx - 1)).map(move |x| (z, y, x))
-                })
-                .filter(|&(z, y, x)| (values[z * slab + y * nx + x] - fg).abs() < 1e-5)
-                .count();
-            if (values[flat] - fg).abs() < 1e-5 {
-                if count >= survival {
-                    fg
-                } else {
-                    bg
+        let fg = f32::from(self.foreground_value);
+        let bg = self.background_value;
+        crate::native_support::map_flat_image(image, backend, move |vals, dims| {
+            voting_binary_vec(vals, dims, r, birth, survival, fg, bg)
+        })
+    }
+}
+
+/// Substrate-agnostic host core for [`VotingBinaryImageFilter`].
+///
+/// One cellular-automaton voting step over a cubic neighbourhood of half-width
+/// `r` (window includes the centre voxel, matching ITK): a background voxel is
+/// born foreground when its foreground count reaches `birth`, a foreground voxel
+/// dies when its count falls below `survival`, otherwise the value is kept.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn voting_binary_vec(
+    vals: &[f32],
+    dims: [usize; 3],
+    r: usize,
+    birth: usize,
+    survival: usize,
+    fg: f32,
+    bg: f32,
+) -> Vec<f32> {
+    let [nz, ny, nx] = dims;
+    let slab = ny * nx;
+    // PERF-378-01: parallelise over flat voxel index — each voxel reads a window from
+    // vals (read-only) with no inter-voxel output dependencies; bit-identical to serial.
+    moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |flat| {
+        let iz = flat / slab;
+        let rem = flat - iz * slab;
+        let iy = rem / nx;
+        let ix = rem - iy * nx;
+
+        let v = vals[flat];
+        let is_fg = (v - fg).abs() < 1e-5;
+
+        let z0 = iz.saturating_sub(r);
+        let z1 = (iz + r).min(nz - 1);
+        let y0 = iy.saturating_sub(r);
+        let y1 = (iy + r).min(ny - 1);
+        let x0 = ix.saturating_sub(r);
+        let x1 = (ix + r).min(nx - 1);
+
+        let mut fg_count = 0usize;
+        for kz in z0..=z1 {
+            for ky in y0..=y1 {
+                for kx in x0..=x1 {
+                    if (vals[kz * slab + ky * nx + kx] - fg).abs() < 1e-5 {
+                        fg_count += 1;
+                    }
                 }
-            } else if count >= birth {
+            }
+        }
+
+        if !is_fg {
+            if fg_count >= birth {
                 fg
             } else {
                 bg
             }
-        })
-    }
+        } else if fg_count >= survival {
+            fg
+        } else {
+            bg
+        }
+    })
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────

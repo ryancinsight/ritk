@@ -1,8 +1,7 @@
 //! VTK format facade for `ritk-io`.
 //!
-//! `ritk-vtk` owns the VTK data model and all VTK parsers/writers. This module
-//! keeps only the `ritk_io::ImageReader` / `ImageWriter` trait adapters, which
-//! are generic over `B: Backend` and compile through static dispatch.
+//! `ritk-vtk` owns the VTK parsers and encoders. This module only binds those
+//! operations to the native `ImageReader` and `ImageWriter` contracts.
 
 pub use ritk_vtk::{
     read_obj_mesh, read_ply_mesh, read_stl_mesh, read_vti_binary_appended,
@@ -50,130 +49,7 @@ pub mod unstructured_xml {
 pub mod mesh_writer;
 pub use mesh_writer::{mesh_to_vtk_string, write_mesh_as_vtk};
 
-use crate::domain::{ImageReader, ImageWriter};
-use anyhow::Result;
-use coeus_core::SequentialBackend;
-use ritk_core::image::Image;
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use std::path::Path;
-
-fn native_to_legacy<B: Backend>(
-    native: ritk_image::native::Image<f32, SequentialBackend, 3>,
-    device: &B::Device,
-) -> Image<B, 3> {
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(
-            native.data_cow_on(&SequentialBackend).into_owned(),
-            Shape::new(native.shape()),
-        ),
-        device,
-    );
-    Image::new(
-        tensor,
-        *native.origin(),
-        *native.spacing(),
-        *native.direction(),
-    )
-}
-
-/// Reads VTK through the native provider and converts at this legacy boundary.
-pub fn read_vtk<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
-    ritk_vtk::read_vtk(path, &SequentialBackend).map(|native| native_to_legacy(native, device))
-}
-
-/// Writes a legacy image through the native VTK provider.
-pub fn write_vtk<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
-    let backend = SequentialBackend;
-    let native = ritk_image::native::Image::from_flat_on(
-        image.try_data_vec()?,
-        image.shape(),
-        *image.origin(),
-        *image.spacing(),
-        *image.direction(),
-        &backend,
-    )?;
-    ritk_vtk::write_vtk(path, &native, &backend)
-}
-
-/// DIP boundary implementing `ImageReader` for VTK legacy structured points.
-pub struct VtkReader<B: Backend> {
-    device: B::Device,
-}
-
-impl<B: Backend> VtkReader<B> {
-    pub fn new(device: B::Device) -> Self {
-        Self { device }
-    }
-}
-
-impl<B: Backend> ImageReader<Image<B, 3>> for VtkReader<B> {
-    fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
-        read_vtk(path, &self.device).map_err(|e| std::io::Error::other(e.to_string()))
-    }
-}
-
-/// DIP boundary implementing `ImageWriter` for VTK legacy structured points.
-pub struct VtkWriter<B: Backend> {
-    _marker: std::marker::PhantomData<fn() -> B>,
-}
-
-impl<B: Backend> Default for VtkWriter<B> {
-    fn default() -> Self {
-        Self {
-            _marker: std::marker::PhantomData,
-        }
-    }
-}
-
-impl<B: Backend> ImageWriter<Image<B, 3>> for VtkWriter<B> {
-    fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
-        write_vtk(path, image).map_err(|e| std::io::Error::other(e.to_string()))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use burn_ndarray::NdArray;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
-    use ritk_spatial::{Direction, Point, Spacing};
-    use tempfile::tempdir;
-
-    type TestBackend = NdArray<f32>;
-
-    #[test]
-    fn dip_reader_writer_roundtrip_uses_authoritative_vtk_backend() {
-        let dir = tempdir().unwrap();
-        let path = dir.path().join("facade.vtk");
-        let device: <TestBackend as Backend>::Device = Default::default();
-        let values: Vec<f32> = (0..12).map(|v| v as f32).collect();
-        let tensor = Tensor::<TestBackend, 3>::from_data(
-            TensorData::new(values.clone(), Shape::new([2, 2, 3])),
-            &device,
-        );
-        let image = Image::new(
-            tensor,
-            Point::new([1.0, 2.0, 3.0]),
-            Spacing::new([0.5, 0.75, 1.25]),
-            Direction::identity(),
-        );
-
-        VtkWriter::<TestBackend>::default()
-            .write(&path, &image)
-            .unwrap();
-        let loaded = VtkReader::<TestBackend>::new(device).read(&path).unwrap();
-
-        assert_eq!(loaded.shape(), [2, 2, 3]);
-        assert_eq!(*loaded.spacing(), Spacing::new([0.5, 0.75, 1.25]));
-        assert_eq!(*loaded.origin(), Point::new([1.0, 2.0, 3.0]));
-        loaded.with_data_slice(|loaded_vals| {
-            assert_eq!(loaded_vals, values.as_slice());
-        });
-    }
-}
-
-/// Native-image VTK reader and writer contracts.
+/// Native VTK image reader and writer contracts.
 pub mod native {
     use crate::domain::{to_io_err, ImageReader, ImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};
@@ -217,6 +93,42 @@ pub mod native {
     {
         fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
             ritk_vtk::write_vtk(path, image, &self.backend).map_err(to_io_err)
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use coeus_core::SequentialBackend;
+        use ritk_spatial::{Direction, Point, Spacing};
+        use tempfile::tempdir;
+
+        #[test]
+        fn native_contract_round_trips_vtk_values_and_geometry() {
+            let image = Image::from_flat_on(
+                (0..12).map(|value| value as f32 * 0.5 - 2.0).collect(),
+                [2, 2, 3],
+                Point::new([1.0, 2.0, 3.0]),
+                Spacing::new([0.5, 0.75, 1.25]),
+                Direction::identity(),
+                &SequentialBackend,
+            )
+            .expect("native VTK fixture");
+            let directory = tempdir().expect("temporary directory");
+            let path = directory.path().join("roundtrip.vtk");
+
+            ImageWriter::write(&VtkWriter::new(SequentialBackend), &path, &image)
+                .expect("VTK write");
+            let loaded =
+                ImageReader::read(&VtkReader::new(SequentialBackend), &path).expect("VTK read");
+
+            assert_eq!(loaded.shape(), [2, 2, 3]);
+            assert_eq!(loaded.origin(), image.origin());
+            assert_eq!(loaded.spacing(), image.spacing());
+            assert_eq!(
+                loaded.data_slice().expect("contiguous data"),
+                image.data_slice().expect("contiguous fixture")
+            );
         }
     }
 }

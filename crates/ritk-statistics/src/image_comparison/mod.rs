@@ -55,16 +55,19 @@
 //!
 //! Constant inputs have zero variance and return 0.
 
+pub mod native;
 mod overlap;
 mod quality;
 mod surface;
 
-pub use overlap::{dice_coefficient, dice_coefficient_native, similarity_index};
-pub use quality::{pearson_correlation, psnr, psnr_native, ssim, ssim_native};
-pub use surface::{
-    hausdorff_distance, hausdorff_distance_native, mean_surface_distance,
-    mean_surface_distance_native,
+pub use native::{
+    hausdorff_distance as hausdorff_distance_native,
+    mean_surface_distance as mean_surface_distance_native, psnr as psnr_native,
+    ssim as ssim_native,
 };
+pub use overlap::{dice_coefficient, dice_coefficient_native, similarity_index};
+pub use quality::{pearson_correlation, psnr, ssim};
+pub use surface::{hausdorff_distance, mean_surface_distance};
 
 #[cfg(test)]
 mod tests;

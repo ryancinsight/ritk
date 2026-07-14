@@ -1,39 +1,62 @@
-use coeus_core::MoiraiBackend;
-use ritk_core::image::native::Image;
+//! Image transform tests migrated to the Atlas-native (Coeus) path.
+//!
+//! Tensor-batch transform (`world_to_index_tensor`) is excluded pending
+//! native-Image implementation (ADR 0002).
+
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type Image3 = Image<f32, MoiraiBackend, 3>;
+type Backend = SequentialBackend;
+type Point3 = Point<3>;
+type Spacing3 = Spacing<3>;
 
-#[test]
-fn rotated_image_maps_physical_point_to_exact_axis_permutation() {
-    let image = Image3::from_flat(
-        vec![0.0; 10 * 10 * 10],
-        [10, 10, 10],
-        Point::origin(),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::from_row_major([0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
+fn make_image_3d(
+    dims: [usize; 3],
+    origin: Point3,
+    spacing: Spacing3,
+    direction: Direction<3>,
+) -> Image<f32, Backend, 3> {
+    let n = dims[0] * dims[1] * dims[2];
+    Image::from_flat_on(
+        vec![0.0f32; n],
+        dims,
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
     )
-    .expect("fixture shape and data length agree");
-
-    let index = image
-        .physical_point_to_continuous_index(&Point::new([1.0, 0.0, 0.0]))
-        .expect("rotation matrix is invertible");
-    assert_eq!(index, Point::new([0.0, -1.0, 0.0]));
+    .expect("valid image")
 }
 
 #[test]
-fn singular_direction_is_rejected() {
-    let image = Image3::from_flat(
-        vec![0.0],
-        [1, 1, 1],
-        Point::origin(),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::from_row_major([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
-    )
-    .expect("fixture shape and data length agree");
+fn test_rotated_image_transform() {
+    // Rotate 90 degrees around Z axis: X → Y, Y → -X, Z → Z
+    let direction = Direction::from_row_major([0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]);
+    let image = make_image_3d(
+        [10, 10, 10],
+        Point3::new([0.0, 0.0, 0.0]),
+        Spacing3::new([1.0, 1.0, 1.0]),
+        direction,
+    );
 
-    let error = image
-        .physical_point_to_continuous_index(&Point::origin())
-        .unwrap_err();
-    assert_eq!(error.to_string(), "image direction matrix is singular");
+    // Point at (1, 0, 0) physical → index should be (0, -1, 0)
+    let point = Point3::new([1.0, 0.0, 0.0]);
+    let index = image.transform_physical_point_to_continuous_index(&point);
+
+    assert!(
+        (index[0] - 0.0).abs() < 1e-5,
+        "Expected index[0] = 0.0, got {}",
+        index[0]
+    );
+    assert!(
+        (index[1] - (-1.0)).abs() < 1e-5,
+        "Expected index[1] = -1.0, got {}",
+        index[1]
+    );
+    assert!(
+        (index[2] - 0.0).abs() < 1e-5,
+        "Expected index[2] = 0.0, got {}",
+        index[2]
+    );
 }

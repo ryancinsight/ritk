@@ -125,7 +125,7 @@ fn native_discrete_gaussian_preserves_geometry_and_matches_kernel() {
         .with_spacing_mode(SpacingMode::Physical);
 
     let output = filter
-        .apply_native(&image, &SequentialBackend)
+        .apply_native(&image)
         .expect("native discrete Gaussian succeeds");
 
     assert_eq!(output.shape(), dimensions);
@@ -134,7 +134,14 @@ fn native_discrete_gaussian_preserves_geometry_and_matches_kernel() {
     assert_eq!(*output.direction(), direction);
     assert_eq!(
         output.data_slice().expect("contiguous output"),
-        filter.apply_values(values, dimensions, &spacing)
+        discrete_gaussian_smooth_flat(
+            values,
+            dimensions,
+            &spacing,
+            &filter.variance,
+            filter.maximum_error,
+            filter.spacing_mode,
+        )
     );
 }
 

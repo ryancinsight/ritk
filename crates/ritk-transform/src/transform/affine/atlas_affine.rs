@@ -225,3 +225,119 @@ impl<B: ComputeBackend, const D: usize> AtlasAffineTransform<B, D> {
         .map_err(|e| AtlasAffineError::Construct(e.to_string()))
     }
 }
+
+// ── Row-major rotation-matrix builders (host math) ────────────────────────
+
+/// Row-major `[D·D]` rotation matrix from Euler angles (radians). 3D uses the
+/// ZYX composition `R = R_z(γ)·R_y(β)·R_x(α)` (`angles = [α, β, γ]`), 2D uses a
+/// single angle, 1D/4D are identity — matching the Burn
+/// `RigidTransform::build_rotation_matrix` host formulation.
+fn euler_rotation_matrix<const D: usize>(angles: &[f32]) -> Vec<f32> {
+    if D == 3 {
+        let (cx, sx) = (angles[0].cos(), angles[0].sin());
+        let (cy, sy) = (angles[1].cos(), angles[1].sin());
+        let (cz, sz) = (angles[2].cos(), angles[2].sin());
+        vec![
+            cz * cy,
+            cz * sy * sx - sz * cx,
+            cz * sy * cx + sz * sx,
+            sz * cy,
+            sz * sy * sx + cz * cx,
+            sz * sy * cx - cz * sx,
+            -sy,
+            cy * sx,
+            cy * cx,
+        ]
+    } else if D == 2 {
+        let (c, s) = (angles[0].cos(), angles[0].sin());
+        vec![c, -s, s, c]
+    } else {
+        let mut m = vec![0.0f32; D * D];
+        for i in 0..D {
+            m[i * (D + 1)] = 1.0;
+        }
+        m
+    }
+}
+
+/// Row-major `[9]` rotation matrix from a quaternion `[x, y, z, w]`, normalised
+/// with the same `1e-12` guard as the Burn `VersorRigid3DTransform`; products
+/// accumulate in `f64` to mirror that path's intermediate precision.
+fn quaternion_rotation_matrix(quat: &[f32]) -> Vec<f32> {
+    const QUAT_NORM_GUARD: f32 = 1e-12;
+    let norm = quat[0]
+        .mul_add(
+            quat[0],
+            quat[1].mul_add(quat[1], quat[2].mul_add(quat[2], quat[3] * quat[3])),
+        )
+        .sqrt()
+        + QUAT_NORM_GUARD;
+    let x = (quat[0] / norm) as f64;
+    let y = (quat[1] / norm) as f64;
+    let z = (quat[2] / norm) as f64;
+    let w = (quat[3] / norm) as f64;
+
+    let (xx, yy, zz) = (x * x, y * y, z * z);
+    let (xy, xz, yz) = (x * y, x * z, y * z);
+    let (xw, yw, zw) = (x * w, y * w, z * w);
+
+    [
+        1.0 - 2.0 * (yy + zz),
+        2.0 * (xy - zw),
+        2.0 * (xz + yw),
+        2.0 * (xy + zw),
+        1.0 - 2.0 * (xx + zz),
+        2.0 * (yz - xw),
+        2.0 * (xz - yw),
+        2.0 * (yz + xw),
+        1.0 - 2.0 * (xx + yy),
+    ]
+    .into_iter()
+    .map(|v| v as f32)
+    .collect()
+}
+
+// ── Specialization constructors (SSOT: one affine type) ───────────────────
+
+impl<B: ComputeBackend, const D: usize> AtlasAffineTransform<B, D> {
+    /// Native sister of `TranslationTransform`: `T(x) = x + t` (identity matrix,
+    /// zero center).
+    pub fn from_translation(translation: &[f32]) -> Self {
+        let mut matrix = vec![0.0f32; D * D];
+        for i in 0..D {
+            matrix[i * (D + 1)] = 1.0;
+        }
+        Self::construct(&matrix, translation, &vec![0.0f32; D])
+    }
+
+    /// Native sister of `ScaleTransform`: `T(x) = S(x − c) + c` (diagonal scale
+    /// matrix, zero translation).
+    pub fn from_scale(scale: &[f32], center: &[f32]) -> Self {
+        let mut matrix = vec![0.0f32; D * D];
+        for i in 0..D {
+            matrix[i * (D + 1)] = scale[i];
+        }
+        Self::construct(&matrix, &vec![0.0f32; D], center)
+    }
+
+    /// Native sister of `RigidTransform`: `T(x) = R(x − c) + c + t` with `R`
+    /// built from Euler `rotation` angles (radians; see `euler_rotation_matrix`).
+    pub fn from_euler_rigid(translation: &[f32], rotation: &[f32], center: &[f32]) -> Self {
+        let matrix = euler_rotation_matrix::<D>(rotation);
+        Self::construct(&matrix, translation, center)
+    }
+}
+
+impl<B: ComputeBackend> AtlasAffineTransform<B, 3> {
+    /// Native sister of `VersorRigid3DTransform`: `T(x) = R(x − c) + c + t` with
+    /// `R` built from the `quaternion` `[x, y, z, w]` (see
+    /// `quaternion_rotation_matrix`).
+    pub fn from_versor(translation: &[f32], quaternion: &[f32], center: &[f32]) -> Self {
+        let matrix = quaternion_rotation_matrix(quaternion);
+        Self::construct(&matrix, translation, center)
+    }
+}
+
+#[cfg(test)]
+#[path = "tests_atlas_ctors.rs"]
+mod tests_atlas_ctors;

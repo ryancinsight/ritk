@@ -19,6 +19,20 @@ use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
+use ritk_tensor_ops::native as tensor_ops;
+
+/// Apply the z-score transform `(v − mean) / (std + ε)` to a host buffer.
+///
+/// Single host realization of the z-score formula shared by the Coeus-native
+/// paths; the Burn paths express the identical arithmetic through on-device
+/// tensor scalar ops so GPU backends stay lazy.
+#[inline]
+fn zscore_values(values: &mut [f32], mean: f32, std: f32) {
+    let denom = std + super::NORMALIZER_EPSILON;
+    for v in values.iter_mut() {
+        *v = (*v - mean) / denom;
+    }
+}
 
 /// Z-score normalizer.
 ///
@@ -51,94 +65,6 @@ impl ZScoreNormalizer {
             *image.origin(),
             *image.spacing(),
             *image.direction(),
-        )
-    }
-
-    /// Normalize a Coeus-native image with population statistics.
-    pub fn normalize_native<B, const D: usize>(
-        &self,
-        image: &NativeImage<f32, B, D>,
-        backend: &B,
-    ) -> anyhow::Result<NativeImage<f32, B, D>>
-    where
-        B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
-        let values = image.data_slice()?;
-        Self::normalize_native_values(image, values, values, backend, false)
-    }
-
-    /// Normalize a Coeus-native image using foreground mask statistics.
-    pub fn normalize_masked_native<B, const D: usize>(
-        &self,
-        image: &NativeImage<f32, B, D>,
-        mask: &NativeImage<f32, B, D>,
-        backend: &B,
-    ) -> anyhow::Result<NativeImage<f32, B, D>>
-    where
-        B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
-        anyhow::ensure!(image.shape() == mask.shape(), "zscore mask shape mismatch");
-        let values = image.data_slice()?;
-        Self::normalize_native_values(image, values, mask.data_slice()?, backend, true)
-    }
-
-    fn normalize_native_values<B, const D: usize>(
-        image: &NativeImage<f32, B, D>,
-        values: &[f32],
-        mask: &[f32],
-        backend: &B,
-        masked: bool,
-    ) -> anyhow::Result<NativeImage<f32, B, D>>
-    where
-        B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
-        let foreground_count = if masked {
-            mask.iter()
-                .filter(|&&value| value > crate::FOREGROUND_THRESHOLD)
-                .count()
-        } else {
-            0
-        };
-        let use_mask = masked && foreground_count != 0;
-        let count = if use_mask {
-            foreground_count
-        } else {
-            values.len()
-        } as f32;
-        let sum = values
-            .iter()
-            .zip(mask)
-            .filter_map(|(&value, &mask_value)| {
-                (!use_mask || mask_value > crate::FOREGROUND_THRESHOLD).then_some(value)
-            })
-            .sum::<f32>();
-        let mean = sum / count;
-        let variance = values
-            .iter()
-            .zip(mask)
-            .filter_map(|(&value, &mask_value)| {
-                (!use_mask || mask_value > crate::FOREGROUND_THRESHOLD).then_some(value)
-            })
-            .map(|value| {
-                let delta = value - mean;
-                delta * delta
-            })
-            .sum::<f32>()
-            / count;
-        let denominator = variance.sqrt() + super::NORMALIZER_EPSILON;
-        NativeImage::from_flat_on(
-            values
-                .iter()
-                .map(|&value| (value - mean) / denominator)
-                .collect(),
-            image.shape(),
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            backend,
         )
     }
 
@@ -189,6 +115,65 @@ impl ZScoreNormalizer {
             *image.spacing(),
             *image.direction(),
         )
+    }
+}
+
+/// Coeus-native z-score paths (host-resident `ComputeBackend`).
+impl ZScoreNormalizer {
+    /// Normalize a Coeus-backed `image` to zero mean, unit variance.
+    ///
+    /// Coeus-native sister of [`ZScoreNormalizer::normalize`]; identical formula
+    /// `output = (input − mean) / (std + 1e-8)` on population statistics, with
+    /// spatial metadata preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt tensor fails shape validation.
+    pub fn normalize_native<B, const D: usize>(
+        &self,
+        image: &NativeImage<f32, B, D>,
+    ) -> anyhow::Result<NativeImage<f32, B, D>>
+    where
+        B: ComputeBackend + Default,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let stats = crate::image_statistics::native::compute_statistics(image)?;
+        let (mut values, dims) = tensor_ops::extract_image_vec(image)?;
+        zscore_values(&mut values, stats.mean, stats.std);
+        tensor_ops::rebuild_image(values, dims, image, &B::default())
+    }
+
+    /// Normalize a Coeus-backed `image` using statistics from masked foreground
+    /// voxels only (`mask > 0.5`); falls back to full-image statistics when the
+    /// mask has no foreground.
+    ///
+    /// Coeus-native sister of [`ZScoreNormalizer::normalize_masked`]. All voxels
+    /// are transformed with the same `μ_mask`, `σ_mask`.
+    ///
+    /// # Errors
+    /// Returns an error when either tensor is not host-addressable/contiguous,
+    /// the image and mask element counts differ, or rebuild validation fails.
+    pub fn normalize_masked_native<B, const D: usize>(
+        &self,
+        image: &NativeImage<f32, B, D>,
+        mask: &NativeImage<f32, B, D>,
+    ) -> anyhow::Result<NativeImage<f32, B, D>>
+    where
+        B: ComputeBackend + Default,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let (mask_slice, _) = tensor_ops::extract_image_slice(mask)?;
+        let has_foreground = mask_slice.iter().any(|&m| m > crate::FOREGROUND_THRESHOLD);
+
+        let stats = if has_foreground {
+            crate::image_statistics::native::masked_statistics(image, mask)?
+        } else {
+            crate::image_statistics::native::compute_statistics(image)?
+        };
+
+        let (mut values, dims) = tensor_ops::extract_image_vec(image)?;
+        zscore_values(&mut values, stats.mean, stats.std);
+        tensor_ops::rebuild_image(values, dims, image, &B::default())
     }
 }
 

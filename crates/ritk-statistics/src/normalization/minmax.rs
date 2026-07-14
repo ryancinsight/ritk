@@ -23,6 +23,7 @@ use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
+use ritk_tensor_ops::native as tensor_ops;
 
 /// Min-max intensity normalizer.
 ///
@@ -90,34 +91,52 @@ impl MinMaxNormalizer {
             *image.direction(),
         )
     }
+}
 
-    /// Normalize a Coeus-native image using the same range contract.
+impl MinMaxNormalizer {
+    /// Apply the min-max map `N(x) = (x − min)/(max − min + ε)` then the optional
+    /// affine remap `R(x) = N(x)·span + range.min()` to a host buffer.
+    ///
+    /// Single host realization shared by [`MinMaxNormalizer::normalize_native`];
+    /// the Burn path expresses the identical arithmetic through on-device tensor
+    /// scalar ops.
+    fn remap_values(&self, values: &mut [f32], min: f32, max: f32) {
+        let input_range = (max - min) + super::NORMALIZER_EPSILON;
+        let output_span = self.range.span();
+        let output_min = self.range.min();
+        let is_unit_range = (output_span - 1.0).abs() < super::UNIT_RANGE_EPSILON
+            && output_min.abs() < super::UNIT_RANGE_EPSILON;
+
+        for v in values.iter_mut() {
+            let normalized = (*v - min) / input_range;
+            *v = if is_unit_range {
+                normalized
+            } else {
+                normalized * output_span + output_min
+            };
+        }
+    }
+
+    /// Normalize a Coeus-backed `image` to the configured range.
+    ///
+    /// Coeus-native sister of [`MinMaxNormalizer::normalize`]; identical formula
+    /// and spatial-metadata preservation.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt tensor fails shape validation.
     pub fn normalize_native<B, const D: usize>(
         &self,
         image: &NativeImage<f32, B, D>,
-        backend: &B,
     ) -> anyhow::Result<NativeImage<f32, B, D>>
     where
-        B: ComputeBackend,
+        B: ComputeBackend + Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        let values = image.data_slice()?;
-        let minimum = values.iter().copied().fold(f32::INFINITY, f32::min);
-        let maximum = values.iter().copied().fold(f32::NEG_INFINITY, f32::max);
-        let input_range = (maximum - minimum) + super::NORMALIZER_EPSILON;
-        let output_span = self.range.span();
-        let output = values
-            .iter()
-            .map(|&value| ((value - minimum) / input_range) * output_span + self.range.min())
-            .collect();
-        NativeImage::from_flat_on(
-            output,
-            image.shape(),
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            backend,
-        )
+        let stats = crate::image_statistics::native::compute_statistics(image)?;
+        let (mut values, dims) = tensor_ops::extract_image_vec(image)?;
+        self.remap_values(&mut values, stats.min, stats.max);
+        tensor_ops::rebuild_image(values, dims, image, &B::default())
     }
 }
 

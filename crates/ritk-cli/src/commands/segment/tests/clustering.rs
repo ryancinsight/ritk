@@ -176,7 +176,7 @@ fn native_kmeans_cli_matches_canonical_legacy_output_exactly() {
 }
 
 #[test]
-fn native_kmeans_cli_rejects_invalid_configuration_and_nonnative_input() {
+fn native_kmeans_cli_rejects_invalid_configuration() {
     let dir = tempdir().unwrap();
     let valid_input = dir.path().join("input.nii");
     ritk_io::write_nifti(&valid_input, &make_bimodal_image()).unwrap();
@@ -189,19 +189,6 @@ fn native_kmeans_cli_rejects_invalid_configuration_and_nonnative_input() {
     })
     .unwrap_err();
     assert_eq!(invalid_k.to_string(), "k must be at least 1, got 0");
-
-    let output = dir.path().join("output.nii");
-    let format_error = run(default_args(
-        dir.path().join("input.vtk"),
-        output.clone(),
-        SegmentMethod::Kmeans,
-    ))
-    .unwrap_err();
-    assert_eq!(
-        format_error.to_string(),
-        "kmeans requires native input/output formats"
-    );
-    assert!(!output.exists());
 }
 
 // ── Positive: Distance transform creates output ───────────────────────────
@@ -474,32 +461,6 @@ fn native_postprocessing_cli_matches_legacy_exactly() {
         assert_eq!(actual.origin(), image.origin());
         assert_eq!(actual.spacing(), image.spacing());
         assert_eq!(actual.direction(), image.direction());
-    }
-}
-
-#[test]
-fn native_postprocessing_cli_rejects_known_nonnative_format() {
-    let dir = tempdir().unwrap();
-    for (index, method) in [
-        SegmentMethod::DistanceTransform,
-        SegmentMethod::FillHoles,
-        SegmentMethod::MorphologicalGradient,
-        SegmentMethod::Skeletonization,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let output = dir.path().join(format!("output-{index}.nii"));
-        let error = run(default_args(
-            dir.path().join("input.vtk"),
-            output.clone(),
-            method,
-        ))
-        .expect_err("known nonnative input must be rejected before I/O");
-        assert!(error
-            .to_string()
-            .contains("requires native input/output formats"));
-        assert!(!output.exists());
     }
 }
 

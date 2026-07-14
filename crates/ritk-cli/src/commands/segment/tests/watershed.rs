@@ -236,25 +236,3 @@ fn native_marker_watershed_cli_matches_canonical_legacy_output_exactly() {
     assert_eq!(actual.spacing(), gradient.spacing());
     assert_eq!(actual.direction(), gradient.direction());
 }
-
-#[test]
-fn native_marker_watershed_cli_rejects_nonnative_marker_before_output() {
-    let dir = tempdir().unwrap();
-    let gradient_path = dir.path().join("gradient.nii");
-    let output_path = dir.path().join("output.nii");
-    ritk_io::write_nifti(&gradient_path, &make_uniform_gradient_image()).unwrap();
-    let error = run(SegmentArgs {
-        markers: Some(dir.path().join("markers.vtk")),
-        ..default_args(
-            gradient_path,
-            output_path.clone(),
-            SegmentMethod::MarkerWatershed,
-        )
-    })
-    .unwrap_err();
-    assert_eq!(
-        error.to_string(),
-        "marker-watershed requires native marker format"
-    );
-    assert!(!output_path.exists());
-}

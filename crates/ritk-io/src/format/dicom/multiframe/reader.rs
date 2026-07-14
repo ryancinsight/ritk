@@ -1,6 +1,7 @@
 //! Multi-frame DICOM reader: header extraction and volume loading.
 
 use anyhow::{bail, Context, Result};
+use coeus_core::MoiraiBackend;
 use dicom::core::Tag;
 use dicom::object::InMemDicomObject;
 use ritk_core::image::Image;
@@ -8,10 +9,33 @@ use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
     PixelSignedness, TransferSyntaxKind,
 };
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
+
+/// Substrate-agnostic decoded multi-frame volume: a flat row-major `f32` buffer
+/// in `[frames, rows, cols]` order plus the resolved spatial metadata.
+///
+/// This is the shared, tensor-free core of the multi-frame read path. Both the
+/// Burn carrier ([`load_dicom_multiframe`]) and the native Coeus carrier
+/// ([`load_dicom_multiframe_native`]) construct their image from the same
+/// instance, so the pixel decode and geometry analysis live in exactly one
+/// place ([`load_dicom_multiframe_flat`]).
+pub struct MultiFrameVolume {
+    /// Row-major voxels in `[frames, rows, cols]` order, RescaleSlope/Intercept
+    /// already applied.
+    pub data: Vec<f32>,
+    /// Volume shape `[frames, rows, cols]` after any gap/nonuniform resampling.
+    pub shape: [usize; 3],
+    /// Physical coordinate of the first voxel.
+    pub origin: Point<3>,
+    /// Inter-voxel spacing `[z, row, col]` in mm.
+    pub spacing: Spacing<3>,
+    /// Direction cosine matrix derived from ImageOrientationPatient.
+    pub direction: Direction<3>,
+}
 
 use super::per_frame::extract_functional_groups;
 use super::types::MultiFrameInfo;
@@ -182,6 +206,44 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B::Device,
 ) -> Result<Image<B, 3>> {
+    let MultiFrameVolume {
+        data,
+        shape,
+        origin,
+        spacing,
+        direction,
+    } = load_dicom_multiframe_flat(path)?;
+    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(shape)), device);
+    Ok(Image::new(tensor, origin, spacing, direction))
+}
+
+/// Load a multi-frame DICOM file into a native Coeus-backed image.
+///
+/// Native counterpart of [`load_dicom_multiframe`]: identical decode and
+/// geometry (both route through [`load_dicom_multiframe_flat`]), differing only
+/// in the image carrier. Returns `Image<f32, MoiraiBackend, 3>` with shape
+/// `[frames, rows, cols]`.
+pub fn load_dicom_multiframe_native<P: AsRef<Path>>(
+    path: P,
+) -> Result<NativeImage<f32, MoiraiBackend, 3>> {
+    let MultiFrameVolume {
+        data,
+        shape,
+        origin,
+        spacing,
+        direction,
+    } = load_dicom_multiframe_flat(path)?;
+    NativeImage::<f32, MoiraiBackend, 3>::from_flat(data, shape, origin, spacing, direction)
+}
+
+/// Decode a multi-frame DICOM file into a substrate-free [`MultiFrameVolume`].
+///
+/// This is the shared, tensor-free core: pixel decode, RescaleSlope/Intercept
+/// application (per-frame overrides where Enhanced functional groups are
+/// present), and per-frame geometry analysis (nonuniform / missing-frame
+/// resampling), without constructing any image carrier. See
+/// [`load_dicom_multiframe`] for the full decode contract.
+pub fn load_dicom_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<MultiFrameVolume> {
     let path = path.as_ref();
     let obj = parse_file_with::<DicomRsBackend, _>(path)
         .with_context(|| format!("failed to open DICOM file {:?}", path))?;
@@ -407,10 +469,11 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         Direction::identity()
     };
 
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(final_floats, Shape::new([final_n, info.rows, info.cols])),
-        device,
-    );
-
-    Ok(Image::new(tensor, Point::new(origin), spacing, direction))
+    Ok(MultiFrameVolume {
+        data: final_floats,
+        shape: [final_n, info.rows, info.cols],
+        origin: Point::new(origin),
+        spacing,
+        direction,
+    })
 }

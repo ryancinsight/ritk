@@ -2,26 +2,35 @@
 //!
 //! This module defines the core trait for all regularization techniques.
 
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
+use coeus_core::{ComputeBackend, Scalar};
+use coeus_tensor::Tensor;
 
 /// Trait for deformation field regularizers.
 ///
 /// Regularizers constrain deformation fields to ensure smoothness and
 /// physical plausibility during registration.
 ///
+/// The displacement field is a Coeus tensor of rank 4 (`[B, C, H, W]`, 2-D) or
+/// rank 5 (`[B, C, D, H, W]`, 3-D); the rank is validated at dispatch. The
+/// regularizer computes a scalar penalty value in the field's native precision.
+///
 /// # Type Parameters
-/// * `B` - The backend type
-pub trait Regularizer<B: Backend> {
+/// * `T` - The scalar element type of the displacement field.
+/// * `B` - The compute backend the field is stored on.
+pub trait Regularizer<T: Scalar, B: ComputeBackend> {
     /// Compute the regularization loss for a displacement field.
     ///
     /// # Arguments
-    /// * `displacement` - The displacement field tensor with shape `[..., D]`
-    ///   where `...` represents spatial dimensions and `D` is the displacement dimension.
+    /// * `displacement` - The displacement field tensor with shape
+    ///   `[B, C, H, W]` (rank 4) or `[B, C, D, H, W]` (rank 5), where the
+    ///   channel dimension `C` holds the per-axis displacement components.
     ///
     /// # Returns
-    /// A scalar tensor containing the regularization loss.
-    fn compute_loss<const D: usize>(&self, displacement: Tensor<B, D>) -> Tensor<B, 1>;
+    /// The scalar regularization loss.
+    ///
+    /// # Panics
+    /// Panics if `displacement` is not rank 4 or rank 5.
+    fn compute_loss(&self, displacement: &Tensor<T, B>) -> T;
 
     /// Get the weight (scaling factor) for this regularizer.
     fn weight(&self) -> f64;

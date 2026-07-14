@@ -4,8 +4,7 @@ use super::super::types::{BinarizationThreshold, DistanceMeasure};
 use super::core::euclidean_dt_with_measure;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_tensor_ops::extract_vec_infallible;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Unsigned Euclidean distance transform.
 ///
@@ -78,15 +77,7 @@ impl DistanceTransformImageFilter {
         validate_input(&vals, dims, spacing, self.threshold)?;
         let result = distance_values(&fg, dims, spacing, self.measure);
 
-        let device = image.data().device();
-        let td_out = TensorData::new(result, Shape::new([nz, ny, nx]));
-        let tensor = Tensor::<B, 3>::from_data(td_out, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(result, [nz, ny, nx], image))
     }
 
     pub fn apply_native<B>(

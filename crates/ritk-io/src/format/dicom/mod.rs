@@ -22,15 +22,16 @@ pub use anonymize::{
     anonymize_dicom_directory, anonymize_dicom_file, anonymize_object, AnonymizationProfile,
     AnonymizeOptions, AnonymizeResult, AnonymizeStats, CleaningPolicy, TagAction,
 };
-pub use color::{
-    is_rgb_dicom_series, load_dicom_color_from_series, load_dicom_color_series,
-    read_dicom_color_series,
+pub use color::{is_rgb_dicom_series, load_color_volume_flat, load_color_volume_flat_from_path};
+pub use color_multiframe::{
+    load_atlas_color_multiframe, load_color_multiframe_flat, ColorMultiFrameVolume,
 };
-pub use color_multiframe::{load_dicom_color_multiframe, read_dicom_color_multiframe};
 pub use multiframe::{
-    load_dicom_multiframe, read_multiframe_info, write_dicom_multiframe,
+    load_dicom_multiframe, load_dicom_multiframe_flat, load_dicom_multiframe_native,
+    read_multiframe_info, write_dicom_multiframe, write_dicom_multiframe_native,
+    write_dicom_multiframe_native_with_config, write_dicom_multiframe_native_with_options,
     write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, MultiFrameInfo,
-    MultiFrameSpatialMetadata, MultiFrameWriterConfig,
+    MultiFrameSpatialMetadata, MultiFrameVolume, MultiFrameWriterConfig,
 };
 pub use networking::dimse::{CommandField, DimseMessage, DimseStatus};
 pub use networking::pdu::{AssociateAcPdu, AssociateRqPdu, Pdu};
@@ -73,7 +74,9 @@ pub use series::{
     scan_dicom_directory, DicomReader, DicomSeriesInfo,
 };
 pub use transfer_syntax::TransferSyntaxKind;
-pub use writer::{write_dicom_series, write_dicom_series_with_metadata, DicomWriter};
+pub use writer::{
+    write_dicom_series, write_dicom_series_native, write_dicom_series_with_metadata, DicomWriter,
+};
 pub use writer_object::{model_to_in_mem, write_object as write_dicom_object};
 
 /// Atlas-native-substrate DICOM reader implementing the unified image reader contract.

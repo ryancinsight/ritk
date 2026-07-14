@@ -105,12 +105,18 @@ fn native_threshold_mask_retains_only_strictly_greater_values() {
         &SequentialBackend,
     )
     .expect("invariant: valid native image");
-    let output = MaskImageFilter::apply_threshold_native(
-        &image,
-        BinarizationThreshold::DEFAULT,
+    let mask = NativeImage::from_flat_on(
+        vec![0.0, 1.0, 1.0],
+        [1, 1, 3],
+        Point::new([2.0, 3.0, 5.0]),
+        Spacing::new([1.0, 2.0, 4.0]),
+        Direction::identity(),
         &SequentialBackend,
     )
-    .expect("native threshold masking succeeds");
+    .expect("invariant: valid native mask");
+    let output = MaskImageFilter::default()
+        .apply_native(&image, &mask, &SequentialBackend)
+        .expect("native threshold masking succeeds");
 
     assert_eq!(
         output.data_slice().expect("contiguous output"),

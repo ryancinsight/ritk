@@ -87,3 +87,7 @@ path = "examples/brain_ct_mri_registration.rs"
 [[example]]
 name = "rire_mri_ct_registration"
 path = "examples/rire_mri_ct_registration/main.rs"
+
+[[example]]
+name = "dl_train"
+path = "examples/dl_train.rs"

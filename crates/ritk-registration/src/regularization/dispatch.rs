@@ -1,329 +1,415 @@
-//! Dimension dispatch for regularizers.
+//! Rank dispatch and native spatial-operator kernels for regularizers.
 //!
-//! Routes regularizer `compute_loss` calls to the correct dimension-specific
-//! implementation based on `const D: usize`. Only D ∈ {4, 5} is supported
-//! (representing 2D and 3D displacement fields respectively). Because the
-//! dispatch is a simple `match` over a `const` parameter, the compiler
-//! monomorphizes each branch and dead-code eliminates unreachable arms —
-//! achieving zero-cost dispatch without requiring a `where` bound on callers.
+//! Routes regularizer loss computation to the correct rank-specific kernel
+//! based on the displacement field's runtime rank. Only rank ∈ {4, 5} is
+//! supported (2-D `[B, C, H, W]` and 3-D `[B, C, D, H, W]` displacement fields).
+//!
+//! The kernels are Coeus-native: they read the field as a contiguous host slice
+//! and fuse the finite-difference stencil with the reduction, so no
+//! intermediate gradient/Laplacian tensor is materialized. Boundary voxels use
+//! forward differences padded with zero (gradient operators) or a zero border
+//! (Laplacian operators), matching the reference AirLab formulation. All
+//! arithmetic executes in the field's native precision `T` (no widen/narrow).
 
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
+use coeus_core::{ComputeBackend, CpuAddressableStorage, Scalar};
+use coeus_tensor::Tensor;
 
-struct RegularizerDimGuard<const D: usize>;
+/// Run `f` over the field's contiguous host slice and shape.
+///
+/// The displacement fields regularizers receive are freshly constructed and
+/// already contiguous; the `to_contiguous` branch keeps the kernels correct if
+/// a non-contiguous view is ever passed, at the cost of one compaction copy.
+#[inline]
+fn with_field_data<T, B, R>(field: &Tensor<T, B>, f: impl FnOnce(&[T], &[usize]) -> R) -> R
+where
+    T: Scalar,
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+{
+    if field.is_contiguous() {
+        f(field.as_slice(), field.shape())
+    } else {
+        let contiguous = field.to_contiguous();
+        f(contiguous.as_slice(), contiguous.shape())
+    }
+}
 
-impl<const D: usize> RegularizerDimGuard<D> {
-    const _SUPPORTED_DIM: () = assert!(
-        matches!(D, 4 | 5),
-        "Regularizers only support displacement fields of rank D ∈ {{4, 5}} (representing 2D and 3D)"
+/// Rank assertion shared by every kernel entry point.
+#[inline]
+fn rank_dims<const N: usize>(shape: &[usize], op: &str) -> [usize; N] {
+    assert_eq!(
+        shape.len(),
+        N,
+        "{op}: displacement field must be rank {N}, got rank {} (shape {shape:?})",
+        shape.len()
     );
+    let mut dims = [0usize; N];
+    dims.copy_from_slice(shape);
+    dims
 }
 
-/// Shared implementation for bending-energy and curvature: Laplacian squared, averaged, weighted.
+/// Dispatch bending-energy loss (mean squared Laplacian) to the field's rank.
 #[inline]
-fn dispatch_laplacian_squared<B: Backend, const D: usize>(
-    displacement: Tensor<B, D>,
-    weight: f64,
-) -> Tensor<B, 1> {
-    let _: () = RegularizerDimGuard::<D>::_SUPPORTED_DIM;
-    match D {
+pub fn dispatch_bending_energy<T, B>(field: &Tensor<T, B>, weight: f64) -> T
+where
+    T: Scalar,
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+{
+    with_field_data(field, |data, shape| {
+        laplacian_squared_mean(data, shape, "bending_energy") * T::from_f64(weight)
+    })
+}
+
+/// Dispatch curvature loss to the field's rank.
+///
+/// Curvature and bending energy share the mean-squared-Laplacian kernel; they
+/// differ only in their conventional default weight (see the regularizer types).
+#[inline]
+pub fn dispatch_curvature<T, B>(field: &Tensor<T, B>, weight: f64) -> T
+where
+    T: Scalar,
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+{
+    with_field_data(field, |data, shape| {
+        laplacian_squared_mean(data, shape, "curvature") * T::from_f64(weight)
+    })
+}
+
+/// Dispatch diffusion loss (mean squared gradient) to the field's rank.
+#[inline]
+pub fn dispatch_diffusion<T, B>(field: &Tensor<T, B>, weight: f64) -> T
+where
+    T: Scalar,
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+{
+    with_field_data(field, |data, shape| {
+        gradient_squared_mean(data, shape, "diffusion") * T::from_f64(weight)
+    })
+}
+
+/// Dispatch total-variation loss (mean gradient magnitude) to the field's rank.
+#[inline]
+pub fn dispatch_total_variation<T, B>(field: &Tensor<T, B>, weight: f64) -> T
+where
+    T: Scalar,
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+{
+    with_field_data(field, |data, shape| {
+        gradient_magnitude_mean(data, shape, "total_variation") * T::from_f64(weight)
+    })
+}
+
+/// Dispatch elastic loss (membrane + divergence terms) to the field's rank.
+#[inline]
+pub fn dispatch_elastic<T, B>(field: &Tensor<T, B>, alpha: f64, beta: f64) -> T
+where
+    T: Scalar,
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+{
+    with_field_data(field, |data, shape| {
+        elastic(data, shape, T::from_f64(alpha), T::from_f64(beta))
+    })
+}
+
+// ── Rank dispatch over the native kernels ────────────────────────────────────
+
+#[inline]
+fn laplacian_squared_mean<T: Scalar>(data: &[T], shape: &[usize], op: &str) -> T {
+    match shape.len() {
         4 => {
-            let shape = displacement.shape();
-            let [b, c, h, w] = [shape.dims[0], shape.dims[1], shape.dims[2], shape.dims[3]];
-            let d4: Tensor<B, 4> = displacement.reshape([b, c, h, w]);
-            spatial_laplacian_planar(d4)
-                .powf_scalar(2.0)
-                .mean()
-                .mul_scalar(weight)
+            let [b, c, h, w] = rank_dims(shape, op);
+            laplacian_squared_mean_planar(data, b * c, h, w)
         }
         5 => {
-            let shape = displacement.shape();
-            let [b, c, d, h, w] = [
-                shape.dims[0],
-                shape.dims[1],
-                shape.dims[2],
-                shape.dims[3],
-                shape.dims[4],
-            ];
-            let d5: Tensor<B, 5> = displacement.reshape([b, c, d, h, w]);
-            spatial_laplacian_volumetric(d5)
-                .powf_scalar(2.0)
-                .mean()
-                .mul_scalar(weight)
+            let [b, c, d, h, w] = rank_dims(shape, op);
+            laplacian_squared_mean_volumetric(data, b * c, d, h, w)
         }
-        // D is `const`; only D=4 and D=5 ever instantiate this function. The
-        // `_` arm is statically unreachable in monomorphized code, but Rust's
-        // stable exhaustiveness checker cannot prove that across const
-        // generics, so the arm is required for type-checking.
-        _ => unreachable!("Laplacian-squared regularizer: D ∈ {{4, 5}}, got D = {D}"),
+        rank => panic!("{op}: displacement field must be rank 4 or 5, got rank {rank}"),
     }
 }
 
-/// Dispatch bending energy loss to dimension-specific Laplacian.
 #[inline]
-pub fn dispatch_bending_energy<B: Backend, const D: usize>(
-    displacement: Tensor<B, D>,
-    weight: f64,
-) -> Tensor<B, 1> {
-    dispatch_laplacian_squared::<B, D>(displacement, weight)
-}
-
-/// Dispatch curvature loss to dimension-specific Laplacian.
-#[inline]
-pub fn dispatch_curvature<B: Backend, const D: usize>(
-    displacement: Tensor<B, D>,
-    weight: f64,
-) -> Tensor<B, 1> {
-    dispatch_laplacian_squared::<B, D>(displacement, weight)
-}
-
-/// Dispatch diffusion loss to dimension-specific gradient computation.
-#[inline]
-pub fn dispatch_diffusion<B: Backend, const D: usize>(
-    displacement: Tensor<B, D>,
-    weight: f64,
-) -> Tensor<B, 1> {
-    let _: () = RegularizerDimGuard::<D>::_SUPPORTED_DIM;
-    match D {
+fn gradient_squared_mean<T: Scalar>(data: &[T], shape: &[usize], op: &str) -> T {
+    match shape.len() {
         4 => {
-            let shape = displacement.shape();
-            let [b, c, h, w] = [shape.dims[0], shape.dims[1], shape.dims[2], shape.dims[3]];
-            let d4: Tensor<B, 4> = displacement.reshape([b, c, h, w]);
-            let (grad_h, grad_w) = spatial_gradient_planar(d4);
-            (grad_h.powf_scalar(2.0) + grad_w.powf_scalar(2.0))
-                .mean()
-                .mul_scalar(weight)
+            let [b, c, h, w] = rank_dims(shape, op);
+            gradient_squared_mean_planar(data, b * c, h, w)
         }
         5 => {
-            let shape = displacement.shape();
-            let [b, c, d, h, w] = [
-                shape.dims[0],
-                shape.dims[1],
-                shape.dims[2],
-                shape.dims[3],
-                shape.dims[4],
-            ];
-            let d5: Tensor<B, 5> = displacement.reshape([b, c, d, h, w]);
-            let (grad_d, grad_h, grad_w) = spatial_gradient_volumetric(d5);
-            (grad_d.powf_scalar(2.0) + grad_h.powf_scalar(2.0) + grad_w.powf_scalar(2.0))
-                .mean()
-                .mul_scalar(weight)
+            let [b, c, d, h, w] = rank_dims(shape, op);
+            gradient_squared_mean_volumetric(data, b * c, d, h, w)
         }
-        // See `dispatch_laplacian_squared` for the const-generic `_` arm rationale.
-        _ => unreachable!("DiffusionRegularizer: D ∈ {{4, 5}}, got D = {D}"),
+        rank => panic!("{op}: displacement field must be rank 4 or 5, got rank {rank}"),
     }
 }
 
-/// Dispatch elastic loss to dimension-specific gradient computation.
 #[inline]
-pub fn dispatch_elastic<B: Backend, const D: usize>(
-    displacement: Tensor<B, D>,
-    alpha: f64,
-    beta: f64,
-) -> Tensor<B, 1> {
-    let _: () = RegularizerDimGuard::<D>::_SUPPORTED_DIM;
-    match D {
+fn gradient_magnitude_mean<T: Scalar>(data: &[T], shape: &[usize], op: &str) -> T {
+    match shape.len() {
         4 => {
-            // NOTE: Each gradient tensor is consumed twice: once by powf_scalar (membrane)
-            // and once by narrow (divergence). The clones are mandatory until burn adds
-            // a borrow-based slice/narrow API (slice_ref/narrow_ref). See Sprint 338.
-            let shape = displacement.shape();
-            let [b, c, h, w] = [shape.dims[0], shape.dims[1], shape.dims[2], shape.dims[3]];
-            let d4: Tensor<B, 4> = displacement.reshape([b, c, h, w]);
-            let (grad_h, grad_w) = spatial_gradient_planar(d4);
-            let membrane = grad_h.clone().powf_scalar(2.0) + grad_w.clone().powf_scalar(2.0);
-            let div_u = grad_h.narrow(1, 0, 1) + grad_w.narrow(1, 1, 1);
-            let volume_term = div_u.powf_scalar(2.0);
-            membrane.mean() * alpha + volume_term.mean() * beta
+            let [b, c, h, w] = rank_dims(shape, op);
+            gradient_magnitude_mean_planar(data, b * c, h, w)
         }
         5 => {
-            // NOTE: Each gradient tensor is consumed twice: once by powf_scalar (membrane)
-            // and once by narrow (divergence). The clones are mandatory until burn adds
-            // a borrow-based slice/narrow API (slice_ref/narrow_ref). See Sprint 338.
-            let shape = displacement.shape();
-            let [b, c, d, h, w] = [
-                shape.dims[0],
-                shape.dims[1],
-                shape.dims[2],
-                shape.dims[3],
-                shape.dims[4],
-            ];
-            let d5: Tensor<B, 5> = displacement.reshape([b, c, d, h, w]);
-            let (grad_d, grad_h, grad_w) = spatial_gradient_volumetric(d5);
-            let membrane = grad_d.clone().powf_scalar(2.0)
-                + grad_h.clone().powf_scalar(2.0)
-                + grad_w.clone().powf_scalar(2.0);
-            let div_u = grad_d.narrow(1, 0, 1) + grad_h.narrow(1, 1, 1) + grad_w.narrow(1, 2, 1);
-            let volume_term = div_u.powf_scalar(2.0);
-            membrane.mean() * alpha + volume_term.mean() * beta
+            let [b, c, d, h, w] = rank_dims(shape, op);
+            gradient_magnitude_mean_volumetric(data, b * c, d, h, w)
         }
-        // See `dispatch_laplacian_squared` for the const-generic `_` arm rationale.
-        _ => unreachable!("ElasticRegularizer: D ∈ {{4, 5}}, got D = {D}"),
+        rank => panic!("{op}: displacement field must be rank 4 or 5, got rank {rank}"),
     }
 }
 
-/// Dispatch total variation loss to dimension-specific gradient computation.
 #[inline]
-pub fn dispatch_total_variation<B: Backend, const D: usize>(
-    displacement: Tensor<B, D>,
-    weight: f64,
-) -> Tensor<B, 1> {
-    let _: () = RegularizerDimGuard::<D>::_SUPPORTED_DIM;
-    match D {
+fn elastic<T: Scalar>(data: &[T], shape: &[usize], alpha: T, beta: T) -> T {
+    match shape.len() {
         4 => {
-            let shape = displacement.shape();
-            let [b, c, h, w] = [shape.dims[0], shape.dims[1], shape.dims[2], shape.dims[3]];
-            let d4: Tensor<B, 4> = displacement.reshape([b, c, h, w]);
-            let (grad_h, grad_w) = spatial_gradient_planar(d4);
-            let grad_mag = (grad_h.powf_scalar(2.0) + grad_w.powf_scalar(2.0)).sqrt();
-            grad_mag.mean().mul_scalar(weight)
+            let [b, c, h, w] = rank_dims(shape, "elastic");
+            elastic_planar(data, b, c, h, w, alpha, beta)
         }
         5 => {
-            let shape = displacement.shape();
-            let [b, c, d, h, w] = [
-                shape.dims[0],
-                shape.dims[1],
-                shape.dims[2],
-                shape.dims[3],
-                shape.dims[4],
-            ];
-            let d5: Tensor<B, 5> = displacement.reshape([b, c, d, h, w]);
-            let (grad_d, grad_h, grad_w) = spatial_gradient_volumetric(d5);
-            let grad_mag =
-                (grad_d.powf_scalar(2.0) + grad_h.powf_scalar(2.0) + grad_w.powf_scalar(2.0))
-                    .sqrt();
-            grad_mag.mean().mul_scalar(weight)
+            let [b, c, d, h, w] = rank_dims(shape, "elastic");
+            elastic_volumetric(data, b, c, d, h, w, alpha, beta)
         }
-        // See `dispatch_laplacian_squared` for the const-generic `_` arm rationale.
-        _ => unreachable!("TotalVariationRegularizer: D ∈ {{4, 5}}, got D = {D}"),
+        rank => panic!("elastic: displacement field must be rank 4 or 5, got rank {rank}"),
     }
 }
 
-// ── Private spatial-operator helpers ─────────────────────────────────────────
+// ── Native finite-difference kernels (planar, `[BC, H, W]`) ───────────────────
 
-/// Spatial gradients via forward finite differences on a 2-D field `[B, C, H, W]`.
-fn spatial_gradient_planar<B: Backend>(field: Tensor<B, 4>) -> (Tensor<B, 4>, Tensor<B, 4>) {
-    let [b, c, h, w] = field.dims();
-    let device = field.device();
-
-    // Gradient in H direction (vertical)
-    let top = field.clone().slice([0..b, 0..c, 1..h, 0..w]);
-    let bottom = field.clone().slice([0..b, 0..c, 0..(h - 1), 0..w]);
-    let grad_h = top - bottom;
-
-    // Pad to maintain original size
-    let zeros_h = Tensor::zeros([b, c, 1, w], &device);
-    let grad_h = Tensor::cat(vec![grad_h, zeros_h], 2);
-
-    // Gradient in W direction (horizontal)
-    let left = field.clone().slice([0..b, 0..c, 0..h, 1..w]);
-    let right = field.slice([0..b, 0..c, 0..h, 0..(w - 1)]);
-    let grad_w = left - right;
-
-    // Pad to maintain original size
-    let zeros_w = Tensor::zeros([b, c, h, 1], &device);
-    let grad_w = Tensor::cat(vec![grad_w, zeros_w], 3);
-
-    (grad_h, grad_w)
+/// Forward difference along an axis, zero-padded at the last index.
+#[inline]
+fn fwd_diff<T: Scalar>(data: &[T], offset: usize, local: usize, extent: usize, stride: usize) -> T {
+    if local + 1 < extent {
+        data[offset + stride] - data[offset]
+    } else {
+        T::zero()
+    }
 }
 
-/// Spatial gradients via forward finite differences on a 3-D field `[B, C, D, H, W]`.
-fn spatial_gradient_volumetric<B: Backend>(
-    field: Tensor<B, 5>,
-) -> (Tensor<B, 5>, Tensor<B, 5>, Tensor<B, 5>) {
-    let [b, c, d, h, w] = field.dims();
-    let device = field.device();
-
-    // Gradient in D direction (depth)
-    let front = field.clone().slice([0..b, 0..c, 1..d, 0..h, 0..w]);
-    let back = field.clone().slice([0..b, 0..c, 0..(d - 1), 0..h, 0..w]);
-    let grad_d = front - back;
-    let zeros_d = Tensor::zeros([b, c, 1, h, w], &device);
-    let grad_d = Tensor::cat(vec![grad_d, zeros_d], 2);
-
-    // Gradient in H direction (height)
-    let top = field.clone().slice([0..b, 0..c, 0..d, 1..h, 0..w]);
-    let bottom = field.clone().slice([0..b, 0..c, 0..d, 0..(h - 1), 0..w]);
-    let grad_h = top - bottom;
-    let zeros_h = Tensor::zeros([b, c, d, 1, w], &device);
-    let grad_h = Tensor::cat(vec![grad_h, zeros_h], 3);
-
-    // Gradient in W direction (width)
-    let left = field.clone().slice([0..b, 0..c, 0..d, 0..h, 1..w]);
-    let right = field.slice([0..b, 0..c, 0..d, 0..h, 0..(w - 1)]);
-    let grad_w = left - right;
-    let zeros_w = Tensor::zeros([b, c, d, h, 1], &device);
-    let grad_w = Tensor::cat(vec![grad_w, zeros_w], 4);
-
-    (grad_d, grad_h, grad_w)
+/// Mean over all `BC·H·W` voxels of the squared 5-point Laplacian.
+///
+/// Border voxels (`i∈{0,h-1}` or `j∈{0,w-1}`) contribute a zero Laplacian, so
+/// the loop visits only the interior; the mean divides by the full voxel count.
+fn laplacian_squared_mean_planar<T: Scalar>(data: &[T], bc: usize, h: usize, w: usize) -> T {
+    let four = T::from_f64(4.0);
+    let mut acc = T::zero();
+    for plane in 0..bc {
+        let base = plane * h * w;
+        for i in 1..h.saturating_sub(1) {
+            for j in 1..w.saturating_sub(1) {
+                let o = base + i * w + j;
+                let lap = data[o - 1] + data[o + 1] + data[o - w] + data[o + w] - four * data[o];
+                acc += lap * lap;
+            }
+        }
+    }
+    acc / T::from_usize(bc * h * w)
 }
 
-/// Second-order spatial Laplacian via 4-point stencil on a 2-D field `[B, C, H, W]`.
-fn spatial_laplacian_planar<B: Backend>(field: Tensor<B, 4>) -> Tensor<B, 4> {
-    let [b, c, h, w] = field.dims();
-    let device = field.device();
-
-    // Central region
-    let center = field.clone().slice([0..b, 0..c, 1..(h - 1), 1..(w - 1)]);
-    let left = field.clone().slice([0..b, 0..c, 1..(h - 1), 0..(w - 2)]);
-    let right = field.clone().slice([0..b, 0..c, 1..(h - 1), 2..w]);
-    let top = field.clone().slice([0..b, 0..c, 0..(h - 2), 1..(w - 1)]);
-    let bottom = field.slice([0..b, 0..c, 2..h, 1..(w - 1)]);
-
-    let laplacian_center = left + right + top + bottom - center.mul_scalar(4.0);
-
-    // Pad back to original size
-    let zeros_h_front = Tensor::zeros([b, c, 1, w - 2], &device);
-    let zeros_h_back = Tensor::zeros([b, c, 1, w - 2], &device);
-    let laplacian = Tensor::cat(vec![zeros_h_front, laplacian_center, zeros_h_back], 2);
-    let zeros_w_front = Tensor::zeros([b, c, h, 1], &device);
-    let zeros_w_back = Tensor::zeros([b, c, h, 1], &device);
-
-    Tensor::cat(vec![zeros_w_front, laplacian, zeros_w_back], 3)
+/// Mean over all voxels of `|∇u|²` via forward differences (zero-padded edges).
+fn gradient_squared_mean_planar<T: Scalar>(data: &[T], bc: usize, h: usize, w: usize) -> T {
+    let mut acc = T::zero();
+    for plane in 0..bc {
+        let base = plane * h * w;
+        for i in 0..h {
+            for j in 0..w {
+                let o = base + i * w + j;
+                let gh = fwd_diff(data, o, i, h, w);
+                let gw = fwd_diff(data, o, j, w, 1);
+                acc += gh * gh + gw * gw;
+            }
+        }
+    }
+    acc / T::from_usize(bc * h * w)
 }
 
-/// Spatial Laplacian via 6-point stencil on a 3-D field `[B, C, D, H, W]`.
-fn spatial_laplacian_volumetric<B: Backend>(field: Tensor<B, 5>) -> Tensor<B, 5> {
-    let [b, c, d, h, w] = field.dims();
-    let device = field.device();
+/// Mean over all voxels of `|∇u| = √(g_h² + g_w²)` (isotropic total variation).
+fn gradient_magnitude_mean_planar<T: Scalar>(data: &[T], bc: usize, h: usize, w: usize) -> T {
+    let mut acc = T::zero();
+    for plane in 0..bc {
+        let base = plane * h * w;
+        for i in 0..h {
+            for j in 0..w {
+                let o = base + i * w + j;
+                let gh = fwd_diff(data, o, i, h, w);
+                let gw = fwd_diff(data, o, j, w, 1);
+                acc += (gh * gh + gw * gw).sqrt_val();
+            }
+        }
+    }
+    acc / T::from_usize(bc * h * w)
+}
 
-    // Central region (exclude boundaries)
-    let center = field
-        .clone()
-        .slice([0..b, 0..c, 1..(d - 1), 1..(h - 1), 1..(w - 1)]);
+/// Elastic loss: `α·mean(|∇u|²) + β·mean((div u)²)`.
+///
+/// The divergence couples channel 0's height-gradient with channel 1's
+/// width-gradient (`div u = ∂u_x/∂x + ∂u_y/∂y`), so the field must carry at
+/// least two displacement channels; its mean is over `B·H·W` (one divergence
+/// scalar per spatial site), distinct from the membrane mean over `B·C·H·W`.
+fn elastic_planar<T: Scalar>(
+    data: &[T],
+    b: usize,
+    c: usize,
+    h: usize,
+    w: usize,
+    alpha: T,
+    beta: T,
+) -> T {
+    assert!(
+        c >= 2,
+        "elastic (2-D) requires ≥2 displacement channels, got {c}"
+    );
+    let membrane_mean = gradient_squared_mean_planar(data, b * c, h, w);
 
-    // Neighbors in each dimension
-    let front = field
-        .clone()
-        .slice([0..b, 0..c, 0..(d - 2), 1..(h - 1), 1..(w - 1)]);
-    let back = field
-        .clone()
-        .slice([0..b, 0..c, 2..d, 1..(h - 1), 1..(w - 1)]);
-    let top = field
-        .clone()
-        .slice([0..b, 0..c, 1..(d - 1), 0..(h - 2), 1..(w - 1)]);
-    let bottom = field
-        .clone()
-        .slice([0..b, 0..c, 1..(d - 1), 2..h, 1..(w - 1)]);
-    let left = field
-        .clone()
-        .slice([0..b, 0..c, 1..(d - 1), 1..(h - 1), 0..(w - 2)]);
-    let right = field.slice([0..b, 0..c, 1..(d - 1), 1..(h - 1), 2..w]);
+    let mut div_acc = T::zero();
+    let plane = h * w;
+    for bb in 0..b {
+        let ch0 = (bb * c) * plane;
+        let ch1 = (bb * c + 1) * plane;
+        for i in 0..h {
+            for j in 0..w {
+                let off = i * w + j;
+                let gh0 = fwd_diff(data, ch0 + off, i, h, w);
+                let gw1 = fwd_diff(data, ch1 + off, j, w, 1);
+                let div = gh0 + gw1;
+                div_acc += div * div;
+            }
+        }
+    }
+    let divergence_mean = div_acc / T::from_usize(b * h * w);
+    membrane_mean * alpha + divergence_mean * beta
+}
 
-    // 3D Laplacian: sum of second derivatives
-    let laplacian_center = front + back + top + bottom + left + right - center.mul_scalar(6.0);
+// ── Native finite-difference kernels (volumetric, `[BC, D, H, W]`) ────────────
 
-    // Pad back to original size
-    let zeros_d_front = Tensor::zeros([b, c, 1, h - 2, w - 2], &device);
-    let zeros_d_back = Tensor::zeros([b, c, 1, h - 2, w - 2], &device);
-    let laplacian = Tensor::cat(vec![zeros_d_front, laplacian_center, zeros_d_back], 2);
-    let zeros_h_front = Tensor::zeros([b, c, d, 1, w - 2], &device);
-    let zeros_h_back = Tensor::zeros([b, c, d, 1, w - 2], &device);
-    let laplacian = Tensor::cat(vec![zeros_h_front, laplacian, zeros_h_back], 3);
-    let zeros_w_front = Tensor::zeros([b, c, d, h, 1], &device);
-    let zeros_w_back = Tensor::zeros([b, c, d, h, 1], &device);
+fn laplacian_squared_mean_volumetric<T: Scalar>(
+    data: &[T],
+    bc: usize,
+    d: usize,
+    h: usize,
+    w: usize,
+) -> T {
+    let six = T::from_f64(6.0);
+    let hw = h * w;
+    let dhw = d * hw;
+    let mut acc = T::zero();
+    for vol in 0..bc {
+        let base = vol * dhw;
+        for k in 1..d.saturating_sub(1) {
+            for i in 1..h.saturating_sub(1) {
+                for j in 1..w.saturating_sub(1) {
+                    let o = base + k * hw + i * w + j;
+                    let lap = data[o - 1]
+                        + data[o + 1]
+                        + data[o - w]
+                        + data[o + w]
+                        + data[o - hw]
+                        + data[o + hw]
+                        - six * data[o];
+                    acc += lap * lap;
+                }
+            }
+        }
+    }
+    acc / T::from_usize(bc * dhw)
+}
 
-    Tensor::cat(vec![zeros_w_front, laplacian, zeros_w_back], 4)
+fn gradient_squared_mean_volumetric<T: Scalar>(
+    data: &[T],
+    bc: usize,
+    d: usize,
+    h: usize,
+    w: usize,
+) -> T {
+    let hw = h * w;
+    let dhw = d * hw;
+    let mut acc = T::zero();
+    for vol in 0..bc {
+        let base = vol * dhw;
+        for k in 0..d {
+            for i in 0..h {
+                for j in 0..w {
+                    let o = base + k * hw + i * w + j;
+                    let gd = fwd_diff(data, o, k, d, hw);
+                    let gh = fwd_diff(data, o, i, h, w);
+                    let gw = fwd_diff(data, o, j, w, 1);
+                    acc += gd * gd + gh * gh + gw * gw;
+                }
+            }
+        }
+    }
+    acc / T::from_usize(bc * dhw)
+}
+
+fn gradient_magnitude_mean_volumetric<T: Scalar>(
+    data: &[T],
+    bc: usize,
+    d: usize,
+    h: usize,
+    w: usize,
+) -> T {
+    let hw = h * w;
+    let dhw = d * hw;
+    let mut acc = T::zero();
+    for vol in 0..bc {
+        let base = vol * dhw;
+        for k in 0..d {
+            for i in 0..h {
+                for j in 0..w {
+                    let o = base + k * hw + i * w + j;
+                    let gd = fwd_diff(data, o, k, d, hw);
+                    let gh = fwd_diff(data, o, i, h, w);
+                    let gw = fwd_diff(data, o, j, w, 1);
+                    acc += (gd * gd + gh * gh + gw * gw).sqrt_val();
+                }
+            }
+        }
+    }
+    acc / T::from_usize(bc * dhw)
+}
+
+fn elastic_volumetric<T: Scalar>(
+    data: &[T],
+    b: usize,
+    c: usize,
+    d: usize,
+    h: usize,
+    w: usize,
+    alpha: T,
+    beta: T,
+) -> T {
+    assert!(
+        c >= 3,
+        "elastic (3-D) requires ≥3 displacement channels, got {c}"
+    );
+    let membrane_mean = gradient_squared_mean_volumetric(data, b * c, d, h, w);
+
+    let hw = h * w;
+    let dhw = d * hw;
+    let mut div_acc = T::zero();
+    for bb in 0..b {
+        let ch0 = (bb * c) * dhw;
+        let ch1 = (bb * c + 1) * dhw;
+        let ch2 = (bb * c + 2) * dhw;
+        for k in 0..d {
+            for i in 0..h {
+                for j in 0..w {
+                    let off = k * hw + i * w + j;
+                    let gd0 = fwd_diff(data, ch0 + off, k, d, hw);
+                    let gh1 = fwd_diff(data, ch1 + off, i, h, w);
+                    let gw2 = fwd_diff(data, ch2 + off, j, w, 1);
+                    let div = gd0 + gh1 + gw2;
+                    div_acc += div * div;
+                }
+            }
+        }
+    }
+    let divergence_mean = div_acc / T::from_usize(b * dhw);
+    membrane_mean * alpha + divergence_mean * beta
 }
 
 #[cfg(test)]

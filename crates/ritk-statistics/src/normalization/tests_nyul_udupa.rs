@@ -171,7 +171,7 @@ fn native_nyul_training_and_apply_preserve_values_and_geometry() {
         .learn_standard_native(&[&image])
         .expect("native training succeeds");
     let output = normalizer
-        .apply_native(&image, &SequentialBackend)
+        .apply_native(&image)
         .expect("native application succeeds");
 
     assert_eq!(

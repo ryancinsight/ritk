@@ -39,8 +39,9 @@ pub use noise_estimation::{
     estimate_noise_mad, estimate_noise_mad_masked, estimate_noise_mad_native,
 };
 pub use normalization::{
-    HistogramMatcher, IntensityRange, MinMaxNormalizer, MriContrast, NyulUdupaNormalizer,
-    WhiteStripeConfig, WhiteStripeNormalizer, WhiteStripeResult, ZScoreNormalizer,
+    HistogramMatcher, IntensityRange, MinMaxNormalizer, MriContrast, NativeWhiteStripeResult,
+    NyulUdupaNormalizer, WhiteStripeConfig, WhiteStripeNormalizer, WhiteStripeResult,
+    ZScoreNormalizer,
 };
 pub use position_extrema::{maximum_position, minimum_position};
 pub use value_indices::{value_indices, ValueIndices};

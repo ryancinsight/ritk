@@ -33,7 +33,6 @@ pub use loader::{
     read_native_dicom_series_with_metadata,
 };
 pub use scan::{scan_dicom_instances, scan_dicom_part10_bytes};
-pub(super) use types::DicomSeriesInfo;
 // scan::scan_dicom_directory is accessed directly via `reader::scan::scan_dicom_directory`
 // by sibling modules (color.rs). No re-export needed.
 pub use types::literal_arraystring;

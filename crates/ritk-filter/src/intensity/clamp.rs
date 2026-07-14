@@ -31,11 +31,8 @@
 //! O(N) time, O(N) space (output allocation), O(1) auxiliary.
 
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
-
-use crate::native_support::map_flat_image;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 // â”€â”€ Filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -80,23 +77,20 @@ impl ClampImageFilter {
     /// Returns `Err` if the tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-
-        let lo = self.lower;
-        let hi = self.upper;
-        let out: Vec<f32> = vals.iter().map(|&v| v.clamp(lo, hi)).collect();
-
-        let out_td = TensorData::new(out, Shape::new(dims));
-        let device = image.data().device();
-        let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        let out = clamp_vec(&vals, self.lower, self.upper);
+        Ok(rebuild(out, dims, image))
     }
 
-    /// Apply the clamp to a Coeus-native image.
+    /// Coeus-native sister of [`ClampImageFilter::apply`].
+    ///
+    /// Runs the identical pointwise clamp via the shared `clamp_vec` host core
+    /// on the image's contiguous host buffer, so the result is bitwise-identical
+    /// to the Burn path. No Burn tensor is constructed. Spatial metadata
+    /// (origin, spacing, direction) is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
@@ -106,13 +100,19 @@ impl ClampImageFilter {
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        map_flat_image(image, backend, |values, _| {
-            values
-                .iter()
-                .map(|&value| value.clamp(self.lower, self.upper))
-                .collect()
+        crate::native_support::map_flat_image(image, backend, |vals, _dims| {
+            clamp_vec(vals, self.lower, self.upper)
         })
     }
+}
+
+/// Substrate-agnostic host core for [`ClampImageFilter`].
+///
+/// Projects every voxel onto the closed interval `[lower, upper]` via
+/// `f32::clamp` (NaN-propagating, matching ITK). Requires `lower <= upper`
+/// (guaranteed by the constructor).
+pub(crate) fn clamp_vec(vals: &[f32], lower: f32, upper: f32) -> Vec<f32> {
+    vals.iter().map(|&v| v.clamp(lower, upper)).collect()
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

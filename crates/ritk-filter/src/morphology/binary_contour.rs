@@ -25,9 +25,8 @@
 use super::types::ForegroundValue;
 use super::Connectivity;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Binary contour filter.
 ///
@@ -97,17 +96,53 @@ impl BinaryContourImageFilter {
     /// Apply the binary contour filter to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        let out = self.contour_values(&vals, dims);
-        let device = image.data().device();
-        let shape = Shape::new(dims);
-        let data = TensorData::new(out, shape);
-        let tensor = Tensor::<B, 3>::from_data(data, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        let [nz, ny, nx] = dims;
+
+        let fg = f32::from(self.foreground_value);
+        let n26 = n26();
+
+        let slab = ny * nx;
+        let connectivity = self.connectivity; // Copy type - can be moved into closure
+                                              // PERF-378-01: parallelise over flat voxel index
+        let out = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |flat| {
+            let v = vals[flat];
+            if (v - fg).abs() > 1e-5 {
+                return 0.0f32;
+            }
+            let iz = flat / slab;
+            let rem = flat - iz * slab;
+            let iy = rem / nx;
+            let ix = rem - iy * nx;
+            let neighbour_is_bg = |dz: i32, dy: i32, dx: i32| -> bool {
+                let qz = iz as i32 + dz;
+                let qy = iy as i32 + dy;
+                let qx = ix as i32 + dx;
+                if qz < 0
+                    || qy < 0
+                    || qx < 0
+                    || qz >= nz as i32
+                    || qy >= ny as i32
+                    || qx >= nx as i32
+                {
+                    return false;
+                }
+                let nv = vals[qz as usize * slab + qy as usize * nx + qx as usize];
+                (nv - fg).abs() > 1e-5
+            };
+            let is_border = match connectivity {
+                Connectivity::Vertex26 => {
+                    n26.iter().any(|&(dz, dy, dx)| neighbour_is_bg(dz, dy, dx))
+                }
+                Connectivity::Face6 => N6.iter().any(|&(dz, dy, dx)| neighbour_is_bg(dz, dy, dx)),
+            };
+            if is_border {
+                fg
+            } else {
+                0.0f32
+            }
+        });
+
+        Ok(rebuild(out, dims, image))
     }
 
     /// Apply binary contour extraction to a Coeus-native image.

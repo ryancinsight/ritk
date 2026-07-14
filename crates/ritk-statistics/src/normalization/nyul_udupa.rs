@@ -47,6 +47,7 @@ use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
+use ritk_tensor_ops::native as tensor_ops;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 // ── Percentile Helper ─────────────────────────────────────────────────────────
@@ -202,30 +203,17 @@ impl NyulUdupaNormalizer {
     /// Panics if `images` is empty.
     pub fn learn_standard<B: Backend, const D: usize>(&mut self, images: &[&Image<B, D>]) {
         assert!(!images.is_empty(), "at least one training image required");
-
-        let m = self.percentiles.len();
-        let k = images.len();
-        let mut sum_landmarks = vec![0.0f64; m];
-
-        for image in images {
-            let (values_vec, _) = extract_vec_infallible(*image);
-            let mut values = values_vec;
-            crate::sort_floats(&mut values);
-
-            for (j, &p) in self.percentiles.iter().enumerate() {
-                sum_landmarks[j] += compute_percentile(&values, p) as f64;
-            }
-        }
-
-        self.standard_landmarks = Some(
-            sum_landmarks
-                .iter()
-                .map(|&s| (s / k as f64) as f32)
-                .collect(),
-        );
+        self.learn_from_value_sets(images.iter().map(|image| extract_vec_infallible(*image).0));
     }
 
-    /// Learn standard landmarks from Coeus-native images.
+    /// Coeus-native sister of [`NyulUdupaNormalizer::learn_standard`].
+    ///
+    /// # Errors
+    /// Returns an error when any training tensor is not host-addressable or
+    /// contiguous.
+    ///
+    /// # Panics
+    /// Panics if `images` is empty.
     pub fn learn_standard_native<B, const D: usize>(
         &mut self,
         images: &[&NativeImage<f32, B, D>],
@@ -234,27 +222,43 @@ impl NyulUdupaNormalizer {
         B: ComputeBackend,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        anyhow::ensure!(
-            !images.is_empty(),
-            "at least one training image is required"
-        );
-
-        let mut sum_landmarks = vec![0.0_f64; self.percentiles.len()];
+        assert!(!images.is_empty(), "at least one training image required");
+        let mut value_sets = Vec::with_capacity(images.len());
         for image in images {
-            let mut values = image.data_slice()?.to_vec();
-            crate::sort_floats(&mut values);
-            for (sum, &percentile) in sum_landmarks.iter_mut().zip(&self.percentiles) {
-                *sum += f64::from(compute_percentile(&values, percentile));
-            }
+            let (vals, _) = tensor_ops::extract_image_vec(image)?;
+            value_sets.push(vals);
         }
-        let count = images.len() as f64;
+        self.learn_from_value_sets(value_sets);
+        Ok(())
+    }
+
+    /// Learn standard landmarks from per-image voxel buffers (shared host core).
+    ///
+    /// `Sⱼ = (1/K) · Σₖ Q(Iₖ, pⱼ)` over the training set. Each buffer is sorted
+    /// in place before percentile extraction.
+    fn learn_from_value_sets<I>(&mut self, value_sets: I)
+    where
+        I: IntoIterator<Item = Vec<f32>>,
+    {
+        let m = self.percentiles.len();
+        let mut sum_landmarks = vec![0.0f64; m];
+        let mut k = 0usize;
+
+        for mut values in value_sets {
+            crate::sort_floats(&mut values);
+            for (j, &p) in self.percentiles.iter().enumerate() {
+                sum_landmarks[j] += compute_percentile(&values, p) as f64;
+            }
+            k += 1;
+        }
+
+        assert!(k > 0, "at least one training image required");
         self.standard_landmarks = Some(
             sum_landmarks
-                .into_iter()
-                .map(|sum| (sum / count) as f32)
+                .iter()
+                .map(|&s| (s / k as f64) as f32)
                 .collect(),
         );
-        Ok(())
     }
 
     /// Apply the learned piecewise-linear mapping to a new image.
@@ -273,64 +277,53 @@ impl NyulUdupaNormalizer {
         &self,
         image: &Image<B, D>,
     ) -> anyhow::Result<Image<B, D>> {
+        let (mut values, dims) = extract_vec_infallible(image);
+        self.transform_values(&mut values)?;
+        Ok(rebuild(values, dims, image))
+    }
+
+    /// Coeus-native sister of [`NyulUdupaNormalizer::apply`].
+    ///
+    /// # Errors
+    /// Returns an error when `learn_standard`/`learn_standard_native` has not
+    /// run, the image tensor is not host-addressable/contiguous, or rebuild
+    /// validation fails.
+    pub fn apply_native<B, const D: usize>(
+        &self,
+        image: &NativeImage<f32, B, D>,
+    ) -> anyhow::Result<NativeImage<f32, B, D>>
+    where
+        B: ComputeBackend + Default,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let (mut values, dims) = tensor_ops::extract_image_vec(image)?;
+        self.transform_values(&mut values)?;
+        tensor_ops::rebuild_image(values, dims, image, &B::default())
+    }
+
+    /// Map `values` from their own landmark space to the learned standard
+    /// (shared host core).
+    ///
+    /// # Errors
+    /// Returns an error when the standard landmarks have not been learned.
+    fn transform_values(&self, values: &mut [f32]) -> anyhow::Result<()> {
         let standard = self.standard_landmarks.as_ref().ok_or_else(|| {
             anyhow::anyhow!("standard landmarks not learned; call learn_standard before apply")
         })?;
 
-        // ── 1. Extract and sort voxel intensities ─────────────────────────────
-        let (mut values, dims) = extract_vec_infallible(image);
-        let mut sorted = values.clone();
+        let mut sorted = values.to_vec();
         crate::sort_floats(&mut sorted);
 
-        // ── 2. Compute input image landmarks ──────────────────────────────────
         let source_landmarks: Vec<f32> = self
             .percentiles
             .iter()
             .map(|&p| compute_percentile(&sorted, p))
             .collect();
 
-        // ── 3. Apply piecewise-linear mapping ─────────────────────────────────
-        for value in &mut values {
+        for value in values.iter_mut() {
             *value = piecewise_linear_map(*value, &source_landmarks, standard);
         }
-
-        // ── 4. Reconstruct image ──────────────────────────────────────────────
-        Ok(rebuild(values, dims, image))
-    }
-
-    /// Apply learned landmarks to a Coeus-native image.
-    pub fn apply_native<B, const D: usize>(
-        &self,
-        image: &NativeImage<f32, B, D>,
-        backend: &B,
-    ) -> anyhow::Result<NativeImage<f32, B, D>>
-    where
-        B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
-        let standard = self.standard_landmarks.as_deref().ok_or_else(|| {
-            anyhow::anyhow!("standard landmarks not learned; call learn_standard before apply")
-        })?;
-        let values = image.data_slice()?;
-        let mut sorted = values.to_vec();
-        crate::sort_floats(&mut sorted);
-        let source_landmarks = self
-            .percentiles
-            .iter()
-            .map(|&percentile| compute_percentile(&sorted, percentile))
-            .collect::<Vec<_>>();
-        let output = values
-            .iter()
-            .map(|&value| piecewise_linear_map(value, &source_landmarks, standard))
-            .collect();
-        NativeImage::from_flat_on(
-            output,
-            image.shape(),
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            backend,
-        )
+        Ok(())
     }
 }
 

@@ -39,23 +39,6 @@ fn automatic_threshold_rejects_unknown_input_format_before_io() {
 }
 
 #[test]
-fn automatic_threshold_rejects_known_nonnative_input_before_io() {
-    let dir = tempdir().unwrap();
-    let output = dir.path().join("output.nii");
-    let error = run(default_args(
-        dir.path().join("input.vtk"),
-        output.clone(),
-        SegmentMethod::Otsu,
-    ))
-    .expect_err("VTK input lacks native threshold support");
-    assert_eq!(
-        error.to_string(),
-        "automatic thresholding requires native input/output formats"
-    );
-    assert!(!output.exists());
-}
-
-#[test]
 fn automatic_threshold_rejects_known_nonnative_output_before_io() {
     let dir = tempdir().unwrap();
     let output = dir.path().join("output.png");
@@ -72,22 +55,6 @@ fn automatic_threshold_rejects_known_nonnative_output_before_io() {
     assert!(!output.exists());
 }
 
-#[test]
-fn multi_otsu_rejects_known_nonnative_input_before_io() {
-    let dir = tempdir().unwrap();
-    let output = dir.path().join("output.nii");
-    let error = run(default_args(
-        dir.path().join("input.vtk"),
-        output.clone(),
-        SegmentMethod::MultiOtsu,
-    ))
-    .expect_err("VTK input lacks native Multi-Otsu support");
-    assert_eq!(
-        error.to_string(),
-        "multi-otsu requires native input/output formats"
-    );
-    assert!(!output.exists());
-}
 #[test]
 fn test_segment_multi_otsu_classes_lt_2_returns_error() {
     let dir = tempdir().unwrap();

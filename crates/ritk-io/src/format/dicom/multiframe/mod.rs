@@ -56,10 +56,15 @@ mod reader;
 mod types;
 mod writer;
 
-pub use reader::{load_dicom_multiframe, read_multiframe_info};
+pub use reader::{
+    load_dicom_multiframe, load_dicom_multiframe_flat, load_dicom_multiframe_native,
+    read_multiframe_info, MultiFrameVolume,
+};
 pub use types::{MultiFrameInfo, MultiFrameSpatialMetadata, MultiFrameWriterConfig};
 pub use writer::{
-    write_dicom_multiframe, write_dicom_multiframe_with_config, write_dicom_multiframe_with_options,
+    write_dicom_multiframe, write_dicom_multiframe_native,
+    write_dicom_multiframe_native_with_config, write_dicom_multiframe_native_with_options,
+    write_dicom_multiframe_with_config, write_dicom_multiframe_with_options,
 };
 
 #[cfg(test)]

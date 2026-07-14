@@ -89,7 +89,7 @@ fn confidence_connected_rejects_invalid_multiplier_before_io() {
 }
 
 #[test]
-fn region_growing_rejects_known_nonnative_formats_before_io() {
+fn region_growing_rejects_nonnative_output_before_io() {
     let dir = tempdir().unwrap();
     let output = dir.path().join("output.png");
     let mut args = default_args(
@@ -100,7 +100,7 @@ fn region_growing_rejects_known_nonnative_formats_before_io() {
     args.lower = Some(0.0);
     args.upper = Some(1.0);
     args.seed = Some("0,0,0".to_string());
-    let error = run(args).expect_err("nonnative formats must be rejected before I/O");
+    let error = run(args).expect_err("nonnative output must be rejected before I/O");
     assert_eq!(
         error.to_string(),
         "neighborhood-connected requires native input/output formats"

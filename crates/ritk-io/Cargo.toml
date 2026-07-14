@@ -54,6 +54,7 @@ dicom-transfer-syntax-registry = { workspace = true }
 [dev-dependencies]
 ritk-codecs = { workspace = true }
 tempfile = { workspace = true }
+burn = { workspace = true }
 zune-jpegxl = { workspace = true, default-features = false, features = ["std"] }
 zune-core = { workspace = true, default-features = false }
 

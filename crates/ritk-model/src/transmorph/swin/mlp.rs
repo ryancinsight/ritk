@@ -1,89 +1,68 @@
-//! Swin feed-forward projection.
+//! Swin-block MLP, Coeus-native.
+//!
+//! A two-layer feed-forward network (`Linear → GELU → Linear`) applied along the
+//! channel (last) axis of a `[B, D, H, W, C]` token volume. Built on
+//! [`coeus_nn::Linear`] over [`coeus_autograd::Var`] with the exact GELU
+//! activation; gradients flow to both linear layers through the autograd graph.
 
-use coeus_autograd::Var;
+use coeus_autograd::{gelu, Parameter, Var};
 use coeus_core::Backend;
-use coeus_nn::{Dropout, Linear, Module};
+use coeus_nn::module::Module;
+use coeus_nn::Linear;
 use coeus_ops::BackendOps;
 
-/// Two-layer GELU feed-forward network applied along the final axis.
+/// Two-layer channel-wise MLP with a GELU nonlinearity.
 #[derive(Clone)]
-pub struct Mlp<B>
+pub struct Mlp<B: Backend + BackendOps<f32> + Default> {
+    fc1: Linear<f32, B>,
+    fc2: Linear<f32, B>,
+}
+
+impl<B> Mlp<B>
 where
-    B: Backend + BackendOps<f32>,
+    B: Backend + BackendOps<f32> + Default,
 {
-    first: Linear<f32, B>,
-    second: Linear<f32, B>,
-    dropout: Dropout,
-}
-
-/// Feed-forward network configuration.
-#[derive(Debug, Clone, Copy)]
-pub struct MlpConfig {
-    input_dim: usize,
-    hidden_dim: usize,
-    dropout: f64,
-}
-
-impl MlpConfig {
-    /// Construct a feed-forward configuration.
-    #[must_use]
-    pub const fn new(input_dim: usize, hidden_dim: usize) -> Self {
-        Self {
-            input_dim,
-            hidden_dim,
-            dropout: 0.0,
-        }
+    /// Construct an MLP mapping `input_dim → hidden_dim → input_dim`.
+    ///
+    /// Weights are Kaiming-uniform-initialized (fan-in of each layer), biases
+    /// zero — the non-degenerate scheme the original Burn model relied on;
+    /// [`Linear::new`] alone leaves weights at ones.
+    pub fn new(input_dim: usize, hidden_dim: usize, seed: u64) -> Self {
+        let mut fc1 = Linear::new(input_dim, hidden_dim, true);
+        coeus_nn::init::kaiming_uniform_with_seed(&mut fc1.weight, input_dim, seed);
+        let mut fc2 = Linear::new(hidden_dim, input_dim, true);
+        coeus_nn::init::kaiming_uniform_with_seed(&mut fc2.weight, hidden_dim, seed ^ 0x5DEE_CE66);
+        Self { fc1, fc2 }
     }
 
-    /// Set the dropout probability.
-    #[must_use]
-    pub const fn with_dropout(mut self, dropout: f64) -> Self {
-        self.dropout = dropout;
-        self
+    /// Forward pass over a `[B, D, H, W, C]` token volume.
+    pub fn forward(&self, x: &Var<f32, B>) -> Var<f32, B> {
+        let x = self.fc1.forward(x);
+        let x = gelu(&x);
+        self.fc2.forward(&x)
     }
 
-    /// Initialize the network on backend `B`.
-    #[must_use]
-    pub fn init<B>(self) -> Mlp<B>
-    where
-        B: Backend + BackendOps<f32>,
-    {
-        let mut mlp = Mlp {
-            first: Linear::new(self.input_dim, self.hidden_dim, true),
-            second: Linear::new(self.hidden_dim, self.input_dim, true),
-            dropout: Dropout::new(self.dropout),
-        };
-        crate::initialization::linear(&mut mlp.first, self.input_dim, self.hidden_dim, 201);
-        crate::initialization::linear(&mut mlp.second, self.hidden_dim, self.input_dim, 202);
-        mlp
-    }
-}
-
-impl<B> Module<f32, B> for Mlp<B>
-where
-    B: Backend + BackendOps<f32>,
-{
-    fn parameters(&self) -> Vec<Var<f32, B>> {
-        let mut parameters = self.first.parameters();
-        parameters.extend(self.second.parameters());
-        parameters
+    /// Trainable parameters in forward order.
+    pub fn parameters(&self) -> Vec<Var<f32, B>> {
+        let mut params = self.fc1.parameters();
+        params.extend(self.fc2.parameters());
+        params
     }
 
-    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
-        let hidden = self.first.forward(input);
-        let hidden = coeus_autograd::gelu(&hidden);
-        let hidden = self.dropout.forward(&hidden);
-        let output = self.second.forward(&hidden);
-        self.dropout.forward(&output)
-    }
-
-    fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {
-        let first_len = self.first.parameters().len();
-        self.first.load_parameters(&parameters[..first_len]);
-        self.second.load_parameters(&parameters[first_len..]);
-    }
-
-    fn train(&mut self, mode: bool) {
-        self.dropout.set_training(mode);
+    /// Trainable parameters with stable hierarchical names.
+    pub fn named_parameters(&self) -> Vec<Parameter<f32, B>> {
+        let mut named: Vec<Parameter<f32, B>> = self
+            .fc1
+            .named_parameters()
+            .into_iter()
+            .map(|p| p.with_prefix("fc1"))
+            .collect();
+        named.extend(
+            self.fc2
+                .named_parameters()
+                .into_iter()
+                .map(|p| p.with_prefix("fc2")),
+        );
+        named
     }
 }
