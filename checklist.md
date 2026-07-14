@@ -50,6 +50,8 @@
   the preceding full RITK SyN contract; preserve both independent assertions.
 - [x] Consolidate SyN's forward, reverse, and convergence local-CC statistics
   onto one summed-area-table set with exact reversed-force differential coverage.
+- [x] Remove local-CC padded volumes and fuse five statistical channels across
+  contiguous copy and prefix passes without changing window statistics.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

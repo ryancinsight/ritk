@@ -40,82 +40,73 @@ impl CcSats {
         let pny = ny + 2 * r;
         let pnx = nx + 2 * r;
 
-        // Phase A: build padded channel arrays (replicate-clamp padding).
-        let padded_size = pnz * pny * pnx;
-        let mut pad_f = vec![0.0_f64; padded_size];
-        let mut pad_m = vec![0.0_f64; padded_size];
-        let mut pad_f2 = vec![0.0_f64; padded_size];
-        let mut pad_m2 = vec![0.0_f64; padded_size];
-        let mut pad_fm = vec![0.0_f64; padded_size];
-
-        for kz in 0..pnz {
-            let sz = kz.saturating_sub(r).min(nz - 1);
-            for ky in 0..pny {
-                let sy = ky.saturating_sub(r).min(ny - 1);
-                for kx in 0..pnx {
-                    let sx = kx.saturating_sub(r).min(nx - 1);
-                    let src = sz * ny * nx + sy * nx + sx;
-                    let dst = kz * pny * pnx + ky * pnx + kx;
-                    let f = i_w[src] as f64;
-                    let m = j_w[src] as f64;
-                    pad_f[dst] = f;
-                    pad_m[dst] = m;
-                    pad_f2[dst] = f * f;
-                    pad_m2[dst] = m * m;
-                    pad_fm[dst] = f * m;
-                }
-            }
-        }
-
-        // Phase B: build 1-based SATs. Allocate (pnz+1)*(pny+1)*(pnx+1).
+        // Build all five 1-based SATs in four fused, contiguous traversals:
+        // input copy followed by one prefix pass per axis. This eliminates five
+        // padded volumes and replaces twenty channel-specific passes while
+        // retaining replicate-clamp boundary values and summation order.
         let snz = pnz + 1;
         let sny = pny + 1;
         let snx = pnx + 1;
         let sat_size = snz * sny * snx;
+        let mut sat_f = vec![0.0_f64; sat_size];
+        let mut sat_m = vec![0.0_f64; sat_size];
+        let mut sat_f2 = vec![0.0_f64; sat_size];
+        let mut sat_m2 = vec![0.0_f64; sat_size];
+        let mut sat_fm = vec![0.0_f64; sat_size];
 
-        let build_sat = |pad: &[f64]| -> Vec<f64> {
-            let mut sat = vec![0.0_f64; sat_size];
-            // Copy into 1-based positions: sat[z+1, y+1, x+1] = pad[z, y, x].
-            for kz in 0..pnz {
-                for ky in 0..pny {
-                    for kx in 0..pnx {
-                        sat[(kz + 1) * sny * snx + (ky + 1) * snx + (kx + 1)] =
-                            pad[kz * pny * pnx + ky * pnx + kx];
-                    }
-                }
-            }
-            // X prefix pass (innermost dimension, contiguous in memory).
-            for z in 1..=pnz {
-                for y in 1..=pny {
-                    for x in 1..=pnx {
-                        sat[z * sny * snx + y * snx + x] += sat[z * sny * snx + y * snx + x - 1];
-                    }
-                }
-            }
-            // Y prefix pass.
-            for z in 1..=pnz {
+        for z in 1..=pnz {
+            let src_z = (z - 1).saturating_sub(r).min(nz - 1);
+            for y in 1..=pny {
+                let src_y = (y - 1).saturating_sub(r).min(ny - 1);
                 for x in 1..=pnx {
-                    for y in 1..=pny {
-                        sat[z * sny * snx + y * snx + x] += sat[z * sny * snx + (y - 1) * snx + x];
-                    }
+                    let src_x = (x - 1).saturating_sub(r).min(nx - 1);
+                    let src = src_z * ny * nx + src_y * nx + src_x;
+                    let f = i_w[src] as f64;
+                    let m = j_w[src] as f64;
+                    let index = z * sny * snx + y * snx + x;
+                    sat_f[index] = f;
+                    sat_m[index] = m;
+                    sat_f2[index] = f * f;
+                    sat_m2[index] = m * m;
+                    sat_fm[index] = f * m;
                 }
             }
-            // Z prefix pass (outermost dimension).
+        }
+
+        macro_rules! accumulate_channels {
+            ($index:expr, $previous:expr) => {
+                sat_f[$index] += sat_f[$previous];
+                sat_m[$index] += sat_m[$previous];
+                sat_f2[$index] += sat_f2[$previous];
+                sat_m2[$index] += sat_m2[$previous];
+                sat_fm[$index] += sat_fm[$previous];
+            };
+        }
+        for z in 1..=pnz {
             for y in 1..=pny {
                 for x in 1..=pnx {
-                    for z in 1..=pnz {
-                        sat[z * sny * snx + y * snx + x] += sat[(z - 1) * sny * snx + y * snx + x];
-                    }
+                    let index = z * sny * snx + y * snx + x;
+                    accumulate_channels!(index, index - 1);
                 }
             }
-            sat
-        };
-
-        let sat_f = build_sat(&pad_f);
-        let sat_m = build_sat(&pad_m);
-        let sat_f2 = build_sat(&pad_f2);
-        let sat_m2 = build_sat(&pad_m2);
-        let sat_fm = build_sat(&pad_fm);
+        }
+        for z in 1..=pnz {
+            for y in 1..=pny {
+                for x in 1..=pnx {
+                    let index = z * sny * snx + y * snx + x;
+                    accumulate_channels!(index, index - snx);
+                }
+            }
+        }
+        let plane = sny * snx;
+        for z in 1..=pnz {
+            for y in 1..=pny {
+                for x in 1..=pnx {
+                    let index = z * plane + y * snx + x;
+                    accumulate_channels!(index, index - plane);
+                }
+            }
+        }
 
         Self {
             sat_f,

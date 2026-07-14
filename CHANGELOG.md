@@ -25,6 +25,8 @@
 - Reuse one local-correlation summed-area-table set across both SyN force
   directions and convergence instead of rebuilding equivalent tables three
   times per iteration.
+- Build local-correlation summed-area tables directly in four fused contiguous
+  channel passes, removing five padded f64 volumes and channel-specific passes.
 - Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized
   native trace showed the decay sweep could release a huge segment still
   observed by `TaggedSegmentStack::pop`.

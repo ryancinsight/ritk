@@ -217,6 +217,14 @@ regression compares reversed shared-table forces with an independently built
 reversed table. Evidence tier before CI: structural complexity reduction from
 three O(N) builds to one and value-semantic differential test; installed-wheel
 timing remains the acceptance gate.
+The release wheel from `7400b277` still exhausted 60 seconds, falsifying table
+reuse alone as sufficient. The remaining builder allocated five padded f64
+volumes and traversed each of five statistical channels separately for copy and
+three prefix axes: ten large allocations and twenty full-volume prefix passes.
+It now writes the five final SATs directly and fuses channels into four
+contiguous traversals, preserving the existing interior and boundary
+differential contracts. Evidence tier before CI: structural memory-pass and
+allocation reduction plus existing analytical-reference differential tests.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate
