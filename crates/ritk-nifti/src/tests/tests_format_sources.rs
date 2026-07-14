@@ -57,7 +57,7 @@ fn imports_sourced_repository_nifti1_gzip_fixture() -> Result<()> {
     let source = &REPOSITORY_NIFTI_SOURCES[0];
     let path = repository_path(source.relative_path);
 
-    let loaded = native::read_nifti(&path, &backend)?;
+    let loaded = crate::read_nifti(&path, &backend)?;
 
     assert_eq!(
         loaded.shape(),
@@ -108,7 +108,7 @@ fn imports_generated_nifti2_gzip_fixture() -> Result<()> {
     )
     .expect("valid image dimensions");
 
-    native::write_nifti2(&file_path, &image, &backend)?;
+    crate::write_nifti2(&file_path, &image, &backend)?;
     let bytes = std::fs::read(&file_path)?;
     assert_eq!(
         &bytes[..2],
@@ -116,7 +116,7 @@ fn imports_generated_nifti2_gzip_fixture() -> Result<()> {
         "generated NIfTI-2 gzip fixture must be gzip-wrapped"
     );
 
-    let loaded = native::read_nifti(&file_path, &backend)?;
+    let loaded = crate::read_nifti(&file_path, &backend)?;
     assert_eq!(loaded.shape(), [2, 3, 4]);
     assert_eq!(
         loaded.data_slice().expect("contiguous host data").to_vec(),
@@ -147,7 +147,7 @@ fn imports_generated_uint8_nifti1_fixture() -> Result<()> {
     let values = (0..24).map(|value| value as u8).collect::<Vec<_>>();
     let bytes = write_single_file_bytes(&header, &values);
 
-    let loaded = native::read_nifti_from_bytes(&bytes, &backend)?;
+    let loaded = crate::read_nifti_from_bytes(&bytes, &backend)?;
 
     assert_eq!(loaded.shape(), [2, 3, 4]);
     assert_eq!(
@@ -165,7 +165,7 @@ fn analyze_style_header_is_not_imported_as_nifti() {
     let mut analyze_header = vec![0_u8; 348];
     analyze_header[0..4].copy_from_slice(&348_i32.to_le_bytes());
 
-    let err = native::read_nifti_from_bytes(&analyze_header, &backend)
+    let err = crate::read_nifti_from_bytes(&analyze_header, &backend)
         .expect_err("Analyze 7.5 header without NIfTI magic must be rejected");
     let msg = format!("{err:#}");
 

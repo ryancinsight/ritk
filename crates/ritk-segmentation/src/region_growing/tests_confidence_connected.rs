@@ -198,6 +198,7 @@ fn test_filter_struct_builder_pattern() {
     let via_fn = confidence_connected(&image, [0, 0, 0], 50.0, 150.0, 3.0, 10);
     let via_struct = ConfidenceConnectedFilter::new([0, 0, 0], 50.0, 150.0)
         .with_multiplier(3.0)
+        .expect("test multiplier is valid")
         .with_max_iterations(10)
         .apply(&image);
     let fn_vals = get_values(&via_fn);

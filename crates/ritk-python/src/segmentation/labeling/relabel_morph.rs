@@ -26,14 +26,15 @@ pub fn relabel_components(
     py: Python<'_>,
     label_image: &PyImage,
     minimum_object_size: usize,
-) -> PyImage {
+) -> RitkResult<PyImage> {
     let img = py_image_to_burn(label_image);
-    let out = py.allow_threads(|| {
-        RelabelComponentFilter::with_minimum_object_size(minimum_object_size)
-            .apply(&img)
-            .0
-    });
-    burn_into_py_image(out)
+    let out = py
+        .allow_threads(|| {
+            RelabelComponentFilter::with_minimum_object_size(minimum_object_size).apply(&img)
+        })
+        .map_err(|error| RitkPyError::value(error.to_string()))?
+        .0;
+    Ok(burn_into_py_image(out))
 }
 
 /// Relabel non-zero labels to consecutive integers `1, 2, …, K` in ascending

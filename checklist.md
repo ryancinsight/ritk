@@ -4535,10 +4535,9 @@ fixes were reverted after verification; see rationale below)
 - [x] CORR-384-01 [major]: **Frangi + Sato IIR Hessian** — `compute_hessian_iir` added to
   `recursive_gaussian.rs`; `frangi.rs` and `sato.rs` updated to use it. Algebraic identity
   test `test_hessian_iir_laplacian_consistency` verifies `H_zz+H_yy+H_xx = ∇²G` to 1e-3.
-- [x] CORR-384-02 [major]: **IsolatedWatershed gradient-descent watershed** — replaced
-  ConnectedThreshold BFS with `watershed_basins_gd` (steepest-descent path compression).
-  Pixel-perfect match (1.0) vs sitk on 7×7 reference. Python test `test_isolated_watershed_matches_sitk`
-  now passes.
+- [x] CORR-384-02 [major]: **IsolatedWatershed interim basin correction** — replaced
+  ConnectedThreshold BFS with gradient basins for the original 7×7 regression;
+  MIG-650-01 subsequently replaced that incomplete shortcut with the full hierarchy.
 - [x] CORR-384-03 [major]: **`ScalarChanAndVeseDenseLevelSet` mu=1.0 + adaptive dt** — `mu`
   default corrected 0.5→1.0 (ITK `CurvatureWeight`); adaptive dt added; Python binding
   exposes `mu` kwarg.
@@ -4634,8 +4633,8 @@ fixes were reverted after verification; see rationale below)
 - [ ] CORR-384-01 [major]: Frangi vesselness Hessian via finite-diff on sampled Gaussian vs ITK's
   2nd-order Deriche IIR. Audit C-1 — fix is to call `recursive_gaussian_directional(Second)` per
   axis; existing IIR machinery is available. Significant correctness improvement.
-- [ ] CORR-384-02 [major]: `IsolatedWatershed` — 0% label match vs sitk hierarchical gradient
-  watershed. Needs full `itk::WatershedSegmenter` port.
+- [x] CORR-384-02 [major]: `IsolatedWatershed` now uses the native ordered watershed hierarchy
+  and exact ITK isolation search; closed by MIG-650-01.
 - [ ] CORR-384-03 [major]: `ScalarChanAndVeseDenseLevelSet` — 19% match; SharedData region-mean
   propagation + adaptive dt needed.
 - [ ] PERF-384-01 [high]: `window_cc_stats` O(N·w³) 2-pass scan → O(N) centered-residual integral

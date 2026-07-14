@@ -2,21 +2,20 @@
 //!
 //! # Mathematical Specification
 //!
-//! Given two seeds s1, s2 in a scalar image, assigns each voxel to the
-//! gradient-descent basin it flows to via steepest descent on the gradient
-//! magnitude `g` (ITK `GradientMagnitudeImageFilter`, unit spacing).
+//! Given two seeds s1, s2 in a scalar image, constructs the watershed merge
+//! hierarchy of the gradient magnitude `g` (ITK `GradientMagnitudeImageFilter`,
+//! unit spacing) and binary-searches the last flood level separating the seeds.
 //!
 //! ## Algorithm
 //!
-//! Gradient-descent watershed on the gradient magnitude: each voxel drains to
-//! the local minimum of gradient magnitude it reaches by following the steepest
-//! strictly-descending path.  Seeds in different basins at the finest level are
-//! labeled directly.  Seeds in the same basin (edge case) → best-effort: the
-//! shared basin is returned as label 1.
+//! The initial plateau-aware basins drain to local minima. Adjacent basins form
+//! edges whose height is the maximum incident sample. Directed merges are
+//! ordered by saliency (`edge height - source minimum`) and replayed at each
+//! candidate flood level during the isolation search.
 //!
-//! Basin assignment uses memoised steepest-descent tracing with path
-//! compression: once any voxel on a trace reaches a labeled node the entire
-//! traced path is stamped with that basin in O(path length) time.
+//! Almost-equal flat zones are identified once, each zone records its lowest
+//! boundary destination, and the resulting strictly descending component graph
+//! is resolved with path compression.
 //!
 //! ## Output Label Convention
 //!
@@ -33,7 +32,8 @@
 //!
 //! # Complexity
 //!
-//! O(n) expected with path compression, where n is the number of voxels.
+//! O(n + e log e), where n is the voxel count and e is the number of distinct
+//! inter-basin edges sorted into the merge hierarchy.
 //!
 //! # References
 //!
@@ -43,18 +43,20 @@ use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
 
+use super::hierarchy::WatershedHierarchy;
+
 // 6-connected face-neighbour offsets (dz, dy, dx) for a [nz, ny, nx] grid.
 const NEIGHBOUR_OFFSETS: [(i64, i64, i64); 6] = [
     (-1, 0, 0),
-    (1, 0, 0),
     (0, -1, 0),
-    (0, 1, 0),
     (0, 0, -1),
     (0, 0, 1),
+    (0, 1, 0),
+    (1, 0, 0),
 ];
 
 /// In-bounds 6-connected neighbours of flat index `idx` as flat indices.
-fn neighbours(idx: usize, dims: [usize; 3]) -> impl Iterator<Item = usize> {
+pub(super) fn neighbours(idx: usize, dims: [usize; 3]) -> impl Iterator<Item = usize> {
     let [nz, ny, nx] = dims;
     let z = idx / (ny * nx);
     let rem = idx % (ny * nx);
@@ -72,11 +74,21 @@ fn neighbours(idx: usize, dims: [usize; 3]) -> impl Iterator<Item = usize> {
     })
 }
 
+fn almost_equal(left: f32, right: f32) -> bool {
+    let absolute_difference = (left - right).abs();
+    if absolute_difference <= f32::EPSILON * 0.1 {
+        return true;
+    }
+    if left.is_sign_negative() != right.is_sign_negative() {
+        return false;
+    }
+    left.to_bits().abs_diff(right.to_bits()) <= 4
+}
+
 /// ITK `GradientMagnitudeImageFilter`: per-axis central difference
 /// `(f[+1] − f[−1]) / 2` with ZeroFluxNeumann (edge-clamp) boundaries, magnitude
-/// `sqrt(Σ dᵢ²)`. Unit spacing (the IsolatedWatershed internal gradient). Matches
-/// `sitk.GradientMagnitude` to 0.0 on unit-spacing images. A `z == 1` volume
-/// yields `dz == 0` via the clamp, reducing to the 2-D gradient.
+/// `sqrt(Σ dᵢ²)`. Unit spacing is the isolated-watershed internal convention. A
+/// `z == 1` volume yields `dz == 0` via the clamp, reducing to the 2-D gradient.
 fn gradient_magnitude(vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let mut out = vec![0.0_f32; nz * ny * nx];
@@ -93,172 +105,154 @@ fn gradient_magnitude(vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
         let xm = x.saturating_sub(1);
         let xp = (x + 1).min(nx - 1);
 
-        let dz = (vals[zp * ny * nx + y * nx + x] - vals[zm * ny * nx + y * nx + x]) * 0.5;
-        let dy = (vals[z * ny * nx + yp * nx + x] - vals[z * ny * nx + ym * nx + x]) * 0.5;
-        let dx = (vals[z * ny * nx + y * nx + xp] - vals[z * ny * nx + y * nx + xm]) * 0.5;
-        *val = (dz * dz + dy * dy + dx * dx).sqrt();
+        let dz = vals[zp * ny * nx + y * nx + x] * 0.5 - vals[zm * ny * nx + y * nx + x] * 0.5;
+        let dy = vals[z * ny * nx + yp * nx + x] * 0.5 - vals[z * ny * nx + ym * nx + x] * 0.5;
+        let dx = vals[z * ny * nx + y * nx + xp] * 0.5 - vals[z * ny * nx + y * nx + xm] * 0.5;
+        *val = dz.hypot(dy).hypot(dx);
     });
     out
 }
 
-/// Assign each voxel the flat index of the local minimum of `g` that it flows
-/// to via steepest gradient descent.
+/// Assign each voxel the representative of the plateau minimum reached by its
+/// component's lowest boundary.
 ///
 /// # Algorithm
 ///
-/// 1. **First pass**: label every local minimum of `g` (voxels with no
-///    strictly-lower 6-connected neighbour) with their own flat index.
-/// 2. **Second pass**: for each unlabeled voxel, trace the steepest-descent
-///    chain — at each step, move to the 6-connected neighbour with the smallest
-///    `g` value that is strictly lower than the current voxel's `g`.  Once the
-///    chain reaches a labeled voxel, stamp the entire traced path with that
-///    basin label (path compression).
-///
-/// Because each descent step moves to a strictly lower `g`, the chain is
-/// strictly monotone and cannot cycle.  The `None` arm (no strictly-lower
-/// neighbour for an unlabeled voxel) is a safety net for floating-point
-/// plateaus not caught by the first pass; such voxels are treated as local
-/// minima and given their own basin.
+/// 1. Build face-connected flat zones under ITK's four-ULP equality contract.
+/// 2. Record the first strictly lowest boundary neighbor for every zone.
+/// 3. Resolve the strictly descending component graph to its minimum, stamping
+///    every traversed component with the same representative.
 ///
 /// # Complexity
 ///
-/// O(n) expected: each voxel enters a path at most once before being labeled.
-fn watershed_basins_gd(g: &[f32], dims: [usize; 3]) -> Vec<usize> {
+/// O(n) expected for bounded face connectivity; every component enters a
+/// descending path at most once before path compression labels it.
+pub(super) fn watershed_basins_gd(g: &[f32], dims: [usize; 3]) -> Vec<usize> {
     let n: usize = dims.iter().product();
-
-    // Step 1: Compute distance-to-exit for all voxels using multi-source BFS.
-    // An exit is a voxel with at least one neighbour of strictly lower gradient magnitude.
-    let mut dist = vec![usize::MAX; n];
-    let mut q = std::collections::VecDeque::new();
-
-    for i in 0..n {
-        let gi = g[i];
-        if neighbours(i, dims).any(|j| g[j] < gi) {
-            dist[i] = 0;
-            q.push_back(i);
-        }
-    }
-
-    // Propagate distances across equal-value plateaus
-    while let Some(u) = q.pop_front() {
-        let du = dist[u];
-        let gu = g[u];
-        for v in neighbours(u, dims) {
-            if g[v] == gu && dist[v] == usize::MAX {
-                dist[v] = du + 1;
-                q.push_back(v);
-            }
-        }
-    }
-
-    // Step 2: Unify plateau minima (plateaus where dist[i] == usize::MAX) into single basins.
-    let mut basin = vec![usize::MAX; n];
-    let mut component = Vec::new();
+    let mut component_of = vec![usize::MAX; n];
+    let mut components = Vec::<Vec<usize>>::new();
+    let mut queue = std::collections::VecDeque::new();
     for start in 0..n {
-        if dist[start] == usize::MAX && basin[start] == usize::MAX {
-            component.clear();
-            component.push(start);
-            basin[start] = start; // Temporary label to mark visited
-            let mut q_comp = std::collections::VecDeque::new();
-            q_comp.push_back(start);
-            let gs = g[start];
-            let mut min_idx = start;
-
-            while let Some(u) = q_comp.pop_front() {
-                for v in neighbours(u, dims) {
-                    if g[v] == gs && basin[v] == usize::MAX {
-                        basin[v] = start; // Mark as visited with start label
-                        component.push(v);
-                        if v < min_idx {
-                            min_idx = v;
-                        }
-                        q_comp.push_back(v);
-                    }
+        if component_of[start] != usize::MAX {
+            continue;
+        }
+        let component = components.len();
+        component_of[start] = component;
+        queue.push_back(start);
+        let mut members = Vec::new();
+        while let Some(index) = queue.pop_front() {
+            members.push(index);
+            for neighbor in neighbours(index, dims) {
+                if component_of[neighbor] == usize::MAX && almost_equal(g[neighbor], g[index]) {
+                    component_of[neighbor] = component;
+                    queue.push_back(neighbor);
                 }
             }
-
-            // Assign the entire plateau minimum component to its representative index
-            for &v in &component {
-                basin[v] = min_idx;
-            }
         }
+        components.push(members);
     }
 
-    // Step 3: Trace steepest descent for each unlabeled voxel.
-    // Re-use a single path buffer to prevent heap allocations inside the loop.
-    let mut path: Vec<usize> = Vec::with_capacity(64);
-    for start in 0..n {
-        if basin[start] != usize::MAX {
+    let mut drains_to = vec![None; components.len()];
+    for (component, members) in components.iter().enumerate() {
+        let value = g[members[0]];
+        let mut lowest = None;
+        for &index in members {
+            for neighbor in neighbours(index, dims) {
+                if g[neighbor] < value
+                    && !almost_equal(g[neighbor], value)
+                    && lowest.is_none_or(|current| g[neighbor] < g[current])
+                {
+                    lowest = Some(neighbor);
+                }
+            }
+        }
+        drains_to[component] = lowest.map(|index| component_of[index]);
+    }
+
+    let mut representative = vec![usize::MAX; components.len()];
+    let mut path = Vec::new();
+    for start in 0..components.len() {
+        if representative[start] != usize::MAX {
             continue;
         }
         path.clear();
-        path.push(start);
-        let mut cur = start;
-        loop {
-            let gc = g[cur];
-            let dc = dist[cur];
-
-            // Next step: lexicographical minimum of (g[j], dist[j]).
-            // Must step down in g, or step to same g with smaller dist to exit.
-            let next = neighbours(cur, dims)
-                .filter(|&j| g[j] < gc || (g[j] == gc && dc != usize::MAX && dist[j] < dc))
-                .min_by(|&a, &b| {
-                    let ga = g[a];
-                    let gb = g[b];
-                    match ga.total_cmp(&gb) {
-                        std::cmp::Ordering::Equal => dist[a].cmp(&dist[b]),
-                        ord => ord,
-                    }
-                });
-
-            match next {
-                Some(j) => {
-                    if basin[j] != usize::MAX {
-                        let b = basin[j];
-                        for &p in &path {
-                            basin[p] = b;
-                        }
-                        break;
-                    }
-                    path.push(j);
-                    cur = j;
-                }
-                None => {
-                    // Safety fallback: treat cur as its own local minimum
-                    basin[cur] = cur;
-                    let b = cur;
-                    for &p in &path {
-                        basin[p] = b;
-                    }
-                    break;
-                }
-            }
+        let mut component = start;
+        while representative[component] == usize::MAX {
+            path.push(component);
+            let Some(next) = drains_to[component] else {
+                representative[component] = components[component][0];
+                break;
+            };
+            component = next;
+        }
+        let basin = representative[component];
+        for component in path.drain(..) {
+            representative[component] = basin;
         }
     }
-    basin
+    component_of
+        .into_iter()
+        .map(|component| representative[component])
+        .collect()
 }
 
 // ── Configuration ─────────────────────────────────────────────────────────────
 
 /// Parameters for isolated watershed segmentation.
 ///
-/// `threshold`, `isolated_value_tolerance`, and `upper_value_limit` are
-/// retained for API compatibility with ITK's `IsolatedWatershedImageFilter`
-/// but are **not used** in the gradient-descent watershed algorithm.  The
-/// watershed operates at the finest level (no basin merging); seeds that are
-/// already in separate basins are labeled directly without any parameter-
-/// dependent search.
-#[derive(Debug, Clone)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct IsolatedWatershedConfig {
-    /// Retained for API compatibility; not used by the gradient-descent
-    /// watershed.
-    pub threshold: f32,
-    /// Retained for API compatibility; not used by the gradient-descent
-    /// watershed.
-    pub isolated_value_tolerance: f32,
-    /// Retained for API compatibility; not used by the gradient-descent
-    /// watershed.
-    pub upper_value_limit: f32,
+    threshold: f32,
+    isolated_value_tolerance: f64,
+    upper_value_limit: f64,
+}
+
+impl IsolatedWatershedConfig {
+    /// Construct validated hierarchy-search parameters.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error unless `0 <= threshold <= upper_value_limit <= 1` and
+    /// `isolated_value_tolerance` is finite and strictly positive.
+    pub fn new(
+        threshold: f32,
+        isolated_value_tolerance: f64,
+        upper_value_limit: f64,
+    ) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            threshold.is_finite() && (0.0..=1.0).contains(&threshold),
+            "isolated watershed threshold must be finite and in [0, 1], got {threshold}"
+        );
+        anyhow::ensure!(
+            upper_value_limit.is_finite()
+                && (f64::from(threshold)..=1.0).contains(&upper_value_limit),
+            "isolated watershed upper value limit must be finite and in [{threshold}, 1], got {upper_value_limit}"
+        );
+        anyhow::ensure!(
+            isolated_value_tolerance.is_finite() && isolated_value_tolerance > 0.0,
+            "isolated watershed tolerance must be finite and positive, got {isolated_value_tolerance}"
+        );
+        Ok(Self {
+            threshold,
+            isolated_value_tolerance,
+            upper_value_limit,
+        })
+    }
+
+    /// Return the watershed threshold fraction.
+    pub fn threshold(self) -> f32 {
+        self.threshold
+    }
+
+    /// Return the binary-search tolerance.
+    pub fn isolated_value_tolerance(self) -> f64 {
+        self.isolated_value_tolerance
+    }
+
+    /// Return the maximum hierarchy level searched.
+    pub fn upper_value_limit(self) -> f64 {
+        self.upper_value_limit
+    }
 }
 
 impl Default for IsolatedWatershedConfig {
@@ -280,47 +274,44 @@ impl Default for IsolatedWatershedConfig {
 /// it belongs to.  `seed1`/`seed2` are flat linear indices
 /// (`flat = z·ny·nx + y·nx + x`).
 ///
-/// The `config` parameters are accepted for API compatibility but are not used
-/// in the gradient-descent algorithm.
-pub fn isolated_watershed(
+fn isolated_watershed_values(
     vals: &[f32],
     dims: [usize; 3],
     seed1: usize,
     seed2: usize,
-    _config: &IsolatedWatershedConfig,
+    config: &IsolatedWatershedConfig,
 ) -> Vec<f32> {
-    let n: usize = dims.iter().product();
-
-    if seed1 == seed2 {
-        return vec![1.0_f32; n];
-    }
-
     let g = gradient_magnitude(vals, dims);
-    let basins = watershed_basins_gd(&g, dims);
-
-    let b1 = basins[seed1];
-    let b2 = basins[seed2];
-
-    if b1 != b2 {
-        // Seeds are in separate basins — label each basin directly.
-        return (0..n)
-            .map(|i| {
-                if basins[i] == b1 {
-                    1.0_f32
-                } else if basins[i] == b2 {
-                    2.0_f32
-                } else {
-                    0.0_f32
-                }
-            })
-            .collect();
+    let hierarchy = WatershedHierarchy::build(&g, dims, config.threshold, config.upper_value_limit);
+    let mut lower = f64::from(config.threshold);
+    let mut upper = config.upper_value_limit;
+    let mut guess = upper;
+    let mut labels = hierarchy.labels_at(lower);
+    while lower + config.isolated_value_tolerance < guess {
+        labels = hierarchy.labels_at(guess);
+        if labels[seed1] == labels[seed2] {
+            upper = guess;
+        } else {
+            lower = guess;
+        }
+        guess = (upper + lower) * 0.5;
     }
-
-    // Edge case: both seeds drain to the same local minimum (e.g., they lie on
-    // the same plateau).  Return the shared basin as label 1; no label-2
-    // region can be produced at the finest watershed level.
-    (0..n)
-        .map(|i| if basins[i] == b1 { 1.0_f32 } else { 0.0_f32 })
+    if labels[seed1] == labels[seed2] {
+        labels = hierarchy.labels_at(lower);
+    }
+    let seed1_label = labels[seed1];
+    let seed2_label = labels[seed2];
+    labels
+        .into_iter()
+        .map(|label| {
+            if label == seed1_label {
+                1.0
+            } else if label == seed2_label {
+                2.0
+            } else {
+                0.0
+            }
+        })
         .collect()
 }
 
@@ -328,9 +319,8 @@ pub fn isolated_watershed(
 
 /// Isolated watershed segmentation filter.
 ///
-/// Assigns each voxel to the gradient-descent basin it flows to on the
-/// gradient magnitude image, then labels the basin containing `seed1` as
-/// region 1 and the basin containing `seed2` as region 2:
+/// Builds the watershed merge hierarchy of the gradient magnitude, isolates
+/// the last flood level separating the seeds, then labels their two regions:
 ///
 /// | Label | Meaning |
 /// |-------|---------|
@@ -339,24 +329,23 @@ pub fn isolated_watershed(
 /// | 0.0   | Remaining voxels |
 ///
 /// Corresponds to ITK `itk::IsolatedWatershedImageFilter`.
-#[derive(Debug, Clone)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct IsolatedWatershed {
-    /// First seed voxel `[z, y, x]` (voxel indices, zero-based).
-    pub seed1: [usize; 3],
-    /// Second seed voxel `[z, y, x]` (voxel indices, zero-based).
-    pub seed2: [usize; 3],
-    /// Retained for API compatibility; not used by the gradient-descent
-    /// watershed.
-    pub threshold: f32,
-    /// Retained for API compatibility; not used by the gradient-descent
-    /// watershed.
-    pub isolated_value_tolerance: f32,
-    /// Retained for API compatibility; not used by the gradient-descent
-    /// watershed.
-    pub upper_value_limit: f32,
+    seed1: [usize; 3],
+    seed2: [usize; 3],
+    config: IsolatedWatershedConfig,
 }
 
 impl IsolatedWatershed {
+    /// Construct an isolated watershed filter.
+    pub fn new(seed1: [usize; 3], seed2: [usize; 3], config: IsolatedWatershedConfig) -> Self {
+        Self {
+            seed1,
+            seed2,
+            config,
+        }
+    }
+
     /// Apply the isolated watershed filter to a 3-D scalar image.
     ///
     /// Returns a label image with the same shape and spatial metadata as `image`.
@@ -364,21 +353,17 @@ impl IsolatedWatershed {
     ///
     /// # Errors
     ///
-    /// Returns `Err` if the tensor data cannot be read as `f32`.
+    /// Returns an error if tensor extraction fails or shape, seed, or sample
+    /// validation fails.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
+        validate_image_and_seeds(&vals, dims, self.seed1, self.seed2)?;
         let [_, ny, nx] = dims;
 
         let seed1_flat = self.seed1[0] * ny * nx + self.seed1[1] * nx + self.seed1[2];
         let seed2_flat = self.seed2[0] * ny * nx + self.seed2[1] * nx + self.seed2[2];
 
-        let config = IsolatedWatershedConfig {
-            threshold: self.threshold,
-            isolated_value_tolerance: self.isolated_value_tolerance,
-            upper_value_limit: self.upper_value_limit,
-        };
-
-        let labels = isolated_watershed(&vals, dims, seed1_flat, seed2_flat, &config);
+        let labels = isolated_watershed_values(&vals, dims, seed1_flat, seed2_flat, &self.config);
 
         let device = image.data().device();
         let tensor = Tensor::<B, 3>::from_data(TensorData::new(labels, Shape::new(dims)), &device);
@@ -390,6 +375,71 @@ impl IsolatedWatershed {
             *image.direction(),
         ))
     }
+
+    /// Apply isolated watershed to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let values = image.data_slice()?;
+        let dimensions = image.shape();
+        validate_image_and_seeds(values, dimensions, self.seed1, self.seed2)?;
+        let [_, height, width] = dimensions;
+        let seed1 = self.seed1[0] * height * width + self.seed1[1] * width + self.seed1[2];
+        let seed2 = self.seed2[0] * height * width + self.seed2[1] * width + self.seed2[2];
+        crate::native_output::from_values(
+            image,
+            isolated_watershed_values(values, dimensions, seed1, seed2, &self.config),
+            backend,
+        )
+    }
+}
+
+fn validate_image_and_seeds(
+    values: &[f32],
+    dimensions: [usize; 3],
+    seed1: [usize; 3],
+    seed2: [usize; 3],
+) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        dimensions.iter().all(|&extent| extent > 0),
+        "isolated watershed requires nonzero dimensions, got {dimensions:?}"
+    );
+    let expected = dimensions
+        .iter()
+        .try_fold(1usize, |count, &extent| count.checked_mul(extent))
+        .ok_or_else(|| {
+            anyhow::anyhow!("isolated watershed shape product overflows usize: {dimensions:?}")
+        })?;
+    anyhow::ensure!(
+        values.len() == expected,
+        "isolated watershed shape {dimensions:?} requires {expected} samples, got {}",
+        values.len()
+    );
+    for (name, seed) in [("seed1", seed1), ("seed2", seed2)] {
+        anyhow::ensure!(
+            seed.iter()
+                .zip(dimensions)
+                .all(|(&index, extent)| index < extent),
+            "isolated watershed {name} {seed:?} is outside shape {dimensions:?}"
+        );
+    }
+    if let Some((index, value)) = values
+        .iter()
+        .copied()
+        .enumerate()
+        .find(|(_, value)| !value.is_finite())
+    {
+        anyhow::bail!(
+            "isolated watershed sample at flat index {index} must be finite, got {value}"
+        );
+    }
+    Ok(())
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────

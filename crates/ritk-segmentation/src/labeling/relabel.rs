@@ -61,7 +61,7 @@ pub struct RelabelComponentFilter {
     ///
     /// Components with `voxel_count < minimum_object_size` are removed
     /// (set to background 0.0 in the output).  Default: 0 (retain all).
-    pub minimum_object_size: usize,
+    minimum_object_size: usize,
 }
 
 impl RelabelComponentFilter {
@@ -81,6 +81,34 @@ impl RelabelComponentFilter {
         }
     }
 
+    /// Return the minimum component size retained by the filter.
+    pub fn minimum_object_size(&self) -> usize {
+        self.minimum_object_size
+    }
+
+    /// Apply relabeling to a Coeus-native label image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when backend storage is not host-addressable or the
+    /// native output image cannot be constructed.
+    pub fn apply_native<B>(
+        &self,
+        label_image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<(ritk_image::native::Image<f32, B, 3>, Vec<RelabelStatistics>)>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (values, statistics) =
+            relabel_values(label_image.data_slice()?, self.minimum_object_size)?;
+        Ok((
+            crate::native_output::from_values(label_image, values, backend)?,
+            statistics,
+        ))
+    }
+
     /// Apply relabeling to an integer label image (output of `ConnectedComponentsFilter`).
     ///
     /// # Precondition
@@ -95,15 +123,20 @@ impl RelabelComponentFilter {
     ///
     /// Returns `(output_image, statistics)` where `statistics` has one entry per
     /// surviving component in ascending new-label order.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any input label is non-finite, negative,
+    /// fractional, or outside the exact integer range of `f32`.
     pub fn apply<B: Backend>(
         &self,
         label_image: &Image<B, 3>,
-    ) -> (Image<B, 3>, Vec<RelabelStatistics>) {
+    ) -> anyhow::Result<(Image<B, 3>, Vec<RelabelStatistics>)> {
         let (data_vals, shape) = extract_vec_infallible(label_image);
         let device = label_image.data().device();
         let flat: &[f32] = &data_vals;
 
-        let (output_vec, stats) = relabel_impl(flat, self.minimum_object_size);
+        let (output_vec, stats) = relabel_values(flat, self.minimum_object_size)?;
 
         let td = TensorData::new(output_vec, Shape::new(shape));
         let tensor = Tensor::<B, 3>::from_data(td, &device);
@@ -114,7 +147,7 @@ impl RelabelComponentFilter {
             *label_image.direction(),
         );
 
-        (out_image, stats)
+        Ok((out_image, stats))
     }
 }
 
@@ -136,12 +169,19 @@ impl Default for RelabelComponentFilter {
 /// 3. Assign new labels 1…K' to entries with count ≥ `min_size`.
 /// 4. Build remap table old_label → new_label in O(K).
 /// 5. Remap the flat slice in O(n).
-fn relabel_impl(flat: &[f32], min_size: usize) -> (Vec<f32>, Vec<RelabelStatistics>) {
+pub(crate) fn relabel_values(
+    flat: &[f32],
+    min_size: usize,
+) -> anyhow::Result<(Vec<f32>, Vec<RelabelStatistics>)> {
     // Step 1 — Count voxels per label.
-    // Labels are stored as f32 integers; convert via round then clamp to u32.
+    const MAX_EXACT_LABEL: f32 = 16_777_216.0;
     let mut counts: std::collections::HashMap<u32, usize> =
         std::collections::HashMap::with_capacity(flat.len() / 4 + 1);
     for &v in flat {
+        anyhow::ensure!(
+            v.is_finite() && v >= 0.0 && v.fract() == 0.0 && v <= MAX_EXACT_LABEL,
+            "label values must be finite non-negative integers exactly representable as f32, got {v}"
+        );
         let label = v as u32;
         if label != 0 {
             *counts.entry(label).or_insert(0) += 1;
@@ -149,7 +189,7 @@ fn relabel_impl(flat: &[f32], min_size: usize) -> (Vec<f32>, Vec<RelabelStatisti
     }
 
     if counts.is_empty() {
-        return (flat.iter().map(|_| 0.0_f32).collect(), Vec::new());
+        return Ok((flat.iter().map(|_| 0.0_f32).collect(), Vec::new()));
     }
 
     // Step 2 — Sort by (count desc, label asc) for deterministic tie-breaking.
@@ -157,9 +197,7 @@ fn relabel_impl(flat: &[f32], min_size: usize) -> (Vec<f32>, Vec<RelabelStatisti
     sorted.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
 
     // Step 3 — Assign new labels; build statistics.
-    // Maximum label value in the input — used to size the remap table.
-    let max_old_label = sorted.iter().map(|&(l, _)| l).max().unwrap_or(0) as usize;
-    let mut remap: Vec<u32> = vec![0u32; max_old_label + 1];
+    let mut remap = std::collections::HashMap::with_capacity(sorted.len());
     let mut stats: Vec<RelabelStatistics> = Vec::with_capacity(sorted.len());
     let mut new_label: u32 = 0;
 
@@ -168,7 +206,7 @@ fn relabel_impl(flat: &[f32], min_size: usize) -> (Vec<f32>, Vec<RelabelStatisti
         // count ≥ 0 is always true so all components are retained.
         if count >= min_size {
             new_label += 1;
-            remap[old_label as usize] = new_label;
+            remap.insert(old_label, new_label);
             stats.push(RelabelStatistics {
                 original_label: old_label,
                 new_label,
@@ -182,16 +220,12 @@ fn relabel_impl(flat: &[f32], min_size: usize) -> (Vec<f32>, Vec<RelabelStatisti
     let output: Vec<f32> = flat
         .iter()
         .map(|&v| {
-            let old = v as usize;
-            if old == 0 || old > max_old_label {
-                0.0_f32
-            } else {
-                remap[old] as f32
-            }
+            let old = v as u32;
+            remap.get(&old).copied().unwrap_or(0) as f32
         })
         .collect();
 
-    (output, stats)
+    Ok((output, stats))
 }
 
 /// Relabel non-zero labels to consecutive integers `1, 2, …, K` in **ascending

@@ -19,8 +19,15 @@ fn make_test_image(
     let origin = Point::new(start);
     let spacing = Spacing::new(step);
     let direction = Direction::identity();
-    Image::from_flat_on(values, [nz, ny, nx], origin, spacing, direction, &SequentialBackend)
-        .expect("valid image dimensions")
+    Image::from_flat_on(
+        values,
+        [nz, ny, nx],
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .expect("valid image dimensions")
 }
 
 #[test]
@@ -29,7 +36,7 @@ fn write_minc_produces_file() {
     let image = make_test_image(4, 4, 4, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]);
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("test.mnc");
-    let result = crate::native::write_minc(&image, &path, &backend);
+    let result = crate::write_minc(&image, &path, &backend);
     assert!(result.is_ok(), "write_minc failed: {:?}", result.err());
     assert!(path.exists(), "file was not created");
     let metadata = std::fs::metadata(&path).unwrap();
@@ -45,7 +52,7 @@ fn write_minc_file_starts_with_hdf5_signature() {
     let image = make_test_image(2, 2, 2, [-1.0, -2.0, -3.0], [0.5, 0.5, 0.5]);
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("sig.mnc");
-    crate::native::write_minc(&image, &path, &backend).unwrap();
+    crate::write_minc(&image, &path, &backend).unwrap();
     let bytes = std::fs::read(&path).unwrap();
     assert_eq!(&bytes[0..8], b"\x89HDF\r\n\x1a\n", "missing HDF5 signature");
 }
@@ -59,7 +66,7 @@ fn write_minc_voxel_data_present_in_file() {
     let image = make_test_image(nz, ny, nx, [0.0; 3], [1.0; 3]);
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("voxel.mnc");
-    crate::native::write_minc(&image, &path, &backend).unwrap();
+    crate::write_minc(&image, &path, &backend).unwrap();
     let file_bytes = std::fs::read(&path).unwrap();
     let expected_0 = 0.0f32.to_le_bytes();
     let expected_1 = 1.0f32.to_le_bytes();
@@ -75,7 +82,7 @@ fn write_minc_eof_field_matches_file_size() {
     let image = make_test_image(2, 2, 2, [0.0; 3], [1.0; 3]);
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("eof.mnc");
-    crate::native::write_minc(&image, &path, &backend).unwrap();
+    crate::write_minc(&image, &path, &backend).unwrap();
     let bytes = std::fs::read(&path).unwrap();
     let eof_bytes: [u8; 8] = bytes[28..36].try_into().unwrap();
     let eof_addr = u64::from_le_bytes(eof_bytes);
@@ -88,15 +95,18 @@ fn write_minc_then_read_minc_round_trips_voxels() {
     let image = make_test_image(2, 2, 2, [0.0; 3], [1.0; 3]);
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("roundtrip.mnc");
-    crate::native::write_minc(&image, &path, &backend).expect("write MINC");
+    crate::write_minc(&image, &path, &backend).expect("write MINC");
 
-    let read = crate::native::read_minc(&path, &backend).expect("read MINC");
+    let read = crate::read_minc(&path, &backend).expect("read MINC");
     assert_eq!(read.shape(), [2, 2, 2]);
     let loaded = read.data_slice().expect("contiguous host data");
     let mut got = loaded.to_vec();
     got.sort_by(|a, b| a.partial_cmp(b).expect("no NaN voxels"));
     let expected: Vec<f32> = (0..8u32).map(|i| i as f32).collect();
-    assert_eq!(got, expected, "all 8 voxel values preserved through round-trip");
+    assert_eq!(
+        got, expected,
+        "all 8 voxel values preserved through round-trip"
+    );
 }
 
 #[test]
@@ -109,18 +119,18 @@ fn read_minc_rejects_shape_exceeding_backed_data() {
     let tiny_data = vec![0u8; 8 * 4];
     write_minc2_hdf5(
         &path,
-        &tiny_data,
+        &[0_u8; 8 * 4],
         [64, 64, 64],
         [0.0; 3],
         [1.0; 3],
         &Direction::identity(),
     )
-    .expect("write forged MINC");
+    .unwrap();
 
-    let err = crate::native::read_minc(&path, &backend)
+    let error = crate::read_minc(&path, &backend)
         .expect_err("shape exceeding backed data must error, not OOM");
     assert!(
-        format!("{err:#}").contains("voxel data"),
-        "expected a voxel-data read error, got: {err:#}"
+        format!("{error:#}").contains("voxel data"),
+        "expected voxel-data read error, got {error:#}"
     );
 }

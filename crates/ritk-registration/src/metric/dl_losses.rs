@@ -197,8 +197,14 @@ where
     let joint_p = scalar_div(&joint, T::from_f64(n as f64));
 
     // Marginals broadcast back to `[bins, bins]`.
-    let p_f = broadcast_to(&reshape(&sum_axis(&joint_p, 1), [num_bins, 1]), [num_bins, num_bins]);
-    let p_m = broadcast_to(&reshape(&sum_axis(&joint_p, 0), [1, num_bins]), [num_bins, num_bins]);
+    let p_f = broadcast_to(
+        &reshape(&sum_axis(&joint_p, 1), [num_bins, 1]),
+        [num_bins, num_bins],
+    );
+    let p_m = broadcast_to(
+        &reshape(&sum_axis(&joint_p, 0), [1, num_bins]),
+        [num_bins, num_bins],
+    );
 
     let eps = T::from_f64(1e-10);
     let log_joint = log(&scalar_add(&joint_p, eps));

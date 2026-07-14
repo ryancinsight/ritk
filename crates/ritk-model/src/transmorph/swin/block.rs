@@ -156,7 +156,10 @@ where
 
         let x = permute(&reshape(x, [b, d / ws, ws, h, w, c]), &[0, 1, 3, 4, 2, 5]);
         let x = reshape(&x, [b * (d / ws), h, w, ws, c]);
-        let x = permute(&reshape(&x, [b * (d / ws), h / ws, ws, w, ws, c]), &[0, 1, 3, 4, 2, 5]);
+        let x = permute(
+            &reshape(&x, [b * (d / ws), h / ws, ws, w, ws, c]),
+            &[0, 1, 3, 4, 2, 5],
+        );
         let x = reshape(&x, [b * (d / ws) * (h / ws), w, ws, ws, c]);
         let x = permute(
             &reshape(&x, [b * (d / ws) * (h / ws), w / ws, ws, ws, ws, c]),
@@ -221,7 +224,10 @@ where
                 }
             }
         }
-        let img_var = Var::new(Tensor::from_slice_on([1, d, h, w, 1], &img, &backend), false);
+        let img_var = Var::new(
+            Tensor::from_slice_on([1, d, h, w, 1], &img, &backend),
+            false,
+        );
 
         // Route region ids through the same window partition to get [nw, ws³].
         let ids = self.window_partition(&img_var);
@@ -280,7 +286,12 @@ where
                 .into_iter()
                 .map(|p| p.with_prefix("norm2")),
         );
-        named.extend(self.mlp.named_parameters().into_iter().map(|p| p.with_prefix("mlp")));
+        named.extend(
+            self.mlp
+                .named_parameters()
+                .into_iter()
+                .map(|p| p.with_prefix("mlp")),
+        );
         named
     }
 }

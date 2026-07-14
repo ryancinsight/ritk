@@ -146,6 +146,64 @@ impl LabelContourImageFilter {
 
         Ok(rebuild(out, dims, image))
     }
+
+    /// Apply label contour extraction to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            self.contour_values(image.data_slice()?, image.shape()),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
+
+    fn contour_values(&self, values: &[f32], [nz, ny, nx]: [usize; 3]) -> Vec<f32> {
+        let background = self.background_value;
+        let n26 = n26();
+        let slab = ny * nx;
+        let connectivity = self.connectivity;
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(values.len(), |flat| {
+            let label = values[flat];
+            if (label - background).abs() < 1e-5 {
+                return background;
+            }
+            let z = flat / slab;
+            let rem = flat - z * slab;
+            let y = rem / nx;
+            let x = rem - y * nx;
+            let differs = |dz: i32, dy: i32, dx: i32| {
+                let [nz_, ny_, nx_] = [z as i32 + dz, y as i32 + dy, x as i32 + dx];
+                nz_ >= 0
+                    && ny_ >= 0
+                    && nx_ >= 0
+                    && nz_ < nz as i32
+                    && ny_ < ny as i32
+                    && nx_ < nx as i32
+                    && (values[nz_ as usize * slab + ny_ as usize * nx + nx_ as usize] - label)
+                        .abs()
+                        > 1e-5
+            };
+            let contour = match connectivity {
+                Connectivity::Vertex26 => n26.iter().any(|&(z, y, x)| differs(z, y, x)),
+                Connectivity::Face6 => N6.iter().any(|&(z, y, x)| differs(z, y, x)),
+            };
+            if contour {
+                label
+            } else {
+                background
+            }
+        })
+    }
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────

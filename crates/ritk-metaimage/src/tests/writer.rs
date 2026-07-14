@@ -1,4 +1,4 @@
-use crate::native;
+use crate::write_metaimage_with_data;
 use anyhow::Result;
 use coeus_core::SequentialBackend;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -8,9 +8,13 @@ use ritk_image::native::Image;
 
 type TestBackend = SequentialBackend;
 
-fn make_image(data: Vec<f32>, dims: [usize; 3], origin: ritk_spatial::Point<3>,
-    spacing: ritk_spatial::Spacing<3>, direction: ritk_spatial::Direction<3>)
-    -> Image<f32, TestBackend, 3> {
+fn make_image(
+    data: Vec<f32>,
+    dims: [usize; 3],
+    origin: ritk_spatial::Point<3>,
+    spacing: ritk_spatial::Spacing<3>,
+    direction: ritk_spatial::Direction<3>,
+) -> Image<f32, TestBackend, 3> {
     Image::from_flat_on(data, dims, origin, spacing, direction, &SequentialBackend)
         .expect("valid image")
 }
@@ -47,9 +51,15 @@ fn test_header_fields_present() -> Result<()> {
     let origin = Point::new([0.0, 0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let direction = Direction::identity();
-    let image = make_image(vec![1.0f32; 2 * 3 * 4], [2, 3, 4], origin, spacing, direction);
+    let image = make_image(
+        vec![1.0f32; 2 * 3 * 4],
+        [2, 3, 4],
+        origin,
+        spacing,
+        direction,
+    );
 
-    native::write_metaimage(&path, &image, &backend)?;
+    crate::write_metaimage(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
 
@@ -92,7 +102,7 @@ fn test_dimsize_written_in_xyz_order() -> Result<()> {
         Direction::identity(),
     );
 
-    native::write_metaimage(&path, &image, &backend)?;
+    crate::write_metaimage(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     assert!(
@@ -118,7 +128,7 @@ fn test_spatial_metadata_in_header() -> Result<()> {
         Direction::identity(),
     );
 
-    native::write_metaimage(&path, &image, &backend)?;
+    crate::write_metaimage(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     assert!(
@@ -151,7 +161,7 @@ fn test_internal_identity_direction_written_as_file_axis_reorder() -> Result<()>
         Direction::identity(),
     );
 
-    native::write_metaimage(&path, &image, &backend)?;
+    crate::write_metaimage(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     assert!(
@@ -183,7 +193,7 @@ fn test_payload_size_correct() -> Result<()> {
         Direction::identity(),
     );
 
-    native::write_metaimage(&path, &image, &backend)?;
+    crate::write_metaimage(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     let expected_payload_bytes = n_voxels * 4;
@@ -224,11 +234,33 @@ fn test_payload_values_written_without_permutation() -> Result<()> {
         Direction::identity(),
     );
 
-    native::write_metaimage(&path, &image, &backend)?;
+    crate::write_metaimage(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     assert_eq!(payload_values(&bytes), values);
 
+    Ok(())
+}
+
+#[test]
+fn test_caller_payload_length_must_match_shape() -> Result<()> {
+    let dir = tempdir()?;
+    let path = dir.path().join("wrong_payload.mha");
+    let image = make_image(
+        vec![0.0; 8],
+        [2, 2, 2],
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+    );
+
+    let error = write_metaimage_with_data(&path, &image, &[0.0; 7])
+        .expect_err("short payload must be rejected");
+    assert!(
+        error.to_string().contains("requires 8"),
+        "error must report the required voxel count: {error}"
+    );
+    assert!(!path.exists(), "invalid payload must not create a file");
     Ok(())
 }
 
@@ -247,7 +279,7 @@ fn test_writer_struct_creates_file() -> Result<()> {
         Direction::identity(),
     );
 
-    native::write_metaimage(&path, &image, &backend)?;
+    crate::write_metaimage(&path, &image, &backend)?;
 
     assert!(path.exists(), "output file must exist after write");
     assert!(
@@ -285,7 +317,7 @@ fn test_non_identity_direction_reordered_in_header() -> Result<()> {
         direction,
     );
 
-    native::write_metaimage(&path, &image, &backend)?;
+    crate::write_metaimage(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     // ITK MetaImage TransformMatrix is row-major with each row an axis direction
@@ -299,7 +331,7 @@ fn test_non_identity_direction_reordered_in_header() -> Result<()> {
     );
 
     // Round-trip: reading the written file must recover the exact direction.
-    let read_back = crate::native::read_metaimage(&path, &backend)?;
+    let read_back = crate::read_metaimage(&path, &backend)?;
     let got = read_back.direction().0;
     for i in 0..3 {
         for j in 0..3 {

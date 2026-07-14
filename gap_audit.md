@@ -4069,7 +4069,9 @@ None. All prior outstanding QA gaps closed in this sprint.
 ### Gaps Closed
 
 - **[CORR-384-01 CLOSED]** Frangi + Sato IIR Hessian: `compute_hessian_iir` replaces discrete-kernel blur + FD stencil. IIR matches ITK `HessianRecursiveGaussianImageFilter`. Evidence: algebraic identity H_zz+H_yy+H_xx = ∇²G verified to 1e-3 in `test_hessian_iir_laplacian_consistency`.
-- **[CORR-384-02 CLOSED]** IsolatedWatershed: replaced ConnectedThreshold BFS with `watershed_basins_gd` (steepest-descent path compression). Pixel-perfect (1.0) match vs sitk on reference test. ConnectedThreshold BFS was incorrect — the ITK result includes voxels with g > upper_value_limit because watershed assigns basin membership by gradient flow, not by gradient threshold.
+- **[CORR-384-02 SUPERSEDED by MIG-650-01]** The interim gradient-basin
+  correction matched one reference but omitted hierarchy parameters; MIG-650-01
+  owns the complete ordered hierarchy and isolation search.
 - **[CORR-384-03 CLOSED]** ScalarChanAndVeseDenseLevelSet: `mu` default 0.5→1.0; adaptive dt (`actual_dt = dt / max|δ·force|`); Python binding exposes `mu` kwarg.
 - **[NEW-384-01 CLOSED]** `shift_scale` Python binding + stub + smoke test; cmake parity test `test_cmake_shift_scale_matches_sitk` passes.
 - **[PERF-384-01 CLOSED]** `window_cc_stats` O(N·w³) → O(N) `CcSats` SAT. f64 König–Huygens; replicate-pad boundary reproduces clamp semantics; differential test to 1e-9.
@@ -4122,7 +4124,8 @@ None. All prior outstanding QA gaps closed in this sprint.
 
 ### Residual Risk
 - **[CORR-384-01]**: Frangi Hessian kernel divergence from ITK; parity tests would quantify the magnitude.
-- **[CORR-384-02]**: IsolatedWatershed 0% label match vs sitk hierarchical watershed.
+- **[CORR-384-02 CLOSED by MIG-650-01]**: IsolatedWatershed uses the native
+  ordered hierarchy and exact ITK isolation search.
 - **[CORR-384-03]**: ScalarChanAndVese 19% match; SharedData propagation not implemented.
 - **[PERF-384-01]**: `window_cc_stats` O(N·w³) remains unaddressed.
 - **[PERF-381-01]**: Benchmark baselines for `separable_box_3d` and EDT Phase 3 not yet recorded.

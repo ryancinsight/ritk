@@ -166,7 +166,7 @@ impl FrequencyResponse for ButterworthHighPass {
 /// # Example
 ///
 /// ```ignore
-/// use ritk_core::filter::fft::{FrequencyDomainFilter, FftFilterKind};
+/// use ritk_filter::fft::{FrequencyDomainFilter, FftFilterKind};
 ///
 /// let low = FrequencyDomainFilter::new()
 ///     .apply::<2>(&image, FftFilterKind::IdealLowPass, 0.3, 2)?;

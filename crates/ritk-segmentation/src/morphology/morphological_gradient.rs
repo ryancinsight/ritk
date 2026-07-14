@@ -8,7 +8,7 @@
 //! The result is 1.0 at boundary voxels (in dilation but not erosion) and
 //! 0.0 at interior foreground, exterior background, and all other voxels.
 
-use super::{BinaryDilation, BinaryErosion, MorphologicalOperation};
+use super::MorphologicalOperation;
 use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
@@ -18,7 +18,7 @@ use ritk_tensor_ops::extract_vec_infallible;
 /// Output voxel x is 1.0 iff  and .
 pub struct MorphologicalGradient {
     /// Ball radius for structuring element.
-    pub radius: usize,
+    radius: usize,
 }
 
 impl Default for MorphologicalGradient {
@@ -28,43 +28,66 @@ impl Default for MorphologicalGradient {
 }
 
 impl MorphologicalGradient {
+    /// Create a gradient with the specified box half-width.
     pub fn new(radius: usize) -> Self {
         Self { radius }
+    }
+
+    /// Return the box half-width.
+    pub fn radius(&self) -> usize {
+        self.radius
+    }
+
+    /// Apply the binary morphological gradient to a Coeus-native mask.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for non-finite samples, inaccessible backend storage,
+    /// or output construction failure.
+    pub fn apply_native<B>(
+        &self,
+        mask: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let values = mask.data_slice()?;
+        super::ensure_finite_mask(values)?;
+        crate::native_output::from_values(
+            mask,
+            gradient_values(values, mask.shape(), self.radius),
+            backend,
+        )
     }
 }
 
 impl<B: Backend> MorphologicalOperation<B, 3> for MorphologicalGradient {
     fn apply(&self, mask: &Image<B, 3>) -> Image<B, 3> {
-        let dilated = BinaryDilation {
-            radius: self.radius,
-        }
-        .apply(mask);
-        let eroded = BinaryErosion {
-            radius: self.radius,
-        }
-        .apply(mask);
-
         let shape = mask.shape();
-        let [nz, ny, nx] = shape;
-        let n = nz * ny * nx;
         let device = mask.data().device();
-
-        let (dil_vals, _) = extract_vec_infallible(&dilated);
-        let (ero_vals, _) = extract_vec_infallible(&eroded);
-
-        let mut out = vec![0.0f32; n];
-        for i in 0..n {
-            if dil_vals[i] >= super::FOREGROUND_THRESHOLD
-                && ero_vals[i] < super::FOREGROUND_THRESHOLD
-            {
-                out[i] = 1.0;
-            }
-        }
-
-        let tensor =
-            Tensor::<B, 3>::from_data(TensorData::new(out, Shape::new([nz, ny, nx])), &device);
+        let (values, _) = extract_vec_infallible(mask);
+        let out = gradient_values(&values, shape, self.radius);
+        let tensor = Tensor::<B, 3>::from_data(TensorData::new(out, Shape::new(shape)), &device);
         Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
     }
+}
+
+fn gradient_values(values: &[f32], shape: [usize; 3], radius: usize) -> Vec<f32> {
+    let dilated = super::binary_dilation::dilate_nd(values, &shape, radius);
+    let eroded = super::binary_erosion::erode(values, &shape, radius);
+    dilated
+        .into_iter()
+        .zip(eroded)
+        .map(|(dilated, eroded)| {
+            if dilated >= super::FOREGROUND_THRESHOLD && eroded < super::FOREGROUND_THRESHOLD {
+                1.0
+            } else {
+                0.0
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]

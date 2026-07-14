@@ -6,7 +6,6 @@ description = "MINC2 (.mnc / .mnc2) image I/O for RITK"
 repository = "https://github.com/ryancinsight/ritk"
 
 [dependencies]
-burn-ndarray = { workspace = true }
 ritk-core = { workspace = true }
 ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }

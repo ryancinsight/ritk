@@ -2,10 +2,89 @@
 //! Extracted to keep the 500-line structural limit.
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 type B = NdArray<f32>;
+
+#[test]
+fn native_transform_matches_legacy_boundary_and_preserves_geometry() {
+    let dimensions = [1, 7, 7];
+    let mut values = vec![0.0_f32; 49];
+    for y in 1..6 {
+        for x in 1..6 {
+            values[y * 7 + x] = 1.0;
+        }
+    }
+    let origin = Point::new([2.0, 3.0, 5.0]);
+    let spacing = Spacing::new([0.5, 1.0, 2.0]);
+    let direction = Direction::identity();
+    let image = NativeImage::from_flat_on(
+        values.clone(),
+        dimensions,
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+
+    let output = HitOrMissTransform::new(1, 0)
+        .apply_native(&image, &SequentialBackend)
+        .expect("native hit-or-miss succeeds");
+
+    assert_eq!(output.shape(), dimensions);
+    assert_eq!(*output.origin(), origin);
+    assert_eq!(*output.spacing(), spacing);
+    assert_eq!(*output.direction(), direction);
+    let legacy = HitOrMissTransform::new(1, 0)
+        .apply(&img(values, dimensions))
+        .expect("legacy hit-or-miss succeeds");
+    assert_eq!(output.data_slice().expect("contiguous output"), vv(&legacy));
+    assert_eq!(
+        output
+            .data_slice()
+            .expect("contiguous output")
+            .iter()
+            .filter(|&&value| value > 0.5)
+            .count(),
+        9
+    );
+}
+
+#[test]
+fn native_transform_matches_legacy_for_three_dimensional_background_ring() {
+    let dimensions = [5, 5, 5];
+    let mut values = vec![0.0_f32; 125];
+    values[2 * 25 + 2 * 5 + 2] = 1.0;
+    let native = NativeImage::from_flat_on(
+        values.clone(),
+        dimensions,
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+
+    let native_output = HitOrMissTransform::new(0, 1)
+        .apply_native(&native, &SequentialBackend)
+        .expect("native hit-or-miss succeeds");
+    let legacy_output = HitOrMissTransform::new(0, 1)
+        .apply(&img(values, dimensions))
+        .expect("legacy hit-or-miss succeeds");
+
+    assert_eq!(
+        native_output.data_slice().expect("contiguous output"),
+        vv(&legacy_output)
+    );
+    assert_eq!(
+        native_output.data_slice().expect("contiguous output")[2 * 25 + 2 * 5 + 2],
+        1.0
+    );
+}
 fn img(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
     let t = Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(dims)), &Default::default());
     Image::new(

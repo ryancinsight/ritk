@@ -1,11 +1,6 @@
-//! Atlas-typed tests for the DICOM RGB colour-volume sister loader.
-//!
-//! Strict subtractive on test surface (ADR 0012 §Decision §Sub-batch #3.f):
-//! every assertion exercises the [`super::atlas_color`] sister API rather
-//! than the legacy tensor-backed `super::load_dicom_color_*` functions. The
-//! dicom-rs `InMemDicomObject` fixture creation is preserved verbatim per
-//! ADR 0012 §Decision §C (Atlas sister only swaps the load sink).
+//! Native DICOM RGB color-volume tests.
 
+use coeus_core::SequentialBackend;
 use ritk_dicom::PixelSignedness;
 
 use super::*;
@@ -125,7 +120,7 @@ fn write_rgb_slice(
 }
 
 #[test]
-fn test_atlas_color_series_preserves_interleaved_rgb_samples() {
+fn native_color_series_preserves_interleaved_rgb_samples() {
     let dir = tempfile::tempdir().expect("tempdir");
     write_rgb_slice(
         &dir.path().join("slice1.dcm"),
@@ -144,22 +139,21 @@ fn test_atlas_color_series_preserves_interleaved_rgb_samples() {
         Some(0),
     );
 
-    let (volume, metadata) =
-        atlas_color::load_atlas_color_series(dir.path()).expect("RGB load must succeed");
+    let (samples, shape, metadata) =
+        load_color_volume_flat_from_path(dir.path()).expect("RGB load must succeed");
 
-    assert_eq!(volume.shape(), [2, 1, 2, 3]);
+    assert_eq!(shape, [2, 1, 2, 3]);
     assert_eq!(metadata.dimensions, [1, 2, 2]);
     assert_eq!(metadata.photometric_interpretation.as_deref(), Some("RGB"));
 
-    let samples = volume.data_slice().expect("AtlasImage host-slice access");
     assert_eq!(
-        samples,
+        samples.as_slice(),
         &[255.0, 0.0, 0.0, 0.0, 255.0, 0.0, 0.0, 0.0, 255.0, 255.0, 255.0, 255.0]
     );
 }
 
 #[test]
-fn test_atlas_color_series_rejects_scalar_samples() {
+fn native_color_series_rejects_scalar_samples() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("mono.dcm");
     let mut obj = InMemDicomObject::new_empty();
@@ -223,7 +217,7 @@ fn test_atlas_color_series_rejects_scalar_samples() {
     .write_to_file(&path)
     .expect("scalar DICOM must be written");
 
-    let err = atlas_color::load_atlas_color_series(dir.path()).unwrap_err();
+    let err = load_color_volume_flat_from_path(dir.path()).unwrap_err();
     let msg = format!("{err:#}");
     assert!(
         msg.contains("SamplesPerPixel=1"),
@@ -232,7 +226,7 @@ fn test_atlas_color_series_rejects_scalar_samples() {
 }
 
 #[test]
-fn test_atlas_color_series_rejects_planar_rgb_samples() {
+fn native_color_series_rejects_planar_rgb_samples() {
     let dir = tempfile::tempdir().expect("tempdir");
     write_rgb_slice(
         &dir.path().join("planar.dcm"),
@@ -242,7 +236,7 @@ fn test_atlas_color_series_rejects_planar_rgb_samples() {
         &[255, 0, 0, 0, 255, 0],
         Some(1),
     );
-    let err = atlas_color::load_atlas_color_series(dir.path()).unwrap_err();
+    let err = load_color_volume_flat_from_path(dir.path()).unwrap_err();
     let msg = format!("{err:#}");
     assert!(
         msg.contains("PlanarConfiguration=0") && msg.contains("declares 1"),
@@ -251,7 +245,7 @@ fn test_atlas_color_series_rejects_planar_rgb_samples() {
 }
 
 #[test]
-fn test_atlas_color_from_series_is_callable() {
+fn native_color_from_series_preserves_values_and_metadata() {
     let dir = tempfile::tempdir().expect("tempdir");
     write_rgb_slice(
         &dir.path().join("slice1.dcm"),
@@ -318,44 +312,22 @@ fn test_atlas_color_from_series_is_callable() {
         radionuclide_half_life_s: None,
     };
 
-    let series = reader::DicomSeriesInfo {
-        path: dir.path().to_path_buf(),
-        num_slices: 1,
-        metadata,
-    };
-
-    let result = atlas_color::load_atlas_color_from_series(series);
-    assert!(
-        result.is_ok(),
-        "load_atlas_color_from_series must succeed: {:?}",
-        result.err()
-    );
-
-    let (volume, meta) = result.unwrap();
-    assert_eq!(volume.shape(), [1, 1, 2, 3]);
+    let (samples, shape, meta) =
+        load_color_volume_flat(metadata).expect("native color series must load");
+    assert_eq!(shape, [1, 1, 2, 3]);
     assert_eq!(meta.dimensions, [1, 2, 1]);
     assert_eq!(meta.photometric_interpretation.as_deref(), Some("RGB"));
 
-    let samples = volume.data_slice().expect("AtlasImage host-slice access");
-    assert_eq!(samples, &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]);
+    assert_eq!(samples.as_slice(), &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]);
 }
 
-/// Differential parity: the substrate-free flat core, the native carrier, and
-/// the (now-removed) burn `RgbVolume` carrier must all expose the identical
-/// interleaved-RGB host-slice order for the same input series.
+/// The substrate-free RGB core exposes the canonical interleaved host order.
 ///
 /// `flat` is first pinned to a known interleaved-RGB value oracle, so this is
 /// a value-semantic check rather than a self-consistency tautology; the burn
 /// and native carriers are then asserted to preserve that exact buffer.
 #[test]
-fn native_flat_matches_burn_rgbvolume_layout() {
-    use burn::tensor::{backend::Backend as BurnBackend, Shape, Tensor, TensorData};
-    use burn_ndarray::NdArray;
-    use coeus_core::MoiraiBackend;
-    use ritk_core::image::RgbVolume;
-    use ritk_image::native::Image;
-    use ritk_spatial::{Direction, Point, Spacing};
-
+fn flat_rgb_volume_preserves_layout() {
     let dir = tempfile::tempdir().expect("tempdir");
     write_rgb_slice(
         &dir.path().join("slice1.dcm"),
@@ -385,46 +357,6 @@ fn native_flat_matches_burn_rgbvolume_layout() {
     ];
     assert_eq!(flat.as_slice(), &expected);
 
-    // Burn `RgbVolume` carrier (the removed path): a permutation or transpose
-    // in the burn carrier would diverge from the flat buffer read back.
-    type B = NdArray<f32>;
-    let device = <B as BurnBackend>::Device::default();
-    let tensor = Tensor::<B, 4>::from_data(TensorData::new(flat.clone(), Shape::new(dims)), &device);
-    let rgb = RgbVolume::<B>::try_new(
-        tensor,
-        Point::new(metadata.origin),
-        Spacing::new(metadata.spacing),
-        Direction::from_column_major(metadata.direction),
-    )
-    .expect("burn RgbVolume construction");
-    assert_eq!(
-        rgb.data_vec(),
-        flat,
-        "burn RgbVolume host layout must equal native flat buffer"
-    );
-
-    // Native Coeus carrier: `from_flat` must preserve the same host-slice order.
-    let native = Image::<f32, MoiraiBackend, 4>::from_flat(
-        flat.clone(),
-        dims,
-        Point::<4>::new([
-            metadata.origin[0],
-            metadata.origin[1],
-            metadata.origin[2],
-            0.0,
-        ]),
-        Spacing::<4>::new([
-            metadata.spacing[0],
-            metadata.spacing[1],
-            metadata.spacing[2],
-            1.0,
-        ]),
-        Direction::<4>::identity(),
-    )
-    .expect("native carrier construction");
-    assert_eq!(
-        native.data_slice().expect("native host slice"),
-        flat.as_slice(),
-        "native carrier host slice must equal the flat buffer"
-    );
+    assert_eq!(metadata.dimensions, [1, 2, 2]);
+    assert_eq!(flat.as_slice(), &expected);
 }

@@ -13,8 +13,7 @@
 
 use coeus_autograd::{cat, permute, reshape, tile, Parameter, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
-use coeus_nn::module::Module;
-use coeus_nn::Conv3d;
+use coeus_nn::{module::Module, Conv3d};
 use coeus_ops::BackendOps;
 
 use crate::transmorph::{

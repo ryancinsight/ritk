@@ -69,22 +69,19 @@ def test_isolated_watershed_matches_sitk():
                                replaceValue2=2)).astype(int)
     out = ritk.segmentation.isolated_watershed_segment(
         ritk.Image(np.ascontiguousarray(img[None])), [0, 3, 1], [0, 3, 5])
-    assert (_sq(out).astype(int) == ref).mean() > 0.999
+    np.testing.assert_array_equal(_sq(out).astype(int), ref)
 
 
-@pytest.mark.xfail(
-    reason="ritk does not reproduce the Awate-Whitaker entropy update + seeded "
-    "GaussianRandomSpatialNeighborSubsampler; 25.1 max abs error.",
-    strict=False,
-)
-def test_patch_based_denoising_matches_sitk():
-    sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
-    np.random.seed(1)
-    im = (np.random.rand(12, 12) * 60 + 40).astype(np.float32)
-    ref = sitk.GetArrayFromImage(
-        sitk.PatchBasedDenoising(sitk.GetImageFromArray(im), 400.0, 2, 1, 200, 400.0))
-    out = ritk.filter.patch_based_denoising(ritk.Image(np.ascontiguousarray(im[None])))
-    assert float(np.abs(_sq(out) - ref).max()) < 1e-3
+def test_isolated_watershed_rejects_invalid_contract_values():
+    image = ritk.Image(np.zeros((1, 2, 3), np.float32))
+    with pytest.raises(ValueError, match=r"threshold must be finite and in \[0, 1\]"):
+        ritk.segmentation.isolated_watershed_segment(
+            image, [0, 0, 0], [0, 1, 2], threshold=float("nan")
+        )
+    with pytest.raises(ValueError, match="seed2 .* outside shape"):
+        ritk.segmentation.isolated_watershed_segment(
+            image, [0, 0, 0], [0, 2, 0]
+        )
 
 
 @pytest.mark.xfail(

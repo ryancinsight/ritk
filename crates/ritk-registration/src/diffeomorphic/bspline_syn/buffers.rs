@@ -1,7 +1,10 @@
 //! Pre-allocated scratch buffers for zero-allocation BSplineSyN iteration.
 //!
-//! All buffers are sized at construction time; the iteration loop performs
-//! zero heap allocations by writing exclusively into these pre-owned buffers.
+//! All volume-sized buffers are sized at construction time and rebuilt or
+//! overwritten in place. The fused CC dispatcher retains one bounded `O(nz)`
+//! slice-descriptor allocation per iteration.
+
+use crate::diffeomorphic::local_cc::CcSats;
 
 /// Dense-field and control-point scratch buffers for one BSplineSyN registration.
 ///
@@ -57,8 +60,9 @@ pub(super) struct BSplineSyNBuffers {
     pub u2y: Vec<f32>,
     pub u2x: Vec<f32>,
 
-    // ── Gaussian smooth scratch ──
-    pub smooth_tmp: Vec<f32>,
+    // ── Local-CC statistics and per-slice reductions ──
+    pub cc_sats: CcSats,
+    pub cc_slices: Vec<(f64, usize)>,
 
     // ── CP-space gradient and Laplacian buffers ──
     pub cp_accum: Vec<f64>,
@@ -80,7 +84,7 @@ pub(super) struct BSplineSyNBuffers {
 impl BSplineSyNBuffers {
     /// Allocate all buffers for a volume with `n = nz*ny*nx` voxels and
     /// `cp_n = cp_d[0]*cp_d[1]*cp_d[2]` control points.
-    pub(super) fn new(n: usize, cp_n: usize) -> Self {
+    pub(super) fn new(n: usize, cp_n: usize, dims: [usize; 3], cc_radius: usize) -> Self {
         Self {
             cp1z: vec![0.0_f32; cp_n],
             cp1y: vec![0.0_f32; cp_n],
@@ -117,7 +121,8 @@ impl BSplineSyNBuffers {
             u2z: vec![0.0_f32; n],
             u2y: vec![0.0_f32; n],
             u2x: vec![0.0_f32; n],
-            smooth_tmp: vec![0.0_f32; n],
+            cc_sats: CcSats::new(dims, cc_radius),
+            cc_slices: vec![(0.0_f64, 0usize); dims[0]],
             cp_accum: vec![0.0_f64; cp_n],
             cp_weight: vec![0.0_f64; cp_n],
             d1z: vec![0.0_f32; cp_n],

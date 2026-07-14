@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use tracing::{info, warn};
 
 mod datasets;
+mod dependency_alignment;
 mod migration_audit;
 
 use datasets::{Dataset, DatasetManager};
@@ -82,6 +83,8 @@ enum Commands {
     BurnMigrationAudit,
     /// Refresh the Burn migration allowlist baseline file.
     RefreshBurnAllowlist,
+    /// Enforce workspace dependency inheritance in member manifests.
+    DependencyAlignment,
 }
 
 fn main() -> Result<()> {
@@ -122,6 +125,9 @@ fn main() -> Result<()> {
         }
         Commands::RefreshBurnAllowlist => {
             migration_audit::refresh_burn_allowlist(Path::new("."))?;
+        }
+        Commands::DependencyAlignment => {
+            dependency_alignment::verify()?;
         }
     }
 

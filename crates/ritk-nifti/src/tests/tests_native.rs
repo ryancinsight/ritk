@@ -1,4 +1,4 @@
-//! Value-semantic coverage for the Coeus-backed NIfTI reader path.
+//! Value-semantic coverage for the native NIfTI reader path.
 
 use crate::header::{
     write_single_file_bytes, HeaderDims, HeaderSpatial, NiftiDatatype, NiftiHeader,
@@ -29,7 +29,7 @@ fn read_nifti_native_preserves_shape_and_voxels() {
     let bytes = write_single_file_bytes(&header, &data);
 
     let backend = SequentialBackend;
-    let image = crate::native::read_nifti_from_bytes(&bytes, &backend).expect("coeus NIfTI read");
+    let image = crate::read_nifti_from_bytes(&bytes, &backend).expect("native NIfTI read");
 
     assert_eq!(
         image.shape(),
@@ -41,13 +41,7 @@ fn read_nifti_native_preserves_shape_and_voxels() {
     assert_eq!(loaded, expected.as_slice());
 }
 
-// ── Coeus writer (write_nifti_coeus) ────────────────────────────────────────
-
-use crate::{read_nifti, write_nifti};
-use burn_ndarray::NdArray;
 use ritk_spatial::{Direction, Point, Spacing};
-
-type BurnBackend = NdArray<f32>;
 
 /// Anisotropic, non-trivially-oriented test volume shared by both writers.
 fn test_volume() -> (Vec<f32>, [usize; 3], Point<3>, Spacing<3>, Direction<3>) {
@@ -75,13 +69,13 @@ fn native_writer_round_trips_through_native_reader() {
         direction,
         &backend,
     )
-    .expect("coeus image");
+    .expect("native image");
 
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("coeus_roundtrip.nii");
-    crate::native::write_nifti(&path, &image, &backend).expect("coeus NIfTI write");
+    crate::write_nifti(&path, &image, &backend).expect("native NIfTI write");
 
-    let loaded = crate::native::read_nifti(&path, &backend).expect("coeus NIfTI read");
+    let loaded = crate::read_nifti(&path, &backend).expect("native NIfTI read");
     assert_eq!(loaded.shape(), dims);
     assert_eq!(
         loaded.data_slice().expect("contiguous"),
@@ -106,44 +100,4 @@ fn native_writer_round_trips_through_native_reader() {
             origin[k]
         );
     }
-}
-
-#[test]
-fn native_writer_output_is_byte_identical_to_burn_writer() {
-    // Strongest differential oracle: for the same logical image the Coeus and
-    // Burn writers share the serialization core, so the files must be
-    // byte-for-byte identical.
-    let (voxels, dims, origin, spacing, direction) = test_volume();
-
-    let burn_image = {
-        use ritk_image::tensor::{Shape, Tensor, TensorData};
-        let device = Default::default();
-        let tensor = Tensor::<BurnBackend, 3>::from_data(
-            TensorData::new(voxels.clone(), Shape::new(dims)),
-            &device,
-        );
-        ritk_core::image::Image::new(tensor, origin, spacing, direction)
-    };
-    let backend = SequentialBackend;
-    let coeus_image =
-        ritk_image::native::Image::from_flat_on(voxels, dims, origin, spacing, direction, &backend)
-            .expect("coeus image");
-
-    let dir = tempfile::tempdir().expect("tempdir");
-    let burn_path = dir.path().join("burn.nii");
-    let coeus_path = dir.path().join("coeus.nii");
-    write_nifti(&burn_path, &burn_image).expect("burn write");
-    crate::native::write_nifti(&coeus_path, &coeus_image, &backend).expect("coeus write");
-
-    let burn_bytes = std::fs::read(&burn_path).expect("burn bytes");
-    let coeus_bytes = std::fs::read(&coeus_path).expect("coeus bytes");
-    assert_eq!(
-        burn_bytes, coeus_bytes,
-        "coeus and burn NIfTI writers must emit identical bytes"
-    );
-
-    // Cross-substrate round trip: burn reader consumes the coeus-written file.
-    let device = Default::default();
-    let loaded = read_nifti::<BurnBackend, _>(&coeus_path, &device).expect("burn read");
-    assert_eq!(loaded.shape(), dims);
 }

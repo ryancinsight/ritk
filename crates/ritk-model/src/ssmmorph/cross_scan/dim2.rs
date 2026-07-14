@@ -1,116 +1,90 @@
-//! 2D Cross-Scan mechanisms and dimension mappings
-use super::directions::ScanDirection;
-use ritk_image::burn::prelude::*;
+//! Two-dimensional directional sequence views.
 
-/// 2D Cross-Scan operation
-///
-/// Transforms 2D spatial features into sequences along multiple directions
+use coeus_autograd::{flip, permute, reshape, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_ops::BackendOps;
+
+use super::directions::ScanDirection;
+use crate::ModelError;
+
+/// Bidirectional row-major and column-major scans of planar features.
 pub struct Scan2D;
 
 impl Scan2D {
-    /// Scan tensor along specified direction
-    ///
-    /// # Arguments
-    /// * `input` - Input tensor [batch, channels, height, width]
-    /// * `direction` - Scan direction
-    ///
-    /// # Returns
-    /// * Scanned tensor [batch, channels, seq_len] where seq_len = height * width
-    pub fn scan<B: Backend>(input: Tensor<B, 4>, direction: ScanDirection) -> Tensor<B, 3> {
-        let [batch, channels, height, width] = input.dims();
-        let _device = input.device();
-
-        match direction {
-            ScanDirection::HorizontalForward => {
-                // Reshape to [batch, channels, height, width] -> [batch, channels, height*width]
-                // Row-major order (left-to-right, top-to-bottom)
-                input
-                    .permute([0, 1, 2, 3])
-                    .reshape([batch, channels, height * width])
-            }
-            ScanDirection::HorizontalReverse => {
-                // Flip horizontally then reshape
-                let flipped = Self::flip_horizontal(input);
-                flipped
-                    .permute([0, 1, 2, 3])
-                    .reshape([batch, channels, height * width])
-            }
-            ScanDirection::VerticalForward => {
-                // Transpose to make vertical scan horizontal, then reshape
-                // [batch, channels, height, width] -> [batch, channels, width, height]
-                let transposed = input.permute([0, 1, 3, 2]);
-                transposed.reshape([batch, channels, height * width])
-            }
-            ScanDirection::VerticalReverse => {
-                // Flip vertically, transpose, then reshape
-                let flipped = Self::flip_vertical(input);
-                let transposed = flipped.permute([0, 1, 3, 2]);
-                transposed.reshape([batch, channels, height * width])
-            }
-            _ => panic!("Invalid 2D scan direction"),
+    /// Convert `[batch, channels, height, width]` into a directional sequence.
+    pub fn scan<B>(input: &Var<f32, B>, direction: ScanDirection) -> Result<Var<f32, B>, ModelError>
+    where
+        B: Backend + BackendOps<f32>,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    {
+        let shape = input.tensor.shape();
+        if shape.len() != 4 {
+            return Err(ModelError::Shape {
+                operation: "Scan2D::scan",
+                expected: "[batch, channels, height, width]",
+                actual: shape.to_vec(),
+            });
         }
+        let (batch, channels, height, width) = (shape[0], shape[1], shape[2], shape[3]);
+        let ordered = match direction {
+            ScanDirection::HorizontalForward => input.clone(),
+            ScanDirection::HorizontalReverse => flip(input, 3),
+            ScanDirection::VerticalForward => permute(input, &[0, 1, 3, 2]),
+            ScanDirection::VerticalReverse => permute(&flip(input, 2), &[0, 1, 3, 2]),
+            ScanDirection::DepthForward | ScanDirection::DepthReverse => {
+                return Err(ModelError::Shape {
+                    operation: "Scan2D::scan",
+                    expected: "a planar scan direction",
+                    actual: shape.to_vec(),
+                });
+            }
+        };
+        Ok(reshape(&ordered, [batch, channels, height * width]))
     }
 
-    /// Merge scanned sequences back to spatial tensor
-    ///
-    /// # Arguments
-    /// * `scanned` - Scanned tensor [batch, channels, seq_len]
-    /// * `height` - Output height
-    /// * `width` - Output width
-    /// * `direction` - Original scan direction
-    ///
-    /// # Returns
-    /// * Reconstructed tensor [batch, channels, height, width]
-    pub fn merge<B: Backend>(
-        scanned: Tensor<B, 3>,
+    /// Restore a directional sequence to `[batch, channels, height, width]`.
+    pub fn merge<B>(
+        scanned: &Var<f32, B>,
         height: usize,
         width: usize,
         direction: ScanDirection,
-    ) -> Tensor<B, 4> {
-        let [batch, channels, _] = scanned.dims();
-
-        match direction {
-            ScanDirection::HorizontalForward => scanned.reshape([batch, channels, height, width]),
-            ScanDirection::HorizontalReverse => {
-                let reshaped = scanned.reshape([batch, channels, height, width]);
-                Self::flip_horizontal(reshaped)
-            }
-            ScanDirection::VerticalForward => {
-                let reshaped = scanned.reshape([batch, channels, width, height]);
-                reshaped.permute([0, 1, 3, 2])
-            }
-            ScanDirection::VerticalReverse => {
-                let reshaped = scanned.reshape([batch, channels, width, height]);
-                let transposed = reshaped.permute([0, 1, 3, 2]);
-                Self::flip_vertical(transposed)
-            }
-            _ => panic!("Invalid 2D scan direction"),
+    ) -> Result<Var<f32, B>, ModelError>
+    where
+        B: Backend + BackendOps<f32>,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    {
+        let shape = scanned.tensor.shape();
+        if shape.len() != 3 || shape[2] != height * width {
+            return Err(ModelError::Shape {
+                operation: "Scan2D::merge",
+                expected: "[batch, channels, height * width]",
+                actual: shape.to_vec(),
+            });
         }
-    }
-
-    /// Flip tensor horizontally
-    fn flip_horizontal<B: Backend>(input: Tensor<B, 4>) -> Tensor<B, 4> {
-        let [_batch, _channels, _height, width] = input.dims();
-        let device = input.device();
-
-        // Create index tensor for reverse order along width
-        let indices: Vec<i64> = (0..width).map(|i| (width - 1 - i) as i64).collect();
-        let index_tensor = Tensor::from_data(indices.as_slice(), &device);
-
-        // Index select along width dimension (dim 3)
-        input.select(3, index_tensor)
-    }
-
-    /// Flip tensor vertically
-    fn flip_vertical<B: Backend>(input: Tensor<B, 4>) -> Tensor<B, 4> {
-        let [_batch, _channels, height, _width] = input.dims();
-        let device = input.device();
-
-        // Create index tensor for reverse order along height
-        let indices: Vec<i64> = (0..height).map(|i| (height - 1 - i) as i64).collect();
-        let index_tensor = Tensor::from_data(indices.as_slice(), &device);
-
-        // Index select along height dimension (dim 2)
-        input.select(2, index_tensor)
+        let (batch, channels) = (shape[0], shape[1]);
+        Ok(match direction {
+            ScanDirection::HorizontalForward => reshape(scanned, [batch, channels, height, width]),
+            ScanDirection::HorizontalReverse => {
+                flip(&reshape(scanned, [batch, channels, height, width]), 3)
+            }
+            ScanDirection::VerticalForward => permute(
+                &reshape(scanned, [batch, channels, width, height]),
+                &[0, 1, 3, 2],
+            ),
+            ScanDirection::VerticalReverse => flip(
+                &permute(
+                    &reshape(scanned, [batch, channels, width, height]),
+                    &[0, 1, 3, 2],
+                ),
+                2,
+            ),
+            ScanDirection::DepthForward | ScanDirection::DepthReverse => {
+                return Err(ModelError::Shape {
+                    operation: "Scan2D::merge",
+                    expected: "a planar scan direction",
+                    actual: shape.to_vec(),
+                });
+            }
+        })
     }
 }

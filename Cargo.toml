@@ -70,7 +70,8 @@ burn-ndarray = "0.19" # For CPU testing
 criterion = { version = "0.5", features = ["html_reports"] }
 coeus-nn = { path = "../coeus/coeus-nn" }
 coeus-optim = { path = "../coeus/coeus-optim" }
-pyo3 = { version = "0.22", features = ["extension-module", "abi3-py39"] }
+onnx-ir = "0.20.1"
+pyo3 = { version = "0.22", features = ["abi3-py39"] }
 numpy = "0.22"
 dicom = { version = "0.8.0", default-features = false }
 moirai = { path = "../moirai/moirai", version = "0.2.0", features = ["melinoe"] }
@@ -84,8 +85,8 @@ coeus-leto = { path = "../coeus/coeus-leto" }
 coeus-autograd = { path = "../coeus/coeus-autograd" }
 leto = { path = "../leto/crates/leto", version = "0.36.0" }
 leto-ops = { path = "../leto/crates/leto-ops", version = "0.36.0" }
-hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.10.0" }
-hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.10.0" }
+hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.13.0" }
+hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.13.0" }
 apollo-fft = { path = "../apollo/crates/apollo-fft", version = "0.15.0" }
 num-complex = { version = "0.4.6", features = ["bytemuck"] }
 anyhow = "1.0"
@@ -95,6 +96,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 bytemuck = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+toml = "1.1.2"
 tempfile = "3.10" # For testing
 proptest = "1.0"
 walkdir = "2.4"
@@ -105,37 +107,57 @@ wgpu = { version = "0.20", default-features = false, features = ["wgsl"] }
 pollster = "0.3"
 flate2 = "1.0"
 tar = "0.4"
-zip = "0.6"
+zip = { version = "0.6", default-features = false }
 indicatif = "0.17"
 dirs = "5.0"
 sha2 = "0.10"
 hex = "0.4"
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = "2.0"
+openjp2 = { version = "0.6.1", default-features = false }
+jpeg2k = { version = "0.10.1", default-features = false }
+zune-core = { version = "0.4", default-features = false }
+zune-jpegxl = { version = "0.4", default-features = false }
+mockito = "1"
+eframe = "0.28"
+egui = "0.28"
+rfd = "0.14"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+getrandom = "0.3"
+getrandom_02 = { package = "getrandom", version = "0.2" }
 image = "0.24"
 num-traits = "0.2"
 tiff = "0.9"
-onnx-ir = "0.20.1"
 
 dicom-core = "0.8"
 dicom-ul = "0.8"
-dicom-pixeldata = { version = "0.8", features = ["native"] }
-dicom-transfer-syntax-registry = { version = "0.8", features = ["native", "jpegxl"] }
-consus-hdf5 = { git = "https://github.com/ryancinsight/consus", features = ["std"] }
-consus-core = { git = "https://github.com/ryancinsight/consus", features = ["std"] }
-consus-compression = { git = "https://github.com/ryancinsight/consus", features = ["std", "deflate"] }
-consus-io = { git = "https://github.com/ryancinsight/consus", features = ["std"] }
+dicom-pixeldata = { version = "0.8", default-features = false }
+dicom-transfer-syntax-registry = { version = "0.8", default-features = false }
+consus-hdf5 = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std"] }
+consus-core = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std"] }
+consus-compression = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std", "deflate"] }
+consus-io = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std", "alloc"] }
+consus-onnx = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std", "alloc"] }
 jpeg-decoder = "0.3"
 
 arrayvec = "0.7"
 
 # ── Profile overrides ────────────────────────────────────────────────────────
-# Test builds keep `opt-level = 0` and emit full debug info so that
+# Test builds keep `opt-level = 0` and emit line tables so that
 # `STATUS_STACK_BUFFER_OVERRUN` / `STATUS_ACCESS_VIOLATION` crashes (and any
-# other panics) produce meaningful backtraces on Windows.  Without this,
-# release-mode optimisation collapses stack frames and the signal handler
-# cannot point to the offending instruction.
+# other panics) produce source-located backtraces without duplicating full
+# variable and type debug records across the generic-heavy workspace.
 [profile.test]
 opt-level = 0
-debug = true
+debug = "line-tables-only"
+
+[patch.crates-io]
+# Upstream PR 9 guards decoder buffers before `dealloc`; 0.6.1 invokes
+# `dealloc(null, layout)` during codec drop, violating Rust's allocator contract.
+openjp2 = { git = "https://github.com/ryancinsight/openjp2.git", rev = "689df0e2aff5a415bd5bf1d7da4efffb787ba892" }
 
 [patch."https://github.com/ryancinsight/Moirai.git"]
 moirai = { path = "../moirai/moirai" }

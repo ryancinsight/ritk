@@ -183,6 +183,19 @@ def test_distance_transform_squared_equals_euclidean_squared() -> None:
     assert np.allclose(sq_np, dist_np**2, atol=1e-4)
 
 
+@pytest.mark.parametrize(
+    "threshold", [-1.0, float("nan"), float("inf"), float("-inf")]
+)
+def test_distance_transform_rejects_invalid_threshold(threshold: float) -> None:
+    with pytest.raises(
+        ValueError, match="BinarizationThreshold must be finite and non-negative"
+    ):
+        ritk.filter.distance_transform(
+            _image(np.zeros((2, 2, 2), dtype=np.float32)),
+            foreground_threshold=threshold,
+        )
+
+
 # -- label_shape_statistics -------------------------------------------------------------------------------
 
 

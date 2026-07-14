@@ -6,8 +6,6 @@ use std::sync::Arc;
 use crate::LoadedVolume;
 use anyhow::Result;
 
-use super::B;
-
 /// Extract spacing, origin, and direction from a 3-D image as typed arrays.
 ///
 /// # Return order
@@ -20,7 +18,7 @@ use super::B;
 /// The `image` must be 3-dimensional. The direction matrix must be 3×3
 /// (9 elements), which is guaranteed by `Direction<3>`.
 pub(super) fn extract_spatial_metadata(
-    image: &ritk_core::image::Image<B, 3>,
+    image: &ritk_image::native::Image<f32, coeus_core::SequentialBackend, 3>,
 ) -> ([f64; 3], [f64; 3], [f64; 9]) {
     let sp = image.spacing();
     let orig = image.origin();
@@ -33,23 +31,21 @@ pub(super) fn extract_spatial_metadata(
     (spacing, origin, direction)
 }
 
-/// Convert a generic `Image<B, 3>` (with no DICOM metadata) into a
+/// Convert a native 3-D image (with no DICOM metadata) into a
 /// [`LoadedVolume`], recording `source_path` as the origin.
 ///
 /// This function is also used by `mod.rs` for MetaImage, NRRD, and MGH
 /// format loading paths, which produce an `Image` without DICOM metadata.
 pub(super) fn volume_from_image_no_meta(
-    image: ritk_core::image::Image<B, 3>,
+    image: ritk_image::native::Image<f32, coeus_core::SequentialBackend, 3>,
     source_path: PathBuf,
 ) -> Result<LoadedVolume> {
     let shape = image.shape();
     let (spacing, origin, direction) = extract_spatial_metadata(&image);
 
-    let tensor = image.into_tensor();
-    let tensor_data = tensor.into_data();
-    let pixels: Vec<f32> = tensor_data.into_vec::<f32>().map_err(|e| {
-        anyhow::anyhow!("failed to extract f32 pixel data from image tensor: {e:?}")
-    })?;
+    let pixels = image
+        .data_cow_on(&coeus_core::SequentialBackend)
+        .into_owned();
 
     Ok(LoadedVolume {
         data: Arc::new(pixels),

@@ -394,8 +394,7 @@ fn test_load_multiframe_signed_short_roundtrip() {
         .write_to_file(&out_path)
         .expect("write signed file");
 
-    let loaded = load_dicom_multiframe_native(&out_path)
-        .expect("load_dicom_multiframe signed i16");
+    let loaded = load_dicom_multiframe_native(&out_path).expect("load_dicom_multiframe signed i16");
     let [frames, rows, cols] = loaded.shape();
     assert_eq!(frames, 1, "frames");
     assert_eq!(rows, 2, "rows");

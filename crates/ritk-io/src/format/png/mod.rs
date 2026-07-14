@@ -1,6 +1,5 @@
 pub use ritk_png::{
-    read_png_color_series, read_png_color_to_volume, read_png_series, read_png_to_image,
-    PngColorReader, PngColorSeriesReader, PngReader, PngSeriesReader,
+    read_png_color_series, read_png_color_to_volume, PngColorReader, PngColorSeriesReader,
 };
 
 /// Atlas-native-substrate implementors of [`crate::domain::ImageReader`].
@@ -28,7 +27,7 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for PngReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_png::native::read_png_to_image(path, &self.backend).map_err(to_io_err)
+            ritk_png::read_png_to_image(path, &self.backend).map_err(to_io_err)
         }
     }
 
@@ -46,7 +45,7 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for PngSeriesReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_png::native::read_png_series(path, &self.backend).map_err(to_io_err)
+            ritk_png::read_png_series(path, &self.backend).map_err(to_io_err)
         }
     }
 

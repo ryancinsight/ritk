@@ -71,31 +71,4 @@ impl OnnxTensor {
         }
         Ok(bytemuck::cast_slice(&self.raw_data))
     }
-
-    /// Convert to f32 vector (handles type conversion).
-    pub fn to_f32_vec(&self) -> Result<Vec<f32>, String> {
-        match self.data_type {
-            OnnxElementType::Float => {
-                let slice: &[f32] = bytemuck::cast_slice(&self.raw_data);
-                Ok(slice.to_vec())
-            }
-            OnnxElementType::Float16 => {
-                // Float16 conversion not implemented yet
-                Err("Float16 to f32 conversion not implemented".to_string())
-            }
-            OnnxElementType::Bfloat16 => {
-                // BFloat16 conversion not implemented yet
-                Err("Bfloat16 to f32 conversion not implemented".to_string())
-            }
-            OnnxElementType::Int32 => {
-                let slice: &[i32] = bytemuck::cast_slice(&self.raw_data);
-                Ok(slice.iter().map(|&x| x as f32).collect())
-            }
-            OnnxElementType::Int64 => {
-                let slice: &[i64] = bytemuck::cast_slice(&self.raw_data);
-                Ok(slice.iter().map(|&x| x as f32).collect())
-            }
-            _ => Err(format!("Cannot convert {} to f32", self.data_type)),
-        }
-    }
 }

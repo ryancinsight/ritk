@@ -43,8 +43,8 @@ fn test_read_write_nifti_cycle() -> Result<()> {
         Direction::identity(),
     );
 
-    native::write_nifti(&file_path, &image, &backend)?;
-    let loaded = native::read_nifti(&file_path, &backend)?;
+    crate::write_nifti(&file_path, &image, &backend)?;
+    let loaded = crate::read_nifti(&file_path, &backend)?;
 
     let l_origin = loaded.origin();
     let l_spacing = loaded.spacing();
@@ -71,9 +71,9 @@ fn test_read_nifti_from_bytes_roundtrip() -> Result<()> {
         Direction::identity(),
     );
 
-    native::write_nifti(&file_path, &image, &backend)?;
+    crate::write_nifti(&file_path, &image, &backend)?;
     let bytes = std::fs::read(&file_path)?;
-    let loaded = native::read_nifti_from_bytes(&bytes, &backend)?;
+    let loaded = crate::read_nifti_from_bytes(&bytes, &backend)?;
 
     assert_eq!(loaded.shape(), [4, 3, 2]);
     assert!((loaded.origin()[0] - 4.0).abs() < 1e-5);
@@ -92,7 +92,11 @@ fn test_read_nifti_from_bytes_roundtrip() -> Result<()> {
 fn read_nifti_from_bytes_accepts_int16_voxels() -> Result<()> {
     let backend = SequentialBackend;
     let header = NiftiHeader::new_3d(
-        HeaderDims { nx: 3, ny: 2, nz: 2 },
+        HeaderDims {
+            nx: 3,
+            ny: 2,
+            nz: 2,
+        },
         NiftiDatatype::Int16,
         HeaderSpatial {
             pixdim: [1.0; 8],
@@ -101,14 +105,16 @@ fn read_nifti_from_bytes_accepts_int16_voxels() -> Result<()> {
             srow_z: [0.0, 0.0, 1.0, 0.0],
         },
     )?;
-    let values = [-1024_i16, -7, 0, 1, 42, 127, 256, 511, 1024, 2047, 3072, 4095];
+    let values = [
+        -1024_i16, -7, 0, 1, 42, 127, 256, 511, 1024, 2047, 3072, 4095,
+    ];
     let mut payload = Vec::with_capacity(values.len() * 2);
     for value in values {
         payload.extend_from_slice(&value.to_le_bytes());
     }
 
     let loaded =
-        native::read_nifti_from_bytes(&write_single_file_bytes(&header, &payload), &backend)?;
+        crate::read_nifti_from_bytes(&write_single_file_bytes(&header, &payload), &backend)?;
 
     assert_eq!(
         loaded.shape(),
@@ -140,14 +146,14 @@ fn test_write_nifti2_from_bytes_roundtrip() -> Result<()> {
         Direction::identity(),
     );
 
-    native::write_nifti2(&file_path, &image, &backend)?;
+    crate::write_nifti2(&file_path, &image, &backend)?;
     let bytes = std::fs::read(&file_path)?;
     let header = NiftiHeader::parse(&bytes)?;
     assert_eq!(header.version, HeaderVersion::Two);
     assert_eq!(header.dim, [3, 4, 2, 3, 1, 1, 1, 1]);
     assert_eq!(header.vox_offset, 544);
 
-    let loaded = native::read_nifti_from_bytes(&bytes, &backend)?;
+    let loaded = crate::read_nifti_from_bytes(&bytes, &backend)?;
     assert_eq!(loaded.shape(), [3, 2, 4]);
     let loaded_vox = loaded.data_slice().expect("contiguous");
     assert_eq!(
@@ -179,7 +185,7 @@ fn test_gzipped_nifti_roundtrip() -> Result<()> {
         Direction::identity(),
     );
 
-    native::write_nifti(&file_path, &image, &backend)?;
+    crate::write_nifti(&file_path, &image, &backend)?;
     let bytes = std::fs::read(&file_path)?;
     assert_eq!(
         &bytes[..2],
@@ -187,10 +193,14 @@ fn test_gzipped_nifti_roundtrip() -> Result<()> {
         "nii.gz output must carry the gzip stream signature"
     );
 
-    let loaded = native::read_nifti(&file_path, &backend)?;
+    let loaded = crate::read_nifti(&file_path, &backend)?;
     assert_eq!(loaded.shape(), [2, 2, 3]);
     let loaded_vox = loaded.data_slice().expect("contiguous");
-    assert_eq!(loaded_vox, values.as_slice(), "gzip round-trip must preserve voxels");
+    assert_eq!(
+        loaded_vox,
+        values.as_slice(),
+        "gzip round-trip must preserve voxels"
+    );
     Ok(())
 }
 
@@ -212,10 +222,14 @@ fn test_oblique_nifti_round_trip_preserves_affine_and_voxels() -> Result<()> {
 
     let image = make_image(values.clone(), [2, 3, 4], origin, spacing, direction);
 
-    native::write_nifti(&file_path, &image, &backend)?;
-    let loaded = native::read_nifti(&file_path, &backend)?;
+    crate::write_nifti(&file_path, &image, &backend)?;
+    let loaded = crate::read_nifti(&file_path, &backend)?;
 
-    assert_eq!(loaded.shape(), [2, 3, 4], "oblique round-trip must preserve shape");
+    assert_eq!(
+        loaded.shape(),
+        [2, 3, 4],
+        "oblique round-trip must preserve shape"
+    );
     for axis in 0..3 {
         assert!(
             (loaded.origin()[axis] - image.origin()[axis]).abs() < 1e-6,
@@ -266,7 +280,7 @@ fn test_oblique_nifti_round_trip_preserves_affine_and_voxels() -> Result<()> {
 fn test_read_nifti_error_leak() {
     let backend = SequentialBackend;
     let path = "/sensitive/path/that/should/not/be/in/error/message.nii";
-    let result = native::read_nifti(path, &backend);
+    let result = crate::read_nifti(path, &backend);
 
     match result {
         Ok(_) => panic!("Should fail"),
@@ -296,7 +310,7 @@ fn test_read_nifti_invalid_file_error_leak() -> Result<()> {
 
     let backend = SequentialBackend;
     let path_str = file_path.to_string_lossy().to_string();
-    let result = native::read_nifti(&file_path, &backend);
+    let result = crate::read_nifti(&file_path, &backend);
 
     match result {
         Ok(_) => panic!("Should fail"),
@@ -333,7 +347,7 @@ fn test_write_nifti_sets_sform_header_fields() -> Result<()> {
         direction,
     );
 
-    native::write_nifti(&file_path, &image, &backend)?;
+    crate::write_nifti(&file_path, &image, &backend)?;
     let bytes = std::fs::read(&file_path)?;
     let header = NiftiHeader::parse(&bytes)?;
 
@@ -366,7 +380,11 @@ fn read_nifti_rejects_zero_sform_column() -> Result<()> {
     let backend = SequentialBackend;
 
     let header = NiftiHeader::new_3d(
-        HeaderDims { nx: 2, ny: 2, nz: 2 },
+        HeaderDims {
+            nx: 2,
+            ny: 2,
+            nz: 2,
+        },
         NiftiDatatype::Float32,
         HeaderSpatial {
             pixdim: [1.0; 8],
@@ -378,8 +396,8 @@ fn read_nifti_rejects_zero_sform_column() -> Result<()> {
     let data = vec![0_u8; 2 * 2 * 2 * 4];
     std::fs::write(&file_path, write_single_file_bytes(&header, &data))?;
 
-    let err = native::read_nifti(&file_path, &backend)
-        .expect_err("zero sform column must be rejected");
+    let err =
+        crate::read_nifti(&file_path, &backend).expect_err("zero sform column must be rejected");
     assert!(
         format!("{err:#}").contains("Invalid NIfTI spatial metadata"),
         "error must preserve public reader context: {err:#}"

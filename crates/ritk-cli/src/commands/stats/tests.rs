@@ -1,61 +1,56 @@
 use super::*;
-use ritk_core::image::Image;
-use ritk_image::tensor::Backend as BurnBackend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use crate::commands::{read_image_native, write_image_native, NativeBackend};
+use ritk_image::native::Image as NativeImage;
+use ritk_io::ImageFormat;
 use ritk_spatial::{Direction, Point, Spacing};
-use ritk_statistics::{compute_statistics, dice_coefficient, hausdorff_distance, psnr, ssim};
+use ritk_statistics::{
+    dice_coefficient_native, hausdorff_distance_native,
+    image_statistics::native::compute_statistics as compute_native_statistics, psnr_native,
+    ssim_native,
+};
 use std::path::PathBuf;
 use tempfile::tempdir;
 
 /// Build a 4×4×4 image filled with the given constant value.
-fn make_constant_image(value: f32) -> Image<Backend, 3> {
-    let device: <Backend as BurnBackend>::Device = Default::default();
-    let values = vec![value; 64];
-    let td = TensorData::new(values, Shape::new([4, 4, 4]));
-    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
+fn native_image(values: Vec<f32>) -> NativeImage<f32, NativeBackend, 3> {
+    NativeImage::from_flat_on(
+        values,
+        [4, 4, 4],
         Point::new([0.0; 3]),
         Spacing::new([1.0; 3]),
         Direction::identity(),
+        &NativeBackend::default(),
     )
+    .expect("invariant: valid native stats fixture")
+}
+
+fn make_constant_image(value: f32) -> NativeImage<f32, NativeBackend, 3> {
+    native_image(vec![value; 64])
 }
 
 /// Build a 4×4×4 ramp image whose voxel at flat index i has value `i as f32`.
-fn make_ramp_image() -> Image<Backend, 3> {
-    let device: <Backend as BurnBackend>::Device = Default::default();
-    let values: Vec<f32> = (0..64).map(|i| i as f32).collect();
-    let td = TensorData::new(values, Shape::new([4, 4, 4]));
-    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
-    )
+fn make_ramp_image() -> NativeImage<f32, NativeBackend, 3> {
+    native_image((0..64).map(|i| i as f32).collect())
 }
 
 /// Build a 4×4×4 binary mask with the first `n_foreground` voxels set to
 /// 1.0 and the remainder set to 0.0.
-fn make_binary_mask(n_foreground: usize) -> Image<Backend, 3> {
-    let device: <Backend as BurnBackend>::Device = Default::default();
-    let values: Vec<f32> = (0..64)
-        .map(|i| if i < n_foreground { 1.0 } else { 0.0 })
-        .collect();
-    let td = TensorData::new(values, Shape::new([4, 4, 4]));
-    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
+fn make_binary_mask(n_foreground: usize) -> NativeImage<f32, NativeBackend, 3> {
+    native_image(
+        (0..64)
+            .map(|i| if i < n_foreground { 1.0 } else { 0.0 })
+            .collect(),
     )
 }
 
 /// Helper: write a NIfTI image and return the path.
-fn write_nifti_tmp(dir: &std::path::Path, name: &str, image: &Image<Backend, 3>) -> PathBuf {
+fn write_nifti_tmp(
+    dir: &std::path::Path,
+    name: &str,
+    image: &NativeImage<f32, NativeBackend, 3>,
+) -> PathBuf {
     let path = dir.join(name);
-    ritk_io::write_nifti(&path, image).unwrap();
+    write_image_native(&path, image, ImageFormat::NIfTI).expect("write native NIfTI fixture");
     path
 }
 
@@ -81,7 +76,7 @@ fn test_stats_summary_constant_image() {
 #[test]
 fn test_stats_summary_ramp_image_values() {
     let image = make_ramp_image();
-    let s = compute_statistics(&image);
+    let s = compute_native_statistics(&image).expect("native statistics succeeds");
 
     assert!((s.min - 0.0).abs() < 1e-4, "min must be 0.0, got {}", s.min);
     assert!(
@@ -116,8 +111,8 @@ fn test_stats_dice_identical_masks_returns_one() {
     assert!(result.is_ok(), "dice must succeed: {:?}", result.err());
 
     // Verify the value directly via the library function.
-    let img = read_image(&input).unwrap();
-    let value = dice_coefficient(&img, &img);
+    let img = read_image_native(&input).expect("read native Dice fixture");
+    let value = dice_coefficient_native(&img, &img).expect("native Dice succeeds");
     assert!(
         (value - 1.0).abs() < 1e-5,
         "Dice of identical masks must be 1.0, got {value}"
@@ -128,23 +123,13 @@ fn test_stats_dice_identical_masks_returns_one() {
 
 #[test]
 fn test_stats_dice_disjoint_masks_returns_zero() {
-    let device: <Backend as BurnBackend>::Device = Default::default();
-
     // Mask A: first 32 voxels foreground.
     let a = make_binary_mask(32);
 
     // Mask B: last 32 voxels foreground.
-    let vals_b: Vec<f32> = (0..64).map(|i| if i >= 32 { 1.0 } else { 0.0 }).collect();
-    let td_b = TensorData::new(vals_b, Shape::new([4, 4, 4]));
-    let tensor_b = Tensor::<Backend, 3>::from_data(td_b, &device);
-    let b = Image::new(
-        tensor_b,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
-    );
+    let b = native_image((0..64).map(|i| if i >= 32 { 1.0 } else { 0.0 }).collect());
 
-    let value = dice_coefficient(&a, &b);
+    let value = dice_coefficient_native(&a, &b).expect("native Dice succeeds");
     assert!(
         value.abs() < 1e-5,
         "Dice of disjoint masks must be 0.0, got {value}"
@@ -168,8 +153,8 @@ fn test_stats_psnr_identical_images_returns_inf() {
     });
     assert!(result.is_ok(), "psnr must succeed: {:?}", result.err());
 
-    let img = read_image(&input).unwrap();
-    let value = psnr(&img, &img, 63.0);
+    let img = read_image_native(&input).expect("read native PSNR fixture");
+    let value = psnr_native(&img, &img, 63.0).expect("native PSNR succeeds");
     assert!(
         value.is_infinite() || value > 100.0,
         "PSNR of identical images must be very large or infinite, got {value}"
@@ -193,8 +178,8 @@ fn test_stats_ssim_identical_images_returns_one() {
     });
     assert!(result.is_ok(), "ssim must succeed: {:?}", result.err());
 
-    let img = read_image(&input).unwrap();
-    let value = ssim(&img, &img, 63.0);
+    let img = read_image_native(&input).expect("read native SSIM fixture");
+    let value = ssim_native(&img, &img, 63.0).expect("native SSIM succeeds");
     assert!(
         (value - 1.0).abs() < 1e-4,
         "SSIM of identical images must be 1.0, got {value}"
@@ -218,10 +203,10 @@ fn test_stats_hausdorff_identical_masks_returns_zero() {
     });
     assert!(result.is_ok(), "hausdorff must succeed: {:?}", result.err());
 
-    let img = read_image(&input).unwrap();
+    let img = read_image_native(&input).expect("read native Hausdorff fixture");
     let sp = img.spacing();
     let spacing = [sp[0], sp[1], sp[2]];
-    let value = hausdorff_distance(&img, &img, &spacing);
+    let value = hausdorff_distance_native(&img, &img, &spacing).expect("native Hausdorff succeeds");
     assert!(
         value.abs() < 1e-5,
         "Hausdorff distance of identical masks must be 0.0, got {value}"

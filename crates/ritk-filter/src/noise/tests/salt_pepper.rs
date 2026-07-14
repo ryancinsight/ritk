@@ -1,4 +1,7 @@
 use super::*;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
+use ritk_spatial::{Direction, Point, Spacing};
 
 /// Zero probability leaves image unchanged.
 #[test]
@@ -78,4 +81,28 @@ fn salt_pepper_matches_sitk_mt19937() {
         .apply(&img)
         .unwrap();
     assert_eq!(v, out2.data_slice().into_owned(), "same seed deterministic");
+}
+
+#[test]
+fn native_salt_pepper_matches_seeded_tensor_contract() {
+    let image = NativeImage::from_flat_on(
+        vec![0.0, 1.0, 2.0, 3.0],
+        [1, 1, 4],
+        Point::new([1.0, 2.0, 3.0]),
+        Spacing::new([0.5, 1.0, 2.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let filter = SaltAndPepperNoiseFilter::new(0.0).with_seed(42);
+    let output = filter
+        .apply_native(&image, &SequentialBackend)
+        .expect("native salt-and-pepper noise succeeds");
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[0.0, 1.0, 2.0, 3.0]
+    );
+    assert_eq!(output.origin(), image.origin());
+    assert_eq!(output.spacing(), image.spacing());
+    assert_eq!(output.direction(), image.direction());
 }

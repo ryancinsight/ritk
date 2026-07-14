@@ -1,4 +1,4 @@
-pub use ritk_minc::{read_minc, write_minc, MincReader, MincWriter};
+//! MINC2 I/O adapters over Coeus-backed images.
 
 /// Atlas-native-substrate implementors of [`crate::domain::ImageReader`].
 ///
@@ -25,7 +25,7 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for MincReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_minc::native::read_minc(path, &self.backend).map_err(to_io_err)
+            ritk_minc::read_minc(path, &self.backend).map_err(to_io_err)
         }
     }
 
@@ -47,7 +47,7 @@ pub mod native {
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
-            ritk_minc::native::write_minc(image, path, &self.backend).map_err(to_io_err)
+            ritk_minc::write_minc(image, path, &self.backend).map_err(to_io_err)
         }
     }
 

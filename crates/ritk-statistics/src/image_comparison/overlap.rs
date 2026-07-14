@@ -1,3 +1,5 @@
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 
@@ -94,6 +96,46 @@ pub fn dice_coefficient<B: Backend, const D: usize>(
     }
 
     2.0 * intersection_sum / denom
+}
+
+/// Compute Dice overlap between two Coeus-native binary masks.
+///
+/// # Errors
+/// Returns an error when either image is not CPU-addressable or the images
+/// have different element counts.
+pub fn dice_coefficient_native<B, const D: usize>(
+    prediction: &NativeImage<f32, B, D>,
+    ground_truth: &NativeImage<f32, B, D>,
+) -> anyhow::Result<f32>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    let prediction_values = prediction.data_slice()?;
+    let ground_truth_values = ground_truth.data_slice()?;
+    anyhow::ensure!(
+        prediction_values.len() == ground_truth_values.len(),
+        "dice coefficient requires equal element counts: {} != {}",
+        prediction_values.len(),
+        ground_truth_values.len()
+    );
+    let (intersection, prediction_sum, ground_truth_sum) =
+        prediction_values.iter().zip(ground_truth_values).fold(
+            (0.0_f32, 0.0_f32, 0.0_f32),
+            |(intersection, prediction, ground_truth), (&left, &right)| {
+                (
+                    intersection + left * right,
+                    prediction + left,
+                    ground_truth + right,
+                )
+            },
+        );
+    let denominator = prediction_sum + ground_truth_sum;
+    Ok(if denominator < f32::EPSILON {
+        1.0
+    } else {
+        2.0 * intersection / denominator
+    })
 }
 
 /// Compute the ITK `SimilarityIndexImageFilter` overlap (`sitk.SimilarityIndex`).

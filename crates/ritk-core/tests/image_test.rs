@@ -18,8 +18,15 @@ fn make_image_3d(
     direction: Direction<3>,
 ) -> Image<f32, Backend, 3> {
     let n = dims[0] * dims[1] * dims[2];
-    Image::from_flat_on(vec![0.0f32; n], dims, origin, spacing, direction, &SequentialBackend)
-        .expect("valid image")
+    Image::from_flat_on(
+        vec![0.0f32; n],
+        dims,
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .expect("valid image")
 }
 
 #[test]

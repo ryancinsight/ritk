@@ -16,8 +16,8 @@
 //! layout. No data permutation is required.
 
 use anyhow::{Context, Result};
-use ritk_image::tensor::backend::Backend;
-use ritk_image::Image;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
@@ -110,12 +110,10 @@ pub fn encode_vtk_flat<W: Write>(
         );
     }
 
-    // Pre-allocate the full binary buffer to minimise I/O calls.
     let mut binary_buf = Vec::with_capacity(total_voxels * 4);
-    for &val in slice {
-        binary_buf.extend_from_slice(&val.to_be_bytes());
+    for &value in slice {
+        binary_buf.extend_from_slice(&value.to_be_bytes());
     }
-
     writer
         .write_all(&binary_buf)
         .with_context(|| "failed to write VTK binary scalar data")?;
@@ -133,7 +131,7 @@ pub fn encode_vtk_flat<W: Write>(
     Ok(())
 }
 
-/// Write an `Image<B, 3>` to a VTK legacy structured-points file (BINARY).
+/// Write a native Coeus image to a VTK legacy structured-points file (BINARY).
 ///
 /// The output file conforms to VTK legacy format version 3.0 with:
 /// - `DATASET STRUCTURED_POINTS`
@@ -141,15 +139,20 @@ pub fn encode_vtk_flat<W: Write>(
 /// - `SCALARS scalars float 1` point data
 /// - Big-endian IEEE 754 single-precision scalar values
 ///
-/// Extracts flat data and geometry from the burn tensor carrier, then delegates
-/// the byte-level encode to [`encode_vtk_flat`].
+/// Extracts flat data and geometry from the native tensor carrier, then
+/// delegates the byte-level encode to [`encode_vtk_flat`].
 ///
 /// # Errors
 ///
 /// Returns an error when:
 /// - The file cannot be created or written.
 /// - The tensor data cannot be extracted as `f32`.
-pub fn write_vtk<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
+pub fn write_vtk<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
+where
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    P: AsRef<Path>,
+{
     let path = path.as_ref();
     let file = std::fs::File::create(path)
         .with_context(|| format!("failed to create VTK file: {}", path.display()))?;
@@ -161,7 +164,7 @@ pub fn write_vtk<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Re
     let origin_arr = [origin[0], origin[1], origin[2]];
     let spacing_arr = [spacing[0], spacing[1], spacing[2]];
 
-    let f32_vec = image.try_data_vec()?;
+    let f32_vec = image.data_cow_on(backend);
 
     encode_vtk_flat(&mut writer, &f32_vec, dims, origin_arr, spacing_arr)?;
 

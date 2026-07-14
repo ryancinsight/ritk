@@ -7,11 +7,11 @@
 //! rotation matrix in the same host math (f32 Euler trig, f64→f32 quaternion) as
 //! the Burn builders, so results agree to f32 rounding of the matvec (tol 1e-5).
 
-use super::AtlasAffineTransform;
 use super::super::rigid::RigidTransform;
 use super::super::scale::ScaleTransform;
 use super::super::translation::TranslationTransform;
 use super::super::versor::VersorRigid3DTransform;
+use super::AtlasAffineTransform;
 
 use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
@@ -74,7 +74,8 @@ fn translation_parity() {
     let flat = sample_points();
     let n = flat.len() / 3;
     let t = [1.5, -2.0, 0.5];
-    let burn = TranslationTransform::<BB, 3>::new(burn_vec1(t)).transform_points(burn_points(&flat, n));
+    let burn =
+        TranslationTransform::<BB, 3>::new(burn_vec1(t)).transform_points(burn_points(&flat, n));
     let native = AtlasAffineTransform::<NB, 3>::from_translation(&t)
         .transform_points(&native_points(&flat, n))
         .unwrap()

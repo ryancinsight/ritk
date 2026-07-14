@@ -64,8 +64,11 @@ fn native_writer_matches_burn_writer_bytewise() {
     let n = dims[0] * dims[1] * dims[2];
     let data: Vec<f32> = (0..n).map(|i| i as f32 * 0.5 - 4.0).collect();
 
-    write_dicom_multiframe_native(&native_path, &native_image(data.clone(), dims, [0.0; 3], [1.0; 3]))
-        .expect("native write");
+    write_dicom_multiframe_native(
+        &native_path,
+        &native_image(data.clone(), dims, [0.0; 3], [1.0; 3]),
+    )
+    .expect("native write");
     write_dicom_multiframe(&burn_path, &burn_image(data, dims)).expect("burn write");
 
     // The generated UIDs are random per call, so full-file byte equality does

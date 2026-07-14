@@ -144,6 +144,61 @@ impl BinaryContourImageFilter {
 
         Ok(rebuild(out, dims, image))
     }
+
+    /// Apply binary contour extraction to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            self.contour_values(image.data_slice()?, image.shape()),
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
+
+    fn contour_values(&self, values: &[f32], [nz, ny, nx]: [usize; 3]) -> Vec<f32> {
+        let fg = f32::from(self.foreground_value);
+        let n26 = n26();
+        let slab = ny * nx;
+        let connectivity = self.connectivity;
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(values.len(), |flat| {
+            if (values[flat] - fg).abs() > 1e-5 {
+                return 0.0;
+            }
+            let iz = flat / slab;
+            let rem = flat - iz * slab;
+            let iy = rem / nx;
+            let ix = rem - iy * nx;
+            let is_background = |dz: i32, dy: i32, dx: i32| {
+                let [z, y, x] = [iz as i32 + dz, iy as i32 + dy, ix as i32 + dx];
+                z >= 0
+                    && y >= 0
+                    && x >= 0
+                    && z < nz as i32
+                    && y < ny as i32
+                    && x < nx as i32
+                    && (values[z as usize * slab + y as usize * nx + x as usize] - fg).abs() > 1e-5
+            };
+            let border = match connectivity {
+                Connectivity::Vertex26 => n26.iter().any(|&(z, y, x)| is_background(z, y, x)),
+                Connectivity::Face6 => N6.iter().any(|&(z, y, x)| is_background(z, y, x)),
+            };
+            if border {
+                fg
+            } else {
+                0.0
+            }
+        })
+    }
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────

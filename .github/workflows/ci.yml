@@ -6,12 +6,26 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: 1
+
 jobs:
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ritk
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          path: ritk
+          persist-credentials: false
+      - uses: ./ritk/.github/actions/checkout-atlas-dependencies
 
       - name: Install stable toolchain with rustfmt
         uses: dtolnay/rust-toolchain@stable
@@ -19,13 +33,24 @@ jobs:
           components: rustfmt
 
       - name: Check formatting
-        run: cargo fmt --all -- --check
+        shell: bash
+        run: |
+          cargo metadata --no-deps --format-version 1 \
+            | jq -r '.workspace_members[] as $id | .packages[] | select(.id == $id) | "-p", .name' \
+            | xargs sh -c 'cargo fmt "$@" -- --check' _
 
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ritk
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          path: ritk
+          persist-credentials: false
+      - uses: ./ritk/.github/actions/checkout-atlas-dependencies
 
       - name: Install stable toolchain with clippy
         uses: dtolnay/rust-toolchain@stable
@@ -39,60 +64,47 @@ jobs:
   dependency-alignment:
     name: Workspace Dependency Alignment
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ritk
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          path: ritk
+          persist-credentials: false
+      - uses: ./ritk/.github/actions/checkout-atlas-dependencies
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
 
       - name: Enforce workspace dependency inheritance
-        run: cargo metadata --format-version 1 --no-deps > /tmp/metadata.json && python - <<'PY'
-          import json
-          import pathlib
-          import sys
-
-          root = pathlib.Path.cwd()
-          metadata = json.loads(pathlib.Path("/tmp/metadata.json").read_text())
-          workspace_root = pathlib.Path(metadata["workspace_root"])
-          failures = []
-
-          for package in metadata["packages"]:
-              manifest_path = pathlib.Path(package["manifest_path"])
-              if manifest_path.parent == workspace_root:
-                  continue
-
-              text = manifest_path.read_text()
-              for dep in package["dependencies"]:
-                  source = dep.get("source")
-                  path = dep.get("path")
-                  if path is not None:
-                      continue
-                  if source is None:
-                      continue
-
-                  name = dep["name"]
-                  if f"{name} = {{ workspace = true" not in text and f"{name}={{ workspace = true" not in text:
-                      failures.append(f"{manifest_path.relative_to(workspace_root)}: dependency '{name}' is not inherited from workspace")
-
-          if failures:
-              print("Workspace dependency alignment check failed:")
-              for failure in failures:
-                  print(f" - {failure}")
-              sys.exit(1)
-
-          print("Workspace dependency alignment check passed.")
-          PY
+        run: cargo run -p xtask -- dependency-alignment
 
   test:
     name: Test Suite (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ritk
+    timeout-minutes: ${{ matrix.timeout_minutes }}
     needs: dependency-alignment
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            timeout_minutes: 30
+          - os: macos-latest
+            timeout_minutes: 30
+          - os: windows-latest
+            # The full suite completes in about 25 minutes including setup;
+            # retain ten minutes for the slower Windows cache cleanup.
+            timeout_minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          path: ritk
+          persist-credentials: false
+      - uses: ./ritk/.github/actions/checkout-atlas-dependencies
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -113,17 +125,16 @@ jobs:
           echo "C:\Program Files\LLVM\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install cargo-nextest
-        uses: taiki-e/install-action@cargo-nextest
+        uses: taiki-e/install-action@f47c9687269207d6b374de4134cb8b1fa5b49649 # cargo-nextest
 
-      - name: Cache Cargo registry and build artifacts
+      - name: Cache Cargo dependency sources
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
-          key: cargo-${{ matrix.os }}-stable-${{ hashFiles('Cargo.lock') }}
+          key: cargo-${{ matrix.os }}-stable-${{ hashFiles('ritk/Cargo.lock') }}
           restore-keys: |
             cargo-${{ matrix.os }}-stable-
 
@@ -133,15 +144,24 @@ jobs:
   python-wheel:
     name: Python Wheel (smoke test)
     runs-on: ubuntu-latest
-    needs: test
+    # The full installed-wheel suite is a performance gate, not a long-running
+    # validation lane; setup and tests must complete within the native CI bound.
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ritk
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          path: ritk
+          persist-credentials: false
+      - uses: ./ritk/.github/actions/checkout-atlas-dependencies
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -157,8 +177,12 @@ jobs:
 
       - name: Smoke test wheel
         run: |
-          pip install pytest
+          pip install -r crates/ritk-python/requirements-test.txt
           pip install --find-links /tmp/ritk-wheel ritk
-          python -c "import ritk; print(ritk.__version__)"
-          python -c "import numpy as np; import ritk; img = ritk.Image(np.zeros((5, 5, 5), dtype=np.float32)); phi = ritk.Image(np.ones((5, 5, 5), dtype=np.float32)); out = ritk.segmentation.shape_detection_segment(img, phi, curvature_weight=1.0, propagation_weight=1.0, advection_weight=1.0, edge_k=1.0, sigma=1.0, dt=0.05, max_iterations=1, tolerance=1e-3); arr = out.numpy(); assert arr.shape == (5, 5, 5); assert np.isfinite(arr).all()"
-          pytest crates/ritk-python/tests -q
+          python -c "import importlib.metadata; import ritk; assert ritk.__version__ == importlib.metadata.version('ritk')"
+          python -c "import numpy as np; import ritk; img = ritk.Image(np.zeros((5, 5, 5), dtype=np.float32)); phi = ritk.Image(np.ones((5, 5, 5), dtype=np.float32)); opts = ritk.segmentation.ShapeDetectionOptions(max_iterations=1); out = ritk.segmentation.shape_detection_segment(img, phi, opts); arr = out.to_numpy(); assert arr.shape == (5, 5, 5); assert np.isfinite(arr).all()"
+          denoising_test="crates/ritk-python/tests/test_simpleitk_cmake_data.py::test_cmake_patch_based_denoising_structural"
+          python -m pytest "$denoising_test" -vv --durations=1
+          python -m pytest crates/ritk-python/tests \
+            --deselect "tests/test_simpleitk_cmake_data.py::test_cmake_patch_based_denoising_structural" \
+            -n 2 --dist loadscope -vv --durations=25

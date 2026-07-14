@@ -17,7 +17,7 @@
 //!
 //! # Key APIs
 //!
-//! - [`read_nifti`]: Read a NIfTI file as a Burn tensor-backed Image with spatial metadata
+//! - [`read_nifti`]: Read a NIfTI file as a native image with spatial metadata
 //! - [`write_nifti`]: Write an Image to a NIfTI file with full sform affine encoding
 //! - [`write_nifti2`]: Write an Image to a NIfTI-2 file with full sform affine encoding
 //! - [`read_nifti_labels`]: Read label maps (segmentations) as ZYX-ordered u32 vectors
@@ -49,49 +49,42 @@ mod writer;
 
 pub use reader::{read_nifti, read_nifti_from_bytes, read_nifti_labels};
 
-pub use writer::{write_nifti, write_nifti2, write_nifti2_labels, write_nifti_labels};
-/// Atlas-native-substrate entry points (transitional facade over the
-/// per-file `native` modules; folds away when the Burn path is deleted).
-pub mod native {
-    pub use crate::reader::native::*;
-    pub use crate::writer::native::*;
-}
-
-use ritk_core::image::Image;
-use ritk_image::tensor::backend::Backend;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image;
 use std::path::Path;
+pub use writer::{write_nifti, write_nifti2, write_nifti2_labels, write_nifti_labels};
 
 /// DIP boundary executing strict spatial metadata preservation over standard NIfTI datasets.
-pub struct NiftiReader<B: Backend> {
-    device: B::Device,
+pub struct NiftiReader<B: ComputeBackend> {
+    backend: B,
 }
 
-impl<B: Backend> NiftiReader<B> {
-    pub fn new(device: B::Device) -> Self {
-        Self { device }
+impl<B: ComputeBackend> NiftiReader<B> {
+    pub fn new(backend: B) -> Self {
+        Self { backend }
     }
 
-    pub fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
-        read_nifti(path, &self.device).map_err(|e| std::io::Error::other(e.to_string()))
+    pub fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
+        read_nifti(path, &self.backend).map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 
 /// DIP boundary executing strict spatial metadata preservation over standard NIfTI datasets.
-pub struct NiftiWriter<B: Backend> {
-    _marker: std::marker::PhantomData<fn() -> B>,
+pub struct NiftiWriter<B: ComputeBackend> {
+    backend: B,
 }
 
-impl<B: Backend> Default for NiftiWriter<B> {
-    fn default() -> Self {
-        Self {
-            _marker: std::marker::PhantomData,
-        }
+impl<B: ComputeBackend> NiftiWriter<B> {
+    pub fn new(backend: B) -> Self {
+        Self { backend }
     }
-}
 
-impl<B: Backend> NiftiWriter<B> {
-    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
-        write_nifti(path, image).map_err(|e| std::io::Error::other(e.to_string()))
+    pub fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()>
+    where
+        B: Default,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        write_nifti(path, image, &self.backend).map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 

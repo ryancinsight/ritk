@@ -3,17 +3,18 @@ use ritk_image::tensor::{Shape, TensorData};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
+mod native;
+
 impl SnapApp {
     pub(crate) fn apply_filter_to_loaded_volume(&mut self) {
         use ritk_filter::{
             AbsImageFilter, BedSeparationFilter, BinaryDilateFilter, BinaryErodeFilter,
             BinaryFillholeFilter, BinaryMorphologicalClosing, BinaryMorphologicalOpening,
-            ClaheFilter, Connectivity, CprConfig, CprImageFilter, ExpImageFilter, GaussianFilter,
-            GaussianSigma, GradientAnisotropicDiffusionFilter, GradientDiffusionConfig,
-            GrayscaleClosingFilter, GrayscaleFillholeFilter, GrayscaleMorphologicalGradientFilter,
-            GrayscaleOpeningFilter, HistogramEqualizationFilter, InvertIntensityFilter,
-            LogImageFilter, MedianFilter, NormalizeImageFilter, SqrtImageFilter, SquareImageFilter,
-            UnsharpMaskFilter,
+            ClaheFilter, Connectivity, ExpImageFilter, GaussianFilter, GaussianSigma,
+            GradientAnisotropicDiffusionFilter, GradientDiffusionConfig, GrayscaleClosingFilter,
+            GrayscaleFillholeFilter, GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter,
+            HistogramEqualizationFilter, InvertIntensityFilter, LogImageFilter, MedianFilter,
+            NormalizeImageFilter, SqrtImageFilter, SquareImageFilter, UnsharpMaskFilter,
         };
         use ritk_segmentation::{
             ConnectedComponentsFilter, MultiOtsuThreshold, RelabelComponentFilter,
@@ -23,6 +24,17 @@ impl SnapApp {
             self.status_message = "No volume loaded.".to_owned();
             return;
         };
+
+        let filter_kind = self.active_filter.clone();
+        if let Some(native_result) = native::apply_if_supported(vol, &filter_kind) {
+            match native_result {
+                Err(error) => {
+                    self.status_message = format!("Filter failed: {error:#}");
+                }
+                Ok(output) => self.replace_loaded_volume_native(output),
+            }
+            return;
+        }
 
         let [depth, rows, cols] = vol.shape;
         let device = burn_ndarray::NdArrayDevice::Cpu;
@@ -41,7 +53,6 @@ impl SnapApp {
         let image: Image<LoadBackend, 3> = Image::new(tensor, origin, spacing, direction);
 
         // Apply the selected filter.
-        let filter_kind = self.active_filter.clone();
         let filter_result = {
             match &filter_kind {
                 crate::FilterKind::BedSeparation(config) => {
@@ -93,19 +104,16 @@ impl SnapApp {
                             ritk_segmentation::labeling::Connectivity::TwentySix
                         }
                     };
-                    let filter = ConnectedComponentsFilter::with_connectivity(seg_connectivity)
-                        .with_background(*background_value);
-                    let (label_image, _stats) = filter.apply(&image);
-                    Ok(label_image)
+                    ConnectedComponentsFilter::with_connectivity(seg_connectivity)
+                        .with_background(*background_value)
+                        .map(|filter| filter.apply(&image).0)
                 }
                 crate::FilterKind::RelabelComponents {
                     minimum_object_size,
                 } => {
-                    let (relabeled, _stats) = RelabelComponentFilter::with_minimum_object_size(
-                        *minimum_object_size as usize,
-                    )
-                    .apply(&image);
-                    Ok(relabeled)
+                    RelabelComponentFilter::with_minimum_object_size(*minimum_object_size as usize)
+                        .apply(&image)
+                        .map(|(relabeled, _stats)| relabeled)
                 }
                 crate::FilterKind::MultiOtsuThreshold { num_classes } => {
                     Ok(MultiOtsuThreshold::new(*num_classes as usize).apply(&image))
@@ -178,33 +186,39 @@ impl SnapApp {
                 crate::FilterKind::FlipX => ritk_filter::FlipImageFilter::flip_x().apply(&image),
                 crate::FilterKind::MaskThreshold { threshold } => {
                     let dims = image.shape();
-                    let vals: Vec<f32> = image
-                        .try_data_vec()
-                        .unwrap_or_else(|_| vec![0.0; dims[0] * dims[1] * dims[2]]);
-                    let mask_vals: Vec<f32> = vals
-                        .iter()
-                        .map(|&v| {
-                            if v > f32::from(*threshold) {
-                                1.0_f32
-                            } else {
-                                0.0_f32
-                            }
-                        })
-                        .collect();
-                    let device = image.data().device();
-                    let mask_td = ritk_image::tensor::TensorData::new(
-                        mask_vals,
-                        ritk_image::tensor::Shape::new(dims),
-                    );
-                    let mask_tensor =
-                        ritk_image::tensor::Tensor::<LoadBackend, 3>::from_data(mask_td, &device);
-                    let mask_image = ritk_image::Image::new(
-                        mask_tensor,
-                        *image.origin(),
-                        *image.spacing(),
-                        *image.direction(),
-                    );
-                    ritk_filter::MaskImageFilter::new().apply(&image, &mask_image)
+                    match image.try_data_vec() {
+                        Ok(vals) => {
+                            let mask_vals: Vec<f32> = vals
+                                .iter()
+                                .map(|&v| {
+                                    if v > f32::from(*threshold) {
+                                        1.0_f32
+                                    } else {
+                                        0.0_f32
+                                    }
+                                })
+                                .collect();
+                            let device = image.data().device();
+                            let mask_td = ritk_image::tensor::TensorData::new(
+                                mask_vals,
+                                ritk_image::tensor::Shape::new(dims),
+                            );
+                            let mask_tensor =
+                                ritk_image::tensor::Tensor::<LoadBackend, 3>::from_data(
+                                    mask_td, &device,
+                                );
+                            let mask_image = ritk_image::Image::new(
+                                mask_tensor,
+                                *image.origin(),
+                                *image.spacing(),
+                                *image.direction(),
+                            );
+                            ritk_filter::MaskImageFilter::new().apply(&image, &mask_image)
+                        }
+                        Err(error) => Err(anyhow::anyhow!(
+                            "cannot construct MaskThreshold input from the loaded image: {error:?}"
+                        )),
+                    }
                 }
                 crate::FilterKind::GeodesicDilationSelf => {
                     ritk_filter::GrayscaleGeodesicDilationFilter::new().apply(&image, &image)
@@ -322,13 +336,13 @@ impl SnapApp {
                     upper,
                     foreground,
                     background,
-                } => ritk_filter::BinaryThresholdImageFilter::new(
+                } => Ok(ritk_segmentation::binary_threshold(
+                    &image,
                     *lower,
                     *upper,
-                    *foreground,
+                    (*foreground).into(),
                     *background,
-                )
-                .apply(&image),
+                )),
                 crate::FilterKind::RescaleIntensity { out_min, out_max } => {
                     ritk_filter::RescaleIntensityFilter::new(*out_min, *out_max).apply(&image)
                 }
@@ -357,16 +371,17 @@ impl SnapApp {
                     initial_upper,
                     multiplier,
                     max_iterations,
-                } => Ok(
-                    ritk_segmentation::region_growing::ConfidenceConnectedFilter::new(
-                        [*seed_z, *seed_y, *seed_x],
-                        *initial_lower,
-                        *initial_upper,
-                    )
-                    .with_multiplier(*multiplier)
-                    .with_max_iterations(*max_iterations as usize)
-                    .apply(&image),
-                ),
+                } => ritk_segmentation::region_growing::ConfidenceConnectedFilter::new(
+                    [*seed_z, *seed_y, *seed_x],
+                    *initial_lower,
+                    *initial_upper,
+                )
+                .with_multiplier(*multiplier)
+                .map(|filter| {
+                    filter
+                        .with_max_iterations(*max_iterations as usize)
+                        .apply(&image)
+                }),
                 crate::FilterKind::NeighborhoodConnected {
                     seed_z,
                     seed_y,
@@ -402,24 +417,8 @@ impl SnapApp {
                     time_step: *time_step,
                 })
                 .apply(&image),
-                crate::FilterKind::Cpr {
-                    control_points,
-                    num_path_samples,
-                    cross_section_half_width,
-                    num_cross_samples,
-                } => {
-                    let cpr_filter = CprImageFilter::new(
-                        control_points.clone(),
-                        CprConfig {
-                            num_path_samples: *num_path_samples as usize,
-                            cross_section_half_width: f64::from(*cross_section_half_width),
-                            num_cross_samples: *num_cross_samples as usize,
-                        },
-                    );
-                    match cpr_filter.apply(&image) {
-                        Ok(image_2d) => crate::filter::promote::elevate_to_volume(image_2d),
-                        Err(e) => Err(e),
-                    }
+                crate::FilterKind::Cpr { .. } => {
+                    unreachable!("invariant: CPR returns from the native dispatcher")
                 }
             }
         };
@@ -431,14 +430,38 @@ impl SnapApp {
             Ok(out_img) => {
                 let out_td = out_img.into_tensor().into_data();
                 let out_vec: Vec<f32> = out_td.as_slice::<f32>().unwrap_or(&[]).to_vec();
-                let vol = self.loaded.as_mut().unwrap();
-                vol.data = std::sync::Arc::new(out_vec);
-                self.texture_dirty = true;
-                self.coronal_dirty = true;
-                self.sagittal_dirty = true;
-                self.mip_dirty = true;
-                self.status_message = "Filter applied.".to_owned();
+                self.replace_loaded_volume_data(out_vec);
             }
         }
+    }
+
+    fn replace_loaded_volume_data(&mut self, data: Vec<f32>) {
+        let volume = self
+            .loaded
+            .as_mut()
+            .expect("invariant: a filter result exists only when a volume is loaded");
+        volume.data = std::sync::Arc::new(data);
+        self.mark_filter_applied();
+    }
+
+    fn replace_loaded_volume_native(&mut self, output: native::NativeFilterOutput) {
+        let volume = self
+            .loaded
+            .as_mut()
+            .expect("invariant: a filter result exists only when a volume is loaded");
+        volume.data = std::sync::Arc::new(output.data);
+        volume.shape = output.shape;
+        volume.origin = output.origin;
+        volume.spacing = output.spacing;
+        volume.direction = output.direction;
+        self.mark_filter_applied();
+    }
+
+    fn mark_filter_applied(&mut self) {
+        self.texture_dirty = true;
+        self.coronal_dirty = true;
+        self.sagittal_dirty = true;
+        self.mip_dirty = true;
+        self.status_message = "Filter applied.".to_owned();
     }
 }

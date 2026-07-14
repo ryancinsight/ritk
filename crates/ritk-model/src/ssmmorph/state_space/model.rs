@@ -1,176 +1,220 @@
-use ritk_image::burn::module::Param;
-use ritk_image::burn::nn::{Linear, LinearConfig};
-use ritk_image::burn::prelude::*;
-use ritk_image::tensor::activation;
+//! Selective state-space layer.
+
+use coeus_autograd::{mul, permute, reshape, sigmoid, slice, softplus, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::{Dropout, Linear, Module};
+use coeus_ops::BackendOps;
+use coeus_tensor::Tensor;
 
 use super::config::SelectiveStateSpaceConfig;
 use super::scan::selective_scan;
+use crate::ModelError;
 
-/// Selective State Space (S6) module
-///
-/// Implements input-dependent state space transformation where parameters
-/// Δ (discretization step), B (input matrix), and C (output matrix) are
-/// computed from the input, enabling selective information propagation.
-#[derive(Module, Debug)]
-pub struct SelectiveStateSpace<B: Backend> {
-    /// Input projection (expands channels)
-    pub in_proj: Linear<B>,
-    /// Output projection (contracts channels)
-    pub out_proj: Linear<B>,
-    /// Project input to low-rank space
-    pub dt_in_proj: Linear<B>,
-    /// Project from low-rank space to Δ (discretization step)
-    pub dt_proj: Linear<B>,
-    /// Project input to B (input matrix, rank-reduced)
-    pub b_proj: Linear<B>,
-    /// Project input to C (output matrix, rank-reduced)
-    pub c_proj: Linear<B>,
-    /// Learnable state matrix A (initialized as HiPPO or random)
-    pub a_log: Param<Tensor<B, 1>>,
-    /// Skip connection parameter
-    pub d: Param<Tensor<B, 1>>,
-    /// Input dimension
-    pub input_dim: usize,
-    /// Output dimension
-    pub output_dim: usize,
-    /// State dimension (stored for reference)
-    pub state_dim: usize,
-    /// Expansion factor
-    pub expand_factor: usize,
-    /// dt rank for low-rank projection
-    pub dt_rank: usize,
+/// Input-dependent S6 state-space transformation.
+#[derive(Clone)]
+pub struct SelectiveStateSpace<B>
+where
+    B: Backend + BackendOps<f32>,
+{
+    input_projection: Linear<f32, B>,
+    output_projection: Linear<f32, B>,
+    step_contraction: Linear<f32, B>,
+    step_expansion: Linear<f32, B>,
+    input_matrix_projection: Linear<f32, B>,
+    output_matrix_projection: Linear<f32, B>,
+    state_log: Var<f32, B>,
+    skip_scale: Var<f32, B>,
+    dropout: Dropout,
+    input_dim: usize,
+    output_dim: usize,
+    state_dim: usize,
+    inner_dim: usize,
 }
 
-impl<B: Backend> SelectiveStateSpace<B> {
-    /// Create new SelectiveStateSpace module
-    pub fn new(config: &SelectiveStateSpaceConfig, device: &B::Device) -> Self {
+impl<B> SelectiveStateSpace<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    /// Initialize a selective state-space layer.
+    #[must_use]
+    pub fn new(config: SelectiveStateSpaceConfig) -> Self {
         let inner_dim = config.input_dim * config.expand_factor;
-
-        // Input projection expands channels
-        let in_proj = LinearConfig::new(config.input_dim, inner_dim * 2).init(device);
-
-        // Output projection contracts back
-        let out_proj = LinearConfig::new(inner_dim, config.output_dim).init(device);
-
-        // Discretization step projection (low-rank contraction and expansion)
-        let dt_in_proj = LinearConfig::new(inner_dim, config.dt_rank).init(device);
-        let dt_proj = LinearConfig::new(config.dt_rank, inner_dim).init(device);
-
-        // B and C projections (rank-reduced)
-        let b_proj = LinearConfig::new(inner_dim, config.state_dim).init(device);
-        let c_proj = LinearConfig::new(inner_dim, config.state_dim).init(device);
-
-        // Initialize A as log of random values (learnable)
-        // Using real part of HiPPO initialization: A[n] = -(n+1) for n=0,...,N-1
-        let a_init: Vec<f64> = (0..inner_dim * config.state_dim)
-            .map(|i| {
-                let n = i % config.state_dim;
-                -((n + 1) as f64).ln()
-            })
+        let state_log_values: Vec<f32> = (0..inner_dim * config.state_dim)
+            .map(|index| -((index % config.state_dim + 1) as f32).ln())
             .collect();
-        let a_log = Tensor::<B, 1>::from_data(a_init.as_slice(), device)
-            .reshape([inner_dim * config.state_dim]);
-
-        // Skip connection parameter (initialized to 1.0)
-        let d = Tensor::ones([inner_dim], device);
-
-        Self {
-            in_proj,
-            out_proj,
-            dt_in_proj,
-            dt_proj,
-            b_proj,
-            c_proj,
-            a_log: Param::from_tensor(a_log),
-            d: Param::from_tensor(d),
+        let mut layer = Self {
+            input_projection: Linear::new(config.input_dim, inner_dim * 2, true),
+            output_projection: Linear::new(inner_dim, config.output_dim, true),
+            step_contraction: Linear::new(inner_dim, config.dt_rank, true),
+            step_expansion: Linear::new(config.dt_rank, inner_dim, true),
+            input_matrix_projection: Linear::new(inner_dim, config.state_dim, true),
+            output_matrix_projection: Linear::new(inner_dim, config.state_dim, true),
+            state_log: Var::new(
+                Tensor::from_slice_on(
+                    [inner_dim * config.state_dim],
+                    &state_log_values,
+                    &B::default(),
+                ),
+                true,
+            ),
+            skip_scale: Var::new(Tensor::ones_on([inner_dim], &B::default()), true),
+            dropout: Dropout::new(config.dropout),
             input_dim: config.input_dim,
             output_dim: config.output_dim,
             state_dim: config.state_dim,
-            expand_factor: config.expand_factor,
-            dt_rank: config.dt_rank,
-        }
-    }
-
-    /// Forward pass through selective state space
-    ///
-    /// # Arguments
-    /// * `input` - Input tensor of shape [..., seq_len, input_dim]
-    ///
-    /// # Returns
-    /// * Output tensor of shape [..., seq_len, output_dim]
-    pub fn forward<const D: usize>(&self, input: Tensor<B, D>) -> Tensor<B, D>
-    where
-        B: Backend,
-    {
-        let batch_dims = input.dims();
-        let seq_len = batch_dims[D - 2];
-        let input_dim = batch_dims[D - 1];
-        let batch_size: usize = batch_dims[..D - 2].iter().product();
-
-        // Reshape to [batch, seq, input_dim] for separate batch processing
-        let x_in = input.reshape([batch_size, seq_len, input_dim]);
-
-        // Project and split into x and residual
-        let proj = self.in_proj.forward(x_in);
-        let (x, residual): (Tensor<B, 3>, Tensor<B, 3>) = {
-            let inner_dim = self.input_dim * self.expand_factor;
-            let x_part = proj
-                .clone()
-                .slice([0..batch_size, 0..seq_len, 0..inner_dim]);
-            let res_part = proj.slice([0..batch_size, 0..seq_len, inner_dim..inner_dim * 2]);
-            (x_part, res_part)
+            inner_dim,
         };
-
-        // Compute selective parameters from input
-        let dt = self.compute_dt(&x);
-        let b = self.b_proj.forward(x.clone());
-        let c = self.c_proj.forward(x.clone());
-
-        // Apply selective SSM using parallel scan
-        let y = selective_scan(self.state_dim, self.a_log.val(), x, dt, b, c);
-
-        // Skip connection with gating
-        let output = y
-            * activation::sigmoid(residual)
-            * self.d.val().unsqueeze_dim::<2>(0).unsqueeze_dim::<3>(0);
-
-        // Project back to output dimension
-        let out = self.out_proj.forward(output);
-
-        // Reshape back to original batch dimensions
-        let mut out_dims = batch_dims;
-        out_dims[D - 1] = self.output_dim;
-        out.reshape(out_dims)
+        crate::initialization::linear(
+            &mut layer.input_projection,
+            config.input_dim,
+            inner_dim * 2,
+            301,
+        );
+        crate::initialization::linear(
+            &mut layer.output_projection,
+            inner_dim,
+            config.output_dim,
+            302,
+        );
+        crate::initialization::linear(&mut layer.step_contraction, inner_dim, config.dt_rank, 303);
+        crate::initialization::linear(&mut layer.step_expansion, config.dt_rank, inner_dim, 304);
+        crate::initialization::linear(
+            &mut layer.input_matrix_projection,
+            inner_dim,
+            config.state_dim,
+            305,
+        );
+        crate::initialization::linear(
+            &mut layer.output_matrix_projection,
+            inner_dim,
+            config.state_dim,
+            306,
+        );
+        layer
     }
 
-    /// Compute discretization step Δ from input
-    fn compute_dt(&self, x: &Tensor<B, 3>) -> Tensor<B, 3> {
-        // First project to low-rank space analytically instead of slicing
-        let x_rank = self.dt_in_proj.forward(x.clone());
-
-        // Expand to full dimension
-        let dt_unbounded = self.dt_proj.forward(x_rank);
-
-        // Softplus activation to ensure positive Δ
-        activation::softplus(dt_unbounded, 1.0)
+    /// Transform a tensor whose final two axes are sequence and channels.
+    pub fn forward(&self, input: &Var<f32, B>) -> Result<Var<f32, B>, ModelError> {
+        let shape = input.tensor.shape();
+        if shape.len() < 2 || shape[shape.len() - 1] != self.input_dim {
+            return Err(ModelError::Shape {
+                operation: "SelectiveStateSpace::forward",
+                expected: "[..., sequence, input_dim]",
+                actual: shape.to_vec(),
+            });
+        }
+        let sequence = shape[shape.len() - 2];
+        let batch: usize = shape[..shape.len() - 2].iter().product();
+        let projected = self
+            .input_projection
+            .forward(&reshape(input, [batch, sequence, self.input_dim]));
+        let signal = slice(
+            &projected,
+            &[(0, batch), (0, sequence), (0, self.inner_dim)],
+        );
+        let gate = slice(
+            &projected,
+            &[
+                (0, batch),
+                (0, sequence),
+                (self.inner_dim, self.inner_dim * 2),
+            ],
+        );
+        let step = softplus(
+            &self
+                .step_expansion
+                .forward(&self.step_contraction.forward(&signal)),
+        );
+        let input_matrix = self.input_matrix_projection.forward(&signal);
+        let output_matrix = self.output_matrix_projection.forward(&signal);
+        let state = selective_scan(
+            self.state_dim,
+            &self.state_log,
+            &signal,
+            &step,
+            &input_matrix,
+            &output_matrix,
+        );
+        let gated = mul(&mul(&state, &sigmoid(&gate)), &self.skip_scale);
+        let output = self
+            .dropout
+            .forward(&self.output_projection.forward(&gated));
+        let mut output_shape = shape.to_vec();
+        *output_shape
+            .last_mut()
+            .expect("invariant: rank checked above") = self.output_dim;
+        Ok(reshape(&output, output_shape))
     }
 
-    /// Forward pass for 3D volumetric data
-    pub fn forward_3d(&self, input: Tensor<B, 5>) -> Tensor<B, 5> {
-        let [batch, channels, depth, height, width] = input.dims();
-        let seq_len = depth * height * width;
+    /// Transform `[batch, channels, depth, height, width]` data.
+    pub fn forward_3d(&self, input: &Var<f32, B>) -> Result<Var<f32, B>, ModelError> {
+        let shape = input.tensor.shape();
+        if shape.len() != 5 || shape[1] != self.input_dim {
+            return Err(ModelError::Shape {
+                operation: "SelectiveStateSpace::forward_3d",
+                expected: "[batch, input_dim, depth, height, width]",
+                actual: shape.to_vec(),
+            });
+        }
+        let (batch, depth, height, width) = (shape[0], shape[2], shape[3], shape[4]);
+        let sequence = depth * height * width;
+        let flat = reshape(
+            &permute(input, &[0, 2, 3, 4, 1]),
+            [batch, sequence, self.input_dim],
+        );
+        let output = self.forward(&flat)?;
+        Ok(reshape(
+            &permute(
+                &reshape(&output, [batch, sequence, self.output_dim]),
+                &[0, 2, 1],
+            ),
+            [batch, self.output_dim, depth, height, width],
+        ))
+    }
+}
 
-        // Reshape to [batch, seq_len, channels]
-        let flat = input
-            .permute([0, 2, 3, 4, 1])
-            .reshape([batch, seq_len, channels]);
+impl<B> Module<f32, B> for SelectiveStateSpace<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    fn parameters(&self) -> Vec<Var<f32, B>> {
+        let mut parameters = self.input_projection.parameters();
+        parameters.extend(self.output_projection.parameters());
+        parameters.extend(self.step_contraction.parameters());
+        parameters.extend(self.step_expansion.parameters());
+        parameters.extend(self.input_matrix_projection.parameters());
+        parameters.extend(self.output_matrix_projection.parameters());
+        parameters.push(self.state_log.clone());
+        parameters.push(self.skip_scale.clone());
+        parameters
+    }
 
-        // Apply SSM
-        let out = self.forward(flat);
+    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
+        SelectiveStateSpace::forward(self, input)
+            .expect("invariant: module input satisfies selective state-space contract")
+    }
 
-        // Reshape back
-        out.reshape([batch, seq_len, self.output_dim])
-            .permute([0, 2, 1])
-            .reshape([batch, self.output_dim, depth, height, width])
+    fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {
+        let mut offset = 0;
+        for module in [
+            &mut self.input_projection,
+            &mut self.output_projection,
+            &mut self.step_contraction,
+            &mut self.step_expansion,
+            &mut self.input_matrix_projection,
+            &mut self.output_matrix_projection,
+        ] {
+            let count = module.parameters().len();
+            module.load_parameters(&parameters[offset..offset + count]);
+            offset += count;
+        }
+        self.state_log = parameters[offset].clone();
+        self.skip_scale = parameters[offset + 1].clone();
+    }
+
+    fn train(&mut self, mode: bool) {
+        self.dropout.set_training(mode);
     }
 }

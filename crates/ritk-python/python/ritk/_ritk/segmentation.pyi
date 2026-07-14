@@ -89,7 +89,13 @@ def connected_threshold_segment(
 
 # ── Clustering ──────────────────────────────────────────────────────────────
 
-def kmeans_segment(image: Image, k: int = 3) -> Image: ...
+def kmeans_segment(
+    image: Image,
+    k: int = 3,
+    max_iterations: int | None = None,
+    tolerance: float | None = None,
+    seed: int | None = None,
+) -> Image: ...
 
 # ── Watershed ────────────────────────────────────────────────────
 
@@ -166,6 +172,14 @@ def chan_vese_segment(
     dt: float = 0.1,
     tolerance: float = 1e-3,
 ) -> Image: ...
+def slic_superpixel(
+    image: Image,
+    n_superpixels: int = 100,
+    compactness: float = 10.0,
+    max_iterations: int = 10,
+    tolerance: float = 1e-3,
+    min_component_size: int = 5,
+) -> Image: ...
 def geodesic_active_contour_segment(
     image: Image,
     initial_phi: Image,
@@ -180,14 +194,7 @@ def geodesic_active_contour_segment(
 def shape_detection_segment(
     image: Image,
     initial_phi: Image,
-    curvature_weight: float = 1.0,
-    propagation_weight: float = 1.0,
-    advection_weight: float = 1.0,
-    edge_k: float = 1.0,
-    sigma: float = 1.0,
-    dt: float = 0.05,
-    max_iterations: int = 200,
-    tolerance: float = 1e-3,
+    opts: ShapeDetectionOptions | None = None,
 ) -> Image: ...
 def threshold_level_set_segment(
     image: Image,

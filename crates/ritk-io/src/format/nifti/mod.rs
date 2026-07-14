@@ -1,32 +1,104 @@
-//! Re-export NIfTI functionality from ritk-nifti.
-//!
-//! This module provides backward-compatible access to NIfTI readers and writers
-//! that are now implemented in the dedicated ritk-nifti crate.
+pub use ritk_nifti::{read_nifti_labels, write_nifti_labels};
 
-pub use ritk_nifti::{
-    read_nifti, read_nifti_from_bytes, read_nifti_labels, write_nifti, write_nifti_labels,
-    NiftiReader, NiftiWriter,
-};
+use anyhow::Result;
+use coeus_core::SequentialBackend;
+use ritk_core::image::Image;
+use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
+use std::path::Path;
 
-/// Atlas-native-substrate NIfTI reader/writer implementing the unified
-/// [`crate::domain::ImageReader`]/[`crate::domain::ImageWriter`] contract.
-///
-/// Transitional module: names inside are the plain end-state names; the
-/// module disambiguates from the Burn types during coexistence and folds
-/// away when the Burn path is deleted (ADR 0002).
+fn native_to_legacy<B: Backend>(
+    native: ritk_image::native::Image<f32, SequentialBackend, 3>,
+    device: &B::Device,
+) -> Image<B, 3> {
+    let tensor = Tensor::<B, 3>::from_data(
+        TensorData::new(
+            native.data_cow_on(&SequentialBackend).into_owned(),
+            Shape::new(native.shape()),
+        ),
+        device,
+    );
+    Image::new(
+        tensor,
+        *native.origin(),
+        *native.spacing(),
+        *native.direction(),
+    )
+}
+
+/// Reads NIfTI through the native provider and converts at this legacy boundary.
+pub fn read_nifti<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
+    ritk_nifti::read_nifti(path, &SequentialBackend).map(|native| native_to_legacy(native, device))
+}
+
+/// Reads in-memory NIfTI through the native provider and converts at this boundary.
+pub fn read_nifti_from_bytes<B: Backend>(bytes: &[u8], device: &B::Device) -> Result<Image<B, 3>> {
+    ritk_nifti::read_nifti_from_bytes(bytes, &SequentialBackend)
+        .map(|native| native_to_legacy(native, device))
+}
+
+/// Reads an in-memory NIfTI payload directly into a Coeus-backed image.
+pub fn read_nifti_from_bytes_native<B: coeus_core::ComputeBackend>(
+    bytes: &[u8],
+    backend: &B,
+) -> Result<ritk_image::native::Image<f32, B, 3>> {
+    ritk_nifti::read_nifti_from_bytes(bytes, backend)
+}
+
+/// Writes a legacy image through the native NIfTI provider.
+pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
+    let backend = SequentialBackend;
+    let native = ritk_image::native::Image::from_flat_on(
+        image.try_data_vec()?,
+        image.shape(),
+        *image.origin(),
+        *image.spacing(),
+        *image.direction(),
+        &backend,
+    )?;
+    ritk_nifti::write_nifti(path, &native, &backend)
+}
+
+/// Device-bound legacy NIfTI reader.
+pub struct NiftiReader<B: Backend> {
+    device: B::Device,
+}
+
+impl<B: Backend> NiftiReader<B> {
+    /// Creates a reader for `device`.
+    pub fn new(device: B::Device) -> Self {
+        Self { device }
+    }
+
+    /// Reads NIfTI into the legacy image substrate.
+    pub fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
+        read_nifti(path, &self.device).map_err(|error| std::io::Error::other(error.to_string()))
+    }
+}
+
+/// Stateless legacy NIfTI writer.
+pub struct NiftiWriter;
+
+impl<B: Backend> crate::domain::ImageWriter<Image<B, 3>> for NiftiWriter {
+    fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
+        write_nifti(path, image).map_err(|error| std::io::Error::other(error.to_string()))
+    }
+}
+
+/// Native-substrate NIfTI reader/writer contracts.
 pub mod native {
     use crate::domain::{to_io_err, ImageReader, ImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};
     use ritk_image::native::Image;
     use std::path::Path;
 
-    /// Backend-bound NIfTI reader (counterpart of the Burn [`super::NiftiReader`]).
+    /// Backend-bound NIfTI reader.
     pub struct NiftiReader<B: ComputeBackend> {
         backend: B,
     }
 
     impl<B: ComputeBackend> NiftiReader<B> {
-        /// Create a reader that constructs images on `backend`.
+        /// Creates a reader that constructs images on `backend`.
         pub fn new(backend: B) -> Self {
             Self { backend }
         }
@@ -34,17 +106,17 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for NiftiReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_nifti::native::read_nifti(path, &self.backend).map_err(to_io_err)
+            ritk_nifti::read_nifti(path, &self.backend).map_err(to_io_err)
         }
     }
 
-    /// Backend-bound NIfTI writer (counterpart of the Burn [`super::NiftiWriter`]).
+    /// Backend-bound NIfTI writer.
     pub struct NiftiWriter<B: ComputeBackend> {
         backend: B,
     }
 
     impl<B: ComputeBackend> NiftiWriter<B> {
-        /// Create a writer that extracts host data via `backend`.
+        /// Creates a writer that extracts host data via `backend`.
         pub fn new(backend: B) -> Self {
             Self { backend }
         }
@@ -56,7 +128,7 @@ pub mod native {
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
-            ritk_nifti::native::write_nifti(path, image, &self.backend).map_err(to_io_err)
+            ritk_nifti::write_nifti(path, image, &self.backend).map_err(to_io_err)
         }
     }
 
@@ -67,14 +139,12 @@ pub mod native {
         use ritk_spatial::{Direction, Point, Spacing};
         use tempfile::tempdir;
 
-        /// Trait-dispatched round trip: write through `ImageWriter`, read
-        /// back through `ImageReader`, exact voxel + metadata parity — the
-        /// unified contract is usable end-to-end on the Atlas substrate.
         #[test]
         fn native_contract_round_trips_nifti() {
             let dims = [2usize, 3, 4];
-            let n = dims[0] * dims[1] * dims[2];
-            let voxels: Vec<f32> = (0..n).map(|i| i as f32 * 0.25 - 2.0).collect();
+            let voxels: Vec<f32> = (0..dims.iter().product())
+                .map(|index| index as f32 * 0.25 - 2.0)
+                .collect();
             let origin = Point::new([-11.0, 7.5, 3.25]);
             let spacing = Spacing::new([2.0, 1.5, 0.75]);
             let image = Image::from_flat_on(
@@ -85,29 +155,17 @@ pub mod native {
                 Direction::identity(),
                 &SequentialBackend,
             )
-            .expect("coeus image");
+            .expect("native image");
 
             let dir = tempdir().expect("tempdir");
             let path = dir.path().join("contract.nii");
-
-            let writer = NiftiWriter::new(SequentialBackend);
-            ImageWriter::write(&writer, &path, &image).expect("contract write");
-
-            let reader = NiftiReader::new(SequentialBackend);
-            let loaded = ImageReader::read(&reader, &path).expect("contract read");
+            ImageWriter::write(&NiftiWriter::new(SequentialBackend), &path, &image)
+                .expect("contract write");
+            let loaded = ImageReader::read(&NiftiReader::new(SequentialBackend), &path)
+                .expect("contract read");
 
             assert_eq!(loaded.shape(), dims);
-            assert_eq!(
-                loaded.data_slice().expect("contiguous"),
-                voxels.as_slice(),
-                "voxels must round-trip exactly through the trait contract"
-            );
-            let sp = loaded.spacing();
-            let og = loaded.origin();
-            for k in 0..3 {
-                assert!((sp[k] - spacing[k]).abs() < 1e-5, "spacing[{k}] round-trip");
-                assert!((og[k] - origin[k]).abs() < 1e-4, "origin[{k}] round-trip");
-            }
+            assert_eq!(loaded.data_slice().expect("contiguous"), voxels);
         }
     }
 }

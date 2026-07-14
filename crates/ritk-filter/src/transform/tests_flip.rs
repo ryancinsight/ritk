@@ -137,3 +137,27 @@ fn flip_all_axes_2x3x4_correctness() {
         }
     }
 }
+
+#[test]
+fn native_flip_x_reverses_values() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+    use ritk_spatial::{Direction, Point, Spacing};
+
+    let image = NativeImage::from_flat_on(
+        vec![1.0, 2.0, 3.0],
+        [1, 1, 3],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = FlipImageFilter::flip_x()
+        .apply_native(&image, &SequentialBackend)
+        .expect("native flip succeeds");
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[3.0, 2.0, 1.0]
+    );
+}

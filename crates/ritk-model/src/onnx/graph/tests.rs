@@ -75,10 +75,10 @@ fn test_graph_validation() {
     ));
 
     // Add initializer
-    let weight = OnnxTensor::new(
+    let weight = OnnxValue::new(
         "weight".to_string(),
-        vec![16, 3, 3, 3],
         OnnxElementType::Float,
+        vec![16, 3, 3, 3],
     );
     graph.initializers.insert("weight".to_string(), weight);
 

@@ -10,7 +10,9 @@ type TestBackend = SequentialBackend;
 
 fn deterministic(shape: &[usize], scale: f32, bias: f32) -> Vec<f32> {
     let n: usize = shape.iter().product();
-    (0..n).map(|i| ((i % 19) as f32) / 19.0 * scale + bias).collect()
+    (0..n)
+        .map(|i| ((i % 19) as f32) / 19.0 * scale + bias)
+        .collect()
 }
 
 #[test]
@@ -51,7 +53,10 @@ fn affine_transform_applies_predicted_matrix() {
     // Identity warp under align_corners reproduces the input exactly.
     let (input, warped) = (image.tensor.as_slice(), output.tensor.as_slice());
     for (i, (&a, &b)) in input.iter().zip(warped.iter()).enumerate() {
-        assert!((a - b).abs() <= 1e-5, "identity warp altered voxel {i}: {a} vs {b}");
+        assert!(
+            (a - b).abs() <= 1e-5,
+            "identity warp altered voxel {i}: {a} vs {b}"
+        );
     }
 }
 
@@ -97,7 +102,11 @@ fn network_output_drives_transform_forward() {
     .init::<f32, TestBackend>();
     let stn = AffineTransform::new();
     let features = Var::new(
-        Tensor::from_slice_on(feat_shape, &deterministic(&feat_shape, 1.0, -0.5), &SequentialBackend),
+        Tensor::from_slice_on(
+            feat_shape,
+            &deterministic(&feat_shape, 1.0, -0.5),
+            &SequentialBackend,
+        ),
         false,
     );
     let theta = model.forward(&features);

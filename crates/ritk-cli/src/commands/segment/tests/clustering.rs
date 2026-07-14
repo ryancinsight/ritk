@@ -140,6 +140,70 @@ fn test_segment_kmeans_tolerance_param_accepted() {
     );
 }
 
+#[test]
+fn native_kmeans_cli_matches_canonical_legacy_output_exactly() {
+    let dir = tempdir().unwrap();
+    let input = dir.path().join("input.nii");
+    let output = dir.path().join("labels.nii");
+    let image = make_trimodal_image();
+    ritk_io::write_nifti(&input, &image).unwrap();
+    let args = SegmentArgs {
+        input,
+        output: output.clone(),
+        method: SegmentMethod::Kmeans,
+        classes: 3,
+        kmeans_max_iterations: Some(20),
+        kmeans_tolerance: Some(0.0),
+        kmeans_seed: Some(7),
+        ..Default::default()
+    };
+    run(args).unwrap();
+
+    let expected = ritk_segmentation::KMeansSegmentation::new(3)
+        .unwrap()
+        .with_max_iterations(20)
+        .unwrap()
+        .with_tolerance(0.0)
+        .unwrap()
+        .with_seed(7)
+        .apply(&image)
+        .unwrap();
+    let actual = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+    assert_eq!(actual.data_slice(), expected.data_slice());
+    assert_eq!(actual.origin(), image.origin());
+    assert_eq!(actual.spacing(), image.spacing());
+    assert_eq!(actual.direction(), image.direction());
+}
+
+#[test]
+fn native_kmeans_cli_rejects_invalid_configuration_and_nonnative_input() {
+    let dir = tempdir().unwrap();
+    let valid_input = dir.path().join("input.nii");
+    ritk_io::write_nifti(&valid_input, &make_bimodal_image()).unwrap();
+    let invalid_k = run(SegmentArgs {
+        input: valid_input,
+        output: dir.path().join("output.nii"),
+        method: SegmentMethod::Kmeans,
+        classes: 0,
+        ..Default::default()
+    })
+    .unwrap_err();
+    assert_eq!(invalid_k.to_string(), "k must be at least 1, got 0");
+
+    let output = dir.path().join("output.nii");
+    let format_error = run(default_args(
+        dir.path().join("input.vtk"),
+        output.clone(),
+        SegmentMethod::Kmeans,
+    ))
+    .unwrap_err();
+    assert_eq!(
+        format_error.to_string(),
+        "kmeans requires native input/output formats"
+    );
+    assert!(!output.exists());
+}
+
 // ── Positive: Distance transform creates output ───────────────────────────
 
 #[test]
@@ -209,6 +273,36 @@ fn test_segment_distance_transform_background_is_zero() {
             );
         }
     });
+}
+
+#[test]
+fn native_distance_transform_cli_preserves_exact_physical_values_and_geometry() {
+    let dir = tempdir().unwrap();
+    let input = dir.path().join("input.nii");
+    let output = dir.path().join("distance.nii");
+    let device: <Backend as BurnBackend>::Device = Default::default();
+    let tensor = Tensor::<Backend, 3>::from_data(
+        TensorData::new(vec![1.0, 0.0, 0.0, 0.0], Shape::new([1, 1, 4])),
+        &device,
+    );
+    let image = Image::new(
+        tensor,
+        Point::new([2.0, 3.0, 5.0]),
+        Spacing::new([2.0, 3.0, 4.0]),
+        Direction::identity(),
+    );
+    ritk_io::write_nifti(&input, &image).unwrap();
+    run(default_args(
+        input,
+        output.clone(),
+        SegmentMethod::DistanceTransform,
+    ))
+    .unwrap();
+    let actual = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+    assert_eq!(actual.data_slice().as_ref(), &[0.0, 4.0, 8.0, 12.0]);
+    assert_eq!(actual.origin(), image.origin());
+    assert_eq!(actual.spacing(), image.spacing());
+    assert_eq!(actual.direction(), image.direction());
 }
 
 // ── Fill-holes tests ──────────────────────────────────────────────────────
@@ -343,6 +437,70 @@ fn test_segment_skeletonization_strictly_binary() {
             );
         }
     });
+}
+
+#[test]
+fn native_postprocessing_cli_matches_legacy_exactly() {
+    use ritk_segmentation::{
+        BinaryFillHoles, MorphologicalGradient, MorphologicalOperation, Skeletonization,
+    };
+
+    let dir = tempdir().unwrap();
+    let input = dir.path().join("input.nii");
+    let image = make_binary_sphere_image();
+    ritk_io::write_nifti(&input, &image).unwrap();
+    let cases = [
+        (
+            SegmentMethod::FillHoles,
+            BinaryFillHoles.apply(&image).data_slice().to_vec(),
+        ),
+        (
+            SegmentMethod::MorphologicalGradient,
+            MorphologicalGradient::new(1)
+                .apply(&image)
+                .data_slice()
+                .to_vec(),
+        ),
+        (
+            SegmentMethod::Skeletonization,
+            Skeletonization::new().apply(&image).data_slice().to_vec(),
+        ),
+    ];
+    for (index, (method, expected)) in cases.into_iter().enumerate() {
+        let output = dir.path().join(format!("output-{index}.nii"));
+        run(default_args(input.clone(), output.clone(), method)).unwrap();
+        let actual = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+        assert_eq!(actual.data_slice(), expected);
+        assert_eq!(actual.origin(), image.origin());
+        assert_eq!(actual.spacing(), image.spacing());
+        assert_eq!(actual.direction(), image.direction());
+    }
+}
+
+#[test]
+fn native_postprocessing_cli_rejects_known_nonnative_format() {
+    let dir = tempdir().unwrap();
+    for (index, method) in [
+        SegmentMethod::DistanceTransform,
+        SegmentMethod::FillHoles,
+        SegmentMethod::MorphologicalGradient,
+        SegmentMethod::Skeletonization,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let output = dir.path().join(format!("output-{index}.nii"));
+        let error = run(default_args(
+            dir.path().join("input.vtk"),
+            output.clone(),
+            method,
+        ))
+        .expect_err("known nonnative input must be rejected before I/O");
+        assert!(error
+            .to_string()
+            .contains("requires native input/output formats"));
+        assert!(!output.exists());
+    }
 }
 
 // ── Connected-components tests ────────────────────────────────────────────

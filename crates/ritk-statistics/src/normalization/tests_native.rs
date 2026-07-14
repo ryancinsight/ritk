@@ -75,7 +75,9 @@ fn zscore_ramp_has_zero_mean_unit_variance() {
 #[test]
 fn zscore_matches_burn() {
     let data = vec![2.0, -1.0, 4.0, 7.0, 0.5, 3.3];
-    let nb = ZScoreNormalizer::new().normalize_native(&native(data.clone(), [6])).unwrap();
+    let nb = ZScoreNormalizer::new()
+        .normalize_native(&native(data.clone(), [6]))
+        .unwrap();
     let bb = ZScoreNormalizer::new().normalize(&burn(data, [6]));
     assert_close(&native_values(&nb), &burn_values(&bb), PARITY, "zscore");
 }
@@ -88,14 +90,21 @@ fn zscore_masked_matches_burn() {
         .normalize_masked_native(&native(data.clone(), [6]), &native(mask.clone(), [6]))
         .unwrap();
     let bb = ZScoreNormalizer::new().normalize_masked(&burn(data, [6]), &burn(mask, [6]));
-    assert_close(&native_values(&nb), &burn_values(&bb), PARITY, "zscore_masked");
+    assert_close(
+        &native_values(&nb),
+        &burn_values(&bb),
+        PARITY,
+        "zscore_masked",
+    );
 }
 
 // ── Min-max ──────────────────────────────────────────────────────────────────
 
 #[test]
 fn minmax_known_unit_range() {
-    let out = MinMaxNormalizer::new().normalize_native(&native(vec![0.0, 5.0, 10.0], [3])).unwrap();
+    let out = MinMaxNormalizer::new()
+        .normalize_native(&native(vec![0.0, 5.0, 10.0], [3]))
+        .unwrap();
     let v = native_values(&out);
     assert!(v[0].abs() < 1e-5, "N(0) ≈ 0, got {}", v[0]);
     assert!((v[1] - 0.5).abs() < 1e-4, "N(5) ≈ 0.5, got {}", v[1]);
@@ -145,8 +154,11 @@ fn nyul_udupa_matches_burn() {
     let target: Vec<f32> = (0..50).map(|i| (i as f32) * 0.8 - 2.0).collect();
 
     let mut n = NyulUdupaNormalizer::new();
-    n.learn_standard_native(&[&native(train_a.clone(), [50]), &native(train_b.clone(), [50])])
-        .unwrap();
+    n.learn_standard_native(&[
+        &native(train_a.clone(), [50]),
+        &native(train_b.clone(), [50]),
+    ])
+    .unwrap();
     let nb = n.apply_native(&native(target.clone(), [50])).unwrap();
 
     let mut b = NyulUdupaNormalizer::new();
@@ -170,15 +182,41 @@ fn white_stripe_matches_burn() {
     let mut data = Vec::with_capacity(400);
     for i in 0..400 {
         let x = i as f32;
-        data.push(if i < 250 { 20.0 + (x % 15.0) } else { 90.0 + (x % 8.0) });
+        data.push(if i < 250 {
+            20.0 + (x % 15.0)
+        } else {
+            90.0 + (x % 8.0)
+        });
     }
     let cfg = WhiteStripeConfig::default();
-    let nb = WhiteStripeNormalizer::normalize_native(&native(data.clone(), [400, 1, 1]), None, &cfg).unwrap();
+    let nb =
+        WhiteStripeNormalizer::normalize_native(&native(data.clone(), [400, 1, 1]), None, &cfg)
+            .unwrap();
     let bb = WhiteStripeNormalizer::normalize(&burn(data, [400, 1, 1]), None, &cfg);
 
-    assert!((nb.mu - bb.mu).abs() < 1e-9, "mu native={} burn={}", nb.mu, bb.mu);
-    assert!((nb.sigma - bb.sigma).abs() < 1e-9, "sigma native={} burn={}", nb.sigma, bb.sigma);
-    assert!((nb.wm_peak - bb.wm_peak).abs() < 1e-9, "wm_peak native={} burn={}", nb.wm_peak, bb.wm_peak);
+    assert!(
+        (nb.mu - bb.mu).abs() < 1e-9,
+        "mu native={} burn={}",
+        nb.mu,
+        bb.mu
+    );
+    assert!(
+        (nb.sigma - bb.sigma).abs() < 1e-9,
+        "sigma native={} burn={}",
+        nb.sigma,
+        bb.sigma
+    );
+    assert!(
+        (nb.wm_peak - bb.wm_peak).abs() < 1e-9,
+        "wm_peak native={} burn={}",
+        nb.wm_peak,
+        bb.wm_peak
+    );
     assert_eq!(nb.stripe_size, bb.stripe_size, "stripe_size");
-    assert_close(&native_values(&nb.normalized), &burn_values(&bb.normalized), PARITY, "white_stripe");
+    assert_close(
+        &native_values(&nb.normalized),
+        &burn_values(&bb.normalized),
+        PARITY,
+        "white_stripe",
+    );
 }

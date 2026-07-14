@@ -106,3 +106,27 @@ fn roi_out_of_bounds_returns_error() {
     let result = RegionOfInterestImageFilter::new([0, 0, 0], [3, 2, 2]).apply(&img);
     assert!(result.is_err(), "out-of-bounds ROI must return Err");
 }
+
+#[test]
+fn native_roi_extracts_value_and_translates_origin() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+
+    let image = NativeImage::from_flat_on(
+        (1..=8).map(|value| value as f32).collect(),
+        [2, 2, 2],
+        Point::new([0.0; 3]),
+        Spacing::new([2.0, 3.0, 4.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = RegionOfInterestImageFilter::new([1, 1, 1], [1, 1, 1])
+        .apply_native(&image, &SequentialBackend)
+        .expect("native ROI succeeds");
+    assert_eq!(output.data_slice().expect("contiguous output"), &[8.0]);
+    assert_eq!(
+        [output.origin()[0], output.origin()[1], output.origin()[2]],
+        [2.0, 3.0, 4.0]
+    );
+}

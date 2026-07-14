@@ -18,6 +18,7 @@ pub use domain::{
 };
 
 pub use io::{
+    encode_vtk_flat,
     read_obj_indexed,
     read_obj_mesh,
     read_ply_indexed,
@@ -51,7 +52,6 @@ pub use io::{
     write_vti_image_data,
     write_vti_str,
     write_vtk,
-    encode_vtk_flat,
     write_vtk_polydata,
     write_vtk_structured_grid,
     write_vtk_unstructured_grid,

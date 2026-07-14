@@ -367,3 +367,41 @@ fn logical_filters_match_itk_truth_tables() {
         assert_eq!(xor[i], de_morgan, "xor[{i}] vs (a|b)&!(a&b)");
     }
 }
+
+#[test]
+fn native_binary_operation_preserves_values_and_first_image_metadata() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+    use ritk_spatial::{Direction, Point, Spacing};
+
+    let left = NativeImage::from_flat_on(
+        vec![1.0, 2.0, 3.0],
+        [1, 1, 3],
+        Point::new([1.0, 2.0, 3.0]),
+        Spacing::new([0.5, 1.0, 2.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native left image");
+    let right = NativeImage::from_flat_on(
+        vec![2.0, 0.0, 4.0],
+        [1, 1, 3],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native right image");
+
+    let output = DivideImageFilter::new()
+        .apply_native(&left, &right, &SequentialBackend)
+        .expect("native binary operation succeeds");
+
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[0.5, 0.0, 0.75]
+    );
+    assert_eq!(output.origin(), left.origin());
+    assert_eq!(output.spacing(), left.spacing());
+    assert_eq!(output.direction(), left.direction());
+}

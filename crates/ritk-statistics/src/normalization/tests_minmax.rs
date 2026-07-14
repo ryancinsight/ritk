@@ -1,5 +1,7 @@
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::{make_image, make_image_with};
 
 type TestBackend = NdArray<f32>;
@@ -48,6 +50,29 @@ fn test_minmax_known_values_unit_range() {
         "N(10) ≈ 1.0, got {}",
         values[2]
     );
+}
+
+#[test]
+fn native_minmax_maps_endpoints_and_preserves_metadata() {
+    let image = NativeImage::from_flat_on(
+        vec![0.0, 5.0, 10.0],
+        [1, 1, 3],
+        ritk_spatial::Point::new([1.0, 2.0, 3.0]),
+        ritk_spatial::Spacing::new([0.5, 1.0, 2.0]),
+        ritk_spatial::Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = MinMaxNormalizer::with_range(-1.0, 1.0)
+        .normalize_native(&image)
+        .expect("native min-max normalization succeeds");
+    let values = output.data_slice().expect("contiguous output");
+    assert_eq!(values[0], -1.0);
+    assert!((values[1]).abs() < 1e-6);
+    assert!((values[2] - 1.0).abs() < 1e-6);
+    assert_eq!(output.origin(), image.origin());
+    assert_eq!(output.spacing(), image.spacing());
+    assert_eq!(output.direction(), image.direction());
 }
 
 #[test]

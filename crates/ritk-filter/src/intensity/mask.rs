@@ -21,6 +21,8 @@
 //! | `MaskNegatedImageFilter`    | `MaskNegatedImageFilter`     |
 
 use crate::distance::types::BinarizationThreshold;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};

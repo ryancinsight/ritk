@@ -1,12 +1,8 @@
 use super::*;
-use burn_ndarray::NdArray;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
-use ritk_image::tensor::backend::Backend;
-
-type B = NdArray<f32>;
 
 fn write_multiframe(
     path: &Path,
@@ -206,28 +202,4 @@ fn read_dicom_color_multiframe_rejects_hostile_dimensions_without_oom() {
         msg.contains("out of range"),
         "expected a bounds error, got: {msg}"
     );
-}
-
-/// Differential parity: the native RGB multiframe reader must decode
-/// byte-identically to the Burn oracle. Burn is a dev-only oracle here; the
-/// analytical assertions above are the primary value-semantic gate.
-#[test]
-fn native_color_multiframe_matches_burn_reader() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let path = dir.path().join("rgb_parity.dcm");
-    let samples: Vec<u8> = vec![255, 0, 0, 0, 255, 0, 0, 0, 255, 17, 34, 51];
-    write_multiframe(&path, 3, "RGB", Some(0), samples);
-
-    let native = load_atlas_color_multiframe(&path).expect("native RGB MF");
-    let device = <B as Backend>::Device::default();
-    let burn = read_dicom_color_multiframe::<B, _>(&path, &device).expect("burn RGB MF");
-
-    assert_eq!(native.shape(), burn.shape(), "shape parity");
-    let native_vals = native.data_slice().expect("contiguous native data");
-    burn.with_data_slice(|burn_vals| {
-        assert_eq!(
-            native_vals, burn_vals,
-            "native RGB reader must decode identically to the burn reader"
-        );
-    });
 }

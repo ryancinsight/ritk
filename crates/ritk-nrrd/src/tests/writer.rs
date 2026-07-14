@@ -1,21 +1,29 @@
+use crate::write_nrrd_with_data;
 use anyhow::Result;
 use coeus_core::SequentialBackend;
+use ritk_image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
-use crate::native;
-
-use ritk_image::native::Image;
-
 type TestBackend = SequentialBackend;
 
-fn make_image(data: Vec<f32>, dims: [usize; 3], origin: Point<3>,
-    spacing: Spacing<3>, direction: Direction<3>) -> Image<f32, TestBackend, 3> {
+fn make_image(
+    data: Vec<f32>,
+    dims: [usize; 3],
+    origin: Point<3>,
+    spacing: Spacing<3>,
+    direction: Direction<3>,
+) -> Image<f32, TestBackend, 3> {
     Image::from_flat_on(data, dims, origin, spacing, direction, &SequentialBackend)
         .expect("valid image")
 }
 
-fn zeros_image(dims: [usize; 3], origin: Point<3>, spacing: Spacing<3>, direction: Direction<3>) -> Image<f32, TestBackend, 3> {
+fn zeros_image(
+    dims: [usize; 3],
+    origin: Point<3>,
+    spacing: Spacing<3>,
+    direction: Direction<3>,
+) -> Image<f32, TestBackend, 3> {
     let n = dims[0] * dims[1] * dims[2];
     make_image(vec![0.0f32; n], dims, origin, spacing, direction)
 }
@@ -66,7 +74,7 @@ fn test_mandatory_header_fields_present() -> Result<()> {
         Direction::identity(),
     );
 
-    native::write_nrrd(&path, &image, &backend)?;
+    crate::write_nrrd(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     assert!(bytes_contain(&bytes, "NRRD0004"), "missing NRRD magic");
@@ -104,7 +112,7 @@ fn test_sizes_written_in_xyz_order() -> Result<()> {
         Direction::identity(),
     );
 
-    native::write_nrrd(&path, &image, &backend)?;
+    crate::write_nrrd(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     assert!(
@@ -123,9 +131,14 @@ fn test_space_directions_encodes_spacing_on_diagonal() -> Result<()> {
     let path = dir_tmp.path().join("diag_sd.nrrd");
     let backend = SequentialBackend;
 
-    let image = zeros_image([2, 2, 2], Point::new([0.0, 0.0, 0.0]), Spacing::new([0.9, 0.75, 1.5]), axial_direction());
+    let image = zeros_image(
+        [2, 2, 2],
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([0.9, 0.75, 1.5]),
+        axial_direction(),
+    );
 
-    native::write_nrrd(&path, &image, &backend)?;
+    crate::write_nrrd(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     // For axial internal columns depth=Z, row=Y, col=X:
@@ -155,9 +168,14 @@ fn test_space_origin_written_correctly() -> Result<()> {
     let path = dir.path().join("origin.nrrd");
     let backend = SequentialBackend;
 
-    let image = zeros_image([2, 2, 2], Point::new([10.5, 20.25, 30.125]), Spacing::new([1.0, 1.0, 1.0]), Direction::identity());
+    let image = zeros_image(
+        [2, 2, 2],
+        Point::new([10.5, 20.25, 30.125]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+    );
 
-    native::write_nrrd(&path, &image, &backend)?;
+    crate::write_nrrd(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     assert!(
@@ -197,7 +215,7 @@ fn test_payload_size_correct() -> Result<()> {
         Direction::identity(),
     );
 
-    native::write_nrrd(&path, &image, &backend)?;
+    crate::write_nrrd(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     let expected_payload = n_voxels * 4;
@@ -240,7 +258,7 @@ fn test_payload_written_in_x_fastest_order() -> Result<()> {
         axial_direction(),
     );
 
-    native::write_nrrd(&path, &image, &backend)?;
+    crate::write_nrrd(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
     let payload_values = decode_le_f32_payload(nrrd_payload(&bytes));
@@ -252,6 +270,28 @@ fn test_payload_written_in_x_fastest_order() -> Result<()> {
     Ok(())
 }
 
+#[test]
+fn test_caller_payload_length_must_match_shape() -> Result<()> {
+    let dir = tempdir()?;
+    let path = dir.path().join("wrong_payload.nrrd");
+    let image = make_image(
+        vec![0.0; 8],
+        [2, 2, 2],
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+    );
+
+    let error =
+        write_nrrd_with_data(&path, &image, &[0.0; 7]).expect_err("short payload must be rejected");
+    assert!(
+        error.to_string().contains("requires 8"),
+        "error must report the required voxel count: {error}"
+    );
+    assert!(!path.exists(), "invalid payload must not create a file");
+    Ok(())
+}
+
 /// NrrdWriter struct delegates correctly to `write_nrrd`.
 #[test]
 fn test_writer_struct_creates_file() -> Result<()> {
@@ -259,9 +299,14 @@ fn test_writer_struct_creates_file() -> Result<()> {
     let path = dir.path().join("writer_struct.nrrd");
     let backend = SequentialBackend;
 
-    let image = zeros_image([2, 2, 2], Point::new([0.0, 0.0, 0.0]), Spacing::new([1.0, 1.0, 1.0]), Direction::identity());
+    let image = zeros_image(
+        [2, 2, 2],
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+    );
 
-    native::write_nrrd(&path, &image, &backend)?;
+    crate::write_nrrd(&path, &image, &backend)?;
 
     assert!(path.exists(), "output file must exist after write");
     assert!(
@@ -308,7 +353,7 @@ fn test_rotated_direction_in_space_directions() -> Result<()> {
         direction,
     );
 
-    native::write_nrrd(&path, &image, &backend)?;
+    crate::write_nrrd(&path, &image, &backend)?;
 
     let bytes = std::fs::read(&path)?;
 
@@ -332,8 +377,6 @@ fn test_rotated_direction_in_space_directions() -> Result<()> {
 /// spatial metadata, and every voxel value.
 #[test]
 fn test_round_trip_nrrd() -> Result<()> {
-    use crate::read_nrrd;
-
     let dir = tempdir()?;
     let path = dir.path().join("round_trip.nrrd");
     let backend = SequentialBackend;
@@ -345,8 +388,8 @@ fn test_round_trip_nrrd() -> Result<()> {
     let direction = Direction::identity();
     let image = make_image(data_vec.clone(), [2, 3, 4], origin, spacing, direction);
 
-    native::write_nrrd(&path, &image, &backend)?;
-    let loaded = native::read_nrrd(&path, &backend)?;
+    crate::write_nrrd(&path, &image, &backend)?;
+    let loaded = crate::read_nrrd(&path, &backend)?;
 
     // Shape
     assert_eq!(loaded.shape(), [2, 3, 4]);
@@ -397,9 +440,9 @@ fn native_writer_produces_valid_nrrd() -> Result<()> {
     let backend = SequentialBackend;
 
     let image = make_image(data.clone(), [nz, ny, nx], origin, spacing, direction);
-    native::write_nrrd(&path, &image, &backend)?;
+    crate::write_nrrd(&path, &image, &backend)?;
 
-    let loaded = native::read_nrrd(&path, &backend)?;
+    let loaded = crate::read_nrrd(&path, &backend)?;
     assert_eq!(loaded.shape(), [nz, ny, nx]);
     assert_eq!(*loaded.origin(), origin);
     assert_eq!(*loaded.spacing(), spacing);

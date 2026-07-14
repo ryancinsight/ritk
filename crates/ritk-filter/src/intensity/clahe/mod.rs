@@ -61,6 +61,7 @@ pub mod tile_cdf;
 use interpolate::clahe_2d_with_scratch;
 
 use anyhow::Result;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -215,17 +216,15 @@ impl ClaheFilter {
     /// [`apply_native`](Self::apply_native) paths.
     fn clahe_flat(&self, vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
         let [depth, rows, cols] = dims;
-
         let n_tiles_y = self.tile_grid_size[0].min(rows).max(1);
         let n_tiles_x = self.tile_grid_size[1].min(cols).max(1);
-
         let clip_limit = self.clip_limit;
         let bins = self.bins;
         let slice_size = rows * cols;
 
-        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(depth, |d| {
+        moirai::map_collect_index_with::<moirai::Adaptive, _, _>(depth, |depth_index| {
             let mut scratch = ClaheScratch::new(rows, cols, n_tiles_y, n_tiles_x, bins);
-            let slice = &vals[d * slice_size..(d + 1) * slice_size];
+            let slice = &vals[depth_index * slice_size..(depth_index + 1) * slice_size];
             clahe_2d_with_scratch(
                 slice,
                 rows,

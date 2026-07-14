@@ -17,8 +17,8 @@
 //!   agree to the index↔world `f32` round-trip and summation-order rounding of an
 //!   O(1) correlation, tol 1e-4).
 
-use super::super::NormalizedCrossCorrelation;
 use super::super::super::trait_::Metric;
+use super::super::NormalizedCrossCorrelation;
 use super::ncc_loss_native;
 
 use burn_ndarray::NdArray;

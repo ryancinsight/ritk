@@ -1,9 +1,12 @@
 //! JPEG tests migrated to the Atlas-native (Coeus) path — ADR 0002.
 
+use anyhow::Result;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
+
+use crate::{read_jpeg, write_jpeg, JpegReader, JpegWriter};
 
 type TestBackend = SequentialBackend;
 
@@ -30,7 +33,11 @@ fn roundtrip_gradient_32x32() {
     for y in 0..ny {
         for x in 0..nx {
             let idx = (y * nx + x) as f32;
-            let val = if max_idx > 0.0 { idx / max_idx * 255.0 } else { 0.0 };
+            let val = if max_idx > 0.0 {
+                idx / max_idx * 255.0
+            } else {
+                0.0
+            };
             data_vec.push(val);
         }
     }
@@ -39,14 +46,21 @@ fn roundtrip_gradient_32x32() {
     let dir = tempdir().expect("failed to create tempdir");
     let path = dir.path().join("gradient.jpg");
 
-    crate::native::write_jpeg(&path, &image, &backend).expect("write_jpeg failed");
-    let loaded = crate::native::read_jpeg(&path, &backend).expect("read_jpeg failed");
+    crate::write_jpeg(&path, &image, &backend).expect("write_jpeg failed");
+    let loaded = crate::read_jpeg(&path, &backend).expect("read_jpeg failed");
 
     assert_eq!(loaded.shape(), [nz, ny, nx]);
     let loaded_slice = loaded.data_slice().expect("contiguous host data");
     for i in 0..total {
         let diff = (loaded_slice[i] - data_vec[i]).abs();
-        assert!(diff <= 5.0, "pixel {} differs by {}: original={}, loaded={}", i, diff, data_vec[i], loaded_slice[i]);
+        assert!(
+            diff <= 5.0,
+            "pixel {} differs by {}: original={}, loaded={}",
+            i,
+            diff,
+            data_vec[i],
+            loaded_slice[i]
+        );
     }
 }
 
@@ -57,11 +71,21 @@ fn spatial_metadata_defaults() {
     let dir = tempdir().expect("failed to create tempdir");
     let path = dir.path().join("meta.jpg");
 
-    crate::native::write_jpeg(&path, &image, &backend).expect("write failed");
-    let loaded = crate::native::read_jpeg(&path, &backend).expect("read failed");
+    crate::write_jpeg(&path, &image, &backend).expect("write failed");
+    let loaded = crate::read_jpeg(&path, &backend).expect("read failed");
 
-    assert_eq!([loaded.origin()[0], loaded.origin()[1], loaded.origin()[2]], [0.0, 0.0, 0.0]);
-    assert_eq!([loaded.spacing()[0], loaded.spacing()[1], loaded.spacing()[2]], [1.0, 1.0, 1.0]);
+    assert_eq!(
+        [loaded.origin()[0], loaded.origin()[1], loaded.origin()[2]],
+        [0.0, 0.0, 0.0]
+    );
+    assert_eq!(
+        [
+            loaded.spacing()[0],
+            loaded.spacing()[1],
+            loaded.spacing()[2]
+        ],
+        [1.0, 1.0, 1.0]
+    );
     assert_eq!(loaded.direction(), &Direction::<3>::identity());
 }
 
@@ -83,14 +107,21 @@ fn roundtrip_non_square_16x48() {
     let dir = tempdir().expect("failed to create tempdir");
     let path = dir.path().join("rect.jpeg");
 
-    crate::native::write_jpeg(&path, &image, &backend).expect("write failed");
-    let loaded = crate::native::read_jpeg(&path, &backend).expect("read failed");
+    crate::write_jpeg(&path, &image, &backend).expect("write failed");
+    let loaded = crate::read_jpeg(&path, &backend).expect("read failed");
 
     assert_eq!(loaded.shape(), [nz, ny, nx]);
     let loaded_slice = loaded.data_slice().expect("contiguous host data");
     for i in 0..total {
         let diff = (loaded_slice[i] - data_vec[i]).abs();
-        assert!(diff <= 5.0, "pixel {} differs by {}: original={}, loaded={}", i, diff, data_vec[i], loaded_slice[i]);
+        assert!(
+            diff <= 5.0,
+            "pixel {} differs by {}: original={}, loaded={}",
+            i,
+            diff,
+            data_vec[i],
+            loaded_slice[i]
+        );
     }
 }
 
@@ -101,16 +132,20 @@ fn write_rejects_nz_not_one() {
     let dir = tempdir().expect("failed to create tempdir");
     let path = dir.path().join("bad.jpg");
 
-    let result = crate::native::write_jpeg(&path, &image, &backend);
+    let result = crate::write_jpeg(&path, &image, &backend);
     assert!(result.is_err(), "write_jpeg should reject nz=2");
     let msg = format!("{}", result.unwrap_err());
-    assert!(msg.contains("nz=2"), "error message should contain 'nz=2', got: {}", msg);
+    assert!(
+        msg.contains("nz=2"),
+        "error message should contain 'nz=2', got: {}",
+        msg
+    );
 }
 
 #[test]
 fn read_nonexistent_file_errors() {
     let backend = SequentialBackend;
-    let result = crate::native::read_jpeg("/nonexistent/path/to/image.jpg", &backend);
+    let result = crate::read_jpeg("/nonexistent/path/to/image.jpg", &backend);
     assert!(result.is_err(), "read_jpeg should fail for missing file");
 }
 
@@ -122,11 +157,46 @@ fn roundtrip_single_pixel() {
     let dir = tempdir().expect("failed to create tempdir");
     let path = dir.path().join("pixel.jpg");
 
-    crate::native::write_jpeg(&path, &image, &backend).expect("write failed");
-    let loaded = crate::native::read_jpeg(&path, &backend).expect("read failed");
+    crate::write_jpeg(&path, &image, &backend).expect("write failed");
+    let loaded = crate::read_jpeg(&path, &backend).expect("read failed");
 
     assert_eq!(loaded.shape(), [1, 1, 1]);
     let loaded_slice = loaded.data_slice().expect("contiguous host data");
     let diff = (loaded_slice[0] - original_val).abs();
-    assert!(diff <= 5.0, "single pixel differs by {}: original={}, loaded={}", diff, original_val, loaded_slice[0]);
+    assert!(
+        diff <= 5.0,
+        "single pixel differs by {}: original={}, loaded={}",
+        diff,
+        original_val,
+        loaded_slice[0]
+    );
+}
+
+#[test]
+fn reader_and_writer_delegate_to_canonical_operations() -> Result<()> {
+    let dir = tempdir()?;
+    let path = dir.path().join("delegation.jpg");
+    let input = image_from_values([1, 1, 3], vec![16.0, 128.0, 240.0]);
+    let writer = JpegWriter::new(SequentialBackend);
+    writer.write_image(&path, &input)?;
+    let reader = JpegReader::new(SequentialBackend);
+    let output = reader.read_image(&path)?;
+    assert_eq!(output.shape(), [1, 1, 3]);
+    assert_eq!(output.data_cow_on(&SequentialBackend).len(), 3);
+    Ok(())
+}
+
+#[test]
+fn writer_rejects_non_planar_and_mismatched_images() -> Result<()> {
+    let image = image_from_values([2, 1, 1], vec![0.0, 1.0]);
+    let path = tempdir()?.path().join("invalid.jpg");
+    let error = write_jpeg(&path, &image, &SequentialBackend).unwrap_err();
+    assert!(error.to_string().contains("depth=1"));
+    Ok(())
+}
+
+#[test]
+fn reader_reports_missing_files() {
+    let error = read_jpeg("missing/ritk-image.jpg", &SequentialBackend).unwrap_err();
+    assert!(error.to_string().contains("failed to open JPEG file"));
 }

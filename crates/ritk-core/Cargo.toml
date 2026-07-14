@@ -7,7 +7,6 @@ edition = "2021"
 default = []
 
 [dependencies]
-burn-ndarray = { workspace = true }
 ritk-spatial = { path = "../ritk-spatial" }
 ritk-image = { path = "../ritk-image" }
 ritk-morphology = { path = "../ritk-morphology" }
@@ -19,3 +18,5 @@ coeus-tensor = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }
+coeus-core = { workspace = true }
+coeus-tensor = { workspace = true }

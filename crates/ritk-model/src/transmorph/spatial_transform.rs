@@ -70,7 +70,10 @@ impl SpatialTransformer {
                     }
                 }
             }
-            Var::new(Tensor::from_slice_on([1, d, h, w, 1], &data, &B::default()), false)
+            Var::new(
+                Tensor::from_slice_on([1, d, h, w, 1], &data, &B::default()),
+                false,
+            )
         };
         let base_d = base(d, 0, sd);
         let base_h = base(h, 1, sh_);

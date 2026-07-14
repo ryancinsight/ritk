@@ -264,7 +264,10 @@ mod tests {
         let n: usize = shape.iter().product();
         // Deterministic, non-degenerate values in a bounded range.
         let data: Vec<f32> = (0..n).map(|i| ((i % 17) as f32) / 17.0 - 0.5).collect();
-        Var::new(Tensor::from_slice_on(shape, &data, &SequentialBackend), true)
+        Var::new(
+            Tensor::from_slice_on(shape, &data, &SequentialBackend),
+            true,
+        )
     }
 
     #[test]
@@ -337,7 +340,10 @@ mod tests {
         let n: usize = shape.iter().product();
         let base: Vec<f32> = (0..n).map(|i| ((i % 17) as f32) / 17.0 - 0.5).collect();
 
-        let input = Var::new(Tensor::from_slice_on(shape, &base, &SequentialBackend), true);
+        let input = Var::new(
+            Tensor::from_slice_on(shape, &base, &SequentialBackend),
+            true,
+        );
         let out = net.forward(&input);
         let loss = coeus_autograd::sum(&out);
         loss.backward();

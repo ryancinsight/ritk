@@ -51,11 +51,8 @@ fn parity_rescale_intensity_maps_full_range() {
 /// Input [0,50,100,150,200], lower=50, upper=150, fg=1, bg=0 -> [0,1,1,1,0]
 #[test]
 fn parity_binary_threshold_indicator_function() {
-    use ritk_filter::intensity::BinaryThresholdImageFilter;
     let img = make_image(vec![0.0, 50.0, 100.0, 150.0, 200.0], [5, 1, 1]);
-    let out = BinaryThresholdImageFilter::new(50.0, 150.0, 1.0, 0.0)
-        .apply(&img)
-        .unwrap();
+    let out = ritk_segmentation::binary_threshold(&img, 50.0, 150.0, 1.0, 0.0);
     let v = vals(&out);
     for (i, (&got, &exp)) in v
         .iter()

@@ -24,10 +24,8 @@ same parameters, the same oracle.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
-import urllib.request
 
 import numpy as np
 import pytest
@@ -35,14 +33,12 @@ import pytest
 sitk = pytest.importorskip("SimpleITK")
 
 import ritk  # noqa: E402
+from _sitk_data import fetch_sha512  # noqa: E402
 
 _HERE = os.path.dirname(__file__)
-_REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
 # Manifest (input name -> sha512) is committed next to this test; the fetched
 # data is cached under the git-ignored externals/ tree.
 _MANIFEST = os.path.join(_HERE, "sitk_input_manifest.json")
-_CACHE = os.path.join(_REPO_ROOT, "externals", "sitk_data")
-_CDN = "https://data.kitware.com/api/v1/file/hashsum/sha512/{}/download"
 
 
 def _manifest():
@@ -58,18 +54,7 @@ def fetch_input(name: str) -> str:
     sha = _manifest().get(name)
     if sha is None:
         pytest.skip(f"{name} not in manifest")
-    os.makedirs(_CACHE, exist_ok=True)
-    dst = os.path.join(_CACHE, name)
-    if os.path.exists(dst) and os.path.getsize(dst) > 0:
-        return dst
-    try:
-        urllib.request.urlretrieve(_CDN.format(sha), dst)
-    except Exception as exc:  # offline / store down
-        pytest.skip(f"could not fetch {name}: {exc}")
-    if hashlib.sha512(open(dst, "rb").read()).hexdigest() != sha:
-        os.remove(dst)
-        pytest.fail(f"{name}: sha512 mismatch after download")
-    return dst
+    return fetch_sha512(name, sha)
 
 
 def _pair(name):
@@ -1179,11 +1164,11 @@ def test_cmake_iso_contour_distance(shape, far):
 
 
 @pytest.mark.parametrize(
-    "bridge,find_upper",
-    [(150, True), (40, True), (150, False)],
-    ids=["bridge150-up", "bridge40-up", "bridge150-low"],
+    "bridge,find_upper,expected_thresholding_failed",
+    [(150, True, False), (40, True, False), (40, False, False), (150, False, True)],
+    ids=["bridge150-up", "bridge40-up", "bridge40-low", "bridge150-low-failed"],
 )
-def test_cmake_isolated_connected(bridge, find_upper):
+def test_cmake_isolated_connected(bridge, find_upper, expected_thresholding_failed):
     """IsolatedConnected: binary-search the threshold separating two seeds. ritk
     `segmentation.isolated_connected_segment` vs `sitk.IsolatedConnected` on two
     blobs joined by an intermediate-intensity bridge. Bit-exact — the bisection
@@ -1203,22 +1188,19 @@ def test_cmake_isolated_connected(bridge, find_upper):
         sitk.IsolatedConnected(si, seed1, seed2, lo, hi, 1, 1.0, find_upper)
     ).astype(_np.float64)
     ri = ritk.Image(_np.ascontiguousarray(img[None]))
-    r = _np.squeeze(
-        _np.asarray(
-            ritk.segmentation.isolated_connected_segment(
-                ri,
-                [0, seed1[1], seed1[0]],
-                [0, seed2[1], seed2[0]],
-                lo,
-                hi,
-                1.0,
-                1.0,
-                find_upper,
-            ).to_numpy(),
-            _np.float64,
-        )
+    result, thresholding_failed = ritk.segmentation.isolated_connected_segment(
+        ri,
+        [0, seed1[1], seed1[0]],
+        [0, seed2[1], seed2[0]],
+        lo,
+        hi,
+        1.0,
+        1.0,
+        find_upper,
     )
+    r = _np.squeeze(_np.asarray(result.to_numpy(), _np.float64))
     assert _np.array_equal(r, s), "IsolatedConnected differs from sitk"
+    assert thresholding_failed is expected_thresholding_failed
 
 
 @pytest.mark.parametrize("level", [0.0, 5.0, 10.0], ids=["l0", "l5", "l10"])
@@ -1244,6 +1226,38 @@ def test_cmake_morphological_watershed(level):
         )
     )
     assert np.array_equal(r, s), f"{int((r != s).sum())} voxels differ from sitk"
+
+
+def test_morphological_watershed_native_validation_errors():
+    image = ritk.Image(np.zeros((1, 2, 3), dtype=np.float32))
+    for level in (np.nan, np.inf, -np.inf, -1.0):
+        with pytest.raises(
+            ValueError,
+            match=r"morphological watershed level must be finite and nonnegative",
+        ):
+            ritk.segmentation.morphological_watershed(image, float(level))
+
+    invalid = np.zeros((1, 2, 3), dtype=np.float32)
+    invalid.flat[2] = np.nan
+    with pytest.raises(
+        ValueError,
+        match=r"regional-extrema sample at flat index 2 must be finite",
+    ):
+        ritk.segmentation.morphological_watershed(ritk.Image(invalid), 0.0)
+
+    with pytest.raises(
+        ValueError,
+        match=r"h-transform marker at flat index 0 must remain finite after shift",
+    ):
+        ritk.filter.h_minima(
+            ritk.Image(np.full((1, 1, 1), np.finfo(np.float32).max, dtype=np.float32)),
+            float(np.finfo(np.float32).max),
+        )
+    with pytest.raises(
+        ValueError,
+        match=r"regional-extrema sample at flat index 2 must be finite",
+    ):
+        ritk.filter.regional_minima(ritk.Image(invalid))
 
 
 @pytest.mark.parametrize(
@@ -1875,6 +1889,18 @@ def test_cmake_toboggan_3d():
     assert _np.array_equal(got, ref), (
         f"Toboggan 3D differs at {int((got != ref).sum())} voxels"
     )
+
+
+def test_toboggan_native_validation_errors():
+    relief = np.zeros((1, 2, 3), dtype=np.float32)
+    for value in (np.nan, np.inf, -np.inf):
+        invalid = relief.copy()
+        invalid.flat[2] = value
+        with pytest.raises(
+            ValueError,
+            match=r"Toboggan relief at flat index 2 must be finite",
+        ):
+            ritk.segmentation.toboggan(ritk.Image(invalid))
 
 
 @pytest.mark.parametrize("fully_connected", [False, True])
@@ -5885,13 +5911,9 @@ def test_cmake_isolated_watershed_structural():
 
     Upstream cmake case mirrors: IsolatedWatershedImageFilter.yaml.
 
-    Evidence tier: empirical (failing — ritk.segmentation.isolated_watershed_segment
-    not yet implemented; expected: AttributeError).
+    Evidence tier: empirical differential comparison with SimpleITK.
     """
     import numpy as _np
-
-    if not hasattr(ritk.segmentation, "isolated_watershed_segment"):
-        pytest.skip("isolated_watershed_segment is unimplemented in ritk")
 
     path = fetch_input("RA-Float.nrrd")
     raw_arr = sitk.GetArrayFromImage(
@@ -6003,27 +6025,24 @@ def test_cmake_level_set_motion_registration_structural():
 
 
 def test_cmake_patch_based_denoising_structural():
-    """PatchBasedDenoisingImageFilter: output differs from input and Pearson >= 0.9 vs sitk.
+    """PatchBasedDenoisingImageFilter matches the single-worker ITK result.
 
     PatchBasedDenoisingImageFilter reduces noise by replacing each pixel with a
-    weighted average of similar patches in the neighbourhood.  With 1 iteration,
-    200 sample patches, and PatchRadius=2 the output should differ from the
-    noisy input and correlate strongly with the sitk output.
+    weighted average of similar patches in the neighbourhood. RITK and
+    single-worker SimpleITK execute concurrently on the same host; both are
+    deterministic, independent computations, so scheduling does not alter their
+    seeded sample or reduction order and wall time is their maximum, not sum.
 
     Input: RA-Float.nrrd with additive Gaussian noise (std=5.0, seed=0).
     Parameters: KernelBandwidthEstimation=False, NumberOfIterations=1,
                 NumberOfSamplePatches=200, PatchRadius=2.
-    Assertion: output != noisy input AND Pearson >= 0.9 vs sitk output.
+    Assertion: output != noisy input AND max ULP distance vs SimpleITK <= 1.
 
     Upstream cmake case mirrors: PatchBasedDenoisingImageFilter.yaml.
 
-    Evidence tier: empirical (failing — ritk.filter.patch_based_denoising not yet
-    implemented; expected: AttributeError).
+    Evidence tier: live differential empirical validation against SimpleITK.
     """
     import numpy as _np
-
-    if not hasattr(ritk.filter, "patch_based_denoising"):
-        pytest.skip("patch_based_denoising is unimplemented in ritk")
 
     path = fetch_input("RA-Float.nrrd")
     si_clean = sitk.Cast(sitk.ReadImage(path), sitk.sitkFloat32)
@@ -6034,46 +6053,69 @@ def test_cmake_patch_based_denoising_structural():
         arr_clean + rng.standard_normal(arr_clean.shape).astype(_np.float32) * 5.0
     )
 
-    si_noisy = sitk.GetImageFromArray(arr_noisy)
-    si_noisy.CopyInformation(si_clean)
-
-    try:
-        f = sitk.PatchBasedDenoisingImageFilter()
-        f.KernelBandwidthEstimationOff()
-        f.SetNumberOfIterations(1)
-        f.SetNumberOfSamplePatches(200)
-        f.SetPatchRadius(2)
-        so = f.Execute(si_noisy)
-    except Exception as exc:
-        pytest.skip(f"sitk.PatchBasedDenoisingImageFilter unavailable: {exc}")
-
+    # RITK's public patch radius is voxel-based, so compare the identical
+    # unit-spacing voxel problem.  Copying RA-Float's anisotropic metadata only
+    # onto the SimpleITK operand changes ITK's physical patch radius and mask.
     ri = ritk.Image(_np.ascontiguousarray(arr_noisy))
-    ro = ritk.filter.patch_based_denoising(
-        ri,
-        number_of_iterations=1,
-        number_of_sample_patches=200,
-        patch_radius=2,
-        kernel_bandwidth_estimation=False,
-    )
+    si_noisy = sitk.GetImageFromArray(arr_noisy)
+    f = sitk.PatchBasedDenoisingImageFilter()
+    f.KernelBandwidthEstimationOff()
+    f.SetNumberOfIterations(1)
+    f.SetNumberOfSamplePatches(200)
+    f.SetPatchRadius(2)
+    f.SetNumberOfWorkUnits(1)
 
-    r_arr = _np.asarray(ro.to_numpy(), _np.float64)
-    s_arr = sitk.GetArrayFromImage(so).astype(_np.float64)
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        ritk_result = executor.submit(
+            ritk.filter.patch_based_denoising,
+            ri,
+            number_of_iterations=1,
+            number_of_sample_patches=200,
+            patch_radius=2,
+            kernel_bandwidth_estimation=False,
+        )
+        sitk_result = executor.submit(f.Execute, si_noisy)
+        r_arr = _np.asarray(ritk_result.result().to_numpy(), _np.float64)
+        s_arr = sitk.GetArrayFromImage(sitk_result.result()).astype(_np.float64)
     n_arr = arr_noisy.astype(_np.float64)
+
+    assert r_arr.shape == s_arr.shape == n_arr.shape
+    assert _np.all(_np.isfinite(r_arr)), "PatchBasedDenoising produced non-finite values"
 
     # Denoising must change at least some pixels.
     assert not _np.array_equal(r_arr, n_arr), (
         "PatchBasedDenoising output is identical to the noisy input — filter had no effect"
     )
 
-    r_c = r_arr.ravel() - r_arr.mean()
-    s_c = s_arr.ravel() - s_arr.mean()
-    pearson = float(
-        _np.dot(r_c, s_c) / (_np.sqrt(_np.dot(r_c, r_c) * _np.dot(s_c, s_c)) + 1e-12)
-    )
-    assert pearson >= 0.9, (
-        f"PatchBasedDenoising Pearson={pearson:.4f} < 0.9 vs sitk "
-        "(denoised outputs should correlate strongly; same noisy input, same parameters)"
-    )
+    r_out = r_arr.astype(_np.float32)
+    s_out = s_arr.astype(_np.float32)
+    try:
+        _np.testing.assert_array_max_ulp(r_out, s_out, maxulp=1)
+    except AssertionError as error:
+        sign = _np.uint32(0x80000000)
+        r_bits = r_out.view(_np.uint32)
+        s_bits = s_out.view(_np.uint32)
+        r_ordered = _np.where(r_bits & sign, ~r_bits, r_bits | sign)
+        s_ordered = _np.where(s_bits & sign, ~s_bits, s_bits | sign)
+        ulp = _np.abs(r_ordered.astype(_np.int64) - s_ordered.astype(_np.int64))
+        maximum = int(ulp.max())
+        witnesses = []
+        for index in _np.argwhere(ulp == maximum)[:8]:
+            key = tuple(int(coordinate) for coordinate in index)
+            witnesses.append(
+                {
+                    "index": key,
+                    "ritk": float(r_out[key]),
+                    "simpleitk": float(s_out[key]),
+                    "ritk_bits": f"0x{int(r_bits[key]):08x}",
+                    "simpleitk_bits": f"0x{int(s_bits[key]):08x}",
+                }
+            )
+        raise AssertionError(
+            f"{error}; exact max ULP={maximum}; witnesses={witnesses}"
+        ) from error
 
 
 def test_cmake_scalar_chan_and_vese_dense_level_set_structural():
@@ -7856,4 +7898,3 @@ def test_cmake_sato_line_filter_multiscale_max_parity():
     expected_max = _np.maximum(r1_arr, r2_arr)
     max_diff = float(_np.abs(rm_arr - expected_max).max())
     assert max_diff < 1e-5, f"Sato multiscale max aggregation self-consistency failed: diff={max_diff:.3e}"
-

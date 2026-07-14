@@ -24,9 +24,10 @@
 //! Weight `λ` controls regularisation strength.
 //!
 //! # Memory discipline
-//! All scratch buffers are pre-allocated before the iteration loop.
-//! The loop body performs **zero heap allocations**; all `_into` variants
-//! write into caller-provided buffers.
+//! All volume-sized scratch and local-CC tables are allocated before the
+//! iteration loop and rebuilt in place. The fused CC dispatcher creates only
+//! an `O(nz)` slice-descriptor vector; all numerical outputs write into
+//! caller-provided buffers.
 //!
 //! # References
 //! - Tustison, N. J. & Avants, B. B. (2013). Explicit B-spline regularization

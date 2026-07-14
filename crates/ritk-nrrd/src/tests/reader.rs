@@ -1,13 +1,7 @@
 use anyhow::Result;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
-
-use crate::read_nrrd;
-use crate::native;
-
-type TestBackend = SequentialBackend;
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
@@ -66,7 +60,7 @@ fn test_shape_permuted_to_zyx() -> Result<()> {
     write_inline_nrrd(&path, &data, nx, ny, nz, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
 
     let backend = SequentialBackend;
-    let image = native::read_nrrd(&path, &backend)?;
+    let image = crate::read_nrrd(&path, &backend)?;
 
     assert_eq!(image.shape(), [nz, ny, nx], "shape must be [nz, ny, nx]");
     Ok(())
@@ -93,9 +87,10 @@ fn test_raw_payload_x_fastest_maps_to_zyx_tensor_values() -> Result<()> {
     write_inline_nrrd(&path, &data, nx, ny, nz, [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
 
     let backend = SequentialBackend;
-    let image = native::read_nrrd(&path, &backend)?;
+    let image = crate::read_nrrd(&path, &backend)?;
     assert_eq!(image.shape(), [nz, ny, nx]);
-    { let values = image.data_slice().expect("contiguous host data");
+    {
+        let values = image.data_slice().expect("contiguous host data");
         for z in 0..nz {
             for y in 0..ny {
                 for x in 0..nx {
@@ -122,7 +117,7 @@ fn test_spacing_from_space_directions() -> Result<()> {
     write_inline_nrrd(&path, &data, 4, 3, 2, [0.9, 0.75, 1.5], [5.0, 10.0, 15.0]);
 
     let backend = SequentialBackend;
-    let image = native::read_nrrd(&path, &backend)?;
+    let image = crate::read_nrrd(&path, &backend)?;
 
     // NRRD file spacings [x,y,z] become RITK metadata [z,y,x].
     assert!((image.spacing()[0] - 1.5).abs() < 1e-9, "spacing[0]");
@@ -164,10 +159,10 @@ fn native_reader_matches_burn_reader() -> Result<()> {
     );
 
     let backend = SequentialBackend;
-    let burn = native::read_nrrd(&path, &backend)?;
+    let burn = crate::read_nrrd(&path, &backend)?;
 
     let backend = coeus_core::SequentialBackend;
-    let native = super::super::reader::native::read_nrrd(&path, &backend)?;
+    let native = crate::read_nrrd(&path, &backend)?;
 
     assert_eq!(native.shape(), burn.shape(), "shape must match Burn path");
     assert_eq!(
@@ -187,7 +182,8 @@ fn native_reader_matches_burn_reader() -> Result<()> {
     );
 
     let native_vox = native.data_slice().expect("contiguous native voxels");
-    { let burn_vox = burn.data_slice().expect("contiguous host data");
+    {
+        let burn_vox = burn.data_slice().expect("contiguous host data");
         assert_eq!(native_vox.len(), burn_vox.len(), "voxel count must match");
         for (i, (&n, &b)) in native_vox.iter().zip(burn_vox.iter()).enumerate() {
             assert_eq!(
@@ -224,7 +220,7 @@ fn test_spacing_fallback_to_spacings_field() -> Result<()> {
     }
 
     let backend = SequentialBackend;
-    let image = native::read_nrrd(&path, &backend)?;
+    let image = crate::read_nrrd(&path, &backend)?;
 
     assert!((image.spacing()[0] - 2.0).abs() < 1e-9, "spacing[0]");
     assert!((image.spacing()[1] - 0.5).abs() < 1e-9, "spacing[1]");
@@ -271,7 +267,7 @@ fn test_direction_from_scaled_space_directions() -> Result<()> {
     }
 
     let backend = SequentialBackend;
-    let image = native::read_nrrd(&path, &backend)?;
+    let image = crate::read_nrrd(&path, &backend)?;
 
     assert!((image.spacing()[0] - 4.0).abs() < 1e-9, "spacing[0] = 4");
     assert!((image.spacing()[1] - 3.0).abs() < 1e-9, "spacing[1] = 3");
@@ -314,7 +310,7 @@ fn test_unterminated_space_directions_returns_error() -> Result<()> {
     }
 
     let backend = SequentialBackend;
-    let err = native::read_nrrd(&path, &backend)
+    let err = crate::read_nrrd(&path, &backend)
         .expect_err("unterminated space directions must reject the header");
 
     assert!(
@@ -349,7 +345,7 @@ fn test_trailing_space_directions_tokens_return_error() -> Result<()> {
     }
 
     let backend = SequentialBackend;
-    let err = native::read_nrrd(&path, &backend)
+    let err = crate::read_nrrd(&path, &backend)
         .expect_err("trailing space directions tokens must reject the header");
 
     assert!(
@@ -386,7 +382,7 @@ fn test_multiple_space_origin_vectors_return_error() -> Result<()> {
     }
 
     let backend = SequentialBackend;
-    let err = native::read_nrrd(&path, &backend)
+    let err = crate::read_nrrd(&path, &backend)
         .expect_err("multiple space origin vectors must reject the header");
 
     assert!(
@@ -414,11 +410,17 @@ fn test_round_trip_nrrd() -> Result<()> {
     let spacing = Spacing::new([0.9, 0.75, 1.5]);
     let direction = Direction::identity();
     let image = ritk_image::native::Image::from_flat_on(
-        data_vec.clone(), [2, 3, 4], origin, spacing, direction, &backend,
-    ).expect("valid image");
+        data_vec.clone(),
+        [2, 3, 4],
+        origin,
+        spacing,
+        direction,
+        &backend,
+    )
+    .expect("valid image");
 
-    native::write_nrrd(&path, &image, &backend)?;
-    let loaded = native::read_nrrd(&path, &backend)?;
+    crate::write_nrrd(&path, &image, &backend)?;
+    let loaded = crate::read_nrrd(&path, &backend)?;
 
     // Shape
     assert_eq!(loaded.shape(), [2, 3, 4]);
@@ -434,7 +436,8 @@ fn test_round_trip_nrrd() -> Result<()> {
     assert!((loaded.spacing()[2] - 1.5).abs() < 1e-6, "spacing[2]");
 
     // Voxel values: every element must equal its original value.
-    { let loaded_vals = loaded.data_slice().expect("contiguous host data");
+    {
+        let loaded_vals = loaded.data_slice().expect("contiguous host data");
         for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
             assert!(
                 (got - expected).abs() < 1e-5,
@@ -454,7 +457,7 @@ fn test_round_trip_nrrd() -> Result<()> {
 #[test]
 fn test_missing_file_returns_error() {
     let backend = SequentialBackend;
-    let result = native::read_nrrd("/nonexistent/path/file.nrrd", &backend);
+    let result = crate::read_nrrd("/nonexistent/path/file.nrrd", &backend);
     assert!(result.is_err(), "Expected Err for missing file");
 }
 
@@ -471,7 +474,7 @@ fn test_invalid_magic_returns_error() -> Result<()> {
     }
 
     let backend = SequentialBackend;
-    let result = native::read_nrrd(&path, &backend);
+    let result = crate::read_nrrd(&path, &backend);
     assert!(result.is_err(), "Expected Err for invalid magic");
     Ok(())
 }
@@ -494,7 +497,7 @@ fn test_gzip_encoding_returns_helpful_error() -> Result<()> {
     }
 
     let backend = SequentialBackend;
-    let result = native::read_nrrd(&path, &backend);
+    let result = crate::read_nrrd(&path, &backend);
     assert!(result.is_err(), "Expected Err for gzip encoding");
     let msg = format!("{}", result.unwrap_err());
     assert!(
@@ -523,7 +526,7 @@ fn test_missing_dimension_field_returns_error() -> Result<()> {
     }
 
     let backend = SequentialBackend;
-    let result = native::read_nrrd(&path, &backend);
+    let result = crate::read_nrrd(&path, &backend);
     assert!(result.is_err(), "Expected Err for missing dimension");
     Ok(())
 }
@@ -547,7 +550,7 @@ fn test_unsupported_type_returns_error() -> Result<()> {
     }
 
     let backend = SequentialBackend;
-    let result = native::read_nrrd(&path, &backend);
+    let result = crate::read_nrrd(&path, &backend);
     assert!(result.is_err(), "Expected Err for unsupported type");
     let msg = format!("{:?}", result.unwrap_err());
     assert!(
@@ -591,10 +594,11 @@ fn test_detached_data_file() -> Result<()> {
     }
 
     let backend = SequentialBackend;
-    let image = native::read_nrrd(&header_path, &backend)?;
+    let image = crate::read_nrrd(&header_path, &backend)?;
 
     assert_eq!(image.shape(), [nz, ny, nx]);
-    { let vals = image.data_slice().expect("contiguous host data");
+    {
+        let vals = image.data_slice().expect("contiguous host data");
         assert_eq!(
             vals,
             data.as_slice(),

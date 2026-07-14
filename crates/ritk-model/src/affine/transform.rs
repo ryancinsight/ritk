@@ -117,7 +117,10 @@ impl AffineTransform {
             tail[..batch_stride].copy_from_slice(&head[..batch_stride]);
         }
 
-        Var::new(Tensor::from_slice_on([b, 4, n], &data, &B::default()), false)
+        Var::new(
+            Tensor::from_slice_on([b, 4, n], &data, &B::default()),
+            false,
+        )
     }
 }
 
@@ -248,11 +251,17 @@ mod tests {
             minus[idx] -= h;
             let fp = sum(&stn.forward(
                 &image,
-                &Var::new(Tensor::from_slice_on([1, 12], &plus, &SequentialBackend), false),
+                &Var::new(
+                    Tensor::from_slice_on([1, 12], &plus, &SequentialBackend),
+                    false,
+                ),
             ));
             let fm = sum(&stn.forward(
                 &image,
-                &Var::new(Tensor::from_slice_on([1, 12], &minus, &SequentialBackend), false),
+                &Var::new(
+                    Tensor::from_slice_on([1, 12], &minus, &SequentialBackend),
+                    false,
+                ),
             ));
             let fd = (fp.tensor.as_slice()[0] - fm.tensor.as_slice()[0]) / (2.0 * h);
             let analytic = grad[idx];

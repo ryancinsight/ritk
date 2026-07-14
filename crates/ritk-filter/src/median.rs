@@ -196,7 +196,9 @@ mod tests_native;
 mod tests {
     use super::*;
     use burn_ndarray::NdArray;
+    use coeus_core::SequentialBackend;
     use ritk_core::image::Image;
+    use ritk_image::native::Image as NativeImage;
     use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
 
@@ -247,6 +249,27 @@ mod tests {
         for (i, &v) in result.iter().enumerate() {
             assert!((v - val).abs() < 1e-6, "voxel {i}: expected {val}, got {v}");
         }
+    }
+
+    #[test]
+    fn native_median_removes_an_impulse_and_preserves_metadata() {
+        let backend = SequentialBackend;
+        let source = NativeImage::from_flat_on(
+            vec![0.0, 10.0, 0.0],
+            [1, 1, 3],
+            Point::new([2.0, 3.0, 4.0]),
+            Spacing::new([0.5, 1.0, 2.0]),
+            Direction::identity(),
+            &backend,
+        )
+        .unwrap();
+        let output = MedianFilter::new(1).apply_native(&source).unwrap();
+
+        assert_eq!(output.data_slice().unwrap(), &[0.0, 0.0, 0.0]);
+        assert_eq!(output.shape(), source.shape());
+        assert_eq!(output.origin(), source.origin());
+        assert_eq!(output.spacing(), source.spacing());
+        assert_eq!(output.direction(), source.direction());
     }
 
     // ── Test 2: Impulse noise removed ─────────────────────────────────────

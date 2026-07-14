@@ -11,10 +11,10 @@
 //! transforms reproduce): index-space columns are innermost-first
 //! (`col 0 = x = axis D-1`), world-space columns are axis-major.
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_tensor::Tensor;
 use ritk_image::native::Image;
-use ritk_interpolation::native::trilinear_interpolation;
+use ritk_interpolation::trilinear_interpolation;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::transform::affine::AtlasAffineTransform;
 
@@ -48,8 +48,8 @@ fn fixed_index_grid(shape: [usize; 3]) -> Vec<f32> {
 /// fixed C-order — computed once per fixed image via the native batch transform.
 pub fn fixed_world_points<B>(fixed: &Image<f32, B, 3>) -> Vec<f32>
 where
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    B: coeus_core::Backend + ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + coeus_core::CpuAddressableStorageMut<f32>,
 {
     let shape = fixed.shape();
     let n: usize = shape.iter().product();
@@ -72,8 +72,8 @@ pub fn resample_moving_at_world<B>(
     transform: &AtlasAffineTransform<B, 3>,
 ) -> Vec<f32>
 where
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    B: coeus_core::Backend + ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     let n = fixed_world.len() / 3;
 
@@ -102,6 +102,25 @@ where
     }
 
     let [d, h, w] = moving.shape();
-    let moving_flat = moving.data_vec();
-    trilinear_interpolation::<f32>(&moving_flat, 1, 1, d, h, w, &grid, n, 1, 1)
+    let moving_rank5 = Image::<f32, B, 5>::from_flat_on(
+        moving.data_vec(),
+        [1, 1, d, h, w],
+        Point::origin(),
+        Spacing::uniform(1.0),
+        Direction::identity(),
+        &B::default(),
+    )
+    .expect("moving image data matches rank-5 interpolation shape");
+    let grid_rank5 = Image::<f32, B, 5>::from_flat_on(
+        grid,
+        [1, 3, n, 1, 1],
+        Point::origin(),
+        Spacing::uniform(1.0),
+        Direction::identity(),
+        &B::default(),
+    )
+    .expect("sampling grid data matches rank-5 interpolation shape");
+    let sampled = trilinear_interpolation(&moving_rank5, &grid_rank5)
+        .expect("native trilinear interpolation accepts generated grid");
+    sampled.data_vec()
 }

@@ -63,21 +63,71 @@ fn assert_close(got: f32, expected: f32, tol: f32, label: &str) {
 #[test]
 fn zero_field_is_zero_planar() {
     let z = planar(&[0.0; 32], 2);
-    assert_close(super::dispatch_bending_energy(&z, 1.0), 0.0, ZERO_FIELD_LOSS_TOL, "bending planar");
-    assert_close(super::dispatch_curvature(&z, 1.0), 0.0, ZERO_FIELD_LOSS_TOL, "curvature planar");
-    assert_close(super::dispatch_diffusion(&z, 1.0), 0.0, ZERO_FIELD_LOSS_TOL, "diffusion planar");
-    assert_close(super::dispatch_total_variation(&z, 1.0), 0.0, ZERO_FIELD_LOSS_TOL, "tv planar");
-    assert_close(super::dispatch_elastic(&z, 1.0, 1.0), 0.0, ZERO_FIELD_LOSS_TOL, "elastic planar");
+    assert_close(
+        super::dispatch_bending_energy(&z, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "bending planar",
+    );
+    assert_close(
+        super::dispatch_curvature(&z, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "curvature planar",
+    );
+    assert_close(
+        super::dispatch_diffusion(&z, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "diffusion planar",
+    );
+    assert_close(
+        super::dispatch_total_variation(&z, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "tv planar",
+    );
+    assert_close(
+        super::dispatch_elastic(&z, 1.0, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "elastic planar",
+    );
 }
 
 #[test]
 fn zero_field_is_zero_volume() {
     let z = volume(&[0.0; 192], 3);
-    assert_close(super::dispatch_bending_energy(&z, 1.0), 0.0, ZERO_FIELD_LOSS_TOL, "bending volume");
-    assert_close(super::dispatch_curvature(&z, 1.0), 0.0, ZERO_FIELD_LOSS_TOL, "curvature volume");
-    assert_close(super::dispatch_diffusion(&z, 1.0), 0.0, ZERO_FIELD_LOSS_TOL, "diffusion volume");
-    assert_close(super::dispatch_total_variation(&z, 1.0), 0.0, ZERO_FIELD_LOSS_TOL, "tv volume");
-    assert_close(super::dispatch_elastic(&z, 1.0, 1.0), 0.0, ZERO_FIELD_LOSS_TOL, "elastic volume");
+    assert_close(
+        super::dispatch_bending_energy(&z, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "bending volume",
+    );
+    assert_close(
+        super::dispatch_curvature(&z, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "curvature volume",
+    );
+    assert_close(
+        super::dispatch_diffusion(&z, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "diffusion volume",
+    );
+    assert_close(
+        super::dispatch_total_variation(&z, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "tv volume",
+    );
+    assert_close(
+        super::dispatch_elastic(&z, 1.0, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "elastic volume",
+    );
 }
 
 // ── Diffusion: mean of |∇u|² ─────────────────────────────────────────────────
@@ -86,13 +136,23 @@ fn zero_field_is_zero_volume() {
 fn diffusion_ramp_matches_closed_form_planar() {
     let f = planar(&width_ramp(32), 2);
     // mean(g_w²) = (3/4)·0.1² = 0.0075.
-    assert_close(super::dispatch_diffusion(&f, 1.0), 0.0075, FD_LOSS_TOL, "diffusion ramp planar");
+    assert_close(
+        super::dispatch_diffusion(&f, 1.0),
+        0.0075,
+        FD_LOSS_TOL,
+        "diffusion ramp planar",
+    );
 }
 
 #[test]
 fn diffusion_ramp_matches_closed_form_volume() {
     let f = volume(&width_ramp(192), 3);
-    assert_close(super::dispatch_diffusion(&f, 1.0), 0.0075, FD_LOSS_TOL, "diffusion ramp volume");
+    assert_close(
+        super::dispatch_diffusion(&f, 1.0),
+        0.0075,
+        FD_LOSS_TOL,
+        "diffusion ramp volume",
+    );
 }
 
 #[test]
@@ -100,7 +160,12 @@ fn diffusion_weight_is_linear() {
     let f = planar(&width_ramp(32), 2);
     let base = super::dispatch_diffusion(&f, 1.0);
     let scaled = super::dispatch_diffusion(&f, 2.5);
-    assert_close(scaled, 2.5 * base, FD_LOSS_TOL, "diffusion weight linearity");
+    assert_close(
+        scaled,
+        2.5 * base,
+        FD_LOSS_TOL,
+        "diffusion weight linearity",
+    );
 }
 
 // ── Total variation: mean of |∇u| ────────────────────────────────────────────
@@ -109,13 +174,23 @@ fn diffusion_weight_is_linear() {
 fn total_variation_ramp_matches_closed_form_planar() {
     let f = planar(&width_ramp(32), 2);
     // mean(|g_w|) = (3/4)·0.1 = 0.075.
-    assert_close(super::dispatch_total_variation(&f, 1.0), 0.075, FD_LOSS_TOL, "tv ramp planar");
+    assert_close(
+        super::dispatch_total_variation(&f, 1.0),
+        0.075,
+        FD_LOSS_TOL,
+        "tv ramp planar",
+    );
 }
 
 #[test]
 fn total_variation_ramp_matches_closed_form_volume() {
     let f = volume(&width_ramp(192), 3);
-    assert_close(super::dispatch_total_variation(&f, 1.0), 0.075, FD_LOSS_TOL, "tv ramp volume");
+    assert_close(
+        super::dispatch_total_variation(&f, 1.0),
+        0.075,
+        FD_LOSS_TOL,
+        "tv ramp volume",
+    );
 }
 
 // ── Elastic: α·mean(|∇u|²) + β·mean((div u)²) ────────────────────────────────
@@ -126,21 +201,36 @@ fn elastic_ramp_matches_closed_form_planar() {
     // membrane mean = 0.0075; div u = ∂u_y/∂y on channel 1 (= g_w = 0.1 at the
     // three interior columns) → mean((div u)²) = (3/4)·0.1² = 0.0075.
     // α = β = 1 → 0.0075 + 0.0075 = 0.015.
-    assert_close(super::dispatch_elastic(&f, 1.0, 1.0), 0.015, FD_LOSS_TOL, "elastic ramp planar");
+    assert_close(
+        super::dispatch_elastic(&f, 1.0, 1.0),
+        0.015,
+        FD_LOSS_TOL,
+        "elastic ramp planar",
+    );
 }
 
 #[test]
 fn elastic_ramp_matches_closed_form_volume() {
     let f = volume(&width_ramp(192), 3);
     // membrane mean = 0.0075; div u = g_w on channel 2 → mean = 0.0075.
-    assert_close(super::dispatch_elastic(&f, 1.0, 1.0), 0.015, FD_LOSS_TOL, "elastic ramp volume");
+    assert_close(
+        super::dispatch_elastic(&f, 1.0, 1.0),
+        0.015,
+        FD_LOSS_TOL,
+        "elastic ramp volume",
+    );
 }
 
 #[test]
 fn elastic_alpha_beta_weight_terms_independently() {
     let f = planar(&width_ramp(32), 2);
     // membrane and divergence means are both 0.0075 here, so 2α + 3β form:
-    assert_close(super::dispatch_elastic(&f, 2.0, 3.0), 0.0075 * 5.0, FD_LOSS_TOL, "elastic weights");
+    assert_close(
+        super::dispatch_elastic(&f, 2.0, 3.0),
+        0.0075 * 5.0,
+        FD_LOSS_TOL,
+        "elastic weights",
+    );
 }
 
 // ── Bending energy / curvature: mean of (∇²u)² ───────────────────────────────
@@ -150,7 +240,12 @@ fn bending_energy_quadratic_matches_closed_form_planar() {
     let f = planar(&width_quadratic(32), 2);
     // Laplacian = 2 at the 4 interior voxels per plane, 0 border; over 16
     // voxels/plane mean((∇²u)²) = (4·2²)/16 = 1.0.
-    assert_close(super::dispatch_bending_energy(&f, 1.0), 1.0, FD_LOSS_TOL, "bending quad planar");
+    assert_close(
+        super::dispatch_bending_energy(&f, 1.0),
+        1.0,
+        FD_LOSS_TOL,
+        "bending quad planar",
+    );
 }
 
 #[test]
@@ -158,7 +253,12 @@ fn bending_energy_quadratic_matches_closed_form_volume() {
     let f = volume(&width_quadratic(192), 3);
     // Laplacian = 2 at the 8 interior voxels per volume, 0 border; over 64
     // voxels mean((∇²u)²) = (8·2²)/64 = 0.5.
-    assert_close(super::dispatch_bending_energy(&f, 1.0), 0.5, FD_LOSS_TOL, "bending quad volume");
+    assert_close(
+        super::dispatch_bending_energy(&f, 1.0),
+        0.5,
+        FD_LOSS_TOL,
+        "bending quad volume",
+    );
 }
 
 #[test]

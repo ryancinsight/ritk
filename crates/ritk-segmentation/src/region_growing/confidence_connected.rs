@@ -63,15 +63,15 @@ use std::collections::VecDeque;
 /// running mean and standard deviation of the current region.
 pub struct ConfidenceConnectedFilter {
     /// Seed voxel in [z, y, x] index space.
-    pub seed: VoxelIndex,
+    seed: VoxelIndex,
     /// Initial lower bound for first iteration when σ = 0.
-    pub initial_lower: f32,
+    initial_lower: f32,
     /// Initial upper bound for first iteration when σ = 0.
-    pub initial_upper: f32,
+    initial_upper: f32,
     /// Multiplier k for k·σ interval expansion (typically 2.5).
-    pub multiplier: f32,
+    multiplier: f32,
     /// Maximum number of iterations before forced termination.
-    pub max_iterations: usize,
+    max_iterations: usize,
 }
 
 impl ConfidenceConnectedFilter {
@@ -83,7 +83,7 @@ impl ConfidenceConnectedFilter {
     /// * `initial_upper` — inclusive upper bound when σ = 0 (first iteration).
     ///
     /// # Panics
-    /// Panics if `initial_lower > initial_upper`.
+    /// Panics if either bound is NaN or `initial_lower > initial_upper`.
     pub fn new(seed: impl Into<VoxelIndex>, initial_lower: f32, initial_upper: f32) -> Self {
         assert!(
             initial_lower <= initial_upper,
@@ -101,9 +101,14 @@ impl ConfidenceConnectedFilter {
     /// Set the confidence interval multiplier (k for k·σ interval).
     ///
     /// Default: 2.5. Larger values produce more permissive region growing.
-    pub fn with_multiplier(mut self, multiplier: f32) -> Self {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `multiplier` is non-finite or negative.
+    pub fn with_multiplier(mut self, multiplier: f32) -> anyhow::Result<Self> {
+        validate_multiplier(multiplier)?;
         self.multiplier = multiplier;
-        self
+        Ok(self)
     }
 
     /// Set the maximum number of iterations before termination.
@@ -129,6 +134,68 @@ impl ConfidenceConnectedFilter {
             self.max_iterations,
         )
     }
+
+    /// Return the seed voxel.
+    pub fn seed(&self) -> VoxelIndex {
+        self.seed
+    }
+
+    /// Return the initial inclusive lower bound.
+    pub fn initial_lower(&self) -> f32 {
+        self.initial_lower
+    }
+
+    /// Return the initial inclusive upper bound.
+    pub fn initial_upper(&self) -> f32 {
+        self.initial_upper
+    }
+
+    /// Return the confidence interval multiplier.
+    pub fn multiplier(&self) -> f32 {
+        self.multiplier
+    }
+
+    /// Return the maximum adaptation iteration count.
+    pub fn max_iterations(&self) -> usize {
+        self.max_iterations
+    }
+
+    /// Apply confidence-connected growth to a Coeus-native image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the seed is outside the image, backend storage is
+    /// not host-addressable, or the output image cannot be constructed.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let shape = image.shape();
+        anyhow::ensure!(
+            self.seed[0] < shape[0] && self.seed[1] < shape[1] && self.seed[2] < shape[2],
+            "seed {:?} is out of bounds for image shape {:?}",
+            self.seed.as_array(),
+            shape
+        );
+        crate::native_output::from_values(
+            image,
+            grow_region(
+                image.data_slice()?,
+                shape,
+                self.seed,
+                self.initial_lower,
+                self.initial_upper,
+                self.multiplier,
+                self.max_iterations,
+            ),
+            backend,
+        )
+    }
 }
 
 // ── Public function ───────────────────────────────────────────────────────────
@@ -151,7 +218,8 @@ impl ConfidenceConnectedFilter {
 /// * `max_iterations` — hard limit on iteration count.
 ///
 /// # Panics
-/// Panics if `initial_lower > initial_upper` or if `seed` is out of bounds.
+/// Panics if `initial_lower > initial_upper`, `multiplier` is non-finite or
+/// negative, or if `seed` is out of bounds.
 pub fn confidence_connected<B: Backend>(
     image: &Image<B, 3>,
     seed: impl Into<VoxelIndex>,
@@ -164,6 +232,8 @@ pub fn confidence_connected<B: Backend>(
         initial_lower <= initial_upper,
         "initial_lower {initial_lower} must be ≤ initial_upper {initial_upper}"
     );
+    validate_multiplier(multiplier)
+        .expect("invariant: confidence multiplier must be finite and non-negative");
     let seed = seed.into();
     let shape = image.shape();
     let (nz, ny, nx) = (shape[0], shape[1], shape[2]);
@@ -202,7 +272,7 @@ pub fn confidence_connected<B: Backend>(
 /// Perform iterative confidence-connected region growing on flat `[nz × ny × nx]` data.
 ///
 /// Returns a flat binary `Vec<f32>` of the same length as `data`.
-fn grow_region(
+pub(crate) fn grow_region(
     data: &[f32],
     dims: [usize; 3],
     seed: VoxelIndex,
@@ -219,7 +289,7 @@ fn grow_region(
     let mut output = vec![0.0_f32; n];
 
     // Seed must lie in the initial interval; otherwise the region is empty.
-    if seed_val < initial_lower || seed_val > initial_upper {
+    if !super::intensity::within_finite_bounds(seed_val, initial_lower, initial_upper) {
         return output;
     }
     // The seed is always part of the region (covers the max_iterations == 0 case).
@@ -338,7 +408,7 @@ fn flood_region(
                 continue;
             }
             let intensity = data[n_flat];
-            if intensity < lower || intensity > upper {
+            if !super::intensity::within_finite_bounds(intensity, lower, upper) {
                 continue;
             }
             visited[n_flat] = true;
@@ -351,6 +421,14 @@ fn flood_region(
     }
 
     (sum, sum_sq)
+}
+
+fn validate_multiplier(multiplier: f32) -> anyhow::Result<()> {
+    anyhow::ensure!(
+        multiplier.is_finite() && multiplier >= 0.0,
+        "multiplier must be finite and non-negative, got {multiplier}"
+    );
+    Ok(())
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

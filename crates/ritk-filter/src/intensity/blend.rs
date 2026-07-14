@@ -14,9 +14,10 @@
 //!
 //! `itk::BlendImageFilter`
 
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_annotation::overlay::Opacity;
 use ritk_image::tensor::Backend;
-use ritk_image::Image;
+use ritk_image::{native::Image as NativeImage, Image};
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Linearly blend two co-registered images.
@@ -82,12 +83,49 @@ impl BlendImageFilter {
 
         Ok(rebuild(out, dims, a))
     }
+
+    /// Blend two co-registered Coeus-native images.
+    pub fn apply_native<B>(
+        &self,
+        a: &NativeImage<f32, B, 3>,
+        b: &NativeImage<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        anyhow::ensure!(
+            a.shape() == b.shape(),
+            "BlendImageFilter: shape mismatch {:?} vs {:?}",
+            a.shape(),
+            b.shape()
+        );
+        let alpha = self.alpha.get();
+        let complement = 1.0 - alpha;
+        let values = a
+            .data_slice()?
+            .iter()
+            .zip(b.data_slice()?)
+            .map(|(&left, &right)| complement * left + alpha * right)
+            .collect();
+        NativeImage::from_flat_on(
+            values,
+            a.shape(),
+            *a.origin(),
+            *a.spacing(),
+            *a.direction(),
+            backend,
+        )
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use burn_ndarray::NdArray;
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
     use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
 
@@ -151,5 +189,33 @@ mod tests {
                 i
             );
         }
+    }
+
+    #[test]
+    fn native_blend_preserves_values_and_first_image_metadata() {
+        let image = |values, origin| {
+            NativeImage::from_flat_on(
+                values,
+                [1, 1, 3],
+                Point::new(origin),
+                Spacing::new([0.5, 1.0, 2.0]),
+                Direction::identity(),
+                &SequentialBackend,
+            )
+            .expect("invariant: valid native image")
+        };
+        let a = image(vec![0.0, 10.0, 20.0], [1.0, 2.0, 3.0]);
+        let b = image(vec![100.0, 100.0, 100.0], [9.0, 8.0, 7.0]);
+        let output = BlendImageFilter::new(0.5)
+            .apply_native(&a, &b, &SequentialBackend)
+            .expect("native blend succeeds");
+
+        assert_eq!(
+            output.data_slice().expect("invariant: contiguous storage"),
+            &[50.0, 55.0, 60.0]
+        );
+        assert_eq!(output.origin(), a.origin());
+        assert_eq!(output.spacing(), a.spacing());
+        assert_eq!(output.direction(), a.direction());
     }
 }

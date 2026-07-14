@@ -11,8 +11,7 @@ use coeus_autograd::{
     add, index_select, matmul, permute, reshape, scalar_mul, softmax, transpose, Parameter, Var,
 };
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
-use coeus_nn::module::Module;
-use coeus_nn::Linear;
+use coeus_nn::{module::Module, Linear};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
@@ -65,8 +64,10 @@ where
 
         let index = Self::compute_relative_position_index(m);
         let index: Vec<f32> = index.into_iter().map(|i| i as f32).collect();
-        let relative_position_index =
-            Var::new(Tensor::from_slice_on([index.len()], &index, &backend), false);
+        let relative_position_index = Var::new(
+            Tensor::from_slice_on([index.len()], &index, &backend),
+            false,
+        );
 
         let make_linear = |offset: u64| {
             let mut layer = Linear::new(input_dim, input_dim, true);
@@ -141,8 +142,11 @@ where
         let attn = scalar_mul(&matmul(&q, &transpose(&k, 2, 3)), self.scale);
 
         // Relative-position bias: gather [N*N, nH] → [nH, N, N] → [1, nH, N, N].
-        let bias =
-            index_select(&self.relative_position_bias_table, 0, &self.relative_position_index);
+        let bias = index_select(
+            &self.relative_position_bias_table,
+            0,
+            &self.relative_position_index,
+        );
         let bias = permute(&reshape(&bias, [n, n, nh]), &[2, 0, 1]);
         let bias = reshape(&bias, [1, nh, n, n]);
         let attn = add(&attn, &bias);
@@ -178,7 +182,11 @@ where
             ("value", &self.value),
             ("proj", &self.proj),
         ] {
-            named.extend(lin.named_parameters().into_iter().map(|p| p.with_prefix(prefix)));
+            named.extend(
+                lin.named_parameters()
+                    .into_iter()
+                    .map(|p| p.with_prefix(prefix)),
+            );
         }
         named.push(Parameter::new(
             self.relative_position_bias_table.clone(),

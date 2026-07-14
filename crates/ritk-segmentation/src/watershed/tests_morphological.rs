@@ -1,5 +1,8 @@
 use super::MorphologicalWatershed;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
@@ -17,6 +20,7 @@ fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
 fn morphological_watershed_two_basins_with_ridge() {
     let vals = vec![2.0, 1.0, 0.0, 1.0, 2.0, 1.0, 0.0, 1.0, 2.0];
     let out = MorphologicalWatershed::new(0.0)
+        .unwrap()
         .apply(&make(vals, [1, 1, 9]))
         .unwrap();
     let (ov, _) = extract_vec_infallible(&out);
@@ -42,6 +46,7 @@ fn morphological_watershed_level_merges_shallow_minima() {
     // Deep well at x=2 (depth 5) and a shallow dip at x=6 (depth 1).
     let vals = vec![5.0, 2.0, 0.0, 2.0, 5.0, 5.0, 4.0, 5.0, 5.0];
     let out = MorphologicalWatershed::new(2.0)
+        .unwrap()
         .apply(&make(vals, [1, 1, 9]))
         .unwrap();
     let (ov, _) = extract_vec_infallible(&out);
@@ -53,4 +58,42 @@ fn morphological_watershed_level_merges_shallow_minima() {
         9,
         "one merged basin, no line"
     );
+}
+
+#[test]
+fn morphological_watershed_native_matches_legacy_at_all_levels() {
+    let values = vec![5.0, 2.0, 0.0, 2.0, 5.0, 5.0, 4.0, 5.0, 5.0];
+    let legacy = make(values.clone(), [1, 1, 9]);
+    let origin = Point::new([2.0, 3.0, 5.0]);
+    let spacing = Spacing::new([0.5, 1.0, 2.0]);
+    let direction = Direction::identity();
+    let native = NativeImage::from_flat_on(
+        values,
+        [1, 1, 9],
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .unwrap();
+    for level in [0.0, 1.0, 2.0] {
+        let filter = MorphologicalWatershed::new(level).unwrap();
+        assert_eq!(filter.level(), level);
+        let expected = filter.apply(&legacy).unwrap();
+        let actual = filter.apply_native(&native, &SequentialBackend).unwrap();
+        assert_eq!(actual.data_slice().unwrap(), expected.data_slice().as_ref());
+        assert_eq!(*actual.origin(), origin);
+        assert_eq!(*actual.spacing(), spacing);
+        assert_eq!(*actual.direction(), direction);
+    }
+}
+
+#[test]
+fn morphological_watershed_rejects_invalid_levels() {
+    for level in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY, -1.0] {
+        assert_eq!(
+            MorphologicalWatershed::new(level).unwrap_err().to_string(),
+            format!("morphological watershed level must be finite and nonnegative, got {level}")
+        );
+    }
 }

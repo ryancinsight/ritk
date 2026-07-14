@@ -38,7 +38,7 @@
 
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
-use ritk_spatial::Point;
+use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_origin};
 
 /// Extract a 3-D sub-volume (region of interest) from an image.
@@ -81,75 +81,93 @@ impl RegionOfInterestImageFilter {
     /// Returns `Err` if the requested region exceeds the image bounds or if
     /// any size dimension is zero.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let [nz, ny, nx] = image.shape();
-
-        // Validate bounds
-        if self.size_z == 0 || self.size_y == 0 || self.size_x == 0 {
-            anyhow::bail!("ROI size must be ≥ 1 in all dimensions");
-        }
-        if self.start_z + self.size_z > nz {
-            anyhow::bail!(
-                "ROI Z range [{}..{}) exceeds image depth {}",
-                self.start_z,
-                self.start_z + self.size_z,
-                nz
-            );
-        }
-        if self.start_y + self.size_y > ny {
-            anyhow::bail!(
-                "ROI Y range [{}..{}) exceeds image height {}",
-                self.start_y,
-                self.start_y + self.size_y,
-                ny
-            );
-        }
-        if self.start_x + self.size_x > nx {
-            anyhow::bail!(
-                "ROI X range [{}..{}) exceeds image width {}",
-                self.start_x,
-                self.start_x + self.size_x,
-                nx
-            );
-        }
+        self.validate_region(image.shape())?;
 
         let (vals_vec, _) = extract_vec_infallible(image);
         let vals = &vals_vec;
 
-        // Extract sub-volume
-        let sz = self.size_z;
-        let sy = self.size_y;
-        let sx = self.size_x;
-        let mut out = vec![0.0f32; sz * sy * sx];
-        for iz in 0..sz {
-            for iy in 0..sy {
-                for ix in 0..sx {
-                    let src = (self.start_z + iz) * ny * nx
-                        + (self.start_y + iy) * nx
-                        + (self.start_x + ix);
-                    let dst = iz * sy * sx + iy * sx + ix;
-                    out[dst] = vals[src];
-                }
-            }
-        }
+        let out = self.crop_values(vals, image.shape());
 
         // Update origin: physical position of voxel (start_z, start_y, start_x)
         // new_origin[k] = old_origin[k]
         //   + start_z * spacing[0] * direction.col(0)[k]
         //   + start_y * spacing[1] * direction.col(1)[k]
         //   + start_x * spacing[2] * direction.col(2)[k]
-        let old_origin = image.origin();
-        let spacing = image.spacing();
-        let dir = image.direction();
-        let mut new_coords = [0.0f64; 3];
-        for (k, coord) in new_coords.iter_mut().enumerate() {
-            *coord = old_origin[k]
-                + self.start_z as f64 * spacing[0] * dir[(k, 0)]
-                + self.start_y as f64 * spacing[1] * dir[(k, 1)]
-                + self.start_x as f64 * spacing[2] * dir[(k, 2)];
-        }
-        let new_origin = Point::new(new_coords);
+        let new_origin = self.cropped_origin(image.origin(), image.spacing(), image.direction());
 
-        Ok(rebuild_with_origin(out, [sz, sy, sx], new_origin, image))
+        Ok(rebuild_with_origin(
+            out,
+            [self.size_z, self.size_y, self.size_x],
+            new_origin,
+            image,
+        ))
+    }
+
+    /// Apply the ROI crop to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        self.validate_region(image.shape())?;
+        let spacing = image.spacing();
+        let direction = image.direction();
+        let origin = image.origin();
+        let values = image.data_slice()?;
+        let new_origin = self.cropped_origin(origin, spacing, direction);
+        let output = self.crop_values(values, image.shape());
+        ritk_image::native::Image::from_flat_on(
+            output,
+            [self.size_z, self.size_y, self.size_x],
+            new_origin,
+            *spacing,
+            *direction,
+            backend,
+        )
+    }
+
+    fn validate_region(&self, [nz, ny, nx]: [usize; 3]) -> anyhow::Result<()> {
+        if self.size_z == 0 || self.size_y == 0 || self.size_x == 0 {
+            anyhow::bail!("ROI size must be >= 1 in all dimensions");
+        }
+        if self.start_z + self.size_z > nz
+            || self.start_y + self.size_y > ny
+            || self.start_x + self.size_x > nx
+        {
+            anyhow::bail!("ROI range exceeds image bounds");
+        }
+        Ok(())
+    }
+
+    fn crop_values(&self, values: &[f32], [_, ny, nx]: [usize; 3]) -> Vec<f32> {
+        let mut output = vec![0.0; self.size_z * self.size_y * self.size_x];
+        for z in 0..self.size_z {
+            for y in 0..self.size_y {
+                for x in 0..self.size_x {
+                    output[z * self.size_y * self.size_x + y * self.size_x + x] = values
+                        [(self.start_z + z) * ny * nx + (self.start_y + y) * nx + self.start_x + x];
+                }
+            }
+        }
+        output
+    }
+
+    fn cropped_origin(
+        &self,
+        origin: &Point<3>,
+        spacing: &Spacing<3>,
+        direction: &Direction<3>,
+    ) -> Point<3> {
+        Point::new(std::array::from_fn(|axis| {
+            origin[axis]
+                + self.start_z as f64 * spacing[0] * direction[(axis, 0)]
+                + self.start_y as f64 * spacing[1] * direction[(axis, 1)]
+                + self.start_x as f64 * spacing[2] * direction[(axis, 2)]
+        }))
     }
 }
 

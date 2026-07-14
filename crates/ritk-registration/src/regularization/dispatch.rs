@@ -259,7 +259,10 @@ fn elastic_planar<T: Scalar>(
     alpha: T,
     beta: T,
 ) -> T {
-    assert!(c >= 2, "elastic (2-D) requires ≥2 displacement channels, got {c}");
+    assert!(
+        c >= 2,
+        "elastic (2-D) requires ≥2 displacement channels, got {c}"
+    );
     let membrane_mean = gradient_squared_mean_planar(data, b * c, h, w);
 
     let mut div_acc = T::zero();
@@ -379,7 +382,10 @@ fn elastic_volumetric<T: Scalar>(
     alpha: T,
     beta: T,
 ) -> T {
-    assert!(c >= 3, "elastic (3-D) requires ≥3 displacement channels, got {c}");
+    assert!(
+        c >= 3,
+        "elastic (3-D) requires ≥3 displacement channels, got {c}"
+    );
     let membrane_mean = gradient_squared_mean_volumetric(data, b * c, d, h, w);
 
     let hw = h * w;

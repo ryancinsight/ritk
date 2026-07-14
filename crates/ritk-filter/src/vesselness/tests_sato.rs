@@ -2,7 +2,10 @@
 
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_spatial::{Direction, Point, Spacing};
 
 // Re-import using the crate's own paths (within ritk-core).
 use ritk_image::Image as CoreImage;
@@ -11,6 +14,42 @@ type B = NdArray<f32>;
 
 fn make_image(data: Vec<f32>, dims: [usize; 3]) -> CoreImage<B, 3> {
     ts::make_image::<B, 3>(data, dims)
+}
+
+#[test]
+fn native_sato_preserves_geometry_and_matches_multiscale_kernel() {
+    let dimensions = [2, 3, 4];
+    let values: Vec<f32> = (0..24).map(|index| index as f32 * 0.25).collect();
+    let origin = Point::new([2.0, 3.0, 5.0]);
+    let spacing = Spacing::new([0.5, 1.0, 2.0]);
+    let direction = Direction::identity();
+    let image = NativeImage::from_flat_on(
+        values.clone(),
+        dimensions,
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let config = SatoConfig {
+        scales: vec![1.0],
+        alpha: 0.5,
+        polarity: VesselPolarity::Bright,
+    };
+
+    let output = SatoLineFilter::new(config.clone())
+        .apply_native(&image, &SequentialBackend)
+        .expect("native Sato succeeds");
+
+    assert_eq!(output.shape(), dimensions);
+    assert_eq!(*output.origin(), origin);
+    assert_eq!(*output.spacing(), spacing);
+    assert_eq!(*output.direction(), direction);
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        compute_sato_multiscale(&values, dimensions, [0.5, 1.0, 2.0], &config)
+    );
 }
 
 /// Build a 3-D volume with a bright cylinder of radius `r` centred at

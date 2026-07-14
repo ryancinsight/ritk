@@ -1,8 +1,8 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use ritk_core::image::Image;
-use ritk_image::tensor::backend::Backend;
+use ritk_image::native::Image;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -127,8 +127,13 @@ fn write_nifti_labels_with_version<P: AsRef<Path>>(
 /// The writer emits file columns `[internal X, internal Y, internal Z]`, i.e.
 /// `[direction.col(2)*spacing[2], direction.col(1)*spacing[1],
 /// direction.col(0)*spacing[0]]`, then converts LPS rows to RAS rows.
-pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
-    write_nifti_with_version(HeaderVersion::One, path, image)
+pub fn write_nifti<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
+where
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    P: AsRef<Path>,
+{
+    write_nifti_with_version(HeaderVersion::One, path, image, backend)
 }
 
 /// Write an image to a NIfTI-2 single-file stream with full sform metadata.
@@ -136,19 +141,28 @@ pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> 
 /// The reader auto-detects NIfTI-1 and NIfTI-2. This writer is explicit so
 /// callers do not silently change on-disk format when NIfTI-1 dimensions still
 /// suffice.
-pub fn write_nifti2<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
-    write_nifti_with_version(HeaderVersion::Two, path, image)
+pub fn write_nifti2<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
+where
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    P: AsRef<Path>,
+{
+    write_nifti_with_version(HeaderVersion::Two, path, image, backend)
 }
 
-fn write_nifti_with_version<B: Backend, P: AsRef<Path>>(
+fn write_nifti_with_version<B, P>(
     version: HeaderVersion,
     path: P,
-    image: &Image<B, 3>,
-) -> Result<()> {
+    image: &Image<f32, B, 3>,
+    backend: &B,
+) -> Result<()>
+where
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    P: AsRef<Path>,
+{
     let shape = image.shape();
-    let voxels = image
-        .try_data_vec()
-        .context("NIfTI writer requires f32 image data")?;
+    let voxels = image.data_cow_on(backend);
     let origin = image.origin();
     let spacing = image.spacing();
 
@@ -165,7 +179,7 @@ fn write_nifti_with_version<B: Backend, P: AsRef<Path>>(
 
 /// Flatten a 3×3 direction-cosine matrix to the row-major layout the header
 /// builder consumes (shared by the Burn and Coeus writer boundaries).
-fn direction_row_major(direction: &ritk_core::spatial::Direction<3>) -> [f64; 9] {
+fn direction_row_major(direction: &ritk_spatial::Direction<3>) -> [f64; 9] {
     let d = direction.0;
     [
         d[(0, 0)],
@@ -180,9 +194,7 @@ fn direction_row_major(direction: &ritk_core::spatial::Direction<3>) -> [f64; 9]
     ]
 }
 
-/// Substrate-agnostic NIfTI serialization core: header from spatial metadata
-/// plus the `[Z, Y, X]`-ordered voxel stream. The Burn and Coeus writers are
-/// thin host-extraction boundaries over this single implementation (SSOT).
+/// NIfTI serialization core: header plus the `[Z, Y, X]` voxel stream.
 fn write_flat_with_version(
     version: HeaderVersion,
     path: &Path,
@@ -278,73 +290,4 @@ fn is_gzip_path(path: &Path) -> bool {
     path.extension()
         .and_then(|ext| ext.to_str())
         .is_some_and(|ext| ext.eq_ignore_ascii_case("gz"))
-}
-
-/// Atlas-native-substrate entry points (transitional module: plain
-/// end-state names, disambiguated from the Burn functions by module
-/// path only; folds away when the Burn path is deleted — ADR 0002 A1).
-pub mod native {
-    #[allow(unused_imports)]
-    use super::*;
-
-    /// Write a Coeus-backed image to a NIfTI-1 single-file stream.
-    ///
-    /// The Atlas-tensor counterpart to [`write_nifti`] (same spatial convention
-    /// and byte-identical output for the same logical image): host data is
-    /// extracted layout-independently via `data_cow_on`, then serialized through
-    /// the same core as the Burn writer. The first Coeus-native format writer —
-    /// the write-side half of the ADR 0002 cutover prerequisite.
-    pub fn write_nifti<B, P>(
-        path: P,
-        image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B,
-    ) -> Result<()>
-    where
-        B: coeus_core::ComputeBackend + Default,
-        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
-        P: AsRef<Path>,
-    {
-        let voxels = image.data_cow_on(backend);
-        let origin = image.origin();
-        let spacing = image.spacing();
-
-        write_flat_with_version(
-            HeaderVersion::One,
-            path.as_ref(),
-            &voxels,
-            image.shape(),
-            [origin[0], origin[1], origin[2]],
-            [spacing[0], spacing[1], spacing[2]],
-            direction_row_major(image.direction()),
-        )
-    }
-
-    /// Write a Coeus-backed image to a NIfTI-2 single-file stream.
-    ///
-    /// NIfTI-2 counterpart of [`write_nifti`] — same spatial encoding, larger
-    /// header (vox_offset=544).
-    pub fn write_nifti2<B, P>(
-        path: P,
-        image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B,
-    ) -> Result<()>
-    where
-        B: coeus_core::ComputeBackend + Default,
-        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
-        P: AsRef<Path>,
-    {
-        let voxels = image.data_cow_on(backend);
-        let origin = image.origin();
-        let spacing = image.spacing();
-
-        write_flat_with_version(
-            HeaderVersion::Two,
-            path.as_ref(),
-            &voxels,
-            image.shape(),
-            [origin[0], origin[1], origin[2]],
-            [spacing[0], spacing[1], spacing[2]],
-            direction_row_major(image.direction()),
-        )
-    }
 }

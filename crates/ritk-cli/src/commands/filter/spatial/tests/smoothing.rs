@@ -9,11 +9,10 @@ fn test_filter_median_creates_output_with_correct_shape() {
     let output = dir.path().join("out.nii");
     ritk_io::write_nifti(&input, &make_test_image()).unwrap();
 
-    let result = run_median(&default_args(input, output.clone(), FilterKind::Median));
-    assert!(result.is_ok(), "median must succeed: {:?}", result.err());
-    assert!(output.exists(), "median must write output file");
-
-    let filtered = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
+    run_median(&default_args(input, output.clone(), FilterKind::Median))
+        .expect("median must succeed");
+    let filtered = crate::commands::read_image_native(&output)
+        .expect("median output must be natively readable");
     assert_eq!(
         filtered.shape(),
         [5, 5, 5],

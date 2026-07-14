@@ -3,18 +3,15 @@ use decode::*;
 
 use crate::spatial::{metadata_from_file_space_directions, metadata_from_file_spacings};
 use anyhow::{anyhow, Context, Result};
+use coeus_core::ComputeBackend;
 use ritk_codecs::{parse_f64_vec, parse_usize_vec, ByteOrder};
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::Image;
+use ritk_image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 
-/// Substrate-agnostic decode of a NRRD file into flat `[Z, Y, X]` voxels plus
-/// spatial metadata — the shared core the Burn and Atlas-native readers both
-/// wrap so header parsing, encoding, and axis handling live in one place.
+/// Decode of a NRRD file into flat `[Z, Y, X]` voxels plus spatial metadata.
 struct DecodedNrrd {
     data: Vec<f32>,
     dims: [usize; 3],
@@ -52,7 +49,10 @@ struct DecodedNrrd {
 ///   follows the blank header-terminator line in the same file.
 /// * Detached: `data file: <filename>` — binary data is in a separate file
 ///   resolved relative to the NRRD header file's directory.
-pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
+pub fn read_nrrd<B: ComputeBackend, P: AsRef<Path>>(
+    path: P,
+    backend: &B,
+) -> Result<Image<f32, B, 3>> {
     let DecodedNrrd {
         data,
         dims,
@@ -63,8 +63,7 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Res
 
     // NRRD raw order is X-fastest. RITK [Z,Y,X] row-major tensors are also
     // X-fastest in flat memory, so the decoded payload is shaped directly.
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), device);
-    Ok(Image::new(tensor, origin, spacing, direction))
+    Image::from_flat_on(data, dims, origin, spacing, direction, backend)
 }
 
 fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
@@ -208,7 +207,14 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
     };
 
     // ── Binary data ───────────────────────────────────────────────────────
-    let total_voxels = nx * ny * nz;
+    let total_voxels = nx
+        .checked_mul(ny)
+        .and_then(|plane| plane.checked_mul(nz))
+        .ok_or_else(|| anyhow!("NRRD sizes [{nx}, {ny}, {nz}] voxel count overflows usize"))?;
+    let (element_size, _, _) = element_type_spec(&element_type)?;
+    let expected_payload_bytes = total_voxels.checked_mul(element_size).ok_or_else(|| {
+        anyhow!("NRRD byte count overflows usize: {total_voxels} voxels x {element_size} bytes")
+    })?;
     let data_file_field = headers.get("data file").cloned();
 
     // Read the payload bytes (still compressed for gzip encoding) from the
@@ -236,8 +242,13 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
     };
 
     let raw_bytes: Vec<u8> = if gzipped {
-        let mut out = Vec::with_capacity(payload.len() * 2);
+        let output_limit = u64::try_from(expected_payload_bytes)
+            .context("NRRD payload length exceeds u64")?
+            .checked_add(1)
+            .ok_or_else(|| anyhow!("NRRD payload read limit overflows u64"))?;
+        let mut out = Vec::new();
         flate2::read::GzDecoder::new(&payload[..])
+            .take(output_limit)
             .read_to_end(&mut out)
             .context("Failed to inflate gzip-encoded NRRD payload")?;
         out
@@ -278,59 +289,11 @@ pub struct NrrdReader;
 
 impl NrrdReader {
     /// Read a NRRD file at `path` into an [`Image`] on `device`.
-    pub fn read<B: Backend, P: AsRef<Path>>(
+    pub fn read<B: ComputeBackend, P: AsRef<Path>>(
         &self,
         path: P,
-        device: &B::Device,
-    ) -> Result<Image<B, 3>> {
-        read_nrrd(path, device)
-    }
-}
-
-/// Atlas-native-substrate entry points (transitional module: plain end-state
-/// names, disambiguated from the Burn functions by module path only; folds
-/// away when the Burn path is deleted — ADR 0002 A1).
-pub mod native {
-    use super::{decode_nrrd, DecodedNrrd};
-    use anyhow::Result;
-    use std::path::Path;
-
-    /// Read a NRRD file into an Atlas-native 3-D image on `backend`.
-    ///
-    /// Shares the entire header parse, encoding, and axis handling with the
-    /// Burn [`read_nrrd`](super::read_nrrd); differs only in the final image
-    /// construction, which materialises the flat `[Z, Y, X]` payload directly
-    /// onto `backend` without an intermediate Burn tensor.
-    pub fn read_nrrd<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
-    where
-        B: coeus_core::ComputeBackend,
-        P: AsRef<Path>,
-    {
-        let DecodedNrrd {
-            data,
-            dims,
-            origin,
-            spacing,
-            direction,
-        } = decode_nrrd(path)?;
-        ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
-    }
-
-    /// Stateless Atlas-native reader for NRRD files.
-    pub struct NrrdReader;
-
-    impl NrrdReader {
-        /// Read a NRRD file at `path` into an Atlas-native image on `backend`.
-        pub fn read<B, P>(
-            &self,
-            path: P,
-            backend: &B,
-        ) -> Result<ritk_image::native::Image<f32, B, 3>>
-        where
-            B: coeus_core::ComputeBackend,
-            P: AsRef<Path>,
-        {
-            read_nrrd(path, backend)
-        }
+        backend: &B,
+    ) -> Result<Image<f32, B, 3>> {
+        read_nrrd(path, backend)
     }
 }

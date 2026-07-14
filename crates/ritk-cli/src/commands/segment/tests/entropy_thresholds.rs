@@ -203,3 +203,47 @@ fn test_segment_triangle_foreground_count() {
         "Triangle must label exactly 32 high-intensity voxels as foreground"
     );
 }
+
+#[test]
+fn automatic_threshold_cli_family_matches_legacy_public_boundaries_exactly() {
+    use ritk_segmentation::{
+        KapurThreshold, LiThreshold, OtsuThreshold, TriangleThreshold, YenThreshold,
+    };
+
+    let dir = tempdir().unwrap();
+    for method in [
+        SegmentMethod::Otsu,
+        SegmentMethod::Li,
+        SegmentMethod::Yen,
+        SegmentMethod::Kapur,
+        SegmentMethod::Triangle,
+    ] {
+        let label = format!("{method:?}");
+        let input = dir.path().join(format!("{label}-input.nii"));
+        let output = dir.path().join(format!("{label}-mask.nii"));
+        let fixture = make_bimodal_image();
+        let expected = match method {
+            SegmentMethod::Otsu => OtsuThreshold::new().apply(&fixture),
+            SegmentMethod::Li => LiThreshold::new().apply(&fixture),
+            SegmentMethod::Yen => YenThreshold::new().apply(&fixture),
+            SegmentMethod::Kapur => KapurThreshold::new().apply(&fixture),
+            SegmentMethod::Triangle => TriangleThreshold::new().apply(&fixture),
+            _ => unreachable!("test enumerates only automatic threshold methods"),
+        };
+        ritk_io::write_nifti(&input, &fixture).unwrap();
+
+        run(default_args(input, output.clone(), method)).unwrap();
+        let actual = crate::commands::read_image_native(&output)
+            .expect("automatic threshold output is natively readable");
+
+        assert_eq!(actual.shape(), expected.shape());
+        assert_eq!(*actual.origin(), *expected.origin());
+        assert_eq!(*actual.spacing(), *expected.spacing());
+        assert_eq!(*actual.direction(), *expected.direction());
+        assert_eq!(
+            actual.data_slice().expect("contiguous native output"),
+            expected.data_slice().as_ref(),
+            "{label} native CLI output diverged from its public legacy boundary"
+        );
+    }
+}

@@ -1,4 +1,7 @@
 use super::*;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
+use ritk_spatial::{Direction, Point, Spacing};
 
 /// Deterministic Gaussian noise with seed=42 produces known output.
 #[test]
@@ -120,4 +123,33 @@ fn gaussian_matches_sitk_fastnorm_sequence() {
     for (g, e) in vals.iter().zip(expected) {
         assert!((g - e).abs() < 1e-5, "noise {g} != sitk {e}");
     }
+}
+
+#[test]
+fn native_gaussian_noise_matches_deterministic_tensor_sequence() {
+    let image = NativeImage::from_flat_on(
+        vec![0.0; 6],
+        [1, 1, 6],
+        Point::new([1.0, 2.0, 3.0]),
+        Spacing::new([0.5, 1.0, 2.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = AdditiveGaussianNoiseFilter::new(1.0)
+        .with_seed(42)
+        .apply_native(&image, &SequentialBackend)
+        .expect("native Gaussian noise succeeds");
+    let expected = [
+        -2.0906951_f32,
+        -1.9422115,
+        -1.6573238,
+        0.19301039,
+        0.08058648,
+        0.00776763,
+    ];
+    assert_eq!(output.data_slice().expect("contiguous output"), &expected);
+    assert_eq!(output.origin(), image.origin());
+    assert_eq!(output.spacing(), image.spacing());
+    assert_eq!(output.direction(), image.direction());
 }

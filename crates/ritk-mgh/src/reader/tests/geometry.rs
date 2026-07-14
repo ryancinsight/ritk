@@ -4,7 +4,7 @@ use super::*;
 fn test_read_nondefault_spatial() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("spatial.mgh");
-    let device: <TestBackend as Backend>::Device = Default::default();
+    let backend = TestBackend::default();
     let spacing = [0.5f32, 0.75, 1.25];
     let dir_cols = [[0.0, 1.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.0, 1.0]];
     let data_bytes: Vec<u8> = (0..(4 * 3 * 2))
@@ -22,7 +22,7 @@ fn test_read_nondefault_spatial() -> Result<()> {
     );
     std::fs::write(&path, &mgh)?;
 
-    let image = read_mgh::<TestBackend, _>(&path, &device)?;
+    let image = read_mgh::<TestBackend, _>(&path, &backend)?;
     assert_eq!(image.shape(), [2, 3, 4]);
     let sp = image.spacing();
     assert!((sp[0] - 0.5).abs() < 1e-6, "spacing[0]={}", sp[0]);
@@ -47,7 +47,7 @@ fn test_read_nondefault_spatial() -> Result<()> {
 fn test_read_good_ras_flag_zero() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("no_ras.mgh");
-    let device: <TestBackend as Backend>::Device = Default::default();
+    let backend = TestBackend::default();
     let values: Vec<f32> = (0..8).map(|i| i as f32).collect();
     let data_bytes: Vec<u8> = values.iter().flat_map(|v: &f32| v.to_be_bytes()).collect();
     let mut buf = Vec::with_capacity(HEADER_SIZE + data_bytes.len());
@@ -66,7 +66,7 @@ fn test_read_good_ras_flag_zero() -> Result<()> {
     buf.extend_from_slice(&data_bytes);
     std::fs::write(&path, &buf)?;
 
-    let image = read_mgh::<TestBackend, _>(&path, &device)?;
+    let image = read_mgh::<TestBackend, _>(&path, &backend)?;
     assert_eq!(image.shape(), [2, 2, 2]);
     assert_eq!(image.spacing()[0], 1.0);
     assert_eq!(image.spacing()[1], 1.0);
@@ -77,10 +77,10 @@ fn test_read_good_ras_flag_zero() -> Result<()> {
     assert_eq!(image.origin()[0], 0.0);
     assert_eq!(image.origin()[1], 0.0);
     assert_eq!(image.origin()[2], 0.0);
-    image.with_data_slice(|loaded| {
+    image.data_slice().map(|loaded| {
         for (i, (&got, &expected)) in loaded.iter().zip(values.iter()).enumerate() {
             assert_eq!(got, expected, "voxel[{i}]");
         }
-    });
+    })?;
     Ok(())
 }

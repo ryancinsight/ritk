@@ -1,5 +1,7 @@
 use super::*;
-use crate::image_comparison::{dice_coefficient, similarity_index};
+use crate::image_comparison::{dice_coefficient, dice_coefficient_native, similarity_index};
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 
 #[test]
 fn test_dice_identical_masks_is_one() {
@@ -10,6 +12,32 @@ fn test_dice_identical_masks_is_one() {
         "identical masks -> Dice = 1.0, got {}",
         dice
     );
+}
+
+#[test]
+fn native_dice_known_overlap_matches_binary_formula() {
+    let prediction = NativeImage::from_flat_on(
+        vec![1.0, 1.0, 0.0, 0.0],
+        [1, 1, 4],
+        ritk_spatial::Point::new([0.0; 3]),
+        ritk_spatial::Spacing::new([1.0; 3]),
+        ritk_spatial::Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native prediction");
+    let ground_truth = NativeImage::from_flat_on(
+        vec![1.0, 0.0, 1.0, 0.0],
+        [1, 1, 4],
+        ritk_spatial::Point::new([0.0; 3]),
+        ritk_spatial::Spacing::new([1.0; 3]),
+        ritk_spatial::Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native ground truth");
+
+    let dice = dice_coefficient_native(&prediction, &ground_truth)
+        .expect("native dice accepts matched shapes");
+    assert_eq!(dice, 0.5);
 }
 
 #[test]

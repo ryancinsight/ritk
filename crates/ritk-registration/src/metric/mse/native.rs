@@ -28,8 +28,8 @@ pub fn mse_value_native<B>(
     transform: &AtlasAffineTransform<B, 3>,
 ) -> f32
 where
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    B: coeus_core::Backend + ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + coeus_core::CpuAddressableStorageMut<f32>,
 {
     let fixed_world = fixed_world_points(fixed);
     let f = fixed.data_vec();

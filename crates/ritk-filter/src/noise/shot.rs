@@ -3,8 +3,11 @@
 use super::fastnorm::{hash, FastNorm};
 use super::mersenne::MersenneTwister;
 use super::DEFAULT_NOISE_SEED;
+use crate::native_support::map_flat_image;
 use anyhow::Result;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_core::image::Image;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
@@ -51,16 +54,33 @@ impl ShotNoiseFilter {
     /// single-threaded.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
+        Ok(rebuild(self.apply_values(&vals), dims, image))
+    }
+
+    /// Apply seeded Poisson shot noise to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &NativeImage<f32, B, 3>,
+        backend: &B,
+    ) -> Result<NativeImage<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        map_flat_image(image, backend, |values, _| self.apply_values(values))
+    }
+
+    fn apply_values(&self, values: &[f32]) -> Vec<f32> {
         // Zero/negative scale: no photons (degenerate, avoids 0/0).
         if self.scale <= 0.0 {
-            return Ok(rebuild(vec![0.0f32; vals.len()], dims, image));
+            return vec![0.0; values.len()];
         }
         let seed = hash(self.seed, 0);
         let mut rand = MersenneTwister::new(seed);
         let mut randn = FastNorm::new(seed as i32);
         let scale = self.scale;
 
-        let out: Vec<f32> = vals
+        values
             .iter()
             .map(|&v| {
                 let inp = scale * v as f64;
@@ -83,8 +103,7 @@ impl ShotNoiseFilter {
                     (out / scale) as f32
                 }
             })
-            .collect();
-        Ok(rebuild(out, dims, image))
+            .collect()
     }
 }
 

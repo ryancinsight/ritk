@@ -20,9 +20,8 @@
 //! `unsigned_int`. All are converted to `f32` for the output tensor.
 
 use anyhow::{bail, Context, Result};
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::Image;
+use coeus_core::ComputeBackend;
+use ritk_image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
@@ -130,7 +129,10 @@ pub fn read_vtk_flat<P: AsRef<Path>>(
     let header = parse_header(&mut reader).with_context(|| "failed to parse VTK header")?;
 
     let [nx, ny, nz] = header.dims;
-    let expected_voxels = nx * ny * nz;
+    let expected_voxels = nx
+        .checked_mul(ny)
+        .and_then(|plane| plane.checked_mul(nz))
+        .with_context(|| format!("VTK DIMENSIONS product overflows usize: {nx}×{ny}×{nz}"))?;
 
     if header.point_data_n != expected_voxels {
         bail!(
@@ -161,9 +163,9 @@ pub fn read_vtk_flat<P: AsRef<Path>>(
     Ok((data_f32, header.dims, header.origin, header.spacing))
 }
 
-/// Read a VTK legacy structured-points file into an `Image<B, 3>`.
+/// Read a VTK legacy structured-points file into a native `Image`.
 ///
-/// Decodes through [`read_vtk_flat`], then builds the burn tensor carrier.
+/// Decodes through [`read_vtk_flat`], then builds the Coeus-native carrier.
 ///
 /// # Errors
 ///
@@ -172,13 +174,11 @@ pub fn read_vtk_flat<P: AsRef<Path>>(
 /// - The header does not conform to VTK legacy structured-points format.
 /// - The declared scalar type is unsupported.
 /// - The data section is truncated or malformed.
-pub fn read_vtk<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
+pub fn read_vtk<B: ComputeBackend, P: AsRef<Path>>(
+    path: P,
+    backend: &B,
+) -> Result<Image<f32, B, 3>> {
     let (data_f32, [nx, ny, nz], origin_arr, spacing_arr) = read_vtk_flat(path)?;
-
-    // Tensor shape: [nz, ny, nx] per RITK convention.
-    let shape = Shape::new([nz, ny, nx]);
-    let tensor_data = TensorData::new(data_f32, shape);
-    let tensor = Tensor::<B, 3>::from_data(tensor_data, device);
 
     let origin = Point::new(origin_arr);
     let spacing = Spacing::new(spacing_arr);
@@ -193,7 +193,7 @@ pub fn read_vtk<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Resu
         nx
     );
 
-    Ok(Image::new(tensor, origin, spacing, direction))
+    Image::from_flat_on(data_f32, [nz, ny, nx], origin, spacing, direction, backend)
 }
 
 // ---------------------------------------------------------------------------
@@ -363,7 +363,7 @@ fn read_binary_scalars(
     // Bound the speculative allocation: `count` is a header field and may exceed
     // the bytes actually present. `read_exact_bounded` grows the buffer per
     // confirmed chunk and reports truncation rather than aborting on OOM.
-    let raw = ritk_core::io_bounds::read_exact_bounded(reader, total_bytes).with_context(|| {
+    let raw = consus_io::read_exact_bounded(reader, total_bytes).with_context(|| {
         format!("failed to read {total_bytes} bytes of VTK binary data ({count} voxels × {byte_width} bytes)")
     })?;
 

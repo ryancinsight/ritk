@@ -1,4 +1,4 @@
-"""Bit-exact parity tests for SignedMaurerDistanceMap and ScalarChanAndVese.
+"""Numerical parity tests for SignedMaurerDistanceMap and ScalarChanAndVese.
 
 Both filters were ported faithfully from the ITK source:
 - SignedMaurerDistanceMap: exact signed Euclidean distance to the object border
@@ -14,9 +14,8 @@ Evidence tier: differential (bit-exact vs SimpleITK).
 
 import numpy as np
 import pytest
-
-ritk = pytest.importorskip("ritk")
-sitk = pytest.importorskip("SimpleITK")
+import ritk
+import SimpleITK as sitk
 
 
 def _shapes():
@@ -95,8 +94,8 @@ def test_scalar_chan_and_vese_bit_exact(n_iter):
 
 
 @pytest.mark.parametrize("sz,R,nit", [(13, 1, 1), (12, 2, 1), (20, 2, 1), (24, 4, 1)])
-def test_patch_based_denoising_bit_exact(sz, R, nit):
-    """PatchBasedDenoising: bit-exact vs SINGLE-THREADED sitk.
+def test_patch_based_denoising_single_rounding_step(sz, R, nit):
+    """PatchBasedDenoising matches single-threaded sitk within one f32 step.
 
     Faithful ITK port: Gaussian-kernel joint-entropy gradient over patches drawn
     by the GaussianRandomSpatialNeighborSubsampler (variance 400, 200 results),
@@ -104,8 +103,10 @@ def test_patch_based_denoising_bit_exact(sz, R, nit):
     order. sitk is forced single-threaded so its thread-seeded RNG (SetSeed(thread))
     is deterministic with seed 0; ritk reproduces that exact draw sequence.
 
-    Tolerance is the f32 round-off bound (ritk computes in f64, sitk in f32).
-    Evidence tier: differential (bit-exact vs single-threaded SimpleITK).
+    Both implementations preserve the same sample and accumulation order and
+    convert the final result to f32. Platform math can place that final rounding
+    on adjacent representable values, so one ULP is the derived output bound.
+    Evidence tier: differential against single-threaded SimpleITK.
     """
     import numpy as _np
 
@@ -113,20 +114,15 @@ def test_patch_based_denoising_bit_exact(sz, R, nit):
     rng = _np.random.default_rng(3)
     img = (rng.random((sz, sz)).astype(_np.float32) * 90 + 5).astype(_np.float32)
 
-    try:
-        f = sitk.PatchBasedDenoisingImageFilter()
-        f.SetPatchRadius(R)
-        f.SetNumberOfIterations(nit)
-        f.SetNumberOfWorkUnits(1)
-        so = sitk.GetArrayFromImage(f.Execute(sitk.GetImageFromArray(img))).astype(_np.float32)
-    except Exception as exc:  # pragma: no cover
-        pytest.skip(f"sitk.PatchBasedDenoising unavailable: {exc}")
+    f = sitk.PatchBasedDenoisingImageFilter()
+    f.SetPatchRadius(R)
+    f.SetNumberOfIterations(nit)
+    f.SetNumberOfWorkUnits(1)
+    so = sitk.GetArrayFromImage(f.Execute(sitk.GetImageFromArray(img))).astype(_np.float32)
 
     ri = ritk.Image(_np.ascontiguousarray(img[_np.newaxis]))
     ro = ritk.filter.patch_based_denoising(
         ri, number_of_iterations=nit, number_of_sample_patches=200, patch_radius=R
     )
     r = _np.asarray(ro.to_numpy(), _np.float32).reshape(sz, sz)
-    max_err = float(_np.abs(r.astype(_np.float64) - so.astype(_np.float64)).max())
-    # f32 round-off bound: values ~100, a few f32 ulps ≈ 1e-5..1e-4.
-    assert max_err < 1e-3, f"PatchBasedDenoising sz={sz} R={R} nit={nit}: max-err {max_err:.3e}"
+    _np.testing.assert_array_max_ulp(r, so, maxulp=1)

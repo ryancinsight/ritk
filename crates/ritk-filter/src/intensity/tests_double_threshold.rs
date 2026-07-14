@@ -1,6 +1,9 @@
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = NdArray<f32>;
 
@@ -42,4 +45,27 @@ fn double_threshold_custom_values() {
         .apply(&img)
         .unwrap();
     assert_eq!(out.data_slice().into_owned(), vec![7.0, -1.0]);
+}
+
+#[test]
+fn native_double_threshold_retains_connected_outer_band() {
+    let image = NativeImage::from_flat_on(
+        vec![0.0, 2.0, 5.0, 2.0, 0.0],
+        [1, 1, 5],
+        Point::new([1.0, 2.0, 3.0]),
+        Spacing::new([0.5, 1.0, 2.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = DoubleThresholdImageFilter::new(1.0, 4.0, 6.0, 8.0, 1.0, 0.0)
+        .apply_native(&image, &SequentialBackend)
+        .expect("native double threshold succeeds");
+    assert_eq!(
+        output.data_slice().expect("invariant: contiguous storage"),
+        &[0.0, 1.0, 1.0, 1.0, 0.0]
+    );
+    assert_eq!(output.origin(), image.origin());
+    assert_eq!(output.spacing(), image.spacing());
+    assert_eq!(output.direction(), image.direction());
 }

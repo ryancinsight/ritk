@@ -20,8 +20,8 @@
 //!   correlation (`O(width·ε·‖I‖∞)` per axis), propagated through the local
 //!   ratio and averaged — tol 1e-3 (conservative over ε_f32 ≈ 6e-8).
 
-use super::super::LocalNormalizedCrossCorrelation;
 use super::super::super::trait_::Metric;
+use super::super::LocalNormalizedCrossCorrelation;
 use super::lncc_loss_native;
 
 use burn_ndarray::NdArray;

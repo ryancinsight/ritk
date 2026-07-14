@@ -15,19 +15,19 @@
 //! - [`ensemble`]: Ensemble methods (STAPLE EM algorithm).
 
 pub mod clustering;
-pub mod distance_transform;
 pub mod ensemble;
 pub mod labeling;
 pub mod level_set;
 pub mod morphology;
+mod native_output;
 pub mod region_growing;
 pub mod threshold;
 pub mod watershed;
 
 pub use clustering::{
-    kmeans_segment, slic_itk_segment, KMeansSegmentation, SlicConfig, SlicSuperpixelFilter,
+    kmeans_segment, ConnectivityEnforcement, InitializationPerturbation, ItkSlicConfig,
+    ItkSlicFilter, KMeansSegmentation, SlicConfig, SlicSuperpixelFilter,
 };
-pub use distance_transform::{distance_transform, distance_transform_squared, DistanceTransform};
 pub use ensemble::{
     multi_label_staple, staple, MultiLabelStapleResult, StapleConvergence, StapleResult,
 };
@@ -46,16 +46,17 @@ pub use morphology::{
     MorphologicalGradient, MorphologicalOperation, Skeletonization,
 };
 pub use region_growing::{
-    connected_threshold, growcut, growcut_slice, vector_confidence_connected_image,
-    ConfidenceConnectedFilter, ConnectedThresholdFilter, GrowCutFilter, IsolatedConnectedFilter,
-    NeighborhoodConnectedFilter,
+    connected_threshold, growcut, growcut_slice, ConfidenceConnectedFilter,
+    ConnectedThresholdFilter, GrowCutFilter, IsolatedConnectedConfig, IsolatedConnectedFilter,
+    IsolatedConnectedOutput, IsolationThreshold, NeighborhoodConnectedFilter,
+    VectorConfidenceConnectedConfig, VectorConfidenceConnectedFilter,
 };
 pub use threshold::{
     binary_threshold, kapur_threshold, li_threshold, multi_otsu_threshold, otsu_threshold,
-    triangle_threshold, yen_threshold, BinaryThreshold, KapurThreshold, LiThreshold,
+    triangle_threshold, yen_threshold, AutoThreshold, BinaryThreshold, KapurThreshold, LiThreshold,
     MultiOtsuThreshold, OtsuThreshold, TriangleThreshold, YenThreshold,
 };
 pub use watershed::{
-    toboggan, IsolatedWatershed, MarkerControlledWatershed, MorphologicalWatershed,
-    WatershedSegmentation,
+    FloodConnectivity, IsolatedWatershed, IsolatedWatershedConfig, MarkerControlledWatershed,
+    MorphologicalWatershed, TobogganFilter, WatershedLinePolicy, WatershedSegmentation,
 };

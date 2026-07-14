@@ -31,9 +31,7 @@
 //! # Complexity
 //! - Histogram construction:  O(n) voxels.
 //! - Prefix-sum setup:        O(N) bins.
-//! - Exhaustive search:       O(N^{K−1}) threshold combinations.
-//!   For K = 3, N = 256:     ≈ 32 640 combinations (fast).
-//!   For K = 2:              O(N) — degenerates to standard Otsu.
+//! - Exact dynamic program:   O(K·N²) time and O(K·N) storage.
 //!
 //! # Threshold Conversion
 //! Each boundary bin index t separates classes [.., t−1] | [t, ..]; ITK reports
@@ -41,12 +39,18 @@
 //! (see `auto_threshold`):
 //!
 //!   t_intensity = x_min + t · bin_width
+//!
+//! # Non-finite intensities
+//!
+//! NaN and ±Inf samples are excluded from histogram statistics and always map
+//! to background class `0.0`. An input with no finite samples returns K−1 zero
+//! thresholds and an all-background label image.
 
 use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-use super::auto_threshold::{build_histogram, itk_bin_width};
+use super::auto_threshold::{build_histogram, finite_bounds, itk_bin_width};
 
 /// Multi-Otsu threshold segmentation into K intensity classes.
 ///
@@ -54,18 +58,19 @@ use super::auto_threshold::{build_histogram, itk_bin_width};
 /// For K = 3 this finds the 2 thresholds that maximise total between-class variance.
 pub struct MultiOtsuThreshold {
     /// Number of intensity classes to segment into. Must be ≥ 2.
-    pub num_classes: usize,
+    num_classes: usize,
     /// Number of equally-spaced histogram bins. Default 256.
-    pub num_bins: usize,
+    num_bins: usize,
 }
 
 impl MultiOtsuThreshold {
     /// Create a `MultiOtsuThreshold` with `num_classes` classes and 256 histogram bins.
     ///
     /// # Panics
-    /// Panics if `num_classes < 2`.
+    /// Panics unless `2 <= num_classes <= 256`.
     pub fn new(num_classes: usize) -> Self {
         assert!(num_classes >= 2, "num_classes must be ≥ 2");
+        assert!(num_classes <= 256, "num_classes must not exceed num_bins");
         Self {
             num_classes,
             num_bins: 256,
@@ -75,14 +80,28 @@ impl MultiOtsuThreshold {
     /// Create a `MultiOtsuThreshold` with a custom number of classes and bins.
     ///
     /// # Panics
-    /// Panics if `num_classes < 2` or `num_bins < 2`.
+    /// Panics unless `2 <= num_classes <= num_bins`.
     pub fn with_bins(num_classes: usize, num_bins: usize) -> Self {
         assert!(num_classes >= 2, "num_classes must be ≥ 2");
         assert!(num_bins >= 2, "num_bins must be ≥ 2");
+        assert!(
+            num_classes <= num_bins,
+            "num_classes must not exceed num_bins"
+        );
         Self {
             num_classes,
             num_bins,
         }
+    }
+
+    /// Return the number of output intensity classes.
+    pub fn num_classes(&self) -> usize {
+        self.num_classes
+    }
+
+    /// Return the histogram bin count.
+    pub fn num_bins(&self) -> usize {
+        self.num_bins
     }
 
     /// Compute K − 1 Otsu thresholds for `image`.
@@ -108,13 +127,7 @@ impl MultiOtsuThreshold {
         // (the previous compute()-then-label form cloned and copied the whole
         // volume twice per `apply`).
         let (vals, shape) = extract_vec_infallible(image);
-        let thresholds =
-            compute_multi_otsu_thresholds_from_slice(&vals, self.num_classes, self.num_bins);
-
-        let output: Vec<f32> = vals
-            .iter()
-            .map(|&v| thresholds.iter().filter(|&&t| v >= t).count() as f32)
-            .collect();
+        let (_, output) = multi_otsu_labels_from_slice(&vals, self.num_classes, self.num_bins);
 
         let device = image.data().device();
         let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
@@ -124,6 +137,73 @@ impl MultiOtsuThreshold {
             *image.spacing(),
             *image.direction(),
         )
+    }
+
+    /// Compute thresholds directly from a Coeus-native image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when backend storage is not host-addressable.
+    pub fn compute_native<B, const D: usize>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, D>,
+    ) -> anyhow::Result<Vec<f32>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        Ok(compute_multi_otsu_thresholds_from_slice(
+            image.data_slice()?,
+            self.num_classes,
+            self.num_bins,
+        ))
+    }
+
+    /// Apply Multi-Otsu labels to a Coeus-native image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when backend storage is not host-addressable or the
+    /// output image cannot be constructed.
+    pub fn apply_native<B, const D: usize>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        self.apply_native_with_thresholds(image, backend)
+            .map(|(labels, _)| labels)
+    }
+
+    /// Compute thresholds and native labels from one host-slice extraction.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when backend storage is not host-addressable or the
+    /// output image cannot be constructed.
+    pub fn apply_native_with_thresholds<B, const D: usize>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<(ritk_image::native::Image<f32, B, D>, Vec<f32>)>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (thresholds, output) =
+            multi_otsu_labels_from_slice(image.data_slice()?, self.num_classes, self.num_bins);
+        let labels = ritk_image::native::Image::from_flat_on(
+            output,
+            image.shape(),
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )?;
+        Ok((labels, thresholds))
     }
 }
 
@@ -136,12 +216,13 @@ impl Default for MultiOtsuThreshold {
 /// Convenience function: compute K − 1 Multi-Otsu thresholds with 256 bins.
 ///
 /// # Panics
-/// Panics if `num_classes < 2`.
+/// Panics unless `2 <= num_classes <= 256`.
 pub fn multi_otsu_threshold<B: Backend, const D: usize>(
     image: &Image<B, D>,
     num_classes: usize,
 ) -> Vec<f32> {
     assert!(num_classes >= 2, "num_classes must be ≥ 2");
+    assert!(num_classes <= 256, "num_classes must not exceed num_bins");
     compute_multi_otsu_impl(image, num_classes, 256)
 }
 
@@ -152,24 +233,25 @@ pub fn multi_otsu_threshold<B: Backend, const D: usize>(
 /// Zero-copy variant: accepts pre-extracted slice, eliminating `clone().into_data()`.
 ///
 /// # Panics
-/// Panics if `num_classes < 2`.
+/// Panics unless `2 <= num_classes <= num_bins`.
 pub fn compute_multi_otsu_thresholds_from_slice(
     slice: &[f32],
     num_classes: usize,
     num_bins: usize,
 ) -> Vec<f32> {
     assert!(num_classes >= 2, "num_classes must be ≥ 2");
-    let n = slice.len();
+    assert!(num_bins >= 2, "num_bins must be ≥ 2");
+    assert!(
+        num_classes <= num_bins,
+        "num_classes must not exceed num_bins"
+    );
     let k_minus_1 = num_classes - 1;
-    if n == 0 {
+    let Some((x_min, x_max, n)) = finite_bounds(slice) else {
         return vec![0.0_f32; k_minus_1];
-    }
-    let x_min = slice.iter().cloned().fold(f32::INFINITY, f32::min);
-    let x_max = slice.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+    };
     if (x_max - x_min).abs() < f32::EPSILON {
         return vec![x_min; k_minus_1];
     }
-    let range = x_max - x_min;
     // ITK histogram geometry (shared with the single-threshold calculators).
     let bin_width = itk_bin_width(x_min, x_max, num_bins);
     let counts = build_histogram(slice, num_bins, x_min, x_max);
@@ -181,34 +263,34 @@ pub fn compute_multi_otsu_thresholds_from_slice(
         prefix_m[i + 1] = prefix_m[i] + i as f64 * h[i];
     }
     let total_mu = prefix_m[num_bins];
-    if num_bins < num_classes {
-        return (1..num_classes)
-            .map(|k| x_min + k as f32 / num_classes as f32 * range)
-            .collect();
-    }
-    let mut current = Vec::with_capacity(k_minus_1);
-    let mut best: (f64, Vec<usize>) = (f64::NEG_INFINITY, vec![0; k_minus_1]);
-    search_thresholds(
-        ThresholdSearchState {
-            level: 0,
-            k_minus_1,
-            prev: 0,
-            num_bins,
-        },
-        OtsuTables {
-            prefix_h: &prefix_h,
-            prefix_m: &prefix_m,
-            total_mu,
-        },
-        &mut current,
-        &mut best,
-    );
+    let best = optimal_threshold_bins(num_classes, &prefix_h, &prefix_m, total_mu, num_bins);
     // Each boundary bin index t separates classes [.., t−1] | [t, ..]; ITK reports
     // the boundary intensity = left edge of bin t = x_min + t·bin_width.
-    best.1
-        .iter()
+    best.iter()
         .map(|&t| (x_min as f64 + t as f64 * bin_width) as f32)
         .collect()
+}
+
+fn multi_otsu_labels_from_slice(
+    slice: &[f32],
+    num_classes: usize,
+    num_bins: usize,
+) -> (Vec<f32>, Vec<f32>) {
+    let thresholds = compute_multi_otsu_thresholds_from_slice(slice, num_classes, num_bins);
+    let labels = slice
+        .iter()
+        .map(|&value| {
+            if value.is_finite() {
+                thresholds
+                    .iter()
+                    .filter(|&&threshold| value >= threshold)
+                    .count() as f32
+            } else {
+                0.0
+            }
+        })
+        .collect();
+    (thresholds, labels)
 }
 
 /// Delegates to [`compute_multi_otsu_thresholds_from_slice`] after extracting a
@@ -223,90 +305,68 @@ fn compute_multi_otsu_impl<B: Backend, const D: usize>(
     compute_multi_otsu_thresholds_from_slice(slice, num_classes, num_bins)
 }
 
-/// Recursive exhaustive search over all valid K−1 threshold bin combinations.
+/// Compute the exact optimal K-class partition with dynamic programming.
 ///
-/// Recursive traversal state for threshold placement.
-#[derive(Debug, Clone, Copy)]
-struct ThresholdSearchState {
-    /// Current recursion depth (0-based threshold index).
-    level: usize,
-    /// K − 1 (total number of thresholds to place).
-    k_minus_1: usize,
-    /// Last placed threshold bin index (exclusive lower bound for next threshold).
-    prev: usize,
-    /// Total number of histogram bins.
-    num_bins: usize,
-}
-
-/// Precomputed prefix-sum tables for the between-class variance objective.
-#[derive(Debug, Clone, Copy)]
-struct OtsuTables<'a> {
-    /// Cumulative normalised histogram: `prefix_h[i] = Σ_{j=0}^{i} h[j]`.
-    prefix_h: &'a [f64],
-    /// Cumulative intensity-weighted histogram: `prefix_m[i] = Σ_{j=0}^{i} j·h[j]`.
-    prefix_m: &'a [f64],
-    /// Total mean of the distribution.
+/// `score[c][b]` is the maximum additive between-class variance for partitioning
+/// bins `[0, b)` into `c` non-empty contiguous classes:
+///
+/// `score[c][b] = max score[c-1][a] + variance(a, b)` for `c-1 <= a < b`.
+///
+/// Ascending split scans and strict replacement preserve the lexicographically
+/// earliest threshold set when objectives tie.
+fn optimal_threshold_bins(
+    num_classes: usize,
+    prefix_h: &[f64],
+    prefix_m: &[f64],
     total_mu: f64,
+    num_bins: usize,
+) -> Vec<usize> {
+    let row_width = num_bins + 1;
+    let mut score = vec![f64::NEG_INFINITY; (num_classes + 1) * row_width];
+    let mut split = vec![0_usize; (num_classes + 1) * row_width];
+    score[0] = 0.0;
+
+    for classes in 1..=num_classes {
+        for upper in classes..=num_bins {
+            let index = classes * row_width + upper;
+            for lower in (classes - 1)..upper {
+                let previous = score[(classes - 1) * row_width + lower];
+                if !previous.is_finite() {
+                    continue;
+                }
+                let candidate =
+                    previous + class_variance(prefix_h, prefix_m, total_mu, lower, upper);
+                if candidate > score[index] {
+                    score[index] = candidate;
+                    split[index] = lower;
+                }
+            }
+        }
+    }
+
+    let mut thresholds = vec![0_usize; num_classes - 1];
+    let mut upper = num_bins;
+    for classes in (2..=num_classes).rev() {
+        let lower = split[classes * row_width + upper];
+        thresholds[classes - 2] = lower;
+        upper = lower;
+    }
+    thresholds
 }
 
-/// # Validity constraint
-/// At depth `level` (0-based), given `prev` (the most recently placed threshold):
-/// - lo = prev + 1                        (must strictly exceed prior threshold)
-/// - hi_inclusive = N − k_minus_1 + level (must leave ≥ 1 bin per remaining class)
-///
-/// For K = 2 (k_minus_1 = 1), this reduces to a linear scan over [1, N−1].
-fn search_thresholds(
-    state: ThresholdSearchState,
-    tables: OtsuTables<'_>,
-    current: &mut Vec<usize>,
-    best: &mut (f64, Vec<usize>),
-) {
-    let ThresholdSearchState {
-        level,
-        k_minus_1,
-        prev,
-        num_bins,
-    } = state;
-    let lo = prev + 1;
-    // hi_inclusive guarantees each remaining class gets ≥ 1 bin.
-    // Derivation: t + (k_minus_1 − level − 1) ≤ N − 1  →  t ≤ N − k_minus_1 + level.
-    let hi_inclusive = num_bins - k_minus_1 + level;
-
-    if lo > hi_inclusive {
-        return;
+fn class_variance(
+    prefix_h: &[f64],
+    prefix_m: &[f64],
+    total_mu: f64,
+    lower: usize,
+    upper: usize,
+) -> f64 {
+    let probability = prefix_h[upper] - prefix_h[lower];
+    if probability < super::PROB_ZERO_GUARD {
+        return 0.0;
     }
-
-    for t in lo..=hi_inclusive {
-        current.push(t);
-
-        if level == k_minus_1 - 1 {
-            // All K−1 thresholds have been placed; evaluate this combination.
-            let sigma2 = between_class_variance(
-                current,
-                tables.prefix_h,
-                tables.prefix_m,
-                tables.total_mu,
-                num_bins,
-            );
-            if sigma2 > best.0 {
-                best.0 = sigma2;
-                best.1 = current.clone();
-            }
-        } else {
-            search_thresholds(
-                ThresholdSearchState {
-                    level: level + 1,
-                    prev: t,
-                    ..state
-                },
-                tables,
-                current,
-                best,
-            );
-        }
-
-        current.pop();
-    }
+    let mean = (prefix_m[upper] - prefix_m[lower]) / probability;
+    probability * (mean - total_mu) * (mean - total_mu)
 }
 
 /// Compute the total between-class variance for a given set of threshold bin indices.
@@ -323,6 +383,7 @@ fn search_thresholds(
 /// # Equivalence with Otsu for K = 2
 /// For K = 2: P₁·(μ₁−μ_T)² + P₂·(μ₂−μ_T)² = P₁·P₂·(μ₁−μ₂)² (proven by substituting
 /// μ_T = P₁·μ₁ + P₂·μ₂ and simplifying).
+#[cfg(test)]
 fn between_class_variance(
     thresholds: &[usize],
     prefix_h: &[f64],
@@ -347,16 +408,7 @@ fn between_class_variance(
             thresholds[class_idx]
         };
 
-        // P_k = H[b] - H[a]  (sum of h over bins [a, b−1]).
-        let p = prefix_h[b] - prefix_h[a];
-        if p < super::PROB_ZERO_GUARD {
-            // Empty class: contributes zero.
-            continue;
-        }
-
-        // μ_k = (M[b] - M[a]) / P_k.
-        let mu = (prefix_m[b] - prefix_m[a]) / p;
-        sigma2 += p * (mu - total_mu) * (mu - total_mu);
+        sigma2 += class_variance(prefix_h, prefix_m, total_mu, a, b);
     }
 
     sigma2

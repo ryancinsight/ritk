@@ -9,7 +9,7 @@
 //!
 //! # Usage
 //! ```rust,ignore
-//! use ritk_core::filter::surface::{MarchingCubesFilter, Mesh};
+//! use ritk_filter::surface::{MarchingCubesFilter, Mesh};
 //!
 //! let mesh: Mesh = MarchingCubesFilter::new()
 //!     .with_isovalue(0.5)

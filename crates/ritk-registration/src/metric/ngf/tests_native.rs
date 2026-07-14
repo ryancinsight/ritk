@@ -97,10 +97,15 @@ fn native_matches_burn_identity() {
     let shape = [4usize, 5, 6];
     let data = ramp(shape[0], shape[1], shape[2]);
 
-    let burn = NgfFixedPrep::<BB, 3>::new(&burn_image(data.clone(), shape), None, None)
-        .eval(&burn_image(data.clone(), shape), &burn_translation([0.0, 0.0, 0.0]));
+    let burn = NgfFixedPrep::<BB, 3>::new(&burn_image(data.clone(), shape), None, None).eval(
+        &burn_image(data.clone(), shape),
+        &burn_translation([0.0, 0.0, 0.0]),
+    );
     let native = NgfFixedPrepNative::<NB>::new(&native_image(data.clone(), shape), None, None)
-        .eval(&native_image(data, shape), &native_translation([0.0, 0.0, 0.0]));
+        .eval(
+            &native_image(data, shape),
+            &native_translation([0.0, 0.0, 0.0]),
+        );
 
     assert!(burn > 0.0, "self-NGF should be positive, got {burn}");
     assert!(
@@ -162,7 +167,10 @@ fn native_matches_burn_fractional_shift() {
         NgfFixedPrepNative::<NB>::new(&native_image(fixed.clone(), shape), Some(&mask), None)
             .eval(&native_image(moving, shape), &native_translation(t));
 
-    assert!(burn > 0.0, "masked self-ish NGF should be positive, got {burn}");
+    assert!(
+        burn > 0.0,
+        "masked self-ish NGF should be positive, got {burn}"
+    );
     assert!(
         (burn - native).abs() < 1e-4,
         "fractional-shift NGF divergence: burn {burn} vs native {native}"

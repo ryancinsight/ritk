@@ -44,6 +44,15 @@ where
 
     for epoch in 0..num_epochs {
         let start = Instant::now();
+        let fixed = volume(shape, 0);
+        let moving = volume(shape, 1);
+        let (warped, flow, _) = model
+            .forward(&moving, &fixed)
+            .expect("example inputs satisfy the combined model contract");
+        let difference = sub(&fixed, &warped);
+        let similarity = mean(&mul(&difference, &difference));
+        let regularization = gradient_loss(&flow);
+        let loss = add(&similarity, &regularization);
 
         let input = cat(&vec![&moving, &fixed], 1);
         let theta = model.forward(&input);
@@ -68,6 +77,4 @@ where
             epoch, loss_val, duration
         );
     }
-
-    println!("Training finished successfully!");
 }

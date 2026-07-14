@@ -13,12 +13,10 @@
 //! | `mean-surface-distance` | Yes | Symmetric mean surface distance (mm) |
 //! | `noise-estimate` | No | MAD-based Gaussian noise sigma estimate |
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
 use tracing::info;
-
-use super::{read_image, Backend};
 
 mod metrics;
 
@@ -103,23 +101,6 @@ pub fn run(args: StatsArgs) -> Result<()> {
         StatMetric::MeanSurfaceDistance => metrics::run_mean_surface_distance(&args),
         StatMetric::NoiseEstimate => metrics::run_noise_estimate(&args),
     }
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/// Load the reference image from `args.reference`, returning a descriptive
-/// error when the path is absent.
-/// Load the reference image from `args.reference`, returning a descriptive
-/// error when the path is absent. Also returns the reference path for display.
-pub(super) fn require_reference(
-    args: &StatsArgs,
-) -> Result<(ritk_core::image::Image<Backend, 3>, &PathBuf)> {
-    let ref_path = args
-        .reference
-        .as_ref()
-        .ok_or_else(|| anyhow!("--reference is required for the '{}' metric", args.metric))?;
-    let image = read_image(ref_path)?;
-    Ok((image, ref_path))
 }
 
 #[cfg(test)]

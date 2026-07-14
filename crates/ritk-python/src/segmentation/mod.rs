@@ -73,6 +73,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Clustering
     m.add_function(wrap_pyfunction!(kmeans_segment, &m)?)?;
+    m.add_function(wrap_pyfunction!(slic_superpixel, &m)?)?;
 
     // Watershed
     m.add_function(wrap_pyfunction!(watershed_segment, &m)?)?;

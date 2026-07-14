@@ -7,6 +7,7 @@
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
+use coeus_core::ComputeBackend;
 use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
 use ritk_dicom::{
@@ -16,13 +17,6 @@ use ritk_dicom::{
 
 use super::color_common::{read_optional, read_required, required_string, RGB_CHANNELS};
 use super::reader::{self, DicomReadMetadata, DicomSliceMetadata};
-
-/// Atlas-typed sister surface for the DICOM RGB colour-volume loader.
-/// See `atlas_color.rs` for the AD 0012 sub-batch #3.f atomic-boundary
-/// rationale and the per-crate §3 no-Cargo.toml-mutation invariant.
-pub mod atlas_color;
-
-pub use atlas_color::{load_atlas_color_from_series, load_atlas_color_series};
 
 /// Check whether a directory contains a DICOM RGB colour series.
 ///
@@ -132,7 +126,7 @@ pub fn load_color_volume_flat(
     // before any slice is decoded. Cap the speculative reservation and grow
     // the buffer by appending each validated, sequentially-decoded slice
     // instead of pre-sizing and indexing into it.
-    let mut volume = Vec::with_capacity(ritk_core::io_bounds::bounded_capacity(
+    let mut volume = Vec::with_capacity(consus_io::bounded_capacity(
         total_samples,
         std::mem::size_of::<f32>(),
     ));

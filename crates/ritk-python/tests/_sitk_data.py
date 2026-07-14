@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import tempfile
 import urllib.request
 from pathlib import Path
 
@@ -49,14 +50,8 @@ SHA512: dict[str, str] = {
 _CACHE = Path(__file__).resolve().parents[3] / "externals" / "sitk_data"
 
 
-def fetch(name: str) -> str:
-    """Return the local path to test image `name`, downloading + verifying once.
-
-    Skips the test if the object store is unreachable.
-    """
-    if name not in SHA512:
-        raise KeyError(f"unknown SimpleITK test image: {name}")
-    digest = SHA512[name]
+def fetch_sha512(name: str, digest: str) -> str:
+    """Fetch one named SHA-512 object through an atomic shared-cache write."""
     _CACHE.mkdir(parents=True, exist_ok=True)
     out = _CACHE / name
     if out.exists() and hashlib.sha512(out.read_bytes()).hexdigest() == digest:
@@ -66,13 +61,29 @@ def fetch(name: str) -> str:
         try:
             data = urllib.request.urlopen(tmpl.format(digest), timeout=60).read()
             if hashlib.sha512(data).hexdigest() == digest:
-                out.write_bytes(data)
+                descriptor, temporary = tempfile.mkstemp(
+                    dir=_CACHE, prefix=f".{name}.", suffix=".download"
+                )
+                try:
+                    with os.fdopen(descriptor, "wb") as stream:
+                        stream.write(data)
+                    os.replace(temporary, out)
+                finally:
+                    if os.path.exists(temporary):
+                        os.unlink(temporary)
                 return str(out)
             last = "hash mismatch"
         except Exception as exc:  # noqa: BLE001
             last = str(exc)
     pytest.skip(f"could not fetch SimpleITK test data {name}: {last}")
     raise AssertionError("unreachable")  # pragma: no cover
+
+
+def fetch(name: str) -> str:
+    """Return the local path to a curated SimpleITK test image."""
+    if name not in SHA512:
+        raise KeyError(f"unknown SimpleITK test image: {name}")
+    return fetch_sha512(name, SHA512[name])
 
 
 def load_sitk(name: str):

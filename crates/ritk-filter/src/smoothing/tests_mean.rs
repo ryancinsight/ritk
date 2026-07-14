@@ -87,3 +87,32 @@ fn output_shape_matches_input() {
     let out = MeanImageFilter::new(2).apply(&img).unwrap();
     assert_eq!(out.shape(), [3, 4, 5]);
 }
+
+#[test]
+fn native_mean_uses_zero_flux_boundary() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+    use ritk_spatial::Direction;
+
+    let image = NativeImage::from_flat_on(
+        vec![0.0, 0.0, 10.0, 10.0],
+        [1, 1, 4],
+        Point::new([2.0, 3.0, 5.0]),
+        Spacing::new([1.0, 2.0, 4.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = MeanImageFilter::new(1)
+        .apply_native(&image, &SequentialBackend)
+        .expect("native mean succeeds");
+
+    assert_eq!(output.shape(), [1, 1, 4]);
+    let values = output.data_slice().expect("contiguous output");
+    assert!((values[1] - 10.0 / 3.0).abs() <= 1e-6);
+    assert!((values[2] - 20.0 / 3.0).abs() <= 1e-6);
+    assert_eq!(
+        [output.origin()[0], output.origin()[1], output.origin()[2]],
+        [2.0, 3.0, 5.0]
+    );
+}

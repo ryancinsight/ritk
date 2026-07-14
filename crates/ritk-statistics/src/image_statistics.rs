@@ -20,7 +20,6 @@ use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-pub mod atlas_image_statistics;
 pub mod native;
 
 /// Descriptive statistics over image intensities.

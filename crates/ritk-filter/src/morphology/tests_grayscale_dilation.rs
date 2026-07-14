@@ -2,8 +2,11 @@
 //! Extracted to keep the 500-line structural limit.
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = NdArray<f32>;
 
@@ -18,6 +21,37 @@ fn extract_vals(img: &Image<B, 3>) -> Vec<f32> {
         .as_slice::<f32>()
         .unwrap()
         .to_vec()
+}
+
+#[test]
+fn native_dilation_preserves_geometry_and_matches_kernel() {
+    let dimensions = [2, 3, 4];
+    let values: Vec<f32> = (0..24).map(|index| index as f32).collect();
+    let origin = Point::new([2.0, 3.0, 5.0]);
+    let spacing = Spacing::new([0.5, 1.0, 2.0]);
+    let direction = Direction::identity();
+    let image = NativeImage::from_flat_on(
+        values.clone(),
+        dimensions,
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+
+    let output = GrayscaleDilation::new(1)
+        .apply_native(&image, &SequentialBackend)
+        .expect("native grayscale dilation succeeds");
+
+    assert_eq!(output.shape(), dimensions);
+    assert_eq!(*output.origin(), origin);
+    assert_eq!(*output.spacing(), spacing);
+    assert_eq!(*output.direction(), direction);
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        dilate_3d(&values, dimensions, 1)
+    );
 }
 
 /// Dilation of a constant image returns the same constant.

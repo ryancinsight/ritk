@@ -67,6 +67,60 @@ fn constant_pad_origin_updated() {
     assert!((out.origin()[0]).abs() < 1e-10, "origin[0] should be 0");
 }
 
+#[test]
+fn constant_pad_origin_follows_direction_columns() {
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
+    let tensor = Tensor::<B, 3>::from_data(
+        TensorData::new(vec![1.0f32], Shape::new([1, 1, 1])),
+        &device,
+    );
+    let direction = Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]);
+    let image = Image::new(
+        tensor,
+        Point::new([10.0, 20.0, 30.0]),
+        Spacing::new([2.0, 3.0, 5.0]),
+        direction,
+    );
+    let output = ConstantPadImageFilter::new(Padding::new([0, 0, 1]), Padding::zero(), 0.0)
+        .apply(&image)
+        .expect("constant padding succeeds");
+
+    assert_eq!(
+        [output.origin()[0], output.origin()[1], output.origin()[2]],
+        [5.0, 20.0, 30.0]
+    );
+}
+
+#[test]
+fn native_constant_pad_preserves_direction_aware_origin() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+
+    let direction = Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]);
+    let image = NativeImage::from_flat_on(
+        vec![3.0],
+        [1, 1, 1],
+        Point::new([10.0, 20.0, 30.0]),
+        Spacing::new([2.0, 3.0, 5.0]),
+        direction,
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = ConstantPadImageFilter::new(Padding::new([0, 0, 1]), Padding::zero(), -1.0)
+        .apply_native(&image, &SequentialBackend)
+        .expect("native constant padding succeeds");
+
+    assert_eq!(output.shape(), [1, 1, 2]);
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[-1.0, 3.0]
+    );
+    assert_eq!(
+        [output.origin()[0], output.origin()[1], output.origin()[2]],
+        [5.0, 20.0, 30.0]
+    );
+}
+
 // ── MirrorPadImageFilter tests ────────────────────────────────────────────
 
 /// Mirror pad (ITK symmetric, boundary repeated): 1×1×3 = [1,2,3], pad 2 each
@@ -85,6 +139,29 @@ fn mirror_pad_1d() {
     for (i, (&got, exp)) in v.iter().zip(expected).enumerate() {
         assert!((got - exp).abs() < 1e-5, "v[{i}]={got}, expected {exp}");
     }
+}
+
+#[test]
+fn native_mirror_pad_matches_symmetric_extension() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+
+    let image = NativeImage::from_flat_on(
+        vec![1.0, 2.0, 3.0],
+        [1, 1, 3],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = MirrorPadImageFilter::new(Padding::new([0, 0, 2]), Padding::new([0, 0, 2]))
+        .apply_native(&image, &SequentialBackend)
+        .expect("native mirror padding succeeds");
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[2.0, 1.0, 1.0, 2.0, 3.0, 3.0, 2.0]
+    );
 }
 
 /// Mirror index formula for n=1 always returns 0.
@@ -117,6 +194,29 @@ fn wrap_pad_1d() {
     assert!((v[0] - 20.0).abs() < 1e-5, "v[0]={}", v[0]);
     assert!((v[2] - 10.0).abs() < 1e-5, "v[2]={}", v[2]);
     assert!((v[5] - 10.0).abs() < 1e-5, "v[5]={}", v[5]);
+}
+
+#[test]
+fn native_wrap_pad_matches_periodic_extension() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+
+    let image = NativeImage::from_flat_on(
+        vec![10.0, 20.0, 30.0],
+        [1, 1, 3],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = WrapPadImageFilter::new(Padding::new([0, 0, 2]), Padding::new([0, 0, 2]))
+        .apply_native(&image, &SequentialBackend)
+        .expect("native wrap padding succeeds");
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[20.0, 30.0, 10.0, 20.0, 30.0, 10.0, 20.0]
+    );
 }
 
 /// Output shape correct for wrap pad.

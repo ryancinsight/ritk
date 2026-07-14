@@ -1,97 +1,46 @@
 //! ONNX model import for deep learning registration models.
 //!
 //! This module provides ONNX (Open Neural Network Exchange) model import
-//! capabilities for loading pre-trained deep learning registration networks
-//! (TransMorph, VoxelMorph, etc.) into the Burn framework.
+//! capabilities for inspecting pre-trained registration-network documents.
 //!
 //! # Architecture
 //!
-//! The ONNX import pipeline consists of three stages:
+//! The ONNX parsing pipeline consists of two stages:
 //!
-//! 1. **Protobuf Parsing**: Parse ONNX file format (`.onnx`) into an intermediate
-//!    representation (IR) using the `onnx-ir` crate from the Burn ecosystem.
+//! 1. **Protobuf Parsing**: Parse ONNX file format (`.onnx`) into a bounded,
+//!    borrowed document using the format-focused Consus reader.
 //!
-//! 2. **Graph Conversion**: Convert ONNX computation graph to Burn's `Module<B>`
-//!    representation, mapping ONNX operators to Burn tensor operations.
-//!
-//! 3. **Weight Loading**: Extract and initialize tensor weights from ONNX
-//!    initializers into Burn tensor structures.
-//!
-//! # Supported Operators
-//!
-//! Current support focuses on registration-relevant operations:
-//!
-//! - **Convolution**: Conv1D, Conv2D, Conv3D (with padding, stride, dilation)
-//! - **Normalization**: BatchNorm, InstanceNorm, LayerNorm
-//! - **Activation**: ReLU, LeakyReLU, PReLU, Sigmoid, Tanh, ELU
-//! - **Pooling**: MaxPool, AvgPool, GlobalAvgPool
-//! - **Tensor Ops**: Concat, Split, Reshape, Transpose, Permute
-//! - **Arithmetic**: Add, Sub, Mul, Div, MatMul
-//! - **Interpolation**: Upsample, Resize (nearest, linear, trilinear)
-//! - **Transform**: GridSample (spatial transformer networks)
+//! 2. **Graph Validation**: Map public graph metadata into the crate-local IR
+//!    and validate its connectivity.
 //!
 //! # Limitations
 //!
-//! - Dynamic axes are partially supported (batch dimension only)
-//! - Control flow operators (If, Loop) are not supported
-//! - Custom operators require manual registration
-//! - RNN/LSTM operators are not yet supported
+//! This module parses and validates document structure. It does not claim to
+//! compile or execute ONNX operators. Executable models are authored directly
+//! against Coeus so parameter and operator semantics remain explicit.
 //!
 //! # Example
 //!
 //! ```ignore
-//! use ritk_model::onnx::{OnnxImporter, ImportConfig};
-//! use ritk_image::burn::backend::Wgpu;
-//! use burn_ndarray::NdArray;
+//! use ritk_model::onnx::OnnxParser;
 //!
-//! type Backend = Wgpu;
-//! let device = ritk_image::burn::backend::wgpu::WgpuDevice::default();
-//!
-//! // Import ONNX model
-//! let config = ImportConfig::default();
-//! let importer = OnnxImporter::new(config);
-//! let model = importer.import::<Backend>("transmorph_brain.onnx", &device)?;
-//!
-//! // Run inference
-//! let input = Tensor::<Backend, 5>::zeros([1, 2, 64, 64, 64], &device);
-//! let output = model.forward(input);
+//! let parser = OnnxParser::new();
+//! let document = parser.parse("transmorph_brain.onnx")?;
+//! println!("{} nodes", document.graph().nodes.len());
 //! ```
 //!
 //! # References
 //!
 //! - ONNX Specification: <https://github.com/onnx/onnx/blob/main/docs/IR.md>
 //! - ONNX Operator Schemas: <https://github.com/onnx/onnx/blob/main/docs/Operators.md>
-//! - Burn ONNX Import: <https://github.com/tracel-ai/burn-onnx>
 
 pub mod error;
 pub mod graph;
-pub mod importer;
-pub mod ops;
-pub mod tensor;
+pub mod parser;
 
 pub use error::{OnnxError, OnnxResult};
 pub use graph::{OnnxAttribute, OnnxElementType, OnnxGraph, OnnxNode, OnnxTensor, OnnxValue};
-pub use importer::{ImportConfig, OnnxImporter};
-
-use ritk_image::tensor::Backend;
-
-/// Trait for ONNX-imported models.
-///
-/// Models imported from ONNX must implement this trait to provide
-/// a common interface for inference and introspection.
-pub trait OnnxModel<B: Backend> {
-    /// Get the model's input names in order.
-    fn input_names(&self) -> &[String];
-
-    /// Get the model's output names in order.
-    fn output_names(&self) -> &[String];
-
-    /// Get the ONNX opset version used by this model.
-    fn opset_version(&self) -> i64;
-
-    /// Get the producer name (e.g., "pytorch", "tensorflow").
-    fn producer(&self) -> Option<&str>;
-}
+pub use parser::{OnnxDocument, OnnxParser};
 
 /// Metadata extracted from ONNX model file.
 #[derive(Debug, Clone)]

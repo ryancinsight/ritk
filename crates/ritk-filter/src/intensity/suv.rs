@@ -15,8 +15,10 @@
 //! - Spatial metadata (shape, origin, spacing, direction) is preserved exactly.
 //! - Transforms voxels from Bq/mL to unitless SUV.
 
+use crate::native_support::map_flat_image;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
-use ritk_image::Image;
+use ritk_image::{native::Image as NativeImage, Image};
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Convert PET activity concentration (Bq/mL) to SUV Body Weight (SUVbw).
@@ -73,12 +75,33 @@ impl SuvBodyWeightImageFilter {
 
         Ok(rebuild(out_vals, dims, image))
     }
+
+    /// Apply the SUVbw conversion to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &NativeImage<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let factor = self.suv_factor();
+        map_flat_image(image, backend, move |values, _| {
+            values
+                .iter()
+                .map(|&value| (f64::from(value) * factor) as f32)
+                .collect()
+        })
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use burn_ndarray::NdArray;
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
 
@@ -130,5 +153,34 @@ mod tests {
     fn test_suv_zero_dose_safety() {
         let filter = SuvBodyWeightImageFilter::new(75.0, 0.0);
         assert_eq!(filter.suv_factor(), 0.0);
+    }
+
+    #[test]
+    fn native_suv_matches_the_tensor_backed_values_and_metadata() {
+        let filter = SuvBodyWeightImageFilter::new(75.0, 350e6);
+        let values = vec![0.0, 10_000.0, 20_000.0];
+        let legacy = filter
+            .apply(&make_image(values.clone(), [1, 1, 3]))
+            .expect("tensor-backed SUV succeeds");
+        let native = NativeImage::from_flat_on(
+            values,
+            [1, 1, 3],
+            Point::new([1.0, 2.0, 3.0]),
+            Spacing::new([0.5, 1.0, 2.0]),
+            Direction::identity(),
+            &SequentialBackend,
+        )
+        .expect("invariant: valid native image");
+        let output = filter
+            .apply_native(&native, &SequentialBackend)
+            .expect("native SUV succeeds");
+
+        assert_eq!(
+            output.data_slice().expect("invariant: contiguous storage"),
+            voxels(&legacy)
+        );
+        assert_eq!(output.origin(), native.origin());
+        assert_eq!(output.spacing(), native.spacing());
+        assert_eq!(output.direction(), native.direction());
     }
 }

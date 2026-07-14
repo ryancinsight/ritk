@@ -1,104 +1,60 @@
-//! SSMMorph Network Architecture - U-Shaped Registration Network
-//!
-//! Complete end-to-end network combining encoder, bottleneck, and decoder
-//! for deformable medical image registration. Based on VMambaMorph and
-//! MambaBIR architectures using State Space Models.
-//!
-//! # Architecture Overview
-//!
-//! ```text
-//! Input: [fixed, moving] (concatenated, 2 channels)
-//!          │
-//!          ▼
-//!     ┌─────────┐
-//!     │ Encoder │──► Multi-scale features (skip connections)
-//!     └─────────┘         [32, 64, 128, 256] channels
-//!          │
-//!          ▼
-//!     ┌─────────┐
-//!     │Bottleneck│
-//!     └─────────┘
-//!          │
-//!          ▼
-//!     ┌─────────┐
-//!     │ Decoder │◄── Skip connections from encoder
-//!     └─────────┘
-//!          │
-//!          ▼
-//!   ┌──────────────┐
-//!   │   Optional   │
-//!   │ Diffeomorphic│ (velocity field integration)
-//!   │  Integration │
-//!   └──────────────┘
-//!          │
-//!          ▼
-//!   Displacement Field [batch, 3, D, H, W]
-//! ```
-//!
-//! # Key Features
-//!
-//! - **Hierarchical Encoding**: Multi-scale feature extraction with VMamba blocks
-//! - **Skip Connections**: Preserve spatial detail from encoder to decoder
-//! - **Diffeomorphic Option**: Ensures topology-preserving transformations
-//! - **3D Native**: Designed for volumetric medical images
-//!
-//! References:
-//! - "VMambaMorph: Multi-Modality Deformable Image Registration based on VSSM"
-//! - "MambaBIR: Residual Pyramid Network for Brain Image Registration with SSM"
+//! U-shaped VMamba registration network.
 
-use ritk_image::burn::prelude::*;
+use coeus_autograd::{cat, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::Module;
+use coeus_ops::BackendOps;
 
 use crate::ssmmorph::decoder::{SSMMorphDecoder, SSMMorphDecoderConfig};
-use crate::ssmmorph::encoder::{SSMMorphEncoder, SSMMorphEncoderConfig};
+use crate::ssmmorph::encoder::{DropPath, SSMMorphEncoder, SSMMorphEncoderConfig};
+use crate::transmorph::VecInt;
+use crate::ModelError;
 
-use super::integration::{IntegrationConfig, VelocityFieldIntegrator};
-use ritk_image::burn::module::Ignored;
-
-/// Whether the network applies diffeomorphic (topology-preserving) integration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+/// Displacement-field integration policy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum IntegrationMode {
-    /// Direct displacement output without integration (affine-style).
-    Affine,
-    /// Velocity field is integrated to produce a diffeomorphic displacement.
+    /// Return the decoder displacement directly.
+    Direct,
+    /// Integrate the decoder velocity by scaling and squaring.
     #[default]
     Diffeomorphic,
 }
 
-/// Output from SSMMorph forward pass
-#[derive(Debug, Clone)]
-pub struct SSMMorphOutput<B: Backend> {
-    /// Final displacement field [batch, 3, D, H, W]
-    pub displacement: Tensor<B, 5>,
-    /// Multi-scale encoder features for analysis
-    pub encoder_features: Vec<Tensor<B, 5>>,
-    /// Bottleneck features
-    pub bottleneck: Tensor<B, 5>,
+/// SSMMorph forward result.
+#[derive(Clone)]
+pub struct SSMMorphOutput<B>
+where
+    B: Backend + BackendOps<f32>,
+{
+    /// Final `[batch, 3, depth, height, width]` displacement.
+    pub displacement: Var<f32, B>,
+    /// Encoder features in increasing channel order.
+    pub encoder_features: Vec<Var<f32, B>>,
+    /// Lowest-resolution encoder representation.
+    pub bottleneck: Var<f32, B>,
 }
 
-/// Configuration for SSMMorph network
-#[derive(Config, Debug, PartialEq)]
+/// SSMMorph topology and integration configuration.
+#[derive(Debug, Clone, PartialEq)]
 pub struct SSMMorphConfig {
-    /// Encoder configuration
+    /// Encoder configuration.
     pub encoder: SSMMorphEncoderConfig,
-    /// Decoder configuration (auto-derived if None)
+    /// Optional explicit decoder configuration.
     pub decoder: Option<SSMMorphDecoderConfig>,
-    /// Output channels (3 for 3D displacement field)
-    #[config(default = "3")]
+    /// Displacement channel count.
     pub out_channels: usize,
-    /// Integration mode
-    #[config(default = "IntegrationMode::Diffeomorphic")]
+    /// Integration policy.
     pub integration: IntegrationMode,
-    /// Integration steps for diffeomorphic transformation
-    #[config(default = "7")]
+    /// Scaling-and-squaring stage count.
     pub integration_steps: usize,
 }
 
 impl SSMMorphConfig {
-    /// Create configuration for 3D registration
+    /// Standard volumetric registration configuration.
+    #[must_use]
     pub fn for_3d_registration() -> Self {
-        let encoder = SSMMorphEncoderConfig::for_registration();
         Self {
-            encoder,
+            encoder: SSMMorphEncoderConfig::for_registration(),
             decoder: None,
             out_channels: 3,
             integration: IntegrationMode::Diffeomorphic,
@@ -106,11 +62,11 @@ impl SSMMorphConfig {
         }
     }
 
-    /// Create lightweight configuration for faster inference
+    /// Reduced-width inference configuration.
+    #[must_use]
     pub fn lightweight() -> Self {
-        let encoder = SSMMorphEncoderConfig::lightweight();
         Self {
-            encoder,
+            encoder: SSMMorphEncoderConfig::lightweight(),
             decoder: None,
             out_channels: 3,
             integration: IntegrationMode::Diffeomorphic,
@@ -118,11 +74,11 @@ impl SSMMorphConfig {
         }
     }
 
-    /// Create high-quality configuration for research
+    /// Wider research configuration.
+    #[must_use]
     pub fn high_quality() -> Self {
-        let encoder = SSMMorphEncoderConfig::high_quality();
         Self {
-            encoder,
+            encoder: SSMMorphEncoderConfig::high_quality(),
             decoder: None,
             out_channels: 3,
             integration: IntegrationMode::Diffeomorphic,
@@ -130,137 +86,139 @@ impl SSMMorphConfig {
         }
     }
 
-    /// Disable diffeomorphic integration
-    pub fn without_diffeomorphic(mut self) -> Self {
-        self.integration = IntegrationMode::Affine;
+    /// Select direct decoder displacement output.
+    #[must_use]
+    pub const fn without_diffeomorphic(mut self) -> Self {
+        self.integration = IntegrationMode::Direct;
         self
     }
 
-    /// Set custom integration steps
-    pub fn set_integration_steps(mut self, steps: usize) -> Self {
+    /// Set scaling-and-squaring stages.
+    #[must_use]
+    pub const fn set_integration_steps(mut self, steps: usize) -> Self {
         self.integration_steps = steps;
         self
     }
 }
 
-/// SSMMorph Network for deformable image registration
-///
-/// U-shaped network that takes fixed and moving images as input
-/// and outputs a displacement field for registration.
-#[derive(Module, Debug)]
-pub struct SSMMorph<B: Backend> {
-    /// Hierarchical feature encoder
-    pub encoder: SSMMorphEncoder<B>,
-    /// Hierarchical decoder with skip connections
-    pub decoder: SSMMorphDecoder<B>,
-    /// Use diffeomorphic integration
-    integration: Ignored<IntegrationMode>,
-    /// Integration steps
-    integration_steps: Ignored<usize>,
+/// End-to-end VMamba registration model.
+#[derive(Clone)]
+pub struct SSMMorph<B>
+where
+    B: Backend + BackendOps<f32>,
+{
+    encoder: SSMMorphEncoder<B>,
+    decoder: SSMMorphDecoder<B>,
+    integrator: Option<VecInt>,
 }
 
-impl<B: Backend> SSMMorph<B> {
-    /// Create new SSMMorph network
-    pub fn new(config: &SSMMorphConfig, device: &B::Device) -> Self {
-        // Create encoder
-        let encoder = SSMMorphEncoder::new(&config.encoder, device);
-
-        // Derive or use provided decoder config
+impl<B> SSMMorph<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    /// Initialize the registration model.
+    #[must_use]
+    pub fn new(config: &SSMMorphConfig) -> Self {
+        let encoder = SSMMorphEncoder::new(&config.encoder);
         let decoder_config = config.decoder.clone().unwrap_or_else(|| {
             SSMMorphDecoderConfig::from_encoder(encoder.stage_channels(), config.out_channels)
         });
-
-        // Create decoder
-        let decoder = SSMMorphDecoder::new(&decoder_config, encoder.stage_channels(), device);
-
+        let decoder = SSMMorphDecoder::new(&decoder_config, encoder.stage_channels());
         Self {
             encoder,
             decoder,
-            integration: Ignored(config.integration),
-            integration_steps: Ignored(config.integration_steps),
+            integrator: (config.integration == IntegrationMode::Diffeomorphic)
+                .then(|| VecInt::new(config.integration_steps)),
         }
     }
 
-    /// Forward pass through network
-    ///
-    /// # Arguments
-    /// * `fixed` - Fixed/reference image [batch, 1, D, H, W]
-    /// * `moving` - Moving image to register [batch, 1, D, H, W]
-    ///
-    /// # Returns
-    /// * Network output containing displacement field and features
-    pub fn forward(&self, fixed: Tensor<B, 5>, moving: Tensor<B, 5>) -> SSMMorphOutput<B> {
-        // Concatenate along channel dimension
-        let input = Tensor::cat(vec![fixed, moving], 1);
-        self.forward_combined(input)
+    /// Register a moving image to a fixed image.
+    pub fn forward(
+        &self,
+        fixed: &Var<f32, B>,
+        moving: &Var<f32, B>,
+    ) -> Result<SSMMorphOutput<B>, ModelError> {
+        self.forward_combined(&cat(&[fixed, moving], 1))
     }
 
-    /// Forward with pre-concatenated input
-    ///
-    /// Useful when input is already prepared by dataloader.
-    /// Input should be [batch, 2, D, H, W] with fixed and moving concatenated.
-    pub fn forward_combined(&self, input: Tensor<B, 5>) -> SSMMorphOutput<B> {
-        // Encode
-        let (encoder_features, bottleneck) = self.encoder.forward(input);
-
-        // Decode
-        let displacement: Tensor<B, 5> =
-            self.decoder.forward(bottleneck.clone(), &encoder_features);
-
-        // Apply diffeomorphic integration if enabled
-        let displacement = if *self.integration == IntegrationMode::Diffeomorphic {
-            let integrator = VelocityFieldIntegrator::new(
-                IntegrationConfig::with_steps(*self.integration_steps),
-                displacement.device(),
-            );
-            integrator.integrate(displacement)
-        } else {
-            displacement
+    /// Evaluate a pre-concatenated `[fixed, moving]` input.
+    pub fn forward_combined(&self, input: &Var<f32, B>) -> Result<SSMMorphOutput<B>, ModelError> {
+        let encoded = self.encoder.forward(input)?;
+        let velocity = self
+            .decoder
+            .forward(&encoded.bottleneck, &encoded.features)?;
+        let displacement = match &self.integrator {
+            Some(integrator) => integrator.forward(&velocity),
+            None => velocity,
         };
-
-        SSMMorphOutput {
+        Ok(SSMMorphOutput {
             displacement,
-            encoder_features: encoder_features.to_vec(),
-            bottleneck,
-        }
+            encoder_features: encoded.features,
+            bottleneck: encoded.bottleneck,
+        })
     }
 
-    /// Get encoder stage channel dimensions
+    /// Encoder channel widths.
+    #[must_use]
     pub fn encoder_channels(&self) -> &[usize] {
         self.encoder.stage_channels()
     }
 
-    /// Get number of encoder stages
+    /// Encoder stage count.
+    #[must_use]
     pub fn num_stages(&self) -> usize {
-        self.encoder_channels().len()
+        self.encoder.num_stages()
     }
 
-    /// Check if network uses diffeomorphic integration
-    pub fn is_diffeomorphic(&self) -> bool {
-        *self.integration == IntegrationMode::Diffeomorphic
+    /// Whether scaling-and-squaring is active.
+    #[must_use]
+    pub const fn is_diffeomorphic(&self) -> bool {
+        self.integrator.is_some()
     }
 }
 
-/// Preset configurations for common use cases
+impl<B> Module<f32, B> for SSMMorph<B>
+where
+    B: Backend + BackendOps<f32>,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    fn parameters(&self) -> Vec<Var<f32, B>> {
+        let mut parameters = self.encoder.parameters();
+        parameters.extend(self.decoder.parameters());
+        parameters
+    }
+
+    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
+        self.forward_combined(input)
+            .expect("invariant: module input satisfies SSMMorph contract")
+            .displacement
+    }
+
+    fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {
+        let encoder_count = self.encoder.parameters().len();
+        self.encoder.load_parameters(&parameters[..encoder_count]);
+        self.decoder.load_parameters(&parameters[encoder_count..]);
+    }
+
+    fn train(&mut self, mode: bool) {
+        self.encoder.train(mode);
+        self.decoder.train(mode);
+    }
+}
+
+/// Preset configurations.
 pub mod presets {
     use super::*;
 
-    /// Configuration for brain MRI registration (T1/T2-weighted)
-    ///
-    /// Optimized for:
-    /// - 256x256x256 isotropic 1mm volumes
-    /// - Soft tissue contrast
-    /// - High accuracy requirements
+    /// Brain MRI registration.
+    #[must_use]
     pub fn brain_mri() -> SSMMorphConfig {
         SSMMorphConfig::for_3d_registration().set_integration_steps(10)
     }
 
-    /// Configuration for abdominal CT registration
-    ///
-    /// Optimized for:
-    /// - Larger fields of view
-    /// - Variable contrast
-    /// - Organ deformation
+    /// Abdominal CT registration.
+    #[must_use]
     pub fn abdominal_ct() -> SSMMorphConfig {
         SSMMorphConfig {
             encoder: SSMMorphEncoderConfig {
@@ -269,7 +227,7 @@ pub mod presets {
                 channel_mult: 2,
                 num_stages: 5,
                 blocks_per_stage: 2,
-                drop_path: crate::ssmmorph::encoder::config::DropPath::Disabled,
+                drop_path: DropPath::Disabled,
             },
             decoder: None,
             out_channels: 3,
@@ -278,27 +236,20 @@ pub mod presets {
         }
     }
 
-    /// Configuration for cardiac MRI
-    ///
-    /// Optimized for:
-    /// - Temporal sequences
-    /// - Fast inference needs
-    /// - Smaller volumes
+    /// Cardiac MRI registration.
+    #[must_use]
     pub fn cardiac_mri() -> SSMMorphConfig {
         SSMMorphConfig::lightweight().set_integration_steps(5)
     }
 
-    /// Configuration for real-time applications
-    ///
-    /// Fastest configuration with acceptable quality.
-    /// Disables diffeomorphic integration for speed.
+    /// Direct-displacement real-time configuration.
+    #[must_use]
     pub fn realtime() -> SSMMorphConfig {
         SSMMorphConfig::lightweight().without_diffeomorphic()
     }
 
-    /// Configuration for research/high accuracy
-    ///
-    /// Maximum quality at the cost of computation time.
+    /// High-capacity research configuration.
+    #[must_use]
     pub fn research() -> SSMMorphConfig {
         SSMMorphConfig::high_quality()
     }
@@ -307,86 +258,47 @@ pub mod presets {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
-
-    type TestBackend = NdArray<f32>;
-
-    #[test]
-    fn test_ssmmorph_creation() {
-        let device = Default::default();
-        let config = SSMMorphConfig::for_3d_registration();
-        let network = SSMMorph::<TestBackend>::new(&config, &device);
-
-        assert_eq!(network.encoder_channels(), &[32, 64, 128, 256]);
-        assert!(network.is_diffeomorphic());
-    }
+    use coeus_core::MoiraiBackend;
+    use coeus_tensor::Tensor;
 
     #[test]
-    fn test_ssmmorph_forward() {
-        let device = Default::default();
-        let config = SSMMorphConfig::for_3d_registration();
-        let network = SSMMorph::<TestBackend>::new(&config, &device);
+    fn complete_graph_restores_resolution_and_gradients() {
+        let config = SSMMorphConfig {
+            encoder: SSMMorphEncoderConfig {
+                in_channels: 2,
+                base_channels: 2,
+                channel_mult: 2,
+                num_stages: 2,
+                blocks_per_stage: 1,
+                drop_path: DropPath::Disabled,
+            },
+            decoder: None,
+            out_channels: 3,
+            integration: IntegrationMode::Direct,
+            integration_steps: 2,
+        };
+        let model = SSMMorph::<MoiraiBackend>::new(&config);
+        let input = Var::new(
+            Tensor::ones_on([1, 2, 4, 4, 4], &MoiraiBackend::new()),
+            true,
+        );
 
-        // Input images (reduced size for test performance, but depth must be >= 16)
-        let fixed = Tensor::<TestBackend, 5>::zeros([1, 1, 16, 16, 16], &device);
-        let moving = Tensor::<TestBackend, 5>::zeros([1, 1, 16, 16, 16], &device);
+        let output = model
+            .forward_combined(&input)
+            .expect("test volume satisfies the model contract");
 
-        let output = network.forward(fixed, moving);
-
-        // Output displacement field should have 3 channels
-        assert_eq!(output.displacement.dims(), [1, 3, 16, 16, 16]);
-
-        // Should have features from each encoder stage
-        assert_eq!(output.encoder_features.len(), 4);
-    }
-
-    #[test]
-    fn test_ssmmorph_forward_combined() {
-        let device = Default::default();
-        let config = SSMMorphConfig::for_3d_registration();
-        let network = SSMMorph::<TestBackend>::new(&config, &device);
-
-        // Pre-concatenated input (reduced size)
-        let input = Tensor::<TestBackend, 5>::zeros([1, 2, 16, 16, 16], &device);
-        let output = network.forward_combined(input);
-
-        assert_eq!(output.displacement.dims(), [1, 3, 16, 16, 16]);
-    }
-
-    #[test]
-    fn test_ssmmorph_presets() {
-        let device = Default::default();
-
-        // Brain MRI preset
-        let brain_config = presets::brain_mri();
-        let brain_network = SSMMorph::<TestBackend>::new(&brain_config, &device);
-        assert!(brain_network.is_diffeomorphic());
-        assert_eq!(brain_network.encoder_channels().len(), 4);
-
-        // Realtime preset
-        let realtime_config = presets::realtime();
-        let realtime_network = SSMMorph::<TestBackend>::new(&realtime_config, &device);
-        assert!(!realtime_network.is_diffeomorphic());
-
-        // Research preset
-        let research_config = presets::research();
-        let research_network = SSMMorph::<TestBackend>::new(&research_config, &device);
-        assert!(research_network.is_diffeomorphic());
-        assert_eq!(research_network.encoder_channels().len(), 4);
-    }
-
-    #[test]
-    fn test_nondiffeomorphic_mode() {
-        let device = Default::default();
-        let config = SSMMorphConfig::for_3d_registration().without_diffeomorphic();
-        let network = SSMMorph::<TestBackend>::new(&config, &device);
-
-        assert!(!network.is_diffeomorphic());
-
-        let fixed = Tensor::<TestBackend, 5>::zeros([1, 1, 16, 16, 16], &device);
-        let moving = Tensor::<TestBackend, 5>::zeros([1, 1, 16, 16, 16], &device);
-
-        let output = network.forward(fixed, moving);
-        assert_eq!(output.displacement.dims(), [1, 3, 16, 16, 16]);
+        assert_eq!(output.displacement.tensor.shape(), &[1, 3, 4, 4, 4]);
+        assert_eq!(output.encoder_features.len(), 2);
+        assert!(output
+            .displacement
+            .tensor
+            .as_slice()
+            .iter()
+            .all(|&value| value == 0.0));
+        output.displacement.backward();
+        assert!(
+            input.grad().is_some(),
+            "complete model graph must remain connected"
+        );
     }
 }

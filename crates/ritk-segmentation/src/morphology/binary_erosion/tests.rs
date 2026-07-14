@@ -1,25 +1,6 @@
-//! Atlas-side property tests for `super::atlas_binary_erosion::AtlasBinaryErodeFilter`.
-//!
-//! Per `docs/adr/0012-ritk-burn-trait-rebind.md` §Decision §Sub-batch #3.c
-//! (RITK-crate-migrate, per-crate atlas-typed migration queue): this test
-//! module exercises the host-slice atlas path. The legacy `BinaryErosion`
-//! (Burn-keyed) is preserved verbatim per the strict-additive-on-production
-//! invariant; its image-metadata pipeline stays in `super::BinaryErosion::apply`.
-//!
-//! Every test below routes through
-//! `AtlasBinaryErodeFilter::new(r).apply(&flat, &shape)` — no
-//! `burn_ndarray::NdArray`, no `ritk_image::tensor::Backend`, no
-//! `Image<B, D>` round-tripping — so this file exits
-//! `xtask/burn_surface.allowlist` per the sub-batch #3 subtractive invariant.
-//!
-//! Inputs are constructed directly as `Vec<f32>` shape-annotated buffers —
-//! the natural substrate for atlas-side callers using
-//! `AtlasImage<f32, MoiraiBackend, 3>` rasterized over `coeus_tensor::Tensor`.
-//! Outputs are exactly `Vec<f32>` of length
-//! `shape.iter().product::<usize>()` (length-preservation invariant on the
-//! underlying `super::erode_nd`).
+//! Algebraic and known-value tests for the canonical host-slice erosion kernel.
 
-use super::atlas_binary_erosion::AtlasBinaryErodeFilter;
+use super::erode;
 
 /// Helper — count voxels with value strictly above the foreground threshold.
 /// Threshold re-asserted here since the legacy constant is `pub(crate)`.
@@ -37,7 +18,7 @@ fn test_radius0_is_identity_volumetric() {
         .map(|i| if i % 2 == 0 { 1.0 } else { 0.0 })
         .collect();
     let shape = [3usize, 3, 3];
-    let result = AtlasBinaryErodeFilter::new(0).apply(&data, &shape);
+    let result = erode(&data, &shape, 0);
     assert_eq!(result, data, "radius=0 erosion must be identity");
 }
 
@@ -45,7 +26,7 @@ fn test_radius0_is_identity_volumetric() {
 fn test_radius0_is_identity_line() {
     let data = vec![1.0, 0.0, 1.0, 1.0, 0.0];
     let shape = [data.len()];
-    let result = AtlasBinaryErodeFilter::new(0).apply(&data, &shape);
+    let result = erode(&data, &shape, 0);
     assert_eq!(result, data, "radius=0 erosion must be identity");
 }
 
@@ -58,7 +39,7 @@ fn test_all_fg_5x5x5_erosion_r1_keeps_all() {
     // 125 voxels survive.
     let flat = vec![1.0_f32; 125];
     let shape = [5usize, 5, 5];
-    let result = AtlasBinaryErodeFilter::new(1).apply(&flat, &shape);
+    let result = erode(&flat, &shape, 1);
     assert_eq!(
         count_fg(&result),
         125,
@@ -71,7 +52,7 @@ fn test_all_fg_7x7x7_erosion_r2_keeps_all() {
     // 7×7×7 all-fg, r=2: OOB = foreground, so nothing erodes; all 343 survive.
     let flat = vec![1.0_f32; 343];
     let shape = [7usize, 7, 7];
-    let result = AtlasBinaryErodeFilter::new(2).apply(&flat, &shape);
+    let result = erode(&flat, &shape, 2);
     assert_eq!(
         count_fg(&result),
         343,
@@ -93,7 +74,7 @@ fn test_z1_square_erodes_in_plane_not_to_zero() {
         }
     }
     let shape = [1usize, 7, 7];
-    let result = AtlasBinaryErodeFilter::new(1).apply(&values, &shape);
+    let result = erode(&values, &shape, 1);
     assert_eq!(
         count_fg(&result),
         9,
@@ -119,7 +100,7 @@ fn test_single_voxel_eroded_to_empty() {
     let mut values = vec![0.0_f32; 27];
     values[13] = 1.0; // center (1, 1, 1)
     let shape = [3usize, 3, 3];
-    let result = AtlasBinaryErodeFilter::new(1).apply(&values, &shape);
+    let result = erode(&values, &shape, 1);
     assert_eq!(
         count_fg(&result),
         0,
@@ -135,7 +116,7 @@ fn test_erosion_is_anti_extensive() {
         .map(|i| if i % 3 == 0 { 1.0 } else { 0.0 })
         .collect();
     let shape = [3usize, 3, 3];
-    let result = AtlasBinaryErodeFilter::new(1).apply(&values, &shape);
+    let result = erode(&values, &shape, 1);
     for (i, (&orig, &out)) in values.iter().zip(result.iter()).enumerate() {
         if out > 0.5 {
             assert!(
@@ -153,7 +134,7 @@ fn test_erosion_is_anti_extensive() {
 fn test_all_background_stays_empty() {
     let flat = vec![0.0_f32; 27];
     let shape = [3usize, 3, 3];
-    let result = AtlasBinaryErodeFilter::new(1).apply(&flat, &shape);
+    let result = erode(&flat, &shape, 1);
     assert_eq!(
         count_fg(&result),
         0,
@@ -175,7 +156,7 @@ fn test_1d_erosion_r1_known_output() {
     // Expected: [0, 0, 1, 1, 1, 0, 0]
     let data = vec![0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0];
     let shape = [data.len()];
-    let result = AtlasBinaryErodeFilter::new(1).apply(&data, &shape);
+    let result = erode(&data, &shape, 1);
     let expected = vec![0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0];
     assert_eq!(result, expected, "1D r=1 erosion output mismatch");
 }
@@ -186,7 +167,7 @@ fn test_1d_all_foreground_erosion_r1() {
     // survives and the line erodes to itself.
     let flat = vec![1.0_f32; 5];
     let shape = [flat.len()];
-    let result = AtlasBinaryErodeFilter::new(1).apply(&flat, &shape);
+    let result = erode(&flat, &shape, 1);
     assert_eq!(result, vec![1.0, 1.0, 1.0, 1.0, 1.0]);
 }
 
@@ -197,7 +178,7 @@ fn test_1d_single_voxel_image_survives() {
     // whole-image-foreground case, matching ITK.
     let flat = vec![1.0_f32; 1];
     let shape = [flat.len()];
-    let result = AtlasBinaryErodeFilter::new(1).apply(&flat, &shape);
+    let result = erode(&flat, &shape, 1);
     assert_eq!(result, vec![1.0]);
 }
 
@@ -209,7 +190,7 @@ fn test_output_strictly_binary_volumetric() {
         .map(|i| if i % 2 == 0 { 1.0 } else { 0.0 })
         .collect();
     let shape = [3usize, 3, 3];
-    let result = AtlasBinaryErodeFilter::new(1).apply(&values, &shape);
+    let result = erode(&values, &shape, 1);
     for &v in result.iter() {
         assert!(
             v == 0.0 || v == 1.0,
@@ -221,7 +202,7 @@ fn test_output_strictly_binary_volumetric() {
 // ── Atlas-side row-major raster-shape preservation ───────────────────────
 
 #[test]
-fn test_atlas_shape_preserves_voxel_count() {
+fn test_shape_preserves_voxel_count() {
     // The atlas twin operates on raw slices; the only spatial invariant it can
     // consume and produce is raster shape (length, and per-axis extents via the
     // input `shape` slice). Verify the
@@ -232,7 +213,7 @@ fn test_atlas_shape_preserves_voxel_count() {
         .map(|i| if i % 3 == 0 { 1.0 } else { 0.0 })
         .collect();
     let shape = [3usize, 3, 3];
-    let result = AtlasBinaryErodeFilter::new(1).apply(&flat, &shape);
+    let result = erode(&flat, &shape, 1);
     assert_eq!(
         result.len(),
         flat.len(),
@@ -253,8 +234,8 @@ fn test_double_erosion_subset_of_single_erosion() {
     // E(E(M)) ⊆ E(M) for any mask M (monotone).
     let flat = vec![1.0_f32; 125];
     let shape = [5usize, 5, 5];
-    let once = AtlasBinaryErodeFilter::new(1).apply(&flat, &shape);
-    let twice = AtlasBinaryErodeFilter::new(1).apply(&once, &shape);
+    let once = erode(&flat, &shape, 1);
+    let twice = erode(&once, &shape, 1);
 
     for (i, (&once_v, &twice_v)) in once.iter().zip(twice.iter()).enumerate() {
         if twice_v > 0.5 {

@@ -102,7 +102,7 @@ where
     let (img, _) = tensor_ops::extract_image_slice(image)?;
     let (rf, _) = tensor_ops::extract_image_slice(reference)?;
     ensure_same_len(img.len(), rf.len(), "ssim")?;
-    Ok(ssim_from_slices(img, rf, max_val))
+    Ok(ssim_from_slices(img, rf, max_val)?)
 }
 
 /// Symmetric Hausdorff distance between two Coeus-backed binary masks.

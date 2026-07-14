@@ -3,11 +3,14 @@
 //! `ColorVolume<B, C>` stores C interleaved samples per voxel in a rank-4
 //! tensor with shape `[depth, rows, cols, C]`. Spatial metadata remains 3-D.
 
-use anyhow::{bail, Result};
 use crate::tensor::backend::Backend;
 use crate::tensor::{Shape, Tensor, TensorData};
+use anyhow::{bail, Result};
 
 use ritk_spatial::{Direction, Point, Spacing};
+
+/// Coeus-backed color volumes with a non-spatial component axis.
+pub mod native;
 
 /// 3-D multi-component image volume.
 ///
@@ -191,8 +194,8 @@ impl<B: Backend, const C: usize> ColorVolume<B, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
     use crate::tensor::{Shape, TensorData};
+    use burn_ndarray::NdArray;
 
     type B = NdArray<f32>;
 

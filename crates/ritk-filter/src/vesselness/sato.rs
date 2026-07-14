@@ -40,6 +40,7 @@
 use super::hessian::symmetric_3x3_eigenvalues;
 use super::VesselPolarity;
 use crate::recursive_gaussian::compute_hessian_iir;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};

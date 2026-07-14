@@ -18,14 +18,17 @@ fn test_transmorph_forward() {
         out_channels: 3,
         window_size: 4,
         integration: TransformIntegration::Direct,
-        integration_steps: 7,
+        integration_steps: 4,
     };
     let model: TransMorph<Backend> = config.init();
 
     let shape = [1usize, 1, 32, 32, 32];
     let n: usize = shape.iter().product();
     let data: Vec<f32> = (0..n).map(|i| ((i % 13) as f32) / 13.0 - 0.5).collect();
-    let input = Var::new(Tensor::from_slice_on(shape, &data, &SequentialBackend), false);
+    let input = Var::new(
+        Tensor::from_slice_on(shape, &data, &SequentialBackend),
+        false,
+    );
 
     let output = model.forward(&input);
 

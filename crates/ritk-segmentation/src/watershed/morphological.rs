@@ -23,13 +23,12 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 use super::MarkerControlledWatershed;
-use crate::labeling::{connected_components, Connectivity};
+use crate::labeling::{connected_components, ConnectedComponentsFilter, Connectivity};
 
 /// Marker-less morphological watershed (`itk::MorphologicalWatershedImageFilter`).
 #[derive(Debug, Clone, Copy)]
 pub struct MorphologicalWatershed {
-    /// Depth below which shallow minima are merged (h-minima level). ITK default `0`.
-    pub level: f32,
+    level: f32,
 }
 
 impl Default for MorphologicalWatershed {
@@ -40,8 +39,21 @@ impl Default for MorphologicalWatershed {
 
 impl MorphologicalWatershed {
     /// Construct with the given flooding level.
-    pub fn new(level: f32) -> Self {
-        Self { level }
+    ///
+    /// # Errors
+    ///
+    /// Returns an error unless `level` is finite and nonnegative.
+    pub fn new(level: f32) -> anyhow::Result<Self> {
+        anyhow::ensure!(
+            level.is_finite() && level >= 0.0,
+            "morphological watershed level must be finite and nonnegative, got {level}"
+        );
+        Ok(Self { level })
+    }
+
+    /// Return the h-minima suppression level.
+    pub fn level(&self) -> f32 {
+        self.level
     }
 
     /// Segment the relief `image` into watershed basins from its regional minima.
@@ -59,6 +71,38 @@ impl MorphologicalWatershed {
         let (markers, _) = connected_components(&minima, Connectivity::Six);
         // Flood the original relief from those markers.
         MarkerControlledWatershed::new().apply(image, &markers)
+    }
+
+    /// Segment a Coeus-native relief image from its regional minima.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for invalid relief/storage, a failed native
+    /// intermediate, or marker-controlled flooding failure.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let suppressed = if self.level > 0.0 {
+            Some(HMinimaFilter::new(self.level).apply_native(image, backend)?)
+        } else {
+            None
+        };
+        let base = match &suppressed {
+            Some(filtered) => filtered,
+            None => image,
+        };
+        let minima = RegionalMinimaFilter::new()
+            .with_values(1.0, 0.0)
+            .apply_native(base, backend)?;
+        let (markers, _) = ConnectedComponentsFilter::with_connectivity(Connectivity::Six)
+            .apply_native(&minima, backend)?;
+        MarkerControlledWatershed::new().apply_native(image, &markers, backend)
     }
 }
 

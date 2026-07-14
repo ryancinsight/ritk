@@ -19,8 +19,8 @@
 //!   values; the two mean-squared reductions agree to the index↔world `f32`
 //!   round-trip, tol 1e-4 over an O(1) MSE magnitude).
 
-use super::super::MeanSquaredError;
 use super::super::super::trait_::Metric;
+use super::super::MeanSquaredError;
 use super::mse_value_native;
 
 use burn_ndarray::NdArray;
@@ -117,7 +117,10 @@ fn native_matches_burn_identity() {
         &native_translation([0.0, 0.0, 0.0]),
     );
 
-    assert!(burn > 0.0, "reversed-image MSE should be positive, got {burn}");
+    assert!(
+        burn > 0.0,
+        "reversed-image MSE should be positive, got {burn}"
+    );
     assert!(
         (burn - native).abs() < 1e-4,
         "identity MSE divergence: burn {burn} vs native {native}"

@@ -6,12 +6,15 @@ use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 
+mod cached_dispatch;
 mod masked_chunked;
 
 #[cfg(feature = "direct-parzen")]
 use super::cache::SparseWFixedCache;
 #[cfg(feature = "direct-parzen")]
 use super::parzen::direct::SparseWFixedT;
+#[cfg(feature = "direct-parzen")]
+use std::sync::Arc;
 
 /// Helper: read the dense W_fixed^T from the masked cache if the key matches.
 ///
@@ -32,7 +35,8 @@ fn get_masked_cached_w_fixed_t<B: Backend>(
 
 /// Helper: read or lazily build the sparse W_fixed^T from the masked cache.
 ///
-/// If the sparse cache already exists, returns a clone. Otherwise, if the
+/// If the sparse cache already exists, returns a shared-ownership clone.
+/// Otherwise, if the
 /// cache contains `fixed_norm` (the normalized fixed-image values), builds
 /// the sparse cache from it, stores it in the cache for future use, and
 /// returns it. This lazy construction reduces peak memory.
@@ -43,7 +47,7 @@ fn get_masked_cached_sparse_w_fixed<B: Backend>(
     n: usize,
     num_bins: usize,
     sigma_sq_fix: f32,
-) -> Option<SparseWFixedT> {
+) -> Option<Arc<SparseWFixedT>> {
     if B::ad_enabled() {
         return None;
     }
@@ -98,10 +102,6 @@ impl<B: Backend> ParzenJointHistogram<B> {
         if n <= ritk_wgpu_compat::WGPU_CHUNK_SIZE {
             // ── Non-chunked path ──────────────────────────────────────────────
 
-            // Convert fixed world coords → fixed voxel indices, then sample.
-            let fixed_voxel_indices = fixed.world_to_index_tensor(fixed_world_points.clone());
-            let fixed_values = interpolator.interpolate(fixed.data(), fixed_voxel_indices);
-
             // Apply transform to get moving world coords, then sample moving image.
             let (moving_values, oob_mask): (Tensor<B, 1>, Option<Tensor<B, 1>>) = {
                 let moving_world_points = transform.transform_points(fixed_world_points.clone());
@@ -118,42 +118,29 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 (values, oob)
             };
 
-            // Attempt to use cached W_fixed^T for the fixed-image Parzen weights.
+            // Attempt to use cached W_fixed^T before sampling the fixed image.
+            // On an optimizer cache hit, only the moving image depends on the
+            // candidate transform; repeating fixed interpolation is redundant.
+            let cached_w_fixed_t = cache_key.and_then(|key| {
+                self.masked_cache
+                    .with_ref(|cache| get_masked_cached_w_fixed_t(cache, key, n))
+                    .map(|cached| (key, cached))
+            });
+            if let Some((key, w_fixed_t)) = cached_w_fixed_t {
+                return self.compute_masked_from_cache(
+                    key,
+                    n,
+                    &w_fixed_t,
+                    &moving_values,
+                    oob_mask.as_ref(),
+                );
+            }
+
+            // A miss or uncached call requires fixed-image sampling.
+            let fixed_voxel_indices = fixed.world_to_index_tensor(fixed_world_points.clone());
+            let fixed_values = interpolator.interpolate(fixed.data(), fixed_voxel_indices);
+
             if let Some(key) = cache_key {
-                let cached_w_fixed_t = self
-                    .masked_cache
-                    .with_ref(|cache| get_masked_cached_w_fixed_t(cache, key, n));
-
-                if let Some(w_fixed_t) = cached_w_fixed_t {
-                    // Cache hit — use the cached dense W_fixed^T.
-                    #[cfg(feature = "direct-parzen")]
-                    {
-                        // Also try sparse cache for derivative-free backends.
-                        let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq();
-                        let cached_sparse = self.masked_cache.with_mut(|cache| {
-                            get_masked_cached_sparse_w_fixed(
-                                cache,
-                                key,
-                                n,
-                                self.num_bins,
-                                sigma_sq_fix,
-                            )
-                        });
-                        if let Some(sparse) = cached_sparse {
-                            return self.compute_joint_histogram_from_cache_sparse_dispatch(
-                                &sparse,
-                                &moving_values,
-                                oob_mask.as_ref(),
-                            );
-                        }
-                    }
-                    return self.compute_joint_histogram_from_cache_dispatch(
-                        &w_fixed_t,
-                        &moving_values,
-                        oob_mask.as_ref(),
-                    );
-                }
-
                 // Cache miss — compute W_fixed^T and store in cache.
                 let w_fixed_transposed = self.compute_w_fixed_transposed(&fixed_values, n);
 
@@ -173,21 +160,9 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 let new_cache =
                     super::cache::make_masked_cache(key, w_fixed_transposed.clone(), n, fixed_norm);
                 self.masked_cache.with_mut(|cache| *cache = Some(new_cache));
-                #[cfg(feature = "direct-parzen")]
-                {
-                    let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq();
-                    let cached_sparse = self.masked_cache.with_mut(|cache| {
-                        get_masked_cached_sparse_w_fixed(cache, key, n, self.num_bins, sigma_sq_fix)
-                    });
-                    if let Some(sparse) = cached_sparse {
-                        return self.compute_joint_histogram_from_cache_sparse_dispatch(
-                            &sparse,
-                            &moving_values,
-                            oob_mask.as_ref(),
-                        );
-                    }
-                }
-                return self.compute_joint_histogram_from_cache_dispatch(
+                return self.compute_masked_from_cache(
+                    key,
+                    n,
                     &w_fixed_transposed,
                     &moving_values,
                     oob_mask.as_ref(),
@@ -208,30 +183,9 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
                 if let Some(full_w_fixed_t) = cached_w_fixed_t {
                     // Cache hit — slice the cached W_fixed^T per chunk.
-                    #[cfg(feature = "direct-parzen")]
-                    {
-                        let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq();
-                        let cached_sparse = self.masked_cache.with_mut(|cache| {
-                            get_masked_cached_sparse_w_fixed(
-                                cache,
-                                key,
-                                n,
-                                self.num_bins,
-                                sigma_sq_fix,
-                            )
-                        });
-                        if let Some(sparse) = cached_sparse {
-                            return self.compute_masked_chunked_from_sparse_cache(
-                                &sparse,
-                                fixed,
-                                fixed_world_points,
-                                moving,
-                                transform,
-                                interpolator,
-                            );
-                        }
-                    }
-                    return self.compute_masked_chunked_from_dense_cache(
+                    return self.compute_masked_chunked_from_cache(
+                        key,
+                        n,
                         &full_w_fixed_t,
                         fixed,
                         fixed_world_points,
@@ -262,24 +216,9 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 let new_cache =
                     super::cache::make_masked_cache(key, w_fixed_transposed.clone(), n, fixed_norm);
                 self.masked_cache.with_mut(|cache| *cache = Some(new_cache));
-                #[cfg(feature = "direct-parzen")]
-                {
-                    let sigma_sq_fix = self.fixed_sigma_cfg().sigma_sq();
-                    let cached_sparse = self.masked_cache.with_mut(|cache| {
-                        get_masked_cached_sparse_w_fixed(cache, key, n, self.num_bins, sigma_sq_fix)
-                    });
-                    if let Some(sparse) = cached_sparse {
-                        return self.compute_masked_chunked_from_sparse_cache(
-                            &sparse,
-                            fixed,
-                            fixed_world_points,
-                            moving,
-                            transform,
-                            interpolator,
-                        );
-                    }
-                }
-                return self.compute_masked_chunked_from_dense_cache(
+                return self.compute_masked_chunked_from_cache(
+                    key,
+                    n,
                     &w_fixed_transposed,
                     fixed,
                     fixed_world_points,

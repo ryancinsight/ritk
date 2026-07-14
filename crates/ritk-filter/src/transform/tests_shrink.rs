@@ -68,6 +68,41 @@ fn tile_mean_odd_size_ceil_division() {
     assert!((v[2] - 4.0).abs() < 1e-5, "v[2]={}", v[2]); // only 4
 }
 
+#[test]
+fn native_tile_mean_preserves_origin_and_scales_spacing() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+    use ritk_spatial::{Direction, Point};
+
+    let image = NativeImage::from_flat_on(
+        vec![0.0, 2.0, 4.0, 6.0],
+        [1, 1, 4],
+        Point::new([5.0, 7.0, 11.0]),
+        Spacing::new([1.0, 2.0, 3.0]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = TileMeanShrinkFilter::new([1, 1, 2])
+        .apply_native(&image, &SequentialBackend)
+        .expect("native tile mean succeeds");
+
+    assert_eq!(output.shape(), [1, 1, 2]);
+    assert_eq!(output.data_slice().expect("contiguous output"), &[1.0, 5.0]);
+    assert_eq!(
+        [output.origin()[0], output.origin()[1], output.origin()[2]],
+        [5.0, 7.0, 11.0]
+    );
+    assert_eq!(
+        [
+            output.spacing()[0],
+            output.spacing()[1],
+            output.spacing()[2]
+        ],
+        [1.0, 2.0, 6.0]
+    );
+}
+
 // ── ShrinkImageFilter (ITK subsampling) ──────────────────────────────────────
 
 /// Factor [1,1,1] → identity.

@@ -1,50 +1,9 @@
-//! Atlas-typed cache property tests (sub-batch #3.b of atlas-meta Batch #3, per
-//! `atlas/docs/adr/0012-ritk-burn-trait-rebind.md`).
-//!
-//! # Sub-batch #3.b atomic-boundary invariant (per ADR 0012 §Decision §1 + §atomic-boundary discipline §2)
-//!
-//! - **Strictly subtractive on test surface**: drops
-//!   `burn_ndarray::NdArray`, `ritk_image::tensor::Backend`,
-//!   `ritk_image::tensor::Tensor`, `ParzenJointHistogram<B: Backend>`, and the
-//!   `B: Backend` dispatch wrapper layer from this test module. Drops one
-//!   source-row from `xtask/burn_surface.allowlist`. The legacy
-//!   `direct::build_sparse_w_fixed_transposed` and
-//!   `direct::compute_joint_histogram_direct` symbols are accessed through
-//!   `atlas_parzen_cache::*` as `build_atlas_sparse_w_fixed_transposed` /
-//!   `compute_atlas_joint_histogram_direct` re-export aliases (function
-//!   re-exports respect the `pub(in crate::metric::histogram)` visibility
-//!   markers). The leaf direct-path CPU algorithms themselves are untouched.
-//! - **Strictly additive on production surface**: the companion
-//!   `atlas_parzen_cache.rs` sibling module provides the Atlas-prefixed
-//!   function re-exports plus `atlas_normalize_intensities` (host-slice
-//!   normalisation helper operating on `&[f32]`). The type symbol
-//!   `ParzenConfig` (defined as `pub(crate)` in `direct::ParzenConfig`)
-//!   is consumed through the crate-local path
-//!   `crate::metric::histogram::parzen::direct::ParzenConfig` instead of
-//!   being elevated through `pub use as AtlasParzenConfig;` (Rust rejects
-//!   visibility-elevation of `pub(crate)` items via `pub use as Alias`).
-//! - **Cargo.toml**: zero changes this sub-batch (no deletion/rename/feature
-//!   flag change).
-//!
-//! # Test bodies
-//!
-//! T1 (`sparse_w_fixed_deterministic`): the call to
-//! `build_atlas_sparse_w_fixed_transposed` is invoked twice with identical
-//! inputs, and the two cache results must match entry-for-entry (sample index,
-//! bin, weight, inv_sum_f).
-//!
-//! T2 (`histogram_non_negative_all_entries`): the joint histogram flat vector
-//! returned by `compute_atlas_joint_histogram_direct` must contain only
-//! non-negative entries (Parzen weights are `exp(...)`, always `>= 0`).
-//!
-//! T3 (`histogram_marginals_sum_correctly`): fixed-axis marginal-sum must
-//! equal moving-axis marginal-sum; both per-axis entries must be non-negative.
+//! Host-native Parzen cache properties.
 
-use crate::metric::histogram::parzen::atlas_parzen_cache::{
-    atlas_normalize_intensities, build_atlas_sparse_w_fixed_transposed,
-    compute_atlas_joint_histogram_direct,
+use crate::metric::histogram::parzen::direct::{
+    build_sparse_w_fixed_transposed, compute_joint_histogram_values, normalize_intensities,
+    ParzenConfig,
 };
-use crate::metric::histogram::parzen::direct::ParzenConfig;
 
 /// T1: Determinism of sparse W_fixed^T cache construction under repeat calls.
 #[cfg(feature = "direct-parzen")]
@@ -56,10 +15,10 @@ fn sparse_w_fixed_deterministic() {
 
     let n = 500;
     let fixed: Vec<f32> = (0..n).map(|i| (i as f32 * 0.51) % 255.0).collect();
-    let fixed_norm = atlas_normalize_intensities(&fixed, 0.0, 255.0, num_bins);
+    let fixed_norm = normalize_intensities(&fixed, 0.0, 255.0, num_bins);
 
-    let sparse1 = build_atlas_sparse_w_fixed_transposed(&fixed_norm, num_bins, sigma_sq_fix, None);
-    let sparse2 = build_atlas_sparse_w_fixed_transposed(&fixed_norm, num_bins, sigma_sq_fix, None);
+    let sparse1 = build_sparse_w_fixed_transposed(&fixed_norm, num_bins, sigma_sq_fix, None);
+    let sparse2 = build_sparse_w_fixed_transposed(&fixed_norm, num_bins, sigma_sq_fix, None);
 
     assert_eq!(
         sparse1.len(),
@@ -94,10 +53,10 @@ fn histogram_non_negative_all_entries() {
     let n = 200;
     let fixed: Vec<f32> = (0..n).map(|i| (i as f32 * 1.27 + 3.0) % 255.0).collect();
     let moving: Vec<f32> = (0..n).map(|i| (i as f32 * 0.83 + 7.0) % 255.0).collect();
-    let fixed_norm = atlas_normalize_intensities(&fixed, 0.0, 255.0, num_bins);
-    let moving_norm = atlas_normalize_intensities(&moving, 0.0, 255.0, num_bins);
+    let fixed_norm = normalize_intensities(&fixed, 0.0, 255.0, num_bins);
+    let moving_norm = normalize_intensities(&moving, 0.0, 255.0, num_bins);
 
-    let h = compute_atlas_joint_histogram_direct(
+    let h = compute_joint_histogram_values(
         &fixed_norm,
         &moving_norm,
         num_bins,
@@ -122,10 +81,10 @@ fn histogram_marginals_sum_correctly() {
 
     let fixed: Vec<f32> = vec![50.0, 128.0, 200.0, 30.0, 175.0, 80.0, 210.0, 40.0];
     let moving: Vec<f32> = vec![60.0, 130.0, 195.0, 25.0, 180.0, 90.0, 215.0, 35.0];
-    let fixed_norm = atlas_normalize_intensities(&fixed, 0.0, 255.0, num_bins);
-    let moving_norm = atlas_normalize_intensities(&moving, 0.0, 255.0, num_bins);
+    let fixed_norm = normalize_intensities(&fixed, 0.0, 255.0, num_bins);
+    let moving_norm = normalize_intensities(&moving, 0.0, 255.0, num_bins);
 
-    let h = compute_atlas_joint_histogram_direct(
+    let h = compute_joint_histogram_values(
         &fixed_norm,
         &moving_norm,
         num_bins,

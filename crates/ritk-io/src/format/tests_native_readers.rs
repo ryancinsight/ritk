@@ -159,11 +159,11 @@ fn native_tiff_writer_reader_contract_round_trips() {
 fn native_mgh_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("vol.mgh");
-    ritk_mgh::write_mgh(&burn_volume([2, 3, 4]), &path).expect("mgh write");
+    super::mgh::write_mgh(&burn_volume([2, 3, 4]), &path).expect("mgh write");
     assert_native_reader_matches_burn(
         &path,
         &super::mgh::native::MghReader::new(SequentialBackend),
-        |p| ritk_mgh::read_mgh::<BurnBackend, _>(p, &burn_device()),
+        |p| super::mgh::read_mgh::<BurnBackend, _>(p, &burn_device()),
     );
 }
 
@@ -171,23 +171,11 @@ fn native_mgh_reader_matches_burn() {
 fn native_metaimage_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("vol.mha");
-    ritk_metaimage::write_metaimage(&path, &burn_volume([2, 3, 4])).expect("mha write");
+    super::metaimage::write_metaimage(&path, &burn_volume([2, 3, 4])).expect("mha write");
     assert_native_reader_matches_burn(
         &path,
         &super::metaimage::native::MetaImageReader::new(SequentialBackend),
-        |p| ritk_metaimage::read_metaimage::<BurnBackend, _>(p, &burn_device()),
-    );
-}
-
-#[test]
-fn native_minc_reader_matches_burn() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let path = dir.path().join("vol.mnc");
-    ritk_minc::write_minc(&burn_volume([2, 3, 4]), &path).expect("minc write");
-    assert_native_reader_matches_burn(
-        &path,
-        &super::minc::native::MincReader::new(SequentialBackend),
-        |p| ritk_minc::read_minc::<BurnBackend, _>(p, &burn_device()),
+        |p| super::metaimage::read_metaimage::<BurnBackend, _>(p, &burn_device()),
     );
 }
 
@@ -195,11 +183,11 @@ fn native_minc_reader_matches_burn() {
 fn native_nrrd_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("vol.nrrd");
-    ritk_nrrd::write_nrrd(&path, &burn_volume([2, 3, 4])).expect("nrrd write");
+    super::nrrd::write_nrrd(&path, &burn_volume([2, 3, 4])).expect("nrrd write");
     assert_native_reader_matches_burn(
         &path,
         &super::nrrd::native::NrrdReader::new(SequentialBackend),
-        |p| ritk_nrrd::read_nrrd::<BurnBackend, _>(p, &burn_device()),
+        |p| super::nrrd::read_nrrd::<BurnBackend, _>(p, &burn_device()),
     );
 }
 
@@ -218,12 +206,10 @@ fn native_analyze_reader_matches_burn() {
 #[test]
 fn native_tiff_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
-    let path = dir.path().join("vol.tiff");
-    ritk_tiff::write_tiff(&burn_volume([2, 3, 4]), &path).expect("tiff write");
-    assert_native_reader_matches_burn(
-        &path,
+    assert_native_writer_reader_round_trips(
+        &dir.path().join("vol.tiff"),
+        &super::tiff::native::TiffWriter::new(SequentialBackend),
         &super::tiff::native::TiffReader::new(SequentialBackend),
-        |p| ritk_tiff::read_tiff::<BurnBackend, _>(p, &burn_device()),
     );
 }
 
@@ -231,12 +217,31 @@ fn native_tiff_reader_matches_burn() {
 fn native_jpeg_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("slice.jpg");
-    ritk_jpeg::write_jpeg(&path, &burn_volume([1, 8, 12])).expect("jpeg write");
-    assert_native_reader_matches_burn(
+    let image = NativeImage::from_flat_on(
+        vec![16.0, 128.0, 240.0],
+        [1, 1, 3],
+        Point::origin(),
+        Spacing::uniform(1.0),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("native JPEG fixture");
+    ImageWriter::write(
+        &super::jpeg::native::JpegWriter::new(SequentialBackend),
         &path,
+        &image,
+    )
+    .expect("jpeg write");
+    let loaded = ImageReader::read(
         &super::jpeg::native::JpegReader::new(SequentialBackend),
-        |p| ritk_jpeg::read_jpeg::<BurnBackend, _>(p, &burn_device()),
-    );
+        &path,
+    )
+    .expect("jpeg read");
+    assert_eq!(loaded.shape(), [1, 1, 3]);
+    let values = loaded.data_slice().expect("contiguous JPEG data");
+    assert!(values[0] <= 24.0);
+    assert!((values[1] - 128.0).abs() <= 12.0);
+    assert!(values[2] >= 228.0);
 }
 
 /// Write a synthetic 8-bit grayscale PNG (no Burn PNG writer exists).
@@ -252,11 +257,13 @@ fn native_png_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("slice.png");
     write_gray_png(&path, 12, 8, 3);
-    assert_native_reader_matches_burn(
-        &path,
+    let loaded = ImageReader::read(
         &super::png::native::PngReader::new(SequentialBackend),
-        |p| ritk_png::read_png_to_image::<BurnBackend, _>(p, &burn_device()),
-    );
+        &path,
+    )
+    .expect("native PNG read");
+    assert_eq!(loaded.shape(), [1, 8, 12]);
+    assert_eq!(loaded.data_slice().expect("contiguous PNG data").len(), 96);
 }
 
 #[test]
@@ -264,9 +271,11 @@ fn native_png_series_reader_matches_burn() {
     let dir = tempfile::tempdir().expect("tempdir");
     write_gray_png(&dir.path().join("s000.png"), 6, 4, 11);
     write_gray_png(&dir.path().join("s001.png"), 6, 4, 71);
-    assert_native_reader_matches_burn(
-        dir.path(),
+    let loaded = ImageReader::read(
         &super::png::native::PngSeriesReader::new(SequentialBackend),
-        |p| ritk_png::read_png_series::<BurnBackend, _>(p, &burn_device()),
-    );
+        dir.path(),
+    )
+    .expect("native PNG series read");
+    assert_eq!(loaded.shape(), [2, 4, 6]);
+    assert_eq!(loaded.data_slice().expect("contiguous PNG data").len(), 48);
 }

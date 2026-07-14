@@ -96,3 +96,27 @@ fn shift_scale_zero_scale_gives_zero() {
         assert!((x - 0.0).abs() < 1e-5, "voxel {} expected 0 got {}", i, x);
     }
 }
+
+#[test]
+fn native_shift_scale_preserves_hu_conversion() {
+    use coeus_core::SequentialBackend;
+    use ritk_image::native::Image as NativeImage;
+    use ritk_spatial::{Direction, Point, Spacing};
+
+    let image = NativeImage::from_flat_on(
+        vec![1024.0, 0.0],
+        [1, 1, 2],
+        Point::new([0.0; 3]),
+        Spacing::new([1.0; 3]),
+        Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let output = ShiftScaleImageFilter::new(-1024.0, 0.001)
+        .apply_native(&image, &SequentialBackend)
+        .expect("native shift-scale succeeds");
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        &[0.0, -1.024]
+    );
+}

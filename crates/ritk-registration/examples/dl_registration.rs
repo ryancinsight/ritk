@@ -20,6 +20,11 @@ where
     let config_reg = TransMorphConfig::new(2, 48, 3)
         .with_window_size(4)
         .with_integration(TransformIntegration::Direct);
+    let model = config.init::<MoiraiBackend>();
+    let shape = [1, 1, 32, 32, 32];
+    let fixed = volume(shape, 0);
+    let moving = volume(shape, 1);
+    let input = cat(&[&moving, &fixed], 1);
 
     println!("Initializing model...");
     let model_reg: TransMorph<B> = config_reg.init::<B>();
@@ -43,6 +48,9 @@ where
 
     println!("Running registration...");
     let start = Instant::now();
+    let output = model
+        .forward(&input)
+        .expect("example inputs satisfy the TransMorph contract");
 
     let input = cat(&vec![&moving, &fixed], 1);
     let output = model_reg.forward(&input);

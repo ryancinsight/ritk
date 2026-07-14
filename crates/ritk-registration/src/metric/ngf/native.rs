@@ -40,8 +40,8 @@ use ritk_transform::transform::affine::AtlasAffineTransform;
 /// computes its gradient.
 pub struct NgfFixedPrepNative<B>
 where
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    B: coeus_core::Backend + ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + coeus_core::CpuAddressableStorageMut<f32>,
 {
     /// World coordinates of every fixed-grid voxel, `[N, 3]` axis-major, flat.
     fixed_world: Vec<f32>,
@@ -56,16 +56,12 @@ where
 
 impl<B> NgfFixedPrepNative<B>
 where
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    B: coeus_core::Backend + ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + coeus_core::CpuAddressableStorageMut<f32>,
 {
     /// Precompute the native fixed-image state for `fixed`, restricted to `mask`
     /// and scaled by `weights` (both row-major, fixed-image C-order).
-    pub fn new(
-        fixed: &Image<f32, B, 3>,
-        mask: Option<&[bool]>,
-        weights: Option<&[f32]>,
-    ) -> Self {
+    pub fn new(fixed: &Image<f32, B, 3>, mask: Option<&[bool]>, weights: Option<&[f32]>) -> Self {
         let shape = fixed.shape();
         let stride = row_major_strides(&shape);
 
@@ -89,11 +85,7 @@ where
 
     /// `NGF ∈ [0, 1]` of `moving` resampled through `transform` onto the fixed
     /// grid, reusing the precomputed fixed state.
-    pub fn eval(
-        &self,
-        moving: &Image<f32, B, 3>,
-        transform: &AtlasAffineTransform<B, 3>,
-    ) -> f32 {
+    pub fn eval(&self, moving: &Image<f32, B, 3>, transform: &AtlasAffineTransform<B, 3>) -> f32 {
         let m = self.resample(moving, transform);
         weighted_ngf_from_fixed(
             &self.gf,
@@ -108,7 +100,11 @@ where
 
     /// Resample `moving` through `transform` at the fixed-grid world points,
     /// returning the `N` interpolated host values in fixed C-order.
-    fn resample(&self, moving: &Image<f32, B, 3>, transform: &AtlasAffineTransform<B, 3>) -> Vec<f32> {
+    fn resample(
+        &self,
+        moving: &Image<f32, B, 3>,
+        transform: &AtlasAffineTransform<B, 3>,
+    ) -> Vec<f32> {
         resample_moving_at_world(&self.fixed_world, moving, transform)
     }
 }
@@ -126,8 +122,8 @@ pub fn ngf_value_native<B>(
     weights: Option<&[f32]>,
 ) -> f32
 where
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    B: coeus_core::Backend + ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + coeus_core::CpuAddressableStorageMut<f32>,
 {
     NgfFixedPrepNative::new(fixed, mask, weights).eval(moving, transform)
 }

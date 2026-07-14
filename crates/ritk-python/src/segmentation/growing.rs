@@ -2,13 +2,13 @@
 //! and neighbourhood-connected.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{into_py_image, native_into_py_image, py_image_to_native, PyImage};
+use coeus_core::{MoiraiBackend, SequentialBackend};
 use pyo3::prelude::*;
 use ritk_segmentation::{
-    connected_threshold as core_connected_threshold,
-    vector_confidence_connected_image as core_vector_confidence_connected,
-    ConfidenceConnectedFilter, IsolatedConnectedFilter, IsolatedWatershed,
-    NeighborhoodConnectedFilter,
+    ConfidenceConnectedFilter, ConnectedThresholdFilter, IsolatedConnectedConfig,
+    IsolatedConnectedFilter, IsolatedWatershed, IsolatedWatershedConfig, IsolationThreshold,
+    NeighborhoodConnectedFilter, VectorConfidenceConnectedConfig, VectorConfidenceConnectedFilter,
 };
 
 /// Vector confidence-connected region growing, matching
@@ -50,21 +50,21 @@ pub fn vector_confidence_connected_segment(
             "vector_confidence_connected: at least one channel is required",
         ));
     }
-    let burn_images: Vec<_> = channels.iter().map(|p| py_image_to_burn(p)).collect();
-    let out = py
-        .allow_threads(|| {
-            let refs: Vec<_> = burn_images.iter().collect();
-            core_vector_confidence_connected(
-                &refs,
-                &seeds,
-                multiplier,
-                number_of_iterations,
-                initial_neighborhood_radius,
-                replace_value,
-            )
-        })
-        .map_err(RitkPyError::value)?;
-    Ok(burn_into_py_image(out))
+    let config = VectorConfidenceConnectedConfig::new(
+        multiplier,
+        number_of_iterations,
+        initial_neighborhood_radius,
+        replace_value,
+    )
+    .map_err(|error| RitkPyError::value(error.to_string()))?;
+    let filter = VectorConfidenceConnectedFilter::new(seeds, config);
+    let images: Vec<_> = channels.iter().map(|image| image.inner.clone()).collect();
+    py.allow_threads(move || {
+        let references: Vec<_> = images.iter().map(AsRef::as_ref).collect();
+        filter.apply_native(&references, &MoiraiBackend)
+    })
+    .map(into_py_image)
+    .map_err(|error| RitkPyError::value(error.to_string()))
 }
 
 /// Segment a region by connected-threshold flood-fill from a seed voxel.
@@ -93,21 +93,18 @@ pub fn connected_threshold_segment(
     lower: f32,
     upper: f32,
 ) -> RitkResult<PyImage> {
-    if lower > upper {
+    if !lower.is_finite() || !upper.is_finite() || lower > upper {
         return Err(RitkPyError::value(format!(
-            "lower bound ({lower}) must be ≤ upper bound ({upper})"
+            "bounds must be finite and ordered, got [{lower}, {upper}]"
         )));
     }
-    let shape = image.inner.shape();
-    if seed[0] >= shape[0] || seed[1] >= shape[1] || seed[2] >= shape[2] {
-        return Err(RitkPyError::value(format!(
-            "seed {:?} is out of bounds for image shape {:?}",
-            seed, shape
-        )));
-    }
-    let image = py_image_to_burn(image);
-    let result = py.allow_threads(|| core_connected_threshold(&image, seed, lower, upper));
-    Ok(burn_into_py_image(result))
+    let image = image.inner.clone();
+    py.allow_threads(move || {
+        ConnectedThresholdFilter::new(seed, lower, upper)
+            .apply_native(image.as_ref(), &MoiraiBackend)
+    })
+    .map(into_py_image)
+    .map_err(|error| RitkPyError::value(error.to_string()))
 }
 
 /// Isolated-connected segmentation, matching `SimpleITK.IsolatedConnected`.
@@ -128,7 +125,9 @@ pub fn connected_threshold_segment(
 ///     find_upper_threshold: Search the upper threshold (default True).
 ///
 /// Returns:
-///     Binary PyImage of the isolated region.
+///     `(image, thresholding_failed)`, where `image` is the binary isolated
+///     region and `thresholding_failed` records whether the final ITK-compatible
+///     band still connects both seeds.
 #[pyfunction]
 #[pyo3(signature = (image, seed1, seed2, lower=0.0_f32, upper=1.0_f32,
                     replace_value=1.0_f32, isolated_value_tolerance=1.0_f64,
@@ -144,21 +143,28 @@ pub fn isolated_connected_segment(
     replace_value: f32,
     isolated_value_tolerance: f64,
     find_upper_threshold: bool,
-) -> PyImage {
-    let arc = py_image_to_burn(image);
-    let out = py.allow_threads(|| {
-        IsolatedConnectedFilter {
-            seed1,
-            seed2,
-            lower,
-            upper,
-            replace_value,
-            isolated_value_tolerance,
-            find_upper_threshold,
-        }
-        .apply(&arc)
-    });
-    burn_into_py_image(out)
+) -> RitkResult<(PyImage, bool)> {
+    let threshold = if find_upper_threshold {
+        IsolationThreshold::Upper
+    } else {
+        IsolationThreshold::Lower
+    };
+    let config = IsolatedConnectedConfig::new(
+        lower,
+        upper,
+        replace_value,
+        isolated_value_tolerance,
+        threshold,
+    )
+    .map_err(|error| RitkPyError::value(error.to_string()))?;
+    let filter = IsolatedConnectedFilter::new(seed1, seed2, config);
+    let image = image.inner.clone();
+    py.allow_threads(move || filter.apply_native(image.as_ref(), &MoiraiBackend))
+        .map(|output| {
+            let thresholding_failed = output.thresholding_failed();
+            (into_py_image(output.into_image()), thresholding_failed)
+        })
+        .map_err(|error| RitkPyError::value(error.to_string()))
 }
 
 /// Confidence-connected region growing (Yanowitz & Bruckstein 1989).
@@ -197,14 +203,25 @@ pub fn confidence_connected_segment(
             seed.len()
         )));
     }
-    let inner = py_image_to_burn(image);
-    let result = py.allow_threads(move || {
+    if !initial_lower.is_finite() || !initial_upper.is_finite() || initial_lower > initial_upper {
+        return Err(RitkPyError::value(format!(
+            "initial bounds must be finite and ordered, got [{initial_lower}, {initial_upper}]"
+        )));
+    }
+    if !multiplier.is_finite() || multiplier < 0.0 {
+        return Err(RitkPyError::value(format!(
+            "multiplier must be finite and non-negative, got {multiplier}"
+        )));
+    }
+    let image = image.inner.clone();
+    let filter =
         ConfidenceConnectedFilter::new([seed[0], seed[1], seed[2]], initial_lower, initial_upper)
             .with_multiplier(multiplier)
-            .with_max_iterations(max_iterations)
-            .apply(&inner)
-    });
-    Ok(burn_into_py_image(result))
+            .map_err(|error| RitkPyError::value(error.to_string()))?
+            .with_max_iterations(max_iterations);
+    py.allow_threads(move || filter.apply_native(image.as_ref(), &MoiraiBackend))
+        .map(into_py_image)
+        .map_err(|error| RitkPyError::value(error.to_string()))
 }
 
 /// Neighbourhood-connected region growing.
@@ -241,13 +258,19 @@ pub fn neighborhood_connected_segment(
             seed.len()
         )));
     }
-    let inner = py_image_to_burn(image);
-    let result = py.allow_threads(move || {
+    if !lower.is_finite() || !upper.is_finite() || lower > upper {
+        return Err(RitkPyError::value(format!(
+            "bounds must be finite and ordered, got [{lower}, {upper}]"
+        )));
+    }
+    let image = image.inner.clone();
+    py.allow_threads(move || {
         NeighborhoodConnectedFilter::new([seed[0], seed[1], seed[2]], lower, upper)
             .with_radius([radius, radius, radius])
-            .apply(&inner)
-    });
-    Ok(burn_into_py_image(result))
+            .apply_native(image.as_ref(), &MoiraiBackend)
+    })
+    .map(into_py_image)
+    .map_err(|error| RitkPyError::value(error.to_string()))
 }
 
 // ── IsolatedWatershed ────────────────────────────────────────────────────────
@@ -260,7 +283,7 @@ pub fn neighborhood_connected_segment(
 /// Label convention:
 ///     1 = region reachable from seed1 at T*
 ///     2 = region reachable from seed2 at T*
-///     3 = remaining voxels
+///     0 = remaining voxels
 ///
 /// Args:
 ///     image:                    Input scalar 3-D PyImage (normalised to [0, 1]).
@@ -271,7 +294,7 @@ pub fn neighborhood_connected_segment(
 ///     upper_value_limit:        Upper bound for the search (default 1.0).
 ///
 /// Returns:
-///     Label PyImage (f32 values 1.0, 2.0, or 3.0).
+///     Label PyImage (f32 values 0.0, 1.0, or 2.0).
 #[pyfunction]
 #[pyo3(signature = (image, seed1, seed2, threshold=0.0,
                     isolated_value_tolerance=0.001, upper_value_limit=1.0))]
@@ -282,21 +305,17 @@ pub fn isolated_watershed_segment(
     seed1: [usize; 3],
     seed2: [usize; 3],
     threshold: f32,
-    isolated_value_tolerance: f32,
-    upper_value_limit: f32,
+    isolated_value_tolerance: f64,
+    upper_value_limit: f64,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let image = py_image_to_native(image)?;
+    let config =
+        IsolatedWatershedConfig::new(threshold, isolated_value_tolerance, upper_value_limit)
+            .map_err(|error| RitkPyError::value(error.to_string()))?;
     let result = py.allow_threads(|| {
-        IsolatedWatershed {
-            seed1,
-            seed2,
-            threshold,
-            isolated_value_tolerance,
-            upper_value_limit,
-        }
-        .apply(&arc)
+        IsolatedWatershed::new(seed1, seed2, config).apply_native(&image, &SequentialBackend)
     });
     result
-        .map(burn_into_py_image)
-        .map_err(|e| crate::errors::RitkPyError::runtime(e.to_string()))
+        .map(native_into_py_image)
+        .map_err(|error| RitkPyError::value(error.to_string()))
 }

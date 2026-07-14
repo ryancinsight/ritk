@@ -629,13 +629,13 @@ mod tests {
     }
 
     #[test]
-    fn test_write_image_jpeg_nz_gt_1_returns_err() {
+    fn test_write_image_jpeg_depth_gt_one_returns_error() {
         use ritk_image::tensor::{Shape, Tensor, TensorData};
         use ritk_image::Image;
         use ritk_spatial::{Direction, Point, Spacing};
 
         let device: <Backend as BurnBackend>::Device = Default::default();
-        // nz=2 is invalid for JPEG — must be 1
+        // A depth of two violates JPEG's two-dimensional image contract.
         let td = TensorData::new(vec![128.0f32; 8], Shape::new([2, 2, 2]));
         let tensor = Tensor::<Backend, 3>::from_data(td, &device);
         let image = Image::new(
@@ -647,12 +647,12 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let out_path = dir.path().join("out.jpg");
         let result = write_image(&out_path, &image, ImageFormat::Jpeg);
-        assert!(result.is_err(), "JPEG write with nz=2 must fail");
+        assert!(result.is_err(), "JPEG write with depth=2 must fail");
         let err = result.unwrap_err();
         let msg = format!("{:#}", err);
         assert!(
-            msg.contains("nz=2"),
-            "error message must mention nz constraint, got: {msg}"
+            msg.contains("depth=2"),
+            "error message must name the rejected depth, got: {msg}"
         );
     }
 

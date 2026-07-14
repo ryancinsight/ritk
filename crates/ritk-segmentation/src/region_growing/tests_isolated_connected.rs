@@ -1,5 +1,8 @@
-use super::IsolatedConnectedFilter;
+use super::{IsolatedConnectedConfig, IsolatedConnectedFilter, IsolationThreshold};
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_core::spatial::{Direction, Point, Spacing};
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
@@ -10,6 +13,25 @@ fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
     ts::make_image::<B, 3>(data, dims)
 }
 
+fn two_blob_values(bridge: f32) -> Vec<f32> {
+    let (ny, nx) = (10usize, 16);
+    let mut values = vec![0.0; ny * nx];
+    for y in 3..=6 {
+        for x in 1..=4 {
+            values[y * nx + x] = 100.0;
+        }
+        for x in 11..=14 {
+            values[y * nx + x] = 100.0;
+        }
+    }
+    for y in 4..=5 {
+        for x in 5..=10 {
+            values[y * nx + x] = bridge;
+        }
+    }
+    values
+}
+
 /// Two intensity-100 blobs joined by an intensity-150 bridge. With band floor
 /// 50 and ceiling 200, the separating upper threshold lands just below 150, so
 /// the region grown from seed1 keeps its blob (100 ≤ 149) but excludes the
@@ -17,30 +39,13 @@ fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
 #[test]
 fn isolated_connected_separates_two_blobs() {
     let (ny, nx) = (10usize, 16);
-    let mut v = vec![0.0f32; ny * nx];
-    let set = |v: &mut Vec<f32>, y: usize, x: usize, val: f32| v[y * nx + x] = val;
-    for y in 3..=6 {
-        for x in 1..=4 {
-            set(&mut v, y, x, 100.0); // blob 1
-        }
-        for x in 11..=14 {
-            set(&mut v, y, x, 100.0); // blob 2
-        }
-    }
-    for y in 4..=5 {
-        for x in 5..=10 {
-            set(&mut v, y, x, 150.0); // bridge (intermediate intensity)
-        }
-    }
-    let img = make(v, [1, ny, nx]);
-    let f = IsolatedConnectedFilter {
-        seed1: [0, 4, 2],
-        seed2: [0, 4, 13],
-        lower: 50.0,
-        upper: 200.0,
-        ..Default::default()
-    };
-    let out = f.apply(&img);
+    let img = make(two_blob_values(150.0), [1, ny, nx]);
+    let config =
+        IsolatedConnectedConfig::new(50.0, 200.0, 1.0, 1.0, IsolationThreshold::Upper).unwrap();
+    let f = IsolatedConnectedFilter::new([0, 4, 2], [0, 4, 13], config);
+    let result = f.apply(&img).unwrap();
+    assert!(!result.thresholding_failed());
+    let out = result.into_image();
     let (ov, _) = extract_vec_infallible(&out);
     assert_eq!(ov[4 * nx + 2], 1.0, "seed1's blob must be kept");
     assert_eq!(ov[4 * nx + 13], 0.0, "seed2's blob must be isolated out");
@@ -69,16 +74,115 @@ fn isolated_connected_custom_replace_value() {
         }
     }
     let img = make(v, [1, ny, nx]);
-    let f = IsolatedConnectedFilter {
-        seed1: [0, 2, 2],
-        seed2: [0, 0, 0], // background, never reached
-        lower: 50.0,
-        upper: 200.0,
-        replace_value: 7.0,
-        ..Default::default()
-    };
-    let out = f.apply(&img);
+    let config =
+        IsolatedConnectedConfig::new(50.0, 200.0, 7.0, 1.0, IsolationThreshold::Upper).unwrap();
+    let f = IsolatedConnectedFilter::new([0, 2, 2], [0, 0, 0], config);
+    let result = f.apply(&img).unwrap();
+    assert!(!result.thresholding_failed());
+    let out = result.into_image();
     let (ov, _) = extract_vec_infallible(&out);
     assert_eq!(ov[2 * nx + 2], 7.0, "kept region uses the replace value");
     assert!(ov.iter().all(|&v| v == 0.0 || v == 7.0));
+}
+
+#[test]
+fn lower_threshold_search_separates_low_bridge() {
+    let config =
+        IsolatedConnectedConfig::new(0.0, 200.0, 1.0, 1.0, IsolationThreshold::Lower).unwrap();
+    let filter = IsolatedConnectedFilter::new([0, 4, 2], [0, 4, 13], config);
+    let result = filter
+        .apply(&make(two_blob_values(40.0), [1, 10, 16]))
+        .unwrap();
+    assert!(!result.thresholding_failed());
+    let output = result.into_image();
+    let (values, _) = extract_vec_infallible(&output);
+    assert_eq!(values.iter().filter(|&&value| value == 1.0).count(), 16);
+    assert_eq!(values[4 * 16 + 2], 1.0);
+    assert_eq!(values[4 * 16 + 13], 0.0);
+    assert_eq!(values[4 * 16 + 7], 0.0);
+}
+
+#[test]
+fn native_and_legacy_outputs_are_exact_with_nonidentity_geometry() {
+    let values = two_blob_values(150.0);
+    let legacy = make(values.clone(), [1, 10, 16]);
+    let origin = Point::new([2.0, 3.0, 5.0]);
+    let spacing = Spacing::new([0.5, 1.0, 2.0]);
+    let direction = Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]);
+    let native = NativeImage::from_flat_on(
+        values,
+        [1, 10, 16],
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .unwrap();
+    let config =
+        IsolatedConnectedConfig::new(50.0, 200.0, 1.0, 1.0, IsolationThreshold::Upper).unwrap();
+    let filter = IsolatedConnectedFilter::new([0, 4, 2], [0, 4, 13], config);
+    let expected = filter.apply(&legacy).unwrap();
+    let actual = filter.apply_native(&native, &SequentialBackend).unwrap();
+    assert_eq!(actual.thresholding_failed(), expected.thresholding_failed());
+    let expected = expected.into_image();
+    let actual = actual.into_image();
+    assert_eq!(actual.data_slice().unwrap(), expected.data_slice().as_ref());
+    assert_eq!(*actual.origin(), origin);
+    assert_eq!(*actual.spacing(), spacing);
+    assert_eq!(*actual.direction(), direction);
+}
+
+#[test]
+fn lower_threshold_failure_retains_the_final_mask() {
+    let config =
+        IsolatedConnectedConfig::new(50.0, 200.0, 1.0, 1.0, IsolationThreshold::Lower).unwrap();
+    let result = IsolatedConnectedFilter::new([0, 4, 2], [0, 4, 13], config)
+        .apply(&make(two_blob_values(150.0), [1, 10, 16]))
+        .unwrap();
+    assert!(result.thresholding_failed());
+    let (values, _) = extract_vec_infallible(&result.into_image());
+    assert_eq!(values.iter().filter(|&&value| value == 1.0).count(), 0);
+    assert_eq!(values[4 * 16 + 2], 0.0);
+    assert_eq!(values[4 * 16 + 13], 0.0);
+}
+
+#[test]
+fn configuration_and_input_failures_are_exact() {
+    assert!(IsolatedConnectedConfig::new(0.0, 1.0, 0.0, 1.0, IsolationThreshold::Upper).is_ok());
+    assert_eq!(
+        IsolatedConnectedConfig::new(f32::NAN, 1.0, 1.0, 1.0, IsolationThreshold::Upper)
+            .unwrap_err()
+            .to_string(),
+        "isolated connected bounds must be finite and ordered, got [NaN, 1]"
+    );
+    assert_eq!(
+        IsolatedConnectedConfig::new(0.0, 1.0, f32::INFINITY, 1.0, IsolationThreshold::Upper)
+            .unwrap_err()
+            .to_string(),
+        "isolated connected replacement must be finite, got inf"
+    );
+    assert_eq!(
+        IsolatedConnectedConfig::new(0.0, 1.0, 1.0, 0.0, IsolationThreshold::Upper)
+            .unwrap_err()
+            .to_string(),
+        "isolated connected tolerance must be finite and positive, got 0"
+    );
+    let config =
+        IsolatedConnectedConfig::new(0.0, 2.0, 1.0, 0.1, IsolationThreshold::Upper).unwrap();
+    let invalid_seed = IsolatedConnectedFilter::new([0, 0, 0], [0, 0, 2], config);
+    assert_eq!(
+        invalid_seed
+            .apply(&make(vec![0.0, 1.0], [1, 1, 2]))
+            .unwrap_err()
+            .to_string(),
+        "isolated connected seed2 [0, 0, 2] is outside shape [1, 1, 2]"
+    );
+    let nonfinite = IsolatedConnectedFilter::new([0, 0, 0], [0, 0, 1], config);
+    assert_eq!(
+        nonfinite
+            .apply(&make(vec![0.0, f32::NAN], [1, 1, 2]))
+            .unwrap_err()
+            .to_string(),
+        "isolated connected sample at flat index 1 must be finite, got NaN"
+    );
 }

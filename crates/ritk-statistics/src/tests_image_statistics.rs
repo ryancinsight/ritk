@@ -1,59 +1,25 @@
-//! Atlas-side property tests for [`super::atlas_image_statistics`].
-//!
-//! Per `docs/adr/0012-ritk-burn-trait-rebind.md` §Decision §Sub-batch #3.e
-//! (RITK-crate-migrate, per-crate atlas-typed migration queue): this test
-//! module exercises the Atlas-typed sister surface. The legacy Burn-keyed
-//! `super::compute_statistics` / `super::masked_statistics` and their
-//! accompanying `super::ImageStatistics` struct are preserved verbatim per
-//! the strict-additive-on-production-surface invariant; their image-metadata
-//! pipeline stays in the Burn-keyed module.
-//!
-//! Every test below routes exclusively through
-//! `super::atlas_image_statistics::*` — no `burn_ndarray::NdArray`, no
-//! `ritk_image::Image` (the Burn-keyed legacy re-export of
-//! `burn::tensor::Tensor`), no `ritk_image::test_support::make_image` — so
-//! this file exits `xtask/burn_surface.allowlist` per the sub-batch #3
-//! subtractive invariant. Inputs are constructed directly through
-//! `ritk_image::native::Image::from_flat(...)` (the canonical
-//! `AtlasImage<f32, MoiraiBackend, D>` constructor on the Atlas side) over
-//! the `MoiraiBackend` ZST that exposes the Atlas compute-backend seal seam
-//! over the configurable trait bound `B::DeviceBuffer<f32>: CpuAddressableStorage<f32>`.
-//!
-//! Oracle values are hand-computed independently of the Burn reference path
-//! (the previously-burn-keyed test bodies burned-and-coeus-compared paths).
-//! Each `assert!` below asserts on:
-//! - structural correctness of the f32 numeric contract (min, max, mean, std,
-//!   percentile ranks), and
-//! - the Atlas twin's error semantics (the empty-mask and shape-mismatch
-//!   `Result::Err` variants) — Display text bit-identical to the Burn
-//!   reference path's panic messages (no prefix drift, callers can `match`
-//!   on either path's diagnostic text).
-//!
-//! `ritk_spatial::Point::new` and `Spacing::new` expect `f64` scalars for
-//! their per-axis coordinate constructor (the canonical spatial-metadata
-//! convention); the unit-precision boundary is preserved by converting from
-//! the `f32` AtlasImage voxels to f64 spatial coords at construction time.
+//! Numerical and property tests for the canonical native image-statistics API.
 
-use super::atlas_image_statistics::{
-    atlas_masked_statistics, compute_atlas_statistics, compute_atlas_statistics_from_slice,
-    AtlasImageStatistics, AtlasStatsError,
+use super::{
+    compute_statistics_from_slice,
+    native::{compute_statistics, masked_statistics},
 };
 use coeus_core::MoiraiBackend;
-use ritk_image::native::Image as AtlasImage;
+use ritk_image::native::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type Atlas3DImage = AtlasImage<f32, MoiraiBackend, 3>;
-type Atlas1DImage = AtlasImage<f32, MoiraiBackend, 1>;
+type Native3DImage = NativeImage<f32, MoiraiBackend, 3>;
+type Native1DImage = NativeImage<f32, MoiraiBackend, 1>;
 
 // ── Test helpers ──────────────────────────────────────────────────────────
 
-/// Atlas-side construction helper: scalar slice → `AtlasImage<f32, MoiraiBackend, D>`.
+/// Native construction helper: scalar slice → `NativeImage<f32, MoiraiBackend, D>`.
 #[inline]
-fn make_atlas_image<const D: usize>(
+fn make_native_image<const D: usize>(
     data: Vec<f32>,
     dims: [usize; D],
-) -> AtlasImage<f32, MoiraiBackend, D> {
-    AtlasImage::from_flat(
+) -> NativeImage<f32, MoiraiBackend, D> {
+    NativeImage::from_flat(
         data,
         dims,
         Point::new([0.0_f64; D]),
@@ -68,8 +34,8 @@ fn make_atlas_image<const D: usize>(
 #[test]
 fn test_uniform_image() {
     // All voxels = 5.0 → std = 0, all percentiles = 5.
-    let image: Atlas3DImage = make_atlas_image(vec![5.0_f32; 27], [3, 3, 3]);
-    let s = compute_atlas_statistics(&image).expect("atlas extraction");
+    let image: Native3DImage = make_native_image(vec![5.0_f32; 27], [3, 3, 3]);
+    let s = compute_statistics(&image).expect("native extraction");
 
     assert_eq!(s.min, 5.0);
     assert_eq!(s.max, 5.0);
@@ -91,8 +57,8 @@ fn test_known_sequence() {
     //   p50 = values[8/2]   = values[4] = 5.0
     //   p75 = values[24/4]  = values[6] = 7.0
     let data: Vec<f32> = (1u8..=8).map(|x| x as f32).collect();
-    let image: Atlas1DImage = make_atlas_image(data, [8]);
-    let s = compute_atlas_statistics(&image).expect("atlas extraction");
+    let image: Native1DImage = make_native_image(data, [8]);
+    let s = compute_statistics(&image).expect("native extraction");
 
     assert_eq!(s.min, 1.0);
     assert_eq!(s.max, 8.0);
@@ -115,7 +81,7 @@ fn test_slice_input_preserves_input_order() {
     // user's slice must remain untouched).
     let data = vec![4.0, 1.0, 3.0, 2.0];
 
-    let stats = compute_atlas_statistics_from_slice(&data, 0);
+    let stats = compute_statistics_from_slice(&data, 0);
 
     assert_eq!(
         data,
@@ -128,16 +94,16 @@ fn test_slice_input_preserves_input_order() {
 }
 
 #[test]
-fn test_atlas_image_preserves_values_through_from_flat() {
-    // AtlasImage::from_flat should be a 1:1 round-trip — the underlying buffer
+fn test_native_image_preserves_values_through_from_flat() {
+    // NativeImage::from_flat should be a 1:1 round-trip — the underlying buffer
     // matches the input Vec element-by-element.
-    let image: Atlas1DImage = make_atlas_image(vec![4.0, 1.0, 3.0, 2.0], [4]);
-    let stats = compute_atlas_statistics(&image).expect("atlas extraction");
+    let image: Native1DImage = make_native_image(vec![4.0, 1.0, 3.0, 2.0], [4]);
+    let stats = compute_statistics(&image).expect("native extraction");
     assert_eq!(stats.min, 1.0);
     assert_eq!(stats.max, 4.0);
     assert_eq!(stats.percentiles, [2.0, 3.0, 4.0]);
 
-    // The Atlas-side extract path uses `extract_image_slice` which returns
+    // The Native extract path uses `extract_image_slice` which returns
     // `&[f32]` slice; verify its length matches the input vec size.
     let (slice, _shape) =
         ritk_tensor_ops::native::extract_image_slice(&image).expect("slice extract");
@@ -148,8 +114,8 @@ fn test_atlas_image_preserves_values_through_from_flat() {
 #[test]
 fn test_single_voxel() {
     // n=1: all statistics collapse to the single value.
-    let image: Atlas1DImage = make_atlas_image(vec![42.0_f32], [1]);
-    let s = compute_atlas_statistics(&image).expect("atlas extraction");
+    let image: Native1DImage = make_native_image(vec![42.0_f32], [1]);
+    let s = compute_statistics(&image).expect("native extraction");
 
     assert_eq!(s.min, 42.0);
     assert_eq!(s.max, 42.0);
@@ -169,8 +135,8 @@ fn test_two_values() {
     //   p25 = values[2/4=0] = 1.0
     //   p50 = values[2/2=1] = 2.0
     //   p75 = values[6/4=1] = 2.0
-    let image: Atlas1DImage = make_atlas_image(vec![1.0, 2.0], [2]);
-    let s = compute_atlas_statistics(&image).expect("atlas extraction");
+    let image: Native1DImage = make_native_image(vec![1.0, 2.0], [2]);
+    let s = compute_statistics(&image).expect("native extraction");
 
     assert_eq!(s.min, 1.0);
     assert_eq!(s.max, 2.0);
@@ -184,13 +150,13 @@ fn test_two_values() {
 #[test]
 fn test_reverse_order_input_matches_sorted() {
     // Sort order of input must not change the result (statistics are
-    // permutation-invariant). Verifies the Atlas twin's algorithm is
+    // permutation-invariant). Verifies the native API's algorithm is
     // re-order agnostic like the Burn reference path.
-    let sorted: Atlas1DImage = make_atlas_image(vec![1.0, 2.0, 3.0, 4.0], [4]);
-    let reversed: Atlas1DImage = make_atlas_image(vec![4.0, 3.0, 2.0, 1.0], [4]);
+    let sorted: Native1DImage = make_native_image(vec![1.0, 2.0, 3.0, 4.0], [4]);
+    let reversed: Native1DImage = make_native_image(vec![4.0, 3.0, 2.0, 1.0], [4]);
 
-    let s_sorted = compute_atlas_statistics(&sorted).expect("atlas extraction");
-    let s_reversed = compute_atlas_statistics(&reversed).expect("atlas extraction");
+    let s_sorted = compute_statistics(&sorted).expect("native extraction");
+    let s_reversed = compute_statistics(&reversed).expect("native extraction");
 
     assert_eq!(s_sorted.min, s_reversed.min);
     assert_eq!(s_sorted.max, s_reversed.max);
@@ -214,9 +180,9 @@ fn test_masked_subset() {
     for v in mask_data.iter_mut().take(6).skip(2) {
         *v = 1.0;
     }
-    let image: Atlas1DImage = make_atlas_image(data, [8]);
-    let mask: Atlas1DImage = make_atlas_image(mask_data, [8]);
-    let s = atlas_masked_statistics(&image, &mask).expect("non-empty foreground");
+    let image: Native1DImage = make_native_image(data, [8]);
+    let mask: Native1DImage = make_native_image(mask_data, [8]);
+    let s = masked_statistics(&image, &mask).expect("non-empty foreground");
 
     assert_eq!(s.min, 3.0);
     assert_eq!(s.max, 6.0);
@@ -234,15 +200,15 @@ fn test_masked_subset() {
 
 #[test]
 fn test_masked_all_foreground_matches_unmasked() {
-    // mask = all ones → identical result to compute_atlas_statistics.
+    // mask = all ones → identical result to compute_statistics.
     let data: Vec<f32> = (1u8..=8).map(|x| x as f32).collect();
     let mask_data = vec![1.0_f32; 8];
 
-    let image: Atlas1DImage = make_atlas_image(data, [8]);
-    let mask: Atlas1DImage = make_atlas_image(mask_data, [8]);
+    let image: Native1DImage = make_native_image(data, [8]);
+    let mask: Native1DImage = make_native_image(mask_data, [8]);
 
-    let s_full = compute_atlas_statistics(&image).expect("atlas extraction");
-    let s_masked = atlas_masked_statistics(&image, &mask).expect("non-empty foreground");
+    let s_full = compute_statistics(&image).expect("native extraction");
+    let s_masked = masked_statistics(&image, &mask).expect("non-empty foreground");
 
     assert_eq!(s_full.min, s_masked.min);
     assert_eq!(s_full.max, s_masked.max);
@@ -258,9 +224,9 @@ fn test_masked_single_foreground_voxel() {
     let mut mask_data = vec![0.0_f32; 4];
     mask_data[2] = 1.0; // foreground = value 30.0
 
-    let image: Atlas1DImage = make_atlas_image(data, [4]);
-    let mask: Atlas1DImage = make_atlas_image(mask_data, [4]);
-    let s = atlas_masked_statistics(&image, &mask).expect("non-empty foreground");
+    let image: Native1DImage = make_native_image(data, [4]);
+    let mask: Native1DImage = make_native_image(mask_data, [4]);
+    let s = masked_statistics(&image, &mask).expect("non-empty foreground");
 
     assert_eq!(s.min, 30.0);
     assert_eq!(s.max, 30.0);
@@ -269,78 +235,35 @@ fn test_masked_single_foreground_voxel() {
     assert_eq!(s.percentiles, [30.0, 30.0, 30.0]);
 }
 
-// ── AtlasImageStatistics ↔ legacy Interop ─────────────────────────────────
-
-#[test]
-fn test_atlas_to_legacy_round_trip_field_identity() {
-    // The bidirectional `From` impls preserve every field bit-exactly. This
-    // verifies that the Atlas twins is a drop-in substitution for legacy
-    // `super::ImageStatistics` callers — same destructuring, same PartialEq.
-    let atlas = AtlasImageStatistics {
-        min: -1.5,
-        max: 7.25,
-        mean: 3.5,
-        std: 1.414,
-        percentiles: [1.0, 3.0, 5.0],
-    };
-    let legacy: super::ImageStatistics = atlas.clone().into();
-    let back: AtlasImageStatistics = legacy.clone().into();
-    assert_eq!(
-        atlas, back,
-        "Atlas <-> Legacy round-trip preserves equality"
-    );
-    assert_eq!(
-        legacy.min, atlas.min,
-        "field-by-field min preserved across conversion"
-    );
-    assert_eq!(
-        legacy.percentiles, atlas.percentiles,
-        "field-by-field percentiles preserved across conversion"
-    );
-}
-
-// ── Error semantics tests (Atlas-twin `Result::Err` matching legacy panic text) ──
+// ── Error semantics tests (native API `Result::Err` matching legacy panic text) ──
 
 #[test]
 fn test_masked_empty_mask_returns_empty_foreground_error() {
-    // Legacy `super::masked_statistics` panics with
-    // `"mask contains no foreground voxels"`; the Atlas twin surfaces this
-    // as `AtlasStatsError::EmptyForegroundMask` with bit-identical Display
-    // text (no prefix).
-    let image: Atlas1DImage = make_atlas_image(vec![1.0, 2.0, 3.0], [3]);
-    let mask: Atlas1DImage = make_atlas_image(vec![0.0, 0.0, 0.0], [3]);
+    // Native failures retain a diagnostic that identifies the violated mask
+    // contract without introducing a parallel error vocabulary.
+    let image: Native1DImage = make_native_image(vec![1.0, 2.0, 3.0], [3]);
+    let mask: Native1DImage = make_native_image(vec![0.0, 0.0, 0.0], [3]);
 
-    let err = atlas_masked_statistics(&image, &mask).unwrap_err();
-    assert_eq!(err, AtlasStatsError::EmptyForegroundMask);
+    let err = masked_statistics(&image, &mask).unwrap_err();
     assert_eq!(
         err.to_string(),
-        "mask contains no foreground voxels",
+        "coeus image statistics: mask contains no foreground voxels",
         "Display text must mirror legacy panic message verbatim (no prefix)"
     );
 }
 
 #[test]
 fn test_masked_shape_mismatch_returns_shape_mismatch_error() {
-    // Legacy `super::masked_statistics` panics with
-    // `"image and mask must have identical element count"`; the Atlas twin
-    // surfaces this as `AtlasStatsError::ShapeMismatch { image_n, mask_n }`
-    // with bit-identical phrase ("image and mask element counts differ") plus
-    // the diagnostic (X vs Y) numeric suffix that the legacy panic text
-    // omitted in trade for absolute brevity.
-    let image: Atlas1DImage = make_atlas_image(vec![1.0, 2.0, 3.0], [3]);
-    let mask: Atlas1DImage = make_atlas_image(vec![1.0, 1.0], [2]);
+    // Shape failures report both observed element counts.
+    let image: Native1DImage = make_native_image(vec![1.0, 2.0, 3.0], [3]);
+    let mask: Native1DImage = make_native_image(vec![1.0, 1.0], [2]);
 
-    let err = atlas_masked_statistics(&image, &mask).unwrap_err();
-    assert_eq!(
-        err,
-        AtlasStatsError::ShapeMismatch {
-            image_n: 3,
-            mask_n: 2
-        }
-    );
+    let err = masked_statistics(&image, &mask).unwrap_err();
     let display = err.to_string();
     assert!(
-        display.contains("image and mask element counts differ (3 vs 2)"),
+        display.contains(
+            "coeus image statistics: image element count 3 does not match mask element count 2"
+        ),
         "Display text must surface shape-mismatch numeric diagnostic; got: {display}"
     );
 }
@@ -365,9 +288,8 @@ fn test_large_n_ct_scale_mean_precision() {
         .map(|i| ((i as f64 * scale / n as f64).floor() as f32) - 2048.0)
         .collect();
 
-    // Use the slice-input sister for the large-N precision check (avoids
-    // re-allocating an `AtlasImage` for a 10M-element buffer).
-    let s = compute_atlas_statistics_from_slice(&data, 0);
+    // Use the slice-input API for the large-N precision check.
+    let s = compute_statistics_from_slice(&data, 0);
 
     let expected_mean = 511.5_f32;
     assert!(
@@ -389,7 +311,7 @@ fn test_large_n_negative_mean_precision() {
     let constant = -789.0_f32;
     let data = vec![constant; n];
 
-    let s = compute_atlas_statistics_from_slice(&data, 0);
+    let s = compute_statistics_from_slice(&data, 0);
 
     assert!(
         (s.mean - constant).abs() < 1.0,

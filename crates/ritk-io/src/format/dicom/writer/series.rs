@@ -127,9 +127,7 @@ fn write_series_flat(
     // Reader convention: PixelSpacing = [row spacing, col spacing] = [Δy, Δx].
     let pixel_spacing = [geom.spacing[1], geom.spacing[0]];
     let slice_spacing = geom.spacing[2];
-    let orientation = [
-        dir_x[0], dir_x[1], dir_x[2], dir_y[0], dir_y[1], dir_y[2],
-    ];
+    let orientation = [dir_x[0], dir_x[1], dir_x[2], dir_y[0], dir_y[1], dir_y[2]];
 
     let slice_len = rows * cols;
     for z in 0..depth {

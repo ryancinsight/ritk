@@ -10,19 +10,15 @@ use ritk_spatial::{Direction, Point, Spacing};
 
 type Backend = SequentialBackend;
 const D: usize = 3;
+type Image3 = Image<f32, Backend, D>;
 
 fn make_rotation(angle_x: f64, angle_y: f64, angle_z: f64) -> Direction<D> {
-    let cx = angle_x.cos();
-    let sx = angle_x.sin();
-    let cy = angle_y.cos();
-    let sy = angle_y.sin();
-    let cz = angle_z.cos();
-    let sz = angle_z.sin();
-
+    let (cx, sx) = (angle_x.cos(), angle_x.sin());
+    let (cy, sy) = (angle_y.cos(), angle_y.sin());
+    let (cz, sz) = (angle_z.cos(), angle_z.sin());
     let rz = Direction::from_row_major([cz, -sz, 0.0, sz, cz, 0.0, 0.0, 0.0, 1.0]);
     let ry = Direction::from_row_major([cy, 0.0, sy, 0.0, 1.0, 0.0, -sy, 0.0, cy]);
     let rx = Direction::from_row_major([1.0, 0.0, 0.0, 0.0, cx, -sx, 0.0, sx, cx]);
-
     rx * ry * rz
 }
 
@@ -44,19 +40,17 @@ fn make_image(
 
 proptest! {
     #[test]
-    fn test_coordinate_roundtrip(
-        ox in -100.0f64..100.0, oy in -100.0f64..100.0, oz in -100.0f64..100.0,
-        sx in 0.1f64..5.0, sy in 0.1f64..5.0, sz in 0.1f64..5.0,
-        ax in -std::f64::consts::PI..std::f64::consts::PI,
-        ay in -std::f64::consts::PI..std::f64::consts::PI,
-        az in -std::f64::consts::PI..std::f64::consts::PI,
-        px in -50.0f64..50.0, py in -50.0f64..50.0, pz in -50.0f64..50.0
+    fn physical_index_roundtrip(
+        origin in prop::array::uniform3(-100.0f64..100.0),
+        spacing in prop::array::uniform3(0.1f64..5.0),
+        angles in prop::array::uniform3(-std::f64::consts::PI..std::f64::consts::PI),
+        point in prop::array::uniform3(-50.0f64..50.0),
     ) {
-        let origin = Point::<D>::new([ox, oy, oz]);
-        let spacing = Spacing::<D>::new([sx, sy, sz]);
-        let direction = make_rotation(ax, ay, az);
+        let origin = Point::<D>::new(origin);
+        let spacing = Spacing::<D>::new(spacing);
+        let direction = make_rotation(angles[0], angles[1], angles[2]);
         let image = make_image(origin, spacing, direction);
-        let point = Point::<D>::new([px, py, pz]);
+        let point = Point::<D>::new(point);
 
         let index = image.transform_physical_point_to_continuous_index(&point);
         let recovered = image.transform_continuous_index_to_physical_point(&index);

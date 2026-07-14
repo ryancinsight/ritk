@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn test_all_four_data_types_readable() -> Result<()> {
     let dir = tempdir()?;
-    let device: <TestBackend as Backend>::Device = Default::default();
+    let backend = TestBackend::default();
 
     let vals: Vec<u8> = vec![0, 50, 100, 150, 200, 250, 128, 64];
     let expected: Vec<f32> = vals.iter().map(|&v| v as f32).collect();
@@ -18,7 +18,7 @@ fn test_all_four_data_types_readable() -> Result<()> {
         &vals,
     );
     std::fs::write(&path, &mgh)?;
-    assert_read_values(&path, &device, &expected, "u8")?;
+    assert_read_values(&path, &backend, &expected, "u8")?;
 
     let vals: Vec<i16> = vec![-32000, -1000, 0, 1000, 5000, 10000, -5000, 32000];
     let expected: Vec<f32> = vals.iter().map(|&v| v as f32).collect();
@@ -34,7 +34,7 @@ fn test_all_four_data_types_readable() -> Result<()> {
         &data_bytes,
     );
     std::fs::write(&path, &mgh)?;
-    assert_read_values(&path, &device, &expected, "i16")?;
+    assert_read_values(&path, &backend, &expected, "i16")?;
 
     let vals: Vec<i32> = vec![-100_000, -1, 0, 1, 50_000, 100_000, -50_000, 12345];
     let expected: Vec<f32> = vals.iter().map(|&v| v as f32).collect();
@@ -50,7 +50,7 @@ fn test_all_four_data_types_readable() -> Result<()> {
         &data_bytes,
     );
     std::fs::write(&path, &mgh)?;
-    assert_read_values(&path, &device, &expected, "i32")?;
+    assert_read_values(&path, &backend, &expected, "i32")?;
 
     let vals = [
         std::f32::consts::PI,
@@ -74,8 +74,8 @@ fn test_all_four_data_types_readable() -> Result<()> {
         &data_bytes,
     );
     std::fs::write(&path, &mgh)?;
-    let image = crate::read_mgh::<TestBackend, _>(&path, &device)?;
-    image.with_data_slice(|loaded| {
+    let image = crate::read_mgh::<TestBackend, _>(&path, &backend)?;
+    image.data_slice().map(|loaded| {
         for (i, (&got, &expected)) in loaded.iter().zip(vals.iter()).enumerate() {
             assert_eq!(
                 got.to_bits(),
@@ -83,7 +83,7 @@ fn test_all_four_data_types_readable() -> Result<()> {
                 "f32 voxel[{i}]: expected {expected}, got {got}"
             );
         }
-    });
+    })?;
     Ok(())
 }
 
@@ -91,7 +91,7 @@ fn test_all_four_data_types_readable() -> Result<()> {
 fn test_invalid_version_rejected() {
     let dir = tempdir().unwrap();
     let path = dir.path().join("bad_ver.mgh");
-    let device: <TestBackend as Backend>::Device = Default::default();
+    let backend = TestBackend::default();
     let mgh = build_mgh_bytes(
         99,
         [2, 2, 2],
@@ -103,7 +103,7 @@ fn test_invalid_version_rejected() {
     );
     std::fs::write(&path, &mgh).unwrap();
 
-    let result = crate::read_mgh::<TestBackend, _>(&path, &device);
+    let result = crate::read_mgh::<TestBackend, _>(&path, &backend);
     assert!(result.is_err(), "Reading invalid version must fail");
     let msg = format!("{:#}", result.unwrap_err());
     assert!(
@@ -114,12 +114,12 @@ fn test_invalid_version_rejected() {
 
 fn assert_read_values(
     path: &std::path::Path,
-    device: &<TestBackend as Backend>::Device,
+    backend: &TestBackend,
     expected: &[f32],
     label: &str,
 ) -> Result<()> {
-    let image = crate::read_mgh::<TestBackend, _>(path, device)?;
-    image.with_data_slice(|loaded| {
+    let image = crate::read_mgh::<TestBackend, _>(path, backend)?;
+    image.data_slice().map(|loaded| {
         assert_eq!(loaded.len(), expected.len());
         for (i, (&got, &expected)) in loaded.iter().zip(expected.iter()).enumerate() {
             assert_eq!(
@@ -127,6 +127,6 @@ fn assert_read_values(
                 "{label} voxel[{i}]: expected {expected}, got {got}"
             );
         }
-    });
+    })?;
     Ok(())
 }

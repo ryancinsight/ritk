@@ -18,6 +18,18 @@
 /// are foreground; those at or below are background.
 pub(crate) const FOREGROUND_THRESHOLD: f32 = 0.5;
 
+fn ensure_finite_mask(values: &[f32]) -> anyhow::Result<()> {
+    if let Some((index, value)) = values
+        .iter()
+        .copied()
+        .enumerate()
+        .find(|(_, value)| !value.is_finite())
+    {
+        anyhow::bail!("binary mask sample at flat index {index} must be finite, got {value}");
+    }
+    Ok(())
+}
+
 pub mod binary_closing;
 pub mod binary_dilation;
 pub mod binary_erosion;
@@ -49,3 +61,7 @@ pub trait MorphologicalOperation<B: ritk_image::tensor::Backend, const D: usize>
     /// containing the morphologically transformed binary mask.
     fn apply(&self, mask: &ritk_image::Image<B, D>) -> ritk_image::Image<B, D>;
 }
+
+#[cfg(test)]
+#[path = "tests_native.rs"]
+mod tests_native;

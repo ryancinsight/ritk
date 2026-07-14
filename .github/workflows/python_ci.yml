@@ -25,6 +25,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -33,6 +36,12 @@ jobs:
   build-and-smoke-test:
     name: Python ${{ matrix.python-version }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    # Windows is the binding matrix path at about 15 minutes; retain one full
+    # observed runtime for dependency and runner variance.
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ritk
     strategy:
       fail-fast: false
       matrix:
@@ -44,7 +53,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+        with:
+          path: ritk
+          persist-credentials: false
+
+      - name: Checkout provider dependencies
+        uses: ./ritk/.github/actions/checkout-atlas-dependencies
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -54,10 +69,10 @@ jobs:
       - name: Cache Rust build artifacts
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: ". -> target"
+          workspaces: "ritk -> target"
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -67,7 +82,14 @@ jobs:
         run: echo 'C:/msys64/ucrt64/bin' >> $GITHUB_PATH
 
       - name: Install Python test tooling
-        run: pip install maturin[patchelf] pytest numpy SimpleITK vtk
+        shell: bash
+        run: |
+          python -m pip install -r crates/ritk-python/requirements-test.txt
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            python -m pip install 'maturin[patchelf]'
+          else
+            python -m pip install maturin
+          fi
 
       - name: Build ritk wheel
         run: >-
@@ -106,6 +128,9 @@ jobs:
         continue-on-error: true
         run: python crates/ritk-python/tests/python_api_drift_report.py
 
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@f47c9687269207d6b374de4134cb8b1fa5b49649 # cargo-nextest
+
       - name: Run Rust unit tests
-        run: cargo test -p ritk-python --lib -- --test-threads=4
+        run: cargo nextest run -p ritk-python --lib
         timeout-minutes: 10

@@ -2,6 +2,8 @@ use super::super::{
     empirical_cdf_rank, quantile_sorted, MriContrast, WhiteStripeConfig, WhiteStripeNormalizer,
 };
 use super::*;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::test_support::make_image;
 use ritk_image::Image;
@@ -42,6 +44,35 @@ fn test_trimodal_t1_wm_peak_detection() {
         "sigma_ws must be small, got {}",
         result.sigma
     );
+}
+
+#[test]
+fn native_white_stripe_preserves_geometry_and_reports_diagnostics() {
+    let (data, total) = make_trimodal_volume(64, 128, 96);
+    let image = NativeImage::from_flat_on(
+        data,
+        [1, 1, total],
+        ritk_spatial::Point::new([1.0, 2.0, 3.0]),
+        ritk_spatial::Spacing::new([0.5, 1.0, 2.0]),
+        ritk_spatial::Direction::identity(),
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let result = WhiteStripeNormalizer::normalize_native(
+        &image,
+        None,
+        &WhiteStripeConfig {
+            num_bins: 128,
+            ..Default::default()
+        },
+    )
+    .expect("native white stripe succeeds");
+
+    assert!(result.stripe_size > 0);
+    assert!((result.wm_peak - 0.8).abs() < 0.08);
+    assert_eq!(result.normalized.origin(), image.origin());
+    assert_eq!(result.normalized.spacing(), image.spacing());
+    assert_eq!(result.normalized.direction(), image.direction());
 }
 
 // ── Test 2: After normalization, white stripe voxels ≈ mean 0, std 1 ──

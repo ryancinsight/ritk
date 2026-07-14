@@ -62,8 +62,8 @@ pub fn lncc_loss_native<B>(
     epsilon: f32,
 ) -> f32
 where
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    B: coeus_core::Backend + ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + coeus_core::CpuAddressableStorageMut<f32>,
 {
     let f = fixed.data_vec();
     let fixed_world = fixed_world_points(fixed);

@@ -4,8 +4,8 @@ use super::coords::encode_coords;
 
 /// Cluster center: intensity + spatial coordinates.
 pub struct Center {
-    pub intensity: f64,
-    pub pos: Vec<f64>,
+    pub intensity: f32,
+    pub pos: Vec<f32>,
 }
 
 /// Initialize K cluster centers on a regular grid, perturbed to the
@@ -18,11 +18,11 @@ pub struct Center {
 /// # Panics
 /// Panics if `ndim` is not in {2, 3}.
 pub fn init_centers(
-    data: &[f64],
+    data: &[f32],
     shape: &[usize],
     ndim: usize,
     steps: &[usize],
-    gradient: &[f64],
+    gradient: &[f32],
     k: usize,
 ) -> Vec<Center> {
     match ndim {
@@ -34,10 +34,10 @@ pub fn init_centers(
 
 /// Const-generic implementation of [`init_centers`].
 fn init_centers_impl<const D: usize>(
-    data: &[f64],
+    data: &[f32],
     shape: &[usize],
     steps: &[usize],
-    gradient: &[f64],
+    gradient: &[f32],
     k: usize,
 ) -> Vec<Center> {
     let shape_arr: [usize; D] = {
@@ -81,7 +81,7 @@ fn init_centers_impl<const D: usize>(
 
         centers.push(Center {
             intensity: data[best_flat],
-            pos: best.iter().map(|&c| c as f64).collect(),
+            pos: best.iter().map(|&c| c as f32).collect(),
         });
     }
 
@@ -125,10 +125,10 @@ fn generate_grid_points<const D: usize>(
 fn perturb_center<const D: usize>(
     center: &[usize; D],
     shape: [usize; D],
-    gradient: &[f64],
+    gradient: &[f32],
 ) -> [usize; D] {
     let mut best_coords = *center;
-    let mut best_grad = f64::MAX;
+    let mut best_grad = f32::MAX;
     let mut offset = [0isize; D];
     find_min_gradient(
         &mut offset,
@@ -149,9 +149,9 @@ fn find_min_gradient<const D: usize>(
     depth: usize,
     center: &[usize; D],
     shape: [usize; D],
-    gradient: &[f64],
+    gradient: &[f32],
     best_coords: &mut [usize; D],
-    best_grad: &mut f64,
+    best_grad: &mut f32,
 ) {
     if depth == D {
         let mut coords = [0usize; D];

@@ -1,6 +1,4 @@
-pub use ritk_jpeg::{
-    read_jpeg, read_jpeg_color_to_volume, write_jpeg, JpegColorReader, JpegReader, JpegWriter,
-};
+pub use ritk_jpeg::{read_jpeg_color_to_volume, JpegColorReader};
 
 /// Atlas-native-substrate implementors of [`crate::domain::ImageReader`].
 ///
@@ -27,7 +25,7 @@ pub mod native {
 
     impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for JpegReader<B> {
         fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-            ritk_jpeg::native::read_jpeg(path, &self.backend).map_err(to_io_err)
+            ritk_jpeg::read_jpeg(path, &self.backend).map_err(to_io_err)
         }
     }
 
@@ -49,7 +47,7 @@ pub mod native {
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
-            ritk_jpeg::native::write_jpeg(path, image, &self.backend).map_err(to_io_err)
+            ritk_jpeg::write_jpeg(path, image, &self.backend).map_err(to_io_err)
         }
     }
 
@@ -93,7 +91,11 @@ pub mod native {
                 "expected mid pixel near 128, got {}",
                 values[1]
             );
-            assert!(values[2] >= 228.0, "expected bright pixel, got {}", values[2]);
+            assert!(
+                values[2] >= 228.0,
+                "expected bright pixel, got {}",
+                values[2]
+            );
         }
     }
 }

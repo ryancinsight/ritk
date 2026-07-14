@@ -53,65 +53,9 @@ impl PermuteAxesImageFilter {
     ///
     /// Returns `Err` if `order` is not a valid permutation of `{0, 1, 2}`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let order = self.order;
-
-        // Validate: order must be a permutation of {0, 1, 2}
-        let mut seen = [false; 3];
-        for &ax in &order {
-            if ax > 2 {
-                anyhow::bail!(
-                    "PermuteAxesImageFilter: axis index {} out of range [0,2]",
-                    ax
-                );
-            }
-            if seen[ax] {
-                anyhow::bail!("PermuteAxesImageFilter: duplicate axis {} in order", ax);
-            }
-            seen[ax] = true;
-        }
-
         let (vals_vec, in_shape) = extract_vec_infallible(image);
-        let vals = &vals_vec;
-        let out_shape = [in_shape[order[0]], in_shape[order[1]], in_shape[order[2]]];
-
-        let [_inz, iny, inx] = in_shape;
-        let [oz, oy, ox] = out_shape;
-
-        let in_idx = |iz: usize, iy: usize, ix: usize| iz * iny * inx + iy * inx + ix;
-
-        let mut out = vec![0.0f32; oz * oy * ox];
-
-        for i0 in 0..oz {
-            for i1 in 0..oy {
-                for i2 in 0..ox {
-                    // Build in-index: in_idx[order[j]] = ij
-                    let mut in_coords = [0usize; 3];
-                    in_coords[order[0]] = i0;
-                    in_coords[order[1]] = i1;
-                    in_coords[order[2]] = i2;
-                    let src = in_idx(in_coords[0], in_coords[1], in_coords[2]);
-                    let dst = i0 * oy * ox + i1 * ox + i2;
-                    out[dst] = vals[src];
-                }
-            }
-        }
-
-        // Permute spacing: new_spacing[j] = old_spacing[order[j]]
-        let old_spacing = image.spacing();
-        let new_spacing = Spacing::new([
-            old_spacing[order[0]],
-            old_spacing[order[1]],
-            old_spacing[order[2]],
-        ]);
-
-        // Permute direction columns: new_dir.col(j) = old_dir.col(order[j])
-        let old_dir = image.direction();
-        let mut new_dir = Direction::zeros();
-        for j in 0..3 {
-            for row in 0..3 {
-                new_dir[(row, j)] = old_dir[(row, order[j])];
-            }
-        }
+        let (out, out_shape, new_spacing, new_dir) =
+            self.permute(&vals_vec, in_shape, image.spacing(), image.direction())?;
 
         Ok(rebuild_with_metadata(
             out,
@@ -121,6 +65,84 @@ impl PermuteAxesImageFilter {
             new_dir,
             image,
         ))
+    }
+
+    /// Apply the axis permutation to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (values, shape, spacing, direction) = self.permute(
+            image.data_slice()?,
+            image.shape(),
+            image.spacing(),
+            image.direction(),
+        )?;
+        ritk_image::native::Image::from_flat_on(
+            values,
+            shape,
+            *image.origin(),
+            spacing,
+            direction,
+            backend,
+        )
+    }
+
+    fn permute(
+        &self,
+        values: &[f32],
+        in_shape: [usize; 3],
+        old_spacing: &Spacing<3>,
+        old_direction: &Direction<3>,
+    ) -> anyhow::Result<(Vec<f32>, [usize; 3], Spacing<3>, Direction<3>)> {
+        self.validate_order()?;
+        let [iny, inx] = [in_shape[1], in_shape[2]];
+        let out_shape = [
+            in_shape[self.order[0]],
+            in_shape[self.order[1]],
+            in_shape[self.order[2]],
+        ];
+        let [oz, oy, ox] = out_shape;
+        let mut output = vec![0.0; oz * oy * ox];
+        for i0 in 0..oz {
+            for i1 in 0..oy {
+                for i2 in 0..ox {
+                    let mut input = [0; 3];
+                    input[self.order[0]] = i0;
+                    input[self.order[1]] = i1;
+                    input[self.order[2]] = i2;
+                    output[i0 * oy * ox + i1 * ox + i2] =
+                        values[input[0] * iny * inx + input[1] * inx + input[2]];
+                }
+            }
+        }
+        let spacing = Spacing::new(std::array::from_fn(|axis| old_spacing[self.order[axis]]));
+        let mut direction = Direction::zeros();
+        for column in 0..3 {
+            for row in 0..3 {
+                direction[(row, column)] = old_direction[(row, self.order[column])];
+            }
+        }
+        Ok((output, out_shape, spacing, direction))
+    }
+
+    fn validate_order(&self) -> anyhow::Result<()> {
+        let mut seen = [false; 3];
+        for axis in self.order {
+            if axis > 2 {
+                anyhow::bail!("PermuteAxesImageFilter: axis index {axis} out of range [0,2]");
+            }
+            if seen[axis] {
+                anyhow::bail!("PermuteAxesImageFilter: duplicate axis {axis} in order");
+            }
+            seen[axis] = true;
+        }
+        Ok(())
     }
 }
 

@@ -1,9 +1,10 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{native_into_py_image, py_image_to_native, PyImage};
+use coeus_core::SequentialBackend;
 use pyo3::prelude::*;
 use ritk_segmentation::{
-    toboggan as core_toboggan, MarkerControlledWatershed, MorphologicalWatershed,
-    WatershedSegmentation,
+    FloodConnectivity, MarkerControlledWatershed, MorphologicalWatershed, TobogganFilter,
+    WatershedLinePolicy, WatershedSegmentation,
 };
 
 /// Toboggan watershed labeling, matching `sitk.Toboggan`.
@@ -20,10 +21,14 @@ use ritk_segmentation::{
 /// Returns:
 ///     label image (basin indices ≥ 2).
 #[pyfunction]
-pub fn toboggan(py: Python<'_>, image: &PyImage) -> PyImage {
-    let arc = py_image_to_burn(image);
-    let out = py.allow_threads(|| core_toboggan(&arc));
-    burn_into_py_image(out)
+pub fn toboggan(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
+    let image = py_image_to_native(image)?;
+    py.allow_threads(|| {
+        TobogganFilter::new()
+            .apply_native(&image, &SequentialBackend)
+            .map_err(|error| RitkPyError::value(error.to_string()))
+    })
+    .map(native_into_py_image)
 }
 
 /// Marker-less morphological watershed, matching
@@ -43,13 +48,15 @@ pub fn toboggan(py: Python<'_>, image: &PyImage) -> PyImage {
 #[pyfunction]
 #[pyo3(signature = (image, level=0.0_f32))]
 pub fn morphological_watershed(py: Python<'_>, image: &PyImage, level: f32) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let image = py_image_to_native(image)?;
+    let filter = MorphologicalWatershed::new(level)
+        .map_err(|error| RitkPyError::value(error.to_string()))?;
     py.allow_threads(|| {
-        MorphologicalWatershed::new(level)
-            .apply(&arc)
-            .map_err(|e| RitkPyError::runtime(e.to_string()))
+        filter
+            .apply_native(&image, &SequentialBackend)
+            .map_err(|error| RitkPyError::value(error.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(native_into_py_image)
 }
 
 /// Segment a 3D image via Meyer's flooding watershed algorithm.
@@ -65,13 +72,13 @@ pub fn morphological_watershed(py: Python<'_>, image: &PyImage, level: f32) -> R
 ///     Label PyImage with basin indices and watershed boundaries (0).
 #[pyfunction]
 pub fn watershed_segment(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = py_image_to_burn(image);
+    let image = py_image_to_native(image)?;
     py.allow_threads(|| {
         let seg = WatershedSegmentation::new();
-        seg.apply(&image)
-            .map_err(|e| RitkPyError::runtime(e.to_string()))
+        seg.apply_native(&image, &SequentialBackend)
+            .map_err(|e| RitkPyError::value(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(native_into_py_image)
 }
 
 /// Run marker-controlled watershed segmentation on a gradient-magnitude image.
@@ -106,15 +113,25 @@ pub fn marker_watershed_segment(
     mark_watershed_line: bool,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let grad_arc = py_image_to_burn(gradient);
-    let mark_arc = py_image_to_burn(markers);
+    let gradient = py_image_to_native(gradient)?;
+    let markers = py_image_to_native(markers)?;
+    let connectivity = if fully_connected {
+        FloodConnectivity::Full
+    } else {
+        FloodConnectivity::Face
+    };
+    let watershed_lines = if mark_watershed_line {
+        WatershedLinePolicy::Mark
+    } else {
+        WatershedLinePolicy::Omit
+    };
     let result = py.allow_threads(|| {
         MarkerControlledWatershed::new()
-            .with_mark_watershed_line(mark_watershed_line)
-            .with_fully_connected(fully_connected)
-            .apply(&grad_arc, &mark_arc)
+            .with_connectivity(connectivity)
+            .with_watershed_lines(watershed_lines)
+            .apply_native(&gradient, &markers, &SequentialBackend)
     });
     result
-        .map(burn_into_py_image)
-        .map_err(|e| RitkPyError::runtime(e.to_string()))
+        .map(native_into_py_image)
+        .map_err(|e| RitkPyError::value(e.to_string()))
 }

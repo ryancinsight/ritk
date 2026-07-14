@@ -1,7 +1,10 @@
 use super::*;
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
 type B = NdArray<f32>;
@@ -37,6 +40,43 @@ fn test_uniform_image_unchanged() {
             "expected {val} for uniform image after diffusion, got {v}"
         );
     }
+}
+
+#[test]
+fn native_anisotropic_preserves_geometry_and_matches_kernel() {
+    let dimensions = [2, 3, 4];
+    let values: Vec<f32> = (0..24).map(|index| index as f32 * 0.25).collect();
+    let origin = Point::new([2.0, 3.0, 5.0]);
+    let spacing = Spacing::new([0.5, 1.0, 2.0]);
+    let direction = Direction::identity();
+    let image = NativeImage::from_flat_on(
+        values.clone(),
+        dimensions,
+        origin,
+        spacing,
+        direction,
+        &SequentialBackend,
+    )
+    .expect("invariant: valid native image");
+    let config = DiffusionConfig {
+        num_iterations: 2,
+        time_step: 0.0625,
+        conductance: 3.0,
+        function: ConductanceFunction::Exponential,
+    };
+
+    let output = AnisotropicDiffusionFilter::<ExponentialConductance>::new(config.clone())
+        .apply_native(&image, &SequentialBackend)
+        .expect("native anisotropic diffusion succeeds");
+
+    assert_eq!(output.shape(), dimensions);
+    assert_eq!(*output.origin(), origin);
+    assert_eq!(*output.spacing(), spacing);
+    assert_eq!(*output.direction(), direction);
+    assert_eq!(
+        output.data_slice().expect("contiguous output"),
+        diffuse::<ExponentialConductance>(&values, dimensions, [0.5, 1.0, 2.0], &config,)
+    );
 }
 
 /// Step-edge test: left half = 50, right half = 200.

@@ -142,7 +142,6 @@ impl<B: Backend> GaussianFilter<B> {
             gaussian_smooth_native_flat(vals, dims, sigmas, spacing, max_w)
         })
     }
-
     fn convolve_1d<const D: usize>(
         &self,
         input: Tensor<B, D>,
@@ -153,45 +152,30 @@ impl<B: Backend> GaussianFilter<B> {
         let dims: [usize; D] = shape.dims();
         let _device = input.device();
 
-        // 1. Permute target dimension to the last
         let mut permute_indices = [0isize; D];
-        let mut idx = 0;
-        for i in 0..D {
-            if i != dim {
-                permute_indices[idx] = i as isize;
-                idx += 1;
+        let mut index = 0;
+        for axis in 0..D {
+            if axis != dim {
+                permute_indices[index] = axis as isize;
+                index += 1;
             }
         }
         permute_indices[D - 1] = dim as isize;
 
         let input_permuted = input.permute(permute_indices);
-
-        // 2. Flatten other dimensions into batch
         let last_dim_size = dims[dim];
-        let mut batch_size = 1;
-        for (i, &d) in dims.iter().enumerate() {
-            if i != dim {
-                batch_size *= d;
-            }
-        }
-
-        // Reshape to [Batch, 1, Length] for conv1d
-        // Input: [Batch, Channels=1, Length]
+        let batch_size = dims
+            .iter()
+            .enumerate()
+            .filter_map(|(axis, &size)| (axis != dim).then_some(size))
+            .product();
         let input_reshaped = input_permuted.reshape([batch_size, 1, last_dim_size]);
-
-        // Kernel: [OutChannels=1, InChannels=1, KernelSize]
         let kernel_size = kernel.dims()[0];
         let kernel_reshaped = kernel.reshape([1, 1, kernel_size]);
-
-        // Padding to maintain size
         let padding = kernel_size / 2;
-
-        // Perform convolution
         let options = ConvOptions::new([1], [padding], [1], 1);
-
         let output_reshaped =
             apply_row_chunks(input_reshaped, ritk_wgpu_compat::WGPU_CHUNK_SIZE, |chunk| {
-                // BURN-API: conv1d consumes kernel_reshaped; clone required until upstream adds non-consuming variant
                 ritk_image::tensor::module::conv1d(
                     chunk,
                     kernel_reshaped.clone(),
@@ -200,36 +184,22 @@ impl<B: Backend> GaussianFilter<B> {
                 )
             });
 
-        // 3. Reshape back and inverse permute
-        // Output shape matches input_permuted shape since we used padding
-        // But we need to be careful if padding logic in conv1d changes size slightly (e.g. even kernel)
-        // With stride 1 and padding = floor(k/2) and odd kernel, size should be preserved.
-
-        // Reshape back to permuted shape
         let mut permuted_shape = [0; D];
-        let mut p_idx = 0;
-        for (i, &d) in dims.iter().enumerate() {
-            if i != dim {
-                permuted_shape[p_idx] = d;
-                p_idx += 1;
+        let mut permuted_index = 0;
+        for (axis, &size) in dims.iter().enumerate() {
+            if axis != dim {
+                permuted_shape[permuted_index] = size;
+                permuted_index += 1;
             }
         }
-        permuted_shape[D - 1] = last_dim_size; // Assuming size preserved
-
+        permuted_shape[D - 1] = last_dim_size;
         let output_permuted = output_reshaped.reshape(Shape::new(permuted_shape));
 
-        // Inverse permutation
-        // We need to map back.
-        // Current dims are [d_others..., d_target]
-        // We want [d_0, d_1, ... d_D-1]
-
-        // Construct inverse indices
-        let mut inv_permute_indices = [0isize; D];
-        for (new_pos, &old_pos) in permute_indices.iter().enumerate() {
-            inv_permute_indices[old_pos as usize] = new_pos as isize;
+        let mut inverse_permutation = [0isize; D];
+        for (new_position, &old_position) in permute_indices.iter().enumerate() {
+            inverse_permutation[old_position as usize] = new_position as isize;
         }
-
-        output_permuted.permute(inv_permute_indices)
+        output_permuted.permute(inverse_permutation)
     }
 }
 

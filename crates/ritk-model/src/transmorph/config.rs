@@ -29,7 +29,7 @@ const SEED_STEP: u64 = 0x9E37_79B9_7F4A_7C15;
 /// Whether the flow field is integrated (diffeomorphic) or used directly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TransformIntegration {
-    /// Flow field is used directly as a displacement without integration.
+    /// Use the prediction directly as displacement.
     Direct,
     /// Flow field is integrated via scaling-and-squaring into a diffeomorphic warp.
     #[default]
@@ -128,7 +128,6 @@ impl TransMorphConfig {
             TransformIntegration::Integrated => Some(VecInt::new(self.integration_steps)),
             TransformIntegration::Direct => None,
         };
-
         TransMorph {
             patch_embed,
             stage1,

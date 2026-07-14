@@ -42,7 +42,7 @@
 
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
-use ritk_spatial::{Point, Spacing};
+use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_origin};
 
 // ── Padding newtype ─────────────────────────────────────────────────────────
@@ -98,13 +98,18 @@ impl AsRef<[usize; 3]> for Padding {
 
 // ── Shared ───────────────────────────────────────────────────────────────────
 
-fn updated_origin(origin: &Point<3>, spacing: &Spacing<3>, lower: &Padding) -> Point<3> {
-    // Output origin = input_origin - lower * spacing (in each axis).
-    Point::new([
-        origin[0] - lower[0] as f64 * spacing[0],
-        origin[1] - lower[1] as f64 * spacing[1],
-        origin[2] - lower[2] as f64 * spacing[2],
-    ])
+fn updated_origin(
+    origin: &Point<3>,
+    spacing: &Spacing<3>,
+    direction: &Direction<3>,
+    lower: &Padding,
+) -> Point<3> {
+    Point::new(std::array::from_fn(|row| {
+        origin[row]
+            - (0..3)
+                .map(|axis| lower[axis] as f64 * spacing[axis] * direction[(row, axis)])
+                .sum::<f64>()
+    }))
 }
 
 // ── ConstantPadImageFilter ────────────────────────────────────────────────────
@@ -173,8 +178,52 @@ impl ConstantPadImageFilter {
             }
         }
 
-        let new_origin = updated_origin(image.origin(), image.spacing(), &self.pad_lower);
+        let new_origin = updated_origin(
+            image.origin(),
+            image.spacing(),
+            image.direction(),
+            &self.pad_lower,
+        );
         Ok(rebuild_with_origin(out, [oz, oy, ox], new_origin, image))
+    }
+
+    /// Apply constant padding to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let [nz, ny, nx] = image.shape();
+        let [lz, ly, lx] = *self.pad_lower.as_array();
+        let [uz, uy, ux] = *self.pad_upper.as_array();
+        let [oz, oy, ox] = [nz + lz + uz, ny + ly + uy, nx + lx + ux];
+        let values = image.data_slice()?;
+        let mut output = vec![self.constant; oz * oy * ox];
+        for iz in lz..lz + nz {
+            for iy in ly..ly + ny {
+                for ix in lx..lx + nx {
+                    output[iz * oy * ox + iy * ox + ix] =
+                        values[(iz - lz) * ny * nx + (iy - ly) * nx + ix - lx];
+                }
+            }
+        }
+        ritk_image::native::Image::from_flat_on(
+            output,
+            [oz, oy, ox],
+            updated_origin(
+                image.origin(),
+                image.spacing(),
+                image.direction(),
+                &self.pad_lower,
+            ),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
     }
 }
 
@@ -251,8 +300,32 @@ impl MirrorPadImageFilter {
             }
         }
 
-        let new_origin = updated_origin(image.origin(), image.spacing(), &self.pad_lower);
+        let new_origin = updated_origin(
+            image.origin(),
+            image.spacing(),
+            image.direction(),
+            &self.pad_lower,
+        );
         Ok(rebuild_with_origin(out, [oz, oy, ox], new_origin, image))
+    }
+
+    /// Apply mirror padding to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        padded_native(
+            image,
+            backend,
+            &self.pad_lower,
+            &self.pad_upper,
+            mirror_index,
+        )
     }
 }
 
@@ -318,9 +391,64 @@ impl WrapPadImageFilter {
             }
         }
 
-        let new_origin = updated_origin(image.origin(), image.spacing(), &self.pad_lower);
+        let new_origin = updated_origin(
+            image.origin(),
+            image.spacing(),
+            image.direction(),
+            &self.pad_lower,
+        );
         Ok(rebuild_with_origin(out, [oz, oy, ox], new_origin, image))
     }
+
+    /// Apply wrap padding to a Coeus-native image.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        padded_native(image, backend, &self.pad_lower, &self.pad_upper, wrap_index)
+    }
+}
+
+fn padded_native<B>(
+    image: &ritk_image::native::Image<f32, B, 3>,
+    backend: &B,
+    lower: &Padding,
+    upper: &Padding,
+    index: fn(i64, usize) -> usize,
+) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+{
+    let [nz, ny, nx] = image.shape();
+    let [lz, ly, lx] = *lower.as_array();
+    let [uz, uy, ux] = *upper.as_array();
+    let [oz, oy, ox] = [nz + lz + uz, ny + ly + uy, nx + lx + ux];
+    let values = image.data_slice()?;
+    let mut output = vec![0.0; oz * oy * ox];
+    for iz in 0..oz {
+        for iy in 0..oy {
+            for ix in 0..ox {
+                let z = index(iz as i64 - lz as i64, nz);
+                let y = index(iy as i64 - ly as i64, ny);
+                let x = index(ix as i64 - lx as i64, nx);
+                output[iz * oy * ox + iy * ox + ix] = values[z * ny * nx + y * nx + x];
+            }
+        }
+    }
+    ritk_image::native::Image::from_flat_on(
+        output,
+        [oz, oy, ox],
+        updated_origin(image.origin(), image.spacing(), image.direction(), lower),
+        *image.spacing(),
+        *image.direction(),
+        backend,
+    )
 }
 
 // ── ZeroFluxNeumannPadImageFilter ─────────────────────────────────────────────
@@ -386,7 +514,12 @@ impl ZeroFluxNeumannPadImageFilter {
             }
         }
 
-        let new_origin = updated_origin(image.origin(), image.spacing(), &self.pad_lower);
+        let new_origin = updated_origin(
+            image.origin(),
+            image.spacing(),
+            image.direction(),
+            &self.pad_lower,
+        );
         Ok(rebuild_with_origin(out, [oz, oy, ox], new_origin, image))
     }
 }

@@ -131,6 +131,74 @@ fn unsigned_edt_filter_background_voxels_have_positive_distance() {
     }
 }
 
+#[test]
+fn unsigned_squared_measure_has_exact_grid_values() {
+    let img = make_image(vec![1.0, 0.0, 0.0, 0.0], [1, 1, 4]);
+    let out = DistanceTransformImageFilter::new()
+        .with_measure(crate::distance::DistanceMeasure::Squared)
+        .apply(&img)
+        .expect("valid squared transform");
+    assert_eq!(voxels(&out), vec![0.0, 1.0, 4.0, 9.0]);
+}
+
+#[test]
+fn unsigned_empty_seed_set_is_zero() {
+    let img = make_image(vec![0.0; 8], [2, 2, 2]);
+    let out = DistanceTransformImageFilter::new()
+        .apply(&img)
+        .expect("empty seed set has a defined zero result");
+    assert_eq!(voxels(&out), vec![0.0; 8]);
+}
+
+#[test]
+fn unsigned_filter_rejects_invalid_numeric_inputs() {
+    for (value, display) in [
+        (f32::NAN, "NaN"),
+        (f32::INFINITY, "inf"),
+        (f32::NEG_INFINITY, "-inf"),
+    ] {
+        let img = make_image(vec![value; 8], [2, 2, 2]);
+        let error = match DistanceTransformImageFilter::new().apply(&img) {
+            Err(error) => error,
+            Ok(_) => panic!("non-finite sample must be rejected"),
+        };
+        assert_eq!(
+            error.to_string(),
+            format!("distance-transform sample at flat index 0 must be finite, got {display}")
+        );
+    }
+    for threshold in [-1.0, f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+        assert_eq!(
+            crate::distance::BinarizationThreshold::new(threshold),
+            Err("BinarizationThreshold must be finite and non-negative")
+        );
+    }
+}
+
+#[test]
+fn unsigned_validation_reports_invalid_shape_and_spacing_exactly() {
+    let threshold = crate::distance::BinarizationThreshold::DEFAULT;
+    let zero_dimension =
+        super::unsigned::validate_input(&[], [0, 1, 1], [1.0, 1.0, 1.0], threshold)
+            .expect_err("zero dimension must be rejected");
+    assert_eq!(
+        zero_dimension.to_string(),
+        "distance-transform dimensions must be non-zero, got [0, 1, 1]"
+    );
+    for spacing in [
+        [0.0, 1.0, 1.0],
+        [f64::NAN, 1.0, 1.0],
+        [f64::INFINITY, 1.0, 1.0],
+    ] {
+        let error = super::unsigned::validate_input(&[0.0], [1, 1, 1], spacing, threshold)
+            .expect_err("invalid spacing must be rejected");
+        assert_eq!(
+            error.to_string(),
+            format!("distance-transform spacing must be finite and positive, got {spacing:?}")
+        );
+    }
+}
+
 // --- SignedDistanceTransformImageFilter tests ----------------------------
 
 #[test]
