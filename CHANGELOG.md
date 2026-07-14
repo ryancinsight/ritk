@@ -44,6 +44,8 @@
 - Remove fourteen side-by-side registration calls that duplicated independently
   asserted RITK and SimpleITK contracts while retaining their stronger
   independent value oracles.
+- Remove the remaining duplicate ten-algorithm shifted-blob quality report and
+  parameterize its canonical copy by independent algorithm contract.
 - Remove a SimpleITK B-spline check that applied an underived NCC tolerance to
   cross-modal CT and MR intensities; the physical-space RIRE rigid oracle
   retains the dataset's ground-truth-backed cross-modal validation.

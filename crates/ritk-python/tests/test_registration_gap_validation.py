@@ -27,7 +27,6 @@ Gap analysis dimensions:
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import numpy as np
@@ -1207,38 +1206,30 @@ class TestVMHeadMultiModal:
 
 
 @pytest.mark.slow
-class TestRegistrationQualityReport:
-    """Generate a comprehensive quality report comparing all RITK algorithms
-    against SimpleITK baselines on synthetic data."""
-
-    def test_all_ritk_algorithms_improve_ncc_on_shifted_blob(self):
-        """Every RITK deformable algorithm must improve NCC on a shifted Gaussian blob.
-
-        Return-type contract:
-        - Demons family: (warped, displacement)
-        - SyN family: (warped_fixed, warped_moving)
-        - bspline_ffd_register: single warped Image
-        - lddmm_register: (warped, velocity_field)
-        """
-        fixed_arr = _make_gaussian_blob(size=SIZE, sigma=5.0)
-        moving_arr = np.roll(fixed_arr, 4, axis=2).astype(np.float32)
-        ncc_before = _ncc(fixed_arr, moving_arr)
-        fixed_r = _numpy_to_ritk(fixed_arr)
-        moving_r = _numpy_to_ritk(moving_arr)
-
-        algorithms = {
-            "demons": dict(max_iterations=100),
-            "diffeomorphic_demons": dict(max_iterations=100, sigma_diffusion=1.5),
-            "symmetric_demons": dict(max_iterations=100),
-            "multires_demons": dict(max_iterations=100, levels=3),
-            "inverse_consistent_demons": dict(max_iterations=100),
-            "syn": dict(
-                max_iterations=100, sigma_smooth=1.0, cc_radius=2, gradient_step=0.5
+@pytest.mark.parametrize(
+    ("name", "kwargs"),
+    [
+        ("demons", dict(max_iterations=100)),
+        ("diffeomorphic_demons", dict(max_iterations=100, sigma_diffusion=1.5)),
+        ("symmetric_demons", dict(max_iterations=100)),
+        ("multires_demons", dict(max_iterations=100, levels=3)),
+        ("inverse_consistent_demons", dict(max_iterations=100)),
+        (
+            "syn",
+            dict(
+                max_iterations=100,
+                sigma_smooth=1.0,
+                cc_radius=2,
+                gradient_step=0.5,
             ),
-            "multires_syn": dict(
-                num_levels=3, sigma_smooth=1.0, cc_radius=2, gradient_step=0.5
-            ),
-            "bspline_syn": dict(
+        ),
+        (
+            "multires_syn",
+            dict(num_levels=3, sigma_smooth=1.0, cc_radius=2, gradient_step=0.5),
+        ),
+        (
+            "bspline_syn",
+            dict(
                 max_iterations=100,
                 control_spacing_z=8,
                 control_spacing_y=8,
@@ -1247,20 +1238,28 @@ class TestRegistrationQualityReport:
                 cc_radius=2,
                 gradient_step=0.5,
             ),
-            "bspline_ffd": dict(
-                initial_control_spacing=8, num_levels=2, max_iterations=50
-            ),
-            "lddmm": dict(max_iterations=30, num_time_steps=5, kernel_sigma=2.0),
-        }
+        ),
+        (
+            "bspline_ffd",
+            dict(initial_control_spacing=8, num_levels=2, max_iterations=50),
+        ),
+        ("lddmm", dict(max_iterations=30, num_time_steps=5, kernel_sigma=2.0)),
+    ],
+)
+def test_ritk_algorithm_improves_ncc_on_shifted_blob(name, kwargs):
+    """Each deformable algorithm must improve NCC on a shifted Gaussian blob."""
+    fixed_arr = _make_gaussian_blob(size=SIZE, sigma=5.0)
+    moving_arr = np.roll(fixed_arr, 4, axis=2).astype(np.float32)
+    ncc_before = _ncc(fixed_arr, moving_arr)
+    fixed_r = _numpy_to_ritk(fixed_arr)
+    moving_r = _numpy_to_ritk(moving_arr)
 
-        for name, kwargs in algorithms.items():
-            reg_name = name + "_register"
-            warped = _ritk_warped(reg_name, fixed_r, moving_r, **kwargs)
-            ncc_after = _ncc(fixed_arr, warped)
-            assert ncc_after > ncc_before, (
-                f"{name} did not improve NCC: before={ncc_before:.4f}, "
-                f"after={ncc_after:.4f}"
-            )
+    warped = _ritk_warped(name + "_register", fixed_r, moving_r, **kwargs)
+    ncc_after = _ncc(fixed_arr, warped)
+    assert ncc_after > ncc_before, (
+        f"{name} did not improve NCC: before={ncc_before:.4f}, "
+        f"after={ncc_after:.4f}"
+    )
 
 
 # ===========================================================================
@@ -1393,8 +1392,6 @@ class TestNiftiDirectReadRegistration:
 
     @pytest.fixture(autouse=True)
     def setup_direct_read(self):
-        import tempfile
-
         self.fixed_ritk = ritk.io.read_image(
             str(TEST_DATA / "brain_mni" / "ants_ch2.nii.gz")
         )

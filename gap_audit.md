@@ -65,6 +65,13 @@ local CC is the optimized objective. The mandatory MNI case now evaluates ANTs
 neighborhood-correlation loss at radius four through SimpleITK before and after
 the unchanged RITK workload and requires strict loss reduction, with no numeric
 tolerance.
+Run `29314927726` passed every small denoising one-ULP differential, then reached
+the duplicated shifted-blob quality report: the gap-validation copy crossed 60
+seconds before the side-by-side copy could repeat the same ten algorithms. The
+side-by-side duplicate is deleted. The canonical gap-validation report is now
+parameterized by algorithm, retaining every configuration, invocation, input,
+and strict NCC-improvement assertion while giving each independent contract its
+own diagnostic and timeout boundary.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before

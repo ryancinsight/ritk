@@ -87,6 +87,8 @@
 - [x] Replace the underived inter-subject SyN `0.001` global-NCC threshold with
   an independent ANTs-neighborhood-correlation oracle over the actual optimized
   objective; make its dataset and SimpleITK prerequisites mandatory.
+- [x] Delete the duplicated ten-algorithm registration quality report and
+  express its canonical independent algorithm contracts as parameterized cases.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

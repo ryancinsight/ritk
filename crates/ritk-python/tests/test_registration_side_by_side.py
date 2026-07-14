@@ -10,7 +10,6 @@ Tests cover:
 - Inter-subject brain MNI pair (NCC/MSE improvement)
 - Multi-modal CT/MR RIRE pair (cross-modal NCC improvement)
 - Multi-modal CT/MR head pair (cross-modal NCC improvement)
-- Comprehensive quality report across all algorithms
 
 Return-type invariant:
   - Demons family (demons, diffeomorphic_demons, symmetric_demons,
@@ -22,7 +21,6 @@ Return-type invariant:
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import numpy as np
@@ -606,80 +604,3 @@ class TestVMHeadMultiModal:
             f"SyN did not improve NCC: before={self.ncc_before:.4f}, "
             f"after={ncc_after:.4f}"
         )
-
-
-# ============================================================================
-# Section 6: Comprehensive quality report across all algorithms
-# ============================================================================
-
-
-@pytest.mark.slow
-class TestRegistrationQualityReport:
-    """Generate a comprehensive quality report comparing all RITK algorithms
-    against SimpleITK baselines on synthetic data."""
-
-    def test_all_ritk_algorithms_improve_ncc_on_shifted_blob(self):
-        """Every RITK deformable algorithm must improve NCC on a shifted Gaussian blob.
-
-        Return-type contract:
-          - Demons family: (warped, displacement)
-          - SyN family: (warped_fixed, warped_moving)
-          - bspline_ffd_register: single warped Image
-          - lddmm_register: (warped, velocity_field)
-        """
-        fixed_arr = _make_gaussian_blob(size=SIZE, sigma=5.0)
-        moving_arr = np.roll(fixed_arr, 4, axis=2).astype(np.float32)
-        ncc_before = _ncc(fixed_arr, moving_arr)
-
-        fixed_r = _numpy_to_ritk(fixed_arr)
-        moving_r = _numpy_to_ritk(moving_arr)
-
-        algorithms = {
-            "demons": lambda: ritk.registration.demons_register(
-                fixed_r, moving_r, max_iterations=100
-            ),
-            "diffeomorphic_demons": lambda: (
-                ritk.registration.diffeomorphic_demons_register(
-                    fixed_r, moving_r, max_iterations=100
-                )
-            ),
-            "symmetric_demons": lambda: ritk.registration.symmetric_demons_register(
-                fixed_r, moving_r, max_iterations=100
-            ),
-            "multires_demons": lambda: ritk.registration.multires_demons_register(fixed_r, moving_r, ritk.registration.MultiResDemonsOptions(max_iterations=100,levels=3)),
-            "ic_demons": lambda: ritk.registration.inverse_consistent_demons_register(
-                fixed_r, moving_r, max_iterations=100
-            ),
-            "syn": lambda: ritk.registration.syn_register(fixed_r,
-                moving_r, ritk.registration.SynConfig(max_iterations=100,sigma_smooth=1.0,cc_radius=2,gradient_step=0.5)),
-            "multires_syn": lambda: ritk.registration.multires_syn_register(fixed_r,
-                moving_r, ritk.registration.MultiResSynOptions(num_levels=3,sigma_smooth=1.0,cc_radius=2,gradient_step=0.5)),
-            "bspline_syn": lambda: ritk.registration.bspline_syn_register(fixed_r,
-                moving_r, ritk.registration.BSplineSynOptions(max_iterations=100,control_spacing_z=8,control_spacing_y=8,control_spacing_x=8,sigma_smooth=1.0,cc_radius=2,gradient_step=0.5)),
-            "bspline_ffd": lambda: ritk.registration.bspline_ffd_register(fixed_r,
-                moving_r, ritk.registration.BSplineFfdConfig(initial_control_spacing=8,num_levels=2,max_iterations=50)),
-            "lddmm": lambda: ritk.registration.lddmm_register(fixed_r,
-                moving_r, ritk.registration.LddmmConfig(max_iterations=30,num_time_steps=5,kernel_sigma=2.0)),
-        }
-
-        for name, fn in algorithms.items():
-            result = fn()
-            # Extract warped image based on return type
-            if name == "bspline_ffd":
-                # Returns single Image
-                warped_arr = result.to_numpy()
-            elif name in ("syn", "multires_syn", "bspline_syn"):
-                # Returns (warped_fixed, warped_moving); use warped_moving
-                warped_arr = result[1].to_numpy()
-            elif name == "lddmm":
-                # Returns (warped, velocity_field)
-                warped_arr = result[0].to_numpy()
-            else:
-                # Demons family: (warped, displacement)
-                warped_arr = result[0].to_numpy()
-
-            ncc_after = _ncc(fixed_arr, warped_arr)
-            assert ncc_after > ncc_before, (
-                f"{name} did not improve NCC: before={ncc_before:.4f}, "
-                f"after={ncc_after:.4f}"
-            )
