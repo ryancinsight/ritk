@@ -20,6 +20,8 @@
 - Align the SimpleITK B-spline optimizer with the NCC oracle's correlation
   objective, use its convergent high-dimensional LBFGS2 implementation, and
   restore physical-shift scaling to the rigid and affine helpers.
+- Remove a duplicate full RITK SyN invocation from the combined Gaussian
+  registration oracle while retaining independent RITK and SimpleITK NCC tests.
 - Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized
   native trace showed the decay sweep could release a huge segment still
   observed by `TaggedSegmentStack::pop`.

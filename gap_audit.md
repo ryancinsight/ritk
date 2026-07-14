@@ -201,6 +201,13 @@ in 6 iterations and 0.97 seconds locally, reaching correlation 0.999166 while
 retaining the 30-iteration cap. Evidence tier: exact installed-wheel timeout
 traces and local value-semantic timing; final cross-host timing remains the
 acceptance gate.
+Run `29300558231` proved LBFGS2 completed before the timeout; the stack moved to
+a second, byte-for-byte identical RITK SyN invocation in the same test. The
+combined test asserted no cross-result relation and duplicated the immediately
+preceding `test_ritk_syn_ncc_improves` computation and assertion. The suite now
+keeps the RITK and SimpleITK value-semantic NCC contracts as two independent
+tests, eliminating duplicate computation while preserving both full workloads.
+Evidence tier: exact installed-wheel trace and structural duplicate audit.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate

@@ -46,6 +46,8 @@
   data, sampling, grid, iteration cap, or assertions.
 - [x] Falsify a single SimpleITK work unit and dense sampling, then select
   LBFGS2 from exact convergence and value-semantic timing evidence.
+- [x] Split the combined oracle after its timeout moved to an exact duplicate of
+  the preceding full RITK SyN contract; preserve both independent assertions.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

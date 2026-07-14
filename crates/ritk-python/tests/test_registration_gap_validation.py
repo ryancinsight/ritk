@@ -537,8 +537,8 @@ class TestSyntheticGaussianBlob:
             f"after={ncc_after:.4f}"
         )
 
-    def test_side_by_side_syn_vs_sitk_bspline_ncc(self):
-        """Both RITK SyN and SimpleITK BSpline must improve NCC on Gaussian blob."""
+    def test_sitk_bspline_ncc_improves(self):
+        """SimpleITK BSpline must improve NCC on the shared Gaussian blob."""
         fixed_s = _numpy_to_sitk(self.fixed_arr)
         moving_s = _numpy_to_sitk(self.moving_arr)
         sitk_result = _sitk_bspline_register(
@@ -549,23 +549,9 @@ class TestSyntheticGaussianBlob:
             if sitk_result is not None
             else self.ncc_before
         )
-        warped = _ritk_warped(
-            "syn_register",
-            self.fixed_ritk,
-            self.moving_ritk,
-            max_iterations=100,
-            sigma_smooth=1.0,
-            cc_radius=2,
-            gradient_step=0.5,
-        )
-        ncc_ritk = _ncc(self.fixed_arr, warped)
         assert ncc_sitk > self.ncc_before, (
             f"SimpleITK BSpline did not improve NCC: before={self.ncc_before:.4f}, "
             f"after={ncc_sitk:.4f}"
-        )
-        assert ncc_ritk > self.ncc_before, (
-            f"RITK SyN did not improve NCC: before={self.ncc_before:.4f}, "
-            f"after={ncc_ritk:.4f}"
         )
 
 
