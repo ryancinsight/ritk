@@ -65,6 +65,7 @@ pub(crate) fn cc_forces(
 ///
 /// Parallelized over z-slices via Rayon; each slice writes to a disjoint
 /// contiguous range in the output buffers, producing no data race.
+#[cfg(test)]
 pub(crate) fn cc_forces_into(
     i_w: &[f32],
     j_w: &[f32],
@@ -89,6 +90,7 @@ pub(crate) fn cc_forces_into(
     clippy::too_many_arguments,
     reason = "the three component slices preserve structure-of-arrays field storage"
 )]
+#[cfg(test)]
 pub(crate) fn cc_forces_from_sats_into<const REVERSED: bool>(
     i_w: &[f32],
     j_w: &[f32],

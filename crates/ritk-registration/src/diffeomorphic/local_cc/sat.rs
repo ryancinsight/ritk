@@ -54,6 +54,7 @@ impl CcSats {
     }
 
     /// Build all five tables from `i_w` and `j_w`.
+    #[cfg(test)]
     pub(crate) fn build(i_w: &[f32], j_w: &[f32], dims: [usize; 3], r: usize) -> Self {
         let mut tables = Self::new(dims, r);
         tables.rebuild(i_w, j_w, dims);
