@@ -29,6 +29,8 @@ mod buffers;
 
 use std::collections::VecDeque;
 
+#[cfg(test)]
+use super::local_cc::mean_local_cc;
 use super::local_cc::{cc_forces_from_sats_into, mean_local_cc_from_sats, CcSats};
 use crate::deformable_field_ops::{
     cc_converged, compute_gradient_into, normalize_forces_into, scaling_and_squaring_into,
