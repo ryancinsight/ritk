@@ -120,6 +120,9 @@ pub(crate) fn accumulate_to_cp_into(
     weight: &mut [f64],
     out: &mut [f32],
 ) {
+    accum.fill(0.0);
+    weight.fill(0.0);
+
     let [nz, ny, nx] = dims;
     for iz in 0..nz {
         let tz = iz as f64 / control_spacing[0] as f64;
@@ -306,6 +309,40 @@ mod tests {
                 expected[i]
             );
         }
+    }
+
+    #[test]
+    fn accumulate_to_cp_into_resets_reused_scratch() {
+        let (dims, spacing, cp_d) = test_params();
+        let n = dims[0] * dims[1] * dims[2];
+        let cp_n = cp_d[0] * cp_d[1] * cp_d[2];
+        let first: Vec<f32> = (0..n).map(|i| (i as f32 * 0.3).sin()).collect();
+        let second: Vec<f32> = (0..n).map(|i| (i as f32 * 0.2).cos()).collect();
+        let expected = accumulate_to_cp(&second, dims, cp_d, spacing);
+        let mut accum = vec![0.0_f64; cp_n];
+        let mut weight = vec![0.0_f64; cp_n];
+        let mut out = vec![0.0_f32; cp_n];
+
+        accumulate_to_cp_into(
+            &first,
+            dims,
+            cp_d,
+            spacing,
+            &mut accum,
+            &mut weight,
+            &mut out,
+        );
+        accumulate_to_cp_into(
+            &second,
+            dims,
+            cp_d,
+            spacing,
+            &mut accum,
+            &mut weight,
+            &mut out,
+        );
+
+        assert_eq!(out, expected);
     }
 
     #[test]

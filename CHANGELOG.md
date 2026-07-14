@@ -37,6 +37,9 @@
 - Cache CPU field-smoothing weights, convolve all three components in one
   Moirai dispatch per axis, and ping-pong scratch fields to replace nine full
   component copies with one final field copy.
+- Reset B-spline control-point accumulation scratch before every force
+  component, preventing earlier vector components from contaminating later
+  updates, and reuse the cached three-component smoother in B-spline SyN.
 - Subtract patch-denoising pixels in `f32` before widening their difference into
   the `f64` entropy accumulator, matching ITK's scalar component boundary.
 - Run the load-bearing patch-denoising differential first in the wheel gate and

@@ -138,6 +138,9 @@
   of SimpleITK's process-global thread count.
 - [x] Fuse CPU smoothing of all field components into one Moirai dispatch per
   axis, cache Gaussian weights, and replace nine full-field copies with one.
+- [x] Confirm the fused smoother reduces the exact installed-wheel run to
+  381.57 seconds, then correct B-spline force accumulation so reused scratch
+  cannot contaminate later vector components.
 - [ ] Verify that no remaining Python test crosses 30 seconds and that the
   complete installed-wheel suite finishes in minutes on exact-head CI.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.

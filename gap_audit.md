@@ -244,6 +244,21 @@ bit-exact equality with the scalar-component implementation. This is source and
 value-semantic evidence; exact-head compile and timing remain pending CI because
 the local Apollo checkout exposes 0.15.0 while this branch requires 0.14.x.
 
+Exact-head run `29345025305` compiled and passed the fused smoother across the
+static gates and Ubuntu nextest. The installed-wheel suite passed 1,252 tests
+with 7 skips and 1 expected pass in 381.57 seconds, 114.06 seconds (23.0%)
+below the preceding parallel run and 565.11 seconds (59.7%) below the original
+946.68-second run. Seven registration cases remained above 30 seconds, led by
+B-spline SyN at 54.30 seconds. Its source audit exposed a correctness defect:
+six force components reused the same control-point accumulation and weight
+arrays without resetting either array. The primitive now clears both caller-
+owned scratch arrays before every component, and a value-semantic regression
+requires an exact independent result after nonzero prior use. B-spline SyN also
+reuses the cached three-component field smoother instead of regenerating six
+scalar smoothing paths. Local nextest remains blocked at dependency resolution
+by Apollo 0.15.0 versus the branch's pinned 0.14.x contract; exact-head CI is
+the compilation, regression, and runtime evidence source.
+
 The same run's Ubuntu nextest worker failed at the runner boundary with
 `No space left on device` while writing its diagnostic log. CI had restored and
 re-cached the complete generic-heavy test target while emitting full debug

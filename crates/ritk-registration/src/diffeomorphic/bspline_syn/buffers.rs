@@ -64,9 +64,6 @@ pub(super) struct BSplineSyNBuffers {
     pub cc_sats: CcSats,
     pub cc_slices: Vec<(f64, usize)>,
 
-    // ── Gaussian smooth scratch ──
-    pub smooth_tmp: Vec<f32>,
-
     // ── CP-space gradient and Laplacian buffers ──
     pub cp_accum: Vec<f64>,
     pub cp_weight: Vec<f64>,
@@ -126,7 +123,6 @@ impl BSplineSyNBuffers {
             u2x: vec![0.0_f32; n],
             cc_sats: CcSats::new(dims, cc_radius),
             cc_slices: vec![(0.0_f64, 0usize); dims[0]],
-            smooth_tmp: vec![0.0_f32; n],
             cp_accum: vec![0.0_f64; cp_n],
             cp_weight: vec![0.0_f64; cp_n],
             d1z: vec![0.0_f32; cp_n],

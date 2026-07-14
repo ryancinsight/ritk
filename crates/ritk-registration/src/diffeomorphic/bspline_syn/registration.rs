@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
 
 use crate::deformable_field_ops::{
-    compute_gradient_into, gaussian_smooth_with_scratch, normalize_forces_into,
-    scaling_and_squaring_into, warp_image_into, VectorField, VectorFieldMut, VelocityField,
+    compute_gradient_into, normalize_forces_into, scaling_and_squaring_into, warp_image_into,
+    CpuFieldSmoother, FieldSmoother, VectorField, VectorFieldMut, VelocityField,
 };
 use crate::error::RegistrationError;
 
@@ -72,6 +72,7 @@ impl BSplineSyNRegistration {
 
         let r = self.config.cc_window_radius;
         let mut buf = BSplineSyNBuffers::new(n, cp_n, dims, r);
+        let mut force_smoother = CpuFieldSmoother::new(dims, self.config.sigma_smooth);
 
         let mut cc_history: VecDeque<f64> = VecDeque::new();
         let mut final_cc = 0.0_f64;
@@ -196,14 +197,10 @@ impl BSplineSyNRegistration {
                 self.config.gradient_step,
             );
 
-            // Gaussian smooth forces (zero alloc, shared scratch)
+            // Gaussian smooth forces with cached weights and field scratch.
             if sigma > 0.0 {
-                gaussian_smooth_with_scratch(&mut buf.u1z, dims.into(), sigma, &mut buf.smooth_tmp);
-                gaussian_smooth_with_scratch(&mut buf.u1y, dims.into(), sigma, &mut buf.smooth_tmp);
-                gaussian_smooth_with_scratch(&mut buf.u1x, dims.into(), sigma, &mut buf.smooth_tmp);
-                gaussian_smooth_with_scratch(&mut buf.u2z, dims.into(), sigma, &mut buf.smooth_tmp);
-                gaussian_smooth_with_scratch(&mut buf.u2y, dims.into(), sigma, &mut buf.smooth_tmp);
-                gaussian_smooth_with_scratch(&mut buf.u2x, dims.into(), sigma, &mut buf.smooth_tmp);
+                force_smoother.smooth_field(&mut buf.u1z, &mut buf.u1y, &mut buf.u1x);
+                force_smoother.smooth_field(&mut buf.u2z, &mut buf.u2y, &mut buf.u2x);
             }
 
             // Accumulate forces into CP-space (zero alloc, shared accum/weight)
