@@ -148,6 +148,12 @@ loop unroll accumulates patch offsets in interleaved lower-half/upper-half order
 and adds the center last, while RITK accumulated raster order. The offsets are
 now permuted once during setup so the existing hot loop executes ITK's exact
 floating-point reduction order without per-element dispatch.
+Exact-head run `29332750186` retained the same two-ULP maximum, falsifying the
+patch-reduction order as the remaining cause. The unchanged differential now
+runs first in the wheel gate and is deselected from the subsequent full suite,
+preserving exactly-once coverage while reducing failing feedback from about 16
+minutes to build time plus the 50-second test. Failure output now records exact
+indices, values, and `float32` bit patterns for the maximum-ULP witnesses.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before

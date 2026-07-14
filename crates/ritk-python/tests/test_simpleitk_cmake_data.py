@@ -6104,9 +6104,33 @@ def test_cmake_patch_based_denoising_structural():
         "PatchBasedDenoising output is identical to the noisy input — filter had no effect"
     )
 
-    _np.testing.assert_array_max_ulp(
-        r_arr.astype(_np.float32), s_arr.astype(_np.float32), maxulp=1
-    )
+    r_out = r_arr.astype(_np.float32)
+    s_out = s_arr.astype(_np.float32)
+    try:
+        _np.testing.assert_array_max_ulp(r_out, s_out, maxulp=1)
+    except AssertionError as error:
+        sign = _np.uint32(0x80000000)
+        r_bits = r_out.view(_np.uint32)
+        s_bits = s_out.view(_np.uint32)
+        r_ordered = _np.where(r_bits & sign, ~r_bits, r_bits | sign)
+        s_ordered = _np.where(s_bits & sign, ~s_bits, s_bits | sign)
+        ulp = _np.abs(r_ordered.astype(_np.int64) - s_ordered.astype(_np.int64))
+        maximum = int(ulp.max())
+        witnesses = []
+        for index in _np.argwhere(ulp == maximum)[:8]:
+            key = tuple(int(coordinate) for coordinate in index)
+            witnesses.append(
+                {
+                    "index": key,
+                    "ritk": float(r_out[key]),
+                    "simpleitk": float(s_out[key]),
+                    "ritk_bits": f"0x{int(r_bits[key]):08x}",
+                    "simpleitk_bits": f"0x{int(s_bits[key]):08x}",
+                }
+            )
+        raise AssertionError(
+            f"{error}; exact max ULP={maximum}; witnesses={witnesses}"
+        ) from error
 
 
 def test_cmake_scalar_chan_and_vese_dense_level_set_structural():

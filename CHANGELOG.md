@@ -17,6 +17,8 @@
   Mnemosyne fault is corrected.
 
 ### Fixed
+- Run the load-bearing patch-denoising differential first in the wheel gate and
+  report exact ULP witness indices, values, and bit patterns on failure.
 - Accumulate patch-denoising distances in ITK's interleaved half-patch order
   with the center offset last, preserving its floating-point reduction tree.
 - Normalize the patch-denoising entropy gradient before applying its smoothing
