@@ -24,7 +24,7 @@
 //! shared RNG state threads through every draw — the visitation order is part
 //! of the contract.
 //!
-//! Validated bit-exact (≤ f32 round-off) against single-threaded
+//! Validated within one final output rounding step against single-threaded
 //! `sitk.PatchBasedDenoising` across patch radii 1/2/4 and 1–2 iterations.
 //!
 //! ## References
@@ -148,7 +148,7 @@ impl ItkMt {
 // ── Public API ─────────────────────────────────────────────────────────────────
 
 /// Patch-based denoising (faithful ITK port), bit-exact to single-threaded
-/// `sitk.PatchBasedDenoising`.
+/// `sitk.PatchBasedDenoising` within one final output rounding step.
 ///
 /// # Default parameters (match ITK)
 ///

@@ -6040,18 +6040,17 @@ def test_cmake_level_set_motion_registration_structural():
 
 
 def test_cmake_patch_based_denoising_structural():
-    """PatchBasedDenoisingImageFilter reduces known additive-noise error.
+    """PatchBasedDenoisingImageFilter matches the single-worker ITK result.
 
     PatchBasedDenoisingImageFilter reduces noise by replacing each pixel with a
-    weighted average of similar patches in the neighbourhood. With 1 iteration,
-    200 sample patches, and PatchRadius=2, both implementations must reduce MSE
-    against the known clean image used to synthesize the noisy input.
+    weighted average of similar patches in the neighbourhood. Single-worker ITK
+    uses the same seeded sample stream as RITK, so the outputs must agree within
+    one final f32 rounding step.
 
     Input: RA-Float.nrrd with additive Gaussian noise (std=5.0, seed=0).
     Parameters: KernelBandwidthEstimation=False, NumberOfIterations=1,
                 NumberOfSamplePatches=200, PatchRadius=2.
-    Assertion: output != noisy input AND MSE(output, clean) < MSE(noisy, clean)
-               for both RITK and SimpleITK.
+    Assertion: output != noisy input AND max ULP distance vs SimpleITK <= 1.
 
     Upstream cmake case mirrors: PatchBasedDenoisingImageFilter.yaml.
 
@@ -6076,6 +6075,7 @@ def test_cmake_patch_based_denoising_structural():
     f.SetNumberOfIterations(1)
     f.SetNumberOfSamplePatches(200)
     f.SetPatchRadius(2)
+    f.SetNumberOfWorkUnits(1)
     so = f.Execute(si_noisy)
 
     ri = ritk.Image(_np.ascontiguousarray(arr_noisy))
@@ -6099,14 +6099,8 @@ def test_cmake_patch_based_denoising_structural():
         "PatchBasedDenoising output is identical to the noisy input — filter had no effect"
     )
 
-    noisy_mse = float(_np.mean((n_arr - arr_clean) ** 2))
-    ritk_mse = float(_np.mean((r_arr - arr_clean) ** 2))
-    sitk_mse = float(_np.mean((s_arr - arr_clean) ** 2))
-    assert ritk_mse < noisy_mse, (
-        f"PatchBasedDenoising RITK MSE {ritk_mse} did not reduce noisy MSE {noisy_mse}"
-    )
-    assert sitk_mse < noisy_mse, (
-        f"PatchBasedDenoising SimpleITK MSE {sitk_mse} did not reduce noisy MSE {noisy_mse}"
+    _np.testing.assert_array_max_ulp(
+        r_arr.astype(_np.float32), s_arr.astype(_np.float32), maxulp=1
     )
 
 

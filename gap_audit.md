@@ -48,6 +48,16 @@ centres and patch displacements are now flattened once; the interior path uses
 direct indexed loads with no per-element coordinate or boundary work, while
 the boundary path retains identical clipping and both retain exact offset and
 f64 accumulation order.
+Run `29312668561` completed the pre-flattened native kernel in 50.49 seconds,
+confirming progress below termination but still above the 30-second defect
+threshold. It also falsified the new clean-image MSE oracle: RITK raised MSE
+from 25.057 to 9478.976, while an independent local SimpleITK 2.5.5 execution
+with the same fixed bandwidth raised it to 9384.105 because RA-Float spans
+-1146 to 32767. The structural case now forces one SimpleITK work unit and
+compares f32 arrays within one ULP, derived from the implementations' shared
+sample/accumulation order and final f32 conversion. Four small fixtures from
+the same run empirically showed only adjacent-representable differences, with
+maximum absolute error `7.6293945e-06`.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before

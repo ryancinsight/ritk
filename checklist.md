@@ -81,6 +81,9 @@
 - [x] Falsify parallel dispatch alone as sufficient on the unchanged 64-cubed
   case; flatten sampled patches and remove coordinate reconstruction plus six
   bounds comparisons from the dominant interior loop.
+- [x] Reject the false clean-image MSE oracle after the same upstream parameters
+  degraded SimpleITK; require single-worker differential parity within one final
+  output rounding step instead.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing
