@@ -24,7 +24,9 @@
 //! Pixels are visited in `itk::ImageBoundaryFacesCalculator` order (interior
 //! region first, then each boundary face, each raster-scanned), because the
 //! shared RNG state threads through every draw — the visitation order is part
-//! of the contract.
+//! of the contract. Within each patch, ITK's partial loop unroll interleaves
+//! offsets from the lower and upper halves, then accumulates the center last;
+//! that floating-point reduction order is also preserved.
 //!
 //! Validated within one final output rounding step against single-threaded
 //! `sitk.PatchBasedDenoising` across patch radii 1/2/4 and 1–2 iterations.
@@ -59,6 +61,14 @@ struct PatchOffset {
     coordinate: [i64; 3],
     displacement: isize,
     weight: f64,
+}
+
+fn itk_reduction_indices(length: usize) -> impl Iterator<Item = usize> {
+    debug_assert_eq!(length % 2, 1, "patch length must be odd");
+    let center = length / 2;
+    (0..center)
+        .flat_map(move |index| [index, center + 1 + index])
+        .chain(std::iter::once(center))
 }
 
 #[inline]
@@ -295,8 +305,8 @@ impl PatchBasedDenoisingImageFilter {
         // Patch offsets in (dz, dy, dx), with the equivalent flat displacement.
         let row_stride = isize::try_from(nx).expect("invariant: image storage fits isize");
         let plane_stride = isize::try_from(ny * nx).expect("invariant: image storage fits isize");
-        let mut offsets = Vec::new();
-        {
+        let offsets = {
+            let mut natural_offsets = Vec::new();
             let mut wi = 0usize;
             let zr = if ndim == 3 { r } else { 0 };
             for dz in -zr..=zr {
@@ -307,7 +317,7 @@ impl PatchBasedDenoisingImageFilter {
                             + isize::try_from(dy).expect("invariant: patch offset fits isize")
                                 * row_stride
                             + isize::try_from(dx).expect("invariant: patch offset fits isize");
-                        offsets.push(PatchOffset {
+                        natural_offsets.push(PatchOffset {
                             coordinate: [dx, dy, dz],
                             displacement: flat,
                             weight: weights[wi],
@@ -316,7 +326,10 @@ impl PatchBasedDenoisingImageFilter {
                     }
                 }
             }
-        }
+            itk_reduction_indices(natural_offsets.len())
+                .map(|index| natural_offsets[index])
+                .collect::<Vec<_>>()
+        };
 
         let idx = |x: i64, y: i64, z: i64| -> usize {
             (z as usize) * ny * nx + (y as usize) * nx + (x as usize)

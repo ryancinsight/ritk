@@ -142,6 +142,12 @@ maximum difference. ITK divides the accumulated entropy gradient by its
 probability sum before multiplying by the `0.2` smoothing step; RITK multiplied
 before dividing. The kernel now preserves ITK's operation order. The one-ULP
 oracle remains unchanged.
+Exact-head run `29330912612` retained the two-ULP maximum, falsifying final-step
+rounding as the only residual. Source comparison then found that ITK's partial
+loop unroll accumulates patch offsets in interleaved lower-half/upper-half order
+and adds the center last, while RITK accumulated raster order. The offsets are
+now permuted once during setup so the existing hot loop executes ITK's exact
+floating-point reduction order without per-element dispatch.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before

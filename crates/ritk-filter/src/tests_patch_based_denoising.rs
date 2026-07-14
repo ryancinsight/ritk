@@ -15,6 +15,14 @@ fn test_itk_mt19937_canonical() {
     assert_eq!(mt5489.next_u32(), 3_499_211_612, "seed 5489 first output");
 }
 
+#[test]
+fn test_itk_patch_reduction_order() {
+    assert_eq!(
+        itk_reduction_indices(9).collect::<Vec<_>>(),
+        [0, 5, 1, 6, 2, 7, 3, 8, 4]
+    );
+}
+
 /// Determinism: the same input yields the same output (seeded RNG, seed 0).
 #[test]
 fn test_patch_based_denoising_deterministic() {

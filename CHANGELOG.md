@@ -17,6 +17,8 @@
   Mnemosyne fault is corrected.
 
 ### Fixed
+- Accumulate patch-denoising distances in ITK's interleaved half-patch order
+  with the center offset last, preserving its floating-point reduction tree.
 - Normalize the patch-denoising entropy gradient before applying its smoothing
   step, matching ITK's floating-point operation order.
 - Verify wrapping selected-patch boundary addressing against explicit debug

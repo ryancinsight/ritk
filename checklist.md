@@ -111,6 +111,8 @@
   addressing and exhaustive small-domain regressions.
 - [x] Restore ITK's normalize-then-step denoising arithmetic order exposed by
   the unchanged one-ULP differential.
+- [x] Restore ITK's interleaved half-patch reduction order and center-last
+  accumulation without adding hot-loop work.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing
