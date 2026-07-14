@@ -39,8 +39,10 @@ path without importing x86-only symbols. The provider commit
 `f1a44a775cb5d5e58ffb2935e856fba6bb4205a7` passes Apollo's host tests, Clippy,
 doctests, rustdoc, and an `aarch64-apple-darwin` check. The action now pins that
 public revision, and the interop source is formatted by the repository
-toolchain. GitHub Actions remains the final verification gate for the corrected
-revision.
+toolchain. Corrected CI runs 29376001568, 29376001595, and 29376001632 passed
+dependency alignment, Rustfmt, warnings-denied Clippy, migration audit, wheel
+smoke, all three platform suites, and the complete Python matrix. PR #31
+merged at `be75a93a94424833882d73b45d0711dc2fab4930`.
 
 Residual: Apollo main still exposes 0.14.0, so the action's 0.15.0 pin follows
 the public RustFFT-removal branch until that provider state is promoted.
