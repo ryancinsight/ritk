@@ -4367,7 +4367,7 @@ dependencies = [
  "hermes-simd-intrinsics 0.3.0",
  "hermes-simd-macros 0.3.0",
  "hermes-simd-types 0.3.0",
- "themis 0.9.17",
+ "themis 0.10.0",
 ]
 
 [[package]]
@@ -4393,7 +4393,7 @@ dependencies = [
  "half",
  "mnemosyne",
  "rkyv 0.7.46",
- "themis 0.9.17",
+ "themis 0.10.0",
 ]
 
 [[package]]
@@ -5658,7 +5658,7 @@ dependencies = [
  "eunomia",
  "mnemosyne-backend",
  "mnemosyne-core",
- "themis 0.9.17",
+ "themis 0.10.0",
 ]
 
 [[package]]
@@ -5702,7 +5702,7 @@ dependencies = [
  "mnemosyne-core",
  "mnemosyne-local",
  "mnemosyne-prof",
- "themis 0.9.17",
+ "themis 0.10.0",
 ]
 
 [[package]]
@@ -5716,7 +5716,7 @@ dependencies = [
  "mnemosyne-core",
  "mnemosyne-decay",
  "mnemosyne-prof",
- "themis 0.9.17",
+ "themis 0.10.0",
 ]
 
 [[package]]
@@ -5782,12 +5782,22 @@ version = "0.2.0"
 dependencies = [
  "futures",
  "libc",
+ "moirai-async-macros",
  "moirai-core 0.2.0",
  "moirai-executor",
  "moirai-pal",
  "moirai-transport",
  "moirai-utils 0.2.0",
  "socket2 0.5.10",
+]
+
+[[package]]
+name = "moirai-async-macros"
+version = "0.2.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.118",
 ]
 
 [[package]]
