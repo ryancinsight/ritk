@@ -173,3 +173,43 @@ fn cc_forces_into_matches_cc_forces() {
         );
     }
 }
+
+#[test]
+fn reversed_shared_sats_match_independent_build() {
+    let dims = [6usize, 6, 6];
+    let n = dims.iter().product();
+    let fixed: Vec<f32> = (0..n).map(|i| (i as f32 * 0.013) % 1.0).collect();
+    let moving: Vec<f32> = (0..n).map(|i| ((i as f32 * 0.021) + 0.17) % 1.0).collect();
+    let gradient =
+        crate::deformable_field_ops::compute_gradient(&moving, dims.into(), [1.0, 1.0, 1.0]);
+    let sats = CcSats::build(&fixed, &moving, dims, 1);
+    let mut shared = [vec![0.0_f32; n], vec![0.0_f32; n], vec![0.0_f32; n]];
+    let [shared_z, shared_y, shared_x] = &mut shared;
+    cc_forces_from_sats_into::<true>(
+        &moving,
+        &fixed,
+        &gradient.z,
+        &gradient.y,
+        &gradient.x,
+        dims,
+        &sats,
+        shared_z,
+        shared_y,
+        shared_x,
+    );
+    let mut independent = [vec![0.0_f32; n], vec![0.0_f32; n], vec![0.0_f32; n]];
+    let [independent_z, independent_y, independent_x] = &mut independent;
+    cc_forces_into(
+        &moving,
+        &fixed,
+        &gradient.z,
+        &gradient.y,
+        &gradient.x,
+        dims,
+        1,
+        independent_z,
+        independent_y,
+        independent_x,
+    );
+    assert_eq!(shared, independent);
+}

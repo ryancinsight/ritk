@@ -75,8 +75,31 @@ pub(crate) fn cc_forces_into(
     fy: &mut [f32],
     fx: &mut [f32],
 ) {
-    let [_nz, _ny, nx] = dims;
     let sats = super::CcSats::build(i_w, j_w, dims, radius);
+    cc_forces_from_sats_into::<false>(i_w, j_w, gi_z, gi_y, gi_x, dims, &sats, fz, fy, fx);
+}
+
+/// Compute local CC forces from a caller-owned summed-area table set.
+///
+/// `REVERSED` exchanges the fixed and moving statistics while retaining the
+/// single canonical table representation for a warped image pair.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the three component slices preserve structure-of-arrays field storage"
+)]
+pub(crate) fn cc_forces_from_sats_into<const REVERSED: bool>(
+    i_w: &[f32],
+    j_w: &[f32],
+    gi_z: &[f32],
+    gi_y: &[f32],
+    gi_x: &[f32],
+    dims: [usize; 3],
+    sats: &super::CcSats,
+    fz: &mut [f32],
+    fy: &mut [f32],
+    fx: &mut [f32],
+) {
+    let [_nz, _ny, nx] = dims;
     let slice_len = dims[1] * nx;
     // Zero-initialize outputs.
     fz.iter_mut().for_each(|v| *v = 0.0);
@@ -101,7 +124,12 @@ pub(crate) fn cc_forces_into(
                 for ix in 0..nx {
                     let local = iy * nx + ix;
                     let fi = base + local;
-                    let (mu_i, mu_j, num, vi, vj, _) = sats.query_at(iz, iy, ix);
+                    let (mu_f, mu_m, num, var_f, var_m, _) = sats.query_at(iz, iy, ix);
+                    let (mu_i, mu_j, vi, vj) = if REVERSED {
+                        (mu_m, mu_f, var_m, var_f)
+                    } else {
+                        (mu_f, mu_m, var_f, var_m)
+                    };
                     if vi < 1e-10 {
                         continue; // already zeroed
                     }

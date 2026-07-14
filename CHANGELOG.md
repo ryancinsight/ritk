@@ -22,6 +22,9 @@
   restore physical-shift scaling to the rigid and affine helpers.
 - Remove a duplicate full RITK SyN invocation from the combined Gaussian
   registration oracle while retaining independent RITK and SimpleITK NCC tests.
+- Reuse one local-correlation summed-area-table set across both SyN force
+  directions and convergence instead of rebuilding equivalent tables three
+  times per iteration.
 - Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized
   native trace showed the decay sweep could release a huge segment still
   observed by `TaggedSegmentStack::pop`.

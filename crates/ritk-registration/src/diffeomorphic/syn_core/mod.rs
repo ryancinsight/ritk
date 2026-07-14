@@ -17,9 +17,11 @@
 //!    is below `convergence_threshold`.
 //!
 //! # Memory discipline
-//! All scratch buffers are pre-allocated before the iteration loop.
-//! The loop body performs **zero heap allocations**; all `_into` variants
-//! write into caller-provided buffers. Total pre-allocation: ~29n f32
+//! Field scratch buffers are pre-allocated before the iteration loop and all
+//! `_into` variants write into caller-provided buffers. Each iteration builds
+//! one shared five-channel summed-area-table set for both force directions and
+//! convergence, rather than constructing three equivalent sets. Field
+//! pre-allocation is ~29n f32
 //! (6 velocity + 6 displacement + 3 scaling-and-squaring scratch +
 //!  2 warped images + 6 gradient + 6 CC forces = 29n).
 
@@ -27,7 +29,7 @@ mod buffers;
 
 use std::collections::VecDeque;
 
-use super::local_cc::{cc_forces_into, mean_local_cc};
+use super::local_cc::{cc_forces_from_sats_into, mean_local_cc_from_sats, CcSats};
 use crate::deformable_field_ops::{
     cc_converged, compute_gradient_into, normalize_forces_into, scaling_and_squaring_into,
     validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother, VelocityField,
@@ -191,26 +193,27 @@ impl SyNRegistration {
             );
 
             // CC forces (zero alloc)
-            cc_forces_into(
+            let cc_sats = CcSats::build(&buf.i_w, &buf.j_w, dims, r);
+            cc_forces_from_sats_into::<false>(
                 &buf.i_w,
                 &buf.j_w,
                 &buf.gi_z,
                 &buf.gi_y,
                 &buf.gi_x,
                 dims,
-                r,
+                &cc_sats,
                 &mut buf.u1z,
                 &mut buf.u1y,
                 &mut buf.u1x,
             );
-            cc_forces_into(
+            cc_forces_from_sats_into::<true>(
                 &buf.j_w,
                 &buf.i_w,
                 &buf.gj_z,
                 &buf.gj_y,
                 &buf.gj_x,
                 dims,
-                r,
+                &cc_sats,
                 &mut buf.u2z,
                 &mut buf.u2y,
                 &mut buf.u2x,
@@ -243,7 +246,7 @@ impl SyNRegistration {
                 smoother.smooth_field(&mut buf.v2z, &mut buf.v2y, &mut buf.v2x);
             }
 
-            final_cc = mean_local_cc(&buf.i_w, &buf.j_w, dims, r);
+            final_cc = mean_local_cc_from_sats(&cc_sats, dims);
             if cc_converged(
                 &mut cc_history,
                 final_cc,

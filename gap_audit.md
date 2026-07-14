@@ -208,6 +208,15 @@ preceding `test_ritk_syn_ncc_improves` computation and assertion. The suite now
 keeps the RITK and SimpleITK value-semantic NCC contracts as two independent
 tests, eliminating duplicate computation while preserving both full workloads.
 Evidence tier: exact installed-wheel trace and structural duplicate audit.
+Run `29301144927` passed both separated Gaussian contracts, then exposed the
+next independent defect: a 128-cubed RITK SyN brain registration exceeded 60
+seconds. Production review found the SyN loop constructed three equivalent
+five-channel local-CC summed-area-table sets per iteration. Forward force,
+reverse force, and convergence now share one canonical set; a value-exact
+regression compares reversed shared-table forces with an independently built
+reversed table. Evidence tier before CI: structural complexity reduction from
+three O(N) builds to one and value-semantic differential test; installed-wheel
+timing remains the acceptance gate.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate

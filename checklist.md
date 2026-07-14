@@ -48,6 +48,8 @@
   LBFGS2 from exact convergence and value-semantic timing evidence.
 - [x] Split the combined oracle after its timeout moved to an exact duplicate of
   the preceding full RITK SyN contract; preserve both independent assertions.
+- [x] Consolidate SyN's forward, reverse, and convergence local-CC statistics
+  onto one summed-area-table set with exact reversed-force differential coverage.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing
