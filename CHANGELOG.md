@@ -12,6 +12,8 @@
 ### Added
 - Add `ritk_statistics::pearson_correlation`, with allocation-free Moirai
   partitioning for both f64-accumulating passes.
+- Capture symbolized native thread backtraces from the unchanged installed-wheel
+  suite while the intermittent parallel registration crash is unresolved.
 
 ### Fixed
 - Check out the exact sibling Rust provider graph before loading the RITK

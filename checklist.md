@@ -33,8 +33,10 @@
   replace the stale missing-VTK-writer assertion with an exact native roundtrip.
 - [x] Falsify independent per-candidate metric/cache lanes as the crash fix and
   remove that unneeded pool after the unchanged masked path still segfaulted.
-- [ ] Pin Moirai's caller-region nesting fix; verify the unchanged wheel suite
-  has no native crash and retains sub-60-second registration tests.
+- [x] Pin and test Moirai's caller-region nesting fix; falsify it as the crash
+  root when the unchanged comparison segfaults after 8.27 seconds.
+- [ ] Capture a symbolized native backtrace from the unchanged installed-wheel
+  suite and correct the owning unsafe boundary.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

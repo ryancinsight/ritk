@@ -168,8 +168,15 @@ worker pool executed sibling candidates. The provider now tracks caller indexed-
 region depth with an unwind-safe guard and flattens nested fan-out and reduction
 on both caller and worker lanes. Its exact lane-identity and arithmetic regression
 passes with the full 0.2-compatible executor suite (80/80) and warning-denied
-Clippy. Evidence tier: type-level region ownership plus value-semantic concurrency
-regression; final exact-head crash and timing evidence remains pending CI. The stronger alignment gate
+Clippy. The exact consumer run then passed the default binding in 2.05 seconds
+but segfaulted 8.27 seconds into the unchanged comparison, falsifying caller-
+region nesting as the crash root. RITK already pins Mnemosyne `477f957`, whose
+parent is the Miri-verified page-provenance correction `5a9f49f`; that allocator
+defect is therefore also excluded as the missing consumer fix. The wheel lane
+now retains optimized native symbols and runs the unchanged suite under GDB to
+capture the first native backtrace. Evidence tier: provider value-semantic tests
+plus empirical exact-consumer falsification; the active crash owner remains
+unresolved pending the symbolized trace. The stronger alignment gate
 exposed two DICOM target variants; their versions now inherit
 one workspace declaration while native-only features remain activated solely
 in native target tables. The target-table regression is value-checked in the
