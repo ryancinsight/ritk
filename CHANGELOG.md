@@ -17,6 +17,9 @@
   Mnemosyne fault is corrected.
 
 ### Fixed
+- Construct patch-denoising smooth-disc weights through ITK's `float` weight-
+  image boundary before promoting them to `f64`; direct `f64` construction
+  shifted the final output by up to four ULP despite identical sampling.
 - Execute the full patch-denoising RITK workload before its live single-worker
   SimpleITK oracle; host-local generation preserves the one-ULP differential
   across CPU/libm variants while keeping external state out of the measured

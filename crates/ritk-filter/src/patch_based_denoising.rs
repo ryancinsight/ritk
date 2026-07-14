@@ -18,7 +18,8 @@
 //! (rejected to the intersection of the valid-patch region and the sampler's
 //! `⌊2.5·√sample_variance⌋` neighborhood), using ITK's
 //! `MersenneTwisterRandomVariateGenerator` (seeded `0`). `w` are the cubic-spline
-//! smooth-disc patch weights; `σ = kernel_sigma`.
+//! smooth-disc patch weights constructed through ITK's `f32` weight-image
+//! rounding boundary; `σ = kernel_sigma`.
 //!
 //! Pixels are visited in `itk::ImageBoundaryFacesCalculator` order (interior
 //! region first, then each boundary face, each raster-scanned), because the
@@ -256,7 +257,8 @@ impl PatchBasedDenoisingImageFilter {
         // Sizes in ITK index order (x, y, z).
         let sizes: [i64; 3] = [nx as i64, ny as i64, nz as i64];
 
-        // Smooth-disc squared patch weights, indexed by patch offset.
+        // ITK constructs the smooth-disc image in f32 before promoting the
+        // sampled weights into its real-valued denoising arithmetic.
         let weights = smooth_disc_weights_sq(self.patch_radius, ndim);
 
         // Patch offsets in (dz, dy, dx), with the equivalent flat displacement.
@@ -423,27 +425,31 @@ impl PatchBasedDenoisingImageFilter {
 /// `InitializePatchWeightsSmoothDisc` (isotropic unit spacing), squared, in
 /// patch-offset order matching the `(dz, dy, dx)` triple loop.
 fn smooth_disc_weights_sq(patch_radius: usize, ndim: usize) -> Vec<f64> {
-    let r = patch_radius as f64;
-    let disc = (patch_radius / 2) as f64;
-    let interval = (patch_radius as f64 + 1.0) - disc;
+    let radius = patch_radius as f32;
+    let radius_plus_one = radius + 1.0;
+    let disc = (patch_radius / 2) as f32;
+    let interval = (patch_radius + 1) - patch_radius / 2;
+    let interval = interval as f64;
     let rr = patch_radius as i64;
     let zr = if ndim == 3 { rr } else { 0 };
     let mut w: Vec<f64> = Vec::new();
     for dz in -zr..=zr {
         for dy in -rr..=rr {
             for dx in -rr..=rr {
-                let dist = ((dz * dz + dy * dy + dx * dx) as f64).sqrt();
-                let v = if dist >= r + 1.0 {
-                    0.0
-                } else if dist <= disc {
-                    1.0
+                let distance = ((dz * dz + dy * dy + dx * dx) as f64).sqrt() as f32;
+                let value = if distance >= radius_plus_one {
+                    0.0f32
+                } else if distance <= disc {
+                    1.0f32
                 } else {
-                    let t = (r + 1.0) - dist;
-                    let weight = (-2.0 / interval.powi(3)) * t.powi(3)
-                        + (3.0 / interval.powi(2)) * t.powi(2);
+                    let delta = radius_plus_one - distance;
+                    let weight = ((-2.0 / interval.powf(3.0)) * f64::from(delta.powf(3.0))
+                        + (3.0 / interval.powf(2.0)) * f64::from(delta.powf(2.0)))
+                        as f32;
                     weight.clamp(0.0, 1.0)
                 };
-                w.push(v * v); // squared
+                let value = f64::from(value);
+                w.push(value * value);
             }
         }
     }

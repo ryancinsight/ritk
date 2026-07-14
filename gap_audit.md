@@ -94,6 +94,12 @@ Linux runner (`29321964085`), proving that OS-level fixture selection cannot
 ground the one-ULP claim across CPU/libm variants. The unstable golden is
 deleted. RITK now executes first in 14.8 seconds and the unchanged SimpleITK
 oracle executes afterward on the same host; no threshold is widened.
+The host-local run still differed by four ULP, falsifying the final-conversion-
+only model. ITK 5.4.5 constructs the smooth-disc mask in an `Image<float>` and
+only then promotes its voxel weights into real-valued denoising arithmetic;
+RITK evaluated the cubic spline directly in `f64`. RITK now reproduces the
+`f32` distance/weight boundary and promotes before squaring. The existing
+one-ULP differential remains the acceptance gate.
 The same duration report identified a 58.18-second SimpleITK-only B-spline
 self-test. It neither invoked RITK nor compared implementations, while direct
 RITK B-spline quality and RITK-versus-SimpleITK deformable parity tests already

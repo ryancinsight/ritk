@@ -94,6 +94,8 @@
 - [x] Reject the cross-host denoising golden after Linux runners differed by
   four ULP; retain the unchanged 64-cubed RITK workload and host-local live
   SimpleITK one-ULP oracle, with RITK executing first.
+- [x] Correct the production smooth-disc weight construction to preserve ITK's
+  `f32` weight-image rounding boundary before `f64` denoising arithmetic.
 - [x] Delete the redundant SimpleITK-only B-spline self-test after the duration
   report measured 58.18 seconds; retain direct RITK and parity contracts.
 - [x] Delete the three-pipeline RIRE report that had no comparative oracle or
