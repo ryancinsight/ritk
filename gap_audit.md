@@ -249,6 +249,19 @@ and inverse-consistency residuals consume the field form, so no triplicate
 production call site remains. Evidence tier before CI: shared construction by
 code structure and bit-exact scalar/component differential verification;
 installed-wheel timing remains the acceptance gate.
+Provider-source inspection exposed why the remaining volume kernels stayed
+slow: `for_each_chunk_mut_enumerated_with` applies `Adaptive` to the input slice
+length, not the number of voxels represented by each item. Composition,
+Thirion forces, and local CC first collected three-component z-slices into a
+`Vec`, so 64- and 128-slice volumes fell below Moirai's 1,024-item threshold and
+executed serially. Composition, gradient, and one-direction force kernels now
+use Moirai's pinned three-buffer chunk operation directly over the full voxel
+buffers, removing the slice-descriptor allocation while retaining adaptive
+dispatch. The six-output bidirectional CC kernel explicitly requests parallel
+execution because each of its few slice descriptors represents a full 2-D
+statistical kernel. Evidence tier before CI: verified provider policy contract,
+type-level execution-policy selection, and unchanged value-semantic tests;
+cross-host timing remains the acceptance gate.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate

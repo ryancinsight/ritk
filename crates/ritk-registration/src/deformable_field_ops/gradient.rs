@@ -21,46 +21,54 @@ pub(crate) fn compute_gradient_into(
     let sy = spacing[1] as f32;
     let sx = spacing[2] as f32;
 
-    for iz in 0..nz {
-        for iy in 0..ny {
-            for ix in 0..nx {
-                let fi = flat(iz, iy, ix, ny, nx);
+    let slice_len = ny * nx;
+    moirai::for_each_chunk_triple_mut_enumerated_with::<moirai::Adaptive, _, _, _, _>(
+        gz,
+        gy,
+        gx,
+        slice_len,
+        |iz, gz_slice, gy_slice, gx_slice| {
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let local = iy * nx + ix;
+                    let fi = iz * slice_len + local;
 
-                gz[fi] = if nz == 1 {
-                    0.0
-                } else if iz == 0 {
-                    (data[flat(1, iy, ix, ny, nx)] - data[fi]) / sz
-                } else if iz == nz - 1 {
-                    (data[fi] - data[flat(nz - 2, iy, ix, ny, nx)]) / sz
-                } else {
-                    (data[flat(iz + 1, iy, ix, ny, nx)] - data[flat(iz - 1, iy, ix, ny, nx)])
-                        / (2.0 * sz)
-                };
+                    gz_slice[local] = if nz == 1 {
+                        0.0
+                    } else if iz == 0 {
+                        (data[flat(1, iy, ix, ny, nx)] - data[fi]) / sz
+                    } else if iz == nz - 1 {
+                        (data[fi] - data[flat(nz - 2, iy, ix, ny, nx)]) / sz
+                    } else {
+                        (data[flat(iz + 1, iy, ix, ny, nx)] - data[flat(iz - 1, iy, ix, ny, nx)])
+                            / (2.0 * sz)
+                    };
 
-                gy[fi] = if ny == 1 {
-                    0.0
-                } else if iy == 0 {
-                    (data[flat(iz, 1, ix, ny, nx)] - data[fi]) / sy
-                } else if iy == ny - 1 {
-                    (data[fi] - data[flat(iz, ny - 2, ix, ny, nx)]) / sy
-                } else {
-                    (data[flat(iz, iy + 1, ix, ny, nx)] - data[flat(iz, iy - 1, ix, ny, nx)])
-                        / (2.0 * sy)
-                };
+                    gy_slice[local] = if ny == 1 {
+                        0.0
+                    } else if iy == 0 {
+                        (data[flat(iz, 1, ix, ny, nx)] - data[fi]) / sy
+                    } else if iy == ny - 1 {
+                        (data[fi] - data[flat(iz, ny - 2, ix, ny, nx)]) / sy
+                    } else {
+                        (data[flat(iz, iy + 1, ix, ny, nx)] - data[flat(iz, iy - 1, ix, ny, nx)])
+                            / (2.0 * sy)
+                    };
 
-                gx[fi] = if nx == 1 {
-                    0.0
-                } else if ix == 0 {
-                    (data[flat(iz, iy, 1, ny, nx)] - data[fi]) / sx
-                } else if ix == nx - 1 {
-                    (data[fi] - data[flat(iz, iy, nx - 2, ny, nx)]) / sx
-                } else {
-                    (data[flat(iz, iy, ix + 1, ny, nx)] - data[flat(iz, iy, ix - 1, ny, nx)])
-                        / (2.0 * sx)
-                };
+                    gx_slice[local] = if nx == 1 {
+                        0.0
+                    } else if ix == 0 {
+                        (data[flat(iz, iy, 1, ny, nx)] - data[fi]) / sx
+                    } else if ix == nx - 1 {
+                        (data[fi] - data[flat(iz, iy, nx - 2, ny, nx)]) / sx
+                    } else {
+                        (data[flat(iz, iy, ix + 1, ny, nx)] - data[flat(iz, iy, ix - 1, ny, nx)])
+                            / (2.0 * sx)
+                    };
+                }
             }
-        }
-    }
+        },
+    );
 }
 
 /// Compute the gradient of `data` via central differences at interior voxels

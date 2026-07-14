@@ -108,18 +108,12 @@ pub(crate) fn cc_forces_from_sats_into<const REVERSED: bool>(
     fy.iter_mut().for_each(|v| *v = 0.0);
     fx.iter_mut().for_each(|v| *v = 0.0);
 
-    let mut zipped: Vec<(&mut [f32], &mut [f32], &mut [f32])> = fz
-        .chunks_exact_mut(slice_len)
-        .zip(fy.chunks_exact_mut(slice_len))
-        .zip(fx.chunks_exact_mut(slice_len))
-        .map(|((z, y), x)| (z, y, x))
-        .collect();
-
-    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
-        &mut zipped,
-        1,
-        |iz, chunk| {
-            let (fz_s, fy_s, fx_s) = &mut chunk[0];
+    moirai::for_each_chunk_triple_mut_enumerated_with::<moirai::Adaptive, _, _, _, _>(
+        fz,
+        fy,
+        fx,
+        slice_len,
+        |iz, fz_s, fy_s, fx_s| {
             let base = iz * slice_len;
             let ny = slice_len / nx;
             for iy in 0..ny {
@@ -180,7 +174,7 @@ pub(crate) fn bidirectional_cc_from_sats_into(
         .map(|((((((iz, iy), ix), jz), jy), jx), cc)| (iz, iy, ix, jz, jy, jx, cc))
         .collect();
 
-    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+    moirai::for_each_chunk_mut_enumerated_with::<moirai::Parallel, _, _>(
         &mut chunks,
         1,
         |z, chunk| {

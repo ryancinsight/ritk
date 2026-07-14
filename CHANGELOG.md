@@ -33,6 +33,9 @@
   redundant full-volume component copies per standard SyN iteration.
 - Reuse one trilinear stencil when sampling three-component displacement fields
   in composition, inverse warping, and inverse-consistency residuals.
+- Dispatch three-component volume kernels through Moirai's native multi-buffer
+  operation and explicitly parallelize costly bidirectional CC slices, avoiding
+  accidental serial execution below the adaptive 1,024-item threshold.
 - Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized
   native trace showed the decay sweep could release a huge segment still
   observed by `TaggedSegmentStack::pop`.

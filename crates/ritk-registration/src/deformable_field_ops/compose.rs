@@ -33,18 +33,12 @@ pub(crate) fn compose_fields_into(
     // Parallelize over z-slices: each slice writes to a disjoint contiguous
     // range in the output buffers; all reads are from immutable inputs.
     let slice_len = ny * nx;
-    let mut zipped: Vec<(&mut [f32], &mut [f32], &mut [f32])> = out_z
-        .chunks_exact_mut(slice_len)
-        .zip(out_y.chunks_exact_mut(slice_len))
-        .zip(out_x.chunks_exact_mut(slice_len))
-        .map(|((z, y), x)| (z, y, x))
-        .collect();
-
-    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
-        &mut zipped,
-        1,
-        |iz, chunk| {
-            let (out_z_s, out_y_s, out_x_s) = &mut chunk[0];
+    moirai::for_each_chunk_triple_mut_enumerated_with::<moirai::Adaptive, _, _, _, _>(
+        out_z,
+        out_y,
+        out_x,
+        slice_len,
+        |iz, out_z_s, out_y_s, out_x_s| {
             let base = iz * slice_len;
             for iy in 0..ny {
                 for ix in 0..nx {

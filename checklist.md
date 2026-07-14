@@ -58,6 +58,8 @@
   depth performs no redundant full-field copies; verify odd and even parity.
 - [x] Consolidate three-component field interpolation onto one shared stencil,
   with bit-exact scalar/component differential coverage.
+- [x] Route expensive three-component slice kernels through Moirai's native
+  multi-buffer operations and force parallel CC dispatch below 1,024 slices.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing
