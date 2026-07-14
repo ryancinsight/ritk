@@ -19,7 +19,8 @@
 //! `⌊2.5·√sample_variance⌋` neighborhood), using ITK's
 //! `MersenneTwisterRandomVariateGenerator` (seeded `0`). `w` are the cubic-spline
 //! smooth-disc patch weights constructed through ITK's `f32` weight-image
-//! rounding boundary; `σ = kernel_sigma`.
+//! rounding boundary. Pixel differences likewise execute in input `f32` before
+//! widening into the `f64` entropy accumulator; `σ = kernel_sigma`.
 //!
 //! Pixels are visited in `itk::ImageBoundaryFacesCalculator` order (interior
 //! region first, then each boundary face, each raster-scanned), because the
@@ -61,6 +62,11 @@ struct PatchOffset {
     coordinate: [i64; 3],
     displacement: isize,
     weight: f64,
+}
+
+#[inline]
+fn pixel_difference(current: f32, selected: f32) -> f64 {
+    f64::from(selected - current)
 }
 
 fn itk_reduction_indices(length: usize) -> impl Iterator<Item = usize> {
@@ -403,7 +409,8 @@ impl PatchBasedDenoisingImageFilter {
                 |work_index, value| {
                     let pixel = work[work_index];
                     let [x, y, z] = pixel.position;
-                    let p_center = data[pixel.center_index] as f64;
+                    let p_center_value = data[pixel.center_index];
+                    let p_center = f64::from(p_center_value);
                     let mut sum_g = 0.0f64;
                     let mut grad = 0.0f64;
 
@@ -414,12 +421,10 @@ impl PatchBasedDenoisingImageFilter {
                         if pixel.interior {
                             for offset in &offsets {
                                 let vp = data
-                                    [pixel.center_index.wrapping_add_signed(offset.displacement)]
-                                    as f64;
-                                let vq = data
-                                    [q_center_index.wrapping_add_signed(offset.displacement)]
-                                    as f64;
-                                let diff = vp - vq;
+                                    [pixel.center_index.wrapping_add_signed(offset.displacement)];
+                                let vq =
+                                    data[q_center_index.wrapping_add_signed(offset.displacement)];
+                                let diff = pixel_difference(vp, vq);
                                 sq += offset.weight * diff * diff;
                             }
                         } else {
@@ -449,7 +454,7 @@ impl PatchBasedDenoisingImageFilter {
                                 {
                                     continue;
                                 }
-                                let vp = data[idx(px, py, pz)] as f64;
+                                let vp = data[idx(px, py, pz)];
                                 #[cfg(debug_assertions)]
                                 {
                                     let [qx, qy, qz] = q_position;
@@ -471,17 +476,16 @@ impl PatchBasedDenoisingImageFilter {
                                         q_center_index.wrapping_add_signed(offset.displacement)
                                     );
                                 }
-                                let vq = data
-                                    [q_center_index.wrapping_add_signed(offset.displacement)]
-                                    as f64;
-                                let diff = vp - vq;
+                                let vq =
+                                    data[q_center_index.wrapping_add_signed(offset.displacement)];
+                                let diff = pixel_difference(vp, vq);
                                 sq += offset.weight * diff * diff;
                             }
                         }
 
                         let g = (-(sq / s2) / 2.0).exp();
                         sum_g += g;
-                        grad += (data[q_center_index] as f64 - p_center) * g;
+                        grad += pixel_difference(p_center_value, data[q_center_index]) * g;
                     }
 
                     // ITK normalizes the entropy gradient before applying the

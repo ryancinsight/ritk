@@ -154,6 +154,12 @@ runs first in the wheel gate and is deselected from the subsequent full suite,
 preserving exactly-once coverage while reducing failing feedback from about 16
 minutes to build time plus the 50-second test. Failure output now records exact
 indices, values, and `float32` bit patterns for the maximum-ULP witnesses.
+Fail-fast run `29334476779` localized the two-ULP maximum to three high-intensity
+voxels. ITK's scalar `GetComponent` returns each `float` pixel by value, so its
+pixel subtraction executes in `f32` before assignment to `RealValueType`; RITK
+widened both pixels before subtracting. Patch-distance and center-gradient
+differences now round at the same `f32` boundary before `f64` accumulation, with
+a direct value-semantic precision-order regression.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before

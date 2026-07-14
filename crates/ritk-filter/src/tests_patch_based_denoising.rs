@@ -23,6 +23,16 @@ fn test_itk_patch_reduction_order() {
     );
 }
 
+#[test]
+fn test_itk_pixel_difference_rounds_before_widening() {
+    let current = 26_765.939_453_125_f32;
+    let selected = 123.456_001_281_738_28_f32;
+    let actual = pixel_difference(current, selected);
+
+    assert_eq!(actual, -26_642.484_375_f64);
+    assert_ne!(actual, f64::from(selected) - f64::from(current));
+}
+
 /// Determinism: the same input yields the same output (seeded RNG, seed 0).
 #[test]
 fn test_patch_based_denoising_deterministic() {

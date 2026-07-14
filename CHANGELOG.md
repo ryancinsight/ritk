@@ -17,6 +17,8 @@
   Mnemosyne fault is corrected.
 
 ### Fixed
+- Subtract patch-denoising pixels in `f32` before widening their difference into
+  the `f64` entropy accumulator, matching ITK's scalar component boundary.
 - Run the load-bearing patch-denoising differential first in the wheel gate and
   report exact ULP witness indices, values, and bit patterns on failure.
 - Accumulate patch-denoising distances in ITK's interleaved half-patch order

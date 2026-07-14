@@ -115,6 +115,8 @@
   accumulation without adding hot-loop work.
 - [x] Move the unchanged denoising differential to the front of the wheel gate
   and emit exact ULP witnesses without duplicating suite execution.
+- [x] Preserve ITK's pixel-difference precision boundary by subtracting in
+  `f32` before widening into the `f64` entropy accumulator.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing
