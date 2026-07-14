@@ -24,10 +24,8 @@ same parameters, the same oracle.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
-import urllib.request
 
 import numpy as np
 import pytest
@@ -35,14 +33,12 @@ import pytest
 sitk = pytest.importorskip("SimpleITK")
 
 import ritk  # noqa: E402
+from _sitk_data import fetch_sha512  # noqa: E402
 
 _HERE = os.path.dirname(__file__)
-_REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
 # Manifest (input name -> sha512) is committed next to this test; the fetched
 # data is cached under the git-ignored externals/ tree.
 _MANIFEST = os.path.join(_HERE, "sitk_input_manifest.json")
-_CACHE = os.path.join(_REPO_ROOT, "externals", "sitk_data")
-_CDN = "https://data.kitware.com/api/v1/file/hashsum/sha512/{}/download"
 
 
 def _manifest():
@@ -58,18 +54,7 @@ def fetch_input(name: str) -> str:
     sha = _manifest().get(name)
     if sha is None:
         pytest.skip(f"{name} not in manifest")
-    os.makedirs(_CACHE, exist_ok=True)
-    dst = os.path.join(_CACHE, name)
-    if os.path.exists(dst) and os.path.getsize(dst) > 0:
-        return dst
-    try:
-        urllib.request.urlretrieve(_CDN.format(sha), dst)
-    except Exception as exc:  # offline / store down
-        pytest.skip(f"could not fetch {name}: {exc}")
-    if hashlib.sha512(open(dst, "rb").read()).hexdigest() != sha:
-        os.remove(dst)
-        pytest.fail(f"{name}: sha512 mismatch after download")
-    return dst
+    return fetch_sha512(name, sha)
 
 
 def _pair(name):
@@ -6040,27 +6025,24 @@ def test_cmake_level_set_motion_registration_structural():
 
 
 def test_cmake_patch_based_denoising_structural():
-    """PatchBasedDenoisingImageFilter: output differs from input and Pearson >= 0.9 vs sitk.
+    """PatchBasedDenoisingImageFilter matches the single-worker ITK result.
 
     PatchBasedDenoisingImageFilter reduces noise by replacing each pixel with a
-    weighted average of similar patches in the neighbourhood.  With 1 iteration,
-    200 sample patches, and PatchRadius=2 the output should differ from the
-    noisy input and correlate strongly with the sitk output.
+    weighted average of similar patches in the neighbourhood. RITK and
+    single-worker SimpleITK execute concurrently on the same host; both are
+    deterministic, independent computations, so scheduling does not alter their
+    seeded sample or reduction order and wall time is their maximum, not sum.
 
     Input: RA-Float.nrrd with additive Gaussian noise (std=5.0, seed=0).
     Parameters: KernelBandwidthEstimation=False, NumberOfIterations=1,
                 NumberOfSamplePatches=200, PatchRadius=2.
-    Assertion: output != noisy input AND Pearson >= 0.9 vs sitk output.
+    Assertion: output != noisy input AND max ULP distance vs SimpleITK <= 1.
 
     Upstream cmake case mirrors: PatchBasedDenoisingImageFilter.yaml.
 
-    Evidence tier: empirical (failing — ritk.filter.patch_based_denoising not yet
-    implemented; expected: AttributeError).
+    Evidence tier: live differential empirical validation against SimpleITK.
     """
     import numpy as _np
-
-    if not hasattr(ritk.filter, "patch_based_denoising"):
-        pytest.skip("patch_based_denoising is unimplemented in ritk")
 
     path = fetch_input("RA-Float.nrrd")
     si_clean = sitk.Cast(sitk.ReadImage(path), sitk.sitkFloat32)
@@ -6071,46 +6053,69 @@ def test_cmake_patch_based_denoising_structural():
         arr_clean + rng.standard_normal(arr_clean.shape).astype(_np.float32) * 5.0
     )
 
-    si_noisy = sitk.GetImageFromArray(arr_noisy)
-    si_noisy.CopyInformation(si_clean)
-
-    try:
-        f = sitk.PatchBasedDenoisingImageFilter()
-        f.KernelBandwidthEstimationOff()
-        f.SetNumberOfIterations(1)
-        f.SetNumberOfSamplePatches(200)
-        f.SetPatchRadius(2)
-        so = f.Execute(si_noisy)
-    except Exception as exc:
-        pytest.skip(f"sitk.PatchBasedDenoisingImageFilter unavailable: {exc}")
-
+    # RITK's public patch radius is voxel-based, so compare the identical
+    # unit-spacing voxel problem.  Copying RA-Float's anisotropic metadata only
+    # onto the SimpleITK operand changes ITK's physical patch radius and mask.
     ri = ritk.Image(_np.ascontiguousarray(arr_noisy))
-    ro = ritk.filter.patch_based_denoising(
-        ri,
-        number_of_iterations=1,
-        number_of_sample_patches=200,
-        patch_radius=2,
-        kernel_bandwidth_estimation=False,
-    )
+    si_noisy = sitk.GetImageFromArray(arr_noisy)
+    f = sitk.PatchBasedDenoisingImageFilter()
+    f.KernelBandwidthEstimationOff()
+    f.SetNumberOfIterations(1)
+    f.SetNumberOfSamplePatches(200)
+    f.SetPatchRadius(2)
+    f.SetNumberOfWorkUnits(1)
 
-    r_arr = _np.asarray(ro.to_numpy(), _np.float64)
-    s_arr = sitk.GetArrayFromImage(so).astype(_np.float64)
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        ritk_result = executor.submit(
+            ritk.filter.patch_based_denoising,
+            ri,
+            number_of_iterations=1,
+            number_of_sample_patches=200,
+            patch_radius=2,
+            kernel_bandwidth_estimation=False,
+        )
+        sitk_result = executor.submit(f.Execute, si_noisy)
+        r_arr = _np.asarray(ritk_result.result().to_numpy(), _np.float64)
+        s_arr = sitk.GetArrayFromImage(sitk_result.result()).astype(_np.float64)
     n_arr = arr_noisy.astype(_np.float64)
+
+    assert r_arr.shape == s_arr.shape == n_arr.shape
+    assert _np.all(_np.isfinite(r_arr)), "PatchBasedDenoising produced non-finite values"
 
     # Denoising must change at least some pixels.
     assert not _np.array_equal(r_arr, n_arr), (
         "PatchBasedDenoising output is identical to the noisy input — filter had no effect"
     )
 
-    r_c = r_arr.ravel() - r_arr.mean()
-    s_c = s_arr.ravel() - s_arr.mean()
-    pearson = float(
-        _np.dot(r_c, s_c) / (_np.sqrt(_np.dot(r_c, r_c) * _np.dot(s_c, s_c)) + 1e-12)
-    )
-    assert pearson >= 0.9, (
-        f"PatchBasedDenoising Pearson={pearson:.4f} < 0.9 vs sitk "
-        "(denoised outputs should correlate strongly; same noisy input, same parameters)"
-    )
+    r_out = r_arr.astype(_np.float32)
+    s_out = s_arr.astype(_np.float32)
+    try:
+        _np.testing.assert_array_max_ulp(r_out, s_out, maxulp=1)
+    except AssertionError as error:
+        sign = _np.uint32(0x80000000)
+        r_bits = r_out.view(_np.uint32)
+        s_bits = s_out.view(_np.uint32)
+        r_ordered = _np.where(r_bits & sign, ~r_bits, r_bits | sign)
+        s_ordered = _np.where(s_bits & sign, ~s_bits, s_bits | sign)
+        ulp = _np.abs(r_ordered.astype(_np.int64) - s_ordered.astype(_np.int64))
+        maximum = int(ulp.max())
+        witnesses = []
+        for index in _np.argwhere(ulp == maximum)[:8]:
+            key = tuple(int(coordinate) for coordinate in index)
+            witnesses.append(
+                {
+                    "index": key,
+                    "ritk": float(r_out[key]),
+                    "simpleitk": float(s_out[key]),
+                    "ritk_bits": f"0x{int(r_bits[key]):08x}",
+                    "simpleitk_bits": f"0x{int(s_bits[key]):08x}",
+                }
+            )
+        raise AssertionError(
+            f"{error}; exact max ULP={maximum}; witnesses={witnesses}"
+        ) from error
 
 
 def test_cmake_scalar_chan_and_vese_dense_level_set_structural():

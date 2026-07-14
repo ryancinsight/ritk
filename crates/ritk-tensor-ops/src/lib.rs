@@ -130,7 +130,14 @@ pub fn rebuild_with_origin<B: Backend, const D: usize>(
     src: &Image<B, D>,
 ) -> Image<B, D> {
     let device = src.data().device();
-    Image::from_flat_on(vals, dims, new_origin, *src.spacing(), *src.direction(), &device)
+    Image::from_flat_on(
+        vals,
+        dims,
+        new_origin,
+        *src.spacing(),
+        *src.direction(),
+        &device,
+    )
 }
 
 #[inline]

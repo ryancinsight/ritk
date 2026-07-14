@@ -61,6 +61,32 @@ fn lazy_sparse_cache_built_on_first_access() {
         crate::metric::sampling::SamplingConfig::full_grid(),
     );
 
+    let sparse_after_second = hist.cache.with_ref(|cache| {
+        cache
+            .as_ref()
+            .and_then(|entry| entry.sparse_w_fixed.clone())
+            .expect("sparse cache must exist after second call")
+    });
+
+    let third = hist.compute_image_joint_histogram(
+        &fixed_img,
+        &moving_img,
+        &translation,
+        &interp,
+        crate::metric::sampling::SamplingConfig::full_grid(),
+    );
+
+    let sparse_after_third = hist.cache.with_ref(|cache| {
+        cache
+            .as_ref()
+            .and_then(|entry| entry.sparse_w_fixed.clone())
+            .expect("sparse cache must exist after third call")
+    });
+    assert!(
+        std::sync::Arc::ptr_eq(&sparse_after_second, &sparse_after_third),
+        "cache hits must retain the sparse allocation"
+    );
+
     hist.cache.with_ref(|cache| {
         let cache_inner = cache.as_ref().expect("cache must exist after second call");
         assert!(
@@ -80,4 +106,5 @@ fn lazy_sparse_cache_built_on_first_access() {
         sum > 0.0,
         "second-call histogram must be non-zero, got sum={sum}"
     );
+    assert_eq!(second_data, third.into_data());
 }

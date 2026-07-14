@@ -1529,36 +1529,6 @@ def _sitk_bspline_register(
     return resampler.Execute(moving_sitk), final_transform
 
 
-def test_sitk_translation_recovers_sphere_overlap():
-    """SimpleITK translation registration on a shifted sphere must achieve Dice >= 0.85.
-
-    Mathematical basis: translation by 3 voxels in x applied to a sphere of
-    radius 6 in a 32^3 volume (isotropic 1 mm spacing).  SimpleITK
-    ImageRegistrationMethod with Euler3DTransform (translation-only via
-    zero initial rotation), Mattes MI (32 bins), and RegularStepGradientDescent
-    (learning rate 1.0, 100 iterations) must recover the translation.
-    The registered image should overlap with the fixed sphere at Dice >= 0.85.
-
-    This test validates SimpleITK registration functionality and establishes
-    a reference quality baseline for RITK comparison tests.
-    """
-    arr = _make_sphere().astype(np.float32)
-    shift = 3
-    arr_shifted = np.roll(arr, shift, axis=2).astype(np.float32)
-
-    fixed = _sitk(arr)
-    moving = _sitk(arr_shifted)
-
-    result, _ = _sitk_translation_register(fixed, moving, num_iterations=100)
-    assert result is not None, "SimpleITK translation registration diverged"
-    result_arr = (_np(result) > 0.5).astype(np.float32)
-    ref_arr = (arr > 0.5).astype(np.float32)
-    d = _dice(result_arr, ref_arr)
-    assert d >= 0.85, (
-        f"SimpleITK translation Dice {d:.4f} < 0.85; registration may have failed"
-    )
-
-
 def test_ritk_demons_vs_sitk_translation_quality():
     """RITK demons registration must match SimpleITK translation quality (Dice >= 0.85).
 
@@ -4109,83 +4079,32 @@ class TestBSplineFFDRegistrationParity:
 
     # ── Shape and value sanity ────────────────────────────────────────────────
 
-    def test_warped_shape_equals_fixed_shape(self):
-        """Output ritk.Image has the same spatial shape as the fixed image."""
-        fixed, moving = _make_shifted_sphere()
-        warped_img = ritk.registration.bspline_ffd_register(
-            _ritk(fixed), _ritk(moving), ritk.registration.BSplineFfdConfig(**self._BSPLINE_KWARGS)
-        )
-        warped = warped_img.to_numpy()
-        assert warped.shape == fixed.shape, (
-            f"warped shape {warped.shape} != fixed shape {fixed.shape}"
-        )
-
-    def test_warped_output_values_all_finite(self):
-        """No NaN or infinite values in the registered output."""
-        fixed, moving = _make_shifted_sphere()
-        warped_img = ritk.registration.bspline_ffd_register(
-            _ritk(fixed), _ritk(moving), ritk.registration.BSplineFfdConfig(**self._BSPLINE_KWARGS)
-        )
-        warped = warped_img.to_numpy()
-        assert np.all(np.isfinite(warped)), (
-            f"warped image contains non-finite values; "
-            f"NaN count={np.isnan(warped).sum()}, Inf count={np.isinf(warped).sum()}"
-        )
-
-    # ── Metric improvement ────────────────────────────────────────────────────
-
-    def test_ncc_improves_on_shifted_sphere(self):
-        """NCC(warped, fixed) ≥ NCC(moving, fixed) after B-spline registration.
-
-        Analytical derivation: a 4-voxel shift in x and initial_control_spacing=8
-        place the shift within a single control cell, so a single-level B-spline
-        FFD with gradient ascent on NCC must improve alignment.
-        """
+    def test_shifted_sphere_contracts(self):
+        """One shifted-sphere registration satisfies shape, value, and metric contracts."""
         fixed, moving = _make_shifted_sphere(shift_voxels=4)
         ncc_before = _ncc_numpy(moving, fixed)
-        warped_img = ritk.registration.bspline_ffd_register(
-            _ritk(fixed), _ritk(moving), ritk.registration.BSplineFfdConfig(**self._BSPLINE_KWARGS)
-        )
-        warped = warped_img.to_numpy()
-        ncc_after = _ncc_numpy(warped, fixed)
-        assert ncc_after >= ncc_before - 1e-6, (
-            f"NCC must not decrease: before={ncc_before:.6f}, after={ncc_after:.6f}"
-        )
-
-    def test_pixel_wise_mse_does_not_increase(self):
-        """MSE(warped, fixed) ≤ MSE(moving, fixed) after registration.
-
-        If NCC improves, pixel-wise MSE cannot increase without bound; this
-        test provides a complementary metric-independent check.
-        """
-        fixed, moving = _make_shifted_sphere(shift_voxels=4)
         mse_before = float(np.mean((moving - fixed) ** 2))
         warped_img = ritk.registration.bspline_ffd_register(
             _ritk(fixed), _ritk(moving), ritk.registration.BSplineFfdConfig(**self._BSPLINE_KWARGS)
         )
         warped = warped_img.to_numpy()
+        ncc_after = _ncc_numpy(warped, fixed)
         mse_after = float(np.mean((warped - fixed) ** 2))
+        ncc_direct = _ncc_numpy(warped, fixed)
+        ncc_sitk_rt = _sitk_ncc_roundtrip(warped, fixed)
+        assert warped.shape == fixed.shape, (
+            f"warped shape {warped.shape} != fixed shape {fixed.shape}"
+        )
+        assert np.all(np.isfinite(warped)), (
+            f"warped image contains non-finite values; "
+            f"NaN count={np.isnan(warped).sum()}, Inf count={np.isinf(warped).sum()}"
+        )
+        assert ncc_after >= ncc_before - 1e-6, (
+            f"NCC must not decrease: before={ncc_before:.6f}, after={ncc_after:.6f}"
+        )
         assert mse_after <= mse_before * 1.05, (
             f"MSE increased significantly: before={mse_before:.4f}, after={mse_after:.4f}"
         )
-
-    # ── SimpleITK NCC round-trip parity ──────────────────────────────────────
-
-    def test_numpy_ncc_matches_sitk_roundtrip_ncc(self):
-        """NCC computed directly with numpy == NCC after SimpleITK array round-trip.
-
-        Validates that the ritk-registered output is a standard numpy-compatible
-        float32 array that SimpleITK converts without precision loss, establishing
-        parity between RITK's internal NCC computation and SimpleITK's Correlation
-        metric on the same data.
-        """
-        fixed, moving = _make_shifted_sphere(shift_voxels=4)
-        warped_img = ritk.registration.bspline_ffd_register(
-            _ritk(fixed), _ritk(moving), ritk.registration.BSplineFfdConfig(**self._BSPLINE_KWARGS)
-        )
-        warped = warped_img.to_numpy()
-        ncc_direct = _ncc_numpy(warped, fixed)
-        ncc_sitk_rt = _sitk_ncc_roundtrip(warped, fixed)
         assert abs(ncc_direct - ncc_sitk_rt) < 1e-5, (
             f"numpy NCC {ncc_direct:.8f} != SimpleITK round-trip NCC {ncc_sitk_rt:.8f}"
         )
@@ -4225,8 +4144,8 @@ class TestBSplineFFDRegistrationParity:
         )
 
     @pytest.mark.skipif(not _HAVE_BRAIN_DATA, reason="brain NIfTI test data absent")
-    def test_brain_pair_warped_shape_preserved(self):
-        """Warped brain image has same spatial shape as fixed brain image."""
+    def test_brain_pair_warped_structure(self):
+        """One brain registration preserves shape and applies a nonzero transform."""
         r16 = _load_brain_slice(_R16)
         r27 = _load_brain_slice(_R27)
         fixed = _brain_ritk(r27)
@@ -4235,21 +4154,10 @@ class TestBSplineFFDRegistrationParity:
             moving, ritk.registration.BSplineFfdConfig(initial_control_spacing=16,num_levels=1,max_iterations=3,learning_rate=0.5,regularization_weight=1e-3))
         warped = warped_img.to_numpy()
         fixed_arr = fixed.to_numpy()
+        moving_arr = moving.to_numpy()
         assert warped.shape == fixed_arr.shape, (
             f"brain warped shape {warped.shape} != fixed shape {fixed_arr.shape}"
         )
-
-    @pytest.mark.skipif(not _HAVE_BRAIN_DATA, reason="brain NIfTI test data absent")
-    def test_brain_pair_warped_not_trivially_zero(self):
-        """Warped brain output is not all-zeros; registration actually applied a transform."""
-        r16 = _load_brain_slice(_R16)
-        r27 = _load_brain_slice(_R27)
-        fixed = _brain_ritk(r27)
-        moving = _brain_ritk(r16)
-        warped_img = ritk.registration.bspline_ffd_register(fixed,
-            moving, ritk.registration.BSplineFfdConfig(initial_control_spacing=16,num_levels=1,max_iterations=3,learning_rate=0.5,regularization_weight=1e-3))
-        warped = warped_img.to_numpy()
-        moving_arr = moving.to_numpy()
         assert np.any(warped != 0.0), (
             "warped brain image is all zeros — registration failed"
         )
@@ -4385,46 +4293,29 @@ class TestLddmmRegistrationParity:
             f"max displacement {max_disp} for identical images; expected 0"
         )
 
-    def test_mse_improves_after_lddmm_on_shifted_sphere(self):
-        """MSE decreases after LDDMM registration on a 2-voxel shifted Gaussian sphere."""
-        sphere, shifted = _make_shifted_sphere_lddmm(shift=2, size=16)
-        fixed = ritk.Image(np.ascontiguousarray(sphere), spacing=[1.0, 1.0, 1.0])
-        moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
-        warped, _ = ritk.registration.lddmm_register(fixed,
-            moving, ritk.registration.LddmmConfig(max_iterations=20,num_time_steps=5,kernel_sigma=2.0,learning_rate=0.05,regularization_weight=0.01))
-        mse_before = float(np.mean((sphere - shifted) ** 2))
-        mse_after = float(np.mean((sphere - warped.to_numpy()) ** 2))
-        assert mse_after < mse_before, (
-            f"MSE did not improve: before={mse_before:.6f}, after={mse_after:.6f}"
-        )
-
-    def test_ncc_improves_after_lddmm_on_shifted_sphere(self):
-        """NCC(warped, fixed) >= NCC(moving, fixed) after LDDMM registration."""
-        sphere, shifted = _make_shifted_sphere_lddmm(shift=2, size=16)
-        fixed = ritk.Image(np.ascontiguousarray(sphere), spacing=[1.0, 1.0, 1.0])
-        moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
-        warped, _ = ritk.registration.lddmm_register(fixed,
-            moving, ritk.registration.LddmmConfig(max_iterations=20,num_time_steps=5,kernel_sigma=2.0,learning_rate=0.05,regularization_weight=0.01))
-        ncc_before = _ncc_lddmm(sphere, shifted)
-        ncc_after = _ncc_lddmm(sphere, warped.to_numpy())
-        assert ncc_after >= ncc_before, (
-            f"NCC did not improve: before={ncc_before:.6f}, after={ncc_after:.6f}"
-        )
-
-    def test_both_lddmm_and_sitk_demons_reduce_mse(self):
-        """Both RITK LDDMM and SimpleITK Demons reduce MSE from baseline (direction parity)."""
+    def test_shifted_sphere_quality_and_direction_parity(self):
+        """One LDDMM result satisfies MSE, NCC, and SimpleITK direction contracts."""
         sphere, shifted = _make_shifted_sphere_lddmm(shift=2, size=16)
         mse_baseline = float(np.mean((sphere - shifted) ** 2))
+        ncc_baseline = _ncc_lddmm(sphere, shifted)
 
         fixed = ritk.Image(np.ascontiguousarray(sphere), spacing=[1.0, 1.0, 1.0])
         moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
         warped, _ = ritk.registration.lddmm_register(fixed,
             moving, ritk.registration.LddmmConfig(max_iterations=20,num_time_steps=5,kernel_sigma=2.0,learning_rate=0.05,regularization_weight=0.01))
-        mse_lddmm = float(np.mean((sphere - warped.to_numpy()) ** 2))
+        warped_array = warped.to_numpy()
+        mse_lddmm = float(np.mean((sphere - warped_array) ** 2))
+        ncc_lddmm = _ncc_lddmm(sphere, warped_array)
         mse_demons = _sitk_demons_mse(sphere, shifted, n_iter=20)
 
         assert mse_lddmm < mse_baseline, (
             f"RITK LDDMM MSE {mse_lddmm:.6f} >= baseline {mse_baseline:.6f}"
+        )
+        assert ncc_lddmm >= ncc_baseline, (
+            f"NCC did not improve: before={ncc_baseline:.6f}, after={ncc_lddmm:.6f}"
+        )
+        assert ncc_lddmm > 0.0, (
+            f"NCC = {ncc_lddmm} after LDDMM; expected positive for co-modal pair"
         )
         assert mse_demons < mse_baseline, (
             f"SimpleITK Demons MSE {mse_demons:.6f} >= baseline {mse_baseline:.6f}"
@@ -4438,19 +4329,6 @@ class TestLddmmRegistrationParity:
         warped, _ = ritk.registration.lddmm_register(fixed, moving, ritk.registration.LddmmConfig(max_iterations=10,num_time_steps=3))
         ncc = _ncc_lddmm(sphere, warped.to_numpy())
         assert -1.0 <= ncc <= 1.0, f"NCC = {ncc} outside [-1, 1]"
-
-    def test_lddmm_warped_positive_ncc_vs_fixed(self):
-        """After LDDMM, NCC(warped, fixed) > 0 for a co-modal shifted pair."""
-        sphere, shifted = _make_shifted_sphere_lddmm(shift=2, size=16)
-        fixed = ritk.Image(np.ascontiguousarray(sphere), spacing=[1.0, 1.0, 1.0])
-        moving = ritk.Image(np.ascontiguousarray(shifted), spacing=[1.0, 1.0, 1.0])
-        warped, _ = ritk.registration.lddmm_register(fixed,
-            moving, ritk.registration.LddmmConfig(max_iterations=20,num_time_steps=5,kernel_sigma=2.0,learning_rate=0.05,regularization_weight=0.01))
-        ncc = _ncc_lddmm(sphere, warped.to_numpy())
-        assert ncc > 0.0, (
-            f"NCC = {ncc} after LDDMM; expected positive for co-modal pair"
-        )
-
 
 # ── Section 12: Demons Registration PyO3 Parity Tests ────────────────────────
 #
@@ -4609,16 +4487,22 @@ class TestDemonsRegistrationParity:
 
     # ── Registration quality ───────────────────────────────────────────────
 
-    def test_thirion_reduces_mse_on_shifted_sphere(self):
-        """Thirion Demons reduces MSE on a 2-voxel x-shifted Gaussian sphere."""
+    def test_thirion_improves_shifted_sphere(self):
+        """One Thirion result improves MSE and NCC on a shifted sphere."""
         fixed_arr, moving_arr = _shifted_sphere_pair(shift=2, size=16)
         baseline = _mse(fixed_arr, moving_arr)
+        ncc_before = _ncc_demons(fixed_arr, moving_arr)
         fixed = ritk.Image(np.ascontiguousarray(fixed_arr), spacing=[1.0, 1.0, 1.0])
         moving = ritk.Image(np.ascontiguousarray(moving_arr), spacing=[1.0, 1.0, 1.0])
         warped, _ = ritk.registration.demons_register(fixed, moving, max_iterations=30)
-        final = _mse(fixed_arr, warped.to_numpy())
+        warped_array = warped.to_numpy()
+        final = _mse(fixed_arr, warped_array)
+        ncc_after = _ncc_demons(fixed_arr, warped_array)
         assert final < baseline, (
             f"Thirion MSE did not decrease: baseline={baseline:.6f} final={final:.6f}"
+        )
+        assert ncc_after > ncc_before, (
+            f"NCC did not improve: before={ncc_before:.4f} after={ncc_after:.4f}"
         )
 
     def test_diffeomorphic_reduces_mse_on_shifted_sphere(self):
@@ -4651,36 +4535,14 @@ class TestDemonsRegistrationParity:
 
     # ── SimpleITK direction parity ─────────────────────────────────────────
 
-    def test_ritk_thirion_and_sitk_demons_both_reduce_mse(self):
-        """RITK Thirion and SimpleITK Demons both reduce MSE from baseline."""
+    def test_sitk_demons_reduces_mse(self):
+        """SimpleITK Demons independently reduces MSE from baseline."""
         fixed_arr, moving_arr = _shifted_sphere_pair(shift=2, size=16)
         baseline = _mse(fixed_arr, moving_arr)
-        fixed = ritk.Image(np.ascontiguousarray(fixed_arr), spacing=[1.0, 1.0, 1.0])
-        moving = ritk.Image(np.ascontiguousarray(moving_arr), spacing=[1.0, 1.0, 1.0])
-
-        warped_ritk, _ = ritk.registration.demons_register(
-            fixed, moving, max_iterations=20
-        )
-        mse_ritk = _mse(fixed_arr, warped_ritk.to_numpy())
         mse_sitk = _sitk_demons_mse_demons(fixed_arr, moving_arr, n_iter=20)
 
-        assert mse_ritk < baseline, (
-            f"RITK Thirion MSE {mse_ritk:.6f} >= baseline {baseline:.6f}"
-        )
         assert mse_sitk < baseline, (
             f"SimpleITK Demons MSE {mse_sitk:.6f} >= baseline {baseline:.6f}"
-        )
-
-    def test_ncc_improves_after_thirion_demons(self):
-        """NCC(warped, fixed) > NCC(moving, fixed) after Thirion registration."""
-        fixed_arr, moving_arr = _shifted_sphere_pair(shift=2, size=16)
-        ncc_before = _ncc_demons(fixed_arr, moving_arr)
-        fixed = ritk.Image(np.ascontiguousarray(fixed_arr), spacing=[1.0, 1.0, 1.0])
-        moving = ritk.Image(np.ascontiguousarray(moving_arr), spacing=[1.0, 1.0, 1.0])
-        warped, _ = ritk.registration.demons_register(fixed, moving, max_iterations=30)
-        ncc_after = _ncc_demons(fixed_arr, warped.to_numpy())
-        assert ncc_after > ncc_before, (
-            f"NCC did not improve: before={ncc_before:.4f} after={ncc_after:.4f}"
         )
 
     def test_multires_demons_reduces_mse(self):

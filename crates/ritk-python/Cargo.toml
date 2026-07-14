@@ -7,6 +7,9 @@ edition = "2021"
 name = "_ritk"
 crate-type = ["cdylib", "rlib"]
 
+[features]
+extension-module = ["pyo3/extension-module"]
+
 [dependencies]
 burn-ndarray = { workspace = true }
 pyo3 = { workspace = true }

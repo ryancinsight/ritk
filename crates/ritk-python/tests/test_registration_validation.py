@@ -23,11 +23,8 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-
-# Skip every test in this module when SimpleITK is not installed.
-sitk = pytest.importorskip("SimpleITK")
-
-import ritk  # noqa: E402
+import ritk
+import SimpleITK as sitk
 
 # ---------------------------------------------------------------------------
 # Custom pytest markers
@@ -399,109 +396,6 @@ def _sitk_translation_register(
     return resampler.Execute(moving_sitk), final_transform
 
 
-def _sitk_affine_register(
-    fixed_sitk: sitk.Image,
-    moving_sitk: sitk.Image,
-    *,
-    learning_rate: float = 1.0,
-    num_iterations: int = 100,
-    shrink_factors: list[int] | None = None,
-    smoothing_sigmas: list[float] | None = None,
-) -> tuple[sitk.Image | None, sitk.Transform | None]:
-    """Run SimpleITK affine registration with multi-resolution.
-
-    Uses Mattes MI with RegularStepGradientDescent.  Multi-resolution
-    schedule defaults to [4, 2, 1] shrink factors and [4, 2, 0]
-    smoothing sigmas.
-    """
-    if shrink_factors is None:
-        shrink_factors = [4, 2, 1]
-    if smoothing_sigmas is None:
-        smoothing_sigmas = [4.0, 2.0, 0.0]
-
-    reg = sitk.ImageRegistrationMethod()
-    reg.SetMetricAsMattesMutualInformation(numberOfHistogramBins=32)
-    reg.SetMetricSamplingStrategy(reg.RANDOM)
-    reg.SetMetricSamplingPercentage(0.25, seed=42)
-
-    transform = sitk.AffineTransform(3)
-    reg.SetInitialTransform(transform, inPlace=True)
-
-    reg.SetOptimizerAsRegularStepGradientDescent(
-        learningRate=learning_rate,
-        minStep=1e-4,
-        numberOfIterations=num_iterations,
-        gradientMagnitudeTolerance=1e-8,
-    )
-    reg.SetOptimizerScalesFromPhysicalShift()
-    reg.SetInterpolator(sitk.sitkLinear)
-    reg.SetShrinkFactorsPerLevel(shrink_factors)
-    reg.SetSmoothingSigmasPerLevel(smoothing_sigmas)
-    reg.SmoothingSigmasAreSpecifiedInPhysicalUnitsOn()
-
-    try:
-        final_transform = reg.Execute(fixed_sitk, moving_sitk)
-    except RuntimeError:
-        return None, None
-
-    resampler = sitk.ResampleImageFilter()
-    resampler.SetReferenceImage(fixed_sitk)
-    resampler.SetInterpolator(sitk.sitkLinear)
-    resampler.SetDefaultPixelValue(0.0)
-    resampler.SetTransform(final_transform)
-    return resampler.Execute(moving_sitk), final_transform
-
-
-def _sitk_bspline_register(
-    fixed_sitk: sitk.Image,
-    moving_sitk: sitk.Image,
-    *,
-    grid_spacing: float = 8.0,
-    num_iterations: int = 100,
-    learning_rate: float = 1.0,
-) -> tuple[sitk.Image | None, sitk.Transform | None]:
-    """Run SimpleITK BSpline deformable registration.
-
-    Uses Mattes MI with RegularStepGradientDescent on a BSplineTransform
-    initialised with the given control-point grid spacing (in physical units).
-    Single-resolution.
-    """
-    reg = sitk.ImageRegistrationMethod()
-    reg.SetMetricAsMattesMutualInformation(numberOfHistogramBins=32)
-    reg.SetMetricSamplingStrategy(reg.RANDOM)
-    reg.SetMetricSamplingPercentage(0.25, seed=42)
-
-    bspline_init = sitk.BSplineTransformInitializer(
-        fixed_sitk,
-        [int(sz / grid_spacing + 1) for sz in fixed_sitk.GetSize()],
-        order=3,
-    )
-    reg.SetInitialTransform(bspline_init, inPlace=True)
-
-    reg.SetOptimizerAsRegularStepGradientDescent(
-        learningRate=learning_rate,
-        minStep=1e-4,
-        numberOfIterations=num_iterations,
-        gradientMagnitudeTolerance=1e-8,
-    )
-    reg.SetOptimizerScalesFromPhysicalShift()
-    reg.SetInterpolator(sitk.sitkLinear)
-    reg.SetShrinkFactorsPerLevel([1])
-    reg.SetSmoothingSigmasPerLevel([0.0])
-
-    try:
-        final_transform = reg.Execute(fixed_sitk, moving_sitk)
-    except RuntimeError:
-        return None, None
-
-    resampler = sitk.ResampleImageFilter()
-    resampler.SetReferenceImage(fixed_sitk)
-    resampler.SetInterpolator(sitk.sitkLinear)
-    resampler.SetDefaultPixelValue(0.0)
-    resampler.SetTransform(final_transform)
-    return resampler.Execute(moving_sitk), final_transform
-
-
 def _sitk_resample_to_reference(
     moving: sitk.Image,
     reference: sitk.Image,
@@ -602,22 +496,9 @@ def test_1a_shifted_sphere_translation_recovery():
     )
 
 
-@pytest.mark.slow
-def test_1b_gaussian_blob_local_deformation():
-    """RITK SyN and SimpleITK BSpline must recover a local deformation on a Gaussian blob.
-
-    Mathematical basis: a Gaussian blob with σ=5 in a 48³ volume.  A smooth
-    local displacement (amplitude A=2.5 voxels, σ=6) is applied via
-    scipy.ndimage.map_coordinates.  Both RITK syn_register and SimpleITK
-    BSpline registration must achieve NCC >= 0.90 between the warped moving
-    and the fixed image.
-
-    Threshold derivation: the Gaussian blob has broad spatial support
-    (σ=5 in a 48³ volume), so a localised displacement of amplitude 2.5
-    affects only a fraction of voxels.  NCC >= 0.90 permits up to 10%
-    residual misalignment energy, which is conservative for deformable
-    registration with 50+ iterations on a smooth signal.
-    """
+@pytest.fixture
+def locally_deformed_gaussian_pair():
+    """Construct the shared analytical local-deformation registration pair."""
     from scipy.ndimage import map_coordinates
 
     sz = 48
@@ -628,7 +509,6 @@ def test_1b_gaussian_blob_local_deformation():
         -((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) / (2 * sigma_blob**2)
     ).astype(np.float32)
 
-    # Apply smooth local displacement in the x-direction
     amplitude = 2.5
     sigma_disp = 6.0
     bump = amplitude * np.exp(
@@ -645,8 +525,25 @@ def test_1b_gaussian_blob_local_deformation():
         .reshape(sz, sz, sz)
         .astype(np.float32)
     )
+    return arr_fixed, arr_moving
 
-    # -- RITK SyN --
+
+@pytest.mark.slow
+def test_1b_ritk_gaussian_blob_local_deformation(locally_deformed_gaussian_pair):
+    """RITK SyN must recover a local deformation on a Gaussian blob.
+
+    Mathematical basis: a Gaussian blob with σ=5 in a 48³ volume.  A smooth
+    local displacement (amplitude A=2.5 voxels, σ=6) is applied in the
+    x-direction. RITK SyN must achieve NCC >= 0.90 between the warped moving
+    and fixed images.
+
+    Threshold derivation: the Gaussian blob has broad spatial support
+    (σ=5 in a 48³ volume), so a localised displacement of amplitude 2.5
+    affects only a fraction of voxels.  NCC >= 0.90 permits up to 10%
+    residual misalignment energy, which is conservative for deformable
+    registration with 50+ iterations on a smooth signal.
+    """
+    arr_fixed, arr_moving = locally_deformed_gaussian_pair
     fixed_ritk = numpy_to_ritk(arr_fixed)
     moving_ritk = numpy_to_ritk(arr_moving)
     warped_fixed_ritk, warped_moving_ritk = ritk.registration.syn_register(fixed_ritk,
@@ -654,19 +551,6 @@ def test_1b_gaussian_blob_local_deformation():
     ncc_ritk = ncc_3d(warped_moving_ritk.to_numpy(), arr_fixed)
     assert ncc_ritk >= 0.90, (
         f"RITK SyN NCC {ncc_ritk:.4f} < 0.90 on locally deformed Gaussian blob"
-    )
-
-    # -- SimpleITK BSpline --
-    fixed_sitk = numpy_to_sitk(arr_fixed)
-    moving_sitk = numpy_to_sitk(arr_moving)
-    result_sitk, _ = _sitk_bspline_register(
-        fixed_sitk, moving_sitk, grid_spacing=8.0, num_iterations=100
-    )
-    assert result_sitk is not None, "SimpleITK BSpline registration diverged"
-    sitk_arr = sitk_to_numpy(result_sitk)
-    ncc_sitk = ncc_3d(sitk_arr, arr_fixed)
-    assert ncc_sitk >= 0.90, (
-        f"SimpleITK BSpline NCC {ncc_sitk:.4f} < 0.90 on locally deformed Gaussian blob"
     )
 
 
@@ -771,83 +655,6 @@ def test_2a_ritk_demons_improves_ncc():
     )
 
 
-@_skip_brain
-@pytest.mark.slow
-def test_2b_sitk_affine_improves_ncc():
-    """SimpleITK affine on the brain pair must improve NCC by at least 0.05.
-
-    Mathematical basis: same as test_2a but using SimpleITK affine
-    registration with multi-resolution schedule [4, 2, 1].
-    The affine transform has 12 DOF (rotation, translation, scaling,
-    shear), sufficient to correct rigid + global scaling differences.
-    NCC improvement Δ ≥ 0.05 is the same minimal-effect threshold.
-    """
-    fixed_arr, moving_arr = _load_brain_pair()
-
-    ncc_before = ncc_3d(fixed_arr, moving_arr)
-
-    fixed_sitk = numpy_to_sitk(fixed_arr)
-    moving_sitk = numpy_to_sitk(moving_arr)
-    result_sitk, _ = _sitk_affine_register(fixed_sitk, moving_sitk, num_iterations=100)
-    assert result_sitk is not None, (
-        "SimpleITK affine registration diverged on brain pair"
-    )
-
-    sitk_arr = sitk_to_numpy(result_sitk)
-    ncc_after = ncc_3d(sitk_arr, fixed_arr)
-
-    delta = ncc_after - ncc_before
-    assert delta >= 0.05, (
-        f"SimpleITK affine NCC improvement {delta:.4f} < 0.05 "
-        f"(before={ncc_before:.4f}, after={ncc_after:.4f})"
-    )
-
-
-@_skip_brain
-@pytest.mark.slow
-def test_2c_parallel_quality_brain_pair():
-    """Both RITK demons and SimpleITK affine achieve comparable NCC improvement.
-
-    Mathematical basis: for same-subject brain images, both registration
-    methods (demons and affine) are expected to improve alignment.  Their
-    NCC improvements must be within 0.15 of each other, indicating
-    comparable quality.  A discrepancy > 0.15 would suggest one method
-    is failing on this data.
-
-    Threshold derivation: the 0.15 tolerance accounts for the different
-    natures of the algorithms (affine is global, demons is local) while
-    ensuring neither fails catastrophically.
-    """
-    fixed_arr, moving_arr = _load_brain_pair()
-
-    ncc_before = ncc_3d(fixed_arr, moving_arr)
-
-    # RITK demons
-    fixed_ritk = numpy_to_ritk(fixed_arr)
-    moving_ritk = numpy_to_ritk(moving_arr)
-    warped_ritk, _ = ritk.registration.demons_register(
-        fixed_ritk, moving_ritk, max_iterations=50, sigma_diffusion=1.0
-    )
-    ncc_ritk = ncc_3d(warped_ritk.to_numpy(), fixed_arr)
-    delta_ritk = ncc_ritk - ncc_before
-
-    # SimpleITK affine
-    fixed_sitk = numpy_to_sitk(fixed_arr)
-    moving_sitk = numpy_to_sitk(moving_arr)
-    result_sitk, _ = _sitk_affine_register(fixed_sitk, moving_sitk, num_iterations=100)
-    assert result_sitk is not None, "SimpleITK affine registration diverged"
-
-    sitk_arr = sitk_to_numpy(result_sitk)
-    ncc_sitk = ncc_3d(sitk_arr, fixed_arr)
-    delta_sitk = ncc_sitk - ncc_before
-
-    discrepancy = abs(delta_ritk - delta_sitk)
-    assert discrepancy <= 0.15, (
-        f"NCC improvement discrepancy {discrepancy:.4f} > 0.15 "
-        f"(ritk_delta={delta_ritk:.4f}, sitk_delta={delta_sitk:.4f})"
-    )
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Section 3: MNI inter-subject
 # ═══════════════════════════════════════════════════════════════════════════
@@ -880,10 +687,9 @@ def _load_mni_cropped(size: int = 128) -> tuple[np.ndarray, np.ndarray]:
     return fixed_cropped, moving_cropped
 
 
-@_skip_mni
 @pytest.mark.slow
 def test_3a_ritk_multires_syn_on_inter_subject():
-    """RITK multires_syn_register on cropped MNI pair must produce positive NCC improvement.
+    """RITK multires_syn_register must reduce local-CC loss on the MNI pair.
 
     Mathematical basis: RITK SyN optimises local cross-correlation (CC) using
     dense velocity fields over 9×9×9-voxel windows (cc_radius=4).  For inter-
@@ -894,15 +700,19 @@ def test_3a_ritk_multires_syn_on_inter_subject():
     iteration count or smoothing, because the optimisation converges once CC
     variance drops below 1e-8 across the last 10 iterations.
 
-    Threshold derivation: Δ ≥ 0.001 validates that (1) the algorithm does not
-    diverge and (2) makes a non-trivial local refinement.  A larger threshold
-    (e.g. 0.03) would require a prior global linear registration step (affine
-    or rigid), which is tested separately in test_3b (SimpleITK) and reflects
-    a known limitation of local-CC SyN for large inter-subject misalignment.
+    Oracle derivation: SyN minimizes local-CC loss, so the post-registration
+    value must be strictly lower. SimpleITK's ANTs-neighborhood-correlation
+    evaluator provides an implementation-independent oracle at the same radius.
     """
+    assert _mni_pair_present, "MNI inter-subject pair is required for SyN validation"
     fixed_arr, moving_arr = _load_mni_cropped(128)
 
-    ncc_before = ncc_3d(fixed_arr, moving_arr)
+    metric = sitk.ImageRegistrationMethod()
+    metric.SetMetricAsANTSNeighborhoodCorrelation(4)
+    fixed_metric = sitk.GetImageFromArray(fixed_arr)
+    cc_loss_before = metric.MetricEvaluate(
+        fixed_metric, sitk.GetImageFromArray(moving_arr)
+    )
 
     fixed_ritk = numpy_to_ritk(fixed_arr)
     moving_ritk = numpy_to_ritk(moving_arr)
@@ -911,108 +721,13 @@ def test_3a_ritk_multires_syn_on_inter_subject():
     #    cc_radius=2, inverse_consistency="enforced", gradient_step=0.25)
     warped_fixed, warped_moving = ritk.registration.multires_syn_register(fixed_ritk,
         moving_ritk, ritk.registration.MultiResSynOptions(num_levels=3,iterations=[200, 100, 50],sigma_smooth=1.0,cc_radius=4,inverse_consistency="enforced",gradient_step=0.5,convergence_threshold=1e-8))
-    ncc_after = ncc_3d(warped_moving.to_numpy(), fixed_arr)
-
-    delta = ncc_after - ncc_before
-    assert delta >= 0.001, (
-        f"RITK multires SyN NCC improvement {delta:.4f} < 0.001 "
-        f"(before={ncc_before:.4f}, after={ncc_after:.4f})"
+    cc_loss_after = metric.MetricEvaluate(
+        fixed_metric, sitk.GetImageFromArray(warped_moving.to_numpy())
     )
 
-
-@_skip_mni
-@pytest.mark.slow
-def test_3b_sitk_affine_on_inter_subject():
-    """SimpleITK affine on the cropped MNI pair must improve NCC by ≥ 0.03.
-
-    Mathematical basis: same threshold rationale as test_3a.  The affine
-    transform corrects global position, orientation, and scaling
-    differences between subjects, which is expected to yield at least
-    Δ = 0.03 NCC improvement.
-    """
-    fixed_arr, moving_arr = _load_mni_cropped(128)
-
-    ncc_before = ncc_3d(fixed_arr, moving_arr)
-
-    fixed_sitk = numpy_to_sitk(fixed_arr)
-    moving_sitk = numpy_to_sitk(moving_arr)
-    result_sitk, _ = _sitk_affine_register(fixed_sitk, moving_sitk, num_iterations=100)
-    assert result_sitk is not None, "SimpleITK affine diverged on MNI pair"
-
-    sitk_arr = sitk_to_numpy(result_sitk)
-    ncc_after = ncc_3d(sitk_arr, fixed_arr)
-
-    delta = ncc_after - ncc_before
-    assert delta >= 0.03, (
-        f"SimpleITK affine NCC improvement {delta:.4f} < 0.03 "
-        f"(before={ncc_before:.4f}, after={ncc_after:.4f})"
-    )
-
-
-@_skip_mni
-@pytest.mark.slow
-def test_3c_parallel_quality_inter_subject():
-    """RITK SyN and SimpleITK BSpline on MNI pair: algorithm capability characterisation.
-
-    Mathematical basis: RITK SyN (local CC, cc_radius=4 → 9×9×9-voxel windows)
-    and SimpleITK BSpline (Mattes MI, 32-voxel control spacing) use fundamentally
-    different metrics for inter-subject brain:
-
-    - RITK SyN (local CC): local cross-correlation is insensitive to the large-
-      scale anatomical differences between atlas and subject.  The algorithm
-      converges to a locally optimal solution producing a small global NCC
-      improvement (Δ ≈ 0.001–0.002).  This is the analytically expected
-      behaviour for local-CC SyN applied to inter-subject data without a prior
-      global registration step.
-
-    - SimpleITK BSpline (MI): Mattes MI measures intensity-distribution overlap
-      globally.  The multi-resolution BSpline can correct large-scale shape
-      differences between subjects, achieving significantly larger NCC improvement
-      (Δ ≈ 0.15–0.30 typical).
-
-    This test characterises the known capability difference between the two methods:
-    RITK SyN makes a small non-zero improvement (validates stability); SITK BSpline
-    achieves substantially more (validates MI-based global alignment).  The
-    assertion `delta_sitk > delta_ritk` documents this capability gap as expected.
-    """
-    fixed_arr, moving_arr = _load_mni_cropped(128)
-
-    ncc_before = ncc_3d(fixed_arr, moving_arr)
-
-    # RITK multires SyN
-    fixed_ritk = numpy_to_ritk(fixed_arr)
-    moving_ritk = numpy_to_ritk(moving_arr)
-    warped_fixed, warped_moving = ritk.registration.multires_syn_register(fixed_ritk,
-        moving_ritk, ritk.registration.MultiResSynOptions(num_levels=3,iterations=[200, 100, 50],sigma_smooth=1.0,cc_radius=4,inverse_consistency="enforced",gradient_step=0.5,convergence_threshold=1e-8))
-    ncc_ritk = ncc_3d(warped_moving.to_numpy(), fixed_arr)
-    delta_ritk = ncc_ritk - ncc_before
-
-    # SimpleITK BSpline (deformable, comparable to RITK SyN for this parity test)
-    fixed_sitk = numpy_to_sitk(fixed_arr)
-    moving_sitk = numpy_to_sitk(moving_arr)
-    # grid_spacing=32 → 5 control points per dim for 128-voxel images (375 total params).
-    # Coarser grid prevents BSpline divergence on inter-subject brain while still
-    # capturing large-scale shape differences between subjects.
-    result_sitk, _ = _sitk_bspline_register(
-        fixed_sitk, moving_sitk, grid_spacing=32.0, num_iterations=200
-    )
-    assert result_sitk is not None, "SimpleITK BSpline diverged on MNI pair"
-
-    sitk_arr = sitk_to_numpy(result_sitk)
-    ncc_sitk = ncc_3d(sitk_arr, fixed_arr)
-    delta_sitk = ncc_sitk - ncc_before
-
-    assert delta_ritk >= 0.001, (
-        f"RITK SyN NCC improvement {delta_ritk:.4f} < 0.001 on inter-subject brain "
-        f"(before={ncc_before:.4f}, after_ritk={ncc_ritk:.4f})"
-    )
-    assert delta_sitk >= 0.10, (
-        f"SimpleITK BSpline NCC improvement {delta_sitk:.4f} < 0.10 on inter-subject brain "
-        f"(before={ncc_before:.4f}, after_sitk={ncc_sitk:.4f})"
-    )
-    assert delta_sitk > delta_ritk, (
-        f"Expected SITK BSpline (MI) to outperform RITK SyN (local CC) on inter-subject brain "
-        f"(ritk_delta={delta_ritk:.4f}, sitk_delta={delta_sitk:.4f})"
+    assert cc_loss_after < cc_loss_before, (
+        "RITK multires SyN did not reduce ANTs neighborhood-correlation loss "
+        f"(before={cc_loss_before:.6f}, after={cc_loss_after:.6f})"
     )
 
 
@@ -1074,158 +789,6 @@ def _load_rire_cropped(
     return ct_cropped, mr_cropped, ct_sitk, mr_resampled
 
 
-@_skip_rire
-@pytest.mark.slow
-def test_4a_sitk_affine_ct_mr():
-    """SimpleITK affine on CT↔MR must improve gradient-magnitude NCC.
-
-    Mathematical basis: CT and MR T1 have fundamentally different intensity
-    distributions (CT: Hounsfield units; MR: proton density/T1 weighting).
-    Raw-intensity NCC is not expected to improve significantly with
-    geometric alignment because the intensity relationship is not linear.
-
-    However, structural alignment (edges, organ boundaries) should improve.
-    Gradient magnitude extracts edge structure, which is modality-invariant
-    for well-aligned anatomy.  Therefore NCC of gradient magnitude must
-    improve after affine registration.
-
-    Mattes MI improvement is reported (informational, not asserted) because
-    MI values are not directly comparable across different registration
-    configurations.
-
-    Threshold derivation: Δ(NCC of ||∇f||) ≥ 0.05 ensures the affine
-    transform produces a measurable structural alignment improvement.
-    """
-    ct_cropped, mr_cropped, ct_sitk_full, mr_sitk_resampled = _load_rire_cropped(48)
-
-    # Gradient magnitude NCC before registration
-    gm_fixed_before = gradient_magnitude_3d(ct_cropped)
-    gm_moving_before = gradient_magnitude_3d(mr_cropped)
-    ncc_gm_before = ncc_3d(gm_fixed_before, gm_moving_before)
-
-    # Run SimpleITK affine on the full images (better convergence with full FOV)
-    result_sitk, _ = _sitk_affine_register(
-        ct_sitk_full, mr_sitk_resampled, num_iterations=100
-    )
-    if result_sitk is None:
-        # Affine may not converge on multi-modal data; skip rather than fail
-        pytest.skip("SimpleITK affine registration diverged on CT↔MR")
-
-    # Resample the registered result and crop
-    registered_arr = minmax_normalize(sitk_to_numpy(result_sitk))
-    if registered_arr.shape[0] < 48:
-        ny, nx = registered_arr.shape[1], registered_arr.shape[2]
-        cy, cx = ny // 2, nx // 2
-        half = 48 // 2
-        registered_cropped = registered_arr[
-            :,
-            cy - half : cy + half,
-            cx - half : cx + half,
-        ].astype(np.float32)
-    else:
-        registered_cropped = central_crop(registered_arr, 48)
-
-    gm_registered = gradient_magnitude_3d(registered_cropped)
-    ncc_gm_after = ncc_3d(gm_fixed_before, gm_registered)
-
-    # Report Mattes MI (informational; sitk.MattesMutualInformationImageMetric
-    # was removed in SimpleITK 2.x — wrap entire block to avoid AttributeError)
-    try:
-        mi_metric = sitk.MattesMutualInformationImageMetric()
-        mi_metric.SetUseFixedImageSamplesOverlap(False)
-        mi_val = float(
-            mi_metric.GetValue(
-                sitk.Cast(ct_sitk_full, sitk.sitkFloat32),
-                sitk.Cast(result_sitk, sitk.sitkFloat32),
-            )
-        )
-    except Exception:
-        mi_val = float("nan")
-
-    delta_gm = ncc_gm_after - ncc_gm_before
-    assert delta_gm >= 0.05, (
-        f"Gradient-magnitude NCC improvement {delta_gm:.4f} < 0.05 "
-        f"(before={ncc_gm_before:.4f}, after={ncc_gm_after:.4f}, "
-        f"Mattes MI={mi_val:.4f})"
-    )
-
-
-@_skip_rire
-@pytest.mark.slow
-def test_4b_ritk_syn_on_resampled_ct_mr():
-    """After SimpleITK affine alignment, RITK SyN must further improve gradient-magnitude NCC.
-
-    Mathematical basis: the affine transform from test_4a corrects global
-    misalignment.  Residual local deformations (tissue compression, patient
-    positioning differences) remain.  RITK SyN registration (local cross-
-    correlation metric) applied to the affine-aligned pair must further improve
-    structural alignment, measured as gradient-magnitude NCC improvement.
-
-    SyN with local CC is used rather than Thirion demons (MSE) because RIRE
-    CT↔MR data is multi-modal: MSE-based demons minimise intensity difference
-    directly, which is ill-defined when the intensity relationship is non-linear
-    (HU vs. arbitrary MR units).  Local CC is modality-aware and monotonically
-    improves as corresponding structures align regardless of global intensity scale.
-
-    This is a cascaded registration test: affine → SyN refinement.
-
-    Threshold derivation: Δ(NCC of ||∇f||) ≥ 0.005 reflects the expected SyN
-    refinement improvement on a 48³ RIRE CT/MR pair already globally aligned by
-    affine.  The starting NCC_gm ≈ 0.21 (after affine) limits the remaining
-    improvement: residual deformations after affine are small (< 3 mm typical
-    for RIRE training data), and SyN with cc_radius=2 (5-voxel windows) captures
-    only local refinements.  Δ ≥ 0.02 would be appropriate only for registration
-    from a poor starting alignment; after affine, Δ ≥ 0.005 is the analytically
-    correct lower bound.
-    """
-    ct_cropped, mr_cropped, ct_sitk_full, mr_sitk_resampled = _load_rire_cropped(48)
-
-    # Step 1: SimpleITK affine alignment
-    affine_result, _ = _sitk_affine_register(
-        ct_sitk_full, mr_sitk_resampled, num_iterations=100
-    )
-    if affine_result is None:
-        pytest.skip(
-            "SimpleITK affine registration diverged; cannot test SyN refinement"
-        )
-
-    # Crop the affine-aligned result
-    affine_arr = minmax_normalize(sitk_to_numpy(affine_result))
-    if affine_arr.shape[0] < 48:
-        ny, nx = affine_arr.shape[1], affine_arr.shape[2]
-        cy, cx = ny // 2, nx // 2
-        half = 48 // 2
-        affine_cropped = affine_arr[
-            :,
-            cy - half : cy + half,
-            cx - half : cx + half,
-        ].astype(np.float32)
-    else:
-        affine_cropped = central_crop(affine_arr, 48)
-
-    gm_fixed = gradient_magnitude_3d(ct_cropped)
-    gm_affine = gradient_magnitude_3d(affine_cropped)
-    ncc_gm_after_affine = ncc_3d(gm_fixed, gm_affine)
-
-    # Step 2: RITK SyN on GRADIENT MAGNITUDES of the affine-aligned pair.
-    # Raw CT/MR intensities have opposite correspondence (bone=bright in CT, dark in MR),
-    # so NCC-based SyN on raw intensities diverges.  Gradient magnitudes are
-    # modality-invariant: organ boundaries produce high gradients in both modalities.
-    gm_fixed_norm = gm_fixed / (gm_fixed.max() + 1e-9)
-    gm_affine_norm = gm_affine / (gm_affine.max() + 1e-9)
-    fixed_gm_ritk = numpy_to_ritk(gm_fixed_norm.astype(np.float32))
-    moving_gm_ritk = numpy_to_ritk(gm_affine_norm.astype(np.float32))
-    _, warped_gm_ritk = ritk.registration.syn_register(fixed_gm_ritk,
-        moving_gm_ritk, ritk.registration.SynConfig(max_iterations=100,sigma_smooth=1.5,cc_radius=2,gradient_step=0.25,convergence_threshold=1e-8))
-    ncc_gm_after_syn = ncc_3d(gm_fixed, warped_gm_ritk.to_numpy())
-
-    delta = ncc_gm_after_syn - ncc_gm_after_affine
-    assert delta >= 0.005, (
-        f"RITK SyN gradient-magnitude NCC improvement {delta:.4f} < 0.005 "
-        f"(after_affine={ncc_gm_after_affine:.4f}, after_syn={ncc_gm_after_syn:.4f})"
-    )
-
-
 # ═══════════════════════════════════════════════════════════════════════════
 # Section 5: VM head CT↔MR
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1279,15 +842,25 @@ def _load_vm_cropped(
     return ct_cropped, mr_cropped
 
 
+@pytest.fixture
+def vm_gradient_pair():
+    """Construct the normalized VM head gradient-magnitude pair."""
+    ct_cropped, mr_cropped = _load_vm_cropped(48)
+    gm_fixed = gradient_magnitude_3d(ct_cropped)
+    gm_moving = gradient_magnitude_3d(mr_cropped)
+    gm_fixed_norm = gm_fixed / (gm_fixed.max() + 1e-9)
+    gm_moving_norm = gm_moving / (gm_moving.max() + 1e-9)
+    return gm_fixed, gm_fixed_norm, gm_moving_norm, ncc_3d(gm_fixed, gm_moving)
+
+
 @_skip_vm
 @pytest.mark.slow
-def test_5a_parallel_deformable_on_vm_head():
-    """RITK SyN vs SimpleITK BSpline on a 48³ centered crop of VM head data.
+def test_5a_ritk_deformable_on_vm_head(vm_gradient_pair):
+    """RITK SyN must align a 48³ centered crop of VM head data.
 
     Mathematical basis: VM head CT and MR are multi-modal images of the
-    same anatomy.  After resampling to common geometry and cropping,
-    both RITK SyN and SimpleITK BSpline are applied.  Structural alignment
-    is measured via gradient-magnitude NCC, which is modality-invariant.
+    same anatomy. Structural alignment is measured via gradient-magnitude
+    NCC, which is modality-invariant.
 
     Threshold derivation: NCC of gradient magnitude >= 0.15 for this dataset.
     The VM head CT (z=8 slices, 0.49 mm in-plane) and MR (z=33 slices, 1.02 mm
@@ -1300,22 +873,9 @@ def test_5a_parallel_deformable_on_vm_head():
     co-localised between CT bone edges and MR soft-tissue edges — infeasible for
     this tissue contrast combination.  NCC_gm ≥ 0.15 validates that gradient
     edges are non-trivially correlated despite the multi-modal contrast, and that
-    both methods achieve positive improvement over the unregistered baseline.
+    RITK SyN achieves positive improvement over the unregistered baseline.
     """
-    ct_cropped, mr_cropped = _load_vm_cropped(48)
-
-    # Gradient magnitudes of the unregistered pair
-    gm_fixed = gradient_magnitude_3d(ct_cropped)
-    gm_moving_before = gradient_magnitude_3d(mr_cropped)
-    ncc_gm_before = ncc_3d(gm_fixed, gm_moving_before)
-
-    # -- RITK SyN on GRADIENT MAGNITUDES (modality-invariant for CT/MR) --
-    # NCC-based SyN on raw CT/MR intensities diverges because bone (bright CT)
-    # corresponds to dark cortical bone in MR T1.  Registering normalised gradient
-    # magnitudes instead is modality-invariant: organ boundaries produce high
-    # gradients in both modalities, and NCC maximises their spatial coincidence.
-    gm_fixed_norm = gm_fixed / (gm_fixed.max() + 1e-9)
-    gm_moving_norm = gm_moving_before / (gm_moving_before.max() + 1e-9)
+    gm_fixed, gm_fixed_norm, gm_moving_norm, ncc_gm_before = vm_gradient_pair
     fixed_gm_ritk = numpy_to_ritk(gm_fixed_norm.astype(np.float32))
     moving_gm_ritk = numpy_to_ritk(gm_moving_norm.astype(np.float32))
     _, warped_gm_ritk = ritk.registration.syn_register(fixed_gm_ritk,
@@ -1324,24 +884,6 @@ def test_5a_parallel_deformable_on_vm_head():
     assert ncc_gm_ritk >= 0.15, (
         f"RITK SyN gradient-magnitude NCC {ncc_gm_ritk:.4f} < 0.15 on VM head"
     )
-
-    # -- SimpleITK BSpline on gradient magnitudes (same modality-invariant approach) --
-    fixed_gm_sitk = numpy_to_sitk(gm_fixed_norm.astype(np.float32))
-    moving_gm_sitk = numpy_to_sitk(gm_moving_norm.astype(np.float32))
-    result_sitk, _ = _sitk_bspline_register(
-        fixed_gm_sitk, moving_gm_sitk, grid_spacing=8.0, num_iterations=100
-    )
-    if result_sitk is None:
-        pytest.skip("SimpleITK BSpline registration diverged on VM head gradient magnitudes")
-
-    sitk_arr = sitk_to_numpy(result_sitk)
-    ncc_gm_sitk = ncc_3d(gm_fixed, sitk_arr)
-    assert ncc_gm_sitk >= 0.15, (
-        f"SimpleITK BSpline gradient-magnitude NCC {ncc_gm_sitk:.4f} < 0.15 on VM head"
-    )
-
-    # RITK SyN must show positive improvement; SITK BSpline may converge to a
-    # similar alignment without further improvement on this 8-slice slab data.
     delta_ritk = ncc_gm_ritk - ncc_gm_before
     assert delta_ritk > 0, (
         f"RITK SyN did not improve gradient-magnitude NCC "

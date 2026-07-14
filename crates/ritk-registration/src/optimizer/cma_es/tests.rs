@@ -1,5 +1,6 @@
 use super::*;
 use crate::optimizer::cma_es::math::{cholesky, identity};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Sphere function f(x) = Σ xᵢ².
 fn sphere(x: &[f64]) -> f64 {
@@ -121,6 +122,41 @@ fn test_ipop_finds_at_least_as_good_as_plain_run() {
         ipop.best_f < sphere(&x0),
         "IPOP must improve over initial value {:.3e}",
         sphere(&x0)
+    );
+}
+
+#[test]
+fn parallel_doubled_population_evaluates_each_candidate_once() {
+    const LAMBDA: usize = 18;
+    const GENERATIONS: usize = 4;
+
+    let evaluations = AtomicUsize::new(0);
+    let objective = |x: &[f64]| {
+        evaluations.fetch_add(1, Ordering::Relaxed);
+        sphere(x)
+    };
+    let x0 = vec![2.0, -1.0, 0.5, 1.5, -0.75, 0.25];
+    let result = CmaEsOptimizer::new(CmaEsConfig {
+        lambda: LAMBDA,
+        max_generations: GENERATIONS,
+        sigma0: 0.4,
+        sigma_tol: 0.0,
+        ftol: f64::NEG_INFINITY,
+        parallel_population: PopulationEval::Parallel,
+        ..Default::default()
+    })
+    .run(objective, &x0);
+
+    assert_eq!(result.generations, GENERATIONS);
+    assert_eq!(
+        evaluations.load(Ordering::Relaxed),
+        1 + LAMBDA * GENERATIONS,
+        "one initialization plus one evaluation per candidate and generation is required"
+    );
+    assert!(
+        result.best_f.is_finite() && result.best_f < sphere(&x0),
+        "parallel doubled-population search must produce a finite improvement: {}",
+        result.best_f
     );
 }
 

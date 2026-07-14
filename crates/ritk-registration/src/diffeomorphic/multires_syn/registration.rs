@@ -14,7 +14,7 @@ use crate::error::RegistrationError;
 
 use super::pyramid::{downsample, upsample_field};
 use super::InverseConsistency;
-use crate::diffeomorphic::local_cc::{cc_forces_into, mean_local_cc};
+use crate::diffeomorphic::local_cc::{bidirectional_cc_from_sats_into, CcSats};
 
 /// Velocity fields and dimensions carried between resolution levels.
 struct PrevLevelState {
@@ -175,6 +175,8 @@ impl super::MultiResSyNRegistration {
             let mut gjz = vec![0.0_f32; ln];
             let mut gjy = vec![0.0_f32; ln];
             let mut gjx = vec![0.0_f32; ln];
+            let mut cc_slices = vec![(0.0_f64, 0usize); ld[0]];
+            let mut cc_sats = CcSats::new(ld, r);
             let mut scratch_ss_z = vec![0.0_f32; ln];
             let mut scratch_ss_y = vec![0.0_f32; ln];
             let mut scratch_ss_x = vec![0.0_f32; ln];
@@ -211,11 +213,33 @@ impl super::MultiResSyNRegistration {
                 warp_image_into(&m_ds, ld.into(), &p2z, &p2y, &p2x, &mut j_w_buf);
                 compute_gradient_into(&i_w_buf, ld.into(), ls, &mut giz, &mut giy, &mut gix);
                 compute_gradient_into(&j_w_buf, ld.into(), ls, &mut gjz, &mut gjy, &mut gjx);
-                cc_forces_into(
-                    &i_w_buf, &j_w_buf, &giz, &giy, &gix, ld, r, &mut u1z, &mut u1y, &mut u1x,
-                );
-                cc_forces_into(
-                    &j_w_buf, &i_w_buf, &gjz, &gjy, &gjx, ld, r, &mut u2z, &mut u2y, &mut u2x,
+                cc_sats.rebuild(&i_w_buf, &j_w_buf, ld);
+                final_cc = bidirectional_cc_from_sats_into(
+                    &i_w_buf,
+                    &j_w_buf,
+                    VectorField {
+                        z: &giz,
+                        y: &giy,
+                        x: &gix,
+                    },
+                    VectorField {
+                        z: &gjz,
+                        y: &gjy,
+                        x: &gjx,
+                    },
+                    ld,
+                    &cc_sats,
+                    VectorFieldMut {
+                        z: &mut u1z,
+                        y: &mut u1y,
+                        x: &mut u1x,
+                    },
+                    VectorFieldMut {
+                        z: &mut u2z,
+                        y: &mut u2y,
+                        x: &mut u2x,
+                    },
+                    &mut cc_slices,
                 );
 
                 normalize_forces_into(
@@ -286,7 +310,6 @@ impl super::MultiResSyNRegistration {
                         v2x[i] = (v2x[i] - c2x[i]) * 0.5;
                     }
                 }
-                final_cc = mean_local_cc(&i_w_buf, &j_w_buf, ld, r);
                 if cc_converged(
                     &mut cc_hist,
                     final_cc,

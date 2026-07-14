@@ -8,6 +8,143 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-654-01 — Restore CI dependency topology
+**Owner**: Codex
+**Target version**: 0.14.0 migration batch
+- [x] Reproduce the merged GitHub failure and identify the missing sibling path dependency.
+- [x] Inventory the complete transitive sibling repository graph and pinned revisions.
+- [x] Consolidate dependency checkout into one reusable workflow component.
+- [x] Verify workspace loading and affected workflow contracts.
+- [x] Isolate PyO3 extension-module linkage to wheel builds and consolidate Python parity dependencies.
+- [x] Root-cause the over-hour wheel run and remove CMA-ES serial dispatch, sparse-cache cloning, and fixed cache-hit interpolation.
+- [x] Remove full-volume copies and GIL retention from the Python MSE/NCC boundary; move Pearson correlation into its owning `ritk-statistics` crate with Moirai reductions.
+- [x] Replace quiet pytest progress with process-enforcing verbose diagnostics; disprove the NCC hypothesis and localize the timeout to Moirai silently serializing explicit parallel CMA populations.
+- [x] Pin Moirai's 0.2-compatible forced-policy and nested-region flattening fixes while the current provider main carries a separate Mnemosyne 0.3 break.
+- [x] Verify the unchanged thin-slab CMA comparison under the 60-second per-test bound (39.10 seconds on exact-head CI).
+- [x] Make native Python test timeouts process-enforcing and run the wheel gate concurrently with workspace nextest.
+- [x] Resolve review feedback by pinning the cargo-nextest installer action to its immutable reviewed revision.
+- [x] Consolidate repeated masked histogram sparse-or-dense cache dispatch without changing either kernel.
+- [x] Root-cause the first forced-parallel CI crash and pin worker-nested indexed flattening without serializing the outer CMA population.
+- [x] Pin the reviewed end-to-end worker-plus-caller lane distribution correction.
+- [x] Synchronize the migration audit allowlist with the masked cache-dispatch leaf move.
+- [x] Remove CMA-ES result writes through disjoint raw pointers; retain the
+  reusable buffer behind a mutex and assert one result per candidate.
+- [x] Remove redundant SimpleITK B-spline physical-shift scale estimation and
+  replace the stale missing-VTK-writer assertion with an exact native roundtrip.
+- [x] Falsify independent per-candidate metric/cache lanes as the crash fix and
+  remove that unneeded pool after the unchanged masked path still segfaulted.
+- [x] Pin and test Moirai's caller-region nesting fix; falsify it as the crash
+  root when the unchanged comparison segfaults after 8.27 seconds.
+- [x] Capture a symbolized native backtrace from the unchanged installed-wheel
+  suite and correct Mnemosyne's concurrent pool-reclamation boundary.
+- [x] Remove GDB and release-symbol overrides after the corrected wheel passed
+  every CMA regression; debugger overhead contributed to the SimpleITK
+  B-spline oracle reaching the 60-second test bound.
+- [x] Correct both mis-targeted B-spline optimization edits: restore physical-
+  shift scales for rigid and affine parameters, then align the actual B-spline
+  helper's optimizer objective with its NCC assertion without changing its
+  data, sampling, grid, iteration cap, or assertions.
+- [x] Falsify a single SimpleITK work unit and dense sampling, then select
+  LBFGS2 from exact convergence and value-semantic timing evidence.
+- [x] Split the combined oracle after its timeout moved to an exact duplicate of
+  the preceding full RITK SyN contract; preserve both independent assertions.
+- [x] Consolidate SyN's forward, reverse, and convergence local-CC statistics
+  onto one summed-area-table set with exact reversed-force differential coverage.
+- [x] Remove local-CC padded volumes and fuse five statistical channels across
+  contiguous copy and prefix passes without changing window statistics.
+- [x] Fuse symmetric CC forces and convergence into one parallel voxel pass,
+  with exact force and analytically bounded reduction-order differentials.
+- [x] Ping-pong scaling-and-squaring buffers so the standard even integration
+  depth performs no redundant full-field copies; verify odd and even parity.
+- [x] Consolidate three-component field interpolation onto one shared stencil,
+  with bit-exact scalar/component differential coverage.
+- [x] Route expensive three-component slice kernels through Moirai's native
+  multi-buffer operations and force parallel CC dispatch below 1,024 slices.
+- [x] Remove fourteen duplicate registration invocations from side-by-side tests
+  that asserted no cross-implementation relation; retain every valid oracle.
+- [x] Split independent VM-head registrations over a shared fixture and remove
+  the redundant external Gaussian oracle that alone exceeded 60 seconds.
+- [x] Remove duplicate brain-pair SimpleITK affine executions after the
+  standalone external oracle exceeded 60 seconds; retain the RITK contract.
+- [x] Complete module-level separation by removing external-only MNI, RIRE,
+  and VM-head registrations while retaining RITK and parity SSOT contracts.
+- [x] Remove the unreachable RIRE SyN cascade whose SimpleITK precondition
+  consumed the entire timeout before RITK execution.
+- [x] Replace the serial patch-denoising voxel sweep with bounded deterministic
+  sample batches and Moirai pixel evaluation; preserve the exact shared RNG
+  stream and per-pixel reduction order with a batch-partition invariant test.
+- [x] Reconcile the denoising differential's metadata so both implementations
+  execute the same unit-spacing voxel-radius contract without widening its
+  one-ULP acceptance bound.
+- [x] Close review findings for undersized patch inputs and invalid numerical
+  configurations with fallible boundary validation and exact error regressions.
+- [x] Remove additive wall time from the full denoising differential by running
+  its deterministic independent implementations concurrently.
+- [x] Resolve patch-denoising review findings: enforce the sample-memory bound,
+  reuse batch storage, delete the stale duplicate xfail, make SimpleITK failures
+  fail, and replace correlation-only validation with clean-image MSE reduction.
+- [x] Make the small-fixture differential prerequisites mandatory and enforce
+  its documented bit-exact contract with exact array equality.
+- [x] Falsify parallel dispatch alone as sufficient on the unchanged 64-cubed
+  case; flatten sampled patches and remove coordinate reconstruction plus six
+  bounds comparisons from the dominant interior loop.
+- [x] Reject the false clean-image MSE oracle after the same upstream parameters
+  degraded SimpleITK; require single-worker differential parity within one final
+  output rounding step instead.
+- [x] Replace the underived inter-subject SyN `0.001` global-NCC threshold with
+  an independent ANTs-neighborhood-correlation oracle over the actual optimized
+  objective; make its dataset and SimpleITK prerequisites mandatory.
+- [x] Delete the duplicated ten-algorithm registration quality report and
+  express its canonical independent algorithm contracts as parameterized cases.
+- [x] Restore the Gaussian sampler-radius intersection exposed by the 64-cubed
+  differential case.
+- [x] Reject the cross-host denoising golden after Linux runners differed by
+  four ULP; retain the unchanged 64-cubed RITK workload and host-local live
+  SimpleITK one-ULP oracle, with RITK executing first.
+- [x] Correct the production smooth-disc weight construction to preserve ITK's
+  `f32` weight-image rounding boundary before `f64` denoising arithmetic.
+- [x] Delete the redundant SimpleITK-only B-spline self-test after the duration
+  report measured 58.18 seconds; retain direct RITK and parity contracts.
+- [x] Delete the three-pipeline RIRE report that had no comparative oracle or
+  value assertion; retain and rename the canonical CMA-MI contract module.
+- [x] Encode ITK's sampled-patch boundary invariant with debug-verified flat
+  addressing and exhaustive small-domain regressions.
+- [x] Restore ITK's normalize-then-step denoising arithmetic order exposed by
+  the unchanged one-ULP differential.
+- [x] Restore ITK's interleaved half-patch reduction order and center-last
+  accumulation without adding hot-loop work.
+- [x] Move the unchanged denoising differential to the front of the wheel gate
+  and emit exact ULP witnesses without duplicating suite execution.
+- [x] Preserve ITK's pixel-difference precision boundary by subtracting in
+  `f32` before widening into the `f64` entropy accumulator.
+- [x] Remove the 32 exactly-zero radius-two smooth-disc terms when every patch
+  difference is finite, with bit-exact value-semantic coverage and an overflow
+  or non-finite full path.
+- [x] Reproduce ITK's radius-two diagonal smooth-disc global-`pow` bit pattern
+  through Eunomia's `f64` contract and pin the squared weight in a direct
+  regression.
+- [x] Remove the accidental second denoise execution and distribute the full
+  unchanged Python suite by module across isolated pytest workers.
+- [x] Reduce the installed-wheel suite from its measured 946.68-second wall
+  time by consolidating repeated registration executions without deleting a
+  distinct value-semantic contract or changing any workload or threshold.
+- [x] Measure the first isolated-worker schedule: 1,252 passed, 7 skipped, and
+  1 expected pass in 495.63 seconds; reject it as closure because concurrent
+  native pools inflated eleven registration cases above 30 seconds.
+- [x] Remove cached test binaries and full debug records from CI after the
+  Ubuntu nextest runner exhausted its filesystem before reporting test results.
+- [x] Falsify disjoint xdist CPU partitions after two-core SyN execution killed
+  a worker; remove the affinity constraint while retaining per-test restoration
+  of SimpleITK's process-global thread count.
+- [x] Fuse CPU smoothing of all field components into one Moirai dispatch per
+  axis, cache Gaussian weights, and replace nine full-field copies with one.
+- [x] Confirm the fused smoother reduces the exact installed-wheel run to
+  381.57 seconds, then correct B-spline force accumulation so reused scratch
+  cannot contaminate later vector components.
+- [ ] Verify that no remaining Python test crosses 30 seconds and that the
+  complete installed-wheel suite finishes in minutes on exact-head CI.
+- [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
+
 ## MIG-653-01 — Native vector confidence-connected region growing
 **Owner**: Codex
 **Target version**: 0.14.0 migration batch

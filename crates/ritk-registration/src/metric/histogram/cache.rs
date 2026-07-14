@@ -14,6 +14,8 @@ pub(crate) fn collect_array<const N: usize>(iter: impl Iterator<Item = f64>) -> 
 
 #[cfg(feature = "direct-parzen")]
 use super::parzen::direct::SparseWFixedT;
+#[cfg(feature = "direct-parzen")]
+use std::sync::Arc;
 
 /// Cache entry for the per-`MutualInformation` W_fixed^T reuse (350-P1-03).
 ///
@@ -87,10 +89,10 @@ impl<B: Backend> WFixedCache<B> {
 #[cfg(feature = "direct-parzen")]
 pub(crate) trait SparseWFixedCache {
     /// Read the current sparse W_fixed^T, if already built.
-    fn sparse_w_fixed(&self) -> &Option<SparseWFixedT>;
+    fn sparse_w_fixed(&self) -> &Option<Arc<SparseWFixedT>>;
 
     /// Mutably access the sparse W_fixed^T storage.
-    fn sparse_w_fixed_mut(&mut self) -> &mut Option<SparseWFixedT>;
+    fn sparse_w_fixed_mut(&mut self) -> &mut Option<Arc<SparseWFixedT>>;
 
     /// Take the normalized fixed-image values, consuming them.
     ///
@@ -100,7 +102,8 @@ pub(crate) trait SparseWFixedCache {
 
     /// Read or lazily build the sparse W_fixed^T from this cache entry.
     ///
-    /// If the sparse cache already exists, returns a clone. Otherwise, if
+    /// If the sparse cache already exists, returns a shared-ownership clone.
+    /// Otherwise, if
     /// `fixed_norm` is present, builds the sparse cache from it, stores it
     /// for future use, consumes `fixed_norm`, and returns the sparse cache.
     /// Returns `None` if `fixed_norm` has already been consumed and the
@@ -109,19 +112,19 @@ pub(crate) trait SparseWFixedCache {
         &mut self,
         num_bins: usize,
         sigma_sq_fix: f32,
-    ) -> Option<SparseWFixedT> {
-        if self.sparse_w_fixed().is_some() {
-            return self.sparse_w_fixed().clone();
+    ) -> Option<Arc<SparseWFixedT>> {
+        if let Some(sparse) = self.sparse_w_fixed() {
+            return Some(Arc::clone(sparse));
         }
         let fixed_norm = self.take_fixed_norm()?;
-        let sparse = super::parzen::direct::build_sparse_w_fixed_transposed(
+        let sparse = Arc::new(super::parzen::direct::build_sparse_w_fixed_transposed(
             &fixed_norm,
             num_bins,
             sigma_sq_fix,
             None,
-        );
-        *self.sparse_w_fixed_mut() = Some(sparse);
-        self.sparse_w_fixed().clone()
+        ));
+        *self.sparse_w_fixed_mut() = Some(Arc::clone(&sparse));
+        Some(sparse)
     }
 }
 
@@ -151,7 +154,7 @@ pub(crate) struct HistogramCache<B: Backend> {
     /// non-existent type in the other. See `compute_image/mod.rs::make_cache` for
     /// the two cfg-specific constructors that work around this.
     #[cfg(feature = "direct-parzen")]
-    pub sparse_w_fixed: Option<SparseWFixedT>,
+    pub sparse_w_fixed: Option<Arc<SparseWFixedT>>,
 
     /// Normalized fixed-image values `[N]` in `[0, num_bins - 1]`.
     ///
@@ -201,7 +204,7 @@ pub(crate) struct MaskedHistogramCache<B: Backend> {
     /// is taken, then reused every iteration. Only populated when the
     /// `direct-parzen` feature is enabled.
     #[cfg(feature = "direct-parzen")]
-    pub sparse_w_fixed: Option<SparseWFixedT>,
+    pub sparse_w_fixed: Option<Arc<SparseWFixedT>>,
 
     /// Normalized fixed-image values `[N]` in `[0, num_bins - 1]`.
     ///
@@ -232,11 +235,11 @@ pub(crate) struct MaskedHistogramCache<B: Backend> {
 
 #[cfg(feature = "direct-parzen")]
 impl<B: Backend> SparseWFixedCache for HistogramCache<B> {
-    fn sparse_w_fixed(&self) -> &Option<SparseWFixedT> {
+    fn sparse_w_fixed(&self) -> &Option<Arc<SparseWFixedT>> {
         &self.sparse_w_fixed
     }
 
-    fn sparse_w_fixed_mut(&mut self) -> &mut Option<SparseWFixedT> {
+    fn sparse_w_fixed_mut(&mut self) -> &mut Option<Arc<SparseWFixedT>> {
         &mut self.sparse_w_fixed
     }
 
@@ -247,11 +250,11 @@ impl<B: Backend> SparseWFixedCache for HistogramCache<B> {
 
 #[cfg(feature = "direct-parzen")]
 impl<B: Backend> SparseWFixedCache for MaskedHistogramCache<B> {
-    fn sparse_w_fixed(&self) -> &Option<SparseWFixedT> {
+    fn sparse_w_fixed(&self) -> &Option<Arc<SparseWFixedT>> {
         &self.sparse_w_fixed
     }
 
-    fn sparse_w_fixed_mut(&mut self) -> &mut Option<SparseWFixedT> {
+    fn sparse_w_fixed_mut(&mut self) -> &mut Option<Arc<SparseWFixedT>> {
         &mut self.sparse_w_fixed
     }
 

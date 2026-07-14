@@ -4,6 +4,11 @@ use super::compose::compose_fields_into;
 use super::{VectorField, VectorFieldMut, VelocityField};
 use ritk_spatial::VolumeDims;
 
+#[inline]
+fn square_into(phi: VectorField<'_>, dims: VolumeDims, out: VectorFieldMut<'_>) {
+    compose_fields_into(phi, phi, dims, out);
+}
+
 /// Compute the exponential map `exp(v)` of a stationary velocity field `v`
 /// via the scaling-and-squaring algorithm.
 ///
@@ -99,30 +104,43 @@ pub(crate) fn scaling_and_squaring_into(
         out_y[i] = vy[i] * scale;
         out_x[i] = vx[i] * scale;
     }
+    let mut result_is_out = true;
     for _ in 0..n_steps {
-        // Reborrow out as shared slices so compose_fields_into can read from
-        // them while writing into the disjoint scratch buffers.
-        let phi_z: &[f32] = out_z;
-        let phi_y: &[f32] = out_y;
-        let phi_x: &[f32] = out_x;
-        compose_fields_into(
-            VectorField {
-                z: phi_z,
-                y: phi_y,
-                x: phi_x,
-            },
-            VectorField {
-                z: phi_z,
-                y: phi_y,
-                x: phi_x,
-            },
-            dims,
-            VectorFieldMut {
-                z: scratch_z,
-                y: scratch_y,
-                x: scratch_x,
-            },
-        );
+        if result_is_out {
+            square_into(
+                VectorField {
+                    z: out_z,
+                    y: out_y,
+                    x: out_x,
+                },
+                dims,
+                VectorFieldMut {
+                    z: scratch_z,
+                    y: scratch_y,
+                    x: scratch_x,
+                },
+            );
+        } else {
+            square_into(
+                VectorField {
+                    z: scratch_z,
+                    y: scratch_y,
+                    x: scratch_x,
+                },
+                dims,
+                VectorFieldMut {
+                    z: out_z,
+                    y: out_y,
+                    x: out_x,
+                },
+            );
+        }
+        result_is_out = !result_is_out;
+    }
+
+    // Even squaring counts finish in the output buffers. Odd counts require
+    // one final transfer, rather than one full-field transfer per squaring.
+    if !result_is_out {
         out_z.copy_from_slice(scratch_z);
         out_y.copy_from_slice(scratch_y);
         out_x.copy_from_slice(scratch_x);
@@ -178,38 +196,22 @@ mod tests {
         let vy: Vec<f32> = (0..n).map(|i| (i as f32) * -0.001).collect();
         let vx: Vec<f32> = (0..n).map(|i| ((i % 4) as f32) * 0.002).collect();
 
-        let ref_phi = scaling_and_squaring(&vz, &vy, &vx, dims, 6);
+        for n_steps in [5, 6] {
+            let ref_phi = scaling_and_squaring(&vz, &vy, &vx, dims, n_steps);
+            let mut out_z = vec![0.0_f32; n];
+            let mut out_y = vec![0.0_f32; n];
+            let mut out_x = vec![0.0_f32; n];
+            let mut sc_z = vec![0.0_f32; n];
+            let mut sc_y = vec![0.0_f32; n];
+            let mut sc_x = vec![0.0_f32; n];
+            scaling_and_squaring_into(
+                &vz, &vy, &vx, dims, n_steps, &mut out_z, &mut out_y, &mut out_x, &mut sc_z,
+                &mut sc_y, &mut sc_x,
+            );
 
-        let mut out_z = vec![0.0_f32; n];
-        let mut out_y = vec![0.0_f32; n];
-        let mut out_x = vec![0.0_f32; n];
-        let mut sc_z = vec![0.0_f32; n];
-        let mut sc_y = vec![0.0_f32; n];
-        let mut sc_x = vec![0.0_f32; n];
-        scaling_and_squaring_into(
-            &vz, &vy, &vx, dims, 6, &mut out_z, &mut out_y, &mut out_x, &mut sc_z, &mut sc_y,
-            &mut sc_x,
-        );
-
-        for i in 0..n {
-            assert!(
-                (out_z[i] - ref_phi.z[i]).abs() < 1e-6,
-                "z[{i}]: into={} ref={}",
-                out_z[i],
-                ref_phi.z[i]
-            );
-            assert!(
-                (out_y[i] - ref_phi.y[i]).abs() < 1e-6,
-                "y[{i}]: into={} ref={}",
-                out_y[i],
-                ref_phi.y[i]
-            );
-            assert!(
-                (out_x[i] - ref_phi.x[i]).abs() < 1e-6,
-                "x[{i}]: into={} ref={}",
-                out_x[i],
-                ref_phi.x[i]
-            );
+            assert_eq!(out_z, ref_phi.z, "z mismatch for {n_steps} squarings");
+            assert_eq!(out_y, ref_phi.y, "y mismatch for {n_steps} squarings");
+            assert_eq!(out_x, ref_phi.x, "x mismatch for {n_steps} squarings");
         }
     }
 }

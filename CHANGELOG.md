@@ -8,6 +8,180 @@
 
 # CHANGELOG
 
+## [Unreleased] — Sprint 654: Restore CI dependency topology (MIG-654-01)
+### Added
+- Add `ritk_statistics::pearson_correlation`, with allocation-free Moirai
+  partitioning for both f64-accumulating passes.
+- Capture a symbolized native thread backtrace from the unchanged installed-
+  wheel suite, then remove the debugger and release-symbol overrides after the
+  Mnemosyne fault is corrected.
+
+### Fixed
+- Keep CI test backtraces source-located with line-table debug records, disable
+  incremental CI artifacts, and stop caching test binaries after the Ubuntu
+  nextest runner exhausted its filesystem.
+- Remove the obsolete side-by-side registration module and fold repeated
+  synthetic B-spline, LDDMM, Demons, and SimpleITK assertions onto their
+  canonical computed results, eliminating 31 repeated registrations without
+  changing a retained workload, threshold, or value-semantic assertion.
+- Rebuild preallocated local-correlation summed-area tables in place and use one
+  fused voxel traversal for both force directions and convergence across dense,
+  multi-resolution, and B-spline SyN.
+- Elide exactly-zero smooth-disc patch terms when all pixel differences are
+  finite, preserving ITK reduction order and non-finite propagation semantics.
+- Route promoted smooth-disc powers through Eunomia's `f64` math contract so
+  radius-two diagonal weights match ITK's global `pow` result bit-for-bit.
+- Correct the wheel suite's denoise deselection node ID and distribute the
+  remaining unchanged Python tests across isolated workers by module; restore
+  SimpleITK's process-global thread state after every test.
+- Cache CPU field-smoothing weights, convolve all three components in one
+  Moirai dispatch per axis, and ping-pong scratch fields to replace nine full
+  component copies with one final field copy.
+- Reset B-spline control-point accumulation scratch before every force
+  component, preventing earlier vector components from contaminating later
+  updates, and reuse the cached three-component smoother in B-spline SyN.
+- Subtract patch-denoising pixels in `f32` before widening their difference into
+  the `f64` entropy accumulator, matching ITK's scalar component boundary.
+- Run the load-bearing patch-denoising differential first in the wheel gate and
+  report exact ULP witness indices, values, and bit patterns on failure.
+- Accumulate patch-denoising distances in ITK's interleaved half-patch order
+  with the center offset last, preserving its floating-point reduction tree.
+- Normalize the patch-denoising entropy gradient before applying its smoothing
+  step, matching ITK's floating-point operation order.
+- Verify wrapping selected-patch boundary addressing against explicit debug
+  coordinates and pin ITK's at-least-as-in-bounds invariant exhaustively.
+- Run the independent deterministic RITK and single-worker SimpleITK patch-
+  denoising differentials concurrently, preserving both full computations while
+  replacing additive wall time with the slower implementation's wall time.
+- Reject invalid patch-denoising iteration, sample, variance, bandwidth, and
+  image-size configurations before they can hang, emit non-finite values, or
+  index outside the image buffer.
+- Compare patch-denoising implementations on identical unit-spacing metadata;
+  the prior oracle copied RA-Float's anisotropic spacing only to SimpleITK,
+  changing its physical patch extent while RITK's public radius is voxel-based.
+- Construct patch-denoising smooth-disc weights through ITK's `float` weight-
+  image boundary before promoting them to `f64`; direct `f64` construction
+  shifted the final output by up to four ULP despite identical sampling.
+- Execute the full patch-denoising RITK workload before its live single-worker
+  SimpleITK oracle; host-local generation preserves the one-ULP differential
+  across CPU/libm variants while keeping external state out of the measured
+  production path.
+- Remove the 36.88-second three-pipeline RIRE comparison that asserted only
+  successful execution and printed a table; retain the value-semantic CMA-MI
+  registration tests in the renamed `test_cma_mi_rire.py` module.
+- Remove the 58-second SimpleITK-only B-spline self-test; the suite already
+  carries direct RITK B-spline and RITK-versus-SimpleITK parity contracts.
+- Evaluate patch-based denoising pixels through bounded Moirai batches while
+  preserving ITK's serial RNG stream and each pixel's floating-point reduction
+  order, reuse batch storage, flatten sampled indices and interior patch
+  offsets, and reject sample counts that exceed the bounded index budget,
+  addressing the native kernel isolated by the 60-second wheel timeout.
+- Align the SimpleITK B-spline optimizer with the NCC oracle's correlation
+  objective, use its convergent high-dimensional LBFGS2 implementation, and
+  restore physical-shift scaling to the rigid and affine helpers.
+- Remove a duplicate full RITK SyN invocation from the combined Gaussian
+  registration oracle while retaining independent RITK and SimpleITK NCC tests.
+- Reuse one local-correlation summed-area-table set across both SyN force
+  directions and convergence instead of rebuilding equivalent tables three
+  times per iteration.
+- Build local-correlation summed-area tables directly in four fused contiguous
+  channel passes, removing five padded f64 volumes and channel-specific passes.
+- Derive both symmetric SyN forces and convergence CC in one parallel traversal
+  so each voxel queries local statistics once instead of three times.
+- Alternate scaling-and-squaring output and scratch fields, eliminating 36
+  redundant full-volume component copies per standard SyN iteration.
+- Reuse one trilinear stencil when sampling three-component displacement fields
+  in composition, inverse warping, and inverse-consistency residuals.
+- Dispatch three-component volume kernels through Moirai's native multi-buffer
+  operation and explicitly parallelize costly bidirectional CC slices, avoiding
+  accidental serial execution below the adaptive 1,024-item threshold.
+- Remove fourteen side-by-side registration calls that duplicated independently
+  asserted RITK and SimpleITK contracts while retaining their stronger
+  independent value oracles.
+- Remove the remaining duplicate ten-algorithm shifted-blob quality report and
+  parameterize its canonical copy by independent algorithm contract.
+- Restore the Gaussian patch sampler's finite neighborhood on volumes larger
+  than its radius.
+- Remove a SimpleITK B-spline check that applied an underived NCC tolerance to
+  cross-modal CT and MR intensities; the physical-space RIRE rigid oracle
+  retains the dataset's ground-truth-backed cross-modal validation.
+- Retain the sub-second RITK locally deformed Gaussian contract and remove its
+  redundant SimpleITK half after isolation proved the external registration
+  alone exceeded 60 seconds; the stronger 64-cubed SimpleITK deformable oracle
+  remains unchanged.
+- Remove two brain-pair SimpleITK affine executions after isolation showed the
+  external call alone exceeded 60 seconds; the unchanged RITK brain-pair value
+  oracle and dedicated SimpleITK parity suite retain the valid coverage.
+- Remove remaining external-only MNI, RIRE, and VM-head registrations from the
+  RITK validation module, including vacuous divergence skips and a duplicated
+  MNI SyN execution; dedicated parity and ground-truth suites retain coverage.
+- Remove a RITK-labeled RIRE cascade that exhausted 60 seconds entirely inside
+  its SimpleITK affine precondition and never executed RITK.
+- Correct the inter-subject SyN oracle to require strict reduction of an
+  independently evaluated ANTs neighborhood-correlation loss; the former
+  empirical global-NCC magnitude was not derived from the optimized objective.
+- Separate VM head RITK and SimpleITK deformable registrations over one shared
+  gradient fixture and make SimpleITK divergence a test failure.
+- Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized
+  native trace showed the decay sweep could release a huge segment still
+  observed by `TaggedSegmentStack::pop`.
+- Check out the exact sibling Rust provider graph before loading the RITK
+  workspace in CI and release jobs; replace the invalid embedded Python
+  dependency-alignment step with a tested Rust `xtask` command.
+- Run PyO3 Rust unit tests under the committed nextest timeout policy.
+- Restrict rustfmt to RITK workspace members, use Node 24 GitHub actions, and
+  install Linux-only wheel repair tooling only on Linux; primary checkouts no
+  longer persist repository credentials into build steps.
+- Parse manifests as TOML when enforcing locked workspace inheritance, keeping
+  dependency kind and target scope distinct; consolidate DICOM versions while
+  retaining target-specific native feature activation.
+- Track deep Python binding modules in the API-drift audit and synchronize the
+  runtime, stubs, smoke contract, and `__all__` for all public exports.
+- Synchronize the top-level parity regression with the public `ColorImage` and
+  `image` exports already enforced by the runtime/stub drift report.
+- Pin Moirai's portable IPC error capture and thread-confined kqueue storage so
+  macOS consumers compile without Linux-only symbols or non-`Send` shared
+  event buffers.
+- Pin Moirai's 0.2-compatible forced indexed-policy and worker-nested region
+  flattening so low-cardinality CMA populations execute concurrently without
+  recursively stealing outer candidates during nested histogram reductions;
+  balance remainder work across every selected worker-plus-caller lane.
+- Collect CMA fitness values into the reusable synchronized result buffer
+  instead of writing through disjoint raw pointers.
+- Pin Moirai's caller-region depth tracking so nested histogram reductions
+  flatten on every outer CMA lane, including the participating caller.
+- Remove redundant physical-shift scale estimation from the SimpleITK B-spline
+  differential oracle and synchronize Python VTK coverage with native image I/O.
+- Restrict PyO3 extension-module linkage to wheel builds so Linux Rust tests
+  link `libpython`, and install Python parity oracles plus the configured pytest
+  timeout plugin from one requirements manifest in both test workflows.
+- Pin focused upstream OpenJPEG PR 9, which guards null decoder buffers before Rust
+  deallocation, preserving the complete differential suite on current Rust.
+- Capture Rust backtraces in workspace CI so native aborts retain their complete
+  allocation call path.
+- Enforce the workspace's 30-second slow-test threshold and 60-second
+  termination boundary instead of killing valid compute tests after 10 seconds.
+- Preserve the 30-minute Linux/macOS CI bound while allowing Windows post-test
+  cache cleanup to finish after its complete 5,048-test suite passes.
+- Source the Python runtime version from the compiled crate metadata and keep
+  the shape-detection stub and installed-wheel smoke call aligned with its
+  options-object API.
+- Restrict test-workflow tokens to repository read access and bound Python
+  parity dependencies to the versions exercised across Python 3.9 through 3.13.
+- Run the full wheel lane concurrently with workspace nextest, emit each Python
+  test name, and enforce the existing 60-second per-test bound from a watchdog
+  thread so native calls cannot defer timeout delivery.
+- Pin the cargo-nextest installer action to the reviewed immutable revision in
+  both test workflows.
+- Consolidate masked histogram cache-hit and cache-fill dispatch into one
+  sparse-or-dense policy per chunking regime, and track the intentional leaf
+  move in the migration audit allowlist.
+- Bound both Python test workflows at 30 minutes and force explicitly parallel
+  CMA-ES populations through Moirai's parallel policy rather than its
+  1,024-element adaptive threshold; retain sparse fixed-image Parzen weights
+  behind shared ownership, bypass fixed-image interpolation on cache hits, and
+  evaluate Python MSE/NCC directly over borrowed native storage outside the GIL.
+
 ## [Unreleased] — Sprint 653: Native vector confidence-connected region growing (MIG-653-01)
 ### Breaking
 - Replace the mutable vector confidence-connected implementation and public
@@ -8165,6 +8339,10 @@ Versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 
 <!-- ──────────────────────────────────────────── -->
 ## [Unreleased]
+
+- [patch] The pinned Apollo provider now gates AVX/FMA Stockham modules and
+  precision strategies to x86_64, allowing the RITK macOS wheel matrix to use
+  Apollo's existing scalar Stockham path on Apple Silicon.
 
 ### Added
 - Added a shared multivariate-metric batch-conversion helper in [crates/ritk-python/src/metrics/image_batch.rs](crates/ritk-python/src/metrics/image_batch.rs) to remove repeated image materialization and shape validation across TC/DTC/O-information/MVI wrappers.

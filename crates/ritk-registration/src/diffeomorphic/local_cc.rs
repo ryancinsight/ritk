@@ -19,11 +19,11 @@
 
 mod forces;
 mod sat;
+pub(crate) use forces::bidirectional_cc_from_sats_into;
 #[cfg(test)]
 pub(crate) use forces::cc_forces;
-pub(crate) use forces::cc_forces_into;
 #[cfg(test)]
-pub(crate) use forces::field_rms;
+pub(crate) use forces::{cc_forces_from_sats_into, cc_forces_into, field_rms};
 pub(crate) use sat::CcSats;
 
 // ── Window statistics ─────────────────────────────────────────────────────────
@@ -102,10 +102,17 @@ pub(crate) fn window_cc_stats(
 /// Compute mean local CC over all voxels for convergence monitoring.
 ///
 /// Parallelized over voxels via moirai; each voxel's reads are independent.
+#[cfg(test)]
 pub(crate) fn mean_local_cc(i_w: &[f32], j_w: &[f32], dims: [usize; 3], radius: usize) -> f64 {
+    let sats = CcSats::build(i_w, j_w, dims, radius);
+    mean_local_cc_from_sats(&sats, dims)
+}
+
+/// Compute mean local CC from a caller-owned summed-area table set.
+#[cfg(test)]
+pub(crate) fn mean_local_cc_from_sats(sats: &CcSats, dims: [usize; 3]) -> f64 {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
-    let sats = CcSats::build(i_w, j_w, dims, radius);
     let (total_cc, count) = moirai::reduce_index_with::<moirai::Adaptive, _, _, _>(
         n,
         (0.0_f64, 0usize),

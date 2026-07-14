@@ -17,9 +17,11 @@
 //!    is below `convergence_threshold`.
 //!
 //! # Memory discipline
-//! All scratch buffers are pre-allocated before the iteration loop.
-//! The loop body performs **zero heap allocations**; all `_into` variants
-//! write into caller-provided buffers. Total pre-allocation: ~29n f32
+//! Field scratch buffers are pre-allocated before the iteration loop and all
+//! `_into` variants write into caller-provided buffers. Each iteration builds
+//! one shared five-channel summed-area-table set for both force directions and
+//! convergence, rather than constructing three equivalent sets. Field
+//! pre-allocation is ~29n f32
 //! (6 velocity + 6 displacement + 3 scaling-and-squaring scratch +
 //!  2 warped images + 6 gradient + 6 CC forces = 29n).
 
@@ -27,10 +29,11 @@ mod buffers;
 
 use std::collections::VecDeque;
 
-use super::local_cc::{cc_forces_into, mean_local_cc};
+use super::local_cc::bidirectional_cc_from_sats_into;
 use crate::deformable_field_ops::{
     cc_converged, compute_gradient_into, normalize_forces_into, scaling_and_squaring_into,
-    validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother, VelocityField,
+    validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother, VectorField,
+    VectorFieldMut, VelocityField,
 };
 use crate::error::RegistrationError;
 use buffers::SyNBuffers;
@@ -116,13 +119,12 @@ impl SyNRegistration {
 
         validate_image_pair(fixed, moving, dims)?;
 
-        let mut buf = SyNBuffers::new(n);
+        let r = self.config.cc_window_radius;
+        let mut buf = SyNBuffers::new(n, dims, r);
 
         let mut cc_history: VecDeque<f64> = VecDeque::new();
         let mut final_cc = 0.0_f64;
         let mut iter = 0usize;
-        let r = self.config.cc_window_radius;
-
         for it in 0..self.config.max_iterations {
             iter = it + 1;
 
@@ -190,30 +192,34 @@ impl SyNRegistration {
                 &mut buf.gj_x,
             );
 
-            // CC forces (zero alloc)
-            cc_forces_into(
+            // Shared CC statistics, symmetric forces, and convergence metric.
+            buf.cc_sats.rebuild(&buf.i_w, &buf.j_w, dims);
+            final_cc = bidirectional_cc_from_sats_into(
                 &buf.i_w,
                 &buf.j_w,
-                &buf.gi_z,
-                &buf.gi_y,
-                &buf.gi_x,
+                VectorField {
+                    z: &buf.gi_z,
+                    y: &buf.gi_y,
+                    x: &buf.gi_x,
+                },
+                VectorField {
+                    z: &buf.gj_z,
+                    y: &buf.gj_y,
+                    x: &buf.gj_x,
+                },
                 dims,
-                r,
-                &mut buf.u1z,
-                &mut buf.u1y,
-                &mut buf.u1x,
-            );
-            cc_forces_into(
-                &buf.j_w,
-                &buf.i_w,
-                &buf.gj_z,
-                &buf.gj_y,
-                &buf.gj_x,
-                dims,
-                r,
-                &mut buf.u2z,
-                &mut buf.u2y,
-                &mut buf.u2x,
+                &buf.cc_sats,
+                VectorFieldMut {
+                    z: &mut buf.u1z,
+                    y: &mut buf.u1y,
+                    x: &mut buf.u1x,
+                },
+                VectorFieldMut {
+                    z: &mut buf.u2z,
+                    y: &mut buf.u2y,
+                    x: &mut buf.u2x,
+                },
+                &mut buf.cc_slices,
             );
 
             // Normalise forces so max|u₁| = max|u₂| = gradient_step
@@ -243,7 +249,6 @@ impl SyNRegistration {
                 smoother.smooth_field(&mut buf.v2z, &mut buf.v2y, &mut buf.v2x);
             }
 
-            final_cc = mean_local_cc(&buf.i_w, &buf.j_w, dims, r);
             if cc_converged(
                 &mut cc_history,
                 final_cc,

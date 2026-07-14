@@ -15,8 +15,8 @@ proptest = { workspace = true }
 criterion = { workspace = true }
 tempfile = { workspace = true }
 # Pure-Rust c2rust port of OpenJPEG — differential interop reference only.
-openjp2 = { version = "0.6.1", default-features = false, features = ["std", "file-io"] }
-jpeg2k = { version = "0.10.1", default-features = false, features = ["openjp2"] }
+openjp2 = { workspace = true, default-features = false, features = ["std", "file-io"] }
+jpeg2k = { workspace = true, default-features = false, features = ["openjp2"] }
 
 [[bench]]
 name = "codec_throughput"

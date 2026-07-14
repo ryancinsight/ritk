@@ -8,6 +8,592 @@
 
 # RITK Gap Audit - Active
 
+## MIG-654-01 audit (2026-07-13)
+
+Exact-head CI run `29310594505` passed formatting, clippy, dependency alignment,
+and nextest on Linux, macOS, and Windows. The wheel gate then terminated
+`test_cmake_patch_based_denoising_structural` after 60 seconds inside RITK's
+native `PatchBasedDenoisingImageFilter`, not inside its SimpleITK oracle. Static
+inspection found that all `voxel_count * 200 * patch_volume` comparisons ran in
+one serial loop despite a stale checklist claim that the operation used Moirai.
+The corrected kernel generates sample coordinates serially in exact ITK face
+and RNG order, stores at most an 8 MiB target batch of coordinates, and evaluates
+independent pixels through Moirai while retaining each pixel's sample and f64
+reduction order. A value-semantic batch-partition regression requires exact
+output equality between single-pixel and multi-pixel batching. Local nextest is
+blocked before compilation by unrelated live-provider version drift (Apollo
+0.15.0 versus RITK's pinned `^0.14.0`); pinned CI remains the compilation and
+runtime evidence source for this increment.
+Review confirmed the parallel seam preserves the serial MT stream and per-pixel
+f64 operation order, then identified an unenforced extreme-configuration memory
+bound and three per-batch allocations. The public boundary now rejects sample
+counts exceeding the coordinate budget, work/sample/result allocations are
+retained across batches, and explicit `Parallel` dispatch reflects the kernel's
+high cost instead of using pixel count as a proxy. Test review also removed two
+skip/xfail paths that could conceal binding or oracle failures. The large-data
+structural case now asserts strict reduction of MSE against its known clean
+source for both implementations rather than an underived Pearson threshold;
+the separate small-fixture suite remains the direct SimpleITK differential.
+Final test review found that the small-fixture module could still disappear as
+a green import skip and its claimed bit-exact contract admitted an underived
+`1e-3` error. RITK and SimpleITK are now mandatory imports in this declared
+parity environment, and the four parameterized cases require exact f32 array
+equality.
+Run `29312477671` compiled and passed clippy, formatting, alignment, and Linux/
+macOS nextest, but the unchanged 64-cubed structural case still terminated after
+60 seconds inside RITK. This falsified scheduler dispatch alone as a sufficient
+fix: the scalar inner loop still performed coordinate reconstruction and six
+bounds comparisons across approximately 6.55 billion patch elements. Sampled
+centres and patch displacements are now flattened once; the interior path uses
+direct indexed loads with no per-element coordinate or boundary work, while
+the boundary path retains identical clipping and both retain exact offset and
+f64 accumulation order.
+Run `29312668561` completed the pre-flattened native kernel in 50.49 seconds,
+confirming progress below termination but still above the 30-second defect
+threshold. It also falsified the new clean-image MSE oracle: RITK raised MSE
+from 25.057 to 9478.976, while an independent local SimpleITK 2.5.5 execution
+with the same fixed bandwidth raised it to 9384.105 because RA-Float spans
+-1146 to 32767. The structural case now forces one SimpleITK work unit and
+compares f32 arrays within one ULP, derived from the implementations' shared
+sample/accumulation order and final f32 conversion. Four small fixtures from
+the same run empirically showed only adjacent-representable differences, with
+maximum absolute error `7.6293945e-06`.
+The same run falsified the MNI SyN test's empirical `0.001` global-NCC threshold:
+the unchanged full 128-cubed workload improved NCC by `0.000724`. Final review
+correctly rejected even a strict positive global-NCC sign as underived because
+local CC is the optimized objective. The mandatory MNI case now evaluates ANTs
+neighborhood-correlation loss at radius four through SimpleITK before and after
+the unchanged RITK workload and requires strict loss reduction, with no numeric
+tolerance.
+Run `29314927726` passed every small denoising one-ULP differential, then reached
+the duplicated shifted-blob quality report: the gap-validation copy crossed 60
+seconds before the side-by-side copy could repeat the same ten algorithms. The
+side-by-side duplicate is deleted. The canonical gap-validation report is now
+parameterized by algorithm, retaining every configuration, invocation, input,
+and strict NCC-improvement assertion while giving each independent contract its
+own diagnostic and timeout boundary.
+Run `29316281028` completed 1,292 of 1,293 Python tests in 13:34 and exposed the
+remaining denoising defect: the 64-cubed case took 40.57 seconds including its
+27-second live SimpleITK oracle and diverged numerically. The implementation had
+omitted SimpleITK's sampler-radius intersection, which is inactive on the small
+differential volumes but clips each search dimension to
+`floor(2.5 * sqrt(sample_variance))` on the larger volume.
+Run `29318153700` passed formatting, clippy, alignment, and Linux/macOS nextest,
+then the same Python case reached the process-enforced 60-second bound. The test
+still spent 26.67 seconds regenerating the serial SimpleITK 2.5.5 output before
+measuring RITK. That deterministic reference is now a committed 1,048,704-byte
+`float32` array with SHA-512 verification; the test retains the full upstream
+input, seeded noise, RITK parameters, 64-cubed workload, and per-voxel one-ULP
+assertion. CI therefore measures the production kernel rather than the sum of
+two implementations.
+Run `29319990306` confirmed the corrected RITK kernel completes the unchanged
+64-cubed workload in 14.71 seconds. Its only failure was a two-ULP difference
+against a Windows-generated SimpleITK fixture. Regenerating with the same
+SimpleITK 2.5.5 wheel under Linux WSL still differed by four ULP on GitHub's
+Linux runner (`29321964085`), proving that OS-level fixture selection cannot
+ground the one-ULP claim across CPU/libm variants. The unstable golden is
+deleted. RITK now executes first in 14.8 seconds and the unchanged SimpleITK
+oracle executes afterward on the same host; no threshold is widened.
+The host-local run still differed by four ULP, falsifying the final-conversion-
+only model. ITK 5.4.5 constructs the smooth-disc mask in an `Image<float>` and
+only then promotes its voxel weights into real-valued denoising arithmetic;
+RITK evaluated the cubic spline directly in `f64`. RITK now reproduces the
+`f32` distance/weight boundary and promotes before squaring, reducing the
+remaining difference to two ULP in run `29325055926`. Source review then found
+that the differential supplied different problems: RITK's voxel-radius input
+retained unit spacing while SimpleITK alone received RA-Float's anisotropic
+metadata, causing ITK to resample its physical patch extent and mask. The
+oracle now retains unit spacing on both inputs. The existing one-ULP
+differential remains the acceptance gate.
+Final source/dataflow review found that an image smaller than one patch could
+produce out-of-range face coordinates, and that non-finite or negative sampling
+variance could leave the bounded-normal rejection loop without a valid result.
+The public boundary now rejects zero iteration/sample counts, invalid variance
+or bandwidth, overflowed radius, and any active image dimension smaller than
+the patch diameter. Exact error regressions cover planar and volumetric sizes
+plus every numerical failure class.
+Exact-head run `29327419839` passed static gates and Linux/macOS nextest, then
+timed out after RITK completed while the unit-spacing SimpleITK oracle was still
+executing. The two deterministic implementations share no state and preserve
+their own fixed sample/reduction order, so the differential now executes them
+concurrently. This retains both unchanged computations and makes wall time the
+maximum of the two runtimes rather than their sum.
+The same duration report identified a 58.18-second SimpleITK-only B-spline
+self-test. It neither invoked RITK nor compared implementations, while direct
+RITK B-spline quality and RITK-versus-SimpleITK deformable parity tests already
+own those contracts. The redundant external-library self-test and its private
+helper are deleted.
+The 36.88-second `test_elastix_vs_ritk_rire_comparison` was a reporting script,
+not a regression: it caught every pipeline exception, accepted error records,
+and asserted only result presence and positive scalars. It is deleted with its
+test-local pipeline wrappers. The remaining value-semantic CMA-MI tests move to
+`test_cma_mi_rire.py`, matching the module's actual bounded context.
+Code review flagged the boundary branch's flat
+`wrapping_add_signed` selected-patch load. ITK 5.4.5 constrains each sampled
+patch to be at least as in-bounds as the current patch, so the existing result
+was valid, but the representation did not make that precondition auditable.
+Debug builds reconstruct the sampled coordinate and verify it against the flat
+release address, preserving the proven hot-loop operation count. Small-domain
+exhaustive regressions verify every bounded sampler radius and actual 2-D/3-D
+flat-address equivalence.
+Exact-head run `29329371651` completed the unchanged denoising differential in
+51.49 seconds, eliminating the 60-second termination, but reported a two-ULP
+maximum difference. ITK divides the accumulated entropy gradient by its
+probability sum before multiplying by the `0.2` smoothing step; RITK multiplied
+before dividing. The kernel now preserves ITK's operation order. The one-ULP
+oracle remains unchanged.
+Exact-head run `29330912612` retained the two-ULP maximum, falsifying final-step
+rounding as the only residual. Source comparison then found that ITK's partial
+loop unroll accumulates patch offsets in interleaved lower-half/upper-half order
+and adds the center last, while RITK accumulated raster order. The offsets are
+now permuted once during setup so the existing hot loop executes ITK's exact
+floating-point reduction order without per-element dispatch.
+Exact-head run `29332750186` retained the same two-ULP maximum, falsifying the
+patch-reduction order as the remaining cause. The unchanged differential now
+runs first in the wheel gate and is deselected from the subsequent full suite,
+preserving exactly-once coverage while reducing failing feedback from about 16
+minutes to build time plus the 50-second test. Failure output now records exact
+indices, values, and `float32` bit patterns for the maximum-ULP witnesses.
+Fail-fast run `29334476779` localized the two-ULP maximum to three high-intensity
+voxels. ITK's scalar `GetComponent` returns each `float` pixel by value, so its
+pixel subtraction executes in `f32` before assignment to `RealValueType`; RITK
+widened both pixels before subtracting. Patch-distance and center-gradient
+differences now round at the same `f32` boundary before `f64` accumulation, with
+a direct value-semantic precision-order regression.
+The preceding full installed-wheel run required 946.68 seconds for 1,283 tests.
+Its duration report identified twelve registration tests above the committed
+30-second defect threshold, including repeated SyN, MNI, RIRE, and synthetic-
+sphere scenarios across three validation modules. Passing the 60-second process
+limit does not close this aggregate-cost or slow-test defect. The next closure
+increment consolidates repeated executions only where one canonical test can
+retain every distinct value-semantic assertion; distinct workloads and oracles
+remain unchanged.
+Static contract equivalence identified 31 removable registrations. The deleted
+`test_registration_side_by_side.py` repeated 17 synthetic and real-dataset
+calls already owned by gap validation or SimpleITK parity; its four distinct
+64-cubed affine, symmetric-Demons, multi-resolution-SyN, and B-spline-SyN Dice
+contracts moved unchanged into the canonical gap-validation sphere class. Gap validation's
+three standalone Gaussian calls exactly repeated its parameterized algorithm
+matrix. The parity module now computes each identical B-spline, LDDMM, Thirion,
+brain, and SimpleITK registration once and applies every prior assertion to that
+result. Six additional structural Demons calls use different shapes or iteration
+counts and remain because consolidating them would change a workload.
+Production inspection also found that multi-resolution SyN rebuilt identical
+five-channel local-correlation summed-area tables three times per iteration:
+once for each force direction and once for convergence. It now consumes the
+existing fused bidirectional kernel already covered by exact independent-pass
+differential tests. Dense, multi-resolution, and B-spline SyN now allocate their
+five volume-sized tables once and rebuild them in place; at 128 cubed and radius
+four this reuses about 98 MiB of table storage per iteration. Fusion also avoids
+two additional table constructions in multi-resolution and B-spline SyN.
+The fused dispatcher still creates an `O(nz)` slice-descriptor vector because
+Moirai currently exposes at most triple mutable-slice traversal; this bounded
+allocation is recorded rather than described as zero-allocation. This is
+structural and differential evidence; exact-head runtime evidence remains
+pending.
+Exact-head Ubuntu Python CI completes its 310-test parity subset in 35.17
+seconds. Separate local timing attributes the remaining combined denoising case
+to 15.45 seconds of RITK computation and 26.34 seconds of single-worker
+SimpleITK computation; its 49.61-second CI duration reflects concurrent CPU
+contention, not a 49-second RITK invocation. Static hot-path accounting finds
+6,553,600,000 ordered patch terms for the 64-cubed, radius-two, 200-sample case.
+When every pixel difference is finite, 32 of each 125 smooth-disc weights are
+exactly zero. Eliding those terms without reordering the remaining terms removes
+1,677,721,600 inner
+iterations (25.6%); non-finite input retains the full sequence because
+zero-weight multiplication participates in NaN and infinity propagation.
+Source-level differential review found one remaining arithmetic divergence:
+ITK's unqualified global `pow(float, float)` resolves to a double-returning
+overload and its radius-two face-diagonal expression produces `0x3f639b3a` only
+after the full `f64` combination. Rust's inherent `f32::powf` rounded each power
+early and produced `0x3f639b3b`. RITK now promotes the delta once, routes both
+powers through Eunomia's `f64` math provider, and pins the ITK weight before its
+`f64` square. This is source-differential and value-semantic regression
+evidence; exact full-image differential evidence is pending CI.
+Exact-head CI confirms the unchanged denoise differential now passes in 49.20
+seconds. The following full run passes 1,253 tests with 7 skips and 1 expected
+pass in 758.91 seconds, down 187.77 seconds (19.8%) from 946.68 seconds. Its
+duration report exposed that the denoise case also ran a second time because
+the repository-relative `--deselect` node did not match pytest's
+`crates/ritk-python` root. The node ID is corrected, and the remaining suite is
+distributed with pytest-xdist's module-scoped scheduler so each worker retains
+module-local setup while assertions and workloads stay unchanged. Exact-head
+parallel execution passes 1,252 tests with 7 skips and 1 expected pass in
+495.63 seconds. That is 263.28 seconds faster than the corrected serial run,
+but it is not closure: concurrent native pools inflated eleven registration
+cases above 30 seconds, with the slowest reaching 52.20 seconds. The scheduler
+and native worker ownership require another bounded correction before the
+runtime acceptance criterion is met.
+
+Five parity tests left SimpleITK's global thread count at one; an autouse fixture
+now restores that process-global state after every test. A Linux affinity
+experiment then constrained each xdist process to two CPUs. It was rejected
+after a SyN worker terminated during the exact suite and its replacement exposed
+an additional xdist-worker-ID assumption. The affinity and dynamic scheduler
+were removed; native registration kernels retain the full host pool while the
+known-green module scheduler remains in place.
+
+Source audit instead localized repeated SyN and Demons work to CPU vector-field
+smoothing. The prior path regenerated the same Gaussian weights for every
+component and axis, submitted nine independent Moirai operations, and copied a
+complete component after every pass. `CpuFieldSmoother` now caches the weights,
+convolves all three components in one dispatch per axis, and ping-pongs three
+scratch components so only the final field is copied. The arithmetic sequence
+within each component is unchanged and an asymmetric-volume regression requires
+bit-exact equality with the scalar-component implementation. This is source and
+value-semantic evidence; exact-head compile and timing remain pending CI because
+the local Apollo checkout exposes 0.15.0 while this branch requires 0.14.x.
+
+Exact-head run `29345025305` compiled and passed the fused smoother across the
+static gates and Ubuntu nextest. The installed-wheel suite passed 1,252 tests
+with 7 skips and 1 expected pass in 381.57 seconds, 114.06 seconds (23.0%)
+below the preceding parallel run and 565.11 seconds (59.7%) below the original
+946.68-second run. Seven registration cases remained above 30 seconds, led by
+B-spline SyN at 54.30 seconds. Its source audit exposed a correctness defect:
+six force components reused the same control-point accumulation and weight
+arrays without resetting either array. The primitive now clears both caller-
+owned scratch arrays before every component, and a value-semantic regression
+requires an exact independent result after nonzero prior use. B-spline SyN also
+reuses the cached three-component field smoother instead of regenerating six
+scalar smoothing paths. Local nextest remains blocked at dependency resolution
+by Apollo 0.15.0 versus the branch's pinned 0.14.x contract; exact-head CI is
+the compilation, regression, and runtime evidence source.
+
+The same run's Ubuntu nextest worker failed at the runner boundary with
+`No space left on device` while writing its diagnostic log. CI had restored and
+re-cached the complete generic-heavy test target while emitting full debug
+records. The test profile now emits line tables, CI disables incremental
+artifacts, and only Cargo dependency sources are cached. This is configuration
+and runner-diagnostic evidence; exact-head cross-platform nextest remains
+pending.
+
+The merged migration graph used eleven sibling path-dependent Rust repositories,
+but every GitHub workflow checked out only RITK. Cargo therefore failed before
+the migration audit or Python matrix could run. The Rust CI workflow also held
+an invalid multiline YAML scalar and did not schedule, while Python CI bypassed
+the committed nextest timeout policy.
+
+One composite action now pins and checks out the complete provider graph beside
+RITK, preserving the Cargo path topology across Linux, Windows, macOS, and the
+release container. All workspace-loading jobs consume that action. Dependency
+alignment is a value-reporting Rust `xtask` command; the complete existing
+manifest drift was corrected rather than hidden. Local evidence comprises YAML
+parsing, locked metadata, a clean migration audit, a passing alignment command,
+9/9 xtask plus 47/47 ritk-python nextest tests, 16/16 Python smoke tests, and a
+clean 327-function API-drift report. The first complete matrix exposed and drove
+fix-forward changes for workspace-only formatting, Moirai's Linux-only errno
+accessor and shared kqueue buffer, Apollo's unconditional x86 Stockham module
+resolution, stale deep-module audit paths, and non-Linux `patchelf` installation.
+It also exposed two independent Python-boundary defects: global
+`pyo3/extension-module` activation prevented Linux Rust test binaries from
+linking `libpython`, and the parity environments did not install SciPy or the
+pytest timeout plugin required by their tests and configuration. Extension mode
+is now a `ritk-python` wheel-build feature, while one requirements manifest
+drives both Python test workflows.
+The resulting full parity run exposed one stale top-level expectation predating
+the public `ColorImage` and `image` exports. The canonical runtime, stub,
+`__all__`, and drift reporter already agreed; the value-semantic parity test now
+asserts that same ordered contract.
+The full workspace nextest run then aborted in c2rust OpenJPEG differential
+decodes. Serialization reduced four simultaneous aborts to one but did not
+eliminate the failure, falsifying aggregate memory exhaustion. A captured
+backtrace proves `openjp2 0.6.1` calls Rust `dealloc` on a null decoded-codeblock
+pointer during codec drop. Upstream PR 6 guards those sites but also replaces
+the allocator, which RITK's suite rejected with invalid-pointer aborts. Focused
+upstream PR 9 changes only the two unsafe deallocation sites. RITK pins the same
+guards on the exact published 0.6.1 source commit, preserving the `std` feature
+required by `jpeg2k 0.10.1`, until upstream merges and releases the fix. The
+complete differential workload and normal nextest concurrency remain intact.
+The next full Ubuntu run advanced past the OpenJPEG differential tests and
+executed 2,484 workspace tests before a Coeus TransMorph forward regression test hit
+the repository's stale 10-second default nextest termination. That timeout
+contradicted the required 30-second slow threshold and 60-second hang boundary;
+the committed default now encodes those exact limits without changing the test,
+its input, or its assertions.
+On Windows the unchanged suite then passed all 5,048 tests in 379.596 seconds,
+but the workflow's 30-minute job envelope canceled subsequent cache and checkout
+cleanup. Linux and macOS retain that bound; Windows receives 40 minutes, derived
+from the observed approximately 25-minute setup-plus-test path and ten minutes
+for its slower post-test cleanup. Per-test nextest limits remain unchanged.
+The resulting wheel reached its installed smoke check and exposed two stale
+Python artifacts: the workflow and stub retained removed shape-detection keyword
+parameters, and the package initializer hardcoded `0.12.4` while the built wheel
+reported `0.12.79`. The smoke path now uses the canonical options object, and
+the compiled crate version is the single runtime and wheel metadata source.
+
+Review adjudication accepted every actionable CI finding: primary checkout
+credentials are no longer persisted, metadata runs with `--locked`, the
+alignment gate parses the exact dependency-kind and target table rather than
+matching manifest text, test-workflow tokens have read-only repository access,
+and Python parity dependencies carry tested compatibility ranges. The bounds
+cover the exact Python 3.9 and 3.13 resolver endpoints exercised by the matrix:
+NumPy 2.0.2 through 2.5.1, pytest 8.4.2 through 9.1.1, SciPy 1.13.1 through
+1.18.0, SimpleITK 2.5.5, pytest-timeout 2.4.0, and VTK 9.6.2. The stronger
+Python matrix is bounded at twice its approximately 15-minute Windows runtime.
+The complete wheel suite reached only 49% after 61 minutes; progress timestamps
+localized most runtime to registration tests. RITK's
+`PopulationEval::Parallel` incorrectly routed CMA-ES populations of roughly
+9-18 candidates through Moirai's 1,024-element `Adaptive` threshold. RITK now
+expresses the requested mode through Moirai's `Parallel` policy without changing
+populations, generations, samples, or assertions; later provider inspection
+found the executor still overrode that forced policy with its own grain floor.
+The same objective path also deep-cloned approximately one
+megabyte of sparse fixed-image Parzen weights per evaluation and repeated
+fixed-image coordinate conversion plus interpolation on cache hits. Sparse
+weights now use one shared allocation, with pointer-identity and exact-result
+regressions, and fixed sampling runs only on cache misses or uncached calls.
+Quiet pytest progress initially made the last printed dot appear to implicate
+`test_ncc_same_image_is_one_on_brain`; that inference was false. The boundary
+still contained avoidable ownership drift, so MSE and NCC now share one borrowed
+image-pair boundary, release the GIL around their reductions, and a
+pointer-identity regression proves contiguous inputs retain their original
+storage. Pearson correlation now belongs to `ritk-statistics`, where two
+f64-accumulating Moirai fold/reduce passes compute its means and centered
+moments without intermediate allocation. Affine, constant, empty, and
+shape-mismatch contracts are pinned in the owning crate. NumPy's independent
+correlation oracle completed the committed brain volume in 0.31 seconds, but
+this establishes only an empirical baseline, not the prior timeout's cause.
+Pytest's configured signal timeout could not interrupt the running native call,
+so CI exposed neither the test name nor the 60-second breach. The wheel gate now
+uses pytest-timeout's watchdog-thread method and verbose test IDs; a native call
+that exceeds the unchanged bound terminates the process with the active test in
+the log. The independent wheel and workspace suites now run concurrently rather
+than serializing their wall-clock cost. The resulting exact-head trace showed
+`test_cma_mi_register_binding_on_rire_brain_default` passing in approximately
+4.2 seconds and terminated
+`test_elastix_vs_ritk_rire_comparison` inside the unchanged
+`brain_multiscale_thin_slab` CMA call at 60 seconds. RSGD in that comparison had
+already completed in approximately 6 seconds.
+
+The CMA population evaluator requests explicit Moirai `Parallel` execution,
+while each candidate's masked histogram schedules another synchronous indexed
+reduction. Source inspection found two provider defects. First, the executor
+applied an undocumented 256-index grain floor after policy selection, so the
+9–18 expensive CMA candidates still ran serially. Second, once forced
+parallelism is honored, parking saturated outer workers leaves inner histogram
+chunks queued without a runner, while recursively stealing unrelated outer jobs
+from nested waits grows the worker stack. The provider fix makes execution
+policy the scheduling SSOT, retains worker-plus-caller fanout for
+caller-originated regions, flattens worker-nested indexed regions onto the
+current outer lane, and adds barrier-synchronized value regressions that assert
+both exact results and worker identity. Evidence tier: type-level policy
+selection, structural deadlock/stack-growth argument, and value-semantic
+empirical regressions. The first exact-head wheel run advanced to the unchanged
+thin-slab CMA in about 12 seconds, then segfaulted inside its nested parallel
+work instead of timing out; this falsified the wait-only design and drove the
+flattening fix. RITK pins the verified 0.2-compatible provider commit because
+current Moirai main also carries an unrelated Mnemosyne 0.3 breaking edge;
+current-main PR 67 ports the same fix forward. That PR merged as `2a1c235c`.
+The next exact-head wheel run completed the default brain binding in 2.68
+seconds and reached the thin-slab call in 24 seconds, but still segfaulted during
+the doubled IPOP population. This falsified nested-region flattening as the
+complete cause. The remaining optimizer-local unchecked boundary wrote fitness
+results through disjoint raw pointers. CMA-ES does not consume production order,
+so the evaluator now appends into its existing reusable result buffer under one
+mutex, asserts exactly one result per candidate, then performs its canonical
+objective sort. A lambda-18 regression asserts the exact initialization plus
+per-generation evaluation count and finite objective improvement. Evidence tier:
+type-safe ownership plus value-semantic regression. Exact-head wheel evidence
+then passed the unchanged comparison in 39.10 seconds, the default brain preset
+in 2.60 seconds, and the additional thin-slab paths in 30.95 and 28.18 seconds.
+The suite advanced to 14% before a separate SimpleITK B-spline oracle exceeded
+60 seconds. The same external call reproduced locally in 78.29 seconds; removing
+`SetOptimizerScalesFromPhysicalShift` reduced it to 48.35 seconds while keeping
+the 64-cubed image, 25% Mattes sampling, 9-cubed control grid, 30 iterations,
+and improving NCC from 0.848935 to 0.987894. B-spline coefficients already
+represent physical displacements, so unit scales are dimensionally canonical
+and the per-coefficient perturbation pass was redundant. The wheel also exposed
+a stale Python test that still expected VTK image writing to be absent even
+though `ritk-io` owns a native VTK reader/writer with Rust roundtrip coverage;
+the Python boundary now asserts the same exact shape and values. Evidence tier:
+empirical differential timing plus value-semantic analytical-image and I/O
+oracles. A subsequent exact-head run passed that VTK roundtrip but segfaulted
+inside the default CMA binding in under one second. Because the identical CMA
+path passed in 2.60 seconds on the preceding run, this falsifies the synchronized
+result buffer as the complete crash cause and establishes a native concurrency
+defect whose manifestation depends on scheduling or allocation layout. Source
+inspection found that every parallel candidate shared one stateful mutual-
+information metric, but independently constructed metric/cache lanes did not
+remove the defect: the exact suite passed the default binding in 2.72 seconds,
+the unchanged comparison in 39.70 seconds, and the unmasked thin-slab path in
+31.89 seconds before segfaulting 13.15 seconds into the masked path. That run
+falsified shared metric state and the unneeded lane pool was deleted. The masked
+histogram invokes an indexed reduction from each outer candidate. Moirai marked
+worker-originated nested regions but not the caller participating in the same
+outer indexed region, allowing that one lane to recursively fan out while the
+worker pool executed sibling candidates. The provider now tracks caller indexed-
+region depth with an unwind-safe guard and flattens nested fan-out and reduction
+on both caller and worker lanes. Its exact lane-identity and arithmetic regression
+passes with the full 0.2-compatible executor suite (80/80) and warning-denied
+Clippy. The exact consumer run then passed the default binding in 2.05 seconds
+but segfaulted 8.27 seconds into the unchanged comparison, falsifying caller-
+region nesting as the crash root. RITK already pins Mnemosyne `477f957`, whose
+parent is the Miri-verified page-provenance correction `5a9f49f`; that allocator
+defect is therefore also excluded as the missing consumer fix. The wheel lane
+now retains optimized native symbols and runs the unchanged suite under GDB.
+Run `29296725970` localized the fault to Mnemosyne
+`TaggedSegmentStack::pop` dereferencing an old huge-pool head while the decay
+thread could detach and release that mapping. Mnemosyne `1877bc6` serializes
+head observation through successor access/detach; RITK pins that revision for
+unchanged wheel verification. Evidence tier: symbolized native production
+trace, provider RAII synchronization, and value-semantic provider tests. The
+corrected wheel passed the complete CMA group, including comparison (37.83 s),
+thin-slab (30.14 s), and masked (26.59 s), then reached the independent
+SimpleITK B-spline oracle. Audit found two context-only edits had successively
+targeted the rigid and affine helpers rather than `_sitk_bspline_register`.
+Rigid and affine physical-shift scaling are restored. The actual B-spline
+helper now minimizes SimpleITK correlation, the objective measured by its NCC
+assertions, with the same random sample fraction, transform grid, 30-iteration
+cap, and 64-cubed input. The exact synthetic-Gaussian diagnostic completed in
+2.80 seconds and improved NCC from 0.848935 to 0.999513. The discarded L-BFGS-B
+plus Mattes configuration took 80.42 seconds on the same case. B-spline
+coefficients remain uniformly dimensioned physical displacements, so the
+helper does not perform redundant per-coefficient physical-scale estimation.
+Evidence tier: empirical differential timing and value-semantic NCC comparison.
+GitHub runs `29299230470` and `29299825822` falsified objective alignment and a
+single work unit as sufficient: the same call exhausted 60 seconds in both
+configurations. Dense sampling also exceeded 60 seconds locally and was
+rejected. SimpleITK LBFGS2 converged the unchanged sampled correlation objective
+in 6 iterations and 0.97 seconds locally, reaching correlation 0.999166 while
+retaining the 30-iteration cap. Evidence tier: exact installed-wheel timeout
+traces and local value-semantic timing; final cross-host timing remains the
+acceptance gate.
+Run `29300558231` proved LBFGS2 completed before the timeout; the stack moved to
+a second, byte-for-byte identical RITK SyN invocation in the same test. The
+combined test asserted no cross-result relation and duplicated the immediately
+preceding `test_ritk_syn_ncc_improves` computation and assertion. The suite now
+keeps the RITK and SimpleITK value-semantic NCC contracts as two independent
+tests, eliminating duplicate computation while preserving both full workloads.
+Evidence tier: exact installed-wheel trace and structural duplicate audit.
+Run `29301144927` passed both separated Gaussian contracts, then exposed the
+next independent defect: a 128-cubed RITK SyN brain registration exceeded 60
+seconds. Production review found the SyN loop constructed three equivalent
+five-channel local-CC summed-area-table sets per iteration. Forward force,
+reverse force, and convergence now share one canonical set; a value-exact
+regression compares reversed shared-table forces with an independently built
+reversed table. Evidence tier before CI: structural complexity reduction from
+three O(N) builds to one and value-semantic differential test; installed-wheel
+timing remains the acceptance gate.
+The release wheel from `7400b277` still exhausted 60 seconds, falsifying table
+reuse alone as sufficient. The remaining builder allocated five padded f64
+volumes and traversed each of five statistical channels separately for copy and
+three prefix axes: ten large allocations and twenty full-volume prefix passes.
+It now writes the five final SATs directly and fuses channels into four
+contiguous traversals, preserving the existing interior and boundary
+differential contracts. Evidence tier before CI: structural memory-pass and
+allocation reduction plus existing analytical-reference differential tests.
+Run `29302523806` remained above 60 seconds, falsifying SAT construction as the
+dominant bound. The force and convergence passes still queried the same 40 SAT
+corners three times per voxel. They now execute as one parallel traversal that
+derives both symmetric Avants forces and the convergence mean from one query.
+An exact force differential and a reduction-order bound of 1e-12 cover the
+fused kernel against the three independent passes. Evidence tier before CI:
+value-semantic differential verification and two-thirds fewer hot SAT queries.
+The same 128-cubed trace exposed a separate integration memory-pass defect:
+each of two exponential maps copied all three displacement components after
+every one of six scaling-and-squaring compositions. The existing output and
+scratch fields now alternate roles, so the standard even depth performs no
+copies and an odd depth performs one final copy. Exact odd- and even-depth
+differentials against the independently allocating implementation pin buffer
+parity. Evidence tier before CI: structural reduction from 36 to zero full-
+volume component copies per SyN iteration at the standard depth, plus bit-exact
+differential verification; installed-wheel timing remains the acceptance gate.
+Field composition then sampled each displacement component at the same
+coordinate through three scalar trilinear calls, rebuilding identical clamped
+indices and weights. One canonical stencil now serves scalar interpolation and
+three-component field interpolation. Composition, inverse-displacement warping,
+and inverse-consistency residuals consume the field form, so no triplicate
+production call site remains. Evidence tier before CI: shared construction by
+code structure and bit-exact scalar/component differential verification;
+installed-wheel timing remains the acceptance gate.
+Provider-source inspection exposed why the remaining volume kernels stayed
+slow: `for_each_chunk_mut_enumerated_with` applies `Adaptive` to the input slice
+length, not the number of voxels represented by each item. Composition,
+Thirion forces, and local CC first collected three-component z-slices into a
+`Vec`, so 64- and 128-slice volumes fell below Moirai's 1,024-item threshold and
+executed serially. Composition, gradient, and one-direction force kernels now
+use Moirai's pinned three-buffer chunk operation directly over the full voxel
+buffers, removing the slice-descriptor allocation while retaining adaptive
+dispatch. The six-output bidirectional CC kernel explicitly requests parallel
+execution because each of its few slice descriptors represents a full 2-D
+statistical kernel. Evidence tier before CI: verified provider policy contract,
+type-level execution-policy selection, and unchanged value-semantic tests;
+cross-host timing remains the acceptance gate.
+Run `29304216350` measured the corrected unchanged 128-cubed SyN registration at
+30.48 seconds, compared with both prior 60-second terminations. The preceding
+64-cubed sphere and Gaussian SyN contracts fell to 13.75 and 16.63 seconds,
+respectively, from the integration-only head's 26.20 and 26.12 seconds.
+Evidence tier: exact installed-wheel test timestamps plus unchanged
+value-semantic assertions. The run then advanced to a combined Colin27 test
+that repeated the same 30.48-second SyN call before an independent SimpleITK
+affine oracle and exhausted 60 seconds. Structural audit found five duplicate
+registration invocations in side-by-side tests with no cross-result assertion;
+each repeated a stronger independent value oracle. The duplicate calls and
+assertions are deleted while those independent RITK and SimpleITK contracts
+remain unchanged. Evidence tier: exact input, call, and assertion comparison;
+the next installed-wheel run remains the suite gate.
+Run `29304966659` advanced past those cases and exposed two further defects.
+The locally deformed sphere comparison duplicated both halves of the stronger
+`test_sitk_bspline_deformable_vs_ritk_syn` oracle and timed out at 60 seconds;
+both redundant invocations are deleted. A complete scan of the remaining
+side-by-side methods found seven more repeated registrations, bringing the
+total to fourteen; each repeated an identical independent call and assertion.
+The RIRE
+voxel-space B-spline check
+failed after its formerly vacuous `None` branch was made mandatory. Its direct
+NCC preservation threshold is not valid for CT-to-MR intensities: cross-modal
+intensity correspondence is non-linear, and the test supplied neither a
+ground-truth transform nor a derivation for its `0.05` tolerance. It is deleted
+as an incorrect specification; the physical-space RIRE rigid test retains the
+same dataset's ground-truth-backed cross-modal validation. Evidence tier:
+exact CI failure, duplicate-input comparison, and metric-contract analysis;
+installed-wheel execution remains pending. Run `29306098216` advanced through
+the consolidated side-by-side module before timing out in
+`test_1b_gaussian_blob_local_deformation`. The stack shows the RITK SyN value
+oracle had completed and the timeout occurred inside the subsequent
+SimpleITK `Execute` call. Run `29307191974` then proved the isolated RITK
+contract completes in 0.83 seconds while the isolated external SimpleITK call
+alone exceeds 60 seconds. The RITK Gaussian value oracle remains unchanged;
+the redundant SimpleITK check is deleted because the stronger 64-cubed,
+100-iteration deformable oracle remains in `test_simpleitk_parity.py`.
+Evidence tier: exact installed-wheel timestamps, timeout stack, and
+operation-family comparison; installed-wheel execution remains pending. The
+same structural audit split the independent VM head RITK and
+SimpleITK deformable calls over one shared gradient fixture; its former
+SimpleITK divergence skip is now a mandatory value oracle. Evidence tier:
+single-registration test contracts and non-vacuous assertions.
+Run `29308214589` advanced to the brain-pair validation: RITK Demons completed
+its unchanged value oracle in 32.82 seconds, while the standalone external
+SimpleITK affine call then exceeded 60 seconds. That external oracle and a
+second test repeating both the same RITK and SimpleITK calls are deleted; the
+RITK value contract and dedicated SimpleITK parity suite remain. Evidence
+tier: exact installed-wheel timestamps, timeout stack, and duplicate-call
+comparison; installed-wheel execution remains pending.
+The complete module audit removed external-only MNI affine/B-spline, RIRE
+affine, and VM-head B-spline registrations from the RITK validation module.
+It also removes the duplicated 128-cubed RITK multiresolution SyN call from the
+MNI comparison while retaining its independent value oracle. Dedicated parity
+and physical-space ground-truth modules remain the SSOT for external
+comparisons. Evidence tier: structural call/fixture/assertion comparison and
+non-vacuous-oracle audit; installed-wheel execution remains pending.
+Run `29309395148` showed `test_4b_ritk_syn_on_resampled_ct_mr` consumed all 60
+seconds inside `_sitk_affine_register`; its RITK SyN call was unreachable. The
+test and now-unused affine helper are deleted. The preceding 20-second MNI
+multiresolution SyN value failure remains a real RITK finding; removing this
+later timeout allows the next run to emit its complete assertion report.
+Evidence tier: exact installed-wheel timeout stack and reachability analysis.
+The diagnostic wrapper and release-symbol overrides are removed for the final
+production-profile run. The
+stronger alignment gate
+exposed two DICOM target variants; their versions now inherit
+one workspace declaration while native-only features remain activated solely
+in native target tables. The target-table regression is value-checked in the
+xtask suite. A local wasm build attempt was not evidence:
+the selected Rust toolchain lacked its wasm standard library, so cross-target
+compilation remains covered by CI rather than claimed locally.
+GitHub matrix evidence remains pending until the updated fix-forward PR
+completes.
+
 ## MIG-653-01 audit (2026-07-13)
 
 Vector confidence-connected segmentation widened every channel into an owned

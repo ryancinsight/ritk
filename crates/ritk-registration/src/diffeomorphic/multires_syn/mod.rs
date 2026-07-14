@@ -30,6 +30,10 @@
 //! `f_z[p] = −2 · cc_num / (var_I · var_J + ε) · (J_w[p] − μ_J) · ∇I_z[p]`
 //!
 //! where sums are over a local window of radius `r` centred at `p`.
+//! One five-channel summed-area-table set serves both force directions and the
+//! convergence mean at each iteration; the three results therefore share one
+//! window-statistics construction and one voxel traversal. Its volume storage
+//! is allocated once per resolution level and rebuilt in place.
 //!
 //! ## Inverse Consistency Enforcement
 //!
