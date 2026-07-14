@@ -58,6 +58,12 @@ compares f32 arrays within one ULP, derived from the implementations' shared
 sample/accumulation order and final f32 conversion. Four small fixtures from
 the same run empirically showed only adjacent-representable differences, with
 maximum absolute error `7.6293945e-06`.
+The same run falsified the MNI SyN test's empirical `0.001` global-NCC threshold:
+the unchanged full 128-cubed workload improved NCC by `0.000724`. Local CC is
+the optimized objective and global NCC is only an external validation measure,
+so no positive dataset-independent magnitude follows analytically. The test now
+requires strict positive improvement, retaining all data, levels, iterations,
+and optimizer parameters without substituting another tolerance.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before

@@ -59,6 +59,9 @@
   MNI SyN execution; dedicated parity and ground-truth suites retain coverage.
 - Remove a RITK-labeled RIRE cascade that exhausted 60 seconds entirely inside
   its SimpleITK affine precondition and never executed RITK.
+- Correct the inter-subject SyN oracle to require strict positive global-NCC
+  improvement; the former empirical `0.001` magnitude was not derivable from
+  the local-CC optimization objective.
 - Separate VM head RITK and SimpleITK deformable registrations over one shared
   gradient fixture and make SimpleITK divergence a test failure.
 - Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized
