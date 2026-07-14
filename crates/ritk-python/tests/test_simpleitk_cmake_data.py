@@ -6079,8 +6079,8 @@ def test_cmake_patch_based_denoising_structural():
     with open(oracle_path, "rb") as oracle_file:
         oracle_bytes = oracle_file.read()
     assert hashlib.sha512(oracle_bytes).hexdigest() == (
-        "5f56b453f539d143088e44539816f3ced61aea4f29a300162f7e922b611c94ee"
-        "7e0da997555dbb9ee5d2299d6554cdc1d5f50f374d58ad0c97731129f260ef95"
+        "01db7807faef849df34f4be941d1662c56984c788a732a60b71d38eb5e4087e"
+        "b3db1ffad967df1a861baa2f0206c8244453c89260b91d8aa73c68f8fd51bf190"
     )
     s_arr = _np.load(oracle_path, allow_pickle=False).astype(_np.float64)
 

@@ -1,6 +1,6 @@
 # Patch-based denoising oracle
 
-`ra_float_expected.npy` is the `float32` output of SimpleITK 2.5.5
+`ra_float_expected.npy` is the Linux x86-64 `float32` output of SimpleITK 2.5.5
 `PatchBasedDenoisingImageFilter` for `RA-Float.nrrd` with NumPy `default_rng(0)`
 Gaussian noise scaled by 5.0 and these filter settings:
 
@@ -11,7 +11,7 @@ Gaussian noise scaled by 5.0 and these filter settings:
 - one work unit.
 
 SHA-512:
-`5f56b453f539d143088e44539816f3ced61aea4f29a300162f7e922b611c94ee7e0da997555dbb9ee5d2299d6554cdc1d5f50f374d58ad0c97731129f260ef95`.
+`01db7807faef849df34f4be941d1662c56984c788a732a60b71d38eb5e4087eb3db1ffad967df1a861baa2f0206c8244453c89260b91d8aa73c68f8fd51bf190`.
 
 The source input remains independently content-addressed by
 `tests/sitk_input_manifest.json`. The test reconstructs the noisy input and

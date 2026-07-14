@@ -86,6 +86,12 @@ measuring RITK. That deterministic reference is now a committed 1,048,704-byte
 input, seeded noise, RITK parameters, 64-cubed workload, and per-voxel one-ULP
 assertion. CI therefore measures the production kernel rather than the sum of
 two implementations.
+Run `29319990306` confirmed the corrected RITK kernel completes the unchanged
+64-cubed workload in 14.71 seconds. Its only failure was a two-ULP difference
+against the Windows-generated SimpleITK fixture at one or more platform-
+dependent voxels. The fixture is regenerated with SimpleITK 2.5.5 on Linux
+x86-64, matching the authoritative wheel lane while retaining the one-ULP
+contract; the threshold is unchanged.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before
