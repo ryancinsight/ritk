@@ -68,6 +68,8 @@
   standalone external oracle exceeded 60 seconds; retain the RITK contract.
 - [x] Complete module-level separation by removing external-only MNI, RIRE,
   and VM-head registrations while retaining RITK and parity SSOT contracts.
+- [x] Remove the unreachable RIRE SyN cascade whose SimpleITK precondition
+  consumed the entire timeout before RITK execution.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

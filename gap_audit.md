@@ -319,6 +319,12 @@ MNI comparison while retaining its independent value oracle. Dedicated parity
 and physical-space ground-truth modules remain the SSOT for external
 comparisons. Evidence tier: structural call/fixture/assertion comparison and
 non-vacuous-oracle audit; installed-wheel execution remains pending.
+Run `29309395148` showed `test_4b_ritk_syn_on_resampled_ct_mr` consumed all 60
+seconds inside `_sitk_affine_register`; its RITK SyN call was unreachable. The
+test and now-unused affine helper are deleted. The preceding 20-second MNI
+multiresolution SyN value failure remains a real RITK finding; removing this
+later timeout allows the next run to emit its complete assertion report.
+Evidence tier: exact installed-wheel timeout stack and reachability analysis.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate
