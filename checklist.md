@@ -91,6 +91,8 @@
   express its canonical independent algorithm contracts as parameterized cases.
 - [x] Restore the Gaussian sampler-radius intersection exposed by the 64-cubed
   differential case.
+- [x] Remove repeated SimpleITK execution from the timed denoising regression;
+  retain the unchanged 64-cubed RITK workload and hash-pinned full-array oracle.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

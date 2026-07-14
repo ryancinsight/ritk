@@ -78,6 +78,14 @@ remaining denoising defect: the 64-cubed case took 40.57 seconds including its
 omitted SimpleITK's sampler-radius intersection, which is inactive on the small
 differential volumes but clips each search dimension to
 `floor(2.5 * sqrt(sample_variance))` on the larger volume.
+Run `29318153700` passed formatting, clippy, alignment, and Linux/macOS nextest,
+then the same Python case reached the process-enforced 60-second bound. The test
+still spent 26.67 seconds regenerating the serial SimpleITK 2.5.5 output before
+measuring RITK. That deterministic reference is now a committed 1,048,704-byte
+`float32` array with SHA-512 verification; the test retains the full upstream
+input, seeded noise, RITK parameters, 64-cubed workload, and per-voxel one-ULP
+assertion. CI therefore measures the production kernel rather than the sum of
+two implementations.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before

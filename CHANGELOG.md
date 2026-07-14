@@ -15,6 +15,9 @@
 - Capture a symbolized native thread backtrace from the unchanged installed-
   wheel suite, then remove the debugger and release-symbol overrides after the
   Mnemosyne fault is corrected.
+- Pin the full 64-cubed patch-denoising SimpleITK 2.5.5 output as a SHA-512-
+  verified golden array so the timed test retains its complete one-ULP oracle
+  without recomputing the 27-second external reference.
 
 ### Fixed
 - Evaluate patch-based denoising pixels through bounded Moirai batches while
