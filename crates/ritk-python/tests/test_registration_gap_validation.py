@@ -240,10 +240,7 @@ def _sitk_affine_register(
         numberOfIterations=num_iterations,
         gradientMagnitudeTolerance=1e-8,
     )
-    # B-spline coefficients are physical displacements, so their optimizer
-    # scales are already dimensionally uniform. Estimating physical-shift scales
-    # perturbs every coefficient without changing the analytical shifted-
-    # Gaussian oracle's registration contract.
+    reg.SetOptimizerScalesFromPhysicalShift()
     reg.SetInterpolator(sitk.sitkLinear)
     reg.SetShrinkFactorsPerLevel([4, 2, 1])
     reg.SetSmoothingSigmasPerLevel([4.0, 2.0, 0.0])
@@ -261,7 +258,7 @@ def _sitk_affine_register(
 
 
 def _sitk_bspline_register(
-    fixed_sitk, moving_sitk, grid_spacing=8.0, num_iterations=100, learning_rate=1.0
+    fixed_sitk, moving_sitk, grid_spacing=8.0, num_iterations=100
 ):
     """BSpline deformable registration via SimpleITK."""
     fixed_f = sitk.Cast(fixed_sitk, sitk.sitkFloat32)
@@ -276,13 +273,10 @@ def _sitk_bspline_register(
         order=3,
     )
     reg.SetInitialTransform(bspline_init, inPlace=True)
-    reg.SetOptimizerAsRegularStepGradientDescent(
-        learningRate=learning_rate,
-        minStep=1e-4,
-        numberOfIterations=num_iterations,
-        gradientMagnitudeTolerance=1e-8,
-    )
-    reg.SetOptimizerScalesFromPhysicalShift()
+    # L-BFGS-B is SimpleITK's bounded high-dimensional optimizer. It minimizes
+    # the same sampled Mattes objective without estimating a physical scale for
+    # every B-spline coefficient; the caller's iteration cap remains unchanged.
+    reg.SetOptimizerAsLBFGSB(numberOfIterations=num_iterations)
     reg.SetInterpolator(sitk.sitkLinear)
     reg.SetShrinkFactorsPerLevel([1])
     reg.SetSmoothingSigmasPerLevel([0.0])

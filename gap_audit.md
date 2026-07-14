@@ -182,11 +182,12 @@ unchanged wheel verification. Evidence tier: symbolized native production
 trace, provider RAII synchronization, and value-semantic provider tests. The
 corrected wheel passed the complete CMA group, including comparison (37.83 s),
 thin-slab (30.14 s), and masked (26.59 s), then reached the independent
-SimpleITK B-spline oracle. Audit then found the earlier optimization had been
-applied to `_sitk_rigid_register` rather than `_sitk_bspline_register`: rigid
-physical-shift scaling is restored, while the dimensionally uniform B-spline
-coefficients now skip the actual redundant per-parameter scale estimation.
-Iterations, 64-cubed input, sampling, grid, and NCC assertions are unchanged.
+SimpleITK B-spline oracle. Audit found two context-only edits had successively
+targeted the rigid and affine helpers rather than `_sitk_bspline_register`.
+Rigid and affine physical-shift scaling are restored. The actual B-spline
+helper now uses SimpleITK's high-dimensional L-BFGS-B optimizer for the same
+sampled Mattes objective, transform grid, 30-iteration cap, 64-cubed input, and
+NCC assertions, without per-coefficient physical-scale estimation.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate

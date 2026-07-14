@@ -40,10 +40,10 @@
 - [x] Remove GDB and release-symbol overrides after the corrected wheel passed
   every CMA regression; debugger overhead contributed to the SimpleITK
   B-spline oracle reaching the 60-second test bound.
-- [x] Correct the prior B-spline optimization's target: restore physical-shift
-  scales for rigid parameters and remove their redundant estimation from the
-  dimensionally uniform B-spline coefficients without changing workload or
-  assertions.
+- [x] Correct both mis-targeted B-spline optimization edits: restore physical-
+  shift scales for rigid and affine parameters, then route the actual B-spline
+  helper through SimpleITK's high-dimensional L-BFGS-B optimizer without
+  changing its data, metric, sampling, grid, iteration cap, or assertions.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing
