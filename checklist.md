@@ -76,6 +76,8 @@
 - [x] Resolve patch-denoising review findings: enforce the sample-memory bound,
   reuse batch storage, delete the stale duplicate xfail, make SimpleITK failures
   fail, and replace correlation-only validation with clean-image MSE reduction.
+- [x] Make the small-fixture differential prerequisites mandatory and enforce
+  its documented bit-exact contract with exact array equality.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

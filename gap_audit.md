@@ -34,6 +34,11 @@ skip/xfail paths that could conceal binding or oracle failures. The large-data
 structural case now asserts strict reduction of MSE against its known clean
 source for both implementations rather than an underived Pearson threshold;
 the separate small-fixture suite remains the direct SimpleITK differential.
+Final test review found that the small-fixture module could still disappear as
+a green import skip and its claimed bit-exact contract admitted an underived
+`1e-3` error. RITK and SimpleITK are now mandatory imports in this declared
+parity environment, and the four parameterized cases require exact f32 array
+equality.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before

@@ -261,8 +261,11 @@ impl PatchBasedDenoisingImageFilter {
             .max(sample_position_bytes);
         let pixels_per_batch = (sample_budget / sample_bytes_per_pixel).max(1);
         let batch_capacity = pixels_per_batch.min(order.len());
+        let sample_capacity = batch_capacity
+            .saturating_mul(nrr)
+            .min(sample_budget / sample_position_bytes);
         let mut work = Vec::with_capacity(batch_capacity);
-        let mut samples = Vec::with_capacity(sample_budget / sample_position_bytes);
+        let mut samples = Vec::with_capacity(sample_capacity);
         let mut values = Vec::with_capacity(batch_capacity);
 
         // Sampling remains serial and follows ImageBoundaryFacesCalculator order,

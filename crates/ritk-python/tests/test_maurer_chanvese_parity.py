@@ -14,9 +14,8 @@ Evidence tier: differential (bit-exact vs SimpleITK).
 
 import numpy as np
 import pytest
-
-ritk = pytest.importorskip("ritk")
-sitk = pytest.importorskip("SimpleITK")
+import ritk
+import SimpleITK as sitk
 
 
 def _shapes():
@@ -104,7 +103,6 @@ def test_patch_based_denoising_bit_exact(sz, R, nit):
     order. sitk is forced single-threaded so its thread-seeded RNG (SetSeed(thread))
     is deterministic with seed 0; ritk reproduces that exact draw sequence.
 
-    Tolerance is the f32 round-off bound (ritk computes in f64, sitk in f32).
     Evidence tier: differential (bit-exact vs single-threaded SimpleITK).
     """
     import numpy as _np
@@ -124,6 +122,4 @@ def test_patch_based_denoising_bit_exact(sz, R, nit):
         ri, number_of_iterations=nit, number_of_sample_patches=200, patch_radius=R
     )
     r = _np.asarray(ro.to_numpy(), _np.float32).reshape(sz, sz)
-    max_err = float(_np.abs(r.astype(_np.float64) - so.astype(_np.float64)).max())
-    # f32 round-off bound: values ~100, a few f32 ulps ≈ 1e-5..1e-4.
-    assert max_err < 1e-3, f"PatchBasedDenoising sz={sz} R={R} nit={nit}: max-err {max_err:.3e}"
+    _np.testing.assert_array_equal(r, so)
