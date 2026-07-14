@@ -4,8 +4,7 @@ version = "0.9.0"
 edition = "2021"
 
 [features]
-default = ["mnemosyne-alloc"]
-mnemosyne-alloc = ["dep:mnemosyne"]
+default = []
 
 [dependencies]
 burn-ndarray = { workspace = true }
@@ -15,7 +14,6 @@ ritk-morphology = { path = "../ritk-morphology" }
 ritk-annotation = { path = "../ritk-annotation" }
 ritk-tensor-ops = { path = "../ritk-tensor-ops" }
 ritk-statistics = { path = "../ritk-statistics" }
-mnemosyne = { workspace = true, optional = true }
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
 
