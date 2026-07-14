@@ -6043,10 +6043,10 @@ def test_cmake_patch_based_denoising_structural():
     """PatchBasedDenoisingImageFilter matches the single-worker ITK result.
 
     PatchBasedDenoisingImageFilter reduces noise by replacing each pixel with a
-    weighted average of similar patches in the neighbourhood. Single-worker
-    SimpleITK executes after the RITK kernel on the same host so CPU/libm
-    variation cannot consume the one-final-f32-rounding-step contract or perturb
-    the measured production path.
+    weighted average of similar patches in the neighbourhood. RITK and
+    single-worker SimpleITK execute concurrently on the same host; both are
+    deterministic, independent computations, so scheduling does not alter their
+    seeded sample or reduction order and wall time is their maximum, not sum.
 
     Input: RA-Float.nrrd with additive Gaussian noise (std=5.0, seed=0).
     Parameters: KernelBandwidthEstimation=False, NumberOfIterations=1,
@@ -6068,20 +6068,10 @@ def test_cmake_patch_based_denoising_structural():
         arr_clean + rng.standard_normal(arr_clean.shape).astype(_np.float32) * 5.0
     )
 
-    ri = ritk.Image(_np.ascontiguousarray(arr_noisy))
-    ro = ritk.filter.patch_based_denoising(
-        ri,
-        number_of_iterations=1,
-        number_of_sample_patches=200,
-        patch_radius=2,
-        kernel_bandwidth_estimation=False,
-    )
-
-    r_arr = _np.asarray(ro.to_numpy(), _np.float64)
-
     # RITK's public patch radius is voxel-based, so compare the identical
     # unit-spacing voxel problem.  Copying RA-Float's anisotropic metadata only
     # onto the SimpleITK operand changes ITK's physical patch radius and mask.
+    ri = ritk.Image(_np.ascontiguousarray(arr_noisy))
     si_noisy = sitk.GetImageFromArray(arr_noisy)
     f = sitk.PatchBasedDenoisingImageFilter()
     f.KernelBandwidthEstimationOff()
@@ -6089,7 +6079,21 @@ def test_cmake_patch_based_denoising_structural():
     f.SetNumberOfSamplePatches(200)
     f.SetPatchRadius(2)
     f.SetNumberOfWorkUnits(1)
-    s_arr = sitk.GetArrayFromImage(f.Execute(si_noisy)).astype(_np.float64)
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        ritk_result = executor.submit(
+            ritk.filter.patch_based_denoising,
+            ri,
+            number_of_iterations=1,
+            number_of_sample_patches=200,
+            patch_radius=2,
+            kernel_bandwidth_estimation=False,
+        )
+        sitk_result = executor.submit(f.Execute, si_noisy)
+        r_arr = _np.asarray(ritk_result.result().to_numpy(), _np.float64)
+        s_arr = sitk.GetArrayFromImage(sitk_result.result()).astype(_np.float64)
     n_arr = arr_noisy.astype(_np.float64)
 
     assert r_arr.shape == s_arr.shape == n_arr.shape

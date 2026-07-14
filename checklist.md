@@ -78,6 +78,8 @@
   one-ULP acceptance bound.
 - [x] Close review findings for undersized patch inputs and invalid numerical
   configurations with fallible boundary validation and exact error regressions.
+- [x] Remove additive wall time from the full denoising differential by running
+  its deterministic independent implementations concurrently.
 - [x] Resolve patch-denoising review findings: enforce the sample-memory bound,
   reuse batch storage, delete the stale duplicate xfail, make SimpleITK failures
   fail, and replace correlation-only validation with clean-image MSE reduction.

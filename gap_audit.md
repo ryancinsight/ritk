@@ -112,6 +112,12 @@ The public boundary now rejects zero iteration/sample counts, invalid variance
 or bandwidth, overflowed radius, and any active image dimension smaller than
 the patch diameter. Exact error regressions cover planar and volumetric sizes
 plus every numerical failure class.
+Exact-head run `29327419839` passed static gates and Linux/macOS nextest, then
+timed out after RITK completed while the unit-spacing SimpleITK oracle was still
+executing. The two deterministic implementations share no state and preserve
+their own fixed sample/reduction order, so the differential now executes them
+concurrently. This retains both unchanged computations and makes wall time the
+maximum of the two runtimes rather than their sum.
 The same duration report identified a 58.18-second SimpleITK-only B-spline
 self-test. It neither invoked RITK nor compared implementations, while direct
 RITK B-spline quality and RITK-versus-SimpleITK deformable parity tests already

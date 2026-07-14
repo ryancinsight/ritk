@@ -17,6 +17,9 @@
   Mnemosyne fault is corrected.
 
 ### Fixed
+- Run the independent deterministic RITK and single-worker SimpleITK patch-
+  denoising differentials concurrently, preserving both full computations while
+  replacing additive wall time with the slower implementation's wall time.
 - Reject invalid patch-denoising iteration, sample, variance, bandwidth, and
   image-size configurations before they can hang, emit non-finite values, or
   index outside the image buffer.
