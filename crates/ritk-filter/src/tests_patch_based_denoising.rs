@@ -55,6 +55,26 @@ fn test_patch_based_denoising_batch_partition_invariant() {
 }
 
 #[test]
+fn test_sampling_interval_intersects_patch_and_sampler_regions() {
+    let size = 64;
+    let patch_radius = 2;
+    let sample_radius = 50;
+    assert_eq!(
+        sampling_interval(0, size, patch_radius, sample_radius),
+        (0, 50)
+    );
+    assert_eq!(
+        sampling_interval(32, size, patch_radius, sample_radius),
+        (2, 61)
+    );
+    assert_eq!(
+        sampling_interval(63, size, patch_radius, sample_radius),
+        (13, 63)
+    );
+    assert_eq!(sampling_interval(0, size, patch_radius, i64::MAX), (0, 61));
+}
+
+#[test]
 fn test_patch_based_denoising_rejects_unbounded_sample_storage() {
     let image = ts::make_image::<B, 3>(vec![1.0f32; 9], [1, 3, 3]);
     let max_samples = SAMPLE_BATCH_BYTES / size_of::<usize>();

@@ -15,8 +15,9 @@
 //! over patches `q` selected by the `GaussianRandomSpatialNeighborSubsampler`:
 //! per query pixel, `min(number_of_sample_patches, region_size)` patches are
 //! drawn **with replacement**, each coordinate `q[d] = ⌊N(p[d], sample_variance)⌋`
-//! (rejected to the search region), using ITK's `MersenneTwisterRandomVariateGenerator`
-//! (seeded `0`). `w` are the cubic-spline
+//! (rejected to the intersection of the valid-patch region and the sampler's
+//! `⌊2.5·√sample_variance⌋` neighborhood), using ITK's
+//! `MersenneTwisterRandomVariateGenerator` (seeded `0`). `w` are the cubic-spline
 //! smooth-disc patch weights; `σ = kernel_sigma`.
 //!
 //! Pixels are visited in `itk::ImageBoundaryFacesCalculator` order (interior
@@ -57,6 +58,21 @@ struct PatchOffset {
     coordinate: [i64; 3],
     displacement: isize,
     weight: f64,
+}
+
+#[inline]
+fn sampling_interval(
+    position: i64,
+    size: i64,
+    patch_radius: i64,
+    sample_radius: i64,
+) -> (i64, i64) {
+    let constrained_lo = position.min(patch_radius);
+    let constrained_hi = position.max(size - patch_radius - 1);
+    (
+        constrained_lo.max(position.saturating_sub(sample_radius).max(0)),
+        constrained_hi.min(position.saturating_add(sample_radius)),
+    )
 }
 
 // ── ITK MersenneTwister (MT19937) ───────────────────────────────────────────────
@@ -235,6 +251,7 @@ impl PatchBasedDenoisingImageFilter {
         let s2 = self.kernel_sigma * self.kernel_sigma;
         let nrr = self.number_of_sample_patches;
         let variance = self.sample_variance;
+        let sample_radius = (variance.sqrt() * 2.5).floor() as i64;
 
         // Sizes in ITK index order (x, y, z).
         let sizes: [i64; 3] = [nx as i64, ny as i64, nz as i64];
@@ -302,8 +319,7 @@ impl PatchBasedDenoisingImageFilter {
                 let mut hi = [0i64; 3];
                 let q0 = [x, y, z];
                 for d in 0..ndim {
-                    lo[d] = q0[d].min(r);
-                    hi[d] = q0[d].max(sizes[d] - r - 1);
+                    (lo[d], hi[d]) = sampling_interval(q0[d], sizes[d], r, sample_radius);
                 }
                 let region = (0..ndim)
                     .map(|d| (hi[d] - lo[d] + 1) as u64)

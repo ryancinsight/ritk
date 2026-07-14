@@ -72,6 +72,12 @@ side-by-side duplicate is deleted. The canonical gap-validation report is now
 parameterized by algorithm, retaining every configuration, invocation, input,
 and strict NCC-improvement assertion while giving each independent contract its
 own diagnostic and timeout boundary.
+Run `29316281028` completed 1,292 of 1,293 Python tests in 13:34 and exposed the
+remaining denoising defect: the 64-cubed case took 40.57 seconds including its
+27-second live SimpleITK oracle and diverged numerically. The implementation had
+omitted SimpleITK's sampler-radius intersection, which is inactive on the small
+differential volumes but clips each search dimension to
+`floor(2.5 * sqrt(sample_variance))` on the larger volume.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before

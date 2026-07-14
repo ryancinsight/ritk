@@ -46,6 +46,8 @@
   independent value oracles.
 - Remove the remaining duplicate ten-algorithm shifted-blob quality report and
   parameterize its canonical copy by independent algorithm contract.
+- Restore the Gaussian patch sampler's finite neighborhood on volumes larger
+  than its radius.
 - Remove a SimpleITK B-spline check that applied an underived NCC tolerance to
   cross-modal CT and MR intensities; the physical-space RIRE rigid oracle
   retains the dataset's ground-truth-backed cross-modal validation.
