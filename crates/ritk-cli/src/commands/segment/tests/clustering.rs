@@ -477,32 +477,6 @@ fn native_postprocessing_cli_matches_legacy_exactly() {
     }
 }
 
-#[test]
-fn native_postprocessing_cli_rejects_known_nonnative_format() {
-    let dir = tempdir().unwrap();
-    for (index, method) in [
-        SegmentMethod::DistanceTransform,
-        SegmentMethod::FillHoles,
-        SegmentMethod::MorphologicalGradient,
-        SegmentMethod::Skeletonization,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let output = dir.path().join(format!("output-{index}.nii"));
-        let error = run(default_args(
-            dir.path().join("input.vtk"),
-            output.clone(),
-            method,
-        ))
-        .expect_err("known nonnative input must be rejected before I/O");
-        assert!(error
-            .to_string()
-            .contains("requires native input/output formats"));
-        assert!(!output.exists());
-    }
-}
-
 // ── Connected-components tests ────────────────────────────────────────────
 
 #[test]

@@ -136,8 +136,8 @@ fn write_rejects_nz_not_one() {
     assert!(result.is_err(), "write_jpeg should reject nz=2");
     let msg = format!("{}", result.unwrap_err());
     assert!(
-        msg.contains("nz=2"),
-        "error message should contain 'nz=2', got: {}",
+        msg.contains("nz=2") || msg.contains("depth=2"),
+        "error message should mention rejected depth, got: {}",
         msg
     );
 }

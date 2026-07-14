@@ -489,10 +489,7 @@ mod tests {
             !is_native_write_capable(ImageFormat::Dicom),
             "DICOM writes remain on the legacy writer until a native writer exists"
         );
-        assert!(
-            !is_native_read_capable(ImageFormat::Vtk),
-            "VTK has no native reader in ritk-io"
-        );
+        assert!(is_native_read_capable(ImageFormat::Vtk));
     }
 
     #[test]
