@@ -206,14 +206,45 @@ impl PatchBasedDenoisingImageFilter {
     /// Apply patch-based denoising to a 3-D image (`nz == 1` ⇒ 2-D).
     ///
     /// # Errors
-    /// Returns `Err` if the tensor data cannot be read as `f32` or the requested
-    /// sample count exceeds the bounded per-batch coordinate capacity.
+    /// Returns `Err` if the configuration is invalid, the image is smaller than
+    /// one patch, or the tensor data cannot be read as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let max_samples = SAMPLE_BATCH_BYTES / size_of::<usize>();
+        anyhow::ensure!(
+            self.number_of_iterations > 0,
+            "number_of_iterations must be positive"
+        );
+        anyhow::ensure!(
+            self.number_of_sample_patches > 0,
+            "number_of_sample_patches must be positive"
+        );
         anyhow::ensure!(
             self.number_of_sample_patches <= max_samples,
             "number_of_sample_patches {} exceeds bounded capacity {max_samples}",
             self.number_of_sample_patches
+        );
+        anyhow::ensure!(
+            self.sample_variance.is_finite() && self.sample_variance >= 0.0,
+            "sample_variance must be finite and nonnegative, got {}",
+            self.sample_variance
+        );
+        anyhow::ensure!(
+            self.kernel_sigma.is_finite() && self.kernel_sigma > 0.0,
+            "kernel_sigma must be finite and positive, got {}",
+            self.kernel_sigma
+        );
+        let patch_diameter = self
+            .patch_radius
+            .checked_mul(2)
+            .and_then(|diameter| diameter.checked_add(1))
+            .ok_or_else(|| anyhow::anyhow!("patch_radius {} overflows", self.patch_radius))?;
+        let dims = image.shape();
+        let active_dims = if dims[0] == 1 { &dims[1..] } else { &dims[..] };
+        anyhow::ensure!(
+            active_dims
+                .iter()
+                .all(|&dimension| dimension >= patch_diameter),
+            "patch diameter {patch_diameter} exceeds active image dimensions {active_dims:?}"
         );
         let (data, dims) = extract_vec(image)?;
         let result = self.run(&data, dims);

@@ -94,6 +94,84 @@ fn test_patch_based_denoising_rejects_unbounded_sample_storage() {
     );
 }
 
+#[test]
+fn test_patch_based_denoising_rejects_invalid_configuration() {
+    let image = ts::make_image::<B, 3>(vec![1.0f32; 81], [1, 9, 9]);
+    let cases = [
+        (
+            PatchBasedDenoisingImageFilter {
+                number_of_iterations: 0,
+                ..Default::default()
+            },
+            "number_of_iterations must be positive",
+        ),
+        (
+            PatchBasedDenoisingImageFilter {
+                number_of_sample_patches: 0,
+                ..Default::default()
+            },
+            "number_of_sample_patches must be positive",
+        ),
+        (
+            PatchBasedDenoisingImageFilter {
+                sample_variance: f64::NAN,
+                ..Default::default()
+            },
+            "sample_variance must be finite and nonnegative, got NaN",
+        ),
+        (
+            PatchBasedDenoisingImageFilter {
+                sample_variance: -1.0,
+                ..Default::default()
+            },
+            "sample_variance must be finite and nonnegative, got -1",
+        ),
+        (
+            PatchBasedDenoisingImageFilter {
+                kernel_sigma: 0.0,
+                ..Default::default()
+            },
+            "kernel_sigma must be finite and positive, got 0",
+        ),
+        (
+            PatchBasedDenoisingImageFilter {
+                kernel_sigma: f64::NAN,
+                ..Default::default()
+            },
+            "kernel_sigma must be finite and positive, got NaN",
+        ),
+    ];
+
+    for (filter, expected) in cases {
+        assert_eq!(filter.apply(&image).unwrap_err().to_string(), expected);
+    }
+
+    let overflow = PatchBasedDenoisingImageFilter {
+        patch_radius: usize::MAX,
+        ..Default::default()
+    };
+    assert_eq!(
+        overflow.apply(&image).unwrap_err().to_string(),
+        format!("patch_radius {} overflows", usize::MAX)
+    );
+}
+
+#[test]
+fn test_patch_based_denoising_rejects_image_smaller_than_patch() {
+    let planar = ts::make_image::<B, 3>(vec![1.0f32; 9], [1, 3, 3]);
+    let volumetric = ts::make_image::<B, 3>(vec![1.0f32; 5 * 9 * 9], [5, 9, 9]);
+    let filter = PatchBasedDenoisingImageFilter::default();
+
+    assert_eq!(
+        filter.apply(&planar).unwrap_err().to_string(),
+        "patch diameter 9 exceeds active image dimensions [3, 3]"
+    );
+    assert_eq!(
+        filter.apply(&volumetric).unwrap_err().to_string(),
+        "patch diameter 9 exceeds active image dimensions [5, 9, 9]"
+    );
+}
+
 /// A constant image is a fixed point (every patch distance is 0 → all weights 1
 /// → the gradient of (c − c) is exactly 0).
 #[test]

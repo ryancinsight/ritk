@@ -17,6 +17,9 @@
   Mnemosyne fault is corrected.
 
 ### Fixed
+- Reject invalid patch-denoising iteration, sample, variance, bandwidth, and
+  image-size configurations before they can hang, emit non-finite values, or
+  index outside the image buffer.
 - Compare patch-denoising implementations on identical unit-spacing metadata;
   the prior oracle copied RA-Float's anisotropic spacing only to SimpleITK,
   changing its physical patch extent while RITK's public radius is voxel-based.
