@@ -228,6 +228,58 @@ pub(crate) fn flat(iz: usize, iy: usize, ix: usize, ny: usize, nx: usize) -> usi
 
 // ── Trilinear interpolation ───────────────────────────────────────────────────
 
+#[derive(Clone, Copy)]
+struct TrilinearStencil {
+    indices: [usize; 8],
+    dz: f32,
+    dy: f32,
+    dx: f32,
+}
+
+impl TrilinearStencil {
+    #[inline(always)]
+    fn new(dims: VolumeDims, z: f32, y: f32, x: f32) -> Self {
+        let [nz, ny, nx] = dims.0;
+        let z = z.max(0.0).min((nz as f32) - 1.0);
+        let y = y.max(0.0).min((ny as f32) - 1.0);
+        let x = x.max(0.0).min((nx as f32) - 1.0);
+        let iz0 = z.floor() as usize;
+        let iy0 = y.floor() as usize;
+        let ix0 = x.floor() as usize;
+        let iz1 = (iz0 + 1).min(nz - 1);
+        let iy1 = (iy0 + 1).min(ny - 1);
+        let ix1 = (ix0 + 1).min(nx - 1);
+
+        Self {
+            indices: [
+                flat(iz0, iy0, ix0, ny, nx),
+                flat(iz0, iy0, ix1, ny, nx),
+                flat(iz0, iy1, ix0, ny, nx),
+                flat(iz0, iy1, ix1, ny, nx),
+                flat(iz1, iy0, ix0, ny, nx),
+                flat(iz1, iy0, ix1, ny, nx),
+                flat(iz1, iy1, ix0, ny, nx),
+                flat(iz1, iy1, ix1, ny, nx),
+            ],
+            dz: z - iz0 as f32,
+            dy: y - iy0 as f32,
+            dx: x - ix0 as f32,
+        }
+    }
+
+    #[inline(always)]
+    fn sample(self, data: &[f32]) -> f32 {
+        let [i000, i001, i010, i011, i100, i101, i110, i111] = self.indices;
+        let c00 = data[i000] * (1.0 - self.dx) + data[i001] * self.dx;
+        let c01 = data[i010] * (1.0 - self.dx) + data[i011] * self.dx;
+        let c10 = data[i100] * (1.0 - self.dx) + data[i101] * self.dx;
+        let c11 = data[i110] * (1.0 - self.dx) + data[i111] * self.dx;
+        let c0 = c00 * (1.0 - self.dy) + c01 * self.dy;
+        let c1 = c10 * (1.0 - self.dy) + c11 * self.dy;
+        c0 * (1.0 - self.dz) + c1 * self.dz
+    }
+}
+
 /// Sample `data` at a continuous position `(z, y, x)` using trilinear
 /// interpolation with clamp-to-border boundary condition.
 ///
@@ -236,34 +288,24 @@ pub(crate) fn flat(iz: usize, iy: usize, ix: usize, ny: usize, nx: usize) -> usi
 /// - Positions outside `[0, nZ−1] × [0, nY−1] × [0, nX−1]` are clamped.
 #[inline]
 pub(crate) fn trilinear_interpolate(data: &[f32], dims: VolumeDims, z: f32, y: f32, x: f32) -> f32 {
-    let [nz, ny, nx] = dims.0;
+    TrilinearStencil::new(dims, z, y, x).sample(data)
+}
 
-    let z = z.max(0.0).min((nz as f32) - 1.0);
-    let y = y.max(0.0).min((ny as f32) - 1.0);
-    let x = x.max(0.0).min((nx as f32) - 1.0);
-
-    let iz0 = z.floor() as usize;
-    let iy0 = y.floor() as usize;
-    let ix0 = x.floor() as usize;
-    let iz1 = (iz0 + 1).min(nz - 1);
-    let iy1 = (iy0 + 1).min(ny - 1);
-    let ix1 = (ix0 + 1).min(nx - 1);
-
-    let dz = z - iz0 as f32;
-    let dy = y - iy0 as f32;
-    let dx = x - ix0 as f32;
-
-    let g = |iz: usize, iy: usize, ix: usize| data[flat(iz, iy, ix, ny, nx)];
-
-    let c00 = g(iz0, iy0, ix0) * (1.0 - dx) + g(iz0, iy0, ix1) * dx;
-    let c01 = g(iz0, iy1, ix0) * (1.0 - dx) + g(iz0, iy1, ix1) * dx;
-    let c10 = g(iz1, iy0, ix0) * (1.0 - dx) + g(iz1, iy0, ix1) * dx;
-    let c11 = g(iz1, iy1, ix0) * (1.0 - dx) + g(iz1, iy1, ix1) * dx;
-
-    let c0 = c00 * (1.0 - dy) + c01 * dy;
-    let c1 = c10 * (1.0 - dy) + c11 * dy;
-
-    c0 * (1.0 - dz) + c1 * dz
+/// Sample all components of a vector field with one shared trilinear stencil.
+#[inline]
+pub(crate) fn trilinear_interpolate_field(
+    field: VectorField<'_>,
+    dims: VolumeDims,
+    z: f32,
+    y: f32,
+    x: f32,
+) -> [f32; 3] {
+    let stencil = TrilinearStencil::new(dims, z, y, x);
+    [
+        stencil.sample(field.z),
+        stencil.sample(field.y),
+        stencil.sample(field.x),
+    ]
 }
 
 #[cfg(test)]
@@ -309,5 +351,31 @@ mod tests {
         let data = vec![7.0_f32; 4 * 4 * 4];
         let v = trilinear_interpolate(&data, dims, 1.7, 2.3, 0.8);
         assert!((v - 7.0).abs() < 1e-5, "expected 7.0, got {v}");
+    }
+
+    #[test]
+    fn vector_trilinear_matches_scalar_components_exactly() {
+        let dims = VolumeDims::new([4, 5, 6]);
+        let z = make_ramp(dims);
+        let y: Vec<f32> = z.iter().map(|value| value.mul_add(-0.75, 2.0)).collect();
+        let x: Vec<f32> = z.iter().map(|value| value.mul_add(1.25, -3.0)).collect();
+        let position = [-0.25, 2.3, 5.4];
+        let actual = trilinear_interpolate_field(
+            VectorField {
+                z: &z,
+                y: &y,
+                x: &x,
+            },
+            dims,
+            position[0],
+            position[1],
+            position[2],
+        );
+        let expected = [
+            trilinear_interpolate(&z, dims, position[0], position[1], position[2]),
+            trilinear_interpolate(&y, dims, position[0], position[1], position[2]),
+            trilinear_interpolate(&x, dims, position[0], position[1], position[2]),
+        ];
+        assert_eq!(actual, expected);
     }
 }

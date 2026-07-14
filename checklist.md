@@ -56,6 +56,8 @@
   with exact force and analytically bounded reduction-order differentials.
 - [x] Ping-pong scaling-and-squaring buffers so the standard even integration
   depth performs no redundant full-field copies; verify odd and even parity.
+- [x] Consolidate three-component field interpolation onto one shared stencil,
+  with bit-exact scalar/component differential coverage.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

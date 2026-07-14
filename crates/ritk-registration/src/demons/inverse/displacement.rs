@@ -21,7 +21,7 @@
 //!   *IEEE Trans. Med. Imaging* 20(7):568–582.
 
 use crate::deformable_field_ops::{
-    trilinear_interpolate, VectorField, VectorFieldMut, VelocityField,
+    trilinear_interpolate_field, VectorField, VectorFieldMut, VelocityField,
 };
 
 /// Default convergence tolerance for iterative inverse displacement field computation.
@@ -141,11 +141,6 @@ pub(super) fn warp_displacement_into(
 ) {
     let [nz, ny, nx] = dims;
     let VectorField {
-        z: disp_z,
-        y: disp_y,
-        x: disp_x,
-    } = disp;
-    let VectorField {
         z: query_z,
         y: query_y,
         x: query_x,
@@ -164,9 +159,11 @@ pub(super) fn warp_displacement_into(
                 let wy = iy as f32 + query_y[fi];
                 let wx = ix as f32 + query_x[fi];
 
-                out_z[fi] = -trilinear_interpolate(disp_z, dims.into(), wz, wy, wx);
-                out_y[fi] = -trilinear_interpolate(disp_y, dims.into(), wz, wy, wx);
-                out_x[fi] = -trilinear_interpolate(disp_x, dims.into(), wz, wy, wx);
+                let [sample_z, sample_y, sample_x] =
+                    trilinear_interpolate_field(disp, dims.into(), wz, wy, wx);
+                out_z[fi] = -sample_z;
+                out_y[fi] = -sample_y;
+                out_x[fi] = -sample_x;
             }
         }
     }

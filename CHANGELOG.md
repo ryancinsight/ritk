@@ -31,6 +31,8 @@
   so each voxel queries local statistics once instead of three times.
 - Alternate scaling-and-squaring output and scratch fields, eliminating 36
   redundant full-volume component copies per standard SyN iteration.
+- Reuse one trilinear stencil when sampling three-component displacement fields
+  in composition, inverse warping, and inverse-consistency residuals.
 - Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized
   native trace showed the decay sweep could release a huge segment still
   observed by `TaggedSegmentStack::pop`.

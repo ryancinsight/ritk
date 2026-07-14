@@ -11,7 +11,7 @@
 //! The result is the mean over all voxels.  For n_squarings ≥ 6 in f32
 //! arithmetic the residual is invariantly < 1e-4 voxels.
 
-use crate::deformable_field_ops::trilinear_interpolate;
+use crate::deformable_field_ops::{trilinear_interpolate_field, VectorField};
 
 /// Compute IC_residual = (1/n) * Σ_x ‖φ_fwd(φ_inv(x)) − x‖₂.
 pub(super) fn compute_ic_residual(
@@ -26,6 +26,11 @@ pub(super) fn compute_ic_residual(
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
     let flat = |iz: usize, iy: usize, ix: usize| iz * ny * nx + iy * nx + ix;
+    let phi = VectorField {
+        z: phi_z,
+        y: phi_y,
+        x: phi_x,
+    };
     let mut sum_dist = 0.0_f64;
 
     for iz in 0..nz {
@@ -35,9 +40,7 @@ pub(super) fn compute_ic_residual(
                 let xpz = iz as f32 + psi_z[idx];
                 let xpy = iy as f32 + psi_y[idx];
                 let xpx = ix as f32 + psi_x[idx];
-                let paz = trilinear_interpolate(phi_z, dims.into(), xpz, xpy, xpx);
-                let pay = trilinear_interpolate(phi_y, dims.into(), xpz, xpy, xpx);
-                let pax = trilinear_interpolate(phi_x, dims.into(), xpz, xpy, xpx);
+                let [paz, pay, pax] = trilinear_interpolate_field(phi, dims.into(), xpz, xpy, xpx);
                 let dz = (xpz + paz - iz as f32) as f64;
                 let dy = (xpy + pay - iy as f32) as f64;
                 let dx = (xpx + pax - ix as f32) as f64;

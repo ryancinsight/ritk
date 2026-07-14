@@ -241,6 +241,14 @@ differentials against the independently allocating implementation pin buffer
 parity. Evidence tier before CI: structural reduction from 36 to zero full-
 volume component copies per SyN iteration at the standard depth, plus bit-exact
 differential verification; installed-wheel timing remains the acceptance gate.
+Field composition then sampled each displacement component at the same
+coordinate through three scalar trilinear calls, rebuilding identical clamped
+indices and weights. One canonical stencil now serves scalar interpolation and
+three-component field interpolation. Composition, inverse-displacement warping,
+and inverse-consistency residuals consume the field form, so no triplicate
+production call site remains. Evidence tier before CI: shared construction by
+code structure and bit-exact scalar/component differential verification;
+installed-wheel timing remains the acceptance gate.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate
