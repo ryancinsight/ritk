@@ -185,9 +185,14 @@ thin-slab (30.14 s), and masked (26.59 s), then reached the independent
 SimpleITK B-spline oracle. Audit found two context-only edits had successively
 targeted the rigid and affine helpers rather than `_sitk_bspline_register`.
 Rigid and affine physical-shift scaling are restored. The actual B-spline
-helper now uses SimpleITK's high-dimensional L-BFGS-B optimizer for the same
-sampled Mattes objective, transform grid, 30-iteration cap, 64-cubed input, and
-NCC assertions, without per-coefficient physical-scale estimation.
+helper now minimizes SimpleITK correlation, the objective measured by its NCC
+assertions, with the same random sample fraction, transform grid, 30-iteration
+cap, and 64-cubed input. The exact synthetic-Gaussian diagnostic completed in
+2.80 seconds and improved NCC from 0.848935 to 0.999513. The discarded L-BFGS-B
+plus Mattes configuration took 80.42 seconds on the same case. B-spline
+coefficients remain uniformly dimensioned physical displacements, so the
+helper does not perform redundant per-coefficient physical-scale estimation.
+Evidence tier: empirical differential timing and value-semantic NCC comparison.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate

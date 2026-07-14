@@ -258,13 +258,19 @@ def _sitk_affine_register(
 
 
 def _sitk_bspline_register(
-    fixed_sitk, moving_sitk, grid_spacing=8.0, num_iterations=100
+    fixed_sitk,
+    moving_sitk,
+    grid_spacing=8.0,
+    num_iterations=100,
+    learning_rate=1.0,
 ):
     """BSpline deformable registration via SimpleITK."""
     fixed_f = sitk.Cast(fixed_sitk, sitk.sitkFloat32)
     moving_f = sitk.Cast(moving_sitk, sitk.sitkFloat32)
     reg = sitk.ImageRegistrationMethod()
-    reg.SetMetricAsMattesMutualInformation(numberOfHistogramBins=32)
+    # The callers assert normalized cross-correlation, so optimize that exact
+    # objective rather than paying for a sampled histogram surrogate.
+    reg.SetMetricAsCorrelation()
     reg.SetMetricSamplingStrategy(reg.RANDOM)
     reg.SetMetricSamplingPercentage(0.25, seed=42)
     bspline_init = sitk.BSplineTransformInitializer(
@@ -273,10 +279,13 @@ def _sitk_bspline_register(
         order=3,
     )
     reg.SetInitialTransform(bspline_init, inPlace=True)
-    # L-BFGS-B is SimpleITK's bounded high-dimensional optimizer. It minimizes
-    # the same sampled Mattes objective without estimating a physical scale for
-    # every B-spline coefficient; the caller's iteration cap remains unchanged.
-    reg.SetOptimizerAsLBFGSB(numberOfIterations=num_iterations)
+    # B-spline coefficients are physical displacements with uniform units, so
+    # physical-shift scale estimation is redundant for this parameterization.
+    reg.SetOptimizerAsRegularStepGradientDescent(
+        learningRate=learning_rate,
+        minStep=1e-4,
+        numberOfIterations=num_iterations,
+    )
     reg.SetInterpolator(sitk.sitkLinear)
     reg.SetShrinkFactorsPerLevel([1])
     reg.SetSmoothingSigmasPerLevel([0.0])

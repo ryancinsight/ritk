@@ -17,8 +17,8 @@
   Mnemosyne fault is corrected.
 
 ### Fixed
-- Use SimpleITK's L-BFGS-B optimizer for the high-dimensional B-spline oracle
-  and restore physical-shift scaling to the rigid and affine helpers.
+- Align the SimpleITK B-spline optimizer with the NCC oracle's correlation
+  objective and restore physical-shift scaling to the rigid and affine helpers.
 - Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized
   native trace showed the decay sweep could release a huge segment still
   observed by `TaggedSegmentStack::pop`.

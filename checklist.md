@@ -41,9 +41,9 @@
   every CMA regression; debugger overhead contributed to the SimpleITK
   B-spline oracle reaching the 60-second test bound.
 - [x] Correct both mis-targeted B-spline optimization edits: restore physical-
-  shift scales for rigid and affine parameters, then route the actual B-spline
-  helper through SimpleITK's high-dimensional L-BFGS-B optimizer without
-  changing its data, metric, sampling, grid, iteration cap, or assertions.
+  shift scales for rigid and affine parameters, then align the actual B-spline
+  helper's optimizer objective with its NCC assertion without changing its
+  data, sampling, grid, iteration cap, or assertions.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing
