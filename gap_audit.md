@@ -31,7 +31,15 @@ value-semantic differential tests. `cargo nextest run -p ritk-codecs --test
 jpeg2000_interop --all-features --no-fail-fast --locked` passed 14/14;
 `cargo nextest run -p ritk-codecs --all-features --no-fail-fast --locked`
 passed 256/256; warnings-denied Clippy, doctests, and package rustdoc passed.
-GitHub Actions remains the final verification gate for the published revision.
+The first published CI rerun passed the public OpenJPEG fetch, then stopped at
+the stale Apollo checkout: the action selected `apollo-fft` 0.14.0 while the
+workspace requires 0.15.0. The action now pins public Apollo commit
+`b29100395420dd43441f8a7422d95819aba51a9e`, and the interop source is formatted
+by the repository toolchain. GitHub Actions remains the final verification
+gate for the corrected revision.
+
+Residual: Apollo main still exposes 0.14.0, so the action's 0.15.0 pin follows
+the public RustFFT-removal branch until that provider state is promoted.
 
 ## MIG-654-01 audit (2026-07-14)
 

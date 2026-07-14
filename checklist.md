@@ -21,8 +21,15 @@
       decode directions remain value-semantic differential tests.
 - [x] Run the package gates. Completion condition: Clippy, doctests, rustdoc,
       the 14-test interop suite, and the full `ritk-codecs` suite pass.
+- [x] Apply CI-discovered corrections. Completion condition: the interop
+      source is rustfmt-clean and the dependency checkout action pins the
+      public Apollo revision that provides `apollo-fft` 0.15.
 - [ ] Re-run GitHub Actions and close the item when the dependency-fetch,
       Clippy, dependency-alignment, wheel-smoke, and Python matrix jobs pass.
+
+Residual: Apollo is pinned to public `b29100395420dd43441f8a7422d95819aba51a9e`
+because Apollo main still publishes `apollo-fft` 0.14.0. Remove this temporary
+branch pin when the 0.15 provider state is promoted upstream.
 
 ## MIG-654-01 — Native migration branch reconciliation
 **Target version**: Unreleased patch

@@ -2,10 +2,13 @@
 
 - **DEP-655-01 [patch] - Reachable OpenJPEG differential oracle
   (REVIEW; GitHub CI pending).** Replace the private `ryancinsight/openjp2`
-  revision that GitHub Actions cannot fetch with public OpenJPEG PR 9, and
-  remove the stale `jpeg2k` wrapper from the differential tests. The tests now
+  revision that GitHub Actions cannot fetch with public OpenJPEG PR 9, remove
+  the stale `jpeg2k` wrapper from the differential tests, and align the CI
+  Apollo checkout with the declared `apollo-fft` 0.15 provider. The tests now
   call the public `openjp2` API directly. Local package gates pass; GitHub CI
-  must re-run against the reachable source before closure.
+  must re-run against the reachable source and Apollo revision before closure.
+  Residual: the Apollo pin tracks its public RustFFT-removal branch until that
+  provider state is promoted to Apollo main.
 
 - **MIG-654-01 [patch] - Reconcile native migration branch with current main
   (REVIEW).** Integrate the merged CI/provider checkout topology, remove stale

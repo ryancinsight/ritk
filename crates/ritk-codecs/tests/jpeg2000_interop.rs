@@ -148,9 +148,9 @@ fn openjp2_decode(j2k: &[u8]) -> Vec<i32> {
     unsafe {
         use openjp2::openjpeg::{
             opj_create_decompress, opj_decode, opj_destroy_codec, opj_dparameters_t,
-            opj_end_decompress, opj_image_destroy, opj_read_header,
-            opj_setup_decoder, opj_stream_create_default_file_stream, opj_stream_destroy,
-            CODEC_FORMAT, OPJ_BOOL, OPJ_TRUE,
+            opj_end_decompress, opj_image_destroy, opj_read_header, opj_setup_decoder,
+            opj_stream_create_default_file_stream, opj_stream_destroy, CODEC_FORMAT, OPJ_BOOL,
+            OPJ_TRUE,
         };
         use openjp2::opj_image as opj_image_t;
 
@@ -163,10 +163,7 @@ fn openjp2_decode(j2k: &[u8]) -> Vec<i32> {
             "opj_setup_decoder failed"
         );
 
-        let stream = opj_stream_create_default_file_stream(
-            tmp_cstr.as_ptr(),
-            OPJ_TRUE as OPJ_BOOL,
-        );
+        let stream = opj_stream_create_default_file_stream(tmp_cstr.as_ptr(), OPJ_TRUE as OPJ_BOOL);
         assert!(!stream.is_null(), "decoder stream is NULL");
         let mut image = std::ptr::null_mut::<opj_image_t>();
         assert_eq!(
@@ -191,7 +188,9 @@ fn openjp2_decode(j2k: &[u8]) -> Vec<i32> {
         assert!(!component.data.is_null(), "decoded component data is NULL");
         let width = usize::try_from(component.w).expect("component width exceeds usize");
         let height = usize::try_from(component.h).expect("component height exceeds usize");
-        let sample_count = width.checked_mul(height).expect("component shape overflows usize");
+        let sample_count = width
+            .checked_mul(height)
+            .expect("component shape overflows usize");
         let data = std::slice::from_raw_parts(component.data, sample_count).to_vec();
 
         opj_destroy_codec(codec);
