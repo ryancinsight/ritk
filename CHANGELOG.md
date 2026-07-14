@@ -42,6 +42,11 @@
 - Remove a SimpleITK B-spline check that applied an underived NCC tolerance to
   cross-modal CT and MR intensities; the physical-space RIRE rigid oracle
   retains the dataset's ground-truth-backed cross-modal validation.
+- Separate the RITK and SimpleITK locally deformed Gaussian registrations into
+  independent tests over one shared analytical fixture so unrelated runtimes
+  cannot exhaust one test's 60-second budget.
+- Separate VM head RITK and SimpleITK deformable registrations over one shared
+  gradient fixture and make SimpleITK divergence a test failure.
 - Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized
   native trace showed the decay sweep could release a huge segment still
   observed by `TaggedSegmentStack::pop`.

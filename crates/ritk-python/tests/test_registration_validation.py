@@ -602,22 +602,9 @@ def test_1a_shifted_sphere_translation_recovery():
     )
 
 
-@pytest.mark.slow
-def test_1b_gaussian_blob_local_deformation():
-    """RITK SyN and SimpleITK BSpline must recover a local deformation on a Gaussian blob.
-
-    Mathematical basis: a Gaussian blob with σ=5 in a 48³ volume.  A smooth
-    local displacement (amplitude A=2.5 voxels, σ=6) is applied via
-    scipy.ndimage.map_coordinates.  Both RITK syn_register and SimpleITK
-    BSpline registration must achieve NCC >= 0.90 between the warped moving
-    and the fixed image.
-
-    Threshold derivation: the Gaussian blob has broad spatial support
-    (σ=5 in a 48³ volume), so a localised displacement of amplitude 2.5
-    affects only a fraction of voxels.  NCC >= 0.90 permits up to 10%
-    residual misalignment energy, which is conservative for deformable
-    registration with 50+ iterations on a smooth signal.
-    """
+@pytest.fixture
+def locally_deformed_gaussian_pair():
+    """Construct the shared analytical local-deformation registration pair."""
     from scipy.ndimage import map_coordinates
 
     sz = 48
@@ -628,7 +615,6 @@ def test_1b_gaussian_blob_local_deformation():
         -((z - c) ** 2 + (y - c) ** 2 + (x - c) ** 2) / (2 * sigma_blob**2)
     ).astype(np.float32)
 
-    # Apply smooth local displacement in the x-direction
     amplitude = 2.5
     sigma_disp = 6.0
     bump = amplitude * np.exp(
@@ -645,8 +631,25 @@ def test_1b_gaussian_blob_local_deformation():
         .reshape(sz, sz, sz)
         .astype(np.float32)
     )
+    return arr_fixed, arr_moving
 
-    # -- RITK SyN --
+
+@pytest.mark.slow
+def test_1b_ritk_gaussian_blob_local_deformation(locally_deformed_gaussian_pair):
+    """RITK SyN must recover a local deformation on a Gaussian blob.
+
+    Mathematical basis: a Gaussian blob with σ=5 in a 48³ volume.  A smooth
+    local displacement (amplitude A=2.5 voxels, σ=6) is applied in the
+    x-direction. RITK SyN must achieve NCC >= 0.90 between the warped moving
+    and fixed images.
+
+    Threshold derivation: the Gaussian blob has broad spatial support
+    (σ=5 in a 48³ volume), so a localised displacement of amplitude 2.5
+    affects only a fraction of voxels.  NCC >= 0.90 permits up to 10%
+    residual misalignment energy, which is conservative for deformable
+    registration with 50+ iterations on a smooth signal.
+    """
+    arr_fixed, arr_moving = locally_deformed_gaussian_pair
     fixed_ritk = numpy_to_ritk(arr_fixed)
     moving_ritk = numpy_to_ritk(arr_moving)
     warped_fixed_ritk, warped_moving_ritk = ritk.registration.syn_register(fixed_ritk,
@@ -656,7 +659,15 @@ def test_1b_gaussian_blob_local_deformation():
         f"RITK SyN NCC {ncc_ritk:.4f} < 0.90 on locally deformed Gaussian blob"
     )
 
-    # -- SimpleITK BSpline --
+
+@pytest.mark.slow
+def test_1b_sitk_gaussian_blob_local_deformation(locally_deformed_gaussian_pair):
+    """SimpleITK B-spline must recover the shared local deformation.
+
+    The analytical input and NCC >= 0.90 contract are identical to the RITK
+    oracle, but the independent registration executes under its own timeout.
+    """
+    arr_fixed, arr_moving = locally_deformed_gaussian_pair
     fixed_sitk = numpy_to_sitk(arr_fixed)
     moving_sitk = numpy_to_sitk(arr_moving)
     result_sitk, _ = _sitk_bspline_register(
@@ -1279,15 +1290,25 @@ def _load_vm_cropped(
     return ct_cropped, mr_cropped
 
 
+@pytest.fixture
+def vm_gradient_pair():
+    """Construct the normalized VM head gradient-magnitude pair."""
+    ct_cropped, mr_cropped = _load_vm_cropped(48)
+    gm_fixed = gradient_magnitude_3d(ct_cropped)
+    gm_moving = gradient_magnitude_3d(mr_cropped)
+    gm_fixed_norm = gm_fixed / (gm_fixed.max() + 1e-9)
+    gm_moving_norm = gm_moving / (gm_moving.max() + 1e-9)
+    return gm_fixed, gm_fixed_norm, gm_moving_norm, ncc_3d(gm_fixed, gm_moving)
+
+
 @_skip_vm
 @pytest.mark.slow
-def test_5a_parallel_deformable_on_vm_head():
-    """RITK SyN vs SimpleITK BSpline on a 48³ centered crop of VM head data.
+def test_5a_ritk_deformable_on_vm_head(vm_gradient_pair):
+    """RITK SyN must align a 48³ centered crop of VM head data.
 
     Mathematical basis: VM head CT and MR are multi-modal images of the
-    same anatomy.  After resampling to common geometry and cropping,
-    both RITK SyN and SimpleITK BSpline are applied.  Structural alignment
-    is measured via gradient-magnitude NCC, which is modality-invariant.
+    same anatomy. Structural alignment is measured via gradient-magnitude
+    NCC, which is modality-invariant.
 
     Threshold derivation: NCC of gradient magnitude >= 0.15 for this dataset.
     The VM head CT (z=8 slices, 0.49 mm in-plane) and MR (z=33 slices, 1.02 mm
@@ -1300,22 +1321,9 @@ def test_5a_parallel_deformable_on_vm_head():
     co-localised between CT bone edges and MR soft-tissue edges — infeasible for
     this tissue contrast combination.  NCC_gm ≥ 0.15 validates that gradient
     edges are non-trivially correlated despite the multi-modal contrast, and that
-    both methods achieve positive improvement over the unregistered baseline.
+    RITK SyN achieves positive improvement over the unregistered baseline.
     """
-    ct_cropped, mr_cropped = _load_vm_cropped(48)
-
-    # Gradient magnitudes of the unregistered pair
-    gm_fixed = gradient_magnitude_3d(ct_cropped)
-    gm_moving_before = gradient_magnitude_3d(mr_cropped)
-    ncc_gm_before = ncc_3d(gm_fixed, gm_moving_before)
-
-    # -- RITK SyN on GRADIENT MAGNITUDES (modality-invariant for CT/MR) --
-    # NCC-based SyN on raw CT/MR intensities diverges because bone (bright CT)
-    # corresponds to dark cortical bone in MR T1.  Registering normalised gradient
-    # magnitudes instead is modality-invariant: organ boundaries produce high
-    # gradients in both modalities, and NCC maximises their spatial coincidence.
-    gm_fixed_norm = gm_fixed / (gm_fixed.max() + 1e-9)
-    gm_moving_norm = gm_moving_before / (gm_moving_before.max() + 1e-9)
+    gm_fixed, gm_fixed_norm, gm_moving_norm, ncc_gm_before = vm_gradient_pair
     fixed_gm_ritk = numpy_to_ritk(gm_fixed_norm.astype(np.float32))
     moving_gm_ritk = numpy_to_ritk(gm_moving_norm.astype(np.float32))
     _, warped_gm_ritk = ritk.registration.syn_register(fixed_gm_ritk,
@@ -1324,26 +1332,29 @@ def test_5a_parallel_deformable_on_vm_head():
     assert ncc_gm_ritk >= 0.15, (
         f"RITK SyN gradient-magnitude NCC {ncc_gm_ritk:.4f} < 0.15 on VM head"
     )
+    delta_ritk = ncc_gm_ritk - ncc_gm_before
+    assert delta_ritk > 0, (
+        f"RITK SyN did not improve gradient-magnitude NCC "
+        f"(before={ncc_gm_before:.4f}, after={ncc_gm_ritk:.4f})"
+    )
 
-    # -- SimpleITK BSpline on gradient magnitudes (same modality-invariant approach) --
+
+@_skip_vm
+@pytest.mark.slow
+def test_5a_sitk_deformable_on_vm_head(vm_gradient_pair):
+    """SimpleITK B-spline must align the shared VM head gradient pair."""
+    gm_fixed, gm_fixed_norm, gm_moving_norm, _ = vm_gradient_pair
     fixed_gm_sitk = numpy_to_sitk(gm_fixed_norm.astype(np.float32))
     moving_gm_sitk = numpy_to_sitk(gm_moving_norm.astype(np.float32))
     result_sitk, _ = _sitk_bspline_register(
         fixed_gm_sitk, moving_gm_sitk, grid_spacing=8.0, num_iterations=100
     )
-    if result_sitk is None:
-        pytest.skip("SimpleITK BSpline registration diverged on VM head gradient magnitudes")
+    assert result_sitk is not None, (
+        "SimpleITK BSpline registration diverged on VM head gradient magnitudes"
+    )
 
     sitk_arr = sitk_to_numpy(result_sitk)
     ncc_gm_sitk = ncc_3d(gm_fixed, sitk_arr)
     assert ncc_gm_sitk >= 0.15, (
         f"SimpleITK BSpline gradient-magnitude NCC {ncc_gm_sitk:.4f} < 0.15 on VM head"
-    )
-
-    # RITK SyN must show positive improvement; SITK BSpline may converge to a
-    # similar alignment without further improvement on this 8-slice slab data.
-    delta_ritk = ncc_gm_ritk - ncc_gm_before
-    assert delta_ritk > 0, (
-        f"RITK SyN did not improve gradient-magnitude NCC "
-        f"(before={ncc_gm_before:.4f}, after={ncc_gm_ritk:.4f})"
     )

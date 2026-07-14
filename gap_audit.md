@@ -290,7 +290,18 @@ ground-truth transform nor a derivation for its `0.05` tolerance. It is deleted
 as an incorrect specification; the physical-space RIRE rigid test retains the
 same dataset's ground-truth-backed cross-modal validation. Evidence tier:
 exact CI failure, duplicate-input comparison, and metric-contract analysis;
-installed-wheel execution remains pending.
+installed-wheel execution remains pending. Run `29306098216` advanced through
+the consolidated side-by-side module before timing out in
+`test_1b_gaussian_blob_local_deformation`. The stack shows the RITK SyN value
+oracle had completed and the timeout occurred inside the subsequent
+SimpleITK `Execute` call. Those independent implementations now run as two
+tests over one shared analytical fixture with unchanged inputs, 100-iteration
+workloads, and NCC >= 0.90 bounds. Evidence tier: exact timeout stack plus
+value-semantic contract preservation; installed-wheel execution remains
+pending. The same structural audit split the independent VM head RITK and
+SimpleITK deformable calls over one shared gradient fixture; its former
+SimpleITK divergence skip is now a mandatory value oracle. Evidence tier:
+single-registration test contracts and non-vacuous assertions.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate
