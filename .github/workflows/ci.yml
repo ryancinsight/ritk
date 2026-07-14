@@ -183,4 +183,6 @@ jobs:
           python -c "import numpy as np; import ritk; img = ritk.Image(np.zeros((5, 5, 5), dtype=np.float32)); phi = ritk.Image(np.ones((5, 5, 5), dtype=np.float32)); opts = ritk.segmentation.ShapeDetectionOptions(max_iterations=1); out = ritk.segmentation.shape_detection_segment(img, phi, opts); arr = out.to_numpy(); assert arr.shape == (5, 5, 5); assert np.isfinite(arr).all()"
           denoising_test="crates/ritk-python/tests/test_simpleitk_cmake_data.py::test_cmake_patch_based_denoising_structural"
           python -m pytest "$denoising_test" -vv --durations=1
-          python -m pytest crates/ritk-python/tests --deselect "$denoising_test" -vv --durations=25
+          python -m pytest crates/ritk-python/tests \
+            --deselect "tests/test_simpleitk_cmake_data.py::test_cmake_patch_based_denoising_structural" \
+            -n 2 --dist loadscope -vv --durations=25

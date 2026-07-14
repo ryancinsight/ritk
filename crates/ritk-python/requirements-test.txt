@@ -2,6 +2,7 @@
 numpy>=2.0.2,<2.6
 pytest>=8.4.2,<10
 pytest-timeout>=2.4,<3
+pytest-xdist>=3.8,<4
 scipy>=1.13.1,<1.19
 SimpleITK>=2.5.5,<2.6
 vtk>=9.6.2,<9.7

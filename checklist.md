@@ -123,6 +123,8 @@
 - [x] Reproduce ITK's radius-two diagonal smooth-disc global-`pow` bit pattern
   through Eunomia's `f64` contract and pin the squared weight in a direct
   regression.
+- [x] Remove the accidental second denoise execution and distribute the full
+  unchanged Python suite by module across isolated pytest workers.
 - [x] Reduce the installed-wheel suite from its measured 946.68-second wall
   time by consolidating repeated registration executions without deleting a
   distinct value-semantic contract or changing any workload or threshold.

@@ -24,10 +24,8 @@ same parameters, the same oracle.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
-import urllib.request
 
 import numpy as np
 import pytest
@@ -35,14 +33,12 @@ import pytest
 sitk = pytest.importorskip("SimpleITK")
 
 import ritk  # noqa: E402
+from _sitk_data import fetch_sha512  # noqa: E402
 
 _HERE = os.path.dirname(__file__)
-_REPO_ROOT = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
 # Manifest (input name -> sha512) is committed next to this test; the fetched
 # data is cached under the git-ignored externals/ tree.
 _MANIFEST = os.path.join(_HERE, "sitk_input_manifest.json")
-_CACHE = os.path.join(_REPO_ROOT, "externals", "sitk_data")
-_CDN = "https://data.kitware.com/api/v1/file/hashsum/sha512/{}/download"
 
 
 def _manifest():
@@ -58,18 +54,7 @@ def fetch_input(name: str) -> str:
     sha = _manifest().get(name)
     if sha is None:
         pytest.skip(f"{name} not in manifest")
-    os.makedirs(_CACHE, exist_ok=True)
-    dst = os.path.join(_CACHE, name)
-    if os.path.exists(dst) and os.path.getsize(dst) > 0:
-        return dst
-    try:
-        urllib.request.urlretrieve(_CDN.format(sha), dst)
-    except Exception as exc:  # offline / store down
-        pytest.skip(f"could not fetch {name}: {exc}")
-    if hashlib.sha512(open(dst, "rb").read()).hexdigest() != sha:
-        os.remove(dst)
-        pytest.fail(f"{name}: sha512 mismatch after download")
-    return dst
+    return fetch_sha512(name, sha)
 
 
 def _pair(name):

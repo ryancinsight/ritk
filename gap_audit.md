@@ -198,8 +198,8 @@ SimpleITK computation; its 49.61-second CI duration reflects concurrent CPU
 contention, not a 49-second RITK invocation. Static hot-path accounting finds
 6,553,600,000 ordered patch terms for the 64-cubed, radius-two, 200-sample case.
 When every pixel difference is finite, 32 of each 125 smooth-disc weights are
-exactly zero. Eliding
-those terms without reordering the remaining terms removes 1,677,721,600 inner
+exactly zero. Eliding those terms without reordering the remaining terms removes
+1,677,721,600 inner
 iterations (25.6%); non-finite input retains the full sequence because
 zero-weight multiplication participates in NaN and infinity propagation.
 Source-level differential review found one remaining arithmetic divergence:
@@ -210,6 +210,15 @@ early and produced `0x3f639b3b`. RITK now promotes the delta once, routes both
 powers through Eunomia's `f64` math provider, and pins the ITK weight before its
 `f64` square. This is source-differential and value-semantic regression
 evidence; exact full-image differential evidence is pending CI.
+Exact-head CI confirms the unchanged denoise differential now passes in 49.20
+seconds. The following full run passes 1,253 tests with 7 skips and 1 expected
+pass in 758.91 seconds, down 187.77 seconds (19.8%) from 946.68 seconds. Its
+duration report exposed that the denoise case also ran a second time because
+the repository-relative `--deselect` node did not match pytest's
+`crates/ritk-python` root. The node ID is corrected, and the remaining suite is
+distributed with pytest-xdist's module-scoped scheduler so each worker retains
+module-local setup while assertions and workloads stay unchanged. Exact-head
+parallel-suite timing remains pending.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before
