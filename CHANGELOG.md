@@ -17,6 +17,8 @@
   Mnemosyne fault is corrected.
 
 ### Fixed
+- Verify wrapping selected-patch boundary addressing against explicit debug
+  coordinates and pin ITK's at-least-as-in-bounds invariant exhaustively.
 - Run the independent deterministic RITK and single-worker SimpleITK patch-
   denoising differentials concurrently, preserving both full computations while
   replacing additive wall time with the slower implementation's wall time.

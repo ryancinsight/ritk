@@ -107,6 +107,8 @@
   report measured 58.18 seconds; retain direct RITK and parity contracts.
 - [x] Delete the three-pipeline RIRE report that had no comparative oracle or
   value assertion; retain and rename the canonical CMA-MI contract module.
+- [x] Encode ITK's sampled-patch boundary invariant with debug-verified flat
+  addressing and exhaustive small-domain regressions.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

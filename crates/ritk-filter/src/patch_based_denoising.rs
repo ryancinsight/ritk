@@ -410,6 +410,20 @@ impl PatchBasedDenoisingImageFilter {
                                 sq += offset.weight * diff * diff;
                             }
                         } else {
+                            #[cfg(debug_assertions)]
+                            let qz = q_center_index / (ny * nx);
+                            #[cfg(debug_assertions)]
+                            let q_plane_index = q_center_index % (ny * nx);
+                            #[cfg(debug_assertions)]
+                            let qy = q_plane_index / nx;
+                            #[cfg(debug_assertions)]
+                            let qx = q_plane_index % nx;
+                            #[cfg(debug_assertions)]
+                            let q_position = [
+                                i64::try_from(qx).expect("invariant: x index fits i64"),
+                                i64::try_from(qy).expect("invariant: y index fits i64"),
+                                i64::try_from(qz).expect("invariant: z index fits i64"),
+                            ];
                             for offset in &offsets {
                                 let [dx, dy, dz] = offset.coordinate;
                                 let (px, py, pz) = (x + dx, y + dy, z + dz);
@@ -423,6 +437,27 @@ impl PatchBasedDenoisingImageFilter {
                                     continue;
                                 }
                                 let vp = data[idx(px, py, pz)] as f64;
+                                #[cfg(debug_assertions)]
+                                {
+                                    let [qx, qy, qz] = q_position;
+                                    let q_offset_position = [qx + dx, qy + dy, qz + dz];
+                                    debug_assert!(
+                                        q_offset_position
+                                            .iter()
+                                            .zip(sizes)
+                                            .all(|(&coordinate, size)| coordinate >= 0
+                                                && coordinate < size),
+                                        "sampled patch must be at least as in-bounds as the current patch"
+                                    );
+                                    debug_assert_eq!(
+                                        idx(
+                                            q_offset_position[0],
+                                            q_offset_position[1],
+                                            q_offset_position[2],
+                                        ),
+                                        q_center_index.wrapping_add_signed(offset.displacement)
+                                    );
+                                }
                                 let vq = data
                                     [q_center_index.wrapping_add_signed(offset.displacement)]
                                     as f64;

@@ -128,6 +128,14 @@ not a regression: it caught every pipeline exception, accepted error records,
 and asserted only result presence and positive scalars. It is deleted with its
 test-local pipeline wrappers. The remaining value-semantic CMA-MI tests move to
 `test_cma_mi_rire.py`, matching the module's actual bounded context.
+Code review flagged the boundary branch's flat
+`wrapping_add_signed` selected-patch load. ITK 5.4.5 constrains each sampled
+patch to be at least as in-bounds as the current patch, so the existing result
+was valid, but the representation did not make that precondition auditable.
+Debug builds reconstruct the sampled coordinate and verify it against the flat
+release address, preserving the proven hot-loop operation count. Small-domain
+exhaustive regressions verify every bounded sampler radius and actual 2-D/3-D
+flat-address equivalence.
 
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before
