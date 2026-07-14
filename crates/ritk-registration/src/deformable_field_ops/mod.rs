@@ -34,9 +34,7 @@ pub(crate) use normalize::normalize_forces_into;
 #[cfg(test)]
 pub(crate) use smooth::gaussian_smooth_field_inplace;
 pub(crate) use smooth::gaussian_smooth_with_scratch_per_axis;
-pub(crate) use smooth::{
-    gaussian_smooth_field_with_kernel, gaussian_smooth_inplace, gaussian_smooth_with_scratch,
-};
+pub(crate) use smooth::{gaussian_smooth_field_with_kernel, gaussian_smooth_inplace};
 
 // ── GPU-accelerated smoothing (Burn tensor path) ─────────────────────────────
 pub use smooth::GpuFieldSmoother;
