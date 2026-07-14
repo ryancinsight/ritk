@@ -12,7 +12,6 @@ use ritk_transform::RigidTransform;
 
 use super::super::transforms::estimate_intensity_range;
 use super::config::CmaMiConfig;
-use super::lane_pool::LanePool;
 use crate::metric::{Metric, MutualInformation, MutualInformationVariant};
 use crate::optimizer::{CmaEsConfig, CmaEsOptimizer};
 
@@ -192,24 +191,17 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
         config.sampling_percentage
     };
 
-    // Each population candidate requires independent metric caches. A cloned
-    // `MutualInformation` shares its cache slots, so construct one metric per
-    // possible Moirai worker plus the caller lane instead.
-    let lane_count = std::thread::available_parallelism()
-        .map_or(1, std::num::NonZeroUsize::get)
-        .saturating_add(1);
-    let metrics = LanePool::new((0..lane_count).map(|_| {
-        build_metric::<B::InnerBackend>(
-            config.mi_variant,
-            config.num_mi_bins,
-            min_int,
-            max_int,
-            metric_sampling_pct,
-            mask_world_points.clone(),
-            separate_moving_range,
-            &inner_device,
-        )
-    }));
+    // ── Build metric on inner backend ─────────────────────────────────────────
+    let metric = build_metric::<B::InnerBackend>(
+        config.mi_variant,
+        config.num_mi_bins,
+        min_int,
+        max_int,
+        metric_sampling_pct,
+        mask_world_points,
+        separate_moving_range,
+        &inner_device,
+    );
 
     // ── Objective closure — all tensors on inner (non-autodiff) backend ───────
     let obj = move |params: &[f64]| -> f64 {
@@ -257,7 +249,6 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
             Tensor::<B::InnerBackend, 1>::from_data(TensorData::from(center_arr), &inner_device);
         let transform = RigidTransform::<B::InnerBackend, 3>::new(translation, rotation, center);
 
-        let metric = metrics.lease();
         let loss = metric.forward(&fixed_inner, &moving_inner, &transform);
         loss.into_data()
             .as_slice::<f32>()

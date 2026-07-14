@@ -156,12 +156,19 @@ path passed in 2.60 seconds on the preceding run, this falsifies the synchronize
 result buffer as the complete crash cause and establishes a native concurrency
 defect whose manifestation depends on scheduling or allocation layout. Source
 inspection found that every parallel candidate shared one stateful mutual-
-information metric, including its tensor caches and histogram buffer pool.
-The current fix constructs a bounded set of independent metrics and leases one
-per candidate through an RAII pool; no metric or cache is concurrently entered,
-and unwind returns its lane. A barrier-synchronized regression asserts exact
-evaluation cardinality, exclusive lane ownership, and complete lane return.
-Evidence tier: type-level exclusive ownership plus value-semantic concurrency
+information metric, but independently constructed metric/cache lanes did not
+remove the defect: the exact suite passed the default binding in 2.72 seconds,
+the unchanged comparison in 39.70 seconds, and the unmasked thin-slab path in
+31.89 seconds before segfaulting 13.15 seconds into the masked path. That run
+falsified shared metric state and the unneeded lane pool was deleted. The masked
+histogram invokes an indexed reduction from each outer candidate. Moirai marked
+worker-originated nested regions but not the caller participating in the same
+outer indexed region, allowing that one lane to recursively fan out while the
+worker pool executed sibling candidates. The provider now tracks caller indexed-
+region depth with an unwind-safe guard and flattens nested fan-out and reduction
+on both caller and worker lanes. Its exact lane-identity and arithmetic regression
+passes with the full 0.2-compatible executor suite (80/80) and warning-denied
+Clippy. Evidence tier: type-level region ownership plus value-semantic concurrency
 regression; final exact-head crash and timing evidence remains pending CI. The stronger alignment gate
 exposed two DICOM target variants; their versions now inherit
 one workspace declaration while native-only features remain activated solely

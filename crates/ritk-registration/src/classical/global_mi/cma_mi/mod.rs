@@ -68,7 +68,6 @@
 
 mod config;
 mod helpers;
-mod lane_pool;
 mod registration;
 mod result;
 
