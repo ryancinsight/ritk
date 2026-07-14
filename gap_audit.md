@@ -312,6 +312,13 @@ second test repeating both the same RITK and SimpleITK calls are deleted; the
 RITK value contract and dedicated SimpleITK parity suite remain. Evidence
 tier: exact installed-wheel timestamps, timeout stack, and duplicate-call
 comparison; installed-wheel execution remains pending.
+The complete module audit removed external-only MNI affine/B-spline, RIRE
+affine, and VM-head B-spline registrations from the RITK validation module.
+It also removes the duplicated 128-cubed RITK multiresolution SyN call from the
+MNI comparison while retaining its independent value oracle. Dedicated parity
+and physical-space ground-truth modules remain the SSOT for external
+comparisons. Evidence tier: structural call/fixture/assertion comparison and
+non-vacuous-oracle audit; installed-wheel execution remains pending.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate

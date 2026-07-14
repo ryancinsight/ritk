@@ -49,6 +49,9 @@
 - Remove two brain-pair SimpleITK affine executions after isolation showed the
   external call alone exceeded 60 seconds; the unchanged RITK brain-pair value
   oracle and dedicated SimpleITK parity suite retain the valid coverage.
+- Remove remaining external-only MNI, RIRE, and VM-head registrations from the
+  RITK validation module, including vacuous divergence skips and a duplicated
+  MNI SyN execution; dedicated parity and ground-truth suites retain coverage.
 - Separate VM head RITK and SimpleITK deformable registrations over one shared
   gradient fixture and make SimpleITK divergence a test failure.
 - Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized

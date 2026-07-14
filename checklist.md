@@ -66,6 +66,8 @@
   the redundant external Gaussian oracle that alone exceeded 60 seconds.
 - [x] Remove duplicate brain-pair SimpleITK affine executions after the
   standalone external oracle exceeded 60 seconds; retain the RITK contract.
+- [x] Complete module-level separation by removing external-only MNI, RIRE,
+  and VM-head registrations while retaining RITK and parity SSOT contracts.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing
