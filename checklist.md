@@ -60,7 +60,7 @@
   with bit-exact scalar/component differential coverage.
 - [x] Route expensive three-component slice kernels through Moirai's native
   multi-buffer operations and force parallel CC dispatch below 1,024 slices.
-- [x] Remove seven duplicate registration invocations from side-by-side tests
+- [x] Remove fourteen duplicate registration invocations from side-by-side tests
   that asserted no cross-implementation relation; retain every valid oracle.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 

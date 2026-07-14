@@ -218,42 +218,6 @@ def _sitk_affine_register(
     return resampler.Execute(moving_sitk)
 
 
-def _sitk_bspline_register(
-    fixed_sitk, moving_sitk, grid_spacing=8.0, num_iterations=100, learning_rate=1.0
-):
-    """BSpline deformable registration via SimpleITK."""
-    reg = sitk.ImageRegistrationMethod()
-    reg.SetMetricAsMattesMutualInformation(numberOfHistogramBins=32)
-    reg.SetMetricSamplingStrategy(reg.RANDOM)
-    reg.SetMetricSamplingPercentage(0.25, seed=42)
-    bspline_init = sitk.BSplineTransformInitializer(
-        fixed_sitk,
-        [int(sz / grid_spacing + 1) for sz in fixed_sitk.GetSize()],
-        order=3,
-    )
-    reg.SetInitialTransform(bspline_init, inPlace=True)
-    reg.SetOptimizerAsRegularStepGradientDescent(
-        learningRate=learning_rate,
-        minStep=1e-4,
-        numberOfIterations=num_iterations,
-        gradientMagnitudeTolerance=1e-8,
-    )
-    reg.SetOptimizerScalesFromPhysicalShift()
-    reg.SetInterpolator(sitk.sitkLinear)
-    reg.SetShrinkFactorsPerLevel([1])
-    reg.SetSmoothingSigmasPerLevel([0.0])
-    try:
-        final = reg.Execute(fixed_sitk, moving_sitk)
-    except RuntimeError:
-        return None
-    resampler = sitk.ResampleImageFilter()
-    resampler.SetReferenceImage(fixed_sitk)
-    resampler.SetInterpolator(sitk.sitkLinear)
-    resampler.SetDefaultPixelValue(0.0)
-    resampler.SetTransform(final)
-    return resampler.Execute(moving_sitk)
-
-
 # ============================================================================
 # Section 1: Synthetic tests — shifted sphere
 # ============================================================================
@@ -385,22 +349,6 @@ class TestSyntheticSphere:
 
     # --- Side-by-side ---
 
-    def test_side_by_side_demons_vs_sitk_translation_quality(self):
-        """Both RITK Demons and SimpleITK translation must achieve Dice >= 0.80."""
-        sitk_result = _sitk_translation_register(
-            self.fixed_sitk, self.moving_sitk, num_iterations=100
-        )
-        assert sitk_result is not None
-        d_sitk = _dice(_sitk_to_numpy(sitk_result), self.fixed_arr)
-
-        warped, _ = ritk.registration.demons_register(
-            self.fixed_ritk, self.moving_ritk, max_iterations=100
-        )
-        d_ritk = _dice(warped.to_numpy(), self.fixed_arr)
-
-        assert d_sitk >= 0.80, f"SimpleITK Dice {d_sitk:.4f} < 0.80"
-        assert d_ritk >= 0.80, f"RITK Dice {d_ritk:.4f} < 0.80"
-
 # ============================================================================
 # Section 2: Synthetic Gaussian blob — NCC improvement
 # ============================================================================
@@ -469,33 +417,6 @@ class TestSyntheticGaussianBlob:
             f"LDDMM did not improve NCC: before={self.ncc_before:.4f}, "
             f"after={ncc_after:.4f}"
         )
-
-    def test_side_by_side_syn_vs_sitk_bspline_ncc(self):
-        """Both RITK SyN and SimpleITK BSpline must improve NCC on Gaussian blob."""
-        fixed_s = _numpy_to_sitk(self.fixed_arr)
-        moving_s = _numpy_to_sitk(self.moving_arr)
-
-        sitk_result = _sitk_bspline_register(
-            fixed_s, moving_s, grid_spacing=8.0, num_iterations=30
-        )
-        if sitk_result is not None:
-            ncc_sitk = _ncc(self.fixed_arr, _sitk_to_numpy(sitk_result))
-        else:
-            ncc_sitk = self.ncc_before
-
-        _, warped_m = ritk.registration.syn_register(self.fixed_ritk,
-            self.moving_ritk, ritk.registration.SynConfig(max_iterations=100,sigma_smooth=1.0,cc_radius=2,gradient_step=0.5))
-        ncc_ritk = _ncc(self.fixed_arr, warped_m.to_numpy())
-
-        assert ncc_sitk > self.ncc_before, (
-            f"SimpleITK BSpline did not improve NCC: before={self.ncc_before:.4f}, "
-            f"after={ncc_sitk:.4f}"
-        )
-        assert ncc_ritk > self.ncc_before, (
-            f"RITK SyN did not improve NCC: before={self.ncc_before:.4f}, "
-            f"after={ncc_ritk:.4f}"
-        )
-
 
 # ============================================================================
 # Section 3: Inter-subject brain MNI pair — NCC/MSE improvement
@@ -568,25 +489,6 @@ class TestInterSubjectBrainMNI:
             f"before={self.mse_before:.6f}, after={mse_after:.6f}"
         )
 
-    def test_side_by_side_brain_mse_comparison(self):
-        """RITK Demons must reduce MSE on inter-subject brain; SimpleITK
-        translation may or may not depending on initial alignment.
-
-        SimpleITK translation registration on very different inter-subject
-        brains (NCC ≈ 0.04) can worsen MSE because the 3-DOF translation
-        is insufficient for the large anatomical differences. RITK Demons
-        with local deformable forces can partially compensate.
-        """
-        # RITK
-        warped, _ = ritk.registration.demons_register(
-            self.fixed_norm_r, self.moving_norm_r, max_iterations=50
-        )
-        mse_ritk = _mse(self.fixed_norm, warped.to_numpy())
-        assert mse_ritk < self.mse_before, (
-            f"RITK did not reduce MSE: {self.mse_before:.6f} -> {mse_ritk:.6f}"
-        )
-
-
 # ============================================================================
 # Section 4: Multi-modal CT/MR — RIRE pair
 # ============================================================================
@@ -648,39 +550,6 @@ class TestRIREMultiModal:
             f"SyN did not improve cross-modal NCC: "
             f"before={self.ncc_before:.4f}, after={ncc_after:.4f}"
         )
-
-    def test_side_by_side_cross_modal_ncc(self):
-        """Both SimpleITK BSpline and RITK SyN must improve NCC on cross-modal data."""
-        fixed_s = _numpy_to_sitk(self.fixed_norm)
-        moving_s = _numpy_to_sitk(self.moving_norm)
-        sitk_result = _sitk_bspline_register(
-            fixed_s, moving_s, grid_spacing=8.0, num_iterations=30
-        )
-        if sitk_result is not None:
-            ncc_sitk = _ncc(self.fixed_norm, _sitk_to_numpy(sitk_result))
-        else:
-            ncc_sitk = self.ncc_before
-
-        _, warped_m = ritk.registration.syn_register(self.fixed_norm_r,
-            self.moving_norm_r, ritk.registration.SynConfig(max_iterations=30,sigma_smooth=3.0,cc_radius=2))
-        ncc_ritk = _ncc(self.fixed_norm, warped_m.to_numpy())
-
-        # SimpleITK BSpline may diverge on small cross-modal crops;
-        # the primary assertion is that RITK SyN improves alignment
-        assert ncc_ritk > self.ncc_before, (
-            f"RITK SyN did not improve cross-modal NCC: "
-            f"before={self.ncc_before:.4f}, after={ncc_ritk:.4f}"
-        )
-        if sitk_result is not None:
-            assert ncc_sitk > self.ncc_before - 0.05, (
-                f"SimpleITK BSpline regressed NCC: "
-                f"before={self.ncc_before:.4f}, after={ncc_sitk:.4f}"
-            )
-        assert ncc_ritk > self.ncc_before, (
-            f"RITK SyN did not improve cross-modal NCC: "
-            f"before={self.ncc_before:.4f}, after={ncc_ritk:.4f}"
-        )
-
 
 # ============================================================================
 # Section 5: Multi-modal CT/MR — Visible Male head pair

@@ -278,7 +278,10 @@ the next installed-wheel run remains the suite gate.
 Run `29304966659` advanced past those cases and exposed two further defects.
 The locally deformed sphere comparison duplicated both halves of the stronger
 `test_sitk_bspline_deformable_vs_ritk_syn` oracle and timed out at 60 seconds;
-both redundant invocations are deleted, bringing the total to seven. The RIRE
+both redundant invocations are deleted. A complete scan of the remaining
+side-by-side methods found seven more repeated registrations, bringing the
+total to fourteen; each repeated an identical independent call and assertion.
+The RIRE
 voxel-space B-spline check
 failed after its formerly vacuous `None` branch was made mandatory. Its direct
 NCC preservation threshold is not valid for CT-to-MR intensities: cross-modal
