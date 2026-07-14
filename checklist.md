@@ -54,6 +54,8 @@
   contiguous copy and prefix passes without changing window statistics.
 - [x] Fuse symmetric CC forces and convergence into one parallel voxel pass,
   with exact force and analytically bounded reduction-order differentials.
+- [x] Ping-pong scaling-and-squaring buffers so the standard even integration
+  depth performs no redundant full-field copies; verify odd and even parity.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

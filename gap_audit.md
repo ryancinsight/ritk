@@ -232,6 +232,15 @@ derives both symmetric Avants forces and the convergence mean from one query.
 An exact force differential and a reduction-order bound of 1e-12 cover the
 fused kernel against the three independent passes. Evidence tier before CI:
 value-semantic differential verification and two-thirds fewer hot SAT queries.
+The same 128-cubed trace exposed a separate integration memory-pass defect:
+each of two exponential maps copied all three displacement components after
+every one of six scaling-and-squaring compositions. The existing output and
+scratch fields now alternate roles, so the standard even depth performs no
+copies and an odd depth performs one final copy. Exact odd- and even-depth
+differentials against the independently allocating implementation pin buffer
+parity. Evidence tier before CI: structural reduction from 36 to zero full-
+volume component copies per SyN iteration at the standard depth, plus bit-exact
+differential verification; installed-wheel timing remains the acceptance gate.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate
