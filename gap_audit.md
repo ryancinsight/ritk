@@ -225,6 +225,16 @@ cases above 30 seconds, with the slowest reaching 52.20 seconds. The scheduler
 and native worker ownership require another bounded correction before the
 runtime acceptance criterion is met.
 
+The initial scheduler also allowed each pytest process to observe every host
+CPU, so each lazily initialized a full Moirai pool while SimpleITK created its
+own native workers. Five parity tests additionally left SimpleITK's global
+thread count at one. Linux xdist workers now receive disjoint strided affinity
+partitions before collection; Moirai therefore derives its pool from the
+process allocation, SimpleITK receives the same budget, and an autouse fixture
+restores every test's mutation. Dynamic load-group scheduling removes the
+7,800-line CMake module as an indivisible unit. Exact runtime impact remains a
+pending empirical CI claim.
+
 The same run's Ubuntu nextest worker failed at the runner boundary with
 `No space left on device` while writing its diagnostic log. CI had restored and
 re-cached the complete generic-heavy test target while emitting full debug

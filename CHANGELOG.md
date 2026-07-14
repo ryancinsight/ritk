@@ -32,7 +32,9 @@
 - Route promoted smooth-disc powers through Eunomia's `f64` math contract so
   radius-two diagonal weights match ITK's global `pow` result bit-for-bit.
 - Correct the wheel suite's denoise deselection node ID and distribute the
-  remaining unchanged Python tests across isolated pytest workers by module.
+  remaining unchanged Python tests across dynamically balanced workers with
+  disjoint CPU allocations; bound each native pool to its allocation and
+  restore SimpleITK's process-global thread state after every test.
 - Subtract patch-denoising pixels in `f32` before widening their difference into
   the `f64` entropy accumulator, matching ITK's scalar component boundary.
 - Run the load-bearing patch-denoising differential first in the wheel gate and
