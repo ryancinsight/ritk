@@ -46,6 +46,9 @@
   redundant SimpleITK half after isolation proved the external registration
   alone exceeded 60 seconds; the stronger 64-cubed SimpleITK deformable oracle
   remains unchanged.
+- Remove two brain-pair SimpleITK affine executions after isolation showed the
+  external call alone exceeded 60 seconds; the unchanged RITK brain-pair value
+  oracle and dedicated SimpleITK parity suite retain the valid coverage.
 - Separate VM head RITK and SimpleITK deformable registrations over one shared
   gradient fixture and make SimpleITK divergence a test failure.
 - Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized

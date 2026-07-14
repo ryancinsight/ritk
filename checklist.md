@@ -64,6 +64,8 @@
   that asserted no cross-implementation relation; retain every valid oracle.
 - [x] Split independent VM-head registrations over a shared fixture and remove
   the redundant external Gaussian oracle that alone exceeded 60 seconds.
+- [x] Remove duplicate brain-pair SimpleITK affine executions after the
+  standalone external oracle exceeded 60 seconds; retain the RITK contract.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

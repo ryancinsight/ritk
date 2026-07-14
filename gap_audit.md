@@ -305,6 +305,13 @@ same structural audit split the independent VM head RITK and
 SimpleITK deformable calls over one shared gradient fixture; its former
 SimpleITK divergence skip is now a mandatory value oracle. Evidence tier:
 single-registration test contracts and non-vacuous assertions.
+Run `29308214589` advanced to the brain-pair validation: RITK Demons completed
+its unchanged value oracle in 32.82 seconds, while the standalone external
+SimpleITK affine call then exceeded 60 seconds. That external oracle and a
+second test repeating both the same RITK and SimpleITK calls are deleted; the
+RITK value contract and dedicated SimpleITK parity suite remain. Evidence
+tier: exact installed-wheel timestamps, timeout stack, and duplicate-call
+comparison; installed-wheel execution remains pending.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate
