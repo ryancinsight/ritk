@@ -12,66 +12,10 @@ import filter``.
 from __future__ import annotations
 
 import importlib.util
-import os
 import sys
 from pathlib import Path
-from typing import Optional
 
 import pytest
-
-
-_WORKER_CPU_BUDGET: Optional[int] = None
-
-
-def _partition_worker_cpus(
-    available: tuple[int, ...], worker_index: int, worker_count: int
-) -> tuple[int, ...]:
-    """Return one non-empty, disjoint strided CPU partition."""
-    if worker_count < 1:
-        raise ValueError(f"worker_count must be positive, got {worker_count}")
-    if not 0 <= worker_index < worker_count:
-        raise ValueError(
-            f"worker_index {worker_index} outside worker_count {worker_count}"
-        )
-    assigned = available[worker_index::worker_count]
-    if not assigned:
-        raise ValueError(
-            f"cannot partition {len(available)} CPUs across {worker_count} workers"
-        )
-    return assigned
-
-
-def pytest_configure(config: pytest.Config) -> None:
-    """Partition Linux CPUs before worker-side test collection imports RITK."""
-    global _WORKER_CPU_BUDGET
-
-    del config
-    worker_id = os.environ.get("PYTEST_XDIST_WORKER")
-    worker_count = os.environ.get("PYTEST_XDIST_WORKER_COUNT")
-    if (
-        worker_id is None
-        or worker_count is None
-        or not hasattr(os, "sched_getaffinity")
-    ):
-        return
-
-    if not worker_id.startswith("gw") or not worker_id[2:].isdigit():
-        raise pytest.UsageError(f"unsupported xdist worker id: {worker_id}")
-    available = tuple(sorted(os.sched_getaffinity(0)))
-    assigned = _partition_worker_cpus(
-        available, int(worker_id[2:]), int(worker_count)
-    )
-    os.sched_setaffinity(0, assigned)
-    _WORKER_CPU_BUDGET = len(assigned)
-
-
-def pytest_sessionstart(session: pytest.Session) -> None:
-    """Match SimpleITK's native thread budget to the worker's CPU partition."""
-    if _WORKER_CPU_BUDGET is None:
-        return
-    import SimpleITK as sitk
-
-    sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(_WORKER_CPU_BUDGET)
 
 
 @pytest.fixture(autouse=True)
@@ -87,6 +31,7 @@ def _preserve_simpleitk_thread_budget():
         yield
     finally:
         sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(original)
+
 
 _PYTHON_SOURCE = Path(__file__).resolve().parent.parent / "python"
 itk_path = _PYTHON_SOURCE / "itk"

@@ -185,4 +185,4 @@ jobs:
           python -m pytest "$denoising_test" -vv --durations=1
           python -m pytest crates/ritk-python/tests \
             --deselect "tests/test_simpleitk_cmake_data.py::test_cmake_patch_based_denoising_structural" \
-            -n 2 --dist loadgroup --maxschedchunk=1 -vv --durations=25
+            -n 2 --dist loadscope -vv --durations=25

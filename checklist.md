@@ -133,10 +133,11 @@
   native pools inflated eleven registration cases above 30 seconds.
 - [x] Remove cached test binaries and full debug records from CI after the
   Ubuntu nextest runner exhausted its filesystem before reporting test results.
-- [x] Partition Linux xdist workers onto disjoint CPU sets before test
-  collection, cap SimpleITK to each allocation, restore its process-global
-  thread count after every test, and replace module scheduling with dynamic
-  load-group scheduling.
+- [x] Falsify disjoint xdist CPU partitions after two-core SyN execution killed
+  a worker; remove the affinity constraint while retaining per-test restoration
+  of SimpleITK's process-global thread count.
+- [x] Fuse CPU smoothing of all field components into one Moirai dispatch per
+  axis, cache Gaussian weights, and replace nine full-field copies with one.
 - [ ] Verify that no remaining Python test crosses 30 seconds and that the
   complete installed-wheel suite finishes in minutes on exact-head CI.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.

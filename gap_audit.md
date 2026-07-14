@@ -225,15 +225,24 @@ cases above 30 seconds, with the slowest reaching 52.20 seconds. The scheduler
 and native worker ownership require another bounded correction before the
 runtime acceptance criterion is met.
 
-The initial scheduler also allowed each pytest process to observe every host
-CPU, so each lazily initialized a full Moirai pool while SimpleITK created its
-own native workers. Five parity tests additionally left SimpleITK's global
-thread count at one. Linux xdist workers now receive disjoint strided affinity
-partitions before collection; Moirai therefore derives its pool from the
-process allocation, SimpleITK receives the same budget, and an autouse fixture
-restores every test's mutation. Dynamic load-group scheduling removes the
-7,800-line CMake module as an indivisible unit. Exact runtime impact remains a
-pending empirical CI claim.
+Five parity tests left SimpleITK's global thread count at one; an autouse fixture
+now restores that process-global state after every test. A Linux affinity
+experiment then constrained each xdist process to two CPUs. It was rejected
+after a SyN worker terminated during the exact suite and its replacement exposed
+an additional xdist-worker-ID assumption. The affinity and dynamic scheduler
+were removed; native registration kernels retain the full host pool while the
+known-green module scheduler remains in place.
+
+Source audit instead localized repeated SyN and Demons work to CPU vector-field
+smoothing. The prior path regenerated the same Gaussian weights for every
+component and axis, submitted nine independent Moirai operations, and copied a
+complete component after every pass. `CpuFieldSmoother` now caches the weights,
+convolves all three components in one dispatch per axis, and ping-pongs three
+scratch components so only the final field is copied. The arithmetic sequence
+within each component is unchanged and an asymmetric-volume regression requires
+bit-exact equality with the scalar-component implementation. This is source and
+value-semantic evidence; exact-head compile and timing remain pending CI because
+the local Apollo checkout exposes 0.15.0 while this branch requires 0.14.x.
 
 The same run's Ubuntu nextest worker failed at the runner boundary with
 `No space left on device` while writing its diagnostic log. CI had restored and

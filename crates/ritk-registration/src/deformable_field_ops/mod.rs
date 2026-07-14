@@ -35,8 +35,7 @@ pub(crate) use normalize::normalize_forces_into;
 pub(crate) use smooth::gaussian_smooth_field_inplace;
 pub(crate) use smooth::gaussian_smooth_with_scratch_per_axis;
 pub(crate) use smooth::{
-    gaussian_smooth_field_inplace_with_scratch, gaussian_smooth_inplace,
-    gaussian_smooth_with_scratch,
+    gaussian_smooth_field_with_kernel, gaussian_smooth_inplace, gaussian_smooth_with_scratch,
 };
 
 // ── GPU-accelerated smoothing (Burn tensor path) ─────────────────────────────
@@ -56,16 +55,20 @@ pub use warp::{warp_image, WarpInterpolation};
 pub trait FieldSmoother {
     /// Smooth the three components of a vector field **in place**.
     ///
-    /// The three slices must have the same length.  A sigma ≤ 0 is a no-op
-    /// (the trait does not prescribe how implementations handle this).
+    /// The three slices must have the same length and match the spatial shape
+    /// supplied when the implementation was constructed.
+    ///
+    /// # Panics
+    ///
+    /// Panics when a component length differs from the configured shape.
     fn smooth_field(&mut self, z: &mut [f32], y: &mut [f32], x: &mut [f32]);
 }
 
 /// CPU-based Gaussian field smoother.
 ///
-/// Uses `gaussian_smooth_field_inplace_with_scratch` internally.
-/// Pre-allocates a scratch buffer so the hot path performs zero heap
-/// allocations.
+/// Caches the Gaussian weights and pre-allocates three scratch components so
+/// the hot path performs no per-call buffer or kernel allocation and one final
+/// field copy.
 ///
 /// # Example
 ///
@@ -76,34 +79,64 @@ pub trait FieldSmoother {
 /// smoother.smooth_field(&mut fz, &mut fy, &mut fx);
 /// ```
 pub struct CpuFieldSmoother {
-    smooth_tmp: Vec<f32>,
+    smooth_tmp_z: Vec<f32>,
+    smooth_tmp_y: Vec<f32>,
+    smooth_tmp_x: Vec<f32>,
     dims: VolumeDims,
-    sigma: f64,
+    kernel: Vec<f64>,
 }
 
 impl CpuFieldSmoother {
-    /// Create a CPU smoother for `dims` with isotropic `sigma` (mm).
+    /// Create a CPU smoother for `dims` with isotropic `sigma` in voxels.
     ///
-    /// Allocates one scratch buffer of size `nz * ny * nx`.
+    /// For positive sigma, allocates three scratch buffers of size
+    /// `nz * ny * nx` and caches the isotropic Gaussian weights. A non-positive
+    /// sigma constructs an allocation-free no-op.
     pub fn new(dims: [usize; 3], sigma: f64) -> Self {
         let n = dims[0] * dims[1] * dims[2];
+        let kernel = if sigma <= 0.0 {
+            Vec::new()
+        } else {
+            ritk_filter::gaussian_kernel(sigma, None)
+        };
+        let scratch_len = if kernel.is_empty() { 0 } else { n };
         Self {
-            smooth_tmp: vec![0.0_f32; n],
+            smooth_tmp_z: vec![0.0_f32; scratch_len],
+            smooth_tmp_y: vec![0.0_f32; scratch_len],
+            smooth_tmp_x: vec![0.0_f32; scratch_len],
             dims: VolumeDims::new(dims),
-            sigma,
+            kernel,
         }
     }
 }
 
 impl FieldSmoother for CpuFieldSmoother {
     fn smooth_field(&mut self, z: &mut [f32], y: &mut [f32], x: &mut [f32]) {
-        gaussian_smooth_field_inplace_with_scratch(
-            z,
-            y,
-            x,
+        let expected = self.dims.total_voxels();
+        assert_eq!(
+            z.len(),
+            expected,
+            "z component length must match dimensions"
+        );
+        assert_eq!(
+            y.len(),
+            expected,
+            "y component length must match dimensions"
+        );
+        assert_eq!(
+            x.len(),
+            expected,
+            "x component length must match dimensions"
+        );
+        gaussian_smooth_field_with_kernel(
+            VectorFieldMut { z, y, x },
             self.dims,
-            self.sigma,
-            &mut self.smooth_tmp,
+            &self.kernel,
+            VectorFieldMut {
+                z: &mut self.smooth_tmp_z,
+                y: &mut self.smooth_tmp_y,
+                x: &mut self.smooth_tmp_x,
+            },
         );
     }
 }

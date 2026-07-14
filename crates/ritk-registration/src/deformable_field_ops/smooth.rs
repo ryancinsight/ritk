@@ -12,8 +12,7 @@
 //! [`ritk_filter::GaussianFilter`] for 10-50× speedup on typical 256³
 //! displacement fields.
 
-use super::flat;
-use super::FieldSmoother;
+use super::{flat, FieldSmoother, VectorField, VectorFieldMut};
 use ritk_filter::gaussian_kernel;
 use ritk_image::tensor::{Backend, Shape, Tensor, TensorData};
 use ritk_spatial::{Spacing, VolumeDims};
@@ -60,6 +59,59 @@ pub(super) fn convolve_axis<const AXIS: usize>(
                         acc += kv * data[src_fi] as f64;
                     }
                     out_s[local] = acc as f32;
+                }
+            }
+        },
+    );
+}
+
+/// Convolve all components of a vector field along one axis in one dispatch.
+fn convolve_axis_field<const AXIS: usize>(
+    data: VectorField<'_>,
+    dims: VolumeDims,
+    kernel: &[f64],
+    output: VectorFieldMut<'_>,
+) {
+    let [_nz, ny, nx] = dims.0;
+    let radius = kernel.len() / 2;
+    let max_coord = dims.0[AXIS];
+    let slice_len = ny * nx;
+    let VectorFieldMut {
+        z: output_z,
+        y: output_y,
+        x: output_x,
+    } = output;
+
+    moirai::for_each_chunk_triple_mut_enumerated_with::<moirai::Adaptive, _, _, _, _>(
+        output_z,
+        output_y,
+        output_x,
+        slice_len,
+        |iz, output_z_slice, output_y_slice, output_x_slice| {
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    let local = iy * nx + ix;
+                    let coord = [iz, iy, ix][AXIS];
+                    let mut sum_z = 0.0_f64;
+                    let mut sum_y = 0.0_f64;
+                    let mut sum_x = 0.0_f64;
+                    for (kernel_index, &weight) in kernel.iter().enumerate() {
+                        let source_coord = (coord as isize + kernel_index as isize
+                            - radius as isize)
+                            .clamp(0, max_coord as isize - 1)
+                            as usize;
+                        let source = match AXIS {
+                            0 => flat(source_coord, iy, ix, ny, nx),
+                            1 => flat(iz, source_coord, ix, ny, nx),
+                            _ => flat(iz, iy, source_coord, ny, nx),
+                        };
+                        sum_z += weight * data.z[source] as f64;
+                        sum_y += weight * data.y[source] as f64;
+                        sum_x += weight * data.x[source] as f64;
+                    }
+                    output_z_slice[local] = sum_z as f32;
+                    output_y_slice[local] = sum_y as f32;
+                    output_x_slice[local] = sum_x as f32;
                 }
             }
         },
@@ -143,18 +195,68 @@ pub(crate) fn gaussian_smooth_field_inplace(
     gaussian_smooth_inplace(fx, dims, sigma);
 }
 
-/// Smooth all three components with caller-provided scratch buffer.
-pub(crate) fn gaussian_smooth_field_inplace_with_scratch(
-    fz: &mut [f32],
-    fy: &mut [f32],
-    fx: &mut [f32],
+/// Smooth all three components with cached weights and caller-owned scratch.
+pub(crate) fn gaussian_smooth_field_with_kernel(
+    field: VectorFieldMut<'_>,
     dims: VolumeDims,
-    sigma: f64,
-    scratch: &mut [f32],
+    kernel: &[f64],
+    scratch: VectorFieldMut<'_>,
 ) {
-    gaussian_smooth_with_scratch(fz, dims, sigma, scratch);
-    gaussian_smooth_with_scratch(fy, dims, sigma, scratch);
-    gaussian_smooth_with_scratch(fx, dims, sigma, scratch);
+    if kernel.is_empty() {
+        return;
+    }
+    let VectorFieldMut { z, y, x } = field;
+    let VectorFieldMut {
+        z: scratch_z,
+        y: scratch_y,
+        x: scratch_x,
+    } = scratch;
+
+    convolve_axis_field::<0>(
+        VectorField {
+            z: &*z,
+            y: &*y,
+            x: &*x,
+        },
+        dims,
+        kernel,
+        VectorFieldMut {
+            z: &mut *scratch_z,
+            y: &mut *scratch_y,
+            x: &mut *scratch_x,
+        },
+    );
+    convolve_axis_field::<1>(
+        VectorField {
+            z: &*scratch_z,
+            y: &*scratch_y,
+            x: &*scratch_x,
+        },
+        dims,
+        kernel,
+        VectorFieldMut {
+            z: &mut *z,
+            y: &mut *y,
+            x: &mut *x,
+        },
+    );
+    convolve_axis_field::<2>(
+        VectorField {
+            z: &*z,
+            y: &*y,
+            x: &*x,
+        },
+        dims,
+        kernel,
+        VectorFieldMut {
+            z: &mut *scratch_z,
+            y: &mut *scratch_y,
+            x: &mut *scratch_x,
+        },
+    );
+    z.copy_from_slice(scratch_z);
+    y.copy_from_slice(scratch_y);
+    x.copy_from_slice(scratch_x);
 }
 
 // ── GpuFieldSmoother: pre-allocated GPU smoothing for Demons/SyN loops ───────
@@ -368,6 +470,40 @@ mod tests {
                 data1[i],
                 data2[i]
             );
+        }
+    }
+
+    /// The fused field path preserves every component's scalar reduction tree.
+    #[test]
+    fn fused_field_smoothing_matches_scalar_components_exactly() {
+        for dims in [[7, 11, 17], [1, 17, 65]] {
+            let n = dims.iter().product();
+            let mut expected_z: Vec<f32> = (0..n)
+                .map(|index| ((index * 17 + 3) % 101) as f32 - 50.0)
+                .collect();
+            let mut expected_y: Vec<f32> = (0..n)
+                .map(|index| ((index * 29 + 5) % 97) as f32 - 48.0)
+                .collect();
+            let mut expected_x: Vec<f32> = (0..n)
+                .map(|index| ((index * 43 + 7) % 89) as f32 - 44.0)
+                .collect();
+            let mut actual_z = expected_z.clone();
+            let mut actual_y = expected_y.clone();
+            let mut actual_x = expected_x.clone();
+
+            gaussian_smooth_field_inplace(
+                &mut expected_z,
+                &mut expected_y,
+                &mut expected_x,
+                VolumeDims::new(dims),
+                1.3,
+            );
+            let mut smoother = super::super::CpuFieldSmoother::new(dims, 1.3);
+            smoother.smooth_field(&mut actual_z, &mut actual_y, &mut actual_x);
+
+            assert_eq!(actual_z, expected_z, "z component differs for {dims:?}");
+            assert_eq!(actual_y, expected_y, "y component differs for {dims:?}");
+            assert_eq!(actual_x, expected_x, "x component differs for {dims:?}");
         }
     }
 }
