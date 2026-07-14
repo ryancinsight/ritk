@@ -32,6 +32,48 @@ fn test_patch_based_denoising_deterministic() {
     assert!(a.iter().all(|v| v.is_finite()));
 }
 
+/// Batching is an execution strategy only: changing its memory partition must
+/// preserve the seeded sample stream and every pixel's reduction order exactly.
+#[test]
+fn test_patch_based_denoising_batch_partition_invariant() {
+    let (ny, nx) = (11usize, 13);
+    let data: Vec<f32> = (0..ny * nx).map(|i| ((i * 37) % 90) as f32 + 5.0).collect();
+    let filter = PatchBasedDenoisingImageFilter {
+        patch_radius: 1,
+        number_of_iterations: 1,
+        number_of_sample_patches: 32,
+        ..Default::default()
+    };
+    let sample_bytes = size_of::<[i64; 3]>() * filter.number_of_sample_patches;
+    let reference = filter.pass_with_sample_budget(&data, [1, ny, nx], sample_bytes);
+
+    for pixel_capacity in [2, 7, 17, ny * nx - 1, ny * nx, ny * nx + 1] {
+        let partitioned =
+            filter.pass_with_sample_budget(&data, [1, ny, nx], sample_bytes * pixel_capacity);
+        assert_eq!(partitioned, reference, "pixel capacity {pixel_capacity}");
+    }
+}
+
+#[test]
+fn test_patch_based_denoising_rejects_unbounded_sample_storage() {
+    let image = ts::make_image::<B, 3>(vec![1.0f32; 9], [1, 3, 3]);
+    let max_samples = SAMPLE_BATCH_BYTES / size_of::<[i64; 3]>();
+    let error = PatchBasedDenoisingImageFilter {
+        number_of_sample_patches: max_samples + 1,
+        ..Default::default()
+    }
+    .apply(&image)
+    .unwrap_err();
+
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "number_of_sample_patches {} exceeds bounded capacity {max_samples}",
+            max_samples + 1
+        )
+    );
+}
+
 /// A constant image is a fixed point (every patch distance is 0 → all weights 1
 /// → the gradient of (c − c) is exactly 0).
 #[test]

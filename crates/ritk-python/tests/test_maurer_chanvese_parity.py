@@ -113,14 +113,11 @@ def test_patch_based_denoising_bit_exact(sz, R, nit):
     rng = _np.random.default_rng(3)
     img = (rng.random((sz, sz)).astype(_np.float32) * 90 + 5).astype(_np.float32)
 
-    try:
-        f = sitk.PatchBasedDenoisingImageFilter()
-        f.SetPatchRadius(R)
-        f.SetNumberOfIterations(nit)
-        f.SetNumberOfWorkUnits(1)
-        so = sitk.GetArrayFromImage(f.Execute(sitk.GetImageFromArray(img))).astype(_np.float32)
-    except Exception as exc:  # pragma: no cover
-        pytest.skip(f"sitk.PatchBasedDenoising unavailable: {exc}")
+    f = sitk.PatchBasedDenoisingImageFilter()
+    f.SetPatchRadius(R)
+    f.SetNumberOfIterations(nit)
+    f.SetNumberOfWorkUnits(1)
+    so = sitk.GetArrayFromImage(f.Execute(sitk.GetImageFromArray(img))).astype(_np.float32)
 
     ri = ritk.Image(_np.ascontiguousarray(img[_np.newaxis]))
     ro = ritk.filter.patch_based_denoising(

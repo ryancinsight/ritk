@@ -10,6 +10,31 @@
 
 ## MIG-654-01 audit (2026-07-13)
 
+Exact-head CI run `29310594505` passed formatting, clippy, dependency alignment,
+and nextest on Linux, macOS, and Windows. The wheel gate then terminated
+`test_cmake_patch_based_denoising_structural` after 60 seconds inside RITK's
+native `PatchBasedDenoisingImageFilter`, not inside its SimpleITK oracle. Static
+inspection found that all `voxel_count * 200 * patch_volume` comparisons ran in
+one serial loop despite a stale checklist claim that the operation used Moirai.
+The corrected kernel generates sample coordinates serially in exact ITK face
+and RNG order, stores at most an 8 MiB target batch of coordinates, and evaluates
+independent pixels through Moirai while retaining each pixel's sample and f64
+reduction order. A value-semantic batch-partition regression requires exact
+output equality between single-pixel and multi-pixel batching. Local nextest is
+blocked before compilation by unrelated live-provider version drift (Apollo
+0.15.0 versus RITK's pinned `^0.14.0`); pinned CI remains the compilation and
+runtime evidence source for this increment.
+Review confirmed the parallel seam preserves the serial MT stream and per-pixel
+f64 operation order, then identified an unenforced extreme-configuration memory
+bound and three per-batch allocations. The public boundary now rejects sample
+counts exceeding the coordinate budget, work/sample/result allocations are
+retained across batches, and explicit `Parallel` dispatch reflects the kernel's
+high cost instead of using pixel count as a proxy. Test review also removed two
+skip/xfail paths that could conceal binding or oracle failures. The large-data
+structural case now asserts strict reduction of MSE against its known clean
+source for both implementations rather than an underived Pearson threshold;
+the separate small-fixture suite remains the direct SimpleITK differential.
+
 The merged migration graph used eleven sibling path-dependent Rust repositories,
 but every GitHub workflow checked out only RITK. Cargo therefore failed before
 the migration audit or Python matrix could run. The Rust CI workflow also held

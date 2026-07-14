@@ -6040,27 +6040,24 @@ def test_cmake_level_set_motion_registration_structural():
 
 
 def test_cmake_patch_based_denoising_structural():
-    """PatchBasedDenoisingImageFilter: output differs from input and Pearson >= 0.9 vs sitk.
+    """PatchBasedDenoisingImageFilter reduces known additive-noise error.
 
     PatchBasedDenoisingImageFilter reduces noise by replacing each pixel with a
-    weighted average of similar patches in the neighbourhood.  With 1 iteration,
-    200 sample patches, and PatchRadius=2 the output should differ from the
-    noisy input and correlate strongly with the sitk output.
+    weighted average of similar patches in the neighbourhood. With 1 iteration,
+    200 sample patches, and PatchRadius=2, both implementations must reduce MSE
+    against the known clean image used to synthesize the noisy input.
 
     Input: RA-Float.nrrd with additive Gaussian noise (std=5.0, seed=0).
     Parameters: KernelBandwidthEstimation=False, NumberOfIterations=1,
                 NumberOfSamplePatches=200, PatchRadius=2.
-    Assertion: output != noisy input AND Pearson >= 0.9 vs sitk output.
+    Assertion: output != noisy input AND MSE(output, clean) < MSE(noisy, clean)
+               for both RITK and SimpleITK.
 
     Upstream cmake case mirrors: PatchBasedDenoisingImageFilter.yaml.
 
-    Evidence tier: empirical (failing — ritk.filter.patch_based_denoising not yet
-    implemented; expected: AttributeError).
+    Evidence tier: differential empirical validation against SimpleITK.
     """
     import numpy as _np
-
-    if not hasattr(ritk.filter, "patch_based_denoising"):
-        pytest.skip("patch_based_denoising is unimplemented in ritk")
 
     path = fetch_input("RA-Float.nrrd")
     si_clean = sitk.Cast(sitk.ReadImage(path), sitk.sitkFloat32)
@@ -6074,15 +6071,12 @@ def test_cmake_patch_based_denoising_structural():
     si_noisy = sitk.GetImageFromArray(arr_noisy)
     si_noisy.CopyInformation(si_clean)
 
-    try:
-        f = sitk.PatchBasedDenoisingImageFilter()
-        f.KernelBandwidthEstimationOff()
-        f.SetNumberOfIterations(1)
-        f.SetNumberOfSamplePatches(200)
-        f.SetPatchRadius(2)
-        so = f.Execute(si_noisy)
-    except Exception as exc:
-        pytest.skip(f"sitk.PatchBasedDenoisingImageFilter unavailable: {exc}")
+    f = sitk.PatchBasedDenoisingImageFilter()
+    f.KernelBandwidthEstimationOff()
+    f.SetNumberOfIterations(1)
+    f.SetNumberOfSamplePatches(200)
+    f.SetPatchRadius(2)
+    so = f.Execute(si_noisy)
 
     ri = ritk.Image(_np.ascontiguousarray(arr_noisy))
     ro = ritk.filter.patch_based_denoising(
@@ -6097,19 +6091,22 @@ def test_cmake_patch_based_denoising_structural():
     s_arr = sitk.GetArrayFromImage(so).astype(_np.float64)
     n_arr = arr_noisy.astype(_np.float64)
 
+    assert r_arr.shape == s_arr.shape == n_arr.shape
+    assert _np.all(_np.isfinite(r_arr)), "PatchBasedDenoising produced non-finite values"
+
     # Denoising must change at least some pixels.
     assert not _np.array_equal(r_arr, n_arr), (
         "PatchBasedDenoising output is identical to the noisy input — filter had no effect"
     )
 
-    r_c = r_arr.ravel() - r_arr.mean()
-    s_c = s_arr.ravel() - s_arr.mean()
-    pearson = float(
-        _np.dot(r_c, s_c) / (_np.sqrt(_np.dot(r_c, r_c) * _np.dot(s_c, s_c)) + 1e-12)
+    noisy_mse = float(_np.mean((n_arr - arr_clean) ** 2))
+    ritk_mse = float(_np.mean((r_arr - arr_clean) ** 2))
+    sitk_mse = float(_np.mean((s_arr - arr_clean) ** 2))
+    assert ritk_mse < noisy_mse, (
+        f"PatchBasedDenoising RITK MSE {ritk_mse} did not reduce noisy MSE {noisy_mse}"
     )
-    assert pearson >= 0.9, (
-        f"PatchBasedDenoising Pearson={pearson:.4f} < 0.9 vs sitk "
-        "(denoised outputs should correlate strongly; same noisy input, same parameters)"
+    assert sitk_mse < noisy_mse, (
+        f"PatchBasedDenoising SimpleITK MSE {sitk_mse} did not reduce noisy MSE {noisy_mse}"
     )
 
 

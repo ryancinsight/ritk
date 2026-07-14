@@ -70,6 +70,12 @@
   and VM-head registrations while retaining RITK and parity SSOT contracts.
 - [x] Remove the unreachable RIRE SyN cascade whose SimpleITK precondition
   consumed the entire timeout before RITK execution.
+- [x] Replace the serial patch-denoising voxel sweep with bounded deterministic
+  sample batches and Moirai pixel evaluation; preserve the exact shared RNG
+  stream and per-pixel reduction order with a batch-partition invariant test.
+- [x] Resolve patch-denoising review findings: enforce the sample-memory bound,
+  reuse batch storage, delete the stale duplicate xfail, make SimpleITK failures
+  fail, and replace correlation-only validation with clean-image MSE reduction.
 - [ ] Run review and gates, synchronize artifacts, commit, push, and merge green.
 
 ## MIG-653-01 — Native vector confidence-connected region growing

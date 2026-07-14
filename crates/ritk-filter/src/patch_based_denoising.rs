@@ -16,7 +16,7 @@
 //! per query pixel, `min(number_of_sample_patches, region_size)` patches are
 //! drawn **with replacement**, each coordinate `q[d] = ⌊N(p[d], sample_variance)⌋`
 //! (rejected to the search region), using ITK's `MersenneTwisterRandomVariateGenerator`
-//! (seeded `0` for the single-thread reference). `w` are the cubic-spline
+//! (seeded `0`). `w` are the cubic-spline
 //! smooth-disc patch weights; `σ = kernel_sigma`.
 //!
 //! Pixels are visited in `itk::ImageBoundaryFacesCalculator` order (interior
@@ -38,6 +38,17 @@ use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
 use std::f64::consts::PI;
+use std::mem::size_of;
+
+/// Bounds the transient sample-position storage used by one parallel batch.
+const SAMPLE_BATCH_BYTES: usize = 8 * 1024 * 1024;
+
+#[derive(Clone, Copy)]
+struct PixelWork {
+    position: [i64; 3],
+    first_sample: usize,
+    sample_count: usize,
+}
 
 // ── ITK MersenneTwister (MT19937) ───────────────────────────────────────────────
 
@@ -169,8 +180,15 @@ impl PatchBasedDenoisingImageFilter {
     /// Apply patch-based denoising to a 3-D image (`nz == 1` ⇒ 2-D).
     ///
     /// # Errors
-    /// Returns `Err` if the tensor data cannot be read as `f32`.
+    /// Returns `Err` if the tensor data cannot be read as `f32` or the requested
+    /// sample count exceeds the bounded per-batch coordinate capacity.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+        let max_samples = SAMPLE_BATCH_BYTES / size_of::<[i64; 3]>();
+        anyhow::ensure!(
+            self.number_of_sample_patches <= max_samples,
+            "number_of_sample_patches {} exceeds bounded capacity {max_samples}",
+            self.number_of_sample_patches
+        );
         let (data, dims) = extract_vec(image)?;
         let result = self.run(&data, dims);
         Ok(rebuild(result, dims, image))
@@ -193,6 +211,15 @@ impl PatchBasedDenoisingImageFilter {
 
 impl PatchBasedDenoisingImageFilter {
     fn pass(&self, data: &[f32], dims: [usize; 3]) -> Vec<f32> {
+        self.pass_with_sample_budget(data, dims, SAMPLE_BATCH_BYTES)
+    }
+
+    fn pass_with_sample_budget(
+        &self,
+        data: &[f32],
+        dims: [usize; 3],
+        sample_budget: usize,
+    ) -> Vec<f32> {
         let [nz, ny, nx] = dims;
         let ndim = if nz == 1 { 2 } else { 3 };
         let r = self.patch_radius as i64;
@@ -227,66 +254,103 @@ impl PatchBasedDenoisingImageFilter {
 
         let mut mt = ItkMt::new(0);
         let mut out = data.to_vec();
+        let order = face_calculator_order(sizes, self.patch_radius as i64, ndim);
+        let sample_position_bytes = size_of::<[i64; 3]>();
+        let sample_bytes_per_pixel = nrr
+            .saturating_mul(sample_position_bytes)
+            .max(sample_position_bytes);
+        let pixels_per_batch = (sample_budget / sample_bytes_per_pixel).max(1);
+        let batch_capacity = pixels_per_batch.min(order.len());
+        let mut work = Vec::with_capacity(batch_capacity);
+        let mut samples = Vec::with_capacity(sample_budget / sample_position_bytes);
+        let mut values = Vec::with_capacity(batch_capacity);
 
-        // Visit pixels in ImageBoundaryFacesCalculator order (interior, then faces).
-        for (x, y, z) in face_calculator_order(sizes, self.patch_radius as i64, ndim) {
-            // Region constraint (itkPatchBasedDenoisingImageFilter ComputeGradientJointEntropy).
-            // Per dim: rIndex = min(idx, radius); rEnd = max(idx, size-radius-1).
-            let mut lo = [0i64; 3];
-            let mut hi = [0i64; 3];
-            let q0 = [x, y, z];
-            for d in 0..ndim {
-                lo[d] = q0[d].min(r);
-                hi[d] = q0[d].max(sizes[d] - r - 1);
-            }
-            // Number of patches to draw = min(NRR, region size).
-            let mut region: u64 = 1;
-            for d in 0..ndim {
-                region *= (hi[d] - lo[d] + 1) as u64;
-            }
-            let nump = (nrr as u64).min(region) as usize;
-
-            let p_center = data[idx(x, y, z)] as f64;
-            let mut sum_g = 0.0f64;
-            let mut grad = 0.0f64;
-
-            for _ in 0..nump {
-                // Draw q per dim in order x, y[, z].
-                let qx = mt.gauss_int(lo[0], hi[0], x as f64, variance);
-                let qy = mt.gauss_int(lo[1], hi[1], y as f64, variance);
-                let qz = if ndim == 3 {
-                    mt.gauss_int(lo[2], hi[2], z as f64, variance)
-                } else {
-                    0
-                };
-
-                // Weighted squared patch distance over in-bounds query offsets.
-                let mut sq = 0.0f64;
-                for &(dz, dy, dx, wi) in &offsets {
-                    let (px, py, pz) = (x + dx, y + dy, z + dz);
-                    if px < 0
-                        || py < 0
-                        || pz < 0
-                        || px >= sizes[0]
-                        || py >= sizes[1]
-                        || pz >= sizes[2]
-                    {
-                        continue; // current-patch pixel out of bounds: skipped
-                    }
-                    // Selected patch is guaranteed in-bounds by the region constraint.
-                    let vp = data[idx(px, py, pz)] as f64;
-                    let vq = data[idx(qx + dx, qy + dy, qz + dz)] as f64;
-                    let diff = vp - vq;
-                    sq += weights[wi] * diff * diff;
+        // Sampling remains serial and follows ImageBoundaryFacesCalculator order,
+        // preserving ITK's shared RNG stream. Only independent pixel evaluation
+        // is parallel; every pixel retains its original sample and reduction order.
+        for pixel_batch in order.chunks(pixels_per_batch) {
+            work.clear();
+            samples.clear();
+            for &(x, y, z) in pixel_batch {
+                // Region constraint (itkPatchBasedDenoisingImageFilter
+                // ComputeGradientJointEntropy). Per dimension:
+                // rIndex = min(idx, radius); rEnd = max(idx, size-radius-1).
+                let mut lo = [0i64; 3];
+                let mut hi = [0i64; 3];
+                let q0 = [x, y, z];
+                for d in 0..ndim {
+                    lo[d] = q0[d].min(r);
+                    hi[d] = q0[d].max(sizes[d] - r - 1);
                 }
-
-                let g = (-(sq / s2) / 2.0).exp();
-                sum_g += g;
-                grad += (data[idx(qx, qy, qz)] as f64 - p_center) * g;
+                let region = (0..ndim)
+                    .map(|d| (hi[d] - lo[d] + 1) as u64)
+                    .product::<u64>();
+                let sample_count = (nrr as u64).min(region) as usize;
+                let first_sample = samples.len();
+                for _ in 0..sample_count {
+                    let qx = mt.gauss_int(lo[0], hi[0], x as f64, variance);
+                    let qy = mt.gauss_int(lo[1], hi[1], y as f64, variance);
+                    let qz = if ndim == 3 {
+                        mt.gauss_int(lo[2], hi[2], z as f64, variance)
+                    } else {
+                        0
+                    };
+                    samples.push([qx, qy, qz]);
+                }
+                work.push(PixelWork {
+                    position: q0,
+                    first_sample,
+                    sample_count,
+                });
             }
 
-            let update = 0.2 * grad / (sum_g + f64::MIN_POSITIVE * 100.0);
-            out[idx(x, y, z)] = (p_center + update) as f32;
+            values.resize(work.len(), 0.0);
+            moirai::enumerate_mut_with::<moirai::Parallel, _, _>(
+                &mut values,
+                |work_index, value| {
+                    let pixel = work[work_index];
+                    let [x, y, z] = pixel.position;
+                    let p_center = data[idx(x, y, z)] as f64;
+                    let mut sum_g = 0.0f64;
+                    let mut grad = 0.0f64;
+
+                    for &[qx, qy, qz] in
+                        &samples[pixel.first_sample..pixel.first_sample + pixel.sample_count]
+                    {
+                        let mut sq = 0.0f64;
+                        for &(dz, dy, dx, wi) in &offsets {
+                            let (px, py, pz) = (x + dx, y + dy, z + dz);
+                            if px < 0
+                                || py < 0
+                                || pz < 0
+                                || px >= sizes[0]
+                                || py >= sizes[1]
+                                || pz >= sizes[2]
+                            {
+                                continue;
+                            }
+                            // The region constraint guarantees the selected
+                            // patch coordinate is in bounds for every offset.
+                            let vp = data[idx(px, py, pz)] as f64;
+                            let vq = data[idx(qx + dx, qy + dy, qz + dz)] as f64;
+                            let diff = vp - vq;
+                            sq += weights[wi] * diff * diff;
+                        }
+
+                        let g = (-(sq / s2) / 2.0).exp();
+                        sum_g += g;
+                        grad += (data[idx(qx, qy, qz)] as f64 - p_center) * g;
+                    }
+
+                    let update = 0.2 * grad / (sum_g + f64::MIN_POSITIVE * 100.0);
+                    *value = (p_center + update) as f32;
+                },
+            );
+
+            for (pixel, &value) in work.iter().zip(&values) {
+                let [x, y, z] = pixel.position;
+                out[idx(x, y, z)] = value;
+            }
         }
 
         out
