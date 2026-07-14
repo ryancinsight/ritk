@@ -36,6 +36,9 @@
 - Dispatch three-component volume kernels through Moirai's native multi-buffer
   operation and explicitly parallelize costly bidirectional CC slices, avoiding
   accidental serial execution below the adaptive 1,024-item threshold.
+- Remove four side-by-side registration calls that duplicated independently
+  asserted RITK contracts while retaining every unique RITK and SimpleITK
+  value oracle as a separate test.
 - Pin Mnemosyne's concurrent pool-reclamation correction after a symbolized
   native trace showed the decay sweep could release a huge segment still
   observed by `TaggedSegmentStack::pop`.

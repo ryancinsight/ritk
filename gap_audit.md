@@ -262,6 +262,19 @@ execution because each of its few slice descriptors represents a full 2-D
 statistical kernel. Evidence tier before CI: verified provider policy contract,
 type-level execution-policy selection, and unchanged value-semantic tests;
 cross-host timing remains the acceptance gate.
+Run `29304216350` measured the corrected unchanged 128-cubed SyN registration at
+30.48 seconds, compared with both prior 60-second terminations. The preceding
+64-cubed sphere and Gaussian SyN contracts fell to 13.75 and 16.63 seconds,
+respectively, from the integration-only head's 26.20 and 26.12 seconds.
+Evidence tier: exact installed-wheel test timestamps plus unchanged
+value-semantic assertions. The run then advanced to a combined Colin27 test
+that repeated the same 30.48-second SyN call before an independent SimpleITK
+affine oracle and exhausted 60 seconds. Structural audit found four
+side-by-side tests with no cross-result assertion; each repeated a RITK
+registration already covered immediately in its class. The duplicate calls and
+assertions are deleted while the existing RITK tests and each unique SimpleITK
+oracle remain independent and unchanged. Evidence tier: exact duplicate call
+and assertion comparison; the next installed-wheel run remains the suite gate.
 The diagnostic wrapper and release-symbol overrides are removed for the final
 production-profile run. The
 stronger alignment gate
