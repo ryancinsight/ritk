@@ -269,12 +269,12 @@ impl<const D: usize> std::ops::Mul<Vector<D>> for Direction<D> {
 impl Direction<3> {
     /// Create a 3D direction matrix from row-major entries.
     pub const fn from_row_major(entries: [f64; 9]) -> Self {
-        Self(FixedMatrix::from_row_major(entries))
+        Self(<FixedMatrix<f64, 3, 3>>::from_row_major(entries))
     }
 
     /// Create a 3D direction matrix from column-major entries.
     pub const fn from_column_major(entries: [f64; 9]) -> Self {
-        Self(FixedMatrix::from_column_major(entries))
+        Self(<FixedMatrix<f64, 3, 3>>::from_column_major(entries))
     }
 
     /// Return the 3D direction matrix in row-major order.

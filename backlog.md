@@ -1,5 +1,9 @@
 # RITK Backlog - Active Planning
 
+- **DEP-501-01 [patch] - Apollo FFT provider alignment (IN PROGRESS).**
+  Accept Apollo FFT 0.15 without a compatibility edge and verify the owning
+  filter crate plus the downstream Kwavers graph.
+
 - **MIG-500-01 [major] - Hidden Burn dependency relocation (BLOCKED).**
   The current 112-file working diff is green but prohibited: direct
   `burn-ndarray` dependencies are replaced with `ritk-image`/

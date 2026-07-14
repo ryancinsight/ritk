@@ -8,6 +8,11 @@
 
 # CHANGELOG
 
+## [Unreleased] — Apollo FFT provider alignment (DEP-501-01)
+
+### Changed
+- `ritk-filter` now accepts the current Apollo FFT 0.15 provider generation.
+
 ## [Unreleased] — Sprint 499: canonical native binary erosion (MIG-499-01)
 
 ### Removed

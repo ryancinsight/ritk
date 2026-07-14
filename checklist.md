@@ -8,6 +8,13 @@
 
 # RITK Sprint Checklist — Active
 
+## DEP-501-01 — Apollo FFT provider alignment
+**Target version**: Unreleased patch
+**Sprint phase**: Verification
+
+- [x] Raise the RITK Apollo FFT constraint to the current local 0.15 provider.
+- [ ] Verify `ritk-filter` and the downstream Kwavers dependency graph.
+
 ## MIG-500-01 — Reject hidden Burn dependency relocation
 **Target version**: 0.14.0 migration batch
 **Sprint phase**: Blocked; reopen when consumers are ported to Coeus-native APIs
