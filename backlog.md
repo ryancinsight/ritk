@@ -6,10 +6,10 @@
   the stale `jpeg2k` wrapper from the differential tests, and align the CI
   Apollo checkout with the declared `apollo-fft` 0.15 provider. The tests now
   call the public `openjp2` API directly. The Apollo provider's Apple Silicon
-  target boundary is fixed at `f1a44a7`. GitHub Actions passed all required
-  gates and PR #31 merged at `be75a93a`. Residual: the Apollo pin tracks its
-  public RustFFT-removal branch until that provider state is promoted to Apollo
-  main.
+  target boundary is fixed at merged Apollo main `6e99a567`. GitHub Actions passed all required
+  gates and PR #31 merged at `be75a93a`. The Apollo provider state is now
+  promoted to main at `6e99a567`; the remaining consumer update is tracked by
+  DEP-501-01.
 
 - **MIG-654-01 [patch] - Reconcile native migration branch with current main
   (REVIEW).** Integrate the merged CI/provider checkout topology, remove stale
@@ -21,8 +21,10 @@
   fallback.
 
 - **DEP-501-01 [patch] - Apollo FFT provider alignment (IN PROGRESS).**
-  Accept Apollo FFT 0.15 without a compatibility edge and verify the owning
-  filter crate plus the downstream Kwavers graph.
+  Update the CI checkout to merged Apollo `6e99a567`, align every Atlas
+  provider checkout to its merged head, refresh the lockfile's provider graph,
+  and verify the owning filter crate plus the downstream Kwavers graph. No
+  compatibility edge or fallback is allowed.
 
 - **MIG-500-01 [major] - Hidden Burn dependency relocation (BLOCKED).**
   The current 112-file working diff is green but prohibited: direct

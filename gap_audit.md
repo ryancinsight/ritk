@@ -8,6 +8,20 @@
 
 # RITK Gap Audit - Active
 
+## DEP-501-01 audit (2026-07-15)
+
+### Atlas provider checkout alignment
+
+The Apollo checkout action now pins merged Apollo main commit
+`6e99a567c118f6bf5790f80346475b44db2c7555`, which publishes the required
+`apollo-fft` 0.15 provider. The action also selects merged Coeus `e0a5377`,
+Gaia `9e48102`, Hephaestus `dd93144`, Hermes `1423e41`, Leto `efa235a`,
+Melinoe `bb07447`, Mnemosyne `32b4a2a`, Moirai `8cd356c`, and Themis `18807bb`
+heads. This removes stale branch pins without introducing an adapter or
+fallback. Lockfile regeneration and consumer CI remain the acceptance gate.
+
+Evidence tier: source and provider-reference inspection; consumer CI pending.
+
 ## DEP-655-01 audit (2026-07-14)
 
 ### CI dependency-fetch blocker removed at the source boundary
@@ -36,16 +50,16 @@ the stale Apollo checkout: the action selected `apollo-fft` 0.14.0 while the
 workspace requires 0.15.0. Apollo's provider fix gates its AVX Stockham modules
 to x86 targets, so the Apple Silicon build now resolves the existing scalar
 path without importing x86-only symbols. The provider commit
-`f1a44a775cb5d5e58ffb2935e856fba6bb4205a7` passes Apollo's host tests, Clippy,
+`6e99a567c118f6bf5790f80346475b44db2c7555` passes Apollo's host tests, Clippy,
 doctests, rustdoc, and an `aarch64-apple-darwin` check. The action now pins that
-public revision, and the interop source is formatted by the repository
+merged main revision, and the interop source is formatted by the repository
 toolchain. Corrected CI runs 29376001568, 29376001595, and 29376001632 passed
 dependency alignment, Rustfmt, warnings-denied Clippy, migration audit, wheel
 smoke, all three platform suites, and the complete Python matrix. PR #31
 merged at `be75a93a94424833882d73b45d0711dc2fab4930`.
 
-Residual: Apollo main still exposes 0.14.0, so the action's 0.15.0 pin follows
-the public RustFFT-removal branch until that provider state is promoted.
+Residual: the original DEP-655-01 CI evidence predates the Apollo main
+promotion; current consumer verification is tracked under DEP-501-01.
 
 ## MIG-654-01 audit (2026-07-14)
 

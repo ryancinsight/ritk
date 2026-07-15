@@ -23,17 +23,16 @@
       the 14-test interop suite, and the full `ritk-codecs` suite pass.
 - [x] Apply CI-discovered corrections. Completion condition: the interop
       source is rustfmt-clean and the dependency checkout action pins Apollo
-      `f1a44a7`, whose provider target boundary compiles for Apple Silicon and
-      provides `apollo-fft` 0.15.
+      `6e99a567`, whose provider target boundary compiles for Apple Silicon and
+      provides `apollo-fft` 0.15 from Apollo main.
 - [x] Re-run GitHub Actions and close the item. Completion condition met by
       CI runs 29376001568, 29376001595, and 29376001632: dependency alignment,
       Rustfmt, warnings-denied Clippy, migration audit, wheel smoke, all three
       platform suites, and the complete Python matrix passed. PR #31 merged at
       `be75a93a94424833882d73b45d0711dc2fab4930`.
 
-Residual: Apollo is pinned to public `f1a44a775cb5d5e58ffb2935e856fba6bb4205a7`
-because Apollo main still publishes `apollo-fft` 0.14.0. Remove this temporary
-branch pin when the 0.15 provider state is promoted upstream.
+Residual: none for the Apollo provider promotion. The downstream lockfile and
+RITK CI verification remain tracked under DEP-501-01.
 
 ## MIG-654-01 — Native migration branch reconciliation
 **Target version**: Unreleased patch
@@ -71,7 +70,12 @@ profile-guided performance item.
 **Sprint phase**: Verification
 
 - [x] Raise the RITK Apollo FFT constraint to the current local 0.15 provider.
-- [ ] Verify `ritk-filter` and the downstream Kwavers dependency graph.
+- [x] Replace the temporary Apollo checkout with merged main commit
+      `6e99a567c118f6bf5790f80346475b44db2c7555` and align the shared Atlas
+      checkout action to merged Coeus, Gaia, Hephaestus, Hermes, Leto, Melinoe,
+      Mnemosyne, Moirai, and Themis heads. Leto is `efa235a5` after PR #34.
+- [ ] Verify `ritk-filter` and the downstream Kwavers dependency graph on the
+      merged provider graph.
 
 ## MIG-500-01 — Reject hidden Burn dependency relocation
 **Target version**: 0.14.0 migration batch

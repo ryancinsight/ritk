@@ -15,7 +15,7 @@
   the decoder-buffer deallocation guard required by the differential tests.
 - Removed the stale `jpeg2k` wrapper from the JPEG 2000 oracle and call the
   public `openjp2` API directly for both encode and decode directions.
-- Updated the CI Apollo checkout to public Apollo commit `f1a44a7`, whose
+- Updated the CI Apollo checkout to merged Apollo main commit `6e99a567`, whose
   provider target boundary declares `apollo-fft` 0.15 and compiles on Apple
   Silicon.
 
@@ -27,8 +27,8 @@
   `be75a93a94424833882d73b45d0711dc2fab4930`.
 
 ### Residual
-- The Apollo pin remains on its public RustFFT-removal branch until the 0.15
-  provider state reaches Apollo main.
+- The Apollo provider state is now on main; the consumer lockfile and CI
+  verification are tracked under DEP-501-01.
 
 ## [Unreleased] — Native migration branch reconciliation (MIG-654-01)
 
@@ -59,6 +59,11 @@
 
 ### Changed
 - `ritk-filter` now accepts the current Apollo FFT 0.15 provider generation.
+- The shared Atlas dependency checkout now uses merged Coeus `e0a5377`, Gaia
+  `9e48102`, Hephaestus `dd93144`, Hermes `1423e41`, Leto `efa235a`, Melinoe
+  `bb07447`, Mnemosyne `32b4a2a`, Moirai `8cd356c`, and Themis `18807bb` heads.
+- Cargo.lock resolves the merged provider graph without the temporary Apollo
+  branch pin.
 
 ## [Unreleased] — Sprint 499: canonical native binary erosion (MIG-499-01)
 
