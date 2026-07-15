@@ -64,7 +64,7 @@ fn native_histogram_match_maps_endpoints_and_preserves_source_geometry() {
     .expect("invariant: valid native reference image");
 
     let output = HistogramMatcher::new(64)
-        .match_histograms_native(&source, &reference, &SequentialBackend)
+        .match_histograms_native(&source, &reference)
         .expect("native histogram matching succeeds");
     let values = output.data_slice().expect("contiguous native output");
 

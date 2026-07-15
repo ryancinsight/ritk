@@ -33,7 +33,7 @@ use eunomia::Complex;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
-use ritk_tensor_ops::extract_vec_infallible;
+use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_metadata};
 
 use crate::fft::convolution::{fft_nd, ForwardFft, InverseFft};
 
@@ -183,16 +183,14 @@ fn build_output<B: Backend>(
     dims: [usize; 3],
     fixed: &Image<B, 3>,
 ) -> Image<B, 3> {
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
-    let device = fixed.data().device();
-    let td = TensorData::new(values, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
     let sp = fixed.spacing();
-    Image::new(
-        tensor,
+    rebuild_with_metadata(
+        values,
+        dims,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([sp[0], sp[1], sp[2]]),
         Direction::identity(),
+        fixed,
     )
 }
 

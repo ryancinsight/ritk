@@ -13,6 +13,7 @@ pub(super) fn make_image<const D: usize>(
 
 pub(super) const F32_TOL: f32 = 1e-5;
 
+mod native;
 mod overlap;
 mod quality;
 mod surface;

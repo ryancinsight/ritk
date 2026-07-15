@@ -211,16 +211,23 @@ fn natural_cmp(left: &str, right: &str) -> std::cmp::Ordering {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::natural_cmp;
+    use anyhow::Result;
     use coeus_core::SequentialBackend;
     use std::cmp::Ordering;
+    use std::path::Path;
     use tempfile::tempdir;
 
+    type TestBackend = SequentialBackend;
+
     fn write_gray_png(path: &Path, width: u32, height: u32, pixels: &[u8]) {
-        image::GrayImage::from_raw(width, height, pixels.to_vec())
-            .expect("invariant: test dimensions match pixel count")
-            .save(path)
-            .expect("test PNG write must succeed");
+        let image = image::GrayImage::from_raw(width, height, pixels.to_vec())
+            .expect("test image dimensions must match pixel count");
+        image.save(path).expect("test PNG write must succeed");
+    }
+
+    fn tensor_values(image: &ritk_image::native::Image<f32, TestBackend, 3>) -> Vec<f32> {
+        image.data_slice().expect("contiguous image data").to_vec()
     }
 
     #[test]
@@ -228,7 +235,10 @@ mod tests {
         let directory = tempdir()?;
         let path = directory.path().join("slice.png");
         write_gray_png(&path, 3, 2, &[10, 20, 30, 40, 50, 60]);
-        let image = read_png_to_image(&path, &SequentialBackend)?;
+
+        let backend = SequentialBackend;
+        let image = crate::read_png_to_image(&path, &backend)?;
+
         assert_eq!(image.shape(), [1, 2, 3]);
         assert_eq!(image.data_slice()?, &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]);
         assert_eq!(image.origin().to_array(), [0.0; 3]);
@@ -237,24 +247,38 @@ mod tests {
     }
 
     #[test]
-    fn series_natural_sorts_and_stacks_slices() -> Result<()> {
-        let directory = tempdir()?;
-        write_gray_png(&directory.path().join("slice10.png"), 2, 1, &[10, 11]);
-        write_gray_png(&directory.path().join("slice2.png"), 2, 1, &[2, 3]);
-        write_gray_png(&directory.path().join("slice1.png"), 2, 1, &[1, 4]);
-        let image = read_png_series(directory.path(), &SequentialBackend)?;
+    fn read_png_series_natural_sorts_and_stacks_slices() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        write_gray_png(&dir.path().join("slice10.png"), 2, 1, &[10, 11]);
+        write_gray_png(&dir.path().join("slice2.png"), 2, 1, &[2, 3]);
+        write_gray_png(&dir.path().join("slice1.png"), 2, 1, &[1, 4]);
+
+        let backend = SequentialBackend;
+        let image = crate::read_png_series(dir.path(), &backend)?;
+
         assert_eq!(image.shape(), [3, 1, 2]);
         assert_eq!(image.data_slice()?, &[1.0, 4.0, 2.0, 3.0, 10.0, 11.0]);
         Ok(())
     }
 
     #[test]
-    fn series_rejects_dimension_mismatch() -> Result<()> {
-        let directory = tempdir()?;
-        write_gray_png(&directory.path().join("slice1.png"), 2, 1, &[1, 2]);
-        write_gray_png(&directory.path().join("slice2.png"), 1, 1, &[3]);
-        let error = read_png_series(directory.path(), &SequentialBackend).unwrap_err();
-        assert!(error.to_string().contains("PNG size mismatch"));
+    fn read_png_series_rejects_dimension_mismatch() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        write_gray_png(&dir.path().join("slice1.png"), 2, 1, &[1, 2]);
+        write_gray_png(&dir.path().join("slice2.png"), 1, 1, &[3]);
+
+        let backend = SequentialBackend;
+        let result = crate::read_png_series(dir.path(), &backend);
+        let msg = match result {
+            Ok(_) => panic!("mismatched PNG dimensions must fail"),
+            Err(err) => format!("{err:?}"),
+        };
+
+        assert!(
+            msg.contains("PNG size mismatch"),
+            "error must name the dimension mismatch, got: {msg}"
+        );
+
         Ok(())
     }
 
@@ -263,9 +287,32 @@ mod tests {
         assert_eq!(natural_cmp("slice2", "slice10"), Ordering::Less);
         assert_eq!(natural_cmp("slice10", "slice2"), Ordering::Greater);
         assert_eq!(natural_cmp("slice2", "slice02"), Ordering::Less);
+    }
+
+    #[test]
+    fn native_read_png_matches_burn_single_and_series() -> anyhow::Result<()> {
+        use coeus_core::SequentialBackend;
+
+        let dir = tempdir()?;
+        let single = dir.path().join("slice.png");
+        write_gray_png(&single, 3, 2, &[10, 20, 30, 40, 50, 60]);
+        let backend = SequentialBackend;
+
+        let burn = crate::read_png_to_image(&single, &backend)?;
+        let coeus = crate::read_png_to_image(&single, &SequentialBackend)?;
+        assert_eq!(coeus.shape(), burn.shape());
+        assert_eq!(coeus.data_slice()?, tensor_values(&burn).as_slice());
+
+        let series_dir = tempdir()?;
+        write_gray_png(&series_dir.path().join("s1.png"), 2, 1, &[1, 4]);
+        write_gray_png(&series_dir.path().join("s2.png"), 2, 1, &[2, 3]);
+        let burn_series = crate::read_png_series(series_dir.path(), &backend)?;
+        let coeus_series = crate::read_png_series(series_dir.path(), &SequentialBackend)?;
+        assert_eq!(coeus_series.shape(), burn_series.shape());
         assert_eq!(
             natural_cmp("slice99999999999999999999", "slice100000000000000000000"),
             Ordering::Less
         );
+        Ok(())
     }
 }

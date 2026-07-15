@@ -54,9 +54,8 @@
 //!   Processing*, 2(2), 176–201.
 
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 
@@ -89,18 +88,19 @@ impl GrayscaleFillholeFilter {
 
         let filled = fill_holes_3d(&vals, dims);
 
-        let device = image.data().device();
-        let out_td = TensorData::new(filled, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(filled, dims, image))
     }
 
-    /// Apply grayscale fill-hole reconstruction to a Coeus-native image.
+    /// Coeus-native sister of [`GrayscaleFillholeFilter::apply`].
+    ///
+    /// Runs the identical minimax-path fill-hole via the shared `fill_holes_3d`
+    /// host core on the image's contiguous host buffer, so the result is
+    /// bitwise-identical to the Burn path. No Burn tensor is constructed.
+    /// Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
@@ -110,14 +110,9 @@ impl GrayscaleFillholeFilter {
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
-            fill_holes_3d(image.data_slice()?, image.shape()),
-            image.shape(),
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            backend,
-        )
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            fill_holes_3d(vals, dims)
+        })
     }
 }
 
@@ -136,7 +131,7 @@ impl GrayscaleFillholeFilter {
 /// - `h[x] >= I[x]` for all x: holes can only be raised.
 /// - `h[b] = I[b]` for all border voxels b.
 /// - Output length = `nz * ny * nx`.
-fn fill_holes_3d(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
+pub(crate) fn fill_holes_3d(data: &[f32], dims: [usize; 3]) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
 

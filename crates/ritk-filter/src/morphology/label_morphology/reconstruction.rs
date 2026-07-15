@@ -19,9 +19,8 @@
 
 use crate::morphology::Connectivity;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 use std::collections::VecDeque;
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -94,26 +93,41 @@ impl MorphologicalReconstruction {
             );
         }
 
-        let current: Vec<f32> = match self.mode {
-            ReconstructionMode::Dilation => {
-                hybrid_reconstruct::<Dilation>(&marker_vals, &mask_vals, dims, self.connectivity)
-            }
-            ReconstructionMode::Erosion => {
-                hybrid_reconstruct::<Erosion>(&marker_vals, &mask_vals, dims, self.connectivity)
-            }
-        };
+        let current = self.reconstruct_flat(&marker_vals, &mask_vals, dims);
 
-        let device = marker.data().device();
-        let t = Tensor::<B, 3>::from_data(TensorData::new(current, Shape::new(dims)), &device);
-        Ok(Image::new(
-            t,
-            *marker.origin(),
-            *marker.spacing(),
-            *marker.direction(),
-        ))
+        Ok(rebuild(current, dims, marker))
     }
 
-    /// Apply geodesic reconstruction to Coeus-native images.
+    /// Substrate-agnostic host core: Vincent hybrid reconstruction dispatched on
+    /// [`ReconstructionMode`]. Shared single source of truth for the Burn
+    /// [`apply`](Self::apply) and Coeus-native [`apply_native`](Self::apply_native)
+    /// paths; `marker` and `mask` must be the same length as `dims`'s product.
+    pub(crate) fn reconstruct_flat(
+        &self,
+        marker: &[f32],
+        mask: &[f32],
+        dims: [usize; 3],
+    ) -> Vec<f32> {
+        match self.mode {
+            ReconstructionMode::Dilation => {
+                hybrid_reconstruct::<Dilation>(marker, mask, dims, self.connectivity)
+            }
+            ReconstructionMode::Erosion => {
+                hybrid_reconstruct::<Erosion>(marker, mask, dims, self.connectivity)
+            }
+        }
+    }
+
+    /// Coeus-native sister of [`MorphologicalReconstruction::apply`].
+    ///
+    /// Runs the identical Vincent hybrid reconstruction via the shared
+    /// `reconstruct_flat` host core on both images'
+    /// contiguous host buffers, so the result is bitwise-identical to the Burn
+    /// path. No Burn tensor is constructed. Output geometry comes from `marker`.
+    ///
+    /// # Errors
+    /// Returns an error on shape mismatch, non-contiguous buffers, or failed
+    /// shape validation of the rebuilt image.
     pub fn apply_native<B>(
         &self,
         marker: &ritk_image::native::Image<f32, B, 3>,
@@ -124,35 +138,9 @@ impl MorphologicalReconstruction {
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        if marker.shape() != mask.shape() {
-            anyhow::bail!(
-                "MorphologicalReconstruction: marker shape {:?} != mask shape {:?}",
-                marker.shape(),
-                mask.shape()
-            );
-        }
-        let values = match self.mode {
-            ReconstructionMode::Dilation => hybrid_reconstruct::<Dilation>(
-                marker.data_slice()?,
-                mask.data_slice()?,
-                marker.shape(),
-                self.connectivity,
-            ),
-            ReconstructionMode::Erosion => hybrid_reconstruct::<Erosion>(
-                marker.data_slice()?,
-                mask.data_slice()?,
-                marker.shape(),
-                self.connectivity,
-            ),
-        };
-        ritk_image::native::Image::from_flat_on(
-            values,
-            marker.shape(),
-            *marker.origin(),
-            *marker.spacing(),
-            *marker.direction(),
-            backend,
-        )
+        crate::native_support::map_flat_pair(marker, mask, backend, |m, i, dims| {
+            self.reconstruct_flat(m, i, dims)
+        })
     }
 }
 

@@ -7,12 +7,14 @@
 //!   cargo run --example brain_ct_mri_registration
 
 use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_filter::ResampleImageFilter;
 use ritk_image::burn::backend::Autodiff;
-use ritk_image::tensor::Tensor;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_interpolation::LinearInterpolator;
-use ritk_io::{read_png_series, write_nifti};
+use ritk_io::format::png::native::PngSeriesReader;
+use ritk_io::{write_nifti, ImageReader};
 use ritk_registration::metric::MutualInformation;
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
 use ritk_registration::optimizer::AdamOptimizer;
@@ -20,6 +22,27 @@ use ritk_transform::{AffineTransform, RigidTransform};
 
 // CPU backend with automatic differentiation
 type Backend = Autodiff<NdArray<f32>>;
+
+fn read_png_series<B: ritk_image::tensor::backend::Backend>(
+    path: &std::path::Path,
+    device: &B::Device,
+) -> anyhow::Result<Image<B, 3>> {
+    let reader = PngSeriesReader::new(SequentialBackend);
+    let native = reader.read(path)?;
+    let tensor = Tensor::<B, 3>::from_data(
+        TensorData::new(
+            native.data_cow_on(&SequentialBackend).into_owned(),
+            Shape::new(native.shape()),
+        ),
+        device,
+    );
+    Ok(Image::new(
+        tensor,
+        *native.origin(),
+        *native.spacing(),
+        *native.direction(),
+    ))
+}
 
 fn main() -> anyhow::Result<()> {
     println!("RITK Brain CT-MRI Full Registration Example");

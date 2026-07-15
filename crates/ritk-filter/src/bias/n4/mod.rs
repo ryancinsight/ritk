@@ -37,9 +37,8 @@ use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use histogram_sharpen::{histogram_sharpen, HistogramSharpenScratch};
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::VolumeDims;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 // Re-export the DFT helpers so the `tests_n4` module can reach them
 // via `use super::*;` (the tests were failing with E0425 "cannot find
@@ -124,15 +123,7 @@ impl N4BiasFieldCorrectionFilter {
         let (vals, shape) = extract_vec(image)?;
         let out = apply_n4_bias_correction_values(&vals, shape, &self.config)?;
 
-        let td2 = TensorData::new(out, Shape::new(shape));
-        let tensor = Tensor::<B, 3>::from_data(td2, &image.data().device());
-
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(out, shape, image))
     }
 
     /// Apply N4 bias correction to a Coeus-native image.

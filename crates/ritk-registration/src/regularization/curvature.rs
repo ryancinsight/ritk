@@ -17,13 +17,14 @@
 //!
 //! ## When to use curvature regularization
 //!
+//! - When extremely smooth deformations are desired
+//! - For surfaces or thin structures
+//! - When bending energy is not sufficient
+//! - In deformable models for computational anatomy
+
 use super::trait_::Regularizer;
-use ritk_image::tensor::Backend;
-/// - When extremely smooth deformations are desired
-/// - For surfaces or thin structures
-/// - When bending energy is not sufficient
-/// - In deformable models for computational anatomy
-use ritk_image::tensor::Tensor;
+use coeus_core::{ComputeBackend, CpuAddressableStorage, Scalar};
+use coeus_tensor::Tensor;
 
 /// Curvature regularizer for displacement fields.
 ///
@@ -35,12 +36,13 @@ use ritk_image::tensor::Tensor;
 ///
 /// ```rust,ignore
 /// use ritk_registration::regularization::CurvatureRegularizer;
-/// use ritk_image::tensor::Tensor;
+/// use ritk_registration::regularization::Regularizer;
+/// use coeus_tensor::Tensor;
 ///
 /// let reg = CurvatureRegularizer::new(0.01);
 /// // displacement field: [B, 2, H, W] for 2D
-/// let displacement = Tensor::zeros([1, 2, 64, 64], &device);
-/// let loss = reg.compute_loss::<4>(displacement);
+/// let displacement: Tensor<f32, _> = Tensor::zeros([1, 2, 64, 64]);
+/// let loss = reg.compute_loss(&displacement);
 /// ```
 #[derive(Clone, Debug)]
 pub struct CurvatureRegularizer {
@@ -63,8 +65,13 @@ impl Default for CurvatureRegularizer {
     }
 }
 
-impl<B: Backend> Regularizer<B> for CurvatureRegularizer {
-    fn compute_loss<const D: usize>(&self, displacement: Tensor<B, D>) -> Tensor<B, 1> {
+impl<T, B> Regularizer<T, B> for CurvatureRegularizer
+where
+    T: Scalar,
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+{
+    fn compute_loss(&self, displacement: &Tensor<T, B>) -> T {
         super::dispatch::dispatch_curvature(displacement, self.weight)
     }
 

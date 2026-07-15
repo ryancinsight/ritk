@@ -33,18 +33,12 @@ pub(crate) fn thirion_forces_into(
     } = forces;
     let sigma_x2 = max_step_length * max_step_length;
 
-    let mut zipped: Vec<(&mut [f32], &mut [f32], &mut [f32])> = fz
-        .chunks_exact_mut(slice_len)
-        .zip(fy.chunks_exact_mut(slice_len))
-        .zip(fx.chunks_exact_mut(slice_len))
-        .map(|((z, y), x)| (z, y, x))
-        .collect();
-
-    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
-        &mut zipped,
-        1,
-        |iz, chunk| {
-            let (fz_s, fy_s, fx_s) = &mut chunk[0];
+    moirai::for_each_chunk_triple_mut_enumerated_with::<moirai::Adaptive, _, _, _, _>(
+        fz,
+        fy,
+        fx,
+        slice_len,
+        |iz, fz_s, fy_s, fx_s| {
             let base = iz * slice_len;
             for local in 0..slice_len {
                 let i = base + local;

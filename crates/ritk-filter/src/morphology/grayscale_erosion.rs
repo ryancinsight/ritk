@@ -37,9 +37,8 @@
 //! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer.
 
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 // ── Filter struct ─────────────────────────────────────────────────────────────
 
@@ -81,18 +80,19 @@ impl GrayscaleErosion {
 
         let eroded = erode_3d(&vals, dims, self.radius);
 
-        let device = image.data().device();
-        let out_td = TensorData::new(eroded, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(out_td, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(eroded, dims, image))
     }
 
-    /// Apply grayscale erosion to a Coeus-native image.
+    /// Coeus-native sister of [`GrayscaleErosion::apply`].
+    ///
+    /// Runs the identical `(2r+1)³` cubic-neighbourhood minimum (replicate
+    /// boundary) via the shared `erode_3d` host core on the image's contiguous
+    /// host buffer, so the result is bitwise-identical to the Burn path. No Burn
+    /// tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
@@ -102,14 +102,9 @@ impl GrayscaleErosion {
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
-            erode_3d(image.data_slice()?, image.shape(), self.radius),
-            image.shape(),
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            backend,
-        )
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            erode_3d(vals, dims, self.radius)
+        })
     }
 }
 

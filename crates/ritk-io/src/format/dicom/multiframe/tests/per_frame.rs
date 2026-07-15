@@ -59,20 +59,10 @@ fn test_per_frame_empty_when_no_functional_groups() {
 /// Invariant: basic multiframe SOP class has no functional groups.
 #[test]
 fn test_multiframe_info_per_frame_field_empty_for_basic_sop() {
-    let device = <B as Backend>::Device::default();
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("basic_mf.dcm");
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![1.0_f32; 2 * 2 * 2], Shape::new([2_usize, 2, 2])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
-    );
-    write_dicom_multiframe(&out_path, &image).expect("write");
+    let image = native_image(vec![1.0_f32; 2 * 2 * 2], [2, 2, 2], [0.0; 3], [1.0; 3]);
+    write_dicom_multiframe_native(&out_path, &image).expect("write");
     let info = read_multiframe_info(&out_path).expect("read_multiframe_info");
     assert!(
         info.per_frame.is_empty(),
@@ -156,7 +146,6 @@ fn test_load_dicom_multiframe_enhanced_per_frame_rescale() {
     use dicom::core::header::Length;
     use dicom::core::value::DataSetSequence;
 
-    let device = <B as Backend>::Device::default();
     let tmp = tempfile::tempdir().expect("tempdir");
     let path = tmp.path().join("enhanced_pf_rescale.dcm");
 
@@ -269,39 +258,38 @@ fn test_load_dicom_multiframe_enhanced_per_frame_rescale() {
     file_obj.write_to_file(&path).expect("write enhanced file");
 
     // Load and verify per-frame rescale via load_dicom_multiframe.
-    let img = load_dicom_multiframe::<B, _>(&path, &device).expect("load enhanced per-frame");
+    let img = load_dicom_multiframe_native(&path).expect("load enhanced per-frame");
     let [lf, lr, lc] = img.shape();
     assert_eq!(lf, 2, "frames");
     assert_eq!(lr, 2, "rows");
     assert_eq!(lc, 2, "cols");
 
-    img.with_data_slice(|floats: &[f32]| {
-        assert_eq!(floats.len(), 8, "total pixel count = 2 frames × 4 pixels");
-        // Frame 0: raw=[100,200,300,400], slope=1.0, intercept=0.0
-        // Decoded: [100.0, 200.0, 300.0, 400.0]
-        assert!(
-            (floats[0] - 100.0).abs() < 0.5,
-            "frame0 pixel0: expected 100.0, got {}",
-            floats[0]
-        );
-        assert!(
-            (floats[3] - 400.0).abs() < 0.5,
-            "frame0 pixel3: expected 400.0, got {}",
-            floats[3]
-        );
-        // Frame 1: raw=[10,20,30,40], slope=2.0, intercept=10.0
-        // Decoded: [30.0, 50.0, 70.0, 90.0]
-        assert!(
-            (floats[4] - 30.0).abs() < 0.5,
-            "frame1 pixel0: expected 30.0 (10*2+10), got {}",
-            floats[4]
-        );
-        assert!(
-            (floats[7] - 90.0).abs() < 0.5,
-            "frame1 pixel3: expected 90.0 (40*2+10), got {}",
-            floats[7]
-        );
-    });
+    let floats = img.data_slice().expect("contiguous native data");
+    assert_eq!(floats.len(), 8, "total pixel count = 2 frames × 4 pixels");
+    // Frame 0: raw=[100,200,300,400], slope=1.0, intercept=0.0
+    // Decoded: [100.0, 200.0, 300.0, 400.0]
+    assert!(
+        (floats[0] - 100.0).abs() < 0.5,
+        "frame0 pixel0: expected 100.0, got {}",
+        floats[0]
+    );
+    assert!(
+        (floats[3] - 400.0).abs() < 0.5,
+        "frame0 pixel3: expected 400.0, got {}",
+        floats[3]
+    );
+    // Frame 1: raw=[10,20,30,40], slope=2.0, intercept=10.0
+    // Decoded: [30.0, 50.0, 70.0, 90.0]
+    assert!(
+        (floats[4] - 30.0).abs() < 0.5,
+        "frame1 pixel0: expected 30.0 (10*2+10), got {}",
+        floats[4]
+    );
+    assert!(
+        (floats[7] - 90.0).abs() < 0.5,
+        "frame1 pixel3: expected 90.0 (40*2+10), got {}",
+        floats[7]
+    );
 
     // Verify per_frame metadata via read_multiframe_info.
     let info = read_multiframe_info(&path).expect("read_multiframe_info");

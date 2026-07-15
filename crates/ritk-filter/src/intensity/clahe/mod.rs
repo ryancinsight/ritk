@@ -61,7 +61,6 @@ pub mod tile_cdf;
 use interpolate::clahe_2d_with_scratch;
 
 use anyhow::Result;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -180,32 +179,42 @@ impl ClaheFilter {
     /// # Errors
     /// Returns `Err` if the tensor data cannot be extracted as `f32`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
-        let shape = image.shape();
         let (vals_vec, dims) = extract_vec(image)?;
-        Ok(rebuild(self.apply_values(&vals_vec, shape), dims, image))
+        let out = self.clahe_flat(&vals_vec, dims);
+        Ok(rebuild(out, dims, image))
     }
 
-    /// Apply CLAHE to a Coeus-native image.
+    /// Coeus-native sister of [`ClaheFilter::apply`].
+    ///
+    /// Runs the identical per-axial-slice CLAHE via the shared
+    /// `clahe_flat` host core (per-slice driver over
+    /// `clahe_2d_with_scratch`) on the image's contiguous host buffer, so the
+    /// result is bitwise-identical to the Burn path. No Burn tensor is
+    /// constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
         backend: &B,
     ) -> Result<ritk_image::native::Image<f32, B, 3>>
     where
-        B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
-            self.apply_values(image.data_slice()?, image.shape()),
-            image.shape(),
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            backend,
-        )
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            self.clahe_flat(vals, dims)
+        })
     }
 
-    fn apply_values(&self, values: &[f32], [depth, rows, cols]: [usize; 3]) -> Vec<f32> {
+    /// Substrate-agnostic host core: applies CLAHE independently to each axial
+    /// (Z=depth) slice of a flat z-major buffer. Single source of truth for the
+    /// Burn [`apply`](Self::apply) and Coeus-native
+    /// [`apply_native`](Self::apply_native) paths.
+    fn clahe_flat(&self, vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
+        let [depth, rows, cols] = dims;
         let n_tiles_y = self.tile_grid_size[0].min(rows).max(1);
         let n_tiles_x = self.tile_grid_size[1].min(cols).max(1);
         let clip_limit = self.clip_limit;
@@ -214,7 +223,7 @@ impl ClaheFilter {
 
         moirai::map_collect_index_with::<moirai::Adaptive, _, _>(depth, |depth_index| {
             let mut scratch = ClaheScratch::new(rows, cols, n_tiles_y, n_tiles_x, bins);
-            let slice = &values[depth_index * slice_size..(depth_index + 1) * slice_size];
+            let slice = &vals[depth_index * slice_size..(depth_index + 1) * slice_size];
             clahe_2d_with_scratch(
                 slice,
                 rows,
@@ -293,3 +302,39 @@ mod tests_clahe;
 #[cfg(test)]
 #[path = "../tests_clahe_apply.rs"]
 mod tests_clahe_apply;
+
+#[cfg(test)]
+mod tests_native {
+    use super::ClaheFilter;
+    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use coeus_core::SequentialBackend;
+
+    #[test]
+    fn matches_burn() {
+        // Two axial slices, structured intensities so tile histograms differ.
+        let vals: Vec<f32> = (0..128).map(|i| ((i * 17) % 64) as f32).collect();
+        assert_native_matches_burn(
+            vals,
+            [2, 8, 8],
+            |img| {
+                ClaheFilter::new([2, 2], 4.0, 32)
+                    .apply(img)
+                    .expect("burn clahe")
+            },
+            |img, backend| ClaheFilter::new([2, 2], 4.0, 32).apply_native(img, backend),
+        );
+    }
+
+    #[test]
+    fn oracle_uniform_slice_unchanged() {
+        // A uniform slice (`v_min == v_max`) maps to itself: the CLAHE per-slice
+        // invariant `output == input` when the slice has zero intensity span.
+        let img = make_native_image(vec![12.0f32; 64], [1, 8, 8]);
+        let out = ClaheFilter::new([2, 2], 4.0, 32)
+            .apply_native(&img, &SequentialBackend)
+            .expect("native clahe");
+        for &v in &native_vals(&out) {
+            assert_eq!(v, 12.0, "uniform slice must be preserved, got {v}");
+        }
+    }
+}

@@ -65,88 +65,126 @@ impl MinMaxCurvatureFlowImageFilter {
 
     /// Apply min/max curvature flow to a 3-D image (`z = 1` is treated as 2-D).
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        assert!(
-            self.config.stencil_radius >= 1,
-            "MinMaxCurvatureFlowImageFilter: stencil_radius must be >= 1, got {}",
-            self.config.stencil_radius
-        );
         let (vals_vec, dims) = extract_vec(image)?;
-        let [nz, ny, nx] = dims;
-        let n = nz * ny * nx;
-        let slab = ny * nx;
-        let r = self.config.stencil_radius as isize;
-        let two_d = nz == 1;
-        let dt = (self.config.time_step as f64) / (r * r).max(1) as f64;
-
-        let (sphere, sphere_w) = sphere_offsets(r, two_d);
-        let rf = r as f64;
-
         let sp = image.spacing();
-        let inv_sp = [1.0 / sp[2], 1.0 / sp[1], 1.0 / sp[0]];
-
-        let mut cur: Vec<f64> = vals_vec.iter().map(|&v| v as f64).collect();
-
-        // Reusable double buffer: each sweep reads `cur`, writes `next`, then
-        // swaps — avoids the per-iteration `cur.clone()` + `collect()` (two
-        // N-element f64 allocations per iteration). Bit-identical: reading `cur`
-        // after the swap is exactly the previous sweep's `prev` clone.
-        let mut next: Vec<f64> = vec![0.0f64; n];
-        for _ in 0..self.config.num_iterations {
-            {
-                // Shared borrow of `cur` outlives the moirai scope; moirai
-                // uses scoped threads so non-'static borrows are safe.
-                let cur_ref: &[f64] = &cur;
-                moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
-                    &mut next,
-                    slab,
-                    |iz, iz_out| {
-                        let get = |zz: isize, yy: isize, xx: isize| -> f64 {
-                            let zc = zz.clamp(0, nz as isize - 1) as usize;
-                            let yc = yy.clamp(0, ny as isize - 1) as usize;
-                            let xc = xx.clamp(0, nx as isize - 1) as usize;
-                            cur_ref[zc * slab + yc * nx + xc]
-                        };
-                        for rem in 0..slab {
-                            let iy = rem / nx;
-                            let ix = rem - iy * nx;
-                            let (z, y, x) = (iz as isize, iy as isize, ix as isize);
-                            let c = cur_ref[iz * slab + rem];
-                            let (mut speed, dx_, dy_, dz_) =
-                                curvature_speed(&get, z, y, x, c, inv_sp);
-
-                            if speed != 0.0 {
-                                let threshold = if two_d {
-                                    threshold_2d(&get, z, y, x, dx_, dy_, rf)
-                                } else {
-                                    threshold_3d(&get, z, y, x, dx_, dy_, dz_, rf)
-                                };
-                                // Sphere average (normalized inner product).
-                                let mut avg = 0.0;
-                                for o in &sphere {
-                                    avg += sphere_w * get(z + o[0], y + o[1], x + o[2]);
-                                }
-                                speed = if avg < threshold {
-                                    speed.max(0.0)
-                                } else {
-                                    speed.min(0.0)
-                                };
-                            }
-                            // ITK accumulates in the image pixel type (f32); round each
-                            // iteration to f32 so high-dynamic-range volumes match bit-exactly.
-                            iz_out[rem] = (c + dt * speed) as f32 as f64;
-                        }
-                    },
-                );
-            }
-            std::mem::swap(&mut cur, &mut next);
-        }
-
-        Ok(rebuild(
-            cur.iter().map(|&v| v as f32).collect(),
-            dims,
-            image,
-        ))
+        let result =
+            min_max_curvature_flow_evolve(&vals_vec, dims, [sp[0], sp[1], sp[2]], &self.config);
+        Ok(rebuild(result, dims, image))
     }
+
+    /// Coeus-native sister of [`MinMaxCurvatureFlowImageFilter::apply`].
+    ///
+    /// Runs the identical directional-threshold min/max curvature-flow evolution
+    /// via the shared `min_max_curvature_flow_evolve` host core on the image's
+    /// contiguous host buffer, so the result is bitwise-identical to the Burn
+    /// path. No Burn tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let sp = image.spacing();
+        let spacing = [sp[0], sp[1], sp[2]];
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            min_max_curvature_flow_evolve(vals, dims, spacing, &self.config)
+        })
+    }
+}
+
+/// Substrate-agnostic host core for [`MinMaxCurvatureFlowImageFilter`]: the
+/// directional-threshold min/max curvature-flow explicit-Euler evolution on a
+/// flat z-major buffer (f64 double buffer, per-iteration f32 rounding to match
+/// ITK's image-pixel-type accumulation). Single source of truth for the Burn
+/// [`apply`](MinMaxCurvatureFlowImageFilter::apply) and Coeus-native
+/// [`apply_native`](MinMaxCurvatureFlowImageFilter::apply_native) paths.
+fn min_max_curvature_flow_evolve(
+    vals: &[f32],
+    dims: [usize; 3],
+    spacing: [f64; 3],
+    config: &MinMaxCurvatureFlowConfig,
+) -> Vec<f32> {
+    assert!(
+        config.stencil_radius >= 1,
+        "MinMaxCurvatureFlowImageFilter: stencil_radius must be >= 1, got {}",
+        config.stencil_radius
+    );
+    let [nz, ny, nx] = dims;
+    let n = nz * ny * nx;
+    let slab = ny * nx;
+    let r = config.stencil_radius as isize;
+    let two_d = nz == 1;
+    let dt = (config.time_step as f64) / (r * r).max(1) as f64;
+
+    let (sphere, sphere_w) = sphere_offsets(r, two_d);
+    let rf = r as f64;
+
+    let inv_sp = [1.0 / spacing[2], 1.0 / spacing[1], 1.0 / spacing[0]];
+
+    let mut cur: Vec<f64> = vals.iter().map(|&v| v as f64).collect();
+
+    // Reusable double buffer: each sweep reads `cur`, writes `next`, then
+    // swaps — avoids the per-iteration `cur.clone()` + `collect()` (two
+    // N-element f64 allocations per iteration). Bit-identical: reading `cur`
+    // after the swap is exactly the previous sweep's `prev` clone.
+    let mut next: Vec<f64> = vec![0.0f64; n];
+    for _ in 0..config.num_iterations {
+        {
+            // Shared borrow of `cur` outlives the moirai scope; moirai
+            // uses scoped threads so non-'static borrows are safe.
+            let cur_ref: &[f64] = &cur;
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                &mut next,
+                slab,
+                |iz, iz_out| {
+                    let get = |zz: isize, yy: isize, xx: isize| -> f64 {
+                        let zc = zz.clamp(0, nz as isize - 1) as usize;
+                        let yc = yy.clamp(0, ny as isize - 1) as usize;
+                        let xc = xx.clamp(0, nx as isize - 1) as usize;
+                        cur_ref[zc * slab + yc * nx + xc]
+                    };
+                    for rem in 0..slab {
+                        let iy = rem / nx;
+                        let ix = rem - iy * nx;
+                        let (z, y, x) = (iz as isize, iy as isize, ix as isize);
+                        let c = cur_ref[iz * slab + rem];
+                        let (mut speed, dx_, dy_, dz_) = curvature_speed(&get, z, y, x, c, inv_sp);
+
+                        if speed != 0.0 {
+                            let threshold = if two_d {
+                                threshold_2d(&get, z, y, x, dx_, dy_, rf)
+                            } else {
+                                threshold_3d(&get, z, y, x, dx_, dy_, dz_, rf)
+                            };
+                            // Sphere average (normalized inner product).
+                            let mut avg = 0.0;
+                            for o in &sphere {
+                                avg += sphere_w * get(z + o[0], y + o[1], x + o[2]);
+                            }
+                            speed = if avg < threshold {
+                                speed.max(0.0)
+                            } else {
+                                speed.min(0.0)
+                            };
+                        }
+                        // ITK accumulates in the image pixel type (f32); round each
+                        // iteration to f32 so high-dynamic-range volumes match bit-exactly.
+                        iz_out[rem] = (c + dt * speed) as f32 as f64;
+                    }
+                },
+            );
+        }
+        std::mem::swap(&mut cur, &mut next);
+    }
+
+    cur.iter().map(|&v| v as f32).collect()
 }
 
 /// Build the normalized Euclidean-ball stencil offsets of radius `r` (`z`-axis
@@ -258,73 +296,116 @@ impl BinaryMinMaxCurvatureFlowImageFilter {
 
     /// Apply binary min/max curvature flow.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        assert!(
-            self.config.stencil_radius >= 1,
-            "BinaryMinMaxCurvatureFlowImageFilter: stencil_radius must be >= 1, got {}",
-            self.config.stencil_radius
-        );
         let (vals_vec, dims) = extract_vec(image)?;
-        let [nz, ny, nx] = dims;
-        let n = nz * ny * nx;
-        let slab = ny * nx;
-        let r = self.config.stencil_radius as isize;
-        let two_d = nz == 1;
-        let dt = (self.config.time_step as f64) / (r * r).max(1) as f64;
-        let thr = self.config.threshold;
-        let (sphere, sphere_w) = sphere_offsets(r, two_d);
-
         let sp = image.spacing();
-        let inv_sp = [1.0 / sp[2], 1.0 / sp[1], 1.0 / sp[0]];
-
-        let mut cur: Vec<f64> = vals_vec.iter().map(|&v| v as f64).collect();
-        // Reusable double buffer (see the min/max path above): read `cur`, write
-        // `next`, swap — drops the per-iteration clone + collect allocations.
-        let mut next: Vec<f64> = vec![0.0f64; n];
-        for _ in 0..self.config.num_iterations {
-            {
-                let cur_ref: &[f64] = &cur;
-                moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
-                    &mut next,
-                    slab,
-                    |iz, iz_out| {
-                        let get = |zz: isize, yy: isize, xx: isize| -> f64 {
-                            let zc = zz.clamp(0, nz as isize - 1) as usize;
-                            let yc = yy.clamp(0, ny as isize - 1) as usize;
-                            let xc = xx.clamp(0, nx as isize - 1) as usize;
-                            cur_ref[zc * slab + yc * nx + xc]
-                        };
-                        for rem in 0..slab {
-                            let iy = rem / nx;
-                            let ix = rem - iy * nx;
-                            let (z, y, x) = (iz as isize, iy as isize, ix as isize);
-                            let c = cur_ref[iz * slab + rem];
-                            let (mut speed, _, _, _) = curvature_speed(&get, z, y, x, c, inv_sp);
-                            if speed != 0.0 {
-                                let mut avg = 0.0;
-                                for o in &sphere {
-                                    avg += sphere_w * get(z + o[0], y + o[1], x + o[2]);
-                                }
-                                speed = if avg < thr {
-                                    speed.min(0.0)
-                                } else {
-                                    speed.max(0.0)
-                                };
-                            }
-                            // ITK accumulates in the image pixel type (f32); round each
-                            // iteration to f32 so high-dynamic-range volumes match bit-exactly.
-                            iz_out[rem] = (c + dt * speed) as f32 as f64;
-                        }
-                    },
-                );
-            }
-            std::mem::swap(&mut cur, &mut next);
-        }
-        Ok(rebuild(
-            cur.iter().map(|&v| v as f32).collect(),
+        let result = binary_min_max_curvature_flow_evolve(
+            &vals_vec,
             dims,
-            image,
-        ))
+            [sp[0], sp[1], sp[2]],
+            &self.config,
+        );
+        Ok(rebuild(result, dims, image))
     }
+
+    /// Coeus-native sister of [`BinaryMinMaxCurvatureFlowImageFilter::apply`].
+    ///
+    /// Runs the identical scalar-threshold binary min/max curvature-flow
+    /// evolution via the shared `binary_min_max_curvature_flow_evolve` host
+    /// core on the image's contiguous host buffer, so the result is
+    /// bitwise-identical to the Burn path. No Burn tensor is constructed.
+    /// Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let sp = image.spacing();
+        let spacing = [sp[0], sp[1], sp[2]];
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            binary_min_max_curvature_flow_evolve(vals, dims, spacing, &self.config)
+        })
+    }
+}
+
+/// Substrate-agnostic host core for [`BinaryMinMaxCurvatureFlowImageFilter`]:
+/// the scalar-threshold binary min/max curvature-flow explicit-Euler evolution
+/// on a flat z-major buffer. Single source of truth for the Burn
+/// [`apply`](BinaryMinMaxCurvatureFlowImageFilter::apply) and Coeus-native
+/// [`apply_native`](BinaryMinMaxCurvatureFlowImageFilter::apply_native) paths.
+fn binary_min_max_curvature_flow_evolve(
+    vals: &[f32],
+    dims: [usize; 3],
+    spacing: [f64; 3],
+    config: &BinaryMinMaxCurvatureFlowConfig,
+) -> Vec<f32> {
+    assert!(
+        config.stencil_radius >= 1,
+        "BinaryMinMaxCurvatureFlowImageFilter: stencil_radius must be >= 1, got {}",
+        config.stencil_radius
+    );
+    let [nz, ny, nx] = dims;
+    let n = nz * ny * nx;
+    let slab = ny * nx;
+    let r = config.stencil_radius as isize;
+    let two_d = nz == 1;
+    let dt = (config.time_step as f64) / (r * r).max(1) as f64;
+    let thr = config.threshold;
+    let (sphere, sphere_w) = sphere_offsets(r, two_d);
+
+    let inv_sp = [1.0 / spacing[2], 1.0 / spacing[1], 1.0 / spacing[0]];
+
+    let mut cur: Vec<f64> = vals.iter().map(|&v| v as f64).collect();
+    // Reusable double buffer (see the min/max path above): read `cur`, write
+    // `next`, swap — drops the per-iteration clone + collect allocations.
+    let mut next: Vec<f64> = vec![0.0f64; n];
+    for _ in 0..config.num_iterations {
+        {
+            let cur_ref: &[f64] = &cur;
+            moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+                &mut next,
+                slab,
+                |iz, iz_out| {
+                    let get = |zz: isize, yy: isize, xx: isize| -> f64 {
+                        let zc = zz.clamp(0, nz as isize - 1) as usize;
+                        let yc = yy.clamp(0, ny as isize - 1) as usize;
+                        let xc = xx.clamp(0, nx as isize - 1) as usize;
+                        cur_ref[zc * slab + yc * nx + xc]
+                    };
+                    for rem in 0..slab {
+                        let iy = rem / nx;
+                        let ix = rem - iy * nx;
+                        let (z, y, x) = (iz as isize, iy as isize, ix as isize);
+                        let c = cur_ref[iz * slab + rem];
+                        let (mut speed, _, _, _) = curvature_speed(&get, z, y, x, c, inv_sp);
+                        if speed != 0.0 {
+                            let mut avg = 0.0;
+                            for o in &sphere {
+                                avg += sphere_w * get(z + o[0], y + o[1], x + o[2]);
+                            }
+                            speed = if avg < thr {
+                                speed.min(0.0)
+                            } else {
+                                speed.max(0.0)
+                            };
+                        }
+                        // ITK accumulates in the image pixel type (f32); round each
+                        // iteration to f32 so high-dynamic-range volumes match bit-exactly.
+                        iz_out[rem] = (c + dt * speed) as f32 as f64;
+                    }
+                },
+            );
+        }
+        std::mem::swap(&mut cur, &mut next);
+    }
+    cur.iter().map(|&v| v as f32).collect()
 }
 
 /// ITK `Math::Round` for non-negative arguments: round half up.
@@ -412,3 +493,62 @@ fn threshold_3d<F: Fn(isize, isize, isize) -> f64>(
 #[cfg(test)]
 #[path = "tests_min_max_curvature_flow.rs"]
 mod tests;
+
+#[cfg(test)]
+mod tests_native {
+    use super::{
+        BinaryMinMaxCurvatureFlowConfig, BinaryMinMaxCurvatureFlowImageFilter,
+        MinMaxCurvatureFlowConfig, MinMaxCurvatureFlowImageFilter,
+    };
+    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use coeus_core::SequentialBackend;
+
+    #[test]
+    fn min_max_matches_burn() {
+        let vals: Vec<f32> = (0..60).map(|i| ((i * 13) % 19) as f32).collect();
+        assert_native_matches_burn(
+            vals,
+            [3, 4, 5],
+            |img| {
+                MinMaxCurvatureFlowImageFilter::new(MinMaxCurvatureFlowConfig::default())
+                    .apply(img)
+                    .expect("burn min/max curvature flow")
+            },
+            |img, backend| {
+                MinMaxCurvatureFlowImageFilter::new(MinMaxCurvatureFlowConfig::default())
+                    .apply_native(img, backend)
+            },
+        );
+    }
+
+    #[test]
+    fn binary_min_max_matches_burn() {
+        let vals: Vec<f32> = (0..60).map(|i| ((i * 5) % 7) as f32).collect();
+        assert_native_matches_burn(
+            vals,
+            [3, 4, 5],
+            |img| {
+                BinaryMinMaxCurvatureFlowImageFilter::new(BinaryMinMaxCurvatureFlowConfig::default())
+                    .apply(img)
+                    .expect("burn binary min/max curvature flow")
+            },
+            |img, backend| {
+                BinaryMinMaxCurvatureFlowImageFilter::new(BinaryMinMaxCurvatureFlowConfig::default())
+                    .apply_native(img, backend)
+            },
+        );
+    }
+
+    #[test]
+    fn oracle_constant_field_preserved() {
+        // Both variants gate the curvature speed to 0 on a constant field
+        // (all derivatives 0), so the field is a fixed point of the evolution.
+        let img = make_native_image(vec![4.0f32; 64], [4, 4, 4]);
+        let out = MinMaxCurvatureFlowImageFilter::new(MinMaxCurvatureFlowConfig::default())
+            .apply_native(&img, &SequentialBackend)
+            .expect("native min/max curvature flow");
+        for &v in &native_vals(&out) {
+            assert_eq!(v, 4.0, "constant field must be a fixed point, got {v}");
+        }
+    }
+}

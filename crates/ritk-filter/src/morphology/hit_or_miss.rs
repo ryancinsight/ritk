@@ -11,9 +11,8 @@
 //! - Soille, P. (2003). Morphological Image Analysis, 2nd ed. Springer.
 
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 #[derive(Debug, Clone)]
 pub struct HitOrMissTransform {
@@ -31,23 +30,19 @@ impl HitOrMissTransform {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let result = hit_or_miss_3d(&vals, dims, self.fg_radius, self.bg_radius);
-        let device = image.data().device();
-        let tensor = Tensor::<B, 3>::from_data(TensorData::new(result, Shape::new(dims)), &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(result, dims, image))
     }
 
-    /// Apply the transform to a Coeus-native CPU-addressable image.
+    /// Coeus-native sister of [`HitOrMissTransform::apply`].
+    ///
+    /// Runs the identical `(M ⊖ SE1) ∧ (Mᶜ ⊖ SE2)` transform via the shared
+    /// `hit_or_miss_3d` host core on the image's contiguous host buffer, so the
+    /// result is bitwise-identical to the Burn path. No Burn tensor is
+    /// constructed. Spatial metadata is preserved.
     ///
     /// # Errors
-    ///
-    /// Returns an error when the backend storage is not available as a
-    /// contiguous host slice or when the output image cannot be constructed
-    /// from the computed flat volume and input geometry.
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
@@ -57,19 +52,9 @@ impl HitOrMissTransform {
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
-            hit_or_miss_3d(
-                image.data_slice()?,
-                image.shape(),
-                self.fg_radius,
-                self.bg_radius,
-            ),
-            image.shape(),
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            backend,
-        )
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            hit_or_miss_3d(vals, dims, self.fg_radius, self.bg_radius)
+        })
     }
 }
 

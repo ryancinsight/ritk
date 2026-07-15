@@ -1,5 +1,4 @@
 use super::*;
-use coeus_core::SequentialBackend;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, VR};
 use dicom::object::meta::FileMetaTableBuilder;
@@ -141,12 +140,12 @@ fn read_dicom_color_multiframe_preserves_interleaved_rgb_samples() {
         Some(0),
         expected.iter().map(|v| *v as u8).collect(),
     );
-    let backend = SequentialBackend;
 
-    let volume = read_dicom_color_multiframe(&path, &backend).expect("load RGB MF");
+    let volume = load_atlas_color_multiframe(&path).expect("load RGB MF");
 
     assert_eq!(volume.shape(), [2, 1, 2, 3]);
-    assert_eq!(volume.origin().to_array(), [1.0, 2.0, 3.0]);
+    let origin = volume.origin();
+    assert_eq!([origin[0], origin[1], origin[2]], [1.0, 2.0, 3.0]);
     assert_eq!(
         [
             volume.spacing()[0],
@@ -155,7 +154,8 @@ fn read_dicom_color_multiframe_preserves_interleaved_rgb_samples() {
         ],
         [2.0, 0.5, 0.25]
     );
-    assert_eq!(volume.data_cow_on(&backend).as_ref(), expected.as_slice());
+    let samples = volume.data_slice().expect("contiguous native data");
+    assert_eq!(samples, expected.as_slice());
 }
 
 #[test]
@@ -163,7 +163,7 @@ fn read_dicom_color_multiframe_rejects_scalar_samples() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("scalar_mf.dcm");
     write_multiframe(&path, 1, "MONOCHROME2", None, vec![1, 2, 3, 4]);
-    let err = read_dicom_color_multiframe(&path, &SequentialBackend).unwrap_err();
+    let err = load_atlas_color_multiframe(&path).unwrap_err();
     let msg = format!("{err:#}");
     assert!(
         msg.contains("SamplesPerPixel=1"),
@@ -176,7 +176,7 @@ fn read_dicom_color_multiframe_rejects_planar_rgb() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("planar_mf.dcm");
     write_multiframe(&path, 3, "RGB", Some(1), vec![0; 12]);
-    let err = read_dicom_color_multiframe(&path, &SequentialBackend).unwrap_err();
+    let err = load_atlas_color_multiframe(&path).unwrap_err();
     let msg = format!("{err:#}");
     assert!(
         msg.contains("PlanarConfiguration=0") && msg.contains("declares 1"),
@@ -195,7 +195,7 @@ fn read_dicom_color_multiframe_rejects_hostile_dimensions_without_oom() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("hostile_mf.dcm");
     write_multiframe_with_dims(&path, 3, "RGB", Some(0), 60000, 60000, vec![0u8; 12]);
-    let err = read_dicom_color_multiframe(&path, &SequentialBackend)
+    let err = load_atlas_color_multiframe(&path)
         .expect_err("hostile multiframe dimensions must error, not OOM");
     let msg = format!("{err:#}");
     assert!(

@@ -1,161 +1,5 @@
 pub use ritk_jpeg::{read_jpeg_color_to_volume, JpegColorReader};
 
-use crate::domain::{ImageReader, ImageWriter};
-use anyhow::Result;
-use coeus_core::SequentialBackend;
-use ritk_core::image::Image;
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use std::marker::PhantomData;
-use std::path::Path;
-
-/// Reads JPEG through the native provider and converts at this legacy image boundary.
-pub fn read_jpeg<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
-    let backend = SequentialBackend;
-    let native = ritk_jpeg::read_jpeg(path, &backend)?;
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(
-            native.data_cow_on(&backend).into_owned(),
-            Shape::new(native.shape()),
-        ),
-        device,
-    );
-    Ok(Image::new(
-        tensor,
-        *native.origin(),
-        *native.spacing(),
-        *native.direction(),
-    ))
-}
-
-/// Writes a legacy image through the native JPEG provider.
-pub fn write_jpeg<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
-    let backend = SequentialBackend;
-    let native = ritk_image::native::Image::from_flat_on(
-        image.try_data_vec()?,
-        image.shape(),
-        *image.origin(),
-        *image.spacing(),
-        *image.direction(),
-        &backend,
-    )?;
-    ritk_jpeg::write_jpeg(path, &native, &backend)
-}
-
-/// Device-bound legacy JPEG reader.
-pub struct JpegReader<B: Backend> {
-    device: B::Device,
-}
-
-impl<B: Backend> JpegReader<B> {
-    /// Creates a reader for `device`.
-    pub fn new(device: B::Device) -> Self {
-        Self { device }
-    }
-
-    /// Reads a JPEG into the legacy image substrate.
-    pub fn read_image<P: AsRef<Path>>(&self, path: P) -> Result<Image<B, 3>> {
-        read_jpeg(path, &self.device)
-    }
-}
-
-/// Stateless legacy JPEG writer.
-pub struct JpegWriter<B: Backend> {
-    marker: PhantomData<fn() -> B>,
-}
-
-impl<B: Backend> Default for JpegWriter<B> {
-    fn default() -> Self {
-        Self {
-            marker: PhantomData,
-        }
-    }
-}
-
-impl<B: Backend> JpegWriter<B> {
-    /// Writes a legacy image through the native provider.
-    pub fn write_image<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> Result<()> {
-        write_jpeg(path, image)
-    }
-}
-
-impl<B: Backend> ImageReader<Image<B, 3>> for JpegReader<B> {
-    fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
-        self.read_image(path)
-            .map_err(|e| std::io::Error::other(e.to_string()))
-    }
-}
-
-impl<B: Backend> ImageWriter<Image<B, 3>> for JpegWriter<B> {
-    fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
-        self.write_image(path, image)
-            .map_err(|e| std::io::Error::other(e.to_string()))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{JpegReader, JpegWriter};
-    use crate::domain::{ImageReader, ImageWriter};
-    use burn_ndarray::NdArray;
-    use ritk_core::image::Image;
-    use ritk_image::tensor::backend::Backend;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
-    use ritk_spatial::{Direction, Point, Spacing};
-    use tempfile::tempdir;
-
-    type TestBackend = NdArray<f32>;
-
-    fn image_from_values(
-        device: &<TestBackend as Backend>::Device,
-        shape: [usize; 3],
-        values: Vec<f32>,
-    ) -> Image<TestBackend, 3> {
-        let tensor_data = TensorData::new(values, Shape::new(shape));
-        let tensor = Tensor::<TestBackend, 3>::from_data(tensor_data, device);
-        Image::new(
-            tensor,
-            Point::new([0.0, 0.0, 0.0]),
-            Spacing::new([1.0, 1.0, 1.0]),
-            Direction::identity(),
-        )
-    }
-
-    fn tensor_values(image: &Image<TestBackend, 3>) -> Vec<f32> {
-        image.data_slice().into_owned()
-    }
-
-    #[test]
-    fn jpeg_reader_writer_adapters_delegate_to_authoritative_crate() -> anyhow::Result<()> {
-        let dir = tempdir()?;
-        let path = dir.path().join("adapter.jpg");
-        let device: <TestBackend as Backend>::Device = Default::default();
-        let image = image_from_values(&device, [1, 1, 3], vec![16.0, 128.0, 240.0]);
-
-        let writer = JpegWriter::<TestBackend>::default();
-        ImageWriter::<Image<TestBackend, 3>>::write(&writer, &path, &image)?;
-
-        let reader = JpegReader::<TestBackend>::new(device);
-        let loaded = ImageReader::<Image<TestBackend, 3>>::read(&reader, &path)?;
-
-        assert_eq!(loaded.shape(), [1, 1, 3]);
-        let values = tensor_values(&loaded);
-        assert_eq!(values.len(), 3);
-        assert!(values[0] <= 24.0, "expected dark pixel, got {}", values[0]);
-        assert!(
-            (values[1] - 128.0).abs() <= 12.0,
-            "expected mid pixel near 128, got {}",
-            values[1]
-        );
-        assert!(
-            values[2] >= 228.0,
-            "expected bright pixel, got {}",
-            values[2]
-        );
-        Ok(())
-    }
-}
-
 /// Atlas-native-substrate implementors of [`crate::domain::ImageReader`].
 ///
 /// Transitional module: names inside are the plain end-state names; the
@@ -167,7 +11,7 @@ pub mod native {
     use ritk_image::native::Image;
     use std::path::Path;
 
-    /// Backend-bound Atlas-native reader (counterpart of the Burn [`super::JpegReader`]).
+    /// Backend-bound Atlas-native reader (counterpart of the Burn `JpegReader`).
     pub struct JpegReader<B: ComputeBackend> {
         backend: B,
     }
@@ -204,6 +48,54 @@ pub mod native {
     {
         fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
             ritk_jpeg::write_jpeg(path, image, &self.backend).map_err(to_io_err)
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use coeus_core::SequentialBackend;
+        use ritk_spatial::{Direction, Point, Spacing};
+        use tempfile::tempdir;
+
+        /// Trait-dispatched round trip through the unified contract. JPEG is
+        /// lossy, so tolerances bound the DCT quantization error per intensity
+        /// band rather than asserting exact equality.
+        #[test]
+        fn native_contract_round_trips_jpeg() {
+            let image = Image::from_flat_on(
+                vec![16.0f32, 128.0, 240.0],
+                [1usize, 1, 3],
+                Point::new([0.0, 0.0, 0.0]),
+                Spacing::new([1.0, 1.0, 1.0]),
+                Direction::identity(),
+                &SequentialBackend,
+            )
+            .expect("coeus image");
+
+            let dir = tempdir().expect("tempdir");
+            let path = dir.path().join("contract.jpg");
+
+            let writer = JpegWriter::new(SequentialBackend);
+            ImageWriter::write(&writer, &path, &image).expect("contract write");
+
+            let reader = JpegReader::new(SequentialBackend);
+            let loaded = ImageReader::read(&reader, &path).expect("contract read");
+
+            assert_eq!(loaded.shape(), [1, 1, 3], "shape round-trip");
+            let values = loaded.data_slice().expect("contiguous");
+            assert_eq!(values.len(), 3);
+            assert!(values[0] <= 24.0, "expected dark pixel, got {}", values[0]);
+            assert!(
+                (values[1] - 128.0).abs() <= 12.0,
+                "expected mid pixel near 128, got {}",
+                values[1]
+            );
+            assert!(
+                values[2] >= 228.0,
+                "expected bright pixel, got {}",
+                values[2]
+            );
         }
     }
 }

@@ -65,7 +65,6 @@ fn native_white_stripe_preserves_geometry_and_reports_diagnostics() {
             num_bins: 128,
             ..Default::default()
         },
-        &SequentialBackend,
     )
     .expect("native white stripe succeeds");
 

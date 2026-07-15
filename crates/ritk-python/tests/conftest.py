@@ -11,9 +11,27 @@ import filter``.
 
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
-import importlib.util
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _preserve_simpleitk_thread_budget():
+    """Restore process-global SimpleITK thread state after every test."""
+    sitk = sys.modules.get("SimpleITK")
+    if sitk is None:
+        yield
+        return
+
+    original = sitk.ProcessObject.GetGlobalDefaultNumberOfThreads()
+    try:
+        yield
+    finally:
+        sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(original)
+
 
 _PYTHON_SOURCE = Path(__file__).resolve().parent.parent / "python"
 itk_path = _PYTHON_SOURCE / "itk"
@@ -37,4 +55,3 @@ if itk_path.is_dir():
 _p = str(_PYTHON_SOURCE)
 if _p not in sys.path:
     sys.path.append(_p)
-

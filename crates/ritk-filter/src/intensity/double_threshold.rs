@@ -7,9 +7,8 @@
 //! band (marker) under the outer band (mask).
 
 use crate::morphology::{Connectivity, MorphologicalReconstruction, ReconstructionMode};
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
-use ritk_image::{native::Image as NativeImage, Image};
+use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Double-threshold (hysteresis) filter with four ordered thresholds
@@ -63,15 +62,56 @@ impl DoubleThresholdImageFilter {
     /// Apply the double-threshold transform.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        let (inner, outer) = self.marker_and_mask(&vals);
-        let marker = rebuild(inner, dims, image);
-        let mask = rebuild(outer, dims, image);
+        let out = self.double_threshold_flat(&vals, dims);
+        Ok(rebuild(out, dims, image))
+    }
+
+    /// Coeus-native sister of [`DoubleThresholdImageFilter::apply`].
+    ///
+    /// Runs the identical band-indicator + binary morphological reconstruction
+    /// via the shared `double_threshold_flat` host core (which delegates to
+    /// `MorphologicalReconstruction::reconstruct_flat`)
+    /// on the image's contiguous host buffer, so the result is bitwise-identical
+    /// to the Burn path. No Burn tensor is constructed. Spatial metadata is
+    /// preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            self.double_threshold_flat(vals, dims)
+        })
+    }
+
+    /// Substrate-agnostic host core: the inner-band marker `[t2, t3]` is
+    /// binary-morphologically reconstructed under the outer-band mask `[t1, t4]`,
+    /// then mapped to inside/outside values. Single source of truth for the Burn
+    /// [`apply`](Self::apply) and Coeus-native [`apply_native`](Self::apply_native)
+    /// paths.
+    fn double_threshold_flat(&self, vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
+        // Inner band [t2, t3] → marker; outer band [t1, t4] → mask.
+        let inner: Vec<f32> = vals
+            .iter()
+            .map(|&v| (v >= self.threshold2 && v <= self.threshold3) as u8 as f32)
+            .collect();
+        let outer: Vec<f32> = vals
+            .iter()
+            .map(|&v| (v >= self.threshold1 && v <= self.threshold4) as u8 as f32)
+            .collect();
         let recon = MorphologicalReconstruction::new(ReconstructionMode::Dilation)
             .with_connectivity(self.connectivity)
-            .apply(&marker, &mask)?;
+            .reconstruct_flat(&inner, &outer, dims);
 
-        let (rvals, _) = extract_vec(&recon)?;
-        let out: Vec<f32> = rvals
+        recon
             .iter()
             .map(|&v| {
                 if v > 0.5 {
@@ -80,74 +120,62 @@ impl DoubleThresholdImageFilter {
                     self.outside_value
                 }
             })
-            .collect();
-        Ok(rebuild(out, dims, image))
-    }
-
-    /// Apply double-threshold hysteresis to a Coeus-native image.
-    pub fn apply_native<B>(
-        &self,
-        image: &NativeImage<f32, B, 3>,
-        backend: &B,
-    ) -> anyhow::Result<NativeImage<f32, B, 3>>
-    where
-        B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
-        let (inner, outer) = self.marker_and_mask(image.data_slice()?);
-        let marker = NativeImage::from_flat_on(
-            inner,
-            image.shape(),
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            backend,
-        )?;
-        let mask = NativeImage::from_flat_on(
-            outer,
-            image.shape(),
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            backend,
-        )?;
-        let reconstruction = MorphologicalReconstruction::new(ReconstructionMode::Dilation)
-            .with_connectivity(self.connectivity)
-            .apply_native(&marker, &mask, backend)?;
-        let values = reconstruction
-            .data_slice()?
-            .iter()
-            .map(|&value| {
-                if value > 0.5 {
-                    self.inside_value
-                } else {
-                    self.outside_value
-                }
-            })
-            .collect();
-        NativeImage::from_flat_on(
-            values,
-            image.shape(),
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            backend,
-        )
-    }
-
-    fn marker_and_mask(&self, values: &[f32]) -> (Vec<f32>, Vec<f32>) {
-        let marker = values
-            .iter()
-            .map(|&value| (value >= self.threshold2 && value <= self.threshold3) as u8 as f32)
-            .collect();
-        let mask = values
-            .iter()
-            .map(|&value| (value >= self.threshold1 && value <= self.threshold4) as u8 as f32)
-            .collect();
-        (marker, mask)
+            .collect()
     }
 }
 
 #[cfg(test)]
 #[path = "tests_double_threshold.rs"]
 mod tests_double_threshold;
+
+#[cfg(test)]
+mod tests_native {
+    use super::DoubleThresholdImageFilter;
+    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use coeus_core::SequentialBackend;
+
+    #[test]
+    fn matches_burn() {
+        // Mixed intensities so inner/outer bands and connectivity all exercise.
+        let vals: Vec<f32> = (0..60).map(|i| ((i * 7) % 20) as f32).collect();
+        assert_native_matches_burn(
+            vals,
+            [3, 4, 5],
+            |img| {
+                DoubleThresholdImageFilter::new(2.0, 8.0, 12.0, 18.0, 1.0, 0.0)
+                    .apply(img)
+                    .expect("burn double threshold")
+            },
+            |img, backend| {
+                DoubleThresholdImageFilter::new(2.0, 8.0, 12.0, 18.0, 1.0, 0.0)
+                    .apply_native(img, backend)
+            },
+        );
+    }
+
+    #[test]
+    fn oracle_all_inner_band_is_all_inside() {
+        // Every voxel lies in the inner band [t2, t3] → the marker is full → the
+        // reconstruction fills the whole (also-full) mask → all inside_value.
+        let img = make_native_image(vec![10.0f32; 27], [3, 3, 3]);
+        let out = DoubleThresholdImageFilter::new(0.0, 5.0, 15.0, 20.0, 1.0, 0.0)
+            .apply_native(&img, &SequentialBackend)
+            .expect("native double threshold");
+        for &v in &native_vals(&out) {
+            assert_eq!(v, 1.0, "inner-band voxel must map to inside_value");
+        }
+    }
+
+    #[test]
+    fn oracle_empty_marker_is_all_outside() {
+        // No voxel lies in the inner band [t2, t3] → empty marker → empty
+        // reconstruction → all outside_value, regardless of the outer band.
+        let img = make_native_image(vec![10.0f32; 27], [3, 3, 3]);
+        let out = DoubleThresholdImageFilter::new(0.0, 50.0, 60.0, 100.0, 1.0, 0.0)
+            .apply_native(&img, &SequentialBackend)
+            .expect("native double threshold");
+        for &v in &native_vals(&out) {
+            assert_eq!(v, 0.0, "no inner-band marker must map to outside_value");
+        }
+    }
+}

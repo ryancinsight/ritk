@@ -1,286 +1,282 @@
-use burn_ndarray::NdArray;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+//! Verification of the native (Coeus) regularizer dispatch kernels.
+//!
+//! Evidence tier: analytical (closed-form value oracles). Each finite-difference
+//! regularizer is checked against a displacement field whose penalty has a
+//! hand-derived exact value, plus the structural laws it must obey
+//! (zero-field → zero, bending ≡ curvature, weight linearity).
+//!
+//! Backend: the deterministic single-threaded [`SequentialBackend`], so the
+//! fused stencil/reduction has no reduction-order variance to bound.
 
-type B = NdArray;
+use coeus_core::SequentialBackend;
+use coeus_tensor::Tensor;
 
-/// Tolerance for zero-displacement field producing near-zero loss.
-/// Grid is 4×4 or 4×4×4; f32 accumulation error ≤ 64 × f32::EPSILON.
+type B = SequentialBackend;
+
+/// Zero-field losses are exactly zero (all differences vanish); the tolerance
+/// only absorbs the final division, so it is tight.
 const ZERO_FIELD_LOSS_TOL: f32 = 1e-6;
 
-/// Helper: create a planar (2-D) displacement field [1, C, 4, 4] from a flat f32 slice.
-fn planar_displacement_field(values: &[f32], c: usize) -> Tensor<B, 4> {
-    let device = Default::default();
-    Tensor::<B, 4>::from_data(
-        TensorData::new(values.to_vec(), Shape::new([1, c, 4, 4])),
-        &device,
-    )
+/// Closed-form oracle tolerance. The oracle fields have ≤192 f32 voxels; the
+/// worst-case accumulated rounding is `N·f32::EPSILON·max_term` with `N ≤ 192`
+/// and `f32::EPSILON ≈ 1.19e-7`, i.e. `< 3e-5` relative on the `O(1)` oracle
+/// values. `1e-5` absolute bounds it, and the integer-valued quadratic oracles
+/// are in fact exact in f32.
+const FD_LOSS_TOL: f32 = 1e-5;
+
+/// Planar (2-D) displacement field `[1, C, 4, 4]` from a flat row-major slice
+/// (`[channel][height][width]`, width fastest).
+fn planar(values: &[f32], c: usize) -> Tensor<f32, B> {
+    Tensor::<f32, B>::from_slice_on([1, c, 4, 4], values, &SequentialBackend)
 }
 
-/// Helper: create a volumetric (3-D) displacement field [1, C, 4, 4, 4] from a flat f32 slice.
-fn volume_displacement_field(values: &[f32], c: usize) -> Tensor<B, 5> {
-    let device = Default::default();
-    Tensor::<B, 5>::from_data(
-        TensorData::new(values.to_vec(), Shape::new([1, c, 4, 4, 4])),
-        &device,
-    )
+/// Volumetric (3-D) displacement field `[1, C, 4, 4, 4]` from a flat slice.
+fn volume(values: &[f32], c: usize) -> Tensor<f32, B> {
+    Tensor::<f32, B>::from_slice_on([1, c, 4, 4, 4], values, &SequentialBackend)
 }
 
-/// Helper: assert a scalar loss is finite.
-fn assert_finite(loss: f32, label: &str) {
-    assert!(loss.is_finite(), "{label} should be finite, got {loss}");
+/// A field that is a linear ramp in the width axis: `u = 0.1·w`, identical
+/// across channels/rows/slices. Its width forward-difference is `0.1` at the
+/// three interior columns and `0` (zero pad) at the last, so `mean(g_w²) =
+/// (3/4)·0.1² = 0.0075` and `mean(|g_w|) = (3/4)·0.1 = 0.075`; every other axis
+/// gradient is zero.
+fn width_ramp(len: usize) -> Vec<f32> {
+    (0..len).map(|m| (m % 4) as f32 * 0.1).collect()
 }
 
-// ── Bending energy ───────────────────────────────────────────────────────────
+/// A field quadratic in the width axis: `u = w²`. Its second width difference is
+/// `(w−1)² + (w+1)² − 2w² = 2` everywhere, so the discrete Laplacian is `2` at
+/// every interior voxel and `0` on the zero border.
+fn width_quadratic(len: usize) -> Vec<f32> {
+    (0..len).map(|m| ((m % 4) as f32).powi(2)).collect()
+}
+
+fn assert_close(got: f32, expected: f32, tol: f32, label: &str) {
+    assert!(
+        (got - expected).abs() < tol,
+        "{label}: expected {expected}, got {got} (tol {tol})"
+    );
+}
+
+// ── Zero field → zero loss (all five regularizers, both ranks) ───────────────
 
 #[test]
-fn bending_energy_zero_displacement_is_zero() {
-    let displacement = Tensor::<B, 4>::zeros([1, 2, 4, 4], &Default::default());
-    let loss: f32 = super::dispatch_bending_energy::<B, 4>(displacement, 1.0).into_scalar();
-    assert_finite(loss, "bending_energy planar zero");
-    assert!(
-        loss.abs() < ZERO_FIELD_LOSS_TOL,
-        "bending_energy planar zero displacement should be ≈ 0, got {loss}"
+fn zero_field_is_zero_planar() {
+    let z = planar(&[0.0; 32], 2);
+    assert_close(
+        super::dispatch_bending_energy(&z, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "bending planar",
+    );
+    assert_close(
+        super::dispatch_curvature(&z, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "curvature planar",
+    );
+    assert_close(
+        super::dispatch_diffusion(&z, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "diffusion planar",
+    );
+    assert_close(
+        super::dispatch_total_variation(&z, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "tv planar",
+    );
+    assert_close(
+        super::dispatch_elastic(&z, 1.0, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "elastic planar",
     );
 }
 
 #[test]
-fn bending_energy_zero_displacement_is_zero_volume() {
-    let displacement = Tensor::<B, 5>::zeros([1, 3, 4, 4, 4], &Default::default());
-    let loss: f32 = super::dispatch_bending_energy::<B, 5>(displacement, 1.0).into_scalar();
-    assert_finite(loss, "bending_energy volume zero");
-    assert!(
-        loss.abs() < ZERO_FIELD_LOSS_TOL,
-        "bending_energy volume zero displacement should be ≈ 0, got {loss}"
+fn zero_field_is_zero_volume() {
+    let z = volume(&[0.0; 192], 3);
+    assert_close(
+        super::dispatch_bending_energy(&z, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "bending volume",
+    );
+    assert_close(
+        super::dispatch_curvature(&z, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "curvature volume",
+    );
+    assert_close(
+        super::dispatch_diffusion(&z, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "diffusion volume",
+    );
+    assert_close(
+        super::dispatch_total_variation(&z, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "tv volume",
+    );
+    assert_close(
+        super::dispatch_elastic(&z, 1.0, 1.0),
+        0.0,
+        ZERO_FIELD_LOSS_TOL,
+        "elastic volume",
+    );
+}
+
+// ── Diffusion: mean of |∇u|² ─────────────────────────────────────────────────
+
+#[test]
+fn diffusion_ramp_matches_closed_form_planar() {
+    let f = planar(&width_ramp(32), 2);
+    // mean(g_w²) = (3/4)·0.1² = 0.0075.
+    assert_close(
+        super::dispatch_diffusion(&f, 1.0),
+        0.0075,
+        FD_LOSS_TOL,
+        "diffusion ramp planar",
     );
 }
 
 #[test]
-fn bending_energy_nonzero_is_finite_and_positive() {
-    // Ramp in x: u_x increases linearly → non-zero second derivative
-    let vals: Vec<f32> = (0..32).map(|i| (i % 4) as f32 * 0.1).collect();
-    let displacement = planar_displacement_field(&vals, 2);
-    let loss: f32 = super::dispatch_bending_energy::<B, 4>(displacement, 1.0).into_scalar();
-    assert_finite(loss, "bending_energy planar nonzero");
-    assert!(
-        loss >= 0.0,
-        "bending_energy should be non-negative, got {loss}"
+fn diffusion_ramp_matches_closed_form_volume() {
+    let f = volume(&width_ramp(192), 3);
+    assert_close(
+        super::dispatch_diffusion(&f, 1.0),
+        0.0075,
+        FD_LOSS_TOL,
+        "diffusion ramp volume",
     );
 }
 
 #[test]
-fn bending_energy_nonzero_is_finite_and_positive_volume() {
-    let vals: Vec<f32> = (0..192).map(|i| (i as f32 * 0.05).sin()).collect();
-    let displacement = volume_displacement_field(&vals, 3);
-    let loss: f32 = super::dispatch_bending_energy::<B, 5>(displacement, 1.0).into_scalar();
-    assert_finite(loss, "bending_energy volume nonzero");
-    assert!(
-        loss >= 0.0,
-        "bending_energy should be non-negative, got {loss}"
+fn diffusion_weight_is_linear() {
+    let f = planar(&width_ramp(32), 2);
+    let base = super::dispatch_diffusion(&f, 1.0);
+    let scaled = super::dispatch_diffusion(&f, 2.5);
+    assert_close(
+        scaled,
+        2.5 * base,
+        FD_LOSS_TOL,
+        "diffusion weight linearity",
     );
 }
 
-// ── Curvature ────────────────────────────────────────────────────────────────
+// ── Total variation: mean of |∇u| ────────────────────────────────────────────
 
 #[test]
-fn curvature_zero_displacement_is_zero() {
-    let displacement = Tensor::<B, 4>::zeros([1, 2, 4, 4], &Default::default());
-    let loss: f32 = super::dispatch_curvature::<B, 4>(displacement, 1.0).into_scalar();
-    assert_finite(loss, "curvature planar zero");
-    assert!(
-        loss.abs() < ZERO_FIELD_LOSS_TOL,
-        "curvature planar zero displacement should be ≈ 0, got {loss}"
-    );
-}
-
-#[test]
-fn curvature_zero_displacement_is_zero_volume() {
-    let displacement = Tensor::<B, 5>::zeros([1, 3, 4, 4, 4], &Default::default());
-    let loss: f32 = super::dispatch_curvature::<B, 5>(displacement, 1.0).into_scalar();
-    assert_finite(loss, "curvature volume zero");
-    assert!(
-        loss.abs() < ZERO_FIELD_LOSS_TOL,
-        "curvature volume zero displacement should be ≈ 0, got {loss}"
+fn total_variation_ramp_matches_closed_form_planar() {
+    let f = planar(&width_ramp(32), 2);
+    // mean(|g_w|) = (3/4)·0.1 = 0.075.
+    assert_close(
+        super::dispatch_total_variation(&f, 1.0),
+        0.075,
+        FD_LOSS_TOL,
+        "tv ramp planar",
     );
 }
 
 #[test]
-fn curvature_nonzero_is_finite_and_positive() {
-    let vals: Vec<f32> = (0..32).map(|i| (i % 4) as f32 * 0.1).collect();
-    let displacement = planar_displacement_field(&vals, 2);
-    let loss: f32 = super::dispatch_curvature::<B, 4>(displacement, 1.0).into_scalar();
-    assert_finite(loss, "curvature planar nonzero");
-    assert!(loss >= 0.0, "curvature should be non-negative, got {loss}");
+fn total_variation_ramp_matches_closed_form_volume() {
+    let f = volume(&width_ramp(192), 3);
+    assert_close(
+        super::dispatch_total_variation(&f, 1.0),
+        0.075,
+        FD_LOSS_TOL,
+        "tv ramp volume",
+    );
 }
 
-#[test]
-fn curvature_nonzero_is_finite_and_positive_volume() {
-    let vals: Vec<f32> = (0..192).map(|i| (i as f32 * 0.05).sin()).collect();
-    let displacement = volume_displacement_field(&vals, 3);
-    let loss: f32 = super::dispatch_curvature::<B, 5>(displacement, 1.0).into_scalar();
-    assert_finite(loss, "curvature volume nonzero");
-    assert!(loss >= 0.0, "curvature should be non-negative, got {loss}");
-}
-
-// ── Diffusion ────────────────────────────────────────────────────────────────
+// ── Elastic: α·mean(|∇u|²) + β·mean((div u)²) ────────────────────────────────
 
 #[test]
-fn diffusion_zero_displacement_is_zero() {
-    let displacement = Tensor::<B, 4>::zeros([1, 2, 4, 4], &Default::default());
-    let loss: f32 = super::dispatch_diffusion::<B, 4>(displacement, 1.0).into_scalar();
-    assert_finite(loss, "diffusion planar zero");
-    assert!(
-        loss.abs() < ZERO_FIELD_LOSS_TOL,
-        "diffusion planar zero displacement should be ≈ 0, got {loss}"
+fn elastic_ramp_matches_closed_form_planar() {
+    let f = planar(&width_ramp(32), 2);
+    // membrane mean = 0.0075; div u = ∂u_y/∂y on channel 1 (= g_w = 0.1 at the
+    // three interior columns) → mean((div u)²) = (3/4)·0.1² = 0.0075.
+    // α = β = 1 → 0.0075 + 0.0075 = 0.015.
+    assert_close(
+        super::dispatch_elastic(&f, 1.0, 1.0),
+        0.015,
+        FD_LOSS_TOL,
+        "elastic ramp planar",
     );
 }
 
 #[test]
-fn diffusion_zero_displacement_is_zero_volume() {
-    let displacement = Tensor::<B, 5>::zeros([1, 3, 4, 4, 4], &Default::default());
-    let loss: f32 = super::dispatch_diffusion::<B, 5>(displacement, 1.0).into_scalar();
-    assert_finite(loss, "diffusion volume zero");
-    assert!(
-        loss.abs() < ZERO_FIELD_LOSS_TOL,
-        "diffusion volume zero displacement should be ≈ 0, got {loss}"
+fn elastic_ramp_matches_closed_form_volume() {
+    let f = volume(&width_ramp(192), 3);
+    // membrane mean = 0.0075; div u = g_w on channel 2 → mean = 0.0075.
+    assert_close(
+        super::dispatch_elastic(&f, 1.0, 1.0),
+        0.015,
+        FD_LOSS_TOL,
+        "elastic ramp volume",
     );
 }
 
 #[test]
-fn diffusion_nonzero_is_finite_and_positive() {
-    let vals: Vec<f32> = (0..32).map(|i| (i % 4) as f32 * 0.1).collect();
-    let displacement = planar_displacement_field(&vals, 2);
-    let loss: f32 = super::dispatch_diffusion::<B, 4>(displacement, 1.0).into_scalar();
-    assert_finite(loss, "diffusion planar nonzero");
-    assert!(loss >= 0.0, "diffusion should be non-negative, got {loss}");
+fn elastic_alpha_beta_weight_terms_independently() {
+    let f = planar(&width_ramp(32), 2);
+    // membrane and divergence means are both 0.0075 here, so 2α + 3β form:
+    assert_close(
+        super::dispatch_elastic(&f, 2.0, 3.0),
+        0.0075 * 5.0,
+        FD_LOSS_TOL,
+        "elastic weights",
+    );
 }
 
-#[test]
-fn diffusion_nonzero_is_finite_and_positive_volume() {
-    let vals: Vec<f32> = (0..192).map(|i| (i as f32 * 0.05).sin()).collect();
-    let displacement = volume_displacement_field(&vals, 3);
-    let loss: f32 = super::dispatch_diffusion::<B, 5>(displacement, 1.0).into_scalar();
-    assert_finite(loss, "diffusion volume nonzero");
-    assert!(loss >= 0.0, "diffusion should be non-negative, got {loss}");
-}
-
-// ── Elastic ──────────────────────────────────────────────────────────────────
+// ── Bending energy / curvature: mean of (∇²u)² ───────────────────────────────
 
 #[test]
-fn elastic_zero_displacement_is_zero() {
-    let displacement = Tensor::<B, 4>::zeros([1, 2, 4, 4], &Default::default());
-    let loss: f32 = super::dispatch_elastic::<B, 4>(displacement, 1.0, 1.0).into_scalar();
-    assert_finite(loss, "elastic planar zero");
-    assert!(
-        loss.abs() < ZERO_FIELD_LOSS_TOL,
-        "elastic planar zero displacement should be ≈ 0, got {loss}"
+fn bending_energy_quadratic_matches_closed_form_planar() {
+    let f = planar(&width_quadratic(32), 2);
+    // Laplacian = 2 at the 4 interior voxels per plane, 0 border; over 16
+    // voxels/plane mean((∇²u)²) = (4·2²)/16 = 1.0.
+    assert_close(
+        super::dispatch_bending_energy(&f, 1.0),
+        1.0,
+        FD_LOSS_TOL,
+        "bending quad planar",
     );
 }
 
 #[test]
-fn elastic_zero_displacement_is_zero_volume() {
-    let displacement = Tensor::<B, 5>::zeros([1, 3, 4, 4, 4], &Default::default());
-    let loss: f32 = super::dispatch_elastic::<B, 5>(displacement, 1.0, 1.0).into_scalar();
-    assert_finite(loss, "elastic volume zero");
-    assert!(
-        loss.abs() < ZERO_FIELD_LOSS_TOL,
-        "elastic volume zero displacement should be ≈ 0, got {loss}"
+fn bending_energy_quadratic_matches_closed_form_volume() {
+    let f = volume(&width_quadratic(192), 3);
+    // Laplacian = 2 at the 8 interior voxels per volume, 0 border; over 64
+    // voxels mean((∇²u)²) = (8·2²)/64 = 0.5.
+    assert_close(
+        super::dispatch_bending_energy(&f, 1.0),
+        0.5,
+        FD_LOSS_TOL,
+        "bending quad volume",
     );
 }
 
 #[test]
-fn elastic_nonzero_is_finite_and_positive() {
-    let vals: Vec<f32> = (0..32).map(|i| (i % 4) as f32 * 0.1).collect();
-    let displacement = planar_displacement_field(&vals, 2);
-    let loss: f32 = super::dispatch_elastic::<B, 4>(displacement, 1.0, 1.0).into_scalar();
-    assert_finite(loss, "elastic planar nonzero");
-    assert!(loss >= 0.0, "elastic should be non-negative, got {loss}");
-}
-
-#[test]
-fn elastic_nonzero_is_finite_and_positive_volume() {
-    let vals: Vec<f32> = (0..192).map(|i| (i as f32 * 0.05).sin()).collect();
-    let displacement = volume_displacement_field(&vals, 3);
-    let loss: f32 = super::dispatch_elastic::<B, 5>(displacement, 1.0, 1.0).into_scalar();
-    assert_finite(loss, "elastic volume nonzero");
-    assert!(loss >= 0.0, "elastic should be non-negative, got {loss}");
-}
-
-// ── Total variation ──────────────────────────────────────────────────────────
-
-#[test]
-fn total_variation_zero_displacement_is_zero() {
-    let displacement = Tensor::<B, 4>::zeros([1, 2, 4, 4], &Default::default());
-    let loss: f32 = super::dispatch_total_variation::<B, 4>(displacement, 1.0).into_scalar();
-    assert_finite(loss, "total_variation planar zero");
-    assert!(
-        loss.abs() < ZERO_FIELD_LOSS_TOL,
-        "total_variation planar zero displacement should be ≈ 0, got {loss}"
-    );
-}
-
-#[test]
-fn total_variation_zero_displacement_is_zero_volume() {
-    let displacement = Tensor::<B, 5>::zeros([1, 3, 4, 4, 4], &Default::default());
-    let loss: f32 = super::dispatch_total_variation::<B, 5>(displacement, 1.0).into_scalar();
-    assert_finite(loss, "total_variation volume zero");
-    assert!(
-        loss.abs() < ZERO_FIELD_LOSS_TOL,
-        "total_variation volume zero displacement should be ≈ 0, got {loss}"
-    );
-}
-
-#[test]
-fn total_variation_nonzero_is_finite_and_positive() {
-    let vals: Vec<f32> = (0..32).map(|i| (i % 4) as f32 * 0.1).collect();
-    let displacement = planar_displacement_field(&vals, 2);
-    let loss: f32 = super::dispatch_total_variation::<B, 4>(displacement, 1.0).into_scalar();
-    assert_finite(loss, "total_variation planar nonzero");
-    assert!(
-        loss >= 0.0,
-        "total_variation should be non-negative, got {loss}"
-    );
-}
-
-#[test]
-fn total_variation_nonzero_is_finite_and_positive_volume() {
-    let vals: Vec<f32> = (0..192).map(|i| (i as f32 * 0.05).sin()).collect();
-    let displacement = volume_displacement_field(&vals, 3);
-    let loss: f32 = super::dispatch_total_variation::<B, 5>(displacement, 1.0).into_scalar();
-    assert_finite(loss, "total_variation volume nonzero");
-    assert!(
-        loss >= 0.0,
-        "total_variation should be non-negative, got {loss}"
-    );
-}
-
-// ── Bending energy ≡ curvature (shared laplacian_squared) ────────────────────
-
-#[test]
-fn bending_energy_equals_curvature_same_input() {
+fn bending_energy_equals_curvature_planar() {
     let vals: Vec<f32> = (0..32).map(|i| (i as f32 * 0.3).sin()).collect();
-    let d1 = planar_displacement_field(&vals, 2);
-    let d2 = planar_displacement_field(&vals, 2);
-    let be: f32 = super::dispatch_bending_energy::<B, 4>(d1, 1.0).into_scalar();
-    let cu: f32 = super::dispatch_curvature::<B, 4>(d2, 1.0).into_scalar();
-    assert_finite(be, "bending_energy planar");
-    assert_finite(cu, "curvature planar");
-    assert!(
-        (be - cu).abs() < ZERO_FIELD_LOSS_TOL,
-        "bending_energy and curvature should match for same input, got be={be}, cu={cu}"
-    );
+    let f1 = planar(&vals, 2);
+    let f2 = planar(&vals, 2);
+    let be = super::dispatch_bending_energy(&f1, 1.0);
+    let cu = super::dispatch_curvature(&f2, 1.0);
+    assert_close(be, cu, FD_LOSS_TOL, "bending ≡ curvature planar");
 }
 
 #[test]
-fn bending_energy_equals_curvature_same_input_volume() {
+fn bending_energy_equals_curvature_volume() {
     let vals: Vec<f32> = (0..192).map(|i| (i as f32 * 0.1).cos()).collect();
-    let d1 = volume_displacement_field(&vals, 3);
-    let d2 = volume_displacement_field(&vals, 3);
-    let be: f32 = super::dispatch_bending_energy::<B, 5>(d1, 1.0).into_scalar();
-    let cu: f32 = super::dispatch_curvature::<B, 5>(d2, 1.0).into_scalar();
-    assert_finite(be, "bending_energy volume");
-    assert_finite(cu, "curvature volume");
-    assert!(
-        (be - cu).abs() < ZERO_FIELD_LOSS_TOL,
-        "bending_energy and curvature should match for same input, got be={be}, cu={cu}"
-    );
+    let f1 = volume(&vals, 3);
+    let f2 = volume(&vals, 3);
+    let be = super::dispatch_bending_energy(&f1, 1.0);
+    let cu = super::dispatch_curvature(&f2, 1.0);
+    assert_close(be, cu, FD_LOSS_TOL, "bending ≡ curvature volume");
 }

@@ -8,14 +8,12 @@ fn test_read_multiframe_info_missing_file_returns_error() {
 
 #[test]
 fn test_load_multiframe_missing_file_returns_error() {
-    let device = <B as Backend>::Device::default();
-    let result = load_dicom_multiframe::<B, _>("/nonexistent/path/file.dcm", &device);
+    let result = load_dicom_multiframe_native("/nonexistent/path/file.dcm");
     assert!(result.is_err(), "expected Err for missing file");
 }
 
 #[test]
 fn test_load_multiframe_rejects_rgb_scalar_volume() {
-    let device = <B as Backend>::Device::default();
     let tmp = tempfile::tempdir().expect("tempdir");
     let path = tmp.path().join("rgb_multiframe.dcm");
 
@@ -85,7 +83,7 @@ fn test_load_multiframe_rejects_rgb_scalar_volume() {
         .expect("meta build must succeed");
     file_obj.write_to_file(&path).expect("write must succeed");
 
-    let err = load_dicom_multiframe::<B, _>(&path, &device).unwrap_err();
+    let err = load_dicom_multiframe_native(&path).unwrap_err();
     let msg = err.to_string();
     assert!(
         msg.contains("SamplesPerPixel=3") && msg.contains("scalar volume loader"),
@@ -95,7 +93,6 @@ fn test_load_multiframe_rejects_rgb_scalar_volume() {
 
 #[test]
 fn test_load_multiframe_compressed_ts_errors() {
-    let device = <B as Backend>::Device::default();
     let tmp = tempfile::tempdir().expect("tempdir");
     let path = tmp.path().join("compressed.dcm");
 
@@ -144,7 +141,7 @@ fn test_load_multiframe_compressed_ts_errors() {
         .write_to_file(&path)
         .expect("write compressed stub");
 
-    let result = load_dicom_multiframe::<B, _>(&path, &device);
+    let result = load_dicom_multiframe_native(&path);
     // JPEG-LS lossless routes through the RITK native codec boundary. This synthetic
     // payload is intentionally minimal, so either a valid load or a JPEG-contextual
     // decode error preserves the boundary contract.
@@ -301,8 +298,7 @@ fn test_load_multiframe_jpeg_baseline_codec_round_trip() {
     let path = tmp.path().join("mf_jpeg.dcm");
     file_obj.write_to_file(&path).expect("write");
 
-    let device = <B as Backend>::Device::default();
-    let img = load_dicom_multiframe::<B, _>(&path, &device)
+    let img = load_dicom_multiframe_native(&path)
         .expect("JPEG Baseline multiframe load must succeed via codec path");
 
     let [lf, lr, lc] = img.shape();
@@ -310,32 +306,30 @@ fn test_load_multiframe_jpeg_baseline_codec_round_trip() {
     assert_eq!(lr, rows as usize, "shape[1] must equal rows");
     assert_eq!(lc, cols as usize, "shape[2] must equal cols");
 
-    img.with_data_slice(|floats: &[f32]| {
-        assert_eq!(
-            floats.len(),
-            n_frames * (rows as usize) * (cols as usize),
-            "total pixel count mismatch"
+    let floats = img.data_slice().expect("contiguous native data");
+    assert_eq!(
+        floats.len(),
+        n_frames * (rows as usize) * (cols as usize),
+        "total pixel count mismatch"
+    );
+    // Verify each frame independently.
+    let frame_size = (rows * cols) as usize;
+    for (f_idx, orig_frame) in original.iter().enumerate() {
+        let decoded_frame = &floats[f_idx * frame_size..(f_idx + 1) * frame_size];
+        let max_error = orig_frame
+            .iter()
+            .zip(decoded_frame.iter())
+            .map(|(&o, &d)| (o as f32 - d).abs())
+            .fold(0.0f32, f32::max);
+        assert!(
+            max_error <= 8.0,
+            "frame {f_idx}: codec round-trip error {max_error} exceeds JPEG tolerance 8.0"
         );
-        // Verify each frame independently.
-        let frame_size = (rows * cols) as usize;
-        for (f_idx, orig_frame) in original.iter().enumerate() {
-            let decoded_frame = &floats[f_idx * frame_size..(f_idx + 1) * frame_size];
-            let max_error = orig_frame
-                .iter()
-                .zip(decoded_frame.iter())
-                .map(|(&o, &d)| (o as f32 - d).abs())
-                .fold(0.0f32, f32::max);
-            assert!(
-                max_error <= 8.0,
-                "frame {f_idx}: codec round-trip error {max_error} exceeds JPEG tolerance 8.0"
-            );
-        }
-    });
+    }
 }
 
 #[test]
 fn test_load_multiframe_signed_short_roundtrip() {
-    let device = <B as Backend>::Device::default();
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("signed_i16.dcm");
 
@@ -400,24 +394,22 @@ fn test_load_multiframe_signed_short_roundtrip() {
         .write_to_file(&out_path)
         .expect("write signed file");
 
-    let loaded = load_dicom_multiframe::<B, _>(&out_path, &device)
-        .expect("load_dicom_multiframe signed i16");
+    let loaded = load_dicom_multiframe_native(&out_path).expect("load_dicom_multiframe signed i16");
     let [frames, rows, cols] = loaded.shape();
     assert_eq!(frames, 1, "frames");
     assert_eq!(rows, 2, "rows");
     assert_eq!(cols, 2, "cols");
 
-    loaded.with_data_slice(|result: &[f32]| {
-        assert_eq!(result.len(), 4, "pixel count");
-        // Analytical ground truth: i16 × 1.0 + 0.0
-        let expected = [-1000.0_f32, 0.0, 1000.0, 2000.0];
-        for (i, (&got, &exp)) in result.iter().zip(expected.iter()).enumerate() {
-            assert!(
-                (got - exp).abs() < 0.5,
-                "pixel {i}: expected {exp:.1} got {got:.1}"
-            );
-        }
-    });
+    let result = loaded.data_slice().expect("contiguous native data");
+    assert_eq!(result.len(), 4, "pixel count");
+    // Analytical ground truth: i16 × 1.0 + 0.0
+    let expected = [-1000.0_f32, 0.0, 1000.0, 2000.0];
+    for (i, (&got, &exp)) in result.iter().zip(expected.iter()).enumerate() {
+        assert!(
+            (got - exp).abs() < 0.5,
+            "pixel {i}: expected {exp:.1} got {got:.1}"
+        );
+    }
 }
 
 #[test]
@@ -425,8 +417,6 @@ fn test_multiframe_rejects_big_endian_ts() {
     // Verify that a DICOM multiframe file with ExplicitVrBigEndian TS
     // is rejected before pixel decode. We construct a file with BigEndian
     // in its file meta and assert load_dicom_multiframe returns an error.
-    type B = burn_ndarray::NdArray<f32>;
-    let device = Default::default();
     let dir = tempfile::TempDir::new().unwrap();
     let path = dir.path().join("be_test.dcm");
 
@@ -459,7 +449,7 @@ fn test_multiframe_rejects_big_endian_ts() {
         .expect("meta build must succeed");
     file_obj.write_to_file(&path).expect("write must succeed");
 
-    let result = load_dicom_multiframe::<B, _>(&path, &device);
+    let result = load_dicom_multiframe_native(&path);
     assert!(
         result.is_err(),
         "load_dicom_multiframe must reject ExplicitVrBigEndian TS"

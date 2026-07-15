@@ -7,15 +7,12 @@
 use std::path::Path;
 
 use anyhow::{bail, Context, Result};
-use coeus_core::ComputeBackend;
 use dicom::core::Tag;
 use dicom::object::DefaultDicomObject;
 use ritk_dicom::{
     decode_frame_with, parse_bytes_with, parse_file_with, DecodeFrameRequest, DicomRsBackend,
     PixelLayout, PixelSignedness, TransferSyntaxKind,
 };
-use ritk_image::native::RgbVolume;
-use ritk_spatial::{Direction, Point, Spacing};
 
 use super::color_common::{read_optional, read_required, required_string, RGB_CHANNELS};
 use super::reader::{self, DicomReadMetadata, DicomSliceMetadata};
@@ -63,46 +60,35 @@ pub fn is_rgb_dicom_series<P: AsRef<Path>>(path: P) -> Result<bool> {
     bail!("no parseable DICOM files found in '{}'", dir.display())
 }
 
-/// Read a DICOM RGB series into a rank-4 color volume.
+/// Read a DICOM RGB series directory into a flat interleaved-RGB buffer.
 ///
-/// The returned tensor shape is `[depth, rows, cols, 3]` with interleaved RGB
-/// samples in the channel axis. Only byte-addressable unsigned RGB data is
-/// accepted; scalar, palette, YBR, CMYK, and signed color data are rejected.
-pub fn read_dicom_color_series<B: ComputeBackend, P: AsRef<Path>>(
+/// Substrate-agnostic counterpart of [`load_color_volume_flat`] that scans a
+/// directory first. The returned buffer holds `depth·rows·cols·3` `f32`
+/// samples in `[depth, rows, cols, 3]` row-major order (channel fastest),
+/// paired with that shape and the resolved series metadata. Only
+/// byte-addressable unsigned interleaved RGB data is accepted; scalar,
+/// palette, YBR, CMYK, planar, and signed color data are rejected.
+pub fn load_color_volume_flat_from_path<P: AsRef<Path>>(
     path: P,
-    backend: &B,
-) -> Result<(RgbVolume<f32, B>, DicomReadMetadata)> {
+) -> Result<(Vec<f32>, [usize; 4], DicomReadMetadata)> {
     let series = reader::scan::scan_dicom_directory(path)?;
-    load_color_from_series(series.metadata, backend)
+    load_color_volume_flat(series.metadata)
 }
 
-/// Alias matching the scalar loader naming convention.
-pub fn load_dicom_color_series<B: ComputeBackend, P: AsRef<Path>>(
-    path: P,
-    backend: &B,
-) -> Result<(RgbVolume<f32, B>, DicomReadMetadata)> {
-    read_dicom_color_series(path, backend)
-}
-
-/// Load a DICOM RGB color series from a pre-scanned series descriptor.
+/// Decode a pre-scanned DICOM RGB series into a flat interleaved-RGB buffer.
 ///
-/// This is the zero-disk counterpart of [`load_dicom_color_series`]:
-/// callers that have already obtained a scanned series descriptor (e.g. via
-/// [`scan_dicom_instances`](super::reader::scan::scan_dicom_instances)) pass
-/// it directly instead of re-scanning a directory. Pixel decode uses
-/// `part10_bytes` from the slice metadata when present, falling back to
-/// file-path I/O otherwise.
-pub fn load_dicom_color_from_series<B: ComputeBackend>(
-    series: super::reader::DicomSeriesInfo,
-    backend: &B,
-) -> Result<(RgbVolume<f32, B>, DicomReadMetadata)> {
-    load_color_from_series(series.metadata, backend)
-}
-
-fn load_color_from_series<B: ComputeBackend>(
+/// This is the shared, substrate-free core of the DICOM colour read path: it
+/// performs the pixel decode, interleaves the RGB samples into a flat `f32`
+/// buffer, and validates per-slice geometry, without constructing any tensor
+/// carrier. Callers wrap the buffer in their chosen image container
+/// (`ritk_image::native::Image::from_flat`). Pixel decode uses `part10_bytes`
+/// from the slice metadata when present, falling back to file-path I/O.
+///
+/// Returns `(flat, [depth, rows, cols, 3], metadata)` with `metadata.dimensions`
+/// normalised to `[rows, cols, depth]`.
+pub fn load_color_volume_flat(
     mut metadata: DicomReadMetadata,
-    backend: &B,
-) -> Result<(RgbVolume<f32, B>, DicomReadMetadata)> {
+) -> Result<(Vec<f32>, [usize; 4], DicomReadMetadata)> {
     let slices = metadata.slices.clone();
 
     if slices.is_empty() {
@@ -166,16 +152,7 @@ fn load_color_from_series<B: ComputeBackend>(
 
     metadata.dimensions = [rows, cols, depth];
 
-    let image = RgbVolume::from_flat_on(
-        volume,
-        [depth, rows, cols],
-        Point::new(metadata.origin),
-        Spacing::new(metadata.spacing),
-        Direction::from_column_major(metadata.direction),
-        backend,
-    )?;
-
-    Ok((image, metadata))
+    Ok((volume, [depth, rows, cols, RGB_CHANNELS], metadata))
 }
 
 /// Decode RGB pixel samples from a file-based DICOM slice.

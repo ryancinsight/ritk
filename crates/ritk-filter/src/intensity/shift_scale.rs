@@ -24,8 +24,6 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
-use crate::native_support::map_flat_image;
-
 /// Apply a linear shift-then-scale to every voxel.
 ///
 /// `out(x) = (in(x) + shift) * scale`
@@ -78,20 +76,20 @@ impl ShiftScaleImageFilter {
     /// voxel values transformed by `(v + shift) * scale`.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals_vec, dims) = extract_vec_infallible(image);
-        let vals = &vals_vec;
-
-        let shift = self.shift as f64;
-        let scale = self.scale as f64;
-
-        let out_vals: Vec<f32> = vals
-            .iter()
-            .map(|&v| ((v as f64 + shift) * scale) as f32)
-            .collect();
-
+        let out_vals = shift_scale_vec(&vals_vec, self.shift, self.scale);
         Ok(rebuild(out_vals, dims, image))
     }
 
-    /// Apply shift-then-scale to a Coeus-native image.
+    /// Coeus-native sister of [`ShiftScaleImageFilter::apply`].
+    ///
+    /// Runs the identical `(v + shift) * scale` remap (computed in `f64`, cast to
+    /// `f32`) via the shared `shift_scale_vec` host core on the image's
+    /// contiguous host buffer, so the result is bitwise-identical to the Burn
+    /// path. No Burn tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
@@ -101,15 +99,22 @@ impl ShiftScaleImageFilter {
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        let shift = f64::from(self.shift);
-        let scale = f64::from(self.scale);
-        map_flat_image(image, backend, move |values, _| {
-            values
-                .iter()
-                .map(|&value| ((f64::from(value) + shift) * scale) as f32)
-                .collect()
+        crate::native_support::map_flat_image(image, backend, |vals, _dims| {
+            shift_scale_vec(vals, self.shift, self.scale)
         })
     }
+}
+
+/// Substrate-agnostic host core for [`ShiftScaleImageFilter`].
+///
+/// Applies `out = (v + shift) * scale` in `f64` precision then narrows to `f32`,
+/// matching ITK's float-output behaviour.
+pub(crate) fn shift_scale_vec(vals: &[f32], shift: f32, scale: f32) -> Vec<f32> {
+    let shift = shift as f64;
+    let scale = scale as f64;
+    vals.iter()
+        .map(|&v| ((v as f64 + shift) * scale) as f32)
+        .collect()
 }
 
 #[cfg(test)]

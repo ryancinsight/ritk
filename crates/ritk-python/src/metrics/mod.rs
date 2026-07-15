@@ -117,7 +117,7 @@ mod tests {
         pyo3::prepare_freethreaded_python();
         let a = make_image(vec![1.0, 2.0], [1, 1, 2]);
         let b = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
-        let err = compute_mse(&a, &b).unwrap_err();
+        let err = Python::with_gil(|py| compute_mse(py, &a, &b)).unwrap_err();
         assert!(err.to_string().contains("shape mismatch"));
     }
 
@@ -126,7 +126,7 @@ mod tests {
         pyo3::prepare_freethreaded_python();
         let a = make_image(vec![1.0, 2.0], [1, 1, 2]);
         let b = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
-        let err = compute_ncc(&a, &b).unwrap_err();
+        let err = Python::with_gil(|py| compute_ncc(py, &a, &b)).unwrap_err();
         assert!(err.to_string().contains("shape mismatch"));
     }
 

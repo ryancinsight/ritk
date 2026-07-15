@@ -9,6 +9,8 @@ use crate::metric::cache_slot::CacheSlot;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
+#[cfg(feature = "direct-parzen")]
+use std::sync::Arc;
 
 /// Check whether a cached histogram entry matches the given image's spatial metadata.
 pub(crate) fn cache_matches_image<B: Backend, const D: usize>(
@@ -36,7 +38,8 @@ pub(crate) fn get_cached_w_fixed_t<B: Backend, const D: usize>(
 
 /// Helper: read or lazily build the sparse W_fixed^T from the cache.
 ///
-/// If the sparse cache already exists, returns a clone. Otherwise, if the
+/// If the sparse cache already exists, returns a shared-ownership clone.
+/// Otherwise, if the
 /// cache contains `fixed_norm` (the normalized fixed-image values), builds
 /// the sparse cache from it, stores it in the cache for future use, and
 /// returns it. This lazy construction reduces peak memory: on the first
@@ -49,7 +52,7 @@ pub(crate) fn get_cached_sparse_w_fixed<B: Backend, const D: usize>(
     fixed: &Image<B, D>,
     num_bins: usize,
     sigma_sq_fix: f32,
-) -> Option<super::direct::SparseWFixedT> {
+) -> Option<Arc<super::direct::SparseWFixedT>> {
     if B::ad_enabled() {
         return None;
     }

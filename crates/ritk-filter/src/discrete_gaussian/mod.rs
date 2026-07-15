@@ -28,11 +28,13 @@
 mod bessel;
 mod convolve;
 
+#[cfg(test)]
+mod tests_native;
+
 use bessel::{modified_bessel_i, modified_bessel_i0, modified_bessel_i1};
 pub(crate) use convolve::convolve_separable;
 
 use crate::edge::GaussianSigma;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
@@ -142,61 +144,24 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         Image::new(smoothed, origin, spacing, direction)
     }
 
-    /// Apply the filter to a Coeus-native image.
-    pub fn apply_native<C, const D: usize>(
+    /// Build the per-axis discrete-Gaussian kernels for the given spacing.
+    ///
+    /// Delegates to the burn-free [`discrete_gaussian_kernels`] free function
+    /// (single source of truth for kernel construction), shared by the Burn
+    /// [`apply_inner`](Self::apply_inner) path, the Coeus-native
+    /// [`apply_native`](Self::apply_native) path, and the burn-free
+    /// [`discrete_gaussian_smooth_flat`] core the Canny filters call.
+    fn kernels_for_spacing<const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, C, D>,
-        backend: &C,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, C, D>>
-    where
-        C: ComputeBackend,
-        C::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
-        ritk_image::native::Image::from_flat_on(
-            self.apply_values(image.data_slice()?.to_vec(), image.shape(), image.spacing()),
-            image.shape(),
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            backend,
+        spacing: &ritk_spatial::Spacing<D>,
+    ) -> [Option<Vec<f32>>; D] {
+        discrete_gaussian_kernels::<D>(
+            &self.variance,
+            self.maximum_error,
+            self.spacing_mode,
+            spacing,
         )
     }
-
-    #[inline]
-    fn variance_for_dim(&self, d: usize) -> f64 {
-        if d < self.variance.len() {
-            self.variance[d]
-        } else {
-            *self
-                .variance
-                .last()
-                .expect("variance schedule must not be empty")
-        }
-    }
-
-    #[inline]
-    fn pixel_sigma_for_dim<const D: usize>(
-        &self,
-        d: usize,
-        spacing: &ritk_spatial::Spacing<D>,
-    ) -> f64 {
-        let v = self.variance_for_dim(d);
-        match self.spacing_mode {
-            SpacingMode::Physical => {
-                let h = spacing[d];
-                v.max(0.0).sqrt() / h.max(1e-12)
-            }
-            SpacingMode::Voxel => v.max(0.0).sqrt(),
-        }
-    }
-
-    #[inline]
-    fn build_kernel(&self, pixel_variance: f64) -> Vec<f32> {
-        gaussian_operator_1d(pixel_variance, self.maximum_error)
-    }
-
-    /// Minimum pixel variance below which the kernel is the identity impulse.
-    const VARIANCE_MIN: f64 = 1e-18;
 
     #[inline]
     fn apply_inner<const D: usize>(
@@ -207,34 +172,105 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         let device = data.device();
         let dims: [usize; D] = data.shape().dims();
 
+        let kernels = self.kernels_for_spacing::<D>(spacing);
+        if kernels.iter().all(|k| k.is_none()) {
+            return data;
+        }
+
         let flat: Vec<f32> = data.into_data().into_vec::<f32>().expect("f32 tensor data");
-        let result = self.apply_values(flat, dims, spacing);
+        let result = convolve_separable(flat, dims, &kernels);
         Tensor::<B, D>::from_data(TensorData::new(result, Shape::new(dims)), &device)
     }
 
-    fn apply_values<const D: usize>(
+    /// Coeus-native sister of [`DiscreteGaussianFilter::apply`].
+    ///
+    /// Runs the identical separable discrete-Gaussian convolution (ITK
+    /// `GaussianOperator` kernel, replicate boundary) via the shared
+    /// `kernels_for_spacing` kernel builder and the substrate-agnostic
+    /// `convolve_separable` host core on the image's
+    /// contiguous host buffer, so the result is bitwise-identical to the Burn
+    /// path. No Burn tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt tensor fails shape validation.
+    pub fn apply_native<BC>(
         &self,
-        flat: Vec<f32>,
-        dims: [usize; D],
-        spacing: &ritk_spatial::Spacing<D>,
-    ) -> Vec<f32> {
-        let mut kernels: [Option<Vec<f32>>; D] = std::array::from_fn(|_| None);
-        for (d, kernel_slot) in kernels.iter_mut().enumerate() {
-            let sigma = self.pixel_sigma_for_dim::<D>(d, spacing);
-            let pixel_variance = sigma * sigma;
-            if pixel_variance >= Self::VARIANCE_MIN {
-                let kernel = self.build_kernel(pixel_variance);
-                if kernel.len() > 1 {
-                    *kernel_slot = Some(kernel);
-                }
+        image: &ritk_image::native::Image<f32, BC, 3>,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, BC, 3>>
+    where
+        BC: coeus_core::ComputeBackend + Default,
+        BC::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let kernels = self.kernels_for_spacing::<3>(image.spacing());
+        let result = if kernels.iter().all(|k| k.is_none()) {
+            vals
+        } else {
+            convolve_separable(vals, dims, &kernels)
+        };
+        ritk_tensor_ops::native::rebuild_image(result, dims, image, &BC::default())
+    }
+}
+
+/// Minimum pixel variance below which a per-axis kernel is the identity impulse.
+const VARIANCE_MIN: f64 = 1e-18;
+
+/// Burn-free single source of truth for the per-axis discrete-Gaussian kernels.
+///
+/// Returns `[Option<Vec<f32>>; D]`: `None` for an axis whose pixel variance is
+/// below [`VARIANCE_MIN`] or whose kernel collapses to the identity impulse
+/// (length ≤ 1). `variance` is the per-axis physical-variance schedule
+/// (broadcast from the last entry); `spacing_mode` selects the physical→pixel
+/// conversion. Shared by [`DiscreteGaussianFilter::kernels_for_spacing`] and
+/// [`discrete_gaussian_smooth_flat`].
+pub(crate) fn discrete_gaussian_kernels<const D: usize>(
+    variance: &[f64],
+    maximum_error: f64,
+    spacing_mode: SpacingMode,
+    spacing: &ritk_spatial::Spacing<D>,
+) -> [Option<Vec<f32>>; D] {
+    std::array::from_fn(|d| {
+        let v = if d < variance.len() {
+            variance[d]
+        } else {
+            *variance
+                .last()
+                .expect("variance schedule must not be empty")
+        };
+        let sigma = match spacing_mode {
+            SpacingMode::Physical => v.max(0.0).sqrt() / spacing[d].max(1e-12),
+            SpacingMode::Voxel => v.max(0.0).sqrt(),
+        };
+        let pixel_variance = sigma * sigma;
+        if pixel_variance >= VARIANCE_MIN {
+            let kernel = gaussian_operator_1d(pixel_variance, maximum_error);
+            if kernel.len() > 1 {
+                return Some(kernel);
             }
         }
+        None
+    })
+}
 
-        if kernels.iter().all(|k| k.is_none()) {
-            return flat;
-        }
-
-        convolve_separable(flat, dims, &kernels)
+/// Burn-free host core: separable discrete-Gaussian smoothing on a flat z-major
+/// buffer (ITK `GaussianOperator` kernel, replicate boundary via
+/// `convolve_separable`). Bitwise-identical to
+/// [`DiscreteGaussianFilter::apply`]/`apply_native`; used by the Canny filters
+/// so their native paths need no Burn backend to smooth.
+pub(crate) fn discrete_gaussian_smooth_flat(
+    vals: Vec<f32>,
+    dims: [usize; 3],
+    spacing: &ritk_spatial::Spacing<3>,
+    variance: &[f64],
+    maximum_error: f64,
+    spacing_mode: SpacingMode,
+) -> Vec<f32> {
+    let kernels = discrete_gaussian_kernels::<3>(variance, maximum_error, spacing_mode, spacing);
+    if kernels.iter().all(|k| k.is_none()) {
+        vals
+    } else {
+        convolve_separable(vals, dims, &kernels)
     }
 }
 

@@ -37,9 +37,8 @@
 use super::types::ForegroundValue;
 use moirai;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 // ── Filter struct ─────────────────────────────────────────────────────────────
 
@@ -83,14 +82,7 @@ impl BinaryErodeFilter {
 
         let result = erode_binary_3d(&vals, dims, self.radius, self.foreground_value);
 
-        let device = image.data().device();
-        let t = Tensor::<B, 3>::from_data(TensorData::new(result, Shape::new(dims)), &device);
-        Ok(Image::new(
-            t,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(result, dims, image))
     }
 }
 

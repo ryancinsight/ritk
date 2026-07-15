@@ -30,5 +30,12 @@ pub use histogram_matching::HistogramMatcher;
 pub use intensity_range::IntensityRange;
 pub use minmax::MinMaxNormalizer;
 pub use nyul_udupa::NyulUdupaNormalizer;
-pub use white_stripe::{MriContrast, WhiteStripeConfig, WhiteStripeNormalizer, WhiteStripeResult};
+pub use white_stripe::{
+    MriContrast, NativeWhiteStripeResult, WhiteStripeConfig, WhiteStripeNormalizer,
+    WhiteStripeResult,
+};
 pub use zscore::ZScoreNormalizer;
+
+#[cfg(test)]
+#[path = "tests_native.rs"]
+mod tests_native;

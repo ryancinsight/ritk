@@ -14,11 +14,12 @@ dynamic = ["version"]
 [tool.maturin]
 python-source = "python"
 module-name = "ritk._ritk"
-features = ["pyo3/extension-module"]
+features = ["extension-module"]
 profile = "release"
 
 [tool.pytest.ini_options]
 timeout = 60
+timeout_method = "thread"
 markers = [
     "slow: registration and deformable transform tests that take >30s",
 ]

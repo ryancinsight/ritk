@@ -1,5 +1,3 @@
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
@@ -37,23 +35,17 @@ pub(super) fn coords_to_flat(coords: &[usize], strides: &[usize]) -> usize {
         .sum()
 }
 
-/// Extract boundary voxels as physical coordinates from a binary mask.
+/// Extract boundary voxels as physical coordinates from a flat binary mask.
 ///
 /// A voxel is a boundary voxel if it is foreground (`value > 0.5`) and at
 /// least one axis-aligned neighbor is background (`<= 0.5`) or out of bounds.
 ///
 /// Returns `Vec<[f64; D]>` — one stack-sized array per boundary point — rather
 /// than `Vec<Vec<f64>>`, eliminating the inner heap allocation per point.
-fn extract_boundary_physical<B: Backend, const D: usize>(
-    mask: &Image<B, D>,
-    spacing: &[f64; D],
-) -> Vec<[f64; D]> {
-    let shape: [usize; D] = mask.shape();
-    let flat_vec = extract_vec_infallible(mask).0;
-    extract_boundary_physical_from_values(&flat_vec, shape, spacing)
-}
-
-fn extract_boundary_physical_from_values<const D: usize>(
+///
+/// Operates on the extracted `flat`/`shape` pair so the Burn and Coeus-native
+/// adapters share one boundary-extraction implementation.
+pub(crate) fn extract_boundary_physical<const D: usize>(
     flat: &[f32],
     shape: [usize; D],
     spacing: &[f64; D],
@@ -139,14 +131,20 @@ fn directed_msd<const D: usize>(from_set: &[[f64; D]], to_set: &[[f64; D]]) -> f
     total / from_set.len() as f64
 }
 
-/// Compute the Hausdorff distance between two binary segmentation masks.
-pub fn hausdorff_distance<B: Backend, const D: usize>(
-    prediction: &Image<B, D>,
-    ground_truth: &Image<B, D>,
+/// Symmetric Hausdorff distance over two flat binary masks (shared host core).
+///
+/// The Burn-backed [`hausdorff_distance`] and the Coeus-native
+/// `native::hausdorff_distance` both extract `(flat, shape)` and delegate here,
+/// so the boundary extraction and directed-distance math have exactly one home.
+pub(crate) fn hausdorff_from_flat<const D: usize>(
+    pred_flat: &[f32],
+    pred_shape: [usize; D],
+    gt_flat: &[f32],
+    gt_shape: [usize; D],
     spacing: &[f64; D],
 ) -> f32 {
-    let boundary_p = extract_boundary_physical(prediction, spacing);
-    let boundary_g = extract_boundary_physical(ground_truth, spacing);
+    let boundary_p = extract_boundary_physical(pred_flat, pred_shape, spacing);
+    let boundary_g = extract_boundary_physical(gt_flat, gt_shape, spacing);
 
     if boundary_p.is_empty() && boundary_g.is_empty() {
         return 0.0;
@@ -158,55 +156,16 @@ pub fn hausdorff_distance<B: Backend, const D: usize>(
     hd_p_to_g.max(hd_g_to_p) as f32
 }
 
-/// Compute Hausdorff distance between Coeus-native binary masks.
-///
-/// # Errors
-/// Returns an error when storage is not CPU-addressable or the masks differ in
-/// shape.
-pub fn hausdorff_distance_native<B, const D: usize>(
-    prediction: &NativeImage<f32, B, D>,
-    ground_truth: &NativeImage<f32, B, D>,
-    spacing: &[f64; D],
-) -> anyhow::Result<f32>
-where
-    B: ComputeBackend,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-{
-    anyhow::ensure!(
-        prediction.shape() == ground_truth.shape(),
-        "hausdorff distance requires equal shapes: {:?} != {:?}",
-        prediction.shape(),
-        ground_truth.shape()
-    );
-    let prediction_boundary = extract_boundary_physical_from_values(
-        prediction.data_slice()?,
-        prediction.shape(),
-        spacing,
-    );
-    let ground_truth_boundary = extract_boundary_physical_from_values(
-        ground_truth.data_slice()?,
-        ground_truth.shape(),
-        spacing,
-    );
-    Ok(
-        if prediction_boundary.is_empty() && ground_truth_boundary.is_empty() {
-            0.0
-        } else {
-            directed_hausdorff(&prediction_boundary, &ground_truth_boundary).max(
-                directed_hausdorff(&ground_truth_boundary, &prediction_boundary),
-            ) as f32
-        },
-    )
-}
-
-/// Compute the symmetric mean surface distance between two binary masks.
-pub fn mean_surface_distance<B: Backend, const D: usize>(
-    prediction: &Image<B, D>,
-    ground_truth: &Image<B, D>,
+/// Symmetric mean surface distance over two flat binary masks (shared host core).
+pub(crate) fn msd_from_flat<const D: usize>(
+    pred_flat: &[f32],
+    pred_shape: [usize; D],
+    gt_flat: &[f32],
+    gt_shape: [usize; D],
     spacing: &[f64; D],
 ) -> f32 {
-    let boundary_p = extract_boundary_physical(prediction, spacing);
-    let boundary_g = extract_boundary_physical(ground_truth, spacing);
+    let boundary_p = extract_boundary_physical(pred_flat, pred_shape, spacing);
+    let boundary_g = extract_boundary_physical(gt_flat, gt_shape, spacing);
 
     if boundary_p.is_empty() && boundary_g.is_empty() {
         return 0.0;
@@ -218,43 +177,24 @@ pub fn mean_surface_distance<B: Backend, const D: usize>(
     ((msd_p_to_g + msd_g_to_p) / 2.0) as f32
 }
 
-/// Compute symmetric mean surface distance between Coeus-native binary masks.
-///
-/// # Errors
-/// Returns an error when storage is not CPU-addressable or the masks differ in
-/// shape.
-pub fn mean_surface_distance_native<B, const D: usize>(
-    prediction: &NativeImage<f32, B, D>,
-    ground_truth: &NativeImage<f32, B, D>,
+/// Compute the Hausdorff distance between two binary segmentation masks.
+pub fn hausdorff_distance<B: Backend, const D: usize>(
+    prediction: &Image<B, D>,
+    ground_truth: &Image<B, D>,
     spacing: &[f64; D],
-) -> anyhow::Result<f32>
-where
-    B: ComputeBackend,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-{
-    anyhow::ensure!(
-        prediction.shape() == ground_truth.shape(),
-        "mean surface distance requires equal shapes: {:?} != {:?}",
-        prediction.shape(),
-        ground_truth.shape()
-    );
-    let prediction_boundary = extract_boundary_physical_from_values(
-        prediction.data_slice()?,
-        prediction.shape(),
-        spacing,
-    );
-    let ground_truth_boundary = extract_boundary_physical_from_values(
-        ground_truth.data_slice()?,
-        ground_truth.shape(),
-        spacing,
-    );
-    Ok(
-        if prediction_boundary.is_empty() && ground_truth_boundary.is_empty() {
-            0.0
-        } else {
-            ((directed_msd(&prediction_boundary, &ground_truth_boundary)
-                + directed_msd(&ground_truth_boundary, &prediction_boundary))
-                / 2.0) as f32
-        },
-    )
+) -> f32 {
+    let (pred_flat, pred_shape) = extract_vec_infallible(prediction);
+    let (gt_flat, gt_shape) = extract_vec_infallible(ground_truth);
+    hausdorff_from_flat(&pred_flat, pred_shape, &gt_flat, gt_shape, spacing)
+}
+
+/// Compute the symmetric mean surface distance between two binary masks.
+pub fn mean_surface_distance<B: Backend, const D: usize>(
+    prediction: &Image<B, D>,
+    ground_truth: &Image<B, D>,
+    spacing: &[f64; D],
+) -> f32 {
+    let (pred_flat, pred_shape) = extract_vec_infallible(prediction);
+    let (gt_flat, gt_shape) = extract_vec_infallible(ground_truth);
+    msd_from_flat(&pred_flat, pred_shape, &gt_flat, gt_shape, spacing)
 }

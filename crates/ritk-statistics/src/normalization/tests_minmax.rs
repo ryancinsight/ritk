@@ -64,7 +64,7 @@ fn native_minmax_maps_endpoints_and_preserves_metadata() {
     )
     .expect("invariant: valid native image");
     let output = MinMaxNormalizer::with_range(-1.0, 1.0)
-        .normalize_native(&image, &SequentialBackend)
+        .normalize_native(&image)
         .expect("native min-max normalization succeeds");
     let values = output.data_slice().expect("contiguous output");
     assert_eq!(values[0], -1.0);

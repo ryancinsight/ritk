@@ -7,10 +7,8 @@
 //! - Above:   output(x) = if I(x) > threshold { outside_value } else { I(x) }
 //! - Outside: output(x) = if I(x) < lower || I(x) > upper { outside_value } else { I(x) }
 
-use crate::native_support::map_flat_image;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
-use ritk_image::{native::Image as NativeImage, Image};
+use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Threshold mode controlling which pixels are replaced by outside_value.
@@ -63,53 +61,69 @@ impl ThresholdImageFilter {
 
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        Ok(rebuild(self.apply_values(&vals), dims, image))
+        let out = threshold_vec(&vals, &self.mode);
+        Ok(rebuild(out, dims, image))
     }
 
-    /// Apply the threshold operation to a Coeus-native image.
+    /// Coeus-native sister of [`ThresholdImageFilter::apply`].
+    ///
+    /// Runs the identical per-voxel threshold suppression via the shared
+    /// `threshold_vec` host core on the image's contiguous host buffer, so the
+    /// result is bitwise-identical to the Burn path. No Burn tensor is
+    /// constructed. Spatial metadata (origin, spacing, direction) is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
-        image: &NativeImage<f32, B, 3>,
+        image: &ritk_image::native::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
-        B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        map_flat_image(image, backend, |values, _| self.apply_values(values))
+        crate::native_support::map_flat_image(image, backend, |vals, _dims| {
+            threshold_vec(vals, &self.mode)
+        })
     }
+}
 
-    fn apply_values(&self, vals: &[f32]) -> Vec<f32> {
-        match &self.mode {
-            ThresholdMode::Below {
-                threshold,
-                outside_value,
-            } => vals
-                .iter()
-                .map(|&v| if v < *threshold { *outside_value } else { v })
-                .collect(),
-            ThresholdMode::Above {
-                threshold,
-                outside_value,
-            } => vals
-                .iter()
-                .map(|&v| if v > *threshold { *outside_value } else { v })
-                .collect(),
-            ThresholdMode::Outside {
-                lower,
-                upper,
-                outside_value,
-            } => vals
-                .iter()
-                .map(|&v| {
-                    if v < *lower || v > *upper {
-                        *outside_value
-                    } else {
-                        v
-                    }
-                })
-                .collect(),
-        }
+/// Substrate-agnostic host core for [`ThresholdImageFilter`].
+///
+/// Replaces every voxel failing the mode's retention predicate with the mode's
+/// `outside_value`; retained voxels pass through unchanged.
+pub(crate) fn threshold_vec(vals: &[f32], mode: &ThresholdMode) -> Vec<f32> {
+    match mode {
+        ThresholdMode::Below {
+            threshold,
+            outside_value,
+        } => vals
+            .iter()
+            .map(|&v| if v < *threshold { *outside_value } else { v })
+            .collect(),
+        ThresholdMode::Above {
+            threshold,
+            outside_value,
+        } => vals
+            .iter()
+            .map(|&v| if v > *threshold { *outside_value } else { v })
+            .collect(),
+        ThresholdMode::Outside {
+            lower,
+            upper,
+            outside_value,
+        } => vals
+            .iter()
+            .map(|&v| {
+                if v < *lower || v > *upper {
+                    *outside_value
+                } else {
+                    v
+                }
+            })
+            .collect(),
     }
 }
 

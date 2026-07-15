@@ -34,7 +34,7 @@ fn native_zscore_uses_population_statistics_and_preserves_metadata() {
     )
     .expect("invariant: valid native image");
     let output = ZScoreNormalizer::new()
-        .normalize_native(&image, &SequentialBackend)
+        .normalize_native(&image)
         .expect("native z-score succeeds");
     let values = output.data_slice().expect("contiguous output");
     assert!((values[0] + 1.224_744_9).abs() < 1e-6);

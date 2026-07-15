@@ -9,9 +9,6 @@
 //! Pixels below window_min map to out_min; pixels above window_max map to out_max.
 //! Interior pixels are mapped linearly.
 
-use crate::native_support::map_flat_image;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -43,41 +40,70 @@ impl IntensityWindowingFilter {
     /// Apply windowing to a 3-D image.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        Ok(rebuild(self.apply_values(&vals), dims, image))
+        let out = window_vec(
+            &vals,
+            self.window_min,
+            self.window_max,
+            self.out_min,
+            self.out_max,
+        );
+        Ok(rebuild(out, dims, image))
     }
 
-    /// Apply windowing to a Coeus-native image.
+    /// Coeus-native sister of [`IntensityWindowingFilter::apply`].
+    ///
+    /// Runs the identical clamp-then-rescale via the shared `window_vec` host
+    /// core on the image's contiguous host buffer, so the result is
+    /// bitwise-identical to the Burn path. No Burn tensor is constructed.
+    /// Spatial metadata (origin, spacing, direction) is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
-        image: &NativeImage<f32, B, 3>,
+        image: &ritk_image::native::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
-        B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        map_flat_image(image, backend, |values, _| self.apply_values(values))
+        crate::native_support::map_flat_image(image, backend, |vals, _dims| {
+            window_vec(
+                vals,
+                self.window_min,
+                self.window_max,
+                self.out_min,
+                self.out_max,
+            )
+        })
     }
+}
 
-    fn apply_values(&self, vals: &[f32]) -> Vec<f32> {
-        let wmin = self.window_min;
-        let wmax = self.window_max;
-        let omin = self.out_min;
-        let omax = self.out_max;
-
-        let out: Vec<f32> = if (wmax - wmin).abs() < f32::EPSILON {
-            vec![omin; vals.len()]
-        } else {
-            let scale = (omax - omin) / (wmax - wmin);
-            vals.iter()
-                .map(|&v| {
-                    let clamped = v.max(wmin).min(wmax);
-                    (clamped - wmin) * scale + omin
-                })
-                .collect()
-        };
-
-        out
+/// Substrate-agnostic host core for [`IntensityWindowingFilter`].
+///
+/// Clamps each voxel to `[window_min, window_max]`, then affinely remaps
+/// `[window_min, window_max]` to `[out_min, out_max]`. A degenerate window
+/// (`window_max == window_min` within `f32::EPSILON`) collapses every voxel to
+/// `out_min`, matching the mathematical specification.
+pub(crate) fn window_vec(
+    vals: &[f32],
+    window_min: f32,
+    window_max: f32,
+    out_min: f32,
+    out_max: f32,
+) -> Vec<f32> {
+    if (window_max - window_min).abs() < f32::EPSILON {
+        vec![out_min; vals.len()]
+    } else {
+        let scale = (out_max - out_min) / (window_max - window_min);
+        vals.iter()
+            .map(|&v| {
+                let clamped = v.max(window_min).min(window_max);
+                (clamped - window_min) * scale + out_min
+            })
+            .collect()
     }
 }
 

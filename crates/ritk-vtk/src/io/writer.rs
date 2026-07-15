@@ -21,60 +21,44 @@ use ritk_image::native::Image;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
-/// Write an `Image<B, 3>` to a VTK legacy structured-points file (BINARY).
+/// Encode flat voxel data plus geometry as a VTK legacy structured-points
+/// stream (BINARY) into an arbitrary writer.
 ///
-/// The output file conforms to VTK legacy format version 3.0 with:
-/// - `DATASET STRUCTURED_POINTS`
-/// - `BINARY` encoding
-/// - `SCALARS scalars float 1` point data
-/// - Big-endian IEEE 754 single-precision scalar values
+/// This is the shared, substrate-free core underlying both the burn-backed
+/// [`write_vtk`] and the Coeus-backed `ritk_io` native writer: identical byte
+/// output given identical inputs, since neither carrier participates in the
+/// encode.
+///
+/// ## Argument convention
+///
+/// - `slice` is row-major scalar data with X varying fastest, Y next, Z slowest
+///   (matching RITK's `[nz, ny, nx]` tensor memory layout); it is emitted
+///   verbatim as big-endian IEEE 754 single-precision (`f32`) with no
+///   permutation.
+/// - `dims` is `[nz, ny, nx]` — RITK tensor order (Z slowest, X fastest); the
+///   emitted `DIMENSIONS` header field is permuted to VTK **[X, Y, Z]** order.
+/// - `origin` / `spacing` are `[ox, oy, oz]` / `[sx, sy, sz]` in VTK **[X, Y, Z]**
+///   order, matching the `ORIGIN` / `SPACING` fields directly.
+///
+/// The header is always ASCII (VTK's `BINARY` declaration governs only the data
+/// section). The writer is flushed before return.
 ///
 /// # Errors
 ///
-/// Returns an error when:
-/// - The file cannot be created or written.
-/// - The tensor data cannot be extracted as `f32`.
-pub fn write_vtk<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
-where
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    P: AsRef<Path>,
-{
-    let path = path.as_ref();
-    let shape = image.shape(); // [nz, ny, nx]
-    let nz = shape[0];
-    let ny = shape[1];
-    let nx = shape[2];
-    let total_voxels = nx
-        .checked_mul(ny)
-        .and_then(|plane| plane.checked_mul(nz))
-        .with_context(|| format!("VTK image shape product overflows usize: {nx}×{ny}×{nz}"))?;
-    let voxels = image.data_cow_on(backend);
-    if voxels.len() != total_voxels {
-        anyhow::bail!(
-            "image contains {} elements but expected {} ({}×{}×{})",
-            voxels.len(),
-            total_voxels,
-            nx,
-            ny,
-            nz
-        );
-    }
+/// Returns an error when the writer fails, or when `slice.len()` does not equal
+/// the product of `dims`.
+pub fn encode_vtk_flat<W: Write>(
+    writer: &mut W,
+    slice: &[f32],
+    dims: [usize; 3],
+    origin: [f64; 3],
+    spacing: [f64; 3],
+) -> Result<()> {
+    let [nz, ny, nx] = dims;
+    let total_voxels = nx * ny * nz;
 
-    let file = std::fs::File::create(path)
-        .with_context(|| format!("failed to create VTK file: {}", path.display()))?;
-    let mut writer = BufWriter::new(file);
-
-    let origin = image.origin(); // [X, Y, Z] order
-    let spacing = image.spacing(); // [X, Y, Z] order
-
-    let ox = origin[0];
-    let oy = origin[1];
-    let oz = origin[2];
-
-    let sx = spacing[0];
-    let sy = spacing[1];
-    let sz = spacing[2];
+    let [ox, oy, oz] = origin;
+    let [sx, sy, sz] = spacing;
 
     tracing::debug!(
         nx,
@@ -115,22 +99,76 @@ where
     writeln!(writer, "LOOKUP_TABLE default").with_context(|| "failed to write VTK LOOKUP_TABLE")?;
 
     // --- Write binary scalar data (big-endian f32) ---
-    for &voxel in voxels.iter() {
-        writer
-            .write_all(&voxel.to_be_bytes())
-            .with_context(|| "failed to write VTK binary scalar data")?;
+    if slice.len() != total_voxels {
+        anyhow::bail!(
+            "data contains {} elements but expected {} ({}×{}×{})",
+            slice.len(),
+            total_voxels,
+            nx,
+            ny,
+            nz
+        );
     }
+
+    let mut binary_buf = Vec::with_capacity(total_voxels * 4);
+    for &value in slice {
+        binary_buf.extend_from_slice(&value.to_be_bytes());
+    }
+    writer
+        .write_all(&binary_buf)
+        .with_context(|| "failed to write VTK binary scalar data")?;
 
     writer
         .flush()
         .with_context(|| "failed to flush VTK output")?;
 
     tracing::debug!(
-        path = %path.display(),
-        "VTK file written: {} voxels, {} bytes payload",
+        "VTK data written: {} voxels, {} bytes payload",
         total_voxels,
         total_voxels * 4
     );
+
+    Ok(())
+}
+
+/// Write a native Coeus image to a VTK legacy structured-points file (BINARY).
+///
+/// The output file conforms to VTK legacy format version 3.0 with:
+/// - `DATASET STRUCTURED_POINTS`
+/// - `BINARY` encoding
+/// - `SCALARS scalars float 1` point data
+/// - Big-endian IEEE 754 single-precision scalar values
+///
+/// Extracts flat data and geometry from the native tensor carrier, then
+/// delegates the byte-level encode to [`encode_vtk_flat`].
+///
+/// # Errors
+///
+/// Returns an error when:
+/// - The file cannot be created or written.
+/// - The tensor data cannot be extracted as `f32`.
+pub fn write_vtk<B, P>(path: P, image: &Image<f32, B, 3>, backend: &B) -> Result<()>
+where
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    P: AsRef<Path>,
+{
+    let path = path.as_ref();
+    let file = std::fs::File::create(path)
+        .with_context(|| format!("failed to create VTK file: {}", path.display()))?;
+    let mut writer = BufWriter::new(file);
+
+    let dims = image.shape(); // [nz, ny, nx]
+    let origin = image.origin(); // [X, Y, Z] order
+    let spacing = image.spacing(); // [X, Y, Z] order
+    let origin_arr = [origin[0], origin[1], origin[2]];
+    let spacing_arr = [spacing[0], spacing[1], spacing[2]];
+
+    let f32_vec = image.data_cow_on(backend);
+
+    encode_vtk_flat(&mut writer, &f32_vec, dims, origin_arr, spacing_arr)?;
+
+    tracing::debug!(path = %path.display(), "VTK file written");
 
     Ok(())
 }

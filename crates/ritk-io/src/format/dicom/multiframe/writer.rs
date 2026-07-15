@@ -1,11 +1,13 @@
 //! Multi-frame DICOM writer: serializes a 3-D image as a single DICOM Part 10 file.
 
 use anyhow::{bail, Context, Result};
+use coeus_core::MoiraiBackend;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 use ritk_core::image::Image;
+use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use std::path::Path;
 
@@ -74,12 +76,80 @@ pub fn write_dicom_multiframe_with_config<B: Backend, P: AsRef<Path>>(
     write_multiframe_impl(path.as_ref(), image, config)
 }
 
+/// Write a native `Image<f32, MoiraiBackend, 3>` with shape `[n_frames, rows,
+/// cols]` as a single multi-frame DICOM Part 10 file.
+///
+/// Native counterpart of [`write_dicom_multiframe`]: identical byte output for
+/// identical voxels (both route through the shared substrate-free encode core),
+/// differing only in the source image carrier.
+pub fn write_dicom_multiframe_native<P: AsRef<Path>>(
+    path: P,
+    image: &NativeImage<f32, MoiraiBackend, 3>,
+) -> Result<()> {
+    write_native_impl(path.as_ref(), image, &MultiFrameWriterConfig::default())
+}
+
+/// Write a native `Image<f32, MoiraiBackend, 3>` as a multi-frame DICOM file
+/// with optional spatial metadata. Native counterpart of
+/// [`write_dicom_multiframe_with_options`].
+pub fn write_dicom_multiframe_native_with_options<P: AsRef<Path>>(
+    path: P,
+    image: &NativeImage<f32, MoiraiBackend, 3>,
+    spatial: Option<&MultiFrameSpatialMetadata>,
+) -> Result<()> {
+    let config = MultiFrameWriterConfig {
+        spatial: spatial.cloned(),
+        ..MultiFrameWriterConfig::default()
+    };
+    write_native_impl(path.as_ref(), image, &config)
+}
+
+/// Write a native `Image<f32, MoiraiBackend, 3>` as a multi-frame DICOM file
+/// with full writer configuration. Native counterpart of
+/// [`write_dicom_multiframe_with_config`].
+pub fn write_dicom_multiframe_native_with_config<P: AsRef<Path>>(
+    path: P,
+    image: &NativeImage<f32, MoiraiBackend, 3>,
+    config: &MultiFrameWriterConfig,
+) -> Result<()> {
+    write_native_impl(path.as_ref(), image, config)
+}
+
 fn write_multiframe_impl<B: Backend>(
     path: &Path,
     image: &Image<B, 3>,
     config: &MultiFrameWriterConfig,
 ) -> Result<()> {
-    let [n_frames, rows, cols] = image.shape();
+    let all_data = image
+        .try_data_vec()
+        .context("DICOM multiframe writer requires f32 image data")?;
+    write_multiframe_flat(path, &all_data, image.shape(), config)
+}
+
+fn write_native_impl(
+    path: &Path,
+    image: &NativeImage<f32, MoiraiBackend, 3>,
+    config: &MultiFrameWriterConfig,
+) -> Result<()> {
+    let data = image
+        .data_slice()
+        .context("DICOM multiframe writer requires contiguous f32 image data")?;
+    write_multiframe_flat(path, data, image.shape(), config)
+}
+
+/// Serialize a flat `[n_frames, rows, cols]` row-major `f32` buffer as a
+/// multi-frame DICOM Part 10 file.
+///
+/// Substrate-free encode core shared by the Burn and native writers. The single
+/// global linear rescale, tag emission, and file layout are defined here so the
+/// two carriers produce byte-identical output for identical voxels.
+fn write_multiframe_flat(
+    path: &Path,
+    all_data: &[f32],
+    shape: [usize; 3],
+    config: &MultiFrameWriterConfig,
+) -> Result<()> {
+    let [n_frames, rows, cols] = shape;
     if n_frames == 0 || rows == 0 || cols == 0 {
         bail!(
             "DICOM multiframe write: n_frames={} rows={} cols={} must all be >0",
@@ -89,11 +159,7 @@ fn write_multiframe_impl<B: Backend>(
         );
     }
 
-    let all_data = image
-        .try_data_vec()
-        .context("DICOM multiframe writer requires f32 image data")?;
-
-    let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(&all_data);
+    let (pixel_u16, rescale_slope, rescale_intercept) = normalize_to_u16(all_data);
 
     let sop_instance_uid = generate_series_uid();
     let study_instance_uid = generate_series_uid();

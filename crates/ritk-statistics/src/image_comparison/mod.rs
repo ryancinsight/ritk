@@ -1,6 +1,7 @@
 //! Image comparison metrics for segmentation and image quality evaluation.
 //!
 //! Provides spatial overlap, surface distance, and image quality metrics:
+//! - [`pearson_correlation`]: global linear correlation between two images.
 //! - [`dice_coefficient`]: volumetric overlap between two binary masks.
 //! - [`hausdorff_distance`]: maximum surface-to-surface distance.
 //! - [`mean_surface_distance`]: symmetric mean surface-to-surface distance.
@@ -46,17 +47,27 @@
 //!                / ((mu_x^2 + mu_y^2 + C1)(sigma_x^2 + sigma_y^2 + C2))
 //!
 //! This implementation computes a single global SSIM over all voxels.
+//!
+//! ## Pearson Correlation
+//!
+//!   r = sum((X_i - mean(X)) * (Y_i - mean(Y)))
+//!       / sqrt(sum((X_i - mean(X))^2) * sum((Y_i - mean(Y))^2))
+//!
+//! Constant inputs have zero variance and return 0.
 
+pub mod native;
 mod overlap;
 mod quality;
 mod surface;
 
-pub use overlap::{dice_coefficient, dice_coefficient_native, similarity_index};
-pub use quality::{psnr, psnr_native, ssim, ssim_native};
-pub use surface::{
-    hausdorff_distance, hausdorff_distance_native, mean_surface_distance,
-    mean_surface_distance_native,
+pub use native::{
+    hausdorff_distance as hausdorff_distance_native,
+    mean_surface_distance as mean_surface_distance_native, psnr as psnr_native,
+    ssim as ssim_native,
 };
+pub use overlap::{dice_coefficient, dice_coefficient_native, similarity_index};
+pub use quality::{pearson_correlation, psnr, ssim};
+pub use surface::{hausdorff_distance, mean_surface_distance};
 
 #[cfg(test)]
 mod tests;

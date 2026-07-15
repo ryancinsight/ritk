@@ -29,6 +29,7 @@ use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
+use ritk_tensor_ops::native as tensor_ops;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Histogram matcher following ITK's `HistogramMatchingImageFilter`: quantile
@@ -81,18 +82,43 @@ impl HistogramMatcher {
     ) -> Image<B, D> {
         let (mut src_vec, dims) = extract_vec_infallible(source);
         let (ref_vec, _) = extract_vec_infallible(reference);
+        self.transform_values(&mut src_vec, &ref_vec);
+        rebuild(src_vec, dims, source)
+    }
 
-        let (src_min, src_max, src_mean) = min_max_mean(&src_vec);
-        let (ref_min, ref_max, ref_mean) = min_max_mean(&ref_vec);
+    /// Coeus-native sister of [`HistogramMatcher::match_histograms`].
+    ///
+    /// Identical ITK landmark algorithm; a constant source is returned unchanged.
+    ///
+    /// # Errors
+    /// Returns an error when either tensor is not host-addressable/contiguous or
+    /// the rebuilt tensor fails shape validation.
+    pub fn match_histograms_native<B, const D: usize>(
+        &self,
+        source: &NativeImage<f32, B, D>,
+        reference: &NativeImage<f32, B, D>,
+    ) -> anyhow::Result<NativeImage<f32, B, D>>
+    where
+        B: ComputeBackend + Default,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let (mut src_vec, dims) = tensor_ops::extract_image_vec(source)?;
+        let (ref_vec, _) = tensor_ops::extract_image_vec(reference)?;
+        self.transform_values(&mut src_vec, &ref_vec);
+        tensor_ops::rebuild_image(src_vec, dims, source, &B::default())
+    }
 
-        // Constant source: no transform can be estimated — return unchanged.
+    /// In-place histogram-match of `src` against `reference` (shared host core).
+    ///
+    /// A constant source (`src_max == src_min`) is left unchanged, matching the
+    /// Burn path's identity return.
+    fn transform_values(&self, src: &mut [f32], reference: &[f32]) {
+        let (src_min, src_max, src_mean) = min_max_mean(src);
+        let (ref_min, ref_max, ref_mean) = min_max_mean(reference);
+
+        // Constant source: no transform can be estimated — leave unchanged.
         if (src_max - src_min).abs() < f32::EPSILON {
-            return Image::new(
-                source.data().clone(),
-                *source.origin(),
-                *source.spacing(),
-                *source.direction(),
-            );
+            return;
         }
 
         let src_thresh = if self.threshold_at_mean {
@@ -108,8 +134,8 @@ impl HistogramMatcher {
 
         // Interior quantile landmarks of each distribution above its threshold.
         let k = self.num_match_points;
-        let src_q = quantile_landmarks(&src_vec, src_thresh, src_max, self.num_bins, k);
-        let ref_q = quantile_landmarks(&ref_vec, ref_thresh, ref_max, self.num_bins, k);
+        let src_q = quantile_landmarks(src, src_thresh, src_max, self.num_bins, k);
+        let ref_q = quantile_landmarks(reference, ref_thresh, ref_max, self.num_bins, k);
 
         // Monotone landmark pairs: [min, thresh, Q₁…Q_K, max].
         let mut src_land = Vec::with_capacity(k + 3);
@@ -125,91 +151,9 @@ impl HistogramMatcher {
         enforce_monotone(&mut src_land);
         enforce_monotone(&mut ref_land);
 
-        for value in &mut src_vec {
+        for value in src.iter_mut() {
             *value = piecewise_linear(*value, &src_land, &ref_land);
         }
-
-        rebuild(src_vec, dims, source)
-    }
-
-    /// Match a Coeus-native source image to a Coeus-native reference image.
-    ///
-    /// The source geometry is preserved exactly. Both inputs must expose
-    /// CPU-addressable storage because landmark estimation traverses their
-    /// values directly.
-    pub fn match_histograms_native<B, const D: usize>(
-        &self,
-        source: &NativeImage<f32, B, D>,
-        reference: &NativeImage<f32, B, D>,
-        backend: &B,
-    ) -> anyhow::Result<NativeImage<f32, B, D>>
-    where
-        B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
-        let source_values = source.data_slice()?;
-        let reference_values = reference.data_slice()?;
-        let (src_min, src_max, src_mean) = min_max_mean(source_values);
-        let (ref_min, ref_max, ref_mean) = min_max_mean(reference_values);
-
-        if (src_max - src_min).abs() < f32::EPSILON {
-            return NativeImage::from_flat_on(
-                source_values.to_vec(),
-                source.shape(),
-                *source.origin(),
-                *source.spacing(),
-                *source.direction(),
-                backend,
-            );
-        }
-
-        let src_thresh = if self.threshold_at_mean {
-            src_mean
-        } else {
-            src_min
-        };
-        let ref_thresh = if self.threshold_at_mean {
-            ref_mean
-        } else {
-            ref_min
-        };
-        let src_q = quantile_landmarks(
-            source_values,
-            src_thresh,
-            src_max,
-            self.num_bins,
-            self.num_match_points,
-        );
-        let ref_q = quantile_landmarks(
-            reference_values,
-            ref_thresh,
-            ref_max,
-            self.num_bins,
-            self.num_match_points,
-        );
-        let mut src_land = Vec::with_capacity(self.num_match_points + 3);
-        let mut ref_land = Vec::with_capacity(self.num_match_points + 3);
-        src_land.extend([src_min, src_thresh]);
-        ref_land.extend([ref_min, ref_thresh]);
-        src_land.extend_from_slice(&src_q);
-        ref_land.extend_from_slice(&ref_q);
-        src_land.push(src_max);
-        ref_land.push(ref_max);
-        enforce_monotone(&mut src_land);
-        enforce_monotone(&mut ref_land);
-
-        let output = source_values
-            .iter()
-            .map(|&value| piecewise_linear(value, &src_land, &ref_land))
-            .collect();
-        NativeImage::from_flat_on(
-            output,
-            source.shape(),
-            *source.origin(),
-            *source.spacing(),
-            *source.direction(),
-            backend,
-        )
     }
 }
 

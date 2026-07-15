@@ -6,7 +6,7 @@
 use pyo3::prelude::*;
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{image_to_vec, PyImage};
+use crate::image::{with_image_pair_slices, PyImage};
 
 /// MSE = Σ(aᵢ − bᵢ)² / N.
 pub(super) fn mse_slices(a: &[f32], b: &[f32]) -> f64 {
@@ -33,16 +33,18 @@ pub(super) fn mse_slices(a: &[f32], b: &[f32]) -> f64 {
 /// # Formula
 /// MSE = Σ(fixed_i − moving_i)² / N
 #[pyfunction]
-pub fn compute_mse(fixed: &PyImage, moving: &PyImage) -> RitkResult<f64> {
-    let (a, shape_a) = image_to_vec(&fixed.inner);
-    let (b, shape_b) = image_to_vec(&moving.inner);
+pub fn compute_mse(py: Python<'_>, fixed: &PyImage, moving: &PyImage) -> RitkResult<f64> {
+    let shape_a = fixed.inner.shape();
+    let shape_b = moving.inner.shape();
     if shape_a != shape_b {
         return Err(RitkPyError::value(format!(
             "shape mismatch: fixed {:?} != moving {:?}",
             shape_a, shape_b
         )));
     }
-    Ok(mse_slices(&a, &b))
+    let fixed = fixed.inner.clone();
+    let moving = moving.inner.clone();
+    Ok(py.allow_threads(move || with_image_pair_slices(&fixed, &moving, mse_slices)))
 }
 
 #[cfg(test)]

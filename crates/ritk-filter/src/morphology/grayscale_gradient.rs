@@ -42,9 +42,8 @@
 //! - ITK `itk::GrayscaleMorphologicalGradientImageFilter`.
 
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 use super::grayscale_dilation::dilate_3d;
 use super::grayscale_erosion::erode_3d;
@@ -95,20 +94,20 @@ impl GrayscaleMorphologicalGradientFilter {
     /// possible with non-f32 backends).
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
-        let gradient = self.gradient_values(&vals, dims);
-
-        let device = image.data().device();
-        let td = TensorData::new(gradient, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(td, &device);
-        Ok(Image::new(
-            tensor,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        let gradient = gradient_vec(&vals, dims, self.radius);
+        Ok(rebuild(gradient, dims, image))
     }
 
-    /// Apply the morphological gradient to a Coeus-native image.
+    /// Coeus-native sister of [`GrayscaleMorphologicalGradientFilter::apply`].
+    ///
+    /// Runs the identical Beucher gradient (`dilate − erode` over a cubic SE)
+    /// via the shared `gradient_vec` host core on the image's contiguous host
+    /// buffer, so the result is bitwise-identical to the Burn path. No Burn
+    /// tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
@@ -118,23 +117,26 @@ impl GrayscaleMorphologicalGradientFilter {
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
-            self.gradient_values(image.data_slice()?, image.shape()),
-            image.shape(),
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            backend,
-        )
+        let radius = self.radius;
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            gradient_vec(vals, dims, radius)
+        })
     }
+}
 
-    fn gradient_values(&self, values: &[f32], dims: [usize; 3]) -> Vec<f32> {
-        dilate_3d(values, dims, self.radius)
-            .into_iter()
-            .zip(erode_3d(values, dims, self.radius))
-            .map(|(dilation, erosion)| dilation - erosion)
-            .collect()
-    }
+/// Substrate-agnostic host core for [`GrayscaleMorphologicalGradientFilter`].
+///
+/// `grad(x) = dilate_B(f)(x) − erode_B(f)(x)` over the flat cubic SE of the
+/// given `radius` (replicate padding). Non-negative by extensivity /
+/// anti-extensivity.
+pub(crate) fn gradient_vec(vals: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
+    let dilated = dilate_3d(vals, dims, radius);
+    let eroded = erode_3d(vals, dims, radius);
+    dilated
+        .into_iter()
+        .zip(eroded)
+        .map(|(d, e)| d - e)
+        .collect()
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

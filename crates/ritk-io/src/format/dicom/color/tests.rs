@@ -1,6 +1,5 @@
 //! Native DICOM RGB color-volume tests.
 
-use coeus_core::SequentialBackend;
 use ritk_dicom::PixelSignedness;
 
 use super::*;
@@ -139,17 +138,15 @@ fn native_color_series_preserves_interleaved_rgb_samples() {
         Some(0),
     );
 
-    let backend = SequentialBackend;
-    let (volume, metadata) =
-        load_dicom_color_series(dir.path(), &backend).expect("RGB load must succeed");
+    let (samples, shape, metadata) =
+        load_color_volume_flat_from_path(dir.path()).expect("RGB load must succeed");
 
-    assert_eq!(volume.shape(), [2, 1, 2, 3]);
+    assert_eq!(shape, [2, 1, 2, 3]);
     assert_eq!(metadata.dimensions, [1, 2, 2]);
     assert_eq!(metadata.photometric_interpretation.as_deref(), Some("RGB"));
 
-    let samples = volume.data_cow_on(&backend);
     assert_eq!(
-        samples.as_ref(),
+        samples.as_slice(),
         &[255.0, 0.0, 0.0, 0.0, 255.0, 0.0, 0.0, 0.0, 255.0, 255.0, 255.0, 255.0]
     );
 }
@@ -219,7 +216,7 @@ fn native_color_series_rejects_scalar_samples() {
     .write_to_file(&path)
     .expect("scalar DICOM must be written");
 
-    let err = load_dicom_color_series(dir.path(), &SequentialBackend).unwrap_err();
+    let err = load_color_volume_flat_from_path(dir.path()).unwrap_err();
     let msg = format!("{err:#}");
     assert!(
         msg.contains("SamplesPerPixel=1"),
@@ -238,7 +235,7 @@ fn native_color_series_rejects_planar_rgb_samples() {
         &[255, 0, 0, 0, 255, 0],
         Some(1),
     );
-    let err = load_dicom_color_series(dir.path(), &SequentialBackend).unwrap_err();
+    let err = load_color_volume_flat_from_path(dir.path()).unwrap_err();
     let msg = format!("{err:#}");
     assert!(
         msg.contains("PlanarConfiguration=0") && msg.contains("declares 1"),
@@ -314,21 +311,51 @@ fn native_color_from_series_preserves_values_and_metadata() {
         radionuclide_half_life_s: None,
     };
 
-    let series = reader::DicomSeriesInfo {
-        path: dir.path().to_path_buf(),
-        num_slices: 1,
-        metadata,
-    };
-
-    let backend = SequentialBackend;
-    let (volume, meta) =
-        load_dicom_color_from_series(series, &backend).expect("native color series must load");
-    assert_eq!(volume.shape(), [1, 1, 2, 3]);
+    let (samples, shape, meta) =
+        load_color_volume_flat(metadata).expect("native color series must load");
+    assert_eq!(shape, [1, 1, 2, 3]);
     assert_eq!(meta.dimensions, [1, 2, 1]);
     assert_eq!(meta.photometric_interpretation.as_deref(), Some("RGB"));
 
-    assert_eq!(
-        volume.data_cow_on(&backend).as_ref(),
-        &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]
+    assert_eq!(samples.as_slice(), &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0]);
+}
+
+/// The substrate-free RGB core exposes the canonical interleaved host order.
+///
+/// `flat` is first pinned to a known interleaved-RGB value oracle, so this is
+/// a value-semantic check rather than a self-consistency tautology; the burn
+/// and native carriers are then asserted to preserve that exact buffer.
+#[test]
+fn flat_rgb_volume_preserves_layout() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    write_rgb_slice(
+        &dir.path().join("slice1.dcm"),
+        "2.25.7101",
+        1,
+        0.0,
+        &[255, 0, 0, 0, 255, 0],
+        Some(0),
     );
+    write_rgb_slice(
+        &dir.path().join("slice2.dcm"),
+        "2.25.7102",
+        2,
+        2.0,
+        &[0, 0, 255, 255, 255, 255],
+        Some(0),
+    );
+
+    // Substrate-free core.
+    let (flat, dims, metadata) =
+        load_color_volume_flat_from_path(dir.path()).expect("flat RGB load must succeed");
+    assert_eq!(dims, [2, 1, 2, RGB_CHANNELS]);
+
+    // Value oracle: interleaved RGB, channel fastest, `[depth, rows, cols, 3]`.
+    let expected = [
+        255.0, 0.0, 0.0, 0.0, 255.0, 0.0, 0.0, 0.0, 255.0, 255.0, 255.0, 255.0,
+    ];
+    assert_eq!(flat.as_slice(), &expected);
+
+    assert_eq!(metadata.dimensions, [1, 2, 2]);
+    assert_eq!(flat.as_slice(), &expected);
 }

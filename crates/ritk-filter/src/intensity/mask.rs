@@ -21,8 +21,6 @@
 //! | `MaskNegatedImageFilter`    | `MaskNegatedImageFilter`     |
 
 use crate::distance::types::BinarizationThreshold;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -37,37 +35,46 @@ fn check_shapes(a: [usize; 3], b: [usize; 3]) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn map_mask_values<F>(image: &[f32], mask: &[f32], f: F) -> Vec<f32>
-where
-    F: Fn(f32, f32) -> f32,
-{
-    image
-        .iter()
-        .zip(mask)
-        .map(|(&image_value, &mask_value)| f(image_value, mask_value))
-        .collect()
+/// Output source for one branch of a mask decision.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum MaskFill {
+    /// Copy the corresponding image voxel through unchanged.
+    Keep,
+    /// Write a constant value.
+    Constant(f32),
 }
 
-fn map_native_images<B, F>(
-    image: &NativeImage<f32, B, 3>,
-    mask: &NativeImage<f32, B, 3>,
-    backend: &B,
-    f: F,
-) -> anyhow::Result<NativeImage<f32, B, 3>>
-where
-    B: ComputeBackend,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    F: Fn(f32, f32) -> f32,
-{
-    check_shapes(image.shape(), mask.shape())?;
-    NativeImage::from_flat_on(
-        map_mask_values(image.data_slice()?, mask.data_slice()?, f),
-        image.shape(),
-        *image.origin(),
-        *image.spacing(),
-        *image.direction(),
-        backend,
-    )
+/// Substrate-agnostic host core shared by all three mask filters.
+///
+/// For each voxel, selects `on_active` when `mask(x) > threshold`, else
+/// `on_inactive`. Encoding every family as a single predicate (`mask > thr`)
+/// with a per-branch [`MaskFill`] collapses the three previously-identical zips
+/// to one entry point:
+/// - [`MaskImageFilter`]: active → `Keep`, inactive → `Constant(outside)`.
+/// - [`MaskNegatedImageFilter`]: active → `Constant(outside)`, inactive → `Keep`.
+/// - [`MaskedAssignImageFilter`]: active → `Constant(assign)`, inactive → `Keep`.
+pub(crate) fn mask_combine(
+    image: &[f32],
+    mask: &[f32],
+    threshold: f32,
+    on_active: MaskFill,
+    on_inactive: MaskFill,
+) -> Vec<f32> {
+    image
+        .iter()
+        .zip(mask.iter())
+        .map(|(&img_val, &mask_val)| {
+            let fill = if mask_val > threshold {
+                on_active
+            } else {
+                on_inactive
+            };
+            match fill {
+                MaskFill::Keep => img_val,
+                MaskFill::Constant(c) => c,
+            }
+        })
+        .collect()
 }
 
 // â”€â”€ MaskImageFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -118,66 +125,40 @@ impl MaskImageFilter {
         check_shapes(dims, mask.shape())?;
         let (iv, _) = extract_vec(image)?;
         let (mv, _) = extract_vec(mask)?;
-        let outside = self.outside_value;
-        let thr = f32::from(self.threshold);
-        let out = map_mask_values(&iv, &mv, |image_value, mask_value| {
-            if mask_value > thr {
-                image_value
-            } else {
-                outside
-            }
-        });
+        let out = mask_combine(
+            &iv,
+            &mv,
+            f32::from(self.threshold),
+            MaskFill::Keep,
+            MaskFill::Constant(self.outside_value),
+        );
         Ok(rebuild(out, dims, image))
     }
 
-    /// Apply masking with a Coeus-native image and native mask.
+    /// Coeus-native sister of [`MaskImageFilter::apply`].
+    ///
+    /// Runs the identical mask selection via the shared `mask_combine` host
+    /// core on both images' contiguous host buffers, so the result is
+    /// bitwise-identical to the Burn path. No Burn tensor is constructed.
+    ///
+    /// # Errors
+    /// Returns an error on shape mismatch, non-contiguous buffers, or failed
+    /// shape validation of the rebuilt image.
     pub fn apply_native<B>(
         &self,
-        image: &NativeImage<f32, B, 3>,
-        mask: &NativeImage<f32, B, 3>,
-        backend: &B,
-    ) -> anyhow::Result<NativeImage<f32, B, 3>>
-    where
-        B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
-        let threshold = f32::from(self.threshold);
-        let outside = self.outside_value;
-        map_native_images(image, mask, backend, move |image_value, mask_value| {
-            if mask_value > threshold {
-                image_value
-            } else {
-                outside
-            }
-        })
-    }
-
-    /// Apply threshold-derived masking to a Coeus-native image.
-    ///
-    /// Voxels greater than `threshold` are retained; all others become zero.
-    pub fn apply_threshold_native<B>(
         image: &ritk_image::native::Image<f32, B, 3>,
-        threshold: BinarizationThreshold,
+        mask: &ritk_image::native::Image<f32, B, 3>,
         backend: &B,
     ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        let values = image.data_slice()?;
-        let threshold = f32::from(threshold);
-        let output = values
-            .iter()
-            .map(|&value| if value > threshold { value } else { 0.0 })
-            .collect();
-        ritk_image::native::Image::from_flat_on(
-            output,
-            image.shape(),
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            backend,
-        )
+        let thr = f32::from(self.threshold);
+        let outside = self.outside_value;
+        crate::native_support::map_flat_pair(image, mask, backend, |iv, mv, _dims| {
+            mask_combine(iv, mv, thr, MaskFill::Keep, MaskFill::Constant(outside))
+        })
     }
 }
 
@@ -229,37 +210,39 @@ impl MaskNegatedImageFilter {
         check_shapes(dims, mask.shape())?;
         let (iv, _) = extract_vec(image)?;
         let (mv, _) = extract_vec(mask)?;
-        let outside = self.outside_value;
-        let thr = f32::from(self.threshold);
-        let out = map_mask_values(&iv, &mv, |image_value, mask_value| {
-            if mask_value <= thr {
-                image_value
-            } else {
-                outside
-            }
-        });
+        let out = mask_combine(
+            &iv,
+            &mv,
+            f32::from(self.threshold),
+            MaskFill::Constant(self.outside_value),
+            MaskFill::Keep,
+        );
         Ok(rebuild(out, dims, image))
     }
 
-    /// Apply negated masking with a Coeus-native image and native mask.
+    /// Coeus-native sister of [`MaskNegatedImageFilter::apply`].
+    ///
+    /// Runs the identical negated mask selection via the shared `mask_combine`
+    /// host core, bitwise-identical to the Burn path. No Burn tensor is
+    /// constructed.
+    ///
+    /// # Errors
+    /// Returns an error on shape mismatch, non-contiguous buffers, or failed
+    /// shape validation of the rebuilt image.
     pub fn apply_native<B>(
         &self,
-        image: &NativeImage<f32, B, 3>,
-        mask: &NativeImage<f32, B, 3>,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        mask: &ritk_image::native::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
-        B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        let threshold = f32::from(self.threshold);
+        let thr = f32::from(self.threshold);
         let outside = self.outside_value;
-        map_native_images(image, mask, backend, move |image_value, mask_value| {
-            if mask_value <= threshold {
-                image_value
-            } else {
-                outside
-            }
+        crate::native_support::map_flat_pair(image, mask, backend, |iv, mv, _dims| {
+            mask_combine(iv, mv, thr, MaskFill::Constant(outside), MaskFill::Keep)
         })
     }
 }
@@ -308,37 +291,38 @@ impl MaskedAssignImageFilter {
         check_shapes(dims, mask.shape())?;
         let (iv, _) = extract_vec(image)?;
         let (mv, _) = extract_vec(mask)?;
-        let assign = self.assign_value;
-        let thr = f32::from(self.threshold);
-        let out = map_mask_values(&iv, &mv, |image_value, mask_value| {
-            if mask_value > thr {
-                assign
-            } else {
-                image_value
-            }
-        });
+        let out = mask_combine(
+            &iv,
+            &mv,
+            f32::from(self.threshold),
+            MaskFill::Constant(self.assign_value),
+            MaskFill::Keep,
+        );
         Ok(rebuild(out, dims, image))
     }
 
-    /// Apply masked assignment with a Coeus-native image and native mask.
+    /// Coeus-native sister of [`MaskedAssignImageFilter::apply`].
+    ///
+    /// Runs the identical masked-assign via the shared `mask_combine` host
+    /// core, bitwise-identical to the Burn path. No Burn tensor is constructed.
+    ///
+    /// # Errors
+    /// Returns an error on shape mismatch, non-contiguous buffers, or failed
+    /// shape validation of the rebuilt image.
     pub fn apply_native<B>(
         &self,
-        image: &NativeImage<f32, B, 3>,
-        mask: &NativeImage<f32, B, 3>,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        mask: &ritk_image::native::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
-        B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        let threshold = f32::from(self.threshold);
+        let thr = f32::from(self.threshold);
         let assign = self.assign_value;
-        map_native_images(image, mask, backend, move |image_value, mask_value| {
-            if mask_value > threshold {
-                assign
-            } else {
-                image_value
-            }
+        crate::native_support::map_flat_pair(image, mask, backend, |iv, mv, _dims| {
+            mask_combine(iv, mv, thr, MaskFill::Constant(assign), MaskFill::Keep)
         })
     }
 }

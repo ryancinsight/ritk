@@ -44,18 +44,19 @@ serde_json = { workspace = true }
 arrayvec = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-dicom-pixeldata = { workspace = true }
-dicom-transfer-syntax-registry = { workspace = true }
+dicom-pixeldata = { workspace = true, features = ["native"] }
+dicom-transfer-syntax-registry = { workspace = true, features = ["native", "jpegxl"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-dicom-pixeldata = { version = "0.8", default-features = false }
-dicom-transfer-syntax-registry = { version = "0.8", default-features = false }
+dicom-pixeldata = { workspace = true }
+dicom-transfer-syntax-registry = { workspace = true }
 
 [dev-dependencies]
 ritk-codecs = { workspace = true }
 tempfile = { workspace = true }
-zune-jpegxl = { version = "0.4", default-features = false, features = ["std"] }
-zune-core = { version = "0.4", default-features = false }
+burn = { workspace = true }
+zune-jpegxl = { workspace = true, default-features = false, features = ["std"] }
+zune-core = { workspace = true, default-features = false }
 
 [[example]]
 name = "dicom_to_nifti"

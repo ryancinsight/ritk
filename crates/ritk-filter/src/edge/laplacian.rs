@@ -62,6 +62,33 @@ impl LaplacianFilter {
     }
 }
 
+// ── Coeus-native path ─────────────────────────────────────────────────────────
+
+impl LaplacianFilter {
+    /// Coeus-native sister of [`LaplacianFilter::apply`].
+    ///
+    /// Runs the identical `[1, −2, 1]` second-difference stencil (ZeroFluxNeumann
+    /// boundary) via the shared `laplacian_vec` host core on the image's
+    /// contiguous host buffer, so the result is bitwise-identical to the Burn
+    /// path. No Burn tensor is constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt tensor fails shape validation.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend + Default,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let result = laplacian_vec(&vals, dims, &self.spacing);
+        ritk_tensor_ops::native::rebuild_image(result, dims, image, &B::default())
+    }
+}
+
 // ── Internal computation ──────────────────────────────────────────────────────
 
 /// Compute the Laplacian of a flat 3-D volume.
@@ -71,7 +98,7 @@ impl LaplacianFilter {
 /// - Boundary voxels clamp the out-of-range neighbour to the edge voxel
 ///   (ZeroFluxNeumann), matching ITK; a length-1 axis contributes 0.
 /// - Output length equals `nz * ny * nx`.
-fn laplacian_vec(data: &[f32], dims: [usize; 3], spacing: &Spacing<3>) -> Vec<f32> {
+pub(crate) fn laplacian_vec(data: &[f32], dims: [usize; 3], spacing: &Spacing<3>) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
 

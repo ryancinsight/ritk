@@ -2,9 +2,9 @@
 //!
 //! The viewer owns host-side [`crate::LoadedVolume`] buffers, while native RITK
 //! filters operate on `ritk_image::native::Image`. This module is the sole
-//! explicit application boundary between those representations. It is entered
-//! only for fully native filter variants; all other variants remain in the
-//! legacy graph until their provider operation family is available.
+//! explicit application boundary between those representations. Every current
+//! [`FilterKind`] enters this native path; unsupported variants cannot silently
+//! continue through a legacy provider.
 
 use anyhow::{Context, Result};
 use coeus_core::SequentialBackend;
@@ -20,11 +20,11 @@ use ritk_filter::{
     GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion, GrayscaleFillholeFilter,
     GrayscaleGeodesicDilationFilter, GrayscaleGeodesicErosionFilter,
     GrayscaleMorphologicalGradientFilter, GrayscaleOpeningFilter, HistogramEqualizationFilter,
-    InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MaskImageFilter,
-    MeanImageFilter, MedianFilter, MirrorPadImageFilter, NormalizeImageFilter,
-    PermuteAxesImageFilter, RegionOfInterestImageFilter, RescaleIntensityFilter,
-    ShiftScaleImageFilter, SignedDistanceTransformImageFilter, SinImageFilter, SqrtImageFilter,
-    SquareImageFilter, TanImageFilter, TileMeanShrinkFilter, UnsharpMaskFilter,
+    InvertIntensityFilter, LabelContourImageFilter, LogImageFilter, MeanImageFilter, MedianFilter,
+    MirrorPadImageFilter, NormalizeImageFilter, PermuteAxesImageFilter,
+    RegionOfInterestImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter,
+    SignedDistanceTransformImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
+    TanImageFilter, ThresholdImageFilter, TileMeanShrinkFilter, UnsharpMaskFilter,
     VotingBinaryImageFilter, WrapPadImageFilter, ZeroCrossingImageFilter,
 };
 use ritk_image::native::Image;
@@ -36,7 +36,6 @@ use ritk_segmentation::{
 use ritk_spatial::{Direction, Point, Spacing};
 use std::ops::Deref;
 
-use crate::app::state::LoadBackend;
 use crate::{FilterKind, LoadedVolume};
 
 /// Host representation of a Coeus-native filter result.
@@ -66,12 +65,10 @@ impl PartialEq<Vec<f32>> for NativeFilterOutput {
     }
 }
 
-/// Apply a filter when the full operation is available on the Coeus-native
-/// image substrate.
+/// Apply a filter through the Coeus-native image substrate.
 ///
-/// `None` means this operation has not completed its native migration and must
-/// remain on the legacy graph. `Some(Err(_))` reports an input or provider
-/// contract failure without falling back to another implementation.
+/// Every current [`FilterKind`] has a native implementation. A provider or
+/// input contract failure is returned to the caller without a legacy fallback.
 pub(super) fn apply_if_supported(
     volume: &LoadedVolume,
     filter: &FilterKind,
@@ -90,74 +87,6 @@ pub(super) fn apply_if_supported(
             f64::from(*cross_section_half_width),
             *num_cross_samples as usize,
         ));
-    }
-
-    if !matches!(
-        filter,
-        FilterKind::Gaussian { .. }
-            | FilterKind::Abs
-            | FilterKind::BedSeparation(_)
-            | FilterKind::Square
-            | FilterKind::Sqrt
-            | FilterKind::Log
-            | FilterKind::Exp
-            | FilterKind::BinaryErode { .. }
-            | FilterKind::BinaryDilate { .. }
-            | FilterKind::BinaryClosing { .. }
-            | FilterKind::BinaryOpening { .. }
-            | FilterKind::BinaryFillhole { .. }
-            | FilterKind::DistanceTransform { .. }
-            | FilterKind::SignedDistanceTransform { .. }
-            | FilterKind::ConnectedComponents { .. }
-            | FilterKind::RelabelComponents { .. }
-            | FilterKind::MultiOtsuThreshold { .. }
-            | FilterKind::Median { .. }
-            | FilterKind::HistEq { .. }
-            | FilterKind::Clahe { .. }
-            | FilterKind::GradientAnisotropicDiffusion { .. }
-            | FilterKind::CurvatureFlow { .. }
-            | FilterKind::UnsharpMask { .. }
-            | FilterKind::ConnectedThreshold { .. }
-            | FilterKind::ConfidenceConnected { .. }
-            | FilterKind::NeighborhoodConnected { .. }
-            | FilterKind::BinaryThreshold { .. }
-            | FilterKind::InvertIntensity { .. }
-            | FilterKind::Clamp { .. }
-            | FilterKind::ShiftScale { .. }
-            | FilterKind::RescaleIntensity { .. }
-            | FilterKind::NormalizeIntensity
-            | FilterKind::FlipZ
-            | FilterKind::FlipY
-            | FilterKind::FlipX
-            | FilterKind::RegionOfInterest { .. }
-            | FilterKind::PermuteAxes { .. }
-            | FilterKind::Shrink { .. }
-            | FilterKind::ConstantPad { .. }
-            | FilterKind::MirrorPad { .. }
-            | FilterKind::WrapPad { .. }
-            | FilterKind::MaskThreshold { .. }
-            | FilterKind::Atan
-            | FilterKind::Sin
-            | FilterKind::Cos
-            | FilterKind::Tan
-            | FilterKind::Asin
-            | FilterKind::Acos
-            | FilterKind::BoundedReciprocal
-            | FilterKind::Mean { .. }
-            | FilterKind::GrayscaleErode { .. }
-            | FilterKind::GrayscaleDilate { .. }
-            | FilterKind::GrayscaleClosing { .. }
-            | FilterKind::GrayscaleOpening { .. }
-            | FilterKind::MorphologicalGradient { .. }
-            | FilterKind::BinaryContour { .. }
-            | FilterKind::LabelContour { .. }
-            | FilterKind::VotingBinary { .. }
-            | FilterKind::GrayscaleFillhole
-            | FilterKind::GeodesicDilationSelf
-            | FilterKind::GeodesicErosionSelf
-            | FilterKind::ZeroCrossing { .. }
-    ) {
-        return None;
     }
 
     Some(apply_supported_filter(volume, filter))
@@ -241,11 +170,10 @@ fn apply_supported_filter(
     let image = native_image_from_volume(volume, &backend)?;
 
     let output = match filter {
-        FilterKind::Gaussian { sigma } => GaussianFilter::<LoadBackend>::new(vec![
-            GaussianSigma::new_unchecked(f64::from(*sigma));
-            3
-        ])
-        .apply_native(&image, &backend),
+        FilterKind::Gaussian { sigma } => {
+            GaussianFilter::<()>::new(vec![GaussianSigma::new_unchecked(f64::from(*sigma)); 3])
+                .apply_native(&image, &backend)
+        }
         FilterKind::BedSeparation(config) => {
             BedSeparationFilter::new(*config).apply_native(&image, &backend)
         }
@@ -338,7 +266,13 @@ fn apply_supported_filter(
         )
         .apply_native(&image, &backend),
         FilterKind::MaskThreshold { threshold } => {
-            MaskImageFilter::apply_threshold_native(&image, *threshold, &backend)
+            // Passthrough mask: keep values strictly greater than threshold, zero out the rest.
+            // Uses ThresholdMode::Outside([t + ulp, MAX]) so values AT or BELOW threshold are zeroed
+            // while values strictly above threshold pass through unchanged.
+            // Passthrough mask: keep values strictly greater than threshold, zero out the rest.
+            let t = f32::from(*threshold);
+            let lower = t + f32::EPSILON * t.abs().max(1.0);
+            ThresholdImageFilter::outside(lower, f32::MAX, 0.0).apply_native(&image, &backend)
         }
         FilterKind::Atan => AtanImageFilter::new().apply_native(&image, &backend),
         FilterKind::Sin => SinImageFilter::new().apply_native(&image, &backend),
@@ -453,7 +387,7 @@ fn apply_supported_filter(
         FilterKind::MultiOtsuThreshold { num_classes } => {
             MultiOtsuThreshold::new(*num_classes as usize).apply_native(&image, &backend)
         }
-        FilterKind::Median { radius } => MedianFilter::new(*radius).apply_native(&image, &backend),
+        FilterKind::Median { radius } => MedianFilter::new(*radius).apply_native(&image),
         FilterKind::HistEq { bins } => {
             HistogramEqualizationFilter::new(*bins).apply_native(&image, &backend)
         }
@@ -535,7 +469,9 @@ fn apply_supported_filter(
         } => BinaryThreshold::new(*lower, *upper)
             .with_values((*foreground).into(), *background)
             .apply_native(&image, &backend),
-        _ => unreachable!("invariant: dispatch admits only fully native filter variants"),
+        FilterKind::Cpr { .. } => anyhow::bail!(
+            "CPR must be routed through the native CPR output path before 3-D filter dispatch"
+        ),
     }
     .context("Coeus-native filter failed")?;
 

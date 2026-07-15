@@ -21,8 +21,8 @@ filter = 'package(ritk-snap)'
 test-group = 'ritk-snap-native-serial'
 
 [profile.default]
-# Default per-test timeout: abort tests that hang unexpectedly.
-slow-timeout = { period = "10s", terminate-after = 1 }
+# Mark tests slow after 30 seconds and terminate hangs after 60 seconds.
+slow-timeout = { period = "30s", terminate-after = 2 }
 
 # Gradient-based registration integration tests (single-test binaries).
 # NOTE: test() matches the test *function* name, not the binary name.

@@ -119,9 +119,8 @@ pub(super) fn run_median(args: &FilterArgs) -> Result<()> {
         "median requires native input/output formats"
     );
     let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
     let filter = MedianFilter::new(args.kernel.radius);
-    let filtered = filter.apply_native(&image, &backend)?;
+    let filtered = filter.apply_native(&image)?;
     write_image_native(&args.output, &filtered, output_format)?;
 
     println!(

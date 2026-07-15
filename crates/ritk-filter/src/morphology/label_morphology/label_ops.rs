@@ -18,9 +18,8 @@
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
-use ritk_tensor_ops::extract_vec;
+use ritk_tensor_ops::{extract_vec, rebuild};
 
 // ════════════════════════════════════════════════════════════════════════════
 // LabelDilation
@@ -48,14 +47,7 @@ impl LabelDilation {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let result = dilate_labels(&vals, dims, self.radius);
-        let device = image.data().device();
-        let t = Tensor::<B, 3>::from_data(TensorData::new(result, Shape::new(dims)), &device);
-        Ok(Image::new(
-            t,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(result, dims, image))
     }
 
     /// Apply label dilation to a Coeus-native image.
@@ -192,14 +184,7 @@ impl LabelErosion {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let result = erode_labels(&vals, dims, self.radius);
-        let device = image.data().device();
-        let t = Tensor::<B, 3>::from_data(TensorData::new(result, Shape::new(dims)), &device);
-        Ok(Image::new(
-            t,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        ))
+        Ok(rebuild(result, dims, image))
     }
 
     /// Apply label erosion to a Coeus-native image.

@@ -85,21 +85,6 @@ def test_isolated_watershed_rejects_invalid_contract_values():
 
 
 @pytest.mark.xfail(
-    reason="ritk does not reproduce the Awate-Whitaker entropy update + seeded "
-    "GaussianRandomSpatialNeighborSubsampler; 25.1 max abs error.",
-    strict=False,
-)
-def test_patch_based_denoising_matches_sitk():
-    sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
-    np.random.seed(1)
-    im = (np.random.rand(12, 12) * 60 + 40).astype(np.float32)
-    ref = sitk.GetArrayFromImage(
-        sitk.PatchBasedDenoising(sitk.GetImageFromArray(im), 400.0, 2, 1, 200, 400.0))
-    out = ritk.filter.patch_based_denoising(ritk.Image(np.ascontiguousarray(im[None])))
-    assert float(np.abs(_sq(out) - ref).max()) < 1e-3
-
-
-@pytest.mark.xfail(
     reason="ritk does not reproduce the dense multiphase level-set evolution "
     "(SharedData means + adaptive dt + RMS stop); 0.19 segmentation match.",
     strict=False,

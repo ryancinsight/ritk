@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 use super::VelocityField;
-use super::{trilinear_interpolate, VectorField, VectorFieldMut};
+use super::{trilinear_interpolate_field, VectorField, VectorFieldMut};
 use ritk_spatial::VolumeDims;
 
 /// Compute the composition `φ_composed = φ₁ ∘ φ₂` into caller-provided buffers.
@@ -20,11 +20,6 @@ pub(crate) fn compose_fields_into(
 ) {
     let [_nz, ny, nx] = dims.0;
     let VectorField {
-        z: phi1_z,
-        y: phi1_y,
-        x: phi1_x,
-    } = phi1;
-    let VectorField {
         z: phi2_z,
         y: phi2_y,
         x: phi2_x,
@@ -38,18 +33,12 @@ pub(crate) fn compose_fields_into(
     // Parallelize over z-slices: each slice writes to a disjoint contiguous
     // range in the output buffers; all reads are from immutable inputs.
     let slice_len = ny * nx;
-    let mut zipped: Vec<(&mut [f32], &mut [f32], &mut [f32])> = out_z
-        .chunks_exact_mut(slice_len)
-        .zip(out_y.chunks_exact_mut(slice_len))
-        .zip(out_x.chunks_exact_mut(slice_len))
-        .map(|((z, y), x)| (z, y, x))
-        .collect();
-
-    moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
-        &mut zipped,
-        1,
-        |iz, chunk| {
-            let (out_z_s, out_y_s, out_x_s) = &mut chunk[0];
+    moirai::for_each_chunk_triple_mut_enumerated_with::<moirai::Adaptive, _, _, _, _>(
+        out_z,
+        out_y,
+        out_x,
+        slice_len,
+        |iz, out_z_s, out_y_s, out_x_s| {
             let base = iz * slice_len;
             for iy in 0..ny {
                 for ix in 0..nx {
@@ -61,10 +50,12 @@ pub(crate) fn compose_fields_into(
                     let wy = iy as f32 + phi2_y[fi];
                     let wx = ix as f32 + phi2_x[fi];
 
-                    // Sample φ₁ at the displaced position.
-                    out_z_s[local] = phi2_z[fi] + trilinear_interpolate(phi1_z, dims, wz, wy, wx);
-                    out_y_s[local] = phi2_y[fi] + trilinear_interpolate(phi1_y, dims, wz, wy, wx);
-                    out_x_s[local] = phi2_x[fi] + trilinear_interpolate(phi1_x, dims, wz, wy, wx);
+                    // Sample φ₁ at the displaced position with one shared stencil.
+                    let [sample_z, sample_y, sample_x] =
+                        trilinear_interpolate_field(phi1, dims, wz, wy, wx);
+                    out_z_s[local] = phi2_z[fi] + sample_z;
+                    out_y_s[local] = phi2_y[fi] + sample_y;
+                    out_x_s[local] = phi2_x[fi] + sample_x;
                 }
             }
         },

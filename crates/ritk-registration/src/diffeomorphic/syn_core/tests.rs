@@ -1,4 +1,4 @@
-use super::super::local_cc::field_rms;
+use super::super::local_cc::{field_rms, mean_local_cc};
 use super::*;
 use crate::deformable_field_ops::scaling_and_squaring;
 

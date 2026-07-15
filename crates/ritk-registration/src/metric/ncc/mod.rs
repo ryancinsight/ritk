@@ -19,6 +19,8 @@
 //! two-pass interpolation loop, cutting scattered memory accesses and coordinate
 //! transformations strictly in half (O(N) exact).
 
+pub mod native;
+
 use super::trait_::Metric;
 use ritk_image::grid;
 use ritk_image::tensor::Backend;

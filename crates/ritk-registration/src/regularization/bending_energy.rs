@@ -18,8 +18,8 @@
 //! - L2 penalty on second derivatives
 
 use super::trait_::Regularizer;
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
+use coeus_core::{ComputeBackend, CpuAddressableStorage, Scalar};
+use coeus_tensor::Tensor;
 
 /// Bending energy regularizer for displacement fields.
 ///
@@ -30,12 +30,13 @@ use ritk_image::tensor::Tensor;
 ///
 /// ```rust,ignore
 /// use ritk_registration::regularization::BendingEnergyRegularizer;
-/// use ritk_image::tensor::Tensor;
+/// use ritk_registration::regularization::Regularizer;
+/// use coeus_tensor::Tensor;
 ///
 /// let reg = BendingEnergyRegularizer::new(0.1);
 /// // displacement field: [B, 2, H, W] for 2D
-/// let displacement = Tensor::zeros([1, 2, 64, 64], &device);
-/// let loss = reg.compute_loss::<4>(displacement);
+/// let displacement: Tensor<f32, _> = Tensor::zeros([1, 2, 64, 64]);
+/// let loss = reg.compute_loss(&displacement);
 /// ```
 #[derive(Clone, Debug)]
 pub struct BendingEnergyRegularizer {
@@ -58,8 +59,13 @@ impl Default for BendingEnergyRegularizer {
     }
 }
 
-impl<B: Backend> Regularizer<B> for BendingEnergyRegularizer {
-    fn compute_loss<const D: usize>(&self, displacement: Tensor<B, D>) -> Tensor<B, 1> {
+impl<T, B> Regularizer<T, B> for BendingEnergyRegularizer
+where
+    T: Scalar,
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+{
+    fn compute_loss(&self, displacement: &Tensor<T, B>) -> T {
         super::dispatch::dispatch_bending_energy(displacement, self.weight)
     }
 

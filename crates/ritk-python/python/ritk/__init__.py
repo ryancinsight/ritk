@@ -50,6 +50,7 @@ def _add_windows_dll_directories() -> None:
 _add_windows_dll_directories()
 
 from ritk._ritk import (
+    __version__,
     filter,  # noqa: F401
     io,  # noqa: F401
     metrics,  # noqa: F401
@@ -81,6 +82,8 @@ _sys.modules.setdefault("ritk.image", _image_mod)
 
 __all__ = [
     "Image",
+    "ColorImage",
+    "image",
     "io",
     "filter",
     "metrics",
@@ -88,6 +91,3 @@ __all__ = [
     "segmentation",
     "statistics",
 ]
-
-__version__ = "0.12.4"
-

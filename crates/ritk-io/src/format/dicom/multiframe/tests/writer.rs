@@ -3,45 +3,24 @@ use ritk_dicom::{parse_file_with, DicomRsBackend};
 
 #[test]
 fn test_write_multiframe_rejects_zero_dimension() {
-    let device = <B as Backend>::Device::default();
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("zero.dcm");
-    let data: Vec<f32> = vec![];
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(data, Shape::new([1_usize, 0_usize, 5_usize])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
-    );
-    let result = write_dicom_multiframe(&out_path, &image);
+    let image = native_image(vec![], [1, 0, 5], [0.0; 3], [1.0; 3]);
+    let result = write_dicom_multiframe_native(&out_path, &image);
     assert!(
         result.is_err(),
-        "write_dicom_multiframe must return Err for zero-row image"
+        "write_dicom_multiframe_native must return Err for zero-row image"
     );
 }
 
 #[test]
 fn test_multiframe_sop_class_is_mf_grayscale_word() {
-    // Verifies that write_dicom_multiframe emits the Multi-Frame Grayscale Word SC SOP class
+    // Verifies that the multiframe writer emits the Multi-Frame Grayscale Word SC SOP class
     // (1.2.840.10008.5.1.4.1.1.7.3) rather than Single-frame SC (1.2.840.10008.5.1.4.1.1.7).
-    let device = <B as Backend>::Device::default();
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("mf.dcm");
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![1.0_f32; 2 * 3 * 4], Shape::new([2_usize, 3, 4])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
-    );
-    write_dicom_multiframe(&out_path, &image).expect("write");
+    let image = native_image(vec![1.0_f32; 2 * 3 * 4], [2, 3, 4], [0.0; 3], [1.0; 3]);
+    write_dicom_multiframe_native(&out_path, &image).expect("write");
     let info = read_multiframe_info(&out_path).expect("read_multiframe_info");
     assert_eq!(
         info.sop_class_uid.as_deref(),
@@ -53,20 +32,10 @@ fn test_multiframe_sop_class_is_mf_grayscale_word() {
 #[test]
 fn test_written_multiframe_has_samples_per_pixel_one() {
     use dicom::object::open_file;
-    let device = <B as Backend>::Device::default();
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("mf_spp.dcm");
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![1.0_f32; 2 * 4 * 5], Shape::new([2_usize, 4, 5])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
-    );
-    write_dicom_multiframe(&out_path, &image).expect("write");
+    let image = native_image(vec![1.0_f32; 2 * 4 * 5], [2, 4, 5], [0.0; 3], [1.0; 3]);
+    write_dicom_multiframe_native(&out_path, &image).expect("write");
 
     let obj = open_file(&out_path).expect("open_file");
     let spp: u16 = obj
@@ -86,24 +55,14 @@ fn test_written_multiframe_has_samples_per_pixel_one() {
 #[test]
 fn test_writer_config_instance_number_propagated() {
     use dicom::object::open_file;
-    let device = <B as Backend>::Device::default();
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("mf_inst.dcm");
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![5.0_f32; 2 * 3], Shape::new([1_usize, 2, 3])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
-    );
+    let image = native_image(vec![5.0_f32; 2 * 3], [1, 2, 3], [0.0; 3], [1.0; 3]);
     let config = MultiFrameWriterConfig {
         instance_number: 42,
         ..MultiFrameWriterConfig::default()
     };
-    write_dicom_multiframe_with_config(&out_path, &image, &config).expect("write");
+    write_dicom_multiframe_native_with_config(&out_path, &image, &config).expect("write");
 
     let obj = open_file(&out_path).expect("open_file");
     let inst_num: u32 = obj
@@ -122,21 +81,10 @@ fn test_writer_config_instance_number_propagated() {
 
 #[test]
 fn test_multiframe_has_conversion_type_wsd() {
-    let device = <B as Backend>::Device::default();
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("conv_type.dcm");
-
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![1.0_f32; 2 * 2], Shape::new([1_usize, 2, 2])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
-    );
-    write_dicom_multiframe(&out_path, &image).expect("write");
+    let image = native_image(vec![1.0_f32; 2 * 2], [1, 2, 2], [0.0; 3], [1.0; 3]);
+    write_dicom_multiframe_native(&out_path, &image).expect("write");
 
     let obj = parse_file_with::<DicomRsBackend, _>(&out_path).expect("open");
     let conv_type = obj
@@ -154,20 +102,10 @@ fn test_multiframe_has_conversion_type_wsd() {
 
 #[test]
 fn test_multiframe_has_study_and_series_uids() {
-    let device = <B as Backend>::Device::default();
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("uids.dcm");
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![1.0_f32; 2 * 2], Shape::new([1_usize, 2, 2])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
-    );
-    write_dicom_multiframe(&out_path, &image).expect("write");
+    let image = native_image(vec![1.0_f32; 2 * 2], [1, 2, 2], [0.0; 3], [1.0; 3]);
+    write_dicom_multiframe_native(&out_path, &image).expect("write");
     let obj = parse_file_with::<DicomRsBackend, _>(&out_path).expect("open");
     let study_uid = obj
         .element(Tag(0x0020, 0x000D))
@@ -196,20 +134,10 @@ fn test_multiframe_has_study_and_series_uids() {
 
 #[test]
 fn test_multiframe_has_type2_patient_study_series_tags() {
-    let device = <B as Backend>::Device::default();
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("type2.dcm");
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![5.0_f32; 3 * 3], Shape::new([1_usize, 3, 3])),
-        &device,
-    );
-    let image = Image::new(
-        tensor,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
-    );
-    write_dicom_multiframe(&out_path, &image).expect("write");
+    let image = native_image(vec![5.0_f32; 3 * 3], [1, 3, 3], [0.0; 3], [1.0; 3]);
+    write_dicom_multiframe_native(&out_path, &image).expect("write");
     let obj = parse_file_with::<DicomRsBackend, _>(&out_path).expect("open");
     // Assert presence (value may be empty per Type 2 semantics).
     obj.element(Tag(0x0010, 0x0010))

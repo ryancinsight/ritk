@@ -13,8 +13,8 @@ pub mod value_indices;
 pub use histogram::{histogram, histogram_from_slice, Histogram};
 pub use image_comparison::{
     dice_coefficient, dice_coefficient_native, hausdorff_distance, hausdorff_distance_native,
-    mean_surface_distance, mean_surface_distance_native, psnr, psnr_native, similarity_index, ssim,
-    ssim_native,
+    mean_surface_distance, mean_surface_distance_native, pearson_correlation, psnr, psnr_native,
+    similarity_index, ssim, ssim_native,
 };
 pub use image_statistics::{compute_statistics, masked_statistics, ImageStatistics};
 pub use information::{
@@ -39,8 +39,9 @@ pub use noise_estimation::{
     estimate_noise_mad, estimate_noise_mad_masked, estimate_noise_mad_native,
 };
 pub use normalization::{
-    HistogramMatcher, IntensityRange, MinMaxNormalizer, MriContrast, NyulUdupaNormalizer,
-    WhiteStripeConfig, WhiteStripeNormalizer, WhiteStripeResult, ZScoreNormalizer,
+    HistogramMatcher, IntensityRange, MinMaxNormalizer, MriContrast, NativeWhiteStripeResult,
+    NyulUdupaNormalizer, WhiteStripeConfig, WhiteStripeNormalizer, WhiteStripeResult,
+    ZScoreNormalizer,
 };
 pub use position_extrema::{maximum_position, minimum_position};
 pub use value_indices::{value_indices, ValueIndices};

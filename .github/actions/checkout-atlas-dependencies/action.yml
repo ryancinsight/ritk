@@ -1,0 +1,83 @@
+name: Checkout Rust provider dependencies
+description: Check out the exact sibling repositories required by RITK path dependencies.
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout Apollo
+      uses: actions/checkout@v6
+      with:
+        repository: ryancinsight/apollo
+        ref: 6e99a567c118f6bf5790f80346475b44db2c7555
+        path: apollo
+        persist-credentials: false
+    - name: Checkout Coeus
+      uses: actions/checkout@v6
+      with:
+        repository: ryancinsight/Coeus
+        ref: 2026a0b65e363496b5ab79b09612f26b7729f9d5
+        path: coeus
+        persist-credentials: false
+    - name: Checkout Eunomia
+      uses: actions/checkout@v6
+      with:
+        repository: ryancinsight/eunomia
+        ref: dd94f7b9d223668887302531006628818e2bd45b
+        path: eunomia
+        persist-credentials: false
+    - name: Checkout Gaia
+      uses: actions/checkout@v6
+      with:
+        repository: ryancinsight/gaia
+        ref: 9e481024c28824a89b1e81bcf6fb9ed0563d2d77
+        path: gaia
+        persist-credentials: false
+    - name: Checkout Hephaestus
+      uses: actions/checkout@v6
+      with:
+        repository: ryancinsight/hephaestus
+        ref: dd93144d4294a6f83b03ed4f148f21d6a91ec38a
+        path: hephaestus
+        persist-credentials: false
+    - name: Checkout Hermes
+      uses: actions/checkout@v6
+      with:
+        repository: ryancinsight/hermes
+        ref: 1423e41d01f4f7787472ddc91961f0771f9728fe
+        path: hermes
+        persist-credentials: false
+    - name: Checkout Leto
+      uses: actions/checkout@v6
+      with:
+        repository: ryancinsight/leto
+        ref: efa235a5253a5511fc6338c0f4202c7a026f5178
+        path: leto
+        persist-credentials: false
+    - name: Checkout Melinoe
+      uses: actions/checkout@v6
+      with:
+        repository: ryancinsight/melinoe
+        ref: bb07447f6c71978c6fed47114ba9ecfda965ddc9
+        path: melinoe
+        persist-credentials: false
+    - name: Checkout Mnemosyne
+      uses: actions/checkout@v6
+      with:
+        repository: ryancinsight/Mnemosyne
+        ref: 32b4a2ac71f909205b58d68c3b244caf99407b2d
+        path: mnemosyne
+        persist-credentials: false
+    - name: Checkout Moirai
+      uses: actions/checkout@v6
+      with:
+        repository: ryancinsight/Moirai
+        ref: 8cd356c19c94fb5f49d048e1bf5a7289e2c51b01
+        path: moirai
+        persist-credentials: false
+    - name: Checkout Themis
+      uses: actions/checkout@v6
+      with:
+        repository: ryancinsight/themis
+        ref: 18807bb5c43f4dc4cb6cedefeee2cc12375056c1
+        path: themis
+        persist-credentials: false

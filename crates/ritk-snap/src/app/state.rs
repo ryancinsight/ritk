@@ -12,9 +12,6 @@ pub(crate) const DEFAULT_FUSION_ALPHA: f32 = 0.35;
 
 // ── Helper types ──────────────────────────────────────────────────────────────
 
-/// CPU backend used for DICOM loading.
-pub(crate) type LoadBackend = burn_ndarray::NdArray<f32>;
-
 /// Cached RT-DOSE overlay texture for one axis.
 pub(crate) struct RtDoseOverlayCacheEntry {
     pub(crate) slice_idx: usize,

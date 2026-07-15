@@ -19,10 +19,7 @@
 //! ITK's boundary handling). `sgn(0) = 0`. Internal arithmetic is `f64`; the
 //! result is float-exact to SimpleITK (output is `f32`).
 
-use crate::native_support::map_flat_image;
 use anyhow::Result;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
@@ -72,81 +69,101 @@ impl AdaptiveHistogramEqualizationFilter {
     /// Apply the adaptive equalization.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
         let (vals, dims) = extract_vec_infallible(image);
-        Ok(rebuild(self.apply_values(&vals, dims), dims, image))
+        let out = adaptive_equalize_vec(&vals, dims, self.radius, self.alpha, self.beta);
+        Ok(rebuild(out, dims, image))
     }
 
-    /// Apply adaptive equalization to a Coeus-native image.
+    /// Coeus-native sister of [`AdaptiveHistogramEqualizationFilter::apply`].
+    ///
+    /// Runs the identical Stark adaptive equalization via the shared
+    /// `adaptive_equalize_vec` host core on the image's contiguous host buffer,
+    /// so the result is bitwise-identical to the Burn path. No Burn tensor is
+    /// constructed. Spatial metadata is preserved.
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
-        image: &NativeImage<f32, B, 3>,
+        image: &ritk_image::native::Image<f32, B, 3>,
         backend: &B,
-    ) -> Result<NativeImage<f32, B, 3>>
+    ) -> Result<ritk_image::native::Image<f32, B, 3>>
     where
-        B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        map_flat_image(image, backend, |values, dims| {
-            self.apply_values(values, dims)
+        let radius = self.radius;
+        let (alpha, beta) = (self.alpha, self.beta);
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            adaptive_equalize_vec(vals, dims, radius, alpha, beta)
         })
     }
+}
 
-    fn apply_values(&self, vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
-        let [nz, ny, nx] = dims;
-        let n = nz * ny * nx;
-        let (rz, ry, rx) = (self.radius[0], self.radius[1], self.radius[2]);
-        let (alpha, beta) = (self.alpha, self.beta);
+/// Substrate-agnostic host core for [`AdaptiveHistogramEqualizationFilter`].
+///
+/// Stark (2000) generalized local equalization over a box window of per-axis
+/// `radius`, blended by `alpha`/`beta` (see the module-level specification).
+/// Internal arithmetic is `f64`; a constant image is the identity.
+pub(crate) fn adaptive_equalize_vec(
+    vals: &[f32],
+    dims: [usize; 3],
+    radius: [usize; 3],
+    alpha: f64,
+    beta: f64,
+) -> Vec<f32> {
+    let [nz, ny, nx] = dims;
+    let n = nz * ny * nx;
+    let (rz, ry, rx) = (radius[0], radius[1], radius[2]);
 
-        let (min_f32, max_f32) = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
-            n,
-            || (f32::INFINITY, f32::NEG_INFINITY),
-            |(mn, mx), i| {
-                let v = vals[i];
-                (mn.min(v), mx.max(v))
-            },
-            |(a_mn, a_mx), (b_mn, b_mx)| (a_mn.min(b_mn), a_mx.max(b_mx)),
-        );
-        let min = min_f32 as f64;
-        let max = max_f32 as f64;
-        let iscale = max - min;
-        if iscale == 0.0 {
-            // Constant image: the equalization is the identity.
-            return vals.to_vec();
-        }
-        let norm = |i: usize| (vals[i] as f64 - min) / iscale - 0.5;
+    let (min_f32, max_f32) = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+        n,
+        || (f32::INFINITY, f32::NEG_INFINITY),
+        |(mn, mx), i| {
+            let v = vals[i];
+            (mn.min(v), mx.max(v))
+        },
+        |(a_mn, a_mx), (b_mn, b_mx)| (a_mn.min(b_mn), a_mx.max(b_mx)),
+    );
+    let min = min_f32 as f64;
+    let max = max_f32 as f64;
+    let iscale = max - min;
+    if iscale == 0.0 {
+        // Constant image: the equalization is the identity.
+        return vals.to_vec();
+    }
+    let norm = |i: usize| (vals[i] as f64 - min) / iscale - 0.5;
 
-        let cumf = |u: f64, v: f64| -> f64 {
-            let s = sgn(u - v);
-            let ad = (2.0 * (u - v)).abs();
-            0.5 * s * ad.powf(alpha) - beta * 0.5 * s * ad + beta * u
-        };
+    let cumf = |u: f64, v: f64| -> f64 {
+        let s = sgn(u - v);
+        let ad = (2.0 * (u - v)).abs();
+        0.5 * s * ad.powf(alpha) - beta * 0.5 * s * ad + beta * u
+    };
 
-        let out: Vec<f32> = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
-            let z = i / (ny * nx);
-            let y = (i % (ny * nx)) / nx;
-            let x = i % nx;
-            let u = norm(i);
-            let mut sum = 0.0f64;
-            let mut k = 0u32;
-            let z0 = z.saturating_sub(rz);
-            let z1 = (z + rz).min(nz - 1);
-            let y0 = y.saturating_sub(ry);
-            let y1 = (y + ry).min(ny - 1);
-            let x0 = x.saturating_sub(rx);
-            let x1 = (x + rx).min(nx - 1);
-            for zz in z0..=z1 {
-                for yy in y0..=y1 {
-                    let base = (zz * ny + yy) * nx;
-                    for xx in x0..=x1 {
-                        sum += cumf(u, norm(base + xx));
-                        k += 1;
-                    }
+    moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
+        let z = i / (ny * nx);
+        let y = (i % (ny * nx)) / nx;
+        let x = i % nx;
+        let u = norm(i);
+        let mut sum = 0.0f64;
+        let mut k = 0u32;
+        let z0 = z.saturating_sub(rz);
+        let z1 = (z + rz).min(nz - 1);
+        let y0 = y.saturating_sub(ry);
+        let y1 = (y + ry).min(ny - 1);
+        let x0 = x.saturating_sub(rx);
+        let x1 = (x + rx).min(nx - 1);
+        for zz in z0..=z1 {
+            for yy in y0..=y1 {
+                let base = (zz * ny + yy) * nx;
+                for xx in x0..=x1 {
+                    sum += cumf(u, norm(base + xx));
+                    k += 1;
                 }
             }
-            (iscale * (sum / k as f64 + 0.5) + min) as f32
-        });
-
-        out
-    }
+        }
+        (iscale * (sum / k as f64 + 0.5) + min) as f32
+    })
 }
 
 #[cfg(test)]

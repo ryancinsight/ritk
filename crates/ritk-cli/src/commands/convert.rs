@@ -348,8 +348,8 @@ mod tests {
     // ── ADR 0003 Phase A: native-dispatch coverage ────────────────────────────
 
     /// `is_native_read_capable`/`is_native_write_capable` must agree exactly
-    /// with the format matrix documented in ADR 0003: 7 formats read+write
-    /// natively, PNG and DICOM read only, and VTK has neither. A drift here would silently misroute a
+    /// with the native format matrix: VTK is now read and written through its
+    /// native adapter, while PNG and DICOM remain read-only. A drift here would silently misroute a
     /// command onto the wrong substrate without any other test catching it.
     #[test]
     fn test_native_capability_predicates_match_adr_0003_matrix() {
@@ -363,6 +363,7 @@ mod tests {
             ImageFormat::MetaImage,
             ImageFormat::Tiff,
             ImageFormat::Jpeg,
+            ImageFormat::Vtk,
         ];
         for fmt in read_and_write {
             assert!(is_native_read_capable(fmt), "{fmt:?} must read natively");
@@ -388,12 +389,12 @@ mod tests {
         );
 
         assert!(
-            !is_native_read_capable(ImageFormat::Vtk),
-            "VTK has no native reader yet"
+            is_native_read_capable(ImageFormat::Vtk),
+            "VTK reads natively"
         );
         assert!(
-            !is_native_write_capable(ImageFormat::Vtk),
-            "VTK has no native writer yet"
+            is_native_write_capable(ImageFormat::Vtk),
+            "VTK writes natively"
         );
     }
 
@@ -425,25 +426,29 @@ mod tests {
         );
     }
 
-    /// VTK input has no native reader, so conversion must fail explicitly.
+    /// VTK input is decoded through the native reader and converted to NIfTI.
     #[test]
-    fn test_convert_vtk_input_falls_back_to_burn_path() {
+    fn test_convert_vtk_input_native_round_trip() {
         let dir = tempdir().unwrap();
         let input = dir.path().join("input.vtk");
         let output = dir.path().join("output.nii");
+        let image = make_test_image();
+        write_image_native(&input, &image, ImageFormat::Vtk).unwrap();
 
-        let error = run(ConvertArgs {
+        run(ConvertArgs {
             input,
-            output,
+            output: output.clone(),
             format: None,
         })
-        .expect_err("VTK input has no native reader");
-        assert!(error.to_string().contains("does not support Vtk input"));
+        .expect("native VTK input conversion");
+        let recovered = read_image_native(&output).unwrap();
+        assert_eq!(recovered.shape(), image.shape());
+        assert_eq!(recovered.data_slice().unwrap(), image.data_slice().unwrap());
     }
 
-    /// VTK output has no native writer, so conversion must fail explicitly.
+    /// VTK output is encoded through the native writer.
     #[test]
-    fn test_convert_vtk_output_falls_back_to_burn_path() {
+    fn test_convert_vtk_output_native_round_trip() {
         let dir = tempdir().unwrap();
         let input = dir.path().join("input.nii");
         let output = dir.path().join("output.vtk");
@@ -451,12 +456,14 @@ mod tests {
         let image = make_test_image();
         write_image_native(&input, &image, ImageFormat::NIfTI).unwrap();
 
-        let error = run(ConvertArgs {
+        run(ConvertArgs {
             input,
-            output,
+            output: output.clone(),
             format: Some(OutputFormat::Vtk),
         })
-        .expect_err("VTK output has no native writer");
-        assert!(error.to_string().contains("does not support Vtk output"));
+        .expect("native VTK output conversion");
+        let recovered = read_image_native(&output).unwrap();
+        assert_eq!(recovered.shape(), image.shape());
+        assert_eq!(recovered.data_slice().unwrap(), image.data_slice().unwrap());
     }
 }

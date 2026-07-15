@@ -13,24 +13,25 @@
 //!
 //! ## Characteristics
 //!
+//! - **Edge-preserving**: Maintains sharp boundaries
+//! - **Non-smooth**: Uses L1 norm (not L2)
+//! - **Sparsity**: Promotes sparse gradient estimates
+//!
+//! ## When to use TV regularization
+//!
+//! - When preserving edges is important
+//! - For images with discontinuities
+//! - When you want piecewise-constant solutions
+//! - In inverse problems with sharp transitions
+//!
+//! ## References
+//! - Rudin, Osher, Fatemi (1992): Original TV denoising
+//! - Chan et al.: TV for image restoration
+//! - Extensions for flow and displacement fields
+
 use super::trait_::Regularizer;
-use ritk_image::tensor::Backend;
-/// - **Edge-preserving**: Maintains sharp boundaries
-/// - **Non-smooth**: Uses L1 norm (not L2)
-/// - **Sparsity**: Promotes sparse gradient estimates
-///
-/// ## When to use TV regularization
-///
-/// - When preserving edges is important
-/// - For images with discontinuities
-/// - When you want piecewise-constant solutions
-/// - In inverse problems with sharp transitions
-///
-/// ## References
-/// - Rudin, Osher, Fatemi (1992): Original TV denoising
-/// - Chan et al.: TV for image restoration
-/// - Extensions for flow and displacement fields
-use ritk_image::tensor::Tensor;
+use coeus_core::{ComputeBackend, CpuAddressableStorage, Scalar};
+use coeus_tensor::Tensor;
 
 /// Total Variation regularizer for displacement fields.
 ///
@@ -45,12 +46,13 @@ use ritk_image::tensor::Tensor;
 ///
 /// ```rust,ignore
 /// use ritk_registration::regularization::TotalVariationRegularizer;
-/// use ritk_image::tensor::Tensor;
+/// use ritk_registration::regularization::Regularizer;
+/// use coeus_tensor::Tensor;
 ///
 /// let reg = TotalVariationRegularizer::new(0.05);
 /// // displacement field: [B, 2, H, W] for 2D
-/// let displacement = Tensor::zeros([1, 2, 64, 64], &device);
-/// let loss = reg.compute_loss::<4>(displacement);
+/// let displacement: Tensor<f32, _> = Tensor::zeros([1, 2, 64, 64]);
+/// let loss = reg.compute_loss(&displacement);
 /// ```
 #[derive(Clone, Debug)]
 pub struct TotalVariationRegularizer {
@@ -73,8 +75,13 @@ impl Default for TotalVariationRegularizer {
     }
 }
 
-impl<B: Backend> Regularizer<B> for TotalVariationRegularizer {
-    fn compute_loss<const D: usize>(&self, displacement: Tensor<B, D>) -> Tensor<B, 1> {
+impl<T, B> Regularizer<T, B> for TotalVariationRegularizer
+where
+    T: Scalar,
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+{
+    fn compute_loss(&self, displacement: &Tensor<T, B>) -> T {
         super::dispatch::dispatch_total_variation(displacement, self.weight)
     }
 

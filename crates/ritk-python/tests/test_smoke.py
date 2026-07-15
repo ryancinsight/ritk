@@ -8,6 +8,7 @@ Run with: pytest crates/ritk-python/tests/test_smoke.py
 """
 
 import importlib
+import importlib.metadata
 import sys
 
 # Import verification
@@ -52,6 +53,8 @@ def test_ritk___all___matches_public_contract():
 
     expected = [
         "Image",
+        "ColorImage",
+        "image",
         "io",
         "filter",
         "metrics",
@@ -328,8 +331,22 @@ def test_filter_public_functions_exist():
         "masked_fft_normalized_correlation",
         "reinitialize_level_set",
         "bitwise_not",
+        "color_mean",
+        "color_median",
+        "color_smoothing_recursive_gaussian",
+        "compose",
+        "edge_potential",
+        "gradient",
+        "gradient_recursive_gaussian",
+        "label_map_contour_overlay",
+        "label_overlay",
+        "label_to_rgb",
+        "physical_point_image_source",
         "real_fft_shift",
+        "scalar_to_rgb_colormap",
         "spatial_convolve",
+        "vector_index_selection_cast",
+        "vector_magnitude",
     ]
     missing = [fn for fn in required if not callable(getattr(rf, fn, None))]
     assert not missing, f"Missing callable functions in ritk.filter: {missing}"
@@ -391,6 +408,7 @@ def test_segmentation_public_functions_exist():
         "vector_confidence_connected_segment",
         "isolated_watershed_segment",
         "slic",
+        "slic_superpixel",
     ]
     missing = [fn for fn in required if not callable(getattr(rs, fn, None))]
     assert not missing, f"Missing callable functions in ritk.segmentation: {missing}"
@@ -461,7 +479,7 @@ def test_ritk_has_version():
     assert isinstance(ritk.__version__, str), (
         f"__version__ must be str, got {type(ritk.__version__)}"
     )
-    assert ritk.__version__, "__version__ must not be empty"
+    assert ritk.__version__ == importlib.metadata.version("ritk")
 
 
 def test_python_version_is_supported():

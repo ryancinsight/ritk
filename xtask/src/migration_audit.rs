@@ -375,25 +375,27 @@ fn normalized(path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEMP_ROOT_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
     #[test]
     fn audit_detects_manifest_and_source_burn_surface() {
         let root = temp_root();
-        fs::create_dir_all(root.join("crates/ritk-core/src")).unwrap();
+        fs::create_dir_all(root.path().join("crates/ritk-core/src")).unwrap();
         fs::write(
-            root.join("crates/ritk-core/Cargo.toml"),
+            root.path().join("crates/ritk-core/Cargo.toml"),
             "[dependencies]\nburn = { workspace = true }\nburn-ndarray = { workspace = true }\n",
         )
         .unwrap();
         fs::write(
-            root.join("crates/ritk-core/src/lib.rs"),
+            root.path().join("crates/ritk-core/src/lib.rs"),
             "use ritk_image::tensor::{Shape, Tensor, TensorData};\n\
              fn build<B>() { let _ = Shape::new([1]); let _: Option<Tensor<B, 1>> = None; }\n",
         )
         .unwrap();
 
-        let report = scan_burn_migration_surface(&root).unwrap();
+        let report = scan_burn_migration_surface(root.path()).unwrap();
 
         assert_eq!(
             report.manifest_dependencies,
@@ -408,68 +410,63 @@ mod tests {
                 ..Default::default()
             })
         );
-
-        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
     fn audit_does_not_classify_coeus_tensor_syntax_as_burn() {
         let root = temp_root();
-        fs::create_dir_all(root.join("crates/ritk-transform/src")).unwrap();
+        fs::create_dir_all(root.path().join("crates/ritk-transform/src")).unwrap();
         fs::write(
-            root.join("crates/ritk-transform/Cargo.toml"),
+            root.path().join("crates/ritk-transform/Cargo.toml"),
             "[dependencies]\ncoeus-tensor = { workspace = true }\n",
         )
         .unwrap();
         fs::write(
-            root.join("crates/ritk-transform/src/lib.rs"),
+            root.path().join("crates/ritk-transform/src/lib.rs"),
             "use coeus_autograd::Var;\nuse coeus_nn::Conv3d;\nuse coeus_tensor::Tensor;\nstruct Field<B>(Tensor<f32, B>, Option<Var<f32, B>>, Option<Conv3d<f32, B>>);\n",
         )
         .unwrap();
 
-        let report = scan_burn_migration_surface(&root).unwrap();
+        let report = scan_burn_migration_surface(root.path()).unwrap();
 
         assert!(report.source_references.is_empty());
         assert!(report.manifest_dependencies.is_empty());
-        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
     fn audit_ignores_target_directory() {
         let root = temp_root();
-        fs::create_dir_all(root.join("target/generated")).unwrap();
+        fs::create_dir_all(root.path().join("target/generated")).unwrap();
         fs::write(
-            root.join("target/generated/lib.rs"),
+            root.path().join("target/generated/lib.rs"),
             "use burn::tensor::Tensor;",
         )
         .unwrap();
 
-        let report = scan_burn_migration_surface(&root).unwrap();
+        let report = scan_burn_migration_surface(root.path()).unwrap();
 
         assert!(report.source_references.is_empty());
         assert!(report.manifest_dependencies.is_empty());
-
-        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
     fn audit_detects_standalone_legacy_surface() {
         let root = temp_root();
-        fs::create_dir_all(root.join("crates/ritk-statistics/src/")).unwrap();
+        fs::create_dir_all(root.path().join("crates/ritk-statistics/src/")).unwrap();
         fs::write(
-            root.join("crates/ritk-statistics/Cargo.toml"),
+            root.path().join("crates/ritk-statistics/Cargo.toml"),
             "[dependencies]\nnum-traits = \"0.2\"\napprox = \"0.5\"\n",
         )
         .unwrap();
         fs::write(
-            root.join("crates/ritk-statistics/src/lib.rs"),
+            root.path().join("crates/ritk-statistics/src/lib.rs"),
             "use approx::assert_relative_eq;\n\
              use num_traits::Float;\n\
              use ndarray::{Array1, Array2};\n",
         )
         .unwrap();
 
-        let report = scan_burn_migration_surface(&root).unwrap();
+        let report = scan_burn_migration_surface(root.path()).unwrap();
 
         assert_eq!(
             report.manifest_dependencies,
@@ -485,15 +482,38 @@ mod tests {
                 standalone_source_reference_count: 3,
             })
         );
-
-        fs::remove_dir_all(root).unwrap();
     }
 
-    fn temp_root() -> PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        std::env::temp_dir().join(format!("ritk-migration-audit-{nanos}"))
+    struct TempRoot {
+        path: PathBuf,
+    }
+
+    impl TempRoot {
+        fn path(&self) -> &Path {
+            &self.path
+        }
+    }
+
+    impl Drop for TempRoot {
+        fn drop(&mut self) {
+            if let Err(error) = fs::remove_dir_all(&self.path) {
+                tracing::error!(path = %self.path.display(), %error, "failed to remove migration audit fixture root");
+            }
+        }
+    }
+
+    fn temp_root() -> TempRoot {
+        loop {
+            let sequence = TEMP_ROOT_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+            let path = std::env::temp_dir().join(format!(
+                "ritk-migration-audit-{}-{sequence}",
+                std::process::id()
+            ));
+            match fs::create_dir(&path) {
+                Ok(()) => return TempRoot { path },
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => panic!("failed creating {}: {error}", path.display()),
+            }
+        }
     }
 }

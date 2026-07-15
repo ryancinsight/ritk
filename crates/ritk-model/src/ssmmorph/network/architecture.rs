@@ -109,7 +109,7 @@ where
 {
     encoder: SSMMorphEncoder<B>,
     decoder: SSMMorphDecoder<B>,
-    integrator: Option<VecInt<B>>,
+    integrator: Option<VecInt>,
 }
 
 impl<B> SSMMorph<B>
@@ -149,7 +149,7 @@ where
             .decoder
             .forward(&encoded.bottleneck, &encoded.features)?;
         let displacement = match &self.integrator {
-            Some(integrator) => integrator.forward(&velocity)?,
+            Some(integrator) => integrator.forward(&velocity),
             None => velocity,
         };
         Ok(SSMMorphOutput {

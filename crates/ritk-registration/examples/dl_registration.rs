@@ -1,45 +1,51 @@
 use coeus_autograd::{cat, Var};
-use coeus_core::MoiraiBackend;
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, SequentialBackend};
+use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
-use ritk_model::transmorph::{TransMorphConfig, TransformIntegration};
+use ritk_model::transmorph::{TransMorph, TransMorphConfig, TransformIntegration};
 use std::time::Instant;
 
 fn main() {
-    let config = TransMorphConfig::new(2, 12, 3)
-        .with_window_size(4)
-        .with_integration(TransformIntegration::Direct);
-    let model = config.init::<MoiraiBackend>();
-    let shape = [1, 1, 32, 32, 32];
-    let fixed = volume(shape, 0);
-    let moving = volume(shape, 1);
-    let input = cat(&[&moving, &fixed], 1);
-
-    let start = Instant::now();
-    let output = model
-        .forward(&input)
-        .expect("example inputs satisfy the TransMorph contract");
-
-    println!("Registration took: {:?}", start.elapsed());
-    println!("Flow shape: {:?}", output.flow.tensor.shape());
-    println!("Warped shape: {:?}", output.warped.tensor.shape());
+    println!("Initializing TransMorph Registration Example...");
+    run_registration::<SequentialBackend>();
 }
 
-fn volume(shape: [usize; 5], offset: usize) -> Var<f32, MoiraiBackend> {
-    let [_batch, _channels, depth, height, width] = shape;
-    let values = (0..depth)
-        .flat_map(|z| {
-            (0..height).flat_map(move |y| {
-                (0..width).map(move |x| {
-                    let dx = x.abs_diff(width / 2 + offset) as f32;
-                    let dy = y.abs_diff(height / 2) as f32;
-                    let dz = z.abs_diff(depth / 2) as f32;
-                    (-(dx * dx + dy * dy + dz * dz) / 64.0).exp()
-                })
-            })
-        })
-        .collect::<Vec<_>>();
-    Var::new(
-        Tensor::from_slice_on(shape, &values, &MoiraiBackend::new()),
+fn run_registration<B>()
+where
+    B: Backend + BackendOps<f32> + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    let config = TransMorphConfig::new(2, 48, 3)
+        .with_window_size(2)
+        .with_integration(TransformIntegration::Direct);
+    let model: TransMorph<B> = config.init();
+
+    let shape = [1, 1, 64, 64, 64];
+    println!("Creating dummy volumes with shape: {:?}", shape);
+
+    let n: usize = shape.iter().product();
+    let fixed_data: Vec<f32> = (0..n).map(|i| ((i % 17) as f32) / 17.0).collect();
+    let moving_data: Vec<f32> = (0..n).map(|i| ((i * 3 + 7) % 31) as f32 / 31.0).collect();
+
+    let fixed = Var::new(
+        Tensor::from_slice_on(shape, &fixed_data, &B::default()),
         false,
-    )
+    );
+    let moving = Var::new(
+        Tensor::from_slice_on(shape, &moving_data, &B::default()),
+        false,
+    );
+
+    println!("Running registration...");
+    let start = Instant::now();
+    let input = cat(&[&moving, &fixed], 1);
+    let output = model.forward(&input);
+    let flow = output.flow;
+    let warped = output.warped;
+
+    let duration = start.elapsed();
+    println!("Registration took: {:?}", duration);
+    println!("Flow shape: {:?}", flow.tensor.shape());
+    println!("Warped shape: {:?}", warped.tensor.shape());
+    println!("Example finished successfully!");
 }
