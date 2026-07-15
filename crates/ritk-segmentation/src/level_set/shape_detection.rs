@@ -202,6 +202,108 @@ impl ShapeDetectionSegmentation {
             *image.direction(),
         ))
     }
+
+    /// Apply shape-detection segmentation to Coeus-native images.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same shape-validation errors as [`Self::apply`], plus an
+    /// error when either tensor is not host-addressable/contiguous or the native
+    /// output image cannot be constructed.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        initial_phi: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let dims = image.shape();
+        let [nz, ny, nx] = dims;
+        let phi_dims = initial_phi.shape();
+        if dims != phi_dims {
+            anyhow::bail!(
+                "image shape {:?} and initial_phi shape {:?} must match",
+                dims,
+                phi_dims
+            );
+        }
+
+        let img_vals = image.data_slice()?;
+        let phi_init = initial_phi.data_slice()?;
+        let img_wide: Vec<f64> = img_vals.iter().map(|&v| v as f64).collect();
+        let mut phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
+
+        let smoothed = helpers::smooth_or_borrow(&img_wide, dims, self.sigma.get());
+
+        let grad_mag = helpers::compute_gradient_magnitude(&smoothed, dims);
+        let g = helpers::compute_edge_stopping(&grad_mag, self.edge_k);
+        let (g_z, g_y, g_x) = helpers::compute_field_gradient(&g, dims);
+
+        let n = phi.len();
+        let mut kappa = vec![0.0_f64; n];
+        let mut phi_new = phi.clone();
+        let mut phi_z = vec![0.0_f64; n];
+        let mut phi_y = vec![0.0_f64; n];
+        let mut phi_x = vec![0.0_f64; n];
+        let mut adv = vec![0.0_f64; n];
+
+        let slice_len = ny * nx;
+        let mut max_changes = vec![0.0_f64; nz];
+
+        for _iter in 0..self.max_iterations {
+            helpers::compute_curvature_into(&phi, dims, &mut kappa);
+            helpers::compute_field_gradient_into(&phi, dims, &mut phi_z, &mut phi_y, &mut phi_x);
+            helpers::upwind_advection_into(&phi, dims, &g_z, &g_y, &g_x, &mut adv);
+
+            helpers::evolve_slices_with_metric(
+                &mut phi_new,
+                &mut max_changes,
+                slice_len,
+                |iz, phi_new_s| {
+                    let base = iz * slice_len;
+                    let mut local_max = 0.0_f64;
+                    for (i, phi_new_val) in phi_new_s.iter_mut().enumerate() {
+                        let idx = base + i;
+                        let grad_phi_mag = (phi_z[idx] * phi_z[idx]
+                            + phi_y[idx] * phi_y[idx]
+                            + phi_x[idx] * phi_x[idx])
+                            .sqrt();
+
+                        let curvature = self.curvature_weight * g[idx] * kappa[idx] * grad_phi_mag;
+                        let propagation = self.propagation_weight * g[idx] * grad_phi_mag;
+                        let advection = self.advection_weight * adv[idx];
+
+                        let dphi = self.dt * (curvature - propagation + advection);
+                        *phi_new_val = phi[idx] + dphi;
+
+                        let change = dphi.abs() / self.dt;
+                        if change > local_max {
+                            local_max = change;
+                        }
+                    }
+                    local_max
+                },
+            );
+
+            std::mem::swap(&mut phi, &mut phi_new);
+
+            let max_change = max_changes.iter().copied().fold(0.0_f64, f64::max);
+            if max_change < self.tolerance {
+                break;
+            }
+        }
+
+        crate::native_output::from_values(
+            image,
+            phi.iter()
+                .map(|&v| if v < 0.0 { 1.0_f32 } else { 0.0_f32 })
+                .collect(),
+            backend,
+        )
+    }
 }
 
 impl Default for ShapeDetectionSegmentation {

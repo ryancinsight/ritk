@@ -2,6 +2,7 @@
 name = "ritk-tensor-ops"
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
 description = "Shared tensor extract/rebuild helpers for Burn image and Coeus tensor host-buffer paths"
 
 [dependencies]

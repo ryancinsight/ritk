@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Workspace license metadata (SEC-656-01)
+
+### Changed
+- The workspace and all RITK packages now declare `MIT OR Apache-2.0` through
+  one inherited Cargo metadata field.
+- The repository includes the canonical Apache-2.0 and MIT license texts.
+- The DICOM dependency family advances from 0.8 to 0.10, replacing its JPEG XL
+  path with `jxl-grid` 0.6.2.
+
+### Evidence
+- Cargo metadata reports a license value for each workspace package.
+
 ## [Unreleased] — Native statistics extrema (MIG-654-03)
 
 ### Changed

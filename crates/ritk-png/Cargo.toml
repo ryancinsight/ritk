@@ -2,6 +2,7 @@
 name = "ritk-png"
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
 description = "PNG single-slice and sequential-volume I/O for RITK"
 repository = "https://github.com/ryancinsight/ritk"
 

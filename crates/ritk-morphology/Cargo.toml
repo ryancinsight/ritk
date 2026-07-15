@@ -2,4 +2,5 @@
 name = "ritk-morphology"
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
 description = "Structuring element types for mathematical morphology — ZST shape markers, sealed trait, zero-copy offset lists"

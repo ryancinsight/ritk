@@ -2,6 +2,7 @@
 name = "ritk-jpeg"
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
 description = "JPEG grayscale image I/O for RITK"
 repository = "https://github.com/ryancinsight/ritk"
 

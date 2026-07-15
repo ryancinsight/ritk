@@ -52,6 +52,27 @@ impl GrowCutFilter {
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>, seeds: &Image<B, 3>) -> Image<B, 3> {
         growcut(image, seeds, self.max_iter)
     }
+
+    /// Apply GrowCut to Coeus-native images.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the input shapes differ, backend storage is not
+    /// host-addressable, or the native output image cannot be constructed.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        seeds: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        crate::native_support::map_flat_pair(image, seeds, backend, |img_vals, seed_vals, dims| {
+            growcut_slice(img_vals, seed_vals, dims, self.max_iter)
+        })
+    }
 }
 
 // ── Public function ───────────────────────────────────────────────────────────

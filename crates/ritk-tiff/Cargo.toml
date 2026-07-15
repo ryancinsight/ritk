@@ -2,6 +2,7 @@
 name = "ritk-tiff"
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
 description = "TIFF / BigTIFF image I/O for RITK"
 repository = "https://github.com/ryancinsight/ritk"
 

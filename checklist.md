@@ -8,6 +8,32 @@
 
 # RITK Sprint Checklist — Active
 
+## SEC-656-01 — Workspace license metadata
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Declare the workspace package license as `MIT OR Apache-2.0` and inherit
+      it from every published package manifest. Completion condition: Cargo
+      metadata reports a license for all 32 workspace packages.
+- [x] Add the authoritative Apache-2.0 and MIT license texts at the repository
+      root and link them from the README.
+- [ ] Merge the metadata and dependency updates. Completion condition: the RITK
+      default branch contains both security commits.
+
+## SEC-656-02 — DICOM JPEG XL security update
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Advance the complete `dicom-*` family from 0.8 to 0.10. Completion
+      condition: the resolver selects `jxl-grid` 0.6.2 through
+      `dicom-transfer-syntax-registry`.
+- [x] Compile `ritk-dicom` and `ritk-io` against the updated APIs. Completion
+      condition: both packages type-check with the locked dependency graph.
+- [x] Run the focused DICOM package nextest suites. Completion condition met:
+      `ritk-dicom` and `ritk-io` pass under the committed timeout policy.
+- [ ] Merge the upstream security update and refresh the Kwavers provider pin.
+      Completion condition: Kwavers resolves no vulnerable `jxl-grid` 0.5.3.
+
 ## DEP-655-01 — Reachable OpenJPEG differential oracle
 **Target version**: Unreleased patch
 **Sprint phase**: Closure; complete after PR #31 merge

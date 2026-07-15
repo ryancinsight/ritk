@@ -2,6 +2,7 @@
 name = "ritk-minc"
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
 description = "MINC2 (.mnc / .mnc2) image I/O for RITK"
 repository = "https://github.com/ryancinsight/ritk"
 

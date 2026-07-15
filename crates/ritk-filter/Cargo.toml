@@ -2,6 +2,7 @@
 name = "ritk-filter"
 version = "0.2.60"
 edition = "2021"
+license.workspace = true
 
 [dependencies]
 burn-ndarray = { workspace = true }

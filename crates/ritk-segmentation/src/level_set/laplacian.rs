@@ -234,6 +234,129 @@ impl LaplacianLevelSet {
             *image.direction(),
         ))
     }
+
+    /// Apply Laplacian level set segmentation to Coeus-native images.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same shape-validation errors as [`Self::apply`], plus an
+    /// error when either tensor is not host-addressable/contiguous or the native
+    /// output image cannot be constructed.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        initial_phi: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let dims = image.shape();
+        let phi_dims = initial_phi.shape();
+        if dims != phi_dims {
+            anyhow::bail!(
+                "image shape {:?} and initial_phi shape {:?} must match",
+                dims,
+                phi_dims
+            );
+        }
+
+        let [nz, ny, nx] = dims;
+        let n: usize = nz * ny * nx;
+
+        let img_vals = image.data_slice()?;
+        let phi_init = initial_phi.data_slice()?;
+        let img_wide: Vec<f64> = img_vals.iter().map(|&v| v as f64).collect();
+        let mut phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
+
+        let smoothed: Cow<[f64]> = if self.sigma.get() > 0.0 {
+            Cow::Owned(helpers::gaussian_smooth(&img_wide, dims, self.sigma.get()))
+        } else {
+            Cow::Borrowed(&img_wide)
+        };
+
+        let laplacian = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
+            let iz = i / (ny * nx);
+            let rem = i % (ny * nx);
+            let iy = rem / nx;
+            let ix = rem % nx;
+            let zz = iz as isize;
+            let yy = iy as isize;
+            let xx = ix as isize;
+
+            let d2z = smoothed[helpers::idx_clamped(zz + 1, yy, xx, nz, ny, nx)]
+                - 2.0 * smoothed[i]
+                + smoothed[helpers::idx_clamped(zz - 1, yy, xx, nz, ny, nx)];
+            let d2y = smoothed[helpers::idx_clamped(zz, yy + 1, xx, nz, ny, nx)]
+                - 2.0 * smoothed[i]
+                + smoothed[helpers::idx_clamped(zz, yy - 1, xx, nz, ny, nx)];
+            let d2x = smoothed[helpers::idx_clamped(zz, yy, xx + 1, nz, ny, nx)]
+                - 2.0 * smoothed[i]
+                + smoothed[helpers::idx_clamped(zz, yy, xx - 1, nz, ny, nx)];
+
+            d2z + d2y + d2x
+        });
+
+        let speed_field: Vec<f64> = laplacian.iter().map(|&l| l / (1.0 + l.abs())).collect();
+
+        let mut kappa = vec![0.0_f64; n];
+        let mut phi_new = phi.clone();
+        let mut phi_z = vec![0.0_f64; n];
+        let mut phi_y = vec![0.0_f64; n];
+        let mut phi_x = vec![0.0_f64; n];
+
+        let slice_len = ny * nx;
+        let mut max_changes = vec![0.0_f64; nz];
+
+        for _iter in 0..self.max_iterations {
+            helpers::compute_curvature_into(&phi, dims, &mut kappa);
+            helpers::compute_field_gradient_into(&phi, dims, &mut phi_z, &mut phi_y, &mut phi_x);
+
+            helpers::evolve_slices_with_metric(
+                &mut phi_new,
+                &mut max_changes,
+                slice_len,
+                |iz, phi_new_s| {
+                    let base = iz * slice_len;
+                    let mut local_max = 0.0_f64;
+                    for (i, phi_new_val) in phi_new_s.iter_mut().enumerate() {
+                        let idx = base + i;
+                        let grad_phi_mag = (phi_z[idx] * phi_z[idx]
+                            + phi_y[idx] * phi_y[idx]
+                            + phi_x[idx] * phi_x[idx])
+                            .sqrt();
+
+                        let speed = self.propagation_weight * speed_field[idx]
+                            + self.curvature_weight * kappa[idx];
+                        let dphi = self.dt * speed * grad_phi_mag;
+                        *phi_new_val = phi[idx] + dphi;
+
+                        let change = dphi.abs() / self.dt;
+                        if change > local_max {
+                            local_max = change;
+                        }
+                    }
+                    local_max
+                },
+            );
+
+            std::mem::swap(&mut phi, &mut phi_new);
+
+            let max_change = max_changes.iter().copied().fold(0.0_f64, f64::max);
+            if max_change < self.tolerance {
+                break;
+            }
+        }
+
+        crate::native_output::from_values(
+            image,
+            phi.iter()
+                .map(|&v| if v < 0.0 { 1.0_f32 } else { 0.0_f32 })
+                .collect(),
+            backend,
+        )
+    }
 }
 
 impl Default for LaplacianLevelSet {
