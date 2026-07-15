@@ -24,6 +24,19 @@ Residual: the current DICOM dependency graph resolves a vulnerable JPEG XL
 chain. Its upstream version migration is tracked as the next security
 increment; no vulnerability suppression is introduced.
 
+## SEC-656-02 audit (2026-07-15)
+
+### DICOM 0.10 replaces the vulnerable JPEG XL chain
+
+The workspace advances every DICOM dependency as one compatible family from
+0.8 to 0.10. The resolved path is now `ritk-io → dicom-transfer-syntax-registry
+0.10.0 → jxl-oxide 0.12.6 → jxl-grid 0.6.2`; it removes the former vulnerable
+`jxl-grid` 0.5.3 node rather than suppressing its advisory.
+
+Evidence tier: Cargo resolver graph and package compilation. `ritk-dicom` and
+`ritk-io` type-check against the locked graph. Focused nextest execution is
+queued behind the shared Atlas build lock and remains required before merge.
+
 ## MIG-654-03 audit (2026-07-15)
 
 ### Statistics extrema own one native image boundary

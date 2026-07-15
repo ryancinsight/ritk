@@ -76,7 +76,7 @@ coeus-optim = { path = "../coeus/coeus-optim" }
 onnx-ir = "0.20.1"
 pyo3 = { version = "0.22", features = ["abi3-py39"] }
 numpy = "0.22"
-dicom = { version = "0.8.0", default-features = false }
+dicom = { version = "0.10.0", default-features = false }
 moirai = { path = "../moirai/moirai", version = "0.2.0", features = ["melinoe"] }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
 mnemosyne = { path = "../mnemosyne/crates/mnemosyne", version = "^0.2.0", default-features = false, features = ["std_tls", "eunomia"] }
@@ -134,10 +134,10 @@ image = "0.24"
 num-traits = "0.2"
 tiff = "0.9"
 
-dicom-core = "0.8"
-dicom-ul = "0.8"
-dicom-pixeldata = { version = "0.8", default-features = false }
-dicom-transfer-syntax-registry = { version = "0.8", default-features = false }
+dicom-core = "0.10"
+dicom-ul = "0.10"
+dicom-pixeldata = { version = "0.10", default-features = false }
+dicom-transfer-syntax-registry = { version = "0.10", default-features = false }
 consus-hdf5 = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std"] }
 consus-core = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std"] }
 consus-compression = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std", "deflate"] }
