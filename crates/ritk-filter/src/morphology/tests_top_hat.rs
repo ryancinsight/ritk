@@ -1,11 +1,11 @@
 //! Tests for top_hat
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 fn img(v: Vec<f32>, d: [usize; 3]) -> Image<B, 3> {
     let t = Tensor::<B, 3>::from_data(TensorData::new(v, Shape::new(d)), &Default::default());
     Image::new(

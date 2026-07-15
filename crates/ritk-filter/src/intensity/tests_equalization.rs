@@ -1,11 +1,11 @@
 use super::*;
 
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
 use ritk_spatial::{Direction, Point, Spacing};
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 use ritk_image::Image;
 
 fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {

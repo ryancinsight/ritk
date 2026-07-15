@@ -20,13 +20,13 @@
 use crate::edge::GaussianSigma;
 use crate::gaussian::GaussianFilter;
 use crate::native_support::{assert_native_matches_burn_approx, make_native_image, native_vals};
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use coeus_core::SequentialBackend;
 
 /// Backend type parameter for the `GaussianFilter` struct. The native path does
 /// not use it (its compute backend is the separate `SequentialBackend`), but the
 /// struct is generic over a Burn `Backend`, so a concrete one must be named.
-type BurnB = NdArray<f32>;
+type BurnB = LegacyBurnBackend;
 
 fn sigmas(s: f64) -> Vec<GaussianSigma> {
     vec![GaussianSigma::new(s).expect("positive sigma")]

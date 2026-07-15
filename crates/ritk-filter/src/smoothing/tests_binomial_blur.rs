@@ -1,7 +1,8 @@
+use crate::native_support::LegacyBurnBackend;
 use super::*;
 use ritk_image::test_support as ts;
 
-type B = burn_ndarray::NdArray<f32>;
+type B = LegacyBurnBackend;
 
 /// rep=1 on an interior impulse: `[¼,½,¼]·4 = [1,2,1]` (mass conserved).
 #[test]

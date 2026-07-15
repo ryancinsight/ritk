@@ -1,7 +1,8 @@
+use crate::native_support::LegacyBurnBackend;
 use super::*;
 use ritk_image::test_support as ts;
 
-type B = burn_ndarray::NdArray<f32>;
+type B = LegacyBurnBackend;
 
 /// Grey colormap on a `[10,20,30,40,50]` ramp → `[0,63,127,191,255]` per channel
 /// (normalize by image min/max, ×255, floor — `0.25·255 = 63.75 → 63`).

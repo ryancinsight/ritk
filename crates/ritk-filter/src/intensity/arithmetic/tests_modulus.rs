@@ -1,7 +1,8 @@
+use crate::native_support::LegacyBurnBackend;
 use super::*;
 use ritk_image::test_support as ts;
 
-type B = burn_ndarray::NdArray<f32>;
+type B = LegacyBurnBackend;
 
 /// Positive and negative operands use C/C++ truncated-toward-zero remainder,
 /// matching ITK/sitk: `7%3=1, 8%3=2, 9%3=0, 10%3=1, −7%3=−1, −8%3=−2`.

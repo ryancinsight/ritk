@@ -97,16 +97,48 @@ pub(crate) fn make_native_image(
     data: Vec<f32>,
     shape: [usize; 3],
 ) -> Image<f32, coeus_core::SequentialBackend, 3> {
+    make_native_image_nd(data, shape)
+}
+
+/// Test-only legacy Burn backend alias for filters whose type parameters are
+/// independent from their Coeus-native execution path.
+#[cfg(test)]
+pub(crate) type LegacyBurnBackend = burn_ndarray::NdArray<f32>;
+
+/// Construct a Coeus-native image of any dimensionality with identity metadata.
+#[cfg(test)]
+pub(crate) fn make_native_image_nd<const D: usize>(
+    data: Vec<f32>,
+    shape: [usize; D],
+) -> Image<f32, coeus_core::SequentialBackend, D> {
     use ritk_spatial::{Direction, Point, Spacing};
+    make_native_image_with_metadata(
+        data,
+        shape,
+        Point::new([0.0; D]),
+        Spacing::new([1.0; D]),
+        Direction::identity(),
+    )
+}
+
+/// Construct a Coeus-native image with explicit metadata.
+#[cfg(test)]
+pub(crate) fn make_native_image_with_metadata<const D: usize>(
+    data: Vec<f32>,
+    shape: [usize; D],
+    origin: ritk_spatial::Point<D>,
+    spacing: ritk_spatial::Spacing<D>,
+    direction: ritk_spatial::Direction<D>,
+) -> Image<f32, coeus_core::SequentialBackend, D> {
     Image::from_flat_on(
         data,
         shape,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0; 3]),
-        Direction::identity(),
+        origin,
+        spacing,
+        direction,
         &coeus_core::SequentialBackend,
     )
-    .expect("make_native_image: valid shape and data length")
+    .expect("make_native_image_with_metadata: valid shape and data length")
 }
 
 /// Extract voxel data from a Coeus-native image as an owned `Vec<f32>`.
@@ -115,6 +147,14 @@ pub(crate) fn make_native_image(
 /// that passes through the RITK filter pipeline).
 #[cfg(test)]
 pub(crate) fn native_vals(image: &Image<f32, coeus_core::SequentialBackend, 3>) -> Vec<f32> {
+    native_vals_nd(image)
+}
+
+/// Dimensionality-generic companion to [`native_vals`].
+#[cfg(test)]
+pub(crate) fn native_vals_nd<const D: usize>(
+    image: &Image<f32, coeus_core::SequentialBackend, D>,
+) -> Vec<f32> {
     image
         .data_slice()
         .expect("native_vals: image must be contiguous")

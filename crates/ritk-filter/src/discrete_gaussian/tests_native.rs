@@ -9,9 +9,9 @@
 
 use super::DiscreteGaussianFilter;
 use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 
-type BurnB = NdArray<f32>;
+type BurnB = LegacyBurnBackend;
 
 fn filter() -> DiscreteGaussianFilter<BurnB> {
     DiscreteGaussianFilter::<BurnB>::new_isotropic(2.0)

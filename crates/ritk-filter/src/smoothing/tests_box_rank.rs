@@ -1,7 +1,8 @@
+use crate::native_support::LegacyBurnBackend;
 use super::*;
 use ritk_image::test_support as ts;
 
-type B = burn_ndarray::NdArray<f32>;
+type B = LegacyBurnBackend;
 
 /// Median (rank 0.5) over the clipped window: `[10,20,30,40,50]` r=1 →
 /// `[10,20,30,40,40]` (boundary windows shrink to in-bounds voxels).

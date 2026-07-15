@@ -1,13 +1,13 @@
 //! Tests for hit_or_miss
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 
 #[test]
 fn native_transform_matches_legacy_boundary_and_preserves_geometry() {

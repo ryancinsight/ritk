@@ -3,7 +3,7 @@
 //! Every test follows the "value-semantic" pattern: deterministic inputs produce
 //! deterministic outputs verified against mathematical invariants.
 
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 
@@ -13,7 +13,7 @@ use super::{
 };
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 
 fn make_image_2d(data: Vec<f32>, dims: [usize; 2]) -> Image<B, 2> {
     ts::make_image::<B, 2>(data, dims)

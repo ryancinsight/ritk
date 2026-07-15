@@ -1,9 +1,9 @@
 use super::*;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Image<B, 3> {
     ts::make_image_with_spacing::<B, 3>(vals, dims, spacing)

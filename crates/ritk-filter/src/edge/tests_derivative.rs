@@ -1,8 +1,8 @@
 use super::*;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 
 fn vals(image: &Image<B, 3>) -> Vec<f32> {
     image.data_slice().into_owned()
@@ -47,7 +47,7 @@ fn derivative_order2_of_parabola_is_two() {
 #[test]
 fn derivative_respects_image_spacing() {
     use ritk_spatial::{Direction, Point, Spacing};
-    let device: burn_ndarray::NdArrayDevice = Default::default();
+    let device = Default::default();
     let td = ritk_image::tensor::TensorData::new(
         vec![0.0_f32, 10.0, 20.0, 30.0, 40.0],
         ritk_image::tensor::Shape::new([1, 1, 5]),

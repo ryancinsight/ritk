@@ -1,12 +1,12 @@
 //! Tests for intensity projection filters.
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use ritk_core::image::Image;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 

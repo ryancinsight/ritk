@@ -1,13 +1,13 @@
 //! Tests for grayscale_gradient
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 
 fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
     ts::make_image::<B, 3>(data, shape)
@@ -113,7 +113,7 @@ fn step_edge_gradient_at_boundary() {
 #[test]
 fn spatial_metadata_preserved() {
     let sp = Spacing::new([2.5, 3.5, 4.5]);
-    let device: burn_ndarray::NdArrayDevice = Default::default();
+    let device = Default::default();
     let td = TensorData::new(vec![1.0_f32, 2.0, 3.0], Shape::new([1usize, 1, 3]));
     let t = Tensor::<B, 3>::from_data(td, &device);
     let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp, Direction::identity());

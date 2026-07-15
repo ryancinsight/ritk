@@ -1,11 +1,11 @@
 use super::transform_geometry;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point};
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 
 const ID: [[f64; 3]; 3] = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
 

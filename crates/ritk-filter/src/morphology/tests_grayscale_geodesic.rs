@@ -1,11 +1,11 @@
 //! Tests for grayscale_geodesic
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
     ts::make_image::<B, 3>(vals, dims)

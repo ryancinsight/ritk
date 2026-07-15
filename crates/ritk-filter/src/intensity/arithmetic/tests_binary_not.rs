@@ -1,7 +1,8 @@
+use crate::native_support::LegacyBurnBackend;
 use super::*;
 use ritk_image::test_support as ts;
 
-type B = burn_ndarray::NdArray<f32>;
+type B = LegacyBurnBackend;
 
 /// Default labels (fg=1, bg=0): pixels equal to 1 become 0, all others become 1.
 #[test]

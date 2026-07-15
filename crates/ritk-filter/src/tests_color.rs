@@ -2,12 +2,12 @@
 
 use super::map_color_components;
 use crate::MedianFilter;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_image::{ColorVolume, Image};
 use ritk_spatial::{Direction, Point, Spacing};
 
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 
 fn rgb(interleaved: Vec<f32>, spatial: [usize; 3]) -> ColorVolume<B, 3> {
     let [d, r, c] = spatial;

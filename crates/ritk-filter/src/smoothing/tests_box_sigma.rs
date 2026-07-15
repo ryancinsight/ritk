@@ -1,7 +1,8 @@
+use crate::native_support::LegacyBurnBackend;
 use super::*;
 use ritk_image::test_support as ts;
 
-type B = burn_ndarray::NdArray<f32>;
+type B = LegacyBurnBackend;
 
 /// Sample (Bessel) standard deviation over the clipped window, matching ITK:
 /// `[10,20,30,40,50]` r=1 → `[7.071, 10, 10, 10, 7.071]` (interior `[20,30,40]`

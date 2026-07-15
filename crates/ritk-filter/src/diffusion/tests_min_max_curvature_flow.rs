@@ -1,3 +1,4 @@
+use crate::native_support::LegacyBurnBackend;
 use super::{
     BinaryMinMaxCurvatureFlowConfig, BinaryMinMaxCurvatureFlowImageFilter,
     MinMaxCurvatureFlowConfig, MinMaxCurvatureFlowImageFilter,
@@ -5,7 +6,7 @@ use super::{
 use ritk_image::test_support as ts;
 use ritk_tensor_ops::extract_vec;
 
-type B = burn_ndarray::NdArray<f32>;
+type B = LegacyBurnBackend;
 
 // ── T-2: stencil_radius=0 guard ─────────────────────────────────────────────────
 

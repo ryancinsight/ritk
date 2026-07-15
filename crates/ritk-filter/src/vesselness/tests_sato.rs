@@ -1,7 +1,7 @@
 //! Tests for Sato vesselness filter.
 
 use super::*;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
@@ -10,7 +10,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 // Re-import using the crate's own paths (within ritk-core).
 use ritk_image::Image as CoreImage;
 
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 
 fn make_image(data: Vec<f32>, dims: [usize; 3]) -> CoreImage<B, 3> {
     ts::make_image::<B, 3>(data, dims)

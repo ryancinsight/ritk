@@ -1,10 +1,10 @@
 use super::transform_to_displacement_field;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 
 fn make(dims: [usize; 3]) -> Image<B, 3> {
     let n: usize = dims.iter().product();

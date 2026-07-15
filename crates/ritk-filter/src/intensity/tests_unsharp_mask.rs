@@ -1,5 +1,5 @@
 use super::*;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
@@ -7,7 +7,7 @@ use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 
 fn make_image(vals: Vec<f32>, depth: usize, rows: usize, cols: usize) -> Image<B, 3> {
     ts::make_image::<B, 3>(vals, [depth, rows, cols])
@@ -156,7 +156,7 @@ fn no_clamp_allows_overshoot() {
 /// Invariant: spatial metadata (origin, spacing, direction) is preserved.
 #[test]
 fn spatial_metadata_preserved() {
-    let device = burn_ndarray::NdArrayDevice::Cpu;
+    let device = Default::default();
     let td = TensorData::new(vec![1.0_f32; 2 * 3 * 3], Shape::new([2, 3, 3]));
     let tensor = Tensor::<B, 3>::from_data(td, &device);
     let origin = Point::new([10.0, 20.0, 30.0]);

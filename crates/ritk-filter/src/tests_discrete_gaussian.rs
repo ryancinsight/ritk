@@ -1,3 +1,4 @@
+use crate::native_support::LegacyBurnBackend;
 use super::*;
 use crate::edge::GaussianSigma;
 use coeus_core::SequentialBackend;
@@ -5,7 +6,7 @@ use ritk_core::image::Image;
 use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
 use ritk_spatial::{Direction, Point, Spacing};
-type B = burn_ndarray::NdArray<f32>;
+type B = LegacyBurnBackend;
 
 fn make_image(vals: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
     ts::make_image::<B, 3>(vals, shape)

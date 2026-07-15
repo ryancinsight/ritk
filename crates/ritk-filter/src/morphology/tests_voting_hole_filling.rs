@@ -1,7 +1,8 @@
+use crate::native_support::LegacyBurnBackend;
 use super::*;
 use ritk_image::test_support as ts;
 
-type B = burn_ndarray::NdArray<f32>;
+type B = LegacyBurnBackend;
 
 fn filt() -> VotingBinaryHoleFillingImageFilter {
     VotingBinaryHoleFillingImageFilter::new([1, 1, 1], 1, 1.0, 0.0)

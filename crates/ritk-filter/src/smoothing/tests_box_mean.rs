@@ -1,7 +1,8 @@
+use crate::native_support::LegacyBurnBackend;
 use super::*;
 use ritk_image::test_support as ts;
 
-type B = burn_ndarray::NdArray<f32>;
+type B = LegacyBurnBackend;
 
 /// Shrink-window boundary (ITK BoxMean): `[10,20,30,40,50]` r=1 →
 /// `[15,20,30,40,45]` (out[0] = (10+20)/2, NOT the clamped Mean value 13.33).

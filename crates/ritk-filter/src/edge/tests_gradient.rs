@@ -1,7 +1,8 @@
+use crate::native_support::LegacyBurnBackend;
 use super::*;
 use ritk_image::test_support as ts;
 
-type B = burn_ndarray::NdArray<f32>;
+type B = LegacyBurnBackend;
 
 /// For a linear ramp `f = x` (fastest-varying tensor axis), the central
 /// difference is exactly 1 along x in the interior and 0 along y, z. Component

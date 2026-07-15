@@ -1,8 +1,8 @@
 use super::*;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 
 /// Construct a test image from flat values and shape `[Z, Y, X]`.
 fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {

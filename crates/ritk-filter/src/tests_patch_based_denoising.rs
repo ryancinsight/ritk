@@ -1,9 +1,9 @@
 use super::*;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_tensor_ops::extract_vec;
 
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 
 /// The ITK MersenneTwister port must reproduce the canonical MT19937 sequence:
 /// seed 0 → first output 2357136044; seed 5489 → 3499211612.

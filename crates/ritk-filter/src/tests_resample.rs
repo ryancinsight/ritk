@@ -1,11 +1,11 @@
 use super::*;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use ritk_interpolation::LinearInterpolator;
 use ritk_spatial::{Direction2, Point2, Spacing2};
 use ritk_tensor_ops::extract_vec_infallible;
 use ritk_transform::affine::translation::TranslationTransform;
 
-type TestBackend = NdArray<f32>;
+type TestBackend = LegacyBurnBackend;
 
 /// Bilinear interpolation at exact integer offset yields ≥ this value.
 const NEAR_ONE_TOL: f32 = 0.9;

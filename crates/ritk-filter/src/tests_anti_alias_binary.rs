@@ -5,11 +5,11 @@
 //! structural invariants of the level-set output.
 
 use super::AntiAliasBinaryImageFilter;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 
 fn make(binary: &[f32], dims: [usize; 3]) -> Image<B, 3> {
     ts::make_image::<B, 3>(binary.to_vec(), dims)

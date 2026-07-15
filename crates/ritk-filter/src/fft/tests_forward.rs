@@ -12,13 +12,13 @@
 //!    Proof: F(u,v) = Σ 0·e^{...} = 0.
 
 use crate::fft::ForwardFftFilter;
-use burn_ndarray::NdArray;
+use crate::native_support::LegacyBurnBackend;
 use ritk_image::tensor::{Shape, TensorData};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec;
 
-type B = NdArray<f32>;
+type B = LegacyBurnBackend;
 
 /// Build a 2-D real image with row-major data and shape `[h, w]`.
 fn make_real_2d(data: Vec<f32>, h: usize, w: usize) -> Image<B, 2> {
