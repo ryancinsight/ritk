@@ -422,7 +422,10 @@ cargo test -p ritk-model
 
 ## License
 
-See workspace `Cargo.toml` or individual crate manifests for license terms.
+RITK is dual-licensed under either of the following, at your option:
+
+- [Apache License, Version 2.0](LICENSE-APACHE)
+- [MIT License](LICENSE-MIT)
 
 ## Contributing
 

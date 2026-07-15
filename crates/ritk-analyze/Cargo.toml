@@ -3,7 +3,7 @@ name = "ritk-analyze"
 version = "0.1.0"
 edition = "2021"
 authors = ["Ryan Clanton"]
-license = "MIT OR Apache-2.0"
+license.workspace = true
 
 [dependencies]
 ritk-core = { workspace = true }

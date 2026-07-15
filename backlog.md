@@ -1,5 +1,13 @@
 # RITK Backlog - Active Planning
 
+- **SEC-656-01 [patch] - Declare the RITK dual-license metadata (IN PROGRESS;
+  owner=Codex; scope=workspace package manifests, license texts, README, PM
+  artifacts).** Declare `MIT OR Apache-2.0` once in the workspace package
+  metadata and inherit it from every RITK package. Provide both canonical
+  license texts and document the choice. Acceptance: `cargo metadata` reports
+  a license for all workspace packages; the next item upgrades the DICOM graph
+  to remove its vulnerable JPEG XL dependency chain.
+
 - **MIG-654-02 [patch] - Remove Snap's Burn filter dispatcher (DONE).**
   Snap now sends every current `FilterKind`, including CPR, through its native
   dispatcher. The unreachable Burn-backed fallback and private `NdArray`

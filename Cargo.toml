@@ -35,6 +35,9 @@ members = [
 ]
 resolver = "2"
 
+[workspace.package]
+license = "MIT OR Apache-2.0"
+
 [workspace.dependencies]
 ritk-filter = { path = "crates/ritk-filter" }
 ritk-segmentation = { path = "crates/ritk-segmentation" }

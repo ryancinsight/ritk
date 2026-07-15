@@ -8,6 +8,22 @@
 
 # RITK Gap Audit - Active
 
+## SEC-656-01 audit (2026-07-15)
+
+### License metadata has one workspace authority
+
+The workspace declares `MIT OR Apache-2.0` once and every package inherits that
+value through Cargo's workspace package metadata. The repository ships the
+canonical Apache-2.0 and MIT texts, and the README links to both texts.
+
+Evidence tier: Cargo metadata validation. The license choice is user-confirmed;
+the remaining verification is that every package exposes the same metadata to
+Cargo consumers.
+
+Residual: the current DICOM dependency graph resolves a vulnerable JPEG XL
+chain. Its upstream version migration is tracked as the next security
+increment; no vulnerability suppression is introduced.
+
 ## MIG-654-03 audit (2026-07-15)
 
 ### Statistics extrema own one native image boundary

@@ -3,7 +3,7 @@ name = "ritk-snap"
 version = "0.1.0"
 edition = "2021"
 description = "RITK DICOM image viewer — full-featured medical workstation viewer"
-license = "MIT OR Apache-2.0"
+license.workspace = true
 
 [[bin]]
 name = "ritk-snap"

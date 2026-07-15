@@ -3,7 +3,7 @@ name = "ritk-mgh"
 version = "0.2.0"
 edition = "2021"
 authors = ["Ryan Clanton"]
-license = "MIT OR Apache-2.0"
+license.workspace = true
 
 [dependencies]
 ritk-image = { path = "../ritk-image" }

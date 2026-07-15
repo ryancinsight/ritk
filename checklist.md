@@ -8,6 +8,18 @@
 
 # RITK Sprint Checklist — Active
 
+## SEC-656-01 — Workspace license metadata
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Declare the workspace package license as `MIT OR Apache-2.0` and inherit
+      it from every published package manifest. Completion condition: Cargo
+      metadata reports a license for all 32 workspace packages.
+- [x] Add the authoritative Apache-2.0 and MIT license texts at the repository
+      root and link them from the README.
+- [ ] Merge the metadata update before advancing the DICOM security dependency
+      graph. Completion condition: the RITK default branch contains this commit.
+
 ## DEP-655-01 — Reachable OpenJPEG differential oracle
 **Target version**: Unreleased patch
 **Sprint phase**: Closure; complete after PR #31 merge

@@ -8,6 +8,16 @@
 
 # CHANGELOG
 
+## [Unreleased] — Workspace license metadata (SEC-656-01)
+
+### Changed
+- The workspace and all RITK packages now declare `MIT OR Apache-2.0` through
+  one inherited Cargo metadata field.
+- The repository includes the canonical Apache-2.0 and MIT license texts.
+
+### Evidence
+- Cargo metadata reports a license value for each workspace package.
+
 ## [Unreleased] — Native statistics extrema (MIG-654-03)
 
 ### Changed

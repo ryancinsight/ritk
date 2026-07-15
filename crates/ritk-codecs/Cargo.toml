@@ -2,6 +2,7 @@
 name = "ritk-codecs"
 version = "0.5.3"
 edition = "2021"
+license.workspace = true
 description = "RITK-native codec implementations: JPEG, JPEG-LS, JPEG 2000, PackBits, RLE Lossless"
 
 [dependencies]
