@@ -77,7 +77,7 @@ onnx-ir = "0.20.1"
 pyo3 = { version = "0.22", features = ["abi3-py39"] }
 numpy = "0.22"
 dicom = { version = "0.10.0", default-features = false }
-moirai = { path = "../moirai/moirai", version = "0.2.0", features = ["melinoe"] }
+moirai = { path = "../moirai/moirai", version = "0.3.0", features = ["melinoe"] }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
 mnemosyne = { path = "../mnemosyne/crates/mnemosyne", version = "^0.2.0", default-features = false, features = ["std_tls", "eunomia"] }
 eunomia = { git = "https://github.com/ryancinsight/eunomia", default-features = false }

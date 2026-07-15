@@ -40,18 +40,18 @@ fn legacy_metadata_to_native<B: Backend>(
 }
 
 /// Reads NRRD through the native provider and converts at this legacy boundary.
-pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
+#[deprecated(note = "Use NrrdReader/NrrdWriter native trait instead")]\npub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
     ritk_nrrd::read_nrrd(path, &SequentialBackend).map(|native| native_to_legacy(native, device))
 }
 
 /// Writes a legacy image through the native NRRD provider.
-pub fn write_nrrd<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
+#[deprecated(note = "Use NrrdReader/NrrdWriter native trait instead")]\npub fn write_nrrd<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
     let native = legacy_metadata_to_native(image, image.try_data_vec()?)?;
     ritk_nrrd::write_nrrd(path, &native, &SequentialBackend)
 }
 
 /// Writes caller-provided voxels with legacy image metadata through the native provider.
-pub fn write_nrrd_with_data<B: Backend, P: AsRef<Path>>(
+#[deprecated(note = "Use NrrdReader/NrrdWriter native trait instead")]\npub fn write_nrrd_with_data<B: Backend, P: AsRef<Path>>(
     path: P,
     image: &Image<B, 3>,
     values: &[f32],

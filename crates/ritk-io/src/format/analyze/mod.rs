@@ -11,7 +11,7 @@ use std::path::Path;
 /// Legacy Burn bridge for callers that have not migrated to the native image
 /// contract. The Analyze leaf crate is native-only; this bridge performs the
 /// remaining tensor construction at the `ritk-io` consumer boundary.
-pub fn read_analyze<B: Backend, P: AsRef<Path>>(
+#[deprecated(note = "Use AnalyzeReader/AnalyzeWriter native trait instead")]\npub fn read_analyze<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B::Device,
 ) -> Result<BurnImage<B, 3>> {
@@ -29,7 +29,7 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
 /// Legacy Burn bridge for callers that have not migrated to the native image
 /// contract. The Analyze leaf crate owns serialization and receives a native
 /// image built from the caller's Burn image data.
-pub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &BurnImage<B, 3>) -> Result<()> {
+#[deprecated(note = "Use AnalyzeReader/AnalyzeWriter native trait instead")]\npub fn write_analyze<B: Backend, P: AsRef<Path>>(path: P, image: &BurnImage<B, 3>) -> Result<()> {
     let backend = SequentialBackend;
     let values = image
         .try_data_vec()

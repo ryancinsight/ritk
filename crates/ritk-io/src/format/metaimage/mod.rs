@@ -40,7 +40,7 @@ fn legacy_metadata_to_native<B: Backend>(
 }
 
 /// Reads MetaImage through the native provider and converts at this legacy boundary.
-pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
+#[deprecated(note = "Use MetaImageReader/MetaImageWriter native trait instead")]\npub fn read_metaimage<B: Backend, P: AsRef<Path>>(
     path: P,
     device: &B::Device,
 ) -> Result<Image<B, 3>> {
@@ -49,13 +49,13 @@ pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
 }
 
 /// Writes a legacy image through the native MetaImage provider.
-pub fn write_metaimage<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
+#[deprecated(note = "Use MetaImageReader/MetaImageWriter native trait instead")]\npub fn write_metaimage<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
     let native = legacy_metadata_to_native(image, image.try_data_vec()?)?;
     ritk_metaimage::write_metaimage(path, &native, &SequentialBackend)
 }
 
 /// Writes caller-provided voxels with legacy image metadata through the native provider.
-pub fn write_metaimage_with_data<B: Backend, P: AsRef<Path>>(
+#[deprecated(note = "Use MetaImageReader/MetaImageWriter native trait instead")]\npub fn write_metaimage_with_data<B: Backend, P: AsRef<Path>>(
     path: P,
     image: &Image<B, 3>,
     values: &[f32],
