@@ -49,7 +49,7 @@
   defect: parallel tests could derive the same temporary root from a
   timestamp-only name. The fix adds process-plus-atomic-sequence allocation;
   the full `xtask` suite passes 9/9 locally. The follow-up switches the
-  fixtures to `tempfile::TempDir` so panic paths also release their temporary
+  fixtures to an RAII `TempRoot` so panic paths also release their temporary
   trees; its final CI matrix remains required before merge.
 
 - **MIG-500-01 [major] - Hidden Burn dependency relocation (BLOCKED).**

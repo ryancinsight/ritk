@@ -44,7 +44,7 @@ an atomic sequence, skipping an already-existing candidate before returning
 it. The e747f1b7 cross-platform rerun then passed Python run `29414764238`, CI
 run `29414764341`, and audit run `29414764370`; macOS, Ubuntu, and Windows each
 ran the complete 5,229-test suite successfully. The follow-up now uses
-`tempfile::TempDir`, retaining collision-resistant allocation while releasing
+an RAII `TempRoot`, retaining collision-resistant allocation while releasing
 fixture trees on panic and normal completion. Evidence tier: source-level race
 analysis, focused/full nextest, warnings-denied Clippy, and required CI. The
 final matrix for the cleanup follow-up remains the acceptance gate.

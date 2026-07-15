@@ -91,7 +91,7 @@
   CI matrix in runs `29414764238`, `29414764341`, and `29414764370`.
 
 ### Changed
-- Migration-audit fixtures now use `tempfile::TempDir`, preserving unique
+- Migration-audit fixtures now use an RAII `TempRoot`, preserving unique
   allocation while releasing temporary trees during panic unwinding and normal
   test completion.
 

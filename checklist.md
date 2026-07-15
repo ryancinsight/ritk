@@ -105,11 +105,11 @@ profile-guided performance item.
 - [x] Re-run the complete CI matrix after the isolation fix. Head `e747f1b7`
       passed Python run `29414764238`, CI run `29414764341` (macOS 5,229/5,229,
       Ubuntu 5,229/5,229, Windows 5,229/5,229), and audit run `29414764370`.
-- [x] Replace manual fixture cleanup with `tempfile::TempDir` in the four
+- [x] Replace manual fixture cleanup with the RAII `TempRoot` in the four
       migration-audit tests. Focused and full `xtask` nextest plus
       warnings-denied Clippy pass locally; Drop now removes fixture trees when
       an assertion fails.
-- [ ] Run the final CI matrix for the `TempDir` cleanup commit before merging
+- [ ] Run the final CI matrix for the RAII cleanup commit before merging
       PR #33.
 
 Residual: the provider alignment is closed. The 14 Burn-dependent manifests
