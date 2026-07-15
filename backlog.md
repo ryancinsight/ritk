@@ -40,14 +40,17 @@
   `ritk-filter` nextest passed 1,135/1,135 and the required CI matrix passed in
   runs `29383996149` (Python 3.9-3.13 on Ubuntu/macOS/Windows), `29383996171`
   (format, Clippy, wheel smoke, and all three platform suites), and
-  `29383996188` (Burn migration audit). PR #33 remains open pending the
-  isolation-fix rerun below.
+  `29383996188` (Burn migration audit). The isolation-fix rerun for head
+  `e747f1b7` also passed: Python run `29414764238`, CI run `29414764341`, and
+  audit run `29414764370`. The provider-alignment PR is ready for merge after
+  the fixture-cleanup follow-up below.
 
   The final-head rerun at `f01e4456` exposed an existing `xtask` test-isolation
   defect: parallel tests could derive the same temporary root from a
   timestamp-only name. The fix adds process-plus-atomic-sequence allocation;
-  the full `xtask` suite passes 9/9 locally and a fresh CI matrix is required
-  before merge.
+  the full `xtask` suite passes 9/9 locally. The follow-up switches the
+  fixtures to `tempfile::TempDir` so panic paths also release their temporary
+  trees; its final CI matrix remains required before merge.
 
 - **MIG-500-01 [major] - Hidden Burn dependency relocation (BLOCKED).**
   The current 112-file working diff is green but prohibited: direct

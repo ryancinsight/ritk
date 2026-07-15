@@ -87,8 +87,13 @@
 
 ### Evidence
 - Focused nextest passes 1/1, the full `xtask` suite passes 9/9, and
-  warnings-denied Clippy passes. The complete CI matrix is rerunning after the
-  fix.
+  warnings-denied Clippy passes. Head `e747f1b7` passed the complete required
+  CI matrix in runs `29414764238`, `29414764341`, and `29414764370`.
+
+### Changed
+- Migration-audit fixtures now use `tempfile::TempDir`, preserving unique
+  allocation while releasing temporary trees during panic unwinding and normal
+  test completion.
 
 ## [Unreleased] — Sprint 499: canonical native binary erosion (MIG-499-01)
 

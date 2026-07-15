@@ -102,11 +102,15 @@ profile-guided performance item.
       share a directory; process identity plus an atomic sequence now creates
       collision-free roots. Focused nextest passes 1/1, the full `xtask`
       nextest suite passes 9/9, and warnings-denied Clippy passes.
-- [ ] Re-run the complete CI matrix after the isolation fix. The final-head
-      documentation commit `f01e4456` failed the macOS, Ubuntu, and Windows
-      workspace suites only at `xtask::migration_audit::tests::audit_does_not_classify_coeus_tensor_syntax_as_burn`;
-      the failure is the recorded contention symptom, not a provider API
-      failure.
+- [x] Re-run the complete CI matrix after the isolation fix. Head `e747f1b7`
+      passed Python run `29414764238`, CI run `29414764341` (macOS 5,229/5,229,
+      Ubuntu 5,229/5,229, Windows 5,229/5,229), and audit run `29414764370`.
+- [x] Replace manual fixture cleanup with `tempfile::TempDir` in the four
+      migration-audit tests. Focused and full `xtask` nextest plus
+      warnings-denied Clippy pass locally; Drop now removes fixture trees when
+      an assertion fails.
+- [ ] Run the final CI matrix for the `TempDir` cleanup commit before merging
+      PR #33.
 
 Residual: the provider alignment is closed. The 14 Burn-dependent manifests
 and 645 Burn-surface source files remain the explicitly tracked, dependency-

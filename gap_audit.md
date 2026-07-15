@@ -39,12 +39,15 @@ from wall-clock nanoseconds only, allowing parallel test processes to share a
 root when the clock returned the same tick. Another fixture then added a
 legacy token and contaminated the Coeus-only assertion.
 
-`xtask/src/migration_audit.rs` now reserves each root with a process ID and an
-atomic sequence, skipping an already-existing candidate before returning it.
-This removes the shared mutable filesystem state without serializing the
-tests. Evidence tier: source-level race analysis, focused nextest 1/1, full
-`xtask` nextest 9/9, and warnings-denied Clippy. A complete CI rerun remains
-the acceptance gate.
+`xtask/src/migration_audit.rs` first reserved each root with a process ID and
+an atomic sequence, skipping an already-existing candidate before returning
+it. The e747f1b7 cross-platform rerun then passed Python run `29414764238`, CI
+run `29414764341`, and audit run `29414764370`; macOS, Ubuntu, and Windows each
+ran the complete 5,229-test suite successfully. The follow-up now uses
+`tempfile::TempDir`, retaining collision-resistant allocation while releasing
+fixture trees on panic and normal completion. Evidence tier: source-level race
+analysis, focused/full nextest, warnings-denied Clippy, and required CI. The
+final matrix for the cleanup follow-up remains the acceptance gate.
 
 ## DEP-655-01 audit (2026-07-14)
 
