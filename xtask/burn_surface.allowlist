@@ -622,13 +622,11 @@ source:crates/ritk-statistics/src/normalization/tests_white_stripe/mod.rs
 source:crates/ritk-statistics/src/normalization/tests_zscore.rs
 source:crates/ritk-statistics/src/normalization/white_stripe.rs
 source:crates/ritk-statistics/src/normalization/zscore.rs
-source:crates/ritk-statistics/src/position_extrema.rs
 source:crates/ritk-statistics/src/tests_histogram.rs
 source:crates/ritk-statistics/src/tests_jacobian.rs
 source:crates/ritk-statistics/src/tests_label_shape_extended.rs
 source:crates/ritk-statistics/src/tests_label_statistics.rs
 source:crates/ritk-statistics/src/tests_noise_estimation.rs
-source:crates/ritk-statistics/src/tests_position_extrema.rs
 source:crates/ritk-statistics/src/value_indices/compute.rs
 source:crates/ritk-statistics/src/value_indices/tests.rs
 source:crates/ritk-tensor-ops/src/lib.rs

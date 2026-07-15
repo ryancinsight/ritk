@@ -12,13 +12,15 @@
   provider cutover, not a compatibility alias or fallback.
 
 - **MIG-654-03 [major] - Convert statistics position extrema to native images
-  (IN PROGRESS; owner: Codex /root; scope: `ritk-statistics` position-extrema
-  operation, its tests, and PM records).** Replace the unused legacy
-  `Image<B, D>` extrema boundary with the native image contract under the same
-  public function names. Preserve row-major first-index tie semantics and
-  explicit host-access failure propagation; do not retain a generic legacy
-  overload. Completion requires source and value-semantic tests to use a real
-  native backend, with no compatibility alias.
+  (DONE).** `minimum_position` and `maximum_position` now take native images
+  under their existing names and return `Result<Option<[usize; D]>>`, separating
+  host-access failure from an empty image. The generic legacy overload is
+  deleted; all 14 extrema tests now use `MoiraiBackend` and preserve row-major,
+  first-index ties. `ritk-statistics` advances to 0.2.0. The audit remains
+  clean at 13 manifests and falls from 643 to 641 source files (statistics
+  43→41); its direct legacy test dependency remains until the other operation
+  families are migrated. SemVer source comparison is graph-blocked by the
+  baseline Themis constraint mismatch recorded in `gap_audit.md`.
 
 - **DEP-655-01 [patch] - Reachable OpenJPEG differential oracle
   (DONE; PR #31 merged).** Replace the private `ryancinsight/openjp2`
@@ -36,7 +38,7 @@
   CLI native-capability assertions and call sites, refresh the Burn migration
   allowlist from the real source tree, and close rustdoc link warnings. The
   branch is ready for review after the workspace gates pass. Residual: 13
-  manifests and 643 source files still carry intentional Burn surfaces; the
+  manifests and 641 source files still carry intentional Burn surfaces; the
   next work is a dependency-ordered Coeus consumer cutover, not an alias or
   fallback.
 

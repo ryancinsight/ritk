@@ -8,6 +8,35 @@
 
 # CHANGELOG
 
+## [Unreleased] — Native statistics extrema (MIG-654-03)
+
+### Changed
+- `minimum_position` and `maximum_position` now accept native images and
+  preserve their row-major, first-index extrema semantics through one shared
+  host-slice core.
+
+### Breaking
+- Both functions now return `Result<Option<[usize; D]>>`; callers must provide
+  a native image and propagate host-access failures. The former legacy generic
+  image overload is removed without a compatibility adapter.
+
+### Migration
+- Replace `minimum_position(&legacy_image)` with
+  `minimum_position(&native_image)?`, and make the corresponding change for
+  `maximum_position`.
+
+### Evidence
+- The 14 extrema regressions and all 330 `ritk-statistics` tests pass on the
+  native boundary with warnings-denied Clippy, doctests, and rustdoc.
+- The clean migration audit remains at 13 manifests and falls from 643 to 641
+  source files; statistics falls from 43 to 41 source tokens.
+
+### Residual
+- `cargo semver-checks` cannot resolve its temporary graph because the pinned
+  Themis revision is 0.9.17 while local Moirai requires `^0.10`; no SemVer pass
+  is claimed. Remaining statistics operation families retain the direct legacy
+  test dependency until their native cutover.
+
 ## [Unreleased] — Native Snap filter dispatcher (MIG-654-02)
 
 ### Removed

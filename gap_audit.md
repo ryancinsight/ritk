@@ -8,6 +8,38 @@
 
 # RITK Gap Audit - Active
 
+## MIG-654-03 audit (2026-07-15)
+
+### Statistics extrema own one native image boundary
+
+Repository search found no in-tree caller of the legacy extrema signature, so
+`minimum_position` and `maximum_position` now consume
+`native::Image<f32, B, D>` directly. The O(n) row-major core is unchanged:
+minimum and maximum ties select the lowest flat index. The native boundary
+returns `Result<Option<[usize; D]>>`, distinguishing non-host-addressable
+storage from an empty image. The old generic image overload is deleted rather
+than forwarded.
+
+Evidence tier: source inspection, compile-time native boundary, and
+value-semantic regression. All 14 extrema tests execute on `MoiraiBackend`,
+including 1-D and 3-D values, first-index ties, negative values, and the
+24-index row-major round trip. Package nextest passes 330/330; warnings-denied
+Clippy, doctests, and rustdoc pass. The migration audit remains clean at 13
+manifests and falls from 643 to 641 source files; statistics falls from 43 to
+41 tokens.
+
+### SemVer verification blocker
+
+`cargo semver-checks check-release -p ritk-statistics --baseline-rev
+origin/main --release-type major --all-features` cannot construct its temporary
+current package graph. It resolves Themis 0.9.17 from the pinned Git revision,
+while local `moirai-iter` requires `themis ^0.10`; Cargo aborts before API
+analysis. This is a provider-resolution blocker, not a passing SemVer result.
+
+Residual: `ritk-statistics` retains its direct legacy test dependency because
+the remaining generic operation families are still live. Their removal remains
+dependency-ordered; no compatibility alias was introduced.
+
 ## MIG-654-02 audit (2026-07-15)
 
 ### Snap filter dispatch now has one native path
@@ -135,7 +167,7 @@ completed warning-free. `cargo run -p xtask -- burn-migration-audit` reports
 
 ### Residual risk
 
-The audit now reports 13 manifests and 643 source files with Burn-surface tokens.
+The audit now reports 13 manifests and 641 source files with Burn-surface tokens.
 The owning consumers remain on the dependency-ordered migration board; this
 increment does not claim global Burn deletion. The full run also recorded three
 registration tests over the 30-second slow threshold: `multires_registration_test`

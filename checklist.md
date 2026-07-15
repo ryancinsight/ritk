@@ -57,7 +57,7 @@ RITK CI verification remain tracked under DEP-501-01.
 
 ### Residual scope
 
-The audit now reports 13 Burn-dependent manifests and 643 source files. This
+The audit now reports 13 Burn-dependent manifests and 641 source files. This
 is an explicit migration residual, not a hidden compatibility layer. The next
 increment must port one consumer family to Coeus/Leto and delete its owning
 Burn dependency before refreshing the audit again. Three registration tests
@@ -86,18 +86,26 @@ nextest passes 691/691; filter nextest passes 1,135/1,135; warnings-denied
 Clippy, four executed doctests, and package rustdoc pass.
 
 ## MIG-654-03 — Native statistics position extrema
-**Target version**: Unreleased major
-**Sprint phase**: Execution
+**Target version**: 0.2.0 major
+**Sprint phase**: Closure complete
 
 - [x] Verify no in-repo caller depends on the legacy `Image<B, D>` extrema
       signature. Completion condition: repository search finds only the
       operation's own tests and historical records.
-- [ ] Replace the legacy image boundary with the native image contract under
+- [x] Replace the legacy image boundary with the native image contract under
       the existing `minimum_position` and `maximum_position` names.
-- [ ] Port every position-extrema test to a real native backend, preserving
+- [x] Port every position-extrema test to a real native backend, preserving
       values, first-index ties, and row-major coordinate assertions.
-- [ ] Run focused compile, warnings-denied Clippy, nextest, doctest, and
+- [x] Run focused compile, warnings-denied Clippy, nextest, doctest, and
       rustdoc gates, then record remaining statistics migration scope.
+
+Completion: `ritk-statistics` 0.2.0 removes the unused legacy overload and
+uses a fallible native host slice. Focused nextest passes 14/14 and package
+nextest passes 330/330. The audit remains clean at 13 manifests / 641 source
+files, with statistics 43→41. `cargo semver-checks check-release -p
+ritk-statistics --baseline-rev origin/main --release-type major --all-features`
+is blocked before analysis because its temporary dependency graph resolves
+Themis 0.9.17 while local Moirai requires `^0.10`.
 
 ## DEP-501-01 — Apollo FFT provider alignment
 **Target version**: Unreleased patch
@@ -133,7 +141,7 @@ Clippy, four executed doctests, and package rustdoc pass.
       PR #33.
 
 Residual: the provider alignment is closed. The 13 Burn-dependent manifests
-and 643 Burn-surface source files remain the explicitly tracked, dependency-
+and 641 Burn-surface source files remain the explicitly tracked, dependency-
 ordered Coeus/Leto consumer migration under MIG-500-01 and are not hidden by
 this pin-only increment.
 
