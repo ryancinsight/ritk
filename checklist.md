@@ -72,10 +72,13 @@ profile-guided performance item.
 - [x] Raise the RITK Apollo FFT constraint to the current local 0.15 provider.
 - [x] Replace the temporary Apollo checkout with merged main commit
       `6e99a567c118f6bf5790f80346475b44db2c7555` and align the shared Atlas
-      checkout action to merged Coeus, Gaia, Hephaestus, Hermes, Leto, Melinoe,
-      Mnemosyne, Moirai, and Themis heads. Leto is `efa235a5` after PR #34.
+      checkout action to merged Coeus `2026a0b65e363496b5ab79b09612f26b7729f9d5`,
+      Gaia, Hephaestus, Hermes, Leto, Melinoe, Mnemosyne, Moirai, and Themis
+      heads. Leto is `efa235a5` after PR #34. Coeus PR #209 is merged.
 - [ ] Verify `ritk-filter` and the downstream Kwavers dependency graph on the
-      merged provider graph.
+      the merged provider graph. The first CI attempt exposed the upstream
+      Coeus `mnemosyne ^0.3.0` constraint; the checkout action now uses the
+      merged Coeus provider fix and requires a fresh run.
 
 ## MIG-500-01 — Reject hidden Burn dependency relocation
 **Target version**: 0.14.0 migration batch

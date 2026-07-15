@@ -14,13 +14,18 @@
 
 The Apollo checkout action now pins merged Apollo main commit
 `6e99a567c118f6bf5790f80346475b44db2c7555`, which publishes the required
-`apollo-fft` 0.15 provider. The action also selects merged Coeus `e0a5377`,
+`apollo-fft` 0.15 provider. The action also selects merged Coeus
+`2026a0b65e363496b5ab79b09612f26b7729f9d5`,
 Gaia `9e48102`, Hephaestus `dd93144`, Hermes `1423e41`, Leto `efa235a`,
 Melinoe `bb07447`, Mnemosyne `32b4a2a`, Moirai `8cd356c`, and Themis `18807bb`
 heads. This removes stale branch pins without introducing an adapter or
-fallback. Lockfile regeneration and consumer CI remain the acceptance gate.
+fallback. The first consumer run failed before compilation because Coeus main
+still required Mnemosyne `^0.3.0`; Coeus PR #209 merged the provider-owned
+`^0.4.0` and Hephaestus/Themis constraint update. A fresh consumer run is the
+remaining acceptance gate.
 
-Evidence tier: source and provider-reference inspection; consumer CI pending.
+Evidence tier: source and provider-reference inspection plus merged upstream
+PR; consumer CI rerun pending.
 
 ## DEP-655-01 audit (2026-07-14)
 

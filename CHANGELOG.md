@@ -59,11 +59,17 @@
 
 ### Changed
 - `ritk-filter` now accepts the current Apollo FFT 0.15 provider generation.
-- The shared Atlas dependency checkout now uses merged Coeus `e0a5377`, Gaia
-  `9e48102`, Hephaestus `dd93144`, Hermes `1423e41`, Leto `efa235a`, Melinoe
-  `bb07447`, Mnemosyne `32b4a2a`, Moirai `8cd356c`, and Themis `18807bb` heads.
+- The shared Atlas dependency checkout now uses merged Coeus
+  `2026a0b65e363496b5ab79b09612f26b7729f9d5`, Gaia `9e48102`, Hephaestus
+  `dd93144`, Hermes `1423e41`, Leto `efa235a`, Melinoe `bb07447`, Mnemosyne
+  `32b4a2a`, Moirai `8cd356c`, and Themis `18807bb` heads.
 - Cargo.lock resolves the merged provider graph without the temporary Apollo
   branch pin.
+
+### Provider blocker
+- The first consumer CI run exposed a Coeus `mnemosyne ^0.3.0` constraint
+  against Mnemosyne 0.4.0. Coeus PR #209 merged the provider-owned constraint
+  update; a fresh consumer CI run remains required.
 
 ## [Unreleased] — Sprint 499: canonical native binary erosion (MIG-499-01)
 

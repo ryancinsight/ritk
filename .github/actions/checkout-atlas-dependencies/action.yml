@@ -15,7 +15,7 @@ runs:
       uses: actions/checkout@v6
       with:
         repository: ryancinsight/Coeus
-        ref: e0a53778218a18a6e617f2ce74c8a1f95197829f
+        ref: 2026a0b65e363496b5ab79b09612f26b7729f9d5
         path: coeus
         persist-credentials: false
     - name: Checkout Eunomia
