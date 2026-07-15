@@ -11,6 +11,15 @@
   1,135/1,135 filter nextest, doctests, and rustdoc pass. This is a direct
   provider cutover, not a compatibility alias or fallback.
 
+- **MIG-654-03 [major] - Convert statistics position extrema to native images
+  (IN PROGRESS; owner: Codex /root; scope: `ritk-statistics` position-extrema
+  operation, its tests, and PM records).** Replace the unused legacy
+  `Image<B, D>` extrema boundary with the native image contract under the same
+  public function names. Preserve row-major first-index tie semantics and
+  explicit host-access failure propagation; do not retain a generic legacy
+  overload. Completion requires source and value-semantic tests to use a real
+  native backend, with no compatibility alias.
+
 - **DEP-655-01 [patch] - Reachable OpenJPEG differential oracle
   (DONE; PR #31 merged).** Replace the private `ryancinsight/openjp2`
   revision that GitHub Actions cannot fetch with public OpenJPEG PR 9, remove

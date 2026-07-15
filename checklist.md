@@ -85,6 +85,20 @@ audit reports 13 manifests and 643 source files with a clean allowlist. Snap
 nextest passes 691/691; filter nextest passes 1,135/1,135; warnings-denied
 Clippy, four executed doctests, and package rustdoc pass.
 
+## MIG-654-03 — Native statistics position extrema
+**Target version**: Unreleased major
+**Sprint phase**: Execution
+
+- [x] Verify no in-repo caller depends on the legacy `Image<B, D>` extrema
+      signature. Completion condition: repository search finds only the
+      operation's own tests and historical records.
+- [ ] Replace the legacy image boundary with the native image contract under
+      the existing `minimum_position` and `maximum_position` names.
+- [ ] Port every position-extrema test to a real native backend, preserving
+      values, first-index ties, and row-major coordinate assertions.
+- [ ] Run focused compile, warnings-denied Clippy, nextest, doctest, and
+      rustdoc gates, then record remaining statistics migration scope.
+
 ## DEP-501-01 — Apollo FFT provider alignment
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
