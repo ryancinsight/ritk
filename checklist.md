@@ -10,7 +10,7 @@
 
 ## DEP-655-01 — Reachable OpenJPEG differential oracle
 **Target version**: Unreleased patch
-**Sprint phase**: Closure; GitHub CI verification pending
+**Sprint phase**: Closure; complete after PR #31 merge
 
 - [x] Replace the unreachable private OpenJPEG patch with public PR 9 and
       retain the decoder deallocation guard. Completion condition: the lock
@@ -25,8 +25,11 @@
       source is rustfmt-clean and the dependency checkout action pins Apollo
       `f1a44a7`, whose provider target boundary compiles for Apple Silicon and
       provides `apollo-fft` 0.15.
-- [ ] Re-run GitHub Actions and close the item when the dependency-fetch,
-      Clippy, dependency-alignment, wheel-smoke, and Python matrix jobs pass.
+- [x] Re-run GitHub Actions and close the item. Completion condition met by
+      CI runs 29376001568, 29376001595, and 29376001632: dependency alignment,
+      Rustfmt, warnings-denied Clippy, migration audit, wheel smoke, all three
+      platform suites, and the complete Python matrix passed. PR #31 merged at
+      `be75a93a94424833882d73b45d0711dc2fab4930`.
 
 Residual: Apollo is pinned to public `f1a44a775cb5d5e58ffb2935e856fba6bb4205a7`
 because Apollo main still publishes `apollo-fft` 0.14.0. Remove this temporary

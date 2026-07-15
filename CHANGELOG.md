@@ -22,11 +22,13 @@
 ### Evidence
 - The 14-test JPEG 2000 differential suite and all 256 `ritk-codecs` tests
   pass with warnings-denied Clippy, doctests, and rustdoc.
+- GitHub Actions runs 29376001568, 29376001595, and 29376001632 pass the
+  complete required matrix, and PR #31 merges at
+  `be75a93a94424833882d73b45d0711dc2fab4930`.
 
 ### Residual
-- GitHub Actions must re-run against the corrected dependency checkout before
-  this item is closed. The Apollo pin remains on its public RustFFT-removal
-  branch until the 0.15 provider state reaches Apollo main.
+- The Apollo pin remains on its public RustFFT-removal branch until the 0.15
+  provider state reaches Apollo main.
 
 ## [Unreleased] — Native migration branch reconciliation (MIG-654-01)
 
