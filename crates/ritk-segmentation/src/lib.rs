@@ -20,6 +20,7 @@ pub mod labeling;
 pub mod level_set;
 pub mod morphology;
 mod native_output;
+mod native_support;
 pub mod region_growing;
 pub mod threshold;
 pub mod watershed;

@@ -32,7 +32,7 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
-use super::{connected_components, Connectivity};
+use super::{connected_components_values, Connectivity};
 
 /// Threshold-maximum-connected-components filter
 /// (`itk::ThresholdMaximumConnectedComponentsImageFilter`).
@@ -71,73 +71,111 @@ impl ThresholdMaximumConnectedComponentsFilter {
     /// Find the component-maximizing threshold and return the binary mask.
     pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
         let (vals, dims) = extract_vec_infallible(image);
+        rebuild(
+            threshold_max_cc_values(
+                &vals,
+                dims,
+                self.minimum_object_size,
+                self.upper_boundary,
+                self.inside_value,
+                self.outside_value,
+            ),
+            dims,
+            image,
+        )
+    }
 
-        let mut img_min = i64::MAX;
-        let mut img_max = i64::MIN;
-        for &v in &vals {
-            let iv = v.round() as i64;
-            img_min = img_min.min(iv);
-            img_max = img_max.max(iv);
-        }
-        // The threshold band ceiling is fixed at `m_UpperBoundary` (clamped to
-        // the image max, since no pixel exceeds it). The bisection's `lo`/`hi`
-        // search bounds both move; the mask ceiling stays `mask_upper`.
-        let mask_upper = self.upper_boundary.map_or(img_max, |ub| img_max.min(ub));
+    /// Find the component-maximizing threshold and return a Coeus-native mask.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the native output image cannot be constructed.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        crate::native_support::map_flat_image(image, backend, |vals, dims| {
+            threshold_max_cc_values(
+                vals,
+                dims,
+                self.minimum_object_size,
+                self.upper_boundary,
+                self.inside_value,
+                self.outside_value,
+            )
+        })
+    }
+}
 
-        // count(t): connected components of size ≥ minimum_object_size in the
-        // mask `t ≤ I ≤ mask_upper` (face connectivity).
-        let count = |t: i64| -> usize {
-            let mask: Vec<f32> = vals
-                .iter()
-                .map(|&v| {
-                    let iv = v.round() as i64;
-                    f32::from(iv >= t && iv <= mask_upper)
-                })
-                .collect();
-            let mask_img = rebuild(mask, dims, image);
-            let (labels_img, _) = connected_components(&mask_img, Connectivity::Six);
-            let (labels, _) = extract_vec_infallible(&labels_img);
-            let mut hist: HashMap<i64, usize> = HashMap::new();
-            for &l in &labels {
-                if l != 0.0 {
-                    *hist.entry(l.round() as i64).or_insert(0) += 1;
-                }
-            }
-            hist.values()
-                .filter(|&&c| c >= self.minimum_object_size)
-                .count()
-        };
+fn threshold_max_cc_values(
+    vals: &[f32],
+    dims: [usize; 3],
+    minimum_object_size: usize,
+    upper_boundary: Option<i64>,
+    inside_value: f32,
+    outside_value: f32,
+) -> Vec<f32> {
+    let mut img_min = i64::MAX;
+    let mut img_max = i64::MIN;
+    for &v in vals {
+        let iv = v.round() as i64;
+        img_min = img_min.min(iv);
+        img_max = img_max.max(iv);
+    }
+    let mask_upper = upper_boundary.map_or(img_max, |ub| img_max.min(ub));
 
-        let mut lo = img_min;
-        let mut hi = mask_upper;
-        let mut mid = (hi - lo) / 2;
-        while hi - lo > 2 {
-            let midl = lo + (mid - lo) / 2;
-            let midr = hi - (hi - mid) / 2;
-            if count(midr) > count(midl) {
-                lo = mid;
-                mid = midr;
-            } else {
-                hi = mid;
-                mid = midl;
-            }
-        }
-        let threshold = mid;
-
-        let (inside, outside) = (self.inside_value, self.outside_value);
-        let out: Vec<f32> = vals
+    let count = |t: i64| -> usize {
+        let mask: Vec<f32> = vals
             .iter()
             .map(|&v| {
                 let iv = v.round() as i64;
-                if iv >= threshold && iv <= mask_upper {
-                    inside
-                } else {
-                    outside
-                }
+                f32::from(iv >= t && iv <= mask_upper)
             })
             .collect();
-        rebuild(out, dims, image)
+        let (labels, _) = connected_components_values(&mask, dims, Connectivity::Six, 0.0);
+        let mut hist: HashMap<i64, usize> = HashMap::new();
+        for &label in &labels {
+            if label != 0.0 {
+                *hist.entry(label.round() as i64).or_insert(0) += 1;
+            }
+        }
+        hist.values()
+            .filter(|&&count| count >= minimum_object_size)
+            .count()
+    };
+
+    let mut lo = img_min;
+    let mut hi = mask_upper;
+    let mut mid = (hi - lo) / 2;
+    while hi - lo > 2 {
+        let midl = lo + (mid - lo) / 2;
+        let midr = hi - (hi - mid) / 2;
+        if count(midr) > count(midl) {
+            lo = mid;
+            mid = midr;
+        } else {
+            hi = mid;
+            mid = midl;
+        }
     }
+    let threshold = mid;
+
+    vals.iter()
+        .map(|&v| {
+            let iv = v.round() as i64;
+            if iv >= threshold && iv <= mask_upper {
+                inside_value
+            } else {
+                outside_value
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]

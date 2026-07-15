@@ -162,6 +162,24 @@ impl ChanVeseSegmentation {
             *image.direction(),
         ))
     }
+
+    /// Segment a Coeus-native image into a binary mask via Chan-Vese evolution.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the native output image cannot be constructed.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        crate::native_support::map_flat_image(image, backend, |img, dims| self.evolve(img, dims))
+    }
 }
 
 impl Default for ChanVeseSegmentation {

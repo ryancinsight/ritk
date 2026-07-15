@@ -58,6 +58,31 @@ impl BinaryDilation {
         let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
         Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
     }
+
+    /// Apply dilation to a Coeus-native binary mask image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the mask tensor is not host-addressable/contiguous
+    /// or the native output image cannot be constructed.
+    pub fn apply_native<B, const D: usize>(
+        &self,
+        mask: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        ritk_image::native::Image::from_flat_on(
+            dilate_nd(mask.data_slice()?, &mask.shape(), self.radius),
+            mask.shape(),
+            *mask.origin(),
+            *mask.spacing(),
+            *mask.direction(),
+            backend,
+        )
+    }
 }
 
 impl Default for BinaryDilation {

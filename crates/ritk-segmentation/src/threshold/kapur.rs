@@ -82,6 +82,24 @@ impl KapurThreshold {
     pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
         <Self as AutoThreshold>::apply(self, image)
     }
+
+    /// Apply the auto-threshold to a Coeus-native image.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the native output image cannot be constructed.
+    pub fn apply_native<B, const D: usize>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        <Self as AutoThreshold>::apply_native(self, image, backend)
+    }
 }
 
 impl Default for KapurThreshold {

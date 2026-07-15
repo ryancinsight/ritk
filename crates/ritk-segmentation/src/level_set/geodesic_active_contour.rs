@@ -266,6 +266,104 @@ impl GeodesicActiveContourSegmentation {
             *image.direction(),
         ))
     }
+
+    /// Apply GAC segmentation to Coeus-native images.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same shape-validation errors as [`Self::apply`], plus an
+    /// error when either tensor is not host-addressable/contiguous or the native
+    /// output image cannot be constructed.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        initial_phi: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let dims = image.shape();
+        let [nz, ny, nx] = dims;
+        let phi_dims = initial_phi.shape();
+        if dims != phi_dims {
+            anyhow::bail!(
+                "image shape {:?} and initial_phi shape {:?} must match",
+                dims,
+                phi_dims
+            );
+        }
+
+        let img_vals = image.data_slice()?;
+        let phi_init = initial_phi.data_slice()?;
+        let img_wide: Vec<f64> = img_vals.iter().map(|&v| v as f64).collect();
+        let mut phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
+
+        let smoothed = helpers::smooth_or_borrow(&img_wide, dims, self.sigma.get());
+        let grad_mag = helpers::compute_gradient_magnitude(&smoothed, dims);
+        let g = helpers::compute_edge_stopping(&grad_mag, self.edge_k);
+        let (g_grad_z, g_grad_y, g_grad_x) = helpers::compute_field_gradient(&g, dims);
+
+        let n = phi.len();
+        let mut kappa = vec![0.0_f64; n];
+        let mut phi_new = phi.clone();
+        let mut phi_gz = vec![0.0_f64; n];
+        let mut phi_gy = vec![0.0_f64; n];
+        let mut phi_gx = vec![0.0_f64; n];
+        let mut adv = vec![0.0_f64; n];
+        let mut sum_sqs = vec![0.0_f64; nz];
+
+        for _iter in 0..self.max_iterations {
+            helpers::compute_curvature_into(&phi, dims, &mut kappa);
+            helpers::compute_field_gradient_into(&phi, dims, &mut phi_gz, &mut phi_gy, &mut phi_gx);
+            helpers::upwind_advection_into(&phi, dims, &g_grad_z, &g_grad_y, &g_grad_x, &mut adv);
+
+            let slice_len = ny * nx;
+
+            helpers::evolve_slices_with_metric(
+                &mut phi_new,
+                &mut sum_sqs,
+                slice_len,
+                |iz, phi_new_s| {
+                    let base = iz * slice_len;
+                    let mut local_sum_sq = 0.0_f64;
+                    for (i, phi_new_val) in phi_new_s.iter_mut().enumerate() {
+                        let idx = base + i;
+                        let grad_phi_mag = (phi_gz[idx] * phi_gz[idx]
+                            + phi_gy[idx] * phi_gy[idx]
+                            + phi_gx[idx] * phi_gx[idx])
+                            .sqrt();
+
+                        let curv = self.curvature_weight * g[idx] * kappa[idx] * grad_phi_mag;
+                        let prop = self.propagation_weight * g[idx] * grad_phi_mag;
+                        let advection = self.advection_weight * adv[idx];
+
+                        let dphi = self.dt * (curv - prop + advection);
+                        *phi_new_val = phi[idx] + dphi;
+                        local_sum_sq += dphi * dphi;
+                    }
+                    local_sum_sq
+                },
+            );
+
+            std::mem::swap(&mut phi, &mut phi_new);
+
+            let sum_sq: f64 = sum_sqs.iter().sum();
+            let rms = (sum_sq / n as f64).sqrt();
+            if rms < self.tolerance {
+                break;
+            }
+        }
+
+        crate::native_output::from_values(
+            image,
+            phi.iter()
+                .map(|&v| if v < 0.0 { 1.0_f32 } else { 0.0_f32 })
+                .collect(),
+            backend,
+        )
+    }
 }
 
 impl Default for GeodesicActiveContourSegmentation {
