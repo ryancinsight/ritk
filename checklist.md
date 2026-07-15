@@ -65,6 +65,20 @@ crossed the 30-second slow threshold in the full run (30.510s, 35.422s, and
 37.823s); their workload and assertions remain unchanged and require a future
 profile-guided performance item.
 
+## MIG-654-02 — Remove Snap's Burn filter dispatcher
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Verify the native dispatcher covers every public `FilterKind` and locate
+      each remaining Snap Burn reference. Completion condition: the enum and
+      native dispatch have the same filter coverage, including CPR.
+- [ ] Delete the Burn-backed dispatcher and private backend alias, preserving
+      error propagation and loaded-volume metadata through the native path.
+- [ ] Decouple `GaussianFilter` native construction from its legacy backend
+      phantom without changing the legacy generic call sites.
+- [ ] Refresh the migration audit only after source/dependency deletion and run
+      focused Snap/filter compile, Clippy, nextest, doctest, and rustdoc gates.
+
 ## DEP-501-01 — Apollo FFT provider alignment
 **Target version**: Unreleased patch
 **Sprint phase**: Closure

@@ -1,5 +1,16 @@
 # RITK Backlog - Active Planning
 
+- **MIG-654-02 [patch] - Remove Snap's Burn filter dispatcher
+  (IN PROGRESS; owner: Codex /root; scope: `ritk-snap` filter dispatch,
+  `ritk-filter` Gaussian configuration, migration audit, and PM records).**
+  The native dispatch already covers every `FilterKind`; delete the unreachable
+  Burn-backed fallback and its private `NdArray` backend, then make native
+  Gaussian configuration independent of the legacy backend phantom. Completion
+  requires that `ritk-snap` no longer declares or names `burn-ndarray`, the
+  migration audit reports the reduced real surface, and focused package gates
+  pass. This is a direct provider cutover, not a compatibility alias or a
+  fallback.
+
 - **DEP-655-01 [patch] - Reachable OpenJPEG differential oracle
   (DONE; PR #31 merged).** Replace the private `ryancinsight/openjp2`
   revision that GitHub Actions cannot fetch with public OpenJPEG PR 9, remove
