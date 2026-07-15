@@ -1,10 +1,8 @@
 //! Automatic thresholding methods: Otsu, Li, Yen, Kapur, Triangle, Multi-Otsu, binary threshold.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{
-    burn_into_py_image, into_py_image, py_image_to_burn, vec_to_image_like, with_image_slice,
-    PyImage,
-};
+use crate::image::{into_py_image, vec_to_image_like, with_image_slice, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_segmentation::threshold::huang::compute_huang_threshold_from_slice;
 use ritk_segmentation::threshold::intermodes::compute_intermodes_threshold_from_slice;
@@ -392,11 +390,13 @@ pub fn binary_threshold_segment(
             "outside_value must be finite, got {outside_value}"
         )));
     }
-    let image = py_image_to_burn(image);
-    let result = py.allow_threads(|| {
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
         BinaryThreshold::new(lower, upper)
             .with_values(inside_value, outside_value)
-            .apply(&image)
-    });
-    Ok(burn_into_py_image(result))
+            .apply_native(native.as_ref(), &backend)
+            .map_err(|e| RitkPyError::runtime(e.to_string()))
+    })
+    .map(into_py_image)
 }

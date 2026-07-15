@@ -1,10 +1,12 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{into_py_image, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{
     BlackTopHatFilter, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
     GrayscaleOpeningFilter, WhiteTopHatFilter,
 };
+use std::sync::Arc;
 
 /// Apply grayscale morphological erosion with a flat cubic structuring element.
 ///
@@ -23,14 +25,15 @@ use ritk_filter::{
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
 pub fn grayscale_erosion(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
-    let image = py_image_to_burn(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         let filter = GrayscaleErosion::new(radius);
         filter
-            .apply(&image)
+            .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Apply grayscale morphological dilation with a flat cubic structuring element.
@@ -50,40 +53,43 @@ pub fn grayscale_erosion(py: Python<'_>, image: &PyImage, radius: usize) -> Ritk
 #[pyfunction]
 #[pyo3(signature = (image, radius=1))]
 pub fn grayscale_dilation(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
-    let image = py_image_to_burn(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         let filter = GrayscaleDilation::new(radius);
         filter
-            .apply(&image)
+            .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Apply white top-hat transform (image minus morphological opening).
 #[pyfunction]
 #[pyo3(signature = (image, radius=1_usize))]
 pub fn white_top_hat(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
-    let image = py_image_to_burn(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         WhiteTopHatFilter::new(radius)
-            .apply(&image)
+            .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Apply black top-hat transform (morphological closing minus image).
 #[pyfunction]
 #[pyo3(signature = (image, radius=1_usize))]
 pub fn black_top_hat(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
-    let image = py_image_to_burn(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         BlackTopHatFilter::new(radius)
-            .apply(&image)
+            .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Grayscale morphological closing with a flat cubic (box) SE of half-width
@@ -91,13 +97,14 @@ pub fn black_top_hat(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResu
 /// (`sitk.GrayscaleMorphologicalClosing`, box SE).
 #[pyfunction]
 pub fn grayscale_closing(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         GrayscaleClosingFilter::new(radius)
-            .apply(&arc)
+            .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Grayscale morphological opening with a flat cubic (box) SE of half-width
@@ -105,11 +112,12 @@ pub fn grayscale_closing(py: Python<'_>, image: &PyImage, radius: usize) -> Ritk
 /// (`sitk.GrayscaleMorphologicalOpening`, box SE).
 #[pyfunction]
 pub fn grayscale_opening(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         GrayscaleOpeningFilter::new(radius)
-            .apply(&arc)
+            .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
