@@ -29,6 +29,23 @@ matrix, including Windows nextest.
 Evidence tier: source and provider-reference inspection, merged upstream PR,
 locked metadata, local value-semantic nextest, and required CI.
 
+### Test-isolation contention found and fixed
+
+The final-head documentation commit `f01e4456` failed the workspace suites on
+macOS, Ubuntu, and Windows at
+`xtask::migration_audit::tests::audit_does_not_classify_coeus_tensor_syntax_as_burn`.
+The scanner itself is deterministic; its test helper named temporary roots
+from wall-clock nanoseconds only, allowing parallel test processes to share a
+root when the clock returned the same tick. Another fixture then added a
+legacy token and contaminated the Coeus-only assertion.
+
+`xtask/src/migration_audit.rs` now reserves each root with a process ID and an
+atomic sequence, skipping an already-existing candidate before returning it.
+This removes the shared mutable filesystem state without serializing the
+tests. Evidence tier: source-level race analysis, focused nextest 1/1, full
+`xtask` nextest 9/9, and warnings-denied Clippy. A complete CI rerun remains
+the acceptance gate.
+
 ## DEP-655-01 audit (2026-07-14)
 
 ### CI dependency-fetch blocker removed at the source boundary

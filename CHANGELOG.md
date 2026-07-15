@@ -78,6 +78,18 @@
 - DEP-501-01 is closed. The remaining Burn manifests and source surfaces are
   tracked as the separate dependency-ordered Coeus/Leto consumer migration.
 
+## [Unreleased] — Migration-audit test isolation (TEST-501-02)
+
+### Fixed
+- Replaced timestamp-only temporary-root names in the migration-audit tests
+  with process-plus-atomic-sequence allocation and collision reservation.
+  Parallel `xtask` tests no longer share mutable fixture directories.
+
+### Evidence
+- Focused nextest passes 1/1, the full `xtask` suite passes 9/9, and
+  warnings-denied Clippy passes. The complete CI matrix is rerunning after the
+  fix.
+
 ## [Unreleased] — Sprint 499: canonical native binary erosion (MIG-499-01)
 
 ### Removed

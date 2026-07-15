@@ -83,6 +83,17 @@ profile-guided performance item.
       runs `29383996149`, `29383996171`, and `29383996188` passed the complete
       Python, Rust, wheel, platform, and migration-audit matrix.
 
+- [x] Remove the test-isolation contention in `xtask`'s migration audit. The
+      prior timestamp-only temporary-root naming allowed parallel tests to
+      share a directory; process identity plus an atomic sequence now creates
+      collision-free roots. Focused nextest passes 1/1, the full `xtask`
+      nextest suite passes 9/9, and warnings-denied Clippy passes.
+- [ ] Re-run the complete CI matrix after the isolation fix. The final-head
+      documentation commit `f01e4456` failed the macOS, Ubuntu, and Windows
+      workspace suites only at `xtask::migration_audit::tests::audit_does_not_classify_coeus_tensor_syntax_as_burn`;
+      the failure is the recorded contention symptom, not a provider API
+      failure.
+
 Residual: the provider alignment is closed. The 14 Burn-dependent manifests
 and 645 Burn-surface source files remain the explicitly tracked, dependency-
 ordered Coeus/Leto consumer migration under MIG-500-01 and are not hidden by

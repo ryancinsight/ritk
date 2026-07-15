@@ -375,7 +375,9 @@ fn normalized(path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::{SystemTime, UNIX_EPOCH};
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEMP_ROOT_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
     #[test]
     fn audit_detects_manifest_and_source_burn_surface() {
@@ -490,10 +492,17 @@ mod tests {
     }
 
     fn temp_root() -> PathBuf {
-        let nanos = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        std::env::temp_dir().join(format!("ritk-migration-audit-{nanos}"))
+        loop {
+            let sequence = TEMP_ROOT_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+            let root = std::env::temp_dir().join(format!(
+                "ritk-migration-audit-{}-{sequence}",
+                std::process::id()
+            ));
+            match fs::create_dir(&root) {
+                Ok(()) => return root,
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => panic!("failed creating {}: {error}", root.display()),
+            }
+        }
     }
 }
