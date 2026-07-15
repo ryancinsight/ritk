@@ -1,15 +1,15 @@
 # RITK Backlog - Active Planning
 
-- **MIG-654-02 [patch] - Remove Snap's Burn filter dispatcher
-  (IN PROGRESS; owner: Codex /root; scope: `ritk-snap` filter dispatch,
-  `ritk-filter` Gaussian configuration, migration audit, and PM records).**
-  The native dispatch already covers every `FilterKind`; delete the unreachable
-  Burn-backed fallback and its private `NdArray` backend, then make native
-  Gaussian configuration independent of the legacy backend phantom. Completion
-  requires that `ritk-snap` no longer declares or names `burn-ndarray`, the
-  migration audit reports the reduced real surface, and focused package gates
-  pass. This is a direct provider cutover, not a compatibility alias or a
-  fallback.
+- **MIG-654-02 [patch] - Remove Snap's Burn filter dispatcher (DONE).**
+  Snap now sends every current `FilterKind`, including CPR, through its native
+  dispatcher. The unreachable Burn-backed fallback and private `NdArray`
+  backend are deleted, and native Gaussian construction uses the provider-free
+  `GaussianFilter<()>` configuration. The generic legacy Gaussian path remains
+  unchanged. `ritk-snap` has no Burn source tokens or direct `burn-ndarray`
+  dependency. The refreshed audit is clean at 13 manifests and 643 source
+  files; focused compile, warnings-denied Clippy, 691/691 Snap nextest,
+  1,135/1,135 filter nextest, doctests, and rustdoc pass. This is a direct
+  provider cutover, not a compatibility alias or fallback.
 
 - **DEP-655-01 [patch] - Reachable OpenJPEG differential oracle
   (DONE; PR #31 merged).** Replace the private `ryancinsight/openjp2`
@@ -26,8 +26,8 @@
   (REVIEW).** Integrate the merged CI/provider checkout topology, remove stale
   CLI native-capability assertions and call sites, refresh the Burn migration
   allowlist from the real source tree, and close rustdoc link warnings. The
-  branch is ready for review after the workspace gates pass. Residual: 14
-  manifests and 645 source files still carry intentional Burn surfaces; the
+  branch is ready for review after the workspace gates pass. Residual: 13
+  manifests and 643 source files still carry intentional Burn surfaces; the
   next work is a dependency-ordered Coeus consumer cutover, not an alias or
   fallback.
 

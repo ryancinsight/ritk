@@ -57,7 +57,7 @@ RITK CI verification remain tracked under DEP-501-01.
 
 ### Residual scope
 
-The audit still reports 14 Burn-dependent manifests and 645 source files. This
+The audit now reports 13 Burn-dependent manifests and 643 source files. This
 is an explicit migration residual, not a hidden compatibility layer. The next
 increment must port one consumer family to Coeus/Leto and delete its owning
 Burn dependency before refreshing the audit again. Three registration tests
@@ -67,17 +67,23 @@ profile-guided performance item.
 
 ## MIG-654-02 — Remove Snap's Burn filter dispatcher
 **Target version**: Unreleased patch
-**Sprint phase**: Execution
+**Sprint phase**: Closure complete
 
 - [x] Verify the native dispatcher covers every public `FilterKind` and locate
       each remaining Snap Burn reference. Completion condition: the enum and
       native dispatch have the same filter coverage, including CPR.
-- [ ] Delete the Burn-backed dispatcher and private backend alias, preserving
+- [x] Delete the Burn-backed dispatcher and private backend alias, preserving
       error propagation and loaded-volume metadata through the native path.
-- [ ] Decouple `GaussianFilter` native construction from its legacy backend
+- [x] Decouple `GaussianFilter` native construction from its legacy backend
       phantom without changing the legacy generic call sites.
-- [ ] Refresh the migration audit only after source/dependency deletion and run
+- [x] Refresh the migration audit only after source/dependency deletion and run
       focused Snap/filter compile, Clippy, nextest, doctest, and rustdoc gates.
+
+Completion: the native match covers every current `FilterKind`, including CPR;
+`ritk-snap` has no Burn source tokens or direct `burn-ndarray` dependency. The
+audit reports 13 manifests and 643 source files with a clean allowlist. Snap
+nextest passes 691/691; filter nextest passes 1,135/1,135; warnings-denied
+Clippy, four executed doctests, and package rustdoc pass.
 
 ## DEP-501-01 — Apollo FFT provider alignment
 **Target version**: Unreleased patch
@@ -112,8 +118,8 @@ profile-guided performance item.
 - [ ] Run the final CI matrix for the RAII cleanup commit before merging
       PR #33.
 
-Residual: the provider alignment is closed. The 14 Burn-dependent manifests
-and 645 Burn-surface source files remain the explicitly tracked, dependency-
+Residual: the provider alignment is closed. The 13 Burn-dependent manifests
+and 643 Burn-surface source files remain the explicitly tracked, dependency-
 ordered Coeus/Leto consumer migration under MIG-500-01 and are not hidden by
 this pin-only increment.
 

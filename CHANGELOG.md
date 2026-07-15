@@ -8,6 +8,28 @@
 
 # CHANGELOG
 
+## [Unreleased] — Native Snap filter dispatcher (MIG-654-02)
+
+### Removed
+- Removed Snap's unreachable Burn-backed filter fallback, private `NdArray`
+  backend alias, and direct `burn-ndarray` dependency.
+
+### Changed
+- All current Snap filters, including CPR, now execute through the native
+  dispatcher. Native Gaussian configuration no longer requires a legacy
+  backend marker; the generic tensor implementation remains unchanged.
+
+### Evidence
+- The clean migration audit falls from 14 manifests / 645 source files to
+  13 / 643. Snap nextest passes 691/691, filter nextest passes 1,135/1,135,
+  warnings-denied Clippy passes, four doctests execute successfully, and
+  package rustdoc completes without warnings.
+
+### Residual
+- The remaining 13 manifests and 643 source files are tracked owner surfaces
+  for dependency-ordered removal. This slice does not claim global Burn
+  deletion.
+
 ## [Unreleased] — Reachable OpenJPEG differential oracle (DEP-655-01)
 
 ### Changed
@@ -49,7 +71,7 @@
   successfully with `Allowlist status: clean`.
 
 ### Residual
-- Fourteen manifests and 645 source files still contain intentional Burn
+- Thirteen manifests and 643 source files still contain intentional Burn
   surfaces. The next increment is a native Coeus/Leto consumer cutover that
   deletes its owning dependency; no compatibility alias or fallback is used.
 - Three registration tests exceed the 30-second slow threshold and require a

@@ -8,6 +8,31 @@
 
 # RITK Gap Audit - Active
 
+## MIG-654-02 audit (2026-07-15)
+
+### Snap filter dispatch now has one native path
+
+`FilterKind` and Snap's native dispatcher cover the same current variants,
+including CPR. The former Burn-backed fallback and its private `NdArray`
+backend are deleted, so a loaded volume either completes through the native
+operation or returns that operation's error to the viewer. Native Gaussian
+configuration is now independent of the legacy generic backend marker:
+`GaussianFilter<()>` calls the unbounded native implementation, while the
+existing `B: Backend` implementation retains the legacy tensor API.
+
+Evidence tier: source inspection, compile-time exhaustive matching, static
+migration audit, and value-semantic package tests. `ritk-snap` has no Burn
+source-token matches or direct `burn-ndarray` dependency. The clean audit falls
+from 14 manifests / 645 source files to 13 / 643. `cargo check -p ritk-snap
+--offline`, warnings-denied all-target/all-feature Clippy for Snap and filter,
+Snap nextest (691/691), filter nextest (1,135/1,135), four executed doctests,
+and package rustdoc pass.
+
+Residual: global Burn removal remains a dependency-ordered migration. The
+audit's 13 manifests and 643 source files are intentional remaining owner
+surfaces; `ritk-wgpu-compat` is a live provider boundary and was not concealed
+or deleted by this Snap-only slice.
+
 ## DEP-501-01 audit (2026-07-15)
 
 ### Atlas provider checkout alignment
@@ -110,7 +135,7 @@ completed warning-free. `cargo run -p xtask -- burn-migration-audit` reports
 
 ### Residual risk
 
-The audit reports 14 manifests and 645 source files with Burn-surface tokens.
+The audit now reports 13 manifests and 643 source files with Burn-surface tokens.
 The owning consumers remain on the dependency-ordered migration board; this
 increment does not claim global Burn deletion. The full run also recorded three
 registration tests over the 30-second slow threshold: `multires_registration_test`

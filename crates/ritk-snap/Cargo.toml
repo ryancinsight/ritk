@@ -10,7 +10,6 @@ name = "ritk-snap"
 path = "src/main.rs"
 
 [dependencies]
-burn-ndarray = { workspace = true }
 coeus-core = { workspace = true }
 anyhow = { workspace = true }
 arrayvec = { workspace = true }

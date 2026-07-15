@@ -15,13 +15,13 @@ pub const DEFAULT_MAX_KERNEL_WIDTH: usize = 32;
 ///
 /// Applies a Gaussian smoothing filter to an image using separable 1D convolutions.
 /// This implementation respects the physical spacing of the image.
-pub struct GaussianFilter<B: Backend> {
+pub struct GaussianFilter<B = ()> {
     sigmas: Vec<GaussianSigma>,
     max_kernel_width: usize,
     _b: std::marker::PhantomData<fn() -> B>,
 }
 
-impl<B: Backend> Clone for GaussianFilter<B> {
+impl<B> Clone for GaussianFilter<B> {
     fn clone(&self) -> Self {
         Self {
             sigmas: self.sigmas.clone(),
@@ -31,7 +31,7 @@ impl<B: Backend> Clone for GaussianFilter<B> {
     }
 }
 
-impl<B: Backend> GaussianFilter<B> {
+impl<B> GaussianFilter<B> {
     /// Create a new Gaussian filter with the given standard deviation (in physical units).
     ///
     /// # Arguments
@@ -50,6 +50,49 @@ impl<B: Backend> GaussianFilter<B> {
         self
     }
 
+    /// Coeus-native sister of the legacy [`apply`](Self::apply) for 3-D images.
+    ///
+    /// Runs the identical separable zero-padded Gaussian smoothing as the Burn
+    /// [`apply`](Self::apply) path — the same per-axis `axis_kernel` builder
+    /// (shared SSOT for the kernel) and the same zero (constant-0) boundary
+    /// convolution that Burn's `conv1d(padding = k/2)` performs — via the pure
+    /// host core `convolve_zero_pad_3d`. No Burn tensor is constructed;
+    /// spatial metadata is preserved.
+    ///
+    /// The result matches the Burn path to a derived floating-point tolerance
+    /// (not bitwise): both evaluate the same separable zero-pad convolution with
+    /// the same kernels, but Burn's `conv1d` and this host core sum the taps in
+    /// different orders, so results differ only by accumulation rounding
+    /// (`O(width · ε · ‖I‖∞)` per axis; see the differential tests).
+    ///
+    /// # Errors
+    /// Returns an error when the image tensor is not host-addressable/contiguous
+    /// or the rebuilt image fails shape validation.
+    pub fn apply_native<C>(
+        &self,
+        image: &ritk_image::native::Image<f32, C, 3>,
+        backend: &C,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, C, 3>>
+    where
+        C: coeus_core::ComputeBackend,
+        C::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let spacing = [image.spacing()[0], image.spacing()[1], image.spacing()[2]];
+        let sigmas: [f64; 3] = std::array::from_fn(|d| {
+            if d < self.sigmas.len() {
+                self.sigmas[d].get()
+            } else {
+                self.sigmas[0].get()
+            }
+        });
+        let max_w = self.max_kernel_width;
+        crate::native_support::map_flat_image(image, backend, move |vals, dims| {
+            gaussian_smooth_native_flat(vals, dims, sigmas, spacing, max_w)
+        })
+    }
+}
+
+impl<B: Backend> GaussianFilter<B> {
     /// Apply the filter to an image.
     pub fn apply<const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
         let (tensor, origin, spacing, direction) = image.clone().into_parts();
@@ -102,46 +145,6 @@ impl<B: Backend> GaussianFilter<B> {
         data
     }
 
-    /// Coeus-native sister of [`GaussianFilter::apply`] for 3-D images.
-    ///
-    /// Runs the identical separable zero-padded Gaussian smoothing as the Burn
-    /// [`apply`](Self::apply) path — the same per-axis `axis_kernel` builder
-    /// (shared SSOT for the kernel) and the same zero (constant-0) boundary
-    /// convolution that Burn's `conv1d(padding = k/2)` performs — via the pure
-    /// host core `convolve_zero_pad_3d`. No Burn tensor is constructed;
-    /// spatial metadata is preserved.
-    ///
-    /// The result matches the Burn path to a derived floating-point tolerance
-    /// (not bitwise): both evaluate the same separable zero-pad convolution with
-    /// the same kernels, but Burn's `conv1d` and this host core sum the taps in
-    /// different orders, so results differ only by accumulation rounding
-    /// (`O(width · ε · ‖I‖∞)` per axis; see the differential tests).
-    ///
-    /// # Errors
-    /// Returns an error when the image tensor is not host-addressable/contiguous
-    /// or the rebuilt image fails shape validation.
-    pub fn apply_native<C>(
-        &self,
-        image: &ritk_image::native::Image<f32, C, 3>,
-        backend: &C,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, C, 3>>
-    where
-        C: coeus_core::ComputeBackend,
-        C::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
-    {
-        let spacing = [image.spacing()[0], image.spacing()[1], image.spacing()[2]];
-        let sigmas: [f64; 3] = std::array::from_fn(|d| {
-            if d < self.sigmas.len() {
-                self.sigmas[d].get()
-            } else {
-                self.sigmas[0].get()
-            }
-        });
-        let max_w = self.max_kernel_width;
-        crate::native_support::map_flat_image(image, backend, move |vals, dims| {
-            gaussian_smooth_native_flat(vals, dims, sigmas, spacing, max_w)
-        })
-    }
     fn convolve_1d<const D: usize>(
         &self,
         input: Tensor<B, D>,
