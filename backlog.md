@@ -1,28 +1,71 @@
 # RITK Backlog - Active Planning
 
+- **MIG-654-02 [patch] - Remove Snap's Burn filter dispatcher (DONE).**
+  Snap now sends every current `FilterKind`, including CPR, through its native
+  dispatcher. The unreachable Burn-backed fallback and private `NdArray`
+  backend are deleted, and native Gaussian construction uses the provider-free
+  `GaussianFilter<()>` configuration. The generic legacy Gaussian path remains
+  unchanged. `ritk-snap` has no Burn source tokens or direct `burn-ndarray`
+  dependency. The refreshed audit is clean at 13 manifests and 643 source
+  files; focused compile, warnings-denied Clippy, 691/691 Snap nextest,
+  1,135/1,135 filter nextest, doctests, and rustdoc pass. This is a direct
+  provider cutover, not a compatibility alias or fallback. The final PR #33
+  head `250ddac3` passed CI `29418118238`, Python matrix `29418118559`, and
+  migration audit `29418118182`.
+
+- **MIG-654-03 [major] - Convert statistics position extrema to native images
+  (DONE).** `minimum_position` and `maximum_position` now take native images
+  under their existing names and return `Result<Option<[usize; D]>>`, separating
+  host-access failure from an empty image. The generic legacy overload is
+  deleted; all 14 extrema tests now use `MoiraiBackend` and preserve row-major,
+  first-index ties. `ritk-statistics` advances to 0.2.0. The audit remains
+  clean at 13 manifests and falls from 643 to 641 source files (statistics
+  43→41); its direct legacy test dependency remains until the other operation
+  families are migrated. SemVer source comparison is graph-blocked by the
+  baseline Themis constraint mismatch recorded in `gap_audit.md`.
+
 - **DEP-655-01 [patch] - Reachable OpenJPEG differential oracle
   (DONE; PR #31 merged).** Replace the private `ryancinsight/openjp2`
   revision that GitHub Actions cannot fetch with public OpenJPEG PR 9, remove
   the stale `jpeg2k` wrapper from the differential tests, and align the CI
   Apollo checkout with the declared `apollo-fft` 0.15 provider. The tests now
   call the public `openjp2` API directly. The Apollo provider's Apple Silicon
-  target boundary is fixed at `f1a44a7`. GitHub Actions passed all required
-  gates and PR #31 merged at `be75a93a`. Residual: the Apollo pin tracks its
-  public RustFFT-removal branch until that provider state is promoted to Apollo
-  main.
+  target boundary is fixed at merged Apollo main `6e99a567`. GitHub Actions passed all required
+  gates and PR #31 merged at `be75a93a`. The Apollo provider state is now
+  promoted to main at `6e99a567`; the remaining consumer update is tracked by
+  DEP-501-01.
 
 - **MIG-654-01 [patch] - Reconcile native migration branch with current main
   (REVIEW).** Integrate the merged CI/provider checkout topology, remove stale
   CLI native-capability assertions and call sites, refresh the Burn migration
   allowlist from the real source tree, and close rustdoc link warnings. The
-  branch is ready for review after the workspace gates pass. Residual: 14
-  manifests and 645 source files still carry intentional Burn surfaces; the
+  branch is ready for review after the workspace gates pass. Residual: 13
+  manifests and 641 source files still carry intentional Burn surfaces; the
   next work is a dependency-ordered Coeus consumer cutover, not an alias or
   fallback.
 
-- **DEP-501-01 [patch] - Apollo FFT provider alignment (IN PROGRESS).**
-  Accept Apollo FFT 0.15 without a compatibility edge and verify the owning
-  filter crate plus the downstream Kwavers graph.
+- **DEP-501-01 [patch] - Apollo FFT provider alignment (DONE).**
+  Update the CI checkout to merged Apollo `6e99a567`, align every Atlas
+  provider checkout to its merged head, refresh the lockfile's provider graph,
+  and verify the owning filter crate plus the downstream Kwavers graph. Coeus
+  provider alignment is now merged at `2026a0b6`; no compatibility edge or
+  fallback is allowed. Consumer verification is complete: local
+  `ritk-filter` nextest passed 1,135/1,135 and the required CI matrix passed in
+  runs `29383996149` (Python 3.9-3.13 on Ubuntu/macOS/Windows), `29383996171`
+  (format, Clippy, wheel smoke, and all three platform suites), and
+  `29383996188` (Burn migration audit). The isolation-fix rerun for head
+  `e747f1b7` also passed: Python run `29414764238`, CI run `29414764341`, and
+  audit run `29414764370`. The final PR #33 head `250ddac3` also passed Python
+  matrix `29418118559`, CI `29418118238`, and audit `29418118182`; all
+  required checks are green.
+
+  The final-head rerun at `f01e4456` exposed an existing `xtask` test-isolation
+  defect: parallel tests could derive the same temporary root from a
+  timestamp-only name. The fix adds process-plus-atomic-sequence allocation;
+  the full `xtask` suite passes 9/9 locally. The follow-up switches the
+  fixtures to an RAII `TempRoot` so panic paths also release their temporary
+  trees. The final matrix for PR #33 head `250ddac3` is green in CI
+  `29418118238`, Python `29418118559`, and audit `29418118182`.
 
 - **MIG-500-01 [major] - Hidden Burn dependency relocation (BLOCKED).**
   The current 112-file working diff is green but prohibited: direct

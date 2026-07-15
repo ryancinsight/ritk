@@ -22,9 +22,8 @@
 //! O(n) where n = ∏ d_k. One pass over the data, no allocation beyond the
 //! 4-byte (or 8-byte) running extremum and the returned `[usize; D]`.
 
-use ritk_image::tensor::backend::Backend;
-use ritk_image::Image;
-use ritk_tensor_ops::extract_vec_infallible;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image;
 
 /// Return the multi-index of the **minimum** voxel value.
 ///
@@ -36,14 +35,30 @@ use ritk_tensor_ops::extract_vec_infallible;
 ///
 /// # Examples
 ///
-/// ```ignore
-/// let img = Image::<f32, 3>::from_vec_f32([2, 2, 2], vec![1.0, 2.0, 3.0, 4.0, -1.0, 6.0, 7.0, 8.0])?;
-/// assert_eq!(minimum_position(&img), Some([1, 0, 0]));
 /// ```
-pub fn minimum_position<B: Backend, const D: usize>(image: &Image<B, D>) -> Option<[usize; D]> {
-    let (vals, dims) = extract_vec_infallible(image);
-    let slice: &[f32] = &vals;
-    argmin_position(slice, dims)
+/// use coeus_core::MoiraiBackend;
+/// use ritk_image::native::Image;
+/// use ritk_spatial::{Direction, Point, Spacing};
+/// use ritk_statistics::minimum_position;
+///
+/// let img = Image::<f32, MoiraiBackend, 3>::from_flat(
+///     vec![1.0, 2.0, 3.0, 4.0, -1.0, 6.0, 7.0, 8.0],
+///     [2, 2, 2],
+///     Point::new([0.0; 3]),
+///     Spacing::new([1.0; 3]),
+///     Direction::identity(),
+/// )?;
+/// assert_eq!(minimum_position(&img)?, Some([1, 0, 0]));
+/// # Ok::<(), anyhow::Error>(())
+/// ```
+pub fn minimum_position<B, const D: usize>(
+    image: &Image<f32, B, D>,
+) -> anyhow::Result<Option<[usize; D]>>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    Ok(argmin_position(image.data_slice()?, image.shape()))
 }
 
 /// Return the multi-index of the **maximum** voxel value.
@@ -53,10 +68,14 @@ pub fn minimum_position<B: Backend, const D: usize>(image: &Image<B, D>) -> Opti
 ///
 /// Ties resolve to the lowest flat (row-major) index, matching
 /// `scipy.ndimage.maximum_position` and `Iterator::position`.
-pub fn maximum_position<B: Backend, const D: usize>(image: &Image<B, D>) -> Option<[usize; D]> {
-    let (vals, dims) = extract_vec_infallible(image);
-    let slice: &[f32] = &vals;
-    argmax_position(slice, dims)
+pub fn maximum_position<B, const D: usize>(
+    image: &Image<f32, B, D>,
+) -> anyhow::Result<Option<[usize; D]>>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    Ok(argmax_position(image.data_slice()?, image.shape()))
 }
 
 /// Slice-level argmin: returns the multi-index of the minimum.
@@ -106,8 +125,7 @@ fn argmax_position<const D: usize>(slice: &[f32], dims: [usize; D]) -> Option<[u
 ///
 /// Row-major: `i = i_0 · (d_1 · d_2 · …) + i_1 · (d_2 · …) + … + i_{D-1}`.
 ///
-/// This matches the layout produced by `Image::from_vec_f32` and
-/// `extract_vec_infallible`.
+/// This matches the layout produced by `Image::from_flat`.
 fn flat_to_multi<const D: usize>(flat: usize, dims: [usize; D]) -> [usize; D] {
     let mut out = [0_usize; D];
     let mut remaining = flat;

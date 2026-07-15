@@ -8,6 +8,59 @@
 
 # CHANGELOG
 
+## [Unreleased] — Native statistics extrema (MIG-654-03)
+
+### Changed
+- `minimum_position` and `maximum_position` now accept native images and
+  preserve their row-major, first-index extrema semantics through one shared
+  host-slice core.
+
+### Breaking
+- Both functions now return `Result<Option<[usize; D]>>`; callers must provide
+  a native image and propagate host-access failures. The former legacy generic
+  image overload is removed without a compatibility adapter.
+
+### Migration
+- Replace `minimum_position(&legacy_image)` with
+  `minimum_position(&native_image)?`, and make the corresponding change for
+  `maximum_position`.
+
+### Evidence
+- The 14 extrema regressions and all 330 `ritk-statistics` tests pass on the
+  native boundary with warnings-denied Clippy, doctests, and rustdoc.
+- The clean migration audit remains at 13 manifests and falls from 643 to 641
+  source files; statistics falls from 43 to 41 source tokens.
+- PR #33 head `250ddac3` passes the required CI matrix in runs
+  `29418118238`, `29418118559`, and `29418118182`.
+
+### Residual
+- `cargo semver-checks` cannot resolve its temporary graph because the pinned
+  Themis revision is 0.9.17 while local Moirai requires `^0.10`; no SemVer pass
+  is claimed. Remaining statistics operation families retain the direct legacy
+  test dependency until their native cutover.
+
+## [Unreleased] — Native Snap filter dispatcher (MIG-654-02)
+
+### Removed
+- Removed Snap's unreachable Burn-backed filter fallback, private `NdArray`
+  backend alias, and direct `burn-ndarray` dependency.
+
+### Changed
+- All current Snap filters, including CPR, now execute through the native
+  dispatcher. Native Gaussian configuration no longer requires a legacy
+  backend marker; the generic tensor implementation remains unchanged.
+
+### Evidence
+- The clean migration audit falls from 14 manifests / 645 source files to
+  13 / 643. Snap nextest passes 691/691, filter nextest passes 1,135/1,135,
+  warnings-denied Clippy passes, four doctests execute successfully, and
+  package rustdoc completes without warnings.
+
+### Residual
+- The remaining 13 manifests and 643 source files are tracked owner surfaces
+  for dependency-ordered removal. This slice does not claim global Burn
+  deletion.
+
 ## [Unreleased] — Reachable OpenJPEG differential oracle (DEP-655-01)
 
 ### Changed
@@ -15,7 +68,7 @@
   the decoder-buffer deallocation guard required by the differential tests.
 - Removed the stale `jpeg2k` wrapper from the JPEG 2000 oracle and call the
   public `openjp2` API directly for both encode and decode directions.
-- Updated the CI Apollo checkout to public Apollo commit `f1a44a7`, whose
+- Updated the CI Apollo checkout to merged Apollo main commit `6e99a567`, whose
   provider target boundary declares `apollo-fft` 0.15 and compiles on Apple
   Silicon.
 
@@ -27,8 +80,8 @@
   `be75a93a94424833882d73b45d0711dc2fab4930`.
 
 ### Residual
-- The Apollo pin remains on its public RustFFT-removal branch until the 0.15
-  provider state reaches Apollo main.
+- The Apollo provider state is now on main; the consumer lockfile and CI
+  verification are tracked under DEP-501-01.
 
 ## [Unreleased] — Native migration branch reconciliation (MIG-654-01)
 
@@ -49,7 +102,7 @@
   successfully with `Allowlist status: clean`.
 
 ### Residual
-- Fourteen manifests and 645 source files still contain intentional Burn
+- Thirteen manifests and 643 source files still contain intentional Burn
   surfaces. The next increment is a native Coeus/Leto consumer cutover that
   deletes its owning dependency; no compatibility alias or fallback is used.
 - Three registration tests exceed the 30-second slow threshold and require a
@@ -59,6 +112,41 @@
 
 ### Changed
 - `ritk-filter` now accepts the current Apollo FFT 0.15 provider generation.
+- The shared Atlas dependency checkout now uses merged Coeus
+  `2026a0b65e363496b5ab79b09612f26b7729f9d5`, Gaia `9e48102`, Hephaestus
+  `dd93144`, Hermes `1423e41`, Leto `efa235a`, Melinoe `bb07447`, Mnemosyne
+  `32b4a2a`, Moirai `8cd356c`, and Themis `18807bb` heads.
+- Cargo.lock resolves the merged provider graph without the temporary Apollo
+  branch pin.
+
+### Provider blocker
+- The first consumer CI run exposed a Coeus `mnemosyne ^0.3.0` constraint
+  against Mnemosyne 0.4.0. Coeus PR #209 merged the provider-owned constraint
+  update. Local `ritk-filter` nextest passes 1,135/1,135, and GitHub Actions
+  runs `29383996149`, `29383996171`, and `29383996188` pass the complete
+  Python, Rust, wheel, platform, and migration-audit matrix, including Windows
+  nextest.
+
+### Status
+- DEP-501-01 is closed. The remaining Burn manifests and source surfaces are
+  tracked as the separate dependency-ordered Coeus/Leto consumer migration.
+
+## [Unreleased] — Migration-audit test isolation (TEST-501-02)
+
+### Fixed
+- Replaced timestamp-only temporary-root names in the migration-audit tests
+  with process-plus-atomic-sequence allocation and collision reservation.
+  Parallel `xtask` tests no longer share mutable fixture directories.
+
+### Evidence
+- Focused nextest passes 1/1, the full `xtask` suite passes 9/9, and
+  warnings-denied Clippy passes. Head `e747f1b7` passed the complete required
+  CI matrix in runs `29414764238`, `29414764341`, and `29414764370`.
+
+### Changed
+- Migration-audit fixtures now use an RAII `TempRoot`, preserving unique
+  allocation while releasing temporary trees during panic unwinding and normal
+  test completion.
 
 ## [Unreleased] — Sprint 499: canonical native binary erosion (MIG-499-01)
 

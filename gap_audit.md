@@ -8,6 +8,106 @@
 
 # RITK Gap Audit - Active
 
+## MIG-654-03 audit (2026-07-15)
+
+### Statistics extrema own one native image boundary
+
+Repository search found no in-tree caller of the legacy extrema signature, so
+`minimum_position` and `maximum_position` now consume
+`native::Image<f32, B, D>` directly. The O(n) row-major core is unchanged:
+minimum and maximum ties select the lowest flat index. The native boundary
+returns `Result<Option<[usize; D]>>`, distinguishing non-host-addressable
+storage from an empty image. The old generic image overload is deleted rather
+than forwarded.
+
+Evidence tier: source inspection, compile-time native boundary, and
+value-semantic regression. All 14 extrema tests execute on `MoiraiBackend`,
+including 1-D and 3-D values, first-index ties, negative values, and the
+24-index row-major round trip. Package nextest passes 330/330; warnings-denied
+Clippy, doctests, and rustdoc pass. The migration audit remains clean at 13
+manifests and falls from 643 to 641 source files; statistics falls from 43 to
+41 tokens.
+
+### SemVer verification blocker
+
+`cargo semver-checks check-release -p ritk-statistics --baseline-rev
+origin/main --release-type major --all-features` cannot construct its temporary
+current package graph. It resolves Themis 0.9.17 from the pinned Git revision,
+while local `moirai-iter` requires `themis ^0.10`; Cargo aborts before API
+analysis. This is a provider-resolution blocker, not a passing SemVer result.
+
+Residual: `ritk-statistics` retains its direct legacy test dependency because
+the remaining generic operation families are still live. Their removal remains
+dependency-ordered; no compatibility alias was introduced.
+
+## MIG-654-02 audit (2026-07-15)
+
+### Snap filter dispatch now has one native path
+
+`FilterKind` and Snap's native dispatcher cover the same current variants,
+including CPR. The former Burn-backed fallback and its private `NdArray`
+backend are deleted, so a loaded volume either completes through the native
+operation or returns that operation's error to the viewer. Native Gaussian
+configuration is now independent of the legacy generic backend marker:
+`GaussianFilter<()>` calls the unbounded native implementation, while the
+existing `B: Backend` implementation retains the legacy tensor API.
+
+Evidence tier: source inspection, compile-time exhaustive matching, static
+migration audit, and value-semantic package tests. `ritk-snap` has no Burn
+source-token matches or direct `burn-ndarray` dependency. The clean audit falls
+from 14 manifests / 645 source files to 13 / 643. `cargo check -p ritk-snap
+--offline`, warnings-denied all-target/all-feature Clippy for Snap and filter,
+Snap nextest (691/691), filter nextest (1,135/1,135), four executed doctests,
+and package rustdoc pass.
+
+Residual: global Burn removal remains a dependency-ordered migration. The
+audit's 13 manifests and 643 source files are intentional remaining owner
+surfaces; `ritk-wgpu-compat` is a live provider boundary and was not concealed
+or deleted by this Snap-only slice.
+
+## DEP-501-01 audit (2026-07-15)
+
+### Atlas provider checkout alignment
+
+The Apollo checkout action now pins merged Apollo main commit
+`6e99a567c118f6bf5790f80346475b44db2c7555`, which publishes the required
+`apollo-fft` 0.15 provider. The action also selects merged Coeus
+`2026a0b65e363496b5ab79b09612f26b7729f9d5`,
+Gaia `9e48102`, Hephaestus `dd93144`, Hermes `1423e41`, Leto `efa235a`,
+Melinoe `bb07447`, Mnemosyne `32b4a2a`, Moirai `8cd356c`, and Themis `18807bb`
+heads. This removes stale branch pins without introducing an adapter or
+fallback. The first consumer run failed before compilation because Coeus main
+still required Mnemosyne `^0.3.0`; Coeus PR #209 merged the provider-owned
+`^0.4.0` and Hephaestus/Themis constraint update. The fresh consumer run now
+passes: local `ritk-filter` nextest is 1,135/1,135, and CI runs
+`29383996149`, `29383996171`, and `29383996188` pass the complete required
+matrix, including Windows nextest.
+
+Evidence tier: source and provider-reference inspection, merged upstream PR,
+locked metadata, local value-semantic nextest, and required CI.
+
+### Test-isolation contention found and fixed
+
+The final-head documentation commit `f01e4456` failed the workspace suites on
+macOS, Ubuntu, and Windows at
+`xtask::migration_audit::tests::audit_does_not_classify_coeus_tensor_syntax_as_burn`.
+The scanner itself is deterministic; its test helper named temporary roots
+from wall-clock nanoseconds only, allowing parallel test processes to share a
+root when the clock returned the same tick. Another fixture then added a
+legacy token and contaminated the Coeus-only assertion.
+
+`xtask/src/migration_audit.rs` first reserved each root with a process ID and
+an atomic sequence, skipping an already-existing candidate before returning
+it. The e747f1b7 cross-platform rerun then passed Python run `29414764238`, CI
+run `29414764341`, and audit run `29414764370`; macOS, Ubuntu, and Windows each
+ran the complete 5,229-test suite successfully. The follow-up now uses
+an RAII `TempRoot`, retaining collision-resistant allocation while releasing
+fixture trees on panic and normal completion. The final PR #33 head
+`250ddac3` passed CI `29418118238`, Python matrix `29418118559`, and audit
+`29418118182`, including the three platform suites and Python 3.9-3.13.
+Evidence tier: source-level race analysis, focused/full nextest,
+warnings-denied Clippy, and required CI.
+
 ## DEP-655-01 audit (2026-07-14)
 
 ### CI dependency-fetch blocker removed at the source boundary
@@ -36,16 +136,16 @@ the stale Apollo checkout: the action selected `apollo-fft` 0.14.0 while the
 workspace requires 0.15.0. Apollo's provider fix gates its AVX Stockham modules
 to x86 targets, so the Apple Silicon build now resolves the existing scalar
 path without importing x86-only symbols. The provider commit
-`f1a44a775cb5d5e58ffb2935e856fba6bb4205a7` passes Apollo's host tests, Clippy,
+`6e99a567c118f6bf5790f80346475b44db2c7555` passes Apollo's host tests, Clippy,
 doctests, rustdoc, and an `aarch64-apple-darwin` check. The action now pins that
-public revision, and the interop source is formatted by the repository
+merged main revision, and the interop source is formatted by the repository
 toolchain. Corrected CI runs 29376001568, 29376001595, and 29376001632 passed
 dependency alignment, Rustfmt, warnings-denied Clippy, migration audit, wheel
 smoke, all three platform suites, and the complete Python matrix. PR #31
 merged at `be75a93a94424833882d73b45d0711dc2fab4930`.
 
-Residual: Apollo main still exposes 0.14.0, so the action's 0.15.0 pin follows
-the public RustFFT-removal branch until that provider state is promoted.
+Residual: the original DEP-655-01 CI evidence predates the Apollo main
+promotion; current consumer verification is tracked under DEP-501-01.
 
 ## MIG-654-01 audit (2026-07-14)
 
@@ -69,7 +169,7 @@ completed warning-free. `cargo run -p xtask -- burn-migration-audit` reports
 
 ### Residual risk
 
-The audit reports 14 manifests and 645 source files with Burn-surface tokens.
+The audit now reports 13 manifests and 641 source files with Burn-surface tokens.
 The owning consumers remain on the dependency-ordered migration board; this
 increment does not claim global Burn deletion. The full run also recorded three
 registration tests over the 30-second slow threshold: `multires_registration_test`

@@ -23,17 +23,16 @@
       the 14-test interop suite, and the full `ritk-codecs` suite pass.
 - [x] Apply CI-discovered corrections. Completion condition: the interop
       source is rustfmt-clean and the dependency checkout action pins Apollo
-      `f1a44a7`, whose provider target boundary compiles for Apple Silicon and
-      provides `apollo-fft` 0.15.
+      `6e99a567`, whose provider target boundary compiles for Apple Silicon and
+      provides `apollo-fft` 0.15 from Apollo main.
 - [x] Re-run GitHub Actions and close the item. Completion condition met by
       CI runs 29376001568, 29376001595, and 29376001632: dependency alignment,
       Rustfmt, warnings-denied Clippy, migration audit, wheel smoke, all three
       platform suites, and the complete Python matrix passed. PR #31 merged at
       `be75a93a94424833882d73b45d0711dc2fab4930`.
 
-Residual: Apollo is pinned to public `f1a44a775cb5d5e58ffb2935e856fba6bb4205a7`
-because Apollo main still publishes `apollo-fft` 0.14.0. Remove this temporary
-branch pin when the 0.15 provider state is promoted upstream.
+Residual: none for the Apollo provider promotion. The downstream lockfile and
+RITK CI verification remain tracked under DEP-501-01.
 
 ## MIG-654-01 — Native migration branch reconciliation
 **Target version**: Unreleased patch
@@ -58,7 +57,7 @@ branch pin when the 0.15 provider state is promoted upstream.
 
 ### Residual scope
 
-The audit still reports 14 Burn-dependent manifests and 645 source files. This
+The audit now reports 13 Burn-dependent manifests and 641 source files. This
 is an explicit migration residual, not a hidden compatibility layer. The next
 increment must port one consumer family to Coeus/Leto and delete its owning
 Burn dependency before refreshing the audit again. Three registration tests
@@ -66,12 +65,88 @@ crossed the 30-second slow threshold in the full run (30.510s, 35.422s, and
 37.823s); their workload and assertions remain unchanged and require a future
 profile-guided performance item.
 
+## MIG-654-02 — Remove Snap's Burn filter dispatcher
+**Target version**: Unreleased patch
+**Sprint phase**: Closure complete
+
+- [x] Verify the native dispatcher covers every public `FilterKind` and locate
+      each remaining Snap Burn reference. Completion condition: the enum and
+      native dispatch have the same filter coverage, including CPR.
+- [x] Delete the Burn-backed dispatcher and private backend alias, preserving
+      error propagation and loaded-volume metadata through the native path.
+- [x] Decouple `GaussianFilter` native construction from its legacy backend
+      phantom without changing the legacy generic call sites.
+- [x] Refresh the migration audit only after source/dependency deletion and run
+      focused Snap/filter compile, Clippy, nextest, doctest, and rustdoc gates.
+
+Completion: the native match covers every current `FilterKind`, including CPR;
+`ritk-snap` has no Burn source tokens or direct `burn-ndarray` dependency. The
+audit reports 13 manifests and 643 source files with a clean allowlist. Snap
+nextest passes 691/691; filter nextest passes 1,135/1,135; warnings-denied
+Clippy, four executed doctests, and package rustdoc pass.
+
+## MIG-654-03 — Native statistics position extrema
+**Target version**: 0.2.0 major
+**Sprint phase**: Closure complete
+
+- [x] Verify no in-repo caller depends on the legacy `Image<B, D>` extrema
+      signature. Completion condition: repository search finds only the
+      operation's own tests and historical records.
+- [x] Replace the legacy image boundary with the native image contract under
+      the existing `minimum_position` and `maximum_position` names.
+- [x] Port every position-extrema test to a real native backend, preserving
+      values, first-index ties, and row-major coordinate assertions.
+- [x] Run focused compile, warnings-denied Clippy, nextest, doctest, and
+      rustdoc gates, then record remaining statistics migration scope.
+
+Completion: `ritk-statistics` 0.2.0 removes the unused legacy overload and
+uses a fallible native host slice. Focused nextest passes 14/14 and package
+nextest passes 330/330. The audit remains clean at 13 manifests / 641 source
+files, with statistics 43→41. `cargo semver-checks check-release -p
+ritk-statistics --baseline-rev origin/main --release-type major --all-features`
+is blocked before analysis because its temporary dependency graph resolves
+Themis 0.9.17 while local Moirai requires `^0.10`.
+
 ## DEP-501-01 — Apollo FFT provider alignment
 **Target version**: Unreleased patch
-**Sprint phase**: Verification
+**Sprint phase**: Closure
 
 - [x] Raise the RITK Apollo FFT constraint to the current local 0.15 provider.
-- [ ] Verify `ritk-filter` and the downstream Kwavers dependency graph.
+- [x] Replace the temporary Apollo checkout with merged main commit
+      `6e99a567c118f6bf5790f80346475b44db2c7555` and align the shared Atlas
+      checkout action to merged Coeus `2026a0b65e363496b5ab79b09612f26b7729f9d5`,
+      Gaia, Hephaestus, Hermes, Leto, Melinoe, Mnemosyne, Moirai, and Themis
+      heads. Leto is `efa235a5` after PR #34. Coeus PR #209 is merged.
+- [x] Verify `ritk-filter` and the downstream Kwavers dependency graph on the
+      merged provider graph. The first CI attempt exposed the upstream Coeus
+      `mnemosyne ^0.3.0` constraint; the checkout action now uses the merged
+      Coeus provider fix. Local `cargo nextest run -p ritk-filter
+      --all-features --locked --no-fail-fast` passed 1,135/1,135. Required CI
+      runs `29383996149`, `29383996171`, and `29383996188` passed the complete
+      Python, Rust, wheel, platform, and migration-audit matrix.
+
+- [x] Remove the test-isolation contention in `xtask`'s migration audit. The
+      prior timestamp-only temporary-root naming allowed parallel tests to
+      share a directory; process identity plus an atomic sequence now creates
+      collision-free roots. Focused nextest passes 1/1, the full `xtask`
+      nextest suite passes 9/9, and warnings-denied Clippy passes.
+- [x] Re-run the complete CI matrix after the isolation fix. Head `e747f1b7`
+      passed Python run `29414764238`, CI run `29414764341` (macOS 5,229/5,229,
+      Ubuntu 5,229/5,229, Windows 5,229/5,229), and audit run `29414764370`.
+- [x] Replace manual fixture cleanup with the RAII `TempRoot` in the four
+      migration-audit tests. Focused and full `xtask` nextest plus
+      warnings-denied Clippy pass locally; Drop now removes fixture trees when
+      an assertion fails.
+- [x] Run the final CI matrix for PR #33 head `250ddac3` after the RAII
+      cleanup and native extrema cutover. Completion condition met by CI
+      `29418118238`, Python matrix `29418118559`, and audit `29418118182`;
+      Rustfmt, Clippy, Workspace Dependency Alignment, wheel smoke, all three
+      platform suites, Python 3.9-3.13, and migration audit passed.
+
+Residual: the provider alignment is closed. The 13 Burn-dependent manifests
+and 641 Burn-surface source files remain the explicitly tracked, dependency-
+ordered Coeus/Leto consumer migration under MIG-500-01 and are not hidden by
+this pin-only increment.
 
 ## MIG-500-01 — Reject hidden Burn dependency relocation
 **Target version**: 0.14.0 migration batch
