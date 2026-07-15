@@ -79,7 +79,37 @@ impl CoherenceEnhancingDiffusionFilter {
         };
 
         rebuild(result, dims, image)
+    }    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B, const D: usize>(&self, image: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals_vec, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+
+        let result = if D >= 3 && dims.iter().all(|&d| d >= 3) {
+            // Extract the leading 3 dimensions.
+            let d3 = [dims[0], dims[1], dims[2]];
+            let n3 = d3[0] * d3[1] * d3[2];
+            let vals3: Vec<f64> = vals_vec[..n3].iter().map(|&v| v as f64).collect();
+            let out3 = ced_diffuse(&vals3, d3, &self.config);
+            // Write back, converting f64 → f32.
+            let mut result = vals_vec;
+            for i in 0..n3 {
+                result[i] = out3[i] as f32;
+            }
+            result
+        } else {
+            // CED undefined for < 3-D or tiny volumes; return input unchanged.
+            vals_vec
+        };
+
+        crate::native_support::rebuild_image(result, dims, image, backend)
+    
     }
+
 
     /// Apply the CED filter to a 3-D image, reusing scratch storage across calls.
     ///

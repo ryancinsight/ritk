@@ -140,6 +140,41 @@ impl ScalarChanAndVeseDenseLevelSet {
             .collect();
         Ok(rebuild(result, dims, initial_level_set))
     }
+
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        initial_level_set: &ritk_image::native::Image<f32, B, 3>,
+        feature_image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let dims = initial_level_set.shape();
+        if dims != feature_image.shape() {
+            anyhow::bail!(
+                "initial_level_set shape {:?} and feature_image shape {:?} must match",
+                dims,
+                feature_image.shape()
+            );
+        }
+
+        let (phi_init, _) = ritk_tensor_ops::native::extract_image_vec(initial_level_set)?;
+        let (feat, _) = ritk_tensor_ops::native::extract_image_vec(feature_image)?;
+
+        let mut phi: Vec<f64> = phi_init.iter().map(|&v| v as f64).collect();
+        let feat_f64: Vec<f64> = feat.iter().map(|&v| v as f64).collect();
+
+        self.evolve(&mut phi, &feat_f64, dims);
+
+        let result: Vec<f32> = phi
+            .iter()
+            .map(|&v| if v < 0.0 { 1.0 } else { 0.0 })
+            .collect();
+        crate::native_support::rebuild_image(result, dims, initial_level_set, backend)
+    }
 }
 
 // ── Core PDE ───────────────────────────────────────────────────────────────────

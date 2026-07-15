@@ -184,6 +184,52 @@ impl CannySegmentationLevelSet {
         let result: Vec<f32> = phi.iter().map(|&v| v as f32).collect();
         Ok(rebuild(result, dims, initial_level_set))
     }
+
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        initial_level_set: &ritk_image::native::Image<f32, B, 3>,
+        feature_image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let dims = initial_level_set.shape();
+        if dims != feature_image.shape() {
+            anyhow::bail!(
+                "initial_level_set shape {:?} and feature_image shape {:?} must match",
+                dims,
+                feature_image.shape()
+            );
+        }
+        let [nz, ny, nx] = dims;
+        let n = nz * ny * nx;
+        if n == 0 {
+            return Ok(initial_level_set.clone());
+        }
+
+        let edges = CannyEdgeDetectionImageFilter {
+            variance: self.canny_variance as f64,
+            maximum_error: CANNY_MAX_ERROR,
+            lower_threshold: 0.0,
+            upper_threshold: self.canny_threshold,
+        }
+        .apply_native(feature_image, backend)?;
+        let p_img = DistanceTransformImageFilter::new().apply_native(&edges, backend)?;
+        let (p_f32, _) = ritk_tensor_ops::native::extract_image_vec(&p_img)?;
+        let p: Vec<f64> = p_f32.iter().map(|&v| v as f64).collect();
+
+        let adv = advection_field(&p, dims);
+        let (sh_f32, _) = ritk_tensor_ops::native::extract_image_vec(initial_level_set)?;
+        let iso = self.iso_surface_value as f64;
+        let shifted: Vec<f64> = sh_f32.iter().map(|&v| v as f64 - iso).collect();
+
+        let phi = self.run(&shifted, &p, &adv, dims);
+        let result: Vec<f32> = phi.iter().map(|&v| v as f32).collect();
+        crate::native_support::rebuild_image(result, dims, initial_level_set, backend)
+    }
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────

@@ -177,7 +177,110 @@ impl OrientImageFilter {
             out_dir,
             image,
         ))
+    }    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let dir = image.direction();
+        let sp_in = image.spacing();
+        let org_in = image.origin();
+
+        // For each output tensor axis o (0=z, 1=y, 2=x), the corresponding image
+        // axis is j = 2 - o; the target letter at j gives the world unit vector.
+        // Find the input tensor axis most parallel to it.
+        let mut perm = [0usize; 3]; // perm[o] = input tensor axis
+        let mut flip = [false; 3]; // reverse that axis?
+        let mut out_dir = Direction::zeros();
+        for o in 0..3 {
+            let j = 2 - o;
+            let (world_axis, sign) = self.target[j];
+            let mut v = [0.0f64; 3];
+            v[world_axis] = sign;
+
+            let (mut best_a, mut best_abs, mut best_sigma) = (0usize, -1.0f64, 1.0f64);
+            for a in 0..3 {
+                let dot = (0..3).map(|c| dir[(c, a)] * v[c]).sum::<f64>();
+                if dot.abs() > best_abs {
+                    best_abs = dot.abs();
+                    best_a = a;
+                    best_sigma = if dot >= 0.0 { 1.0 } else { -1.0 };
+                }
+            }
+            perm[o] = best_a;
+            flip[o] = best_sigma < 0.0;
+            // Output tensor-axis o points toward the target world vector v.
+            for (c, &vc) in v.iter().enumerate() {
+                out_dir[(c, o)] = vc;
+            }
+        }
+
+        // Permutation must be a bijection (axis-aligned input guarantees this).
+        let mut seen = [false; 3];
+        for &a in &perm {
+            if seen[a] {
+                bail!("input direction is not axis-aligned; cannot DICOM-orient");
+            }
+            seen[a] = true;
+        }
+
+        let [nz, ny, nx] = dims;
+        let in_dims = [nz, ny, nx];
+        let out_dims = [in_dims[perm[0]], in_dims[perm[1]], in_dims[perm[2]]];
+        let (onz, ony, onx) = (out_dims[0], out_dims[1], out_dims[2]);
+
+        let in_stride = [ny * nx, nx, 1usize];
+        let mut out = vec![0.0f32; onz * ony * onx];
+        let mut out_idx = [0usize; 3];
+        for oz in 0..onz {
+            out_idx[0] = oz;
+            for oy in 0..ony {
+                out_idx[1] = oy;
+                for ox in 0..onx {
+                    out_idx[2] = ox;
+                    // Map output tensor coords → input tensor coords.
+                    let mut in_lin = 0usize;
+                    for o in 0..3 {
+                        let a = perm[o];
+                        let i = if flip[o] {
+                            in_dims[a] - 1 - out_idx[o]
+                        } else {
+                            out_idx[o]
+                        };
+                        in_lin += i * in_stride[a];
+                    }
+                    let dst = (oz * ony + oy) * onx + ox;
+                    out[dst] = vals[in_lin];
+                }
+            }
+        }
+
+        // Spacing follows the permutation (core spacing is tensor [z, y, x]).
+        let sp_out = Spacing::new([sp_in[perm[0]], sp_in[perm[1]], sp_in[perm[2]]]);
+
+        // Origin = world position of the output (0,0,0) voxel. Its input index
+        // along tensor axis a = perm[o] is (dim_a − 1) if reversed, else 0.
+        let mut corner = [0usize; 3];
+        for o in 0..3 {
+            corner[perm[o]] = if flip[o] { in_dims[perm[o]] - 1 } else { 0 };
+        }
+        let mut org_out = [0.0f64; 3];
+        for c in 0..3 {
+            let mut w = org_in[c];
+            for a in 0..3 {
+                w += dir[(c, a)] * sp_in[a] * corner[a] as f64;
+            }
+            org_out[c] = w;
+        }
+
+        crate::native_support::rebuild_with_metadata(out, out_dims, Point::new(org_out), sp_out, out_dir, image, backend)
+    
     }
+
 }
 
 #[cfg(test)]

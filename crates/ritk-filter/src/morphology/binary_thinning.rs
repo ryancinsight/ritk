@@ -110,7 +110,87 @@ impl BinaryThinningFilter {
 
         let out: Vec<f32> = img.iter().map(|&v| v as f32).collect();
         rebuild(out, dims, image)
+    }    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let [nz, ny, nx] = dims;
+        // ITK BinaryThinning is a 2-D filter; ritk represents 2-D as z = 1.
+        // Each z-plane is thinned independently so higher z still produces a
+        // defined (per-slice) result.
+        let mut img: Vec<u8> = vals.iter().map(|&v| u8::from(v != 0.0)).collect();
+        let cl = |i: isize, n: usize| -> usize { i.clamp(0, n as isize - 1) as usize };
+
+        for z in 0..nz {
+            let plane = z * ny * nx;
+            let mut changed = true;
+            while changed {
+                changed = false;
+                for step in 1..=4 {
+                    let mut to_delete: Vec<usize> = Vec::new();
+                    for y in 0..ny {
+                        for x in 0..nx {
+                            let idx = plane + y * nx + x;
+                            if img[idx] != 1 {
+                                continue;
+                            }
+                            let yi = y as isize;
+                            let xi = x as isize;
+                            let g = |dy: isize, dx: isize| -> u8 {
+                                img[plane + cl(yi + dy, ny) * nx + cl(xi + dx, nx)]
+                            };
+                            // p2..p9: N, NE, E, SE, S, SW, W, NW.
+                            let p2 = g(-1, 0);
+                            let p3 = g(-1, 1);
+                            let p4 = g(0, 1);
+                            let p5 = g(1, 1);
+                            let p6 = g(1, 0);
+                            let p7 = g(1, -1);
+                            let p8 = g(0, -1);
+                            let p9 = g(-1, -1);
+
+                            let num = p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9;
+                            let test_a = num > 1 && num < 7;
+                            let d = |a: u8, b: u8| (a as i32 - b as i32).unsigned_abs();
+                            let transitions = (d(p3, p2)
+                                + d(p4, p3)
+                                + d(p5, p4)
+                                + d(p6, p5)
+                                + d(p7, p6)
+                                + d(p8, p7)
+                                + d(p9, p8)
+                                + d(p2, p9))
+                                / 2;
+                            let test_b = transitions == 1;
+                            let test_cd = match step {
+                                1 => p4 == 0 || p6 == 0,
+                                2 => p2 == 0 && p8 == 0,
+                                3 => p2 == 0 || p8 == 0,
+                                _ => p4 == 0 && p6 == 0,
+                            };
+                            if test_a && test_b && test_cd {
+                                to_delete.push(idx);
+                                changed = true;
+                            }
+                        }
+                    }
+                    for &idx in &to_delete {
+                        img[idx] = 0;
+                    }
+                }
+            }
+        }
+
+        let out: Vec<f32> = img.iter().map(|&v| v as f32).collect();
+        crate::native_support::rebuild_image(out, dims, image, backend)
+    
     }
+
 }
 
 #[cfg(test)]

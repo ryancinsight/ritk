@@ -124,7 +124,52 @@ impl BinShrinkImageFilter {
             *image.direction(),
             image,
         )
+    }    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B, const D: usize>(&self, image: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (data, in_shape) = ritk_tensor_ops::native::extract_image_vec(image)?;
+
+        // Resolve per-dimension factors (broadcast factors[0] if shorter than D)
+        let factors: [usize; D] = std::array::from_fn(|d| {
+            if d < self.factors.len() {
+                self.factors[d]
+            } else {
+                self.factors[0]
+            }
+        });
+
+        let out_shape: [usize; D] = std::array::from_fn(|d| in_shape[d] / factors[d]);
+
+        if out_shape.iter().product::<usize>() == 0 {
+            // Degenerate case: some dimension collapses to zero.
+            let new_spacing = scaled_spacing(image.spacing(), &factors);
+            return crate::native_support::rebuild_with_metadata(Vec::new(), out_shape, *image.origin(), new_spacing, *image.direction(), image, backend);
+        }
+
+        // Separable multi-pass: shrink one dimension at a time.
+        let mut current_data = data;
+        let mut current_shape = in_shape;
+
+        for d in 0..D {
+            let f = factors[d];
+            if f <= 1 {
+                continue;
+            }
+            current_data = shrink_along_dim(&current_data, &current_shape, d, f);
+            current_shape[d] /= f;
+        }
+
+        let new_spacing = scaled_spacing(image.spacing(), &factors);
+
+        crate::native_support::rebuild_with_metadata(current_data, current_shape, *image.origin(), new_spacing, *image.direction(), image, backend)
+    
     }
+
 }
 
 /// Shrink the data along one dimension by averaging consecutive groups of

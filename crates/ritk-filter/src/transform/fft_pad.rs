@@ -143,6 +143,28 @@ impl FftPadImageFilter {
             FftPadBoundary::Periodic => WrapPadImageFilter::new(lower, upper).apply(image),
         }
     }
+
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (lower, upper) = self.pad_extents(image.shape());
+        match self.boundary {
+            FftPadBoundary::Zero => {
+                ConstantPadImageFilter::new(lower, upper, 0.0).apply_native(image, backend)
+            }
+            FftPadBoundary::ZeroFluxNeumann => {
+                ZeroFluxNeumannPadImageFilter::new(lower, upper).apply_native(image, backend)
+            }
+            FftPadBoundary::Periodic => WrapPadImageFilter::new(lower, upper).apply_native(image, backend),
+        }
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

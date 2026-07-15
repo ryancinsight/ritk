@@ -111,5 +111,41 @@ impl ChamferDistanceTransform {
             .collect();
 
         Ok(rebuild(scaled, [nz, ny, nx], image))
+    }    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let dims = image.shape();
+        let [nz, ny, nx] = dims;
+        let (vals, _shape) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let fg: Vec<bool> = vals
+            .iter()
+            .map(|&v| v > f32::from(self.threshold))
+            .collect();
+        let sp = image.spacing();
+        let spacing = [sp[0], sp[1], sp[2]];
+
+        let s_min = spacing.iter().fold(f64::INFINITY, |a, &b| a.min(b));
+        let weights: [i32; 3] = [
+            (spacing[0] / s_min).round() as i32,
+            (spacing[1] / s_min).round() as i32,
+            (spacing[2] / s_min).round() as i32,
+        ];
+
+        let result = cdt_dispatch(&fg, dims, weights, self.metric);
+
+        let scale = s_min as f32;
+        let scaled: Vec<f32> = result
+            .iter()
+            .map(|&v| if v == INF { -1.0 } else { v as f32 * scale })
+            .collect();
+
+        crate::native_support::rebuild_image(scaled, [nz, ny, nx], image, backend)
+    
     }
+
 }

@@ -90,6 +90,47 @@ impl InverseFftFilter {
         Self::apply_inner(image)
     }
 
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B, const D: usize>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let dims = image.shape();
+        let cw = dims[D - 1];
+        if !cw.is_multiple_of(2) {
+            anyhow::bail!(
+                "InverseFftFilter: {}D input last dimension must be even (got {}); expected interleaved complex layout",
+                D,
+                cw
+            );
+        }
+        let w = cw / 2;
+        let mut out_dims = dims;
+        out_dims[D - 1] = w;
+        let n_spatial: usize = out_dims.iter().product();
+        let (vals, _) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let mut buf: Vec<Complex<f32>> = Vec::with_capacity(n_spatial);
+        let outer_count: usize = out_dims[..D - 1].iter().product();
+        for outer in 0..outer_count {
+            let row_start = outer * cw;
+            for c in 0..w {
+                buf.push(Complex::new(
+                    vals[row_start + 2 * c],
+                    vals[row_start + 2 * c + 1],
+                ));
+            }
+        }
+        fft_nd::<D, InverseFft>(&mut buf, &out_dims);
+        let scale = 1.0 / n_spatial as f32;
+        let out: Vec<f32> = buf.iter().map(|z| z.re * scale).collect();
+        crate::native_support::rebuild_image(out, out_dims, image, backend)
+    }
+
     /// Dimension-generic inverse FFT implementation.
     ///
     /// Deinterleaves (Re, Im) pairs into a complex buffer, applies a

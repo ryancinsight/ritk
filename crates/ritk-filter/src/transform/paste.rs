@@ -100,6 +100,67 @@ impl PasteImageFilter {
 
         Ok(rebuild(out, dims, dest))
     }
+
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        dest: &ritk_image::native::Image<f32, B, 3>,
+        source: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let [dz, dy, dx] = dest.shape();
+        let [sz, sy, sx] = source.shape();
+        let [sdz, sdy, sdx]: [usize; 3] = self.dest_start.into();
+
+        if sdz + sz > dz {
+            anyhow::bail!(
+                "PasteImageFilter: source Z extent [{}..{}) exceeds dest depth {}",
+                sdz,
+                sdz + sz,
+                dz
+            );
+        }
+        if sdy + sy > dy {
+            anyhow::bail!(
+                "PasteImageFilter: source Y extent [{}..{}) exceeds dest height {}",
+                sdy,
+                sdy + sy,
+                dy
+            );
+        }
+        if sdx + sx > dx {
+            anyhow::bail!(
+                "PasteImageFilter: source X extent [{}..{}) exceeds dest width {}",
+                sdx,
+                sdx + sx,
+                dx
+            );
+        }
+
+        let (dest_vec, dims) = ritk_tensor_ops::native::extract_image_vec(dest)?;
+        let mut out = dest_vec;
+
+        let (src_vals_vec, _) = ritk_tensor_ops::native::extract_image_vec(source)?;
+        let src_vals = &src_vals_vec;
+
+        for iz in 0..sz {
+            for iy in 0..sy {
+                for ix in 0..sx {
+                    let src_idx = iz * sy * sx + iy * sx + ix;
+                    let dst_idx = (sdz + iz) * dy * dx + (sdy + iy) * dx + (sdx + ix);
+                    out[dst_idx] = src_vals[src_idx];
+                }
+            }
+        }
+
+        crate::native_support::rebuild_image(out, dims, dest, backend)
+    
+    }
+
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────

@@ -91,6 +91,46 @@ impl DiscreteGaussianDerivativeFilter {
         let result = convolve_separable(flat, dims, &kernels);
         rebuild(result, dims, image)
     }
+
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (flat, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let spacing = *image.spacing();
+
+        let mut kernels: [Option<Vec<f32>>; 3] = std::array::from_fn(|_| None);
+        for (d, slot) in kernels.iter_mut().enumerate() {
+            let h = if self.use_image_spacing {
+                spacing[d]
+            } else {
+                1.0
+            };
+            let pixel_variance = self.variance.max(0.0) / (h * h).max(1e-24);
+            if pixel_variance < 1e-18 && self.order[d] == 0 {
+                continue; // identity along this axis
+            }
+            *slot = Some(gaussian_derivative_operator_1d(
+                pixel_variance,
+                self.order[d],
+                self.maximum_error,
+            ));
+        }
+
+        if kernels.iter().all(|k| k.is_none()) {
+            return Ok(image.clone());
+        }
+
+        let result = convolve_separable(flat, dims, &kernels);
+        crate::native_support::rebuild_image(result, dims, image, backend)
+    }
+
 }
 
 /// Build the order-`m` central-difference derivative operator (`itk::Derivative-

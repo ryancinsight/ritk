@@ -94,6 +94,21 @@ impl FastChamferDistanceFilter {
         rebuild(out, dims, image)
     }
 
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (mut out, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        self.run(&mut out, dims);
+        crate::native_support::rebuild_image(out, dims, image, backend)
+    }
+
     /// In-place chamfer sweep over a flat `[z, y, x]` buffer.
     pub(crate) fn run(&self, out: &mut [f32], dims: [usize; 3]) {
         let [nz, ny, nx] = dims;
@@ -180,6 +195,31 @@ impl ApproximateSignedDistanceMapFilter {
         }
         .run(&mut out, dims);
         Ok(rebuild(out, dims, image))
+    }
+
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let dims = image.shape();
+        let diag2: f64 = dims.iter().map(|&s| (s * s) as f64).sum();
+        let max_distance = diag2.sqrt().floor();
+        let level = (self.inside_value + self.outside_value) / 2.0;
+
+        let iso = IsoContourDistanceFilter::new(level, max_distance + 1.0).apply_native(image, backend)?;
+        let (iso_vals, _) = ritk_tensor_ops::native::extract_image_vec(&iso)?;
+        let mut out: Vec<f32> = iso_vals.iter().map(|&v| -v).collect();
+        FastChamferDistanceFilter {
+            maximum_distance: max_distance,
+        }
+        .run(&mut out, dims);
+        crate::native_support::rebuild_image(out, dims, image, backend)
     }
 }
 

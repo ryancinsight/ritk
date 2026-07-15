@@ -25,6 +25,43 @@ impl MaxIntensityProjectionFilter {
             }
         })
     }
+
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let [nz, ny, nx] = image.shape();
+        let (vals, _) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let out = match self.axis {
+            ProjectionAxis::Z => moirai::map_collect_index_with::<moirai::Adaptive, _, _>(ny * nx, |idx| {
+                let y = idx / nx;
+                let x = idx % nx;
+                (0..nz).fold(f32::NEG_INFINITY, |acc, z| acc.max(vals[z * ny * nx + y * nx + x]))
+            }),
+            ProjectionAxis::Y => moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * nx, |idx| {
+                let z = idx / nx;
+                let x = idx % nx;
+                (0..ny).fold(f32::NEG_INFINITY, |acc, y| acc.max(vals[z * ny * nx + y * nx + x]))
+            }),
+            ProjectionAxis::X => moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny, |idx| {
+                let z = idx / ny;
+                let y = idx % ny;
+                (0..nx).fold(f32::NEG_INFINITY, |acc, x| acc.max(vals[z * ny * nx + y * nx + x]))
+            }),
+        };
+        let dims = match self.axis {
+            ProjectionAxis::Z => [1, ny, nx],
+            ProjectionAxis::Y => [nz, 1, nx],
+            ProjectionAxis::X => [nz, ny, 1],
+        };
+        crate::native_support::rebuild_image(out, dims, image, backend)
+    }
 }
 
 // ── MinIntensityProjectionFilter ──────────────────────────────────────────────

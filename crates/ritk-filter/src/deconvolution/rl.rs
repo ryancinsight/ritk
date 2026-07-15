@@ -91,6 +91,35 @@ impl RichardsonLucyDeconvolution {
         );
         Ok(rebuild(out_vals, img_dims, image))
     }
+
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B, const D: usize>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, D>,
+        kernel: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (img_vals, img_dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let (ker_vals, ker_dims) = ritk_tensor_ops::native::extract_image_vec(kernel)?;
+        let out_vals = apply_iterative::<D>(
+            &img_vals,
+            &img_dims,
+            &IterativeParams {
+                ker_vals: &ker_vals,
+                ker_dims: &ker_dims,
+                max_iterations: self.max_iterations,
+                tolerance: self.tolerance,
+                algorithm: IterativeAlgorithm::RichardsonLucy,
+            },
+        );
+        crate::native_support::rebuild_image(out_vals, img_dims, image, backend)
+    
+    }
+
 }
 
 impl Default for RichardsonLucyDeconvolution {

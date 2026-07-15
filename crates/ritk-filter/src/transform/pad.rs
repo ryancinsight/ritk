@@ -522,6 +522,51 @@ impl ZeroFluxNeumannPadImageFilter {
         );
         Ok(rebuild_with_origin(out, [oz, oy, ox], new_origin, image))
     }
+
+    /// Coeus-native sister of [`ZeroFluxNeumannPadImageFilter::apply`].
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let [nz, ny, nx] = image.shape();
+        let [lz, ly, lx] = *self.pad_lower.as_array();
+        let [uz, uy, ux] = *self.pad_upper.as_array();
+        let [oz, oy, ox] = [nz + lz + uz, ny + ly + uy, nx + lx + ux];
+
+        let vals = image.data_slice()?;
+        let mut out = vec![0.0f32; oz * oy * ox];
+
+        for iz in 0..oz {
+            for iy in 0..oy {
+                for ix in 0..ox {
+                    let sz = clamp_index(iz as i64 - lz as i64, nz);
+                    let sy = clamp_index(iy as i64 - ly as i64, ny);
+                    let sx = clamp_index(ix as i64 - lx as i64, nx);
+                    out[iz * oy * ox + iy * ox + ix] = vals[sz * ny * nx + sy * nx + sx];
+                }
+            }
+        }
+
+        let new_origin = updated_origin(
+            image.origin(),
+            image.spacing(),
+            image.direction(),
+            &self.pad_lower,
+        );
+        ritk_image::native::Image::from_flat_on(
+            out,
+            [oz, oy, ox],
+            new_origin,
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

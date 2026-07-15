@@ -78,6 +78,50 @@ impl RankImageFilter {
         }
         rebuild(out, dims, image)
     }
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,{
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let [nz, ny, nx] = dims;
+        let [rz, ry, rx] = self.radius;
+        let rank = self.rank.clamp(0.0, 1.0);
+        let cap = (2 * rz + 1) * (2 * ry + 1) * (2 * rx + 1);
+        let mut window: Vec<f32> = Vec::with_capacity(cap);
+        let mut out = vec![0.0f32; vals.len()];
+
+        for z in 0..nz {
+            let z0 = z.saturating_sub(rz);
+            let z1 = (z + rz).min(nz - 1);
+            for y in 0..ny {
+                let y0 = y.saturating_sub(ry);
+                let y1 = (y + ry).min(ny - 1);
+                for x in 0..nx {
+                    let x0 = x.saturating_sub(rx);
+                    let x1 = (x + rx).min(nx - 1);
+                    window.clear();
+                    for kz in z0..=z1 {
+                        for ky in y0..=y1 {
+                            let base = (kz * ny + ky) * nx;
+                            for kx in x0..=x1 {
+                                window.push(vals[base + kx]);
+                            }
+                        }
+                    }
+                    window.sort_unstable_by(|a, b| a.total_cmp(b));
+                    let n = window.len();
+                    let idx = ((rank * (n - 1) as f64).floor() as usize).min(n - 1);
+                    out[(z * ny + y) * nx + x] = window[idx];
+                }
+            }
+        }
+        crate::native_support::rebuild_image(out, dims, image, backend)
+    
+    }
+
 }
 
 #[cfg(test)]

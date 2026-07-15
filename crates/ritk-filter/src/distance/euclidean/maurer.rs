@@ -90,7 +90,37 @@ impl SignedMaurerDistanceMapImageFilter {
         );
 
         Ok(rebuild(signed, [nz, ny, nx], image))
+    }    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let dims = image.shape();
+        let [nz, ny, nx] = dims;
+        let (vals, _) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let fg: Vec<bool> = vals.iter().map(|&v| v != self.background_value).collect();
+        let sp = image.spacing();
+        let spacing = if self.use_image_spacing {
+            [sp[0], sp[1], sp[2]]
+        } else {
+            [1.0, 1.0, 1.0]
+        };
+
+        let signed = signed_maurer_core(
+            &fg,
+            dims,
+            spacing,
+            self.inside_is_positive,
+            self.squared_distance,
+        );
+
+        crate::native_support::rebuild_image(signed, [nz, ny, nx], image, backend)
+    
     }
+
 }
 
 /// Signed Maurer distance for a boolean foreground mask (reused by level-set

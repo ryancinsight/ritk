@@ -183,6 +183,82 @@ impl ContourExtractor2DImageFilter {
 
         assemble_polylines(segments)
     }
+
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        _backend: &B,
+    ) -> anyhow::Result<Vec<Contour>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let [_nz, ny, nx] = dims;
+        debug_assert_eq!(_nz, 1, "ContourExtractor2DImageFilter requires nz = 1");
+
+        let slice = &vals[..ny * nx];
+        let get = |y: usize, x: usize| -> f32 { slice[y * nx + x] };
+
+        let c = self.contour_value;
+        let mut segments: Vec<[ContourPoint; 2]> = Vec::new();
+
+        for y in 0..ny.saturating_sub(1) {
+            for x in 0..nx.saturating_sub(1) {
+                let v0 = get(y, x);
+                let v1 = get(y, x + 1);
+                let v2 = get(y + 1, x + 1);
+                let v3 = get(y + 1, x);
+
+                let case_idx = ((v0 > c) as u8)
+                    | (((v1 > c) as u8) << 1)
+                    | (((v2 > c) as u8) << 2)
+                    | (((v3 > c) as u8) << 3);
+                if case_idx == 0 || case_idx == 15 {
+                    continue;
+                }
+
+                let fy = y as f32;
+                let fx = x as f32;
+                let edge_pt = |edge: u8| -> ContourPoint {
+                    match edge {
+                        0 => {
+                            let t = interp(v0, v1, c);
+                            ContourPoint { y: fy, x: fx + t }
+                        }
+                        1 => {
+                            let t = interp(v1, v2, c);
+                            ContourPoint {
+                                y: fy + t,
+                                x: fx + 1.0,
+                            }
+                        }
+                        2 => {
+                            let t = interp(v2, v3, c);
+                            ContourPoint {
+                                y: fy + 1.0,
+                                x: fx + 1.0 - t,
+                            }
+                        }
+                        _ => {
+                            let t = interp(v3, v0, c);
+                            ContourPoint {
+                                y: fy + 1.0 - t,
+                                x: fx,
+                            }
+                        }
+                    }
+                };
+
+                for &[ea, eb] in CASE_TABLE[case_idx as usize] {
+                    segments.push([edge_pt(ea), edge_pt(eb)]);
+                }
+            }
+        }
+
+        Ok(assemble_polylines(segments))
+    }
 }
 
 // ── Case table ────────────────────────────────────────────────────────────────

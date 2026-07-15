@@ -85,6 +85,36 @@ where
     )
 }
 
+/// Rebuild a Coeus-native image from a flat buffer, preserving the source image's
+/// spatial metadata.
+pub(crate) fn rebuild_image<B, const D: usize>(
+    vals: Vec<f32>,
+    dims: [usize; D],
+    src: &Image<f32, B, D>,
+    backend: &B,
+) -> Result<Image<f32, B, D>>
+where
+    B: ComputeBackend,
+{
+    ritk_tensor_ops::native::rebuild_image(vals, dims, src, backend)
+}
+
+/// Rebuild a Coeus-native image from a flat buffer and explicit spatial metadata.
+pub(crate) fn rebuild_with_metadata<B, const D: usize>(
+    vals: Vec<f32>,
+    dims: [usize; D],
+    origin: ritk_spatial::Point<D>,
+    spacing: ritk_spatial::Spacing<D>,
+    direction: ritk_spatial::Direction<D>,
+    _src: &Image<f32, B, D>,
+    backend: &B,
+) -> Result<Image<f32, B, D>>
+where
+    B: ComputeBackend,
+{
+    Image::from_flat_on(vals, dims, origin, spacing, direction, backend)
+}
+
 // ── Test infrastructure ───────────────────────────────────────────────────────
 
 /// Construct a Coeus-native 3-D image from flat data with identity metadata.

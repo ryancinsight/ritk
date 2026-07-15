@@ -124,7 +124,84 @@ impl ErodeObjectMorphologyFilter {
             }
         }
         rebuild(out, dims, image)
+    }    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let [nz, ny, nx] = dims;
+        let [rz, ry, rx] = self.radius;
+        let obj = self.object_value;
+        let bg = self.background_value;
+        let mut out = vals.clone();
+        let idx = |z: usize, y: usize, x: usize| (z * ny + y) * nx + x;
+
+        // Boundary-scan radius per axis: 0 for a size-1 (z=1-promoted 2-D) axis
+        // so its absent border is not mistaken for a non-object neighbour — a
+        // genuine 3-D axis (size > 1) keeps radius 1, where out-of-image still
+        // counts as non-object (ITK's erode boundary condition).
+        let bz = if nz > 1 { 1i32 } else { 0 };
+        let by = if ny > 1 { 1i32 } else { 0 };
+        let bx = if nx > 1 { 1i32 } else { 0 };
+
+        for z in 0..nz {
+            for y in 0..ny {
+                for x in 0..nx {
+                    if vals[idx(z, y, x)] != obj {
+                        continue;
+                    }
+                    // Boundary: any neighbour in the (existing) 3×3×3 window is
+                    // non-object, with out-of-image neighbours counted as
+                    // non-object.
+                    let mut boundary = false;
+                    'scan: for dz in -bz..=bz {
+                        for dy in -by..=by {
+                            for dx in -bx..=bx {
+                                let nz_ = z as i32 + dz;
+                                let ny_ = y as i32 + dy;
+                                let nx_ = x as i32 + dx;
+                                if nz_ < 0
+                                    || ny_ < 0
+                                    || nx_ < 0
+                                    || nz_ >= nz as i32
+                                    || ny_ >= ny as i32
+                                    || nx_ >= nx as i32
+                                    || vals[idx(nz_ as usize, ny_ as usize, nx_ as usize)] != obj
+                                {
+                                    boundary = true;
+                                    break 'scan;
+                                }
+                            }
+                        }
+                    }
+                    if !boundary {
+                        continue;
+                    }
+                    // Paint the (2r+1)^3 box footprint with the background value.
+                    let z0 = z.saturating_sub(rz);
+                    let z1 = (z + rz).min(nz - 1);
+                    let y0 = y.saturating_sub(ry);
+                    let y1 = (y + ry).min(ny - 1);
+                    let x0 = x.saturating_sub(rx);
+                    let x1 = (x + rx).min(nx - 1);
+                    for pz in z0..=z1 {
+                        for py in y0..=y1 {
+                            for px in x0..=x1 {
+                                out[idx(pz, py, px)] = bg;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        crate::native_support::rebuild_image(out, dims, image, backend)
+    
     }
+
 }
 
 #[cfg(test)]

@@ -175,6 +175,109 @@ impl MaskedFftNormalizedCorrelationFilter {
 
         Ok(build_output(out, dims, fixed))
     }
+
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        fixed: &ritk_image::native::Image<f32, B, 3>,
+        moving: &ritk_image::native::Image<f32, B, 3>,
+        fixed_mask: &ritk_image::native::Image<f32, B, 3>,
+        moving_mask: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (f, fd) = ritk_tensor_ops::native::extract_image_vec(fixed)?;
+        let (mf, fmd) = ritk_tensor_ops::native::extract_image_vec(fixed_mask)?;
+        let (t, td) = ritk_tensor_ops::native::extract_image_vec(moving)?;
+        let (mt, tmd) = ritk_tensor_ops::native::extract_image_vec(moving_mask)?;
+        if fmd != fd {
+            bail!("masked_fft_ncc: fixed mask shape {fmd:?} != fixed {fd:?}");
+        }
+        if tmd != td {
+            bail!("masked_fft_ncc: moving mask shape {tmd:?} != moving {td:?}");
+        }
+        let dims = [fd[0] + td[0] - 1, fd[1] + td[1] - 1, fd[2] + td[2] - 1];
+        let n = dims[0] * dims[1] * dims[2];
+
+        let fm: Vec<f32> = f.iter().zip(&mf).map(|(a, b)| a * b).collect();
+        let f2m: Vec<f32> = f.iter().zip(&mf).map(|(a, b)| a * a * b).collect();
+        let tm: Vec<f32> = t.iter().zip(&mt).map(|(a, b)| a * b).collect();
+        let t2m: Vec<f32> = t.iter().zip(&mt).map(|(a, b)| a * a * b).collect();
+
+        let f_fft = fwd(pad(&fm, fd, dims, false), dims);
+        let mf_fft = fwd(pad(&mf, fd, dims, false), dims);
+        let f2_fft = fwd(pad(&f2m, fd, dims, false), dims);
+        let t_fft = fwd(pad(&tm, td, dims, true), dims);
+        let mt_fft = fwd(pad(&mt, td, dims, true), dims);
+        let t2_fft = fwd(pad(&t2m, td, dims, true), dims);
+
+        let overlap: Vec<f32> = corr(&mt_fft, &mf_fft, dims)
+            .iter()
+            .map(|v| v.round().max(0.0))
+            .collect();
+        let mask_corr_f = corr(&f_fft, &mt_fft, dims);
+        let mask_corr_m = corr(&t_fft, &mf_fft, dims);
+        let corr_ft = corr(&f_fft, &t_fft, dims);
+        let fixed_dc = corr(&f2_fft, &mt_fft, dims);
+        let moving_dc = corr(&mf_fft, &t2_fft, dims);
+
+        let overlap_ref = &overlap;
+        let corr_ft_ref = &corr_ft;
+        let mask_corr_f_ref = &mask_corr_f;
+        let mask_corr_m_ref = &mask_corr_m;
+        let fixed_dc_ref = &fixed_dc;
+        let moving_dc_ref = &moving_dc;
+
+        let (max_denom, max_overlap) = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
+            n,
+            || (0.0_f32, 0.0_f32),
+            |(mx_d, mx_ov), i| {
+                let ov = overlap_ref[i];
+                let ov_div = if ov > 0.0 { ov } else { 1.0 };
+                let fixed_d =
+                    (fixed_dc_ref[i] - mask_corr_f_ref[i] * mask_corr_f_ref[i] / ov_div).max(0.0);
+                let moving_d =
+                    (moving_dc_ref[i] - mask_corr_m_ref[i] * mask_corr_m_ref[i] / ov_div).max(0.0);
+                let denom = (fixed_d * moving_d).sqrt();
+                (mx_d.max(denom), mx_ov.max(ov))
+            },
+            |(a_d, a_ov), (b_d, b_ov)| (a_d.max(b_d), a_ov.max(b_ov)),
+        );
+
+        let tol = 1000.0 * f32::EPSILON * max_denom;
+        let req = (self.required_fraction_of_overlapping_pixels * max_overlap)
+            .max(self.required_number_of_overlapping_pixels as f32)
+            .max(1.0);
+
+        let out = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
+            let ov = overlap_ref[i];
+            if ov >= req {
+                let ov_div = if ov > 0.0 { ov } else { 1.0 };
+                let fixed_d =
+                    (fixed_dc_ref[i] - mask_corr_f_ref[i] * mask_corr_f_ref[i] / ov_div).max(0.0);
+                let moving_d =
+                    (moving_dc_ref[i] - mask_corr_m_ref[i] * mask_corr_m_ref[i] / ov_div).max(0.0);
+                let denom = (fixed_d * moving_d).sqrt();
+                if denom >= tol {
+                    let num = corr_ft_ref[i] - mask_corr_f_ref[i] * mask_corr_m_ref[i] / ov_div;
+                    return (num / denom).clamp(-1.0, 1.0);
+                }
+            }
+            0.0
+        });
+
+        ritk_image::native::Image::from_flat_on(
+            out,
+            dims,
+            Point::new([0.0, 0.0, 0.0]),
+            Spacing::new([fixed.spacing()[0], fixed.spacing()[1], fixed.spacing()[2]]),
+            Direction::identity(),
+            backend,
+        )
+    }
 }
 
 /// Build the (possibly larger) output image with the fixed image's spacing.

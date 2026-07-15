@@ -78,6 +78,37 @@ impl GrayscaleGrindPeakFilter {
             .with_connectivity(self.connectivity)
             .apply(&marker_img, image)
     }
+
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let [nz, ny, nx] = dims;
+        let gmin = vals.iter().copied().fold(f32::INFINITY, f32::min);
+
+        let mut marker = vec![gmin; vals.len()];
+        for iz in 0..nz {
+            for iy in 0..ny {
+                for ix in 0..nx {
+                    if on_image_border(iz, iy, ix, dims) {
+                        let flat = iz * ny * nx + iy * nx + ix;
+                        marker[flat] = vals[flat];
+                    }
+                }
+            }
+        }
+        let marker_img = crate::native_support::rebuild_image(marker, dims, image, backend)?;
+        MorphologicalReconstruction::new(ReconstructionMode::Dilation)
+            .with_connectivity(self.connectivity)
+            .apply_native(&marker_img, image, backend)
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

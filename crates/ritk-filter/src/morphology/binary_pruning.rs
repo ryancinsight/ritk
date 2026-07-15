@@ -83,6 +83,55 @@ impl BinaryPruningFilter {
         let out: Vec<f32> = img.iter().map(|&v| v as f32).collect();
         rebuild(out, dims, image)
     }
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,{
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let [nz, ny, nx] = dims;
+        let mut img: Vec<u8> = vals.iter().map(|&v| u8::from(v != 0.0)).collect();
+        let cl = |i: isize, n: usize| -> usize { i.clamp(0, n as isize - 1) as usize };
+
+        for z in 0..nz {
+            let plane = z * ny * nx;
+            for _ in 0..self.iteration {
+                // Raster-order, in-place sweep: a pruned pixel is immediately
+                // visible to later neighbours, matching ITK's NeighborhoodIterator.
+                for y in 0..ny {
+                    for x in 0..nx {
+                        let idx = plane + y * nx + x;
+                        if img[idx] == 0 {
+                            continue;
+                        }
+                        let yi = y as isize;
+                        let xi = x as isize;
+                        let g = |dy: isize, dx: isize| -> u8 {
+                            img[plane + cl(yi + dy, ny) * nx + cl(xi + dx, nx)]
+                        };
+                        let genus = g(-1, -1)
+                            + g(-1, 0)
+                            + g(-1, 1)
+                            + g(0, 1)
+                            + g(1, 1)
+                            + g(1, 0)
+                            + g(1, -1)
+                            + g(0, -1);
+                        if genus < 2 {
+                            img[idx] = 0;
+                        }
+                    }
+                }
+            }
+        }
+
+        let out: Vec<f32> = img.iter().map(|&v| v as f32).collect();
+        crate::native_support::rebuild_image(out, dims, image, backend)
+    
+    }
+
 }
 
 #[cfg(test)]

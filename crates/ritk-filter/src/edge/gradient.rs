@@ -55,6 +55,39 @@ impl GradientImageFilter {
             &image.data().device(),
         )
     }
+
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::ColorVolume<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let dx = DerivativeImageFilter::new(2, 1, self.use_image_spacing).apply_native(image, backend)?;
+        let dy = DerivativeImageFilter::new(1, 1, self.use_image_spacing).apply_native(image, backend)?;
+        let dz = DerivativeImageFilter::new(0, 1, self.use_image_spacing).apply_native(image, backend)?;
+        let (bx, dims) = ritk_tensor_ops::native::extract_image_vec(&dx)?;
+        let (by, _) = ritk_tensor_ops::native::extract_image_vec(&dy)?;
+        let (bz, _) = ritk_tensor_ops::native::extract_image_vec(&dz)?;
+        let n = bx.len();
+        let mut interleaved = vec![0.0f32; n * 3];
+        for i in 0..n {
+            interleaved[3 * i] = bx[i];
+            interleaved[3 * i + 1] = by[i];
+            interleaved[3 * i + 2] = bz[i];
+        }
+        ritk_image::native::ColorVolume::<f32, B, 3>::from_flat_on(
+            interleaved,
+            dims,
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
 }
 
 /// Gaussian-smoothed image gradient → 3-component covariant vector field.

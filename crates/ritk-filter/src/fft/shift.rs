@@ -68,6 +68,54 @@ impl FftShiftFilter {
         Self::apply_inner(image)
     }
 
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B, const D: usize>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let dims = image.shape();
+        let cw = dims[D - 1];
+        let w = cw / 2;
+        let (vals, _) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let shifts: [usize; D] = core::array::from_fn(|a| dims[a] / 2);
+        let w_shift = w / 2;
+        let mut row_strides = [0usize; D];
+        row_strides[D - 2] = 1;
+        for i in (0..D - 2).rev() {
+            row_strides[i] = row_strides[i + 1] * dims[i + 1];
+        }
+        let row_count: usize = dims[..D - 1].iter().product();
+        let mut out = vec![0.0_f32; row_count * cw];
+        for flat_row in 0..row_count {
+            let mut coords = [0usize; D];
+            let mut remaining = flat_row;
+            for a in 0..D - 1 {
+                coords[a] = remaining / row_strides[a];
+                remaining %= row_strides[a];
+            }
+            let mut src_row = 0usize;
+            for a in 0..D - 1 {
+                let src_a = (coords[a] + shifts[a]) % dims[a];
+                src_row += src_a * row_strides[a];
+            }
+            let src_base = src_row * cw;
+            let tgt_base = flat_row * cw;
+            for c in 0..w {
+                let src_c = (c + w_shift) % w;
+                let src_idx = src_base + 2 * src_c;
+                let tgt_idx = tgt_base + 2 * c;
+                out[tgt_idx] = vals[src_idx];
+                out[tgt_idx + 1] = vals[src_idx + 1];
+            }
+        }
+        crate::native_support::rebuild_image(out, dims, image, backend)
+    }
+
     fn apply_inner<B: Backend, const D: usize>(image: &Image<B, D>) -> Result<Image<B, D>> {
         let dims = image.shape();
         let cw = dims[D - 1]; // complex width = 2 * W

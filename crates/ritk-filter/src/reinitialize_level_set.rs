@@ -150,6 +150,125 @@ impl ReinitializeLevelSetFilter {
         }
         Ok(rebuild(out, dims, image))
     }
+
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let [nz, ny, nx] = dims;
+        let n = nz * ny * nx;
+        let sp = image.spacing();
+        let level = self.level_set_value;
+        let idx = |z: usize, y: usize, x: usize| (z * ny + y) * nx + x;
+        let cval = |i: usize| vals[i] as f64 - level;
+
+        let (mut out_pts, mut out_vals) = (Vec::new(), Vec::new());
+        let (mut in_pts, mut in_vals) = (Vec::new(), Vec::new());
+        let axes: [([i64; 3], usize); 3] = [([1, 0, 0], 0), ([0, 1, 0], 1), ([0, 0, 1], 2)];
+
+        for z in 0..nz {
+            for y in 0..ny {
+                for x in 0..nx {
+                    let i = idx(z, y, x);
+                    let cv = cval(i);
+                    if cv == 0.0 {
+                        in_pts.push([z, y, x]);
+                        in_vals.push(0.0);
+                        continue;
+                    }
+                    let inside = cv <= 0.0;
+                    let mut node = [f64::MAX; 3];
+                    for (j, (d, spj)) in axes.iter().enumerate() {
+                        let mut best = f64::MAX;
+                        for s in [-1i64, 1] {
+                            let (zz, yy, xx) = (
+                                z as i64 + s * d[0],
+                                y as i64 + s * d[1],
+                                x as i64 + s * d[2],
+                            );
+                            if zz < 0
+                                || yy < 0
+                                || xx < 0
+                                || zz >= nz as i64
+                                || yy >= ny as i64
+                                || xx >= nx as i64
+                            {
+                                continue;
+                            }
+                            let nv = cval(idx(zz as usize, yy as usize, xx as usize));
+                            if (nv > 0.0 && inside) || (nv < 0.0 && !inside) {
+                                let dist = cv / (cv - nv) * sp[*spj];
+                                if best > dist {
+                                    best = dist;
+                                }
+                            }
+                        }
+                        node[j] = best;
+                    }
+                    node.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    let mut dsum = 0.0;
+                    for &nd in &node {
+                        if nd >= f64::MAX {
+                            break;
+                        }
+                        dsum += 1.0 / (nd * nd);
+                    }
+                    if dsum == 0.0 {
+                        continue;
+                    }
+                    let trial = 1.0 / dsum.sqrt();
+                    if inside {
+                        in_pts.push([z, y, x]);
+                        in_vals.push(trial);
+                    } else {
+                        out_pts.push([z, y, x]);
+                        out_vals.push(trial);
+                    }
+                }
+            }
+        }
+
+        let speed = crate::native_support::rebuild_image(vec![1.0f32; n], dims, image, backend)?;
+        let mut out = vec![0.0f32; n];
+        if !out_pts.is_empty() {
+            let t = FastMarchingFilter {
+                trial_points: out_pts,
+                initial_trial_values: out_vals,
+                normalization_factor: 1.0,
+                stopping_value: f64::MAX / 2.0,
+            }
+            .apply_native(&speed, backend)?;
+            let (tv, _) = ritk_tensor_ops::native::extract_image_vec(&t)?;
+            for i in 0..n {
+                if cval(i) > 0.0 {
+                    out[i] = tv[i];
+                }
+            }
+        }
+        if !in_pts.is_empty() {
+            let t = FastMarchingFilter {
+                trial_points: in_pts,
+                initial_trial_values: in_vals,
+                normalization_factor: 1.0,
+                stopping_value: f64::MAX / 2.0,
+            }
+            .apply_native(&speed, backend)?;
+            let (tv, _) = ritk_tensor_ops::native::extract_image_vec(&t)?;
+            for i in 0..n {
+                if cval(i) <= 0.0 {
+                    out[i] = -tv[i];
+                }
+            }
+        }
+        crate::native_support::rebuild_image(out, dims, image, backend)
+    }
 }
 
 #[cfg(test)]

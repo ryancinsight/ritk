@@ -91,4 +91,56 @@ impl ScalarToRGBColormapFilter {
             &image.data().device(),
         )
     }
+
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::ColorVolume<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let (min, max) = vals
+            .iter()
+            .fold((f32::INFINITY, f32::NEG_INFINITY), |(lo, hi), &v| {
+                (lo.min(v), hi.max(v))
+            });
+        let range = max - min;
+
+        let n = vals.len();
+        let mut r = vec![0.0f32; n];
+        let mut g = vec![0.0f32; n];
+        let mut b = vec![0.0f32; n];
+        for (i, &v) in vals.iter().enumerate() {
+            let t = if range > 0.0 {
+                ((v - min) / range).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            let s = (t * 255.0).floor();
+            let [cr, cg, cb] = self.colormap.rgb(s);
+            r[i] = cr;
+            g[i] = cg;
+            b[i] = cb;
+        }
+
+        let mut interleaved = vec![0.0f32; n * 3];
+        for i in 0..n {
+            interleaved[3 * i] = r[i];
+            interleaved[3 * i + 1] = g[i];
+            interleaved[3 * i + 2] = b[i];
+        }
+
+        ritk_image::native::ColorVolume::<f32, B, 3>::from_flat_on(
+            interleaved,
+            dims,
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
 }

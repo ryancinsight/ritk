@@ -179,5 +179,94 @@ impl SpatialConvolutionFilter {
         );
 
         Ok(rebuild(out, dims, image))
+    }    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let [dz, dy, dx] = dims;
+        let [kz, ky, kx] = self.kernel_dims;
+
+        let hz = (kz / 2) as isize;
+        let hy = (ky / 2) as isize;
+        let hx = (kx / 2) as isize;
+
+        let nzi = dz as isize;
+        let nyi = dy as isize;
+        let nxi = dx as isize;
+
+        // Precompute clamped indices for all dimensions to avoid clamp, casting,
+        // and allocation overhead inside the hot parallel loop.
+        let mut sz_indices = Vec::with_capacity(dz * kz);
+        for z in 0..dz {
+            let zi = z as isize;
+            for ikz in 0..kz {
+                sz_indices.push((zi + ikz as isize - hz).clamp(0, nzi - 1) as usize);
+            }
+        }
+
+        let mut sy_indices = Vec::with_capacity(dy * ky);
+        for y in 0..dy {
+            let yi = y as isize;
+            for iky in 0..ky {
+                sy_indices.push((yi + iky as isize - hy).clamp(0, nyi - 1) as usize);
+            }
+        }
+
+        let mut sx_indices = Vec::with_capacity(dx * kx);
+        for x in 0..dx {
+            let xi = x as isize;
+            for ikx in 0..kx {
+                sx_indices.push((xi + ikx as isize - hx).clamp(0, nxi - 1) as usize);
+            }
+        }
+
+        let chunk_size = dy * dx;
+        let mut out = vec![0.0_f32; dz * chunk_size];
+
+        let kernel_ref = &self.kernel;
+        let vals_ref = &vals;
+        let sz_indices_ref = &sz_indices;
+        let sy_indices_ref = &sy_indices;
+        let sx_indices_ref = &sx_indices;
+
+        moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
+            &mut out,
+            chunk_size,
+            |z, slice| {
+                let sz_slice = &sz_indices_ref[z * kz..(z + 1) * kz];
+                for y in 0..dy {
+                    let sy_slice = &sy_indices_ref[y * ky..(y + 1) * ky];
+                    for x in 0..dx {
+                        let sx_slice = &sx_indices_ref[x * kx..(x + 1) * kx];
+                        let mut sum = 0.0_f64;
+                        for ikz in 0..kz {
+                            let sz = sz_slice[ikz];
+                            let sz_offset = sz * dy * dx;
+                            let k_offset_z = ikz * ky * kx;
+                            for iky in 0..ky {
+                                let sy = sy_slice[iky];
+                                let sy_offset = sz_offset + sy * dx;
+                                let k_offset_y = k_offset_z + iky * kx;
+                                for ikx in 0..kx {
+                                    let sx = sx_slice[ikx];
+                                    let k_val = kernel_ref[k_offset_y + ikx] as f64;
+                                    sum += k_val * vals_ref[sy_offset + sx] as f64;
+                                }
+                            }
+                        }
+                        slice[y * dx + x] = sum as f32;
+                    }
+                }
+            },
+        );
+
+        crate::native_support::rebuild_image(out, dims, image, backend)
+    
     }
+
 }

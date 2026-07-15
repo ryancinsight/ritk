@@ -47,7 +47,24 @@ impl ModulusImageFilter {
             .map(|v| ((v.round() as i64) % d) as f32)
             .collect();
         rebuild(out, dims, image)
+    }    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B, const D: usize>(&self, image: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let d = self.dividend;
+        let out: Vec<f32> = vals
+            .into_iter()
+            .map(|v| ((v.round() as i64) % d) as f32)
+            .collect();
+        crate::native_support::rebuild_image(out, dims, image, backend)
+    
     }
+
 }
 
 #[cfg(test)]

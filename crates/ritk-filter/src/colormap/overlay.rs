@@ -82,6 +82,46 @@ impl LabelToRGBFilter {
             &image.data().device(),
         )
     }
+
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::ColorVolume<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let n = vals.len();
+        let (mut r, mut g, mut b) = (vec![0.0f32; n], vec![0.0f32; n], vec![0.0f32; n]);
+        for (i, &v) in vals.iter().enumerate() {
+            let lbl = v.round() as i64;
+            if lbl == self.background {
+                continue;
+            }
+            let idx = (lbl - 1).rem_euclid(LABEL_COLORS.len() as i64) as usize;
+            let [cr, cg, cb] = LABEL_COLORS[idx];
+            r[i] = cr;
+            g[i] = cg;
+            b[i] = cb;
+        }
+        let mut interleaved = vec![0.0f32; n * 3];
+        for i in 0..n {
+            interleaved[3 * i] = r[i];
+            interleaved[3 * i + 1] = g[i];
+            interleaved[3 * i + 2] = b[i];
+        }
+        ritk_image::native::ColorVolume::<f32, B, 3>::from_flat_on(
+            interleaved,
+            dims,
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+            backend,
+        )
+    }
 }
 
 /// Overlay a label image on a grayscale image as RGB

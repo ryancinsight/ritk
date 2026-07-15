@@ -123,6 +123,74 @@ impl LaplacianSharpeningFilter {
             .collect();
         rebuild(out, dims, image)
     }
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,{
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let n = vals.len();
+
+        // Per-axis inverse-spacing-squared scalings (s_a²) for the Laplacian.
+        let inv2 = |s: f64| 1.0 / (s * s);
+        let scal = if self.use_image_spacing {
+            [
+                inv2(image.spacing()[0]),
+                inv2(image.spacing()[1]),
+                inv2(image.spacing()[2]),
+            ]
+        } else {
+            [1.0, 1.0, 1.0]
+        };
+
+        // Input statistics in f64.
+        let mut i_min = f64::INFINITY;
+        let mut i_max = f64::NEG_INFINITY;
+        let mut i_sum = 0.0f64;
+        for &v in &vals {
+            let v = v as f64;
+            i_min = i_min.min(v);
+            i_max = i_max.max(v);
+            i_sum += v;
+        }
+        let i_mean = i_sum / n as f64;
+        let i_shift = i_min;
+        let i_scale = i_max - i_min;
+
+        // Laplacian in f64 (ZeroFluxNeumann), tracking its own min/max.
+        let lap = laplacian_f64(&vals, dims, scal);
+        let mut f_min = f64::INFINITY;
+        let mut f_max = f64::NEG_INFINITY;
+        for &l in &lap {
+            f_min = f_min.min(l);
+            f_max = f_max.max(l);
+        }
+        let f_shift = f_min;
+        let f_scale = f_max - f_shift;
+        let gain = i_scale / f_scale;
+
+        // Combined image: parallel per-voxel computation (no reduction).
+        // The mean is computed as a sequential fold afterwards to preserve
+        // the exact left-to-right f64 accumulation order that matches
+        // ITK's sequential loop and keeps the `diff == 0.0` cmake parity.
+        let combined: Vec<f64> = moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |i| {
+            vals[i] as f64 - ((lap[i] - f_shift) * gain + i_shift)
+        });
+        // Sequential left-fold preserves associativity order of the ITK
+        // ComputeMean loop — identical to the original `c_sum += c` loop.
+        let c_mean = combined.iter().copied().sum::<f64>() / n as f64;
+
+        // Restore mean and clamp to the input range.
+        let out: Vec<f32> = combined
+            .iter()
+            .map(|&c| (c - c_mean + i_mean).clamp(i_min, i_max) as f32)
+            .collect();
+        crate::native_support::rebuild_image(out, dims, image, backend)
+    
+    }
+
 }
 
 /// Discrete Laplacian in `f64` — parallelised over the flat voxel index.

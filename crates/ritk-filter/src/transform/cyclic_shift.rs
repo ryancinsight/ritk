@@ -54,6 +54,44 @@ impl CyclicShiftImageFilter {
         }
         rebuild(out, dims, image)
     }
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,{
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let [nz, ny, nx] = dims;
+        // Reduce each shift modulo the (positive) axis length.
+        let rem = |s: i64, n: usize| -> usize {
+            if n == 0 {
+                return 0;
+            }
+            let n = n as i64;
+            (((s % n) + n) % n) as usize
+        };
+        let (sz, sy, sx) = (
+            rem(self.shift[0], nz),
+            rem(self.shift[1], ny),
+            rem(self.shift[2], nx),
+        );
+
+        let mut out = vec![0.0_f32; nz * ny * nx];
+        for oz in 0..nz {
+            let iz = if oz >= sz { oz - sz } else { oz + nz - sz };
+            for oy in 0..ny {
+                let iy = if oy >= sy { oy - sy } else { oy + ny - sy };
+                for ox in 0..nx {
+                    let ix = if ox >= sx { ox - sx } else { ox + nx - sx };
+                    out[oz * ny * nx + oy * nx + ox] = vals[iz * ny * nx + iy * nx + ix];
+                }
+            }
+        }
+        crate::native_support::rebuild_image(out, dims, image, backend)
+    
+    }
+
 }
 
 #[cfg(test)]

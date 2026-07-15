@@ -238,6 +238,44 @@ impl FrequencyDomainFilter {
         InverseFftFilter::new().apply(&unshifted)
     }
 
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B, const D: usize>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, D>,
+        kind: FftFilterKind,
+        cutoff: f64,
+        order: usize,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        Self::validate_cutoff(cutoff)?;
+        let spatial_dims = image.shape();
+        let freq = ForwardFftFilter::new().apply_native(image, backend)?;
+        let shifted = FftShiftFilter::new().apply_native(&freq, backend)?;
+        let cw = shifted.shape()[D - 1];
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(&shifted)?;
+        let mask = Self::generate_mask_generic::<D>(&spatial_dims, kind, cutoff, order);
+        let w = spatial_dims[D - 1];
+        let outer_count: usize = spatial_dims[..D - 1].iter().product();
+        let mut out = Vec::with_capacity(vals.len());
+        for outer in 0..outer_count {
+            let mask_base = outer * w;
+            let row_base = outer * cw;
+            for c in 0..w {
+                let m = mask[mask_base + c];
+                let idx = row_base + 2 * c;
+                out.push(vals[idx] * m);
+                out.push(vals[idx + 1] * m);
+            }
+        }
+        let masked = crate::native_support::rebuild_image(out, dims, &shifted, backend)?;
+        let unshifted = FftShiftFilter::new().apply_native(&masked, backend)?;
+        InverseFftFilter::new().apply_native(&unshifted, backend)
+    }
+
     // ── Private helpers ────────────────────────────────────────────────
 
     fn validate_cutoff(cutoff: f64) -> Result<()> {

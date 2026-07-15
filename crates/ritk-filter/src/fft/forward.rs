@@ -66,6 +66,31 @@ impl ForwardFftFilter {
         Self::apply_inner(image)
     }
 
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B, const D: usize>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let dims = image.shape();
+        let (vals, _) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        let mut buf: Vec<Complex<f32>> = vals.into_iter().map(|v| Complex::new(v, 0.0)).collect();
+        fft_nd::<D, ForwardFft>(&mut buf, &dims);
+
+        let mut out_dims = dims;
+        out_dims[D - 1] *= 2;
+        let mut out = Vec::with_capacity(buf.len() * 2);
+        for z in &buf {
+            out.push(z.re);
+            out.push(z.im);
+        }
+        crate::native_support::rebuild_image(out, out_dims, image, backend)
+    }
+
     fn apply_inner<B: Backend, const D: usize>(image: &Image<B, D>) -> Result<Image<B, D>> {
         let dims = image.shape();
         let (vals, _) = extract_vec(image)?;

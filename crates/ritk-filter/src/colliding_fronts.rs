@@ -137,6 +137,83 @@ impl CollidingFrontsFilter {
         }
         rebuild(out, dims, speed)
     }
+
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        speed: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let dims = speed.shape();
+        let [nz, ny, nx] = dims;
+        let n = nz * ny * nx;
+        let sp = [speed.spacing()[0], speed.spacing()[1], speed.spacing()[2]];
+
+        let t1 = FastMarchingFilter::new(self.seeds1.clone()).apply_native(speed, backend)?;
+        let t2 = FastMarchingFilter::new(self.seeds2.clone()).apply_native(speed, backend)?;
+        let (t1, _) = ritk_tensor_ops::native::extract_image_vec(&t1)?;
+        let (t2, _) = ritk_tensor_ops::native::extract_image_vec(&t2)?;
+        let g1 = upwind_gradient(&t1, dims, sp);
+        let g2 = upwind_gradient(&t2, dims, sp);
+
+        let neg = self.negative_epsilon as f32;
+        let mut mult: Vec<f32> = (0..n)
+            .map(|i| ((g1[i][0] * g2[i][0]) + (g1[i][1] * g2[i][1]) + (g1[i][2] * g2[i][2])) as f32)
+            .collect();
+        let idx = |[z, y, x]: [usize; 3]| (z * ny + y) * nx + x;
+        for &s in self.seeds1.iter().chain(self.seeds2.iter()) {
+            mult[idx(s)] = neg;
+        }
+
+        if !self.apply_connectivity {
+            return crate::native_support::rebuild_image(mult, dims, speed, backend);
+        }
+
+        let mut out = vec![0.0f32; n];
+        let mut visited = vec![false; n];
+        let mut queue: VecDeque<usize> = VecDeque::new();
+        for &s in &self.seeds1 {
+            let i = idx(s);
+            if mult[i] <= neg && !visited[i] {
+                visited[i] = true;
+                queue.push_back(i);
+            }
+        }
+        let face = [
+            (-1i64, 0i64, 0i64),
+            (1, 0, 0),
+            (0, -1, 0),
+            (0, 1, 0),
+            (0, 0, -1),
+            (0, 0, 1),
+        ];
+        while let Some(i) = queue.pop_front() {
+            out[i] = mult[i];
+            let (z, y, x) = (i / (ny * nx), (i % (ny * nx)) / nx, i % nx);
+            for &(dz, dy, dx) in &face {
+                let (zi, yi, xi) = (z as i64 + dz, y as i64 + dy, x as i64 + dx);
+                if zi < 0
+                    || yi < 0
+                    || xi < 0
+                    || zi >= nz as i64
+                    || yi >= ny as i64
+                    || xi >= nx as i64
+                {
+                    continue;
+                }
+                let ni = (zi as usize * ny + yi as usize) * nx + xi as usize;
+                if !visited[ni] && mult[ni] <= neg {
+                    visited[ni] = true;
+                    queue.push_back(ni);
+                }
+            }
+        }
+        crate::native_support::rebuild_image(out, dims, speed, backend)
+    }
 }
 
 /// Upwind gradient of an arrival-time field (`itk::FastMarchingUpwindGradient`).

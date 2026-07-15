@@ -87,7 +87,22 @@ impl BinaryDilateFilter {
         let result = dilate_binary_3d(&vals, dims, self.radius, self.foreground_value);
 
         Ok(rebuild(result, dims, image))
+    }    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+
+        let result = dilate_binary_3d(&vals, dims, self.radius, self.foreground_value);
+
+        crate::native_support::rebuild_image(result, dims, image, backend)
+    
     }
+
 }
 
 impl Default for BinaryDilateFilter {

@@ -201,6 +201,121 @@ impl InvertDisplacementField {
             rebuild(rz, dims, dz),
         )
     }
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        dx: &ritk_image::native::Image<f32, B, 3>,
+        dy: &ritk_image::native::Image<f32, B, 3>,
+        dz: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<(
+        ritk_image::native::Image<f32, B, 3>,
+        ritk_image::native::Image<f32, B, 3>,
+        ritk_image::native::Image<f32, B, 3>,
+    )>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (ux, dims) = ritk_tensor_ops::native::extract_image_vec(dx)?;
+        let (uy, _) = ritk_tensor_ops::native::extract_image_vec(dy)?;
+        let (uz, _) = ritk_tensor_ops::native::extract_image_vec(dz)?;
+        let [nz, ny, nx] = dims;
+        let n = nz * ny * nx;
+        // spacing is tensor-major [sz, sy, sx]; world x ↔ axis 2.
+        let sp = dx.spacing();
+        let (sx, sy, sz) = (sp[2], sp[1], sp[0]);
+        let (inv_sx, inv_sy, inv_sz) = (1.0 / sx, 1.0 / sy, 1.0 / sz);
+
+        let uxd: Vec<f64> = ux.iter().map(|&v| v as f64).collect();
+        let uyd: Vec<f64> = uy.iter().map(|&v| v as f64).collect();
+        let uzd: Vec<f64> = uz.iter().map(|&v| v as f64).collect();
+
+        let mut vx = vec![0.0f64; n];
+        let mut vy = vec![0.0f64; n];
+        let mut vz = vec![0.0f64; n];
+
+        let interp = |cz: f64, cy: f64, cx: f64, ud: &[f64]| interp_component(ud, dims, cz, cy, cx);
+
+        let mut max_err = f64::MAX;
+        let mut mean_err = f64::MAX;
+        let mut cx_buf = vec![0.0f64; n];
+        let mut cy_buf = vec![0.0f64; n];
+        let mut cz_buf = vec![0.0f64; n];
+        let mut scaled = vec![0.0f64; n];
+
+        let mut iteration = 0;
+        while iteration < self.max_iterations
+            && max_err > self.max_error_tolerance
+            && mean_err > self.mean_error_tolerance
+        {
+            iteration += 1;
+            // Compose c(x) = v(x) + u(x + v(x)); scaled norm; negate.
+            let mut sum = 0.0f64;
+            let mut mx = 0.0f64;
+            for z in 0..nz {
+                for y in 0..ny {
+                    for x in 0..nx {
+                        let i = (z * ny + y) * nx + x;
+                        let ci_x = x as f64 + vx[i] * inv_sx;
+                        let ci_y = y as f64 + vy[i] * inv_sy;
+                        let ci_z = z as f64 + vz[i] * inv_sz;
+                        let cdx = vx[i] + interp(ci_z, ci_y, ci_x, &uxd);
+                        let cdy = vy[i] + interp(ci_z, ci_y, ci_x, &uyd);
+                        let cdz = vz[i] + interp(ci_z, ci_y, ci_x, &uzd);
+                        let sn = ((cdx * inv_sx).powi(2)
+                            + (cdy * inv_sy).powi(2)
+                            + (cdz * inv_sz).powi(2))
+                        .sqrt();
+                        scaled[i] = sn;
+                        sum += sn;
+                        if sn > mx {
+                            mx = sn;
+                        }
+                        cx_buf[i] = -cdx;
+                        cy_buf[i] = -cdy;
+                        cz_buf[i] = -cdz;
+                    }
+                }
+            }
+            mean_err = sum / n as f64;
+            max_err = mx;
+            let eps = if iteration == 1 { 0.75 } else { 0.5 };
+            let limit = eps * max_err;
+            // Estimate inverse update.
+            for z in 0..nz {
+                for y in 0..ny {
+                    for x in 0..nx {
+                        let i = (z * ny + y) * nx + x;
+                        let on_border =
+                            z == 0 || z == nz - 1 || y == 0 || y == ny - 1 || x == 0 || x == nx - 1;
+                        if self.enforce_boundary && on_border {
+                            vx[i] = 0.0;
+                            vy[i] = 0.0;
+                            vz[i] = 0.0;
+                            continue;
+                        }
+                        let sn = scaled[i];
+                        let scale = if sn > limit { limit / sn } else { 1.0 };
+                        vx[i] += eps * cx_buf[i] * scale;
+                        vy[i] += eps * cy_buf[i] * scale;
+                        vz[i] += eps * cz_buf[i] * scale;
+                    }
+                }
+            }
+        }
+
+        let rx: Vec<f32> = vx.iter().map(|&v| v as f32).collect();
+        let ry: Vec<f32> = vy.iter().map(|&v| v as f32).collect();
+        let rz: Vec<f32> = vz.iter().map(|&v| v as f32).collect();
+        Ok((
+            crate::native_support::rebuild_image(rx, dims, dx, backend)?,
+            crate::native_support::rebuild_image(ry, dims, dy, backend)?,
+            crate::native_support::rebuild_image(rz, dims, dz, backend)?,
+        ))
+    
+    }
+
 }
 
 #[cfg(test)]

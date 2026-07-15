@@ -70,7 +70,30 @@ impl BitwiseNotImageFilter {
             })
             .collect();
         rebuild(out, dims, image)
+    }    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B, const D: usize>(&self, image: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        // 2ⁿ − 1 as f64 to stay exact through 53-bit mantissa for n ≤ 32.
+        let mask = ((1u64 << self.bits) - 1) as f64;
+        let signed = self.signed;
+        let out: Vec<f32> = vals
+            .into_iter()
+            .map(|v| {
+                let x = (v as f64).round();
+                let r = if signed { -x - 1.0 } else { mask - x };
+                r as f32
+            })
+            .collect();
+        crate::native_support::rebuild_image(out, dims, image, backend)
+    
     }
+
 }
 
 #[cfg(test)]
