@@ -67,7 +67,7 @@ profile-guided performance item.
 
 ## DEP-501-01 — Apollo FFT provider alignment
 **Target version**: Unreleased patch
-**Sprint phase**: Verification
+**Sprint phase**: Closure
 
 - [x] Raise the RITK Apollo FFT constraint to the current local 0.15 provider.
 - [x] Replace the temporary Apollo checkout with merged main commit
@@ -75,10 +75,18 @@ profile-guided performance item.
       checkout action to merged Coeus `2026a0b65e363496b5ab79b09612f26b7729f9d5`,
       Gaia, Hephaestus, Hermes, Leto, Melinoe, Mnemosyne, Moirai, and Themis
       heads. Leto is `efa235a5` after PR #34. Coeus PR #209 is merged.
-- [ ] Verify `ritk-filter` and the downstream Kwavers dependency graph on the
-      the merged provider graph. The first CI attempt exposed the upstream
-      Coeus `mnemosyne ^0.3.0` constraint; the checkout action now uses the
-      merged Coeus provider fix and requires a fresh run.
+- [x] Verify `ritk-filter` and the downstream Kwavers dependency graph on the
+      merged provider graph. The first CI attempt exposed the upstream Coeus
+      `mnemosyne ^0.3.0` constraint; the checkout action now uses the merged
+      Coeus provider fix. Local `cargo nextest run -p ritk-filter
+      --all-features --locked --no-fail-fast` passed 1,135/1,135. Required CI
+      runs `29383996149`, `29383996171`, and `29383996188` passed the complete
+      Python, Rust, wheel, platform, and migration-audit matrix.
+
+Residual: the provider alignment is closed. The 14 Burn-dependent manifests
+and 645 Burn-surface source files remain the explicitly tracked, dependency-
+ordered Coeus/Leto consumer migration under MIG-500-01 and are not hidden by
+this pin-only increment.
 
 ## MIG-500-01 — Reject hidden Burn dependency relocation
 **Target version**: 0.14.0 migration batch

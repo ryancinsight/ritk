@@ -20,12 +20,16 @@
   next work is a dependency-ordered Coeus consumer cutover, not an alias or
   fallback.
 
-- **DEP-501-01 [patch] - Apollo FFT provider alignment (IN PROGRESS).**
+- **DEP-501-01 [patch] - Apollo FFT provider alignment (DONE).**
   Update the CI checkout to merged Apollo `6e99a567`, align every Atlas
   provider checkout to its merged head, refresh the lockfile's provider graph,
   and verify the owning filter crate plus the downstream Kwavers graph. Coeus
   provider alignment is now merged at `2026a0b6`; no compatibility edge or
-  fallback is allowed. Consumer CI is the remaining acceptance gate.
+  fallback is allowed. Consumer verification is complete: local
+  `ritk-filter` nextest passed 1,135/1,135 and the required CI matrix passed in
+  runs `29383996149` (Python 3.9-3.13 on Ubuntu/macOS/Windows), `29383996171`
+  (format, Clippy, wheel smoke, and all three platform suites), and
+  `29383996188` (Burn migration audit). PR #33 is ready to merge.
 
 - **MIG-500-01 [major] - Hidden Burn dependency relocation (BLOCKED).**
   The current 112-file working diff is green but prohibited: direct

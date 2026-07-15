@@ -69,7 +69,14 @@
 ### Provider blocker
 - The first consumer CI run exposed a Coeus `mnemosyne ^0.3.0` constraint
   against Mnemosyne 0.4.0. Coeus PR #209 merged the provider-owned constraint
-  update; a fresh consumer CI run remains required.
+  update. Local `ritk-filter` nextest passes 1,135/1,135, and GitHub Actions
+  runs `29383996149`, `29383996171`, and `29383996188` pass the complete
+  Python, Rust, wheel, platform, and migration-audit matrix, including Windows
+  nextest.
+
+### Status
+- DEP-501-01 is closed. The remaining Burn manifests and source surfaces are
+  tracked as the separate dependency-ordered Coeus/Leto consumer migration.
 
 ## [Unreleased] — Sprint 499: canonical native binary erosion (MIG-499-01)
 

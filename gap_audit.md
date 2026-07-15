@@ -21,11 +21,13 @@ Melinoe `bb07447`, Mnemosyne `32b4a2a`, Moirai `8cd356c`, and Themis `18807bb`
 heads. This removes stale branch pins without introducing an adapter or
 fallback. The first consumer run failed before compilation because Coeus main
 still required Mnemosyne `^0.3.0`; Coeus PR #209 merged the provider-owned
-`^0.4.0` and Hephaestus/Themis constraint update. A fresh consumer run is the
-remaining acceptance gate.
+`^0.4.0` and Hephaestus/Themis constraint update. The fresh consumer run now
+passes: local `ritk-filter` nextest is 1,135/1,135, and CI runs
+`29383996149`, `29383996171`, and `29383996188` pass the complete required
+matrix, including Windows nextest.
 
-Evidence tier: source and provider-reference inspection plus merged upstream
-PR; consumer CI rerun pending.
+Evidence tier: source and provider-reference inspection, merged upstream PR,
+locked metadata, local value-semantic nextest, and required CI.
 
 ## DEP-655-01 audit (2026-07-14)
 
