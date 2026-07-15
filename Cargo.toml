@@ -76,7 +76,7 @@ numpy = "0.22"
 dicom = { version = "0.8.0", default-features = false }
 moirai = { path = "../moirai/moirai", version = "0.2.0", features = ["melinoe"] }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
-mnemosyne = { path = "../mnemosyne/crates/mnemosyne", version = "^0.4.0", default-features = false, features = ["std_tls", "eunomia"] }
+mnemosyne = { path = "../mnemosyne/crates/mnemosyne", version = "^0.2.0", default-features = false, features = ["std_tls", "eunomia"] }
 eunomia = { git = "https://github.com/ryancinsight/eunomia", default-features = false }
 coeus-core = { path = "../coeus/coeus-core" }
 coeus-tensor = { path = "../coeus/coeus-tensor" }

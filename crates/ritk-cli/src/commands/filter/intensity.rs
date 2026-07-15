@@ -8,7 +8,7 @@ use super::{
         infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
         write_image_native, NativeBackend,
     },
-    read_image, write_image_inferred, FilterArgs,
+    FilterArgs,
 };
 
 pub(super) fn run_bed_separation(args: &FilterArgs) -> Result<()> {
@@ -270,16 +270,20 @@ pub(super) fn run_sigmoid(args: &FilterArgs) -> Result<()> {
 }
 
 pub(super) fn run_binary_threshold(args: &FilterArgs) -> Result<()> {
-    let image = read_image(&args.input)?;
-    let filtered = ritk_segmentation::binary_threshold(
-        &image,
+    use ritk_segmentation::BinaryThreshold;
+
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
+    let filtered = BinaryThreshold::new(
         args.band.lower_threshold,
         args.band.upper_threshold,
-        args.band.foreground_value,
-        args.band.background_value,
-    );
+    )
+    .with_values(args.band.foreground_value, args.band.background_value)
+    .apply_native(&image, &backend)?;
 
-    write_image_inferred(&args.output, &filtered)?;
+    let fmt = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    write_image_native(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied binary-threshold ([{},{}] fg={} bg={}) to {} -> {}",

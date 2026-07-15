@@ -12,11 +12,12 @@ use super::{read_image, write_image_inferred, FilterArgs};
 pub(super) fn run_gradient_magnitude(args: &FilterArgs) -> Result<()> {
     use ritk_filter::GradientMagnitudeFilter;
 
-    let image = read_image(&args.input)?;
-    let spacing = image.spacing();
-    let filter = GradientMagnitudeFilter::new(*spacing);
-    let filtered = filter.apply(&image)?;
-    write_image_inferred(&args.output, &filtered)?;
+    let image = read_image_native(&args.input)?;
+    let filter = GradientMagnitudeFilter::new(*image.spacing());
+    let filtered = filter.apply_native(&image)?;
+    let fmt = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    write_image_native(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied gradient-magnitude to {} \u{2192} {}",
@@ -36,11 +37,12 @@ pub(super) fn run_gradient_magnitude(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_laplacian(args: &FilterArgs) -> Result<()> {
     use ritk_filter::LaplacianFilter;
 
-    let image = read_image(&args.input)?;
-    let spacing = image.spacing();
-    let filter = LaplacianFilter::new(*spacing);
-    let filtered = filter.apply(&image)?;
-    write_image_inferred(&args.output, &filtered)?;
+    let image = read_image_native(&args.input)?;
+    let filter = LaplacianFilter::new(*image.spacing());
+    let filtered = filter.apply_native(&image)?;
+    let fmt = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    write_image_native(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied laplacian to {} \u{2192} {}",
@@ -61,7 +63,7 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
     use ritk_filter::vesselness::FrangiConfig;
     use ritk_filter::FrangiVesselnessFilter;
 
-    let image = read_image(&args.input)?;
+    let image = read_image_native(&args.input)?;
 
     // Use the scales from the vesselness Args chunk.
     let scales = args.vesselness.scales.clone();
@@ -79,8 +81,11 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
         polarity: ritk_filter::VesselPolarity::Bright,
     };
     let filter = FrangiVesselnessFilter { config };
-    let filtered = filter.apply(&image)?;
-    write_image_inferred(&args.output, &filtered)?;
+    let backend = NativeBackend::default();
+    let filtered = filter.apply_native(&image, &backend)?;
+    let fmt = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    write_image_native(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied frangi (scales={:?}, \u{03b1}={}, \u{03b2}={}, \u{03b3}={}) to {} \u{2192} {}",
@@ -146,10 +151,13 @@ pub(super) fn run_median(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_bilateral(args: &FilterArgs) -> Result<()> {
     use ritk_filter::BilateralFilter;
 
-    let image = read_image(&args.input)?;
+    let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
     let filter = BilateralFilter::new(args.edge.sigma_spatial, args.edge.sigma_range);
-    let filtered = filter.apply(&image)?;
-    write_image_inferred(&args.output, &filtered)?;
+    let filtered = filter.apply_native(&image, &backend)?;
+    let fmt = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    write_image_native(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied bilateral (\u{03c3}_spatial={}, \u{03c3}_range={}) to {} \u{2192} {}",
@@ -177,12 +185,15 @@ pub(super) fn run_canny(args: &FilterArgs) -> Result<()> {
     use ritk_filter::edge::GaussianSigma;
     use ritk_filter::CannyEdgeDetector;
 
-    let image = read_image(&args.input)?;
+    let image = read_image_native(&args.input)?;
     let sigma = GaussianSigma::new(args.smoothing.sigma)
         .ok_or_else(|| anyhow!("--sigma must be > 0, got {}", args.smoothing.sigma))?;
+    let backend = NativeBackend::default();
     let detector = CannyEdgeDetector::new(sigma, args.edge.low as f64, args.edge.high as f64);
-    let filtered = detector.apply(&image)?;
-    write_image_inferred(&args.output, &filtered)?;
+    let filtered = detector.apply_native(&image, &backend)?;
+    let fmt = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    write_image_native(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied canny (\u{03c3}={}, low={}, high={}) to {} \u{2192} {}",
@@ -211,11 +222,12 @@ pub(super) fn run_canny(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_sobel(args: &FilterArgs) -> Result<()> {
     use ritk_filter::SobelFilter;
 
-    let image = read_image(&args.input)?;
-    let spacing = image.spacing();
-    let filter = SobelFilter::new(*spacing);
-    let filtered = filter.apply(&image)?;
-    write_image_inferred(&args.output, &filtered)?;
+    let image = read_image_native(&args.input)?;
+    let filter = SobelFilter::new(*image.spacing());
+    let filtered = filter.apply_native(&image)?;
+    let fmt = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    write_image_native(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied sobel to {} \u{2192} {}",
@@ -237,13 +249,14 @@ pub(super) fn run_log(args: &FilterArgs) -> Result<()> {
     use ritk_filter::edge::GaussianSigma;
     use ritk_filter::LaplacianOfGaussianFilter;
 
-    let image = read_image(&args.input)?;
+    let image = read_image_native(&args.input)?;
     let sigma = GaussianSigma::new(args.smoothing.sigma)
         .ok_or_else(|| anyhow!("--sigma must be > 0, got {}", args.smoothing.sigma))?;
     let filter = LaplacianOfGaussianFilter::new(sigma);
-    let filtered = filter.apply(&image)?;
-
-    write_image_inferred(&args.output, &filtered)?;
+    let filtered = filter.apply_native(&image)?;
+    let fmt = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    write_image_native(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied log (\u{03c3}={}) to {} \u{2192} {}",
@@ -274,10 +287,12 @@ pub(super) fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
         CliDerivativeOrder::Second => DerivativeOrder::Second,
     };
 
-    let image = read_image(&args.input)?;
+    let image = read_image_native(&args.input)?;
     let filter = RecursiveGaussianFilter::new(args.smoothing.sigma).with_derivative_order(order);
-    let filtered = filter.apply(&image)?;
-    write_image_inferred(&args.output, &filtered)?;
+    let filtered = filter.apply_native(&image)?;
+    let fmt = infer_format(&args.output)
+        .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    write_image_native(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied recursive-gaussian (\u{03c3}={}, order={}) to {} \u{2192} {}",
