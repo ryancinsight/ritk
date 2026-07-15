@@ -7,7 +7,7 @@ use ritk_image::tensor::{Shape, Tensor, TensorData};
 use std::path::Path;
 
 /// Reads MGH/MGZ through the native provider and converts at this legacy boundary.
-#[deprecated(note = "Use MghReader/MghWriter native trait instead")]\npub fn read_mgh<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
+pub fn read_mgh<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
     let native = ritk_mgh::read_mgh(path, &SequentialBackend)?;
     let tensor = Tensor::<B, 3>::from_data(
         TensorData::new(
@@ -25,7 +25,7 @@ use std::path::Path;
 }
 
 /// Writes a legacy image through the native MGH provider.
-#[deprecated(note = "Use MghReader/MghWriter native trait instead")]\npub fn write_mgh<B: Backend, P: AsRef<Path>>(image: &Image<B, 3>, path: P) -> Result<()> {
+pub fn write_mgh<B: Backend, P: AsRef<Path>>(image: &Image<B, 3>, path: P) -> Result<()> {
     let backend = SequentialBackend;
     let native = ritk_image::native::Image::from_flat_on(
         image.try_data_vec()?,

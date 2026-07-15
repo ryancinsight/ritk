@@ -160,7 +160,26 @@ impl FftPadImageFilter {
                 ConstantPadImageFilter::new(lower, upper, 0.0).apply_native(image, backend)
             }
             FftPadBoundary::ZeroFluxNeumann => {
-                ZeroFluxNeumannPadImageFilter::new(lower, upper).apply_native(image, backend)
+                // TODO(native): replace this temporary Burn round-trip once
+                // ZeroFluxNeumannPadImageFilter has a dedicated native path.
+                let burn_image = ritk_image::Image::<burn_ndarray::NdArray<f32>, 3>::from_flat_on(
+                    image.data_slice()?.to_vec(),
+                    image.shape(),
+                    *image.origin(),
+                    *image.spacing(),
+                    *image.direction(),
+                    &Default::default(),
+                );
+                let padded = ZeroFluxNeumannPadImageFilter::new(lower, upper).apply(&burn_image)?;
+                let (values, dims) = ritk_tensor_ops::extract_vec(&padded)?;
+                ritk_image::native::Image::from_flat_on(
+                    values,
+                    dims,
+                    *padded.origin(),
+                    *padded.spacing(),
+                    *padded.direction(),
+                    backend,
+                )
             }
             FftPadBoundary::Periodic => WrapPadImageFilter::new(lower, upper).apply_native(image, backend),
         }
