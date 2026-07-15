@@ -4,19 +4,19 @@ use super::*;
 
 /// Run rigid-mi or affine-mi registration via the classical MI engine.
 pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
-    // ── 1. Read images ─────────────────────────────────────────────────────
-    let fixed_img = super::super::read_image(&args.fixed)?;
-    let moving_img = super::super::read_image(&args.moving)?;
+    // ── 1. Read images (native path — no burn round-trip) ──────────────────
+    let fixed_native  = super::super::read_image_native(&args.fixed)?;
+    let moving_native = super::super::read_image_native(&args.moving)?;
 
-    // ── 2. Optional pre-registration Gaussian smoothing ───────────────────
-    // GaussianFilter applies isotropic smoothing; sigma_fixed is always > 0
-    // (enforced by GaussianSigma). Pass it directly to the filter.
-    let filter = GaussianFilter::<Backend>::new(vec![args.sigma_fixed; 3]);
-    let (fixed_img, moving_img) = (filter.apply(&fixed_img), filter.apply(&moving_img));
+    // ── 2. Optional pre-registration Gaussian smoothing (coeus-native) ────
+    let filter  = GaussianFilter::<super::NativeBackend>::new(vec![args.sigma_fixed; 3]);
+    let backend = super::NativeBackend::default();
+    let fixed_sm  = filter.apply_native(&fixed_native, &backend)?;
+    let moving_sm = filter.apply_native(&moving_native, &backend)?;
 
     // ── 3. Convert images to leto::Array3<f64> ────────────────────────────
-    let fixed_arr = image_to_leto_volume(&fixed_img);
-    let moving_arr = image_to_leto_volume(&moving_img);
+    let fixed_arr  = native_image_to_leto_volume(&fixed_sm)?;
+    let moving_arr = native_image_to_leto_volume(&moving_sm)?;
 
     // ── 4. Build registration engine with user-supplied iteration budget ───
     let config = ClassicalConfig {
@@ -42,17 +42,15 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
     };
 
     // ── 6. Warp moving image with estimated transform ──────────────────────
-    // Re-read the original (un-smoothed) moving image for warping so the
-    // output preserves the full-resolution signal.
-    let moving_orig = super::super::read_image(&args.moving)?;
-    let moving_orig_arr = image_to_leto_volume(&moving_orig);
+    let moving_orig_native = super::super::read_image_native(&args.moving)?;
+    let moving_orig_arr    = native_image_to_leto_volume(&moving_orig_native)?;
     let warped_arr = spatial::apply_transform(&moving_orig_arr, &result.transform);
 
-    // ── 7. Convert warped array back to Image and write output ─────────────
-    // Spatial metadata comes from the fixed image (the output lives in the
-    // fixed image's coordinate frame).
-    let warped_img = leto_volume_to_image(warped_arr, &fixed_img);
-    super::super::write_image_inferred(&args.output, &warped_img)?;
+    // ── 7. Convert warped array back to native Image and write output ──────
+    let warped_native = leto_volume_to_native_image(warped_arr, &fixed_native)?;
+    let fmt = super::super::infer_format(&args.output)
+        .ok_or_else(|| anyhow::anyhow!("Cannot infer output format: {}", args.output.display()))?;
+    super::super::write_image_native(&args.output, &warped_native, fmt)?;
 
     // ── 8. Optionally write transform JSON ─────────────────────────────────
     if let Some(ref tx_path) = args.output_transform {

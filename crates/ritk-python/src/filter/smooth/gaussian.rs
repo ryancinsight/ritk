@@ -75,7 +75,7 @@ pub fn discrete_gaussian(
             PySpacingMode::Physical => ritk_filter::discrete_gaussian::SpacingMode::Physical,
             PySpacingMode::Voxel => ritk_filter::discrete_gaussian::SpacingMode::Voxel,
         };
-        let filter = DiscreteGaussianFilter::<()>::new(vec![ritk_filter::GaussianSigma::new(
+        let filter = DiscreteGaussianFilter::<crate::image::BurnBackend>::new(vec![ritk_filter::GaussianSigma::new(
             variance.sqrt(),
         )
         .expect("invariant: variance must be positive (validated by caller)")])
