@@ -102,9 +102,11 @@ it. The e747f1b7 cross-platform rerun then passed Python run `29414764238`, CI
 run `29414764341`, and audit run `29414764370`; macOS, Ubuntu, and Windows each
 ran the complete 5,229-test suite successfully. The follow-up now uses
 an RAII `TempRoot`, retaining collision-resistant allocation while releasing
-fixture trees on panic and normal completion. Evidence tier: source-level race
-analysis, focused/full nextest, warnings-denied Clippy, and required CI. The
-final matrix for the cleanup follow-up remains the acceptance gate.
+fixture trees on panic and normal completion. The final PR #33 head
+`250ddac3` passed CI `29418118238`, Python matrix `29418118559`, and audit
+`29418118182`, including the three platform suites and Python 3.9-3.13.
+Evidence tier: source-level race analysis, focused/full nextest,
+warnings-denied Clippy, and required CI.
 
 ## DEP-655-01 audit (2026-07-14)
 

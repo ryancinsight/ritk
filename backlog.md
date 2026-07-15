@@ -9,7 +9,9 @@
   dependency. The refreshed audit is clean at 13 manifests and 643 source
   files; focused compile, warnings-denied Clippy, 691/691 Snap nextest,
   1,135/1,135 filter nextest, doctests, and rustdoc pass. This is a direct
-  provider cutover, not a compatibility alias or fallback.
+  provider cutover, not a compatibility alias or fallback. The final PR #33
+  head `250ddac3` passed CI `29418118238`, Python matrix `29418118559`, and
+  migration audit `29418118182`.
 
 - **MIG-654-03 [major] - Convert statistics position extrema to native images
   (DONE).** `minimum_position` and `maximum_position` now take native images
@@ -53,15 +55,17 @@
   (format, Clippy, wheel smoke, and all three platform suites), and
   `29383996188` (Burn migration audit). The isolation-fix rerun for head
   `e747f1b7` also passed: Python run `29414764238`, CI run `29414764341`, and
-  audit run `29414764370`. The provider-alignment PR is ready for merge after
-  the fixture-cleanup follow-up below.
+  audit run `29414764370`. The final PR #33 head `250ddac3` also passed Python
+  matrix `29418118559`, CI `29418118238`, and audit `29418118182`; all
+  required checks are green.
 
   The final-head rerun at `f01e4456` exposed an existing `xtask` test-isolation
   defect: parallel tests could derive the same temporary root from a
   timestamp-only name. The fix adds process-plus-atomic-sequence allocation;
   the full `xtask` suite passes 9/9 locally. The follow-up switches the
   fixtures to an RAII `TempRoot` so panic paths also release their temporary
-  trees; its final CI matrix remains required before merge.
+  trees. The final matrix for PR #33 head `250ddac3` is green in CI
+  `29418118238`, Python `29418118559`, and audit `29418118182`.
 
 - **MIG-500-01 [major] - Hidden Burn dependency relocation (BLOCKED).**
   The current 112-file working diff is green but prohibited: direct

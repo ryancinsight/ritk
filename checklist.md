@@ -137,8 +137,11 @@ Themis 0.9.17 while local Moirai requires `^0.10`.
       migration-audit tests. Focused and full `xtask` nextest plus
       warnings-denied Clippy pass locally; Drop now removes fixture trees when
       an assertion fails.
-- [ ] Run the final CI matrix for the RAII cleanup commit before merging
-      PR #33.
+- [x] Run the final CI matrix for PR #33 head `250ddac3` after the RAII
+      cleanup and native extrema cutover. Completion condition met by CI
+      `29418118238`, Python matrix `29418118559`, and audit `29418118182`;
+      Rustfmt, Clippy, Workspace Dependency Alignment, wheel smoke, all three
+      platform suites, Python 3.9-3.13, and migration audit passed.
 
 Residual: the provider alignment is closed. The 13 Burn-dependent manifests
 and 641 Burn-surface source files remain the explicitly tracked, dependency-

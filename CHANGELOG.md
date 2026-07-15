@@ -30,6 +30,8 @@
   native boundary with warnings-denied Clippy, doctests, and rustdoc.
 - The clean migration audit remains at 13 manifests and falls from 643 to 641
   source files; statistics falls from 43 to 41 source tokens.
+- PR #33 head `250ddac3` passes the required CI matrix in runs
+  `29418118238`, `29418118559`, and `29418118182`.
 
 ### Residual
 - `cargo semver-checks` cannot resolve its temporary graph because the pinned
