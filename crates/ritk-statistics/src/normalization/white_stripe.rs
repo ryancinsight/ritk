@@ -295,7 +295,10 @@ impl WhiteStripeNormalizer {
         image: &Image<f32, B, 3>,
         mask: Option<&Image<f32, B, 3>>,
         config: &WhiteStripeConfig,
-    ) -> WhiteStripeResult<B> {
+    ) -> WhiteStripeResult<B>
+    where
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
         let (all_vec, dims) = extract_vec_infallible(image);
         let mask_vec = mask.map(|m| extract_vec_infallible(m).0);
         let computed = compute_white_stripe(&all_vec, mask_vec.as_deref(), config);

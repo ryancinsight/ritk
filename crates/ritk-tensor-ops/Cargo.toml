@@ -16,5 +16,4 @@ coeus-ops = { workspace = true }
 coeus-leto = { workspace = true }
 
 [dev-dependencies]
-burn = { workspace = true }
-burn-ndarray = { workspace = true }
+coeus-core = { workspace = true }

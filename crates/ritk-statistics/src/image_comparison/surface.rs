@@ -1,3 +1,4 @@
+use coeus_core::CpuAddressableStorage;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
@@ -182,7 +183,10 @@ pub fn hausdorff_distance<B: Backend, const D: usize>(
     prediction: &Image<f32, B, D>,
     ground_truth: &Image<f32, B, D>,
     spacing: &[f64; D],
-) -> f32 {
+) -> f32
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     let (pred_flat, pred_shape) = extract_vec_infallible(prediction);
     let (gt_flat, gt_shape) = extract_vec_infallible(ground_truth);
     hausdorff_from_flat(&pred_flat, pred_shape, &gt_flat, gt_shape, spacing)
@@ -193,7 +197,10 @@ pub fn mean_surface_distance<B: Backend, const D: usize>(
     prediction: &Image<f32, B, D>,
     ground_truth: &Image<f32, B, D>,
     spacing: &[f64; D],
-) -> f32 {
+) -> f32
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     let (pred_flat, pred_shape) = extract_vec_infallible(prediction);
     let (gt_flat, gt_shape) = extract_vec_infallible(ground_truth);
     msd_from_flat(&pred_flat, pred_shape, &gt_flat, gt_shape, spacing)

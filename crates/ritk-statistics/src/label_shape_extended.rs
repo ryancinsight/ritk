@@ -43,6 +43,7 @@
 //! perimeter pass (O(N·13)), and the Feret pass over the boundary set (O(B²),
 //! B ≪ N). One parallel fold groups voxel indices; one parallel map over labels.
 
+use coeus_core::CpuAddressableStorage;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_spatial::Point;
@@ -287,7 +288,10 @@ fn feret_from_boundary(boundary_phys: &[[f64; 3]]) -> f64 {
 /// Panics if the backend tensor cannot be converted to `f32`.
 pub fn compute_label_shape_statistics_extended<B: Backend>(
     label_image: &Image<f32, B, 3>,
-) -> Vec<LabelShapeStatisticsExtended> {
+) -> Vec<LabelShapeStatisticsExtended>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     let (label_vals, dims) = extract_vec_infallible(label_image);
     let sp = label_image.spacing();
     let spacing = [sp[0], sp[1], sp[2]];

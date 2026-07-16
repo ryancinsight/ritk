@@ -79,7 +79,10 @@ impl HistogramMatcher {
         &self,
         source: &Image<f32, B, D>,
         reference: &Image<f32, B, D>,
-    ) -> Image<f32, B, D> {
+    ) -> Image<f32, B, D>
+    where
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
         let (mut src_vec, dims) = extract_vec_infallible(source);
         let (ref_vec, _) = extract_vec_infallible(reference);
         self.transform_values(&mut src_vec, &ref_vec);

@@ -1,3 +1,4 @@
+use coeus_core::CpuAddressableStorage;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
@@ -159,22 +160,13 @@ pub fn psnr<B: Backend, const D: usize>(
     image: &Image<f32, B, D>,
     reference: &Image<f32, B, D>,
     max_val: f32,
-) -> f32 {
-    let diff = image.data().clone() - reference.data().clone();
-    let sq_diff = diff.clone() * diff;
-    let sum_sq_data = sq_diff.sum().into_data();
-    let sum_sq: f32 = sum_sq_data
-        .as_slice::<f32>()
-        .expect("f32 sum of squared differences")[0];
-
-    let n: f32 = image.shape().iter().product::<usize>() as f32;
-    let mse = sum_sq / n;
-
-    if mse < f32::EPSILON {
-        return f32::INFINITY;
-    }
-
-    10.0 * (max_val * max_val / mse).log10()
+) -> f32
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    let (img_vals, _) = extract_vec_infallible(image);
+    let (ref_vals, _) = extract_vec_infallible(reference);
+    psnr_from_slices(&img_vals, &ref_vals, max_val)
 }
 
 /// Compute the global Structural Similarity Index (SSIM) between two images.
@@ -184,7 +176,10 @@ pub fn ssim<B: Backend, const D: usize>(
     image: &Image<f32, B, D>,
     reference: &Image<f32, B, D>,
     max_val: f32,
-) -> f32 {
+) -> f32
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     let img_slice: &[f32] = &extract_vec_infallible(image).0;
     let ref_slice: &[f32] = &extract_vec_infallible(reference).0;
     ssim_from_slices(img_slice, ref_slice, max_val)

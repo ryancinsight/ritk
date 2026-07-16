@@ -1,5 +1,6 @@
 use super::key::F32Key;
 use super::map::ValueIndices;
+use coeus_core::CpuAddressableStorage;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
@@ -43,7 +44,10 @@ use std::collections::HashMap;
 pub fn value_indices<B: Backend, const D: usize>(
     image: &Image<f32, B, D>,
     ignore_value: Option<f32>,
-) -> ValueIndices<D> {
+) -> ValueIndices<D>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     let (vals, dims) = extract_vec_infallible(image);
 
     let ignore_key = ignore_value.map(F32Key::new);

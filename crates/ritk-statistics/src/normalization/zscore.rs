@@ -20,6 +20,7 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 use ritk_tensor_ops::native as tensor_ops;
+use ritk_tensor_ops::rebuild;
 
 /// Apply the z-score transform `(v − mean) / (std + ε)` to a host buffer.
 ///
@@ -52,20 +53,19 @@ impl ZScoreNormalizer {
     /// `output = (input − mean) / (std + 1e-8)`
     ///
     /// Spatial metadata is preserved exactly.
-    pub fn normalize<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
+    pub fn normalize<B: Backend, const D: usize>(
+        &self,
+        image: &Image<f32, B, D>,
+    ) -> Image<f32, B, D>
+    where
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
         let stats = compute_statistics(image);
         let mean = stats.mean;
         let std = stats.std;
-        let denom = std + super::NORMALIZER_EPSILON;
-
-        let normalized = image.data().clone().sub_scalar(mean).div_scalar(denom);
-
-        Image::new(
-            normalized,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        )
+        let (mut values, dims) = extract_vec_infallible(image);
+        zscore_values(&mut values, mean, std);
+        rebuild(values, dims, image)
     }
 
     /// Normalize `image` to zero mean, unit variance using statistics derived
@@ -90,7 +90,10 @@ impl ZScoreNormalizer {
         &self,
         image: &Image<f32, B, D>,
         mask: &Image<f32, B, D>,
-    ) -> Image<f32, B, D> {
+    ) -> Image<f32, B, D>
+    where
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
         // Extract mask slice once to check for foreground before calling
         // masked_statistics, which panics on an empty foreground set.
         let (mask_vals, _) = extract_vec_infallible(mask);
@@ -105,16 +108,9 @@ impl ZScoreNormalizer {
 
         let mean = stats.mean;
         let std = stats.std;
-        let denom = std + super::NORMALIZER_EPSILON;
-
-        let normalized = image.data().clone().sub_scalar(mean).div_scalar(denom);
-
-        Image::new(
-            normalized,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        )
+        let (mut values, dims) = extract_vec_infallible(image);
+        zscore_values(&mut values, mean, std);
+        rebuild(values, dims, image)
     }
 }
 

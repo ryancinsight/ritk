@@ -3,8 +3,9 @@
 //! `ColorVolume<B, C>` stores C interleaved samples per voxel in a rank-4
 //! tensor with shape `[depth, rows, cols, C]`. Spatial metadata remains 3-D.
 
-use crate::tensor::backend::Backend;
-use crate::tensor::{Shape, Tensor, TensorData};
+use std::fmt;
+
+use crate::tensor::{ComputeBackend, Scalar, Tensor};
 use anyhow::{bail, Result};
 
 use ritk_spatial::{Direction, Point, Spacing};
@@ -17,21 +18,44 @@ pub mod native;
 /// `C` is the compile-time channel count. The tensor axis order is
 /// `[depth, rows, cols, channel]`, so each voxel owns exactly `C` component
 /// samples and spatial metadata remains independent of component layout.
-#[derive(Debug, Clone)]
-pub struct ColorVolume<B: Backend, const C: usize> {
-    data: Tensor<B, 4>,
+#[derive(Clone)]
+pub struct ColorVolume<T, B, const C: usize>
+where
+    T: Scalar,
+    B: ComputeBackend,
+{
+    data: Tensor<T, B>,
     origin: Point<3>,
     spacing: Spacing<3>,
     direction: Direction<3>,
 }
 
-/// RGB color volume with interleaved channels.
-pub type RgbVolume<B> = ColorVolume<B, 3>;
+impl<T, B, const C: usize> fmt::Debug for ColorVolume<T, B, C>
+where
+    T: Scalar,
+    B: ComputeBackend,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ColorVolume")
+            .field("shape", &self.data.shape())
+            .field("origin", &self.origin)
+            .field("spacing", &self.spacing)
+            .field("direction", &self.direction)
+            .finish()
+    }
+}
 
-impl<B: Backend, const C: usize> ColorVolume<B, C> {
+/// RGB color volume with interleaved channels.
+pub type RgbVolume<T, B> = ColorVolume<T, B, 3>;
+
+impl<T, B, const C: usize> ColorVolume<T, B, C>
+where
+    T: Scalar,
+    B: ComputeBackend,
+{
     /// Construct a color volume after verifying the channel axis.
     pub fn try_new(
-        data: Tensor<B, 4>,
+        data: Tensor<T, B>,
         origin: Point<3>,
         spacing: Spacing<3>,
         direction: Direction<3>,
@@ -39,7 +63,13 @@ impl<B: Backend, const C: usize> ColorVolume<B, C> {
         if C == 0 {
             bail!("ColorVolume channel count C must be positive");
         }
-        let shape = data.dims();
+        let shape = data.shape();
+        if shape.len() != 4 {
+            bail!(
+                "ColorVolume requires rank-4 tensor, got rank {}",
+                shape.len()
+            );
+        }
         if shape[3] != C {
             bail!(
                 "ColorVolume channel axis mismatch: tensor has {}, type requires {}",
@@ -56,13 +86,16 @@ impl<B: Backend, const C: usize> ColorVolume<B, C> {
     }
 
     /// Get the image data tensor.
-    pub fn data(&self) -> &Tensor<B, 4> {
+    pub fn data(&self) -> &Tensor<T, B> {
         &self.data
     }
 
     /// Get the full tensor shape `[depth, rows, cols, channel]`.
     pub fn shape(&self) -> [usize; 4] {
-        self.data.dims()
+        self.data
+            .shape()
+            .try_into()
+            .expect("ColorVolume invariant: rank-4 tensor")
     }
 
     /// Get the spatial shape `[depth, rows, cols]`.
@@ -92,35 +125,31 @@ impl<B: Backend, const C: usize> ColorVolume<B, C> {
     }
 
     /// Consume the volume and return all components.
-    pub fn into_parts(self) -> (Tensor<B, 4>, Point<3>, Spacing<3>, Direction<3>) {
+    pub fn into_parts(self) -> (Tensor<T, B>, Point<3>, Spacing<3>, Direction<3>) {
         (self.data, self.origin, self.spacing, self.direction)
     }
+}
 
-    /// Extract the underlying f32 tensor data as a `Vec<f32>`.
-    ///
-    /// # Panics
-    /// Panics if the tensor's internal scalar type is not `f32`.
+impl<T, B, const C: usize> ColorVolume<T, B, C>
+where
+    T: Scalar,
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
+{
+    /// Extract the underlying tensor data as a `Vec<T>`.
     #[inline]
-    pub fn data_vec(&self) -> Vec<f32> {
-        self.data
-            .clone()
-            .into_data()
-            .into_vec::<f32>()
-            .expect("ColorVolume::data_vec requires f32 backend tensor")
+    pub fn data_vec(&self) -> Vec<T> {
+        self.data.as_slice().to_vec()
     }
 
-    /// Provide a `&[f32]` view of the volume data to a closure without
+    /// Provide a `&[T]` view of the volume data to a closure without
     /// allocating a `Vec`.
     ///
     /// # Panics
-    /// Panics if the tensor's internal scalar type is not `f32`.
+    /// Panics if the tensor is not contiguous or not CPU-addressable.
     #[inline]
-    pub fn with_data_slice<R>(&self, f: impl FnOnce(&[f32]) -> R) -> R {
-        let data = self.data.clone().into_data();
-        let slice = data
-            .as_slice::<f32>()
-            .expect("color image data must be contiguous f32");
-        f(slice)
+    pub fn with_data_slice<R>(&self, f: impl FnOnce(&[T]) -> R) -> R {
+        f(self.data.as_slice())
     }
 
     /// Deinterleave the volume into `C` scalar component buffers, each of length
@@ -128,16 +157,17 @@ impl<B: Backend, const C: usize> ColorVolume<B, C> {
     ///
     /// The interleaved layout is `[depth, rows, cols, channel]` (channel is the
     /// fastest-varying axis), so component `k`'s buffer is `flat[k], flat[k+C],
-    /// flat[k+2C], …`. This is the split half of the per-component filtering
-    /// adaptor: apply a scalar filter to each returned buffer, then recombine
-    /// with [`from_component_buffers`](Self::from_component_buffers).
-    pub fn into_component_buffers(&self) -> Vec<Vec<f32>> {
+    /// flat[k+2C], …`.
+    pub fn into_component_buffers(&self) -> Vec<Vec<T>>
+    where
+        T: Clone + Default,
+    {
         let [d, r, c, _ch] = self.shape();
         let n = d * r * c;
         self.with_data_slice(|interleaved| {
-            let mut comps: Vec<Vec<f32>> = (0..C).map(|_| Vec::with_capacity(n)).collect();
-            for (i, &v) in interleaved.iter().enumerate() {
-                comps[i % C].push(v);
+            let mut comps: Vec<Vec<T>> = (0..C).map(|_| Vec::with_capacity(n)).collect();
+            for (i, v) in interleaved.iter().enumerate() {
+                comps[i % C].push(v.clone());
             }
             comps
         })
@@ -146,21 +176,20 @@ impl<B: Backend, const C: usize> ColorVolume<B, C> {
     /// Rebuild a color volume from `C` scalar component buffers (each in
     /// `[depth, rows, cols]` row-major order) and the spatial shape + metadata.
     ///
-    /// Inverse of [`into_component_buffers`](Self::into_component_buffers): the
-    /// per-channel results are re-interleaved into the `[depth, rows, cols,
-    /// channel]` tensor layout.
-    ///
     /// # Errors
     /// Returns `Err` if the number of buffers is not `C`, any buffer length is
     /// not `depth·rows·cols`, or `C == 0`.
     pub fn from_component_buffers(
-        channels: &[Vec<f32>],
+        channels: &[Vec<T>],
         spatial: [usize; 3],
         origin: Point<3>,
         spacing: Spacing<3>,
         direction: Direction<3>,
-        device: &B::Device,
-    ) -> Result<Self> {
+        backend: &B,
+    ) -> Result<Self>
+    where
+        T: Clone + Default,
+    {
         if channels.len() != C {
             bail!(
                 "from_component_buffers: expected {C} channels, got {}",
@@ -177,16 +206,13 @@ impl<B: Backend, const C: usize> ColorVolume<B, C> {
                 );
             }
         }
-        let mut interleaved = vec![0.0_f32; n * C];
+        let mut interleaved = vec![T::default(); n * C];
         for (comp, buf) in channels.iter().enumerate() {
-            for (i, &v) in buf.iter().enumerate() {
-                interleaved[i * C + comp] = v;
+            for (i, v) in buf.iter().enumerate() {
+                interleaved[i * C + comp] = v.clone();
             }
         }
-        let tensor = Tensor::<B, 4>::from_data(
-            TensorData::new(interleaved, Shape::new([d, r, c, C])),
-            device,
-        );
+        let tensor = Tensor::<T, B>::from_slice_on([d, r, c, C], &interleaved, backend);
         Self::try_new(tensor, origin, spacing, direction)
     }
 }
@@ -194,18 +220,14 @@ impl<B: Backend, const C: usize> ColorVolume<B, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tensor::{Shape, TensorData};
-    use burn_ndarray::NdArray;
+    use coeus_core::SequentialBackend;
 
-    type B = NdArray<f32>;
+    type B = SequentialBackend;
 
-    fn tensor(shape: [usize; 4]) -> Tensor<B, 4> {
+    fn tensor(shape: [usize; 4]) -> Tensor<f32, B> {
         let n = shape.iter().product();
-        let data = vec![0.0; n];
-        Tensor::<B, 4>::from_data(
-            TensorData::new(data, Shape::new(shape)),
-            &Default::default(),
-        )
+        let data = vec![0.0_f32; n];
+        Tensor::<f32, B>::from_slice_on(shape, &data, &B::default())
     }
 
     #[test]
@@ -214,7 +236,7 @@ mod tests {
         let spacing = Spacing::new([4.0, 5.0, 6.0]);
         let direction = Direction::identity();
 
-        let volume = RgbVolume::<B>::try_new(tensor([2, 3, 4, 3]), origin, spacing, direction)
+        let volume = RgbVolume::<f32, B>::try_new(tensor([2, 3, 4, 3]), origin, spacing, direction)
             .expect("RGB channel count must be valid");
 
         assert_eq!(volume.shape(), [2, 3, 4, 3]);
@@ -227,7 +249,7 @@ mod tests {
 
     #[test]
     fn color_volume_rejects_wrong_channel_axis() {
-        let err = RgbVolume::<B>::try_new(
+        let err = RgbVolume::<f32, B>::try_new(
             tensor([1, 2, 3, 1]),
             Point::origin(),
             Spacing::uniform(1.0),
@@ -243,20 +265,15 @@ mod tests {
 
     #[test]
     fn component_buffers_roundtrip_is_identity() {
-        // Interleaved [d,r,c,ch]=[1,2,2,3]: voxel (y,x) -> [r,g,b].
-        // Layout: ((z*r+y)*c+x)*ch + comp.
         let interleaved: Vec<f32> = vec![
-            10.0, 100.0, 200.0, // (0,0): R G B
-            11.0, 101.0, 201.0, // (0,1)
-            12.0, 102.0, 202.0, // (1,0)
-            13.0, 103.0, 203.0, // (1,1)
+            10.0, 100.0, 200.0,
+            11.0, 101.0, 201.0,
+            12.0, 102.0, 202.0,
+            13.0, 103.0, 203.0,
         ];
-        let dev = Default::default();
-        let vol = RgbVolume::<B>::try_new(
-            Tensor::<B, 4>::from_data(
-                TensorData::new(interleaved.clone(), Shape::new([1, 2, 2, 3])),
-                &dev,
-            ),
+        let backend = B::default();
+        let vol = RgbVolume::<f32, B>::try_new(
+            Tensor::<f32, B>::from_slice_on([1, 2, 2, 3], &interleaved, &backend),
             Point::new([1.0, 2.0, 3.0]),
             Spacing::new([4.0, 5.0, 6.0]),
             Direction::identity(),
@@ -265,17 +282,17 @@ mod tests {
 
         let comps = vol.into_component_buffers();
         assert_eq!(comps.len(), 3);
-        assert_eq!(comps[0], vec![10.0, 11.0, 12.0, 13.0]); // R channel
-        assert_eq!(comps[1], vec![100.0, 101.0, 102.0, 103.0]); // G
-        assert_eq!(comps[2], vec![200.0, 201.0, 202.0, 203.0]); // B
+        assert_eq!(comps[0], vec![10.0, 11.0, 12.0, 13.0]);
+        assert_eq!(comps[1], vec![100.0, 101.0, 102.0, 103.0]);
+        assert_eq!(comps[2], vec![200.0, 201.0, 202.0, 203.0]);
 
-        let rebuilt = RgbVolume::<B>::from_component_buffers(
+        let rebuilt = RgbVolume::<f32, B>::from_component_buffers(
             &comps,
             [1, 2, 2],
             *vol.origin(),
             *vol.spacing(),
             *vol.direction(),
-            &dev,
+            &backend,
         )
         .unwrap();
         assert_eq!(rebuilt.data_vec(), interleaved);
@@ -285,25 +302,25 @@ mod tests {
 
     #[test]
     fn from_component_buffers_rejects_wrong_count_and_length() {
-        let dev = Default::default();
-        let two = vec![vec![0.0; 4], vec![0.0; 4]];
-        assert!(RgbVolume::<B>::from_component_buffers(
+        let backend = B::default();
+        let two = vec![vec![0.0_f32; 4], vec![0.0; 4]];
+        assert!(RgbVolume::<f32, B>::from_component_buffers(
             &two,
             [1, 2, 2],
             Point::origin(),
             Spacing::uniform(1.0),
             Direction::identity(),
-            &dev,
+            &backend,
         )
         .is_err());
-        let bad_len = vec![vec![0.0; 3], vec![0.0; 4], vec![0.0; 4]];
-        assert!(RgbVolume::<B>::from_component_buffers(
+        let bad_len = vec![vec![0.0_f32; 3], vec![0.0; 4], vec![0.0; 4]];
+        assert!(RgbVolume::<f32, B>::from_component_buffers(
             &bad_len,
             [1, 2, 2],
             Point::origin(),
             Spacing::uniform(1.0),
             Direction::identity(),
-            &dev,
+            &backend,
         )
         .is_err());
     }

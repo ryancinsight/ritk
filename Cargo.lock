@@ -258,9 +258,10 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "apollo-fft"
-version = "0.15.0"
+version = "0.17.0"
 dependencies = [
  "apollo-fft-macros",
+ "apollo-leto-interop",
  "bytemuck",
  "eunomia",
  "half",
@@ -283,6 +284,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.118",
+]
+
+[[package]]
+name = "apollo-leto-interop"
+version = "0.15.0"
+dependencies = [
+ "leto",
 ]
 
 [[package]]
@@ -5587,39 +5595,39 @@ checksum = "4a0b3262dc837d2513fe2ef31ff8461352ef932dcca31ba0c0abe33547cf6b9b"
 
 [[package]]
 name = "moirai"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "melinoe",
  "mnemosyne",
  "moirai-async",
- "moirai-core 0.3.0",
+ "moirai-core 0.3.1",
  "moirai-executor",
  "moirai-iter",
  "moirai-parallel",
  "moirai-scheduler",
- "moirai-sync 0.3.0",
+ "moirai-sync 0.3.1",
  "moirai-transport",
- "moirai-utils 0.3.0",
+ "moirai-utils 0.3.1",
 ]
 
 [[package]]
 name = "moirai-async"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "futures",
  "libc",
  "moirai-async-macros",
- "moirai-core 0.3.0",
+ "moirai-core 0.3.1",
  "moirai-executor",
  "moirai-pal",
  "moirai-transport",
- "moirai-utils 0.3.0",
+ "moirai-utils 0.3.1",
  "socket2 0.5.10",
 ]
 
 [[package]]
 name = "moirai-async-macros"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5639,24 +5647,24 @@ dependencies = [
 
 [[package]]
 name = "moirai-core"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "bytemuck",
  "libc",
  "mnemosyne",
- "moirai-utils 0.3.0",
+ "moirai-utils 0.3.1",
 ]
 
 [[package]]
 name = "moirai-executor"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "melinoe",
  "mnemosyne",
- "moirai-core 0.3.0",
+ "moirai-core 0.3.1",
  "moirai-pal",
  "moirai-scheduler",
- "moirai-utils 0.3.0",
+ "moirai-utils 0.3.1",
 ]
 
 [[package]]
@@ -5672,14 +5680,14 @@ dependencies = [
 
 [[package]]
 name = "moirai-iter"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "futures",
  "libc",
- "moirai-core 0.3.0",
+ "moirai-core 0.3.1",
  "moirai-executor",
  "moirai-scheduler",
- "moirai-utils 0.3.0",
+ "moirai-utils 0.3.1",
  "num_cpus",
  "themis",
  "thiserror 1.0.69",
@@ -5687,12 +5695,12 @@ dependencies = [
 
 [[package]]
 name = "moirai-pal"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "js-sys",
  "libc",
  "melinoe",
- "moirai-core 0.3.0",
+ "moirai-core 0.3.1",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -5701,7 +5709,7 @@ dependencies = [
 
 [[package]]
 name = "moirai-parallel"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "melinoe",
  "moirai-executor",
@@ -5709,11 +5717,11 @@ dependencies = [
 
 [[package]]
 name = "moirai-scheduler"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "mnemosyne",
- "moirai-core 0.3.0",
- "moirai-utils 0.3.0",
+ "moirai-core 0.3.1",
+ "moirai-utils 0.3.1",
  "num_cpus",
  "themis",
 ]
@@ -5730,21 +5738,21 @@ dependencies = [
 
 [[package]]
 name = "moirai-sync"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "libc",
- "moirai-core 0.3.0",
- "moirai-utils 0.3.0",
+ "moirai-core 0.3.1",
+ "moirai-utils 0.3.1",
 ]
 
 [[package]]
 name = "moirai-transport"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "bytemuck",
- "moirai-core 0.3.0",
+ "moirai-core 0.3.1",
  "moirai-scheduler",
- "moirai-utils 0.3.0",
+ "moirai-utils 0.3.1",
 ]
 
 [[package]]
@@ -5754,7 +5762,7 @@ source = "git+https://github.com/ryancinsight/Moirai.git?rev=8cd356c19c94fb5f49d
 
 [[package]]
 name = "moirai-utils"
-version = "0.3.0"
+version = "0.3.1"
 
 [[package]]
 name = "moxcms"
@@ -7711,10 +7719,11 @@ name = "ritk-image"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "burn",
- "burn-ndarray",
+ "coeus-autograd",
  "coeus-core",
+ "coeus-nn",
  "coeus-ops",
+ "coeus-optim",
  "coeus-tensor",
  "ritk-spatial",
  "ritk-wgpu-compat",
@@ -8068,8 +8077,6 @@ name = "ritk-tensor-ops"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "burn",
- "burn-ndarray",
  "coeus-core",
  "coeus-leto",
  "coeus-ops",
@@ -8133,9 +8140,8 @@ dependencies = [
 name = "ritk-wgpu-compat"
 version = "0.1.0"
 dependencies = [
- "burn",
- "burn-ndarray",
  "coeus-core",
+ "coeus-ops",
  "coeus-tensor",
  "hephaestus-wgpu",
 ]

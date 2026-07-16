@@ -1,7 +1,9 @@
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use coeus_core::ComputeBackend;
+use coeus_core::CpuAddressableStorage;
 use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
+use ritk_tensor_ops::extract_vec_infallible;
 
 /// Dice similarity coefficient over two flat host buffers.
 ///
@@ -73,29 +75,13 @@ pub(crate) fn similarity_index_from_slices(a: &[f32], b: &[f32]) -> f32 {
 pub fn dice_coefficient<B: Backend, const D: usize>(
     prediction: &Image<f32, B, D>,
     ground_truth: &Image<f32, B, D>,
-) -> f32 {
-    let intersection_sum: f32 = {
-        let t = prediction.data().clone() * ground_truth.data().clone();
-        let d = t.sum().into_data();
-        d.as_slice::<f32>().expect("f32 intersection tensor")[0]
-    };
-
-    let pred_vol: f32 = {
-        let d = prediction.data().clone().sum().into_data();
-        d.as_slice::<f32>().expect("f32 prediction sum")[0]
-    };
-
-    let gt_vol: f32 = {
-        let d = ground_truth.data().clone().sum().into_data();
-        d.as_slice::<f32>().expect("f32 ground truth sum")[0]
-    };
-
-    let denom = pred_vol + gt_vol;
-    if denom < f32::EPSILON {
-        return 1.0;
-    }
-
-    2.0 * intersection_sum / denom
+) -> f32
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    let (prediction_values, _) = extract_vec_infallible(prediction);
+    let (ground_truth_values, _) = extract_vec_infallible(ground_truth);
+    dice_from_slices(&prediction_values, &ground_truth_values)
 }
 
 /// Compute Dice overlap between two Coeus-native binary masks.
@@ -147,6 +133,12 @@ where
 /// # Formula
 /// `SI = 2 * |A intersect B| / (|A| + |B|)` over the binarized sets
 /// `A = {x : a(x) != 0}`, `B = {x : b(x) != 0}`.
-pub fn similarity_index<B: Backend, const D: usize>(a: &Image<f32, B, D>, b: &Image<f32, B, D>) -> f32 {
+pub fn similarity_index<B: Backend, const D: usize>(
+    a: &Image<f32, B, D>,
+    b: &Image<f32, B, D>,
+) -> f32
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     similarity_index_from_slices(&a.data_slice(), &b.data_slice())
 }

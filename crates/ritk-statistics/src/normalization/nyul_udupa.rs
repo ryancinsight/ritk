@@ -201,7 +201,10 @@ impl NyulUdupaNormalizer {
     ///
     /// # Panics
     /// Panics if `images` is empty.
-    pub fn learn_standard<B: Backend, const D: usize>(&mut self, images: &[&Image<f32, B, D>]) {
+    pub fn learn_standard<B: Backend, const D: usize>(&mut self, images: &[&Image<f32, B, D>])
+    where
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
         assert!(!images.is_empty(), "at least one training image required");
         self.learn_from_value_sets(images.iter().map(|image| extract_vec_infallible(*image).0));
     }
@@ -276,7 +279,10 @@ impl NyulUdupaNormalizer {
     pub fn apply<B: Backend, const D: usize>(
         &self,
         image: &Image<f32, B, D>,
-    ) -> anyhow::Result<Image<f32, B, D>> {
+    ) -> anyhow::Result<Image<f32, B, D>>
+    where
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
         let (mut values, dims) = extract_vec_infallible(image);
         self.transform_values(&mut values)?;
         Ok(rebuild(values, dims, image))
