@@ -3,20 +3,20 @@ use anyhow::Result;
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_image::tensor::backend::Backend;
-use coeus_tensor::Tensor;
-use ritk_image::tensor::{Shape, TensorData};
+
+use ritk_image::tensor::{Shape, TensorData, Tensor};
 use std::path::Path;
 
 fn native_to_legacy<B: Backend>(
     native: ritk_image::native::Image<f32, SequentialBackend, 3>,
     backend: &B,
-) -> Image<f32, B, 3> {
+) -> Image<B, 3> {
     let tensor = Tensor::<B, 3>::from_data(
         (
             native.data_cow_on(&SequentialBackend).into_owned(),
             (native.shape()),
         ),
-        device,
+        backend,
     );
     Image::new(
         tensor,
@@ -27,7 +27,7 @@ fn native_to_legacy<B: Backend>(
 }
 
 fn legacy_metadata_to_native<B: Backend>(
-    image: &Image<f32, B, 3>,
+    image: &Image<B, 3>,
     values: Vec<f32>,
 ) -> Result<ritk_image::native::Image<f32, SequentialBackend, 3>> {
     ritk_image::native::Image::from_flat_on(
@@ -41,12 +41,12 @@ fn legacy_metadata_to_native<B: Backend>(
 }
 
 /// Reads NRRD through the native provider and converts at this legacy boundary.
-pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, backend: &B) -> Result<Image<f32, B, 3>> {
-    ritk_nrrd::read_nrrd(path, &SequentialBackend).map(|native| native_to_legacy(native, device))
+pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, backend: &B) -> Result<Image<B, 3>> {
+    ritk_nrrd::read_nrrd(path, &SequentialBackend).map(|native| native_to_legacy(native, backend))
 }
 
 /// Writes a legacy image through the native NRRD provider.
-pub fn write_nrrd<B: Backend, P: AsRef<Path>>(path: P, image: &Image<f32, B, 3>) -> Result<()> {
+pub fn write_nrrd<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
     let native = legacy_metadata_to_native(image, image.try_data_vec()?)?;
     ritk_nrrd::write_nrrd(path, &native, &SequentialBackend)
 }
@@ -54,7 +54,7 @@ pub fn write_nrrd<B: Backend, P: AsRef<Path>>(path: P, image: &Image<f32, B, 3>)
 /// Writes caller-provided voxels with legacy image metadata through the native provider.
 pub fn write_nrrd_with_data<B: Backend, P: AsRef<Path>>(
     path: P,
-    image: &Image<f32, B, 3>,
+    image: &Image<B, 3>,
     values: &[f32],
 ) -> Result<()> {
     let native = legacy_metadata_to_native(image, values.to_vec())?;
@@ -70,16 +70,16 @@ impl NrrdReader {
         &self,
         path: P,
         backend: &B,
-    ) -> Result<Image<f32, B, 3>> {
-        read_nrrd(path, device)
+    ) -> Result<Image<B, 3>> {
+        read_nrrd(path, backend)
     }
 }
 
 /// Stateless legacy NRRD writer.
 pub struct NrrdWriter;
 
-impl<B: Backend> ImageWriter<Image<f32, B, 3>> for NrrdWriter {
-    fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
+impl<B: Backend> ImageWriter<Image<B, 3>> for NrrdWriter {
+    fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
         write_nrrd(path, image).map_err(|error| std::io::Error::other(error.to_string()))
     }
 }
@@ -103,8 +103,8 @@ pub mod native {
         }
     }
 
-    impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for NrrdReader<B> {
-        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
+    impl<B: ComputeBackend> ImageReader<Image<B, 3>> for NrrdReader<B> {
+        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
             ritk_nrrd::read_nrrd(path, &self.backend).map_err(to_io_err)
         }
     }
@@ -121,12 +121,12 @@ pub mod native {
         }
     }
 
-    impl<B> ImageWriter<Image<f32, B, 3>> for NrrdWriter<B>
+    impl<B> ImageWriter<Image<B, 3>> for NrrdWriter<B>
     where
         B: ComputeBackend + Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
+        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
             ritk_nrrd::write_nrrd(path, image, &self.backend).map_err(to_io_err)
         }
     }

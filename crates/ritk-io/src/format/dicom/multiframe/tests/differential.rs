@@ -11,8 +11,8 @@ use super::*;
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image as BurnImage;
 use ritk_image::tensor::backend::Backend;
-use coeus_tensor::Tensor;
-use ritk_image::tensor::{Shape, TensorData};
+
+use ritk_image::tensor::{Shape, TensorData, Tensor};
 
 type OracleBackend = SequentialBackend;
 
@@ -20,7 +20,7 @@ type OracleBackend = SequentialBackend;
 fn burn_image(data: Vec<f32>, dims: [usize; 3]) -> BurnImage<OracleBackend, 3> {
     let device = <OracleBackend as Backend>::Device::default();
     let tensor =
-        Tensor::<OracleBackend, 3>::from_data((data, (dims)), &device);
+        Tensor::<OracleBackend, 3>::from_data((data, (dims)), &backend);
     BurnImage::new(
         tensor,
         Point::new([0.0; 3]),
@@ -44,7 +44,7 @@ fn native_reader_matches_burn_reader_bytewise() {
 
     let native = load_dicom_multiframe_native(&path).expect("native read");
     let device = <OracleBackend as Backend>::Device::default();
-    let burn = load_dicom_multiframe::<OracleBackend, _>(&path, &device).expect("burn read");
+    let burn = load_dicom_multiframe::<OracleBackend, _>(&path, &backend).expect("burn read");
 
     assert_eq!(native.shape(), burn.shape(), "shape parity");
     let native_vals = native.data_slice().expect("contiguous native data");

@@ -18,7 +18,7 @@
 //!
 //! # Writer specification (`write_dicom_multiframe`)
 //!
-//! Writes a 3-D `Image<f32, B, 3>` with shape `[n_frames, rows, cols]` as a single
+//! Writes a 3-D `Image<B, 3>` with shape `[n_frames, rows, cols]` as a single
 //! DICOM Part 10 file. The writer enforces the following constraints:
 //!
 //! ## Encoding constraints

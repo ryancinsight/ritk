@@ -25,8 +25,8 @@ use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_write_series_load_series_intensity_roundtrip() {
     use ritk_core::image::Image;
-    use coeus_tensor::Tensor;
-use ritk_image::tensor::{Shape, TensorData};
+    
+use ritk_image::tensor::{Shape, TensorData, Tensor};
     use ritk_spatial::{Direction, Point, Spacing};
     type B = burn_ndarray::SequentialBackend;
 
@@ -40,7 +40,7 @@ use ritk_image::tensor::{Shape, TensorData};
     let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
         (original_data.clone(), ([depth, rows, cols])),
-        &device,
+        &backend,
     );
     let image = Image::<B, 3>::new(
         tensor,
@@ -52,7 +52,7 @@ use ritk_image::tensor::{Shape, TensorData};
     crate::format::dicom::writer::write_dicom_series(&series_path, &image)
         .expect("write_dicom_series must succeed");
 
-    let loaded_image = load_dicom_series_with_metadata::<B, _>(&series_path, &device)
+    let loaded_image = load_dicom_series_with_metadata::<B, _>(&series_path, &backend)
         .expect("load_dicom_series_with_metadata must succeed")
         .0;
 
@@ -87,8 +87,8 @@ use ritk_image::tensor::{Shape, TensorData};
 #[test]
 fn native_dicom_loader_matches_legacy_loader() {
     use coeus_core::SequentialBackend;
-    use coeus_tensor::Tensor;
-use ritk_image::tensor::{Shape, TensorData};
+    
+use ritk_image::tensor::{Shape, TensorData, Tensor};
     type B = burn_ndarray::SequentialBackend;
 
     let tmp = tempfile::tempdir().expect("tempdir");
@@ -101,7 +101,7 @@ use ritk_image::tensor::{Shape, TensorData};
     let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
         (original_data, ([depth, rows, cols])),
-        &device,
+        &backend,
     );
     let image = Image::<B, 3>::new(
         tensor,
@@ -114,7 +114,7 @@ use ritk_image::tensor::{Shape, TensorData};
         .expect("write_dicom_series must succeed");
 
     let (legacy, legacy_meta) =
-        load_dicom_series_with_metadata::<B, _>(&series_path, &device).expect("legacy load");
+        load_dicom_series_with_metadata::<B, _>(&series_path, &backend).expect("legacy load");
     let (native, native_meta) =
         load_native_dicom_series_with_metadata(&series_path, &SequentialBackend)
             .expect("native load");
@@ -148,8 +148,8 @@ use ritk_image::tensor::{Shape, TensorData};
 #[test]
 fn test_write_metadata_series_load_series_intensity_roundtrip() {
     use ritk_core::image::Image;
-    use coeus_tensor::Tensor;
-use ritk_image::tensor::{Shape, TensorData};
+    
+use ritk_image::tensor::{Shape, TensorData, Tensor};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
     type B = burn_ndarray::SequentialBackend;
@@ -169,7 +169,7 @@ use ritk_image::tensor::{Shape, TensorData};
     let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
         (original_data.clone(), ([depth, rows, cols])),
-        &device,
+        &backend,
     );
     let image = Image::<B, 3>::new(
         tensor,
@@ -216,7 +216,7 @@ use ritk_image::tensor::{Shape, TensorData};
     .expect("write_dicom_series_with_metadata must succeed");
 
     let (loaded_image, loaded_meta) =
-        load_dicom_series_with_metadata::<B, _>(&series_path, &device)
+        load_dicom_series_with_metadata::<B, _>(&series_path, &backend)
             .expect("load_dicom_series_with_metadata must succeed");
 
     // --- Intensity round-trip ---

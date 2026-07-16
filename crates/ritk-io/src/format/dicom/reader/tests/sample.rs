@@ -44,7 +44,7 @@ fn test_scan_skull_ct_folder_with_dicomdir_loads_series() {
     );
     println!("Before read_dicom_series_with_metadata");
     let (image, _) =
-        read_dicom_series_with_metadata::<burn_ndarray::SequentialBackend, _>(series_path, &device)
+        read_dicom_series_with_metadata::<burn_ndarray::SequentialBackend, _>(series_path, &backend)
             .expect("read_dicom_series_with_metadata must succeed");
     println!("After read_dicom_series_with_metadata");
     assert_eq!(
@@ -67,7 +67,7 @@ fn test_scan_skull_ct_dicomdir_and_folder_agree_on_series() {
     let series_path = series_path.as_path();
     let info = scan_dicom_directory(series_path).expect("scan_dicom_directory must succeed");
     let (image, _) =
-        read_dicom_series_with_metadata::<burn_ndarray::SequentialBackend, _>(series_path, &device)
+        read_dicom_series_with_metadata::<burn_ndarray::SequentialBackend, _>(series_path, &backend)
             .expect("read_dicom_series_with_metadata must succeed");
     let spatial = image.spacing();
     assert!(

@@ -23,8 +23,8 @@ pub mod native {
         }
     }
 
-    impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for TiffReader<B> {
-        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
+    impl<B: ComputeBackend> ImageReader<Image<B, 3>> for TiffReader<B> {
+        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
             ritk_tiff::read_tiff(path, &self.backend).map_err(to_io_err)
         }
     }
@@ -41,12 +41,12 @@ pub mod native {
         }
     }
 
-    impl<B> ImageWriter<Image<f32, B, 3>> for TiffWriter<B>
+    impl<B> ImageWriter<Image<B, 3>> for TiffWriter<B>
     where
         B: ComputeBackend + Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
+        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
             ritk_tiff::write_tiff(image, path, &self.backend).map_err(to_io_err)
         }
     }

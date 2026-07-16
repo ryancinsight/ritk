@@ -50,14 +50,14 @@ fn series_geometry(
     }
 }
 
-/// Write a 3-D `Image<f32, B, 3>` with shape `[depth, rows, cols]` as a series of
+/// Write a 3-D `Image<B, 3>` with shape `[depth, rows, cols]` as a series of
 /// per-slice single-frame DICOM Part 10 files.
 ///
 /// Delegates to the substrate-free `write_series_flat` encode core; the Burn
 /// carrier only supplies the host pixel buffer and spatial geometry. Retained
 /// for consumers not yet migrated off the Burn `Image`; new native code uses
 /// [`write_dicom_series_native`].
-pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(path: P, image: &Image<f32, B, 3>) -> Result<()> {
+pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(path: P, image: &Image<B, 3>) -> Result<()> {
     let all_data = image
         .try_data_vec()
         .context("DICOM series writer requires f32 image data")?;

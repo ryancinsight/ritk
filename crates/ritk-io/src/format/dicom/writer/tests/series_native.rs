@@ -14,8 +14,8 @@ use coeus_core::{MoiraiBackend, SequentialBackend};
 use ritk_core::image::Image as BurnImage;
 use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend as BurnBackend;
-use coeus_tensor::Tensor;
-use ritk_image::tensor::{Shape, TensorData};
+
+use ritk_image::tensor::{Shape, TensorData, Tensor};
 use ritk_spatial::{Direction, Point, Spacing};
 
 type OracleBackend = SequentialBackend;
@@ -43,7 +43,7 @@ fn native_image(data: Vec<f32>) -> NativeImage<f32, MoiraiBackend, 3> {
 fn burn_image(data: Vec<f32>) -> BurnImage<OracleBackend, 3> {
     let device = <OracleBackend as BurnBackend>::Device::default();
     let tensor =
-        Tensor::<OracleBackend, 3>::from_data((data, (DIMS)), &device);
+        Tensor::<OracleBackend, 3>::from_data((data, (DIMS)), &backend);
     BurnImage::new(
         tensor,
         Point::new(ORIGIN),

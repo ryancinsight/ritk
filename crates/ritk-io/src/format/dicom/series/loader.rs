@@ -11,8 +11,8 @@ use ritk_dicom::{
 };
 use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
-use coeus_tensor::Tensor;
-use ritk_image::tensor::{Shape, TensorData};
+
+use ritk_image::tensor::{Shape, TensorData, Tensor};
 use ritk_spatial::{Direction, Point, Spacing, Vector};
 use std::path::{Path, PathBuf};
 
@@ -27,10 +27,10 @@ use super::types::DicomSeriesInfo;
 pub fn load_dicom_series<B: Backend>(
     series: &DicomSeriesInfo,
     backend: &B,
-) -> Result<Image<f32, B, 3>> {
+) -> Result<Image<B, 3>> {
     let decoded = decode_series(series)?;
     let data = (decoded.voxels, (decoded.shape));
-    let tensor = Tensor::<B, 3>::from_data(data, device);
+    let tensor = Tensor::<B, 3>::from_data(data, backend);
 
     Ok(Image::new(
         tensor,
@@ -265,7 +265,7 @@ fn decode_series(series: &DicomSeriesInfo) -> Result<DecodedDicomSeries> {
 pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
     path: P,
     backend: &B,
-) -> Result<Image<f32, B, 3>> {
+) -> Result<Image<B, 3>> {
     let path_ref = path.as_ref().to_path_buf();
 
     let series_list = scan_dicom_directory(&path_ref)?;
@@ -279,7 +279,7 @@ pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
         );
     }
 
-    load_dicom_series(&series_list[0], device)
+    load_dicom_series(&series_list[0], backend)
 }
 
 /// Convenience function to read a single series into a native Coeus-backed image.
@@ -344,9 +344,9 @@ impl<B: Backend> DicomReader<B> {
     }
 }
 
-impl<B: Backend> ImageReader<Image<f32, B, 3>> for DicomReader<B> {
-    fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
-        read_dicom_series(path, &self.device).map_err(|e| std::io::Error::other(e.to_string()))
+impl<B: Backend> ImageReader<Image<B, 3>> for DicomReader<B> {
+    fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
+        read_dicom_series(path, &self.backend).map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 
@@ -355,8 +355,8 @@ mod tests {
     use super::{load_dicom_series, load_native_dicom_series};
     use coeus_core::SequentialBackend;
     use ritk_core::image::Image;
-    use coeus_tensor::Tensor;
-use ritk_image::tensor::{Shape, TensorData};
+    
+use ritk_image::tensor::{Shape, TensorData, Tensor};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
 
@@ -374,7 +374,7 @@ use ritk_image::tensor::{Shape, TensorData};
         let device = <B as ritk_image::tensor::backend::Backend>::Device::default();
         let tensor = Tensor::<B, 3>::from_data(
             (values, ([depth, rows, cols])),
-            &device,
+            &backend,
         );
         let image = Image::<B, 3>::new(
             tensor,
@@ -422,7 +422,7 @@ use ritk_image::tensor::{Shape, TensorData};
             .pop()
             .expect("one series");
 
-        let legacy = load_dicom_series::<B>(&series, &device).expect("legacy load");
+        let legacy = load_dicom_series::<B>(&series, &backend).expect("legacy load");
         let native =
             load_native_dicom_series(&series, &SequentialBackend).expect("native series load");
 

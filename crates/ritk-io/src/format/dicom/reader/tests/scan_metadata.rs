@@ -25,8 +25,8 @@ use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_scan_metadata_round_trip_spatial_fields() {
     use ritk_core::image::Image;
-    use coeus_tensor::Tensor;
-use ritk_image::tensor::{Shape, TensorData};
+    
+use ritk_image::tensor::{Shape, TensorData, Tensor};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
     type B = burn_ndarray::SequentialBackend;
@@ -40,7 +40,7 @@ use ritk_image::tensor::{Shape, TensorData};
     let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
         (data, ([depth, rows, cols])),
-        &device,
+        &backend,
     );
     let image = Image::<B, 3>::new(
         tensor,
@@ -228,8 +228,8 @@ use ritk_image::tensor::{Shape, TensorData};
 #[test]
 fn test_scan_metadata_round_trip_rescale_params() {
     use ritk_core::image::Image;
-    use coeus_tensor::Tensor;
-use ritk_image::tensor::{Shape, TensorData};
+    
+use ritk_image::tensor::{Shape, TensorData, Tensor};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
     type B = burn_ndarray::SequentialBackend;
@@ -249,7 +249,7 @@ use ritk_image::tensor::{Shape, TensorData};
     let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
         (data, ([depth, rows, cols])),
-        &device,
+        &backend,
     );
     let image = Image::<B, 3>::new(
         tensor,
@@ -329,8 +329,8 @@ use ritk_image::tensor::{Shape, TensorData};
 #[test]
 fn test_scan_metadata_round_trip_transfer_syntax() {
     use ritk_core::image::Image;
-    use coeus_tensor::Tensor;
-use ritk_image::tensor::{Shape, TensorData};
+    
+use ritk_image::tensor::{Shape, TensorData, Tensor};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
     type B = burn_ndarray::SequentialBackend;
@@ -343,7 +343,7 @@ use ritk_image::tensor::{Shape, TensorData};
     let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
         (data, ([depth, rows, cols])),
-        &device,
+        &backend,
     );
     let image = Image::<B, 3>::new(
         tensor,

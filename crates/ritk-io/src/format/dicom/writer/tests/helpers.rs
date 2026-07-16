@@ -13,7 +13,7 @@ pub(super) fn make_image(depth: usize, rows: usize, cols: usize, fill: f32) -> I
     let data = vec![fill; depth * rows * cols];
     let tensor = Tensor::<Backend, 3>::from_data(
         (data, ([depth, rows, cols])),
-        &device,
+        &backend,
     );
     Image::new(
         tensor,
@@ -35,7 +35,7 @@ pub(super) fn make_image_with_spatial(
     let data = vec![fill; depth * rows * cols];
     let tensor = Tensor::<Backend, 3>::from_data(
         (data, ([depth, rows, cols])),
-        &device,
+        &backend,
     );
     Image::new(
         tensor,

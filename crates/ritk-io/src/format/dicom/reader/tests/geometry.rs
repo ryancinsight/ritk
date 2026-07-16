@@ -201,8 +201,8 @@ fn test_dot_product() {
 #[test]
 fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
     use ritk_core::image::Image;
-    use coeus_tensor::Tensor;
-use ritk_image::tensor::{Shape, TensorData};
+    
+use ritk_image::tensor::{Shape, TensorData, Tensor};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
     type B = burn_ndarray::SequentialBackend;
@@ -215,7 +215,7 @@ use ritk_image::tensor::{Shape, TensorData};
     let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
         (data, ([depth, rows, cols])),
-        &device,
+        &backend,
     );
     let image = Image::<B, 3>::new(
         tensor,
@@ -262,7 +262,7 @@ use ritk_image::tensor::{Shape, TensorData};
     )
     .expect("write_dicom_series_with_metadata must not fail");
 
-    let (loaded_image, _) = load_dicom_series_with_metadata::<B, _>(&series_path, &device)
+    let (loaded_image, _) = load_dicom_series_with_metadata::<B, _>(&series_path, &backend)
         .expect("load_dicom_series_with_metadata must not fail");
 
     // RITK convention: from_column_slice([N̂, F_c, F_r]) = from_column_slice([0,1,0, 0,0,-1, 1,0,0]):

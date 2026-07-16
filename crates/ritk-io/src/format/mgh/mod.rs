@@ -3,19 +3,19 @@ use anyhow::Result;
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_image::tensor::backend::Backend;
-use coeus_tensor::Tensor;
-use ritk_image::tensor::{Shape, TensorData};
+
+use ritk_image::tensor::{Shape, TensorData, Tensor};
 use std::path::Path;
 
 /// Reads MGH/MGZ through the native provider and converts at this legacy boundary.
-pub fn read_mgh<B: Backend, P: AsRef<Path>>(path: P, backend: &B) -> Result<Image<f32, B, 3>> {
+pub fn read_mgh<B: Backend, P: AsRef<Path>>(path: P, backend: &B) -> Result<Image<B, 3>> {
     let native = ritk_mgh::read_mgh(path, &SequentialBackend)?;
     let tensor = Tensor::<B, 3>::from_data(
         (
             native.data_cow_on(&SequentialBackend).into_owned(),
             (native.shape()),
         ),
-        device,
+        backend,
     );
     Ok(Image::new(
         tensor,
@@ -26,7 +26,7 @@ pub fn read_mgh<B: Backend, P: AsRef<Path>>(path: P, backend: &B) -> Result<Imag
 }
 
 /// Writes a legacy image through the native MGH provider.
-pub fn write_mgh<B: Backend, P: AsRef<Path>>(image: &Image<f32, B, 3>, path: P) -> Result<()> {
+pub fn write_mgh<B: Backend, P: AsRef<Path>>(image: &Image<B, 3>, path: P) -> Result<()> {
     let backend = SequentialBackend;
     let native = ritk_image::native::Image::from_flat_on(
         image.try_data_vec()?,
@@ -44,16 +44,16 @@ pub struct MghReader;
 
 impl MghReader {
     /// Reads MGH/MGZ into the legacy image substrate.
-    pub fn read<B: Backend, P: AsRef<Path>>(path: P, backend: &B) -> Result<Image<f32, B, 3>> {
-        read_mgh(path, device)
+    pub fn read<B: Backend, P: AsRef<Path>>(path: P, backend: &B) -> Result<Image<B, 3>> {
+        read_mgh(path, backend)
     }
 }
 
 /// Stateless legacy MGH/MGZ writer.
 pub struct MghWriter;
 
-impl<B: Backend> ImageWriter<Image<f32, B, 3>> for MghWriter {
-    fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
+impl<B: Backend> ImageWriter<Image<B, 3>> for MghWriter {
+    fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
         write_mgh(image, path).map_err(|error| std::io::Error::other(error.to_string()))
     }
 }
@@ -81,8 +81,8 @@ pub mod native {
         }
     }
 
-    impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for MghReader<B> {
-        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
+    impl<B: ComputeBackend> ImageReader<Image<B, 3>> for MghReader<B> {
+        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
             ritk_mgh::read_mgh(path, &self.backend).map_err(to_io_err)
         }
     }
@@ -99,12 +99,12 @@ pub mod native {
         }
     }
 
-    impl<B> ImageWriter<Image<f32, B, 3>> for MghWriter<B>
+    impl<B> ImageWriter<Image<B, 3>> for MghWriter<B>
     where
         B: ComputeBackend + Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
+        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
             ritk_mgh::write_mgh(image, path, &self.backend).map_err(to_io_err)
         }
     }

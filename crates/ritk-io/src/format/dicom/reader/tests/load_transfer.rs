@@ -115,7 +115,7 @@ fn test_load_series_compressed_ts_errors() {
 
         let device = <B as ritk_image::tensor::backend::Backend>::Device::default();
         let load_result =
-            load_dicom_series_with_metadata::<B, _>(&series_dir, &device).map(|(img, _meta)| img);
+            load_dicom_series_with_metadata::<B, _>(&series_dir, &backend).map(|(img, _meta)| img);
         // JPEG-LS lossless routes through the RITK native codec boundary. This synthetic
         // payload is intentionally minimal, so either a valid load or a JPEG-contextual
         // decode error preserves the boundary contract.
@@ -148,7 +148,7 @@ fn test_load_from_series_rejects_frame_pixel_count_overflow() {
     let series = overflow_test_series([usize::MAX, 2, 1]);
     let device = <B as ritk_image::tensor::backend::Backend>::Device::default();
 
-    let err = match load_from_series::<B>(series, &device) {
+    let err = match load_from_series::<B>(series, &backend) {
         Ok(_) => panic!("overflow must fail"),
         Err(err) => err,
     };
@@ -168,7 +168,7 @@ fn test_load_from_series_rejects_volume_pixel_count_overflow() {
     let series = overflow_test_series([1, 2, usize::MAX]);
     let device = <B as ritk_image::tensor::backend::Backend>::Device::default();
 
-    let err = match load_from_series::<B>(series, &device) {
+    let err = match load_from_series::<B>(series, &backend) {
         Ok(_) => panic!("overflow must fail"),
         Err(err) => err,
     };
@@ -311,7 +311,7 @@ fn test_load_series_jpeg_baseline_codec_round_trip() {
         .expect("write");
 
     let device = <B as ritk_image::tensor::backend::Backend>::Device::default();
-    let (img, _meta) = load_dicom_series_with_metadata::<B, _>(&series_dir, &device)
+    let (img, _meta) = load_dicom_series_with_metadata::<B, _>(&series_dir, &backend)
         .expect("JPEG Baseline series load must succeed via codec path");
 
     let shape = img.shape();

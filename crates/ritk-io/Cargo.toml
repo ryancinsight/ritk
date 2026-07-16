@@ -6,10 +6,11 @@ license.workspace = true
 
 [dependencies]
 burn-ndarray = { workspace = true }
+burn = { workspace = true }
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
 ritk-core = { path = "../ritk-core" }
-ritk-image = { path = "../ritk-image" }
+ritk-image = { path = "../ritk-image", features = ["burn-compat"] }
 ritk-spatial = { path = "../ritk-spatial" }
 ritk-annotation = { path = "../ritk-annotation" }
 ritk-filter = { path = "../ritk-filter" }

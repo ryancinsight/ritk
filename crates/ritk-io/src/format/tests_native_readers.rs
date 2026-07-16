@@ -44,13 +44,13 @@ fn assert_native_reader_matches_burn<R>(
 
 /// A small anisotropic Burn test volume for the formats with Burn writers.
 fn burn_volume(dims: [usize; 3]) -> BurnImage<BurnBackend, 3> {
-    use coeus_tensor::Tensor;
-use ritk_image::tensor::{Shape, TensorData};
+    
+use ritk_image::tensor::{Shape, TensorData, Tensor};
     let n = dims[0] * dims[1] * dims[2];
     let voxels: Vec<f32> = (0..n).map(|i| i as f32 * 0.5 - 4.0).collect();
     let device = <BurnBackend as Backend>::Device::default();
     let tensor =
-        Tensor::<BurnBackend, 3>::from_data((voxels, (dims)), &device);
+        Tensor::<BurnBackend, 3>::from_data((voxels, (dims)), &backend);
     BurnImage::new(
         tensor,
         Point::new([1.0, -2.0, 3.0]),

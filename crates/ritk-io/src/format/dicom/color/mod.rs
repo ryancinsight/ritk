@@ -2,7 +2,7 @@
 //!
 //! This module is the color-volume counterpart to the scalar DICOM loaders.
 //! It preserves RGB samples in a typed `ColorVolume<f32, B, 3>` instead of forcing
-//! multi-sample frames through scalar `Image<f32, B, 3>`.
+//! multi-sample frames through scalar `Image<B, 3>`.
 
 use std::path::Path;
 

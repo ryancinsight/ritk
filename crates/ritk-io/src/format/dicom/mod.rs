@@ -98,8 +98,8 @@ pub mod native {
         }
     }
 
-    impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for DicomReader<B> {
-        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
+    impl<B: ComputeBackend> ImageReader<Image<B, 3>> for DicomReader<B> {
+        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
             super::read_native_dicom_series_with_metadata(path, &self.backend)
                 .map(|(image, _metadata)| image)
                 .map_err(to_io_err)
