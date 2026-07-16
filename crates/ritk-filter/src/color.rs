@@ -10,10 +10,10 @@
 //! with no per-filter reimplementation.
 
 use anyhow::Result;
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::{ColorVolume, Image};
-use ritk_tensor_ops::extract_vec_infallible;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::ColorVolume;
+use ritk_image::native::Image;
+use ritk_tensor_ops::native::extract_image_vec;
 
 /// Apply a scalar 3-D image filter independently to each component of `vol`,
 /// matching ITK's per-component vector-image filtering.
@@ -28,27 +28,35 @@ use ritk_tensor_ops::extract_vec_infallible;
 /// [`ColorVolume::from_component_buffers`] (e.g. if a filter changed the spatial
 /// shape, which per-component filters must not do).
 pub fn map_color_components<B, const C: usize, F>(
-    vol: &ColorVolume<B, C>,
+    vol: &ColorVolume<f32, B, C>,
     mut f: F,
-) -> Result<ColorVolume<B, C>>
+    backend: &B,
+) -> Result<ColorVolume<f32, B, C>>
 where
-    B: Backend,
-    F: FnMut(&Image<B, 3>) -> Image<B, 3>,
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    F: FnMut(&Image<f32, B, 3>) -> Image<f32, B, 3>,
 {
     let spatial = vol.spatial_shape();
-    let device = vol.data().device();
     let (origin, spacing, direction) = (*vol.origin(), *vol.spacing(), *vol.direction());
 
     let bufs = vol.into_component_buffers();
     let mut out_bufs: Vec<Vec<f32>> = Vec::with_capacity(C);
     for buf in bufs {
-        let tensor = Tensor::<B, 3>::from_data(TensorData::new(buf, Shape::new(spatial)), &device);
-        let img = Image::<B, 3>::new(tensor, origin, spacing, direction);
+        let tensor = coeus_tensor::Tensor::<f32, B>::from_slice_on(spatial, &buf, backend);
+        let img = Image::<f32, B, 3>::new(tensor, origin, spacing, direction)?;
         let result = f(&img);
-        let (rvals, _) = extract_vec_infallible(&result);
+        let (rvals, _) = extract_image_vec(&result)?;
         out_bufs.push(rvals);
     }
-    ColorVolume::from_component_buffers(&out_bufs, spatial, origin, spacing, direction, &device)
+    ColorVolume::from_component_buffers(
+        &out_bufs,
+        spatial,
+        origin,
+        spacing,
+        direction,
+        backend,
+    )
 }
 
 #[cfg(test)]

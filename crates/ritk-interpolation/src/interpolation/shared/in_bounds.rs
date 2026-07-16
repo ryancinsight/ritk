@@ -12,7 +12,9 @@
 //! sample along a single axis. The product across all axes gives the
 //! multi-dimensional in-bounds mask.
 
-use ritk_image::tensor::{backend::Backend, Tensor};
+use coeus_core::Backend;
+use coeus_tensor::Tensor;
+use ritk_image::tensor::{backend::};;
 
 /// Out-of-bounds handling policy for interpolation kernels.
 ///
@@ -48,10 +50,10 @@ pub enum OutOfBoundsMode {
 /// When `mode` is `Clamp`, returns `None` (caller skips mask logic).
 #[inline]
 pub fn in_bounds_mask<B: Backend>(
-    floor_c: Tensor<B, 1>,
+    floor_c: Tensor<f32, B>,
     max: f64,
     mode: OutOfBoundsMode,
-) -> Option<Tensor<B, 1>> {
+) -> Option<Tensor<f32, B>> {
     if mode == OutOfBoundsMode::ZeroPad {
         let clamped = floor_c.clone().clamp(0.0, max);
         Some(floor_c.equal(clamped).float())
@@ -66,8 +68,8 @@ pub fn in_bounds_mask<B: Backend>(
 /// which happens when `mode` is `Clamp`). If every entry is `None`,
 /// returns `None` (no masking needed).
 #[inline]
-pub fn joint_in_bounds_mask<B: Backend>(masks: &[Option<Tensor<B, 1>>]) -> Option<Tensor<B, 1>> {
-    let mut product: Option<Tensor<B, 1>> = None;
+pub fn joint_in_bounds_mask<B: Backend>(masks: &[Option<Tensor<f32, B>>]) -> Option<Tensor<f32, B>> {
+    let mut product: Option<Tensor<f32, B>> = None;
     for m in masks.iter().flatten() {
         product = Some(match product {
             None => m.clone(),

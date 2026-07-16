@@ -24,10 +24,11 @@ use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_scan_directory_warns_on_inconsistent_iop() {
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
-    type B = burn_ndarray::NdArray<f32>;
+    type B = burn_ndarray::SequentialBackend;
 
     let temp = tempfile::tempdir().unwrap();
     let dir_a = temp.path().join("iop_axial");
@@ -42,7 +43,7 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
     // IPP for slice 0 = [0,0,0].
     {
         let tensor = Tensor::<B, 3>::from_data(
-            TensorData::new(data.clone(), Shape::new([1usize, 2, 2])),
+            (data.clone(), ([1usize, 2, 2])),
             &device,
         );
         let image = Image::<B, 3>::new(
@@ -88,7 +89,7 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
     // Projected onto any normal: axial IPP=0 ≤ coronal IPP≥0 → axial sorts first.
     {
         let tensor = Tensor::<B, 3>::from_data(
-            TensorData::new(data.clone(), Shape::new([1usize, 2, 2])),
+            (data.clone(), ([1usize, 2, 2])),
             &device,
         );
         let image = Image::<B, 3>::new(
@@ -171,10 +172,11 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
 #[test]
 fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
-    type B = burn_ndarray::NdArray<f32>;
+    type B = burn_ndarray::SequentialBackend;
 
     let temp = tempfile::tempdir().unwrap();
     let dir_a = temp.path().join("ps_a");
@@ -188,7 +190,7 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
     // Series A: pixel_spacing=[0.8,0.8], origin=[0,0,0], IPP=[0,0,0].
     {
         let tensor = Tensor::<B, 3>::from_data(
-            TensorData::new(data.clone(), Shape::new([1usize, 2, 2])),
+            (data.clone(), ([1usize, 2, 2])),
             &device,
         );
         let image = Image::<B, 3>::new(
@@ -233,7 +235,7 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
     // Different z-position ensures both slices are retained after sort.
     {
         let tensor = Tensor::<B, 3>::from_data(
-            TensorData::new(data.clone(), Shape::new([1usize, 2, 2])),
+            (data.clone(), ([1usize, 2, 2])),
             &device,
         );
         let image = Image::<B, 3>::new(
@@ -318,14 +320,15 @@ fn test_physical_transform_depth_index_advances_along_slice_normal() {
     // Invariant: advancing the depth index by 1 must move the physical point by exactly
     // Δz along the slice normal N̂. With spacing=[Δz, ΔRow, ΔCol] and direction
     // cols=[N̂, F_c, F_r]: point(1,0,0) = origin + 1*Δz*N̂.
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
-    type B = burn_ndarray::NdArray<f32>;
+    type B = burn_ndarray::SequentialBackend;
     const TOL: f64 = 1e-10;
 
     let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![0.0f32; 2 * 4 * 4], Shape::new([2, 4, 4])),
+        (vec![0.0f32; 2 * 4 * 4], ([2, 4, 4])),
         &device,
     );
     // Axial: N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0], Δz=2.5, ΔRow=0.8, ΔCol=0.8

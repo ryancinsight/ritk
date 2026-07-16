@@ -17,7 +17,7 @@ use coeus_core::SequentialBackend;
 use coeus_core::SequentialBackend;
 use ritk_core::transform::Transform;
 use ritk_image::native::Image;
-use ritk_image::tensor::Tensor;
+use coeus_tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 
 type BB = SequentialBackend;

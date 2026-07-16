@@ -1,7 +1,7 @@
 //! Nearest-neighbor shape dispatch and type-narrowing wrapper traits.
 
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
+use coeus_core::Backend;
+use coeus_tensor::Tensor;
 
 use super::sealed;
 use crate::interpolation::kernel::nearest;
@@ -25,11 +25,11 @@ use crate::interpolation::shared::OutOfBoundsMode;
 // dispatch to two different function families from the same method, so we
 // use a parallel sealed trait `DispatchNearestByShape` for the nearest-
 // neighbor case. The sealing mechanism is identical: a private `Sealed`
-// supertrait restricts implementations to `Tensor<B, 3>`.
+// supertrait restricts implementations to `Tensor<f32, B>`.
 
 /// Sealed trait for per-shape 3-D nearest-neighbor interpolation dispatch.
 ///
-/// This trait is sealed: it is only implemented for `Tensor<B, 3>`. External
+/// This trait is sealed: it is only implemented for `Tensor<f32, B>`. External
 /// code cannot add new implementations. The trait method
 /// [`DispatchNearestByShape::dispatch_nearest_by_shape`] currently falls through to the generic
 /// `nearest::interpolate_3d` for all shapes — typed nearest-neighbor
@@ -52,17 +52,17 @@ pub trait DispatchNearestByShape<B: Backend>: sealed::Sealed {
     /// method will route common cube shapes to the typed paths.
     fn dispatch_nearest_by_shape(
         &self,
-        indices: Tensor<B, 2>,
+        indices: Tensor<f32, B>,
         mode: OutOfBoundsMode,
-    ) -> Tensor<B, 1>;
+    ) -> Tensor<f32, B>;
 }
 
-impl<B: Backend> DispatchNearestByShape<B> for Tensor<B, 3> {
+impl<B: Backend> DispatchNearestByShape<B> for Tensor<f32, B> {
     fn dispatch_nearest_by_shape(
         &self,
-        indices: Tensor<B, 2>,
+        indices: Tensor<f32, B>,
         mode: OutOfBoundsMode,
-    ) -> Tensor<B, 1> {
+    ) -> Tensor<f32, B> {
         // Match the same shapes as the linear-dispatch [`DispatchByShape`]
         // impl so the routing is symmetric. Power-of-2 cubes route to
         // the const-generic typed nearest-neighbor instantiations
@@ -95,10 +95,10 @@ impl<B: Backend> DispatchNearestByShape<B> for Tensor<B, 3> {
 // ════════════════════════════════════════════════════════════════════════
 //
 // Parallel to [`Dispatch3DTyped`](super::Dispatch3DTyped). Bridges `&Tensor<B, D>` (generic D) to
-// the sealed [`DispatchNearestByShape`] trait method on `&Tensor<B, 3>`.
+// the sealed [`DispatchNearestByShape`] trait method on `&Tensor<f32, B>`.
 
 /// Extension trait that bridges `&Tensor<B, D>` (generic D) to the sealed
-/// [`DispatchNearestByShape`] trait method on `&Tensor<B, 3>`.
+/// [`DispatchNearestByShape`] trait method on `&Tensor<f32, B>`.
 ///
 /// Implemented for **any** `Tensor<B, D>`, but the `D == 3` branch is the
 /// only meaningful one — the other branches `unreachable!()` since the
@@ -112,7 +112,7 @@ impl<B: Backend> DispatchNearestByShape<B> for Tensor<B, 3> {
 /// handles the narrowing internally and routes through
 /// [`DispatchNearestByShape`] for the actual shape-based dispatch.
 pub trait DispatchNearest3DTyped<B: Backend, const D: usize> {
-    /// Narrow `self` to `&Tensor<B, 3>` and dispatch through the sealed
+    /// Narrow `self` to `&Tensor<f32, B>` and dispatch through the sealed
     /// [`DispatchNearestByShape`] trait method.
     ///
     /// This method is only meaningful when `D == 3`. For other D values,
@@ -120,17 +120,17 @@ pub trait DispatchNearest3DTyped<B: Backend, const D: usize> {
     /// with a `match D` arm.
     fn dispatch_nearest_3d_typed(
         &self,
-        indices: Tensor<B, 2>,
+        indices: Tensor<f32, B>,
         mode: OutOfBoundsMode,
-    ) -> Tensor<B, 1>;
+    ) -> Tensor<f32, B>;
 }
 
 impl<B: Backend, const D: usize> DispatchNearest3DTyped<B, D> for Tensor<B, D> {
     fn dispatch_nearest_3d_typed(
         &self,
-        indices: Tensor<B, 2>,
+        indices: Tensor<f32, B>,
         mode: OutOfBoundsMode,
-    ) -> Tensor<B, 1> {
+    ) -> Tensor<f32, B> {
         // D is a const generic — the `if D == 3` branch is a compile-time
         // check that the compiler constant-folds. For non-3-D monomorphizations,
         // this entire branch is dead-code eliminated.

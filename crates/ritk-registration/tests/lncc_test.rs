@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use burn_ndarray::NdArray;
+    use coeus_core::SequentialBackend;
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
     use ritk_filter::GaussianSigma;
@@ -9,12 +9,12 @@ mod tests {
     use ritk_registration::metric::Metric;
     use ritk_transform::TranslationTransform;
 
-    type B = NdArray<f32>;
+    type B = SequentialBackend;
 
-    fn create_test_image(shape: [usize; 3]) -> Image<B, 3> {
+    fn create_test_image(shape: [usize; 3]) -> Image<f32, B, 3> {
         let device = Default::default();
         let data =
-            Tensor::<B, 3>::random(Shape::new(shape), Distribution::Uniform(0.0, 1.0), &device);
+            Tensor::<B, 3>::random((shape), Distribution::Uniform(0.0, 1.0), &device);
         let origin = Point::new([0.0, 0.0, 0.0]);
         let spacing = Spacing::new([1.0, 1.0, 1.0]);
         let direction = Direction::identity();

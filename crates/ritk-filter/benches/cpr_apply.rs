@@ -20,14 +20,14 @@
 //! should not regress below these floors without an architectural
 //! reason recorded in `OPTIMIZATION.md`.
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use ritk_filter::{CprConfig, CprImageFilter};
 use ritk_image::test_support as ts;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
-fn make_test_image(size: usize) -> ritk_image::Image<B, 3> {
+fn make_test_image(size: usize) -> ritk_image::Image<f32, B, 3> {
     let mut v = vec![0.0_f32; size * size * size];
     for iz in 0..size {
         for iy in 0..size {

@@ -36,10 +36,11 @@
 //!
 //! [`Image`]: crate::Image
 
-use crate::tensor::{ComputeBackend, Scalar, Tensor};
+use coeus_core::{ComputeBackend, Scalar};
+use coeus_tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 
-use crate::Image;
+use crate::types::Image;
 
 fn make_tensor<T, B, const D: usize>(data: Vec<T>, dims: [usize; D]) -> Tensor<T, B>
 where

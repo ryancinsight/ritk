@@ -1,21 +1,31 @@
 use super::*;
-use crate::native_support::LegacyBurnBackend;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image;
 use ritk_interpolation::LinearInterpolator;
 use ritk_spatial::{Direction2, Point2, Spacing2};
-use ritk_tensor_ops::extract_vec_infallible;
 use ritk_transform::affine::translation::TranslationTransform;
 
-type TestBackend = LegacyBurnBackend;
+type TestBackend = SequentialBackend;
 
 /// Bilinear interpolation at exact integer offset yields ≥ this value.
 const NEAR_ONE_TOL: f32 = 0.9;
 /// Outside-patch region expected to be ≤ this value.
 const NEAR_ZERO_TOL: f32 = 0.1;
 
+fn make_image(data: Vec<f32>, shape: [usize; 2]) -> Image<f32, TestBackend, 2> {
+    Image::from_flat_on(
+        data,
+        shape,
+        Point2::new([0.0, 0.0]),
+        Spacing2::new([1.0, 1.0]),
+        Direction2::identity(),
+        &TestBackend,
+    )
+    .expect("valid test image")
+}
+
 #[test]
 fn test_resample_translation_planar() {
-    let device = Default::default();
-
     // 1. Create a 10x10 image with a 2x2 square in the center (4,4) to (5,5)
     let mut data = vec![0.0; 100];
     data[4 * 10 + 4] = 1.0;
@@ -23,23 +33,14 @@ fn test_resample_translation_planar() {
     data[5 * 10 + 4] = 1.0;
     data[5 * 10 + 5] = 1.0;
 
-    let tensor = ritk_image::tensor::Tensor::<TestBackend, 2>::from_floats(
-        ritk_image::tensor::TensorData::new(data, Shape::new([10, 10])),
-        &device,
-    );
-
-    let origin = Point2::new([0.0, 0.0]);
-    let spacing = Spacing2::new([1.0, 1.0]);
-    let direction = Direction2::identity();
-
-    let image = Image::new(tensor, origin, spacing, direction);
+    let image = make_image(data, [10, 10]);
 
     // 2. Define Transform: shift content by +1 row (Y) and +2 cols (X).
     // The offset is in the image's axis-major physical convention [row, col] =
-    // [y, x] (matching world_to_index_tensor / index_to_world_tensor), so the
+    // [y, x] (matching world_to_index_native / index_to_world_native), so the
     // output→input map subtracts [1, 2]: output reads input one row up and two
     // columns left, moving the square down one row and right two columns.
-    let offset = ritk_image::tensor::Tensor::<TestBackend, 1>::from_floats([-1.0, -2.0], &device);
+    let offset = Tensor::<f32, TestBackend>::from_slice_on([2], &[-1.0, -2.0], &TestBackend);
     let transform = TranslationTransform::<TestBackend, 2>::new(offset);
 
     // 3. Define Interpolator
@@ -49,11 +50,10 @@ fn test_resample_translation_planar() {
     let filter = ResampleImageFilter::new_from_reference(&image, transform, interpolator);
 
     // 5. Apply
-    let result = filter.apply(&image);
+    let result = filter.apply(&image, &TestBackend).expect("resample apply");
 
     // 6. Verify
-    let (data, _) = extract_vec_infallible(&result);
-    let slice = data.as_slice();
+    let slice = result.data_slice().expect("contiguous result");
 
     // Check index corresponding to physical coordinates (x=6, y=5) -> index 5*10 + 6 = 56
     assert!(slice[56] > NEAR_ONE_TOL);
@@ -76,11 +76,8 @@ fn test_resample_translation_planar() {
 /// collapsed every output row to a constant.
 #[test]
 fn test_resample_identity_anisotropic_z1_volumetric() {
-    use ritk_interpolation::LinearInterpolator;
     use ritk_spatial::{Direction, Point, Spacing};
-    use ritk_transform::affine::translation::TranslationTransform;
 
-    let device = Default::default();
     // [z, y, x] = [1, 4, 5], a horizontal ramp varying along x so a column
     // collapse is immediately visible.
     let (nz, ny, nx) = (1usize, 4usize, 5usize);
@@ -90,19 +87,17 @@ fn test_resample_identity_anisotropic_z1_volumetric() {
             data[y * nx + x] = (y * 10 + x) as f32;
         }
     }
-    let tensor = ritk_image::tensor::Tensor::<TestBackend, 3>::from_floats(
-        ritk_image::tensor::TensorData::new(data.clone(), Shape::new([nz, ny, nx])),
-        &device,
-    );
-    // Anisotropic spacing: z = 1.0, y = x = 0.35 (mirrors a promoted 2-D slice).
-    let image = Image::new(
-        tensor,
+    let image = Image::from_flat_on(
+        data.clone(),
+        [nz, ny, nx],
         Point::<3>::new([0.0, 0.0, 0.0]),
         Spacing::<3>::new([1.0, 0.35, 0.35]),
         Direction::<3>::identity(),
-    );
+        &TestBackend,
+    )
+    .expect("valid test image");
 
-    let zero = ritk_image::tensor::Tensor::<TestBackend, 1>::from_floats([0.0, 0.0, 0.0], &device);
+    let zero = Tensor::<f32, TestBackend>::from_slice_on([3], &[0.0, 0.0, 0.0], &TestBackend);
     let filter = ResampleImageFilter::new(
         [nz, ny, nx],
         *image.origin(),
@@ -111,10 +106,10 @@ fn test_resample_identity_anisotropic_z1_volumetric() {
         TranslationTransform::<TestBackend, 3>::new(zero),
         LinearInterpolator::new(),
     );
-    let result = filter.apply(&image);
-    let (out, _) = extract_vec_infallible(&result);
+    let result = filter.apply(&image, &TestBackend).expect("resample apply");
+    let out = result.data_slice().expect("contiguous result");
 
-    for (i, (&o, &d)) in out.as_slice().iter().zip(data.iter()).enumerate() {
+    for (i, (&o, &d)) in out.iter().zip(data.iter()).enumerate() {
         assert!(
             (o - d).abs() < 1e-4,
             "identity resample mismatch at flat {i}: got {o}, want {d}"

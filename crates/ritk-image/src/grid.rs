@@ -1,4 +1,5 @@
-use crate::tensor::{ComputeBackend, Scalar, Tensor};
+use coeus_core::{ComputeBackend, Scalar};
+use coeus_tensor::Tensor;
 
 /// Generate a grid of continuous indices for the given image shape.
 ///

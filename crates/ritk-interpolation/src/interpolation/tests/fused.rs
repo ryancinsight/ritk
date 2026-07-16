@@ -2,14 +2,15 @@
 
 use crate::interpolation::fused::{is_identity_direction, transform_and_interpolate};
 use crate::interpolation::LinearInterpolator;
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_core::interpolation::Interpolator;
 use ritk_core::transform::Transform;
-use ritk_image::tensor::{Tensor, TensorData};
+use coeus_tensor::Tensor;
+use ritk_image::tensor::{TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 
-type Backend = NdArray<f32>;
+type Backend = SequentialBackend;
 type Point3 = Point<3>;
 type Spacing3 = Spacing<3>;
 type Direction3 = Direction<3>;
@@ -20,10 +21,10 @@ struct TranslationTransform {
 }
 
 impl Transform<Backend, 3> for TranslationTransform {
-    fn transform_points(&self, points: Tensor<Backend, 2>) -> Tensor<Backend, 2> {
-        let device = points.device();
-        let offset = Tensor::<Backend, 1>::from_data(
-            TensorData::new(self.offset.to_vec(), ritk_image::tensor::Shape::new([3])),
+    fn transform_points(&self, points: Tensor<f32, Backend>) -> Tensor<f32, Backend> {
+        let device = B::default();
+        let offset = Tensor::<f32, Backend>::from_data(
+            (self.offset.to_vec(), ritk_image::tensor::([3])),
             &device,
         )
         .reshape([1usize, 3]);
@@ -33,8 +34,8 @@ impl Transform<Backend, 3> for TranslationTransform {
 
 fn make_identity_image(
     device: &<Backend as ritk_image::tensor::Backend>::Device,
-) -> Image<Backend, 3> {
-    let data = Tensor::<Backend, 3>::zeros([4, 4, 4], device);
+) -> Image<f32, Backend, 3> {
+    let data = Tensor::<f32, Backend>::zeros([4, 4, 4], device);
     let origin = Point3::new([0.0, 0.0, 0.0]);
     let spacing = Spacing3::new([1.0, 1.0, 1.0]);
     let direction = Direction3::identity();
@@ -62,8 +63,8 @@ fn test_fused_identity_image_zero_translation() {
 
     // Create image data with known values
     let data_vec: Vec<f32> = (0..64).map(|i| i as f32).collect();
-    let data = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([4, 4, 4])),
+    let data = Tensor::<f32, Backend>::from_data(
+        (data_vec, ritk_image::tensor::([4, 4, 4])),
         &device,
     );
     let moving = Image::new(
@@ -79,7 +80,7 @@ fn test_fused_identity_image_zero_translation() {
     let interpolator = LinearInterpolator::new();
 
     // Query at integer grid points → should return exact voxel values
-    let points = Tensor::<Backend, 2>::from_floats(
+    let points = Tensor::<f32, Backend>::from_floats(
         [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
         &device,
     );
@@ -96,8 +97,8 @@ fn test_fused_identity_image_zero_translation() {
 fn test_fused_identity_image_with_translation() {
     let device = Default::default();
     let data_vec: Vec<f32> = (0..64).map(|i| i as f32).collect();
-    let data = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([4, 4, 4])),
+    let data = Tensor::<f32, Backend>::from_data(
+        (data_vec, ritk_image::tensor::([4, 4, 4])),
         &device,
     );
     let moving = Image::new(
@@ -115,7 +116,7 @@ fn test_fused_identity_image_with_translation() {
     };
     let interpolator = LinearInterpolator::new();
 
-    let points = Tensor::<Backend, 2>::from_floats([[0.0, 0.0, 0.0]], &device);
+    let points = Tensor::<f32, Backend>::from_floats([[0.0, 0.0, 0.0]], &device);
     let result = transform_and_interpolate(points, &transform, &moving, &interpolator);
     let values = result.values.into_data().into_vec::<f32>().unwrap();
 
@@ -129,8 +130,8 @@ fn test_fused_identity_image_with_translation() {
 fn test_fused_non_identity_spacing() {
     let device = Default::default();
     let data_vec: Vec<f32> = (0..64).map(|i| i as f32).collect();
-    let data = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([4, 4, 4])),
+    let data = Tensor::<f32, Backend>::from_data(
+        (data_vec, ritk_image::tensor::([4, 4, 4])),
         &device,
     );
     let moving = Image::new(
@@ -146,7 +147,7 @@ fn test_fused_non_identity_spacing() {
     let interpolator = LinearInterpolator::new();
 
     // With spacing=2, a world point at [2,0,0] should map to index [1,0,0]
-    let points = Tensor::<Backend, 2>::from_floats([[2.0, 0.0, 0.0]], &device);
+    let points = Tensor::<f32, Backend>::from_floats([[2.0, 0.0, 0.0]], &device);
     let result = transform_and_interpolate(points, &transform, &moving, &interpolator);
     let values = result.values.into_data().into_vec::<f32>().unwrap();
 
@@ -160,8 +161,8 @@ fn test_fused_non_identity_spacing() {
 fn test_fused_matches_unfused() {
     let device = Default::default();
     let data_vec: Vec<f32> = (0..64).map(|i| i as f32 * 10.0).collect();
-    let data = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([4, 4, 4])),
+    let data = Tensor::<f32, Backend>::from_data(
+        (data_vec, ritk_image::tensor::([4, 4, 4])),
         &device,
     );
     let origin = Point3::new([5.0, 5.0, 5.0]);
@@ -174,7 +175,7 @@ fn test_fused_matches_unfused() {
     };
     let interpolator = LinearInterpolator::new();
 
-    let fixed_points = Tensor::<Backend, 2>::from_floats(
+    let fixed_points = Tensor::<f32, Backend>::from_floats(
         [[1.0, 2.0, 3.0], [10.0, 20.0, 30.0], [0.0, 0.0, 0.0]],
         &device,
     );
@@ -207,8 +208,8 @@ fn test_fused_matches_unfused() {
 fn test_fused_identity_direction_anisotropic_matches_unfused() {
     let device = Default::default();
     let data_vec: Vec<f32> = (0..60).map(|i| i as f32 * 1.25).collect();
-    let data = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([3, 4, 5])),
+    let data = Tensor::<f32, Backend>::from_data(
+        (data_vec, ritk_image::tensor::([3, 4, 5])),
         &device,
     );
     let origin = Point3::new([10.0, -20.0, 30.0]);
@@ -220,7 +221,7 @@ fn test_fused_identity_direction_anisotropic_matches_unfused() {
     };
     let interpolator = LinearInterpolator::new();
 
-    let fixed_points = Tensor::<Backend, 2>::from_floats(
+    let fixed_points = Tensor::<f32, Backend>::from_floats(
         [
             [9.0, -18.0, 27.5],
             [11.0, -17.0, 32.5],
@@ -256,8 +257,8 @@ fn test_fused_identity_direction_anisotropic_matches_unfused() {
 fn test_fused_general_direction_matches_unfused() {
     let device = Default::default();
     let data_vec: Vec<f32> = (0..64).map(|i| i as f32).collect();
-    let data = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([4, 4, 4])),
+    let data = Tensor::<f32, Backend>::from_data(
+        (data_vec, ritk_image::tensor::([4, 4, 4])),
         &device,
     );
     let origin = Point3::new([0.0, 0.0, 0.0]);
@@ -278,7 +279,7 @@ fn test_fused_general_direction_matches_unfused() {
     };
     let interpolator = LinearInterpolator::new();
 
-    let fixed_points = Tensor::<Backend, 2>::from_floats(
+    let fixed_points = Tensor::<f32, Backend>::from_floats(
         [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
         &device,
     );
@@ -311,8 +312,8 @@ fn test_fused_general_direction_matches_unfused() {
 fn test_fused_oob_mask() {
     let device = Default::default();
     let data_vec: Vec<f32> = (0..64).map(|i| i as f32 * 10.0).collect();
-    let data = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([4, 4, 4])),
+    let data = Tensor::<f32, Backend>::from_data(
+        (data_vec, ritk_image::tensor::([4, 4, 4])),
         &device,
     );
     let moving = Image::new(
@@ -328,7 +329,7 @@ fn test_fused_oob_mask() {
     let interpolator = LinearInterpolator::new();
 
     // Mix of in-bounds and out-of-bounds points
-    let points = Tensor::<Backend, 2>::from_floats(
+    let points = Tensor::<f32, Backend>::from_floats(
         [
             [0.0, 0.0, 0.0],
             [-1.0, 0.0, 0.0],

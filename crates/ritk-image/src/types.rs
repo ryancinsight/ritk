@@ -6,7 +6,8 @@
 use std::borrow::Cow;
 use std::fmt;
 
-use crate::tensor::{ComputeBackend, Scalar, Tensor};
+use coeus_core::{ComputeBackend, Scalar};
+use coeus_tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Medical image with physical metadata, backed by a Coeus tensor.

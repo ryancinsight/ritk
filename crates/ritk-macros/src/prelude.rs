@@ -15,8 +15,8 @@ pub(crate) fn generate_d1_prelude(
     quote! {
         let shape = data.shape();
         let d0 = shape.dims[0];
-        let batch_size = indices.dims()[0];
-        let _device = indices.device();
+        let batch_size = indices.shape()[0];
+        let _device = indicesB::default();
 
         // Extract coordinate: [N, 1] -> [N]. narrow consumes self.
         let x = indices.narrow(1, 0, 1).squeeze_dims(&[1]);
@@ -47,8 +47,8 @@ pub(crate) fn generate_d2_prelude(
         let shape = data.shape();
         let d0 = shape.dims[0]; // Y
         let d1 = shape.dims[1]; // X
-        let batch_size = indices.dims()[0];
-        let _device = indices.device();
+        let batch_size = indices.shape()[0];
+        let _device = indicesB::default();
 
         // narrow consumes self, so clone indices once and narrow each column.
         let indices_local = indices;
@@ -90,8 +90,8 @@ pub(crate) fn generate_d3_prelude(
         let d0 = shape.dims[0]; // Z
         let d1 = shape.dims[1]; // Y
         let d2 = shape.dims[2]; // X
-        let batch_size = indices.dims()[0];
-        let _device = indices.device();
+        let batch_size = indices.shape()[0];
+        let _device = indicesB::default();
 
         // narrow consumes self, so clone indices once and narrow each column.
         let indices_local = indices;
@@ -142,8 +142,8 @@ pub(crate) fn generate_d4_prelude(
         let d1 = shape.dims[1]; // Z
         let d2 = shape.dims[2]; // Y
         let d3 = shape.dims[3]; // X
-        let batch_size = indices.dims()[0];
-        let _device = indices.device();
+        let batch_size = indices.shape()[0];
+        let _device = indicesB::default();
 
         // narrow consumes self, so clone indices once and narrow each column.
         let indices_local = indices;
@@ -203,8 +203,8 @@ pub(crate) fn generate_typed_d1_prelude(dims: &[Ident]) -> TokenStream {
     let d0_dim = &dims[0];
     quote! {
         let d0: usize = #d0_dim;
-        let batch_size = indices.dims()[0];
-        let _device = indices.device();
+        let batch_size = indices.shape()[0];
+        let _device = indicesB::default();
 
         // Extract coordinate: [N, 1] -> [N]. narrow consumes self.
         let x = indices.narrow(1, 0, 1).squeeze_dims(&[1]);
@@ -230,8 +230,8 @@ pub(crate) fn generate_typed_d2_prelude(dims: &[Ident]) -> TokenStream {
     quote! {
         let d0: usize = #d0_dim; // Y
         let d1: usize = #d1_dim; // X
-        let batch_size = indices.dims()[0];
-        let _device = indices.device();
+        let batch_size = indices.shape()[0];
+        let _device = indicesB::default();
 
         // narrow consumes self, so clone indices once and narrow each column.
         let indices_local = indices;
@@ -268,8 +268,8 @@ pub(crate) fn generate_typed_d3_prelude(dims: &[Ident]) -> TokenStream {
         let d0: usize = #d0_dim; // Z
         let d1: usize = #d1_dim; // Y
         let d2: usize = #d2_dim; // X
-        let batch_size = indices.dims()[0];
-        let _device = indices.device();
+        let batch_size = indices.shape()[0];
+        let _device = indicesB::default();
 
         // narrow consumes self, so clone indices once and narrow each column.
         let indices_local = indices;
@@ -315,8 +315,8 @@ pub(crate) fn generate_typed_d4_prelude(dims: &[Ident]) -> TokenStream {
         let d1: usize = #d1_dim; // Z
         let d2: usize = #d2_dim; // Y
         let d3: usize = #d3_dim; // X
-        let batch_size = indices.dims()[0];
-        let _device = indices.device();
+        let batch_size = indices.shape()[0];
+        let _device = indicesB::default();
 
         // narrow consumes self, so clone indices once and narrow each column.
         let indices_local = indices;
@@ -379,8 +379,8 @@ pub(crate) fn generate_typed_nearest_d1_prelude(dims: &[Ident]) -> TokenStream {
     let d0_dim = &dims[0];
     quote! {
         let d0: usize = #d0_dim;
-        let batch_size = indices.dims()[0];
-        let _device = indices.device();
+        let batch_size = indices.shape()[0];
+        let _device = indicesB::default();
 
         // narrow consumes self.
         let x = indices.narrow(1, 0, 1).squeeze_dims(&[1]);
@@ -401,8 +401,8 @@ pub(crate) fn generate_typed_nearest_d2_prelude(dims: &[Ident]) -> TokenStream {
     quote! {
         let d0: usize = #d0_dim; // Y
         let d1: usize = #d1_dim; // X
-        let batch_size = indices.dims()[0];
-        let _device = indices.device();
+        let batch_size = indices.shape()[0];
+        let _device = indicesB::default();
 
         // narrow consumes self, so clone indices once and narrow each column.
         let indices_local = indices;
@@ -430,8 +430,8 @@ pub(crate) fn generate_typed_nearest_d3_prelude(dims: &[Ident]) -> TokenStream {
         let d0: usize = #d0_dim; // Z
         let d1: usize = #d1_dim; // Y
         let d2: usize = #d2_dim; // X
-        let batch_size = indices.dims()[0];
-        let _device = indices.device();
+        let batch_size = indices.shape()[0];
+        let _device = indicesB::default();
 
         // narrow consumes self, so clone indices once and narrow each column.
         let indices_local = indices;
@@ -465,8 +465,8 @@ pub(crate) fn generate_typed_nearest_d4_prelude(dims: &[Ident]) -> TokenStream {
         let d1: usize = #d1_dim; // Z
         let d2: usize = #d2_dim; // Y
         let d3: usize = #d3_dim; // X
-        let batch_size = indices.dims()[0];
-        let _device = indices.device();
+        let batch_size = indices.shape()[0];
+        let _device = indicesB::default();
 
         // narrow consumes self, so clone indices once and narrow each column.
         let indices_local = indices;

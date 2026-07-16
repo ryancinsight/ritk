@@ -1,4 +1,4 @@
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::burn::backend::Autodiff;
@@ -10,7 +10,7 @@ use ritk_registration::ConvergenceChecker;
 use ritk_statistics::IntensityRange;
 use ritk_transform::{BSplineTransform, Transform};
 
-type B = Autodiff<NdArray<f32>>;
+type B = Autodiff<SequentialBackend>;
 
 #[test]
 fn test_bspline_cr_registration_small() {
@@ -44,8 +44,8 @@ fn test_bspline_cr_registration_small() {
     // Moving Image: Sphere at (8, 8, 7) (Shifted by +1, +1, 0)
     let moving_data = make_sphere([8.0, 8.0, 7.0], 4.0);
 
-    let fixed_tensor = Tensor::<B, 3>::from_data(TensorData::new(fixed_data, shape), &device);
-    let moving_tensor = Tensor::<B, 3>::from_data(TensorData::new(moving_data, shape), &device);
+    let fixed_tensor = Tensor::<B, 3>::from_data((fixed_data, shape), &device);
+    let moving_tensor = Tensor::<B, 3>::from_data((moving_data, shape), &device);
 
     let origin = Point::new([0.0, 0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);

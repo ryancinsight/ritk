@@ -13,7 +13,7 @@ use super::*;
 
 type B = NdArray<f32>;
 
-fn make_label_image(data: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Image<f32, B, 3> {
+fn make_label_image(data: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Image<B, 3> {
     let device = Default::default();
     let t = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
     Image::new(

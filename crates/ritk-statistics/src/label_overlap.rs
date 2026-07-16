@@ -28,8 +28,7 @@
 //! # ITK Parity
 //! `itk::LabelOverlapMeasuresImageFilter` (ITK 5.x).
 
-use coeus_core::CpuAddressableStorage;
-use ritk_image::tensor::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 use std::collections::HashMap;
@@ -72,12 +71,9 @@ pub struct LabelOverlapMeasures {
 /// # Panics
 /// Panics if the two images have different shapes.
 pub fn label_overlap_measures<B: Backend, const D: usize>(
-    prediction: &Image<f32, B, D>,
-    ground_truth: &Image<f32, B, D>,
-) -> Vec<LabelOverlapMeasures>
-where
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-{
+    prediction: &Image<B, D>,
+    ground_truth: &Image<B, D>,
+) -> Vec<LabelOverlapMeasures> {
     assert_eq!(
         prediction.shape(),
         ground_truth.shape(),

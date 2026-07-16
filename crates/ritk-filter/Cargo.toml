@@ -24,6 +24,7 @@ rand = { workspace = true }
 moirai = { workspace = true }
 serde = { workspace = true }
 coeus-core = { workspace = true }
+coeus-ops = { workspace = true }
 coeus-tensor = { workspace = true }
 
 [dev-dependencies]

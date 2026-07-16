@@ -49,7 +49,7 @@
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::native as tensor_ops;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
@@ -113,7 +113,7 @@ impl Default for WhiteStripeConfig {
 #[derive(Debug, Clone)]
 pub struct WhiteStripeResult<B: Backend> {
     /// Normalized image: I_norm = (I − μ_ws) / (σ_ws + ε).
-    pub normalized: Image<f32, B, 3>,
+    pub normalized: Image<B, 3>,
     /// White stripe mean (μ_ws).
     pub mu: f64,
     /// White stripe standard deviation (σ_ws), population std.
@@ -292,13 +292,10 @@ impl WhiteStripeNormalizer {
     /// # Returns
     /// [`WhiteStripeResult`] containing the normalized image and diagnostic quantities.
     pub fn normalize<B: Backend>(
-        image: &Image<f32, B, 3>,
-        mask: Option<&Image<f32, B, 3>>,
+        image: &Image<B, 3>,
+        mask: Option<&Image<B, 3>>,
         config: &WhiteStripeConfig,
-    ) -> WhiteStripeResult<B>
-    where
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
+    ) -> WhiteStripeResult<B> {
         let (all_vec, dims) = extract_vec_infallible(image);
         let mask_vec = mask.map(|m| extract_vec_infallible(m).0);
         let computed = compute_white_stripe(&all_vec, mask_vec.as_deref(), config);

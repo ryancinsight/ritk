@@ -6,7 +6,7 @@
 //!   3. Joint histogram computation only
 //!   4. Transform + interpolation chain only
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 
@@ -18,13 +18,13 @@ use ritk_registration::metric::{Metric, MutualInformation};
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::{Transform, TranslationTransform};
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
 /// Create a 32³ ramp test image with intensity range [0, 255].
-fn create_test_image(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<B, 3> {
+fn create_test_image(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<f32, B, 3> {
     let n = 32 * 32 * 32;
     let data: Vec<f32> = (0..n).map(|i| i as f32 % 256.0).collect();
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new([32, 32, 32])), device);
+    let tensor = Tensor::<B, 3>::from_data((data, ([32, 32, 32])), device);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),

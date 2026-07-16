@@ -201,10 +201,11 @@ fn test_dot_product() {
 #[test]
 fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
-    type B = burn_ndarray::NdArray<f32>;
+    type B = burn_ndarray::SequentialBackend;
 
     let temp = tempfile::tempdir().unwrap();
     let series_path = temp.path().join("coronal_series");
@@ -213,7 +214,7 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
     let data = vec![500.0f32; depth * rows * cols];
     let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(data, Shape::new([depth, rows, cols])),
+        (data, ([depth, rows, cols])),
         &device,
     );
     let image = Image::<B, 3>::new(

@@ -2,7 +2,7 @@
 //!
 //! Each IFD (Image File Directory) page represents one Z-slice.  Pages are
 //! stacked in IFD order to form the Z dimension of the returned
-//! `Image<B, 3>` tensor with shape `[nz, ny, nx]`.
+//! `Image<f32, B, 3>` tensor with shape `[nz, ny, nx]`.
 //!
 //! # Axis convention
 //! No axis permutation is applied.  TIFF page data is stored in row-major

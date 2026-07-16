@@ -1,12 +1,11 @@
 use super::warp_image;
-use crate::native_support::LegacyBurnBackend;
+use coeus_core::SequentialBackend;
 use ritk_image::test_support as ts;
-use ritk_image::Image;
-use ritk_tensor_ops::extract_vec_infallible;
+use ritk_image::native::Image;
 
-type B = LegacyBurnBackend;
+type B = SequentialBackend;
 
-fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
+fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
     ts::make_image::<B, 3>(data, dims)
 }
 
@@ -29,8 +28,8 @@ fn warp_constant_image_is_preserved() {
     let dy = make(vec![-0.4; n], [nz, ny, nx]);
     let dx = make(dxv, [nz, ny, nx]);
 
-    let out = warp_image(&moving, &dz, &dy, &dx).unwrap();
-    let (ov, _) = extract_vec_infallible(&out);
+    let out = warp_image(&moving, &dz, &dy, &dx, &B::default()).unwrap();
+    let ov = out.data().as_slice();
     // Interior voxels (displacement < 0.5, so samples stay in-bounds) equal 7.0.
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
@@ -55,8 +54,8 @@ fn warp_out_of_bounds_is_zero() {
     let dz = make(vec![100.0; 27], dims);
     let dy = make(vec![100.0; 27], dims);
     let dx = make(vec![100.0; 27], dims);
-    let out = warp_image(&moving, &dz, &dy, &dx).unwrap();
-    let (ov, _) = extract_vec_infallible(&out);
+    let out = warp_image(&moving, &dz, &dy, &dx, &B::default()).unwrap();
+    let ov = out.data().as_slice();
     assert!(
         ov.iter().all(|&v| v == 0.0),
         "out-of-bounds samples must be 0"
@@ -71,8 +70,8 @@ fn warp_zero_displacement_is_identity() {
     let vals: Vec<f32> = (0..n).map(|i| (i as f32 * 1.7).sin()).collect();
     let moving = make(vals.clone(), dims);
     let zero = make(vec![0.0; n], dims);
-    let out = warp_image(&moving, &zero, &zero, &zero).unwrap();
-    let (ov, _) = extract_vec_infallible(&out);
+    let out = warp_image(&moving, &zero, &zero, &zero, &B::default()).unwrap();
+    let ov = out.data().as_slice();
     for (i, (&got, &want)) in ov.iter().zip(vals.iter()).enumerate() {
         assert!(
             (got - want).abs() < 1e-6,
@@ -88,5 +87,5 @@ fn warp_mismatched_field_shapes_errors() {
     let dz = make(vec![0.0; 8], [2, 2, 2]);
     let dy = make(vec![0.0; 27], [3, 3, 3]);
     let dx = make(vec![0.0; 8], [2, 2, 2]);
-    assert!(warp_image(&moving, &dz, &dy, &dx).is_err());
+    assert!(warp_image(&moving, &dz, &dy, &dx, &B::default()).is_err());
 }

@@ -12,11 +12,11 @@
 //! To run these tests:
 //!   cargo test --test ct_mri_dicom_registration_test -- --ignored
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_io::{read_dicom_series_with_metadata, DicomReadMetadata};
 use ritk_registration::bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, VolumeDims};
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
 

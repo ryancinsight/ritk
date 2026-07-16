@@ -30,7 +30,7 @@ use std::path::{Path, PathBuf};
 /// before Pixel Data.
 pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     path: P,
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
     metadata: Option<&DicomReadMetadata>,
 ) -> Result<()> {
     let path = path.as_ref();

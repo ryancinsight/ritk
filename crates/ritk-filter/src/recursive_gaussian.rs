@@ -45,9 +45,7 @@
 //!   derivative filters. *Proc. 14th ICPR*, pp. 509–514.
 
 use crate::edge::GaussianSigma;
-use ritk_core::image::Image;
-use ritk_image::tensor::Backend;
-use ritk_tensor_ops::{extract_vec, rebuild};
+use ritk_image::native::Image;
 use serde::{Deserialize, Serialize};
 
 #[path = "iir.rs"]
@@ -130,36 +128,21 @@ impl RecursiveGaussianFilter {
         self
     }
 
-    /// Apply the recursive Gaussian filter to a 3-D image.
+    /// Apply the recursive Gaussian filter to a 3-D Coeus-native image.
     ///
-    /// Processing is separable: the 1-D IIR filter is applied along each of
-    /// the three spatial axes in sequence.
-    ///
-    /// # Errors
-    ///
-    /// Returns `Err` if the tensor data cannot be extracted as `f32`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        let (vals, dims) = extract_vec(image)?;
-        let spacing = image.spacing();
-        let out = self.filter_vals(vals, dims, [spacing[0], spacing[1], spacing[2]]);
-        Ok(rebuild(out, dims, image))
-    }
-
-    /// Coeus-native sister of [`RecursiveGaussianFilter::apply`].
-    ///
-    /// Runs the identical separable Deriche IIR recursion (order 0/1/2 plus scale
-    /// normalization; constant/replicate boundary) via the shared
-    /// `RecursiveGaussianFilter::filter_vals` host core on the image's
-    /// contiguous host buffer, so the result is bitwise-identical to the Burn
-    /// path. No Burn tensor is constructed. Spatial metadata is preserved.
+    /// Runs the identical separable Deriche IIR recursion (order 0/1/2 plus
+    /// scale normalization; constant/replicate boundary) via the shared
+    /// `filter_vals` host core on the image's contiguous host buffer. No Burn
+    /// tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors
     /// Returns an error when the image tensor is not host-addressable/contiguous
-    /// or the rebuilt tensor fails shape validation.
-    pub fn apply_native<B>(
+    /// or the rebuilt image fails shape validation.
+    pub fn apply<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        image: &Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend + Default,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -167,17 +150,16 @@ impl RecursiveGaussianFilter {
         let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
         let spacing = image.spacing();
         let out = self.filter_vals(vals, dims, [spacing[0], spacing[1], spacing[2]]);
-        ritk_tensor_ops::native::rebuild_image(out, dims, image, &B::default())
+        ritk_tensor_ops::native::rebuild_image(out, dims, image, backend)
     }
 
     /// Shared host core: separable Deriche recursion with the configured
     /// derivative order and scale normalization, on a flat z-major buffer.
     ///
-    /// Both the Burn [`apply`](Self::apply) and Coeus-native
-    /// [`apply_native`](Self::apply_native) paths call this single realization;
-    /// order 0 smooths all axes, orders 1 and 2 apply the first/second-order
-    /// Deriche recursion along each axis (zero-order along the others) and
-    /// combine — magnitude for order 1, sum for order 2.
+    /// Both the legacy Burn and Coeus-native paths call this single
+    /// realization; order 0 smooths all axes, orders 1 and 2 apply the
+    /// first/second-order Deriche recursion along each axis (zero-order along
+    /// the others) and combine — magnitude for order 1, sum for order 2.
     fn filter_vals(&self, mut vals: Vec<f32>, dims: [usize; 3], sp: [f64; 3]) -> Vec<f32> {
         let sigma = self.sigma.get();
         vals = match self.derivative_order {
@@ -214,13 +196,14 @@ impl RecursiveGaussianFilter {
         vals
     }
 }
+
 // ── Recursive-Gaussian derivative operators (ITK structure) ───────────────────
 
 /// `∇²(G_σ * I) = Σ_d ∂²/∂x_d²(G_σ * I)` as a flat z-major buffer. For each axis
 /// `d` the volume is filtered with the **second-order** Deriche recursion along
 /// `d` and the **zero-order** (smoothing) recursion along the others; each
-/// per-axis second derivative is divided by `spacing[d]²` (physical units) and
-/// summed. Float-exact to ITK/SimpleITK `LaplacianRecursiveGaussian`.
+/// per-axis second derivative is divided by `spacing[d]²` for physical units.
+/// Float-exact to ITK/SimpleITK `LaplacianRecursiveGaussian`.
 pub(crate) fn laplacian_rg_vals(
     vals: &[f32],
     dims: [usize; 3],
@@ -294,30 +277,40 @@ pub(crate) fn gradient_magnitude_rg_vals(
 /// (float-exact). See `laplacian_rg_vals`.
 ///
 /// # Errors
-/// Returns `Err` if the tensor data cannot be extracted as `f32`.
-pub fn laplacian_recursive_gaussian<B: Backend>(
-    image: &Image<B, 3>,
+/// Returns `Err` if the tensor data cannot be read as `f32`.
+pub fn laplacian_recursive_gaussian<B>(
+    image: &Image<f32, B, 3>,
     sigma: f64,
-) -> anyhow::Result<Image<B, 3>> {
-    let (vals, dims) = extract_vec(image)?;
+    backend: &B,
+) -> anyhow::Result<Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend + Default,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+{
+    let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
     let sp = image.spacing();
     let out = laplacian_rg_vals(&vals, dims, [sp[0], sp[1], sp[2]], sigma);
-    Ok(rebuild(out, dims, image))
+    ritk_tensor_ops::native::rebuild_image(out, dims, image, backend)
 }
 
 /// Compute `|∇(G_σ * I)|` matching ITK/SimpleITK `GradientMagnitudeRecursiveGaussian`
 /// (float-exact). See `gradient_magnitude_rg_vals`.
 ///
 /// # Errors
-/// Returns `Err` if the tensor data cannot be extracted as `f32`.
-pub fn gradient_magnitude_recursive_gaussian<B: Backend>(
-    image: &Image<B, 3>,
+/// Returns `Err` if the tensor data cannot be read as `f32`.
+pub fn gradient_magnitude_recursive_gaussian<B>(
+    image: &Image<f32, B, 3>,
     sigma: f64,
-) -> anyhow::Result<Image<B, 3>> {
-    let (vals, dims) = extract_vec(image)?;
+    backend: &B,
+) -> anyhow::Result<Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend + Default,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+{
+    let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
     let sp = image.spacing();
     let out = gradient_magnitude_rg_vals(&vals, dims, [sp[0], sp[1], sp[2]], sigma);
-    Ok(rebuild(out, dims, image))
+    ritk_tensor_ops::native::rebuild_image(out, dims, image, backend)
 }
 
 /// Single-axis recursive (Deriche) Gaussian or its directional derivative along
@@ -330,18 +323,23 @@ pub fn gradient_magnitude_recursive_gaussian<B: Backend>(
 ///
 /// # Errors
 /// Returns `Err` if the data cannot be read as `f32` or `direction > 2`.
-pub fn recursive_gaussian_directional<B: Backend>(
-    image: &Image<B, 3>,
+pub fn recursive_gaussian_directional<B>(
+    image: &Image<f32, B, 3>,
     sigma: f64,
     order: DerivativeOrder,
     direction: usize,
-) -> anyhow::Result<Image<B, 3>> {
+    backend: &B,
+) -> anyhow::Result<Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend + Default,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+{
     if direction > 2 {
         anyhow::bail!(
             "recursive_gaussian_directional: direction must be 0, 1, or 2, got {direction}"
         );
     }
-    let (vals, dims) = extract_vec(image)?;
+    let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
     let spacing = image.spacing();
     let pixel_sigma = sigma / spacing[direction];
     let coeffs = match order {
@@ -350,7 +348,7 @@ pub fn recursive_gaussian_directional<B: Backend>(
         DerivativeOrder::Second => DericheCoefficients::second_order(pixel_sigma),
     };
     let out = apply_deriche_1d(&vals, dims, direction, &coeffs, pixel_sigma);
-    Ok(rebuild(out, dims, image))
+    ritk_tensor_ops::native::rebuild_image(out, dims, image, backend)
 }
 
 /// Compute the three first-order recursive-Gaussian gradient components on raw
@@ -367,11 +365,15 @@ pub fn recursive_gaussian_directional<B: Backend>(
 ///
 /// # Errors
 /// Returns `Err` if the tensor data cannot be read as `f32`.
-pub fn gradient_recursive_gaussian_components<B: Backend>(
-    image: &Image<B, 3>,
+pub fn gradient_recursive_gaussian_components<B>(
+    image: &Image<f32, B, 3>,
     sigma: f64,
-) -> anyhow::Result<[Vec<f32>; 3]> {
-    let (vals, dims) = extract_vec(image)?;
+) -> anyhow::Result<[Vec<f32>; 3]>
+where
+    B: coeus_core::ComputeBackend,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+{
+    let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
     let spacing = image.spacing();
 
     let pass = |buf: &[f32], axis: usize, order: DerivativeOrder| -> Vec<f32> {
@@ -409,22 +411,27 @@ pub fn gradient_recursive_gaussian_components<B: Backend>(
 /// to the discrete Gaussian; it is float-exact to `SmoothingRecursiveGaussian`.
 ///
 /// # Errors
-/// Returns `Err` if the tensor data cannot be extracted as `f32`.
-pub fn smoothing_recursive_gaussian<B: Backend>(
-    image: &Image<B, 3>,
+/// Returns `Err` if the tensor data cannot be read as `f32`.
+pub fn smoothing_recursive_gaussian<B>(
+    image: &Image<f32, B, 3>,
     sigmas: &[f64],
-) -> anyhow::Result<Image<B, 3>> {
-    let (vals, dims) = extract_vec(image)?;
+    backend: &B,
+) -> anyhow::Result<Image<f32, B, 3>>
+where
+    B: coeus_core::ComputeBackend + Default,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+{
+    let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
     let spacing = image.spacing();
     let out =
         smoothing_recursive_gaussian_vals(vals, dims, [spacing[0], spacing[1], spacing[2]], sigmas);
-    Ok(rebuild(out, dims, image))
+    ritk_tensor_ops::native::rebuild_image(out, dims, image, backend)
 }
 
 /// Substrate-agnostic host core for [`smoothing_recursive_gaussian`]: the
 /// separable zero-order Deriche IIR smoothing on a flat z-major buffer, with
 /// per-dimension physical `sigmas` broadcast from the last entry. Shared single
-/// source of truth for the Burn free function above and the Coeus-native
+/// source of truth for the legacy Burn free function above and the Coeus-native
 /// consumers (e.g. `UnsharpMaskFilter::apply_native`), so results are
 /// bitwise-identical across substrates.
 pub(crate) fn smoothing_recursive_gaussian_vals(

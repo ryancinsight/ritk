@@ -32,7 +32,7 @@
 //! so read-only kernels can avoid a copy.
 
 use eunomia::FloatElement;
-use ritk_image::tensor::{ComputeBackend, Scalar};
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use std::ops::{AddAssign, Neg};
 
@@ -40,17 +40,18 @@ pub mod native;
 
 // ── extract_vec ───────────────────────────────────────────────────────────────
 
-/// Copy voxel data out of a `D`-dimensional image into a flat `Vec<T>`.
+/// Copy voxel data out of a `D`-dimensional image into a flat `Vec<f32>`.
 ///
 /// Returns `(voxels, shape)` where `shape` is `[usize; D]`.
 ///
 /// # Errors
-/// Returns `Err` when the backend element type cannot be accessed (e.g. a
-/// non-CPU-addressable backend was used without transfer).
+/// Returns `Err` when the backend element type cannot be cast to `f32` (e.g. a
+/// non-float backend was used).
 ///
 /// # Invariants
 /// - `voxels.len() == shape[0] * shape[1] * … * shape[D-1]`
-/// - The flat layout is row-major (C-order).
+/// - The flat layout is row-major (C-order), matching Burn's default memory
+///   layout.
 ///
 /// # Example
 /// ```ignore
@@ -59,14 +60,9 @@ pub mod native;
 /// Ok(rebuild(result, dims, &image))
 /// ```
 #[inline]
-pub fn extract_vec<T, B, const D: usize>(
-    image: &Image<T, B, D>,
-) -> anyhow::Result<(Vec<T>, [usize; D])>
-where
-    T: Scalar + std::fmt::Debug + Clone,
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
-{
+pub fn extract_vec<B: Backend, const D: usize>(
+    image: &Image<B, D>,
+) -> anyhow::Result<(Vec<f32>, [usize; D])> {
     let dims = image.shape();
     let vals = image.try_data_vec()?;
     Ok((vals, dims))
@@ -75,29 +71,26 @@ where
 // ── extract_vec_infallible ────────────────────────────────────────────────────
 
 /// Infallible variant of [`extract_vec`] for backends that are guaranteed to
-/// carry the expected scalar type.
+/// carry `f32` data (e.g. `NdArray<f32>`, `Wgpu<f32>`).
 ///
-/// Panics with a clear message when the conversion fails.
+/// Panics with a clear message when the conversion fails. Only use this variant
+/// inside arithmetic filters where the public API documents that `f32` is
+/// required and returning `Err` would be an internal invariant violation.
 #[inline]
-pub fn extract_vec_infallible<T, B, const D: usize>(
-    image: &Image<T, B, D>,
-) -> (Vec<T>, [usize; D])
-where
-    T: Scalar + std::fmt::Debug + Clone,
-    B: ComputeBackend + Default,
-    B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
-{
+pub fn extract_vec_infallible<B: Backend, const D: usize>(
+    image: &Image<B, D>,
+) -> (Vec<f32>, [usize; D]) {
     let dims = image.shape();
     let vals = image
         .try_data_vec()
-        .expect("filter ops: extract_vec_infallible requires a CPU-addressable tensor");
+        .expect("filter ops: extract_vec_infallible requires an f32 backend tensor");
     (vals, dims)
 }
 
 // ── rebuild ───────────────────────────────────────────────────────────────────
 
-/// Construct a new `Image<T, B, D>` from a flat voxel buffer, reusing the
-/// spatial metadata of `src`.
+/// Construct a new `Image<B, D>` from a flat voxel buffer, reusing the spatial
+/// metadata of `src`.
 ///
 /// # Arguments
 /// - `vals`  — Flat voxel values in row-major order; length must equal the
@@ -106,66 +99,58 @@ where
 /// - `src`   — Reference image from which origin, spacing, and direction are
 ///   copied.
 ///
+/// # Panics
+/// Does not panic; the only possible failure is a Burn backend OOM, which is
+/// unrecoverable by the filter layer.
+///
 /// # Invariant
 /// `vals.len() == dims[0] * dims[1] * … * dims[D-1]`
 #[inline]
-pub fn rebuild<T, B, const D: usize>(
-    vals: Vec<T>,
+pub fn rebuild<B: Backend, const D: usize>(
+    vals: Vec<f32>,
     dims: [usize; D],
-    src: &Image<T, B, D>,
-) -> Image<T, B, D>
-where
-    T: Scalar,
-    B: ComputeBackend + Default,
-{
-    let backend = B::default();
+    src: &Image<B, D>,
+) -> Image<B, D> {
+    let device = src.data().device();
     Image::from_flat_on(
         vals,
         dims,
         *src.origin(),
         *src.spacing(),
         *src.direction(),
-        &backend,
+        &device,
     )
 }
 
 #[inline]
-pub fn rebuild_with_origin<T, B, const D: usize>(
-    vals: Vec<T>,
+pub fn rebuild_with_origin<B: Backend, const D: usize>(
+    vals: Vec<f32>,
     dims: [usize; D],
     new_origin: ritk_spatial::Point<D>,
-    src: &Image<T, B, D>,
-) -> Image<T, B, D>
-where
-    T: Scalar,
-    B: ComputeBackend + Default,
-{
-    let backend = B::default();
+    src: &Image<B, D>,
+) -> Image<B, D> {
+    let device = src.data().device();
     Image::from_flat_on(
         vals,
         dims,
         new_origin,
         *src.spacing(),
         *src.direction(),
-        &backend,
+        &device,
     )
 }
 
 #[inline]
-pub fn rebuild_with_metadata<T, B, const D: usize>(
-    vals: Vec<T>,
+pub fn rebuild_with_metadata<B: Backend, const D: usize>(
+    vals: Vec<f32>,
     dims: [usize; D],
     new_origin: ritk_spatial::Point<D>,
     new_spacing: ritk_spatial::Spacing<D>,
     new_direction: ritk_spatial::Direction<D>,
-    src: &Image<T, B, D>,
-) -> Image<T, B, D>
-where
-    T: Scalar,
-    B: ComputeBackend + Default,
-{
-    let backend = B::default();
-    Image::from_flat_on(vals, dims, new_origin, new_spacing, new_direction, &backend)
+    src: &Image<B, D>,
+) -> Image<B, D> {
+    let device = src.data().device();
+    Image::from_flat_on(vals, dims, new_origin, new_spacing, new_direction, &device)
 }
 
 // ── gaussian_kernel ─────────────────────────────────────────────────────────

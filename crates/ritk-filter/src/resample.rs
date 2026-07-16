@@ -3,13 +3,12 @@
 //! This module provides ResampleImageFilter which resamples an image
 //! into a new coordinate system using a transform and an interpolator.
 
-use ritk_core::image::Image;
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use coeus_core::{Backend, ComputeBackend, CpuAddressableStorage};
+use coeus_tensor::Tensor;
+use ritk_image::native::Image;
 use ritk_interpolation::Interpolator;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::Transform;
-use std::marker::PhantomData;
 
 /// Resample image filter.
 ///
@@ -20,7 +19,7 @@ use std::marker::PhantomData;
 /// This is often the inverse of the registration transform (Fixed -> Moving).
 ///
 /// # Type Parameters
-/// * `B` - The Burn backend
+/// * `B` - The Coeus backend
 /// * `T` - The transform type
 /// * `I` - The interpolator type
 /// * `D` - The dimensionality (2 or 3)
@@ -37,7 +36,7 @@ where
     transform: T,
     interpolator: I,
     default_pixel_value: f64,
-    _phantom: PhantomData<fn() -> B>,
+    _phantom: std::marker::PhantomData<fn() -> B>,
 }
 
 impl<B, T, I, const D: usize> ResampleImageFilter<B, T, I, D>
@@ -71,7 +70,7 @@ where
             transform,
             interpolator,
             default_pixel_value: 0.0,
-            _phantom: PhantomData::<fn() -> B>,
+            _phantom: std::marker::PhantomData,
         }
     }
 
@@ -84,7 +83,7 @@ where
     /// Create from a reference image.
     ///
     /// Uses metadata (size, origin, spacing, direction) from the reference image.
-    pub fn new_from_reference(reference: &Image<B, D>, transform: T, interpolator: I) -> Self {
+    pub fn new_from_reference(reference: &Image<f32, B, D>, transform: T, interpolator: I) -> Self {
         Self::new(
             reference.shape(),
             *reference.origin(),
@@ -96,17 +95,21 @@ where
     }
 
     /// Apply filter to an input image.
-    pub fn apply(&self, input: &Image<B, D>) -> Image<B, D> {
-        let device = input.data().device();
-
-        // 1. Generate grid of indices for output image
-        let output_indices = self.generate_grid_indices(&device);
-        let [n_pixels, _] = output_indices.dims();
+    pub fn apply(
+        &self,
+        input: &Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<Image<f32, B, D>>
+    where
+        B: ComputeBackend + Default,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let n_pixels: usize = self.size.iter().product();
 
         let output_flat = if n_pixels <= ritk_wgpu_compat::WGPU_CHUNK_SIZE {
-            self.resample_indices(input, output_indices, &device)
+            let output_indices = self.generate_grid_indices(backend);
+            self.resample_indices(input, output_indices, backend)?
         } else {
-            // Process in chunks
             let num_chunks = n_pixels.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
             let mut chunks = Vec::with_capacity(num_chunks);
 
@@ -114,16 +117,20 @@ where
                 let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
                 let end = std::cmp::min(start + ritk_wgpu_compat::WGPU_CHUNK_SIZE, n_pixels);
 
-                let chunk_indices = output_indices.clone().slice(start..end);
-                chunks.push(self.resample_indices(input, chunk_indices, &device));
+                let chunk_indices = self.generate_grid_indices_slice(start, end, backend);
+                chunks.push(self.resample_indices(input, chunk_indices, backend)?);
             }
-            Tensor::cat(chunks, 0)
+            cat_tensors(&chunks, backend)?
         };
 
-        // 6. Reshape to output size
-        let output_data = output_flat.reshape(Shape::new(self.size));
+        let output_data = output_flat.reshape(self.size);
 
-        Image::new(output_data, self.origin, self.spacing, self.direction)
+        Image::new(
+            output_data,
+            self.origin,
+            self.spacing,
+            self.direction,
+        )
     }
 
     /// Resample the values for one block of output grid indices: map output
@@ -132,17 +139,21 @@ where
     /// for samples that fall outside the input buffer (matching ITK).
     fn resample_indices(
         &self,
-        input: &Image<B, D>,
-        output_indices: Tensor<B, 2>,
-        device: &<B as Backend>::Device,
-    ) -> Tensor<B, 1> {
-        let output_points = self.indices_to_physical(output_indices, device);
+        input: &Image<f32, B, D>,
+        output_indices: Tensor<f32, B>,
+        backend: &B,
+    ) -> anyhow::Result<Tensor<f32, B>>
+    where
+        B: ComputeBackend + Default,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let output_points = self.indices_to_physical(&output_indices, backend);
         let input_points = self.transform.transform_points(output_points);
-        let input_indices = input.world_to_index_tensor(input_points);
+        let input_indices = input.world_to_index_native_on(&input_points, backend);
         let values = self
             .interpolator
             .interpolate(input.data(), input_indices.clone());
-        self.apply_default_outside_buffer(values, input_indices, input.shape(), device)
+        self.apply_default_outside_buffer(values, &input_indices, input.shape(), backend)
     }
 
     /// Replace interpolated values with `default_pixel_value` wherever the
@@ -158,138 +169,185 @@ where
     /// out-of-FOV halo instead.
     ///
     /// `input_indices` columns are innermost-first (`column c` ↔ spatial axis
-    /// `D - 1 - c`), matching `world_to_index_tensor` and the interpolators.
+    /// `D - 1 - c`), matching `world_to_index_native_on` and the interpolators.
     fn apply_default_outside_buffer(
         &self,
-        values: Tensor<B, 1>,
-        input_indices: Tensor<B, 2>,
+        values: Tensor<f32, B>,
+        input_indices: &Tensor<f32, B>,
         input_shape: [usize; D],
-        device: &<B as Backend>::Device,
-    ) -> Tensor<B, 1> {
-        let n = input_indices.dims()[0];
+        backend: &B,
+    ) -> anyhow::Result<Tensor<f32, B>>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let n = input_indices.shape()[0];
+        let idx_slice = input_indices.as_slice();
+        let val_slice = values.as_slice();
+        let mut out = Vec::with_capacity(n);
 
-        // Per-axis inside-buffer mask (1.0 inside, 0.0 outside), combined by
-        // product so a sample outside on any axis is marked outside.
-        let mut mask = Tensor::<B, 1>::ones([n], device);
-        for c in 0..D {
-            let axis = D - 1 - c;
-            let upper = input_shape[axis] as f64 - 0.5;
-            let col = input_indices
-                .clone()
-                .slice([0..n, c..c + 1])
-                .flatten::<1>(0, 1);
-            let ge_low = col.clone().greater_equal_elem(-0.5).float();
-            let lt_high = col.lower_elem(upper).float();
-            mask = mask * ge_low * lt_high;
+        for point in 0..n {
+            let mut inside = true;
+            for c in 0..D {
+                let axis = D - 1 - c;
+                let idx = idx_slice[point * D + c];
+                let upper = input_shape[axis] as f32 - 0.5;
+                if idx < -0.5 || idx >= upper {
+                    inside = false;
+                    break;
+                }
+            }
+            if inside {
+                out.push(val_slice[point]);
+            } else {
+                out.push(self.default_pixel_value as f32);
+            }
         }
 
-        if self.default_pixel_value == 0.0 {
-            values * mask
-        } else {
-            // values·mask + default·(1 − mask)
-            let inv = mask.clone().neg().add_scalar(1.0);
-            values * mask + inv * self.default_pixel_value
-        }
+        Ok(Tensor::from_slice_on([n], &out, backend))
     }
 
-    fn generate_grid_indices(&self, device: &<B as Backend>::Device) -> Tensor<B, 2> {
-        // Generate indices for D=2 or D=3
+    fn generate_grid_indices(&self, backend: &B) -> Tensor<f32, B>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let n: usize = self.size.iter().product();
+        let mut data = Vec::with_capacity(n * D);
+
         if D == 2 {
             let h = self.size[0];
             let w = self.size[1];
-
-            let y_range = Tensor::<B, 1, ritk_image::tensor::Int>::arange(0..h as i64, device);
-            let x_range = Tensor::<B, 1, ritk_image::tensor::Int>::arange(0..w as i64, device);
-
-            // Create meshgrid using repeat with slice
-            let y_grid = y_range.reshape([h, 1]).repeat(&[1, w]).reshape([h * w]);
-            let x_grid = x_range.reshape([1, w]).repeat(&[h, 1]).reshape([h * w]);
-
-            let y_grid = y_grid.float();
-            let x_grid = x_grid.float();
-
-            Tensor::cat(vec![x_grid.unsqueeze_dim(1), y_grid.unsqueeze_dim(1)], 1)
+            for y in 0..h {
+                for x in 0..w {
+                    // innermost-first: x, then y
+                    data.push(x as f32);
+                    data.push(y as f32);
+                }
+            }
         } else if D == 3 {
             let d = self.size[0];
             let h = self.size[1];
             let w = self.size[2];
-
-            let z_range = Tensor::<B, 1, ritk_image::tensor::Int>::arange(0..d as i64, device);
-            let y_range = Tensor::<B, 1, ritk_image::tensor::Int>::arange(0..h as i64, device);
-            let x_range = Tensor::<B, 1, ritk_image::tensor::Int>::arange(0..w as i64, device);
-
-            // Create 3D meshgrid using repeat with slice
-            let z_grid = z_range
-                .reshape([d, 1, 1])
-                .repeat(&[1, h, w])
-                .reshape([d * h * w]);
-            let y_grid = y_range
-                .reshape([1, h, 1])
-                .repeat(&[d, 1, w])
-                .reshape([d * h * w]);
-            let x_grid = x_range
-                .reshape([1, 1, w])
-                .repeat(&[d, h, 1])
-                .reshape([d * h * w]);
-
-            let z_grid = z_grid.float();
-            let y_grid = y_grid.float();
-            let x_grid = x_grid.float();
-
-            Tensor::cat(
-                vec![
-                    x_grid.unsqueeze_dim(1),
-                    y_grid.unsqueeze_dim(1),
-                    z_grid.unsqueeze_dim(1),
-                ],
-                1,
-            )
+            for z in 0..d {
+                for y in 0..h {
+                    for x in 0..w {
+                        // innermost-first: x, y, z
+                        data.push(x as f32);
+                        data.push(y as f32);
+                        data.push(z as f32);
+                    }
+                }
+            }
         } else {
-            unreachable!(
-                "D is const-generic and callers are only instantiated for D âˆˆ {{2, 3}}; D = {D}"
-            );
+            unreachable!("D is const-generic and callers are only instantiated for D ∈ {{2, 3}}; D = {D}");
         }
+
+        Tensor::from_slice_on([n, D], &data, backend)
+    }
+
+    fn generate_grid_indices_slice(
+        &self,
+        start: usize,
+        end: usize,
+        backend: &B,
+    ) -> Tensor<f32, B>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let n = end - start;
+        let mut data = Vec::with_capacity(n * D);
+
+        if D == 2 {
+            let w = self.size[1];
+            for linear in start..end {
+                let y = linear / w;
+                let x = linear % w;
+                data.push(x as f32);
+                data.push(y as f32);
+            }
+        } else if D == 3 {
+            let h = self.size[1];
+            let w = self.size[2];
+            for linear in start..end {
+                let z = linear / (h * w);
+                let rem = linear % (h * w);
+                let y = rem / w;
+                let x = rem % w;
+                data.push(x as f32);
+                data.push(y as f32);
+                data.push(z as f32);
+            }
+        } else {
+            unreachable!("D is const-generic and callers are only instantiated for D ∈ {{2, 3}}; D = {D}");
+        }
+
+        Tensor::from_slice_on([n, D], &data, backend)
     }
 
     fn indices_to_physical(
         &self,
-        indices: Tensor<B, 2>,
-        device: &<B as Backend>::Device,
-    ) -> Tensor<B, 2> {
-        // point = origin + Direction * (index * spacing)
+        indices: &Tensor<f32, B>,
+        backend: &B,
+    ) -> Tensor<f32, B>
+    where
+        B: ComputeBackend,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
+        let n = indices.shape()[0];
+        let idx_slice = indices.as_slice();
+        let mut out = Vec::with_capacity(n * D);
 
-        // 1. Prepare Origin Tensor [1, D]
-        let origin_vec: Vec<f32> = (0..D).map(|i| self.origin[i] as f32).collect();
-        let origin_tensor = Tensor::<B, 1>::from_data(
-            TensorData::new(origin_vec, ritk_image::tensor::Shape::new([D])),
-            device,
-        )
-        .reshape([1, D]);
-
-        // 2. Prepare Transform Matrix M so that Point = Index.matmul(M) + Origin.
-        //
-        // The grid index columns are INNERMOST-FIRST (column 0 = x = axis D-1, see
-        // `generate_grid_indices` and the interpolation kernels), while spacing and
-        // direction are stored AXIS-MAJOR (index 0 = depth/z). Index column `r`
-        // therefore corresponds to spatial axis `D-1-r`; pairing them by `r`
-        // directly scrambles world coordinates whenever spacing is anisotropic or a
-        // grid axis is degenerate (e.g. a z = 1 promoted 2-D image), while leaving
-        // isotropic/cubic cases unaffected. This mirrors `Image::index_to_world_tensor`.
-        let mut m_data = Vec::with_capacity(D * D);
-        for r in 0..D {
-            let axis = D - 1 - r;
+        for point in 0..n {
+            // idx columns are innermost-first; map to axis-major index
+            let mut axis_idx = [0.0f32; D];
             for c in 0..D {
-                m_data.push((self.spacing[axis] * self.direction[(c, axis)]) as f32);
+                axis_idx[D - 1 - c] = idx_slice[point * D + c];
+            }
+
+            // point = origin + Direction * (index * spacing)
+            let mut scaled = [0.0f32; D];
+            for axis in 0..D {
+                scaled[axis] = axis_idx[axis] * self.spacing[axis] as f32;
+            }
+
+            for c in 0..D {
+                let mut coord = self.origin[c] as f32;
+                for axis in 0..D {
+                    coord += self.direction[(c, axis)] as f32 * scaled[axis];
+                }
+                out.push(coord);
             }
         }
 
-        let m_tensor = Tensor::<B, 2>::from_data(
-            TensorData::new(m_data, ritk_image::tensor::Shape::new([D, D])),
-            device,
-        );
-
-        indices.matmul(m_tensor) + origin_tensor
+        Tensor::from_slice_on([n, D], &out, backend)
     }
+}
+
+/// Concatenate a sequence of `[n, D]` tensors along axis 0.
+///
+/// Helper used when chunking large resampling jobs.
+fn cat_tensors<B: ComputeBackend>(
+    tensors: &[Tensor<f32, B>],
+    backend: &B,
+) -> anyhow::Result<Tensor<f32, B>>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    if tensors.is_empty() {
+        anyhow::bail!("cannot concatenate empty tensor list");
+    }
+    if tensors.len() == 1 {
+        return Ok(tensors[0].clone());
+    }
+    let total: usize = tensors.iter().map(|t| t.shape()[0]).sum();
+    let d = tensors[0].shape()[1];
+    let mut data = Vec::with_capacity(total * d);
+    for t in tensors {
+        data.extend_from_slice(t.as_slice());
+    }
+    Ok(Tensor::from_slice_on([total, d], &data, backend))
 }
 
 #[cfg(test)]

@@ -19,11 +19,11 @@
 
 #![allow(dead_code)]
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_image::burn::backend::Autodiff;
 
 /// Backend with autodiff — required by `GlobalMiRegistration`.
-pub type B = Autodiff<NdArray<f32>>;
+pub type B = Autodiff<SequentialBackend>;
 
 // ── Constants ────────────────────────────────────────────────────────────────
 

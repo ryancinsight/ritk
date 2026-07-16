@@ -2,8 +2,8 @@
 //!
 //! This module provides a B-Spline free-form deformation transform.
 
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
+use coeus_core::Backend;
+use coeus_tensor::Tensor;
 
 /// B-Spline Transform (Free-form deformation).
 ///

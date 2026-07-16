@@ -8,7 +8,7 @@
 //! Usage: `cargo run --release -p ritk-registration --example registration_compare_figure`
 //! (paths default to the RIRE-109 pair + elastix result under leoneuro/).
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use image::{Rgb, RgbImage};
 use ritk_image::tensor::{Tensor, TensorData};
 use ritk_image::{grid, Image};
@@ -20,15 +20,15 @@ use ritk_registration::{
 };
 use ritk_transform::{RigidTransform, Transform};
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
 /// Resample `moving` onto `fixed`'s grid through `transform`; row-major host vec.
 fn resample(
-    fixed: &Image<B, 3>,
-    moving: &Image<B, 3>,
+    fixed: &Image<f32, B, 3>,
+    moving: &Image<f32, B, 3>,
     transform: &RigidTransform<B, 3>,
 ) -> Vec<f32> {
-    let device = fixed.data().device();
+    let device = fixed.data()B::default();
     let idx = grid::generate_grid(fixed.shape(), &device);
     let world = fixed.index_to_world_tensor(idx);
     let mworld = transform.transform_points(world);
@@ -40,7 +40,7 @@ fn resample(
         .expect("resampled host vec")
 }
 
-fn host(img: &Image<B, 3>) -> Vec<f32> {
+fn host(img: &Image<f32, B, 3>) -> Vec<f32> {
     let n: usize = img.shape().iter().product();
     img.data()
         .clone()
@@ -101,7 +101,7 @@ fn main() -> anyhow::Result<()> {
     {
         let n: usize = ct.shape().iter().product();
         let t =
-            Tensor::<B, 3>::from_data(TensorData::new(mr_identity.clone(), ct.shape()), &device);
+            Tensor::<B, 3>::from_data((mr_identity.clone(), ct.shape()), &device);
         let img = Image::new(t, *ct.origin(), *ct.spacing(), *ct.direction());
         ritk_io::write_nifti(
             "D:/kwavers/leoneuro/scripts/ritk_identity_mr_on_ct.nii.gz",

@@ -16,8 +16,7 @@
 //! - p50     = V_sorted[⌊n/2⌋]
 //! - p75     = V_sorted[⌊3n/4⌋]
 
-use coeus_core::CpuAddressableStorage;
-use ritk_image::tensor::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
@@ -41,10 +40,7 @@ pub struct ImageStatistics {
 /// Compute statistics over **all** voxels in `image`.
 ///
 /// Extraction path: `tensor.clone().into_data()` → `as_slice::<f32>()` → CPU arithmetic.
-pub fn compute_statistics<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> ImageStatistics
-where
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-{
+pub fn compute_statistics<B: Backend, const D: usize>(image: &Image<B, D>) -> ImageStatistics {
     let (vals, _) = extract_vec_infallible(image);
     compute_from_owned(vals, 0)
 }
@@ -63,12 +59,9 @@ pub fn compute_statistics_from_slice(slice: &[f32], ddof: usize) -> ImageStatist
 /// `mask` must have the same shape as `image` and contain 0.0 (background) or
 /// 1.0 (foreground). Panics if the shapes differ or no foreground voxels exist.
 pub fn masked_statistics<B: Backend, const D: usize>(
-    image: &Image<f32, B, D>,
-    mask: &Image<f32, B, D>,
-) -> ImageStatistics
-where
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-{
+    image: &Image<B, D>,
+    mask: &Image<B, D>,
+) -> ImageStatistics {
     let (img_vals, _) = extract_vec_infallible(image);
     let image_slice: &[f32] = &img_vals;
     let (mask_vals, _) = extract_vec_infallible(mask);

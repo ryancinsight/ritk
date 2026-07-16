@@ -24,18 +24,18 @@
 //! Empirical: criterion with recorded baselines.  A statistically significant
 //! regression blocks merge per `performance_engineering`.
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use ritk_filter::DistanceTransformImageFilter;
 use ritk_image::test_support as ts;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
 /// Binary 128³ test volume: checkerboard pattern (alternating 0/1 voxels).
 /// Checkerboard maximises the number of non-background voxels without
 /// creating trivial all-foreground / all-background regions that would
 /// degenerate the EDT computation.
-fn make_binary_128() -> ritk_core::image::Image<B, 3> {
+fn make_binary_128() -> ritk_core::image::Image<f32, B, 3> {
     let n = 128;
     let vals: Vec<f32> = (0..n * n * n)
         .map(|i| {

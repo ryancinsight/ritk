@@ -11,7 +11,8 @@ use ritk_dicom::{
 };
 use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
 use ritk_spatial::{Direction, Point, Spacing, Vector};
 use std::path::{Path, PathBuf};
 
@@ -25,10 +26,10 @@ use super::types::DicomSeriesInfo;
 /// Performs rigorous checks for spatial consistency (uniform spacing, orientation).
 pub fn load_dicom_series<B: Backend>(
     series: &DicomSeriesInfo,
-    device: &B::Device,
-) -> Result<Image<B, 3>> {
+    backend: &B,
+) -> Result<Image<f32, B, 3>> {
     let decoded = decode_series(series)?;
-    let data = TensorData::new(decoded.voxels, Shape::new(decoded.shape));
+    let data = (decoded.voxels, (decoded.shape));
     let tensor = Tensor::<B, 3>::from_data(data, device);
 
     Ok(Image::new(
@@ -263,8 +264,8 @@ fn decode_series(series: &DicomSeriesInfo) -> Result<DecodedDicomSeries> {
 /// If multiple series exist, it errors out to avoid ambiguity.
 pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
     path: P,
-    device: &B::Device,
-) -> Result<Image<B, 3>> {
+    backend: &B,
+) -> Result<Image<f32, B, 3>> {
     let path_ref = path.as_ref().to_path_buf();
 
     let series_list = scan_dicom_directory(&path_ref)?;
@@ -343,8 +344,8 @@ impl<B: Backend> DicomReader<B> {
     }
 }
 
-impl<B: Backend> ImageReader<Image<B, 3>> for DicomReader<B> {
-    fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
+impl<B: Backend> ImageReader<Image<f32, B, 3>> for DicomReader<B> {
+    fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
         read_dicom_series(path, &self.device).map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
@@ -354,13 +355,14 @@ mod tests {
     use super::{load_dicom_series, load_native_dicom_series};
     use coeus_core::SequentialBackend;
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
 
     #[test]
     fn native_series_loader_matches_legacy_loader() {
-        type B = burn_ndarray::NdArray<f32>;
+        type B = burn_ndarray::SequentialBackend;
 
         let dir = tempfile::tempdir().expect("tempdir");
         let series_path = dir.path().join("series_native_parity");
@@ -371,7 +373,7 @@ mod tests {
             .collect();
         let device = <B as ritk_image::tensor::backend::Backend>::Device::default();
         let tensor = Tensor::<B, 3>::from_data(
-            TensorData::new(values, Shape::new([depth, rows, cols])),
+            (values, ([depth, rows, cols])),
             &device,
         );
         let image = Image::<B, 3>::new(

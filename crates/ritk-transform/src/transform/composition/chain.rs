@@ -4,7 +4,8 @@
 //! T(x) = T2(T1(x))
 
 use ritk_core::transform::Transform;
-use ritk_image::tensor::{Backend, Tensor};
+use coeus_core::Backend;
+use coeus_tensor::Tensor;
 use std::marker::PhantomData;
 
 /// Chained Transform (T2 after T1).

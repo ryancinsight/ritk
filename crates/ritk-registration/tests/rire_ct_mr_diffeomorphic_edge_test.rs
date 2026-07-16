@@ -17,7 +17,7 @@
 //! Data site: <https://rire.insight-journal.org/>
 //! License: Creative Commons Attribution 3.0 United States.
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 
 mod common;
 
@@ -27,7 +27,7 @@ use common::{
 };
 use ritk_io::read_metaimage;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
 /// # Specification
 ///

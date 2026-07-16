@@ -2,7 +2,8 @@
 //!
 //! This module defines the core Interpolator trait that all interpolation methods must implement.
 
-use ritk_image::tensor::{Backend, Tensor};
+use coeus_core::Backend;
+use coeus_tensor::Tensor;
 
 /// Interpolator trait for sampling values at continuous coordinates.
 ///

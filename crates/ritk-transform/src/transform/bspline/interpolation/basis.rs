@@ -1,6 +1,6 @@
 use crate::transform::bspline::BSplineTransform;
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
+use coeus_core::Backend;
+use coeus_tensor::Tensor;
 
 impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     /// Compute Cubic B-Spline basis functions.

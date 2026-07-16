@@ -14,10 +14,14 @@ coeus-ops = { workspace = true }
 coeus-autograd = { workspace = true }
 coeus-nn = { workspace = true }
 coeus-optim = { workspace = true }
+burn = { workspace = true, optional = true }
+burn-ndarray = { workspace = true, optional = true }
 
 [features]
 ### Expose `test_support` helpers to downstream test crates.
 ## Add `ritk-image = { …, features = ["test-helpers"] }` to your `[dev-dependencies]`.
-test-helpers = []
+test-helpers = ["burn-compat"]
+### Enable legacy burn compatibility surface (ritk_image::burn, Tensor<B,D>, TensorData, etc.)
+burn-compat = ["dep:burn", "dep:burn-ndarray"]
 
 [dev-dependencies]

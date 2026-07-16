@@ -1,4 +1,4 @@
-use burn_ndarray::{NdArray, NdArrayDevice};
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_filter::resample::ResampleImageFilter;
 use ritk_image::burn::backend::Autodiff;
@@ -11,7 +11,7 @@ use ritk_spatial::{Direction3, Point3, Spacing3};
 use ritk_transform::TranslationTransform;
 use std::time::Instant;
 
-type B = Autodiff<NdArray<f32>>;
+type B = Autodiff<SequentialBackend>;
 
 fn create_sphere_image(
     size: [usize; 3],
@@ -19,7 +19,7 @@ fn create_sphere_image(
     spacing: Spacing3,
     center: Point3,
     radius: f64,
-) -> Image<B, 3> {
+) -> Image<f32, B, 3> {
     let device = NdArrayDevice::Cpu;
     let mut data = vec![0.0f32; size[0] * size[1] * size[2]];
 

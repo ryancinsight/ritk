@@ -1,8 +1,11 @@
 //! Image types and operations — Image, RgbVolume, ColorVolume, grid generation, metadata.
 //!
 //! Depends on `ritk-spatial` for spatial types and `coeus` for the Atlas-native
-//! tensor backend. The legacy `burn` compatibility surface has been replaced
-//! by direct `coeus` re-exports.
+//! tensor backend. The legacy `burn` compatibility surface is available behind the
+//! `burn-compat` feature flag (enabled automatically by `test-helpers`).
+
+#[cfg(feature = "burn-compat")]
+mod burn_compat_types;
 
 pub mod color;
 pub mod grid;
@@ -16,12 +19,15 @@ pub mod types;
 pub use color::{ColorVolume, RgbVolume};
 pub use grid::generate_grid;
 pub use metadata::ImageMetadata;
+
+/// `Image` — coeus-backed `Image<T, B, D>` without `burn-compat`;
+/// legacy burn-backed `Image<B, D>` with `burn-compat` (backward compat alias).
+#[cfg(not(feature = "burn-compat"))]
 pub use types::Image;
+#[cfg(feature = "burn-compat")]
+pub use burn_compat_types::Image;
 
 /// Coeus-backed tensor and module surface re-exported for downstream crates.
-///
-/// This replaces the former `burn` compatibility shim. Downstream crates that
-/// previously used `ritk_image::burn::*` should migrate to `ritk_image::coeus::*`.
 pub mod coeus {
     pub use coeus_autograd;
     pub use coeus_core;
@@ -31,60 +37,76 @@ pub mod coeus {
     pub use coeus_tensor;
 }
 
-/// Coeus tensor aliases replacing the former burn tensor module.
+/// Coeus tensor aliases + legacy burn compatibility (controlled by feature flags).
 pub mod tensor {
-    /// Backend trait re-exports (replaces the former `burn::tensor::backend`).
     pub mod backend {
-        pub use coeus_core::{Backend, ComputeBackend, MoiraiBackend, SequentialBackend};
+        pub use coeus_core::{ComputeBackend, MoiraiBackend, SequentialBackend};
+        /// `Backend` — coeus ComputeBackend (always) or burn Backend (burn-compat)
+        #[cfg(not(feature = "burn-compat"))]
+        pub use coeus_core::Backend;
+        #[cfg(feature = "burn-compat")]
+        pub use ::burn::tensor::backend::{AutodiffBackend, Backend};
     }
 
-    pub use coeus_core::{Backend, ComputeBackend, Float, Scalar};
+    // ── Primary scalar / backend types ────────────────────────────────────────
+    pub use coeus_core::{ComputeBackend, Float, Scalar};
+
+    /// `Backend` type alias — coeus ComputeBackend without burn-compat, burn's Backend with it.
+    #[cfg(not(feature = "burn-compat"))]
+    pub use coeus_core::Backend;
+    #[cfg(feature = "burn-compat")]
+    pub use ::burn::tensor::backend::Backend;
+
+    /// `Tensor` type alias — coeus Tensor without burn-compat, burn Tensor with it.
+    #[cfg(not(feature = "burn-compat"))]
     pub use coeus_tensor::Tensor;
+    #[cfg(feature = "burn-compat")]
+    pub use ::burn::tensor::Tensor;
+
     pub type Int = i32;
 
-    /// Shape alias — coeus uses `Vec<usize>` / `&[usize]` rather than a
-    /// dedicated `Shape` type. This newtype preserves call-site ergonomics.
+    /// Shape alias — coeus uses `Vec<usize>` / `&[usize]`.
+    #[cfg(not(feature = "burn-compat"))]
     pub type Shape = Vec<usize>;
+    #[cfg(feature = "burn-compat")]
+    pub use ::burn::tensor::Shape;
 
-    /// Construct a coeus shape from an array (replaces `burn::tensor::`).
-    pub fn shape(dims: impl IntoIterator<Item = usize>) -> Shape {
+    /// Construct a coeus shape from an iterator (burn-compat: delegates to burn Shape::new).
+    pub fn shape(dims: impl IntoIterator<Item = usize>) -> Vec<usize> {
         dims.into_iter().collect()
     }
 
-    /// Minimal compatibility re-export for legacy `ritk_image::burn::*` imports.
+    // ── Burn-only exports (burn-compat feature only) ─────────────────────────
+    #[cfg(feature = "burn-compat")]
+    pub use ::burn::tensor::{
+        activation, cast, Distribution, ElementConversion, TensorData, TensorPrimitive,
+    };
+    #[cfg(feature = "burn-compat")]
+    pub use ::burn::tensor::backend::AutodiffBackend;
+    #[cfg(feature = "burn-compat")]
+    pub use ::burn::tensor::{module, ops};
+
+    /// Legacy `burn::module` / `burn::record` shim.
+    #[cfg(feature = "burn-compat")]
     pub mod burn {
         pub mod module {
-            pub trait Module<B>: Clone {}
-            pub trait AutodiffModule<B>: Clone {
-                type InnerModule;
-                fn valid(&self) -> Self::InnerModule;
-            }
-            pub trait ModuleVisitor<B> {}
-            pub trait ModuleMapper<B> {}
-            pub trait ModuleDisplay {}
-            pub trait ModuleDisplayDefault {
-                fn content(&self, content: Content) -> Option<Content>;
-            }
-            #[derive(Clone, Default)]
-            pub struct Content;
-            impl Content {
-                pub fn set_top_level_type(self, _name: &str) -> Self {
-                    self
-                }
-            }
+            pub use ::burn::module::{
+                AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault, Param,
+            };
         }
         pub mod record {
-            pub trait PrecisionSettings {}
-            pub trait Record<B>: Clone {
-                type Item<S: PrecisionSettings>;
-                fn into_item<S: PrecisionSettings>(self) -> Self::Item<S>;
-                fn from_item<S: PrecisionSettings>(item: Self::Item<S>, _device: &B) -> Self;
-            }
+            pub use ::burn::record::{PrecisionSettings, Record};
         }
     }
 }
 
-/// Backwards-compatible re-export of the coeus `SequentialBackend` for tests.
+/// Legacy Burn compatibility surface (burn-compat feature).
+#[cfg(feature = "burn-compat")]
+pub mod burn {
+    pub use ::burn::{backend, module, nn, optim, prelude, record, tensor};
+}
+
+/// Backend re-exports (always available via coeus).
 pub mod backend {
     pub use coeus_core::{Backend, ComputeBackend, MoiraiBackend, SequentialBackend};
 }

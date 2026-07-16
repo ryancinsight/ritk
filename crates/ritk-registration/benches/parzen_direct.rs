@@ -7,7 +7,7 @@
 //! performance impact of `StackWeights.len` `usize → u8` (MEM-325-01) and
 //! `SparseWFixedEntry.bin` `usize → u16` (PERF-326-02).
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ritk_core::image::Image;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
@@ -20,12 +20,12 @@ use ritk_registration::metric::histogram::{
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::{Transform, TranslationTransform};
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
-fn create_test_image(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<B, 3> {
+fn create_test_image(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<f32, B, 3> {
     let n = 32 * 32 * 32;
     let data: Vec<f32> = (0..n).map(|i| i as f32 % 256.0).collect();
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new([32, 32, 32])), device);
+    let tensor = Tensor::<B, 3>::from_data((data, ([32, 32, 32])), device);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -316,7 +316,7 @@ fn bench_parzen_broad_sigma(c: &mut Criterion) {
     let large_n = 64 * 64 * 64;
     let large_data: Vec<f32> = (0..large_n).map(|i| i as f32 % 256.0).collect();
     let large_tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(large_data, Shape::new([64, 64, 64])),
+        (large_data, ([64, 64, 64])),
         &device,
     );
     let large_flat = large_tensor.reshape([large_n]);
@@ -330,7 +330,7 @@ fn bench_parzen_broad_sigma(c: &mut Criterion) {
         build_sparse_w_fixed_transposed(&large_fixed_slice, num_bins, broad_sigma_sq, None);
     let large_mov_data: Vec<f32> = (0..large_n).map(|i| (i * 3 + 7) as f32 % 256.0).collect();
     let large_moving_tensor = Tensor::<B, 1>::from_data(
-        TensorData::new(large_mov_data, Shape::new([large_n])),
+        (large_mov_data, ([large_n])),
         &device,
     );
     let large_mov_scale = num_bins_f / 255.0;

@@ -28,18 +28,18 @@
 //! be considered a win — empirical-tier evidence per the evidence
 //! hierarchy.
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use ritk_core::image::Image;
 use ritk_filter::MedianFilter;
 use ritk_image::test_support as ts;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
 /// Deterministic 3-D test volume (no RNG): ramp `z + y/10 + x/100`
 /// plus a sine modulation. Bounded, predictable, independent of RNG
 /// seeding so bench runs are bitwise-comparable across sessions.
-fn make_volume(z: usize, y: usize, x: usize) -> Image<B, 3> {
+fn make_volume(z: usize, y: usize, x: usize) -> Image<f32, B, 3> {
     let mut vals = Vec::with_capacity(z * y * x);
     for iz in 0..z {
         for iy in 0..y {

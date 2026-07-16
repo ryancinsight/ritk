@@ -1,17 +1,18 @@
 use crate::format::dicom::reader::DicomReadMetadata;
 use arrayvec::ArrayString;
 use ritk_core::image::Image;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::collections::HashMap;
 
-pub(super) type Backend = burn_ndarray::NdArray<f32>;
+pub(super) type Backend = burn_ndarray::SequentialBackend;
 
-pub(super) fn make_image(depth: usize, rows: usize, cols: usize, fill: f32) -> Image<Backend, 3> {
+pub(super) fn make_image(depth: usize, rows: usize, cols: usize, fill: f32) -> Image<f32, Backend, 3> {
     let device = Default::default();
     let data = vec![fill; depth * rows * cols];
     let tensor = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data, Shape::new([depth, rows, cols])),
+        (data, ([depth, rows, cols])),
         &device,
     );
     Image::new(
@@ -29,11 +30,11 @@ pub(super) fn make_image_with_spatial(
     fill: f32,
     origin: [f64; 3],
     spacing: [f64; 3],
-) -> Image<Backend, 3> {
+) -> Image<f32, Backend, 3> {
     let device = Default::default();
     let data = vec![fill; depth * rows * cols];
     let tensor = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data, Shape::new([depth, rows, cols])),
+        (data, ([depth, rows, cols])),
         &device,
     );
     Image::new(

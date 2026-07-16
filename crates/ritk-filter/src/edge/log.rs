@@ -41,8 +41,7 @@
 
 use super::GaussianSigma;
 use crate::recursive_gaussian::laplacian_recursive_gaussian;
-use ritk_image::tensor::Backend;
-use ritk_image::Image;
+use ritk_image::native::Image;
 
 // ── Filter struct ─────────────────────────────────────────────────────────────
 
@@ -69,49 +68,27 @@ impl LaplacianOfGaussianFilter {
         self
     }
 
-    /// Apply the LoG filter to a 3-D image.
+    /// Apply the LoG filter to a 3-D Coeus-native image.
     ///
-    /// Computes `∇²(G_σ * I)` via the separable Deriche recursive Gaussian
+    /// Computes `∇²(G_σ * I)` via the separable Deriche IIR recursion
     /// (second-order along each axis, zero-order along the others, summed),
-    /// matching ITK / SimpleITK `LaplacianRecursiveGaussian` (float-exact). The
-    /// output has the same shape and spatial metadata as the input.
+    /// matching ITK / SimpleITK `LaplacianRecursiveGaussian`. Spatial metadata
+    /// is preserved.
     ///
     /// # Errors
     ///
     /// Returns `Err` if the underlying tensor data cannot be extracted as
     /// `f32`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
-        laplacian_recursive_gaussian(image, self.sigma.get())
-    }
-
-    /// Coeus-native sister of [`LaplacianOfGaussianFilter::apply`].
-    ///
-    /// Runs the identical `∇²(G_σ * I)` via the separable second-order Deriche
-    /// recursion — the shared `crate::recursive_gaussian::laplacian_rg_vals`
-    /// host core the Burn path also calls — on the image's contiguous host
-    /// buffer, so the result is bitwise-identical to the Burn path. No Burn
-    /// tensor is constructed. Spatial metadata is preserved.
-    ///
-    /// # Errors
-    /// Returns an error when the image tensor is not host-addressable/contiguous
-    /// or the rebuilt tensor fails shape validation.
-    pub fn apply_native<B>(
+    pub fn apply<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        image: &Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend + Default,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
-        let sp = image.spacing();
-        let out = crate::recursive_gaussian::laplacian_rg_vals(
-            &vals,
-            dims,
-            [sp[0], sp[1], sp[2]],
-            self.sigma.get(),
-        );
-        ritk_tensor_ops::native::rebuild_image(out, dims, image, &B::default())
+        laplacian_recursive_gaussian(image, self.sigma.get(), backend)
     }
 }
 

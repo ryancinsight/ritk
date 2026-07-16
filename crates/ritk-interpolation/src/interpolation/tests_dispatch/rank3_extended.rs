@@ -9,18 +9,18 @@
 
 use super::*;
 
-fn build_rect(dims: [usize; 3]) -> Tensor<TestBackend, 3> {
+fn build_rect(dims: [usize; 3]) -> Tensor<f32, TestBackend> {
     let device = Default::default();
-    let data = Tensor::<TestBackend, 3>::zeros(dims, &device);
+    let data = Tensor::<f32, TestBackend>::zeros(dims, &device);
     let mid = [dims[0] / 2, dims[1] / 2, dims[2] / 2];
-    let ones = Tensor::<TestBackend, 3>::ones([1, 1, 1], &device);
+    let ones = Tensor::<f32, TestBackend>::ones([1, 1, 1], &device);
     data.slice_assign(
         [mid[0]..mid[0] + 1, mid[1]..mid[1] + 1, mid[2]..mid[2] + 1],
         ones,
     )
 }
 
-fn query_rect_center(dims: [usize; 3]) -> Tensor<TestBackend, 2> {
+fn query_rect_center(dims: [usize; 3]) -> Tensor<f32, TestBackend> {
     let device = Default::default();
     // Indices tensor columns are interpreted by the kernel as [X, Y, Z]:
     // column 0 → X (innermost, stride 1, bounds = dims[2])
@@ -34,7 +34,7 @@ fn query_rect_center(dims: [usize; 3]) -> Tensor<TestBackend, 2> {
         dims[1] as f32 / 2.0, // Y
         dims[0] as f32 / 2.0, // Z
     ];
-    Tensor::<TestBackend, 2>::from_floats([mid], &device)
+    Tensor::<f32, TestBackend>::from_floats([mid], &device)
 }
 
 // ── Linear dispatcher — extended cube shapes ──────────────────────
@@ -152,7 +152,7 @@ fn dispatch_routes_192x256x256_mri_to_typed_path() {
 fn nearest_dispatch_routes_32_cube_to_typed_path() {
     let data = build_cube(32);
     let device = Default::default();
-    let indices = Tensor::<TestBackend, 2>::from_floats([[16.0, 16.0, 16.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[16.0, 16.0, 16.0]], &device);
     let result = dispatch_nearest(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
@@ -166,7 +166,7 @@ fn nearest_dispatch_routes_32_cube_to_typed_path() {
 fn nearest_dispatch_routes_48_cube_to_typed_path() {
     let data = build_cube(48);
     let device = Default::default();
-    let indices = Tensor::<TestBackend, 2>::from_floats([[24.0, 24.0, 24.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[24.0, 24.0, 24.0]], &device);
     let result = dispatch_nearest(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
@@ -180,7 +180,7 @@ fn nearest_dispatch_routes_48_cube_to_typed_path() {
 fn nearest_dispatch_routes_96_cube_to_typed_path() {
     let data = build_cube(96);
     let device = Default::default();
-    let indices = Tensor::<TestBackend, 2>::from_floats([[48.0, 48.0, 48.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[48.0, 48.0, 48.0]], &device);
     let result = dispatch_nearest(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
@@ -194,7 +194,7 @@ fn nearest_dispatch_routes_96_cube_to_typed_path() {
 fn nearest_dispatch_routes_192_cube_to_typed_path() {
     let data = build_cube(192);
     let device = Default::default();
-    let indices = Tensor::<TestBackend, 2>::from_floats([[96.0, 96.0, 96.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[96.0, 96.0, 96.0]], &device);
     let result = dispatch_nearest(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
@@ -208,7 +208,7 @@ fn nearest_dispatch_routes_192_cube_to_typed_path() {
 fn nearest_dispatch_routes_384_cube_to_typed_path() {
     let data = build_cube(384);
     let device = Default::default();
-    let indices = Tensor::<TestBackend, 2>::from_floats([[192.0, 192.0, 192.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[192.0, 192.0, 192.0]], &device);
     let result = dispatch_nearest(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
@@ -223,7 +223,7 @@ fn nearest_dispatch_routes_384_cube_to_typed_path() {
 fn nearest_dispatch_routes_1024_cube_to_typed_path() {
     let data = build_cube(1024);
     let device = Default::default();
-    let indices = Tensor::<TestBackend, 2>::from_floats([[512.0, 512.0, 512.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[512.0, 512.0, 512.0]], &device);
     let result = dispatch_nearest(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
@@ -240,7 +240,7 @@ fn nearest_dispatch_routes_256x256x128_ct_to_typed_path() {
     let data = build_rect([256, 256, 128]);
     let device = Default::default();
     // Indices are in [X, Y, Z] order. The 1.0 is at [X=64, Y=128, Z=128].
-    let indices = Tensor::<TestBackend, 2>::from_floats([[64.0, 128.0, 128.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[64.0, 128.0, 128.0]], &device);
     let result = dispatch_nearest(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
@@ -255,7 +255,7 @@ fn nearest_dispatch_routes_192x256x256_mri_to_typed_path() {
     let data = build_rect([192, 256, 256]);
     let device = Default::default();
     // Indices are in [X, Y, Z] order. The 1.0 is at [X=128, Y=128, Z=96].
-    let indices = Tensor::<TestBackend, 2>::from_floats([[128.0, 128.0, 96.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[128.0, 128.0, 96.0]], &device);
     let result = dispatch_nearest(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
@@ -279,7 +279,7 @@ fn nearest_typed_routes_64_cube() {
     let data = build_cube(64);
     let device = Default::default();
     // Query at exact center voxel (32, 32, 32) — nearest should round to it.
-    let indices = Tensor::<TestBackend, 2>::from_floats([[32.0, 32.0, 32.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[32.0, 32.0, 32.0]], &device);
     let result = dispatch_nearest(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
@@ -293,7 +293,7 @@ fn nearest_typed_routes_64_cube() {
 fn nearest_typed_routes_128_cube() {
     let data = build_cube(128);
     let device = Default::default();
-    let indices = Tensor::<TestBackend, 2>::from_floats([[64.0, 64.0, 64.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[64.0, 64.0, 64.0]], &device);
     let result = dispatch_nearest(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
@@ -307,7 +307,7 @@ fn nearest_typed_routes_128_cube() {
 fn nearest_typed_routes_256_cube() {
     let data = build_cube(256);
     let device = Default::default();
-    let indices = Tensor::<TestBackend, 2>::from_floats([[128.0, 128.0, 128.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[128.0, 128.0, 128.0]], &device);
     let result = dispatch_nearest(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
@@ -321,7 +321,7 @@ fn nearest_typed_routes_256_cube() {
 fn nearest_typed_routes_512_cube() {
     let data = build_cube(512);
     let device = Default::default();
-    let indices = Tensor::<TestBackend, 2>::from_floats([[256.0, 256.0, 256.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[256.0, 256.0, 256.0]], &device);
     let result = dispatch_nearest(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(

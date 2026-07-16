@@ -6,7 +6,7 @@
 //! Usage:
 //!   cargo run --example demo_registration
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_filter::ResampleImageFilter;
 use ritk_image::burn::backend::Autodiff;
@@ -20,7 +20,7 @@ use ritk_transform::RigidTransform;
 use std::path::Path;
 
 // Use the default CPU backend; Burn WGPU is not part of the default workspace feature set.
-type Backend = Autodiff<NdArray<f32>>;
+type Backend = Autodiff<SequentialBackend>;
 
 fn main() -> anyhow::Result<()> {
     println!("RITK Demo Registration (CPU Backend)");
@@ -56,7 +56,7 @@ fn main() -> anyhow::Result<()> {
         String::from_utf8_lossy(&buffer)
     );
 
-    let fixed: Image<Backend, 3> = read_nifti(&fixed_path, &device)?;
+    let fixed: Image<f32, Backend, 3> = read_nifti(&fixed_path, &device)?;
     println!(
         "  Size: {:?}, Spacing: {:?}",
         fixed.shape(),
@@ -70,7 +70,7 @@ fn main() -> anyhow::Result<()> {
     );
 
     println!("Loading moving image: {}", moving_path.display());
-    let moving: Image<Backend, 3> = read_nifti(&moving_path, &device)?;
+    let moving: Image<f32, Backend, 3> = read_nifti(&moving_path, &device)?;
     println!(
         "  Size: {:?}, Spacing: {:?}",
         moving.shape(),

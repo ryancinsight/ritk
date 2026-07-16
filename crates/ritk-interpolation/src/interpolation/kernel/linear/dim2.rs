@@ -8,7 +8,7 @@
 //! file supplies only the gather + bilinear lerp cascade body.
 
 use super::slice_batch;
-use ritk_image::tensor::Tensor;
+use coeus_tensor::Tensor;
 
 ritk_macros::interp_dim_template!(2, interpolate_2d, x, y, wx, wy, d1 - 1, d0 - 1, {
     let flat_data = data.clone().reshape([d0 * d1]);
@@ -47,7 +47,7 @@ ritk_macros::interp_dim_template!(2, interpolate_2d, x, y, wx, wy, d1 - 1, d0 - 
     };
 
     // Bilinear lerp cascade.
-    let one = Tensor::<B, 1>::ones([batch_size], &_device);
+    let one = Tensor::<f32, B>::ones([batch_size], &_device);
     let one_minus_wx = one.clone() - wx.clone();
     let one_minus_wy = one - wy.clone();
 
@@ -112,7 +112,7 @@ ritk_macros::interp_dim_template_typed!(
         };
 
         // Bilinear lerp cascade.
-        let one = Tensor::<B, 1>::ones([batch_size], &_device);
+        let one = Tensor::<f32, B>::ones([batch_size], &_device);
         let one_minus_wx = one.clone() - wx.clone();
         let one_minus_wy = one - wy.clone();
 

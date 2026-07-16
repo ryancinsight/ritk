@@ -13,7 +13,7 @@
 
 mod common;
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 
 use common::{compute_tre, find_rire_dir, identity_m4, B};
 use ritk_filter::{BinShrinkImageFilter, BinaryDilateFilter};
@@ -27,7 +27,7 @@ use ritk_registration::{
 #[ignore = "requires test_data/registration/rire; runs CMA-ES NGF (~minutes) on CPU"]
 fn test_ngf_rigid_tre_on_rire_patient001() {
     let rire_dir = find_rire_dir().expect("RIRE data not found under test_data/registration/rire/");
-    let device: <NdArray<f32> as ritk_image::tensor::Backend>::Device = Default::default();
+    let device: <SequentialBackend as ritk_image::tensor::Backend>::Device = Default::default();
 
     let ct =
         read_metaimage::<B, _>(&rire_dir.join("training_001_ct.mha"), &device).expect("load CT");

@@ -1,7 +1,6 @@
 use anyhow::{bail, Result};
-use ritk_image::tensor::Backend;
-use ritk_image::{ColorVolume, Image};
-use ritk_tensor_ops::{extract_vec, rebuild};
+use ritk_image::native::{ColorVolume, Image};
+use ritk_tensor_ops::native::{extract_image_vec, rebuild_image};
 use std::collections::BTreeMap;
 
 /// ITK `LabelToRGBImageFilter` default 30-colour table (labels `1..=30`; label
@@ -58,8 +57,16 @@ impl LabelToRGBFilter {
     }
 
     /// Apply the label-to-RGB mapping, returning a 3-component RGB image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<ColorVolume<B, 3>> {
-        let (vals, dims) = extract_vec(image)?;
+    pub fn apply<B>(
+        &self,
+        image: &Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ColorVolume<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (vals, dims) = extract_image_vec(image)?;
         let n = vals.len();
         let (mut r, mut g, mut b) = (vec![0.0f32; n], vec![0.0f32; n], vec![0.0f32; n]);
         for (i, &v) in vals.iter().enumerate() {
@@ -73,47 +80,13 @@ impl LabelToRGBFilter {
             g[i] = cg;
             b[i] = cb;
         }
-        ColorVolume::<B, 3>::from_component_buffers(
-            &[r, g, b],
-            dims,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            &image.data().device(),
-        )
-    }
-
-    /// Coeus-native sister of [`apply`].
-    pub fn apply_native<B>(
-        &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B,
-    ) -> anyhow::Result<ritk_image::native::ColorVolume<f32, B, 3>>
-    where
-        B: coeus_core::ComputeBackend,
-        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
-    {
-        let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
-        let n = vals.len();
-        let (mut r, mut g, mut b) = (vec![0.0f32; n], vec![0.0f32; n], vec![0.0f32; n]);
-        for (i, &v) in vals.iter().enumerate() {
-            let lbl = v.round() as i64;
-            if lbl == self.background {
-                continue;
-            }
-            let idx = (lbl - 1).rem_euclid(LABEL_COLORS.len() as i64) as usize;
-            let [cr, cg, cb] = LABEL_COLORS[idx];
-            r[i] = cr;
-            g[i] = cg;
-            b[i] = cb;
-        }
         let mut interleaved = vec![0.0f32; n * 3];
         for i in 0..n {
             interleaved[3 * i] = r[i];
             interleaved[3 * i + 1] = g[i];
             interleaved[3 * i + 2] = b[i];
         }
-        ritk_image::native::ColorVolume::<f32, B, 3>::from_flat_on(
+        ColorVolume::<f32, B, 3>::from_flat_on(
             interleaved,
             dims,
             *image.origin(),
@@ -155,13 +128,18 @@ impl LabelOverlayFilter {
     }
 
     /// Overlay `label` on `image`, returning a 3-component RGB image.
-    pub fn apply<B: Backend>(
+    pub fn apply<B>(
         &self,
-        image: &Image<B, 3>,
-        label: &Image<B, 3>,
-    ) -> Result<ColorVolume<B, 3>> {
-        let (gray, dims) = extract_vec(image)?;
-        let (lab, ldims) = extract_vec(label)?;
+        image: &Image<f32, B, 3>,
+        label: &Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ColorVolume<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (gray, dims) = extract_image_vec(image)?;
+        let (lab, ldims) = extract_image_vec(label)?;
         if dims != ldims {
             bail!("LabelOverlay: image {dims:?} and label {ldims:?} shapes differ");
         }
@@ -184,13 +162,19 @@ impl LabelOverlayFilter {
                 b[i] = ((1.0 - o) * gv + o * c[2] as f64).floor() as f32;
             }
         }
-        ColorVolume::<B, 3>::from_component_buffers(
-            &[r, g, b],
+        let mut interleaved = vec![0.0f32; n * 3];
+        for i in 0..n {
+            interleaved[3 * i] = r[i];
+            interleaved[3 * i + 1] = g[i];
+            interleaved[3 * i + 2] = b[i];
+        }
+        ColorVolume::<f32, B, 3>::from_flat_on(
+            interleaved,
             dims,
             *image.origin(),
             *image.spacing(),
             *image.direction(),
-            &image.data().device(),
+            backend,
         )
     }
 }
@@ -275,12 +259,17 @@ impl LabelMapContourOverlayFilter {
     }
 
     /// Overlay label contours on `feature`, returning a 3-component RGB image.
-    pub fn apply<B: Backend>(
+    pub fn apply<B>(
         &self,
-        feature: &Image<B, 3>,
-        label: &Image<B, 3>,
-    ) -> Result<ColorVolume<B, 3>> {
-        let (lab, dims) = extract_vec(label)?;
+        feature: &Image<f32, B, 3>,
+        label: &Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ColorVolume<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        let (lab, dims) = extract_image_vec(label)?;
         let n = lab.len();
         let [_, dy_n, dx_n] = dims;
         let strides = [dy_n * dx_n, dx_n, 1usize];
@@ -323,8 +312,8 @@ impl LabelMapContourOverlayFilter {
             );
         }
 
-        let cl_image = rebuild(contour_labels, dims, label);
-        LabelOverlayFilter::new(self.opacity, self.background).apply(feature, &cl_image)
+        let cl_image = rebuild_image(contour_labels, dims, label, backend)?;
+        LabelOverlayFilter::new(self.opacity, self.background).apply(feature, &cl_image, backend)
     }
 }
 

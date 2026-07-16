@@ -1,8 +1,8 @@
 use super::BSplineTransform;
 use coeus_core::CpuAddressableStorage;
 use ritk_core::transform::Transform;
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
+use coeus_core::Backend;
+use coeus_tensor::Tensor;
 
 fn cubic_bspline_basis(u: f32) -> [f32; 4] {
     let u2 = u * u;

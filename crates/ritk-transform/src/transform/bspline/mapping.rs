@@ -1,7 +1,7 @@
 use super::BSplineTransform;
 use coeus_core::CpuAddressableStorage;
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
+use coeus_core::Backend;
+use coeus_tensor::Tensor;
 
 /// Minimum pivot magnitude for B-spline mapping inverse; guards against singular matrices.
 /// Practical threshold above f32 minimum normal (~1.2e-38).

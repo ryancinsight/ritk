@@ -1,4 +1,4 @@
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::burn::backend::Autodiff;
@@ -8,7 +8,7 @@ use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSched
 use ritk_registration::optimizer::AdamOptimizer;
 use ritk_transform::TranslationTransform;
 
-type B = Autodiff<NdArray<f32>>;
+type B = Autodiff<SequentialBackend>;
 
 #[test]
 fn test_multires_registration_translation() {
@@ -45,8 +45,8 @@ fn test_multires_registration_translation() {
     // 20 + t = 24 => t = 4.
     let moving_data = make_blob([24.0, 24.0, 20.0], 5.0);
 
-    let fixed_tensor = Tensor::<B, 3>::from_data(TensorData::new(fixed_data, shape), &device);
-    let moving_tensor = Tensor::<B, 3>::from_data(TensorData::new(moving_data, shape), &device);
+    let fixed_tensor = Tensor::<B, 3>::from_data((fixed_data, shape), &device);
+    let moving_tensor = Tensor::<B, 3>::from_data((moving_data, shape), &device);
 
     let origin = Point::new([0.0, 0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);

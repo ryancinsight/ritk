@@ -45,7 +45,7 @@
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::native as tensor_ops;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
@@ -201,10 +201,7 @@ impl NyulUdupaNormalizer {
     ///
     /// # Panics
     /// Panics if `images` is empty.
-    pub fn learn_standard<B: Backend, const D: usize>(&mut self, images: &[&Image<f32, B, D>])
-    where
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
+    pub fn learn_standard<B: Backend, const D: usize>(&mut self, images: &[&Image<B, D>]) {
         assert!(!images.is_empty(), "at least one training image required");
         self.learn_from_value_sets(images.iter().map(|image| extract_vec_infallible(*image).0));
     }
@@ -278,11 +275,8 @@ impl NyulUdupaNormalizer {
     /// The output image preserves origin, spacing, and direction from the input.
     pub fn apply<B: Backend, const D: usize>(
         &self,
-        image: &Image<f32, B, D>,
-    ) -> anyhow::Result<Image<f32, B, D>>
-    where
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
+        image: &Image<B, D>,
+    ) -> anyhow::Result<Image<B, D>> {
         let (mut values, dims) = extract_vec_infallible(image);
         self.transform_values(&mut values)?;
         Ok(rebuild(values, dims, image))

@@ -1,21 +1,22 @@
 use super::*;
-use burn_ndarray::NdArray;
-use ritk_image::tensor::{Tensor, TensorData};
+use coeus_core::SequentialBackend;
+use coeus_tensor::Tensor;
+use ritk_image::tensor::{TensorData};
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
 
 #[test]
 fn test_linear_interpolator_volumetric_axes() {
     let device = Default::default();
     let data_vec = vec![0.0, 1.0, 10.0, 11.0, 100.0, 101.0, 110.0, 111.0];
-    let data = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2, 2])),
+    let data = Tensor::<f32, TestBackend>::from_data(
+        (data_vec, ritk_image::tensor::([2, 2, 2])),
         &device,
     );
 
     let interpolator = LinearInterpolator::new();
 
-    let indices = Tensor::<TestBackend, 2>::from_floats(
+    let indices = Tensor::<f32, TestBackend>::from_floats(
         [
             [0.0, 0.0, 0.0],
             [1.0, 0.0, 0.0],
@@ -33,7 +34,7 @@ fn test_linear_interpolator_volumetric_axes() {
     assert_eq!(slice[2], 10.0);
     assert_eq!(slice[3], 100.0);
 
-    let center = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.5, 0.5]], &device);
+    let center = Tensor::<f32, TestBackend>::from_floats([[0.5, 0.5, 0.5]], &device);
     let result_center = interpolator.interpolate(&data, center);
     let center_data = result_center.into_data();
     let center_slice = center_data.as_slice::<f32>().unwrap();
@@ -51,14 +52,14 @@ fn test_linear_interpolator_volumetric_axes() {
 fn test_linear_interpolator_planar() {
     let device = Default::default();
     let data_vec = vec![0.0, 1.0, 10.0, 11.0];
-    let data = Tensor::<TestBackend, 2>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2])),
+    let data = Tensor::<f32, TestBackend>::from_data(
+        (data_vec, ritk_image::tensor::([2, 2])),
         &device,
     );
 
     let interpolator = LinearInterpolator::new();
 
-    let center = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.5]], &device);
+    let center = Tensor::<f32, TestBackend>::from_floats([[0.5, 0.5]], &device);
     let result = interpolator.interpolate(&data, center);
     let result_data = result.into_data();
     let slice = result_data.as_slice::<f32>().unwrap();
@@ -71,14 +72,14 @@ fn test_linear_interpolator_planar() {
 fn test_linear_interpolation_at_grid_points() {
     let device = Default::default();
     let data_vec = vec![0.0, 1.0, 2.0, 3.0];
-    let data = Tensor::<TestBackend, 2>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2])),
+    let data = Tensor::<f32, TestBackend>::from_data(
+        (data_vec, ritk_image::tensor::([2, 2])),
         &device,
     );
 
     let interpolator = LinearInterpolator::new();
 
-    let indices = Tensor::<TestBackend, 2>::from_floats(
+    let indices = Tensor::<f32, TestBackend>::from_floats(
         [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]],
         &device,
     );
@@ -96,14 +97,14 @@ fn test_linear_interpolation_at_grid_points() {
 fn test_linear_interpolator_out_of_bounds() {
     let device = Default::default();
     let data_vec = vec![0.0, 1.0, 2.0, 3.0];
-    let data = Tensor::<TestBackend, 2>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2])),
+    let data = Tensor::<f32, TestBackend>::from_data(
+        (data_vec, ritk_image::tensor::([2, 2])),
         &device,
     );
 
     let interpolator = LinearInterpolator::new();
 
-    let indices = Tensor::<TestBackend, 2>::from_floats([[-1.0, -1.0], [5.0, 5.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[-1.0, -1.0], [5.0, 5.0]], &device);
     let result = interpolator.interpolate(&data, indices);
     let result_data = result.into_data();
     let slice = result_data.as_slice::<f32>().unwrap();
@@ -116,15 +117,15 @@ fn test_linear_interpolator_out_of_bounds() {
 fn test_linear_interpolator_zero_pad_out_of_bounds() {
     let device = Default::default();
     let data_vec = vec![0.0_f32, 1.0, 2.0, 3.0];
-    let data = Tensor::<TestBackend, 2>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2])),
+    let data = Tensor::<f32, TestBackend>::from_data(
+        (data_vec, ritk_image::tensor::([2, 2])),
         &device,
     );
 
     let interp = LinearInterpolator::new_zero_pad();
 
     // Out-of-bounds samples must return 0.0
-    let oob = Tensor::<TestBackend, 2>::from_floats([[-1.0, -1.0], [5.0, 5.0]], &device);
+    let oob = Tensor::<f32, TestBackend>::from_floats([[-1.0, -1.0], [5.0, 5.0]], &device);
     let result = interp.interpolate(&data, oob);
     let slice = result.into_data().as_slice::<f32>().unwrap().to_vec();
     assert!(
@@ -139,7 +140,7 @@ fn test_linear_interpolator_zero_pad_out_of_bounds() {
     );
 
     // In-bounds sample at center must match bilinear interpolation
-    let center = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.5]], &device);
+    let center = Tensor::<f32, TestBackend>::from_floats([[0.5, 0.5]], &device);
     let center_val = interp.interpolate(&data, center).into_data();
     let cv = center_val.as_slice::<f32>().unwrap()[0];
     let expected = (0.0_f32 + 1.0 + 2.0 + 3.0) / 4.0;
@@ -155,15 +156,15 @@ fn test_linear_interpolator_zero_pad_out_of_bounds() {
 fn test_linear_interpolator_volumetric_zero_pad_out_of_bounds() {
     let device = Default::default();
     let data_vec = vec![0.0_f32, 1.0, 10.0, 11.0, 100.0, 101.0, 110.0, 111.0];
-    let data = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2, 2])),
+    let data = Tensor::<f32, TestBackend>::from_data(
+        (data_vec, ritk_image::tensor::([2, 2, 2])),
         &device,
     );
     let interp = LinearInterpolator::new_zero_pad();
 
     // Out-of-bounds: far outside volume
     let oob =
-        Tensor::<TestBackend, 2>::from_floats([[-5.0, -5.0, -5.0], [10.0, 10.0, 10.0]], &device);
+        Tensor::<f32, TestBackend>::from_floats([[-5.0, -5.0, -5.0], [10.0, 10.0, 10.0]], &device);
     let result = interp.interpolate(&data, oob);
     let s = result.into_data().as_slice::<f32>().unwrap().to_vec();
     assert!(
@@ -178,7 +179,7 @@ fn test_linear_interpolator_volumetric_zero_pad_out_of_bounds() {
     );
 
     // In-bounds corner at (0,0,0) should return 0.0 (first element of data)
-    let corner = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.0]], &device);
+    let corner = Tensor::<f32, TestBackend>::from_floats([[0.0, 0.0, 0.0]], &device);
     let corner_val = interp.interpolate(&data, corner).into_data();
     let cv = corner_val.as_slice::<f32>().unwrap()[0];
     assert!(
@@ -192,14 +193,14 @@ fn test_linear_interpolator_volumetric_zero_pad_out_of_bounds() {
 fn test_linear_interpolator_line() {
     let device = Default::default();
     let data_vec = vec![0.0, 10.0, 20.0, 30.0];
-    let data = Tensor::<TestBackend, 1>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([4])),
+    let data = Tensor::<f32, TestBackend>::from_data(
+        (data_vec, ritk_image::tensor::([4])),
         &device,
     );
 
     let interpolator = LinearInterpolator::new();
 
-    let indices = Tensor::<TestBackend, 2>::from_floats([[0.5]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[0.5]], &device);
     let result = interpolator.interpolate(&data, indices);
     let result_data = result.into_data();
     let slice = result_data.as_slice::<f32>().unwrap();
@@ -219,12 +220,12 @@ fn test_linear_interpolator_volumetric_typed() {
 
     let device = Default::default();
     let data_vec = vec![0.0, 1.0, 10.0, 11.0, 100.0, 101.0, 110.0, 111.0];
-    let data = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2, 2])),
+    let data = Tensor::<f32, TestBackend>::from_data(
+        (data_vec, ritk_image::tensor::([2, 2, 2])),
         &device,
     );
 
-    let indices = Tensor::<TestBackend, 2>::from_floats(
+    let indices = Tensor::<f32, TestBackend>::from_floats(
         [
             [0.0, 0.0, 0.0],
             [1.0, 0.0, 0.0],
@@ -247,7 +248,7 @@ fn test_linear_interpolator_volumetric_typed() {
     assert_eq!(slice[3], 100.0);
 
     // Center sample: average of all 8 corners.
-    let center = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.5, 0.5]], &device);
+    let center = Tensor::<f32, TestBackend>::from_floats([[0.5, 0.5, 0.5]], &device);
     let center_val = interpolate_3d_typed::<TestBackend, 2, 2, 2>(
         &data,
         center,
@@ -269,19 +270,19 @@ fn test_linear_interpolator_4d() {
     let mut data_vec = vec![0.0; 16];
     data_vec[15] = 100.0;
 
-    let data = Tensor::<TestBackend, 4>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2, 2, 2])),
+    let data = Tensor::<f32, TestBackend>::from_data(
+        (data_vec, ritk_image::tensor::([2, 2, 2, 2])),
         &device,
     );
 
     let interpolator = LinearInterpolator::new();
 
-    let indices = Tensor::<TestBackend, 2>::from_floats([[1.0, 1.0, 1.0, 1.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[1.0, 1.0, 1.0, 1.0]], &device);
     let result = interpolator.interpolate(&data, indices);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert_eq!(val, 100.0);
 
-    let center = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.5, 0.5, 0.5]], &device);
+    let center = Tensor::<f32, TestBackend>::from_floats([[0.5, 0.5, 0.5, 0.5]], &device);
     let result_center = interpolator.interpolate(&data, center);
     let val_center = result_center.into_data().as_slice::<f32>().unwrap()[0];
 
@@ -297,12 +298,12 @@ fn test_linear_interpolator_line_typed() {
     use super::dim1::interpolate_1d_typed;
     let device = Default::default();
     let data_vec = vec![0.0, 10.0, 20.0, 30.0];
-    let data = Tensor::<TestBackend, 1>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([4])),
+    let data = Tensor::<f32, TestBackend>::from_data(
+        (data_vec, ritk_image::tensor::([4])),
         &device,
     );
 
-    let indices = Tensor::<TestBackend, 2>::from_floats([[0.5]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[0.5]], &device);
     let result = interpolate_1d_typed::<TestBackend, 4>(
         &data,
         indices,
@@ -316,7 +317,7 @@ fn test_linear_interpolator_line_typed() {
     );
 
     // In-bounds corner at index 2 should return 20.0.
-    let corner = Tensor::<TestBackend, 2>::from_floats([[2.0]], &device);
+    let corner = Tensor::<f32, TestBackend>::from_floats([[2.0]], &device);
     let corner_val = interpolate_1d_typed::<TestBackend, 4>(
         &data,
         corner,
@@ -335,13 +336,13 @@ fn test_linear_interpolator_planar_typed() {
     use super::dim2::interpolate_2d_typed;
     let device = Default::default();
     let data_vec = vec![0.0, 1.0, 10.0, 11.0];
-    let data = Tensor::<TestBackend, 2>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2])),
+    let data = Tensor::<f32, TestBackend>::from_data(
+        (data_vec, ritk_image::tensor::([2, 2])),
         &device,
     );
 
     // Center sample: average of all 4 corners.
-    let center = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.5]], &device);
+    let center = Tensor::<f32, TestBackend>::from_floats([[0.5, 0.5]], &device);
     let center_val = interpolate_2d_typed::<TestBackend, 2, 2>(
         &data,
         center,
@@ -357,7 +358,7 @@ fn test_linear_interpolator_planar_typed() {
     );
 
     // Grid-point samples.
-    let indices = Tensor::<TestBackend, 2>::from_floats(
+    let indices = Tensor::<f32, TestBackend>::from_floats(
         [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]],
         &device,
     );
@@ -380,13 +381,13 @@ fn test_linear_interpolator_4d_typed() {
     let mut data_vec = vec![0.0; 16];
     data_vec[15] = 100.0;
 
-    let data = Tensor::<TestBackend, 4>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([2, 2, 2, 2])),
+    let data = Tensor::<f32, TestBackend>::from_data(
+        (data_vec, ritk_image::tensor::([2, 2, 2, 2])),
         &device,
     );
 
     // Corner at (1,1,1,1) should return 100.0.
-    let corner = Tensor::<TestBackend, 2>::from_floats([[1.0, 1.0, 1.0, 1.0]], &device);
+    let corner = Tensor::<f32, TestBackend>::from_floats([[1.0, 1.0, 1.0, 1.0]], &device);
     let corner_val = interpolate_4d_typed::<TestBackend, 2, 2, 2, 2>(
         &data,
         corner,
@@ -401,7 +402,7 @@ fn test_linear_interpolator_4d_typed() {
 
     // Center sample: average of all 16 corners. Only the (1,1,1,1) corner
     // is 100.0, the other 15 are 0.0, so the average is 100.0/16 = 6.25.
-    let center = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.5, 0.5, 0.5]], &device);
+    let center = Tensor::<f32, TestBackend>::from_floats([[0.5, 0.5, 0.5, 0.5]], &device);
     let center_val = interpolate_4d_typed::<TestBackend, 2, 2, 2, 2>(
         &data,
         center,

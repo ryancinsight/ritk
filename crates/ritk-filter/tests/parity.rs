@@ -4,18 +4,18 @@
 //! RITK produces results consistent with ITK/SimpleITK for the same inputs.
 #![allow(clippy::needless_range_loop)]
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::{
     image::Image,
     spatial::{Direction, Point, Spacing},
 };
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
-fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
+fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
     let t = Tensor::<B, 3>::from_data(
-        TensorData::new(data, Shape::new(shape)),
+        (data, (shape)),
         &Default::default(),
     );
     Image::new(
@@ -26,7 +26,7 @@ fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
     )
 }
 
-fn vals(img: &Image<B, 3>) -> Vec<f32> {
+fn vals(img: &Image<f32, B, 3>) -> Vec<f32> {
     img.data_slice().into_owned()
 }
 

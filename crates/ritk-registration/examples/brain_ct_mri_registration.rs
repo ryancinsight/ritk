@@ -6,7 +6,7 @@
 //! Usage:
 //!   cargo run --example brain_ct_mri_registration
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_filter::ResampleImageFilter;
@@ -21,18 +21,18 @@ use ritk_registration::optimizer::AdamOptimizer;
 use ritk_transform::{AffineTransform, RigidTransform};
 
 // CPU backend with automatic differentiation
-type Backend = Autodiff<NdArray<f32>>;
+type Backend = Autodiff<SequentialBackend>;
 
 fn read_png_series<B: ritk_image::tensor::backend::Backend>(
     path: &std::path::Path,
-    device: &B::Device,
-) -> anyhow::Result<Image<B, 3>> {
+    backend: &B,
+) -> anyhow::Result<Image<f32, B, 3>> {
     let reader = PngSeriesReader::new(SequentialBackend);
     let native = reader.read(path)?;
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(
+        (
             native.data_cow_on(&SequentialBackend).into_owned(),
-            Shape::new(native.shape()),
+            (native.shape()),
         ),
         device,
     );
@@ -65,7 +65,7 @@ fn main() -> anyhow::Result<()> {
 
     // 1. Load PNG series as 3D volumes
     println!("Loading CT PNG series from: {}", ct_dir.display());
-    let ct_image: Image<Backend, 3> = read_png_series(&ct_dir, &device)?;
+    let ct_image: Image<f32, Backend, 3> = read_png_series(&ct_dir, &device)?;
     println!(
         "  CT shape: {:?}, spacing: {:?}",
         ct_image.shape(),
@@ -73,7 +73,7 @@ fn main() -> anyhow::Result<()> {
     );
 
     println!("Loading T1-MRI PNG series from: {}", mri_dir.display());
-    let mri_image: Image<Backend, 3> = read_png_series(&mri_dir, &device)?;
+    let mri_image: Image<f32, Backend, 3> = read_png_series(&mri_dir, &device)?;
     println!(
         "  MRI shape: {:?}, spacing: {:?}",
         mri_image.shape(),

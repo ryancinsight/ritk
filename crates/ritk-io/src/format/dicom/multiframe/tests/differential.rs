@@ -8,18 +8,19 @@
 //! value-semantic gate; this module is the cross-carrier equivalence check.
 
 use super::*;
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image as BurnImage;
 use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
 
-type OracleBackend = NdArray<f32>;
+type OracleBackend = SequentialBackend;
 
 /// Build the Burn oracle image from the same flat buffer as [`native_image`].
 fn burn_image(data: Vec<f32>, dims: [usize; 3]) -> BurnImage<OracleBackend, 3> {
     let device = <OracleBackend as Backend>::Device::default();
     let tensor =
-        Tensor::<OracleBackend, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
+        Tensor::<OracleBackend, 3>::from_data((data, (dims)), &device);
     BurnImage::new(
         tensor,
         Point::new([0.0; 3]),

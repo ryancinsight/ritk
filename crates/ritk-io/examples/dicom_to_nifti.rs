@@ -8,12 +8,12 @@
 //! Example:
 //!   cargo run --example dicom_to_nifti -- "D:\ritk\data\brain.hdr" patient01_ct.nii.gz
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_io::{read_analyze, write_nifti};
 use std::env;
 
-type Backend = NdArray<f32>;
+type Backend = SequentialBackend;
 
 fn main() -> anyhow::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -39,7 +39,7 @@ fn main() -> anyhow::Result<()> {
 
     let device = Default::default();
 
-    let image: Image<Backend, 3> = read_analyze(input_file, &device)?;
+    let image: Image<f32, Backend, 3> = read_analyze(input_file, &device)?;
     println!("Loaded image with shape: {:?}", image.shape());
     println!("Spacing: {:?}", image.spacing());
     println!("Origin: {:?}", image.origin());

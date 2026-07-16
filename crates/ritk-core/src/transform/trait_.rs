@@ -3,7 +3,8 @@
 //! This module defines the core Transform trait that all spatial transforms must implement.
 
 use crate::spatial::{Direction, Point, Spacing};
-use ritk_image::tensor::{Backend, Tensor};
+use coeus_core::Backend;
+use coeus_tensor::Tensor;
 
 /// Transform trait for spatial coordinate transformations.
 ///

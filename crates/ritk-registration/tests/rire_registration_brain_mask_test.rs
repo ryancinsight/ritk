@@ -19,7 +19,7 @@
 //! Runtime: ~10–15 min on CPU (masked and unmasked runs each ~3–7 min).
 mod common;
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 
 use common::{compute_tre, find_rire_dir, identity_m4, B};
 use ritk_io::read_metaimage;
@@ -31,7 +31,7 @@ fn test_brain_masked_registration_tre_on_rire_patient001() {
     let rire_dir = find_rire_dir()
         .expect("RIRE data not found. Place files under test_data/registration/rire/");
 
-    let device: <NdArray<f32> as ritk_image::tensor::Backend>::Device = Default::default();
+    let device: <SequentialBackend as ritk_image::tensor::Backend>::Device = Default::default();
     let ct_path = rire_dir.join("training_001_ct.mha");
     let mri_path = rire_dir.join("training_001_mr_T1.mha");
     let ct_img = read_metaimage::<B, _>(&ct_path, &device).expect("Failed to load CT");

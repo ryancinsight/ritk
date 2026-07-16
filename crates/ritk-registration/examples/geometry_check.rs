@@ -1,13 +1,13 @@
 //! Verify ritk's NIfTI import + index→world against SimpleITK ground truth.
 //! Prints geometry and index→world for fixed voxel indices; compare to sitk.
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_image::{grid, Image};
 use ritk_io::read_nifti;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
-fn dump(name: &str, img: &Image<B, 3>) {
-    let device = img.data().device();
+fn dump(name: &str, img: &Image<f32, B, 3>) {
+    let device = img.data()B::default();
     let shape = img.shape(); // [d0, d1, d2] = [z, y, x]
     println!("=== {name}");
     println!(" shape    {:?}", shape);

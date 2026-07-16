@@ -7,11 +7,11 @@ license.workspace = true
 [features]
 default = ["direct-parzen", "serde"]
 # Use direct (sparse-loop) histogram computation for NdArray backends.
-# ~6× faster than the tensor-based path on CPU. Disable for GPU/autodiff
-# backends where the tensor matmul path is preferred, or when the Parzen
-# weight matrices must remain in the autodiff graph.
 direct-parzen = []
 serde = ["dep:serde"]
+# Enable burn-backed filter pipeline (ritk-filter, ritk-segmentation, ritk-model).
+# Disabled by default to allow clean compilation without the legacy burn Image surface.
+burn-filters = ["dep:ritk-filter", "dep:ritk-segmentation", "dep:ritk-model"]
 
 [dependencies]
 burn-ndarray = { workspace = true }
@@ -22,9 +22,9 @@ ritk-spatial = { path = "../ritk-spatial" }
 ritk-statistics = { path = "../ritk-statistics" }
 ritk-interpolation = { path = "../ritk-interpolation" }
 ritk-transform = { path = "../ritk-transform" }
-ritk-filter = { path = "../ritk-filter" }
-ritk-segmentation = { path = "../ritk-segmentation" }
-ritk-model = { path = "../ritk-model" }
+ritk-filter = { path = "../ritk-filter", optional = true }
+ritk-segmentation = { path = "../ritk-segmentation", optional = true }
+ritk-model = { path = "../ritk-model", optional = true }
 ritk-tensor-ops = { path = "../ritk-tensor-ops" }
 burn = { workspace = true }
 bytemuck = { workspace = true }

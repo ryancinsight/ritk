@@ -1,4 +1,4 @@
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction2, Point2, Spacing2};
 use ritk_image::burn::backend::Autodiff;
@@ -8,7 +8,7 @@ use ritk_registration::optimizer::GradientDescent;
 use ritk_registration::registration::Registration;
 use ritk_transform::AffineTransform;
 
-type B = Autodiff<NdArray<f32>>;
+type B = Autodiff<SequentialBackend>;
 
 #[test]
 fn test_verify_affine_scale_recovery() {
@@ -74,8 +74,8 @@ fn test_verify_affine_scale_recovery() {
     let moving_data_vec = make_blob(1.5);
 
     let shape = [d, d];
-    let fixed_tensor = Tensor::<B, 2>::from_data(TensorData::new(fixed_data_vec, shape), &device);
-    let moving_tensor = Tensor::<B, 2>::from_data(TensorData::new(moving_data_vec, shape), &device);
+    let fixed_tensor = Tensor::<B, 2>::from_data((fixed_data_vec, shape), &device);
+    let moving_tensor = Tensor::<B, 2>::from_data((moving_data_vec, shape), &device);
 
     let origin = Point2::new([0.0, 0.0]);
     let spacing = Spacing2::new([1.0, 1.0]);

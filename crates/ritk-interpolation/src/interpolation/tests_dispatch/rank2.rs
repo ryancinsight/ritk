@@ -7,22 +7,22 @@
 use super::*;
 use crate::interpolation::dispatch::Dispatch2DTyped;
 
-fn build_2d(side: usize) -> Tensor<TestBackend, 2> {
+fn build_2d(side: usize) -> Tensor<f32, TestBackend> {
     // Fill with 0.0 except a single 1.0 at the center pixel.
     let mut data = vec![0.0_f32; side * side];
     let mid = side / 2;
     data[mid * side + mid] = 1.0;
     let device = Default::default();
-    Tensor::<TestBackend, 2>::from_data(
-        TensorData::new(data, ritk_image::tensor::Shape::new([side, side])),
+    Tensor::<f32, TestBackend>::from_data(
+        (data, ritk_image::tensor::([side, side])),
         &device,
     )
 }
 
-fn query_2d(side: usize) -> Tensor<TestBackend, 2> {
+fn query_2d(side: usize) -> Tensor<f32, TestBackend> {
     let device = Default::default();
     let mid = side as f32 / 2.0;
-    Tensor::<TestBackend, 2>::from_floats([[mid, mid]], &device)
+    Tensor::<f32, TestBackend>::from_floats([[mid, mid]], &device)
 }
 
 #[test]
@@ -83,11 +83,11 @@ fn dispatch_2d_falls_through_to_generic_for_non_square() {
     let device = Default::default();
     let mut data = vec![0.0_f32; 100 * 150];
     data[50 * 150 + 75] = 1.0;
-    let data = Tensor::<TestBackend, 2>::from_data(
-        TensorData::new(data, ritk_image::tensor::Shape::new([100, 150])),
+    let data = Tensor::<f32, TestBackend>::from_data(
+        (data, ritk_image::tensor::([100, 150])),
         &device,
     );
-    let indices = Tensor::<TestBackend, 2>::from_floats([[75.0, 50.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[75.0, 50.0]], &device);
     let result = dispatch_linear(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
@@ -114,7 +114,7 @@ fn dispatch_for_shape_convenience_routes_typed() {
 fn type_narrowing_wrapper_2d_routes_through_sealed_trait() {
     let data = build_2d(128);
     let indices = query_2d(128);
-    let result: Tensor<TestBackend, 1> = data.dispatch_2d_typed(indices, OutOfBoundsMode::Clamp);
+    let result: Tensor<f32, TestBackend> = data.dispatch_2d_typed(indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
         (val - 1.0).abs() < 1e-5,

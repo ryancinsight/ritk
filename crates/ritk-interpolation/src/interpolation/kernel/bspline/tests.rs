@@ -1,15 +1,16 @@
 use super::*;
-use burn_ndarray::NdArray;
-use ritk_image::tensor::{ElementConversion, Tensor};
+use coeus_core::SequentialBackend;
+use coeus_tensor::Tensor;
+use ritk_image::tensor::{ElementConversion};
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
 
 #[test]
 fn test_bspline_volumetric() {
     let device = Default::default();
 
     // Create a simple 3D volume
-    let data = Tensor::<TestBackend, 3>::from_floats(
+    let data = Tensor::<f32, TestBackend>::from_floats(
         [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
         &device,
     );
@@ -19,7 +20,7 @@ fn test_bspline_volumetric() {
     // Test at exact grid point
     // Note: Without B-spline pre-filtering, the interpolated value at grid points
     // may differ from original data due to the convolution with the B-spline kernel
-    let indices = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[0.0, 0.0, 0.0]], &device);
     let result = interpolator.interpolate(&data, indices);
     let val = result.into_scalar().elem::<f32>();
 
@@ -31,7 +32,7 @@ fn test_bspline_volumetric() {
     );
 
     // Test at interpolated point
-    let indices = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.5, 0.5]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[0.5, 0.5, 0.5]], &device);
     let result = interpolator.interpolate(&data, indices);
     let val = result.into_scalar().elem::<f32>();
 
@@ -48,14 +49,14 @@ fn test_bspline_planar() {
     let device = Default::default();
 
     // Create a simple 2D image
-    let data = Tensor::<TestBackend, 2>::from_floats([[1.0, 2.0], [3.0, 4.0]], &device);
+    let data = Tensor::<f32, TestBackend>::from_floats([[1.0, 2.0], [3.0, 4.0]], &device);
 
     let interpolator = BSplineInterpolator::new();
 
     // Test at exact grid point
     // Note: Without B-spline pre-filtering, the interpolated value at grid points
     // may differ from original data due to the convolution with the B-spline kernel
-    let indices = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[0.0, 0.0]], &device);
     let result = interpolator.interpolate(&data, indices);
     let val = result.into_scalar().elem::<f32>();
 
@@ -84,14 +85,14 @@ fn test_bspline_basis() {
 #[test]
 fn test_bspline_zero_pad_volumetric_oob_returns_zero() {
     let device = Default::default();
-    let data = Tensor::<TestBackend, 3>::from_floats(
+    let data = Tensor::<f32, TestBackend>::from_floats(
         [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
         &device,
     );
     let interp = BSplineInterpolator::new_zero_pad();
 
     // Clearly out-of-bounds queries in each direction.
-    let oob = Tensor::<TestBackend, 2>::from_floats(
+    let oob = Tensor::<f32, TestBackend>::from_floats(
         [
             [-5.0, 0.0, 0.0], // dim0 OOB negative
             [10.0, 0.0, 0.0], // dim0 OOB positive
@@ -129,12 +130,12 @@ fn test_bspline_zero_pad_volumetric_inbounds_matches_no_pad() {
             }
         }
     }
-    let data = Tensor::<TestBackend, 3>::from_data(TensorData::new(data_vec, [n, n, n]), &device);
+    let data = Tensor::<f32, TestBackend>::from_data((data_vec, [n, n, n]), &device);
 
     let interp_pad = BSplineInterpolator::new_zero_pad();
     let interp_nop = BSplineInterpolator::new();
 
-    let pt = Tensor::<TestBackend, 2>::from_floats([[1.5, 1.5, 1.5]], &device);
+    let pt = Tensor::<f32, TestBackend>::from_floats([[1.5, 1.5, 1.5]], &device);
 
     let val_pad = interp_pad
         .interpolate(&data, pt.clone())
@@ -163,11 +164,11 @@ fn test_bspline_zero_pad_volumetric_inbounds_matches_no_pad() {
 #[test]
 fn test_bspline_zero_pad_planar_oob_returns_zero() {
     let device = Default::default();
-    let data = Tensor::<TestBackend, 2>::from_floats([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], &device);
+    let data = Tensor::<f32, TestBackend>::from_floats([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], &device);
     let interp = BSplineInterpolator::new_zero_pad();
 
     // OOB in both dimensions.
-    let oob = Tensor::<TestBackend, 2>::from_floats(
+    let oob = Tensor::<f32, TestBackend>::from_floats(
         [[-1.0, 0.0], [0.0, -1.0], [10.0, 0.0], [0.0, 10.0]],
         &device,
     );
@@ -190,7 +191,7 @@ fn test_bspline_no_zero_pad_oob_gives_finite_value() {
     // produce a finite (non-panic) value thanks to weight renormalization
     // of the in-bounds neighborhood samples.
     let device = Default::default();
-    let data = Tensor::<TestBackend, 3>::from_floats(
+    let data = Tensor::<f32, TestBackend>::from_floats(
         [[[10.0, 20.0], [30.0, 40.0]], [[50.0, 60.0], [70.0, 80.0]]],
         &device,
     );
@@ -199,7 +200,7 @@ fn test_bspline_no_zero_pad_oob_gives_finite_value() {
     // Query just outside: floor(-0.1) = -1 (OOB in dim0).
     // The kernel neighbourhood still touches in-bounds samples at indices 0,1,2
     // (clipped from the 4-wide support), so weight_sum > 0 and result is finite.
-    let pt = Tensor::<TestBackend, 2>::from_floats([[-0.1, 0.5, 0.5]], &device);
+    let pt = Tensor::<f32, TestBackend>::from_floats([[-0.1, 0.5, 0.5]], &device);
     let val = interp
         .interpolate(&data, pt)
         .into_data()
@@ -237,7 +238,7 @@ fn test_bspline_volumetric_batch_correctness() {
             }
         }
     }
-    let data = Tensor::<TestBackend, 3>::from_data(TensorData::new(data_vec, [n, n, n]), &device);
+    let data = Tensor::<f32, TestBackend>::from_data((data_vec, [n, n, n]), &device);
     let interp = BSplineInterpolator::new();
 
     // Interior coords only (c ≥ 1) to avoid boundary renormalization.
@@ -248,7 +249,7 @@ fn test_bspline_volumetric_batch_correctness() {
         pts.extend_from_slice(&[i as f32, j as f32, k as f32]);
     }
     let n_pts = test_coords.len();
-    let indices = Tensor::<TestBackend, 2>::from_data(TensorData::new(pts, [n_pts, 3]), &device);
+    let indices = Tensor::<f32, TestBackend>::from_data((pts, [n_pts, 3]), &device);
 
     let result = interp.interpolate(&data, indices);
     let vals = result.into_data().as_slice::<f32>().unwrap().to_vec();
@@ -277,7 +278,7 @@ fn test_bspline_planar_batch_correctness() {
             data_vec.push((i + j) as f32);
         }
     }
-    let data = Tensor::<TestBackend, 2>::from_data(TensorData::new(data_vec, [n, n]), &device);
+    let data = Tensor::<f32, TestBackend>::from_data((data_vec, [n, n]), &device);
     let interp = BSplineInterpolator::new();
 
     // Interior coords only (c ≥ 1).
@@ -287,7 +288,7 @@ fn test_bspline_planar_batch_correctness() {
         pts.extend_from_slice(&[i as f32, j as f32]);
     }
     let n_pts = test_coords.len();
-    let indices = Tensor::<TestBackend, 2>::from_data(TensorData::new(pts, [n_pts, 2]), &device);
+    let indices = Tensor::<f32, TestBackend>::from_data((pts, [n_pts, 2]), &device);
 
     let result = interp.interpolate(&data, indices);
     let vals = result.into_data().as_slice::<f32>().unwrap().to_vec();
@@ -322,8 +323,8 @@ fn test_bspline_reproduces_grid_values_volumetric() {
             }
         }
     }
-    let data = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data_vec.clone(), [d0, d1, d2]),
+    let data = Tensor::<f32, TestBackend>::from_data(
+        (data_vec.clone(), [d0, d1, d2]),
         &device,
     );
     let interp = BSplineInterpolator::new();
@@ -340,7 +341,7 @@ fn test_bspline_reproduces_grid_values_volumetric() {
         }
     }
     let n_pts = expected.len();
-    let indices = Tensor::<TestBackend, 2>::from_data(TensorData::new(pts, [n_pts, 3]), &device);
+    let indices = Tensor::<f32, TestBackend>::from_data((pts, [n_pts, 3]), &device);
     let vals = interp
         .interpolate(&data, indices)
         .into_data()
@@ -368,15 +369,15 @@ fn test_bspline_z1_anisotropic_plane() {
             data_vec[a1 * d2 + a2] = (a1 * 10 + a2) as f32 + 1.0;
         }
     }
-    let data = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data_vec.clone(), [d0, d1, d2]),
+    let data = Tensor::<f32, TestBackend>::from_data(
+        (data_vec.clone(), [d0, d1, d2]),
         &device,
     );
     let interp = BSplineInterpolator::new();
 
     for a1 in 0..d1 {
         for a2 in 0..d2 {
-            let pt = Tensor::<TestBackend, 2>::from_floats([[a2 as f32, a1 as f32, 0.0]], &device);
+            let pt = Tensor::<f32, TestBackend>::from_floats([[a2 as f32, a1 as f32, 0.0]], &device);
             let v = interp
                 .interpolate(&data, pt)
                 .into_data()
@@ -395,15 +396,15 @@ fn test_bspline_z1_anisotropic_plane() {
 #[test]
 fn test_bspline_empty_indices() {
     let device = Default::default();
-    let data = Tensor::<TestBackend, 3>::from_floats(
+    let data = Tensor::<f32, TestBackend>::from_floats(
         [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
         &device,
     );
     let interp = BSplineInterpolator::new();
     let indices =
-        Tensor::<TestBackend, 2>::from_data(TensorData::new(Vec::<f32>::new(), [0, 3]), &device);
+        Tensor::<f32, TestBackend>::from_data((Vec::<f32>::new(), [0, 3]), &device);
     let result = interp.interpolate(&data, indices);
-    assert_eq!(result.dims()[0], 0);
+    assert_eq!(result.shape()[0], 0);
 }
 
 /// Performance regression guard — 1000 points on a 64³ volume must complete
@@ -424,7 +425,7 @@ fn test_bspline_volumetric_perf_regression() {
             }
         }
     }
-    let data = Tensor::<TestBackend, 3>::from_data(TensorData::new(data_vec, [n, n, n]), &device);
+    let data = Tensor::<f32, TestBackend>::from_data((data_vec, [n, n, n]), &device);
 
     // Build 1000 random-ish interior points.
     let n_pts = 1000usize;
@@ -433,7 +434,7 @@ fn test_bspline_volumetric_perf_regression() {
         let c = (p % (n - 2) + 1) as f32;
         pts.extend_from_slice(&[c, c, c]);
     }
-    let indices = Tensor::<TestBackend, 2>::from_data(TensorData::new(pts, [n_pts, 3]), &device);
+    let indices = Tensor::<f32, TestBackend>::from_data((pts, [n_pts, 3]), &device);
 
     let interp = BSplineInterpolator::new();
     let t0 = Instant::now();
@@ -460,9 +461,9 @@ fn test_print_cthead() {
     let mut data_vec = vec![0.0f32; d0 * d1 * d2];
     data_vec[128 * 256 + 128] = 255.0;
     let data =
-        Tensor::<TestBackend, 3>::from_data(TensorData::new(data_vec, [d0, d1, d2]), &device);
+        Tensor::<f32, TestBackend>::from_data((data_vec, [d0, d1, d2]), &device);
     let interp = BSplineInterpolator::new();
-    let pt = Tensor::<TestBackend, 2>::from_floats([[128.0, 128.0, 0.0]], &device);
+    let pt = Tensor::<f32, TestBackend>::from_floats([[128.0, 128.0, 0.0]], &device);
     let val = interp
         .interpolate(&data, pt)
         .into_data()

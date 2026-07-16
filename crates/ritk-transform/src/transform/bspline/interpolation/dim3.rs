@@ -1,6 +1,6 @@
 use super::BSplineTransform;
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
+use coeus_core::Backend;
+use coeus_tensor::Tensor;
 use ritk_wgpu_compat::apply_row_chunks;
 
 /// Maximum support-matrix elements for the dense small-lattice path.

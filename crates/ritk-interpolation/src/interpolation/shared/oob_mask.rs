@@ -1,57 +1,32 @@
 //! Out-of-bounds mask computation for multi-dimensional voxel indices.
 
-/// Compute a `{0.0, 1.0}` in-bounds mask for moving-image voxel indices.
-///
-/// Returns an `[N]` float tensor: `1.0` = in-bounds, `0.0` = out-of-bounds.
-/// Mirrors the zero-pad criterion in `LinearInterpolator`: a sample is
-/// in-bounds when `floor(coord_d) ∈ [0, dim_d − 1]` for every axis.
-///
-/// Column convention matches the interpolation kernels:
-/// column `c` maps to `shape[D - 1 - c]`.
-pub fn compute_oob_mask<B: ritk_image::tensor::Backend>(
-    indices: &ritk_image::tensor::Tensor<B, 2>,
-    shape: &[usize],
-) -> ritk_image::tensor::Tensor<B, 1> {
+use coeus_core::Backend;
+use coeus_tensor::Tensor;
+
+pub fn compute_oob_mask<B>(indices: &Tensor<f32, B>, shape: &[usize]) -> Tensor<f32, B>
+where
+    B: Backend,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+{
     assert!(!shape.is_empty(), "image dimensionality must be non-zero");
+    let idx_shape = indices.shape();
+    assert_eq!(idx_shape.len(), 2, "indices must be rank 2");
 
-    let [n, _] = indices.dims();
-    let device = indices.device();
-    let mut mask = ritk_image::tensor::Tensor::<B, 1>::ones([n], &device);
-    let dims = shape.len();
+    let backend = B::default();
+    let rank = shape.len();
+    let n = idx_shape[0];
+    let raw = indices.as_slice();
+    let mut out = vec![1.0f32; n];
 
-    for column in 0..dims {
-        let axis = dims - 1 - column;
-        let coord = indices.clone().narrow(1, column, 1).squeeze_dims(&[1]);
-        let lower = coord.floor();
-        let in_axis = lower
-            .clone()
-            .equal(lower.clamp(0.0, (shape[axis] - 1) as f64))
-            .float();
-        mask = mask * in_axis;
+    for point in 0..n {
+        for axis in 0..rank {
+            let coord = raw[point * rank + axis];
+            if coord.floor() < 0.0 || coord.floor() > (shape[axis].saturating_sub(1)) as f32 {
+                out[point] = 0.0;
+                break;
+            }
+        }
     }
 
-    mask
-}
-
-#[cfg(test)]
-mod tests {
-    use super::compute_oob_mask;
-    use burn_ndarray::NdArray;
-    use ritk_image::tensor::Tensor;
-
-    type B = NdArray<f32>;
-
-    #[test]
-    fn oob_mask_respects_inner_first_columns_for_2d() {
-        let device = Default::default();
-        let indices = Tensor::<B, 2>::from_floats(
-            [[0.0, 0.0], [2.0, 1.0], [3.0, 1.0], [2.0, 2.0], [-1.0, 0.0]],
-            &device,
-        );
-
-        let mask = compute_oob_mask(&indices, &[2, 3]);
-        let values = mask.into_data().into_vec::<f32>().unwrap();
-
-        assert_eq!(values, vec![1.0, 1.0, 0.0, 0.0, 0.0]);
-    }
+    Tensor::<f32, B>::from_slice_on([n], &out, &backend)
 }

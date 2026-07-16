@@ -77,13 +77,13 @@ mod tests {
 
     fn build_3d(n: usize) -> Tensor<f32, TestBackend> {
         let data: Vec<f32> = (0..n * 2 * 3).map(|i| i as f32).collect();
-        let backend = TestBackend;
+        let backend = SequentialBackend;
         Tensor::<f32, TestBackend>::from_slice_on([n, 2, 3], &data, &backend)
     }
 
     /// Double every element using an elementwise multiply kernel.
     fn scale_by_2(t: Tensor<f32, TestBackend>) -> Tensor<f32, TestBackend> {
-        let b = TestBackend;
+        let b = SequentialBackend;
         let n = t.shape().iter().product::<usize>();
         let shape: Vec<usize> = t.shape().to_vec();
         let twos = Tensor::<f32, TestBackend>::from_slice_on(shape, &vec![2.0; n], &b);

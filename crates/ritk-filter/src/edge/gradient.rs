@@ -13,9 +13,8 @@
 //! - component 2 (∂/∂z) ← axis 0
 
 use anyhow::Result;
-use ritk_image::tensor::Backend;
-use ritk_image::{ColorVolume, Image};
-use ritk_tensor_ops::extract_vec;
+use ritk_image::native::{ColorVolume, Image};
+
 
 use super::derivative::DerivativeImageFilter;
 use crate::recursive_gaussian::gradient_recursive_gaussian_components;
@@ -36,50 +35,36 @@ impl GradientImageFilter {
 
     /// Apply the gradient, returning a 3-component vector image with components
     /// in sitk axis order `(∂/∂x, ∂/∂y, ∂/∂z)`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<ColorVolume<B, 3>> {
-        // Component k (sitk axis k) is the derivative along ritk axis 2 − k.
-        let dx = DerivativeImageFilter::new(2, 1, self.use_image_spacing).apply(image)?;
-        let dy = DerivativeImageFilter::new(1, 1, self.use_image_spacing).apply(image)?;
-        let dz = DerivativeImageFilter::new(0, 1, self.use_image_spacing).apply(image)?;
-
-        let (bx, dims) = extract_vec(&dx)?;
-        let (by, _) = extract_vec(&dy)?;
-        let (bz, _) = extract_vec(&dz)?;
-
-        ColorVolume::<B, 3>::from_component_buffers(
-            &[bx, by, bz],
-            dims,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-            &image.data().device(),
-        )
-    }
-
-    /// Coeus-native sister of [`apply`].
-    pub fn apply_native<B>(
+    pub fn apply<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::ColorVolume<f32, B, 3>>
+    ) -> Result<ColorVolume<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        let dx = DerivativeImageFilter::new(2, 1, self.use_image_spacing).apply_native(image, backend)?;
-        let dy = DerivativeImageFilter::new(1, 1, self.use_image_spacing).apply_native(image, backend)?;
-        let dz = DerivativeImageFilter::new(0, 1, self.use_image_spacing).apply_native(image, backend)?;
-        let (bx, dims) = ritk_tensor_ops::native::extract_image_vec(&dx)?;
-        let (by, _) = ritk_tensor_ops::native::extract_image_vec(&dy)?;
-        let (bz, _) = ritk_tensor_ops::native::extract_image_vec(&dz)?;
+        // Component k (sitk axis k) is the derivative along ritk axis 2 − k.
+        let dx = DerivativeImageFilter::new(2, 1, self.use_image_spacing)
+            .apply_native(image, backend)?;
+        let dy = DerivativeImageFilter::new(1, 1, self.use_image_spacing)
+            .apply_native(image, backend)?;
+        let dz = DerivativeImageFilter::new(0, 1, self.use_image_spacing)
+            .apply_native(image, backend)?;
+
+        let bx = dx.data_slice()?;
+        let by = dy.data_slice()?;
+        let bz = dz.data_slice()?;
         let n = bx.len();
+        let dims = image.shape();
         let mut interleaved = vec![0.0f32; n * 3];
         for i in 0..n {
             interleaved[3 * i] = bx[i];
             interleaved[3 * i + 1] = by[i];
             interleaved[3 * i + 2] = bz[i];
         }
-        ritk_image::native::ColorVolume::<f32, B, 3>::from_flat_on(
+
+        ColorVolume::<f32, B, 3>::from_flat_on(
             interleaved,
             dims,
             *image.origin(),
@@ -111,19 +96,39 @@ impl GradientRecursiveGaussianImageFilter {
 
     /// Apply the smoothed gradient, returning a 3-component vector image with
     /// components in sitk axis order `(∂/∂x, ∂/∂y, ∂/∂z)`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<ColorVolume<B, 3>> {
+    pub fn apply<B>(
+        &self,
+        image: &Image<f32, B, 3>,
+        backend: &B,
+    ) -> Result<ColorVolume<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
         // Components in ritk axis order [∂/∂z, ∂/∂y, ∂/∂x] computed on raw
         // buffers (one tensor extraction, no per-pass Image rebuilds).
         let [dz, dy, dx] = gradient_recursive_gaussian_components(image, self.sigma)?;
 
+        let bx = dx;
+        let by = dy;
+        let bz = dz;
+        let n = bx.len();
+        let dims = image.shape();
+        let mut interleaved = vec![0.0f32; n * 3];
+        for i in 0..n {
+            interleaved[3 * i] = bx[i];
+            interleaved[3 * i + 1] = by[i];
+            interleaved[3 * i + 2] = bz[i];
+        }
+
         // sitk component order: 0 = ∂/∂x, 1 = ∂/∂y, 2 = ∂/∂z.
-        ColorVolume::<B, 3>::from_component_buffers(
-            &[dx, dy, dz],
-            image.shape(),
+        ColorVolume::<f32, B, 3>::from_flat_on(
+            interleaved,
+            dims,
             *image.origin(),
             *image.spacing(),
             *image.direction(),
-            &image.data().device(),
+            backend,
         )
     }
 }

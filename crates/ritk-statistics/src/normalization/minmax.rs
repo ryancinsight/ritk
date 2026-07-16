@@ -21,10 +21,9 @@ use super::intensity_range::IntensityRange;
 use crate::image_statistics::compute_statistics;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::native as tensor_ops;
-use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Min-max intensity normalizer.
 ///
@@ -63,19 +62,34 @@ impl MinMaxNormalizer {
     /// ```
     ///
     /// Spatial metadata is preserved exactly.
-    pub fn normalize<B: Backend, const D: usize>(
-        &self,
-        image: &Image<f32, B, D>,
-    ) -> Image<f32, B, D>
-    where
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
+    pub fn normalize<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
         let stats = compute_statistics(image);
         let min = stats.min;
         let max = stats.max;
-        let (mut values, dims) = extract_vec_infallible(image);
-        self.remap_values(&mut values, min, max);
-        rebuild(values, dims, image)
+        let input_range = (max - min) + super::NORMALIZER_EPSILON;
+
+        // N(x) = (x − min) / (max − min + ε)
+        let normalized = image.data().clone().sub_scalar(min).div_scalar(input_range);
+
+        // R(x) = N(x) · range.span() + range.min()
+        let output_span = self.range.span();
+        let remapped = if (output_span - 1.0).abs() < super::UNIT_RANGE_EPSILON
+            && self.range.min().abs() < super::UNIT_RANGE_EPSILON
+        {
+            // Default [0,1] case: skip the remap arithmetic entirely.
+            normalized
+        } else {
+            normalized
+                .mul_scalar(output_span)
+                .add_scalar(self.range.min())
+        };
+
+        Image::new(
+            remapped,
+            *image.origin(),
+            *image.spacing(),
+            *image.direction(),
+        )
     }
 }
 

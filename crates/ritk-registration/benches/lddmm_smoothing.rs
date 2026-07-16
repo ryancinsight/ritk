@@ -10,7 +10,7 @@
 //! cargo bench -p ritk-registration --bench lddmm_smoothing
 //! ```
 //!
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::SeedableRng;
 
@@ -18,7 +18,7 @@ use ritk_registration::lddmm::{LddmmConfig, LddmmRegistration};
 use ritk_registration::GpuFieldSmoother;
 use ritk_spatial::Spacing;
 
-type SmoothingBackend = NdArray<f32>;
+type SmoothingBackend = SequentialBackend;
 
 /// Build a pair of synthetic 3-D images (fixed, moving) populated with
 /// uniform random values in [0, 255].  Uses a fixed RNG seed so benchmark

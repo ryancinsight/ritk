@@ -19,18 +19,18 @@
 //! after z-slice parallelism (PERF-377-02). Prior header reported 152ms
 //! for 32³ (pre-spatial-LUT baseline); current med is ~13.3× faster.
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use ritk_core::image::Image;
 use ritk_filter::BilateralFilter;
 use ritk_image::test_support as ts;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
 /// Deterministic 3-D test volume (no RNG): ramp `z * 100 + y * 10 + x`
 /// plus a sine modulation.  Bounded, predictable, exercises both kernel
 /// terms.
-fn make_volume(z: usize, y: usize, x: usize) -> Image<B, 3> {
+fn make_volume(z: usize, y: usize, x: usize) -> Image<f32, B, 3> {
     let mut vals = Vec::with_capacity(z * y * x);
     for iz in 0..z {
         for iy in 0..y {

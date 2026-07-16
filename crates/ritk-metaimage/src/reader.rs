@@ -109,7 +109,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         .context("'NDims' is not a valid integer")?;
 
     // 2-D images are promoted to a degenerate `[1, Y, X]` (z = 1) volume: ritk's
-    // Image is `Image<B, 3>`, so a 2-D file becomes a single-slice 3-D image.
+    // Image is `Image<f32, B, 3>`, so a 2-D file becomes a single-slice 3-D image.
     if ndims != 2 && ndims != 3 {
         return Err(anyhow!("Expected NDims = 2 or 3, found {}", ndims));
     }

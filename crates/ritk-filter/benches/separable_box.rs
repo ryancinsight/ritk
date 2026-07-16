@@ -27,15 +27,15 @@
 //! significant regression (criterion confidence interval) blocks merge
 //! per `performance_engineering`.
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use ritk_filter::GrayscaleDilation;
 use ritk_image::test_support as ts;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
 /// Deterministic 128³ test volume: ramp + sine modulation.
-fn make_volume_128() -> ritk_core::image::Image<B, 3> {
+fn make_volume_128() -> ritk_core::image::Image<f32, B, 3> {
     let n = 128;
     let mut vals = Vec::with_capacity(n * n * n);
     for iz in 0..n {

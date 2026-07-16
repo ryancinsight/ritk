@@ -189,7 +189,7 @@ pub fn run_cma_es(data: &mut RireData) -> anyhow::Result<()> {
     println!();
 
     // ── Load images with the autodiff backend ─────────────────────────────
-    // NdArrayDevice is identical for NdArray<f32> and Autodiff<NdArray<f32>>,
+    // NdArrayDevice is identical for SequentialBackend and Autodiff<SequentialBackend>,
     // so we can reuse the already-created `device` value.
     print!(" Loading images (autodiff backend) … ");
     let ct_reg = read_metaimage::<RegB, _>(&data.ct_path, &data.device)?;

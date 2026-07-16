@@ -3,37 +3,38 @@
 // `interpolation::kernel::linear` and `interpolation::kernel::nearest`.
 // This file covers cross-dimension routing smoke tests.
 
-use burn_ndarray::NdArray;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use coeus_core::SequentialBackend;
+use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
 
 use super::{dispatch_linear, dispatch_nearest};
 use crate::interpolation::shared::OutOfBoundsMode;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
-fn make_1d(vals: &[f32]) -> Tensor<B, 1> {
+fn make_1d(vals: &[f32]) -> Tensor<f32, B> {
     let n = vals.len();
-    Tensor::<B, 1>::from_data(
-        TensorData::new(vals.to_vec(), Shape::new([n])),
+    Tensor::<f32, B>::from_data(
+        (vals.to_vec(), ([n])),
         &Default::default(),
     )
 }
 
-fn make_3d(vals: &[f32], shape: [usize; 3]) -> Tensor<B, 3> {
-    Tensor::<B, 3>::from_data(
-        TensorData::new(vals.to_vec(), Shape::new(shape)),
+fn make_3d(vals: &[f32], shape: [usize; 3]) -> Tensor<f32, B> {
+    Tensor::<f32, B>::from_data(
+        (vals.to_vec(), (shape)),
         &Default::default(),
     )
 }
 
-fn make_indices(rows: Vec<Vec<f32>>) -> Tensor<B, 2> {
+fn make_indices(rows: Vec<Vec<f32>>) -> Tensor<f32, B> {
     let n_points = rows.len();
     let n_dims = if rows.is_empty() { 0 } else { rows[0].len() };
     let flat: Vec<f32> = rows.into_iter().flatten().collect();
-    Tensor::<B, 2>::from_data(
-        TensorData::new(flat, Shape::new([n_points, n_dims])),
+    Tensor::<f32, B>::from_data(
+        (flat, ([n_points, n_dims])),
         &Default::default(),
     )
 }

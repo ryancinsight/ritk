@@ -53,7 +53,9 @@ pub mod error;
 pub mod label_transfer;
 pub mod lddmm;
 pub mod metric;
+#[cfg(feature = "burn-filters")]
 pub mod multires;
+#[cfg(feature = "burn-filters")]
 pub mod ngf_rigid;
 pub mod optimizer;
 pub mod progress;
@@ -131,6 +133,7 @@ pub use classical::{
 // ============================================================================
 // Re-exports — NGF (Normalized Gradient Fields) cross-modal rigid registration
 // ============================================================================
+#[cfg(feature = "burn-filters")]
 pub use ngf_rigid::{
     default_ngf_pyramid, register_rigid_ngf, register_rigid_ngf_multires, NgfPyramidLevel,
     NgfRigidConfig, NgfRigidResult,
@@ -151,7 +154,9 @@ pub use registration::{
 // ============================================================================
 // Re-exports — ANTs preprocessing pipeline
 // ============================================================================
+#[cfg(feature = "burn-filters")]
 pub mod preprocessing;
+#[cfg(feature = "burn-filters")]
 pub use preprocessing::{
     ct_brain_mask, CtBrainMaskConfig, IntensityRescaleMode, PreprocessingPipeline,
     PreprocessingStep,

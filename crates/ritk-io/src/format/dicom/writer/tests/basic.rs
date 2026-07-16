@@ -3,7 +3,8 @@ use super::helpers::{make_image, Backend};
 use dicom::core::Tag;
 use dicom::object::open_file;
 use ritk_core::image::Image;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 
 #[test]
@@ -98,7 +99,7 @@ fn test_series_pixel_clamp_unsigned_range() {
         .map(|i| (i as f32 + 1.0) * (65535.0_f32 / 16.0_f32))
         .collect();
     let tensor = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data, Shape::new([n_frames, rows, cols])),
+        (data, ([n_frames, rows, cols])),
         &Default::default(),
     );
     let image = Image::new(

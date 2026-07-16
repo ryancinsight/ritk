@@ -17,7 +17,7 @@ use crate::format::dicom::writer::utils::{
     emit_pixel_format_tags, generate_series_uid, normalize_to_u16, MONOCHROME2,
 };
 
-/// Write a 3-D `Image<B, 3>` with shape `[n_frames, rows, cols]` as a single
+/// Write a 3-D `Image<f32, B, 3>` with shape `[n_frames, rows, cols]` as a single
 /// multi-frame DICOM Part 10 file.
 ///
 /// ## Invariants
@@ -34,12 +34,12 @@ use crate::format::dicom::writer::utils::{
 /// (1.2.840.10008.5.1.4.1.1.7.3).
 pub fn write_dicom_multiframe<B: Backend, P: AsRef<Path>>(
     path: P,
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
 ) -> Result<()> {
     write_multiframe_impl(path.as_ref(), image, &MultiFrameWriterConfig::default())
 }
 
-/// Write a 3-D `Image<B, 3>` as a multi-frame DICOM file with optional spatial metadata.
+/// Write a 3-D `Image<f32, B, 3>` as a multi-frame DICOM file with optional spatial metadata.
 ///
 /// When `spatial` is `None`, behaves identically to [`write_dicom_multiframe`].
 /// When `spatial` is `Some`, also emits:
@@ -50,7 +50,7 @@ pub fn write_dicom_multiframe<B: Backend, P: AsRef<Path>>(
 /// - (0008,0060) Modality (overrides default "OT")
 pub fn write_dicom_multiframe_with_options<B: Backend, P: AsRef<Path>>(
     path: P,
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
     spatial: Option<&MultiFrameSpatialMetadata>,
 ) -> Result<()> {
     let config = MultiFrameWriterConfig {
@@ -60,7 +60,7 @@ pub fn write_dicom_multiframe_with_options<B: Backend, P: AsRef<Path>>(
     write_multiframe_impl(path.as_ref(), image, &config)
 }
 
-/// Write a 3-D `Image<B, 3>` as a multi-frame DICOM file with full writer configuration.
+/// Write a 3-D `Image<f32, B, 3>` as a multi-frame DICOM file with full writer configuration.
 ///
 /// Accepts a [`MultiFrameWriterConfig`] for SOP class override, spatial metadata,
 /// and instance number. When `config.spatial` is `None`, no spatial tags are emitted.
@@ -70,7 +70,7 @@ pub fn write_dicom_multiframe_with_options<B: Backend, P: AsRef<Path>>(
 /// - Round-trip invariant: |recovered − original| ≤ rescale_slope + 1.0.
 pub fn write_dicom_multiframe_with_config<B: Backend, P: AsRef<Path>>(
     path: P,
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
     config: &MultiFrameWriterConfig,
 ) -> Result<()> {
     write_multiframe_impl(path.as_ref(), image, config)
@@ -117,7 +117,7 @@ pub fn write_dicom_multiframe_native_with_config<P: AsRef<Path>>(
 
 fn write_multiframe_impl<B: Backend>(
     path: &Path,
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
     config: &MultiFrameWriterConfig,
 ) -> Result<()> {
     let all_data = image

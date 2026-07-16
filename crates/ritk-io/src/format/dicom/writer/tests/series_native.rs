@@ -9,15 +9,16 @@
 
 use crate::format::dicom::read_native_dicom_series;
 use crate::format::dicom::writer::{write_dicom_series, write_dicom_series_native};
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use ritk_core::image::Image as BurnImage;
 use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend as BurnBackend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 
-type OracleBackend = NdArray<f32>;
+type OracleBackend = SequentialBackend;
 
 const DIMS: [usize; 3] = [3, 4, 5];
 const ORIGIN: [f64; 3] = [1.0, -2.0, 3.0];
@@ -42,7 +43,7 @@ fn native_image(data: Vec<f32>) -> NativeImage<f32, MoiraiBackend, 3> {
 fn burn_image(data: Vec<f32>) -> BurnImage<OracleBackend, 3> {
     let device = <OracleBackend as BurnBackend>::Device::default();
     let tensor =
-        Tensor::<OracleBackend, 3>::from_data(TensorData::new(data, Shape::new(DIMS)), &device);
+        Tensor::<OracleBackend, 3>::from_data((data, (DIMS)), &device);
     BurnImage::new(
         tensor,
         Point::new(ORIGIN),

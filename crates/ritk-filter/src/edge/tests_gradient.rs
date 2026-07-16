@@ -1,8 +1,8 @@
-use crate::native_support::LegacyBurnBackend;
 use super::*;
+use coeus_core::SequentialBackend;
 use ritk_image::test_support as ts;
 
-type B = LegacyBurnBackend;
+type B = SequentialBackend;
 
 /// For a linear ramp `f = x` (fastest-varying tensor axis), the central
 /// difference is exactly 1 along x in the interior and 0 along y, z. Component
@@ -19,7 +19,9 @@ fn gradient_of_x_ramp_is_unit_along_x() {
         }
     }
     let img = ts::make_image::<B, 3>(vals, [nz, ny, nx]);
-    let grad = GradientImageFilter::new(true).apply(&img).unwrap();
+    let grad = GradientImageFilter::new(true)
+        .apply(&img, &B::default())
+        .unwrap();
     let comps = grad.into_component_buffers();
     assert_eq!(comps.len(), 3);
 
@@ -59,7 +61,7 @@ fn gradient_recursive_gaussian_of_x_ramp_is_unit_along_x() {
     }
     let img = ts::make_image::<B, 3>(vals, [nz, ny, nx]);
     let grad = GradientRecursiveGaussianImageFilter::new(1.0)
-        .apply(&img)
+        .apply(&img, &B::default())
         .unwrap();
     let comps = grad.into_component_buffers();
     // Interior (away from the IIR boundary transient): ∂/∂x ≈ 1, ∂/∂y, ∂/∂z ≈ 0.

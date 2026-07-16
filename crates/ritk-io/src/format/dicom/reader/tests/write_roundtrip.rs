@@ -25,9 +25,10 @@ use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_write_series_load_series_intensity_roundtrip() {
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
-    type B = burn_ndarray::NdArray<f32>;
+    type B = burn_ndarray::SequentialBackend;
 
     let tmp = tempfile::tempdir().expect("tempdir");
     let series_path = tmp.path().join("e2e_roundtrip_series");
@@ -38,7 +39,7 @@ fn test_write_series_load_series_intensity_roundtrip() {
     let original_data: Vec<f32> = (0..(depth * rows * cols)).map(|i| i as f32).collect();
     let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(original_data.clone(), Shape::new([depth, rows, cols])),
+        (original_data.clone(), ([depth, rows, cols])),
         &device,
     );
     let image = Image::<B, 3>::new(
@@ -86,8 +87,9 @@ fn test_write_series_load_series_intensity_roundtrip() {
 #[test]
 fn native_dicom_loader_matches_legacy_loader() {
     use coeus_core::SequentialBackend;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
-    type B = burn_ndarray::NdArray<f32>;
+    use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
+    type B = burn_ndarray::SequentialBackend;
 
     let tmp = tempfile::tempdir().expect("tempdir");
     let series_path = tmp.path().join("native_dicom_parity");
@@ -98,7 +100,7 @@ fn native_dicom_loader_matches_legacy_loader() {
         .collect();
     let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(original_data, Shape::new([depth, rows, cols])),
+        (original_data, ([depth, rows, cols])),
         &device,
     );
     let image = Image::<B, 3>::new(
@@ -146,10 +148,11 @@ fn native_dicom_loader_matches_legacy_loader() {
 #[test]
 fn test_write_metadata_series_load_series_intensity_roundtrip() {
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
-    type B = burn_ndarray::NdArray<f32>;
+    type B = burn_ndarray::SequentialBackend;
 
     let tmp = tempfile::tempdir().expect("tempdir");
     let series_path = tmp.path().join("e2e_meta_roundtrip");
@@ -165,7 +168,7 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
         .collect();
     let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(original_data.clone(), Shape::new([depth, rows, cols])),
+        (original_data.clone(), ([depth, rows, cols])),
         &device,
     );
     let image = Image::<B, 3>::new(

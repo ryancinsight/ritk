@@ -10,7 +10,7 @@
 //!    metadata (shape, datatype, storage layout).
 //! 4. Parse the `dimorder` attribute to determine axis mapping.
 //! 5. Read raw voxel bytes from contiguous storage and convert to `f32`.
-//! 6. Construct `Image<B, 3>` with spatial metadata derived from
+//! 6. Construct `Image<f32, B, 3>` with spatial metadata derived from
 //!    dimension attributes and the dimorder axis mapping.
 //!
 //! # Contiguous Storage Requirement

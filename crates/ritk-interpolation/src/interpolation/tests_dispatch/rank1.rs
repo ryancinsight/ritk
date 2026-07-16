@@ -7,21 +7,21 @@
 use super::*;
 use crate::interpolation::dispatch::Dispatch1DTyped;
 
-fn build_1d(side: usize) -> Tensor<TestBackend, 1> {
+fn build_1d(side: usize) -> Tensor<f32, TestBackend> {
     // Fill with 0.0 except a single 1.0 at the center element.
     let mut data = vec![0.0_f32; side];
     data[side / 2] = 1.0;
     let device = Default::default();
-    Tensor::<TestBackend, 1>::from_data(
-        TensorData::new(data, ritk_image::tensor::Shape::new([side])),
+    Tensor::<f32, TestBackend>::from_data(
+        (data, ritk_image::tensor::([side])),
         &device,
     )
 }
 
-fn query_1d(side: usize) -> Tensor<TestBackend, 2> {
+fn query_1d(side: usize) -> Tensor<f32, TestBackend> {
     let device = Default::default();
     let mid = side as f32 / 2.0;
-    Tensor::<TestBackend, 2>::from_floats([[mid]], &device)
+    Tensor::<f32, TestBackend>::from_floats([[mid]], &device)
 }
 
 #[test]
@@ -107,7 +107,7 @@ fn dispatch_for_shape_convenience_routes_typed() {
 fn type_narrowing_wrapper_1d_routes_through_sealed_trait() {
     let data = build_1d(128);
     let indices = query_1d(128);
-    let result: Tensor<TestBackend, 1> = data.dispatch_1d_typed(indices, OutOfBoundsMode::Clamp);
+    let result: Tensor<f32, TestBackend> = data.dispatch_1d_typed(indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
         (val - 1.0).abs() < 1e-5,

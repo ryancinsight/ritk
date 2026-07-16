@@ -1,6 +1,6 @@
 use super::BSplineTransform;
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
+use coeus_core::Backend;
+use coeus_tensor::Tensor;
 use ritk_wgpu_compat::apply_row_chunks;
 
 /// 4D B-spline transform — chunked over rows using `WGPU_CHUNK_SIZE_4D`

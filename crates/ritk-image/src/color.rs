@@ -5,7 +5,8 @@
 
 use std::fmt;
 
-use crate::tensor::{ComputeBackend, Scalar, Tensor};
+use coeus_core::{ComputeBackend, Scalar};
+use coeus_tensor::Tensor;
 use anyhow::{bail, Result};
 
 use ritk_spatial::{Direction, Point, Spacing};

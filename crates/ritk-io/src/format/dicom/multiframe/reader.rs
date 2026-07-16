@@ -11,7 +11,8 @@ use ritk_dicom::{
 };
 use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 
@@ -204,8 +205,8 @@ pub fn read_multiframe_info(path: impl AsRef<Path>) -> Result<MultiFrameInfo> {
 /// cross product; otherwise the direction defaults to identity.
 pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
     path: P,
-    device: &B::Device,
-) -> Result<Image<B, 3>> {
+    backend: &B,
+) -> Result<Image<f32, B, 3>> {
     let MultiFrameVolume {
         data,
         shape,
@@ -213,7 +214,7 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         spacing,
         direction,
     } = load_dicom_multiframe_flat(path)?;
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(shape)), device);
+    let tensor = Tensor::<B, 3>::from_data((data, (shape)), device);
     Ok(Image::new(tensor, origin, spacing, direction))
 }
 

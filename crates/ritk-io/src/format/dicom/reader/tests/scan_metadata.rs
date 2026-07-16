@@ -25,10 +25,11 @@ use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_scan_metadata_round_trip_spatial_fields() {
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
-    type B = burn_ndarray::NdArray<f32>;
+    type B = burn_ndarray::SequentialBackend;
 
     let temp = tempfile::tempdir().unwrap();
     let series_path = temp.path().join("rt_series");
@@ -38,7 +39,7 @@ fn test_scan_metadata_round_trip_spatial_fields() {
     let data = vec![500.0f32; depth * rows * cols];
     let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(data, Shape::new([depth, rows, cols])),
+        (data, ([depth, rows, cols])),
         &device,
     );
     let image = Image::<B, 3>::new(
@@ -227,10 +228,11 @@ fn test_scan_metadata_round_trip_spatial_fields() {
 #[test]
 fn test_scan_metadata_round_trip_rescale_params() {
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
-    type B = burn_ndarray::NdArray<f32>;
+    type B = burn_ndarray::SequentialBackend;
 
     let temp = tempfile::tempdir().unwrap();
     let series_path = temp.path().join("rescale_series");
@@ -246,7 +248,7 @@ fn test_scan_metadata_round_trip_rescale_params() {
 
     let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(data, Shape::new([depth, rows, cols])),
+        (data, ([depth, rows, cols])),
         &device,
     );
     let image = Image::<B, 3>::new(
@@ -327,10 +329,11 @@ fn test_scan_metadata_round_trip_rescale_params() {
 #[test]
 fn test_scan_metadata_round_trip_transfer_syntax() {
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
-    type B = burn_ndarray::NdArray<f32>;
+    type B = burn_ndarray::SequentialBackend;
 
     let temp = tempfile::tempdir().unwrap();
     let series_path = temp.path().join("ts_series");
@@ -339,7 +342,7 @@ fn test_scan_metadata_round_trip_transfer_syntax() {
     let data = vec![1000.0f32; depth * rows * cols];
     let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(data, Shape::new([depth, rows, cols])),
+        (data, ([depth, rows, cols])),
         &device,
     );
     let image = Image::<B, 3>::new(

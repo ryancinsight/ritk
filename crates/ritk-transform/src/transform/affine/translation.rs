@@ -5,8 +5,8 @@
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_core::transform::{Resampleable, Transform};
 use coeus_core::CpuAddressableStorage;
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
+use coeus_core::Backend;
+use coeus_tensor::Tensor;
 
 /// Simple Translation Transform.
 ///

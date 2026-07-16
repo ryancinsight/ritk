@@ -4,7 +4,7 @@
 //! and MI monotonicity under rotation — all with absolute-value checks and relative
 //! ordering assertions against synthetic images.
 
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::tensor::{Shape, Tensor, TensorData};
@@ -15,15 +15,15 @@ use ritk_registration::metric::{
 use ritk_statistics::IntensityRange;
 use ritk_transform::{RigidTransform, TranslationTransform};
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn create_test_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
+fn create_test_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
     let device = Default::default();
-    let tensor = Tensor::from_data(TensorData::new(data, Shape::new(shape)), &device);
+    let tensor = Tensor::from_slice_on((data, (shape)), &device);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let origin = Point::new([0.0, 0.0, 0.0]);
     let direction = Direction::identity();
@@ -105,14 +105,14 @@ fn test_mattes_mi_monotonicity() {
     let loss0 = mattes.forward(&image, &image, &t0).into_scalar();
 
     // Moderate translation (3 voxels along x)
-    let t3 = TranslationTransform::new(Tensor::from_data(
+    let t3 = TranslationTransform::new(Tensor::from_slice_on(
         TensorData::from([3.0f32, 0.0, 0.0]),
         &device,
     ));
     let loss3 = mattes.forward(&image, &image, &t3).into_scalar();
 
     // Larger translation (6 voxels along x)
-    let t6 = TranslationTransform::new(Tensor::from_data(
+    let t6 = TranslationTransform::new(Tensor::from_slice_on(
         TensorData::from([6.0f32, 0.0, 0.0]),
         &device,
     ));

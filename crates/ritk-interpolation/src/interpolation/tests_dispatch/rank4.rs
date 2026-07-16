@@ -7,21 +7,21 @@
 use super::*;
 use crate::interpolation::dispatch::Dispatch4DTyped;
 
-fn build_4d(side: usize) -> Tensor<TestBackend, 4> {
+fn build_4d(side: usize) -> Tensor<f32, TestBackend> {
     let device = Default::default();
-    let data = Tensor::<TestBackend, 4>::zeros([side, side, side, side], &device);
+    let data = Tensor::<f32, TestBackend>::zeros([side, side, side, side], &device);
     let mid = side / 2;
-    let ones = Tensor::<TestBackend, 4>::ones([1, 1, 1, 1], &device);
+    let ones = Tensor::<f32, TestBackend>::ones([1, 1, 1, 1], &device);
     data.slice_assign(
         [mid..mid + 1, mid..mid + 1, mid..mid + 1, mid..mid + 1],
         ones,
     )
 }
 
-fn query_4d(side: usize) -> Tensor<TestBackend, 2> {
+fn query_4d(side: usize) -> Tensor<f32, TestBackend> {
     let device = Default::default();
     let mid = side as f32 / 2.0;
-    Tensor::<TestBackend, 2>::from_floats([[mid, mid, mid, mid]], &device)
+    Tensor::<f32, TestBackend>::from_floats([[mid, mid, mid, mid]], &device)
 }
 
 #[test]
@@ -81,7 +81,7 @@ fn dispatch_for_shape_convenience_routes_typed() {
 fn type_narrowing_wrapper_4d_routes_through_sealed_trait() {
     let data = build_4d(128);
     let indices = query_4d(128);
-    let result: Tensor<TestBackend, 1> = data.dispatch_4d_typed(indices, OutOfBoundsMode::Clamp);
+    let result: Tensor<f32, TestBackend> = data.dispatch_4d_typed(indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
         (val - 1.0).abs() < 1e-5,

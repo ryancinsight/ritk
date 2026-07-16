@@ -7,7 +7,8 @@
 use anyhow::{anyhow, bail, Context, Result};
 use coeus_core::ComputeBackend;
 use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use coeus_tensor::Tensor;
+use ritk_image::tensor::{Shape, TensorData};
 use std::path::Path;
 
 use ritk_core::image::Image as BurnImage;
@@ -26,8 +27,8 @@ use super::types::{DicomReadMetadata, DicomSeriesInfo};
 /// Read a DICOM series and return both the image and metadata.
 pub fn read_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     path: P,
-    device: &B::Device,
-) -> Result<(BurnImage<B, 3>, DicomReadMetadata)> {
+    backend: &B,
+) -> Result<(BurnImage<f32, B, 3>, DicomReadMetadata)> {
     let series = scan_dicom_directory(path)?;
     load_from_series(series, device)
 }
@@ -35,8 +36,8 @@ pub fn read_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
 /// Load a DICOM series from a pre-scanned descriptor and return image plus metadata.
 pub fn load_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     path: P,
-    device: &B::Device,
-) -> Result<(BurnImage<B, 3>, DicomReadMetadata)> {
+    backend: &B,
+) -> Result<(BurnImage<f32, B, 3>, DicomReadMetadata)> {
     read_dicom_series_with_metadata(path, device)
 }
 
@@ -66,8 +67,8 @@ pub fn load_native_dicom_series_with_metadata<B: ComputeBackend, P: AsRef<Path>>
 /// slice metadata when present, falling back to file-path I/O otherwise.
 pub fn load_dicom_from_series<B: Backend>(
     series: DicomSeriesInfo,
-    device: &B::Device,
-) -> Result<(BurnImage<B, 3>, DicomReadMetadata)> {
+    backend: &B,
+) -> Result<(BurnImage<f32, B, 3>, DicomReadMetadata)> {
     load_from_series(series, device)
 }
 
@@ -81,11 +82,11 @@ pub fn load_native_dicom_from_series<B: ComputeBackend>(
 
 pub(crate) fn load_from_series<B: Backend>(
     series: DicomSeriesInfo,
-    device: &B::Device,
-) -> Result<(BurnImage<B, 3>, DicomReadMetadata)> {
+    backend: &B,
+) -> Result<(BurnImage<f32, B, 3>, DicomReadMetadata)> {
     let decoded = decode_series(series)?;
     let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(decoded.volume, Shape::new(decoded.shape)),
+        (decoded.volume, (decoded.shape)),
         device,
     );
     let image = BurnImage::new(tensor, decoded.origin, decoded.spacing, decoded.direction);

@@ -1,6 +1,6 @@
 use super::BSplineTransform;
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::Tensor;
+use coeus_core::Backend;
+use coeus_tensor::Tensor;
 
 /// 1D B-spline transform — direct path (no row chunking, since the
 /// per-point work is small). Called from `super::sealed` via const-generic

@@ -33,8 +33,7 @@
 //! by extracting the contiguous f32 storage and iterating. No
 //! `dyn Trait`, no vtable indirection.
 
-use coeus_core::CpuAddressableStorage;
-use ritk_image::tensor::Backend;
+use ritk_image::tensor::backend::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
@@ -94,14 +93,11 @@ impl Histogram {
 ///
 /// Panics if `bins == 0` or `min >= max`.
 pub fn histogram<B: Backend, const D: usize>(
-    image: &Image<f32, B, D>,
+    image: &Image<B, D>,
     min: f32,
     max: f32,
     bins: usize,
-) -> Histogram
-where
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-{
+) -> Histogram {
     assert!(bins >= 1, "histogram: bins must be ≥ 1, got {}", bins);
     assert!(
         min < max,

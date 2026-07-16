@@ -77,7 +77,7 @@ onnx-ir = "0.20.1"
 pyo3 = { version = "0.22", features = ["abi3-py39"] }
 numpy = "0.22"
 dicom = { version = "0.10.0", default-features = false }
-moirai = { path = "../moirai/moirai", version = "0.3.0", features = ["melinoe"] }
+moirai = { path = "../moirai/moirai", version = "0.4.0", features = ["melinoe"] }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
 mnemosyne = { path = "../mnemosyne/crates/mnemosyne", version = "^0.2.0", default-features = false, features = ["std_tls", "eunomia"] }
 eunomia = { git = "https://github.com/ryancinsight/eunomia", default-features = false }
@@ -86,11 +86,11 @@ coeus-tensor = { path = "../coeus/coeus-tensor" }
 coeus-ops = { path = "../coeus/coeus-ops" }
 coeus-leto = { path = "../coeus/coeus-leto" }
 coeus-autograd = { path = "../coeus/coeus-autograd" }
-leto = { path = "../leto/crates/leto", version = "0.36.0" }
-leto-ops = { path = "../leto/crates/leto-ops", version = "0.36.0" }
-hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.13.0" }
-hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.13.0" }
-apollo-fft = { path = "../apollo/crates/apollo-fft", version = "0.17.0" }
+leto = { path = "../leto/crates/leto", version = "0.38.0" }
+leto-ops = { path = "../leto/crates/leto-ops", version = "0.38.0" }
+hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.15.0" }
+hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.15.0" }
+apollo-fft = { path = "../apollo/crates/apollo-fft", version = "0.20.0" }
 num-complex = { version = "0.4.6", features = ["bytemuck"] }
 anyhow = "1.0"
 thiserror = "2.0"

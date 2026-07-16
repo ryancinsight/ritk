@@ -74,11 +74,11 @@ fn dispatch_falls_through_to_generic_for_non_cube() {
     // interpolate_3d path. The result should still be correct.
     let device = Default::default();
     let data_vec: Vec<f32> = (0..100 * 150 * 200).map(|i| i as f32).collect();
-    let data = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data_vec, ritk_image::tensor::Shape::new([100, 150, 200])),
+    let data = Tensor::<f32, TestBackend>::from_data(
+        (data_vec, ritk_image::tensor::([100, 150, 200])),
         &device,
     );
-    let indices = Tensor::<TestBackend, 2>::from_floats([[10.0, 20.0, 30.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[10.0, 20.0, 30.0]], &device);
     let result = dispatch_linear(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     // Should be a valid interpolated value (somewhere in the data range).
@@ -122,7 +122,7 @@ fn type_narrowing_wrapper_routes_3d_through_sealed_trait() {
     let data = build_cube(128);
     let indices = query_near_center(128);
     // Call the type-narrowing wrapper directly.
-    let result: Tensor<TestBackend, 1> = data.dispatch_3d_typed(indices, OutOfBoundsMode::Clamp);
+    let result: Tensor<f32, TestBackend> = data.dispatch_3d_typed(indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
         (val - 1.0).abs() < 1e-5,
@@ -145,7 +145,7 @@ fn nearest_sealed_trait_dispatches_3d() {
     // Nearest-neighbor at the exact center of a cube with a 1.0 at the
     // center voxel should return 1.0 (it rounds to the center voxel).
     let device = Default::default();
-    let indices = Tensor::<TestBackend, 2>::from_floats([[32.0, 32.0, 32.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[32.0, 32.0, 32.0]], &device);
     let result = dispatch_nearest(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
@@ -162,9 +162,9 @@ fn nearest_sealed_trait_dispatches_3d() {
 fn nearest_type_narrowing_wrapper_routes_3d() {
     let data = build_cube(64);
     let device = Default::default();
-    let indices = Tensor::<TestBackend, 2>::from_floats([[32.0, 32.0, 32.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[32.0, 32.0, 32.0]], &device);
     // Call the type-narrowing wrapper directly.
-    let result: Tensor<TestBackend, 1> =
+    let result: Tensor<f32, TestBackend> =
         data.dispatch_nearest_3d_typed(indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];
     assert!(
@@ -180,7 +180,7 @@ fn nearest_type_narrowing_wrapper_routes_3d() {
 fn nearest_dispatch_for_shape_routes_correctly() {
     let data = build_cube(256);
     let device = Default::default();
-    let indices = Tensor::<TestBackend, 2>::from_floats([[128.0, 128.0, 128.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_floats([[128.0, 128.0, 128.0]], &device);
     let result =
         dispatch_nearest_for_shape::<TestBackend, 3>(&data, indices, OutOfBoundsMode::Clamp);
     let val = result.into_data().as_slice::<f32>().unwrap()[0];

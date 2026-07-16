@@ -1,4 +1,4 @@
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::burn::backend::Autodiff;
@@ -8,7 +8,7 @@ use ritk_registration::optimizer::AdamOptimizer;
 use ritk_registration::registration::Registration;
 use ritk_transform::{BSplineTransform, Transform};
 
-type B = Autodiff<NdArray<f32>>;
+type B = Autodiff<SequentialBackend>;
 
 #[test]
 fn bspline_registers_offset_sphere() {
@@ -48,8 +48,8 @@ fn bspline_registers_offset_sphere() {
     // So u(5) should be +1.
     let moving_data = make_sphere([6.0, 6.0, 6.0], 2.0);
 
-    let fixed_tensor = Tensor::<B, 3>::from_data(TensorData::new(fixed_data, shape), &device);
-    let moving_tensor = Tensor::<B, 3>::from_data(TensorData::new(moving_data, shape), &device);
+    let fixed_tensor = Tensor::<B, 3>::from_data((fixed_data, shape), &device);
+    let moving_tensor = Tensor::<B, 3>::from_data((moving_data, shape), &device);
 
     let origin = Point::new([0.0, 0.0, 0.0]);
     // Grid size 5x5x5 covers the 10x10x10 volume with spacing 2.5
