@@ -68,8 +68,8 @@ pub mod native {
         }
     }
 
-    impl<B: ComputeBackend> ImageReader<Image<B, 3>> for VtkReader<B> {
-        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
+    impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for VtkReader<B> {
+        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
             ritk_vtk::read_vtk(path, &self.backend).map_err(to_io_err)
         }
     }
@@ -86,12 +86,12 @@ pub mod native {
         }
     }
 
-    impl<B> ImageWriter<Image<B, 3>> for VtkWriter<B>
+    impl<B> ImageWriter<Image<f32, B, 3>> for VtkWriter<B>
     where
         B: ComputeBackend + Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
+        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
             ritk_vtk::write_vtk(path, image, &self.backend).map_err(to_io_err)
         }
     }

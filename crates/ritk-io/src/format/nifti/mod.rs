@@ -10,14 +10,14 @@ use std::path::Path;
 
 fn native_to_legacy<B: Backend>(
     native: ritk_image::native::Image<f32, SequentialBackend, 3>,
-    backend: &B,
+    device: &B::Device,
 ) -> Image<B, 3> {
     let tensor = Tensor::<B, 3>::from_data(
-        (
+        TensorData::new(
             native.data_cow_on(&SequentialBackend).into_owned(),
-            (native.shape()),
+            Shape::new(native.shape()),
         ),
-        backend,
+        device,
     );
     Image::new(
         tensor,
@@ -28,21 +28,21 @@ fn native_to_legacy<B: Backend>(
 }
 
 /// Reads NIfTI through the native provider and converts at this legacy boundary.
-pub fn read_nifti<B: Backend, P: AsRef<Path>>(path: P, backend: &B) -> Result<Image<B, 3>> {
-    ritk_nifti::read_nifti(path, &SequentialBackend).map(|native| native_to_legacy(native, backend))
+pub fn read_nifti<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
+    ritk_nifti::read_nifti(path, &SequentialBackend).map(|native| native_to_legacy(native, device))
 }
 
 /// Reads in-memory NIfTI through the native provider and converts at this boundary.
-pub fn read_nifti_from_bytes<B: Backend>(bytes: &[u8], backend: &B) -> Result<Image<B, 3>> {
+pub fn read_nifti_from_bytes<B: Backend>(bytes: &[u8], device: &B::Device) -> Result<Image<B, 3>> {
     ritk_nifti::read_nifti_from_bytes(bytes, &SequentialBackend)
-        .map(|native| native_to_legacy(native, backend))
+        .map(|native| native_to_legacy(native, device))
 }
 
 /// Reads an in-memory NIfTI payload directly into a Coeus-backed image.
 pub fn read_nifti_from_bytes_native<B: coeus_core::ComputeBackend>(
     bytes: &[u8],
     backend: &B,
-) -> Result<ritk_image::native::Image<B, 3>> {
+) -> Result<ritk_image::native::Image<f32, B, 3>> {
     ritk_nifti::read_nifti_from_bytes(bytes, backend)
 }
 
@@ -73,7 +73,7 @@ impl<B: Backend> NiftiReader<B> {
 
     /// Reads NIfTI into the legacy image substrate.
     pub fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
-        read_nifti(path, &self.backend).map_err(|error| std::io::Error::other(error.to_string()))
+        read_nifti(path, &self.device).map_err(|error| std::io::Error::other(error.to_string()))
     }
 }
 
@@ -105,8 +105,8 @@ pub mod native {
         }
     }
 
-    impl<B: ComputeBackend> ImageReader<Image<B, 3>> for NiftiReader<B> {
-        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
+    impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for NiftiReader<B> {
+        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
             ritk_nifti::read_nifti(path, &self.backend).map_err(to_io_err)
         }
     }
@@ -123,12 +123,12 @@ pub mod native {
         }
     }
 
-    impl<B> ImageWriter<Image<B, 3>> for NiftiWriter<B>
+    impl<B> ImageWriter<Image<f32, B, 3>> for NiftiWriter<B>
     where
         B: ComputeBackend + Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
+        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
             ritk_nifti::write_nifti(path, image, &self.backend).map_err(to_io_err)
         }
     }

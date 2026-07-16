@@ -27,18 +27,18 @@ use super::types::{DicomReadMetadata, DicomSeriesInfo};
 /// Read a DICOM series and return both the image and metadata.
 pub fn read_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     path: P,
-    backend: &B,
+    device: &B::Device,
 ) -> Result<(BurnImage<B, 3>, DicomReadMetadata)> {
     let series = scan_dicom_directory(path)?;
-    load_from_series(series, backend)
+    load_from_series(series, device)
 }
 
 /// Load a DICOM series from a pre-scanned descriptor and return image plus metadata.
 pub fn load_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     path: P,
-    backend: &B,
+    device: &B::Device,
 ) -> Result<(BurnImage<B, 3>, DicomReadMetadata)> {
-    read_dicom_series_with_metadata(path, backend)
+    read_dicom_series_with_metadata(path, device)
 }
 
 /// Read a DICOM series into a native Coeus-backed image and return metadata.
@@ -67,9 +67,9 @@ pub fn load_native_dicom_series_with_metadata<B: ComputeBackend, P: AsRef<Path>>
 /// slice metadata when present, falling back to file-path I/O otherwise.
 pub fn load_dicom_from_series<B: Backend>(
     series: DicomSeriesInfo,
-    backend: &B,
+    device: &B::Device,
 ) -> Result<(BurnImage<B, 3>, DicomReadMetadata)> {
-    load_from_series(series, backend)
+    load_from_series(series, device)
 }
 
 /// Load a pre-scanned DICOM descriptor into a native Coeus-backed image.
@@ -82,12 +82,12 @@ pub fn load_native_dicom_from_series<B: ComputeBackend>(
 
 pub(crate) fn load_from_series<B: Backend>(
     series: DicomSeriesInfo,
-    backend: &B,
+    device: &B::Device,
 ) -> Result<(BurnImage<B, 3>, DicomReadMetadata)> {
     let decoded = decode_series(series)?;
     let tensor = Tensor::<B, 3>::from_data(
-        (decoded.volume, (decoded.shape)),
-        backend,
+        TensorData::new(decoded.volume, Shape::new(decoded.shape)),
+        device,
     );
     let image = BurnImage::new(tensor, decoded.origin, decoded.spacing, decoded.direction);
 

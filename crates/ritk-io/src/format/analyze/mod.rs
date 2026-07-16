@@ -13,7 +13,7 @@ use std::path::Path;
 /// remaining tensor construction at the `ritk-io` consumer boundary.
 pub fn read_analyze<B: Backend, P: AsRef<Path>>(
     path: P,
-    _backend: &B,
+    device: &B::Device,
 ) -> Result<BurnImage<B, 3>> {
     let seq = coeus_core::SequentialBackend;
     let native = ritk_analyze::read_analyze(path, &seq)?;
@@ -22,8 +22,7 @@ pub fn read_analyze<B: Backend, P: AsRef<Path>>(
     let spacing = *native.spacing();
     let direction = *native.direction();
     let data = native.data_vec_on(&seq);
-    let device = B::default();
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(shape)), &device);
+    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(shape)), device);
     Ok(BurnImage::new(tensor, origin, spacing, direction))
 }
 
@@ -61,7 +60,7 @@ impl<B: Backend> AnalyzeReader<B> {
 
     /// Read an Analyze image into a Burn-backed image.
     pub fn read<P: AsRef<Path>>(&self, path: P) -> Result<BurnImage<B, 3>> {
-        read_analyze(path, &B::default())
+        read_analyze(path, &B::Device::default())
     }
 }
 
@@ -96,7 +95,7 @@ impl<B: Backend> Default for AnalyzeWriter<B> {
 
 impl<B: Backend> crate::domain::ImageReader<BurnImage<B, 3>> for AnalyzeReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<BurnImage<B, 3>> {
-        read_analyze(path, &B::default()).map_err(|e| std::io::Error::other(e.to_string()))
+        read_analyze(path, &B::Device::default()).map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 
@@ -129,8 +128,8 @@ pub mod native {
         }
     }
 
-    impl<B: ComputeBackend> ImageReader<Image<B, 3>> for AnalyzeReader<B> {
-        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
+    impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for AnalyzeReader<B> {
+        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
             ritk_analyze::read_analyze(path, &self.backend).map_err(to_io_err)
         }
     }
@@ -147,12 +146,12 @@ pub mod native {
         }
     }
 
-    impl<B> ImageWriter<Image<B, 3>> for AnalyzeWriter<B>
+    impl<B> ImageWriter<Image<f32, B, 3>> for AnalyzeWriter<B>
     where
         B: ComputeBackend + Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
+        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
             ritk_analyze::write_analyze(path, image, &self.backend).map_err(to_io_err)
         }
     }

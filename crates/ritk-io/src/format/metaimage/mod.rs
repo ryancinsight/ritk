@@ -9,14 +9,14 @@ use std::path::Path;
 
 fn native_to_legacy<B: Backend>(
     native: ritk_image::native::Image<f32, SequentialBackend, 3>,
-    backend: &B,
+    device: &B::Device,
 ) -> Image<B, 3> {
     let tensor = Tensor::<B, 3>::from_data(
-        (
+        TensorData::new(
             native.data_cow_on(&SequentialBackend).into_owned(),
-            (native.shape()),
+            Shape::new(native.shape()),
         ),
-        backend,
+        device,
     );
     Image::new(
         tensor,
@@ -43,10 +43,10 @@ fn legacy_metadata_to_native<B: Backend>(
 /// Reads MetaImage through the native provider and converts at this legacy boundary.
 pub fn read_metaimage<B: Backend, P: AsRef<Path>>(
     path: P,
-    backend: &B,
+    device: &B::Device,
 ) -> Result<Image<B, 3>> {
     ritk_metaimage::read_metaimage(path, &SequentialBackend)
-        .map(|native| native_to_legacy(native, backend))
+        .map(|native| native_to_legacy(native, device))
 }
 
 /// Writes a legacy image through the native MetaImage provider.
@@ -73,9 +73,9 @@ impl MetaImageReader {
     pub fn read<B: Backend, P: AsRef<Path>>(
         &self,
         path: P,
-        backend: &B,
+        device: &B::Device,
     ) -> Result<Image<B, 3>> {
-        read_metaimage(path, backend)
+        read_metaimage(path, device)
     }
 }
 
@@ -107,8 +107,8 @@ pub mod native {
         }
     }
 
-    impl<B: ComputeBackend> ImageReader<Image<B, 3>> for MetaImageReader<B> {
-        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
+    impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for MetaImageReader<B> {
+        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
             ritk_metaimage::read_metaimage(path, &self.backend).map_err(to_io_err)
         }
     }
@@ -125,12 +125,12 @@ pub mod native {
         }
     }
 
-    impl<B> ImageWriter<Image<B, 3>> for MetaImageWriter<B>
+    impl<B> ImageWriter<Image<f32, B, 3>> for MetaImageWriter<B>
     where
         B: ComputeBackend + Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
+        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
             ritk_metaimage::write_metaimage(path, image, &self.backend).map_err(to_io_err)
         }
     }

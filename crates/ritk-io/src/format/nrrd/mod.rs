@@ -9,14 +9,14 @@ use std::path::Path;
 
 fn native_to_legacy<B: Backend>(
     native: ritk_image::native::Image<f32, SequentialBackend, 3>,
-    backend: &B,
+    device: &B::Device,
 ) -> Image<B, 3> {
     let tensor = Tensor::<B, 3>::from_data(
-        (
+        TensorData::new(
             native.data_cow_on(&SequentialBackend).into_owned(),
-            (native.shape()),
+            Shape::new(native.shape()),
         ),
-        backend,
+        device,
     );
     Image::new(
         tensor,
@@ -41,8 +41,8 @@ fn legacy_metadata_to_native<B: Backend>(
 }
 
 /// Reads NRRD through the native provider and converts at this legacy boundary.
-pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, backend: &B) -> Result<Image<B, 3>> {
-    ritk_nrrd::read_nrrd(path, &SequentialBackend).map(|native| native_to_legacy(native, backend))
+pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B::Device) -> Result<Image<B, 3>> {
+    ritk_nrrd::read_nrrd(path, &SequentialBackend).map(|native| native_to_legacy(native, device))
 }
 
 /// Writes a legacy image through the native NRRD provider.
@@ -69,9 +69,9 @@ impl NrrdReader {
     pub fn read<B: Backend, P: AsRef<Path>>(
         &self,
         path: P,
-        backend: &B,
+        device: &B::Device,
     ) -> Result<Image<B, 3>> {
-        read_nrrd(path, backend)
+        read_nrrd(path, device)
     }
 }
 
@@ -103,8 +103,8 @@ pub mod native {
         }
     }
 
-    impl<B: ComputeBackend> ImageReader<Image<B, 3>> for NrrdReader<B> {
-        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
+    impl<B: ComputeBackend> ImageReader<Image<f32, B, 3>> for NrrdReader<B> {
+        fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
             ritk_nrrd::read_nrrd(path, &self.backend).map_err(to_io_err)
         }
     }
@@ -121,12 +121,12 @@ pub mod native {
         }
     }
 
-    impl<B> ImageWriter<Image<B, 3>> for NrrdWriter<B>
+    impl<B> ImageWriter<Image<f32, B, 3>> for NrrdWriter<B>
     where
         B: ComputeBackend + Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<B, 3>) -> std::io::Result<()> {
+        fn write<P: AsRef<Path>>(&self, path: P, image: &Image<f32, B, 3>) -> std::io::Result<()> {
             ritk_nrrd::write_nrrd(path, image, &self.backend).map_err(to_io_err)
         }
     }

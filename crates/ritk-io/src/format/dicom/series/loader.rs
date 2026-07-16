@@ -26,11 +26,13 @@ use super::types::DicomSeriesInfo;
 /// Performs rigorous checks for spatial consistency (uniform spacing, orientation).
 pub fn load_dicom_series<B: Backend>(
     series: &DicomSeriesInfo,
-    backend: &B,
+    device: &B::Device,
 ) -> Result<Image<B, 3>> {
     let decoded = decode_series(series)?;
-    let data = (decoded.voxels, (decoded.shape));
-    let tensor = Tensor::<B, 3>::from_data(data, backend);
+    let tensor = Tensor::<B, 3>::from_data(
+        TensorData::new(decoded.voxels, Shape::new(decoded.shape)),
+        device,
+    );
 
     Ok(Image::new(
         tensor,
@@ -264,7 +266,7 @@ fn decode_series(series: &DicomSeriesInfo) -> Result<DecodedDicomSeries> {
 /// If multiple series exist, it errors out to avoid ambiguity.
 pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
     path: P,
-    backend: &B,
+    device: &B::Device,
 ) -> Result<Image<B, 3>> {
     let path_ref = path.as_ref().to_path_buf();
 
@@ -279,7 +281,7 @@ pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
         );
     }
 
-    load_dicom_series(&series_list[0], backend)
+    load_dicom_series(&series_list[0], device)
 }
 
 /// Convenience function to read a single series into a native Coeus-backed image.
@@ -346,7 +348,7 @@ impl<B: Backend> DicomReader<B> {
 
 impl<B: Backend> ImageReader<Image<B, 3>> for DicomReader<B> {
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
-        read_dicom_series(path, &self.backend).map_err(|e| std::io::Error::other(e.to_string()))
+        read_dicom_series(path, &self.device).map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 
