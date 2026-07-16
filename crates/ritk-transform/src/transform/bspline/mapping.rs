@@ -1,6 +1,6 @@
 use super::BSplineTransform;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor};
 
 /// Minimum pivot magnitude for B-spline mapping inverse; guards against singular matrices.
 /// Practical threshold above f32 minimum normal (~1.2e-38).
@@ -114,9 +114,9 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     /// Convert physical points to continuous grid indices.
     ///
     /// Maps from physical space to index space.
-    pub(crate) fn world_to_grid_tensor(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
-        let device = points.device();
-        let [_n_points, _] = points.dims();
+    pub(crate) fn world_to_grid_tensor(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
+        let device = B::default();
+        let [_n_points, _] = points.shape();
 
         // 1. Prepare Origin Tensor [1, D]
         let origin_tensor = self.origin.clone().reshape([1, D]);
@@ -163,7 +163,7 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         }
 
         let t_tensor =
-            Tensor::<B, 2>::from_data(TensorData::new(t_data, Shape::new([D, D])), &device);
+            Tensor::<f32, B>::from_data((t_data, ([D, D])), &device);
 
         // Apply transform: (points - origin) @ T
         let diff = points - origin_tensor;

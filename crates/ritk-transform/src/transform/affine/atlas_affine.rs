@@ -185,7 +185,7 @@ impl<B: ComputeBackend, const D: usize> AtlasAffineTransform<B, D> {
     /// re-wraps the result in the Atlas-typed image carrier.
     /// `points` is always rank-2 with shape `[N, D]` (last axis width =
     /// outer `D`), and the output is also rank-2 — matching the legacy
-    /// `Tensor<B, 2>::transform_points` contract verbatim (legacy never
+    /// `Tensor<f32, B>::transform_points` contract verbatim (legacy never
     /// varies by per-rank generic for the points carrier).
     pub fn transform_points<BB>(
         &self,

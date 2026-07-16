@@ -4,7 +4,7 @@
 
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_core::transform::{Resampleable, Transform};
-use ritk_image::burn::module::{Module, Param};
+use burn::module::Module;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 use ritk_wgpu_compat::apply_row_chunks;
@@ -13,11 +13,11 @@ use ritk_wgpu_compat::apply_row_chunks;
 ///
 /// Supports 2D (1 angle) and 3D (3 Euler angles: ZYX convention).
 /// Includes a fixed center of rotation: T(x) = R(x - c) + c + t
-#[derive(Module, Debug)]
+#[derive(Clone, Debug)]
 pub struct RigidTransform<B: Backend, const D: usize> {
-    translation: Param<Tensor<B, 1>>,
-    rotation: Param<Tensor<B, 1>>, // [3] for 3D (x, y, z radians), [1] for 2D
-    center: Tensor<B, 1>,          // Fixed center of rotation
+    translation: Tensor<f32, B>,
+    rotation: Tensor<f32, B>, // [3] for 3D (x, y, z radians), [1] for 2D
+    center: Tensor<f32, B>,          // Fixed center of rotation
 }
 
 impl<B: Backend, const D: usize> RigidTransform<B, D> {
@@ -27,7 +27,7 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
     /// * `translation` - Tensor of shape `[D]` containing the translation vector
     /// * `rotation` - Tensor of shape `[1]` for 2D (angle in radians) or `[3]` for 3D (Euler angles in radians)
     /// * `center` - Tensor of shape `[D]` containing the fixed center of rotation
-    pub fn new(translation: Tensor<B, 1>, rotation: Tensor<B, 1>, center: Tensor<B, 1>) -> Self {
+    pub fn new(translation: Tensor<f32, B>, rotation: Tensor<f32, B>, center: Tensor<f32, B>) -> Self {
         Self {
             translation: Param::from_tensor(translation),
             rotation: Param::from_tensor(rotation),
@@ -36,17 +36,17 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
     }
 
     /// Get the translation vector.
-    pub fn translation(&self) -> Tensor<B, 1> {
+    pub fn translation(&self) -> Tensor<f32, B> {
         self.translation.val().clone()
     }
 
     /// Get the rotation angles.
-    pub fn rotation(&self) -> Tensor<B, 1> {
+    pub fn rotation(&self) -> Tensor<f32, B> {
         self.rotation.val().clone()
     }
 
     /// Get the center of rotation.
-    pub fn center(&self) -> Tensor<B, 1> {
+    pub fn center(&self) -> Tensor<f32, B> {
         self.center.clone()
     }
 
@@ -54,14 +54,14 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
     ///
     /// Returns a matrix of shape `[D+1, D+1]` representing the affine transform.
     /// For 3D: [R, t'; 0, 1] where t' = t + c - R@c
-    pub fn matrix(&self) -> Tensor<B, 2> {
+    pub fn matrix(&self) -> Tensor<f32, B> {
         let r = self.build_rotation_matrix();
         let t = self.translation.val();
         let c = self.center.clone();
         let rc = r.clone().matmul(c.clone().reshape([D, 1])).squeeze(); // R @ c
         let t_prime = t + c - rc; // t + c - R@c
 
-        let mut matrix = Tensor::<B, 2>::zeros([D + 1, D + 1], &self.center.device());
+        let mut matrix = Tensor::<f32, B>::zeros([D + 1, D + 1], &B::default());
         // Set rotation part
         matrix = matrix.slice_assign([0..D, 0..D], r);
         // Set translation part
@@ -69,7 +69,7 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
         // Set bottom right to 1
         matrix = matrix.slice_assign(
             [D..D + 1, D..D + 1],
-            Tensor::<B, 2>::ones([1, 1], &self.center.device()),
+            Tensor::<f32, B>::ones([1, 1], &B::default()),
         );
         matrix
     }
@@ -79,10 +79,10 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
     /// # Arguments
     /// * `center` - Optional center of rotation. If None, uses origin (0,0...0).
     /// * `device` - Device to create tensors on.
-    pub fn identity(center: Option<Tensor<B, 1>>, device: &B::Device) -> Self {
-        let translation = Tensor::<B, 1>::zeros([D], device);
-        let rotation = Tensor::<B, 1>::zeros([if D == 3 { 3 } else { 1 }], device);
-        let center = center.unwrap_or_else(|| Tensor::<B, 1>::zeros([D], device));
+    pub fn identity(center: Option<Tensor<f32, B>>, device: &B) -> Self {
+        let translation = Tensor::<f32, B>::zeros([D], device);
+        let rotation = Tensor::<f32, B>::zeros([if D == 3 { 3 } else { 1 }], device);
+        let center = center.unwrap_or_else(|| Tensor::<f32, B>::zeros([D], device));
         Self::new(translation, rotation, center)
     }
 
@@ -92,9 +92,9 @@ impl<B: Backend, const D: usize> RigidTransform<B, D> {
     /// then uploads the result as a single `[D, D]` tensor. This avoids the
     /// ~40 intermediate tensor allocations that the previous tensor-only
     /// formulation required.
-    pub fn build_rotation_matrix(&self) -> Tensor<B, 2> {
+    pub fn build_rotation_matrix(&self) -> Tensor<f32, B> {
         let r = self.rotation.val();
-        let dev = r.device();
+        let dev = B::default();
 
         if D == 3 {
             // Euler angles: x (alpha), y (beta), z (gamma)
@@ -191,7 +191,7 @@ impl<B: Backend, const D: usize> Resampleable<B, D> for RigidTransform<B, D> {
 }
 
 impl<B: Backend, const D: usize> Transform<B, D> for RigidTransform<B, D> {
-    fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
+    fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
         // points: [Batch, D]
         // R: [D, D]
         // t: [D]

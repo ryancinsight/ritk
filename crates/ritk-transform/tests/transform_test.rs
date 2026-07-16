@@ -1,4 +1,4 @@
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor as CoeusTensor;
@@ -8,7 +8,7 @@ use ritk_transform::Transform;
 use ritk_transform::{DisplacementField, DisplacementFieldTransform, RigidTransform};
 use std::f32::consts::PI;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
 const ABS_TOL: f32 = 1e-5;
 

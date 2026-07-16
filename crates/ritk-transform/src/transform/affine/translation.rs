@@ -4,16 +4,16 @@
 
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_core::transform::{Resampleable, Transform};
-use ritk_image::burn::module::{Module, Param};
+use burn::module::Module;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 
 /// Simple Translation Transform.
 ///
 /// Translates points by a fixed offset vector.
-#[derive(Module, Debug)]
+#[derive(Clone, Debug)]
 pub struct TranslationTransform<B: Backend, const D: usize> {
-    translation: Param<Tensor<B, 1>>,
+    translation: Tensor<f32, B>,
 }
 
 impl<B: Backend, const D: usize> TranslationTransform<B, D> {
@@ -21,20 +21,20 @@ impl<B: Backend, const D: usize> TranslationTransform<B, D> {
     ///
     /// # Arguments
     /// * `translation` - Tensor of shape `[D]` containing the translation vector
-    pub fn new(translation: Tensor<B, 1>) -> Self {
+    pub fn new(translation: Tensor<f32, B>) -> Self {
         Self {
             translation: Param::from_tensor(translation),
         }
     }
 
     /// Get the translation vector.
-    pub fn translation(&self) -> Tensor<B, 1> {
+    pub fn translation(&self) -> Tensor<f32, B> {
         self.translation.val().clone()
     }
 }
 
 impl<B: Backend, const D: usize> Transform<B, D> for TranslationTransform<B, D> {
-    fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
+    fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
         // points: [Batch, D]
         // translation: [D]
         // Broadcast translation to [Batch, D]
@@ -59,18 +59,18 @@ impl<B: Backend, const D: usize> Resampleable<B, D> for TranslationTransform<B, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
+    use coeus_core::SequentialBackend;
 
-    type TestBackend = NdArray<f32>;
+    type TestBackend = SequentialBackend;
 
     #[test]
     fn test_translation_transform() {
         let device = Default::default();
-        let translation = Tensor::<TestBackend, 1>::from_floats([1.0, 2.0, 3.0], &device);
+        let translation = Tensor::<f32, TestBackend>::from_floats([1.0, 2.0, 3.0], &device);
         let transform = TranslationTransform::<TestBackend, 3>::new(translation);
 
         let points =
-            Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], &device);
+            Tensor::<f32, TestBackend>::from_floats([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], &device);
 
         let transformed = transform.transform_points(points);
         let data = transformed.to_data();

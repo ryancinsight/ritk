@@ -4,7 +4,7 @@ use ritk_image::tensor::Tensor;
 
 impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     /// Compute Cubic B-Spline basis functions.
-    pub(crate) fn bspline_basis(u: Tensor<B, 1>) -> [Tensor<B, 1>; 4] {
+    pub(crate) fn bspline_basis(u: Tensor<f32, B>) -> [Tensor<f32, B>; 4] {
         // u is in [0, 1)
         let one = 1.0;
         let two = 2.0;
@@ -35,7 +35,7 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     }
 
     /// Compute Cubic B-Spline basis functions and stack them into a tensor [Batch, 4].
-    pub(crate) fn compute_basis_tensor(u: Tensor<B, 1>) -> Tensor<B, 2> {
+    pub(crate) fn compute_basis_tensor(u: Tensor<f32, B>) -> Tensor<f32, B> {
         let [b0, b1, b2, b3] = Self::bspline_basis(u);
         // Stack along dim 1: [Batch, 1] -> [Batch, 4]
         Tensor::cat(

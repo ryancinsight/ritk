@@ -4,12 +4,7 @@
 //! T(x) = T2(T1(x))
 
 use ritk_core::transform::Transform;
-use ritk_image::burn::module::{
-    AutodiffModule, Content, Module, ModuleDisplay, ModuleDisplayDefault,
-};
-use ritk_image::burn::record::{PrecisionSettings, Record};
-use ritk_image::tensor::backend::{AutodiffBackend, Backend};
-use ritk_image::tensor::Tensor;
+use ritk_image::tensor::{Backend, Tensor};
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
@@ -47,7 +42,7 @@ where
         }
     }
 
-    fn from_item<S: PrecisionSettings>(item: Self::Item<S>, device: &B::Device) -> Self {
+    fn from_item<S: PrecisionSettings>(item: Self::Item<S>, device: &B) -> Self {
         ChainedTransformRecord {
             first: Record::<B>::from_item(item.first, device),
             second: Record::<B>::from_item(item.second, device),
@@ -75,12 +70,12 @@ impl<B: Backend, T1: Module<B>, T2: Module<B>, const D: usize> Module<B>
 {
     type Record = ChainedTransformRecord<T1::Record, T2::Record>;
 
-    fn visit<V: ritk_image::burn::module::ModuleVisitor<B>>(&self, visitor: &mut V) {
+    fn visit<V: burn::module::ModuleVisitor<B>>(&self, visitor: &mut V) {
         self.first.visit(visitor);
         self.second.visit(visitor);
     }
 
-    fn map<M: ritk_image::burn::module::ModuleMapper<B>>(self, mapper: &mut M) -> Self {
+    fn map<M: burn::module::ModuleMapper<B>>(self, mapper: &mut M) -> Self {
         Self {
             first: self.first.map(mapper),
             second: self.second.map(mapper),
@@ -103,12 +98,12 @@ impl<B: Backend, T1: Module<B>, T2: Module<B>, const D: usize> Module<B>
         }
     }
 
-    fn collect_devices(&self, devices: Vec<B::Device>) -> Vec<B::Device> {
+    fn collect_devices(&self, devices: Vec<B>) -> Vec<B> {
         let devices = self.first.collect_devices(devices);
         self.second.collect_devices(devices)
     }
 
-    fn to_device(self, device: &B::Device) -> Self {
+    fn to_device(self, device: &B) -> Self {
         Self {
             first: self.first.to_device(device),
             second: self.second.to_device(device),
@@ -116,7 +111,7 @@ impl<B: Backend, T1: Module<B>, T2: Module<B>, const D: usize> Module<B>
         }
     }
 
-    fn fork(self, device: &B::Device) -> Self {
+    fn fork(self, device: &B) -> Self {
         Self {
             first: self.first.fork(device),
             second: self.second.fork(device),
@@ -163,7 +158,7 @@ where
     T1: Transform<B, D> + Module<B>,
     T2: Transform<B, D> + Module<B>,
 {
-    fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
+    fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
         let intermediate = self.first.transform_points(points);
         self.second.transform_points(intermediate)
     }
@@ -173,10 +168,10 @@ where
 mod tests {
     use super::*;
     use crate::transform::affine::translation::TranslationTransform;
-    use burn_ndarray::NdArray;
+    use coeus_core::SequentialBackend;
     use ritk_image::tensor::TensorData;
 
-    type TestBackend = NdArray<f32>;
+    type TestBackend = SequentialBackend;
 
     #[test]
     fn chained_translations_sum_additively() {
@@ -184,12 +179,12 @@ mod tests {
 
         // T1: Translate by [1, 0]
         let t1_data = TensorData::from([1.0, 0.0]);
-        let t1_tensor = Tensor::<TestBackend, 1>::from_data(t1_data, &device);
+        let t1_tensor = Tensor::<f32, TestBackend>::from_data(t1_data, &device);
         let t1 = TranslationTransform::<TestBackend, 2>::new(t1_tensor);
 
         // T2: Translate by [0, 1]
         let t2_data = TensorData::from([0.0, 1.0]);
-        let t2_tensor = Tensor::<TestBackend, 1>::from_data(t2_data, &device);
+        let t2_tensor = Tensor::<f32, TestBackend>::from_data(t2_data, &device);
         let t2 = TranslationTransform::<TestBackend, 2>::new(t2_tensor);
 
         // Chain: T2(T1(x))
@@ -198,7 +193,7 @@ mod tests {
         // Point: [0, 0]
         // T1 -> [1, 0]
         // T2 -> [1, 1]
-        let points = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0]], &device);
+        let points = Tensor::<f32, TestBackend>::from_floats([[0.0, 0.0]], &device);
         let transformed = chain.transform_points(points);
 
         let data = transformed.into_data();

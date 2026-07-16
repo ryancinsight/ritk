@@ -40,14 +40,47 @@ pub mod tensor {
 
     pub use coeus_core::{Backend, ComputeBackend, Float, Scalar};
     pub use coeus_tensor::Tensor;
+    pub type Int = i32;
 
     /// Shape alias — coeus uses `Vec<usize>` / `&[usize]` rather than a
     /// dedicated `Shape` type. This newtype preserves call-site ergonomics.
     pub type Shape = Vec<usize>;
 
-    /// Construct a coeus shape from an array (replaces `burn::tensor::Shape::new`).
+    /// Construct a coeus shape from an array (replaces `burn::tensor::`).
     pub fn shape(dims: impl IntoIterator<Item = usize>) -> Shape {
         dims.into_iter().collect()
+    }
+
+    /// Minimal compatibility re-export for legacy `ritk_image::burn::*` imports.
+    pub mod burn {
+        pub mod module {
+            pub trait Module<B>: Clone {}
+            pub trait AutodiffModule<B>: Clone {
+                type InnerModule;
+                fn valid(&self) -> Self::InnerModule;
+            }
+            pub trait ModuleVisitor<B> {}
+            pub trait ModuleMapper<B> {}
+            pub trait ModuleDisplay {}
+            pub trait ModuleDisplayDefault {
+                fn content(&self, content: Content) -> Option<Content>;
+            }
+            #[derive(Clone, Default)]
+            pub struct Content;
+            impl Content {
+                pub fn set_top_level_type(self, _name: &str) -> Self {
+                    self
+                }
+            }
+        }
+        pub mod record {
+            pub trait PrecisionSettings {}
+            pub trait Record<B>: Clone {
+                type Item<S: PrecisionSettings>;
+                fn into_item<S: PrecisionSettings>(self) -> Self::Item<S>;
+                fn from_item<S: PrecisionSettings>(item: Self::Item<S>, _device: &B) -> Self;
+            }
+        }
     }
 }
 

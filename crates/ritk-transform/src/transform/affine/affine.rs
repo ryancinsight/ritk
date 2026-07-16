@@ -4,7 +4,6 @@
 
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_core::transform::{Resampleable, Transform};
-use ritk_image::burn::module::{Module, Param};
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 use ritk_wgpu_compat::apply_row_chunks;
@@ -18,11 +17,11 @@ use ritk_wgpu_compat::apply_row_chunks;
 /// * A is a D×D matrix (linear transformation: rotation, scale, shear)
 /// * t is a D-dimensional translation vector
 /// * c is a D-dimensional fixed center of rotation/scaling
-#[derive(Module, Debug)]
+#[derive(Clone, Debug)]
 pub struct AffineTransform<B: Backend, const D: usize> {
-    matrix: Param<Tensor<B, 2>>,      // [D, D] linear transformation matrix
-    translation: Param<Tensor<B, 1>>, // [D] translation vector
-    center: Tensor<B, 1>,             // [D] fixed center
+    matrix: Tensor<f32, B>,      // [D, D] linear transformation matrix
+    translation: Tensor<f32, B>, // [D] translation vector
+    center: Tensor<f32, B>,             // [D] fixed center
 }
 
 impl<B: Backend, const D: usize> AffineTransform<B, D> {
@@ -32,14 +31,14 @@ impl<B: Backend, const D: usize> AffineTransform<B, D> {
     /// * `matrix` - Tensor of shape `[D, D]` containing the linear transformation matrix
     /// * `translation` - Tensor of shape `[D]` containing the translation vector
     /// * `center` - Tensor of shape `[D]` containing the fixed center
-    pub fn new(matrix: Tensor<B, 2>, translation: Tensor<B, 1>, center: Tensor<B, 1>) -> Self {
+    pub fn new(matrix: Tensor<f32, B>, translation: Tensor<f32, B>, center: Tensor<f32, B>) -> Self {
         // The linear part must be [D, D]. A common mistake is to seed an affine
         // from `RigidTransform::matrix()`, which returns the [D+1, D+1]
         // homogeneous form `[R, t'; 0, 1]`; `transform_points` would then
         // mis-multiply `[N, D] @ [D+1, D+1]` and panic deep inside the backend.
         // Use `RigidTransform::build_rotation_matrix()` (the [D, D] rotation) to
         // seed instead. Fail here, loudly and actionably.
-        let [rows, cols] = matrix.dims();
+        let [rows, cols] = matrix.shape();
         assert!(
             rows == D && cols == D,
             "AffineTransform::new expects a [D, D] linear matrix (D = {D}), got [{rows}, {cols}]; \
@@ -47,8 +46,8 @@ impl<B: Backend, const D: usize> AffineTransform<B, D> {
              not `matrix()` (the [D+1, D+1] homogeneous form)"
         );
         Self {
-            matrix: Param::from_tensor(matrix),
-            translation: Param::from_tensor(translation),
+            matrix,
+            translation,
             center,
         }
     }
@@ -58,38 +57,36 @@ impl<B: Backend, const D: usize> AffineTransform<B, D> {
     /// # Arguments
     /// * `center` - Optional center of rotation. If None, uses origin (0,0...0).
     /// * `device` - Device to create tensors on.
-    pub fn identity(center: Option<Tensor<B, 1>>, device: &B::Device) -> Self {
+    pub fn identity(center: Option<Tensor<f32, B>>, device: &B) -> Self {
         let mut matrix_data = vec![0.0f32; D * D];
         for i in 0..D {
             matrix_data[i * (D + 1)] = 1.0;
         }
-        let data = ritk_image::tensor::TensorData::from(matrix_data.as_slice());
-        let matrix = Tensor::<B, 1>::from_data(data, device).reshape([D, D]);
-
-        let translation = Tensor::<B, 1>::zeros([D], device);
-        let center = center.unwrap_or_else(|| Tensor::<B, 1>::zeros([D], device));
+        let matrix = Tensor::<f32, B>::from_slice_on([D, D], &matrix_data, device);
+        let translation = Tensor::<f32, B>::zeros_on([D], device);
+        let center = center.unwrap_or_else(|| Tensor::<f32, B>::zeros_on([D], device));
 
         Self::new(matrix, translation, center)
     }
 
     /// Get the transformation matrix.
-    pub fn matrix(&self) -> Tensor<B, 2> {
-        self.matrix.val()
+    pub fn matrix(&self) -> Tensor<f32, B> {
+        self.matrix.clone()
     }
 
     /// Get the translation vector.
-    pub fn translation(&self) -> Tensor<B, 1> {
-        self.translation.val()
+    pub fn translation(&self) -> Tensor<f32, B> {
+        self.translation.clone()
     }
 
     /// Get the center of rotation.
-    pub fn center(&self) -> Tensor<B, 1> {
+    pub fn center(&self) -> Tensor<f32, B> {
         self.center.clone()
     }
 }
 
 impl<B: Backend, const D: usize> Transform<B, D> for AffineTransform<B, D> {
-    fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
+    fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
         // points: [Batch, D]
         // matrix (A): [D, D]
         // translation (t): [D]

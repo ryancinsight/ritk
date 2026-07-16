@@ -15,8 +15,8 @@ use ritk_wgpu_compat::apply_row_chunks;
 #[inline]
 pub(super) fn transform_4d<B: Backend, const D: usize>(
     t: &BSplineTransform<B, D>,
-    points: Tensor<B, 2>,
-) -> Tensor<B, 2> {
+    points: Tensor<f32, B>,
+) -> Tensor<f32, B> {
     apply_row_chunks(points, ritk_wgpu_compat::WGPU_CHUNK_SIZE_4D, |chunk| {
         transform_4d_chunk(t, chunk)
     })
@@ -25,16 +25,16 @@ pub(super) fn transform_4d<B: Backend, const D: usize>(
 #[inline]
 fn transform_4d_chunk<B: Backend, const D: usize>(
     t: &BSplineTransform<B, D>,
-    points: Tensor<B, 2>,
-) -> Tensor<B, 2> {
-    let device = points.device();
+    points: Tensor<f32, B>,
+) -> Tensor<f32, B> {
+    let device = B::default();
     let batch_size = points.shape().dims[0];
 
     let grid_coords = t.world_to_grid_tensor(points.clone());
 
     // Mask
-    let zero_tensor = Tensor::<B, 1>::zeros([4], &device).reshape([1, 4]);
-    let size_tensor = Tensor::<B, 1>::from_floats(
+    let zero_tensor = Tensor::<f32, B>::zeros([4], &device).reshape([1, 4]);
+    let size_tensor = Tensor::<f32, B>::from_floats(
         [
             t.grid_size[0] as f32 - 1.0,
             t.grid_size[1] as f32 - 1.0,
@@ -99,7 +99,7 @@ fn transform_4d_chunk<B: Backend, const D: usize>(
     let nz = t.grid_size[2] as i32;
     let nw = t.grid_size[3] as i32;
 
-    let range = Tensor::<B, 1, ritk_image::tensor::Int>::from_ints([0, 1, 2, 3], &device);
+    let range = Tensor::<i32, B>::from_ints([0, 1, 2, 3], &device);
 
     let i_idx = range.clone().reshape([1, 4, 1, 1, 1]);
     let j_idx = range.clone().reshape([1, 1, 4, 1, 1]);
@@ -136,7 +136,7 @@ fn transform_4d_chunk<B: Backend, const D: usize>(
     let idx_z = base_z + k_idx;
     let idx_w = base_w + l_idx;
 
-    let zeros = Tensor::<B, 5, ritk_image::tensor::Int>::zeros([1, 4, 4, 4, 4], &device);
+    let zeros = Tensor::<B, 5, i32>::zeros([1, 4, 4, 4, 4], &device);
 
     let idx_x_flat = (idx_x + zeros.clone()).reshape([batch_size, 256]);
     let idx_y_flat = (idx_y + zeros.clone()).reshape([batch_size, 256]);

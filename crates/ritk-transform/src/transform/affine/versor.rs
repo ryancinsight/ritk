@@ -4,7 +4,7 @@
 //! It is robust against Gimbal lock and is suitable for 3D registration.
 
 use ritk_core::transform::Transform;
-use ritk_image::burn::module::{Module, Param};
+use burn::module::Module;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 
@@ -12,11 +12,11 @@ use ritk_image::tensor::Tensor;
 ///
 /// Supports 3D only.
 /// Includes a fixed center of rotation: T(x) = R(x - c) + c + t
-#[derive(Module, Debug)]
+#[derive(Clone, Debug)]
 pub struct VersorRigid3DTransform<B: Backend> {
-    translation: Param<Tensor<B, 1>>,
-    rotation: Param<Tensor<B, 1>>, // [4] Quaternion (x, y, z, w)
-    center: Tensor<B, 1>,          // Fixed center of rotation
+    translation: Tensor<f32, B>,
+    rotation: Tensor<f32, B>, // [4] Quaternion (x, y, z, w)
+    center: Tensor<f32, B>,          // Fixed center of rotation
 }
 
 impl<B: Backend> VersorRigid3DTransform<B> {
@@ -26,7 +26,7 @@ impl<B: Backend> VersorRigid3DTransform<B> {
     /// * `translation` - Tensor of shape `[3]` containing the translation vector
     /// * `rotation` - Tensor of shape `[4]` containing the quaternion (x, y, z, w)
     /// * `center` - Tensor of shape `[3]` containing the fixed center of rotation
-    pub fn new(translation: Tensor<B, 1>, rotation: Tensor<B, 1>, center: Tensor<B, 1>) -> Self {
+    pub fn new(translation: Tensor<f32, B>, rotation: Tensor<f32, B>, center: Tensor<f32, B>) -> Self {
         Self {
             translation: Param::from_tensor(translation),
             rotation: Param::from_tensor(rotation),
@@ -35,17 +35,17 @@ impl<B: Backend> VersorRigid3DTransform<B> {
     }
 
     /// Get the translation vector.
-    pub fn translation(&self) -> Tensor<B, 1> {
+    pub fn translation(&self) -> Tensor<f32, B> {
         self.translation.val().clone()
     }
 
     /// Get the rotation quaternion.
-    pub fn rotation(&self) -> Tensor<B, 1> {
+    pub fn rotation(&self) -> Tensor<f32, B> {
         self.rotation.val().clone()
     }
 
     /// Get the center of rotation.
-    pub fn center(&self) -> Tensor<B, 1> {
+    pub fn center(&self) -> Tensor<f32, B> {
         self.center.clone()
     }
 
@@ -56,9 +56,9 @@ impl<B: Backend> VersorRigid3DTransform<B> {
     /// `[3, 3]` tensor. This avoids the ~28 intermediate tensor allocations
     /// (clones, element-wise products, scalar constants) that the previous
     /// tensor-only formulation required.
-    fn build_rotation_matrix(&self) -> Tensor<B, 2> {
+    fn build_rotation_matrix(&self) -> Tensor<f32, B> {
         let q = self.rotation.val();
-        let dev = q.device();
+        let dev = B::default();
 
         // Extract normalised quaternion components as host scalars.
         let norm_data = q.clone().powf_scalar(2.0).sum().sqrt().into_data();
@@ -99,7 +99,7 @@ impl<B: Backend> VersorRigid3DTransform<B> {
         let r32 = 2.0 * (yz + xw);
         let r33 = 1.0 - 2.0 * (xx + yy);
 
-        Tensor::<B, 2>::from_floats(
+        Tensor::<f32, B>::from_floats(
             [
                 [r11 as f32, r12 as f32, r13 as f32],
                 [r21 as f32, r22 as f32, r23 as f32],
@@ -111,7 +111,7 @@ impl<B: Backend> VersorRigid3DTransform<B> {
 }
 
 impl<B: Backend> Transform<B, 3> for VersorRigid3DTransform<B> {
-    fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
+    fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
         // points: [Batch, 3]
         // R: [3, 3]
         // t: [3]
@@ -132,19 +132,19 @@ impl<B: Backend> Transform<B, 3> for VersorRigid3DTransform<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
+    use coeus_core::SequentialBackend;
 
-    type TestBackend = NdArray<f32>;
+    type TestBackend = SequentialBackend;
 
     #[test]
     fn identity_quaternion_leaves_point_unchanged() {
         let device = Default::default();
-        let translation = Tensor::<TestBackend, 1>::zeros([3], &device);
-        let rotation = Tensor::<TestBackend, 1>::from_floats([0.0, 0.0, 0.0, 1.0], &device); // Identity quaternion (x=0,y=0,z=0,w=1)
-        let center = Tensor::<TestBackend, 1>::zeros([3], &device);
+        let translation = Tensor::<f32, TestBackend>::zeros([3], &device);
+        let rotation = Tensor::<f32, TestBackend>::from_floats([0.0, 0.0, 0.0, 1.0], &device); // Identity quaternion (x=0,y=0,z=0,w=1)
+        let center = Tensor::<f32, TestBackend>::zeros([3], &device);
         let transform = VersorRigid3DTransform::<TestBackend>::new(translation, rotation, center);
 
-        let points = Tensor::<TestBackend, 2>::from_floats([[1.0, 2.0, 3.0]], &device);
+        let points = Tensor::<f32, TestBackend>::from_floats([[1.0, 2.0, 3.0]], &device);
 
         let transformed = transform.transform_points(points);
         let data = transformed.to_data();
@@ -158,16 +158,16 @@ mod tests {
     #[test]
     fn rotation_x_90deg_maps_y_to_z() {
         let device = Default::default();
-        let translation = Tensor::<TestBackend, 1>::zeros([3], &device);
+        let translation = Tensor::<f32, TestBackend>::zeros([3], &device);
         // Rotate 90 degrees around X axis
         // q = [sin(45)*1, 0, 0, cos(45)] = [1/√2, 0, 0, 1/√2]
         let s = std::f32::consts::FRAC_1_SQRT_2;
-        let rotation = Tensor::<TestBackend, 1>::from_floats([s, 0.0, 0.0, s], &device);
-        let center = Tensor::<TestBackend, 1>::zeros([3], &device);
+        let rotation = Tensor::<f32, TestBackend>::from_floats([s, 0.0, 0.0, s], &device);
+        let center = Tensor::<f32, TestBackend>::zeros([3], &device);
         let transform = VersorRigid3DTransform::<TestBackend>::new(translation, rotation, center);
 
         // Point (0, 1, 0) should rotate to (0, 0, 1)
-        let points = Tensor::<TestBackend, 2>::from_floats([[0.0, 1.0, 0.0]], &device);
+        let points = Tensor::<f32, TestBackend>::from_floats([[0.0, 1.0, 0.0]], &device);
 
         let transformed = transform.transform_points(points);
         let data = transformed.to_data();

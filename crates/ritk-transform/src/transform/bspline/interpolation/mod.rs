@@ -40,7 +40,7 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
 
 impl<B: Backend, const D: usize> Transform<B, D> for BSplineTransform<B, D> {
     #[inline]
-    fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
+    fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
         // Force monomorphization of the const assert at every use site.
         let _: () = Self::_SUPPORTED_DIM;
         match D {
