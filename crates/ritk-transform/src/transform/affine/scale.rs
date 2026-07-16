@@ -3,9 +3,9 @@
 //! This module provides a scale transform (scaling around a center).
 
 use ritk_core::transform::Transform;
-use coeus_core::CpuAddressableStorage;
-use coeus_core::Backend;
-use coeus_tensor::Tensor;
+use ritk_image::burn::module::{Module, Param};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 
 /// Scale Transform.
 ///
@@ -15,10 +15,10 @@ use coeus_tensor::Tensor;
 /// where:
 /// * S is a D-dimensional scale vector (diagonal matrix)
 /// * c is a D-dimensional fixed center of scaling
-#[derive(Clone)]
+#[derive(Module, Debug)]
 pub struct ScaleTransform<B: Backend, const D: usize> {
-    scale: Tensor<f32, B>, // [D] scale factors
-    center: Tensor<f32, B>,       // [D] fixed center
+    scale: Param<Tensor<B, 1>>, // [D] scale factors
+    center: Tensor<B, 1>,       // [D] fixed center
 }
 
 impl<B: Backend, const D: usize> ScaleTransform<B, D> {
@@ -27,8 +27,11 @@ impl<B: Backend, const D: usize> ScaleTransform<B, D> {
     /// # Arguments
     /// * `scale` - Tensor of shape `[D]` containing the scale factors
     /// * `center` - Tensor of shape `[D]` containing the fixed center
-    pub fn new(scale: Tensor<f32, B>, center: Tensor<f32, B>) -> Self {
-        Self { scale, center }
+    pub fn new(scale: Tensor<B, 1>, center: Tensor<B, 1>) -> Self {
+        Self {
+            scale: Param::from_tensor(scale),
+            center,
+        }
     }
 
     /// Create an identity scale transform (scale = 1.0).
@@ -36,56 +39,50 @@ impl<B: Backend, const D: usize> ScaleTransform<B, D> {
     /// # Arguments
     /// * `center` - Optional center of scaling. If None, uses origin (0,0...0).
     /// * `device` - Device to create tensors on.
-    pub fn identity(center: Option<Tensor<f32, B>>, device: &B) -> Self {
-        let scale = Tensor::<f32, B>::ones_on([D], device);
-        let center = center.unwrap_or_else(|| Tensor::<f32, B>::zeros_on([D], device));
+    pub fn identity(center: Option<Tensor<B, 1>>, device: &B::Device) -> Self {
+        let scale = Tensor::<B, 1>::ones([D], device);
+        let center = center.unwrap_or_else(|| Tensor::<B, 1>::zeros([D], device));
         Self::new(scale, center)
     }
 
     /// Get the scale factors.
-    pub fn scale(&self) -> Tensor<f32, B> {
-        self.scale.clone()
+    pub fn scale(&self) -> Tensor<B, 1> {
+        self.scale.val()
     }
 
     /// Get the center of scaling.
-    pub fn center(&self) -> Tensor<f32, B> {
+    pub fn center(&self) -> Tensor<B, 1> {
         self.center.clone()
     }
 }
 
-impl<B: Backend, const D: usize> Transform<B, D> for ScaleTransform<B, D>
-where
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-{
-    fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
-        let device = B::default();
-        let points = points.to_contiguous();
-        let scale = self.scale.to_contiguous();
-        let center = self.center.to_contiguous();
-        let batch = points.shape()[0];
-        let point_data = points.as_slice();
-        let scale_data = scale.as_slice();
-        let center_data = center.as_slice();
-        let mut output = vec![0.0f32; batch * D];
+impl<B: Backend, const D: usize> Transform<B, D> for ScaleTransform<B, D> {
+    fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
+        // points: [Batch, D]
+        // scale (s): [D]
+        // center (c): [D]
+        //
+        // T(x) = s * (x - c) + c
+        // Element-wise multiplication since s is diagonal
 
-        for row in 0..batch {
-            for dim in 0..D {
-                let x = point_data[row * D + dim];
-                let c = center_data[dim];
-                output[row * D + dim] = scale_data[dim] * (x - c) + c;
-            }
-        }
+        let c = self.center.clone().reshape([1, D]);
+        let s = self.scale.val().reshape([1, D]);
 
-        Tensor::<f32, B>::from_slice_on([batch, D], &output, &device)
+        let centered = points - c.clone();
+
+        // Element-wise multiplication broadcast
+        let scaled = centered * s;
+
+        scaled + c
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_core::SequentialBackend;
+    use burn_ndarray::NdArray;
 
-    type B = SequentialBackend;
+    type B = NdArray<f32>;
 
     /// Tolerance for scale transform exact-value arithmetic.
     /// Scale factors are exact floats; error bound is 4 × f32::EPSILON.
@@ -94,12 +91,12 @@ mod tests {
     #[test]
     fn test_scale_transform() {
         let device = Default::default();
-        let scale = Tensor::<f32, B>::from_floats([2.0, 0.5, 1.0], &device); // Scale X by 2, Y by 0.5, Z by 1
-        let center = Tensor::<f32, B>::zeros([3], &device);
+        let scale = Tensor::<B, 1>::from_floats([2.0, 0.5, 1.0], &device); // Scale X by 2, Y by 0.5, Z by 1
+        let center = Tensor::<B, 1>::zeros([3], &device);
 
         let transform = ScaleTransform::<B, 3>::new(scale, center);
 
-        let points = Tensor::<f32, B>::from_floats([[1.0, 2.0, 3.0], [2.0, 4.0, 6.0]], &device);
+        let points = Tensor::<B, 2>::from_floats([[1.0, 2.0, 3.0], [2.0, 4.0, 6.0]], &device);
 
         let transformed = transform.transform_points(points);
         let data = transformed.into_data();
@@ -119,13 +116,13 @@ mod tests {
     #[test]
     fn test_scale_transform_with_center() {
         let device = Default::default();
-        let scale = Tensor::<f32, B>::from_floats([2.0, 2.0], &device);
-        let center = Tensor::<f32, B>::from_floats([1.0, 1.0], &device);
+        let scale = Tensor::<B, 1>::from_floats([2.0, 2.0], &device);
+        let center = Tensor::<B, 1>::from_floats([1.0, 1.0], &device);
 
         let transform = ScaleTransform::<B, 2>::new(scale, center);
 
         // Point at center should not move
-        let points = Tensor::<f32, B>::from_floats([[1.0, 1.0]], &device);
+        let points = Tensor::<B, 2>::from_floats([[1.0, 1.0]], &device);
         let transformed = transform.transform_points(points);
         let data = transformed.into_data();
         let slice = data.as_slice::<f32>().unwrap();
@@ -135,7 +132,7 @@ mod tests {
 
         // Point at (2, 2). Relative to center (1, 1) is (1, 1).
         // Scale by 2 -> (2, 2). Add center -> (3, 3).
-        let points = Tensor::<f32, B>::from_floats([[2.0, 2.0]], &device);
+        let points = Tensor::<B, 2>::from_floats([[2.0, 2.0]], &device);
         let transformed = transform.transform_points(points);
         let data = transformed.into_data();
         let slice = data.as_slice::<f32>().unwrap();

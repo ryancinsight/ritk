@@ -13,14 +13,14 @@ use super::super::translation::TranslationTransform;
 use super::super::versor::VersorRigid3DTransform;
 use super::AtlasAffineTransform;
 
-use coeus_core::SequentialBackend;
+use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::transform::Transform;
 use ritk_image::native::Image;
-use coeus_tensor::Tensor;
+use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type BB = SequentialBackend;
+type BB = NdArray<f32>;
 type NB = SequentialBackend;
 
 const TOL: f32 = 1e-5;
@@ -36,9 +36,9 @@ fn sample_points() -> Vec<f32> {
     ]
 }
 
-fn burn_points(flat: &[f32], n: usize) -> Tensor<f32, BB> {
+fn burn_points(flat: &[f32], n: usize) -> Tensor<BB, 2> {
     let device = Default::default();
-    Tensor::<f32, BB>::from_floats(flat, &device).reshape([n, 3])
+    Tensor::<BB, 1>::from_floats(flat, &device).reshape([n, 3])
 }
 
 fn native_points(flat: &[f32], n: usize) -> Image<f32, NB, 2> {
@@ -52,12 +52,12 @@ fn native_points(flat: &[f32], n: usize) -> Image<f32, NB, 2> {
     .expect("native points image")
 }
 
-fn burn_vec1<const N: usize>(v: [f32; N]) -> Tensor<f32, BB> {
+fn burn_vec1<const N: usize>(v: [f32; N]) -> Tensor<BB, 1> {
     let device = Default::default();
-    Tensor::<f32, BB>::from_floats(v, &device)
+    Tensor::<BB, 1>::from_floats(v, &device)
 }
 
-fn assert_parity(burn: Tensor<f32, BB>, native: Vec<f32>, label: &str) {
+fn assert_parity(burn: Tensor<BB, 2>, native: Vec<f32>, label: &str) {
     let bd = burn.into_data();
     let bs = bd.as_slice::<f32>().unwrap();
     assert_eq!(bs.len(), native.len(), "{label}: length mismatch");

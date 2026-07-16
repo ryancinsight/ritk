@@ -3,8 +3,7 @@
 //! This module defines the core Transform trait that all spatial transforms must implement.
 
 use crate::spatial::{Direction, Point, Spacing};
-use coeus_core::Backend;
-use coeus_tensor::Tensor;
+use ritk_image::tensor::{Backend, Tensor};
 
 /// Transform trait for spatial coordinate transformations.
 ///
@@ -24,7 +23,7 @@ pub trait Transform<B: Backend, const D: usize>: Sized {
     ///
     /// # Returns
     /// Tensor of shape `[Batch, D]` containing the transformed points
-    fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B>;
+    fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2>;
 
     /// Get the inverse transform (if available).
     ///

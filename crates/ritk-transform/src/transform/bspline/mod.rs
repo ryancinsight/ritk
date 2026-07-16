@@ -2,8 +2,9 @@
 //!
 //! This module provides a B-Spline free-form deformation transform.
 
-use coeus_core::Backend;
-use coeus_tensor::Tensor;
+use ritk_image::burn::module::{Module, Param};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 
 /// B-Spline Transform (Free-form deformation).
 ///
@@ -14,18 +15,18 @@ use coeus_tensor::Tensor;
 /// interpolates the displacement, and adds it to the original point.
 ///
 /// Points outside the defined grid support (0 to grid_size-1) have zero displacement.
-#[derive(Clone)]
+#[derive(Module, Debug)]
 pub struct BSplineTransform<B: Backend, const D: usize> {
     /// Control point grid dimensions
     grid_size: [usize; D],
     /// Physical origin of the grid (index 0,0,0) as tensor `[D]`
-    origin: Tensor<f32, B>,
+    origin: Tensor<B, 1>,
     /// Physical spacing between control points as tensor `[D]`
-    spacing: Tensor<f32, B>,
+    spacing: Tensor<B, 1>,
     /// Physical orientation of the grid as tensor `[D, D]` (direction matrix)
-    direction: Tensor<f32, B>,
+    direction: Tensor<B, 2>,
     /// Control point displacements `[num_control_points, D]`
-    coefficients: Tensor<f32, B>,
+    coefficients: Param<Tensor<B, 2>>,
 }
 
 impl<B: Backend, const D: usize> BSplineTransform<B, D> {
@@ -39,10 +40,10 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     /// * `coefficients` - Initial control point displacements `\[num_control_points, D\]`
     pub fn new(
         grid_size: [usize; D],
-        origin: Tensor<f32, B>,
-        spacing: Tensor<f32, B>,
-        direction: Tensor<f32, B>,
-        coefficients: Tensor<f32, B>,
+        origin: Tensor<B, 1>,
+        spacing: Tensor<B, 1>,
+        direction: Tensor<B, 2>,
+        coefficients: Tensor<B, 2>,
     ) -> Self {
         assert!(
             grid_size.iter().all(|&x| x >= 4),
@@ -54,7 +55,7 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
             origin,
             spacing,
             direction,
-            coefficients,
+            coefficients: Param::from_tensor(coefficients),
         }
     }
 
@@ -72,16 +73,18 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
         origin: &ritk_core::spatial::Point<D>,
         spacing: &ritk_core::spatial::Vector<D>,
         direction: &ritk_core::spatial::Direction<D>,
-        coefficients: Tensor<f32, B>,
-        device: &B,
+        coefficients: Tensor<B, 2>,
+        device: &B::Device,
     ) -> Self {
         // Convert origin to tensor
         let origin_vec: Vec<f32> = (0..D).map(|i| origin[i] as f32).collect();
-        let origin_tensor = Tensor::<f32, B>::from_slice_on([D], &origin_vec, device);
+        let origin_tensor =
+            Tensor::<B, 1>::from_data(TensorData::new(origin_vec, Shape::new([D])), device);
 
         // Convert spacing to tensor
         let spacing_vec: Vec<f32> = (0..D).map(|i| spacing[i] as f32).collect();
-        let spacing_tensor = Tensor::<f32, B>::from_slice_on([D], &spacing_vec, device);
+        let spacing_tensor =
+            Tensor::<B, 1>::from_data(TensorData::new(spacing_vec, Shape::new([D])), device);
 
         // Convert direction to tensor
         let mut dir_data = Vec::with_capacity(D * D);
@@ -90,7 +93,8 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
                 dir_data.push(direction[(r, c)] as f32);
             }
         }
-        let direction_tensor = Tensor::<f32, B>::from_slice_on([D, D], &dir_data, device);
+        let direction_tensor =
+            Tensor::<B, 2>::from_data(TensorData::new(dir_data, Shape::new([D, D])), device);
 
         Self::new(
             grid_size,
@@ -107,23 +111,23 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     }
 
     /// Get the origin tensor `\[D\]`.
-    pub fn origin(&self) -> Tensor<f32, B> {
+    pub fn origin(&self) -> Tensor<B, 1> {
         self.origin.clone()
     }
 
     /// Get the spacing tensor `\[D\]`.
-    pub fn spacing(&self) -> Tensor<f32, B> {
+    pub fn spacing(&self) -> Tensor<B, 1> {
         self.spacing.clone()
     }
 
     /// Get the direction tensor `\[D, D\]`.
-    pub fn direction(&self) -> Tensor<f32, B> {
+    pub fn direction(&self) -> Tensor<B, 2> {
         self.direction.clone()
     }
 
     /// Get the coefficients.
-    pub fn coefficients(&self) -> Tensor<f32, B> {
-        self.coefficients.clone()
+    pub fn coefficients(&self) -> Tensor<B, 2> {
+        self.coefficients.val().clone()
     }
 }
 pub(crate) mod interpolation;

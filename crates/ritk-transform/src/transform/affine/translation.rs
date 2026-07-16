@@ -4,16 +4,16 @@
 
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_core::transform::{Resampleable, Transform};
-use coeus_core::CpuAddressableStorage;
-use coeus_core::Backend;
-use coeus_tensor::Tensor;
+use ritk_image::burn::module::{Module, Param};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 
 /// Simple Translation Transform.
 ///
 /// Translates points by a fixed offset vector.
-#[derive(Clone)]
+#[derive(Module, Debug)]
 pub struct TranslationTransform<B: Backend, const D: usize> {
-    translation: Tensor<f32, B>,
+    translation: Param<Tensor<B, 1>>,
 }
 
 impl<B: Backend, const D: usize> TranslationTransform<B, D> {
@@ -21,36 +21,25 @@ impl<B: Backend, const D: usize> TranslationTransform<B, D> {
     ///
     /// # Arguments
     /// * `translation` - Tensor of shape `[D]` containing the translation vector
-    pub fn new(translation: Tensor<f32, B>) -> Self {
-        Self { translation }
+    pub fn new(translation: Tensor<B, 1>) -> Self {
+        Self {
+            translation: Param::from_tensor(translation),
+        }
     }
 
     /// Get the translation vector.
-    pub fn translation(&self) -> Tensor<f32, B> {
-        self.translation.clone()
+    pub fn translation(&self) -> Tensor<B, 1> {
+        self.translation.val().clone()
     }
 }
 
-impl<B: Backend, const D: usize> Transform<B, D> for TranslationTransform<B, D>
-where
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-{
-    fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
-        let device = B::default();
-        let points = points.to_contiguous();
-        let translation = self.translation.to_contiguous();
-        let batch = points.shape()[0];
-        let point_data = points.as_slice();
-        let translation_data = translation.as_slice();
-        let mut output = vec![0.0f32; batch * D];
-
-        for row in 0..batch {
-            for dim in 0..D {
-                output[row * D + dim] = point_data[row * D + dim] + translation_data[dim];
-            }
-        }
-
-        Tensor::<f32, B>::from_slice_on([batch, D], &output, &device)
+impl<B: Backend, const D: usize> Transform<B, D> for TranslationTransform<B, D> {
+    fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
+        // points: [Batch, D]
+        // translation: [D]
+        // Broadcast translation to [Batch, D]
+        let t = self.translation.val().reshape([1, D]);
+        points + t
     }
 }
 
@@ -70,18 +59,18 @@ impl<B: Backend, const D: usize> Resampleable<B, D> for TranslationTransform<B, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use coeus_core::SequentialBackend;
+    use burn_ndarray::NdArray;
 
-    type TestBackend = SequentialBackend;
+    type TestBackend = NdArray<f32>;
 
     #[test]
     fn test_translation_transform() {
         let device = Default::default();
-        let translation = Tensor::<f32, TestBackend>::from_floats([1.0, 2.0, 3.0], &device);
+        let translation = Tensor::<TestBackend, 1>::from_floats([1.0, 2.0, 3.0], &device);
         let transform = TranslationTransform::<TestBackend, 3>::new(translation);
 
         let points =
-            Tensor::<f32, TestBackend>::from_floats([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], &device);
+            Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], &device);
 
         let transformed = transform.transform_points(points);
         let data = transformed.to_data();

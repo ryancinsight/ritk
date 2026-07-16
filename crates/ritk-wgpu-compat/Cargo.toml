@@ -5,9 +5,10 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
+burn-ndarray = { workspace = true }
+burn = { workspace = true }
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
-coeus-ops = { workspace = true }
 hephaestus-wgpu = { path = "../../../hephaestus/crates/hephaestus-wgpu", default-features = false }
 
 [dev-dependencies]

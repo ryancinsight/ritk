@@ -9,7 +9,7 @@
 //! the inline `B::ad_enabled()` const-generic dispatch.
 
 use super::slice_batch;
-use coeus_tensor::Tensor;
+use ritk_image::tensor::Tensor;
 
 ritk_macros::interp_dim_template!(
     3,
@@ -86,7 +86,7 @@ ritk_macros::interp_dim_template!(
         };
 
         // Trilinear lerp cascade.
-        let one = Tensor::<f32, B>::ones([batch_size], &_device);
+        let one = Tensor::<B, 1>::ones([batch_size], &_device);
         let one_minus_wx = one.clone() - wx.clone();
         let one_minus_wy = one.clone() - wy.clone();
         let one_minus_wz = one - wz.clone();
@@ -202,7 +202,7 @@ ritk_macros::interp_dim_template_typed!(
         };
 
         // Trilinear lerp cascade.
-        let one = Tensor::<f32, B>::ones([batch_size], &_device);
+        let one = Tensor::<B, 1>::ones([batch_size], &_device);
         let one_minus_wx = one.clone() - wx.clone();
         let one_minus_wy = one.clone() - wy.clone();
         let one_minus_wz = one - wz.clone();

@@ -1,6 +1,6 @@
 use super::BSplineTransform;
-use coeus_core::Backend;
-use coeus_tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 
 /// 1D B-spline transform — direct path (no row chunking, since the
 /// per-point work is small). Called from `super::sealed` via const-generic
@@ -13,16 +13,16 @@ use coeus_tensor::Tensor;
 #[inline]
 pub(super) fn transform_1d<B: Backend, const D: usize>(
     t: &BSplineTransform<B, D>,
-    points: Tensor<f32, B>,
-) -> Tensor<f32, B> {
-    let device = B::default();
+    points: Tensor<B, 2>,
+) -> Tensor<B, 2> {
+    let device = points.device();
     let batch_size = points.shape().dims[0];
 
     let grid_coords = t.world_to_grid_tensor(points.clone()); // [Batch, 1]
 
-    let zero_tensor = Tensor::<f32, B>::zeros([1], &device).reshape([1, 1]);
+    let zero_tensor = Tensor::<B, 1>::zeros([1], &device).reshape([1, 1]);
     let size_tensor =
-        Tensor::<f32, B>::from_floats([t.grid_size[0] as f32 - 1.0], &device).reshape([1, 1]);
+        Tensor::<B, 1>::from_floats([t.grid_size[0] as f32 - 1.0], &device).reshape([1, 1]);
 
     let mask = grid_coords
         .clone()
@@ -39,7 +39,7 @@ pub(super) fn transform_1d<B: Backend, const D: usize>(
     let weights = bx.unsqueeze_dim::<3>(2); // [Batch, 4, 1]
 
     let nx = t.grid_size[0] as i32;
-    let range = Tensor::<i32, B>::from_ints([0, 1, 2, 3], &device);
+    let range = Tensor::<B, 1, ritk_image::tensor::Int>::from_ints([0, 1, 2, 3], &device);
     let i_idx = range.reshape([1, 4]);
 
     let base_x = base_index.clone(); // [Batch, 1]

@@ -1,7 +1,6 @@
 use super::BSplineTransform;
-use coeus_core::CpuAddressableStorage;
-use coeus_core::Backend;
-use coeus_tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 
 /// Minimum pivot magnitude for B-spline mapping inverse; guards against singular matrices.
 /// Practical threshold above f32 minimum normal (~1.2e-38).
@@ -91,12 +90,13 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     /// Compute inverse direction matrix as a flat vector of f32 values.
     ///
     /// Returns the flattened inverse direction matrix for index calculation.
-    pub(crate) fn compute_inverse_direction(&self, _device: &B) -> Vec<f32>
-    where
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
-        let dir_tensor = self.direction.to_contiguous();
-        let dir_slice = dir_tensor.as_slice();
+    pub(crate) fn compute_inverse_direction(&self, _device: &<B as Backend>::Device) -> Vec<f32> {
+        // Get direction matrix data
+        let dir_tensor = self.direction.clone();
+        let dir_data_result = dir_tensor.to_data();
+        let dir_slice = dir_data_result
+            .as_slice::<f32>()
+            .expect("direction data must be contiguous f32");
 
         match try_invert_small::<D>(dir_slice) {
             Some(inv) => inv,
@@ -114,40 +114,60 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     /// Convert physical points to continuous grid indices.
     ///
     /// Maps from physical space to index space.
-    pub(crate) fn world_to_grid_tensor(&self, points: Tensor<f32, B>) -> Tensor<f32, B>
-    where
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
-    {
-        let device = B::default();
-        let points = points.to_contiguous();
-        let origin = self.origin.to_contiguous();
-        let spacing = self.spacing.to_contiguous();
+    pub(crate) fn world_to_grid_tensor(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
+        let device = points.device();
+        let [_n_points, _] = points.dims();
+
+        // 1. Prepare Origin Tensor [1, D]
+        let origin_tensor = self.origin.clone().reshape([1, D]);
+
+        // 2. Prepare Transform Matrix T = (S^-1 * D^-1)^T
+        // We want: Index = (World - Origin) * Direction^-1 * Spacing^-1
+        // In matrix form for row vectors: I = (W - O) * (D * S)^-1
+        // Note: Direction columns are axes. Spacing scales axes.
+        // Let M = Direction * Spacing (diagonal).
+        // I = (W - O) * M^-1.
+
+        // Compute inverse direction matrix
         let inv_dir = self.compute_inverse_direction(&device);
-        let point_data = points.as_slice();
-        let origin_data = origin.as_slice();
-        let spacing_data = spacing.as_slice();
-        let batch = points.shape()[0];
-        let mut output = vec![0.0f32; batch * D];
+
+        // Compute T = M^-1. Since we multiply on right, T should be (M^-1)^T = (D * S)^-T?
+        // Wait, standard affine: p = O + D * S * i
+        // p - O = D * S * i
+        // i = (D * S)^-1 * (p - O) = S^-1 * D^-1 * (p - O)
+        // Since points are row vectors [1, D], we have p = i * (S * D^T) + O ?
+        // Usually: p_col = O_col + D_mat * S_diag * i_col
+        // p_row = O_row + i_row * S_diag * D_mat^T
+        // p_row - O_row = i_row * (S * D^T)
+        // i_row = (p_row - O_row) * (S * D^T)^-1 = (p - O) * (D^T)^-1 * S^-1 = (p - O) * (D^-1)^T * S^-1
+
+        // T = (D^-1)^T * S^-1
+        // element T[r, c] = (D^-1)^T[r, c] * S^-1[c] = (D^-1)[c, r] / S[c]
+
+        let mut t_data = Vec::with_capacity(D * D);
+        let spacing_data: Vec<f32> = self
+            .spacing
+            .to_data()
+            .as_slice::<f32>()
+            .expect("spacing data must be contiguous f32")
+            .to_vec();
 
         for r in 0..D {
-            let _ = r;
-        }
-
-        for row in 0..batch {
-            let mut diff = [0.0f32; D];
-            for dim in 0..D {
-                diff[dim] = point_data[row * D + dim] - origin_data[dim];
-            }
-            for out_dim in 0..D {
-                let mut acc = 0.0f32;
-                for in_dim in 0..D {
-                    acc += diff[in_dim] * (inv_dir[out_dim * D + in_dim] / spacing_data[out_dim]);
-                }
-                output[row * D + out_dim] = acc;
+            for c in 0..D {
+                // T[r, c] = inv_dir[c, r] / spacing[c]
+                let inv_dir_val = inv_dir[c * D + r];
+                let spacing_val = spacing_data[c];
+                let val = inv_dir_val / spacing_val;
+                t_data.push(val);
             }
         }
 
-        Tensor::<f32, B>::from_slice_on([batch, D], &output, &device)
+        let t_tensor =
+            Tensor::<B, 2>::from_data(TensorData::new(t_data, Shape::new([D, D])), &device);
+
+        // Apply transform: (points - origin) @ T
+        let diff = points - origin_tensor;
+        diff.matmul(t_tensor)
     }
 }
 #[cfg(test)]

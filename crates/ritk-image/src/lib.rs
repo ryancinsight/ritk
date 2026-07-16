@@ -63,7 +63,11 @@ pub mod tensor {
     #[cfg(feature = "burn-compat")]
     pub use ::burn::tensor::Tensor;
 
+    /// `Int` marker type — `i32` without burn-compat, burn's Int marker with it.
+    #[cfg(not(feature = "burn-compat"))]
     pub type Int = i32;
+    #[cfg(feature = "burn-compat")]
+    pub use ::burn::tensor::Int;
 
     /// Shape alias — coeus uses `Vec<usize>` / `&[usize]`.
     #[cfg(not(feature = "burn-compat"))]

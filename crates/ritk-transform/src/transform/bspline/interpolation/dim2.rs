@@ -1,6 +1,6 @@
 use super::BSplineTransform;
-use coeus_core::Backend;
-use coeus_tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use ritk_wgpu_compat::apply_row_chunks;
 
 /// 2D B-spline transform — chunked over rows for WGPU-friendly memory
@@ -13,8 +13,8 @@ use ritk_wgpu_compat::apply_row_chunks;
 #[inline]
 pub(super) fn transform_2d<B: Backend, const D: usize>(
     t: &BSplineTransform<B, D>,
-    points: Tensor<f32, B>,
-) -> Tensor<f32, B> {
+    points: Tensor<B, 2>,
+) -> Tensor<B, 2> {
     apply_row_chunks(points, ritk_wgpu_compat::WGPU_CHUNK_SIZE, |chunk| {
         transform_2d_chunk(t, chunk)
     })
@@ -23,17 +23,17 @@ pub(super) fn transform_2d<B: Backend, const D: usize>(
 #[inline]
 fn transform_2d_chunk<B: Backend, const D: usize>(
     t: &BSplineTransform<B, D>,
-    points: Tensor<f32, B>,
-) -> Tensor<f32, B> {
-    let device = B::default();
+    points: Tensor<B, 2>,
+) -> Tensor<B, 2> {
+    let device = points.device();
     let batch_size = points.shape().dims[0];
 
     // Convert physical points to grid indices
     let grid_coords = t.world_to_grid_tensor(points.clone()); // [Batch, 2]
 
     // Compute Mask for Out-of-Bounds
-    let zero_tensor = Tensor::<f32, B>::zeros([2], &device).reshape([1, 2]);
-    let size_tensor = Tensor::<f32, B>::from_floats(
+    let zero_tensor = Tensor::<B, 1>::zeros([2], &device).reshape([1, 2]);
+    let size_tensor = Tensor::<B, 1>::from_floats(
         [t.grid_size[0] as f32 - 1.0, t.grid_size[1] as f32 - 1.0],
         &device,
     )
@@ -72,7 +72,7 @@ fn transform_2d_chunk<B: Backend, const D: usize>(
     let nx = t.grid_size[0] as i32;
     let ny = t.grid_size[1] as i32;
 
-    let range = Tensor::<i32, B>::from_ints([0, 1, 2, 3], &device);
+    let range = Tensor::<B, 1, ritk_image::tensor::Int>::from_ints([0, 1, 2, 3], &device);
 
     let i_idx = range.clone().reshape([1, 4, 1]);
     let j_idx = range.clone().reshape([1, 1, 4]);
@@ -89,7 +89,7 @@ fn transform_2d_chunk<B: Backend, const D: usize>(
     let idx_x = base_x + i_idx;
     let idx_y = base_y + j_idx;
 
-    let zeros = Tensor::<B, 3, i32>::zeros([1, 4, 4], &device);
+    let zeros = Tensor::<B, 3, ritk_image::tensor::Int>::zeros([1, 4, 4], &device);
 
     let idx_x_flat = (idx_x + zeros.clone()).reshape([batch_size, 16]);
     let idx_y_flat = (idx_y + zeros.clone()).reshape([batch_size, 16]);

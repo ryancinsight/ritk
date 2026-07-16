@@ -1,11 +1,10 @@
 use crate::interpolation::kernel::sinc::{compute_lanczos_weights, lanczos_kernel};
 use crate::interpolation::{LanczosInterpolator, SincInterpolator};
-use coeus_core::SequentialBackend;
+use burn_ndarray::NdArray;
 use ritk_core::interpolation::Interpolator;
-use coeus_tensor::Tensor;
-use ritk_image::tensor::{Shape, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 
-type TestBackend = SequentialBackend;
+type TestBackend = NdArray<f32>;
 
 #[test]
 fn test_lanczos_kernel_at_origin() {
@@ -64,15 +63,15 @@ fn test_sinc_interpolator_2d_at_grid_points() {
 
     // Create a simple 4x4 image with known values
     let data_vec: Vec<f32> = (0..16).map(|i| i as f32).collect();
-    let data = Tensor::<f32, TestBackend>::from_data(
-        (data_vec.clone(), ([4, 4])),
+    let data = Tensor::<TestBackend, 2>::from_data(
+        TensorData::new(data_vec.clone(), Shape::new([4, 4])),
         &device,
     );
 
     let interpolator = SincInterpolator::new();
 
     // At integer coordinates, should return exact values
-    let indices = Tensor::<f32, TestBackend>::from_floats(
+    let indices = Tensor::<TestBackend, 2>::from_floats(
         [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]],
         &device,
     );
@@ -113,8 +112,8 @@ fn test_sinc_interpolator_3d_at_grid_points() {
 
     // Create a 2x2x2 volume
     let data_vec = vec![0.0, 1.0, 10.0, 11.0, 100.0, 101.0, 110.0, 111.0];
-    let data = Tensor::<f32, TestBackend>::from_data(
-        (data_vec.clone(), ([2, 2, 2])),
+    let data = Tensor::<TestBackend, 3>::from_data(
+        TensorData::new(data_vec.clone(), Shape::new([2, 2, 2])),
         &device,
     );
 
@@ -122,7 +121,7 @@ fn test_sinc_interpolator_3d_at_grid_points() {
 
     // Test at corner points
     let indices =
-        Tensor::<f32, TestBackend>::from_floats([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], &device);
+        Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], &device);
 
     let result = interpolator.interpolate(&data, indices);
     let result_data = result.into_data();
@@ -149,12 +148,12 @@ fn test_sinc_interpolator_constant_image() {
     // Constant image: all values are 42.0
     let data_vec: Vec<f32> = vec![42.0; 64];
     let data =
-        Tensor::<f32, TestBackend>::from_data((data_vec, ([8, 8])), &device);
+        Tensor::<TestBackend, 2>::from_data(TensorData::new(data_vec, Shape::new([8, 8])), &device);
 
     let interpolator = SincInterpolator::new();
 
     // Interpolate at various positions
-    let indices = Tensor::<f32, TestBackend>::from_floats(
+    let indices = Tensor::<TestBackend, 2>::from_floats(
         [
             [0.5, 0.5], // Center of first quadrant
             [3.7, 2.3], // Arbitrary position
@@ -199,8 +198,8 @@ fn test_sinc_interpolator_bandlimited_signal() {
         .map(|i| (2.0 * std::f32::consts::PI * (i as f32) / period).cos())
         .collect();
 
-    let data = Tensor::<f32, TestBackend>::from_data(
-        (data_vec.clone(), ([n])),
+    let data = Tensor::<TestBackend, 1>::from_data(
+        TensorData::new(data_vec.clone(), Shape::new([n])),
         &device,
     );
 
@@ -210,7 +209,7 @@ fn test_sinc_interpolator_bandlimited_signal() {
     let data_2d = data.clone().reshape([1, n]);
     let x_test = 7.5f32; // Half-pixel offset
 
-    let indices = Tensor::<f32, TestBackend>::from_floats([[x_test, 0.0]], &device);
+    let indices = Tensor::<TestBackend, 2>::from_floats([[x_test, 0.0]], &device);
     let result = interpolator.interpolate(&data_2d, indices);
     let interpolated = result.into_data().as_slice::<f32>().unwrap()[0];
 
@@ -232,14 +231,14 @@ fn test_lanczos_interpolator_various_window_sizes() {
 
     let data_vec: Vec<f32> = (0..16).map(|i| i as f32).collect();
     let data =
-        Tensor::<f32, TestBackend>::from_data((data_vec, ([4, 4])), &device);
+        Tensor::<TestBackend, 2>::from_data(TensorData::new(data_vec, Shape::new([4, 4])), &device);
 
     // Test with different window sizes
     let interp3 = LanczosInterpolator::<3>::new();
     let interp4 = LanczosInterpolator::<4>::new();
     let interp5 = LanczosInterpolator::<5>::new();
 
-    let indices = Tensor::<f32, TestBackend>::from_floats([[1.5, 1.5]], &device);
+    let indices = Tensor::<TestBackend, 2>::from_floats([[1.5, 1.5]], &device);
 
     let r3 = interp3
         .interpolate(&data, indices.clone())

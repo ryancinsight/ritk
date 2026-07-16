@@ -1,17 +1,17 @@
 use super::*;
-use coeus_core::SequentialBackend;
+use burn_ndarray::NdArray;
 
-type TestBackend = SequentialBackend;
+type TestBackend = NdArray<f32>;
 
 #[test]
 fn translation_2d_shifts_point_correctly() {
     let device = Default::default();
-    let translation = Tensor::<f32, TestBackend>::from_floats([1.0, 2.0], &device);
-    let rotation = Tensor::<f32, TestBackend>::from_floats([0.0], &device); // No rotation
-    let center = Tensor::<f32, TestBackend>::zeros([2], &device);
+    let translation = Tensor::<TestBackend, 1>::from_floats([1.0, 2.0], &device);
+    let rotation = Tensor::<TestBackend, 1>::from_floats([0.0], &device); // No rotation
+    let center = Tensor::<TestBackend, 1>::zeros([2], &device);
     let transform = RigidTransform::<TestBackend, 2>::new(translation, rotation, center);
 
-    let points = Tensor::<f32, TestBackend>::from_floats([[0.0, 0.0], [1.0, 1.0]], &device);
+    let points = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0], [1.0, 1.0]], &device);
 
     let transformed = transform.transform_points(points);
     let data = transformed.to_data();
@@ -26,12 +26,12 @@ fn translation_2d_shifts_point_correctly() {
 #[test]
 fn translation_3d_shifts_point_correctly() {
     let device = Default::default();
-    let translation = Tensor::<f32, TestBackend>::from_floats([1.0, 2.0, 3.0], &device);
-    let rotation = Tensor::<f32, TestBackend>::from_floats([0.0, 0.0, 0.0], &device); // No rotation
-    let center = Tensor::<f32, TestBackend>::zeros([3], &device);
+    let translation = Tensor::<TestBackend, 1>::from_floats([1.0, 2.0, 3.0], &device);
+    let rotation = Tensor::<TestBackend, 1>::from_floats([0.0, 0.0, 0.0], &device); // No rotation
+    let center = Tensor::<TestBackend, 1>::zeros([3], &device);
     let transform = RigidTransform::<TestBackend, 3>::new(translation, rotation, center);
 
-    let points = Tensor::<f32, TestBackend>::from_floats([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], &device);
+    let points = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], &device);
 
     let transformed = transform.transform_points(points);
     let data = transformed.to_data();
@@ -48,13 +48,13 @@ fn translation_3d_shifts_point_correctly() {
 #[test]
 fn rotation_2d_maps_axes_correctly() {
     let device = Default::default();
-    let translation = Tensor::<f32, TestBackend>::zeros([2], &device);
-    let rotation = Tensor::<f32, TestBackend>::from_floats([std::f32::consts::FRAC_PI_2], &device); // 90 degrees
-    let center = Tensor::<f32, TestBackend>::zeros([2], &device);
+    let translation = Tensor::<TestBackend, 1>::zeros([2], &device);
+    let rotation = Tensor::<TestBackend, 1>::from_floats([std::f32::consts::FRAC_PI_2], &device); // 90 degrees
+    let center = Tensor::<TestBackend, 1>::zeros([2], &device);
     let transform = RigidTransform::<TestBackend, 2>::new(translation, rotation, center);
 
     // Point (1, 0)
-    let points = Tensor::<f32, TestBackend>::from_floats([[1.0, 0.0]], &device);
+    let points = Tensor::<TestBackend, 2>::from_floats([[1.0, 0.0]], &device);
 
     let transformed = transform.transform_points(points);
     let data = transformed.to_data();
@@ -68,15 +68,15 @@ fn rotation_2d_maps_axes_correctly() {
 #[test]
 fn rotation_3d_z_maps_x_to_y() {
     let device = Default::default();
-    let translation = Tensor::<f32, TestBackend>::zeros([3], &device);
+    let translation = Tensor::<TestBackend, 1>::zeros([3], &device);
     // Rotate 90 deg around Z. Euler: x, y, z. So [0, 0, PI/2]
     let rotation =
-        Tensor::<f32, TestBackend>::from_floats([0.0, 0.0, std::f32::consts::FRAC_PI_2], &device);
-    let center = Tensor::<f32, TestBackend>::zeros([3], &device);
+        Tensor::<TestBackend, 1>::from_floats([0.0, 0.0, std::f32::consts::FRAC_PI_2], &device);
+    let center = Tensor::<TestBackend, 1>::zeros([3], &device);
     let transform = RigidTransform::<TestBackend, 3>::new(translation, rotation, center);
 
     // Point (1, 0, 0) should become (0, 1, 0)
-    let points = Tensor::<f32, TestBackend>::from_floats([[1.0, 0.0, 0.0]], &device);
+    let points = Tensor::<TestBackend, 2>::from_floats([[1.0, 0.0, 0.0]], &device);
 
     let transformed = transform.transform_points(points);
     let data = transformed.to_data();
@@ -90,12 +90,12 @@ fn rotation_3d_z_maps_x_to_y() {
 #[test]
 fn translation_1d_shifts_scalar_correctly() {
     let device = Default::default();
-    let translation = Tensor::<f32, TestBackend>::from_floats([1.0], &device);
-    let rotation = Tensor::<f32, TestBackend>::zeros([0], &device);
-    let center = Tensor::<f32, TestBackend>::zeros([1], &device);
+    let translation = Tensor::<TestBackend, 1>::from_floats([1.0], &device);
+    let rotation = Tensor::<TestBackend, 1>::zeros([0], &device);
+    let center = Tensor::<TestBackend, 1>::zeros([1], &device);
     let transform = RigidTransform::<TestBackend, 1>::new(translation, rotation, center);
 
-    let points = Tensor::<f32, TestBackend>::from_floats([[1.0]], &device);
+    let points = Tensor::<TestBackend, 2>::from_floats([[1.0]], &device);
     let transformed = transform.transform_points(points);
     let val = transformed.into_data().as_slice::<f32>().unwrap()[0];
     assert_eq!(val, 2.0);
@@ -104,12 +104,12 @@ fn translation_1d_shifts_scalar_correctly() {
 #[test]
 fn translation_4d_shifts_four_coords() {
     let device = Default::default();
-    let translation = Tensor::<f32, TestBackend>::from_floats([1.0, 1.0, 1.0, 1.0], &device);
-    let rotation = Tensor::<f32, TestBackend>::zeros([6], &device); // Usually 6 for 4D but we ignore it
-    let center = Tensor::<f32, TestBackend>::zeros([4], &device);
+    let translation = Tensor::<TestBackend, 1>::from_floats([1.0, 1.0, 1.0, 1.0], &device);
+    let rotation = Tensor::<TestBackend, 1>::zeros([6], &device); // Usually 6 for 4D but we ignore it
+    let center = Tensor::<TestBackend, 1>::zeros([4], &device);
     let transform = RigidTransform::<TestBackend, 4>::new(translation, rotation, center);
 
-    let points = Tensor::<f32, TestBackend>::from_floats([[0.0, 0.0, 0.0, 0.0]], &device);
+    let points = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.0, 0.0]], &device);
     let transformed = transform.transform_points(points);
     let result = transformed.into_data().as_slice::<f32>().unwrap().to_vec();
 

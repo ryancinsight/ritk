@@ -1,22 +1,22 @@
 use super::*;
-use coeus_core::SequentialBackend;
+use burn_ndarray::NdArray;
 use ritk_core::transform::Transform;
-type TestBackend = SequentialBackend;
+type TestBackend = NdArray<f32>;
 
 #[test]
 fn test_bspline_transform_creation() {
     let device = Default::default();
     let grid_size = [4, 4, 4];
-    let origin = Tensor::<f32, TestBackend>::zeros([3], &device);
-    let spacing = Tensor::<f32, TestBackend>::from_floats([1.0, 1.0, 1.0], &device);
+    let origin = Tensor::<TestBackend, 1>::zeros([3], &device);
+    let spacing = Tensor::<TestBackend, 1>::from_floats([1.0, 1.0, 1.0], &device);
     let direction_data: Vec<f32> = vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
-    let direction = Tensor::<f32, TestBackend>::from_data(
-        (direction_data, ([3, 3])),
+    let direction = Tensor::<TestBackend, 2>::from_data(
+        TensorData::new(direction_data, Shape::new([3, 3])),
         &device,
     );
 
     let num_control_points = grid_size.iter().product();
-    let coefficients = Tensor::<f32, TestBackend>::zeros([num_control_points, 3], &device);
+    let coefficients = Tensor::<TestBackend, 2>::zeros([num_control_points, 3], &device);
 
     let transform = BSplineTransform::<TestBackend, 3>::new(
         grid_size,
@@ -38,7 +38,7 @@ fn test_bspline_transform_from_spatial() {
     let direction = ritk_core::spatial::Direction3::identity();
 
     let num_control_points = grid_size.iter().product();
-    let coefficients = Tensor::<f32, TestBackend>::zeros([num_control_points, 3], &device);
+    let coefficients = Tensor::<TestBackend, 2>::zeros([num_control_points, 3], &device);
 
     let transform = BSplineTransform::<TestBackend, 3>::from_spatial(
         grid_size,
@@ -57,11 +57,11 @@ fn zero_coefficients_is_identity_planar() {
     let device = Default::default();
     // 4x4 grid
     let grid_size = [4, 4];
-    let origin = Tensor::<f32, TestBackend>::zeros([2], &device);
-    let spacing = Tensor::<f32, TestBackend>::from_floats([10.0, 10.0], &device);
+    let origin = Tensor::<TestBackend, 1>::zeros([2], &device);
+    let spacing = Tensor::<TestBackend, 1>::from_floats([10.0, 10.0], &device);
     let direction_data: Vec<f32> = vec![1.0, 0.0, 0.0, 1.0];
-    let direction = Tensor::<f32, TestBackend>::from_data(
-        (direction_data, ([2, 2])),
+    let direction = Tensor::<TestBackend, 2>::from_data(
+        TensorData::new(direction_data, Shape::new([2, 2])),
         &device,
     );
 
@@ -74,9 +74,9 @@ fn zero_coefficients_is_identity_planar() {
     coeffs_data[5 * 2 + 1] = 1.0;
 
     let coefficients = Tensor::from_floats(
-        ritk_image::tensor::(
+        ritk_image::tensor::TensorData::new(
             coeffs_data,
-            ritk_image::tensor::([num_control_points, 2]),
+            ritk_image::tensor::Shape::new([num_control_points, 2]),
         ),
         &device,
     );
@@ -90,7 +90,7 @@ fn zero_coefficients_is_identity_planar() {
     );
 
     // Point at (10.0, 10.0) corresponds to index (1.0, 1.0)
-    let points = Tensor::<f32, TestBackend>::from_floats([[10.0, 10.0]], &device);
+    let points = Tensor::<TestBackend, 2>::from_floats([[10.0, 10.0]], &device);
     let transformed = transform.transform_points(points);
     let result = transformed.into_data().as_slice::<f32>().unwrap().to_vec();
 
@@ -104,16 +104,16 @@ fn zero_coefficients_is_identity_planar() {
 fn test_bspline_transform_out_of_bounds() {
     let device = Default::default();
     let grid_size = [4, 4];
-    let origin = Tensor::<f32, TestBackend>::zeros([2], &device);
-    let spacing = Tensor::<f32, TestBackend>::from_floats([10.0, 10.0], &device);
+    let origin = Tensor::<TestBackend, 1>::zeros([2], &device);
+    let spacing = Tensor::<TestBackend, 1>::from_floats([10.0, 10.0], &device);
     let direction_data: Vec<f32> = vec![1.0, 0.0, 0.0, 1.0];
-    let direction = Tensor::<f32, TestBackend>::from_data(
-        (direction_data, ([2, 2])),
+    let direction = Tensor::<TestBackend, 2>::from_data(
+        TensorData::new(direction_data, Shape::new([2, 2])),
         &device,
     );
 
     let num_control_points = 16;
-    let coefficients = Tensor::<f32, TestBackend>::zeros([num_control_points, 2], &device);
+    let coefficients = Tensor::<TestBackend, 2>::zeros([num_control_points, 2], &device);
 
     let transform = BSplineTransform::<TestBackend, 2>::new(
         grid_size,
@@ -124,7 +124,7 @@ fn test_bspline_transform_out_of_bounds() {
     );
 
     // Point outside grid should remain unchanged (zero displacement)
-    let points = Tensor::<f32, TestBackend>::from_floats([[100.0, 100.0]], &device);
+    let points = Tensor::<TestBackend, 2>::from_floats([[100.0, 100.0]], &device);
     let transformed = transform.transform_points(points);
     let result = transformed.into_data().as_slice::<f32>().unwrap().to_vec();
 
@@ -136,9 +136,9 @@ fn test_bspline_transform_out_of_bounds() {
 fn zero_coefficients_is_identity_scalar() {
     let device = Default::default();
     let grid_size = [4];
-    let origin = Tensor::<f32, TestBackend>::zeros([1], &device);
-    let spacing = Tensor::<f32, TestBackend>::from_floats([10.0], &device);
-    let direction = Tensor::<f32, TestBackend>::eye(1, &device);
+    let origin = Tensor::<TestBackend, 1>::zeros([1], &device);
+    let spacing = Tensor::<TestBackend, 1>::from_floats([10.0], &device);
+    let direction = Tensor::<TestBackend, 2>::eye(1, &device);
 
     let num_control_points = 4;
     let mut coeffs_data = vec![0.0; num_control_points];
@@ -146,9 +146,9 @@ fn zero_coefficients_is_identity_scalar() {
     coeffs_data[1] = 2.0;
 
     let coefficients = Tensor::from_floats(
-        ritk_image::tensor::(
+        ritk_image::tensor::TensorData::new(
             coeffs_data,
-            ritk_image::tensor::([num_control_points, 1]),
+            ritk_image::tensor::Shape::new([num_control_points, 1]),
         ),
         &device,
     );
@@ -172,7 +172,7 @@ fn zero_coefficients_is_identity_scalar() {
     // = 0*1/6 + 2.0*4/6 + 0*1/6 + 0
     // = 8/6 = 4/3 = 1.3333...
 
-    let points = Tensor::<f32, TestBackend>::from_floats([[10.0]], &device);
+    let points = Tensor::<TestBackend, 2>::from_floats([[10.0]], &device);
     let transformed = transform.transform_points(points);
     let result = transformed.into_data().as_slice::<f32>().unwrap()[0];
 
@@ -183,12 +183,12 @@ fn zero_coefficients_is_identity_scalar() {
 fn four_dim_grid_constructs_without_error() {
     let device = Default::default();
     let grid_size = [4, 4, 4, 4];
-    let origin = Tensor::<f32, TestBackend>::zeros([4], &device);
-    let spacing = Tensor::<f32, TestBackend>::ones([4], &device);
-    let direction = Tensor::<f32, TestBackend>::eye(4, &device);
+    let origin = Tensor::<TestBackend, 1>::zeros([4], &device);
+    let spacing = Tensor::<TestBackend, 1>::ones([4], &device);
+    let direction = Tensor::<TestBackend, 2>::eye(4, &device);
 
     let num_control_points = 256;
-    let coefficients = Tensor::<f32, TestBackend>::zeros([num_control_points, 4], &device);
+    let coefficients = Tensor::<TestBackend, 2>::zeros([num_control_points, 4], &device);
 
     let transform = BSplineTransform::<TestBackend, 4>::new(
         grid_size,
@@ -201,7 +201,7 @@ fn four_dim_grid_constructs_without_error() {
     assert_eq!(transform.grid_size(), grid_size);
 
     // Basic transform test (identity)
-    let points = Tensor::<f32, TestBackend>::from_floats([[1.5, 1.5, 1.5, 1.5]], &device);
+    let points = Tensor::<TestBackend, 2>::from_floats([[1.5, 1.5, 1.5, 1.5]], &device);
     let transformed = transform.transform_points(points.clone());
     let result = transformed.sub(points).abs().sum();
     let diff = result.into_data().as_slice::<f32>().unwrap()[0];

@@ -187,6 +187,63 @@ impl<B: Backend, const D: usize> Image<B, D> {
         // expose for autodiff inner tensors.
         Ok(Cow::Owned(self.try_data_vec()?))
     }
+
+    /// Batch transform physical points to continuous indices.
+    ///
+    /// For each point `p`, computes `(p - origin) / spacing` (component-wise)
+    /// adjusted for the direction matrix. This mirrors the Coeus `types.rs`
+    /// implementation's `world_to_index_tensor`.
+    ///
+    /// # Arguments
+    /// * `points` — `[N, D]` tensor of world-space coordinates.
+    ///
+    /// # Returns
+    /// `[N, D]` tensor of continuous voxel-index coordinates.
+    pub fn world_to_index_tensor(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
+        use crate::tensor::{TensorData, Shape};
+        let device = points.device();
+        // Build per-axis offset (origin) and scale (1/spacing) tensors.
+        let origin_vals: Vec<f32> = (0..D).map(|d| self.origin[d] as f32).collect();
+        let spacing_vals: Vec<f32> = (0..D).map(|d| self.spacing[d] as f32).collect();
+        let origin_t = Tensor::<B, 1>::from_data(
+            TensorData::new(origin_vals, Shape::new([D])),
+            &device,
+        );
+        let spacing_t = Tensor::<B, 1>::from_data(
+            TensorData::new(spacing_vals, Shape::new([D])),
+            &device,
+        );
+        // points: [N, D]; origin/spacing: [D] — broadcast subtract and divide.
+        let shifted = points - origin_t.unsqueeze_dim(0);
+        shifted / spacing_t.unsqueeze_dim(0)
+    }
+
+    /// Batch transform continuous indices to physical points.
+    ///
+    /// For each index `i`, computes `origin + i * spacing` (component-wise).
+    /// This mirrors the Coeus `types.rs` `index_to_world_tensor`.
+    ///
+    /// # Arguments
+    /// * `indices` — `[N, D]` tensor of continuous voxel-index coordinates.
+    ///
+    /// # Returns
+    /// `[N, D]` tensor of world-space coordinates.
+    pub fn index_to_world_tensor(&self, indices: Tensor<B, 2>) -> Tensor<B, 2> {
+        use crate::tensor::{TensorData, Shape};
+        let device = indices.device();
+        let origin_vals: Vec<f32> = (0..D).map(|d| self.origin[d] as f32).collect();
+        let spacing_vals: Vec<f32> = (0..D).map(|d| self.spacing[d] as f32).collect();
+        let origin_t = Tensor::<B, 1>::from_data(
+            TensorData::new(origin_vals, Shape::new([D])),
+            &device,
+        );
+        let spacing_t = Tensor::<B, 1>::from_data(
+            TensorData::new(spacing_vals, Shape::new([D])),
+            &device,
+        );
+        let scaled = indices * spacing_t.unsqueeze_dim(0);
+        scaled + origin_t.unsqueeze_dim(0)
+    }
 }
 
 #[cfg(test)]

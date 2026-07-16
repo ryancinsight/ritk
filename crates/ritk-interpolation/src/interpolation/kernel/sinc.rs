@@ -35,8 +35,8 @@
 //! - Turkowski, K. (1990). Filters for common resampling tasks. *Graphics Gems I*, 147-165.
 
 use ritk_core::interpolation::Interpolator;
-use coeus_core::Backend;
-use coeus_tensor::Tensor;
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 
 /// Lanczos-windowed Sinc interpolator.
 ///
@@ -51,18 +51,18 @@ use coeus_tensor::Tensor;
 ///
 /// ```ignore
 /// use ritk_core::interpolation::LanczosInterpolator;
-/// use coeus_core::SequentialBackend;
-/// use coeus_tensor::Tensor;
+/// use burn_ndarray::NdArray;
+/// use ritk_image::tensor::Tensor;
 ///
-/// type Backend = SequentialBackend;
+/// type Backend = NdArray<f32>;
 /// let device = Default::default();
 ///
 /// // Create a 3-tap Lanczos interpolator (window size = 3)
 /// let interpolator = LanczosInterpolator::<3>::new();
 ///
 /// // Interpolate from 3D volume
-/// let data = Tensor::<f32, Backend>::zeros([64, 64, 64], &device);
-/// let indices = Tensor::<f32, Backend>::from_floats([[32.0, 32.0, 32.0]], &device);
+/// let data = Tensor::<Backend, 3>::zeros([64, 64, 64], &device);
+/// let indices = Tensor::<Backend, 2>::from_floats([[32.0, 32.0, 32.0]], &device);
 /// let values = interpolator.interpolate(&data, indices);
 /// ```
 #[derive(Debug, Clone, Copy)]
@@ -325,53 +325,68 @@ fn interpolate_point_2d_flat<const A: usize>(
     result
 }
 
-impl<B, const A: usize> Interpolator<B> for LanczosInterpolator<A>
-where
-    B: Backend,
-    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
-{
-    fn interpolate(&self, data: &Tensor<f32, B>, indices: Tensor<f32, B>) -> Tensor<f32, B> {
-        let backend = B::default();
-        let idx_shape = indices.shape();
-        let n_points = idx_shape[0];
-        let rank = idx_shape[1];
-        assert_eq!(rank, data.ndim(), "Indices rank must match data dimensionality");
-        assert!(
-            matches!(rank, 2 | 3),
-            "Lanczos interpolation only supports 2D and 3D tensors"
-        );
+impl<B: Backend, const A: usize> Interpolator<B> for LanczosInterpolator<A> {
+    fn interpolate<const D: usize>(
+        &self,
+        data: &Tensor<B, D>,
+        indices: Tensor<B, 2>,
+    ) -> Tensor<B, 1> {
+        let device = indices.device();
+        let [n_points, rank] = indices.dims();
 
-        let dims = data.shape();
+        assert_eq!(rank, D, "Indices rank must match data dimensionality");
+
+        struct SincDimGuard<const D: usize>;
+        impl<const D: usize> SincDimGuard<D> {
+            const _SUPPORTED_DIM: () = assert!(
+                matches!(D, 2 | 3),
+                "Lanczos interpolation only supports 2D and 3D tensors"
+            );
+        }
+        let _: () = SincDimGuard::<D>::_SUPPORTED_DIM;
+
+        let shape = data.shape();
+        let dims: Vec<usize> = shape.dims;
 
         // Pre-flatten once — O(1) reshape shared across all points instead of O(volume) per point.
         let n_elements: usize = dims.iter().product();
-        let flat_data: Tensor<f32, B> = data.clone().reshape([n_elements]);
+        let flat_data: Tensor<B, 1> = data.clone().reshape([n_elements]);
 
         // Extract volume data to CPU once before the point loop so inner loops index a plain
         // &[f32] slice — eliminates the (2A)^D tensor clones/dispatches per query point.
-        let flat_slice: &[f32] = flat_data.as_slice();
+        let flat_cpu = flat_data.into_data();
+        let flat_slice: &[f32] = flat_cpu
+            .as_slice::<f32>()
+            .expect("sinc: volume data must be contiguous f32");
 
         // Get all index data at once
-        let indices_slice: &[f32] = indices.as_slice();
+        let indices_data = indices.to_data();
+        let indices_slice: &[f32] = indices_data.as_slice::<f32>().expect("Indices must be f32");
 
         // Process each point
         let mut results = Vec::with_capacity(n_points);
 
         for i in 0..n_points {
-            let coords_start = i * rank;
+            let coords_start = i * D;
             // Zero-copy slice into the already-extracted indices buffer — no per-point heap allocation.
-            let coords = &indices_slice[coords_start..coords_start + rank];
+            let coords = &indices_slice[coords_start..coords_start + D];
 
-            let value = match rank {
+            let value = match D {
                 3 => interpolate_point_3d_flat::<A>(flat_slice, coords, &dims),
                 2 => interpolate_point_2d_flat::<A>(flat_slice, coords, &dims),
-                _ => unreachable!("Already asserted rank == 2 || rank == 3"),
+                _ => unreachable!("Already asserted D == 2 || D == 3"),
             };
 
             results.push(value);
         }
 
-        Tensor::from_slice_on([n_points], &results, &backend)
+        Tensor::from_data(
+            ritk_image::tensor::TensorData::new(
+                results,
+                ritk_image::tensor::Shape::new([n_points]),
+            ),
+            &device,
+        )
     }
 }
 

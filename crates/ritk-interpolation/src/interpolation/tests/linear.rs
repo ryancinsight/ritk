@@ -1,18 +1,17 @@
 use crate::interpolation::kernel::bspline::cubic_bspline;
 use crate::interpolation::kernel::BoundsPolicy;
 use crate::interpolation::BSplineInterpolator;
-use coeus_core::SequentialBackend;
+use burn_ndarray::NdArray;
 use ritk_core::interpolation::Interpolator;
-use coeus_tensor::Tensor;
-use ritk_image::tensor::{ElementConversion, TensorData};
+use ritk_image::tensor::{ElementConversion, Tensor, TensorData};
 
-type TestBackend = SequentialBackend;
+type TestBackend = NdArray<f32>;
 
 #[test]
 fn test_bspline_volumetric() {
     let device = Default::default();
     // Create a simple 3D volume
-    let data = Tensor::<f32, TestBackend>::from_floats(
+    let data = Tensor::<TestBackend, 3>::from_floats(
         [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
         &device,
     );
@@ -21,7 +20,7 @@ fn test_bspline_volumetric() {
     // Test at exact grid point
     // Note: Without B-spline pre-filtering, the interpolated value at grid points
     // may differ from original data due to the convolution with the B-spline kernel
-    let indices = Tensor::<f32, TestBackend>::from_floats([[0.0, 0.0, 0.0]], &device);
+    let indices = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.0]], &device);
     let result = interpolator.interpolate(&data, indices);
     let val = result.into_scalar().elem::<f32>();
     // Value should be within reasonable range (cubic B-spline center coefficient is 2/3)
@@ -32,7 +31,7 @@ fn test_bspline_volumetric() {
     );
 
     // Test at interpolated point
-    let indices = Tensor::<f32, TestBackend>::from_floats([[0.5, 0.5, 0.5]], &device);
+    let indices = Tensor::<TestBackend, 2>::from_floats([[0.5, 0.5, 0.5]], &device);
     let result = interpolator.interpolate(&data, indices);
     let val = result.into_scalar().elem::<f32>();
     // Value should be between min and max
@@ -47,13 +46,13 @@ fn test_bspline_volumetric() {
 fn test_bspline_planar() {
     let device = Default::default();
     // Create a simple 2D image
-    let data = Tensor::<f32, TestBackend>::from_floats([[1.0, 2.0], [3.0, 4.0]], &device);
+    let data = Tensor::<TestBackend, 2>::from_floats([[1.0, 2.0], [3.0, 4.0]], &device);
     let interpolator = BSplineInterpolator::new();
 
     // Test at exact grid point
     // Note: Without B-spline pre-filtering, the interpolated value at grid points
     // may differ from original data due to the convolution with the B-spline kernel
-    let indices = Tensor::<f32, TestBackend>::from_floats([[0.0, 0.0]], &device);
+    let indices = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0]], &device);
     let result = interpolator.interpolate(&data, indices);
     let val = result.into_scalar().elem::<f32>();
     // Value should be within reasonable range
@@ -81,14 +80,14 @@ fn test_bspline_basis() {
 #[test]
 fn test_bspline_zero_pad_3d_oob_returns_zero() {
     let device = Default::default();
-    let data = Tensor::<f32, TestBackend>::from_floats(
+    let data = Tensor::<TestBackend, 3>::from_floats(
         [[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]],
         &device,
     );
     let interp = BSplineInterpolator::new_zero_pad();
 
     // Clearly out-of-bounds queries in each direction.
-    let oob = Tensor::<f32, TestBackend>::from_floats(
+    let oob = Tensor::<TestBackend, 2>::from_floats(
         [
             [-5.0, 0.0, 0.0], // dim0 OOB negative
             [10.0, 0.0, 0.0], // dim0 OOB positive
@@ -124,11 +123,11 @@ fn test_bspline_zero_pad_3d_inbounds_matches_no_pad() {
             }
         }
     }
-    let data = Tensor::<f32, TestBackend>::from_data((data_vec, [n, n, n]), &device);
+    let data = Tensor::<TestBackend, 3>::from_data(TensorData::new(data_vec, [n, n, n]), &device);
     let interp_pad = BSplineInterpolator::new_zero_pad();
     let interp_nop = BSplineInterpolator::new();
 
-    let pt = Tensor::<f32, TestBackend>::from_floats([[1.5, 1.5, 1.5]], &device);
+    let pt = Tensor::<TestBackend, 2>::from_floats([[1.5, 1.5, 1.5]], &device);
     let val_pad = interp_pad
         .interpolate(&data, pt.clone())
         .into_data()
@@ -155,11 +154,11 @@ fn test_bspline_zero_pad_3d_inbounds_matches_no_pad() {
 #[test]
 fn test_bspline_zero_pad_2d_oob_returns_zero() {
     let device = Default::default();
-    let data = Tensor::<f32, TestBackend>::from_floats([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], &device);
+    let data = Tensor::<TestBackend, 2>::from_floats([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], &device);
     let interp = BSplineInterpolator::new_zero_pad();
 
     // OOB in both dimensions.
-    let oob = Tensor::<f32, TestBackend>::from_floats(
+    let oob = Tensor::<TestBackend, 2>::from_floats(
         [[-1.0, 0.0], [0.0, -1.0], [10.0, 0.0], [0.0, 10.0]],
         &device,
     );
@@ -181,7 +180,7 @@ fn test_bspline_no_zero_pad_oob_gives_finite_value() {
     // produce a finite (non-panic) value thanks to weight renormalization
     // of the in-bounds neighborhood samples.
     let device = Default::default();
-    let data = Tensor::<f32, TestBackend>::from_floats(
+    let data = Tensor::<TestBackend, 3>::from_floats(
         [[[10.0, 20.0], [30.0, 40.0]], [[50.0, 60.0], [70.0, 80.0]]],
         &device,
     );
@@ -190,7 +189,7 @@ fn test_bspline_no_zero_pad_oob_gives_finite_value() {
     // Query just outside: floor(-0.1) = -1 (OOB in dim0).
     // The kernel neighbourhood still touches in-bounds samples at indices 0,1,2
     // (clipped from the 4-wide support), so weight_sum > 0 and result is finite.
-    let pt = Tensor::<f32, TestBackend>::from_floats([[-0.1, 0.5, 0.5]], &device);
+    let pt = Tensor::<TestBackend, 2>::from_floats([[-0.1, 0.5, 0.5]], &device);
     let val = interp
         .interpolate(&data, pt)
         .into_data()
@@ -229,8 +228,8 @@ fn test_bspline_performance_regression_volumetric() {
     let size = 64usize;
     let n_voxels = size * size * size;
     let data: Vec<f32> = (0..n_voxels).map(|i| (i % 256) as f32).collect();
-    let data_tensor = Tensor::<f32, TestBackend>::from_data(
-        ritk_image::tensor::(data, [size, size, size]),
+    let data_tensor = Tensor::<TestBackend, 3>::from_data(
+        ritk_image::tensor::TensorData::new(data, [size, size, size]),
         &device,
     );
 
@@ -244,8 +243,8 @@ fn test_bspline_performance_regression_volumetric() {
         indices_data[i * 3 + 1] = (rand::random::<f32>() * size as f32) - 0.5;
         indices_data[i * 3 + 2] = (rand::random::<f32>() * size as f32) - 0.5;
     }
-    let indices = Tensor::<f32, TestBackend>::from_data(
-        ritk_image::tensor::(indices_data, [n_points, 3]),
+    let indices = Tensor::<TestBackend, 2>::from_data(
+        ritk_image::tensor::TensorData::new(indices_data, [n_points, 3]),
         &device,
     );
 
@@ -256,7 +255,7 @@ fn test_bspline_performance_regression_volumetric() {
     let duration = start.elapsed();
 
     // Result should have n_points values
-    assert_eq!(result.shape()[0], n_points);
+    assert_eq!(result.dims()[0], n_points);
 
     // Performance assertion: 1000 points on 64^3 volume should complete
     // in under 1 second on typical hardware. This guards against regressions.

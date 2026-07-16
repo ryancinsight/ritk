@@ -10,21 +10,19 @@
 //! weights, clamped int indices) and the in-bounds mask application;
 //! this file supplies only the gather + lerp cascade body.
 
-use coeus_core::Backend;
-use coeus_tensor::Tensor;
-use ritk_image::tensor::{backend::Int};;
+use ritk_image::tensor::{backend::Backend, Int, Tensor};
 
 /// 1-D gather with a borrowed index — used by the autodiff path where
 /// the caller must retain the index tensor for further use.
 #[inline]
-fn gather_1d<B: Backend>(flat_data: &Tensor<f32, B>, idx: &Tensor<i32, B>) -> Tensor<f32, B> {
+fn gather_1d<B: Backend>(flat_data: &Tensor<B, 1>, idx: &Tensor<B, 1, Int>) -> Tensor<B, 1> {
     flat_data.clone().gather(0, idx.clone())
 }
 
 /// 1-D gather consuming the index tensor — used by the non-autodiff
 /// fast path. Eliminates the `idx.clone()` per call.
 #[inline]
-fn gather_1d_owned<B: Backend>(flat_data: &Tensor<f32, B>, idx: Tensor<i32, B>) -> Tensor<f32, B> {
+fn gather_1d_owned<B: Backend>(flat_data: &Tensor<B, 1>, idx: Tensor<B, 1, Int>) -> Tensor<B, 1> {
     flat_data.clone().gather(0, idx)
 }
 
@@ -45,7 +43,7 @@ ritk_macros::interp_dim_template!(1, interpolate_1d, x, wx, d0 - 1, {
     };
 
     // Linear interpolation.
-    let one = Tensor::<f32, B>::ones([batch_size], &_device);
+    let one = Tensor::<B, 1>::ones([batch_size], &_device);
     let one_minus_wx = one - wx.clone();
 
     v0 * one_minus_wx + v1 * wx
@@ -80,7 +78,7 @@ ritk_macros::interp_dim_template_typed!(1, interpolate_1d_typed, x, wx, D0 - 1, 
     };
 
     // Linear interpolation.
-    let one = Tensor::<f32, B>::ones([batch_size], &_device);
+    let one = Tensor::<B, 1>::ones([batch_size], &_device);
     let one_minus_wx = one - wx.clone();
 
     v0 * one_minus_wx + v1 * wx

@@ -8143,8 +8143,9 @@ dependencies = [
 name = "ritk-wgpu-compat"
 version = "0.1.0"
 dependencies = [
+ "burn",
+ "burn-ndarray",
  "coeus-core",
- "coeus-ops",
  "coeus-tensor",
  "hephaestus-wgpu",
 ]
