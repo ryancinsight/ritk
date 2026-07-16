@@ -3,7 +3,7 @@
 //! This module provides a scale transform (scaling around a center).
 
 use ritk_core::transform::Transform;
-use burn::module::Module;
+use coeus_core::CpuAddressableStorage;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 
@@ -15,7 +15,7 @@ use ritk_image::tensor::Tensor;
 /// where:
 /// * S is a D-dimensional scale vector (diagonal matrix)
 /// * c is a D-dimensional fixed center of scaling
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ScaleTransform<B: Backend, const D: usize> {
     scale: Tensor<f32, B>, // [D] scale factors
     center: Tensor<f32, B>,       // [D] fixed center
@@ -28,10 +28,7 @@ impl<B: Backend, const D: usize> ScaleTransform<B, D> {
     /// * `scale` - Tensor of shape `[D]` containing the scale factors
     /// * `center` - Tensor of shape `[D]` containing the fixed center
     pub fn new(scale: Tensor<f32, B>, center: Tensor<f32, B>) -> Self {
-        Self {
-            scale: Param::from_tensor(scale),
-            center,
-        }
+        Self { scale, center }
     }
 
     /// Create an identity scale transform (scale = 1.0).
@@ -40,14 +37,14 @@ impl<B: Backend, const D: usize> ScaleTransform<B, D> {
     /// * `center` - Optional center of scaling. If None, uses origin (0,0...0).
     /// * `device` - Device to create tensors on.
     pub fn identity(center: Option<Tensor<f32, B>>, device: &B) -> Self {
-        let scale = Tensor::<f32, B>::ones([D], device);
-        let center = center.unwrap_or_else(|| Tensor::<f32, B>::zeros([D], device));
+        let scale = Tensor::<f32, B>::ones_on([D], device);
+        let center = center.unwrap_or_else(|| Tensor::<f32, B>::zeros_on([D], device));
         Self::new(scale, center)
     }
 
     /// Get the scale factors.
     pub fn scale(&self) -> Tensor<f32, B> {
-        self.scale.val()
+        self.scale.clone()
     }
 
     /// Get the center of scaling.
@@ -56,24 +53,30 @@ impl<B: Backend, const D: usize> ScaleTransform<B, D> {
     }
 }
 
-impl<B: Backend, const D: usize> Transform<B, D> for ScaleTransform<B, D> {
+impl<B: Backend, const D: usize> Transform<B, D> for ScaleTransform<B, D>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
-        // points: [Batch, D]
-        // scale (s): [D]
-        // center (c): [D]
-        //
-        // T(x) = s * (x - c) + c
-        // Element-wise multiplication since s is diagonal
+        let device = B::default();
+        let points = points.to_contiguous();
+        let scale = self.scale.to_contiguous();
+        let center = self.center.to_contiguous();
+        let batch = points.shape()[0];
+        let point_data = points.as_slice();
+        let scale_data = scale.as_slice();
+        let center_data = center.as_slice();
+        let mut output = vec![0.0f32; batch * D];
 
-        let c = self.center.clone().reshape([1, D]);
-        let s = self.scale.val().reshape([1, D]);
+        for row in 0..batch {
+            for dim in 0..D {
+                let x = point_data[row * D + dim];
+                let c = center_data[dim];
+                output[row * D + dim] = scale_data[dim] * (x - c) + c;
+            }
+        }
 
-        let centered = points - c.clone();
-
-        // Element-wise multiplication broadcast
-        let scaled = centered * s;
-
-        scaled + c
+        Tensor::<f32, B>::from_slice_on([batch, D], &output, &device)
     }
 }
 

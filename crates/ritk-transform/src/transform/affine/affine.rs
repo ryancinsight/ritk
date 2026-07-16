@@ -4,9 +4,9 @@
 
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_core::transform::{Resampleable, Transform};
+use coeus_core::CpuAddressableStorage;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
-use ritk_wgpu_compat::apply_row_chunks;
 
 /// Affine Transform (Linear transformation + Translation).
 ///
@@ -17,7 +17,7 @@ use ritk_wgpu_compat::apply_row_chunks;
 /// * A is a D×D matrix (linear transformation: rotation, scale, shear)
 /// * t is a D-dimensional translation vector
 /// * c is a D-dimensional fixed center of rotation/scaling
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct AffineTransform<B: Backend, const D: usize> {
     matrix: Tensor<f32, B>,      // [D, D] linear transformation matrix
     translation: Tensor<f32, B>, // [D] translation vector
@@ -38,7 +38,9 @@ impl<B: Backend, const D: usize> AffineTransform<B, D> {
         // mis-multiply `[N, D] @ [D+1, D+1]` and panic deep inside the backend.
         // Use `RigidTransform::build_rotation_matrix()` (the [D, D] rotation) to
         // seed instead. Fail here, loudly and actionably.
-        let [rows, cols] = matrix.shape();
+        let &[rows, cols] = matrix.shape() else {
+            panic!("AffineTransform::new expects a 2-D matrix");
+        };
         assert!(
             rows == D && cols == D,
             "AffineTransform::new expects a [D, D] linear matrix (D = {D}), got [{rows}, {cols}]; \
@@ -85,28 +87,35 @@ impl<B: Backend, const D: usize> AffineTransform<B, D> {
     }
 }
 
-impl<B: Backend, const D: usize> Transform<B, D> for AffineTransform<B, D> {
+impl<B: Backend, const D: usize> Transform<B, D> for AffineTransform<B, D>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
-        // points: [Batch, D]
-        // matrix (A): [D, D]
-        // translation (t): [D]
-        // center (c): [D]
-        //
-        // T(x) = A(x - c) + c + t
-        //
-        // In row vector notation (standard for Burn/PyTorch inputs [N, D]):
-        // y = (x - c) @ A^T + c + t
+        let device = B::default();
+        let points = points.to_contiguous();
+        let matrix = self.matrix.to_contiguous();
+        let translation = self.translation.to_contiguous();
+        let center = self.center.to_contiguous();
+        let batch = points.shape()[0];
+        let point_data = points.as_slice();
+        let matrix_data = matrix.as_slice();
+        let translation_data = translation.as_slice();
+        let center_data = center.as_slice();
+        let mut output = vec![0.0f32; batch * D];
 
-        let c = self.center.clone().reshape([1, D]);
-        let t = self.translation.val().reshape([1, D]);
-        let a = self.matrix.val();
-        let a_t = a.transpose();
+        for row in 0..batch {
+            for out_dim in 0..D {
+                let mut acc = center_data[out_dim] + translation_data[out_dim];
+                for in_dim in 0..D {
+                    let centered = point_data[row * D + in_dim] - center_data[in_dim];
+                    acc += centered * matrix_data[out_dim * D + in_dim];
+                }
+                output[row * D + out_dim] = acc;
+            }
+        }
 
-        apply_row_chunks(points, ritk_wgpu_compat::WGPU_CHUNK_SIZE, |chunk_points| {
-            let centered = chunk_points - c.clone();
-            let rotated = centered.matmul(a_t.clone());
-            rotated + c.clone() + t.clone()
-        })
+        Tensor::<f32, B>::from_slice_on([batch, D], &output, &device)
     }
 }
 

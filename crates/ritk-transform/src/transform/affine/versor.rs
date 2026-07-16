@@ -4,7 +4,7 @@
 //! It is robust against Gimbal lock and is suitable for 3D registration.
 
 use ritk_core::transform::Transform;
-use burn::module::Module;
+use coeus_core::CpuAddressableStorage;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 
@@ -12,7 +12,7 @@ use ritk_image::tensor::Tensor;
 ///
 /// Supports 3D only.
 /// Includes a fixed center of rotation: T(x) = R(x - c) + c + t
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct VersorRigid3DTransform<B: Backend> {
     translation: Tensor<f32, B>,
     rotation: Tensor<f32, B>, // [4] Quaternion (x, y, z, w)
@@ -27,21 +27,17 @@ impl<B: Backend> VersorRigid3DTransform<B> {
     /// * `rotation` - Tensor of shape `[4]` containing the quaternion (x, y, z, w)
     /// * `center` - Tensor of shape `[3]` containing the fixed center of rotation
     pub fn new(translation: Tensor<f32, B>, rotation: Tensor<f32, B>, center: Tensor<f32, B>) -> Self {
-        Self {
-            translation: Param::from_tensor(translation),
-            rotation: Param::from_tensor(rotation),
-            center,
-        }
+        Self { translation, rotation, center }
     }
 
     /// Get the translation vector.
     pub fn translation(&self) -> Tensor<f32, B> {
-        self.translation.val().clone()
+        self.translation.clone()
     }
 
     /// Get the rotation quaternion.
     pub fn rotation(&self) -> Tensor<f32, B> {
-        self.rotation.val().clone()
+        self.rotation.clone()
     }
 
     /// Get the center of rotation.
@@ -56,27 +52,26 @@ impl<B: Backend> VersorRigid3DTransform<B> {
     /// `[3, 3]` tensor. This avoids the ~28 intermediate tensor allocations
     /// (clones, element-wise products, scalar constants) that the previous
     /// tensor-only formulation required.
-    fn build_rotation_matrix(&self) -> Tensor<f32, B> {
-        let q = self.rotation.val();
+    fn build_rotation_matrix(&self) -> Tensor<f32, B>
+    where
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
         let dev = B::default();
-
-        // Extract normalised quaternion components as host scalars.
-        let norm_data = q.clone().powf_scalar(2.0).sum().sqrt().into_data();
-        let norm_val = norm_data
-            .as_slice::<f32>()
-            .expect("norm tensor must be contiguous f32")[0];
+        let q = self.rotation.to_contiguous();
+        let q_slice = q.as_slice();
+        let norm_val = (q_slice[0] * q_slice[0]
+            + q_slice[1] * q_slice[1]
+            + q_slice[2] * q_slice[2]
+            + q_slice[3] * q_slice[3])
+            .sqrt();
         // Quaternion norm guard: prevents divide-by-zero during normalization.
         // Practical threshold well above f32 underflow (~1.2e-38).
         const QUAT_NORM_GUARD: f32 = 1e-12;
         let norm = norm_val + QUAT_NORM_GUARD; // Avoid div by zero
-        let q_data = (q / norm).into_data();
-        let q_slice = q_data
-            .as_slice::<f32>()
-            .expect("quaternion tensor must be contiguous f32");
-        let x = q_slice[0] as f64;
-        let y = q_slice[1] as f64;
-        let z = q_slice[2] as f64;
-        let w = q_slice[3] as f64;
+        let x = (q_slice[0] / norm) as f64;
+        let y = (q_slice[1] / norm) as f64;
+        let z = (q_slice[2] / norm) as f64;
+        let w = (q_slice[3] / norm) as f64;
 
         // Pre-compute products (each used 1–3 times).
         let xx = x * x;
@@ -99,33 +94,43 @@ impl<B: Backend> VersorRigid3DTransform<B> {
         let r32 = 2.0 * (yz + xw);
         let r33 = 1.0 - 2.0 * (xx + yy);
 
-        Tensor::<f32, B>::from_floats(
-            [
-                [r11 as f32, r12 as f32, r13 as f32],
-                [r21 as f32, r22 as f32, r23 as f32],
-                [r31 as f32, r32 as f32, r33 as f32],
-            ],
-            &dev,
-        )
+        let data = [
+            r11 as f32, r12 as f32, r13 as f32, r21 as f32, r22 as f32, r23 as f32, r31 as f32,
+            r32 as f32, r33 as f32,
+        ];
+        Tensor::<f32, B>::from_slice_on([3, 3], &data, &dev)
     }
 }
 
-impl<B: Backend> Transform<B, 3> for VersorRigid3DTransform<B> {
+impl<B: Backend> Transform<B, 3> for VersorRigid3DTransform<B>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
-        // points: [Batch, 3]
-        // R: [3, 3]
-        // t: [3]
-        // c: [3]
-        // T(x) = R(x - c) + c + t
+        let device = B::default();
+        let points = points.to_contiguous();
+        let rotation = self.build_rotation_matrix().to_contiguous();
+        let translation = self.translation.to_contiguous();
+        let center = self.center.to_contiguous();
+        let batch = points.shape()[0];
+        let point_data = points.as_slice();
+        let rotation_data = rotation.as_slice();
+        let translation_data = translation.as_slice();
+        let center_data = center.as_slice();
+        let mut output = vec![0.0f32; batch * 3];
 
-        let r = self.build_rotation_matrix();
-        let t = self.translation.val().reshape([1, 3]);
-        let c = self.center.clone().reshape([1, 3]);
+        for row in 0..batch {
+            for out_dim in 0..3 {
+                let mut acc = center_data[out_dim] + translation_data[out_dim];
+                for in_dim in 0..3 {
+                    let centered = point_data[row * 3 + in_dim] - center_data[in_dim];
+                    acc += centered * rotation_data[out_dim * 3 + in_dim];
+                }
+                output[row * 3 + out_dim] = acc;
+            }
+        }
 
-        let centered = points - c.clone();
-        let rotated = centered.matmul(r.transpose());
-
-        rotated + c + t
+        Tensor::<f32, B>::from_slice_on([batch, 3], &output, &device)
     }
 }
 

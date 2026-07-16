@@ -4,14 +4,14 @@
 
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_core::transform::{Resampleable, Transform};
-use burn::module::Module;
+use coeus_core::CpuAddressableStorage;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 
 /// Simple Translation Transform.
 ///
 /// Translates points by a fixed offset vector.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct TranslationTransform<B: Backend, const D: usize> {
     translation: Tensor<f32, B>,
 }
@@ -22,24 +22,35 @@ impl<B: Backend, const D: usize> TranslationTransform<B, D> {
     /// # Arguments
     /// * `translation` - Tensor of shape `[D]` containing the translation vector
     pub fn new(translation: Tensor<f32, B>) -> Self {
-        Self {
-            translation: Param::from_tensor(translation),
-        }
+        Self { translation }
     }
 
     /// Get the translation vector.
     pub fn translation(&self) -> Tensor<f32, B> {
-        self.translation.val().clone()
+        self.translation.clone()
     }
 }
 
-impl<B: Backend, const D: usize> Transform<B, D> for TranslationTransform<B, D> {
+impl<B: Backend, const D: usize> Transform<B, D> for TranslationTransform<B, D>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
-        // points: [Batch, D]
-        // translation: [D]
-        // Broadcast translation to [Batch, D]
-        let t = self.translation.val().reshape([1, D]);
-        points + t
+        let device = B::default();
+        let points = points.to_contiguous();
+        let translation = self.translation.to_contiguous();
+        let batch = points.shape()[0];
+        let point_data = points.as_slice();
+        let translation_data = translation.as_slice();
+        let mut output = vec![0.0f32; batch * D];
+
+        for row in 0..batch {
+            for dim in 0..D {
+                output[row * D + dim] = point_data[row * D + dim] + translation_data[dim];
+            }
+        }
+
+        Tensor::<f32, B>::from_slice_on([batch, D], &output, &device)
     }
 }
 

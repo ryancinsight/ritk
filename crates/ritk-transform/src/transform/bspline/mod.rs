@@ -2,9 +2,8 @@
 //!
 //! This module provides a B-Spline free-form deformation transform.
 
-use burn::module::Module;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor};
+use ritk_image::tensor::Tensor;
 
 /// B-Spline Transform (Free-form deformation).
 ///
@@ -15,7 +14,7 @@ use ritk_image::tensor::{Shape, Tensor};
 /// interpolates the displacement, and adds it to the original point.
 ///
 /// Points outside the defined grid support (0 to grid_size-1) have zero displacement.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct BSplineTransform<B: Backend, const D: usize> {
     /// Control point grid dimensions
     grid_size: [usize; D],
@@ -55,7 +54,7 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
             origin,
             spacing,
             direction,
-            coefficients: Param::from_tensor(coefficients),
+            coefficients,
         }
     }
 
@@ -78,13 +77,11 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
     ) -> Self {
         // Convert origin to tensor
         let origin_vec: Vec<f32> = (0..D).map(|i| origin[i] as f32).collect();
-        let origin_tensor =
-            Tensor::<f32, B>::from_data((origin_vec, ([D])), device);
+        let origin_tensor = Tensor::<f32, B>::from_slice_on([D], &origin_vec, device);
 
         // Convert spacing to tensor
         let spacing_vec: Vec<f32> = (0..D).map(|i| spacing[i] as f32).collect();
-        let spacing_tensor =
-            Tensor::<f32, B>::from_data((spacing_vec, ([D])), device);
+        let spacing_tensor = Tensor::<f32, B>::from_slice_on([D], &spacing_vec, device);
 
         // Convert direction to tensor
         let mut dir_data = Vec::with_capacity(D * D);
@@ -93,8 +90,7 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
                 dir_data.push(direction[(r, c)] as f32);
             }
         }
-        let direction_tensor =
-            Tensor::<f32, B>::from_data((dir_data, ([D, D])), device);
+        let direction_tensor = Tensor::<f32, B>::from_slice_on([D, D], &dir_data, device);
 
         Self::new(
             grid_size,
@@ -127,7 +123,7 @@ impl<B: Backend, const D: usize> BSplineTransform<B, D> {
 
     /// Get the coefficients.
     pub fn coefficients(&self) -> Tensor<f32, B> {
-        self.coefficients.val().clone()
+        self.coefficients.clone()
     }
 }
 pub(crate) mod interpolation;

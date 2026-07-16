@@ -1,6 +1,6 @@
 //! Multi-component image volumes with physical metadata.
 //!
-//! `ColorVolume<B, C>` stores C interleaved samples per voxel in a rank-4
+//! `ColorVolume<f32, B, C>` stores C interleaved samples per voxel in a rank-4
 //! tensor with shape `[depth, rows, cols, C]`. Spatial metadata remains 3-D.
 
 use std::fmt;

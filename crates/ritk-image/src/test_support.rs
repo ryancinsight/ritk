@@ -18,13 +18,13 @@
 //! - [`fill_image`] — pure-fill constructor: produces an image with the
 //!   given value at every voxel, sized `[d0, …, d{D-1}]`.
 //!
-//! All helpers return `Image<B, D>` and so require `B: Backend +
+//! All helpers return `Image<f32, B, D>` and so require `B: Backend +
 //! Default`. Consumer tests fix `B` at the binding site:
 //!
 //! ```ignore
-//! use burn_ndarray::NdArray;
+//! use coeus_core::SequentialBackend;
 //! use ritk_image::test_support::make_image;
-//! type TestBackend = NdArray<f32>;
+//! type TestBackend = SequentialBackend;
 //! let img: Image<TestBackend, 3> = make_image(vec![0.0; 24], [2, 3, 4]);
 //! ```
 //!
