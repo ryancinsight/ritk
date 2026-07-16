@@ -10,25 +10,19 @@ use ritk_image::tensor::{Backend, Tensor};
 /// which is essential for image registration and resampling.
 ///
 /// # Type Parameters
-/// * `B` - The Burn backend
-///
-/// # Dimension restriction
-/// Only `D ∈ {1, 2, 3, 4}` is supported. The dispatch layer enforces
-/// this at runtime (panicking for unsupported dimensions), while the
-/// compiler fully monomorphizes each supported dimension.
+/// * `B` - The compute backend
 pub trait Interpolator<B: Backend> {
     /// Interpolate values from a tensor at given continuous indices.
     ///
     /// # Arguments
-    /// * `data` - The source tensor (e.g., 3D volume `[D, H, W]` or 2D image `[H, W]`)
-    /// * `indices` - The indices at which to interpolate `[Batch, Rank]`
-    ///   Rank must match `data` dimensionality
+    /// * `data` - The source tensor (flat f32 data)
+    /// * `indices` - The indices at which to interpolate
     ///
     /// # Returns
-    /// Tensor of sampled values `[Batch]`
-    fn interpolate<const D: usize>(
+    /// Tensor of sampled values
+    fn interpolate(
         &self,
-        data: &Tensor<B, D>,
-        indices: Tensor<B, 2>,
-    ) -> Tensor<B, 1>;
+        data: &Tensor<f32, B>,
+        indices: Tensor<f32, B>,
+    ) -> Tensor<f32, B>;
 }

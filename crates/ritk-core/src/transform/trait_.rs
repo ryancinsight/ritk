@@ -23,7 +23,7 @@ pub trait Transform<B: Backend, const D: usize>: Sized {
     ///
     /// # Returns
     /// Tensor of shape `[Batch, D]` containing the transformed points
-    fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2>;
+    fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B>;
 
     /// Get the inverse transform (if available).
     ///
