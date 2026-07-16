@@ -222,6 +222,7 @@ pub struct RegisterArgs {
 ///
 /// # Panics
 /// Panics if the tensor data cannot be extracted as `f32`.
+#[allow(dead_code)]
 pub(super) fn image_to_leto_volume(image: &Image<Backend, 3>) -> Array3<f64> {
     let shape = image.shape();
     let slice = image.data_slice();
@@ -234,6 +235,7 @@ pub(super) fn image_to_leto_volume(image: &Image<Backend, 3>) -> Array3<f64> {
 ///
 /// The spatial metadata (origin, spacing, direction) is copied from
 /// `reference` so the output image lives in the fixed image's frame.
+#[allow(dead_code)]
 pub(super) fn leto_volume_to_image(
     volume: Array3<f64>,
     reference: &Image<Backend, 3>,

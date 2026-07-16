@@ -5,7 +5,7 @@ use super::super::{
     infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
     write_image_native, NativeBackend,
 };
-use super::{read_image, write_image_inferred, FilterArgs};
+use super::FilterArgs;
 
 // ── Gradient magnitude ────────────────────────────────────────────────────────
 
