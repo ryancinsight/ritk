@@ -12,7 +12,10 @@ fn grid_3d_shape_is_n_by_3() {
     let g = generate_grid::<f32, B, 3>([2, 3, 4], &backend);
     let shape = g.shape();
     assert_eq!(shape[0], 2 * 3 * 4, "row count must equal D*H*W");
-    assert_eq!(shape[1], 3, "column count must be 3 (innermost-first [x,y,z])");
+    assert_eq!(
+        shape[1], 3,
+        "column count must be 3 (innermost-first [x,y,z])"
+    );
 }
 
 /// First voxel (z=0, y=0, x=0) must be [0, 0, 0].
@@ -20,7 +23,7 @@ fn grid_3d_shape_is_n_by_3() {
 fn grid_3d_first_voxel_is_origin() {
     let backend = B::default();
     let g = generate_grid::<f32, B, 3>([3, 3, 3], &backend);
-    let first = g.slice(&[(0, 1)]);
+    let first = g.slice(&[(0, 1), (0, 3)]);
     let vals = first.as_slice();
     // column order: innermost-first [x, y, z]
     assert_eq!(vals[0], 0.0, "x of first voxel");
@@ -43,7 +46,7 @@ fn grid_3d_last_voxel_matches_shape_minus_one() {
     let w = 4usize;
     let g = generate_grid::<f32, B, 3>([d, h, w], &backend);
     let n = d * h * w;
-    let last = g.slice(&[(n - 1, n)]);
+    let last = g.slice(&[(n - 1, n), (0, 3)]);
     let vals = last.as_slice();
     assert_eq!(vals[0], (w - 1) as f32, "x of last voxel");
     assert_eq!(vals[1], (h - 1) as f32, "y of last voxel");
@@ -65,7 +68,7 @@ fn grid_2d_shape_is_n_by_2() {
 fn grid_2d_first_pixel_is_origin() {
     let backend = B::default();
     let g = generate_grid::<f32, B, 2>([4, 6], &backend);
-    let first = g.slice(&[(0, 1)]);
+    let first = g.slice(&[(0, 1), (0, 2)]);
     let vals = first.as_slice();
     assert_eq!(vals[0], 0.0, "x of first pixel");
     assert_eq!(vals[1], 0.0, "y of first pixel");

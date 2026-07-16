@@ -27,6 +27,7 @@ use ritk_core::image::Image;
 use ritk_core::transform::Transform;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
+use ritk_image::{generate_grid_burn, generate_random_points_burn};
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 
 // `make_cache` was moved to `super::super::cache` in Sprint 354 (DRY-354-03).
@@ -45,8 +46,6 @@ impl<B: Backend> ParzenJointHistogram<B> {
         interpolator: &LinearInterpolator,
         sampling: SamplingConfig,
     ) -> Tensor<B, 2> {
-        use ritk_core::image::grid;
-
         let fixed_shape = fixed.shape();
         let device = fixed.data().device();
 
@@ -54,7 +53,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let total_voxels = fixed_shape.iter().product::<usize>();
         let (fixed_indices, n, use_sampling, cached_points) = if sampling.is_active() {
             let num_samples = resolve_n_points(&sampling, total_voxels);
-            let indices = grid::generate_random_points(fixed_shape, num_samples, &device);
+            let indices = generate_random_points_burn(fixed_shape, num_samples, &device);
             (Some(indices), num_samples, SamplingMode::Sampled, None)
         } else {
             let cached_points = self.cache.with_ref(|cache| {
@@ -66,7 +65,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             if let Some(pts) = cached_points {
                 (None, total_voxels, SamplingMode::Dense, Some(pts))
             } else {
-                let indices = grid::generate_grid(fixed_shape, &device);
+                let indices = generate_grid_burn(fixed_shape, &device);
                 (Some(indices), total_voxels, SamplingMode::Dense, None)
             }
         };
@@ -244,7 +243,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let fixed_points = if let Some(pts) = extract_cached_points(fixed, &self.cache) {
             pts
         } else {
-            let indices = ritk_core::image::grid::generate_grid(fixed.shape(), &device);
+            let indices = generate_grid_burn(fixed.shape(), &device);
             fixed.index_to_world_tensor(indices)
         };
 

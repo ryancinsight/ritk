@@ -6,6 +6,7 @@
 use ritk_core::image::Image;
 use ritk_filter::pyramid::MultiResolutionPyramid;
 use ritk_filter::GaussianSigma;
+use ritk_image::generate_random_points_burn;
 use ritk_image::tensor::AutodiffBackend;
 use ritk_image::tensor::{Backend, Shape, Tensor, TensorData};
 use ritk_transform::RigidTransform;
@@ -175,11 +176,8 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
     } else if config.sampling_percentage < 1.0 {
         let total_voxels = fixed_inner.shape().iter().product::<usize>();
         let num_samples = ((total_voxels as f32 * config.sampling_percentage) as usize).max(32);
-        let fixed_indices = ritk_core::image::grid::generate_random_points(
-            fixed_inner.shape(),
-            num_samples,
-            &inner_device,
-        );
+        let fixed_indices =
+            generate_random_points_burn(fixed_inner.shape(), num_samples, &inner_device);
         Some(fixed_inner.index_to_world_tensor(fixed_indices))
     } else {
         None

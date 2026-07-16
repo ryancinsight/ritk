@@ -90,7 +90,7 @@ leto = { path = "../leto/crates/leto", version = "0.38.0" }
 leto-ops = { path = "../leto/crates/leto-ops", version = "0.38.0" }
 hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.15.0" }
 hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.15.0" }
-apollo-fft = { path = "../apollo/crates/apollo-fft", version = "0.20.0" }
+apollo-fft = { path = "../apollo/crates/apollo-fft", version = "0.21.0" }
 num-complex = { version = "0.4.6", features = ["bytemuck"] }
 anyhow = "1.0"
 thiserror = "2.0"

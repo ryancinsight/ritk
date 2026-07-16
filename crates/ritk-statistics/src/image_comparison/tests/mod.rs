@@ -8,7 +8,7 @@ pub(super) fn make_image<const D: usize>(
     data: Vec<f32>,
     dims: [usize; D],
 ) -> Image<TestBackend, D> {
-    test_support::make_image(data, dims)
+    test_support::burn_compat::make_image(data, dims)
 }
 
 pub(super) const F32_TOL: f32 = 1e-5;

@@ -18,7 +18,7 @@
 //! too, so the same call warps labels through a SyN/Demons/B-spline field.
 
 use ritk_image::tensor::Backend;
-use ritk_image::{grid, Image};
+use ritk_image::{generate_grid_burn, Image};
 use ritk_interpolation::{Interpolator, NearestNeighborInterpolator};
 use ritk_transform::Transform;
 use std::collections::BTreeMap;
@@ -41,7 +41,7 @@ pub fn warp_label_map<B: Backend>(
     let shape = reference.shape();
 
     // reference voxel → world → (transform) → label-image world → label index.
-    let indices = grid::generate_grid(shape, &device);
+    let indices = generate_grid_burn(shape, &device);
     let ref_world = reference.index_to_world_tensor(indices);
     let label_world = transform.transform_points(ref_world);
     let label_idx = labels.world_to_index_tensor(label_world);

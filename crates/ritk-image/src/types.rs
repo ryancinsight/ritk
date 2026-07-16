@@ -104,10 +104,7 @@ where
 
     /// Get the image shape as an array.
     pub fn shape(&self) -> [usize; D] {
-        self.data
-            .shape()
-            .try_into()
-            .expect("Tensor rank mismatch")
+        self.data.shape().try_into().expect("Tensor rank mismatch")
     }
 
     /// Consume the image and return the underlying tensor.
@@ -162,7 +159,12 @@ where
         if self.data.is_contiguous() {
             Cow::Borrowed(self.data.as_slice())
         } else {
-            Cow::Owned(self.data.to_contiguous_on(&B::default()).as_slice().to_vec())
+            Cow::Owned(
+                self.data
+                    .to_contiguous_on(&B::default())
+                    .as_slice()
+                    .to_vec(),
+            )
         }
     }
 

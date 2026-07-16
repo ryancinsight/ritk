@@ -258,7 +258,7 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "apollo-fft"
-version = "0.20.0"
+version = "0.21.0"
 dependencies = [
  "apollo-fft-macros",
  "apollo-leto-interop",
@@ -291,6 +291,15 @@ name = "apollo-leto-interop"
 version = "0.16.0"
 dependencies = [
  "leto",
+]
+
+[[package]]
+name = "approx"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -1641,7 +1650,7 @@ checksum = "fe6d2e5af09e8c8ad56c969f2157a3d4238cebc7c55f0a517728c38f7b200f81"
 dependencies = [
  "serde",
  "termcolor",
- "unicode-width 0.1.14",
+ "unicode-width 0.2.0",
 ]
 
 [[package]]
@@ -1650,12 +1659,12 @@ version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af491d569909a7e4dee0ad7db7f5341fef5c614d5b8ec8cf765732aba3cff681"
 dependencies = [
- "unicode-width 0.1.14",
+ "unicode-width 0.2.0",
 ]
 
 [[package]]
 name = "coeus-autograd"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "apollo-fft",
  "coeus-core",
@@ -1669,7 +1678,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-core"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "bytemuck",
  "eunomia",
@@ -1683,7 +1692,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-leto"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "coeus-core",
  "leto",
@@ -1692,7 +1701,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-nn"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
@@ -1705,7 +1714,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-ops"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -1721,7 +1730,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-optim"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "coeus-autograd",
  "coeus-core",
@@ -1732,7 +1741,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-sparse"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "coeus-core",
  "coeus-tensor",
@@ -1742,7 +1751,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-tensor"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -2932,7 +2941,7 @@ version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab8ecd87370524b461f8557c119c405552c396ed91fc0a8eec68679eab26f94a"
 dependencies = [
- "libloading 0.7.4",
+ "libloading 0.8.9",
 ]
 
 [[package]]
@@ -3684,6 +3693,7 @@ name = "gaia"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "approx",
  "aquamarine",
  "eunomia",
  "geometry-predicates",
@@ -4206,7 +4216,7 @@ dependencies = [
  "bitflags 2.10.0",
  "com",
  "libc",
- "libloading 0.7.4",
+ "libloading 0.8.9",
  "thiserror 1.0.69",
  "widestring",
  "winapi",
@@ -4471,7 +4481,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.4.10",
+ "socket2 0.5.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -4564,7 +4574,7 @@ dependencies = [
  "js-sys",
  "log",
  "wasm-bindgen",
- "windows-core 0.61.2",
+ "windows-core 0.62.2",
 ]
 
 [[package]]
@@ -8080,6 +8090,8 @@ name = "ritk-tensor-ops"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "burn",
+ "burn-ndarray",
  "coeus-core",
  "coeus-leto",
  "coeus-ops",
@@ -10308,7 +10320,7 @@ dependencies = [
  "js-sys",
  "khronos-egl",
  "libc",
- "libloading 0.7.4",
+ "libloading 0.8.9",
  "log",
  "metal 0.28.0",
  "naga 0.20.0",

@@ -1,6 +1,7 @@
-use super::*;
+use crate::types::Image;
 use coeus_core::SequentialBackend;
-use ritk_spatial::{Direction, Spacing};
+use coeus_tensor::Tensor;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;
 type Point3 = Point<3>;

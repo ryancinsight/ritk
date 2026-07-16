@@ -5,9 +5,9 @@
 
 use std::fmt;
 
+use anyhow::{bail, Result};
 use coeus_core::{ComputeBackend, Scalar};
 use coeus_tensor::Tensor;
-use anyhow::{bail, Result};
 
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -267,10 +267,7 @@ mod tests {
     #[test]
     fn component_buffers_roundtrip_is_identity() {
         let interleaved: Vec<f32> = vec![
-            10.0, 100.0, 200.0,
-            11.0, 101.0, 201.0,
-            12.0, 102.0, 202.0,
-            13.0, 103.0, 203.0,
+            10.0, 100.0, 200.0, 11.0, 101.0, 201.0, 12.0, 102.0, 202.0, 13.0, 103.0, 203.0,
         ];
         let backend = B::default();
         let vol = RgbVolume::<f32, B>::try_new(

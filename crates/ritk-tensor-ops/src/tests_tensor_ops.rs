@@ -1,15 +1,13 @@
 use super::*;
-use coeus_core::SequentialBackend;
-use coeus_tensor::Tensor;
-use ritk_image::tensor::{TensorData};
+use burn_ndarray::NdArray;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 
-type B = SequentialBackend;
+type B = NdArray<f32>;
 
-fn make_test_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
-    use ritk_image::tensor::Shape;
+fn make_test_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
     let device = Default::default();
-    let t = Tensor::<B, 3>::from_data((data, (shape)), &device);
+    let t = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(shape)), &device);
     Image::new(
         t,
         Point::new([0.0, 0.0, 0.0]),
@@ -52,9 +50,9 @@ fn rebuild_preserves_metadata() {
     let orig = Point::new([10.0, 20.0, 30.0]);
     let device = Default::default();
     let t = Tensor::<B, 3>::from_data(
-        (
+        TensorData::new(
             vec![1.0_f32; 6],
-            ritk_image::tensor::([1usize, 2, 3]),
+            Shape::new([1usize, 2, 3]),
         ),
         &device,
     );

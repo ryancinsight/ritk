@@ -3,7 +3,7 @@ use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::{make_image, make_image_with};
-use ritk_image::Image;
+use ritk_image::types::Image;
 
 type TestBackend = NdArray<f32>;
 
@@ -168,7 +168,7 @@ fn test_output_shape_matches_source() {
 fn test_preserves_spatial_metadata() {
     let origin = ritk_spatial::Point::new([1.0, 2.0, 3.0]);
     let spacing = ritk_spatial::Spacing::new([0.5, 0.5, 0.5]);
-    let make_3d = |vals: Vec<f32>| -> Image<TestBackend, 3> {
+    let make_3d = |vals: Vec<f32>| -> ritk_image::types::Image<f32, TestBackend, 3> {
         make_image_with(vals, [3, 3, 3], Some(origin), Some(spacing), None)
     };
 

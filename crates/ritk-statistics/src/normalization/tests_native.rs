@@ -38,7 +38,7 @@ fn native<const D: usize>(data: Vec<f32>, dims: [usize; D]) -> NativeImage<f32, 
 }
 
 fn burn<const D: usize>(data: Vec<f32>, dims: [usize; D]) -> BurnImage<Burn, D> {
-    test_support::make_image(data, dims)
+    test_support::burn_compat::make_image(data, dims)
 }
 
 fn native_values<const D: usize>(image: &NativeImage<f32, MoiraiBackend, D>) -> Vec<f32> {

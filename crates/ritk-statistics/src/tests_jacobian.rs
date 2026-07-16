@@ -5,7 +5,7 @@
 use super::{analyze_jacobian, jacobian_determinant};
 use burn_ndarray::NdArray;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::Image;
+use ritk_image::types::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec;
 
@@ -13,7 +13,7 @@ type TestBackend = NdArray<f32>;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-fn make_disp(data: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Image<TestBackend, 3> {
+fn make_disp(data: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> ritk_image::types::Image<f32, TestBackend, 3> {
     let device = Default::default();
     let tensor =
         Tensor::<TestBackend, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
@@ -25,7 +25,7 @@ fn make_disp(data: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Image<TestB
     )
 }
 
-fn zero_disp(dims: [usize; 3]) -> Image<TestBackend, 3> {
+fn zero_disp(dims: [usize; 3]) -> ritk_image::types::Image<f32, TestBackend, 3> {
     let n = dims[0] * dims[1] * dims[2];
     make_disp(vec![0.0f32; n], dims, [1.0, 1.0, 1.0])
 }

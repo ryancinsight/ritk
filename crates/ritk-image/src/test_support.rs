@@ -100,7 +100,12 @@ where
     let origin = origin.unwrap_or_else(|| Point::new([0.0_f64; D]));
     let spacing = spacing.unwrap_or_else(|| Spacing::new([1.0_f64; D]));
     let direction = direction.unwrap_or_else(Direction::identity);
-    Image::new(make_tensor::<T, B, D>(data, dims), origin, spacing, direction)
+    Image::new(
+        make_tensor::<T, B, D>(data, dims),
+        origin,
+        spacing,
+        direction,
+    )
 }
 
 /// Build an [`Image<T, B, D>`] from raw voxel data with custom per-axis spacing
@@ -179,5 +184,60 @@ mod tests {
         assert_eq!(img.shape(), [3, 4]);
         let v = img.data().as_slice().to_vec();
         assert!(v.iter().all(|&x| x == 7.0));
+    }
+}
+
+// ── Burn-compat test helpers ───────────────────────────────────────────────────
+// These are provided when `burn-compat` is active so legacy crates (ritk-statistics,
+// ritk-filter, etc.) can call make_image with burn's Backend and get
+// a burn-backed Image<B, D>.
+
+#[cfg(feature = "burn-compat")]
+pub mod burn_compat {
+    use crate::burn_compat_types::Image;
+    use ::burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
+    use ritk_spatial::{Direction, Point, Spacing};
+
+    /// Build a burn-backed `Image<B, D>` from flat f32 data with default metadata.
+    pub fn make_image<B: Backend, const D: usize>(data: Vec<f32>, dims: [usize; D]) -> Image<B, D>
+    where
+        B::Device: Default,
+    {
+        let device = B::Device::default();
+        let t = Tensor::<B, D>::from_data(TensorData::new(data, Shape::new(dims)), &device);
+        Image::new(
+            t,
+            Point::new([0.0_f64; D]),
+            Spacing::new([1.0_f64; D]),
+            Direction::identity(),
+        )
+    }
+
+    /// Build a burn-backed `Image<B, D>` with custom per-axis spacing.
+    pub fn make_image_with_spacing<B: Backend, const D: usize>(
+        data: Vec<f32>,
+        dims: [usize; D],
+        spacing: [f64; D],
+    ) -> Image<B, D>
+    where
+        B::Device: Default,
+    {
+        let device = B::Device::default();
+        let t = Tensor::<B, D>::from_data(TensorData::new(data, Shape::new(dims)), &device);
+        Image::new(
+            t,
+            Point::new([0.0_f64; D]),
+            Spacing::new(spacing),
+            Direction::identity(),
+        )
+    }
+
+    /// Build a burn-backed `Image<B, 1>` from flat f32 data.
+    pub fn make_image_1d<B: Backend>(data: Vec<f32>) -> Image<B, 1>
+    where
+        B::Device: Default,
+    {
+        let n = data.len();
+        make_image::<B, 1>(data, [n])
     }
 }

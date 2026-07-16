@@ -48,10 +48,8 @@ fn masked_cache_fingerprint_detects_collision() {
 
     let hist = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &device);
 
-    let all_points = fixed_img.index_to_world_tensor(ritk_core::image::grid::generate_grid(
-        fixed_img.shape(),
-        &device,
-    ));
+    let all_points =
+        fixed_img.index_to_world_tensor(ritk_image::generate_grid_burn(fixed_img.shape(), &device));
 
     let _ = hist.compute_masked_joint_histogram(
         &fixed_img,

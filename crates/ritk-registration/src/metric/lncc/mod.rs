@@ -29,7 +29,7 @@ use super::histogram::cache::collect_array;
 use super::trait_::Metric;
 use ritk_filter::gaussian::GaussianFilter;
 use ritk_filter::GaussianSigma;
-use ritk_image::grid;
+use ritk_image::generate_grid_burn;
 use ritk_image::tensor::{Backend, Shape, Tensor};
 use ritk_image::Image;
 use ritk_interpolation::{Interpolator, LinearInterpolator};
@@ -184,7 +184,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
         let device = fixed.data().device();
 
         // 1. Generate grid (Full, as we need the full spatial structure for convolution)
-        let fixed_indices = grid::generate_grid(fixed_shape, &device); // [N, D]
+        let fixed_indices = generate_grid_burn(fixed_shape, &device); // [N, D]
         let [n, _] = fixed_indices.dims();
 
         // 2. Resample moving image with chunking to avoid WGPU dispatch limits

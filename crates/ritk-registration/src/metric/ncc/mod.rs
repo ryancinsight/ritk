@@ -22,7 +22,7 @@
 pub mod native;
 
 use super::trait_::Metric;
-use ritk_image::grid;
+use ritk_image::generate_grid_burn;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 use ritk_image::Image;
@@ -67,7 +67,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for NormalizedCrossCorrelation {
         let fixed_shape = fixed.shape();
 
         // 1. Generate dense coordinate grid
-        let fixed_indices = grid::generate_grid(fixed_shape, &device);
+        let fixed_indices = generate_grid_burn(fixed_shape, &device);
         let [n, _] = fixed_indices.dims();
 
         // 2. Process in chunks to respect GPU dispatch limits while maintaining single-pass

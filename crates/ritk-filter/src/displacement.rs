@@ -24,7 +24,7 @@
 use anyhow::Result;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::{generate_grid, Image};
+use ritk_image::{generate_grid_burn as generate_grid, Image};
 
 /// Sample an affine transform `T(p) = M·(p − c) + c + t` onto the reference
 /// grid, returning the dense displacement field `D(p) = T(p) − p` as

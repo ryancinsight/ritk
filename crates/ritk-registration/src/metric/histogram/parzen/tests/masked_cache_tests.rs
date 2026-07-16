@@ -52,10 +52,8 @@ fn masked_cache_reuses_weights_on_same_key() {
     let hist = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &device);
 
     // Use all voxel world points as the "mask"
-    let all_points = fixed_img.index_to_world_tensor(ritk_core::image::grid::generate_grid(
-        fixed_img.shape(),
-        &device,
-    ));
+    let all_points =
+        fixed_img.index_to_world_tensor(ritk_image::generate_grid_burn(fixed_img.shape(), &device));
 
     // First call WITH caching — should compute and store W_fixed^T
     let first = hist.compute_masked_joint_histogram(
@@ -157,10 +155,8 @@ fn masked_cache_different_key_recomputes() {
 
     let hist = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &device);
 
-    let all_points = fixed_img.index_to_world_tensor(ritk_core::image::grid::generate_grid(
-        fixed_img.shape(),
-        &device,
-    ));
+    let all_points =
+        fixed_img.index_to_world_tensor(ritk_image::generate_grid_burn(fixed_img.shape(), &device));
 
     // First call with key=100
     let _first = hist.compute_masked_joint_histogram(
@@ -244,10 +240,8 @@ fn masked_no_cache_key_matches_uncached() {
     let hist1 = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &device);
     let hist2 = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &device);
 
-    let all_points = fixed_img.index_to_world_tensor(ritk_core::image::grid::generate_grid(
-        fixed_img.shape(),
-        &device,
-    ));
+    let all_points =
+        fixed_img.index_to_world_tensor(ritk_image::generate_grid_burn(fixed_img.shape(), &device));
 
     // Call with None (no caching) and with a cache key — results should match
     let no_cache_result = hist1.compute_masked_joint_histogram(
@@ -429,10 +423,8 @@ fn cache_invalidate_clears_masked_cache() {
     let hist = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &device);
 
     // Use all voxel world points as the "mask"
-    let all_points = fixed_img.index_to_world_tensor(ritk_core::image::grid::generate_grid(
-        fixed_img.shape(),
-        &device,
-    ));
+    let all_points =
+        fixed_img.index_to_world_tensor(ritk_image::generate_grid_burn(fixed_img.shape(), &device));
 
     // Populate the masked cache with a cache_key
     let _result = hist.compute_masked_joint_histogram(

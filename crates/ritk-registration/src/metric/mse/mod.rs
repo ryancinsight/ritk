@@ -3,7 +3,7 @@
 pub mod native;
 
 use super::trait_::Metric;
-use ritk_image::grid;
+use ritk_image::generate_grid_burn;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 use ritk_image::Image;
@@ -44,7 +44,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
         // 1. Generate grid of points in fixed image space (indices).
         let fixed_shape = fixed.shape();
         let device = fixed.data().device();
-        let fixed_indices = grid::generate_grid(fixed_shape, &device); // [N, D]
+        let fixed_indices = generate_grid_burn(fixed_shape, &device); // [N, D]
         let [n, _] = fixed_indices.dims();
 
         // 2. Transform, interpolate, and accumulate squared differences chunk-by-chunk

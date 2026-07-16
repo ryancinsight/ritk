@@ -5,7 +5,7 @@ use super::*;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::test_support::make_image;
+use ritk_image::test_support::burn_compat::make_image;
 use ritk_image::Image;
 
 // ── Test 1: Synthetic tri-modal T1 → WM peak detection ────────────────

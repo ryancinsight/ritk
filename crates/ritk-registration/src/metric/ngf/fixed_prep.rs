@@ -1,7 +1,7 @@
 use super::scalar::*;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::{Tensor, TensorData};
-use ritk_image::{grid, Image};
+use ritk_image::{generate_grid_burn, Image};
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_transform::Transform;
 
@@ -55,7 +55,7 @@ impl<B: Backend, const D: usize> NgfFixedPrep<B, D> {
         let device = fixed.data().device();
         let shape = fixed.shape();
         let n: usize = shape.iter().product();
-        let fixed_indices = grid::generate_grid(shape, &device);
+        let fixed_indices = generate_grid_burn(shape, &device);
         let fixed_points = fixed.index_to_world_tensor(fixed_indices);
         let f: Vec<f32> = fixed
             .data()
