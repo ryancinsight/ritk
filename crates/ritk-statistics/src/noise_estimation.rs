@@ -34,7 +34,7 @@
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
@@ -106,7 +106,7 @@ fn mad_sigma(values: &mut [f32]) -> f32 {
 ///
 /// # Complexity
 /// O(n log n) where n is the total number of voxels.
-pub fn estimate_noise_mad<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
+pub fn estimate_noise_mad<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> f32 {
     let (vals, _) = extract_vec_infallible(image);
     let mut values = vals;
     mad_sigma(&mut values)
@@ -151,8 +151,8 @@ where
 /// # Complexity
 /// O(n log n) where n is the number of foreground voxels.
 pub fn estimate_noise_mad_masked<B: Backend, const D: usize>(
-    image: &Image<B, D>,
-    mask: &Image<B, D>,
+    image: &Image<f32, B, D>,
+    mask: &Image<f32, B, D>,
 ) -> f32 {
     let (img_vals, _) = extract_vec_infallible(image);
     let img_slice: &[f32] = &img_vals;

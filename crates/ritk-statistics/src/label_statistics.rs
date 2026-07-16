@@ -21,7 +21,7 @@
 //! # Reference
 //! ITK LabelStatisticsImageFilter -- per-label min, max, mean, sigma, count.
 
-use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 use std::collections::HashMap;
@@ -55,8 +55,8 @@ pub struct LabelIntensityStatistics {
 /// # Panics
 /// Panics if `label_image` and `intensity_image` have different shapes.
 pub fn compute_label_intensity_statistics<B: Backend>(
-    label_image: &Image<B, 3>,
-    intensity_image: &Image<B, 3>,
+    label_image: &Image<f32, B, 3>,
+    intensity_image: &Image<f32, B, 3>,
 ) -> Vec<LabelIntensityStatistics> {
     assert_eq!(
         label_image.shape(),

@@ -33,7 +33,7 @@
 //! by extracting the contiguous f32 storage and iterating. No
 //! `dyn Trait`, no vtable indirection.
 
-use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
@@ -93,7 +93,7 @@ impl Histogram {
 ///
 /// Panics if `bins == 0` or `min >= max`.
 pub fn histogram<B: Backend, const D: usize>(
-    image: &Image<B, D>,
+    image: &Image<f32, B, D>,
     min: f32,
     max: f32,
     bins: usize,

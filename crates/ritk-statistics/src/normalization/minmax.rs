@@ -21,7 +21,7 @@ use super::intensity_range::IntensityRange;
 use crate::image_statistics::compute_statistics;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::native as tensor_ops;
 
@@ -62,7 +62,7 @@ impl MinMaxNormalizer {
     /// ```
     ///
     /// Spatial metadata is preserved exactly.
-    pub fn normalize<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn normalize<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         let stats = compute_statistics(image);
         let min = stats.min;
         let max = stats.max;

@@ -1,4 +1,4 @@
-use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
@@ -179,8 +179,8 @@ pub(crate) fn msd_from_flat<const D: usize>(
 
 /// Compute the Hausdorff distance between two binary segmentation masks.
 pub fn hausdorff_distance<B: Backend, const D: usize>(
-    prediction: &Image<B, D>,
-    ground_truth: &Image<B, D>,
+    prediction: &Image<f32, B, D>,
+    ground_truth: &Image<f32, B, D>,
     spacing: &[f64; D],
 ) -> f32 {
     let (pred_flat, pred_shape) = extract_vec_infallible(prediction);
@@ -190,8 +190,8 @@ pub fn hausdorff_distance<B: Backend, const D: usize>(
 
 /// Compute the symmetric mean surface distance between two binary masks.
 pub fn mean_surface_distance<B: Backend, const D: usize>(
-    prediction: &Image<B, D>,
-    ground_truth: &Image<B, D>,
+    prediction: &Image<f32, B, D>,
+    ground_truth: &Image<f32, B, D>,
     spacing: &[f64; D],
 ) -> f32 {
     let (pred_flat, pred_shape) = extract_vec_infallible(prediction);

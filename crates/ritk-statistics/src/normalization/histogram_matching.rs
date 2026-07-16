@@ -27,7 +27,7 @@
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::native as tensor_ops;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
@@ -77,9 +77,9 @@ impl HistogramMatcher {
     /// `source`. A constant source is returned unchanged.
     pub fn match_histograms<B: Backend, const D: usize>(
         &self,
-        source: &Image<B, D>,
-        reference: &Image<B, D>,
-    ) -> Image<B, D> {
+        source: &Image<f32, B, D>,
+        reference: &Image<f32, B, D>,
+    ) -> Image<f32, B, D> {
         let (mut src_vec, dims) = extract_vec_infallible(source);
         let (ref_vec, _) = extract_vec_infallible(reference);
         self.transform_values(&mut src_vec, &ref_vec);

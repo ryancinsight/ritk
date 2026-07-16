@@ -1,6 +1,6 @@
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 /// Dice similarity coefficient over two flat host buffers.
@@ -71,8 +71,8 @@ pub(crate) fn similarity_index_from_slices(a: &[f32], b: &[f32]) -> f32 {
 /// # Formula
 /// `Dice = 2 * |P intersect G| / (|P| + |G|)`
 pub fn dice_coefficient<B: Backend, const D: usize>(
-    prediction: &Image<B, D>,
-    ground_truth: &Image<B, D>,
+    prediction: &Image<f32, B, D>,
+    ground_truth: &Image<f32, B, D>,
 ) -> f32 {
     let intersection_sum: f32 = {
         let t = prediction.data().clone() * ground_truth.data().clone();
@@ -147,6 +147,6 @@ where
 /// # Formula
 /// `SI = 2 * |A intersect B| / (|A| + |B|)` over the binarized sets
 /// `A = {x : a(x) != 0}`, `B = {x : b(x) != 0}`.
-pub fn similarity_index<B: Backend, const D: usize>(a: &Image<B, D>, b: &Image<B, D>) -> f32 {
+pub fn similarity_index<B: Backend, const D: usize>(a: &Image<f32, B, D>, b: &Image<f32, B, D>) -> f32 {
     similarity_index_from_slices(&a.data_slice(), &b.data_slice())
 }

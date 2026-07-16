@@ -1,4 +1,4 @@
-use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
@@ -156,8 +156,8 @@ pub(crate) fn ssim_from_slices(
 ///
 /// Returns `f32::INFINITY` when the images are identical.
 pub fn psnr<B: Backend, const D: usize>(
-    image: &Image<B, D>,
-    reference: &Image<B, D>,
+    image: &Image<f32, B, D>,
+    reference: &Image<f32, B, D>,
     max_val: f32,
 ) -> f32 {
     let diff = image.data().clone() - reference.data().clone();
@@ -181,8 +181,8 @@ pub fn psnr<B: Backend, const D: usize>(
 ///
 /// Uses Wang et al. (2004) computed over all voxels as a single global window.
 pub fn ssim<B: Backend, const D: usize>(
-    image: &Image<B, D>,
-    reference: &Image<B, D>,
+    image: &Image<f32, B, D>,
+    reference: &Image<f32, B, D>,
     max_val: f32,
 ) -> f32 {
     let img_slice: &[f32] = &extract_vec_infallible(image).0;
