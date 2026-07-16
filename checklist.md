@@ -8,6 +8,24 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-657-01 — Native extended label-shape statistics
+**Target version**: 0.3.0
+**Sprint phase**: Execution
+
+- [ ] Replace `compute_label_shape_statistics_extended`'s Burn-generic image
+      boundary with the native `Image<f32, B, 3>` contract. Completion
+      condition: source receives the contiguous native slice fallibly and
+      preserves the existing pure slice algorithm as SSOT.
+- [ ] Update the only in-tree Python caller to pass its native `PyImage`
+      storage directly and release the GIL around the computation. Completion
+      condition: no Burn conversion occurs at this boundary.
+- [ ] Port the extended-label-shape oracle suite to `SequentialBackend` native
+      images. Completion condition: exact labels/counts and the existing
+      ITK/Crofton numerical assertions remain unchanged.
+- [ ] Run focused compile, warnings-denied Clippy, nextest, doctest, rustdoc,
+      and a targeted source-residue scan. Completion condition: all gates pass
+      without touching the fresh peer-owned RITK files.
+
 ## SEC-656-01 — Workspace license metadata
 **Target version**: Unreleased patch
 **Sprint phase**: Execution

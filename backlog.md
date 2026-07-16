@@ -1,5 +1,16 @@
 # RITK Backlog - Active Planning
 
+- **MIG-657-01 [major] - Native extended label-shape statistics (IN PROGRESS;
+  owner=Codex; scope=`crates/ritk-statistics/src/{label_shape_extended.rs,
+  tests_label_shape_extended.rs,lib.rs}`, `crates/ritk-python/src/statistics/
+  label_shape_extended.rs`, PM artifacts).** Replace the remaining Burn-generic
+  extended label-shape API with the established native image contract and move
+  the sole Python caller to its native `PyImage` storage. Delete the legacy
+  image boundary rather than retaining a bridge. Acceptance: the native path
+  preserves all value-semantic ITK/Crofton oracles, the Python binding releases
+  the GIL around the real calculation, and the statistics source no longer
+  imports Burn image traits for this operation.
+
 - **SEC-656-01 [patch] - Declare the RITK dual-license metadata (IN PROGRESS;
   owner=Codex; scope=workspace package manifests, license texts, README, PM
   artifacts).** Declare `MIT OR Apache-2.0` once in the workspace package
