@@ -8,6 +8,14 @@
 
 # RITK Gap Audit - Active
 
+## CI-658-12 audit (2026-07-17)
+
+Apollo main publishes `apollo-fft` 0.24.0, while RITK still declared 0.23.0.
+That split prevents a consumer that resolves both path providers from selecting
+one graph. RITK now declares and locks 0.24.0. Locked offline compilation of
+`ritk-filter`, source formatting, and diff integrity pass. Evidence tier:
+native compilation.
+
 ## CI-658-11 audit (2026-07-17)
 
 The committed lockfile retained unused Hephaestus 0.15.0 patch metadata after
