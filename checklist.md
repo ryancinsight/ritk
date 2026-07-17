@@ -101,6 +101,11 @@
       alpha-weighted values, ternary sum/magnitude contracts, and first-input
       spatial metadata without Burn fixtures. Evidence: warning-denied Clippy
       and nextest pass 4/4.
+- [x] Consolidate recursive-Gaussian assertions into one public native suite.
+      Completion condition: constant/ramp/quadratic analytical contracts,
+      spacing normalization, subpixel identity, and physical metadata execute
+      without a Burn differential harness. Evidence: warning-denied Clippy and
+      nextest pass 9/9.
 - [ ] Port every active consumer of `burn_compat_types` and
       `burn_compat_row_chunks` to its native Coeus operation, then delete both
       modules and the `burn-compat` feature in the same breaking cutover.

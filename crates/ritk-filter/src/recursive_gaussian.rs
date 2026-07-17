@@ -549,13 +549,3 @@ pub(crate) fn compute_hessian_iir(
     }
     out
 }
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
-#[cfg(test)]
-#[path = "tests_recursive_gaussian.rs"]
-mod tests_recursive_gaussian;
-
-#[cfg(test)]
-#[path = "tests_recursive_gaussian_native.rs"]
-mod tests_recursive_gaussian_native;

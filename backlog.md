@@ -11,8 +11,11 @@
   `crates/ritk-filter/{benches/{bilateral.rs,cpr_apply.rs,euclidean_dt.rs,
   median.rs,separable_box.rs},examples/bench_gradient_rg.rs}`,
   `crates/ritk-filter/tests/{native_color_components.rs,native_colormap.rs,
-  native_displacement.rs,native_gaussian.rs,native_intensity.rs,parity.rs}`,
+  native_displacement.rs,native_gaussian.rs,native_intensity.rs,
+  native_recursive_gaussian.rs,parity.rs}`,
   `crates/ritk-filter/src/intensity/{blend.rs,ternary_ops.rs}`,
+  `crates/ritk-filter/src/{recursive_gaussian.rs,tests_recursive_gaussian.rs,
+  tests_recursive_gaussian_native.rs}`,
   `crates/ritk-filter/src/gaussian.rs`, migration audit).** GitHub audit run
   `29547504239` reaches the source scanner after the provider sweep and reports
   `burn_compat_types` and `burn_compat_row_chunks` as unallowlisted relocated
@@ -37,7 +40,10 @@
   target; its duplicate stale unit module is deleted. Blend and ternary
   arithmetic coverage now executes through one public native integration target
   with exact blend endpoint, value, and physical-frame assertions; their stale
-  Burn-backed unit modules are deleted.
+  Burn-backed unit modules are deleted. Recursive Gaussian coverage is likewise
+  one public native suite over the analytical constant, ramp, quadratic,
+  spacing, and subpixel-sigma contracts; its stale private test modules and
+  Burn differential harness are deleted.
 
 - **MIG-657-01 [major] - Native extended label-shape statistics (REVIEW;
   owner=Codex; scope=`crates/ritk-statistics/{Cargo.toml,src/{label_shape_extended.rs,

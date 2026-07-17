@@ -90,7 +90,7 @@ three native inversion APIs return one named `NativeDisplacementField` rather
 than repeated anonymous tuples. The direct native zero-field regression passes
 1/1 and filter library/target warning-denied Clippy passes. Full
 `cargo clippy -p ritk-filter --all-targets --all-features --no-deps -- -D
-warnings` remains blocked by the library test target, which reports 72 stale
+warnings` remains blocked by the library test target, which reports 44 stale
 native/legacy errors. The
 external analytical parity target now executes 10/10 through public native
 intensity, edge, segmentation, and statistics APIs. The active Criterion targets and the
@@ -108,6 +108,14 @@ work, not lint failures
 to suppress or compatibility bridges to retain. The repeated stale native-
 method links are corrected across the filter crate; `cargo doc -p ritk-filter
 --no-deps` is warning-clean.
+
+Recursive-Gaussian coverage now has a single public native target (9/9) that
+checks constant preservation, first and second derivative interiors, physical
+Laplacian and gradient invariance over spacing, directional slope, subpixel
+identity, and constant-field derivatives. The private legacy and native test
+modules are deleted with their Burn differential harness. The all-target error
+count consequently falls from 72 to 44; remaining errors are isolated to edge,
+Frangi, pyramid, resample, and warp test modules.
 
 ## MIG-657-01 audit (2026-07-16)
 
