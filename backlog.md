@@ -23,6 +23,8 @@
   `crates/ritk-filter/src/gaussian.rs`,
   `crates/ritk-wgpu-compat/src/lib.rs`,
   `crates/ritk-transform/src/transform/{affine/{affine.rs,rigid.rs},bspline/interpolation/{dim2.rs,dim3.rs,dim4.rs}}`,
+  `crates/ritk-filter/{src/fractal_dimension.rs,tests/fractal_dimension.rs}`,
+  `crates/ritk-python/src/filter/spatial/misc.rs`,
   migration audit).** GitHub audit run
   `29547504239` reaches the source scanner after the provider sweep and reports
   `burn_compat_types` and `burn_compat_row_chunks` as unallowlisted relocated
@@ -63,8 +65,11 @@
   `ritk-wgpu-compat::apply_row_chunks` policy; all six active tensor callers
   supply native slice and concatenation operations, and the relocated
   `burn_compat_row_chunks` module is deleted. The local migration audit now
-  reports only `burn_compat_types` across 516 token-bearing source files;
-  the allowlist remains unchanged.
+  reports only `burn_compat_types` across 515 token-bearing source files;
+  the allowlist remains unchanged. Stochastic fractal dimension now has one
+  native `apply` entry and native public-contract suite; the Python binding
+  passes its `PyImage` storage directly to that entry, and the duplicate
+  Burn-backed algorithm and source test module are deleted.
 
 - **MIG-657-01 [major] - Native extended label-shape statistics (REVIEW;
   owner=Codex; scope=`crates/ritk-statistics/{Cargo.toml,src/{label_shape_extended.rs,

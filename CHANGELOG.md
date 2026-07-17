@@ -58,6 +58,9 @@
 - WGPU row scheduling now belongs to the provider-independent
   `ritk-wgpu-compat` policy crate. Six tensor consumers supply native slice
   and concatenation operations, and `burn_compat_row_chunks` is removed.
+- Stochastic fractal dimension now exposes one native image entry. Its Python
+  binding passes `PyImage` storage directly, and the duplicate Burn algorithm
+  and source test module are removed.
 - The now-unused approximate Burn differential harness is removed from filter
   test support.
 
@@ -120,8 +123,12 @@
   legacy Burn integration targets. `ritk-transform` integration tests are also
   blocked by unchanged `SequentialBackend` test aliases against legacy Burn
   tensor bounds. The filter package is clean; the migration audit now reports
-  only `burn_compat_types` across 516 token-bearing source files. This slice
+  only `burn_compat_types` across 515 token-bearing source files. This slice
   adds no compatibility path, audit allowlist entry, or lint suppression.
+- Package-level Python compilation remains blocked by unchanged color, Canny,
+  and recursive-Gaussian bindings that call native filter APIs with obsolete
+  arguments or unavailable methods; the native fractal binding itself has no
+  Burn conversion boundary.
 
 ## [Unreleased] — Workspace license metadata (SEC-656-01)
 

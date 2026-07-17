@@ -28,6 +28,18 @@ Residual risk: `burn_compat_types` still has active legacy consumers. It
 remains a major, dependency-ordered native cutover under ADR 0002; expanding
 the audit allowlist would conceal rather than resolve the migration debt.
 
+Stochastic fractal dimension is now a complete native leaf cutover: its one
+public `apply` entry consumes a native image, its Python binding passes
+`PyImage` storage directly, and its legacy Burn implementation plus source
+test module are deleted. The native integration suite passes 3/3 for a finite
+varying field, exact power-of-two intensity scaling, and full physical geometry
+preservation. `ritk-filter` compiles, warning-denied all-target Clippy passes,
+rustdoc is warning-clean, and its full nextest suite passes 1,118/1,118.
+Package-level `ritk-python` compilation remains
+blocked before this binding by unchanged calls in `color.rs`, Canny, and
+recursive-Gaussian bindings that no longer match their native filter APIs;
+the diff against `241efbcc` is empty for those files.
+
 Current default-branch evidence: commit `e3887685` enables
 `ritk-image/burn-compat` from `ritk-transform` and indirectly through the
 `test-helpers` feature. Cargo feature unification therefore changes the public
@@ -153,7 +165,7 @@ of view boundary. The native resample and warp integration suites pass 5/5 and
 suite pass. Evidence tier: value-semantic integration tests plus compile-time
 and warnings-denied whole-package verification.
 
-The migration audit still fails correctly: 12 manifests and 516 token-bearing
+The migration audit still fails correctly: 12 manifests and 515 token-bearing
 source files are scanned, with only `burn_compat_types` reported as an
 unallowlisted relocated compatibility surface. The audit allowlist remains
 unchanged. `ritk-transform` integration tests remain independently

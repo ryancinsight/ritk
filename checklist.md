@@ -136,6 +136,13 @@
       `burn_compat_row_chunks` is deleted. Evidence: scheduler nextest passes
       3/3, `ritk-filter` nextest passes 1,118/1,118, and warnings-denied
       Clippy passes for the scheduler, image, filter, and transform library.
+- [x] Replace the fractal-dimension legacy image API end-to-end. Completion
+      condition: the filter has one Coeus-native `apply` entry, its Python
+      binding uses `PyImage` storage directly, and native public-contract
+      tests replace the Burn-backed source suite without changing its
+      finite-field, intensity-scaling, or geometry oracles. Evidence:
+      native nextest passes 3/3 and the full filter suite passes 1,118/1,118;
+      warning-denied filter Clippy and rustdoc pass.
 - [ ] Port every active consumer of `burn_compat_types` to its native Coeus
       operation, then delete that module and the `burn-compat` feature in the
       same breaking cutover.
@@ -145,7 +152,7 @@
 
 Evidence: GitHub audit run 29547504239 reaches the scanner on the refreshed
 provider graph and initially reports the relocated source surfaces. The local
-audit now scans 516 token-bearing source files and reports only
+audit now scans 515 token-bearing source files and reports only
 `burn_compat_types`; the failure remains a real migration boundary violation,
 not a provider-resolution failure.
 
