@@ -19,7 +19,7 @@ fn make_image(data: Vec<f32>, shape: [usize; 2]) -> Image<f32, TestBackend, 2> {
         Point2::new([0.0, 0.0]),
         Spacing2::new([1.0, 1.0]),
         Direction2::identity(),
-        &TestBackend,
+        &TestBackend::default(),
     )
     .expect("valid test image")
 }
@@ -40,7 +40,7 @@ fn test_resample_translation_planar() {
     // [y, x] (matching world_to_index_native / index_to_world_native), so the
     // output→input map subtracts [1, 2]: output reads input one row up and two
     // columns left, moving the square down one row and right two columns.
-    let offset = Tensor::<f32, TestBackend>::from_slice_on([2], &[-1.0, -2.0], &TestBackend);
+    let offset = Tensor::<f32, TestBackend>::from_slice_on([2], &[-1.0, -2.0], &TestBackend::default());
     let transform = TranslationTransform::<TestBackend, 2>::new(offset);
 
     // 3. Define Interpolator
@@ -50,7 +50,7 @@ fn test_resample_translation_planar() {
     let filter = ResampleImageFilter::new_from_reference(&image, transform, interpolator);
 
     // 5. Apply
-    let result = filter.apply(&image, &TestBackend).expect("resample apply");
+    let result = filter.apply(&image, &TestBackend::default()).expect("resample apply");
 
     // 6. Verify
     let slice = result.data_slice().expect("contiguous result");
@@ -93,11 +93,11 @@ fn test_resample_identity_anisotropic_z1_volumetric() {
         Point::<3>::new([0.0, 0.0, 0.0]),
         Spacing::<3>::new([1.0, 0.35, 0.35]),
         Direction::<3>::identity(),
-        &TestBackend,
+        &TestBackend::default(),
     )
     .expect("valid test image");
 
-    let zero = Tensor::<f32, TestBackend>::from_slice_on([3], &[0.0, 0.0, 0.0], &TestBackend);
+    let zero = Tensor::<f32, TestBackend>::from_slice_on([3], &[0.0, 0.0, 0.0], &TestBackend::default());
     let filter = ResampleImageFilter::new(
         [nz, ny, nx],
         *image.origin(),
@@ -106,7 +106,7 @@ fn test_resample_identity_anisotropic_z1_volumetric() {
         TranslationTransform::<TestBackend, 3>::new(zero),
         LinearInterpolator::new(),
     );
-    let result = filter.apply(&image, &TestBackend).expect("resample apply");
+    let result = filter.apply(&image, &TestBackend::default()).expect("resample apply");
     let out = result.data_slice().expect("contiguous result");
 
     for (i, (&o, &d)) in out.iter().zip(data.iter()).enumerate() {

@@ -82,7 +82,7 @@ fn test_canny_seg_level_set_structural() {
     let total_change: f32 = phi0
         .iter()
         .zip(result.iter())
-        .map(|(&a, &B::default())| (b - a).abs())
+        .map(|(&a, &b)| (b - a).abs())
         .sum();
     assert!(
         total_change > 1e-3,

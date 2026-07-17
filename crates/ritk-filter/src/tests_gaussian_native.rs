@@ -32,7 +32,7 @@ fn gaussian_apply_native_preserves_shape() {
         GaussianSigma::new_unchecked(1.0),
         GaussianSigma::new_unchecked(1.0),
     ]);
-    let result = filter.apply_native(&img, &B::default()::default()).unwrap();
+    let result = filter.apply_native(&img, &B::default()).unwrap();
     assert_eq!(result.shape(), [3, 3, 3]);
 }
 
@@ -41,7 +41,7 @@ fn gaussian_apply_native_zero_sigma_is_identity() {
     let data: Vec<f32> = (0..8).map(|i| i as f32).collect();
     let img = make_native_image(data.clone(), [2, 2, 2]);
     let filter = GaussianFilter::new_isotropic(0.0);
-    let result = filter.apply_native(&img, &B::default()::default()).unwrap();
+    let result = filter.apply_native(&img, &B::default()).unwrap();
     let out_vals = result.data_slice().expect("contiguous");
     assert_eq!(out_vals.as_ref(), data.as_slice(), "zero-sigma must be identity");
 }

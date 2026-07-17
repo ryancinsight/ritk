@@ -357,7 +357,7 @@ fn window_1d(
         let hi = (i + radius).min(n - 1);
         while next <= hi {
             let v = line[next];
-            while let Some(&B::default()) = deque.back() {
+            while let Some(&b) = deque.back() {
                 if dominates(v, line[b]) {
                     deque.pop_back();
                 } else {

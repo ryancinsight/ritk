@@ -201,7 +201,7 @@ impl IterativeInverseDisplacementField {
         dx: &ritk_image::native::Image<f32, B, 3>,
         dy: &ritk_image::native::Image<f32, B, 3>,
         dz: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B::default()) -> anyhow::Result<(
+        backend: &B) -> anyhow::Result<(
         ritk_image::native::Image<f32, B, 3>,
         ritk_image::native::Image<f32, B, 3>,
         ritk_image::native::Image<f32, B, 3>,

@@ -91,7 +91,7 @@ pub(crate) fn rebuild_image<B, const D: usize>(
     vals: Vec<f32>,
     dims: [usize; D],
     src: &Image<f32, B, D>,
-    backend: &B::default()) -> Result<Image<f32, B, D>>
+    backend: &B) -> Result<Image<f32, B, D>>
 where
     B: ComputeBackend,
 {
@@ -106,7 +106,7 @@ pub(crate) fn rebuild_with_metadata<B, const D: usize>(
     spacing: ritk_spatial::Spacing<D>,
     direction: ritk_spatial::Direction<D>,
     _src: &Image<f32, B, D>,
-    backend: &B::default()) -> Result<Image<f32, B, D>>
+    backend: &B) -> Result<Image<f32, B, D>>
 where
     B: ComputeBackend,
 {
@@ -246,7 +246,7 @@ pub(crate) fn assert_native_matches_burn<FB, FC>(
         burn_vals.len(),
         "coeus/burn output length mismatch"
     );
-    for (i, (&c, &B::default())) in coeus_vals.iter().zip(burn_vals.iter()).enumerate() {
+    for (i, (&c, &b)) in coeus_vals.iter().zip(burn_vals.iter()).enumerate() {
         assert_eq!(
             c, b,
             "coeus/burn divergence at flat index {i}: coeus={c}, burn={b}"
@@ -297,7 +297,7 @@ pub(crate) fn assert_native_matches_burn_approx<FB, FC>(
         burn_vals.len(),
         "coeus/burn output length mismatch"
     );
-    for (i, (&c, &B::default())) in coeus_vals.iter().zip(burn_vals.iter()).enumerate() {
+    for (i, (&c, &b)) in coeus_vals.iter().zip(burn_vals.iter()).enumerate() {
         assert!(
             (c - b).abs() <= tol,
             "coeus/burn divergence at flat index {i}: coeus={c}, burn={b}, tol={tol}"
@@ -350,7 +350,7 @@ pub(crate) fn assert_native_matches_burn_pair<FB, FC>(
         burn_vals.len(),
         "coeus/burn output length mismatch"
     );
-    for (i, (&c, &B::default())) in coeus_vals.iter().zip(burn_vals.iter()).enumerate() {
+    for (i, (&c, &b)) in coeus_vals.iter().zip(burn_vals.iter()).enumerate() {
         assert_eq!(
             c, b,
             "coeus/burn pair divergence at flat index {i}: coeus={c}, burn={b}"

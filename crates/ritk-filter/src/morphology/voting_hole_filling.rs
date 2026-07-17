@@ -85,7 +85,7 @@ impl VotingBinaryHoleFillingImageFilter {
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B::default()) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -186,7 +186,7 @@ impl VotingBinaryHoleFillingImageFilter {
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
         max_iterations: usize,
-        backend: &B::default()) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

@@ -68,7 +68,7 @@ impl MedianFilter {
     {
         let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
         let filtered = median_3d(&vals, dims, self.radius);
-        ritk_tensor_ops::native::rebuild_image(filtered, dims, image, &B::default()::default())
+        ritk_tensor_ops::native::rebuild_image(filtered, dims, image, &B::default())
     }
 }
 
@@ -466,7 +466,7 @@ mod tests {
         let r2 = super::median_3d(&vals, dims, 1);
         assert_eq!(r1.len(), dims.iter().product::<usize>());
         assert_eq!(r2.len(), dims.iter().product::<usize>());
-        for (i, (&a, &B::default())) in r1.iter().zip(r2.iter()).enumerate() {
+        for (i, (&a, &b)) in r1.iter().zip(r2.iter()).enumerate() {
             // `select_nth_unstable_by` is deterministic for a given input
             // and partition scheme, so values MUST match exactly.
             assert!(
@@ -490,7 +490,7 @@ mod tests {
         let r2 = super::median_3d(&vals, dims, 3);
         assert_eq!(r1.len(), n);
         assert_eq!(r2.len(), n);
-        for (i, (&a, &B::default())) in r1.iter().zip(r2.iter()).enumerate() {
+        for (i, (&a, &b)) in r1.iter().zip(r2.iter()).enumerate() {
             assert!(
                 a.to_bits() == b.to_bits(),
                 "voxel {i} mismatch (r=3): brute={a} hoisted={b}"

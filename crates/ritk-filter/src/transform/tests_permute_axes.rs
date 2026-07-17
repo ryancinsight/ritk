@@ -31,7 +31,7 @@ fn permute_axes_identity_order_is_noop() {
     let out = PermuteAxesImageFilter::new([0, 1, 2]).apply(&img).unwrap();
     assert_eq!(out.shape(), [1, 2, 3]);
     let v = voxels(&out);
-    for (i, (&a, &B::default())) in v.iter().zip(vals.iter()).enumerate() {
+    for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
         assert_eq!(a, b, "voxel {}: identity mismatch", i);
     }
 }

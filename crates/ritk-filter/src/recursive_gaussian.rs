@@ -134,7 +134,7 @@ impl RecursiveGaussianFilter {
     pub fn apply<B>(
         &self,
         image: &Image<f32, B, 3>,
-        backend: &B::default()) -> anyhow::Result<Image<f32, B, 3>>
+        backend: &B) -> anyhow::Result<Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend + Default,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -155,7 +155,7 @@ impl RecursiveGaussianFilter {
     pub fn apply_native<B>(
         &self,
         image: &Image<f32, B, 3>,
-        backend: &B::default()) -> anyhow::Result<Image<f32, B, 3>>
+        backend: &B) -> anyhow::Result<Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend + Default,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -294,7 +294,7 @@ pub(crate) fn gradient_magnitude_rg_vals(
 pub fn laplacian_recursive_gaussian<B>(
     image: &Image<f32, B, 3>,
     sigma: f64,
-    backend: &B::default()) -> anyhow::Result<Image<f32, B, 3>>
+    backend: &B) -> anyhow::Result<Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend + Default,
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -313,7 +313,7 @@ where
 pub fn gradient_magnitude_recursive_gaussian<B>(
     image: &Image<f32, B, 3>,
     sigma: f64,
-    backend: &B::default()) -> anyhow::Result<Image<f32, B, 3>>
+    backend: &B) -> anyhow::Result<Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend + Default,
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -339,7 +339,7 @@ pub fn recursive_gaussian_directional<B>(
     sigma: f64,
     order: DerivativeOrder,
     direction: usize,
-    backend: &B::default()) -> anyhow::Result<Image<f32, B, 3>>
+    backend: &B) -> anyhow::Result<Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend + Default,
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -425,7 +425,7 @@ where
 pub fn smoothing_recursive_gaussian<B>(
     image: &Image<f32, B, 3>,
     sigmas: &[f64],
-    backend: &B::default()) -> anyhow::Result<Image<f32, B, 3>>
+    backend: &B) -> anyhow::Result<Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend + Default,
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

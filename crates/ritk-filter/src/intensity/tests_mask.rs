@@ -48,7 +48,7 @@ fn mask_filter_full_mask_is_identity() {
     let mask = make_image(vec![1.0; 4], [1, 2, 2]);
     let out = MaskImageFilter::new().apply(&img, &mask).unwrap();
     let v = voxels(&out);
-    for (i, (&a, &B::default())) in v.iter().zip(vals.iter()).enumerate() {
+    for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
         assert!((a - b).abs() < 1e-5, "[{}] expected {}, got {}", i, b, a);
     }
 }

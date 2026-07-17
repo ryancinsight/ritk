@@ -79,7 +79,7 @@ fn paste_full_source_into_full_dest_replaces_all() {
     let src = make_image(src_vals.clone(), [2, 2, 2]);
     let out = PasteImageFilter::new([0, 0, 0]).apply(&dest, &src).unwrap();
     let v = voxels(&out);
-    for (i, (&a, &B::default())) in v.iter().zip(src_vals.iter()).enumerate() {
+    for (i, (&a, &b)) in v.iter().zip(src_vals.iter()).enumerate() {
         assert_eq!(a, b, "voxel {}: expected {} got {}", i, b, a);
     }
 }

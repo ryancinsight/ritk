@@ -10,7 +10,7 @@ type B = SequentialBackend;
 fn grey_ramp_matches_itk_truncation() {
     let img = ts::burn_compat::make_image::<B, 3>(vec![10.0, 20.0, 30.0, 40.0, 50.0], [1, 1, 5]);
     let out = ScalarToRGBColormapFilter::new(Colormap::Grey)
-        .apply(&img, &B::default()::default())
+        .apply(&img, &B::default())
         .unwrap();
     let comps = out.into_component_buffers();
     let expected = [0.0f32, 63.0, 127.0, 191.0, 255.0];
@@ -24,7 +24,7 @@ fn grey_ramp_matches_itk_truncation() {
 fn red_colormap_channel_selection() {
     let img = ts::burn_compat::make_image::<B, 3>(vec![10.0, 20.0, 30.0, 40.0, 50.0], [1, 1, 5]);
     let out = ScalarToRGBColormapFilter::new(Colormap::Red)
-        .apply(&img, &B::default()::default())
+        .apply(&img, &B::default())
         .unwrap();
     let comps = out.into_component_buffers();
     assert_eq!(comps[0], vec![0.0, 63.0, 127.0, 191.0, 255.0]);
@@ -37,7 +37,7 @@ fn red_colormap_channel_selection() {
 fn constant_image_maps_to_zero() {
     let img = ts::burn_compat::make_image::<B, 3>(vec![7.0; 8], [2, 2, 2]);
     let out = ScalarToRGBColormapFilter::new(Colormap::Grey)
-        .apply(&img, &B::default()::default())
+        .apply(&img, &B::default())
         .unwrap();
     for c in out.into_component_buffers() {
         assert!(c.iter().all(|&x| x == 0.0));
@@ -58,7 +58,7 @@ fn unsupported_colormap_rejected() {
 #[test]
 fn label_to_rgb_matches_itk_table_and_cycles() {
     let img = ts::burn_compat::make_image::<B, 3>(vec![0.0, 1.0, 2.0, 5.0, 7.0, 30.0, 31.0], [1, 1, 7]);
-    let out = LabelToRGBFilter::new(0).apply(&img, &B::default()::default()).unwrap();
+    let out = LabelToRGBFilter::new(0).apply(&img, &B::default()).unwrap();
     let c = out.into_component_buffers();
     // (r,g,b) per voxel.
     let rgb = |i: usize| [c[0][i], c[1][i], c[2][i]];
@@ -80,7 +80,7 @@ fn label_overlay_blends_with_table() {
     let gray = ts::burn_compat::make_image::<B, 3>(vec![100.0, 100.0, 200.0, 200.0], [1, 1, 4]);
     let lab = ts::burn_compat::make_image::<B, 3>(vec![0.0, 1.0, 0.0, 2.0], [1, 1, 4]);
     let out = LabelOverlayFilter::new(0.5, 0)
-        .apply(&gray, &lab, &B::default()::default())
+        .apply(&gray, &lab, &B::default())
         .unwrap();
     let c = out.into_component_buffers();
     let rgb = |i: usize| [c[0][i], c[1][i], c[2][i]];
@@ -96,7 +96,7 @@ fn label_overlay_full_opacity_is_label_color() {
     let gray = ts::burn_compat::make_image::<B, 3>(vec![100.0, 200.0], [1, 1, 2]);
     let lab = ts::burn_compat::make_image::<B, 3>(vec![1.0, 2.0], [1, 1, 2]);
     let out = LabelOverlayFilter::new(1.0, 0)
-        .apply(&gray, &lab, &B::default()::default())
+        .apply(&gray, &lab, &B::default())
         .unwrap();
     let c = out.into_component_buffers();
     assert_eq!([c[0][0], c[1][0], c[2][0]], [0.0, 205.0, 0.0]);
@@ -122,7 +122,7 @@ fn label_map_contour_overlay_matches_sitk() {
     let gi = ts::burn_compat::make_image::<B, 3>(gray, [1, 8, 8]);
     let li = ts::burn_compat::make_image::<B, 3>(lab, [1, 8, 8]);
     let out = LabelMapContourOverlayFilter::new(0.5, 0)
-        .apply(&gi, &li, &B::default()::default())
+        .apply(&gi, &li, &B::default())
         .unwrap();
     let c = out.into_component_buffers();
     let exp_r: Vec<f32> = [

@@ -85,7 +85,7 @@ impl LaplacianFilter {
     {
         let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
         let result = laplacian_vec(&vals, dims, &self.spacing);
-        ritk_tensor_ops::native::rebuild_image(result, dims, image, &B::default()::default())
+        ritk_tensor_ops::native::rebuild_image(result, dims, image, &B::default())
     }
 }
 

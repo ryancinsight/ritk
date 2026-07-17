@@ -201,7 +201,7 @@ fn all_border_volume_unchanged() {
     let img = make_image(vals.clone(), dims);
     let out = GrayscaleFillholeFilter::new().apply(&img).unwrap();
     let out_vals = extract_vals(&out);
-    for (i, (&a, &B::default())) in vals.iter().zip(out_vals.iter()).enumerate() {
+    for (i, (&a, &b)) in vals.iter().zip(out_vals.iter()).enumerate() {
         assert!((a - b).abs() < 1e-6, "all-border voxel {i}: {a} ≠ {b}");
     }
 }

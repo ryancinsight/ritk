@@ -26,7 +26,7 @@ pub fn binary_erode<B>(
     image: &Image<f32, B, 3>,
     radius: usize,
     foreground_value: ForegroundValue,
-    backend: &B::default()) -> Result<Image<f32, B, 3>>
+    backend: &B) -> Result<Image<f32, B, 3>>
 where
     B: ComputeBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
@@ -46,7 +46,7 @@ pub fn binary_dilate<B>(
     image: &Image<f32, B, 3>,
     radius: usize,
     foreground_value: ForegroundValue,
-    backend: &B::default()) -> Result<Image<f32, B, 3>>
+    backend: &B) -> Result<Image<f32, B, 3>>
 where
     B: ComputeBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
@@ -66,7 +66,7 @@ pub fn binary_closing<B>(
     image: &Image<f32, B, 3>,
     radius: usize,
     foreground_value: ForegroundValue,
-    backend: &B::default()) -> Result<Image<f32, B, 3>>
+    backend: &B) -> Result<Image<f32, B, 3>>
 where
     B: ComputeBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
@@ -87,7 +87,7 @@ pub fn binary_opening<B>(
     image: &Image<f32, B, 3>,
     radius: usize,
     foreground_value: ForegroundValue,
-    backend: &B::default()) -> Result<Image<f32, B, 3>>
+    backend: &B) -> Result<Image<f32, B, 3>>
 where
     B: ComputeBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
@@ -106,7 +106,7 @@ where
 pub fn binary_fill_holes<B>(
     image: &Image<f32, B, 3>,
     foreground_value: ForegroundValue,
-    backend: &B::default()) -> Result<Image<f32, B, 3>>
+    backend: &B) -> Result<Image<f32, B, 3>>
 where
     B: ComputeBackend,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,

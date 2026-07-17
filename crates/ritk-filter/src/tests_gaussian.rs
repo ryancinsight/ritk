@@ -86,7 +86,7 @@ fn zero_sigma_skips_smoothing() {
     let img = make_image(data.clone(), [2, 2, 2]);
     let out = filter.apply(&img, &B::default()).expect("gaussian apply");
     let got = voxels(&out);
-    for (i, (&a, &B::default())) in got.iter().zip(data.iter()).enumerate() {
+    for (i, (&a, &b)) in got.iter().zip(data.iter()).enumerate() {
         assert!(
             (a - b).abs() < 1e-6,
             "zero sigma must not change voxel {i}: expected {b}, got {a}"

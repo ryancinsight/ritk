@@ -134,7 +134,7 @@ fn test_noise_reduction() {
     let noisy: Vec<f32> = base
         .iter()
         .enumerate()
-        .map(|(i, &B::default())| b + (((i * 17 + 3) % 97) as f32 - 48.0) * 0.01)
+        .map(|(i, &b)| b + (((i * 17 + 3) % 97) as f32 - 48.0) * 0.01)
         .collect();
 
     let img = make_image(noisy.clone(), dims);
@@ -185,7 +185,7 @@ fn test_zero_iterations() {
     let out = filter.apply(&img);
     let out_vals = image_vals(&out);
 
-    for (i, (&a, &B::default())) in out_vals.iter().zip(vals.iter()).enumerate() {
+    for (i, (&a, &b)) in out_vals.iter().zip(vals.iter()).enumerate() {
         assert!(
             (a - b).abs() < 1e-6,
             "zero iterations should produce identical output; voxel {i}: {a} vs {b}"
@@ -298,7 +298,7 @@ fn test_determinism() {
     let v1 = image_vals(&out1);
     let v2 = image_vals(&out2);
 
-    for (i, (&a, &B::default())) in v1.iter().zip(v2.iter()).enumerate() {
+    for (i, (&a, &b)) in v1.iter().zip(v2.iter()).enumerate() {
         assert!(
             (a - b).abs() < 1e-10,
             "determinism violation at voxel {i}: {a} vs {b}"

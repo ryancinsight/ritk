@@ -217,7 +217,7 @@ fn asin_acos_complement_identity() {
     let acoss = AcosImageFilter::new().apply(&img2);
     let (asv, _) = extract_vec_infallible(&asins);
     let (acv, _) = extract_vec_infallible(&acoss);
-    for (&a, &B::default()) in asv.iter().zip(acv.iter()) {
+    for (&a, &b) in asv.iter().zip(acv.iter()) {
         assert!((a + b - pi_half).abs() < 1e-5, "asin+acos={} ≠ π/2", a + b);
     }
 }

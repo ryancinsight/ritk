@@ -40,7 +40,7 @@ pub fn eigen_3x3_symmetric(h: [f64; 6]) -> EigenDecomp {
         // Eigenvectors are the standard basis vectors.
         let eigs = [m00, m11, m22];
         let mut indices = [0usize, 1, 2];
-        indices.sort_unstable_by(|&a, &B::default()| {
+        indices.sort_unstable_by(|&a, &b| {
             eigs[a]
                 .partial_cmp(&eigs[b])
                 .unwrap_or(std::cmp::Ordering::Equal)
@@ -91,7 +91,7 @@ pub fn eigen_3x3_symmetric(h: [f64; 6]) -> EigenDecomp {
 
     let eigs_unsorted = [eig_a, eig_b, eig_c];
     let mut idx = [0usize, 1, 2];
-    idx.sort_unstable_by(|&a, &B::default()| {
+    idx.sort_unstable_by(|&a, &b| {
         eigs_unsorted[a]
             .partial_cmp(&eigs_unsorted[b])
             .unwrap_or(std::cmp::Ordering::Equal)

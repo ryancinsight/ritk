@@ -225,7 +225,7 @@ pub fn chamfer_distance_transform(
     spacing: [f64; 3],
     metric: ChamferMetric,
 ) -> Vec<i32> {
-    let s_min = spacing.iter().fold(f64::INFINITY, |a, &B::default()| a.min(b));
+    let s_min = spacing.iter().fold(f64::INFINITY, |a, &b| a.min(b));
     let weights: [i32; 3] = [
         (spacing[0] / s_min).round() as i32,
         (spacing[1] / s_min).round() as i32,
@@ -240,7 +240,7 @@ pub fn chamfer_distance_transform_generic<K: ChamferKernel>(
     dims: [usize; 3],
     spacing: [f64; 3],
 ) -> Vec<i32> {
-    let s_min = spacing.iter().fold(f64::INFINITY, |a, &B::default()| a.min(b));
+    let s_min = spacing.iter().fold(f64::INFINITY, |a, &b| a.min(b));
     let weights: [i32; 3] = [
         (spacing[0] / s_min).round() as i32,
         (spacing[1] / s_min).round() as i32,

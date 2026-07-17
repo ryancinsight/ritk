@@ -20,7 +20,7 @@ fn gradient_of_x_ramp_is_unit_along_x() {
     }
     let img = ts::burn_compat::make_image::<B, 3>(vals, [nz, ny, nx]);
     let grad = GradientImageFilter::new(true)
-        .apply(&img, &B::default()::default())
+        .apply(&img, &B::default())
         .unwrap();
     let comps = grad.into_component_buffers();
     assert_eq!(comps.len(), 3);
@@ -61,7 +61,7 @@ fn gradient_recursive_gaussian_of_x_ramp_is_unit_along_x() {
     }
     let img = ts::burn_compat::make_image::<B, 3>(vals, [nz, ny, nx]);
     let grad = GradientRecursiveGaussianImageFilter::new(1.0)
-        .apply(&img, &B::default()::default())
+        .apply(&img, &B::default())
         .unwrap();
     let comps = grad.into_component_buffers();
     // Interior (away from the IIR boundary transient): ∂/∂x ≈ 1, ∂/∂y, ∂/∂z ≈ 0.

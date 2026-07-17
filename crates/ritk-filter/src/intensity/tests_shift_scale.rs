@@ -10,7 +10,7 @@ fn shift_scale_identity_zero_shift_unit_scale() {
         .expect("apply_native should succeed");
     let v = native_vals(&out);
     let expected = [1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
-    for (i, (&a, &B::default())) in v.iter().zip(expected.iter()).enumerate() {
+    for (i, (&a, &b)) in v.iter().zip(expected.iter()).enumerate() {
         assert!((a - b).abs() < 1e-5, "voxel {} expected {} got {}", i, b, a);
     }
 }
@@ -22,7 +22,7 @@ fn shift_scale_shift_only_adds_constant() {
     let out = ShiftScaleImageFilter::new(10.0, 1.0).apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     let v = native_vals(&out);
-    for (i, (&a, &B::default())) in v.iter().zip([11.0f32, 12.0, 13.0, 14.0].iter()).enumerate() {
+    for (i, (&a, &b)) in v.iter().zip([11.0f32, 12.0, 13.0, 14.0].iter()).enumerate() {
         assert!(
             (a - b).abs() < 1e-5,
             "voxel {}: expected {} got {}",
@@ -40,7 +40,7 @@ fn shift_scale_scale_only_multiplies() {
     let out = ShiftScaleImageFilter::new(0.0, 2.0).apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     let v = native_vals(&out);
-    for (i, (&a, &B::default())) in v.iter().zip([2.0f32, 4.0, 6.0, 8.0].iter()).enumerate() {
+    for (i, (&a, &b)) in v.iter().zip([2.0f32, 4.0, 6.0, 8.0].iter()).enumerate() {
         assert!(
             (a - b).abs() < 1e-5,
             "voxel {}: expected {} got {}",

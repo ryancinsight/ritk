@@ -30,7 +30,7 @@ use ritk_tensor_ops::native::extract_image_vec;
 pub fn map_color_components<B, const C: usize, F>(
     vol: &ColorVolume<f32, B, C>,
     mut f: F,
-    backend: &B::default()) -> Result<ColorVolume<f32, B, C>>
+    backend: &B) -> Result<ColorVolume<f32, B, C>>
 where
     B: ComputeBackend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,

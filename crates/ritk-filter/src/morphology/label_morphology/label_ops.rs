@@ -54,7 +54,7 @@ impl LabelDilation {
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B::default()) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: ComputeBackend,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
@@ -190,7 +190,7 @@ impl LabelErosion {
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B::default()) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: ComputeBackend,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
@@ -292,7 +292,7 @@ impl LabelOpening {
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B::default()) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: ComputeBackend,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
@@ -329,7 +329,7 @@ impl LabelClosing {
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B::default()) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: ComputeBackend,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,

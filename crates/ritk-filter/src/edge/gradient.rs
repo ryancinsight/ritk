@@ -38,7 +38,7 @@ impl GradientImageFilter {
     pub fn apply<B>(
         &self,
         image: &Image<f32, B, 3>,
-        backend: &B::default()) -> Result<ColorVolume<f32, B, 3>>
+        backend: &B) -> Result<ColorVolume<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -98,7 +98,7 @@ impl GradientRecursiveGaussianImageFilter {
     pub fn apply<B>(
         &self,
         image: &Image<f32, B, 3>,
-        backend: &B::default()) -> Result<ColorVolume<f32, B, 3>>
+        backend: &B) -> Result<ColorVolume<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

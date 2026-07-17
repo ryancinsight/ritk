@@ -28,7 +28,7 @@ fn warp_constant_image_is_preserved() {
     let dy = make(vec![-0.4; n], [nz, ny, nx]);
     let dx = make(dxv, [nz, ny, nx]);
 
-    let out = warp_image(&moving, &dz, &dy, &dx, &B::default()::default()).unwrap();
+    let out = warp_image(&moving, &dz, &dy, &dx, &B::default()).unwrap();
     let ov = out.data().as_slice();
     // Interior voxels (displacement < 0.5, so samples stay in-bounds) equal 7.0.
     for iz in 1..nz - 1 {
@@ -54,7 +54,7 @@ fn warp_out_of_bounds_is_zero() {
     let dz = make(vec![100.0; 27], dims);
     let dy = make(vec![100.0; 27], dims);
     let dx = make(vec![100.0; 27], dims);
-    let out = warp_image(&moving, &dz, &dy, &dx, &B::default()::default()).unwrap();
+    let out = warp_image(&moving, &dz, &dy, &dx, &B::default()).unwrap();
     let ov = out.data().as_slice();
     assert!(
         ov.iter().all(|&v| v == 0.0),
@@ -70,7 +70,7 @@ fn warp_zero_displacement_is_identity() {
     let vals: Vec<f32> = (0..n).map(|i| (i as f32 * 1.7).sin()).collect();
     let moving = make(vals.clone(), dims);
     let zero = make(vec![0.0; n], dims);
-    let out = warp_image(&moving, &zero, &zero, &zero, &B::default()::default()).unwrap();
+    let out = warp_image(&moving, &zero, &zero, &zero, &B::default()).unwrap();
     let ov = out.data().as_slice();
     for (i, (&got, &want)) in ov.iter().zip(vals.iter()).enumerate() {
         assert!(
@@ -87,5 +87,5 @@ fn warp_mismatched_field_shapes_errors() {
     let dz = make(vec![0.0; 8], [2, 2, 2]);
     let dy = make(vec![0.0; 27], [3, 3, 3]);
     let dx = make(vec![0.0; 8], [2, 2, 2]);
-    assert!(warp_image(&moving, &dz, &dy, &dx, &B::default()::default()).is_err());
+    assert!(warp_image(&moving, &dz, &dy, &dx, &B::default()).is_err());
 }

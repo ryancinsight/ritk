@@ -245,7 +245,7 @@ impl FrequencyDomainFilter {
         kind: FftFilterKind,
         cutoff: f64,
         order: usize,
-        backend: &B::default()) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

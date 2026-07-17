@@ -318,7 +318,7 @@ fn rms_diff_identity_and_positive() {
     let a = vec![1.0f32, 2.0, 3.0, 4.0];
     assert_eq!(rms_diff(&a, &a), 0.0);
     let b = vec![2.0f32, 3.0, 4.0, 5.0];
-    let d = rms_diff(&a, &B::default());
+    let d = rms_diff(&a, &b);
     assert!((d - 1.0).abs() < 1e-6, "expected rms=1.0, got {d}");
 }
 

@@ -304,7 +304,7 @@ impl InverseDisplacementField {
         comp_x: &ritk_image::native::Image<f32, B, 3>,
         comp_y: &ritk_image::native::Image<f32, B, 3>,
         comp_z: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B::default()) -> anyhow::Result<(
+        backend: &B) -> anyhow::Result<(
         ritk_image::native::Image<f32, B, 3>,
         ritk_image::native::Image<f32, B, 3>,
         ritk_image::native::Image<f32, B, 3>,

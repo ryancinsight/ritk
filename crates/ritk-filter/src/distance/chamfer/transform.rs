@@ -95,7 +95,7 @@ impl ChamferDistanceTransform {
         let sp = image.spacing();
         let spacing = [sp[0], sp[1], sp[2]];
 
-        let s_min = spacing.iter().fold(f64::INFINITY, |a, &B::default()| a.min(b));
+        let s_min = spacing.iter().fold(f64::INFINITY, |a, &b| a.min(b));
         let weights: [i32; 3] = [
             (spacing[0] / s_min).round() as i32,
             (spacing[1] / s_min).round() as i32,
@@ -113,7 +113,7 @@ impl ChamferDistanceTransform {
         Ok(rebuild(scaled, [nz, ny, nx], image))
     }    /// Coeus-native sister of [`apply`].
     pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B::default()) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -128,7 +128,7 @@ impl ChamferDistanceTransform {
         let sp = image.spacing();
         let spacing = [sp[0], sp[1], sp[2]];
 
-        let s_min = spacing.iter().fold(f64::INFINITY, |a, &B::default()| a.min(b));
+        let s_min = spacing.iter().fold(f64::INFINITY, |a, &b| a.min(b));
         let weights: [i32; 3] = [
             (spacing[0] / s_min).round() as i32,
             (spacing[1] / s_min).round() as i32,

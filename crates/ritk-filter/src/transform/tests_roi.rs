@@ -26,7 +26,7 @@ fn roi_full_image_is_identity() {
         .unwrap();
     assert_eq!(out.shape(), [3, 3, 3]);
     let v = voxels(&out);
-    for (i, (&a, &B::default())) in v.iter().zip(vals.iter()).enumerate() {
+    for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
         assert_eq!(a, b, "voxel {}: identity violation", i);
     }
 }
