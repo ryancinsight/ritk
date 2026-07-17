@@ -33,6 +33,8 @@
   the former `burn_compat` fixtures are removed.
 - The five active Criterion targets and recursive-Gaussian comparison example
   now construct native images and call the corresponding native operations.
+- The analytical parity suite now uses public native intensity, edge,
+  segmentation, and statistics APIs.
 
 ### Breaking
 - Rust callers must replace legacy Burn images with native
@@ -63,6 +65,8 @@
 - Warning-denied Clippy passes for each migrated Criterion target and the
   recursive-Gaussian example; the example asserts its two native paths are
   float-identical before timing.
+- The native parity suite passes all 10 analytical-oracle tests under nextest
+  and warning-denied Clippy.
 - The Atlas checkout action now pins Apollo commit
   `f26369eb2000b9a8b763066064173f8c5ebf8f65`, which declares the required
   `apollo-fft` 0.23.0. Workspace sources are rustfmt-clean under the CI's
@@ -71,8 +75,8 @@
 ### Residual
 - The package-wide registration test build remains blocked by unrelated
   legacy Burn integration targets. The filter library test target still has 88
-  stale native/legacy compile errors, with the parity target still awaiting
-  migration. This slice adds no compatibility path or lint suppression.
+  stale native/legacy compile errors. This slice adds no compatibility path or
+  lint suppression.
 
 ## [Unreleased] — Workspace license metadata (SEC-656-01)
 

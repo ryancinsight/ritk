@@ -11,7 +11,7 @@
   `crates/ritk-filter/{benches/{bilateral.rs,cpr_apply.rs,euclidean_dt.rs,
   median.rs,separable_box.rs},examples/bench_gradient_rg.rs}`,
   `crates/ritk-filter/tests/{native_color_components.rs,native_colormap.rs,
-  native_displacement.rs}`, migration audit).** GitHub audit run
+  native_displacement.rs,parity.rs}`, migration audit).** GitHub audit run
   `29547504239` reaches the source scanner after the provider sweep and reports
   `burn_compat_types` and `burn_compat_row_chunks` as unallowlisted relocated
   compatibility surfaces. The redundant Burn-grid test is deleted now because
@@ -29,7 +29,9 @@
   colormap regressions now execute through native images and native interleaved
   color volumes, preserving their ITK reference values without `burn_compat`
   fixtures. The active Criterion targets and recursive-Gaussian comparison
-  example now execute their existing native operations directly.
+  example now execute their existing native operations directly. The analytical
+  parity suite now covers the public native intensity, edge, segmentation, and
+  statistics contracts.
 
 - **MIG-657-01 [major] - Native extended label-shape statistics (REVIEW;
   owner=Codex; scope=`crates/ritk-statistics/{Cargo.toml,src/{label_shape_extended.rs,

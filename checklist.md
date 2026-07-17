@@ -87,6 +87,10 @@
       example onto existing native operations. Completion condition: all five
       Criterion targets and the example compile warning-free without a legacy
       image fixture; the comparison checks exact equality before timing.
+- [x] Port the external parity suite to public native operations. Completion
+      condition: its analytical intensity, edge, segmentation, and statistics
+      oracles execute on native images without a compatibility adapter.
+      Evidence: warning-denied Clippy and nextest pass 10/10.
 - [ ] Port every active consumer of `burn_compat_types` and
       `burn_compat_row_chunks` to its native Coeus operation, then delete both
       modules and the `burn-compat` feature in the same breaking cutover.
