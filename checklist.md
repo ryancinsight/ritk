@@ -34,6 +34,10 @@
 - [x] Verify the breaking release boundary against baseline `ffda3ecd`.
       Evidence: `cargo semver-checks` accepts 0.3.0 to 0.4.0 as a major
       release after reconstructing the sibling path-provider topology.
+- [x] Fix the first hosted Clippy failure at its dependency root. The composite
+      checkout now selects merged Eunomia commit
+      `a2e4f390d7b7e88589d4f2510e48f57c303360d2`, which supplies the
+      `CastFrom<float> for usize` contract used by RITK.
 
 ## CI-658-12 — Align RITK with the current Apollo FFT provider
 **Target version**: Unreleased patch

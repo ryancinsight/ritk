@@ -16,6 +16,8 @@
   `num-traits`. The unused root workspace `num-complex`/`num-traits`
   declarations and the crate's direct `num-traits` dependency are removed.
   The migrated source is also removed from the Burn-surface allowlist.
+  CI now checks out merged Eunomia commit `a2e4f390`, which owns the required
+  generic float-to-index conversion.
   Burn dependencies remain explicit because live production, test, and
   benchmark callers do not yet satisfy ADR 0002's removal criterion.
 - Routed `PyColorImage`, its color operations, and current Canny/recursive

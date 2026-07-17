@@ -27,6 +27,11 @@ native compilation, and value-semantic tests; locked package check,
 warning-denied all-target/all-feature Clippy, and 123/123 Nextest tests pass
 with 3 explicitly skipped. `cargo semver-checks` accepts the 0.3.0 to 0.4.0
 boundary as a major release against baseline `ffda3ecd`.
+The first hosted Clippy run exposed a stale provider checkout rather than a
+local code defect: CI selected Eunomia `dd94f7b9`, which did not yet implement
+the new float-to-index casts, so inference fell back to the only visible
+`usize: CastFrom<i32>` implementation. The checkout now selects merged Eunomia
+commit `a2e4f390`, matching the provider used by local verification.
 
 ## CI-658-12 audit (2026-07-17)
 
