@@ -8,6 +8,33 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-659-01 — Move native interpolation scalar ownership to Eunomia
+**Target version**: ritk-interpolation 0.4.0
+**Sprint phase**: Closure
+
+- [x] Add the missing generic float-to-index conversion contract in Eunomia
+      and merge provider commit `a2e4f390d7b7e88589d4f2510e48f57c303360d2`.
+- [x] Replace `num_traits` bounds and conversions in the native flat-buffer
+      trilinear sampler with `FloatElement` and `CastFrom`.
+- [x] Add one generic value-semantic regression instantiated at `f32` and
+      `f64`, covering an exact center sample and upper-bound clamping.
+- [x] Reject the stale Burn-dependency deletion after finding live production,
+      test, and benchmark call sites. Keep those dependencies explicit under
+      ADR 0002's removal criterion.
+- [x] Remove only the unused root workspace `num-complex`/`num-traits`
+      declarations and the interpolation crate's direct `num-traits` edge.
+- [x] Remove the migrated `native.rs` source entry from the Burn-surface
+      allowlist. Completion condition: `xtask burn-migration-audit` reports a
+      clean allowlist with no cleanup candidates.
+- [x] Reclassify the sealed public scalar-bound change as breaking and advance
+      `ritk-interpolation` from 0.3.0 to 0.4.0.
+- [x] Verify the owner package. Evidence: locked package check,
+      warning-denied all-target/all-feature Clippy, and 123/123 Nextest tests
+      pass with 3 explicitly skipped.
+- [x] Verify the breaking release boundary against baseline `ffda3ecd`.
+      Evidence: `cargo semver-checks` accepts 0.3.0 to 0.4.0 as a major
+      release after reconstructing the sibling path-provider topology.
+
 ## CI-658-12 — Align RITK with the current Apollo FFT provider
 **Target version**: Unreleased patch
 **Sprint phase**: Closure

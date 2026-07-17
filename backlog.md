@@ -1,14 +1,18 @@
 # RITK Backlog - Active Planning
 
-- **MIG-659-01 [minor] - Move native interpolation scalar ownership to Eunomia
-  (IN-PROGRESS; owner=Codex `/root` stale-peer takeover;
+- **MIG-659-01 [major] - Move native interpolation scalar ownership to Eunomia
+  (DONE; owner=Codex `/root` stale-peer takeover;
   scope=`Cargo.toml`, `Cargo.lock`, `crates/ritk-interpolation/{Cargo.toml,src/native.rs}`,
-  upstream Eunomia casts, PM artifacts).** Remove the unused workspace
-  `num-complex`/`num-traits` declarations and the interpolation crate's Burn
-  and num-traits dependencies. Acceptance: Eunomia owns the generic
-  float-to-index cast contract, native interpolation compiles and passes its
-  value-semantic suite, and the locked RITK graph contains no direct legacy
-  dependency in this scope.
+  `docs/adr/0002-core-image-burn-to-coeus-migration.md`, upstream Eunomia casts,
+  PM artifacts).** Removed the unused workspace `num-complex`/`num-traits`
+  declarations and the interpolation crate's direct `num-traits` edge.
+  Eunomia owns the generic float-to-index cast contract, and
+  `ritk-interpolation` 0.4.0 exposes the provider-native bound. The stale
+  attempt to remove Burn was rejected because production, test, and benchmark
+  call sites remain; those dependencies stay explicit until ADR 0002's
+  crate-removal criterion is satisfied. Acceptance evidence: locked package
+  check, warning-denied all-target/all-feature Clippy, and 123/123 Nextest
+  tests pass with 3 explicitly skipped.
 
 - **CI-658-12 [patch] - Align RITK with the current Apollo FFT provider (IN-PROGRESS;
   owner=Codex; scope=`Cargo.toml`, `Cargo.lock`,

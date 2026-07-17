@@ -235,7 +235,6 @@ source:crates/ritk-interpolation/src/interpolation/tests_dispatch/mod.rs
 source:crates/ritk-interpolation/src/interpolation/tests_dispatch/rank1.rs
 source:crates/ritk-interpolation/src/interpolation/tests_dispatch/rank2.rs
 source:crates/ritk-interpolation/src/interpolation/tests_dispatch/rank3.rs
-source:crates/ritk-interpolation/src/native.rs
 source:crates/ritk-io/src/format/analyze/mod.rs
 source:crates/ritk-io/src/format/dicom/multiframe/reader.rs
 source:crates/ritk-io/src/format/dicom/multiframe/tests/differential.rs

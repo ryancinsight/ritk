@@ -11,6 +11,13 @@
 ## [Unreleased] — Native extended label-shape statistics (MIG-657-01)
 
 ### Changed
+- `ritk-interpolation` 0.4.0 now expresses native flat-buffer trilinear
+  sampling through Eunomia `FloatElement` and `CastFrom` contracts instead of
+  `num-traits`. The unused root workspace `num-complex`/`num-traits`
+  declarations and the crate's direct `num-traits` dependency are removed.
+  The migrated source is also removed from the Burn-surface allowlist.
+  Burn dependencies remain explicit because live production, test, and
+  benchmark callers do not yet satisfy ADR 0002's removal criterion.
 - Routed `PyColorImage`, its color operations, and current Canny/recursive
   Gaussian bindings through native `ColorVolume`/`Image` contracts with the
   concrete `MoiraiBackend`, removing their legacy color-tensor bridge.
