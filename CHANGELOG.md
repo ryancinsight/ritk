@@ -92,6 +92,9 @@
 - Corrected the Analyze-to-NIfTI converter to use the native Analyze reader and
   native NIfTI writer directly, removing its invalid mixed Coeus/Burn image
   annotation.
+- Corrected real-data fixture discovery to require the documented MNI152 NIfTI
+  file, preventing an earlier empty `test_data` directory from masking a later
+  valid fixture root.
 
 ### Breaking
 - Rust callers must replace legacy Burn images with native

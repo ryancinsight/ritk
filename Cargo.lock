@@ -7814,6 +7814,7 @@ dependencies = [
  "ritk-transform",
  "ritk-wgpu-compat",
  "serde",
+ "tempfile",
  "thiserror 2.0.18",
  "tracing",
  "tracing-subscriber",

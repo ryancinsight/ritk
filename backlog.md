@@ -64,12 +64,21 @@
   revalidation on the resulting PR head remains.
 
 - **CI-658-08 [patch] - Cut the Analyze-to-NIfTI converter to native I/O
-  (IN PROGRESS; owner=Codex; scope=`crates/ritk-io/examples/dicom_to_nifti.rs`,
+  (REVIEW; owner=Codex; scope=`crates/ritk-io/examples/dicom_to_nifti.rs`,
   PM artifacts).** The converter still paired a Coeus backend with the
   two-parameter legacy Burn `Image` type, which fails the workspace all-target
   Clippy build. Replace the bridge with the existing native Analyze reader and
   native NIfTI writer. Acceptance: the exact example and workspace
   warning-denied Clippy gates pass without a legacy tensor conversion.
+
+- **CI-658-09 [patch] - Select real-data fixtures by required file (REVIEW;
+  owner=Codex; scope=`crates/ritk-registration/{Cargo.toml,tests/real_data_test.rs}`,
+  PM artifacts).** The real-data helper now chooses the first candidate that
+  contains `ants_example/mni152.nii.gz`, rather than the first existing
+  directory. A temporary-directory regression proves an earlier empty
+  candidate is skipped. Acceptance: warning-denied `real_data_test` Clippy and
+  the focused Nextest regression pass; GitHub revalidation on the resulting PR
+  head remains.
 
 - **MIG-658-01 [major] - Remove relocated Burn compatibility surfaces (IN
   PROGRESS; owner=Codex; scope=`crates/ritk-image/src/{lib.rs,

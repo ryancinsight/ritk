@@ -8,6 +8,16 @@
 
 # RITK Gap Audit - Active
 
+## CI-658-09 audit (2026-07-17)
+
+The real-data helper previously treated directory existence as proof that the
+MNI fixture was available. An earlier empty `test_data` directory could therefore
+mask a later valid fixture root. The selection predicate now checks the required
+`ants_example/mni152.nii.gz` file, and an isolated temporary-directory regression
+asserts that the valid later root is returned. Evidence tier: value-semantic
+test plus compile-time checking. Focused Nextest, warning-denied exact-target
+Clippy, and package formatting pass locally; GitHub revalidation remains pending.
+
 ## CI-658-08 audit (2026-07-17)
 
 The current PR head's workspace Clippy job found that the Analyze-to-NIfTI

@@ -114,6 +114,20 @@
       -- -D warnings` passes. Completion: the CI-reproduced all-target compiler
       error is absent.
 
+## CI-658-09 — Select real-data fixtures by required file
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Select the first configured test-data root containing the documented
+      `ants_example/mni152.nii.gz` fixture rather than the first existing
+      directory. Completion condition: an earlier empty root cannot mask a
+      later valid fixture root.
+- [x] Add an isolated temporary-directory regression asserting the valid
+      candidate is selected. Evidence: warning-denied `real_data_test` Clippy,
+      package formatting, and `cargo nextest run -p ritk-registration
+      --all-features fixture_search_skips_existing_directory_without_mni_fixture
+      --status-level fail` pass (1 test).
+
 ## MIG-657-01 — Native extended label-shape statistics
 **Target version**: 0.3.0
 **Sprint phase**: Execution

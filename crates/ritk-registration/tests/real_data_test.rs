@@ -24,10 +24,16 @@ fn get_test_data_dir() -> Option<PathBuf> {
         Path::new("../../test_data"),
     ];
 
-    paths
-        .iter()
-        .find(|path| path.exists())
-        .map(|path| (*path).to_path_buf())
+    first_mni_fixture_data_dir(&paths)
+}
+
+fn first_mni_fixture_data_dir(paths: &[&Path]) -> Option<PathBuf> {
+    paths.iter().copied().find_map(|path| {
+        path.join("ants_example")
+            .join("mni152.nii.gz")
+            .is_file()
+            .then(|| path.to_path_buf())
+    })
 }
 
 fn native_scalar_nifti_fixture(data_dir: &Path) -> PathBuf {
@@ -38,6 +44,32 @@ fn native_scalar_nifti_fixture(data_dir: &Path) -> PathBuf {
         path.display()
     );
     path
+}
+
+#[test]
+fn fixture_search_skips_existing_directory_without_mni_fixture() {
+    let temporary = tempfile::tempdir().expect("invariant: temporary test directory is creatable");
+    let missing_fixture = temporary.path().join("missing_fixture");
+    let fixture_root = temporary.path().join("fixture_root");
+    let fixture = fixture_root.join("ants_example").join("mni152.nii.gz");
+
+    std::fs::create_dir(&missing_fixture)
+        .expect("invariant: missing-fixture candidate directory is creatable");
+    std::fs::create_dir_all(
+        fixture
+            .parent()
+            .expect("invariant: fixture path always has a parent directory"),
+    )
+    .expect("invariant: fixture directory is creatable");
+    std::fs::write(&fixture, [])
+        .expect("invariant: minimal fixture marker is writable for path selection");
+
+    let candidates = [missing_fixture.as_path(), fixture_root.as_path()];
+    assert_eq!(
+        first_mni_fixture_data_dir(&candidates),
+        Some(fixture_root),
+        "fixture search must skip an earlier directory that lacks the required MNI file"
+    );
 }
 
 fn read_native_nifti(path: &Path) -> Image<f32, B, 3> {
