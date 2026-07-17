@@ -15,7 +15,7 @@ runs:
       uses: actions/checkout@v6
       with:
         repository: ryancinsight/Coeus
-        ref: 2026a0b65e363496b5ab79b09612f26b7729f9d5
+        ref: 093f31f51fd2dd1428a663a9f0da203b81534eba
         path: coeus
         persist-credentials: false
     - name: Checkout Eunomia
@@ -29,55 +29,55 @@ runs:
       uses: actions/checkout@v6
       with:
         repository: ryancinsight/gaia
-        ref: 9e481024c28824a89b1e81bcf6fb9ed0563d2d77
+        ref: ecc8f158320ed5d047c669c49ef5079ab834a5ec
         path: gaia
         persist-credentials: false
     - name: Checkout Hephaestus
       uses: actions/checkout@v6
       with:
         repository: ryancinsight/hephaestus
-        ref: dd93144d4294a6f83b03ed4f148f21d6a91ec38a
+        ref: 87d47879ffb02e05c5881889c362b48637d75996
         path: hephaestus
         persist-credentials: false
     - name: Checkout Hermes
       uses: actions/checkout@v6
       with:
         repository: ryancinsight/hermes
-        ref: 1423e41d01f4f7787472ddc91961f0771f9728fe
+        ref: 2d84bbf848728481e6aa2f52d9c0d930dc707582
         path: hermes
         persist-credentials: false
     - name: Checkout Leto
       uses: actions/checkout@v6
       with:
         repository: ryancinsight/leto
-        ref: efa235a5253a5511fc6338c0f4202c7a026f5178
+        ref: 6aedde0c7835238867d6f3cd17b030f7e69cb6f2
         path: leto
         persist-credentials: false
     - name: Checkout Melinoe
       uses: actions/checkout@v6
       with:
         repository: ryancinsight/melinoe
-        ref: bb07447f6c71978c6fed47114ba9ecfda965ddc9
+        ref: 159b71ac3c1d59b5bbdcbe0121248c7c451aa77a
         path: melinoe
         persist-credentials: false
     - name: Checkout Mnemosyne
       uses: actions/checkout@v6
       with:
         repository: ryancinsight/Mnemosyne
-        ref: 32b4a2ac71f909205b58d68c3b244caf99407b2d
+        ref: cb103a55648515069b6c3c56d738a7f27437f0d0
         path: mnemosyne
         persist-credentials: false
     - name: Checkout Moirai
       uses: actions/checkout@v6
       with:
         repository: ryancinsight/Moirai
-        ref: 8cd356c19c94fb5f49d048e1bf5a7289e2c51b01
+        ref: 5ead788c70c728d971237d7afa0b915ea7cf87e3
         path: moirai
         persist-credentials: false
     - name: Checkout Themis
       uses: actions/checkout@v6
       with:
         repository: ryancinsight/themis
-        ref: 18807bb5c43f4dc4cb6cedefeee2cc12375056c1
+        ref: a9127ac38c31db44fa5f40bd575c7f25a6dfb688
         path: themis
         persist-credentials: false
