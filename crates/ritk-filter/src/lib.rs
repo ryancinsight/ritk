@@ -156,6 +156,7 @@ pub use transform::{
     ZeroFluxNeumannPadImageFilter,
 };
 
+mod native_displacement;
 mod native_support;
 
 // ── Surface & distance ───────────────────────────────────────────────────────
@@ -200,6 +201,7 @@ pub use invert_displacement::InvertDisplacementField;
 pub use iso_contour::IsoContourDistanceFilter;
 pub use iterative_inverse_displacement::IterativeInverseDisplacementField;
 pub use masked_fft_correlation::MaskedFftNormalizedCorrelationFilter;
+pub use native_displacement::NativeDisplacementField;
 pub use normalized_correlation::normalized_correlation;
 pub use rank::{PercentileFilter, RankFilter};
 pub use reinitialize_level_set::ReinitializeLevelSetFilter;

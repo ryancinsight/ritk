@@ -71,6 +71,13 @@
       0.23.0; the native conversion library tests pass 2/2; the CLI MI binary
       tests pass 3/3; warning-denied Clippy passes for both changed targets
       with dependency lints excluded.
+- [x] Give native displacement inversion one named output field and remove
+      the focused filter diagnostics without a suppression. Completion
+      condition: all three inversion operations return the same public native
+      field representation, and a direct zero-field test asserts every output
+      component and preserved spatial frame. Evidence: warning-denied Clippy
+      passes for the filter library and the dedicated integration target; the
+      integration test passes 1/1.
 - [ ] Port every active consumer of `burn_compat_types` and
       `burn_compat_row_chunks` to its native Coeus operation, then delete both
       modules and the `burn-compat` feature in the same breaking cutover.

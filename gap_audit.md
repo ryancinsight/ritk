@@ -83,10 +83,21 @@ does not reach this slice's tests because unrelated legacy integration targets
 fail to compile. The first diagnostics are a duplicate `SequentialBackend`
 import in `examples/brain_ct_mri_registration.rs` and multiple
 `tests/*registration*_test.rs` targets that use `coeus_core::SequentialBackend`
-where their remaining Burn tensor APIs require a Burn backend. Full
-warnings-denied Clippy is likewise blocked in `ritk-filter` by fresh color-file
-unused imports and five existing filter lint violations. These are separate
-owner migration/debt scopes; no suppression or compatibility bridge is added.
+where their remaining Burn tensor APIs require a Burn backend. The focused
+`ritk-filter` source diagnostics are resolved: stale imports are deleted, the
+convolution kernels iterate directly over precomputed index slices, and the
+three native inversion APIs return one named `NativeDisplacementField` rather
+than repeated anonymous tuples. The direct native zero-field regression passes
+1/1 and filter library/target warning-denied Clippy passes. Full
+`cargo clippy -p ritk-filter --all-targets --all-features --no-deps -- -D
+warnings` remains blocked by 119 legacy-target errors, including
+`tests/parity.rs` and several benches that combine `SequentialBackend` with
+the two-parameter Burn `Image` API. These are active consumer cutover work, not
+lint failures to suppress or compatibility bridges to retain.
+The filter rustdoc build succeeds, and the four touched stale links are fixed,
+but 52 unrelated `[`apply`]` links still warn elsewhere in the crate. Those
+links require their own documentation-wide cleanup before the package can claim
+a warning-clean rustdoc gate.
 
 ## MIG-657-01 audit (2026-07-16)
 

@@ -298,18 +298,14 @@ impl InverseDisplacementField {
             rebuild(oz, dims, comp_z),
         )
     }
-    /// Coeus-native sister of [`apply`].
+    /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
         comp_x: &ritk_image::native::Image<f32, B, 3>,
         comp_y: &ritk_image::native::Image<f32, B, 3>,
         comp_z: &ritk_image::native::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<(
-        ritk_image::native::Image<f32, B, 3>,
-        ritk_image::native::Image<f32, B, 3>,
-        ritk_image::native::Image<f32, B, 3>,
-    )>
+    ) -> anyhow::Result<crate::NativeDisplacementField<B>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -341,7 +337,11 @@ impl InverseDisplacementField {
         let counts: Vec<usize> = axes.iter().map(|&a| (dims[a] / f).max(1)).collect();
         let n_land: usize = counts.iter().product();
         if n_land == 0 {
-            return Ok((comp_x.clone(), comp_y.clone(), comp_z.clone()));
+            return Ok(crate::NativeDisplacementField {
+                x: comp_x.clone(),
+                y: comp_y.clone(),
+                z: comp_z.clone(),
+            });
         }
         let mut gstride = vec![1usize; d];
         for t in (0..d - 1).rev() {
@@ -493,11 +493,11 @@ impl InverseDisplacementField {
                 *target = res[t] as f32;
             }
         }
-        Ok((
-            crate::native_support::rebuild_image(ox, dims, comp_x, backend)?,
-            crate::native_support::rebuild_image(oy, dims, comp_y, backend)?,
-            crate::native_support::rebuild_image(oz, dims, comp_z, backend)?,
-        ))
+        Ok(crate::NativeDisplacementField {
+            x: crate::native_support::rebuild_image(ox, dims, comp_x, backend)?,
+            y: crate::native_support::rebuild_image(oy, dims, comp_y, backend)?,
+            z: crate::native_support::rebuild_image(oz, dims, comp_z, backend)?,
+        })
     }
 }
 

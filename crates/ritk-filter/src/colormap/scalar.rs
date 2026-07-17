@@ -1,5 +1,4 @@
 use anyhow::{bail, Result};
-use ritk_image::native::{ColorVolume, Image};
 
 /// Linear-LUT colormaps (those expressible without a piecewise table).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
