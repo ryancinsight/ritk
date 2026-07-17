@@ -8,6 +8,18 @@
 
 # RITK Sprint Checklist — Active
 
+## CI-658-12 — Align RITK with the current Apollo FFT provider
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Raise the workspace Apollo FFT constraint and lockfile from 0.23.0 to
+      the current 0.24.0 provider release. Completion condition: Cargo selects
+      one Apollo FFT package for the RITK dependency graph.
+- [x] Verify the owner package without network resolution. Evidence: `rustup
+      run stable cargo check -p ritk-filter --locked --offline` passes.
+- [x] Verify source formatting and diff integrity. Evidence: `rustup run stable
+      cargo fmt --check` and `git diff --check` pass.
+
 ## CI-658-02 — Restore current PR compile gates
 **Target version**: 0.3.0
 **Sprint phase**: Closure
