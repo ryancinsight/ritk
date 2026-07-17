@@ -22,6 +22,21 @@ consumers. They remain a major, dependency-ordered native cutover under ADR
 0002; expanding the audit allowlist would conceal rather than resolve the
 migration debt.
 
+Current default-branch evidence: commit `e3887685` enables
+`ritk-image/burn-compat` from `ritk-transform` and indirectly through the
+`test-helpers` feature. Cargo feature unification therefore changes the public
+`ritk_image::Image` from its native three-parameter form to the legacy
+two-parameter form in registration test/example builds. That commit also
+contains the malformed expressions `img.data()B::default()`,
+`fixed.data()B::default()`, and `image.data()B::default()` in the registration
+example/test targets. These are syntax errors, but replacing only the token
+sequence would leave the partially migrated examples coupled to legacy NIfTI,
+transform, and interpolation APIs. The required root-cause fix is to migrate
+those consumers to their existing native provider surfaces, then delete the
+feature and both compatibility modules together. Evidence tier: source
+inspection plus `cargo fmt --check` parser diagnostics; affected package gates
+remain queued behind the shared Atlas build lock.
+
 ## MIG-657-01 audit (2026-07-16)
 
 ### Extended label-shape statistics use one native image boundary
@@ -40,10 +55,11 @@ focused statistics/Python warning-denied compile gates, statistics nextest,
 doctest, rustdoc, direct formatting, diff-whitespace validation, and targeted
 residue scans pass.
 
-Residual: current RITK `main` advanced with batch `b1850302` while this slice
-was in progress. Merge that batch, resolve the overlapping label-shape test
-import, and rerun the focused gate set before publishing this breaking API
-change.
+Residual: current RITK `main` advanced with batch `b1850302` and then
+`e3887685` while this slice was in progress. The branch now resolves the
+overlapping label-shape test import. The focused gate rerun remains blocked
+until MIG-658 removes the feature-driven type-mode conflict in registration
+targets.
 
 ## SEC-656-01 audit (2026-07-15)
 

@@ -23,9 +23,12 @@
   imports Burn image traits for this operation. Apollo 0.22 is now merged and
   the RITK workspace constraint/lockfile resolve it. Focused statistics and
   Python warning-denied compile gates, statistics nextest, doctests, rustdoc,
-  and source-residue scans pass. Remaining integration: merge current RITK
-  `main` batch `b1850302`, resolve the narrow test-import overlap, and rerun
-  this exact gate set before publication.
+  and source-residue scans pass. Rebased onto current `main` through
+  `e3887685` and resolved the narrow test-import overlap. Final publication
+  remains blocked by the current default branch's feature-gated compatibility
+  mode, which makes the partially native registration examples ill-typed; the
+  required fix is the dependency-ordered native consumer cutover in MIG-658,
+  not an example-local compatibility repair.
 
 - **SEC-656-01 [patch] - Declare the RITK dual-license metadata (IN PROGRESS;
   owner=Codex; scope=workspace package manifests, license texts, README, PM
