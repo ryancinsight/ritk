@@ -8,6 +8,8 @@
   tests/real_data_test.rs}`, `crates/ritk-cli/src/commands/register`,
   `crates/ritk-filter/src/{color.rs,colormap/mod.rs,native_displacement.rs,
   inverse_displacement.rs,invert_displacement.rs,iterative_inverse_displacement.rs}`,
+  `crates/ritk-filter/{benches/{bilateral.rs,cpr_apply.rs,euclidean_dt.rs,
+  median.rs,separable_box.rs},examples/bench_gradient_rg.rs}`,
   `crates/ritk-filter/tests/{native_color_components.rs,native_colormap.rs,
   native_displacement.rs}`, migration audit).** GitHub audit run
   `29547504239` reaches the source scanner after the provider sweep and reports
@@ -26,7 +28,8 @@
   verifies every component and its spatial frame. The color-component and
   colormap regressions now execute through native images and native interleaved
   color volumes, preserving their ITK reference values without `burn_compat`
-  fixtures.
+  fixtures. The active Criterion targets and recursive-Gaussian comparison
+  example now execute their existing native operations directly.
 
 - **MIG-657-01 [major] - Native extended label-shape statistics (REVIEW;
   owner=Codex; scope=`crates/ritk-statistics/{Cargo.toml,src/{label_shape_extended.rs,

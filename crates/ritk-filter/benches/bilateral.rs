@@ -21,9 +21,9 @@
 
 use coeus_core::SequentialBackend;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use ritk_core::image::Image;
 use ritk_filter::BilateralFilter;
-use ritk_image::test_support as ts;
+use ritk_image::native::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;
 
@@ -40,7 +40,14 @@ fn make_volume(z: usize, y: usize, x: usize) -> Image<f32, B, 3> {
             }
         }
     }
-    ts::make_image::<B, 3>(vals, [z, y, x])
+    Image::from_flat(
+        vals,
+        [z, y, x],
+        Point::origin(),
+        Spacing::uniform(1.0),
+        Direction::identity(),
+    )
+    .expect("benchmark fixture dimensions match its data length")
 }
 
 fn bench_bilateral(c: &mut Criterion) {
@@ -56,7 +63,7 @@ fn bench_bilateral(c: &mut Criterion) {
         let img = make_volume(z, y, x);
         let label = format!("{z}x{y}x{x}");
         group.bench_with_input(BenchmarkId::new("apply", &label), &img, |b, img| {
-            b.iter(|| filter.apply(img).unwrap());
+            b.iter(|| filter.apply_native(img, &B::default()).unwrap());
         });
     }
 

@@ -83,6 +83,10 @@
       targets preserve the existing exact ITK color values without
       `burn_compat` fixtures. Evidence: warning-denied Clippy passes for both
       targets; nextest passes 2/2 component tests and 8/8 colormap tests.
+- [x] Move stale filter benchmarks and the recursive-Gaussian comparison
+      example onto existing native operations. Completion condition: all five
+      Criterion targets and the example compile warning-free without a legacy
+      image fixture; the comparison checks exact equality before timing.
 - [ ] Port every active consumer of `burn_compat_types` and
       `burn_compat_row_chunks` to its native Coeus operation, then delete both
       modules and the `burn-compat` feature in the same breaking cutover.
