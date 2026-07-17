@@ -35,6 +35,15 @@ commit `a2e4f390`, matching the provider used by local verification.
 
 ## CI-658-12 audit (2026-07-17)
 
+Apollo `origin/main` now declares `apollo-fft` 0.25.0 at
+`c8742814be8c01f925aa8ead77c215ebbb9ff66f`, while RITK still constrains and
+checks out 0.24.0. The only RITK production use remains the public
+`FftPlan1D`/`Shape1D` API, which Apollo 0.25.0 retains. This follow-up owns the
+provider requirement, lockfile, and CI checkout pin; completion requires
+locked owner-package verification and a Leo retry against the unified graph.
+
+## CI-658-12 audit (2026-07-17, prior 0.24.0 alignment)
+
 Apollo main publishes `apollo-fft` 0.24.0, while RITK still declared 0.23.0.
 That split prevents a consumer that resolves both path providers from selecting
 one graph. RITK now declares and locks 0.24.0. The first CI run then exposed
