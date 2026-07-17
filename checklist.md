@@ -8,6 +8,23 @@
 
 # RITK Sprint Checklist — Active
 
+## CI-658-02 — Restore current PR compile gates
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Construct native extended-label statistics fixtures with the concrete
+      `SequentialBackend` ZST rather than its type alias. Completion condition:
+      the native image constructor receives a backend value.
+- [x] Restore the legacy B-spline Criterion workload's real `NdArray<f32>`
+      backend and Burn 0.19 `TensorData` construction. Completion condition:
+      the benchmark compiles without binding Coeus' backend to Burn tensors.
+- [x] Pin the native non-contiguous-layout diagnostic to Leto's canonical
+      zero stride for a unit-length axis. Completion condition: the test still
+      asserts rejection and the exact actual layout metadata.
+- [ ] Re-run the full workspace gate after the active `burn_compat_types`
+      coordinate-convention correction lands. Completion condition: fused and
+      unfused interpolation agree under the same innermost-first index contract.
+
 ## MIG-657-01 — Native extended label-shape statistics
 **Target version**: 0.3.0
 **Sprint phase**: Execution

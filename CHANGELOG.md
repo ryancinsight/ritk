@@ -61,6 +61,9 @@
 - Stochastic fractal dimension now exposes one native image entry. Its Python
   binding passes `PyImage` storage directly, and the duplicate Burn algorithm
   and source test module are removed.
+- The native extended-label statistics fixture now constructs its concrete
+  backend value, and the legacy B-spline Criterion workload uses its actual
+  Burn backend and current tensor-data constructor.
 - The now-unused approximate Burn differential harness is removed from filter
   test support.
 

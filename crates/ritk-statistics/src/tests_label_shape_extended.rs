@@ -20,7 +20,7 @@ fn make_label_image(data: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Imag
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new(spacing),
         Direction::identity(),
-        &B,
+        &SequentialBackend,
     )
     .expect("invariant: test image shape matches flat data length")
 }
@@ -44,9 +44,11 @@ fn non_contiguous_image_reports_host_access_failure() {
     let error = compute_label_shape_statistics_extended(&image)
         .expect_err("non-contiguous image must not masquerade as a host slice");
 
+    // Leto canonicalizes unit-length axes with zero stride; the remaining
+    // permuted axes still make this layout non-contiguous.
     assert_eq!(
         error.to_string(),
-        "image data is not contiguous: shape=[1, 3, 2], strides=[6, 1, 3]"
+        "image data is not contiguous: shape=[1, 3, 2], strides=[0, 1, 3]"
     );
 }
 

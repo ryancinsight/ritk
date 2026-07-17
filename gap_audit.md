@@ -8,6 +8,24 @@
 
 # RITK Gap Audit - Active
 
+## CI-658-02 audit (2026-07-17)
+
+PR #37's local warning-denied Clippy reproduction found an invalid native test
+fixture backend value and an old B-spline benchmark that paired Burn tensors
+with Coeus' native backend. The fixture now passes `SequentialBackend`; the
+benchmark now uses `NdArray<f32>` and Burn 0.19 `TensorData`; and the
+non-contiguous diagnostic pins Leto's canonical zero stride for a unit-length
+axis. Evidence tier: compile-time checking plus `cargo nextest run -p
+ritk-statistics --status-level fail` (331/331 passed).
+
+Residual risk: the full interpolation suite still fails three fused/unfused
+equivalence tests. The fused path uses the documented innermost-first index
+mapping, while the current legacy `burn_compat_types::world_to_index_tensor`
+reference only subtracts origin and divides by spacing. A live peer owns the
+fresh correction to that reference and its direct coordinate regression in the
+primary worktree. This branch must consume that committed correction instead of
+duplicating or bypassing it.
+
 ## MIG-658-01 audit (2026-07-16)
 
 GitHub Actions run `29547504239` confirms the refreshed provider graph reaches
