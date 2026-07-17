@@ -2,7 +2,8 @@
 
 - **MIG-658-01 [major] - Remove relocated Burn compatibility surfaces (IN
   PROGRESS; owner=Codex; scope=`crates/ritk-image/src/{lib.rs,
-  tests_burn_compat_grid.rs}`, migration audit).** GitHub audit run
+  tests_burn_compat_grid.rs}`, `crates/ritk-registration/examples/
+  geometry_check.rs`, migration audit).** GitHub audit run
   `29547504239` reaches the source scanner after the provider sweep and reports
   `burn_compat_types` and `burn_compat_row_chunks` as unallowlisted relocated
   compatibility surfaces. The redundant Burn-grid test is deleted now because

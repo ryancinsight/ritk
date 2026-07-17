@@ -46,6 +46,10 @@
 - [x] Delete the redundant `tests_burn_compat_grid` module. Completion
       condition: native grid tests remain the sole value-semantic grid oracle;
       no production path imports the deleted module.
+- [ ] Move `geometry_check` to the native NIfTI reader and the native
+      grid/index-to-world contract. Completion condition: the example imports
+      no legacy image or NIfTI surface and compiles under the resolved feature
+      graph.
 - [ ] Port every active consumer of `burn_compat_types` and
       `burn_compat_row_chunks` to its native Coeus operation, then delete both
       modules and the `burn-compat` feature in the same breaking cutover.
