@@ -21,9 +21,38 @@
 - [x] Pin the native non-contiguous-layout diagnostic to Leto's canonical
       zero stride for a unit-length axis. Completion condition: the test still
       asserts rejection and the exact actual layout metadata.
-- [ ] Re-run the full workspace gate after the active `burn_compat_types`
-      coordinate-convention correction lands. Completion condition: fused and
-      unfused interpolation agree under the same innermost-first index contract.
+- [x] Re-run the focused interpolation gate after the
+      `burn_compat_types` coordinate-convention correction. Completion
+      condition: fused and unfused interpolation agree under the same
+      innermost-first index contract. Evidence: `rustup run stable cargo
+      nextest run -p ritk-image -p ritk-interpolation --all-features
+      --status-level fail` passes 166 tests with 3 explicitly skipped.
+
+## CI-658-03 — Restore native Python color bindings
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Replace `PyColorImage`'s legacy carrier with native `ColorVolume` and
+      route its current color/filter operations through their provider-native
+      contracts. Completion condition: no current binding constructs a legacy
+      color tensor solely to invoke a native filter.
+- [x] Give native `ColorVolume` a validated component-buffer round trip and
+      move the public color-component integration test to that owner API.
+      Completion condition: the test asserts exact interleaved and component
+      storage values.
+- [x] Correct legacy physical-to-index conversion for the active interpolation
+      reference. Completion condition: a rotated, anisotropic image maps
+      `[4, 2, 1]` to `[4, 22, 50]` and back exactly.
+- [x] Verify the bounded repair. Evidence: `cargo check -p ritk-python
+      --all-features`; warning-denied Clippy for image/filter/Python; nextest
+      for image/filter/Python (1,207 passed); image/interpolation nextest
+      (166 passed, 3 skipped); doctests; rustdoc; and
+      `xtask burn-migration-audit` all pass.
+- [x] Attempt public-surface verification. Current result: `cargo
+      semver-checks` cannot build the `origin/main` baseline because its
+      `ritk-image` manifest references a missing relative
+      `coeus/coeus-autograd` path in the isolated baseline clone. This is a
+      baseline topology blocker, not a source diagnostic from this repair.
 
 ## MIG-657-01 — Native extended label-shape statistics
 **Target version**: 0.3.0

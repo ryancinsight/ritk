@@ -8,6 +8,30 @@
 
 # RITK Gap Audit - Active
 
+## CI-658-03 audit (2026-07-17)
+
+PR #37's Python compile gates exposed stale binding calls that passed legacy
+color storage to native operations without the required concrete backend. The
+root fix converts `PyColorImage` to native `ColorVolume`, passes
+`MoiraiBackend` at native call sites, and makes `ColorVolume` own validated
+component-buffer conversion. The active legacy interpolation reference also
+now applies image direction and its ZYX↔XYZ mapping before sampling; its
+rotated, anisotropic direct regression maps `[4, 2, 1]` to `[4, 22, 50]` and
+back. Evidence tier: compile-time checking, value-semantic tests, and migration
+audit. `cargo check -p ritk-python --all-features`, warning-denied Clippy for
+image/filter/Python, package nextest (1,207 passed), image/interpolation
+nextest (166 passed, 3 skipped), doctests, rustdoc, and
+`xtask burn-migration-audit` pass. The audit allowlist is clean; its only
+diagnostics are pre-existing unused Hephaestus patch configuration warnings.
+
+Residual risk: `cargo semver-checks check-release -p ritk-image
+--baseline-rev origin/main --release-type major --all-features` cannot resolve
+the historical baseline because its manifest points to
+`coeus/coeus-autograd`, which does not exist inside the semver tool's isolated
+baseline clone. The current crate builds and documents successfully; public API
+comparison remains blocked until the baseline's cross-repository path
+dependency is made self-contained.
+
 ## CI-658-02 audit (2026-07-17)
 
 PR #37's local warning-denied Clippy reproduction found an invalid native test
@@ -18,13 +42,9 @@ non-contiguous diagnostic pins Leto's canonical zero stride for a unit-length
 axis. Evidence tier: compile-time checking plus `cargo nextest run -p
 ritk-statistics --status-level fail` (331/331 passed).
 
-Residual risk: the full interpolation suite still fails three fused/unfused
-equivalence tests. The fused path uses the documented innermost-first index
-mapping, while the current legacy `burn_compat_types::world_to_index_tensor`
-reference only subtracts origin and divides by spacing. A live peer owns the
-fresh correction to that reference and its direct coordinate regression in the
-primary worktree. This branch must consume that committed correction instead of
-duplicating or bypassing it.
+The coordinate-reference blocker is resolved by CI-658-03. The legacy path now
+uses the same direction-aware ZYX↔XYZ convention as the native path, and the
+focused interpolation gate passes its fused/unfused regression.
 
 ## MIG-658-01 audit (2026-07-16)
 
@@ -53,10 +73,9 @@ test module are deleted. The native integration suite passes 3/3 for a finite
 varying field, exact power-of-two intensity scaling, and full physical geometry
 preservation. `ritk-filter` compiles, warning-denied all-target Clippy passes,
 rustdoc is warning-clean, and its full nextest suite passes 1,118/1,118.
-Package-level `ritk-python` compilation remains
-blocked before this binding by unchanged calls in `color.rs`, Canny, and
-recursive-Gaussian bindings that no longer match their native filter APIs;
-the diff against `241efbcc` is empty for those files.
+The package-level `ritk-python` compilation blocker is resolved by CI-658-03:
+the color, Canny, and recursive-Gaussian bindings now invoke their current
+native contracts, and the package check/test gates pass.
 
 Current default-branch evidence: commit `e3887685` enables
 `ritk-image/burn-compat` from `ritk-transform` and indirectly through the

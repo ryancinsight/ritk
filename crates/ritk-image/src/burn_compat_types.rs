@@ -223,32 +223,63 @@ impl<B: Backend, const D: usize> Image<B, D> {
         index
     }
 
-    /// Batch transform physical points to continuous indices.
+    /// Batch transform axis-major physical points to innermost-first indices.
+    ///
+    /// The input columns follow the metadata order (`z, y, x` for a 3-D
+    /// image); the returned columns follow the interpolation-grid order
+    /// (`x, y, z`). This is the convention consumed by the Burn-compatible
+    /// interpolation kernels.
     pub fn world_to_index_tensor(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         use crate::tensor::{Shape, TensorData};
         let device = points.device();
         let origin_vals: Vec<f32> = (0..D).map(|d| self.origin[d] as f32).collect();
-        let spacing_vals: Vec<f32> = (0..D).map(|d| self.spacing[d] as f32).collect();
         let origin_t =
             Tensor::<B, 1>::from_data(TensorData::new(origin_vals, Shape::new([D])), &device);
-        let spacing_t =
-            Tensor::<B, 1>::from_data(TensorData::new(spacing_vals, Shape::new([D])), &device);
+
+        let inverse_direction = self
+            .direction
+            .try_inverse()
+            .expect("invariant: image direction must be invertible");
+        let mut transform = Vec::with_capacity(D * D);
+        for source_axis in 0..D {
+            for column in 0..D {
+                let output_axis = D - 1 - column;
+                transform.push(
+                    (inverse_direction[(output_axis, source_axis)] / self.spacing[output_axis])
+                        as f32,
+                );
+            }
+        }
+        let transform_t =
+            Tensor::<B, 2>::from_data(TensorData::new(transform, Shape::new([D, D])), &device);
         let shifted = points - origin_t.unsqueeze_dim(0);
-        shifted / spacing_t.unsqueeze_dim(0)
+        shifted.matmul(transform_t)
     }
 
-    /// Batch transform continuous indices to physical points.
+    /// Batch transform innermost-first indices to axis-major physical points.
+    ///
+    /// The input columns follow the interpolation-grid order (`x, y, z` for a
+    /// 3-D image); the returned physical-point columns follow metadata order
+    /// (`z, y, x`).
     pub fn index_to_world_tensor(&self, indices: Tensor<B, 2>) -> Tensor<B, 2> {
         use crate::tensor::{Shape, TensorData};
         let device = indices.device();
         let origin_vals: Vec<f32> = (0..D).map(|d| self.origin[d] as f32).collect();
-        let spacing_vals: Vec<f32> = (0..D).map(|d| self.spacing[d] as f32).collect();
         let origin_t =
             Tensor::<B, 1>::from_data(TensorData::new(origin_vals, Shape::new([D])), &device);
-        let spacing_t =
-            Tensor::<B, 1>::from_data(TensorData::new(spacing_vals, Shape::new([D])), &device);
-        let scaled = indices * spacing_t.unsqueeze_dim(0);
-        scaled + origin_t.unsqueeze_dim(0)
+
+        let mut transform = Vec::with_capacity(D * D);
+        for column in 0..D {
+            let input_axis = D - 1 - column;
+            for output_axis in 0..D {
+                transform.push(
+                    (self.spacing[input_axis] * self.direction[(output_axis, input_axis)]) as f32,
+                );
+            }
+        }
+        let transform_t =
+            Tensor::<B, 2>::from_data(TensorData::new(transform, Shape::new([D, D])), &device);
+        indices.matmul(transform_t) + origin_t.unsqueeze_dim(0)
     }
 }
 
@@ -276,5 +307,29 @@ mod tests {
         assert_eq!(image.origin(), &origin);
         assert_eq!(image.spacing(), &spacing);
         assert_eq!(image.direction(), &direction);
+    }
+
+    #[test]
+    fn batch_coordinate_transforms_preserve_axis_order_and_direction() {
+        let device = Default::default();
+        let image = Image::new(
+            Tensor::<Backend, 3>::zeros([2, 3, 5], &device),
+            Point3::new([10.0, 20.0, 30.0]),
+            Spacing3::new([2.0, 3.0, 5.0]),
+            Direction3::from_row_major([0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
+        );
+        let indices = Tensor::<Backend, 2>::from_floats([[4.0, 2.0, 1.0]], &device);
+
+        let world = image.index_to_world_tensor(indices.clone());
+        let recovered = image.world_to_index_tensor(world.clone());
+        assert_eq!(
+            world.into_data().as_slice::<f32>().unwrap(),
+            &[4.0, 22.0, 50.0]
+        );
+
+        assert_eq!(
+            recovered.into_data().as_slice::<f32>().unwrap(),
+            &[4.0, 2.0, 1.0]
+        );
     }
 }

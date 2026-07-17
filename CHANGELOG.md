@@ -11,6 +11,11 @@
 ## [Unreleased] — Native extended label-shape statistics (MIG-657-01)
 
 ### Changed
+- Routed `PyColorImage`, its color operations, and current Canny/recursive
+  Gaussian bindings through native `ColorVolume`/`Image` contracts with the
+  concrete `MoiraiBackend`, removing their legacy color-tensor bridge.
+- Moved color-component mapping coverage to the native `ColorVolume`
+  component-buffer contract and added its exact interleaved-storage round trip.
 - `compute_label_shape_statistics_extended` now accepts a native Coeus image
   and exposes host-access failure through `Result`.
 - The Python binding passes `PyImage`'s native Moirai-backed storage directly
@@ -66,6 +71,11 @@
   Burn backend and current tensor-data constructor.
 - The now-unused approximate Burn differential harness is removed from filter
   test support.
+
+### Fixed
+- Corrected legacy physical-to-index conversion for rotated, anisotropic image
+  geometry by applying direction and the required ZYX↔XYZ axis mapping before
+  interpolation.
 
 ### Breaking
 - Rust callers must replace legacy Burn images with native

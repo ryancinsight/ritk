@@ -11,8 +11,7 @@
 
 use anyhow::Result;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
-use ritk_image::ColorVolume;
+use ritk_image::native::{ColorVolume, Image};
 use ritk_tensor_ops::native::extract_image_vec;
 
 /// Apply a scalar 3-D image filter independently to each component of `vol`,

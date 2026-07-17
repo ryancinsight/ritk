@@ -8,11 +8,25 @@
   Burn backend and current `TensorData` constructor; and the non-contiguous
   layout oracle uses Leto's canonical zero unit-axis stride. Warning-denied
   Clippy passes for both packages and statistics nextest passes 331/331.
-  Full interpolation nextest remains blocked by the active, peer-owned
-  `burn_compat_types::world_to_index_tensor` correction: the legacy reference
-  does not yet map axis-major world coordinates to innermost-first
-  interpolation columns, while the fused path does. Re-open after that active
-  scope is committed; do not duplicate its fresh change.
+  The corrected `burn_compat_types::world_to_index_tensor` now maps physical
+  coordinates through direction and the required ZYX↔XYZ axis conversion.
+  Focused image/interpolation nextest passes 166 tests with 3 explicitly
+  skipped, including the fused/unfused contract.
+
+- **CI-658-03 [patch] - Restore native Python color bindings (REVIEW;
+  owner=Codex; scope=`crates/ritk-image/src/{color/native.rs,burn_compat_types.rs}`,
+  `crates/ritk-filter/{src/color.rs,tests/native_color_components.rs}`,
+  `crates/ritk-python/src/{color.rs,filter/{edge/canny.rs,smooth/gaussian.rs}}`,
+  migration audit, PM artifacts).** Replace `PyColorImage`'s legacy color
+  carrier with native `ColorVolume` and call native color/filter APIs with the
+  concrete `MoiraiBackend` value. Native `ColorVolume` now owns validated
+  component-buffer conversion, and color-component integration coverage uses
+  that public contract. Correct the active legacy reference's rotated,
+  anisotropic physical-to-index conversion so it agrees with the native
+  innermost-first interpolation convention. Acceptance: `ritk-python` checks,
+  warning-denied image/filter/Python Clippy, the 1,207-test package nextest
+  lane, image/interpolation nextest, doctests, rustdoc, and the migration audit
+  pass without enlarging the Burn allowlist.
 
 - **MIG-658-01 [major] - Remove relocated Burn compatibility surfaces (IN
   PROGRESS; owner=Codex; scope=`crates/ritk-image/src/{lib.rs,

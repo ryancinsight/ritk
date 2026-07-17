@@ -130,6 +130,77 @@ where
     pub const fn data(&self) -> &Tensor<T, B> {
         &self.data
     }
+
+    /// Deinterleave this volume into one row-major buffer per component.
+    ///
+    /// Every returned buffer has length `depth * rows * columns` and preserves
+    /// the source volume's `[depth, rows, columns]` storage order.
+    #[must_use]
+    pub fn into_component_buffers(&self) -> Vec<Vec<T>>
+    where
+        B::DeviceBuffer<T>: CpuAddressableStorage<T>,
+    {
+        let [depth, rows, columns, _] = self.shape();
+        let voxel_count = depth * rows * columns;
+        let mut components = (0..C)
+            .map(|_| Vec::with_capacity(voxel_count))
+            .collect::<Vec<_>>();
+        for (index, value) in self.data.as_slice().iter().enumerate() {
+            components[index % C].push(*value);
+        }
+        components
+    }
+
+    /// Construct an interleaved native color volume from component buffers.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `components` does not contain exactly `C` buffers,
+    /// a buffer length differs from `depth * rows * columns`, or the resulting
+    /// volume fails its native shape validation.
+    pub fn from_component_buffers(
+        components: &[Vec<T>],
+        spatial_shape: [usize; 3],
+        origin: Point<3>,
+        spacing: Spacing<3>,
+        direction: Direction<3>,
+        backend: &B,
+    ) -> Result<Self> {
+        if components.len() != C {
+            bail!(
+                "from_component_buffers: expected {C} channels, got {}",
+                components.len()
+            );
+        }
+
+        let voxel_count = spatial_shape
+            .into_iter()
+            .try_fold(1usize, |product, dimension| product.checked_mul(dimension))
+            .context("component-buffer spatial shape product overflows usize")?;
+        for (component, values) in components.iter().enumerate() {
+            if values.len() != voxel_count {
+                bail!(
+                    "from_component_buffers: channel {component} has length {}, expected {voxel_count}",
+                    values.len()
+                );
+            }
+        }
+
+        let mut interleaved = vec![T::default(); voxel_count * C];
+        for (component, values) in components.iter().enumerate() {
+            for (voxel, value) in values.iter().enumerate() {
+                interleaved[voxel * C + component] = *value;
+            }
+        }
+        Self::from_flat_on(
+            interleaved,
+            spatial_shape,
+            origin,
+            spacing,
+            direction,
+            backend,
+        )
+    }
 }
 
 impl<T, B, const C: usize> ColorVolume<T, B, C>
@@ -188,5 +259,27 @@ mod tests {
         )
         .unwrap_err();
         assert!(error.to_string().contains("does not match"));
+    }
+
+    #[test]
+    fn component_buffers_round_trip_to_interleaved_storage() -> Result<()> {
+        let backend = SequentialBackend;
+        let volume = RgbVolume::from_component_buffers(
+            &[vec![1.0_f32, 4.0], vec![2.0, 5.0], vec![3.0, 6.0]],
+            [1, 1, 2],
+            Point::new([7.0, 8.0, 9.0]),
+            Spacing::new([1.0, 2.0, 3.0]),
+            Direction::identity(),
+            &backend,
+        )?;
+        assert_eq!(
+            volume.data_cow_on(&backend).as_ref(),
+            &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+        );
+        assert_eq!(
+            volume.into_component_buffers(),
+            vec![vec![1.0, 4.0], vec![2.0, 5.0], vec![3.0, 6.0]]
+        );
+        Ok(())
     }
 }

@@ -2,19 +2,20 @@
 
 use coeus_core::SequentialBackend;
 use ritk_filter::{map_color_components, MedianFilter};
-use ritk_image::{native::Image, ColorVolume};
+use ritk_image::native::{ColorVolume, Image};
 
 type B = SequentialBackend;
 
 fn rgb(interleaved: Vec<f32>, spatial: [usize; 3]) -> ColorVolume<f32, B, 3> {
     let [d, r, c] = spatial;
     let backend = B::default();
-    let t = coeus_tensor::Tensor::<f32, B>::from_slice_on([d, r, c, 3], &interleaved, &backend);
-    ColorVolume::try_new(
-        t,
+    ColorVolume::from_flat_on(
+        interleaved,
+        [d, r, c],
         ritk_spatial::Point::origin(),
         ritk_spatial::Spacing::uniform(1.0),
         ritk_spatial::Direction::identity(),
+        &backend,
     )
     .unwrap()
 }
@@ -25,7 +26,8 @@ fn identity_closure_preserves_volume() {
     let vol = rgb(interleaved.clone(), [2, 3, 4]);
     let out =
         map_color_components(&vol, |img: &Image<f32, B, 3>| img.clone(), &B::default()).unwrap();
-    assert_eq!(out.data_vec(), interleaved);
+    let backend = B::default();
+    assert_eq!(out.data_cow_on(&backend).as_ref(), interleaved.as_slice());
 }
 
 #[test]

@@ -1,7 +1,7 @@
 //! Python-exposed multi-component (RGB/vector) color image and per-component
 //! filters.
 //!
-//! `ColorImage` wraps `ritk_image::ColorVolume<f32, Backend, 3>` (channel-interleaved
+//! `ColorImage` wraps `ritk_image::native::ColorVolume<f32, MoiraiBackend, 3>` (channel-interleaved
 //! `[Z, Y, X, 3]`). Per-component filters reuse the scalar filter library via
 //! `ritk_filter::map_color_components`, matching ITK's vector-image semantics
 //! (each component filtered independently).
@@ -9,7 +9,6 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
 use coeus_core::MoiraiBackend;
-use coeus_tensor::Tensor;
 use numpy::{ndarray::Array4, IntoPyArray, PyArray4, PyReadonlyArray4, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
@@ -19,7 +18,7 @@ use ritk_filter::{
     LabelMapContourOverlayFilter, LabelOverlayFilter, LabelToRGBFilter, MeanImageFilter,
     MedianFilter, RecursiveGaussianFilter, ScalarToRGBColormapFilter,
 };
-use ritk_image::ColorVolume;
+use ritk_image::native::ColorVolume;
 use std::sync::Arc;
 
 type Rgb = ColorVolume<f32, MoiraiBackend, 3>;
@@ -49,15 +48,15 @@ impl PyColorImage {
             .into());
         }
         let flat: Vec<f32> = array.as_array().iter().copied().collect();
-        let tensor =
-            Tensor::<f32, MoiraiBackend>::from_slice_on([z, y, x, ch], &flat, &MoiraiBackend);
         let sp = spacing.unwrap_or([1.0, 1.0, 1.0]);
         let orig = origin.unwrap_or([0.0, 0.0, 0.0]);
-        let vol = ColorVolume::try_new(
-            tensor,
+        let vol = ColorVolume::from_flat_on(
+            flat,
+            [z, y, x],
             Point::new([orig[2], orig[1], orig[0]]),
             Spacing::new(sp),
             Direction::identity(),
+            &MoiraiBackend,
         )
         .map_err(|e| RitkPyError::value(e.to_string()))?;
         Ok(Self {
@@ -68,7 +67,7 @@ impl PyColorImage {
     /// Convert to an f32 NumPy array of shape `[Z, Y, X, 3]`.
     fn to_numpy<'py>(&self, py: Python<'py>) -> RitkResult<Bound<'py, PyArray4<f32>>> {
         let [z, y, x, ch] = self.inner.shape();
-        let vals = self.inner.data_vec();
+        let vals = self.inner.data_cow_on(&MoiraiBackend).into_owned();
         Array4::from_shape_vec((z, y, x, ch), vals)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
             .map(|a| a.into_pyarray_bound(py))
@@ -122,7 +121,7 @@ pub fn color_mean(py: Python<'_>, image: &PyColorImage, radius: usize) -> RitkRe
                 arc.as_ref(),
                 |img| {
                     MeanImageFilter::new(radius)
-                        .apply_native(img)
+                        .apply_native(img, &MoiraiBackend)
                         .expect("mean filter is infallible on a valid scalar image")
                 },
                 &MoiraiBackend,
@@ -159,7 +158,7 @@ pub fn physical_point_image_source(
         Point::new([origin.2, origin.1, origin.0]),
         Spacing::new([spacing.2, spacing.1, spacing.0]),
         Direction::identity(),
-        &Backend,
+        &MoiraiBackend,
     )
     .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
@@ -188,7 +187,7 @@ pub fn compose(c0: &PyImage, c1: &PyImage, c2: &PyImage) -> RitkResult<PyColorIm
         *c0.inner.origin(),
         *c0.inner.spacing(),
         *c0.inner.direction(),
-        &Backend,
+        &MoiraiBackend,
     )
     .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
@@ -209,7 +208,9 @@ pub fn gradient(
 ) -> RitkResult<PyColorImage> {
     let native = image.inner.clone();
     let out = py
-        .allow_threads(|| GradientImageFilter::new(use_image_spacing).apply_native(&native))
+        .allow_threads(|| {
+            GradientImageFilter::new(use_image_spacing).apply(&native, &MoiraiBackend)
+        })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
         inner: Arc::new(out),
@@ -229,7 +230,9 @@ pub fn gradient_recursive_gaussian(
 ) -> RitkResult<PyColorImage> {
     let native = image.inner.clone();
     let out = py
-        .allow_threads(|| GradientRecursiveGaussianImageFilter::new(sigma).apply_native(&native))
+        .allow_threads(|| {
+            GradientRecursiveGaussianImageFilter::new(sigma).apply(&native, &MoiraiBackend)
+        })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
         inner: Arc::new(out),
@@ -251,7 +254,7 @@ pub fn scalar_to_rgb_colormap(
     let cmap = Colormap::from_name(colormap).map_err(|e| RitkPyError::value(e.to_string()))?;
     let native = image.inner.clone();
     let out = py
-        .allow_threads(|| ScalarToRGBColormapFilter::new(cmap).apply_native(&native))
+        .allow_threads(|| ScalarToRGBColormapFilter::new(cmap).apply(&native, &MoiraiBackend))
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
         inner: Arc::new(out),
@@ -266,7 +269,7 @@ pub fn scalar_to_rgb_colormap(
 pub fn label_to_rgb(py: Python<'_>, image: &PyImage, background: i64) -> RitkResult<PyColorImage> {
     let native = image.inner.clone();
     let out = py
-        .allow_threads(|| LabelToRGBFilter::new(background).apply_native(&native))
+        .allow_threads(|| LabelToRGBFilter::new(background).apply(&native, &MoiraiBackend))
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
         inner: Arc::new(out),
@@ -288,7 +291,9 @@ pub fn label_overlay(
     let img = image.inner.clone();
     let lab = label.inner.clone();
     let out = py
-        .allow_threads(|| LabelOverlayFilter::new(opacity, background).apply_native(&img, &lab))
+        .allow_threads(|| {
+            LabelOverlayFilter::new(opacity, background).apply(&img, &lab, &MoiraiBackend)
+        })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
         inner: Arc::new(out),
@@ -313,7 +318,7 @@ pub fn label_map_contour_overlay(
     let lab = label.inner.clone();
     let out = py
         .allow_threads(|| {
-            LabelMapContourOverlayFilter::new(opacity, background).apply_native(&img, &lab)
+            LabelMapContourOverlayFilter::new(opacity, background).apply(&img, &lab, &MoiraiBackend)
         })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
@@ -407,7 +412,7 @@ pub fn color_smoothing_recursive_gaussian(
                 arc.as_ref(),
                 |img| {
                     RecursiveGaussianFilter::new(sigma)
-                        .apply_native(img)
+                        .apply_native(img, &MoiraiBackend)
                         .expect("recursive Gaussian is infallible on a valid scalar image")
                 },
                 &MoiraiBackend,
