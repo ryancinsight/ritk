@@ -37,6 +37,8 @@
   segmentation, and statistics APIs.
 - Gaussian coverage is consolidated into one native public-contract integration
   target; the duplicate stale unit module is removed.
+- Blend and ternary arithmetic coverage now shares one native public-contract
+  integration target; the stale Burn-backed inline test modules are removed.
 
 ### Breaking
 - Rust callers must replace legacy Burn images with native
@@ -71,6 +73,9 @@
   and warning-denied Clippy.
 - The native Gaussian suite passes 5/5 shape, metadata, zero-sigma, and
   constant-field tests under nextest and warning-denied Clippy.
+- The native intensity suite passes 4/4 exact blend endpoint/value, ternary
+  arithmetic, and first-input metadata tests under nextest and warning-denied
+  Clippy.
 - The Atlas checkout action now pins Apollo commit
   `f26369eb2000b9a8b763066064173f8c5ebf8f65`, which declares the required
   `apollo-fft` 0.23.0. Workspace sources are rustfmt-clean under the CI's
@@ -78,7 +83,7 @@
 
 ### Residual
 - The package-wide registration test build remains blocked by unrelated
-  legacy Burn integration targets. The filter library test target still has 76
+  legacy Burn integration targets. The filter library test target still has 72
   stale native/legacy compile errors. This slice adds no compatibility path or
   lint suppression.
 

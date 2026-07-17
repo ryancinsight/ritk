@@ -96,6 +96,11 @@
       suite invokes `apply_native`, and all shape, metadata, zero-sigma, and
       constant-field oracles execute. Evidence: warning-denied Clippy and
       nextest pass 5/5.
+- [x] Move blend and ternary arithmetic assertions to one public native suite.
+      Completion condition: the suite exercises exact blend endpoints,
+      alpha-weighted values, ternary sum/magnitude contracts, and first-input
+      spatial metadata without Burn fixtures. Evidence: warning-denied Clippy
+      and nextest pass 4/4.
 - [ ] Port every active consumer of `burn_compat_types` and
       `burn_compat_row_chunks` to its native Coeus operation, then delete both
       modules and the `burn-compat` feature in the same breaking cutover.
