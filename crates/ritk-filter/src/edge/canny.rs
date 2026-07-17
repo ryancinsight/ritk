@@ -465,9 +465,3 @@ fn hysteresis_threshold(nms: &[f32], dims: [usize; 3], low: f32, high: f32) -> V
 
     edges
 }
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
-#[cfg(test)]
-#[path = "tests_canny.rs"]
-mod tests_canny;

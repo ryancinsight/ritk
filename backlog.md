@@ -12,10 +12,12 @@
   median.rs,separable_box.rs},examples/bench_gradient_rg.rs}`,
   `crates/ritk-filter/tests/{native_color_components.rs,native_colormap.rs,
   native_displacement.rs,native_gaussian.rs,native_intensity.rs,
-  native_recursive_gaussian.rs,parity.rs}`,
+  native_recursive_gaussian.rs,native_edge.rs,parity.rs}`,
   `crates/ritk-filter/src/intensity/{blend.rs,ternary_ops.rs}`,
   `crates/ritk-filter/src/{recursive_gaussian.rs,tests_recursive_gaussian.rs,
   tests_recursive_gaussian_native.rs}`,
+  `crates/ritk-filter/src/edge/{mod.rs,canny.rs,gradient.rs,log.rs,
+  tests_canny.rs,tests_gradient.rs,tests_log.rs,tests_native.rs}`,
   `crates/ritk-filter/src/gaussian.rs`, migration audit).** GitHub audit run
   `29547504239` reaches the source scanner after the provider sweep and reports
   `burn_compat_types` and `burn_compat_row_chunks` as unallowlisted relocated
@@ -43,7 +45,9 @@
   Burn-backed unit modules are deleted. Recursive Gaussian coverage is likewise
   one public native suite over the analytical constant, ramp, quadratic,
   spacing, and subpixel-sigma contracts; its stale private test modules and
-  Burn differential harness are deleted.
+  Burn differential harness are deleted. The native edge suite now owns Canny,
+  gradient, Laplacian, Sobel, and LoG value contracts; four stale source test
+  modules and their Burn differential harness are deleted.
 
 - **MIG-657-01 [major] - Native extended label-shape statistics (REVIEW;
   owner=Codex; scope=`crates/ritk-statistics/{Cargo.toml,src/{label_shape_extended.rs,

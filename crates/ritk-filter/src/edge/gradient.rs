@@ -123,7 +123,3 @@ impl GradientRecursiveGaussianImageFilter {
         )
     }
 }
-
-#[cfg(test)]
-#[path = "tests_gradient.rs"]
-mod tests_gradient;

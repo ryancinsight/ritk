@@ -106,6 +106,10 @@
       spacing normalization, subpixel identity, and physical metadata execute
       without a Burn differential harness. Evidence: warning-denied Clippy and
       nextest pass 9/9.
+- [x] Consolidate edge assertions into one public native suite. Completion
+      condition: Canny, gradient, Laplacian, Sobel, and LoG value contracts
+      execute without legacy image fixtures or a Burn differential harness.
+      Evidence: warning-denied Clippy and nextest pass 13/13.
 - [ ] Port every active consumer of `burn_compat_types` and
       `burn_compat_row_chunks` to its native Coeus operation, then delete both
       modules and the `burn-compat` feature in the same breaking cutover.

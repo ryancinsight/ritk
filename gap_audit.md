@@ -90,7 +90,7 @@ three native inversion APIs return one named `NativeDisplacementField` rather
 than repeated anonymous tuples. The direct native zero-field regression passes
 1/1 and filter library/target warning-denied Clippy passes. Full
 `cargo clippy -p ritk-filter --all-targets --all-features --no-deps -- -D
-warnings` remains blocked by the library test target, which reports 44 stale
+warnings` remains blocked by the library test target, which reports 20 stale
 native/legacy errors. The
 external analytical parity target now executes 10/10 through public native
 intensity, edge, segmentation, and statistics APIs. The active Criterion targets and the
@@ -104,8 +104,8 @@ Blend and ternary arithmetic coverage now runs through one public native target
 (4/4): exact alpha endpoints, weighted values, ternary sum/magnitude values,
 and the first input's physical frame. Its two stale Burn-backed inline test
 modules are deleted. The remaining library tests are active consumer cutover
-work, not lint failures
-to suppress or compatibility bridges to retain. The repeated stale native-
+work, not lint failures to suppress or compatibility bridges to retain. The
+repeated stale native-
 method links are corrected across the filter crate; `cargo doc -p ritk-filter
 --no-deps` is warning-clean.
 
@@ -114,8 +114,13 @@ checks constant preservation, first and second derivative interiors, physical
 Laplacian and gradient invariance over spacing, directional slope, subpixel
 identity, and constant-field derivatives. The private legacy and native test
 modules are deleted with their Burn differential harness. The all-target error
-count consequently falls from 72 to 44; remaining errors are isolated to edge,
-Frangi, pyramid, resample, and warp test modules.
+count consequently falls from 72 to 44 before the edge-family cutover below.
+
+The edge family now has one public native target (13/13) for Canny, gradient,
+gradient magnitude, Laplacian, Sobel, and LoG behavior. It retains the former
+Canny thresholds and analytical field oracles while deleting four stale source
+test modules and their Burn differential harness. The all-target residual falls
+from 44 to 20 and is now limited to Frangi, pyramid, resample, and warp.
 
 ## MIG-657-01 audit (2026-07-16)
 

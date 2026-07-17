@@ -106,9 +106,3 @@ impl LaplacianOfGaussianFilter {
         laplacian_recursive_gaussian(image, self.sigma.get(), backend)
     }
 }
-
-// ── Tests ──────────────────────────────────────────────────────────────────────
-
-#[cfg(test)]
-#[path = "tests_log.rs"]
-mod tests;
