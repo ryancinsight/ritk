@@ -78,6 +78,11 @@
       component and preserved spatial frame. Evidence: warning-denied Clippy
       passes for the filter library and the dedicated integration target; the
       integration test passes 1/1.
+- [x] Move stale color-component and colormap tests onto their native image
+      and volume contracts. Completion condition: public-contract integration
+      targets preserve the existing exact ITK color values without
+      `burn_compat` fixtures. Evidence: warning-denied Clippy passes for both
+      targets; nextest passes 2/2 component tests and 8/8 colormap tests.
 - [ ] Port every active consumer of `burn_compat_types` and
       `burn_compat_row_chunks` to its native Coeus operation, then delete both
       modules and the `burn-compat` feature in the same breaking cutover.

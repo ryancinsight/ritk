@@ -1,10 +1,8 @@
 //! Tests for the per-component color filtering adaptor.
 
-use super::map_color_components;
-use crate::MedianFilter;
 use coeus_core::SequentialBackend;
-use ritk_image::native::{ColorVolume, Image};
-use ritk_image::test_support as ts;
+use ritk_filter::{map_color_components, MedianFilter};
+use ritk_image::{native::Image, ColorVolume};
 
 type B = SequentialBackend;
 

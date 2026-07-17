@@ -6,9 +6,10 @@
   metric/native_resample.rs,
   examples/geometry_check.rs,examples/registration_compare_figure.rs,
   tests/real_data_test.rs}`, `crates/ritk-cli/src/commands/register`,
-  `crates/ritk-filter/src/{native_displacement.rs,inverse_displacement.rs,
-  invert_displacement.rs,iterative_inverse_displacement.rs}`,
-  `crates/ritk-filter/tests/native_displacement.rs`, migration audit).** GitHub audit run
+  `crates/ritk-filter/src/{color.rs,colormap/mod.rs,native_displacement.rs,
+  inverse_displacement.rs,invert_displacement.rs,iterative_inverse_displacement.rs}`,
+  `crates/ritk-filter/tests/{native_color_components.rs,native_colormap.rs,
+  native_displacement.rs}`, migration audit).** GitHub audit run
   `29547504239` reaches the source scanner after the provider sweep and reports
   `burn_compat_types` and `burn_compat_row_chunks` as unallowlisted relocated
   compatibility surfaces. The redundant Burn-grid test is deleted now because
@@ -22,7 +23,10 @@
   together; do not expand `xtask/burn_surface.allowlist` to mask the
   relocation. Native displacement inversion now returns one named native field
   value instead of three anonymous images; its direct zero-field regression
-  verifies every component and its spatial frame.
+  verifies every component and its spatial frame. The color-component and
+  colormap regressions now execute through native images and native interleaved
+  color volumes, preserving their ITK reference values without `burn_compat`
+  fixtures.
 
 - **MIG-657-01 [major] - Native extended label-shape statistics (REVIEW;
   owner=Codex; scope=`crates/ritk-statistics/{Cargo.toml,src/{label_shape_extended.rs,

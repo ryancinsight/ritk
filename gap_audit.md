@@ -92,10 +92,14 @@ than repeated anonymous tuples. The direct native zero-field regression passes
 `cargo clippy -p ritk-filter --all-targets --all-features --no-deps -- -D
 warnings` remains blocked by 119 legacy-target errors, including
 `tests/parity.rs` and several benches that combine `SequentialBackend` with
-the two-parameter Burn `Image` API. These are active consumer cutover work, not
-lint failures to suppress or compatibility bridges to retain. The repeated
-stale native-method links are corrected across the filter crate; `cargo doc -p
-ritk-filter --no-deps` is warning-clean.
+the two-parameter Burn `Image` API. The library test target still reports 95
+stale native/legacy errors, while independent bench, example, and parity
+targets also remain to migrate. The color-component and colormap modules no
+longer contribute to that failure: their public native integration targets
+pass 2/2 and 8/8 respectively, with warning-denied Clippy. These are active
+consumer cutover work, not lint failures to suppress or compatibility bridges
+to retain. The repeated stale native-method links are corrected across the
+filter crate; `cargo doc -p ritk-filter --no-deps` is warning-clean.
 
 ## MIG-657-01 audit (2026-07-16)
 

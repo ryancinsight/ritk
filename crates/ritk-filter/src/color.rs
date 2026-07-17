@@ -51,7 +51,3 @@ where
     }
     ColorVolume::from_component_buffers(&out_bufs, spatial, origin, spacing, direction, backend)
 }
-
-#[cfg(test)]
-#[path = "tests_color.rs"]
-mod tests_color;
