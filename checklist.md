@@ -52,6 +52,9 @@
       graph. Evidence: `rustup run stable cargo check -p ritk-registration
       --example geometry_check` passes after the lock resolves the workspace
       Gaia path dependency at version 0.3.0.
+- [ ] Move the ignored real-data NIfTI and identity-resampling test to native
+      reader/image/interpolation operations. Completion condition: its sample
+      values equal the corresponding input voxels at identity coordinates.
 - [ ] Port every active consumer of `burn_compat_types` and
       `burn_compat_row_chunks` to its native Coeus operation, then delete both
       modules and the `burn-compat` feature in the same breaking cutover.
