@@ -40,6 +40,9 @@
 **Target version**: 0.3.0 major
 **Sprint phase**: Execution
 
+- [x] Amend ADR 0002 to prohibit feature-selected public image models.
+      Completion condition: native `Image<T, B, D>` remains stable under Cargo
+      feature unification and the transform/I/O cutover has one migration rule.
 - [x] Delete the redundant `tests_burn_compat_grid` module. Completion
       condition: native grid tests remain the sole value-semantic grid oracle;
       no production path imports the deleted module.

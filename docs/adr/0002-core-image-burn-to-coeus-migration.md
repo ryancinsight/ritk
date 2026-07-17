@@ -147,3 +147,35 @@ Remaining brand-named items are tracked for the same treatment (backlog
 MIG-489): the format crates' `read_*_coeus`/`write_*_coeus` functions, the
 `ritk_image::coeus` / `ritk_registration::metric::coeus_autograd` module
 names, and the `coeus` cargo feature name itself (candidate: `atlas`).
+
+## Amendment A2 (2026-07-17) — Cargo features cannot select a public image model
+
+The current `burn-compat` design re-exports a legacy Burn image as
+`ritk_image::Image` when the feature is enabled. This is invalid: Cargo feature
+unification can enable that feature through an unrelated dev-dependency and
+silently change the arity and semantics of the public `Image` type in every
+target of the resolved package graph. The resulting partial native registration
+examples demonstrate that this is a type-model defect, not a local syntax
+problem.
+
+### Decision
+
+1. `ritk_image::Image<T, B, D>` remains the sole public image contract
+   independent of selected features. A feature may add a complete backend, but
+   it cannot redefine an existing public type or re-export a replacement under
+   the same name.
+2. A legacy caller is migrated by moving its full operation family to the
+   provider-native contract and deleting that caller's legacy imports in the
+   same increment. No caller receives a type alias, adapter, or feature-driven
+   fallback.
+3. The active first scope is the transform/I/O path that currently imports
+   `burn_compat_row_chunks` and returns legacy NIfTI images. It must use the
+   existing native I/O contracts and native transform operations before the
+   compatibility modules and feature are deleted.
+
+### Verification
+
+The cutover is accepted only when registration examples compile against the
+same public image type as library targets, focused value-semantic transform/I/O
+tests pass, and `xtask burn-migration-audit` removes rather than allowlists the
+compatibility surfaces.

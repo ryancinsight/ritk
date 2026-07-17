@@ -37,6 +37,10 @@ feature and both compatibility modules together. Evidence tier: source
 inspection plus `cargo fmt --check` parser diagnostics; affected package gates
 remain queued behind the shared Atlas build lock.
 
+ADR 0002 Amendment A2 now makes the correction explicit: `Image<T, B, D>` is
+feature-invariant, and the transform/I/O caller family is the first scope that
+must cut over completely before either compatibility module is deleted.
+
 ## MIG-657-01 audit (2026-07-16)
 
 ### Extended label-shape statistics use one native image boundary

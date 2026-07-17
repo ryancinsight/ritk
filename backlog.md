@@ -7,9 +7,11 @@
   `burn_compat_types` and `burn_compat_row_chunks` as unallowlisted relocated
   compatibility surfaces. The redundant Burn-grid test is deleted now because
   native grid tests already cover its value contract. The owning consumer
-  migration continues under ADR 0002: port active callers to native Coeus
-  operations, then delete the compatibility modules and feature together; do
-  not expand `xtask/burn_surface.allowlist` to mask the relocation.
+  migration continues under ADR 0002 Amendment A2: port active callers to
+  native Coeus operations without allowing Cargo features to replace the
+  public image type, then delete the compatibility modules and feature
+  together; do not expand `xtask/burn_surface.allowlist` to mask the
+  relocation.
 
 - **MIG-657-01 [major] - Native extended label-shape statistics (REVIEW;
   owner=Codex; scope=`crates/ritk-statistics/{Cargo.toml,src/{label_shape_extended.rs,
