@@ -78,6 +78,10 @@
   interpolation.
 - Restored the DICOM/Analyze security regression's real `burn_ndarray::NdArray`
   oracle backend, matching the remaining Burn-compatible I/O API contract.
+- Restored legacy transform, segmentation, registration, and registration-example
+  targets to their actual `burn_ndarray::NdArray` backend contracts. The
+  registration benchmarks now use RITK's existing Burn grid generator instead
+  of passing a Burn device to the native grid API.
 
 ### Breaking
 - Rust callers must replace legacy Burn images with native

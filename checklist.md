@@ -66,6 +66,36 @@
       `cargo clippy -p ritk-io --test dicom_security --all-features -- -D
       warnings` passes locally.
 
+## CI-658-05 — Restore legacy transform test backends
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Replace the incompatible Coeus test backends with
+      `burn_ndarray::NdArray<f32>` in the remaining Burn transform tests.
+- [x] Construct test tensors with Burn 0.19 `TensorData` and `Shape`.
+- [x] Verify the exact transform tests. Evidence: warning-denied Clippy and
+      focused nextest pass (8 tests).
+
+## CI-658-06 — Route segmentation tests to the existing Burn fixture
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Route legacy source tests to `test_support::burn_compat`, the existing
+      owner-local Burn fixture module.
+- [x] Verify package warning-denied Clippy and nextest without a new helper.
+
+## CI-658-07 — Restore registration legacy compile contracts
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Use `burn_ndarray::NdArray<f32>` in legacy registration tests,
+      benchmarks, and examples; retain Coeus only at actual native boundaries.
+- [x] Use Burn `TensorData` and RITK's existing Burn grid generator where the
+      legacy APIs require them.
+- [x] Verify package warning-denied Clippy across targets and features.
+- [x] Re-run package nextest and workspace warning-denied Clippy. Completion:
+      no stale backend mismatch remains in the local PR head.
+
 ## MIG-657-01 — Native extended label-shape statistics
 **Target version**: 0.3.0
 **Sprint phase**: Execution

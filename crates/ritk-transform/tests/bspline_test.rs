@@ -1,10 +1,9 @@
-use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::tensor::{Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_transform::BSplineTransform;
 use ritk_transform::Transform;
 
-type B = SequentialBackend;
+type B = burn_ndarray::NdArray<f32>;
 
 const ABS_TOL: f32 = 1e-5;
 
@@ -21,7 +20,10 @@ fn bspline_zero_coefficients_planar_is_identity() {
     // Zero coefficients -> Identity transform
     let num_control_points = 5 * 5;
     let coeffs_data = vec![0.0f32; num_control_points * 2];
-    let coeffs = Tensor::<B, 2>::from_data((coeffs_data, [num_control_points, 2]), &device);
+    let coeffs = Tensor::<B, 2>::from_data(
+        TensorData::new(coeffs_data, Shape::new([num_control_points, 2])),
+        &device,
+    );
 
     let transform = BSplineTransform::<B, 2>::from_spatial(
         grid_size, &origin, &spacing, &direction, coeffs, &device,
@@ -57,7 +59,10 @@ fn bspline_constant_shift_planar_displaces_by_offset() {
         coeffs_data.push(-0.5);
     }
 
-    let coeffs = Tensor::<B, 2>::from_data((coeffs_data, [num_control_points, 2]), &device);
+    let coeffs = Tensor::<B, 2>::from_data(
+        TensorData::new(coeffs_data, Shape::new([num_control_points, 2])),
+        &device,
+    );
 
     let transform = BSplineTransform::<B, 2>::from_spatial(
         grid_size, &origin, &spacing, &direction, coeffs, &device,

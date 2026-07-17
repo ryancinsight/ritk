@@ -1,15 +1,14 @@
 //! Ground-truth constants and type aliases for the RIRE CT/MRI T1
 //! registration validation example.
 
-use coeus_core::SequentialBackend;
 use ritk_image::burn::backend::Autodiff;
 
 /// CPU backend — no autodiff needed for the NCC/resampling validation workflow.
-pub type B = SequentialBackend;
+pub type B = burn_ndarray::NdArray<f32>;
 
 /// Autodiff backend required by the CMA-ES optimizer (tracks computation graph
 /// for gradient-capable metrics; no `.backward()` is called by CMA-ES itself).
-pub type RegB = Autodiff<SequentialBackend>;
+pub type RegB = Autodiff<burn_ndarray::NdArray<f32>>;
 
 // ── Ground-truth constants ────────────────────────────────────────────────────
 

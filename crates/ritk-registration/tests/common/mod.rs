@@ -18,12 +18,10 @@
 //! standard Rust idiom for shared test-utility modules.
 
 #![allow(dead_code)]
-
-use coeus_core::SequentialBackend;
 use ritk_image::burn::backend::Autodiff;
 
 /// Backend with autodiff — required by `GlobalMiRegistration`.
-pub type B = Autodiff<SequentialBackend>;
+pub type B = Autodiff<burn_ndarray::NdArray<f32>>;
 
 // ── Constants ────────────────────────────────────────────────────────────────
 

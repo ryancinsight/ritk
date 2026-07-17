@@ -7,7 +7,6 @@
 //!   cargo run --example brain_ct_mri_registration
 
 use coeus_core::SequentialBackend;
-use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_filter::ResampleImageFilter;
 use ritk_image::burn::backend::Autodiff;
@@ -21,18 +20,18 @@ use ritk_registration::optimizer::AdamOptimizer;
 use ritk_transform::{AffineTransform, RigidTransform};
 
 // CPU backend with automatic differentiation
-type Backend = Autodiff<SequentialBackend>;
+type Backend = Autodiff<burn_ndarray::NdArray<f32>>;
 
 fn read_png_series<B: ritk_image::tensor::backend::Backend>(
     path: &std::path::Path,
-    backend: &B,
-) -> anyhow::Result<Image<f32, B, 3>> {
+    device: &B::Device,
+) -> anyhow::Result<Image<B, 3>> {
     let reader = PngSeriesReader::new(SequentialBackend);
     let native = reader.read(path)?;
     let tensor = Tensor::<B, 3>::from_data(
-        (
+        TensorData::new(
             native.data_cow_on(&SequentialBackend).into_owned(),
-            (native.shape()),
+            Shape::new(native.shape()),
         ),
         device,
     );
@@ -50,7 +49,7 @@ fn main() -> anyhow::Result<()> {
 
     tracing_subscriber::fmt().with_env_filter("info").init();
 
-    let device = Default::default();
+    let device: <Backend as ritk_image::tensor::backend::Backend>::Device = Default::default();
 
     let data_root = std::path::Path::new("test_data/paired_mri_ct");
     let ct_dir = data_root.join("CT/PNG/Patient_01");
@@ -65,7 +64,7 @@ fn main() -> anyhow::Result<()> {
 
     // 1. Load PNG series as 3D volumes
     println!("Loading CT PNG series from: {}", ct_dir.display());
-    let ct_image: Image<f32, Backend, 3> = read_png_series(&ct_dir, &device)?;
+    let ct_image: Image<Backend, 3> = read_png_series(&ct_dir, &device)?;
     println!(
         "  CT shape: {:?}, spacing: {:?}",
         ct_image.shape(),
@@ -73,7 +72,7 @@ fn main() -> anyhow::Result<()> {
     );
 
     println!("Loading T1-MRI PNG series from: {}", mri_dir.display());
-    let mri_image: Image<f32, Backend, 3> = read_png_series(&mri_dir, &device)?;
+    let mri_image: Image<Backend, 3> = read_png_series(&mri_dir, &device)?;
     println!(
         "  MRI shape: {:?}, spacing: {:?}",
         mri_image.shape(),

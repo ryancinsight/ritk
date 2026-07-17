@@ -1,13 +1,11 @@
 //! Criterion benchmarks for Parzen joint histogram (Mutual Information) computation.
 //!
 //! Benchmarks the core hot-path used by MutualInformation metrics during registration.
-
-use coeus_core::SequentialBackend;
 use criterion::{criterion_group, criterion_main, Criterion};
-use ritk_image::tensor::{Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_registration::metric::histogram::ParzenJointHistogram;
 
-type B = SequentialBackend;
+type B = burn_ndarray::NdArray<f32>;
 
 /// Benchmark Parzen joint histogram with 1000 intensity sample pairs, 32 bins.
 fn bench_parzen_joint_histogram(c: &mut Criterion) {
@@ -19,8 +17,8 @@ fn bench_parzen_joint_histogram(c: &mut Criterion) {
     // Offset pattern to create a non-trivial joint distribution.
     let moving_vec: Vec<f32> = (0..n).map(|i| ((i * 3 + 17) % 256) as f32).collect();
 
-    let fixed = Tensor::<B, 1>::from_data((fixed_vec, [n]), &device);
-    let moving = Tensor::<B, 1>::from_data((moving_vec, [n]), &device);
+    let fixed = Tensor::<B, 1>::from_data(TensorData::new(fixed_vec, Shape::new([n])), &device);
+    let moving = Tensor::<B, 1>::from_data(TensorData::new(moving_vec, Shape::new([n])), &device);
 
     // 32 bins, intensity range [0, 255], sigma = 8.0 (roughly one bin-width).
     let histogram = ParzenJointHistogram::<B>::new(32, 0.0, 255.0, 8.0, &device);

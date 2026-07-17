@@ -42,6 +42,23 @@ not a reason to retain a compatibility bridge: the target now uses the real
 construction. Evidence tier: compile-time checking; the exact warning-denied
 Clippy target passes locally. GitHub revalidation remains pending.
 
+## CI-658-05 through CI-658-07 audit (2026-07-17)
+
+The workspace Clippy gate exposed one recurring contract defect: legacy Burn
+tests, benchmarks, and examples still named Coeus' `SequentialBackend`.
+Those backends are distinct type systems; passing the Coeus backend to a Burn
+image, tensor, or grid is a compile-time error. The correction uses the
+existing `burn_ndarray::NdArray<f32>` development backend, Burn 0.19
+`TensorData`, the existing `test_support::burn_compat` fixture, and the
+existing `generate_grid_burn` API. No compatibility helper, adapter, or
+fallback path was added.
+
+Evidence tier: compile-time checking plus value-semantic tests. Warning-denied
+Clippy passes for `ritk-transform`, `ritk-segmentation`, all
+`ritk-registration` targets, and the complete workspace with all features.
+Focused transform nextest passes 8 tests; `ritk-registration` nextest passes
+with all features. GitHub revalidation remains pending.
+
 ## CI-658-02 audit (2026-07-17)
 
 PR #37's local warning-denied Clippy reproduction found an invalid native test

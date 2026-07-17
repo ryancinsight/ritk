@@ -36,6 +36,28 @@
   Coeus backend. Acceptance: warning-denied Clippy for the exact integration
   target passes locally and the retried GitHub matrix compiles the test.
 
+- **CI-658-05 [patch] - Restore legacy transform test backends (REVIEW;
+  owner=Codex; scope=`crates/ritk-transform/tests/{transform_test.rs,bspline_test.rs}`,
+  PM artifacts).** The remaining Burn-compatible transform tests now use
+  `burn_ndarray::NdArray<f32>` and current `TensorData` construction rather
+  than Coeus' incompatible `SequentialBackend`. Acceptance: warning-denied
+  Clippy and the focused nextest target pass without changing test values.
+
+- **CI-658-06 [patch] - Route segmentation legacy tests to their owner fixture
+  (REVIEW; owner=Codex; scope=`crates/ritk-segmentation/src/**/tests*.rs`, PM
+  artifacts).** Legacy segmentation tests consume the existing
+  `test_support::burn_compat` constructor instead of the native constructor.
+  This corrects their real Burn contract without adding a wrapper or duplicate
+  helper. Acceptance: package warning-denied Clippy and nextest pass.
+
+- **CI-658-07 [patch] - Restore registration legacy compile contracts (REVIEW;
+  owner=Codex; scope=`crates/ritk-registration/{benches,examples,tests}`,
+  PM artifacts).** Registration's remaining Burn tests, benchmarks, and
+  examples use `burn_ndarray::NdArray<f32>` (or its Burn autodiff backend),
+  current `TensorData` construction, and the existing Burn grid generator.
+  `ritk-registration` nextest and the package-wide/workspace warning-denied
+  Clippy gates pass. GitHub revalidation on the resulting PR head remains.
+
 - **MIG-658-01 [major] - Remove relocated Burn compatibility surfaces (IN
   PROGRESS; owner=Codex; scope=`crates/ritk-image/src/{lib.rs,
   tests_burn_compat_grid.rs}`, `Cargo.{toml,lock}`, `crates/ritk-registration/{classical,

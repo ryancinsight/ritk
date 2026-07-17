@@ -13,7 +13,6 @@
 //! Usage:
 //!   cargo run --example rigid_registration
 
-use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_filter::ResampleImageFilter;
 use ritk_image::burn::backend::Autodiff;
@@ -27,7 +26,7 @@ use ritk_transform::RigidTransform;
 use std::path::Path;
 
 // Use autodiff backend for gradient-based optimization
-type Backend = Autodiff<SequentialBackend>;
+type Backend = Autodiff<burn_ndarray::NdArray<f32>>;
 
 fn main() -> anyhow::Result<()> {
     println!("RITK Rigid Registration Example");
@@ -61,7 +60,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     println!("  Loading fixed image: {}", fixed_path.display());
-    let fixed: Image<f32, Backend, 3> = read_nifti(fixed_path, &device)?;
+    let fixed: Image<Backend, 3> = read_nifti(fixed_path, &device)?;
     println!("  Fixed image shape: {:?}", fixed.shape());
     println!(
         "  Fixed image spacing: [{:.2}, {:.2}, {:.2}] mm",
@@ -71,7 +70,7 @@ fn main() -> anyhow::Result<()> {
     );
 
     println!("  Loading moving image: {}", moving_path.display());
-    let moving: Image<f32, Backend, 3> = read_nifti(moving_path, &device)?;
+    let moving: Image<Backend, 3> = read_nifti(moving_path, &device)?;
     println!("  Moving image shape: {:?}", moving.shape());
     println!(
         "  Moving image spacing: [{:.2}, {:.2}, {:.2}] mm",

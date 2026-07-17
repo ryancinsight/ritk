@@ -6,11 +6,9 @@
 //!   3. Joint histogram computation only
 //!   4. Transform + interpolation chain only
 
-use coeus_core::SequentialBackend;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ritk_image::tensor::{Shape, Tensor, TensorData};
 
-use ritk_core::image::grid;
 use ritk_core::image::Image;
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_registration::metric::histogram::ParzenJointHistogram;
@@ -18,13 +16,13 @@ use ritk_registration::metric::{Metric, MutualInformation};
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::{Transform, TranslationTransform};
 
-type B = SequentialBackend;
+type B = burn_ndarray::NdArray<f32>;
 
 /// Create a 32³ ramp test image with intensity range [0, 255].
-fn create_test_image(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<f32, B, 3> {
+fn create_test_image(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<B, 3> {
     let n = 32 * 32 * 32;
     let data: Vec<f32> = (0..n).map(|i| i as f32 % 256.0).collect();
-    let tensor = Tensor::<B, 3>::from_data((data, ([32, 32, 32])), device);
+    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new([32, 32, 32])), device);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -89,7 +87,7 @@ fn bench_registration_pipeline(c: &mut Criterion) {
     // 4. Transform + interpolation chain only
     group.bench_function("transform_interpolate_32cubed", |b| {
         let fixed_shape = fixed.shape();
-        let fixed_indices = grid::generate_grid(fixed_shape, &device);
+        let fixed_indices = ritk_image::generate_grid_burn(fixed_shape, &device);
 
         b.iter(|| {
             let fixed_points = fixed.index_to_world_tensor(black_box(fixed_indices.clone()));

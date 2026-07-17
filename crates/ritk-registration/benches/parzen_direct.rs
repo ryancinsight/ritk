@@ -7,7 +7,6 @@
 //! performance impact of `StackWeights.len` `usize → u8` (MEM-325-01) and
 //! `SparseWFixedEntry.bin` `usize → u16` (PERF-326-02).
 
-use coeus_core::SequentialBackend;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ritk_core::image::Image;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
@@ -20,12 +19,12 @@ use ritk_registration::metric::histogram::{
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::{Transform, TranslationTransform};
 
-type B = SequentialBackend;
+type B = burn_ndarray::NdArray<f32>;
 
-fn create_test_image(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<f32, B, 3> {
+fn create_test_image(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<B, 3> {
     let n = 32 * 32 * 32;
     let data: Vec<f32> = (0..n).map(|i| i as f32 % 256.0).collect();
-    let tensor = Tensor::<B, 3>::from_data((data, ([32, 32, 32])), device);
+    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new([32, 32, 32])), device);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -59,9 +58,9 @@ fn bench_parzen_direct(c: &mut Criterion) {
 
     // Prepare normalized values for the direct benchmark
     let fixed_flat = fixed.data().clone().reshape([32 * 32 * 32]);
-    let moving_points = transform.transform_points(fixed.index_to_world_tensor(
-        ritk_core::image::grid::generate_grid(fixed.shape(), &device),
-    ));
+    let moving_points = transform.transform_points(
+        fixed.index_to_world_tensor(ritk_image::generate_grid_burn(fixed.shape(), &device)),
+    );
     let moving_indices = moving.world_to_index_tensor(moving_points);
     let moving_values = interpolator.interpolate(moving.data(), moving_indices);
 
@@ -256,9 +255,9 @@ fn bench_parzen_broad_sigma(c: &mut Criterion) {
     let interpolator = LinearInterpolator::new_zero_pad();
 
     let fixed_flat = fixed.data().clone().reshape([32 * 32 * 32]);
-    let moving_points = transform.transform_points(fixed.index_to_world_tensor(
-        ritk_core::image::grid::generate_grid(fixed.shape(), &device),
-    ));
+    let moving_points = transform.transform_points(
+        fixed.index_to_world_tensor(ritk_image::generate_grid_burn(fixed.shape(), &device)),
+    );
     let moving_indices = moving.world_to_index_tensor(moving_points);
     let moving_values = interpolator.interpolate(moving.data(), moving_indices);
 
@@ -315,7 +314,10 @@ fn bench_parzen_broad_sigma(c: &mut Criterion) {
     //    With 64³ = 262K samples, the sparse cache is ~14 KB with u16 (was ~28 KB).
     let large_n = 64 * 64 * 64;
     let large_data: Vec<f32> = (0..large_n).map(|i| i as f32 % 256.0).collect();
-    let large_tensor = Tensor::<B, 3>::from_data((large_data, ([64, 64, 64])), &device);
+    let large_tensor = Tensor::<B, 3>::from_data(
+        TensorData::new(large_data, Shape::new([64, 64, 64])),
+        &device,
+    );
     let large_flat = large_tensor.reshape([large_n]);
     let large_fix_scale = num_bins_f / 255.0;
     let large_fixed_norm = (large_flat * large_fix_scale).clamp(0.0, num_bins_f);
@@ -326,7 +328,10 @@ fn bench_parzen_broad_sigma(c: &mut Criterion) {
     let large_cache: SparseWFixedT =
         build_sparse_w_fixed_transposed(&large_fixed_slice, num_bins, broad_sigma_sq, None);
     let large_mov_data: Vec<f32> = (0..large_n).map(|i| (i * 3 + 7) as f32 % 256.0).collect();
-    let large_moving_tensor = Tensor::<B, 1>::from_data((large_mov_data, ([large_n])), &device);
+    let large_moving_tensor = Tensor::<B, 1>::from_data(
+        TensorData::new(large_mov_data, Shape::new([large_n])),
+        &device,
+    );
     let large_mov_scale = num_bins_f / 255.0;
     let large_moving_norm = (large_moving_tensor * large_mov_scale).clamp(0.0, num_bins_f);
     let large_moving_data = large_moving_norm.into_data();

@@ -43,7 +43,6 @@
 
 use std::time::Instant;
 
-use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_image::burn::backend::Autodiff;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
@@ -54,12 +53,12 @@ use ritk_registration::optimizer::regular_step_gd::RegularStepGradientDescent;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::TranslationTransform;
 
-type B = Autodiff<SequentialBackend>;
+type B = Autodiff<burn_ndarray::NdArray<f32>>;
 
 const SIZE: usize = 256;
 
 /// Build a 256³ synthetic phantom with a smooth gradient + central sphere.
-fn build_phantom(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<f32, B, 3> {
+fn build_phantom(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<B, 3> {
     let n = SIZE * SIZE * SIZE;
     let mut data = vec![0.0_f32; n];
 
@@ -84,7 +83,10 @@ fn build_phantom(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<f
         }
     }
 
-    let tensor = Tensor::<B, 3>::from_data((data, ([SIZE, SIZE, SIZE])), device);
+    let tensor = Tensor::<B, 3>::from_data(
+        TensorData::new(data, Shape::new([SIZE, SIZE, SIZE])),
+        device,
+    );
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -98,7 +100,7 @@ fn build_phantom(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<f
 /// after the transform — for the synthetic case we apply a simple
 /// translation (rotation would require building a full 3D interpolator
 /// here, which is the registration's job).
-fn build_moving(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<f32, B, 3> {
+fn build_moving(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<B, 3> {
     // For the timing harness we just build an independent (slightly
     // perturbed) phantom as the "moving" image. The optimizer will still
     // measure wall-clock regardless of whether the registration converges.
@@ -114,7 +116,10 @@ fn build_moving(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<f3
             v + ((i % 7) as f32 - 3.0) * 0.5
         })
         .collect();
-    let tensor = Tensor::<B, 3>::from_data((perturbed, ([SIZE, SIZE, SIZE])), device);
+    let tensor = Tensor::<B, 3>::from_data(
+        TensorData::new(perturbed, Shape::new([SIZE, SIZE, SIZE])),
+        device,
+    );
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),

@@ -1,14 +1,13 @@
-use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::burn::backend::Autodiff;
-use ritk_image::tensor::{Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_registration::metric::MeanSquaredError;
 use ritk_registration::optimizer::AdamOptimizer;
 use ritk_registration::registration::Registration;
 use ritk_transform::VersorRigid3DTransform;
 
-type B = Autodiff<SequentialBackend>;
+type B = Autodiff<burn_ndarray::NdArray<f32>>;
 
 #[test]
 fn versor_registers_rotated_ellipsoid() {
@@ -55,8 +54,10 @@ fn versor_registers_rotated_ellipsoid() {
     // If we rotate Fixed by +0.2, it matches Moving.
     let moving_data = make_ellipsoid([10.0, 10.0, 10.0], [2.0, 3.0, 4.0], 0.2);
 
-    let fixed_tensor = Tensor::<B, 3>::from_data((fixed_data, shape), &device);
-    let moving_tensor = Tensor::<B, 3>::from_data((moving_data, shape), &device);
+    let fixed_tensor =
+        Tensor::<B, 3>::from_data(TensorData::new(fixed_data, Shape::new(shape)), &device);
+    let moving_tensor =
+        Tensor::<B, 3>::from_data(TensorData::new(moving_data, Shape::new(shape)), &device);
     let origin = Point::new([0.0, 0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let direction = Direction::identity();

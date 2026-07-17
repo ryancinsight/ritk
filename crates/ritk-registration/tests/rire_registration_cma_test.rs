@@ -13,8 +13,6 @@
 //! cargo test --test rire_registration_cma_test -- --ignored --nocapture
 //! ```
 mod common;
-
-use coeus_core::SequentialBackend;
 use ritk_image::tensor::{Tensor, TensorData};
 
 use common::{compute_tre, find_rire_dir, identity_m4, B};
@@ -68,7 +66,7 @@ fn test_cma_mi_rigid_on_rire_patient001() {
         .expect("RIRE data not found. Place files under test_data/registration/rire/");
     let ct_path = rire_dir.join("training_001_ct.mha");
     let mri_path = rire_dir.join("training_001_mr_T1.mha");
-    let device: <SequentialBackend as ritk_image::tensor::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let ct_img = read_metaimage::<B, _>(&ct_path, &device).expect("Failed to load CT");
     let mri_img = read_metaimage::<B, _>(&mri_path, &device).expect("Failed to load MRI T1");
     println!(
@@ -211,7 +209,7 @@ fn test_multistart_rigid_on_rire_patient001() {
         .expect("RIRE data not found. Place files under test_data/registration/rire/");
     let ct_path = rire_dir.join("training_001_ct.mha");
     let mri_path = rire_dir.join("training_001_mr_T1.mha");
-    let device: <SequentialBackend as ritk_image::tensor::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let ct_img = read_metaimage::<B, _>(&ct_path, &device).expect("Failed to load CT");
     let mri_img = read_metaimage::<B, _>(&mri_path, &device).expect("Failed to load MRI T1");
 

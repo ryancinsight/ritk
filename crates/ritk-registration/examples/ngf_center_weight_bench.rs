@@ -9,7 +9,6 @@
 //! deep-structure (ventricle) alignment improvement is measurable against the
 //! elastix reference (composite rotation ≈ 6.50°, 4.6 s on this pair).
 
-use coeus_core::SequentialBackend;
 use ritk_filter::BinShrinkImageFilter;
 use ritk_io::read_nifti;
 use ritk_registration::{
@@ -18,7 +17,7 @@ use ritk_registration::{
 };
 use std::time::Instant;
 
-type B = SequentialBackend;
+type B = burn_ndarray::NdArray<f32>;
 
 /// Composite rotation angle [deg] from a row-major 4×4 rigid matrix.
 fn composite_deg(m: &[f64; 16]) -> f64 {

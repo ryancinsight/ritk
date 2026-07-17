@@ -1,4 +1,3 @@
-use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::tensor::Shape;
@@ -9,11 +8,11 @@ use ritk_registration::metric::{
 };
 use ritk_transform::TranslationTransform;
 
-type B = SequentialBackend;
+type B = burn_ndarray::NdArray<f32>;
 
-fn create_test_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
+fn create_test_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
     let device = Default::default();
-    let tensor = Tensor::from_slice_on((data, (shape)), &device);
+    let tensor = Tensor::from_data(TensorData::new(data, Shape::new(shape)), &device);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let origin = Point::new([0.0, 0.0, 0.0]);
     let direction = Direction::identity();

@@ -3,7 +3,7 @@
 
 use super::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::test_support::make_image_with;
+use ritk_image::test_support::burn_compat::make_image_with;
 
 type B = burn_ndarray::NdArray<f32>;
 
