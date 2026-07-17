@@ -82,6 +82,13 @@
   targets to their actual `burn_ndarray::NdArray` backend contracts. The
   registration benchmarks now use RITK's existing Burn grid generator instead
   of passing a Burn device to the native grid API.
+- Replaced RIRE MetaImage and DICOM registration-test readers with their native
+  provider APIs, changed the persistent LDDMM benchmark to
+  `CpuFieldSmoother`, and deleted the unreferenced private-path NGF benchmark
+  whose full registration path is still Burn-only.
+- Corrected native/Burn NGF differential coverage to compare only central
+  differences whose transformed neighbours are in bounds. Burn edge extension
+  and native half-voxel zero-fill remain distinct, tested boundary contracts.
 
 ### Breaking
 - Rust callers must replace legacy Burn images with native
@@ -136,18 +143,14 @@
   `f26369eb2000b9a8b763066064173f8c5ebf8f65`, which declares the required
   `apollo-fft` 0.23.0. Workspace sources are rustfmt-clean under the CI's
   package-by-package formatting gate.
+- Warning-denied `ritk-registration` Clippy, all four NGF native differentials,
+  and the 757-test registration Nextest lane pass. The migration audit reports
+  515 source files and `Allowlist status: clean` without an allowlist change.
 
 ### Residual
-- The package-wide registration test build remains blocked by unrelated
-  legacy Burn integration targets. `ritk-transform` integration tests are also
-  blocked by unchanged `SequentialBackend` test aliases against legacy Burn
-  tensor bounds. The filter package is clean; the migration audit now reports
-  only `burn_compat_types` across 515 token-bearing source files. This slice
-  adds no compatibility path, audit allowlist entry, or lint suppression.
-- Package-level Python compilation remains blocked by unchanged color, Canny,
-  and recursive-Gaussian bindings that call native filter APIs with obsolete
-  arguments or unavailable methods; the native fractal binding itself has no
-  Burn conversion boundary.
+- Public API comparison remains blocked because `cargo semver-checks` cannot
+  resolve the historical baseline's cross-repository `coeus/coeus-autograd`
+  relative path. GitHub revalidation for the current PR head remains pending.
 
 ## [Unreleased] — Workspace license metadata (SEC-656-01)
 

@@ -53,11 +53,28 @@ existing `burn_ndarray::NdArray<f32>` development backend, Burn 0.19
 existing `generate_grid_burn` API. No compatibility helper, adapter, or
 fallback path was added.
 
+The first resulting PR audit correctly rejected five newly introduced
+registration Burn surfaces. The RIRE MetaImage and DICOM integration tests now
+use their provider-native readers, the persistent LDDMM benchmark uses the
+native CPU smoother, and the unreferenced private-path NGF benchmark is
+deleted because its full registration API is still Burn-only. The audit
+allowlist is unchanged.
+
+The registration Nextest lane then exposed a false native/Burn NGF parity
+premise: the prior masks let moving central differences cross the volume
+boundary, where Burn's default interpolator extends and the native resampler
+zero-fills. The differential domain now requires every transformed central
+difference neighbour to be in bounds. This preserves both declared boundary
+contracts and tests the common interpolation/metric arithmetic; the native
+resampler owns separate zero-fill boundary coverage.
+
 Evidence tier: compile-time checking plus value-semantic tests. Warning-denied
 Clippy passes for `ritk-transform`, `ritk-segmentation`, all
 `ritk-registration` targets, and the complete workspace with all features.
-Focused transform nextest passes 8 tests; `ritk-registration` nextest passes
-with all features. GitHub revalidation remains pending.
+Focused transform nextest passes 8 tests; all four NGF native tests and the
+757-test `ritk-registration` lane pass with all features; the migration audit
+reports 515 source files and `Allowlist status: clean`. GitHub revalidation
+remains pending.
 
 ## CI-658-02 audit (2026-07-17)
 

@@ -19,10 +19,9 @@
 
 mod common;
 
+use coeus_core::SequentialBackend;
 use common::find_rire_dir;
-use ritk_io::read_metaimage;
-
-type B = burn_ndarray::NdArray<f32>;
+use ritk_io::{format::metaimage::native::MetaImageReader, ImageReader};
 
 // ── Group 2 — Image integration tests ────────────────────────────────────────
 
@@ -62,8 +61,10 @@ fn test_rire_mha_load_ct_metadata() {
         return;
     }
 
-    let device = Default::default();
-    let image = read_metaimage::<B, _>(&ct_path, &device).expect("CT .mha must load without error");
+    let backend = SequentialBackend;
+    let image = MetaImageReader::new(backend)
+        .read(&ct_path)
+        .expect("CT .mha must load without error");
 
     // ── Shape [nz, ny, nx] ────────────────────────────────────────────────
     let shape = image.shape();
@@ -96,7 +97,7 @@ fn test_rire_mha_load_ct_metadata() {
     );
 
     // ── Intensity range ───────────────────────────────────────────────────
-    let voxels: Vec<f32> = image.data_slice().into_owned();
+    let voxels = image.data_cow_on(&backend).into_owned();
     let vmin = voxels.iter().cloned().fold(f32::INFINITY, f32::min);
     let vmax = voxels.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
 
@@ -153,9 +154,10 @@ fn test_rire_mha_load_mri_t1_metadata() {
         return;
     }
 
-    let device = Default::default();
-    let image =
-        read_metaimage::<B, _>(&mri_path, &device).expect("MRI T1 .mha must load without error");
+    let backend = SequentialBackend;
+    let image = MetaImageReader::new(backend)
+        .read(&mri_path)
+        .expect("MRI T1 .mha must load without error");
 
     // ── Shape [nz, ny, nx] ────────────────────────────────────────────────
     let shape = image.shape();
@@ -188,7 +190,7 @@ fn test_rire_mha_load_mri_t1_metadata() {
     );
 
     // ── Intensity range ───────────────────────────────────────────────────
-    let voxels: Vec<f32> = image.data_slice().into_owned();
+    let voxels = image.data_cow_on(&backend).into_owned();
     let vmin = voxels.iter().cloned().fold(f32::INFINITY, f32::min);
     let vmax = voxels.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
 

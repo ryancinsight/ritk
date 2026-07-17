@@ -80,6 +80,29 @@ fn native_translation(t: [f32; 3]) -> AtlasAffineTransform<NB, 3> {
     AtlasAffineTransform::<NB, 3>::construct(&matrix, &t, &[0.0, 0.0, 0.0])
 }
 
+/// Select a one-voxel lower margin and an exclusive upper bound for the NGF
+/// differential domain. The moving gradient at every selected fixed voxel then
+/// reads only transformed samples with the same in-bounds semantics on both
+/// substrates.
+fn in_bounds_gradient_mask(shape: [usize; 3], upper: [usize; 3]) -> Vec<bool> {
+    let [depth, height, width] = shape;
+    let [depth_upper, height_upper, width_upper] = upper;
+    assert!(
+        depth_upper <= depth && height_upper <= height && width_upper <= width,
+        "mask upper bound {upper:?} exceeds image shape {shape:?}"
+    );
+
+    let mut mask = vec![false; depth * height * width];
+    for z in 1..depth_upper {
+        for y in 1..height_upper {
+            for x in 1..width_upper {
+                mask[(z * height + y) * width + x] = true;
+            }
+        }
+    }
+    mask
+}
+
 /// Analytical oracle: NGF of a constant volume is exactly 0.
 #[test]
 fn native_ngf_constant_is_zero() {
@@ -114,8 +137,10 @@ fn native_matches_burn_identity() {
     );
 }
 
-/// Differential parity under an integer translation (still an exact voxel
-/// resample on both substrates).
+/// Differential parity under an integer translation over the common in-bounds
+/// gradient domain. Burn extends out-of-bounds samples while the native path
+/// zero-fills them, so the mask excludes voxels whose central differences would
+/// observe that intentionally different boundary contract.
 #[test]
 fn native_matches_burn_integer_shift() {
     let shape = [5usize, 6, 7];
@@ -125,12 +150,16 @@ fn native_matches_burn_integer_shift() {
     for (i, m) in moving.iter_mut().enumerate() {
         *m = fixed[fixed.len() - 1 - i];
     }
+    // `grad_at` reads one transformed neighbour in each direction. The upper
+    // bounds make `index + translation ± 1` stay within every moving axis.
     let t = [0.0, 1.0, 2.0]; // world axis-major translation, integer components
+    let mask = in_bounds_gradient_mask(shape, [4, 4, 4]);
 
-    let burn = NgfFixedPrep::<BB, 3>::new(&burn_image(fixed.clone(), shape), None, None)
+    let burn = NgfFixedPrep::<BB, 3>::new(&burn_image(fixed.clone(), shape), Some(&mask), None)
         .eval(&burn_image(moving.clone(), shape), &burn_translation(t));
-    let native = NgfFixedPrepNative::<NB>::new(&native_image(fixed.clone(), shape), None, None)
-        .eval(&native_image(moving, shape), &native_translation(t));
+    let native =
+        NgfFixedPrepNative::<NB>::new(&native_image(fixed.clone(), shape), Some(&mask), None)
+            .eval(&native_image(moving, shape), &native_translation(t));
 
     assert!(
         (burn - native).abs() < 1e-5,
@@ -139,8 +168,8 @@ fn native_matches_burn_integer_shift() {
 }
 
 /// Differential parity under a fractional translation (trilinear interpolation
-/// exercised), over an interior mask so every sampled neighbour is in-bounds and
-/// interpolation-order rounding is not compared.
+/// exercised), over the common in-bounds gradient domain so boundary policy and
+/// interpolation-order rounding are not compared.
 #[test]
 fn native_matches_burn_fractional_shift() {
     let shape = [6usize, 6, 6];
@@ -149,17 +178,10 @@ fn native_matches_burn_fractional_shift() {
     for (i, m) in moving.iter_mut().enumerate() {
         *m = 0.5 * fixed[i] + 0.5 * fixed[fixed.len() - 1 - i];
     }
-    // Interior mask: exclude the 1-voxel border so a ±0.5 shift stays in-bounds.
-    let [d, h, w] = shape;
-    let mut mask = vec![false; d * h * w];
-    for z in 1..d - 1 {
-        for y in 1..h - 1 {
-            for x in 1..w - 1 {
-                mask[(z * h + y) * w + x] = true;
-            }
-        }
-    }
     let t = [0.5, 0.5, 0.5];
+    // The upper bound excludes the high neighbour whose transformed coordinate
+    // would reach the native half-voxel zero-fill boundary.
+    let mask = in_bounds_gradient_mask(shape, [4, 4, 4]);
 
     let burn = NgfFixedPrep::<BB, 3>::new(&burn_image(fixed.clone(), shape), Some(&mask), None)
         .eval(&burn_image(moving.clone(), shape), &burn_translation(t));

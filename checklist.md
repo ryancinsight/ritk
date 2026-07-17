@@ -84,17 +84,22 @@
       owner-local Burn fixture module.
 - [x] Verify package warning-denied Clippy and nextest without a new helper.
 
-## CI-658-07 — Restore registration legacy compile contracts
+## CI-658-07 — Stabilize registration source migration
 **Target version**: 0.3.0
 **Sprint phase**: Closure
 
-- [x] Use `burn_ndarray::NdArray<f32>` in legacy registration tests,
-      benchmarks, and examples; retain Coeus only at actual native boundaries.
-- [x] Use Burn `TensorData` and RITK's existing Burn grid generator where the
-      legacy APIs require them.
-- [x] Verify package warning-denied Clippy across targets and features.
-- [x] Re-run package nextest and workspace warning-denied Clippy. Completion:
-      no stale backend mismatch remains in the local PR head.
+- [x] Keep `burn_ndarray::NdArray<f32>` only at active Burn test/benchmark
+      boundaries, but move RIRE MetaImage and DICOM data tests onto their native
+      reader contracts.
+- [x] Replace the LDDMM benchmark's legacy preallocated smoother with
+      `CpuFieldSmoother` and delete the unreferenced private-path NGF example
+      whose full registration API remains Burn-only.
+- [x] Restrict native/Burn NGF differential parity to the shared in-bounds
+      gradient domain. Completion condition: the test no longer conflates Burn
+      edge extension with native half-voxel zero-fill.
+- [x] Verify warning-denied package Clippy, 757-test registration nextest, and
+      `xtask burn-migration-audit`. Completion: no new Burn surface or stale
+      backend mismatch remains in the local PR head.
 
 ## MIG-657-01 — Native extended label-shape statistics
 **Target version**: 0.3.0

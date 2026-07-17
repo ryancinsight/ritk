@@ -50,13 +50,18 @@
   This corrects their real Burn contract without adding a wrapper or duplicate
   helper. Acceptance: package warning-denied Clippy and nextest pass.
 
-- **CI-658-07 [patch] - Restore registration legacy compile contracts (REVIEW;
-  owner=Codex; scope=`crates/ritk-registration/{benches,examples,tests}`,
-  PM artifacts).** Registration's remaining Burn tests, benchmarks, and
-  examples use `burn_ndarray::NdArray<f32>` (or its Burn autodiff backend),
-  current `TensorData` construction, and the existing Burn grid generator.
-  `ritk-registration` nextest and the package-wide/workspace warning-denied
-  Clippy gates pass. GitHub revalidation on the resulting PR head remains.
+- **CI-658-07 [patch] - Stabilize registration source migration (REVIEW;
+  owner=Codex; scope=`crates/ritk-registration/{benches,examples,tests,src/metric/ngf/tests_native.rs}`,
+  migration audit, PM artifacts).** Legacy-only registration tests retain their
+  actual `burn_ndarray::NdArray<f32>` backend where necessary, while the RIRE
+  MetaImage and DICOM tests use their first-party native readers, the persistent
+  LDDMM smoother benchmark uses `CpuFieldSmoother`, and the obsolete private-path
+  Burn-only NGF registration example is deleted. The native/Burn NGF differential
+  tests now compare only their shared in-bounds gradient domain; Burn extends
+  boundaries while the native resampler zero-fills them by contract. Acceptance:
+  warning-denied package Clippy, 757-test registration nextest, and the migration
+  audit pass without enlarging `xtask/burn_surface.allowlist`; GitHub
+  revalidation on the resulting PR head remains.
 
 - **MIG-658-01 [major] - Remove relocated Burn compatibility surfaces (IN
   PROGRESS; owner=Codex; scope=`crates/ritk-image/src/{lib.rs,

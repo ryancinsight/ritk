@@ -19,13 +19,12 @@
 
 mod common;
 
+use coeus_core::SequentialBackend;
 use common::{
     downsample_stride, find_rire_dir, ncc, normalize_minmax, resample_mri_into_ct_space, GT_ROT,
     GT_TRANS,
 };
-use ritk_io::read_metaimage;
-
-type B = burn_ndarray::NdArray<f32>;
+use ritk_io::{format::metaimage::native::MetaImageReader, ImageReader};
 
 /// # Specification
 ///
@@ -68,9 +67,10 @@ fn test_rire_gt_transform_improves_ct_mri_alignment() {
         }
     }
 
-    let device = Default::default();
-    let ct_img = read_metaimage::<B, _>(&ct_path, &device).expect("CT .mha must load");
-    let mri_img = read_metaimage::<B, _>(&mri_path, &device).expect("MRI T1 .mha must load");
+    let backend = SequentialBackend;
+    let reader = MetaImageReader::new(backend);
+    let ct_img = reader.read(&ct_path).expect("CT .mha must load");
+    let mri_img = reader.read(&mri_path).expect("MRI T1 .mha must load");
 
     // ── Spacing in (x/col, y/row, z/slice) order ──────────────────────────
     // image.spacing(): [0]=z, [1]=y, [2]=x
@@ -84,8 +84,8 @@ fn test_rire_gt_transform_improves_ct_mri_alignment() {
 
     let ct_shape = ct_img.shape(); // [29, 512, 512]
     let mri_shape = mri_img.shape(); // [26, 256, 256]
-    let ct_data: Vec<f32> = ct_img.data_slice().into_owned();
-    let mri_data: Vec<f32> = mri_img.data_slice().into_owned();
+    let ct_data = ct_img.data_cow_on(&backend).into_owned();
+    let mri_data = mri_img.data_cow_on(&backend).into_owned();
 
     // ── Downsample CT with stride=4 ────────────────────────────────────────
     let stride = 4_usize;
@@ -208,9 +208,10 @@ fn test_rire_inverse_transform_recovers_shifted_mri() {
         }
     }
 
-    let device = Default::default();
-    let ct_img = read_metaimage::<B, _>(&ct_path, &device).expect("CT .mha must load");
-    let mri_img = read_metaimage::<B, _>(&mri_path, &device).expect("MRI T1 .mha must load");
+    let backend = SequentialBackend;
+    let reader = MetaImageReader::new(backend);
+    let ct_img = reader.read(&ct_path).expect("CT .mha must load");
+    let mri_img = reader.read(&mri_path).expect("MRI T1 .mha must load");
 
     // ── Spacing in (x/col, y/row, z/slice) order ──────────────────────────
     let ct_sz = ct_img.spacing()[0]; // z=4.0
@@ -223,8 +224,8 @@ fn test_rire_inverse_transform_recovers_shifted_mri() {
 
     let ct_shape = ct_img.shape();
     let mri_shape = mri_img.shape();
-    let ct_data: Vec<f32> = ct_img.data_slice().into_owned();
-    let mri_data: Vec<f32> = mri_img.data_slice().into_owned();
+    let ct_data = ct_img.data_cow_on(&backend).into_owned();
+    let mri_data = mri_img.data_cow_on(&backend).into_owned();
 
     // ── Downsample CT with stride=4 ────────────────────────────────────────
     let stride = 4_usize;
