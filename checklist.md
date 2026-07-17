@@ -101,6 +101,19 @@
       `xtask burn-migration-audit`. Completion: no new Burn surface or stale
       backend mismatch remains in the local PR head.
 
+## CI-658-08 — Cut the Analyze-to-NIfTI converter to native I/O
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Replace the converter's mixed Coeus/Burn annotation with
+      `AnalyzeReader<SequentialBackend>` and `NiftiWriter<SequentialBackend>`.
+      Completion condition: the example transfers a native image directly.
+- [x] Verify package formatting and warning-denied example Clippy.
+- [x] Verify the queued workspace warning-denied Clippy gate. Evidence:
+      `rustup run stable cargo clippy --workspace --all-targets --all-features
+      -- -D warnings` passes. Completion: the CI-reproduced all-target compiler
+      error is absent.
+
 ## MIG-657-01 — Native extended label-shape statistics
 **Target version**: 0.3.0
 **Sprint phase**: Execution

@@ -8,6 +8,17 @@
 
 # RITK Gap Audit - Active
 
+## CI-658-08 audit (2026-07-17)
+
+The current PR head's workspace Clippy job found that the Analyze-to-NIfTI
+converter imported the two-parameter legacy Burn image but annotated it as the
+three-parameter native image while passing `SequentialBackend`. The native
+Analyze reader and NIfTI writer already own this conversion path, so the
+example now uses them directly rather than restoring a Burn backend or adding
+an adapter. Evidence tier: compile-time checking. The exact warning-denied
+example Clippy gate and `cargo clippy --workspace --all-targets --all-features
+-- -D warnings` pass locally; GitHub revalidation remains pending.
+
 ## CI-658-03 audit (2026-07-17)
 
 PR #37's Python compile gates exposed stale binding calls that passed legacy

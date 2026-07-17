@@ -63,6 +63,14 @@
   audit pass without enlarging `xtask/burn_surface.allowlist`; GitHub
   revalidation on the resulting PR head remains.
 
+- **CI-658-08 [patch] - Cut the Analyze-to-NIfTI converter to native I/O
+  (IN PROGRESS; owner=Codex; scope=`crates/ritk-io/examples/dicom_to_nifti.rs`,
+  PM artifacts).** The converter still paired a Coeus backend with the
+  two-parameter legacy Burn `Image` type, which fails the workspace all-target
+  Clippy build. Replace the bridge with the existing native Analyze reader and
+  native NIfTI writer. Acceptance: the exact example and workspace
+  warning-denied Clippy gates pass without a legacy tensor conversion.
+
 - **MIG-658-01 [major] - Remove relocated Burn compatibility surfaces (IN
   PROGRESS; owner=Codex; scope=`crates/ritk-image/src/{lib.rs,
   tests_burn_compat_grid.rs}`, `Cargo.{toml,lock}`, `crates/ritk-registration/{classical,

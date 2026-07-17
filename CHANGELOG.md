@@ -89,6 +89,9 @@
 - Corrected native/Burn NGF differential coverage to compare only central
   differences whose transformed neighbours are in bounds. Burn edge extension
   and native half-voxel zero-fill remain distinct, tested boundary contracts.
+- Corrected the Analyze-to-NIfTI converter to use the native Analyze reader and
+  native NIfTI writer directly, removing its invalid mixed Coeus/Burn image
+  annotation.
 
 ### Breaking
 - Rust callers must replace legacy Burn images with native
@@ -146,6 +149,8 @@
 - Warning-denied `ritk-registration` Clippy, all four NGF native differentials,
   and the 757-test registration Nextest lane pass. The migration audit reports
   515 source files and `Allowlist status: clean` without an allowlist change.
+- The Analyze-to-NIfTI example and the full workspace warning-denied Clippy
+  command pass on the native I/O path.
 
 ### Residual
 - Public API comparison remains blocked because `cargo semver-checks` cannot
