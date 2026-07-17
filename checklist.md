@@ -110,6 +110,10 @@
       condition: Canny, gradient, Laplacian, Sobel, and LoG value contracts
       execute without legacy image fixtures or a Burn differential harness.
       Evidence: warning-denied Clippy and nextest pass 13/13.
+- [x] Move Frangi vesselness assertions to a native public suite. Completion
+      condition: tubular, spherical, polarity, and uniform-field contracts run
+      through `apply_native`; private blur/Hessian invariants have no Burn
+      fixture. Evidence: warning-denied Clippy and nextest pass 5/5.
 - [ ] Port every active consumer of `burn_compat_types` and
       `burn_compat_row_chunks` to its native Coeus operation, then delete both
       modules and the `burn-compat` feature in the same breaking cutover.

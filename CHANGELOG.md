@@ -44,6 +44,8 @@
   removed.
 - Edge coverage now shares one native public-contract integration target; four
   stale source test modules and their Burn differential harness are removed.
+- Frangi vesselness coverage now shares one native public-contract integration
+  target; the stale source suite and Burn differential harness are removed.
 
 ### Breaking
 - Rust callers must replace legacy Burn images with native
@@ -86,6 +88,8 @@
   and warning-denied Clippy.
 - The native edge suite passes 13/13 Canny, gradient, Laplacian, Sobel, and LoG
   contracts under nextest and warning-denied Clippy.
+- The native Frangi suite passes 5/5 tube, sphere, polarity, and uniform-field
+  contracts under nextest and warning-denied Clippy.
 - The Atlas checkout action now pins Apollo commit
   `f26369eb2000b9a8b763066064173f8c5ebf8f65`, which declares the required
   `apollo-fft` 0.23.0. Workspace sources are rustfmt-clean under the CI's
@@ -93,7 +97,7 @@
 
 ### Residual
 - The package-wide registration test build remains blocked by unrelated
-  legacy Burn integration targets. The filter library test target still has 20
+  legacy Burn integration targets. The filter library test target still has 18
   stale native/legacy compile errors. This slice adds no compatibility path or
   lint suppression.
 

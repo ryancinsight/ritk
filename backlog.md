@@ -18,6 +18,8 @@
   tests_recursive_gaussian_native.rs}`,
   `crates/ritk-filter/src/edge/{mod.rs,canny.rs,gradient.rs,log.rs,
   tests_canny.rs,tests_gradient.rs,tests_log.rs,tests_native.rs}`,
+  `crates/ritk-filter/src/vesselness/{frangi.rs,tests_frangi.rs}`,
+  `crates/ritk-filter/tests/native_frangi.rs`,
   `crates/ritk-filter/src/gaussian.rs`, migration audit).** GitHub audit run
   `29547504239` reaches the source scanner after the provider sweep and reports
   `burn_compat_types` and `burn_compat_row_chunks` as unallowlisted relocated
@@ -47,7 +49,9 @@
   spacing, and subpixel-sigma contracts; its stale private test modules and
   Burn differential harness are deleted. The native edge suite now owns Canny,
   gradient, Laplacian, Sobel, and LoG value contracts; four stale source test
-  modules and their Burn differential harness are deleted.
+  modules and their Burn differential harness are deleted. Frangi vesselness
+  coverage now uses native tube, sphere, polarity, and uniform-field contracts;
+  private blur/Hessian invariants remain co-located without Burn fixtures.
 
 - **MIG-657-01 [major] - Native extended label-shape statistics (REVIEW;
   owner=Codex; scope=`crates/ritk-statistics/{Cargo.toml,src/{label_shape_extended.rs,

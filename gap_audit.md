@@ -90,7 +90,7 @@ three native inversion APIs return one named `NativeDisplacementField` rather
 than repeated anonymous tuples. The direct native zero-field regression passes
 1/1 and filter library/target warning-denied Clippy passes. Full
 `cargo clippy -p ritk-filter --all-targets --all-features --no-deps -- -D
-warnings` remains blocked by the library test target, which reports 20 stale
+warnings` remains blocked by the library test target, which reports 18 stale
 native/legacy errors. The
 external analytical parity target now executes 10/10 through public native
 intensity, edge, segmentation, and statistics APIs. The active Criterion targets and the
@@ -120,7 +120,13 @@ The edge family now has one public native target (13/13) for Canny, gradient,
 gradient magnitude, Laplacian, Sobel, and LoG behavior. It retains the former
 Canny thresholds and analytical field oracles while deleting four stale source
 test modules and their Burn differential harness. The all-target residual falls
-from 44 to 20 and is now limited to Frangi, pyramid, resample, and warp.
+from 44 to 20 before the Frangi cutover below.
+
+Frangi now has a native public suite (5/5) covering tubular/spherical response,
+uniform suppression, and polarity rejection. Its private blur and Hessian-trace
+invariants remain co-located without a Burn fixture; the old source suite and
+Burn differential harness are deleted. The all-target residual is 18 and now
+limited to pyramid, resample, and warp.
 
 ## MIG-657-01 audit (2026-07-16)
 
