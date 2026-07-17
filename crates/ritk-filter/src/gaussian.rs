@@ -316,11 +316,3 @@ pub(crate) fn convolve_zero_pad_3d(
         acc
     })
 }
-
-#[cfg(test)]
-#[path = "tests_gaussian.rs"]
-mod tests;
-
-#[cfg(test)]
-#[path = "tests_gaussian_native.rs"]
-mod tests_native;

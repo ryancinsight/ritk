@@ -91,17 +91,19 @@ than repeated anonymous tuples. The direct native zero-field regression passes
 1/1 and filter library/target warning-denied Clippy passes. Full
 `cargo clippy -p ritk-filter --all-targets --all-features --no-deps -- -D
 warnings` remains blocked by 119 legacy-target errors, including
-the library test target, which reports 88 stale native/legacy errors. The
+the library test target, which reports 76 stale native/legacy errors. The
 external analytical parity target now executes 10/10 through public native
 intensity, edge, segmentation, and statistics APIs. The active Criterion targets and the
 recursive-Gaussian comparison example no longer contribute to full-target
 failure: each directly constructs a native image and calls the established
 native operation; warning-denied Clippy passes for all six targets. The color-
 component and colormap modules also remain clean through public native
-integration targets (2/2 and 8/8). The remaining library tests are active
-consumer cutover work, not lint failures to suppress or compatibility bridges
-to retain. The repeated stale native-method links are corrected across the
-filter crate; `cargo doc -p ritk-filter --no-deps` is warning-clean.
+integration targets (2/2 and 8/8). Gaussian coverage is consolidated into one
+native integration target (5/5); its duplicate stale unit module is deleted.
+The remaining library tests are active consumer cutover work, not lint failures
+to suppress or compatibility bridges to retain. The repeated stale native-
+method links are corrected across the filter crate; `cargo doc -p ritk-filter
+--no-deps` is warning-clean.
 
 ## MIG-657-01 audit (2026-07-16)
 

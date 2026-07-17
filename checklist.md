@@ -91,6 +91,11 @@
       condition: its analytical intensity, edge, segmentation, and statistics
       oracles execute on native images without a compatibility adapter.
       Evidence: warning-denied Clippy and nextest pass 10/10.
+- [x] Consolidate Gaussian coverage into one native public-contract suite.
+      Completion condition: duplicate stale tests are deleted, the retained
+      suite invokes `apply_native`, and all shape, metadata, zero-sigma, and
+      constant-field oracles execute. Evidence: warning-denied Clippy and
+      nextest pass 5/5.
 - [ ] Port every active consumer of `burn_compat_types` and
       `burn_compat_row_chunks` to its native Coeus operation, then delete both
       modules and the `burn-compat` feature in the same breaking cutover.
