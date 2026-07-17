@@ -66,7 +66,7 @@ impl ForwardFftFilter {
         Self::apply_inner(image)
     }
 
-    /// Coeus-native sister of [`apply`].
+    /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B, const D: usize>(
         &self,
         image: &ritk_image::native::Image<f32, B, D>,

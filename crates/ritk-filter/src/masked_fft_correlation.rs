@@ -176,7 +176,7 @@ impl MaskedFftNormalizedCorrelationFilter {
         Ok(build_output(out, dims, fixed))
     }
 
-    /// Coeus-native sister of [`apply`].
+    /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
         fixed: &ritk_image::native::Image<f32, B, 3>,

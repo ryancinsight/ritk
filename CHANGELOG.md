@@ -62,9 +62,7 @@
 - The package-wide registration test build remains blocked by unrelated
   legacy Burn integration targets. Full all-target filter Clippy remains
   blocked by 119 legacy tests/benches that mix native and Burn image APIs.
-  The filter rustdoc build also retains 52 pre-existing unresolved legacy
-  `apply` links outside this slice. This slice adds no compatibility path or
-  lint suppression.
+  This slice adds no compatibility path or lint suppression.
 
 ## [Unreleased] — Workspace license metadata (SEC-656-01)
 

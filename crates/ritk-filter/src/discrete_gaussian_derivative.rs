@@ -92,7 +92,7 @@ impl DiscreteGaussianDerivativeFilter {
         rebuild(result, dims, image)
     }
 
-    /// Coeus-native sister of [`apply`].
+    /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
