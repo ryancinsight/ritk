@@ -62,8 +62,10 @@ fn test_verify_registration_coordinates() {
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 
     // Initial Transform: Identity (0, 0)
-    let transform =
-        TranslationTransform::<B, 2>::new(Tensor::from_slice_on(TensorData::from([0.0, 0.0]), &device));
+    let transform = TranslationTransform::<B, 2>::new(Tensor::from_slice_on(
+        TensorData::from([0.0, 0.0]),
+        &device,
+    ));
 
     // Optimizer
     let optimizer = GradientDescent::new(1.0);

@@ -10,7 +10,8 @@ fn zero_crossing_detects_sign_change_across_boundary() {
     // ITK marks only the near-zero side; on a |·|-tie it resolves toward the
     // forward voxel, so ix=0 (whose +neighbour crosses) is marked, ix=1 is not.
     let img = make_native_image(vec![-1.0, 1.0, 1.0], [1, 1, 3]);
-    let out = ZeroCrossingImageFilter::new().apply_native(&img, &SequentialBackend)
+    let out = ZeroCrossingImageFilter::new()
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     let v = native_vals(&out);
     // ix=0: forward neighbour ix=1 = +1, sign change, |−1| <= |1| → crossing.
@@ -28,7 +29,8 @@ fn zero_crossing_detects_sign_change_across_boundary() {
 fn zero_crossing_exact_zero_is_foreground() {
     // 1×1×3: [1, 0, 1] — middle voxel is exactly 0 → crossing
     let img = make_native_image(vec![1.0, 0.0, 1.0], [1, 1, 3]);
-    let out = ZeroCrossingImageFilter::new().apply_native(&img, &SequentialBackend)
+    let out = ZeroCrossingImageFilter::new()
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     let v = native_vals(&out);
     assert_eq!(v[1], 1.0, "exact-zero voxel must be foreground");
@@ -45,7 +47,8 @@ fn zero_crossing_exact_zero_is_foreground() {
 #[test]
 fn zero_crossing_uniform_positive_no_crossings() {
     let img = make_native_image(vec![2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0], [2, 2, 2]);
-    let out = ZeroCrossingImageFilter::new().apply_native(&img, &SequentialBackend)
+    let out = ZeroCrossingImageFilter::new()
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     let v = native_vals(&out);
     for (i, &x) in v.iter().enumerate() {
@@ -71,7 +74,8 @@ fn zero_crossing_custom_foreground_background_values() {
 #[test]
 fn zero_crossing_preserves_spatial_metadata() {
     let img = make_native_image(vec![-1.0, 1.0, -1.0, 1.0], [1, 2, 2]);
-    let out = ZeroCrossingImageFilter::new().apply_native(&img, &SequentialBackend)
+    let out = ZeroCrossingImageFilter::new()
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     assert_eq!(out.shape(), img.shape());
     assert_eq!(out.spacing(), img.spacing());
@@ -83,7 +87,8 @@ fn zero_crossing_boundary_voxel_no_oob_crossing() {
     // 1×1×2: [1, 2] — both positive, no sign change
     // Boundary voxels only consider in-bounds neighbours
     let img = make_native_image(vec![1.0, 2.0], [1, 1, 2]);
-    let out = ZeroCrossingImageFilter::new().apply_native(&img, &SequentialBackend)
+    let out = ZeroCrossingImageFilter::new()
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     let v = native_vals(&out);
     assert_eq!(

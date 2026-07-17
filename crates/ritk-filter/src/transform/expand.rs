@@ -87,11 +87,15 @@ impl ExpandImageFilter {
         )
     }
     /// Coeus-native sister of [`apply`].
-    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
-        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,{
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
         let (vals, [nz, ny, nx]) = ritk_tensor_ops::native::extract_image_vec(image)?;
         let [fz, fy, fx] = self.factors;
         let (oz_n, oy_n, ox_n) = (nz * fz, ny * fy, nx * fx);
@@ -137,10 +141,16 @@ impl ExpandImageFilter {
             orig_out[d] = orig[d] - 0.5 * sp[d] + 0.5 * sp_out[d];
         }
 
-        crate::native_support::rebuild_with_metadata(out, [oz_n, oy_n, ox_n], Point::new(orig_out), Spacing::new(sp_out), *image.direction(), image, backend)
-    
+        crate::native_support::rebuild_with_metadata(
+            out,
+            [oz_n, oy_n, ox_n],
+            Point::new(orig_out),
+            Spacing::new(sp_out),
+            *image.direction(),
+            image,
+            backend,
+        )
     }
-
 }
 
 #[cfg(test)]

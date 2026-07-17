@@ -98,7 +98,8 @@ impl FastChamferDistanceFilter {
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -200,7 +201,8 @@ impl ApproximateSignedDistanceMapFilter {
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -210,7 +212,8 @@ impl ApproximateSignedDistanceMapFilter {
         let max_distance = diag2.sqrt().floor();
         let level = (self.inside_value + self.outside_value) / 2.0;
 
-        let iso = IsoContourDistanceFilter::new(level, max_distance + 1.0).apply_native(image, backend)?;
+        let iso = IsoContourDistanceFilter::new(level, max_distance + 1.0)
+            .apply_native(image, backend)?;
         let (iso_vals, _) = ritk_tensor_ops::native::extract_image_vec(&iso)?;
         let mut out: Vec<f32> = iso_vals.iter().map(|&v| -v).collect();
         FastChamferDistanceFilter {

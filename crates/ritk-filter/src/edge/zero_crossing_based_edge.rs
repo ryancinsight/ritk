@@ -84,14 +84,16 @@ impl ZeroCrossingBasedEdgeDetectionFilter {
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend + Default,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        let smoothed = DiscreteGaussianFilter::<burn_ndarray::NdArray<f32>>::new_isotropic(self.variance)
-            .with_maximum_error(self.maximum_error)
-            .apply_native(image)?;
+        let smoothed =
+            DiscreteGaussianFilter::<burn_ndarray::NdArray<f32>>::new_isotropic(self.variance)
+                .with_maximum_error(self.maximum_error)
+                .apply_native(image)?;
         let laplacian = LaplacianFilter::new(*image.spacing()).apply_native(&smoothed)?;
         ZeroCrossingImageFilter::new()
             .with_foreground(self.foreground_value)

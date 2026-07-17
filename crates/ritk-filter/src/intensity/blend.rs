@@ -89,7 +89,8 @@ impl BlendImageFilter {
         &self,
         a: &NativeImage<f32, B, 3>,
         b: &NativeImage<f32, B, 3>,
-        backend: &B) -> anyhow::Result<NativeImage<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, 3>>
     where
         B: ComputeBackend,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,

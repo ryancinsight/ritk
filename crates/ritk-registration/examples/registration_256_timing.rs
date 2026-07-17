@@ -84,10 +84,7 @@ fn build_phantom(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<f
         }
     }
 
-    let tensor = Tensor::<B, 3>::from_data(
-        (data, ([SIZE, SIZE, SIZE])),
-        device,
-    );
+    let tensor = Tensor::<B, 3>::from_data((data, ([SIZE, SIZE, SIZE])), device);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -117,10 +114,7 @@ fn build_moving(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<f3
             v + ((i % 7) as f32 - 3.0) * 0.5
         })
         .collect();
-    let tensor = Tensor::<B, 3>::from_data(
-        (perturbed, ([SIZE, SIZE, SIZE])),
-        device,
-    );
+    let tensor = Tensor::<B, 3>::from_data((perturbed, ([SIZE, SIZE, SIZE])), device);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),

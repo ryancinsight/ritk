@@ -22,7 +22,13 @@ fn make_image_with_metadata(
     spacing: Spacing<3>,
     direction: Direction<3>,
 ) -> Image<B, 3> {
-    ts::burn_compat::make_image_with::<B, 3>(vals, dims, Some(origin), Some(spacing), Some(direction))
+    ts::burn_compat::make_image_with::<B, 3>(
+        vals,
+        dims,
+        Some(origin),
+        Some(spacing),
+        Some(direction),
+    )
 }
 
 #[test]

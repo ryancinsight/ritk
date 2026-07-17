@@ -29,7 +29,7 @@
   image boundary rather than retaining a bridge. Acceptance: the native path
   preserves all value-semantic ITK/Crofton oracles, the Python binding releases
   the GIL around the real calculation, and the statistics source no longer
-  imports Burn image traits for this operation. Apollo 0.22 is now merged and
+  imports Burn image traits for this operation. Apollo 0.23 is now merged and
   the RITK workspace constraint/lockfile resolve it. Focused statistics and
   Python warning-denied compile gates, statistics nextest, doctests, rustdoc,
   and source-residue scans pass. Rebased onto current `main` through

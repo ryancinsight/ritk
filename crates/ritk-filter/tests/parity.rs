@@ -14,10 +14,7 @@ use ritk_image::tensor::{Shape, Tensor, TensorData};
 type B = SequentialBackend;
 
 fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
-    let t = Tensor::<B, 3>::from_data(
-        (data, (shape)),
-        &Default::default(),
-    );
+    let t = Tensor::<B, 3>::from_data((data, (shape)), &Default::default());
     Image::new(
         t,
         Point::new([0.0; 3]),

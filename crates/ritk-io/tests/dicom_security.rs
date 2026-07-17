@@ -11,13 +11,16 @@ use ritk_spatial::{Direction, Point, Spacing};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-fn make_test_image(depth: usize, rows: usize, cols: usize, fill: f32) -> Image<SequentialBackend, 3> {
+fn make_test_image(
+    depth: usize,
+    rows: usize,
+    cols: usize,
+    fill: f32,
+) -> Image<SequentialBackend, 3> {
     let device = Default::default();
     let data = vec![fill; depth * rows * cols];
-    let tensor = Tensor::<f32, SequentialBackend>::from_data(
-        (data, ([depth, rows, cols])),
-        &device,
-    );
+    let tensor =
+        Tensor::<f32, SequentialBackend>::from_data((data, ([depth, rows, cols])), &device);
     Image::new(
         tensor,
         Point::new([10.0, 20.0, 30.0]),

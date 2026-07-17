@@ -101,7 +101,7 @@ existing ITK/Crofton assertions are unchanged and their test fixtures now use
 `SequentialBackend` native images.
 
 Evidence tier: compile-time integration plus value-semantic statistics tests.
-The Apollo 0.22 workspace constraint and lockfile resolve the merged provider;
+The Apollo 0.23 workspace constraint and lockfile resolve the merged provider;
 focused statistics/Python warning-denied compile gates, statistics nextest,
 doctest, rustdoc, direct formatting, diff-whitespace validation, and targeted
 residue scans pass.

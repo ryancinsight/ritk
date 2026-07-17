@@ -1,7 +1,7 @@
 use super::warp_image;
 use coeus_core::SequentialBackend;
-use ritk_image::test_support as ts;
 use ritk_image::native::Image;
+use ritk_image::test_support as ts;
 
 type B = SequentialBackend;
 

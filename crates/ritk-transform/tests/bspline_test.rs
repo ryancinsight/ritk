@@ -21,10 +21,7 @@ fn bspline_zero_coefficients_planar_is_identity() {
     // Zero coefficients -> Identity transform
     let num_control_points = 5 * 5;
     let coeffs_data = vec![0.0f32; num_control_points * 2];
-    let coeffs = Tensor::<B, 2>::from_data(
-        (coeffs_data, [num_control_points, 2]),
-        &device,
-    );
+    let coeffs = Tensor::<B, 2>::from_data((coeffs_data, [num_control_points, 2]), &device);
 
     let transform = BSplineTransform::<B, 2>::from_spatial(
         grid_size, &origin, &spacing, &direction, coeffs, &device,
@@ -60,10 +57,7 @@ fn bspline_constant_shift_planar_displaces_by_offset() {
         coeffs_data.push(-0.5);
     }
 
-    let coeffs = Tensor::<B, 2>::from_data(
-        (coeffs_data, [num_control_points, 2]),
-        &device,
-    );
+    let coeffs = Tensor::<B, 2>::from_data((coeffs_data, [num_control_points, 2]), &device);
 
     let transform = BSplineTransform::<B, 2>::from_spatial(
         grid_size, &origin, &spacing, &direction, coeffs, &device,

@@ -3,10 +3,10 @@
 //! (Sprint 350: DRY/SRP file-size discipline)
 
 use super::GaussianFilter;
-use ritk_image::native::Image as NativeImage;
-use coeus_core::SequentialBackend;
-use ritk_spatial::{Direction, Point, Spacing};
 use crate::edge::GaussianSigma;
+use coeus_core::SequentialBackend;
+use ritk_image::native::Image as NativeImage;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;
 
@@ -43,5 +43,9 @@ fn gaussian_apply_native_zero_sigma_is_identity() {
     let filter = GaussianFilter::new_isotropic(0.0);
     let result = filter.apply_native(&img, &B::default()).unwrap();
     let out_vals = result.data_slice().expect("contiguous");
-    assert_eq!(out_vals.as_ref(), data.as_slice(), "zero-sigma must be identity");
+    assert_eq!(
+        out_vals.as_ref(),
+        data.as_slice(),
+        "zero-sigma must be identity"
+    );
 }

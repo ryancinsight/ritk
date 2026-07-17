@@ -304,7 +304,8 @@ impl InverseDisplacementField {
         comp_x: &ritk_image::native::Image<f32, B, 3>,
         comp_y: &ritk_image::native::Image<f32, B, 3>,
         comp_z: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<(
+        backend: &B,
+    ) -> anyhow::Result<(
         ritk_image::native::Image<f32, B, 3>,
         ritk_image::native::Image<f32, B, 3>,
         ritk_image::native::Image<f32, B, 3>,
@@ -497,9 +498,7 @@ impl InverseDisplacementField {
             crate::native_support::rebuild_image(oy, dims, comp_y, backend)?,
             crate::native_support::rebuild_image(oz, dims, comp_z, backend)?,
         ))
-    
     }
-
 }
 
 #[cfg(test)]

@@ -11,7 +11,8 @@ fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
         shape,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(), &B::default(),
+        Direction::identity(),
+        &B::default(),
     )
     .expect("valid test image")
 }
@@ -104,7 +105,8 @@ fn gaussian_preserves_metadata() {
         [2, 2, 2],
         Point::new([10.0, 20.0, 30.0]),
         sp,
-        Direction::identity(), &B::default(),
+        Direction::identity(),
+        &B::default(),
     )
     .expect("valid test image");
     let out = filter.apply(&img, &B::default()).expect("gaussian apply");

@@ -6,7 +6,8 @@ use coeus_core::SequentialBackend;
 fn shift_scale_identity_zero_shift_unit_scale() {
     // shift=0, scale=1 → out = in
     let img = make_native_image(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], [2, 2, 2]);
-    let out = ShiftScaleImageFilter::new(0.0, 1.0).apply_native(&img, &SequentialBackend)
+    let out = ShiftScaleImageFilter::new(0.0, 1.0)
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     let v = native_vals(&out);
     let expected = [1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
@@ -19,7 +20,8 @@ fn shift_scale_identity_zero_shift_unit_scale() {
 fn shift_scale_shift_only_adds_constant() {
     // shift=10, scale=1 → out = in + 10
     let img = make_native_image(vec![1.0, 2.0, 3.0, 4.0], [1, 2, 2]);
-    let out = ShiftScaleImageFilter::new(10.0, 1.0).apply_native(&img, &SequentialBackend)
+    let out = ShiftScaleImageFilter::new(10.0, 1.0)
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     let v = native_vals(&out);
     for (i, (&a, &b)) in v.iter().zip([11.0f32, 12.0, 13.0, 14.0].iter()).enumerate() {
@@ -37,7 +39,8 @@ fn shift_scale_shift_only_adds_constant() {
 fn shift_scale_scale_only_multiplies() {
     // shift=0, scale=2 → out = in * 2
     let img = make_native_image(vec![1.0, 2.0, 3.0, 4.0], [1, 2, 2]);
-    let out = ShiftScaleImageFilter::new(0.0, 2.0).apply_native(&img, &SequentialBackend)
+    let out = ShiftScaleImageFilter::new(0.0, 2.0)
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     let v = native_vals(&out);
     for (i, (&a, &b)) in v.iter().zip([2.0f32, 4.0, 6.0, 8.0].iter()).enumerate() {
@@ -72,7 +75,8 @@ fn shift_scale_combined_shift_then_scale() {
 #[test]
 fn shift_scale_preserves_spatial_metadata() {
     let img = make_native_image(vec![1.0; 8], [2, 2, 2]);
-    let out = ShiftScaleImageFilter::new(5.0, 3.0).apply_native(&img, &SequentialBackend)
+    let out = ShiftScaleImageFilter::new(5.0, 3.0)
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     assert_eq!(out.shape(), img.shape());
     assert_eq!(out.spacing(), img.spacing());
@@ -83,7 +87,8 @@ fn shift_scale_preserves_spatial_metadata() {
 #[test]
 fn shift_scale_zero_scale_gives_zero() {
     let img = make_native_image(vec![5.0, 10.0, 15.0, 20.0], [1, 2, 2]);
-    let out = ShiftScaleImageFilter::new(100.0, 0.0).apply_native(&img, &SequentialBackend)
+    let out = ShiftScaleImageFilter::new(100.0, 0.0)
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     let v = native_vals(&out);
     for (i, &x) in v.iter().enumerate() {

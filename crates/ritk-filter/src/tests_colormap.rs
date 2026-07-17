@@ -57,7 +57,8 @@ fn unsupported_colormap_rejected() {
 /// cycles with period 30 (label 31 == label 1's colour). Pinned by sitk probe.
 #[test]
 fn label_to_rgb_matches_itk_table_and_cycles() {
-    let img = ts::burn_compat::make_image::<B, 3>(vec![0.0, 1.0, 2.0, 5.0, 7.0, 30.0, 31.0], [1, 1, 7]);
+    let img =
+        ts::burn_compat::make_image::<B, 3>(vec![0.0, 1.0, 2.0, 5.0, 7.0, 30.0, 31.0], [1, 1, 7]);
     let out = LabelToRGBFilter::new(0).apply(&img, &B::default()).unwrap();
     let c = out.into_component_buffers();
     // (r,g,b) per voxel.

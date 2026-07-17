@@ -1,7 +1,7 @@
 use super::BSplineTransform;
+use ritk_image::burn_compat_row_chunks::apply_row_chunks;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
-use ritk_image::burn_compat_row_chunks::apply_row_chunks;
 
 /// Maximum support-matrix elements for the dense small-lattice path.
 ///

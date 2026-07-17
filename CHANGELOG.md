@@ -36,7 +36,7 @@
   `compute_label_shape_statistics_extended(&native_image)?`.
 
 ### Evidence
-- The Apollo 0.22 workspace constraint and lockfile now resolve the merged
+- The Apollo 0.23 workspace constraint and lockfile now resolve the merged
   provider. Focused statistics/Python compile and warning-denied Clippy,
   statistics nextest, doctest, rustdoc, formatting, diff-whitespace, and
   targeted source-residue gates pass.
@@ -46,6 +46,10 @@
 - The native registration example compiles; native conversion tests pass 2/2;
   CLI mutual-information tests pass 3/3; warning-denied Clippy passes for the
   two changed targets with dependency linting excluded.
+- The Atlas checkout action now pins Apollo commit
+  `f26369eb2000b9a8b763066064173f8c5ebf8f65`, which declares the required
+  `apollo-fft` 0.23.0. Workspace sources are rustfmt-clean under the CI's
+  package-by-package formatting gate.
 
 ### Residual
 - The package-wide registration test build remains blocked by unrelated

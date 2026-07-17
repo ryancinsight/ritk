@@ -5,7 +5,7 @@ use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_image::tensor::backend::Backend;
 
-use ritk_image::tensor::{Shape, TensorData, Tensor};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use std::path::Path;
 
 fn native_to_legacy<B: Backend>(

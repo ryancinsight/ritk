@@ -10,7 +10,8 @@ use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn constant_within_bounds_is_identity() {
     let img = make_native_image(vec![50.0_f32; 27], [3, 3, 3]);
-    let out = ClampImageFilter::new(0.0, 100.0).apply_native(&img, &SequentialBackend)
+    let out = ClampImageFilter::new(0.0, 100.0)
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     let vals = native_vals(&out);
     assert!(
@@ -27,7 +28,8 @@ fn constant_within_bounds_is_identity() {
 #[test]
 fn all_below_lower_clamped_to_lower() {
     let img = make_native_image(vec![-10.0_f32; 8], [2, 2, 2]);
-    let out = ClampImageFilter::new(0.0, 255.0).apply_native(&img, &SequentialBackend)
+    let out = ClampImageFilter::new(0.0, 255.0)
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     let vals = native_vals(&out);
     assert!(
@@ -44,7 +46,8 @@ fn all_below_lower_clamped_to_lower() {
 #[test]
 fn all_above_upper_clamped_to_upper() {
     let img = make_native_image(vec![300.0_f32; 8], [2, 2, 2]);
-    let out = ClampImageFilter::new(0.0, 255.0).apply_native(&img, &SequentialBackend)
+    let out = ClampImageFilter::new(0.0, 255.0)
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     let vals = native_vals(&out);
     assert!(
@@ -62,7 +65,8 @@ fn all_above_upper_clamped_to_upper() {
 #[test]
 fn mixed_values_clamped_correctly() {
     let img = make_native_image(vec![-5.0_f32, 50.0, 300.0], [1, 1, 3]);
-    let out = ClampImageFilter::new(0.0, 100.0).apply_native(&img, &SequentialBackend)
+    let out = ClampImageFilter::new(0.0, 100.0)
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     let vals = native_vals(&out);
     assert_eq!(vals[0], 0.0, "below lower must be clamped to 0");
@@ -77,7 +81,8 @@ fn mixed_values_clamped_correctly() {
 #[test]
 fn lower_equals_upper_all_same() {
     let img = make_native_image(vec![0.0, 42.0, 100.0, -100.0], [1, 2, 2]);
-    let out = ClampImageFilter::new(42.0, 42.0).apply_native(&img, &SequentialBackend)
+    let out = ClampImageFilter::new(42.0, 42.0)
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     let vals = native_vals(&out);
     assert!(
@@ -96,7 +101,8 @@ fn spatial_metadata_preserved() {
     let origin = Point::new([3.0_f64, 5.0, 7.0]);
     let spacing = Spacing::new([0.5_f64, 0.5, 1.0]);
     let direction = Direction::identity();
-    let img = make_native_image_with_metadata(vec![1.0_f32; 8], [2, 2, 2], origin, spacing, direction);
+    let img =
+        make_native_image_with_metadata(vec![1.0_f32; 8], [2, 2, 2], origin, spacing, direction);
     let out = ClampImageFilter::new(0.0, 10.0)
         .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
@@ -110,7 +116,8 @@ fn spatial_metadata_preserved() {
 #[test]
 fn output_shape_matches_input() {
     let img = make_native_image(vec![0.0_f32; 60], [3, 4, 5]);
-    let out = ClampImageFilter::new(-1.0, 1.0).apply_native(&img, &SequentialBackend)
+    let out = ClampImageFilter::new(-1.0, 1.0)
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     assert_eq!(out.shape(), [3, 4, 5]);
 }
@@ -127,7 +134,8 @@ fn output_always_in_bounds() {
     let img = make_native_image(data, [1, 1, n]);
     let lo = -500.0_f32;
     let hi = 500.0_f32;
-    let out = ClampImageFilter::new(lo, hi).apply_native(&img, &SequentialBackend)
+    let out = ClampImageFilter::new(lo, hi)
+        .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
     let vals = native_vals(&out);
     for &v in &vals {

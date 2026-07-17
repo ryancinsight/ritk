@@ -1,8 +1,8 @@
-use crate::native_support::LegacyBurnBackend;
 use super::{
     BinaryMinMaxCurvatureFlowConfig, BinaryMinMaxCurvatureFlowImageFilter,
     MinMaxCurvatureFlowConfig, MinMaxCurvatureFlowImageFilter,
 };
+use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_tensor_ops::extract_vec;
 

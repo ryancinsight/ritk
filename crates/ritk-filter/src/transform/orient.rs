@@ -177,9 +177,13 @@ impl OrientImageFilter {
             out_dir,
             image,
         ))
-    }    /// Coeus-native sister of [`apply`].
-    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    }
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -276,10 +280,16 @@ impl OrientImageFilter {
             org_out[c] = w;
         }
 
-        crate::native_support::rebuild_with_metadata(out, out_dims, Point::new(org_out), sp_out, out_dir, image, backend)
-    
+        crate::native_support::rebuild_with_metadata(
+            out,
+            out_dims,
+            Point::new(org_out),
+            sp_out,
+            out_dir,
+            image,
+            backend,
+        )
     }
-
 }
 
 #[cfg(test)]

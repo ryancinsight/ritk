@@ -315,10 +315,7 @@ fn bench_parzen_broad_sigma(c: &mut Criterion) {
     //    With 64³ = 262K samples, the sparse cache is ~14 KB with u16 (was ~28 KB).
     let large_n = 64 * 64 * 64;
     let large_data: Vec<f32> = (0..large_n).map(|i| i as f32 % 256.0).collect();
-    let large_tensor = Tensor::<B, 3>::from_data(
-        (large_data, ([64, 64, 64])),
-        &device,
-    );
+    let large_tensor = Tensor::<B, 3>::from_data((large_data, ([64, 64, 64])), &device);
     let large_flat = large_tensor.reshape([large_n]);
     let large_fix_scale = num_bins_f / 255.0;
     let large_fixed_norm = (large_flat * large_fix_scale).clamp(0.0, num_bins_f);
@@ -329,10 +326,7 @@ fn bench_parzen_broad_sigma(c: &mut Criterion) {
     let large_cache: SparseWFixedT =
         build_sparse_w_fixed_transposed(&large_fixed_slice, num_bins, broad_sigma_sq, None);
     let large_mov_data: Vec<f32> = (0..large_n).map(|i| (i * 3 + 7) as f32 % 256.0).collect();
-    let large_moving_tensor = Tensor::<B, 1>::from_data(
-        (large_mov_data, ([large_n])),
-        &device,
-    );
+    let large_moving_tensor = Tensor::<B, 1>::from_data((large_mov_data, ([large_n])), &device);
     let large_mov_scale = num_bins_f / 255.0;
     let large_moving_norm = (large_moving_tensor * large_mov_scale).clamp(0.0, num_bins_f);
     let large_moving_data = large_moving_norm.into_data();

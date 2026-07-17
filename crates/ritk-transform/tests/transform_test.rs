@@ -1,6 +1,6 @@
-use coeus_core::SequentialBackend;
 use coeus_autograd::Var;
 use coeus_core::MoiraiBackend;
+use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor as CoeusTensor;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::tensor::{Tensor, TensorData};

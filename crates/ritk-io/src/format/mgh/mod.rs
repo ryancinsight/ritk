@@ -4,7 +4,7 @@ use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_image::tensor::backend::Backend;
 
-use ritk_image::tensor::{Shape, TensorData, Tensor};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use std::path::Path;
 
 /// Reads MGH/MGZ through the native provider and converts at this legacy boundary.

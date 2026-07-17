@@ -147,9 +147,13 @@ impl IsoContourDistanceFilter {
         }
 
         rebuild(out, dims, image)
-    }    /// Coeus-native sister of [`apply`].
-    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    }
+    /// Coeus-native sister of [`apply`].
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -241,9 +245,7 @@ impl IsoContourDistanceFilter {
         }
 
         crate::native_support::rebuild_image(out, dims, image, backend)
-    
     }
-
 }
 
 #[cfg(test)]

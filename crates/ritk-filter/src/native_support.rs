@@ -91,7 +91,8 @@ pub(crate) fn rebuild_image<B, const D: usize>(
     vals: Vec<f32>,
     dims: [usize; D],
     src: &Image<f32, B, D>,
-    backend: &B) -> Result<Image<f32, B, D>>
+    backend: &B,
+) -> Result<Image<f32, B, D>>
 where
     B: ComputeBackend,
 {
@@ -106,7 +107,8 @@ pub(crate) fn rebuild_with_metadata<B, const D: usize>(
     spacing: ritk_spatial::Spacing<D>,
     direction: ritk_spatial::Direction<D>,
     _src: &Image<f32, B, D>,
-    backend: &B) -> Result<Image<f32, B, D>>
+    backend: &B,
+) -> Result<Image<f32, B, D>>
 where
     B: ComputeBackend,
 {
@@ -218,7 +220,8 @@ pub(crate) fn assert_native_matches_burn<FB, FC>(
     use ritk_image::test_support as ts;
     use ritk_spatial::{Direction, Point, Spacing};
 
-    let burn_image = ts::burn_compat::make_image::<burn_ndarray::NdArray<f32>, 3>(vals.clone(), dims);
+    let burn_image =
+        ts::burn_compat::make_image::<burn_ndarray::NdArray<f32>, 3>(vals.clone(), dims);
     let burn_result = burn_apply(&burn_image);
     let burn_vals = burn_result
         .data()
@@ -277,7 +280,8 @@ pub(crate) fn assert_native_matches_burn_approx<FB, FC>(
 {
     use ritk_image::test_support as ts;
 
-    let burn_image = ts::burn_compat::make_image::<burn_ndarray::NdArray<f32>, 3>(vals.clone(), dims);
+    let burn_image =
+        ts::burn_compat::make_image::<burn_ndarray::NdArray<f32>, 3>(vals.clone(), dims);
     let burn_result = burn_apply(&burn_image);
     let burn_vals = burn_result
         .data()

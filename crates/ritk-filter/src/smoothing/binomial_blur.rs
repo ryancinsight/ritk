@@ -63,11 +63,15 @@ impl BinomialBlurImageFilter {
         rebuild(vals, dims, image)
     }
     /// Coeus-native sister of [`apply`].
-    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
-        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,{
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
         let (mut vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
         for _ in 0..self.repetitions {
             for axis in 0..3 {
@@ -75,9 +79,7 @@ impl BinomialBlurImageFilter {
             }
         }
         crate::native_support::rebuild_image(vals, dims, image, backend)
-    
     }
-
 }
 
 /// One `[¼, ½, ¼]` pass along `axis` with reflect (mirror) boundary.

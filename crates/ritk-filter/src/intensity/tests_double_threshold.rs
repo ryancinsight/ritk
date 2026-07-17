@@ -30,7 +30,10 @@ fn double_threshold_isolated_outer_dropped() {
     let out = DoubleThresholdImageFilter::new(20.0, 50.0, 70.0, 80.0, 1.0, 0.0)
         .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
-    assert_eq!(out.data_slice().expect("contiguous output"), vec![0.0, 0.0, 0.0]);
+    assert_eq!(
+        out.data_slice().expect("contiguous output"),
+        vec![0.0, 0.0, 0.0]
+    );
 }
 
 /// Inside/outside values are honoured.
@@ -40,7 +43,10 @@ fn double_threshold_custom_values() {
     let out = DoubleThresholdImageFilter::new(20.0, 50.0, 70.0, 80.0, 7.0, -1.0)
         .apply_native(&img, &SequentialBackend)
         .expect("apply_native should succeed");
-    assert_eq!(out.data_slice().expect("contiguous output"), vec![7.0, -1.0]);
+    assert_eq!(
+        out.data_slice().expect("contiguous output"),
+        vec![7.0, -1.0]
+    );
 }
 
 #[test]
