@@ -8,7 +8,7 @@ runs:
       uses: actions/checkout@v6
       with:
         repository: ryancinsight/apollo
-        ref: f26369eb2000b9a8b763066064173f8c5ebf8f65
+        ref: 157467eedac139394ecb788cbdd245f1952b29f1
         path: apollo
         persist-credentials: false
     - name: Checkout Coeus

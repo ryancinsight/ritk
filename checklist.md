@@ -15,6 +15,10 @@
 - [x] Raise the workspace Apollo FFT constraint and lockfile from 0.23.0 to
       the current 0.24.0 provider release. Completion condition: Cargo selects
       one Apollo FFT package for the RITK dependency graph.
+- [x] Advance the CI Apollo checkout from the previous 0.23.0 release to
+      Apollo main `157467eedac139394ecb788cbdd245f1952b29f1`, which declares
+      0.24.0. Completion condition: each CI workflow resolves the same provider
+      version as the workspace manifest.
 - [x] Verify the owner package without network resolution. Evidence: `rustup
       run stable cargo check -p ritk-filter --locked --offline` passes.
 - [x] Verify source formatting and diff integrity. Evidence: `rustup run stable

@@ -12,9 +12,12 @@
 
 Apollo main publishes `apollo-fft` 0.24.0, while RITK still declared 0.23.0.
 That split prevents a consumer that resolves both path providers from selecting
-one graph. RITK now declares and locks 0.24.0. Locked offline compilation of
-`ritk-filter`, source formatting, and diff integrity pass. Evidence tier:
-native compilation.
+one graph. RITK now declares and locks 0.24.0. The first CI run then exposed
+the remaining stale checkout: its composite action pinned Apollo PR #44 at
+0.23.0. The action now selects Apollo main
+`157467eedac139394ecb788cbdd245f1952b29f1`, which declares 0.24.0. Locked
+offline compilation of `ritk-filter`, source formatting, and diff integrity
+pass. Evidence tier: native compilation; CI revalidation pending.
 
 ## CI-658-11 audit (2026-07-17)
 

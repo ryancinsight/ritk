@@ -1,11 +1,13 @@
 # RITK Backlog - Active Planning
 
-- **CI-658-12 [patch] - Align RITK with the current Apollo FFT provider (REVIEW;
-  owner=Codex; scope=`Cargo.toml`, `Cargo.lock`, PM artifacts).** Apollo main
-  now publishes `apollo-fft` 0.24.0 while RITK still constrained the previous
-  0.23.0 release, preventing consumers that resolve both repositories from
-  constructing one provider graph. Acceptance: the manifest and lockfile
-  resolve 0.24.0, and locked offline `ritk-filter` compilation passes.
+- **CI-658-12 [patch] - Align RITK with the current Apollo FFT provider (IN-PROGRESS;
+  owner=Codex; scope=`Cargo.toml`, `Cargo.lock`,
+  `.github/actions/checkout-atlas-dependencies/action.yml`, PM artifacts).**
+  Apollo main now publishes `apollo-fft` 0.24.0 while RITK still constrained
+  the previous 0.23.0 release, preventing consumers that resolve both
+  repositories from constructing one provider graph. Acceptance: the manifest,
+  lockfile, and CI provider checkout resolve 0.24.0, and locked offline
+  `ritk-filter` compilation passes.
 
 - **CI-658-11 [patch] - Synchronize current provider lock metadata (REVIEW;
   owner=Codex; scope=`Cargo.lock`, PM artifacts).** The workspace patch entries
