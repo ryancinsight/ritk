@@ -128,6 +128,16 @@
       --all-features fixture_search_skips_existing_directory_without_mni_fixture
       --status-level fail` pass (1 test).
 
+## CI-658-11 — Synchronize current provider lock metadata
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Refresh the unused Hephaestus patch entries to the current local provider
+      versions. Completion condition: a locked `ritk-filter` check does not
+      request a lockfile rewrite.
+- [x] Verify the exact provider package with `rustup run stable cargo check -p
+      ritk-filter --locked`.
+
 ## CI-658-10 — Complete DIMSE release after peer-close
 **Target version**: 0.3.0
 **Sprint phase**: Closure

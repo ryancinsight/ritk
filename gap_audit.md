@@ -8,6 +8,14 @@
 
 # RITK Gap Audit - Active
 
+## CI-658-11 audit (2026-07-17)
+
+The committed lockfile retained unused Hephaestus 0.15.0 patch metadata after
+the provider moved to 0.16.1. A locked `ritk-filter` check therefore requested
+a lockfile rewrite before compiling. The refreshed lock resolves the current
+provider graph; `rustup run stable cargo check -p ritk-filter --locked` passes.
+Evidence tier: native compilation.
+
 ## CI-658-10 audit (2026-07-17)
 
 GitHub's macOS RITK test runner accepted a valid `A-RELEASE-RP` for C-ECHO and

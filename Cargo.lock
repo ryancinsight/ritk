@@ -11338,8 +11338,8 @@ dependencies = [
 
 [[patch.unused]]
 name = "hephaestus-core"
-version = "0.15.0"
+version = "0.16.1"
 
 [[patch.unused]]
 name = "hephaestus-wgpu"
-version = "0.15.0"
+version = "0.16.1"
