@@ -30,6 +30,24 @@
 - [ ] Merge current RITK `main` batch `b1850302`, resolve the overlapping
       label-shape test import, and rerun the same gate set before publication.
 
+## MIG-658-01 — Remove relocated Burn compatibility surfaces
+**Target version**: 0.3.0 major
+**Sprint phase**: Execution
+
+- [x] Delete the redundant `tests_burn_compat_grid` module. Completion
+      condition: native grid tests remain the sole value-semantic grid oracle;
+      no production path imports the deleted module.
+- [ ] Port every active consumer of `burn_compat_types` and
+      `burn_compat_row_chunks` to its native Coeus operation, then delete both
+      modules and the `burn-compat` feature in the same breaking cutover.
+      Completion condition: `xtask burn-migration-audit` reports no relocated
+      compatibility surfaces and the source count falls without an allowlist
+      expansion.
+
+Evidence: GitHub audit run 29547504239 reaches the scanner on the refreshed
+provider graph and reports the relocated source surfaces. The failure is a
+real migration boundary violation, not a provider-resolution failure.
+
 ## SEC-656-01 — Workspace license metadata
 **Target version**: Unreleased patch
 **Sprint phase**: Execution

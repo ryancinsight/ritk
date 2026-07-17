@@ -8,6 +8,20 @@
 
 # RITK Gap Audit - Active
 
+## MIG-658-01 audit (2026-07-16)
+
+GitHub Actions run `29547504239` confirms the refreshed provider graph reaches
+the source migration scanner. It reports `burn_compat_types` and
+`burn_compat_row_chunks` as new compatibility surfaces. This is a real
+boundary failure: moving Burn tensor helpers into `ritk-image` does not remove
+the Burn substrate. The redundant Burn-grid test module is deleted because the
+native grid suite already checks the same deterministic ordering contract.
+
+Residual risk: the two compatibility modules still have active legacy
+consumers. They remain a major, dependency-ordered native cutover under ADR
+0002; expanding the audit allowlist would conceal rather than resolve the
+migration debt.
+
 ## MIG-657-01 audit (2026-07-16)
 
 ### Extended label-shape statistics use one native image boundary

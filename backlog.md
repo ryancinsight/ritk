@@ -1,6 +1,17 @@
 # RITK Backlog - Active Planning
 
-- **MIG-657-01 [major] - Native extended label-shape statistics (IN PROGRESS;
+- **MIG-658-01 [major] - Remove relocated Burn compatibility surfaces (IN
+  PROGRESS; owner=Codex; scope=`crates/ritk-image/src/{lib.rs,
+  tests_burn_compat_grid.rs}`, migration audit).** GitHub audit run
+  `29547504239` reaches the source scanner after the provider sweep and reports
+  `burn_compat_types` and `burn_compat_row_chunks` as unallowlisted relocated
+  compatibility surfaces. The redundant Burn-grid test is deleted now because
+  native grid tests already cover its value contract. The owning consumer
+  migration continues under ADR 0002: port active callers to native Coeus
+  operations, then delete the compatibility modules and feature together; do
+  not expand `xtask/burn_surface.allowlist` to mask the relocation.
+
+- **MIG-657-01 [major] - Native extended label-shape statistics (REVIEW;
   owner=Codex; scope=`crates/ritk-statistics/{Cargo.toml,src/{label_shape_extended.rs,
   tests_label_shape_extended.rs,lib.rs}`, `crates/ritk-python/src/statistics/
   label_shape_extended.rs`, PM artifacts).** Replace the remaining Burn-generic

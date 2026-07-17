@@ -185,7 +185,3 @@ pub mod burn {
 pub mod backend {
     pub use coeus_core::{Backend, ComputeBackend, MoiraiBackend, SequentialBackend};
 }
-
-#[cfg(all(test, feature = "burn-compat"))]
-#[path = "tests_burn_compat_grid.rs"]
-mod tests_burn_compat_grid;
