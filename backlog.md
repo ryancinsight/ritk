@@ -51,7 +51,9 @@
   gradient, Laplacian, Sobel, and LoG value contracts; four stale source test
   modules and their Burn differential harness are deleted. Frangi vesselness
   coverage now uses native tube, sphere, polarity, and uniform-field contracts;
-  private blur/Hessian invariants remain co-located without Burn fixtures.
+  private blur/Hessian invariants remain co-located without Burn fixtures. The
+  native pyramid now owns physical Gaussian smoothing, integer stride sampling,
+  and spacing propagation; its former legacy-only source suite is deleted.
 
 - **MIG-657-01 [major] - Native extended label-shape statistics (REVIEW;
   owner=Codex; scope=`crates/ritk-statistics/{Cargo.toml,src/{label_shape_extended.rs,

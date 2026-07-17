@@ -146,7 +146,7 @@ pub use projection::{
     MeanIntensityProjectionFilter, MedianIntensityProjectionFilter, MinIntensityProjectionFilter,
     ProjectionAxis, StdDevIntensityProjectionFilter, SumIntensityProjectionFilter,
 };
-pub use pyramid::MultiResolutionPyramid;
+pub use pyramid::{MultiResolutionPyramid, NativeMultiResolutionPyramid};
 pub use resample::ResampleImageFilter;
 pub use transform::{
     transform_geometry, ConstantPadImageFilter, CyclicShiftImageFilter, ExpandImageFilter,

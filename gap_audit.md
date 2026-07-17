@@ -90,8 +90,8 @@ three native inversion APIs return one named `NativeDisplacementField` rather
 than repeated anonymous tuples. The direct native zero-field regression passes
 1/1 and filter library/target warning-denied Clippy passes. Full
 `cargo clippy -p ritk-filter --all-targets --all-features --no-deps -- -D
-warnings` remains blocked by the library test target, which reports 18 stale
-native/legacy errors. The
+warnings` remains blocked by the library test target, which reports 16 stale
+native/legacy errors in resample and warp. The
 external analytical parity target now executes 10/10 through public native
 intensity, edge, segmentation, and statistics APIs. The active Criterion targets and the
 recursive-Gaussian comparison example no longer contribute to full-target
@@ -125,8 +125,14 @@ from 44 to 20 before the Frangi cutover below.
 Frangi now has a native public suite (5/5) covering tubular/spherical response,
 uniform suppression, and polarity rejection. Its private blur and Hessian-trace
 invariants remain co-located without a Burn fixture; the old source suite and
-Burn differential harness are deleted. The all-target residual is 18 and now
-limited to pyramid, resample, and warp.
+Burn differential harness are deleted.
+
+The native multi-resolution pyramid now performs physical Gaussian smoothing,
+integer stride sampling, and spatial-metadata propagation directly on Coeus
+images. Its public suite passes 4/4 identity, stride-value, coarse-to-fine,
+and invalid-schedule contracts under nextest and warning-denied Clippy. The
+legacy source suite is deleted; all-target diagnostics fall from 18 to 16 and
+are now limited to resample and warp.
 
 ## MIG-657-01 audit (2026-07-16)
 

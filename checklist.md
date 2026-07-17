@@ -114,6 +114,11 @@
       condition: tubular, spherical, polarity, and uniform-field contracts run
       through `apply_native`; private blur/Hessian invariants have no Burn
       fixture. Evidence: warning-denied Clippy and nextest pass 5/5.
+- [x] Move multi-resolution pyramid assertions to a native public suite.
+      Completion condition: physical smoothing, integer stride sampling, and
+      origin/direction/spacing propagation execute through native images;
+      the stale source suite is deleted. Evidence: warning-denied Clippy and
+      nextest pass 4/4; the all-target residual falls from 18 to 16 errors.
 - [ ] Port every active consumer of `burn_compat_types` and
       `burn_compat_row_chunks` to its native Coeus operation, then delete both
       modules and the `burn-compat` feature in the same breaking cutover.
