@@ -13,6 +13,9 @@ use ritk_spatial::{Direction, Point, Spacing};
 use std::path::{Path, PathBuf};
 
 type B = SequentialBackend;
+const MNI152_RITK_SHAPE: [usize; 3] = [215, 256, 207];
+const MNI152_SPACING: f64 = 0.737_463_116_645_813;
+const NIFTI_HEADER_F32_ERROR: f64 = f32::EPSILON as f64;
 
 fn get_test_data_dir() -> Option<PathBuf> {
     let paths = [
@@ -88,14 +91,13 @@ fn nifti_io_real_data_preserves_valid_metadata() {
     let image = read_native_nifti(&file_path);
     let shape = image.shape();
 
-    assert!(
-        shape.iter().all(|&extent| extent > 0),
-        "native NIfTI image dimensions must be non-zero, got {shape:?}"
-    );
+    assert_eq!(shape, MNI152_RITK_SHAPE);
     for axis in 0..3 {
         let spacing = image.spacing()[axis];
-        assert!(spacing > 0.0, "spacing must be positive");
-        assert!(spacing < 100.0, "spacing seems unreasonably large");
+        assert!(
+            (spacing - MNI152_SPACING).abs() <= NIFTI_HEADER_F32_ERROR,
+            "MNI152 spacing axis {axis} must preserve the f32 NIfTI header value: expected {MNI152_SPACING}, got {spacing}"
+        );
     }
     assert!(
         image.direction().is_orthogonal(),
