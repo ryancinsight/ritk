@@ -128,6 +128,29 @@
       --all-features fixture_search_skips_existing_directory_without_mni_fixture
       --status-level fail` pass (1 test).
 
+## CI-658-10 — Complete DIMSE release after peer-close
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Replace the four direct `dicom-ul` releases with one owner-local
+      A-RELEASE-RQ/A-RELEASE-RP lifecycle operation. Completion condition: a
+      valid release reply determines DICOM protocol success before the TCP
+      stream is consumed.
+- [x] File the upstream transport defect as
+      [Enet4/dicom-rs#811](https://github.com/Enet4/dicom-rs/issues/811).
+- [x] Verify the macOS-regressed C-ECHO and C-MOVE loopback targets locally.
+      Evidence: `rustup run stable cargo nextest run -p ritk-io --lib
+      c_echo_loopback_returns_success_status --status-level fail` and the
+      corresponding C-MOVE command pass.
+- [x] Verify `ritk-io` formatting, warning-denied Clippy, and package Nextest.
+      Evidence: `cargo fmt --check`, warning-denied Clippy, and 371/371 package
+      tests pass.
+- [ ] Revalidate the exact full-workspace gate in GitHub. The local run reached
+      4,127/5,214 passing tests before unrelated Mnemosyne allocation failures;
+      the affected registration tests pass in isolation. Completion condition:
+      independent macOS, Linux, and Windows matrices pass without reducing test
+      concurrency or workloads.
+
 ## MIG-657-01 — Native extended label-shape statistics
 **Target version**: 0.3.0
 **Sprint phase**: Execution

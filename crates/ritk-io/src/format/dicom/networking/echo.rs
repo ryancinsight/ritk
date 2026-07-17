@@ -1,6 +1,6 @@
 //! C-ECHO SCU — DICOM Verification Service Class (PS3.4 §A.5).
 
-use super::association::{EchoResponse, NetworkingError};
+use super::association::{release_client_association, EchoResponse, NetworkingError};
 use super::command::{
     build_command_pdu, parse_command_response, CommandElementValue, C_ECHO_RQ, C_ECHO_RSP,
     EXPLICIT_VR_LE_TS, NO_DATASET, VERIFICATION_SOP_CLASS,
@@ -49,9 +49,7 @@ pub fn echo(config: &AssociationConfig) -> Result<EchoResponse, NetworkingError>
         )));
     }
 
-    assoc
-        .release()
-        .map_err(|e| NetworkingError::Protocol(e.to_string()))?;
+    release_client_association(assoc)?;
 
     Ok(EchoResponse { status: rsp.status })
 }

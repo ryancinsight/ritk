@@ -8,6 +8,28 @@
 
 # RITK Gap Audit - Active
 
+## CI-658-10 audit (2026-07-17)
+
+GitHub's macOS RITK test runner accepted a valid `A-RELEASE-RP` for C-ECHO and
+C-MOVE, then `dicom-ul` 0.10 treated `TcpStream::shutdown(Shutdown::Both)`'s
+`ErrorKind::NotConnected` (`os error 57`) as a protocol error. The TLS socket
+implementation already accepts this peer-close sequence. RITK now owns the
+single protocol lifecycle operation: it sends `A-RELEASE-RQ`, requires
+`A-RELEASE-RP`, and consumes the TCP association without a redundant close.
+This is a standards-complete release handshake, not a fallback. The upstream
+transport correction is filed as
+[Enet4/dicom-rs#811](https://github.com/Enet4/dicom-rs/issues/811); remove the
+owner-local operation after an upstream release resolves the defect. Evidence
+tier: protocol-state inspection plus value-semantic C-ECHO/C-MOVE loopback
+tests. Formatting, warning-denied Clippy, and `ritk-io` Nextest pass (371/371).
+The exact workspace Nextest run reached 4,127/5,214 tests before two unrelated
+registration processes failed under concurrent Mnemosyne allocation pressure:
+`test_diffeomorphic_ssmmorph_integration` reported `Mnemosyne allocation failed
+in CpuStorage`, and `test_multires_cr_registration` aborted while allocating 4
+MiB. Both tests pass in isolation. This is a local concurrent-resource
+residual; no test concurrency, workload, or timeout is reduced. GitHub's
+independent three-platform matrix is the next evidence tier.
+
 ## CI-658-09 audit (2026-07-17)
 
 The real-data helper previously treated directory existence as proof that the

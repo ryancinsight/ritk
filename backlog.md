@@ -80,6 +80,18 @@
   the focused Nextest regression pass; GitHub revalidation on the resulting PR
   head remains.
 
+- **CI-658-10 [patch] - Complete DIMSE release after peer-close (REVIEW;
+  owner=Codex; scope=`crates/ritk-io/src/format/dicom/networking/{association/lifecycle.rs,association/mod.rs,echo.rs,find.rs,move_.rs,store.rs}`,
+  PM artifacts).** `dicom-ul` 0.10 reports a macOS TCP shutdown error after a
+  valid `A-RELEASE-RP`. The owner-local lifecycle operation performs the
+  standards-required A-RELEASE handshake, then consumes the association
+  without requesting a redundant transport shutdown. Upstream issue
+  Enet4/dicom-rs#811 tracks the transport-layer correction. Acceptance:
+  loopback C-ECHO/C-MOVE and `ritk-io` warning-denied Clippy/Nextest pass. The
+  local workspace run reached 4,127 passing tests before two unrelated
+  Mnemosyne allocation failures; both registration cases pass in isolation.
+  GitHub macOS revalidation remains pending.
+
 - **MIG-658-01 [major] - Remove relocated Burn compatibility surfaces (IN
   PROGRESS; owner=Codex; scope=`crates/ritk-image/src/{lib.rs,
   tests_burn_compat_grid.rs}`, `Cargo.{toml,lock}`, `crates/ritk-registration/{classical,

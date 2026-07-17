@@ -73,6 +73,11 @@
   test support.
 
 ### Fixed
+- Completed the DICOM A-RELEASE handshake after C-ECHO, C-FIND, C-MOVE, and
+  C-STORE when a peer closes its TCP socket immediately after `A-RELEASE-RP`.
+  This avoids the macOS-only `NotConnected` error in `dicom-ul` 0.10 while
+  retaining the required protocol exchange; upstream correction is tracked in
+  [Enet4/dicom-rs#811](https://github.com/Enet4/dicom-rs/issues/811).
 - Corrected legacy physical-to-index conversion for rotated, anisotropic image
   geometry by applying direction and the required ZYX↔XYZ axis mapping before
   interpolation.

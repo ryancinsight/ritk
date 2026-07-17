@@ -20,7 +20,7 @@
 //! assert_eq!(resp.final_status, 0x0000);
 //! ```
 
-use super::association::{AeTitle, MoveResponse, NetworkingError};
+use super::association::{release_client_association, AeTitle, MoveResponse, NetworkingError};
 use super::command::{
     build_command_pdu, build_dataset_ivr_le, encode_str, parse_command_response,
     CommandElementValue, C_MOVE_RQ, C_MOVE_RSP, HAS_DATASET, IMPLICIT_VR_LE_TS, PRIORITY_MEDIUM,
@@ -160,9 +160,7 @@ fn retrieve_impl(
         }
     };
 
-    assoc
-        .release()
-        .map_err(|e| NetworkingError::Protocol(e.to_string()))?;
+    release_client_association(assoc)?;
 
     Ok(MoveResponse {
         completed,
