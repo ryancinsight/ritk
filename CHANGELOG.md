@@ -49,6 +49,14 @@
 - Multi-resolution pyramid coverage now shares one native public-contract
   integration target; the stale source suite is removed and the native path
   preserves physical smoothing, integer strides, and spatial metadata.
+- Native 3-D affine resampling now belongs to `ritk-filter`; registration
+  metrics and the comparison example consume it directly, and the
+  registration-owned duplicate is removed. The shared sampler zero-fills
+  samples outside the documented half-voxel buffer.
+- Dense-field warp now delegates to the native resampler and validates field
+  component shape and spatial metadata; the stale source suite is removed.
+- The now-unused approximate Burn differential harness is removed from filter
+  test support.
 
 ### Breaking
 - Rust callers must replace legacy Burn images with native
@@ -95,6 +103,10 @@
   contracts under nextest and warning-denied Clippy.
 - The native pyramid suite passes 4/4 identity, stride-value, coarse-to-fine,
   and invalid-schedule contracts under nextest and warning-denied Clippy.
+- The native resample and warp suites pass 5/5 and 5/5 value-semantic
+  contracts, respectively. Filter-wide warnings-denied Clippy and all 1,118
+  filter nextest tests pass; the native registration comparison example
+  type-checks.
 - The Atlas checkout action now pins Apollo commit
   `f26369eb2000b9a8b763066064173f8c5ebf8f65`, which declares the required
   `apollo-fft` 0.23.0. Workspace sources are rustfmt-clean under the CI's
@@ -102,9 +114,9 @@
 
 ### Residual
 - The package-wide registration test build remains blocked by unrelated
-  legacy Burn integration targets. The filter library test target still has 16
-  stale native/legacy compile errors in resample and warp. This slice adds no compatibility path or
-  lint suppression.
+  legacy Burn integration targets. The filter package is clean; the migration
+  audit still reports the two relocated compatibility modules. This slice adds
+  no compatibility path, audit allowlist entry, or lint suppression.
 
 ## [Unreleased] — Workspace license metadata (SEC-656-01)
 

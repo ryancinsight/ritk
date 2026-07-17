@@ -175,6 +175,7 @@ pub mod rank;
 pub mod reinitialize_level_set;
 pub mod surface;
 pub mod warp;
+pub use warp::warp_image_native;
 
 // ── New filters ──────────────────────────────────────────────────────────────
 pub mod canny_segmentation_level_set;

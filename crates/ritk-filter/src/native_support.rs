@@ -257,58 +257,6 @@ pub(crate) fn assert_native_matches_burn<FB, FC>(
     }
 }
 
-/// Bounded-epsilon companion to [`assert_native_matches_burn`] for a native
-/// path that evaluates the same math as the Burn filter but with a different
-/// floating-point accumulation order (e.g. the Gaussian filter: Burn `conv1d`
-/// vs the host separable convolution). Asserts `|coeus − burn| ≤ tol` per voxel;
-/// the caller derives `tol` from the operation's error model.
-#[cfg(test)]
-pub(crate) fn assert_native_matches_burn_approx<FB, FC>(
-    vals: Vec<f32>,
-    dims: [usize; 3],
-    tol: f32,
-    burn_apply: FB,
-    coeus_apply: FC,
-) where
-    FB: FnOnce(
-        &ritk_image::Image<burn_ndarray::NdArray<f32>, 3>,
-    ) -> ritk_image::Image<burn_ndarray::NdArray<f32>, 3>,
-    FC: FnOnce(
-        &Image<f32, coeus_core::SequentialBackend, 3>,
-        &coeus_core::SequentialBackend,
-    ) -> Result<Image<f32, coeus_core::SequentialBackend, 3>>,
-{
-    use ritk_image::test_support as ts;
-
-    let burn_image =
-        ts::burn_compat::make_image::<burn_ndarray::NdArray<f32>, 3>(vals.clone(), dims);
-    let burn_result = burn_apply(&burn_image);
-    let burn_vals = burn_result
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .expect("burn result slice")
-        .to_vec();
-
-    let coeus_image = make_native_image(vals, dims);
-    let coeus_result =
-        coeus_apply(&coeus_image, &coeus_core::SequentialBackend).expect("coeus filter apply");
-    let coeus_vals = coeus_result.data_slice().expect("coeus result slice");
-
-    assert_eq!(
-        coeus_vals.len(),
-        burn_vals.len(),
-        "coeus/burn output length mismatch"
-    );
-    for (i, (&c, &b)) in coeus_vals.iter().zip(burn_vals.iter()).enumerate() {
-        assert!(
-            (c - b).abs() <= tol,
-            "coeus/burn divergence at flat index {i}: coeus={c}, burn={b}, tol={tol}"
-        );
-    }
-}
-
 /// Two-input companion to [`assert_native_matches_burn`] for filters taking a
 /// `(primary, secondary)` image pair (mask, geodesic reconstruction). Both sides
 /// call the identical host core, so the outputs must be bitwise-identical.

@@ -53,7 +53,9 @@
   coverage now uses native tube, sphere, polarity, and uniform-field contracts;
   private blur/Hessian invariants remain co-located without Burn fixtures. The
   native pyramid now owns physical Gaussian smoothing, integer stride sampling,
-  and spacing propagation; its former legacy-only source suite is deleted.
+  and spacing propagation; its former legacy-only source suite is deleted. The
+  native resampler now owns registration's fixed-grid affine sampling and ITK
+  half-voxel zero-fill semantics; native warp delegates to that one sampler.
 
 - **MIG-657-01 [major] - Native extended label-shape statistics (REVIEW;
   owner=Codex; scope=`crates/ritk-statistics/{Cargo.toml,src/{label_shape_extended.rs,

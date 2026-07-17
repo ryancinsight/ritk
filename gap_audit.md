@@ -90,8 +90,9 @@ three native inversion APIs return one named `NativeDisplacementField` rather
 than repeated anonymous tuples. The direct native zero-field regression passes
 1/1 and filter library/target warning-denied Clippy passes. Full
 `cargo clippy -p ritk-filter --all-targets --all-features --no-deps -- -D
-warnings` remains blocked by the library test target, which reports 16 stale
-native/legacy errors in resample and warp. The
+warnings` now passes. The former resample and warp source tests are replaced by
+native integration targets, and the now-unused approximate Burn differential
+harness is deleted. The
 external analytical parity target now executes 10/10 through public native
 intensity, edge, segmentation, and statistics APIs. The active Criterion targets and the
 recursive-Gaussian comparison example no longer contribute to full-target
@@ -131,8 +132,25 @@ The native multi-resolution pyramid now performs physical Gaussian smoothing,
 integer stride sampling, and spatial-metadata propagation directly on Coeus
 images. Its public suite passes 4/4 identity, stride-value, coarse-to-fine,
 and invalid-schedule contracts under nextest and warning-denied Clippy. The
-legacy source suite is deleted; all-target diagnostics fall from 18 to 16 and
-are now limited to resample and warp.
+legacy source suite is deleted.
+
+The filter layer now owns native affine resampling as the single physical
+sampling substrate. It maps axis-major fixed-grid world points through the
+native affine, converts to innermost-first continuous indices for the
+interpolation kernel, and enforces the documented half-voxel zero-fill boundary
+outside the moving buffer. Registration metrics and the comparison example use
+that filter-owned API directly; the downstream duplicate is deleted. Native
+warp adds dense `[z, y, x]` physical displacement to the same world points and
+delegates samples to that API, so warp and resample cannot diverge at the field
+of view boundary. The native resample and warp integration suites pass 5/5 and
+5/5; warnings-denied all-target Clippy and the full 1,118-test filter nextest
+suite pass. Evidence tier: value-semantic integration tests plus compile-time
+and warnings-denied whole-package verification.
+
+The migration audit still fails correctly: 12 manifests and 517 token-bearing
+source files are scanned, with only `burn_compat_types` and
+`burn_compat_row_chunks` reported as unallowlisted relocated compatibility
+surfaces. The audit allowlist remains unchanged.
 
 ## MIG-657-01 audit (2026-07-16)
 

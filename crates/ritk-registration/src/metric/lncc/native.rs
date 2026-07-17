@@ -7,7 +7,7 @@
 //! native substrate alongside so registration's eventual `Image<B>` → native
 //! cutover is unblocked.
 //!
-//! The moving resample is the shared [`super::super::native_resample`] substrate;
+//! The moving resample is the shared `ritk_filter::resample::native` substrate;
 //! the local means/variances/covariance are the burn-free separable Gaussian
 //! [`ritk_filter::gaussian::gaussian_smooth_flat_3d`] (the flat-buffer sister of
 //! the Burn `conv1d` path both metrics use). All arithmetic runs on flat host
@@ -18,9 +18,9 @@
 //! 3-D only: the register engine operates on volumes, and both the native
 //! trilinear kernel and the flat Gaussian are 3-D.
 
-use super::super::native_resample::{fixed_world_points, resample_moving_at_world};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_filter::gaussian::gaussian_smooth_flat_3d;
+use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
 use ritk_filter::GaussianSigma;
 use ritk_image::native::Image;
 use ritk_transform::transform::affine::AtlasAffineTransform;
@@ -67,7 +67,8 @@ where
 {
     let f = fixed.data_vec();
     let fixed_world = fixed_world_points(fixed);
-    let m = resample_moving_at_world(&fixed_world, moving, transform);
+    let m = resample_moving_at_world(&fixed_world, moving, transform)
+        .expect("invariant: fixed grid produces valid native resample coordinates");
 
     let dims = fixed.shape();
     let sp = fixed.spacing();

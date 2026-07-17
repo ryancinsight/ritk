@@ -12,6 +12,7 @@ use anyhow::{bail, Context, Result};
 use coeus_core::SequentialBackend;
 use eunomia::CastFrom;
 use image::{Rgb, RgbImage};
+use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
 use ritk_image::native::Image;
 use ritk_io::{
     format::nifti::native::{NiftiReader, NiftiWriter},
@@ -22,7 +23,6 @@ use ritk_registration::{
         engine::{ClassicalConfig, MutualInformationMetric},
         image_to_leto_volume, index_affine_to_physical, ImageRegistration,
     },
-    metric::native_resample::{fixed_world_points, resample_moving_at_world},
     AffineTransform,
 };
 use ritk_transform::transform::affine::AtlasAffineTransform;
@@ -141,8 +141,8 @@ fn main() -> Result<()> {
     let physical_transform = index_affine_to_physical(&result.transform, &ct, &mri)?;
     let fixed_world = fixed_world_points(&ct);
     let identity = AtlasAffineTransform::<Backend, 3>::identity(None);
-    let mr_identity = resample_moving_at_world(&fixed_world, &mri, &identity);
-    let mr_ritk = resample_moving_at_world(&fixed_world, &mri, &physical_transform);
+    let mr_identity = resample_moving_at_world(&fixed_world, &mri, &identity)?;
+    let mr_ritk = resample_moving_at_world(&fixed_world, &mri, &physical_transform)?;
     let mr_elastix = host(&NiftiReader::new(Backend::default()).read(elastix_path)?)?;
 
     let identity_image = Image::from_flat_on(

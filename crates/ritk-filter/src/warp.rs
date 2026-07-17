@@ -33,6 +33,8 @@ use ritk_image::{generate_grid_burn as generate_grid, Image};
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_tensor_ops::extract_vec_infallible;
 
+use crate::resample::native::{fixed_world_points, sample_moving_at_world};
+
 /// Replace interpolated values with 0 wherever the continuous moving index falls
 /// outside the buffer, reproducing ITK's `IsInsideBuffer` (inside iff every axis
 /// lies in `[-0.5, N - 0.5)`). Mirrors `ResampleImageFilter` so warp and resample
@@ -124,6 +126,61 @@ pub fn warp_image<B: Backend>(
     ))
 }
 
-#[cfg(test)]
-#[path = "tests_warp.rs"]
-mod tests_warp;
+/// Warp a native image through a dense physical displacement field.
+///
+/// For each field-grid world point `p`, the output samples `moving` at
+/// `p + (D_z(p), D_y(p), D_x(p))`. The displacement components and output use
+/// axis-major physical order `[z, y, x]`; samples outside the moving image's
+/// half-voxel buffer are zero-filled by the shared native resampler.
+///
+/// # Errors
+///
+/// Returns an error when field component shapes or spatial metadata differ, or
+/// when the shared native sampler rejects the moving image or point batch.
+pub fn warp_image_native<B>(
+    moving: &ritk_image::native::Image<f32, B, 3>,
+    disp_z: &ritk_image::native::Image<f32, B, 3>,
+    disp_y: &ritk_image::native::Image<f32, B, 3>,
+    disp_x: &ritk_image::native::Image<f32, B, 3>,
+) -> Result<ritk_image::native::Image<f32, B, 3>>
+where
+    B: coeus_core::Backend + coeus_core::ComputeBackend + Default,
+    B::DeviceBuffer<f32>:
+        coeus_core::CpuAddressableStorage<f32> + coeus_core::CpuAddressableStorageMut<f32>,
+{
+    let shape = disp_z.shape();
+    for (axis, field) in [("y", disp_y), ("x", disp_x)] {
+        anyhow::ensure!(
+            field.shape() == shape,
+            "warp: displacement {axis} component shape {:?} differs from z component shape {shape:?}",
+            field.shape()
+        );
+        anyhow::ensure!(
+            field.origin() == disp_z.origin()
+                && field.spacing() == disp_z.spacing()
+                && field.direction() == disp_z.direction(),
+            "warp: displacement {axis} component geometry differs from z component geometry"
+        );
+    }
+
+    let dz = disp_z.data_cow();
+    let dy = disp_y.data_cow();
+    let dx = disp_x.data_cow();
+    let mut moving_world = fixed_world_points(disp_z);
+    for (point, ((&z, &y), &x)) in moving_world
+        .chunks_exact_mut(3)
+        .zip(dz.iter().zip(dy.iter()).zip(dx.iter()))
+    {
+        point[0] += z;
+        point[1] += y;
+        point[2] += x;
+    }
+
+    ritk_image::native::Image::from_flat(
+        sample_moving_at_world(moving, &moving_world)?,
+        shape,
+        *disp_z.origin(),
+        *disp_z.spacing(),
+        *disp_z.direction(),
+    )
+}

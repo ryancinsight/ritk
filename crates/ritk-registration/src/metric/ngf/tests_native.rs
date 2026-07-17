@@ -140,7 +140,7 @@ fn native_matches_burn_integer_shift() {
 
 /// Differential parity under a fractional translation (trilinear interpolation
 /// exercised), over an interior mask so every sampled neighbour is in-bounds and
-/// the two kernels' out-of-bounds policies are not compared.
+/// interpolation-order rounding is not compared.
 #[test]
 fn native_matches_burn_fractional_shift() {
     let shape = [6usize, 6, 6];

@@ -119,6 +119,17 @@
       origin/direction/spacing propagation execute through native images;
       the stale source suite is deleted. Evidence: warning-denied Clippy and
       nextest pass 4/4; the all-target residual falls from 18 to 16 errors.
+- [x] Promote native 3-D affine resampling into `ritk-filter` and delete the
+      registration-owned duplicate. Completion condition: the shared sampler
+      maps axis-major world points, zero-fills outside the half-voxel buffer,
+      and the registration figure/metrics import it directly. Evidence:
+      warning-denied Clippy and nextest pass 5/5; the registration figure
+      type-checks.
+- [x] Move dense-field warp assertions to a native public suite. Completion
+      condition: warp delegates its samples to the native resampler, validates
+      field shape and geometry, and stale source tests are deleted. Evidence:
+      warning-denied Clippy and nextest pass 5/5; `ritk-filter` all-target
+      Clippy and its 1,118-test nextest suite pass.
 - [ ] Port every active consumer of `burn_compat_types` and
       `burn_compat_row_chunks` to its native Coeus operation, then delete both
       modules and the `burn-compat` feature in the same breaking cutover.
