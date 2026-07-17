@@ -258,7 +258,7 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "apollo-fft"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "apollo-fft-macros",
  "apollo-leto-interop",
@@ -288,7 +288,7 @@ dependencies = [
 
 [[package]]
 name = "apollo-leto-interop"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "leto",
 ]

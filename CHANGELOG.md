@@ -20,6 +20,12 @@
 - The real-data registration tests now load the documented scalar MNI152
   fixture through the native NIfTI reader and assert exact native identity
   interpolation samples.
+- `registration_compare_figure` and the CLI mutual-information path now share
+  the native image↔Leto conversion boundary. The classical index-space affine
+  converts to physical coordinates before native resampling, and the shared
+  metric resampler uses `ritk-image`'s native grid generator.
+- The RITK Apollo requirement and lockfile now consume the merged 0.23.0
+  provider release.
 
 ### Breaking
 - Rust callers must replace legacy Burn images with native
@@ -37,6 +43,14 @@
 - Current RITK `main` batch integration and its final rerun remain pending.
 - Data-backed native NIfTI registration tests pass 3/3 with `cargo nextest
   run -p ritk-registration --test real_data_test --run-ignored all`.
+- The native registration example compiles; native conversion tests pass 2/2;
+  CLI mutual-information tests pass 3/3; warning-denied Clippy passes for the
+  two changed targets with dependency linting excluded.
+
+### Residual
+- The package-wide registration test build remains blocked by unrelated
+  legacy Burn integration targets, and full Clippy remains blocked in
+  `ritk-filter`. This slice adds no compatibility path or lint suppression.
 
 ## [Unreleased] — Workspace license metadata (SEC-656-01)
 

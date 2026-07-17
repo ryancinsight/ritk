@@ -13,6 +13,7 @@
 pub mod engine;
 pub mod error;
 pub mod global_mi;
+pub mod native;
 pub mod spatial;
 pub mod temporal;
 pub mod translation;
@@ -25,6 +26,9 @@ pub use global_mi::{
     CmaMiRegistration, CmaMiResult, ConvergenceStatus, GlobalMiConfig, GlobalMiRegistration,
     GlobalMiResult, GlobalMiTransformType, InitStrategy, MultiStartConfig,
     MultiStartMiRegistration, MultiStartResult,
+};
+pub use native::{
+    image_to_leto_volume, index_affine_to_physical, leto_volume_to_image, NativeConversionError,
 };
 pub use spatial::SpatialTransform;
 pub use temporal::TemporalSync;

@@ -18,32 +18,6 @@ use ritk_interpolation::trilinear_interpolation;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::transform::affine::AtlasAffineTransform;
 
-/// Innermost-first (`col 0 = x = axis 2`) row-major index grid over `shape`, as
-/// flat `[N·3]` `f32` — the same column/row convention as
-/// `ritk_image::grid::generate_grid` (Burn), reproduced here because no native
-/// grid generator exists yet (that op is owned upstream by `ritk-image`; until
-/// it lands, this local generator keeps the native metric paths self-contained).
-fn fixed_index_grid(shape: [usize; 3]) -> Vec<f32> {
-    let total: usize = shape.iter().product();
-    let mut grid = Vec::with_capacity(total * 3);
-    let mut idx = [0usize; 3];
-    for _ in 0..total {
-        // Innermost dimension first: col 0 = x = idx[D-1].
-        for d in (0..3).rev() {
-            grid.push(idx[d] as f32);
-        }
-        // Increment innermost first → row-major iteration (rows match flat data).
-        for d in (0..3).rev() {
-            idx[d] += 1;
-            if idx[d] < shape[d] {
-                break;
-            }
-            idx[d] = 0;
-        }
-    }
-    grid
-}
-
 /// World coordinates (axis-major, flat `[N·3]`) of every fixed-grid voxel, in
 /// fixed C-order — computed once per fixed image via the native batch transform.
 pub fn fixed_world_points<B>(fixed: &Image<f32, B, 3>) -> Vec<f32>
@@ -52,8 +26,7 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + coeus_core::CpuAddressableStorageMut<f32>,
 {
     let shape = fixed.shape();
-    let n: usize = shape.iter().product();
-    let idx = Tensor::<f32, B>::from_slice([n, 3], &fixed_index_grid(shape));
+    let idx = ritk_image::grid::generate_grid::<f32, B, 3>(shape, &B::default());
     fixed.index_to_world_native(&idx).as_slice().to_vec()
 }
 

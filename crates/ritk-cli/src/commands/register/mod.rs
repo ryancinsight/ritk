@@ -266,38 +266,6 @@ pub(super) fn image_to_flat_vec(image: &Image<Backend, 3>) -> (Vec<f32>, [usize;
     (data, [shape[0], shape[1], shape[2]])
 }
 
-
-/// Convert a Coeus-native 3-D image to a `leto::Array3<f64>`.
-///
-/// Zero-copy-friendly: reads the contiguous host slice, casts to f64.
-pub(super) fn native_image_to_leto_volume(
-    image: &super::NativeImage<f32, super::NativeBackend, 3>,
-) -> anyhow::Result<Array3<f64>> {
-    let shape = image.shape();
-    let slice = image.data_slice()?;
-    let f64_vec: Vec<f64> = slice.iter().map(|&v| v as f64).collect();
-    Ok(Array3::from_shape_vec([shape[0], shape[1], shape[2]], f64_vec)
-        .expect("shape derived from image must be consistent"))
-}
-
-/// Convert a warped `leto::Array3<f64>` back to a Coeus-native image,
-/// copying spatial metadata from `reference`.
-pub(super) fn leto_volume_to_native_image(
-    volume: Array3<f64>,
-    reference: &super::NativeImage<f32, super::NativeBackend, 3>,
-) -> anyhow::Result<super::NativeImage<f32, super::NativeBackend, 3>> {
-    let [nz, ny, nx] = volume.shape();
-    let f32_vec: Vec<f32> = volume.iter().map(|&v| v as f32).collect();
-    let backend = super::NativeBackend::default();
-    ritk_image::native::Image::from_flat_on(
-        f32_vec,
-        [nz, ny, nx],
-        *reference.origin(),
-        *reference.spacing(),
-        *reference.direction(),
-        &backend,
-    )
-}
 /// Reconstruct an `Image<Backend, 3>` from flat `Vec<f32>` data and a
 /// `[nz, ny, nx]` shape, copying spatial metadata from `reference`.
 pub(super) fn flat_vec_to_image(

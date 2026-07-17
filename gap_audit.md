@@ -57,6 +57,37 @@ sample values. The test selects that documented 3-D scalar fixture because
 `cargo nextest run -p ritk-registration --test real_data_test --run-ignored all
 --status-level fail` (3/3 passed).
 
+Apollo PR 44 merged at `f26369e`; `apollo-fft` now declares 0.23.0 on
+`main`. RITK's workspace constraint and lockfile advance to the same released
+provider version, so the earlier resolver mismatch is removed without widening
+against uncommitted producer state.
+
+The active source change removes the registration figure's Burn image, tensor,
+transform, interpolation, and NIfTI calls. It uses the existing classical MI
+engine on Leto volumes, then explicitly maps its fixed-index→moving-index
+affine into the native physical frames before shared Coeus resampling. The MI
+CLI now consumes that one native image↔Leto conversion surface, and its
+fixtures use native NIfTI round trips with exact voxel and transform assertions.
+The shared metric resampler now delegates fixed-grid construction to
+`ritk-image::grid::generate_grid`; the duplicated local generator is deleted.
+Evidence tier: source-residue scan, direct rustfmt, and compile-time checking;
+`cargo check -p ritk-registration --example registration_compare_figure`
+passes. The native conversion library tests pass 2/2 under `cargo nextest run
+-p ritk-registration --lib classical::native --status-level fail`; the native
+CLI MI binary tests pass 3/3 under `cargo nextest run -p ritk-cli --bin ritk
+register::mi --status-level fail`. Warning-denied Clippy passes for the two
+changed targets with `--no-deps`.
+
+Residual: the unscoped `cargo nextest run -p ritk-registration` test build
+does not reach this slice's tests because unrelated legacy integration targets
+fail to compile. The first diagnostics are a duplicate `SequentialBackend`
+import in `examples/brain_ct_mri_registration.rs` and multiple
+`tests/*registration*_test.rs` targets that use `coeus_core::SequentialBackend`
+where their remaining Burn tensor APIs require a Burn backend. Full
+warnings-denied Clippy is likewise blocked in `ritk-filter` by fresh color-file
+unused imports and five existing filter lint violations. These are separate
+owner migration/debt scopes; no suppression or compatibility bridge is added.
+
 ## MIG-657-01 audit (2026-07-16)
 
 ### Extended label-shape statistics use one native image boundary

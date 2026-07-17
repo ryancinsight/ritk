@@ -22,7 +22,7 @@
 - [x] Port the extended-label-shape oracle suite to `SequentialBackend` native
       images. Completion condition: exact labels/counts and the existing
       ITK/Crofton numerical assertions remain unchanged.
-- [x] Update the workspace Apollo constraint and lockfile to merged 0.22.0.
+- [x] Update the workspace Apollo constraint and lockfile to merged 0.23.0.
       Completion condition: the former resolver blocker is absent.
 - [x] Run focused statistics/Python compile and warning-denied Clippy,
       statistics nextest, doctest, rustdoc, formatting, and targeted
@@ -59,6 +59,18 @@
       --test real_data_test --run-ignored all --status-level fail` passes 3/3
       against the documented 3-D scalar MNI152 fixture; the 4-D RGB Visible
       Human fixture remains outside the native NIfTI reader contract.
+- [x] Move `registration_compare_figure` and the CLI MI image-to-volume
+      boundary onto one native classical-registration conversion surface.
+      Completion condition: the example contains no Burn image, transform,
+      interpolation, or NIfTI imports; its result transform is converted from
+      the classical index frame to the images' physical frames before native
+      resampling; the shared native resampler delegates grid construction to
+      `ritk-image`; the MI CLI regression fixtures use native NIfTI I/O and
+      exact output assertions; synthetic value-semantic tests cover the
+      conversion. Evidence: the native example type-checks against Apollo
+      0.23.0; the native conversion library tests pass 2/2; the CLI MI binary
+      tests pass 3/3; warning-denied Clippy passes for both changed targets
+      with dependency lints excluded.
 - [ ] Port every active consumer of `burn_compat_types` and
       `burn_compat_row_chunks` to its native Coeus operation, then delete both
       modules and the `burn-compat` feature in the same breaking cutover.

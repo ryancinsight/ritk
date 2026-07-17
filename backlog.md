@@ -2,15 +2,20 @@
 
 - **MIG-658-01 [major] - Remove relocated Burn compatibility surfaces (IN
   PROGRESS; owner=Codex; scope=`crates/ritk-image/src/{lib.rs,
-  tests_burn_compat_grid.rs}`, `crates/ritk-registration/examples/
-  geometry_check.rs`, `crates/ritk-registration/tests/real_data_test.rs`,
+  tests_burn_compat_grid.rs}`, `Cargo.{toml,lock}`, `crates/ritk-registration/{classical,
+  metric/native_resample.rs,
+  examples/geometry_check.rs,examples/registration_compare_figure.rs,
+  tests/real_data_test.rs}`, `crates/ritk-cli/src/commands/register`,
   migration audit).** GitHub audit run
   `29547504239` reaches the source scanner after the provider sweep and reports
   `burn_compat_types` and `burn_compat_row_chunks` as unallowlisted relocated
   compatibility surfaces. The redundant Burn-grid test is deleted now because
-  native grid tests already cover its value contract. The owning consumer
-  migration continues under ADR 0002 Amendment A2: port active callers to
-  native Coeus operations without allowing Cargo features to replace the
+  native grid tests already cover its value contract. The native classical
+  image↔Leto conversion surface now owns the registration figure and CLI MI
+  boundaries; it maps the classical fixed-index→moving-index result into native
+  physical frames before resampling. The remaining owning consumer migration
+  continues under ADR 0002 Amendment A2: port active callers to native Coeus
+  operations without allowing Cargo features to replace the
   public image type, then delete the compatibility modules and feature
   together; do not expand `xtask/burn_surface.allowlist` to mask the
   relocation.
