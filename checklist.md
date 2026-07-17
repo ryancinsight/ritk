@@ -27,8 +27,14 @@
 - [x] Run focused statistics/Python compile and warning-denied Clippy,
       statistics nextest, doctest, rustdoc, formatting, and targeted
       source-residue gates. Completion condition: all pass on the native path.
-- [ ] Merge current RITK `main` batch `b1850302`, resolve the overlapping
-      label-shape test import, and rerun the same gate set before publication.
+- [x] Rebase through current RITK `main` commit `e3887685` and resolve the
+      overlapping label-shape test import. Completion condition: the PR branch
+      has no merge conflict and preserves both the native test and main's
+      migration-audit record.
+- [ ] Re-run the same gate set after the compatibility-mode root cause is
+      removed. Completion condition: the current branch's registration targets
+      and workspace formatting compile without the legacy feature changing the
+      public image type.
 
 ## MIG-658-01 — Remove relocated Burn compatibility surfaces
 **Target version**: 0.3.0 major
