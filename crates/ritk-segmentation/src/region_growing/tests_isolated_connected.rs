@@ -10,7 +10,7 @@ use ritk_tensor_ops::extract_vec_infallible;
 type B = NdArray<f32>;
 
 fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(data, dims)
+    ts::burn_compat::make_image::<B, 3>(data, dims)
 }
 
 fn two_blob_values(bridge: f32) -> Vec<f32> {

@@ -13,7 +13,7 @@ use ritk_tensor_ops::extract_vec_infallible;
 type B = burn_ndarray::NdArray<f32>;
 
 fn z1(flat: Vec<f32>, rows: usize, cols: usize) -> ritk_image::Image<B, 3> {
-    ts::make_image::<B, 3>(flat, [1, rows, cols])
+    ts::burn_compat::make_image::<B, 3>(flat, [1, rows, cols])
 }
 
 fn run(img: &ritk_image::Image<B, 3>) -> Vec<f32> {

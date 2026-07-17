@@ -25,7 +25,7 @@ fn rgb(interleaved: Vec<f32>, spatial: [usize; 3]) -> ColorVolume<f32, B, 3> {
 fn identity_closure_preserves_volume() {
     let interleaved: Vec<f32> = (0..2 * 3 * 4 * 3).map(|i| i as f32).collect();
     let vol = rgb(interleaved.clone(), [2, 3, 4]);
-    let out = map_color_components(&vol, |img: &Image<f32, B, 3>| img.clone(), &B::default())
+    let out = map_color_components(&vol, |img: &Image<f32, B, 3>| img.clone(), &B::default()::default())
         .unwrap();
     assert_eq!(out.data_vec(), interleaved);
 }
@@ -47,8 +47,7 @@ fn per_component_median_matches_independent_channel_median() {
 
     let out = map_color_components(
         &vol,
-        |img: &Image<f32, B, 3>| MedianFilter::new(1).apply_native(img).unwrap(),
-        &B::default(),
+        |img: &Image<f32, B, 3>| MedianFilter::new(1).apply_native(img).unwrap(), &B::default()::default(),
     )
     .unwrap();
     let out_comps = out.into_component_buffers();

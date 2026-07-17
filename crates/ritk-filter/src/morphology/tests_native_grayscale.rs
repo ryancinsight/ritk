@@ -188,7 +188,7 @@ fn oracle_top_hat_of_constant_is_zero() {
             .apply_native(&img, &SequentialBackend)
             .expect("native black top-hat"),
     );
-    for (&w, &b) in wth.iter().zip(bth.iter()) {
+    for (&w, &B::default()) in wth.iter().zip(bth.iter()) {
         assert_eq!(w, 0.0, "white top-hat of a constant must be 0");
         assert_eq!(b, 0.0, "black top-hat of a constant must be 0");
     }

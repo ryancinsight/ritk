@@ -12,5 +12,5 @@ use ritk_image::test_support as ts;
 type B = LegacyBurnBackend;
 
 fn make_image(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(data, dims)
+    ts::burn_compat::make_image::<B, 3>(data, dims)
 }

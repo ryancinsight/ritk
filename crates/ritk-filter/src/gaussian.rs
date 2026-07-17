@@ -4,7 +4,7 @@ use ritk_image::tensor::ops::ConvOptions;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::{Shape, Tensor};
 use ritk_spatial::Spacing;
-use ritk_wgpu_compat::apply_row_chunks;
+use ritk_image::burn_compat_row_chunks::apply_row_chunks;
 
 /// Default Gaussian kernel half-extent cap (`radius·2 + 1`), bounding the
 /// per-axis convolution cost. Shared by [`GaussianFilter::new`] and the

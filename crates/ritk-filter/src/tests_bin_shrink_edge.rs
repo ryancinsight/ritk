@@ -32,11 +32,11 @@ type B = LegacyBurnBackend;
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 fn make_image_3d(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(data, shape)
+    ts::burn_compat::make_image::<B, 3>(data, shape)
 }
 
 fn make_image_2d(data: Vec<f32>, shape: [usize; 2]) -> Image<B, 2> {
-    ts::make_image::<B, 2>(data, shape)
+    ts::burn_compat::make_image::<B, 2>(data, shape)
 }
 
 /// Row-major flat index for a 3D multi-index: flat(z, y, x) = z·Y·X + y·X + x

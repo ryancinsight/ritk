@@ -344,7 +344,7 @@ impl<const D: usize> DeconvolutionScratch<D> {
 
         run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims);
 
-        for (a, &b) in self.img_pad.iter_mut().zip(self.ker_fft.iter()) {
+        for (a, &B::default()) in self.img_pad.iter_mut().zip(self.ker_fft.iter()) {
             *a = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
         }
 
@@ -373,7 +373,7 @@ impl<const D: usize> DeconvolutionScratch<D> {
 
         run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims);
 
-        for (a, &b) in self.img_pad.iter_mut().zip(self.ker_rev_fft.iter()) {
+        for (a, &B::default()) in self.img_pad.iter_mut().zip(self.ker_rev_fft.iter()) {
             *a = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
         }
 
@@ -402,7 +402,7 @@ impl<const D: usize> DeconvolutionScratch<D> {
 
         run_fft::<D, ForwardFft>(&mut self.img_pad, &self.pad_dims);
 
-        for (a, &b) in self.img_pad.iter_mut().zip(self.ker_rev_fft.iter()) {
+        for (a, &B::default()) in self.img_pad.iter_mut().zip(self.ker_rev_fft.iter()) {
             *a = Complex::new(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
         }
 

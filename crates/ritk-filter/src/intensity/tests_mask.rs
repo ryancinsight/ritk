@@ -6,7 +6,7 @@ use ritk_image::Image;
 type B = LegacyBurnBackend;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(vals, dims)
+    ts::burn_compat::make_image::<B, 3>(vals, dims)
 }
 
 fn voxels(img: &Image<B, 3>) -> Vec<f32> {
@@ -48,7 +48,7 @@ fn mask_filter_full_mask_is_identity() {
     let mask = make_image(vec![1.0; 4], [1, 2, 2]);
     let out = MaskImageFilter::new().apply(&img, &mask).unwrap();
     let v = voxels(&out);
-    for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
+    for (i, (&a, &B::default())) in v.iter().zip(vals.iter()).enumerate() {
         assert!((a - b).abs() < 1e-5, "[{}] expected {}, got {}", i, b, a);
     }
 }

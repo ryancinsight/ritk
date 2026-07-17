@@ -13,7 +13,7 @@ type B = burn_ndarray::NdArray<f32>;
 /// z=1 label image from a flat `rows×cols` slice.
 fn z1(flat: Vec<f32>, rows: usize, cols: usize) -> ritk_image::Image<B, 3> {
     assert_eq!(flat.len(), rows * cols);
-    ts::make_image::<B, 3>(flat, [1, rows, cols])
+    ts::burn_compat::make_image::<B, 3>(flat, [1, rows, cols])
 }
 
 fn run(img: &ritk_image::Image<B, 3>, r: f64, use_spacing: bool, op: LabelSetMorphOp) -> Vec<f32> {

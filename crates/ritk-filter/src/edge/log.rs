@@ -70,6 +70,20 @@ impl LaplacianOfGaussianFilter {
 
     /// Apply the LoG filter to a 3-D Coeus-native image.
     ///
+    /// Alias for [`Self::apply_native`]; kept for API compatibility.
+    pub fn apply<B>(
+        &self,
+        image: &Image<f32, B, 3>,
+        backend: &B::default()) -> anyhow::Result<Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend + Default,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        self.apply_native(image, backend)
+    }
+
+    /// Apply the LoG filter to a 3-D Coeus-native image.
+    ///
     /// Computes `∇²(G_σ * I)` via the separable Deriche IIR recursion
     /// (second-order along each axis, zero-order along the others, summed),
     /// matching ITK / SimpleITK `LaplacianRecursiveGaussian`. Spatial metadata
@@ -79,11 +93,10 @@ impl LaplacianOfGaussianFilter {
     ///
     /// Returns `Err` if the underlying tensor data cannot be extracted as
     /// `f32`.
-    pub fn apply<B>(
+    pub fn apply_native<B>(
         &self,
         image: &Image<f32, B, 3>,
-        backend: &B,
-    ) -> anyhow::Result<Image<f32, B, 3>>
+        backend: &B::default()) -> anyhow::Result<Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend + Default,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

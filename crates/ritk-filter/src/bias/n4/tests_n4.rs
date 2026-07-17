@@ -12,7 +12,7 @@ use ritk_spatial::{Direction, Point, Spacing, VolumeDims};
 type B = LegacyBurnBackend;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(vals, dims)
+    ts::burn_compat::make_image::<B, 3>(vals, dims)
 }
 
 fn extract_vals(img: Image<B, 3>) -> Vec<f32> {
@@ -318,7 +318,7 @@ fn rms_diff_identity_and_positive() {
     let a = vec![1.0f32, 2.0, 3.0, 4.0];
     assert_eq!(rms_diff(&a, &a), 0.0);
     let b = vec![2.0f32, 3.0, 4.0, 5.0];
-    let d = rms_diff(&a, &b);
+    let d = rms_diff(&a, &B::default());
     assert!((d - 1.0).abs() < 1e-6, "expected rms=1.0, got {d}");
 }
 

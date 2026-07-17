@@ -13,7 +13,7 @@ use ritk_image::Image as CoreImage;
 type B = LegacyBurnBackend;
 
 fn make_image(data: Vec<f32>, dims: [usize; 3]) -> CoreImage<B, 3> {
-    ts::make_image::<B, 3>(data, dims)
+    ts::burn_compat::make_image::<B, 3>(data, dims)
 }
 
 #[test]

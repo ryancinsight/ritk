@@ -11,8 +11,7 @@ use ritk_dicom::{
 };
 use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
-
-use ritk_image::tensor::{Shape, TensorData, Tensor};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing, Vector};
 use std::path::{Path, PathBuf};
 
@@ -29,10 +28,8 @@ pub fn load_dicom_series<B: Backend>(
     device: &B::Device,
 ) -> Result<Image<B, 3>> {
     let decoded = decode_series(series)?;
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(decoded.voxels, Shape::new(decoded.shape)),
-        device,
-    );
+    let data = TensorData::new(decoded.voxels, Shape::new(decoded.shape));
+    let tensor = Tensor::<B, 3>::from_data(data, device);
 
     Ok(Image::new(
         tensor,
@@ -357,14 +354,13 @@ mod tests {
     use super::{load_dicom_series, load_native_dicom_series};
     use coeus_core::SequentialBackend;
     use ritk_core::image::Image;
-    
-use ritk_image::tensor::{Shape, TensorData, Tensor};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
 
     #[test]
     fn native_series_loader_matches_legacy_loader() {
-        type B = burn_ndarray::SequentialBackend;
+        type B = burn_ndarray::NdArray<f32>;
 
         let dir = tempfile::tempdir().expect("tempdir");
         let series_path = dir.path().join("series_native_parity");
@@ -375,8 +371,8 @@ use ritk_image::tensor::{Shape, TensorData, Tensor};
             .collect();
         let device = <B as ritk_image::tensor::backend::Backend>::Device::default();
         let tensor = Tensor::<B, 3>::from_data(
-            (values, ([depth, rows, cols])),
-            &backend,
+            TensorData::new(values, Shape::new([depth, rows, cols])),
+            &device,
         );
         let image = Image::<B, 3>::new(
             tensor,
@@ -424,7 +420,7 @@ use ritk_image::tensor::{Shape, TensorData, Tensor};
             .pop()
             .expect("one series");
 
-        let legacy = load_dicom_series::<B>(&series, &backend).expect("legacy load");
+        let legacy = load_dicom_series::<B>(&series, &device).expect("legacy load");
         let native =
             load_native_dicom_series(&series, &SequentialBackend).expect("native series load");
 

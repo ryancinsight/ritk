@@ -18,7 +18,7 @@ type B = LegacyBurnBackend;
 
 /// Construct a test 3-D image.
 fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(data, dims)
+    ts::burn_compat::make_image::<B, 3>(data, dims)
 }
 
 /// 3×3×3 Dirac delta kernel — exactly 1.0 at center [1,1,1], 0.0 elsewhere.

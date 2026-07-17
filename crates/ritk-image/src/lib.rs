@@ -83,6 +83,14 @@ pub use burn_compat_grid::generate_grid as generate_grid_burn;
 #[cfg(feature = "burn-compat")]
 pub use burn_compat_grid::generate_random_points as generate_random_points_burn;
 
+/// Chunked row-apply helper for Burn tensors (WGPU dispatch limits).
+#[cfg(feature = "burn-compat")]
+pub mod burn_compat_row_chunks;
+
+/// Convenience re-export of [`burn_compat_row_chunks::apply_row_chunks`].
+#[cfg(feature = "burn-compat")]
+pub use burn_compat_row_chunks::apply_row_chunks;
+
 #[cfg(feature = "burn-compat")]
 pub use burn_compat_types::Image;
 /// `Image` — coeus-backed `Image<T, B, D>` without `burn-compat`;

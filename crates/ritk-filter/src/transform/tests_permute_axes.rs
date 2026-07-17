@@ -10,7 +10,7 @@ use ritk_tensor_ops::extract_vec_infallible;
 type B = LegacyBurnBackend;
 
 fn make_image(vals: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    ts::make_image_with::<B, 3>(
+    ts::burn_compat::make_image_with::<B, 3>(
         vals,
         shape,
         Some(Point::new([0.0, 0.0, 0.0])),
@@ -31,7 +31,7 @@ fn permute_axes_identity_order_is_noop() {
     let out = PermuteAxesImageFilter::new([0, 1, 2]).apply(&img).unwrap();
     assert_eq!(out.shape(), [1, 2, 3]);
     let v = voxels(&out);
-    for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
+    for (i, (&a, &B::default())) in v.iter().zip(vals.iter()).enumerate() {
         assert_eq!(a, b, "voxel {}: identity mismatch", i);
     }
 }

@@ -14,11 +14,11 @@ type B = LegacyBurnBackend;
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn make_image_2d(vals: Vec<f32>, h: usize, w: usize) -> Image<B, 2> {
-    ts::make_image::<B, 2>(vals, [h, w])
+    ts::burn_compat::make_image::<B, 2>(vals, [h, w])
 }
 
 fn make_image_3d(vals: Vec<f32>, d: usize, h: usize, w: usize) -> Image<B, 3> {
-    ts::make_image::<B, 3>(vals, [d, h, w])
+    ts::burn_compat::make_image::<B, 3>(vals, [d, h, w])
 }
 
 // ── 2-D tests ─────────────────────────────────────────────────────────────────

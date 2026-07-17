@@ -8,7 +8,7 @@ type B = LegacyBurnBackend;
 
 fn make(dims: [usize; 3]) -> Image<B, 3> {
     let n: usize = dims.iter().product();
-    ts::make_image::<B, 3>(vec![0.0f32; n], dims)
+    ts::burn_compat::make_image::<B, 3>(vec![0.0f32; n], dims)
 }
 
 const ID: [[f64; 3]; 3] = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];

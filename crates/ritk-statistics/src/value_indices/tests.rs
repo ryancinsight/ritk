@@ -6,15 +6,15 @@ use ritk_image::Image;
 
 type TestBackend = NdArray<f32>;
 
-fn make_image_1d(data: Vec<f32>) -> ritk_image::types::Image<f32, TestBackend, 1> {
+fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
     test_support::burn_compat::make_image_1d(data)
 }
 
-fn make_image_2d(data: Vec<f32>, dims: [usize; 2]) -> ritk_image::types::Image<f32, TestBackend, 2> {
+fn make_image_2d(data: Vec<f32>, dims: [usize; 2]) -> Image<TestBackend, 2> {
     test_support::burn_compat::make_image(data, dims)
 }
 
-fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> ritk_image::types::Image<f32, TestBackend, 3> {
+fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
     test_support::burn_compat::make_image(data, dims)
 }
 

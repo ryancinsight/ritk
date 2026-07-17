@@ -10,7 +10,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 type B = LegacyBurnBackend;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(vals, dims)
+    ts::burn_compat::make_image::<B, 3>(vals, dims)
 }
 
 fn extract_vals(img: &Image<B, 3>) -> Vec<f32> {
@@ -201,7 +201,7 @@ fn all_border_volume_unchanged() {
     let img = make_image(vals.clone(), dims);
     let out = GrayscaleFillholeFilter::new().apply(&img).unwrap();
     let out_vals = extract_vals(&out);
-    for (i, (&a, &b)) in vals.iter().zip(out_vals.iter()).enumerate() {
+    for (i, (&a, &B::default())) in vals.iter().zip(out_vals.iter()).enumerate() {
         assert!((a - b).abs() < 1e-6, "all-border voxel {i}: {a} ≠ {b}");
     }
 }

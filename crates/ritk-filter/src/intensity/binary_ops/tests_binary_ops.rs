@@ -6,7 +6,7 @@ use ritk_image::test_support as ts;
 type B = LegacyBurnBackend;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(vals, dims)
+    ts::burn_compat::make_image::<B, 3>(vals, dims)
 }
 
 fn voxels(img: &Image<B, 3>) -> Vec<f32> {
@@ -19,7 +19,7 @@ fn voxels(img: &Image<B, 3>) -> Vec<f32> {
 fn add_filter_computes_elementwise_sum() {
     let a = make_image(vec![1.0, 2.0, 3.0, 4.0], [1, 2, 2]);
     let b = make_image(vec![10.0, 20.0, 30.0, 40.0], [1, 2, 2]);
-    let out = AddImageFilter::new().apply(&a, &b).unwrap();
+    let out = AddImageFilter::new().apply(&a, &B::default()).unwrap();
     let v = voxels(&out);
     let expected = [11.0f32, 22.0, 33.0, 44.0];
     for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
@@ -37,7 +37,7 @@ fn add_filter_computes_elementwise_sum() {
 fn add_filter_preserves_spatial_metadata() {
     let a = make_image(vec![1.0; 8], [2, 2, 2]);
     let b = make_image(vec![2.0; 8], [2, 2, 2]);
-    let out = AddImageFilter::new().apply(&a, &b).unwrap();
+    let out = AddImageFilter::new().apply(&a, &B::default()).unwrap();
     assert_eq!(out.shape(), a.shape());
     assert_eq!(out.spacing(), a.spacing());
 }
@@ -46,7 +46,7 @@ fn add_filter_preserves_spatial_metadata() {
 fn add_filter_shape_mismatch_returns_error() {
     let a = make_image(vec![1.0; 4], [1, 2, 2]);
     let b = make_image(vec![1.0; 8], [2, 2, 2]);
-    assert!(AddImageFilter::new().apply(&a, &b).is_err());
+    assert!(AddImageFilter::new().apply(&a, &B::default()).is_err());
 }
 
 // --- SubtractImageFilter -------------------------------------------------
@@ -55,7 +55,7 @@ fn add_filter_shape_mismatch_returns_error() {
 fn subtract_filter_computes_elementwise_difference() {
     let a = make_image(vec![10.0, 20.0, 30.0, 40.0], [1, 2, 2]);
     let b = make_image(vec![1.0, 2.0, 3.0, 4.0], [1, 2, 2]);
-    let out = SubtractImageFilter::new().apply(&a, &b).unwrap();
+    let out = SubtractImageFilter::new().apply(&a, &B::default()).unwrap();
     let v = voxels(&out);
     let expected = [9.0f32, 18.0, 27.0, 36.0];
     for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
@@ -85,7 +85,7 @@ fn subtract_filter_self_minus_self_is_zero() {
 fn multiply_filter_computes_elementwise_product() {
     let a = make_image(vec![2.0, 3.0, 4.0, 5.0], [1, 2, 2]);
     let b = make_image(vec![3.0, 4.0, 5.0, 6.0], [1, 2, 2]);
-    let out = MultiplyImageFilter::new().apply(&a, &b).unwrap();
+    let out = MultiplyImageFilter::new().apply(&a, &B::default()).unwrap();
     let v = voxels(&out);
     let expected = [6.0f32, 12.0, 20.0, 30.0];
     for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
@@ -116,7 +116,7 @@ fn multiply_filter_by_zero_image_yields_zeros() {
 fn divide_filter_computes_elementwise_quotient() {
     let a = make_image(vec![10.0, 20.0, 30.0, 40.0], [1, 2, 2]);
     let b = make_image(vec![2.0, 4.0, 5.0, 8.0], [1, 2, 2]);
-    let out = DivideImageFilter::new().apply(&a, &b).unwrap();
+    let out = DivideImageFilter::new().apply(&a, &B::default()).unwrap();
     let v = voxels(&out);
     let expected = [5.0f32, 5.0, 6.0, 5.0];
     for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
@@ -134,7 +134,7 @@ fn divide_filter_computes_elementwise_quotient() {
 fn divide_filter_division_by_zero_yields_zero() {
     let a = make_image(vec![1.0, 2.0, 3.0, 4.0], [1, 2, 2]);
     let b = make_image(vec![0.0, 1.0, 0.0, 2.0], [1, 2, 2]);
-    let out = DivideImageFilter::new().apply(&a, &b).unwrap();
+    let out = DivideImageFilter::new().apply(&a, &B::default()).unwrap();
     let v = voxels(&out);
     assert!(
         (v[0] - 0.0).abs() < 1e-5,
@@ -156,7 +156,7 @@ fn divide_filter_division_by_zero_yields_zero() {
 fn min_filter_returns_elementwise_minimum() {
     let a = make_image(vec![1.0, 5.0, 3.0, 7.0], [1, 2, 2]);
     let b = make_image(vec![4.0, 2.0, 6.0, 1.0], [1, 2, 2]);
-    let out = ImageMinFilter::new().apply(&a, &b).unwrap();
+    let out = ImageMinFilter::new().apply(&a, &B::default()).unwrap();
     let v = voxels(&out);
     let expected = [1.0f32, 2.0, 3.0, 1.0];
     for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
@@ -174,7 +174,7 @@ fn min_filter_returns_elementwise_minimum() {
 fn max_filter_returns_elementwise_maximum() {
     let a = make_image(vec![1.0, 5.0, 3.0, 7.0], [1, 2, 2]);
     let b = make_image(vec![4.0, 2.0, 6.0, 1.0], [1, 2, 2]);
-    let out = ImageMaxFilter::new().apply(&a, &b).unwrap();
+    let out = ImageMaxFilter::new().apply(&a, &B::default()).unwrap();
     let v = voxels(&out);
     let expected = [4.0f32, 5.0, 6.0, 7.0];
     for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
@@ -196,12 +196,12 @@ fn generic_binary_op_filter_matches_specialized() {
     let b = make_image(vec![1.0, 4.0, 6.0, 3.0], [1, 2, 2]);
 
     // Verify the generic path produces the same results as the type aliases
-    let add_out = BinaryOpFilter::<AddOp>::new().apply(&a, &b).unwrap();
-    let sub_out = BinaryOpFilter::<SubtractOp>::new().apply(&a, &b).unwrap();
-    let mul_out = BinaryOpFilter::<MultiplyOp>::new().apply(&a, &b).unwrap();
-    let div_out = BinaryOpFilter::<DivideOp>::new().apply(&a, &b).unwrap();
-    let min_out = BinaryOpFilter::<MinOp>::new().apply(&a, &b).unwrap();
-    let max_out = BinaryOpFilter::<MaxOp>::new().apply(&a, &b).unwrap();
+    let add_out = BinaryOpFilter::<AddOp>::new().apply(&a, &B::default()).unwrap();
+    let sub_out = BinaryOpFilter::<SubtractOp>::new().apply(&a, &B::default()).unwrap();
+    let mul_out = BinaryOpFilter::<MultiplyOp>::new().apply(&a, &B::default()).unwrap();
+    let div_out = BinaryOpFilter::<DivideOp>::new().apply(&a, &B::default()).unwrap();
+    let min_out = BinaryOpFilter::<MinOp>::new().apply(&a, &B::default()).unwrap();
+    let max_out = BinaryOpFilter::<MaxOp>::new().apply(&a, &B::default()).unwrap();
 
     let add_v = voxels(&add_out);
     assert!((add_v[0] - 4.0).abs() < 1e-5);
@@ -234,7 +234,7 @@ fn generic_binary_op_filter_matches_specialized() {
 fn squared_difference_computes_squared_residual() {
     let a = make_image(vec![3.0, 10.0, -2.0], [1, 1, 3]);
     let b = make_image(vec![1.0, 4.0, 1.0], [1, 1, 3]);
-    let out = SquaredDifferenceImageFilter::new().apply(&a, &b).unwrap();
+    let out = SquaredDifferenceImageFilter::new().apply(&a, &B::default()).unwrap();
     let v = voxels(&out);
     // (3-1)²=4, (10-4)²=36, (-2-1)²=9
     for (got, exp) in v.iter().zip([4.0f32, 36.0, 9.0]) {
@@ -251,7 +251,7 @@ fn absolute_value_difference_is_symmetric_and_nonnegative() {
     let b = make_image(vec![1.0, 7.0], [1, 1, 2]);
     let ab = voxels(
         &AbsoluteValueDifferenceImageFilter::new()
-            .apply(&a, &b)
+            .apply(&a, &B::default())
             .unwrap(),
     );
     let ba = voxels(
@@ -278,7 +278,7 @@ fn absolute_value_difference_is_symmetric_and_nonnegative() {
 fn atan2_matches_std_atan2() {
     let a = make_image(vec![1.0, 1.0, 0.0, -1.0], [1, 1, 4]);
     let b = make_image(vec![1.0, 0.0, 1.0, -1.0], [1, 1, 4]);
-    let out = voxels(&Atan2ImageFilter::new().apply(&a, &b).unwrap());
+    let out = voxels(&Atan2ImageFilter::new().apply(&a, &B::default()).unwrap());
     let ya = [1.0f32, 1.0, 0.0, -1.0];
     let yb = [1.0f32, 0.0, 1.0, -1.0];
     for (i, got) in out.iter().enumerate() {
@@ -294,7 +294,7 @@ fn atan2_matches_std_atan2() {
 fn pow_matches_std_powf() {
     let a = make_image(vec![2.0, 3.0, 9.0, 5.0], [1, 1, 4]);
     let b = make_image(vec![3.0, 2.0, 0.5, 0.0], [1, 1, 4]);
-    let out = voxels(&PowImageFilter::new().apply(&a, &b).unwrap());
+    let out = voxels(&PowImageFilter::new().apply(&a, &B::default()).unwrap());
     // 2³=8, 3²=9, 9^0.5=3, 5⁰=1
     for (got, exp) in out.iter().zip([8.0f32, 9.0, 3.0, 1.0]) {
         assert!((got - exp).abs() < 1e-5, "pow: got {got}, expected {exp}");
@@ -307,7 +307,7 @@ fn pow_matches_std_powf() {
 fn binary_magnitude_computes_hypotenuse() {
     let a = make_image(vec![3.0, 5.0, 0.0], [1, 1, 3]);
     let b = make_image(vec![4.0, 12.0, 0.0], [1, 1, 3]);
-    let out = voxels(&BinaryMagnitudeImageFilter::new().apply(&a, &b).unwrap());
+    let out = voxels(&BinaryMagnitudeImageFilter::new().apply(&a, &B::default()).unwrap());
     // 3-4-5, 5-12-13, 0-0-0
     for (got, exp) in out.iter().zip([5.0f32, 13.0, 0.0]) {
         assert!(
@@ -323,12 +323,12 @@ fn binary_magnitude_computes_hypotenuse() {
 fn comparison_filters_produce_binary_masks() {
     let a = make_image(vec![1.0, 2.0, 3.0, 2.0], [1, 1, 4]);
     let b = make_image(vec![2.0, 2.0, 1.0, 5.0], [1, 1, 4]);
-    let eq = voxels(&EqualImageFilter::new().apply(&a, &b).unwrap());
-    let ne = voxels(&NotEqualImageFilter::new().apply(&a, &b).unwrap());
-    let gt = voxels(&GreaterImageFilter::new().apply(&a, &b).unwrap());
-    let ge = voxels(&GreaterEqualImageFilter::new().apply(&a, &b).unwrap());
-    let lt = voxels(&LessImageFilter::new().apply(&a, &b).unwrap());
-    let le = voxels(&LessEqualImageFilter::new().apply(&a, &b).unwrap());
+    let eq = voxels(&EqualImageFilter::new().apply(&a, &B::default()).unwrap());
+    let ne = voxels(&NotEqualImageFilter::new().apply(&a, &B::default()).unwrap());
+    let gt = voxels(&GreaterImageFilter::new().apply(&a, &B::default()).unwrap());
+    let ge = voxels(&GreaterEqualImageFilter::new().apply(&a, &B::default()).unwrap());
+    let lt = voxels(&LessImageFilter::new().apply(&a, &B::default()).unwrap());
+    let le = voxels(&LessEqualImageFilter::new().apply(&a, &B::default()).unwrap());
     // a=[1,2,3,2], b=[2,2,1,5]
     assert_eq!(eq, vec![0.0, 1.0, 0.0, 0.0]);
     assert_eq!(ne, vec![1.0, 0.0, 1.0, 1.0]);
@@ -351,9 +351,9 @@ fn logical_filters_match_itk_truth_tables() {
     // Binary masks: a=[0,0,1,1], b=[0,1,0,1] (ITK treats >0 as true)
     let a = make_image(vec![0.0, 0.0, 1.0, 1.0], [1, 1, 4]);
     let b = make_image(vec![0.0, 1.0, 0.0, 1.0], [1, 1, 4]);
-    let and = voxels(&AndImageFilter::new().apply(&a, &b).unwrap());
-    let or = voxels(&OrImageFilter::new().apply(&a, &b).unwrap());
-    let xor = voxels(&XorImageFilter::new().apply(&a, &b).unwrap());
+    let and = voxels(&AndImageFilter::new().apply(&a, &B::default()).unwrap());
+    let or = voxels(&OrImageFilter::new().apply(&a, &B::default()).unwrap());
+    let xor = voxels(&XorImageFilter::new().apply(&a, &B::default()).unwrap());
     assert_eq!(and, vec![0.0, 0.0, 0.0, 1.0]);
     assert_eq!(or, vec![0.0, 1.0, 1.0, 1.0]);
     assert_eq!(xor, vec![0.0, 1.0, 1.0, 0.0]);
@@ -364,7 +364,7 @@ fn logical_filters_match_itk_truth_tables() {
         } else {
             0.0
         };
-        assert_eq!(xor[i], de_morgan, "xor[{i}] vs (a|b)&!(a&b)");
+        assert_eq!(xor[i], de_morgan, "xor[{i}] vs (a|b)&!(a&B::default())");
     }
 }
 

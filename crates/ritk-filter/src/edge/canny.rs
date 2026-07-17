@@ -112,6 +112,20 @@ impl CannyEdgeDetector {
 
     /// Apply the Canny edge detector to a 3-D Coeus-native image.
     ///
+    /// Alias for [`Self::apply_native`]; kept for API compatibility.
+    pub fn apply<B>(
+        &self,
+        image: &Image<f32, B, 3>,
+        backend: &B::default()) -> anyhow::Result<Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        self.apply_native(image, backend)
+    }
+
+    /// Apply the Canny edge detector to a 3-D Coeus-native image.
+    ///
     /// Smooths natively via the burn-free
     /// `gaussian_smooth_native_flat`
     /// core, then runs the identical gradient / non-maximum-suppression /
@@ -129,11 +143,10 @@ impl CannyEdgeDetector {
     /// # Errors
     /// Returns an error when the image tensor is not host-addressable/contiguous
     /// or the rebuilt image fails shape validation.
-    pub fn apply<B>(
+    pub fn apply_native<B>(
         &self,
         image: &Image<f32, B, 3>,
-        backend: &B,
-    ) -> anyhow::Result<Image<f32, B, 3>>
+        backend: &B::default()) -> anyhow::Result<Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

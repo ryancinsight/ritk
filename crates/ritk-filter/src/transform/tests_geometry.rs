@@ -11,7 +11,7 @@ const ID: [[f64; 3]; 3] = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
 
 fn img_with_origin(origin: [f64; 3]) -> Image<B, 3> {
     let data: Vec<f32> = (0..24).map(|v| v as f32).collect();
-    ts::make_image_with::<B, 3>(data, [2, 3, 4], Some(Point::new(origin)), None, None)
+    ts::burn_compat::make_image_with::<B, 3>(data, [2, 3, 4], Some(Point::new(origin)), None, None)
 }
 
 /// The identity transform leaves geometry and data unchanged.

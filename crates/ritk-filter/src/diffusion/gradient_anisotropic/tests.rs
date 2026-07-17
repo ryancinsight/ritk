@@ -9,7 +9,7 @@ use ritk_spatial::{Point, Spacing};
 type B = NdArray<f32>;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(vals, dims)
+    ts::burn_compat::make_image::<B, 3>(vals, dims)
 }
 
 // T1 — Constant image: update = 0 everywhere → output = input exactly.

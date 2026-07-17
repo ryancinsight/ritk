@@ -188,42 +188,56 @@ impl<B: Backend, const D: usize> Image<B, D> {
         Ok(Cow::Owned(self.try_data_vec()?))
     }
 
+    /// Convert a continuous index to a physical point.
+    ///
+    /// `point = origin + Direction * (index * spacing)`
+    pub fn transform_continuous_index_to_physical_point(
+        &self,
+        index: &ritk_spatial::Point<D>,
+    ) -> ritk_spatial::Point<D> {
+        let mut scaled_index = ritk_spatial::Vector::<D>::zeros();
+        for i in 0..D {
+            scaled_index[i] = index[i] * self.spacing()[i];
+        }
+        let rotated = *self.direction() * scaled_index;
+        *self.origin() + rotated
+    }
+
+    /// Convert a continuous physical point to a continuous index.
+    ///
+    /// `index = (Direction^-1 * (point - origin)) / spacing`
+    pub fn transform_physical_point_to_continuous_index(
+        &self,
+        point: &ritk_spatial::Point<D>,
+    ) -> ritk_spatial::Point<D> {
+        let diff = *point - *self.origin();
+        let inv_dir = self
+            .direction()
+            .try_inverse()
+            .expect("direction matrix must be invertible");
+        let rotated = inv_dir * diff;
+        let mut index = ritk_spatial::Point::<D>::origin();
+        for i in 0..D {
+            index[i] = rotated[i] / self.spacing()[i];
+        }
+        index
+    }
+
     /// Batch transform physical points to continuous indices.
-    ///
-    /// For each point `p`, computes `(p - origin) / spacing` (component-wise)
-    /// adjusted for the direction matrix. This mirrors the Coeus `types.rs`
-    /// implementation's `world_to_index_tensor`.
-    ///
-    /// # Arguments
-    /// * `points` — `[N, D]` tensor of world-space coordinates.
-    ///
-    /// # Returns
-    /// `[N, D]` tensor of continuous voxel-index coordinates.
     pub fn world_to_index_tensor(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
         use crate::tensor::{Shape, TensorData};
         let device = points.device();
-        // Build per-axis offset (origin) and scale (1/spacing) tensors.
         let origin_vals: Vec<f32> = (0..D).map(|d| self.origin[d] as f32).collect();
         let spacing_vals: Vec<f32> = (0..D).map(|d| self.spacing[d] as f32).collect();
         let origin_t =
             Tensor::<B, 1>::from_data(TensorData::new(origin_vals, Shape::new([D])), &device);
         let spacing_t =
             Tensor::<B, 1>::from_data(TensorData::new(spacing_vals, Shape::new([D])), &device);
-        // points: [N, D]; origin/spacing: [D] — broadcast subtract and divide.
         let shifted = points - origin_t.unsqueeze_dim(0);
         shifted / spacing_t.unsqueeze_dim(0)
     }
 
     /// Batch transform continuous indices to physical points.
-    ///
-    /// For each index `i`, computes `origin + i * spacing` (component-wise).
-    /// This mirrors the Coeus `types.rs` `index_to_world_tensor`.
-    ///
-    /// # Arguments
-    /// * `indices` — `[N, D]` tensor of continuous voxel-index coordinates.
-    ///
-    /// # Returns
-    /// `[N, D]` tensor of world-space coordinates.
     pub fn index_to_world_tensor(&self, indices: Tensor<B, 2>) -> Tensor<B, 2> {
         use crate::tensor::{Shape, TensorData};
         let device = indices.device();

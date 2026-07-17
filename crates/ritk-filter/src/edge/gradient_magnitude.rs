@@ -133,7 +133,7 @@ impl GradientMagnitudeFilter {
     {
         let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
         let mag = gradient_magnitude_vec(&vals, dims, &self.spacing);
-        ritk_tensor_ops::native::rebuild_image(mag, dims, image, &B::default())
+        ritk_tensor_ops::native::rebuild_image(mag, dims, image, &B::default()::default())
     }
 }
 

@@ -188,8 +188,7 @@ impl ContourExtractor2DImageFilter {
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
-        _backend: &B,
-    ) -> anyhow::Result<Vec<Contour>>
+        _backend: &B::default()) -> anyhow::Result<Vec<Contour>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -417,7 +416,7 @@ mod tests {
             .flat_map(|_y| (0..nx).map(move |x| if x < 2 { 0.0_f32 } else { 2.0_f32 }))
             .collect();
 
-        let image = ts::make_image::<B, 3>(data, [1, ny, nx]);
+        let image = ts::burn_compat::make_image::<B, 3>(data, [1, ny, nx]);
         let filter = ContourExtractor2DImageFilter { contour_value: 1.0 };
         let contours = filter.apply(&image);
 
@@ -471,7 +470,7 @@ mod tests {
             0.0,     0.0, 0.0, 0.0,
         ];
 
-        let image = ts::make_image::<B, 3>(data, [1, 4, 4]);
+        let image = ts::burn_compat::make_image::<B, 3>(data, [1, 4, 4]);
         let filter = ContourExtractor2DImageFilter { contour_value: 0.5 };
         let contours = filter.apply(&image);
 

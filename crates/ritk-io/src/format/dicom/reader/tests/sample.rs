@@ -22,7 +22,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_scan_skull_ct_folder_with_dicomdir_loads_series() {
     println!("START test_scan_skull_ct_folder_with_dicomdir_loads_series");
-    let device: <burn_ndarray::SequentialBackend as ritk_image::tensor::backend::Backend>::Device =
+    let device: <burn_ndarray::NdArray<f32> as ritk_image::tensor::backend::Backend>::Device =
         Default::default();
     let series_path =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test_data/2_skull_ct");
@@ -44,7 +44,7 @@ fn test_scan_skull_ct_folder_with_dicomdir_loads_series() {
     );
     println!("Before read_dicom_series_with_metadata");
     let (image, _) =
-        read_dicom_series_with_metadata::<burn_ndarray::SequentialBackend, _>(series_path, &backend)
+        read_dicom_series_with_metadata::<burn_ndarray::NdArray<f32>, _>(series_path, &device)
             .expect("read_dicom_series_with_metadata must succeed");
     println!("After read_dicom_series_with_metadata");
     assert_eq!(
@@ -60,14 +60,14 @@ fn test_scan_skull_ct_folder_with_dicomdir_loads_series() {
 
 #[test]
 fn test_scan_skull_ct_dicomdir_and_folder_agree_on_series() {
-    let device: <burn_ndarray::SequentialBackend as ritk_image::tensor::backend::Backend>::Device =
+    let device: <burn_ndarray::NdArray<f32> as ritk_image::tensor::backend::Backend>::Device =
         Default::default();
     let series_path =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test_data/2_skull_ct");
     let series_path = series_path.as_path();
     let info = scan_dicom_directory(series_path).expect("scan_dicom_directory must succeed");
     let (image, _) =
-        read_dicom_series_with_metadata::<burn_ndarray::SequentialBackend, _>(series_path, &backend)
+        read_dicom_series_with_metadata::<burn_ndarray::NdArray<f32>, _>(series_path, &device)
             .expect("read_dicom_series_with_metadata must succeed");
     let spatial = image.spacing();
     assert!(

@@ -6,7 +6,7 @@ use ritk_image::Image;
 type B = LegacyBurnBackend;
 
 fn make_image(values: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(values, dims)
+    ts::burn_compat::make_image::<B, 3>(values, dims)
 }
 
 #[test]

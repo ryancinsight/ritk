@@ -7,7 +7,7 @@ license.workspace = true
 [dependencies]
 burn-ndarray = { workspace = true }
 ritk-core = { path = "../ritk-core" }
-ritk-image = { path = "../ritk-image" }
+ritk-image = { path = "../ritk-image", features = ["burn-compat"] }
 ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
 ritk-spatial = { path = "../ritk-spatial" }
 ritk-interpolation = { path = "../ritk-interpolation" }

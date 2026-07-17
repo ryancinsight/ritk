@@ -5,7 +5,7 @@ use ritk_image::test_support as ts;
 type B = LegacyBurnBackend;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(vals, dims)
+    ts::burn_compat::make_image::<B, 3>(vals, dims)
 }
 
 fn extract_vals(img: &Image<B, 3>) -> Vec<f32> {
@@ -82,7 +82,7 @@ fn test_canny_seg_level_set_structural() {
     let total_change: f32 = phi0
         .iter()
         .zip(result.iter())
-        .map(|(&a, &b)| (b - a).abs())
+        .map(|(&a, &B::default())| (b - a).abs())
         .sum();
     assert!(
         total_change > 1e-3,

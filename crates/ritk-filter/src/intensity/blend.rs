@@ -89,8 +89,7 @@ impl BlendImageFilter {
         &self,
         a: &NativeImage<f32, B, 3>,
         b: &NativeImage<f32, B, 3>,
-        backend: &B,
-    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+        backend: &B::default()) -> anyhow::Result<NativeImage<f32, B, 3>>
     where
         B: ComputeBackend,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
@@ -151,7 +150,7 @@ mod tests {
     fn blend_filter_half_alpha() {
         let a = make_image(vec![0.0, 10.0, 20.0, 30.0], [1, 2, 2]);
         let b = make_image(vec![100.0, 100.0, 100.0, 100.0], [1, 2, 2]);
-        let out = BlendImageFilter::new(0.5).apply(&a, &b).unwrap();
+        let out = BlendImageFilter::new(0.5).apply(&a, &B::default()).unwrap();
         let v = voxels(&out);
         let expected = [50.0f32, 55.0, 60.0, 65.0];
         for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
@@ -169,7 +168,7 @@ mod tests {
     fn blend_filter_zero_alpha() {
         let a = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
         let b = make_image(vec![10.0, 20.0, 30.0], [1, 1, 3]);
-        let out = BlendImageFilter::new(0.0).apply(&a, &b).unwrap();
+        let out = BlendImageFilter::new(0.0).apply(&a, &B::default()).unwrap();
         let v = voxels(&out);
         for (i, &got) in v.iter().enumerate() {
             assert!((got - (i as f32 + 1.0)).abs() < 1e-5, "[{}] expected A", i);
@@ -180,7 +179,7 @@ mod tests {
     fn blend_filter_one_alpha() {
         let a = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
         let b = make_image(vec![10.0, 20.0, 30.0], [1, 1, 3]);
-        let out = BlendImageFilter::new(1.0).apply(&a, &b).unwrap();
+        let out = BlendImageFilter::new(1.0).apply(&a, &B::default()).unwrap();
         let v = voxels(&out);
         for (i, &got) in v.iter().enumerate() {
             assert!(
@@ -207,7 +206,7 @@ mod tests {
         let a = image(vec![0.0, 10.0, 20.0], [1.0, 2.0, 3.0]);
         let b = image(vec![100.0, 100.0, 100.0], [9.0, 8.0, 7.0]);
         let output = BlendImageFilter::new(0.5)
-            .apply_native(&a, &b, &SequentialBackend)
+            .apply_native(&a, &B::default(), &SequentialBackend)
             .expect("native blend succeeds");
 
         assert_eq!(

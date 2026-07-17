@@ -1,7 +1,7 @@
 use super::BSplineTransform;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
-use ritk_wgpu_compat::apply_row_chunks;
+use ritk_image::burn_compat_row_chunks::apply_row_chunks;
 
 /// 4D B-spline transform — chunked over rows using `WGPU_CHUNK_SIZE_4D`
 /// (smaller chunk than D ≤ 3 to keep `4^4 = 256`-wide weight tensors

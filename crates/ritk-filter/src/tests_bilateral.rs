@@ -6,7 +6,7 @@ type B = LegacyBurnBackend;
 
 /// Construct a test image from flat values and shape `[Z, Y, X]`.
 fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(vals, dims)
+    ts::burn_compat::make_image::<B, 3>(vals, dims)
 }
 
 /// Extract flat `Vec<f32>` from an image (test utility).

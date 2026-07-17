@@ -13,7 +13,7 @@ type B = burn_ndarray::NdArray<f32>;
 /// Build a z=1 label image from a 4×5 row-major slice.
 fn img(rows: [[f32; 5]; 4]) -> ritk_image::Image<B, 3> {
     let data: Vec<f32> = rows.iter().flatten().copied().collect();
-    ts::make_image::<B, 3>(data, [1, 4, 5])
+    ts::burn_compat::make_image::<B, 3>(data, [1, 4, 5])
 }
 
 fn inputs() -> (ritk_image::Image<B, 3>, ritk_image::Image<B, 3>) {

@@ -201,11 +201,10 @@ fn test_dot_product() {
 #[test]
 fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
     use ritk_core::image::Image;
-    
-use ritk_image::tensor::{Shape, TensorData, Tensor};
+    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
-    type B = burn_ndarray::SequentialBackend;
+    type B = burn_ndarray::NdArray<f32>;
 
     let temp = tempfile::tempdir().unwrap();
     let series_path = temp.path().join("coronal_series");
@@ -214,8 +213,8 @@ use ritk_image::tensor::{Shape, TensorData, Tensor};
     let data = vec![500.0f32; depth * rows * cols];
     let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
     let tensor = Tensor::<B, 3>::from_data(
-        (data, ([depth, rows, cols])),
-        &backend,
+        TensorData::new(data, Shape::new([depth, rows, cols])),
+        &device,
     );
     let image = Image::<B, 3>::new(
         tensor,
@@ -262,7 +261,7 @@ use ritk_image::tensor::{Shape, TensorData, Tensor};
     )
     .expect("write_dicom_series_with_metadata must not fail");
 
-    let (loaded_image, _) = load_dicom_series_with_metadata::<B, _>(&series_path, &backend)
+    let (loaded_image, _) = load_dicom_series_with_metadata::<B, _>(&series_path, &device)
         .expect("load_dicom_series_with_metadata must not fail");
 
     // RITK convention: from_column_slice([N̂, F_c, F_r]) = from_column_slice([0,1,0, 0,0,-1, 1,0,0]):

@@ -107,8 +107,7 @@ impl<Op: TernaryOp> TernaryOpFilter<Op> {
         a: &NativeImage<f32, B, 3>,
         b: &NativeImage<f32, B, 3>,
         c: &NativeImage<f32, B, 3>,
-        backend: &B,
-    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+        backend: &B::default()) -> anyhow::Result<NativeImage<f32, B, 3>>
     where
         B: ComputeBackend,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
@@ -156,7 +155,7 @@ mod tests {
     type B = burn_ndarray::NdArray<f32>;
 
     fn img(v: Vec<f32>) -> Image<B, 3> {
-        ts::make_image::<B, 3>(v, [1, 1, 3])
+        ts::burn_compat::make_image::<B, 3>(v, [1, 1, 3])
     }
 
     #[test]
@@ -177,10 +176,10 @@ mod tests {
         let b = img(vec![3.0, 2.0, 0.0]);
         let c = img(vec![6.0, 2.0, 5.0]);
         let m = TernaryMagnitudeImageFilter::new()
-            .apply(&a, &b, &c)
+            .apply(&a, &B::default(), &c)
             .unwrap();
         let s = TernaryMagnitudeSquaredImageFilter::new()
-            .apply(&a, &b, &c)
+            .apply(&a, &B::default(), &c)
             .unwrap();
         // 2-3-6 → 7; 1-2-2 → 3; 0-0-5 → 5
         for (got, exp) in m.data_slice().into_owned().iter().zip([7.0f32, 3.0, 5.0]) {
@@ -214,7 +213,7 @@ mod tests {
         let b = image(vec![10.0, 20.0, 30.0]);
         let c = image(vec![100.0, 200.0, 300.0]);
         let output = TernaryAddImageFilter::new()
-            .apply_native(&a, &b, &c, &SequentialBackend)
+            .apply_native(&a, &B::default(), &c, &SequentialBackend)
             .expect("native ternary add succeeds");
 
         assert_eq!(

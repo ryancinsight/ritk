@@ -10,7 +10,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 type B = LegacyBurnBackend;
 
 fn make_image(vals: Vec<f32>, depth: usize, rows: usize, cols: usize) -> Image<B, 3> {
-    ts::make_image::<B, 3>(vals, [depth, rows, cols])
+    ts::burn_compat::make_image::<B, 3>(vals, [depth, rows, cols])
 }
 
 fn image_vals(img: &Image<B, 3>) -> Vec<f32> {

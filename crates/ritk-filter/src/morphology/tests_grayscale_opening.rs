@@ -10,7 +10,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 type B = LegacyBurnBackend;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(vals, dims)
+    ts::burn_compat::make_image::<B, 3>(vals, dims)
 }
 
 fn extract_vals(img: &Image<B, 3>) -> Vec<f32> {
@@ -47,7 +47,7 @@ fn radius_zero_is_identity() {
     let img = make_image(vals.clone(), dims);
     let out = GrayscaleOpeningFilter::new(0).apply(&img).unwrap();
     let out_vals = extract_vals(&out);
-    for (i, (&a, &b)) in vals.iter().zip(out_vals.iter()).enumerate() {
+    for (i, (&a, &B::default())) in vals.iter().zip(out_vals.iter()).enumerate() {
         assert!(
             (a - b).abs() < 1e-6,
             "radius-0 identity: voxel {i} {a} ≠ {b}"
@@ -116,7 +116,7 @@ fn idempotence() {
     let twice = GrayscaleOpeningFilter::new(1).apply(&once).unwrap();
     let v1 = extract_vals(&once);
     let v2 = extract_vals(&twice);
-    for (i, (&a, &b)) in v1.iter().zip(v2.iter()).enumerate() {
+    for (i, (&a, &B::default())) in v1.iter().zip(v2.iter()).enumerate() {
         assert!(
             (a - b).abs() < 1e-4,
             "idempotence: voxel {i} first={a} second={b}"

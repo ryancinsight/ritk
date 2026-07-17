@@ -304,8 +304,7 @@ impl InverseDisplacementField {
         comp_x: &ritk_image::native::Image<f32, B, 3>,
         comp_y: &ritk_image::native::Image<f32, B, 3>,
         comp_z: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B,
-    ) -> anyhow::Result<(
+        backend: &B::default()) -> anyhow::Result<(
         ritk_image::native::Image<f32, B, 3>,
         ritk_image::native::Image<f32, B, 3>,
         ritk_image::native::Image<f32, B, 3>,
@@ -517,9 +516,9 @@ mod tests {
     fn translation_inverse_is_negated() {
         let (h, w) = (16usize, 16usize);
         let n = h * w;
-        let dx = ts::make_image::<B, 3>(vec![2.0; n], [1, h, w]);
-        let dy = ts::make_image::<B, 3>(vec![3.0; n], [1, h, w]);
-        let dz = ts::make_image::<B, 3>(vec![0.0; n], [1, h, w]);
+        let dx = ts::burn_compat::make_image::<B, 3>(vec![2.0; n], [1, h, w]);
+        let dy = ts::burn_compat::make_image::<B, 3>(vec![3.0; n], [1, h, w]);
+        let dz = ts::burn_compat::make_image::<B, 3>(vec![0.0; n], [1, h, w]);
         let (ix, iy, _iz) = InverseDisplacementField {
             subsampling_factor: 8,
         }

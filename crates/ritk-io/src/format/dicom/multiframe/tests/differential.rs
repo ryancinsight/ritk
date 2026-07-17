@@ -8,19 +8,18 @@
 //! value-semantic gate; this module is the cross-carrier equivalence check.
 
 use super::*;
-use coeus_core::SequentialBackend;
+use burn_ndarray::NdArray;
 use ritk_core::image::Image as BurnImage;
 use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 
-use ritk_image::tensor::{Shape, TensorData, Tensor};
-
-type OracleBackend = SequentialBackend;
+type OracleBackend = NdArray<f32>;
 
 /// Build the Burn oracle image from the same flat buffer as [`native_image`].
 fn burn_image(data: Vec<f32>, dims: [usize; 3]) -> BurnImage<OracleBackend, 3> {
     let device = <OracleBackend as Backend>::Device::default();
     let tensor =
-        Tensor::<OracleBackend, 3>::from_data((data, (dims)), &backend);
+        Tensor::<OracleBackend, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
     BurnImage::new(
         tensor,
         Point::new([0.0; 3]),
@@ -44,7 +43,7 @@ fn native_reader_matches_burn_reader_bytewise() {
 
     let native = load_dicom_multiframe_native(&path).expect("native read");
     let device = <OracleBackend as Backend>::Device::default();
-    let burn = load_dicom_multiframe::<OracleBackend, _>(&path, &backend).expect("burn read");
+    let burn = load_dicom_multiframe::<OracleBackend, _>(&path, &device).expect("burn read");
 
     assert_eq!(native.shape(), burn.shape(), "shape parity");
     let native_vals = native.data_slice().expect("contiguous native data");

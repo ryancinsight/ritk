@@ -7,7 +7,7 @@ use ritk_transform::TranslationTransform;
 type B = NdArray<f32>;
 
 fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(data, shape)
+    ts::burn_compat::make_image::<B, 3>(data, shape)
 }
 
 // ── name ─────────────────────────────────────────────────────────────────

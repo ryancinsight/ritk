@@ -23,7 +23,7 @@ fn test_signed_maurer_3x3_block_values() {
         squared_distance: false,
         ..Default::default()
     }
-    .apply(&ts::make_image::<B, 3>(img, [1, ny, nx]))
+    .apply(&ts::burn_compat::make_image::<B, 3>(img, [1, ny, nx]))
     .unwrap();
     let (d, _) = extract_vec(&out).unwrap();
     let at = |y: usize, x: usize| d[y * nx + x];
@@ -56,7 +56,7 @@ fn test_signed_maurer_squared() {
         squared_distance: true,
         ..Default::default()
     }
-    .apply(&ts::make_image::<B, 3>(img, [1, ny, nx]))
+    .apply(&ts::burn_compat::make_image::<B, 3>(img, [1, ny, nx]))
     .unwrap();
     let (d, _) = extract_vec(&out).unwrap();
     // Far corner squared: 18; sign positive (background).
@@ -84,7 +84,7 @@ fn test_signed_maurer_inside_positive() {
         inside_is_positive: true,
         ..Default::default()
     }
-    .apply(&ts::make_image::<B, 3>(img, [1, ny, nx]))
+    .apply(&ts::burn_compat::make_image::<B, 3>(img, [1, ny, nx]))
     .unwrap();
     let (d, _) = extract_vec(&out).unwrap();
     // Foreground centre now positive.

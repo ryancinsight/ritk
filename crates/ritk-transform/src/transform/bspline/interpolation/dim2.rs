@@ -1,7 +1,7 @@
 use super::BSplineTransform;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
-use ritk_wgpu_compat::apply_row_chunks;
+use ritk_image::burn_compat_row_chunks::apply_row_chunks;
 
 /// 2D B-spline transform — chunked over rows for WGPU-friendly memory
 /// pressure. Called from `super::sealed` via const-generic `match D = 2`.

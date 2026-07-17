@@ -9,7 +9,7 @@ use ritk_image::Image;
 type B = LegacyBurnBackend;
 
 fn make(v: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(v, dims)
+    ts::burn_compat::make_image::<B, 3>(v, dims)
 }
 fn voxels(img: &Image<B, 3>) -> Vec<f32> {
     img.data_slice().into_owned()

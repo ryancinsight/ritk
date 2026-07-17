@@ -16,6 +16,7 @@ burn-ndarray = { workspace = true }
 pyo3 = { workspace = true }
 numpy = { workspace = true }
 coeus-core = { workspace = true }
+coeus-tensor = { workspace = true }
 ritk-core = { path = "../ritk-core" }
 ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }

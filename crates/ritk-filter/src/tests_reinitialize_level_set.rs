@@ -7,7 +7,7 @@ use ritk_tensor_ops::extract_vec_infallible;
 type B = LegacyBurnBackend;
 
 fn img(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(data, dims)
+    ts::burn_compat::make_image::<B, 3>(data, dims)
 }
 
 /// A unit-gradient linear level set `φ(x) = x − 3.5` is already a signed distance

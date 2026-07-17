@@ -7,7 +7,7 @@ use ritk_tensor_ops::extract_vec_infallible;
 type B = LegacyBurnBackend;
 
 fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(data, dims)
+    ts::burn_compat::make_image::<B, 3>(data, dims)
 }
 
 /// Two fronts collide head-on along a 1-D unit-speed line: front 1 (from x=0)

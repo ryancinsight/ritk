@@ -8,7 +8,7 @@ use ritk_image::test_support as ts;
 type B = LegacyBurnBackend;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Image<B, 3> {
-    ts::make_image_with_spacing::<B, 3>(vals, dims, spacing)
+    ts::burn_compat::make_image_with_spacing::<B, 3>(vals, dims, spacing)
 }
 
 fn extract_vals(img: &Image<B, 3>) -> Vec<f32> {

@@ -8,7 +8,7 @@ use ritk_image::Image;
 type B = LegacyBurnBackend;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(vals, dims)
+    ts::burn_compat::make_image::<B, 3>(vals, dims)
 }
 
 fn voxels(img: &Image<B, 3>) -> Vec<f32> {
@@ -25,7 +25,7 @@ fn geodesic_dilation_marker_equals_mask_is_identity() {
         .apply(&marker, &mask)
         .unwrap();
     let v = voxels(&out);
-    for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
+    for (i, (&a, &B::default())) in v.iter().zip(vals.iter()).enumerate() {
         assert!(
             (a - b).abs() < 1e-4,
             "voxel {}: expected {}, got {}",
@@ -47,7 +47,7 @@ fn geodesic_dilation_result_bounded_by_mask() {
         .unwrap();
     let v = voxels(&out);
     let mv = [3.0f32, 3.0, 5.0, 3.0, 3.0];
-    for (i, (&a, &b)) in v.iter().zip(mv.iter()).enumerate() {
+    for (i, (&a, &B::default())) in v.iter().zip(mv.iter()).enumerate() {
         assert!(
             (a - b).abs() < 1e-4,
             "voxel {}: expected {}, got {}",
@@ -82,7 +82,7 @@ fn geodesic_erosion_marker_equals_mask_is_identity() {
         .apply(&marker, &mask)
         .unwrap();
     let v = voxels(&out);
-    for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
+    for (i, (&a, &B::default())) in v.iter().zip(vals.iter()).enumerate() {
         assert!(
             (a - b).abs() < 1e-4,
             "voxel {}: expected {}, got {}",
@@ -155,7 +155,7 @@ fn geodesic_erosion_result_bounded_below_by_mask() {
         .unwrap();
     let v = voxels(&out);
     let mask_v = [3.0f32, 3.0, 0.0, 3.0, 3.0];
-    for (i, (&a, &b)) in v.iter().zip(mask_v.iter()).enumerate() {
+    for (i, (&a, &B::default())) in v.iter().zip(mask_v.iter()).enumerate() {
         assert!(a >= b - 1e-4, "voxel {}: result {} below mask {}", i, a, b);
     }
 }

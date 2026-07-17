@@ -11,7 +11,7 @@ type B = LegacyBurnBackend;
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 fn make_image(vals: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(vals, shape)
+    ts::burn_compat::make_image::<B, 3>(vals, shape)
 }
 
 // ── gaussian_blur_vec ─────────────────────────────────────────────────────
@@ -278,7 +278,7 @@ fn test_hessian_iir_laplacian_consistency() {
     // Trace = H_{zz}[0] + H_{yy}[3] + H_{xx}[5].
     let diag_sum: Vec<f32> = hessians.iter().map(|h| h[0] + h[3] + h[5]).collect();
 
-    let img = ts::make_image::<B, 3>(vals, dims);
+    let img = ts::burn_compat::make_image::<B, 3>(vals, dims);
     let lap = crate::recursive_gaussian::laplacian_recursive_gaussian(&img, sigma)
         .expect("laplacian_recursive_gaussian failed");
     let (lap_vals, _) = extract_vec_infallible(&lap);

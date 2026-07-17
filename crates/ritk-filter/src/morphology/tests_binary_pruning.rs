@@ -7,7 +7,7 @@ use ritk_tensor_ops::extract_vec_infallible;
 type B = LegacyBurnBackend;
 
 fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(data, dims)
+    ts::burn_compat::make_image::<B, 3>(data, dims)
 }
 
 /// A 2×2 block is stable: every pixel sees the other three (genus 3 ≥ 2), so no

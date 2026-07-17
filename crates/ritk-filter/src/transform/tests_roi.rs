@@ -9,7 +9,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 type B = LegacyBurnBackend;
 
 fn make_image(vals: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(vals, shape)
+    ts::burn_compat::make_image::<B, 3>(vals, shape)
 }
 
 fn voxels(img: &Image<B, 3>) -> Vec<f32> {
@@ -26,7 +26,7 @@ fn roi_full_image_is_identity() {
         .unwrap();
     assert_eq!(out.shape(), [3, 3, 3]);
     let v = voxels(&out);
-    for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
+    for (i, (&a, &B::default())) in v.iter().zip(vals.iter()).enumerate() {
         assert_eq!(a, b, "voxel {}: identity violation", i);
     }
 }

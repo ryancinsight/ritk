@@ -252,8 +252,9 @@ pub(super) fn run_log(args: &FilterArgs) -> Result<()> {
     let image = read_image_native(&args.input)?;
     let sigma = GaussianSigma::new(args.smoothing.sigma)
         .ok_or_else(|| anyhow!("--sigma must be > 0, got {}", args.smoothing.sigma))?;
+    let backend = NativeBackend::default();
     let filter = LaplacianOfGaussianFilter::new(sigma);
-    let filtered = filter.apply_native(&image)?;
+    let filtered = filter.apply_native(&image, &backend)?;
     let fmt = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     write_image_native(&args.output, &filtered, fmt)?;
@@ -288,8 +289,9 @@ pub(super) fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
     };
 
     let image = read_image_native(&args.input)?;
+    let backend = NativeBackend::default();
     let filter = RecursiveGaussianFilter::new(args.smoothing.sigma).with_derivative_order(order);
-    let filtered = filter.apply_native(&image)?;
+    let filtered = filter.apply_native(&image, &backend)?;
     let fmt = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     write_image_native(&args.output, &filtered, fmt)?;

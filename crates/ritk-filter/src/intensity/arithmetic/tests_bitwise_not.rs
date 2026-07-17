@@ -8,7 +8,7 @@ type B = LegacyBurnBackend;
 
 fn img(data: Vec<f32>) -> Image<B, 3> {
     let n = data.len();
-    ts::make_image::<B, 3>(data, [1, 1, n])
+    ts::burn_compat::make_image::<B, 3>(data, [1, 1, n])
 }
 
 /// Unsigned 8-bit complement: `~x = 255 − x`.

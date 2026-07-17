@@ -13,11 +13,11 @@ use ritk_image::test_support as ts;
 type B = NdArray<f32>;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(vals, dims)
+    ts::burn_compat::make_image::<B, 3>(vals, dims)
 }
 
 fn make_image_with_spacing(vals: Vec<f32>, dims: [usize; 3], sp: [f64; 3]) -> Image<B, 3> {
-    ts::make_image_with_spacing::<B, 3>(vals, dims, sp)
+    ts::burn_compat::make_image_with_spacing::<B, 3>(vals, dims, sp)
 }
 
 fn values_finite(img: &Image<B, 3>) -> Vec<f32> {

@@ -31,7 +31,7 @@ fn prewitt_constant_image_has_zero_gradient() {
     assert!(
         v.iter().all(|&x| x.abs() < 1e-5),
         "constant image should produce zero gradient, got max |v| = {}",
-        v.iter().fold(0.0_f32, |a, &b| a.max(b.abs()))
+        v.iter().fold(0.0_f32, |a, &B::default()| a.max(b.abs()))
     );
 }
 
@@ -120,7 +120,7 @@ fn prewitt_magnitude_zero_for_constant() {
     let filt = PrewittFilter::unit();
     let out = filt.apply(&img).unwrap();
     let v = values(&out);
-    let max_abs = v.iter().fold(0.0_f32, |a, &b| a.max(b.abs()));
+    let max_abs = v.iter().fold(0.0_f32, |a, &B::default()| a.max(b.abs()));
     assert!(max_abs < 1e-5);
 }
 
@@ -191,7 +191,7 @@ fn prewitt_zero_orthogonal_components_for_axial_ramp() {
     let max_ortho = gz_v
         .iter()
         .chain(gy_v.iter())
-        .fold(0.0_f32, |a, &b| a.max(b.abs()));
+        .fold(0.0_f32, |a, &B::default()| a.max(b.abs()));
     assert!(
         max_ortho < 1e-5,
         "orthogonal components should be 0, got max |v| = {}",

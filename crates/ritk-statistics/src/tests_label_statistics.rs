@@ -4,7 +4,7 @@ use ritk_image::test_support::burn_compat::make_image;
 
 type TestBackend = NdArray<f32>;
 
-fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> ritk_image::types::Image<f32, TestBackend, 3> {
+fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
     make_image(data, dims)
 }
 

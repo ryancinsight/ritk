@@ -17,7 +17,7 @@ type B = LegacyBurnBackend;
 #[test]
 #[should_panic(expected = "stencil_radius must be >= 1")]
 fn min_max_stencil_radius_zero_panics() {
-    let img = ts::make_image::<B, 3>(vec![1.0_f32; 16], [1, 4, 4]);
+    let img = ts::burn_compat::make_image::<B, 3>(vec![1.0_f32; 16], [1, 4, 4]);
     let _out = MinMaxCurvatureFlowImageFilter::new(MinMaxCurvatureFlowConfig {
         num_iterations: 1,
         time_step: 0.05,
@@ -40,7 +40,7 @@ fn binary_matches_sitk() {
             data[y * w + x] = base + 0.1 * ((x + y) % 3) as f32 - 0.1;
         }
     }
-    let img = ts::make_image::<B, 3>(data, [1, h, w]);
+    let img = ts::burn_compat::make_image::<B, 3>(data, [1, h, w]);
     let out = BinaryMinMaxCurvatureFlowImageFilter::new(BinaryMinMaxCurvatureFlowConfig {
         num_iterations: 3,
         time_step: 0.05,
@@ -82,7 +82,7 @@ fn matches_sitk_min_max_curvature_flow() {
             data[y * w + x] = base + blob;
         }
     }
-    let img = ts::make_image::<B, 3>(data, [1, h, w]);
+    let img = ts::burn_compat::make_image::<B, 3>(data, [1, h, w]);
     let out = MinMaxCurvatureFlowImageFilter::new(MinMaxCurvatureFlowConfig {
         num_iterations: 3,
         time_step: 0.05,

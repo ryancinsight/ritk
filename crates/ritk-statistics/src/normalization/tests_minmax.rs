@@ -2,7 +2,7 @@ use super::*;
 use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
-use ritk_image::test_support::{make_image, make_image_with};
+use ritk_image::test_support::burn_compat::{make_image, make_image_with};
 
 type TestBackend = NdArray<f32>;
 

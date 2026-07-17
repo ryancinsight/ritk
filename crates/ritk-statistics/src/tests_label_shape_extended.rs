@@ -6,7 +6,7 @@
 
 use burn_ndarray::NdArray;
 use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::types::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 use super::*;

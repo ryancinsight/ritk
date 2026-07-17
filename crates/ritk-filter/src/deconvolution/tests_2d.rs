@@ -16,7 +16,7 @@ use ritk_tensor_ops::extract_vec_infallible;
 type B = LegacyBurnBackend;
 
 fn make_image_2d(data: Vec<f32>, dims: [usize; 2]) -> Image<B, 2> {
-    ts::make_image::<B, 2>(data, dims)
+    ts::burn_compat::make_image::<B, 2>(data, dims)
 }
 
 // ── Wiener ───────────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ use ritk_tensor_ops::extract_vec_infallible;
 type B = LegacyBurnBackend;
 
 fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::make_image::<B, 3>(vals, dims)
+    ts::burn_compat::make_image::<B, 3>(vals, dims)
 }
 
 fn make_image_with_metadata(
@@ -22,7 +22,7 @@ fn make_image_with_metadata(
     spacing: Spacing<3>,
     direction: Direction<3>,
 ) -> Image<B, 3> {
-    ts::make_image_with::<B, 3>(vals, dims, Some(origin), Some(spacing), Some(direction))
+    ts::burn_compat::make_image_with::<B, 3>(vals, dims, Some(origin), Some(spacing), Some(direction))
 }
 
 #[test]

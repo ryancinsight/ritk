@@ -96,8 +96,7 @@ impl GrayscaleErosion {
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        backend: &B::default()) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

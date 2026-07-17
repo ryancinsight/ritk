@@ -240,4 +240,23 @@ pub mod burn_compat {
         let n = data.len();
         make_image::<B, 1>(data, [n])
     }
+
+    /// Build a burn-backed `Image<B, D>` with all spatial metadata specified.
+    pub fn make_image_with<B: Backend, const D: usize>(
+        data: Vec<f32>,
+        dims: [usize; D],
+        origin: Option<ritk_spatial::Point<D>>,
+        spacing: Option<ritk_spatial::Spacing<D>>,
+        direction: Option<ritk_spatial::Direction<D>>,
+    ) -> Image<B, D>
+    where
+        B::Device: Default,
+    {
+        let device = B::Device::default();
+        let t = Tensor::<B, D>::from_data(TensorData::new(data, Shape::new(dims)), &device);
+        let origin = origin.unwrap_or_else(|| Point::new([0.0_f64; D]));
+        let spacing = spacing.unwrap_or_else(|| Spacing::new([1.0_f64; D]));
+        let direction = direction.unwrap_or_else(ritk_spatial::Direction::identity);
+        Image::new(t, origin, spacing, direction)
+    }
 }

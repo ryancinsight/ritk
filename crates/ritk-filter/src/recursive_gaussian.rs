@@ -130,6 +130,20 @@ impl RecursiveGaussianFilter {
 
     /// Apply the recursive Gaussian filter to a 3-D Coeus-native image.
     ///
+    /// Alias for [`Self::apply_native`]; kept for API compatibility.
+    pub fn apply<B>(
+        &self,
+        image: &Image<f32, B, 3>,
+        backend: &B::default()) -> anyhow::Result<Image<f32, B, 3>>
+    where
+        B: coeus_core::ComputeBackend + Default,
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
+        self.apply_native(image, backend)
+    }
+
+    /// Apply the recursive Gaussian filter to a 3-D Coeus-native image.
+    ///
     /// Runs the identical separable Deriche IIR recursion (order 0/1/2 plus
     /// scale normalization; constant/replicate boundary) via the shared
     /// `filter_vals` host core on the image's contiguous host buffer. No Burn
@@ -138,11 +152,10 @@ impl RecursiveGaussianFilter {
     /// # Errors
     /// Returns an error when the image tensor is not host-addressable/contiguous
     /// or the rebuilt image fails shape validation.
-    pub fn apply<B>(
+    pub fn apply_native<B>(
         &self,
         image: &Image<f32, B, 3>,
-        backend: &B,
-    ) -> anyhow::Result<Image<f32, B, 3>>
+        backend: &B::default()) -> anyhow::Result<Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend + Default,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -281,8 +294,7 @@ pub(crate) fn gradient_magnitude_rg_vals(
 pub fn laplacian_recursive_gaussian<B>(
     image: &Image<f32, B, 3>,
     sigma: f64,
-    backend: &B,
-) -> anyhow::Result<Image<f32, B, 3>>
+    backend: &B::default()) -> anyhow::Result<Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend + Default,
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -301,8 +313,7 @@ where
 pub fn gradient_magnitude_recursive_gaussian<B>(
     image: &Image<f32, B, 3>,
     sigma: f64,
-    backend: &B,
-) -> anyhow::Result<Image<f32, B, 3>>
+    backend: &B::default()) -> anyhow::Result<Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend + Default,
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -328,8 +339,7 @@ pub fn recursive_gaussian_directional<B>(
     sigma: f64,
     order: DerivativeOrder,
     direction: usize,
-    backend: &B,
-) -> anyhow::Result<Image<f32, B, 3>>
+    backend: &B::default()) -> anyhow::Result<Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend + Default,
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -415,8 +425,7 @@ where
 pub fn smoothing_recursive_gaussian<B>(
     image: &Image<f32, B, 3>,
     sigmas: &[f64],
-    backend: &B,
-) -> anyhow::Result<Image<f32, B, 3>>
+    backend: &B::default()) -> anyhow::Result<Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend + Default,
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

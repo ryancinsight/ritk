@@ -22,8 +22,8 @@ fn salt_pepper_full_prob_saturates() {
     let filter = SaltAndPepperNoiseFilter::new(1.0).with_seed(42);
     let result = filter.apply(&img).unwrap();
     let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
-    let min = vals.iter().fold(f32::INFINITY, |a, &b| a.min(b));
-    let max = vals.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+    let min = vals.iter().fold(f32::INFINITY, |a, &B::default()| a.min(b));
+    let max = vals.iter().fold(f32::NEG_INFINITY, |a, &B::default()| a.max(b));
     // Every voxel must be either min or max
     for &v in &vals {
         assert!(v == min || v == max, "all voxels must be salt or pepper");
