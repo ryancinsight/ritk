@@ -76,6 +76,8 @@
 - Corrected legacy physical-to-index conversion for rotated, anisotropic image
   geometry by applying direction and the required ZYX↔XYZ axis mapping before
   interpolation.
+- Restored the DICOM/Analyze security regression's real `burn_ndarray::NdArray`
+  oracle backend, matching the remaining Burn-compatible I/O API contract.
 
 ### Breaking
 - Rust callers must replace legacy Burn images with native

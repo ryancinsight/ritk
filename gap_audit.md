@@ -32,6 +32,16 @@ baseline clone. The current crate builds and documents successfully; public API
 comparison remains blocked until the baseline's cross-repository path
 dependency is made self-contained.
 
+## CI-658-04 audit (2026-07-17)
+
+The GitHub warning-denied workspace Clippy lane found that
+`ritk-io/tests/dicom_security.rs` used `SequentialBackend` with the remaining
+Burn-compatible DICOM/Analyze public APIs. This was a test-boundary type error,
+not a reason to retain a compatibility bridge: the target now uses the real
+`burn_ndarray::NdArray<f32>` oracle backend and current `TensorData` shape
+construction. Evidence tier: compile-time checking; the exact warning-denied
+Clippy target passes locally. GitHub revalidation remains pending.
+
 ## CI-658-02 audit (2026-07-17)
 
 PR #37's local warning-denied Clippy reproduction found an invalid native test

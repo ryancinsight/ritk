@@ -28,6 +28,14 @@
   lane, image/interpolation nextest, doctests, rustdoc, and the migration audit
   pass without enlarging the Burn allowlist.
 
+- **CI-658-04 [patch] - Restore legacy I/O CI oracle backend (REVIEW;
+  owner=Codex; scope=`crates/ritk-io/tests/dicom_security.rs`, PM artifacts).**
+  The security regression exercises existing Burn-compatible DICOM/Analyze
+  entry points, so it now uses their real `burn_ndarray::NdArray<f32>` test
+  backend and Burn `TensorData` construction rather than an incompatible
+  Coeus backend. Acceptance: warning-denied Clippy for the exact integration
+  target passes locally and the retried GitHub matrix compiles the test.
+
 - **MIG-658-01 [major] - Remove relocated Burn compatibility surfaces (IN
   PROGRESS; owner=Codex; scope=`crates/ritk-image/src/{lib.rs,
   tests_burn_compat_grid.rs}`, `Cargo.{toml,lock}`, `crates/ritk-registration/{classical,

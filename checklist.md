@@ -54,6 +54,18 @@
       `coeus/coeus-autograd` path in the isolated baseline clone. This is a
       baseline topology blocker, not a source diagnostic from this repair.
 
+## CI-658-04 — Restore legacy I/O CI oracle backend
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Make the DICOM/Analyze security regression use the actual legacy
+      `burn_ndarray::NdArray<f32>` backend required by its still
+      Burn-compatible I/O API. Completion condition: the target no longer
+      passes `SequentialBackend` to a Burn image or tensor.
+- [x] Verify the exact failing CI target. Evidence: warning-denied
+      `cargo clippy -p ritk-io --test dicom_security --all-features -- -D
+      warnings` passes locally.
+
 ## MIG-657-01 — Native extended label-shape statistics
 **Target version**: 0.3.0
 **Sprint phase**: Execution
