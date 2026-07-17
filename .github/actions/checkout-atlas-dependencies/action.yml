@@ -22,7 +22,7 @@ runs:
       uses: actions/checkout@v6
       with:
         repository: ryancinsight/eunomia
-        ref: dd94f7b9d223668887302531006628818e2bd45b
+        ref: a2e4f390d7b7e88589d4f2510e48f57c303360d2
         path: eunomia
         persist-credentials: false
     - name: Checkout Gaia

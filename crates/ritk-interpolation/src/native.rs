@@ -11,7 +11,7 @@
 //! - `grid`:  `[b, 3, out_d, out_h, out_w]` channel 0=z, 1=y, 2=x
 //! - output:  `[b, c, out_d, out_h, out_w]`
 
-use num_traits::{Float, FromPrimitive, ToPrimitive};
+use eunomia::{CastFrom, FloatElement};
 
 /// Trilinear image sampling on a flat voxel buffer.
 ///
@@ -34,7 +34,8 @@ pub fn trilinear_interpolation<T>(
     out_w: usize,
 ) -> Vec<T>
 where
-    T: Copy + Float + FromPrimitive + ToPrimitive,
+    T: Copy + FloatElement,
+    usize: CastFrom<T>,
 {
     assert_eq!(
         image.len(),
@@ -63,9 +64,9 @@ where
     let g_b = 3 * out_sp;
     let i_ch = d * h * w;
     let i_b = c * i_ch;
-    let one = T::one();
+    let one = T::ONE;
 
-    let mut out = vec![T::zero(); b * c * out_sp];
+    let mut out = vec![T::ZERO; b * c * out_sp];
 
     for bi in 0..b {
         let gb = bi * g_b;
@@ -105,14 +106,15 @@ where
 }
 
 #[inline]
-fn split<T: Copy + Float + FromPrimitive + ToPrimitive>(
-    coord: T,
-    size: usize,
-) -> (usize, usize, T) {
-    let max = T::from_usize(size.saturating_sub(1)).unwrap_or(T::zero());
-    let c = coord.max(T::zero()).min(max);
+fn split<T>(coord: T, size: usize) -> (usize, usize, T)
+where
+    T: Copy + FloatElement,
+    usize: CastFrom<T>,
+{
+    let max = T::from_f64(size.saturating_sub(1) as f64);
+    let c = coord.max(T::ZERO).min(max);
     let fl = c.floor();
-    let i0 = fl.to_usize().unwrap_or(0).min(size.saturating_sub(1));
+    let i0 = usize::cast_from(fl).min(size.saturating_sub(1));
     let i1 = (i0 + 1).min(size.saturating_sub(1));
     (i0, i1, c - fl)
 }
@@ -120,4 +122,34 @@ fn split<T: Copy + Float + FromPrimitive + ToPrimitive>(
 #[inline]
 fn at<T: Copy>(buf: &[T], base: usize, zi: usize, yi: usize, xi: usize, h: usize, w: usize) -> T {
     buf[base + zi * h * w + yi * w + xi]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::trilinear_interpolation;
+    use eunomia::{CastFrom, FloatElement};
+
+    fn assert_sampling_contract<T>()
+    where
+        T: Copy + core::fmt::Debug + PartialEq + FloatElement,
+        usize: CastFrom<T>,
+    {
+        let image = (0..8)
+            .map(|value| T::from_f64(f64::from(value)))
+            .collect::<Vec<_>>();
+
+        let center = [T::from_f64(0.5); 3];
+        let center_sample = trilinear_interpolation(&image, 1, 1, 2, 2, 2, &center, 1, 1, 1);
+        assert_eq!(center_sample, vec![T::from_f64(3.5)]);
+
+        let upper = [T::from_f64(4.0); 3];
+        let upper_sample = trilinear_interpolation(&image, 1, 1, 2, 2, 2, &upper, 1, 1, 1);
+        assert_eq!(upper_sample, vec![T::from_f64(7.0)]);
+    }
+
+    #[test]
+    fn flat_buffer_sampling_preserves_scalar_contract() {
+        assert_sampling_contract::<f32>();
+        assert_sampling_contract::<f64>();
+    }
 }

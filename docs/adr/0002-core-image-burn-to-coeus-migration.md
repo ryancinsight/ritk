@@ -179,3 +179,23 @@ The cutover is accepted only when registration examples compile against the
 same public image type as library targets, focused value-semantic transform/I/O
 tests pass, and `xtask burn-migration-audit` removes rather than allowlists the
 compatibility surfaces.
+
+## Amendment A3 (2026-07-17) — Scalar-provider migration does not imply Burn removal
+
+The native flat-buffer trilinear sampler was the interpolation crate's final
+direct `num-traits` consumer. Its public generic contract now uses Eunomia's
+sealed `FloatElement` seam and provider-owned `CastFrom<T> for usize`
+conversion. Because this narrows the set of external scalar implementations,
+`ritk-interpolation` advances from 0.3.0 to 0.4.0.
+
+This scalar-provider change does not satisfy the crate-level Burn removal
+criterion above. Production linear interpolation still uses Burn module and
+record contracts, and 11 test/benchmark modules still instantiate the Burn
+NdArray backend. The stale manifest-only deletion was therefore rejected and
+the live Burn dependencies remain explicit. A future Burn deletion must still
+remove every caller and provide the required differential evidence in one
+complete cutover.
+
+Verification consists of the Eunomia generic cast suite, an interpolation
+regression instantiated at `f32` and `f64`, locked package compilation,
+warning-denied all-target/all-feature Clippy, and the package Nextest suite.

@@ -7555,7 +7555,7 @@ dependencies = [
 
 [[package]]
 name = "ritk-interpolation"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "burn",
@@ -7564,7 +7564,7 @@ dependencies = [
  "coeus-ops",
  "coeus-tensor",
  "criterion",
- "num-traits",
+ "eunomia",
  "rand 0.9.2",
  "ritk-core",
  "ritk-image",
