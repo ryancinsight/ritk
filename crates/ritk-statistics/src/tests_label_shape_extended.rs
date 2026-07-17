@@ -4,24 +4,50 @@
 //! Verifies centroid, perimeter, elongation, flatness, roundness, Feret diameter,
 //! and principal moments for known geometries.
 
-use burn_ndarray::NdArray;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::Image;
+use coeus_core::SequentialBackend;
+use coeus_tensor::Tensor;
+use ritk_image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 use super::*;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
-fn make_label_image(data: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Image<B, 3> {
-    let device = Default::default();
-    let t = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
-    Image::new(
-        t,
+fn make_label_image(data: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Image<f32, B, 3> {
+    Image::from_flat_on(
+        data,
+        dims,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new(spacing),
         Direction::identity(),
+        &B,
     )
+    .expect("invariant: test image shape matches flat data length")
+}
+
+fn statistics(image: &Image<f32, B, 3>) -> Vec<LabelShapeStatisticsExtended> {
+    compute_label_shape_statistics_extended(image)
+        .expect("invariant: SequentialBackend test image is host-addressable")
+}
+
+#[test]
+fn non_contiguous_image_reports_host_access_failure() {
+    let data = Tensor::<f32, B>::from_slice([1, 2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+    let image = Image::new(
+        data.permute(&[0, 2, 1]),
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+    )
+    .expect("invariant: permuted three-dimensional tensor preserves image rank");
+
+    let error = compute_label_shape_statistics_extended(&image)
+        .expect_err("non-contiguous image must not masquerade as a host slice");
+
+    assert_eq!(
+        error.to_string(),
+        "image data is not contiguous: shape=[1, 3, 2], strides=[6, 1, 3]"
+    );
 }
 
 // ── Centroid ─────────────────────────────────────────────────────────────────
@@ -33,7 +59,7 @@ fn single_voxel_centroid() {
     let mut data = vec![0.0_f32; 16];
     data[1 * 4 + 2] = 1.0; // flat = 0*16 + 1*4 + 2 = 6 → z=0, y=1, x=2
     let img = make_label_image(data, [1, 4, 4], [1.0, 1.0, 1.0]);
-    let stats = compute_label_shape_statistics_extended(&img);
+    let stats = statistics(&img);
     assert_eq!(stats.len(), 1);
     assert_eq!(stats[0].label, 1);
     assert_eq!(stats[0].count, 1);
@@ -58,7 +84,7 @@ fn symmetric_pair_centroid() {
     data[0] = 1.0; // (0,0,0)
     data[2] = 1.0; // (0,0,2)
     let img = make_label_image(data, [3, 3, 3], [1.0, 1.0, 1.0]);
-    let stats = compute_label_shape_statistics_extended(&img);
+    let stats = statistics(&img);
     assert_eq!(stats.len(), 1);
     assert!((stats[0].centroid[0] - 0.0).abs() < 1e-6);
     assert!((stats[0].centroid[1] - 0.0).abs() < 1e-6);
@@ -74,7 +100,7 @@ fn single_voxel_perimeter_matches_itk() {
     let mut data = vec![0.0_f32; 27];
     data[13] = 1.0; // center of 3×3×3
     let img = make_label_image(data, [3, 3, 3], [1.0, 1.0, 1.0]);
-    let stats = compute_label_shape_statistics_extended(&img);
+    let stats = statistics(&img);
     assert!(
         (stats[0].perimeter - 3.0040803078963907).abs() < 1e-9,
         "single-voxel perimeter {} ≠ ITK 3.00408",
@@ -88,7 +114,7 @@ fn single_voxel_perimeter_matches_itk() {
 fn solid_block_perimeter_matches_itk() {
     let data = vec![1.0_f32; 27]; // all label=1
     let img = make_label_image(data, [3, 3, 3], [1.0, 1.0, 1.0]);
-    let stats = compute_label_shape_statistics_extended(&img);
+    let stats = statistics(&img);
     assert_eq!(stats[0].count, 27);
     assert!(
         (stats[0].perimeter - 41.070175434096235).abs() < 1e-9,
@@ -105,7 +131,7 @@ fn solid_block_perimeter_matches_itk() {
 fn solid_block_is_roughly_spherical() {
     let data = vec![1.0_f32; 27];
     let img = make_label_image(data, [3, 3, 3], [1.0, 1.0, 1.0]);
-    let stats = compute_label_shape_statistics_extended(&img);
+    let stats = statistics(&img);
     assert!(
         (stats[0].elongation - 1.0).abs() < 0.1,
         "elongation should be near 1, got {}",
@@ -125,7 +151,7 @@ fn line_component_is_highly_elongated() {
     let (nz, ny, nx) = (3usize, 3usize, 15usize);
     let data = vec![1.0_f32; nz * ny * nx];
     let img = make_label_image(data, [nz, ny, nx], [1.0, 1.0, 1.0]);
-    let stats = compute_label_shape_statistics_extended(&img);
+    let stats = statistics(&img);
     // λ2 (x, length 15) ≫ λ1 ≈ λ0 (3×3 cross-section) → elongation large.
     assert!(
         stats[0].elongation > 2.5,
@@ -149,7 +175,7 @@ fn line_component_is_highly_elongated() {
 fn solid_block_roundness_matches_itk() {
     let data = vec![1.0_f32; 27];
     let img = make_label_image(data, [3, 3, 3], [1.0, 1.0, 1.0]);
-    let stats = compute_label_shape_statistics_extended(&img);
+    let stats = statistics(&img);
     assert!(
         (stats[0].roundness - 1.0597418272119552).abs() < 1e-9,
         "3×3×3 roundness {} ≠ ITK 1.05974",
@@ -165,7 +191,7 @@ fn single_voxel_roundness_matches_itk() {
     let mut data = vec![0.0_f32; 27];
     data[13] = 1.0;
     let img = make_label_image(data, [3, 3, 3], [1.0, 1.0, 1.0]);
-    let stats = compute_label_shape_statistics_extended(&img);
+    let stats = statistics(&img);
     assert!(
         (stats[0].feret_diameter).abs() < 1e-9,
         "feret must be 0 for single voxel"
@@ -184,7 +210,7 @@ fn single_voxel_roundness_matches_itk() {
 fn line_feret_diameter() {
     let data = vec![1.0_f32; 5];
     let img = make_label_image(data, [1, 1, 5], [1.0, 1.0, 1.0]);
-    let stats = compute_label_shape_statistics_extended(&img);
+    let stats = statistics(&img);
     assert!((stats[0].feret_diameter - 4.0).abs() < 1e-9);
 }
 
@@ -194,7 +220,7 @@ fn single_voxel_feret_is_zero() {
     let mut data = vec![0.0_f32; 27];
     data[0] = 1.0;
     let img = make_label_image(data, [3, 3, 3], [1.0, 1.0, 1.0]);
-    let stats = compute_label_shape_statistics_extended(&img);
+    let stats = statistics(&img);
     assert!((stats[0].feret_diameter - 0.0).abs() < 1e-6);
 }
 
@@ -207,7 +233,7 @@ fn multiple_labels_sorted() {
     data[0] = 2.0;
     data[7] = 1.0;
     let img = make_label_image(data, [2, 2, 2], [1.0, 1.0, 1.0]);
-    let stats = compute_label_shape_statistics_extended(&img);
+    let stats = statistics(&img);
     assert_eq!(stats.len(), 2);
     assert_eq!(stats[0].label, 1);
     assert_eq!(stats[1].label, 2);
@@ -220,7 +246,7 @@ fn multiple_labels_sorted() {
 fn empty_image_returns_empty() {
     let data = vec![0.0_f32; 27];
     let img = make_label_image(data, [3, 3, 3], [1.0, 1.0, 1.0]);
-    let stats = compute_label_shape_statistics_extended(&img);
+    let stats = statistics(&img);
     assert!(stats.is_empty());
 }
 
@@ -233,8 +259,8 @@ fn anisotropic_spacing_affects_moments() {
     let data = vec![1.0_f32; 27]; // solid 3×3×3
     let iso = make_label_image(data.clone(), [3, 3, 3], [1.0, 1.0, 1.0]);
     let aniso = make_label_image(data, [3, 3, 3], [2.0, 1.0, 0.5]);
-    let iso_stats = compute_label_shape_statistics_extended(&iso);
-    let aniso_stats = compute_label_shape_statistics_extended(&aniso);
+    let iso_stats = statistics(&iso);
+    let aniso_stats = statistics(&aniso);
     // Counts are identical (voxel-space)
     assert_eq!(iso_stats[0].count, aniso_stats[0].count);
     // Physical surface area differs under anisotropic spacing.

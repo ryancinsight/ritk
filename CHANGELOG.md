@@ -8,6 +8,29 @@
 
 # CHANGELOG
 
+## [Unreleased] — Native extended label-shape statistics (MIG-657-01)
+
+### Changed
+- `compute_label_shape_statistics_extended` now accepts a native Coeus image
+  and exposes host-access failure through `Result`.
+- The Python binding passes `PyImage`'s native Moirai-backed storage directly
+  into the statistics core while releasing the GIL.
+
+### Breaking
+- Rust callers must replace legacy Burn images with native
+  `Image<f32, B, 3>` values and propagate the returned error.
+
+### Migration
+- Replace `compute_label_shape_statistics_extended(&legacy_image)` with
+  `compute_label_shape_statistics_extended(&native_image)?`.
+
+### Evidence
+- The Apollo 0.22 workspace constraint and lockfile now resolve the merged
+  provider. Focused statistics/Python compile and warning-denied Clippy,
+  statistics nextest, doctest, rustdoc, formatting, diff-whitespace, and
+  targeted source-residue gates pass.
+- Current RITK `main` batch integration and its final rerun remain pending.
+
 ## [Unreleased] — Workspace license metadata (SEC-656-01)
 
 ### Changed

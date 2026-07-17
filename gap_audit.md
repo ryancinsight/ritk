@@ -8,6 +8,29 @@
 
 # RITK Gap Audit - Active
 
+## MIG-657-01 audit (2026-07-16)
+
+### Extended label-shape statistics use one native image boundary
+
+`compute_label_shape_statistics_extended` now consumes the existing native
+`Image<f32, B, 3>` contract and reads its host-addressable storage fallibly.
+The pure slice implementation remains the sole numerical implementation. The
+only in-tree Python binding passes its native `PyImage` storage directly while
+the GIL is released; no Burn image conversion remains at that boundary. The
+existing ITK/Crofton assertions are unchanged and their test fixtures now use
+`SequentialBackend` native images.
+
+Evidence tier: compile-time integration plus value-semantic statistics tests.
+The Apollo 0.22 workspace constraint and lockfile resolve the merged provider;
+focused statistics/Python warning-denied compile gates, statistics nextest,
+doctest, rustdoc, direct formatting, diff-whitespace validation, and targeted
+residue scans pass.
+
+Residual: current RITK `main` advanced with batch `b1850302` while this slice
+was in progress. Merge that batch, resolve the overlapping label-shape test
+import, and rerun the focused gate set before publishing this breaking API
+change.
+
 ## SEC-656-01 audit (2026-07-15)
 
 ### License metadata has one workspace authority

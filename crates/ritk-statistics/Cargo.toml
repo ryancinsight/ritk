@@ -1,6 +1,6 @@
 [package]
 name = "ritk-statistics"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license.workspace = true
 description = "Image statistics, information theory, image comparison metrics, normalization, and noise estimation"

@@ -1,7 +1,7 @@
 # RITK Backlog - Active Planning
 
 - **MIG-657-01 [major] - Native extended label-shape statistics (IN PROGRESS;
-  owner=Codex; scope=`crates/ritk-statistics/src/{label_shape_extended.rs,
+  owner=Codex; scope=`crates/ritk-statistics/{Cargo.toml,src/{label_shape_extended.rs,
   tests_label_shape_extended.rs,lib.rs}`, `crates/ritk-python/src/statistics/
   label_shape_extended.rs`, PM artifacts).** Replace the remaining Burn-generic
   extended label-shape API with the established native image contract and move
@@ -9,7 +9,12 @@
   image boundary rather than retaining a bridge. Acceptance: the native path
   preserves all value-semantic ITK/Crofton oracles, the Python binding releases
   the GIL around the real calculation, and the statistics source no longer
-  imports Burn image traits for this operation.
+  imports Burn image traits for this operation. Apollo 0.22 is now merged and
+  the RITK workspace constraint/lockfile resolve it. Focused statistics and
+  Python warning-denied compile gates, statistics nextest, doctests, rustdoc,
+  and source-residue scans pass. Remaining integration: merge current RITK
+  `main` batch `b1850302`, resolve the narrow test-import overlap, and rerun
+  this exact gate set before publication.
 
 - **SEC-656-01 [patch] - Declare the RITK dual-license metadata (IN PROGRESS;
   owner=Codex; scope=workspace package manifests, license texts, README, PM

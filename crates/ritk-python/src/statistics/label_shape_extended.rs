@@ -4,8 +4,8 @@
 //! shape attributes: perimeter, roundness, flatness, elongation,
 //! principal moments, centroid, and Feret diameter.
 
-use crate::errors::RitkResult;
-use crate::image::{py_image_to_burn, PyImage};
+use crate::errors::{RitkPyError, RitkResult};
+use crate::image::PyImage;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_statistics::label_shape_extended::compute_label_shape_statistics_extended;
@@ -44,8 +44,10 @@ pub fn extended_label_shape_statistics_py(
     py: Python<'_>,
     label_image: &PyImage,
 ) -> RitkResult<Py<PyList>> {
-    let img = py_image_to_burn(label_image);
-    let stats = py.allow_threads(|| compute_label_shape_statistics_extended(&img));
+    let image = label_image.inner.clone();
+    let stats = py
+        .allow_threads(|| compute_label_shape_statistics_extended(image.as_ref()))
+        .map_err(|error| RitkPyError::runtime(error.to_string()))?;
 
     let list = PyList::empty_bound(py);
     for s in &stats {

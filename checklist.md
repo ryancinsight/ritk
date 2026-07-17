@@ -12,19 +12,23 @@
 **Target version**: 0.3.0
 **Sprint phase**: Execution
 
-- [ ] Replace `compute_label_shape_statistics_extended`'s Burn-generic image
+- [x] Replace `compute_label_shape_statistics_extended`'s Burn-generic image
       boundary with the native `Image<f32, B, 3>` contract. Completion
       condition: source receives the contiguous native slice fallibly and
       preserves the existing pure slice algorithm as SSOT.
-- [ ] Update the only in-tree Python caller to pass its native `PyImage`
+- [x] Update the only in-tree Python caller to pass its native `PyImage`
       storage directly and release the GIL around the computation. Completion
       condition: no Burn conversion occurs at this boundary.
-- [ ] Port the extended-label-shape oracle suite to `SequentialBackend` native
+- [x] Port the extended-label-shape oracle suite to `SequentialBackend` native
       images. Completion condition: exact labels/counts and the existing
       ITK/Crofton numerical assertions remain unchanged.
-- [ ] Run focused compile, warnings-denied Clippy, nextest, doctest, rustdoc,
-      and a targeted source-residue scan. Completion condition: all gates pass
-      without touching the fresh peer-owned RITK files.
+- [x] Update the workspace Apollo constraint and lockfile to merged 0.22.0.
+      Completion condition: the former resolver blocker is absent.
+- [x] Run focused statistics/Python compile and warning-denied Clippy,
+      statistics nextest, doctest, rustdoc, formatting, and targeted
+      source-residue gates. Completion condition: all pass on the native path.
+- [ ] Merge current RITK `main` batch `b1850302`, resolve the overlapping
+      label-shape test import, and rerun the same gate set before publication.
 
 ## SEC-656-01 — Workspace license metadata
 **Target version**: Unreleased patch

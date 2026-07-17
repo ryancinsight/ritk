@@ -43,10 +43,9 @@
 //! perimeter pass (O(N·13)), and the Feret pass over the boundary set (O(B²),
 //! B ≪ N). One parallel fold groups voxel indices; one parallel map over labels.
 
-use ritk_image::tensor::backend::Backend;
-use ritk_image::Image;
+use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_image::native::Image;
 use ritk_spatial::Point;
-use ritk_tensor_ops::extract_vec_infallible;
 use std::collections::HashMap;
 use std::f64::consts::PI;
 
@@ -278,20 +277,30 @@ fn feret_from_boundary(boundary_phys: &[[f64; 3]]) -> f64 {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-/// Compute extended label shape statistics from a 3-D `Image` tensor.
+/// Compute extended label shape statistics from a native 3-D label image.
 ///
 /// Spacing is read from `label_image.spacing()`; shape from `label_image.shape()`.
 /// Background (label 0) is excluded from results.
 ///
-/// # Panics
-/// Panics if the backend tensor cannot be converted to `f32`.
-pub fn compute_label_shape_statistics_extended<B: Backend>(
-    label_image: &Image<B, 3>,
-) -> Vec<LabelShapeStatisticsExtended> {
-    let (label_vals, dims) = extract_vec_infallible(label_image);
+/// # Errors
+///
+/// Returns an error when the image buffer cannot be accessed from the host.
+pub fn compute_label_shape_statistics_extended<B>(
+    label_image: &Image<f32, B, 3>,
+) -> anyhow::Result<Vec<LabelShapeStatisticsExtended>>
+where
+    B: ComputeBackend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    let label_values = label_image.data_slice()?;
+    let dims = label_image.shape();
     let sp = label_image.spacing();
     let spacing = [sp[0], sp[1], sp[2]];
-    compute_label_shape_statistics_extended_from_slices(&label_vals, dims, spacing)
+    Ok(compute_label_shape_statistics_extended_from_slices(
+        label_values,
+        dims,
+        spacing,
+    ))
 }
 
 /// Compute extended label shape statistics from pre-extracted flat slices.
