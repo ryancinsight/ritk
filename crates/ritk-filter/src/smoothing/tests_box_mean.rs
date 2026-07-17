@@ -1,5 +1,5 @@
-use crate::native_support::LegacyBurnBackend;
 use super::*;
+use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 
 type B = LegacyBurnBackend;

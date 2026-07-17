@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::bail;
 use ritk_image::native::{ColorVolume, Image};
 use ritk_tensor_ops::native::{extract_image_vec, rebuild_image};
 use std::collections::BTreeMap;
@@ -60,7 +60,8 @@ impl LabelToRGBFilter {
     pub fn apply<B>(
         &self,
         image: &Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ColorVolume<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<ColorVolume<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -131,7 +132,8 @@ impl LabelOverlayFilter {
         &self,
         image: &Image<f32, B, 3>,
         label: &Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ColorVolume<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<ColorVolume<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -261,7 +263,8 @@ impl LabelMapContourOverlayFilter {
         &self,
         feature: &Image<f32, B, 3>,
         label: &Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ColorVolume<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<ColorVolume<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

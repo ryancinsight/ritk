@@ -65,7 +65,9 @@ impl<B: Backend> AnalyzeReader<B> {
 }
 
 impl<B: Backend> Default for AnalyzeReader<B> {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// Write-side wrapper type implementing the Burn image writer contract.

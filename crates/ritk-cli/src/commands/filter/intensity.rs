@@ -274,12 +274,9 @@ pub(super) fn run_binary_threshold(args: &FilterArgs) -> Result<()> {
 
     let image = read_image_native(&args.input)?;
     let backend = NativeBackend::default();
-    let filtered = BinaryThreshold::new(
-        args.band.lower_threshold,
-        args.band.upper_threshold,
-    )
-    .with_values(args.band.foreground_value, args.band.background_value)
-    .apply_native(&image, &backend)?;
+    let filtered = BinaryThreshold::new(args.band.lower_threshold, args.band.upper_threshold)
+        .with_values(args.band.foreground_value, args.band.background_value)
+        .apply_native(&image, &backend)?;
 
     let fmt = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;

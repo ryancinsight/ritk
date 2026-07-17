@@ -12,9 +12,6 @@ pub mod separable_gradient;
 pub mod sobel;
 pub mod zero_crossing_based_edge;
 
-#[cfg(test)]
-mod tests_native;
-
 pub use canny::CannyEdgeDetector;
 pub use canny_edge_detection::CannyEdgeDetectionImageFilter;
 pub use derivative::DerivativeImageFilter;

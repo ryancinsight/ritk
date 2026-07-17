@@ -8,6 +8,163 @@
 
 # CHANGELOG
 
+## [Unreleased] — Native extended label-shape statistics (MIG-657-01)
+
+### Changed
+- Routed `PyColorImage`, its color operations, and current Canny/recursive
+  Gaussian bindings through native `ColorVolume`/`Image` contracts with the
+  concrete `MoiraiBackend`, removing their legacy color-tensor bridge.
+- Moved color-component mapping coverage to the native `ColorVolume`
+  component-buffer contract and added its exact interleaved-storage round trip.
+- `compute_label_shape_statistics_extended` now accepts a native Coeus image
+  and exposes host-access failure through `Result`.
+- The Python binding passes `PyImage`'s native Moirai-backed storage directly
+  into the statistics core while releasing the GIL.
+- `geometry_check` now loads NIfTI images and evaluates its grid-to-world
+  probes through the native image contract.
+- The real-data registration tests now load the documented scalar MNI152
+  fixture through the native NIfTI reader and assert exact native identity
+  interpolation samples.
+- `registration_compare_figure` and the CLI mutual-information path now share
+  the native image↔Leto conversion boundary. The classical index-space affine
+  converts to physical coordinates before native resampling, and the shared
+  metric resampler uses `ritk-image`'s native grid generator.
+- The RITK Apollo requirement and lockfile now consume the merged 0.23.0
+  provider release.
+- Native displacement inversion now returns `NativeDisplacementField` with
+  named physical-axis components, rather than an anonymous triple of images.
+- Color-component and colormap regressions now construct native images and
+  inspect native interleaved color volumes through public integration targets;
+  the former `burn_compat` fixtures are removed.
+- The five active Criterion targets and recursive-Gaussian comparison example
+  now construct native images and call the corresponding native operations.
+- The analytical parity suite now uses public native intensity, edge,
+  segmentation, and statistics APIs.
+- Gaussian coverage is consolidated into one native public-contract integration
+  target; the duplicate stale unit module is removed.
+- Blend and ternary arithmetic coverage now shares one native public-contract
+  integration target; the stale Burn-backed inline test modules are removed.
+- Recursive-Gaussian coverage now shares one native public-contract integration
+  target; the stale private test modules and their Burn differential harness are
+  removed.
+- Edge coverage now shares one native public-contract integration target; four
+  stale source test modules and their Burn differential harness are removed.
+- Frangi vesselness coverage now shares one native public-contract integration
+  target; the stale source suite and Burn differential harness are removed.
+- Multi-resolution pyramid coverage now shares one native public-contract
+  integration target; the stale source suite is removed and the native path
+  preserves physical smoothing, integer strides, and spatial metadata.
+- Native 3-D affine resampling now belongs to `ritk-filter`; registration
+  metrics and the comparison example consume it directly, and the
+  registration-owned duplicate is removed. The shared sampler zero-fills
+  samples outside the documented half-voxel buffer.
+- Dense-field warp now delegates to the native resampler and validates field
+  component shape and spatial metadata; the stale source suite is removed.
+- WGPU row scheduling now belongs to the provider-independent
+  `ritk-wgpu-compat` policy crate. Six tensor consumers supply native slice
+  and concatenation operations, and `burn_compat_row_chunks` is removed.
+- Stochastic fractal dimension now exposes one native image entry. Its Python
+  binding passes `PyImage` storage directly, and the duplicate Burn algorithm
+  and source test module are removed.
+- The native extended-label statistics fixture now constructs its concrete
+  backend value, and the legacy B-spline Criterion workload uses its actual
+  Burn backend and current tensor-data constructor.
+- The now-unused approximate Burn differential harness is removed from filter
+  test support.
+
+### Fixed
+- Completed the DICOM A-RELEASE handshake after C-ECHO, C-FIND, C-MOVE, and
+  C-STORE when a peer closes its TCP socket immediately after `A-RELEASE-RP`.
+  This avoids the macOS-only `NotConnected` error in `dicom-ul` 0.10 while
+  retaining the required protocol exchange; upstream correction is tracked in
+  [Enet4/dicom-rs#811](https://github.com/Enet4/dicom-rs/issues/811).
+- Corrected legacy physical-to-index conversion for rotated, anisotropic image
+  geometry by applying direction and the required ZYX↔XYZ axis mapping before
+  interpolation.
+- Restored the DICOM/Analyze security regression's real `burn_ndarray::NdArray`
+  oracle backend, matching the remaining Burn-compatible I/O API contract.
+- Restored legacy transform, segmentation, registration, and registration-example
+  targets to their actual `burn_ndarray::NdArray` backend contracts. The
+  registration benchmarks now use RITK's existing Burn grid generator instead
+  of passing a Burn device to the native grid API.
+- Replaced RIRE MetaImage and DICOM registration-test readers with their native
+  provider APIs, changed the persistent LDDMM benchmark to
+  `CpuFieldSmoother`, and deleted the unreferenced private-path NGF benchmark
+  whose full registration path is still Burn-only.
+- Corrected native/Burn NGF differential coverage to compare only central
+  differences whose transformed neighbours are in bounds. Burn edge extension
+  and native half-voxel zero-fill remain distinct, tested boundary contracts.
+- Corrected the Analyze-to-NIfTI converter to use the native Analyze reader and
+  native NIfTI writer directly, removing its invalid mixed Coeus/Burn image
+  annotation.
+- Corrected real-data fixture discovery to require the documented MNI152 NIfTI
+  file, preventing an earlier empty `test_data` directory from masking a later
+  valid fixture root.
+
+### Breaking
+- Rust callers must replace legacy Burn images with native
+  `Image<f32, B, 3>` values and propagate the returned error.
+- Native displacement inversion callers must read named `x`, `y`, and `z`
+  components from `NativeDisplacementField` instead of destructuring a tuple.
+
+### Migration
+- Replace `compute_label_shape_statistics_extended(&legacy_image)` with
+  `compute_label_shape_statistics_extended(&native_image)?`.
+
+### Evidence
+- The Apollo 0.23 workspace constraint and lockfile now resolve the merged
+  provider. Focused statistics/Python compile and warning-denied Clippy,
+  statistics nextest, doctest, rustdoc, formatting, diff-whitespace, and
+  targeted source-residue gates pass.
+- Current RITK `main` batch integration and its final rerun remain pending.
+- Data-backed native NIfTI registration tests pass 3/3 with `cargo nextest
+  run -p ritk-registration --test real_data_test --run-ignored all`.
+- The native registration example compiles; native conversion tests pass 2/2;
+  CLI mutual-information tests pass 3/3; warning-denied Clippy passes for the
+  two changed targets with dependency linting excluded.
+- `NativeDisplacementField` preserves the direct native inversion boundary:
+  its zero-field integration regression passes 1/1, and warning-denied Clippy
+  passes for the filter library and that integration target.
+- Native color-component and colormap integration targets pass 2/2 and 8/8,
+  respectively, with warning-denied Clippy.
+- Warning-denied Clippy passes for each migrated Criterion target and the
+  recursive-Gaussian example; the example asserts its two native paths are
+  float-identical before timing.
+- The native parity suite passes all 10 analytical-oracle tests under nextest
+  and warning-denied Clippy.
+- The native Gaussian suite passes 5/5 shape, metadata, zero-sigma, and
+  constant-field tests under nextest and warning-denied Clippy.
+- The native intensity suite passes 4/4 exact blend endpoint/value, ternary
+  arithmetic, and first-input metadata tests under nextest and warning-denied
+  Clippy.
+- The native recursive-Gaussian suite passes 9/9 constant, derivative,
+  physical-spacing, directional, and subpixel-sigma contracts under nextest
+  and warning-denied Clippy.
+- The native edge suite passes 13/13 Canny, gradient, Laplacian, Sobel, and LoG
+  contracts under nextest and warning-denied Clippy.
+- The native Frangi suite passes 5/5 tube, sphere, polarity, and uniform-field
+  contracts under nextest and warning-denied Clippy.
+- The native pyramid suite passes 4/4 identity, stride-value, coarse-to-fine,
+  and invalid-schedule contracts under nextest and warning-denied Clippy.
+- The native resample and warp suites pass 5/5 and 5/5 value-semantic
+  contracts, respectively. Filter-wide warnings-denied Clippy and all 1,118
+  filter nextest tests pass; the native registration comparison example
+  type-checks.
+- The Atlas checkout action now pins Apollo commit
+  `f26369eb2000b9a8b763066064173f8c5ebf8f65`, which declares the required
+  `apollo-fft` 0.23.0. Workspace sources are rustfmt-clean under the CI's
+  package-by-package formatting gate.
+- Warning-denied `ritk-registration` Clippy, all four NGF native differentials,
+  and the 757-test registration Nextest lane pass. The migration audit reports
+  515 source files and `Allowlist status: clean` without an allowlist change.
+- The Analyze-to-NIfTI example and the full workspace warning-denied Clippy
+  command pass on the native I/O path.
+
+### Residual
+- Public API comparison remains blocked because `cargo semver-checks` cannot
+  resolve the historical baseline's cross-repository `coeus/coeus-autograd`
+  relative path. GitHub revalidation for the current PR head remains pending.
+
 ## [Unreleased] — Workspace license metadata (SEC-656-01)
 
 ### Changed

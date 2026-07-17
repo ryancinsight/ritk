@@ -2,32 +2,27 @@
 //! reference values. Each expected value is derived from a closed-form formula,
 //! not from empirical RITK output observation. This documents and verifies that
 //! RITK produces results consistent with ITK/SimpleITK for the same inputs.
-#![allow(clippy::needless_range_loop)]
-
 use coeus_core::SequentialBackend;
-use ritk_core::{
-    image::Image,
-    spatial::{Direction, Point, Spacing},
-};
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::native::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;
 
 fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
-    let t = Tensor::<B, 3>::from_data(
-        (data, (shape)),
-        &Default::default(),
-    );
-    Image::new(
-        t,
-        Point::new([0.0; 3]),
-        Spacing::new([1.0; 3]),
+    Image::from_flat(
+        data,
+        shape,
+        Point::origin(),
+        Spacing::uniform(1.0),
         Direction::identity(),
     )
+    .expect("test fixture dimensions match its data length")
 }
 
 fn vals(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data_slice().into_owned()
+    img.data_slice()
+        .expect("sequential test image remains host-addressable")
+        .to_vec()
 }
 
 /// Formula: v_out = (v - v_min) / (v_max - v_min) * (out_max - out_min) + out_min
@@ -36,7 +31,9 @@ fn vals(img: &Image<f32, B, 3>) -> Vec<f32> {
 fn parity_rescale_intensity_maps_full_range() {
     use ritk_filter::intensity::RescaleIntensityFilter;
     let img = make_image(vec![0.0, 25.0, 50.0, 75.0, 100.0], [5, 1, 1]);
-    let out = RescaleIntensityFilter::new(0.0, 1.0).apply(&img).unwrap();
+    let out = RescaleIntensityFilter::new(0.0, 1.0)
+        .apply_native(&img, &B::default())
+        .unwrap();
     let v = vals(&out);
     for (i, (&got, &exp)) in v
         .iter()
@@ -52,7 +49,10 @@ fn parity_rescale_intensity_maps_full_range() {
 #[test]
 fn parity_binary_threshold_indicator_function() {
     let img = make_image(vec![0.0, 50.0, 100.0, 150.0, 200.0], [5, 1, 1]);
-    let out = ritk_segmentation::binary_threshold(&img, 50.0, 150.0, 1.0, 0.0);
+    let out = ritk_segmentation::BinaryThreshold::new(50.0, 150.0)
+        .with_values(1.0, 0.0)
+        .apply_native(&img, &B::default())
+        .unwrap();
     let v = vals(&out);
     for (i, (&got, &exp)) in v
         .iter()
@@ -69,7 +69,9 @@ fn parity_binary_threshold_indicator_function() {
 fn parity_threshold_below_preserves_at_and_above() {
     use ritk_filter::intensity::ThresholdImageFilter;
     let img = make_image(vec![0.0, 1.0, 2.0, 3.0, 4.0], [5, 1, 1]);
-    let out = ThresholdImageFilter::below(2.0, -1.0).apply(&img).unwrap();
+    let out = ThresholdImageFilter::below(2.0, -1.0)
+        .apply_native(&img, &B::default())
+        .unwrap();
     let v = vals(&out);
     for (i, (&got, &exp)) in v
         .iter()
@@ -88,7 +90,7 @@ fn parity_sigmoid_midpoint_and_asymptotes() {
     use ritk_filter::intensity::SigmoidImageFilter;
     let img = make_image(vec![-100.0, 0.0, 100.0], [3, 1, 1]);
     let out = SigmoidImageFilter::new(0.0, 10.0, 0.0, 1.0)
-        .apply(&img)
+        .apply_native(&img, &B::default())
         .unwrap();
     let v = vals(&out);
     assert!(v[0] < 0.01, "sigmoid(-100) should be ~0, got {}", v[0]);
@@ -106,7 +108,7 @@ fn parity_gradient_magnitude_constant_image_is_zero() {
     use ritk_filter::edge::GradientMagnitudeFilter;
     let img = make_image(vec![5.0f32; 27], [3, 3, 3]);
     let out = GradientMagnitudeFilter::new([1.0, 1.0, 1.0].into())
-        .apply(&img)
+        .apply_native(&img)
         .unwrap();
     for (i, &v) in vals(&out).iter().enumerate() {
         assert!(
@@ -123,14 +125,14 @@ fn parity_laplacian_linear_ramp_is_zero_at_interior() {
     let data: Vec<f32> = (0..7).map(|i| i as f32).collect();
     let img = make_image(data, [1, 1, 7]);
     let out = LaplacianFilter::new([1.0, 1.0, 1.0].into())
-        .apply(&img)
+        .apply_native(&img)
         .unwrap();
     let v = vals(&out);
-    for i in 1..6 {
+    for (offset, &value) in v[1..6].iter().enumerate() {
+        let i = offset + 1;
         assert!(
-            v[i].abs() < 1e-4,
-            "interior voxel {i}: Laplacian of linear must be 0, got {}",
-            v[i]
+            value.abs() < 1e-4,
+            "interior voxel {i}: Laplacian of linear must be 0, got {value}",
         );
     }
 }
@@ -141,7 +143,7 @@ fn parity_laplacian_linear_ramp_is_zero_at_interior() {
 fn parity_zscore_zero_mean_unit_variance() {
     use ritk_statistics::ZScoreNormalizer;
     let img = make_image(vec![2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0], [8, 1, 1]);
-    let out = ZScoreNormalizer::new().normalize(&img);
+    let out = ZScoreNormalizer::new().normalize_native(&img).unwrap();
     let v = vals(&out);
     let n = v.len() as f32;
     let mean = v.iter().sum::<f32>() / n;
@@ -157,9 +159,9 @@ fn parity_zscore_zero_mean_unit_variance() {
 /// dice(A, A) = 1.0 for any non-empty binary mask A.
 #[test]
 fn parity_dice_perfect_overlap() {
-    use ritk_statistics::dice_coefficient;
+    use ritk_statistics::dice_coefficient_native;
     let seg = make_image(vec![1.0, 0.0, 1.0, 0.0, 1.0], [5, 1, 1]);
-    let d = dice_coefficient(&seg, &seg);
+    let d = dice_coefficient_native(&seg, &seg).unwrap();
     assert!(
         (d - 1.0).abs() < 1e-5,
         "perfect overlap must yield 1.0, got {d}"
@@ -169,10 +171,10 @@ fn parity_dice_perfect_overlap() {
 /// dice(A, complement(A)) = 0.0 when A and complement are disjoint.
 #[test]
 fn parity_dice_zero_overlap() {
-    use ritk_statistics::dice_coefficient;
+    use ritk_statistics::dice_coefficient_native;
     let a = make_image(vec![1.0, 0.0, 1.0], [3, 1, 1]);
     let b = make_image(vec![0.0, 1.0, 0.0], [3, 1, 1]);
-    let d = dice_coefficient(&a, &b);
+    let d = dice_coefficient_native(&a, &b).unwrap();
     assert!(d.abs() < 1e-5, "disjoint segments must yield 0.0, got {d}");
 }
 
@@ -182,7 +184,9 @@ fn parity_dice_zero_overlap() {
 fn parity_rescale_intensity_constant_image_in_range() {
     use ritk_filter::intensity::RescaleIntensityFilter;
     let img = make_image(vec![7.0f32; 8], [2, 2, 2]);
-    let out = RescaleIntensityFilter::new(0.0, 1.0).apply(&img).unwrap();
+    let out = RescaleIntensityFilter::new(0.0, 1.0)
+        .apply_native(&img, &B::default())
+        .unwrap();
     for (i, &v) in vals(&out).iter().enumerate() {
         assert!(
             (0.0..=1.0).contains(&v),

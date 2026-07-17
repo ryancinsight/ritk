@@ -1,6 +1,6 @@
 //! Parity: the Coeus-native LNCC engine reproduces the Burn engine.
 //!
-//! Scope: the moving resample is the shared [`super::super::native_resample`]
+//! Scope: the moving resample is the shared `ritk_filter::resample::native`
 //! substrate (differentially verified by the native NGF suite) and the local
 //! statistics are the shared native separable Gaussian
 //! (`GaussianFilter::apply_native`, differentially verified against the Burn

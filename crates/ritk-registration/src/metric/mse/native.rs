@@ -7,15 +7,15 @@
 //! eventual `Image<B>` → native cutover is unblocked.
 //!
 //! The resample path (fixed grid → native batch transforms → native affine →
-//! native trilinear) is the shared [`super::super::native_resample`] substrate,
+//! native trilinear) is the shared `ritk_filter::resample::native` substrate,
 //! identical to the native NGF engine; only the reduction differs — here the
 //! mean of the squared fixed/resampled-moving difference.
 //!
 //! 3-D only: the register engine operates on volumes, and the native trilinear
 //! kernel is 3-D.
 
-use super::super::native_resample::{fixed_world_points, resample_moving_at_world};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
 use ritk_image::native::Image;
 use ritk_transform::transform::affine::AtlasAffineTransform;
 
@@ -33,7 +33,8 @@ where
 {
     let fixed_world = fixed_world_points(fixed);
     let f = fixed.data_vec();
-    let m = resample_moving_at_world(&fixed_world, moving, transform);
+    let m = resample_moving_at_world(&fixed_world, moving, transform)
+        .expect("invariant: fixed grid produces valid native resample coordinates");
 
     debug_assert_eq!(
         f.len(),

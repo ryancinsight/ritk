@@ -146,7 +146,7 @@ pub use projection::{
     MeanIntensityProjectionFilter, MedianIntensityProjectionFilter, MinIntensityProjectionFilter,
     ProjectionAxis, StdDevIntensityProjectionFilter, SumIntensityProjectionFilter,
 };
-pub use pyramid::MultiResolutionPyramid;
+pub use pyramid::{MultiResolutionPyramid, NativeMultiResolutionPyramid};
 pub use resample::ResampleImageFilter;
 pub use transform::{
     transform_geometry, ConstantPadImageFilter, CyclicShiftImageFilter, ExpandImageFilter,
@@ -156,6 +156,7 @@ pub use transform::{
     ZeroFluxNeumannPadImageFilter,
 };
 
+mod native_displacement;
 mod native_support;
 
 // ── Surface & distance ───────────────────────────────────────────────────────
@@ -174,6 +175,7 @@ pub mod rank;
 pub mod reinitialize_level_set;
 pub mod surface;
 pub mod warp;
+pub use warp::warp_image_native;
 
 // ── New filters ──────────────────────────────────────────────────────────────
 pub mod canny_segmentation_level_set;
@@ -200,6 +202,7 @@ pub use invert_displacement::InvertDisplacementField;
 pub use iso_contour::IsoContourDistanceFilter;
 pub use iterative_inverse_displacement::IterativeInverseDisplacementField;
 pub use masked_fft_correlation::MaskedFftNormalizedCorrelationFilter;
+pub use native_displacement::NativeDisplacementField;
 pub use normalized_correlation::normalized_correlation;
 pub use rank::{PercentileFilter, RankFilter};
 pub use reinitialize_level_set::ReinitializeLevelSetFilter;

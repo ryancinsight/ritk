@@ -89,19 +89,28 @@ impl NoiseImageFilter {
             });
         rebuild(out, dims, image)
     }
-    /// Coeus-native sister of [`apply`].
-    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    /// Coeus-native counterpart to the legacy application method.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
-        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,{
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
         let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
         let [nz, ny, nx] = dims;
         let [rz, ry, rx] = self.radius;
         let num = ((2 * rz + 1) * (2 * ry + 1) * (2 * rx + 1)) as f64;
         if num <= 1.0 {
             // A degenerate single-voxel window has no sample variance.
-            return crate::native_support::rebuild_image(vec![0.0f32; vals.len()], dims, image, backend);
+            return crate::native_support::rebuild_image(
+                vec![0.0f32; vals.len()],
+                dims,
+                image,
+                backend,
+            );
         }
 
         let clamp = |i: isize, hi: usize| -> usize { i.clamp(0, hi as isize - 1) as usize };
@@ -132,9 +141,7 @@ impl NoiseImageFilter {
                 var.max(0.0).sqrt() as f32
             });
         crate::native_support::rebuild_image(out, dims, image, backend)
-    
     }
-
 }
 
 #[cfg(test)]

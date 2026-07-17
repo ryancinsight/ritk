@@ -11,8 +11,7 @@
 
 use anyhow::Result;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::ColorVolume;
-use ritk_image::native::Image;
+use ritk_image::native::{ColorVolume, Image};
 use ritk_tensor_ops::native::extract_image_vec;
 
 /// Apply a scalar 3-D image filter independently to each component of `vol`,
@@ -30,7 +29,8 @@ use ritk_tensor_ops::native::extract_image_vec;
 pub fn map_color_components<B, const C: usize, F>(
     vol: &ColorVolume<f32, B, C>,
     mut f: F,
-    backend: &B) -> Result<ColorVolume<f32, B, C>>
+    backend: &B,
+) -> Result<ColorVolume<f32, B, C>>
 where
     B: ComputeBackend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
@@ -48,16 +48,5 @@ where
         let (rvals, _) = extract_image_vec(&result)?;
         out_bufs.push(rvals);
     }
-    ColorVolume::from_component_buffers(
-        &out_bufs,
-        spatial,
-        origin,
-        spacing,
-        direction,
-        backend,
-    )
+    ColorVolume::from_component_buffers(&out_bufs, spatial, origin, spacing, direction, backend)
 }
-
-#[cfg(test)]
-#[path = "tests_color.rs"]
-mod tests_color;

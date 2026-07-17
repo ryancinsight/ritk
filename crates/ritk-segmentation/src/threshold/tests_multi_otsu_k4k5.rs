@@ -1,7 +1,7 @@
 //! Extracted tests: K=4, K=5, between-class variance K=2 product formula, adversarial.
 use super::*;
 use burn_ndarray::NdArray;
-use ritk_image::test_support::make_image;
+use ritk_image::test_support::burn_compat::make_image;
 
 type TestBackend = NdArray<f32>;
 

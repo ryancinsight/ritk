@@ -1,5 +1,4 @@
 use arrayvec::ArrayString;
-use coeus_core::SequentialBackend;
 use dicom::core::Tag;
 use dicom::object::open_file;
 use ritk_core::image::Image;
@@ -11,11 +10,13 @@ use ritk_spatial::{Direction, Point, Spacing};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-fn make_test_image(depth: usize, rows: usize, cols: usize, fill: f32) -> Image<SequentialBackend, 3> {
+type TestBackend = burn_ndarray::NdArray<f32>;
+
+fn make_test_image(depth: usize, rows: usize, cols: usize, fill: f32) -> Image<TestBackend, 3> {
     let device = Default::default();
     let data = vec![fill; depth * rows * cols];
-    let tensor = Tensor::<f32, SequentialBackend>::from_data(
-        (data, ([depth, rows, cols])),
+    let tensor = Tensor::<TestBackend, 3>::from_data(
+        TensorData::new(data, Shape::new([depth, rows, cols])),
         &device,
     );
     Image::new(
@@ -68,7 +69,6 @@ fn make_test_metadata() -> ritk_io::DicomReadMetadata {
 
 #[test]
 fn test_read_analyze_path_leak() {
-    type TestBackend = SequentialBackend;
     let device = Default::default();
 
     let non_existent_path = PathBuf::from("/non/existent/path/file.hdr");
@@ -145,7 +145,7 @@ fn test_dicom_write_preserves_private_tags_and_metadata() {
     assert_eq!(tag_b.to_str().unwrap().trim(), "PRIVATE_SERIES_VALUE_2");
 
     let (_, loaded_meta) =
-        read_dicom_series_with_metadata::<SequentialBackend, _>(&path, &Default::default())
+        read_dicom_series_with_metadata::<TestBackend, _>(&path, &Default::default())
             .expect("DICOM round-trip read must succeed");
     assert_eq!(
         loaded_meta.series_instance_uid.as_deref(),
@@ -196,17 +196,14 @@ fn test_dicom_write_preserves_private_tags_and_metadata() {
 
 #[test]
 fn test_write_analyze_path_leak() {
-    type TestBackend = SequentialBackend;
     let device = Default::default();
 
     let non_existent_path = PathBuf::from("/non/existent/path/output.hdr");
     let image = {
-        use ritk_core::image::Image;
-        use ritk_image::tensor::{Shape, Tensor, TensorData};
-        use ritk_spatial::{Direction, Point, Spacing};
-
-        let data = (vec![0.0f32], ([1, 1, 1]));
-        let tensor = Tensor::<TestBackend, 3>::from_data(data, &device);
+        let tensor = Tensor::<TestBackend, 3>::from_data(
+            TensorData::new(vec![0.0_f32], Shape::new([1, 1, 1])),
+            &device,
+        );
         Image::new(
             tensor,
             Point::new([0.0, 0.0, 0.0]),

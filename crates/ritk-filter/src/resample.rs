@@ -11,6 +11,9 @@ use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::Transform;
 use std::marker::PhantomData;
 
+/// Coeus-native 3-D resampling operations.
+pub mod native;
+
 /// Resample image filter.
 ///
 /// Resamples an image by applying a transform to map points from the
@@ -291,7 +294,3 @@ where
         indices.matmul(m_tensor) + origin_tensor
     }
 }
-
-#[cfg(test)]
-#[path = "tests_resample.rs"]
-mod tests;

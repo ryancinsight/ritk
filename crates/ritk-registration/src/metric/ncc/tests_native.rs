@@ -2,10 +2,11 @@
 //!
 //! Scope: these tests verify the five-moment ZNCC *reduction*. The resample path
 //! (fixed grid → native batch transforms → native affine → native trilinear) is
-//! the shared [`super::super::native_resample`] substrate, already differentially
+//! the shared `ritk_filter::resample::native` substrate, already differentially
 //! verified against Burn by the native NGF suite. NCC is global (whole-volume),
 //! so the differential oracle uses only the identity transform (exact voxel
-//! resample, no out-of-bounds sampling whose policy differs between kernels).
+//! resample, isolating the five-moment reduction from interpolation-order
+//! rounding).
 //!
 //! Oracles:
 //! - Analytical: `NCC(F, F) = 1`, so the loss `−NCC` of an image with itself is

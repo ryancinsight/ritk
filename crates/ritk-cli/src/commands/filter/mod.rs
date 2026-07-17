@@ -8,7 +8,6 @@ use anyhow::Result;
 use tracing::info;
 
 pub(crate) use super::Backend;
-use super::{read_image, write_image_inferred};
 
 pub mod args;
 pub use args::*;

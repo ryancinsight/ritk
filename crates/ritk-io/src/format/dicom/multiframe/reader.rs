@@ -12,7 +12,7 @@ use ritk_dicom::{
 use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::backend::Backend;
 
-use ritk_image::tensor::{Shape, TensorData, Tensor};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 

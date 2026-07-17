@@ -8,8 +8,8 @@
 //! that field, at every voxel including boundaries.
 
 use super::DiscreteGaussianFilter;
-use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
 use crate::native_support::LegacyBurnBackend;
+use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
 
 type BurnB = LegacyBurnBackend;
 

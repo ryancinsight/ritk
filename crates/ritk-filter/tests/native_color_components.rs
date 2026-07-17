@@ -1,22 +1,21 @@
 //! Tests for the per-component color filtering adaptor.
 
-use super::map_color_components;
-use crate::MedianFilter;
 use coeus_core::SequentialBackend;
+use ritk_filter::{map_color_components, MedianFilter};
 use ritk_image::native::{ColorVolume, Image};
-use ritk_image::test_support as ts;
 
 type B = SequentialBackend;
 
 fn rgb(interleaved: Vec<f32>, spatial: [usize; 3]) -> ColorVolume<f32, B, 3> {
     let [d, r, c] = spatial;
     let backend = B::default();
-    let t = coeus_tensor::Tensor::<f32, B>::from_slice_on([d, r, c, 3], &interleaved, &backend);
-    ColorVolume::try_new(
-        t,
+    ColorVolume::from_flat_on(
+        interleaved,
+        [d, r, c],
         ritk_spatial::Point::origin(),
         ritk_spatial::Spacing::uniform(1.0),
         ritk_spatial::Direction::identity(),
+        &backend,
     )
     .unwrap()
 }
@@ -25,9 +24,10 @@ fn rgb(interleaved: Vec<f32>, spatial: [usize; 3]) -> ColorVolume<f32, B, 3> {
 fn identity_closure_preserves_volume() {
     let interleaved: Vec<f32> = (0..2 * 3 * 4 * 3).map(|i| i as f32).collect();
     let vol = rgb(interleaved.clone(), [2, 3, 4]);
-    let out = map_color_components(&vol, |img: &Image<f32, B, 3>| img.clone(), &B::default())
-        .unwrap();
-    assert_eq!(out.data_vec(), interleaved);
+    let out =
+        map_color_components(&vol, |img: &Image<f32, B, 3>| img.clone(), &B::default()).unwrap();
+    let backend = B::default();
+    assert_eq!(out.data_cow_on(&backend).as_ref(), interleaved.as_slice());
 }
 
 #[test]
@@ -47,7 +47,8 @@ fn per_component_median_matches_independent_channel_median() {
 
     let out = map_color_components(
         &vol,
-        |img: &Image<f32, B, 3>| MedianFilter::new(1).apply_native(img).unwrap(), &B::default(),
+        |img: &Image<f32, B, 3>| MedianFilter::new(1).apply_native(img).unwrap(),
+        &B::default(),
     )
     .unwrap();
     let out_comps = out.into_component_buffers();

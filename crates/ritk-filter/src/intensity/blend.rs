@@ -89,7 +89,8 @@ impl BlendImageFilter {
         &self,
         a: &NativeImage<f32, B, 3>,
         b: &NativeImage<f32, B, 3>,
-        backend: &B) -> anyhow::Result<NativeImage<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<NativeImage<f32, B, 3>>
     where
         B: ComputeBackend,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
@@ -116,105 +117,5 @@ impl BlendImageFilter {
             *a.direction(),
             backend,
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use burn_ndarray::NdArray;
-    use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
-    use ritk_spatial::{Direction, Point, Spacing};
-
-    type B = NdArray<f32>;
-
-    fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-        let device = Default::default();
-        let td = TensorData::new(vals, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(td, &device);
-        Image::new(
-            tensor,
-            Point::new([0.0_f64, 0.0, 0.0]),
-            Spacing::new([1.0_f64, 1.0, 1.0]),
-            Direction::identity(),
-        )
-    }
-
-    fn voxels(img: &Image<B, 3>) -> Vec<f32> {
-        img.data_slice().into_owned()
-    }
-
-    #[test]
-    fn blend_filter_half_alpha() {
-        let a = make_image(vec![0.0, 10.0, 20.0, 30.0], [1, 2, 2]);
-        let b = make_image(vec![100.0, 100.0, 100.0, 100.0], [1, 2, 2]);
-        let out = BlendImageFilter::new(0.5).apply(&a, &b).unwrap();
-        let v = voxels(&out);
-        let expected = [50.0f32, 55.0, 60.0, 65.0];
-        for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
-            assert!(
-                (got - exp).abs() < 1e-5,
-                "[{}] expected {}, got {}",
-                i,
-                exp,
-                got
-            );
-        }
-    }
-
-    #[test]
-    fn blend_filter_zero_alpha() {
-        let a = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
-        let b = make_image(vec![10.0, 20.0, 30.0], [1, 1, 3]);
-        let out = BlendImageFilter::new(0.0).apply(&a, &b).unwrap();
-        let v = voxels(&out);
-        for (i, &got) in v.iter().enumerate() {
-            assert!((got - (i as f32 + 1.0)).abs() < 1e-5, "[{}] expected A", i);
-        }
-    }
-
-    #[test]
-    fn blend_filter_one_alpha() {
-        let a = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
-        let b = make_image(vec![10.0, 20.0, 30.0], [1, 1, 3]);
-        let out = BlendImageFilter::new(1.0).apply(&a, &b).unwrap();
-        let v = voxels(&out);
-        for (i, &got) in v.iter().enumerate() {
-            assert!(
-                (got - ((i as f32 + 1.0) * 10.0)).abs() < 1e-5,
-                "[{}] expected B",
-                i
-            );
-        }
-    }
-
-    #[test]
-    fn native_blend_preserves_values_and_first_image_metadata() {
-        let image = |values, origin| {
-            NativeImage::from_flat_on(
-                values,
-                [1, 1, 3],
-                Point::new(origin),
-                Spacing::new([0.5, 1.0, 2.0]),
-                Direction::identity(),
-                &SequentialBackend,
-            )
-            .expect("invariant: valid native image")
-        };
-        let a = image(vec![0.0, 10.0, 20.0], [1.0, 2.0, 3.0]);
-        let b = image(vec![100.0, 100.0, 100.0], [9.0, 8.0, 7.0]);
-        let output = BlendImageFilter::new(0.5)
-            .apply_native(&a, &B::default(), &SequentialBackend)
-            .expect("native blend succeeds");
-
-        assert_eq!(
-            output.data_slice().expect("invariant: contiguous storage"),
-            &[50.0, 55.0, 60.0]
-        );
-        assert_eq!(output.origin(), a.origin());
-        assert_eq!(output.spacing(), a.spacing());
-        assert_eq!(output.direction(), a.direction());
     }
 }

@@ -11,7 +11,6 @@ pub mod histogram;
 pub mod lncc;
 pub mod mse;
 pub mod mutual_information;
-pub mod native_resample;
 pub mod ncc;
 pub mod ngf;
 pub mod sampling;

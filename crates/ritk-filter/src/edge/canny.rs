@@ -116,7 +116,8 @@ impl CannyEdgeDetector {
     pub fn apply<B>(
         &self,
         image: &Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<Image<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -146,7 +147,8 @@ impl CannyEdgeDetector {
     pub fn apply_native<B>(
         &self,
         image: &Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<Image<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -463,9 +465,3 @@ fn hysteresis_threshold(nms: &[f32], dims: [usize; 3], low: f32, high: f32) -> V
 
     edges
 }
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
-#[cfg(test)]
-#[path = "tests_canny.rs"]
-mod tests_canny;

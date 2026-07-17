@@ -1,47 +1,73 @@
-use super::*;
 use coeus_core::SequentialBackend;
-use ritk_image::test_support as ts;
+use ritk_filter::{
+    Colormap, LabelMapContourOverlayFilter, LabelOverlayFilter, LabelToRGBFilter,
+    ScalarToRGBColormapFilter,
+};
+use ritk_image::native::{ColorVolume, Image};
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;
+
+fn native_image(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    Image::from_flat_on(
+        data,
+        dims,
+        Point::origin(),
+        Spacing::uniform(1.0),
+        Direction::identity(),
+        &B::default(),
+    )
+    .expect("test fixture dimensions match its data length")
+}
+
+fn assert_rgb_components(volume: &ColorVolume<f32, B, 3>, expected: [&[f32]; 3]) {
+    let actual = volume.data_cow_on(&B::default());
+    let voxel_count = expected[0].len();
+    assert_eq!(expected[1].len(), voxel_count, "green channel length");
+    assert_eq!(expected[2].len(), voxel_count, "blue channel length");
+    assert_eq!(actual.len(), voxel_count * 3, "interleaved output length");
+    for (index, voxel) in actual.chunks_exact(3).enumerate() {
+        assert_eq!(
+            voxel,
+            &[expected[0][index], expected[1][index], expected[2][index]],
+            "voxel {index}"
+        );
+    }
+}
 
 /// Grey colormap on a `[10,20,30,40,50]` ramp → `[0,63,127,191,255]` per channel
 /// (normalize by image min/max, ×255, floor — `0.25·255 = 63.75 → 63`).
 #[test]
 fn grey_ramp_matches_itk_truncation() {
-    let img = ts::burn_compat::make_image::<B, 3>(vec![10.0, 20.0, 30.0, 40.0, 50.0], [1, 1, 5]);
+    let img = native_image(vec![10.0, 20.0, 30.0, 40.0, 50.0], [1, 1, 5]);
     let out = ScalarToRGBColormapFilter::new(Colormap::Grey)
         .apply(&img, &B::default())
         .unwrap();
-    let comps = out.into_component_buffers();
     let expected = [0.0f32, 63.0, 127.0, 191.0, 255.0];
-    for (c, channel) in comps.iter().enumerate().take(3) {
-        assert_eq!(channel.as_slice(), expected.as_slice(), "channel {c}");
-    }
+    assert_rgb_components(&out, [&expected, &expected, &expected]);
 }
 
 /// Red colormap puts the ramp in channel 0 only.
 #[test]
 fn red_colormap_channel_selection() {
-    let img = ts::burn_compat::make_image::<B, 3>(vec![10.0, 20.0, 30.0, 40.0, 50.0], [1, 1, 5]);
+    let img = native_image(vec![10.0, 20.0, 30.0, 40.0, 50.0], [1, 1, 5]);
     let out = ScalarToRGBColormapFilter::new(Colormap::Red)
         .apply(&img, &B::default())
         .unwrap();
-    let comps = out.into_component_buffers();
-    assert_eq!(comps[0], vec![0.0, 63.0, 127.0, 191.0, 255.0]);
-    assert_eq!(comps[1], vec![0.0; 5]);
-    assert_eq!(comps[2], vec![0.0; 5]);
+    let red = [0.0, 63.0, 127.0, 191.0, 255.0];
+    let black = [0.0; 5];
+    assert_rgb_components(&out, [&red, &black, &black]);
 }
 
 /// A constant image maps to all-zero (`range = 0 → t = 0`).
 #[test]
 fn constant_image_maps_to_zero() {
-    let img = ts::burn_compat::make_image::<B, 3>(vec![7.0; 8], [2, 2, 2]);
+    let img = native_image(vec![7.0; 8], [2, 2, 2]);
     let out = ScalarToRGBColormapFilter::new(Colormap::Grey)
         .apply(&img, &B::default())
         .unwrap();
-    for c in out.into_component_buffers() {
-        assert!(c.iter().all(|&x| x == 0.0));
-    }
+    let black = [0.0; 8];
+    assert_rgb_components(&out, [&black, &black, &black]);
 }
 
 /// Unsupported (piecewise) colormaps are rejected, not approximated.
@@ -57,11 +83,11 @@ fn unsupported_colormap_rejected() {
 /// cycles with period 30 (label 31 == label 1's colour). Pinned by sitk probe.
 #[test]
 fn label_to_rgb_matches_itk_table_and_cycles() {
-    let img = ts::burn_compat::make_image::<B, 3>(vec![0.0, 1.0, 2.0, 5.0, 7.0, 30.0, 31.0], [1, 1, 7]);
+    let img = native_image(vec![0.0, 1.0, 2.0, 5.0, 7.0, 30.0, 31.0], [1, 1, 7]);
     let out = LabelToRGBFilter::new(0).apply(&img, &B::default()).unwrap();
-    let c = out.into_component_buffers();
+    let c = out.data_cow_on(&B::default());
     // (r,g,b) per voxel.
-    let rgb = |i: usize| [c[0][i], c[1][i], c[2][i]];
+    let rgb = |i: usize| [c[3 * i], c[3 * i + 1], c[3 * i + 2]];
     assert_eq!(rgb(0), [0.0, 0.0, 0.0]); // background
     assert_eq!(rgb(1), [0.0, 205.0, 0.0]); // label 1
     assert_eq!(rgb(2), [0.0, 0.0, 255.0]); // label 2
@@ -77,13 +103,13 @@ fn label_to_rgb_matches_itk_table_and_cycles() {
 /// [200,200,200],[100,100,227]].
 #[test]
 fn label_overlay_blends_with_table() {
-    let gray = ts::burn_compat::make_image::<B, 3>(vec![100.0, 100.0, 200.0, 200.0], [1, 1, 4]);
-    let lab = ts::burn_compat::make_image::<B, 3>(vec![0.0, 1.0, 0.0, 2.0], [1, 1, 4]);
+    let gray = native_image(vec![100.0, 100.0, 200.0, 200.0], [1, 1, 4]);
+    let lab = native_image(vec![0.0, 1.0, 0.0, 2.0], [1, 1, 4]);
     let out = LabelOverlayFilter::new(0.5, 0)
         .apply(&gray, &lab, &B::default())
         .unwrap();
-    let c = out.into_component_buffers();
-    let rgb = |i: usize| [c[0][i], c[1][i], c[2][i]];
+    let c = out.data_cow_on(&B::default());
+    let rgb = |i: usize| [c[3 * i], c[3 * i + 1], c[3 * i + 2]];
     assert_eq!(rgb(0), [100.0, 100.0, 100.0]); // background
     assert_eq!(rgb(1), [50.0, 152.0, 50.0]); // label1: ½·100+½·[0,205,0]
     assert_eq!(rgb(2), [200.0, 200.0, 200.0]); // background
@@ -93,14 +119,14 @@ fn label_overlay_blends_with_table() {
 /// Opacity 1.0 yields the pure label colour over labelled voxels.
 #[test]
 fn label_overlay_full_opacity_is_label_color() {
-    let gray = ts::burn_compat::make_image::<B, 3>(vec![100.0, 200.0], [1, 1, 2]);
-    let lab = ts::burn_compat::make_image::<B, 3>(vec![1.0, 2.0], [1, 1, 2]);
+    let gray = native_image(vec![100.0, 200.0], [1, 1, 2]);
+    let lab = native_image(vec![1.0, 2.0], [1, 1, 2]);
     let out = LabelOverlayFilter::new(1.0, 0)
         .apply(&gray, &lab, &B::default())
         .unwrap();
-    let c = out.into_component_buffers();
-    assert_eq!([c[0][0], c[1][0], c[2][0]], [0.0, 205.0, 0.0]);
-    assert_eq!([c[0][1], c[1][1], c[2][1]], [0.0, 0.0, 255.0]);
+    let c = out.data_cow_on(&B::default());
+    assert_eq!([c[0], c[1], c[2]], [0.0, 205.0, 0.0]);
+    assert_eq!([c[3], c[4], c[5]], [0.0, 0.0, 255.0]);
 }
 
 /// LabelMapContourOverlay default geometry on an 8×8 (z=1) scene, vs the exact
@@ -119,12 +145,11 @@ fn label_map_contour_overlay_matches_sitk() {
             lab[y * 8 + x] = 2.0;
         }
     }
-    let gi = ts::burn_compat::make_image::<B, 3>(gray, [1, 8, 8]);
-    let li = ts::burn_compat::make_image::<B, 3>(lab, [1, 8, 8]);
+    let gi = native_image(gray, [1, 8, 8]);
+    let li = native_image(lab, [1, 8, 8]);
     let out = LabelMapContourOverlayFilter::new(0.5, 0)
         .apply(&gi, &li, &B::default())
         .unwrap();
-    let c = out.into_component_buffers();
     let exp_r: Vec<f32> = [
         0, 1, 2, 3, 2, 5, 6, 7, 8, 9, 10, 11, 6, 13, 14, 15, 16, 17, 18, 19, 10, 21, 22, 23, 24,
         25, 26, 13, 14, 14, 15, 15, 16, 16, 17, 17, 18, 37, 38, 39, 40, 41, 42, 21, 44, 45, 46, 47,
@@ -149,7 +174,5 @@ fn label_map_contour_overlay_matches_sitk() {
     .iter()
     .map(|&v| v as f32)
     .collect();
-    assert_eq!(c[0], exp_r, "R channel");
-    assert_eq!(c[1], exp_g, "G channel");
-    assert_eq!(c[2], exp_b, "B channel");
+    assert_rgb_components(&out, [&exp_r, &exp_g, &exp_b]);
 }

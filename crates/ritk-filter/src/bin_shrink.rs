@@ -124,9 +124,13 @@ impl BinShrinkImageFilter {
             *image.direction(),
             image,
         )
-    }    /// Coeus-native sister of [`apply`].
-    pub fn apply_native<B, const D: usize>(&self, image: &ritk_image::native::Image<f32, B, D>,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    }
+    /// Coeus-native counterpart to the legacy application method.
+    pub fn apply_native<B, const D: usize>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, D>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -147,7 +151,15 @@ impl BinShrinkImageFilter {
         if out_shape.iter().product::<usize>() == 0 {
             // Degenerate case: some dimension collapses to zero.
             let new_spacing = scaled_spacing(image.spacing(), &factors);
-            return crate::native_support::rebuild_with_metadata(Vec::new(), out_shape, *image.origin(), new_spacing, *image.direction(), image, backend);
+            return crate::native_support::rebuild_with_metadata(
+                Vec::new(),
+                out_shape,
+                *image.origin(),
+                new_spacing,
+                *image.direction(),
+                image,
+                backend,
+            );
         }
 
         // Separable multi-pass: shrink one dimension at a time.
@@ -165,10 +177,16 @@ impl BinShrinkImageFilter {
 
         let new_spacing = scaled_spacing(image.spacing(), &factors);
 
-        crate::native_support::rebuild_with_metadata(current_data, current_shape, *image.origin(), new_spacing, *image.direction(), image, backend)
-    
+        crate::native_support::rebuild_with_metadata(
+            current_data,
+            current_shape,
+            *image.origin(),
+            new_spacing,
+            *image.direction(),
+            image,
+            backend,
+        )
     }
-
 }
 
 /// Shrink the data along one dimension by averaging consecutive groups of

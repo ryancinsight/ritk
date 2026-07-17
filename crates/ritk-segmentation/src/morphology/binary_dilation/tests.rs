@@ -2,7 +2,7 @@ use super::*;
 use burn_ndarray::NdArray;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::test_support::{make_image, make_image_1d};
+use ritk_image::test_support::burn_compat::{make_image, make_image_1d};
 
 type TestBackend = NdArray<f32>;
 

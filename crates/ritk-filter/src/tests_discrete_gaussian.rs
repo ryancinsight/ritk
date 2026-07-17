@@ -1,6 +1,6 @@
-use crate::native_support::LegacyBurnBackend;
 use super::*;
 use crate::edge::GaussianSigma;
+use crate::native_support::LegacyBurnBackend;
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_image::native::Image as NativeImage;

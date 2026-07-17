@@ -63,12 +63,13 @@ impl TikhonovDeconvolution {
         Ok(rebuild(out_vals, img_dims, image))
     }
 
-    /// Coeus-native sister of [`apply`].
+    /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B, const D: usize>(
         &self,
         image: &ritk_image::native::Image<f32, B, D>,
         kernel: &ritk_image::native::Image<f32, B, D>,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -85,7 +86,5 @@ impl TikhonovDeconvolution {
             },
         );
         crate::native_support::rebuild_image(out_vals, img_dims, image, backend)
-    
     }
-
 }

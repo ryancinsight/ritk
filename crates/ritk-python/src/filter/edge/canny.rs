@@ -114,10 +114,11 @@ pub fn canny_edge_detection(
 #[pyo3(signature = (image, sigma=1.0))]
 pub fn laplacian_of_gaussian(py: Python<'_>, image: &PyImage, sigma: f64) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
     py.allow_threads(|| {
         let filter = LaplacianOfGaussianFilter::new(GaussianSigma::new_unchecked(sigma));
         filter
-            .apply_native(native.as_ref())
+            .apply_native(native.as_ref(), &backend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)

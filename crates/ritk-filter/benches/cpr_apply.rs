@@ -23,11 +23,12 @@
 use coeus_core::SequentialBackend;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use ritk_filter::{CprConfig, CprImageFilter};
-use ritk_image::test_support as ts;
+use ritk_image::native::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;
 
-fn make_test_image(size: usize) -> ritk_image::Image<f32, B, 3> {
+fn make_test_image(size: usize) -> Image<f32, B, 3> {
     let mut v = vec![0.0_f32; size * size * size];
     for iz in 0..size {
         for iy in 0..size {
@@ -38,7 +39,14 @@ fn make_test_image(size: usize) -> ritk_image::Image<f32, B, 3> {
     }
     let mid = size / 2;
     v[mid * size * size + mid * size + mid] = 999.0_f32;
-    ts::make_image::<B, 3>(v, [size, size, size])
+    Image::from_flat(
+        v,
+        [size, size, size],
+        Point::origin(),
+        Spacing::uniform(1.0),
+        Direction::identity(),
+    )
+    .expect("benchmark fixture dimensions match its data length")
 }
 
 fn bench_cpr_apply(c: &mut Criterion) {
@@ -63,7 +71,9 @@ fn bench_cpr_apply(c: &mut Criterion) {
             &size,
             |b, _| {
                 b.iter(|| {
-                    let out = filter.apply(&image).expect("cpr apply");
+                    let out = filter
+                        .apply_native(&image, &B::default())
+                        .expect("cpr apply");
                     std::hint::black_box(out);
                 });
             },

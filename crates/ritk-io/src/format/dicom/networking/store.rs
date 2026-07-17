@@ -1,6 +1,6 @@
 //! C-STORE SCU — DICOM Storage Service Class (PS3.4 §B).
 
-use super::association::{NetworkingError, StoreResponse};
+use super::association::{release_client_association, NetworkingError, StoreResponse};
 use super::command::{
     build_command_pdu, parse_command_response, CommandElementValue, C_STORE_RQ, C_STORE_RSP,
     EXPLICIT_VR_LE_TS, HAS_DATASET, PRIORITY_MEDIUM,
@@ -81,9 +81,7 @@ pub fn store(config: &AssociationConfig, path: &Path) -> Result<StoreResponse, N
         )));
     }
 
-    assoc
-        .release()
-        .map_err(|e| NetworkingError::Protocol(e.to_string()))?;
+    release_client_association(assoc)?;
 
     Ok(StoreResponse {
         status: rsp.status,

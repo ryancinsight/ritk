@@ -48,6 +48,7 @@ image = { workspace = true }
 criterion = { workspace = true }
 rand = { workspace = true }
 proptest = { workspace = true }
+tempfile = { workspace = true }
 ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
 
 [[bench]]

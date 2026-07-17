@@ -8,6 +8,297 @@
 
 # RITK Sprint Checklist — Active
 
+## CI-658-02 — Restore current PR compile gates
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Construct native extended-label statistics fixtures with the concrete
+      `SequentialBackend` ZST rather than its type alias. Completion condition:
+      the native image constructor receives a backend value.
+- [x] Restore the legacy B-spline Criterion workload's real `NdArray<f32>`
+      backend and Burn 0.19 `TensorData` construction. Completion condition:
+      the benchmark compiles without binding Coeus' backend to Burn tensors.
+- [x] Pin the native non-contiguous-layout diagnostic to Leto's canonical
+      zero stride for a unit-length axis. Completion condition: the test still
+      asserts rejection and the exact actual layout metadata.
+- [x] Re-run the focused interpolation gate after the
+      `burn_compat_types` coordinate-convention correction. Completion
+      condition: fused and unfused interpolation agree under the same
+      innermost-first index contract. Evidence: `rustup run stable cargo
+      nextest run -p ritk-image -p ritk-interpolation --all-features
+      --status-level fail` passes 166 tests with 3 explicitly skipped.
+
+## CI-658-03 — Restore native Python color bindings
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Replace `PyColorImage`'s legacy carrier with native `ColorVolume` and
+      route its current color/filter operations through their provider-native
+      contracts. Completion condition: no current binding constructs a legacy
+      color tensor solely to invoke a native filter.
+- [x] Give native `ColorVolume` a validated component-buffer round trip and
+      move the public color-component integration test to that owner API.
+      Completion condition: the test asserts exact interleaved and component
+      storage values.
+- [x] Correct legacy physical-to-index conversion for the active interpolation
+      reference. Completion condition: a rotated, anisotropic image maps
+      `[4, 2, 1]` to `[4, 22, 50]` and back exactly.
+- [x] Verify the bounded repair. Evidence: `cargo check -p ritk-python
+      --all-features`; warning-denied Clippy for image/filter/Python; nextest
+      for image/filter/Python (1,207 passed); image/interpolation nextest
+      (166 passed, 3 skipped); doctests; rustdoc; and
+      `xtask burn-migration-audit` all pass.
+- [x] Attempt public-surface verification. Current result: `cargo
+      semver-checks` cannot build the `origin/main` baseline because its
+      `ritk-image` manifest references a missing relative
+      `coeus/coeus-autograd` path in the isolated baseline clone. This is a
+      baseline topology blocker, not a source diagnostic from this repair.
+
+## CI-658-04 — Restore legacy I/O CI oracle backend
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Make the DICOM/Analyze security regression use the actual legacy
+      `burn_ndarray::NdArray<f32>` backend required by its still
+      Burn-compatible I/O API. Completion condition: the target no longer
+      passes `SequentialBackend` to a Burn image or tensor.
+- [x] Verify the exact failing CI target. Evidence: warning-denied
+      `cargo clippy -p ritk-io --test dicom_security --all-features -- -D
+      warnings` passes locally.
+
+## CI-658-05 — Restore legacy transform test backends
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Replace the incompatible Coeus test backends with
+      `burn_ndarray::NdArray<f32>` in the remaining Burn transform tests.
+- [x] Construct test tensors with Burn 0.19 `TensorData` and `Shape`.
+- [x] Verify the exact transform tests. Evidence: warning-denied Clippy and
+      focused nextest pass (8 tests).
+
+## CI-658-06 — Route segmentation tests to the existing Burn fixture
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Route legacy source tests to `test_support::burn_compat`, the existing
+      owner-local Burn fixture module.
+- [x] Verify package warning-denied Clippy and nextest without a new helper.
+
+## CI-658-07 — Stabilize registration source migration
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Keep `burn_ndarray::NdArray<f32>` only at active Burn test/benchmark
+      boundaries, but move RIRE MetaImage and DICOM data tests onto their native
+      reader contracts.
+- [x] Replace the LDDMM benchmark's legacy preallocated smoother with
+      `CpuFieldSmoother` and delete the unreferenced private-path NGF example
+      whose full registration API remains Burn-only.
+- [x] Restrict native/Burn NGF differential parity to the shared in-bounds
+      gradient domain. Completion condition: the test no longer conflates Burn
+      edge extension with native half-voxel zero-fill.
+- [x] Verify warning-denied package Clippy, 757-test registration nextest, and
+      `xtask burn-migration-audit`. Completion: no new Burn surface or stale
+      backend mismatch remains in the local PR head.
+
+## CI-658-08 — Cut the Analyze-to-NIfTI converter to native I/O
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Replace the converter's mixed Coeus/Burn annotation with
+      `AnalyzeReader<SequentialBackend>` and `NiftiWriter<SequentialBackend>`.
+      Completion condition: the example transfers a native image directly.
+- [x] Verify package formatting and warning-denied example Clippy.
+- [x] Verify the queued workspace warning-denied Clippy gate. Evidence:
+      `rustup run stable cargo clippy --workspace --all-targets --all-features
+      -- -D warnings` passes. Completion: the CI-reproduced all-target compiler
+      error is absent.
+
+## CI-658-09 — Select real-data fixtures by required file
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Select the first configured test-data root containing the documented
+      `ants_example/mni152.nii.gz` fixture rather than the first existing
+      directory. Completion condition: an earlier empty root cannot mask a
+      later valid fixture root.
+- [x] Add an isolated temporary-directory regression asserting the valid
+      candidate is selected. Evidence: warning-denied `real_data_test` Clippy,
+      package formatting, and `cargo nextest run -p ritk-registration
+      --all-features fixture_search_skips_existing_directory_without_mni_fixture
+      --status-level fail` pass (1 test).
+
+## CI-658-10 — Complete DIMSE release after peer-close
+**Target version**: 0.3.0
+**Sprint phase**: Closure
+
+- [x] Replace the four direct `dicom-ul` releases with one owner-local
+      A-RELEASE-RQ/A-RELEASE-RP lifecycle operation. Completion condition: a
+      valid release reply determines DICOM protocol success before the TCP
+      stream is consumed.
+- [x] File the upstream transport defect as
+      [Enet4/dicom-rs#811](https://github.com/Enet4/dicom-rs/issues/811).
+- [x] Verify the macOS-regressed C-ECHO and C-MOVE loopback targets locally.
+      Evidence: `rustup run stable cargo nextest run -p ritk-io --lib
+      c_echo_loopback_returns_success_status --status-level fail` and the
+      corresponding C-MOVE command pass.
+- [x] Verify `ritk-io` formatting, warning-denied Clippy, and package Nextest.
+      Evidence: `cargo fmt --check`, warning-denied Clippy, and 371/371 package
+      tests pass.
+- [ ] Revalidate the exact full-workspace gate in GitHub. The local run reached
+      4,127/5,214 passing tests before unrelated Mnemosyne allocation failures;
+      the affected registration tests pass in isolation. Completion condition:
+      independent macOS, Linux, and Windows matrices pass without reducing test
+      concurrency or workloads.
+
+## MIG-657-01 — Native extended label-shape statistics
+**Target version**: 0.3.0
+**Sprint phase**: Execution
+
+- [x] Replace `compute_label_shape_statistics_extended`'s Burn-generic image
+      boundary with the native `Image<f32, B, 3>` contract. Completion
+      condition: source receives the contiguous native slice fallibly and
+      preserves the existing pure slice algorithm as SSOT.
+- [x] Update the only in-tree Python caller to pass its native `PyImage`
+      storage directly and release the GIL around the computation. Completion
+      condition: no Burn conversion occurs at this boundary.
+- [x] Port the extended-label-shape oracle suite to `SequentialBackend` native
+      images. Completion condition: exact labels/counts and the existing
+      ITK/Crofton numerical assertions remain unchanged.
+- [x] Update the workspace Apollo constraint and lockfile to merged 0.23.0.
+      Completion condition: the former resolver blocker is absent.
+- [x] Run focused statistics/Python compile and warning-denied Clippy,
+      statistics nextest, doctest, rustdoc, formatting, and targeted
+      source-residue gates. Completion condition: all pass on the native path.
+- [x] Rebase through current RITK `main` commit `e3887685` and resolve the
+      overlapping label-shape test import. Completion condition: the PR branch
+      has no merge conflict and preserves both the native test and main's
+      migration-audit record.
+- [ ] Re-run the same gate set after the compatibility-mode root cause is
+      removed. Completion condition: the current branch's registration targets
+      and workspace formatting compile without the legacy feature changing the
+      public image type.
+
+## MIG-658-01 — Remove relocated Burn compatibility surfaces
+**Target version**: 0.3.0 major
+**Sprint phase**: Execution
+
+- [x] Amend ADR 0002 to prohibit feature-selected public image models.
+      Completion condition: native `Image<T, B, D>` remains stable under Cargo
+      feature unification and the transform/I/O cutover has one migration rule.
+- [x] Delete the redundant `tests_burn_compat_grid` module. Completion
+      condition: native grid tests remain the sole value-semantic grid oracle;
+      no production path imports the deleted module.
+- [x] Move `geometry_check` to the native NIfTI reader and the native
+      grid/index-to-world contract. Completion condition: the example imports
+      no legacy image or NIfTI surface and compiles under the resolved feature
+      graph. Evidence: `rustup run stable cargo check -p ritk-registration
+      --example geometry_check` passes after the lock resolves the workspace
+      Gaia path dependency at version 0.3.0.
+- [x] Move the ignored real-data NIfTI and identity-resampling test to native
+      reader/image/interpolation operations. Completion condition: its sample
+      values equal the corresponding input voxels at identity coordinates.
+      Evidence: `rustup run stable cargo nextest run -p ritk-registration
+      --test real_data_test --run-ignored all --status-level fail` passes 3/3
+      against the documented 3-D scalar MNI152 fixture; the 4-D RGB Visible
+      Human fixture remains outside the native NIfTI reader contract.
+- [x] Move `registration_compare_figure` and the CLI MI image-to-volume
+      boundary onto one native classical-registration conversion surface.
+      Completion condition: the example contains no Burn image, transform,
+      interpolation, or NIfTI imports; its result transform is converted from
+      the classical index frame to the images' physical frames before native
+      resampling; the shared native resampler delegates grid construction to
+      `ritk-image`; the MI CLI regression fixtures use native NIfTI I/O and
+      exact output assertions; synthetic value-semantic tests cover the
+      conversion. Evidence: the native example type-checks against Apollo
+      0.23.0; the native conversion library tests pass 2/2; the CLI MI binary
+      tests pass 3/3; warning-denied Clippy passes for both changed targets
+      with dependency lints excluded.
+- [x] Give native displacement inversion one named output field and remove
+      the focused filter diagnostics without a suppression. Completion
+      condition: all three inversion operations return the same public native
+      field representation, and a direct zero-field test asserts every output
+      component and preserved spatial frame. Evidence: warning-denied Clippy
+      passes for the filter library and the dedicated integration target; the
+      integration test passes 1/1.
+- [x] Move stale color-component and colormap tests onto their native image
+      and volume contracts. Completion condition: public-contract integration
+      targets preserve the existing exact ITK color values without
+      `burn_compat` fixtures. Evidence: warning-denied Clippy passes for both
+      targets; nextest passes 2/2 component tests and 8/8 colormap tests.
+- [x] Move stale filter benchmarks and the recursive-Gaussian comparison
+      example onto existing native operations. Completion condition: all five
+      Criterion targets and the example compile warning-free without a legacy
+      image fixture; the comparison checks exact equality before timing.
+- [x] Port the external parity suite to public native operations. Completion
+      condition: its analytical intensity, edge, segmentation, and statistics
+      oracles execute on native images without a compatibility adapter.
+      Evidence: warning-denied Clippy and nextest pass 10/10.
+- [x] Consolidate Gaussian coverage into one native public-contract suite.
+      Completion condition: duplicate stale tests are deleted, the retained
+      suite invokes `apply_native`, and all shape, metadata, zero-sigma, and
+      constant-field oracles execute. Evidence: warning-denied Clippy and
+      nextest pass 5/5.
+- [x] Move blend and ternary arithmetic assertions to one public native suite.
+      Completion condition: the suite exercises exact blend endpoints,
+      alpha-weighted values, ternary sum/magnitude contracts, and first-input
+      spatial metadata without Burn fixtures. Evidence: warning-denied Clippy
+      and nextest pass 4/4.
+- [x] Consolidate recursive-Gaussian assertions into one public native suite.
+      Completion condition: constant/ramp/quadratic analytical contracts,
+      spacing normalization, subpixel identity, and physical metadata execute
+      without a Burn differential harness. Evidence: warning-denied Clippy and
+      nextest pass 9/9.
+- [x] Consolidate edge assertions into one public native suite. Completion
+      condition: Canny, gradient, Laplacian, Sobel, and LoG value contracts
+      execute without legacy image fixtures or a Burn differential harness.
+      Evidence: warning-denied Clippy and nextest pass 13/13.
+- [x] Move Frangi vesselness assertions to a native public suite. Completion
+      condition: tubular, spherical, polarity, and uniform-field contracts run
+      through `apply_native`; private blur/Hessian invariants have no Burn
+      fixture. Evidence: warning-denied Clippy and nextest pass 5/5.
+- [x] Move multi-resolution pyramid assertions to a native public suite.
+      Completion condition: physical smoothing, integer stride sampling, and
+      origin/direction/spacing propagation execute through native images;
+      the stale source suite is deleted. Evidence: warning-denied Clippy and
+      nextest pass 4/4; the all-target residual falls from 18 to 16 errors.
+- [x] Promote native 3-D affine resampling into `ritk-filter` and delete the
+      registration-owned duplicate. Completion condition: the shared sampler
+      maps axis-major world points, zero-fills outside the half-voxel buffer,
+      and the registration figure/metrics import it directly. Evidence:
+      warning-denied Clippy and nextest pass 5/5; the registration figure
+      type-checks.
+- [x] Move dense-field warp assertions to a native public suite. Completion
+      condition: warp delegates its samples to the native resampler, validates
+      field shape and geometry, and stale source tests are deleted. Evidence:
+      warning-denied Clippy and nextest pass 5/5; `ritk-filter` all-target
+      Clippy and its 1,118-test nextest suite pass.
+- [x] Move WGPU row scheduling to its provider-independent compatibility
+      policy crate. Completion condition: six tensor consumers supply native
+      slice and concatenation operations to one generic scheduler;
+      `burn_compat_row_chunks` is deleted. Evidence: scheduler nextest passes
+      3/3, `ritk-filter` nextest passes 1,118/1,118, and warnings-denied
+      Clippy passes for the scheduler, image, filter, and transform library.
+- [x] Replace the fractal-dimension legacy image API end-to-end. Completion
+      condition: the filter has one Coeus-native `apply` entry, its Python
+      binding uses `PyImage` storage directly, and native public-contract
+      tests replace the Burn-backed source suite without changing its
+      finite-field, intensity-scaling, or geometry oracles. Evidence:
+      native nextest passes 3/3 and the full filter suite passes 1,118/1,118;
+      warning-denied filter Clippy and rustdoc pass.
+- [ ] Port every active consumer of `burn_compat_types` to its native Coeus
+      operation, then delete that module and the `burn-compat` feature in the
+      same breaking cutover.
+      Completion condition: `xtask burn-migration-audit` reports no relocated
+      compatibility surfaces and the source count falls without an allowlist
+      expansion.
+
+Evidence: GitHub audit run 29547504239 reaches the scanner on the refreshed
+provider graph and initially reports the relocated source surfaces. The local
+audit now scans 515 token-bearing source files and reports only
+`burn_compat_types`; the failure remains a real migration boundary violation,
+not a provider-resolution failure.
+
 ## SEC-656-01 — Workspace license metadata
 **Target version**: Unreleased patch
 **Sprint phase**: Execution

@@ -1,20 +1,18 @@
 #[cfg(test)]
 mod tests {
-    use coeus_core::SequentialBackend;
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
     use ritk_filter::GaussianSigma;
-    use ritk_image::tensor::{Distribution, Shape, Tensor};
+    use ritk_image::tensor::{Distribution, Tensor};
     use ritk_registration::metric::LocalNormalizedCrossCorrelation;
     use ritk_registration::metric::Metric;
     use ritk_transform::TranslationTransform;
 
-    type B = SequentialBackend;
+    type B = burn_ndarray::NdArray<f32>;
 
-    fn create_test_image(shape: [usize; 3]) -> Image<f32, B, 3> {
+    fn create_test_image(shape: [usize; 3]) -> Image<B, 3> {
         let device = Default::default();
-        let data =
-            Tensor::<B, 3>::random((shape), Distribution::Uniform(0.0, 1.0), &device);
+        let data = Tensor::<B, 3>::random(shape, Distribution::Uniform(0.0, 1.0), &device);
         let origin = Point::new([0.0, 0.0, 0.0]);
         let spacing = Spacing::new([1.0, 1.0, 1.0]);
         let direction = Direction::identity();

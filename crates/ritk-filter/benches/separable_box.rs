@@ -30,12 +30,13 @@
 use coeus_core::SequentialBackend;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use ritk_filter::GrayscaleDilation;
-use ritk_image::test_support as ts;
+use ritk_image::native::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;
 
 /// Deterministic 128³ test volume: ramp + sine modulation.
-fn make_volume_128() -> ritk_core::image::Image<f32, B, 3> {
+fn make_volume_128() -> Image<f32, B, 3> {
     let n = 128;
     let mut vals = Vec::with_capacity(n * n * n);
     for iz in 0..n {
@@ -46,7 +47,14 @@ fn make_volume_128() -> ritk_core::image::Image<f32, B, 3> {
             }
         }
     }
-    ts::make_image::<B, 3>(vals, [n, n, n])
+    Image::from_flat(
+        vals,
+        [n, n, n],
+        Point::origin(),
+        Spacing::uniform(1.0),
+        Direction::identity(),
+    )
+    .expect("benchmark fixture dimensions match its data length")
 }
 
 fn bench_separable_box(c: &mut Criterion) {
@@ -57,7 +65,7 @@ fn bench_separable_box(c: &mut Criterion) {
     for &radius in &[2_usize, 5_usize] {
         let filter = GrayscaleDilation::new(radius);
         group.bench_with_input(BenchmarkId::new("apply/128^3", radius), &vol, |b, img| {
-            b.iter(|| filter.apply(img).unwrap());
+            b.iter(|| filter.apply_native(img, &B::default()).unwrap());
         });
     }
 

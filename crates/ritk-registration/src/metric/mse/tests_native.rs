@@ -2,14 +2,12 @@
 //!
 //! Scope: these tests verify the MSE *reduction* over the resampled volume. The
 //! resample path itself (fixed grid → native batch transforms → native affine →
-//! native trilinear) is the shared [`super::super::native_resample`] substrate,
+//! native trilinear) is the shared `ritk_filter::resample::native` substrate,
 //! already differentially verified against Burn under identity/integer/fractional
 //! translation by the native NGF parity suite — so it is not re-verified here.
 //! MSE is intentionally full-volume (no mask, matching [`super::MeanSquaredError`]),
-//! so a translated test would compare the two kernels' *out-of-bounds* policies
-//! (which differ — hence the NGF suite masks the interior); the differential
-//! oracle below therefore uses only the identity transform, an exact voxel
-//! resample with no out-of-bounds sampling.
+//! so the differential oracle below uses only the identity transform, isolating
+//! the reduction from interpolation-order rounding.
 //!
 //! Oracles:
 //! - Analytical: MSE of identical images under identity is 0 (every squared

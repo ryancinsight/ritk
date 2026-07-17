@@ -2,7 +2,7 @@ use super::*;
 use burn_ndarray::NdArray;
 use ritk_core::spatial::{Point, Spacing};
 use ritk_filter::edge::GaussianSigma;
-use ritk_image::test_support::{make_image, make_image_with};
+use ritk_image::test_support::burn_compat::{make_image, make_image_with};
 
 type B = NdArray<f32>;
 

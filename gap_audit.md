@@ -8,6 +8,320 @@
 
 # RITK Gap Audit - Active
 
+## CI-658-10 audit (2026-07-17)
+
+GitHub's macOS RITK test runner accepted a valid `A-RELEASE-RP` for C-ECHO and
+C-MOVE, then `dicom-ul` 0.10 treated `TcpStream::shutdown(Shutdown::Both)`'s
+`ErrorKind::NotConnected` (`os error 57`) as a protocol error. The TLS socket
+implementation already accepts this peer-close sequence. RITK now owns the
+single protocol lifecycle operation: it sends `A-RELEASE-RQ`, requires
+`A-RELEASE-RP`, and consumes the TCP association without a redundant close.
+This is a standards-complete release handshake, not a fallback. The upstream
+transport correction is filed as
+[Enet4/dicom-rs#811](https://github.com/Enet4/dicom-rs/issues/811); remove the
+owner-local operation after an upstream release resolves the defect. Evidence
+tier: protocol-state inspection plus value-semantic C-ECHO/C-MOVE loopback
+tests. Formatting, warning-denied Clippy, and `ritk-io` Nextest pass (371/371).
+The exact workspace Nextest run reached 4,127/5,214 tests before two unrelated
+registration processes failed under concurrent Mnemosyne allocation pressure:
+`test_diffeomorphic_ssmmorph_integration` reported `Mnemosyne allocation failed
+in CpuStorage`, and `test_multires_cr_registration` aborted while allocating 4
+MiB. Both tests pass in isolation. This is a local concurrent-resource
+residual; no test concurrency, workload, or timeout is reduced. GitHub's
+independent three-platform matrix is the next evidence tier.
+
+## CI-658-09 audit (2026-07-17)
+
+The real-data helper previously treated directory existence as proof that the
+MNI fixture was available. An earlier empty `test_data` directory could therefore
+mask a later valid fixture root. The selection predicate now checks the required
+`ants_example/mni152.nii.gz` file, and an isolated temporary-directory regression
+asserts that the valid later root is returned. Evidence tier: value-semantic
+test plus compile-time checking. Focused Nextest, warning-denied exact-target
+Clippy, and package formatting pass locally; GitHub revalidation remains pending.
+
+## CI-658-08 audit (2026-07-17)
+
+The current PR head's workspace Clippy job found that the Analyze-to-NIfTI
+converter imported the two-parameter legacy Burn image but annotated it as the
+three-parameter native image while passing `SequentialBackend`. The native
+Analyze reader and NIfTI writer already own this conversion path, so the
+example now uses them directly rather than restoring a Burn backend or adding
+an adapter. Evidence tier: compile-time checking. The exact warning-denied
+example Clippy gate and `cargo clippy --workspace --all-targets --all-features
+-- -D warnings` pass locally; GitHub revalidation remains pending.
+
+## CI-658-03 audit (2026-07-17)
+
+PR #37's Python compile gates exposed stale binding calls that passed legacy
+color storage to native operations without the required concrete backend. The
+root fix converts `PyColorImage` to native `ColorVolume`, passes
+`MoiraiBackend` at native call sites, and makes `ColorVolume` own validated
+component-buffer conversion. The active legacy interpolation reference also
+now applies image direction and its ZYX↔XYZ mapping before sampling; its
+rotated, anisotropic direct regression maps `[4, 2, 1]` to `[4, 22, 50]` and
+back. Evidence tier: compile-time checking, value-semantic tests, and migration
+audit. `cargo check -p ritk-python --all-features`, warning-denied Clippy for
+image/filter/Python, package nextest (1,207 passed), image/interpolation
+nextest (166 passed, 3 skipped), doctests, rustdoc, and
+`xtask burn-migration-audit` pass. The audit allowlist is clean; its only
+diagnostics are pre-existing unused Hephaestus patch configuration warnings.
+
+Residual risk: `cargo semver-checks check-release -p ritk-image
+--baseline-rev origin/main --release-type major --all-features` cannot resolve
+the historical baseline because its manifest points to
+`coeus/coeus-autograd`, which does not exist inside the semver tool's isolated
+baseline clone. The current crate builds and documents successfully; public API
+comparison remains blocked until the baseline's cross-repository path
+dependency is made self-contained.
+
+## CI-658-04 audit (2026-07-17)
+
+The GitHub warning-denied workspace Clippy lane found that
+`ritk-io/tests/dicom_security.rs` used `SequentialBackend` with the remaining
+Burn-compatible DICOM/Analyze public APIs. This was a test-boundary type error,
+not a reason to retain a compatibility bridge: the target now uses the real
+`burn_ndarray::NdArray<f32>` oracle backend and current `TensorData` shape
+construction. Evidence tier: compile-time checking; the exact warning-denied
+Clippy target passes locally. GitHub revalidation remains pending.
+
+## CI-658-05 through CI-658-07 audit (2026-07-17)
+
+The workspace Clippy gate exposed one recurring contract defect: legacy Burn
+tests, benchmarks, and examples still named Coeus' `SequentialBackend`.
+Those backends are distinct type systems; passing the Coeus backend to a Burn
+image, tensor, or grid is a compile-time error. The correction uses the
+existing `burn_ndarray::NdArray<f32>` development backend, Burn 0.19
+`TensorData`, the existing `test_support::burn_compat` fixture, and the
+existing `generate_grid_burn` API. No compatibility helper, adapter, or
+fallback path was added.
+
+The first resulting PR audit correctly rejected five newly introduced
+registration Burn surfaces. The RIRE MetaImage and DICOM integration tests now
+use their provider-native readers, the persistent LDDMM benchmark uses the
+native CPU smoother, and the unreferenced private-path NGF benchmark is
+deleted because its full registration API is still Burn-only. The audit
+allowlist is unchanged.
+
+The registration Nextest lane then exposed a false native/Burn NGF parity
+premise: the prior masks let moving central differences cross the volume
+boundary, where Burn's default interpolator extends and the native resampler
+zero-fills. The differential domain now requires every transformed central
+difference neighbour to be in bounds. This preserves both declared boundary
+contracts and tests the common interpolation/metric arithmetic; the native
+resampler owns separate zero-fill boundary coverage.
+
+Evidence tier: compile-time checking plus value-semantic tests. Warning-denied
+Clippy passes for `ritk-transform`, `ritk-segmentation`, all
+`ritk-registration` targets, and the complete workspace with all features.
+Focused transform nextest passes 8 tests; all four NGF native tests and the
+757-test `ritk-registration` lane pass with all features; the migration audit
+reports 515 source files and `Allowlist status: clean`. GitHub revalidation
+remains pending.
+
+## CI-658-02 audit (2026-07-17)
+
+PR #37's local warning-denied Clippy reproduction found an invalid native test
+fixture backend value and an old B-spline benchmark that paired Burn tensors
+with Coeus' native backend. The fixture now passes `SequentialBackend`; the
+benchmark now uses `NdArray<f32>` and Burn 0.19 `TensorData`; and the
+non-contiguous diagnostic pins Leto's canonical zero stride for a unit-length
+axis. Evidence tier: compile-time checking plus `cargo nextest run -p
+ritk-statistics --status-level fail` (331/331 passed).
+
+The coordinate-reference blocker is resolved by CI-658-03. The legacy path now
+uses the same direction-aware ZYX↔XYZ convention as the native path, and the
+focused interpolation gate passes its fused/unfused regression.
+
+## MIG-658-01 audit (2026-07-16)
+
+GitHub Actions run `29547504239` confirms the refreshed provider graph reaches
+the source migration scanner. It initially reports `burn_compat_types` and
+`burn_compat_row_chunks` as new compatibility surfaces. This is a real
+boundary failure: moving Burn tensor helpers into `ritk-image` does not remove
+the Burn substrate. The redundant Burn-grid test module is deleted because the
+native grid suite already checks the same deterministic ordering contract.
+
+The generic WGPU row scheduler now belongs to `ritk-wgpu-compat`, which holds
+no tensor-provider dependency. Its six active tensor consumers provide native
+slice and concatenation closures, so `burn_compat_row_chunks` is deleted
+without retaining an image compatibility surface. The local audit scans 516
+token-bearing source files and reports only `burn_compat_types` as allowlist
+drift; the allowlist remains unchanged.
+
+Residual risk: `burn_compat_types` still has active legacy consumers. It
+remains a major, dependency-ordered native cutover under ADR 0002; expanding
+the audit allowlist would conceal rather than resolve the migration debt.
+
+Stochastic fractal dimension is now a complete native leaf cutover: its one
+public `apply` entry consumes a native image, its Python binding passes
+`PyImage` storage directly, and its legacy Burn implementation plus source
+test module are deleted. The native integration suite passes 3/3 for a finite
+varying field, exact power-of-two intensity scaling, and full physical geometry
+preservation. `ritk-filter` compiles, warning-denied all-target Clippy passes,
+rustdoc is warning-clean, and its full nextest suite passes 1,118/1,118.
+The package-level `ritk-python` compilation blocker is resolved by CI-658-03:
+the color, Canny, and recursive-Gaussian bindings now invoke their current
+native contracts, and the package check/test gates pass.
+
+Current default-branch evidence: commit `e3887685` enables
+`ritk-image/burn-compat` from `ritk-transform` and indirectly through the
+`test-helpers` feature. Cargo feature unification therefore changes the public
+`ritk_image::Image` from its native three-parameter form to the legacy
+two-parameter form in registration test/example builds. That commit also
+contains the malformed expressions `img.data()B::default()`,
+`fixed.data()B::default()`, and `image.data()B::default()` in the registration
+example/test targets. These are syntax errors, but replacing only the token
+sequence would leave the partially migrated examples coupled to legacy NIfTI,
+transform, and interpolation APIs. The required root-cause fix is to migrate
+those consumers to their existing native provider surfaces, then delete the
+feature and both compatibility modules together. Evidence tier: source
+inspection plus `cargo fmt --check` parser diagnostics; affected package gates
+remain queued behind the shared Atlas build lock.
+
+ADR 0002 Amendment A2 now makes the correction explicit: `Image<T, B, D>` is
+feature-invariant, and the transform/I/O caller family is the first scope that
+must cut over completely before either compatibility module is deleted.
+
+The first independent consumer is complete: `geometry_check` reads through
+`format::nifti::native::NiftiReader`, constructs its grid through
+`grid::generate_grid`, and uses `Image::index_to_world_native`. The focused
+example compile passes on the resolved workspace graph; its Gaia lock entry
+now matches the local 0.3.0 provider.
+
+The ignored real-data registration tests now use `NiftiReader`, native
+`Image`, and `trilinear_interpolation` directly. Their three value-semantic
+assertions pass against `ants_example/mni152.nii.gz`: documented ZYX shape and
+f32-header spacing, index-to-physical coordinate round trip, and exact identity
+sample values. The test selects that documented 3-D scalar fixture because
+`visiblehuman.nii.gz` is a 4-D RGB24 payload outside `ritk-nifti`'s declared
+3-D scalar codec contract. Evidence tier: data-backed integration tests via
+`cargo nextest run -p ritk-registration --test real_data_test --run-ignored all
+--status-level fail` (3/3 passed).
+
+Apollo PR 44 merged at `f26369e`; `apollo-fft` now declares 0.23.0 on
+`main`. RITK's workspace constraint and lockfile advance to the same released
+provider version, so the earlier resolver mismatch is removed without widening
+against uncommitted producer state.
+
+The active source change removes the registration figure's Burn image, tensor,
+transform, interpolation, and NIfTI calls. It uses the existing classical MI
+engine on Leto volumes, then explicitly maps its fixed-index→moving-index
+affine into the native physical frames before shared Coeus resampling. The MI
+CLI now consumes that one native image↔Leto conversion surface, and its
+fixtures use native NIfTI round trips with exact voxel and transform assertions.
+The shared metric resampler now delegates fixed-grid construction to
+`ritk-image::grid::generate_grid`; the duplicated local generator is deleted.
+Evidence tier: source-residue scan, direct rustfmt, and compile-time checking;
+`cargo check -p ritk-registration --example registration_compare_figure`
+passes. The native conversion library tests pass 2/2 under `cargo nextest run
+-p ritk-registration --lib classical::native --status-level fail`; the native
+CLI MI binary tests pass 3/3 under `cargo nextest run -p ritk-cli --bin ritk
+register::mi --status-level fail`. Warning-denied Clippy passes for the two
+changed targets with `--no-deps`.
+
+Residual: the unscoped `cargo nextest run -p ritk-registration` test build
+does not reach this slice's tests because unrelated legacy integration targets
+fail to compile. The first diagnostics are a duplicate `SequentialBackend`
+import in `examples/brain_ct_mri_registration.rs` and multiple
+`tests/*registration*_test.rs` targets that use `coeus_core::SequentialBackend`
+where their remaining Burn tensor APIs require a Burn backend. The focused
+`ritk-filter` source diagnostics are resolved: stale imports are deleted, the
+convolution kernels iterate directly over precomputed index slices, and the
+three native inversion APIs return one named `NativeDisplacementField` rather
+than repeated anonymous tuples. The direct native zero-field regression passes
+1/1 and filter library/target warning-denied Clippy passes. Full
+`cargo clippy -p ritk-filter --all-targets --all-features --no-deps -- -D
+warnings` now passes. The former resample and warp source tests are replaced by
+native integration targets, and the now-unused approximate Burn differential
+harness is deleted. The
+external analytical parity target now executes 10/10 through public native
+intensity, edge, segmentation, and statistics APIs. The active Criterion targets and the
+recursive-Gaussian comparison example no longer contribute to full-target
+failure: each directly constructs a native image and calls the established
+native operation; warning-denied Clippy passes for all six targets. The color-
+component and colormap modules also remain clean through public native
+integration targets (2/2 and 8/8). Gaussian coverage is consolidated into one
+native integration target (5/5); its duplicate stale unit module is deleted.
+Blend and ternary arithmetic coverage now runs through one public native target
+(4/4): exact alpha endpoints, weighted values, ternary sum/magnitude values,
+and the first input's physical frame. Its two stale Burn-backed inline test
+modules are deleted. The remaining library tests are active consumer cutover
+work, not lint failures to suppress or compatibility bridges to retain. The
+repeated stale native-
+method links are corrected across the filter crate; `cargo doc -p ritk-filter
+--no-deps` is warning-clean.
+
+Recursive-Gaussian coverage now has a single public native target (9/9) that
+checks constant preservation, first and second derivative interiors, physical
+Laplacian and gradient invariance over spacing, directional slope, subpixel
+identity, and constant-field derivatives. The private legacy and native test
+modules are deleted with their Burn differential harness. The all-target error
+count consequently falls from 72 to 44 before the edge-family cutover below.
+
+The edge family now has one public native target (13/13) for Canny, gradient,
+gradient magnitude, Laplacian, Sobel, and LoG behavior. It retains the former
+Canny thresholds and analytical field oracles while deleting four stale source
+test modules and their Burn differential harness. The all-target residual falls
+from 44 to 20 before the Frangi cutover below.
+
+Frangi now has a native public suite (5/5) covering tubular/spherical response,
+uniform suppression, and polarity rejection. Its private blur and Hessian-trace
+invariants remain co-located without a Burn fixture; the old source suite and
+Burn differential harness are deleted.
+
+The native multi-resolution pyramid now performs physical Gaussian smoothing,
+integer stride sampling, and spatial-metadata propagation directly on Coeus
+images. Its public suite passes 4/4 identity, stride-value, coarse-to-fine,
+and invalid-schedule contracts under nextest and warning-denied Clippy. The
+legacy source suite is deleted.
+
+The filter layer now owns native affine resampling as the single physical
+sampling substrate. It maps axis-major fixed-grid world points through the
+native affine, converts to innermost-first continuous indices for the
+interpolation kernel, and enforces the documented half-voxel zero-fill boundary
+outside the moving buffer. Registration metrics and the comparison example use
+that filter-owned API directly; the downstream duplicate is deleted. Native
+warp adds dense `[z, y, x]` physical displacement to the same world points and
+delegates samples to that API, so warp and resample cannot diverge at the field
+of view boundary. The native resample and warp integration suites pass 5/5 and
+5/5; warnings-denied all-target Clippy and the full 1,118-test filter nextest
+suite pass. Evidence tier: value-semantic integration tests plus compile-time
+and warnings-denied whole-package verification.
+
+The migration audit still fails correctly: 12 manifests and 515 token-bearing
+source files are scanned, with only `burn_compat_types` reported as an
+unallowlisted relocated compatibility surface. The audit allowlist remains
+unchanged. `ritk-transform` integration tests remain independently
+graph-blocked: unchanged `bspline_test.rs` and `transform_test.rs` instantiate
+`coeus_core::SequentialBackend`, which does not implement the legacy Burn
+tensor backend bound. Production `ritk-transform` compiles and its library
+Clippy gate passes.
+
+## MIG-657-01 audit (2026-07-16)
+
+### Extended label-shape statistics use one native image boundary
+
+`compute_label_shape_statistics_extended` now consumes the existing native
+`Image<f32, B, 3>` contract and reads its host-addressable storage fallibly.
+The pure slice implementation remains the sole numerical implementation. The
+only in-tree Python binding passes its native `PyImage` storage directly while
+the GIL is released; no Burn image conversion remains at that boundary. The
+existing ITK/Crofton assertions are unchanged and their test fixtures now use
+`SequentialBackend` native images.
+
+Evidence tier: compile-time integration plus value-semantic statistics tests.
+The Apollo 0.23 workspace constraint and lockfile resolve the merged provider;
+focused statistics/Python warning-denied compile gates, statistics nextest,
+doctest, rustdoc, direct formatting, diff-whitespace validation, and targeted
+residue scans pass.
+
+Residual: current RITK `main` advanced with batch `b1850302` and then
+`e3887685` while this slice was in progress. The branch now resolves the
+overlapping label-shape test import. The focused gate rerun remains blocked
+until MIG-658 removes the feature-driven type-mode conflict in registration
+targets.
+
 ## SEC-656-01 audit (2026-07-15)
 
 ### License metadata has one workspace authority

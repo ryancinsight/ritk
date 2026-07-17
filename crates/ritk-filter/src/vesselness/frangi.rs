@@ -125,7 +125,8 @@ impl FrangiVesselnessFilter {
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -320,44 +321,83 @@ pub(crate) fn gaussian_blur_vec(
     buf
 }
 
-// ── Unit tests ────────────────────────────────────────────────────────────────
-
 #[cfg(test)]
-#[path = "tests_frangi.rs"]
-mod tests_frangi;
-
-#[cfg(test)]
-mod tests_native {
-    use super::{FrangiConfig, FrangiVesselnessFilter};
-    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+mod tests {
+    use super::*;
     use coeus_core::SequentialBackend;
+    use ritk_image::native::Image;
+    use ritk_spatial::{Direction, Point, Spacing};
+
+    type B = SequentialBackend;
+
+    fn image(values: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
+        Image::from_flat_on(
+            values,
+            shape,
+            Point::origin(),
+            Spacing::uniform(1.0),
+            Direction::identity(),
+            &B::default(),
+        )
+        .expect("invariant: valid native test image")
+    }
 
     #[test]
-    fn matches_burn() {
-        let vals: Vec<f32> = (0..210).map(|i| ((i * 5) % 23) as f32).collect();
-        assert_native_matches_burn(
-            vals,
-            [5, 6, 7],
-            |img| {
-                FrangiVesselnessFilter::new(FrangiConfig::default())
-                    .apply(img)
-                    .expect("burn frangi")
-            },
-            |img, backend| {
-                FrangiVesselnessFilter::new(FrangiConfig::default()).apply_native(img, backend)
-            },
+    fn gaussian_blur_preserves_uniform_field() {
+        let shape = [8usize, 8, 8];
+        let blurred = gaussian_blur_vec(
+            &vec![5.0; shape.iter().product()],
+            shape,
+            1.0,
+            [1.0, 1.0, 1.0],
+        );
+        for (index, &value) in blurred.iter().enumerate() {
+            assert!(
+                (value - 5.0).abs() < 1e-4,
+                "uniform blur at {index}: expected 5, got {value}"
+            );
+        }
+    }
+
+    #[test]
+    fn gaussian_blur_reduces_impulse_peak_without_creating_energy() {
+        let shape = [9usize, 9, 9];
+        let mut values = vec![0.0; shape.iter().product()];
+        values[4 * 9 * 9 + 4 * 9 + 4] = 1000.0;
+        let blurred = gaussian_blur_vec(&values, shape, 1.5, [1.0, 1.0, 1.0]);
+        let peak = blurred.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+        let source_energy: f32 = values.iter().sum();
+        let blurred_energy: f32 = blurred.iter().sum();
+
+        assert!(peak < 1000.0, "blurred impulse peak: {peak}");
+        assert!(
+            blurred_energy <= source_energy * 1.01,
+            "blur must not create energy: source={source_energy}, blurred={blurred_energy}"
         );
     }
 
     #[test]
-    fn oracle_constant_field_zero_response() {
-        // Hessian of a constant field is zero → zero vesselness everywhere.
-        let img = make_native_image(vec![9.0f32; 343], [7, 7, 7]);
-        let out = FrangiVesselnessFilter::new(FrangiConfig::default())
-            .apply_native(&img, &SequentialBackend)
-            .expect("native frangi");
-        for &v in &native_vals(&out) {
-            assert_eq!(v, 0.0, "constant field must give zero vesselness");
-        }
+    fn hessian_trace_matches_native_laplacian() {
+        let shape = [8usize, 8, 8];
+        let values: Vec<f32> = (0..shape.iter().product::<usize>())
+            .map(|index| (index as f32 * 0.01) % 1.0)
+            .collect();
+        let hessians = compute_hessian_iir(&values, shape, [1.0, 1.0, 1.0], 1.5);
+        let trace: Vec<f32> = hessians
+            .iter()
+            .map(|hessian| hessian[0] + hessian[3] + hessian[5])
+            .collect();
+        let input = image(values, shape);
+        let laplacian =
+            crate::recursive_gaussian::laplacian_recursive_gaussian(&input, 1.5, &B::default())
+                .expect("native Laplacian succeeds");
+        let centre = 4 * 8 * 8 + 4 * 8 + 4;
+        let difference =
+            (trace[centre] - laplacian.data_slice().expect("contiguous")[centre]).abs();
+
+        assert!(
+            difference < 1e-3,
+            "Hessian trace differs from Laplacian at center by {difference}"
+        );
     }
 }

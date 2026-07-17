@@ -9,11 +9,11 @@
 //!   cargo run --example dicom_to_nifti -- "D:\ritk\data\brain.hdr" patient01_ct.nii.gz
 
 use coeus_core::SequentialBackend;
-use ritk_core::image::Image;
-use ritk_io::{read_analyze, write_nifti};
+use ritk_io::{
+    format::{analyze::native::AnalyzeReader, nifti::native::NiftiWriter},
+    ImageReader, ImageWriter,
+};
 use std::env;
-
-type Backend = SequentialBackend;
 
 fn main() -> anyhow::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -37,14 +37,12 @@ fn main() -> anyhow::Result<()> {
     println!("Input file: {}", input_file);
     println!("Output file: {}", output_file);
 
-    let device = Default::default();
-
-    let image: Image<f32, Backend, 3> = read_analyze(input_file, &device)?;
+    let image = AnalyzeReader::new(SequentialBackend).read(input_file)?;
     println!("Loaded image with shape: {:?}", image.shape());
     println!("Spacing: {:?}", image.spacing());
     println!("Origin: {:?}", image.origin());
 
-    write_nifti(output_file, &image)?;
+    NiftiWriter::new(SequentialBackend).write(output_file, &image)?;
     println!("Successfully saved NIfTI file: {}", output_file);
 
     Ok(())

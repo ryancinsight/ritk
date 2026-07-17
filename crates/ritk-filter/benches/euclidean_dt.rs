@@ -27,7 +27,8 @@
 use coeus_core::SequentialBackend;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use ritk_filter::DistanceTransformImageFilter;
-use ritk_image::test_support as ts;
+use ritk_image::native::Image;
+use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;
 
@@ -35,7 +36,7 @@ type B = SequentialBackend;
 /// Checkerboard maximises the number of non-background voxels without
 /// creating trivial all-foreground / all-background regions that would
 /// degenerate the EDT computation.
-fn make_binary_128() -> ritk_core::image::Image<f32, B, 3> {
+fn make_binary_128() -> Image<f32, B, 3> {
     let n = 128;
     let vals: Vec<f32> = (0..n * n * n)
         .map(|i| {
@@ -49,7 +50,14 @@ fn make_binary_128() -> ritk_core::image::Image<f32, B, 3> {
             }
         })
         .collect();
-    ts::make_image::<B, 3>(vals, [n, n, n])
+    Image::from_flat(
+        vals,
+        [n, n, n],
+        Point::origin(),
+        Spacing::uniform(1.0),
+        Direction::identity(),
+    )
+    .expect("benchmark fixture dimensions match its data length")
 }
 
 fn bench_euclidean_dt(c: &mut Criterion) {
@@ -62,7 +70,7 @@ fn bench_euclidean_dt(c: &mut Criterion) {
         BenchmarkId::new("apply/128^3", "binary_checkerboard"),
         &vol,
         |b, img| {
-            b.iter(|| filter.apply(img).unwrap());
+            b.iter(|| filter.apply_native(img, &B::default()).unwrap());
         },
     );
 

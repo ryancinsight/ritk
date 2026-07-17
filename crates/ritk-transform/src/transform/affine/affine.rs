@@ -7,7 +7,7 @@ use ritk_core::transform::{Resampleable, Transform};
 use ritk_image::burn::module::{Module, Param};
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
-use ritk_image::burn_compat_row_chunks::apply_row_chunks;
+use ritk_wgpu_compat::apply_row_chunks;
 
 /// Affine Transform (Linear transformation + Translation).
 ///
@@ -105,11 +105,19 @@ impl<B: Backend, const D: usize> Transform<B, D> for AffineTransform<B, D> {
         let a = self.matrix.val();
         let a_t = a.transpose();
 
-        apply_row_chunks(points, ritk_wgpu_compat::WGPU_CHUNK_SIZE, |chunk_points| {
-            let centered = chunk_points - c.clone();
-            let rotated = centered.matmul(a_t.clone());
-            rotated + c.clone() + t.clone()
-        })
+        let row_count = points.dims()[0];
+        apply_row_chunks(
+            points,
+            row_count,
+            ritk_wgpu_compat::WGPU_CHUNK_SIZE,
+            |chunk_points| {
+                let centered = chunk_points - c.clone();
+                let rotated = centered.matmul(a_t.clone());
+                rotated + c.clone() + t.clone()
+            },
+            |tensor, range| tensor.clone().slice([range]),
+            |chunks| Tensor::cat(chunks, 0),
+        )
     }
 }
 

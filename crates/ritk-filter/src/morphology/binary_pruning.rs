@@ -83,12 +83,16 @@ impl BinaryPruningFilter {
         let out: Vec<f32> = img.iter().map(|&v| v as f32).collect();
         rebuild(out, dims, image)
     }
-    /// Coeus-native sister of [`apply`].
-    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    /// Coeus-native counterpart to the legacy application method.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
-        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,{
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
         let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
         let [nz, ny, nx] = dims;
         let mut img: Vec<u8> = vals.iter().map(|&v| u8::from(v != 0.0)).collect();
@@ -128,9 +132,7 @@ impl BinaryPruningFilter {
 
         let out: Vec<f32> = img.iter().map(|&v| v as f32).collect();
         crate::native_support::rebuild_image(out, dims, image, backend)
-    
     }
-
 }
 
 #[cfg(test)]

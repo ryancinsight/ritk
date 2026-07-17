@@ -33,11 +33,10 @@ pub enum PySpacingMode {
 #[pyo3(signature = (image, sigma))]
 pub fn gaussian_filter(py: Python<'_>, image: &PyImage, sigma: f64) -> RitkResult<PyImage> {
     let native = Arc::clone(&image.inner);
-    let backend = MoiraiBackend;
     py.allow_threads(|| {
         let filter = GaussianFilter::<()>::new(vec![GaussianSigma::new_unchecked(sigma); 3]);
         filter
-            .apply_native(native.as_ref(), &backend)
+            .apply_native(native.as_ref(), &MoiraiBackend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -75,10 +74,10 @@ pub fn discrete_gaussian(
             PySpacingMode::Physical => ritk_filter::discrete_gaussian::SpacingMode::Physical,
             PySpacingMode::Voxel => ritk_filter::discrete_gaussian::SpacingMode::Voxel,
         };
-        let filter = DiscreteGaussianFilter::<crate::image::BurnBackend>::new(vec![ritk_filter::GaussianSigma::new(
-            variance.sqrt(),
-        )
-        .expect("invariant: variance must be positive (validated by caller)")])
+        let filter = DiscreteGaussianFilter::<crate::image::BurnBackend>::new(vec![
+            ritk_filter::GaussianSigma::new(variance.sqrt())
+                .expect("invariant: variance must be positive (validated by caller)"),
+        ])
         .with_maximum_error(maximum_error)
         .with_spacing_mode(spacing_mode);
         filter
@@ -167,7 +166,7 @@ pub fn recursive_gaussian(
     py.allow_threads(|| {
         let filter = RecursiveGaussianFilter::new(sigma).with_derivative_order(derivative_order);
         filter
-            .apply_native(native.as_ref())
+            .apply_native(native.as_ref(), &MoiraiBackend)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
     .map(into_py_image)
@@ -220,16 +219,16 @@ pub fn recursive_gaussian_directional(
             "recursive_gaussian_directional: direction must be 0, 1, or 2, got {direction}"
         )));
     }
-    // TODO: migrate once recursive_gaussian_directional gains apply_native.
-    let image = py_image_to_burn(image);
+    let native = Arc::clone(&image.inner);
     py.allow_threads(|| {
         ritk_filter::recursive_gaussian::recursive_gaussian_directional(
-            &image,
+            native.as_ref(),
             sigma,
             derivative_order,
             direction,
+            &MoiraiBackend,
         )
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

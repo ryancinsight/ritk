@@ -1,6 +1,6 @@
 //! C-FIND SCU — Study Root Query/Retrieve: FIND (PS3.4 §C.4.1).
 
-use super::association::{FindResult, NetworkingError};
+use super::association::{release_client_association, FindResult, NetworkingError};
 use super::command::{
     build_command_pdu, build_dataset_ivr_le, encode_str, parse_command_response,
     CommandElementValue, C_FIND_RQ, C_FIND_RSP, HAS_DATASET, IMPLICIT_VR_LE_TS, NO_DATASET,
@@ -141,9 +141,7 @@ pub fn find(
         }
     }
 
-    assoc
-        .release()
-        .map_err(|e| NetworkingError::Protocol(e.to_string()))?;
+    release_client_association(assoc)?;
 
     Ok(results)
 }

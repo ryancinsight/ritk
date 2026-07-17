@@ -85,7 +85,8 @@ impl VotingBinaryHoleFillingImageFilter {
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -186,7 +187,8 @@ impl VotingBinaryHoleFillingImageFilter {
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
         max_iterations: usize,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -234,7 +236,8 @@ mod tests_native {
         vals[13] = 0.0; // center pit
         vals[0] = 0.0; // corner background (should stay bg)
 
-        let burn_img = ts::burn_compat::make_image::<burn_ndarray::NdArray<f32>, 3>(vals.clone(), dims);
+        let burn_img =
+            ts::burn_compat::make_image::<burn_ndarray::NdArray<f32>, 3>(vals.clone(), dims);
         let burn_out = filter().apply(&burn_img);
         let burn_vals = burn_out
             .data()

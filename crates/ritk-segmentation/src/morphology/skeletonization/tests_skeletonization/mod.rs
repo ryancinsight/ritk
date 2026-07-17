@@ -5,7 +5,7 @@
 use super::*;
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
-use ritk_image::test_support::make_image;
+use ritk_image::test_support::burn_compat::make_image;
 
 type TestBackend = NdArray<f32>;
 

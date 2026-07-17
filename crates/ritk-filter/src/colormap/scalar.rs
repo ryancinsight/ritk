@@ -1,5 +1,4 @@
 use anyhow::{bail, Result};
-use ritk_image::native::{ColorVolume, Image};
 
 /// Linear-LUT colormaps (those expressible without a piecewise table).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,7 +56,8 @@ impl ScalarToRGBColormapFilter {
     pub fn apply<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ritk_image::native::ColorVolume<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::ColorVolume<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -104,4 +104,3 @@ impl ScalarToRGBColormapFilter {
         )
     }
 }
-

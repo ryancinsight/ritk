@@ -1,9 +1,9 @@
 use crate::native as coeus_tensor_ops;
+use burn::tensor::{Shape, Tensor as BurnTensor, TensorData};
+use burn_ndarray::NdArray;
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor as CoeusTensor;
 use ritk_image::native::Image as CoeusImage;
-use burn_ndarray::NdArray;
-use burn::tensor::{Tensor as BurnTensor, TensorData, Shape};
 use ritk_spatial::{Direction, Point, Spacing};
 
 type BurnB = NdArray<f32>;
@@ -69,10 +69,7 @@ fn native_image(values: &[f32]) -> CoeusImage<f32, MoiraiBackend, 2> {
 
 fn burn_tensor(values: &[f32]) -> BurnTensor<BurnB, 2> {
     let device = Default::default();
-    BurnTensor::<BurnB, 2>::from_data(
-        TensorData::new(values.to_vec(), Shape::new(SHAPE)),
-        &device,
-    )
+    BurnTensor::<BurnB, 2>::from_data(TensorData::new(values.to_vec(), Shape::new(SHAPE)), &device)
 }
 
 fn native_data(tensor: &CoeusTensor<f32, MoiraiBackend>) -> Vec<f32> {

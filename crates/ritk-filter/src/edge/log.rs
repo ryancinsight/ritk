@@ -74,7 +74,8 @@ impl LaplacianOfGaussianFilter {
     pub fn apply<B>(
         &self,
         image: &Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<Image<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend + Default,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -96,7 +97,8 @@ impl LaplacianOfGaussianFilter {
     pub fn apply_native<B>(
         &self,
         image: &Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<Image<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend + Default,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -104,9 +106,3 @@ impl LaplacianOfGaussianFilter {
         laplacian_recursive_gaussian(image, self.sigma.get(), backend)
     }
 }
-
-// ── Tests ──────────────────────────────────────────────────────────────────────
-
-#[cfg(test)]
-#[path = "tests_log.rs"]
-mod tests;

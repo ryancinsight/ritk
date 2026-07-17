@@ -23,11 +23,11 @@
 //! (`sampling: None`); the stochastic-sample estimator has no native consumer
 //! yet and is left on Burn (recorded as a residual gap).
 
-use super::super::native_resample::{fixed_world_points, resample_moving_at_world};
 use super::scalar::{
     compute_gradient_field, row_major_strides, weighted_eta2, weighted_ngf_from_fixed,
 };
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
 use ritk_image::native::Image;
 use ritk_transform::transform::affine::AtlasAffineTransform;
 
@@ -106,6 +106,7 @@ where
         transform: &AtlasAffineTransform<B, 3>,
     ) -> Vec<f32> {
         resample_moving_at_world(&self.fixed_world, moving, transform)
+            .expect("invariant: fixed grid produces valid native resample coordinates")
     }
 }
 

@@ -1,8 +1,7 @@
-use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::burn::backend::Autodiff;
-use ritk_image::tensor::{Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_registration::metric::{CorrelationDirection, CorrelationRatio};
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
 use ritk_registration::optimizer::AdamOptimizer;
@@ -11,7 +10,7 @@ use ritk_registration::ConvergenceChecker;
 use ritk_statistics::IntensityRange;
 use ritk_transform::TranslationTransform;
 
-type B = Autodiff<SequentialBackend>;
+type B = Autodiff<burn_ndarray::NdArray<f32>>;
 
 #[test]
 fn test_multires_cr_registration() {
@@ -49,8 +48,10 @@ fn test_multires_cr_registration() {
     // 20 + t = 24 => t = 4.
     let moving_data = make_blob([24.0, 24.0, 20.0], 5.0);
 
-    let fixed_tensor = Tensor::<B, 3>::from_data((fixed_data, shape), &device);
-    let moving_tensor = Tensor::<B, 3>::from_data((moving_data, shape), &device);
+    let fixed_tensor =
+        Tensor::<B, 3>::from_data(TensorData::new(fixed_data, Shape::new(shape)), &device);
+    let moving_tensor =
+        Tensor::<B, 3>::from_data(TensorData::new(moving_data, Shape::new(shape)), &device);
 
     let origin = Point::new([0.0, 0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);

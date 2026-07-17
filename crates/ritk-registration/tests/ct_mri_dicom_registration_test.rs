@@ -13,10 +13,8 @@
 //!   cargo test --test ct_mri_dicom_registration_test -- --ignored
 
 use coeus_core::SequentialBackend;
-use ritk_io::{read_dicom_series_with_metadata, DicomReadMetadata};
+use ritk_io::{read_native_dicom_series_with_metadata, DicomReadMetadata};
 use ritk_registration::bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, VolumeDims};
-
-type B = SequentialBackend;
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
 
@@ -129,9 +127,9 @@ fn test_ct_dicom_series_metadata() {
         return;
     }
 
-    let device = Default::default();
+    let backend = SequentialBackend;
     let (image, metadata): (_, DicomReadMetadata) =
-        read_dicom_series_with_metadata::<B, _>(&ct_dir, &device)
+        read_native_dicom_series_with_metadata(&ct_dir, &backend)
             .expect("CT DICOM series must load without error");
 
     // ── Modality ──────────────────────────────────────────────────────────
@@ -202,9 +200,9 @@ fn test_mri_dir_mri_series_metadata() {
         return;
     }
 
-    let device = Default::default();
+    let backend = SequentialBackend;
     let (image, metadata): (_, DicomReadMetadata) =
-        read_dicom_series_with_metadata::<B, _>(&mri_dir, &device)
+        read_native_dicom_series_with_metadata(&mri_dir, &backend)
             .expect("MRI DICOM series must load without error");
 
     // ── Modality ──────────────────────────────────────────────────────────
@@ -226,7 +224,7 @@ fn test_mri_dir_mri_series_metadata() {
     assert!(shape[2] >= 64, "expected ≥64 columns, got {}", shape[2]);
 
     // ── Non-trivial intensity range ───────────────────────────────────────
-    let voxels: Vec<f32> = image.data_slice().into_owned();
+    let voxels = image.data_cow_on(&backend).into_owned();
     let vmin = voxels.iter().cloned().fold(f32::INFINITY, f32::min);
     let vmax = voxels.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
 
@@ -285,12 +283,12 @@ fn test_bspline_ffd_mridir_ct_synthetic_shift_recovery() {
         return;
     }
 
-    let device = Default::default();
-    let (image, _metadata) = read_dicom_series_with_metadata::<B, _>(&ct_dir, &device)
+    let backend = SequentialBackend;
+    let (image, _metadata) = read_native_dicom_series_with_metadata(&ct_dir, &backend)
         .expect("CT DICOM series must load for registration test");
 
     let full_shape = image.shape();
-    let raw_data: Vec<f32> = image.data_slice().into_owned();
+    let raw_data = image.data_cow_on(&backend).into_owned();
 
     // Downsample to ≈26×32×32 with stride = 16.
     let (ds_data, ds_dims) = downsample_stride(&raw_data, full_shape, 16);
@@ -391,14 +389,14 @@ fn test_ct_mri_pair_intensity_statistics_differ() {
         return;
     }
 
-    let device = Default::default();
-    let (ct_img, _ct_meta) = read_dicom_series_with_metadata::<B, _>(&ct_dir, &device)
+    let backend = SequentialBackend;
+    let (ct_img, _ct_meta) = read_native_dicom_series_with_metadata(&ct_dir, &backend)
         .expect("CT DICOM series must load");
-    let (mri_img, _mri_meta) = read_dicom_series_with_metadata::<B, _>(&mri_dir, &device)
+    let (mri_img, _mri_meta) = read_native_dicom_series_with_metadata(&mri_dir, &backend)
         .expect("MRI DICOM series must load");
 
-    let ct_raw: Vec<f32> = ct_img.data_slice().into_owned();
-    let mri_raw: Vec<f32> = mri_img.data_slice().into_owned();
+    let ct_raw = ct_img.data_cow_on(&backend).into_owned();
+    let mri_raw = mri_img.data_cow_on(&backend).into_owned();
 
     let ct_shape = ct_img.shape();
     let mri_shape = mri_img.shape();

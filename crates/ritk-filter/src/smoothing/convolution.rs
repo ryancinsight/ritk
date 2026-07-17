@@ -157,12 +157,10 @@ impl SpatialConvolutionFilter {
                     for x in 0..dx {
                         let sx_slice = &sx_indices_ref[x * kx..(x + 1) * kx];
                         let mut sum = 0.0_f64;
-                        for ikz in 0..kz {
-                            let sz = sz_slice[ikz];
+                        for (ikz, &sz) in sz_slice.iter().enumerate() {
                             let sz_offset = sz * dy * dx;
                             let k_offset_z = ikz * ky * kx;
-                            for iky in 0..ky {
-                                let sy = sy_slice[iky];
+                            for (iky, &sy) in sy_slice.iter().enumerate() {
                                 let sy_offset = sz_offset + sy * dx;
                                 let k_offset_y = k_offset_z + iky * kx;
                                 for ikx in 0..kx {
@@ -179,9 +177,13 @@ impl SpatialConvolutionFilter {
         );
 
         Ok(rebuild(out, dims, image))
-    }    /// Coeus-native sister of [`apply`].
-    pub fn apply_native<B>(&self, image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    }
+    /// Coeus-native counterpart to the legacy application method.
+    pub fn apply_native<B>(
+        &self,
+        image: &ritk_image::native::Image<f32, B, 3>,
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -243,12 +245,10 @@ impl SpatialConvolutionFilter {
                     for x in 0..dx {
                         let sx_slice = &sx_indices_ref[x * kx..(x + 1) * kx];
                         let mut sum = 0.0_f64;
-                        for ikz in 0..kz {
-                            let sz = sz_slice[ikz];
+                        for (ikz, &sz) in sz_slice.iter().enumerate() {
                             let sz_offset = sz * dy * dx;
                             let k_offset_z = ikz * ky * kx;
-                            for iky in 0..ky {
-                                let sy = sy_slice[iky];
+                            for (iky, &sy) in sy_slice.iter().enumerate() {
                                 let sy_offset = sz_offset + sy * dx;
                                 let k_offset_y = k_offset_z + iky * kx;
                                 for ikx in 0..kx {
@@ -265,7 +265,5 @@ impl SpatialConvolutionFilter {
         );
 
         crate::native_support::rebuild_image(out, dims, image, backend)
-    
     }
-
 }

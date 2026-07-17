@@ -37,8 +37,6 @@
 //! Data site: <https://rire.insight-journal.org/>
 
 mod common;
-
-use coeus_core::SequentialBackend;
 use common::{
     apply_ritk_m4_to_rire_point, compute_tre, find_rire_dir, identity_m4, ncc, normalize_minmax,
     resample_mri_into_ct_ritk, B, RIRE_CORNERS,
@@ -97,7 +95,7 @@ fn test_resampling_helper_self_consistency() {
     let rire_dir = find_rire_dir()
         .expect("RIRE data not found. Place files under test_data/registration/rire/");
     let mri_path = rire_dir.join("training_001_mr_T1.mha");
-    let device: <SequentialBackend as ritk_image::tensor::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let mri_img = read_metaimage::<B, _>(&mri_path, &device).expect("Failed to load MRI T1");
 
     let mri_raw: Vec<f32> = mri_img.data_slice().into_owned();
@@ -143,7 +141,7 @@ fn test_center_of_mass_init_rire_patient001() {
         .expect("RIRE data not found. Place files under test_data/registration/rire/");
     let ct_path = rire_dir.join("training_001_ct.mha");
     let mri_path = rire_dir.join("training_001_mr_T1.mha");
-    let device: <SequentialBackend as ritk_image::tensor::Backend>::Device = Default::default();
+    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let ct_img = read_metaimage::<B, _>(&ct_path, &device).expect("Failed to load CT");
     let mri_img = read_metaimage::<B, _>(&mri_path, &device).expect("Failed to load MRI T1");
 

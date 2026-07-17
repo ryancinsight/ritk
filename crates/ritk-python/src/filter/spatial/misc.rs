@@ -1,6 +1,8 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{burn_into_py_image, into_py_image, py_image_to_burn, PyImage};
+use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
+use std::sync::Arc;
 
 /// Per-voxel stochastic fractal dimension, matching
 /// `SimpleITK.StochasticFractalDimension`.
@@ -17,11 +19,14 @@ pub fn stochastic_fractal_dimension(
     image: &PyImage,
     radius: usize,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
-    let out = py.allow_threads(|| {
-        ritk_filter::StochasticFractalDimensionFilter::new([radius, radius, radius]).apply(&arc)
-    });
-    Ok(burn_into_py_image(out))
+    let native = Arc::clone(&image.inner);
+    let backend = MoiraiBackend;
+    py.allow_threads(|| {
+        ritk_filter::StochasticFractalDimensionFilter::new([radius; 3])
+            .apply(native.as_ref(), &backend)
+            .map_err(|error| RitkPyError::runtime(error.to_string()))
+    })
+    .map(into_py_image)
 }
 
 /// Cubic B-spline decomposition: recover the interpolation coefficients of an

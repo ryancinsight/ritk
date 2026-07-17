@@ -5,6 +5,7 @@
 //! contexts, and releases or aborts the association.
 
 mod helpers;
+mod lifecycle;
 mod scu;
 
 pub use super::context::{transfer_syntax, AssociationConfig, NegotiatedContext};
@@ -13,6 +14,7 @@ pub use super::pdu::*;
 pub use super::types::{
     AeTitle, DicomAddress, EchoResponse, MoveResponse, NetworkingError, StoreResponse,
 };
+pub(crate) use lifecycle::release_client_association;
 
 use crate::format::dicom::reader::types::literal_arraystring;
 use anyhow::{bail, Context, Result};

@@ -141,12 +141,13 @@ impl ScalarChanAndVeseDenseLevelSet {
         Ok(rebuild(result, dims, initial_level_set))
     }
 
-    /// Coeus-native sister of [`apply`].
+    /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
         initial_level_set: &ritk_image::native::Image<f32, B, 3>,
         feature_image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

@@ -1,5 +1,5 @@
-use super::*;
 use coeus_core::SequentialBackend;
+use ritk_filter::{GaussianFilter, GaussianSigma};
 use ritk_image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -11,7 +11,8 @@ fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
         shape,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(), &B::default(),
+        Direction::identity(),
+        &B::default(),
     )
     .expect("valid test image")
 }
@@ -36,9 +37,11 @@ fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
 #[test]
 fn gaussian_kernel_sums_to_one() {
     let size = 15usize;
-    let filter = GaussianFilter::new(vec![GaussianSigma::new_unchecked(1.0)]);
+    let filter = GaussianFilter::<()>::new(vec![GaussianSigma::new_unchecked(1.0)]);
     let img = make_image(vec![3.0_f32; size * size * size], [size, size, size]);
-    let out = filter.apply(&img, &B::default()).expect("gaussian apply");
+    let out = filter
+        .apply_native(&img, &B::default())
+        .expect("gaussian apply");
     let vals = voxels(&out);
     // Center voxel index: (size/2) * size * size + (size/2) * size + (size/2)
     let cx = size / 2;
@@ -57,13 +60,15 @@ fn gaussian_kernel_sums_to_one() {
 #[test]
 fn z1_image_constant_preserved() {
     let size = 15usize;
-    let filter = GaussianFilter::new(vec![
+    let filter = GaussianFilter::<()>::new(vec![
         GaussianSigma::new_unchecked(2.0),
         GaussianSigma::new_unchecked(2.0),
         GaussianSigma::new_unchecked(2.0),
     ]);
     let img = make_image(vec![50.0_f32; size * size], [1, size, size]);
-    let out = filter.apply(&img, &B::default()).expect("gaussian apply");
+    let out = filter
+        .apply_native(&img, &B::default())
+        .expect("gaussian apply");
     let vals = voxels(&out);
     let cx = size / 2;
     let center = cx * size + cx;
@@ -81,10 +86,12 @@ fn z1_image_constant_preserved() {
 /// convolution entirely. The output tensor must be identical to the input.
 #[test]
 fn zero_sigma_skips_smoothing() {
-    let filter = GaussianFilter::new(vec![GaussianSigma::new_unchecked(1e-9)]);
+    let filter = GaussianFilter::<()>::new(vec![GaussianSigma::new_unchecked(1e-9)]);
     let data = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
     let img = make_image(data.clone(), [2, 2, 2]);
-    let out = filter.apply(&img, &B::default()).expect("gaussian apply");
+    let out = filter
+        .apply_native(&img, &B::default())
+        .expect("gaussian apply");
     let got = voxels(&out);
     for (i, (&a, &b)) in got.iter().zip(data.iter()).enumerate() {
         assert!(
@@ -97,17 +104,20 @@ fn zero_sigma_skips_smoothing() {
 /// Spatial metadata (origin, spacing, direction) is preserved.
 #[test]
 fn gaussian_preserves_metadata() {
-    let filter = GaussianFilter::new(vec![GaussianSigma::new_unchecked(0.5)]);
+    let filter = GaussianFilter::<()>::new(vec![GaussianSigma::new_unchecked(0.5)]);
     let sp = Spacing::new([2.0, 3.0, 4.0]);
     let img = Image::from_flat_on(
         vec![1.0_f32; 2 * 2 * 2],
         [2, 2, 2],
         Point::new([10.0, 20.0, 30.0]),
         sp,
-        Direction::identity(), &B::default(),
+        Direction::identity(),
+        &B::default(),
     )
     .expect("valid test image");
-    let out = filter.apply(&img, &B::default()).expect("gaussian apply");
+    let out = filter
+        .apply_native(&img, &B::default())
+        .expect("gaussian apply");
     assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
     assert_eq!(out.origin(), img.origin(), "origin must be preserved");
 }
@@ -115,9 +125,11 @@ fn gaussian_preserves_metadata() {
 /// Output shape must equal input shape after smoothing (padding=kernel_size/2).
 #[test]
 fn gaussian_preserves_shape() {
-    let filter = GaussianFilter::new(vec![GaussianSigma::new_unchecked(1.5)]);
+    let filter = GaussianFilter::<()>::new(vec![GaussianSigma::new_unchecked(1.5)]);
     let img = make_image(vec![1.0_f32; 5 * 6 * 7], [5, 6, 7]);
-    let out = filter.apply(&img, &B::default()).expect("gaussian apply");
+    let out = filter
+        .apply_native(&img, &B::default())
+        .expect("gaussian apply");
     assert_eq!(
         out.shape(),
         img.shape(),

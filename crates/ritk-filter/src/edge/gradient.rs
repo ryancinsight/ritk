@@ -15,7 +15,6 @@
 use anyhow::Result;
 use ritk_image::native::{ColorVolume, Image};
 
-
 use super::derivative::DerivativeImageFilter;
 use crate::recursive_gaussian::gradient_recursive_gaussian_components;
 
@@ -35,10 +34,7 @@ impl GradientImageFilter {
 
     /// Apply the gradient, returning a 3-component vector image with components
     /// in sitk axis order `(∂/∂x, ∂/∂y, ∂/∂z)`.
-    pub fn apply<B>(
-        &self,
-        image: &Image<f32, B, 3>,
-        backend: &B) -> Result<ColorVolume<f32, B, 3>>
+    pub fn apply<B>(&self, image: &Image<f32, B, 3>, backend: &B) -> Result<ColorVolume<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -95,10 +91,7 @@ impl GradientRecursiveGaussianImageFilter {
 
     /// Apply the smoothed gradient, returning a 3-component vector image with
     /// components in sitk axis order `(∂/∂x, ∂/∂y, ∂/∂z)`.
-    pub fn apply<B>(
-        &self,
-        image: &Image<f32, B, 3>,
-        backend: &B) -> Result<ColorVolume<f32, B, 3>>
+    pub fn apply<B>(&self, image: &Image<f32, B, 3>, backend: &B) -> Result<ColorVolume<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -130,7 +123,3 @@ impl GradientRecursiveGaussianImageFilter {
         )
     }
 }
-
-#[cfg(test)]
-#[path = "tests_gradient.rs"]
-mod tests_gradient;

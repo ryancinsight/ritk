@@ -1,13 +1,13 @@
 //! Verify ritk's NIfTI import + index→world against SimpleITK ground truth.
 //! Prints geometry and index→world for fixed voxel indices; compare to sitk.
 use coeus_core::SequentialBackend;
-use ritk_image::{grid, Image};
-use ritk_io::read_nifti;
+use ritk_image::{grid, native::Image};
+use ritk_io::{format::nifti::native::NiftiReader, ImageReader};
 
 type B = SequentialBackend;
 
 fn dump(name: &str, img: &Image<f32, B, 3>) {
-    let device = img.data()B::default();
+    let backend = B::default();
     let shape = img.shape(); // [d0, d1, d2] = [z, y, x]
     println!("=== {name}");
     println!(" shape    {:?}", shape);
@@ -15,13 +15,9 @@ fn dump(name: &str, img: &Image<f32, B, 3>) {
     println!(" origin   {:?}", img.origin());
     println!(" direction {:?}", img.direction());
 
-    // EXACTLY what the registration does: generate_grid -> index_to_world_tensor.
-    let g = grid::generate_grid(shape, &device);
-    let world = img
-        .index_to_world_tensor(g)
-        .into_data()
-        .to_vec::<f32>()
-        .unwrap();
+    // The native registration path uses the same grid and index-to-world map.
+    let grid = grid::generate_grid::<f32, B, 3>(shape, &backend);
+    let world = img.index_to_world_native(&grid).as_slice().to_vec();
     let (ny, nx) = (shape[1], shape[2]);
     // Probe the sitk voxel (x,y,z)=(255,255,20): row-major [z,y,x] flat index.
     for (x, y, z) in [(0usize, 0usize, 0usize), (255, 255, 20), (100, 200, 15)] {
@@ -37,9 +33,9 @@ fn dump(name: &str, img: &Image<f32, B, 3>) {
 }
 
 fn main() -> anyhow::Result<()> {
-    let device = Default::default();
-    let ct = read_nifti::<B, _>("D:/kwavers/leoneuro/data/brain_ct.nii.gz", &device)?;
-    let mri = read_nifti::<B, _>("D:/kwavers/leoneuro/data/brain_mri_t1.nii.gz", &device)?;
+    let reader = NiftiReader::new(B::default());
+    let ct: Image<f32, B, 3> = reader.read("D:/kwavers/leoneuro/data/brain_ct.nii.gz")?;
+    let mri: Image<f32, B, 3> = reader.read("D:/kwavers/leoneuro/data/brain_mri_t1.nii.gz")?;
     dump("brain_ct.nii.gz", &ct);
     dump("brain_mri_t1.nii.gz", &mri);
     println!(

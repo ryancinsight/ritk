@@ -1,11 +1,10 @@
-use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction3, Point3, Spacing3};
-use ritk_image::tensor::{Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor, TensorData};
 use ritk_registration::metric::{MeanSquaredError, Metric};
 use ritk_transform::TranslationTransform;
 
-type B = SequentialBackend;
+type B = burn_ndarray::NdArray<f32>;
 
 #[test]
 fn test_mse_identity() {
@@ -24,7 +23,7 @@ fn test_mse_identity() {
     }
 
     let shape = [d, d, d];
-    let data = Tensor::<B, 3>::from_data((data_vec, shape), &device);
+    let data = Tensor::<B, 3>::from_data(TensorData::new(data_vec, Shape::new(shape)), &device);
 
     let origin = Point3::new([0.0, 0.0, 0.0]);
     let spacing = Spacing3::new([1.0, 1.0, 1.0]);
@@ -34,7 +33,7 @@ fn test_mse_identity() {
     let moving = Image::new(data.clone(), origin, spacing, direction);
 
     // Identity transform
-    let transform = TranslationTransform::<B, 3>::new(Tensor::from_slice_on(
+    let transform = TranslationTransform::<B, 3>::new(Tensor::from_data(
         TensorData::from([0.0, 0.0, 0.0]),
         &device,
     ));
@@ -66,7 +65,7 @@ fn test_mse_translation() {
     }
 
     let shape = [d, d, d];
-    let data = Tensor::<B, 3>::from_data((data_vec, shape), &device);
+    let data = Tensor::<B, 3>::from_data(TensorData::new(data_vec, Shape::new(shape)), &device);
 
     let origin = Point3::new([0.0, 0.0, 0.0]);
     let spacing = Spacing3::new([1.0, 1.0, 1.0]);
@@ -76,7 +75,7 @@ fn test_mse_translation() {
     let moving = Image::new(data.clone(), origin, spacing, direction);
 
     // Shift by 1.0 in X.
-    let transform = TranslationTransform::<B, 3>::new(Tensor::from_slice_on(
+    let transform = TranslationTransform::<B, 3>::new(Tensor::from_data(
         TensorData::from([0.0, 0.0, 1.0]),
         &device,
     ));

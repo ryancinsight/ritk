@@ -144,11 +144,12 @@ impl FftPadImageFilter {
         }
     }
 
-    /// Coeus-native sister of [`apply`].
+    /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        backend: &B,
+    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -180,7 +181,9 @@ impl FftPadImageFilter {
                     backend,
                 )
             }
-            FftPadBoundary::Periodic => WrapPadImageFilter::new(lower, upper).apply_native(image, backend),
+            FftPadBoundary::Periodic => {
+                WrapPadImageFilter::new(lower, upper).apply_native(image, backend)
+            }
         }
     }
 }

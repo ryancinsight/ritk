@@ -12,7 +12,7 @@ use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::native::Image as NativeImage;
-use ritk_image::test_support::make_image;
+use ritk_image::test_support::burn_compat::make_image;
 use ritk_image::Image;
 
 type B = NdArray<f32>;

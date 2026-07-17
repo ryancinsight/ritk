@@ -50,10 +50,7 @@ fn rebuild_preserves_metadata() {
     let orig = Point::new([10.0, 20.0, 30.0]);
     let device = Default::default();
     let t = Tensor::<B, 3>::from_data(
-        TensorData::new(
-            vec![1.0_f32; 6],
-            Shape::new([1usize, 2, 3]),
-        ),
+        TensorData::new(vec![1.0_f32; 6], Shape::new([1usize, 2, 3])),
         &device,
     );
     let img = Image::new(t, orig, sp, Direction::identity());

@@ -195,17 +195,14 @@ impl IterativeInverseDisplacementField {
             rebuild(rz, dims, dz),
         )
     }
-    /// Coeus-native sister of [`apply`].
+    /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
         dx: &ritk_image::native::Image<f32, B, 3>,
         dy: &ritk_image::native::Image<f32, B, 3>,
         dz: &ritk_image::native::Image<f32, B, 3>,
-        backend: &B) -> anyhow::Result<(
-        ritk_image::native::Image<f32, B, 3>,
-        ritk_image::native::Image<f32, B, 3>,
-        ritk_image::native::Image<f32, B, 3>,
-    )>
+        backend: &B,
+    ) -> anyhow::Result<crate::NativeDisplacementField<B>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -348,14 +345,12 @@ impl IterativeInverseDisplacementField {
         let rx: Vec<f32> = vx.iter().map(|&v| v as f32).collect();
         let ry: Vec<f32> = vy.iter().map(|&v| v as f32).collect();
         let rz: Vec<f32> = vz.iter().map(|&v| v as f32).collect();
-        Ok((
-            crate::native_support::rebuild_image(rx, dims, dx, backend)?,
-            crate::native_support::rebuild_image(ry, dims, dy, backend)?,
-            crate::native_support::rebuild_image(rz, dims, dz, backend)?,
-        ))
-    
+        Ok(crate::NativeDisplacementField {
+            x: crate::native_support::rebuild_image(rx, dims, dx, backend)?,
+            y: crate::native_support::rebuild_image(ry, dims, dy, backend)?,
+            z: crate::native_support::rebuild_image(rz, dims, dz, backend)?,
+        })
     }
-
 }
 
 #[cfg(test)]
