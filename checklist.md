@@ -52,9 +52,13 @@
       graph. Evidence: `rustup run stable cargo check -p ritk-registration
       --example geometry_check` passes after the lock resolves the workspace
       Gaia path dependency at version 0.3.0.
-- [ ] Move the ignored real-data NIfTI and identity-resampling test to native
+- [x] Move the ignored real-data NIfTI and identity-resampling test to native
       reader/image/interpolation operations. Completion condition: its sample
       values equal the corresponding input voxels at identity coordinates.
+      Evidence: `rustup run stable cargo nextest run -p ritk-registration
+      --test real_data_test --run-ignored all --status-level fail` passes 3/3
+      against the documented 3-D scalar MNI152 fixture; the 4-D RGB Visible
+      Human fixture remains outside the native NIfTI reader contract.
 - [ ] Port every active consumer of `burn_compat_types` and
       `burn_compat_row_chunks` to its native Coeus operation, then delete both
       modules and the `burn-compat` feature in the same breaking cutover.

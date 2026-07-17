@@ -47,6 +47,16 @@ The first independent consumer is complete: `geometry_check` reads through
 example compile passes on the resolved workspace graph; its Gaia lock entry
 now matches the local 0.3.0 provider.
 
+The ignored real-data registration tests now use `NiftiReader`, native
+`Image`, and `trilinear_interpolation` directly. Their three value-semantic
+assertions pass against `ants_example/mni152.nii.gz`: non-zero dimensions and
+physical metadata, index-to-physical coordinate round trip, and exact identity
+sample values. The test selects that documented 3-D scalar fixture because
+`visiblehuman.nii.gz` is a 4-D RGB24 payload outside `ritk-nifti`'s declared
+3-D scalar codec contract. Evidence tier: data-backed integration tests via
+`cargo nextest run -p ritk-registration --test real_data_test --run-ignored all
+--status-level fail` (3/3 passed).
+
 ## MIG-657-01 audit (2026-07-16)
 
 ### Extended label-shape statistics use one native image boundary

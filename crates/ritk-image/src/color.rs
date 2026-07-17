@@ -168,7 +168,7 @@ where
         self.with_data_slice(|interleaved| {
             let mut comps: Vec<Vec<T>> = (0..C).map(|_| Vec::with_capacity(n)).collect();
             for (i, v) in interleaved.iter().enumerate() {
-                comps[i % C].push(v.clone());
+                comps[i % C].push(*v);
             }
             comps
         })
@@ -210,7 +210,7 @@ where
         let mut interleaved = vec![T::default(); n * C];
         for (comp, buf) in channels.iter().enumerate() {
             for (i, v) in buf.iter().enumerate() {
-                interleaved[i * C + comp] = v.clone();
+                interleaved[i * C + comp] = *v;
             }
         }
         let tensor = Tensor::<T, B>::from_slice_on([d, r, c, C], &interleaved, backend);

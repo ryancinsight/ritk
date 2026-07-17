@@ -17,6 +17,9 @@
   into the statistics core while releasing the GIL.
 - `geometry_check` now loads NIfTI images and evaluates its grid-to-world
   probes through the native image contract.
+- The real-data registration tests now load the documented scalar MNI152
+  fixture through the native NIfTI reader and assert exact native identity
+  interpolation samples.
 
 ### Breaking
 - Rust callers must replace legacy Burn images with native
@@ -32,6 +35,8 @@
   statistics nextest, doctest, rustdoc, formatting, diff-whitespace, and
   targeted source-residue gates pass.
 - Current RITK `main` batch integration and its final rerun remain pending.
+- Data-backed native NIfTI registration tests pass 3/3 with `cargo nextest
+  run -p ritk-registration --test real_data_test --run-ignored all`.
 
 ## [Unreleased] — Workspace license metadata (SEC-656-01)
 
