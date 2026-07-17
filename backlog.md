@@ -1,5 +1,10 @@
 # RITK Backlog - Active Planning
 
+- **CI-658-11 [patch] - Synchronize current provider lock metadata (REVIEW;
+  owner=Codex; scope=`Cargo.lock`, PM artifacts).** The workspace patch entries
+  for Hephaestus 0.16.1 supersede unused 0.15.0 metadata. Acceptance: locked
+  `ritk-filter` compilation succeeds without a lockfile rewrite.
+
 - **CI-658-02 [patch] - Restore current PR compile gates (REVIEW;
   owner=Codex; scope=`crates/ritk-statistics/src/tests_label_shape_extended.rs`,
   `crates/ritk-interpolation/benches/bspline_interpolation.rs`, PM artifacts).**

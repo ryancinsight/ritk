@@ -73,6 +73,9 @@
   test support.
 
 ### Fixed
+- Synchronized the lockfile's unused Hephaestus patch metadata with the
+  current provider release, so locked RITK builds resolve without rewriting
+  `Cargo.lock`.
 - Completed the DICOM A-RELEASE handshake after C-ECHO, C-FIND, C-MOVE, and
   C-STORE when a peer closes its TCP socket immediately after `A-RELEASE-RP`.
   This avoids the macOS-only `NotConnected` error in `dicom-ul` 0.10 while
