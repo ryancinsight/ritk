@@ -41,6 +41,12 @@ ADR 0002 Amendment A2 now makes the correction explicit: `Image<T, B, D>` is
 feature-invariant, and the transform/I/O caller family is the first scope that
 must cut over completely before either compatibility module is deleted.
 
+The first independent consumer is complete: `geometry_check` reads through
+`format::nifti::native::NiftiReader`, constructs its grid through
+`grid::generate_grid`, and uses `Image::index_to_world_native`. The focused
+example compile passes on the resolved workspace graph; its Gaia lock entry
+now matches the local 0.3.0 provider.
+
 ## MIG-657-01 audit (2026-07-16)
 
 ### Extended label-shape statistics use one native image boundary

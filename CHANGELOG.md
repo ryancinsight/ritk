@@ -15,6 +15,8 @@
   and exposes host-access failure through `Result`.
 - The Python binding passes `PyImage`'s native Moirai-backed storage directly
   into the statistics core while releasing the GIL.
+- `geometry_check` now loads NIfTI images and evaluates its grid-to-world
+  probes through the native image contract.
 
 ### Breaking
 - Rust callers must replace legacy Burn images with native
