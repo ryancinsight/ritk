@@ -11,16 +11,22 @@
 ## MIG-658-01 audit (2026-07-16)
 
 GitHub Actions run `29547504239` confirms the refreshed provider graph reaches
-the source migration scanner. It reports `burn_compat_types` and
+the source migration scanner. It initially reports `burn_compat_types` and
 `burn_compat_row_chunks` as new compatibility surfaces. This is a real
 boundary failure: moving Burn tensor helpers into `ritk-image` does not remove
 the Burn substrate. The redundant Burn-grid test module is deleted because the
 native grid suite already checks the same deterministic ordering contract.
 
-Residual risk: the two compatibility modules still have active legacy
-consumers. They remain a major, dependency-ordered native cutover under ADR
-0002; expanding the audit allowlist would conceal rather than resolve the
-migration debt.
+The generic WGPU row scheduler now belongs to `ritk-wgpu-compat`, which holds
+no tensor-provider dependency. Its six active tensor consumers provide native
+slice and concatenation closures, so `burn_compat_row_chunks` is deleted
+without retaining an image compatibility surface. The local audit scans 516
+token-bearing source files and reports only `burn_compat_types` as allowlist
+drift; the allowlist remains unchanged.
+
+Residual risk: `burn_compat_types` still has active legacy consumers. It
+remains a major, dependency-ordered native cutover under ADR 0002; expanding
+the audit allowlist would conceal rather than resolve the migration debt.
 
 Current default-branch evidence: commit `e3887685` enables
 `ritk-image/burn-compat` from `ritk-transform` and indirectly through the
@@ -147,10 +153,14 @@ of view boundary. The native resample and warp integration suites pass 5/5 and
 suite pass. Evidence tier: value-semantic integration tests plus compile-time
 and warnings-denied whole-package verification.
 
-The migration audit still fails correctly: 12 manifests and 517 token-bearing
-source files are scanned, with only `burn_compat_types` and
-`burn_compat_row_chunks` reported as unallowlisted relocated compatibility
-surfaces. The audit allowlist remains unchanged.
+The migration audit still fails correctly: 12 manifests and 516 token-bearing
+source files are scanned, with only `burn_compat_types` reported as an
+unallowlisted relocated compatibility surface. The audit allowlist remains
+unchanged. `ritk-transform` integration tests remain independently
+graph-blocked: unchanged `bspline_test.rs` and `transform_test.rs` instantiate
+`coeus_core::SequentialBackend`, which does not implement the legacy Burn
+tensor backend bound. Production `ritk-transform` compiles and its library
+Clippy gate passes.
 
 ## MIG-657-01 audit (2026-07-16)
 

@@ -5,9 +5,9 @@
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_core::transform::{Resampleable, Transform};
 use ritk_image::burn::module::{Module, Param};
-use ritk_image::burn_compat_row_chunks::apply_row_chunks;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
+use ritk_wgpu_compat::apply_row_chunks;
 
 /// Rigid Transform (Rotation + Translation).
 ///
@@ -205,11 +205,19 @@ impl<B: Backend, const D: usize> Transform<B, D> for RigidTransform<B, D> {
         let t = self.translation.val().reshape([1, D]);
         let c = self.center.clone().reshape([1, D]);
 
-        apply_row_chunks(points, ritk_wgpu_compat::WGPU_CHUNK_SIZE, |chunk_points| {
-            let centered = chunk_points - c.clone();
-            let rotated = centered.matmul(r.clone().transpose());
-            rotated + c.clone() + t.clone()
-        })
+        let row_count = points.dims()[0];
+        apply_row_chunks(
+            points,
+            row_count,
+            ritk_wgpu_compat::WGPU_CHUNK_SIZE,
+            |chunk_points| {
+                let centered = chunk_points - c.clone();
+                let rotated = centered.matmul(r.clone().transpose());
+                rotated + c.clone() + t.clone()
+            },
+            |tensor, range| tensor.clone().slice([range]),
+            |chunks| Tensor::cat(chunks, 0),
+        )
     }
 }
 

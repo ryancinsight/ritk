@@ -1,10 +1,10 @@
 use crate::edge::GaussianSigma;
 use ritk_core::image::Image;
-use ritk_image::burn_compat_row_chunks::apply_row_chunks;
 use ritk_image::tensor::ops::ConvOptions;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::{Shape, Tensor};
 use ritk_spatial::Spacing;
+use ritk_wgpu_compat::apply_row_chunks;
 
 /// Default Gaussian kernel half-extent cap (`radius·2 + 1`), bounding the
 /// per-axis convolution cost. Shared by [`GaussianFilter::new`] and the
@@ -177,15 +177,22 @@ impl<B: Backend> GaussianFilter<B> {
         let kernel_reshaped = kernel.reshape([1, 1, kernel_size]);
         let padding = kernel_size / 2;
         let options = ConvOptions::new([1], [padding], [1], 1);
-        let output_reshaped =
-            apply_row_chunks(input_reshaped, ritk_wgpu_compat::WGPU_CHUNK_SIZE, |chunk| {
+        let row_count = input_reshaped.dims()[0];
+        let output_reshaped = apply_row_chunks(
+            input_reshaped,
+            row_count,
+            ritk_wgpu_compat::WGPU_CHUNK_SIZE,
+            |chunk| {
                 ritk_image::tensor::module::conv1d(
                     chunk,
                     kernel_reshaped.clone(),
                     None,
                     options.clone(),
                 )
-            });
+            },
+            |tensor, range| tensor.clone().slice([range]),
+            |chunks| Tensor::cat(chunks, 0),
+        );
 
         let mut permuted_shape = [0; D];
         let mut permuted_index = 0;

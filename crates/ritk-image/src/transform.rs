@@ -1,4 +1,4 @@
-//! Batch tensor coordinate transforms for [`Image`].
+//! Batch tensor coordinate transforms for [`crate::Image`].
 //!
 //! The single-point `transform_physical_point_to_continuous_index` and
 //! `transform_continuous_index_to_physical_point` methods now live directly

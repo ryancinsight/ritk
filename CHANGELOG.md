@@ -55,6 +55,9 @@
   samples outside the documented half-voxel buffer.
 - Dense-field warp now delegates to the native resampler and validates field
   component shape and spatial metadata; the stale source suite is removed.
+- WGPU row scheduling now belongs to the provider-independent
+  `ritk-wgpu-compat` policy crate. Six tensor consumers supply native slice
+  and concatenation operations, and `burn_compat_row_chunks` is removed.
 - The now-unused approximate Burn differential harness is removed from filter
   test support.
 
@@ -114,9 +117,11 @@
 
 ### Residual
 - The package-wide registration test build remains blocked by unrelated
-  legacy Burn integration targets. The filter package is clean; the migration
-  audit still reports the two relocated compatibility modules. This slice adds
-  no compatibility path, audit allowlist entry, or lint suppression.
+  legacy Burn integration targets. `ritk-transform` integration tests are also
+  blocked by unchanged `SequentialBackend` test aliases against legacy Burn
+  tensor bounds. The filter package is clean; the migration audit now reports
+  only `burn_compat_types` across 516 token-bearing source files. This slice
+  adds no compatibility path, audit allowlist entry, or lint suppression.
 
 ## [Unreleased] — Workspace license metadata (SEC-656-01)
 

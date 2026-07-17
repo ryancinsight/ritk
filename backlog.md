@@ -20,7 +20,10 @@
   tests_canny.rs,tests_gradient.rs,tests_log.rs,tests_native.rs}`,
   `crates/ritk-filter/src/vesselness/{frangi.rs,tests_frangi.rs}`,
   `crates/ritk-filter/tests/native_frangi.rs`,
-  `crates/ritk-filter/src/gaussian.rs`, migration audit).** GitHub audit run
+  `crates/ritk-filter/src/gaussian.rs`,
+  `crates/ritk-wgpu-compat/src/lib.rs`,
+  `crates/ritk-transform/src/transform/{affine/{affine.rs,rigid.rs},bspline/interpolation/{dim2.rs,dim3.rs,dim4.rs}}`,
+  migration audit).** GitHub audit run
   `29547504239` reaches the source scanner after the provider sweep and reports
   `burn_compat_types` and `burn_compat_row_chunks` as unallowlisted relocated
   compatibility surfaces. The redundant Burn-grid test is deleted now because
@@ -56,6 +59,12 @@
   and spacing propagation; its former legacy-only source suite is deleted. The
   native resampler now owns registration's fixed-grid affine sampling and ITK
   half-voxel zero-fill semantics; native warp delegates to that one sampler.
+  WGPU row scheduling now belongs to the provider-independent
+  `ritk-wgpu-compat::apply_row_chunks` policy; all six active tensor callers
+  supply native slice and concatenation operations, and the relocated
+  `burn_compat_row_chunks` module is deleted. The local migration audit now
+  reports only `burn_compat_types` across 516 token-bearing source files;
+  the allowlist remains unchanged.
 
 - **MIG-657-01 [major] - Native extended label-shape statistics (REVIEW;
   owner=Codex; scope=`crates/ritk-statistics/{Cargo.toml,src/{label_shape_extended.rs,

@@ -1,7 +1,7 @@
 use super::BSplineTransform;
-use ritk_image::burn_compat_row_chunks::apply_row_chunks;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
+use ritk_wgpu_compat::apply_row_chunks;
 
 /// 4D B-spline transform — chunked over rows using `WGPU_CHUNK_SIZE_4D`
 /// (smaller chunk than D ≤ 3 to keep `4^4 = 256`-wide weight tensors
@@ -17,9 +17,15 @@ pub(super) fn transform_4d<B: Backend, const D: usize>(
     t: &BSplineTransform<B, D>,
     points: Tensor<B, 2>,
 ) -> Tensor<B, 2> {
-    apply_row_chunks(points, ritk_wgpu_compat::WGPU_CHUNK_SIZE_4D, |chunk| {
-        transform_4d_chunk(t, chunk)
-    })
+    let row_count = points.dims()[0];
+    apply_row_chunks(
+        points,
+        row_count,
+        ritk_wgpu_compat::WGPU_CHUNK_SIZE_4D,
+        |chunk| transform_4d_chunk(t, chunk),
+        |tensor, range| tensor.clone().slice([range]),
+        |chunks| Tensor::cat(chunks, 0),
+    )
 }
 
 #[inline]

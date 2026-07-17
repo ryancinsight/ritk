@@ -130,16 +130,24 @@
       field shape and geometry, and stale source tests are deleted. Evidence:
       warning-denied Clippy and nextest pass 5/5; `ritk-filter` all-target
       Clippy and its 1,118-test nextest suite pass.
-- [ ] Port every active consumer of `burn_compat_types` and
-      `burn_compat_row_chunks` to its native Coeus operation, then delete both
-      modules and the `burn-compat` feature in the same breaking cutover.
+- [x] Move WGPU row scheduling to its provider-independent compatibility
+      policy crate. Completion condition: six tensor consumers supply native
+      slice and concatenation operations to one generic scheduler;
+      `burn_compat_row_chunks` is deleted. Evidence: scheduler nextest passes
+      3/3, `ritk-filter` nextest passes 1,118/1,118, and warnings-denied
+      Clippy passes for the scheduler, image, filter, and transform library.
+- [ ] Port every active consumer of `burn_compat_types` to its native Coeus
+      operation, then delete that module and the `burn-compat` feature in the
+      same breaking cutover.
       Completion condition: `xtask burn-migration-audit` reports no relocated
       compatibility surfaces and the source count falls without an allowlist
       expansion.
 
 Evidence: GitHub audit run 29547504239 reaches the scanner on the refreshed
-provider graph and reports the relocated source surfaces. The failure is a
-real migration boundary violation, not a provider-resolution failure.
+provider graph and initially reports the relocated source surfaces. The local
+audit now scans 516 token-bearing source files and reports only
+`burn_compat_types`; the failure remains a real migration boundary violation,
+not a provider-resolution failure.
 
 ## SEC-656-01 — Workspace license metadata
 **Target version**: Unreleased patch
