@@ -7,7 +7,7 @@
 use anyhow::Result;
 use tracing::info;
 
-pub(crate) use super::Backend;
+pub(crate) use super::{Backend, NativeBackend};
 
 pub mod args;
 pub use args::*;
@@ -84,8 +84,6 @@ pub fn run(args: FilterArgs) -> Result<()> {
 
 // ── Test helpers (shared across leaf modules) ─────────────────────────────────
 
-#[cfg(test)]
-use ritk_core::image::Image;
 #[cfg(test)]
 use std::path::PathBuf;
 
@@ -166,20 +164,19 @@ pub(crate) fn default_args(input: PathBuf, output: PathBuf, kind: FilterKind) ->
 
 /// Build a 5×5×5 test image whose voxel values are `0, 1, 2, …, 124`.
 #[cfg(test)]
-pub(crate) fn make_test_image() -> Image<Backend, 3> {
-    use ritk_core::image::Image;
-    use ritk_image::tensor::Backend as BurnBackend;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+pub(crate) fn make_test_image() -> NativeImage<f32, NativeBackend, 3> {
+    use crate::commands::NativeBackend;
+    use ritk_image::native::Image as NativeImage;
     use ritk_spatial::{Direction, Point, Spacing};
 
-    let device: <Backend as BurnBackend>::Device = Default::default();
     let values: Vec<f32> = (0..125).map(|i| i as f32).collect();
-    let td = TensorData::new(values, Shape::new([5, 5, 5]));
-    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-    Image::new(
-        tensor,
+    NativeImage::from_flat_on(
+        values,
+        [5, 5, 5],
         Point::new([0.0; 3]),
         Spacing::new([1.0; 3]),
         Direction::identity(),
+        &NativeBackend::default(),
     )
+    .expect("invariant: valid 5×5×5 ramp image")
 }

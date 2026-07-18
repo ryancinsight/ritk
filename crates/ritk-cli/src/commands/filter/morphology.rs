@@ -243,9 +243,9 @@ pub(super) fn run_morphological_reconstruction(args: &FilterArgs) -> Result<()> 
 mod tests {
     use super::*;
     use crate::commands::filter::{default_args, make_test_image, FilterKind};
-    use ritk_core::image::Image;
-    use ritk_image::tensor::Backend as BurnBackend;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use crate::commands::{read_image_native, write_image_native, NativeBackend};
+    use ritk_image::native::Image as NativeImage;
+    use ritk_io::ImageFormat;
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
@@ -254,13 +254,14 @@ mod tests {
         let dir = tempdir().unwrap();
         let input = dir.path().join("input.nii");
         let output = dir.path().join("output.nii");
-        ritk_io::write_nifti(&input, &make_test_image()).expect("input fixture writes");
+        write_image_native(&input, &make_test_image(), ImageFormat::NIfTI)
+            .expect("input fixture writes");
 
         let mut args = default_args(input, output.clone(), FilterKind::GrayscaleErosion);
         args.kernel.radius = 1;
         run_grayscale_erosion(&args).expect("grayscale erosion succeeds");
-        let output = crate::commands::read_image_native(&output)
-            .expect("grayscale erosion output is natively readable");
+        let output =
+            read_image_native(&output).expect("grayscale erosion output is natively readable");
         assert_eq!(output.shape(), [5, 5, 5]);
     }
 
@@ -269,13 +270,14 @@ mod tests {
         let dir = tempdir().unwrap();
         let input = dir.path().join("input.nii");
         let output = dir.path().join("output.nii");
-        ritk_io::write_nifti(&input, &make_test_image()).expect("input fixture writes");
+        write_image_native(&input, &make_test_image(), ImageFormat::NIfTI)
+            .expect("input fixture writes");
 
         let mut args = default_args(input, output.clone(), FilterKind::GrayscaleDilation);
         args.kernel.radius = 1;
         run_grayscale_dilation(&args).expect("grayscale dilation succeeds");
-        let output = crate::commands::read_image_native(&output)
-            .expect("grayscale dilation output is natively readable");
+        let output =
+            read_image_native(&output).expect("grayscale dilation output is natively readable");
         assert_eq!(output.shape(), [5, 5, 5]);
     }
 
@@ -285,7 +287,8 @@ mod tests {
         for kind in [FilterKind::WhiteTopHat, FilterKind::BlackTopHat] {
             let input = dir.path().join(format!("{kind:?}-input.nii"));
             let output = dir.path().join(format!("{kind:?}-output.nii"));
-            ritk_io::write_nifti(&input, &make_test_image()).expect("input fixture writes");
+            write_image_native(&input, &make_test_image(), ImageFormat::NIfTI)
+                .expect("input fixture writes");
 
             let mut args = default_args(input, output.clone(), kind);
             args.kernel.radius = 1;
@@ -295,8 +298,7 @@ mod tests {
                 _ => unreachable!("top-hat test only enumerates top-hat routes"),
             }
             .expect("top-hat route succeeds");
-            let output = crate::commands::read_image_native(&output)
-                .expect("top-hat output is natively readable");
+            let output = read_image_native(&output).expect("top-hat output is natively readable");
             assert_eq!(output.shape(), [5, 5, 5]);
         }
     }
@@ -306,28 +308,27 @@ mod tests {
         let dir = tempdir().unwrap();
         let input_path = dir.path().join("input.nii");
         let output_path = dir.path().join("output.nii");
-        let device: <Backend as BurnBackend>::Device = Default::default();
         let values: Vec<f32> = (0..27)
             .map(|index| if index % 4 == 0 { 1.0 } else { 0.0 })
             .collect();
         let origin = Point::new([2.0, 3.0, 5.0]);
         let spacing = Spacing::new([0.5, 1.0, 2.0]);
-        let image = Image::new(
-            Tensor::<Backend, 3>::from_data(
-                TensorData::new(values.clone(), Shape::new([3, 3, 3])),
-                &device,
-            ),
+        let native = NativeImage::<f32, NativeBackend, 3>::from_flat_on(
+            values.clone(),
+            [3, 3, 3],
             origin,
             spacing,
             Direction::identity(),
-        );
-        ritk_io::write_nifti::<Backend, _>(&input_path, &image).expect("input fixture writes");
+            &NativeBackend::default(),
+        )
+        .expect("invariant: valid hit-or-miss fixture");
+        write_image_native(&input_path, &native, ImageFormat::NIfTI).expect("input fixture writes");
 
         let mut args = default_args(input_path, output_path.clone(), FilterKind::HitOrMiss);
         args.kernel.radius = 0;
         run_hit_or_miss(&args).expect("hit-or-miss succeeds");
-        let output = crate::commands::read_image_native(&output_path)
-            .expect("hit-or-miss output is natively readable");
+        let output =
+            read_image_native(&output_path).expect("hit-or-miss output is natively readable");
 
         assert_eq!(output.shape(), [3, 3, 3]);
         assert_eq!(*output.origin(), origin);
@@ -342,8 +343,8 @@ mod tests {
         let mask = dir.path().join("mask.nii");
         let output = dir.path().join("output.nii");
         let fixture = make_test_image();
-        ritk_io::write_nifti(&input, &fixture).expect("marker fixture writes");
-        ritk_io::write_nifti(&mask, &fixture).expect("mask fixture writes");
+        write_image_native(&input, &fixture, ImageFormat::NIfTI).expect("marker fixture writes");
+        write_image_native(&mask, &fixture, ImageFormat::NIfTI).expect("mask fixture writes");
 
         let mut args = default_args(
             input,
@@ -352,8 +353,8 @@ mod tests {
         );
         args.mask_input.mask = Some(mask);
         run_morphological_reconstruction(&args).expect("morphological reconstruction succeeds");
-        let output = crate::commands::read_image_native(&output)
-            .expect("reconstruction output is natively readable");
+        let output =
+            read_image_native(&output).expect("reconstruction output is natively readable");
         assert_eq!(output.shape(), [5, 5, 5]);
     }
 
@@ -362,26 +363,24 @@ mod tests {
         let dir = tempdir().unwrap();
         let input_path = dir.path().join("input.nii");
         let output_path = dir.path().join("output.nii");
-        let device: <Backend as BurnBackend>::Device = Default::default();
         let mut values = vec![0.0f32; 125];
         values[2 * 25 + 2 * 5 + 2] = 3.0;
-        let tensor = Tensor::<Backend, 3>::from_data(
-            TensorData::new(values, Shape::new([5, 5, 5])),
-            &device,
-        );
-        let image = Image::new(
-            tensor,
+        let native = NativeImage::<f32, NativeBackend, 3>::from_flat_on(
+            values,
+            [5, 5, 5],
             Point::new([0.0; 3]),
             Spacing::new([1.0; 3]),
             Direction::identity(),
-        );
-        ritk_io::write_nifti::<Backend, _>(&input_path, &image).expect("input fixture writes");
+            &NativeBackend::default(),
+        )
+        .expect("invariant: valid label dilation fixture");
+        write_image_native(&input_path, &native, ImageFormat::NIfTI).expect("input fixture writes");
 
         let mut args = default_args(input_path, output_path.clone(), FilterKind::LabelDilation);
         args.kernel.radius = 1;
         run_label_dilation(&args).expect("label dilation succeeds");
-        let output = crate::commands::read_image_native(&output_path)
-            .expect("label dilation output is natively readable");
+        let output =
+            read_image_native(&output_path).expect("label dilation output is natively readable");
         let values = output.data_slice().expect("contiguous native output");
         assert_eq!(output.shape(), [5, 5, 5]);
         assert_eq!(values[2 * 25 + 2 * 5 + 2], 3.0);
@@ -411,8 +410,39 @@ mod tests {
         let mut args = default_args(input_path, output_path.clone(), FilterKind::LabelErosion);
         args.kernel.radius = 1;
         run_label_erosion(&args).expect("label-erosion must succeed");
-        let output = crate::commands::read_image_native(&output_path)
-            .expect("label erosion output is natively readable");
+        let output =
+            read_image_native(&output_path).expect("label dilation output is natively readable");
+        let values = output.data_slice().expect("contiguous native output");
+        assert_eq!(output.shape(), [5, 5, 5]);
+        assert_eq!(values[2 * 25 + 2 * 5 + 2], 3.0);
+        assert_eq!(values[2 * 25 + 2 * 5 + 1], 3.0);
+        assert_eq!(values[0], 0.0);
+    }
+
+    #[test]
+    fn test_filter_label_erosion_creates_output() {
+        let dir = tempdir().unwrap();
+        let input_path = dir.path().join("input.nii");
+        let output_path = dir.path().join("output.nii");
+
+        let mut v = vec![0.0f32; 125];
+        v[2 * 25 + 2 * 5 + 2] = 1.0;
+        let native = NativeImage::<f32, NativeBackend, 3>::from_flat_on(
+            v,
+            [5, 5, 5],
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+            &NativeBackend::default(),
+        )
+        .expect("invariant: valid label erosion fixture");
+        write_image_native(&input_path, &native, ImageFormat::NIfTI).unwrap();
+
+        let mut args = default_args(input_path, output_path.clone(), FilterKind::LabelErosion);
+        args.kernel.radius = 1;
+        run_label_erosion(&args).expect("label-erosion must succeed");
+        let output =
+            read_image_native(&output_path).expect("label erosion output is natively readable");
         assert_eq!(output.shape(), [5, 5, 5]);
         assert_eq!(
             output.data_slice().expect("contiguous native output")[2 * 25 + 2 * 5 + 2],
@@ -426,16 +456,66 @@ mod tests {
         let input_path = dir.path().join("input.nii");
         let output_path = dir.path().join("output.nii");
 
-        let device: <Backend as BurnBackend>::Device = Default::default();
-        let td = TensorData::new(vec![1.0f32; 125], Shape::new([5, 5, 5]));
-        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
-        let image = Image::new(
-            tensor,
+        let native = NativeImage::<f32, NativeBackend, 3>::from_flat_on(
+            vec![1.0f32; 125],
+            [5, 5, 5],
             Point::new([0.0; 3]),
             Spacing::new([1.0; 3]),
             Direction::identity(),
-        );
-        ritk_io::write_nifti::<Backend, _>(&input_path, &image).unwrap();
+            &NativeBackend::default(),
+        )
+        .expect("invariant: valid label opening fixture");
+        write_image_native(&input_path, &native, ImageFormat::NIfTI).unwrap();
+
+        let mut args = default_args(input_path, output_path.clone(), FilterKind::LabelOpening);
+        args.kernel.radius = 1;
+        run_label_opening(&args).expect("label-opening must succeed");
+        let output =
+            read_image_native(&output_path).expect("label opening output is natively readable");
+        assert_eq!(output.shape(), [5, 5, 5]);
+    }
+
+    #[test]
+    fn test_filter_label_closing_creates_output() {
+        let dir = tempdir().unwrap();
+        let input_path = dir.path().join("input.nii");
+        let output_path = dir.path().join("output.nii");
+
+        let native = NativeImage::<f32, NativeBackend, 3>::from_flat_on(
+            vec![1.0f32; 125],
+            [5, 5, 5],
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+            &NativeBackend::default(),
+        )
+        .expect("invariant: valid label closing fixture");
+        write_image_native(&input_path, &native, ImageFormat::NIfTI).unwrap();
+
+        let mut args = default_args(input_path, output_path.clone(), FilterKind::LabelClosing);
+        args.kernel.radius = 1;
+        run_label_closing(&args).expect("label-closing must succeed");
+        let output =
+            read_image_native(&output_path).expect("label closing output is natively readable");
+        assert_eq!(output.shape(), [5, 5, 5]);
+    }
+
+    #[test]
+    fn test_filter_morph_recon_requires_mask() {
+        let dir = tempdir().unwrap();
+        let input_path = dir.path().join("input.nii");
+        let output_path = dir.path().join("output.nii");
+
+        let native = NativeImage::<f32, NativeBackend, 3>::from_flat_on(
+            vec![0.5f32; 8],
+            [2, 2, 2],
+            Point::new([0.0; 3]),
+            Spacing::new([1.0; 3]),
+            Direction::identity(),
+            &NativeBackend::default(),
+        )
+        .expect("invariant: valid morph recon fixture");
+        write_image_native(&input_path, &native, ImageFormat::NIfTI).unwrap();
 
         let mut args = default_args(input_path, output_path.clone(), FilterKind::LabelOpening);
         args.kernel.radius = 1;

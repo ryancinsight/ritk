@@ -287,7 +287,11 @@ pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
 mod tests {
     use super::*;
     use crate::commands::filter::{default_args, make_test_image, FilterKind};
+    use crate::commands::{read_image_native, write_image_native, NativeBackend};
     use ritk_filter::SpacingMode;
+    use ritk_image::native::Image as NativeImage;
+    use ritk_io::ImageFormat;
+    use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
     // ── Positive: Gaussian creates output file ────────────────────────────
@@ -298,7 +302,7 @@ mod tests {
         let input = dir.path().join("input.nii");
         let output = dir.path().join("filtered.nii");
 
-        ritk_io::write_nifti(&input, &make_test_image()).unwrap();
+        write_image_native(&input, &make_test_image(), ImageFormat::NIfTI).unwrap();
 
         run_gaussian(&default_args(
             input.clone(),
@@ -317,7 +321,7 @@ mod tests {
         let input = dir.path().join("input.mha");
         let output = dir.path().join("filtered.mha");
 
-        ritk_io::write_metaimage(&input, &make_test_image()).unwrap();
+        write_image_native(&input, &make_test_image(), ImageFormat::MetaImage).unwrap();
 
         run_gaussian(&default_args(
             input.clone(),
@@ -326,7 +330,7 @@ mod tests {
         ))
         .unwrap();
 
-        let result = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
+        let result = read_image_native(&output).expect("Gaussian output must be natively readable");
         assert_eq!(
             result.shape(),
             [5, 5, 5],
