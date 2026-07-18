@@ -15,7 +15,7 @@
 //!
 //! 1. **Foreground extraction**: Collect voxels V = {I(p) : M(p) > 0} (or I(p) > 0 if no mask).
 //!
-//! 2. **Kernel Density Estimation (KDE)**: Estimate the smoothed density f̂(x) of V on a
+//! 2. **Kernel Density Estimation (KDE)**: Estimate the smoothed density fÌ‚(x) of V on a
 //!    uniform grid of `num_bins` points spanning [min(V), max(V)] using a Gaussian kernel:
 //!
 //!      f̂(x) = (1 / (n · h)) · Σᵢ K((x − Vᵢ) / h)
@@ -26,7 +26,7 @@
 //!    h = 0.9 · min(σ̂, IQR/1.34) · n^(−1/5)
 //!
 //! 3. **White matter peak detection**:
-//!    - T1-weighted: WM is the brightest tissue class. Search for the mode of f̂ in the
+//!    - T1-weighted: WM is the brightest tissue class. Search for the mode of fÌ‚ in the
 //!      upper half of the intensity range [median(V), max(V)].
 //!    - T2-weighted / FLAIR: WM peak is in the lower portion. Search in [min(V), median(V)].
 //!
@@ -49,7 +49,7 @@
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::native as tensor_ops;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
@@ -113,10 +113,10 @@ impl Default for WhiteStripeConfig {
 #[derive(Debug, Clone)]
 pub struct WhiteStripeResult<B: Backend> {
     /// Normalized image: I_norm = (I − μ_ws) / (σ_ws + ε).
-    pub normalized: Image<B, 3>,
+    pub normalized: Image<f32, B, 3>,
     /// White stripe mean (μ_ws).
     pub mu: f64,
-    /// White stripe standard deviation (σ_ws), population std.
+    /// White stripe standard deviation (Ïƒ_ws), population std.
     ///
     /// Guaranteed > 0 by construction (var_ws + ε under sqrt).
     pub sigma: f64,
@@ -136,7 +136,7 @@ pub struct NativeWhiteStripeResult<B: ComputeBackend> {
     pub normalized: NativeImage<f32, B, 3>,
     /// White stripe mean (μ_ws).
     pub mu: f64,
-    /// White stripe standard deviation (σ_ws), population std (guaranteed > 0).
+    /// White stripe standard deviation (Ïƒ_ws), population std (guaranteed > 0).
     pub sigma: f64,
     /// Detected white matter peak intensity.
     pub wm_peak: f64,
@@ -291,11 +291,15 @@ impl WhiteStripeNormalizer {
     ///
     /// # Returns
     /// [`WhiteStripeResult`] containing the normalized image and diagnostic quantities.
-    pub fn normalize<B: Backend>(
-        image: &Image<B, 3>,
-        mask: Option<&Image<B, 3>>,
+    pub fn normalize<B>(
+        image: &Image<f32, B, 3>,
+        mask: Option<&Image<f32, B, 3>>,
         config: &WhiteStripeConfig,
-    ) -> WhiteStripeResult<B> {
+    ) -> WhiteStripeResult<B>
+    where
+        B: Backend + Default,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
         let (all_vec, dims) = extract_vec_infallible(image);
         let mask_vec = mask.map(|m| extract_vec_infallible(m).0);
         let computed = compute_white_stripe(&all_vec, mask_vec.as_deref(), config);
@@ -434,7 +438,7 @@ fn silverman_bandwidth(sorted: &[f64]) -> f64 {
 /// in [lo, hi]. Returns (grid_points, density_values).
 ///
 /// Uses the direct O(n · num_bins) evaluation. For the typical use case
-/// (n ~ 10⁵–10⁶ voxels, num_bins = 2048), this is acceptable.
+/// (n ~ 10âµâ€“10â¶ voxels, num_bins = 2048), this is acceptable.
 ///
 /// Each density value:
 ///   f̂(x_j) = (1 / (n · h)) · Σᵢ K((x_j − vᵢ) / h)
@@ -457,7 +461,7 @@ fn kde_gaussian(
     let norm = 1.0 / (n as f64 * bandwidth * (2.0 * std::f64::consts::PI).sqrt());
 
     for &v in sorted {
-        // For each data point, find the range of grid bins within ~4σ.
+        // For each data point, find the range of grid bins within ~4Ïƒ.
         let lo_idx = {
             let x = ((v - 4.0 * bandwidth - lo) / step).floor() as isize;
             x.max(0) as usize

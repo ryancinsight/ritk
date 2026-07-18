@@ -1,4 +1,4 @@
-use super::*; // ── Positive: Li threshold creates binary output ────────────────────────── /// Li thresholding on a bimodal image must produce a binary mask with the
+﻿use super::*; // â”€â”€ Positive: Li threshold creates binary output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ /// Li thresholding on a bimodal image must produce a binary mask with the
 /// threshold between the two modes.
 #[test]
 fn test_segment_li_creates_output_and_threshold_between_modes() {
@@ -30,7 +30,7 @@ fn test_segment_li_creates_output_and_threshold_between_modes() {
     );
 }
 
-// ── Positive: Yen threshold creates binary output ─────────────────────────
+// â”€â”€ Positive: Yen threshold creates binary output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[test]
 fn test_segment_yen_creates_output_and_threshold_between_modes() {
     let dir = tempdir().unwrap();
@@ -61,7 +61,7 @@ fn test_segment_yen_creates_output_and_threshold_between_modes() {
     );
 }
 
-// ── Positive: Kapur threshold creates binary output ───────────────────────
+// â”€â”€ Positive: Kapur threshold creates binary output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[test]
 fn test_segment_kapur_creates_output_and_threshold_between_modes() {
     let dir = tempdir().unwrap();
@@ -92,7 +92,7 @@ fn test_segment_kapur_creates_output_and_threshold_between_modes() {
     );
 }
 
-// ── Positive: Triangle threshold creates binary output ────────────────────
+// â”€â”€ Positive: Triangle threshold creates binary output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[test]
 fn test_segment_triangle_creates_output_and_threshold_between_modes() {
     let dir = tempdir().unwrap();
@@ -123,7 +123,7 @@ fn test_segment_triangle_creates_output_and_threshold_between_modes() {
     );
 }
 
-// ── Positive: foreground count tests ──────────────────────────────────────
+// â”€â”€ Positive: foreground count tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[test]
 fn test_segment_li_foreground_count() {
     let dir = tempdir().unwrap();
@@ -207,8 +207,7 @@ fn test_segment_triangle_foreground_count() {
 #[test]
 fn automatic_threshold_cli_family_matches_legacy_public_boundaries_exactly() {
     use ritk_segmentation::{
-        KapurThreshold, LiThreshold, OtsuThreshold, TriangleThreshold, YenThreshold,
-    };
+        KapurThreshold, LiThreshold, OtsuThreshold, TriangleThreshold, YenThreshold };
 
     let dir = tempdir().unwrap();
     for method in [
@@ -228,8 +227,7 @@ fn automatic_threshold_cli_family_matches_legacy_public_boundaries_exactly() {
             SegmentMethod::Yen => YenThreshold::new().apply(&fixture),
             SegmentMethod::Kapur => KapurThreshold::new().apply(&fixture),
             SegmentMethod::Triangle => TriangleThreshold::new().apply(&fixture),
-            _ => unreachable!("test enumerates only automatic threshold methods"),
-        };
+            _ => unreachable!("test enumerates only automatic threshold methods") };
         ritk_io::write_nifti(&input, &fixture).unwrap();
 
         run(default_args(input, output.clone(), method)).unwrap();

@@ -25,10 +25,10 @@ use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_scan_metadata_round_trip_spatial_fields() {
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
-    type B = burn_ndarray::NdArray<f32>;
+    type B = coeus_core::SequentialBackend;
 
     let temp = tempfile::tempdir().unwrap();
     let series_path = temp.path().join("rt_series");
@@ -36,12 +36,9 @@ fn test_scan_metadata_round_trip_spatial_fields() {
     // Image: 3 slices, 6 rows, 8 cols.
     let (depth, rows, cols) = (3usize, 6usize, 8usize);
     let data = vec![500.0f32; depth * rows * cols];
-    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(data, Shape::new([depth, rows, cols])),
-        &device,
-    );
-    let image = Image::<B, 3>::new(
+    let device = B::default();
+    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &(data), &device);
+    let image = Image::<f32, B, 3>::new(
         tensor,
         Point::new([10.0, 20.0, -50.0]),
         Spacing::new([2.5, 0.8, 0.8]),
@@ -116,48 +113,48 @@ fn test_scan_metadata_round_trip_spatial_fields() {
         cols, m.dimensions[1]
     );
 
-    // Spacing: RITK convention [Δz, ΔRow, ΔCol] = [2.5, 0.8, 0.8].
+    // Spacing: RITK convention [Î”z, Î”Row, Î”Col] = [2.5, 0.8, 0.8].
     let tol = 1e-4_f64;
     assert!(
         (m.spacing[0] - 2.5).abs() < tol,
-        "spacing[0] (Δz) must be 2.5 ± 1e-4; got {}",
+        "spacing[0] (Î”z) must be 2.5 Â± 1e-4; got {}",
         m.spacing[0]
     );
     assert!(
         (m.spacing[1] - 0.8).abs() < tol,
-        "spacing[1] (ΔRow) must be 0.8 ± 1e-4; got {}",
+        "spacing[1] (Î”Row) must be 0.8 Â± 1e-4; got {}",
         m.spacing[1]
     );
     assert!(
         (m.spacing[2] - 0.8).abs() < tol,
-        "spacing[2] (ΔCol) must be 0.8 ± 1e-4; got {}",
+        "spacing[2] (Î”Col) must be 0.8 Â± 1e-4; got {}",
         m.spacing[2]
     );
 
     // Origin: within 1e-4 of [10.0, 20.0, -50.0] (first-slice IPP).
     assert!(
         (m.origin[0] - 10.0).abs() < tol,
-        "origin[0] must be 10.0 ± 1e-4; got {}",
+        "origin[0] must be 10.0 Â± 1e-4; got {}",
         m.origin[0]
     );
     assert!(
         (m.origin[1] - 20.0).abs() < tol,
-        "origin[1] must be 20.0 ± 1e-4; got {}",
+        "origin[1] must be 20.0 Â± 1e-4; got {}",
         m.origin[1]
     );
     assert!(
         (m.origin[2] - (-50.0_f64)).abs() < tol,
-        "origin[2] must be -50.0 ± 1e-4; got {}",
+        "origin[2] must be -50.0 Â± 1e-4; got {}",
         m.origin[2]
     );
 
-    // Direction: RITK axial convention — N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0].
+    // Direction: RITK axial convention â€” NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0].
     // from_column_slice([0,0,1, 0,1,0, 1,0,0])
     let axial_dir = [0.0f64, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0];
     for (i, (&actual, &expected)) in m.direction.iter().zip(axial_dir.iter()).enumerate() {
         assert!(
             (actual - expected).abs() < 1e-5,
-            "direction[{i}] must be {expected:.1} ± 1e-5 (axial: N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]); got {actual}"
+            "direction[{i}] must be {expected:.1} Â± 1e-5 (axial: NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]); got {actual}"
         );
     }
 
@@ -179,7 +176,7 @@ fn test_scan_metadata_round_trip_spatial_fields() {
         for (j, (&a, &e)) in iop.iter().zip(expected_iop.iter()).enumerate() {
             assert!(
                 (a - e).abs() < 1e-5,
-                "slice {i} IOP[{j}] must be {e:.1} ± 1e-5; got {a}"
+                "slice {i} IOP[{j}] must be {e:.1} Â± 1e-5; got {a}"
             );
         }
 
@@ -189,12 +186,12 @@ fn test_scan_metadata_round_trip_spatial_fields() {
             .unwrap_or_else(|| panic!("slice {i} must have pixel_spacing"));
         assert!(
             (ps[0] - 0.8).abs() < tol,
-            "slice {i} pixel_spacing[0] must be 0.8 ± 1e-4; got {}",
+            "slice {i} pixel_spacing[0] must be 0.8 Â± 1e-4; got {}",
             ps[0]
         );
         assert!(
             (ps[1] - 0.8).abs() < tol,
-            "slice {i} pixel_spacing[1] must be 0.8 ± 1e-4; got {}",
+            "slice {i} pixel_spacing[1] must be 0.8 Â± 1e-4; got {}",
             ps[1]
         );
     }
@@ -208,17 +205,17 @@ fn test_scan_metadata_round_trip_spatial_fields() {
             .unwrap_or_else(|| panic!("slice {i} must have IPP"));
         assert!(
             (ipp[0] - 10.0).abs() < tol,
-            "slice {i} IPP[0] must be 10.0 ± 1e-4; got {}",
+            "slice {i} IPP[0] must be 10.0 Â± 1e-4; got {}",
             ipp[0]
         );
         assert!(
             (ipp[1] - 20.0).abs() < tol,
-            "slice {i} IPP[1] must be 20.0 ± 1e-4; got {}",
+            "slice {i} IPP[1] must be 20.0 Â± 1e-4; got {}",
             ipp[1]
         );
         assert!(
             (ipp[2] - ez).abs() < tol,
-            "slice {i} IPP[2] must be {ez} ± 1e-4; got {}",
+            "slice {i} IPP[2] must be {ez} Â± 1e-4; got {}",
             ipp[2]
         );
     }
@@ -227,10 +224,10 @@ fn test_scan_metadata_round_trip_spatial_fields() {
 #[test]
 fn test_scan_metadata_round_trip_rescale_params() {
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
-    type B = burn_ndarray::NdArray<f32>;
+    type B = coeus_core::SequentialBackend;
 
     let temp = tempfile::tempdir().unwrap();
     let series_path = temp.path().join("rescale_series");
@@ -244,12 +241,9 @@ fn test_scan_metadata_round_trip_rescale_params() {
     }
     let original_first = data[0];
 
-    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(data, Shape::new([depth, rows, cols])),
-        &device,
-    );
-    let image = Image::<B, 3>::new(
+    let device = B::default();
+    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &(data), &device);
+    let image = Image::<f32, B, 3>::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
@@ -270,7 +264,7 @@ fn test_scan_metadata_round_trip_rescale_params() {
         dimensions: [rows, cols, depth],
         spacing: [1.0, 1.0, 1.0],
         origin: [0.0, 0.0, 0.0],
-        // RITK axial: N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
+        // RITK axial: NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
         direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
         bits_allocated: Some(16),
         bits_stored: Some(16),
@@ -327,22 +321,19 @@ fn test_scan_metadata_round_trip_rescale_params() {
 #[test]
 fn test_scan_metadata_round_trip_transfer_syntax() {
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
-    type B = burn_ndarray::NdArray<f32>;
+    type B = coeus_core::SequentialBackend;
 
     let temp = tempfile::tempdir().unwrap();
     let series_path = temp.path().join("ts_series");
 
     let (depth, rows, cols) = (2usize, 4usize, 4usize);
     let data = vec![1000.0f32; depth * rows * cols];
-    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(data, Shape::new([depth, rows, cols])),
-        &device,
-    );
-    let image = Image::<B, 3>::new(
+    let device = B::default();
+    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &(data), &device);
+    let image = Image::<f32, B, 3>::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),

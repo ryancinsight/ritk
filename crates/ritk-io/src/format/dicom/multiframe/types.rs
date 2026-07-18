@@ -14,16 +14,16 @@ pub(crate) const MF_GRAYSCALE_WORD_SC_UID: &str = "1.2.840.10008.5.1.4.1.1.7.3";
 ///
 /// # Mathematical specification
 ///
-/// For an Enhanced CT/MR/PET image with N frames, each frame index k ∈ \[0, N\):
-/// - `image_position\[k\]`: physical position P_k ∈ ℝ³ (mm) of frame k's origin.
-///   Source: (5200,9230)\[k\] → (0020,9113)\[0\] → (0020,0032).
-///   Falls back to shared (5200,9229) → (0020,9113)\[0\] → (0020,0032).
-/// - `image_orientation\[k\]`: IOP cosines F_k ∈ ℝ^6.
-///   Source: (5200,9229 or 9230) → (0020,9116)\[0\] → (0020,0037).
+/// For an Enhanced CT/MR/PET image with N frames, each frame index k âˆˆ \[0, N\):
+/// - `image_position\[k\]`: physical position P_k âˆˆ â„Â³ (mm) of frame k's origin.
+///   Source: (5200,9230)\[k\] â†’ (0020,9113)\[0\] â†’ (0020,0032).
+///   Falls back to shared (5200,9229) â†’ (0020,9113)\[0\] â†’ (0020,0032).
+/// - `image_orientation\[k\]`: IOP cosines F_k âˆˆ â„^6.
+///   Source: (5200,9229 or 9230) â†’ (0020,9116)\[0\] â†’ (0020,0037).
 /// - `rescale_slope\[k\]` / `rescale_intercept\[k\]`: linear intensity transform.
-///   Source: (5200,9230)\[k\] → (0028,9145)\[0\] → (0028,1053/1052).
+///   Source: (5200,9230)\[k\] â†’ (0028,9145)\[0\] â†’ (0028,1053/1052).
 ///   Falls back to shared groups, then to `None`.
-/// - `pixel_spacing\[k\]` / `slice_thickness\[k\]`: from (0028,9110) → (0028,0030/0018,0050).
+/// - `pixel_spacing\[k\]` / `slice_thickness\[k\]`: from (0028,9110) â†’ (0028,0030/0018,0050).
 #[derive(Debug, Clone, Default)]
 pub struct PerFrameInfo {
     /// Physical position P_k of this frame's origin in mm.

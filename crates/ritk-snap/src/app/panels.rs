@@ -1,11 +1,10 @@
-use super::state::{SeriesLoadTarget, SnapApp};
+﻿use super::state::{SeriesLoadTarget, SnapApp};
 use crate::session::ViewerSessionSnapshot;
 use crate::tools::interaction::ToolState;
 use crate::ui::window_presets::WindowPreset;
 use crate::ui::{
     decide_dropped_input_action, format_lps, show_colorbar, voxel_to_lps, DroppedInputAction,
-    LinkedCursor, MAX_ZOOM, MIN_ZOOM,
-};
+    LinkedCursor, MAX_ZOOM, MIN_ZOOM };
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
 impl SnapApp {
@@ -66,8 +65,7 @@ impl SnapApp {
             zoom: self.zoom,
             cine_enabled: self.cine.enabled,
             cine_fps: self.cine.fps,
-            annotations: self.annotations.clone(),
-        }
+            annotations: self.annotations.clone() }
     }
 
     pub(crate) fn apply_session_snapshot(&mut self, snapshot: ViewerSessionSnapshot) {
@@ -136,7 +134,7 @@ impl SnapApp {
         }
     }
 
-    // ── Left panel ────────────────────────────────────────────────────────────
+    // â”€â”€ Left panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     pub(crate) fn show_left_panel(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("info_panel")
@@ -188,13 +186,12 @@ impl SnapApp {
                 if let Some(folder) = sidebar_result {
                     match self.series_load_target {
                         SeriesLoadTarget::Primary => self.pending_load = Some(folder),
-                        SeriesLoadTarget::Secondary => self.pending_secondary_load = Some(folder),
-                    }
+                        SeriesLoadTarget::Secondary => self.pending_secondary_load = Some(folder) }
                 }
             });
     }
 
-    // ── Bottom status bar ─────────────────────────────────────────────────────
+    // â”€â”€ Bottom status bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     pub(crate) fn show_bottom_bar(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
@@ -259,7 +256,7 @@ impl SnapApp {
         }
         self.show_colorbar = show_cb;
 
-        // ── PACS Network Panel ────────────────────────────────────────────────
+        // â”€â”€ PACS Network Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let mut show_pacs = self.show_pacs_panel;
         if show_pacs {
             egui::Window::new("PACS Network")
@@ -338,15 +335,14 @@ impl SnapApp {
                             0 => (self.viewer_state.slice_index, depth),
                             1 => (self.coronal_slice, rows),
                             2 => (self.sagittal_slice, cols),
-                            _ => (self.viewer_state.slice_index, depth),
-                        };
+                            _ => (self.viewer_state.slice_index, depth) };
                         let axis_name = self.axis_label(self.status_axis);
                         row(ui, axis_name, &format!("{}/{}", slice_idx + 1, total));
 
-                        row(ui, "Dims:", &format!("{depth}×{rows}×{cols}"));
-                        row(ui, "Spacing:", &format!("{dz:.2}×{dy:.2}×{dx:.2} mm"));
-                        row(ui, "Modality:", vol.modality.as_deref().unwrap_or("—"));
-                        row(ui, "Patient:", vol.patient_name.as_deref().unwrap_or("—"));
+                        row(ui, "Dims:", &format!("{depth}Ã—{rows}Ã—{cols}"));
+                        row(ui, "Spacing:", &format!("{dz:.2}Ã—{dy:.2}Ã—{dx:.2} mm"));
+                        row(ui, "Modality:", vol.modality.as_deref().unwrap_or("â€”"));
+                        row(ui, "Patient:", vol.patient_name.as_deref().unwrap_or("â€”"));
                     });
 
                 ui.separator();

@@ -1,6 +1,6 @@
-use super::*;
+﻿use super::*;
 
-// ── LDDMM registration ────────────────────────────────────────────────────
+// â”€â”€ LDDMM registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Run LDDMM (Large Deformation Diffeomorphic Metric Mapping) registration.
 ///
@@ -54,7 +54,7 @@ mod tests {
     use ritk_registration::demons::DemonsVariant;
     use tempfile::tempdir;
 
-    // ── LDDMM: output shape ────────────────────────────────────────────────────────────
+    // â”€â”€ LDDMM: output shape â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn test_register_lddmm_creates_output_with_correct_shape() {
@@ -86,8 +86,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
-            convergence_threshold: 1e-5,
-        })
+            convergence_threshold: 1e-5 })
         .expect("lddmm must succeed");
 
         assert!(output_path.exists(), "output must exist");
@@ -125,8 +124,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
-            convergence_threshold: 1e-5,
-        })
+            convergence_threshold: 1e-5 })
         .expect("lddmm must succeed");
 
         let out = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
@@ -138,7 +136,7 @@ mod tests {
         });
     }
 
-    // ── Boundary: Leto volume round-trip preserves values ────────────────
+    // â”€â”€ Boundary: Leto volume round-trip preserves values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Converting an image to `leto::Array3<f64>` and back must preserve voxel
     /// values within f32 precision.
@@ -154,7 +152,7 @@ mod tests {
             "array shape must match image shape"
         );
 
-        // Verify values: flat index i → value i * 4.0.
+        // Verify values: flat index i â†’ value i * 4.0.
         let flat: Vec<f64> = volume.iter().copied().collect();
         for (i, &v) in flat.iter().enumerate() {
             let expected = i as f64 * 4.0;
@@ -174,7 +172,7 @@ mod tests {
         );
     }
 
-    // ── Boundary: image_to_flat_vec round-trip preserves values ───────────
+    // â”€â”€ Boundary: image_to_flat_vec round-trip preserves values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Converting an image to flat vec and back must preserve voxel values.
     #[test]

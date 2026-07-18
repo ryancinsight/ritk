@@ -1,4 +1,4 @@
-//! Image gradient computation via finite differences.
+﻿//! Image gradient computation via finite differences.
 
 use super::{flat, VelocityField};
 use ritk_spatial::VolumeDims;
@@ -78,7 +78,7 @@ pub(crate) fn compute_gradient_into(
 /// the result is in (intensity / length) units.
 ///
 /// # Returns
-/// `(gz, gy, gx)` — three flat `Vec<f32>` of length `nz * ny * nx`.
+/// `(gz, gy, gx)` â€” three flat `Vec<f32>` of length `nz * ny * nx`.
 pub(crate) fn compute_gradient(data: &[f32], dims: VolumeDims, spacing: [f64; 3]) -> VelocityField {
     let n = dims.total_voxels();
     let mut gz = vec![0.0_f32; n];
@@ -88,8 +88,7 @@ pub(crate) fn compute_gradient(data: &[f32], dims: VolumeDims, spacing: [f64; 3]
     VelocityField {
         z: gz,
         y: gy,
-        x: gx,
-    }
+        x: gx }
 }
 
 #[cfg(test)]

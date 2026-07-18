@@ -1,4 +1,4 @@
-//! VTK XML PolyData (.vtp) writer (ASCII inline format).
+﻿//! VTK XML PolyData (.vtp) writer (ASCII inline format).
 
 use crate::domain::vtk_data_object::VtkPolyData;
 use crate::io::xml_write_attr::write_attr_xml;
@@ -165,8 +165,7 @@ mod tests {
             "pres".to_string(),
             AttributeArray::Scalars {
                 values: vec![1.0, 2.0, 3.0],
-                num_components: 1,
-            },
+                num_components: 1 },
         );
         let parsed = parse_vtp(&write_vtp_str(&p)).unwrap();
         assert_eq!(parsed.point_data.len(), 1);
@@ -183,8 +182,7 @@ mod tests {
         p.point_data.insert(
             "vel".to_string(),
             AttributeArray::Vectors {
-                values: vec![[1.0, 0.0, 0.0]],
-            },
+                values: vec![[1.0, 0.0, 0.0]] },
         );
         let parsed = parse_vtp(&write_vtp_str(&p)).unwrap();
         if let Some(AttributeArray::Vectors { values }) = parsed.point_data.get("vel") {

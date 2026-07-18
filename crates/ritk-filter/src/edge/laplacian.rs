@@ -4,21 +4,21 @@
 //!
 //! The Laplacian of a 3-D scalar field I is:
 //!
-//!   ∇²I(x) = ∂²I/∂z² + ∂²I/∂y² + ∂²I/∂x²
+//!   âˆ‡Â²I(x) = âˆ‚Â²I/âˆ‚zÂ² + âˆ‚Â²I/âˆ‚yÂ² + âˆ‚Â²I/âˆ‚xÂ²
 //!
 //! Each second-order partial derivative is approximated at interior voxel i by:
 //!
-//! ∂²I/∂z² ≈ (I\[iz+1,iy,ix\] − 2·I\[iz,iy,ix\] + I\[iz−1,iy,ix\]) / sz²
+//! âˆ‚Â²I/âˆ‚zÂ² â‰ˆ (I\[iz+1,iy,ix\] âˆ’ 2Â·I\[iz,iy,ix\] + I\[izâˆ’1,iy,ix\]) / szÂ²
 //!
-//! At boundary voxels the same `[1, −2, 1]` stencil is evaluated with the
+//! At boundary voxels the same `[1, âˆ’2, 1]` stencil is evaluated with the
 //! out-of-range neighbour clamped to the edge voxel (ZeroFluxNeumann boundary
 //! condition); e.g. at iz=0 the lower neighbour is `I[0]`, giving
-//! `(I[1] − I[0]) / sz²`. This reproduces ITK's `LaplacianImageFilter`, which
+//! `(I[1] âˆ’ I[0]) / szÂ²`. This reproduces ITK's `LaplacianImageFilter`, which
 //! couples the Laplacian operator with `ZeroFluxNeumannBoundaryCondition`, to
 //! within float rounding.
 //!
 //! # Reference
-//! Press et al., *Numerical Recipes*, 3rd ed., §18.1; boundary handling per ITK
+//! Press et al., *Numerical Recipes*, 3rd ed., Â§18.1; boundary handling per ITK
 //! `itk::ZeroFluxNeumannBoundaryCondition`.
 
 use ritk_image::tensor::Backend;
@@ -26,7 +26,7 @@ use ritk_image::Image;
 use ritk_spatial::Spacing;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-/// Filter that computes the discrete Laplacian ∇²I of a 3-D image.
+/// Filter that computes the discrete Laplacian âˆ‡Â²I of a 3-D image.
 ///
 /// Voxel values in the output are the sum of second-order finite-difference
 /// approximations along each axis, divided by the corresponding physical
@@ -52,9 +52,9 @@ impl LaplacianFilter {
 
     /// Compute the Laplacian image.
     ///
-    /// Returns an `Image` whose voxel values are ∇²I(x) at each position x.
+    /// Returns an `Image` whose voxel values are âˆ‡Â²I(x) at each position x.
     /// The output has the same shape and physical metadata as `image`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let result = laplacian_vec(&vals, dims, &self.spacing);
 
@@ -62,12 +62,12 @@ impl LaplacianFilter {
     }
 }
 
-// ── Coeus-native path ─────────────────────────────────────────────────────────
+// â”€â”€ Coeus-native path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 impl LaplacianFilter {
     /// Coeus-native sister of [`LaplacianFilter::apply`].
     ///
-    /// Runs the identical `[1, −2, 1]` second-difference stencil (ZeroFluxNeumann
+    /// Runs the identical `[1, âˆ’2, 1]` second-difference stencil (ZeroFluxNeumann
     /// boundary) via the shared `laplacian_vec` host core on the image's
     /// contiguous host buffer, so the result is bitwise-identical to the Burn
     /// path. No Burn tensor is constructed. Spatial metadata is preserved.
@@ -89,12 +89,12 @@ impl LaplacianFilter {
     }
 }
 
-// ── Internal computation ──────────────────────────────────────────────────────
+// â”€â”€ Internal computation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Compute the Laplacian of a flat 3-D volume.
 ///
 /// # Invariants
-/// - `[1, −2, 1]` second-difference stencil divided by spacing² along each axis.
+/// - `[1, âˆ’2, 1]` second-difference stencil divided by spacingÂ² along each axis.
 /// - Boundary voxels clamp the out-of-range neighbour to the edge voxel
 ///   (ZeroFluxNeumann), matching ITK; a length-1 axis contributes 0.
 /// - Output length equals `nz * ny * nx`.
@@ -109,7 +109,7 @@ pub(crate) fn laplacian_vec(data: &[f32], dims: [usize; 3], spacing: &Spacing<3>
     let idx = |iz: usize, iy: usize, ix: usize| -> usize { iz * ny * nx + iy * nx + ix };
 
     // Each output voxel depends only on its stencil neighbours, so the grid fans
-    // out over the flat index (moirai) — bitwise identical to the serial sweep.
+    // out over the flat index (moirai) â€” bitwise identical to the serial sweep.
     moirai::map_collect_index_with::<moirai::Adaptive, _, _>(n, |flat| {
         let iz = flat / (ny * nx);
         let rem = flat % (ny * nx);
@@ -130,7 +130,7 @@ pub(crate) fn laplacian_vec(data: &[f32], dims: [usize; 3], spacing: &Spacing<3>
     })
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_laplacian.rs"]

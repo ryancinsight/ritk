@@ -1,4 +1,4 @@
-//! MQ arithmetic coder – encoder and decoder (ISO 15444-1 Annex C).
+﻿//! MQ arithmetic coder â€“ encoder and decoder (ISO 15444-1 Annex C).
 
 pub mod decoder;
 pub mod encoder;
@@ -16,8 +16,7 @@ pub(crate) struct QeEntry {
     pub(crate) qe: u16,
     pub(crate) nlps: u8,
     pub(crate) nmps: u8,
-    pub(crate) switch_flag: bool,
-}
+    pub(crate) switch_flag: bool }
 
 #[rustfmt::skip]
 pub(crate) const QE_TABLE: [QeEntry; 47] = [
@@ -77,16 +76,15 @@ pub const NUM_CONTEXTS: usize = 19;
 /// Per-context probability state (state-table index + current MPS value).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CtxState {
-    /// Index into `QE_TABLE` (0–46).
+    /// Index into `QE_TABLE` (0â€“46).
     pub state: u8,
     /// Current Most-Probable Symbol (0 or 1).
-    pub mps: u8,
-}
+    pub mps: u8 }
 
 /// Create the 19-context initial state array (ISO 15444-1 Table D.7).
 ///
-/// All contexts start at state 0 except: ZC context 0 → state 4,
-/// run-length (AGG) context → state 3, uniform (UNI) context → state 46.
+/// All contexts start at state 0 except: ZC context 0 â†’ state 4,
+/// run-length (AGG) context â†’ state 3, uniform (UNI) context â†’ state 46.
 pub fn initial_contexts() -> [CtxState; NUM_CONTEXTS] {
     let mut ctx = [CtxState::default(); NUM_CONTEXTS];
     // ZC context 0 (all-non-significant neighbourhood).

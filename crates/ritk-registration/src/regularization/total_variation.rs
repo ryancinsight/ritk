@@ -1,4 +1,4 @@
-//! Total Variation regularization for displacement fields.
+﻿//! Total Variation regularization for displacement fields.
 //!
 //! Total Variation (TV) regularization is an L1-based regularization that
 //! encourages piecewise-constant or piecewise-smooth solutions while
@@ -7,9 +7,9 @@
 //!
 //! The total variation term is:
 //!
-//! R(u) = ∫_Ω |∇u| dx
+//! R(u) = âˆ«_Î© |âˆ‡u| dx
 //!
-//! where |∇u| is the L1 norm of the gradient.
+//! where |âˆ‡u| is the L1 norm of the gradient.
 //!
 //! ## Characteristics
 //!
@@ -40,7 +40,7 @@ use coeus_tensor::Tensor;
 /// regions.
 ///
 /// The isotropic TV variant penalizes:
-/// TV(u) = ∫_Ω √(∑|∂u_i/∂x_j|²) dx
+/// TV(u) = âˆ«_Î© âˆš(âˆ‘|âˆ‚u_i/âˆ‚x_j|Â²) dx
 ///
 /// # Example
 ///
@@ -56,8 +56,7 @@ use coeus_tensor::Tensor;
 /// ```
 #[derive(Clone, Debug)]
 pub struct TotalVariationRegularizer {
-    weight: f64,
-}
+    weight: f64 }
 
 impl TotalVariationRegularizer {
     /// Create a new Total Variation regularizer.

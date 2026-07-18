@@ -1,4 +1,4 @@
-//! Tests for atlas registration.
+﻿//! Tests for atlas registration.
 
 use super::*;
 use crate::diffeomorphic::multires_syn::InverseConsistency;
@@ -14,26 +14,24 @@ fn test_syn_config() -> MultiResSyNConfig {
         n_squarings: 2,
         cc_window_radius: 1,
         gradient_step: 0.25,
-        enforce_inverse_consistency: InverseConsistency::Relaxed,
-    }
+        enforce_inverse_consistency: InverseConsistency::Relaxed }
 }
 
 fn test_atlas_config() -> AtlasConfig {
     AtlasConfig {
         max_iterations: 3,
         convergence_threshold: 1e-3,
-        syn_config: test_syn_config(),
-    }
+        syn_config: test_syn_config() }
 }
 
-// ── Positive tests ────────────────────────────────────────────────────
+// â”€â”€ Positive tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Two identical constant subjects.
 ///
-/// Analytical expectation: T⁰ = c. Registration of constant c to
+/// Analytical expectation: Tâ° = c. Registration of constant c to
 /// constant c yields zero velocity fields (CC gradient is zero when
 /// image gradient is zero). Mean of warped subjects = c. Mean
-/// velocity = 0, so sharpening is identity. RMS change = 0 →
+/// velocity = 0, so sharpening is identity. RMS change = 0 â†’
 /// convergence in one iteration. Template = c everywhere.
 #[test]
 fn two_identical_constant_subjects_template_equals_constant() {
@@ -68,11 +66,11 @@ fn two_identical_constant_subjects_template_equals_constant() {
 
 /// Three uniform images with distinct values.
 ///
-/// Analytical expectation: T⁰ = mean(2, 4, 6) = 4. Registration of a
+/// Analytical expectation: Tâ° = mean(2, 4, 6) = 4. Registration of a
 /// uniform image to another uniform image produces zero displacement
 /// (gradient is zero). Mean of warped subjects = mean of originals = 4.
-/// Sharpening is identity (zero velocity). RMS change = 0 → converge
-/// in 1 iteration. Template ≈ 4 everywhere.
+/// Sharpening is identity (zero velocity). RMS change = 0 â†’ converge
+/// in 1 iteration. Template â‰ˆ 4 everywhere.
 #[test]
 fn three_uniform_images_template_is_mean() {
     let dims = [4, 4, 4];
@@ -97,12 +95,12 @@ fn three_uniform_images_template_is_mean() {
     assert!(result.convergence_history[0] < 0.1);
 }
 
-// ── Boundary tests ────────────────────────────────────────────────────
+// â”€â”€ Boundary tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Single subject: template equals that subject.
 ///
-/// T⁰ = I₁. Registration of I₁ to I₁ → identity. Template
-/// unchanged. RMS = 0 → converge in 1 iteration.
+/// Tâ° = Iâ‚. Registration of Iâ‚ to Iâ‚ â†’ identity. Template
+/// unchanged. RMS = 0 â†’ converge in 1 iteration.
 #[test]
 fn single_subject_template_equals_subject() {
     let dims = [4, 4, 4];
@@ -125,7 +123,7 @@ fn single_subject_template_equals_subject() {
     assert_eq!(result.subject_results.len(), 1);
 }
 
-// ── Negative tests ────────────────────────────────────────────────────
+// â”€â”€ Negative tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Empty subjects slice returns `InvalidConfiguration`.
 #[test]

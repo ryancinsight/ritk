@@ -1,7 +1,7 @@
-use ritk_core::image::Image;
+﻿use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::burn::backend::Autodiff;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_registration::metric::{CorrelationDirection, CorrelationRatio};
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
 use ritk_registration::optimizer::AdamOptimizer;
@@ -49,9 +49,9 @@ fn test_multires_cr_registration() {
     let moving_data = make_blob([24.0, 24.0, 20.0], 5.0);
 
     let fixed_tensor =
-        Tensor::<B, 3>::from_data(TensorData::new(fixed_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &fixed_data, &device);
     let moving_tensor =
-        Tensor::<B, 3>::from_data(TensorData::new(moving_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &moving_data, &device);
 
     let origin = Point::new([0.0, 0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
@@ -65,11 +65,11 @@ fn test_multires_cr_registration() {
 
     // 3. Setup MultiRes with CR
     // Note: Image values are 0.0 to 1.0
-    // parzen_sigma in intensity units: bin_width = 1.0/31 ≈ 0.032 for 32 bins
+    // parzen_sigma in intensity units: bin_width = 1.0/31 â‰ˆ 0.032 for 32 bins
     let metric = CorrelationRatio::new(
         32, // bins
         IntensityRange::new_unchecked(0.0_f32, 1.0_f32),
-        0.03, // parzen_sigma (≈ bin_width for 32 bins over [0,1])
+        0.03, // parzen_sigma (â‰ˆ bin_width for 32 bins over [0,1])
         CorrelationDirection::MovingGivenFixed,
         &device,
     );

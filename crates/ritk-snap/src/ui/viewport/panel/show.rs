@@ -1,24 +1,20 @@
-//! ViewportPanel struct — constructor and rendering.
+﻿//! ViewportPanel struct â€” constructor and rendering.
 
 use egui::{pos2, vec2, Color32, Pos2, Rect, Sense, Stroke, TextureOptions, Ui, Vec2};
 
 use super::super::state::{
     draw_crosshair, img_to_screen, screen_to_img, screen_to_img_exact, slice_dims, ViewportPanel,
-    ViewportRenderMode, ViewportState,
-};
+    ViewportRenderMode, ViewportState };
 use crate::{
     render::{
         mip_vr::{render_mip_axial, render_vr_axial},
-        slice_render::SliceRenderer,
-    },
+        slice_render::SliceRenderer },
     tools::interaction::ToolState,
     ui::{
         measurements::MeasurementLayer,
         overlay::{OverlayContext, OverlayRenderer},
-        zoom::fit_view_transform,
-    },
-    LoadedVolume,
-};
+        zoom::fit_view_transform },
+    LoadedVolume };
 
 impl<'a> ViewportPanel<'a> {
     /// Construct a viewport panel.
@@ -32,8 +28,7 @@ impl<'a> ViewportPanel<'a> {
             id,
             volume,
             state,
-            active_tool: tool,
-        }
+            active_tool: tool }
     }
 
     /// Render the viewport into `ui`.
@@ -65,12 +60,11 @@ impl<'a> ViewportPanel<'a> {
         let mut crosshair_result: Option<[usize; 3]> = None;
 
         if let Some(volume) = self.volume {
-            // ── ensure slice texture is current ───────────────────────────
+            // â”€â”€ ensure slice texture is current â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             let render_key = match self.state.render_mode {
                 ViewportRenderMode::Slice => (self.state.axis, self.state.slice_index),
                 // Volume projections do not vary with slice index.
-                ViewportRenderMode::Mip | ViewportRenderMode::Vr => (self.state.axis, 0),
-            };
+                ViewportRenderMode::Mip | ViewportRenderMode::Vr => (self.state.axis, 0) };
             let needs_render =
                 self.state.texture_slice_key != Some(render_key) || self.state.texture.is_none();
             if needs_render {
@@ -98,12 +92,12 @@ impl<'a> ViewportPanel<'a> {
                 self.state.texture_slice_key = Some(render_key);
             }
 
-            // ── derive image dimensions from slice ────────────────────────
+            // â”€â”€ derive image dimensions from slice â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             let (img_w, img_h) = slice_dims(volume, self.state.axis);
             let (offset, scale) = self.state.image_transform(rect, img_w, img_h);
             let map_img_to_screen = |p: Pos2| -> Pos2 { img_to_screen(p, offset, scale) };
 
-            // ── paint texture ─────────────────────────────────────────────
+            // â”€â”€ paint texture â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if let Some(texture) = &self.state.texture {
                 let img_rect = Rect::from_min_size(
                     pos2(offset.x, offset.y),
@@ -117,7 +111,7 @@ impl<'a> ViewportPanel<'a> {
                 );
             }
 
-            // ── orientation labels ────────────────────────────────────────
+            // â”€â”€ orientation labels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if self.state.show_overlay {
                 OverlayRenderer::draw_orientation_labels(
                     &painter,
@@ -127,7 +121,7 @@ impl<'a> ViewportPanel<'a> {
                 );
             }
 
-            // ── DICOM 4-corner overlay ────────────────────────────────────
+            // â”€â”€ DICOM 4-corner overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if self.state.show_overlay {
                 // Compute cursor HU value if the cursor is inside the viewport.
                 let cursor_hu = response
@@ -146,18 +140,17 @@ impl<'a> ViewportPanel<'a> {
                         cursor_value: cursor_hu,
                         pointer_intensity,
                         cursor_suv: None,
-                        pointer_suv: None,
-                    },
+                        pointer_suv: None },
                 );
             }
 
-            // ── crosshair ─────────────────────────────────────────────────
+            // â”€â”€ crosshair â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // (Also used for linked crosshair position display.)
             if self.state.show_crosshair {
                 draw_crosshair(&painter, rect, Color32::from_rgb(0, 200, 255));
             }
 
-            // ── measurements ─────────────────────────────────────────────
+            // â”€â”€ measurements â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             MeasurementLayer::draw_annotations(
                 &painter,
                 &self.state.annotations,
@@ -172,8 +165,7 @@ impl<'a> ViewportPanel<'a> {
             let spacing_2d: [f32; 2] = match self.state.axis {
                 0 => [sp[1] as f32, sp[2] as f32],
                 1 => [sp[0] as f32, sp[2] as f32],
-                _ => [sp[0] as f32, sp[1] as f32],
-            };
+                _ => [sp[0] as f32, sp[1] as f32] };
             MeasurementLayer::draw_in_progress(
                 &painter,
                 &self.state.tool_state,
@@ -183,28 +175,28 @@ impl<'a> ViewportPanel<'a> {
                 map_img_to_screen,
             );
 
-            // ── pointer event handling ────────────────────────────────────
+            // â”€â”€ pointer event handling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             crosshair_result =
                 self.handle_pointer(&response, volume, rect, offset, scale, img_w, img_h);
         } else {
-            // No volume loaded — draw placeholder text.
+            // No volume loaded â€” draw placeholder text.
             painter.text(
                 rect.center(),
                 egui::Align2::CENTER_CENTER,
-                "Drop a DICOM folder or NIfTI file here\nor use File → Open",
+                "Drop a DICOM folder or NIfTI file here\nor use File â†’ Open",
                 egui::FontId::proportional(14.0),
                 Color32::from_rgb(120, 120, 120),
             );
         }
 
-        // ── viewport border ───────────────────────────────────────────────
+        // â”€â”€ viewport border â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         painter.rect_stroke(
             rect,
             0.0,
             Stroke::new(1.0_f32, Color32::from_rgb(60, 60, 60)),
         );
 
-        // ── context menu ──────────────────────────────────────────────────
+        // â”€â”€ context menu â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         response.context_menu(|ui| {
             if ui.button("Clear annotations").clicked() {
                 self.state.annotations.clear();

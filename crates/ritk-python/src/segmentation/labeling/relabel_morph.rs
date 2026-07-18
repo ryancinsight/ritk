@@ -1,11 +1,10 @@
-use crate::errors::{RitkPyError, RitkResult};
+﻿use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{burn_into_py_image, py_image_to_burn, BurnBackend, PyImage};
 use pyo3::prelude::*;
 use ritk_segmentation::{
     label_set_morph as core_label_set_morph, merge_label_maps as core_merge_label_maps,
     relabel_consecutive as core_relabel_consecutive, LabelSetMorphOp, MergeLabelMethod,
-    RelabelComponentFilter,
-};
+    RelabelComponentFilter };
 
 /// Relabel connected components by descending size: the largest object becomes
 /// label 1, the next largest 2, and so on. Components smaller than
@@ -37,7 +36,7 @@ pub fn relabel_components(
     Ok(burn_into_py_image(out))
 }
 
-/// Relabel non-zero labels to consecutive integers `1, 2, …, K` in ascending
+/// Relabel non-zero labels to consecutive integers `1, 2, â€¦, K` in ascending
 /// original-label order (background 0 unchanged).
 ///
 /// ITK Parity: matches `sitk.RelabelLabelMap` (via the LabelMap round-trip
@@ -59,7 +58,7 @@ pub fn relabel_label_map(py: Python<'_>, label_image: &PyImage) -> PyImage {
 }
 
 /// Merge several label images into one, matching
-/// `sitk.LabelMapToLabel(sitk.MergeLabelMap([…], method))`.
+/// `sitk.LabelMapToLabel(sitk.MergeLabelMap([â€¦], method))`.
 ///
 /// Each input's distinct non-zero values become label objects; the inputs are
 /// folded into the first under one of four methods.
@@ -187,7 +186,7 @@ fn label_set_morph_py(
 ///
 /// Args:
 ///     label_image: an integer-valued label image.
-///     change_map: dict mapping old label → new label.
+///     change_map: dict mapping old label â†’ new label.
 ///
 /// Returns:
 ///     the remapped image (same shape and spatial metadata).
@@ -197,7 +196,7 @@ pub fn change_label(
     label_image: &PyImage,
     change_map: std::collections::HashMap<i64, i64>,
 ) -> PyImage {
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor };
     let img = py_image_to_burn(label_image);
     let out = py.allow_threads(|| {
         let dims = img.shape();
@@ -216,7 +215,7 @@ pub fn change_label(
             .collect();
         let device = burn_ndarray::NdArrayDevice::default();
         let tensor =
-            Tensor::<BurnBackend, 3>::from_data(TensorData::new(out, Shape::new(dims)), &device);
+            Tensor::<f32, BurnBackend>::from_slice_on(dims, &out, &device);
         ritk_image::Image::new(tensor, *img.origin(), *img.spacing(), *img.direction())
     });
     burn_into_py_image(out)

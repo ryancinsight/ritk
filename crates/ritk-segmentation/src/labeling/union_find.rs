@@ -1,7 +1,7 @@
 //! Path-compressed union-find (disjoint-set) data structure.
 //!
 //! Used by the Hoshen-Kopelman connected-component labeling algorithm to
-//! track and merge provisional component labels in O(n · α(n)) ≈ O(n) time.
+//! track and merge provisional component labels in O(n Â· Î±(n)) â‰ˆ O(n) time.
 
 /// Union-find with path-halving and union-by-rank.
 pub(super) struct UnionFind {

@@ -14,7 +14,7 @@
 //! ```
 //!
 //! The padded voxels are filled according to the chosen boundary condition, and
-//! the origin shifts by `-lower_d * spacing_d` per axis — identical to the
+//! the origin shifts by `-lower_d * spacing_d` per axis â€” identical to the
 //! underlying pad filters, which this filter delegates to. Padding is computed
 //! independently per axis, so a unit axis (`N_d = 1`, already smooth) is left
 //! unpadded.
@@ -133,7 +133,7 @@ impl FftPadImageFilter {
     }
 
     /// Apply the FFT pad filter.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (lower, upper) = self.pad_extents(image.shape());
         match self.boundary {
             FftPadBoundary::Zero => ConstantPadImageFilter::new(lower, upper, 0.0).apply(image),
@@ -160,26 +160,7 @@ impl FftPadImageFilter {
                 ConstantPadImageFilter::new(lower, upper, 0.0).apply_native(image, backend)
             }
             FftPadBoundary::ZeroFluxNeumann => {
-                // TODO(native): replace this temporary Burn round-trip once
-                // ZeroFluxNeumannPadImageFilter has a dedicated native path.
-                let burn_image = ritk_image::Image::<burn_ndarray::NdArray<f32>, 3>::from_flat_on(
-                    image.data_slice()?.to_vec(),
-                    image.shape(),
-                    *image.origin(),
-                    *image.spacing(),
-                    *image.direction(),
-                    &Default::default(),
-                );
-                let padded = ZeroFluxNeumannPadImageFilter::new(lower, upper).apply(&burn_image)?;
-                let (values, dims) = ritk_tensor_ops::extract_vec(&padded)?;
-                ritk_image::native::Image::from_flat_on(
-                    values,
-                    dims,
-                    *padded.origin(),
-                    *padded.spacing(),
-                    *padded.direction(),
-                    backend,
-                )
+                ZeroFluxNeumannPadImageFilter::new(lower, upper).apply_native(image, backend)
             }
             FftPadBoundary::Periodic => {
                 WrapPadImageFilter::new(lower, upper).apply_native(image, backend)
@@ -188,7 +169,7 @@ impl FftPadImageFilter {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_fft_pad.rs"]

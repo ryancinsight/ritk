@@ -1,4 +1,4 @@
-//! Multi-start mutual information registration with independent random restarts.
+﻿//! Multi-start mutual information registration with independent random restarts.
 //!
 //! # Algorithm
 //!
@@ -22,12 +22,12 @@
 //! translation component:
 //!
 //! ```text
-//! θ'ᵢ = θᵢ + σ_rot   · N(0,1)      (i = α, β, γ)
-//! t'ᵢ = tᵢ + σ_trans · N(0,1)      (i = tz, ty, tx)
+//! Î¸'áµ¢ = Î¸áµ¢ + Ïƒ_rot   Â· N(0,1)      (i = Î±, Î², Î³)
+//! t'áµ¢ = táµ¢ + Ïƒ_trans Â· N(0,1)      (i = tz, ty, tx)
 //! ```
 //!
-//! Gaussian samples are produced by the Box–Muller transform driven by a
-//! 64-bit linear congruential generator (LCG) with Knuth–Lewis constants,
+//! Gaussian samples are produced by the Boxâ€“Muller transform driven by a
+//! 64-bit linear congruential generator (LCG) with Knuthâ€“Lewis constants,
 //! removing any dependency on `rand` or the standard library's thread-local
 //! RNG.
 //!
@@ -36,24 +36,24 @@
 //! - Wales, D. J., & Doye, J. P. K. (1997). Global optimization by
 //!   basin-hopping and the lowest energy structures of Lennard-Jones clusters
 //!   containing up to 110 atoms. *Journal of Physical Chemistry A*, 101(28),
-//!   5111–5116. <https://doi.org/10.1021/jp970984n>
+//!   5111â€“5116. <https://doi.org/10.1021/jp970984n>
 //!
 //! - Klein, S., Staring, M., Murphy, K., Viergever, M. A., & Pluim, J. P. W.
 //!   (2007). elastix: A toolbox for intensity-based medical image registration.
-//!   *IEEE Transactions on Medical Imaging*, 29(1), 196–205.
+//!   *IEEE Transactions on Medical Imaging*, 29(1), 196â€“205.
 //!   <https://doi.org/10.1109/TMI.2009.2035616>
 
 use std::f64::consts::PI;
 
 use ritk_core::image::Image;
-use ritk_image::tensor::AutodiffBackend;
-use ritk_image::tensor::{Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Tensor };
 use ritk_transform::RigidTransform;
 
 use super::registration::GlobalMiRegistration;
 use crate::types::AffineTransform;
 
-// ─── Configuration ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Configuration for multi-start Mattes MI rigid registration.
 ///
@@ -62,7 +62,7 @@ use crate::types::AffineTransform;
 /// underlying single-start MI registration parameters.
 #[derive(Debug, Clone)]
 pub struct MultiStartConfig {
-    /// Number of independent optimisation starts (must be ≥ 1).
+    /// Number of independent optimisation starts (must be â‰¥ 1).
     ///
     /// Start 0 uses `initial_transform` unmodified; subsequent starts receive
     /// Gaussian-perturbed copies. Default: `5`.
@@ -70,8 +70,8 @@ pub struct MultiStartConfig {
 
     /// Standard deviation of rotation perturbations in radians.
     ///
-    /// Applied independently to each Euler angle [α, β, γ]. Default: `0.2`
-    /// (≈ 11°).
+    /// Applied independently to each Euler angle [Î±, Î², Î³]. Default: `0.2`
+    /// (â‰ˆ 11Â°).
     pub rotation_perturbation_rad: f64,
 
     /// Standard deviation of translation perturbations in millimetres.
@@ -88,8 +88,7 @@ pub struct MultiStartConfig {
     /// Configuration forwarded to each single-start MI registration.
     ///
     /// Default: [`GlobalMiConfig::rigid_default()`](super::config::GlobalMiConfig::rigid_default).
-    pub base_config: super::config::GlobalMiConfig,
-}
+    pub base_config: super::config::GlobalMiConfig }
 
 impl Default for MultiStartConfig {
     fn default() -> Self {
@@ -98,17 +97,16 @@ impl Default for MultiStartConfig {
             rotation_perturbation_rad: 0.2,
             translation_perturbation_mm: 15.0,
             seed: 0xdeadbeef_cafebabe,
-            base_config: super::config::GlobalMiConfig::rigid_default(),
-        }
+            base_config: super::config::GlobalMiConfig::rigid_default() }
     }
 }
 
-// ─── Result ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Result â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Result of a multi-start Mattes MI rigid registration.
 #[derive(Debug, Clone)]
 pub struct MultiStartResult {
-    /// 4×4 homogeneous matrix of the best-found rigid transform.
+    /// 4Ã—4 homogeneous matrix of the best-found rigid transform.
     pub matrix: AffineTransform,
 
     /// Mutual information achieved by the best start (higher is better).
@@ -124,14 +122,13 @@ pub struct MultiStartResult {
     /// start, in start order.
     pub per_start_iterations: Vec<usize>,
 
-    /// Euler angles [α, β, γ] (radians) of the best-found rigid transform.
+    /// Euler angles [Î±, Î², Î³] (radians) of the best-found rigid transform.
     pub best_rotation: [f32; 3],
 
     /// Translation [tz, ty, tx] (mm) of the best-found rigid transform.
-    pub best_translation: [f32; 3],
-}
+    pub best_translation: [f32; 3] }
 
-// ─── Registration ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Multi-start wrapper around [`GlobalMiRegistration`].
 ///
@@ -146,19 +143,19 @@ impl MultiStartMiRegistration {
     ///
     /// # Arguments
     ///
-    /// * `fixed`             – Fixed (reference) image.
-    /// * `moving`            – Moving (source) image to be aligned.
-    /// * `initial_transform` – Base transform; used unmodified for start 0,
+    /// * `fixed`             â€“ Fixed (reference) image.
+    /// * `moving`            â€“ Moving (source) image to be aligned.
+    /// * `initial_transform` â€“ Base transform; used unmodified for start 0,
     ///                         and as the perturbation centre for subsequent
     ///                         starts.
-    /// * `config`            – Multi-start and per-start optimisation config.
+    /// * `config`            â€“ Multi-start and per-start optimisation config.
     ///
     /// # Panics
     ///
     /// Panics if `config.num_starts < 1`.
-    pub fn register_rigid<B: AutodiffBackend>(
-        fixed: &Image<B, 3>,
-        moving: &Image<B, 3>,
+    pub fn register_rigid<B: Backend>(
+        fixed: &Image<f32, B, 3>,
+        moving: &Image<f32, B, 3>,
         initial_transform: RigidTransform<B, 3>,
         config: &MultiStartConfig,
     ) -> (RigidTransform<B, 3>, MultiStartResult) {
@@ -172,13 +169,13 @@ impl MultiStartMiRegistration {
 
         tracing::info!(
             "MultiStartMiRegistration: beginning {} starts in parallel \
-             (rot_σ = {:.4} rad, trans_σ = {:.2} mm)",
+             (rot_Ïƒ = {:.4} rad, trans_Ïƒ = {:.2} mm)",
             config.num_starts,
             config.rotation_perturbation_rad,
             config.translation_perturbation_mm,
         );
 
-        // ── Phase 1: generate perturbed starts sequentially (µs per start) ──
+        // â”€â”€ Phase 1: generate perturbed starts sequentially (Âµs per start) â”€â”€
         // This avoids requiring RigidTransform to be Sync (Burn's OnceCell and
         // internal FnOnce types do not implement Sync), while still costing only
         // microseconds per start vs seconds-to-minutes per registration.
@@ -194,7 +191,7 @@ impl MultiStartMiRegistration {
             })
             .collect();
 
-        // ── Phase 2: run registrations in parallel ───────────────────────────
+        // â”€â”€ Phase 2: run registrations in parallel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Each task owns its RigidTransform (moved, not shared). Only read-only
         // shared references to fixed/moving images are captured.
         // Sequential over starts: each registration is GPU-bound (burn), so the
@@ -216,7 +213,7 @@ impl MultiStartMiRegistration {
             })
             .collect();
 
-        // ── Sequential reduction: find best result ────────────────────────────
+        // â”€â”€ Sequential reduction: find best result â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let mut best_mi = f64::NEG_INFINITY;
         let mut best_transform = initial_transform.clone();
         let mut best_start: usize = 0;
@@ -226,7 +223,7 @@ impl MultiStartMiRegistration {
 
         for (start_idx, final_transform, mi, total_iters) in results {
             tracing::info!(
-                "MultiStartMiRegistration: start {}/{} — final MI = {:.6e}, \
+                "MultiStartMiRegistration: start {}/{} â€” final MI = {:.6e}, \
                  total iterations = {}",
                 start_idx + 1,
                 config.num_starts,
@@ -245,12 +242,12 @@ impl MultiStartMiRegistration {
         }
 
         tracing::info!(
-            "MultiStartMiRegistration: complete — best start index = {}, best MI = {:.6e}",
+            "MultiStartMiRegistration: complete â€” best start index = {}, best MI = {:.6e}",
             best_start,
             best_mi,
         );
 
-        // Extract rotation [α, β, γ] and translation [tz, ty, tx] from best.
+        // Extract rotation [Î±, Î², Î³] and translation [tz, ty, tx] from best.
         let rot_data = best_transform.rotation().into_data();
         let rot_slice = rot_data
             .as_slice::<f32>()
@@ -270,23 +267,22 @@ impl MultiStartMiRegistration {
             per_start_mi,
             per_start_iterations,
             best_rotation,
-            best_translation,
-        };
+            best_translation };
 
         (best_transform, ms_result)
     }
 }
 
-// ─── Private Helpers ──────────────────────────────────────────────────────────
+// â”€â”€â”€ Private Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Draw one standard-normal sample using the Box–Muller transform.
+/// Draw one standard-normal sample using the Boxâ€“Muller transform.
 ///
 /// The generator state `rng` is advanced twice: once to produce the uniform
-/// variate u₁ and once for u₂. Both are mapped to (0, 1] via the 53
+/// variate uâ‚ and once for uâ‚‚. Both are mapped to (0, 1] via the 53
 /// most-significant bits of the 64-bit LCG output, with an additive floor of
-/// `1e-30` to keep u₁ away from zero and avoid `ln(0)`.
+/// `1e-30` to keep uâ‚ away from zero and avoid `ln(0)`.
 ///
-/// # LCG constants (Knuth–Lewis / MMIX)
+/// # LCG constants (Knuthâ€“Lewis / MMIX)
 ///
 /// ```text
 /// a = 6_364_136_223_846_793_005
@@ -312,13 +308,13 @@ fn lcg_gaussian(rng: &mut u64) -> f64 {
 /// rotation angle and translation component.
 ///
 /// The center of rotation is preserved unchanged.
-fn perturb_rigid_transform<B: AutodiffBackend>(
+fn perturb_rigid_transform<B: Backend>(
     transform: &RigidTransform<B, 3>,
     config: &MultiStartConfig,
     rng: &mut u64,
-    device: &B::Device,
+    device: &B,
 ) -> RigidTransform<B, 3> {
-    // Read current rotation [α, β, γ].
+    // Read current rotation [Î±, Î², Î³].
     let rot_data = transform.rotation().into_data();
     let rot_slice = rot_data
         .as_slice::<f32>()
@@ -344,8 +340,8 @@ fn perturb_rigid_transform<B: AutodiffBackend>(
         trans_slice[2] + (lcg_gaussian(rng) * config.translation_perturbation_mm) as f32,
     ];
 
-    let new_rotation = Tensor::<B, 1>::from_data(TensorData::from(new_rot), device);
-    let new_translation = Tensor::<B, 1>::from_data(TensorData::from(new_trans), device);
+    let new_rotation = Tensor::<f32, B>::from_slice_on([3], &new_rot, device);
+    let new_translation = Tensor::<f32, B>::from_slice_on([3], &new_trans, device);
 
     // Preserve center of rotation unchanged.
     let center = transform.center();

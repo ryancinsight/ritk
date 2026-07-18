@@ -1,27 +1,24 @@
-//! Value-semantic coverage for the native NIfTI reader path.
+﻿//! Value-semantic coverage for the native NIfTI reader path.
 
 use crate::header::{
-    write_single_file_bytes, HeaderDims, HeaderSpatial, NiftiDatatype, NiftiHeader,
-};
+    write_single_file_bytes, HeaderDims, HeaderSpatial, NiftiDatatype, NiftiHeader };
 use coeus_core::SequentialBackend;
 
 #[test]
 fn read_nifti_native_preserves_shape_and_voxels() {
-    // 2×2×2 cube: file order (x-fastest) equals output [z, y, x] order, so the
+    // 2Ã—2Ã—2 cube: file order (x-fastest) equals output [z, y, x] order, so the
     // decoded voxels equal the input sequence 0..8 element-for-element.
     let header = NiftiHeader::new_3d(
         HeaderDims {
             nx: 2,
             ny: 2,
-            nz: 2,
-        },
+            nz: 2 },
         NiftiDatatype::Float32,
         HeaderSpatial {
             pixdim: [1.0, 0.75, 1.5, 2.0, 1.0, 1.0, 1.0, 1.0],
             srow_x: [-0.75, 0.0, 0.0, -11.0],
             srow_y: [0.0, -1.5, 0.0, 7.5],
-            srow_z: [0.0, 0.0, 2.0, 3.25],
-        },
+            srow_z: [0.0, 0.0, 2.0, 3.25] },
     )
     .expect("valid header");
 

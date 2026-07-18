@@ -23,12 +23,12 @@
 //!
 //! - `iterations < 2`: returns a copy of the input structure, unchanged.
 //! - Empty structure (all false): output has the iterated shape, all false.
-//! - Singleton structure (1×1×1…): output has the same shape regardless of
+//! - Singleton structure (1Ã—1Ã—1â€¦): output has the same shape regardless of
 //!   `iterations`.
 //!
 //! # Complexity
 //!
-//! - `iterate_structure`: O(ni · N · K) where `N` is the output voxel count
+//! - `iterate_structure`: O(ni Â· N Â· K) where `N` is the output voxel count
 //!   and `K` is the number of true voxels in the input structure.
 //! - `iterate_structure_with_origin`: same plus O(D) for the origin
 //!   computation.
@@ -39,7 +39,7 @@
 //!   <https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.iterate_structure.html>
 //! - scipy source: `scipy/ndimage/_morphology.py::iterate_structure`.
 
-// ── BoolStructure ─────────────────────────────────────────────────────────────
+// â”€â”€ BoolStructure â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// A D-dimensional boolean structuring element.
 ///
@@ -192,7 +192,7 @@ impl<const D: usize> BoolStructure<D> {
     /// **negated** origin. The visible semantics are:
     ///
     /// ```text
-    /// out[i] = OR over q in kernel of in[i − q + c + o]
+    /// out[i] = OR over q in kernel of in[i âˆ’ q + c + o]
     /// ```
     ///
     /// where `q` ranges over the absolute positions of the true voxels of the
@@ -202,7 +202,7 @@ impl<const D: usize> BoolStructure<D> {
     ///
     /// The Rust implementation works in the equivalent "flipped" coordinate
     /// frame used by scipy's C kernel to keep the gather formula a flat
-    /// `i + q_flip − c_flip − o_neg` (no negation in front of `i`).
+    /// `i + q_flip âˆ’ c_flip âˆ’ o_neg` (no negation in front of `i`).
     pub fn dilate(self, kernel: &BoolStructure<D>, iterations: usize) -> BoolStructure<D> {
         let mut result = self;
         for _ in 0..iterations {
@@ -265,7 +265,7 @@ fn multi_to_flat_generic<const D: usize>(multi: &[usize; D], shape: &[usize; D])
 ///
 /// `for each p where input[p] is True:
 ///     for each q where kernel[q] is True:
-///         output[p + q − center − even_offset] = True` (if in bounds)
+///         output[p + q âˆ’ center âˆ’ even_offset] = True` (if in bounds)
 fn dilate_once<const D: usize>(
     input: &BoolStructure<D>,
     kernel: &BoolStructure<D>,
@@ -273,7 +273,7 @@ fn dilate_once<const D: usize>(
     let in_shape = *input.shape();
     let k_shape = *kernel.shape();
     let k_center: [usize; D] = std::array::from_fn(|i| k_shape[i] / 2);
-    // scipy applies an extra −1 origin offset for even-sized axes.
+    // scipy applies an extra âˆ’1 origin offset for even-sized axes.
     let even_offset: [isize; D] = std::array::from_fn(|i| if k_shape[i] & 1 == 0 { 1 } else { 0 });
 
     // Collect the per-voxel offsets of true voxels in the kernel.
@@ -319,7 +319,7 @@ fn dilate_once<const D: usize>(
     BoolStructure::from_data(in_shape, out)
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Iterate a structure: dilate it by itself `iterations - 1` times.
 ///
@@ -327,8 +327,8 @@ fn dilate_once<const D: usize>(
 /// with `origin=None`.
 ///
 /// # Arguments
-/// * `structure` — the input structure (any D-dimensional bool structure).
-/// * `iterations` — the number of iterations. `iterations < 2` returns a
+/// * `structure` â€” the input structure (any D-dimensional bool structure).
+/// * `iterations` â€” the number of iterations. `iterations < 2` returns a
 ///   copy of the input unchanged.
 ///
 /// # Returns

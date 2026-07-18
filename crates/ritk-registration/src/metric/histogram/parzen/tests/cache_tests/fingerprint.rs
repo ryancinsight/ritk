@@ -1,4 +1,4 @@
-//! Fingerprint validation test for masked cache.
+﻿//! Fingerprint validation test for masked cache.
 
 use super::super::*;
 
@@ -7,7 +7,7 @@ use super::super::*;
 fn masked_cache_fingerprint_detects_collision() {
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_image::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape };
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
@@ -25,9 +25,9 @@ fn masked_cache_fingerprint_detects_collision() {
     }
 
     let fixed_t =
-        Tensor::<B, 3>::from_data(TensorData::new(fixed_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &fixed_data, &device);
     let moving_t =
-        Tensor::<B, 3>::from_data(TensorData::new(moving_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &moving_data, &device);
 
     let fixed_img = Image::new(
         fixed_t,
@@ -43,7 +43,7 @@ fn masked_cache_fingerprint_detects_collision() {
     );
 
     let interp = LinearInterpolator::new_zero_pad();
-    let zero_translation = Tensor::<B, 1>::zeros([3], &device);
+    let zero_translation = Tensor::<f32, B>::zeros([3], &device);
     let translation = TranslationTransform::<B, 3>::new(zero_translation);
 
     let hist = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &device);

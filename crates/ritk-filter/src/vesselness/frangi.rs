@@ -2,31 +2,31 @@
 //!
 //! # Mathematical specification
 //!
-//! Given a 3-D image `I`, for each scale σ:
-//! 1. Smooth `I` with a Gaussian of standard deviation σ (physical units).
+//! Given a 3-D image `I`, for each scale Ïƒ:
+//! 1. Smooth `I` with a Gaussian of standard deviation Ïƒ (physical units).
 //! 2. Compute the Hessian `H` at every voxel via the second-order Deriche IIR
 //!    recursion (matching ITK HessianRecursiveGaussianImageFilter).
-//! 3. Compute eigenvalues `|λ₁| ≤ |λ₂| ≤ |λ₃|` of `H`.
+//! 3. Compute eigenvalues `|Î»â‚| â‰¤ |Î»â‚‚| â‰¤ |Î»â‚ƒ|` of `H`.
 //! 4. Apply the Frangi vesselness measure:
 //!
 //! ```text
-//!   R_A = |λ₂| / |λ₃|                          (cross-section anisotropy)
-//!   R_B = |λ₁| / √(|λ₂| · |λ₃|)               (blobness)
-//!   S   = √(λ₁² + λ₂² + λ₃²)                  (structureness / Frobenius norm)
+//!   R_A = |Î»â‚‚| / |Î»â‚ƒ|                          (cross-section anisotropy)
+//!   R_B = |Î»â‚| / âˆš(|Î»â‚‚| Â· |Î»â‚ƒ|)               (blobness)
+//!   S   = âˆš(Î»â‚Â² + Î»â‚‚Â² + Î»â‚ƒÂ²)                  (structureness / Frobenius norm)
 //!
-//!   V(σ) = (1 − exp(−R_A²/(2α²)))
-//!         · exp(−R_B²/(2β²))
-//!         · (1 − exp(−S²/(2γ²)))
+//!   V(Ïƒ) = (1 âˆ’ exp(âˆ’R_AÂ²/(2Î±Â²)))
+//!         Â· exp(âˆ’R_BÂ²/(2Î²Â²))
+//!         Â· (1 âˆ’ exp(âˆ’SÂ²/(2Î³Â²)))
 //! ```
 //!
-//! For bright vessels (`bright_vessels = true`): `V = 0` if `λ₂ ≥ 0` or `λ₃ ≥ 0`.
-//! For dark  vessels (`bright_vessels = false`): `V = 0` if `λ₂ ≤ 0` or `λ₃ ≤ 0`.
+//! For bright vessels (`bright_vessels = true`): `V = 0` if `Î»â‚‚ â‰¥ 0` or `Î»â‚ƒ â‰¥ 0`.
+//! For dark  vessels (`bright_vessels = false`): `V = 0` if `Î»â‚‚ â‰¤ 0` or `Î»â‚ƒ â‰¤ 0`.
 //!
-//! 5. The final vesselness map is the **maximum** over all σ: `V*(p) = max_σ V(σ, p)`.
+//! 5. The final vesselness map is the **maximum** over all Ïƒ: `V*(p) = max_Ïƒ V(Ïƒ, p)`.
 //!
 //! # Reference
 //! Frangi, A. F., Niessen, W. J., Vincken, K. L., & Viergever, M. A. (1998).
-//! Multiscale vessel enhancement filtering. MICCAI, LNCS 1496, 130–137.
+//! Multiscale vessel enhancement filtering. MICCAI, LNCS 1496, 130â€“137.
 
 use super::hessian::symmetric_3x3_eigenvalues;
 use super::VesselPolarity;
@@ -35,14 +35,14 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// ── Configuration ─────────────────────────────────────────────────────────────
+// â”€â”€ Configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Configuration parameters for the Frangi vesselness filter.
 ///
 /// Default values match the recommendations in Frangi et al. (1998).
 #[derive(Debug, Clone)]
 pub struct FrangiConfig {
-    /// Scale values σ (in physical units, e.g. mm) at which to evaluate the filter.
+    /// Scale values Ïƒ (in physical units, e.g. mm) at which to evaluate the filter.
     /// The output is the maximum vesselness over all scales.
     pub scales: Vec<f64>,
     /// Plate-like vs. line-like anisotropy threshold (controls sensitivity of R_A).
@@ -71,7 +71,7 @@ impl Default for FrangiConfig {
     }
 }
 
-// ── Filter ────────────────────────────────────────────────────────────────────
+// â”€â”€ Filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Multi-scale Frangi vesselness filter for 3-D medical images.
 ///
@@ -102,7 +102,7 @@ impl FrangiVesselnessFilter {
     /// # Errors
     /// Returns an error if the tensor dtype is not `f32` or if the input is
     /// degenerate (fewer than 1 voxel per dimension).
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals_vec, dims) = extract_vec(image)?;
         let spacing = [image.spacing()[0], image.spacing()[1], image.spacing()[2]];
         let vesselness_max = self.compute(&vals_vec, dims, spacing);
@@ -146,7 +146,7 @@ impl FrangiVesselnessFilter {
         let mut vesselness_max = vec![0.0f32; n];
 
         for &sigma in &self.config.scales {
-            // Compute Hessian via second-order Deriche IIR recursion —
+            // Compute Hessian via second-order Deriche IIR recursion â€”
             // matching ITK HessianRecursiveGaussianImageFilter.
             let hessians = compute_hessian_iir(vals, dims, spacing, sigma);
 
@@ -174,7 +174,7 @@ impl FrangiVesselnessFilter {
     /// Evaluate the Frangi vesselness measure for a single voxel.
     ///
     /// Precondition: eigenvalues are sorted by absolute value ascending,
-    /// i.e. `|lambda1| ≤ |lambda2| ≤ |lambda3|`.
+    /// i.e. `|lambda1| â‰¤ |lambda2| â‰¤ |lambda3|`.
     #[inline]
     fn voxel_vesselness(&self, lambda1: f32, lambda2: f32, lambda3: f32) -> f32 {
         // Vessel polarity gate.
@@ -199,10 +199,10 @@ impl FrangiVesselnessFilter {
             return 0.0;
         }
 
-        // R_A = |λ₂| / |λ₃|  — cross-section anisotropy (plate vs. line).
+        // R_A = |Î»â‚‚| / |Î»â‚ƒ|  â€” cross-section anisotropy (plate vs. line).
         let r_a = lambda2.abs() / l3_abs;
 
-        // R_B = |λ₁| / √(|λ₂| · |λ₃|)  — blobness (blob vs. line/plate).
+        // R_B = |Î»â‚| / âˆš(|Î»â‚‚| Â· |Î»â‚ƒ|)  â€” blobness (blob vs. line/plate).
         let l2_l3_sqrt = (lambda2.abs() * l3_abs).sqrt();
         let r_b = if l2_l3_sqrt < 1e-20 {
             0.0f32
@@ -210,7 +210,7 @@ impl FrangiVesselnessFilter {
             lambda1.abs() / l2_l3_sqrt
         };
 
-        // S = ‖H‖_F = √(λ₁² + λ₂² + λ₃²)  — structureness.
+        // S = â€–Hâ€–_F = âˆš(Î»â‚Â² + Î»â‚‚Â² + Î»â‚ƒÂ²)  â€” structureness.
         let s = (lambda1 * lambda1 + lambda2 * lambda2 + lambda3 * lambda3).sqrt();
         if s < 1e-10 {
             return 0.0;
@@ -228,13 +228,13 @@ impl FrangiVesselnessFilter {
     }
 }
 
-// ── Separable Gaussian blur on Vec<f32> (test helper) ─────────────────────
+// â”€â”€ Separable Gaussian blur on Vec<f32> (test helper) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Apply separable 3-D Gaussian smoothing to a flat voxel buffer.
 ///
 /// Convolves sequentially along the Z, Y, and X axes.  Each axis uses a
-/// normalised Gaussian kernel of radius `⌈ 3·σ_px⌉` voxels where
-/// `σ_px = sigma_mm / spacing[axis]`.
+/// normalised Gaussian kernel of radius `âŒˆ 3Â·Ïƒ_pxâŒ‰` voxels where
+/// `Ïƒ_px = sigma_mm / spacing[axis]`.
 ///
 /// Boundary condition: replicate (clamp-to-edge).
 #[cfg(test)]

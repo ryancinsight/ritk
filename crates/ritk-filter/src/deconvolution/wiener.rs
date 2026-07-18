@@ -1,19 +1,19 @@
-//! Wiener deconvolution filter — 2-D and 3-D.
+//! Wiener deconvolution filter â€” 2-D and 3-D.
 //!
 //! # Theory
 //!
-//! Given `g = h ∗ u + n`, the Wiener filter minimises MSE by, per ITK's
+//! Given `g = h âˆ— u + n`, the Wiener filter minimises MSE by, per ITK's
 //! `WienerDeconvolutionImageFilter`:
 //!
 //! ```text
-//! U(ω) = G(ω) · H*(ω) / ( |H(ω)|² + Pn/|G(ω)|² )
+//! U(Ï‰) = G(Ï‰) Â· H*(Ï‰) / ( |H(Ï‰)|Â² + Pn/|G(Ï‰)|Â² )
 //! ```
 //!
-//! where `Pn/|G(ω)|²` = `1/snrSquared` is the SNR-based regularisation term
+//! where `Pn/|G(Ï‰)|Â²` = `1/snrSquared` is the SNR-based regularisation term
 //! that exactly matches ITK's `WienerDeconvolutionImageFilter::GenerateData()`.
 //! `Pn` is the noise power spectral density (the `noise_variance` parameter).
 //! The regularisation is frequency-adaptive: frequencies where the observed
-//! power `|G(ω)|²` is small receive stronger suppression. For a
+//! power `|G(Ï‰)|Â²` is small receive stronger suppression. For a
 //! *constant*-regularisation inverse filter use [`super::TikhonovDeconvolution`].
 
 use super::regularization::{apply_single_pass, WienerRule};
@@ -25,11 +25,11 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 /// Wiener deconvolution filter (minimum mean-square error restoration),
 /// matching ITK's `WienerDeconvolutionImageFilter`.
 ///
-/// Restores a degraded image `g = h ∗ u + n` given the PSF kernel `h` and the
+/// Restores a degraded image `g = h âˆ— u + n` given the PSF kernel `h` and the
 /// noise power spectral density `Pn`:
 ///
 /// ```text
-/// U(ω) = G(ω) · H*(ω) / ( |H(ω)|² + Pn/|G(ω)|² )
+/// U(Ï‰) = G(Ï‰) Â· H*(Ï‰) / ( |H(Ï‰)|Â² + Pn/|G(Ï‰)|Â² )
 /// ```
 ///
 /// # Use cases
@@ -53,9 +53,9 @@ impl WienerDeconvolution {
     /// Apply Wiener deconvolution to a D-dimensional image with a D-dimensional PSF kernel.
     pub fn apply<B: Backend, const D: usize>(
         &self,
-        image: &Image<B, D>,
-        kernel: &Image<B, D>,
-    ) -> Result<Image<B, D>> {
+        image: &Image<f32, B, D>,
+        kernel: &Image<f32, B, D>,
+    ) -> Result<Image<f32, B, D>> {
         let (img_vals, img_dims) = extract_vec(image)?;
         let (ker_vals, ker_dims) = extract_vec(kernel)?;
         let out_vals = apply_single_pass::<D, _>(

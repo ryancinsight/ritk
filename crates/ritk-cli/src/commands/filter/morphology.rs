@@ -1,4 +1,4 @@
-use anyhow::Result;
+﻿use anyhow::Result;
 use tracing::info;
 
 #[cfg(test)]
@@ -6,10 +6,8 @@ use super::Backend;
 use super::{
     super::{
         infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
-        write_image_native, NativeBackend,
-    },
-    FilterArgs,
-};
+        write_image_native, NativeBackend },
+    FilterArgs };
 
 pub(super) fn run_grayscale_erosion(args: &FilterArgs) -> Result<()> {
     use ritk_filter::GrayscaleErosion;
@@ -238,7 +236,7 @@ pub(super) fn run_morphological_reconstruction(args: &FilterArgs) -> Result<()> 
     Ok(())
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -295,8 +293,7 @@ mod tests {
             match kind {
                 FilterKind::WhiteTopHat => run_white_top_hat(&args),
                 FilterKind::BlackTopHat => run_black_top_hat(&args),
-                _ => unreachable!("top-hat test only enumerates top-hat routes"),
-            }
+                _ => unreachable!("top-hat test only enumerates top-hat routes") }
             .expect("top-hat route succeeds");
             let output = read_image_native(&output).expect("top-hat output is natively readable");
             assert_eq!(output.shape(), [5, 5, 5]);
@@ -397,8 +394,8 @@ mod tests {
         let device: <Backend as BurnBackend>::Device = Default::default();
         let mut v = vec![0.0f32; 125];
         v[2 * 25 + 2 * 5 + 2] = 1.0;
-        let td = TensorData::new(v, Shape::new([5, 5, 5]));
-        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let td = ::new(v, Shape::new([5, 5, 5]));
+        let tensor = Tensor::<f32, Backend>::from_data(td, &device);
         let image = Image::new(
             tensor,
             Point::new([0.0; 3]),
@@ -532,8 +529,8 @@ mod tests {
         let output_path = dir.path().join("output.nii");
 
         let device: <Backend as BurnBackend>::Device = Default::default();
-        let td = TensorData::new(vec![1.0f32; 125], Shape::new([5, 5, 5]));
-        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let td = ::new(vec![1.0f32; 125], Shape::new([5, 5, 5]));
+        let tensor = Tensor::<f32, Backend>::from_data(td, &device);
         let image = Image::new(
             tensor,
             Point::new([0.0; 3]),
@@ -557,8 +554,8 @@ mod tests {
         let output_path = dir.path().join("output.nii");
 
         let device: <Backend as BurnBackend>::Device = Default::default();
-        let td = TensorData::new(vec![0.5f32; 8], Shape::new([2, 2, 2]));
-        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let td = ::new(vec![0.5f32; 8], Shape::new([2, 2, 2]));
+        let tensor = Tensor::<f32, Backend>::from_data(td, &device);
         let image = Image::new(
             tensor,
             Point::new([0.0; 3]),

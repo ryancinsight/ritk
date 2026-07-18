@@ -1,4 +1,4 @@
-//! ONNX tensor (initializer or intermediate value).
+﻿//! ONNX tensor (initializer or intermediate value).
 
 use super::OnnxElementType;
 
@@ -14,8 +14,7 @@ pub struct OnnxTensor {
     /// Element data type
     pub data_type: OnnxElementType,
     /// Raw data as bytes (little-endian)
-    pub raw_data: Vec<u8>,
-}
+    pub raw_data: Vec<u8> }
 
 impl OnnxTensor {
     /// Create a new ONNX tensor.
@@ -26,8 +25,7 @@ impl OnnxTensor {
             name,
             dims,
             data_type,
-            raw_data: vec![0u8; data_size],
-        }
+            raw_data: vec![0u8; data_size] }
     }
 
     /// Get the number of dimensions.

@@ -1,4 +1,4 @@
-//! DICOM series loading into LoadedVolume.
+﻿//! DICOM series loading into LoadedVolume.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -7,8 +7,7 @@ use anyhow::{Context, Result};
 use coeus_core::SequentialBackend;
 use ritk_io::{
     is_rgb_dicom_series, load_color_volume_flat, load_color_volume_flat_from_path,
-    load_native_dicom_from_series, load_native_dicom_series_with_metadata,
-};
+    load_native_dicom_from_series, load_native_dicom_series_with_metadata };
 use tracing::info;
 
 use crate::LoadedVolume;
@@ -44,9 +43,9 @@ pub fn load_volume_from_scanned_series(
 /// [`load_dicom_volume`] and [`load_volume_from_scanned_series`].
 ///
 /// # Parameters
-/// - `image` — the reconstructed 3-D scalar image.
-/// - `meta` — per-series DICOM metadata.
-/// - `source` — optional filesystem source path (absent for SCP-received instances).
+/// - `image` â€” the reconstructed 3-D scalar image.
+/// - `meta` â€” per-series DICOM metadata.
+/// - `source` â€” optional filesystem source path (absent for SCP-received instances).
 fn loaded_volume_from_scalar_image(
     image: ritk_image::native::Image<f32, SequentialBackend, 3>,
     meta: ritk_io::DicomReadMetadata,
@@ -82,8 +81,7 @@ fn loaded_volume_from_scalar_image(
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None,
-    })
+        decay_correction: None })
 }
 
 /// Load a scalar DICOM series from a pre-scanned series descriptor.
@@ -142,8 +140,7 @@ fn loaded_volume_from_color_flat(
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None,
-    }
+        decay_correction: None }
 }
 
 /// Load an RGB DICOM colour series from a pre-scanned series descriptor.

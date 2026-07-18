@@ -7,17 +7,17 @@
 //! evolution follows the shape-detection model of Malladi, Sethian, and Vemuri
 //! (1995).
 //!
-//! Let `I` be the input image, `φ` the level set function, and
-//! `g(|∇I|) = 1 / (1 + (|∇I| / k)^2)` the edge-stopping function.
+//! Let `I` be the input image, `Ï†` the level set function, and
+//! `g(|âˆ‡I|) = 1 / (1 + (|âˆ‡I| / k)^2)` the edge-stopping function.
 //!
 //! The discretised evolution is:
 //!
 //! ```text
-//! ∂φ/∂t = g · (w_c · κ - w_p) · |∇φ| - w_a · ∇g · ∇φ
+//! âˆ‚Ï†/âˆ‚t = g Â· (w_c Â· Îº - w_p) Â· |âˆ‡Ï†| - w_a Â· âˆ‡g Â· âˆ‡Ï†
 //! ```
 //!
 //! where:
-//! - `κ = div(∇φ / |∇φ|)` is mean curvature,
+//! - `Îº = div(âˆ‡Ï† / |âˆ‡Ï†|)` is mean curvature,
 //! - `w_p > 0` drives outward propagation in homogeneous regions,
 //! - `w_c > 0` regularises the contour by curvature,
 //! - `w_a > 0` attracts the front toward image edges.
@@ -28,7 +28,7 @@
 //! - shared numerical helpers from `helpers.rs`,
 //! - `f64` for the PDE evolution pipeline.
 //!
-//! The final output is a binary mask obtained by thresholding `φ < 0`.
+//! The final output is a binary mask obtained by thresholding `Ï† < 0`.
 //!
 //! # References
 //!
@@ -38,7 +38,7 @@
 
 use super::helpers;
 use ritk_filter::edge::GaussianSigma;
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
 
@@ -63,7 +63,7 @@ pub struct ShapeDetectionSegmentation {
     pub dt: f64,
     /// Maximum number of PDE iterations.
     pub max_iterations: usize,
-    /// Convergence tolerance on `max |Δφ| / dt`.
+    /// Convergence tolerance on `max |Î”Ï†| / dt`.
     pub tolerance: f64,
 }
 
@@ -104,9 +104,9 @@ impl ShapeDetectionSegmentation {
     /// not match.
     pub fn apply<B: Backend>(
         &self,
-        image: &Image<B, 3>,
-        initial_phi: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
+        image: &Image<f32, B, 3>,
+        initial_phi: &Image<f32, B, 3>,
+    ) -> anyhow::Result<Image<f32, B, 3>> {
         let dims = image.shape();
         let [nz, ny, nx] = dims;
         let phi_dims = initial_phi.shape();
@@ -118,7 +118,7 @@ impl ShapeDetectionSegmentation {
             );
         }
 
-        let device = image.data().device();
+        let device = B::default();
 
         let (img_vals, _) = extract_vec(image)?;
         let (phi_init, _) = extract_vec(initial_phi)?;
@@ -145,7 +145,7 @@ impl ShapeDetectionSegmentation {
         for _iter in 0..self.max_iterations {
             helpers::compute_curvature_into(&phi, dims, &mut kappa);
             helpers::compute_field_gradient_into(&phi, dims, &mut phi_z, &mut phi_y, &mut phi_x);
-            // Upwind discretisation of the advection (transport) term ∇g·∇φ;
+            // Upwind discretisation of the advection (transport) term âˆ‡gÂ·âˆ‡Ï†;
             // central differencing it is unstable and leaks the front past edges.
             helpers::upwind_advection_into(&phi, dims, &g_z, &g_y, &g_x, &mut adv);
 
@@ -165,7 +165,7 @@ impl ShapeDetectionSegmentation {
 
                         let curvature = self.curvature_weight * g[idx] * kappa[idx] * grad_phi_mag;
                         let propagation = self.propagation_weight * g[idx] * grad_phi_mag;
-                        // Edge attraction +w_a·∇g·∇φ, upwind-discretised for stability.
+                        // Edge attraction +w_aÂ·âˆ‡gÂ·âˆ‡Ï†, upwind-discretised for stability.
                         let advection = self.advection_weight * adv[idx];
 
                         let dphi = self.dt * (curvature - propagation + advection);
@@ -193,7 +193,7 @@ impl ShapeDetectionSegmentation {
             .map(|&v| if v < 0.0 { 1.0_f32 } else { 0.0_f32 })
             .collect();
 
-        let tensor = Tensor::<B, 3>::from_data(TensorData::new(mask, Shape::new(dims)), &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(dims, &mask, &device);
 
         Ok(Image::new(
             tensor,

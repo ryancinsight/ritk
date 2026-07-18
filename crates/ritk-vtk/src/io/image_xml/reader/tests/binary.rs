@@ -1,4 +1,4 @@
-use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
+﻿use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
 use crate::io::image_xml::reader::read_vti_binary_appended_bytes;
 use crate::io::image_xml::writer::write_vti_binary_appended_bytes;
 
@@ -8,7 +8,7 @@ use crate::io::image_xml::writer::write_vti_binary_appended_bytes;
 #[test]
 #[allow(clippy::approx_constant)]
 fn test_read_vti_binary_appended_cell_data_roundtrip() {
-    // extent [0,1,0,1,0,1] → n_cells = 1×1×1 = 1; n_points = 2×2×2 = 8
+    // extent [0,1,0,1,0,1] â†’ n_cells = 1Ã—1Ã—1 = 1; n_points = 2Ã—2Ã—2 = 8
     let grid = VtkImageData {
         whole_extent: [0, 1, 0, 1, 0, 1],
         origin: [0.0, 0.0, 0.0],
@@ -20,12 +20,10 @@ fn test_read_vti_binary_appended_cell_data_roundtrip() {
                 "pressure".to_string(),
                 AttributeArray::Scalars {
                     values: vec![42.0f32],
-                    num_components: 1,
-                },
+                    num_components: 1 },
             );
             m
-        },
-    };
+        } };
 
     let bytes = write_vti_binary_appended_bytes(&grid)
         .expect("write_vti_binary_appended_bytes must succeed on cell-data-only grid");
@@ -38,8 +36,7 @@ fn test_read_vti_binary_appended_cell_data_roundtrip() {
     );
     let values = match parsed.cell_data.get("pressure").unwrap() {
         AttributeArray::Scalars { values, .. } => values.clone(),
-        other => panic!("expected Scalars variant for 'pressure', got {:?}", other),
-    };
+        other => panic!("expected Scalars variant for 'pressure', got {:?}", other) };
     assert_eq!(values.len(), 1, "pressure CellData must have 1 value");
     assert!(
         (values[0] - 42.0f32).abs() < 1e-6,
@@ -54,7 +51,7 @@ fn test_read_vti_binary_appended_cell_data_roundtrip() {
 #[test]
 #[allow(clippy::approx_constant)]
 fn test_read_vti_binary_appended_preserves_both_sections() {
-    // extent [0,1,0,1,0,0] → n_points = 2×2×1 = 4; n_cells = 1×1×1 = 1
+    // extent [0,1,0,1,0,0] â†’ n_points = 2Ã—2Ã—1 = 4; n_cells = 1Ã—1Ã—1 = 1
     let grid = VtkImageData {
         whole_extent: [0, 1, 0, 1, 0, 0],
         origin: [0.0, 0.0, 0.0],
@@ -65,8 +62,7 @@ fn test_read_vti_binary_appended_preserves_both_sections() {
                 "temperature".to_string(),
                 AttributeArray::Scalars {
                     values: vec![100.0f32, 200.0, 300.0, 400.0],
-                    num_components: 1,
-                },
+                    num_components: 1 },
             );
             m
         },
@@ -76,12 +72,10 @@ fn test_read_vti_binary_appended_preserves_both_sections() {
                 "flux".to_string(),
                 AttributeArray::Scalars {
                     values: vec![3.14f32],
-                    num_components: 1,
-                },
+                    num_components: 1 },
             );
             m
-        },
-    };
+        } };
 
     let bytes = write_vti_binary_appended_bytes(&grid)
         .expect("write_vti_binary_appended_bytes must succeed on mixed grid");
@@ -94,8 +88,7 @@ fn test_read_vti_binary_appended_preserves_both_sections() {
     );
     let temp_vals = match parsed.point_data.get("temperature").unwrap() {
         AttributeArray::Scalars { values, .. } => values.clone(),
-        other => panic!("expected Scalars for 'temperature', got {:?}", other),
-    };
+        other => panic!("expected Scalars for 'temperature', got {:?}", other) };
     assert_eq!(temp_vals.len(), 4, "temperature must have 4 values");
     assert!(
         (temp_vals[3] - 400.0f32).abs() < 1e-6,
@@ -110,8 +103,7 @@ fn test_read_vti_binary_appended_preserves_both_sections() {
     );
     let flux_vals = match parsed.cell_data.get("flux").unwrap() {
         AttributeArray::Scalars { values, .. } => values.clone(),
-        other => panic!("expected Scalars for 'flux', got {:?}", other),
-    };
+        other => panic!("expected Scalars for 'flux', got {:?}", other) };
     assert_eq!(flux_vals.len(), 1, "flux must have 1 value");
     assert!(
         (flux_vals[0] - 3.14f32).abs() < 1e-5,

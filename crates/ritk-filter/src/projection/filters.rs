@@ -4,7 +4,7 @@ use anyhow::Result;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 
-// ── MaxIntensityProjectionFilter ──────────────────────────────────────────────
+// â”€â”€ MaxIntensityProjectionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Maximum intensity projection along a chosen axis.
 pub struct MaxIntensityProjectionFilter {
@@ -16,7 +16,7 @@ impl MaxIntensityProjectionFilter {
         Self { axis }
     }
 
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         fold_native(self.axis, image, f32::NEG_INFINITY, |a, b| {
             if b > a {
                 b
@@ -76,7 +76,7 @@ impl MaxIntensityProjectionFilter {
     }
 }
 
-// ── MinIntensityProjectionFilter ──────────────────────────────────────────────
+// â”€â”€ MinIntensityProjectionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Minimum intensity projection along a chosen axis.
 pub struct MinIntensityProjectionFilter {
@@ -88,7 +88,7 @@ impl MinIntensityProjectionFilter {
         Self { axis }
     }
 
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         fold_native(
             self.axis,
             image,
@@ -104,7 +104,7 @@ impl MinIntensityProjectionFilter {
     }
 }
 
-// ── MeanIntensityProjectionFilter ─────────────────────────────────────────────
+// â”€â”€ MeanIntensityProjectionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Mean intensity projection along a chosen axis (f64 accumulation).
 pub struct MeanIntensityProjectionFilter {
@@ -116,12 +116,12 @@ impl MeanIntensityProjectionFilter {
         Self { axis }
     }
 
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         fold_wide(self.axis, image, |sum, n| (sum / n as f64) as f32)
     }
 }
 
-// ── SumIntensityProjectionFilter ──────────────────────────────────────────────
+// â”€â”€ SumIntensityProjectionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Sum intensity projection along a chosen axis (f64 accumulation).
 pub struct SumIntensityProjectionFilter {
@@ -133,12 +133,12 @@ impl SumIntensityProjectionFilter {
         Self { axis }
     }
 
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         fold_wide(self.axis, image, |sum, _n| sum as f32)
     }
 }
 
-// ── StdDevIntensityProjectionFilter ───────────────────────────────────────────
+// â”€â”€ StdDevIntensityProjectionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Population standard-deviation projection along a chosen axis (f64 accumulation).
 pub struct StdDevIntensityProjectionFilter {
@@ -150,12 +150,12 @@ impl StdDevIntensityProjectionFilter {
         Self { axis }
     }
 
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         project_stddev(self.axis, image)
     }
 }
 
-// ── MedianIntensityProjectionFilter ───────────────────────────────────────────
+// â”€â”€ MedianIntensityProjectionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Median intensity projection along a chosen axis.
 pub struct MedianIntensityProjectionFilter {
@@ -167,12 +167,12 @@ impl MedianIntensityProjectionFilter {
         Self { axis }
     }
 
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         project_median(self.axis, image)
     }
 }
 
-// ── BinaryProjectionFilter ────────────────────────────────────────────────────
+// â”€â”€ BinaryProjectionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Binary projection along a chosen axis: a result pixel is `foreground` if
 /// **any** voxel along the collapsed axis equals `foreground`, else `background`.
@@ -191,7 +191,7 @@ impl BinaryProjectionFilter {
         }
     }
 
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         let fg = self.foreground;
         project_any(
             self.axis,
@@ -203,7 +203,7 @@ impl BinaryProjectionFilter {
     }
 }
 
-// ── BinaryThresholdProjectionFilter ───────────────────────────────────────────
+// â”€â”€ BinaryThresholdProjectionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Binary-threshold projection: a result pixel is `foreground` if **any** voxel
 /// along the collapsed axis is `>= threshold`, else `background`.
@@ -224,7 +224,7 @@ impl BinaryThresholdProjectionFilter {
         }
     }
 
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         let thr = self.threshold;
         project_any(
             self.axis,

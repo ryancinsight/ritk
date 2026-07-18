@@ -16,7 +16,7 @@
 //!    each cumulative distribution (the bin-centre intensity where the CDF first
 //!    reaches the quantile).
 //! 4. Form the monotone landmark pairs
-//!    `[min, threshold, sQ₁…sQ_K, max] → [min, threshold, rQ₁…rQ_K, max]` and map
+//!    `[min, threshold, sQâ‚â€¦sQ_K, max] â†’ [min, threshold, rQâ‚â€¦rQ_K, max]` and map
 //!    every source intensity through the resulting piecewise-linear transform.
 //!
 //! # Invariants
@@ -27,7 +27,7 @@
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::native as tensor_ops;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
@@ -75,11 +75,15 @@ impl HistogramMatcher {
     ///
     /// Returns a new `Image` with the same shape and spatial metadata as
     /// `source`. A constant source is returned unchanged.
-    pub fn match_histograms<B: Backend, const D: usize>(
+    pub fn match_histograms<B, const D: usize>(
         &self,
-        source: &Image<B, D>,
-        reference: &Image<B, D>,
-    ) -> Image<B, D> {
+        source: &Image<f32, B, D>,
+        reference: &Image<f32, B, D>,
+    ) -> Image<f32, B, D>
+    where
+        B: Backend + Default,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
         let (mut src_vec, dims) = extract_vec_infallible(source);
         let (ref_vec, _) = extract_vec_infallible(reference);
         self.transform_values(&mut src_vec, &ref_vec);
@@ -137,7 +141,7 @@ impl HistogramMatcher {
         let src_q = quantile_landmarks(src, src_thresh, src_max, self.num_bins, k);
         let ref_q = quantile_landmarks(reference, ref_thresh, ref_max, self.num_bins, k);
 
-        // Monotone landmark pairs: [min, thresh, Q₁…Q_K, max].
+        // Monotone landmark pairs: [min, thresh, Qâ‚â€¦Q_K, max].
         let mut src_land = Vec::with_capacity(k + 3);
         let mut ref_land = Vec::with_capacity(k + 3);
         src_land.push(src_min);

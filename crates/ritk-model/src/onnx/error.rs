@@ -1,4 +1,4 @@
-//! Typed ONNX document parsing failures.
+﻿//! Typed ONNX document parsing failures.
 
 use thiserror::Error;
 
@@ -12,15 +12,12 @@ pub enum OnnxError {
     #[error("ONNX protobuf parse failed: {message}")]
     ProtobufParseError {
         /// Parser diagnostic with path context.
-        message: String,
-    },
+        message: String },
     /// Parsed graph connectivity violates the ONNX graph contract.
     #[error("invalid ONNX model structure: {message}")]
     InvalidModel {
         /// Violated graph invariant.
-        message: String,
-    },
-}
+        message: String } }
 
 #[cfg(test)]
 mod tests {
@@ -29,8 +26,7 @@ mod tests {
     #[test]
     fn validation_error_names_the_violated_contract() {
         let error = OnnxError::InvalidModel {
-            message: "missing graph input x".to_string(),
-        };
+            message: "missing graph input x".to_string() };
         assert_eq!(
             error.to_string(),
             "invalid ONNX model structure: missing graph input x"

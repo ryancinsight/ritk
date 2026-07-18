@@ -1,6 +1,6 @@
-use super::{CtxState, QE_TABLE};
+﻿use super::{CtxState, QE_TABLE};
 
-/// MQ arithmetic encoder (ISO 15444-1 §C.2).
+/// MQ arithmetic encoder (ISO 15444-1 Â§C.2).
 pub struct MqEncoder {
     /// Output byte buffer.
     out: Vec<u8>,
@@ -14,8 +14,7 @@ pub struct MqEncoder {
     b: u32,
     /// `true` until the first `byteout` commit: the initial pending byte is a
     /// dummy (OpenJPEG's `bp = start - 1` slot) and is discarded, not emitted.
-    first: bool,
-}
+    first: bool }
 
 impl Default for MqEncoder {
     fn default() -> Self {
@@ -24,7 +23,7 @@ impl Default for MqEncoder {
 }
 
 impl MqEncoder {
-    /// Create a new MQ encoder (ISO 15444-1 §C.2.7 INITENC).
+    /// Create a new MQ encoder (ISO 15444-1 Â§C.2.7 INITENC).
     pub fn new() -> Self {
         Self {
             out: Vec::new(),
@@ -32,8 +31,7 @@ impl MqEncoder {
             c: 0,
             ct: 12,
             b: 0,
-            first: true,
-        }
+            first: true }
     }
 
     /// Encode one binary symbol `d` (0 or 1) using the given context.
@@ -46,10 +44,10 @@ impl MqEncoder {
     }
 
     /// Flush the remaining bits to `out` and return the encoded bytes
-    /// (ISO 15444-1 §C.2.9 FLUSH).
+    /// (ISO 15444-1 Â§C.2.9 FLUSH).
     pub fn finish(mut self) -> Vec<u8> {
-        // ISO 15444-1 §C.2.9 FLUSH (= OpenJPEG `opj_mqc_flush`):
-        // SETBITS; C <<= CT; BYTEOUT; C <<= CT; BYTEOUT — the second shift uses
+        // ISO 15444-1 Â§C.2.9 FLUSH (= OpenJPEG `opj_mqc_flush`):
+        // SETBITS; C <<= CT; BYTEOUT; C <<= CT; BYTEOUT â€” the second shift uses
         // the CT set by the first BYTEOUT (7 after a stuffed byte, else 8); a
         // fixed 8 misaligns the final bits. The final pending byte is included
         // only when it is not 0xFF (OpenJPEG `if (*bp != 0xff) bp++`); pushing
@@ -66,7 +64,7 @@ impl MqEncoder {
         self.out
     }
 
-    // ── private helpers ──────────────────────────────────────────────────────
+    // â”€â”€ private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// CODEMPS (ISO 15444-1 Figure C.7).
     ///
@@ -81,9 +79,9 @@ impl MqEncoder {
         self.a -= qe;
         if self.a & 0x8000 != 0 {
             // Still normalised: MPS takes the upper interval. No state
-            // transition — ISO 15444-1 Figure C.7 advances I(CX) only on the
+            // transition â€” ISO 15444-1 Figure C.7 advances I(CX) only on the
             // renormalisation path (probability estimation is renorm-driven,
-            // §C.2.6); matching OpenJPEG `opj_mqc_codemps`.
+            // Â§C.2.6); matching OpenJPEG `opj_mqc_codemps`.
             self.c += qe;
         } else {
             if self.a < qe {
@@ -100,10 +98,10 @@ impl MqEncoder {
     /// CODELPS (ISO 15444-1 Figure C.8).
     ///
     /// Exchange (A < Qe): C += Qe so the code lands in the MPS region;
-    /// the DECODER routes via `mps_exchange` exchange → returns 1−mps. ✓
-    /// No-exchange (A ≥ Qe): C unchanged; code stays in the LPS region;
-    /// the DECODER routes via `lps_exchange` no-exchange → returns 1−mps. ✓
-    /// Both paths: A = Qe (synchronises renorm depth with the decoder), state → NLPS,
+    /// the DECODER routes via `mps_exchange` exchange â†’ returns 1âˆ’mps. âœ“
+    /// No-exchange (A â‰¥ Qe): C unchanged; code stays in the LPS region;
+    /// the DECODER routes via `lps_exchange` no-exchange â†’ returns 1âˆ’mps. âœ“
+    /// Both paths: A = Qe (synchronises renorm depth with the decoder), state â†’ NLPS,
     /// flip MPS when SWITCH is set.
     #[inline]
     fn lps_encode(&mut self, ctx: &mut CtxState) {
@@ -112,7 +110,7 @@ impl MqEncoder {
         self.a -= qe;
         if self.a < qe {
             // Conditional exchange (Figure C.8): LPS takes the upper interval;
-            // A keeps its reduced value A − Qe. Setting A = Qe here desyncs the
+            // A keeps its reduced value A âˆ’ Qe. Setting A = Qe here desyncs the
             // decoder (regression test: ebcot_1x7_tail_refinement_round_trip).
             self.c += qe;
         } else {
@@ -158,7 +156,7 @@ impl MqEncoder {
     }
 
     /// Output a compressed byte to `out`, handling carry propagation and
-    /// byte-stuffing of 0xFF (ISO 15444-1 §C.2.4 BYTEOUT, = OpenJPEG
+    /// byte-stuffing of 0xFF (ISO 15444-1 Â§C.2.4 BYTEOUT, = OpenJPEG
     /// `opj_mqc_byteout`).
     #[inline]
     fn byteout(&mut self) {
@@ -192,7 +190,7 @@ impl MqEncoder {
         }
     }
 
-    /// Prepare the interval end-bits before flushing (ISO 15444-1 §C.2.9 SETBITS).
+    /// Prepare the interval end-bits before flushing (ISO 15444-1 Â§C.2.9 SETBITS).
     fn set_bits(&mut self) {
         let temp_length = self.a + self.c;
         self.c |= 0x0000_FFFF;

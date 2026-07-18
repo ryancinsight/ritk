@@ -1,4 +1,4 @@
-use crate::progress::{ProgressCallback, ProgressInfo};
+﻿use crate::progress::{ProgressCallback, ProgressInfo};
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -8,15 +8,13 @@ pub struct ProgressTracker {
     /// Registered callbacks.
     callbacks: Vec<Arc<dyn ProgressCallback>>,
     /// Start time.
-    start_time: OnceLock<Instant>,
-}
+    start_time: OnceLock<Instant> }
 
 impl Default for ProgressTracker {
     fn default() -> Self {
         Self {
             callbacks: Vec::with_capacity(4),
-            start_time: OnceLock::new(),
-        }
+            start_time: OnceLock::new() }
     }
 }
 

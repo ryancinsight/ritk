@@ -1,4 +1,4 @@
-//! Series loading — `load_dicom_series`, `read_dicom_series`, and the `DicomReader` facade.
+//! Series loading â€” `load_dicom_series`, `read_dicom_series`, and the `DicomReader` facade.
 
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
@@ -10,8 +10,8 @@ use ritk_dicom::{
     PixelSignedness,
 };
 use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::backend::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing, Vector};
 use std::path::{Path, PathBuf};
 
@@ -25,11 +25,10 @@ use super::types::DicomSeriesInfo;
 /// Performs rigorous checks for spatial consistency (uniform spacing, orientation).
 pub fn load_dicom_series<B: Backend>(
     series: &DicomSeriesInfo,
-    device: &B::Device,
-) -> Result<Image<B, 3>> {
+    device: &B,
+) -> Result<Image<f32, B, 3>> {
     let decoded = decode_series(series)?;
-    let data = TensorData::new(decoded.voxels, Shape::new(decoded.shape));
-    let tensor = Tensor::<B, 3>::from_data(data, device);
+    let tensor = Tensor::<f32, B>::from_slice_on(decoded.shape, &decoded.voxels, device);
 
     Ok(Image::new(
         tensor,
@@ -263,8 +262,8 @@ fn decode_series(series: &DicomSeriesInfo) -> Result<DecodedDicomSeries> {
 /// If multiple series exist, it errors out to avoid ambiguity.
 pub fn read_dicom_series<B: Backend, P: AsRef<Path>>(
     path: P,
-    device: &B::Device,
-) -> Result<Image<B, 3>> {
+    device: &B,
+) -> Result<Image<f32, B, 3>> {
     let path_ref = path.as_ref().to_path_buf();
 
     let series_list = scan_dicom_directory(&path_ref)?;
@@ -334,17 +333,17 @@ use crate::domain::ImageReader;
 
 /// DIP boundary executing strict `ImageReader` invariants over standard DICOM datasets.
 pub struct DicomReader<B: Backend> {
-    device: B::Device,
+    device: B,
 }
 
 impl<B: Backend> DicomReader<B> {
-    pub fn new(device: B::Device) -> Self {
+    pub fn new(device: B) -> Self {
         Self { device }
     }
 }
 
-impl<B: Backend> ImageReader<Image<B, 3>> for DicomReader<B> {
-    fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<B, 3>> {
+impl<B: Backend> ImageReader<Image<f32, B, 3>> for DicomReader<B> {
+    fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<Image<f32, B, 3>> {
         read_dicom_series(path, &self.device).map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
@@ -354,13 +353,13 @@ mod tests {
     use super::{load_dicom_series, load_native_dicom_series};
     use coeus_core::SequentialBackend;
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::Tensor;
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
 
     #[test]
     fn native_series_loader_matches_legacy_loader() {
-        type B = burn_ndarray::NdArray<f32>;
+        type B = coeus_core::SequentialBackend;
 
         let dir = tempfile::tempdir().expect("tempdir");
         let series_path = dir.path().join("series_native_parity");
@@ -369,12 +368,9 @@ mod tests {
         let values: Vec<f32> = (0..(depth * rows * cols))
             .map(|i| i as f32 * 0.25 + 2.0)
             .collect();
-        let device = <B as ritk_image::tensor::backend::Backend>::Device::default();
-        let tensor = Tensor::<B, 3>::from_data(
-            TensorData::new(values, Shape::new([depth, rows, cols])),
-            &device,
-        );
-        let image = Image::<B, 3>::new(
+        let device = B::default();
+        let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &(values), &device);
+        let image = Image::<f32, B, 3>::new(
             tensor,
             Point::new([1.0, 2.0, 3.0]),
             Spacing::new([1.5, 0.75, 0.5]),

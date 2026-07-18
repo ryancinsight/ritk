@@ -1,4 +1,4 @@
-//! Pre-allocated scratch buffers for per-frame texture rebuild operations.
+﻿//! Pre-allocated scratch buffers for per-frame texture rebuild operations.
 //!
 //! # Allocation invariant
 //!
@@ -42,8 +42,7 @@ pub(crate) struct RenderBufferPool {
     /// u8 scratch for RGBA intermediate encoding.
     pub(crate) rgba_u8: Vec<u8>,
     /// Color32 scratch for viewport orientation transform output.
-    pub(crate) color32: Vec<egui::Color32>,
-}
+    pub(crate) color32: Vec<egui::Color32> }
 
 impl RenderBufferPool {
     /// Resize `rgba_u8` to exactly `len` elements, reusing existing capacity.

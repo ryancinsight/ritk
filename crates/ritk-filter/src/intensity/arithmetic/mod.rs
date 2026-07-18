@@ -1,6 +1,6 @@
 //! Pixelwise arithmetic intensity transform filters.
 //!
-//! Each filter is a pure pixelwise map `f : f32 → f32` applied independently to
+//! Each filter is a pure pixelwise map `f : f32 â†’ f32` applied independently to
 //! every voxel in a D-dimensional image. Spatial metadata (origin, spacing,
 //! direction) is preserved identically in every output image.
 //!
@@ -15,15 +15,15 @@
 //! |------------------------------|------------------------------------|-------------------------|
 //! | `AbsImageFilter`             | `AbsImageFilter`                   | Abs                     |
 //! | `InvertIntensityFilter`      | `InvertIntensityImageFilter`       | (Image > Adjust > Invert) |
-//! | `NormalizeImageFilter`       | `NormalizeImageFilter`             | —                       |
+//! | `NormalizeImageFilter`       | `NormalizeImageFilter`             | â€”                       |
 //! | `SquareImageFilter`          | `SquareImageFilter`                | Square                  |
 //! | `SqrtImageFilter`            | `SqrtImageFilter`                  | Square Root             |
 //! | `LogImageFilter`             | `LogImageFilter`                   | Log                     |
 //! | `Log10ImageFilter`          | `Log10ImageFilter`                 | Log (base 10)           |
 //! | `ExpImageFilter`             | `ExpImageFilter`                   | Exp                     |
-//! | `ExpNegativeImageFilter`    | `ExpNegativeImageFilter`           | —                       |
+//! | `ExpNegativeImageFilter`    | `ExpNegativeImageFilter`           | â€”                       |
 
-// ── Generic unary infrastructure ─────────────────────────────────────────────
+// â”€â”€ Generic unary infrastructure â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub mod unary;
 pub use unary::{
     Abs, AbsImageFilter, Acos, AcosImageFilter, Asin, AsinImageFilter, Atan, AtanImageFilter,
@@ -34,14 +34,14 @@ pub use unary::{
     UnaryPixelOp,
 };
 
-// ── Test-hosting modules (one per filter; contain only the #[cfg(test)] block) ─
+// â”€â”€ Test-hosting modules (one per filter; contain only the #[cfg(test)] block) â”€
 pub mod abs;
 pub mod exp;
 pub mod log;
 pub mod sqrt;
 pub mod square;
 
-// ── Filters with unique state ─────────────────────────────────────────────────
+// â”€â”€ Filters with unique state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub mod binary_not;
 pub mod bitwise_not;
 pub mod invert;

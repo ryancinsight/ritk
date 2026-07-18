@@ -1,4 +1,4 @@
-//! VTK-style data-flow pipeline abstractions.
+﻿//! VTK-style data-flow pipeline abstractions.
 //!
 //! # Architecture
 //!
@@ -17,7 +17,7 @@
 //!
 //! Given pipeline P with output mtime M_out and the maximum mtime M_dep of
 //! its source and filter stages, P must re-execute iff M_dep > M_out.
-//! When M_dep ≤ M_out, the cached output is valid and `execute_if_needed`
+//! When M_dep â‰¤ M_out, the cached output is valid and `execute_if_needed`
 //! returns `Ok(None)`.
 //!
 //! # Event Notification Invariant
@@ -95,8 +95,7 @@ pub struct VtkPipeline {
     sink: Option<Box<dyn VtkSink>>,
     mtime: ModifiedTime,
     event_handlers: EventHandlers,
-    cached_output: Option<VtkDataObject>,
-}
+    cached_output: Option<VtkDataObject> }
 
 impl VtkPipeline {
     /// Construct a pipeline with the given source and no filters or sink.
@@ -107,8 +106,7 @@ impl VtkPipeline {
             sink: None,
             mtime: ModifiedTime::tick(),
             event_handlers: EventHandlers::new(),
-            cached_output: None,
-        }
+            cached_output: None }
     }
 
     /// Append a filter stage. Returns `&mut Self` for chaining.
@@ -178,9 +176,9 @@ impl VtkPipeline {
     ///
     /// # Returns
     ///
-    /// - `Ok(None)` — no re-execution needed; cached output is valid.
-    /// - `Ok(Some(data))` — execution happened and produced new output.
-    /// - `Err(e)` — execution failed.
+    /// - `Ok(None)` â€” no re-execution needed; cached output is valid.
+    /// - `Ok(Some(data))` â€” execution happened and produced new output.
+    /// - `Err(e)` â€” execution failed.
     pub fn execute_if_needed(&mut self) -> Result<Option<VtkDataObject>> {
         let max_dep = self.source.mtime().max(
             self.filters

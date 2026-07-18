@@ -1,4 +1,4 @@
-//! NRRD (Nearly Raw Raster Data) I/O for RITK.
+﻿//! NRRD (Nearly Raw Raster Data) I/O for RITK.
 //!
 //! This crate provides canonical single-source-of-truth implementations for reading and writing
 //! NRRD files. It separates NRRD logic from the polymorphic I/O dispatch layer in `ritk-io`.
@@ -41,8 +41,7 @@ use std::path::Path;
 
 /// DIP boundary executing strict spatial metadata preservation over standard NRRD datasets.
 pub struct NrrdDipReader<B: ComputeBackend> {
-    backend: B,
-}
+    backend: B }
 
 impl<B: ComputeBackend> NrrdDipReader<B> {
     pub fn new(backend: B) -> Self {
@@ -56,8 +55,7 @@ impl<B: ComputeBackend> NrrdDipReader<B> {
 
 /// DIP boundary executing strict spatial metadata preservation over standard NRRD datasets.
 pub struct NrrdDipWriter<B: ComputeBackend> {
-    backend: B,
-}
+    backend: B }
 
 impl<B: ComputeBackend> NrrdDipWriter<B> {
     pub fn new(backend: B) -> Self {

@@ -3,13 +3,13 @@ use anyhow::{bail, Result};
 /// Linear-LUT colormaps (those expressible without a piecewise table).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Colormap {
-    /// Greyscale — `(s, s, s)`. ITK default.
+    /// Greyscale â€” `(s, s, s)`. ITK default.
     Grey,
-    /// Red ramp — `(s, 0, 0)`.
+    /// Red ramp â€” `(s, 0, 0)`.
     Red,
-    /// Green ramp — `(0, s, 0)`.
+    /// Green ramp â€” `(0, s, 0)`.
     Green,
-    /// Blue ramp — `(0, 0, s)`.
+    /// Blue ramp â€” `(0, 0, s)`.
     Blue,
 }
 

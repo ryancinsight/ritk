@@ -1,4 +1,4 @@
-//! Three-dimensional directional sequence views.
+﻿//! Three-dimensional directional sequence views.
 
 use coeus_autograd::{flip, permute, reshape, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
@@ -22,8 +22,7 @@ impl Scan3D {
             return Err(ModelError::Shape {
                 operation: "Scan3D::scan",
                 expected: "[batch, channels, depth, height, width]",
-                actual: shape.to_vec(),
-            });
+                actual: shape.to_vec() });
         }
         let (batch, channels, depth, height, width) =
             (shape[0], shape[1], shape[2], shape[3], shape[4]);
@@ -33,8 +32,7 @@ impl Scan3D {
             ScanDirection::VerticalForward => permute(input, &[0, 1, 2, 4, 3]),
             ScanDirection::VerticalReverse => permute(&flip(input, 3), &[0, 1, 2, 4, 3]),
             ScanDirection::DepthForward => permute(input, &[0, 1, 3, 4, 2]),
-            ScanDirection::DepthReverse => permute(&flip(input, 2), &[0, 1, 3, 4, 2]),
-        };
+            ScanDirection::DepthReverse => permute(&flip(input, 2), &[0, 1, 3, 4, 2]) };
         Ok(reshape(&ordered, [batch, channels, depth * height * width]))
     }
 
@@ -55,8 +53,7 @@ impl Scan3D {
             return Err(ModelError::Shape {
                 operation: "Scan3D::merge",
                 expected: "[batch, channels, depth * height * width]",
-                actual: shape.to_vec(),
-            });
+                actual: shape.to_vec() });
         }
         let (batch, channels) = (shape[0], shape[1]);
         Ok(match direction {
@@ -88,7 +85,6 @@ impl Scan3D {
                     &[0, 1, 4, 2, 3],
                 ),
                 2,
-            ),
-        })
+            ) })
     }
 }

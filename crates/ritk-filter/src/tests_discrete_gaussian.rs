@@ -1,25 +1,28 @@
 use super::*;
 use crate::edge::GaussianSigma;
-use crate::native_support::LegacyBurnBackend;
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
 use ritk_spatial::{Direction, Point, Spacing};
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(vals: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(vals, shape)
+fn make_image(vals: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(vals, shape)
 }
-fn make_image_with_spacing(vals: Vec<f32>, shape: [usize; 3], spacing: [f64; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image_with_spacing::<B, 3>(vals, shape, spacing)
+fn make_image_with_spacing(
+    vals: Vec<f32>,
+    shape: [usize; 3],
+    spacing: [f64; 3],
+) -> Image<f32, B, 3> {
+    ts::make_image_with_spacing::<f32, B, 3>(vals, shape, spacing)
 }
-fn vals(img: &Image<B, 3>) -> Vec<f32> {
-    img.data().clone().into_data().into_vec::<f32>().unwrap()
+fn vals(img: &Image<f32, B, 3>) -> Vec<f32> {
+    img.data().to_vec()
 }
 
 // Helper: near-zero sigma that lies below the 1e-9 skip threshold.
-// sigma = 1e-100 → variance ≈ 0 → pixel_sigma << 1e-9 → no kernel built (identity).
+// sigma = 1e-100 â†’ variance â‰ˆ 0 â†’ pixel_sigma << 1e-9 â†’ no kernel built (identity).
 const NEAR_ZERO_SIGMA: f64 = 1e-100;
 
 #[test]
@@ -80,7 +83,7 @@ fn test_use_image_spacing_accounts_for_spacing() {
 fn test_zero_variance_produces_identity() {
     let v: Vec<f32> = (0..27).map(|i| i as f32).collect();
     let img = make_image(v.clone(), [3, 3, 3]);
-    // zero variance = sigma = 0 → use new_isotropic(0.0) which accepts variance directly
+    // zero variance = sigma = 0 â†’ use new_isotropic(0.0) which accepts variance directly
     let out = DiscreteGaussianFilter::<B>::new_isotropic(0.0)
         .with_spacing_mode(SpacingMode::Voxel)
         .apply(&img);
@@ -91,11 +94,7 @@ fn test_zero_variance_produces_identity() {
 
 #[test]
 fn test_spatial_metadata_preserved() {
-    let dev: <B as ritk_image::tensor::Backend>::Device = Default::default();
-    let t = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![1.0_f32; 27], Shape::new([3, 3, 3])),
-        &dev,
-    );
+    let t = Tensor::<f32, B>::from_slice([3, 3, 3], &[1.0_f32; 27]);
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 1.0, 2.0]);
     let dir = Direction::identity();
@@ -151,7 +150,7 @@ fn test_maximum_error_smaller_produces_larger_kernel() {
     let mut v: Vec<f32> = vec![0.0; 8];
     v.extend(vec![100.0; 8]);
     let img = make_image(v, [1, 1, 16]);
-    // sigma=2.0 → variance=4.0 (same as original var=4.0); near-zero sigmas for unused dims
+    // sigma=2.0 â†’ variance=4.0 (same as original var=4.0); near-zero sigmas for unused dims
     let loose = vals(
         &DiscreteGaussianFilter::<B>::new(vec![
             GaussianSigma::new_unchecked(NEAR_ZERO_SIGMA),
@@ -180,7 +179,7 @@ fn test_per_dimension_variance_applied_independently() {
     let mut v = vec![0.0_f32; 64];
     v[4 * 8 + 4] = 100.0;
     let img = make_image(v, [1, 8, 8]);
-    // sigma=2.0 in dim2 (x) only; near-zero sigma in dim1 (y) → no y-smoothing
+    // sigma=2.0 in dim2 (x) only; near-zero sigma in dim1 (y) â†’ no y-smoothing
     let ov = vals(
         &DiscreteGaussianFilter::<B>::new(vec![
             GaussianSigma::new_unchecked(NEAR_ZERO_SIGMA),
@@ -199,14 +198,14 @@ fn test_per_dimension_variance_applied_independently() {
 #[test]
 fn test_impulse_response_matches_discrete_gaussian() {
     // The impulse response of the separable filter IS its kernel. ITK's discrete
-    // Gaussian kernel is g[d] = e^{-t}·I_|d|(t), t = pixel variance (Lindeberg's
-    // discrete analog of the Gaussian) — NOT a sampled continuous Gaussian. The
-    // untruncated form sums to 1 exactly (Σ_n I_n(t) = e^t); the filter truncates
+    // Gaussian kernel is g[d] = e^{-t}Â·I_|d|(t), t = pixel variance (Lindeberg's
+    // discrete analog of the Gaussian) â€” NOT a sampled continuous Gaussian. The
+    // untruncated form sums to 1 exactly (Î£_n I_n(t) = e^t); the filter truncates
     // at maximum_error = 0.01 and renormalises, so each tap exceeds the untruncated
     // value by the redistributed tail mass (< 1.2 %).
     let n = 31usize;
     let c = 15usize;
-    let t = 4.0f64; // pixel variance (Voxel mode, sigma = 2 ⇒ t = sigma² = 4)
+    let t = 4.0f64; // pixel variance (Voxel mode, sigma = 2 â‡’ t = sigmaÂ² = 4)
     let sigma = t.sqrt();
     let mut imp = vec![0.0_f32; n];
     imp[c] = 1.0;
@@ -221,7 +220,7 @@ fn test_impulse_response_matches_discrete_gaussian() {
         .apply(&img),
     );
     // Reference kernel from the ITK spec (independent of build_kernel's code):
-    // accumulate g[i] = e^{-t}·I_i(t) until the mass reaches 1 - max_error, then
+    // accumulate g[i] = e^{-t}Â·I_i(t) until the mass reaches 1 - max_error, then
     // normalise by that truncated sum.
     let et = (-t).exp();
     let mut coeff = vec![et * super::modified_bessel_i(0, t)];

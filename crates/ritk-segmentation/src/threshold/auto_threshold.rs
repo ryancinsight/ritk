@@ -1,15 +1,15 @@
-//! Sealed [`AutoThreshold`] trait: shared extract→histogram→mask scaffold for
+//! Sealed [`AutoThreshold`] trait: shared extractâ†’histogramâ†’mask scaffold for
 //! single-threshold auto-selection algorithms.
 //!
 //! Implementors supply only [`AutoThreshold::compute_threshold`], which receives
 //! a pre-built `&[u32]` histogram and returns the threshold intensity.  The
-//! common extract→histogram and threshold→binary-mask pipelines are provided as
+//! common extractâ†’histogram and thresholdâ†’binary-mask pipelines are provided as
 //! blanket default methods ([`AutoThreshold::compute`] /
 //! [`AutoThreshold::apply`] and their Coeus-native counterparts).
 //!
 //! # Non-finite intensities
 //!
-//! NaN and ±Inf samples are excluded from histogram statistics and always map
+//! NaN and Â±Inf samples are excluded from histogram statistics and always map
 //! to background (`0.0`). An input with no finite samples has threshold `0.0`
 //! and an all-background mask.
 //!
@@ -17,7 +17,7 @@
 //! The trait is sealed via a private `sealed::Sealed` supertrait. Its twelve
 //! implementors are the threshold strategies explicitly registered below.
 
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
@@ -27,7 +27,7 @@ use super::otsu::OtsuThreshold;
 use super::triangle::TriangleThreshold;
 use super::yen::YenThreshold;
 
-// ── Sealed supertrait ──────────────────────────────────────────────────────────
+// â”€â”€ Sealed supertrait â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 mod sealed {
     /// Private marker that prevents external crates from implementing
@@ -48,21 +48,21 @@ impl sealed::Sealed for super::shanbhag::ShanbhagThreshold {}
 impl sealed::Sealed for super::kittler::KittlerIllingworthThreshold {}
 impl sealed::Sealed for super::renyi::RenyiEntropyThreshold {}
 
-// ── Trait ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Trait â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Sealed trait for single-threshold auto-selection algorithms.
 ///
 /// Implementors provide only the histogram-analysis kernel
 /// ([`compute_threshold`](AutoThreshold::compute_threshold)); the shared
-/// scaffold — intensity extraction, histogram construction, and binary-mask
-/// application — is provided as blanket default methods.
+/// scaffold â€” intensity extraction, histogram construction, and binary-mask
+/// application â€” is provided as blanket default methods.
 ///
 /// # Blanket methods
-/// - [`compute`](AutoThreshold::compute): extract → histogram → threshold.
-/// - [`apply`](AutoThreshold::apply): compute threshold → binary mask image.
-/// - [`compute_native`](AutoThreshold::compute_native): native slice → threshold.
+/// - [`compute`](AutoThreshold::compute): extract â†’ histogram â†’ threshold.
+/// - [`apply`](AutoThreshold::apply): compute threshold â†’ binary mask image.
+/// - [`compute_native`](AutoThreshold::compute_native): native slice â†’ threshold.
 /// - [`apply_native_with_threshold`](AutoThreshold::apply_native_with_threshold):
-///   native slice → threshold and binary mask without duplicate extraction.
+///   native slice â†’ threshold and binary mask without duplicate extraction.
 ///
 /// # Sealing
 /// Only the twelve concrete threshold types registered in this module implement
@@ -87,7 +87,7 @@ pub trait AutoThreshold: sealed::Sealed {
     /// - `x_max`  : maximum intensity value in the image.
     ///
     /// # Preconditions (guaranteed by the blanket `compute` before this call)
-    /// - `x_max > x_min` — constant images are handled before `compute_threshold`
+    /// - `x_max > x_min` â€” constant images are handled before `compute_threshold`
     ///   is called.
     /// - `n_bins >= 2`.
     fn compute_threshold(&self, hist: &[u32], n_bins: usize, x_min: f32, x_max: f32) -> f32;
@@ -98,18 +98,18 @@ pub trait AutoThreshold: sealed::Sealed {
     /// Returns `0.0` for an empty image and `x_min` for a constant image
     /// (degenerate cases handled before delegating to
     /// [`compute_threshold`](AutoThreshold::compute_threshold)).
-    fn compute<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> f32 {
+    fn compute<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> f32 {
         let (vals, _) = extract_vec_infallible(image);
         threshold_from_slice(self, &vals)
     }
 
     /// Apply the auto-threshold to produce a binary mask.
     ///
-    /// - Pixels with intensity ≥ t\* → `1.0` (foreground).
-    /// - Pixels with intensity < t\* → `0.0` (background).
+    /// - Pixels with intensity â‰¥ t\* â†’ `1.0` (foreground).
+    /// - Pixels with intensity < t\* â†’ `0.0` (background).
     ///
     /// Spatial metadata (origin, spacing, direction) is preserved exactly.
-    fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    fn apply<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         // Extract the volume once and reuse the slice for both threshold
         // selection and masking. The previous form called `compute` (which
         // extracts internally) and then extracted a second time, cloning and
@@ -117,8 +117,8 @@ pub trait AutoThreshold: sealed::Sealed {
         let (vals, shape) = extract_vec_infallible(image);
         let (_, output) = threshold_mask_from_slice(self, &vals);
 
-        let device = image.data().device();
-        let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
+        let device = B::default();
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device);
 
         Image::new(
             tensor,
@@ -192,16 +192,16 @@ pub trait AutoThreshold: sealed::Sealed {
     }
 }
 
-// ── ITK histogram model ─────────────────────────────────────────────────────────
+// â”€â”€ ITK histogram model â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // ITK's `HistogramThresholdImageFilter` builds its histogram with
 // `itk::Statistics::ImageToHistogramFilter` under `AutoMinimumMaximum`.  For a
 // real-valued image that filter places the lower bin edge at the image minimum
 // and the upper bin edge a *margin* above the image maximum:
 //
-//   max_edge   = x_max + (x_max − x_min) / (n_bins · MARGINAL_SCALE)
-//   bin_width  = (max_edge − x_min) / n_bins
-//   bin(v)     = clamp(⌊(v − x_min) / bin_width⌋, 0, n_bins − 1)
+//   max_edge   = x_max + (x_max âˆ’ x_min) / (n_bins Â· MARGINAL_SCALE)
+//   bin_width  = (max_edge âˆ’ x_min) / n_bins
+//   bin(v)     = clamp(âŒŠ(v âˆ’ x_min) / bin_widthâŒ‹, 0, n_bins âˆ’ 1)
 //
 // with `MarginalScale = 100` (the ITK default).  The threshold calculators then
 // report either the **right edge** of the selected bin (Otsu / multi-Otsu, via
@@ -225,26 +225,26 @@ pub(crate) fn itk_bin_width(x_min: f32, x_max: f32, n_bins: usize) -> f64 {
     (max_edge - lo) / n_bins as f64
 }
 
-/// Centre intensity of bin `k`: `x_min + (k + 0.5) · bin_width`.
+/// Centre intensity of bin `k`: `x_min + (k + 0.5) Â· bin_width`.
 ///
 /// Matches ITK `Histogram::GetMeasurement(k, 0)` (Li / Yen / Kapur / Triangle).
 pub(crate) fn bin_center(x_min: f32, bin_width: f64, k: usize) -> f32 {
     (x_min as f64 + (k as f64 + 0.5) * bin_width) as f32
 }
 
-/// Right edge of bin `k`: `x_min + (k + 1) · bin_width`.
+/// Right edge of bin `k`: `x_min + (k + 1) Â· bin_width`.
 ///
 /// Matches ITK `Histogram::GetBinMax(0, k)` (Otsu / multi-Otsu).
 pub(crate) fn bin_right_edge(x_min: f32, bin_width: f64, k: usize) -> f32 {
     (x_min as f64 + (k as f64 + 1.0) * bin_width) as f32
 }
 
-// ── Histogram construction helper ──────────────────────────────────────────────
+// â”€â”€ Histogram construction helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Build the ITK-convention histogram with `num_bins` bins over `[x_min, x_max]`.
 ///
 /// Bin mapping uses [`itk_bin_width`]:
-///   `bin(v) = clamp(⌊(v − x_min) / bin_width⌋, 0, num_bins − 1)`
+///   `bin(v) = clamp(âŒŠ(v âˆ’ x_min) / bin_widthâŒ‹, 0, num_bins âˆ’ 1)`
 ///
 /// # Preconditions
 /// - `num_bins >= 2`
@@ -266,7 +266,7 @@ pub(crate) fn build_histogram(slice: &[f32], num_bins: usize, x_min: f32, x_max:
     counts
 }
 
-/// Shared extract→histogram→threshold pipeline over a flat intensity slice.
+/// Shared extractâ†’histogramâ†’threshold pipeline over a flat intensity slice.
 ///
 /// This is the single entry point behind both [`AutoThreshold::compute`] (which
 /// extracts the slice from an [`Image`]) and the per-algorithm

@@ -67,8 +67,9 @@ ritk-annotation = { path = "crates/ritk-annotation" }
 ritk-tensor-ops = { path = "crates/ritk-tensor-ops" }
 ritk-statistics = { path = "crates/ritk-statistics" }
 gaia = { path = "../gaia", default-features = false }
-burn = { version = "0.19", default-features = false, features = ["std", "ndarray", "autodiff"] }
-burn-ndarray = "0.19" # For CPU testing
+# burn-ndarray removed: migrated to Coeus/leto test infrastructure
+# burn = { version = "0.19", default-features = false, features = ["std", "ndarray", "autodiff"] }
+# burn-ndarray = "0.19" # For CPU testing - REMOVED
 
 criterion = { version = "0.5", features = ["html_reports"] }
 coeus-nn = { path = "../coeus/coeus-nn" }
@@ -171,6 +172,13 @@ mnemosyne-local = { path = "../mnemosyne/crates/mnemosyne-local" }
 
 [patch."https://github.com/ryancinsight/eunomia"]
 eunomia = { path = "../eunomia/crates/eunomia" }
+
+[patch."https://github.com/ryancinsight/hermes.git"]
+hermes-simd = { path = "../hermes/crates/hermes-simd" }
+hermes-simd-core = { path = "../hermes/crates/hermes-simd-core" }
+hermes-simd-intrinsics = { path = "../hermes/crates/hermes-simd-intrinsics" }
+hermes-simd-macros = { path = "../hermes/crates/hermes-simd-macros" }
+hermes-simd-types = { path = "../hermes/crates/hermes-simd-types" }
 
 [patch."https://github.com/ryancinsight/leto.git"]
 leto = { path = "../leto/crates/leto" }

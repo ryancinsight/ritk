@@ -4,7 +4,7 @@
 //!   P = (`steps: Vec<PreprocessingStep>`) applied sequentially.
 //!   `execute(P, I_0) = fold(steps, I_0, apply_step)`
 //!
-//! Each step is a deterministic, pure transform `Image<B,3> -> Result<Image<B,3>>`.
+//! Each step is a deterministic, pure transform `Image<f32, B,3> -> Result<Image<f32, B,3>>`.
 //!
 //! Steps:
 //!   N4BiasCorrection  : `I' = exp(ln(I) - B_spline_estimate)`

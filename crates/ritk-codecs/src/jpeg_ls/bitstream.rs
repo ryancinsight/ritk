@@ -1,6 +1,6 @@
-//! Bit-level reader for JPEG-LS compressed scan data.
+﻿//! Bit-level reader for JPEG-LS compressed scan data.
 //!
-//! # JPEG-LS Bit Stuffing (ISO 14495-1 §C.2.1)
+//! # JPEG-LS Bit Stuffing (ISO 14495-1 Â§C.2.1)
 //! In a JPEG-LS scan, an encoded `0xFF` data byte is followed by one stuffed
 //! zero bit. The decoder preserves all eight `0xFF` data bits, discards that
 //! single zero bit, and then consumes the remaining seven bits of the following
@@ -17,8 +17,7 @@ pub(super) struct BitReader<'a> {
     /// Bit accumulator (MSB aligned).
     buf: u32,
     /// Number of valid bits in `buf`.
-    bits: u32,
-}
+    bits: u32 }
 
 impl<'a> BitReader<'a> {
     /// Construct and prime the buffer.
@@ -27,8 +26,7 @@ impl<'a> BitReader<'a> {
             data,
             pos: 0,
             buf: 0,
-            bits: 0,
-        };
+            bits: 0 };
         r.refill();
         r
     }
@@ -62,7 +60,7 @@ impl<'a> BitReader<'a> {
         }
     }
 
-    /// Read `n` bits (n ≤ 24). Returns 0 on underflow (stream exhausted).
+    /// Read `n` bits (n â‰¤ 24). Returns 0 on underflow (stream exhausted).
     #[inline(always)]
     pub(super) fn read_bits(&mut self, n: u32) -> u32 {
         if n == 0 {
@@ -84,17 +82,17 @@ impl<'a> BitReader<'a> {
         self.read_bits(1)
     }
 
-    /// Decode a Golomb-Rice code with ISO 14495-1 LIMIT guard (§A.3).
+    /// Decode a Golomb-Rice code with ISO 14495-1 LIMIT guard (Â§A.3).
     ///
     /// # Arguments
-    /// * `k`    — Golomb-Rice order (0 ≤ k ≤ qbpp)
-    /// * `limit` — Maximum total code length; value = `2*(qbpp + max(2, bpp))`
-    /// * `qbpp`  — Bits required to represent RANGE; equals `bpp` for lossless
+    /// * `k`    â€” Golomb-Rice order (0 â‰¤ k â‰¤ qbpp)
+    /// * `limit` â€” Maximum total code length; value = `2*(qbpp + max(2, bpp))`
+    /// * `qbpp`  â€” Bits required to represent RANGE; equals `bpp` for lossless
     ///
     /// # Returns
     /// The decoded non-negative MErrval.
     pub(super) fn read_golomb(&mut self, k: u32, limit: u32, qbpp: u32) -> u32 {
-        // Count leading zeros (unary quotient), stopping at limit−qbpp−1
+        // Count leading zeros (unary quotient), stopping at limitâˆ’qbppâˆ’1
         let max_zeros = limit - qbpp - 1;
         let mut q = 0u32;
         loop {
@@ -112,7 +110,7 @@ impl<'a> BitReader<'a> {
             let rem = self.read_bits(k);
             (q << k) | rem
         } else {
-            // Limited-length code: encoded low bits store mapped_error − 1.
+            // Limited-length code: encoded low bits store mapped_error âˆ’ 1.
             let raw_val = self.read_bits(qbpp);
             raw_val + 1
         }
@@ -125,10 +123,10 @@ impl<'a> BitReader<'a> {
     }
 }
 
-// ── Bit writer (encoder side) ─────────────────────────────────────────────────
+// â”€â”€ Bit writer (encoder side) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Bit-level writer for JPEG-LS compressed scan data — exact mirror of
-/// [`BitReader`]'s stuffing rule (ISO 14495-1 §C.2.1): after an emitted `0xFF`
+/// Bit-level writer for JPEG-LS compressed scan data â€” exact mirror of
+/// [`BitReader`]'s stuffing rule (ISO 14495-1 Â§C.2.1): after an emitted `0xFF`
 /// byte, the following byte carries only 7 entropy bits with its MSB held 0.
 pub(super) struct BitWriter {
     out: Vec<u8>,
@@ -137,8 +135,7 @@ pub(super) struct BitWriter {
     /// Bits currently held in `cur`.
     used: u32,
     /// Capacity of the byte being assembled: 8 normally, 7 after an 0xFF.
-    cap: u32,
-}
+    cap: u32 }
 
 impl BitWriter {
     pub(super) fn new() -> Self {
@@ -146,8 +143,7 @@ impl BitWriter {
             out: Vec::new(),
             cur: 0,
             used: 0,
-            cap: 8,
-        }
+            cap: 8 }
     }
 
     #[inline(always)]
@@ -171,11 +167,11 @@ impl BitWriter {
         }
     }
 
-    /// Encode a Golomb-Rice code — exact mirror of [`BitReader::read_golomb`].
+    /// Encode a Golomb-Rice code â€” exact mirror of [`BitReader::read_golomb`].
     ///
-    /// Normal form (`q = me >> k < limit − qbpp − 1`): `q` zeros, a 1, then the
-    /// k-bit remainder. Escape form: `limit − qbpp − 1` zeros, a 1, then
-    /// `me − 1` in `qbpp` bits.
+    /// Normal form (`q = me >> k < limit âˆ’ qbpp âˆ’ 1`): `q` zeros, a 1, then the
+    /// k-bit remainder. Escape form: `limit âˆ’ qbpp âˆ’ 1` zeros, a 1, then
+    /// `me âˆ’ 1` in `qbpp` bits.
     pub(super) fn write_golomb(&mut self, me: u32, k: u32, limit: u32, qbpp: u32) {
         let max_zeros = limit - qbpp - 1;
         let q = me >> k;
@@ -198,11 +194,11 @@ impl BitWriter {
 
     /// Flush remaining bits (zero-padded) and return the scan bytes.
     ///
-    /// Zero padding cannot synthesise an 0xFF byte (≥ 1 trailing zero bit),
+    /// Zero padding cannot synthesise an 0xFF byte (â‰¥ 1 trailing zero bit),
     /// but the stream may legitimately END on an 0xFF data byte. A decoder
     /// then sees `0xFF` followed by the next marker's high-bit byte and must
-    /// treat the 0xFF as a marker prefix — losing the final 8 entropy bits.
-    /// Per ISO 14495-1 §C.2.1 the stuffed 7-bit follow byte is therefore
+    /// treat the 0xFF as a marker prefix â€” losing the final 8 entropy bits.
+    /// Per ISO 14495-1 Â§C.2.1 the stuffed 7-bit follow byte is therefore
     /// emitted even when it carries only padding.
     pub(super) fn finish(mut self) -> Vec<u8> {
         if self.used > 0 {
@@ -261,7 +257,7 @@ mod tests {
     fn golomb_writer_reader_round_trip_escape_form() {
         let limit = 32u32;
         let qbpp = 8u32;
-        // Escape form is reached when q = me >> k ≥ limit − qbpp − 1.
+        // Escape form is reached when q = me >> k â‰¥ limit âˆ’ qbpp âˆ’ 1.
         for me in [184u32, 200, 255, 256] {
             let mut w = BitWriter::new();
             w.write_golomb(me, 0, limit, qbpp);
@@ -315,20 +311,20 @@ mod tests {
     #[test]
     fn golomb_rice_k0_meval_0() {
         // MErrval=0 with k=0: Golomb code is '1' (0 zeros, then 1, then 0 bits)
-        // bit sequence: 1 → 1 bit set = 0b10000000
+        // bit sequence: 1 â†’ 1 bit set = 0b10000000
         let data = [0b10000000u8];
         let mut r = BitReader::new(&data);
         let limit = 32u32;
         let qbpp = 8u32;
         let val = r.read_golomb(0, limit, qbpp);
-        // q=0 (read '1' first bit, no leading zeros), rem=0 → MErrval=0
+        // q=0 (read '1' first bit, no leading zeros), rem=0 â†’ MErrval=0
         assert_eq!(val, 0);
     }
 
     #[test]
     fn golomb_rice_k0_meval_2() {
         // MErrval=2 with k=0: q=2, code = '001' (2 zeros, then 1, then 0 bits)
-        // bit sequence: 0 0 1 → top bits of 0b00100000
+        // bit sequence: 0 0 1 â†’ top bits of 0b00100000
         let data = [0b00100000u8];
         let mut r = BitReader::new(&data);
         let limit = 32u32;
@@ -340,7 +336,7 @@ mod tests {
     #[test]
     fn golomb_rice_k1_meval_5() {
         // k=1, MErrval=5: q = 5>>1 = 2, rem = 5 & 1 = 1
-        // code = '001' + '1' = bits: 0,0,1,1 → 0b00110000
+        // code = '001' + '1' = bits: 0,0,1,1 â†’ 0b00110000
         let data = [0b00110000u8];
         let mut r = BitReader::new(&data);
         let limit = 32u32;

@@ -1,16 +1,15 @@
-//! Clamped bin range for one axis of a single sample (ARCH-316-04).
+﻿//! Clamped bin range for one axis of a single sample (ARCH-316-04).
 
 /// Clamped bin range `[lo, hi]` for one axis of a single sample (ARCH-316-04).
 ///
-/// Newtype over `(u16, u16)` — prevents `(hi, lo)` swaps. `u16` since Parzen
-/// histograms never exceed ~256 bins in practice, reducing size from 16→4 bytes.
+/// Newtype over `(u16, u16)` â€” prevents `(hi, lo)` swaps. `u16` since Parzen
+/// histograms never exceed ~256 bins in practice, reducing size from 16â†’4 bytes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct BinRange {
-    /// Lower bound of the support window (inclusive), clamped to `≥ 0`.
+    /// Lower bound of the support window (inclusive), clamped to `â‰¥ 0`.
     pub(crate) lo: u16,
     /// Upper bound of the support window (inclusive), clamped to `< num_bins`.
-    pub(crate) hi: u16,
-}
+    pub(crate) hi: u16 }
 
 impl BinRange {
     /// Construct from primary bin, half-width, and bin count.

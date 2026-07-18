@@ -1,4 +1,4 @@
-use crate::errors::RitkResult;
+﻿use crate::errors::RitkResult;
 use crate::image::PyImage;
 use pyo3::prelude::*;
 use ritk_registration::bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, VolumeDims};
@@ -18,8 +18,7 @@ pub struct PyBSplineFfdConfig {
     #[pyo3(get, set)]
     pub learning_rate: f64,
     #[pyo3(get, set)]
-    pub regularization_weight: f64,
-}
+    pub regularization_weight: f64 }
 
 impl Default for PyBSplineFfdConfig {
     fn default() -> Self {
@@ -28,8 +27,7 @@ impl Default for PyBSplineFfdConfig {
             num_levels: 3,
             max_iterations: 100,
             learning_rate: 0.01,
-            regularization_weight: 0.001,
-        }
+            regularization_weight: 0.001 }
     }
 }
 
@@ -55,8 +53,7 @@ impl PyBSplineFfdConfig {
             num_levels,
             max_iterations,
             learning_rate,
-            regularization_weight,
-        }
+            regularization_weight }
     }
 }
 

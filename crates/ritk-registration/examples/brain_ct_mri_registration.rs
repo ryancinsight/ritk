@@ -1,4 +1,4 @@
-//! Brain CT-MRI Full Registration Example
+﻿//! Brain CT-MRI Full Registration Example
 //!
 //! Loads paired CT and T1-MRI PNG slices from the "Paired MRI (T1, T2) and CT Scans Dataset",
 //! converts each to a NIfTI volume, and performs rigid + affine registration.
@@ -10,7 +10,7 @@ use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_filter::ResampleImageFilter;
 use ritk_image::burn::backend::Autodiff;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_interpolation::LinearInterpolator;
 use ritk_io::format::png::native::PngSeriesReader;
 use ritk_io::{write_nifti, ImageReader};
@@ -22,14 +22,14 @@ use ritk_transform::{AffineTransform, RigidTransform};
 // CPU backend with automatic differentiation
 type Backend = Autodiff<burn_ndarray::NdArray<f32>>;
 
-fn read_png_series<B: ritk_image::tensor::backend::Backend>(
+fn read_png_series<B: ritk_image::tensor::Backend>(
     path: &std::path::Path,
     device: &B::Device,
-) -> anyhow::Result<Image<B, 3>> {
+) -> anyhow::Result<Image<f32, B, 3>> {
     let reader = PngSeriesReader::new(SequentialBackend);
     let native = reader.read(path)?;
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(
+    let tensor = Tensor::<f32, B>::from_data(
+        ::new(
             native.data_cow_on(&SequentialBackend).into_owned(),
             Shape::new(native.shape()),
         ),
@@ -49,7 +49,7 @@ fn main() -> anyhow::Result<()> {
 
     tracing_subscriber::fmt().with_env_filter("info").init();
 
-    let device: <Backend as ritk_image::tensor::backend::Backend>::Device = Default::default();
+    let device: <Backend as ritk_image::tensor::Backend>::Device = Default::default();
 
     let data_root = std::path::Path::new("test_data/paired_mri_ct");
     let ct_dir = data_root.join("CT/PNG/Patient_01");
@@ -94,7 +94,7 @@ fn main() -> anyhow::Result<()> {
 
     // 2. Rigid Registration (CT fixed, MRI moving)
     println!("\n=== Rigid Registration ===");
-    let center_idx = Tensor::<Backend, 1>::from_floats(
+    let center_idx = Tensor::<f32, Backend>::from_floats(
         [
             ct_image.shape()[0] as f32 / 2.0,
             ct_image.shape()[1] as f32 / 2.0,

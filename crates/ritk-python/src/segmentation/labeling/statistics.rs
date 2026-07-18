@@ -1,11 +1,10 @@
-use crate::errors::RitkPyError;
+﻿use crate::errors::RitkPyError;
 use crate::errors::RitkResult;
 use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_segmentation::{
-    labeling::Connectivity as SegConnectivity, ConnectedComponentsFilter, KMeansSegmentation,
-};
+    labeling::Connectivity as SegConnectivity, ConnectedComponentsFilter, KMeansSegmentation };
 
 /// Compute per-label shape statistics from a binary mask.
 ///
@@ -70,13 +69,13 @@ pub fn label_shape_statistics(
 ///
 /// Args:
 ///     image:           Input PyImage.
-///     k:               Number of clusters (≥ 1).  Default 3.
+///     k:               Number of clusters (â‰¥ 1).  Default 3.
 ///     max_iterations:  Maximum Lloyd iterations.  Default 100.
 ///     tolerance:       Centroid-displacement convergence tolerance.  Default 1e-6.
 ///     seed:            Deterministic seed for k-means++ initialization.  Default 42.
 ///
 /// Returns:
-///     Label PyImage with cluster indices in [0, k−1].
+///     Label PyImage with cluster indices in [0, kâˆ’1].
 #[pyfunction]
 #[pyo3(signature = (image, k=3, max_iterations=None, tolerance=None, seed=None))]
 pub fn kmeans_segment(

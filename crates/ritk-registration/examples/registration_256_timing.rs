@@ -1,8 +1,8 @@
-//! End-to-end 256³ registration timing example.
+﻿//! End-to-end 256Â³ registration timing example.
 //!
 //! Runs a 3-level multi-resolution rigid registration with Mattes MI on a
-//! synthetic 256³ phantom and reports the wall-clock seconds. The target
-//! is ≤ 30 s for the full pipeline (synthetic data, CPU, default Burn
+//! synthetic 256Â³ phantom and reports the wall-clock seconds. The target
+//! is â‰¤ 30 s for the full pipeline (synthetic data, CPU, default Burn
 //! `SequentialBackend` backend).
 //!
 //! # Running
@@ -13,9 +13,9 @@
 //!
 //! # Synthetic phantom
 //!
-//! A 256³ volume filled with a smooth intensity gradient plus a central
+//! A 256Â³ volume filled with a smooth intensity gradient plus a central
 //! high-intensity sphere. The "fixed" image is the phantom at rest; the
-//! "moving" image is the phantom rotated by ~5° around the volume center
+//! "moving" image is the phantom rotated by ~5Â° around the volume center
 //! and translated by [4, -2, 1] voxels. The registration should recover
 //! (approximately) the identity transform.
 //!
@@ -27,9 +27,9 @@
 //! [256^3 timing]   level 0 (shrink=4, 64^3): ~1.2 s
 //! [256^3 timing]   level 1 (shrink=2, 128^3): ~7.5 s
 //! [256^3 timing]   level 2 (shrink=1, 256^3): ~16.3 s
-//! [256^3 timing] recovered rotation: ~5.0° (target 5.0°)
+//! [256^3 timing] recovered rotation: ~5.0Â° (target 5.0Â°)
 //! [256^3 timing] recovered translation: ~[4, -2, 1] (target [4, -2, 1])
-//! [256^3 timing] PASS — wall-clock ≤ 30s
+//! [256^3 timing] PASS â€” wall-clock â‰¤ 30s
 //! ```
 //!
 //! # Notes
@@ -37,15 +37,15 @@
 //! - Wall-clock is highly CPU-dependent. A modern 16-core CPU with AVX2
 //!   should hit the 30 s target. A 4-core laptop may take 60-90 s.
 //! - The example uses the `default` feature which enables `direct-parzen`
-//!   for the fast CPU path (~6× faster than the tensor path).
+//!   for the fast CPU path (~6Ã— faster than the tensor path).
 //! - Pre-existing `prop_normalized_single_sample_contributes_one` NaN
-//!   test failure is unrelated (audit §11).
+//!   test failure is unrelated (audit Â§11).
 
 use std::time::Instant;
 
 use ritk_core::image::Image;
 use ritk_image::burn::backend::Autodiff;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_registration::metric::MutualInformation;
 use ritk_registration::multires::{MultiResolutionRegistration, RegistrationSchedule};
 use ritk_registration::optimizer::regular_step_gd::RegularStepGdConfig;
@@ -57,8 +57,8 @@ type B = Autodiff<burn_ndarray::NdArray<f32>>;
 
 const SIZE: usize = 256;
 
-/// Build a 256³ synthetic phantom with a smooth gradient + central sphere.
-fn build_phantom(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<B, 3> {
+/// Build a 256Â³ synthetic phantom with a smooth gradient + central sphere.
+fn build_phantom(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<f32, B, 3> {
     let n = SIZE * SIZE * SIZE;
     let mut data = vec![0.0_f32; n];
 
@@ -83,8 +83,8 @@ fn build_phantom(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<B
         }
     }
 
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(data, Shape::new([SIZE, SIZE, SIZE])),
+    let tensor = Tensor::<f32, B>::from_data(
+        ::new(data, Shape::new([SIZE, SIZE, SIZE])),
         device,
     );
     Image::new(
@@ -97,10 +97,10 @@ fn build_phantom(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<B
 
 /// Build a "moving" image by applying a known translation+rotation to the
 /// phantom. This requires sampling the phantom at non-integer coordinates
-/// after the transform — for the synthetic case we apply a simple
+/// after the transform â€” for the synthetic case we apply a simple
 /// translation (rotation would require building a full 3D interpolator
 /// here, which is the registration's job).
-fn build_moving(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<B, 3> {
+fn build_moving(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<f32, B, 3> {
     // For the timing harness we just build an independent (slightly
     // perturbed) phantom as the "moving" image. The optimizer will still
     // measure wall-clock regardless of whether the registration converges.
@@ -116,8 +116,8 @@ fn build_moving(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<B,
             v + ((i % 7) as f32 - 3.0) * 0.5
         })
         .collect();
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(perturbed, Shape::new([SIZE, SIZE, SIZE])),
+    let tensor = Tensor::<f32, B>::from_data(
+        ::new(perturbed, Shape::new([SIZE, SIZE, SIZE])),
         device,
     );
     Image::new(
@@ -165,15 +165,15 @@ fn main() {
     eprintln!("\n[256^3 timing] ============================");
     eprintln!("[256^3 timing] wall-clock: {:.1} s", elapsed);
     eprintln!("[256^3 timing]   (estimated per-level: ~1.5 / ~7 / ~16 s for shrink=4,2,1)");
-    eprintln!("[256^3 timing] target: ≤ 30 s");
+    eprintln!("[256^3 timing] target: â‰¤ 30 s");
 
     // Sanity check: elapsed must be < 30s to PASS
     if elapsed <= 30.0 {
-        eprintln!("[256^3 timing] PASS — wall-clock ≤ 30s");
+        eprintln!("[256^3 timing] PASS â€” wall-clock â‰¤ 30s");
     } else {
-        eprintln!("[256^3 timing] OVER BUDGET — wall-clock > 30s");
+        eprintln!("[256^3 timing] OVER BUDGET â€” wall-clock > 30s");
         eprintln!(
-            "[256^3 timing]   See docs/audit_optimization_sprint_350.md §2.1 for the breakdown"
+            "[256^3 timing]   See docs/audit_optimization_sprint_350.md Â§2.1 for the breakdown"
         );
     }
 }

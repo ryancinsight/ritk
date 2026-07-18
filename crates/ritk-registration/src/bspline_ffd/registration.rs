@@ -1,13 +1,11 @@
-//! B-Spline FFD registration engine.
+﻿//! B-Spline FFD registration engine.
 
 use super::basis::{
     evaluate_bspline_displacement, evaluate_bspline_displacement_fast_into, init_control_grid,
-    BasisCache,
-};
+    BasisCache };
 use super::config::{BSplineFFDConfig, BSplineFFDResult};
 use super::metric::{
-    compute_metric_gradient_fast_into, compute_ncc, MetricGradientScratch, NCC_SIGMA_GUARD,
-};
+    compute_metric_gradient_fast_into, compute_ncc, MetricGradientScratch, NCC_SIGMA_GUARD };
 use super::pyramid::refine_control_grid;
 use super::regularization::{bending_energy_gradient_into, BendingEnergyScratch};
 use super::volume_dims::VolumeDims;
@@ -23,11 +21,11 @@ impl BSplineFFDRegistration {
     /// Register `moving` to `fixed` using multi-resolution B-Spline FFD.
     ///
     /// # Arguments
-    /// - `fixed`   — reference image, flat `&[f32]` in Z-major order.
-    /// - `moving`  — moving image, same shape as `fixed`.
-    /// - `dims`    — image dimensions `[nz, ny, nx]`.
-    /// - `spacing` — physical voxel spacing `[sz, sy, sx]`.
-    /// - `config`  — algorithm parameters.
+    /// - `fixed`   â€” reference image, flat `&[f32]` in Z-major order.
+    /// - `moving`  â€” moving image, same shape as `fixed`.
+    /// - `dims`    â€” image dimensions `[nz, ny, nx]`.
+    /// - `spacing` â€” physical voxel spacing `[sz, sy, sx]`.
+    /// - `config`  â€” algorithm parameters.
     ///
     /// # Errors
     /// Returns [`RegistrationError`] on dimension mismatch or invalid
@@ -42,7 +40,7 @@ impl BSplineFFDRegistration {
         let [nz, ny, nx] = dims.as_array();
         let n = nz * ny * nx;
 
-        // ── Input validation ──────────────────────────────────────────────
+        // â”€â”€ Input validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if fixed.len() != n {
             return Err(RegistrationError::DimensionMismatch(format!(
                 "fixed length {} != dims product {}",
@@ -71,7 +69,7 @@ impl BSplineFFDRegistration {
             }
         }
 
-        // ── Initialize control grid at coarsest level ─────────────────────
+        // â”€â”€ Initialize control grid at coarsest level â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let mut ctrl_spacing = [
             config.initial_control_spacing[0] as f64,
             config.initial_control_spacing[1] as f64,
@@ -96,7 +94,7 @@ impl BSplineFFDRegistration {
         let mut be_scratch = BendingEnergyScratch::new(ctrl_n);
         let mut be_grad = VelocityField::zeros(ctrl_n);
 
-        // ── Multi-resolution loop ─────────────────────────────────────────
+        // â”€â”€ Multi-resolution loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         for level in 0..config.num_levels {
             tracing::info!(
                 level,
@@ -203,7 +201,7 @@ impl BSplineFFDRegistration {
             }
         }
 
-        // ── Final warp ───────────────────────────────────────────────────
+        // â”€â”€ Final warp â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let disp =
             evaluate_bspline_displacement(&cp_z, &cp_y, &cp_x, &ctrl_dims, &ctrl_spacing, dims);
         let warped_moving = warp_image(
@@ -221,7 +219,6 @@ impl BSplineFFDRegistration {
             control_spacing: ctrl_spacing,
             warped_moving,
             final_metric,
-            num_iterations: total_iters,
-        })
+            num_iterations: total_iters })
     }
 }

@@ -1,9 +1,8 @@
-use std::collections::VecDeque;
+﻿use std::collections::VecDeque;
 
 use crate::deformable_field_ops::{
     compute_gradient_into, normalize_forces_into, scaling_and_squaring_into, warp_image_into,
-    CpuFieldSmoother, FieldSmoother, VectorField, VectorFieldMut, VelocityField,
-};
+    CpuFieldSmoother, FieldSmoother, VectorField, VectorFieldMut, VelocityField };
 use crate::error::RegistrationError;
 
 use super::buffers::BSplineSyNBuffers;
@@ -22,10 +21,10 @@ impl BSplineSyNRegistration {
     /// Register `moving` to `fixed` using BSplineSyN with local CC metric.
     ///
     /// # Arguments
-    /// - `fixed` — reference image, flat `[f32]` in Z-major order.
-    /// - `moving` — moving image, same shape as `fixed`.
-    /// - `dims` — `[nz, ny, nx]`.
-    /// - `spacing` — physical voxel spacing `[sz, sy, sx]`.
+    /// - `fixed` â€” reference image, flat `[f32]` in Z-major order.
+    /// - `moving` â€” moving image, same shape as `fixed`.
+    /// - `dims` â€” `[nz, ny, nx]`.
+    /// - `spacing` â€” physical voxel spacing `[sz, sy, sx]`.
     ///
     /// # Errors
     /// Returns [`RegistrationError`] on dimension mismatch or invalid config.
@@ -164,29 +163,25 @@ impl BSplineSyNRegistration {
                 VectorField {
                     z: &buf.gi_z,
                     y: &buf.gi_y,
-                    x: &buf.gi_x,
-                },
+                    x: &buf.gi_x },
                 VectorField {
                     z: &buf.gj_z,
                     y: &buf.gj_y,
-                    x: &buf.gj_x,
-                },
+                    x: &buf.gj_x },
                 dims,
                 &buf.cc_sats,
                 VectorFieldMut {
                     z: &mut buf.u1z,
                     y: &mut buf.u1y,
-                    x: &mut buf.u1x,
-                },
+                    x: &mut buf.u1x },
                 VectorFieldMut {
                     z: &mut buf.u2z,
                     y: &mut buf.u2y,
-                    x: &mut buf.u2x,
-                },
+                    x: &mut buf.u2x },
                 &mut buf.cc_slices,
             );
 
-            // Normalise forces so max|u₁| = max|u₂| = gradient_step
+            // Normalise forces so max|uâ‚| = max|uâ‚‚| = gradient_step
             normalize_forces_into(
                 &mut buf.u1z,
                 &mut buf.u1y,
@@ -291,7 +286,7 @@ impl BSplineSyNRegistration {
             }
         }
 
-        // ── Final dense fields and warps (reusing pre-allocated scratch) ──
+        // â”€â”€ Final dense fields and warps (reusing pre-allocated scratch) â”€â”€
         evaluate_dense_into(&buf.cp1z, cp_d, dims, cs, &mut buf.v1z);
         evaluate_dense_into(&buf.cp1y, cp_d, dims, cs, &mut buf.v1y);
         evaluate_dense_into(&buf.cp1x, cp_d, dims, cs, &mut buf.v1x);
@@ -349,7 +344,6 @@ impl BSplineSyNRegistration {
             warped_fixed: buf.i_w,
             warped_moving: buf.j_w,
             final_cc,
-            num_iterations: iter,
-        })
+            num_iterations: iter })
     }
 }

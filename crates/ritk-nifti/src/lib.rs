@@ -1,4 +1,4 @@
-//! NIfTI (Neuroimaging Informatics Technology Initiative) I/O for RITK.
+﻿//! NIfTI (Neuroimaging Informatics Technology Initiative) I/O for RITK.
 //!
 //! This crate provides native, canonical single-source-of-truth implementations
 //! for reading NIfTI-1/NIfTI-2 and writing explicit NIfTI-1 or NIfTI-2
@@ -56,8 +56,7 @@ pub use writer::{write_nifti, write_nifti2, write_nifti2_labels, write_nifti_lab
 
 /// DIP boundary executing strict spatial metadata preservation over standard NIfTI datasets.
 pub struct NiftiReader<B: ComputeBackend> {
-    backend: B,
-}
+    backend: B }
 
 impl<B: ComputeBackend> NiftiReader<B> {
     pub fn new(backend: B) -> Self {
@@ -71,8 +70,7 @@ impl<B: ComputeBackend> NiftiReader<B> {
 
 /// DIP boundary executing strict spatial metadata preservation over standard NIfTI datasets.
 pub struct NiftiWriter<B: ComputeBackend> {
-    backend: B,
-}
+    backend: B }
 
 impl<B: ComputeBackend> NiftiWriter<B> {
     pub fn new(backend: B) -> Self {

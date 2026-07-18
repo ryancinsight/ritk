@@ -7,7 +7,7 @@
 //!
 //!   Opening(M) = Dilation(Erosion(M, B), B)
 //!
-//! Invariant: Opening(M) ⊆ M (opening can only remove foreground, never add).
+//! Invariant: Opening(M) âŠ† M (opening can only remove foreground, never add).
 
 use super::MorphologicalOperation;
 use ritk_image::tensor::Backend;
@@ -37,7 +37,7 @@ impl Default for BinaryOpening {
 }
 
 impl<B: Backend, const D: usize> MorphologicalOperation<B, D> for BinaryOpening {
-    fn apply(&self, mask: &Image<B, D>) -> Image<B, D> {
+    fn apply(&self, mask: &Image<f32, B, D>) -> Image<f32, B, D> {
         use super::binary_dilation::BinaryDilation;
         use super::binary_erosion::BinaryErosion;
         let eroded = BinaryErosion {

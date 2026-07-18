@@ -1,17 +1,17 @@
 use std::f64::consts::PI;
 
-// ── Eigendecomposition (3×3 symmetric) ────────────────────────────────────────
+// â”€â”€ Eigendecomposition (3Ã—3 symmetric) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Eigenvalues and eigenvectors of a 3×3 symmetric matrix.
+/// Eigenvalues and eigenvectors of a 3Ã—3 symmetric matrix.
 ///
-/// Eigenvalues are sorted ascending: λ₁ ≤ λ₂ ≤ λ₃.
+/// Eigenvalues are sorted ascending: Î»â‚ â‰¤ Î»â‚‚ â‰¤ Î»â‚ƒ.
 /// Columns of `eigenvecs` are the corresponding eigenvectors.
 pub struct EigenDecomp {
     pub eigenvalues: [f64; 3],
     pub eigenvecs: [[f64; 3]; 3], // eigenvecs[k] = k-th eigenvector
 }
 
-/// Analytical eigenvalue decomposition of a 3×3 symmetric matrix.
+/// Analytical eigenvalue decomposition of a 3Ã—3 symmetric matrix.
 ///
 /// Uses the trigonometric method (Smith 1961; Kopp 2008, arXiv:physics/0610206).
 /// For degenerate eigenvalues, eigenvectors are selected by Gram-Schmidt
@@ -67,7 +67,7 @@ pub fn eigen_3x3_symmetric(h: [f64; 6]) -> EigenDecomp {
         };
     }
 
-    // B = (M − q·I) / p
+    // B = (M âˆ’ qÂ·I) / p
     let b00 = (m00 - q) / p;
     let b01 = m01 / p;
     let b02 = m02 / p;
@@ -79,14 +79,14 @@ pub fn eigen_3x3_symmetric(h: [f64; 6]) -> EigenDecomp {
     let det_b = b00 * (b11 * b22 - b12 * b12) - b01 * (b01 * b22 - b12 * b02)
         + b02 * (b01 * b12 - b11 * b02);
 
-    // r = det(B)/2, clamped to [−1, 1] for numerical safety.
+    // r = det(B)/2, clamped to [âˆ’1, 1] for numerical safety.
     let r = (det_b / 2.0).clamp(-1.0, 1.0);
     let phi = r.acos() / 3.0;
 
     // Three eigenvalues before sorting.
     let eig_a = q + 2.0 * p * phi.cos();
     let eig_c = q + 2.0 * p * (phi + 2.0 * PI / 3.0).cos();
-    // Trace identity: eig_b = 3q − eig_a − eig_c.
+    // Trace identity: eig_b = 3q âˆ’ eig_a âˆ’ eig_c.
     let eig_b = 3.0 * q - eig_a - eig_c;
 
     let eigs_unsorted = [eig_a, eig_b, eig_c];
@@ -103,8 +103,8 @@ pub fn eigen_3x3_symmetric(h: [f64; 6]) -> EigenDecomp {
         eigs_unsorted[idx[2]],
     ];
 
-    // ── Eigenvectors ──────────────────────────────────────────────────
-    // (M − λI) v = 0 → solve via cross products of rows.
+    // â”€â”€ Eigenvectors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // (M âˆ’ Î»I) v = 0 â†’ solve via cross products of rows.
     let eigenvecs = eigenvectors_3x3_symmetric(h, eigenvalues);
 
     EigenDecomp {
@@ -113,10 +113,10 @@ pub fn eigen_3x3_symmetric(h: [f64; 6]) -> EigenDecomp {
     }
 }
 
-/// Compute eigenvectors of a 3×3 symmetric matrix given its eigenvalues.
+/// Compute eigenvectors of a 3Ã—3 symmetric matrix given its eigenvalues.
 ///
-/// For each eigenvalue λ, the eigenvector is the cross product of two
-/// rows of (M − λI). For degenerate eigenvalues, Gram-Schmidt is applied
+/// For each eigenvalue Î», the eigenvector is the cross product of two
+/// rows of (M âˆ’ Î»I). For degenerate eigenvalues, Gram-Schmidt is applied
 /// within the invariant subspace.
 fn eigenvectors_3x3_symmetric(h: [f64; 6], eigenvalues: [f64; 3]) -> [[f64; 3]; 3] {
     let m00 = h[0];
@@ -129,7 +129,7 @@ fn eigenvectors_3x3_symmetric(h: [f64; 6], eigenvalues: [f64; 3]) -> [[f64; 3]; 
     let mut vecs = [[0.0f64; 3]; 3];
 
     for (k, &lam) in eigenvalues.iter().enumerate() {
-        // (M − λI) rows:
+        // (M âˆ’ Î»I) rows:
         let r0 = [m00 - lam, m01, m02];
         let r1 = [m01, m11 - lam, m12];
         let r2 = [m02, m12, m22 - lam];
@@ -169,18 +169,18 @@ fn eigenvectors_3x3_symmetric(h: [f64; 6], eigenvalues: [f64; 3]) -> [[f64; 3]; 
     // Since eigenvalues are sorted ascending, we process in order.
     let degen_tol = f64::max(1e-12, f64::abs(eigenvalues[2]) * 1e-10);
 
-    // Check λ₁ ≈ λ₂.
+    // Check Î»â‚ â‰ˆ Î»â‚‚.
     if (eigenvalues[1] - eigenvalues[0]).abs() < degen_tol {
-        // Orthogonalise v₂ against v₁.
+        // Orthogonalise vâ‚‚ against vâ‚.
         vecs[1] = orthogonalise_against(vecs[1], vecs[0]);
     }
-    // Check λ₂ ≈ λ₃.
+    // Check Î»â‚‚ â‰ˆ Î»â‚ƒ.
     if (eigenvalues[2] - eigenvalues[1]).abs() < degen_tol {
-        // Orthogonalise v₃ against v₂ (and transitively v₁).
+        // Orthogonalise vâ‚ƒ against vâ‚‚ (and transitively vâ‚).
         vecs[2] = orthogonalise_against(vecs[2], vecs[1]);
         vecs[2] = orthogonalise_against(vecs[2], vecs[0]);
     }
-    // If λ₁ ≈ λ₃ (implies all equal), orthogonalise v₃ against v₁ too.
+    // If Î»â‚ â‰ˆ Î»â‚ƒ (implies all equal), orthogonalise vâ‚ƒ against vâ‚ too.
     if (eigenvalues[2] - eigenvalues[0]).abs() < degen_tol
         && (eigenvalues[2] - eigenvalues[1]).abs() >= degen_tol
     {
@@ -190,7 +190,7 @@ fn eigenvectors_3x3_symmetric(h: [f64; 6], eigenvalues: [f64; 3]) -> [[f64; 3]; 
     vecs
 }
 
-// ── Small vector helpers ──────────────────────────────────────────────────────
+// â”€â”€ Small vector helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[inline(always)]
 fn cross3(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
@@ -237,7 +237,7 @@ fn orthogonalise_against(v: [f64; 3], u: [f64; 3]) -> [f64; 3] {
     w
 }
 
-// ── Diffusion tensor ──────────────────────────────────────────────────────────
+// â”€â”€ Diffusion tensor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Construct the diffusion tensor D at a single voxel from the structure tensor.
 ///
@@ -245,9 +245,9 @@ fn orthogonalise_against(v: [f64; 3], u: [f64; 3]) -> [f64; 3] {
 /// structure tensor: [D_11, D_12, D_13, D_22, D_23, D_33].
 ///
 /// Eigenvalue assignment (Weickert 1999):
-/// α₁ = α + (1 − α) · (1 − exp(−C · (λ₃ − λ₁)² / (λ₃² + ε))) `[coherence dir]`
-/// α₂ = α + (1 − α) · (1 − exp(−C · (λ₂ − λ₁)² / (λ₃² + ε))) `[intermediate]`
-/// α₃ = α `[edge dir]`
+/// Î±â‚ = Î± + (1 âˆ’ Î±) Â· (1 âˆ’ exp(âˆ’C Â· (Î»â‚ƒ âˆ’ Î»â‚)Â² / (Î»â‚ƒÂ² + Îµ))) `[coherence dir]`
+/// Î±â‚‚ = Î± + (1 âˆ’ Î±) Â· (1 âˆ’ exp(âˆ’C Â· (Î»â‚‚ âˆ’ Î»â‚)Â² / (Î»â‚ƒÂ² + Îµ))) `[intermediate]`
+/// Î±â‚ƒ = Î± `[edge dir]`
 pub(crate) fn diffusion_tensor(st: [f64; 6], alpha: f64, contrast: f64) -> [f64; 6] {
     let decomp = eigen_3x3_symmetric(st);
     let [lam1, lam2, lam3] = decomp.eigenvalues;
@@ -268,10 +268,10 @@ pub(crate) fn diffusion_tensor(st: [f64; 6], alpha: f64, contrast: f64) -> [f64;
     // Edge direction: minimal diffusion.
     let alpha3 = alpha;
 
-    // Reconstruct D = α₁·e₁·e₁ᵀ + α₂·e₂·e₂ᵀ + α₃·e₃·e₃ᵀ
+    // Reconstruct D = Î±â‚Â·eâ‚Â·eâ‚áµ€ + Î±â‚‚Â·eâ‚‚Â·eâ‚‚áµ€ + Î±â‚ƒÂ·eâ‚ƒÂ·eâ‚ƒáµ€
     let mut d = [0.0f64; 6];
     for (alpha_i, e) in [(alpha1, e1), (alpha2, e2), (alpha3, e3)] {
-        // Outer product: e · eᵀ, upper triangle.
+        // Outer product: e Â· eáµ€, upper triangle.
         d[0] += alpha_i * e[0] * e[0]; // D_11
         d[1] += alpha_i * e[0] * e[1]; // D_12
         d[2] += alpha_i * e[0] * e[2]; // D_13

@@ -1,36 +1,36 @@
-use super::*;
-use burn_ndarray::NdArray;
+﻿use super::*;
+use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::test_support::burn_compat::{make_image, make_image_1d};
+use ritk_image::tensor::Tensor;
+use ritk_image::test_support::{make_image, make_image_1d};
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
 
-fn make_mask_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
+fn make_mask_1d(data: Vec<f32>) -> Image<f32, TestBackend, 1> {
     make_image_1d(data)
 }
 
-fn make_mask_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
+fn make_mask_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, TestBackend, 3> {
     make_image(data, dims)
 }
 
-fn values_3d(image: &Image<TestBackend, 3>) -> Vec<f32> {
+fn values_3d(image: &Image<f32, TestBackend, 3>) -> Vec<f32> {
     image.data_slice().into_owned()
 }
 
-fn values_1d(image: &Image<TestBackend, 1>) -> Vec<f32> {
+fn values_1d(image: &Image<f32, TestBackend, 1>) -> Vec<f32> {
     image.data_slice().into_owned()
 }
 
-fn count_fg_3d(image: &Image<TestBackend, 3>) -> usize {
+fn count_fg_3d(image: &Image<f32, TestBackend, 3>) -> usize {
     values_3d(image).iter().filter(|&&v| v > 0.5).count()
 }
 
-// ── radius = 0 is identity ─────────────────────────────────────────────────
+// â”€â”€ radius = 0 is identity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_radius0_is_identity_volumetric() {
-    // Structuring element {p} → output = input for any binary mask.
+    // Structuring element {p} â†’ output = input for any binary mask.
     let data: Vec<f32> = (0u8..27)
         .map(|i| if i % 2 == 0 { 1.0 } else { 0.0 })
         .collect();
@@ -55,11 +55,11 @@ fn test_radius0_is_identity_line() {
     );
 }
 
-// ── Single isolated voxel grows to neighbourhood ──────────────────────────
+// â”€â”€ Single isolated voxel grows to neighbourhood â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_single_center_voxel_5x5x5_dilates_to_box_r1() {
-    // Center voxel (2,2,2) in 5×5×5: dilation r=1 → 3×3×3 box = 27 voxels.
+    // Center voxel (2,2,2) in 5Ã—5Ã—5: dilation r=1 â†’ 3Ã—3Ã—3 box = 27 voxels.
     let mut values = vec![0.0_f32; 125];
     values[2 * 25 + 2 * 5 + 2] = 1.0; // index of (2,2,2) in [5,5,5]
     let mask = make_mask_3d(values, [5, 5, 5]);
@@ -67,14 +67,14 @@ fn test_single_center_voxel_5x5x5_dilates_to_box_r1() {
     assert_eq!(
         count_fg_3d(&result),
         27,
-        "single center voxel r=1 dilation must produce 3×3×3 = 27 foreground voxels"
+        "single center voxel r=1 dilation must produce 3Ã—3Ã—3 = 27 foreground voxels"
     );
 }
 
 #[test]
 fn test_single_corner_voxel_3x3x3_dilates_to_corner_box() {
-    // Corner voxel (0,0,0) in 3×3×3: dilation r=1 clips to 2×2×2 = 8 voxels
-    // (the full 3×3×3 neighbour box exceeds the image boundary on 3 sides).
+    // Corner voxel (0,0,0) in 3Ã—3Ã—3: dilation r=1 clips to 2Ã—2Ã—2 = 8 voxels
+    // (the full 3Ã—3Ã—3 neighbour box exceeds the image boundary on 3 sides).
     let mut values = vec![0.0_f32; 27];
     values[0] = 1.0;
     let mask = make_mask_3d(values, [3, 3, 3]);
@@ -83,11 +83,11 @@ fn test_single_corner_voxel_3x3x3_dilates_to_corner_box() {
     assert_eq!(
         count_fg_3d(&result),
         8,
-        "corner voxel r=1 dilation must cover 2×2×2 = 8 voxels"
+        "corner voxel r=1 dilation must cover 2Ã—2Ã—2 = 8 voxels"
     );
 }
 
-// ── Extensivity invariant: input ⊆ dilated ────────────────────────────────
+// â”€â”€ Extensivity invariant: input âŠ† dilated â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_dilation_is_extensive() {
@@ -109,7 +109,7 @@ fn test_dilation_is_extensive() {
     }
 }
 
-// ── All-foreground input stays all-foreground ─────────────────────────────
+// â”€â”€ All-foreground input stays all-foreground â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_all_foreground_stays_all_foreground() {
@@ -123,7 +123,7 @@ fn test_all_foreground_stays_all_foreground() {
     );
 }
 
-// ── All-background stays all-background ───────────────────────────────────
+// â”€â”€ All-background stays all-background â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_all_background_stays_all_background() {
@@ -136,17 +136,17 @@ fn test_all_background_stays_all_background() {
     );
 }
 
-// ── 1D dilation: known cases ──────────────────────────────────────────────
+// â”€â”€ 1D dilation: known cases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_1d_dilation_r1_known_output() {
     // Input: [0, 0, 1, 0, 0]
     // r=1 neighbourhood:
-    //   i=0: neighbours {0,1}        → bg → 0
-    //   i=1: neighbours {0,1,2}      → i=2 is fg → 1
-    //   i=2: neighbours {1,2,3}      → i=2 is fg → 1
-    //   i=3: neighbours {2,3,4}      → i=2 is fg → 1
-    //   i=4: neighbours {3,4}        → bg → 0
+    //   i=0: neighbours {0,1}        â†’ bg â†’ 0
+    //   i=1: neighbours {0,1,2}      â†’ i=2 is fg â†’ 1
+    //   i=2: neighbours {1,2,3}      â†’ i=2 is fg â†’ 1
+    //   i=3: neighbours {2,3,4}      â†’ i=2 is fg â†’ 1
+    //   i=4: neighbours {3,4}        â†’ bg â†’ 0
     // Expected: [0, 1, 1, 1, 0]
     let data = vec![0.0, 0.0, 1.0, 0.0, 0.0];
     let mask = make_mask_1d(data);
@@ -180,13 +180,13 @@ fn test_1d_dilation_single_voxel_at_boundary() {
     assert_eq!(out, expected, "boundary single voxel dilation mismatch");
 }
 
-// ── Double dilation is superset of single dilation ────────────────────────
+// â”€â”€ Double dilation is superset of single dilation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_double_dilation_superset_of_single_dilation() {
-    // D(D(M)) ⊇ D(M) (monotone).
+    // D(D(M)) âŠ‡ D(M) (monotone).
     let mut values = vec![0.0_f32; 125];
-    values[62] = 1.0; // center of 5×5×5
+    values[62] = 1.0; // center of 5Ã—5Ã—5
     let mask = make_mask_3d(values, [5, 5, 5]);
     let once = BinaryDilation::new(1).apply(&mask);
     let twice = BinaryDilation::new(1).apply(&once);
@@ -203,7 +203,7 @@ fn test_double_dilation_superset_of_single_dilation() {
     }
 }
 
-// ── Output strictly binary ────────────────────────────────────────────────
+// â”€â”€ Output strictly binary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_output_strictly_binary_volumetric() {
@@ -220,19 +220,15 @@ fn test_output_strictly_binary_volumetric() {
     }
 }
 
-// ── Metadata preservation ─────────────────────────────────────────────────
+// â”€â”€ Metadata preservation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_preserves_spatial_metadata() {
-    let device: <TestBackend as Backend>::Device = Default::default();
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(vec![1.0f32; 27], Shape::new([3, 3, 3])),
-        &device,
-    );
+    let tensor = Tensor::<f32, TestBackend>::from_slice([3, 3, 3], &[1.0_f32; 27]);
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 0.5, 0.5]);
     let direction = Direction::identity();
-    let mask: Image<TestBackend, 3> = Image::new(tensor, origin, spacing, direction);
+    let mask: Image<f32, TestBackend, 3> = Image::new(tensor, origin, spacing, direction);
     let result = BinaryDilation::new(1).apply(&mask);
     assert_eq!(result.origin(), &origin, "origin must be preserved");
     assert_eq!(result.spacing(), &spacing, "spacing must be preserved");
@@ -244,7 +240,7 @@ fn test_preserves_spatial_metadata() {
     assert_eq!(result.shape(), [3, 3, 3], "shape must be preserved");
 }
 
-// ── Dilation then erosion (closing): foreground grows then shrinks ────────
+// â”€â”€ Dilation then erosion (closing): foreground grows then shrinks â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_dilation_increases_or_preserves_foreground_count() {

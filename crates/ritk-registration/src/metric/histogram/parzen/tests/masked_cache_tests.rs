@@ -1,6 +1,6 @@
-use super::*;
+﻿use super::*;
 
-// ─── Masked path caching ─────────────────────────────────────────────────
+// â”€â”€â”€ Masked path caching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(feature = "direct-parzen")]
 #[test]
@@ -11,7 +11,7 @@ fn masked_cache_reuses_weights_on_same_key() {
     // without recomputing fixed-image weights.
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_image::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape };
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
@@ -30,9 +30,9 @@ fn masked_cache_reuses_weights_on_same_key() {
     }
 
     let fixed_t =
-        Tensor::<B, 3>::from_data(TensorData::new(fixed_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &fixed_data, &device);
     let moving_t =
-        Tensor::<B, 3>::from_data(TensorData::new(moving_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &moving_data, &device);
     let fixed_img = Image::new(
         fixed_t,
         Point::new([0.0, 0.0, 0.0]),
@@ -46,7 +46,7 @@ fn masked_cache_reuses_weights_on_same_key() {
         Direction::identity(),
     );
     let interp = LinearInterpolator::new_zero_pad();
-    let zero_translation = Tensor::<B, 1>::zeros([3], &device);
+    let zero_translation = Tensor::<f32, B>::zeros([3], &device);
     let translation = TranslationTransform::<B, 3>::new(zero_translation);
 
     let hist = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &device);
@@ -55,7 +55,7 @@ fn masked_cache_reuses_weights_on_same_key() {
     let all_points =
         fixed_img.index_to_world_tensor(ritk_image::generate_grid_burn(fixed_img.shape(), &device));
 
-    // First call WITH caching — should compute and store W_fixed^T
+    // First call WITH caching â€” should compute and store W_fixed^T
     let first = hist.compute_masked_joint_histogram(
         &fixed_img,
         &all_points,
@@ -64,7 +64,7 @@ fn masked_cache_reuses_weights_on_same_key() {
         &interp,
         Some(42), // cache_key
     );
-    // Second call WITH same cache_key — should reuse cached W_fixed^T
+    // Second call WITH same cache_key â€” should reuse cached W_fixed^T
     let second = hist.compute_masked_joint_histogram(
         &fixed_img,
         &all_points,
@@ -116,7 +116,7 @@ fn masked_cache_different_key_recomputes() {
     // (cache miss with new key).
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_image::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape };
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
@@ -134,9 +134,9 @@ fn masked_cache_different_key_recomputes() {
     }
 
     let fixed_t =
-        Tensor::<B, 3>::from_data(TensorData::new(fixed_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &fixed_data, &device);
     let moving_t =
-        Tensor::<B, 3>::from_data(TensorData::new(moving_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &moving_data, &device);
     let fixed_img = Image::new(
         fixed_t,
         Point::new([0.0, 0.0, 0.0]),
@@ -150,7 +150,7 @@ fn masked_cache_different_key_recomputes() {
         Direction::identity(),
     );
     let interp = LinearInterpolator::new_zero_pad();
-    let zero_translation = Tensor::<B, 1>::zeros([3], &device);
+    let zero_translation = Tensor::<f32, B>::zeros([3], &device);
     let translation = TranslationTransform::<B, 3>::new(zero_translation);
 
     let hist = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &device);
@@ -167,7 +167,7 @@ fn masked_cache_different_key_recomputes() {
         &interp,
         Some(100),
     );
-    // Second call with key=200 — different key should cause cache miss
+    // Second call with key=200 â€” different key should cause cache miss
     let second = hist.compute_masked_joint_histogram(
         &fixed_img,
         &all_points,
@@ -200,7 +200,7 @@ fn masked_no_cache_key_matches_uncached() {
     // as the original uncached path.
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_image::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape };
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
@@ -218,9 +218,9 @@ fn masked_no_cache_key_matches_uncached() {
     }
 
     let fixed_t =
-        Tensor::<B, 3>::from_data(TensorData::new(fixed_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &fixed_data, &device);
     let moving_t =
-        Tensor::<B, 3>::from_data(TensorData::new(moving_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &moving_data, &device);
     let fixed_img = Image::new(
         fixed_t,
         Point::new([0.0, 0.0, 0.0]),
@@ -234,7 +234,7 @@ fn masked_no_cache_key_matches_uncached() {
         Direction::identity(),
     );
     let interp = LinearInterpolator::new_zero_pad();
-    let zero_translation = Tensor::<B, 1>::zeros([3], &device);
+    let zero_translation = Tensor::<f32, B>::zeros([3], &device);
     let translation = TranslationTransform::<B, 3>::new(zero_translation);
 
     let hist1 = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &device);
@@ -243,7 +243,7 @@ fn masked_no_cache_key_matches_uncached() {
     let all_points =
         fixed_img.index_to_world_tensor(ritk_image::generate_grid_burn(fixed_img.shape(), &device));
 
-    // Call with None (no caching) and with a cache key — results should match
+    // Call with None (no caching) and with a cache key â€” results should match
     let no_cache_result = hist1.compute_masked_joint_histogram(
         &fixed_img,
         &all_points,
@@ -265,7 +265,7 @@ fn masked_no_cache_key_matches_uncached() {
     let no_cache_slice = no_cache_data.as_slice::<f32>().unwrap();
     let cached_data = cached_result.into_data();
     let cached_slice = cached_data.as_slice::<f32>().unwrap();
-    // Both no-cache and cached paths accumulate raw w_f × w_m products.
+    // Both no-cache and cached paths accumulate raw w_f Ã— w_m products.
     // Verify nonzero patterns match and totals are approximately equal.
     for (i, (a, b)) in no_cache_slice.iter().zip(cached_slice.iter()).enumerate() {
         let a_nz = *a > 1e-6;
@@ -296,7 +296,7 @@ fn masked_no_cache_key_matches_uncached() {
     );
 }
 
-// ─── Cache invalidation ─────────────────────────────────────────────────
+// â”€â”€â”€ Cache invalidation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn cache_invalidate_clears_image_cache() {
@@ -304,7 +304,7 @@ fn cache_invalidate_clears_image_cache() {
     // populated by a prior compute_image_joint_histogram call.
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_image::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape };
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
@@ -323,9 +323,9 @@ fn cache_invalidate_clears_image_cache() {
     }
 
     let fixed_t =
-        Tensor::<B, 3>::from_data(TensorData::new(fixed_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &fixed_data, &device);
     let moving_t =
-        Tensor::<B, 3>::from_data(TensorData::new(moving_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &moving_data, &device);
     let fixed_img = Image::new(
         fixed_t,
         Point::new([0.0, 0.0, 0.0]),
@@ -339,7 +339,7 @@ fn cache_invalidate_clears_image_cache() {
         Direction::identity(),
     );
     let interp = LinearInterpolator::new_zero_pad();
-    let zero_translation = Tensor::<B, 1>::zeros([3], &device);
+    let zero_translation = Tensor::<f32, B>::zeros([3], &device);
     let translation = TranslationTransform::<B, 3>::new(zero_translation);
 
     let hist = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &device);
@@ -368,7 +368,7 @@ fn cache_invalidate_clears_image_cache() {
         "image-grid cache must be None after invalidate_cache()"
     );
 
-    // Invalidation is idempotent — calling again should not panic
+    // Invalidation is idempotent â€” calling again should not panic
     hist.invalidate_cache();
     assert!(
         !hist.cache.is_populated(),
@@ -382,7 +382,7 @@ fn cache_invalidate_clears_masked_cache() {
     // populated by a prior compute_masked_joint_histogram call with a cache_key.
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_image::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape };
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
@@ -401,9 +401,9 @@ fn cache_invalidate_clears_masked_cache() {
     }
 
     let fixed_t =
-        Tensor::<B, 3>::from_data(TensorData::new(fixed_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &fixed_data, &device);
     let moving_t =
-        Tensor::<B, 3>::from_data(TensorData::new(moving_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &moving_data, &device);
     let fixed_img = Image::new(
         fixed_t,
         Point::new([0.0, 0.0, 0.0]),
@@ -417,7 +417,7 @@ fn cache_invalidate_clears_masked_cache() {
         Direction::identity(),
     );
     let interp = LinearInterpolator::new_zero_pad();
-    let zero_translation = Tensor::<B, 1>::zeros([3], &device);
+    let zero_translation = Tensor::<f32, B>::zeros([3], &device);
     let translation = TranslationTransform::<B, 3>::new(zero_translation);
 
     let hist = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &device);
@@ -451,7 +451,7 @@ fn cache_invalidate_clears_masked_cache() {
         "masked cache must be None after invalidate_masked_cache()"
     );
 
-    // Invalidation is idempotent — calling again should not panic
+    // Invalidation is idempotent â€” calling again should not panic
     hist.invalidate_masked_cache();
     assert!(
         !hist.masked_cache.is_populated(),

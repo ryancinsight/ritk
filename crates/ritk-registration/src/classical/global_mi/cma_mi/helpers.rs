@@ -1,4 +1,4 @@
-// ─── Private helpers for CMA-ES MI registration ─────────────────────────────
+﻿// â”€â”€â”€ Private helpers for CMA-ES MI registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // Extracted from `registration.rs` to keep the public API surface in a
 // focused file while the heavy lifting lives here.
@@ -6,9 +6,8 @@
 use ritk_core::image::Image;
 use ritk_filter::pyramid::MultiResolutionPyramid;
 use ritk_filter::GaussianSigma;
-use ritk_image::generate_random_points_burn;
-use ritk_image::tensor::AutodiffBackend;
-use ritk_image::tensor::{Backend, Shape, Tensor, TensorData};
+use ritk_image::generate_random_points;
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_transform::RigidTransform;
 
 use super::super::transforms::estimate_intensity_range;
@@ -21,20 +20,11 @@ use crate::optimizer::{CmaEsConfig, CmaEsOptimizer};
 ///
 /// CMA-ES never calls `.backward()`. Evaluating the MI metric on
 /// `Image<Autodiff<B>, 3>` silently builds an autodiff tape on every objective
-/// call, wasting 2–5× CPU time. Converting to the inner backend before the
+/// call, wasting 2â€“5Ã— CPU time. Converting to the inner backend before the
 /// CMA-ES loop eliminates this overhead entirely.
-pub(super) fn strip_autodiff<B: AutodiffBackend>(img: &Image<B, 3>) -> Image<B::InnerBackend, 3> {
-    Image::new(
-        img.data().clone().inner(),
-        *img.origin(),
-        *img.spacing(),
-        *img.direction(),
-    )
-}
-
-/// Build a `MutualInformation` metric on the inner (non-autodiff) backend.
+/// Build a `MutualInformation` metric on the selected Coeus backend.
 ///
-/// The Parzen window width is set to `bin_width = (max−min)/num_bins`, which
+/// The Parzen window width is set to `bin_width = (maxâˆ’min)/num_bins`, which
 /// is appropriate for both Mattes MI and NMI variants.
 ///
 /// When `mask_points` is `Some`, the metric uses masked joint histogram evaluation
@@ -50,10 +40,10 @@ pub(super) fn build_metric<IB: Backend>(
     min_int: f32,
     max_int: f32,
     sampling_percentage: f32,
-    mask_points: Option<Tensor<IB, 2>>,
-    // NEW: separate moving-image range (None → use combined range, backward compat)
+    mask_points: Option<Tensor<f32, IB>>,
+    // NEW: separate moving-image range (None â†’ use combined range, backward compat)
     moving_range: Option<(f32, f32)>,
-    device: &IB::Device,
+    device: &IB,
 ) -> MutualInformation<IB> {
     const MIN_HISTOGRAM_BIN_WIDTH: f32 = 1e-6;
     let bin_width = (max_int - min_int).max(MIN_HISTOGRAM_BIN_WIDTH) / num_bins as f32;
@@ -76,14 +66,14 @@ pub(super) fn build_metric<IB: Backend>(
 /// Execute a single CMA-ES level with autodiff-stripped images.
 ///
 /// Builds a one-level pyramid at `per_axis` shrink factors, strips autodiff,
-/// and minimises `−MI` over the normalised 6-DOF parameter space.
+/// and minimises `âˆ’MI` over the normalised 6-DOF parameter space.
 ///
-/// Returns the raw [`crate::optimizer::CmaEsResult`] whose `best_x` is in normalised `[−1,1]⁶`
+/// Returns the raw [`crate::optimizer::CmaEsResult`] whose `best_x` is in normalised `[âˆ’1,1]â¶`
 /// space; the caller is responsible for denormalising.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn run_cma_level<B: AutodiffBackend>(
-    fixed: &Image<B, 3>,
-    moving: &Image<B, 3>,
+pub(super) fn run_cma_level<B: Backend>(
+    fixed: &Image<f32, B, 3>,
+    moving: &Image<f32, B, 3>,
     config: &CmaMiConfig,
     per_axis: &[usize; 3],
     sigma_mm: GaussianSigma,
@@ -97,13 +87,13 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
     x_init: &[f64],
     // Optional brain mask in fixed-image space (autodiff backend, same shape as `fixed`).
     // When Some, downsampled to pyramid level and used to restrict MI to foreground voxels.
-    fixed_mask: Option<&Image<B, 3>>,
+    fixed_mask: Option<&Image<f32, B, 3>>,
 ) -> crate::optimizer::CmaEsResult {
-    // ── Build pyramid ─────────────────────────────────────────────────────────
-    // P1-01: stack-allocated per-axis arrays — no `Vec<usize>` / `Vec<f64>`
+    // â”€â”€ Build pyramid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // P1-01: stack-allocated per-axis arrays â€” no `Vec<usize>` / `Vec<f64>`
     // per-level allocation, no `Vec<Vec<_>>` outer container.
     let shrink_factors: Vec<[usize; 3]> = vec![[per_axis[0], per_axis[1], per_axis[2]]];
-    // Zero smoothing for axes with no downsampling (shrink ≤ 1): applying sigma > 0
+    // Zero smoothing for axes with no downsampling (shrink â‰¤ 1): applying sigma > 0
     // on an axis we are NOT downsampling wastes z-information that the thin-slab
     // preset specifically preserves via anisotropic shrink factors.
     let smoothing_sigmas: Vec<[f64; 3]> = vec![[
@@ -130,12 +120,12 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
     let moving_c = moving_pyr.get_level(0).clone();
 
     tracing::info!(
-        "CmaMiRegistration: level — fixed {:?}, moving {:?}",
+        "CmaMiRegistration: level â€” fixed {:?}, moving {:?}",
         fixed_c.shape(),
         moving_c.shape(),
     );
 
-    // ── Intensity range ───────────────────────────────────────────────────────
+    // â”€â”€ Intensity range â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let (min_f, max_f) = estimate_intensity_range(&fixed_c);
     let (min_m, max_m) = estimate_intensity_range(&moving_c);
     let min_int = min_f.min(min_m);
@@ -143,29 +133,29 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
 
     // OOB note: using COMBINED intensity range (not separate per-image ranges) for
     // the CMA-ES cold-start search. With separate moving range, the zero-pad
-    // interpolator returns 0.0 for OOB samples; 0.0 < MRI min (≈ 2 for RIRE) so it
+    // interpolator returns 0.0 for OOB samples; 0.0 < MRI min (â‰ˆ 2 for RIRE) so it
     // clamps to MRI bin 0, creating a false correlation between CT air (also bin 0 in
     // separate CT range) and OOB samples. With the combined range, OOB=0.0 maps to
     // a middle bin (~11 for RIRE), which is different from CT air (bin 0), reducing
     // false correlations at large-displacement boundary positions.
     let separate_moving_range: Option<(f32, f32)> = None;
 
-    // ── Strip autodiff — eliminate tape overhead in CMA-ES loop ──────────────
-    let fixed_inner = strip_autodiff(&fixed_c);
-    let moving_inner = strip_autodiff(&moving_c);
+    // â”€â”€ Strip autodiff â€” eliminate tape overhead in CMA-ES loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    let fixed_inner = fixed_c;
+    let moving_inner = moving_c;
     let inner_device = fixed_inner.data().device();
 
-    // ── Brain mask / Pre-sampling: extract or generate sample points once per level ────
+    // â”€â”€ Brain mask / Pre-sampling: extract or generate sample points once per level â”€â”€â”€â”€
     // This avoids random noise on every objective function evaluation and enables
     // caching of the fixed-image Parzen weights for both masked and sampled paths.
-    let mask_world_points: Option<Tensor<B::InnerBackend, 2>> = if let Some(mask) = fixed_mask {
+    let mask_world_points: Option<Tensor<f32, B>> = if let Some(mask) = fixed_mask {
         let mask_shrink: Vec<[usize; 3]> = vec![[per_axis[0], per_axis[1], per_axis[2]]];
         let mask_smooth: Vec<[f64; 3]> = vec![[0.0, 0.0, 0.0]]; // no smoothing
         let mask_pyr = MultiResolutionPyramid::new(mask, &mask_shrink, &mask_smooth);
         let mask_c = mask_pyr.get_level(0).clone();
-        let mask_inner = strip_autodiff(&mask_c);
+        let mask_inner = mask_c;
         tracing::info!(
-            "CmaMiRegistration: mask at level — shape {:?}",
+            "CmaMiRegistration: mask at level â€” shape {:?}",
             mask_inner.shape()
         );
         Some(extract_foreground_world_points(
@@ -177,7 +167,7 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
         let total_voxels = fixed_inner.shape().iter().product::<usize>();
         let num_samples = ((total_voxels as f32 * config.sampling_percentage) as usize).max(32);
         let fixed_indices =
-            generate_random_points_burn(fixed_inner.shape(), num_samples, &inner_device);
+            generate_random_points(fixed_inner.shape(), num_samples, &inner_device);
         Some(fixed_inner.index_to_world_tensor(fixed_indices))
     } else {
         None
@@ -189,8 +179,8 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
         config.sampling_percentage
     };
 
-    // ── Build metric on inner backend ─────────────────────────────────────────
-    let metric = build_metric::<B::InnerBackend>(
+    // â”€â”€ Build metric on inner backend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    let metric = build_metric::<B>(
         config.mi_variant,
         config.num_mi_bins,
         min_int,
@@ -201,9 +191,9 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
         &inner_device,
     );
 
-    // ── Objective closure — all tensors on inner (non-autodiff) backend ───────
+    // â”€â”€ Objective closure â€” all tensors on inner (non-autodiff) backend â”€â”€â”€â”€â”€â”€â”€
     let obj = move |params: &[f64]| -> f64 {
-        // Hard penalty for parameters outside the normalised box [−1, 1]⁶.
+        // Hard penalty for parameters outside the normalised box [âˆ’1, 1]â¶.
         if params.iter().any(|&p| p.abs() > 1.0) {
             return 10.0;
         }
@@ -211,7 +201,7 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
         // corners of the search box. When the transform maps most fixed-image
         // voxels outside the moving-image FOV (large translations), the zero-pad
         // interpolator returns 0.0 for out-of-bounds samples, which can create
-        // a false MI maximum near |p_i| ≈ 1. Adding a quadratic penalty for
+        // a false MI maximum near |p_i| â‰ˆ 1. Adding a quadratic penalty for
         // |p_i| > 0.85 (= 85% of the search range, e.g. 51 mm for a 60 mm
         // range) strongly suppresses this artefact without restricting the
         // interior of the search space where the true maximum lies.
@@ -237,15 +227,11 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
         let ty = (params[4] * trans_scale) as f32;
         let tx = (params[5] * trans_scale) as f32;
 
-        let rotation = Tensor::<B::InnerBackend, 1>::from_data(
-            TensorData::from([alpha, beta, gamma]),
-            &inner_device,
-        );
-        let translation =
-            Tensor::<B::InnerBackend, 1>::from_data(TensorData::from([tz, ty, tx]), &inner_device);
-        let center =
-            Tensor::<B::InnerBackend, 1>::from_data(TensorData::from(center_arr), &inner_device);
-        let transform = RigidTransform::<B::InnerBackend, 3>::new(translation, rotation, center);
+        let rotation =
+            Tensor::<f32, B>::from_slice_on([3], &[alpha, beta, gamma], &inner_device);
+        let translation = Tensor::<f32, B>::from_slice_on([3], &[tz, ty, tx], &inner_device);
+        let center = Tensor::<f32, B>::from_slice_on([3], &center_arr, &inner_device);
+        let transform = RigidTransform::<B, 3>::new(translation, rotation, center);
 
         let loss = metric.forward(&fixed_inner, &moving_inner, &transform);
         loss.into_data()
@@ -253,7 +239,7 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
             .expect("loss value tensor data must be contiguous")[0] as f64
     };
 
-    // ── CMA-ES config for this level ──────────────────────────────────────────
+    // â”€â”€ CMA-ES config for this level â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Inherit shared settings (seed, sigma_tol, ftol, record_history) from the
     // top-level config; override per-level parameters.
     let level_cfg = CmaEsConfig {
@@ -291,10 +277,10 @@ pub(super) fn run_cma_level<B: AutodiffBackend>(
 /// a warning is emitted and a uniform stride-sampled set of all voxels is
 /// returned so registration can continue.
 pub(super) fn extract_foreground_world_points<IB: Backend>(
-    fixed_inner: &Image<IB, 3>,
-    mask_inner: &Image<IB, 3>,
+    fixed_inner: &Image<f32, IB, 3>,
+    mask_inner: &Image<f32, IB, 3>,
     sampling_pct: f32,
-) -> Tensor<IB, 2> {
+) -> Tensor<f32, IB> {
     let [nz, ny, nx] = mask_inner.shape();
     let total_voxels = nz * ny * nx;
     let device = mask_inner.data().device();
@@ -310,7 +296,7 @@ pub(super) fn extract_foreground_world_points<IB: Backend>(
         .expect("mask tensor data must be contiguous");
 
     // Collect foreground voxel (x, y, z) coordinates (grid convention: [x, y, z] per row).
-    // Capacity: at most total_voxels foreground entries × 3 coords
+    // Capacity: at most total_voxels foreground entries Ã— 3 coords
     let mut fg_coords: Vec<f32> = Vec::with_capacity(total_voxels * 3);
     for (i, &v) in mask_slice.iter().enumerate() {
         if v > 0.5 {
@@ -324,7 +310,7 @@ pub(super) fn extract_foreground_world_points<IB: Backend>(
     let target = ((total_voxels as f32 * sampling_pct) as usize).max(32);
 
     let final_coords: Vec<f32> = if fg_count == 0 {
-        // Degenerate: mask fully zero at this pyramid level — fall back to uniform.
+        // Degenerate: mask fully zero at this pyramid level â€” fall back to uniform.
         tracing::warn!(
             "CmaMiRegistration: brain mask is empty at pyramid level (shape [{nz},{ny},{nx}]); \
              falling back to uniform stride-sampling"
@@ -341,7 +327,7 @@ pub(super) fn extract_foreground_world_points<IB: Backend>(
         }
         coords
     } else if fg_count > target {
-        // Sub-sample foreground by stride so evaluation time ≈ unmasked path.
+        // Sub-sample foreground by stride so evaluation time â‰ˆ unmasked path.
         let step = (fg_count / target).max(1);
         let mut sub = Vec::with_capacity(target * 3);
         let mut i = 0usize;
@@ -363,6 +349,6 @@ pub(super) fn extract_foreground_world_points<IB: Backend>(
 
     let n = final_coords.len() / 3;
     let idx_t =
-        Tensor::<IB, 2>::from_data(TensorData::new(final_coords, Shape::new([n, 3])), &device);
+        Tensor::<f32, IB>::from_slice_on([n, 3], &final_coords, &device);
     fixed_inner.index_to_world_tensor(idx_t)
 }

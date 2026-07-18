@@ -1,4 +1,4 @@
-//! Tests for the loader module.
+﻿//! Tests for the loader module.
 
 use super::*;
 use crate::dicom::series_tree::SeriesEntry;
@@ -18,8 +18,7 @@ fn sort_series_entries_is_deterministic() {
             series_description: Cow::Borrowed("S2"),
             num_slices: 1,
             study_date: Some(Cow::Borrowed("20260102")),
-            study_uid: Some(Cow::Borrowed("ST2")),
-        },
+            study_uid: Some(Cow::Borrowed("ST2")) },
         SeriesEntry {
             series_uid: Cow::Borrowed("UID-A2"),
             folder: Cow::Borrowed(std::path::Path::new("b/path")),
@@ -29,8 +28,7 @@ fn sort_series_entries_is_deterministic() {
             series_description: Cow::Borrowed("S1"),
             num_slices: 1,
             study_date: Some(Cow::Borrowed("20260101")),
-            study_uid: Some(Cow::Borrowed("ST1")),
-        },
+            study_uid: Some(Cow::Borrowed("ST1")) },
         SeriesEntry {
             series_uid: Cow::Borrowed("UID-A1"),
             folder: Cow::Borrowed(std::path::Path::new("a/path")),
@@ -40,8 +38,7 @@ fn sort_series_entries_is_deterministic() {
             series_description: Cow::Borrowed("S1"),
             num_slices: 1,
             study_date: Some(Cow::Borrowed("20260101")),
-            study_uid: Some(Cow::Borrowed("ST1")),
-        },
+            study_uid: Some(Cow::Borrowed("ST1")) },
     ];
     scan::sort_series_entries_deterministically(&mut entries);
     let ordered_uids: Vec<&str> = entries.iter().map(|e| e.series_uid.as_ref()).collect();
@@ -90,7 +87,7 @@ fn test_load_nifti_volume_shape() {
     assert_eq!(
         vol.data.len(),
         expected_len,
-        "pixel data length {actual} must equal depth×rows×cols = {expected_len}",
+        "pixel data length {actual} must equal depthÃ—rowsÃ—cols = {expected_len}",
         actual = vol.data.len(),
     );
     // Source path must be recorded.
@@ -206,7 +203,7 @@ fn test_load_dicom_volume_shape() {
     assert_eq!(
         vol.data.len(),
         depth * rows * cols,
-        "pixel buffer length must equal depth×rows×cols"
+        "pixel buffer length must equal depthÃ—rowsÃ—cols"
     );
 }
 
@@ -246,7 +243,7 @@ fn test_load_head_mri_t2_volume_shape() {
     assert_eq!(
         vol.data.len(),
         depth * rows * cols,
-        "pixel buffer length must equal depth×rows×cols"
+        "pixel buffer length must equal depthÃ—rowsÃ—cols"
     );
     // Modality must be MR.
     assert_eq!(
@@ -256,8 +253,8 @@ fn test_load_head_mri_t2_volume_shape() {
     );
 }
 
-/// `scan_folder_for_series` must return an empty [`SeriesTree`] — not an
-/// error — when the target directory contains no DICOM files.
+/// `scan_folder_for_series` must return an empty [`SeriesTree`] â€” not an
+/// error â€” when the target directory contains no DICOM files.
 #[test]
 fn test_scan_folder_for_series_empty_dir() {
     let dir = tempfile::tempdir().expect("tempdir must be created");

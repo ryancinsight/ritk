@@ -1,4 +1,4 @@
-//! Pixel layout and native sample decoding.
+﻿//! Pixel layout and native sample decoding.
 //!
 //! # Contract
 //! Native byte decode applies `output = sample * slope + intercept`.
@@ -9,15 +9,14 @@ use anyhow::{bail, Result};
 ///
 /// DICOM PixelRepresentation (0028,0103) encodes signedness as 0 = unsigned,
 /// 1 = signed two's complement. This enum lifts that convention into the type
-/// system so invalid values (2, 3, …) are unrepresentable.
+/// system so invalid values (2, 3, â€¦) are unrepresentable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum PixelSignedness {
     /// Unsigned pixel representation (PixelRepresentation = 0).
     #[default]
     Unsigned,
     /// Signed (two's complement) pixel representation (PixelRepresentation = 1).
-    Signed,
-}
+    Signed }
 
 impl PixelSignedness {
     /// Returns `true` for [`Signed`](PixelSignedness::Signed).
@@ -39,8 +38,7 @@ impl TryFrom<u16> for PixelSignedness {
         match value {
             0 => Ok(Self::Unsigned),
             1 => Ok(Self::Signed),
-            other => bail!("pixel_representation={} is invalid; expected 0 or 1", other),
-        }
+            other => bail!("pixel_representation={} is invalid; expected 0 or 1", other) }
     }
 }
 
@@ -48,8 +46,7 @@ impl std::fmt::Display for PixelSignedness {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Unsigned => write!(f, "Unsigned(0)"),
-            Self::Signed => write!(f, "Signed(1)"),
-        }
+            Self::Signed => write!(f, "Signed(1)") }
     }
 }
 
@@ -61,8 +58,7 @@ pub struct PixelLayout {
     pub bits_allocated: u16,
     pub pixel_representation: PixelSignedness,
     pub rescale_slope: f32,
-    pub rescale_intercept: f32,
-}
+    pub rescale_intercept: f32 }
 
 impl PixelLayout {
     pub fn pixels_per_frame(self) -> Result<usize> {
@@ -164,8 +160,7 @@ fn decode_native_pixel_bytes_unchecked(bytes: &[u8], layout: PixelLayout) -> Vec
             .chunks_exact(4)
             .map(|c| apply_rescale(u32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f32, &layout))
             .collect(),
-        _ => Vec::new(),
-    }
+        _ => Vec::new() }
 }
 
 fn u24_le(bytes: &[u8]) -> u32 {
@@ -213,8 +208,7 @@ mod tests {
                 bits_allocated: 16,
                 pixel_representation: PixelSignedness::Signed,
                 rescale_slope: 2.0,
-                rescale_intercept: 5.0,
-            },
+                rescale_intercept: 5.0 },
         )
         .unwrap();
         assert_eq!(out, vec![1.0, 5.0, 25.0]);
@@ -233,8 +227,7 @@ mod tests {
                 bits_allocated: 8,
                 pixel_representation: PixelSignedness::Signed,
                 rescale_slope: 2.0,
-                rescale_intercept: 5.0,
-            },
+                rescale_intercept: 5.0 },
         )
         .unwrap();
 
@@ -252,8 +245,7 @@ mod tests {
                 bits_allocated: 16,
                 pixel_representation: PixelSignedness::Unsigned,
                 rescale_slope: 1.0,
-                rescale_intercept: 0.0,
-            },
+                rescale_intercept: 0.0 },
         )
         .unwrap_err();
 
@@ -279,8 +271,7 @@ mod tests {
                 bits_allocated: 32,
                 pixel_representation: PixelSignedness::Unsigned,
                 rescale_slope: 0.5,
-                rescale_intercept: -1.0,
-            },
+                rescale_intercept: -1.0 },
         )
         .unwrap();
 
@@ -306,8 +297,7 @@ mod tests {
                 bits_allocated: 24,
                 pixel_representation: PixelSignedness::Signed,
                 rescale_slope: 2.0,
-                rescale_intercept: 5.0,
-            },
+                rescale_intercept: 5.0 },
         )
         .unwrap();
 
@@ -330,8 +320,7 @@ mod tests {
                 bits_allocated: 32,
                 pixel_representation: PixelSignedness::Signed,
                 rescale_slope: 2.0,
-                rescale_intercept: 5.0,
-            },
+                rescale_intercept: 5.0 },
         )
         .unwrap();
 
@@ -358,8 +347,7 @@ mod tests {
                 bits_allocated: 8,
                 pixel_representation: PixelSignedness::Unsigned,
                 rescale_slope: f32::NAN,
-                rescale_intercept: 0.0,
-            },
+                rescale_intercept: 0.0 },
         )
         .unwrap_err();
 
@@ -380,8 +368,7 @@ mod tests {
                 bits_allocated: 8,
                 pixel_representation: PixelSignedness::Unsigned,
                 rescale_slope: 1.0,
-                rescale_intercept: f32::INFINITY,
-            },
+                rescale_intercept: f32::INFINITY },
         )
         .unwrap_err();
         assert!(
@@ -412,8 +399,7 @@ mod tests {
                 bits_allocated: 16,
                 pixel_representation: PixelSignedness::Signed,
                 rescale_slope: 1.0,
-                rescale_intercept: -1024.0,
-            },
+                rescale_intercept: -1024.0 },
         )
         .unwrap();
         // HU = stored * 1 + (-1024)
@@ -438,8 +424,7 @@ mod tests {
                 bits_allocated: 16,
                 pixel_representation: PixelSignedness::Signed,
                 rescale_slope: 1.0,
-                rescale_intercept: 0.0,
-            },
+                rescale_intercept: 0.0 },
         )
         .unwrap();
         assert_eq!(out, vec![-1024.0, -512.0, 0.0, 3071.0]);

@@ -1,4 +1,4 @@
-//! `PreprocessingPipeline` struct and builder methods.
+﻿//! `PreprocessingPipeline` struct and builder methods.
 
 use super::step::PreprocessingStep;
 
@@ -6,8 +6,7 @@ use super::step::PreprocessingStep;
 #[derive(Debug, Clone, Default)]
 pub struct PreprocessingPipeline {
     /// Steps visible to sibling `executor` module for dispatch.
-    pub(crate) steps: Vec<PreprocessingStep>,
-}
+    pub(crate) steps: Vec<PreprocessingStep> }
 
 impl PreprocessingPipeline {
     pub fn new() -> Self {
@@ -35,15 +34,15 @@ mod tests {
     use super::PreprocessingPipeline;
     use crate::preprocessing::{IntensityRescaleMode, PreprocessingStep};
     use burn_ndarray::NdArray;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor };
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
 
-    fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
+    fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
         let device = Default::default();
-        let t = Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(dims)), &device);
+        let t = Tensor::<f32, B>::from_slice_on(dims, &vals, &device);
         Image::new(
             t,
             Point::new([0.0, 0.0, 0.0]),
@@ -52,7 +51,7 @@ mod tests {
         )
     }
 
-    fn extract(img: &Image<B, 3>) -> Vec<f32> {
+    fn extract(img: &Image<f32, B, 3>) -> Vec<f32> {
         img.data()
             .clone()
             .into_data()
@@ -78,12 +77,10 @@ mod tests {
         assert_eq!(p0.step_count(), 0);
         let p1 = p0.add_step(PreprocessingStep::Clamp {
             lower: 0.0,
-            upper: 1.0,
-        });
+            upper: 1.0 });
         assert_eq!(p1.step_count(), 1);
         let p2 = p1.add_step(PreprocessingStep::IntensityNormalization {
-            mode: IntensityRescaleMode::ZScore,
-        });
+            mode: IntensityRescaleMode::ZScore });
         assert_eq!(p2.step_count(), 2);
     }
 
@@ -97,14 +94,11 @@ mod tests {
         let pipeline = PreprocessingPipeline::new()
             .add_step(PreprocessingStep::Clamp {
                 lower: 0.0,
-                upper: 10.0,
-            })
+                upper: 10.0 })
             .add_step(PreprocessingStep::IntensityNormalization {
                 mode: IntensityRescaleMode::MinMax {
                     out_min: 0.0,
-                    out_max: 1.0,
-                },
-            });
+                    out_max: 1.0 } });
         let out = extract(&pipeline.execute(img).unwrap());
         assert!(
             out[0].abs() < 1e-5,
@@ -136,8 +130,7 @@ mod tests {
         let img = make_image(vals, [4, 4, 4]);
         let pipeline = PreprocessingPipeline::new().add_step(PreprocessingStep::N4BiasCorrection {
             n_iterations: 5,
-            n_fitting_levels: 1,
-        });
+            n_fitting_levels: 1 });
         let result = pipeline.execute(img);
         assert!(
             result.is_ok(),

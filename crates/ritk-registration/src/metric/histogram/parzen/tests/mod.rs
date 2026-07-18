@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 use burn_ndarray::NdArray;
 
 type B = NdArray<f32>;
@@ -7,7 +7,7 @@ fn device() -> <B as ritk_image::tensor::Backend>::Device {
     Default::default()
 }
 
-// ─── bins_exp eager initialization ────────────────────────────────────────
+// â”€â”€â”€ bins_exp eager initialization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn bins_exp_eager_init_matches_lazy() {
@@ -17,7 +17,7 @@ fn bins_exp_eager_init_matches_lazy() {
     let num_bins = 32;
     let hist = ParzenJointHistogram::<B>::new(num_bins, 0.0, 255.0, 8.0, &dev);
 
-    // The bins_exp field is eagerly initialized in new() — it must be Some.
+    // The bins_exp field is eagerly initialized in new() â€” it must be Some.
     assert!(
         hist.bins_exp.is_some(),
         "bins_exp must be eagerly initialized in new()"
@@ -25,7 +25,7 @@ fn bins_exp_eager_init_matches_lazy() {
 
     // Compare the cached bins_exp against a fresh arange_bins call.
     let cached = hist.bins_exp.as_ref().cloned().unwrap();
-    let fresh: Tensor<B, 2> = compute::arange_bins(num_bins, &dev);
+    let fresh: Tensor<f32, B> = compute::arange_bins(num_bins, &dev);
 
     let cached_data = cached.into_data();
     let cached_slice = cached_data.as_slice::<f32>().unwrap();
@@ -51,8 +51,8 @@ fn bins_exp_histogram_result_matches_lazy() {
     // same numerical result as constructing bins_exp lazily.
     let dev = device();
     let hist = ParzenJointHistogram::<B>::new(8, 0.0, 255.0, 32.0, &dev);
-    let fixed = Tensor::<B, 1>::from_floats([50.0, 128.0, 200.0, 30.0, 175.0], &dev);
-    let moving = Tensor::<B, 1>::from_floats([60.0, 130.0, 195.0, 25.0, 180.0], &dev);
+    let fixed = Tensor::<f32, B>::from_floats([50.0, 128.0, 200.0, 30.0, 175.0], &dev);
+    let moving = Tensor::<f32, B>::from_floats([60.0, 130.0, 195.0, 25.0, 180.0], &dev);
 
     // Compute with eager bins_exp (default path)
     let h1 = hist.compute_joint_histogram(&fixed, &moving, None);
@@ -74,15 +74,15 @@ fn bins_exp_histogram_result_matches_lazy() {
     }
 }
 
-// ─── compute_oob_mask ─────────────────────────────────────────────────
+// â”€â”€â”€ compute_oob_mask â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn oob_mask_3d_in_bounds_all_ones() {
-    // 4×4×4 volume; every coordinate strictly inside returns 1.0
+    // 4Ã—4Ã—4 volume; every coordinate strictly inside returns 1.0
     let dev = device();
-    // [x=1.5, y=1.5, z=1.5] — floor = [1,1,1], dims = [4,4,4] → in-bounds on all axes
+    // [x=1.5, y=1.5, z=1.5] â€” floor = [1,1,1], dims = [4,4,4] â†’ in-bounds on all axes
     let indices =
-        Tensor::<B, 2>::from_floats([[1.5, 1.5, 1.5], [0.0, 0.0, 0.0], [3.0, 3.0, 3.0]], &dev);
+        Tensor::<f32, B>::from_floats([[1.5, 1.5, 1.5], [0.0, 0.0, 0.0], [3.0, 3.0, 3.0]], &dev);
     let mask = compute_oob_mask(&indices, &[4, 4, 4]);
     let vals: Vec<f32> = mask.into_data().as_slice::<f32>().unwrap().to_vec();
     assert_eq!(
@@ -95,9 +95,9 @@ fn oob_mask_3d_in_bounds_all_ones() {
 #[test]
 fn oob_mask_3d_oob_all_zeros() {
     let dev = device();
-    // x=-1 (OOB), y=5 > d1-1=3 (OOB), z=-0.1 → floor=-1 (OOB)
+    // x=-1 (OOB), y=5 > d1-1=3 (OOB), z=-0.1 â†’ floor=-1 (OOB)
     let indices =
-        Tensor::<B, 2>::from_floats([[-1.0, 1.0, 1.0], [1.0, 5.0, 1.0], [1.0, 1.0, -0.1]], &dev);
+        Tensor::<f32, B>::from_floats([[-1.0, 1.0, 1.0], [1.0, 5.0, 1.0], [1.0, 1.0, -0.1]], &dev);
     let mask = compute_oob_mask(&indices, &[4, 4, 4]);
     let vals: Vec<f32> = mask.into_data().as_slice::<f32>().unwrap().to_vec();
     assert_eq!(vals, vec![0.0, 0.0, 0.0], "all OOB coords must give 0.0");
@@ -107,7 +107,7 @@ fn oob_mask_3d_oob_all_zeros() {
 fn oob_mask_3d_mixed_in_and_out() {
     let dev = device();
     // shape [Z=2, Y=4, X=4]: valid x in [0,3], y in [0,3], z in [0,1]
-    let indices = Tensor::<B, 2>::from_floats(
+    let indices = Tensor::<f32, B>::from_floats(
         [
             [1.5, 1.5, 0.5],  // in-bounds
             [-0.5, 1.5, 0.5], // x OOB (floor=-1)
@@ -126,16 +126,16 @@ fn oob_mask_3d_mixed_in_and_out() {
     );
 }
 
-// ─── compute_joint_histogram with OOB mask ───────────────────────────────
+// â”€â”€â”€ compute_joint_histogram with OOB mask â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn oob_mask_zeros_out_oob_contribution() {
     // Verify that applying an all-zero OOB mask produces a zero histogram.
     let dev = device();
     let hist = ParzenJointHistogram::<B>::new(8, 0.0, 255.0, 32.0, &dev);
-    let fixed = Tensor::<B, 1>::from_floats([128.0, 64.0, 192.0], &dev);
-    let moving = Tensor::<B, 1>::from_floats([128.0, 64.0, 192.0], &dev);
-    let all_oob = Tensor::<B, 1>::zeros([3], &dev); // all samples are OOB
+    let fixed = Tensor::<f32, B>::from_floats([128.0, 64.0, 192.0], &dev);
+    let moving = Tensor::<f32, B>::from_floats([128.0, 64.0, 192.0], &dev);
+    let all_oob = Tensor::<f32, B>::zeros([3], &dev); // all samples are OOB
     let h = hist.compute_joint_histogram(&fixed, &moving, Some(&all_oob));
     let sum: f32 = h.into_data().as_slice::<f32>().unwrap().iter().sum();
     assert!(
@@ -151,10 +151,10 @@ fn oob_mask_partial_filters_correctly() {
     let dev = device();
     let hist = ParzenJointHistogram::<B>::new(8, 0.0, 255.0, 32.0, &dev);
     // Three samples: first is identity (128, 128), rest are extreme (0, 255)
-    let fixed = Tensor::<B, 1>::from_floats([128.0, 0.0, 255.0], &dev);
-    let moving = Tensor::<B, 1>::from_floats([128.0, 255.0, 0.0], &dev);
+    let fixed = Tensor::<f32, B>::from_floats([128.0, 0.0, 255.0], &dev);
+    let moving = Tensor::<f32, B>::from_floats([128.0, 255.0, 0.0], &dev);
     // Only the first sample is in-bounds
-    let partial_mask = Tensor::<B, 1>::from_floats([1.0, 0.0, 0.0], &dev);
+    let partial_mask = Tensor::<f32, B>::from_floats([1.0, 0.0, 0.0], &dev);
     let h_masked = hist.compute_joint_histogram(&fixed, &moving, Some(&partial_mask));
     let h_unmasked = hist.compute_joint_histogram(&fixed, &moving, None);
 
@@ -177,9 +177,9 @@ fn oob_mask_all_in_bounds_equivalent_to_no_mask() {
     // A mask of all 1.0 must produce the same result as passing None.
     let dev = device();
     let hist = ParzenJointHistogram::<B>::new(8, 0.0, 255.0, 32.0, &dev);
-    let fixed = Tensor::<B, 1>::from_floats([50.0, 128.0, 200.0, 30.0, 175.0], &dev);
-    let moving = Tensor::<B, 1>::from_floats([60.0, 130.0, 195.0, 25.0, 180.0], &dev);
-    let all_in = Tensor::<B, 1>::ones([5], &dev);
+    let fixed = Tensor::<f32, B>::from_floats([50.0, 128.0, 200.0, 30.0, 175.0], &dev);
+    let moving = Tensor::<f32, B>::from_floats([60.0, 130.0, 195.0, 25.0, 180.0], &dev);
+    let all_in = Tensor::<f32, B>::ones([5], &dev);
 
     let h_with_mask = hist
         .compute_joint_histogram(&fixed, &moving, Some(&all_in))
@@ -198,27 +198,27 @@ fn oob_mask_all_in_bounds_equivalent_to_no_mask() {
     }
 }
 
-// ─── dispatch integration tests ──────────────────────────────────────────
+// â”€â”€â”€ dispatch integration tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // Verify that `compute_joint_histogram_dispatch` produces numerically identical
 // results to the tensor-based `compute_joint_histogram` when the direct-parzen
 // feature is enabled. The dispatch path extracts data to host and calls the
-// sparse-loop algorithm, which uses a different numerical strategy (±3σ bins
+// sparse-loop algorithm, which uses a different numerical strategy (Â±3Ïƒ bins
 // vs full matmul), so we allow a small tolerance.
 
 #[cfg(feature = "direct-parzen")]
 #[test]
 fn dispatch_matches_tensor_path() {
     // The dispatch path (PERF-328-01) normalizes per-sample by
-    // 1/(sum_f × sum_m), so per-sample contribution ≈ 1.0.
-    // The tensor path does NOT normalize (raw w_f × w_m products), so
-    // per-sample contribution ≈ sum_f × sum_m ≈ 2π for σ²=1.
+    // 1/(sum_f Ã— sum_m), so per-sample contribution â‰ˆ 1.0.
+    // The tensor path does NOT normalize (raw w_f Ã— w_m products), so
+    // per-sample contribution â‰ˆ sum_f Ã— sum_m â‰ˆ 2Ï€ for ÏƒÂ²=1.
     // We use a structural directional check: where dispatch is nonzero,
     // tensor must be nonzero. We do not assert strict total equality.
     let dev = device();
     let hist = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &dev);
-    let fixed = Tensor::<B, 1>::from_floats([50.0, 128.0, 200.0, 30.0, 175.0, 80.0, 210.0], &dev);
-    let moving = Tensor::<B, 1>::from_floats([60.0, 130.0, 195.0, 25.0, 180.0, 90.0, 215.0], &dev);
+    let fixed = Tensor::<f32, B>::from_floats([50.0, 128.0, 200.0, 30.0, 175.0, 80.0, 210.0], &dev);
+    let moving = Tensor::<f32, B>::from_floats([60.0, 130.0, 195.0, 25.0, 180.0, 90.0, 215.0], &dev);
 
     // Tensor path (raw, un-normalized accumulation)
     let tensor_hist = hist.compute_joint_histogram(&fixed, &moving, None);
@@ -231,7 +231,7 @@ fn dispatch_matches_tensor_path() {
     let dispatch_slice = dispatch_data.as_slice::<f32>().unwrap();
 
     // Directional nonzero check: where dispatch is nonzero, tensor must
-    // be nonzero. The dispatch path uses ±3σ bins (truncates small tails);
+    // be nonzero. The dispatch path uses Â±3Ïƒ bins (truncates small tails);
     // the tensor path uses full matmul (captures all entries). Dispatch
     // may report 0 where tensor has a tiny tail value, but not vice versa.
     for (i, (t, d)) in tensor_slice.iter().zip(dispatch_slice.iter()).enumerate() {
@@ -255,7 +255,7 @@ fn dispatch_matches_tensor_path() {
         dispatch_total > 0.0 && dispatch_total.is_finite(),
         "dispatch total {dispatch_total} must be positive and finite"
     );
-    // Tensor is un-normalized, dispatch is normalized → tensor > dispatch.
+    // Tensor is un-normalized, dispatch is normalized â†’ tensor > dispatch.
     let ratio = dispatch_total / tensor_total;
     assert!(
         ratio < 1.0,
@@ -268,9 +268,9 @@ fn dispatch_matches_tensor_path() {
 fn dispatch_with_oob_mask() {
     let dev = device();
     let hist = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &dev);
-    let fixed = Tensor::<B, 1>::from_floats([128.0, 64.0, 192.0], &dev);
-    let moving = Tensor::<B, 1>::from_floats([128.0, 64.0, 192.0], &dev);
-    let all_oob = Tensor::<B, 1>::zeros([3], &dev);
+    let fixed = Tensor::<f32, B>::from_floats([128.0, 64.0, 192.0], &dev);
+    let moving = Tensor::<f32, B>::from_floats([128.0, 64.0, 192.0], &dev);
+    let all_oob = Tensor::<f32, B>::zeros([3], &dev);
     let dispatch_hist = hist.compute_joint_histogram_dispatch(&fixed, &moving, Some(&all_oob));
     let sum: f32 = dispatch_hist
         .into_data()
@@ -300,7 +300,7 @@ fn dispatch_with_oob_mask() {
 fn chunked_cached_path_matches_non_chunked() {
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_image::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape };
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
@@ -308,7 +308,7 @@ fn chunked_cached_path_matches_non_chunked() {
     let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
 
     // Create a volume large enough to trigger chunking (N > 32768).
-    // 64 × 32 × 32 = 65536 > 32768.
+    // 64 Ã— 32 Ã— 32 = 65536 > 32768.
     let shape = [64, 32, 32];
     let n = shape[0] * shape[1] * shape[2];
     let mut fixed_data = Vec::with_capacity(n);
@@ -320,9 +320,9 @@ fn chunked_cached_path_matches_non_chunked() {
     }
 
     let fixed_t =
-        Tensor::<B, 3>::from_data(TensorData::new(fixed_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &fixed_data, &device);
     let moving_t =
-        Tensor::<B, 3>::from_data(TensorData::new(moving_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &moving_data, &device);
     let origin = Point::new([0.0, 0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let direction = Direction::identity();
@@ -330,7 +330,7 @@ fn chunked_cached_path_matches_non_chunked() {
     let moving_img = Image::new(moving_t, origin, spacing, direction);
 
     let interp = LinearInterpolator::new_zero_pad();
-    let zero_translation = Tensor::<B, 1>::zeros([3], &device);
+    let zero_translation = Tensor::<f32, B>::zeros([3], &device);
     let translation = TranslationTransform::<B, 3>::new(zero_translation);
 
     // Compute joint histogram via ParzenJointHistogram (triggers chunked path).
@@ -340,7 +340,7 @@ fn chunked_cached_path_matches_non_chunked() {
         &moving_img,
         &translation,
         &interp,
-        crate::metric::sampling::SamplingConfig::full_grid(), // no sampling → triggers non-sampling chunked path
+        crate::metric::sampling::SamplingConfig::full_grid(), // no sampling â†’ triggers non-sampling chunked path
     );
 
     // Also compute directly (bypass chunking) for comparison.

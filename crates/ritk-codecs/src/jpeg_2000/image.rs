@@ -1,12 +1,12 @@
-//! Full J2K codestream decoder and pixel extractor.
+﻿//! Full J2K codestream decoder and pixel extractor.
 //!
 //! # Pipeline (ISO 15444-1)
 //! 1. Parse main header (SIZ, COD, QCD) via `codestream`.
-//! 2. Locate tile-part data (SOT → SOD).
+//! 2. Locate tile-part data (SOT â†’ SOD).
 //! 3. Decode each tile-component via `packet::decode_tile_part`.
-//! 4. Apply DC level un-shift for unsigned components (ISO 15444-1 §G.1.2).
+//! 4. Apply DC level un-shift for unsigned components (ISO 15444-1 Â§G.1.2).
 //! 5. Validate decoded dimensions against `PixelLayout`.
-//! 6. Apply DICOM modality LUT: `output = stored_integer × slope + intercept`.
+//! 6. Apply DICOM modality LUT: `output = stored_integer Ã— slope + intercept`.
 
 use anyhow::{bail, Context, Result};
 
@@ -20,8 +20,8 @@ use crate::PixelLayout;
 /// # Specification
 /// - Transfer syntax 1.2.840.10008.1.2.4.90 (lossless) and .91 (lossy or lossless).
 /// - The fragment must start with the SOC marker (0xFF 0x4F).
-/// - DC level shift reversed for unsigned components per ISO 15444-1 §G.1.2.
-/// - Modality LUT applied: `output = stored_integer × slope + intercept`.
+/// - DC level shift reversed for unsigned components per ISO 15444-1 Â§G.1.2.
+/// - Modality LUT applied: `output = stored_integer Ã— slope + intercept`.
 pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
     if !is_soc(fragment) {
         bail!(
@@ -60,7 +60,7 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
     let img_h = siz.height() as usize;
     if img_w != layout.cols || img_h != layout.rows {
         bail!(
-            "J2K: image dimensions {}×{} do not match layout {}×{}",
+            "J2K: image dimensions {}Ã—{} do not match layout {}Ã—{}",
             img_w,
             img_h,
             layout.cols,
@@ -145,8 +145,7 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
                             num_layers: cod.num_layers.max(1),
                             exponents: &qcd_exponents,
                             mantissas: &qcd_mantissas,
-                            transform,
-                        },
+                            transform },
                     )
                     .with_context(|| format!("J2K: decode tile {isot} component {ci}"))?;
 
@@ -160,7 +159,7 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
                             }
                             let dc_shifted = tile_comp.samples[py * tw + px];
                             // Reverse DC level shift for unsigned components
-                            // (ISO 15444-1 §G.1.2).
+                            // (ISO 15444-1 Â§G.1.2).
                             let raw = if c_signed {
                                 dc_shifted
                             } else {
@@ -210,7 +209,7 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
     Ok(out)
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Returns `true` if `fragment` begins with the J2K SOC marker (0xFF 0x4F).
 #[inline]
@@ -242,8 +241,7 @@ mod tests {
             bits_allocated: bits,
             pixel_representation: signed,
             rescale_slope: 1.0,
-            rescale_intercept: 0.0,
-        }
+            rescale_intercept: 0.0 }
     }
 
     #[test]

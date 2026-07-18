@@ -1,10 +1,9 @@
 use super::{derivative_operator, DiscreteGaussianDerivativeFilter};
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
 /// The order-1 / order-2 central-difference derivative operators match ITK's
 /// `DerivativeOperator`.
@@ -21,7 +20,7 @@ fn derivative_operator_known_orders() {
 /// to zero, the Gaussian preserves the constant).
 #[test]
 fn constant_image_zero_derivative() {
-    let img: Image<B, 3> = ts::burn_compat::make_image(vec![7.0f32; 6 * 8 * 8], [6, 8, 8]);
+    let img: Image<f32, B, 3> = ts::make_image(vec![7.0f32; 6 * 8 * 8], [6, 8, 8]);
     let out = DiscreteGaussianDerivativeFilter::new(4.0, [1, 0, 0], 0.01, false).apply(&img);
     let (v, _) = extract_vec_infallible(&out);
     assert!(
@@ -41,7 +40,7 @@ fn ramp_first_derivative_is_slope() {
             vals[iy * nx + ix] = ix as f32;
         }
     }
-    let img: Image<B, 3> = ts::burn_compat::make_image(vals, [nz, ny, nx]);
+    let img: Image<f32, B, 3> = ts::make_image(vals, [nz, ny, nx]);
     // d/dx along axis 2 (x). Order [0,0,1].
     let out = DiscreteGaussianDerivativeFilter::new(2.0, [0, 0, 1], 0.01, false).apply(&img);
     let (v, _) = extract_vec_infallible(&out);
@@ -62,7 +61,7 @@ fn ramp_first_derivative_is_slope() {
 /// Output shape and order-0-everywhere (pure Gaussian smoothing) are well-formed.
 #[test]
 fn order_zero_is_smoothing() {
-    let img: Image<B, 3> = ts::burn_compat::make_image(vec![3.0f32; 2 * 4 * 5], [2, 4, 5]);
+    let img: Image<f32, B, 3> = ts::make_image(vec![3.0f32; 2 * 4 * 5], [2, 4, 5]);
     let out = DiscreteGaussianDerivativeFilter::new(1.0, [0, 0, 0], 0.01, false).apply(&img);
     assert_eq!(out.shape(), [2, 4, 5]);
     let (v, _) = extract_vec_infallible(&out);

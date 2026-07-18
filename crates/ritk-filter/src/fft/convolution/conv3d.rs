@@ -9,7 +9,7 @@ use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
 use std::marker::PhantomData;
 
-// ── FftConvolution3DFilter ────────────────────────────────────────────────────
+// â”€â”€ FftConvolution3DFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// FFT-based 3-D convolution filter ("same" output convention).
 ///
@@ -24,15 +24,15 @@ use std::marker::PhantomData;
 ///    `[pad_d, pad_h, pad_w]` where each padded size is the next power of two
 ///    greater than or equal to the sum of the corresponding dimensions.
 /// 2. Place both arrays at the top-left origin of the padded buffer.
-/// 3. Apply separable 3-D forward FFT: row-wise → column-wise → depth-wise.
+/// 3. Apply separable 3-D forward FFT: row-wise â†’ column-wise â†’ depth-wise.
 /// 4. Multiply pointwise in the frequency domain.
-/// 5. Apply separable 3-D inverse FFT; normalize by `1 / (pad_d · pad_h · pad_w)`.
+/// 5. Apply separable 3-D inverse FFT; normalize by `1 / (pad_d Â· pad_h Â· pad_w)`.
 /// 6. Extract the "same" output: a `[D, H, W]` window starting at
-///    `(⌊KD/2⌋, ⌊KH/2⌋, ⌊KW/2⌋)`.
+///    `(âŒŠKD/2âŒ‹, âŒŠKH/2âŒ‹, âŒŠKW/2âŒ‹)`.
 ///
 /// # Complexity
 ///
-/// O(N log N) where N = pad_d · pad_h · pad_w.
+/// O(N log N) where N = pad_d Â· pad_h Â· pad_w.
 ///
 /// # Output
 ///
@@ -48,7 +48,7 @@ pub struct FftConvolution3DFilter<B: Backend> {
 
 impl<B: Backend> FftConvolution3DFilter<B> {
     /// Construct from a 3-D kernel volume.
-    pub fn new(kernel: &Image<B, 3>) -> Result<Self> {
+    pub fn new(kernel: &Image<f32, B, 3>) -> Result<Self> {
         let [kd, kh, kw] = kernel.shape();
         if kd == 0 || kh == 0 || kw == 0 {
             return Err(anyhow!(
@@ -69,10 +69,10 @@ impl<B: Backend> FftConvolution3DFilter<B> {
     ///
     /// # Mathematical contract
     ///
-    /// For a kernel with a Dirac delta at position `(⌊KD/2⌋, ⌊KH/2⌋, ⌊KW/2⌋)`
+    /// For a kernel with a Dirac delta at position `(âŒŠKD/2âŒ‹, âŒŠKH/2âŒ‹, âŒŠKW/2âŒ‹)`
     /// and all other entries zero, `apply(volume)` reproduces `volume` within
     /// floating-point precision.
-    pub fn apply(&self, volume: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply(&self, volume: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         let [d, h, w] = volume.shape();
         let (vals, dims) = extract_vec(volume)?;
 
@@ -127,7 +127,7 @@ impl<B: Backend> FftConvolution3DFilter<B> {
         let kh = self.kernel_rows;
         let kw = self.kernel_cols;
 
-        // Padding must be >= dim + krn − 1 to suppress circular aliasing.
+        // Padding must be >= dim + krn âˆ’ 1 to suppress circular aliasing.
         let fft_shape = checked_fft_shape_3d(dims, [kd, kh, kw], "FftConvolution3DFilter")?;
         let (pad_d, pad_h, pad_w, pad_n, slice) = (
             fft_shape.depth,
@@ -163,7 +163,7 @@ impl<B: Backend> FftConvolution3DFilter<B> {
         fft3d::<ForwardFft>(&mut ker_buf, pad_d, pad_h, pad_w);
 
         // Point-wise complex multiply: vol_buf[i] *= ker_buf[i].
-        // (a + bi)(c + di) = (ac − bd) + (ad + bc)i
+        // (a + bi)(c + di) = (ac âˆ’ bd) + (ad + bc)i
         for i in 0..pad_n {
             let a = vol_buf[i];
             let b = ker_buf[i];
@@ -173,7 +173,7 @@ impl<B: Backend> FftConvolution3DFilter<B> {
         fft3d::<InverseFft>(&mut vol_buf, pad_d, pad_h, pad_w);
 
         // Normalize by 1/pad_n and extract "same" window at
-        // (⌊KD/2⌋, ⌊KH/2⌋, ⌊KW/2⌋).
+        // (âŒŠKD/2âŒ‹, âŒŠKH/2âŒ‹, âŒŠKW/2âŒ‹).
         let scale = 1.0_f32 / pad_n as f32;
         let off_d = kd / 2;
         let off_h = kh / 2;

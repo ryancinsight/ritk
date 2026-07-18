@@ -1,4 +1,4 @@
-use crate::errors::RitkPyError;
+﻿use crate::errors::RitkPyError;
 use crate::errors::RitkResult;
 use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
@@ -68,8 +68,7 @@ pub fn invert_displacement_field(
             max_iterations,
             max_error_tolerance,
             mean_error_tolerance,
-            enforce_boundary,
-        }
+            enforce_boundary }
         .apply(&ax, &ay, &az)
     });
     // Return in (disp_z, disp_y, disp_x) order to match the input convention.
@@ -148,8 +147,7 @@ pub fn iterative_inverse_displacement_field(
     let (vx, vy, vz) = py.allow_threads(|| {
         ritk_filter::IterativeInverseDisplacementField {
             number_of_iterations,
-            stop_value,
-        }
+            stop_value }
         .apply(&ax, &ay, &az)
     });
     (

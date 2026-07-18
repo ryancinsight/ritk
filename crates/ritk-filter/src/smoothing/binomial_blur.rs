@@ -2,12 +2,12 @@
 //!
 //! # Mathematical Specification
 //!
-//! Applies the separable 1-D binomial kernel `[¼, ½, ¼]` independently along
+//! Applies the separable 1-D binomial kernel `[Â¼, Â½, Â¼]` independently along
 //! each axis, repeated `repetitions` times:
 //!
 //! ```text
-//! O = (B_x ∘ B_y ∘ B_z)^repetitions (I)
-//! B_d(I)(…, i, …) = ¼·I(…, i−1, …) + ½·I(…, i, …) + ¼·I(…, i+1, …)
+//! O = (B_x âˆ˜ B_y âˆ˜ B_z)^repetitions (I)
+//! B_d(I)(â€¦, i, â€¦) = Â¼Â·I(â€¦, iâˆ’1, â€¦) + Â½Â·I(â€¦, i, â€¦) + Â¼Â·I(â€¦, i+1, â€¦)
 //! ```
 //!
 //! The kernel approximates a Gaussian with variance `repetitions/2` voxels per
@@ -17,13 +17,13 @@
 //! # Boundary
 //!
 //! ITK `BinomialBlurImageFilter` uses an **asymmetric** boundary (a documented
-//! quirk of the filter): the low end reflects (`I[−1] = I[1]`) while the high
-//! end clamps (`I[N] = I[N−1]`). Verified against `sitk.BinomialBlur`: a
+//! quirk of the filter): the low end reflects (`I[âˆ’1] = I[1]`) while the high
+//! end clamps (`I[N] = I[Nâˆ’1]`). Verified against `sitk.BinomialBlur`: a
 //! constant image is preserved; a low-edge impulse `[4,0,0,0,0]` blurs to
-//! `[2,1,0,0,0]` (`out[0]` = ½·I₀+½·I₁, reflect) but a high-edge impulse
-//! `[0,0,0,0,4]` blurs to `[0,0,0,1,3]` (out[N−1] = ¼·I_{N−2}+¾·I_{N−1}, clamp).
+//! `[2,1,0,0,0]` (`out[0]` = Â½Â·Iâ‚€+Â½Â·Iâ‚, reflect) but a high-edge impulse
+//! `[0,0,0,0,4]` blurs to `[0,0,0,1,3]` (out[Nâˆ’1] = Â¼Â·I_{Nâˆ’2}+Â¾Â·I_{Nâˆ’1}, clamp).
 //! Zero-flux would give 3 at the low edge, and symmetric reflect would give 2 at
-//! the high edge — only this asymmetric rule reproduces both.
+//! the high edge â€” only this asymmetric rule reproduces both.
 //!
 //! # ITK parity
 //!
@@ -32,7 +32,7 @@
 //!
 //! # Complexity
 //!
-//! O(repetitions · D · N) — three linear passes per repetition.
+//! O(repetitions Â· D Â· N) â€” three linear passes per repetition.
 
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
@@ -41,7 +41,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 /// Binomial blur smoothing filter (`itk::BinomialBlurImageFilter`).
 #[derive(Debug, Clone, Copy)]
 pub struct BinomialBlurImageFilter {
-    /// Number of times the `[¼, ½, ¼]` kernel is applied along each axis.
+    /// Number of times the `[Â¼, Â½, Â¼]` kernel is applied along each axis.
     /// `0` is the identity. ITK default `1`.
     pub repetitions: usize,
 }
@@ -53,7 +53,7 @@ impl BinomialBlurImageFilter {
     }
 
     /// Apply the binomial blur to a 3-D image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let (mut vals, dims) = extract_vec_infallible(image);
         for _ in 0..self.repetitions {
             for axis in 0..3 {
@@ -82,7 +82,7 @@ impl BinomialBlurImageFilter {
     }
 }
 
-/// One `[¼, ½, ¼]` pass along `axis` with reflect (mirror) boundary.
+/// One `[Â¼, Â½, Â¼]` pass along `axis` with reflect (mirror) boundary.
 fn blur_axis(vals: &[f32], dims: [usize; 3], axis: usize) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let (len, stride) = match axis {

@@ -1,4 +1,4 @@
-use crate::render::colormap::Colormap;
+﻿use crate::render::colormap::Colormap;
 use crate::tools::kind::ToolKind;
 use crate::ui::anatomical_label_for_axis;
 use crate::{LoadedVolume, ViewerState};
@@ -19,8 +19,7 @@ pub(crate) struct ClinicalDistributionExportSummary {
     pub mpr_root: PathBuf,
     pub current_slice_written: bool,
     pub mpr_written: usize,
-    pub mpr_failed: usize,
-}
+    pub mpr_failed: usize }
 
 /// DICOM metadata presence flags for clinical distribution reports.
 ///
@@ -35,8 +34,7 @@ pub(crate) struct DcmPresenceFlags {
     pub source: bool,
     pub segmentation: bool,
     pub rt_struct: bool,
-    pub rt_dose: bool,
-}
+    pub rt_dose: bool }
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ClinicalDistributionSummary<'a> {
@@ -53,8 +51,7 @@ pub(crate) struct ClinicalDistributionSummary<'a> {
     pub colormap_label: &'a str,
     pub active_tool_label: &'a str,
     pub annotation_count: usize,
-    pub presence: DcmPresenceFlags,
-}
+    pub presence: DcmPresenceFlags }
 
 pub(crate) fn distribution_root(base: &Path) -> PathBuf {
     base.join(CLINICAL_DISTRIBUTION_DIR)
@@ -99,7 +96,7 @@ pub(crate) fn build_clinical_distribution_report(
     writeln!(
         &mut report,
         "- Modality: {}",
-        summary.modality.unwrap_or("—")
+        summary.modality.unwrap_or("â€”")
     )
     .unwrap();
     writeln!(
@@ -116,19 +113,19 @@ pub(crate) fn build_clinical_distribution_report(
     .unwrap();
     writeln!(
         &mut report,
-        "- Volume shape [depth, rows, cols]: {} × {} × {}",
+        "- Volume shape [depth, rows, cols]: {} Ã— {} Ã— {}",
         summary.shape[0], summary.shape[1], summary.shape[2]
     )
     .unwrap();
     writeln!(
         &mut report,
-        "- Spacing [dz, dy, dx] mm: {:.4} × {:.4} × {:.4}",
+        "- Spacing [dz, dy, dx] mm: {:.4} Ã— {:.4} Ã— {:.4}",
         summary.spacing[0], summary.spacing[1], summary.spacing[2]
     )
     .unwrap();
     writeln!(
         &mut report,
-        "- Origin [z, y, x] mm: {:.4} × {:.4} × {:.4}",
+        "- Origin [z, y, x] mm: {:.4} Ã— {:.4} Ã— {:.4}",
         summary.origin[0], summary.origin[1], summary.origin[2]
     )
     .unwrap();
@@ -156,7 +153,7 @@ pub(crate) fn build_clinical_distribution_report(
         summary
             .window_center
             .map(|v| format!("{v:.4}"))
-            .unwrap_or_else(|| "—".to_owned())
+            .unwrap_or_else(|| "â€”".to_owned())
     )
     .unwrap();
     writeln!(
@@ -165,7 +162,7 @@ pub(crate) fn build_clinical_distribution_report(
         summary
             .window_width
             .map(|v| format!("{v:.4}"))
-            .unwrap_or_else(|| "—".to_owned())
+            .unwrap_or_else(|| "â€”".to_owned())
     )
     .unwrap();
     writeln!(&mut report, "- Colormap: {}", summary.colormap_label).unwrap();
@@ -282,9 +279,7 @@ pub(crate) fn summary_from_loaded_volume<'a>(
             source: volume.source.is_some(),
             segmentation: segmentation_present,
             rt_struct: rt_struct_present,
-            rt_dose: rt_dose_present,
-        },
-    }
+            rt_dose: rt_dose_present } }
 }
 
 fn write_redacted_line(report: &mut String, label: &str, present: bool) {
@@ -292,7 +287,7 @@ fn write_redacted_line(report: &mut String, label: &str, present: bool) {
         report,
         "- {}: {}",
         label,
-        if present { "[redacted]" } else { "—" }
+        if present { "[redacted]" } else { "â€”" }
     )
     .unwrap();
 }
@@ -301,6 +296,5 @@ fn plane_folder_name(axis: usize) -> &'static str {
     match axis {
         0 => "axial",
         1 => "coronal",
-        _ => "sagittal",
-    }
+        _ => "sagittal" }
 }

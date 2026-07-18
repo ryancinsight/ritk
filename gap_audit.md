@@ -8,6 +8,27 @@
 
 # RITK Gap Audit - Active
 
+## MIG-660-01 audit (2026-07-18)
+
+The native `ritk-core` interpolation/transform traits and `ritk-nifti` codec
+retained stale Burn contract text after their provider boundaries moved to
+Coeus. The claimed four files now describe the current native contracts and
+contain no Burn tokens. The obsolete NIfTI test allowlist entry is deleted.
+The migration audit remains clean with zero Burn manifest dependencies, 503
+token-bearing source files, and no cleanup candidates. Evidence tier:
+source-residue audit plus native compilation and value-semantic tests for the
+NIfTI owner crate; formatting, warning-denied Clippy, 37/37 Nextest tests,
+doctests, and warning-denied Rustdoc pass.
+
+The `ritk-core` compile gate is not evidence for this slice: the active
+MIG-658 source cutover fails first in peer-owned `ritk-statistics` with 38
+errors. The diagnostic classes are missing `CpuAddressableStorage<f32>` bounds
+at host-extraction boundaries and Burn-shaped tensor operations (`Mul`, `sum`,
+`sub_scalar`) absent from Coeus. Adding downstream adapters would preserve the
+obsolete API shape and is rejected. Re-run the core gate after the owner scope
+uses native Coeus/Leto operations. Publication is separately blocked while
+that broader migration remains staged on the shared `main` tree.
+
 ## MIG-659-01 audit (2026-07-17)
 
 The stale peer diff correctly identified that native flat-buffer interpolation

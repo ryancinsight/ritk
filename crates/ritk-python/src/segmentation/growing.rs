@@ -1,4 +1,4 @@
-//! Region growing segmentation: connected-threshold, confidence-connected,
+﻿//! Region growing segmentation: connected-threshold, confidence-connected,
 //! and neighbourhood-connected.
 
 use crate::errors::{RitkPyError, RitkResult};
@@ -8,8 +8,7 @@ use pyo3::prelude::*;
 use ritk_segmentation::{
     ConfidenceConnectedFilter, ConnectedThresholdFilter, IsolatedConnectedConfig,
     IsolatedConnectedFilter, IsolatedWatershed, IsolatedWatershedConfig, IsolationThreshold,
-    NeighborhoodConnectedFilter, VectorConfidenceConnectedConfig, VectorConfidenceConnectedFilter,
-};
+    NeighborhoodConnectedFilter, VectorConfidenceConnectedConfig, VectorConfidenceConnectedFilter };
 
 /// Vector confidence-connected region growing, matching
 /// `sitk.VectorConfidenceConnected`.
@@ -112,7 +111,7 @@ pub fn connected_threshold_segment(
 /// Binary-searches the threshold that just separates `seed1` from `seed2`: the
 /// region grown from `seed1` at the resulting threshold excludes `seed2`. With
 /// `find_upper_threshold` (default) the upper bound is searched over the band
-/// `[lower, ·]`; otherwise the lower bound over `[·, upper]`.
+/// `[lower, Â·]`; otherwise the lower bound over `[Â·, upper]`.
 ///
 /// Args:
 ///     image:  Input PyImage.
@@ -170,14 +169,14 @@ pub fn isolated_connected_segment(
 /// Confidence-connected region growing (Yanowitz & Bruckstein 1989).
 ///
 /// Iteratively grows a region from a seed voxel, adapting the intensity
-/// window based on the running mean ± k·σ of currently-included voxels.
+/// window based on the running mean Â± kÂ·Ïƒ of currently-included voxels.
 ///
 /// Args:
 ///     image:          Input PyImage.
 ///     seed:           Seed voxel as [z, y, x] integer list.
-///     initial_lower:  Initial inclusive lower bound (first iteration, when σ=0).
-///     initial_upper:  Initial inclusive upper bound (first iteration, when σ=0).
-///     multiplier:     k for the adaptive k·σ window expansion (default 2.5).
+///     initial_lower:  Initial inclusive lower bound (first iteration, when Ïƒ=0).
+///     initial_upper:  Initial inclusive upper bound (first iteration, when Ïƒ=0).
+///     multiplier:     k for the adaptive kÂ·Ïƒ window expansion (default 2.5).
 ///     max_iterations: Maximum region-growing iterations (default 15).
 ///
 /// Returns:
@@ -227,14 +226,14 @@ pub fn confidence_connected_segment(
 /// Neighbourhood-connected region growing.
 ///
 /// Grows a region from a seed: admits voxels whose rectangular neighbourhood
-/// (±radius in each direction) all satisfy the intensity bounds.
+/// (Â±radius in each direction) all satisfy the intensity bounds.
 ///
 /// Args:
 ///     image:  Input PyImage.
 ///     seed:   Seed voxel as [z, y, x] integer list.
 ///     lower:  Inclusive lower intensity bound.
 ///     upper:  Inclusive upper intensity bound.
-///     radius: Neighbourhood half-radius (uniform in all 3 axes, default 1 → 3×3×3).
+///     radius: Neighbourhood half-radius (uniform in all 3 axes, default 1 â†’ 3Ã—3Ã—3).
 ///
 /// Returns:
 ///     Binary mask PyImage (1.0=foreground, 0.0=background).
@@ -273,12 +272,12 @@ pub fn neighborhood_connected_segment(
     .map_err(|error| RitkPyError::value(error.to_string()))
 }
 
-// ── IsolatedWatershed ────────────────────────────────────────────────────────
+// â”€â”€ IsolatedWatershed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Isolated watershed segmentation, matching `SimpleITK.IsolatedWatershed`.
 ///
 /// Finds the lowest threshold T* such that `seed1` and `seed2` are in separate
-/// 6-connected components of {x : I(x) ≤ T*}, then labels those regions.
+/// 6-connected components of {x : I(x) â‰¤ T*}, then labels those regions.
 ///
 /// Label convention:
 ///     1 = region reachable from seed1 at T*

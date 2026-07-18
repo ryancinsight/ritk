@@ -1,9 +1,9 @@
-use super::*;
+﻿use super::*;
 
 /// Tolerance for exact scheduler arithmetic assertions (f64 precision).
 const SCHEDULER_TOL: f64 = 1e-12;
 
-// ── StepDecay ─────────────────────────────────────────────────────────────
+// â”€â”€ StepDecay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// At step=0 the exponent is 0, so get_lr returns initial_lr * gamma^0 = initial_lr.
 #[test]
@@ -19,7 +19,7 @@ fn step_decay_initial_step_returns_initial_lr() {
 /// After exactly `step_size` steps, one decay is applied: lr = initial * gamma.
 ///
 /// # Derivation
-/// step=10, step_size=10 → exponent=1 → lr = 0.5 * 0.5^1 = 0.25.
+/// step=10, step_size=10 â†’ exponent=1 â†’ lr = 0.5 * 0.5^1 = 0.25.
 #[test]
 fn step_decay_applies_one_decay_at_first_boundary() {
     let sched = StepDecay::new(10, 0.5);
@@ -65,32 +65,31 @@ fn step_decay_gamma_one_constant_lr() {
 ///
 /// # Derivation
 /// step_size=3, gamma=0.5:
-///   step=0  → exp=0 → lr=initial
-///   step=3  → exp=1 → lr=initial*0.5
-///   step=6  → exp=2 → lr=initial*0.25
+///   step=0  â†’ exp=0 â†’ lr=initial
+///   step=3  â†’ exp=1 â†’ lr=initial*0.5
+///   step=6  â†’ exp=2 â†’ lr=initial*0.25
 #[test]
 fn step_decay_multiple_boundaries_correct() {
     let sched = StepDecay::new(3, 0.5);
     let lr0 = sched.get_lr(0, 1.0);
     let lr3 = sched.get_lr(3, 1.0);
     let lr6 = sched.get_lr(6, 1.0);
-    assert!((lr0 - 1.0).abs() < SCHEDULER_TOL, "step=0 → 1.0; got {lr0}");
-    assert!((lr3 - 0.5).abs() < SCHEDULER_TOL, "step=3 → 0.5; got {lr3}");
+    assert!((lr0 - 1.0).abs() < SCHEDULER_TOL, "step=0 â†’ 1.0; got {lr0}");
+    assert!((lr3 - 0.5).abs() < SCHEDULER_TOL, "step=3 â†’ 0.5; got {lr3}");
     assert!(
         (lr6 - 0.25).abs() < SCHEDULER_TOL,
-        "step=6 → 0.25; got {lr6}"
+        "step=6 â†’ 0.25; got {lr6}"
     );
 }
 
-// ── OptimizerTelemetry ───────────────────────────────────────────────────
+// â”€â”€ OptimizerTelemetry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn optimizer_telemetry_debug_and_eq() {
     let t1 = OptimizerTelemetry {
         algorithm: OptimizerAlgorithm::GradientDescent,
         steps: 42,
-        learning_rate: Some(1e-3),
-    };
+        learning_rate: Some(1e-3) };
     let t2 = t1.clone();
     assert_eq!(t1, t2);
     assert!(format!("{t1:?}").contains("GradientDescent"));

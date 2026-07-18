@@ -1,19 +1,21 @@
 use crate::format::dicom::reader::DicomReadMetadata;
 use arrayvec::ArrayString;
 use ritk_core::image::Image;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::collections::HashMap;
 
-pub(super) type Backend = burn_ndarray::NdArray<f32>;
+pub(super) type Backend = coeus_core::SequentialBackend;
 
-pub(super) fn make_image(depth: usize, rows: usize, cols: usize, fill: f32) -> Image<Backend, 3> {
+pub(super) fn make_image(
+    depth: usize,
+    rows: usize,
+    cols: usize,
+    fill: f32,
+) -> Image<f32, Backend, 3> {
     let device = Default::default();
     let data = vec![fill; depth * rows * cols];
-    let tensor = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data, Shape::new([depth, rows, cols])),
-        &device,
-    );
+    let tensor = Tensor::<f32, Backend>::from_slice_on([depth, rows, cols], &(data), &device);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -29,13 +31,10 @@ pub(super) fn make_image_with_spatial(
     fill: f32,
     origin: [f64; 3],
     spacing: [f64; 3],
-) -> Image<Backend, 3> {
+) -> Image<f32, Backend, 3> {
     let device = Default::default();
     let data = vec![fill; depth * rows * cols];
-    let tensor = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data, Shape::new([depth, rows, cols])),
-        &device,
-    );
+    let tensor = Tensor::<f32, Backend>::from_slice_on([depth, rows, cols], &(data), &device);
     Image::new(
         tensor,
         Point::new(origin),
@@ -64,8 +63,8 @@ pub(super) fn make_test_metadata() -> DicomReadMetadata {
         series_date: Some(ArrayString::from("20240102").unwrap()),
         series_time: Some(ArrayString::from("123456").unwrap()),
         dimensions: [4, 4, 3],
-        // Axial convention: spacing=[Δz,ΔRow,ΔCol], direction cols=[N̂, F_c, F_r]
-        // N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
+        // Axial convention: spacing=[Î”z,Î”Row,Î”Col], direction cols=[NÌ‚, F_c, F_r]
+        // NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
         spacing: [2.5, 0.5, 0.5],
         origin: [10.0, 20.0, 30.0],
         direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],

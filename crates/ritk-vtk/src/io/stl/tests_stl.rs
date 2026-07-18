@@ -1,19 +1,19 @@
-use super::{read_stl_mesh, write_stl_ascii, write_stl_binary};
+﻿use super::{read_stl_mesh, write_stl_ascii, write_stl_binary};
 use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
 use crate::io::stl::reader::parse_stl;
 use crate::io::stl::writer::{write_stl_ascii_to_writer, write_stl_binary_to_writer};
 use std::collections::HashMap;
 use tempfile::NamedTempFile;
 
-// ── Test fixtures ─────────────────────────────────────────────────────────────
+// â”€â”€ Test fixtures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Tetrahedron with 4 triangular facets and 12 dedicated points (no sharing).
 ///
 /// STL has no shared-vertex topology; each triangle gets 3 unique points.
 ///
 /// Triangle vertex coordinates (analytically derived from a unit tetrahedron):
-///   T0: (0,0,0), (1,0,0), (0.5,1,0)  — bottom face, normal (0,0,-1)
-///   T1: (0,0,0), (1,0,0), (0.5,0.5,1) — normal (0,-1,0) approx
+///   T0: (0,0,0), (1,0,0), (0.5,1,0)  â€” bottom face, normal (0,0,-1)
+///   T1: (0,0,0), (1,0,0), (0.5,0.5,1) â€” normal (0,-1,0) approx
 ///   T2: (0,0,0), (0.5,1,0), (0.5,0.5,1)
 ///   T3: (1,0,0), (0.5,1,0), (0.5,0.5,1)
 fn tet_stl() -> VtkPolyData {
@@ -51,8 +51,7 @@ fn tet_stl() -> VtkPolyData {
     cell_data.insert(
         "Normals".to_string(),
         AttributeArray::Normals {
-            values: cell_normals,
-        },
+            values: cell_normals },
     );
     VtkPolyData {
         points,
@@ -62,7 +61,7 @@ fn tet_stl() -> VtkPolyData {
     }
 }
 
-// ── Round-trip: ASCII ─────────────────────────────────────────────────────────
+// â”€â”€ Round-trip: ASCII â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_stl_ascii_roundtrip_coordinates() {
@@ -71,7 +70,7 @@ fn test_stl_ascii_roundtrip_coordinates() {
     write_stl_ascii(file.path(), &mesh).unwrap();
     let loaded = read_stl_mesh(file.path()).unwrap();
 
-    assert_eq!(loaded.points.len(), 12, "4 triangles × 3 points = 12");
+    assert_eq!(loaded.points.len(), 12, "4 triangles Ã— 3 points = 12");
     assert_eq!(loaded.polygons.len(), 4);
 
     let eps = 1e-5_f32;
@@ -99,8 +98,7 @@ fn test_stl_ascii_roundtrip_cell_normals() {
         .expect("cell normals required")
     {
         AttributeArray::Normals { values } => values.clone(),
-        other => panic!("expected Normals, got {other:?}"),
-    };
+        other => panic!("expected Normals, got {other:?}") };
     assert_eq!(normals.len(), 4);
     let eps = 1e-5_f32;
     // T0 normal = (0,0,-1)
@@ -109,7 +107,7 @@ fn test_stl_ascii_roundtrip_cell_normals() {
     assert!((normals[0][2] - (-1.0)).abs() < eps);
 }
 
-// ── Round-trip: binary ────────────────────────────────────────────────────────
+// â”€â”€ Round-trip: binary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_stl_binary_roundtrip_coordinates() {
@@ -138,8 +136,7 @@ fn test_stl_binary_roundtrip_cell_normals() {
 
     let normals = match loaded.cell_data.get("Normals").unwrap() {
         AttributeArray::Normals { values } => values.clone(),
-        _ => panic!("expected Normals"),
-    };
+        _ => panic!("expected Normals") };
     let eps = 1e-6_f32;
     assert!(
         (normals[0][2] - (-1.0)).abs() < eps,
@@ -169,7 +166,7 @@ fn test_stl_binary_polygon_indices_sequential() {
     }
 }
 
-// ── Empty mesh ────────────────────────────────────────────────────────────────
+// â”€â”€ Empty mesh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_stl_ascii_empty_roundtrip() {
@@ -191,7 +188,7 @@ fn test_stl_binary_empty_roundtrip() {
     assert_eq!(loaded.polygons.len(), 0);
 }
 
-// ── Negative / boundary ───────────────────────────────────────────────────────
+// â”€â”€ Negative / boundary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_stl_binary_rejects_quads() {

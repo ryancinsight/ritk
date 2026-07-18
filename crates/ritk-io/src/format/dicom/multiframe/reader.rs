@@ -10,9 +10,9 @@ use ritk_dicom::{
     PixelSignedness, TransferSyntaxKind,
 };
 use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 
@@ -205,8 +205,8 @@ pub fn read_multiframe_info(path: impl AsRef<Path>) -> Result<MultiFrameInfo> {
 /// cross product; otherwise the direction defaults to identity.
 pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
     path: P,
-    device: &B::Device,
-) -> Result<Image<B, 3>> {
+    device: &B,
+) -> Result<Image<f32, B, 3>> {
     let MultiFrameVolume {
         data,
         shape,
@@ -214,7 +214,7 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         spacing,
         direction,
     } = load_dicom_multiframe_flat(path)?;
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(shape)), device);
+    let tensor = Tensor::<f32, B>::from_slice_on(shape, &data, device);
     Ok(Image::new(tensor, origin, spacing, direction))
 }
 
@@ -363,7 +363,7 @@ pub fn load_dicom_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<MultiFrameV
     //
     // When per_frame is populated (Enhanced MF), each PerFrameInfo may carry
     // image_position. Compute per-adjacent-pair distances projected onto the
-    // shared slice normal N̂ = normalize(row × col). Use the median as nominal
+    // shared slice normal NÌ‚ = normalize(row Ã— col). Use the median as nominal
     // spacing; warn and resample when nonuniform or missing frames are detected.
     let (final_floats, final_n, spacing_z) = 'geometry: {
         if per_frame.len() < 2 {
@@ -419,7 +419,7 @@ pub fn load_dicom_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<MultiFrameV
                 missing_between = ?report.missing_between,
                 nominal_spacing_mm = report.nominal_spacing,
                 path = ?path,
-                "DICOM multiframe: {} gap(s) exceed 1.5× nominal spacing \
+                "DICOM multiframe: {} gap(s) exceed 1.5Ã— nominal spacing \
                  ({:.4} mm), indicating missing frames; \
                  resampling to fill gaps via linear interpolation",
                 report.missing_between.len(),

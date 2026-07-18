@@ -1,4 +1,4 @@
-use super::SnapApp;
+﻿use super::SnapApp;
 use crate::label::LabelEditor;
 use crate::LoadedVolume;
 
@@ -25,8 +25,7 @@ fn volume_with_segmentation() -> SnapApp {
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None,
-    });
+        decay_correction: None });
 
     let mut table = ritk_annotation::LabelTable::new();
     table

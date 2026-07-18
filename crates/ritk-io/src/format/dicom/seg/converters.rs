@@ -9,7 +9,7 @@ use super::types::{DicomSegmentInfo, DicomSegmentation, SegmentationType};
 pub enum SegEncoding {
     /// 1 bit per pixel (binary: 0 or 1).
     Binary,
-    /// 8 bits per pixel (fractional: 0–255).
+    /// 8 bits per pixel (fractional: 0â€“255).
     Fractional,
 }
 
@@ -17,11 +17,11 @@ pub enum SegEncoding {
 ///
 /// # Mathematical Specification
 ///
-/// Creates one 2D frame per Z-slice per segment. Given a 3D label map L: Z³ → N
+/// Creates one 2D frame per Z-slice per segment. Given a 3D label map L: ZÂ³ â†’ N
 /// with shape [nz, ny, nx], each unique foreground label ID produces nz frames
 /// (one per Z-slice), each with geometry rows=ny, cols=nx.
 ///
-/// Total frames = (number of foreground labels) × nz.
+/// Total frames = (number of foreground labels) Ã— nz.
 /// Frame f for segment s and Z-index z contains pixel 1 where label equals s, else 0.
 ///
 /// # Errors
@@ -115,7 +115,7 @@ pub fn label_map_to_dicom_seg(
         SegEncoding::Fractional => SegmentationType::Fractional,
     };
 
-    // Convert 3×3 direction matrix to 6-element image orientation (row, then column direction)
+    // Convert 3Ã—3 direction matrix to 6-element image orientation (row, then column direction)
     let image_orientation_6: [f64; 6] = [
         direction[0],
         direction[3],

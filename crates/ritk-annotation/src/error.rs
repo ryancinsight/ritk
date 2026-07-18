@@ -1,4 +1,4 @@
-//! Typed errors for the annotation subsystem.
+﻿//! Typed errors for the annotation subsystem.
 
 use thiserror::Error;
 
@@ -11,6 +11,4 @@ pub enum AnnotationError {
         /// `"contour"` or `"polyline"`
         kind: &'static str,
         /// Actual number of points supplied.
-        count: usize,
-    },
-}
+        count: usize } }

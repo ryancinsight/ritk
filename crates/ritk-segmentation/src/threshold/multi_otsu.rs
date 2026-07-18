@@ -2,51 +2,51 @@
 //!
 //! # Mathematical Specification
 //!
-//! Multi-Otsu extends Otsu's method to K intensity classes (K − 1 thresholds).
-//! Given threshold bin indices 0 = t₀ < t₁ < t₂ < … < t_{K−1} < t_K = N,
-//! class k spans bins \[t_{k−1}, t_k − 1\].
+//! Multi-Otsu extends Otsu's method to K intensity classes (K âˆ’ 1 thresholds).
+//! Given threshold bin indices 0 = tâ‚€ < tâ‚ < tâ‚‚ < â€¦ < t_{Kâˆ’1} < t_K = N,
+//! class k spans bins \[t_{kâˆ’1}, t_k âˆ’ 1\].
 //!
 //! The objective is to maximise the total between-class variance:
 //!
-//!   σ²_B = Σ_{k=1}^{K}  P_k · (μ_k − μ_T)²
+//!   ÏƒÂ²_B = Î£_{k=1}^{K}  P_k Â· (Î¼_k âˆ’ Î¼_T)Â²
 //!
 //! where:
 //! - h\[i\]  = count\[i\] / n_total                      (normalised histogram)
-//! - P_k   = Σ_{i=t_{k−1}}^{t_k−1} h\[i\]            (class weight)
-//! - μ_k   = (Σ_{i=t_{k−1}}^{t_k−1} i·h\[i\]) / P_k  (class mean bin index)
-//! - μ_T   = Σ_{i=0}^{N−1} i·h\[i\]                  (global mean bin index)
+//! - P_k   = Î£_{i=t_{kâˆ’1}}^{t_kâˆ’1} h\[i\]            (class weight)
+//! - Î¼_k   = (Î£_{i=t_{kâˆ’1}}^{t_kâˆ’1} iÂ·h\[i\]) / P_k  (class mean bin index)
+//! - Î¼_T   = Î£_{i=0}^{Nâˆ’1} iÂ·h\[i\]                  (global mean bin index)
 //!
-//! Algebraic identity: σ²_B = Σ_k P_k·μ_k² − μ_T²,  which equals the standard
-//! Otsu between-class variance P₁·P₂·(μ₁−μ₂)² when K = 2.
+//! Algebraic identity: ÏƒÂ²_B = Î£_k P_kÂ·Î¼_kÂ² âˆ’ Î¼_TÂ²,  which equals the standard
+//! Otsu between-class variance Pâ‚Â·Pâ‚‚Â·(Î¼â‚âˆ’Î¼â‚‚)Â² when K = 2.
 //!
 //! Efficient computation via prefix sums (both arrays of length N + 1):
-//! - H\[t\] = Σ_{i=0}^{t−1} h\[i\]     (H\[0\] = 0, H\[N\] = 1)
-//! - M\[t\] = Σ_{i=0}^{t−1} i·h\[i\]  (M\[0\] = 0)
+//! - H\[t\] = Î£_{i=0}^{tâˆ’1} h\[i\]     (H\[0\] = 0, H\[N\] = 1)
+//! - M\[t\] = Î£_{i=0}^{tâˆ’1} iÂ·h\[i\]  (M\[0\] = 0)
 //!
-//! For class k spanning bins \[a, b\] = \[t_{k−1}, t_k − 1\]:
+//! For class k spanning bins \[a, b\] = \[t_{kâˆ’1}, t_k âˆ’ 1\]:
 //!
-//!   P_k         = H\[t_k\] − H\[t_{k−1}\]
-//!   Σ i·h\[i\]  = M\[t_k\] − M\[t_{k−1}\]
+//!   P_k         = H\[t_k\] âˆ’ H\[t_{kâˆ’1}\]
+//!   Î£ iÂ·h\[i\]  = M\[t_k\] âˆ’ M\[t_{kâˆ’1}\]
 //!
 //! # Complexity
 //! - Histogram construction:  O(n) voxels.
 //! - Prefix-sum setup:        O(N) bins.
-//! - Exact dynamic program:   O(K·N²) time and O(K·N) storage.
+//! - Exact dynamic program:   O(KÂ·NÂ²) time and O(KÂ·N) storage.
 //!
 //! # Threshold Conversion
-//! Each boundary bin index t separates classes [.., t−1] | [t, ..]; ITK reports
+//! Each boundary bin index t separates classes [.., tâˆ’1] | [t, ..]; ITK reports
 //! the boundary intensity as the left edge of bin t under its histogram geometry
 //! (see `auto_threshold`):
 //!
-//!   t_intensity = x_min + t · bin_width
+//!   t_intensity = x_min + t Â· bin_width
 //!
 //! # Non-finite intensities
 //!
-//! NaN and ±Inf samples are excluded from histogram statistics and always map
-//! to background class `0.0`. An input with no finite samples returns K−1 zero
+//! NaN and Â±Inf samples are excluded from histogram statistics and always map
+//! to background class `0.0`. An input with no finite samples returns Kâˆ’1 zero
 //! thresholds and an all-background label image.
 
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
@@ -57,7 +57,7 @@ use super::auto_threshold::{build_histogram, finite_bounds, itk_bin_width};
 /// For K = 2 this degenerates to the standard Otsu method.
 /// For K = 3 this finds the 2 thresholds that maximise total between-class variance.
 pub struct MultiOtsuThreshold {
-    /// Number of intensity classes to segment into. Must be ≥ 2.
+    /// Number of intensity classes to segment into. Must be â‰¥ 2.
     num_classes: usize,
     /// Number of equally-spaced histogram bins. Default 256.
     num_bins: usize,
@@ -104,33 +104,33 @@ impl MultiOtsuThreshold {
         self.num_bins
     }
 
-    /// Compute K − 1 Otsu thresholds for `image`.
+    /// Compute K âˆ’ 1 Otsu thresholds for `image`.
     ///
-    /// Returns a sorted `Vec<f32>` of K − 1 intensity thresholds.
+    /// Returns a sorted `Vec<f32>` of K âˆ’ 1 intensity thresholds.
     /// For K = 2, returns one threshold equivalent to standard Otsu.
     /// For a constant image, all thresholds are set to the constant intensity.
-    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Vec<f32> {
+    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Vec<f32> {
         compute_multi_otsu_impl(image, self.num_classes, self.num_bins)
     }
 
     /// Apply the multi-Otsu thresholds to produce a label image.
     ///
-    /// Pixel values are mapped to class indices {0, 1, …, K−1} as f32:
-    /// - v < t₁              → 0.0
-    /// - t₁ ≤ v < t₂         → 1.0
-    /// - …
-    /// - v ≥ t_{K−1}         → (K−1).0
+    /// Pixel values are mapped to class indices {0, 1, â€¦, Kâˆ’1} as f32:
+    /// - v < tâ‚              â†’ 0.0
+    /// - tâ‚ â‰¤ v < tâ‚‚         â†’ 1.0
+    /// - â€¦
+    /// - v â‰¥ t_{Kâˆ’1}         â†’ (Kâˆ’1).0
     ///
     /// Spatial metadata (origin, spacing, direction) is preserved exactly.
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         // Extract once and reuse the slice for both threshold search and labelling
         // (the previous compute()-then-label form cloned and copied the whole
         // volume twice per `apply`).
         let (vals, shape) = extract_vec_infallible(image);
         let (_, output) = multi_otsu_labels_from_slice(&vals, self.num_classes, self.num_bins);
 
-        let device = image.data().device();
-        let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
+        let device = B::default();
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device);
         Image::new(
             tensor,
             *image.origin(),
@@ -213,12 +213,12 @@ impl Default for MultiOtsuThreshold {
     }
 }
 
-/// Convenience function: compute K − 1 Multi-Otsu thresholds with 256 bins.
+/// Convenience function: compute K âˆ’ 1 Multi-Otsu thresholds with 256 bins.
 ///
 /// # Panics
 /// Panics unless `2 <= num_classes <= 256`.
 pub fn multi_otsu_threshold<B: Backend, const D: usize>(
-    image: &Image<B, D>,
+    image: &Image<f32, B, D>,
     num_classes: usize,
 ) -> Vec<f32> {
     assert!(num_classes >= 2, "num_classes must be ≥ 2");
@@ -226,7 +226,7 @@ pub fn multi_otsu_threshold<B: Backend, const D: usize>(
     compute_multi_otsu_impl(image, num_classes, 256)
 }
 
-// ── Core implementation ───────────────────────────────────────────────────────
+// â”€â”€ Core implementation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Compute K-1 Multi-Otsu thresholds directly from a flat `&[f32]` slice.
 ///
@@ -264,8 +264,8 @@ pub fn compute_multi_otsu_thresholds_from_slice(
     }
     let total_mu = prefix_m[num_bins];
     let best = optimal_threshold_bins(num_classes, &prefix_h, &prefix_m, total_mu, num_bins);
-    // Each boundary bin index t separates classes [.., t−1] | [t, ..]; ITK reports
-    // the boundary intensity = left edge of bin t = x_min + t·bin_width.
+    // Each boundary bin index t separates classes [.., tâˆ’1] | [t, ..]; ITK reports
+    // the boundary intensity = left edge of bin t = x_min + tÂ·bin_width.
     best.iter()
         .map(|&t| (x_min as f64 + t as f64 * bin_width) as f32)
         .collect()
@@ -296,7 +296,7 @@ fn multi_otsu_labels_from_slice(
 /// Delegates to [`compute_multi_otsu_thresholds_from_slice`] after extracting a
 /// slice from the image tensor.
 fn compute_multi_otsu_impl<B: Backend, const D: usize>(
-    image: &Image<B, D>,
+    image: &Image<f32, B, D>,
     num_classes: usize,
     num_bins: usize,
 ) -> Vec<f32> {
@@ -374,15 +374,15 @@ fn class_variance(
 /// Uses prefix-sum arrays for O(K) evaluation per combination.
 ///
 /// # Formula
-/// σ²_B = Σ_{k=1}^{K} P_k · (μ_k − μ_T)²
+/// ÏƒÂ²_B = Î£_{k=1}^{K} P_k Â· (Î¼_k âˆ’ Î¼_T)Â²
 ///
 /// # Class boundaries
-/// With thresholds \[t₁, t₂, …, t_{K−1}\] and boundaries t₀ = 0, t_K = N:
-/// Class k spans bins \[t_{k−1}, t_k − 1\], evaluated as prefix arrays \[t_{k−1}, t_k\).
+/// With thresholds \[tâ‚, tâ‚‚, â€¦, t_{Kâˆ’1}\] and boundaries tâ‚€ = 0, t_K = N:
+/// Class k spans bins \[t_{kâˆ’1}, t_k âˆ’ 1\], evaluated as prefix arrays \[t_{kâˆ’1}, t_k\).
 ///
 /// # Equivalence with Otsu for K = 2
-/// For K = 2: P₁·(μ₁−μ_T)² + P₂·(μ₂−μ_T)² = P₁·P₂·(μ₁−μ₂)² (proven by substituting
-/// μ_T = P₁·μ₁ + P₂·μ₂ and simplifying).
+/// For K = 2: Pâ‚Â·(Î¼â‚âˆ’Î¼_T)Â² + Pâ‚‚Â·(Î¼â‚‚âˆ’Î¼_T)Â² = Pâ‚Â·Pâ‚‚Â·(Î¼â‚âˆ’Î¼â‚‚)Â² (proven by substituting
+/// Î¼_T = Pâ‚Â·Î¼â‚ + Pâ‚‚Â·Î¼â‚‚ and simplifying).
 #[cfg(test)]
 fn between_class_variance(
     thresholds: &[usize],

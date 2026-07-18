@@ -1,19 +1,19 @@
-//! Summed-area tables for O(1) local CC window statistics.
+﻿//! Summed-area tables for O(1) local CC window statistics.
 //!
 //! # Numerical contract
 //! Inputs must be approximately [0, 1]-normalized (typical for SyN after
-//! intensity normalization). For f64 SATs on [0,1] data, the König–Huygens
-//! cancellation error is bounded by 2·cnt·ε_f64 ≈ 2·343·2.2×10⁻¹⁶ ≈ 1.5×10⁻¹³,
-//! well below the 1×10⁻¹⁰ force guard used by callers.
+//! intensity normalization). For f64 SATs on [0,1] data, the KÃ¶nigâ€“Huygens
+//! cancellation error is bounded by 2Â·cntÂ·Îµ_f64 â‰ˆ 2Â·343Â·2.2Ã—10â»Â¹â¶ â‰ˆ 1.5Ã—10â»Â¹Â³,
+//! well below the 1Ã—10â»Â¹â° force guard used by callers.
 
 /// 3-D summed-area tables for local cross-correlation window queries.
 ///
 /// Build once from `(i_w, j_w)` at construction; then query any window
-/// in O(1) with `query_at`. Replaces the two-pass O(w³) `window_cc_stats`.
+/// in O(1) with `query_at`. Replaces the two-pass O(wÂ³) `window_cc_stats`.
 ///
 /// # Memory
-/// 5 × (nz+2r)(ny+2r)(nx+2r) f64 values.
-/// At r=3, 192³ input: ~315 MB. Iterative callers should allocate once and
+/// 5 Ã— (nz+2r)(ny+2r)(nx+2r) f64 values.
+/// At r=3, 192Â³ input: ~315 MB. Iterative callers should allocate once and
 /// call [`CcSats::rebuild`] for each new warped-image pair.
 pub(crate) struct CcSats {
     sat_f: Vec<f64>,
@@ -24,8 +24,7 @@ pub(crate) struct CcSats {
     /// SAT dimensions = (pnz+1, pny+1, pnx+1) where pnd = dims[d] + 2*r
     sdims: [usize; 3],
     r: usize,
-    cnt: f64,
-}
+    cnt: f64 }
 
 impl CcSats {
     /// Allocate the five tables for one image shape and window radius.
@@ -49,8 +48,7 @@ impl CcSats {
             sat_fm: vec![0.0_f64; sat_size],
             sdims: [snz, sny, snx],
             r,
-            cnt,
-        }
+            cnt }
     }
 
     /// Build all five tables from `i_w` and `j_w`.
@@ -144,11 +142,11 @@ impl CcSats {
     /// O(1) query matching the `window_cc_stats` interface exactly.
     ///
     /// In padded space, original voxel `(iz, iy, ix)` maps to center
-    /// `(iz+r, iy+r, ix+r)`. The window `[iz..=iz+2r] × [iy..=iy+2r] ×
+    /// `(iz+r, iy+r, ix+r)`. The window `[iz..=iz+2r] Ã— [iy..=iy+2r] Ã—
     /// [ix..=ix+2r]` in padded coordinates is always interior (no boundary
     /// checks needed), because of the `r`-wide replicate border.
     ///
-    /// Returns `(mu_i, mu_j, cc_numerator, var_i, var_j, count)` — identical
+    /// Returns `(mu_i, mu_j, cc_numerator, var_i, var_j, count)` â€” identical
     /// convention to `window_cc_stats`.
     #[inline]
     pub(crate) fn query_at(
@@ -192,7 +190,7 @@ impl CcSats {
         let mu_f = sum_f / cnt;
         let mu_m = sum_m / cnt;
 
-        // König–Huygens form. .max(0.0) absorbs residual f64 rounding toward −ε.
+        // KÃ¶nigâ€“Huygens form. .max(0.0) absorbs residual f64 rounding toward âˆ’Îµ.
         let vi = (sum_f2 - cnt * mu_f * mu_f).max(0.0);
         let vj = (sum_m2 - cnt * mu_m * mu_m).max(0.0);
         let num = sum_fm - cnt * mu_f * mu_m;

@@ -1,11 +1,13 @@
-use crate::metric::Metric;
+﻿use crate::metric::Metric;
 use crate::optimizer::Optimizer;
 use crate::registration::{Registration, RegistrationConfig};
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::Module;
+use coeus_ops::BackendOps;
 use ritk_core::image::Image;
 use ritk_core::transform::{Resampleable, Transform};
 use ritk_filter::pyramid::MultiResolutionPyramid;
-use ritk_image::burn::module::AutodiffModule;
-use ritk_image::tensor::AutodiffBackend;
+use ritk_image::tensor::Backend;
 use std::marker::PhantomData;
 
 /// Configuration for multi-resolution registration.
@@ -19,8 +21,7 @@ pub struct RegistrationSchedule<const D: usize> {
     pub shrink_factors: Vec<[usize; D]>,
     pub smoothing_sigmas: Vec<[f64; D]>,
     pub iterations: Vec<usize>,
-    pub learning_rates: Vec<f64>,
-}
+    pub learning_rates: Vec<f64> }
 
 impl<const D: usize> RegistrationSchedule<D> {
     /// Create a default schedule with power-of-2 shrinking.
@@ -39,7 +40,7 @@ impl<const D: usize> RegistrationSchedule<D> {
                 0.0
             };
 
-            // P1-01: stack array per level — no inner Vec allocation.
+            // P1-01: stack array per level â€” no inner Vec allocation.
             shrink_factors.push([factor; D]);
             smoothing_sigmas.push([sigma; D]);
             iterations.push(100); // Default iterations
@@ -50,13 +51,12 @@ impl<const D: usize> RegistrationSchedule<D> {
             shrink_factors,
             smoothing_sigmas,
             iterations,
-            learning_rates,
-        }
+            learning_rates }
     }
 
     /// Build a schedule from parallel `Vec<[T; D]>` inputs. Use this when
     /// constructing a schedule from external configuration (e.g. user-supplied
-    /// per-level factors). The arrays are stored directly — no inner Vec.
+    /// per-level factors). The arrays are stored directly â€” no inner Vec.
     pub fn from_per_level(
         shrink_factors: Vec<[usize; D]>,
         smoothing_sigmas: Vec<[f64; D]>,
@@ -67,8 +67,7 @@ impl<const D: usize> RegistrationSchedule<D> {
             shrink_factors,
             smoothing_sigmas,
             iterations: vec![100; n],
-            learning_rates: vec![1e-2; n],
-        }
+            learning_rates: vec![1e-2; n] }
     }
 
     pub fn with_iterations(mut self, iterations: Vec<usize>) -> Self {
@@ -91,22 +90,21 @@ impl<const D: usize> RegistrationSchedule<D> {
 pub struct MultiResolutionRegistration<B, M, T, const D: usize> {
     metric: M,
     registration_config: RegistrationConfig,
-    _phantom: PhantomData<(B, T)>,
-}
+    _phantom: PhantomData<(B, T)> }
 
 impl<B, M, T, const D: usize> MultiResolutionRegistration<B, M, T, D>
 where
-    B: AutodiffBackend,
+    B: Backend + BackendOps<f32> + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
     M: Metric<B, D> + Clone,
-    T: Transform<B, D> + AutodiffModule<B> + Resampleable<B, D>,
+    T: Transform<B, D> + Module<f32, B> + Resampleable<B, D> + Clone,
 {
     /// Create a new multi-resolution registration framework.
     pub fn new(metric: M) -> Self {
         Self {
             metric,
             registration_config: RegistrationConfig::default(),
-            _phantom: PhantomData,
-        }
+            _phantom: PhantomData }
     }
 
     /// Set the per-level registration loop configuration.
@@ -130,8 +128,8 @@ where
     /// * `schedule` - The registration schedule (levels, factors, iterations)
     pub fn execute<F, O>(
         &self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         mut transform: T,
         optimizer_factory: F,
         schedule: RegistrationSchedule<D>,
@@ -142,7 +140,7 @@ where
     {
         // 1. Create Pyramids
         // P1-01: schedule already stores `Vec<[usize; D]>` and `Vec<[f64; D]>`,
-        // so the pyramid API consumes the arrays directly — no `Vec<Vec<T>>`
+        // so the pyramid API consumes the arrays directly â€” no `Vec<Vec<T>>`
         // re-materialisation, no per-level inner allocation.
         let fixed_pyramid = MultiResolutionPyramid::new(
             fixed,

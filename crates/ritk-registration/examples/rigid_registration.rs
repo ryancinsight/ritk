@@ -1,4 +1,4 @@
-//! Rigid Registration Example
+﻿//! Rigid Registration Example
 //!
 //! This example demonstrates rigid (translation + rotation) registration of two 3D brain MRI images.
 //! It uses the ANTs example dataset and shows the complete multi-resolution registration workflow:
@@ -86,8 +86,8 @@ fn main() -> anyhow::Result<()> {
 
     // Calculate image center for rotation center
     let fixed_shape = fixed.shape();
-    let center = Tensor::<Backend, 1>::from_data(
-        ritk_image::tensor::TensorData::from([
+    let center = Tensor::<f32, Backend>::from_data(
+        ritk_image::tensor::::from([
             fixed_shape[0] as f32 / 2.0,
             fixed_shape[1] as f32 / 2.0,
             fixed_shape[2] as f32 / 2.0,

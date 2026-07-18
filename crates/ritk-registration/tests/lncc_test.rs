@@ -1,4 +1,4 @@
-#[cfg(test)]
+﻿#[cfg(test)]
 mod tests {
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
@@ -10,9 +10,9 @@ mod tests {
 
     type B = burn_ndarray::NdArray<f32>;
 
-    fn create_test_image(shape: [usize; 3]) -> Image<B, 3> {
+    fn create_test_image(shape: [usize; 3]) -> Image<f32, B, 3> {
         let device = Default::default();
-        let data = Tensor::<B, 3>::random(shape, Distribution::Uniform(0.0, 1.0), &device);
+        let data = Tensor::<f32, B>::random(shape, Distribution::Uniform(0.0, 1.0), &device);
         let origin = Point::new([0.0, 0.0, 0.0]);
         let spacing = Spacing::new([1.0, 1.0, 1.0]);
         let direction = Direction::identity();

@@ -1,21 +1,20 @@
-use anyhow::Result;
+﻿use anyhow::Result;
 use tracing::info;
 
 use ritk_filter::{DistanceMeasure, DistanceTransformImageFilter};
 use ritk_segmentation::{
     BinaryFillHoles, ConnectedComponentsFilter, KMeansSegmentation, MorphologicalGradient,
-    Skeletonization,
-};
+    Skeletonization };
 
 use super::super::{write_image_native, NativeBackend};
 use super::args::SegmentArgs;
 use super::helpers::{count_native_foreground, read_native_input};
 
-// ── K-Means clustering ────────────────────────────────────────────────────────
+// â”€â”€ K-Means clustering â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Apply K-Means intensity clustering.
 ///
-/// Each voxel in the output contains its assigned cluster index (0..K−1)
+/// Each voxel in the output contains its assigned cluster index (0..Kâˆ’1)
 /// as `f32`.  Spatial metadata is preserved.
 pub(super) fn run_kmeans(args: &SegmentArgs) -> Result<()> {
     let (image, output_format) = read_native_input(&args.input, &args.output, "kmeans")?;
@@ -50,7 +49,7 @@ pub(super) fn run_kmeans(args: &SegmentArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Distance transform ────────────────────────────────────────────────────────
+// â”€â”€ Distance transform â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Compute the Euclidean distance transform of a binary mask.
 ///

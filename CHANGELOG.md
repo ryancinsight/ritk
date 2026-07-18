@@ -11,6 +11,10 @@
 ## [Unreleased] — Native extended label-shape statistics (MIG-657-01)
 
 ### Changed
+- Native `ritk-core` interpolation and transform contracts now document Coeus
+  backend ownership, and the native NIfTI codec documentation no longer
+  describes removed Burn writer/test boundaries. The obsolete NIfTI test
+  entry is removed from the Burn-surface allowlist.
 - `ritk-interpolation` 0.4.0 now expresses native flat-buffer trilinear
   sampling through Eunomia `FloatElement` and `CastFrom` contracts instead of
   `num-traits`. The unused root workspace `num-complex`/`num-traits`

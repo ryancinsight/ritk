@@ -1,17 +1,9 @@
-//! Atlas-typed tests for the affine transform sister adapter.
-//!
-//! Strict subtractive on test surface (ADR 0012 §Decision §Sub-batch #3.f):
-//! every affine case exercises [`super::super::atlas_affine::AtlasAffineTransform`]
-//! (sister API) + `super::super::atlas_affine::AtlasAffineError` over
-//! host-slice params, rather than the legacy tensor-backed
-//! `super::super::affine::AffineTransform<B, D>` (which carries the
-//! `Module` derive and `Param<Tensor>` wrapping — sub-batch #5 owns the
-//! `coeus_nn::Module` derive migration).
+//! Value-semantic tests for the host-backed affine transform.
 //!
 //! The `test_atlas_affine_seeded_from_rigid_rotation_reproduces_rigid`
 //! test uses the same closed-form Euler convention documented by
 //! `RigidTransform::build_rotation_matrix()` (`R = R_z * R_y * R_x`) while
-//! keeping this rewritten test file free of legacy tensor construction.
+//! keeping this test independent of tensor construction.
 
 use super::super::atlas_affine::AtlasAffineTransform;
 use coeus_core::MoiraiBackend;

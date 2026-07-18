@@ -1,7 +1,7 @@
-//! Verification of the `Transform` seam and the generic `mse_metric`
+﻿//! Verification of the `Transform` seam and the generic `mse_metric`
 //! dispatching over it (ADR 0001).
 //!
-//! Evidence tier: differential — the trait path must be value-identical to the
+//! Evidence tier: differential â€” the trait path must be value-identical to the
 //! verified free-function primitives it wraps; plus a gradient-descent
 //! convergence check through the trait. Deterministic `SequentialBackend`.
 
@@ -67,8 +67,7 @@ fn affine_transform_struct_matches_free_function() {
     let via_fn = affine_transform(&grid, &var_shaped(&[3, 3], &r0, false), &var(&t0, false));
     let via_trait = Affine {
         r: var_shaped(&[3, 3], &r0, false),
-        t: var(&t0, false),
-    }
+        t: var(&t0, false) }
     .transform_points(&grid);
 
     let a = via_fn.tensor.as_slice();
@@ -103,8 +102,8 @@ fn translation_struct_adds_offset_to_every_row() {
 
 #[test]
 fn translation_parameter_gradient_sums_over_points() {
-    // `t` broadcasts across all N points, so ∂(Σ out)/∂t_j = N (the summing
-    // backward of the broadcast) — the property the removed per-axis
+    // `t` broadcasts across all N points, so âˆ‚(Î£ out)/âˆ‚t_j = N (the summing
+    // backward of the broadcast) â€” the property the removed per-axis
     // `translate_axis_coeus` used to assert, now on the `Translation` struct.
     use coeus_autograd::sum;
     let (gf, n) = grid_flat();
@@ -114,7 +113,7 @@ fn translation_parameter_gradient_sums_over_points() {
     for (j, &g) in t.grad().expect("t grad").as_slice().iter().enumerate() {
         assert!(
             (g - n as f64).abs() < 1e-12,
-            "∂(Σout)/∂t[{j}] should equal N={n}, got {g}"
+            "âˆ‚(Î£out)/âˆ‚t[{j}] should equal N={n}, got {g}"
         );
     }
 }
@@ -122,7 +121,7 @@ fn translation_parameter_gradient_sums_over_points() {
 #[test]
 fn mse_metric_with_affine_matches_affine_mse_free_function() {
     // The generic trait-dispatched metric must equal the free-function path it
-    // now delegates through — forward value identical.
+    // now delegates through â€” forward value identical.
     let (gf, n) = grid_flat();
     let moving = linear_moving();
     let fixed: Vec<f64> = (0..n).map(|k| 0.5 + gf[k * 3]).collect(); // arbitrary fixed
@@ -144,8 +143,7 @@ fn mse_metric_with_affine_matches_affine_mse_free_function() {
         &var_shaped(&[n, 3], &gf, false),
         &Affine {
             r: var_shaped(&[3, 3], &r0, false),
-            t: var(&t0, false),
-        },
+            t: var(&t0, false) },
     );
     assert!(
         (via_free.tensor.as_slice()[0] - via_trait.tensor.as_slice()[0]).abs() < 1e-14,
@@ -155,7 +153,7 @@ fn mse_metric_with_affine_matches_affine_mse_free_function() {
 
 #[test]
 fn gradient_descent_through_translation_trait_reduces_loss() {
-    // Optimize a Translation via the generic metric; linear field ⇒ convex ⇒
+    // Optimize a Translation via the generic metric; linear field â‡’ convex â‡’
     // GD drives the alignment loss to ~0.
     let (gf, n) = grid_flat();
     let moving = linear_moving();
@@ -195,7 +193,7 @@ fn gradient_descent_through_translation_trait_reduces_loss() {
     );
 }
 
-// ── Metric seam (Mse / Ncc dispatched via evaluate) ─────────────────────
+// â”€â”€ Metric seam (Mse / Ncc dispatched via evaluate) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn evaluate_with_mse_matches_mse_metric() {
@@ -230,7 +228,7 @@ fn evaluate_with_mse_matches_mse_metric() {
 #[test]
 fn evaluate_with_ncc_matches_manual_sample_then_reduce() {
     // `evaluate` with `Ncc` must equal manually sampling at the transformed grid
-    // and applying the NCC reduction — verifying the seam dispatches to the NCC
+    // and applying the NCC reduction â€” verifying the seam dispatches to the NCC
     // reduction, not MSE.
     let (gf, n) = grid_flat();
     let moving = linear_moving();
@@ -286,7 +284,7 @@ fn evaluate_ncc_gradient_reaches_affine_r_and_is_shift_invariant_in_t() {
     // The NCC metric's gradient flows through the full tape to the affine `R`
     // (which changes the sampled *pattern*). It is exactly zero w.r.t. `t` here:
     // translating a linear moving field only shifts the sampled mean, and NCC is
-    // invariant to additive shifts — a defining property, verified end-to-end.
+    // invariant to additive shifts â€” a defining property, verified end-to-end.
     let (gf, n) = grid_flat();
     let moving = linear_moving();
     let fixed: Vec<f64> = (0..n)
@@ -307,8 +305,7 @@ fn evaluate_ncc_gradient_reaches_affine_r_and_is_shift_invariant_in_t() {
         &Ncc,
         &Affine {
             r: r.clone(),
-            t: t.clone(),
-        },
+            t: t.clone() },
     );
     loss.backward();
 
@@ -326,7 +323,7 @@ fn evaluate_ncc_gradient_reaches_affine_r_and_is_shift_invariant_in_t() {
     for (j, &g) in gt.iter().enumerate() {
         assert!(
             g.abs() < 1e-9,
-            "NCC ∂loss/∂t[{j}] should be ~0 (shift-invariance), got {g}"
+            "NCC âˆ‚loss/âˆ‚t[{j}] should be ~0 (shift-invariance), got {g}"
         );
     }
 }

@@ -1,14 +1,14 @@
 use super::*;
 use crate::edge::GaussianSigma;
-use burn_ndarray::NdArray;
+
 use ritk_core::image::Image;
 use ritk_image::test_support as ts;
 use ritk_spatial::{Point, Spacing};
 
-type B = NdArray<f32>;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(vals, dims)
+fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(vals, dims)
 }
 
 fn make_image_with_metadata(
@@ -16,8 +16,8 @@ fn make_image_with_metadata(
     dims: [usize; 3],
     origin: [f64; 3],
     spacing: [f64; 3],
-) -> Image<B, 3> {
-    ts::burn_compat::make_image_with::<B, 3>(
+) -> Image<f32, B, 3> {
+    ts::make_image_with::<f32, B, 3>(
         vals,
         dims,
         Some(Point::new(origin)),
@@ -26,17 +26,12 @@ fn make_image_with_metadata(
     )
 }
 
-fn image_vals(img: &Image<B, 3>) -> Vec<f32> {
-    img.data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn image_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
+    img.data().to_vec()
 }
 
-// ── Test 1: constant image must be unchanged ───────────────────────────────
-// ∇I = 0 → J_ρ = 0 → D = α·I → div(D·∇I) = 0 → I_new = I
+// â”€â”€ Test 1: constant image must be unchanged â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// âˆ‡I = 0 â†’ J_Ï = 0 â†’ D = Î±Â·I â†’ div(DÂ·âˆ‡I) = 0 â†’ I_new = I
 #[test]
 fn test_constant_image_unchanged() {
     let dims = [8, 8, 8];
@@ -66,10 +61,10 @@ fn test_constant_image_unchanged() {
     );
 }
 
-// ── Test 2: linear image must be unchanged ─────────────────────────────────
-// ∇I = const → J_ρ rank-1 → λ₁ = λ₂ = 0, λ₃ > 0
-// α₁ = α₂ = α (no excess diffusion), α₃ = α → D = α·I
-// div(α·∇I) = α·ΔI = 0 for linear I → unchanged.
+// â”€â”€ Test 2: linear image must be unchanged â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// âˆ‡I = const â†’ J_Ï rank-1 â†’ Î»â‚ = Î»â‚‚ = 0, Î»â‚ƒ > 0
+// Î±â‚ = Î±â‚‚ = Î± (no excess diffusion), Î±â‚ƒ = Î± â†’ D = Î±Â·I
+// div(Î±Â·âˆ‡I) = Î±Â·Î”I = 0 for linear I â†’ unchanged.
 #[test]
 fn test_linear_image_unchanged() {
     let [nz, ny, nx] = [10usize, 10, 10];
@@ -113,7 +108,7 @@ fn test_linear_image_unchanged() {
     );
 }
 
-// ── Test 3: noise reduction ────────────────────────────────────────────────
+// â”€â”€ Test 3: noise reduction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Adding noise to a smooth image: CED should reduce variance while
 // preserving the underlying structure.
 #[test]
@@ -170,7 +165,7 @@ fn test_noise_reduction() {
     );
 }
 
-// ── Test 4: zero iterations → identical output ──────────────────────────────
+// â”€â”€ Test 4: zero iterations â†’ identical output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[test]
 fn test_zero_iterations() {
     let dims = [8, 8, 8];
@@ -193,8 +188,8 @@ fn test_zero_iterations() {
     }
 }
 
-// ── Test 5: small image with step edge ─────────────────────────────────────
-// An 8×8×8 image with a step edge at z=4. CED should smooth along the
+// â”€â”€ Test 5: small image with step edge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// An 8Ã—8Ã—8 image with a step edge at z=4. CED should smooth along the
 // edge (z-plane) but not across it (z-direction).
 #[test]
 fn test_step_edge() {
@@ -239,7 +234,7 @@ fn test_step_edge() {
     );
 }
 
-// ── Test 6: stability — output finite after many iterations ────────────────
+// â”€â”€ Test 6: stability â€” output finite after many iterations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[test]
 fn test_stability() {
     let dims = [10, 10, 10];
@@ -273,8 +268,8 @@ fn test_stability() {
     }
 }
 
-// ── Test 7: determinism ────────────────────────────────────────────────────
-// Same input + same config → same output.
+// â”€â”€ Test 7: determinism â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Same input + same config â†’ same output.
 #[test]
 fn test_determinism() {
     let dims = [8, 8, 8];
@@ -306,7 +301,7 @@ fn test_determinism() {
     }
 }
 
-// ── Test 8: spatial metadata preservation ──────────────────────────────────
+// â”€â”€ Test 8: spatial metadata preservation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[test]
 fn test_metadata_preservation() {
     let dims = [8, 8, 8];
@@ -341,7 +336,7 @@ fn test_metadata_preservation() {
     }
 }
 
-// ── Test 9: default config values ──────────────────────────────────────────
+// â”€â”€ Test 9: default config values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[test]
 fn test_default_config() {
     let cfg = CoherenceConfig::default();

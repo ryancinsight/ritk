@@ -1,19 +1,19 @@
-use super::fixed_prep::NgfFixedPrep;
+﻿use super::fixed_prep::NgfFixedPrep;
 use super::scalar::*;
 use super::NormalizedGradientField;
 use crate::metric::Metric;
 
 use burn_ndarray::NdArray;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::TranslationTransform;
 
 type B = NdArray<f32>;
 
-fn image2d(data: Vec<f32>, shape: [usize; 2]) -> Image<B, 2> {
+fn image2d(data: Vec<f32>, shape: [usize; 2]) -> Image<f32, B, 2> {
     let device = Default::default();
-    let tensor = Tensor::from_data(TensorData::new(data, Shape::new(shape)), &device);
+    let tensor = Tensor::from_data(::new(data, Shape::new(shape)), &device);
     Image::new(
         tensor,
         Point::new([0.0, 0.0]),
@@ -33,8 +33,8 @@ fn vertical_edge(w: usize, h: usize, at: usize, sign: f32) -> Vec<f32> {
 }
 
 /// Cross-modal sign invariance: a co-located edge with OPPOSITE contrast
-/// (bright→dark vs dark→bright) scores exactly the same as an identical-
-/// contrast edge — the squared gradient dot product makes a bright-CT /
+/// (brightâ†’dark vs darkâ†’bright) scores exactly the same as an identical-
+/// contrast edge â€” the squared gradient dot product makes a bright-CT /
 /// dark-MR boundary register just like a same-sign one.
 #[test]
 fn ngf_is_sign_invariant() {
@@ -50,7 +50,7 @@ fn ngf_is_sign_invariant() {
 }
 
 /// NGF of perpendicular edges (uncorrelated orientation) is well below that of
-/// aligned edges — the property that lets NGF recover a rotation that intensity
+/// aligned edges â€” the property that lets NGF recover a rotation that intensity
 /// MI cannot.
 #[test]
 fn aligned_beats_perpendicular() {
@@ -71,7 +71,7 @@ fn aligned_beats_perpendicular() {
 }
 
 /// Center weighting makes a CENTRAL edge mismatch dominate the metric over a
-/// stronger PERIPHERAL one — the skull-domination fix. Fixed and moving agree
+/// stronger PERIPHERAL one â€” the skull-domination fix. Fixed and moving agree
 /// at the periphery but disagree centrally; the uniform NGF barely drops
 /// (periphery dominates), while the center-Gaussian-weighted NGF drops sharply
 /// because the central disagreement now carries the weight.
@@ -86,7 +86,7 @@ fn center_weight_emphasizes_central_mismatch() {
             let periph = if x == 2 || x == 29 { 1.0 } else { 0.0 };
             f[y * w + x] = periph + if x == 16 { 1.0 } else { 0.0 };
             // Moving matches the periphery but the central edge is displaced
-            // (col 20 instead of 16) — a purely central disagreement.
+            // (col 20 instead of 16) â€” a purely central disagreement.
             m[y * w + x] = periph + if x == 20 { 1.0 } else { 0.0 };
         }
     }
@@ -121,7 +121,7 @@ fn metric_loss_lower_when_aligned() {
     let device = Default::default();
     let loss = |dx: f32| {
         let t = TranslationTransform::<B, 2>::new(Tensor::from_data(
-            TensorData::new(vec![0.0_f32, dx], [2]),
+            ::new(vec![0.0_f32, dx], [2]),
             &device,
         ));
         metric
@@ -143,8 +143,8 @@ fn metric_loss_lower_when_aligned() {
 }
 
 /// The stochastic-sample NGF path computes the SAME value as the dense path
-/// when the subset is complete (every voxel sampled) — verifying the
-/// neighbour-gather + finite-difference gradient and η over the sample subset
+/// when the subset is complete (every voxel sampled) â€” verifying the
+/// neighbour-gather + finite-difference gradient and Î· over the sample subset
 /// reproduce the dense metric. A strided half-subset stays a close estimate.
 #[test]
 fn sampled_ngf_matches_dense() {
@@ -152,7 +152,7 @@ fn sampled_ngf_matches_dense() {
     let img = image2d(vertical_edge(w, h, 12, 1.0), [h, w]);
     let device = Default::default();
     let ident = TranslationTransform::<B, 2>::new(Tensor::from_data(
-        TensorData::new(vec![0.0_f32, 0.0], [2]),
+        ::new(vec![0.0_f32, 0.0], [2]),
         &device,
     ));
     let dense = NgfFixedPrep::<B, 2>::new(&img, None, None).eval(&img, &ident);

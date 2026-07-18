@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 use burn_ndarray::NdArray;
 
 type TestBackend = NdArray<f32>;
@@ -22,7 +22,7 @@ fn test_cr_name() {
 #[test]
 fn test_cr_gradient_non_zero() {
     use ritk_image::burn::backend::Autodiff;
-    use ritk_image::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape };
     use ritk_spatial::{Direction, Point, Spacing};
     use ritk_transform::TranslationTransform;
 
@@ -44,12 +44,12 @@ fn test_cr_gradient_non_zero() {
         })
         .collect();
 
-    let fixed_t = Tensor::<B, 3>::from_data(
-        TensorData::new(fixed_data, Shape::new([size, size, size])),
+    let fixed_t = Tensor::<f32, B>::from_data(
+        ::new(fixed_data, Shape::new([size, size, size])),
         &device,
     );
-    let moving_t = Tensor::<B, 3>::from_data(
-        TensorData::new(moving_data, Shape::new([size, size, size])),
+    let moving_t = Tensor::<f32, B>::from_data(
+        ::new(moving_data, Shape::new([size, size, size])),
         &device,
     );
 
@@ -60,7 +60,7 @@ fn test_cr_gradient_non_zero() {
     let fixed = Image::new(fixed_t, origin, spacing, direction);
     let moving = Image::new(moving_t, origin, spacing, direction);
 
-    let translation = Tensor::<B, 1>::zeros([3], &device).require_grad();
+    let translation = Tensor::<f32, B>::zeros([3], &device).require_grad();
     let transform = TranslationTransform::<B, 3>::new(translation.clone());
 
     let metric = CorrelationRatio::<B>::default_params(&device);
@@ -81,7 +81,7 @@ fn test_cr_gradient_non_zero() {
 
 #[test]
 fn test_cr_identical_images() {
-    use ritk_image::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape };
     use ritk_spatial::{Direction, Point, Spacing};
     use ritk_transform::TranslationTransform;
 
@@ -92,8 +92,8 @@ fn test_cr_identical_images() {
         .collect(); // Gradient 0-255
 
     let device = Default::default();
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data, Shape::new([size, size, size])),
+    let tensor = Tensor::<f32, TestBackend>::from_data(
+        ::new(data, Shape::new([size, size, size])),
         &device,
     );
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
@@ -104,7 +104,7 @@ fn test_cr_identical_images() {
     let moving = Image::new(tensor, origin, spacing, direction);
 
     let transform =
-        TranslationTransform::<TestBackend, 3>::new(Tensor::<TestBackend, 1>::zeros([3], &device));
+        TranslationTransform::<TestBackend, 3>::new(Tensor::<f32, TestBackend>::zeros([3], &device));
 
     let cr_metric = CorrelationRatio::<TestBackend>::default_params(&Default::default());
     let loss = cr_metric.forward(&fixed, &moving, &transform);

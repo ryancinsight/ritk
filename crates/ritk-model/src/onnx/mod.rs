@@ -1,4 +1,4 @@
-//! ONNX model import for deep learning registration models.
+﻿//! ONNX model import for deep learning registration models.
 //!
 //! This module provides ONNX (Open Neural Network Exchange) model import
 //! capabilities for inspecting pre-trained registration-network documents.
@@ -58,8 +58,7 @@ pub struct OnnxMetadata {
     /// Model version
     pub model_version: Option<i64>,
     /// Custom metadata as key-value pairs
-    pub metadata_props: std::collections::HashMap<String, String>,
-}
+    pub metadata_props: std::collections::HashMap<String, String> }
 
 impl Default for OnnxMetadata {
     fn default() -> Self {
@@ -70,8 +69,7 @@ impl Default for OnnxMetadata {
             producer_version: None,
             domain: None,
             model_version: None,
-            metadata_props: std::collections::HashMap::new(),
-        }
+            metadata_props: std::collections::HashMap::new() }
     }
 }
 

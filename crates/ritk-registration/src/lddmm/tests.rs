@@ -1,8 +1,7 @@
-//! Unit and integration tests for LDDMM.
+﻿//! Unit and integration tests for LDDMM.
 
 use super::{
-    adjoint::epdiff_adjoint, geodesic::integrate_geodesic, LddmmConfig, LddmmRegistration,
-};
+    adjoint::epdiff_adjoint, geodesic::integrate_geodesic, LddmmConfig, LddmmRegistration };
 use crate::deformable_field_ops::VectorField;
 use crate::error::RegistrationError;
 use ritk_filter::edge::GaussianSigma;
@@ -38,8 +37,7 @@ fn identity_registration_low_mse() {
         kernel_sigma: GaussianSigma::new_unchecked(1.0),
         learning_rate: 0.01,
         regularization_weight: 1.0,
-        convergence_threshold: 1e-12,
-    });
+        convergence_threshold: 1e-12 });
     let result = reg.register(&img, &img, dims, [1.0; 3]).unwrap();
 
     assert!(
@@ -92,8 +90,7 @@ fn metric_improves_over_iterations() {
         kernel_sigma: GaussianSigma::new_unchecked(1.0),
         learning_rate: 0.1,
         regularization_weight: 0.01,
-        convergence_threshold: 1e-12,
-    });
+        convergence_threshold: 1e-12 });
     let result = reg.register(&fixed, &moving, dims, [1.0; 3]).unwrap();
 
     assert!(
@@ -174,13 +171,11 @@ fn epdiff_adjoint_zero_momentum_is_zero() {
         VectorField {
             z: &v,
             y: &v,
-            x: &v,
-        },
+            x: &v },
         VectorField {
             z: &zeros,
             y: &zeros,
-            x: &zeros,
-        },
+            x: &zeros },
         dims,
         [1.0; 3],
     );

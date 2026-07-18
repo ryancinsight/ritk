@@ -65,7 +65,7 @@ pub use native::{
     mean_surface_distance as mean_surface_distance_native, psnr as psnr_native,
     ssim as ssim_native,
 };
-pub use overlap::{dice_coefficient, dice_coefficient_native, similarity_index};
+pub use overlap::{dice_coefficient, similarity_index};
 pub use quality::{pearson_correlation, psnr, ssim};
 pub use surface::{hausdorff_distance, mean_surface_distance};
 

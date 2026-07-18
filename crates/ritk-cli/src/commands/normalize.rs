@@ -1,11 +1,11 @@
-//! `ritk normalize` — image intensity normalization command.
+﻿//! `ritk normalize` â€” image intensity normalization command.
 //!
 //! Applies one of five normalization strategies to a 3-D medical image:
 //!
 //! | Method             | Description                                        |
 //! |--------------------|----------------------------------------------------|
 //! | `histogram-match`  | CDF-based histogram matching to a reference image  |
-//! | `nyul`             | Nyúl-Udupa piecewise-linear standardization        |
+//! | `nyul`             | NyÃºl-Udupa piecewise-linear standardization        |
 //! | `zscore`           | Zero-mean, unit-variance normalization             |
 //! | `minmax`           | Rescale intensities to \[0, 1\]                    |
 //! | `white-stripe`     | Brain MRI white-stripe normalization               |
@@ -17,15 +17,13 @@ use tracing::info;
 
 use ritk_statistics::normalization::{
     HistogramMatcher, MinMaxNormalizer, MriContrast, NyulUdupaNormalizer, WhiteStripeConfig,
-    WhiteStripeNormalizer, ZScoreNormalizer,
-};
+    WhiteStripeNormalizer, ZScoreNormalizer };
 
 use super::{
     infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
-    write_image_native,
-};
+    write_image_native };
 
-// ── CLI arguments ─────────────────────────────────────────────────────────────
+// â”€â”€ CLI arguments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// MRI contrast type for white-stripe normalization.
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -33,8 +31,7 @@ pub enum CliContrast {
     #[value(name = "t1")]
     T1,
     #[value(name = "t2")]
-    T2,
-}
+    T2 }
 
 /// Normalization method for the `normalize` subcommand.
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -47,8 +44,7 @@ pub enum NormalizeMethod {
     #[value(name = "minmax")]
     Minmax,
     #[value(name = "white-stripe")]
-    WhiteStripe,
-}
+    WhiteStripe }
 
 impl std::fmt::Display for NormalizeMethod {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -57,8 +53,7 @@ impl std::fmt::Display for NormalizeMethod {
             Self::Nyul => "nyul",
             Self::Zscore => "zscore",
             Self::Minmax => "minmax",
-            Self::WhiteStripe => "white-stripe",
-        })
+            Self::WhiteStripe => "white-stripe" })
     }
 }
 
@@ -106,15 +101,14 @@ pub struct NormalizeArgs {
 
     /// Optional binary mask image path for masked Z-score normalization.
     ///
-    /// Only used with `--method zscore`. When supplied, μ and σ are computed
+    /// Only used with `--method zscore`. When supplied, Î¼ and Ïƒ are computed
     /// from foreground voxels (mask > 0.5); all voxels are still transformed.
     /// If the mask contains no foreground voxels, the method falls back to
     /// full-image statistics.
     #[arg(long, value_name = "MASK")]
-    pub mask: Option<PathBuf>,
-}
+    pub mask: Option<PathBuf> }
 
-// ── Command handler ───────────────────────────────────────────────────────────
+// â”€â”€ Command handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Execute the `normalize` subcommand.
 ///
@@ -230,8 +224,7 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             NormalizeMethod::WhiteStripe => {
                 let contrast = match args.contrast.unwrap_or(CliContrast::T1) {
                     CliContrast::T1 => MriContrast::T1,
-                    CliContrast::T2 => MriContrast::T2,
-                };
+                    CliContrast::T2 => MriContrast::T2 };
                 let config = WhiteStripeConfig {
                     contrast,
                     width: args.ws_width.unwrap_or(0.05),

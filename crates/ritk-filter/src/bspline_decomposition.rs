@@ -21,7 +21,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Compute the cubic B-spline coefficient image of a 3-D image (mirror
 /// boundary). The output shares the input geometry.
-pub fn bspline_decomposition<B: Backend>(image: &Image<B, 3>) -> Result<Image<B, 3>> {
+pub fn bspline_decomposition<B: Backend>(image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
     let (vals, dims) = extract_vec_infallible(image);
     let coeffs = ritk_interpolation::bspline_decomposition_coefficients(&vals, &dims);
     Ok(rebuild(coeffs, dims, image))

@@ -10,7 +10,7 @@
 //!
 //! # Properties
 //!
-//! - **Anti-extensivity**: `O_B(f) ≤ f` — opening does not add foreground voxels.
+//! - **Anti-extensivity**: `O_B(f) â‰¤ f` â€” opening does not add foreground voxels.
 //! - **Spike removal**: removes bright blobs / protrusions smaller than B.
 //! - **Idempotence**: `O_B(O_B(f)) = O_B(f)`.
 //!
@@ -23,7 +23,7 @@
 //!
 //! # Complexity
 //!
-//! O(2 · N · (2r + 1)³): one erosion pass + one dilation pass.
+//! O(2 Â· N Â· (2r + 1)Â³): one erosion pass + one dilation pass.
 //!
 //! # References
 //!
@@ -37,7 +37,7 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// ── Filter struct ─────────────────────────────────────────────────────────────
+// â”€â”€ Filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Binary morphological opening filter for 3-D images.
 ///
@@ -71,7 +71,7 @@ impl BinaryMorphologicalOpening {
     ///
     /// Returns a new image with identical shape and spatial metadata.
     /// Output voxels are `foreground_value` (foreground) or `0.0` (background).
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
 
         // Opening = dilate(erode(f))
@@ -106,7 +106,7 @@ impl Default for BinaryMorphologicalOpening {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[allow(clippy::identity_op, clippy::erasing_op)]

@@ -1,18 +1,17 @@
 //! Tests for euclidean
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(vals, dims)
+fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(vals, dims)
 }
 
-fn voxels(img: &Image<B, 3>) -> Vec<f32> {
+fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
     let (v, _) = extract_vec_infallible(img);
     v
 }
@@ -29,7 +28,7 @@ fn edt_3d_single_foreground_voxel_at_origin() {
     let dt = euclidean_dt(&fg, dims, [1.0, 1.0, 1.0]);
     // Voxel (0,0,0): distance 0
     assert!((dt[0] - 0.0).abs() < 1e-5);
-    // Voxel (0,0,1): distance 1 — index formula: iz * ny * nx + iy * nx + ix
+    // Voxel (0,0,1): distance 1 â€” index formula: iz * ny * nx + iy * nx + ix
     let ny = dims[1];
     let nx = dims[2];
     let idx = 0 * ny * nx + 0 * nx + 1;
@@ -45,7 +44,7 @@ fn edt_3d_single_foreground_voxel_at_origin() {
         "expected 1.0, got {}",
         dt[idx]
     );
-    // Voxel (1,1,1): distance sqrt(3) ≈ 1.732
+    // Voxel (1,1,1): distance sqrt(3) â‰ˆ 1.732
     let idx = 25 + 5 + 1;
     assert!(
         (dt[idx] - 3.0_f64.sqrt() as f32).abs() < 1e-4,
@@ -66,7 +65,7 @@ fn edt_3d_all_foreground_gives_zero_everywhere() {
 
 #[test]
 fn edt_3d_two_foreground_voxels_midpoint() {
-    // 1×1×5 volume, foreground at ix=0 and ix=4
+    // 1Ã—1Ã—5 volume, foreground at ix=0 and ix=4
     let dims = [1usize, 1, 5];
     let fg = vec![true, false, false, false, true];
     let dt = euclidean_dt(&fg, dims, [1.0, 1.0, 1.0]);
@@ -79,7 +78,7 @@ fn edt_3d_two_foreground_voxels_midpoint() {
 
 #[test]
 fn edt_3d_anisotropic_spacing_scales_distance() {
-    // 1×1×3 with spacing sx=2.0; foreground at ix=0 only
+    // 1Ã—1Ã—3 with spacing sx=2.0; foreground at ix=0 only
     let dims = [1usize, 1, 3];
     let fg = vec![true, false, false];
     let dt = euclidean_dt(&fg, dims, [1.0, 1.0, 2.0]);
@@ -105,7 +104,7 @@ fn unsigned_edt_filter_foreground_voxel_receives_zero() {
     let img = make_image(vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [2, 2, 2]);
     let out = DistanceTransformImageFilter::new().apply(&img).unwrap();
     let v = voxels(&out);
-    // iz=0,iy=0,ix=0 is foreground → distance 0
+    // iz=0,iy=0,ix=0 is foreground â†’ distance 0
     assert!(
         (v[0] - 0.0).abs() < 1e-4,
         "foreground voxel expected 0, got {}",
@@ -115,7 +114,7 @@ fn unsigned_edt_filter_foreground_voxel_receives_zero() {
 
 #[test]
 fn unsigned_edt_filter_background_voxels_have_positive_distance() {
-    // Single foreground at (0,0,0) in a 3×3×3 volume
+    // Single foreground at (0,0,0) in a 3Ã—3Ã—3 volume
     let mut vals = vec![0.0f32; 27];
     vals[0] = 1.0;
     let img = make_image(vals, [3, 3, 3]);
@@ -203,7 +202,7 @@ fn unsigned_validation_reports_invalid_shape_and_spacing_exactly() {
 
 #[test]
 fn signed_edt_filter_inside_negative_outside_positive() {
-    // 1×1×5: foreground is ix=[1,2,3], background is ix=[0,4]
+    // 1Ã—1Ã—5: foreground is ix=[1,2,3], background is ix=[0,4]
     let vals = vec![0.0f32, 1.0, 1.0, 1.0, 0.0];
     let img = make_image(vals, [1, 1, 5]);
     let out = SignedDistanceTransformImageFilter::new()
@@ -213,7 +212,7 @@ fn signed_edt_filter_inside_negative_outside_positive() {
     // ix=0 (background): positive distance to nearest fg (ix=1) = 1
     assert!(v[0] > 0.0, "background expected positive, got {}", v[0]);
     assert!((v[0] - 1.0).abs() < 1e-4, "expected +1, got {}", v[0]);
-    // ix=1 (foreground): negative distance to nearest bg (ix=0) = −1
+    // ix=1 (foreground): negative distance to nearest bg (ix=0) = âˆ’1
     assert!(
         v[1] < 0.0,
         "foreground edge expected negative, got {}",

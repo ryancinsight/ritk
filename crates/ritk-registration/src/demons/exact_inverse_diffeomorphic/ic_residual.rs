@@ -1,19 +1,19 @@
-//! IC residual computation for inverse-consistent diffeomorphic Demons.
+﻿//! IC residual computation for inverse-consistent diffeomorphic Demons.
 //!
-//! IC residual = (1/n) * Σ_x ‖φ_fwd(φ_inv(x)) − x‖₂
+//! IC residual = (1/n) * Î£_x â€–Ï†_fwd(Ï†_inv(x)) âˆ’ xâ€–â‚‚
 //!
 //! Steps per voxel x:
-//!   1. x' = x + ψ(x)         (apply inverse displacement)
-//!   2. δ  = interpolate φ at x'  (trilinear)
-//!   3. x'' = x' + δ
-//!   4. residual = ‖x'' − x‖₂
+//!   1. x' = x + Ïˆ(x)         (apply inverse displacement)
+//!   2. Î´  = interpolate Ï† at x'  (trilinear)
+//!   3. x'' = x' + Î´
+//!   4. residual = â€–x'' âˆ’ xâ€–â‚‚
 //!
-//! The result is the mean over all voxels.  For n_squarings ≥ 6 in f32
+//! The result is the mean over all voxels.  For n_squarings â‰¥ 6 in f32
 //! arithmetic the residual is invariantly < 1e-4 voxels.
 
 use crate::deformable_field_ops::{trilinear_interpolate_field, VectorField};
 
-/// Compute IC_residual = (1/n) * Σ_x ‖φ_fwd(φ_inv(x)) − x‖₂.
+/// Compute IC_residual = (1/n) * Î£_x â€–Ï†_fwd(Ï†_inv(x)) âˆ’ xâ€–â‚‚.
 pub(super) fn compute_ic_residual(
     phi_z: &[f32],
     phi_y: &[f32],
@@ -29,8 +29,7 @@ pub(super) fn compute_ic_residual(
     let phi = VectorField {
         z: phi_z,
         y: phi_y,
-        x: phi_x,
-    };
+        x: phi_x };
     let mut sum_dist = 0.0_f64;
 
     for iz in 0..nz {

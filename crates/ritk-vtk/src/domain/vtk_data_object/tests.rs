@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 
 fn triangle() -> VtkPolyData {
     VtkPolyData {
@@ -39,8 +39,7 @@ fn test_vtk_poly_data_validate_scalar_length() {
         "intensity".to_string(),
         AttributeArray::Scalars {
             values: vec![1.0, 2.0],
-            num_components: 1,
-        },
+            num_components: 1 },
     );
     let result = p.validate();
     assert!(result.is_err());
@@ -55,8 +54,7 @@ fn test_vtk_data_object_polydata_wraps() {
             assert_eq!(p.points.len(), 3);
             assert_eq!(p.polygons.len(), 1);
         }
-        _ => panic!("wrong variant"),
-    }
+        _ => panic!("wrong variant") }
 }
 
 #[test]
@@ -83,8 +81,7 @@ fn test_vtk_poly_data_validate_cell_data_scalar_ok() {
         "pressure".to_string(),
         AttributeArray::Scalars {
             values: vec![42.0],
-            num_components: 1,
-        },
+            num_components: 1 },
     );
     assert!(p.validate().is_ok());
 }
@@ -93,12 +90,10 @@ fn test_vtk_poly_data_validate_cell_data_scalar_ok() {
 fn test_attribute_array_equality() {
     let a = AttributeArray::Scalars {
         values: vec![1.0, 2.0],
-        num_components: 1,
-    };
+        num_components: 1 };
     let b = AttributeArray::Scalars {
         values: vec![1.0, 2.0],
-        num_components: 1,
-    };
+        num_components: 1 };
     assert_eq!(a, b);
 }
 
@@ -156,8 +151,7 @@ fn test_vtk_unstructured_grid_index_out_of_range() {
 fn test_vtk_data_object_structured_variant() {
     match VtkDataObject::StructuredGrid(VtkStructuredGrid::new([2, 2, 2])) {
         VtkDataObject::StructuredGrid(g) => assert_eq!(g.n_points(), 8),
-        _ => panic!("wrong variant"),
-    }
+        _ => panic!("wrong variant") }
 }
 
 #[test]
@@ -166,8 +160,7 @@ fn test_vtk_data_object_unstructured_variant() {
     g.points = vec![[1.0, 0.0, 0.0]];
     match VtkDataObject::UnstructuredGrid(g) {
         VtkDataObject::UnstructuredGrid(g) => assert_eq!(g.n_points(), 1),
-        _ => panic!("wrong variant"),
-    }
+        _ => panic!("wrong variant") }
 }
 
 #[test]
@@ -228,7 +221,7 @@ fn test_vtk_image_data_n_points_and_cells() {
 
 #[test]
 fn test_vtk_image_data_validate_ok() {
-    // extent [0,1,0,1,0,1] → n_points = 2*2*2 = 8
+    // extent [0,1,0,1,0,1] â†’ n_points = 2*2*2 = 8
     let mut img = VtkImageData {
         whole_extent: [0, 1, 0, 1, 0, 1],
         ..Default::default()
@@ -237,15 +230,14 @@ fn test_vtk_image_data_validate_ok() {
         "s".to_string(),
         AttributeArray::Scalars {
             values: vec![0.0f32; 8],
-            num_components: 1,
-        },
+            num_components: 1 },
     );
     assert_eq!(img.validate(), Ok(()));
 }
 
 #[test]
 fn test_vtk_image_data_validate_wrong_scalar_len() {
-    // extent [0,1,0,1,0,1] → n_points = 8; supplying 5 → Err
+    // extent [0,1,0,1,0,1] â†’ n_points = 8; supplying 5 â†’ Err
     let mut img = VtkImageData {
         whole_extent: [0, 1, 0, 1, 0, 1],
         ..Default::default()
@@ -254,8 +246,7 @@ fn test_vtk_image_data_validate_wrong_scalar_len() {
         "s".to_string(),
         AttributeArray::Scalars {
             values: vec![0.0f32; 5],
-            num_components: 1,
-        },
+            num_components: 1 },
     );
     let r = img.validate();
     assert!(r.is_err(), "mismatched scalar length must return Err");
@@ -267,13 +258,12 @@ fn test_vtk_image_data_validate_wrong_scalar_len() {
 
 #[test]
 fn test_vtk_image_data_data_object_variant() {
-    // extent [0,2,0,3,0,4] → n_points = 60
+    // extent [0,2,0,3,0,4] â†’ n_points = 60
     let img = VtkImageData {
         whole_extent: [0, 2, 0, 3, 0, 4],
         ..Default::default()
     };
     match VtkDataObject::ImageData(img) {
         VtkDataObject::ImageData(g) => assert_eq!(g.n_points(), 60),
-        _ => panic!("wrong VtkDataObject variant"),
-    }
+        _ => panic!("wrong VtkDataObject variant") }
 }

@@ -1,4 +1,4 @@
-//! Fast marching and colliding fronts filters.
+﻿//! Fast marching and colliding fronts filters.
 
 use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
@@ -8,15 +8,15 @@ use ritk_filter::{CollidingFrontsFilter, FastMarchingFilter};
 /// `SimpleITK.FastMarching`.
 ///
 /// Propagates a front from `trial_points` (seeds) outward through the `image`
-/// speed field, solving ‖∇T‖·F = 1. Voxels never reached keep a large sentinel
+/// speed field, solving â€–âˆ‡Tâ€–Â·F = 1. Voxels never reached keep a large sentinel
 /// value.
 ///
 /// Args:
 ///     image: Speed image (non-negative).
 ///     trial_points: Seed voxels, each `[z, y, x]`.
 ///     normalization_factor: Speed normalization (default 1.0).
-///     stopping_value: Stop once the smallest arrival time exceeds this (default ∞).
-///     initial_trial_values: Initial arrival time per seed; empty ⇒ all 0.
+///     stopping_value: Stop once the smallest arrival time exceeds this (default âˆž).
+///     initial_trial_values: Initial arrival time per seed; empty â‡’ all 0.
 ///
 /// Returns:
 ///     Arrival-time PyImage, same shape and metadata as input.
@@ -37,8 +37,7 @@ pub fn fast_marching(
             trial_points,
             initial_trial_values,
             normalization_factor,
-            stopping_value: stopping_value.unwrap_or(f64::MAX / 2.0),
-        }
+            stopping_value: stopping_value.unwrap_or(f64::MAX / 2.0) }
         .apply(&arc)
     });
     burn_into_py_image(out)
@@ -49,7 +48,7 @@ pub fn fast_marching(
 /// Two fast-marching fronts are propagated from `seeds1` and `seeds2` through the
 /// speed image; the output is the dot product of their upwind gradient fields,
 /// strongly negative where the fronts collide. With `apply_connectivity` the
-/// result is restricted to the connected region of `P ≤ negative_epsilon`
+/// result is restricted to the connected region of `P â‰¤ negative_epsilon`
 /// reachable from `seeds1`; elsewhere 0.
 ///
 /// Args:
@@ -77,8 +76,7 @@ pub fn colliding_fronts(
             seeds1,
             seeds2,
             apply_connectivity,
-            negative_epsilon,
-        }
+            negative_epsilon }
         .apply(&arc)
     });
     burn_into_py_image(out)

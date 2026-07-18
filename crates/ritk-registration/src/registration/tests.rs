@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 use crate::optimizer::{OptimizerAlgorithm, OptimizerTelemetry};
 use crate::registration::summary::StopReason;
 
@@ -33,12 +33,10 @@ fn registration_summary_holds_execution_diagnostics() {
         optimizer_telemetry: OptimizerTelemetry {
             algorithm: OptimizerAlgorithm::GradientDescent,
             steps: 2,
-            learning_rate: Some(0.1),
-        },
+            learning_rate: Some(0.1) },
         iterations_completed: 2,
         final_loss: 1.0,
-        stop_reason: StopReason::Completed,
-    };
+        stop_reason: StopReason::Completed };
 
     assert_eq!(summary.transform, 3);
     assert_eq!(summary.optimizer_telemetry.steps, 2);

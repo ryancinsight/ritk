@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 use crate::pacs::query::FindResultRowSeries;
 use ritk_io::MoveResponse;
 
@@ -9,15 +9,14 @@ fn default_app() -> SnapApp {
     app
 }
 
-// ── apply_pacs_response ─────────────────────────────────────────────────
+// â”€â”€ apply_pacs_response â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// FindSeriesOk transitions to SeriesResults and clears selection state.
 #[test]
 fn apply_pacs_find_series_ok_transitions_to_series_results() {
     let mut app = default_app();
     app.pacs_query_state = crate::pacs::query::QueryState::Pending {
-        label: "C-FIND".into(),
-    };
+        label: "C-FIND".into() };
     app.pacs_selected_row = Some(0);
     app.pacs_selected_series_row = Some(2);
 
@@ -37,8 +36,7 @@ fn apply_pacs_find_series_ok_transitions_to_series_results() {
     match &app.pacs_query_state {
         QueryState::SeriesResults {
             study_instance_uid,
-            series,
-        } => {
+            series } => {
             assert_eq!(
                 study_instance_uid, "STUDY-UID-1",
                 "study_instance_uid from first series"
@@ -47,8 +45,7 @@ fn apply_pacs_find_series_ok_transitions_to_series_results() {
             assert_eq!(series[0].modality, "CT", "series modality");
             assert_eq!(series[0].series_number, "1", "series number");
         }
-        other => panic!("expected SeriesResults, got {other:?}"),
-    }
+        other => panic!("expected SeriesResults, got {other:?}") }
 
     assert_eq!(app.pacs_selected_row, None, "study selection cleared");
     assert_eq!(
@@ -66,16 +63,14 @@ fn apply_pacs_find_series_ok_empty_list_uses_default_uid() {
     match &app.pacs_query_state {
         QueryState::SeriesResults {
             study_instance_uid,
-            series,
-        } => {
+            series } => {
             assert!(
                 study_instance_uid.is_empty(),
-                "empty series → empty uid default"
+                "empty series â†’ empty uid default"
             );
             assert!(series.is_empty(), "series list empty");
         }
-        other => panic!("expected SeriesResults, got {other:?}"),
-    }
+        other => panic!("expected SeriesResults, got {other:?}") }
 }
 
 /// RetrieveSeriesOk transitions to Idle with status message.
@@ -83,15 +78,13 @@ fn apply_pacs_find_series_ok_empty_list_uses_default_uid() {
 fn apply_pacs_retrieve_series_ok_sets_status_message() {
     let mut app = default_app();
     app.pacs_query_state = QueryState::Pending {
-        label: "C-MOVE".into(),
-    };
+        label: "C-MOVE".into() };
 
     app.apply_pacs_response(PacsResponse::RetrieveSeriesOk(MoveResponse {
         completed: 42,
         failed: 0,
         warning: 0,
-        final_status: 0x0000,
-    }));
+        final_status: 0x0000 }));
 
     assert!(
         matches!(app.pacs_query_state, QueryState::Idle),
@@ -117,11 +110,10 @@ fn apply_pacs_retrieve_series_err_transitions_to_error() {
         QueryState::Error(msg) => {
             assert!(msg.contains("timeout"), "error message must be stored");
         }
-        other => panic!("expected Error, got {other:?}"),
-    }
+        other => panic!("expected Error, got {other:?}") }
 }
 
-// ── handle_pacs_action ──────────────────────────────────────────────────
+// â”€â”€ handle_pacs_action â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// SubmitFindSeries transitions to Pending when no worker is active.
 #[test]
@@ -129,11 +121,10 @@ fn handle_submit_find_series_sets_pending_state() {
     let mut app = default_app();
     app.pacs_worker = None;
 
-    // On WASM this sets Error — we check the cfg-gated path at compile time.
+    // On WASM this sets Error â€” we check the cfg-gated path at compile time.
     // On native, it spawns a worker. In both, state leaves Idle.
     app.handle_pacs_action(PacsPanelAction::SubmitFindSeries {
-        study_instance_uid: "STUDY-UID".into(),
-    });
+        study_instance_uid: "STUDY-UID".into() });
 
     // The state must no longer be Idle.
     assert!(
@@ -150,8 +141,7 @@ fn handle_submit_retrieve_series_sets_pending_state() {
 
     app.handle_pacs_action(PacsPanelAction::SubmitRetrieveSeries {
         study_uid: "STUDY-UID".into(),
-        series_uid: "SERIES-UID".into(),
-    });
+        series_uid: "SERIES-UID".into() });
 
     assert!(
         !matches!(app.pacs_query_state, QueryState::Idle),
@@ -171,8 +161,7 @@ fn handle_submit_find_series_with_active_worker_rejects() {
     app.pacs_worker = Some(crate::pacs::worker::PacsWorkerHandle::for_test(rx));
 
     app.handle_pacs_action(PacsPanelAction::SubmitFindSeries {
-        study_instance_uid: "STUDY-UID".into(),
-    });
+        study_instance_uid: "STUDY-UID".into() });
 
     assert!(
         app.status_message.contains("already in progress"),
@@ -186,8 +175,7 @@ fn handle_back_to_studies_resets_to_idle() {
     let mut app = default_app();
     app.pacs_query_state = QueryState::SeriesResults {
         study_instance_uid: "UID".into(),
-        series: vec![FindResultRowSeries::default()],
-    };
+        series: vec![FindResultRowSeries::default()] };
     app.pacs_selected_row = Some(1);
     app.pacs_selected_series_row = Some(0);
 
@@ -213,8 +201,7 @@ fn handle_pacs_action_none_is_noop() {
     let mut app = default_app();
     app.pacs_query_state = QueryState::SeriesResults {
         study_instance_uid: "UID".into(),
-        series: vec![FindResultRowSeries::default()],
-    };
+        series: vec![FindResultRowSeries::default()] };
     app.pacs_selected_row = Some(1);
     app.pacs_selected_series_row = Some(0);
 

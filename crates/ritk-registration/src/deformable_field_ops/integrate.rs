@@ -1,4 +1,4 @@
-//! Scaling-and-squaring exponential map for stationary velocity fields.
+﻿//! Scaling-and-squaring exponential map for stationary velocity fields.
 
 use super::compose::compose_fields_into;
 use super::{VectorField, VectorFieldMut, VelocityField};
@@ -13,15 +13,15 @@ fn square_into(phi: VectorField<'_>, dims: VolumeDims, out: VectorFieldMut<'_>) 
 /// via the scaling-and-squaring algorithm.
 ///
 /// # Algorithm
-/// 1. Scale: `φ ← v / 2^n_steps`
-/// 2. Square n_steps times: `φ ← φ ∘ φ`
+/// 1. Scale: `Ï† â† v / 2^n_steps`
+/// 2. Square n_steps times: `Ï† â† Ï† âˆ˜ Ï†`
 ///
 /// Using `n_steps = 6` corresponds to 64 integration steps and is the
 /// standard choice for Diffeomorphic Demons (Vercauteren et al. 2009).
 ///
 /// # Invariants
 /// - For `v = 0` the result is the identity displacement `(0, 0, 0)`.
-/// - For small `v`, `exp(v) ≈ v` (first-order approximation).
+/// - For small `v`, `exp(v) â‰ˆ v` (first-order approximation).
 pub(crate) fn scaling_and_squaring(
     vz: &[f32],
     vy: &[f32],
@@ -45,19 +45,16 @@ pub(crate) fn scaling_and_squaring(
             VectorField {
                 z: &phiz,
                 y: &phiy,
-                x: &phix,
-            },
+                x: &phix },
             VectorField {
                 z: &phiz,
                 y: &phiy,
-                x: &phix,
-            },
+                x: &phix },
             dims,
             VectorFieldMut {
                 z: &mut next_z,
                 y: &mut next_y,
-                x: &mut next_x,
-            },
+                x: &mut next_x },
         );
         std::mem::swap(&mut phiz, &mut next_z);
         std::mem::swap(&mut phiy, &mut next_y);
@@ -67,8 +64,7 @@ pub(crate) fn scaling_and_squaring(
     VelocityField {
         z: phiz,
         y: phiy,
-        x: phix,
-    }
+        x: phix }
 }
 
 /// Zero-allocation variant: computes `exp(v)` into caller-provided buffers.
@@ -111,28 +107,24 @@ pub(crate) fn scaling_and_squaring_into(
                 VectorField {
                     z: out_z,
                     y: out_y,
-                    x: out_x,
-                },
+                    x: out_x },
                 dims,
                 VectorFieldMut {
                     z: scratch_z,
                     y: scratch_y,
-                    x: scratch_x,
-                },
+                    x: scratch_x },
             );
         } else {
             square_into(
                 VectorField {
                     z: scratch_z,
                     y: scratch_y,
-                    x: scratch_x,
-                },
+                    x: scratch_x },
                 dims,
                 VectorFieldMut {
                     z: out_z,
                     y: out_y,
-                    x: out_x,
-                },
+                    x: out_x },
             );
         }
         result_is_out = !result_is_out;
@@ -167,7 +159,7 @@ mod tests {
         }
     }
 
-    /// For a small constant velocity field, exp(v) ≈ v (first-order approximation).
+    /// For a small constant velocity field, exp(v) â‰ˆ v (first-order approximation).
     #[test]
     fn scaling_and_squaring_small_velocity_approx_identity() {
         let dims = VolumeDims::new([4, 4, 4]);

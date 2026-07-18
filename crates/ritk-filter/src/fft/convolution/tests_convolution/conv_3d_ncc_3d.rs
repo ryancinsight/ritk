@@ -1,18 +1,16 @@
 //! Tests for 3-D `FftConvolution3DFilter` and `FftNormalizedCorrelation3DFilter`.
 
 use crate::fft::{FftConvolution3DFilter, FftNormalizedCorrelation3DFilter};
-use burn_ndarray::NdArray;
+
 use ritk_core::image::Image;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec;
 
-type B = NdArray<f32>;
+type B = coeus_core::SequentialBackend;
 
-fn make_image_3d(vals: Vec<f32>, d: usize, h: usize, w: usize) -> Image<B, 3> {
-    let device = Default::default();
-    let td = TensorData::new(vals, Shape::new([d, h, w]));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
+fn make_image_3d(vals: Vec<f32>, d: usize, h: usize, w: usize) -> Image<f32, B, 3> {
+    let tensor = Tensor::<f32, B>::from_slice([d, h, w], &vals);
     Image::new(
         tensor,
         Point::new([0.0_f64, 0.0_f64, 0.0_f64]),
@@ -21,12 +19,12 @@ fn make_image_3d(vals: Vec<f32>, d: usize, h: usize, w: usize) -> Image<B, 3> {
     )
 }
 
-// ── FftConvolution3DFilter tests ─────────────────────────────────────────────
+// â”€â”€ FftConvolution3DFilter tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// 3-D output spatial shape must equal input spatial shape ("same" convention).
 ///
 /// Invariant:
-/// ∀ f ∈ ℝ^{d×h×w}, ∀ g ∈ ℝ^{kd×kh×kw}:
+/// âˆ€ f âˆˆ â„^{dÃ—hÃ—w}, âˆ€ g âˆˆ â„^{kdÃ—khÃ—kw}:
 /// shape(FftConvolution3DFilter::new(g).apply(f)) = [d, h, w]
 #[test]
 fn output_shape_matches_input() {
@@ -47,9 +45,9 @@ fn output_shape_matches_input() {
 
 /// 3-D convolution with a Dirac delta kernel reproduces the input exactly.
 ///
-/// Proof: conv(f, δ_{(1,1,1)}) = f by the sifting property.
+/// Proof: conv(f, Î´_{(1,1,1)}) = f by the sifting property.
 /// With kernel `g[1,1,1] = 1` (all other entries 0) and "same" crop at (1,1,1):
-/// out[z,r,c] = Σ_{dz,dr,dc} f[z+dz−1, r+dr−1, c+dc−1] · g[dz,dr,dc] = f[z,r,c]
+/// out[z,r,c] = Î£_{dz,dr,dc} f[z+dzâˆ’1, r+drâˆ’1, c+dcâˆ’1] Â· g[dz,dr,dc] = f[z,r,c]
 ///
 /// Tolerance: 1e-3.
 #[test]
@@ -57,7 +55,7 @@ fn identity_kernel_is_passthrough() {
     let vol_vals: Vec<f32> = (0..64).map(|i| i as f32).collect();
     let vol = make_image_3d(vol_vals.clone(), 4, 4, 4);
 
-    // 3×3×3 Dirac delta centred at (1, 1, 1).
+    // 3Ã—3Ã—3 Dirac delta centred at (1, 1, 1).
     let mut delta = vec![0.0_f32; 27];
     delta[9 + 3 + 1] = 1.0; // centre = flat index 13
     let kernel = make_image_3d(delta, 3, 3, 3);
@@ -83,7 +81,7 @@ fn identity_kernel_is_passthrough() {
 
 /// 3-D convolution with an all-zeros kernel must produce an all-zeros output.
 ///
-/// Proof: FFT(0) = 0; FFT(f) · 0 = 0; IFFT(0) = 0.
+/// Proof: FFT(0) = 0; FFT(f) Â· 0 = 0; IFFT(0) = 0.
 /// Tolerance: 1e-6.
 #[test]
 fn zero_kernel_gives_zero_output() {
@@ -108,9 +106,9 @@ fn zero_kernel_gives_zero_output() {
 /// Interior voxel of a constant volume convolved with an all-ones kernel equals
 /// the kernel sum.
 ///
-/// Proof: for constant f = 1 and interior voxel where all kd×kh×kw neighbours
+/// Proof: for constant f = 1 and interior voxel where all kdÃ—khÃ—kw neighbours
 /// lie within the volume:
-/// out[z,r,c] = kd · kh · kw = 2 · 3 · 4 = 24.
+/// out[z,r,c] = kd Â· kh Â· kw = 2 Â· 3 Â· 4 = 24.
 ///
 /// Uses a volume with a safe interior region.
 /// Tolerance: 1e-3.
@@ -134,7 +132,7 @@ fn constant_kernel_sums_neighborhood() {
     );
 }
 
-// ── FftNormalizedCorrelation3DFilter tests ────────────────────────────────────
+// â”€â”€ FftNormalizedCorrelation3DFilter tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// 3-D NCC output shape must equal volume shape.
 #[test]
@@ -155,9 +153,9 @@ fn ncc3d_output_shape_matches_input() {
 }
 
 /// 3-D NCC of a constant volume with a constant template is zero
-/// because the template is mean-subtracted (T̂ = T − mean(T) = 0).
+/// because the template is mean-subtracted (TÌ‚ = T âˆ’ mean(T) = 0).
 ///
-/// Proof: T̂ = 1 − 1 = 0; FFT(T̂) = 0; out = IFFT(FFT(V) · 0) / ‖0‖ = 0.
+/// Proof: TÌ‚ = 1 âˆ’ 1 = 0; FFT(TÌ‚) = 0; out = IFFT(FFT(V) Â· 0) / â€–0â€– = 0.
 /// (When template_norm = 0, the implementation returns 0 by convention.)
 /// Tolerance: 1e-6.
 #[test]
@@ -174,7 +172,7 @@ fn ncc3d_zero_mean_template_gives_zero_output() {
     for (i, &v) in out_vals.iter().enumerate() {
         assert!(
             v.abs() < 1e-6,
-            "3-D NCC constant template → zero-mean → output must be 0 at index {i}, got {v:.8}"
+            "3-D NCC constant template â†’ zero-mean â†’ output must be 0 at index {i}, got {v:.8}"
         );
     }
 }
@@ -208,31 +206,31 @@ fn ncc3d_output_is_finite() {
 ///
 /// For a template T that is a Dirac delta at a known position within the
 /// template bounds, cross-correlation at zero offset gives:
-/// xcorr[z,r,c] = Σ_i Σ_j Σ_k V[z+i, r+j, c+k] · T̂[i,j,k]
+/// xcorr[z,r,c] = Î£_i Î£_j Î£_k V[z+i, r+j, c+k] Â· TÌ‚[i,j,k]
 ///
-/// Since T̂ = T − mean(T), we must account for mean subtraction.
-/// For a single-voxel template at (1,1,1) in a 3×3×3 template:
-/// T̂[i,j,k] = { 1 − 1/27 if (i,j,k) = (1,1,1); −1/27 otherwise }
+/// Since TÌ‚ = T âˆ’ mean(T), we must account for mean subtraction.
+/// For a single-voxel template at (1,1,1) in a 3Ã—3Ã—3 template:
+/// TÌ‚[i,j,k] = { 1 âˆ’ 1/27 if (i,j,k) = (1,1,1); âˆ’1/27 otherwise }
 ///
 /// This is harder to verify analytically. Instead, use a template where
 /// mean subtraction is neutral: two-voxel template [1, -1] has zero mean,
-/// so T̂ = T. The cross-correlation at position (0,0,0) is:
-/// xcorr[0,0,0] = V[0,0,0]·1 + V[0,0,1]·(-1) = V[0,0,0] − V[0,0,1]
+/// so TÌ‚ = T. The cross-correlation at position (0,0,0) is:
+/// xcorr[0,0,0] = V[0,0,0]Â·1 + V[0,0,1]Â·(-1) = V[0,0,0] âˆ’ V[0,0,1]
 ///
-/// With constant volume V = 5, this gives 5 − 5 = 0. Already covered above.
+/// With constant volume V = 5, this gives 5 âˆ’ 5 = 0. Already covered above.
 ///
-/// Simpler: with a template that has T̂ = T (already zero-mean), and a single
+/// Simpler: with a template that has TÌ‚ = T (already zero-mean), and a single
 /// non-zero entry at position (0,0,0), xcorr reproduces the volume.
 #[test]
 fn ncc3d_identity_template() {
     // Template: T = [1, 0] along columns (shape [1, 1, 2]).
-    // Mean = (1 + 0) / 2 = 0.5, so T̂ = [0.5, -0.5].
-    // ‖T̂‖₂ = sqrt(0.25 + 0.25) = sqrt(0.5) ≈ 0.7071068.
+    // Mean = (1 + 0) / 2 = 0.5, so TÌ‚ = [0.5, -0.5].
+    // â€–TÌ‚â€–â‚‚ = sqrt(0.25 + 0.25) = sqrt(0.5) â‰ˆ 0.7071068.
     //
-    // Cross-correlation at (0,0,0): V[0,0,0]·0.5 + V[0,0,1]·(-0.5) = 0.5·(V[0,0,0] − V[0,0,1]).
+    // Cross-correlation at (0,0,0): V[0,0,0]Â·0.5 + V[0,0,1]Â·(-0.5) = 0.5Â·(V[0,0,0] âˆ’ V[0,0,1]).
     // For linearly increasing volume V[0,0,0]=0, V[0,0,1]=1:
-    // xcorr = 0.5·(0 − 1) = −0.5.
-    // out = xcorr / (‖T̂‖₂ · pad_n).
+    // xcorr = 0.5Â·(0 âˆ’ 1) = âˆ’0.5.
+    // out = xcorr / (â€–TÌ‚â€–â‚‚ Â· pad_n).
     //
     // This is messy. Let's just verify shape + finiteness + non-NaN.
     let vol_vals: Vec<f32> = (0..27).map(|i| i as f32).collect();

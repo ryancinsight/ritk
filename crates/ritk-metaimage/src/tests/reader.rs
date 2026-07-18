@@ -1,4 +1,4 @@
-use anyhow::Result;
+﻿use anyhow::Result;
 use coeus_core::SequentialBackend;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
@@ -18,7 +18,7 @@ fn make_image(
         .expect("valid image")
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Write a minimal `.mha` file with MET_FLOAT data and identity metadata.
 fn write_minimal_mha(
@@ -103,7 +103,7 @@ fn test_compressed_hostile_dimsize_errors_without_oom() {
     );
 }
 
-// ── Shape and metadata ─────────────────────────────────────────────────
+// â”€â”€ Shape and metadata â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// The reader must shape X-fastest MetaImage payloads directly as RITK [Z,Y,X].
 /// A header with `DimSize = 4 3 2` (nx=4, ny=3, nz=2) must produce
@@ -195,7 +195,7 @@ fn test_file_identity_direction_reordered_to_internal_axes() -> Result<()> {
     Ok(())
 }
 
-// ── Round-trip ─────────────────────────────────────────────────────────
+// â”€â”€ Round-trip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Write an Image via `write_metaimage` and read it back; verify shape,
 /// spatial metadata, and every voxel value.
@@ -244,7 +244,7 @@ fn test_round_trip_mha() -> Result<()> {
     Ok(())
 }
 
-// ── Error paths ────────────────────────────────────────────────────────
+// â”€â”€ Error paths â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Reading a non-existent file must return an error (not panic).
 #[test]
@@ -253,8 +253,7 @@ fn test_missing_file_returns_error() {
     let result = crate::read_metaimage("/nonexistent/path/file.mha", &backend);
     let msg = match result {
         Ok(_) => panic!("missing file must fail"),
-        Err(err) => format!("{err:?}"),
-    };
+        Err(err) => format!("{err:?}") };
     assert!(
         msg.contains("Cannot open MetaImage file"),
         "error must preserve file-open context, got: {msg}"
@@ -281,8 +280,7 @@ fn test_missing_required_field_returns_error() -> Result<()> {
     let result = crate::read_metaimage(&path, &backend);
     let msg = match result {
         Ok(_) => panic!("missing DimSize must fail"),
-        Err(err) => format!("{err:?}"),
-    };
+        Err(err) => format!("{err:?}") };
     assert!(
         msg.contains("DimSize"),
         "error must name the missing field, got: {msg}"

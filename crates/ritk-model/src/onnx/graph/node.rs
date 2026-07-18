@@ -1,4 +1,4 @@
-//! ONNX computation node.
+﻿//! ONNX computation node.
 
 use std::collections::HashMap;
 
@@ -22,8 +22,7 @@ pub struct OnnxNode {
     /// Named attributes for this operator
     pub attributes: HashMap<String, OnnxAttribute>,
     /// Documentation string
-    pub doc_string: Option<String>,
-}
+    pub doc_string: Option<String> }
 
 impl OnnxNode {
     /// Create a new ONNX node.
@@ -35,8 +34,7 @@ impl OnnxNode {
             inputs: Vec::new(),
             outputs: Vec::new(),
             attributes: HashMap::new(),
-            doc_string: None,
-        }
+            doc_string: None }
     }
 
     /// Get a required attribute by name.

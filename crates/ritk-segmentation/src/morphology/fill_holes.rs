@@ -13,7 +13,7 @@
 //! rather than treating every voxel as a z-face border.
 
 use super::MorphologicalOperation;
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 use std::collections::VecDeque;
@@ -47,12 +47,12 @@ impl BinaryFillHoles {
 }
 
 impl<B: Backend> MorphologicalOperation<B, 3> for BinaryFillHoles {
-    fn apply(&self, mask: &Image<B, 3>) -> Image<B, 3> {
+    fn apply(&self, mask: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let shape = mask.shape();
-        let device = mask.data().device();
+        let device = B::default();
         let (vals_vec, _shape) = extract_vec_infallible(mask);
         let out = fill_holes_values(&vals_vec, shape);
-        let tensor = Tensor::<B, 3>::from_data(TensorData::new(out, Shape::new(shape)), &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &out, &device);
         Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
     }
 }

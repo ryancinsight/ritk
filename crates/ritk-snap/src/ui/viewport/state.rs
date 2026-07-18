@@ -1,15 +1,15 @@
-//! Viewport state types and struct definitions.
+﻿//! Viewport state types and struct definitions.
 //!
-//! [`ViewportRenderMode`] — rendering mode enum (Slice / Mip / Vr).
-//! [`ViewportState`] — persistent per-viewport display state.
-//! [`ViewportPanel`] — ephemeral per-frame viewport widget struct.
+//! [`ViewportRenderMode`] â€” rendering mode enum (Slice / Mip / Vr).
+//! [`ViewportState`] â€” persistent per-viewport display state.
+//! [`ViewportPanel`] â€” ephemeral per-frame viewport widget struct.
 //!
 //! # Image-to-screen transform
 //!
 //! The transform is a uniform scale followed by a translation:
 //!
 //! ```text
-//! screen = offset + scale × img_pos
+//! screen = offset + scale Ã— img_pos
 //! ```
 //!
 //! ## Transform theorem (invertibility)
@@ -42,9 +42,9 @@
 //!
 //! | axis | dimension          | valid index range |
 //! |------|--------------------|-------------------|
-//! | 0    | `shape[0]` (depth) | `[0, depth−1]`   |
-//! | 1    | `shape[1]` (rows)  | `[0, rows−1]`    |
-//! | 2    | `shape[2]` (cols)  | `[0, cols−1]`    |
+//! | 0    | `shape[0]` (depth) | `[0, depthâˆ’1]`   |
+//! | 1    | `shape[1]` (rows)  | `[0, rowsâˆ’1]`    |
+//! | 2    | `shape[2]` (cols)  | `[0, colsâˆ’1]`    |
 //!
 //! Out-of-range indices are silently clamped by [`ViewportState::clamp_slice_index`].
 
@@ -52,10 +52,8 @@ use crate::{
     render::{colormap::Colormap, slice_render::WindowLevel},
     tools::{
         interaction::{Annotation, ToolState},
-        kind::ToolKind,
-    },
-    LoadedVolume,
-};
+        kind::ToolKind },
+    LoadedVolume };
 use egui::{pos2, Color32, Id, Pos2, Rect, Stroke, TextureHandle, Vec2};
 
 /// Rendering mode for a viewport slot.
@@ -66,10 +64,9 @@ pub enum ViewportRenderMode {
     /// Axial maximum-intensity projection across full depth.
     Mip,
     /// Axial front-to-back alpha composited volume rendering.
-    Vr,
-}
+    Vr }
 
-// ── ViewportState ─────────────────────────────────────────────────────────────
+// â”€â”€ ViewportState â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Persistent per-viewport display state, independent of the egui frame.
 ///
@@ -102,8 +99,7 @@ pub struct ViewportState {
     /// `None` means the texture must be (re-)rendered.
     pub texture_slice_key: Option<(usize, usize)>,
     /// Rendering mode for this viewport slot.
-    pub render_mode: ViewportRenderMode,
-}
+    pub render_mode: ViewportRenderMode }
 
 impl ViewportState {
     /// Construct a viewport state for the given `axis` and initial WL.
@@ -121,8 +117,7 @@ impl ViewportState {
             show_crosshair: true,
             texture: None,
             texture_slice_key: None,
-            render_mode: ViewportRenderMode::Slice,
-        }
+            render_mode: ViewportRenderMode::Slice }
     }
 
     /// Axial viewport (axis = 0).
@@ -140,14 +135,14 @@ impl ViewportState {
         Self::new(2, wl)
     }
 
-    /// 3-D / MIP viewport — uses axial data and enables MIP mode.
+    /// 3-D / MIP viewport â€” uses axial data and enables MIP mode.
     pub fn for_mip(wl: WindowLevel) -> Self {
         let mut state = Self::new(0, wl);
         state.render_mode = ViewportRenderMode::Mip;
         state
     }
 
-    /// Clamp `slice_index` to the valid range `[0, dim − 1]` for the
+    /// Clamp `slice_index` to the valid range `[0, dim âˆ’ 1]` for the
     /// current `axis` and `volume`.
     ///
     /// No-op when `volume.shape[axis] == 0` (degenerate volume).
@@ -169,13 +164,13 @@ impl ViewportState {
     ///
     /// Returns `(offset, scale)` such that:
     /// ```text
-    /// screen_pos = offset + scale × img_pos
+    /// screen_pos = offset + scale Ã— img_pos
     /// ```
     /// where `img_pos = Pos2 { x: col as f32, y: row as f32 }`.
     ///
     /// # Algorithm
     /// 1. Compute `base_scale` = min(vp_w / img_w, vp_h / img_h) (fit-to-viewport).
-    /// 2. Apply zoom: `scale = base_scale × zoom`.
+    /// 2. Apply zoom: `scale = base_scale Ã— zoom`.
     /// 3. Centre the scaled image in the viewport.
     /// 4. Add `pan_offset`.
     pub fn image_transform(
@@ -202,7 +197,7 @@ impl ViewportState {
     }
 }
 
-// ── ViewportPanel ─────────────────────────────────────────────────────────────
+// â”€â”€ ViewportPanel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Ephemeral per-frame viewport widget.
 ///
@@ -215,10 +210,9 @@ pub struct ViewportPanel<'a> {
     /// Mutable viewport state.
     pub state: &'a mut ViewportState,
     /// Currently active tool, used to route pointer events.
-    pub active_tool: ToolKind,
-}
+    pub active_tool: ToolKind }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
+// â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Return the `(width, height)` of the 2-D slice image for the given axis.
 ///
@@ -231,8 +225,7 @@ pub(super) fn slice_dims(volume: &LoadedVolume, axis: usize) -> (usize, usize) {
     match axis {
         0 => (cols, rows),
         1 => (cols, depth),
-        _ => (rows, depth),
-    }
+        _ => (rows, depth) }
 }
 
 /// Convert a screen position to integer image coordinates `(col, row)`.
@@ -296,8 +289,7 @@ pub(super) fn img_to_volume(
     match axis {
         0 => [slice, img_row, img_col],
         1 => [img_row, slice, img_col],
-        _ => [img_row, img_col, slice],
-    }
+        _ => [img_row, img_col, slice] }
 }
 
 /// Draw a thin crosshair (full-length horizontal + vertical lines) through

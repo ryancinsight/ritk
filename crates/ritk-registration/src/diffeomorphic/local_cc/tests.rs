@@ -1,4 +1,4 @@
-//! Tests for local cross-correlation primitives.
+﻿//! Tests for local cross-correlation primitives.
 
 use super::*;
 
@@ -37,7 +37,7 @@ fn window_cc_stats_identical_non_constant() {
 
 #[test]
 fn mean_local_cc_constant_images_safe() {
-    // Constant images have zero variance → CC should be 0, not NaN.
+    // Constant images have zero variance â†’ CC should be 0, not NaN.
     let dims = [5usize, 5, 5];
     let n = 5 * 5 * 5;
     let a = vec![3.0_f32; n];
@@ -122,7 +122,7 @@ fn mean_local_cc_identical_non_constant_images() {
     let cc = mean_local_cc(&image, &image, dims, 1);
     assert!(
         cc > 0.99,
-        "CC of identical non-constant images should be ≈ 1.0, got {cc}"
+        "CC of identical non-constant images should be â‰ˆ 1.0, got {cc}"
     );
 }
 
@@ -236,25 +236,21 @@ fn bidirectional_fusion_matches_independent_passes() {
         crate::deformable_field_ops::VectorField {
             z: &fixed_gradient.z,
             y: &fixed_gradient.y,
-            x: &fixed_gradient.x,
-        },
+            x: &fixed_gradient.x },
         crate::deformable_field_ops::VectorField {
             z: &moving_gradient.z,
             y: &moving_gradient.y,
-            x: &moving_gradient.x,
-        },
+            x: &moving_gradient.x },
         dims,
         &sats,
         crate::deformable_field_ops::VectorFieldMut {
             z: fused_iz,
             y: fused_iy,
-            x: fused_ix,
-        },
+            x: fused_ix },
         crate::deformable_field_ops::VectorFieldMut {
             z: fused_jz,
             y: fused_jy,
-            x: fused_jx,
-        },
+            x: fused_jx },
         &mut slice_cc,
     );
 

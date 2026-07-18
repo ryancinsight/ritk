@@ -1,9 +1,9 @@
-//! Normalized Gradient Fields (NGF) metric for multi-modal registration.
+﻿//! Normalized Gradient Fields (NGF) metric for multi-modal registration.
 //!
 //! # Theorem: edge-orientation similarity (Haber & Modersitzki 2006)
 //!
-//! Cross-modal pairs (CT↔MRI) lack a functional intensity relationship, so
-//! intensity metrics (MI, NCC) can be weak — e.g. a near-uniform CT brain
+//! Cross-modal pairs (CTâ†”MRI) lack a functional intensity relationship, so
+//! intensity metrics (MI, NCC) can be weak â€” e.g. a near-uniform CT brain
 //! interior gives almost no mutual-information signal, and a rotation about the
 //! centroid barely perturbs the joint histogram. NGF instead aligns the
 //! **orientation** of image gradients, which co-locate across modalities even
@@ -11,15 +11,15 @@
 //! and MRI). For fixed `F` and moving `M` resampled onto the fixed grid,
 //!
 //! ```text
-//! NGF(F, M) = (1/N) · Σ_x  (∇F·∇M)² / ((|∇F|² + η_F²)(|∇M|² + η_M²))
+//! NGF(F, M) = (1/N) Â· Î£_x  (âˆ‡FÂ·âˆ‡M)Â² / ((|âˆ‡F|Â² + Î·_FÂ²)(|âˆ‡M|Â² + Î·_MÂ²))
 //! ```
 //!
 //! Each term is `1` when the gradients are parallel **or anti-parallel** (so a
-//! bright-CT / dark-MR edge still scores `1` — the squared dot product is
-//! sign-invariant) and `0` where either side is flat. `η` is the edge-noise
+//! bright-CT / dark-MR edge still scores `1` â€” the squared dot product is
+//! sign-invariant) and `0` where either side is flat. `Î·` is the edge-noise
 //! scale (the mean masked gradient magnitude, per Haber & Modersitzki), which
-//! suppresses flat-region noise. `NGF ∈ [0, 1]`; higher is better aligned, so the
-//! metric returns `−NGF` as a minimization loss.
+//! suppresses flat-region noise. `NGF âˆˆ [0, 1]`; higher is better aligned, so the
+//! metric returns `âˆ’NGF` as a minimization loss.
 //!
 //! This is a **gradient-free** metric (the gradients are spatial image gradients,
 //! not autodiff gradients of the transform): it returns a scalar for the
@@ -37,14 +37,14 @@ pub use scalar::center_gaussian_weight_field;
 
 use super::trait_::Metric;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Tensor, TensorData};
+use ritk_image::tensor::{Tensor };
 use ritk_image::Image;
 use ritk_transform::Transform;
 
 /// Normalized Gradient Fields metric (Haber & Modersitzki 2006).
 ///
-/// Returns `−NGF ∈ [−1, 0]` as a loss to be minimized. Robust for cross-modal
-/// (CT↔MRI) alignment where intensity MI/NCC are weak. See the [module docs](self).
+/// Returns `âˆ’NGF âˆˆ [âˆ’1, 0]` as a loss to be minimized. Robust for cross-modal
+/// (CTâ†”MRI) alignment where intensity MI/NCC are weak. See the [module docs](self).
 pub struct NormalizedGradientField;
 
 impl NormalizedGradientField {
@@ -65,14 +65,14 @@ impl Default for NormalizedGradientField {
 impl<B: Backend, const D: usize> Metric<B, D> for NormalizedGradientField {
     fn forward(
         &self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
-    ) -> Tensor<B, 1> {
+    ) -> Tensor<f32, B> {
         let device = fixed.data().device();
         let ngf = self.ngf_value(fixed, moving, transform, None);
-        // −NGF as a minimization loss.
-        Tensor::<B, 1>::from_data(TensorData::new(vec![-ngf], [1]), &device)
+        // âˆ’NGF as a minimization loss.
+        Tensor::<f32, B>::from_slice_on([1], &[-ngf], &device)
     }
 
     fn name(&self) -> &'static str {
@@ -82,13 +82,13 @@ impl<B: Backend, const D: usize> Metric<B, D> for NormalizedGradientField {
 
 impl NormalizedGradientField {
     /// Resample `moving` onto the `fixed` grid through `transform`, then return
-    /// `NGF ∈ [0, 1]` over the `true` voxels of `mask` (or all if `None`). The
+    /// `NGF âˆˆ [0, 1]` over the `true` voxels of `mask` (or all if `None`). The
     /// masked path is used by the cross-modal rigid registration; the unmasked
     /// path backs [`Metric::forward`].
     pub(crate) fn ngf_value<B: Backend, const D: usize>(
         &self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
         mask: Option<&[bool]>,
     ) -> f32 {
@@ -98,14 +98,14 @@ impl NormalizedGradientField {
     /// As [`ngf_value`](Self::ngf_value), but each masked voxel's contribution is
     /// scaled by `weights[flat]` (row-major, same length as the fixed image).
     /// A brain-centroid Gaussian weight (see [`center_gaussian_weight_field`])
-    /// down-weights the high-gradient skull/scalp rim — which otherwise dominates
+    /// down-weights the high-gradient skull/scalp rim â€” which otherwise dominates
     /// the uniform NGF average and lets the optimiser ignore deep structures
-    /// (ventricles, deep gray) — so the metric becomes sensitive to the central
+    /// (ventricles, deep gray) â€” so the metric becomes sensitive to the central
     /// anatomy where rigid alignment is anatomically defined.
     pub(crate) fn ngf_value_weighted<B: Backend, const D: usize>(
         &self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
         mask: Option<&[bool]>,
         weights: Option<&[f32]>,

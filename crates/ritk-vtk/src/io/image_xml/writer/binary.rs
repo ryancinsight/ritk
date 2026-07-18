@@ -1,4 +1,4 @@
-//! Binary-appended VTI writer: `write_vti_binary_appended_bytes`, helpers.
+﻿//! Binary-appended VTI writer: `write_vti_binary_appended_bytes`, helpers.
 
 use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
 use anyhow::{anyhow, Context, Result};
@@ -11,8 +11,7 @@ fn attr_ncomp(attr: &AttributeArray) -> usize {
     match attr {
         AttributeArray::Scalars { num_components, .. } => *num_components,
         AttributeArray::Vectors { .. } | AttributeArray::Normals { .. } => 3,
-        AttributeArray::TextureCoords { dim, .. } => *dim,
-    }
+        AttributeArray::TextureCoords { dim, .. } => *dim }
 }
 
 fn attr_value_len(attr: &AttributeArray) -> Result<usize> {
@@ -23,8 +22,7 @@ fn attr_value_len(attr: &AttributeArray) -> Result<usize> {
         AttributeArray::Vectors { values } | AttributeArray::Normals { values } => values
             .len()
             .checked_mul(3)
-            .ok_or_else(|| anyhow!("VTI appended vector component count overflow")),
-    }
+            .ok_or_else(|| anyhow!("VTI appended vector component count overflow")) }
 }
 
 fn attr_block_len(attr: &AttributeArray) -> Result<usize> {

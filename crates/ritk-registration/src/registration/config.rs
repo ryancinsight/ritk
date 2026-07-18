@@ -1,11 +1,10 @@
-use crate::progress::ConvergenceChecker;
+﻿use crate::progress::ConvergenceChecker;
 use crate::validation::ValidationConfig;
 
 /// Output of [`RegistrationConfig::build_tracker`].
 pub(crate) struct TrackerBuildResult {
     pub tracker: crate::progress::ProgressTracker,
-    pub early_stopping: Option<std::sync::Arc<crate::progress::EarlyStoppingCallback>>,
-}
+    pub early_stopping: Option<std::sync::Arc<crate::progress::EarlyStoppingCallback>> }
 
 /// Whether early stopping is enabled during iterative optimization.
 ///
@@ -21,9 +20,7 @@ pub enum EarlyStoppingPolicy {
         /// Number of iterations without sufficient improvement before stopping.
         patience: usize,
         /// Minimum loss improvement required to reset the patience counter.
-        min_improvement: f64,
-    },
-}
+        min_improvement: f64 } }
 
 /// Configuration for registration.
 #[derive(Debug, Clone)]
@@ -35,8 +32,7 @@ pub struct RegistrationConfig {
     /// Log interval for progress.
     pub log_interval: usize,
     /// Convergence checker. When `Some`, convergence detection is enabled.
-    pub convergence_checker: Option<ConvergenceChecker>,
-}
+    pub convergence_checker: Option<ConvergenceChecker> }
 
 impl Default for RegistrationConfig {
     fn default() -> Self {
@@ -44,8 +40,7 @@ impl Default for RegistrationConfig {
             validation: ValidationConfig::default(),
             early_stopping: EarlyStoppingPolicy::Disabled,
             log_interval: 50,
-            convergence_checker: None,
-        }
+            convergence_checker: None }
     }
 }
 
@@ -59,8 +54,7 @@ impl RegistrationConfig {
     pub fn with_early_stopping(mut self, patience: usize, min_improvement: f64) -> Self {
         self.early_stopping = EarlyStoppingPolicy::Enabled {
             patience,
-            min_improvement,
-        };
+            min_improvement };
         self
     }
 
@@ -102,8 +96,7 @@ impl RegistrationConfig {
         tracker.add_callback(console);
         let early_stopping = if let EarlyStoppingPolicy::Enabled {
             patience,
-            min_improvement,
-        } = self.early_stopping
+            min_improvement } = self.early_stopping
         {
             let es = std::sync::Arc::new(crate::progress::EarlyStoppingCallback::new(
                 min_improvement,
@@ -116,7 +109,6 @@ impl RegistrationConfig {
         };
         TrackerBuildResult {
             tracker,
-            early_stopping,
-        }
+            early_stopping }
     }
 }

@@ -1,4 +1,4 @@
-//! Intensity-weighted center-of-mass initialization for multi-modal registration.
+﻿//! Intensity-weighted center-of-mass initialization for multi-modal registration.
 //!
 //! Computes the physical center of mass of a 3D image weighted by shifted
 //! intensities, providing a robust initial translation estimate for global
@@ -7,12 +7,12 @@
 //! # Algorithm
 //!
 //! ```text
-//! 1. Shift intensities by global minimum: w_i = intensity_i − min ≥ 0
+//! 1. Shift intensities by global minimum: w_i = intensity_i âˆ’ min â‰¥ 0
 //!    (handles CT Hounsfield Units which can be strongly negative)
 //! 2. Compute intensity-weighted centroid:
-//!    CoM = Σ w_i · p_i / Σ w_i
+//!    CoM = Î£ w_i Â· p_i / Î£ w_i
 //!    where p_i is the physical coordinate of voxel i
-//! 3. Fall back to geometric centre if Σ w_i < 1e-10 (blank / uniform image)
+//! 3. Fall back to geometric centre if Î£ w_i < 1e-10 (blank / uniform image)
 //! ```
 //!
 //! # Coordinate Convention
@@ -23,7 +23,7 @@
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 
-// ─── Center-of-Mass ──────────────────────────────────────────────────────────
+// â”€â”€â”€ Center-of-Mass â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Guard against blank (all-zero) image weight collapse.
 const BLANK_IMAGE_WEIGHT_GUARD: f64 = 1e-10;
@@ -35,19 +35,19 @@ const BLANK_IMAGE_WEIGHT_GUARD: f64 = 1e-10;
 /// # Algorithm
 ///
 /// 1. Find the global minimum intensity `min_val`.
-/// 2. For each voxel `(iz, iy, ix)`, compute weight `w = (I − min_val).max(0)`.
-/// 3. Accumulate `weighted_sum[d] += w · phys_coord[d]` and `total_weight += w`.
+/// 2. For each voxel `(iz, iy, ix)`, compute weight `w = (I âˆ’ min_val).max(0)`.
+/// 3. Accumulate `weighted_sum[d] += w Â· phys_coord[d]` and `total_weight += w`.
 /// 4. Return `weighted_sum / total_weight`.
 /// 5. **Fallback**: if `total_weight < 1e-10` (blank or uniform image), return
-///    the unweighted geometric centre `origin[d] + (n[d]−1)/2 · spacing[d]`.
+///    the unweighted geometric centre `origin[d] + (n[d]âˆ’1)/2 Â· spacing[d]`.
 ///
 /// # Physical Coordinate Mapping
 ///
 /// Voxel `(iz, iy, ix)` maps to physical space as:
 /// ```text
-/// phys_z = origin[0] + iz · spacing[0]
-/// phys_y = origin[1] + iy · spacing[1]
-/// phys_x = origin[2] + ix · spacing[2]
+/// phys_z = origin[0] + iz Â· spacing[0]
+/// phys_y = origin[1] + iy Â· spacing[1]
+/// phys_x = origin[2] + ix Â· spacing[2]
 /// ```
 ///
 /// # Example
@@ -56,7 +56,7 @@ const BLANK_IMAGE_WEIGHT_GUARD: f64 = 1e-10;
 /// let com = compute_center_of_mass(&ct_image);
 /// println!("CoM [z, y, x] = [{:.1}, {:.1}, {:.1}] mm", com[0], com[1], com[2]);
 /// ```
-pub fn compute_center_of_mass<B: Backend>(image: &Image<B, 3>) -> [f64; 3] {
+pub fn compute_center_of_mass<B: Backend>(image: &Image<f32, B, 3>) -> [f64; 3] {
     let data = image.data_slice();
     let shape = image.shape();
     let origin = image.origin();
@@ -67,7 +67,7 @@ pub fn compute_center_of_mass<B: Backend>(image: &Image<B, 3>) -> [f64; 3] {
     let ny = shape[1];
     let nx = shape[2];
 
-    // Global minimum — enables negative-intensity support (e.g. CT HU values).
+    // Global minimum â€” enables negative-intensity support (e.g. CT HU values).
     let min_val = data.iter().copied().fold(f32::INFINITY, f32::min) as f64;
 
     // Weighted-mean voxel index per axis `[d0=z, d1=y, d2=x]`.
@@ -86,7 +86,7 @@ pub fn compute_center_of_mass<B: Backend>(image: &Image<B, 3>) -> [f64; 3] {
     }
 
     let mean_idx = if total_weight < BLANK_IMAGE_WEIGHT_GUARD {
-        // Blank/uniform image — unweighted geometric centre index.
+        // Blank/uniform image â€” unweighted geometric centre index.
         [
             (nz as f64 - 1.0) * 0.5,
             (ny as f64 - 1.0) * 0.5,
@@ -102,7 +102,7 @@ pub fn compute_center_of_mass<B: Backend>(image: &Image<B, 3>) -> [f64; 3] {
 
     // Map the mean voxel index to a PHYSICAL world point in LPS `[px, py, pz]`
     // (matching `Image::index_to_world_tensor` and `RigidTransform`'s world space):
-    //   world[c] = origin[c] + Σ_axis mean_idx[axis] · spacing[axis] · direction[(c, axis)]
+    //   world[c] = origin[c] + Î£_axis mean_idx[axis] Â· spacing[axis] Â· direction[(c, axis)]
     // The previous implementation paired the physical origin with index extents in
     // the wrong axis order and ignored the direction matrix, returning a scrambled
     // centre that placed the rotation centre / CoM seed in the wrong frame.
@@ -117,12 +117,12 @@ pub fn compute_center_of_mass<B: Backend>(image: &Image<B, 3>) -> [f64; 3] {
     world
 }
 
-// ─── Translation Initialisation ──────────────────────────────────────────────
+// â”€â”€â”€ Translation Initialisation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Compute the translation that aligns the center of mass of the moving image
 /// with that of the fixed image.
 ///
-/// Returns `[tx, ty, tz]` in mm — a PHYSICAL world-space (LPS) vector matching
+/// Returns `[tx, ty, tz]` in mm â€” a PHYSICAL world-space (LPS) vector matching
 /// [`compute_center_of_mass`], `Image::index_to_world_tensor`, and the world
 /// space `RigidTransform` operates in. Adding it to the initial translation
 /// parameter places the moving CoM at the fixed CoM before optimisation begins.
@@ -130,7 +130,7 @@ pub fn compute_center_of_mass<B: Backend>(image: &Image<B, 3>) -> [f64; 3] {
 /// # Formula
 ///
 /// ```text
-/// translation[i] = CoM_fixed[i] − CoM_moving[i],  i ∈ {x, y, z} (world LPS)
+/// translation[i] = CoM_fixed[i] âˆ’ CoM_moving[i],  i âˆˆ {x, y, z} (world LPS)
 /// ```
 ///
 /// # Notes
@@ -142,8 +142,8 @@ pub fn compute_center_of_mass<B: Backend>(image: &Image<B, 3>) -> [f64; 3] {
 /// case use `init_strategy = InitStrategy::Manual` in `CmaMiConfig` and supply an explicit
 /// initial translation.
 pub fn translation_from_centers_of_mass<B: Backend>(
-    fixed: &Image<B, 3>,
-    moving: &Image<B, 3>,
+    fixed: &Image<f32, B, 3>,
+    moving: &Image<f32, B, 3>,
 ) -> [f64; 3] {
     let com_fixed = compute_center_of_mass(fixed);
     let com_moving = compute_center_of_mass(moving);
@@ -154,14 +154,14 @@ pub fn translation_from_centers_of_mass<B: Backend>(
     ]
 }
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use burn_ndarray::NdArray;
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor };
     use ritk_spatial::{Direction, Point, Spacing};
 
     type B = NdArray<f32>;
@@ -172,9 +172,9 @@ mod tests {
         shape: [usize; 3],
         spacing: [f64; 3],
         origin: [f64; 3],
-    ) -> Image<B, 3> {
+    ) -> Image<f32, B, 3> {
         let device = Default::default();
-        let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(shape)), &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &data, &device);
         Image::new(
             tensor,
             Point::new(origin),
@@ -183,13 +183,13 @@ mod tests {
         )
     }
 
-    // ── compute_center_of_mass ────────────────────────────────────────────────
+    // â”€â”€ compute_center_of_mass â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    /// A 3×3×3 cube of uniform `1.0` values: after min-shift all weights are
+    /// A 3Ã—3Ã—3 cube of uniform `1.0` values: after min-shift all weights are
     /// zero, so the fallback geometric centre is used.
     ///
-    /// Geometric centre index = (3−1)/2 = 1 per axis;
-    /// with spacing 2 and origin 0: phys = 0 + 1·2 = **2.0**.
+    /// Geometric centre index = (3âˆ’1)/2 = 1 per axis;
+    /// with spacing 2 and origin 0: phys = 0 + 1Â·2 = **2.0**.
     #[test]
     fn test_com_uniform_cube_at_origin() {
         let data = vec![1.0f32; 27];
@@ -212,14 +212,14 @@ mod tests {
         );
     }
 
-    /// 3×3×3 zeros except a single bright voxel at `(iz=2, iy=2, ix=2) = 100`.
+    /// 3Ã—3Ã—3 zeros except a single bright voxel at `(iz=2, iy=2, ix=2) = 100`.
     ///
     /// Only that voxel carries non-zero weight, so the CoM equals its
-    /// physical position: `0 + 2·1 = 2.0` on every axis.
+    /// physical position: `0 + 2Â·1 = 2.0` on every axis.
     #[test]
     fn test_com_single_bright_voxel() {
         let mut data = vec![0.0f32; 27];
-        // iz=2, iy=2, ix=2  →  flat index = 2·9 + 2·3 + 2 = 26
+        // iz=2, iy=2, ix=2  â†’  flat index = 2Â·9 + 2Â·3 + 2 = 26
         data[26] = 100.0;
         let image = make_image(data, [3, 3, 3], [1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
         let com = compute_center_of_mass(&image);
@@ -240,11 +240,11 @@ mod tests {
         );
     }
 
-    /// 2×1×1 image with values `[−10, 10]` verifies negative-intensity handling.
+    /// 2Ã—1Ã—1 image with values `[âˆ’10, 10]` verifies negative-intensity handling.
     ///
-    /// `min_val = −10`.  After shift: weights = `[0, 20]`.
+    /// `min_val = âˆ’10`.  After shift: weights = `[0, 20]`.
     /// ```text
-    /// CoM_z = (0·0 + 20·1) / 20 = 1.0
+    /// CoM_z = (0Â·0 + 20Â·1) / 20 = 1.0
     /// ```
     #[test]
     fn test_com_negative_intensity_shift() {
@@ -259,12 +259,12 @@ mod tests {
         );
     }
 
-    // ── translation_from_centers_of_mass ─────────────────────────────────────
+    // â”€â”€ translation_from_centers_of_mass â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    /// Fixed: uniform 3×3×3 → geometric fallback → CoM = (1, 1, 1).
-    /// Moving: all zeros except `(0,0,0) = 100` → CoM = (0, 0, 0).
+    /// Fixed: uniform 3Ã—3Ã—3 â†’ geometric fallback â†’ CoM = (1, 1, 1).
+    /// Moving: all zeros except `(0,0,0) = 100` â†’ CoM = (0, 0, 0).
     ///
-    /// Expected translation = CoM_fixed − CoM_moving = **(1, 1, 1)**.
+    /// Expected translation = CoM_fixed âˆ’ CoM_moving = **(1, 1, 1)**.
     #[test]
     fn test_translation_from_coms() {
         let fixed_data = vec![1.0f32; 27];

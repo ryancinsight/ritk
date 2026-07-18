@@ -1,17 +1,17 @@
-//! Shared byte-decoding and whitespace-parse helpers.
+﻿//! Shared byte-decoding and whitespace-parse helpers.
 //!
 //! Single source of truth for the low-level format-agnostic primitives that
 //! were previously duplicated across [`ritk-metaimage`], [`ritk-nrrd`],
 //! [`ritk-vtk`], and [`ritk-minc`]:
 //!
-//! - [`ByteOrder`] — multi-byte element byte-order discriminant.
-//! - [`decode_bytes_to_f32`] — convert a raw byte buffer to `Vec<f32>` given
+//! - [`ByteOrder`] â€” multi-byte element byte-order discriminant.
+//! - [`decode_bytes_to_f32`] â€” convert a raw byte buffer to `Vec<f32>` given
 //!   element size, signedness, and float-or-integer flavour. Used by every
 //!   format reader that targets RITK's `f32` tensor contract.
-//! - [`require_bytes`] — bounds check for the above.
-//! - [`parse_floats`] — whitespace-separated list of `FromStr`-parseable
+//! - [`require_bytes`] â€” bounds check for the above.
+//! - [`parse_floats`] â€” whitespace-separated list of `FromStr`-parseable
 //!   scalars with length validation. Used for header / metadata parsing.
-//! - [`parse_usize_vec`] — `parse_floats` specialised to `usize`.
+//! - [`parse_usize_vec`] â€” `parse_floats` specialised to `usize`.
 //!
 //! [`ritk-metaimage`]: https://docs.rs/ritk-metaimage
 //! [`ritk-nrrd`]: https://docs.rs/ritk-nrrd
@@ -26,8 +26,7 @@ pub enum ByteOrder {
     /// Most-significant byte first (big-endian).
     MostSignificantByteFirst,
     /// Least-significant byte first (little-endian).
-    LeastSignificantByteFirst,
-}
+    LeastSignificantByteFirst }
 
 impl ByteOrder {
     /// Parse the textual byte-order markers used by MetaImage (`"True"` /
@@ -41,7 +40,7 @@ impl ByteOrder {
         }
     }
 
-    /// NRRD byte-order string per the NRRD spec §3.5: only `"big"` or
+    /// NRRD byte-order string per the NRRD spec Â§3.5: only `"big"` or
     /// `"little"` (case-insensitive, leading/trailing whitespace allowed).
     /// Unknown values default to [`Self::LeastSignificantByteFirst`] to
     /// preserve the pre-refactor behavior of silently accepting
@@ -49,8 +48,7 @@ impl ByteOrder {
     pub fn from_nrrd(value: &str) -> Self {
         match value.trim().to_ascii_lowercase().as_str() {
             "big" => Self::MostSignificantByteFirst,
-            _ => Self::LeastSignificantByteFirst,
-        }
+            _ => Self::LeastSignificantByteFirst }
     }
 }
 
@@ -127,8 +125,7 @@ pub fn decode_bytes_to_f32(
                 "Unsupported float element size {} for type '{}'",
                 other,
                 type_name
-            )),
-        }
+            )) }
     } else {
         // Integer path
         Ok(match (elem_size, signed) {
@@ -252,13 +249,13 @@ where
     Ok(vals)
 }
 
-/// `parse_floats` specialised to `usize` — common case in header parsers
+/// `parse_floats` specialised to `usize` â€” common case in header parsers
 /// (dimension sizes, component counts). Saves the per-call-site turbofish.
 pub fn parse_usize_vec(s: &str, field: &str, expected: usize) -> Result<Vec<usize>> {
     parse_floats(s, field, expected)
 }
 
-/// `parse_floats` specialised to `f64` — common case in header parsers
+/// `parse_floats` specialised to `f64` â€” common case in header parsers
 /// (spacings, origins, transform-matrix entries). Saves the per-call-site
 /// turbofish.
 pub fn parse_f64_vec(s: &str, field: &str, expected: usize) -> Result<Vec<f64>> {

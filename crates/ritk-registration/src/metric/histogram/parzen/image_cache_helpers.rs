@@ -1,4 +1,4 @@
-//! Cache lookup and normalization helpers for Parzen image-level histogram computation.
+﻿//! Cache lookup and normalization helpers for Parzen image-level histogram computation.
 //!
 //! Extracted from `compute_image/mod.rs` (Sprint 356 cycle 12-13) to keep each file
 //! under the 500-line structural limit. All utilities are used exclusively by
@@ -15,7 +15,7 @@ use std::sync::Arc;
 /// Check whether a cached histogram entry matches the given image's spatial metadata.
 pub(crate) fn cache_matches_image<B: Backend, const D: usize>(
     cache: &HistogramCache<B>,
-    fixed: &Image<B, D>,
+    fixed: &Image<f32, B, D>,
 ) -> bool {
     let fs = fixed.shape();
     cache.shape.as_slice() == fs
@@ -27,8 +27,8 @@ pub(crate) fn cache_matches_image<B: Backend, const D: usize>(
 /// Helper: read the dense W_fixed^T from the cache if it matches the fixed image.
 pub(crate) fn get_cached_w_fixed_t<B: Backend, const D: usize>(
     cache_guard: &Option<HistogramCache<B>>,
-    fixed: &Image<B, D>,
-) -> Option<Tensor<B, 2>> {
+    fixed: &Image<f32, B, D>,
+) -> Option<Tensor<f32, B>> {
     cache_guard.as_ref().and_then(|c| {
         cache_matches_image(c, fixed)
             .then(|| c.w_fixed_transposed.clone())
@@ -49,7 +49,7 @@ pub(crate) fn get_cached_w_fixed_t<B: Backend, const D: usize>(
 #[cfg(feature = "direct-parzen")]
 pub(crate) fn get_cached_sparse_w_fixed<B: Backend, const D: usize>(
     cache_guard: &mut Option<HistogramCache<B>>,
-    fixed: &Image<B, D>,
+    fixed: &Image<f32, B, D>,
     num_bins: usize,
     sigma_sq_fix: f32,
 ) -> Option<Arc<super::direct::SparseWFixedT>> {
@@ -72,7 +72,7 @@ pub(crate) fn get_cached_sparse_w_fixed<B: Backend, const D: usize>(
 /// ~128 KB `fixed_norm` Vec is stored up front.
 #[cfg(feature = "direct-parzen")]
 pub(crate) fn normalize_fixed_values<B: Backend>(
-    fixed_values: &Tensor<B, 1>,
+    fixed_values: &Tensor<f32, B>,
     min_intensity: f32,
     max_intensity: f32,
     num_bins: usize,
@@ -90,9 +90,9 @@ pub(crate) fn normalize_fixed_values<B: Backend>(
 /// metadata. Moved here from `compute_image` (Sprint SRP-split) to keep
 /// `compute_image/mod.rs` under 500 lines.
 pub(crate) fn extract_cached_points<B: Backend, const D: usize>(
-    fixed: &Image<B, D>,
+    fixed: &Image<f32, B, D>,
     cache: &CacheSlot<HistogramCache<B>>,
-) -> Option<Tensor<B, 2>> {
+) -> Option<Tensor<f32, B>> {
     cache.with_ref(|guard| {
         guard
             .as_ref()

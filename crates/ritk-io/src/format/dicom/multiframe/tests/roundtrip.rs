@@ -116,7 +116,7 @@ fn test_write_multiframe_with_spatial_metadata_round_trip() {
     // - IPP round-trip: |read_ipp[i] - written_ipp[i]| < 1e-4 (DS string precision)
     // - IOP round-trip: |read_iop[i] - written_iop[i]| < 1e-4
     // - Modality round-trip: exact string match
-    // - origin in loaded Image equals IPP to ±1e-4
+    // - origin in loaded Image equals IPP to Â±1e-4
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("mf_spatial.dcm");
     let n_frames = 2_usize;
@@ -266,7 +266,7 @@ fn test_load_multiframe_spacing_from_slice_thickness() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("mf.dcm");
 
-    // 3 frames of 4×4 pixels, spacing_z = 2.5 mm
+    // 3 frames of 4Ã—4 pixels, spacing_z = 2.5 mm
     let data: Vec<f32> = (0..3 * 4 * 4).map(|i| i as f32).collect();
     let image = native_image(data, [3, 4, 4], [0.0, 0.0, 0.0], [2.5, 1.0, 1.0]);
     let opts = MultiFrameSpatialMetadata {
@@ -294,7 +294,7 @@ fn test_load_multiframe_spacing_from_slice_thickness() {
     assert_eq!(shape[2], 4, "cols");
 }
 
-/// Multi-frame writer rescale quantization tolerance: |recovered - original| ≤
+/// Multi-frame writer rescale quantization tolerance: |recovered - original| â‰¤
 /// slope + 1.0, where slope = (max - min) / 65535 for the single global linear
 /// rescale (1.0 for the degenerate flat-image case). Derivation matches the
 /// writer contract in [`super::super::writer`].

@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 use crate::render::SliceRenderer;
 use egui::Color32;
 use ritk_io::literal_arraystring;
@@ -32,8 +32,7 @@ fn test_volume(shape: [usize; 3], scale: f32) -> LoadedVolume {
         radionuclide_half_life_s: None,
         series_time: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None,
-    }
+        decay_correction: None }
 }
 
 #[test]
@@ -47,15 +46,13 @@ fn alpha_zero_equals_primary_render() {
             axis: 0,
             slice: 1,
             wl,
-            colormap: Colormap::Grayscale,
-        },
+            colormap: Colormap::Grayscale },
         FusedSliceParams {
             volume: &s,
             axis: 0,
             slice: 1,
             wl,
-            colormap: Colormap::Hot,
-        },
+            colormap: Colormap::Hot },
         0.0,
     );
     let primary = SliceRenderer::render(&p, 0, 1, wl, Colormap::Grayscale);
@@ -74,15 +71,13 @@ fn output_size_matches_primary_slice_geometry() {
             axis: 1,
             slice: 2,
             wl,
-            colormap: Colormap::Grayscale,
-        },
+            colormap: Colormap::Grayscale },
         FusedSliceParams {
             volume: &s,
             axis: 2,
             slice: 3,
             wl,
-            colormap: Colormap::Jet,
-        },
+            colormap: Colormap::Jet },
         0.5,
     );
     // Axis 1 slice is [depth, cols] => [5, 9] in [rows, cols], egui [width, height].
@@ -110,15 +105,13 @@ fn pet_secondary_is_windowed_in_suv_units() {
             axis: 0,
             slice: 0,
             wl: WindowLevel::new(40.0, 400.0),
-            colormap: Colormap::Grayscale,
-        },
+            colormap: Colormap::Grayscale },
         FusedSliceParams {
             volume: &pet,
             axis: 0,
             slice: 0,
             wl: WindowLevel::new(3.0, 6.0),
-            colormap: Colormap::Hot,
-        },
+            colormap: Colormap::Hot },
         1.0,
     );
 
@@ -152,15 +145,13 @@ fn non_pet_secondary_with_pet_fields_uses_raw_window_units() {
             axis: 0,
             slice: 0,
             wl: WindowLevel::new(40.0, 400.0),
-            colormap: Colormap::Grayscale,
-        },
+            colormap: Colormap::Grayscale },
         FusedSliceParams {
             volume: &secondary,
             axis: 0,
             slice: 0,
             wl: WindowLevel::new(3.0, 6.0),
-            colormap: Colormap::Hot,
-        },
+            colormap: Colormap::Hot },
         1.0,
     );
 

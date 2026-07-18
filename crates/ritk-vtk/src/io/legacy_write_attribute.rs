@@ -1,4 +1,4 @@
-//! Shared legacy VTK attribute writer for VTK ASCII/legacy formats.
+﻿//! Shared legacy VTK attribute writer for VTK ASCII/legacy formats.
 //!
 //! Writes a single attribute section (SCALARS, VECTORS, NORMALS,
 //! TEXTURE_COORDINATES) into a `dyn Write` sink using the VTK legacy
@@ -23,8 +23,7 @@ pub(crate) fn write_attribute_legacy(
     match attr {
         AttributeArray::Scalars {
             values,
-            num_components,
-        } => {
+            num_components } => {
             writeln!(w, "SCALARS {} float {}", name, num_components)?;
             writeln!(w, "LOOKUP_TABLE default")?;
             for v in values {

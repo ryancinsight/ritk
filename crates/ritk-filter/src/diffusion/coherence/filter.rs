@@ -6,19 +6,19 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 use super::pde::ced_diffuse;
 use super::scratch::CedScratch;
 
-// ── Public types ──────────────────────────────────────────────────────────────
+// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// CED configuration.
 #[derive(Debug, Clone)]
 pub struct CoherenceConfig {
-    /// Integration scale ρ — standard deviation of the Gaussian structure-tensor
+    /// Integration scale Ï â€” standard deviation of the Gaussian structure-tensor
     /// pre-smoothing kernel. Must be > 0.  Default: 3.0.
     pub sigma: GaussianSigma,
     /// Contrast parameter C. Default: 1e-10.
     pub contrast: f64,
-    /// Smoothing parameter α in flat regions. Default: 0.001.
+    /// Smoothing parameter Î± in flat regions. Default: 0.001.
     pub alpha: f64,
-    /// Time step Δt. Default: 0.0625 (1/16).
+    /// Time step Î”t. Default: 0.0625 (1/16).
     pub time_step: f64,
     /// Number of iterations. Default: 10.
     pub n_iterations: usize,
@@ -58,7 +58,7 @@ impl CoherenceEnhancingDiffusionFilter {
     ///
     /// For images of dimension D < 3, the result is identical to the input
     /// (CED is defined only for 3-D volumes).
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         let (vals_vec, dims) = extract_vec_infallible(image);
 
         let result = if D >= 3 && dims.iter().all(|&d| d >= 3) {
@@ -67,7 +67,7 @@ impl CoherenceEnhancingDiffusionFilter {
             let n3 = d3[0] * d3[1] * d3[2];
             let vals3: Vec<f64> = vals_vec[..n3].iter().map(|&v| v as f64).collect();
             let out3 = ced_diffuse(&vals3, d3, &self.config);
-            // Write back, converting f64 → f32.
+            // Write back, converting f64 â†’ f32.
             let mut result = vals_vec;
             for i in 0..n3 {
                 result[i] = out3[i] as f32;
@@ -98,7 +98,7 @@ impl CoherenceEnhancingDiffusionFilter {
             let n3 = d3[0] * d3[1] * d3[2];
             let vals3: Vec<f64> = vals_vec[..n3].iter().map(|&v| v as f64).collect();
             let out3 = ced_diffuse(&vals3, d3, &self.config);
-            // Write back, converting f64 → f32.
+            // Write back, converting f64 â†’ f32.
             let mut result = vals_vec;
             for i in 0..n3 {
                 result[i] = out3[i] as f32;
@@ -118,9 +118,9 @@ impl CoherenceEnhancingDiffusionFilter {
     /// smoothed structure-tensor, and divergence buffers.
     pub fn apply_with_scratch<B: Backend, const D: usize>(
         &self,
-        image: &Image<B, D>,
+        image: &Image<f32, B, D>,
         scratch: &mut CedScratch,
-    ) -> Image<B, D> {
+    ) -> Image<f32, B, D> {
         let (vals_vec, dims) = extract_vec_infallible(image);
 
         let result = if D >= 3 && dims.iter().all(|&d| d >= 3) {

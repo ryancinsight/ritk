@@ -11,7 +11,7 @@ use ritk_image::tensor::Backend;
 /// Generates a sequence of images at different resolutions/scales.
 /// Typically used for coarse-to-fine registration strategies.
 pub struct MultiResolutionPyramid<B: Backend, const D: usize> {
-    images: Vec<Image<B, D>>,
+    images: Vec<Image<f32, B, D>>,
 }
 
 impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
@@ -32,7 +32,7 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
     /// the `Vec<Vec<T>>` outer + inner heap allocations that the legacy shape
     /// imposed on every pyramid build.
     pub fn new(
-        input: &Image<B, D>,
+        input: &Image<f32, B, D>,
         shrink_factors: &[[usize; D]],
         smoothing_sigmas: &[[f64; D]],
     ) -> Self {
@@ -57,7 +57,7 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
             // 1. Smooth
             // Only smooth if sigmas are significant. GaussianFilter::new takes
             // a `Vec<GaussianSigma>`, so we materialise the per-axis sigmas into
-            // a small D-entry Vec here — one allocation per pyramid level, not a hot
+            // a small D-entry Vec here â€” one allocation per pyramid level, not a hot
             // path.
             let smoothed = if !is_identity_smooth {
                 let sigmas_val: Vec<GaussianSigma> = sigmas
@@ -87,7 +87,7 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
     }
 
     /// Get image at specific level.
-    pub fn get_level(&self, level: usize) -> &Image<B, D> {
+    pub fn get_level(&self, level: usize) -> &Image<f32, B, D> {
         &self.images[level]
     }
 

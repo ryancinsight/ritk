@@ -1,4 +1,4 @@
-//! GlobalMI translation-only near-ground-truth registration test on RIRE Patient-001.
+﻿//! GlobalMI translation-only near-ground-truth registration test on RIRE Patient-001.
 //!
 //! Companion to `rire_registration_rigid_test.rs`. Contains the near-GT
 //! translation refinement test that asserts TRE < 5 mm.
@@ -9,7 +9,7 @@
 //! cargo test --test rire_registration_rigid_extended_test -- --ignored --nocapture
 //! ```
 mod common;
-use ritk_image::tensor::{Tensor, TensorData};
+use ritk_image::tensor::{Tensor };
 
 use common::{compute_tre, find_rire_dir, identity_m4, B};
 use ritk_filter::GaussianSigma;
@@ -74,8 +74,7 @@ fn test_global_mi_translation_near_gt_rire_patient001() {
             ..Default::default()
         }],
         transform_type: GlobalMiTransformType::Translation,
-        center: None,
-    };
+        center: None };
 
     // GT translation in RITK [z,y,x] order: [-27.165, -17.497, 5.037].
     // Perturb by +3 mm in z to create a near-GT starting point.
@@ -84,7 +83,7 @@ fn test_global_mi_translation_near_gt_rire_patient001() {
     const GT_TX: f32 = 5.037;
 
     let initial_translation =
-        Tensor::<B, 1>::from_data(TensorData::from([GT_TZ + 3.0_f32, GT_TY, GT_TX]), &device);
+        Tensor::<f32, B>::from_data(::from([GT_TZ + 3.0_f32, GT_TY, GT_TX]), &device);
     let initial_t = ritk_transform::TranslationTransform::<B, 3>::new(initial_translation);
 
     // Sanity-check: initial TRE should be ~3 mm.
@@ -95,7 +94,7 @@ fn test_global_mi_translation_near_gt_rire_patient001() {
     let (tre_init, _) = compute_tre(&m_init);
     println!("Initial (near-GT + 3 mm z) TRE: {tre_init:.2} mm (expect ~3 mm)");
 
-    println!("\n── Running 3-DOF translation registration from near-GT (shrink [4], 200 iters) ──");
+    println!("\nâ”€â”€ Running 3-DOF translation registration from near-GT (shrink [4], 200 iters) â”€â”€");
     let (final_t, result) =
         GlobalMiRegistration::register_translation_full(&ct_img, &mri_img, initial_t, &config);
 
@@ -119,15 +118,15 @@ fn test_global_mi_translation_near_gt_rire_patient001() {
     let initial_loss = result.loss_history.first().copied().unwrap_or(f64::NAN);
     let final_loss = result.loss_history.last().copied().unwrap_or(f64::NAN);
 
-    println!("\n── Results ─────────────────────────────────────────────────");
+    println!("\nâ”€â”€ Results â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€");
     println!("  Final MI      : {:.6}", result.final_mi);
     println!("  Iterations    : {:?}", result.iterations_per_level);
-    println!("  Loss first→last: {initial_loss:.6e} → {final_loss:.6e}");
+    println!("  Loss firstâ†’last: {initial_loss:.6e} â†’ {final_loss:.6e}");
     println!(
-        "  TRE near-GT   : {tre_init:.2} mm → after: {tre_after:.2} mm (max: {tre_max_after:.2} mm)"
+        "  TRE near-GT   : {tre_init:.2} mm â†’ after: {tre_after:.2} mm (max: {tre_max_after:.2} mm)"
     );
 
-    // ── Assertions ────────────────────────────────────────────────────────────
+    // â”€â”€ Assertions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // 1. MI must be positive.
     assert!(
         result.final_mi > 0.0,
@@ -150,5 +149,5 @@ fn test_global_mi_translation_near_gt_rire_patient001() {
         tre_after < 5.0,
         "TRE after near-GT local refinement too large: {tre_after:.2} mm (expected < 5.0 mm)"
     );
-    println!("\n✓ All near-GT translation-registration assertions passed.");
+    println!("\nâœ“ All near-GT translation-registration assertions passed.");
 }

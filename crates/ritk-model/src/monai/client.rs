@@ -1,4 +1,4 @@
-//! MONAI Label Server REST client implementation.
+﻿//! MONAI Label Server REST client implementation.
 //!
 //! # Protocol
 //!
@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 use tracing::{debug, instrument};
 
-// ── MonaiLabelClient ──────────────────────────────────────────────────────────
+// â”€â”€ MonaiLabelClient â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Synchronous REST client for MONAI Label Server inference endpoints.
 ///
@@ -31,8 +31,7 @@ use tracing::{debug, instrument};
 /// `Send + Sync`.  Multiple threads may share a reference to a single client.
 pub struct MonaiLabelClient {
     base_url: String,
-    client: Client,
-}
+    client: Client }
 
 impl MonaiLabelClient {
     /// Create a client with a 30-second connect/read timeout.
@@ -52,11 +51,10 @@ impl MonaiLabelClient {
             .expect("reqwest blocking Client must build");
         Self {
             base_url: base_url.into().trim_end_matches('/').to_owned(),
-            client,
-        }
+            client }
     }
 
-    // ── GET /info ─────────────────────────────────────────────────────────────
+    // â”€â”€ GET /info â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Retrieve server metadata from `GET /info`.
     ///
@@ -71,18 +69,17 @@ impl MonaiLabelClient {
             let body = resp.text().unwrap_or_default();
             return Err(MonaiError::ServerError {
                 status: status.as_u16(),
-                body,
-            });
+                body });
         }
         let info: ServerInfo = resp.json()?;
         Ok(info)
     }
 
-    // ── GET /models ───────────────────────────────────────────────────────────
+    // â”€â”€ GET /models â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// List available inference models from `GET /models`.
     ///
-    /// MONAI returns a JSON object mapping model-name → model-metadata.  The model
+    /// MONAI returns a JSON object mapping model-name â†’ model-metadata.  The model
     /// `name` field is injected from the map key when absent in the value object.
     #[instrument(skip(self), fields(base_url = %self.base_url))]
     pub fn models(&self) -> Result<Vec<ModelInfo>, MonaiError> {
@@ -94,8 +91,7 @@ impl MonaiLabelClient {
             let body = resp.text().unwrap_or_default();
             return Err(MonaiError::ServerError {
                 status: status.as_u16(),
-                body,
-            });
+                body });
         }
         let raw: HashMap<String, serde_json::Value> = resp.json()?;
         raw.into_iter()
@@ -111,14 +107,14 @@ impl MonaiLabelClient {
             .collect()
     }
 
-    // ── POST /infer/{model} ───────────────────────────────────────────────────
+    // â”€â”€ POST /infer/{model} â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Run AI inference via `POST /infer/{model}?image={image_id}`.
     ///
     /// `request.params` is serialised as JSON in the request body.  The server
     /// responds with `multipart/form-data` containing:
-    /// - `label`  — binary NIfTI segmentation mask.
-    /// - `params` — JSON inference metadata (timing, confidence, model version).
+    /// - `label`  â€” binary NIfTI segmentation mask.
+    /// - `params` â€” JSON inference metadata (timing, confidence, model version).
     ///
     /// # Errors
     ///
@@ -136,8 +132,7 @@ impl MonaiLabelClient {
             let body = resp.text().unwrap_or_default();
             return Err(MonaiError::ServerError {
                 status: status.as_u16(),
-                body,
-            });
+                body });
         }
         let content_type = resp
             .headers()
@@ -150,7 +145,7 @@ impl MonaiLabelClient {
     }
 }
 
-// ── Response parser ───────────────────────────────────────────────────────────
+// â”€â”€ Response parser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Parse a MONAI Label Server multipart infer response into [`InferResponse`].
 ///
@@ -181,8 +176,7 @@ pub(crate) fn parse_infer_response(
     body: &[u8],
 ) -> Result<InferResponse, MonaiError> {
     let boundary = extract_boundary(content_type).ok_or_else(|| MonaiError::ParseError {
-        message: format!("missing multipart boundary in Content-Type: {content_type}"),
-    })?;
+        message: format!("missing multipart boundary in Content-Type: {content_type}") })?;
 
     let parts = split_multipart(body, boundary.as_bytes());
     let mut label: Option<Vec<u8>> = None;
@@ -203,8 +197,7 @@ pub(crate) fn parse_infer_response(
     }
 
     let label = label.ok_or_else(|| MonaiError::ParseError {
-        message: "missing 'label' part in multipart infer response".to_owned(),
-    })?;
+        message: "missing 'label' part in multipart infer response".to_owned() })?;
 
     Ok(InferResponse { label, params })
 }

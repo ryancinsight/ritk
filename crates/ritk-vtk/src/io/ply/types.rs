@@ -1,8 +1,8 @@
-//! PLY type system and header structures.
+﻿//! PLY type system and header structures.
 
 use anyhow::{bail, Context, Result};
 
-// ── Type system ───────────────────────────────────────────────────────────────
+// â”€â”€ Type system â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) enum PlyType {
@@ -13,8 +13,7 @@ pub(super) enum PlyType {
     Int,
     Uint,
     Float,
-    Double,
-}
+    Double }
 
 impl PlyType {
     pub(super) fn from_str(s: &str) -> Result<Self> {
@@ -27,8 +26,7 @@ impl PlyType {
             "uint" | "uint32" => Ok(Self::Uint),
             "float" | "float32" => Ok(Self::Float),
             "double" | "float64" => Ok(Self::Double),
-            _ => bail!("unknown PLY scalar type '{}'", s),
-        }
+            _ => bail!("unknown PLY scalar type '{}'", s) }
     }
 
     pub(super) fn byte_size(self) -> usize {
@@ -36,8 +34,7 @@ impl PlyType {
             Self::Char | Self::Uchar => 1,
             Self::Short | Self::Ushort => 2,
             Self::Int | Self::Uint | Self::Float => 4,
-            Self::Double => 8,
-        }
+            Self::Double => 8 }
     }
 
     pub(super) fn parse_float_ascii(self, s: &str) -> Result<f32> {
@@ -68,8 +65,7 @@ impl PlyType {
             Self::Uint => s
                 .parse::<u32>()
                 .with_context(|| format!("bad uint '{}'", s)),
-            _ => bail!("unsupported list count/index type {:?}", self),
-        }
+            _ => bail!("unsupported list count/index type {:?}", self) }
     }
 
     pub(super) fn read_le_float(self, b: &[u8], off: usize) -> f32 {
@@ -90,8 +86,7 @@ impl PlyType {
             Self::Short => i16::from_le_bytes([b[off], b[off + 1]]) as f32,
             Self::Ushort => u16::from_le_bytes([b[off], b[off + 1]]) as f32,
             Self::Char => b[off] as i8 as f32,
-            Self::Uchar => b[off] as f32,
-        }
+            Self::Uchar => b[off] as f32 }
     }
 
     pub(super) fn read_le_u32(self, b: &[u8], off: usize) -> u32 {
@@ -100,19 +95,17 @@ impl PlyType {
             Self::Ushort => u16::from_le_bytes([b[off], b[off + 1]]) as u32,
             Self::Int => i32::from_le_bytes([b[off], b[off + 1], b[off + 2], b[off + 3]]) as u32,
             Self::Uint => u32::from_le_bytes([b[off], b[off + 1], b[off + 2], b[off + 3]]),
-            _ => 0,
-        }
+            _ => 0 }
     }
 }
 
-// ── Header model ──────────────────────────────────────────────────────────────
+// â”€â”€ Header model â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) enum PlyFormat {
     Ascii,
     BinaryLe,
-    BinaryBe,
-}
+    BinaryBe }
 
 pub(super) struct PlyHeader {
     pub(super) format: PlyFormat,
@@ -120,8 +113,7 @@ pub(super) struct PlyHeader {
     pub(super) face_count: usize,
     pub(super) vertex_props: Vec<(String, PlyType)>,
     pub(super) face_count_type: PlyType,
-    pub(super) face_index_type: PlyType,
-}
+    pub(super) face_index_type: PlyType }
 
 impl PlyHeader {
     pub(super) fn find_prop(&self, name: &str) -> Option<usize> {

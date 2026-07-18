@@ -2,7 +2,7 @@ use super::filter::CoherenceConfig;
 use super::scratch::{compute_structure_tensor_products, Gradient, StructureTensorProducts};
 use super::tensor::diffusion_tensor;
 
-// ── Core computation ──────────────────────────────────────────────────────────
+// â”€â”€ Core computation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Run explicit Euler CED for the requested number of iterations.
 ///
@@ -15,19 +15,19 @@ pub fn ced_diffuse(data: &[f64], dims: [usize; 3], config: &CoherenceConfig) -> 
     // Pre-build the 1-D Gaussian kernel for structure-tensor smoothing.
     let kernel = crate::gaussian_kernel(config.sigma.get(), None);
     for _ in 0..config.n_iterations {
-        // ── Step 1: gradient via central differences ────────────────────
+        // â”€â”€ Step 1: gradient via central differences â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let grad = compute_gradient(&cur, dims);
 
-        // ── Step 2: structure tensor products ───────────────────────────
+        // â”€â”€ Step 2: structure tensor products â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let st_products = compute_structure_tensor_products(&grad, dims);
 
-        // ── Step 3: Gaussian smoothing of structure tensor ──────────────
+        // â”€â”€ Step 3: Gaussian smoothing of structure tensor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let st_smooth = smooth_structure_tensor(&st_products, dims, &kernel);
 
-        // ── Step 4: eigenvalue decomposition + diffusion tensor + divergence
+        // â”€â”€ Step 4: eigenvalue decomposition + diffusion tensor + divergence
         let div = compute_divergence(&cur, &st_smooth, dims, config.alpha, config.contrast);
 
-        // ── Step 5: explicit Euler update ───────────────────────────────
+        // â”€â”€ Step 5: explicit Euler update â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let dt = config.time_step;
         for i in 0..n {
             cur[i] += dt * div[i];
@@ -36,7 +36,7 @@ pub fn ced_diffuse(data: &[f64], dims: [usize; 3], config: &CoherenceConfig) -> 
     cur
 }
 
-// ── Gradient computation ──────────────────────────────────────────────────────
+// â”€â”€ Gradient computation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Central-difference gradient with Neumann (replicate) boundary conditions.
 pub fn compute_gradient(data: &[f64], dims: [usize; 3]) -> Gradient {
@@ -83,7 +83,7 @@ pub fn compute_gradient(data: &[f64], dims: [usize; 3]) -> Gradient {
     Gradient { gz, gy, gx }
 }
 
-// ── Gaussian smoothing ────────────────────────────────────────────────────────
+// â”€â”€ Gaussian smoothing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Separable Gaussian smoothing along a single axis writing into a preallocated buffer.
 pub fn gaussian_smooth_into(
@@ -148,8 +148,8 @@ pub fn smooth_structure_tensor(
 ) -> Vec<[f64; 6]> {
     let n = dims[0] * dims[1] * dims[2];
     // Process each component independently (embarrassingly parallel).
-    // Collect into [Vec<f64>; 6] — stack-resident array of 6 independent heap
-    // buffers — rather than Vec<Vec<f64>>, which would add an outer heap
+    // Collect into [Vec<f64>; 6] â€” stack-resident array of 6 independent heap
+    // buffers â€” rather than Vec<Vec<f64>>, which would add an outer heap
     // allocation for the container itself.
     let smoothed_components: [Vec<f64>; 6] =
         moirai::map_collect_index_with::<moirai::Parallel, _, _>(6, |c| {
@@ -173,16 +173,16 @@ pub fn smooth_structure_tensor(
     out
 }
 
-// ── Divergence computation ────────────────────────────────────────────────────
+// â”€â”€ Divergence computation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Compute div(D · ∇I) at every voxel using the face-interpolated flux approach.
+/// Compute div(D Â· âˆ‡I) at every voxel using the face-interpolated flux approach.
 ///
 /// At each face between adjacent voxels, the diffusion tensor is interpolated
 /// as D_face = (D_p + D_q) / 2. The flux through that face is
-/// F_face = D_face · (forward difference), and the divergence is the sum of
+/// F_face = D_face Â· (forward difference), and the divergence is the sum of
 /// flux differences across the voxel.
 ///
-/// This formulation is conservative and guarantees ∫ div(D·∇I) dV = 0 for
+/// This formulation is conservative and guarantees âˆ« div(DÂ·âˆ‡I) dV = 0 for
 /// Neumann boundary conditions, preserving mean intensity.
 pub fn compute_divergence(
     data: &[f64],
@@ -309,7 +309,7 @@ pub fn compute_divergence_into(
     });
 }
 
-/// Element-wise average of two symmetric 3×3 tensor component vectors.
+/// Element-wise average of two symmetric 3Ã—3 tensor component vectors.
 #[inline(always)]
 pub(crate) fn avg_tensor(a: [f64; 6], b: [f64; 6]) -> [f64; 6] {
     [

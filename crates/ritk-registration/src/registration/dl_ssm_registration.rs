@@ -1,4 +1,4 @@
-//! Native Coeus SSMMorph registration boundary.
+﻿//! Native Coeus SSMMorph registration boundary.
 
 use coeus_autograd::Var;
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
@@ -12,8 +12,7 @@ pub struct SSMMorphIntegration<B>
 where
     B: Backend + BackendOps<f32>,
 {
-    network: SSMMorph<B>,
-}
+    network: SSMMorph<B> }
 
 impl<B> SSMMorphIntegration<B>
 where
@@ -24,8 +23,7 @@ where
     #[must_use]
     pub fn new(config: &SSMMorphConfig) -> Self {
         Self {
-            network: SSMMorph::new(config),
-        }
+            network: SSMMorph::new(config) }
     }
 
     /// Infer a static displacement transforming `moving` toward `fixed`.
@@ -78,8 +76,7 @@ pub struct DiffeomorphicSSMMorph<B>
 where
     B: Backend + BackendOps<f32>,
 {
-    integration: SSMMorphIntegration<B>,
-}
+    integration: SSMMorphIntegration<B> }
 
 impl<B> DiffeomorphicSSMMorph<B>
 where
@@ -90,8 +87,7 @@ where
     #[must_use]
     pub fn new(config: &SSMMorphConfig) -> Self {
         Self {
-            integration: SSMMorphIntegration::new(config),
-        }
+            integration: SSMMorphIntegration::new(config) }
     }
 
     /// Infer a topology-preserving displacement transform.

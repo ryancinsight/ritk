@@ -1,34 +1,34 @@
-//! Python-exposed image similarity and information-theoretic metrics.
+﻿//! Python-exposed image similarity and information-theoretic metrics.
 //!
 //! # Functions
 //! - `compute_entropy`: marginal entropy H(X).
 //! - `compute_joint_entropy`: joint entropy H(X,Y).
-//! - `compute_symmetric_uncertainty`: SU = 2·MI/(H(X)+H(Y)) ∈ \[0,1\].
+//! - `compute_symmetric_uncertainty`: SU = 2Â·MI/(H(X)+H(Y)) âˆˆ \[0,1\].
 //! - `compute_mse`: mean squared error.
 //! - `compute_ncc`: normalized cross-correlation (Pearson r).
 //! - `compute_mutual_information`: histogram-based MI (mattes / standard / normalized).
 //! - `compute_conditional_mutual_information`: I(X;Y|Z) histogram-based CMI.
 //! - `compute_interaction_information`: II(X;Y;Z) interaction information (McGill 1954).
 //! - `compute_total_correlation`: multivariate MI (total correlation) over N channels.
-//! - `compute_dual_total_correlation`: DTC(X₁,…,Xₙ) dual total correlation (Han 1978).
-//! - `compute_o_information`: Ω(X₁,…,Xₙ) O-information (Rosas 2019).
+//! - `compute_dual_total_correlation`: DTC(Xâ‚,â€¦,Xâ‚™) dual total correlation (Han 1978).
+//! - `compute_o_information`: Î©(Xâ‚,â€¦,Xâ‚™) O-information (Rosas 2019).
 //! - `compute_variation_of_information`: VI = H(X|Y) + H(Y|X).
 //! - `compute_multivariate_variation_of_information`: average pairwise VI over N channels.
 //!
 //! # Mathematical foundations
-//! - Entropy  H(X)  = −Σₖ p(k) log p(k)
-//! - H(X,Y)         = −Σⱼₖ p(j,k) log p(j,k)
-//! - SU             = 2·I(X;Y) / (H(X) + H(Y))         (Fayyad & Irani 1993)
-//! - MSE            = Σ(aᵢ−bᵢ)² / N
-//! - NCC            = Σ(aᵢ−ā)(bᵢ−b̄) / (N·σ_a·σ_b + ε)
-//! - MI             = H(A) + H(B) − H(A,B)
-//! - CMI            = H(X,Z) + H(Y,Z) − H(X,Y,Z) − H(Z)
-//! - II             = I(X;Y) − I(X;Y|Z)                (McGill 1954)
-//! - TC             = Σᵢ H(Xᵢ) − H(X₁,...,Xₙ)          (Watanabe 1960)
-//! - DTC            = Σᵢ H(X₁,...,Xₙ\Xᵢ) − (n−1)·H(X₁,...,Xₙ)  (Han 1978)
-//! - Ω              = TC − DTC                          (Rosas 2019)
-//! - VI             = H(X) + H(Y) − 2·I(X,Y)            (Meilă 2003)
-//! - VI_n           = (2/n(n−1)) · Σ_{i<j} VI(Xᵢ,Xⱼ)
+//! - Entropy  H(X)  = âˆ’Î£â‚– p(k) log p(k)
+//! - H(X,Y)         = âˆ’Î£â±¼â‚– p(j,k) log p(j,k)
+//! - SU             = 2Â·I(X;Y) / (H(X) + H(Y))         (Fayyad & Irani 1993)
+//! - MSE            = Î£(aáµ¢âˆ’báµ¢)Â² / N
+//! - NCC            = Î£(aáµ¢âˆ’Ä)(báµ¢âˆ’bÌ„) / (NÂ·Ïƒ_aÂ·Ïƒ_b + Îµ)
+//! - MI             = H(A) + H(B) âˆ’ H(A,B)
+//! - CMI            = H(X,Z) + H(Y,Z) âˆ’ H(X,Y,Z) âˆ’ H(Z)
+//! - II             = I(X;Y) âˆ’ I(X;Y|Z)                (McGill 1954)
+//! - TC             = Î£áµ¢ H(Xáµ¢) âˆ’ H(Xâ‚,...,Xâ‚™)          (Watanabe 1960)
+//! - DTC            = Î£áµ¢ H(Xâ‚,...,Xâ‚™\Xáµ¢) âˆ’ (nâˆ’1)Â·H(Xâ‚,...,Xâ‚™)  (Han 1978)
+//! - Î©              = TC âˆ’ DTC                          (Rosas 2019)
+//! - VI             = H(X) + H(Y) âˆ’ 2Â·I(X,Y)            (MeilÄƒ 2003)
+//! - VI_n           = (2/n(nâˆ’1)) Â· Î£_{i<j} VI(Xáµ¢,Xâ±¼)
 
 mod cmi;
 mod image_batch;
@@ -45,8 +45,7 @@ use pyo3::prelude::*;
 pub use cmi::{compute_conditional_mutual_information, compute_interaction_information};
 pub use mi::{
     compute_entropy, compute_joint_entropy, compute_mutual_information,
-    compute_symmetric_uncertainty,
-};
+    compute_symmetric_uncertainty };
 pub use mse::compute_mse;
 pub use multivariate_vi::compute_multivariate_variation_of_information;
 pub use ncc::compute_ncc;
@@ -65,7 +64,7 @@ use multivariate_vi::multivariate_vi_slices;
 #[cfg(test)]
 use o_information::{dtc_slices, oi_slices};
 
-// ── module registration ───────────────────────────────────────────────────────
+// â”€â”€ module registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     let m = PyModule::new_bound(parent.py(), "metrics")?;
@@ -92,7 +91,7 @@ pub fn register(parent: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-// ── integration tests ─────────────────────────────────────────────────────────
+// â”€â”€ integration tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 mod tests {
@@ -108,8 +107,7 @@ mod tests {
                 ritk_core::spatial::Point::new([0.0; 3]),
                 ritk_core::spatial::Spacing::new([1.0; 3]),
                 ritk_core::spatial::Direction::identity(),
-            )),
-        }
+            )) }
     }
 
     #[test]
@@ -172,7 +170,7 @@ mod tests {
         let v: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let img = make_image(v, [4, 4, 4]);
         let cmi = compute_conditional_mutual_information(&img, &img, &img, 8).unwrap();
-        assert!(cmi >= 0.0, "CMI must be ≥ 0, got {cmi}");
+        assert!(cmi >= 0.0, "CMI must be â‰¥ 0, got {cmi}");
     }
 
     #[test]
@@ -198,7 +196,7 @@ mod tests {
         pyo3::prepare_freethreaded_python();
         let v: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let img = make_image(v, [4, 4, 4]);
-        // PyRef requires Python object protocol — test via direct slice logic instead
+        // PyRef requires Python object protocol â€” test via direct slice logic instead
         let slices: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let mvi = multivariate_vi_slices(
             &[slices.as_slice(), slices.as_slice(), slices.as_slice()],
@@ -214,7 +212,7 @@ mod tests {
         pyo3::prepare_freethreaded_python();
         let v: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let dtc = dtc_slices(&[v.as_slice(), v.as_slice()], 8).unwrap();
-        assert!(dtc >= 0.0, "DTC must be ≥ 0, got {dtc}");
+        assert!(dtc >= 0.0, "DTC must be â‰¥ 0, got {dtc}");
     }
 
     #[test]
@@ -222,7 +220,7 @@ mod tests {
         pyo3::prepare_freethreaded_python();
         let v: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let oi = oi_slices(&[v.as_slice(), v.as_slice()], 8).unwrap();
-        assert!(oi.abs() < 1e-9, "Ω(X,X) must be 0 for n=2, got {oi}");
+        assert!(oi.abs() < 1e-9, "Î©(X,X) must be 0 for n=2, got {oi}");
     }
 
     #[test]

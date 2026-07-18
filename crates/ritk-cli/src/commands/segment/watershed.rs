@@ -1,16 +1,15 @@
-use anyhow::{anyhow, Context, Result};
+﻿use anyhow::{anyhow, Context, Result};
 
 use tracing::info;
 
 use ritk_segmentation::{MarkerControlledWatershed, WatershedSegmentation};
 
 use super::super::{
-    infer_format, is_native_read_capable, read_image_native, write_image_native, NativeBackend,
-};
+    infer_format, is_native_read_capable, read_image_native, write_image_native, NativeBackend };
 use super::args::SegmentArgs;
 use super::helpers::read_native_input;
 
-// ── Watershed segmentation ────────────────────────────────────────────────────
+// â”€â”€ Watershed segmentation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Apply watershed flooding segmentation.
 ///
@@ -48,7 +47,7 @@ pub(super) fn run_watershed(args: &SegmentArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Marker-controlled watershed segmentation ──────────────────────────────────
+// â”€â”€ Marker-controlled watershed segmentation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Apply marker-controlled watershed segmentation.
 ///

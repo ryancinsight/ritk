@@ -8,6 +8,33 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-660-01 — Remove stale Burn contract text from native owner crates
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Reconcile the live migration state. The concurrent MIG-658 source
+      cutover owns 419 dirty files and currently reports zero Burn manifest
+      edges but 504 token-bearing source files; do not edit its claimed files.
+- [x] Correct the stale backend/type-parameter Rustdoc in `ritk-core` and the
+      obsolete dual-writer/test migration prose in `ritk-nifti`.
+- [x] Run the focused source-residue scan and Burn migration audit. Completion
+      condition: the four claimed files contain no Burn tokens and the
+      obsolete NIfTI test entry is removed from the allowlist without adding a
+      replacement. Evidence: the audit remains clean, reports zero Burn
+      manifest dependencies and 503 token-bearing source files, and has no
+      allowlist cleanup candidates.
+- [x] Run formatting and the available owner-crate gates. NIfTI
+      warning-denied Clippy, 37/37 Nextest tests, doctests, and warning-denied
+      Rustdoc pass. `ritk-core` is blocked before its own compilation by 38
+      errors in the actively changing MIG-658 `ritk-statistics` scope,
+      including missing `CpuAddressableStorage` bounds and unsupported
+      Burn-shaped `Mul`, `sum`, and `sub_scalar` calls.
+- [x] Synchronize the audit/history entries.
+- [ ] Commit only the claimed files. Blocker: a peer is actively editing and
+      has staged the broader migration on the shared `main` tree. Reopen when
+      that increment commits or moves to its migration branch; do not include
+      peer-owned staged files in this patch.
+
 ## MIG-659-01 — Move native interpolation scalar ownership to Eunomia
 **Target version**: ritk-interpolation 0.4.0
 **Sprint phase**: Closure

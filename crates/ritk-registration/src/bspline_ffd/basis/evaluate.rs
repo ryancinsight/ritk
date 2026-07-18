@@ -1,9 +1,9 @@
-//! B-spline displacement field evaluation from control-point grids.
+﻿//! B-spline displacement field evaluation from control-point grids.
 //!
 //! Implements the fast evaluation path using pre-computed [`BasisCache`]:
 //! - Basis values and control-point indices are looked up (not recomputed).
 //! - Interior voxels skip all bounds checks.
-//! - The 4×4×4 tensor-product loop is structured for auto-vectorization.
+//! - The 4Ã—4Ã—4 tensor-product loop is structured for auto-vectorization.
 
 use super::super::volume_dims::VolumeDims;
 use super::cache::BasisCache;
@@ -33,11 +33,11 @@ pub fn init_control_grid(dims: VolumeDims, ctrl_spacing: &[f64; 3]) -> [usize; 3
 /// Evaluate the dense displacement field from B-spline control points.
 ///
 /// For each image voxel `(iz, iy, ix)`, computes the displacement as the
-/// tensor-product of 1D cubic B-spline bases evaluated over the 4×4×4
+/// tensor-product of 1D cubic B-spline bases evaluated over the 4Ã—4Ã—4
 /// neighborhood of control points.
 ///
 /// # Returns
-/// `VelocityField` — displacement components in voxel units, each of length
+/// `VelocityField` â€” displacement components in voxel units, each of length
 /// `dims[0] * dims[1] * dims[2]`.
 pub fn evaluate_bspline_displacement(
     cp_z: &[f32],
@@ -57,8 +57,8 @@ pub fn evaluate_bspline_displacement(
 /// - Basis values and control-point indices are looked up from the cache
 ///   (no per-voxel `cubic_bspline_1d` calls).
 /// - Interior voxels (where all 64 control points are in-bounds) skip all
-///   bounds checks — ~1B branches saved for a 256³ volume.
-/// - The inner 4×4×4 tensor-product loop is structured for auto-vectorization
+///   bounds checks â€” ~1B branches saved for a 256Â³ volume.
+/// - The inner 4Ã—4Ã—4 tensor-product loop is structured for auto-vectorization
 ///   (consecutive memory accesses, loop-invariant weights).
 ///
 /// Allocates three `Vec<f32>` output buffers. Use
@@ -66,7 +66,7 @@ pub fn evaluate_bspline_displacement(
 /// buffers without allocation.
 ///
 /// # Returns
-/// `VelocityField` — displacement components in voxel units, each of length
+/// `VelocityField` â€” displacement components in voxel units, each of length
 /// `dims[0] * dims[1] * dims[2]`.
 pub fn evaluate_bspline_displacement_fast(
     cp_z: &[f32],
@@ -94,8 +94,7 @@ pub fn evaluate_bspline_displacement_fast(
     VelocityField {
         z: dz,
         y: dy,
-        x: dx,
-    }
+        x: dx }
 }
 
 /// Zero-allocation variant of [`evaluate_bspline_displacement_fast`].
@@ -128,14 +127,14 @@ pub fn evaluate_bspline_displacement_fast_into(
     dy[..n].fill(0.0);
     dx[..n].fill(0.0);
 
-    // Determine interior ranges — voxels where ALL 64 control points are
+    // Determine interior ranges â€” voxels where ALL 64 control points are
     // in-bounds. For voxels outside these ranges, the per-voxel bounds-check
     // path is still used.
     let (iz_lo, iz_hi) = cache.interior_z_range(cnz);
     let (iy_lo, iy_hi) = cache.interior_y_range(cny);
     let (ix_lo, ix_hi) = cache.interior_x_range(cnx);
 
-    // ── Bounds-check path (boundary voxels) ──────────────────────────
+    // â”€â”€ Bounds-check path (boundary voxels) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     #[inline]
     fn eval_bounds(
         dz: &mut [f32],
@@ -193,7 +192,7 @@ pub fn evaluate_bspline_displacement_fast_into(
         dx[fi] = sum_x as f32;
     }
 
-    // ── Interior fast path (no bounds checks) ────────────────────────
+    // â”€â”€ Interior fast path (no bounds checks) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     #[inline]
     fn eval_interior(
         dz: &mut [f32],
@@ -221,7 +220,7 @@ pub fn evaluate_bspline_displacement_fast_into(
         let mut sum_y = 0.0_f64;
         let mut sum_x = 0.0_f64;
 
-        // Unrolled 4×4×4 tensor product — all control points guaranteed
+        // Unrolled 4Ã—4Ã—4 tensor product â€” all control points guaranteed
         // in-bounds. Structured so the compiler can auto-vectorize the
         // 4-wide x-axis accumulation.
         #[allow(clippy::needless_range_loop)]
@@ -264,7 +263,7 @@ pub fn evaluate_bspline_displacement_fast_into(
         dx[fi] = sum_x as f32;
     }
 
-    // ── Main evaluation loop ──────────────────────────────────────────
+    // â”€â”€ Main evaluation loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     for iz in 0..nz {
         let kz = cache.z.k[iz];
         let bz = &cache.z.b[iz];
@@ -273,7 +272,7 @@ pub fn evaluate_bspline_displacement_fast_into(
             let ky = cache.y.k[iy];
             let by = &cache.y.b[iy];
 
-            // Interior x-range: all 64 control points in-bounds → fast path.
+            // Interior x-range: all 64 control points in-bounds â†’ fast path.
             if iz >= iz_lo && iz < iz_hi && iy >= iy_lo && iy < iy_hi {
                 for ix in ix_lo..ix_hi {
                     let kx = cache.x.k[ix];

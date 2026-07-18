@@ -1,4 +1,4 @@
-//! Curvature regularization for displacement fields.
+﻿//! Curvature regularization for displacement fields.
 //!
 //! Curvature regularization is a higher-order regularization that penalizes
 //! the rate of change of the field's curvature, encouraging even smoother
@@ -7,9 +7,9 @@
 //! The curvature regularization term is based on the Laplacian of the
 //! displacement field:
 //!
-//! R(u) = ∫_Ω |∇²u|² dx
+//! R(u) = âˆ«_Î© |âˆ‡Â²u|Â² dx
 //!
-//! where ∇²u is the Laplacian (sum of second derivatives).
+//! where âˆ‡Â²u is the Laplacian (sum of second derivatives).
 //!
 //! Differences from bending energy:
 //! - Bending energy: Second-order (penalizes curvature directly)
@@ -46,8 +46,7 @@ use coeus_tensor::Tensor;
 /// ```
 #[derive(Clone, Debug)]
 pub struct CurvatureRegularizer {
-    weight: f64,
-}
+    weight: f64 }
 
 impl CurvatureRegularizer {
     /// Create a new curvature regularizer.

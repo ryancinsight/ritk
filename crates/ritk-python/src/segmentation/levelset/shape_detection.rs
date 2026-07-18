@@ -1,4 +1,4 @@
-//! Shape Detection level set segmentation.
+﻿//! Shape Detection level set segmentation.
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
@@ -33,8 +33,7 @@ pub struct PyShapeDetectionOptions {
     pub max_iterations: usize,
     /// Convergence tolerance.
     #[pyo3(get, set)]
-    pub tolerance: f64,
-}
+    pub tolerance: f64 }
 
 impl Default for PyShapeDetectionOptions {
     fn default() -> Self {
@@ -46,8 +45,7 @@ impl Default for PyShapeDetectionOptions {
             sigma: 1.0,
             dt: 0.05,
             max_iterations: 200,
-            tolerance: 1e-3,
-        }
+            tolerance: 1e-3 }
     }
 }
 
@@ -83,8 +81,7 @@ impl PyShapeDetectionOptions {
             sigma,
             dt,
             max_iterations,
-            tolerance,
-        }
+            tolerance }
     }
 }
 

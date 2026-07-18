@@ -123,7 +123,7 @@ fn parse_ds_backslash<const N: usize>(s: &str) -> Option<[f64; N]> {
     }
 }
 
-/// Navigate `item → seq_tag → items[0] → inner_tag` and parse as DS array.
+/// Navigate `item â†’ seq_tag â†’ items[0] â†’ inner_tag` and parse as DS array.
 fn read_nested_ds<const N: usize>(
     item: &InMemDicomObject,
     seq_tag: Tag,
@@ -281,7 +281,7 @@ fn parse_shared_functional_groups(
 ///
 /// # BINARY unpacking (BitsAllocated == 1)
 ///
-/// frame_bytes = ⌈rows × cols / 8⌉
+/// frame_bytes = âŒˆrows Ã— cols / 8âŒ‰
 /// Pixel i of frame f:
 ///   raw_byte = px_bytes[f * frame_bytes + i / 8]
 ///   bit      = 7 - (i % 8)
@@ -306,7 +306,7 @@ fn unpack_pixel_data(
             let expected = n_frames * frame_bytes;
             if px_bytes.len() < expected {
                 bail!(
-                    "PixelData too short for BINARY: got {} bytes, need {} ({}×{}px/8 per frame × {} frames)",
+                    "PixelData too short for BINARY: got {} bytes, need {} ({}Ã—{}px/8 per frame Ã— {} frames)",
                     px_bytes.len(), expected, rows, cols, n_frames
                 );
             }

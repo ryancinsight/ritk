@@ -1,8 +1,8 @@
-use super::{CtxState, QE_TABLE};
+﻿use super::{CtxState, QE_TABLE};
 
-/// MQ arithmetic decoder (ISO 15444-1 §C.3).
+/// MQ arithmetic decoder (ISO 15444-1 Â§C.3).
 ///
-/// The `c` register stores the residual code fraction in bits 16–31 (Chigh),
+/// The `c` register stores the residual code fraction in bits 16â€“31 (Chigh),
 /// matching the representation used by OpenJPEG.
 pub struct MqDecoder<'a> {
     src: &'a [u8],
@@ -12,16 +12,15 @@ pub struct MqDecoder<'a> {
     prev: u8,
     /// Interval register (lower 16 bits significant).
     a: u32,
-    /// Code register (bits 16–31 = Chigh).
+    /// Code register (bits 16â€“31 = Chigh).
     c: u32,
     /// Remaining bit-shifts available before the next `bytein`.
-    ct: u32,
-}
+    ct: u32 }
 
 impl<'a> MqDecoder<'a> {
-    /// Initialise the MQ decoder over `src` (ISO 15444-1 §C.3.2 INITDEC).
+    /// Initialise the MQ decoder over `src` (ISO 15444-1 Â§C.3.2 INITDEC).
     ///
-    /// `C = B0 << 16; BYTEIN; C <<= 7; CT -= 7; A = 0x8000` — matching
+    /// `C = B0 << 16; BYTEIN; C <<= 7; CT -= 7; A = 0x8000` â€” matching
     /// OpenJPEG `opj_mqc_init_dec`.
     pub fn new(src: &'a [u8]) -> Self {
         let b0 = src.first().copied().unwrap_or(0xFF);
@@ -31,8 +30,7 @@ impl<'a> MqDecoder<'a> {
             prev: b0,
             a: 0,
             c: u32::from(b0) << 16,
-            ct: 0,
-        };
+            ct: 0 };
         d.bytein();
         d.c <<= 7;
         d.ct -= 7;
@@ -40,7 +38,7 @@ impl<'a> MqDecoder<'a> {
         d
     }
 
-    /// Decode one binary symbol using the given context (ISO 15444-1 §C.3.3 DECODE).
+    /// Decode one binary symbol using the given context (ISO 15444-1 Â§C.3.3 DECODE).
     ///
     /// Returns 0 or 1.
     #[inline]
@@ -56,7 +54,7 @@ impl<'a> MqDecoder<'a> {
             self.c -= qe << 16;
             if self.a & 0x8000 != 0 {
                 // Already normalised; MPS decoded without renorm. No state
-                // transition — ISO 15444-1 Figure C.15 advances I(CX) only on
+                // transition â€” ISO 15444-1 Figure C.15 advances I(CX) only on
                 // the renormalisation path (mirrors the encoder's CODEMPS).
                 u32::from(ctx.mps)
             } else {
@@ -74,14 +72,14 @@ impl<'a> MqDecoder<'a> {
         (self.a, self.c, self.ct)
     }
 
-    // ── private helpers ──────────────────────────────────────────────────────
+    // â”€â”€ private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[inline]
     fn lps_exchange(&mut self, ctx: &mut CtxState, qe: u32) -> u32 {
         let entry = QE_TABLE[ctx.state as usize];
         let d;
         if self.a < qe {
-            // Exchange: MPS interval < Qe → MPS takes the smaller interval.
+            // Exchange: MPS interval < Qe â†’ MPS takes the smaller interval.
             // The decoded symbol is returned as MPS (exchange condition).
             d = u32::from(ctx.mps);
             ctx.state = entry.nmps;
@@ -93,8 +91,8 @@ impl<'a> MqDecoder<'a> {
             }
             ctx.state = entry.nlps;
         }
-        // ISO 15444-1 §C.3.3: A = Qe[I] where I is the ORIGINAL context index
-        // (before state transition) — matching OpenJPEG's `mqc->a = st->qeval`.
+        // ISO 15444-1 Â§C.3.3: A = Qe[I] where I is the ORIGINAL context index
+        // (before state transition) â€” matching OpenJPEG's `mqc->a = st->qeval`.
         self.a = qe;
         d
     }
@@ -133,10 +131,10 @@ impl<'a> MqDecoder<'a> {
         }
     }
 
-    /// Read the next byte from `src` into the code register (ISO 15444-1 §C.3.4 BYTEIN).
+    /// Read the next byte from `src` into the code register (ISO 15444-1 Â§C.3.4 BYTEIN).
     ///
-    /// Byte stuffing: 0xFF followed by a byte T ≤ 0x8F → T is stuffed (7 bits effective).
-    /// Marker escape: 0xFF followed by T > 0x8F → treat the byte as a fill value of 0xFF.
+    /// Byte stuffing: 0xFF followed by a byte T â‰¤ 0x8F â†’ T is stuffed (7 bits effective).
+    /// Marker escape: 0xFF followed by T > 0x8F â†’ treat the byte as a fill value of 0xFF.
     #[inline]
     fn bytein(&mut self) {
         if self.prev == 0xFF {

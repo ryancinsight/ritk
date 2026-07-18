@@ -1,4 +1,4 @@
-//! Cache integration tests for Parzen joint histogram cache dispatch.
+﻿//! Cache integration tests for Parzen joint histogram cache dispatch.
 
 #![allow(clippy::needless_range_loop)]
 
@@ -9,8 +9,8 @@ use super::super::*;
 fn sparse_cache_dispatch_matches_direct() {
     let dev = device();
     let hist = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &dev);
-    let fixed = Tensor::<B, 1>::from_floats([50.0, 128.0, 200.0, 30.0, 175.0], &dev);
-    let moving = Tensor::<B, 1>::from_floats([60.0, 130.0, 195.0, 25.0, 180.0], &dev);
+    let fixed = Tensor::<f32, B>::from_floats([50.0, 128.0, 200.0, 30.0, 175.0], &dev);
+    let moving = Tensor::<f32, B>::from_floats([60.0, 130.0, 195.0, 25.0, 180.0], &dev);
 
     let direct_hist = hist.compute_joint_histogram_dispatch(&fixed, &moving, None);
 
@@ -64,7 +64,7 @@ fn sparse_cache_dispatch_matches_direct() {
     let ds_ratio = sparse_total / direct_total;
     assert!(
         (ds_ratio - 1.0).abs() < 0.05,
-        "sparse/direct ratio {ds_ratio} should be ≈ 1.0 (SPARSE-329-01)"
+        "sparse/direct ratio {ds_ratio} should be â‰ˆ 1.0 (SPARSE-329-01)"
     );
 }
 
@@ -73,7 +73,7 @@ fn sparse_cache_dispatch_matches_direct() {
 fn chunked_sparse_path_matches_nonchunked() {
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_image::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape };
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
@@ -91,9 +91,9 @@ fn chunked_sparse_path_matches_nonchunked() {
     }
 
     let fixed_t =
-        Tensor::<B, 3>::from_data(TensorData::new(fixed_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &fixed_data, &device);
     let moving_t =
-        Tensor::<B, 3>::from_data(TensorData::new(moving_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &moving_data, &device);
     let origin = Point::new([0.0, 0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let direction = Direction::identity();
@@ -101,7 +101,7 @@ fn chunked_sparse_path_matches_nonchunked() {
     let moving_img = Image::new(moving_t, origin, spacing, direction);
 
     let interp = LinearInterpolator::new_zero_pad();
-    let zero_translation = Tensor::<B, 1>::zeros([3], &device);
+    let zero_translation = Tensor::<f32, B>::zeros([3], &device);
     let translation = TranslationTransform::<B, 3>::new(zero_translation);
 
     let hist = ParzenJointHistogram::<B>::new(32, 0.0, 255.0, 255.0 / 32.0, &device);

@@ -1,13 +1,13 @@
-//! Exact inverse of a stationary velocity field via negation.
+﻿//! Exact inverse of a stationary velocity field via negation.
 //!
 //! # Mathematical Basis
 //!
-//! For a stationary velocity field `v` the exponential map gives `φ = exp(v)`.
-//! The exact inverse is `φ^{-1} = exp(−v)`, obtained by negating every
+//! For a stationary velocity field `v` the exponential map gives `Ï† = exp(v)`.
+//! The exact inverse is `Ï†^{-1} = exp(âˆ’v)`, obtained by negating every
 //! component.  This follows directly from the Baker-Campbell-Hausdorff identity:
-//! `exp(v) ∘ exp(−v) = exp(v − v) = exp(0) = id`.
+//! `exp(v) âˆ˜ exp(âˆ’v) = exp(v âˆ’ v) = exp(0) = id`.
 //!
-//! This is a zero-cost O(n) operation — no integration, no iteration.
+//! This is a zero-cost O(n) operation â€” no integration, no iteration.
 
 use crate::deformable_field_ops::VelocityField;
 
@@ -31,7 +31,7 @@ pub fn invert_velocity_field_into(
 
 /// Compute the exact inverse of a stationary velocity field.
 ///
-/// Returns `VelocityField { z, y, x }` — negated velocity components as new `Vec<f32>`.
+/// Returns `VelocityField { z, y, x }` â€” negated velocity components as new `Vec<f32>`.
 pub fn invert_velocity_field(vel_z: &[f32], vel_y: &[f32], vel_x: &[f32]) -> VelocityField {
     let n = vel_z.len();
     let mut inv_z = vec![0.0_f32; n];
@@ -41,6 +41,5 @@ pub fn invert_velocity_field(vel_z: &[f32], vel_y: &[f32], vel_x: &[f32]) -> Vel
     VelocityField {
         z: inv_z,
         y: inv_y,
-        x: inv_x,
-    }
+        x: inv_x }
 }

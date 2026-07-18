@@ -1,4 +1,4 @@
-//! MetaImage (MHA/MHD) I/O for RITK.
+﻿//! MetaImage (MHA/MHD) I/O for RITK.
 //!
 //! This crate provides canonical single-source-of-truth implementations for reading and writing
 //! MetaImage files (.mha / .mhd format). It separates MetaImage logic from the polymorphic I/O
@@ -17,12 +17,12 @@
 //!
 //! # File Formats
 //!
-//! - `.mha` — single file with header and inline binary data (`ElementDataFile = LOCAL`)
-//! - `.mhd` / `.raw` — ASCII header referencing a separate binary raw file
+//! - `.mha` â€” single file with header and inline binary data (`ElementDataFile = LOCAL`)
+//! - `.mhd` / `.raw` â€” ASCII header referencing a separate binary raw file
 //!
 //! # Spatial Metadata
 //!
-//! TransformMatrix encodes the 3×3 direction matrix (row-major) in MetaImage
+//! TransformMatrix encodes the 3Ã—3 direction matrix (row-major) in MetaImage
 //! `[X,Y,Z]` file-axis order. The reader/writer convert spacing and direction
 //! columns to and from RITK internal `[Z,Y,X]` image-axis order.
 
@@ -39,8 +39,7 @@ use std::path::Path;
 
 /// DIP boundary executing strict spatial metadata preservation over standard MetaImage datasets.
 pub struct MetaImageDipReader<B: ComputeBackend> {
-    backend: B,
-}
+    backend: B }
 
 impl<B: ComputeBackend> MetaImageDipReader<B> {
     pub fn new(backend: B) -> Self {
@@ -54,8 +53,7 @@ impl<B: ComputeBackend> MetaImageDipReader<B> {
 
 /// DIP boundary executing strict spatial metadata preservation over standard MetaImage datasets.
 pub struct MetaImageDipWriter<B: ComputeBackend> {
-    backend: B,
-}
+    backend: B }
 
 impl<B: ComputeBackend> MetaImageDipWriter<B> {
     pub fn new(backend: B) -> Self {

@@ -1,4 +1,4 @@
-use crate::FilterKind;
+﻿use crate::FilterKind;
 use ritk_filter::ForegroundValue;
 
 /// Third portion of the ComboBox selectable_value entries (MirrorPad
@@ -13,8 +13,7 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
                 pad_lower_x: 1,
                 pad_upper_z: 1,
                 pad_upper_y: 1,
-                pad_upper_x: 1,
-            },
+                pad_upper_x: 1 },
             "Mirror Pad",
         )
         .clicked()
@@ -25,8 +24,7 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             pad_lower_x: 1,
             pad_upper_z: 1,
             pad_upper_y: 1,
-            pad_upper_x: 1,
-        };
+            pad_upper_x: 1 };
     }
     if ui
         .selectable_value(
@@ -37,8 +35,7 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
                 pad_lower_x: 1,
                 pad_upper_z: 1,
                 pad_upper_y: 1,
-                pad_upper_x: 1,
-            },
+                pad_upper_x: 1 },
             "Wrap Pad",
         )
         .clicked()
@@ -49,8 +46,7 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             pad_lower_x: 1,
             pad_upper_z: 1,
             pad_upper_y: 1,
-            pad_upper_x: 1,
-        };
+            pad_upper_x: 1 };
     }
     if ui
         .selectable_value(
@@ -79,8 +75,7 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
                 lower: 100.0,
                 upper: 500.0,
                 foreground: ForegroundValue::ONE,
-                background: 0.0,
-            },
+                background: 0.0 },
             "Binary Threshold",
         )
         .clicked()
@@ -89,40 +84,35 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             lower: 100.0,
             upper: 500.0,
             foreground: ForegroundValue::ONE,
-            background: 0.0,
-        };
+            background: 0.0 };
     }
     if ui
         .selectable_value(
             &mut *active_filter,
             FilterKind::RescaleIntensity {
                 out_min: 0.0,
-                out_max: 1.0,
-            },
+                out_max: 1.0 },
             "Rescale Intensity",
         )
         .clicked()
     {
         *active_filter = FilterKind::RescaleIntensity {
             out_min: 0.0,
-            out_max: 1.0,
-        };
+            out_max: 1.0 };
     }
     if ui
         .selectable_value(
             &mut *active_filter,
             FilterKind::Clamp {
                 lower: 0.0,
-                upper: 255.0,
-            },
+                upper: 255.0 },
             "Clamp",
         )
         .clicked()
     {
         *active_filter = FilterKind::Clamp {
             lower: 0.0,
-            upper: 255.0,
-        };
+            upper: 255.0 };
     }
     if ui
         .selectable_value(
@@ -132,8 +122,7 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
                 seed_y: 0,
                 seed_x: 0,
                 lower: 100.0,
-                upper: 500.0,
-            },
+                upper: 500.0 },
             "Connected Threshold",
         )
         .clicked()
@@ -143,8 +132,7 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             seed_y: 0,
             seed_x: 0,
             lower: 100.0,
-            upper: 500.0,
-        };
+            upper: 500.0 };
     }
     if ui
         .selectable_value(
@@ -156,8 +144,7 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
                 initial_lower: 0.0,
                 initial_upper: 100.0,
                 multiplier: 2.5,
-                max_iterations: 15,
-            },
+                max_iterations: 15 },
             "Confidence Connected",
         )
         .clicked()
@@ -169,8 +156,7 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             initial_lower: 0.0,
             initial_upper: 100.0,
             multiplier: 2.5,
-            max_iterations: 15,
-        };
+            max_iterations: 15 };
     }
     if ui
         .selectable_value(
@@ -183,8 +169,7 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
                 upper: 500.0,
                 radius_z: 1,
                 radius_y: 1,
-                radius_x: 1,
-            },
+                radius_x: 1 },
             "Neighborhood Connected",
         )
         .clicked()
@@ -197,8 +182,7 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             upper: 500.0,
             radius_z: 1,
             radius_y: 1,
-            radius_x: 1,
-        };
+            radius_x: 1 };
     }
     if ui
         .selectable_value(&mut *active_filter, FilterKind::Atan, "Atan")
@@ -251,16 +235,14 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             &mut *active_filter,
             FilterKind::CurvatureFlow {
                 iterations: 5,
-                time_step: 0.0625,
-            },
+                time_step: 0.0625 },
             "Curvature Flow",
         )
         .clicked()
     {
         *active_filter = FilterKind::CurvatureFlow {
             iterations: 5,
-            time_step: 0.0625,
-        };
+            time_step: 0.0625 };
     }
     if ui
         .selectable_value(
@@ -269,8 +251,7 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
                 control_points: vec![[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]],
                 num_path_samples: 256,
                 cross_section_half_width: 10.0,
-                num_cross_samples: 64,
-            },
+                num_cross_samples: 64 },
             "CPR",
         )
         .clicked()
@@ -279,7 +260,6 @@ pub fn show_third_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             control_points: vec![[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]],
             num_path_samples: 256,
             cross_section_half_width: 10.0,
-            num_cross_samples: 64,
-        };
+            num_cross_samples: 64 };
     }
 }

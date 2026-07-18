@@ -1,7 +1,7 @@
-//! Cross-modal rigid registration accuracy via NGF on real RIRE Patient-001.
+﻿//! Cross-modal rigid registration accuracy via NGF on real RIRE Patient-001.
 //!
 //! Validates [`register_rigid_ngf`](ritk_registration::register_rigid_ngf): the
-//! Normalized Gradient Fields metric driven by CMA-ES recovers the CT↔MRI rigid
+//! Normalized Gradient Fields metric driven by CMA-ES recovers the CTâ†”MRI rigid
 //! alignment where intensity MI from identity is unreliable. Measures Target
 //! Registration Error at the published RIRE fiducial corners and asserts a large
 //! improvement over the do-nothing identity baseline.
@@ -18,8 +18,7 @@ use ritk_filter::{BinShrinkImageFilter, BinaryDilateFilter};
 use ritk_io::read_metaimage;
 use ritk_registration::{
     ct_brain_mask, register_rigid_ngf, translation_from_centers_of_mass, CtBrainMaskConfig,
-    NgfRigidConfig,
-};
+    NgfRigidConfig };
 
 #[test]
 #[ignore = "requires test_data/registration/rire; runs CMA-ES NGF (~minutes) on CPU"]
@@ -33,7 +32,7 @@ fn test_ngf_rigid_tre_on_rire_patient001() {
         .expect("load MRI T1");
     println!("CT {:?}  MRI {:?}", ct.shape(), mri.shape());
 
-    // Brain+skull mask: CT brain mask dilated to the inner skull table — the
+    // Brain+skull mask: CT brain mask dilated to the inner skull table â€” the
     // shared rigid structure NGF should align (unmasked NGF locks onto the
     // scalp/scanner-bed/FOV edges and diverges).
     let brain = ct_brain_mask(&ct, &CtBrainMaskConfig::default());
@@ -57,15 +56,14 @@ fn test_ngf_rigid_tre_on_rire_patient001() {
     println!("identity (do-nothing) TRE: {id_tre:.2} mm");
 
     let config = NgfRigidConfig {
-        rotation_range_rad: 0.26, // ±15°
+        rotation_range_rad: 0.26, // Â±15Â°
         translation_range_mm: 60.0,
         center_weight_sigma_frac: None,
         sample_count: None,
         cma: ritk_registration::optimizer::CmaEsConfig {
             max_generations: 150,
             ..NgfRigidConfig::default().cma
-        },
-    };
+        } };
     let t0 = std::time::Instant::now();
     let (_t, res) = register_rigid_ngf(&ct_s, &mri_s, [0.0; 3], com, Some(&mask_s), &config);
     let dt = t0.elapsed();
@@ -80,7 +78,7 @@ fn test_ngf_rigid_tre_on_rire_patient001() {
         res.translation_mm,
     );
     println!("NGF TRE: {ngf_tre:.2} mm (max {ngf_tre_max:.2})");
-    println!("Δ(NGF − identity): {:.2} mm", ngf_tre - id_tre);
+    println!("Î”(NGF âˆ’ identity): {:.2} mm", ngf_tre - id_tre);
 
     assert!(
         res.best_ngf > 0.0,

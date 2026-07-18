@@ -1,12 +1,12 @@
-//! 2-D Zhang-Suen thinning tests.
+﻿//! 2-D Zhang-Suen thinning tests.
 #![allow(clippy::identity_op, clippy::erasing_op)]
 
 use super::*;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 
-// ── D = 2 tests ──────────────────────────────────────────────────────
+// â”€â”€ D = 2 tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_2d_empty_stays_empty() {
@@ -18,7 +18,7 @@ fn test_2d_empty_stays_empty() {
 #[test]
 fn test_2d_single_pixel_preserved() {
     let mut vals = vec![0.0_f32; 9];
-    vals[4] = 1.0; // center of 3×3
+    vals[4] = 1.0; // center of 3Ã—3
     let image = make_mask_2d(vals, [3, 3]);
     let result = Skeletonization::new().apply(&image);
     let v = values_2d(&result);
@@ -28,18 +28,18 @@ fn test_2d_single_pixel_preserved() {
 
 #[test]
 fn test_2d_3x3_square_thins_to_center() {
-    // Filled 3×3 square → Zhang-Suen thins to center pixel (1,1).
+    // Filled 3Ã—3 square â†’ Zhang-Suen thins to center pixel (1,1).
     let image = make_mask_2d(vec![1.0_f32; 9], [3, 3]);
     let result = Skeletonization::new().apply(&image);
     let v = values_2d(&result);
-    assert_eq!(count_fg_2d(&result), 1, "3×3 square thins to 1 pixel");
+    assert_eq!(count_fg_2d(&result), 1, "3Ã—3 square thins to 1 pixel");
     assert_eq!(v[4], 1.0, "remaining pixel is at center (1,1)");
 }
 
 #[test]
 fn test_2d_horizontal_line_preserved() {
     // A 1-pixel-wide horizontal line is already a skeleton.
-    // 3 rows × 7 cols, middle row is foreground.
+    // 3 rows Ã— 7 cols, middle row is foreground.
     let (ny, nx) = (3, 7);
     let mut vals = vec![0.0_f32; ny * nx];
     for ix in 0..nx {
@@ -52,7 +52,7 @@ fn test_2d_horizontal_line_preserved() {
     // Interior pixels: each has exactly 2 neighbors (left and right).
     // Zhang-Suen A = 1 check: for a horizontal line interior pixel:
     // P2=0, P3=0, P4=1, P5=0, P6=0, P7=0, P8=1, P9=0
-    // B=2, A=2 (0→1 at P3→P4 and P7→P8). A≠1 → not deleted. Line preserved.
+    // B=2, A=2 (0â†’1 at P3â†’P4 and P7â†’P8). Aâ‰ 1 â†’ not deleted. Line preserved.
     for ix in 0..nx {
         assert_eq!(
             v[1 * nx + ix],
@@ -64,7 +64,7 @@ fn test_2d_horizontal_line_preserved() {
 
 #[test]
 fn test_2d_skeleton_is_subset() {
-    // 5×5 filled square.
+    // 5Ã—5 filled square.
     let image = make_mask_2d(vec![1.0_f32; 25], [5, 5]);
     let result = Skeletonization::new().apply(&image);
     let orig = [1.0_f32; 25];
@@ -91,7 +91,7 @@ fn test_2d_binary_output() {
 
 #[test]
 fn test_2d_topology_preserved() {
-    // Two separate 3×3 squares in a 3×9 image (with gap between).
+    // Two separate 3Ã—3 squares in a 3Ã—9 image (with gap between).
     // Each should thin independently; component count preserved.
     let (ny, nx) = (3, 9);
     let mut vals = vec![0.0_f32; ny * nx];
@@ -121,22 +121,20 @@ fn test_2d_topology_preserved() {
 
 #[test]
 fn test_2d_no_2x2_block() {
-    // The skeleton of a filled rectangle must be thin (no 2×2 blocks).
+    // The skeleton of a filled rectangle must be thin (no 2Ã—2 blocks).
     let (ny, nx) = (7, 11);
     let image = make_mask_2d(vec![1.0_f32; ny * nx], [ny, nx]);
     let result = Skeletonization::new().apply(&image);
     let skel = values_2d(&result);
     assert!(
         !has_2x2_block(&skel, ny, nx),
-        "skeleton must contain no 2×2 foreground block (thinness)"
+        "skeleton must contain no 2Ã—2 foreground block (thinness)"
     );
 }
 
 #[test]
 fn test_2d_spatial_metadata_preserved() {
-    let device: <TestBackend as ritk_image::tensor::Backend>::Device = Default::default();
-    let td = TensorData::new(vec![1.0_f32; 9], Shape::new([3, 3]));
-    let tensor = Tensor::<TestBackend, 2>::from_data(td, &device);
+    let tensor = Tensor::<f32, TestBackend>::from_slice([3, 3], &[1.0_f32; 9]);
     let origin = Point::new([1.0, 2.0]);
     let spacing = Spacing::new([0.5, 1.5]);
     let direction = Direction::identity();

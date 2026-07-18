@@ -13,7 +13,7 @@ pub(super) fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
 /// Relative deviation threshold above which adjacent-pair spacing is non-uniform (1%).
 pub(super) const NONUNIFORM_SPACING_THRESHOLD: f64 = 0.01;
 
-/// Gap multiple above which an adjacent pair indicates missing slices (1.5×).
+/// Gap multiple above which an adjacent pair indicates missing slices (1.5Ã—).
 pub(super) const MISSING_SLICE_GAP_FACTOR: f64 = 1.5;
 
 /// Normalize a 3-vector; returns `None` when the vector length is < 1e-10.
@@ -36,7 +36,7 @@ pub(in crate::format::dicom) fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
 /// Compute the normalized slice normal from ImageOrientationPatient.
 ///
 /// Given IOP = [rx, ry, rz, cx, cy, cz], the slice normal is:
-///   N̂ = normalize(cross([rx, ry, rz], [cx, cy, cz]))
+///   NÌ‚ = normalize(cross([rx, ry, rz], [cx, cy, cz]))
 ///
 /// Returns `None` for degenerate IOP.
 pub(in crate::format::dicom) fn slice_normal_from_iop(iop: [f64; 6]) -> Option<[f64; 3]> {
@@ -57,19 +57,19 @@ pub(in crate::format::dicom) enum SpacingUniformity {
 /// Slice coverage classification for a DICOM series.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::format::dicom) enum SliceCoverage {
-    /// No gap larger than 1.5 × nominal spacing detected.
+    /// No gap larger than 1.5 Ã— nominal spacing detected.
     Complete,
-    /// One or more gaps larger than 1.5 × nominal spacing detected.
+    /// One or more gaps larger than 1.5 Ã— nominal spacing detected.
     HasMissingSlices,
 }
 
 /// Result of analyzing per-slice spacing uniformity.
 ///
-/// Derived from sorted projected positions `p[0] ≤ p[1] ≤ … ≤ p[N-1]`:
+/// Derived from sorted projected positions `p[0] â‰¤ p[1] â‰¤ â€¦ â‰¤ p[N-1]`:
 /// - `gaps[i] = p[i+1] - p[i]`
 /// - nominal_spacing = median(gaps)
 /// - `max_relative_deviation = max_i |gaps[i] - nominal| / nominal`
-/// - `missing_between`: indices `i` where `gaps[i] > 1.5 × nominal`
+/// - `missing_between`: indices `i` where `gaps[i] > 1.5 Ã— nominal`
 #[derive(Debug, Clone)]
 pub(in crate::format::dicom) struct SliceGeometryReport {
     pub nominal_spacing: f64,
@@ -146,10 +146,10 @@ pub(in crate::format::dicom) fn analyze_slice_spacing(positions: &[f64]) -> Slic
 ///
 /// Given sorted source positions p[0..N] and decoded frames src[0..N]:
 /// - `N_target = round((p[N-1] - p[0]) / target_spacing) + 1`
-/// - `target[k] = p[0] + k × target_spacing`, k ∈ [0, N_target)
+/// - `target[k] = p[0] + k Ã— target_spacing`, k âˆˆ [0, N_target)
 ///
 /// For each target frame k, locate bracketing source pair (lo, hi) and interpolate:
-///   `output[k][j] = (1 - t) × src[lo][j] + t × src[hi][j]`
+///   `output[k][j] = (1 - t) Ã— src[lo][j] + t Ã— src[hi][j]`
 ///
 /// Edge cases: clamp to first/last frame; degenerate gap uses frame lo.
 pub(in crate::format::dicom) fn resample_frames_linear(

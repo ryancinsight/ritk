@@ -1,4 +1,4 @@
-//! Linked MPR cursor state and viewport/voxel coordinate transforms.
+﻿//! Linked MPR cursor state and viewport/voxel coordinate transforms.
 //!
 //! This module is the SSOT for the study-coordinate cursor shared by the axial,
 //! coronal, and sagittal viewports.
@@ -25,15 +25,13 @@
 /// Linked crosshair cursor stored in voxel coordinates `[z, y, x]`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LinkedCursor {
-    voxel: [usize; 3],
-}
+    voxel: [usize; 3] }
 
 impl LinkedCursor {
     /// Create a cursor at the geometric midpoint of `shape`.
     pub fn centered(shape: [usize; 3]) -> Self {
         Self {
-            voxel: [shape[0] / 2, shape[1] / 2, shape[2] / 2],
-        }
+            voxel: [shape[0] / 2, shape[1] / 2, shape[2] / 2] }
     }
 
     /// Create a cursor from the active per-axis slice indices.
@@ -102,8 +100,7 @@ pub fn axis_slice_dimensions(shape: [usize; 3], axis: usize) -> Option<(usize, u
         0 => Some((shape[2], shape[1])),
         1 => Some((shape[2], shape[0])),
         2 => Some((shape[1], shape[0])),
-        _ => None,
-    }
+        _ => None }
 }
 
 /// Map a viewport `(row, col)` back into the study voxel `[z, y, x]`.
@@ -117,8 +114,7 @@ pub fn map_view_row_col_to_voxel(
         0 => [slice_index, row, col],
         1 => [row, slice_index, col],
         2 => [row, col, slice_index],
-        _ => [slice_index, row, col],
-    }
+        _ => [slice_index, row, col] }
 }
 
 /// Map a voxel coordinate `[z,y,x]` to viewport `(row,col)` for `axis`.
@@ -129,8 +125,7 @@ pub fn map_voxel_to_view_row_col(axis: usize, voxel: [usize; 3]) -> Option<(usiz
         0 => (voxel[1], voxel[2]),
         1 => (voxel[0], voxel[2]),
         2 => (voxel[0], voxel[1]),
-        _ => return None,
-    };
+        _ => return None };
     Some((row, col))
 }
 

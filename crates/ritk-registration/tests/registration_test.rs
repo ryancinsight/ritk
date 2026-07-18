@@ -1,8 +1,8 @@
-use ritk_core::image::Image;
+﻿use ritk_core::image::Image;
 use ritk_core::spatial::{Direction2, Point2, Spacing2};
 use ritk_core::transform::Transform;
 use ritk_image::burn::backend::Autodiff;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_registration::metric::MeanSquaredError;
 use ritk_registration::optimizer::GradientDescent;
 use ritk_registration::registration::Registration;
@@ -49,9 +49,9 @@ fn translation_registers_offset_gaussian() {
 
     let shape = [d, d];
     let fixed_tensor =
-        Tensor::<B, 2>::from_data(TensorData::new(fixed_data_vec, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &fixed_data_vec, &device);
     let moving_tensor =
-        Tensor::<B, 2>::from_data(TensorData::new(moving_data_vec, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &moving_data_vec, &device);
 
     let origin = Point2::new([0.0, 0.0]);
     let spacing = Spacing2::new([1.0, 1.0]);
@@ -62,7 +62,7 @@ fn translation_registers_offset_gaussian() {
 
     // Initial Transform: Identity (0, 0)
     let transform =
-        TranslationTransform::<B, 2>::new(Tensor::from_data(TensorData::from([0.0, 0.0]), &device));
+        TranslationTransform::<B, 2>::new(Tensor::from_data(::from([0.0, 0.0]), &device));
 
     // Optimizer
     let optimizer = GradientDescent::new(1.0);
@@ -91,7 +91,7 @@ fn translation_registers_offset_gaussian() {
     // Let's verify if we can get the tensor.
     // Since we can't easily access fields of TranslationTransform if not public,
     // we can test by transforming a point.
-    let p = Tensor::<B, 2>::zeros([1, 2], &device);
+    let p = Tensor::<f32, B>::zeros([1, 2], &device);
     let t_p = result_transform.transform_points(p);
 
     let t_p_data = t_p.into_data();

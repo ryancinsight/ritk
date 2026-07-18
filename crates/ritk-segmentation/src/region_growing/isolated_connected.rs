@@ -162,8 +162,8 @@ impl IsolatedConnectedFilter {
     /// samples, or output reconstruction failure.
     pub fn apply<B: Backend>(
         &self,
-        image: &Image<B, 3>,
-    ) -> anyhow::Result<IsolatedConnectedOutput<Image<B, 3>>> {
+        image: &Image<f32, B, 3>,
+    ) -> anyhow::Result<IsolatedConnectedOutput<Image<f32, B, 3>>> {
         let (values, dimensions) = extract_vec(image)?;
         let output =
             isolated_connected_values(&values, dimensions, self.seed1, self.seed2, self.config)?;

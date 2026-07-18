@@ -1,26 +1,20 @@
 use super::*;
-use burn_ndarray::NdArray;
-use ritk_image::test_support::burn_compat::make_image;
+use coeus_core::SequentialBackend;
+use ritk_image::test_support::make_image;
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
 
-fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
+fn make_image_1d(data: Vec<f32>) -> Image<f32, TestBackend, 1> {
     let n = data.len();
     make_image(data, [n])
 }
 
-fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
+fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, TestBackend, 3> {
     make_image(data, dims)
 }
 
-fn get_slice_1d(image: &Image<TestBackend, 1>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn get_slice_1d(image: &Image<f32, TestBackend, 1>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
 // ── Degenerate / constant image ────────────────────────────────────────────

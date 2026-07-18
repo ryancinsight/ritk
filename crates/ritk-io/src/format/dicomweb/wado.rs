@@ -10,7 +10,7 @@ pub struct WadoClient<'a> {
 /// Constructs a WADO-RS instance retrieval URL.
 ///
 /// Returns `{base}/studies/{study_uid}/series/{series_uid}/instances/{sop_uid}`
-/// per PS 3.18 §10.4.
+/// per PS 3.18 Â§10.4.
 pub fn build_wado_url(base: &str, study_uid: &str, series_uid: &str, sop_uid: &str) -> String {
     format!(
         "{}/studies/{}/series/{}/instances/{}",

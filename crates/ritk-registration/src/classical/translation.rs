@@ -1,4 +1,4 @@
-//! Exhaustive integer-voxel translation registration over borrowed volumes.
+﻿//! Exhaustive integer-voxel translation registration over borrowed volumes.
 
 use eunomia::{FloatElement, RealField};
 use thiserror::Error;
@@ -20,28 +20,24 @@ pub enum TranslationRegistrationError {
         /// Fixed-buffer element count.
         fixed_len: usize,
         /// Moving-buffer element count.
-        moving_len: usize,
-    },
+        moving_len: usize },
     /// A search radius could not be represented as a signed offset.
     #[error("translation search radius {radius} on axis {axis} exceeds isize::MAX")]
     SearchRadiusOverflow {
         /// Axis in `[z, y, x]` order.
         axis: usize,
         /// Rejected radius.
-        radius: usize,
-    },
+        radius: usize },
     /// An input voxel was NaN or infinite.
     #[error("translation {buffer} buffer contains a non-finite value at index {index}")]
     NonFiniteInput {
         /// Buffer containing the invalid value.
         buffer: &'static str,
         /// Flat voxel index.
-        index: usize,
-    },
+        index: usize },
     /// No candidate had a non-empty, numerically defined overlap.
     #[error("translation search found no candidate with a defined metric")]
-    UndefinedMetric,
-}
+    UndefinedMetric }
 
 /// A zero-sized, statically dispatched translation similarity metric.
 pub trait TranslationMetric<T: RealField>: private::Sealed {
@@ -213,8 +209,7 @@ fn validate_inputs<T: FloatElement>(
             dimensions,
             expected,
             fixed_len: fixed.len(),
-            moving_len: moving.len(),
-        });
+            moving_len: moving.len() });
     }
     for (axis, radius) in max_shift.into_iter().enumerate() {
         if isize::try_from(radius).is_err() {

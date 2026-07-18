@@ -1,4 +1,4 @@
-//! Correlation Ratio metric.
+﻿//! Correlation Ratio metric.
 //!
 //! This module provides correlation ratio
 //! based on elastix implementations.
@@ -27,8 +27,7 @@ pub struct CorrelationRatio<B: Backend> {
     /// Sampling configuration
     sampling: SamplingConfig,
     /// Interpolator for resampling
-    interpolator: LinearInterpolator,
-}
+    interpolator: LinearInterpolator }
 
 /// Direction of correlation ratio.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,8 +35,7 @@ pub enum CorrelationDirection {
     /// Correlation of moving image given fixed image
     MovingGivenFixed,
     /// Correlation of fixed image given moving image
-    FixedGivenMoving,
-}
+    FixedGivenMoving }
 
 impl<B: Backend> CorrelationRatio<B> {
     /// Create a new Correlation Ratio metric.
@@ -52,7 +50,7 @@ impl<B: Backend> CorrelationRatio<B> {
         range: IntensityRange<f32>,
         parzen_sigma: f32,
         direction: CorrelationDirection,
-        device: &B::Device,
+        device: &B,
     ) -> Self {
         Self {
             histogram_calculator: ParzenJointHistogram::new(
@@ -64,8 +62,7 @@ impl<B: Backend> CorrelationRatio<B> {
             ),
             direction,
             sampling: SamplingConfig::uniform(1.0),
-            interpolator: LinearInterpolator::new_zero_pad(),
-        }
+            interpolator: LinearInterpolator::new_zero_pad() }
     }
 
     /// Set the sampling percentage for stochastic optimization.
@@ -78,7 +75,7 @@ impl<B: Backend> CorrelationRatio<B> {
     }
 
     /// Create with default parameters.
-    pub fn default_params(device: &B::Device) -> Self {
+    pub fn default_params(device: &B) -> Self {
         Self::new(
             32,
             IntensityRange::new_unchecked(0.0_f32, 255.0_f32),
@@ -94,7 +91,7 @@ impl<B: Backend> CorrelationRatio<B> {
     /// Pre-computing once per marginal and sharing across
     /// `compute_conditional_mean` and `compute_conditional_variance`
     /// eliminates redundant mask recomputation.
-    fn safe_marginal(marginal: &Tensor<B, 1>) -> Tensor<B, 1> {
+    fn safe_marginal(marginal: &Tensor<f32, B>) -> Tensor<f32, B> {
         let mask = marginal.clone().equal_elem(0.0).float();
         marginal.clone() + mask
     }
@@ -107,10 +104,10 @@ impl<B: Backend> CorrelationRatio<B> {
     /// owned tensor.
     fn compute_conditional_mean(
         &self,
-        joint_hist: &Tensor<B, 2>,
+        joint_hist: &Tensor<f32, B>,
         axis: usize,
-        safe_marginal: &Tensor<B, 1>,
-    ) -> Tensor<B, 1> {
+        safe_marginal: &Tensor<f32, B>,
+    ) -> Tensor<f32, B> {
         let device = joint_hist.device();
         let num_bins = self.histogram_calculator.num_bins;
         let indices = Tensor::arange(0..num_bins as i64, &device).float(); // [bins]
@@ -144,10 +141,10 @@ impl<B: Backend> CorrelationRatio<B> {
     /// owned tensor.
     fn compute_conditional_variance(
         &self,
-        joint_hist: &Tensor<B, 2>,
+        joint_hist: &Tensor<f32, B>,
         axis: usize,
-        safe_marginal: &Tensor<B, 1>,
-    ) -> Tensor<B, 1> {
+        safe_marginal: &Tensor<f32, B>,
+    ) -> Tensor<f32, B> {
         let device = joint_hist.device();
         let num_bins = self.histogram_calculator.num_bins;
         let conditional_mean = self.compute_conditional_mean(joint_hist, axis, safe_marginal);
@@ -183,10 +180,10 @@ impl<B: Backend> CorrelationRatio<B> {
 impl<B: Backend, const D: usize> Metric<B, D> for CorrelationRatio<B> {
     fn forward(
         &self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
-    ) -> Tensor<B, 1> {
+    ) -> Tensor<f32, B> {
         // 1. Compute Joint Histogram (using shared logic)
         let joint_hist = self.histogram_calculator.compute_image_joint_histogram(
             fixed,
@@ -213,8 +210,8 @@ impl<B: Backend, const D: usize> Metric<B, D> for CorrelationRatio<B> {
         // each branch only uses one marginal as primary and
         // the other for weighting, so clone twice total
         // (once per marginal) instead of inside each branch.
-        let p_x = p_xy.clone().sum_dim(1).squeeze::<1>(); // rows  → P(X)
-        let p_y = p_xy.clone().sum_dim(0).squeeze::<1>(); // cols  → P(Y)
+        let p_x = p_xy.clone().sum_dim(1).squeeze::<1>(); // rows  â†’ P(X)
+        let p_y = p_xy.clone().sum_dim(0).squeeze::<1>(); // cols  â†’ P(Y)
 
         // Shared index vector for variance computation.
         let num_bins = self.histogram_calculator.num_bins;

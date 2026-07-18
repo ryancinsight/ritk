@@ -2,7 +2,7 @@
 //!
 //! # Algorithm
 //! For each voxel `(iz, iy, ix)`, collect all values in the axis-aligned cube
-//! `[iz ± r, iy ± r, ix ± r]` using replicate (clamp) boundary conditions,
+//! `[iz Â± r, iy Â± r, ix Â± r]` using replicate (clamp) boundary conditions,
 //! sort them, and take the middle element (lower median for even-length
 //! neighbourhoods, consistent with standard medical-imaging toolkits).
 //!
@@ -17,10 +17,10 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Sliding-window median filter for 3-D volumes.
 ///
-/// Replaces each voxel with the median of its `(2r+1)³` axis-aligned
+/// Replaces each voxel with the median of its `(2r+1)Â³` axis-aligned
 /// neighbourhood. Out-of-bounds positions use replicate (clamp) padding.
 pub struct MedianFilter {
-    /// Neighbourhood half-width in voxels (default 1 → 3×3×3 cube).
+    /// Neighbourhood half-width in voxels (default 1 â†’ 3Ã—3Ã—3 cube).
     pub radius: usize,
 }
 
@@ -28,7 +28,7 @@ impl MedianFilter {
     /// Create a new median filter with the given neighbourhood half-width.
     ///
     /// A radius of 0 yields identity (each voxel is its own sole neighbour).
-    /// A radius of 1 produces a 3×3×3 kernel (27 samples per voxel).
+    /// A radius of 1 produces a 3Ã—3Ã—3 kernel (27 samples per voxel).
     pub fn new(radius: usize) -> Self {
         Self { radius }
     }
@@ -40,7 +40,7 @@ impl MedianFilter {
     ///
     /// # Errors
     /// Returns `Err` if the underlying tensor data cannot be extracted as `f32`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, shape) = extract_vec(image)?;
 
         let filtered = median_3d(&vals, shape, self.radius);
@@ -72,12 +72,12 @@ impl MedianFilter {
     }
 }
 
-/// Sliding-window median on a 3-D volume stored in flat Z×Y×X order.
+/// Sliding-window median on a 3-D volume stored in flat ZÃ—YÃ—X order.
 ///
 /// # Arguments
-/// * `data`   — flat voxel values in row-major (Z-major) order.
-/// * `dims`   — `[nz, ny, nx]`.
-/// * `radius` — neighbourhood half-width in voxels.
+/// * `data`   â€” flat voxel values in row-major (Z-major) order.
+/// * `dims`   â€” `[nz, ny, nx]`.
+/// * `radius` â€” neighbourhood half-width in voxels.
 ///
 /// # Boundary handling
 /// Replicate (clamp) padding: out-of-bounds indices are clamped to the
@@ -102,11 +102,11 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
 
             // Pre-clamp the Z-plane once per voxel-row: each `dz` maps to a
             // single `zz` regardless of `iy, ix`. Hoisting removes a
-            // `(2r+1)²`-fold redundant branch per voxel (PERF-377-01 partial).
+            // `(2r+1)Â²`-fold redundant branch per voxel (PERF-377-01 partial).
             const BUF_CAP: usize = 64;
             // The clamp-buffer holds `2 * radius + 1` clamped indices per axis.
-            // Capacity 64 supports radii up to 31 (test-only envelope — production
-            // radii are ≪ 8). A larger radius panics here to keep the hot path
+            // Capacity 64 supports radii up to 31 (test-only envelope â€” production
+            // radii are â‰ª 8). A larger radius panics here to keep the hot path
             // stack-allocated.
             assert!(
                 2 * radius < BUF_CAP,
@@ -120,7 +120,7 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
             }
 
             if radius == 0 {
-                // Single sample per voxel — neighborhood is just the voxel.
+                // Single sample per voxel â€” neighborhood is just the voxel.
                 for (iy, out_row) in out_slice.chunks_exact_mut(nx).enumerate() {
                     for (ix, cell) in out_row.iter_mut().enumerate() {
                         let idx = iz * stride_yx + iy * nx + ix;
@@ -131,7 +131,7 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
             }
 
             for (iy, out_row) in out_slice.chunks_exact_mut(nx).enumerate() {
-                // Pre-clamp the Y-row once per iy: `(2r+1)²`-fold redundant
+                // Pre-clamp the Y-row once per iy: `(2r+1)Â²`-fold redundant
                 // branch elimination when paired with the dz-hoist above.
                 let mut yy_buf: [usize; BUF_CAP] = [0; BUF_CAP];
                 #[allow(clippy::needless_range_loop)]
@@ -186,7 +186,7 @@ fn median_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     output
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_median_native.rs"]
@@ -195,14 +195,14 @@ mod tests_native;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
+
     use coeus_core::SequentialBackend;
     use ritk_core::image::Image;
     use ritk_image::native::Image as NativeImage;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::Tensor;
     use ritk_spatial::{Direction, Point, Spacing};
 
-    type B = NdArray<f32>;
+    type B = coeus_core::SequentialBackend;
 
     /// Construct a test image from flat values, shape, and optional metadata.
     fn make_image(
@@ -210,10 +210,8 @@ mod tests {
         dims: [usize; 3],
         origin: [f64; 3],
         spacing: [f64; 3],
-    ) -> Image<B, 3> {
-        let device = Default::default();
-        let td = TensorData::new(vals, Shape::new(dims));
-        let tensor = Tensor::<B, 3>::from_data(td, &device);
+    ) -> Image<f32, B, 3> {
+        let tensor = Tensor::<f32, B>::from_slice(dims, &vals);
         Image::new(
             tensor,
             Point::new(origin),
@@ -223,17 +221,17 @@ mod tests {
     }
 
     /// Extract voxel data as `Vec<f32>` from an image.
-    fn extract_vals(img: &Image<B, 3>) -> Vec<f32> {
+    fn extract_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
         img.data_slice().into_owned()
     }
 
-    // ── Test 1: Uniform image is unchanged ────────────────────────────────
+    // â”€â”€ Test 1: Uniform image is unchanged â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// A constant image must be invariant under median filtering for any
     /// radius, because the median of identical values equals that value.
     ///
     /// **Proof sketch**: Let I(p) = c for all p. For any neighbourhood N(p),
-    /// every element of the sorted list is c, so median = c. ∎
+    /// every element of the sorted list is c, so median = c. âˆŽ
     #[test]
     fn test_uniform_image_unchanged() {
         let dims = [8, 8, 8];
@@ -272,16 +270,16 @@ mod tests {
         assert_eq!(output.direction(), source.direction());
     }
 
-    // ── Test 2: Impulse noise removed ─────────────────────────────────────
+    // â”€â”€ Test 2: Impulse noise removed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// A single spike voxel (salt-noise) embedded in a constant field must be
-    /// eliminated by median filtering with radius ≥ 1, because the spike
-    /// constitutes at most 1 out of (2r+1)³ ≥ 27 samples and therefore
+    /// eliminated by median filtering with radius â‰¥ 1, because the spike
+    /// constitutes at most 1 out of (2r+1)Â³ â‰¥ 27 samples and therefore
     /// cannot be the median of the sorted neighbourhood.
     ///
-    /// **Proof**: In a 3×3×3 neighbourhood around the spike, 26 values equal
+    /// **Proof**: In a 3Ã—3Ã—3 neighbourhood around the spike, 26 values equal
     /// the background `c` and 1 equals `c + spike`. Sorted, the 14th element
-    /// (index 13) is `c`. ∎
+    /// (index 13) is `c`. âˆŽ
     #[test]
     fn test_impulse_noise_removed() {
         let dims = [8, 8, 8];
@@ -327,7 +325,7 @@ mod tests {
         }
     }
 
-    // ── Test 3: Metadata preserved ────────────────────────────────────────
+    // â”€â”€ Test 3: Metadata preserved â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Origin, spacing, and direction of the output image must be identical
     /// to the input. The median filter operates exclusively on voxel
@@ -368,7 +366,7 @@ mod tests {
             );
         }
 
-        // Direction (identity → identity).
+        // Direction (identity â†’ identity).
         let out_dir = out.direction();
         let in_dir = img.direction();
         for i in 0..3 {
@@ -386,7 +384,7 @@ mod tests {
     /// With radius = 0 the neighbourhood is a single voxel, so the output
     /// must be bit-identical to the input.
     ///
-    /// **Proof**: |N(p)| = 1³ = 1, so median of {I(p)} = I(p). ∎
+    /// **Proof**: |N(p)| = 1Â³ = 1, so median of {I(p)} = I(p). âˆŽ
     #[test]
     fn test_identity_for_radius_zero() {
         let dims = [6, 6, 6];
@@ -412,10 +410,10 @@ mod tests {
 
     /// `median_3d` must produce the lower median over the multiset
     /// `{data[clamp(iz + dz), clamp(iy + dy), clamp(ix + dx)] : dz,
-    /// dy, dx ∈ [-r, r]}` for every voxel. The brute-force reference below
+    /// dy, dx âˆˆ [-r, r]}` for every voxel. The brute-force reference below
     /// gathers the full multiset via clamp arithmetic and applies the
     /// same `select_nth_unstable_by(mid)` call; agreement is therefore
-    /// bit-equal — `assert_eq!` is the correct (not merely bounded)
+    /// bit-equal â€” `assert_eq!` is the correct (not merely bounded)
     /// oracle. The clamp arithmetic matches the production code: same
     /// `.clamp(0, n - 1)` idiom means identical multisets.
     ///
@@ -456,7 +454,7 @@ mod tests {
 
     #[test]
     fn test_median_3d_matches_brute_force_reference_r1() {
-        // 12×12×12 = 1728 voxels; small but non-trivial boundary handling
+        // 12Ã—12Ã—12 = 1728 voxels; small but non-trivial boundary handling
         // (r=1 windows always touch the clamp boundary on a 12-D axis).
         let dims = [12, 12, 12];
         let n: usize = dims.iter().product();

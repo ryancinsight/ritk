@@ -1,4 +1,4 @@
-//! Dropped-input routing policy for viewer ingestion.
+﻿//! Dropped-input routing policy for viewer ingestion.
 //!
 //! This module is the SSOT for deciding how a batch of dropped files should be
 //! handled by the app shell.
@@ -17,15 +17,12 @@ pub enum DroppedInputAction {
     /// Load a pathless dropped medical payload from in-memory bytes.
     LoadVolumeBytes {
         name: String,
-        bytes: std::sync::Arc<[u8]>,
-    },
+        bytes: std::sync::Arc<[u8]> },
     /// Load a pathless dropped DICOM byte batch as one assembled series.
     LoadDicomSeriesBytes {
-        files: Vec<(String, std::sync::Arc<[u8]>)>,
-    },
+        files: Vec<(String, std::sync::Arc<[u8]>)> },
     /// Show deterministic user guidance in the status line.
-    Message(String),
-}
+    Message(String) }
 
 /// Decide one deterministic action for a dropped-file batch.
 ///
@@ -91,8 +88,7 @@ pub fn decide_dropped_input_action(files: &[egui::DroppedFile]) -> DroppedInputA
 
     if !dicom_bytes_batch.is_empty() {
         return DroppedInputAction::LoadDicomSeriesBytes {
-            files: dicom_bytes_batch,
-        };
+            files: dicom_bytes_batch };
     }
 
     if let Some((name, bytes)) = first_supported_volume_bytes {

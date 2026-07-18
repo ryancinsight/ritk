@@ -98,7 +98,7 @@ impl VectorConfidenceConnectedFilter {
     /// Returns an error for absent channels, mismatched channel geometry,
     /// invalid image storage or non-finite samples. Seeds outside the image are
     /// ignored, matching ITK's contract.
-    pub fn apply<B: Backend>(&self, channels: &[&Image<B, 3>]) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, channels: &[&Image<f32, B, 3>]) -> Result<Image<f32, B, 3>> {
         let Some(first) = channels.first().copied() else {
             bail!("vector confidence requires at least one channel");
         };

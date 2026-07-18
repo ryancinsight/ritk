@@ -5,21 +5,21 @@
 //! Grayscale morphology extends binary morphology to scalar-valued images by
 //! replacing set union/intersection with max/min over a structuring element B:
 //!
-//! - **Erosion**: `(E_B f)(x) = min_{b ∈ B} f(x + b)`
-//! - **Dilation**: `(D_B f)(x) = max_{b ∈ B} f(x - b)`
+//! - **Erosion**: `(E_B f)(x) = min_{b âˆˆ B} f(x + b)`
+//! - **Dilation**: `(D_B f)(x) = max_{b âˆˆ B} f(x - b)`
 //!
 //! The structuring element used here is a cubic neighbourhood of half-width
-//! `radius`, i.e. B = { b ∈ ℤ³ : |b_i| ≤ r for all i }. Boundary handling
+//! `radius`, i.e. B = { b âˆˆ â„¤Â³ : |b_i| â‰¤ r for all i }. Boundary handling
 //! uses replicate (clamp) padding.
 //!
 //! # Derived Operations
 //!
-//! - **Opening**: `O_B = D_B ∘ E_B` — removes bright features smaller than B.
-//! - **Closing**: `C_B = E_B ∘ D_B` — removes dark features smaller than B.
+//! - **Opening**: `O_B = D_B âˆ˜ E_B` â€” removes bright features smaller than B.
+//! - **Closing**: `C_B = E_B âˆ˜ D_B` â€” removes dark features smaller than B.
 //!
 //! # Complexity
 //!
-//! O(N · (2r+1)³) where N is the total voxel count and r is the radius.
+//! O(N Â· (2r+1)Â³) where N is the total voxel count and r is the radius.
 //!
 //! # References
 //!
@@ -119,8 +119,8 @@ mod tests_native_grayscale;
 /// True if voxel `(iz, iy, ix)` lies on the image border, **ignoring degenerate
 /// (size-1) axes**.
 ///
-/// A naive `iz == 0 || iz == nz-1 || …` test marks *every* voxel of a `z = 1`
-/// (2-D) volume as border, because `iz == 0` is always true — which silently
+/// A naive `iz == 0 || iz == nz-1 || â€¦` test marks *every* voxel of a `z = 1`
+/// (2-D) volume as border, because `iz == 0` is always true â€” which silently
 /// turns border-seeded reconstructions (fill-hole, grind-peak) into the
 /// identity on 2-D images, diverging from ITK/SimpleITK. Excluding size-1 axes
 /// makes the border the frame of the genuinely-present dimensions (the 2-D frame
@@ -133,14 +133,14 @@ pub(crate) fn on_image_border(iz: usize, iy: usize, ix: usize, dims: [usize; 3])
         || (nx > 1 && (ix == 0 || ix == nx - 1))
 }
 
-/// Replicate-pad a flat `Z×Y×X` volume by `r` voxels on every face (edge-clamp).
+/// Replicate-pad a flat `ZÃ—YÃ—X` volume by `r` voxels on every face (edge-clamp).
 ///
 /// ITK's composed grayscale opening/closing pads the input by the SE radius
 /// before the erode/dilate pair and crops afterward (the "safe border"). Without
 /// it, the second operation of the pair reads edge-clamped intermediate values
 /// instead of the true padded ones, so the border band (within `r` of an edge)
 /// diverges from `sitk.GrayscaleMorphological{Opening,Closing}`. Replicating a
-/// degenerate (size-1) axis is harmless — the duplicated planes are identical,
+/// degenerate (size-1) axis is harmless â€” the duplicated planes are identical,
 /// so the min/max over them is unchanged.
 pub(crate) fn pad_replicate_3d(data: &[f32], dims: [usize; 3], r: usize) -> (Vec<f32>, [usize; 3]) {
     if r == 0 {
@@ -164,7 +164,7 @@ pub(crate) fn pad_replicate_3d(data: &[f32], dims: [usize; 3], r: usize) -> (Vec
     (out, pdims)
 }
 
-/// Crop the central `r`-voxel border off a padded `Z×Y×X` volume (inverse of
+/// Crop the central `r`-voxel border off a padded `ZÃ—YÃ—X` volume (inverse of
 /// [`pad_replicate_3d`]).
 pub(crate) fn crop_border_3d(data: &[f32], pdims: [usize; 3], r: usize) -> (Vec<f32>, [usize; 3]) {
     if r == 0 {
@@ -184,7 +184,7 @@ pub(crate) fn crop_border_3d(data: &[f32], pdims: [usize; 3], r: usize) -> (Vec<
     (out, dims)
 }
 
-// ── Shared morphological primitive ───────────────────────────────────────────────────────────
+// â”€â”€ Shared morphological primitive â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Which extremum a flat-box morphological scan computes.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -198,18 +198,18 @@ pub(crate) enum Extremum {
 /// Flat-box grayscale erosion/dilation via **separable 1-D sliding windows**,
 /// parallelised over independent z-slices on all three passes via `moirai`.
 ///
-/// The min/max of a cubic `(2r+1)³` box is separable — `max` over the box equals
-/// `max_z(max_y(max_x))` — so three independent 1-D passes (X, then Y, then Z)
-/// produce a result **bit-identical** to the naive O(N·(2r+1)³) cube scan while
+/// The min/max of a cubic `(2r+1)Â³` box is separable â€” `max` over the box equals
+/// `max_z(max_y(max_x))` â€” so three independent 1-D passes (X, then Y, then Z)
+/// produce a result **bit-identical** to the naive O(NÂ·(2r+1)Â³) cube scan while
 /// running in **O(N)** total, independent of `r`. Each 1-D pass is a monotonic-
 /// deque sliding-window extremum over the clamp-truncated window
-/// `[max(0,i−r), min(n−1,i+r)]`, which equals the edge-clamped box because a
+/// `[max(0,iâˆ’r), min(nâˆ’1,i+r)]`, which equals the edge-clamped box because a
 /// clamped out-of-bounds neighbour only re-reads an in-window edge voxel.
 ///
 /// All three passes are parallelised:
-/// - **X-pass**: `nz` z-slice chunks (each `ny×nx`); per-thread scratch `nx`.
+/// - **X-pass**: `nz` z-slice chunks (each `nyÃ—nx`); per-thread scratch `nx`.
 /// - **Y-pass**: `nz` z-slice chunks; writes to a fresh buffer while reading the
-///   X-processed source immutably (disjoint allocations — borrow-safe).
+///   X-processed source immutably (disjoint allocations â€” borrow-safe).
 /// - **Z-pass**: transposed to `[n_cols, nz]` layout (Z-columns contiguous), then
 ///   `n_cols` independent `nz`-element chunks processed in parallel, then
 ///   transposed back to `[nz, ny, nx]`.
@@ -218,7 +218,7 @@ pub(crate) enum Extremum {
 /// grown-on-demand via `Vec::resize`, eliminating per-z-slice (X/Y passes) and
 /// per-z-column (Z-pass) allocations (P-6).
 ///
-/// Output is **bit-identical** to the serial version — the passes are
+/// Output is **bit-identical** to the serial version â€” the passes are
 /// embarrassingly parallel with no data sharing within a pass.
 pub(crate) fn separable_box_3d(
     data: &[f32],
@@ -243,8 +243,8 @@ pub(crate) fn separable_box_3d(
         )> = const { std::cell::RefCell::new((Vec::new(), Vec::new(), std::collections::VecDeque::new())) };
     }
 
-    // ── Pass 1: X-axis (contiguous nx-element rows) ──────────────────────────────
-    // nz z-slices × ny rows each; chunk = one z-slice (ny*nx elements).
+    // â”€â”€ Pass 1: X-axis (contiguous nx-element rows) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // nz z-slices Ã— ny rows each; chunk = one z-slice (ny*nx elements).
     // Thread-local (wout_t, tmp, deq) reused across all ny rows in the slice.
     let mut buf = data.to_vec();
     moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
@@ -264,11 +264,11 @@ pub(crate) fn separable_box_3d(
         },
     );
 
-    // ── Pass 2: Y-axis (strided ny-element columns within each z-slice) ───────
+    // â”€â”€ Pass 2: Y-axis (strided ny-element columns within each z-slice) â”€â”€â”€â”€â”€â”€â”€
     // nz z-slices; each thread processes nx Y-columns for its slice.
     // buf_x is the X-processed source, captured immutably; writes go to buf_y
     // (a separate allocation). `buf_x: &[f32]` is Sync; `buf_y` is mutably
-    // borrowed by moirai — no aliasing.
+    // borrowed by moirai â€” no aliasing.
     let buf_x = buf;
     let mut buf_y = vec![0.0f32; n_total];
     moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
@@ -292,7 +292,7 @@ pub(crate) fn separable_box_3d(
         },
     );
 
-    // ── Pass 3: Z-axis (strided nz-element columns; transpose for contiguity) ─
+    // â”€â”€ Pass 3: Z-axis (strided nz-element columns; transpose for contiguity) â”€
     // Transpose buf_y from [nz, ny, nx] to [n_cols, nz] layout so Z-columns
     // are contiguous, run parallel window_1d over nz-element chunks, then
     // scatter back to [nz, ny, nx].
@@ -329,7 +329,7 @@ pub(crate) fn separable_box_3d(
 }
 
 /// 1-D sliding-window extremum over the clamp-truncated window
-/// `[max(0,i−r), min(n−1,i+r)]`, computed in O(n) with a monotonic index deque.
+/// `[max(0,iâˆ’r), min(nâˆ’1,i+r)]`, computed in O(n) with a monotonic index deque.
 /// `out[0..n]` receives the result; `deque` is reused scratch (cleared on entry).
 #[inline]
 fn window_1d(

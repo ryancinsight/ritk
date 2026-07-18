@@ -1,4 +1,4 @@
-use super::AttributeArray;
+﻿use super::AttributeArray;
 use std::collections::HashMap;
 
 /// VTK structured grid dataset (DATASET STRUCTURED_GRID).
@@ -10,8 +10,7 @@ pub struct VtkStructuredGrid {
     pub dimensions: [usize; 3],
     pub points: Vec<[f32; 3]>,
     pub point_data: HashMap<String, AttributeArray>,
-    pub cell_data: HashMap<String, AttributeArray>,
-}
+    pub cell_data: HashMap<String, AttributeArray> }
 
 impl VtkStructuredGrid {
     pub fn new(dimensions: [usize; 3]) -> Self {

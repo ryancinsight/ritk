@@ -1,5 +1,22 @@
 # RITK Backlog - Active Planning
 
+- **MIG-660-01 [patch] - Remove stale Burn contract text from native owner
+  crates (BLOCKED; owner=Codex `/root`; scope=`crates/ritk-core/src/
+  {interpolation,transform}/trait_.rs`, `crates/ritk-nifti/src/{writer.rs,
+  tests/mod.rs}`, `xtask/burn_surface.allowlist`, migration audit, PM
+  artifacts).** The current APIs already bind Coeus backend/tensor contracts
+  and the NIfTI codec is native-only, but their Rustdoc and test module docs
+  still describe removed Burn boundaries. Acceptance: the four files contain
+  no Burn-surface audit tokens, owner-crate Rustdoc remains warning-clean where
+  the concurrent MIG-658 source cutover permits compilation, and the migration
+  audit decreases without an allowlist expansion. NIfTI's full package gate is
+  green. The `ritk-core` gate is blocked before compiling the claimed files by
+  the actively changing MIG-658 `ritk-statistics` scope: 38 compile errors
+  currently require native storage bounds or replacement of Burn-shaped tensor
+  operators. Reopen when that owner scope compiles. Publication is also blocked
+  while the peer has staged the broader migration directly on the shared
+  `main` tree.
+
 - **MIG-659-01 [major] - Move native interpolation scalar ownership to Eunomia
   (DONE; owner=Codex `/root` stale-peer takeover;
   scope=`Cargo.toml`, `Cargo.lock`,

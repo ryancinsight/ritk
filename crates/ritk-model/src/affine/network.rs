@@ -1,8 +1,8 @@
-//! Affine registration CNN, Coeus-native.
+﻿//! Affine registration CNN, Coeus-native.
 //!
-//! A five-stage `Conv3d → InstanceNorm3d → ReLU` feature extractor followed by
+//! A five-stage `Conv3d â†’ InstanceNorm3d â†’ ReLU` feature extractor followed by
 //! global average pooling and a linear head predicting the 12 parameters of a
-//! `3×4` affine matrix. The head output is offset by the flattened identity
+//! `3Ã—4` affine matrix. The head output is offset by the flattened identity
 //! transform so an untrained network starts near the identity map (the standard
 //! spatial-transformer initialization).
 //!
@@ -17,7 +17,7 @@ use coeus_nn::{Conv3d, GlobalAvgPool3d, InstanceNorm3d, Linear};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
-/// Number of predicted affine parameters (a flattened `3×4` matrix).
+/// Number of predicted affine parameters (a flattened `3Ã—4` matrix).
 const AFFINE_PARAMS: usize = 12;
 /// Isotropic convolution kernel side length.
 const KERNEL: usize = 3;
@@ -37,7 +37,7 @@ const INIT_SEED: u64 = 0x1234_5678;
 /// Golden-ratio odd increment for per-layer seed advancement.
 const SEED_STEP: u64 = 0x9E37_79B9_7F4A_7C15;
 
-/// Row-major flattened identity of the `3×4` affine matrix `[I₃ | 0]`.
+/// Row-major flattened identity of the `3Ã—4` affine matrix `[Iâ‚ƒ | 0]`.
 ///
 /// Added to the linear-head output so the network initializes at the identity
 /// warp. The concrete values are structural (the affine identity), not a tuned
@@ -52,14 +52,12 @@ fn identity_affine<T: Float>() -> [T; AFFINE_PARAMS] {
 #[derive(Debug, Clone)]
 pub struct AffineNetworkConfig {
     /// Output channels for each of the five convolution stages.
-    pub channels: Vec<usize>,
-}
+    pub channels: Vec<usize> }
 
 impl Default for AffineNetworkConfig {
     fn default() -> Self {
         Self {
-            channels: vec![16, 32, 64, 128, 256],
-        }
+            channels: vec![16, 32, 64, 128, 256] }
     }
 }
 
@@ -113,8 +111,7 @@ impl AffineNetworkConfig {
             bn4: InstanceNorm3d::new(c[3], NORM_EPS),
             conv5,
             bn5: InstanceNorm3d::new(c[4], NORM_EPS),
-            fc,
-        }
+            fc }
     }
 }
 
@@ -134,8 +131,7 @@ pub struct AffineNetwork<T: Float, B: BackendOps<T> + Default = MoiraiBackend> {
     bn4: InstanceNorm3d<T, B>,
     conv5: Conv3d<T, B>,
     bn5: InstanceNorm3d<T, B>,
-    fc: Linear<T, B>,
-}
+    fc: Linear<T, B> }
 
 /// Append `module`'s named parameters under `prefix` to `out`.
 fn extend_named<T, B, M>(out: &mut Vec<Parameter<T, B>>, prefix: &str, module: &M)
@@ -189,7 +185,7 @@ where
         x = relu(&self.bn4.forward(&self.conv4.forward(&x)));
         x = relu(&self.bn5.forward(&self.conv5.forward(&x)));
 
-        // Global average pool [B, C, D, H, W] → [B, C, 1, 1, 1] → [B, C].
+        // Global average pool [B, C, D, H, W] â†’ [B, C, 1, 1, 1] â†’ [B, C].
         let pooled = GlobalAvgPool3d::<T, B>::new().forward(&x);
         let shape = pooled.tensor.shape();
         let (batch, channels) = (shape[0], shape[1]);
@@ -236,7 +232,7 @@ where
     T: Float,
     B: BackendOps<T> + Default,
 {
-    /// The five `conv → norm` stages as trait objects, in forward order.
+    /// The five `conv â†’ norm` stages as trait objects, in forward order.
     fn stages(&self) -> [&dyn Module<T, B>; 10] {
         [
             &self.conv1,
@@ -313,28 +309,27 @@ mod tests {
     ///
     /// Perturbing the input leaf and comparing the central-difference estimate
     /// of `d(sum(output))/d(input)` against the autograd gradient validates the
-    /// full forward+backward chain (conv → norm → relu → pool → linear → add).
+    /// full forward+backward chain (conv â†’ norm â†’ relu â†’ pool â†’ linear â†’ add).
     ///
-    /// The `36³` input keeps every InstanceNorm's spatial extent `> 1` through
-    /// all five stages (`36→18→9→5→3→2`); a smaller volume would collapse a
+    /// The `36Â³` input keeps every InstanceNorm's spatial extent `> 1` through
+    /// all five stages (`36â†’18â†’9â†’5â†’3â†’2`); a smaller volume would collapse a
     /// stage to a single voxel, where zero variance makes the norm output
     /// constant and the gradient vanish (a genuine property of the architecture,
-    /// not a defect — but it would make this check vacuous).
+    /// not a defect â€” but it would make this check vacuous).
     ///
-    /// Tolerance: central differences are `O(h²)`-accurate; with `h = 2⁻⁷` and
-    /// bounded inputs the truncation error is `~10⁻⁴`, and the per-element
-    /// gradients here are `O(1)`. A bound of `2e-2·(1+|g|)` accommodates
+    /// Tolerance: central differences are `O(hÂ²)`-accurate; with `h = 2â»â·` and
+    /// bounded inputs the truncation error is `~10â»â´`, and the per-element
+    /// gradients here are `O(1)`. A bound of `2e-2Â·(1+|g|)` accommodates
     /// truncation plus f32 rounding across the deep chain without masking a real
     /// defect. A non-vacuity guard asserts the probed gradients are not all zero.
     #[test]
     fn finite_difference_gradient_matches_autograd() {
-        // Narrow channels keep the deep 36³ chain tractable in a debug build
-        // while exercising the identical conv → norm → relu → pool → linear →
+        // Narrow channels keep the deep 36Â³ chain tractable in a debug build
+        // while exercising the identical conv â†’ norm â†’ relu â†’ pool â†’ linear â†’
         // add graph the gradient check validates (channel width does not change
         // the differentiated computation).
         let net = AffineNetworkConfig {
-            channels: vec![2, 3, 4, 5, 6],
-        }
+            channels: vec![2, 3, 4, 5, 6] }
         .init::<f32, B>();
         let shape = [1usize, 2, 36, 36, 36];
         let n: usize = shape.iter().product();
@@ -373,12 +368,12 @@ mod tests {
             let tol = 2e-2 * (1.0 + analytic.abs());
             assert!(
                 diff <= tol,
-                "grad mismatch at input[{idx}]: fd={fd}, autograd={analytic}, |Δ|={diff} > {tol}"
+                "grad mismatch at input[{idx}]: fd={fd}, autograd={analytic}, |Î”|={diff} > {tol}"
             );
         }
         assert!(
             max_analytic > 1e-6,
-            "gradient check is vacuous — all probed gradients are ~0 ({max_analytic})"
+            "gradient check is vacuous â€” all probed gradients are ~0 ({max_analytic})"
         );
     }
 }

@@ -1,4 +1,4 @@
-//! Mutual Information metric implementations.
+﻿//! Mutual Information metric implementations.
 //!
 //! Provides a single, mathematically unified implementation for Standard MI,
 //! Mattes MI, and Normalized MI, strictly avoiding redundant density
@@ -7,32 +7,32 @@
 //! # Theorem: Mattes Mutual Information
 //!
 //! **Theorem** (Mattes et al. 2003, *IEEE Trans. Med. Imaging* 22:986):
-//! Given N randomly sampled voxels xᵢ from fixed image A and moving image B∘T:
+//! Given N randomly sampled voxels xáµ¢ from fixed image A and moving image Bâˆ˜T:
 //! ```text
-//! I_Mattes(A, B; T) = Σ_{a,b} p̂(a,b) · log( p̂(a,b) / (p̂_A(a) · p̂_B(b)) )
+//! I_Mattes(A, B; T) = Î£_{a,b} pÌ‚(a,b) Â· log( pÌ‚(a,b) / (pÌ‚_A(a) Â· pÌ‚_B(b)) )
 //! ```
 //! where the joint density is estimated by cubic B-spline Parzen windows:
 //! ```text
-//! p̂(a,b) = (1/N) Σᵢ β³((a − A(xᵢ)) / hₐ) · β³((b − B(T(xᵢ))) / h_b)
+//! pÌ‚(a,b) = (1/N) Î£áµ¢ Î²Â³((a âˆ’ A(xáµ¢)) / hâ‚) Â· Î²Â³((b âˆ’ B(T(xáµ¢))) / h_b)
 //! ```
 //!
 //! # Cubic B-spline Kernel
 //!
 //! ```text
-//! β³(u) = { 2/3 − |u|² + |u|³/2,     |u| < 1
-//!          { (2 − |u|)³ / 6,          1 ≤ |u| < 2
-//!          { 0,                        |u| ≥ 2
+//! Î²Â³(u) = { 2/3 âˆ’ |u|Â² + |u|Â³/2,     |u| < 1
+//!          { (2 âˆ’ |u|)Â³ / 6,          1 â‰¤ |u| < 2
+//!          { 0,                        |u| â‰¥ 2
 //! ```
 //!
-//! Analytic gradient w.r.t. transform parameters θ is computed automatically
+//! Analytic gradient w.r.t. transform parameters Î¸ is computed automatically
 //! via Burn's autodiff backend.
 //!
 //! # References
 //!
 //! - Mattes, D., et al. (2003). PET-CT image registration in the chest using
-//!   free-form deformations. *IEEE Trans. Med. Imaging* 22(1):120–128.
+//!   free-form deformations. *IEEE Trans. Med. Imaging* 22(1):120â€“128.
 //! - Viola, P., & Wells, W. M. (1997). Alignment by maximization of mutual
-//!   information. *Int. J. Comput. Vis.* 24(2):137–154.
+//!   information. *Int. J. Comput. Vis.* 24(2):137â€“154.
 
 use crate::metric::cache_slot::CacheSlot;
 use crate::metric::histogram::cache::WFixedCache;
@@ -63,7 +63,7 @@ pub struct MutualInformation<B: Backend> {
     histogram_calculator: ParzenJointHistogram<B>,
     sampling: SamplingConfig,
     interpolator: LinearInterpolator,
-    fixed_mask_points: Option<Tensor<B, 2>>,
+    fixed_mask_points: Option<Tensor<f32, B>>,
     fixed_mask_cache_key: Option<u64>,
     /// 350-P1-03: per-`MutualInformation` cache for the fixed-image Parzen weight
     /// matrix `W_fixed^T [num_bins, N]`. Reused across iterations of the same
@@ -72,11 +72,10 @@ pub struct MutualInformation<B: Backend> {
     /// On the first iteration of a level, [`Metric::forward`] lazily populates
     /// this via [`ParzenJointHistogram::compute_image_joint_histogram`] +
     /// `extract_w_fixed_t_cache`. Subsequent [`Metric::forward_with_cache`]
-    /// calls hit the cache and skip the O(N × num_bins) Parzen weight
+    /// calls hit the cache and skip the O(N Ã— num_bins) Parzen weight
     /// recomputation. `CacheSlot` performs a shallow `Arc`-clone so all
     /// `MutualInformation` clones share the same slot.
-    cached_w_fixed_t: CacheSlot<WFixedCache<B>>,
-}
+    cached_w_fixed_t: CacheSlot<WFixedCache<B>> }
 
 impl<B: Backend> MutualInformation<B> {
     /// Create a new Mutual Information metric with explicit parameters.
@@ -93,9 +92,9 @@ impl<B: Backend> MutualInformation<B> {
         min_intensity: f32,
         max_intensity: f32,
         parzen_sigma: f32,
-        device: &B::Device,
+        device: &B,
     ) -> Self {
-        assert!(num_bins >= 4, "num_bins must be ≥ 4");
+        assert!(num_bins >= 4, "num_bins must be â‰¥ 4");
         Self {
             variant,
             histogram_calculator: ParzenJointHistogram::new(
@@ -109,8 +108,7 @@ impl<B: Backend> MutualInformation<B> {
             interpolator: LinearInterpolator::new_zero_pad(),
             fixed_mask_points: None,
             fixed_mask_cache_key: None,
-            cached_w_fixed_t: CacheSlot::empty(),
-        }
+            cached_w_fixed_t: CacheSlot::empty() }
     }
 
     /// Create with separate intensity ranges for fixed and moving images (elastix-style).
@@ -128,7 +126,7 @@ impl<B: Backend> MutualInformation<B> {
         fixed_max: f32,
         moving_min: f32,
         moving_max: f32,
-        device: &B::Device,
+        device: &B,
     ) -> Self {
         let mut s = Self::new(
             variant,
@@ -150,7 +148,7 @@ impl<B: Backend> MutualInformation<B> {
         num_bins: usize,
         min_intensity: f32,
         max_intensity: f32,
-        device: &B::Device,
+        device: &B,
     ) -> Self {
         let bin_width = (max_intensity - min_intensity).max(1e-6) / num_bins as f32;
         Self::new(
@@ -164,12 +162,12 @@ impl<B: Backend> MutualInformation<B> {
     }
 
     /// Create with default Mattes parameters (50 bins, [0, 255]).
-    pub fn mattes_default(device: &B::Device) -> Self {
+    pub fn mattes_default(device: &B) -> Self {
         Self::new_mattes(50, 0.0, 255.0, device).with_sampling(0.20)
     }
 
     /// Create with default Standard parameters (32 bins, [0, 255]).
-    pub fn standard_default(device: &B::Device) -> Self {
+    pub fn standard_default(device: &B) -> Self {
         Self::new(
             MutualInformationVariant::Standard,
             32,
@@ -181,7 +179,7 @@ impl<B: Backend> MutualInformation<B> {
     }
 
     /// Create with default Normalized parameters (JointEntropy, 32 bins).
-    pub fn normalized_default(device: &B::Device) -> Self {
+    pub fn normalized_default(device: &B) -> Self {
         Self::new(
             MutualInformationVariant::Normalized(NormalizationMethod::JointEntropy),
             32,
@@ -201,19 +199,19 @@ impl<B: Backend> MutualInformation<B> {
     ///
     /// The points tensor must have shape `[N, D]` and be on the same device as the
     /// images passed to `forward`.  It should be generated from the same pyramid
-    /// level as the images — call `extract_foreground_world_points` in the CMA-ES
+    /// level as the images â€” call `extract_foreground_world_points` in the CMA-ES
     /// registration pipeline to produce these from a downsampled brain mask.
     ///
     /// When `None` (the default), the existing stochastic uniform sampling path is
     /// used (controlled by `with_sampling`).
-    pub fn with_fixed_mask_points(mut self, points: Tensor<B, 2>) -> Self {
+    pub fn with_fixed_mask_points(mut self, points: Tensor<f32, B>) -> Self {
         self.fixed_mask_points = Some(points);
         self.fixed_mask_cache_key =
             Some(NEXT_MASK_CACHE_KEY.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
         self
     }
 
-    /// Set stochastic sampling fraction ∈ (0, 1].
+    /// Set stochastic sampling fraction âˆˆ (0, 1].
     pub fn with_sampling(mut self, percentage: f32) -> Self {
         self.sampling = SamplingConfig::uniform(percentage);
         self
@@ -231,18 +229,18 @@ impl<B: Backend> MutualInformation<B> {
     /// 350-P1-03: factored out of [`Metric::forward`] so the same loss
     /// computation is reused by both `forward` (cache-miss path) and
     /// `forward_with_cache` (cache-hit fast path). The histogram itself
-    /// carries no autodiff state into this method — the autodiff path is
+    /// carries no autodiff state into this method â€” the autodiff path is
     /// already established by either `compute_image_joint_histogram` or
     /// `compute_image_joint_histogram_with_w_fixed` at the call site.
     ///
     /// 350-P1-04 attempt: tried to drop the `.clone()` on `joint_hist` and
-    /// `p_xy` (the audit §2.4 hot-path allocations), but Burn's `Tensor::sum`
+    /// `p_xy` (the audit Â§2.4 hot-path allocations), but Burn's `Tensor::sum`
     /// and `Tensor::sum_dim` consume `self` (move semantics, not `&self`),
     /// so the original `.clone()` calls are required to reuse the tensors
-    /// downstream. The clones stay; the audit §2.4 entry is left as a known
+    /// downstream. The clones stay; the audit Â§2.4 entry is left as a known
     /// minor allocation. P1-04 closed as **N/A** (no code change).
-    fn compute_mi_loss(&self, joint_hist: Tensor<B, 2>) -> Tensor<B, 1> {
-        // Normalize to joint PDF p̂(x,y)
+    fn compute_mi_loss(&self, joint_hist: Tensor<f32, B>) -> Tensor<f32, B> {
+        // Normalize to joint PDF pÌ‚(x,y)
         // The `.clone()` on `joint_hist` is required: Burn's `Tensor::sum`
         // consumes `self`, so we must clone before `.sum()` to keep
         // `joint_hist` usable for the `/` below.
@@ -250,21 +248,21 @@ impl<B: Backend> MutualInformation<B> {
         let eps = 1e-10_f32;
         let p_xy = joint_hist / (sum.unsqueeze_dim(1) + eps);
 
-        // Compute marginals p̂(x), p̂(y) — also requires `.clone()` for the
+        // Compute marginals pÌ‚(x), pÌ‚(y) â€” also requires `.clone()` for the
         // same reason: `Tensor::sum_dim(dim)` consumes `self`, so we clone
         // `p_xy` to extract both marginals from the same joint PDF.
         let p_x = p_xy.clone().sum_dim(1).squeeze::<1>();
         let p_y = p_xy.clone().sum_dim(0).squeeze::<1>();
 
         // Entropy computations
-        // H(X) = -Σ p(x) log p(x)
+        // H(X) = -Î£ p(x) log p(x)
         // Sprint 354 ARCH-354-02: delegate to the shared free function so the
         // entropy formula lives in one place (metric/entropy.rs) instead of
         // being a method on ParzenJointHistogram.
         let h_x = crate::metric::entropy::entropy(p_x);
         let h_y = crate::metric::entropy::entropy(p_y);
 
-        // H(X,Y) = -Σ p(x,y) log p(x,y)
+        // H(X,Y) = -Î£ p(x,y) log p(x,y)
         let log_p_xy = (p_xy.clone() + eps).log();
         let h_xy = p_xy.mul(log_p_xy).sum().neg();
 
@@ -308,10 +306,10 @@ impl<B: Backend> MutualInformation<B> {
 impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
     fn forward(
         &self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
-    ) -> Tensor<B, 1> {
+    ) -> Tensor<f32, B> {
         // 1. Joint Histogram built strictly through shared Parzen infrastructure
         let joint_hist = if let Some(ref pts) = self.fixed_mask_points {
             self.histogram_calculator.compute_masked_joint_histogram(
@@ -336,7 +334,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
 
         // 2. 350-P1-03: Populate the per-instance W_fixed^T cache (one-time per
         //    level) so subsequent `forward_with_cache` calls can skip the
-        //    O(N × num_bins) Parzen weight recomputation.
+        //    O(N Ã— num_bins) Parzen weight recomputation.
         //
         //    Only the non-mask, non-sampling path benefits from W_fixed^T reuse
         //    (the sampling and mask paths use different point sets per call,
@@ -364,20 +362,20 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
     /// 350-P1-03: cache-aware fast path. Consults the per-instance W_fixed^T
     /// cache first; on a (fingerprint, n) hit, uses
     /// `compute_image_joint_histogram_with_w_fixed` to skip the
-    /// O(N × num_bins) Parzen weight recomputation. On miss, falls back to
+    /// O(N Ã— num_bins) Parzen weight recomputation. On miss, falls back to
     /// `forward` (which populates the cache as a side effect for the next call).
     ///
-    /// Only the non-mask, non-sampling path supports cache reuse — for the
+    /// Only the non-mask, non-sampling path supports cache reuse â€” for the
     /// other paths this method is a thin pass-through to `forward`.
     ///
-    /// Expected savings on a 256³ Mattes MI volume: ~3.2 GB / ~400 ms per
-    /// level per `docs/audit_optimization_sprint_350.md` §2.3.
+    /// Expected savings on a 256Â³ Mattes MI volume: ~3.2 GB / ~400 ms per
+    /// level per `docs/audit_optimization_sprint_350.md` Â§2.3.
     fn forward_with_cache(
         &self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
-    ) -> Tensor<B, 1> {
+    ) -> Tensor<f32, B> {
         // Only the non-mask, non-sampling path supports W_fixed^T cache reuse.
         if self.fixed_mask_points.is_some() || self.sampling.is_active() {
             return self.forward(fixed, moving, transform);
@@ -408,7 +406,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
         };
 
         if let Some(w_fixed_t) = cached_w_fixed_t {
-            // Cache hit — use the new fast path: skip the Parzen weight
+            // Cache hit â€” use the new fast path: skip the Parzen weight
             // recomputation, reuse the precomputed W_fixed^T matrix.
             let joint_hist = self
                 .histogram_calculator
@@ -422,7 +420,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
                 );
             self.compute_mi_loss(joint_hist)
         } else {
-            // Cache miss — fall through to forward(), which populates the cache
+            // Cache miss â€” fall through to forward(), which populates the cache
             // as a side effect for the next iteration.
             self.forward(fixed, moving, transform)
         }
@@ -432,8 +430,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for MutualInformation<B> {
         match self.variant {
             MutualInformationVariant::Standard => "Mutual Information",
             MutualInformationVariant::Mattes => "Mattes Mutual Information",
-            MutualInformationVariant::Normalized(_) => "Normalized Mutual Information",
-        }
+            MutualInformationVariant::Normalized(_) => "Normalized Mutual Information" }
     }
 }
 

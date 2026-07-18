@@ -1,4 +1,4 @@
-//! Unit tests for global MI registration: config, intensity, matrix, and convergence.
+﻿//! Unit tests for global MI registration: config, intensity, matrix, and convergence.
 
 mod extended;
 mod integration;
@@ -7,21 +7,20 @@ use super::config::{GlobalMiConfig, GlobalMiTransformType};
 use super::registration::GlobalMiRegistration;
 use super::transforms::{
     compute_image_center, estimate_intensity_range, rigid_matrix_to_homogeneous,
-    translation_matrix_to_homogeneous,
-};
+    translation_matrix_to_homogeneous };
 use crate::optimizer::RegularStepGdConfig;
 use crate::optimizer::{HistoryPolicy, PopulationEval};
 use burn_ndarray::NdArray;
 use ritk_core::image::Image;
 use ritk_filter::GaussianSigma;
 use ritk_image::burn::backend::Autodiff;
-use ritk_image::tensor::{Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Shape, Tensor };
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::{RigidTransform, TranslationTransform};
 
 pub(super) type TestBackend = Autodiff<NdArray<f32>>;
 
-/// Create a 3D Gaussian blob image: I(x,y,z) = 255·exp(−||pos−center||²/(2σ²)).
+/// Create a 3D Gaussian blob image: I(x,y,z) = 255Â·exp(âˆ’||posâˆ’center||Â²/(2ÏƒÂ²)).
 pub(super) fn make_gaussian_blob(
     shape: [usize; 3],
     center: [f32; 3],
@@ -44,7 +43,7 @@ pub(super) fn make_gaussian_blob(
         }
     }
     let tensor =
-        Tensor::<TestBackend, 3>::from_data(TensorData::new(data, Shape::new(shape)), device);
+        Tensor::<f32, TestBackend>::from_slice_on(shape, &data, device);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -53,7 +52,7 @@ pub(super) fn make_gaussian_blob(
     )
 }
 
-/// Create a 3D ellipsoid: I = 255·max(0, 1 − ((x−cx)/a)² − ((y−cy)/b)² − ((z−cz)/c)²).
+/// Create a 3D ellipsoid: I = 255Â·max(0, 1 âˆ’ ((xâˆ’cx)/a)Â² âˆ’ ((yâˆ’cy)/b)Â² âˆ’ ((zâˆ’cz)/c)Â²).
 pub(super) fn make_ellipsoid(
     shape: [usize; 3],
     center: [f32; 3],
@@ -74,7 +73,7 @@ pub(super) fn make_ellipsoid(
         }
     }
     let tensor =
-        Tensor::<TestBackend, 3>::from_data(TensorData::new(data, Shape::new(shape)), device);
+        Tensor::<f32, TestBackend>::from_slice_on(shape, &data, device);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -83,7 +82,7 @@ pub(super) fn make_ellipsoid(
     )
 }
 
-// ── Configuration Tests ───────────────────────────────────────────────────────
+// â”€â”€ Configuration Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn config_default_validates() {
@@ -139,7 +138,7 @@ fn config_rejects_zero_sampling_percentage() {
     assert!(cfg.validate().is_err());
 }
 
-// ── Intensity Range Tests ─────────────────────────────────────────────────────
+// â”€â”€ Intensity Range Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn intensity_range_estimation_gaussian() {
@@ -165,13 +164,13 @@ fn intensity_range_adds_margin() {
     );
 }
 
-// ── Matrix Extraction Tests ───────────────────────────────────────────────────
+// â”€â”€ Matrix Extraction Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn rigid_identity_matrix_is_identity_homogeneous() {
     let device = Default::default();
     let center =
-        Tensor::<TestBackend, 1>::from_data(TensorData::from([16.0f32, 16.0, 16.0]), &device);
+        Tensor::<f32, TestBackend>::from_data(::from([16.0f32, 16.0, 16.0]), &device);
     let transform = RigidTransform::<TestBackend, 3>::identity(Some(center), &device);
     let matrix = rigid_matrix_to_homogeneous(&transform);
     assert!((matrix.0[0] - 1.0).abs() < 1e-3, "R[0,0]={}", matrix.0[0]);
@@ -184,7 +183,7 @@ fn rigid_identity_matrix_is_identity_homogeneous() {
 fn translation_identity_matrix_is_identity_homogeneous() {
     let device = Default::default();
     let transform =
-        TranslationTransform::<TestBackend, 3>::new(Tensor::<TestBackend, 1>::zeros([3], &device));
+        TranslationTransform::<TestBackend, 3>::new(Tensor::<f32, TestBackend>::zeros([3], &device));
     let matrix = translation_matrix_to_homogeneous(&transform);
     let identity: [f64; 16] = [
         1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
@@ -197,7 +196,7 @@ fn translation_identity_matrix_is_identity_homogeneous() {
     }
 }
 
-// ── Center Computation Test ───────────────────────────────────────────────────
+// â”€â”€ Center Computation Test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn image_center_computation_is_correct() {
@@ -209,7 +208,7 @@ fn image_center_computation_is_correct() {
     assert!((center[2] - 16.0).abs() < 0.1, "Center Z={}", center[2]);
 }
 
-// ── CmaMiConfig Preset Tests ─────────────────────────────────────────────────
+// â”€â”€ CmaMiConfig Preset Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn cma_mi_brain_rigid_default_has_expected_fields() {
@@ -270,7 +269,7 @@ fn cma_mi_brain_rigid_default_uses_nmi() {
         "brain_rigid_default should use NMI(AverageEntropy)"
     );
 
-    // No cascade schedule — uses single-level path.
+    // No cascade schedule â€” uses single-level path.
     assert!(
         cfg.pyramid_schedule.is_empty(),
         "brain_rigid_default should not use pyramid_schedule"
@@ -299,7 +298,7 @@ fn cma_mi_multiscale_has_three_levels() {
         "brain_rigid_multiscale must have 3 levels"
     );
 
-    // Levels must go coarse → medium → fine (shrink decreasing).
+    // Levels must go coarse â†’ medium â†’ fine (shrink decreasing).
     let shrinks: Vec<usize> = cfg.pyramid_schedule.iter().map(|l| l.shrink).collect();
     assert!(
         shrinks[0] > shrinks[1] && shrinks[1] > shrinks[2],
@@ -307,11 +306,11 @@ fn cma_mi_multiscale_has_three_levels() {
         shrinks
     );
 
-    // σ₀ should decrease level by level (narrowing the search).
+    // Ïƒâ‚€ should decrease level by level (narrowing the search).
     let sigmas: Vec<f64> = cfg.pyramid_schedule.iter().map(|l| l.cma_sigma0).collect();
     assert!(
         sigmas[0] > sigmas[1] && sigmas[1] > sigmas[2],
-        "Pyramid level sigma0 should decrease coarse→fine: {:?}",
+        "Pyramid level sigma0 should decrease coarseâ†’fine: {:?}",
         sigmas
     );
 
@@ -322,7 +321,7 @@ fn cma_mi_multiscale_has_three_levels() {
         MutualInformationVariant::Normalized(NormalizationMethod::AverageEntropy),
     );
 
-    // CoM init must be disabled for CT↔MRI.
+    // CoM init must be disabled for CTâ†”MRI.
     assert_eq!(cfg.init_strategy, InitStrategy::Manual);
 }
 
@@ -357,7 +356,7 @@ fn cma_mi_thin_slab_ct_uses_anisotropic_shrink() {
     assert!(sx > 1, "thin_slab_ct shrink x must be > 1");
 }
 
-// ── Sprint 290: Brain Masking Tests ───────────────────────────────────────
+// â”€â”€ Sprint 290: Brain Masking Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Create a 3-D binary mask image (1.0 inside a box, 0.0 outside).
 pub(super) fn make_box_mask(
@@ -378,7 +377,7 @@ pub(super) fn make_box_mask(
         }
     }
     let tensor =
-        Tensor::<TestBackend, 3>::from_data(TensorData::new(data, Shape::new(shape)), device);
+        Tensor::<f32, TestBackend>::from_slice_on(shape, &data, device);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -398,20 +397,19 @@ fn cma_mi_register_rigid_with_mask_accepts_full_foreground_mask() {
     let fixed = make_gaussian_blob(shape, [4.0, 4.0, 4.0], 2.0, &device);
     let moving = make_gaussian_blob(shape, [4.0, 4.0, 4.0], 2.0, &device);
 
-    // All-ones mask — all voxels are foreground.
+    // All-ones mask â€” all voxels are foreground.
     let mask = make_box_mask(shape, 0..8, 0..8, 0..8, &device);
 
     let config = CmaMiConfig {
         cma_config: crate::optimizer::CmaEsConfig {
             sigma0: 0.3,
             lambda: 0,
-            max_generations: 2, // minimal — just checking it runs
+            max_generations: 2, // minimal â€” just checking it runs
             sigma_tol: 1e-8,
             ftol: f64::NEG_INFINITY,
             seed: 42,
             parallel_population: PopulationEval::Sequential,
-            record_history: HistoryPolicy::Discard,
-        },
+            record_history: HistoryPolicy::Discard },
         coarse_shrink: 4,
         coarse_sigma_mm: GaussianSigma::new_unchecked(2.0),
         sampling_percentage: 0.50,

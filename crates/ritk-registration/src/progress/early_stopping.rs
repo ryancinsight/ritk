@@ -1,4 +1,4 @@
-use crate::progress::{ProgressCallback, ProgressInfo};
+﻿use crate::progress::{ProgressCallback, ProgressInfo};
 use std::sync::{Arc, Mutex};
 
 /// Whether early stopping has been triggered.
@@ -7,16 +7,14 @@ enum EarlyStopSignal {
     /// Continue iterating.
     #[default]
     Continue,
-    /// Early stopping criterion was met — halt iteration.
-    Stop,
-}
+    /// Early stopping criterion was met â€” halt iteration.
+    Stop }
 
 #[derive(Debug)]
 struct EarlyStoppingState {
     counter: usize,
     best_loss: f64,
-    stop_signal: EarlyStopSignal,
-}
+    stop_signal: EarlyStopSignal }
 
 /// Early stopping callback.
 #[derive(Debug, Clone)]
@@ -27,8 +25,7 @@ pub struct EarlyStoppingCallback {
     pub patience: usize,
     /// Minimum loss threshold.
     pub min_loss: Option<f64>,
-    state: Arc<Mutex<EarlyStoppingState>>,
-}
+    state: Arc<Mutex<EarlyStoppingState>> }
 
 impl EarlyStoppingCallback {
     /// Create a new early stopping callback.
@@ -40,9 +37,7 @@ impl EarlyStoppingCallback {
             state: Arc::new(Mutex::new(EarlyStoppingState {
                 counter: 0,
                 best_loss: f64::INFINITY,
-                stop_signal: EarlyStopSignal::default(),
-            })),
-        }
+                stop_signal: EarlyStopSignal::default() })) }
     }
 
     /// Set minimum loss threshold.

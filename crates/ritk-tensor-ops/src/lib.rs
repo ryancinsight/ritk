@@ -31,8 +31,8 @@
 //! adds borrowed extraction for contiguous Coeus tensors and Coeus-backed images
 //! so read-only kernels can avoid a copy.
 
+use coeus_core::Backend;
 use eunomia::FloatElement;
-use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use std::ops::{AddAssign, Neg};
 
@@ -61,7 +61,7 @@ pub mod native;
 /// ```
 #[inline]
 pub fn extract_vec<B: Backend, const D: usize>(
-    image: &Image<B, D>,
+    image: &Image<f32, B, D>,
 ) -> anyhow::Result<(Vec<f32>, [usize; D])> {
     let dims = image.shape();
     let vals = image.try_data_vec()?;
@@ -78,7 +78,7 @@ pub fn extract_vec<B: Backend, const D: usize>(
 /// required and returning `Err` would be an internal invariant violation.
 #[inline]
 pub fn extract_vec_infallible<B: Backend, const D: usize>(
-    image: &Image<B, D>,
+    image: &Image<f32, B, D>,
 ) -> (Vec<f32>, [usize; D]) {
     let dims = image.shape();
     let vals = image
@@ -89,7 +89,7 @@ pub fn extract_vec_infallible<B: Backend, const D: usize>(
 
 // ── rebuild ───────────────────────────────────────────────────────────────────
 
-/// Construct a new `Image<B, D>` from a flat voxel buffer, reusing the spatial
+/// Construct a new `Image<f32, B, D>` from a flat voxel buffer, reusing the spatial
 /// metadata of `src`.
 ///
 /// # Arguments
@@ -109,16 +109,16 @@ pub fn extract_vec_infallible<B: Backend, const D: usize>(
 pub fn rebuild<B: Backend, const D: usize>(
     vals: Vec<f32>,
     dims: [usize; D],
-    src: &Image<B, D>,
-) -> Image<B, D> {
-    let device = src.data().device();
+    src: &Image<f32, B, D>,
+) -> Image<f32, B, D> {
+    let backend = B::default();
     Image::from_flat_on(
         vals,
         dims,
         *src.origin(),
         *src.spacing(),
         *src.direction(),
-        &device,
+        &backend,
     )
 }
 
@@ -127,16 +127,16 @@ pub fn rebuild_with_origin<B: Backend, const D: usize>(
     vals: Vec<f32>,
     dims: [usize; D],
     new_origin: ritk_spatial::Point<D>,
-    src: &Image<B, D>,
-) -> Image<B, D> {
-    let device = src.data().device();
+    src: &Image<f32, B, D>,
+) -> Image<f32, B, D> {
+    let backend = B::default();
     Image::from_flat_on(
         vals,
         dims,
         new_origin,
         *src.spacing(),
         *src.direction(),
-        &device,
+        &backend,
     )
 }
 
@@ -147,10 +147,10 @@ pub fn rebuild_with_metadata<B: Backend, const D: usize>(
     new_origin: ritk_spatial::Point<D>,
     new_spacing: ritk_spatial::Spacing<D>,
     new_direction: ritk_spatial::Direction<D>,
-    src: &Image<B, D>,
-) -> Image<B, D> {
-    let device = src.data().device();
-    Image::from_flat_on(vals, dims, new_origin, new_spacing, new_direction, &device)
+    _src: &Image<f32, B, D>,
+) -> Image<f32, B, D> {
+    let backend = B::default();
+    Image::from_flat_on(vals, dims, new_origin, new_spacing, new_direction, &backend)
 }
 
 // ── gaussian_kernel ─────────────────────────────────────────────────────────

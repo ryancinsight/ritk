@@ -1,4 +1,4 @@
-//! Generic undo/redo stack for command-pattern state management.
+﻿//! Generic undo/redo stack for command-pattern state management.
 //!
 //! # Mathematical Specification
 //!
@@ -23,8 +23,7 @@ pub struct UndoRedoStack<S: Clone> {
     /// History of states. Non-empty invariant: always has at least the initial state.
     history: Vec<S>,
     /// Future states available for redo.
-    future: Vec<S>,
-}
+    future: Vec<S> }
 
 impl<S: Clone> UndoRedoStack<S> {
     /// Construct a new stack with the given initial state.
@@ -32,8 +31,7 @@ impl<S: Clone> UndoRedoStack<S> {
     pub fn new(initial: S) -> Self {
         Self {
             history: vec![initial],
-            future: Vec::new(),
-        }
+            future: Vec::new() }
     }
 
     /// Push a new state onto the history. Clears the redo future.
@@ -65,8 +63,7 @@ impl<S: Clone> UndoRedoStack<S> {
                 self.history.push(state);
                 true
             }
-            None => false,
-        }
+            None => false }
     }
 
     /// Return a reference to the current state (most recently pushed or undone-to).

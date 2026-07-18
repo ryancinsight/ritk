@@ -1,30 +1,23 @@
 //! Tests for kmeans
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::native::Image as NativeImage;
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::test_support::make_image;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
-fn make_image_1d(data: Vec<f32>) -> Image<B, 1> {
+fn make_image_1d(data: Vec<f32>) -> Image<f32, B, 1> {
     let n = data.len();
     make_image(data, [n])
 }
-fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
+fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
     make_image(data, dims)
 }
 
-fn get_slice_1d(image: &Image<B, 1>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn get_slice_1d(image: &Image<f32, B, 1>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
 // ── Degenerate / constant image ────────────────────────────────────────────

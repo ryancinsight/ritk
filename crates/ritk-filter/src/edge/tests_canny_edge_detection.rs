@@ -2,16 +2,15 @@
 //! is covered by the Python cmake-parity suite; these assert structural invariants.
 
 use super::CannyEdgeDetectionImageFilter;
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make(v: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(v, dims)
+fn make(v: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(v, dims)
 }
-fn voxels(img: &Image<B, 3>) -> Vec<f32> {
+fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
     img.data_slice().into_owned()
 }
 

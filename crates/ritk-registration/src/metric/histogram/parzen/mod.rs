@@ -1,4 +1,4 @@
-use ritk_image::tensor::Backend;
+﻿use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -42,20 +42,20 @@ pub struct ParzenJointHistogram<B: Backend> {
     /// Optional separate Parzen sigma for the moving image.
     /// When `None`, falls back to `parzen_sigma`.
     pub moving_parzen_sigma: Option<f32>,
-    /// Pre-computed bin center tensor `[1, num_bins]` — eagerly constructed in
+    /// Pre-computed bin center tensor `[1, num_bins]` â€” eagerly constructed in
     /// `new()` and reused across all Parzen weight computations. Eliminates 2
-    /// GPU kernel dispatches (arange + int→float cast) per
+    /// GPU kernel dispatches (arange + intâ†’float cast) per
     /// `compute_joint_histogram*` call.
     ///
-    /// Wrapped in `Option<Tensor<B, 2>>` so that struct literals can set this
+    /// Wrapped in `Option<Tensor<f32, B>>` so that struct literals can set this
     /// field to `None` in test or deserialization contexts. In practice always
     /// `Some` after [`new()`](Self::new) initialises it.
-    bins_exp: Option<Tensor<B, 2>>,
+    bins_exp: Option<Tensor<f32, B>>,
     /// Lazily populated cache of fixed-image Parzen weights and grid data for
     /// the image-grid histogram path.
     ///
-    /// Uses [`CacheSlot<HistogramCache<B>>`] — a shared `Arc<Mutex<Option<T>>>`
-    /// wrapper — so that `Clone` shares the cache across multi-resolution clones
+    /// Uses [`CacheSlot<HistogramCache<B>>`] â€” a shared `Arc<Mutex<Option<T>>>`
+    /// wrapper â€” so that `Clone` shares the cache across multi-resolution clones
     /// (all levels observe the same lazily-built data) and interior mutability
     /// allows population/invalidation without `&mut self`.
     pub(super) cache: CacheSlot<HistogramCache<B>>,
@@ -68,14 +68,13 @@ pub struct ParzenJointHistogram<B: Backend> {
     /// Phantom data
     _phantom: PhantomData<fn() -> B>,
     /// Reusable histogram buffer pool, allocated once in `new()` and reused
-    /// across CMA-ES iterations to avoid repeated O(num_bins²) allocations.
+    /// across CMA-ES iterations to avoid repeated O(num_binsÂ²) allocations.
     /// Shared directly via `Arc` across clones.
     #[cfg(feature = "direct-parzen")]
-    pub(super) histogram_pool: Arc<HistogramPool>,
-}
+    pub(super) histogram_pool: Arc<HistogramPool> }
 
 /// Cloning a [`ParzenJointHistogram`] creates a new handle that **shares** the caches with
-/// the original — both the original and the clone observe each other's cache updates and
+/// the original â€” both the original and the clone observe each other's cache updates and
 /// invalidations via the shared `Arc` inside each `CacheSlot`. This is the intended behavior
 /// in multi-resolution pipelines, where one metric handle per resolution level is created via
 /// `.clone()` and all levels share a single lazily-built fixed-image cache.
@@ -94,8 +93,7 @@ impl<B: Backend> Clone for ParzenJointHistogram<B> {
             masked_cache: self.masked_cache.clone(),
             _phantom: PhantomData,
             #[cfg(feature = "direct-parzen")]
-            histogram_pool: Arc::clone(&self.histogram_pool),
-        }
+            histogram_pool: Arc::clone(&self.histogram_pool) }
     }
 }
 
@@ -103,14 +101,14 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// Create a new Parzen Joint Histogram calculator.
     ///
     /// `device` is used to eagerly allocate the pre-computed bin-center tensor
-    /// `[1, num_bins]`, eliminating 2 GPU kernel dispatches (arange + int→float
+    /// `[1, num_bins]`, eliminating 2 GPU kernel dispatches (arange + intâ†’float
     /// cast) per weight-computation call on the hot path.
     pub fn new(
         num_bins: usize,
         min_intensity: f32,
         max_intensity: f32,
         parzen_sigma: f32,
-        device: &B::Device,
+        device: &B,
     ) -> Self {
         Self {
             num_bins,
@@ -130,8 +128,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     .map(|n| n.get())
                     .unwrap_or(1);
                 HistogramPool::new_with_capacity(num_bins * num_bins, buffer_count)
-            }),
-        }
+            }) }
     }
 
     /// Configure a separate intensity range for the moving image (elastix-style independent binning).
@@ -178,7 +175,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
     }
 
     /// Compute Entropy of a distribution P.
-    pub fn compute_entropy(&self, p: Tensor<B, 1>) -> Tensor<B, 1> {
+    pub fn compute_entropy(&self, p: Tensor<f32, B>) -> Tensor<f32, B> {
         let eps = 1e-10;
         let log_p = (p.clone() + eps).log();
         p.mul(log_p).sum().neg()
@@ -257,7 +254,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// count `n`, which would otherwise cause incorrect cache reuse.
     ///
     /// # Arguments
-    /// * `fixed_norm` — Normalized fixed-image values `[N]` in
+    /// * `fixed_norm` â€” Normalized fixed-image values `[N]` in
     ///   `[0, num_bins - 1]`, as returned by `normalize_and_extract`.
     ///
     /// # Returns
@@ -269,7 +266,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// ```ignore
     /// // Before reusing the cache with the same key but potentially different data:
     /// if !hist.validate_masked_cache_fingerprint(&fixed_norm) {
-    ///     // Cache was invalidated — next compute call will rebuild it
+    ///     // Cache was invalidated â€” next compute call will rebuild it
     /// }
     /// ```
     #[cfg(feature = "direct-parzen")]
@@ -287,7 +284,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             if let Some(ref masked) = *cache {
                 if let Some(stored_fp) = masked.data_fingerprint {
                     if stored_fp != current_fp {
-                        // Fingerprint mismatch — invalidate
+                        // Fingerprint mismatch â€” invalidate
                         *cache = None;
                         return false;
                     }

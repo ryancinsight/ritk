@@ -1,4 +1,4 @@
-use crate::progress::{ProgressCallback, ProgressInfo};
+﻿use crate::progress::{ProgressCallback, ProgressInfo};
 use std::borrow::Cow;
 
 /// Whether the console progress callback renders a progress bar.
@@ -8,8 +8,7 @@ pub enum ProgressDisplay {
     #[default]
     WithBar,
     /// Log iteration info without a progress bar.
-    Silent,
-}
+    Silent }
 
 /// Console progress callback that logs to tracing.
 #[derive(Debug, Clone)]
@@ -17,15 +16,13 @@ pub struct ConsoleProgressCallback {
     /// Log interval (iterations).
     pub log_interval: usize,
     /// Progress display mode.
-    pub progress_display: ProgressDisplay,
-}
+    pub progress_display: ProgressDisplay }
 
 impl Default for ConsoleProgressCallback {
     fn default() -> Self {
         Self {
             log_interval: 50,
-            progress_display: ProgressDisplay::WithBar,
-        }
+            progress_display: ProgressDisplay::WithBar }
     }
 }
 
@@ -34,8 +31,7 @@ impl ConsoleProgressCallback {
     pub fn new(log_interval: usize) -> Self {
         Self {
             log_interval,
-            progress_display: ProgressDisplay::WithBar,
-        }
+            progress_display: ProgressDisplay::WithBar }
     }
 
     /// Disable progress bar.

@@ -1,4 +1,4 @@
-//! Python-exposed Image class wrapping native `ritk_image::native::Image`.
+﻿//! Python-exposed Image class wrapping native `ritk_image::native::Image`.
 
 use crate::errors::{RitkPyError, RitkResult};
 use coeus_core::{MoiraiBackend, SequentialBackend};
@@ -23,8 +23,7 @@ pub type BurnImage<const D: usize> = ritk_core::image::Image<BurnBackend, D>;
 /// Medical image with physical-space metadata.
 #[pyclass(name = "Image")]
 pub struct PyImage {
-    pub inner: Arc<ScalarImage>,
-}
+    pub inner: Arc<ScalarImage> }
 
 #[pymethods]
 impl PyImage {
@@ -52,8 +51,7 @@ impl PyImage {
         )
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
         Ok(Self {
-            inner: Arc::new(image),
-        })
+            inner: Arc::new(image) })
     }
 
     /// Convert image data to a NumPy f32 array with shape [Z, Y, X].
@@ -118,8 +116,7 @@ pub trait IntoPyImage {
 impl IntoPyImage for ScalarImage {
     fn into_py_image(self) -> PyImage {
         PyImage {
-            inner: Arc::new(self),
-        }
+            inner: Arc::new(self) }
     }
 }
 
@@ -176,9 +173,9 @@ pub fn py_image_to_native(image: &PyImage) -> RitkResult<ritk_io::NativeImage> {
 /// Convert a native Python image to a legacy Burn-backed image for burn-only algorithms.
 pub fn py_image_to_burn(image: &PyImage) -> BurnImage<3> {
     let (values, shape) = image_to_vec(image.inner.as_ref());
-    let device = <BurnBackend as ritk_image::tensor::backend::Backend>::Device::default();
-    let tensor = ritk_image::tensor::Tensor::<BurnBackend, 3>::from_data(
-        ritk_image::tensor::TensorData::new(values, ritk_image::tensor::Shape::new(shape)),
+    let device = <BurnBackend as ritk_image::tensor::Backend>::Device::default();
+    let tensor = ritk_image::tensor::Tensor::<f32, BurnBackend>::from_data(
+        ritk_image::tensor::::new(values, ritk_image::tensor::Shape::new(shape)),
         &device,
     );
     BurnImage::new(

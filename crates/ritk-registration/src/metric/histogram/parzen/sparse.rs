@@ -1,20 +1,20 @@
-//! Sparse Parzen weight computation — only evaluates Gaussian kernel within ±3σ support.
+﻿//! Sparse Parzen weight computation â€” only evaluates Gaussian kernel within Â±3Ïƒ support.
 #![allow(clippy::needless_range_loop)]
 //!
-//! The dense Parzen kernel computes `exp(-0.5 * ((val[i] - b) / σ)²)` for every
+//! The dense Parzen kernel computes `exp(-0.5 * ((val[i] - b) / Ïƒ)Â²)` for every
 //! sample-bin pair, producing a full `[N, num_bins]` weight matrix. For typical
-//! Mattes MI where σ ≈ 1 bin-width, the Gaussian has negligible mass beyond ±3σ
-//! (≈ ±3 bins), so ~75% of exp() calls compute values < 1e-4 that contribute
+//! Mattes MI where Ïƒ â‰ˆ 1 bin-width, the Gaussian has negligible mass beyond Â±3Ïƒ
+//! (â‰ˆ Â±3 bins), so ~75% of exp() calls compute values < 1e-4 that contribute
 //! nothing meaningful to the histogram.
 //!
 //! The sparse approach instead:
 //! 1. Computes each sample's primary bin via `floor(normalized_value)`.
 //! 2. Evaluates the Gaussian only for bins in `[primary - half_width, primary + half_width]`,
-//!    where `half_width = ceil(3 × σ_in_bins)`.
+//!    where `half_width = ceil(3 Ã— Ïƒ_in_bins)`.
 //! 3. Scatters the sparse weights into the full `[N, num_bins]` matrix.
 //!
-//! This reduces exp() evaluations by a factor of `num_bins / (2 × half_width + 1)`,
-//! which is ~4.5× for 32 bins with σ = 1 bin-width, and ~7× for 50 bins.
+//! This reduces exp() evaluations by a factor of `num_bins / (2 Ã— half_width + 1)`,
+//! which is ~4.5Ã— for 32 bins with Ïƒ = 1 bin-width, and ~7Ã— for 50 bins.
 //!
 //! The scatter operation is fully differentiable in Burn's autodiff backend,
 //! so gradient flow through the moving-image weights is preserved.
@@ -22,7 +22,7 @@
 #[cfg(test)]
 use ritk_image::tensor::Backend;
 #[cfg(test)]
-use ritk_image::tensor::{Int, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Int, Shape, Tensor };
 
 /// Minimum support half-width.
 ///
@@ -38,14 +38,14 @@ const MIN_HALF_WIDTH: usize = 3;
 #[cfg(feature = "direct-parzen")]
 use super::direct::types::MIN_HALF_WIDTH;
 
-/// Compute the support half-width from sigma² (SSOT-compatible API).
+/// Compute the support half-width from sigmaÂ² (SSOT-compatible API).
 ///
 /// When `direct-parzen` is enabled, delegates to the canonical
 /// `direct::compute_half_width(sigma_sq)`. Otherwise provides
 /// a standalone implementation for this `#[cfg(test)]`-only module.
 ///
-/// Returns `ceil(3 * sqrt(sigma_sq)).max(MIN_HALF_WIDTH)` — this captures
-/// >99.7% of the Gaussian mass (±3σ rule) while guaranteeing at least
+/// Returns `ceil(3 * sqrt(sigma_sq)).max(MIN_HALF_WIDTH)` â€” this captures
+/// >99.7% of the Gaussian mass (Â±3Ïƒ rule) while guaranteeing at least
 /// `MIN_HALF_WIDTH` bins per side for numerical stability.
 #[cfg(test)]
 #[cfg(not(feature = "direct-parzen"))]
@@ -74,27 +74,27 @@ pub(crate) fn compute_half_width(sigma_sq: f32) -> usize {
 /// When a sample's support window extends beyond `[0, num_bins-1]`, the out-of-bounds
 /// entries are **zeroed out** before scattering. This prevents the scatter-add from
 /// incorrectly accumulating weights at clamped boundary bins. The Gaussian weight at
-/// those out-of-bounds positions would have been near-zero anyway (they're beyond ±3σ
+/// those out-of-bounds positions would have been near-zero anyway (they're beyond Â±3Ïƒ
 /// of the distribution center), so discarding them introduces negligible error.
 ///
 /// # Arguments
-/// * `vals_norm` — Normalized sample values `[N]` in `[0, num_bins - 1]`.
-/// * `num_bins` — Number of histogram bins.
-/// * `sigma_sq` — Parzen sigma squared, in bin-index units.
-/// * `half_width` — Support half-width (see [`compute_half_width`]).
-/// * `_bins_exp` — Pre-computed bin centers `[1, num_bins]` (unused — indices computed directly).
+/// * `vals_norm` â€” Normalized sample values `[N]` in `[0, num_bins - 1]`.
+/// * `num_bins` â€” Number of histogram bins.
+/// * `sigma_sq` â€” Parzen sigma squared, in bin-index units.
+/// * `half_width` â€” Support half-width (see [`compute_half_width`]).
+/// * `_bins_exp` â€” Pre-computed bin centers `[1, num_bins]` (unused â€” indices computed directly).
 ///
 /// # Returns
-/// Weight matrix `[N, num_bins]` where `W[i, b] = exp(-0.5 * ((val[i] - b) / σ)²)`
+/// Weight matrix `[N, num_bins]` where `W[i, b] = exp(-0.5 * ((val[i] - b) / Ïƒ)Â²)`
 /// for bins within the support window, and 0 elsewhere.
 #[cfg(test)]
 pub(crate) fn compute_sparse_parzen_weights<B: Backend>(
-    vals_norm: Tensor<B, 1>,
+    vals_norm: Tensor<f32, B>,
     num_bins: usize,
     sigma_sq: f32,
     half_width: usize,
-    _bins_exp: &Tensor<B, 2>,
-) -> Tensor<B, 2> {
+    _bins_exp: &Tensor<f32, B>,
+) -> Tensor<f32, B> {
     let [n] = vals_norm.dims();
     let device = vals_norm.device();
     let num_bins_i32 = num_bins as i32;
@@ -104,10 +104,10 @@ pub(crate) fn compute_sparse_parzen_weights<B: Backend>(
     let primary = vals_norm.clone().floor();
 
     // 2. Build offset tensor: [-half_width, ..., 0, ..., +half_width]
-    //    Shape: [1, window_size] — broadcasts over N samples.
+    //    Shape: [1, window_size] â€” broadcasts over N samples.
     let offsets_data: Vec<i32> = (-(half_width as i32)..=(half_width as i32)).collect();
     let offsets = Tensor::<B, 1, Int>::from_data(
-        TensorData::new(offsets_data.clone(), Shape::new([window_size])),
+        ::new(offsets_data.clone(), Shape::new([window_size])),
         &device,
     );
 
@@ -126,13 +126,13 @@ pub(crate) fn compute_sparse_parzen_weights<B: Backend>(
     let bin_idx = bin_idx_unclamped.clone().clamp(0, num_bins_i32 - 1);
 
     // 4. Boundary mask: zero out weights where the bin index was clamped.
-    //    scatter is additive — clamped entries would incorrectly accumulate
+    //    scatter is additive â€” clamped entries would incorrectly accumulate
     //    at boundary bins. Zeroing them prevents this artifact.
     let in_bounds = bin_idx_unclamped.equal(bin_idx.clone()).float();
 
     // 5. Compute Gaussian weights for the support window: [N, window_size]
     //    diff[i, k] = val[i] - bin_idx[i, k]
-    //    weight[i, k] = exp(-0.5 * diff² / σ²)
+    //    weight[i, k] = exp(-0.5 * diffÂ² / ÏƒÂ²)
     let bin_idx_float = bin_idx.clone().float();
     let vals_exp = vals_norm.reshape([n, 1]);
     let diff = vals_exp - bin_idx_float; // [N, window_size]
@@ -141,7 +141,7 @@ pub(crate) fn compute_sparse_parzen_weights<B: Backend>(
 
     // 6. Scatter sparse weights into the full [N, num_bins] matrix.
     //    For each (i, k), set W[i, bin_idx[i, k]] += weight[i, k].
-    let zeros = Tensor::<B, 2>::zeros([n, num_bins], &device);
+    let zeros = Tensor::<f32, B>::zeros([n, num_bins], &device);
     zeros.scatter(1, bin_idx, weights)
 }
 
@@ -158,11 +158,11 @@ mod tests {
 
     /// Helper: compute dense Parzen weights for comparison.
     fn dense_parzen_weights(
-        vals: &Tensor<B, 1>,
+        vals: &Tensor<f32, B>,
         num_bins: usize,
         sigma_sq: f32,
         dev: &<B as Backend>::Device,
-    ) -> Tensor<B, 2> {
+    ) -> Tensor<f32, B> {
         let bins_exp = Tensor::<B, 1, Int>::arange(0..num_bins as i64, dev)
             .float()
             .reshape([1, num_bins]);
@@ -184,7 +184,7 @@ mod tests {
         let half_width = compute_half_width(sigma_sq);
 
         // Values safely in the interior
-        let vals = Tensor::<B, 1>::from_floats([10.0, 15.0], &dev);
+        let vals = Tensor::<f32, B>::from_floats([10.0, 15.0], &dev);
         let bins_exp = Tensor::<B, 1, Int>::arange(0..num_bins as i64, &dev)
             .float()
             .reshape([1, num_bins]);
@@ -217,7 +217,7 @@ mod tests {
         }
 
         // Outside the support window, sparse is zero. Dense may have tiny values
-        // (e.g. exp(-12.5) ≈ 3.7e-6), but these are negligible for MI computation.
+        // (e.g. exp(-12.5) â‰ˆ 3.7e-6), but these are negligible for MI computation.
         // Verify total weight difference is < 0.1%.
         let sparse_sum: f32 = sparse_slice.iter().sum();
         let dense_sum: f32 = dense_slice.iter().sum();
@@ -238,7 +238,7 @@ mod tests {
         let sigma_sq = sigma_in_bins * sigma_in_bins;
         let half_width = compute_half_width(sigma_sq);
 
-        let vals = Tensor::<B, 1>::from_floats([25.0], &dev);
+        let vals = Tensor::<f32, B>::from_floats([25.0], &dev);
         let bins_exp = Tensor::<B, 1, Int>::arange(0..num_bins as i64, &dev)
             .float()
             .reshape([1, num_bins]);
@@ -285,8 +285,8 @@ mod tests {
         let sigma_sq = sigma_in_bins * sigma_in_bins;
         let half_width = compute_half_width(sigma_sq);
 
-        // val = 1.5 → primary bin 1, support bins [-2, ..., 4], clamped to [0, 4]
-        let vals = Tensor::<B, 1>::from_floats([1.5], &dev);
+        // val = 1.5 â†’ primary bin 1, support bins [-2, ..., 4], clamped to [0, 4]
+        let vals = Tensor::<f32, B>::from_floats([1.5], &dev);
         let bins_exp = Tensor::<B, 1, Int>::arange(0..num_bins as i64, &dev)
             .float()
             .reshape([1, num_bins]);
@@ -333,8 +333,8 @@ mod tests {
 
     #[test]
     fn half_width_minimum_is_3() {
-        // Even with sigma → 0, half_width should be at least 3
-        // compute_half_width takes sigma_sq: 0.1²=0.01, 0.316²≈0.1
+        // Even with sigma â†’ 0, half_width should be at least 3
+        // compute_half_width takes sigma_sq: 0.1Â²=0.01, 0.316Â²â‰ˆ0.1
         assert_eq!(compute_half_width(0.0001), MIN_HALF_WIDTH);
         assert_eq!(compute_half_width(0.01), MIN_HALF_WIDTH);
     }
@@ -356,8 +356,8 @@ mod tests {
         let sigma_sq = sigma_in_bins * sigma_in_bins;
         let half_width = compute_half_width(sigma_sq);
 
-        // val = 0.5 → primary bin 0, support [-3, ..., 3], clamped to [0, 3]
-        let vals = Tensor::<B, 1>::from_floats([0.5], &dev);
+        // val = 0.5 â†’ primary bin 0, support [-3, ..., 3], clamped to [0, 3]
+        let vals = Tensor::<f32, B>::from_floats([0.5], &dev);
         let bins_exp = Tensor::<B, 1, Int>::arange(0..num_bins as i64, &dev)
             .float()
             .reshape([1, num_bins]);
@@ -391,9 +391,9 @@ mod tests {
         let sigma_sq = sigma_in_bins * sigma_in_bins;
         let half_width = compute_half_width(sigma_sq);
 
-        // val = 0.5 → primary bin 0, offsets [-3,-2,-1,0,1,2,3] → clamped bins [0,0,0,0,1,2,3]
-        // Without boundary masking, bin 0 would get 4× the correct weight.
-        let vals = Tensor::<B, 1>::from_floats([0.5], &dev);
+        // val = 0.5 â†’ primary bin 0, offsets [-3,-2,-1,0,1,2,3] â†’ clamped bins [0,0,0,0,1,2,3]
+        // Without boundary masking, bin 0 would get 4Ã— the correct weight.
+        let vals = Tensor::<f32, B>::from_floats([0.5], &dev);
         let bins_exp = Tensor::<B, 1, Int>::arange(0..num_bins as i64, &dev)
             .float()
             .reshape([1, num_bins]);
@@ -403,7 +403,7 @@ mod tests {
         let sparse_data = sparse.into_data();
         let sparse_slice = sparse_data.as_slice::<f32>().unwrap();
 
-        // The weight at bin 0 should be exp(-0.5 * (0.5 - 0)²) = exp(-0.125) ≈ 0.8825
+        // The weight at bin 0 should be exp(-0.5 * (0.5 - 0)Â²) = exp(-0.125) â‰ˆ 0.8825
         // (only the in-bounds contribution from offset=0, the out-of-bounds offsets are zeroed)
         let expected_bin0 = (-0.5_f32 * (0.5 - 0.0_f32).powi(2) / sigma_sq).exp();
         let diff = (sparse_slice[0] - expected_bin0).abs();

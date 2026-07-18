@@ -1,10 +1,9 @@
-//! VTK XML PolyData (.vtp) reader (ASCII inline format).
+﻿//! VTK XML PolyData (.vtp) reader (ASCII inline format).
 
 use crate::domain::vtk_data_object::VtkPolyData;
 use crate::io::xml_helpers::{
     attr_usize, extract_da_content, find_section, find_tag, named_da, parse_attrs, parse_floats,
-    parse_ints,
-};
+    parse_ints };
 use anyhow::{bail, Context, Result};
 use std::path::Path;
 
@@ -41,24 +40,20 @@ pub(crate) fn parse_vtp(input: &str) -> Result<VtkPolyData> {
             .unwrap_or_default(),
         cell_data: find_section(input, "CellData")
             .map(|sec| parse_attrs(&sec))
-            .unwrap_or_default(),
-    };
+            .unwrap_or_default() };
     Ok(poly)
 }
 
 fn parse_cells(input: &str, sname: &str) -> Vec<Vec<u32>> {
     let sec = match find_section(input, sname) {
         Some(s) => s,
-        None => return vec![],
-    };
+        None => return vec![] };
     let conn_da = match named_da(&sec, "connectivity") {
         Some(s) => s,
-        None => return vec![],
-    };
+        None => return vec![] };
     let offs_da = match named_da(&sec, "offsets") {
         Some(s) => s,
-        None => return vec![],
-    };
+        None => return vec![] };
     let conn: Vec<u32> = parse_ints(&extract_da_content(&conn_da))
         .into_iter()
         .map(|v| v as u32)
@@ -82,7 +77,7 @@ fn parse_cells(input: &str, sname: &str) -> Vec<Vec<u32>> {
     cells
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[cfg(test)]
 #[path = "tests_reader.rs"]
 mod tests;

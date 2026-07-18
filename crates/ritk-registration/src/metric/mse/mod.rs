@@ -1,9 +1,9 @@
-//! Mean Squared Error metric implementation.
+﻿//! Mean Squared Error metric implementation.
 
 pub mod native;
 
 use super::trait_::Metric;
-use ritk_image::generate_grid_burn;
+use ritk_image::generate_grid;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 use ritk_image::Image;
@@ -16,15 +16,13 @@ use ritk_transform::Transform;
 /// MSE = (1/N) * sum((Fixed(x) - Moving(T(x)))^2)
 #[derive(Clone)]
 pub struct MeanSquaredError {
-    interpolator: LinearInterpolator,
-}
+    interpolator: LinearInterpolator }
 
 impl MeanSquaredError {
     /// Create a new MSE metric.
     pub fn new() -> Self {
         Self {
-            interpolator: LinearInterpolator::new(),
-        }
+            interpolator: LinearInterpolator::new() }
     }
 }
 
@@ -37,14 +35,14 @@ impl Default for MeanSquaredError {
 impl<B: Backend, const D: usize> Metric<B, D> for MeanSquaredError {
     fn forward(
         &self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
-    ) -> Tensor<B, 1> {
+    ) -> Tensor<f32, B> {
         // 1. Generate grid of points in fixed image space (indices).
         let fixed_shape = fixed.shape();
         let device = fixed.data().device();
-        let fixed_indices = generate_grid_burn(fixed_shape, &device); // [N, D]
+        let fixed_indices = generate_grid(fixed_shape, &device); // [N, D]
         let [n, _] = fixed_indices.dims();
 
         // 2. Transform, interpolate, and accumulate squared differences chunk-by-chunk
@@ -119,7 +117,7 @@ mod tests {
                 }
             }
         }
-        let data = Tensor::<B, 1>::from_floats(data_vec.as_slice(), &device).reshape([d, d, d]);
+        let data = Tensor::<f32, B>::from_floats(data_vec.as_slice(), &device).reshape([d, d, d]);
 
         let origin = Point3::new([0.0, 0.0, 0.0]);
         let spacing = Spacing3::new([1.0, 1.0, 1.0]);

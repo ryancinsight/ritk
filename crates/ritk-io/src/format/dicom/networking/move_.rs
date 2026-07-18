@@ -1,12 +1,12 @@
-//! C-MOVE SCU — Study Root Query/Retrieve: MOVE (PS3.4 §C.4.2).
+//! C-MOVE SCU â€” Study Root Query/Retrieve: MOVE (PS3.4 Â§C.4.2).
 //!
 //! # Protocol
-//! 1. TCP connect → A-ASSOCIATE-RQ with Study Root QR-MOVE SOP Class.
+//! 1. TCP connect â†’ A-ASSOCIATE-RQ with Study Root QR-MOVE SOP Class.
 //! 2. A-ASSOCIATE-AC.
 //! 3. C-MOVE-RQ command PDV (IVR-LE) + data PDV (IVR-LE query dataset).
 //! 4. Zero or more C-MOVE-RSP progress updates (status 0xFF00).
 //! 5. Final C-MOVE-RSP with status 0x0000 (Success) or failure code.
-//! 6. A-RELEASE-RQ → A-RELEASE-RP.
+//! 6. A-RELEASE-RQ â†’ A-RELEASE-RP.
 //!
 //! The PACS sends the matching objects via C-STORE to the `destination` AE.
 //! This SCU only issues the C-MOVE request; it does not receive the objects.
@@ -31,7 +31,7 @@ use super::echo::{find_ctx_id, receive_command_pdv};
 use dicom_ul::association::client::ClientAssociationOptions;
 use dicom_ul::pdu::{PDataValue, PDataValueType, Pdu};
 
-// ── MoveDestination ───────────────────────────────────────────────────────────
+// â”€â”€ MoveDestination â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Validated destination AE title for a C-MOVE request.
 ///
@@ -51,7 +51,7 @@ impl MoveDestination {
     }
 }
 
-// ── C-MOVE ────────────────────────────────────────────────────────────────────
+// â”€â”€ C-MOVE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Issue a C-MOVE request at the specified QR level.
 ///

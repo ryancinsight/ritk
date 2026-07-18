@@ -1,4 +1,4 @@
-//! DICOM input path normalization for viewer workflows.
+﻿//! DICOM input path normalization for viewer workflows.
 //!
 //! `ritk-io` accepts a directory containing DICOM slices or a `DICOMDIR`
 //! index. Viewer entry points can receive either that directory or the
@@ -18,18 +18,15 @@ pub enum DicomInputPath {
         /// Path selected by the caller.
         file: PathBuf,
         /// Parent directory containing the DICOMDIR and referenced files.
-        root: PathBuf,
-    },
+        root: PathBuf },
     /// A selected DICOM slice file; the parent directory is loaded as a series root.
     SingleDicomFile {
         /// Path selected by the caller.
         file: PathBuf,
         /// Parent directory containing the series.
-        root: PathBuf,
-    },
+        root: PathBuf },
     /// A file that is not a DICOMDIR index.
-    OtherFile(PathBuf),
-}
+    OtherFile(PathBuf) }
 
 impl DicomInputPath {
     /// Path to pass into `ritk-io` when this input is DICOM-loadable.
@@ -38,8 +35,7 @@ impl DicomInputPath {
             Self::Directory(path) => Some(path.as_path()),
             Self::DicomDirFile { root, .. } => Some(root.as_path()),
             Self::SingleDicomFile { root, .. } => Some(root.as_path()),
-            Self::OtherFile(_) => None,
-        }
+            Self::OtherFile(_) => None }
     }
 }
 
@@ -54,16 +50,14 @@ pub fn classify_dicom_input_path(path: impl AsRef<Path>) -> DicomInputPath {
         let root = path.parent().unwrap_or_else(|| Path::new("")).to_path_buf();
         return DicomInputPath::DicomDirFile {
             file: path.to_path_buf(),
-            root,
-        };
+            root };
     }
 
     if is_single_dicom_file(path) {
         let root = path.parent().unwrap_or_else(|| Path::new("")).to_path_buf();
         return DicomInputPath::SingleDicomFile {
             file: path.to_path_buf(),
-            root,
-        };
+            root };
     }
 
     DicomInputPath::OtherFile(path.to_path_buf())
@@ -93,8 +87,7 @@ fn is_single_dicom_file(path: &Path) -> bool {
 fn has_dicom_preamble(path: &Path) -> bool {
     let mut file = match std::fs::File::open(path) {
         Ok(f) => f,
-        Err(_) => return false,
-    };
+        Err(_) => return false };
     let mut header = [0u8; 132];
     if file.read_exact(&mut header).is_err() {
         return false;

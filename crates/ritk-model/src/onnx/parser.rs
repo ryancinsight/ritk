@@ -1,4 +1,4 @@
-//! Bounded ONNX document parsing and crate-local graph validation.
+﻿//! Bounded ONNX document parsing and crate-local graph validation.
 
 use crate::onnx::{OnnxError, OnnxGraph, OnnxMetadata, OnnxResult};
 use consus_onnx::{ElementType, ModelDocument, ParseLimits, TensorInfo, ValueInfo};
@@ -9,16 +9,14 @@ use std::path::Path;
 /// Validating ONNX document parser with explicit hostile-input bounds.
 #[derive(Debug, Clone, Copy)]
 pub struct OnnxParser {
-    limits: ParseLimits,
-}
+    limits: ParseLimits }
 
 impl OnnxParser {
     /// Create a parser using the Consus resource limits.
     #[must_use]
     pub fn new() -> Self {
         Self {
-            limits: ParseLimits::default(),
-        }
+            limits: ParseLimits::default() }
     }
 
     /// Create a parser with caller-selected resource limits.
@@ -60,8 +58,7 @@ impl OnnxParser {
 
         Ok(OnnxDocument {
             graph,
-            metadata: Self::map_metadata(&parsed),
-        })
+            metadata: Self::map_metadata(&parsed) })
     }
 
     fn map_graph(document: &ModelDocument<'_>) -> OnnxResult<OnnxGraph> {
@@ -92,8 +89,7 @@ impl OnnxParser {
                 inputs: node.inputs.iter().map(|name| (*name).to_owned()).collect(),
                 outputs: node.outputs.iter().map(|name| (*name).to_owned()).collect(),
                 attributes: HashMap::new(),
-                doc_string: None,
-            })
+                doc_string: None })
             .collect();
         for initializer in &document.initializers {
             let value = crate::onnx::OnnxValue::new(
@@ -116,21 +112,18 @@ impl OnnxParser {
     fn map_value(value: &ValueInfo<'_>) -> OnnxResult<crate::onnx::OnnxValue> {
         let TensorInfo {
             element_type,
-            dimensions,
-        } = value
+            dimensions } = value
             .tensor
             .as_ref()
             .ok_or_else(|| OnnxError::InvalidModel {
-                message: format!("tensor metadata is absent for value '{}'", value.name),
-            })?;
+                message: format!("tensor metadata is absent for value '{}'", value.name) })?;
         let shape = dimensions
             .iter()
             .map(|dimension| match dimension {
                 Some(dimension) => {
                     i64::try_from(*dimension).map_err(|error| Self::model_error(value.name, error))
                 }
-                None => Ok(-1),
-            })
+                None => Ok(-1) })
             .collect::<OnnxResult<_>>()?;
         Ok(crate::onnx::OnnxValue::new(
             value.name.to_owned(),
@@ -160,13 +153,11 @@ impl OnnxParser {
             ElementType::Bfloat16 => Target::Bfloat16,
             ElementType::Unknown(code) => {
                 return Err(OnnxError::InvalidModel {
-                    message: format!("unsupported tensor element type code {code}"),
-                });
+                    message: format!("unsupported tensor element type code {code}") });
             }
             _ => {
                 return Err(OnnxError::InvalidModel {
-                    message: "unsupported future tensor element type".to_owned(),
-                });
+                    message: "unsupported future tensor element type".to_owned() });
             }
         })
     }
@@ -188,8 +179,7 @@ impl OnnxParser {
                 .then(|| document.producer_version.to_owned()),
             domain: (!document.domain.is_empty()).then(|| document.domain.to_owned()),
             model_version: Some(document.model_version),
-            metadata_props: HashMap::new(),
-        }
+            metadata_props: HashMap::new() }
     }
 
     fn file_error(path: &Path, error: std::io::Error) -> OnnxError {
@@ -198,14 +188,12 @@ impl OnnxParser {
 
     fn parse_error(path: &Path, error: impl std::fmt::Display) -> OnnxError {
         OnnxError::ProtobufParseError {
-            message: format!("failed to parse ONNX file '{}': {error}", path.display()),
-        }
+            message: format!("failed to parse ONNX file '{}': {error}", path.display()) }
     }
 
     fn model_error(name: &str, error: impl std::fmt::Display) -> OnnxError {
         OnnxError::InvalidModel {
-            message: format!("tensor '{name}' has an unrepresentable dimension: {error}"),
-        }
+            message: format!("tensor '{name}' has an unrepresentable dimension: {error}") }
     }
 }
 
@@ -219,8 +207,7 @@ impl Default for OnnxParser {
 #[derive(Debug)]
 pub struct OnnxDocument {
     graph: OnnxGraph,
-    metadata: OnnxMetadata,
-}
+    metadata: OnnxMetadata }
 
 impl OnnxDocument {
     /// Get the model metadata.

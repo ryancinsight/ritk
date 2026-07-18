@@ -7,10 +7,10 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 /// Reduce the collapsed axis using a native-`f32` fold (max / min).
 pub(super) fn fold_native<B, F>(
     axis: ProjectionAxis,
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
     init: f32,
     combine: F,
-) -> Result<Image<B, 3>>
+) -> Result<Image<f32, B, 3>>
 where
     B: Backend,
     F: Fn(f32, f32) -> f32 + Sync,
@@ -51,9 +51,9 @@ where
 /// Reduce the collapsed axis using `f64` accumulation then finalise to `f32`.
 pub(super) fn fold_wide<B, F>(
     axis: ProjectionAxis,
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
     finalize: F,
-) -> Result<Image<B, 3>>
+) -> Result<Image<f32, B, 3>>
 where
     B: Backend,
     F: Fn(f64, usize) -> f32 + Sync,
@@ -104,8 +104,8 @@ where
 /// pixel, matching ITK's `StandardDeviationProjectionImageFilter`.
 pub(super) fn project_stddev<B: Backend>(
     axis: ProjectionAxis,
-    image: &Image<B, 3>,
-) -> Result<Image<B, 3>> {
+    image: &Image<f32, B, 3>,
+) -> Result<Image<f32, B, 3>> {
     let [nz, ny, nx] = image.shape();
     let (vals, _) = extract_vec(image)?;
     match axis {
@@ -174,8 +174,8 @@ fn median_at_half(buf: &mut [f32]) -> f32 {
 
 pub(super) fn project_median<B: Backend>(
     axis: ProjectionAxis,
-    image: &Image<B, 3>,
-) -> Result<Image<B, 3>> {
+    image: &Image<f32, B, 3>,
+) -> Result<Image<f32, B, 3>> {
     let [nz, ny, nx] = image.shape();
     let (vals, _) = extract_vec(image)?;
     match axis {
@@ -239,11 +239,11 @@ pub(super) fn project_median<B: Backend>(
 /// else `background`.
 pub(super) fn project_any<B, P>(
     axis: ProjectionAxis,
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
     foreground: f32,
     background: f32,
     pred: P,
-) -> Result<Image<B, 3>>
+) -> Result<Image<f32, B, 3>>
 where
     B: Backend,
     P: Fn(f32) -> bool + Sync,

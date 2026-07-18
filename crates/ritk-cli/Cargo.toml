@@ -9,7 +9,6 @@ name = "ritk"
 path = "src/main.rs"
 
 [dependencies]
-burn-ndarray = { workspace = true }
 ritk-core = { path = "../ritk-core" }
 ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }

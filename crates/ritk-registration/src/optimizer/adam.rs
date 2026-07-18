@@ -1,70 +1,70 @@
+use crate::optimizer::trait_::{update_parameters, ParameterGradients};
 use crate::optimizer::{Optimizer, OptimizerAlgorithm, OptimizerTelemetry};
-use ritk_image::burn::module::AutodiffModule;
-use ritk_image::burn::optim::adaptor::OptimizerAdaptor;
-use ritk_image::burn::optim::{Adam, AdamConfig, GradientsParams, Optimizer as BurnOptimizer};
-use ritk_image::tensor::AutodiffBackend;
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::Module;
+use coeus_ops::BackendOps;
+use ritk_image::tensor::Backend;
+use std::marker::PhantomData;
 
-/// Adam optimizer.
-///
-/// A wrapper around Burn's Adam optimizer.
-pub struct AdamOptimizer<M: AutodiffModule<B>, B: AutodiffBackend> {
-    optimizer: OptimizerAdaptor<Adam, M, B>,
+/// Adam optimizer over a Coeus module parameter inventory.
+pub struct AdamOptimizer<M, B> {
     learning_rate: f64,
+    beta_1: f32,
+    beta_2: f32,
+    epsilon: f32,
+    first_moment: Vec<Vec<f32>>,
+    second_moment: Vec<Vec<f32>>,
     steps: usize,
+    marker: PhantomData<fn() -> (M, B)>,
 }
 
-impl<M: AutodiffModule<B>, B: AutodiffBackend> AdamOptimizer<M, B> {
-    /// Create a new Adam optimizer.
-    ///
-    /// # Arguments
-    /// * `learning_rate` - The learning rate
+impl<M, B> AdamOptimizer<M, B> {
     pub fn new(learning_rate: f64) -> Self {
-        let config = AdamConfig::new();
-        Self {
-            optimizer: config.init(),
-            learning_rate,
-            steps: 0,
-        }
+        Self::with_config(learning_rate, 0.9, 0.999, 1e-8)
     }
 
-    /// Create a new Adam optimizer with custom beta values.
-    ///
-    /// # Arguments
-    /// * `learning_rate` - The learning rate
-    /// * `beta_1` - Exponential decay rate for the first moment estimates
-    /// * `beta_2` - Exponential decay rate for the second moment estimates
-    /// * `epsilon` - Small value to prevent division by zero
     pub fn with_config(learning_rate: f64, beta_1: f32, beta_2: f32, epsilon: f32) -> Self {
-        let config = AdamConfig::new()
-            .with_beta_1(beta_1)
-            .with_beta_2(beta_2)
-            .with_epsilon(epsilon);
         Self {
-            optimizer: config.init(),
             learning_rate,
+            beta_1,
+            beta_2,
+            epsilon,
+            first_moment: Vec::new(),
+            second_moment: Vec::new(),
             steps: 0,
+            marker: PhantomData,
         }
     }
 }
 
 impl<M, B> Optimizer<M, B> for AdamOptimizer<M, B>
 where
-    M: AutodiffModule<B>,
-    B: AutodiffBackend,
+    B: Backend + BackendOps<f32> + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    M: Module<f32, B>,
 {
-    fn step(&mut self, module: M, gradients: GradientsParams) -> M {
+    fn step(&mut self, module: M, gradients: ParameterGradients<B>) -> M {
+        if self.first_moment.is_empty() {
+            self.first_moment = gradients.iter().map(|g| vec![0.0; g.numel()]).collect();
+            self.second_moment = gradients.iter().map(|g| vec![0.0; g.numel()]).collect();
+        }
         self.steps += 1;
-        self.optimizer.step(self.learning_rate, module, gradients)
+        let correction_1 = 1.0 - self.beta_1.powi(self.steps as i32);
+        let correction_2 = 1.0 - self.beta_2.powi(self.steps as i32);
+        let learning_rate = self.learning_rate as f32;
+        update_parameters(module, &gradients, |parameter, element, value, derivative| {
+            let first = &mut self.first_moment[parameter][element];
+            let second = &mut self.second_moment[parameter][element];
+            *first = self.beta_1 * *first + (1.0 - self.beta_1) * derivative;
+            *second = self.beta_2 * *second + (1.0 - self.beta_2) * derivative * derivative;
+            let estimate = *first / correction_1;
+            let variance = *second / correction_2;
+            value - learning_rate * estimate / (variance.sqrt() + self.epsilon)
+        })
     }
 
-    fn learning_rate(&self) -> f64 {
-        self.learning_rate
-    }
-
-    fn set_learning_rate(&mut self, lr: f64) {
-        self.learning_rate = lr;
-    }
-
+    fn learning_rate(&self) -> f64 { self.learning_rate }
+    fn set_learning_rate(&mut self, learning_rate: f64) { self.learning_rate = learning_rate; }
     fn telemetry(&self) -> OptimizerTelemetry {
         OptimizerTelemetry {
             algorithm: OptimizerAlgorithm::Adam,

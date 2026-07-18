@@ -8,10 +8,9 @@
 //! that field, at every voxel including boundaries.
 
 use super::DiscreteGaussianFilter;
-use crate::native_support::LegacyBurnBackend;
-use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+use crate::native_support::{assert_coeus_matches_coeus, make_native_image, native_vals};
 
-type BurnB = LegacyBurnBackend;
+type BurnB = coeus_core::SequentialBackend;
 
 fn filter() -> DiscreteGaussianFilter<BurnB> {
     DiscreteGaussianFilter::<BurnB>::new_isotropic(2.0)
@@ -22,7 +21,7 @@ fn matches_burn() {
     let dims = [6, 7, 5];
     let n = dims[0] * dims[1] * dims[2];
     let vals: Vec<f32> = (0..n).map(|i| (i as f32) * 0.37 - (i % 5) as f32).collect();
-    assert_native_matches_burn(
+    assert_coeus_matches_coeus(
         vals,
         dims,
         |img| filter().apply(img),

@@ -1,4 +1,4 @@
-//! VTK legacy STRUCTURED_GRID reader/writer.
+﻿//! VTK legacy STRUCTURED_GRID reader/writer.
 //!
 //! Structured grid G = (D, V, A_P, A_C):
 //! - D = (nx, ny, nz), |V| = nx*ny*nz
@@ -44,8 +44,7 @@ fn parse_structured_grid(reader: &mut dyn BufRead) -> Result<VtkStructuredGrid> 
     let binary = match enc_line.to_ascii_uppercase().trim() {
         "ASCII" => false,
         "BINARY" => true,
-        other => bail!("unsupported VTK encoding: {}", other),
-    };
+        other => bail!("unsupported VTK encoding: {}", other) };
     let ds_line = read_line(reader)?.with_context(|| "EOF before DATASET line")?;
     if !ds_line.to_ascii_uppercase().contains("STRUCTURED_GRID") {
         bail!("expected DATASET STRUCTURED_GRID, got: {}", ds_line);
@@ -74,8 +73,7 @@ fn parse_structured_grid(reader: &mut dyn BufRead) -> Result<VtkStructuredGrid> 
             };
             let arr = AttributeArray::Scalars {
                 values,
-                num_components: ncomp,
-            };
+                num_components: ncomp };
             if is_pd {
                 grid.point_data.insert(name, arr);
             } else {
@@ -118,8 +116,7 @@ fn parse_structured_grid(reader: &mut dyn BufRead) -> Result<VtkStructuredGrid> 
 
         let line = match read_line(reader)? {
             Some(l) => l,
-            None => break,
-        };
+            None => break };
         let upper = line.to_ascii_uppercase();
         let tokens: Vec<&str> = line.split_whitespace().collect();
         if tokens.is_empty() {

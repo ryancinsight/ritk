@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+﻿use std::borrow::Cow;
 use std::collections::VecDeque;
 
 use ritk_image::tensor::Backend;
@@ -7,8 +7,7 @@ use crate::deformable_field_ops::{
     cc_converged, compose_fields_into, compute_gradient_into, normalize_forces_into,
     scaling_and_squaring, scaling_and_squaring_into, validate_image_pair, warp_image,
     warp_image_into, CpuFieldSmoother, CpuOrGpu, FieldSmoother, VectorField, VectorFieldMut,
-    VelocityField, WarpInterpolation,
-};
+    VelocityField, WarpInterpolation };
 use crate::diffeomorphic::SyNResult;
 use crate::error::RegistrationError;
 
@@ -18,13 +17,12 @@ use crate::diffeomorphic::local_cc::{bidirectional_cc_from_sats_into, CcSats};
 
 /// Velocity fields and dimensions carried between resolution levels.
 struct PrevLevelState {
-    /// Forward velocity field v₁ (fixed→midpoint) from the previous level.
+    /// Forward velocity field vâ‚ (fixedâ†’midpoint) from the previous level.
     forward: VelocityField,
-    /// Inverse velocity field v₂ (moving→midpoint) from the previous level.
+    /// Inverse velocity field vâ‚‚ (movingâ†’midpoint) from the previous level.
     inverse: VelocityField,
     /// Image dimensions `[nz, ny, nx]` at the previous level.
-    dims: [usize; 3],
-}
+    dims: [usize; 3] }
 
 impl super::MultiResSyNRegistration {
     pub fn new(config: super::MultiResSyNConfig) -> Self {
@@ -52,11 +50,11 @@ impl super::MultiResSyNRegistration {
     /// user-provided [`CpuOrGpu`] factory.
     ///
     /// When the factory returns [`CpuOrGpu::Gpu`], the per-iteration
-    /// velocity-field smoothing runs on the GPU — 10–50× faster than the
-    /// CPU path for typical 256³ fields.
+    /// velocity-field smoothing runs on the GPU â€” 10â€“50Ã— faster than the
+    /// CPU path for typical 256Â³ fields.
     ///
     /// A fresh smoother is constructed per resolution level (because
-    /// dimensions change). The [`CpuOrGpu`] enum is stack-allocated —
+    /// dimensions change). The [`CpuOrGpu`] enum is stack-allocated â€”
     /// zero heap allocation, zero dynamic dispatch per `smooth_field` call.
     pub fn register_with<B: Backend>(
         &self,
@@ -132,8 +130,7 @@ impl super::MultiResSyNRegistration {
             ) = if let Some(PrevLevelState {
                 forward: fwd,
                 inverse: inv,
-                dims: pd,
-            }) = prev.take()
+                dims: pd }) = prev.take()
             {
                 (
                     upsample_field(&fwd.z, pd, ld, 0),
@@ -157,10 +154,10 @@ impl super::MultiResSyNRegistration {
             let mut cc_hist: VecDeque<f64> = VecDeque::new();
             let r = self.config.cc_window_radius;
 
-            // ── Per-level smoother (dimensions change each level) ─────────
+            // â”€â”€ Per-level smoother (dimensions change each level) â”€â”€â”€â”€â”€â”€â”€â”€â”€
             let mut smoother = smoother_factory(ld);
 
-            // ── Per-level scratch (zero alloc inside the inner loop) ─────────
+            // â”€â”€ Per-level scratch (zero alloc inside the inner loop) â”€â”€â”€â”€â”€â”€â”€â”€â”€
             let mut p1z = vec![0.0_f32; ln];
             let mut p1y = vec![0.0_f32; ln];
             let mut p1x = vec![0.0_f32; ln];
@@ -220,25 +217,21 @@ impl super::MultiResSyNRegistration {
                     VectorField {
                         z: &giz,
                         y: &giy,
-                        x: &gix,
-                    },
+                        x: &gix },
                     VectorField {
                         z: &gjz,
                         y: &gjy,
-                        x: &gjx,
-                    },
+                        x: &gjx },
                     ld,
                     &cc_sats,
                     VectorFieldMut {
                         z: &mut u1z,
                         y: &mut u1y,
-                        x: &mut u1x,
-                    },
+                        x: &mut u1x },
                     VectorFieldMut {
                         z: &mut u2z,
                         y: &mut u2y,
-                        x: &mut u2x,
-                    },
+                        x: &mut u2x },
                     &mut cc_slices,
                 );
 
@@ -269,37 +262,31 @@ impl super::MultiResSyNRegistration {
                         VectorField {
                             z: &v1z,
                             y: &v1y,
-                            x: &v1x,
-                        },
+                            x: &v1x },
                         VectorField {
                             z: &v2z,
                             y: &v2y,
-                            x: &v2x,
-                        },
+                            x: &v2x },
                         ld.into(),
                         VectorFieldMut {
                             z: &mut c1z,
                             y: &mut c1y,
-                            x: &mut c1x,
-                        },
+                            x: &mut c1x },
                     );
                     compose_fields_into(
                         VectorField {
                             z: &v2z,
                             y: &v2y,
-                            x: &v2x,
-                        },
+                            x: &v2x },
                         VectorField {
                             z: &v1z,
                             y: &v1y,
-                            x: &v1x,
-                        },
+                            x: &v1x },
                         ld.into(),
                         VectorFieldMut {
                             z: &mut c2z,
                             y: &mut c2y,
-                            x: &mut c2x,
-                        },
+                            x: &mut c2x },
                     );
                     for i in 0..ln {
                         v1z[i] = (v1z[i] - c1z[i]) * 0.5;
@@ -322,8 +309,7 @@ impl super::MultiResSyNRegistration {
             prev = Some(PrevLevelState {
                 forward: VelocityField::new(v1z, v1y, v1x),
                 inverse: VelocityField::new(v2z, v2y, v2x),
-                dims: ld,
-            });
+                dims: ld });
         }
 
         let PrevLevelState {
@@ -353,7 +339,6 @@ impl super::MultiResSyNRegistration {
                 WarpInterpolation::Trilinear,
             ),
             final_cc,
-            num_iterations: total_iter,
-        })
+            num_iterations: total_iter })
     }
 }

@@ -1,4 +1,4 @@
-#![allow(clippy::needless_range_loop)]
+﻿#![allow(clippy::needless_range_loop)]
 
 use super::*;
 use crate::domain::vtk_data_object::{AttributeArray, VtkStructuredGrid};
@@ -17,8 +17,7 @@ fn test_structured_grid_roundtrip_identity() {
     }
     let scalars = AttributeArray::Scalars {
         values: (0..12).map(|i| i as f32).collect(),
-        num_components: 1,
-    };
+        num_components: 1 };
     let mut grid = VtkStructuredGrid::new(dims);
     grid.points = points.clone();
     grid.point_data.insert("intensity".to_string(), scalars);
@@ -48,8 +47,7 @@ fn test_structured_grid_roundtrip_identity() {
     {
         AttributeArray::Scalars {
             values,
-            num_components,
-        } => {
+            num_components } => {
             assert_eq!(*num_components, 1);
             assert_eq!(values.len(), 12);
             for i in 0..12 {
@@ -62,8 +60,7 @@ fn test_structured_grid_roundtrip_identity() {
                 );
             }
         }
-        other => panic!("expected Scalars, got {:?}", other),
-    }
+        other => panic!("expected Scalars, got {:?}", other) }
 }
 
 #[test]
@@ -106,8 +103,7 @@ fn test_structured_grid_roundtrip_vectors() {
     grid.point_data.insert(
         "velocity".to_string(),
         AttributeArray::Vectors {
-            values: expected_vecs.clone(),
-        },
+            values: expected_vecs.clone() },
     );
 
     let tmp = NamedTempFile::new().expect("temp file");
@@ -135,6 +131,5 @@ fn test_structured_grid_roundtrip_vectors() {
                 }
             }
         }
-        other => panic!("expected Vectors, got {:?}", other),
-    }
+        other => panic!("expected Vectors, got {:?}", other) }
 }

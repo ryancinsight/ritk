@@ -1,4 +1,4 @@
-//! Python-exposed intensity projection filters.
+﻿//! Python-exposed intensity projection filters.
 //!
 //! All filters delegate to `ritk_filter::projection` (SSOT).
 //!
@@ -14,8 +14,7 @@ use pyo3::prelude::*;
 use ritk_filter::projection::{
     BinaryProjectionFilter, BinaryThresholdProjectionFilter, MaxIntensityProjectionFilter,
     MeanIntensityProjectionFilter, MedianIntensityProjectionFilter, MinIntensityProjectionFilter,
-    ProjectionAxis, StdDevIntensityProjectionFilter, SumIntensityProjectionFilter,
-};
+    ProjectionAxis, StdDevIntensityProjectionFilter, SumIntensityProjectionFilter };
 
 /// Parse an axis integer (0, 1, 2) into `ProjectionAxis`.
 fn parse_axis(axis: usize) -> RitkResult<ProjectionAxis> {
@@ -25,8 +24,7 @@ fn parse_axis(axis: usize) -> RitkResult<ProjectionAxis> {
         2 => Ok(ProjectionAxis::X),
         other => Err(RitkPyError::value(format!(
             "projection axis must be 0 (Z), 1 (Y), or 2 (X); got {other}"
-        ))),
-    }
+        ))) }
 }
 
 /// Maximum intensity projection along a spatial axis.
@@ -36,7 +34,7 @@ fn parse_axis(axis: usize) -> RitkResult<ProjectionAxis> {
 ///
 /// Args:
 ///     image: Input PyImage [D, H, W].
-///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
+///     axis:  Axis to project along â€” 0 (Z), 1 (Y), or 2 (X).
 ///
 /// Returns:
 ///     Projected PyImage with size 1 along `axis`.
@@ -65,7 +63,7 @@ pub fn max_intensity_projection(
 ///
 /// Args:
 ///     image: Input PyImage [D, H, W].
-///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
+///     axis:  Axis to project along â€” 0 (Z), 1 (Y), or 2 (X).
 ///
 /// Returns:
 ///     Projected PyImage with size 1 along `axis`.
@@ -94,7 +92,7 @@ pub fn min_intensity_projection(
 ///
 /// Args:
 ///     image: Input PyImage [D, H, W].
-///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
+///     axis:  Axis to project along â€” 0 (Z), 1 (Y), or 2 (X).
 ///
 /// Returns:
 ///     Projected PyImage with size 1 along `axis`.
@@ -189,7 +187,7 @@ pub fn median_intensity_projection(
 ///
 /// Args:
 ///     image: Input PyImage [D, H, W].
-///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
+///     axis:  Axis to project along â€” 0 (Z), 1 (Y), or 2 (X).
 ///
 /// Returns:
 ///     Projected PyImage with size 1 along `axis`.
@@ -221,7 +219,7 @@ pub fn sum_intensity_projection(
 ///
 /// Args:
 ///     image: Input PyImage [D, H, W].
-///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
+///     axis:  Axis to project along â€” 0 (Z), 1 (Y), or 2 (X).
 ///
 /// Returns:
 ///     Projected PyImage with size 1 along `axis`.

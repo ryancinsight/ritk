@@ -1,6 +1,6 @@
-use super::*;
+﻿use super::*;
 
-// ── Helper: binary image with specified components ────────────────────────────
+// â”€â”€ Helper: binary image with specified components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn make_binary_image_with_components(
     dims: [usize; 3],
@@ -19,8 +19,8 @@ fn make_binary_image_with_components(
             }
         }
     }
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+    let td = ::new(vals, Shape::new(dims));
+    let tensor = Tensor::<f32, Backend>::from_data(td, &device);
     Image::new(
         tensor,
         Point::new([0.0; 3]),
@@ -29,7 +29,7 @@ fn make_binary_image_with_components(
     )
 }
 
-// ── Positive: K-Means creates output with cluster labels ──────────────────
+// â”€â”€ Positive: K-Means creates output with cluster labels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_segment_kmeans_creates_output_with_valid_labels() {
@@ -191,7 +191,7 @@ fn native_kmeans_cli_rejects_invalid_configuration() {
     assert_eq!(invalid_k.to_string(), "k must be at least 1, got 0");
 }
 
-// ── Positive: Distance transform creates output ───────────────────────────
+// â”€â”€ Positive: Distance transform creates output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_segment_distance_transform_creates_output() {
@@ -234,8 +234,8 @@ fn test_segment_distance_transform_background_is_zero() {
 
     let device: <Backend as BurnBackend>::Device = Default::default();
     let values = vec![0.0_f32; 27];
-    let td = TensorData::new(values, Shape::new([3, 3, 3]));
-    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+    let td = ::new(values, Shape::new([3, 3, 3]));
+    let tensor = Tensor::<f32, Backend>::from_data(td, &device);
     let img = Image::new(
         tensor,
         Point::new([0.0; 3]),
@@ -268,8 +268,8 @@ fn native_distance_transform_cli_preserves_exact_physical_values_and_geometry() 
     let input = dir.path().join("input.nii");
     let output = dir.path().join("distance.nii");
     let device: <Backend as BurnBackend>::Device = Default::default();
-    let tensor = Tensor::<Backend, 3>::from_data(
-        TensorData::new(vec![1.0, 0.0, 0.0, 0.0], Shape::new([1, 1, 4])),
+    let tensor = Tensor::<f32, Backend>::from_data(
+        ::new(vec![1.0, 0.0, 0.0, 0.0], Shape::new([1, 1, 4])),
         &device,
     );
     let image = Image::new(
@@ -292,7 +292,7 @@ fn native_distance_transform_cli_preserves_exact_physical_values_and_geometry() 
     assert_eq!(actual.direction(), image.direction());
 }
 
-// ── Fill-holes tests ──────────────────────────────────────────────────────
+// â”€â”€ Fill-holes tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_segment_fill_holes_fills_enclosed_cavity() {
@@ -314,8 +314,8 @@ fn test_segment_fill_holes_fills_enclosed_cavity() {
             }
         }
     }
-    let td = TensorData::new(vals, Shape::new([nz, ny, nx]));
-    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+    let td = ::new(vals, Shape::new([nz, ny, nx]));
+    let tensor = Tensor::<f32, Backend>::from_data(td, &device);
     let hollow_sphere = Image::new(
         tensor,
         Point::new([0.0; 3]),
@@ -354,7 +354,7 @@ fn test_segment_fill_holes_fills_enclosed_cavity() {
     });
 }
 
-// ── Morphological gradient tests ─────────────────────────────────────────
+// â”€â”€ Morphological gradient tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_segment_morphological_gradient_extracts_boundary() {
@@ -382,7 +382,7 @@ fn test_segment_morphological_gradient_extracts_boundary() {
     });
 }
 
-// ── Skeletonization tests ─────────────────────────────────────────────────
+// â”€â”€ Skeletonization tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_segment_skeletonization_creates_output() {
@@ -429,8 +429,7 @@ fn test_segment_skeletonization_strictly_binary() {
 #[test]
 fn native_postprocessing_cli_matches_legacy_exactly() {
     use ritk_segmentation::{
-        BinaryFillHoles, MorphologicalGradient, MorphologicalOperation, Skeletonization,
-    };
+        BinaryFillHoles, MorphologicalGradient, MorphologicalOperation, Skeletonization };
 
     let dir = tempdir().unwrap();
     let input = dir.path().join("input.nii");
@@ -464,7 +463,7 @@ fn native_postprocessing_cli_matches_legacy_exactly() {
     }
 }
 
-// ── Connected-components tests ────────────────────────────────────────────
+// â”€â”€ Connected-components tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_segment_connected_components_creates_output_with_correct_shape() {

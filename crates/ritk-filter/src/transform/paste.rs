@@ -1,4 +1,4 @@
-//! Paste filter — copy a source image into a region of a destination image.
+//! Paste filter â€” copy a source image into a region of a destination image.
 //!
 //! # Mathematical Specification
 //!
@@ -8,11 +8,11 @@
 //! `out = copy(D)`
 //! `out[dz + iz][dy + iy][dx + ix] = S[iz][iy][ix]`
 //!
-//! for `iz ∈ [0, Sz)`, `iy ∈ [0, Sy)`, `ix ∈ [0, Sx)`.
+//! for `iz âˆˆ [0, Sz)`, `iy âˆˆ [0, Sy)`, `ix âˆˆ [0, Sx)`.
 //!
 //! ## Invariants
 //!
-//! - `dest_start[k] + S_shape[k] ≤ D_shape[k]` for k ∈ {z, y, x}; validated.
+//! - `dest_start[k] + S_shape[k] â‰¤ D_shape[k]` for k âˆˆ {z, y, x}; validated.
 //! - Destination voxels outside the paste region are unchanged.
 //! - Spatial metadata of the *destination* image is preserved in the output.
 //! - Source and destination must have the same f32 voxel type.
@@ -50,9 +50,9 @@ impl PasteImageFilter {
     /// Returns `Err` if the source region would exceed the destination bounds.
     pub fn apply<B: Backend>(
         &self,
-        dest: &Image<B, 3>,
-        source: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
+        dest: &Image<f32, B, 3>,
+        source: &Image<f32, B, 3>,
+    ) -> anyhow::Result<Image<f32, B, 3>> {
         let [dz, dy, dx] = dest.shape();
         let [sz, sy, sx] = source.shape();
         let [sdz, sdy, sdx]: [usize; 3] = self.dest_start.into();
@@ -161,7 +161,7 @@ impl PasteImageFilter {
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_paste.rs"]

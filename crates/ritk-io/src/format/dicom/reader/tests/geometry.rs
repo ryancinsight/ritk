@@ -20,6 +20,7 @@ use crate::format::dicom::{
 use arrayvec::ArrayString;
 use ritk_core::image::Image;
 use ritk_dicom::TransferSyntaxKind;
+use ritk_image::tensor::{Shape, Tensor};
 use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_analyze_slice_spacing_uniform() {
@@ -43,7 +44,7 @@ fn test_analyze_slice_spacing_uniform() {
 
 #[test]
 fn test_analyze_slice_spacing_nonuniform() {
-    // Positions: 0, 1, 2.2, 3.2, 4.2 — gap[1] = 1.2, others = 1.0, median = 1.0
+    // Positions: 0, 1, 2.2, 3.2, 4.2 â€” gap[1] = 1.2, others = 1.0, median = 1.0
     let positions = vec![0.0_f64, 1.0, 2.2, 3.2, 4.2];
     let report = analyze_slice_spacing(&positions);
     // nominal = median([1.0, 1.2, 1.0, 1.0]) = 1.0
@@ -59,13 +60,13 @@ fn test_analyze_slice_spacing_nonuniform() {
         report.max_relative_deviation
     );
     assert_eq!(report.spacing_uniformity, SpacingUniformity::Nonuniform);
-    // gap[1]=1.2 < 1.5 × 1.0: no missing slices
+    // gap[1]=1.2 < 1.5 Ã— 1.0: no missing slices
     assert_eq!(report.slice_coverage, SliceCoverage::Complete);
 }
 
 #[test]
 fn test_analyze_slice_spacing_missing_slice() {
-    // 4 slices at 0, 1, 3, 4 mm — gap[1] = 2.0, nominal = 1.0
+    // 4 slices at 0, 1, 3, 4 mm â€” gap[1] = 2.0, nominal = 1.0
     let positions = vec![0.0_f64, 1.0, 3.0, 4.0];
     let report = analyze_slice_spacing(&positions);
     // gaps: [1.0, 2.0, 1.0]; median = 1.0
@@ -75,15 +76,15 @@ fn test_analyze_slice_spacing_missing_slice() {
         report.nominal_spacing
     );
     assert_eq!(report.slice_coverage, SliceCoverage::HasMissingSlices);
-    // gap[1] = 2.0 > 1.5 × 1.0
+    // gap[1] = 2.0 > 1.5 Ã— 1.0
     assert_eq!(report.missing_between, vec![1_usize]);
-    // max relative deviation = 1.0 (100%) — also nonuniform
+    // max relative deviation = 1.0 (100%) â€” also nonuniform
     assert_eq!(report.spacing_uniformity, SpacingUniformity::Nonuniform);
 }
 
 #[test]
 fn test_resample_frames_linear_identity_on_uniform() {
-    // 4 frames, 2×2 pixels each, uniform spacing 1.0 mm
+    // 4 frames, 2Ã—2 pixels each, uniform spacing 1.0 mm
     let f0 = vec![1.0_f32, 2.0, 3.0, 4.0];
     let f1 = vec![5.0_f32, 6.0, 7.0, 8.0];
     let f2 = vec![9.0_f32, 10.0, 11.0, 12.0];
@@ -109,30 +110,30 @@ fn test_resample_frames_linear_identity_on_uniform() {
 #[test]
 fn test_resample_frames_linear_missing_slice() {
     // All-constant frames: src[0]=10, src[1]=20, src[2]=40, src[3]=50 (per-pixel)
-    let mk = |v: f32| vec![v; 4]; // 2×2 pixels
+    let mk = |v: f32| vec![v; 4]; // 2Ã—2 pixels
     let frames = vec![mk(10.0), mk(20.0), mk(40.0), mk(50.0)];
     let positions = vec![0.0_f64, 1.0, 3.0, 4.0];
     let resampled = resample_frames_linear(&frames, &positions, 1.0);
     // N_target = round((4.0 - 0.0) / 1.0) + 1 = 5
     assert_eq!(resampled.len(), 5, "expected 5 output frames");
-    // Frame 0 (pos=0.0) → src[0] = 10.0
+    // Frame 0 (pos=0.0) â†’ src[0] = 10.0
     for &v in &resampled[0] {
         assert!((v - 10.0).abs() < 1e-5, "frame[0] pixel={}", v);
     }
-    // Frame 1 (pos=1.0) → exactly src[1] = 20.0
+    // Frame 1 (pos=1.0) â†’ exactly src[1] = 20.0
     for &v in &resampled[1] {
         assert!((v - 20.0).abs() < 1e-5, "frame[1] pixel={}", v);
     }
-    // Frame 2 (pos=2.0) → midpoint of src[1](pos=1.0) and src[2](pos=3.0)
-    // t = (2.0 - 1.0) / (3.0 - 1.0) = 0.5 → 0.5×20 + 0.5×40 = 30.0
+    // Frame 2 (pos=2.0) â†’ midpoint of src[1](pos=1.0) and src[2](pos=3.0)
+    // t = (2.0 - 1.0) / (3.0 - 1.0) = 0.5 â†’ 0.5Ã—20 + 0.5Ã—40 = 30.0
     for &v in &resampled[2] {
         assert!((v - 30.0).abs() < 1e-4, "frame[2] pixel={}", v);
     }
-    // Frame 3 (pos=3.0) → exactly src[2] = 40.0
+    // Frame 3 (pos=3.0) â†’ exactly src[2] = 40.0
     for &v in &resampled[3] {
         assert!((v - 40.0).abs() < 1e-5, "frame[3] pixel={}", v);
     }
-    // Frame 4 (pos=4.0) → src[3] = 50.0
+    // Frame 4 (pos=4.0) â†’ src[3] = 50.0
     for &v in &resampled[4] {
         assert!((v - 50.0).abs() < 1e-5, "frame[4] pixel={}", v);
     }
@@ -146,19 +147,19 @@ fn test_resample_frames_linear_nonuniform_interpolation() {
     let positions = vec![0.0_f64, 1.0, 2.1, 3.1, 4.1];
     let resampled = resample_frames_linear(&frames, &positions, 1.0);
     assert_eq!(resampled.len(), 5, "5 target frames");
-    // Frame 0 → exact src[0] = 0.0 (t=0, clamp)
+    // Frame 0 â†’ exact src[0] = 0.0 (t=0, clamp)
     assert!(
         (resampled[0][0] - 0.0).abs() < 1e-5,
         "frame[0]={}",
         resampled[0][0]
     );
-    // Frame 1 → exact src[1] = 10.0 (exact match at pos=1.0)
+    // Frame 1 â†’ exact src[1] = 10.0 (exact match at pos=1.0)
     assert!(
         (resampled[1][0] - 10.0).abs() < 1e-5,
         "frame[1]={}",
         resampled[1][0]
     );
-    // Frame 2 → interpolated between src[1](10.0) and src[2](20.0)
+    // Frame 2 â†’ interpolated between src[1](10.0) and src[2](20.0)
     let t = (2.0_f64 - 1.0) / (2.1 - 1.0);
     let expected = (1.0 - t) as f32 * 10.0 + t as f32 * 20.0;
     assert!(
@@ -177,7 +178,7 @@ fn test_normalize_unit_vector() {
     let d = normalize([1.0, 1.0, 1.0]).expect("non-zero");
     let len = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
     assert!((len - 1.0).abs() < 1e-10, "len={}", len);
-    // Zero vector → None
+    // Zero vector â†’ None
     assert!(normalize([0.0, 0.0, 0.0]).is_none());
 }
 
@@ -201,30 +202,26 @@ fn test_dot_product() {
 #[test]
 fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
-    type B = burn_ndarray::NdArray<f32>;
+    type B = coeus_core::SequentialBackend;
 
     let temp = tempfile::tempdir().unwrap();
     let series_path = temp.path().join("coronal_series");
 
     let (depth, rows, cols) = (3usize, 2usize, 2usize);
     let data = vec![500.0f32; depth * rows * cols];
-    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(data, Shape::new([depth, rows, cols])),
-        &device,
-    );
-    let image = Image::<B, 3>::new(
+    let device = B::default();
+    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &(data), &device);
+    let image = Image::<f32, B, 3>::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.5, 1.0, 1.0]),
         Direction::identity(),
     );
 
-    // Coronal IOP: F_r=[1,0,0], F_c=[0,0,-1], N̂=F_r×F_c=[0,1,0].
-    // RITK direction = from_column_slice([N̂, F_c, F_r]) = [0,1,0, 0,0,-1, 1,0,0].
+    // Coronal IOP: F_r=[1,0,0], F_c=[0,0,-1], NÌ‚=F_rÃ—F_c=[0,1,0].
+    // RITK direction = from_column_slice([NÌ‚, F_c, F_r]) = [0,1,0, 0,0,-1, 1,0,0].
     let meta = DicomReadMetadata {
         series_instance_uid: Some("2.25.61001".try_into().unwrap()),
         study_instance_uid: Some("2.25.61002".try_into().unwrap()),
@@ -264,14 +261,14 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
     let (loaded_image, _) = load_dicom_series_with_metadata::<B, _>(&series_path, &device)
         .expect("load_dicom_series_with_metadata must not fail");
 
-    // RITK convention: from_column_slice([N̂, F_c, F_r]) = from_column_slice([0,1,0, 0,0,-1, 1,0,0]):
+    // RITK convention: from_column_slice([NÌ‚, F_c, F_r]) = from_column_slice([0,1,0, 0,0,-1, 1,0,0]):
     //   col0=[0,1,0]: direction[(0,0)]=0, direction[(1,0)]=1, direction[(2,0)]=0
     //   col1=[0,0,-1]: direction[(0,1)]=0, direction[(1,1)]=0, direction[(2,1)]=-1
     //   col2=[1,0,0]:  direction[(0,2)]=1, direction[(1,2)]=0, direction[(2,2)]=0
     let dir = loaded_image.direction().0;
     const TOL: f64 = 1e-5;
 
-    // Column 0 = slice normal N̂ = [0, 1, 0]
+    // Column 0 = slice normal NÌ‚ = [0, 1, 0]
     assert!(
         dir[(0, 0)].abs() < TOL,
         "dir[(0,0)] must be 0.0; got {}",
@@ -299,7 +296,7 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
         "dir[(1,1)] must be 0.0; got {}",
         dir[(1, 1)]
     );
-    // Discriminating: from_column_slice → -1.0; from_row_slice (wrong) → +1.0
+    // Discriminating: from_column_slice â†’ -1.0; from_row_slice (wrong) â†’ +1.0
     assert!(
         (dir[(2, 1)] + 1.0).abs() < TOL,
         "dir[(2,1)] must be -1.0 (column-slice convention); \
@@ -313,7 +310,7 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
         "dir[(0,2)] must be 1.0; got {}",
         dir[(0, 2)]
     );
-    // Discriminating: from_column_slice → 0.0 here; old convention had 1.0 at (1,2)
+    // Discriminating: from_column_slice â†’ 0.0 here; old convention had 1.0 at (1,2)
     assert!(
         dir[(1, 2)].abs() < TOL,
         "dir[(1,2)] must be 0.0 (RITK column-slice convention); got {}",

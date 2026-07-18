@@ -1,13 +1,13 @@
-//! Gradient-descent registration driver on the autodiff seams.
+﻿//! Gradient-descent registration driver on the autodiff seams.
 //!
 //! Ties the verified primitives into one reusable entry point: given a moving
 //! image, a fixed sampling grid, a [`Metric`], and a [`Transform`]
 //! built from trainable parameter `Var`s, [`gradient_descent`] runs the
-//! forward → backward → step loop ([`super::metric::evaluate`] →
-//! `Var::backward` → [`super::optim::sgd_step_var`]) and returns the optimized
+//! forward â†’ backward â†’ step loop ([`super::metric::evaluate`] â†’
+//! `Var::backward` â†’ [`super::optim::sgd_step_var`]) and returns the optimized
 //! parameters. This is the SSOT for "run an autodiff registration"; the per-sprint
 //! primitives (loss, sampling, transform, metric, optimizer step) were built
-//! and verified individually — this composes them into a usable whole.
+//! and verified individually â€” this composes them into a usable whole.
 //!
 //! The transform is rebuilt from the current parameters each iteration via a
 //! caller-supplied closure, so the driver is generic over any transform without
@@ -28,8 +28,7 @@ pub struct GradientDescentConfig<T> {
     /// Maximum number of gradient-descent iterations.
     pub iterations: usize,
     /// Learning rate applied per parameter step.
-    pub learning_rate: T,
-}
+    pub learning_rate: T }
 
 /// Outcome of a [`gradient_descent`] run.
 pub struct RegistrationOutcome<T, B>
@@ -43,8 +42,7 @@ where
     /// Loss at the final parameter values.
     pub final_loss: T,
     /// Loss at the initial parameter values (before any step).
-    pub initial_loss: T,
-}
+    pub initial_loss: T }
 
 /// Run gradient descent to align `moving` to `fixed` under a differentiable
 /// transform, minimizing `metric`.
@@ -56,13 +54,13 @@ where
 ///
 /// Each iteration rebuilds the transform from the current parameters, evaluates
 /// the metric, backpropagates, and steps every parameter by
-/// `−learning_rate · grad` (a fresh leaf, the tape-based-autograd idiom). The
+/// `âˆ’learning_rate Â· grad` (a fresh leaf, the tape-based-autograd idiom). The
 /// returned `params` are the stepped leaves after the final iteration.
 ///
 /// # Panics
 ///
 /// Panics if `params` is empty, or on the composed primitives' shape invariants
-/// — caller invariants.
+/// â€” caller invariants.
 pub fn gradient_descent<T, B, M, Tf, F>(
     moving_flat: &Var<T, B>,
     dims: [usize; 3],
@@ -112,8 +110,7 @@ where
     RegistrationOutcome {
         params,
         final_loss,
-        initial_loss: initial_loss.unwrap_or(final_loss),
-    }
+        initial_loss: initial_loss.unwrap_or(final_loss) }
 }
 
 #[cfg(test)]

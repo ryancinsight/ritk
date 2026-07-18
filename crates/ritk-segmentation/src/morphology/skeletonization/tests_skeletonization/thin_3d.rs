@@ -1,11 +1,11 @@
-//! 3-D thinning tests and internal predicate / trait tests.
+﻿//! 3-D thinning tests and internal predicate / trait tests.
 
 use super::*;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 
-// ── D = 3 tests ──────────────────────────────────────────────────────
+// â”€â”€ D = 3 tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_3d_empty_stays_empty() {
@@ -17,7 +17,7 @@ fn test_3d_empty_stays_empty() {
 #[test]
 fn test_3d_single_voxel_preserved() {
     let mut vals = vec![0.0_f32; 27];
-    vals[13] = 1.0; // center of 3×3×3
+    vals[13] = 1.0; // center of 3Ã—3Ã—3
     let image = make_mask_3d(vals, [3, 3, 3]);
     let result = Skeletonization::new().apply(&image);
     let v = values_3d(&result);
@@ -27,9 +27,9 @@ fn test_3d_single_voxel_preserved() {
 
 #[test]
 fn test_3d_straight_line_preserved() {
-    // 1×1×7 line (all foreground): already 1-voxel wide.
+    // 1Ã—1Ã—7 line (all foreground): already 1-voxel wide.
     // Endpoints have 1 neighbor each; interior voxels have 2 neighbors
-    // and are NOT simple (T₂₆ = 2 when neighbors are disconnected).
+    // and are NOT simple (Tâ‚‚â‚† = 2 when neighbors are disconnected).
     // The line is preserved.
     let image = make_mask_3d(vec![1.0_f32; 7], [1, 1, 7]);
     let result = Skeletonization::new().apply(&image);
@@ -42,7 +42,7 @@ fn test_3d_straight_line_preserved() {
 
 #[test]
 fn test_3d_cube_thins_to_smaller() {
-    // 5×5×5 filled cube → skeleton is strictly smaller.
+    // 5Ã—5Ã—5 filled cube â†’ skeleton is strictly smaller.
     let n = 5 * 5 * 5;
     let image = make_mask_3d(vec![1.0_f32; n], [5, 5, 5]);
     let result = Skeletonization::new().apply(&image);
@@ -56,7 +56,7 @@ fn test_3d_cube_thins_to_smaller() {
 
 #[test]
 fn test_3d_skeleton_is_subset() {
-    let orig = vec![1.0_f32; 125]; // 5×5×5
+    let orig = vec![1.0_f32; 125]; // 5Ã—5Ã—5
     let image = make_mask_3d(orig.clone(), [5, 5, 5]);
     let result = Skeletonization::new().apply(&image);
     let skel = values_3d(&result);
@@ -78,7 +78,7 @@ fn test_3d_binary_output() {
 
 #[test]
 fn test_3d_topology_preserved() {
-    // Two separate 3×3×3 cubes in a 3×3×9 image.
+    // Two separate 3Ã—3Ã—3 cubes in a 3Ã—3Ã—9 image.
     let (nz, ny, nx) = (3, 3, 9);
     let mut vals = vec![0.0_f32; nz * ny * nx];
     // Cube 1: z=0..3, y=0..3, x=0..3
@@ -111,9 +111,7 @@ fn test_3d_topology_preserved() {
 
 #[test]
 fn test_3d_spatial_metadata_preserved() {
-    let device: <TestBackend as ritk_image::tensor::Backend>::Device = Default::default();
-    let td = TensorData::new(vec![1.0_f32; 27], Shape::new([3, 3, 3]));
-    let tensor = Tensor::<TestBackend, 3>::from_data(td, &device);
+    let tensor = Tensor::<f32, TestBackend>::from_slice([3, 3, 3], &[1.0_f32; 27]);
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 1.0, 2.0]);
     let direction = Direction::identity();
@@ -124,11 +122,11 @@ fn test_3d_spatial_metadata_preserved() {
     assert_eq!(result.direction(), &direction);
 }
 
-// ── Internal predicate tests ─────────────────────────────────────────
+// â”€â”€ Internal predicate tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_fg_components_26_single_component() {
-    // All 26 neighbors are foreground → 1 component.
+    // All 26 neighbors are foreground â†’ 1 component.
     let mut local = [true; 27];
     local[13] = false; // center excluded by convention in the function
     assert_eq!(fg_components_26(&local), 1);
@@ -137,7 +135,7 @@ fn test_fg_components_26_single_component() {
 #[test]
 fn test_fg_components_26_two_components() {
     // Only two opposite corners: (0,0,0)=idx 0 and (2,2,2)=idx 26.
-    // Chebyshev distance = 2 → not 26-adjacent → 2 components.
+    // Chebyshev distance = 2 â†’ not 26-adjacent â†’ 2 components.
     let mut local = [false; 27];
     local[0] = true; // (0,0,0)
     local[26] = true; // (2,2,2)
@@ -154,8 +152,8 @@ fn test_fg_components_26_empty() {
 fn test_fg_components_26_adjacent_corners() {
     // (0,0,0) and (1,1,1)=center is excluded, (0,0,1) and (0,1,0).
     // (0,0,0)=0, (0,0,1)=1, (0,1,0)=3.
-    // (0,0,0) is 26-adjacent to (0,0,1) (differ by 1 in x) → connected.
-    // (0,0,0) is 26-adjacent to (0,1,0) (differ by 1 in y) → connected.
+    // (0,0,0) is 26-adjacent to (0,0,1) (differ by 1 in x) â†’ connected.
+    // (0,0,0) is 26-adjacent to (0,1,0) (differ by 1 in y) â†’ connected.
     // All form 1 component.
     let mut local = [false; 27];
     local[0] = true; // (0,0,0)
@@ -164,14 +162,14 @@ fn test_fg_components_26_adjacent_corners() {
     assert_eq!(fg_components_26(&local), 1);
 }
 
-// ── Trait / API parity test ──────────────────────────────────────────
+// â”€â”€ Trait / API parity test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_morphological_operation_trait() {
     use crate::morphology::MorphologicalOperation;
     let image = make_mask_3d(vec![1.0_f32; 27], [3, 3, 3]);
     let via_method = Skeletonization::new().apply(&image);
-    let via_trait: Image<TestBackend, 3> = <Skeletonization as MorphologicalOperation<
+    let via_trait: Image<f32, TestBackend, 3> = <Skeletonization as MorphologicalOperation<
         TestBackend,
         3,
     >>::apply(&Skeletonization::new(), &image);

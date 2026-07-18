@@ -81,10 +81,10 @@ pub fn vector_connected_components(
 /// # Panics
 /// If `images` is empty or the channel images differ in dimensions.
 pub fn vector_connected_components_image<B: Backend>(
-    images: &[&Image<B, 3>],
+    images: &[&Image<f32, B, 3>],
     distance_threshold: f32,
     connectivity: u32,
-) -> Image<B, 3> {
+) -> Image<f32, B, 3> {
     let (first, dims) = extract_vec_infallible(images[0]);
     let mut bufs: Vec<Vec<f32>> = Vec::with_capacity(images.len());
     bufs.push(first);

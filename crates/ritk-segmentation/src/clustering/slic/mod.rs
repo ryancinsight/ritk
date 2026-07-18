@@ -4,35 +4,35 @@
 //!
 //! SLIC (Simple Linear Iterative Clustering) partitions an image into K
 //! superpixels (2-D) or supervoxels (3-D) by local k-means clustering in a
-//! combined intensity–spatial feature space.
+//! combined intensityâ€“spatial feature space.
 //!
 //! ## Feature vector
 //!
 //! For a D-dimensional image with voxel at spatial position **p** and
 //! intensity I(**p**):
 //!
-//! F(**p**) = \[ I(**p**) / m_c , p₀ / m_s , … , p_{D-1} / m_s \]
+//! F(**p**) = \[ I(**p**) / m_c , pâ‚€ / m_s , â€¦ , p_{D-1} / m_s \]
 //!
 //! where:
 //! - m_c = max intensity range (normalizes intensity to ~\[0,1\])
-//! - m_s = √(N / K), N = total voxels, K = desired superpixels
+//! - m_s = âˆš(N / K), N = total voxels, K = desired superpixels
 //! - m (compactness, default 10.0) weights spatial vs. intensity proximity
 //!
 //! ## Distance metric
 //!
-//! D²(**p**, **c**) = ((I(**p**) − I_c) / m_c)²
-//!                  + m² · Σ_{d=0}^{D-1} (p_d − c_d)² / m_s²
+//! DÂ²(**p**, **c**) = ((I(**p**) âˆ’ I_c) / m_c)Â²
+//!                  + mÂ² Â· Î£_{d=0}^{D-1} (p_d âˆ’ c_d)Â² / m_sÂ²
 //!
 //! where **c** is a cluster center with intensity I_c and spatial position c_d.
 //!
 //! ## Algorithm
 //!
 //! 1. **Initialize**: Place K cluster centers on a regular grid with step
-//!    S_d = ⌊shape_d / K^(1/D)⌋ per axis. Perturb each center to the
+//!    S_d = âŒŠshape_d / K^(1/D)âŒ‹ per axis. Perturb each center to the
 //!    lowest-gradient voxel in a 3^D neighbourhood.
 //! 2. **Assign**: For each voxel, find the nearest cluster center within a
 //!    2S neighbourhood per axis using a grid-based search-window index.
-//!    Amortized complexity: O(N · 2^D) per iteration (not O(N·K)).
+//!    Amortized complexity: O(N Â· 2^D) per iteration (not O(NÂ·K)).
 //! 3. **Update**: Recompute each center as the mean of all assigned voxels.
 //! 4. **Repeat** assignment + update for `max_iterations` or until
 //!    convergence (max center shift < tolerance).
@@ -42,22 +42,22 @@
 //!
 //! ## Output
 //!
-//! A label image where each voxel contains its superpixel label (0..K−1) as
+//! A label image where each voxel contains its superpixel label (0..Kâˆ’1) as
 //! f32, preserving spatial metadata.
 //!
 //! # Complexity
 //!
 //! Grid initialization: O(N) for gradient computation.
-//! Each iteration: O(N · 2^D) assignments + O(N) center updates.
-//! Connectivity enforcement: O(N · α(N)) ≈ O(N).
-//! Total: O(N · (2^D · I + α(N))) where I = iterations.
+//! Each iteration: O(N Â· 2^D) assignments + O(N) center updates.
+//! Connectivity enforcement: O(N Â· Î±(N)) â‰ˆ O(N).
+//! Total: O(N Â· (2^D Â· I + Î±(N))) where I = iterations.
 //!
 //! # References
 //!
-//! - Achanta, R., Shaji, A., Smith, K., Lucchi, A., Fua, P. & Süsstrunk, S.
+//! - Achanta, R., Shaji, A., Smith, K., Lucchi, A., Fua, P. & SÃ¼sstrunk, S.
 //!   (2012). "SLIC Superpixels Compared to State-of-the-Art Superpixel
 //!   Methods." *IEEE Trans. Pattern Analysis and Machine Intelligence*,
-//!   34(11):2274–2282.
+//!   34(11):2274â€“2282.
 
 pub mod assign;
 pub mod connectivity;
@@ -71,12 +71,12 @@ pub use itk_filter::{
 };
 
 use ritk_core::image::Image;
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_tensor_ops::extract_vec_infallible;
 
 const MAX_EXACT_LABELS: usize = 1 << f32::MANTISSA_DIGITS;
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// SLIC super-pixel configuration.
 #[derive(Debug, Clone)]
@@ -172,7 +172,7 @@ impl SlicConfig {
 ///
 /// Partitions an image into `config.n_superpixels` superpixels using the
 /// SLIC algorithm. Output is a label image where each voxel carries its
-/// superpixel index (0..K−1) as f32. Spatial metadata is preserved.
+/// superpixel index (0..Kâˆ’1) as f32. Spatial metadata is preserved.
 pub struct SlicSuperpixelFilter {
     config: SlicConfig,
 }
@@ -195,14 +195,14 @@ impl SlicSuperpixelFilter {
     /// an unrepresentable intensity range.
     pub fn apply<B: Backend, const D: usize>(
         &self,
-        image: &Image<B, D>,
-    ) -> anyhow::Result<Image<B, D>> {
+        image: &Image<f32, B, D>,
+    ) -> anyhow::Result<Image<f32, B, D>> {
         let (vals, shape) = extract_vec_infallible(image);
         validate_standard_input(&vals, &shape, D)?;
-        let device = image.data().device();
+        let device = B::default();
         let ndim = D;
         let labels = slic_impl(&vals, &shape, ndim, &self.config);
-        let tensor = Tensor::<B, D>::from_data(TensorData::new(labels, Shape::new(shape)), &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &labels, &device);
         Ok(Image::new(
             tensor,
             *image.origin(),
@@ -243,17 +243,17 @@ impl SlicSuperpixelFilter {
 /// Returns an error for an invalid label count or any input error documented
 /// by [`SlicSuperpixelFilter::apply`].
 pub fn slic_superpixel<B: Backend, const D: usize>(
-    image: &Image<B, D>,
+    image: &Image<f32, B, D>,
     n_superpixels: usize,
-) -> anyhow::Result<Image<B, D>> {
+) -> anyhow::Result<Image<f32, B, D>> {
     SlicSuperpixelFilter::new(SlicConfig::new(n_superpixels)?).apply(image)
 }
 
-// ── Core implementation ────────────────────────────────────────────────────────
+// â”€â”€ Core implementation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Core SLIC implementation operating on a flat f32 slice and dynamic shape.
 ///
-/// Returns a `Vec<f32>` of cluster labels (0..K−1).
+/// Returns a `Vec<f32>` of cluster labels (0..Kâˆ’1).
 fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) -> Vec<f32> {
     let n: usize = shape.iter().product();
 
@@ -261,7 +261,7 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
         return vec![0.0_f32; n];
     }
 
-    // Degenerate: K=1 → all label 0.
+    // Degenerate: K=1 â†’ all label 0.
     let k = config.n_superpixels.min(n);
     if k <= 1 {
         return vec![0.0_f32; n];
@@ -290,16 +290,16 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
         .map(|&s| ((s as f32) / k_root).floor().max(1.0) as usize)
         .collect();
 
-    // ── Gradient computation ─────────────────────────────────────────────────
+    // â”€â”€ Gradient computation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let gradient = gradient::compute_gradient(data, shape, ndim, m_c);
 
-    // ── Initialize cluster centers on a regular grid ─────────────────────────
+    // â”€â”€ Initialize cluster centers on a regular grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let mut centers = grid::init_centers(data, shape, ndim, &steps, &gradient, k);
 
-    // ── Build grid-to-center mapping ─────────────────────────────────────────
+    // â”€â”€ Build grid-to-center mapping â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let grid_sizes: Vec<usize> = steps.iter().map(|&s| s.max(1)).collect();
 
-    // ── Iterative assignment + update ─────────────────────────────────────────
+    // â”€â”€ Iterative assignment + update â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let mut labels = vec![0u32; n];
     let mut distances = vec![f32::MAX; n];
     let mut grid_map = Vec::new();
@@ -309,7 +309,7 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
 
         assign::build_grid_map_into(&centers, &grid_sizes, shape, ndim, &mut grid_map);
 
-        // ── Assignment step ──────────────────────────────────────────────────
+        // â”€â”€ Assignment step â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         assign::assign_voxels(
             data,
             shape,
@@ -324,7 +324,7 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
             &mut labels,
         );
 
-        // ── Update step ──────────────────────────────────────────────────────
+        // â”€â”€ Update step â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let max_shift = assign::update_centers(&mut centers, data, &labels, shape, ndim, k);
 
         if max_shift < config.tolerance {
@@ -332,7 +332,7 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
         }
     }
 
-    // ── Final assignment (ensure labels match final centers) ──────────────────
+    // â”€â”€ Final assignment (ensure labels match final centers) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     distances.iter_mut().for_each(|d| *d = f32::MAX);
     assign::build_grid_map_into(&centers, &grid_sizes, shape, ndim, &mut grid_map);
     assign::assign_voxels(
@@ -349,7 +349,7 @@ fn slic_impl(data: &[f32], shape: &[usize], ndim: usize, config: &SlicConfig) ->
         &mut labels,
     );
 
-    // ── Connectivity enforcement ──────────────────────────────────────────────
+    // â”€â”€ Connectivity enforcement â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if config.min_component_size > 0 && ndim >= 2 {
         connectivity::enforce_connectivity(
             &mut labels,
@@ -408,7 +408,7 @@ fn validate_standard_input(data: &[f32], shape: &[usize], ndim: usize) -> anyhow
     Ok(())
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_slic.rs"]

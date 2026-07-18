@@ -1,4 +1,4 @@
-//! Result type for global MI registration.
+﻿//! Result type for global MI registration.
 
 use crate::optimizer::ConvergenceReason;
 use crate::types::AffineTransform;
@@ -9,13 +9,12 @@ pub enum ConvergenceStatus {
     /// All levels converged before reaching the maximum iteration count.
     Converged,
     /// At least one level exhausted the maximum iteration count without converging.
-    MaxIterationsReached,
-}
+    MaxIterationsReached }
 
 /// Result of global MI registration.
 #[derive(Debug, Clone)]
 pub struct GlobalMiResult<const D: usize> {
-    /// 4×4 homogeneous matrix representation of the final transform.
+    /// 4Ã—4 homogeneous matrix representation of the final transform.
     pub matrix: AffineTransform,
     /// Final Mattes MI value (positive; negated from the loss).
     pub final_mi: f64,
@@ -26,5 +25,4 @@ pub struct GlobalMiResult<const D: usize> {
     /// Loss history at the final level.
     pub loss_history: Vec<f64>,
     /// Whether overall registration converged at every level.
-    pub convergence: ConvergenceStatus,
-}
+    pub convergence: ConvergenceStatus }

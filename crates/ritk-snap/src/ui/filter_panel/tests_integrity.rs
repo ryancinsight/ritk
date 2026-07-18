@@ -1,8 +1,8 @@
-use crate::FilterKind;
+﻿use crate::FilterKind;
 use ritk_filter::ForegroundValue;
 
 // Verify that the default `FilterKind` values exposed by the panel are
-// within the analytically valid clamped ranges — GrayscaleMorph (remaining),
+// within the analytically valid clamped ranges â€” GrayscaleMorph (remaining),
 // Pointwise, Geometry, and Threshold variants.
 
 /// Abs: unit struct, always valid.
@@ -80,23 +80,21 @@ fn exp_variant_is_valid() {
 }
 
 /// Binary threshold: foreground=1.0 and background=0.0 are the canonical
-/// binary label values. lower ≤ upper required for valid threshold.
+/// binary label values. lower â‰¤ upper required for valid threshold.
 #[test]
 fn binary_threshold_defaults_ordered() {
     let fk = FilterKind::BinaryThreshold {
         lower: 100.0,
         upper: 500.0,
         foreground: ForegroundValue::ONE,
-        background: 0.0,
-    };
+        background: 0.0 };
     if let FilterKind::BinaryThreshold {
         lower,
         upper,
         foreground,
-        background,
-    } = fk
+        background } = fk
     {
-        assert!(lower <= upper, "lower={lower} must be ≤ upper={upper}");
+        assert!(lower <= upper, "lower={lower} must be â‰¤ upper={upper}");
         assert_ne!(
             foreground, background,
             "foreground and background must differ"
@@ -113,8 +111,7 @@ fn binary_threshold_defaults_ordered() {
 fn rescale_intensity_defaults_ordered() {
     let fk = FilterKind::RescaleIntensity {
         out_min: 0.0,
-        out_max: 1.0,
-    };
+        out_max: 1.0 };
     if let FilterKind::RescaleIntensity { out_min, out_max } = fk {
         assert!(
             out_min < out_max,
@@ -125,21 +122,20 @@ fn rescale_intensity_defaults_ordered() {
     }
 }
 
-/// Clamp: lower ≤ upper required for non-degenerate clamping.
+/// Clamp: lower â‰¤ upper required for non-degenerate clamping.
 #[test]
 fn clamp_defaults_ordered() {
     let fk = FilterKind::Clamp {
         lower: 0.0,
-        upper: 255.0,
-    };
+        upper: 255.0 };
     if let FilterKind::Clamp { lower, upper } = fk {
-        assert!(lower <= upper, "lower={lower} must be ≤ upper={upper}");
+        assert!(lower <= upper, "lower={lower} must be â‰¤ upper={upper}");
     } else {
         panic!("expected Clamp");
     }
 }
 
-/// Connected threshold: lower ≤ upper for a valid acceptance interval.
+/// Connected threshold: lower â‰¤ upper for a valid acceptance interval.
 #[test]
 fn connected_threshold_defaults_ordered() {
     let fk = FilterKind::ConnectedThreshold {
@@ -147,16 +143,15 @@ fn connected_threshold_defaults_ordered() {
         seed_y: 0,
         seed_x: 0,
         lower: 100.0,
-        upper: 500.0,
-    };
+        upper: 500.0 };
     if let FilterKind::ConnectedThreshold { lower, upper, .. } = fk {
-        assert!(lower <= upper, "lower={lower} must be ≤ upper={upper}");
+        assert!(lower <= upper, "lower={lower} must be â‰¤ upper={upper}");
     } else {
         panic!("expected ConnectedThreshold");
     }
 }
 
-/// Confidence connected: multiplier > 0 and max_iterations ≥ 1.
+/// Confidence connected: multiplier > 0 and max_iterations â‰¥ 1.
 #[test]
 fn confidence_connected_defaults_valid() {
     let fk = FilterKind::ConfidenceConnected {
@@ -166,8 +161,7 @@ fn confidence_connected_defaults_valid() {
         initial_lower: 0.0,
         initial_upper: 100.0,
         multiplier: 2.5,
-        max_iterations: 15,
-    };
+        max_iterations: 15 };
     if let FilterKind::ConfidenceConnected {
         multiplier,
         max_iterations,
@@ -180,17 +174,17 @@ fn confidence_connected_defaults_valid() {
             multiplier > 0.0,
             "multiplier must be positive, got {multiplier}"
         );
-        assert!(max_iterations >= 1, "max_iterations must be ≥ 1");
+        assert!(max_iterations >= 1, "max_iterations must be â‰¥ 1");
         assert!(
             initial_lower <= initial_upper,
-            "initial_lower must be ≤ initial_upper"
+            "initial_lower must be â‰¤ initial_upper"
         );
     } else {
         panic!("expected ConfidenceConnected");
     }
 }
 
-/// Neighborhood connected: lower ≤ upper and all radii ≥ 1.
+/// Neighborhood connected: lower â‰¤ upper and all radii â‰¥ 1.
 #[test]
 fn neighborhood_connected_defaults_valid() {
     let fk = FilterKind::NeighborhoodConnected {
@@ -201,8 +195,7 @@ fn neighborhood_connected_defaults_valid() {
         upper: 500.0,
         radius_z: 1,
         radius_y: 1,
-        radius_x: 1,
-    };
+        radius_x: 1 };
     if let FilterKind::NeighborhoodConnected {
         lower,
         upper,
@@ -212,17 +205,17 @@ fn neighborhood_connected_defaults_valid() {
         ..
     } = fk
     {
-        assert!(lower <= upper, "lower={lower} must be ≤ upper={upper}");
+        assert!(lower <= upper, "lower={lower} must be â‰¤ upper={upper}");
         assert!(
             radius_z >= 1 && radius_y >= 1 && radius_x >= 1,
-            "all radii must be ≥ 1"
+            "all radii must be â‰¥ 1"
         );
     } else {
         panic!("expected NeighborhoodConnected");
     }
 }
 
-/// Atan, Sin, Cos, Tan, Asin, Acos, BoundedReciprocal are unit variants — no parameters.
+/// Atan, Sin, Cos, Tan, Asin, Acos, BoundedReciprocal are unit variants â€” no parameters.
 #[test]
 fn trig_filter_variants_are_unit() {
     // All 7 unit variants must be constructible and equatable.

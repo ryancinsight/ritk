@@ -1,4 +1,4 @@
-//! `ritk stats` — image statistics and comparison metrics command.
+﻿//! `ritk stats` â€” image statistics and comparison metrics command.
 //!
 //! Computes single-image statistics or pairwise comparison metrics between
 //! an input image and a reference image.
@@ -20,7 +20,7 @@ use tracing::info;
 
 mod metrics;
 
-// ── CLI arguments ─────────────────────────────────────────────────────────────
+// â”€â”€ CLI arguments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Image quality and similarity metric to compute.
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -33,8 +33,7 @@ pub enum StatMetric {
     #[value(name = "mean-surface-distance", alias = "msd")]
     MeanSurfaceDistance,
     #[value(name = "noise-estimate")]
-    NoiseEstimate,
-}
+    NoiseEstimate }
 
 impl std::fmt::Display for StatMetric {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -45,8 +44,7 @@ impl std::fmt::Display for StatMetric {
             Self::Psnr => "psnr",
             Self::Ssim => "ssim",
             Self::MeanSurfaceDistance => "mean-surface-distance",
-            Self::NoiseEstimate => "noise-estimate",
-        })
+            Self::NoiseEstimate => "noise-estimate" })
     }
 }
 
@@ -71,10 +69,9 @@ pub struct StatsArgs {
 
     /// Maximum possible pixel value, used by `psnr` and `ssim`.
     #[arg(long, default_value = "255.0", value_name = "FLOAT")]
-    pub max_val: f32,
-}
+    pub max_val: f32 }
 
-// ── Command handler ───────────────────────────────────────────────────────────
+// â”€â”€ Command handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Execute the `stats` subcommand.
 ///
@@ -99,8 +96,7 @@ pub fn run(args: StatsArgs) -> Result<()> {
         StatMetric::Psnr => metrics::run_psnr(&args),
         StatMetric::Ssim => metrics::run_ssim(&args),
         StatMetric::MeanSurfaceDistance => metrics::run_mean_surface_distance(&args),
-        StatMetric::NoiseEstimate => metrics::run_noise_estimate(&args),
-    }
+        StatMetric::NoiseEstimate => metrics::run_noise_estimate(&args) }
 }
 
 #[cfg(test)]

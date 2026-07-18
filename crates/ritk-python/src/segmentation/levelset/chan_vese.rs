@@ -1,4 +1,4 @@
-//! Chan-Vese level set segmentation.
+﻿//! Chan-Vese level set segmentation.
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
@@ -27,10 +27,9 @@ pub struct PyChanVeseOptions {
     /// Euler forward time step.
     #[pyo3(get, set)]
     pub dt: f64,
-    /// Convergence tolerance on max|Δφ|/dt.
+    /// Convergence tolerance on max|Î”Ï†|/dt.
     #[pyo3(get, set)]
-    pub tolerance: f64,
-}
+    pub tolerance: f64 }
 
 #[pymethods]
 impl PyChanVeseOptions {
@@ -52,8 +51,7 @@ impl PyChanVeseOptions {
             lambda2,
             max_iterations,
             dt,
-            tolerance,
-        }
+            tolerance }
     }
 }
 

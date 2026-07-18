@@ -1,4 +1,4 @@
-//! Label table for segmentation overlays.
+﻿//! Label table for segmentation overlays.
 //!
 //! # Mathematical Specification
 //!
@@ -27,8 +27,7 @@ pub struct LabelEntry {
     /// RGBA color \[R, G, B, A\] each in \[0, 255\].
     pub color: RgbaBytes,
     /// Whether this label is currently visible in overlays.
-    pub visible: Visibility,
-}
+    pub visible: Visibility }
 
 impl LabelEntry {
     /// Construct a new fully-visible label entry.
@@ -37,8 +36,7 @@ impl LabelEntry {
             id: id.into(),
             name: name.into(),
             color,
-            visible: Visibility::Visible,
-        }
+            visible: Visibility::Visible }
     }
 }
 
@@ -47,8 +45,7 @@ impl LabelEntry {
 /// Invariant: all entries have distinct IDs.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct LabelTable {
-    entries: Vec<LabelEntry>,
-}
+    entries: Vec<LabelEntry> }
 
 impl LabelTable {
     /// Construct an empty label table.
@@ -104,8 +101,7 @@ impl LabelTable {
                 e.visible = visible;
                 true
             }
-            None => false,
-        }
+            None => false }
     }
 
     /// Number of labels in the table.

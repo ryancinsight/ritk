@@ -1,4 +1,4 @@
-//! 3-D window multi-head self-attention, Coeus-native.
+﻿//! 3-D window multi-head self-attention, Coeus-native.
 //!
 //! Windowed self-attention with a learned relative-position bias, as used by the
 //! Swin transformer. Query/key/value/output projections are [`coeus_nn::Linear`]
@@ -8,8 +8,7 @@
 //! gradients flow to every projection and to the bias table.
 
 use coeus_autograd::{
-    add, index_select, matmul, permute, reshape, scalar_mul, softmax, transpose, Parameter, Var,
-};
+    add, index_select, matmul, permute, reshape, scalar_mul, softmax, transpose, Parameter, Var };
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::{module::Module, Linear};
 use coeus_ops::BackendOps;
@@ -28,8 +27,7 @@ pub struct WindowAttention<B: Backend + BackendOps<f32> + Default> {
     relative_position_index: Var<f32, B>,
     num_heads: usize,
     head_dim: usize,
-    scale: f32,
-}
+    scale: f32 }
 
 impl<B> WindowAttention<B>
 where
@@ -88,14 +86,13 @@ where
             relative_position_index,
             num_heads,
             head_dim,
-            scale: (head_dim as f64).powf(-0.5) as f32,
-        }
+            scale: (head_dim as f64).powf(-0.5) as f32 }
     }
 
     /// Precompute the `[N*N]` relative-position index for a cubic window.
     ///
     /// For window side `m`, coordinate pair `(i, j)` maps to the flattened index
-    /// of their relative offset in the `(2m-1)^3` offset grid — the standard Swin
+    /// of their relative offset in the `(2m-1)^3` offset grid â€” the standard Swin
     /// relative-position encoding.
     fn compute_relative_position_index(m: usize) -> Vec<i32> {
         let mut coords = Vec::with_capacity(m * m * m);
@@ -138,10 +135,10 @@ where
         let k = project(&self.key);
         let v = project(&self.value);
 
-        // Scaled dot-product scores: (Q Kᵀ) · scale → [B, nH, N, N].
+        // Scaled dot-product scores: (Q Káµ€) Â· scale â†’ [B, nH, N, N].
         let attn = scalar_mul(&matmul(&q, &transpose(&k, 2, 3)), self.scale);
 
-        // Relative-position bias: gather [N*N, nH] → [nH, N, N] → [1, nH, N, N].
+        // Relative-position bias: gather [N*N, nH] â†’ [nH, N, N] â†’ [1, nH, N, N].
         let bias = index_select(
             &self.relative_position_bias_table,
             0,
@@ -153,11 +150,10 @@ where
 
         let attn = match mask {
             Some(mask) => add(&attn, mask),
-            None => attn,
-        };
+            None => attn };
         let attn = softmax(&attn, -1);
 
-        // Aggregate values and merge heads: [B, nH, N, hd] → [B, N, C].
+        // Aggregate values and merge heads: [B, nH, N, hd] â†’ [B, N, C].
         let out = matmul(&attn, &v);
         let out = reshape(&permute(&out, &[0, 2, 1, 3]), [b, n, c]);
         self.proj.forward(&out)

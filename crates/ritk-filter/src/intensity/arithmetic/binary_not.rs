@@ -53,7 +53,7 @@ impl BinaryNotImageFilter {
 
     /// Apply the binary NOT pixelwise.  Works for any spatial dimensionality
     /// `D`; spatial metadata is preserved identically.
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         let (vals, dims) = extract_vec(image);
         let (fg, bg) = (self.foreground, self.background);
         let out: Vec<f32> = vals

@@ -1,4 +1,4 @@
-//! `ritk-snap` binary entry point.
+﻿//! `ritk-snap` binary entry point.
 //!
 //! Launches the eframe/egui DICOM viewer application.
 
@@ -15,15 +15,13 @@ use clap::Parser;
 struct Args {
     /// Optional DICOM folder or medical image file loaded at startup.
     #[arg(value_name = "PATH")]
-    initial_path: Option<PathBuf>,
-}
+    initial_path: Option<PathBuf> }
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     ritk_snap::run_app_with_options(ritk_snap::AppLaunchOptions {
-        initial_path: args.initial_path,
-    })
+        initial_path: args.initial_path })
 }
 
 #[cfg(target_arch = "wasm32")]

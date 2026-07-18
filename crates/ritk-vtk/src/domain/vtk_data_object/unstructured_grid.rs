@@ -1,4 +1,4 @@
-use super::{AttributeArray, VtkCellType};
+﻿use super::{AttributeArray, VtkCellType};
 use std::collections::HashMap;
 
 /// VTK unstructured grid dataset (DATASET UNSTRUCTURED_GRID).
@@ -12,8 +12,7 @@ pub struct VtkUnstructuredGrid {
     pub cells: Vec<Vec<u32>>,
     pub cell_types: Vec<VtkCellType>,
     pub point_data: HashMap<String, AttributeArray>,
-    pub cell_data: HashMap<String, AttributeArray>,
-}
+    pub cell_data: HashMap<String, AttributeArray> }
 
 impl VtkUnstructuredGrid {
     pub fn new() -> Self {

@@ -1,4 +1,4 @@
-//! RT Dose Grid slice projection for viewport overlay rendering.
+﻿//! RT Dose Grid slice projection for viewport overlay rendering.
 //!
 //! Projects an [`RtDoseGrid`] onto a volume MPR slice by mapping each volume
 //! voxel to patient space and then into dose grid coordinates via the inverse
@@ -16,7 +16,7 @@
 //!            + row * row_spacing * F[3..6]
 //!            + frame_offset[frame] * normal_dir
 //! ```
-//! where `normal_dir = F[0..3] × F[3..6]` (unit vector).
+//! where `normal_dir = F[0..3] Ã— F[3..6]` (unit vector).
 //!
 //! # Algorithm
 //!
@@ -31,23 +31,23 @@
 //! # Result layout
 //!
 //! The returned `Vec<f32>` is flat row-major with length `slice_rows * slice_cols`.
-//! Values are dose in Gy (`≥ 0.0`) or `f32::NAN` (outside dose extent).
+//! Values are dose in Gy (`â‰¥ 0.0`) or `f32::NAN` (outside dose extent).
 
 use ritk_io::RtDoseGrid;
 
 /// Project a dose grid onto one MPR slice of the reference volume.
 ///
-/// Returns a row-major flat dose map (`slice_rows × slice_cols`) with values in
-/// Gy (`≥ 0.0`) or `f32::NAN` for voxels outside the dose grid spatial extent.
+/// Returns a row-major flat dose map (`slice_rows Ã— slice_cols`) with values in
+/// Gy (`â‰¥ 0.0`) or `f32::NAN` for voxels outside the dose grid spatial extent.
 ///
 /// # Arguments
-/// - `rt_dose` — the loaded RT Dose grid.
-/// - `axis` — MPR axis: 0 = axial, 1 = coronal, 2 = sagittal.
-/// - `slice_index` — slice index along `axis`.
-/// - `vol_shape` — volume shape `[depth, rows, cols]`.
-/// - `vol_origin` — volume image origin `[x, y, z]` in mm (LPS patient space).
-/// - `vol_direction` — volume direction cosine matrix, row-major 3×3.
-/// - `vol_spacing` — volume voxel spacing `[dz, dy, dx]` in mm.
+/// - `rt_dose` â€” the loaded RT Dose grid.
+/// - `axis` â€” MPR axis: 0 = axial, 1 = coronal, 2 = sagittal.
+/// - `slice_index` â€” slice index along `axis`.
+/// - `vol_shape` â€” volume shape `[depth, rows, cols]`.
+/// - `vol_origin` â€” volume image origin `[x, y, z]` in mm (LPS patient space).
+/// - `vol_direction` â€” volume direction cosine matrix, row-major 3Ã—3.
+/// - `vol_spacing` â€” volume voxel spacing `[dz, dy, dx]` in mm.
 ///
 /// Returns `None` when the RT dose grid lacks spatial metadata (origin,
 /// orientation, or pixel spacing) required for the affine transform.
@@ -68,7 +68,7 @@ pub fn extract_dose_slice_for_volume(
     let dc = [dose_orient[0], dose_orient[1], dose_orient[2]];
     // Dose grid row direction (DICOM F[3..6]).
     let dr = [dose_orient[3], dose_orient[4], dose_orient[5]];
-    // Dose grid normal = dc × dr (unit vector).
+    // Dose grid normal = dc Ã— dr (unit vector).
     let dn = cross3(dc, dr);
 
     // Dose affine columns (physical mm per unit dose-grid step).
@@ -100,20 +100,19 @@ pub fn extract_dose_slice_for_volume(
             vol_depth,
             vol_rows,
             slice_index.min(vol_cols.saturating_sub(1)),
-        ),
-    };
+        ) };
 
     let dose_depth = rt_dose.n_frames;
     let dose_rows = rt_dose.rows;
     let dose_cols = rt_dose.cols;
 
-    // Build precomputed frame offset → normal direction mm table.
+    // Build precomputed frame offset â†’ normal direction mm table.
     // For each frame f, the z-displacement from dose_origin is frame_offsets[f].
     // Dose voxel patient position:
     //   P = dose_origin + col*step_col + row*step_row + frame_offsets[f]*dn
     // Inverse: given patient point P, solve for (frame, row, col).
     //
-    // Build 3×3 inverse of [step_col | step_row | dn*1mm] using analytic 3×3 inverse.
+    // Build 3Ã—3 inverse of [step_col | step_row | dn*1mm] using analytic 3Ã—3 inverse.
     // Columns of A: [step_col, step_row, dn].
     let a = [
         step_col[0],
@@ -136,10 +135,9 @@ pub fn extract_dose_slice_for_volume(
             let (vd, vr, vc): (usize, usize, usize) = match axis {
                 0 => (fixed_idx, sr, sc),
                 1 => (sr, fixed_idx, sc),
-                _ => (sr, sc, fixed_idx),
-            };
+                _ => (sr, sc, fixed_idx) };
 
-            // Volume voxel → patient space.
+            // Volume voxel â†’ patient space.
             // P = vol_origin + vc*vol_direction[0..3]*dx + vr*vol_direction[3..6]*dy + vd*vol_direction[6..9]*dz
             let dx = vol_spacing[2];
             let dy = vol_spacing[1];
@@ -160,7 +158,7 @@ pub fn extract_dose_slice_for_volume(
                 + vr_f * vol_direction[5] * dy
                 + vd_f * vol_direction[8] * dz;
 
-            // Patient space → dose grid coordinates.
+            // Patient space â†’ dose grid coordinates.
             let dp = [
                 px - dose_origin[0],
                 py - dose_origin[1],
@@ -183,7 +181,7 @@ pub fn extract_dose_slice_for_volume(
             let dose_col = dose_col as usize;
             let dose_row = dose_row as usize;
 
-            // Find closest dose frame by matching frame_offsets[f] ≈ dose_z_mm.
+            // Find closest dose frame by matching frame_offsets[f] â‰ˆ dose_z_mm.
             let closest_frame = rt_dose
                 .frame_offsets
                 .iter()
@@ -225,10 +223,10 @@ pub fn extract_dose_slice_for_volume(
 ///
 /// Dose is mapped linearly from `[min_dose, max_dose]` onto the spectrum:
 /// - 0%: transparent (alpha=0)
-/// - 10–30%: blue
-/// - 30–60%: green
-/// - 60–85%: yellow
-/// - 85–100%: red/white
+/// - 10â€“30%: blue
+/// - 30â€“60%: green
+/// - 60â€“85%: yellow
+/// - 85â€“100%: red/white
 ///
 /// Returns `[r, g, b, a]` where `a = 0` for zero-dose voxels or NaN.
 pub fn dose_to_rgba(dose_gy: f32, min_dose: f32, max_dose: f32, opacity: f32) -> [u8; 4] {
@@ -238,7 +236,7 @@ pub fn dose_to_rgba(dose_gy: f32, min_dose: f32, max_dose: f32, opacity: f32) ->
     let t = ((dose_gy - min_dose) / (max_dose - min_dose)).clamp(0.0, 1.0);
     // Thresholds are dose isodose line boundaries (5 segments).
     let (r, g, b) = if t < 0.2 {
-        // 0..20%: blue (dark → bright blue)
+        // 0..20%: blue (dark â†’ bright blue)
         let s = t / 0.2;
         (0.0_f32, 0.0, 0.4 + 0.6 * s)
     } else if t < 0.4 {
@@ -267,7 +265,7 @@ pub fn dose_to_rgba(dose_gy: f32, min_dose: f32, max_dose: f32, opacity: f32) ->
     ]
 }
 
-// ── Internal geometry helpers ─────────────────────────────────────────────────
+// â”€â”€ Internal geometry helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn cross3(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [
@@ -277,7 +275,7 @@ fn cross3(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     ]
 }
 
-/// Analytic 3×3 matrix inverse (row-major).
+/// Analytic 3Ã—3 matrix inverse (row-major).
 ///
 /// Returns `None` when the determinant is < 1e-12 (singular matrix).
 fn invert3x3(m: [f64; 9]) -> Option<[f64; 9]> {
@@ -300,7 +298,7 @@ fn invert3x3(m: [f64; 9]) -> Option<[f64; 9]> {
     ])
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 mod tests;

@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 
 #[test]
 fn jpeg_ls_marker_constants_correct() {
@@ -22,8 +22,8 @@ fn decoder_new_initializes_defaults() {
 
 #[test]
 fn decode_fragment_near_lossless_bounded_error() {
-    // NEAR=2 native encode → native decode must satisfy |s' − s| ≤ 2 for all
-    // samples (ISO 14495-1 §A.4.4 analytical bound; tolerance is exact).
+    // NEAR=2 native encode â†’ native decode must satisfy |s' âˆ’ s| â‰¤ 2 for all
+    // samples (ISO 14495-1 Â§A.4.4 analytical bound; tolerance is exact).
     let original: Vec<u16> = vec![
         10, 50, 100, 150, 200, 245, 30, 80, 130, 180, 220, 60, 110, 160, 210, 40,
     ];
@@ -35,8 +35,7 @@ fn decode_fragment_near_lossless_bounded_error() {
         bits_allocated: 8,
         pixel_representation: crate::PixelSignedness::Unsigned,
         rescale_slope: 1.0,
-        rescale_intercept: 0.0,
-    };
+        rescale_intercept: 0.0 };
     let decoded =
         decode_jpeg_ls_fragment(&stream, layout).expect("near-lossless decode must succeed");
     assert_eq!(decoded.len(), original.len());
@@ -44,7 +43,7 @@ fn decode_fragment_near_lossless_bounded_error() {
         let err = (f32::from(orig) - dec).abs();
         assert!(
             err <= 2.0,
-            "sample[{i}]: |{dec} − {orig}| = {err} exceeds NEAR=2 bound"
+            "sample[{i}]: |{dec} âˆ’ {orig}| = {err} exceeds NEAR=2 bound"
         );
     }
 }
@@ -86,6 +85,5 @@ fn one_component_decoder(
         point_transform,
         t1: 0,
         t2: 0,
-        t3: 0,
-    }
+        t3: 0 }
 }

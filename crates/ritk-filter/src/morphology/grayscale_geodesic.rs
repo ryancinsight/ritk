@@ -3,17 +3,17 @@
 //! # Mathematical Specification
 //!
 //! **Geodesic dilation** (Vincent 1993, Dilation Reconstruction):
-//! Given marker `M` and mask `I` with `M ≤ I`:
+//! Given marker `M` and mask `I` with `M â‰¤ I`:
 //!
-//! `M* = lim_{k→∞} min(D_B(M_k), I)`
+//! `M* = lim_{kâ†’âˆž} min(D_B(M_k), I)`
 //!
 //! where `D_B` is one-step grayscale dilation with the unit-radius cubic element `B`.
 //! The fixed point `M*` is the morphological reconstruction of `I` from `M` by dilation.
 //!
 //! **Geodesic erosion** (Erosion Reconstruction):
-//! Given marker `M` and mask `I` with `M ≥ I`:
+//! Given marker `M` and mask `I` with `M â‰¥ I`:
 //!
-//! `M* = lim_{k→∞} max(E_B(M_k), I)`
+//! `M* = lim_{kâ†’âˆž} max(E_B(M_k), I)`
 //!
 //! # ITK / SimpleITK Parity
 //!
@@ -27,20 +27,20 @@
 //!
 //! # References
 //! - Vincent, L. (1993). Morphological grayscale reconstruction in image analysis.
-//!   *IEEE Trans. Image Process.* 2(2):176–201.
+//!   *IEEE Trans. Image Process.* 2(2):176â€“201.
 
 use crate::morphology::label_morphology::{MorphologicalReconstruction, ReconstructionMode};
 use crate::morphology::Connectivity;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
-// ── GrayscaleGeodesicDilationFilter ──────────────────────────────────────────
+// â”€â”€ GrayscaleGeodesicDilationFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Geodesic dilation: reconstruct `I` from marker `M` by iterative constrained dilation.
 ///
 /// # Precondition
 ///
-/// `M(x) ≤ I(x)` for all x. If the precondition is violated, values are clamped
+/// `M(x) â‰¤ I(x)` for all x. If the precondition is violated, values are clamped
 /// to `min(M(x), I(x))` before reconstruction, matching ITK's behaviour.
 ///
 /// # Usage
@@ -75,13 +75,13 @@ impl GrayscaleGeodesicDilationFilter {
 
     /// Apply geodesic dilation: reconstruct `mask` from `marker` by dilation.
     ///
-    /// - `marker`: the seed image (must have `marker ≤ mask` pointwise)
+    /// - `marker`: the seed image (must have `marker â‰¤ mask` pointwise)
     /// - `mask`: the constraint image
     pub fn apply<B: Backend>(
         &self,
-        marker: &Image<B, 3>,
-        mask: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
+        marker: &Image<f32, B, 3>,
+        mask: &Image<f32, B, 3>,
+    ) -> anyhow::Result<Image<f32, B, 3>> {
         self.inner.apply(marker, mask)
     }
 
@@ -106,13 +106,13 @@ impl GrayscaleGeodesicDilationFilter {
     }
 }
 
-// ── GrayscaleGeodesicErosionFilter ───────────────────────────────────────────
+// â”€â”€ GrayscaleGeodesicErosionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Geodesic erosion: reconstruct `I` from marker `M` by iterative constrained erosion.
 ///
 /// # Precondition
 ///
-/// `M(x) ≥ I(x)` for all x. If violated, values are clamped to `max(M(x), I(x))`
+/// `M(x) â‰¥ I(x)` for all x. If violated, values are clamped to `max(M(x), I(x))`
 /// before reconstruction.
 ///
 /// # Usage
@@ -147,13 +147,13 @@ impl GrayscaleGeodesicErosionFilter {
 
     /// Apply geodesic erosion: reconstruct `mask` from `marker` by erosion.
     ///
-    /// - `marker`: the seed image (must have `marker ≥ mask` pointwise)
+    /// - `marker`: the seed image (must have `marker â‰¥ mask` pointwise)
     /// - `mask`: the constraint image
     pub fn apply<B: Backend>(
         &self,
-        marker: &Image<B, 3>,
-        mask: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
+        marker: &Image<f32, B, 3>,
+        mask: &Image<f32, B, 3>,
+    ) -> anyhow::Result<Image<f32, B, 3>> {
         self.inner.apply(marker, mask)
     }
 
@@ -178,7 +178,7 @@ impl GrayscaleGeodesicErosionFilter {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_grayscale_geodesic.rs"]

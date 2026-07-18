@@ -1,22 +1,20 @@
-//! Python bindings for ensemble segmentation (STAPLE) and GrowCut.
+﻿//! Python bindings for ensemble segmentation (STAPLE) and GrowCut.
 
 use crate::errors::RitkResult;
 use crate::image::vec_to_image_like;
 use crate::image::{
-    burn_into_py_image, into_py_image, py_image_to_burn, with_image_slice, PyImage,
-};
+    burn_into_py_image, into_py_image, py_image_to_burn, with_image_slice, PyImage };
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use ritk_segmentation::{
     growcut as core_growcut, multi_label_staple as core_multi_label_staple, staple as core_staple,
-    StapleConvergence,
-};
+    StapleConvergence };
 use std::sync::Arc;
 
 /// Run the STAPLE algorithm on K binary rater segmentation masks.
 ///
 /// STAPLE (Simultaneous Truth and Performance Level Estimation) by Warfield et al. (2004).
-/// Runs an EM algorithm to estimate the probabilistic ground truth W ∈ \[0,1\]^N and
+/// Runs an EM algorithm to estimate the probabilistic ground truth W âˆˆ \[0,1\]^N and
 /// per-rater sensitivity p_k and specificity q_k.
 ///
 /// Args:
@@ -105,11 +103,11 @@ pub fn staple_ensemble(
 /// Args:
 ///     raters:                list of PyImage, each an integer label map (stored
 ///                            as f32). All images must have the same shape.
-///     max_iter:              Maximum EM iterations; 0 ⇒ iterate to convergence
+///     max_iter:              Maximum EM iterations; 0 â‡’ iterate to convergence
 ///                            (default 0).
 ///     termination_threshold: Stop when the max confusion-matrix change falls
 ///                            below this (default 1e-5).
-///     label_for_undecided:   Label assigned to tie/undecided voxels; None ⇒ L
+///     label_for_undecided:   Label assigned to tie/undecided voxels; None â‡’ L
 ///                            (max label + 1, the ITK default).
 ///
 /// Returns:

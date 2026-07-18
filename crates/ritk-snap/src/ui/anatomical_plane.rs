@@ -1,4 +1,4 @@
-//! Anatomical-plane classification for internal axis indices.
+﻿//! Anatomical-plane classification for internal axis indices.
 //!
 //! This module is the SSOT for mapping internal volume axes `[0,1,2]`
 //! (`[depth,row,col]`) to anatomical view labels `(Axial, Coronal, Sagittal)`.
@@ -31,16 +31,14 @@ use crate::LoadedVolume;
 pub enum AnatomicalPlane {
     Axial,
     Coronal,
-    Sagittal,
-}
+    Sagittal }
 
 impl AnatomicalPlane {
     pub fn label(self) -> &'static str {
         match self {
             Self::Axial => "Axial",
             Self::Coronal => "Coronal",
-            Self::Sagittal => "Sagittal",
-        }
+            Self::Sagittal => "Sagittal" }
     }
 }
 
@@ -118,8 +116,7 @@ pub fn axis_for_plane_in_volume(volume: Option<&LoadedVolume>, plane: Anatomical
     let default_axis = match plane {
         AnatomicalPlane::Axial => 0,
         AnatomicalPlane::Coronal => 1,
-        AnatomicalPlane::Sagittal => 2,
-    };
+        AnatomicalPlane::Sagittal => 2 };
     let Some(volume) = volume else {
         return default_axis;
     };
@@ -127,8 +124,7 @@ pub fn axis_for_plane_in_volume(volume: Option<&LoadedVolume>, plane: Anatomical
     match plane {
         AnatomicalPlane::Axial => axial,
         AnatomicalPlane::Coronal => coronal,
-        AnatomicalPlane::Sagittal => sagittal,
-    }
+        AnatomicalPlane::Sagittal => sagittal }
 }
 
 pub fn anatomical_label_for_axis(volume: Option<&LoadedVolume>, axis: usize) -> &'static str {

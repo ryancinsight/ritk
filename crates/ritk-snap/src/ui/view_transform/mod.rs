@@ -1,4 +1,4 @@
-//! Viewport image orientation transforms (flip/rotate).
+﻿//! Viewport image orientation transforms (flip/rotate).
 //!
 //! # Mathematical Specification
 //!
@@ -6,57 +6,54 @@
 //!
 //! ## Flip Horizontal
 //! For an image of width W and height H, pixel at column c is mapped to column
-//! W − 1 − c. Formal: `f_h(r, c) = (r, W−1−c)`.
+//! W âˆ’ 1 âˆ’ c. Formal: `f_h(r, c) = (r, Wâˆ’1âˆ’c)`.
 //!
 //! ## Flip Vertical
-//! Pixel at row r is mapped to row H − 1 − r. Formal: `f_v(r, c) = (H−1−r, c)`.
+//! Pixel at row r is mapped to row H âˆ’ 1 âˆ’ r. Formal: `f_v(r, c) = (Hâˆ’1âˆ’r, c)`.
 //!
-//! ## Rotation (clockwise, 90° steps)
-//! For n steps of 90° clockwise rotation on a W×H image:
-//! - 0°:   `(r, c)` → `(r, c)`,   output size `(W, H)`
-//! - 90°:  `(r, c)` → `(c, H−1−r)`, output size `(H, W)`
-//! - 180°: `(r, c)` → `(H−1−r, W−1−c)`, output size `(W, H)`
-//! - 270°: `(r, c)` → `(W−1−c, r)`, output size `(H, W)`
+//! ## Rotation (clockwise, 90Â° steps)
+//! For n steps of 90Â° clockwise rotation on a WÃ—H image:
+//! - 0Â°:   `(r, c)` â†’ `(r, c)`,   output size `(W, H)`
+//! - 90Â°:  `(r, c)` â†’ `(c, Hâˆ’1âˆ’r)`, output size `(H, W)`
+//! - 180Â°: `(r, c)` â†’ `(Hâˆ’1âˆ’r, Wâˆ’1âˆ’c)`, output size `(W, H)`
+//! - 270Â°: `(r, c)` â†’ `(Wâˆ’1âˆ’c, r)`, output size `(H, W)`
 //!
-//! Transforms are applied in the order: flip_h → flip_v → rotate.
+//! Transforms are applied in the order: flip_h â†’ flip_v â†’ rotate.
 //!
 //! ## Invariants
 //! - `apply_to_image(img, identity)` returns a pixel-identical image.
-//! - Four 90° clockwise rotations compose to the identity.
+//! - Four 90Â° clockwise rotations compose to the identity.
 //! - Two flip_h applications compose to the identity.
 
 use crate::render::buffer_pool::RenderBufferPool;
 use egui::ColorImage;
 
-/// Number of 90° clockwise rotation steps (0=0°, 1=90°, 2=180°, 3=270°).
+/// Number of 90Â° clockwise rotation steps (0=0Â°, 1=90Â°, 2=180Â°, 3=270Â°).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub enum RotationSteps {
     #[default]
     Zero,
     Ninety,
     OneEighty,
-    TwoSeventy,
-}
+    TwoSeventy }
 
 impl RotationSteps {
-    /// Advance by one 90° clockwise step.
+    /// Advance by one 90Â° clockwise step.
     pub fn rotate_cw(self) -> Self {
         match self {
             Self::Zero => Self::Ninety,
             Self::Ninety => Self::OneEighty,
             Self::OneEighty => Self::TwoSeventy,
-            Self::TwoSeventy => Self::Zero,
-        }
+            Self::TwoSeventy => Self::Zero }
     }
 
-    /// Reverse by one 90° step (counter-clockwise).
+    /// Reverse by one 90Â° step (counter-clockwise).
     pub fn rotate_ccw(self) -> Self {
         match self {
             Self::Zero => Self::TwoSeventy,
             Self::Ninety => Self::Zero,
             Self::OneEighty => Self::Ninety,
-            Self::TwoSeventy => Self::OneEighty,
-        }
+            Self::TwoSeventy => Self::OneEighty }
     }
 }
 
@@ -67,13 +64,12 @@ impl RotationSteps {
 /// equal `ViewTransform` values produce identical output for identical input.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub struct ViewTransform {
-    /// Mirror the image about its vertical axis (left↔right).
+    /// Mirror the image about its vertical axis (leftâ†”right).
     pub flip_h: bool,
-    /// Mirror the image about its horizontal axis (up↔down).
+    /// Mirror the image about its horizontal axis (upâ†”down).
     pub flip_v: bool,
     /// Clockwise rotation applied after flips.
-    pub rotation: RotationSteps,
-}
+    pub rotation: RotationSteps }
 
 impl ViewTransform {
     /// True when the transform is the identity (no flip, no rotation).
@@ -97,7 +93,7 @@ impl ViewTransform {
         }
     }
 
-    /// Advance rotation by one 90° clockwise step.
+    /// Advance rotation by one 90Â° clockwise step.
     pub fn rotate_cw(self) -> Self {
         Self {
             rotation: self.rotation.rotate_cw(),
@@ -105,7 +101,7 @@ impl ViewTransform {
         }
     }
 
-    /// Advance rotation by one 90° counter-clockwise step.
+    /// Advance rotation by one 90Â° counter-clockwise step.
     pub fn rotate_ccw(self) -> Self {
         Self {
             rotation: self.rotation.rotate_ccw(),
@@ -119,12 +115,12 @@ impl ViewTransform {
     }
 }
 
-// ── Pixel-level transforms ────────────────────────────────────────────────────
+// â”€â”€ Pixel-level transforms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Apply a horizontal flip (left↔right) to a `ColorImage`.
+/// Apply a horizontal flip (leftâ†”right) to a `ColorImage`.
 ///
-/// For width W, pixel at column c maps to column W−1−c.
-/// Time complexity: O(W × H). No allocation beyond the output pixel buffer.
+/// For width W, pixel at column c maps to column Wâˆ’1âˆ’c.
+/// Time complexity: O(W Ã— H). No allocation beyond the output pixel buffer.
 pub fn flip_h_image(img: &ColorImage) -> ColorImage {
     let [w, h] = img.size;
     let mut out = vec![egui::Color32::BLACK; w * h];
@@ -135,14 +131,13 @@ pub fn flip_h_image(img: &ColorImage) -> ColorImage {
     }
     ColorImage {
         size: [w, h],
-        pixels: out,
-    }
+        pixels: out }
 }
 
-/// Apply a vertical flip (up↔down) to a `ColorImage`.
+/// Apply a vertical flip (upâ†”down) to a `ColorImage`.
 ///
-/// For height H, pixel at row r maps to row H−1−r.
-/// Time complexity: O(W × H).
+/// For height H, pixel at row r maps to row Hâˆ’1âˆ’r.
+/// Time complexity: O(W Ã— H).
 pub fn flip_v_image(img: &ColorImage) -> ColorImage {
     let [w, h] = img.size;
     let mut out = vec![egui::Color32::BLACK; w * h];
@@ -153,16 +148,15 @@ pub fn flip_v_image(img: &ColorImage) -> ColorImage {
     }
     ColorImage {
         size: [w, h],
-        pixels: out,
-    }
+        pixels: out }
 }
 
-/// Rotate a `ColorImage` 90° clockwise.
+/// Rotate a `ColorImage` 90Â° clockwise.
 ///
 /// Output size is `[H, W]` (swapped from input `[W, H]`).
-/// Mapping: input `(row, col)` → output column `H−1−row`, output row `col`.
-/// Formally: `out[col, H−1−row] = in[row, col]`.
-/// Time complexity: O(W × H).
+/// Mapping: input `(row, col)` â†’ output column `Hâˆ’1âˆ’row`, output row `col`.
+/// Formally: `out[col, Hâˆ’1âˆ’row] = in[row, col]`.
+/// Time complexity: O(W Ã— H).
 pub fn rotate_90_cw_image(img: &ColorImage) -> ColorImage {
     let [w, h] = img.size;
     // Output dimensions are [h, w] (width and height swapped).
@@ -171,7 +165,7 @@ pub fn rotate_90_cw_image(img: &ColorImage) -> ColorImage {
     let mut out = vec![egui::Color32::BLACK; ow * oh];
     for row in 0..h {
         for col in 0..w {
-            // 90° CW: output(col, h−1−row) = input(row, col)
+            // 90Â° CW: output(col, hâˆ’1âˆ’row) = input(row, col)
             let orow = col;
             let ocol = h - 1 - row;
             out[orow * ow + ocol] = img.pixels[row * w + col];
@@ -179,13 +173,12 @@ pub fn rotate_90_cw_image(img: &ColorImage) -> ColorImage {
     }
     ColorImage {
         size: [ow, oh],
-        pixels: out,
-    }
+        pixels: out }
 }
 
 /// Apply a `ViewTransform` to a `ColorImage`.
 ///
-/// Applies transforms in the canonical order: flip_h → flip_v → rotate.
+/// Applies transforms in the canonical order: flip_h â†’ flip_v â†’ rotate.
 /// When `transform.is_identity()`, returns a clone of the input unchanged.
 ///
 /// # Allocation cost
@@ -208,12 +201,12 @@ pub fn apply_to_image(img: &ColorImage, transform: ViewTransform) -> ColorImage 
         RotationSteps::Zero => result,
         RotationSteps::Ninety => rotate_90_cw_image(&result),
         RotationSteps::OneEighty => {
-            // 180° = two 90° CW rotations.
+            // 180Â° = two 90Â° CW rotations.
             let r = rotate_90_cw_image(&result);
             rotate_90_cw_image(&r)
         }
         RotationSteps::TwoSeventy => {
-            // 270° CW = three 90° CW rotations.
+            // 270Â° CW = three 90Â° CW rotations.
             let r1 = rotate_90_cw_image(&result);
             let r2 = rotate_90_cw_image(&r1);
             rotate_90_cw_image(&r2)
@@ -253,7 +246,7 @@ pub(crate) fn apply_to_image_into(
     }
 
     let [w, h] = img.size;
-    // Determine whether the output dimensions swap (rotation 90° or 270°).
+    // Determine whether the output dimensions swap (rotation 90Â° or 270Â°).
     let swaps_axes = matches!(
         transform.rotation,
         RotationSteps::Ninety | RotationSteps::TwoSeventy
@@ -266,23 +259,23 @@ pub(crate) fn apply_to_image_into(
 
     // Compute the composite transform in a single pass over the input pixels.
     //
-    // The canonical order is flip_h → flip_v → rotate.
+    // The canonical order is flip_h â†’ flip_v â†’ rotate.
     // We fuse all three into one index mapping so each input pixel is read
-    // once and written once — no intermediate allocation.
+    // once and written once â€” no intermediate allocation.
     //
     // Index mapping derivation (W=in_w, H=in_h):
-    //   After flip_h:  (r, c) → (r, W−1−c)
-    //   After flip_v:  (r, c) → (H−1−r, c)
-    //   After flip_h + flip_v: (r, c) → (H−1−r, W−1−c)
-    //   After rotation n×90° CW on W×H → out_w×out_h:
-    //     0°:   out(orow, ocol) = in(r, c),  out_w=W, out_h=H
-    //     90°:  out(c, H−1−r)   = in(r, c),  out_w=H, out_h=W
-    //     180°: out(H−1−r, W−1−c) = in(r,c), out_w=W, out_h=H
-    //     270°: out(W−1−c, r)   = in(r, c),  out_w=H, out_h=W
+    //   After flip_h:  (r, c) â†’ (r, Wâˆ’1âˆ’c)
+    //   After flip_v:  (r, c) â†’ (Hâˆ’1âˆ’r, c)
+    //   After flip_h + flip_v: (r, c) â†’ (Hâˆ’1âˆ’r, Wâˆ’1âˆ’c)
+    //   After rotation nÃ—90Â° CW on WÃ—H â†’ out_wÃ—out_h:
+    //     0Â°:   out(orow, ocol) = in(r, c),  out_w=W, out_h=H
+    //     90Â°:  out(c, Hâˆ’1âˆ’r)   = in(r, c),  out_w=H, out_h=W
+    //     180Â°: out(Hâˆ’1âˆ’r, Wâˆ’1âˆ’c) = in(r,c), out_w=W, out_h=H
+    //     270Â°: out(Wâˆ’1âˆ’c, r)   = in(r, c),  out_w=H, out_h=W
 
     match (transform.flip_h, transform.flip_v, transform.rotation) {
-        // ── No rotation ───────────────────────────────────────────────
-        // flip_h only: out[orow * W + (W−1−ocol)] = in[orow * W + ocol]
+        // â”€â”€ No rotation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // flip_h only: out[orow * W + (Wâˆ’1âˆ’ocol)] = in[orow * W + ocol]
         (true, false, RotationSteps::Zero) => {
             for orow in 0..h {
                 for ocol in 0..w {
@@ -292,7 +285,7 @@ pub(crate) fn apply_to_image_into(
                 }
             }
         }
-        // flip_v only: out[(H−1−orow) * W + ocol] = in[orow * W + ocol]
+        // flip_v only: out[(Hâˆ’1âˆ’orow) * W + ocol] = in[orow * W + ocol]
         (false, true, RotationSteps::Zero) => {
             for orow in 0..h {
                 for ocol in 0..w {
@@ -318,9 +311,9 @@ pub(crate) fn apply_to_image_into(
         #[allow(unreachable_code)]
         (false, false, RotationSteps::Zero) => {}
 
-        // ── 90° CW rotation ────────────────────────────────────────────
+        // â”€â”€ 90Â° CW rotation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Output size: [H, W]. For output (orow, ocol):
-        // r = H−1−ocol, c = orow
+        // r = Hâˆ’1âˆ’ocol, c = orow
         (false, false, RotationSteps::Ninety) => {
             for orow in 0..out_h {
                 for ocol in 0..out_w {
@@ -330,7 +323,7 @@ pub(crate) fn apply_to_image_into(
                 }
             }
         }
-        // flip_h + 90° CW: r = H−1−ocol, c = W−1−orow
+        // flip_h + 90Â° CW: r = Hâˆ’1âˆ’ocol, c = Wâˆ’1âˆ’orow
         (true, false, RotationSteps::Ninety) => {
             for orow in 0..out_h {
                 for ocol in 0..out_w {
@@ -340,7 +333,7 @@ pub(crate) fn apply_to_image_into(
                 }
             }
         }
-        // flip_v + 90° CW: r = ocol, c = orow
+        // flip_v + 90Â° CW: r = ocol, c = orow
         (false, true, RotationSteps::Ninety) => {
             for orow in 0..out_h {
                 for ocol in 0..out_w {
@@ -350,7 +343,7 @@ pub(crate) fn apply_to_image_into(
                 }
             }
         }
-        // flip_h + flip_v + 90° CW: r = ocol, c = W−1−orow
+        // flip_h + flip_v + 90Â° CW: r = ocol, c = Wâˆ’1âˆ’orow
         (true, true, RotationSteps::Ninety) => {
             for orow in 0..out_h {
                 for ocol in 0..out_w {
@@ -361,8 +354,8 @@ pub(crate) fn apply_to_image_into(
             }
         }
 
-        // ── 180° rotation ──────────────────────────────────────────────
-        // Output size: [W, H]. r = H−1−orow, c = W−1−ocol
+        // â”€â”€ 180Â° rotation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // Output size: [W, H]. r = Hâˆ’1âˆ’orow, c = Wâˆ’1âˆ’ocol
         (false, false, RotationSteps::OneEighty) => {
             for orow in 0..h {
                 for ocol in 0..w {
@@ -372,7 +365,7 @@ pub(crate) fn apply_to_image_into(
                 }
             }
         }
-        // flip_h + 180° = flip_v: r = H−1−orow, c = ocol
+        // flip_h + 180Â° = flip_v: r = Hâˆ’1âˆ’orow, c = ocol
         (true, false, RotationSteps::OneEighty) => {
             for orow in 0..h {
                 for ocol in 0..w {
@@ -382,7 +375,7 @@ pub(crate) fn apply_to_image_into(
                 }
             }
         }
-        // flip_v + 180° = flip_h: r = orow, c = W−1−ocol
+        // flip_v + 180Â° = flip_h: r = orow, c = Wâˆ’1âˆ’ocol
         (false, true, RotationSteps::OneEighty) => {
             for orow in 0..h {
                 for ocol in 0..w {
@@ -392,7 +385,7 @@ pub(crate) fn apply_to_image_into(
                 }
             }
         }
-        // flip_h + flip_v + 180° = identity: r = orow, c = ocol
+        // flip_h + flip_v + 180Â° = identity: r = orow, c = ocol
         (true, true, RotationSteps::OneEighty) => {
             for orow in 0..h {
                 for ocol in 0..w {
@@ -403,9 +396,9 @@ pub(crate) fn apply_to_image_into(
             }
         }
 
-        // ── 270° CW rotation ───────────────────────────────────────────
+        // â”€â”€ 270Â° CW rotation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Output size: [H, W]. For output (orow, ocol):
-        // r = ocol, c = W−1−orow
+        // r = ocol, c = Wâˆ’1âˆ’orow
         (false, false, RotationSteps::TwoSeventy) => {
             for orow in 0..out_h {
                 for ocol in 0..out_w {
@@ -415,7 +408,7 @@ pub(crate) fn apply_to_image_into(
                 }
             }
         }
-        // flip_h + 270° CW: r = ocol, c = orow
+        // flip_h + 270Â° CW: r = ocol, c = orow
         (true, false, RotationSteps::TwoSeventy) => {
             for orow in 0..out_h {
                 for ocol in 0..out_w {
@@ -425,7 +418,7 @@ pub(crate) fn apply_to_image_into(
                 }
             }
         }
-        // flip_v + 270° CW: r = H−1−ocol, c = W−1−orow
+        // flip_v + 270Â° CW: r = Hâˆ’1âˆ’ocol, c = Wâˆ’1âˆ’orow
         (false, true, RotationSteps::TwoSeventy) => {
             for orow in 0..out_h {
                 for ocol in 0..out_w {
@@ -435,7 +428,7 @@ pub(crate) fn apply_to_image_into(
                 }
             }
         }
-        // flip_h + flip_v + 270° CW: r = H−1−ocol, c = orow
+        // flip_h + flip_v + 270Â° CW: r = Hâˆ’1âˆ’ocol, c = orow
         (true, true, RotationSteps::TwoSeventy) => {
             for orow in 0..out_h {
                 for ocol in 0..out_w {
@@ -454,8 +447,7 @@ pub(crate) fn apply_to_image_into(
     // (one per transform step) to exactly one final construction.
     ColorImage {
         size: [out_w, out_h],
-        pixels: out.to_vec(),
-    }
+        pixels: out.to_vec() }
 }
 
 #[cfg(test)]

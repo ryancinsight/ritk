@@ -5,17 +5,17 @@
 //! ITK computes the signed distance to the **object border**, defined exactly as
 //! in `itkSignedMaurerDistanceMapImageFilter.hxx`:
 //!
-//! 1. Binarize: foreground `S = { x : in(x) ≠ background_value }`.
+//! 1. Binarize: foreground `S = { x : in(x) â‰  background_value }`.
 //! 2. Border `B`: foreground voxels having at least one background voxel in their
-//!    **fully-connected** neighbourhood (8-connected in 2-D, 26-connected in 3-D —
+//!    **fully-connected** neighbourhood (8-connected in 2-D, 26-connected in 3-D â€”
 //!    ITK uses `BinaryContourImageFilter` with `FullyConnected = true`). Voxels
 //!    outside the image are *not* treated as background.
-//! 3. Distance: `d(x) = min_{b ∈ B} ‖x − b‖₂` (exact Euclidean, physical units),
+//! 3. Distance: `d(x) = min_{b âˆˆ B} â€–x âˆ’ bâ€–â‚‚` (exact Euclidean, physical units),
 //!    computed with the linear-time Meijster transform [`super::core::euclidean_dt`].
 //! 4. Sign: with `inside_is_positive = false` (ITK default), foreground voxels get
-//!    `−d`, background voxels `+d`; with `true`, the signs are swapped.
+//!    `âˆ’d`, background voxels `+d`; with `true`, the signs are swapped.
 //!
-//! `squared_distance` returns `d²` (signed); `use_image_spacing = false` ignores
+//! `squared_distance` returns `dÂ²` (signed); `use_image_spacing = false` ignores
 //! the image spacing (unit voxels).
 //!
 //! Validated bit-exact (max-err 0.0) against `sitk.SignedMaurerDistanceMap` across
@@ -24,7 +24,7 @@
 //! ## References
 //! - Maurer, C., Qi, R., Raghavan, V. (2003). "A Linear Time Algorithm for
 //!   Computing Exact Euclidean Distance Transforms of Binary Images in Arbitrary
-//!   Dimensions." *IEEE TPAMI*, 25(2), 265–270.
+//!   Dimensions." *IEEE TPAMI*, 25(2), 265â€“270.
 //! - ITK `itkSignedMaurerDistanceMapImageFilter.hxx`.
 
 use super::core::euclidean_dt;
@@ -47,7 +47,7 @@ pub struct SignedMaurerDistanceMapImageFilter {
     pub background_value: f32,
     /// If `true`, inside (foreground) distances are positive.
     pub inside_is_positive: bool,
-    /// If `true`, return signed squared distance `d²`; else `d`.
+    /// If `true`, return signed squared distance `dÂ²`; else `d`.
     pub squared_distance: bool,
     /// If `true`, use the image spacing; else unit voxels.
     pub use_image_spacing: bool,
@@ -69,7 +69,7 @@ impl SignedMaurerDistanceMapImageFilter {
         Self::default()
     }
 
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let dims = image.shape();
         let [nz, ny, nx] = dims;
         let (vals, _) = extract_vec_infallible(image);

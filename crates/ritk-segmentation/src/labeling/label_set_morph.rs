@@ -7,20 +7,20 @@
 //! every region by a Euclidean structuring element of per-axis radius `r`,
 //! resolving overlaps in favor of the nearer region (the parabola contact point);
 //! erosion shrinks every region by the same element, keeping only voxels whose
-//! Euclidean distance to their region boundary is ≥ `r`.  Unlike independent
+//! Euclidean distance to their region boundary is â‰¥ `r`.  Unlike independent
 //! per-label binary morphology, labels never bleed into one another: the result
 //! is a single label image.
 //!
 //! The implementation is the separable parabolic (lower/upper-envelope) algorithm
 //! of Beare: a squared-distance image is propagated one axis at a time, carrying
-//! the winning label alongside.  `m_Scale[d] = 0.5·r_d²` (with image spacing) or
-//! `0.5·r_d² + 1` (voxel units — the `+1` includes voxels exactly `r` away).
+//! the winning label alongside.  `m_Scale[d] = 0.5Â·r_dÂ²` (with image spacing) or
+//! `0.5Â·r_dÂ² + 1` (voxel units â€” the `+1` includes voxels exactly `r` away).
 //! All real arithmetic is `f64` (`NumericTraits<int>::FloatType == double`),
 //! matching ITK bit-for-bit.
 //!
 //! # Axis convention
 //! ITK iterates dimensions `x, y, z`; the ritk tensor is `[z, y, x]`, so ITK
-//! dimension `d` is ritk axis `2 − d`.  Radius and spacing are taken in ITK order
+//! dimension `d` is ritk axis `2 âˆ’ d`.  Radius and spacing are taken in ITK order
 //! `[x, y, z]`.  A `z = 1` volume (2-D image) yields length-1 z-lines that are
 //! no-ops, so the 3-D path reproduces SimpleITK's 2-D result exactly.
 
@@ -55,7 +55,7 @@ fn dilate_first_line(
         *l = if lab != 0.0 { sigma } else { 0.0 };
     }
 
-    // left pass → writes `tmp` and `lab_out`.
+    // left pass â†’ writes `tmp` and `lab_out`.
     let mut lastcontact: usize = 0;
     let mut lastval = line[0];
     for pos in 0..n {
@@ -72,7 +72,7 @@ fn dilate_first_line(
             lab_in[pos]
         };
     }
-    // right pass → reads `tmp`, writes `dist` and conditionally `lab_out`.
+    // right pass â†’ reads `tmp`, writes `dist` and conditionally `lab_out`.
     lastcontact = n - 1;
     lastval = tmp[n - 1];
     for pos in (0..n).rev() {
@@ -90,7 +90,7 @@ fn dilate_first_line(
 }
 
 /// Subsequent-pass dilation along a line (contact-point label propagation).
-/// Ports `DoLineLabelProp<…, doDilate=true>`.  `dist`/`lab` are updated in place.
+/// Ports `DoLineLabelProp<â€¦, doDilate=true>`.  `dist`/`lab` are updated in place.
 fn dilate_prop_line(
     dist: &mut [f64],
     lab: &mut [f32],
@@ -164,7 +164,7 @@ fn erode_first_run(
 }
 
 /// Subsequent-pass erosion of a padded run (`buf` length `sll+2`, sentinels at
-/// the ends). Ports `DoLine<…, doDilate=false>`.
+/// the ends). Ports `DoLine<â€¦, doDilate=false>`.
 fn erode_line_run(buf: &mut [f64], magnitude: f64, extreme: f64) {
     let n = buf.len();
     let mut tmp = vec![0.0_f64; n];
@@ -279,11 +279,11 @@ fn for_each_line<F: FnMut(&mut Vec<f32>, &mut Vec<f64>)>(
 /// # Postcondition
 /// Output equals `sitk.LabelSetDilate`/`LabelSetErode` with the same arguments.
 pub fn label_set_morph<B: Backend>(
-    input: &Image<B, 3>,
+    input: &Image<f32, B, 3>,
     radius_itk: [f64; 3],
     use_spacing: bool,
     op: LabelSetMorphOp,
-) -> Image<B, 3> {
+) -> Image<f32, B, 3> {
     let (mut lab, dims) = extract_vec_infallible(input);
     let n = lab.len();
     let dims3 = [dims[0], dims[1], dims[2]];
@@ -324,7 +324,7 @@ pub fn label_set_morph<B: Backend>(
     let mut first_pass_done = false;
 
     // Per-scanline scratch, allocated once and reused across every line of every
-    // axis (sized to the longest axis) — the separable kernels write into slices
+    // axis (sized to the longest axis) â€” the separable kernels write into slices
     // of these instead of allocating fresh buffers per line.
     let maxlen = *dims3.iter().max().unwrap_or(&0);
     let mut s_line = vec![0.0_f64; maxlen];
@@ -480,7 +480,7 @@ fn erode_subsequent_dim(
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_label_set_morph.rs"]

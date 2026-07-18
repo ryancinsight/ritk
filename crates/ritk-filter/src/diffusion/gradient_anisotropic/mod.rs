@@ -5,24 +5,24 @@
 //! Perona-Malik anisotropic diffusion (Gerig et al. 1992), discretised exactly as
 //! ITK's `GradientAnisotropicDiffusionImageFilter`. Each explicit-Euler step:
 //!
-//! 1. Recompute `m_K = avgGradMagSq · K² · −2`, where `avgGradMagSq` is the mean
-//!    over all voxels of `Σ_d (central_d)²` (spacing-scaled central differences,
-//!    ZeroFluxNeumann boundary). `m_K` is negative; conductance `c = exp(g²/m_K)`.
+//! 1. Recompute `m_K = avgGradMagSq Â· KÂ² Â· âˆ’2`, where `avgGradMagSq` is the mean
+//!    over all voxels of `Î£_d (central_d)Â²` (spacing-scaled central differences,
+//!    ZeroFluxNeumann boundary). `m_K` is negative; conductance `c = exp(gÂ²/m_K)`.
 //! 2. For each voxel and dimension `i`, the conductance is evaluated on the
-//!    **full gradient magnitude at the ±i half-pixel faces** — the face-normal
+//!    **full gradient magnitude at the Â±i half-pixel faces** â€” the face-normal
 //!    forward/backward difference plus the averaged tangential central
 //!    differences in the orthogonal dimensions:
 //!
 //!    ```text
-//!    gms± = dx_face[i]² + Σ_{j≠i} ¼·(central_j + central_j^{±i})²
-//!    c±   = exp(gms± / m_K)
-//!    δ   += c⁺·dx_fwd[i] − c⁻·dx_bwd[i]
+//!    gmsÂ± = dx_face[i]Â² + Î£_{jâ‰ i} Â¼Â·(central_j + central_j^{Â±i})Â²
+//!    cÂ±   = exp(gmsÂ± / m_K)
+//!    Î´   += câºÂ·dx_fwd[i] âˆ’ câ»Â·dx_bwd[i]
 //!    ```
-//! 3. `I_new = I + Δt·δ`.
+//! 3. `I_new = I + Î”tÂ·Î´`.
 //!
 //! Derivatives are scaled by image spacing (ITK `UseImageSpacing = true`);
 //! boundary conditions are ZeroFluxNeumann (index-clamp). Verified against
-//! SimpleITK `GradientAnisotropicDiffusion` on cthead1 to ≈ 6 × 10⁻⁸ relative
+//! SimpleITK `GradientAnisotropicDiffusion` on cthead1 to â‰ˆ 6 Ã— 10â»â¸ relative
 //! (f64-vs-f32 round-off).
 //!
 //! # Distinction from `AnisotropicDiffusionFilter` (Perona-Malik)
@@ -35,15 +35,15 @@
 //! # Stability
 //!
 //! Explicit Euler stability for the 6-neighbour Laplacian in 3-D requires
-//! `Δt ≤ 1/(2·D)` (in the image coordinate frame); ITK warns when exceeded.
+//! `Î”t â‰¤ 1/(2Â·D)` (in the image coordinate frame); ITK warns when exceeded.
 //!
 //! # Invariants
 //!
-//! - Constant image: `avgGradMagSq = 0 → m_K = 0 → c = 0 → δ = 0`; unchanged.
+//! - Constant image: `avgGradMagSq = 0 â†’ m_K = 0 â†’ c = 0 â†’ Î´ = 0`; unchanged.
 //!
 //! # References
-//! - Gerig, G., Kübler, O., Kikinis, R. & Jolesz, F. A. (1992). Nonlinear
-//!   anisotropic filtering of MRI data. *IEEE Trans. Med. Imag.* 11(2):221–232.
+//! - Gerig, G., KÃ¼bler, O., Kikinis, R. & Jolesz, F. A. (1992). Nonlinear
+//!   anisotropic filtering of MRI data. *IEEE Trans. Med. Imag.* 11(2):221â€“232.
 //! - ITK `itkGradientNDAnisotropicDiffusionFunction.hxx`,
 //!   `itkScalarAnisotropicDiffusionFunction.hxx`.
 
@@ -51,7 +51,7 @@ use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// ── Public types ──────────────────────────────────────────────────────────────
+// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Configuration for [`GradientAnisotropicDiffusionFilter`].
 #[derive(Debug, Clone)]
@@ -60,15 +60,15 @@ pub struct GradientDiffusionConfig {
     ///
     /// ITK default: 5.
     pub num_iterations: usize,
-    /// Time step Δt.
+    /// Time step Î”t.
     ///
-    /// Must satisfy `Δt ≤ 1/6` for stability in 3-D.
+    /// Must satisfy `Î”t â‰¤ 1/6` for stability in 3-D.
     /// ITK default: 0.125.
     pub time_step: f32,
     /// Conductance K.
     ///
     /// Controls the intensity-difference threshold below which diffusion is
-    /// strong.  Larger K → more isotropic smoothing.
+    /// strong.  Larger K â†’ more isotropic smoothing.
     /// ITK default: 1.0.
     pub conductance: f32,
 }
@@ -83,7 +83,7 @@ impl Default for GradientDiffusionConfig {
     }
 }
 
-/// Gradient anisotropic diffusion filter — ITK `GradientAnisotropicDiffusionImageFilter`.
+/// Gradient anisotropic diffusion filter â€” ITK `GradientAnisotropicDiffusionImageFilter`.
 ///
 /// Reduces noise while preserving edges. Reproduces ITK's output (face-gradient
 /// conductance + per-iteration average-gradient-magnitude `K` rescaling); see the
@@ -105,7 +105,7 @@ impl GradientAnisotropicDiffusionFilter {
     ///
     /// # Errors
     /// Returns an error if the image tensor cannot be interpreted as `f32`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals_vec, dims) = extract_vec(image)?;
         let vals = &vals_vec;
 
@@ -143,7 +143,7 @@ impl GradientAnisotropicDiffusionFilter {
     }
 }
 
-// ── Core computation (ITK GradientNDAnisotropicDiffusionFunction) ─────────────
+// â”€â”€ Core computation (ITK GradientNDAnisotropicDiffusionFunction) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 use super::{central_diff as central, clamp_at as at};
 
@@ -151,15 +151,15 @@ use super::{central_diff as central, clamp_at as at};
 /// `GradientNDAnisotropicDiffusionFunction` on `data`.
 ///
 /// Each step:
-/// 1. Recompute `m_K = avgGradMagSq · K² · −2`, where `avgGradMagSq` is the mean
-///    over all voxels of `Σ_d (central_d)²` (spacing-scaled central differences).
+/// 1. Recompute `m_K = avgGradMagSq Â· KÂ² Â· âˆ’2`, where `avgGradMagSq` is the mean
+///    over all voxels of `Î£_d (central_d)Â²` (spacing-scaled central differences).
 /// 2. For every voxel and dimension `i`, evaluate the conductance on the *full*
-///    gradient magnitude at the `±i` half-pixel faces — the face-normal
+///    gradient magnitude at the `Â±i` half-pixel faces â€” the face-normal
 ///    forward/backward difference plus the averaged tangential central
 ///    differences in the orthogonal dimensions:
-///    `c± = exp((dx_face² + Σ_{j≠i} ¼(central_j + central_j^{±i})²) / m_K)` —
-///    then accumulate the divergence `δ += c⁺·dx_fwd − c⁻·dx_bwd`.
-/// 3. `I_new = I + Δt·δ`.
+///    `cÂ± = exp((dx_faceÂ² + Î£_{jâ‰ i} Â¼(central_j + central_j^{Â±i})Â²) / m_K)` â€”
+///    then accumulate the divergence `Î´ += câºÂ·dx_fwd âˆ’ câ»Â·dx_bwd`.
+/// 3. `I_new = I + Î”tÂ·Î´`.
 ///
 /// Boundary conditions are ZeroFluxNeumann (index-clamp). Derivatives are scaled
 /// by the image spacing, matching ITK's default `UseImageSpacing = true`.
@@ -194,7 +194,7 @@ fn diffuse(
             }
         }
         let avg_gms = sum_gms / n as f64;
-        // m_K is negative; the conductance is exp(gradMag² / m_K) ∈ (0, 1].
+        // m_K is negative; the conductance is exp(gradMagÂ² / m_K) âˆˆ (0, 1].
         let m_k = avg_gms * cond * cond * -2.0;
 
         // 2. Diffusion update.
@@ -219,9 +219,9 @@ fn diffuse(
                         let fwd = (fp - center) * inv_sp[i];
                         let bwd = (center - fm) * inv_sp[i];
 
-                        // Tangential gradient contributions at the ± i faces:
+                        // Tangential gradient contributions at the Â± i faces:
                         // the central difference in each orthogonal dim j averaged
-                        // between the centre and the ± i neighbour.
+                        // between the centre and the Â± i neighbour.
                         let mut accum_f = 0.0_f64;
                         let mut accum_b = 0.0_f64;
                         for j in 0..3 {
@@ -272,20 +272,20 @@ fn diffuse(
     cur
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[cfg(test)]
 mod tests;
 
 #[cfg(test)]
 mod tests_native {
     use super::{GradientAnisotropicDiffusionFilter, GradientDiffusionConfig};
-    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use crate::native_support::{assert_coeus_matches_coeus, make_native_image, native_vals};
     use coeus_core::SequentialBackend;
 
     #[test]
     fn matches_burn() {
         let vals: Vec<f32> = (0..60).map(|i| ((i * 7) % 13) as f32).collect();
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             vals,
             [3, 4, 5],
             |img| {

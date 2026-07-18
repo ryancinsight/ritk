@@ -1,11 +1,11 @@
-//! Header-derived JPEG-LS decoder state and scan dispatch.
+﻿//! Header-derived JPEG-LS decoder state and scan dispatch.
 
 use super::bitstream::BitReader;
 use super::scan::{decode_scan, Predictor, ScanParams};
 use crate::dimensions::checked_pixel_count;
 use anyhow::{bail, Context, Result};
 
-/// Interleave mode from the SOS header (JPEG-LS standard §C.1.3).
+/// Interleave mode from the SOS header (JPEG-LS standard Â§C.1.3).
 ///
 /// Single-component DICOM frames require `None` (0). Multi-component
 /// encodings use `LineInterleaved` or `SampleInterleaved` but are not
@@ -15,8 +15,7 @@ use anyhow::{bail, Context, Result};
 pub(crate) enum InterleaveMode {
     None = 0,
     LineInterleaved = 1,
-    SampleInterleaved = 2,
-}
+    SampleInterleaved = 2 }
 
 impl TryFrom<u8> for InterleaveMode {
     type Error = u8;
@@ -26,8 +25,7 @@ impl TryFrom<u8> for InterleaveMode {
             0 => Ok(Self::None),
             1 => Ok(Self::LineInterleaved),
             2 => Ok(Self::SampleInterleaved),
-            other => Err(other),
-        }
+            other => Err(other) }
     }
 }
 
@@ -49,8 +47,7 @@ pub(crate) struct JpegLsDecoder {
     /// LSE-specified thresholds; zero values mean ISO defaults.
     pub(crate) t1: i32,
     pub(crate) t2: i32,
-    pub(crate) t3: i32,
-}
+    pub(crate) t3: i32 }
 
 impl JpegLsDecoder {
     /// Create a decoder with default uninitialized header fields.
@@ -65,8 +62,7 @@ impl JpegLsDecoder {
             point_transform: 0,
             t1: 0,
             t2: 0,
-            t3: 0,
-        }
+            t3: 0 }
     }
 
     /// Decode scan data after the SOS header into DICOM native pixel bytes.
@@ -111,8 +107,7 @@ impl JpegLsDecoder {
             predictor: Predictor::Adaptive,
             t1: self.t1,
             t2: self.t2,
-            t3: self.t3,
-        };
+            t3: self.t3 };
 
         let mut reader = BitReader::new(data);
         let mut samples = Vec::with_capacity(pixel_count);
@@ -137,7 +132,7 @@ mod tests {
 
     #[test]
     fn decode_fragment_rejects_oversized_dimensions_without_oom() {
-        // A hostile SOF55 can declare 65535×65535 ≈ 4.29e9 pixels. The guard must
+        // A hostile SOF55 can declare 65535Ã—65535 â‰ˆ 4.29e9 pixels. The guard must
         // reject it with a typed error rather than allocating a ~17 GiB buffer and
         // looping billions of times over an empty scan.
         let mut decoder = JpegLsDecoder::new();

@@ -1,4 +1,4 @@
-//! Mask generators: emit in-bounds masking logic for each dimensionality variant.
+﻿//! Mask generators: emit in-bounds masking logic for each dimensionality variant.
 
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -12,8 +12,7 @@ pub(crate) fn generate_d1_mask(coords: &[Ident], d_max: &[Expr]) -> TokenStream 
         let x_mask = crate::interpolation::shared::in_bounds_mask(#x0, (#d0_max) as f64, mode);
         match x_mask {
             Some(xm) => result * xm,
-            _ => result,
-        }
+            _ => result }
     }
 }
 
@@ -29,8 +28,7 @@ pub(crate) fn generate_d2_mask(coords: &[Ident], d_max: &[Expr]) -> TokenStream 
         let y_mask = crate::interpolation::shared::in_bounds_mask(#y0, (#d0_max) as f64, mode);
         match (x_mask, y_mask) {
             (Some(xm), Some(ym)) => result * xm * ym,
-            _ => result,
-        }
+            _ => result }
     }
 }
 
@@ -50,12 +48,11 @@ pub(crate) fn generate_d3_mask(coords: &[Ident], d_max: &[Expr]) -> TokenStream 
         let z_mask = crate::interpolation::shared::in_bounds_mask(#z0, (#d0_max) as f64, mode);
         match (x_mask, y_mask, z_mask) {
             (Some(xm), Some(ym), Some(zm)) => result * xm * ym * zm,
-            _ => result,
-        }
+            _ => result }
     }
 }
 
-// ── Nearest-neighbor mask generators (Sprint 361) ────────────────────
+// â”€â”€ Nearest-neighbor mask generators (Sprint 361) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // Parallel to `generate_dN_mask` above, but for nearest-neighbor
 // interpolation. The key difference: nearest masks use the
@@ -75,8 +72,7 @@ pub(crate) fn generate_nearest_d1_mask(dims: &[Ident]) -> TokenStream {
         );
         match x_mask {
             Some(xm) => result * xm,
-            _ => result,
-        }
+            _ => result }
     }
 }
 
@@ -97,8 +93,7 @@ pub(crate) fn generate_nearest_d2_mask(dims: &[Ident]) -> TokenStream {
         );
         match (x_mask, y_mask) {
             (Some(xm), Some(ym)) => result * xm * ym,
-            _ => result,
-        }
+            _ => result }
     }
 }
 
@@ -125,8 +120,7 @@ pub(crate) fn generate_nearest_d3_mask(dims: &[Ident]) -> TokenStream {
         );
         match (x_mask, y_mask, z_mask) {
             (Some(xm), Some(ym), Some(zm)) => result * xm * ym * zm,
-            _ => result,
-        }
+            _ => result }
     }
 }
 
@@ -159,8 +153,7 @@ pub(crate) fn generate_nearest_d4_mask(dims: &[Ident]) -> TokenStream {
         );
         match (x_mask, y_mask, z_mask, w_mask) {
             (Some(xm), Some(ym), Some(zm), Some(wm)) => result * xm * ym * zm * wm,
-            _ => result,
-        }
+            _ => result }
     }
 }
 
@@ -184,7 +177,6 @@ pub(crate) fn generate_d4_mask(coords: &[Ident], d_max: &[Expr]) -> TokenStream 
         let w_mask = crate::interpolation::shared::in_bounds_mask(#w0, (#d0_max) as f64, mode);
         match (x_mask, y_mask, z_mask, w_mask) {
             (Some(xm), Some(ym), Some(zm), Some(wm)) => result * xm * ym * zm * wm,
-            _ => result,
-        }
+            _ => result }
     }
 }

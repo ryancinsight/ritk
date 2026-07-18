@@ -1,7 +1,6 @@
-use super::*;
+﻿use super::*;
 use crate::app::clinical_distribution::{
-    build_clinical_distribution_report, report_path, summary_from_loaded_volume,
-};
+    build_clinical_distribution_report, report_path, summary_from_loaded_volume };
 use crate::render::colormap::Colormap;
 use crate::tools::kind::ToolKind;
 use crate::ui::anatomical_label_for_axis;
@@ -33,8 +32,7 @@ fn clinical_distribution_report_redacts_identifiers_and_lists_media_layout() {
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None,
-    };
+        decay_correction: None };
 
     let mut viewer_state = ViewerState::default();
     viewer_state.slice_index = 1;
@@ -57,7 +55,7 @@ fn clinical_distribution_report_redacts_identifiers_and_lists_media_layout() {
     assert!(report.contains("Clinical Distribution Report"));
     let plane_label = anatomical_label_for_axis(Some(&volume), 0);
     assert!(report.contains(&format!("Current plane: {} (axis 0)", plane_label)));
-    assert!(report.contains("Volume shape [depth, rows, cols]: 2 × 3 × 4"));
+    assert!(report.contains("Volume shape [depth, rows, cols]: 2 Ã— 3 Ã— 4"));
     assert!(report.contains("Window centre: 40.0000"));
     assert!(report.contains("Window width: 400.0000"));
     assert!(report.contains("Patient name: [redacted]"));
@@ -106,8 +104,7 @@ fn clinical_distribution_export_writes_report_and_media_with_expected_counts() {
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None,
-    });
+        decay_correction: None });
 
     let summary = app
         .export_clinical_distribution_to(tmp.path())

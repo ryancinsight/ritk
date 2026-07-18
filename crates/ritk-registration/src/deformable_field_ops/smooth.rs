@@ -1,4 +1,4 @@
-//! Separable 3-D Gaussian smoothing for displacement fields.
+﻿//! Separable 3-D Gaussian smoothing for displacement fields.
 //!
 //! The three per-axis convolution passes are unified into a single
 //! `convolve_axis<const AXIS: usize>` function. Because `AXIS` is a
@@ -9,12 +9,12 @@
 //! maintaining a single authoritative implementation.
 //!
 //! For a GPU-accelerated path, see [`GpuFieldSmoother`], which uses
-//! [`ritk_filter::GaussianFilter`] for 10-50× speedup on typical 256³
+//! [`ritk_filter::GaussianFilter`] for 10-50Ã— speedup on typical 256Â³
 //! displacement fields.
 
 use super::{flat, FieldSmoother, VectorField, VectorFieldMut};
 use ritk_filter::gaussian_kernel;
-use ritk_image::tensor::{Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Shape, Tensor };
 use ritk_spatial::{Spacing, VolumeDims};
 
 /// Convolve `data` along axis `AXIS` (0 = Z, 1 = Y, 2 = X) with `kernel`;
@@ -54,8 +54,7 @@ pub(super) fn convolve_axis<const AXIS: usize>(
                         let src_fi = match AXIS {
                             0 => flat(src_coord, iy, ix, ny, nx),
                             1 => flat(iz, src_coord, ix, ny, nx),
-                            _ => flat(iz, iy, src_coord, ny, nx),
-                        };
+                            _ => flat(iz, iy, src_coord, ny, nx) };
                         acc += kv * data[src_fi] as f64;
                     }
                     out_s[local] = acc as f32;
@@ -79,8 +78,7 @@ fn convolve_axis_field<const AXIS: usize>(
     let VectorFieldMut {
         z: output_z,
         y: output_y,
-        x: output_x,
-    } = output;
+        x: output_x } = output;
 
     moirai::for_each_chunk_triple_mut_enumerated_with::<moirai::Adaptive, _, _, _, _>(
         output_z,
@@ -103,8 +101,7 @@ fn convolve_axis_field<const AXIS: usize>(
                         let source = match AXIS {
                             0 => flat(source_coord, iy, ix, ny, nx),
                             1 => flat(iz, source_coord, ix, ny, nx),
-                            _ => flat(iz, iy, source_coord, ny, nx),
-                        };
+                            _ => flat(iz, iy, source_coord, ny, nx) };
                         sum_z += weight * data.z[source] as f64;
                         sum_y += weight * data.y[source] as f64;
                         sum_x += weight * data.x[source] as f64;
@@ -121,7 +118,7 @@ fn convolve_axis_field<const AXIS: usize>(
 /// Apply separable 3-D Gaussian smoothing to `data` **in place**.
 ///
 /// Convolves sequentially along Z, Y, then X. Uses a temporary buffer to
-/// avoid read-after-write aliasing. A `sigma ≤ 0` is a no-op.
+/// avoid read-after-write aliasing. A `sigma â‰¤ 0` is a no-op.
 pub(crate) fn gaussian_smooth_inplace(data: &mut [f32], dims: VolumeDims, sigma: f64) {
     if sigma <= 0.0 {
         return;
@@ -135,7 +132,7 @@ pub(crate) fn gaussian_smooth_inplace(data: &mut [f32], dims: VolumeDims, sigma:
 /// caller-provided scratch buffer.
 ///
 /// Equivalent to [`gaussian_smooth_inplace`] but performs zero heap allocation.
-/// `scratch` must have the same length as `data`. A `sigma ≤ 0` is a no-op.
+/// `scratch` must have the same length as `data`. A `sigma â‰¤ 0` is a no-op.
 pub(crate) fn gaussian_smooth_with_scratch(
     data: &mut [f32],
     dims: VolumeDims,
@@ -209,57 +206,50 @@ pub(crate) fn gaussian_smooth_field_with_kernel(
     let VectorFieldMut {
         z: scratch_z,
         y: scratch_y,
-        x: scratch_x,
-    } = scratch;
+        x: scratch_x } = scratch;
 
     convolve_axis_field::<0>(
         VectorField {
             z: &*z,
             y: &*y,
-            x: &*x,
-        },
+            x: &*x },
         dims,
         kernel,
         VectorFieldMut {
             z: &mut *scratch_z,
             y: &mut *scratch_y,
-            x: &mut *scratch_x,
-        },
+            x: &mut *scratch_x },
     );
     convolve_axis_field::<1>(
         VectorField {
             z: &*scratch_z,
             y: &*scratch_y,
-            x: &*scratch_x,
-        },
+            x: &*scratch_x },
         dims,
         kernel,
         VectorFieldMut {
             z: &mut *z,
             y: &mut *y,
-            x: &mut *x,
-        },
+            x: &mut *x },
     );
     convolve_axis_field::<2>(
         VectorField {
             z: &*z,
             y: &*y,
-            x: &*x,
-        },
+            x: &*x },
         dims,
         kernel,
         VectorFieldMut {
             z: &mut *scratch_z,
             y: &mut *scratch_y,
-            x: &mut *scratch_x,
-        },
+            x: &mut *scratch_x },
     );
     z.copy_from_slice(scratch_z);
     y.copy_from_slice(scratch_y);
     x.copy_from_slice(scratch_x);
 }
 
-// ── GpuFieldSmoother: pre-allocated GPU smoothing for Demons/SyN loops ───────
+// â”€â”€ GpuFieldSmoother: pre-allocated GPU smoothing for Demons/SyN loops â”€â”€â”€â”€â”€â”€â”€
 
 /// GPU-accelerated displacement field smoother with pre-allocated resources.
 ///
@@ -280,29 +270,28 @@ pub(crate) fn gaussian_smooth_field_with_kernel(
 ///
 /// # Performance
 ///
-/// On an RTX 3060, smoothing a 256³ field takes ~4 ms vs ~80 ms for the
+/// On an RTX 3060, smoothing a 256Â³ field takes ~4 ms vs ~80 ms for the
 /// CPU `moirai`-based path.  The pre-allocated CPU staging buffers avoid
 /// heap allocations on every iteration, making this suitable for the
-/// 50–500 iteration Demons/SyN loops.
+/// 50â€“500 iteration Demons/SyN loops.
 pub struct GpuFieldSmoother<B: Backend> {
     filter: ritk_filter::GaussianFilter<B>,
-    device: B::Device,
+    device: B,
     spacing: Spacing<3>,
-    /// Tensor shape `[nz, ny, nx]` — stored to avoid re-deriving from
+    /// Tensor shape `[nz, ny, nx]` â€” stored to avoid re-deriving from
     /// tensor dimensions (which no longer live on `self`).
     shape: Shape,
     /// Pre-allocated CPU staging buffers.
     ///
     /// On each invocation of [`Self::smooth_field_inplace`], the incoming field
     /// data is `copy_from_slice`d into these buffers (memcpy, zero alloc)
-    /// and then `std::mem::take`n into `TensorData::new`, avoiding the
+    /// and then `std::mem::take`n into `::new`, avoiding the
     /// per-iteration `to_vec()` heap allocation.  After the GPU download
-    /// the `Vec<f32>` is recovered via `TensorData::into_vec` and stored
+    /// the `Vec<f32>` is recovered via `::into_vec` and stored
     /// back here for the next iteration.
     staging_z: Vec<f32>,
     staging_y: Vec<f32>,
-    staging_x: Vec<f32>,
-}
+    staging_x: Vec<f32> }
 
 impl<B: Backend> FieldSmoother for GpuFieldSmoother<B> {
     fn smooth_field(&mut self, z: &mut [f32], y: &mut [f32], x: &mut [f32]) {
@@ -318,11 +307,11 @@ impl<B: Backend> GpuFieldSmoother<B> {
     /// is reused across all `smooth_field_inplace` calls.
     ///
     /// Tensor creation is deferred to the first `smooth_field_inplace`
-    /// call — the struct holds only the shape, not the tensors themselves.
+    /// call â€” the struct holds only the shape, not the tensors themselves.
     ///
     /// # Panics
     /// Panics if `dims` has a zero dimension.
-    pub fn new(dims: [usize; 3], spacing: Spacing<3>, sigma: f64, device: &B::Device) -> Self {
+    pub fn new(dims: [usize; 3], spacing: Spacing<3>, sigma: f64, device: &B) -> Self {
         assert!(dims.iter().all(|&d| d > 0), "dims must be nonzero");
         let shape = Shape::new(dims);
         let n = dims[0] * dims[1] * dims[2];
@@ -338,53 +327,55 @@ impl<B: Backend> GpuFieldSmoother<B> {
             shape,
             staging_z: vec![0.0_f32; n],
             staging_y: vec![0.0_f32; n],
-            staging_x: vec![0.0_f32; n],
-        }
+            staging_x: vec![0.0_f32; n] }
     }
 
     /// Smooth a 3-component displacement or velocity field **in place** using
     /// the pre-allocated GPU resources.
     ///
     /// Uploads `fz`, `fy`, `fx` from CPU to GPU via local staging tensors
-    /// (`copy_from_slice` → `mem::take` — zero heap allocation), applies
+    /// (`copy_from_slice` â†’ `mem::take` â€” zero heap allocation), applies
     /// separable Gaussian convolution via [`ritk_filter::GaussianFilter`],
     /// and downloads the result back to the CPU buffers.
     ///
     /// Tensors are created as locals and passed by value, so there are no
     /// `.clone()` calls before `apply_tensor` or `into_data`.  After the
     /// first warm-up iteration, the download buffer is recovered via
-    /// `TensorData::into_vec` and reused as the next iteration's staging
+    /// `::into_vec` and reused as the next iteration's staging
     /// buffer, so the per-iteration heap cost is zero.
     ///
-    /// A `sigma ≤ 0` is a no-op.
+    /// A `sigma â‰¤ 0` is a no-op.
     pub fn smooth_field_inplace(&mut self, fz: &mut [f32], fy: &mut [f32], fx: &mut [f32]) {
         if fz.is_empty() {
             return;
         }
 
-        // ── Upload: copy_from_slice → mem::take → TensorData → local Tensor ──
+        // â”€â”€ Upload: copy_from_slice â†’ mem::take â†’ â†’ local Tensor â”€â”€
         self.staging_z.copy_from_slice(fz);
-        let tz = Tensor::from_data(
-            TensorData::new(std::mem::take(&mut self.staging_z), self.shape.clone()),
+        let tz = Tensor::from_slice_on(
+            self.shape.clone(),
+            &std::mem::take(&mut self.staging_z),
             &self.device,
         );
         self.staging_y.copy_from_slice(fy);
-        let ty = Tensor::from_data(
-            TensorData::new(std::mem::take(&mut self.staging_y), self.shape.clone()),
+        let ty = Tensor::from_slice_on(
+            self.shape.clone(),
+            &std::mem::take(&mut self.staging_y),
             &self.device,
         );
         self.staging_x.copy_from_slice(fx);
-        let tx = Tensor::from_data(
-            TensorData::new(std::mem::take(&mut self.staging_x), self.shape.clone()),
+        let tx = Tensor::from_slice_on(
+            self.shape.clone(),
+            &std::mem::take(&mut self.staging_x),
             &self.device,
         );
 
-        // ── GPU smoothing — pass by value, zero clones ─────────────────────────
+        // â”€â”€ GPU smoothing â€” pass by value, zero clones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let tz = self.filter.apply_tensor(tz, &self.spacing);
         let ty = self.filter.apply_tensor(ty, &self.spacing);
         let tx = self.filter.apply_tensor(tx, &self.spacing);
 
-        // ── Download — consume tensors, recover staging buffers ────────────────
+        // â”€â”€ Download â€” consume tensors, recover staging buffers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         self.staging_z = tz
             .into_data()
             .into_vec::<f32>()
@@ -443,7 +434,7 @@ mod tests {
         assert!((sum - 1.0).abs() < 0.01, "mass not conserved: sum = {sum}");
     }
 
-    /// sigma ≤ 0 is a no-op.
+    /// sigma â‰¤ 0 is a no-op.
     #[test]
     fn gaussian_smooth_zero_sigma_noop() {
         let dims = VolumeDims::new([4, 4, 4]);

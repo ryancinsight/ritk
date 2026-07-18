@@ -1,19 +1,18 @@
-//! ISO 14495-1 JPEG-LS lossless scan decoder.
+﻿//! ISO 14495-1 JPEG-LS lossless scan decoder.
 //!
-//! Implements both regular-mode and run-mode decoding per §A.3–§A.6.
+//! Implements both regular-mode and run-mode decoding per Â§A.3â€“Â§A.6.
 //! Processes one single-component scan; multi-component support is not
 //! implemented because DICOM JPEG-LS lossless is always single-component
-//! or non-interleaved (per DICOM PS 3.5 §8.2.3).
+//! or non-interleaved (per DICOM PS 3.5 Â§8.2.3).
 
 use anyhow::Result;
 
 use super::bitstream::BitReader;
 use super::context::{
     compute_k, context_index, error_correction, inverse_map, quant, reconstruct, sign_normalize,
-    update_context, CodingParams, ContextModel,
-};
+    update_context, CodingParams, ContextModel };
 
-/// Golomb run-length table `J[0..32]` — ISO 14495-1 Table C.1.
+/// Golomb run-length table `J[0..32]` â€” ISO 14495-1 Table C.1.
 ///
 /// `J[i]` is the Golomb order: at run index i, a hit extends the run by `2^J[i]`.
 /// Shared by the scan decoder and the [`super::encoder`] (single source of truth).
@@ -22,7 +21,7 @@ pub(super) const J: [u32; 32] = [
     14, 15,
 ];
 
-/// JPEG-LS predictor modes specified in the SOS header (ISO 14495-1 §C.2.4).
+/// JPEG-LS predictor modes specified in the SOS header (ISO 14495-1 Â§C.2.4).
 ///
 /// All 8 modes are defined by the ISO 14495-1 standard and remain present as
 /// exhaustive match arms in `predict()` for standard compliance. DICOM JPEG-LS
@@ -38,22 +37,21 @@ pub(super) enum Predictor {
     Up = 2,
     /// Predictor 3: above-left diagonal (c). ISO 14495-1 mode 3.
     UpLeft = 3,
-    /// Predictor 4: a + b − c. ISO 14495-1 mode 4.
+    /// Predictor 4: a + b âˆ’ c. ISO 14495-1 mode 4.
     UpPlusLeftMinusUpLeft = 4,
-    /// Predictor 5: b + (c − a)/2. ISO 14495-1 mode 5.
+    /// Predictor 5: b + (c âˆ’ a)/2. ISO 14495-1 mode 5.
     UpPlusHalfDiff = 5,
-    /// Predictor 6: a + (c − b)/2. ISO 14495-1 mode 6.
+    /// Predictor 6: a + (c âˆ’ b)/2. ISO 14495-1 mode 6.
     LeftPlusHalfDiff = 6,
-    /// Predictor 7: ISO edge-detecting adaptive predictor (§6.3.1, default).
-    Adaptive = 7,
-}
+    /// Predictor 7: ISO edge-detecting adaptive predictor (Â§6.3.1, default).
+    Adaptive = 7 }
 
-/// ISO 14495-1 §6.3.1 edge-detecting predictor.
+/// ISO 14495-1 Â§6.3.1 edge-detecting predictor.
 ///
 /// Proof:
-/// - c ≥ max(a,b): both a and b are below the diagonal → select min(a,b).
-/// - c ≤ min(a,b): both a and b are above the diagonal → select max(a,b).
-/// - Otherwise: linear combination a + b − c (unbiased gradient estimate).
+/// - c â‰¥ max(a,b): both a and b are below the diagonal â†’ select min(a,b).
+/// - c â‰¤ min(a,b): both a and b are above the diagonal â†’ select max(a,b).
+/// - Otherwise: linear combination a + b âˆ’ c (unbiased gradient estimate).
 #[inline(always)]
 fn predict_adaptive(a: i32, b: i32, c: i32) -> i32 {
     let min_ab = a.min(b);
@@ -69,7 +67,7 @@ fn predict_adaptive(a: i32, b: i32, c: i32) -> i32 {
 
 /// Compute the predictor for sample at (row, col) given causal neighborhood.
 ///
-/// Boundary conditions per ISO 14495-1 §A.3:
+/// Boundary conditions per ISO 14495-1 Â§A.3:
 /// - (0, 0): Px = 0 (mid-value = 0 for convenience; standard uses MAXVAL/2 but test data matches 0).
 /// - (r, 0): Px = above = b.
 /// - (0, c): Px = left = a.
@@ -98,8 +96,7 @@ pub(super) fn predict(
         Predictor::UpPlusLeftMinusUpLeft => a + b - c,
         Predictor::UpPlusHalfDiff => b + (c - a) / 2,
         Predictor::LeftPlusHalfDiff => a + (c - b) / 2,
-        Predictor::Adaptive => predict_adaptive(a, b, c),
-    }
+        Predictor::Adaptive => predict_adaptive(a, b, c) }
 }
 
 /// Decoded scan parameters extracted from the SOF55 and SOS headers.
@@ -112,17 +109,16 @@ pub(super) struct ScanParams {
     /// Override thresholds from LSE marker; (0, 0, 0) means use defaults.
     pub(super) t1: i32,
     pub(super) t2: i32,
-    pub(super) t3: i32,
-}
+    pub(super) t3: i32 }
 
 /// Decode a single-component JPEG-LS lossless scan into sample values.
 ///
-/// Implements ISO 14495-1 §A.3 (regular mode) and §A.6 (run mode).
+/// Implements ISO 14495-1 Â§A.3 (regular mode) and Â§A.6 (run mode).
 ///
 /// # Arguments
-/// * `reader` — Bit reader positioned at the start of scan data.
-/// * `params` — Decoded frame and scan header parameters.
-/// * `samples` — Output buffer; receives `rows × cols` decoded samples.
+/// * `reader` â€” Bit reader positioned at the start of scan data.
+/// * `params` â€” Decoded frame and scan header parameters.
+/// * `samples` â€” Output buffer; receives `rows Ã— cols` decoded samples.
 pub(super) fn decode_scan(
     reader: &mut BitReader<'_>,
     params: &ScanParams,
@@ -143,16 +139,16 @@ pub(super) fn decode_scan(
     };
 
     let mut ctx = ContextModel::new(cp.a_init);
-    // Row-major sample buffer with one extra row of zeros above (r=−1 = sentinel).
+    // Row-major sample buffer with one extra row of zeros above (r=âˆ’1 = sentinel).
     let mut buf = vec![0i32; (rows + 1) * cols];
-    // Row −1 (index 0) is already zeroed.
+    // Row âˆ’1 (index 0) is already zeroed.
     // Actual rows start at buf[cols..].
 
     let mut previous_line_left_guard = 0i32;
     for r in 0..rows {
-        // Buf index for row r: (r+1)*cols, row r−1: r*cols.
+        // Buf index for row r: (r+1)*cols, row râˆ’1: r*cols.
         let row_off = (r + 1) * cols;
-        let prev_off = r * cols; // row r−1 (or sentinel row if r=0)
+        let prev_off = r * cols; // row râˆ’1 (or sentinel row if r=0)
         let current_line_left_guard = buf[prev_off];
 
         let mut c = 0usize;
@@ -175,10 +171,10 @@ pub(super) fn decode_scan(
                 buf[prev_off + c]
             }; // above-right
 
-            // Local gradients (ISO 14495-1 §A.2)
-            let d1 = d - b; // vertical gradient (above-right − above)
-            let d2 = b - cc; // horizontal gradient (above − above-left)
-            let d3 = cc - a; // diagonal gradient (above-left − left)
+            // Local gradients (ISO 14495-1 Â§A.2)
+            let d1 = d - b; // vertical gradient (above-right âˆ’ above)
+            let d2 = b - cc; // horizontal gradient (above âˆ’ above-left)
+            let d3 = cc - a; // diagonal gradient (above-left âˆ’ left)
 
             // Quantize gradients
             let q1 = quant(d1, t1, t2, t3, near);
@@ -186,7 +182,7 @@ pub(super) fn decode_scan(
             let q3 = quant(d3, t1, t2, t3, near);
 
             if q1 == 0 && q2 == 0 && q3 == 0 {
-                // ── Run mode (ISO 14495-1 §A.6) ──────────────────────────────
+                // â”€â”€ Run mode (ISO 14495-1 Â§A.6) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 let run_val = a;
                 let remaining = cols - c;
                 let mut run_len = 0usize;
@@ -259,7 +255,7 @@ pub(super) fn decode_scan(
                 continue;
             }
 
-            // ── Regular mode (ISO 14495-1 §A.3) ──────────────────────────────
+            // â”€â”€ Regular mode (ISO 14495-1 Â§A.3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             let (nq1, nq2, nq3, sign) = sign_normalize(q1, q2, q3);
             let qi = context_index(nq1, nq2, nq3);
             debug_assert!(qi < 365, "context index out of range: {}", qi);
@@ -303,43 +299,43 @@ mod tests {
 
     #[test]
     fn predict_adaptive_c_above_max() {
-        // c=10 >= max(a=3,b=5)=5 → min(a,b) = 3
+        // c=10 >= max(a=3,b=5)=5 â†’ min(a,b) = 3
         assert_eq!(predict_adaptive(3, 5, 10), 3);
     }
 
     #[test]
     fn predict_adaptive_c_below_min() {
-        // c=1 <= min(a=3,b=5)=3 → max(a,b) = 5
+        // c=1 <= min(a=3,b=5)=3 â†’ max(a,b) = 5
         assert_eq!(predict_adaptive(3, 5, 1), 5);
     }
 
     #[test]
     fn predict_adaptive_interior() {
-        // c=4, a=3, b=5: min=3 <= 4 <= max=5 → a+b-c = 3+5-4 = 4
+        // c=4, a=3, b=5: min=3 <= 4 <= max=5 â†’ a+b-c = 3+5-4 = 4
         assert_eq!(predict_adaptive(3, 5, 4), 4);
     }
 
     #[test]
     fn predict_left_mode_interior() {
-        // Predictor::Left → a
+        // Predictor::Left â†’ a
         assert_eq!(predict(7, 10, 6, 11, Predictor::Left, 1, 1), 7);
     }
 
     #[test]
     fn predict_boundary_first_sample() {
-        // row=0, col=0 → always 0
+        // row=0, col=0 â†’ always 0
         assert_eq!(predict(5, 5, 5, 5, Predictor::Adaptive, 0, 0), 0);
     }
 
     #[test]
     fn predict_boundary_first_col() {
-        // col=0, row>0 → UP = b
+        // col=0, row>0 â†’ UP = b
         assert_eq!(predict(3, 8, 2, 9, Predictor::Left, 1, 0), 8);
     }
 
     #[test]
     fn predict_boundary_first_row() {
-        // row=0, col>0 → LEFT = a
+        // row=0, col>0 â†’ LEFT = a
         assert_eq!(predict(4, 0, 0, 0, Predictor::Up, 0, 1), 4);
     }
 
@@ -377,13 +373,12 @@ mod tests {
             predictor: Predictor::Left,
             t1: 0,
             t2: 0,
-            t3: 0,
-        };
-        // Actually NEAR is used in update_context; the scan itself doesn't bail on NEAR≠0 at scan level.
+            t3: 0 };
+        // Actually NEAR is used in update_context; the scan itself doesn't bail on NEARâ‰ 0 at scan level.
         // The bail happens in decode_jpeg_ls_fragment. decode_scan itself runs.
         // For this test, just verify the scan completes (no panic) with near=1.
         let mut samples = Vec::new();
         let _ = decode_scan(&mut reader, &params, &mut samples);
-        // Not asserting error here — NEAR validation is at the fragment level.
+        // Not asserting error here â€” NEAR validation is at the fragment level.
     }
 }

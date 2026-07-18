@@ -1,4 +1,4 @@
-//! Coeus-backed multi-component volumes with three-dimensional metadata.
+﻿//! Coeus-backed multi-component volumes with three-dimensional metadata.
 
 use std::fmt;
 
@@ -21,8 +21,7 @@ where
     data: Tensor<T, B>,
     origin: Point<3>,
     spacing: Spacing<3>,
-    direction: Direction<3>,
-}
+    direction: Direction<3> }
 
 /// Native RGB volume with interleaved channels.
 pub type RgbVolume<T, B> = ColorVolume<T, B, 3>;
@@ -81,8 +80,7 @@ where
             data: Tensor::from_slice_on([depth, rows, columns, C], &data, backend),
             origin,
             spacing,
-            direction,
-        })
+            direction })
     }
 
     /// Returns `[depth, rows, columns, channels]`.

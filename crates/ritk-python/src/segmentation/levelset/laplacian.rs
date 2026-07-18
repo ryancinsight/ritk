@@ -1,4 +1,4 @@
-//! Laplacian level set segmentation.
+﻿//! Laplacian level set segmentation.
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
@@ -27,8 +27,7 @@ pub struct PyLaplacianLevelSetOptions {
     pub max_iterations: usize,
     /// Convergence tolerance on max|delta phi|/dt.
     #[pyo3(get, set)]
-    pub tolerance: f64,
-}
+    pub tolerance: f64 }
 
 #[pymethods]
 impl PyLaplacianLevelSetOptions {
@@ -48,8 +47,7 @@ impl PyLaplacianLevelSetOptions {
             sigma,
             dt,
             max_iterations,
-            tolerance,
-        }
+            tolerance }
     }
 }
 

@@ -1,6 +1,6 @@
-use ritk_core::image::Image;
+﻿use ritk_core::image::Image;
 use ritk_core::spatial::{Direction3, Point3, Spacing3};
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_registration::metric::{MeanSquaredError, Metric};
 use ritk_transform::TranslationTransform;
 
@@ -23,7 +23,7 @@ fn test_mse_identity() {
     }
 
     let shape = [d, d, d];
-    let data = Tensor::<B, 3>::from_data(TensorData::new(data_vec, Shape::new(shape)), &device);
+    let data = Tensor::<f32, B>::from_slice_on(shape, &data_vec, &device);
 
     let origin = Point3::new([0.0, 0.0, 0.0]);
     let spacing = Spacing3::new([1.0, 1.0, 1.0]);
@@ -34,7 +34,7 @@ fn test_mse_identity() {
 
     // Identity transform
     let transform = TranslationTransform::<B, 3>::new(Tensor::from_data(
-        TensorData::from([0.0, 0.0, 0.0]),
+        ::from([0.0, 0.0, 0.0]),
         &device,
     ));
 
@@ -65,7 +65,7 @@ fn test_mse_translation() {
     }
 
     let shape = [d, d, d];
-    let data = Tensor::<B, 3>::from_data(TensorData::new(data_vec, Shape::new(shape)), &device);
+    let data = Tensor::<f32, B>::from_slice_on(shape, &data_vec, &device);
 
     let origin = Point3::new([0.0, 0.0, 0.0]);
     let spacing = Spacing3::new([1.0, 1.0, 1.0]);
@@ -76,7 +76,7 @@ fn test_mse_translation() {
 
     // Shift by 1.0 in X.
     let transform = TranslationTransform::<B, 3>::new(Tensor::from_data(
-        TensorData::from([0.0, 0.0, 1.0]),
+        ::from([0.0, 0.0, 1.0]),
         &device,
     ));
 

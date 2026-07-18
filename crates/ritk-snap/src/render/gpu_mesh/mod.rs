@@ -1,4 +1,4 @@
-//! GPU-accelerated mesh surface renderer with OIT depth peeling and SSAO.
+﻿//! GPU-accelerated mesh surface renderer with OIT depth peeling and SSAO.
 //!
 //! # Architecture
 //!
@@ -56,7 +56,7 @@ use passes::{collect_mesh_result, submit_mesh_async};
 #[path = "tests_gpu_mesh.rs"]
 mod tests;
 
-// ── Configuration ─────────────────────────────────────────────────────────────
+// â”€â”€ Configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// SSAO-specific render parameters.
 #[derive(Debug, Clone)]
@@ -66,16 +66,14 @@ pub struct SsaoConfig {
     /// Depth bias to prevent self-occlusion artefacts. Default: 0.025.
     pub bias: f32,
     /// AO blend strength [0.0, 1.0]. 0.0 disables SSAO. Default: 0.8.
-    pub strength: f32,
-}
+    pub strength: f32 }
 
 impl Default for SsaoConfig {
     fn default() -> Self {
         Self {
             radius: 0.5,
             bias: 0.025,
-            strength: 0.8,
-        }
+            strength: 0.8 }
     }
 }
 
@@ -85,27 +83,24 @@ pub struct MeshRenderConfig {
     /// Number of depth-peel layers [1, `N_PEEL_LAYERS`]. Default: `N_PEEL_LAYERS` (4).
     pub peel_layers: usize,
     /// SSAO parameters.
-    pub ssao: SsaoConfig,
-}
+    pub ssao: SsaoConfig }
 
 impl Default for MeshRenderConfig {
     fn default() -> Self {
         Self {
             peel_layers: N_PEEL_LAYERS,
-            ssao: SsaoConfig::default(),
-        }
+            ssao: SsaoConfig::default() }
     }
 }
 
-// ── Pending readback ──────────────────────────────────────────────────────────
+// â”€â”€ Pending readback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 struct PendingMeshReadback {
     rx: std::sync::mpsc::Receiver<Result<(), wgpu::BufferAsyncError>>,
     rows: usize,
-    cols: usize,
-}
+    cols: usize }
 
-// ── Public renderer ───────────────────────────────────────────────────────────
+// â”€â”€ Public renderer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// GPU mesh renderer: OIT depth peeling + SSAO, non-blocking async readback.
 pub struct GpuMeshRenderer {
@@ -113,8 +108,7 @@ pub struct GpuMeshRenderer {
     cache: Option<GpuMeshFrameCache>,
     mesh: Option<GpuMeshBufs>,
     pending: Option<PendingMeshReadback>,
-    last: Option<ColorImage>,
-}
+    last: Option<ColorImage> }
 
 impl GpuMeshRenderer {
     /// Attempt to create a GPU mesh renderer.
@@ -127,8 +121,7 @@ impl GpuMeshRenderer {
             cache: None,
             mesh: None,
             pending: None,
-            last: None,
-        })
+            last: None })
     }
 
     /// Render `mesh` with the given camera, material, lights, and config.
@@ -216,8 +209,7 @@ impl GpuMeshRenderer {
                 self.pending = Some(PendingMeshReadback {
                     rx,
                     rows: height,
-                    cols: width,
-                });
+                    cols: width });
             }
         }
 
@@ -253,7 +245,7 @@ impl GpuMeshRenderer {
     }
 }
 
-// ── Uniform construction ──────────────────────────────────────────────────────
+// â”€â”€ Uniform construction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Build all uniform structs from public-API types.
 fn build_uniforms(
@@ -272,10 +264,9 @@ fn build_uniforms(
         mvp,
         mv: view,
         peel_pass: 0,
-        _pad: [0; 3],
-    };
+        _pad: [0; 3] };
 
-    // Transform light directions to view space using the upper-left 3×3 of MV.
+    // Transform light directions to view space using the upper-left 3Ã—3 of MV.
     let transform_dir = |d: [f32; 3]| -> [f32; 3] {
         let n = normalize(d);
         let x = view[0] * n[0] + view[4] * n[1] + view[8] * n[2];
@@ -292,8 +283,7 @@ fn build_uniforms(
             color: l.color,
             _pad1: 0.0,
             ambient: mat.ambient,
-            _pad2: 0.0,
-        };
+            _pad2: 0.0 };
     }
     // Fill unused light slots with zeroed entries (no contribution).
     let lights_block = LightBlock { lights: lu };
@@ -306,8 +296,7 @@ fn build_uniforms(
             mat.specular[2],
             mat.shininess,
         ],
-        opacity_pad: [mat.opacity, 0.0, 0.0, 0.0],
-    };
+        opacity_pad: [mat.opacity, 0.0, 0.0, 0.0] };
 
     // focal_x = proj[0] = f/aspect, focal_y = proj[5] = f  (column-major).
     let focal_x = proj[0];
@@ -323,13 +312,12 @@ fn build_uniforms(
         strength: config.ssao.strength,
         viewport_w: width as u32,
         viewport_h: height as u32,
-        _pad: [0; 2],
-    };
+        _pad: [0; 2] };
 
     (scene, lights_block, material, ssao_u)
 }
 
-// ── LightUniform::zeroed() helper ─────────────────────────────────────────────
+// â”€â”€ LightUniform::zeroed() helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 impl LightUniform {
     fn zeroed() -> Self {

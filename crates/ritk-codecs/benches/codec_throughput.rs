@@ -1,4 +1,4 @@
-//! Codec throughput baselines (criterion).
+﻿//! Codec throughput baselines (criterion).
 //!
 //! # Methodology (performance_engineering)
 //! - Inputs are pinned: deterministic LCG-generated images at fixed sizes.
@@ -7,9 +7,9 @@
 //!   with `cargo bench -p ritk-codecs -- --baseline <name>`.
 //!
 //! Workloads:
-//! - JPEG-LS lossless 512×512 16-bit (CT-slice-class payload).
-//! - JPEG-LS near-lossless (NEAR=2) 512×512 16-bit.
-//! - JPEG 2000 lossless 64×64 16-bit (single code-block) and 512×512 16-bit
+//! - JPEG-LS lossless 512Ã—512 16-bit (CT-slice-class payload).
+//! - JPEG-LS near-lossless (NEAR=2) 512Ã—512 16-bit.
+//! - JPEG 2000 lossless 64Ã—64 16-bit (single code-block) and 512Ã—512 16-bit
 //!   with 5 DWT levels (multi-code-block, multi-resolution).
 
 use criterion::{criterion_group, criterion_main, Criterion};
@@ -42,8 +42,7 @@ fn layout(rows: usize, cols: usize, bits: u16) -> PixelLayout {
         bits_allocated: bits,
         pixel_representation: PixelSignedness::Unsigned,
         rescale_slope: 1.0,
-        rescale_intercept: 0.0,
-    }
+        rescale_intercept: 0.0 }
 }
 
 fn bench_jpeg_ls(c: &mut Criterion) {

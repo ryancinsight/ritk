@@ -1,17 +1,13 @@
 //! Unit tests for [`SpatialConvolutionFilter`].
 
-use crate::native_support::LegacyBurnBackend;
 use crate::smoothing::SpatialConvolutionFilter;
-use ritk_image::tensor::{Shape, TensorData};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(vals: &[f32], dims: [usize; 3]) -> Image<B, 3> {
-    let device = Default::default();
-    let td = TensorData::new(vals.to_vec(), Shape::new(dims));
-    let tensor = ritk_image::tensor::Tensor::<B, 3>::from_data(td, &device);
+fn make_image(vals: &[f32], dims: [usize; 3]) -> Image<f32, B, 3> {
+    let tensor = ritk_image::tensor::Tensor::<f32, B>::from_slice(dims, vals);
     Image::new(
         tensor,
         Point::new([1.1, 2.2, 3.3]),

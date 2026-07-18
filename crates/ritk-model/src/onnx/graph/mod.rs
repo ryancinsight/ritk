@@ -1,4 +1,4 @@
-//! ONNX computation graph intermediate representation.
+﻿//! ONNX computation graph intermediate representation.
 //!
 //! This module defines data structures for representing ONNX computation
 //! graphs in memory for validation and inspection.
@@ -37,8 +37,7 @@ pub struct OnnxGraph {
     /// Initializer shape/type metadata keyed by tensor name.
     pub initializers: HashMap<String, OnnxValue>,
     /// Value info for intermediate tensors (name -> shape/type)
-    pub value_info: HashMap<String, OnnxValueInfo>,
-}
+    pub value_info: HashMap<String, OnnxValueInfo> }
 
 impl OnnxGraph {
     /// Create a new empty ONNX graph.
@@ -49,8 +48,7 @@ impl OnnxGraph {
             outputs: Vec::new(),
             nodes: Vec::new(),
             initializers: HashMap::new(),
-            value_info: HashMap::new(),
-        }
+            value_info: HashMap::new() }
     }
 
     /// Get an input by name.
@@ -136,7 +134,7 @@ impl OnnxGraph {
         for node in &self.nodes {
             // Check all inputs are available
             for input in &node.inputs {
-                // Skip empty input names — these are Constant nodes whose values
+                // Skip empty input names â€” these are Constant nodes whose values
                 // are embedded and referenced via the Constant node itself, not a
                 // separate name in the available set.
                 if input.is_empty() {

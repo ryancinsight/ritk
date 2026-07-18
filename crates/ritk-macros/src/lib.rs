@@ -1,4 +1,4 @@
-//! Procedural macros for `ritk-core`.
+﻿//! Procedural macros for `ritk-core`.
 //!
 //! Currently provides [`interp_dim_template!`], which generates
 //! `interpolate_<D>d` functions for the linear interpolation kernels
@@ -12,11 +12,11 @@
 //! macro arm's prelude (e.g. `x0_i`, `wz`) and identifiers referenced
 //! from the call-site body were treated as different hygiene contexts,
 //! so the body failed to compile with "cannot find value `wz` in this
-//! scope". A proc-macro has no such barrier — the body tokens are
+//! scope". A proc-macro has no such barrier â€” the body tokens are
 //! spliced directly into the generated function's scope, so the body's
 //! references to prelude variables resolve normally.
 //!
-//! See `docs/audit_optimization_sprint_350.md` §4.2.2 / `DRY_353_02_STATUS`
+//! See `docs/audit_optimization_sprint_350.md` Â§4.2.2 / `DRY_353_02_STATUS`
 //! for the full background.
 
 mod mask;
@@ -32,22 +32,22 @@ use quote::quote;
 /// Generate a per-D `interpolate_<D>d` function from a caller-supplied body.
 ///
 /// # Arguments
-/// * `dim` — `1`, `2`, `3`, or `4`
-/// * `func` — function name (e.g. `interpolate_3d`)
-/// * `coords` — comma-separated axis names: `x`, `x, y`, `x, y, z`, or `x, y, z, w`
-/// * `weights` — comma-separated weight names: `wx`, `wx, wy`, etc.
-/// * `d_max` — per-axis max-index expressions for the in-bounds mask
+/// * `dim` â€” `1`, `2`, `3`, or `4`
+/// * `func` â€” function name (e.g. `interpolate_3d`)
+/// * `coords` â€” comma-separated axis names: `x`, `x, y`, `x, y, z`, or `x, y, z, w`
+/// * `weights` â€” comma-separated weight names: `wx`, `wx, wy`, etc.
+/// * `d_max` â€” per-axis max-index expressions for the in-bounds mask
 ///   (e.g. `d2 - 1, d1 - 1, d0 - 1` for D=3 with [Z, Y, X] layout)
-/// * `body` — token stream that performs the 2^D gather and lerp
-///   cascade, and binds the result to `result: Tensor<B, 1>`.
+/// * `body` â€” token stream that performs the 2^D gather and lerp
+///   cascade, and binds the result to `result: Tensor<f32, B>`.
 ///
 /// # Generated function
 /// ```ignore
 /// pub(crate) fn <func><B: Backend, const D: usize>(
-/// data: &Tensor<B, D>,
-/// indices: Tensor<B, 2>,
+/// data: &Tensor<f32, B>,
+/// indices: Tensor<f32, B>,
 /// mode: OutOfBoundsMode,
-/// ) -> Tensor<B, 1> { /* prelude + body + mask */ }
+/// ) -> Tensor<f32, B> { /* prelude + body + mask */ }
 /// ```
 #[proc_macro]
 pub fn interp_dim_template(input: ::proc_macro::TokenStream) -> ::proc_macro::TokenStream {
@@ -59,13 +59,11 @@ pub fn interp_dim_template(input: ::proc_macro::TokenStream) -> ::proc_macro::To
 fn interp_dim_template_inner(input: TokenStream) -> TokenStream {
     let parsed = match syn::parse2::<InterpDimInput>(input) {
         Ok(p) => p,
-        Err(e) => return e.to_compile_error(),
-    };
+        Err(e) => return e.to_compile_error() };
 
     let dim_val = match parsed.dim.base10_parse::<usize>() {
         Ok(n) => n,
-        Err(e) => return e.to_compile_error(),
-    };
+        Err(e) => return e.to_compile_error() };
 
     let func = &parsed.func;
     let body = &parsed.body;
@@ -122,10 +120,10 @@ fn interp_dim_template_inner(input: TokenStream) -> TokenStream {
 
     let output = quote! {
         pub(crate) fn #func<B: ::burn::tensor::backend::Backend, const D: usize>(
-            data: &::burn::tensor::Tensor<B, D>,
-            indices: ::burn::tensor::Tensor<B, 2>,
+            data: &::burn::tensor::Tensor<f32, B>,
+            indices: ::burn::tensor::Tensor<f32, B>,
             mode: crate::interpolation::shared::OutOfBoundsMode,
-        ) -> ::burn::tensor::Tensor<B, 1> {
+        ) -> ::burn::tensor::Tensor<f32, B> {
             #prelude
             let result = { #body };
             #mask
@@ -134,23 +132,23 @@ fn interp_dim_template_inner(input: TokenStream) -> TokenStream {
     output
 }
 
-// ════════════════════════════════════════════════════════════════════════
-// Const-generic shape specialization layer (audit §8 351-01)
-// ════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// Const-generic shape specialization layer (audit Â§8 351-01)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //
 // The runtime-shape macro above reads `data.shape().dims[i]` for the
 // volume bounds. The typed variant takes the shape as **const generics**
 // (e.g. `const D0: usize, const D1: usize, const D2: usize`), enabling:
 //
 // 1. **Compile-time bounds**: the `clamp(0.0, (D2 - 1) as f64)` calls
-//    become `(D2 - 1) as f64` constants — no runtime arithmetic.
+//    become `(D2 - 1) as f64` constants â€” no runtime arithmetic.
 // 2. **Mask inlining**: `in_bounds_mask(x0, (D2 - 1) as f64, mode)`
-//    gets a compile-time-known max — the compiler can inline and
+//    gets a compile-time-known max â€” the compiler can inline and
 //    eliminate the function call for `OutOfBoundsMode::Extend`.
-// 3. **No `data.shape()` read**: saves 3 memory loads per call (3×
+// 3. **No `data.shape()` read**: saves 3 memory loads per call (3Ã—
 //    `usize` reads from the shape metadata buffer).
 // 4. **Monomorphization**: each `(D0, D1, D2)` triple is a separate
-//    monomorphized function — the compiler can fully unroll the
+//    monomorphized function â€” the compiler can fully unroll the
 //    8-corner gather cascade for the specific shape.
 //
 // Trade-off: the caller must know the shape at compile time. This is
@@ -181,7 +179,7 @@ fn interp_dim_template_inner(input: TokenStream) -> TokenStream {
 // version.
 
 /// Generate a per-D `interpolate_<D>d_typed` function with **const-generic
-/// shape** (audit §8 351-01).
+/// shape** (audit Â§8 351-01).
 ///
 /// The generated function takes the shape as `const D0: usize, const D1:
 /// usize, ...` parameters and uses them as compile-time bounds for the
@@ -197,13 +195,11 @@ pub fn interp_dim_template_typed(input: ::proc_macro::TokenStream) -> ::proc_mac
 fn interp_dim_template_typed_inner(input: TokenStream) -> TokenStream {
     let parsed = match syn::parse2::<InterpDimTypedInput>(input) {
         Ok(p) => p,
-        Err(e) => return e.to_compile_error(),
-    };
+        Err(e) => return e.to_compile_error() };
 
     let dim_val = match parsed.dim.base10_parse::<usize>() {
         Ok(n) => n,
-        Err(e) => return e.to_compile_error(),
-    };
+        Err(e) => return e.to_compile_error() };
 
     let func = &parsed.func;
     let body = &parsed.body;
@@ -271,7 +267,7 @@ fn interp_dim_template_typed_inner(input: TokenStream) -> TokenStream {
     };
 
     // The function signature is specialized to the rank (D = dim_val),
-    // not generic over it — the body assumes the rank matches the
+    // not generic over it â€” the body assumes the rank matches the
     // const-generic shape length. The const generics parameterize the
     // shape, not the rank.
     let output = quote! {
@@ -280,9 +276,9 @@ fn interp_dim_template_typed_inner(input: TokenStream) -> TokenStream {
             #( #const_generics ),*
         >(
             data: &::burn::tensor::Tensor<B, #dim_val>,
-            indices: ::burn::tensor::Tensor<B, 2>,
+            indices: ::burn::tensor::Tensor<f32, B>,
             mode: crate::interpolation::shared::OutOfBoundsMode,
-        ) -> ::burn::tensor::Tensor<B, 1> {
+        ) -> ::burn::tensor::Tensor<f32, B> {
             #prelude
             let result = { #body };
             #mask
@@ -291,9 +287,9 @@ fn interp_dim_template_typed_inner(input: TokenStream) -> TokenStream {
     output
 }
 
-// ══════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Typed nearest-neighbor specialization layer (Sprint 361)
-// ══════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 //
 // Parallel to [`interp_dim_template_typed!`] but for nearest-neighbor
 // interpolation. The key differences from the linear typed macro:
@@ -311,7 +307,7 @@ fn interp_dim_template_typed_inner(input: TokenStream) -> TokenStream {
 // the same `InterpDimTypedInput` parser is reused.
 
 /// Generate a per-D `interpolate_nearest_<D>d_typed` function with
-/// **const-generic shape** (Sprint 361 — 351-01-NN-TYPED).
+/// **const-generic shape** (Sprint 361 â€” 351-01-NN-TYPED).
 ///
 /// Parallel to [`interp_dim_template_typed!`] but for nearest-neighbor
 /// interpolation. See the module-level doc comment for the full design
@@ -328,13 +324,11 @@ pub fn interp_dim_template_nearest_typed(
 fn interp_dim_template_nearest_typed_inner(input: TokenStream) -> TokenStream {
     let parsed = match syn::parse2::<InterpDimTypedInput>(input) {
         Ok(p) => p,
-        Err(e) => return e.to_compile_error(),
-    };
+        Err(e) => return e.to_compile_error() };
 
     let dim_val = match parsed.dim.base10_parse::<usize>() {
         Ok(n) => n,
-        Err(e) => return e.to_compile_error(),
-    };
+        Err(e) => return e.to_compile_error() };
 
     let func = &parsed.func;
     let body = &parsed.body;
@@ -384,7 +378,7 @@ fn interp_dim_template_nearest_typed_inner(input: TokenStream) -> TokenStream {
     };
 
     // The function signature is specialized to the rank (D = dim_val),
-    // not generic over it — the body assumes the rank matches the
+    // not generic over it â€” the body assumes the rank matches the
     // const-generic shape length. The const generics parameterize the
     // shape, not the rank.
     let output = quote! {
@@ -393,9 +387,9 @@ fn interp_dim_template_nearest_typed_inner(input: TokenStream) -> TokenStream {
             #( #const_generics ),*
         >(
             data: &::burn::tensor::Tensor<B, #dim_val>,
-            indices: ::burn::tensor::Tensor<B, 2>,
+            indices: ::burn::tensor::Tensor<f32, B>,
             mode: crate::interpolation::shared::OutOfBoundsMode,
-        ) -> ::burn::tensor::Tensor<B, 1> {
+        ) -> ::burn::tensor::Tensor<f32, B> {
             #prelude
             let result = { #body };
             #mask

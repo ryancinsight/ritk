@@ -1,4 +1,4 @@
-//! `ritk register` — image registration command.
+﻿//! `ritk register` â€” image registration command.
 //!
 //! Registers a moving image to a fixed reference image.
 //!
@@ -24,10 +24,10 @@
 //! 3. Convert both images to `leto::Array3<f64>` (for MI methods) or
 //!    flat `Vec<f32>` (for deformable methods).
 //! 4. Run the selected registration method; initial transform is identity.
-//! 5. Apply the estimated 4×4 homogeneous transform to the moving image
+//! 5. Apply the estimated 4Ã—4 homogeneous transform to the moving image
 //!    (MI methods) or reconstruct from warped output (deformable methods).
 //! 6. Write the warped image to `--output`.
-//! 7. Optionally serialise the 4×4 transform matrix to JSON at
+//! 7. Optionally serialise the 4Ã—4 transform matrix to JSON at
 //!    `--output-transform` (MI methods only).
 //! 8. Print a registration summary (iterations, metric value, convergence status).
 
@@ -40,7 +40,7 @@ use anyhow::{Context, Result};
 use clap::Args;
 use leto::Array3;
 use ritk_image::tensor::Backend as BurnBackend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use std::path::PathBuf;
 use tracing::info;
 
@@ -59,8 +59,7 @@ fn parse_demons_variant(s: &str) -> Result<ritk_registration::demons::DemonsVari
         "diffeomorphic" => Ok(ritk_registration::demons::DemonsVariant::Diffeomorphic),
         other => Err(format!(
             "Invalid Demons variant '{other}'. Expected 'thirion' or 'diffeomorphic'."
-        )),
-    }
+        )) }
 }
 
 /// Parse a clap string argument into a validated [`GaussianSigma`].
@@ -71,7 +70,7 @@ fn parse_gaussian_sigma(s: &str) -> Result<GaussianSigma, String> {
     GaussianSigma::new(v).ok_or_else(|| format!("sigma must be > 0, got {v}"))
 }
 
-// ── CLI types ────────────────────────────────────────────────────────────────
+// â”€â”€ CLI types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// CLI representation of the `--inverse-consistency` flag for Multi-Resolution SyN.
 ///
@@ -80,8 +79,7 @@ fn parse_gaussian_sigma(s: &str) -> Result<GaussianSigma, String> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum CliInverseConsistency {
     Relaxed,
-    Enforced,
-}
+    Enforced }
 
 /// Registration algorithm to use.
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -102,8 +100,7 @@ pub enum RegistrationMethod {
     MultiResSyn,
     #[value(name = "bspline-syn")]
     BsplineSyn,
-    Lddmm,
-}
+    Lddmm }
 
 impl std::fmt::Display for RegistrationMethod {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -117,12 +114,11 @@ impl std::fmt::Display for RegistrationMethod {
             Self::BsplineFfd => "bspline-ffd",
             Self::MultiResSyn => "multires-syn",
             Self::BsplineSyn => "bspline-syn",
-            Self::Lddmm => "lddmm",
-        })
+            Self::Lddmm => "lddmm" })
     }
 }
 
-// ── CLI arguments ─────────────────────────────────────────────────────────────
+// â”€â”€ CLI arguments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Arguments for the `register` subcommand.
 #[derive(Args, Debug)]
@@ -147,7 +143,7 @@ pub struct RegisterArgs {
     pub method: RegistrationMethod,
 
     /// Output path for the estimated transform (JSON array of 16 floats
-    /// representing a row-major 4×4 homogeneous matrix). Optional.
+    /// representing a row-major 4Ã—4 homogeneous matrix). Optional.
     /// Only produced by `rigid-mi` and `affine-mi`.
     #[arg(long, value_name = "PATH")]
     pub output_transform: Option<PathBuf>,
@@ -210,10 +206,9 @@ pub struct RegisterArgs {
 
     /// Scaling-and-squaring steps for diffeomorphic Demons variants (default 6).
     #[arg(long, default_value = "6", value_name = "INT")]
-    pub n_squarings: usize,
-}
+    pub n_squarings: usize }
 
-// ── Image ↔ Leto volume conversion ────────────────────────────────────────────
+// â”€â”€ Image â†” Leto volume conversion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Convert a 3-D `Image<Backend, 3>` to a `leto::Array3<f64>`.
 ///
@@ -243,8 +238,8 @@ pub(super) fn leto_volume_to_image(
     let device: <Backend as BurnBackend>::Device = Default::default();
     let [nz, ny, nx] = volume.shape();
     let f32_vec: Vec<f32> = volume.iter().map(|&v| v as f32).collect();
-    let td = TensorData::new(f32_vec, Shape::new([nz, ny, nx]));
-    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+    let td = ::new(f32_vec, Shape::new([nz, ny, nx]));
+    let tensor = Tensor::<f32, Backend>::from_data(td, &device);
     Image::new(
         tensor,
         *reference.origin(),
@@ -253,7 +248,7 @@ pub(super) fn leto_volume_to_image(
     )
 }
 
-// ── Image ↔ flat Vec<f32> conversion (for demons / SyN) ──────────────────────
+// â”€â”€ Image â†” flat Vec<f32> conversion (for demons / SyN) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Extract a flat `Vec<f32>` in Z-major order and the `[nz, ny, nx]` shape
 /// from a 3-D image.
@@ -274,8 +269,8 @@ pub(super) fn flat_vec_to_image(
     reference: &Image<Backend, 3>,
 ) -> Image<Backend, 3> {
     let device: <Backend as BurnBackend>::Device = Default::default();
-    let td = TensorData::new(data, Shape::new(shape));
-    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+    let td = ::new(data, Shape::new(shape));
+    let tensor = Tensor::<f32, Backend>::from_data(td, &device);
     Image::new(
         tensor,
         *reference.origin(),
@@ -284,7 +279,7 @@ pub(super) fn flat_vec_to_image(
     )
 }
 
-// ── Command handler ───────────────────────────────────────────────────────────
+// â”€â”€ Command handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Execute the `register` subcommand.
 ///
@@ -318,31 +313,30 @@ pub fn run(args: RegisterArgs) -> Result<()> {
         RegistrationMethod::BsplineFfd => diffeomorphic::run_bspline_ffd(&args),
         RegistrationMethod::MultiResSyn => diffeomorphic::run_multires_syn(&args),
         RegistrationMethod::BsplineSyn => diffeomorphic::run_bspline_syn(&args),
-        RegistrationMethod::Lddmm => lddmm::run_lddmm(&args),
-    }
+        RegistrationMethod::Lddmm => lddmm::run_lddmm(&args) }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use ritk_core::image::Image;
     use ritk_image::tensor::Backend as BurnBackend;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor };
     use ritk_registration::demons::DemonsVariant;
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
-    /// Build a deterministic 4×4×4 image from a ramp of intensities.
+    /// Build a deterministic 4Ã—4Ã—4 image from a ramp of intensities.
     ///
     /// Using a ramp (not constant) so the MI metric has a non-degenerate
     /// joint histogram to work with.
     pub(crate) fn make_ramp_image() -> Image<Backend, 3> {
         let device: <Backend as BurnBackend>::Device = Default::default();
         let values: Vec<f32> = (0..64).map(|i| i as f32 * 4.0).collect();
-        let td = TensorData::new(values, Shape::new([4, 4, 4]));
-        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let td = ::new(values, Shape::new([4, 4, 4]));
+        let tensor = Tensor::<f32, Backend>::from_data(td, &device);
         Image::new(
             tensor,
             Point::new([0.0; 3]),
@@ -351,11 +345,11 @@ mod tests {
         )
     }
 
-    // ── Negative: invalid method names are rejected by clap at parse time;
+    // â”€â”€ Negative: invalid method names are rejected by clap at parse time;
     //    `run()` is exhaustive over `RegistrationMethod` and cannot receive
-    //    an unknown variant. ─────────────────────────────────────────────
+    //    an unknown variant. â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    // ── Negative: missing fixed image returns error ───────────────────────
+    // â”€â”€ Negative: missing fixed image returns error â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn test_register_missing_fixed_returns_error() {
@@ -386,8 +380,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
-            convergence_threshold: 1e-5,
-        });
+            convergence_threshold: 1e-5 });
 
         assert!(result.is_err(), "missing fixed image must yield an error");
     }

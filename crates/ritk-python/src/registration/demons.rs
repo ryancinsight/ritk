@@ -1,4 +1,4 @@
-//! Demons-family registration algorithms: Thirion, Diffeomorphic, and Symmetric Demons.
+﻿//! Demons-family registration algorithms: Thirion, Diffeomorphic, and Symmetric Demons.
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
@@ -6,8 +6,7 @@ use pyo3::prelude::*;
 use ritk_filter::GaussianSigma;
 use ritk_registration::demons::{
     DemonsConfig, DiffeomorphicDemonsRegistration, LevelSetMotionRegistration,
-    SymmetricDemonsRegistration, ThirionDemonsRegistration,
-};
+    SymmetricDemonsRegistration, ThirionDemonsRegistration };
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Register a moving image to a fixed image using Thirion's Demons algorithm.
@@ -24,7 +23,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 ///     (warped_moving, displacement_field):
 ///     - `warped_moving`: the moving image warped by the final displacement field,
 ///       with the same shape and spatial metadata as `fixed`.
-///     - `displacement_field`: PyImage with shape [3·Z, Y, X] where the three
+///     - `displacement_field`: PyImage with shape [3Â·Z, Y, X] where the three
 ///       Z-stacked planes represent (dz, dy, dx) displacement components.
 ///       The user can recover components with `.to_numpy().reshape(3, Z, Y, X)`.
 ///
@@ -59,8 +58,7 @@ pub fn demons_register(
             max_iterations,
             sigma_diffusion: GaussianSigma::new(sigma_diffusion),
             sigma_fluid: None,
-            max_step_length: 2.0,
-        };
+            max_step_length: 2.0 };
         let reg = ThirionDemonsRegistration::new(config);
         reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
             .map_err(|e| e.to_string())
@@ -94,7 +92,7 @@ pub fn demons_register(
 ///
 /// Uses a stationary velocity field with scaling-and-squaring to guarantee
 /// invertibility of the displacement field (Vercauteren et al. 2009,
-/// *NeuroImage* 45(S1):S61–S72).
+/// *NeuroImage* 45(S1):S61â€“S72).
 ///
 /// Args:
 ///     fixed:            Fixed (reference) image.
@@ -106,7 +104,7 @@ pub fn demons_register(
 ///                       integration steps).
 ///
 /// Returns:
-///     (warped_moving, displacement_field) — same convention as demons_register.
+///     (warped_moving, displacement_field) â€” same convention as demons_register.
 ///
 /// Raises:
 ///     RuntimeError: if image shapes do not match or registration fails.
@@ -140,12 +138,10 @@ pub fn diffeomorphic_demons_register(
             max_iterations,
             sigma_diffusion: GaussianSigma::new(sigma_diffusion),
             sigma_fluid: None,
-            max_step_length: 2.0,
-        };
+            max_step_length: 2.0 };
         let reg = DiffeomorphicDemonsRegistration {
             config,
-            n_squarings,
-        };
+            n_squarings };
         reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
             .map_err(|e| e.to_string())
     })
@@ -177,22 +173,22 @@ pub fn diffeomorphic_demons_register(
 /// Register a moving image to a fixed image using the Level-Set Motion filter.
 ///
 /// Implements `itk::LevelSetMotionRegistrationFilter`: a Demons variant where
-/// the update force is `(F − M) · ∇F / (|∇F|² + α²)`.  The constant α²
+/// the update force is `(F âˆ’ M) Â· âˆ‡F / (|âˆ‡F|Â² + Î±Â²)`.  The constant Î±Â²
 /// stabilises forces in flat (near-zero gradient) regions.
 ///
 /// Args:
 ///     fixed:                         Fixed (reference) image.
 ///     moving:                        Moving image to register.
 ///     number_of_iterations:          PDE steps (default 20).
-///     smoothing_sigma:               Gaussian regularisation σ in voxels
+///     smoothing_sigma:               Gaussian regularisation Ïƒ in voxels
 ///                                    applied after each iteration (default 1.0).
-///     intensity_difference_threshold: α² in the force denominator (default
+///     intensity_difference_threshold: Î±Â² in the force denominator (default
 ///                                    0.001). Must be strictly positive.
 ///
 /// Returns:
 ///     (warped_moving, displacement_field):
 ///     - `warped_moving`: moving image warped by the final displacement.
-///     - `displacement_field`: PyImage with shape [3·Z, Y, X]; the three
+///     - `displacement_field`: PyImage with shape [3Â·Z, Y, X]; the three
 ///       Z-stacked planes are (dz, dy, dx).  Recover with
 ///       `.to_numpy().reshape(3, Z, Y, X)`.
 ///
@@ -227,8 +223,7 @@ pub fn level_set_motion_register(
         let reg = LevelSetMotionRegistration {
             number_of_iterations,
             smoothing_sigma,
-            intensity_difference_threshold,
-        };
+            intensity_difference_threshold };
         reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
             .map_err(|e| e.to_string())
     })
@@ -261,7 +256,7 @@ pub fn level_set_motion_register(
 ///
 /// Uses gradient information from both fixed and warped moving images, making
 /// the algorithm approximately symmetric with respect to swapping fixed and
-/// moving (Pennec et al. 1999, *MICCAI* LNCS 1679:597–605).
+/// moving (Pennec et al. 1999, *MICCAI* LNCS 1679:597â€“605).
 ///
 /// Args:
 ///     fixed:            Fixed (reference) image.
@@ -271,7 +266,7 @@ pub fn level_set_motion_register(
 ///                       (default 1.5).
 ///
 /// Returns:
-///     (warped_moving, displacement_field) — same convention as demons_register.
+///     (warped_moving, displacement_field) â€” same convention as demons_register.
 ///
 /// Raises:
 ///     RuntimeError: if image shapes do not match or registration fails.
@@ -304,8 +299,7 @@ pub fn symmetric_demons_register(
             max_iterations,
             sigma_diffusion: GaussianSigma::new(sigma_diffusion),
             sigma_fluid: None,
-            max_step_length: 2.0,
-        };
+            max_step_length: 2.0 };
         let reg = SymmetricDemonsRegistration::new(config);
         reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
             .map_err(|e| e.to_string())

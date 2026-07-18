@@ -15,15 +15,15 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 /// Adds independent Gaussian noise to every voxel:
 ///
 /// ```text
-/// I'(x) = I(x) + N(μ, σ)
+/// I'(x) = I(x) + N(Î¼, Ïƒ)
 /// ```
 ///
-/// where `N(μ, σ)` is a normally-distributed random variable with mean `μ`
-/// and standard deviation `σ`.
+/// where `N(Î¼, Ïƒ)` is a normally-distributed random variable with mean `Î¼`
+/// and standard deviation `Ïƒ`.
 ///
 /// The variates come from an exact port of `itk::Statistics::NormalVariateGenerator`
 /// (FastNorm), so the output is bit-identical to `sitk.AdditiveGaussianNoise`
-/// run single-threaded (whole image = one region, `seed = userSeed·2654435761`,
+/// run single-threaded (whole image = one region, `seed = userSeedÂ·2654435761`,
 /// scanline order).
 ///
 /// # Complexity
@@ -64,7 +64,7 @@ impl AdditiveGaussianNoiseFilter {
     /// Apply additive Gaussian noise to a 3-D image. The image is treated as a
     /// single region (start index 0), so `seed = Hash(userSeed, 0)`; the FastNorm
     /// generator is stepped once per voxel in scanline order.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         Ok(rebuild(self.apply_values(&vals), dims, image))
     }

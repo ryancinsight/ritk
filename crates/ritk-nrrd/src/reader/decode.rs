@@ -1,4 +1,4 @@
-//! NRRD header parsing and byte decoding helpers.
+﻿//! NRRD header parsing and byte decoding helpers.
 
 use anyhow::{anyhow, Context, Result};
 use ritk_codecs::{decode_bytes_to_f32, ByteOrder};
@@ -25,7 +25,7 @@ pub(super) fn parse_space_directions(s: &str) -> Result<[[f64; 3]; 3]> {
 }
 
 /// Parse a 2-D `space directions` field "(a,b) (c,d)" and promote it to a 3-D
-/// row-major direction matrix `[[a,b,0],[c,d,0],[0,0,1]]` — the in-plane axes
+/// row-major direction matrix `[[a,b,0],[c,d,0],[0,0,1]]` â€” the in-plane axes
 /// keep their cosines and an identity through-plane z-axis is appended (the
 /// 2-D-as-z=1 convention).
 pub(super) fn parse_space_directions_planar(s: &str) -> Result<[[f64; 3]; 3]> {
@@ -161,8 +161,7 @@ pub(super) fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool
         "unsigned int" | "uint32" | "uint" | "unsigned int 32" => (4, false, false),
         "float" => (4, false, true),
         "double" => (8, false, true),
-        other => return Err(anyhow!("Unsupported NRRD type: '{}'", other)),
-    };
+        other => return Err(anyhow!("Unsupported NRRD type: '{}'", other)) };
     Ok(spec)
 }
 
@@ -170,8 +169,7 @@ pub(super) fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool
 mod tests {
     use super::{
         parse_nrrd_point, parse_nrrd_point_planar, parse_parenthesized_vectors,
-        parse_space_directions, parse_space_directions_planar,
-    };
+        parse_space_directions, parse_space_directions_planar };
 
     #[test]
     fn parse_space_directions_returns_fixed_vectors() {

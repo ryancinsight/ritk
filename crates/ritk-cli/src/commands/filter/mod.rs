@@ -1,4 +1,4 @@
-//! `ritk filter` — image filtering command.
+﻿//! `ritk filter` â€” image filtering command.
 //!
 //! Applies one of 34 filters to a 3-D medical image. The CLI surface uses
 //! `--filter <KIND>` for closed-set dispatch (typed by [`FilterKind`]) so
@@ -22,7 +22,7 @@ mod spatial_file;
 #[cfg(test)]
 mod tests;
 
-// ── Command handler ───────────────────────────────────────────────────────────
+// â”€â”€ Command handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Execute the `filter` subcommand.
 ///
@@ -82,12 +82,12 @@ pub fn run(args: FilterArgs) -> Result<()> {
     }
 }
 
-// ── Test helpers (shared across leaf modules) ─────────────────────────────────
+// â”€â”€ Test helpers (shared across leaf modules) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 use std::path::PathBuf;
 
-/// Default `FilterArgs` builder — sets every per-family field to its
+/// Default `FilterArgs` builder â€” sets every per-family field to its
 /// reasonable default and lets the caller override what is needed.
 #[cfg(test)]
 pub(crate) fn default_args(input: PathBuf, output: PathBuf, kind: FilterKind) -> FilterArgs {
@@ -101,68 +101,55 @@ pub(crate) fn default_args(input: PathBuf, output: PathBuf, kind: FilterKind) ->
             levels: 4,
             iterations: 50,
             conductance: 3.0,
-            time_step: 0.0625,
-        },
+            time_step: 0.0625 },
         vesselness: VesselnessArgs {
             scales: vec![0.5, 1.0, 2.0],
             alpha: 0.5,
             beta: 0.5,
-            gamma: 15.0,
-        },
+            gamma: 15.0 },
         edge: EdgeArgs {
             sigma_spatial: 3.0,
             sigma_range: 50.0,
             low: 0.1,
-            high: 0.3,
-        },
+            high: 0.3 },
         discrete: DiscreteArgs {
             variance: 1.0,
             maximum_error: 0.01,
-            spacing_mode: SpacingMode::Physical,
-        },
+            spacing_mode: SpacingMode::Physical },
         kernel: KernelArgs { radius: 1 },
         recursive: RecursiveArgs {
-            order: CliDerivativeOrder::Zero,
-        },
+            order: CliDerivativeOrder::Zero },
         bed: BedArgs {
             body_threshold: -350.0,
             closing_radius: 2,
             opening_radius: 1,
-            outside_value: -1024.0,
-        },
+            outside_value: -1024.0 },
         range: RangeArgs {
             out_min: 0.0,
-            out_max: 1.0,
-        },
+            out_max: 1.0 },
         window: WindowArgs {
             window_min: 0.0,
-            window_max: 255.0,
-        },
+            window_max: 255.0 },
         band: BandArgs {
             lower_threshold: 0.0,
             upper_threshold: 1.0,
             outside_value: 0.0,
             foreground_value: 1.0,
-            background_value: 0.0,
-        },
+            background_value: 0.0 },
         threshold: ThresholdArgs {
-            threshold_value: 0.5,
-        },
+            threshold_value: 0.5 },
         mask_input: MaskInputArgs { mask: None },
         cpr: CprArgs {
             cpr_points: vec![],
             cpr_path_samples: 256,
             cpr_half_width: 10.0,
-            cpr_cross_samples: 64,
-        },
+            cpr_cross_samples: 64 },
         sigmoid: SigmoidArgs {
             midpoint: 62.0,
-            steepness: 20.0,
-        },
-    }
+            steepness: 20.0 } }
 }
 
-/// Build a 5×5×5 test image whose voxel values are `0, 1, 2, …, 124`.
+/// Build a 5Ã—5Ã—5 test image whose voxel values are `0, 1, 2, â€¦, 124`.
 #[cfg(test)]
 pub(crate) fn make_test_image() -> NativeImage<f32, NativeBackend, 3> {
     use crate::commands::NativeBackend;
@@ -178,5 +165,5 @@ pub(crate) fn make_test_image() -> NativeImage<f32, NativeBackend, 3> {
         Direction::identity(),
         &NativeBackend::default(),
     )
-    .expect("invariant: valid 5×5×5 ramp image")
+    .expect("invariant: valid 5Ã—5Ã—5 ramp image")
 }

@@ -1,25 +1,23 @@
-//! FFT-based normalized cross-correlation filters.
+﻿//! FFT-based normalized cross-correlation filters.
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{
     burn_into_py_image, image_to_vec, into_py_image, py_image_to_burn, vec_to_image_like,
-    BurnBackend, BurnImage, PyImage,
-};
+    BurnBackend, BurnImage, PyImage };
 use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
 use ritk_filter::{
     normalized_correlation as core_normalized_correlation, FftNormalizedCorrelation3DFilter,
-    FftNormalizedCorrelationFilter,
-};
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+    FftNormalizedCorrelationFilter };
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_spatial::{Direction, Point, Spacing};
 use std::sync::Arc;
 
 /// Build a 2-D `Image<Backend, 2>` from a flat slice of f32 values.
 fn build_image_2d(vals: Vec<f32>, rows: usize, cols: usize) -> BurnImage<2> {
     let device = NdArrayDevice::default();
-    let td = TensorData::new(vals, Shape::new([rows, cols]));
-    let tensor = Tensor::<BurnBackend, 2>::from_data(td, &device);
+    let td = ::new(vals, Shape::new([rows, cols]));
+    let tensor = Tensor::<f32, BurnBackend>::from_data(td, &device);
     BurnImage::new(
         tensor,
         Point::new([0.0_f64, 0.0_f64]),
@@ -34,8 +32,8 @@ fn build_image_2d(vals: Vec<f32>, rows: usize, cols: usize) -> BurnImage<2> {
 /// correlation (NCC) against the provided template. The template must be a
 /// single-slice image (shape [1, TH, TW]).
 ///
-/// The template is mean-subtracted: `T̂ = T − mean(T)`. The output is
-/// partially normalized (divided by the L₂ norm of `T̂`). Full normalization
+/// The template is mean-subtracted: `TÌ‚ = T âˆ’ mean(T)`. The output is
+/// partially normalized (divided by the Lâ‚‚ norm of `TÌ‚`). Full normalization
 /// by local image patch energy is not performed.
 ///
 /// Args:
@@ -103,12 +101,12 @@ pub fn fft_normalized_correlate(
 /// This correctly models 3-D template matching where the template varies along
 /// all three spatial dimensions.
 ///
-/// The template is mean-subtracted: `T̂ = T − mean(T)`. The output is partially
-/// normalized (divided by the L₂ norm of `T̂`). Full normalization by local
+/// The template is mean-subtracted: `TÌ‚ = T âˆ’ mean(T)`. The output is partially
+/// normalized (divided by the Lâ‚‚ norm of `TÌ‚`). Full normalization by local
 /// volume patch energy is not performed.
 ///
 /// The output has the same spatial shape as the input, with zero-offset (no
-/// centring — unlike convolution, cross-correlation is not centred).
+/// centring â€” unlike convolution, cross-correlation is not centred).
 ///
 /// Args:
 ///     volume: Input volume PyImage of shape [D, H, W].
@@ -176,8 +174,8 @@ pub fn normalized_correlation(
 /// `SimpleITK.MaskedFFTNormalizedCorrelation`.
 ///
 /// Correlates `fixed`/`moving` over every translation using their masks, via a
-/// handful of FFTs. Output extent is `fixed + moving − 1` per axis. Voxels with
-/// overlap below `required_number`/`required_fraction·maxOverlap` (or zero
+/// handful of FFTs. Output extent is `fixed + moving âˆ’ 1` per axis. Voxels with
+/// overlap below `required_number`/`required_fractionÂ·maxOverlap` (or zero
 /// denominator) are 0.
 ///
 /// Args:
@@ -207,8 +205,7 @@ pub fn masked_fft_normalized_correlation(
     py.allow_threads(|| {
         ritk_filter::MaskedFftNormalizedCorrelationFilter {
             required_number_of_overlapping_pixels,
-            required_fraction_of_overlapping_pixels,
-        }
+            required_fraction_of_overlapping_pixels }
         .apply(&f, &m, &fm, &mm)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

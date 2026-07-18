@@ -1,4 +1,4 @@
-//! MGH / MGZ writer for 3-D volumetric images.
+﻿//! MGH / MGZ writer for 3-D volumetric images.
 //!
 //! The writer emits FreeSurfer MGH with `MRI_FLOAT` voxel data. Paths ending
 //! in `.mgz` or `.mgh.gz` are gzip-compressed.
@@ -129,8 +129,7 @@ fn write_mgh_flat<W: Write>(
 
 /// Stateless writer for MGH / MGZ files.
 pub struct MghWriter<B: ComputeBackend> {
-    backend: B,
-}
+    backend: B }
 
 impl<B: ComputeBackend> MghWriter<B> {
     /// Creates a writer that extracts image storage through `backend`.

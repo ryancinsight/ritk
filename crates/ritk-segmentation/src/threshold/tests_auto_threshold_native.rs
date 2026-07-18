@@ -1,11 +1,10 @@
 use super::*;
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::native::Image as NativeImage;
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::test_support::make_image;
 
-type LegacyBackend = NdArray<f32>;
+type LegacyBackend = SequentialBackend;
 
 fn assert_native_case<A: AutoThreshold>(
     algorithm: &A,
@@ -24,7 +23,7 @@ fn assert_native_case<A: AutoThreshold>(
         &SequentialBackend,
     )
     .expect("invariant: valid native image");
-    let legacy = make_image::<LegacyBackend, 3>(values, dimensions);
+    let legacy = make_image::<f32, LegacyBackend, 3>(values, dimensions);
 
     let native_threshold = algorithm
         .compute_native(&native)

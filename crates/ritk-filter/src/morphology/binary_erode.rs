@@ -4,15 +4,15 @@
 //!
 //! Binary erosion with a flat cubic structuring element B of half-width r:
 //!
-//!   (E_B f)(x) = fg  iff  ∀ b ∈ B: f(x + b) = fg
+//!   (E_B f)(x) = fg  iff  âˆ€ b âˆˆ B: f(x + b) = fg
 //!             = bg  otherwise
 //!
-//! where B = { b ∈ ℤ³ : |b_i| ≤ r  for i ∈ {0, 1, 2} }.
+//! where B = { b âˆˆ â„¤Â³ : |b_i| â‰¤ r  for i âˆˆ {0, 1, 2} }.
 //!
 //! # Boundary Handling
 //!
 //! Out-of-bounds neighbours are treated as background (`bg`).  This causes
-//! erosion to remove the foreground layer at the image border — consistent
+//! erosion to remove the foreground layer at the image border â€” consistent
 //! with `itk::BinaryErodeImageFilter` when `BoundaryToForeground = false`
 //! (the ITK default).
 //!
@@ -26,12 +26,12 @@
 //!
 //! # Complexity
 //!
-//! O(N · (2r + 1)³) where N is the total voxel count.
+//! O(N Â· (2r + 1)Â³) where N is the total voxel count.
 //!
 //! # References
 //!
 //! - Haralick, R.M., Sternberg, S.R., & Zhuang, X. (1987). Image analysis
-//!   using mathematical morphology. *IEEE TPAMI*, 9(4), 532–550.
+//!   using mathematical morphology. *IEEE TPAMI*, 9(4), 532â€“550.
 //! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer.
 
 use super::types::ForegroundValue;
@@ -40,12 +40,12 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// ── Filter struct ─────────────────────────────────────────────────────────────
+// â”€â”€ Filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Binary erosion filter for 3-D images.
 ///
 /// Shrinks foreground regions by eroding their boundaries.  Each voxel is
-/// foreground in the output iff every voxel in its `(2r+1)³` cubic
+/// foreground in the output iff every voxel in its `(2r+1)Â³` cubic
 /// neighbourhood is foreground in the input.
 ///
 /// Out-of-bounds neighbours are treated as background, so foreground regions
@@ -77,7 +77,7 @@ impl BinaryErodeFilter {
     ///
     /// Returns a new image with identical shape and spatial metadata.
     /// Output voxels are `foreground_value` (foreground) or `0.0` (background).
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
 
         let result = erode_binary_3d(&vals, dims, self.radius, self.foreground_value);
@@ -108,15 +108,15 @@ impl Default for BinaryErodeFilter {
     }
 }
 
-// ── Core algorithm ────────────────────────────────────────────────────────────
+// â”€â”€ Core algorithm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Binary erosion on a flat Z×Y×X volume.
+/// Binary erosion on a flat ZÃ—YÃ—X volume.
 ///
 /// # Invariants
 ///
-/// - Output length = `nz × ny × nx`.
-/// - `Output[i]` ∈ {foreground_value, 0.0}.
-/// - `Output[i]` = foreground_value iff all (2r+1)³ neighbours (clamped-background) = fg.
+/// - Output length = `nz Ã— ny Ã— nx`.
+/// - `Output[i]` âˆˆ {foreground_value, 0.0}.
+/// - `Output[i]` = foreground_value iff all (2r+1)Â³ neighbours (clamped-background) = fg.
 pub(crate) fn erode_binary_3d(
     data: &[f32],
     dims: [usize; 3],
@@ -157,7 +157,7 @@ pub(crate) fn erode_binary_3d(
     })
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_binary_erode.rs"]

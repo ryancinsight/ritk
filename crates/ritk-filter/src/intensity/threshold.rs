@@ -59,7 +59,7 @@ impl ThresholdImageFilter {
         }
     }
 
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let out = threshold_vec(&vals, &self.mode);
         Ok(rebuild(out, dims, image))

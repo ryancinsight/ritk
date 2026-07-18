@@ -1,13 +1,13 @@
 use super::ThresholdMaximumConnectedComponentsFilter;
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
-fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(data, dims)
+fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(data, dims)
 }
 
 fn textured(dims: [usize; 3]) -> Vec<f32> {

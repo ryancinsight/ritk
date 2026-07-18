@@ -11,7 +11,7 @@ use super::reader::parse_ds_backslash;
 use super::types::PerFrameInfo;
 use crate::format::dicom::helpers::read_nested_scalar;
 
-/// Navigate item → seq_tag → items()\[0\] → inner_tag and parse as `\[f64; N\]` DS array.
+/// Navigate item â†’ seq_tag â†’ items()\[0\] â†’ inner_tag and parse as `\[f64; N\]` DS array.
 ///
 /// Returns None if either sequence is absent, has no items, or the DS value fails to
 /// parse with at least N components.

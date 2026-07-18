@@ -1,9 +1,8 @@
-//! Host-native Parzen cache properties.
+﻿//! Host-native Parzen cache properties.
 
 use crate::metric::histogram::parzen::direct::{
     build_sparse_w_fixed_transposed, compute_joint_histogram_values, normalize_intensities,
-    ParzenConfig,
-};
+    ParzenConfig };
 
 /// T1: Determinism of sparse W_fixed^T cache construction under repeat calls.
 #[cfg(feature = "direct-parzen")]

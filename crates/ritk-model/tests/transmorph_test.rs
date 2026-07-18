@@ -1,4 +1,4 @@
-//! End-to-end shape check for the Coeus-native TransMorph through the public API.
+﻿//! End-to-end shape check for the Coeus-native TransMorph through the public API.
 
 use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
@@ -10,7 +10,7 @@ type Backend = SequentialBackend;
 
 #[test]
 fn test_transmorph_forward() {
-    // Minimum input is 32³: patch-4 embedding followed by three stride-2
+    // Minimum input is 32Â³: patch-4 embedding followed by three stride-2
     // downsamplings requires divisibility by 32.
     let config = TransMorphConfig {
         in_channels: 1,
@@ -18,8 +18,7 @@ fn test_transmorph_forward() {
         out_channels: 3,
         window_size: 4,
         integration: TransformIntegration::Direct,
-        integration_steps: 4,
-    };
+        integration_steps: 4 };
     let model: TransMorph<Backend> = config.init();
 
     let shape = [1usize, 1, 32, 32, 32];

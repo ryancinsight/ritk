@@ -1,18 +1,18 @@
-//! Parity: the Coeus-native NGF engine reproduces the Burn engine.
+﻿//! Parity: the Coeus-native NGF engine reproduces the Burn engine.
 //!
 //! Oracles:
 //! - Analytical: NGF of a constant volume is 0 (every gradient vanishes, so the
-//!   squared normalized dot product is 0 at every voxel — the `η` clamp keeps
+//!   squared normalized dot product is 0 at every voxel â€” the `Î·` clamp keeps
 //!   the denominator finite).
 //! - Differential: `ngf_value_native` reproduces the established Burn
 //!   `NgfFixedPrep` on the same data and transform. Under identity/integer
 //!   translation the moving resample lands on exact voxel coordinates, so both
 //!   substrates return bit-identical host values (tol 1e-5, absorbing only the
-//!   index↔world round-trip's `f32` narrowing). Under a fractional translation
+//!   indexâ†”world round-trip's `f32` narrowing). Under a fractional translation
 //!   the two trilinear kernels differ only by `f32` rounding of the 8-neighbour
-//!   lerp cascade: per-sample error ≈ 8·ε_f32 ≈ 5e-7, amplified ~2× by the
+//!   lerp cascade: per-sample error â‰ˆ 8Â·Îµ_f32 â‰ˆ 5e-7, amplified ~2Ã— by the
 //!   finite-difference moving gradient and carried into an O(1) NGF ratio, so
-//!   the averaged metric agrees to < 1e-4 (conservative over ε_f32 ≈ 6e-8).
+//!   the averaged metric agrees to < 1e-4 (conservative over Îµ_f32 â‰ˆ 6e-8).
 
 use super::super::fixed_prep::NgfFixedPrep;
 use super::{ngf_value_native, NgfFixedPrepNative};
@@ -20,7 +20,7 @@ use super::{ngf_value_native, NgfFixedPrepNative};
 use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_image::Image as BurnImage;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::transform::affine::AtlasAffineTransform;
@@ -30,7 +30,7 @@ type BB = NdArray<f32>;
 type NB = SequentialBackend;
 
 /// Smooth, anisotropic-gradient volume of `[d, h, w]` so the fixed and moving
-/// gradient fields are non-degenerate (distinct per axis) — a constant or
+/// gradient fields are non-degenerate (distinct per axis) â€” a constant or
 /// separable field would hide column/axis mix-ups the parity test must catch.
 fn ramp(d: usize, h: usize, w: usize) -> Vec<f32> {
     let mut v = vec![0.0f32; d * h * w];
@@ -49,7 +49,7 @@ fn ramp(d: usize, h: usize, w: usize) -> Vec<f32> {
 fn burn_image(data: Vec<f32>, shape: [usize; 3]) -> BurnImage<BB, 3> {
     let device = Default::default();
     BurnImage::new(
-        Tensor::from_data(TensorData::new(data, Shape::new(shape)), &device),
+        Tensor::from_data(::new(data, Shape::new(shape)), &device),
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
@@ -70,11 +70,11 @@ fn native_image(data: Vec<f32>, shape: [usize; 3]) -> NativeImage<f32, NB, 3> {
 /// Burn identity `t = 0` translation.
 fn burn_translation(t: [f32; 3]) -> TranslationTransform<BB, 3> {
     let device = Default::default();
-    TranslationTransform::<BB, 3>::new(Tensor::from_data(TensorData::new(t.to_vec(), [3]), &device))
+    TranslationTransform::<BB, 3>::new(Tensor::from_data(::new(t.to_vec(), [3]), &device))
 }
 
 /// Native affine = identity matrix + `t` translation (center 0), so
-/// `T(x) = x + t` — the exact semantics of [`TranslationTransform`].
+/// `T(x) = x + t` â€” the exact semantics of [`TranslationTransform`].
 fn native_translation(t: [f32; 3]) -> AtlasAffineTransform<NB, 3> {
     let matrix = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
     AtlasAffineTransform::<NB, 3>::construct(&matrix, &t, &[0.0, 0.0, 0.0])
@@ -151,7 +151,7 @@ fn native_matches_burn_integer_shift() {
         *m = fixed[fixed.len() - 1 - i];
     }
     // `grad_at` reads one transformed neighbour in each direction. The upper
-    // bounds make `index + translation ± 1` stay within every moving axis.
+    // bounds make `index + translation Â± 1` stay within every moving axis.
     let t = [0.0, 1.0, 2.0]; // world axis-major translation, integer components
     let mask = in_bounds_gradient_mask(shape, [4, 4, 4]);
 

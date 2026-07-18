@@ -1,12 +1,11 @@
-use crate::errors::RitkPyError;
+﻿use crate::errors::RitkPyError;
 use crate::errors::RitkResult;
 use crate::image::{native_into_py_image, py_image_to_native, PyImage};
 use coeus_core::SequentialBackend;
 use pyo3::prelude::*;
 use ritk_segmentation::{
     ConnectivityEnforcement, InitializationPerturbation, ItkSlicConfig, ItkSlicFilter, SlicConfig,
-    SlicSuperpixelFilter,
-};
+    SlicSuperpixelFilter };
 
 /// SLIC super-pixel segmentation matching `SimpleITK.SLIC`.
 ///
@@ -17,7 +16,7 @@ use ritk_segmentation::{
 /// volumes are handled as genuine 2-D images).
 ///
 /// Args:
-///     image: scalar image (`z==1` ⇒ 2-D).
+///     image: scalar image (`z==1` â‡’ 2-D).
 ///     super_grid_size: uniform per-axis grid step (sitk `superGridSize`).
 ///     spatial_proximity_weight: sitk `spatialProximityWeight` (default 10.0).
 ///     maximum_number_of_iterations: sitk `maximumNumberOfIterations` (default 5).

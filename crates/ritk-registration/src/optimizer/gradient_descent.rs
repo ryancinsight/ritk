@@ -1,49 +1,48 @@
+use crate::optimizer::trait_::{update_parameters, ParameterGradients};
 use crate::optimizer::{Optimizer, OptimizerAlgorithm, OptimizerTelemetry};
-use ritk_image::burn::module::AutodiffModule;
-use ritk_image::burn::optim::adaptor::OptimizerAdaptor;
-use ritk_image::burn::optim::{GradientsParams, Optimizer as BurnOptimizer, Sgd, SgdConfig};
-use ritk_image::tensor::AutodiffBackend;
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::Module;
+use coeus_ops::BackendOps;
+use ritk_image::tensor::Backend;
+use std::marker::PhantomData;
 
-/// Gradient descent optimizer.
-///
-/// A wrapper around Burn's SGD optimizer.
-pub struct GradientDescent<M: AutodiffModule<B>, B: AutodiffBackend> {
-    optimizer: OptimizerAdaptor<Sgd<B::InnerBackend>, M, B>,
+/// Vanilla gradient descent over a Coeus module parameter inventory.
+pub struct GradientDescent<M, B> {
     learning_rate: f64,
     steps: usize,
+    marker: PhantomData<fn() -> (M, B)>,
 }
 
-impl<M: AutodiffModule<B>, B: AutodiffBackend> GradientDescent<M, B> {
-    /// Create a new gradient descent optimizer.
-    ///
-    /// # Arguments
-    /// * `learning_rate` - The learning rate
+impl<M, B> GradientDescent<M, B> {
     pub fn new(learning_rate: f64) -> Self {
-        let config = SgdConfig::new();
         Self {
-            optimizer: config.init(),
             learning_rate,
             steps: 0,
+            marker: PhantomData,
         }
     }
 }
 
 impl<M, B> Optimizer<M, B> for GradientDescent<M, B>
 where
-    M: AutodiffModule<B>,
-    B: AutodiffBackend,
+    B: Backend + BackendOps<f32> + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    M: Module<f32, B>,
 {
-    fn step(&mut self, module: M, gradients: GradientsParams) -> M {
+    fn step(&mut self, module: M, gradients: ParameterGradients<B>) -> M {
         self.steps += 1;
-        self.optimizer.step(self.learning_rate, module, gradients)
+        let learning_rate = self.learning_rate as f32;
+        update_parameters(module, &gradients, |_, _, value, derivative| {
+            value - learning_rate * derivative
+        })
     }
 
     fn learning_rate(&self) -> f64 {
         self.learning_rate
     }
 
-    fn set_learning_rate(&mut self, lr: f64) {
-        self.learning_rate = lr;
+    fn set_learning_rate(&mut self, learning_rate: f64) {
+        self.learning_rate = learning_rate;
     }
 
     fn telemetry(&self) -> OptimizerTelemetry {

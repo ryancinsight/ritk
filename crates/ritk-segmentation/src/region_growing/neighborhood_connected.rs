@@ -2,28 +2,28 @@
 //!
 //! # Mathematical Specification
 //!
-//! Given an intensity image I: ℤ³ → ℝ, a seed voxel s, intensity bounds
-//! [L, U] ⊂ ℝ, and a rectangular neighborhood radius R = (rz, ry, rx) ∈ ℕ³,
+//! Given an intensity image I: â„¤Â³ â†’ â„, a seed voxel s, intensity bounds
+//! [L, U] âŠ‚ â„, and a rectangular neighborhood radius R = (rz, ry, rx) âˆˆ â„•Â³,
 //! the neighborhood-connected region growing algorithm performs BFS flood-fill
 //! where the inclusion predicate requires **all** voxels in the candidate's
 //! local neighborhood to satisfy the intensity bounds.
 //!
 //! ## Definition (Neighborhood Admissibility)
 //!
-//! For a voxel v ∈ ℤ³, define the rectangular neighborhood:
+//! For a voxel v âˆˆ â„¤Â³, define the rectangular neighborhood:
 //!
-//!   N_R(v) = { n ∈ ℤ³ : |nᵢ − vᵢ| ≤ Rᵢ  ∀ i ∈ {z, y, x} } ∩ dom(I)
+//!   N_R(v) = { n âˆˆ â„¤Â³ : |náµ¢ âˆ’ váµ¢| â‰¤ Ráµ¢  âˆ€ i âˆˆ {z, y, x} } âˆ© dom(I)
 //!
 //! The **neighborhood admissibility predicate** is:
 //!
-//!   P(v) ≡ ∀ n ∈ N_R(v) : L ≤ I(n) ≤ U
+//!   P(v) â‰¡ âˆ€ n âˆˆ N_R(v) : L â‰¤ I(n) â‰¤ U
 //!
 //! ## Theorem (Neighborhood-Consistent Region Growing)
 //!
-//! The grown region G ⊆ dom(I) satisfies:
+//! The grown region G âŠ† dom(I) satisfies:
 //!
-//! 1. **Seed inclusion**: s ∈ G ⟺ P(s)
-//! 2. **Neighborhood consistency**: ∀ v ∈ G : P(v)
+//! 1. **Seed inclusion**: s âˆˆ G âŸº P(s)
+//! 2. **Neighborhood consistency**: âˆ€ v âˆˆ G : P(v)
 //! 3. **6-connectedness**: G is 6-connected (face-adjacent in 3-D)
 //! 4. **Maximality**: No voxel in the 6-connected boundary of G satisfies P
 //!
@@ -36,27 +36,27 @@
 //! - BFS terminates when the queue is empty, establishing maximality.
 //! - 6-connectedness follows from the BFS expansion via face offsets only.
 //!
-//! ## Algorithm — BFS with Neighborhood Predicate
+//! ## Algorithm â€” BFS with Neighborhood Predicate
 //!
-//! 1. Validate seed bounds. If ¬P(s), return empty mask.
-//! 2. Initialize BFS queue Q ← {s}, visited\[s\] ← true, output\[s\] ← 1.
-//! 3. While Q ≠ ∅:
+//! 1. Validate seed bounds. If Â¬P(s), return empty mask.
+//! 2. Initialize BFS queue Q â† {s}, visited\[s\] â† true, output\[s\] â† 1.
+//! 3. While Q â‰  âˆ…:
 //! a. Dequeue p from Q.
-//! b. For each q ∈ N₆(p) (6 face-adjacent neighbors):
-//! - If q ∉ visited and P(q): visited\[q\] ← true, output\[q\] ← 1, enqueue q.
+//! b. For each q âˆˆ Nâ‚†(p) (6 face-adjacent neighbors):
+//! - If q âˆ‰ visited and P(q): visited\[q\] â† true, output\[q\] â† 1, enqueue q.
 //! 4. Return binary mask.
 //!
 //! ## Distinction from Connected Threshold
 //!
-//! `ConnectedThresholdFilter` checks only I(q) ∈ [L, U] (single-voxel predicate).
-//! `NeighborhoodConnectedFilter` checks ∀ n ∈ N_R(q): I(n) ∈ [L, U] (neighborhood
+//! `ConnectedThresholdFilter` checks only I(q) âˆˆ [L, U] (single-voxel predicate).
+//! `NeighborhoodConnectedFilter` checks âˆ€ n âˆˆ N_R(q): I(n) âˆˆ [L, U] (neighborhood
 //! predicate). The neighborhood predicate rejects isolated noise voxels that happen
 //! to fall within [L, U] but whose local context does not, providing more robust
 //! segmentation in the presence of salt-and-pepper or Rician noise.
 //!
 //! ## Complexity
 //!
-//! - Time: O(|G| · |N_R|) where |N_R| = ∏ᵢ (2Rᵢ + 1). Each candidate voxel
+//! - Time: O(|G| Â· |N_R|) where |N_R| = âˆáµ¢ (2Ráµ¢ + 1). Each candidate voxel
 //!   requires a full neighborhood scan. For the default R = (1,1,1), |N_R| = 27.
 //! - Space: O(|dom(I)|) for visited and output arrays.
 //!
@@ -68,12 +68,12 @@
 //!   *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 16(6), 641-647.
 
 use ritk_core::spatial::VoxelIndex;
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 use std::collections::VecDeque;
 
-// ── Public types ─────────────────────────────────────────────────────────────
+// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Neighborhood-connected region-growing filter.
 ///
@@ -92,7 +92,7 @@ pub struct NeighborhoodConnectedFilter {
     /// Rectangular neighborhood half-radius [rz, ry, rx].
     ///
     /// The full neighborhood for a voxel v is the set of all voxels n
-    /// with |nᵢ − vᵢ| ≤ Rᵢ. Default: [1, 1, 1] (3×3×3 = 27 voxels).
+    /// with |náµ¢ âˆ’ váµ¢| â‰¤ Ráµ¢. Default: [1, 1, 1] (3Ã—3Ã—3 = 27 voxels).
     radius: [usize; 3],
 }
 
@@ -117,7 +117,7 @@ impl NeighborhoodConnectedFilter {
     /// Set the rectangular neighborhood half-radius.
     ///
     /// A radius of [rz, ry, rx] produces a neighborhood of size
-    /// (2·rz+1) × (2·ry+1) × (2·rx+1).
+    /// (2Â·rz+1) Ã— (2Â·ry+1) Ã— (2Â·rx+1).
     #[must_use]
     pub fn with_radius(mut self, radius: [usize; 3]) -> Self {
         self.radius = radius;
@@ -129,7 +129,7 @@ impl NeighborhoodConnectedFilter {
     /// Returns a binary mask (values in {0.0, 1.0}) with the same shape and
     /// spatial metadata as `image`. If the seed voxel's neighborhood does not
     /// fully satisfy the intensity bounds, the output is all-zero.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         neighborhood_connected(image, self.seed, self.lower, self.upper, self.radius)
     }
 
@@ -190,7 +190,7 @@ impl NeighborhoodConnectedFilter {
     }
 }
 
-// ── Public function ───────────────────────────────────────────────────────────
+// â”€â”€ Public function â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Neighborhood-connected region growing starting from `seed`.
 ///
@@ -202,21 +202,21 @@ impl NeighborhoodConnectedFilter {
 /// Expansion uses 6-connectivity (face-adjacent neighbors).
 ///
 /// # Arguments
-/// * `image` — input intensity image (3-D).
-/// * `seed` — starting voxel [z, y, x].
-/// * `lower` — inclusive lower intensity bound.
-/// * `upper` — inclusive upper intensity bound.
-/// * `radius` — rectangular neighborhood half-radius [rz, ry, rx].
+/// * `image` â€” input intensity image (3-D).
+/// * `seed` â€” starting voxel [z, y, x].
+/// * `lower` â€” inclusive lower intensity bound.
+/// * `upper` â€” inclusive upper intensity bound.
+/// * `radius` â€” rectangular neighborhood half-radius [rz, ry, rx].
 ///
 /// # Panics
 /// Panics if `lower > upper` or if `seed` is out of bounds for `image`.
 pub fn neighborhood_connected<B: Backend>(
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
     seed: impl Into<VoxelIndex>,
     lower: f32,
     upper: f32,
     radius: [usize; 3],
-) -> Image<B, 3> {
+) -> Image<f32, B, 3> {
     assert!(
         lower <= upper,
         "lower bound {lower} must be ≤ upper bound {upper}"
@@ -234,12 +234,10 @@ pub fn neighborhood_connected<B: Backend>(
     );
 
     let (img_vals, shape) = extract_vec_infallible(image);
-    let device = image.data().device();
 
     let result = grow_neighborhood(&img_vals, shape, seed, lower, upper, radius);
 
-    let td = TensorData::new(result, Shape::new(shape));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
+    let tensor = Tensor::<f32, B>::from_slice(shape, &result);
 
     Image::new(
         tensor,
@@ -249,16 +247,16 @@ pub fn neighborhood_connected<B: Backend>(
     )
 }
 
-// ── Core BFS with neighborhood predicate ─────────────────────────────────────
+// â”€â”€ Core BFS with neighborhood predicate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Check whether all voxels in the rectangular neighborhood N_R(v) satisfy
-/// L ≤ I(n) ≤ U.
+/// L â‰¤ I(n) â‰¤ U.
 ///
 /// The neighborhood is clamped to the image domain: voxels outside domain
 /// boundaries are excluded from the check (they do not cause rejection).
 ///
 /// # Invariant
-/// Returns `true` iff ∀ n ∈ N_R(v) ∩ dom(I): lower ≤ data[flat(n)] ≤ upper.
+/// Returns `true` iff âˆ€ n âˆˆ N_R(v) âˆ© dom(I): lower â‰¤ data[flat(n)] â‰¤ upper.
 #[inline]
 fn is_neighborhood_admissible(
     data: &[f32],
@@ -294,7 +292,7 @@ fn is_neighborhood_admissible(
     true
 }
 
-/// Perform BFS flood fill with neighborhood admissibility on flat `[nz × ny × nx]` data.
+/// Perform BFS flood fill with neighborhood admissibility on flat `[nz Ã— ny Ã— nx]` data.
 ///
 /// Returns a flat binary `Vec<f32>` of the same length as `data`.
 pub(crate) fn grow_neighborhood(
@@ -383,7 +381,7 @@ pub(crate) fn grow_neighborhood(
     output
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_neighborhood_connected/mod.rs"]

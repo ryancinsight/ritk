@@ -4,8 +4,8 @@
 //! it is parameterised by a per-axis **super-grid size** (the k-means grid step)
 //! rather than a target super-pixel count, uses **raw** intensity differences
 //! (no `m_c` normalisation), and initialises cluster centres from a shrink of
-//! the input. It reproduces ITK's deterministic core — the configuration
-//! `enforceConnectivity = false`, `initializationPerturbation = false` — which is
+//! the input. It reproduces ITK's deterministic core â€” the configuration
+//! `enforceConnectivity = false`, `initializationPerturbation = false` â€” which is
 //! a fixed-count Lloyd iteration with no order-sensitive post-processing, hence
 //! bit-reproducible against `sitk.SLIC` with those flags.
 //!
@@ -13,19 +13,19 @@
 //!
 //! For a `D`-dimensional image with per-axis grid step `g_d` and spatial
 //! proximity weight `m`, cluster centres are placed on the shrink grid: centre
-//! `(r_0,…,r_{D-1})` has continuous-index position `c_d = (g_d−1)/2 + r_d·g_d`
-//! and intensity `I(s)` sampled at integer index `s_d = r_d·g_d + g_d/2`. The
-//! number of centres is `∏_d ⌊shape_d / g_d⌋` in row-major (axis-0-outer) scan
+//! `(r_0,â€¦,r_{D-1})` has continuous-index position `c_d = (g_dâˆ’1)/2 + r_dÂ·g_d`
+//! and intensity `I(s)` sampled at integer index `s_d = r_dÂ·g_d + g_d/2`. The
+//! number of centres is `âˆ_d âŒŠshape_d / g_dâŒ‹` in row-major (axis-0-outer) scan
 //! order, which fixes the output label numbering.
 //!
 //! The squared distance from voxel at integer index **p** (intensity `I`) to a
 //! centre with intensity `I_c` and position **c** is
 //!
-//! D² = (I − I_c)² + Σ_d ((p_d − c_d) · m/g_d)²    (ITK `Distance`, raw colour).
+//! DÂ² = (I âˆ’ I_c)Â² + Î£_d ((p_d âˆ’ c_d) Â· m/g_d)Â²    (ITK `Distance`, raw colour).
 //!
 //! Each of `max_iterations` iterations assigns every voxel within a per-centre
-//! search window `[round(c_d) − g_d, round(c_d) + g_d]` to the nearest centre
-//! (strict `<`, so the lowest-index centre wins ties — matching ITK's scan-order
+//! search window `[round(c_d) âˆ’ g_d, round(c_d) + g_d]` to the nearest centre
+//! (strict `<`, so the lowest-index centre wins ties â€” matching ITK's scan-order
 //! overwrite), then recomputes each centre as the mean of its members. The loop
 //! is fixed-count (no convergence break), exactly as `itkSLICImageFilter`.
 //!
@@ -37,7 +37,7 @@
 //! Validated **label-for-label exact** against `sitk.SLIC` in 2-D and 3-D over
 //! multiple images, for both evenly- and non-evenly-dividing super-grids and for
 //! **both** the deterministic core and the sitk-default configuration
-//! (`initializationPerturbation` + `enforceConnectivity` on) — see
+//! (`initializationPerturbation` + `enforceConnectivity` on) â€” see
 //! `tests_slic_itk.rs`. The centered shrink origin handles the remainder case;
 //! perturbation and the two-phase connectivity relabelling reproduce ITK's
 //! order-sensitive post-processing exactly.
@@ -60,10 +60,10 @@ struct Center {
 /// `super_grid` holds the per-axis grid step `g_d` (length `shape.len()`);
 /// `proximity_weight` is ITK's `m_SpatialProximityWeight`. `perturbation` moves
 /// each initial centre to the lowest-gradient voxel in its 3^D neighbourhood
-/// (ITK `initializationPerturbation`, applied only when every `g_d ≥ 3`);
+/// (ITK `initializationPerturbation`, applied only when every `g_d â‰¥ 3`);
 /// `enforce_connectivity` relabels sub-threshold connected fragments into an
 /// adjacent super-pixel (ITK `enforceConnectivity`). Returns a flat label buffer
-/// (`0..K−1` as `f32`) in centre scan order, matching `sitk.SLIC` with the
+/// (`0..Kâˆ’1` as `f32`) in centre scan order, matching `sitk.SLIC` with the
 /// corresponding flags.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn slic_itk_impl(
@@ -89,7 +89,7 @@ pub(crate) fn slic_itk_impl(
     }
     let flat = |idx: &[usize]| -> usize { (0..ndim).map(|d| idx[d] * stride[d]).sum() };
 
-    // ── Initialise centres on the shrink grid (scan order fixes labels) ──────
+    // â”€â”€ Initialise centres on the shrink grid (scan order fixes labels) â”€â”€â”€â”€â”€â”€
     let grid_pts: Vec<usize> = (0..ndim).map(|d| (shape[d] / g[d]).max(1)).collect();
     let k: usize = grid_pts.iter().product();
     if k <= 1 {
@@ -98,16 +98,16 @@ pub(crate) fn slic_itk_impl(
     let scale: Vec<f64> = (0..ndim).map(|d| proximity_weight / g[d] as f64).collect();
 
     // Row-major strides over the centre grid (axis 0 outermost), so linear
-    // centre index → multi-index preserves ITK's scan-order label numbering.
+    // centre index â†’ multi-index preserves ITK's scan-order label numbering.
     let mut grid_stride = vec![1usize; ndim];
     for d in (0..ndim - 1).rev() {
         grid_stride[d] = grid_stride[d + 1] * grid_pts[d + 1];
     }
     // ITK ShrinkImageFilter places the shrunk grid with a *centered* origin (the
     // output centre maps to the input centre), so the continuous-index position
-    // of grid point j on axis d is `out_origin_d + j·g_d` with
-    // `out_origin_d = (shape_d−1)/2 − g_d·(grid_pts_d−1)/2`. This reduces to
-    // `(g_d−1)/2` only when g_d divides shape_d; the general form is required
+    // of grid point j on axis d is `out_origin_d + jÂ·g_d` with
+    // `out_origin_d = (shape_dâˆ’1)/2 âˆ’ g_dÂ·(grid_pts_dâˆ’1)/2`. This reduces to
+    // `(g_dâˆ’1)/2` only when g_d divides shape_d; the general form is required
     // for non-evenly-dividing super-grids.
     let out_origin: Vec<f64> = (0..ndim)
         .map(|d| (shape[d] as f64 - 1.0) / 2.0 - g[d] as f64 * (grid_pts[d] as f64 - 1.0) / 2.0)
@@ -131,9 +131,9 @@ pub(crate) fn slic_itk_impl(
         });
     }
 
-    // ── Optional perturbation: move each centre to the lowest-gradient voxel ──
+    // â”€â”€ Optional perturbation: move each centre to the lowest-gradient voxel â”€â”€
     // in its 3^D neighbourhood (central differences, ZeroFluxNeumann edge clamp).
-    // ITK gates this on every super-grid factor being ≥ 3.
+    // ITK gates this on every super-grid factor being â‰¥ 3.
     if perturbation && g.iter().all(|&gd| gd >= 3) {
         let clamp_get = |p: &[i64]| -> f64 {
             let mut q = vec![0usize; ndim];
@@ -199,7 +199,7 @@ pub(crate) fn slic_itk_impl(
         }
     }
 
-    // ── Fixed-count Lloyd iteration ──────────────────────────────────────────
+    // â”€â”€ Fixed-count Lloyd iteration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let mut labels = vec![0u32; n];
     let mut dist = vec![f64::MAX; n];
     let mut idx = vec![0usize; ndim];
@@ -213,7 +213,7 @@ pub(crate) fn slic_itk_impl(
         dist.iter_mut().for_each(|x| *x = f64::MAX);
         labels.iter_mut().for_each(|x| *x = 0);
         for (ci, c) in centers.iter().enumerate() {
-            // Search window [round(c_d) − g_d, round(c_d) + g_d] ∩ image.
+            // Search window [round(c_d) âˆ’ g_d, round(c_d) + g_d] âˆ© image.
             for d in 0..ndim {
                 let center = round_half_up(c.pos[d]);
                 lo[d] = (center - g[d] as i64).max(0) as usize;
@@ -253,13 +253,13 @@ pub(crate) fn slic_itk_impl(
             }
         }
 
-        // ── Update centres to the mean of their members ──────────────────────
+        // â”€â”€ Update centres to the mean of their members â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         sum_i.iter_mut().for_each(|x| *x = 0.0);
         sum_p.iter_mut().for_each(|x| *x = 0.0);
         count.iter_mut().for_each(|x| *x = 0);
         // Walk voxels in flat order, tracking the multi-index with an odometer
         // (innermost axis fastest) instead of decoding it with `ndim` divisions
-        // per voxel — same accumulation, no per-voxel division.
+        // per voxel â€” same accumulation, no per-voxel division.
         let mut p = vec![0usize; ndim];
         for fi in 0..n {
             let ci = labels[fi] as usize;
@@ -310,10 +310,10 @@ fn decode(fi: usize, stride: &[usize], out: &mut [usize]) {
 
 /// ITK `enforceConnectivity`: relabel sub-`minSuperSize` fragments so every
 /// label is a single face-connected region. Phase 1 marks each cluster's main
-/// component (the one reachable from its centroid, kept only if ≥ minSuperSize);
+/// component (the one reachable from its centroid, kept only if â‰¥ minSuperSize);
 /// phase 2 raster-scans the unmarked fragments, giving each a fresh label if
 /// large enough else merging it into the previous raster label
-/// (`minSuperSize = ∏ g_d / 4`). Face-connectivity (±1 per axis); flood order
+/// (`minSuperSize = âˆ g_d / 4`). Face-connectivity (Â±1 per axis); flood order
 /// does not affect the labelling (only the member set and raster `prev_label`).
 fn enforce_slic_connectivity(
     labels: &mut [u32],
@@ -370,7 +370,7 @@ fn enforce_slic_connectivity(
         }};
     }
 
-    // ── Phase 1: mark each cluster's centroid-connected main component ────────
+    // â”€â”€ Phase 1: mark each cluster's centroid-connected main component â”€â”€â”€â”€â”€â”€â”€â”€
     let half: Vec<i64> = g.iter().map(|&gd| (gd / 2) as i64).collect();
     let mut off = vec![0i64; ndim];
     for (ci, center) in centers.iter().enumerate().take(k) {
@@ -382,7 +382,7 @@ fn enforce_slic_connectivity(
         if labels[cf] == ci as u32 {
             seed = Some(cf);
         } else {
-            // Search the ±g/2 box (raster order) for the nearest voxel of label ci.
+            // Search the Â±g/2 box (raster order) for the nearest voxel of label ci.
             off.iter_mut().enumerate().for_each(|(d, o)| *o = -half[d]);
             'search: loop {
                 let mut in_bounds = true;
@@ -425,7 +425,7 @@ fn enforce_slic_connectivity(
         }
     }
 
-    // ── Phase 2: raster-scan unmarked fragments, relabel by size ─────────────
+    // â”€â”€ Phase 2: raster-scan unmarked fragments, relabel by size â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let mut next_label = k as u32;
     let mut prev_label = k as u32;
     for fi in 0..n {

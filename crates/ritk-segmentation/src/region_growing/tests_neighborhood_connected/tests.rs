@@ -1,25 +1,19 @@
-//! Tests for neighborhood_connected
+﻿//! Tests for neighborhood_connected
 //! Extracted from the main module to keep the 500-line structural limit.
 use super::*;
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::tensor::Tensor;
+use ritk_image::test_support::make_image;
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
 
-fn get_values(image: &Image<TestBackend, 3>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn get_values(image: &Image<f32, TestBackend, 3>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
-fn count_foreground(image: &Image<TestBackend, 3>) -> usize {
+fn count_foreground(image: &Image<f32, TestBackend, 3>) -> usize {
     get_values(image).iter().filter(|&&v| v > 0.5).count()
 }
 

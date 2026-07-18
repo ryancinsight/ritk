@@ -1,4 +1,4 @@
-//! Vesselness filters: Frangi multiscale vesselness, Sato line filter.
+﻿//! Vesselness filters: Frangi multiscale vesselness, Sato line filter.
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
@@ -15,8 +15,7 @@ pub enum PyVesselPolarity {
     /// Detect bright structures on dark background.
     Bright,
     /// Detect dark structures on bright background.
-    Dark,
-}
+    Dark }
 
 impl<'py> FromPyObject<'py> for PyVesselPolarity {
     fn extract_bound(ob: &pyo3::Bound<'py, PyAny>) -> PyResult<Self> {
@@ -27,8 +26,7 @@ impl<'py> FromPyObject<'py> for PyVesselPolarity {
             other => Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "Unknown vessel polarity '{}'. Choices: bright, dark",
                 other
-            ))),
-        }
+            ))) }
     }
 }
 
@@ -36,8 +34,7 @@ impl From<PyVesselPolarity> for VesselPolarity {
     fn from(val: PyVesselPolarity) -> Self {
         match val {
             PyVesselPolarity::Bright => VesselPolarity::Bright,
-            PyVesselPolarity::Dark => VesselPolarity::Dark,
-        }
+            PyVesselPolarity::Dark => VesselPolarity::Dark }
     }
 }
 
@@ -45,11 +42,11 @@ impl From<PyVesselPolarity> for VesselPolarity {
 ///
 /// Detects tubular structures (blood vessels, airways) by analysing Hessian
 /// eigenvalues at multiple spatial scales. Reference: Frangi et al. (1998),
-/// *MICCAI* LNCS 1496:130–137.
+/// *MICCAI* LNCS 1496:130â€“137.
 ///
 /// Args:
 /// image: Input PyImage (should be pre-smoothed for noisy data).
-/// scales: List of σ values in mm (default [0.5, 1.0, 2.0]).
+/// scales: List of Ïƒ values in mm (default [0.5, 1.0, 2.0]).
 /// alpha: Plate-vs-line anisotropy parameter (default 0.5).
 /// beta: Blobness parameter (default 0.5).
 /// gamma: Noise-suppression structureness threshold (default 15.0).
@@ -80,8 +77,7 @@ pub fn frangi_vesselness(
             alpha,
             beta,
             gamma,
-            polarity: VesselPolarity::from(polarity),
-        };
+            polarity: VesselPolarity::from(polarity) };
         let filter = FrangiVesselnessFilter::new(config);
         filter
             .apply(&image)
@@ -97,7 +93,7 @@ pub fn frangi_vesselness(
 ///
 /// Args:
 /// image: Input PyImage.
-/// scales: List of Gaussian σ values (physical units, mm). Default [1.0, 2.0, 3.0].
+/// scales: List of Gaussian Ïƒ values (physical units, mm). Default [1.0, 2.0, 3.0].
 /// alpha: Cross-section anisotropy exponent [0.5, 2.0]. Default 0.5.
 /// polarity: Vessel polarity: "bright" (default) or "dark".
 ///     "bright" detects bright tubes on dark background.
@@ -122,8 +118,7 @@ pub fn sato_line_filter(
         let filter = SatoLineFilter::new(SatoConfig {
             scales: scales.unwrap_or_else(|| vec![1.0, 2.0, 3.0]),
             alpha,
-            polarity: VesselPolarity::from(polarity),
-        });
+            polarity: VesselPolarity::from(polarity) });
         filter
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))

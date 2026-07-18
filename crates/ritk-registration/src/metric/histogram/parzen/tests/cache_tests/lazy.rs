@@ -1,4 +1,4 @@
-//! Lazy sparse cache construction test.
+﻿//! Lazy sparse cache construction test.
 
 use super::super::*;
 
@@ -7,7 +7,7 @@ use super::super::*;
 fn lazy_sparse_cache_built_on_first_access() {
     use ritk_core::image::Image;
     use ritk_core::spatial::{Direction, Point, Spacing};
-    use ritk_image::tensor::{Shape, TensorData};
+    use ritk_image::tensor::{Shape };
     use ritk_interpolation::LinearInterpolator;
     use ritk_transform::TranslationTransform;
 
@@ -25,9 +25,9 @@ fn lazy_sparse_cache_built_on_first_access() {
     }
 
     let fixed_t =
-        Tensor::<B, 3>::from_data(TensorData::new(fixed_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &fixed_data, &device);
     let moving_t =
-        Tensor::<B, 3>::from_data(TensorData::new(moving_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &moving_data, &device);
     let origin = Point::new([0.0, 0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let direction = Direction::identity();
@@ -35,7 +35,7 @@ fn lazy_sparse_cache_built_on_first_access() {
     let moving_img = Image::new(moving_t, origin, spacing, direction);
 
     let interp = LinearInterpolator::new_zero_pad();
-    let zero_translation = Tensor::<B, 1>::zeros([3], &device);
+    let zero_translation = Tensor::<f32, B>::zeros([3], &device);
     let translation = TranslationTransform::<B, 3>::new(zero_translation);
 
     let hist = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &device);

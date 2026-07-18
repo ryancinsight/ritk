@@ -1,9 +1,8 @@
-use crate::errors::RitkResult;
+﻿use crate::errors::RitkResult;
 use crate::image::PyImage;
 use pyo3::prelude::*;
 use ritk_registration::diffeomorphic::multires_syn::{
-    InverseConsistency, MultiResSyNConfig, MultiResSyNRegistration,
-};
+    InverseConsistency, MultiResSyNConfig, MultiResSyNRegistration };
 
 use super::shared::{load_matching_inputs, to_py_pair};
 
@@ -16,9 +15,8 @@ pub enum PyInverseConsistency {
     /// No inverse-consistency enforcement (relaxed update, default).
     #[default]
     Relaxed,
-    /// Enforce inverse consistency via `v ← (v − compose(v₁,v₂)) / 2`.
-    Enforced,
-}
+    /// Enforce inverse consistency via `v â† (v âˆ’ compose(vâ‚,vâ‚‚)) / 2`.
+    Enforced }
 
 impl<'py> FromPyObject<'py> for PyInverseConsistency {
     fn extract_bound(ob: &pyo3::Bound<'py, PyAny>) -> PyResult<Self> {
@@ -29,8 +27,7 @@ impl<'py> FromPyObject<'py> for PyInverseConsistency {
             other => Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "Unknown inverse consistency policy '{}'. Choices: relaxed, enforced",
                 other
-            ))),
-        }
+            ))) }
     }
 }
 
@@ -38,8 +35,7 @@ impl IntoPy<PyObject> for PyInverseConsistency {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
             Self::Relaxed => "relaxed".into_py(py),
-            Self::Enforced => "enforced".into_py(py),
-        }
+            Self::Enforced => "enforced".into_py(py) }
     }
 }
 
@@ -47,8 +43,7 @@ impl From<PyInverseConsistency> for InverseConsistency {
     fn from(val: PyInverseConsistency) -> Self {
         match val {
             PyInverseConsistency::Relaxed => InverseConsistency::Relaxed,
-            PyInverseConsistency::Enforced => InverseConsistency::Enforced,
-        }
+            PyInverseConsistency::Enforced => InverseConsistency::Enforced }
     }
 }
 
@@ -69,8 +64,7 @@ pub struct PyMultiresSynOptions {
     #[pyo3(get, set)]
     pub gradient_step: f64,
     #[pyo3(get, set)]
-    pub convergence_threshold: f64,
-}
+    pub convergence_threshold: f64 }
 
 #[pymethods]
 impl PyMultiresSynOptions {
@@ -100,8 +94,7 @@ impl PyMultiresSynOptions {
             cc_radius,
             inverse_consistency,
             gradient_step,
-            convergence_threshold,
-        }
+            convergence_threshold }
     }
 }
 
@@ -129,8 +122,7 @@ pub fn multires_syn_register(
             n_squarings: 6,
             cc_window_radius: opts.cc_radius,
             enforce_inverse_consistency: InverseConsistency::from(opts.inverse_consistency),
-            gradient_step: opts.gradient_step,
-        };
+            gradient_step: opts.gradient_step };
         let reg = MultiResSyNRegistration::new(config);
         reg.register(
             &inputs.fixed_vals,

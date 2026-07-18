@@ -1,4 +1,4 @@
-//! Slice-index navigation helpers.
+﻿//! Slice-index navigation helpers.
 //!
 //! This module is the SSOT for deterministic slice-index updates used by the
 //! viewer shell.
@@ -36,8 +36,7 @@ pub fn axis_total(shape: [usize; 3], axis: usize) -> usize {
     match axis {
         0 => shape[0],
         1 => shape[1],
-        _ => shape[2],
-    }
+        _ => shape[2] }
 }
 
 /// Clamp `index` to the valid range `[0, total-1]`.

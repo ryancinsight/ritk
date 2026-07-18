@@ -1,4 +1,4 @@
-//! VTK smart mapper abstraction: scalar-to-color mapping and rendering strategy selection.
+﻿//! VTK smart mapper abstraction: scalar-to-color mapping and rendering strategy selection.
 //!
 //! # Architecture
 //!
@@ -13,8 +13,8 @@
 //! # Mathematical Specification
 //!
 //! Given scalar range [s_min, s_max] and value v, the normalised parameter is:
-//!   t = clamp((v − s_min) / (s_max − s_min), 0, 1)
-//! The LUT index is:  i = round(t × 255) ∈ {0, …, 255}
+//!   t = clamp((v âˆ’ s_min) / (s_max âˆ’ s_min), 0, 1)
+//! The LUT index is:  i = round(t Ã— 255) âˆˆ {0, â€¦, 255}
 //! The mapped colour is: rgba = lut\[i\]
 
 /// Polygon display mode for surface rendering.
@@ -26,31 +26,29 @@ pub enum PolygonMode {
     /// Polygon outlines only.
     Wireframe,
     /// Polygon vertices only.
-    Points,
-}
+    Points }
 
 /// Built-in colormap presets for `VtkLookupTable`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ColormapPreset {
-    /// Scalar → greyscale; R=G=B=t.
+    /// Scalar â†’ greyscale; R=G=B=t.
     #[default]
     Grayscale,
-    /// Classic MATLAB-style jet (blue–cyan–green–yellow–red).
+    /// Classic MATLAB-style jet (blueâ€“cyanâ€“greenâ€“yellowâ€“red).
     Jet,
-    /// Diverging blue–white–red (Moreland 2009).
+    /// Diverging blueâ€“whiteâ€“red (Moreland 2009).
     CoolWarm,
-    /// Perceptually uniform dark-purple → yellow (Matplotlib viridis).
+    /// Perceptually uniform dark-purple â†’ yellow (Matplotlib viridis).
     Viridis,
-    /// HSV rainbow hue sweep blue → red.
-    Rainbow,
-}
+    /// HSV rainbow hue sweep blue â†’ red.
+    Rainbow }
 
 /// 256-entry RGBA lookup table mapping normalised scalars to colours.
 ///
 /// Constructed by sampling a `ColormapPreset` at 256 uniform steps in [0, 1].
 #[derive(Debug, Clone)]
 pub struct VtkLookupTable {
-    /// `[scalar_min, scalar_max]` — input range mapped to [0, 1].
+    /// `[scalar_min, scalar_max]` â€” input range mapped to [0, 1].
     pub range: [f64; 2],
     /// The colormap used to build the table.
     pub preset: ColormapPreset,
@@ -77,8 +75,7 @@ impl VtkLookupTable {
         Self {
             range,
             preset,
-            table,
-        }
+            table }
     }
 
     /// Map scalar `v` to an RGBA colour.
@@ -101,20 +98,19 @@ impl VtkLookupTable {
     }
 }
 
-// ── Colormap helpers ───────────────────────────────────────────────────────
+// â”€â”€ Colormap helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Sample a colormap preset at normalised parameter `t ∈ [0, 1]`.
+/// Sample a colormap preset at normalised parameter `t âˆˆ [0, 1]`.
 fn sample_colormap(preset: ColormapPreset, t: f32) -> [f32; 3] {
     match preset {
         ColormapPreset::Grayscale => [t, t, t],
         ColormapPreset::Jet => jet_color(t),
         ColormapPreset::CoolWarm => cool_warm_color(t),
         ColormapPreset::Viridis => viridis_color(t),
-        ColormapPreset::Rainbow => rainbow_color(t),
-    }
+        ColormapPreset::Rainbow => rainbow_color(t) }
 }
 
-/// MATLAB-style jet colormap: piecewise linear blue→cyan→green→yellow→red.
+/// MATLAB-style jet colormap: piecewise linear blueâ†’cyanâ†’greenâ†’yellowâ†’red.
 ///
 /// Segments (each spanning 1/4 of `[0, 1]`):
 ///   Blue peak at t=0.25, green peak at t=0.5, red peak at t=0.75.
@@ -151,11 +147,11 @@ fn jet_color(t: f32) -> [f32; 3] {
     [r.clamp(0.0, 1.0), g.clamp(0.0, 1.0), b.clamp(0.0, 1.0)]
 }
 
-/// Moreland (2009) diverging blue–white–red colormap.
+/// Moreland (2009) diverging blueâ€“whiteâ€“red colormap.
 ///
-/// t=0 → cool blue [0.23, 0.30, 0.75]
-/// t=0.5 → white [1.0, 1.0, 1.0]
-/// t=1 → warm red [0.71, 0.016, 0.15]
+/// t=0 â†’ cool blue [0.23, 0.30, 0.75]
+/// t=0.5 â†’ white [1.0, 1.0, 1.0]
+/// t=1 â†’ warm red [0.71, 0.016, 0.15]
 fn cool_warm_color(t: f32) -> [f32; 3] {
     let cool = [0.23_f32, 0.30, 0.75];
     let white = [1.0_f32; 3];
@@ -169,7 +165,7 @@ fn cool_warm_color(t: f32) -> [f32; 3] {
     }
 }
 
-/// Perceptually uniform viridis colormap — 5 anchor colours.
+/// Perceptually uniform viridis colormap â€” 5 anchor colours.
 ///
 /// Anchors (t=0, 0.25, 0.5, 0.75, 1.0) taken from Matplotlib's viridis.
 fn viridis_color(t: f32) -> [f32; 3] {
@@ -185,14 +181,14 @@ fn viridis_color(t: f32) -> [f32; 3] {
     lerp3(KEYS[seg], KEYS[seg + 1], s.clamp(0.0, 1.0))
 }
 
-/// HSV rainbow: hue sweeps 240° (blue) → 0° (red) as t goes 0 → 1.
+/// HSV rainbow: hue sweeps 240Â° (blue) â†’ 0Â° (red) as t goes 0 â†’ 1.
 fn rainbow_color(t: f32) -> [f32; 3] {
     // Hue in [0, 360) decreasing from 240 to 0.
     let hue = 240.0_f32 * (1.0 - t);
     hsv_to_rgb(hue, 1.0, 1.0)
 }
 
-/// Convert HSV (hue ∈ `[0, 360)`, s ∈ `[0, 1]`, v ∈ `[0, 1]`) to RGB.
+/// Convert HSV (hue âˆˆ `[0, 360)`, s âˆˆ `[0, 1]`, v âˆˆ `[0, 1]`) to RGB.
 fn hsv_to_rgb(h: f32, s: f32, v: f32) -> [f32; 3] {
     let h = h.rem_euclid(360.0);
     let i = (h / 60.0) as u32;
@@ -206,8 +202,7 @@ fn hsv_to_rgb(h: f32, s: f32, v: f32) -> [f32; 3] {
         2 => [p, v, t],
         3 => [p, q, v],
         4 => [t, p, v],
-        _ => [v, p, q],
-    }
+        _ => [v, p, q] }
 }
 
 /// Linear interpolation between two RGB triples.
@@ -220,7 +215,7 @@ fn lerp3(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
     ]
 }
 
-// ── Mapper trait & SurfaceMapper ───────────────────────────────────────────
+// â”€â”€ Mapper trait & SurfaceMapper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Controls whether scalar colouring is active on a mapper.
 ///
@@ -231,10 +226,9 @@ pub enum ScalarVisibility {
     #[default]
     Hidden,
     /// Scalar values drive colour via the lookup table.
-    Visible,
-}
+    Visible }
 
-/// Abstraction for VTK rendering mappers — converts a dataset to a renderable
+/// Abstraction for VTK rendering mappers â€” converts a dataset to a renderable
 /// representation using a lookup table and a chosen polygon display mode.
 pub trait VtkMapper: Send + Sync {
     /// Replace the lookup table.
@@ -255,8 +249,7 @@ pub struct SurfaceMapper {
     /// Overall opacity in [0, 1]; 1.0 = fully opaque.
     pub opacity: f32,
     lut: VtkLookupTable,
-    scalar_visibility: ScalarVisibility,
-}
+    scalar_visibility: ScalarVisibility }
 
 impl Default for SurfaceMapper {
     fn default() -> Self {
@@ -264,8 +257,7 @@ impl Default for SurfaceMapper {
             mode: PolygonMode::Surface,
             opacity: 1.0,
             lut: VtkLookupTable::new([0.0, 1.0], ColormapPreset::Grayscale),
-            scalar_visibility: ScalarVisibility::Visible,
-        }
+            scalar_visibility: ScalarVisibility::Visible }
     }
 }
 
@@ -276,8 +268,7 @@ impl SurfaceMapper {
             mode,
             opacity: 1.0,
             lut,
-            scalar_visibility: ScalarVisibility::Visible,
-        }
+            scalar_visibility: ScalarVisibility::Visible }
     }
 }
 
@@ -296,7 +287,7 @@ impl VtkMapper for SurfaceMapper {
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 mod tests {

@@ -1,20 +1,20 @@
-//! Laplacian surface smoothing filter for polygonal meshes.
+﻿//! Laplacian surface smoothing filter for polygonal meshes.
 //!
 //! # Mathematical Specification
 //!
 //! Given a polygonal mesh M = (V, P), the Laplacian smoothing operator L is
 //! defined for each vertex v_i as:
 //!
-//!   L(v_i) = (1 − λ) · v_i  +  λ · (1/|N(i)|) · Σ_{j ∈ N(i)} v_j
+//!   L(v_i) = (1 âˆ’ Î») Â· v_i  +  Î» Â· (1/|N(i)|) Â· Î£_{j âˆˆ N(i)} v_j
 //!
-//! where N(i) is the set of vertices sharing an edge with v_i, and λ ∈ (0, 1]
+//! where N(i) is the set of vertices sharing an edge with v_i, and Î» âˆˆ (0, 1]
 //! is the relaxation factor.
 //!
 //! This operator is applied `iterations` times.  For isolated vertices
 //! (|N(i)| = 0) the position is left unchanged.
 //!
-//! Convergence behaviour: as iterations → ∞, the mesh shrinks toward its
-//! barycentre.  For λ = 0, the mesh is unchanged.  The topology (connectivity)
+//! Convergence behaviour: as iterations â†’ âˆž, the mesh shrinks toward its
+//! barycentre.  For Î» = 0, the mesh is unchanged.  The topology (connectivity)
 //! is preserved; only vertex coordinates change.
 
 use crate::domain::mtime::{Modifiable, ModifiedTime};
@@ -30,13 +30,12 @@ use std::collections::HashSet;
 /// average position of its edge-neighbours.
 #[derive(Debug, Clone)]
 pub struct SmoothFilter {
-    /// Relaxation factor λ ∈ (0, 1]. Default: 0.5.
+    /// Relaxation factor Î» âˆˆ (0, 1]. Default: 0.5.
     relaxation_factor: f32,
     /// Number of Laplacian smoothing iterations. Default: 20.
     iterations: usize,
     /// Modification timestamp; bumped on any parameter change.
-    mtime: ModifiedTime,
-}
+    mtime: ModifiedTime }
 
 impl SmoothFilter {
     /// Construct a new smoothing filter with the given parameters.
@@ -44,11 +43,10 @@ impl SmoothFilter {
         Self {
             relaxation_factor,
             iterations,
-            mtime: ModifiedTime::tick(),
-        }
+            mtime: ModifiedTime::tick() }
     }
 
-    /// Set the relaxation factor λ.
+    /// Set the relaxation factor Î».
     ///
     /// Bumps the modification time so that downstream pipeline stages
     /// detect the parameter change.
@@ -66,7 +64,7 @@ impl SmoothFilter {
         self.modified();
     }
 
-    /// Returns the relaxation factor λ.
+    /// Returns the relaxation factor Î».
     pub fn relaxation_factor(&self) -> f32 {
         self.relaxation_factor
     }
@@ -119,16 +117,15 @@ impl VtkFilter for SmoothFilter {
             other => Err(anyhow::anyhow!(
                 "SmoothFilter requires PolyData input; received {}",
                 crate::domain::filters::normals::data_object_type_name(&other)
-            )),
-        }
+            )) }
     }
 }
 
-// ── Internal helpers ───────────────────────────────────────────────────────
+// â”€â”€ Internal helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Build an edge-based adjacency list from polygon connectivity.
 ///
-/// For each polygon [v0, v1, …, vk], all consecutive pairs (vi, v_{i+1 mod k})
+/// For each polygon [v0, v1, â€¦, vk], all consecutive pairs (vi, v_{i+1 mod k})
 /// form edges; each edge contributes both directions to the adjacency.
 fn build_adjacency(poly: &crate::domain::vtk_data_object::VtkPolyData) -> Vec<Vec<u32>> {
     let n = poly.points.len();
@@ -176,7 +173,7 @@ fn laplacian_step(pts: &[[f32; 3]], adj: &[Vec<u32>], lambda: f32) -> Vec<[f32; 
         .collect()
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_smooth.rs"]

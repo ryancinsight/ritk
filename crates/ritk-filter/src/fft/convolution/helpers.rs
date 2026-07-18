@@ -2,13 +2,13 @@ use apollo_fft::domain::metadata::shape::Shape1D;
 use apollo_fft::FftPlan1D;
 use eunomia::Complex;
 
-// ── ZST FFT direction strategy ──────────────────────────────────────────────
+// â”€â”€ ZST FFT direction strategy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Trait for FFT transform direction.
 ///
 /// Each implementation is a zero-sized type so that the compiler monomorphises
 /// the FFT functions with the direction fully inlined and the match branch
-/// eliminated — zero runtime overhead versus a hand-written variant.
+/// eliminated â€” zero runtime overhead versus a hand-written variant.
 pub trait FftDirection: Default {
     /// Create an FFT plan for the given transform length.
     fn plan(len: usize) -> FftPlan1D<f32>;
@@ -17,7 +17,7 @@ pub trait FftDirection: Default {
     fn process(plan: &FftPlan1D<f32>, slice: &mut [Complex<f32>]);
 }
 
-/// Forward FFT direction: spatial → frequency domain.
+/// Forward FFT direction: spatial â†’ frequency domain.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ForwardFft;
 
@@ -33,7 +33,7 @@ impl FftDirection for ForwardFft {
     }
 }
 
-/// Inverse FFT direction: frequency → spatial domain.
+/// Inverse FFT direction: frequency â†’ spatial domain.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct InverseFft;
 
@@ -49,7 +49,7 @@ impl FftDirection for InverseFft {
     }
 }
 
-// ── Generic FFT functions ────────────────────────────────────────────────────
+// â”€â”€ Generic FFT functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Dispatch separable N-D FFT based on dimensionality.
 ///

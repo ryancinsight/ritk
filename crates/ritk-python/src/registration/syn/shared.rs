@@ -1,4 +1,4 @@
-use crate::errors::{RitkPyError, RitkResult};
+﻿use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -12,8 +12,7 @@ pub(crate) struct MatchingImageInputs {
     pub(crate) fixed_direction: Direction<3>,
     pub(crate) moving_origin: Point<3>,
     pub(crate) moving_spacing: Spacing<3>,
-    pub(crate) moving_direction: Direction<3>,
-}
+    pub(crate) moving_direction: Direction<3> }
 
 pub(crate) fn load_matching_inputs(
     fixed: &PyImage,
@@ -38,8 +37,7 @@ pub(crate) fn load_matching_inputs(
         fixed_direction: *fixed.inner.direction(),
         moving_origin: *moving.inner.origin(),
         moving_spacing: *moving.inner.spacing(),
-        moving_direction: *moving.inner.direction(),
-    })
+        moving_direction: *moving.inner.direction() })
 }
 
 pub(crate) fn to_py_pair(

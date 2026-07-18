@@ -1,4 +1,4 @@
-use crate::errors::{RitkPyError, RitkResult};
+﻿use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
@@ -6,8 +6,7 @@ use ritk_filter::{
     BoundedReciprocalImageFilter, ClampImageFilter, CosImageFilter, ExpImageFilter,
     ExpNegativeImageFilter, InvertIntensityFilter, Log10ImageFilter, LogImageFilter,
     ModulusImageFilter, NotImageFilter, RoundImageFilter, SinImageFilter, SqrtImageFilter,
-    SquareImageFilter, TanImageFilter, UnaryMinusImageFilter,
-};
+    SquareImageFilter, TanImageFilter, UnaryMinusImageFilter };
 
 /// Pixelwise clamp to `[lower, upper]`. ITK Parity: ClampImageFilter.
 #[pyfunction]
@@ -51,7 +50,7 @@ pub fn binary_not(
     Ok(burn_into_py_image(out))
 }
 
-/// Invert intensities about `maximum`: out(x) = maximum − in(x).
+/// Invert intensities about `maximum`: out(x) = maximum âˆ’ in(x).
 /// ITK Parity: InvertIntensityImageFilter.
 #[pyfunction]
 #[pyo3(signature = (image, maximum = 255.0))]

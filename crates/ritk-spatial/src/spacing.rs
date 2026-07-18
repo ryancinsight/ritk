@@ -1,8 +1,8 @@
-//! Spacing type for representing physical distances between pixels/voxels.
+﻿//! Spacing type for representing physical distances between pixels/voxels.
 //!
 //! `Spacing<D>` is a `#[repr(transparent)]` newtype over `Vector<D>` that
 //! enforces domain separation: spacing values represent positive physical
-//! distances (mm, µm, etc.), not general displacements. The zero-cost
+//! distances (mm, Âµm, etc.), not general displacements. The zero-cost
 //! wrapper preserves `Vector`'s `Copy`, `PartialEq`, arithmetic, and component
 //! access through `Deref<Target = Vector<D>>`.
 //!
@@ -27,9 +27,8 @@ const ISOTROPY_TOLERANCE: f64 = 1e-9;
 pub struct InvalidSpacing {
     /// The index of the first offending component.
     pub index: usize,
-    /// The invalid value that was rejected (≤ 0 or NaN).
-    pub value: f64,
-}
+    /// The invalid value that was rejected (â‰¤ 0 or NaN).
+    pub value: f64 }
 
 impl std::fmt::Display for InvalidSpacing {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -46,7 +45,7 @@ impl std::error::Error for InvalidSpacing {}
 /// Physical spacing between adjacent pixels/voxels along each axis.
 ///
 /// A `#[repr(transparent)]` newtype over `Vector<D>` providing:
-/// - **Domain separation**: `Spacing` ≠ `Vector` at the type level, preventing
+/// - **Domain separation**: `Spacing` â‰  `Vector` at the type level, preventing
 ///   accidental mixing of spacing values with displacement/velocity vectors.
 /// - **Zero-cost abstraction**: identical memory layout and ABI to `Vector<D>`.
 /// - **`Vector` API access**: `Deref` to `Vector<D>` provides indexing, arithmetic,
@@ -69,7 +68,7 @@ pub struct Spacing<const D: usize>(Vector<D>);
 impl<const D: usize> Spacing<D> {
     /// Create spacing from an array of component values.
     ///
-    /// Panics if any component is ≤ 0 or NaN. For a non-panicking
+    /// Panics if any component is â‰¤ 0 or NaN. For a non-panicking
     /// variant, see [`Spacing::try_new`]. For a variant that skips
     /// validation entirely, see [`Spacing::new_unchecked`].
     #[inline]
@@ -79,7 +78,7 @@ impl<const D: usize> Spacing<D> {
     }
 
     /// Create spacing from an array of component values, returning
-    /// `Err(InvalidSpacing)` if any component is ≤ 0 or NaN.
+    /// `Err(InvalidSpacing)` if any component is â‰¤ 0 or NaN.
     #[inline]
     pub fn try_new(components: [f64; D]) -> Result<Self, InvalidSpacing> {
         for (i, &v) in components.iter().enumerate() {

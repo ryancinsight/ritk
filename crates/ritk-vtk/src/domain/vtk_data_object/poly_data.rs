@@ -1,4 +1,4 @@
-use super::AttributeArray;
+﻿use super::AttributeArray;
 use std::collections::HashMap;
 
 /// VTK polygonal mesh dataset (DATASET POLYDATA).
@@ -20,8 +20,7 @@ pub struct VtkPolyData {
     /// Per-point attribute arrays keyed by name.
     pub point_data: HashMap<String, AttributeArray>,
     /// Per-cell attribute arrays keyed by name.
-    pub cell_data: HashMap<String, AttributeArray>,
-}
+    pub cell_data: HashMap<String, AttributeArray> }
 
 impl VtkPolyData {
     /// Total number of cells across all cell types.
@@ -58,8 +57,7 @@ impl VtkPolyData {
             match attr {
                 AttributeArray::Scalars {
                     values,
-                    num_components,
-                } => {
+                    num_components } => {
                     let expected = n * num_components;
                     if values.len() != expected {
                         return Err(format!(
@@ -98,8 +96,7 @@ impl VtkPolyData {
             match attr {
                 AttributeArray::Scalars {
                     values,
-                    num_components,
-                } => {
+                    num_components } => {
                     let expected = nc * num_components;
                     if values.len() != expected {
                         return Err(format!(

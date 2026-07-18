@@ -1,4 +1,4 @@
-//! Diffeomorphic Demons registration struct and iteration loop.
+﻿//! Diffeomorphic Demons registration struct and iteration loop.
 
 use super::super::config::{DemonsConfig, DemonsResult};
 use super::super::inverse::invert_velocity_field;
@@ -6,8 +6,7 @@ use super::super::thirion::thirion_forces_into;
 use crate::deformable_field_ops::{
     compute_gradient, compute_mse_inplace, scaling_and_squaring, scaling_and_squaring_into,
     validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother, VectorField,
-    VectorFieldMut, VelocityField,
-};
+    VectorFieldMut, VelocityField };
 use crate::error::RegistrationError;
 
 /// Diffeomorphic Demons registration using stationary velocity fields.
@@ -25,9 +24,8 @@ pub struct DiffeomorphicDemonsRegistration {
     /// Algorithm configuration (shared with Thirion Demons).
     pub config: DemonsConfig,
     /// Number of scaling-and-squaring steps for computing `exp(v)`.
-    /// Standard value: 6 (2⁶ = 64 integration steps).
-    pub n_squarings: usize,
-}
+    /// Standard value: 6 (2â¶ = 64 integration steps).
+    pub n_squarings: usize }
 
 impl DiffeomorphicDemonsRegistration {
     /// Create a registration instance with the given configuration.
@@ -36,16 +34,14 @@ impl DiffeomorphicDemonsRegistration {
     pub fn new(config: DemonsConfig) -> Self {
         Self {
             config,
-            n_squarings: 6,
-        }
+            n_squarings: 6 }
     }
 
     /// Create with a custom number of squaring steps.
     pub fn with_squarings(config: DemonsConfig, n_squarings: usize) -> Self {
         Self {
             config,
-            n_squarings,
-        }
+            n_squarings }
     }
 
     /// Register `moving` to `fixed` with CPU Gaussian field smoothing.
@@ -68,7 +64,7 @@ impl DiffeomorphicDemonsRegistration {
     /// a pluggable [`FieldSmoother`] backend.
     ///
     /// # Arguments
-    /// - `smoother` — field smoother.  Its sigma must match
+    /// - `smoother` â€” field smoother.  Its sigma must match
     ///   `self.config.sigma_diffusion`.
     ///
     /// # Errors
@@ -114,24 +110,22 @@ impl DiffeomorphicDemonsRegistration {
             iter = it + 1;
 
             // m_warped is at the iter's starting phi: identity (== moving) at
-            // iter 0, and the previous iter's post-update re-warp for iter ≥ 1.
+            // iter 0, and the previous iter's post-update re-warp for iter â‰¥ 1.
             // Reading it directly (no top S&S phi, no top warp) saves a
-            // `scaling_and_squaring_into` + `warp_image_into` per iter — the
-            // dominant cost of the previous top-warp path on 256³ fields.
+            // `scaling_and_squaring_into` + `warp_image_into` per iter â€” the
+            // dominant cost of the previous top-warp path on 256Â³ fields.
             thirion_forces_into(
                 fixed,
                 &m_warped,
                 VectorField {
                     z: &grad.z,
                     y: &grad.y,
-                    x: &grad.x,
-                },
+                    x: &grad.x },
                 self.config.max_step_length,
                 VectorFieldMut {
                     z: &mut fz,
                     y: &mut fy,
-                    x: &mut fx,
-                },
+                    x: &mut fx },
                 dims,
             );
 
@@ -141,15 +135,15 @@ impl DiffeomorphicDemonsRegistration {
                 vel_x[i] += fx[i];
             }
 
-            // Diffusion regularisation — dispatched via FieldSmoother trait
+            // Diffusion regularisation â€” dispatched via FieldSmoother trait
             if self.config.sigma_diffusion.is_some() {
                 smoother.smooth_field(&mut vel_z, &mut vel_y, &mut vel_x);
             }
 
             // BOTTOM S&S phi (with the post-update velocity) + re-warp
             // m_warped so the next iter's forces and this iter's final_mse
-            // see the post-update state — matching the previous code's
-            // semantics — without a streaming-warp inside compute_mse_streaming.
+            // see the post-update state â€” matching the previous code's
+            // semantics â€” without a streaming-warp inside compute_mse_streaming.
             scaling_and_squaring_into(
                 &vel_z,
                 &vel_y,
@@ -178,8 +172,7 @@ impl DiffeomorphicDemonsRegistration {
             vel_y: Some(vel_y),
             vel_x: Some(vel_x),
             final_mse,
-            num_iterations: iter,
-        })
+            num_iterations: iter })
     }
 
     /// Compute the inverse displacement field of a registration result.

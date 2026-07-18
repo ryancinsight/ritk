@@ -28,9 +28,7 @@
 
 mod config;
 mod convergence;
-mod grad_norm;
 mod optimizer;
-mod step_mapper;
 
 #[cfg(test)]
 mod tests;

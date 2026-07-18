@@ -1,17 +1,17 @@
-//! JPEG marker and frame header parsing.
+﻿//! JPEG marker and frame header parsing.
 //!
 //! Parses the JPEG bitstream up to and including the first SOS marker,
 //! collecting all tables and metadata needed for entropy decoding.
 //! Entropy data begins immediately after the SOS segment.
 //!
 //! # Specification
-//! ITU-T T.81 §B.1–§B.3.
+//! ITU-T T.81 Â§B.1â€“Â§B.3.
 
 use anyhow::{bail, Context, Result};
 
 use super::huffman::HuffmanTable;
 
-// ─── Marker Constants ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Marker Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(crate) const SOI: u16 = 0xFFD8;
 pub(crate) const EOI: u16 = 0xFFD9;
@@ -23,9 +23,9 @@ pub(crate) const DQT: u16 = 0xFFDB;
 pub(crate) const SOS: u16 = 0xFFDA;
 pub(crate) const DRI: u16 = 0xFFDD;
 
-// ─── Data Structures ──────────────────────────────────────────────────────────
+// â”€â”€â”€ Data Structures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Quantization table precision (T.81 §B.2.4.1, Pq field).
+/// Quantization table precision (T.81 Â§B.2.4.1, Pq field).
 ///
 /// `Bits8` (Pq = 0) means 8-bit quantization values; `Bits16` (Pq = 1) means
 /// 16-bit values. Baseline DCT (SOF0) requires `Bits8`.
@@ -33,8 +33,7 @@ pub(crate) const DRI: u16 = 0xFFDD;
 #[repr(u8)]
 pub(crate) enum QuantPrecision {
     Bits8 = 0,
-    Bits16 = 1,
-}
+    Bits16 = 1 }
 
 impl TryFrom<u8> for QuantPrecision {
     type Error = u8;
@@ -43,58 +42,53 @@ impl TryFrom<u8> for QuantPrecision {
         match v {
             0 => Ok(Self::Bits8),
             1 => Ok(Self::Bits16),
-            other => Err(other),
-        }
+            other => Err(other) }
     }
 }
 
-/// JPEG quantization table (T.81 §B.2.4.1).
+/// JPEG quantization table (T.81 Â§B.2.4.1).
 #[derive(Debug, Clone)]
 pub(crate) struct QuantTable {
     pub(crate) precision: QuantPrecision,
     pub(crate) values: [u16; 64], // zigzag order
 }
 
-/// Per-component frame header entry (T.81 §B.2.2).
+/// Per-component frame header entry (T.81 Â§B.2.2).
 #[derive(Debug, Clone)]
 pub(crate) struct FrameComponent {
     pub(crate) id: u8,
     pub(crate) h_samp: u8,
     pub(crate) v_samp: u8,
-    pub(crate) quant_id: u8,
-}
+    pub(crate) quant_id: u8 }
 
-/// SOFn frame header (T.81 §B.2.2).
+/// SOFn frame header (T.81 Â§B.2.2).
 #[derive(Debug, Clone)]
 pub(crate) struct SofFrame {
     pub(crate) sof_marker: u16,
     pub(crate) precision: u8,
     pub(crate) height: u16,
     pub(crate) width: u16,
-    pub(crate) components: Vec<FrameComponent>,
-}
+    pub(crate) components: Vec<FrameComponent> }
 
-/// Per-component scan header entry (T.81 §B.2.3).
+/// Per-component scan header entry (T.81 Â§B.2.3).
 #[derive(Debug, Clone)]
 pub(crate) struct ScanComponent {
     pub(crate) id: u8,
     pub(crate) dc_table_id: u8,
-    pub(crate) ac_table_id: u8,
-}
+    pub(crate) ac_table_id: u8 }
 
-/// SOS scan header (T.81 §B.2.3).
+/// SOS scan header (T.81 Â§B.2.3).
 #[derive(Debug, Clone)]
 pub(crate) struct SosHeader {
     pub(crate) components: Vec<ScanComponent>,
-    /// Ss: start of spectral selection (0 for DC; 1–7 = predictor for lossless).
+    /// Ss: start of spectral selection (0 for DC; 1â€“7 = predictor for lossless).
     pub(crate) ss: u8,
     /// Se: end of spectral selection.
     pub(crate) se: u8,
     /// Ah: successive approximation bit position high.
     pub(crate) ah: u8,
     /// Al: successive approximation bit position low / point transform (lossless).
-    pub(crate) al: u8,
-}
+    pub(crate) al: u8 }
 
 /// Fully parsed JPEG frame up to the first SOS, with all tables.
 #[derive(Debug)]
@@ -105,10 +99,9 @@ pub(crate) struct JpegFrameData {
     pub(crate) ac_huff: [Option<HuffmanTable>; 4],
     pub(crate) sos: SosHeader,
     /// Byte offset in the original fragment where entropy data begins.
-    pub(crate) scan_data_start: usize,
-}
+    pub(crate) scan_data_start: usize }
 
-// ─── Parser ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Parser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Read a big-endian u16 from `data[pos..pos+2]`.
 #[inline]
@@ -155,10 +148,10 @@ pub(crate) fn parse_jpeg(data: &[u8]) -> Result<JpegFrameData> {
 
         match marker {
             EOI => bail!("JPEG stream ended (EOI) before SOS"),
-            0xFF00 => {} // padding — skip
+            0xFF00 => {} // padding â€” skip
             // SOI inside segment: skip
             SOI => {}
-            // APPn (0xFFE0–0xFFEF) and COM (0xFFFE): skip segment
+            // APPn (0xFFE0â€“0xFFEF) and COM (0xFFFE): skip segment
             m if (0xFFE0..=0xFFEF).contains(&m) || m == 0xFFFE => {
                 let len = read_u16(data, pos)? as usize;
                 pos += len;
@@ -250,8 +243,7 @@ pub(crate) fn parse_jpeg(data: &[u8]) -> Result<JpegFrameData> {
                         id,
                         h_samp,
                         v_samp,
-                        quant_id,
-                    });
+                        quant_id });
                 }
                 let _ = len; // length already consumed field-by-field
                 sof = Some(SofFrame {
@@ -259,8 +251,7 @@ pub(crate) fn parse_jpeg(data: &[u8]) -> Result<JpegFrameData> {
                     precision,
                     height,
                     width,
-                    components,
-                });
+                    components });
             }
             SOS => {
                 let len = read_u16(data, pos)? as usize;
@@ -277,8 +268,7 @@ pub(crate) fn parse_jpeg(data: &[u8]) -> Result<JpegFrameData> {
                     scan_comps.push(ScanComponent {
                         id,
                         dc_table_id,
-                        ac_table_id,
-                    });
+                        ac_table_id });
                 }
                 let ss = data[pos];
                 let se = data[pos + 1];
@@ -293,8 +283,7 @@ pub(crate) fn parse_jpeg(data: &[u8]) -> Result<JpegFrameData> {
                     ss,
                     se,
                     ah,
-                    al,
-                };
+                    al };
                 let frame = sof.context("SOS before SOF in JPEG stream")?;
                 return Ok(JpegFrameData {
                     sof: frame,
@@ -302,8 +291,7 @@ pub(crate) fn parse_jpeg(data: &[u8]) -> Result<JpegFrameData> {
                     dc_huff,
                     ac_huff,
                     sos,
-                    scan_data_start: pos,
-                });
+                    scan_data_start: pos });
             }
             other => {
                 // Unknown marker with length segment: skip it.
@@ -324,7 +312,7 @@ pub(crate) fn parse_jpeg(data: &[u8]) -> Result<JpegFrameData> {
 mod tests {
     use super::*;
 
-    /// The lossless 8-bit hand-crafted fixture must parse to a 1×1 SOF3 frame.
+    /// The lossless 8-bit hand-crafted fixture must parse to a 1Ã—1 SOF3 frame.
     #[test]
     fn parse_lossless_8bit_fixture() {
         let data = crate::jpeg::scan_lossless::tests::lossless_8bit_fixture();
@@ -340,7 +328,7 @@ mod tests {
         assert!(frame.dc_huff[0].is_some());
     }
 
-    /// The lossless 16-bit fixture must parse to a 1×1 SOF3 frame with precision 16.
+    /// The lossless 16-bit fixture must parse to a 1Ã—1 SOF3 frame with precision 16.
     #[test]
     fn parse_lossless_16bit_fixture() {
         let data = crate::jpeg::scan_lossless::tests::lossless_16bit_fixture();

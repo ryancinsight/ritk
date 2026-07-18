@@ -1,4 +1,4 @@
-//! Shared XML attribute writer for VTK XML formats (VTI, VTP, VTU).
+﻿//! Shared XML attribute writer for VTK XML formats (VTI, VTP, VTU).
 //!
 //! Emits a single `<DataArray>` element for an [`AttributeArray`] in ASCII-inline format.
 
@@ -17,8 +17,7 @@ pub(crate) fn write_attr_xml(s: &mut String, name: &str, attr: &AttributeArray) 
     match attr {
         AttributeArray::Scalars {
             values,
-            num_components,
-        } => {
+            num_components } => {
             writeln!(s, "{}", hdr(*num_components)).unwrap();
             write!(s, " ").unwrap();
             for x in values {

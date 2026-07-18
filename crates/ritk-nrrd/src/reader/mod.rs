@@ -1,4 +1,4 @@
-mod decode;
+﻿mod decode;
 use decode::*;
 
 use crate::spatial::{metadata_from_file_space_directions, metadata_from_file_spacings};
@@ -17,8 +17,7 @@ struct DecodedNrrd {
     dims: [usize; 3],
     origin: Point<3>,
     spacing: Spacing<3>,
-    direction: Direction<3>,
-}
+    direction: Direction<3> }
 
 /// Read a NRRD (Nearly Raw Raster Data) file into a 3-D `Image`.
 ///
@@ -45,9 +44,9 @@ struct DecodedNrrd {
 /// All are converted to `f32` in the tensor.
 ///
 /// # Inline vs. detached data
-/// * Inline: no `data file` field (or `data file: INTERNAL`) — binary data
+/// * Inline: no `data file` field (or `data file: INTERNAL`) â€” binary data
 ///   follows the blank header-terminator line in the same file.
-/// * Detached: `data file: <filename>` — binary data is in a separate file
+/// * Detached: `data file: <filename>` â€” binary data is in a separate file
 ///   resolved relative to the NRRD header file's directory.
 pub fn read_nrrd<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
@@ -58,8 +57,7 @@ pub fn read_nrrd<B: ComputeBackend, P: AsRef<Path>>(
         dims,
         origin,
         spacing,
-        direction,
-    } = decode_nrrd(path)?;
+        direction } = decode_nrrd(path)?;
 
     // NRRD raw order is X-fastest. RITK [Z,Y,X] row-major tensors are also
     // X-fastest in flat memory, so the decoded payload is shaped directly.
@@ -73,7 +71,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         std::fs::File::open(path).with_context(|| format!("Cannot open NRRD file {:?}", path))?;
     let mut reader = BufReader::new(file);
 
-    // ── Magic line ────────────────────────────────────────────────────────
+    // â”€â”€ Magic line â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let mut magic = String::new();
     reader
         .read_line(&mut magic)
@@ -85,7 +83,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         ));
     }
 
-    // ── Header parsing ────────────────────────────────────────────────────
+    // â”€â”€ Header parsing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Keys are lowercased for case-insensitive lookup.
     // The first ':' is the key-value separator (handles keys containing spaces).
     let mut headers: HashMap<String, String> = HashMap::new();
@@ -111,7 +109,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
             continue;
         }
 
-        // Key-value pairs are separated by ": " (NRRD spec §3).
+        // Key-value pairs are separated by ": " (NRRD spec Â§3).
         // We split on the first ':' and trim whitespace from the value.
         if let Some(colon_pos) = trimmed.find(':') {
             let key = trimmed[..colon_pos].trim().to_lowercase();
@@ -120,7 +118,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         }
     }
 
-    // ── Required fields ───────────────────────────────────────────────────
+    // â”€â”€ Required fields â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let element_type = headers
         .get("type")
         .ok_or_else(|| anyhow!("Missing 'type' in NRRD header"))?
@@ -149,7 +147,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
     let ny = sizes[1];
     let nz = if dimension == 3 { sizes[2] } else { 1 };
 
-    // ── Encoding ──────────────────────────────────────────────────────────
+    // â”€â”€ Encoding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let encoding = headers
         .get("encoding")
         .map(|s| s.to_lowercase())
@@ -166,7 +164,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         }
     };
 
-    // ── Endianness ────────────────────────────────────────────────────────
+    // â”€â”€ Endianness â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Delegates to the shared `ByteOrder::from_nrrd` constructor in
     // `ritk-codecs::byte_decode`. Unknown / misspelled byte-order strings
     // fall back to little-endian (pre-refactor behavior preserved).
@@ -176,7 +174,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         .unwrap_or("little");
     let byte_order = ByteOrder::from_nrrd(endian_str);
 
-    // ── Spacing and direction ─────────────────────────────────────────────
+    // â”€â”€ Spacing and direction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // 2-D files carry 2-component directions/spacings/origin, promoted with an
     // identity through-plane z-axis (unit z-spacing, zero z-origin).
     let spatial = if let Some(sd_str) = headers.get("space directions") {
@@ -195,7 +193,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         metadata_from_file_spacings([1.0, 1.0, 1.0])
     };
 
-    // ── Origin ────────────────────────────────────────────────────────────
+    // â”€â”€ Origin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let origin = if let Some(so_str) = headers.get("space origin") {
         if dimension == 3 {
             parse_nrrd_point(so_str)?
@@ -206,7 +204,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         Point::new([0.0, 0.0, 0.0])
     };
 
-    // ── Binary data ───────────────────────────────────────────────────────
+    // â”€â”€ Binary data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let total_voxels = nx
         .checked_mul(ny)
         .and_then(|plane| plane.checked_mul(nz))
@@ -275,11 +273,10 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         dims: [nz, ny, nx],
         origin,
         spacing: spatial.spacing,
-        direction: spatial.direction,
-    })
+        direction: spatial.direction })
 }
 
-// ── Public reader struct ──────────────────────────────────────────────────────
+// â”€â”€ Public reader struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Thin reader struct for NRRD files.
 ///

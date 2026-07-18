@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 use ritk_io::{RtContour, RtRoiInfo, RtRoiInterpretedType, RtStructureSet};
 
 fn make_rt() -> RtStructureSet {
@@ -18,10 +18,7 @@ fn make_rt() -> RtStructureSet {
                     [2.0, 5.0, 4.0],
                     [2.0, 5.0, 6.0],
                     [2.0, 3.0, 6.0],
-                ],
-            }],
-        }],
-    }
+                ] }] }] }
 }
 
 #[test]

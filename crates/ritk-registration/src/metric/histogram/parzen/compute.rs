@@ -1,18 +1,19 @@
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Int, Tensor};
+﻿use ritk_image::tensor::Backend;
+use ritk_image::tensor::Tensor;
 
 use super::ParzenJointHistogram;
 
 /// Construct the bin-center row `[1, num_bins]` used for Parzen weight broadcasting.
 ///
-/// Returns `arange(0..num_bins).float().reshape([1, num_bins])` — a [1, B] row
+/// Returns `arange(0..num_bins).float().reshape([1, num_bins])` â€” a [1, B] row
 /// of floating-point bin indices. Called once in `ParzenJointHistogram::new()` to
-/// eagerly initialize `bins_exp`, eliminating the `arange` + `int→float` kernel
+/// eagerly initialize `bins_exp`, eliminating the `arange` + `intâ†’float` kernel
 /// dispatches on every weight computation call.
-pub(super) fn arange_bins<B: Backend>(num_bins: usize, device: &B::Device) -> Tensor<B, 2> {
-    Tensor::<B, 1, Int>::arange(0..num_bins as i64, device)
-        .float()
-        .reshape([1, num_bins])
+pub(super) fn arange_bins<B: Backend>(num_bins: usize, backend: &B) -> Tensor<f32, B>
+where
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorageMut<f32>,
+{
+    Tensor::arange_on(num_bins, backend).reshape([1, num_bins])
 }
 
 impl<B: Backend> ParzenJointHistogram<B> {
@@ -24,11 +25,11 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// but operates on tensors (GPU/backend-compatible) rather than extracting to host.
     #[inline]
     fn normalize_to_bins(
-        values: Tensor<B, 1>,
+        values: Tensor<f32, B>,
         min: f32,
         max: f32,
         num_bins: usize,
-    ) -> Tensor<B, 1> {
+    ) -> Tensor<f32, B> {
         let num_bins_f = (num_bins - 1) as f32;
         let scale = num_bins_f / (max - min);
         let offset = -min * scale;
@@ -42,9 +43,9 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// Used by both the non-chunked and chunked paths of `compute_image_joint_histogram`.
     pub(in crate::metric::histogram) fn compute_w_fixed_transposed(
         &self,
-        fixed_values: &Tensor<B, 1>,
+        fixed_values: &Tensor<f32, B>,
         n: usize,
-    ) -> Tensor<B, 2> {
+    ) -> Tensor<f32, B> {
         // DRY-320-01: delegate to ParzenConfig via fixed_sigma_cfg()
         let sigma_sq = self.fixed_sigma_cfg().sigma_sq();
 
@@ -55,7 +56,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             self.num_bins,
         );
 
-        // Pre-computed bin centers [1, num_bins] — eagerly initialized in `new()`.
+        // Pre-computed bin centers [1, num_bins] â€” eagerly initialized in `new()`.
         let bins_exp = self
             .bins_exp
             .as_ref()
@@ -68,28 +69,28 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// Compute Parzen weight matrix `[N, num_bins]`.
     ///
     /// Fused computation that minimizes intermediate tensor allocations:
-    /// 1. `vals.reshape([N, 1])` — no allocation (view)
-    /// 2. `vals_exp - bins_exp` — one allocation [N, num_bins]
-    /// 3. `diff * diff` — one allocation [N, num_bins] (reuse diff via clone)
-    /// 4. `sq * coeff + bias` — fused multiply-add, one allocation [N, num_bins]
-    /// 5. `.exp()` — one allocation [N, num_bins]
+    /// 1. `vals.reshape([N, 1])` â€” no allocation (view)
+    /// 2. `vals_exp - bins_exp` â€” one allocation [N, num_bins]
+    /// 3. `diff * diff` â€” one allocation [N, num_bins] (reuse diff via clone)
+    /// 4. `sq * coeff + bias` â€” fused multiply-add, one allocation [N, num_bins]
+    /// 5. `.exp()` â€” one allocation [N, num_bins]
     ///
     /// Total: 4 allocations of [N, num_bins] (down from 5 with separate mul + add).
     fn compute_parzen_weights(
-        vals_norm: Tensor<B, 1>,
+        vals_norm: Tensor<f32, B>,
         n: usize,
         sigma_sq: f32,
-        bins_exp: &Tensor<B, 2>,
-    ) -> Tensor<B, 2> {
-        let vals_exp = vals_norm.reshape([n, 1]); // [N, 1] — view, no allocation
+        bins_exp: &Tensor<f32, B>,
+    ) -> Tensor<f32, B> {
+        let vals_exp = vals_norm.reshape([n, 1]); // [N, 1] â€” view, no allocation
         let diff = vals_exp - bins_exp.clone(); // [N, num_bins]
-        let sq = diff.clone() * diff; // [N, num_bins] — element-wise square
+        let sq = diff.clone() * diff; // [N, num_bins] â€” element-wise square
 
-        // Fused: exp(sq * (-0.5 / σ²)) — single scalar multiply + exp
+        // Fused: exp(sq * (-0.5 / ÏƒÂ²)) â€” single scalar multiply + exp
         // This combines what was previously two ops (scalar mul, then exp)
         // into a chain where the scalar multiply is cheap and exp is the
         // dominant cost. Using `diff.clone() * diff` instead of `powf_scalar(2.0)`
-        // compiles to a single fmul per element, 5-10× faster than pow().
+        // compiles to a single fmul per element, 5-10Ã— faster than pow().
         (sq * (-0.5 / sigma_sq)).exp() // [N, num_bins]
     }
 
@@ -103,10 +104,10 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// When provided, OOB samples are zeroed out of W_moving before the histogram matmul.
     pub(super) fn compute_joint_histogram_from_cache(
         &self,
-        w_fixed_transposed: &Tensor<B, 2>, // [num_bins, N]
-        moving_values: &Tensor<B, 1>,      // [N]
-        oob_mask: Option<&Tensor<B, 1>>,   // [N] in-bounds mask (1.0=in, 0.0=out)
-    ) -> Tensor<B, 2> {
+        w_fixed_transposed: &Tensor<f32, B>, // [num_bins, N]
+        moving_values: &Tensor<f32, B>,      // [N]
+        oob_mask: Option<&Tensor<f32, B>>,   // [N] in-bounds mask (1.0=in, 0.0=out)
+    ) -> Tensor<f32, B> {
         let [n] = moving_values.dims();
 
         // DRY-320-01: delegate to ParzenConfig via moving_sigma_cfg()
@@ -118,7 +119,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let moving_norm =
             Self::normalize_to_bins(moving_values.clone(), mov_min, mov_max, self.num_bins);
 
-        // Pre-computed bin centers [1, num_bins] — eagerly initialized in `new()`.
+        // Pre-computed bin centers [1, num_bins] â€” eagerly initialized in `new()`.
         let bins_exp = self
             .bins_exp
             .as_ref()
@@ -143,20 +144,20 @@ impl<B: Backend> ParzenJointHistogram<B> {
     #[allow(clippy::single_range_in_vec_init)] // Burn's .slice() takes an array of ranges, one per dimension; [start..end] is correct for 1-D
     pub fn compute_joint_histogram(
         &self,
-        fixed: &Tensor<B, 1>,
-        moving: &Tensor<B, 1>,
-        oob_mask: Option<&Tensor<B, 1>>,
-    ) -> Tensor<B, 2> {
+        fixed: &Tensor<f32, B>,
+        moving: &Tensor<f32, B>,
+        oob_mask: Option<&Tensor<f32, B>>,
+    ) -> Tensor<f32, B> {
         let device = fixed.device();
         let [n] = fixed.dims();
         let num_bins = self.num_bins;
         let fix_min = self.min_intensity;
         let fix_max = self.max_intensity;
-        // Moving-image range — fall back to fixed-image range (backward-compatible).
+        // Moving-image range â€” fall back to fixed-image range (backward-compatible).
         let mov_min = self.moving_min_intensity.unwrap_or(fix_min);
         let mov_max = self.moving_max_intensity.unwrap_or(fix_max);
 
-        // Pre-computed bin centers [1, Bins] — eagerly initialized in `new()`.
+        // Pre-computed bin centers [1, Bins] â€” eagerly initialized in `new()`.
         let bins_exp = self
             .bins_exp
             .as_ref()
@@ -189,7 +190,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
             w_fixed.transpose().matmul(w_moving)
         } else {
-            let mut joint_hist = Tensor::<B, 2>::zeros([num_bins, num_bins], &device);
+            let mut joint_hist = Tensor::<f32, B>::zeros([num_bins, num_bins], &device);
             let num_chunks = n.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
 
             for i in 0..num_chunks {
@@ -227,8 +228,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                                 .slice([start..end])
                                 .reshape([current_chunk_size, 1])
                     }
-                    _ => w_moving,
-                };
+                    _ => w_moving };
 
                 joint_hist = joint_hist + w_fixed.transpose().matmul(w_moving);
             }

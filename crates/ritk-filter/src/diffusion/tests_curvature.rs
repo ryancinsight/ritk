@@ -1,26 +1,20 @@
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(vals, dims)
+fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(vals, dims)
 }
 
-fn image_vals(img: &Image<B, 3>) -> Vec<f32> {
-    img.data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn image_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
+    img.data().to_vec()
 }
 
-// ── Test 1: constant image must be unchanged ───────────────────────────────
+// â”€â”€ Test 1: constant image must be unchanged â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_constant_image_unchanged() {
@@ -80,7 +74,7 @@ fn native_curvature_preserves_geometry_and_matches_kernel() {
     );
 }
 
-// ── Test 2: linear field — deep interior must be unchanged ─────────────────
+// â”€â”€ Test 2: linear field â€” deep interior must be unchanged â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // A linear ramp has zero curvature, so the MCDE speed is identically 0 wherever
 // the stencil sees only real (unclamped) data. ITK's ZeroFluxNeumann boundary
 // does perturb the ramp at the edges (the boundary acts as a reflecting wall),
@@ -128,7 +122,7 @@ fn test_linear_field_deep_interior_unchanged() {
     );
 }
 
-// ── Test 3: mean conservation ──────────────────────────────────────────────
+// â”€â”€ Test 3: mean conservation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_mean_conservation() {
@@ -165,7 +159,7 @@ fn test_mean_conservation() {
     );
 }
 
-// ── Test 4: spherical blob smoothed (gradient reduced) ────────────────────
+// â”€â”€ Test 4: spherical blob smoothed (gradient reduced) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_spherical_blob_smoothed() {
@@ -204,7 +198,7 @@ fn test_spherical_blob_smoothed() {
         );
 }
 
-// ── Test 5: stability — outputs finite and within intensity range ──────────
+// â”€â”€ Test 5: stability â€” outputs finite and within intensity range â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_stability_small_timestep() {
@@ -245,7 +239,7 @@ fn test_stability_small_timestep() {
     }
 }
 
-// ── Helper: max gradient magnitude via central differences ─────────────────
+// â”€â”€ Helper: max gradient magnitude via central differences â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn max_gradient_magnitude(data: &[f32], dims: [usize; 3]) -> f32 {
     let [nz, ny, nx] = dims;

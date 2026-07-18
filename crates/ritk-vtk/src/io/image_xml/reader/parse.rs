@@ -1,9 +1,8 @@
-//! ASCII-inline VTI reader: `read_vti_image_data`, `parse_vti`, `parse_attrs`.
+﻿//! ASCII-inline VTI reader: `read_vti_image_data`, `parse_vti`, `parse_attrs`.
 
 use super::xml_helpers::{
     attr_val, find_section, find_tag, parse_attrs, parse_floats, parse_i64s, DEFAULT_ORIGIN_STR,
-    DEFAULT_SPACING_STR,
-};
+    DEFAULT_SPACING_STR };
 use crate::domain::vtk_data_object::VtkImageData;
 use anyhow::{bail, Context, Result};
 use std::path::Path;
@@ -17,7 +16,7 @@ pub fn read_vti_image_data<P: AsRef<Path>>(path: P) -> Result<VtkImageData> {
 
 /// Parse an ASCII-inline VTI XML string into a [`VtkImageData`].
 pub(crate) fn parse_vti(input: &str) -> Result<VtkImageData> {
-    // ── ImageData opening tag ────────────────────────────────────────────────
+    // â”€â”€ ImageData opening tag â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let image_tag = find_tag(input, "ImageData")
         .ok_or_else(|| anyhow::anyhow!("missing <ImageData> tag in VTI document"))?;
 
@@ -49,11 +48,11 @@ pub(crate) fn parse_vti(input: &str) -> Result<VtkImageData> {
         *dst = spacing_vals.get(i).copied().unwrap_or(1.0);
     }
 
-    // ── Piece tag (required) ─────────────────────────────────────────────────
+    // â”€â”€ Piece tag (required) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let _piece = find_tag(input, "Piece")
         .ok_or_else(|| anyhow::anyhow!("missing <Piece> tag in VTI document"))?;
 
-    // ── Attribute sections (optional) ────────────────────────────────────────
+    // â”€â”€ Attribute sections (optional) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let point_data = find_section(input, "PointData")
         .map(|sec| parse_attrs(&sec))
         .unwrap_or_default();
@@ -66,6 +65,5 @@ pub(crate) fn parse_vti(input: &str) -> Result<VtkImageData> {
         origin,
         spacing,
         point_data,
-        cell_data,
-    })
+        cell_data })
 }

@@ -1,4 +1,4 @@
-use crate::label::LabelEditor;
+﻿use crate::label::LabelEditor;
 use crate::render::colormap::Colormap;
 use crate::render::RenderBufferPool;
 use crate::tools::interaction::{Annotation, ToolState};
@@ -10,7 +10,7 @@ use crate::{LoadedVolume, ViewerState};
 /// Default opacity for the fused-overlay compare mode.
 pub(crate) const DEFAULT_FUSION_ALPHA: f32 = 0.35;
 
-// ── Helper types ──────────────────────────────────────────────────────────────
+// â”€â”€ Helper types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Cached RT-DOSE overlay texture for one axis.
 pub(crate) struct RtDoseOverlayCacheEntry {
@@ -18,25 +18,22 @@ pub(crate) struct RtDoseOverlayCacheEntry {
     pub(crate) vol_shape: [usize; 3],
     pub(crate) dose_dims: [usize; 3],
     pub(crate) opacity_alpha: u8,
-    pub(crate) texture: egui::TextureHandle,
-}
+    pub(crate) texture: egui::TextureHandle }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SeriesLoadTarget {
     Primary,
-    Secondary,
-}
+    Secondary }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ProjectionMode {
     Mip,
-    Vr,
-}
+    Vr }
 
-// ── SnapApp ───────────────────────────────────────────────────────────────────
+// â”€â”€ SnapApp â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(crate) struct SnapApp {
-    // ── Volume ────────────────────────────────────────────────────────────────
+    // â”€â”€ Volume â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     /// Currently loaded volume, if any.
     pub(crate) loaded: Option<LoadedVolume>,
     /// Secondary loaded volume for cross-study compare.
@@ -55,7 +52,7 @@ pub(crate) struct SnapApp {
     /// 0 = axial, 1 = coronal, 2 = sagittal.
     pub(crate) axis: usize,
 
-    // ── Tools ─────────────────────────────────────────────────────────────────
+    // â”€â”€ Tools â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     /// Active interaction tool.
     pub(crate) active_tool: ToolKind,
     /// In-progress gesture state for the active tool.
@@ -86,7 +83,7 @@ pub(crate) struct SnapApp {
     pub(crate) rt_dvh_cache: Option<RoiDoseAnalytics>,
     /// Whether to render the RT-DOSE heat-map overlay on viewports.
     pub(crate) show_rt_dose_overlay: bool,
-    /// Opacity of the RT-DOSE overlay (0.0 transparent … 1.0 opaque).
+    /// Opacity of the RT-DOSE overlay (0.0 transparent â€¦ 1.0 opaque).
     pub(crate) rt_dose_opacity: f32,
     /// Per-axis RT-DOSE overlay texture cache (bounded to three entries).
     pub(crate) rt_dose_overlay_cache: [Option<RtDoseOverlayCacheEntry>; 3],
@@ -95,7 +92,7 @@ pub(crate) struct SnapApp {
     /// Whether the filter processing panel is visible.
     pub(crate) show_filter_panel: bool,
 
-    // ── Texture cache — axial ─────────────────────────────────────────────────
+    // â”€â”€ Texture cache â€” axial â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     /// Cached egui texture for the axial slice.
     pub(crate) texture: Option<egui::TextureHandle>,
     /// Cached egui texture for secondary compare panel.
@@ -109,7 +106,7 @@ pub(crate) struct SnapApp {
     /// Slice index used by current secondary texture.
     pub(crate) secondary_texture_slice: usize,
 
-    // ── Texture cache — coronal / sagittal ────────────────────────────────────
+    // â”€â”€ Texture cache â€” coronal / sagittal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     /// Cached egui texture for the coronal slice (MPR mode).
     pub(crate) coronal_tex: Option<egui::TextureHandle>,
     /// `true` when the coronal texture must be rebuilt.
@@ -129,7 +126,7 @@ pub(crate) struct SnapApp {
     /// Active projection mode for the bottom-right 3D viewport.
     pub(crate) projection_mode: ProjectionMode,
 
-    // ── Surface mesh overlay ──────────────────────────────────────────────────
+    // â”€â”€ Surface mesh overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     /// Currently loaded surface mesh for overlay rendering on the MIP viewport.
     pub(crate) loaded_mesh: Option<ritk_io::VtkPolyData>,
     /// Cached egui texture for the Phong-shaded mesh overlay.
@@ -139,7 +136,7 @@ pub(crate) struct SnapApp {
     /// Whether the mesh overlay is composited on the 3D-MIP viewport.
     pub(crate) show_mesh_overlay: bool,
 
-    // ── Viewport ──────────────────────────────────────────────────────────────
+    // â”€â”€ Viewport â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     /// Viewport pan offset in screen pixels.
     pub(crate) pan_offset: egui::Vec2,
     /// Viewport zoom multiplier (1.0 = fit-to-panel).
@@ -149,8 +146,8 @@ pub(crate) struct SnapApp {
     /// Whether to show the colorbar overlay in each viewport.
     pub(crate) show_colorbar: bool,
 
-    // ── UI state ──────────────────────────────────────────────────────────────
-    /// `true` when the 2×2 multi-planar layout is active.
+    // â”€â”€ UI state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    /// `true` when the 2Ã—2 multi-planar layout is active.
     pub(crate) multi_planar: bool,
     /// `true` when 2-panel same-volume layout is active.
     pub(crate) dual_plane: bool,
@@ -190,7 +187,7 @@ pub(crate) struct SnapApp {
     /// hot paths. Capacity grows monotonically to the maximum observed dimension.
     pub(crate) render_buffer_pool: RenderBufferPool,
 
-    // ── Series browser ────────────────────────────────────────────────────────
+    // â”€â”€ Series browser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     /// Hierarchical DICOM series tree.
     pub(crate) series_tree: crate::dicom::series_tree::SeriesTree<'static>,
     /// The folder path currently highlighted in the series browser.
@@ -200,7 +197,7 @@ pub(crate) struct SnapApp {
     /// Active load target for series selection.
     pub(crate) series_load_target: SeriesLoadTarget,
 
-    // ── Status ────────────────────────────────────────────────────────────────
+    // â”€â”€ Status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     /// Message shown in the bottom status bar.
     pub(crate) status_message: String,
     /// Path queued for loading on the next [`eframe::App::update`] cycle.
@@ -208,7 +205,7 @@ pub(crate) struct SnapApp {
     /// Secondary path queued for load on next update cycle.
     pub(crate) pending_secondary_load: Option<std::path::PathBuf>,
 
-    // ── PACS panel ────────────────────────────────────────────────────────────
+    // â”€â”€ PACS panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     /// PACS server connection configuration.
     pub(crate) pacs_config: crate::pacs::PacsConfig,
     /// Current PACS query state machine (Idle / Pending / Results / Error).
@@ -251,12 +248,11 @@ pub(crate) struct SnapApp {
     /// start of each frame so the notification is shown for exactly one frame.
     pub(crate) pacs_auto_loaded_this_frame: Option<usize>,
 
-    // ── GPU renderer (native only) ────────────────────────────────────────────
+    // â”€â”€ GPU renderer (native only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     /// GPU-accelerated volume renderer.  `None` when no suitable GPU is
     /// available or when running on wasm32.  CPU path is the fallback.
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) gpu_renderer: Option<crate::render::gpu_volume::GpuVolumeRenderer>,
-}
+    pub(crate) gpu_renderer: Option<crate::render::gpu_volume::GpuVolumeRenderer> }
 
 impl Default for SnapApp {
     fn default() -> Self {
@@ -330,7 +326,7 @@ impl Default for SnapApp {
             selected_series: None,
             sidebar_tab: crate::ui::sidebar::SidebarTab::Series,
             series_load_target: SeriesLoadTarget::Primary,
-            status_message: "No study loaded — use File > Open to load a DICOM folder.".to_owned(),
+            status_message: "No study loaded â€” use File > Open to load a DICOM folder.".to_owned(),
             pending_load: None,
             pending_secondary_load: None,
             pacs_config: crate::pacs::PacsConfig::default(),
@@ -353,8 +349,7 @@ impl Default for SnapApp {
             pacs_auto_loaded_this_frame: None,
             status_axis: 0,
             #[cfg(not(target_arch = "wasm32"))]
-            gpu_renderer: crate::render::gpu_volume::GpuVolumeRenderer::try_create(),
-        }
+            gpu_renderer: crate::render::gpu_volume::GpuVolumeRenderer::try_create() }
     }
 }
 
@@ -379,7 +374,7 @@ impl SnapApp {
     }
 }
 
-// ── eframe::App ───────────────────────────────────────────────────────────────
+// â”€â”€ eframe::App â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 impl eframe::App for SnapApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {

@@ -1,10 +1,10 @@
-//! Bending energy regularizer for the B-spline displacement field.
+﻿//! Bending energy regularizer for the B-spline displacement field.
 //!
 //! Implements the Rueckert (1999) bending energy:
 //!
 //! ```text
-//! R(φ) = (1/|Ω|) Σ_x [ (∂²φ/∂z²)² + (∂²φ/∂y²)² + (∂²φ/∂x²)²
-//!                      + 2(∂²φ/∂z∂y)² + 2(∂²φ/∂z∂x)² + 2(∂²φ/∂y∂x)² ]
+//! R(Ï†) = (1/|Î©|) Î£_x [ (âˆ‚Â²Ï†/âˆ‚zÂ²)Â² + (âˆ‚Â²Ï†/âˆ‚yÂ²)Â² + (âˆ‚Â²Ï†/âˆ‚xÂ²)Â²
+//!                      + 2(âˆ‚Â²Ï†/âˆ‚zâˆ‚y)Â² + 2(âˆ‚Â²Ï†/âˆ‚zâˆ‚x)Â² + 2(âˆ‚Â²Ï†/âˆ‚yâˆ‚x)Â² ]
 //! ```
 //!
 //! Approximated via finite differences on the control-point lattice.
@@ -18,12 +18,12 @@ use crate::deformable_field_ops::{flat, VelocityField};
 /// finite differences of the control-point displacements:
 ///
 /// ```text
-/// R = (1/N) Σᵢ [ (Δ²_z cᵢ)² + (Δ²_y cᵢ)² + (Δ²_x cᵢ)²
-///              + 2(Δ_zy cᵢ)² + 2(Δ_zx cᵢ)² + 2(Δ_yx cᵢ)² ]
+/// R = (1/N) Î£áµ¢ [ (Î”Â²_z cáµ¢)Â² + (Î”Â²_y cáµ¢)Â² + (Î”Â²_x cáµ¢)Â²
+///              + 2(Î”_zy cáµ¢)Â² + 2(Î”_zx cáµ¢)Â² + 2(Î”_yx cáµ¢)Â² ]
 /// ```
 ///
-/// where `Δ²_d` denotes the second-order central difference along axis `d`
-/// and `Δ_ab` denotes the cross second difference.
+/// where `Î”Â²_d` denotes the second-order central difference along axis `d`
+/// and `Î”_ab` denotes the cross second difference.
 #[inline]
 pub fn bending_energy(
     cp_z: &[f32],
@@ -34,7 +34,7 @@ pub fn bending_energy(
 ) -> f64 {
     let [cnz, cny, cnx] = *ctrl_dims;
     // ACCUMULATOR: f64 prevents catastrophic cancellation when summing many small
-    // f32² second-derivative terms. The f32→f64 widening is intentional here.
+    // f32Â² second-derivative terms. The f32â†’f64 widening is intentional here.
     let mut energy = 0.0_f64;
     let mut count = 0usize;
 
@@ -107,15 +107,13 @@ pub fn bending_energy(
 #[derive(Clone, Debug)]
 pub(super) struct BendingEnergyScratch {
     /// Temporary buffer for the Laplacian computation `[cn]`.
-    pub lap: Vec<f64>,
-}
+    pub lap: Vec<f64> }
 
 impl BendingEnergyScratch {
     /// Allocate scratch buffers for a control grid with `cn` nodes.
     pub fn new(cn: usize) -> Self {
         Self {
-            lap: vec![0.0_f64; cn],
-        }
+            lap: vec![0.0_f64; cn] }
     }
 
     /// Resize scratch buffers when the control grid changes.

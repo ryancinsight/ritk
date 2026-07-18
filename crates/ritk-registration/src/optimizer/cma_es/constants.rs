@@ -1,4 +1,4 @@
-//! Adaptation constants for the (μ/μ_w, λ)-CMA-ES algorithm.
+﻿//! Adaptation constants for the (Î¼/Î¼_w, Î»)-CMA-ES algorithm.
 //!
 //! All values are derived from Hansen (2016) Table 1 and are pure functions
 //! of the problem dimension `n` and the population configuration.
@@ -12,32 +12,31 @@ use super::state::CmaEsConfig;
 /// avoids re-deriving the same values in every access pattern.
 #[derive(Debug, Clone)]
 pub(super) struct AdaptationConstants {
-    /// Population size λ (number of offspring per generation).
+    /// Population size Î» (number of offspring per generation).
     pub lambda: usize,
-    /// Parent population size μ = λ/2.
+    /// Parent population size Î¼ = Î»/2.
     pub mu: usize,
-    /// Effective variance selection mass μ_eff = 1 / Σ wᵢ².
+    /// Effective variance selection mass Î¼_eff = 1 / Î£ wáµ¢Â².
     pub mu_eff: f64,
-    /// Normalized recombination weights w₁, …, w_μ summing to 1.
+    /// Normalized recombination weights wâ‚, â€¦, w_Î¼ summing to 1.
     pub w: Vec<f64>,
-    /// Step-size cumulation rate c_σ.
+    /// Step-size cumulation rate c_Ïƒ.
     pub c_sigma: f64,
-    /// Damping for step-size adaptation d_σ.
+    /// Damping for step-size adaptation d_Ïƒ.
     pub d_sigma: f64,
     /// Rank-1 cumulation rate c_c.
     pub c_c: f64,
-    /// Rank-1 update learning rate c₁.
+    /// Rank-1 update learning rate câ‚.
     pub c1: f64,
-    /// Rank-μ update learning rate c_μ.
+    /// Rank-Î¼ update learning rate c_Î¼.
     pub c_mu: f64,
-    /// Expected ‖N(0,I)‖ ≈ χ_n.
-    pub chi_n: f64,
-}
+    /// Expected â€–N(0,I)â€– â‰ˆ Ï‡_n.
+    pub chi_n: f64 }
 
 impl AdaptationConstants {
     /// Derive adaptation constants from problem dimension and run config.
     ///
-    /// Implements Hansen (2016) Table 1 defaults, overriding λ when
+    /// Implements Hansen (2016) Table 1 defaults, overriding Î» when
     /// `config.lambda > 0`.
     pub(super) fn new(n: usize, config: &CmaEsConfig) -> Self {
         let n_f = n as f64;
@@ -47,7 +46,7 @@ impl AdaptationConstants {
             4 + (3.0 * n_f.ln()).floor() as usize
         };
         let mu = lambda / 2;
-        assert!(mu >= 1, "μ must be ≥ 1");
+        assert!(mu >= 1, "Î¼ must be â‰¥ 1");
 
         // Recombination weights (log-based, eq. 23 of Hansen 2016)
         let half_plus_1 = lambda as f64 / 2.0 + 1.0;
@@ -78,7 +77,6 @@ impl AdaptationConstants {
             c_c,
             c1,
             c_mu,
-            chi_n,
-        }
+            chi_n }
     }
 }

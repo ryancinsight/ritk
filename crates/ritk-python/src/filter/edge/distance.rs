@@ -1,18 +1,17 @@
-//! Distance transform, level set reinitialisation, and zero-crossing filters.
+﻿//! Distance transform, level set reinitialisation, and zero-crossing filters.
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     ApproximateSignedDistanceMapFilter, IsoContourDistanceFilter, ReinitializeLevelSetFilter,
-    ZeroCrossingBasedEdgeDetectionFilter,
-};
+    ZeroCrossingBasedEdgeDetectionFilter };
 
 /// Zero-crossing-based edge detection, matching
 /// `SimpleITK.ZeroCrossingBasedEdgeDetection`.
 ///
-/// Pipeline: DiscreteGaussian (isotropic `variance`, `maximum_error`) → Laplacian
-/// → zero-crossing detection. Edge voxels take `foreground_value`, the rest
+/// Pipeline: DiscreteGaussian (isotropic `variance`, `maximum_error`) â†’ Laplacian
+/// â†’ zero-crossing detection. Edge voxels take `foreground_value`, the rest
 /// `background_value`.
 ///
 /// Args:
@@ -53,7 +52,7 @@ pub fn zero_crossing_based_edge_detection(
 ///
 /// Voxels straddling the `level_set_value` iso-surface get a first-order signed
 /// distance estimate (averaged-gradient interpolation, combined by minimum
-/// magnitude); voxels away from it keep `±far_value`.
+/// magnitude); voxels away from it keep `Â±far_value`.
 ///
 /// Args:
 ///     image: Input PyImage (a level-set / scalar field).
@@ -101,8 +100,7 @@ pub fn approximate_signed_distance_map(
     py.allow_threads(|| {
         ApproximateSignedDistanceMapFilter {
             inside_value,
-            outside_value,
-        }
+            outside_value }
         .apply(&arc)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

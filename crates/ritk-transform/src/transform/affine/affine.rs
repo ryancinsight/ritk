@@ -1,127 +1,132 @@
-//! Affine transform implementation.
-//!
-//! This module provides an affine transform (linear transformation + translation).
+//! Trainable affine transform.
 
+use coeus_autograd::{
+    add as add_variables, broadcast_to as broadcast_variable, matmul as matmul_variables, reshape,
+    sub as sub_variables, transpose_2d, Var,
+};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::Module;
+use coeus_ops::{add, broadcast_to, matmul, sub, BackendOps};
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_core::transform::{Resampleable, Transform};
-use ritk_image::burn::module::{Module, Param};
-use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
-use ritk_wgpu_compat::apply_row_chunks;
 
-/// Affine Transform (Linear transformation + Translation).
-///
-/// Represents a general affine transformation with a fixed center:
-/// T(x) = A(x - c) + c + t
-///
-/// where:
-/// * A is a D×D matrix (linear transformation: rotation, scale, shear)
-/// * t is a D-dimensional translation vector
-/// * c is a D-dimensional fixed center of rotation/scaling
-#[derive(Module, Debug)]
-pub struct AffineTransform<B: Backend, const D: usize> {
-    matrix: Param<Tensor<B, 2>>,      // [D, D] linear transformation matrix
-    translation: Param<Tensor<B, 1>>, // [D] translation vector
-    center: Tensor<B, 1>,             // [D] fixed center
+/// Trainable affine map `T(x) = A(x - c) + c + t`.
+#[derive(Clone)]
+pub struct AffineTransform<B: Backend + BackendOps<f32>, const D: usize> {
+    matrix: Var<f32, B>,
+    translation: Var<f32, B>,
+    center: Var<f32, B>,
 }
 
-impl<B: Backend, const D: usize> AffineTransform<B, D> {
-    /// Create a new affine transform.
+impl<B: Backend + BackendOps<f32>, const D: usize> AffineTransform<B, D> {
+    /// Construct a trainable affine map with a fixed center.
     ///
-    /// # Arguments
-    /// * `matrix` - Tensor of shape `[D, D]` containing the linear transformation matrix
-    /// * `translation` - Tensor of shape `[D]` containing the translation vector
-    /// * `center` - Tensor of shape `[D]` containing the fixed center
-    pub fn new(matrix: Tensor<B, 2>, translation: Tensor<B, 1>, center: Tensor<B, 1>) -> Self {
-        // The linear part must be [D, D]. A common mistake is to seed an affine
-        // from `RigidTransform::matrix()`, which returns the [D+1, D+1]
-        // homogeneous form `[R, t'; 0, 1]`; `transform_points` would then
-        // mis-multiply `[N, D] @ [D+1, D+1]` and panic deep inside the backend.
-        // Use `RigidTransform::build_rotation_matrix()` (the [D, D] rotation) to
-        // seed instead. Fail here, loudly and actionably.
-        let [rows, cols] = matrix.dims();
-        assert!(
-            rows == D && cols == D,
-            "AffineTransform::new expects a [D, D] linear matrix (D = {D}), got [{rows}, {cols}]; \
-             if seeding from a RigidTransform use `build_rotation_matrix()` (the [D, D] rotation), \
-             not `matrix()` (the [D+1, D+1] homogeneous form)"
+    /// # Panics
+    ///
+    /// Panics unless the tensors have shapes `[D, D]`, `[D]`, and `[D]`.
+    #[must_use]
+    pub fn new(
+        matrix: Tensor<f32, B>,
+        translation: Tensor<f32, B>,
+        center: Tensor<f32, B>,
+    ) -> Self {
+        assert_eq!(
+            matrix.shape(),
+            [D, D],
+            "affine matrix must have shape [{D}, {D}]"
         );
+        assert_eq!(
+            translation.shape(),
+            [D],
+            "affine translation must have shape [{D}]"
+        );
+        assert_eq!(center.shape(), [D], "affine center must have shape [{D}]");
         Self {
-            matrix: Param::from_tensor(matrix),
-            translation: Param::from_tensor(translation),
-            center,
+            matrix: Var::new(matrix, true),
+            translation: Var::new(translation, true),
+            center: Var::new(center, false),
         }
     }
 
-    /// Create an identity affine transform.
-    ///
-    /// # Arguments
-    /// * `center` - Optional center of rotation. If None, uses origin (0,0...0).
-    /// * `device` - Device to create tensors on.
-    pub fn identity(center: Option<Tensor<B, 1>>, device: &B::Device) -> Self {
-        let mut matrix_data = vec![0.0f32; D * D];
-        for i in 0..D {
-            matrix_data[i * (D + 1)] = 1.0;
+    /// Construct the identity map on `backend`.
+    #[must_use]
+    pub fn identity(center: Option<Tensor<f32, B>>, backend: &B) -> Self {
+        let mut values = vec![0.0; D * D];
+        for axis in 0..D {
+            values[axis * D + axis] = 1.0;
         }
-        let data = ritk_image::tensor::TensorData::from(matrix_data.as_slice());
-        let matrix = Tensor::<B, 1>::from_data(data, device).reshape([D, D]);
-
-        let translation = Tensor::<B, 1>::zeros([D], device);
-        let center = center.unwrap_or_else(|| Tensor::<B, 1>::zeros([D], device));
-
-        Self::new(matrix, translation, center)
-    }
-
-    /// Get the transformation matrix.
-    pub fn matrix(&self) -> Tensor<B, 2> {
-        self.matrix.val()
-    }
-
-    /// Get the translation vector.
-    pub fn translation(&self) -> Tensor<B, 1> {
-        self.translation.val()
-    }
-
-    /// Get the center of rotation.
-    pub fn center(&self) -> Tensor<B, 1> {
-        self.center.clone()
-    }
-}
-
-impl<B: Backend, const D: usize> Transform<B, D> for AffineTransform<B, D> {
-    fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
-        // points: [Batch, D]
-        // matrix (A): [D, D]
-        // translation (t): [D]
-        // center (c): [D]
-        //
-        // T(x) = A(x - c) + c + t
-        //
-        // In row vector notation (standard for Burn/PyTorch inputs [N, D]):
-        // y = (x - c) @ A^T + c + t
-
-        let c = self.center.clone().reshape([1, D]);
-        let t = self.translation.val().reshape([1, D]);
-        let a = self.matrix.val();
-        let a_t = a.transpose();
-
-        let row_count = points.dims()[0];
-        apply_row_chunks(
-            points,
-            row_count,
-            ritk_wgpu_compat::WGPU_CHUNK_SIZE,
-            |chunk_points| {
-                let centered = chunk_points - c.clone();
-                let rotated = centered.matmul(a_t.clone());
-                rotated + c.clone() + t.clone()
-            },
-            |tensor, range| tensor.clone().slice([range]),
-            |chunks| Tensor::cat(chunks, 0),
+        Self::new(
+            Tensor::from_slice_on([D, D], &values, backend),
+            Tensor::zeros_on([D], backend),
+            center.unwrap_or_else(|| Tensor::zeros_on([D], backend)),
         )
     }
+
+    /// Clone the current linear map.
+    #[must_use]
+    pub fn matrix(&self) -> Tensor<f32, B> {
+        self.matrix.tensor.clone()
+    }
+
+    /// Clone the current translation.
+    #[must_use]
+    pub fn translation(&self) -> Tensor<f32, B> {
+        self.translation.tensor.clone()
+    }
+
+    /// Clone the fixed center.
+    #[must_use]
+    pub fn center(&self) -> Tensor<f32, B> {
+        self.center.tensor.clone()
+    }
+
+    /// Apply the map while retaining the Coeus autograd graph.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `points` is not shaped `[N, D]`.
+    #[must_use]
+    pub fn transform_variables(&self, points: &Var<f32, B>) -> Var<f32, B>
+    where
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    {
+        let shape = points.tensor.shape();
+        assert!(
+            shape.len() == 2 && shape[1] == D,
+            "affine transform requires points shaped [N, {D}], got {shape:?}"
+        );
+        let target = vec![shape[0], D];
+        let center = broadcast_variable(&reshape(&self.center, [1, D]), target.clone());
+        let translation = broadcast_variable(&reshape(&self.translation, [1, D]), target);
+        let centered = sub_variables(points, &center);
+        let linear = matmul_variables(&centered, &transpose_2d(&self.matrix));
+        add_variables(&add_variables(&linear, &center), &translation)
+    }
 }
 
-impl<B: Backend, const D: usize> Resampleable<B, D> for AffineTransform<B, D> {
+impl<B: Backend + BackendOps<f32> + Default, const D: usize> Transform<B, D>
+    for AffineTransform<B, D>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
+        let shape = points.shape();
+        assert!(
+            shape.len() == 2 && shape[1] == D,
+            "affine transform requires points shaped [N, {D}], got {shape:?}"
+        );
+        let backend = B::default();
+        let target = [shape[0], D];
+        let center = broadcast_to(&self.center.tensor.reshape([1, D]), &target, &backend);
+        let translation = broadcast_to(&self.translation.tensor.reshape([1, D]), &target, &backend);
+        let centered = sub(&points, &center, &backend);
+        let linear = matmul(&centered, &self.matrix.tensor.t(), &backend);
+        add(&add(&linear, &center, &backend), &translation, &backend)
+    }
+}
+
+impl<B: Backend + BackendOps<f32>, const D: usize> Resampleable<B, D> for AffineTransform<B, D> {
     fn resample(
         &self,
         _shape: [usize; D],
@@ -130,6 +135,37 @@ impl<B: Backend, const D: usize> Resampleable<B, D> for AffineTransform<B, D> {
         _direction: Direction<D>,
     ) -> Self {
         self.clone()
+    }
+}
+
+impl<B: Backend + BackendOps<f32> + Default, const D: usize> Module<f32, B>
+    for AffineTransform<B, D>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    fn parameters(&self) -> Vec<Var<f32, B>> {
+        vec![self.matrix.clone(), self.translation.clone()]
+    }
+
+    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<f32, B>> {
+        vec![
+            coeus_autograd::Parameter::new(self.matrix.clone(), "matrix"),
+            coeus_autograd::Parameter::new(self.translation.clone(), "translation"),
+        ]
+    }
+
+    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
+        self.transform_variables(input)
+    }
+
+    fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {
+        assert_eq!(
+            parameters.len(),
+            2,
+            "invariant: affine transform owns matrix and translation parameters"
+        );
+        self.matrix = parameters[0].clone();
+        self.translation = parameters[1].clone();
     }
 }
 

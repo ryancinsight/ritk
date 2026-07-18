@@ -1,4 +1,4 @@
-//! Parsed input types for the `interp_dim_template!` proc-macros.
+﻿//! Parsed input types for the `interp_dim_template!` proc-macros.
 
 use proc_macro2::TokenStream;
 use syn::parse::{Parse, ParseStream};
@@ -27,8 +27,7 @@ pub(crate) struct InterpDimInput {
     pub _comma3: Token![,],
     pub d_max: Vec<Expr>,
     pub _comma4: Token![,],
-    pub body: TokenStream,
-}
+    pub body: TokenStream }
 
 impl Parse for InterpDimInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -64,7 +63,7 @@ impl Parse for InterpDimInput {
         // (not `Punctuated::<Expr, _, _>::parse_terminated`) because
         // `Expr::parse` in a `Punctuated` context doesn't reliably
         // continue past the first sub-expression of a binary op like
-        // `d0 - 1` — the parser stops after `d0` and then expects `,`,
+        // `d0 - 1` â€” the parser stops after `d0` and then expects `,`,
         // failing on the `-`. The manual loop calls `input.parse::<Expr>()`
         // for each element, which correctly handles binary operators
         // (Expr::parse is greedy and consumes the full expression).
@@ -89,8 +88,7 @@ impl Parse for InterpDimInput {
             _comma3,
             d_max,
             _comma4,
-            body,
-        })
+            body })
     }
 }
 
@@ -110,8 +108,7 @@ pub(crate) struct InterpDimTypedInput {
     pub _comma4: Token![,],
     pub dims: Vec<Ident>,
     pub _comma5: Token![,],
-    pub body: TokenStream,
-}
+    pub body: TokenStream }
 
 impl Parse for InterpDimTypedInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -178,7 +175,6 @@ impl Parse for InterpDimTypedInput {
             _comma4,
             dims,
             _comma5,
-            body,
-        })
+            body })
     }
 }

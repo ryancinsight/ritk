@@ -1,4 +1,4 @@
-//! Chunked iteration strategy for image-level joint histogram computation.
+﻿//! Chunked iteration strategy for image-level joint histogram computation.
 //!
 //! When the number of voxels `N` exceeds [`WGPU_CHUNK_SIZE`](ritk_wgpu_compat::WGPU_CHUNK_SIZE),
 //! the spatial domain is split into chunks so each batch fits within GPU dispatch
@@ -30,31 +30,31 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// (sparse cache > dense cache > cache miss), and accumulates the results.
     ///
     /// # Arguments
-    /// * `fixed`             — Fixed reference image (spatial metadata, interpolation).
-    /// * `moving`            — Moving image.
-    /// * `transform`         — Current candidate spatial transform.
-    /// * `interpolator`      — Interpolator for sampling `moving`.
-    /// * `n`                 — Total number of points.
-    /// * `use_sampling`      — Whether stochastic subsampling is active.
-    /// * `fixed_indices`     — Pre-generated random indices (`Some` when `use_sampling == SamplingMode::Sampled`).
-    /// * `cached_points`     — Pre-extracted world-space points from cache (`Some` on cache hit).
+    /// * `fixed`             â€” Fixed reference image (spatial metadata, interpolation).
+    /// * `moving`            â€” Moving image.
+    /// * `transform`         â€” Current candidate spatial transform.
+    /// * `interpolator`      â€” Interpolator for sampling `moving`.
+    /// * `n`                 â€” Total number of points.
+    /// * `use_sampling`      â€” Whether stochastic subsampling is active.
+    /// * `fixed_indices`     â€” Pre-generated random indices (`Some` when `use_sampling == SamplingMode::Sampled`).
+    /// * `cached_points`     â€” Pre-extracted world-space points from cache (`Some` on cache hit).
     ///
     /// # Returns
     /// Joint histogram `[num_bins, num_bins]`.
     pub(super) fn compute_image_joint_histogram_chunked<const D: usize>(
         &self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
         interpolator: &LinearInterpolator,
         n: usize,
         use_sampling: SamplingMode,
-        fixed_indices: Option<Tensor<B, 2>>,
-        cached_points: Option<Tensor<B, 2>>,
-    ) -> Tensor<B, 2> {
+        fixed_indices: Option<Tensor<f32, B>>,
+        cached_points: Option<Tensor<f32, B>>,
+    ) -> Tensor<f32, B> {
         let device = fixed.data().device();
         let num_chunks = n.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
-        let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
+        let mut joint_hist_acc = Tensor::<f32, B>::zeros([self.num_bins, self.num_bins], &device);
 
         let cached_w_fixed_t = (use_sampling == SamplingMode::Dense)
             .then(|| {
@@ -83,7 +83,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     .clone(),
             );
             if let Some(w_fixed_t) = &cached_w_fixed_t {
-                // Cache hit for W_fixed^T — only update cache if points are missing or
+                // Cache hit for W_fixed^T â€” only update cache if points are missing or
                 // the cached tensor dimensions are stale. The sparse cache is not
                 // passed here; it is built lazily from `fixed_norm` on first access.
                 self.cache.with_mut(|cache| {
@@ -141,7 +141,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 fixed.index_to_world_tensor(chunk_indices)
             };
 
-            let (chunk_moving_values, chunk_oob): (Tensor<B, 1>, Option<Tensor<B, 1>>) = {
+            let (chunk_moving_values, chunk_oob): (Tensor<f32, B>, Option<Tensor<f32, B>>) = {
                 let chunk_moving_points = transform.transform_points(chunk_fixed_points);
                 let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);
                 let oob = if D == 3 {
@@ -156,17 +156,17 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 (values, oob)
             };
 
-            // ── Chunked histogram computation ──────────────────────────────────
+            // â”€â”€ Chunked histogram computation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             //
             // Three dispatch paths, in order of preference:
-            // 1. Sparse cache hit — iterate only ~7 non-zero fixed bins per sample.
+            // 1. Sparse cache hit â€” iterate only ~7 non-zero fixed bins per sample.
             //    Slicing the sparse cache is trivial (just `sparse[start..end].to_vec()`)
             //    and avoids the old `w_fixed_t.clone().slice()` pattern that cloned
-            //    the entire [num_bins × N] dense tensor (~4 MB for N=32K) just to
+            //    the entire [num_bins Ã— N] dense tensor (~4 MB for N=32K) just to
             //    extract one chunk. The sparse slice copies only ~56 bytes per sample.
-            // 2. Dense cache hit — slice [num_bins, start..end] and use the tensor
+            // 2. Dense cache hit â€” slice [num_bins, start..end] and use the tensor
             //    matmul path (autodiff-safe, needed for RSGD).
-            // 3. Cache miss (sampling) — compute both W_fixed and W_moving from scratch.
+            // 3. Cache miss (sampling) â€” compute both W_fixed and W_moving from scratch.
 
             #[cfg(feature = "direct-parzen")]
             let chunk_hist = if let Some(ref sparse) = cached_sparse {
@@ -270,29 +270,29 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// matmul path (autodiff-safe, works for both RSGD and CMA-ES).
     ///
     /// # Arguments
-    /// * `fixed`                — Fixed reference image (spatial metadata).
-    /// * `moving`               — Moving image.
-    /// * `transform`            — Current candidate spatial transform.
-    /// * `interpolator`         — Interpolator for sampling `moving`.
-    /// * `w_fixed_transposed`   — Caller-supplied Parzen weight matrix `[num_bins, N]`.
-    /// * `fixed_points`         — World-space points `[N, D]` (cached or freshly built).
-    /// * `n`                    — Total number of points.
+    /// * `fixed`                â€” Fixed reference image (spatial metadata).
+    /// * `moving`               â€” Moving image.
+    /// * `transform`            â€” Current candidate spatial transform.
+    /// * `interpolator`         â€” Interpolator for sampling `moving`.
+    /// * `w_fixed_transposed`   â€” Caller-supplied Parzen weight matrix `[num_bins, N]`.
+    /// * `fixed_points`         â€” World-space points `[N, D]` (cached or freshly built).
+    /// * `n`                    â€” Total number of points.
     ///
     /// # Returns
     /// Joint histogram `[num_bins, num_bins]`.
     pub(super) fn compute_image_joint_histogram_with_w_fixed_chunked<const D: usize>(
         &self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
         interpolator: &LinearInterpolator,
-        w_fixed_transposed: &Tensor<B, 2>,
-        fixed_points: &Tensor<B, 2>,
+        w_fixed_transposed: &Tensor<f32, B>,
+        fixed_points: &Tensor<f32, B>,
         n: usize,
-    ) -> Tensor<B, 2> {
+    ) -> Tensor<f32, B> {
         let device = fixed.data().device();
         let num_chunks = n.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
-        let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
+        let mut joint_hist_acc = Tensor::<f32, B>::zeros([self.num_bins, self.num_bins], &device);
 
         for i in 0..num_chunks {
             let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
@@ -301,7 +301,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             #[allow(clippy::single_range_in_vec_init)]
             let chunk_fixed_points = fixed_points.clone().slice([chunk_range.clone()]);
 
-            let (chunk_moving_values, chunk_oob): (Tensor<B, 1>, Option<Tensor<B, 1>>) = {
+            let (chunk_moving_values, chunk_oob): (Tensor<f32, B>, Option<Tensor<f32, B>>) = {
                 let chunk_moving_points = transform.transform_points(chunk_fixed_points);
                 let chunk_moving_indices = moving.world_to_index_tensor(chunk_moving_points);
                 let oob = if D == 3 {

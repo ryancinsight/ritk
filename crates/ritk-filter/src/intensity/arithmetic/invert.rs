@@ -47,7 +47,7 @@ impl InvertIntensityFilter {
     }
 
     /// Apply intensity inversion to a 3-D image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let (vals, dims) = extract_vec(image);
         let max_val = self
             .maximum

@@ -8,7 +8,7 @@
 //! For a 2-D complex image F(u, v) with dimensions (H, W):
 //!
 //! ```text
-//! f(x, y) = (1 / H·W) · Σ_{u=0}^{H-1} Σ_{v=0}^{W-1} F(u,v) · e^{+2πi(ux/H + vy/W)}
+//! f(x, y) = (1 / HÂ·W) Â· Î£_{u=0}^{H-1} Î£_{v=0}^{W-1} F(u,v) Â· e^{+2Ï€i(ux/H + vy/W)}
 //! ```
 //!
 //! The transform is applied separably: 1-D IFFT along rows, then along columns.
@@ -17,12 +17,12 @@
 //! Apollo's inverse complex FFT path computes the unnormalized IFFT:
 //!
 //! ```text
-//! IFFT_unnorm(F)[n] = Σ_{k} F[k] · e^{+2πi·k·n/N}
+//! IFFT_unnorm(F)[n] = Î£_{k} F[k] Â· e^{+2Ï€iÂ·kÂ·n/N}
 //! ```
 //!
 //! All IFFT passes are completed first; a single normalization by `1/N`
 //! (N = product of all spatial dimensions) is applied afterwards. This
-//! satisfies the round-trip identity `inverse(forward(f)) ≈ f` to within
+//! satisfies the round-trip identity `inverse(forward(f)) â‰ˆ f` to within
 //! f32 rounding error.
 //!
 //! # Input format (shared with ForwardFftFilter)
@@ -30,10 +30,10 @@
 //! Complex images are stored with interleaved (Re, Im) pairs in the last
 //! dimension:
 //!
-//! - 2-D input shape `[H, 2·W]`:
-//!   Re at flat index `r·2W + 2c`, Im at `r·2W + 2c + 1`
-//! - 3-D input shape `[D, H, 2·W]`:
-//!   Re at `d·H·2W + r·2W + 2c`, Im at `+1`
+//! - 2-D input shape `[H, 2Â·W]`:
+//!   Re at flat index `rÂ·2W + 2c`, Im at `rÂ·2W + 2c + 1`
+//! - 3-D input shape `[D, H, 2Â·W]`:
+//!   Re at `dÂ·HÂ·2W + rÂ·2W + 2c`, Im at `+1`
 
 use crate::fft::convolution::{fft_nd, InverseFft};
 use anyhow::{anyhow, Result};
@@ -42,7 +42,7 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// ── Struct ────────────────────────────────────────────────────────────────────
+// â”€â”€ Struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Inverse Fast Fourier Transform filter.
 ///
@@ -53,15 +53,15 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 ///
 /// # Output
 ///
-/// - 2-D: shape `[H, W]`, real-valued, normalized by `1/(H·W)`.
-/// - 3-D: shape `[D, H, W]`, real-valued, normalized by `1/(D·H·W)`.
+/// - 2-D: shape `[H, W]`, real-valued, normalized by `1/(HÂ·W)`.
+/// - 3-D: shape `[D, H, W]`, real-valued, normalized by `1/(DÂ·HÂ·W)`.
 ///
 /// # Complexity
 ///
 /// O(N log N) where N = product of spatial dimensions.
 pub struct InverseFftFilter;
 
-// ── impl ──────────────────────────────────────────────────────────────────────
+// â”€â”€ impl â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 impl InverseFftFilter {
     /// Create a new `InverseFftFilter`.
@@ -74,11 +74,11 @@ impl InverseFftFilter {
     ///
     /// # Input
     ///
-    /// Shape `[..., 2·W]` — Re at `...·2W + 2c`, Im at `...·2W + 2c + 1`.
+    /// Shape `[..., 2Â·W]` â€” Re at `...Â·2W + 2c`, Im at `...Â·2W + 2c + 1`.
     ///
     /// # Output
     ///
-    /// Shape `[..., W]` — real-valued spatial image, normalized by `1/N`
+    /// Shape `[..., W]` â€” real-valued spatial image, normalized by `1/N`
     /// where N = product of spatial dimensions.
     ///
     /// # Errors
@@ -86,7 +86,10 @@ impl InverseFftFilter {
     /// Returns `Err` when the last dimension is odd (not a valid complex
     /// interleaved layout) or when the backend tensor cannot be converted to
     /// `f32`.
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Result<Image<B, D>> {
+    pub fn apply<B: Backend, const D: usize>(
+        &self,
+        image: &Image<f32, B, D>,
+    ) -> Result<Image<f32, B, D>> {
         Self::apply_inner(image)
     }
 
@@ -136,7 +139,9 @@ impl InverseFftFilter {
     /// Deinterleaves (Re, Im) pairs into a complex buffer, applies a
     /// separable N-D inverse FFT via [`fft_nd`], normalizes by `1/N`
     /// where N = product of spatial dimensions, and returns the real part.
-    fn apply_inner<B: Backend, const D: usize>(image: &Image<B, D>) -> Result<Image<B, D>> {
+    fn apply_inner<B: Backend, const D: usize>(
+        image: &Image<f32, B, D>,
+    ) -> Result<Image<f32, B, D>> {
         let dims = image.shape();
         let cw = dims[D - 1];
         if !cw.is_multiple_of(2) {
@@ -159,8 +164,8 @@ impl InverseFftFilter {
         // Deinterleave (Re, Im) pairs into a complex buffer of shape `out_dims`.
         let mut buf: Vec<Complex<f32>> = Vec::with_capacity(n_spatial);
 
-        // For 2D: iterate over h rows × w complex cols.
-        // For 3D: iterate over d × h rows × w complex cols.
+        // For 2D: iterate over h rows Ã— w complex cols.
+        // For 3D: iterate over d Ã— h rows Ã— w complex cols.
         // The general pattern: outer_dims = out_dims[..D-1], each outer slice
         // contains `cw` interleaved f32 values encoding `w` complex numbers.
         let outer_count: usize = out_dims[..D - 1].iter().product();
@@ -198,13 +203,13 @@ impl Default for InverseFftFilter {
 /// Reconstructs a real image from the non-redundant half spectrum produced by
 /// [`super::forward::RealToHalfHermitianForwardFftFilter`]. The full DFT is
 /// rebuilt from the half via Hermitian symmetry
-/// `F[k] = conj(F[(−k) mod N])` — last-axis columns `W/2+1 .. W−1` are the
-/// conjugates of the retained columns reflected across **every** axis — and then
+/// `F[k] = conj(F[(âˆ’k) mod N])` â€” last-axis columns `W/2+1 .. Wâˆ’1` are the
+/// conjugates of the retained columns reflected across **every** axis â€” and then
 /// the standard inverse FFT (normalized by `1/N`) is applied.
 ///
 /// The last-axis length `W` cannot be inferred from the half alone
-/// (`half_cols = W/2 + 1` for both `W = 2(half_cols−1)` and
-/// `W = 2(half_cols−1)+1`), so `actual_x_is_odd` selects the original parity,
+/// (`half_cols = W/2 + 1` for both `W = 2(half_colsâˆ’1)` and
+/// `W = 2(half_colsâˆ’1)+1`), so `actual_x_is_odd` selects the original parity,
 /// mirroring ITK's `SetActualXDimensionIsOdd`.
 #[derive(Debug, Clone, Copy)]
 pub struct HalfHermitianToRealInverseFftFilter {
@@ -220,8 +225,11 @@ impl HalfHermitianToRealInverseFftFilter {
 
     /// Apply the half-Hermitian inverse FFT to a D-dimensional half spectrum.
     ///
-    /// Input shape `[..., 2·(W/2+1)]` (interleaved half) → output `[..., W]` real.
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Result<Image<B, D>> {
+    /// Input shape `[..., 2Â·(W/2+1)]` (interleaved half) â†’ output `[..., W]` real.
+    pub fn apply<B: Backend, const D: usize>(
+        &self,
+        image: &Image<f32, B, D>,
+    ) -> Result<Image<f32, B, D>> {
         let dims = image.shape();
         let half_w2 = dims[D - 1];
         if !half_w2.is_multiple_of(2) {
@@ -249,7 +257,7 @@ impl HalfHermitianToRealInverseFftFilter {
         let mut full = vec![0.0f32; outer_count * frow];
         for o in 0..outer_count {
             // Decompose the row-major outer index, reflect every outer axis
-            // (`c → (N−c) mod N`), recompose: the source row for the conjugate-
+            // (`c â†’ (Nâˆ’c) mod N`), recompose: the source row for the conjugate-
             // symmetric tail.
             let mut coords = [0usize; D];
             let mut rem = o;
@@ -284,7 +292,7 @@ impl HalfHermitianToRealInverseFftFilter {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_inverse.rs"]

@@ -1,36 +1,35 @@
-//! JPEG Huffman table construction and entropy-coded bit reader.
+﻿//! JPEG Huffman table construction and entropy-coded bit reader.
 //!
 //! # Specification
-//! ITU-T T.81 §C.1: Canonical Huffman tables are derived from BITS[1..16]
+//! ITU-T T.81 Â§C.1: Canonical Huffman tables are derived from BITS[1..16]
 //! (code counts per length) and HUFFVAL (symbols in canonical order).
 //! Codes are assigned MSB-first: shorter codes are lexicographically smaller.
 //!
 //! # Bit reader
 //! JPEG entropy data uses byte stuffing: after every 0xFF data byte the encoder
 //! inserts a 0x00 pad byte. The decoder discards it, producing 0xFF entropy.
-//! Restart markers (0xFF 0xD0–0xD7) delimit restart intervals.
+//! Restart markers (0xFF 0xD0â€“0xD7) delimit restart intervals.
 
 use anyhow::{bail, Result};
 
-/// Maximum Huffman code length per JPEG T.81 §C.1.
+/// Maximum Huffman code length per JPEG T.81 Â§C.1.
 const MAX_CODE_LEN: usize = 16;
-/// Maximum number of HUFFVAL entries per JPEG T.81 §C.1.
+/// Maximum number of HUFFVAL entries per JPEG T.81 Â§C.1.
 const MAX_HUFFVAL: usize = 256;
 
-// ─── Huffman Table ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Huffman Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Canonical Huffman decode table (T.81 §C.1).
+/// Canonical Huffman decode table (T.81 Â§C.1).
 #[derive(Debug, Clone)]
 pub(crate) struct HuffmanTable {
     pub(crate) maxcode: [i32; MAX_CODE_LEN],
     pub(crate) mincode: [i32; MAX_CODE_LEN],
     pub(crate) valptr: [usize; MAX_CODE_LEN],
-    pub(crate) huffval: [u8; MAX_HUFFVAL],
-}
+    pub(crate) huffval: [u8; MAX_HUFFVAL] }
 
 impl HuffmanTable {
     /// Build a canonical Huffman table from `bits[0..15]` (one-indexed lengths
-    /// 1–16) and `huffval` (symbols in canonical order).
+    /// 1â€“16) and `huffval` (symbols in canonical order).
     pub(crate) fn from_bits_huffval(bits: &[u8; 16], huffval: &[u8]) -> Result<Self> {
         let num_symbols = huffval.len();
         if num_symbols > MAX_HUFFVAL {
@@ -69,8 +68,7 @@ impl HuffmanTable {
             maxcode,
             mincode,
             valptr,
-            huffval: hv,
-        })
+            huffval: hv })
     }
 
     /// Decode one symbol using the given `BitReader`.
@@ -91,19 +89,18 @@ impl HuffmanTable {
     }
 }
 
-// ─── Bit Reader ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ Bit Reader â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Bit-level reader over JPEG entropy data with byte-stuffing removal.
 ///
-/// JPEG entropy data: 0xFF followed by 0x00 is a stuffed byte → use 0xFF.
-/// 0xFF followed by 0xD0–0xD7 is a restart marker → reset DC predictors.
-/// 0xFF 0xD9 is EOI → end of data.
+/// JPEG entropy data: 0xFF followed by 0x00 is a stuffed byte â†’ use 0xFF.
+/// 0xFF followed by 0xD0â€“0xD7 is a restart marker â†’ reset DC predictors.
+/// 0xFF 0xD9 is EOI â†’ end of data.
 pub(crate) struct BitReader<'a> {
     pub(crate) data: &'a [u8],
     pub(crate) pos: usize,
     pub(crate) buf: u32,
-    pub(crate) avail: u8,
-}
+    pub(crate) avail: u8 }
 
 impl<'a> BitReader<'a> {
     pub(crate) fn new(data: &'a [u8]) -> Self {
@@ -111,8 +108,7 @@ impl<'a> BitReader<'a> {
             data,
             pos: 0,
             buf: 0,
-            avail: 0,
-        }
+            avail: 0 }
     }
 
     /// Read the next raw byte with byte-stuffing removal.
@@ -129,14 +125,14 @@ impl<'a> BitReader<'a> {
             }
             let next = self.data[self.pos];
             if next == 0x00 {
-                // Stuffed zero — discard it, use 0xFF as the entropy byte.
+                // Stuffed zero â€” discard it, use 0xFF as the entropy byte.
                 self.pos += 1;
             } else if (0xD0..=0xD7).contains(&next) {
-                // Restart marker — skip it, caller resets DC predictors.
+                // Restart marker â€” skip it, caller resets DC predictors.
                 self.pos += 1;
                 return Some(0xFF); // Treat the restart as a boundary fill byte.
             } else {
-                // Non-stuffed marker (e.g. EOI) — back up.
+                // Non-stuffed marker (e.g. EOI) â€” back up.
                 self.pos -= 1;
                 return None;
             }
@@ -154,7 +150,7 @@ impl<'a> BitReader<'a> {
                     self.avail += 8;
                 }
                 None => {
-                    // Pad with 1-bits (T.81 §F.1.2.3) when stream ends early.
+                    // Pad with 1-bits (T.81 Â§F.1.2.3) when stream ends early.
                     self.buf = (self.buf << 8) | 0xFF;
                     self.avail += 8;
                 }
@@ -174,7 +170,7 @@ impl<'a> BitReader<'a> {
     }
 
     /// Read `n` bits (MSB first) and return them as a `u32`.
-    /// `n` must be ≤ 16.
+    /// `n` must be â‰¤ 16.
     pub(crate) fn read_bits(&mut self, n: u8) -> Result<u32> {
         debug_assert!(n <= MAX_CODE_LEN as u8);
         if n == 0 {
@@ -188,9 +184,9 @@ impl<'a> BitReader<'a> {
     }
 }
 
-// ─── Receive and Extend ───────────────────────────────────────────────────────
+// â”€â”€â”€ Receive and Extend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// JPEG "RECEIVE and EXTEND" (T.81 §F.2.2.1): read `n` bits and sign-extend.
+/// JPEG "RECEIVE and EXTEND" (T.81 Â§F.2.2.1): read `n` bits and sign-extend.
 ///
 /// For `n == 0` returns 0 (zero-bit difference = no change).
 /// For `n > 0`: if the leading bit is 1, value is positive; if 0, negative.
@@ -213,7 +209,7 @@ mod tests {
 
     #[test]
     fn huffman_table_single_length_1_code() {
-        // BITS: one code of length 1 → code 0 maps to symbol 0
+        // BITS: one code of length 1 â†’ code 0 maps to symbol 0
         let bits = [1u8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         let table = HuffmanTable::from_bits_huffval(&bits, &[0u8]).unwrap();
         assert_eq!(table.maxcode[0], 0);
@@ -259,7 +255,7 @@ mod tests {
         // remaining from 0x12: bits[1..7] = 001_0010 (7 bits)
         // all of 0x33: 0011_0011 (8 bits)
         // Combined 15 bits = 001_0010_0011_0011 = 0x1233 = 4659
-        // receive_and_extend(15): 4659 < 2^14=16384 → negative → 4659 - 32767 = -28108
+        // receive_and_extend(15): 4659 < 2^14=16384 â†’ negative â†’ 4659 - 32767 = -28108
         let data = [0x12u8, 0x33u8];
         let mut reader = BitReader::new(&data);
         // Consume 1 bit (the Huffman code bit = 0)
@@ -270,7 +266,7 @@ mod tests {
 
     #[test]
     fn byte_stuffing_removes_pad_zero_after_ff() {
-        // 0xFF 0x00 → entropy byte 0xFF
+        // 0xFF 0x00 â†’ entropy byte 0xFF
         let data = [0xFF, 0x00, 0x80]; // 0xFF (stuffed), 0x80
         let mut reader = BitReader::new(&data);
         let b0 = reader.read_bits(8).unwrap();

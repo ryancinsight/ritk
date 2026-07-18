@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+﻿use anyhow::{anyhow, Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -20,10 +20,10 @@ use crate::spatial::file_space_directions_from_internal;
 /// (`shape()[2] shape()[1] shape()[0]` of the RITK image).
 ///
 /// # Spatial metadata
-/// * `space directions` — NRRD file-axis vectors `[x,y,z]` are emitted from
+/// * `space directions` â€” NRRD file-axis vectors `[x,y,z]` are emitted from
 ///   RITK metadata columns `[col,row,depth]`, each scaled by its matching
 ///   spacing.
-/// * `space origin` — the image origin in physical `[X, Y, Z]` space.
+/// * `space origin` â€” the image origin in physical `[X, Y, Z]` space.
 ///
 /// # Binary payload
 /// Voxel values are written as 32-bit IEEE 754 floats in little-endian byte
@@ -94,7 +94,7 @@ fn write_nrrd_flat(
         ));
     }
 
-    // ── Spatial metadata ──────────────────────────────────────────────────
+    // â”€â”€ Spatial metadata â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let dir = direction.0;
 
     let file_directions = file_space_directions_from_internal(
@@ -117,12 +117,12 @@ fn write_nrrd_flat(
 
     let space_origin = format!("({},{},{})", origin[0], origin[1], origin[2]);
 
-    // ── File I/O ──────────────────────────────────────────────────────────
+    // â”€â”€ File I/O â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let file = std::fs::File::create(path)
         .with_context(|| format!("Cannot create NRRD file {:?}", path))?;
     let mut writer = BufWriter::new(file);
 
-    // Header — field order matches the ITK NrrdIO convention.
+    // Header â€” field order matches the ITK NrrdIO convention.
     writeln!(writer, "NRRD0004")?;
     writeln!(writer, "# Complete NRRD file written by ritk")?;
     writeln!(writer, "type: float")?;
@@ -130,7 +130,7 @@ fn write_nrrd_flat(
     // ITK/SimpleITK and ritk's own reader work in LPS: the reader stores the
     // `space origin` / `space directions` verbatim (no space conversion), and ITK
     // NRRDs are written LPS. Declaring RAS here made SimpleITK reinterpret the
-    // LPS-valued origin/directions and negate the x and y (R↔L, A↔P) components on
+    // LPS-valued origin/directions and negate the x and y (Râ†”L, Aâ†”P) components on
     // read, corrupting the origin of an anisotropic-origin volume on round-trip.
     writeln!(writer, "space: left-posterior-superior")?;
     // sizes is in NRRD [X, Y, Z] order.
@@ -143,10 +143,10 @@ fn write_nrrd_flat(
     // Blank line terminates the header; binary data follows immediately.
     writeln!(writer)?;
 
-    // Binary payload — little-endian f32, written in a single bulk call.
+    // Binary payload â€” little-endian f32, written in a single bulk call.
     // On little-endian targets the f32 slice reinterprets to bytes with no copy
     // (the on-disk encoding is little-endian); a per-element `write_all` loop is
-    // ~10× slower from the per-call overhead across millions of voxels.
+    // ~10Ã— slower from the per-call overhead across millions of voxels.
     #[cfg(target_endian = "little")]
     writer.write_all(bytemuck::cast_slice(f32_slice))?;
     #[cfg(target_endian = "big")]
@@ -167,15 +167,14 @@ fn format_nrrd_vector(vector: [f64; 3]) -> String {
     format!("({},{},{})", vector[0], vector[1], vector[2])
 }
 
-// ── Public writer struct ──────────────────────────────────────────────────────
+// â”€â”€ Public writer struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Thin writer struct for NRRD files.
 ///
 /// The backend `B` is supplied per-call so a single `NrrdWriter` instance can
 /// write images from different backends.
 pub struct NrrdWriter<B: ComputeBackend> {
-    backend: B,
-}
+    backend: B }
 
 impl<B: ComputeBackend> NrrdWriter<B> {
     /// Creates a writer that extracts image storage through `backend`.

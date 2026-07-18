@@ -35,12 +35,12 @@ impl IntermodesThreshold {
     }
 
     /// Compute the Intermodes threshold intensity for `image`.
-    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> f32 {
+    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> f32 {
         <Self as AutoThreshold>::compute(self, image)
     }
 
     /// Apply the Intermodes threshold to produce a binary mask.
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         <Self as AutoThreshold>::apply(self, image)
     }
 
@@ -126,7 +126,7 @@ impl AutoThreshold for IntermodesThreshold {
 }
 
 /// Convenience function: compute the Intermodes threshold with 256 bins.
-pub fn intermodes_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
+pub fn intermodes_threshold<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> f32 {
     IntermodesThreshold::new().compute(image)
 }
 

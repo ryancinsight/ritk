@@ -1,16 +1,15 @@
-use super::*;
+﻿use super::*;
 use ritk_registration::diffeomorphic::multires_syn::InverseConsistency;
 
 impl From<CliInverseConsistency> for InverseConsistency {
     fn from(v: CliInverseConsistency) -> Self {
         match v {
             CliInverseConsistency::Enforced => Self::Enforced,
-            CliInverseConsistency::Relaxed => Self::Relaxed,
-        }
+            CliInverseConsistency::Relaxed => Self::Relaxed }
     }
 }
 
-// ── SyN diffeomorphic registration ────────────────────────────────────────────
+// â”€â”€ SyN diffeomorphic registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Run greedy SyN diffeomorphic registration.
 ///
@@ -57,7 +56,7 @@ pub(super) fn run_syn(args: &RegisterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── BSpline FFD registration ───────────────────────────────────────────────
+// â”€â”€ BSpline FFD registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Run B-Spline Free-Form Deformation registration.
 ///
@@ -83,8 +82,7 @@ pub(super) fn run_bspline_ffd(args: &RegisterArgs) -> Result<()> {
         max_iterations_per_level: args.iterations,
         learning_rate: args.learning_rate,
         regularization_weight: args.regularization_weight,
-        convergence_threshold: args.convergence_threshold,
-    };
+        convergence_threshold: args.convergence_threshold };
     let result = BSplineFFDRegistration::register(
         &fixed_vals,
         &moving_vals,
@@ -113,7 +111,7 @@ pub(super) fn run_bspline_ffd(args: &RegisterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Multi-resolution SyN registration ────────────────────────────────────────────
+// â”€â”€ Multi-resolution SyN registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Run Multi-Resolution SyN diffeomorphic registration.
 ///
@@ -121,8 +119,7 @@ pub(super) fn run_bspline_ffd(args: &RegisterArgs) -> Result<()> {
 /// level-doubling velocity fields and optional inverse consistency enforcement.
 pub(super) fn run_multires_syn(args: &RegisterArgs) -> Result<()> {
     use ritk_registration::diffeomorphic::multires_syn::{
-        MultiResSyNConfig, MultiResSyNRegistration,
-    };
+        MultiResSyNConfig, MultiResSyNRegistration };
 
     let fixed_img = super::super::read_image(&args.fixed)?;
     let moving_img = super::super::read_image(&args.moving)?;
@@ -139,8 +136,7 @@ pub(super) fn run_multires_syn(args: &RegisterArgs) -> Result<()> {
         n_squarings: 6,
         cc_window_radius: args.cc_radius,
         enforce_inverse_consistency: args.inverse_consistency.into(),
-        gradient_step: 0.25,
-    };
+        gradient_step: 0.25 };
     let reg = MultiResSyNRegistration::new(config);
     let result = reg
         .register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
@@ -165,7 +161,7 @@ pub(super) fn run_multires_syn(args: &RegisterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── BSpline SyN registration ──────────────────────────────────────────────
+// â”€â”€ BSpline SyN registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Run BSpline SyN diffeomorphic registration.
 ///
@@ -194,8 +190,7 @@ pub(super) fn run_bspline_syn(args: &RegisterArgs) -> Result<()> {
         n_squarings: 6,
         cc_window_radius: args.cc_radius,
         regularization_weight: args.regularization_weight,
-        gradient_step: 0.25,
-    };
+        gradient_step: 0.25 };
     let reg = BSplineSyNRegistration::new(config);
     let result = reg
         .register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
@@ -258,8 +253,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
-            convergence_threshold: 1e-5,
-        }
+            convergence_threshold: 1e-5 }
     }
 
     /// Run a diffeomorphic method with default args and return the temp dir + output path.
@@ -276,7 +270,7 @@ mod tests {
         (dir, output)
     }
 
-    // ── Positive: syn creates output file ─────────────────────────────────
+    // â”€â”€ Positive: syn creates output file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Running `syn` on identical fixed/moving images must produce a warped
     /// output file whose shape matches the input.
@@ -295,7 +289,7 @@ mod tests {
         );
     }
 
-    // ── Positive: syn identity registration produces finite voxels ────────
+    // â”€â”€ Positive: syn identity registration produces finite voxels â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// When fixed == moving, the SyN output voxels must all be finite.
     #[test]
@@ -312,7 +306,7 @@ mod tests {
         });
     }
 
-    // ── BSpline FFD ──────────────────────────────────────────────────────────────
+    // â”€â”€ BSpline FFD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn test_register_bspline_ffd_creates_output_with_correct_shape() {
@@ -333,7 +327,7 @@ mod tests {
         });
     }
 
-    // ── Multi-resolution SyN ─────────────────────────────────────────────────────
+    // â”€â”€ Multi-resolution SyN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn test_register_multires_syn_creates_output_with_correct_shape() {
@@ -354,7 +348,7 @@ mod tests {
         });
     }
 
-    // ── BSpline SyN ─────────────────────────────────────────────────────────────
+    // â”€â”€ BSpline SyN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn test_register_bspline_syn_creates_output_with_correct_shape() {

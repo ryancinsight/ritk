@@ -7,16 +7,16 @@
 //! `order[d]`:
 //!
 //! ```text
-//! GaussianDerivativeOperator(m) = trim_{2N}( pad_{2N-1}^{clamp}(G) ⊛ D^m )
+//! GaussianDerivativeOperator(m) = trim_{2N}( pad_{2N-1}^{clamp}(G) âŠ› D^m )
 //! ```
 //!
 //! where `G` is the discrete Gaussian operator ([`super::discrete_gaussian`]'s
 //! Bessel kernel), `D^m` is the order-`m` central-difference derivative operator
-//! (`D¹ = [-½, 0, ½]`, `D² = [1, -2, 1]`, built by repeated convolution),
+//! (`DÂ¹ = [-Â½, 0, Â½]`, `DÂ² = [1, -2, 1]`, built by repeated convolution),
 //! `N = (|D^m|-1)/2`, the Gaussian is edge-padded by `2N-1` before the
 //! convolution (ITK's clamped boundary) and the full result trimmed by `2N` taps
 //! each side. `use_image_spacing` enters only through the Gaussian width
-//! (`pixel_variance = variance / spacing²`); SimpleITK applies no extra derivative
+//! (`pixel_variance = variance / spacingÂ²`); SimpleITK applies no extra derivative
 //! norm. An order-0 axis is the plain Gaussian operator. The per-axis operators
 //! are applied separably with zero-flux Neumann image boundaries (the same path as
 //! `DiscreteGaussian`), float-exact to SimpleITK for voxel-unit (no-spacing)
@@ -30,7 +30,7 @@ use ritk_tensor_ops::rebuild;
 /// Discrete Gaussian derivative filter.
 #[derive(Debug, Clone)]
 pub struct DiscreteGaussianDerivativeFilter {
-    /// Variance (σ²) per axis, axis-major `[var_z, var_y, var_x]`. Scalar variance
+    /// Variance (ÏƒÂ²) per axis, axis-major `[var_z, var_y, var_x]`. Scalar variance
     /// is broadcast.
     pub variance: f64,
     /// Derivative order per axis, axis-major `[order_z, order_y, order_x]`.
@@ -58,9 +58,12 @@ impl DiscreteGaussianDerivativeFilter {
     }
 
     /// Apply the filter to a 3-D image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let (tensor, origin, spacing, direction) = image.clone().into_parts();
-        let dims: [usize; 3] = tensor.shape().dims();
+        let dims: [usize; 3] = tensor
+            .shape()
+            .try_into()
+            .expect("DiscreteGaussianDerivativeFilter requires rank three");
 
         let mut kernels: [Option<Vec<f32>>; 3] = std::array::from_fn(|_| None);
         for (d, slot) in kernels.iter_mut().enumerate() {
@@ -84,10 +87,7 @@ impl DiscreteGaussianDerivativeFilter {
             return Image::new(tensor, origin, spacing, direction);
         }
 
-        let flat: Vec<f32> = tensor
-            .into_data()
-            .into_vec::<f32>()
-            .expect("f32 tensor data");
+        let flat = tensor.to_vec();
         let result = convolve_separable(flat, dims, &kernels);
         rebuild(result, dims, image)
     }
@@ -134,7 +134,7 @@ impl DiscreteGaussianDerivativeFilter {
 
 /// Build the order-`m` central-difference derivative operator (`itk::Derivative-
 /// Operator`): even orders fold in `[1, -2, 1]`, the odd order folds in
-/// `[-½, 0, ½]`, by repeated convolution. Order 0 returns `[1]`.
+/// `[-Â½, 0, Â½]`, by repeated convolution. Order 0 returns `[1]`.
 fn derivative_operator(order: usize) -> Vec<f64> {
     let mut coeff = vec![1.0f64];
     for _ in 0..(order / 2) {
@@ -192,8 +192,8 @@ fn gaussian_derivative_operator_1d(
     // `use_image_spacing` enters only through `pixel_variance` (the Gaussian
     // width); SimpleITK applies no additional `1/spacing^order` derivative norm.
     // `convolve_separable` applies the kernel as a correlation, so its impulse
-    // response is the kernel reversed — reverse here to apply ITK's operator.
-    // (Even orders are symmetric → no-op.)
+    // response is the kernel reversed â€” reverse here to apply ITK's operator.
+    // (Even orders are symmetric â†’ no-op.)
     op.iter().rev().map(|&c| c as f32).collect()
 }
 

@@ -1,10 +1,10 @@
-//! Subband geometry for the Mallat DWT layout (ISO 15444-1 §B.5).
+﻿//! Subband geometry for the Mallat DWT layout (ISO 15444-1 Â§B.5).
 //!
-//! For a tile of `width × height` with `N` decomposition levels the codestream
+//! For a tile of `width Ã— height` with `N` decomposition levels the codestream
 //! carries `3N + 1` subbands in resolution order:
-//! `LL_N, HL_N, LH_N, HH_N, HL_{N−1}, …, HH_1` — the same order used for the
+//! `LL_N, HL_N, LH_N, HH_N, HL_{Nâˆ’1}, â€¦, HH_1` â€” the same order used for the
 //! QCD `SPqcd` entries and for the LRCP packet sequence (resolution `r = 0` is
-//! `LL_N`; resolution `r ≥ 1` carries the three subbands of level `N − r + 1`).
+//! `LL_N`; resolution `r â‰¥ 1` carries the three subbands of level `N âˆ’ r + 1`).
 
 use super::ebcot::SubbandOrientation;
 use super::wavelet::ceil_div_pow2;
@@ -22,26 +22,24 @@ pub(crate) struct Subband {
     pub w: usize,
     pub h: usize,
     /// log2 coefficient gain of the 5/3 reversible transform
-    /// (LL: 0, HL/LH: 1, HH: 2) — ISO 15444-1 §E.1.1.
-    pub gain: u32,
-}
+    /// (LL: 0, HL/LH: 1, HH: 2) â€” ISO 15444-1 Â§E.1.1.
+    pub gain: u32 }
 
-/// Build the subband list for `width × height` with `num_levels` decomposition
+/// Build the subband list for `width Ã— height` with `num_levels` decomposition
 /// levels, in codestream order (see module docs). For `num_levels == 0` the
-/// single entry is the LL₀ band covering the whole tile.
+/// single entry is the LLâ‚€ band covering the whole tile.
 pub(crate) fn subband_layout(width: usize, height: usize, num_levels: u8) -> Vec<Subband> {
     let n = u32::from(num_levels);
     let mut bands = Vec::with_capacity(3 * num_levels as usize + 1);
 
-    // LL_N: top-left ceil(w/2^N) × ceil(h/2^N).
+    // LL_N: top-left ceil(w/2^N) Ã— ceil(h/2^N).
     bands.push(Subband {
         orient: SubbandOrientation::LlOrLh,
         x0: 0,
         y0: 0,
         w: ceil_div_pow2(width, n),
         h: ceil_div_pow2(height, n),
-        gain: 0,
-    });
+        gain: 0 });
 
     // Levels from coarsest (N) to finest (1): HL, LH, HH.
     for lvl in (1..=n).rev() {
@@ -52,7 +50,7 @@ pub(crate) fn subband_layout(width: usize, height: usize, num_levels: u8) -> Vec
         let dn_x = prev_w - sn_x;
         let dn_y = prev_h - sn_y;
 
-        // HL: horizontally high-pass (right half), vertically low-pass —
+        // HL: horizontally high-pass (right half), vertically low-pass â€”
         // ZC contexts use the H/V-swapped table.
         bands.push(Subband {
             orient: SubbandOrientation::Hl,
@@ -60,9 +58,8 @@ pub(crate) fn subband_layout(width: usize, height: usize, num_levels: u8) -> Vec
             y0: 0,
             w: dn_x,
             h: sn_y,
-            gain: 1,
-        });
-        // LH: horizontally low-pass, vertically high-pass (bottom half) —
+            gain: 1 });
+        // LH: horizontally low-pass, vertically high-pass (bottom half) â€”
         // shares the LL/LH ZC table.
         bands.push(Subband {
             orient: SubbandOrientation::LlOrLh,
@@ -70,8 +67,7 @@ pub(crate) fn subband_layout(width: usize, height: usize, num_levels: u8) -> Vec
             y0: sn_y,
             w: sn_x,
             h: dn_y,
-            gain: 1,
-        });
+            gain: 1 });
         // HH: high-pass in both directions.
         bands.push(Subband {
             orient: SubbandOrientation::Hh,
@@ -79,15 +75,14 @@ pub(crate) fn subband_layout(width: usize, height: usize, num_levels: u8) -> Vec
             y0: sn_y,
             w: dn_x,
             h: dn_y,
-            gain: 2,
-        });
+            gain: 2 });
     }
 
     bands
 }
 
 /// Subband index range `[start, end)` belonging to resolution `r` (LRCP packet
-/// order): resolution 0 is `[0, 1)`; resolution `r ≥ 1` is `[3r − 2, 3r + 1)`.
+/// order): resolution 0 is `[0, 1)`; resolution `r â‰¥ 1` is `[3r âˆ’ 2, 3r + 1)`.
 #[inline]
 pub(crate) fn resolution_band_range(r: usize) -> (usize, usize) {
     if r == 0 {
@@ -111,7 +106,7 @@ mod tests {
 
     #[test]
     fn layout_two_levels_dimensions_tile_exactly() {
-        // 13×9, 2 levels: level-1 split: sn=(7,5) dn=(6,4); level-2 on 7×5:
+        // 13Ã—9, 2 levels: level-1 split: sn=(7,5) dn=(6,4); level-2 on 7Ã—5:
         // sn=(4,3) dn=(3,2).
         let bands = subband_layout(13, 9, 2);
         assert_eq!(bands.len(), 7);
@@ -120,7 +115,7 @@ mod tests {
             (bands[0].x0, bands[0].y0, bands[0].w, bands[0].h),
             (0, 0, 4, 3)
         );
-        // Level 2: HL (3×3 at x=4), LH (4×2 at y=3), HH (3×2).
+        // Level 2: HL (3Ã—3 at x=4), LH (4Ã—2 at y=3), HH (3Ã—2).
         assert_eq!(
             (bands[1].x0, bands[1].y0, bands[1].w, bands[1].h),
             (4, 0, 3, 3)
@@ -133,7 +128,7 @@ mod tests {
             (bands[3].x0, bands[3].y0, bands[3].w, bands[3].h),
             (4, 3, 3, 2)
         );
-        // Level 1: HL (6×5 at x=7), LH (7×4 at y=5), HH (6×4).
+        // Level 1: HL (6Ã—5 at x=7), LH (7Ã—4 at y=5), HH (6Ã—4).
         assert_eq!(
             (bands[4].x0, bands[4].y0, bands[4].w, bands[4].h),
             (7, 0, 6, 5)

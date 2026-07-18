@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 
 /// `SidebarTab::default()` must be `SidebarTab::Series`.
 ///
@@ -27,7 +27,7 @@ fn test_sidebar_tab_variants_are_distinct() {
     );
 }
 
-// ── Tag filter logic ──────────────────────────────────────────────────────
+// â”€â”€ Tag filter logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn make_row<'a>(
     tag: &'a str,
@@ -39,8 +39,7 @@ fn make_row<'a>(
         tag: std::borrow::Cow::Borrowed(tag),
         keyword: std::borrow::Cow::Borrowed(keyword),
         vr: std::borrow::Cow::Borrowed("LO"),
-        value: std::borrow::Cow::Borrowed(value),
-    }
+        value: std::borrow::Cow::Borrowed(value) }
 }
 
 /// Mirrors the exact filter predicate in `show_metadata_tab`.

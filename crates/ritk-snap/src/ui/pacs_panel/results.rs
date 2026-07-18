@@ -1,4 +1,4 @@
-// ── Results section ───────────────────────────────────────────────────────────
+﻿// â”€â”€ Results section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 use super::{PacsConfig, PacsPanelAction, QueryState};
 
@@ -114,8 +114,7 @@ pub(super) fn show_results_section(
                     ui.horizontal(|ui| {
                         if ui.button("Show Series").clicked() {
                             *action = PacsPanelAction::SubmitFindSeries {
-                                study_instance_uid: rows[idx].study_instance_uid.clone(),
-                            };
+                                study_instance_uid: rows[idx].study_instance_uid.clone() };
                         }
                         ui.weak("Drill down to see series-level details");
                     });
@@ -124,8 +123,7 @@ pub(super) fn show_results_section(
         }
         QueryState::SeriesResults {
             study_instance_uid,
-            series,
-        } => {
+            series } => {
             *study_context_uid = study_instance_uid.clone();
 
             ui.horizontal(|ui| {
@@ -225,8 +223,7 @@ pub(super) fn show_results_section(
                         if ui.button(label.trim()).clicked() {
                             *action = PacsPanelAction::SubmitRetrieveSeries {
                                 series_uid,
-                                study_uid,
-                            };
+                                study_uid };
                         }
                         ui.weak(format!(
                             "\u{2192} destination AE: {}",

@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 use burn_ndarray::NdArray;
 use ritk_image::tensor::Tensor;
 use ritk_image::test_support as ts;
@@ -6,11 +6,11 @@ use ritk_transform::TranslationTransform;
 
 type B = NdArray<f32>;
 
-fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
+fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
     ts::burn_compat::make_image::<B, 3>(data, shape)
 }
 
-// ── name ─────────────────────────────────────────────────────────────────
+// â”€â”€ name â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn lncc_name() {
@@ -21,16 +21,16 @@ fn lncc_name() {
     );
 }
 
-// ── Identical images → loss ≈ -1 ─────────────────────────────────────────
+// â”€â”€ Identical images â†’ loss â‰ˆ -1 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // # Derivation
 // When fixed == moving (identity transform), covariance = var_f = var_m at every
-// voxel, so LNCC(x) = var_f / sqrt(var_f^2 + ε) ≈ 1.  The mean over all
-// voxels is ≈ 1, and the returned loss is the negation: ≈ −1.
+// voxel, so LNCC(x) = var_f / sqrt(var_f^2 + Îµ) â‰ˆ 1.  The mean over all
+// voxels is â‰ˆ 1, and the returned loss is the negation: â‰ˆ âˆ’1.
 //
 // # Tolerance
-// The ε = 1e-5 guard on the denominator and the Gaussian kernel smearing
-// introduce small deviations from the ideal −1.  We assert loss < −0.95
+// The Îµ = 1e-5 guard on the denominator and the Gaussian kernel smearing
+// introduce small deviations from the ideal âˆ’1.  We assert loss < âˆ’0.95
 // (5 % tolerance), matching the ITK LNCC acceptance criterion.
 
 #[test]
@@ -42,7 +42,7 @@ fn lncc_identical_images_loss_near_negative_one() {
 
     let image = make_image(data, [size, size, size]);
     let device = Default::default();
-    let transform = TranslationTransform::<B, 3>::new(Tensor::<B, 1>::zeros([3], &device));
+    let transform = TranslationTransform::<B, 3>::new(Tensor::<f32, B>::zeros([3], &device));
 
     let metric = LocalNormalizedCrossCorrelation::<B>::new(GaussianSigma::new_unchecked(1.5));
     let loss = metric.forward(&image, &image, &transform);
@@ -55,11 +55,11 @@ fn lncc_identical_images_loss_near_negative_one() {
     );
 }
 
-// ── Linear rescaling invariance ──────────────────────────────────────────
+// â”€â”€ Linear rescaling invariance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // LNCC is invariant to affine intensity transformations:
-//   LNCC(F, a·F + b) = 1 for any a > 0, b ∈ ℝ.
-// The loss must remain ≈ −1 when the moving image is a linearly rescaled
+//   LNCC(F, aÂ·F + b) = 1 for any a > 0, b âˆˆ â„.
+// The loss must remain â‰ˆ âˆ’1 when the moving image is a linearly rescaled
 // copy of the fixed image.
 
 #[test]
@@ -74,7 +74,7 @@ fn lncc_linear_rescaling_invariant() {
     let moving = make_image(data2, [size, size, size]);
 
     let device = Default::default();
-    let transform = TranslationTransform::<B, 3>::new(Tensor::<B, 1>::zeros([3], &device));
+    let transform = TranslationTransform::<B, 3>::new(Tensor::<f32, B>::zeros([3], &device));
 
     let metric = LocalNormalizedCrossCorrelation::<B>::new(GaussianSigma::new_unchecked(1.5));
     let loss = metric.forward(&fixed, &moving, &transform);
@@ -87,7 +87,7 @@ fn lncc_linear_rescaling_invariant() {
     );
 }
 
-// ── Fixed-image cache stability ──────────────────────────────────────────
+// â”€â”€ Fixed-image cache stability â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // The second `forward` call on the same (fixed, moving) pair must reuse the
 // cached fixed-image statistics and return the same scalar value as the
@@ -101,7 +101,7 @@ fn lncc_cache_returns_same_result_on_second_call() {
 
     let image = make_image(data, [size, size, size]);
     let device = Default::default();
-    let transform = TranslationTransform::<B, 3>::new(Tensor::<B, 1>::zeros([3], &device));
+    let transform = TranslationTransform::<B, 3>::new(Tensor::<f32, B>::zeros([3], &device));
 
     let metric = LocalNormalizedCrossCorrelation::<B>::new(GaussianSigma::new_unchecked(1.5));
 
@@ -116,25 +116,25 @@ fn lncc_cache_returns_same_result_on_second_call() {
     );
 }
 
-// ── Constant image → loss is finite ─────────────────────────────────────
+// â”€â”€ Constant image â†’ loss is finite â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // When the fixed image is constant, local variance = 0 everywhere.
-// The ε guard on the denominator must prevent division by zero.
-// The loss must be finite (not NaN or ±∞).
+// The Îµ guard on the denominator must prevent division by zero.
+// The loss must be finite (not NaN or Â±âˆž).
 
 #[test]
 fn lncc_constant_image_loss_is_finite() {
     let size = 4;
     let image = make_image(vec![5.0_f32; size * size * size], [size, size, size]);
     let device = Default::default();
-    let transform = TranslationTransform::<B, 3>::new(Tensor::<B, 1>::zeros([3], &device));
+    let transform = TranslationTransform::<B, 3>::new(Tensor::<f32, B>::zeros([3], &device));
 
     let metric = LocalNormalizedCrossCorrelation::<B>::new(GaussianSigma::new_unchecked(1.0));
     let loss_val = metric.forward(&image, &image, &transform).into_scalar();
 
     assert!(
         loss_val.is_finite(),
-        "LNCC with constant image must be finite (ε guard active); got {}",
+        "LNCC with constant image must be finite (Îµ guard active); got {}",
         loss_val
     );
 }

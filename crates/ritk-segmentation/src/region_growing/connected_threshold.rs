@@ -4,12 +4,12 @@
 //! from a single voxel.
 
 use ritk_core::spatial::VoxelIndex;
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 use std::collections::VecDeque;
 
-// ── Public type ───────────────────────────────────────────────────────────────
+// â”€â”€ Public type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Connected-threshold region-growing filter.
 ///
@@ -45,8 +45,8 @@ impl ConnectedThresholdFilter {
     ///
     /// Returns a binary mask (values in {0.0, 1.0}) with the same shape and
     /// spatial metadata as `image`.  If the seed voxel's intensity does not
-    /// satisfy `lower ≤ I(seed) ≤ upper`, the output is all-zero.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    /// satisfy `lower â‰¤ I(seed) â‰¤ upper`, the output is all-zero.
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         connected_threshold(image, self.seed, self.lower, self.upper)
     }
 
@@ -101,7 +101,7 @@ impl ConnectedThresholdFilter {
     }
 }
 
-// ── Public function ───────────────────────────────────────────────────────────
+// â”€â”€ Public function â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Connected-threshold region growing starting from `seed`.
 ///
@@ -114,11 +114,11 @@ impl ConnectedThresholdFilter {
 /// # Panics
 /// Panics if `lower > upper` or if `seed` is out of bounds for `image`.
 pub fn connected_threshold<B: Backend>(
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
     seed: impl Into<VoxelIndex>,
     lower: f32,
     upper: f32,
-) -> Image<B, 3> {
+) -> Image<f32, B, 3> {
     assert!(
         lower <= upper,
         "lower bound {lower} must be ≤ upper bound {upper}"
@@ -135,14 +135,12 @@ pub fn connected_threshold<B: Backend>(
         shape
     );
 
-    let device = image.data().device();
     let (img_slice_vec, _) = extract_vec_infallible(image);
     let img_slice: &[f32] = &img_slice_vec;
 
     let result = flood_fill(img_slice, shape, seed, lower, upper);
 
-    let td = TensorData::new(result, Shape::new(shape));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
+    let tensor = Tensor::<f32, B>::from_slice(shape, &result);
 
     Image::new(
         tensor,
@@ -152,9 +150,9 @@ pub fn connected_threshold<B: Backend>(
     )
 }
 
-// ── Core BFS flood fill ───────────────────────────────────────────────────────
+// â”€â”€ Core BFS flood fill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Perform BFS flood fill on a flat `[nz × ny × nx]` intensity slice.
+/// Perform BFS flood fill on a flat `[nz Ã— ny Ã— nx]` intensity slice.
 ///
 /// Returns a flat binary `Vec<f32>` of the same length as `data`.
 pub(crate) fn flood_fill(

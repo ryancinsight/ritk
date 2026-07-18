@@ -1,4 +1,4 @@
-//! Selective state-space layer.
+﻿//! Selective state-space layer.
 
 use coeus_autograd::{mul, permute, reshape, sigmoid, slice, softplus, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
@@ -28,8 +28,7 @@ where
     input_dim: usize,
     output_dim: usize,
     state_dim: usize,
-    inner_dim: usize,
-}
+    inner_dim: usize }
 
 impl<B> SelectiveStateSpace<B>
 where
@@ -63,8 +62,7 @@ where
             input_dim: config.input_dim,
             output_dim: config.output_dim,
             state_dim: config.state_dim,
-            inner_dim,
-        };
+            inner_dim };
         crate::initialization::linear(
             &mut layer.input_projection,
             config.input_dim,
@@ -101,8 +99,7 @@ where
             return Err(ModelError::Shape {
                 operation: "SelectiveStateSpace::forward",
                 expected: "[..., sequence, input_dim]",
-                actual: shape.to_vec(),
-            });
+                actual: shape.to_vec() });
         }
         let sequence = shape[shape.len() - 2];
         let batch: usize = shape[..shape.len() - 2].iter().product();
@@ -154,8 +151,7 @@ where
             return Err(ModelError::Shape {
                 operation: "SelectiveStateSpace::forward_3d",
                 expected: "[batch, input_dim, depth, height, width]",
-                actual: shape.to_vec(),
-            });
+                actual: shape.to_vec() });
         }
         let (batch, depth, height, width) = (shape[0], shape[2], shape[3], shape[4]);
         let sequence = depth * height * width;

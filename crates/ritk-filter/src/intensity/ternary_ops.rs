@@ -4,8 +4,8 @@
 //! pointwise ternary operation applied independently to every voxel.
 //!
 //! - `TernaryAddImageFilter`: `out(x) = a(x) + b(x) + c(x)`
-//! - `TernaryMagnitudeImageFilter`: `out(x) = √(a² + b² + c²)`
-//! - `TernaryMagnitudeSquaredImageFilter`: `out(x) = a² + b² + c²`
+//! - `TernaryMagnitudeImageFilter`: `out(x) = âˆš(aÂ² + bÂ² + cÂ²)`
+//! - `TernaryMagnitudeSquaredImageFilter`: `out(x) = aÂ² + bÂ² + cÂ²`
 //!
 //! Spatial metadata is taken from the first input. A shape mismatch returns
 //! `Err`. One generic [`TernaryOpFilter<Op>`] over a [`TernaryOp`] ZST covers
@@ -31,11 +31,11 @@ pub trait TernaryOp: Default {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct TernaryAddOp;
 
-/// Magnitude: `√(a² + b² + c²)`.
+/// Magnitude: `âˆš(aÂ² + bÂ² + cÂ²)`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct TernaryMagnitudeOp;
 
-/// Squared magnitude: `a² + b² + c²`.
+/// Squared magnitude: `aÂ² + bÂ² + cÂ²`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct TernaryMagnitudeSquaredOp;
 
@@ -77,10 +77,10 @@ impl<Op: TernaryOp> TernaryOpFilter<Op> {
     /// Apply the ternary operation to three co-registered images.
     pub fn apply<B: Backend>(
         &self,
-        a: &Image<B, 3>,
-        b: &Image<B, 3>,
-        c: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
+        a: &Image<f32, B, 3>,
+        b: &Image<f32, B, 3>,
+        c: &Image<f32, B, 3>,
+    ) -> anyhow::Result<Image<f32, B, 3>> {
         let (sa, sb, sc) = (a.shape(), b.shape(), c.shape());
         anyhow::ensure!(
             sa == sb && sb == sc,

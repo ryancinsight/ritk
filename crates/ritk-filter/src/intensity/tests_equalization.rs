@@ -1,15 +1,14 @@
 use super::*;
 
-use crate::native_support::LegacyBurnBackend;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
 use ritk_spatial::{Direction, Point, Spacing};
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 use ritk_image::Image;
 
-fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(data, shape)
+fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(data, shape)
 }
 
 // ── histogram_equalize_global ─────────────────────────────────────────────

@@ -12,7 +12,7 @@ use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Double-threshold (hysteresis) filter with four ordered thresholds
-/// `t1 ≤ t2 ≤ t3 ≤ t4`.
+/// `t1 â‰¤ t2 â‰¤ t3 â‰¤ t4`.
 #[derive(Debug, Clone)]
 pub struct DoubleThresholdImageFilter {
     /// Lower bound of the outer band.
@@ -27,7 +27,7 @@ pub struct DoubleThresholdImageFilter {
     pub inside_value: f32,
     /// Output value for background voxels.
     pub outside_value: f32,
-    /// Reconstruction adjacency (ITK `FullyConnectedOff` → [`Connectivity::Face6`]).
+    /// Reconstruction adjacency (ITK `FullyConnectedOff` â†’ [`Connectivity::Face6`]).
     pub connectivity: Connectivity,
 }
 
@@ -60,7 +60,7 @@ impl DoubleThresholdImageFilter {
     }
 
     /// Apply the double-threshold transform.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let out = self.double_threshold_flat(&vals, dims);
         Ok(rebuild(out, dims, image))
@@ -98,7 +98,7 @@ impl DoubleThresholdImageFilter {
     /// [`apply`](Self::apply) and Coeus-native [`apply_native`](Self::apply_native)
     /// paths.
     fn double_threshold_flat(&self, vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
-        // Inner band [t2, t3] → marker; outer band [t1, t4] → mask.
+        // Inner band [t2, t3] â†’ marker; outer band [t1, t4] â†’ mask.
         let inner: Vec<f32> = vals
             .iter()
             .map(|&v| (v >= self.threshold2 && v <= self.threshold3) as u8 as f32)
@@ -131,14 +131,14 @@ mod tests_double_threshold;
 #[cfg(test)]
 mod tests_native {
     use super::DoubleThresholdImageFilter;
-    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use crate::native_support::{assert_coeus_matches_coeus, make_native_image, native_vals};
     use coeus_core::SequentialBackend;
 
     #[test]
     fn matches_burn() {
         // Mixed intensities so inner/outer bands and connectivity all exercise.
         let vals: Vec<f32> = (0..60).map(|i| ((i * 7) % 20) as f32).collect();
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             vals,
             [3, 4, 5],
             |img| {
@@ -155,8 +155,8 @@ mod tests_native {
 
     #[test]
     fn oracle_all_inner_band_is_all_inside() {
-        // Every voxel lies in the inner band [t2, t3] → the marker is full → the
-        // reconstruction fills the whole (also-full) mask → all inside_value.
+        // Every voxel lies in the inner band [t2, t3] â†’ the marker is full â†’ the
+        // reconstruction fills the whole (also-full) mask â†’ all inside_value.
         let img = make_native_image(vec![10.0f32; 27], [3, 3, 3]);
         let out = DoubleThresholdImageFilter::new(0.0, 5.0, 15.0, 20.0, 1.0, 0.0)
             .apply_native(&img, &SequentialBackend)
@@ -168,8 +168,8 @@ mod tests_native {
 
     #[test]
     fn oracle_empty_marker_is_all_outside() {
-        // No voxel lies in the inner band [t2, t3] → empty marker → empty
-        // reconstruction → all outside_value, regardless of the outer band.
+        // No voxel lies in the inner band [t2, t3] â†’ empty marker â†’ empty
+        // reconstruction â†’ all outside_value, regardless of the outer band.
         let img = make_native_image(vec![10.0f32; 27], [3, 3, 3]);
         let out = DoubleThresholdImageFilter::new(0.0, 50.0, 60.0, 100.0, 1.0, 0.0)
             .apply_native(&img, &SequentialBackend)

@@ -1,4 +1,4 @@
-//! Temporal synchronization via cross-correlation phase estimation
+﻿//! Temporal synchronization via cross-correlation phase estimation
 //! (Sprint 354 split, ARCH-350-04).
 //!
 //! Provides deterministic algorithms for aligning multi-modal temporal
@@ -6,16 +6,16 @@
 //!
 //! # Theorem: Phase Correlation for Temporal Alignment
 //!
-//! Given two temporal signals S₁(t) and S₂(t) with a temporal offset Δt:
+//! Given two temporal signals Sâ‚(t) and Sâ‚‚(t) with a temporal offset Î”t:
 //! ```text
-//! R(τ) = Σ S₁(i) · S₂(i + τ)
-//! τ* = argmax_τ R(τ)
-//! Δt = τ* · T_frame
+//! R(Ï„) = Î£ Sâ‚(i) Â· Sâ‚‚(i + Ï„)
+//! Ï„* = argmax_Ï„ R(Ï„)
+//! Î”t = Ï„* Â· T_frame
 //! ```
 //!
 //! For sub-sample precision, a parabolic fit around the peak is used:
 //! ```text
-//! τ_peak = τ₀ + (R(τ₀-1) - R(τ₀+1)) / (2 · (R(τ₀-1) - 2·R(τ₀) + R(τ₀+1)))
+//! Ï„_peak = Ï„â‚€ + (R(Ï„â‚€-1) - R(Ï„â‚€+1)) / (2 Â· (R(Ï„â‚€-1) - 2Â·R(Ï„â‚€) + R(Ï„â‚€+1)))
 //! ```
 //!
 //! # References
@@ -39,15 +39,13 @@ const SIGNAL_VARIANCE_GUARD: f64 = 1e-10;
 /// with different slice timing) using sub-sample accurate cross-correlation.
 #[derive(Debug, Clone)]
 pub struct TemporalSync {
-    pub(crate) config: TemporalSyncConfig,
-}
+    pub(crate) config: TemporalSyncConfig }
 
 impl TemporalSync {
     /// Create a new TemporalSync with default configuration.
     pub fn new() -> Self {
         Self {
-            config: TemporalSyncConfig::default(),
-        }
+            config: TemporalSyncConfig::default() }
     }
 
     /// Create with explicit configuration.
@@ -84,7 +82,7 @@ impl TemporalSync {
             ));
         }
 
-        // ── Degenerate case: constant signals ─────────────────────────────────
+        // â”€â”€ Degenerate case: constant signals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Constant signals have zero variance; normalized cross-correlation is
         // undefined.  Treat two identical constants as perfectly synchronized.
         let variance1: f64 = {
@@ -110,8 +108,7 @@ impl TemporalSync {
                     rms_timing_error: 0.0,
                     max_timing_deviation: 0.0,
                     phase_lock_stability: rate,
-                    sync_success_rate: rate,
-                },
+                    sync_success_rate: rate },
             ));
         }
 
@@ -164,13 +161,12 @@ impl TemporalSync {
             rms_timing_error: rms_error,
             max_timing_deviation: max_deviation,
             phase_lock_stability: stability,
-            sync_success_rate,
-        };
+            sync_success_rate };
 
         Ok((shift_seconds, metrics))
     }
 
-    /// Compute cross-correlation function R(τ) for τ ∈ [-search_range, +search_range].
+    /// Compute cross-correlation function R(Ï„) for Ï„ âˆˆ [-search_range, +search_range].
     fn compute_cross_correlation_function(
         &self,
         signal1: &Array1<f64>,
@@ -205,7 +201,7 @@ impl TemporalSync {
 
     /// Compute normalized cross-correlation between two signals.
     ///
-    /// R = Σ(S1 - μ1)(S2 - μ2) / (N · σ1 · σ2)
+    /// R = Î£(S1 - Î¼1)(S2 - Î¼2) / (N Â· Ïƒ1 Â· Ïƒ2)
     fn compute_normalized_correlation(&self, s1: &Array1<f64>, s2: &Array1<f64>) -> f64 {
         let n = s1.size() as f64;
 

@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+﻿use anyhow::{anyhow, Result};
 use tracing::info;
 
 #[cfg(test)]
@@ -6,10 +6,8 @@ use super::Backend;
 use super::{
     super::{
         infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
-        write_image_native, NativeBackend,
-    },
-    FilterArgs,
-};
+        write_image_native, NativeBackend },
+    FilterArgs };
 
 pub(super) fn run_bed_separation(args: &FilterArgs) -> Result<()> {
     use ritk_filter::{BedSeparationConfig, BedSeparationFilter};
@@ -296,14 +294,14 @@ pub(super) fn run_binary_threshold(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::commands::filter::{default_args, make_test_image, FilterKind};
     use ritk_core::image::Image;
     use ritk_image::tensor::Backend as BurnBackend;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor };
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
@@ -318,8 +316,8 @@ mod tests {
             -1000.0, -1000.0, -1000.0, -1000.0, -1000.0, -1000.0,
         ];
         let device: <Backend as BurnBackend>::Device = Default::default();
-        let td = TensorData::new(values, Shape::new([1, 4, 4]));
-        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let td = ::new(values, Shape::new([1, 4, 4]));
+        let tensor = Tensor::<f32, Backend>::from_data(td, &device);
         let image = Image::new(
             tensor,
             Point::new([0.0; 3]),

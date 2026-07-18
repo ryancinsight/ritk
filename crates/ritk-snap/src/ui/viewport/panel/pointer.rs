@@ -1,4 +1,4 @@
-//! ViewportPanel pointer event handling.
+﻿//! ViewportPanel pointer event handling.
 
 use egui::{Pos2, Rect, Response, Vec2};
 
@@ -6,10 +6,8 @@ use super::super::state::{img_to_volume, screen_to_img, screen_to_img_exact, Vie
 use crate::{
     tools::{
         interaction::{Annotation, RoiKind, ToolState},
-        kind::ToolKind,
-    },
-    LoadedVolume,
-};
+        kind::ToolKind },
+    LoadedVolume };
 
 impl<'a> ViewportPanel<'a> {
     /// Route pointer events to the active tool and return a crosshair update
@@ -27,13 +25,13 @@ impl<'a> ViewportPanel<'a> {
         let _ = rect; // used by context menu, acknowledged
         let mut crosshair_result = None;
 
-        // ── scroll wheel: change slice (or zoom with Ctrl) ────────────────
+        // â”€â”€ scroll wheel: change slice (or zoom with Ctrl) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if response.hovered() {
             let scroll = response.ctx.input(|i| i.smooth_scroll_delta);
             let ctrl = response.ctx.input(|i| i.modifiers.ctrl);
             if scroll.y != 0.0 {
                 if ctrl {
-                    // Zoom: each notch changes zoom by ±10 %.
+                    // Zoom: each notch changes zoom by Â±10 %.
                     let factor = if scroll.y > 0.0 { 1.1_f32 } else { 1.0 / 1.1 };
                     self.state.zoom = (self.state.zoom * factor).clamp(0.05, 32.0);
                     self.state.invalidate_texture();
@@ -50,7 +48,7 @@ impl<'a> ViewportPanel<'a> {
             }
         }
 
-        // ── drag: tool-dependent ──────────────────────────────────────────
+        // â”€â”€ drag: tool-dependent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if response.drag_started_by(egui::PointerButton::Primary) {
             match self.active_tool {
                 ToolKind::Pan => {
@@ -60,8 +58,7 @@ impl<'a> ViewportPanel<'a> {
                             viewport_origin: egui::pos2(
                                 self.state.pan_offset.x,
                                 self.state.pan_offset.y,
-                            ),
-                        };
+                            ) };
                     }
                 }
                 ToolKind::WindowLevel => {
@@ -69,8 +66,7 @@ impl<'a> ViewportPanel<'a> {
                         self.state.tool_state = ToolState::WindowLevelDrag {
                             start: pos,
                             original_center: self.state.wl.center,
-                            original_width: self.state.wl.width,
-                        };
+                            original_width: self.state.wl.width };
                     }
                 }
                 ToolKind::MeasureLength => {
@@ -80,28 +76,25 @@ impl<'a> ViewportPanel<'a> {
                             match &self.state.tool_state {
                                 ToolState::Idle => {
                                     self.state.tool_state = ToolState::MeasureLength1 {
-                                        p1: Pos2::new(col, row),
-                                    };
+                                        p1: Pos2::new(col, row) };
                                 }
                                 ToolState::MeasureLength1 { p1 } => {
                                     let p1 = *p1;
                                     let p2 = Pos2::new(col, row);
-                                    // Convert Pos2{x=col, y=row} → [row, col]
+                                    // Convert Pos2{x=col, y=row} â†’ [row, col]
                                     let p1_arr = [p1.y, p1.x];
                                     let p2_arr = [p2.y, p2.x];
                                     let sp = volume.spacing;
                                     let spacing_2d = match self.state.axis {
                                         0 => [sp[1] as f32, sp[2] as f32],
                                         1 => [sp[0] as f32, sp[2] as f32],
-                                        _ => [sp[0] as f32, sp[1] as f32],
-                                    };
+                                        _ => [sp[0] as f32, sp[1] as f32] };
                                     let length_mm =
                                         Annotation::compute_length(p1_arr, p2_arr, spacing_2d);
                                     self.state.annotations.push(Annotation::Length {
                                         p1: p1_arr,
                                         p2: p2_arr,
-                                        length_mm,
-                                    });
+                                        length_mm });
                                     self.state.tool_state = ToolState::Idle;
                                 }
                                 _ => {
@@ -126,7 +119,7 @@ impl<'a> ViewportPanel<'a> {
                                 ToolState::MeasureAngle2 { p1, p2 } => {
                                     let p1 = *p1;
                                     let p2 = *p2;
-                                    // Convert Pos2{x=col, y=row} → [row, col]
+                                    // Convert Pos2{x=col, y=row} â†’ [row, col]
                                     let p1_arr = [p1.y, p1.x];
                                     let p2_arr = [p2.y, p2.x];
                                     let p3_arr = [pt.y, pt.x];
@@ -135,8 +128,7 @@ impl<'a> ViewportPanel<'a> {
                                         p1: p1_arr,
                                         p2: p2_arr,
                                         p3: p3_arr,
-                                        angle_deg: angle,
-                                    });
+                                        angle_deg: angle });
                                     self.state.tool_state = ToolState::Idle;
                                 }
                                 _ => {
@@ -157,8 +149,7 @@ impl<'a> ViewportPanel<'a> {
                             self.state.tool_state = ToolState::RoiDrag {
                                 start: Pos2::new(col, row),
                                 current: Pos2::new(col, row),
-                                kind,
-                            };
+                                kind };
                         }
                     }
                 }
@@ -170,12 +161,10 @@ impl<'a> ViewportPanel<'a> {
                             let value = match self.state.axis {
                                 0 => volume.pixel_at(self.state.slice_index, row_i, col_i),
                                 1 => volume.pixel_at(row_i, self.state.slice_index, col_i),
-                                _ => volume.pixel_at(row_i, col_i, self.state.slice_index),
-                            };
+                                _ => volume.pixel_at(row_i, col_i, self.state.slice_index) };
                             self.state.annotations.push(Annotation::HuPoint {
                                 pos: [row, col],
-                                value,
-                            });
+                                value });
                         }
                     }
                 }
@@ -183,13 +172,12 @@ impl<'a> ViewportPanel<'a> {
             }
         }
 
-        // ── drag update ───────────────────────────────────────────────────
+        // â”€â”€ drag update â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if response.dragged_by(egui::PointerButton::Primary) {
             match self.state.tool_state.clone() {
                 ToolState::Panning {
                     start,
-                    viewport_origin,
-                } => {
+                    viewport_origin } => {
                     if let Some(current_pos) = response.interact_pointer_pos() {
                         self.state.pan_offset = (viewport_origin + (current_pos - start)).to_vec2();
                     }
@@ -197,11 +185,10 @@ impl<'a> ViewportPanel<'a> {
                 ToolState::WindowLevelDrag {
                     start,
                     original_center,
-                    original_width,
-                } => {
+                    original_width } => {
                     if let Some(current_pos) = response.interact_pointer_pos() {
                         let delta = current_pos - start;
-                        // Horizontal drag → window width; vertical drag → centre.
+                        // Horizontal drag â†’ window width; vertical drag â†’ centre.
                         // 2 HU per pixel is a clinically comfortable sensitivity.
                         self.state.wl.width = (original_width + delta.x as f64 * 2.0).max(1.0);
                         self.state.wl.center = original_center - delta.y as f64 * 2.0;
@@ -214,8 +201,7 @@ impl<'a> ViewportPanel<'a> {
                             self.state.tool_state = ToolState::RoiDrag {
                                 start,
                                 current: Pos2::new(col, row),
-                                kind,
-                            };
+                                kind };
                         }
                     }
                 }
@@ -223,7 +209,7 @@ impl<'a> ViewportPanel<'a> {
             }
         }
 
-        // ── drag released ─────────────────────────────────────────────────
+        // â”€â”€ drag released â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if response.drag_stopped_by(egui::PointerButton::Primary) {
             match &self.state.tool_state.clone() {
                 ToolState::Panning { .. } => {
@@ -235,20 +221,18 @@ impl<'a> ViewportPanel<'a> {
                 ToolState::RoiDrag {
                     start,
                     current,
-                    kind: RoiKind::Rect,
-                } => {
+                    kind: RoiKind::Rect } => {
                     let tl = Pos2::new(start.x.min(current.x), start.y.min(current.y));
                     let br = Pos2::new(start.x.max(current.x), start.y.max(current.y));
                     if (br.x - tl.x) > 0.5 && (br.y - tl.y) > 0.5 {
-                        // Convert Pos2{x=col,y=row} → [row, col]
+                        // Convert Pos2{x=col,y=row} â†’ [row, col]
                         let tl_arr = [tl.y, tl.x];
                         let br_arr = [br.y, br.x];
                         let sp = volume.spacing;
                         let spacing_2d = match self.state.axis {
                             0 => [sp[1] as f32, sp[2] as f32],
                             1 => [sp[0] as f32, sp[2] as f32],
-                            _ => [sp[0] as f32, sp[1] as f32],
-                        };
+                            _ => [sp[0] as f32, sp[1] as f32] };
                         let (pixels, pix_w, pix_h) =
                             volume.extract_slice(self.state.axis, self.state.slice_index);
                         let area_mm2 = (br.x - tl.x).abs()
@@ -265,16 +249,14 @@ impl<'a> ViewportPanel<'a> {
                             std_dev: stats.1,
                             min: stats.2,
                             max: stats.3,
-                            area_mm2,
-                        });
+                            area_mm2 });
                     }
                     self.state.tool_state = ToolState::Idle;
                 }
                 ToolState::RoiDrag {
                     start,
                     current,
-                    kind: RoiKind::Ellipse,
-                } => {
+                    kind: RoiKind::Ellipse } => {
                     // Use compute_roi_ellipse_stats for correct ellipse pixel-mask statistics.
                     let tl = Pos2::new(start.x.min(current.x), start.y.min(current.y));
                     let br = Pos2::new(start.x.max(current.x), start.y.max(current.y));
@@ -285,8 +267,7 @@ impl<'a> ViewportPanel<'a> {
                         let spacing_2d = match self.state.axis {
                             0 => [sp[1] as f32, sp[2] as f32],
                             1 => [sp[0] as f32, sp[2] as f32],
-                            _ => [sp[0] as f32, sp[1] as f32],
-                        };
+                            _ => [sp[0] as f32, sp[1] as f32] };
                         let (pixels, pix_w, pix_h) =
                             volume.extract_slice(self.state.axis, self.state.slice_index);
                         let (center, radii, mean, std_dev, min, max, area_mm2) =
@@ -300,8 +281,7 @@ impl<'a> ViewportPanel<'a> {
                             std_dev,
                             min,
                             max,
-                            area_mm2,
-                        });
+                            area_mm2 });
                     }
                     self.state.tool_state = ToolState::Idle;
                 }
@@ -309,7 +289,7 @@ impl<'a> ViewportPanel<'a> {
             }
         }
 
-        // ── Zoom tool: scroll-wheel zooms ─────────────────────────────────
+        // â”€â”€ Zoom tool: scroll-wheel zooms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if self.active_tool == ToolKind::Zoom && response.hovered() {
             // Right-drag for continuous zoom.
             if response.dragged_by(egui::PointerButton::Secondary) {
@@ -320,7 +300,7 @@ impl<'a> ViewportPanel<'a> {
             }
         }
 
-        // ── Crosshair tool: click to place linked position ────────────────
+        // â”€â”€ Crosshair tool: click to place linked position â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if self.active_tool == ToolKind::Crosshair && response.clicked() {
             if let Some(cursor) = response.interact_pointer_pos() {
                 if let Some((col, row)) = screen_to_img(cursor, offset, scale, img_w, img_h) {

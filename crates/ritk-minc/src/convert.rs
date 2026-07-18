@@ -1,4 +1,4 @@
-//! Raw byte to `f32` conversion for MINC2 voxel data.
+﻿//! Raw byte to `f32` conversion for MINC2 voxel data.
 //!
 //! Converts a byte slice from HDF5 contiguous storage into a `Vec<f32>`
 //! based on the HDF5 `Datatype` metadata. All integer types are cast
@@ -54,15 +54,13 @@ pub fn decode_raw_bytes(raw: &[u8], dtype: &Datatype) -> Result<Vec<f32>> {
                         f64::from_be_bytes([c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]]) as f32
                     })
                     .collect()),
-                _ => bail!("Unsupported float bit width: {}", bw),
-            }
+                _ => bail!("Unsupported float bit width: {}", bw) }
         }
 
         Datatype::Integer {
             bits,
             byte_order,
-            signed,
-        } => {
+            signed } => {
             let bw = bits.get();
             match (bw, byte_order, signed) {
                 // 8-bit
@@ -135,8 +133,7 @@ pub fn decode_raw_bytes(raw: &[u8], dtype: &Datatype) -> Result<Vec<f32>> {
                     })
                     .collect()),
 
-                _ => bail!("Unsupported integer type: {} bits, signed={}", bw, signed),
-            }
+                _ => bail!("Unsupported integer type: {} bits, signed={}", bw, signed) }
         }
 
         Datatype::Boolean => Ok(raw
@@ -144,8 +141,7 @@ pub fn decode_raw_bytes(raw: &[u8], dtype: &Datatype) -> Result<Vec<f32>> {
             .map(|&b| if b != 0 { 1.0f32 } else { 0.0f32 })
             .collect()),
 
-        other => bail!("Unsupported MINC2 voxel datatype: {:?}", other),
-    }
+        other => bail!("Unsupported MINC2 voxel datatype: {:?}", other) }
 }
 
 #[cfg(test)]

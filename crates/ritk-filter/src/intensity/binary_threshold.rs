@@ -38,7 +38,7 @@ impl BinaryThresholdImageFilter {
     }
 
     /// Applies the indicator to a legacy image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (values, dims) = extract_vec(image)?;
         let output = binary_threshold_vec(
             &values,

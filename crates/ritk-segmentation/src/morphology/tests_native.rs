@@ -1,12 +1,11 @@
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::native::Image as NativeImage;
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::test_support::make_image;
 
 use super::{BinaryFillHoles, MorphologicalGradient, MorphologicalOperation, Skeletonization};
 
-type LegacyBackend = NdArray<f32>;
+type LegacyBackend = SequentialBackend;
 
 fn native_image(values: Vec<f32>) -> NativeImage<f32, SequentialBackend, 3> {
     NativeImage::from_flat_on(
@@ -39,7 +38,7 @@ fn filter_owned_native_postprocessing_matches_legacy_exactly() {
     }
     values[13] = 0.0;
     let native = native_image(values.clone());
-    let legacy = make_image::<LegacyBackend, 3>(values, [3, 3, 3]);
+    let legacy = make_image::<f32, LegacyBackend, 3>(values, [3, 3, 3]);
 
     let native_fill = BinaryFillHoles
         .apply_native(&native, &SequentialBackend)

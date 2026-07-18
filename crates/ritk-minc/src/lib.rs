@@ -1,4 +1,4 @@
-//! MINC2 (.mnc / .mnc2) reader and writer for 3-D medical images.
+﻿//! MINC2 (.mnc / .mnc2) reader and writer for 3-D medical images.
 //!
 //! # Format
 //!
@@ -11,18 +11,18 @@
 //! ```text
 //! / (root)
 //!   Attributes: ident, minc_version, history
-//!   └── minc-2.0/ (group)
-//!       ├── dimensions/ (group)
-//!       │   ├── xspace (group)
-//!       │   │   Attributes: start, step, length, direction_cosines, units
-//!       │   ├── yspace (group, same attributes)
-//!       │   └── zspace (group, same attributes)
-//!       └── image/ (group)
-//!           └── 0/ (group)
-//!               ├── image (N-D dataset: volume data)
-//!               │   Attributes: dimorder, valid_range, signtype, complete
-//!               ├── image-max (dataset: per-slice maximum)
-//!               └── image-min (dataset: per-slice minimum)
+//!   â””â”€â”€ minc-2.0/ (group)
+//!       â”œâ”€â”€ dimensions/ (group)
+//!       â”‚   â”œâ”€â”€ xspace (group)
+//!       â”‚   â”‚   Attributes: start, step, length, direction_cosines, units
+//!       â”‚   â”œâ”€â”€ yspace (group, same attributes)
+//!       â”‚   â””â”€â”€ zspace (group, same attributes)
+//!       â””â”€â”€ image/ (group)
+//!           â””â”€â”€ 0/ (group)
+//!               â”œâ”€â”€ image (N-D dataset: volume data)
+//!               â”‚   Attributes: dimorder, valid_range, signtype, complete
+//!               â”œâ”€â”€ image-max (dataset: per-slice maximum)
+//!               â””â”€â”€ image-min (dataset: per-slice minimum)
 //! ```
 //!
 //! # Spatial Metadata
@@ -34,7 +34,7 @@
 //! | `start`             | `f64`     | Physical origin coordinate (mm)        |
 //! | `step`              | `f64`     | Voxel spacing (mm)                     |
 //! | `length`            | `i32`     | Number of voxels along this axis       |
-//! | `direction_cosines` | `[f64;3]` | Column of the 3×3 direction matrix     |
+//! | `direction_cosines` | `[f64;3]` | Column of the 3Ã—3 direction matrix     |
 //!
 //! The `dimorder` attribute on `/minc-2.0/image/0/image` (e.g.,
 //! `"zspace,yspace,xspace"`) defines how dataset array dimensions map
@@ -91,8 +91,7 @@ pub struct MincDimension {
     /// Number of voxels along this axis.
     pub length: usize,
     /// Direction cosine vector (3 components).
-    pub direction_cosines: [f64; 3],
-}
+    pub direction_cosines: [f64; 3] }
 
 #[cfg(test)]
 mod tests {
@@ -105,8 +104,7 @@ mod tests {
             start: -64.0,
             step: 1.0,
             length: 128,
-            direction_cosines: [1.0, 0.0, 0.0],
-        };
+            direction_cosines: [1.0, 0.0, 0.0] };
         assert_eq!(dim.name, "xspace");
         assert!((dim.start - (-64.0)).abs() < 1e-10);
         assert!((dim.step - 1.0).abs() < 1e-10);

@@ -4,27 +4,27 @@
 //!
 //! Ports `itk::ThresholdMaximumConnectedComponentsImageFilter`. It binary-
 //! searches the lower threshold `T` that maximizes the number of connected
-//! components (of size ≥ `minimum_object_size`) in the binary mask
-//! `T ≤ I ≤ upper_boundary`, then outputs that mask (`inside_value` /
+//! components (of size â‰¥ `minimum_object_size`) in the binary mask
+//! `T â‰¤ I â‰¤ upper_boundary`, then outputs that mask (`inside_value` /
 //! `outside_value`).
 //!
 //! The search follows ITK exactly, in integer pixel arithmetic:
 //!
 //! ```text
 //! lo = min I,  hi = min(max I, upper_boundary)
-//! mid = (hi − lo) / 2
-//! while hi − lo > 2:
-//!   midL = lo + (mid − lo)/2,  midR = hi − (hi − mid)/2
+//! mid = (hi âˆ’ lo) / 2
+//! while hi âˆ’ lo > 2:
+//!   midL = lo + (mid âˆ’ lo)/2,  midR = hi âˆ’ (hi âˆ’ mid)/2
 //!   if count(midR) > count(midL):  lo = mid; mid = midR
 //!   else:                          hi = mid; mid = midL
 //! T = mid
 //! ```
 //!
 //! where `count(t)` is the number of connected components (face connectivity,
-//! ITK default `FullyConnected = false`) of size ≥ `minimum_object_size` in the
+//! ITK default `FullyConnected = false`) of size â‰¥ `minimum_object_size` in the
 //! mask thresholded at `t`. Because ritk's [`connected_components`] is bit-exact
-//! to `sitk.ConnectedComponent`, the chosen threshold — and thus the binary
-//! output — is bit-exact to `sitk.ThresholdMaximumConnectedComponents`.
+//! to `sitk.ConnectedComponent`, the chosen threshold â€” and thus the binary
+//! output â€” is bit-exact to `sitk.ThresholdMaximumConnectedComponents`.
 
 use std::collections::HashMap;
 
@@ -69,7 +69,7 @@ impl ThresholdMaximumConnectedComponentsFilter {
     }
 
     /// Find the component-maximizing threshold and return the binary mask.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let (vals, dims) = extract_vec_infallible(image);
         rebuild(
             threshold_max_cc_values(

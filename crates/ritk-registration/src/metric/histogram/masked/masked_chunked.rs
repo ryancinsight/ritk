@@ -1,4 +1,4 @@
-//! Chunked helper methods for the masked joint histogram path.
+﻿//! Chunked helper methods for the masked joint histogram path.
 //!
 //! Extracted from `masked.rs` to keep the main file under the 500-line
 //! structural limit. Contains the chunked dense-cache and sparse-cache
@@ -21,17 +21,17 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// fixed-image Parzen weights.
     pub(in crate::metric::histogram) fn compute_masked_chunked_from_dense_cache<const D: usize>(
         &self,
-        full_w_fixed_t: &Tensor<B, 2>,
-        _fixed: &Image<B, D>,
-        fixed_world_points: &Tensor<B, 2>,
-        moving: &Image<B, D>,
+        full_w_fixed_t: &Tensor<f32, B>,
+        _fixed: &Image<f32, B, D>,
+        fixed_world_points: &Tensor<f32, B>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
         interpolator: &LinearInterpolator,
-    ) -> Tensor<B, 2> {
+    ) -> Tensor<f32, B> {
         let n = fixed_world_points.dims()[0];
         let device = fixed_world_points.device();
         let num_chunks = n.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
-        let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
+        let mut joint_hist_acc = Tensor::<f32, B>::zeros([self.num_bins, self.num_bins], &device);
 
         for i in 0..num_chunks {
             let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
@@ -59,16 +59,16 @@ impl<B: Backend> ParzenJointHistogram<B> {
     pub(in crate::metric::histogram) fn compute_masked_chunked_from_sparse_cache<const D: usize>(
         &self,
         sparse_w_fixed: &[(SparseSampleCache, f32)],
-        _fixed: &Image<B, D>,
-        fixed_world_points: &Tensor<B, 2>,
-        moving: &Image<B, D>,
+        _fixed: &Image<f32, B, D>,
+        fixed_world_points: &Tensor<f32, B>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
         interpolator: &LinearInterpolator,
-    ) -> Tensor<B, 2> {
+    ) -> Tensor<f32, B> {
         let n = fixed_world_points.dims()[0];
         let device = fixed_world_points.device();
         let num_chunks = n.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
-        let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
+        let mut joint_hist_acc = Tensor::<f32, B>::zeros([self.num_bins, self.num_bins], &device);
 
         for i in 0..num_chunks {
             let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
@@ -91,11 +91,11 @@ impl<B: Backend> ParzenJointHistogram<B> {
 
 /// Sample moving image values and OOB mask for a chunk of world-space points.
 fn sample_moving_chunk<B: Backend, const D: usize>(
-    chunk_fixed_world: &Tensor<B, 2>,
-    moving: &Image<B, D>,
+    chunk_fixed_world: &Tensor<f32, B>,
+    moving: &Image<f32, B, D>,
     transform: &impl Transform<B, D>,
     interpolator: &LinearInterpolator,
-) -> (Tensor<B, 1>, Option<Tensor<B, 1>>) {
+) -> (Tensor<f32, B>, Option<Tensor<f32, B>>) {
     let chunk_moving_world = transform.transform_points(chunk_fixed_world.clone());
     let chunk_moving_idx = moving.world_to_index_tensor(chunk_moving_world);
     let oob = if D == 3 {

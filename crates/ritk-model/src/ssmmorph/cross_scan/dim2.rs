@@ -1,4 +1,4 @@
-//! Two-dimensional directional sequence views.
+﻿//! Two-dimensional directional sequence views.
 
 use coeus_autograd::{flip, permute, reshape, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
@@ -22,8 +22,7 @@ impl Scan2D {
             return Err(ModelError::Shape {
                 operation: "Scan2D::scan",
                 expected: "[batch, channels, height, width]",
-                actual: shape.to_vec(),
-            });
+                actual: shape.to_vec() });
         }
         let (batch, channels, height, width) = (shape[0], shape[1], shape[2], shape[3]);
         let ordered = match direction {
@@ -35,8 +34,7 @@ impl Scan2D {
                 return Err(ModelError::Shape {
                     operation: "Scan2D::scan",
                     expected: "a planar scan direction",
-                    actual: shape.to_vec(),
-                });
+                    actual: shape.to_vec() });
             }
         };
         Ok(reshape(&ordered, [batch, channels, height * width]))
@@ -58,8 +56,7 @@ impl Scan2D {
             return Err(ModelError::Shape {
                 operation: "Scan2D::merge",
                 expected: "[batch, channels, height * width]",
-                actual: shape.to_vec(),
-            });
+                actual: shape.to_vec() });
         }
         let (batch, channels) = (shape[0], shape[1]);
         Ok(match direction {
@@ -82,8 +79,7 @@ impl Scan2D {
                 return Err(ModelError::Shape {
                     operation: "Scan2D::merge",
                     expected: "a planar scan direction",
-                    actual: shape.to_vec(),
-                });
+                    actual: shape.to_vec() });
             }
         })
     }

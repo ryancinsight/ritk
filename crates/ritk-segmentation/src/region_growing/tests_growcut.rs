@@ -1,23 +1,15 @@
 use super::*;
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_image::Image;
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
 
-fn make_image(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
-    ritk_image::test_support::burn_compat::make_image(data, dims)
+fn make_image(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, TestBackend, 3> {
+    ritk_image::test_support::make_image(data, dims)
 }
 
-fn get_labels(image: &Image<TestBackend, 3>) -> Vec<u32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .iter()
-        .map(|&v| v as u32)
-        .collect()
+fn get_labels(image: &Image<f32, TestBackend, 3>) -> Vec<u32> {
+    image.data().to_vec().iter().map(|&v| v as u32).collect()
 }
 
 // ── Positive tests ────────────────────────────────────────────────────────────

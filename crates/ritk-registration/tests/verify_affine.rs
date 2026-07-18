@@ -1,7 +1,7 @@
-use ritk_core::image::Image;
+﻿use ritk_core::image::Image;
 use ritk_core::spatial::{Direction2, Point2, Spacing2};
 use ritk_image::burn::backend::Autodiff;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_registration::metric::MeanSquaredError;
 use ritk_registration::optimizer::GradientDescent;
 use ritk_registration::registration::Registration;
@@ -74,9 +74,9 @@ fn test_verify_affine_scale_recovery() {
 
     let shape = [d, d];
     let fixed_tensor =
-        Tensor::<B, 2>::from_data(TensorData::new(fixed_data_vec, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &fixed_data_vec, &device);
     let moving_tensor =
-        Tensor::<B, 2>::from_data(TensorData::new(moving_data_vec, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &moving_data_vec, &device);
 
     let origin = Point2::new([0.0, 0.0]);
     let spacing = Spacing2::new([1.0, 1.0]);
@@ -87,7 +87,7 @@ fn test_verify_affine_scale_recovery() {
 
     // Initial Transform: Identity
     // Center of rotation should be the image center (10, 10) to avoid translation coupling
-    let center_tensor = Tensor::<B, 1>::from_data(TensorData::from([10.0, 10.0]), &device);
+    let center_tensor = Tensor::<f32, B>::from_data(::from([10.0, 10.0]), &device);
     let transform = AffineTransform::<B, 2>::identity(Some(center_tensor), &device);
 
     // Optimizer

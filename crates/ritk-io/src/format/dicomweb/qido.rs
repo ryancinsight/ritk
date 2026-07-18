@@ -1,6 +1,6 @@
 use anyhow::Context;
 
-/// Search parameters for QIDO-RS queries (PS 3.18 §6.7).
+/// Search parameters for QIDO-RS queries (PS 3.18 Â§6.7).
 ///
 /// Each field maps to a standard DICOM keyword query parameter.
 /// `None` fields are omitted from the URL query string.
@@ -26,7 +26,7 @@ pub struct QidoClient<'a> {
 
 /// Constructs a QIDO-RS URL: `{base}/{endpoint}[?param=value&...]`.
 ///
-/// Standard DICOM keyword names are used as query parameter names per PS 3.18 §8.3.4.
+/// Standard DICOM keyword names are used as query parameter names per PS 3.18 Â§8.3.4.
 /// Parameters are appended only when `Some`; the first uses `?`, subsequent use `&`.
 pub fn build_qido_url(base: &str, endpoint: &str, params: &QidoSearchParams) -> String {
     let mut query_parts: Vec<String> = Vec::new();

@@ -1,4 +1,4 @@
-//! Extended / edge-case unit tests for global MI registration.
+﻿//! Extended / edge-case unit tests for global MI registration.
 
 use super::super::config::{GlobalMiConfig, GlobalMiTransformType};
 use super::super::registration::GlobalMiRegistration;
@@ -10,7 +10,7 @@ use ritk_transform::TranslationTransform;
 
 use super::{make_box_mask, make_gaussian_blob, TestBackend};
 
-// ── Convergence History Test ─────────────────────────────────────────────────
+// â”€â”€ Convergence History Test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn convergence_history_tracks_per_level() {
@@ -18,7 +18,7 @@ fn convergence_history_tracks_per_level() {
     let fixed = make_gaussian_blob([16, 16, 16], [8.0, 8.0, 8.0], 3.0, &device);
     let moving = make_gaussian_blob([16, 16, 16], [8.0, 8.0, 8.0], 3.0, &device);
     let initial_transform =
-        TranslationTransform::<TestBackend, 3>::new(Tensor::<TestBackend, 1>::zeros([3], &device));
+        TranslationTransform::<TestBackend, 3>::new(Tensor::<f32, TestBackend>::zeros([3], &device));
 
     let config = GlobalMiConfig {
         num_levels: 3,
@@ -60,8 +60,7 @@ fn convergence_history_tracks_per_level() {
             },
         ],
         transform_type: GlobalMiTransformType::Translation,
-        center: None,
-    };
+        center: None };
 
     let (_, result) = GlobalMiRegistration::register_translation_full(
         &fixed,
@@ -82,7 +81,7 @@ fn convergence_history_tracks_per_level() {
     }
 }
 
-// ── Sprint 290: Brain Masking Tests (extended) ──────────────────────────────
+// â”€â”€ Sprint 290: Brain Masking Tests (extended) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn cma_mi_register_rigid_without_mask_matches_register_rigid_with_none() {
@@ -103,8 +102,7 @@ fn cma_mi_register_rigid_without_mask_matches_register_rigid_with_none() {
             ftol: f64::NEG_INFINITY,
             seed: 0xcafe_babe_dead_beef,
             parallel_population: PopulationEval::Sequential,
-            record_history: HistoryPolicy::Discard,
-        },
+            record_history: HistoryPolicy::Discard },
         coarse_shrink: 4,
         coarse_sigma_mm: GaussianSigma::new_unchecked(2.0),
         ..CmaMiConfig::default()
@@ -114,7 +112,7 @@ fn cma_mi_register_rigid_without_mask_matches_register_rigid_with_none() {
     let (_, r2) =
         CmaMiRegistration::register_rigid_with_mask(&fixed, &moving, [0.0; 3], None, &config, None);
 
-    // Same seed → same generation count (deterministic stopping by max_gen).
+    // Same seed â†’ same generation count (deterministic stopping by max_gen).
     assert_eq!(
         r1.cma_generations, r2.cma_generations,
         "generation count must match when mask=None"
@@ -122,15 +120,15 @@ fn cma_mi_register_rigid_without_mask_matches_register_rigid_with_none() {
 
     // Both final_mi values should be finite and essentially zero for
     // identical images; stochastic MI sampling means exact equality is not
-    // guaranteed — only finiteness and rough equivalence are tested.
+    // guaranteed â€” only finiteness and rough equivalence are tested.
     assert!(r1.final_mi.is_finite(), "r1 final_mi must be finite");
     assert!(r2.final_mi.is_finite(), "r2 final_mi must be finite");
 }
 
 #[test]
 fn cma_mi_register_rigid_with_mask_partial_foreground_runs_without_error() {
-    // A mask covering only the central 4×4×4 voxels of an 8×8×8 volume.
-    // The masked MI should still converge (fewer samples — faster).
+    // A mask covering only the central 4Ã—4Ã—4 voxels of an 8Ã—8Ã—8 volume.
+    // The masked MI should still converge (fewer samples â€” faster).
     use super::super::cma_mi::{CmaMiConfig, CmaMiRegistration, InitStrategy};
 
     let device = Default::default();
@@ -138,7 +136,7 @@ fn cma_mi_register_rigid_with_mask_partial_foreground_runs_without_error() {
     let fixed = make_gaussian_blob(shape, [4.0, 4.0, 4.0], 2.0, &device);
     let moving = make_gaussian_blob(shape, [4.0, 4.0, 4.0], 2.0, &device);
 
-    // Mask: only central 2–6 voxels in each axis (4×4×4 = 64 foreground voxels).
+    // Mask: only central 2â€“6 voxels in each axis (4Ã—4Ã—4 = 64 foreground voxels).
     let mask = make_box_mask(shape, 2..6, 2..6, 2..6, &device);
 
     let config = CmaMiConfig {
@@ -150,9 +148,8 @@ fn cma_mi_register_rigid_with_mask_partial_foreground_runs_without_error() {
             ftol: f64::NEG_INFINITY,
             seed: 42,
             parallel_population: PopulationEval::Sequential,
-            record_history: HistoryPolicy::Discard,
-        },
-        coarse_shrink: 2, // mild shrink so 8×8×8 → 4×4×4 (mask still has foreground)
+            record_history: HistoryPolicy::Discard },
+        coarse_shrink: 2, // mild shrink so 8Ã—8Ã—8 â†’ 4Ã—4Ã—4 (mask still has foreground)
         coarse_sigma_mm: GaussianSigma::new_unchecked(1.0),
         sampling_percentage: 1.0, // use all foreground
         init_strategy: InitStrategy::Manual,

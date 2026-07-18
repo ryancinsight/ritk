@@ -1,4 +1,4 @@
-//! Structuring element types for mathematical morphology.
+﻿//! Structuring element types for mathematical morphology.
 //!
 //! This crate provides the [`StructuringElement`] value type and Zero-Sized
 //! Type shape markers ([`Cube`], [`Cross`], [`Ball`]) for mathematical
@@ -14,12 +14,12 @@
 //!   [`ball_cardinality_upper`] are `const fn` evaluators for compile-time
 //!   pre-sizing.
 //! - **Zero-copy**: [`StructuringElement::offsets`] returns a borrowed
-//!   `&[Offset3D]` slice — no allocation at call sites.
+//!   `&[Offset3D]` slice â€” no allocation at call sites.
 //! - **`#[repr(transparent)]`**: [`Offset3D`] is ABI-compatible with `[i32; 3]`.
 //!
 //! # Submodules
 //!
-//! - [`offset`]: `Offset3D` — a `#[repr(transparent)]` newtype over `[i32; 3]`.
+//! - [`offset`]: `Offset3D` â€” a `#[repr(transparent)]` newtype over `[i32; 3]`.
 //! - [`shape_markers`]: `Cube` / `Cross` / `Ball` ZSTs and the sealed
 //!   `SeShape` trait, plus `const fn` cardinality evaluators.
 //! - [`structuring_element`]: the `StructuringElement` value type that
@@ -31,6 +31,5 @@ pub mod structuring_element;
 
 pub use offset::Offset3D;
 pub use shape_markers::{
-    ball_cardinality_upper, cross_cardinality, cube_cardinality, sealed, Ball, Cross, Cube, SeShape,
-};
+    ball_cardinality_upper, cross_cardinality, cube_cardinality, sealed, Ball, Cross, Cube, SeShape };
 pub use structuring_element::StructuringElement;

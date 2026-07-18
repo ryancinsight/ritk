@@ -1,13 +1,12 @@
-use anyhow::{anyhow, Context, Result};
+﻿use anyhow::{anyhow, Context, Result};
 use tracing::info;
 
 use super::super::{
     infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
-    write_image_native, NativeBackend,
-};
+    write_image_native, NativeBackend };
 use super::FilterArgs;
 
-// ── Gradient magnitude ────────────────────────────────────────────────────────
+// â”€â”€ Gradient magnitude â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(super) fn run_gradient_magnitude(args: &FilterArgs) -> Result<()> {
     use ritk_filter::GradientMagnitudeFilter;
@@ -32,7 +31,7 @@ pub(super) fn run_gradient_magnitude(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Laplacian ─────────────────────────────────────────────────────────────────
+// â”€â”€ Laplacian â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(super) fn run_laplacian(args: &FilterArgs) -> Result<()> {
     use ritk_filter::LaplacianFilter;
@@ -57,7 +56,7 @@ pub(super) fn run_laplacian(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Frangi vesselness ─────────────────────────────────────────────────────────
+// â”€â”€ Frangi vesselness â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
     use ritk_filter::vesselness::FrangiConfig;
@@ -78,8 +77,7 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
         alpha: args.vesselness.alpha,
         beta: args.vesselness.beta,
         gamma: args.vesselness.gamma,
-        polarity: ritk_filter::VesselPolarity::Bright,
-    };
+        polarity: ritk_filter::VesselPolarity::Bright };
     let filter = FrangiVesselnessFilter { config };
     let backend = NativeBackend::default();
     let filtered = filter.apply_native(&image, &backend)?;
@@ -107,11 +105,11 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Median filter ─────────────────────────────────────────────────────────────
+// â”€â”€ Median filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Apply a median filter with the given neighbourhood radius.
 ///
-/// Radius 1 → 3×3×3 kernel (27 samples per voxel).
+/// Radius 1 â†’ 3Ã—3Ã—3 kernel (27 samples per voxel).
 pub(super) fn run_median(args: &FilterArgs) -> Result<()> {
     use ritk_filter::MedianFilter;
 
@@ -143,11 +141,11 @@ pub(super) fn run_median(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Bilateral filter ──────────────────────────────────────────────────────────
+// â”€â”€ Bilateral filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Apply a bilateral filter preserving edges.
 ///
-/// Edge σ values control bilateral spatial/intensity Gaussians.
+/// Edge Ïƒ values control bilateral spatial/intensity Gaussians.
 pub(super) fn run_bilateral(args: &FilterArgs) -> Result<()> {
     use ritk_filter::BilateralFilter;
 
@@ -176,7 +174,7 @@ pub(super) fn run_bilateral(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Canny edge detector ───────────────────────────────────────────────────────
+// â”€â”€ Canny edge detector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Apply the Canny edge detector.  Reads shared `sigma` from
 /// [`crate::commands::filter::SmoothingArgs`] (Gaussian family) and edge
@@ -214,7 +212,7 @@ pub(super) fn run_canny(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Sobel filter ──────────────────────────────────────────────────────────────
+// â”€â”€ Sobel filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Apply the Sobel gradient magnitude filter.
 ///
@@ -242,9 +240,9 @@ pub(super) fn run_sobel(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Laplacian of Gaussian (LoG) ───────────────────────────────────────────────
+// â”€â”€ Laplacian of Gaussian (LoG) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Apply the Laplacian of Gaussian filter.  Reads σ from `SmoothingArgs`.
+/// Apply the Laplacian of Gaussian filter.  Reads Ïƒ from `SmoothingArgs`.
 pub(super) fn run_log(args: &FilterArgs) -> Result<()> {
     use ritk_filter::edge::GaussianSigma;
     use ritk_filter::LaplacianOfGaussianFilter;
@@ -274,9 +272,9 @@ pub(super) fn run_log(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Recursive Gaussian filter ─────────────────────────────────────────────────
+// â”€â”€ Recursive Gaussian filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Apply the recursive Gaussian (Young–van Vliet IIR) filter.
+/// Apply the recursive Gaussian (Youngâ€“van Vliet IIR) filter.
 pub(super) fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
     use crate::commands::filter::CliDerivativeOrder;
     use ritk_filter::recursive_gaussian::DerivativeOrder;
@@ -285,8 +283,7 @@ pub(super) fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
     let order = match args.recursive.order {
         CliDerivativeOrder::Zero => DerivativeOrder::Zero,
         CliDerivativeOrder::First => DerivativeOrder::First,
-        CliDerivativeOrder::Second => DerivativeOrder::Second,
-    };
+        CliDerivativeOrder::Second => DerivativeOrder::Second };
 
     let image = read_image_native(&args.input)?;
     let backend = NativeBackend::default();
@@ -313,7 +310,7 @@ pub(super) fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── CPR (Curved Planar Reformation) ────────────────────────────────────────
+// â”€â”€ CPR (Curved Planar Reformation) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub(super) fn run_cpr(args: &FilterArgs) -> Result<()> {
     use ritk_filter::{CprConfig, CprImageFilter};
     use ritk_spatial::{Direction, Point, Spacing};
@@ -363,13 +360,12 @@ pub(super) fn run_cpr(args: &FilterArgs) -> Result<()> {
         CprConfig {
             num_path_samples: args.cpr.cpr_path_samples as usize,
             cross_section_half_width: f64::from(args.cpr.cpr_half_width),
-            num_cross_samples: args.cpr.cpr_cross_samples as usize,
-        },
+            num_cross_samples: args.cpr.cpr_cross_samples as usize },
     );
 
     let image_2d = cpr_filter.apply_native(&image, &backend)?;
 
-    // Promote 2-D [rows, cols] → 3-D [1, rows, cols] for the 3-D writer pipeline.
+    // Promote 2-D [rows, cols] â†’ 3-D [1, rows, cols] for the 3-D writer pipeline.
     let [nr, nc] = image_2d.shape();
     let origin = image_2d.origin();
     let spacing = image_2d.spacing();
@@ -384,7 +380,7 @@ pub(super) fn run_cpr(args: &FilterArgs) -> Result<()> {
     write_image_native(&args.output, &image_3d, output_format)?;
 
     println!(
-        "Applied CPR to {} → {}",
+        "Applied CPR to {} â†’ {}",
         args.input.display(),
         args.output.display()
     );

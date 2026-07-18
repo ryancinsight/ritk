@@ -32,7 +32,7 @@ impl WhiteTopHatFilter {
         self.radius = radius;
         self
     }
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let result = white_top_hat_vec(&vals, dims, self.radius);
         Ok(rebuild(result, dims, image))
@@ -77,7 +77,7 @@ impl BlackTopHatFilter {
         self.radius = radius;
         self
     }
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let result = black_top_hat_vec(&vals, dims, self.radius);
         Ok(rebuild(result, dims, image))
@@ -111,7 +111,7 @@ impl BlackTopHatFilter {
 /// Substrate-agnostic host core for [`WhiteTopHatFilter`].
 ///
 /// `WTH_B(f) = max(f - D_B(E_B(f)), 0)`. The opening here is the naive
-/// erode→dilate pair (no safe-border padding), matching the historical Burn
+/// erodeâ†’dilate pair (no safe-border padding), matching the historical Burn
 /// path. Non-negative for all inputs (opening is anti-extensive).
 pub(crate) fn white_top_hat_vec(vals: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     let eroded = erode_3d(vals, dims, radius);
@@ -122,7 +122,7 @@ pub(crate) fn white_top_hat_vec(vals: &[f32], dims: [usize; 3], radius: usize) -
 /// Substrate-agnostic host core for [`BlackTopHatFilter`].
 ///
 /// `BTH_B(f) = max(E_B(D_B(f)) - f, 0)`. The closing here is the naive
-/// dilate→erode pair (no safe-border padding), matching the historical Burn
+/// dilateâ†’erode pair (no safe-border padding), matching the historical Burn
 /// path. Non-negative for all inputs (closing is extensive).
 pub(crate) fn black_top_hat_vec(vals: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     let dilated = dilate_3d(vals, dims, radius);

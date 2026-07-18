@@ -1,4 +1,4 @@
-//! Native JPEG frame decoding for encapsulated DICOM fragments.
+﻿//! Native JPEG frame decoding for encapsulated DICOM fragments.
 //!
 //! # Contract
 //! The JPEG decoder produces integer sample values in image raster order. RITK
@@ -50,8 +50,7 @@ fn decode_jpeg_fragment_with<B: JpegDecodeBackend>(
         JpegPixelFormat::L8 | JpegPixelFormat::Rgb24 => {
             decode_native_pixel_bytes_checked(&decoded.pixels, layout)
         }
-        JpegPixelFormat::L16 => decode_l16_native_endian(&decoded.pixels, layout),
-    }
+        JpegPixelFormat::L16 => decode_l16_native_endian(&decoded.pixels, layout) }
 }
 
 fn validate_jpeg_layout(
@@ -120,8 +119,7 @@ fn decode_l16_native_endian(bytes: &[u8], layout: PixelLayout) -> Result<Vec<f32
         .chunks_exact(2)
         .map(|sample| match layout.pixel_representation {
             crate::PixelSignedness::Signed => i16::from_ne_bytes([sample[0], sample[1]]) as f32,
-            crate::PixelSignedness::Unsigned => u16::from_ne_bytes([sample[0], sample[1]]) as f32,
-        })
+            crate::PixelSignedness::Unsigned => u16::from_ne_bytes([sample[0], sample[1]]) as f32 })
         .map(|sample| sample * layout.rescale_slope + layout.rescale_intercept)
         .collect();
     Ok(pixels)

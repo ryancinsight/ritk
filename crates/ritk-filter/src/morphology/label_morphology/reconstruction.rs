@@ -23,9 +23,9 @@ use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 use std::collections::VecDeque;
 
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // ReconstructionMode
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /// Reconstruction mode for geodesic morphological reconstruction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,17 +36,17 @@ pub enum ReconstructionMode {
     Erosion,
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // MorphologicalReconstruction
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /// Geodesic morphological reconstruction for grayscale f32 images.
 ///
-/// Uses Vincent's (1993) hybrid grayscale reconstruction algorithm — a single
+/// Uses Vincent's (1993) hybrid grayscale reconstruction algorithm â€” a single
 /// forward raster scan, a single anti-raster scan that seeds a FIFO queue, and
-/// a queue-driven propagation — which reaches the exact fixed point in O(N)
+/// a queue-driven propagation â€” which reaches the exact fixed point in O(N)
 /// regardless of geodesic-path length. (The earlier parallel-raster iteration
-/// was O(N · path length): ~4.4 s on a 64×64×128 ramp; the hybrid is ~20 ms,
+/// was O(N Â· path length): ~4.4 s on a 64Ã—64Ã—128 ramp; the hybrid is ~20 ms,
 /// bit-identical output.)
 #[derive(Debug, Clone)]
 pub struct MorphologicalReconstruction {
@@ -80,9 +80,9 @@ impl MorphologicalReconstruction {
     /// Returns `Err` when marker and mask shapes differ.
     pub fn apply<B: Backend>(
         &self,
-        marker: &Image<B, 3>,
-        mask: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
+        marker: &Image<f32, B, 3>,
+        mask: &Image<f32, B, 3>,
+    ) -> anyhow::Result<Image<f32, B, 3>> {
         let (marker_vals, dims) = extract_vec(marker)?;
         let (mask_vals, mask_dims) = extract_vec(mask)?;
         if dims != mask_dims {
@@ -144,9 +144,9 @@ impl MorphologicalReconstruction {
     }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Vincent's hybrid grayscale reconstruction (O(N))
-// ════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /// Reconstruction polarity (dilation vs erosion) as a zero-cost strategy.
 ///
@@ -155,7 +155,7 @@ impl MorphologicalReconstruction {
 /// branch on the mode in the hot loops.
 trait Polarity {
     /// Clamp the marker to the feasible side of the mask: `min` for dilation
-    /// (`M ≤ I`), `max` for erosion (`M ≥ I`).
+    /// (`M â‰¤ I`), `max` for erosion (`M â‰¥ I`).
     fn clamp_marker(marker: f32, mask: f32) -> f32;
     /// Combine an accumulator with a neighbour value: `max` for dilation,
     /// `min` for erosion.

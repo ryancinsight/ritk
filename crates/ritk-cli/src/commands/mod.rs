@@ -1,4 +1,4 @@
-//! Shared command infrastructure for the RITK CLI.
+﻿//! Shared command infrastructure for the RITK CLI.
 //!
 //! Declares the five subcommand modules and provides the shared IO helpers
 //! (`infer_format`, `read_image`, `write_image`, `write_image_inferred`) and
@@ -23,7 +23,7 @@ use ritk_io::{is_rgb_dicom_series, ImageFormat};
 use ritk_io::{ImageReader, ImageWriter};
 use std::path::Path;
 
-// ── Shared backend ────────────────────────────────────────────────────────────
+// â”€â”€ Shared backend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// CPU backend used by every CLI command.
 ///
@@ -33,21 +33,21 @@ pub(crate) type Backend = NdArray<f32>;
 
 /// Atlas-native CPU backend used for the native I/O path (ADR 0003).
 ///
-/// `SequentialBackend` mirrors [`Backend`]'s rationale — no GPU runtime,
-/// deterministic — and keeps the native path's dependency surface minimal
+/// `SequentialBackend` mirrors [`Backend`]'s rationale â€” no GPU runtime,
+/// deterministic â€” and keeps the native path's dependency surface minimal
 /// while Burn is still present. Zero-sized; constructed fresh per call.
 pub(crate) type NativeBackend = SequentialBackend;
 
-// ── Format inference ──────────────────────────────────────────────────────────
+// â”€â”€ Format inference â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Infer the image format from a file-system path.
 ///
-/// Delegates to [`ritk_io::ImageFormat::from_path`] as the SSOT for extension→format mapping.
+/// Delegates to [`ritk_io::ImageFormat::from_path`] as the SSOT for extensionâ†’format mapping.
 pub(crate) fn infer_format(path: &Path) -> Option<ImageFormat> {
     ImageFormat::from_path(path)
 }
 
-// ── Read helper ───────────────────────────────────────────────────────────────
+// â”€â”€ Read helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Read a 3-D medical image from `path`, inferring the format from the
 /// file extension.
@@ -77,11 +77,10 @@ pub(crate) fn read_image(path: &Path) -> Result<Image<Backend, 3>> {
         | ImageFormat::Mgh
         | ImageFormat::Tiff
         | ImageFormat::Jpeg
-        | ImageFormat::Analyze => read_image_native(path).map(native_image_to_burn),
-    }
+        | ImageFormat::Analyze => read_image_native(path).map(native_image_to_burn) }
 }
 
-// ── Write helpers ─────────────────────────────────────────────────────────────
+// â”€â”€ Write helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Write `image` to `path` using the explicitly supplied `format`.
 ///
@@ -117,8 +116,7 @@ pub(crate) fn write_image(
         ImageFormat::Dicom => ritk_io::write_dicom_series::<Backend, _>(path, image)
             .with_context(|| format!("Failed to write DICOM series to: {}", path.display())),
         ImageFormat::Analyze => ritk_io::write_analyze::<Backend, _>(path, image)
-            .with_context(|| format!("Failed to write Analyze file: {}", path.display())),
-    }
+            .with_context(|| format!("Failed to write Analyze file: {}", path.display())) }
 }
 
 /// Write `image` to `path`, inferring the output format from the path extension.
@@ -133,7 +131,7 @@ pub(crate) fn write_image_inferred(path: &Path, image: &Image<Backend, 3>) -> Re
     write_image(path, image, fmt)
 }
 
-// ── Atlas-native I/O (ADR 0003 Phase A) ───────────────────────────────────────
+// â”€â”€ Atlas-native I/O (ADR 0003 Phase A) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // Parallel native helpers coexisting with the legacy helpers above during the
 // cutover (ADR 0003). VTK now uses native reader/writer contracts. DICOM has a
@@ -159,7 +157,7 @@ pub(crate) fn is_native_read_capable(fmt: ImageFormat) -> bool {
 /// True when `fmt` has an Atlas-native writer (ADR 0003 Phase A coverage).
 ///
 /// Narrower than [`is_native_read_capable`]: PNG has no native writer, matching
-/// the Burn path (which also cannot write PNG — see [`write_image`]).
+/// the Burn path (which also cannot write PNG â€” see [`write_image`]).
 pub(crate) fn is_native_write_capable(fmt: ImageFormat) -> bool {
     matches!(
         fmt,
@@ -235,8 +233,7 @@ pub(crate) fn read_image_native(path: &Path) -> Result<NativeImage<f32, NativeBa
             &ritk_io::format::dicom::native::DicomReader::new(backend),
             path,
         )
-        .with_context(|| format!("Failed to read DICOM series (native): {}", path.display())),
-    }
+        .with_context(|| format!("Failed to read DICOM series (native): {}", path.display())) }
 }
 
 /// Bridge a native image into the Burn image type required by command
@@ -339,11 +336,10 @@ pub(crate) fn write_image_native(
         ImageFormat::Png | ImageFormat::Dicom => Err(anyhow!(
             "{:?} has no Atlas-native writer; check is_native_write_capable first",
             format
-        )),
-    }
+        )) }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 mod tests {
@@ -522,7 +518,7 @@ mod tests {
 
     #[test]
     fn test_dicom_native_read_matches_legacy_reader_and_shared_helper() {
-        use ritk_image::tensor::{Shape, Tensor, TensorData};
+        use ritk_image::tensor::{Shape, Tensor };
         use ritk_image::Image;
         use ritk_spatial::{Direction, Point, Spacing};
 
@@ -534,8 +530,8 @@ mod tests {
         let spacing = Spacing::new([1.0; 3]);
         let direction = Direction::identity();
         let device: <Backend as BurnBackend>::Device = Default::default();
-        let tensor = Tensor::<Backend, 3>::from_data(
-            TensorData::new(values.clone(), Shape::new(shape)),
+        let tensor = Tensor::<f32, Backend>::from_data(
+            ::new(values.clone(), Shape::new(shape)),
             &device,
         );
         let image = Image::new(tensor, origin, spacing, direction);
@@ -569,13 +565,13 @@ mod tests {
 
     #[test]
     fn test_write_image_png_returns_err() {
-        use ritk_image::tensor::{Shape, Tensor, TensorData};
+        use ritk_image::tensor::{Shape, Tensor };
         use ritk_image::Image;
         use ritk_spatial::{Direction, Point, Spacing};
 
         let device: <Backend as BurnBackend>::Device = Default::default();
-        let td = TensorData::new(vec![0.0f32; 8], Shape::new([2, 2, 2]));
-        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let td = ::new(vec![0.0f32; 8], Shape::new([2, 2, 2]));
+        let tensor = Tensor::<f32, Backend>::from_data(td, &device);
         let image = Image::new(
             tensor,
             Point::new([0.0; 3]),
@@ -593,14 +589,14 @@ mod tests {
 
     #[test]
     fn test_write_image_dicom_creates_directory() {
-        use ritk_image::tensor::{Shape, Tensor, TensorData};
+        use ritk_image::tensor::{Shape, Tensor };
         use ritk_image::Image;
         use ritk_spatial::{Direction, Point, Spacing};
         let dir = tempfile::tempdir().unwrap();
         let out_path = dir.path().join("dicom_series");
         let device: <Backend as BurnBackend>::Device = Default::default();
-        let td = TensorData::new(vec![0.0f32; 8], Shape::new([2, 2, 2]));
-        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let td = ::new(vec![0.0f32; 8], Shape::new([2, 2, 2]));
+        let tensor = Tensor::<f32, Backend>::from_data(td, &device);
         let image = Image::new(
             tensor,
             Point::new([0.0; 3]),
@@ -618,7 +614,7 @@ mod tests {
 
     #[test]
     fn test_write_image_vtk_succeeds() {
-        use ritk_image::tensor::{Shape, Tensor, TensorData};
+        use ritk_image::tensor::{Shape, Tensor };
         use ritk_image::Image;
         use ritk_spatial::{Direction, Point, Spacing};
 
@@ -626,8 +622,8 @@ mod tests {
         let out_path = dir.path().join("out.vtk");
 
         let device: <Backend as BurnBackend>::Device = Default::default();
-        let td = TensorData::new(vec![1.0f32; 8], Shape::new([2, 2, 2]));
-        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let td = ::new(vec![1.0f32; 8], Shape::new([2, 2, 2]));
+        let tensor = Tensor::<f32, Backend>::from_data(td, &device);
         let image = Image::new(
             tensor,
             Point::new([0.0; 3]),
@@ -645,14 +641,14 @@ mod tests {
 
     #[test]
     fn test_write_image_jpeg_depth_gt_one_returns_error() {
-        use ritk_image::tensor::{Shape, Tensor, TensorData};
+        use ritk_image::tensor::{Shape, Tensor };
         use ritk_image::Image;
         use ritk_spatial::{Direction, Point, Spacing};
 
         let device: <Backend as BurnBackend>::Device = Default::default();
         // A depth of two violates JPEG's two-dimensional image contract.
-        let td = TensorData::new(vec![128.0f32; 8], Shape::new([2, 2, 2]));
-        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let td = ::new(vec![128.0f32; 8], Shape::new([2, 2, 2]));
+        let tensor = Tensor::<f32, Backend>::from_data(td, &device);
         let image = Image::new(
             tensor,
             Point::new([0.0; 3]),
@@ -673,7 +669,7 @@ mod tests {
 
     #[test]
     fn test_write_image_jpeg_2d_succeeds() {
-        use ritk_image::tensor::{Shape, Tensor, TensorData};
+        use ritk_image::tensor::{Shape, Tensor };
         use ritk_image::Image;
         use ritk_spatial::{Direction, Point, Spacing};
 
@@ -682,8 +678,8 @@ mod tests {
 
         let device: <Backend as BurnBackend>::Device = Default::default();
         // nz=1 is valid for JPEG
-        let td = TensorData::new(vec![128.0f32; 4], Shape::new([1, 2, 2]));
-        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let td = ::new(vec![128.0f32; 4], Shape::new([1, 2, 2]));
+        let tensor = Tensor::<f32, Backend>::from_data(td, &device);
         let image = Image::new(
             tensor,
             Point::new([0.0; 3]),

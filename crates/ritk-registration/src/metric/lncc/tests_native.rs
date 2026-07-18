@@ -1,4 +1,4 @@
-//! Parity: the Coeus-native LNCC engine reproduces the Burn engine.
+﻿//! Parity: the Coeus-native LNCC engine reproduces the Burn engine.
 //!
 //! Scope: the moving resample is the shared `ritk_filter::resample::native`
 //! substrate (differentially verified by the native NGF suite) and the local
@@ -11,14 +11,14 @@
 //!
 //! Oracles:
 //! - Self-correlation: identical images are locally perfectly correlated, so the
-//!   loss `−mean(LNCC)` is strongly negative (each voxel's `v_F/(v_F+ε) ≈ 1`
-//!   wherever local variance ≫ ε).
+//!   loss `âˆ’mean(LNCC)` is strongly negative (each voxel's `v_F/(v_F+Îµ) â‰ˆ 1`
+//!   wherever local variance â‰« Îµ).
 //! - Differential: `lncc_loss_native` reproduces Burn
 //!   `LocalNormalizedCrossCorrelation::forward` on reversed-image data under
 //!   identity. Both convolve identical Gaussian kernels at identical spacing;
 //!   they differ only by the accumulation order of `conv1d` vs the native
-//!   correlation (`O(width·ε·‖I‖∞)` per axis), propagated through the local
-//!   ratio and averaged — tol 1e-3 (conservative over ε_f32 ≈ 6e-8).
+//!   correlation (`O(widthÂ·ÎµÂ·â€–Iâ€–âˆž)` per axis), propagated through the local
+//!   ratio and averaged â€” tol 1e-3 (conservative over Îµ_f32 â‰ˆ 6e-8).
 
 use super::super::super::trait_::Metric;
 use super::super::LocalNormalizedCrossCorrelation;
@@ -28,7 +28,7 @@ use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_filter::GaussianSigma;
 use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_image::Image as BurnImage;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::transform::affine::AtlasAffineTransform;
@@ -59,7 +59,7 @@ fn ramp(d: usize, h: usize, w: usize) -> Vec<f32> {
 fn burn_image(data: Vec<f32>, shape: [usize; 3]) -> BurnImage<BB, 3> {
     let device = Default::default();
     BurnImage::new(
-        Tensor::from_data(TensorData::new(data, Shape::new(shape)), &device),
+        Tensor::from_data(::new(data, Shape::new(shape)), &device),
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
@@ -79,7 +79,7 @@ fn native_image(data: Vec<f32>, shape: [usize; 3]) -> NativeImage<f32, NB, 3> {
 
 fn burn_translation(t: [f32; 3]) -> TranslationTransform<BB, 3> {
     let device = Default::default();
-    TranslationTransform::<BB, 3>::new(Tensor::from_data(TensorData::new(t.to_vec(), [3]), &device))
+    TranslationTransform::<BB, 3>::new(Tensor::from_data(::new(t.to_vec(), [3]), &device))
 }
 
 fn native_translation(t: [f32; 3]) -> AtlasAffineTransform<NB, 3> {
@@ -103,7 +103,7 @@ fn native_lncc_self_is_strongly_negative() {
     );
     assert!(
         loss < -0.9,
-        "identical-image LNCC loss should be ≈ −1, got {loss}"
+        "identical-image LNCC loss should be â‰ˆ âˆ’1, got {loss}"
     );
 }
 
@@ -113,7 +113,7 @@ fn native_lncc_self_is_strongly_negative() {
 fn native_matches_burn_identity() {
     let shape = [6usize, 7, 8];
     let fixed = ramp(shape[0], shape[1], shape[2]);
-    // Moving = reversed fixed → a non-trivial local-correlation field.
+    // Moving = reversed fixed â†’ a non-trivial local-correlation field.
     let moving: Vec<f32> = fixed.iter().rev().copied().collect();
 
     let burn = LocalNormalizedCrossCorrelation::<BB>::new(GaussianSigma::new_unchecked(SIGMA))

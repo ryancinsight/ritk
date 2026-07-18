@@ -1,4 +1,4 @@
-//! Joint Label Fusion (Wang et al. 2013).
+﻿//! Joint Label Fusion (Wang et al. 2013).
 
 use std::collections::HashMap;
 
@@ -29,7 +29,7 @@ pub fn joint_label_fusion(
     dims: [usize; 3],
     config: &LabelFusionConfig,
 ) -> Result<LabelFusionResult, RegistrationError> {
-    // ── Validation ────────────────────────────────────────────────────────
+    // â”€â”€ Validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let n_atlases = atlas_images.len();
     if n_atlases == 0 {
         return Err(RegistrationError::InvalidConfiguration(
@@ -72,7 +72,7 @@ pub fn joint_label_fusion(
     let mut d = vec![0.0f64; n_atlases];
     let mut m_flat = vec![0.0f64; n_atlases * n_atlases];
     let mut rhs = vec![0.0f64; n_atlases];
-    // Capacity: bounded by the number of distinct labels across atlases (≤ n_atlases)
+    // Capacity: bounded by the number of distinct labels across atlases (â‰¤ n_atlases)
     let mut label_weights: HashMap<u32, f64> = HashMap::with_capacity(n_atlases);
 
     for iz in 0..nz {
@@ -80,7 +80,7 @@ pub fn joint_label_fusion(
             for ix in 0..nx {
                 let voxel_idx = iz * ny * nx + iy * nx + ix;
 
-                // ── Patch bounds (clipped to image) ──────────────────────
+                // â”€â”€ Patch bounds (clipped to image) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 let z_lo = iz.saturating_sub(r);
                 let z_hi = (iz + r).min(nz - 1);
                 let y_lo = iy.saturating_sub(r);
@@ -88,7 +88,7 @@ pub fn joint_label_fusion(
                 let x_lo = ix.saturating_sub(r);
                 let x_hi = (ix + r).min(nx - 1);
 
-                // ── dᵢ = ‖P_{Aᵢ} − P_T‖² ──────────────────────────────
+                // â”€â”€ dáµ¢ = â€–P_{Aáµ¢} âˆ’ P_Tâ€–Â² â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 for v in d.iter_mut() {
                     *v = 0.0;
                 }
@@ -105,7 +105,7 @@ pub fn joint_label_fusion(
                     }
                 }
 
-                // ── Build M: M_{ij} = dᵢ + dⱼ ──────────────────────────
+                // â”€â”€ Build M: M_{ij} = dáµ¢ + dâ±¼ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 let n = n_atlases;
                 for i in 0..n {
                     for j in 0..n {
@@ -113,14 +113,14 @@ pub fn joint_label_fusion(
                     }
                 }
 
-                // ── Regularize: α = β · min(M), M_{ii} += α ─────────────
+                // â”€â”€ Regularize: Î± = Î² Â· min(M), M_{ii} += Î± â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 let min_m = m_flat[..n * n].iter().copied().fold(f64::MAX, f64::min);
                 let alpha = config.beta * min_m;
                 for i in 0..n {
                     m_flat[i * n + i] += alpha;
                 }
 
-                // ── Solve M w = 1 ───────────────────────────────────────
+                // â”€â”€ Solve M w = 1 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 for v in rhs.iter_mut().take(n) {
                     *v = 1.0;
                 }
@@ -128,8 +128,7 @@ pub fn joint_label_fusion(
 
                 let mut w: Vec<f64> = match raw_weights {
                     Some(ww) => ww,
-                    None => vec![1.0 / n as f64; n],
-                };
+                    None => vec![1.0 / n as f64; n] };
 
                 // Clamp negatives to 0.
                 for v in w.iter_mut() {
@@ -145,14 +144,14 @@ pub fn joint_label_fusion(
                         *v /= sum;
                     }
                 } else {
-                    // All weights non-positive → uniform fallback.
+                    // All weights non-positive â†’ uniform fallback.
                     let u = 1.0 / n as f64;
                     for v in w.iter_mut() {
                         *v = u;
                     }
                 }
 
-                // ── Weighted vote ────────────────────────────────────────
+                // â”€â”€ Weighted vote â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 label_weights.clear();
                 for a in 0..n {
                     let label = atlas_labels[a][voxel_idx];
@@ -182,7 +181,7 @@ pub fn joint_label_fusion(
 // Dense linear system solver (private)
 // ---------------------------------------------------------------------------
 
-/// Solve the N×N linear system Ax = b via Gaussian elimination with partial
+/// Solve the NÃ—N linear system Ax = b via Gaussian elimination with partial
 /// pivoting. `a` is a row-major flat buffer of length `n*n`, modified in
 /// place. `b` is the RHS of length `n`, modified in place. Returns `Some(x)`
 /// on success or `None` if singular (pivot < 1e-15).

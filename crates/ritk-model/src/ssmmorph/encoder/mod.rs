@@ -1,4 +1,4 @@
-//! SSMMorph Encoder - Hierarchical Feature Extraction
+﻿//! SSMMorph Encoder - Hierarchical Feature Extraction
 //!
 //! Multi-scale encoder using VMamba blocks for hierarchical feature
 //! extraction. The encoder progressively downsamples the input while
@@ -8,32 +8,32 @@
 //!
 //! ```text
 //! Input: [batch, 2, D, H, W] (fixed + moving concatenated)
-//!          │
-//!          ▼
-//!    ┌─────────────┐
-//!    │   Stage 0   │──► Skip 0: [batch, 32, D, H, W]
-//!    │  2 blocks   │
-//!    └─────────────┘
-//!          │ downsample
-//!          ▼
-//!    ┌─────────────┐
-//!    │   Stage 1   │──► Skip 1: [batch, 64, D/2, H/2, W/2]
-//!    │  2 blocks   │
-//!    └─────────────┘
-//!          │ downsample
-//!          ▼
-//!    ┌─────────────┐
-//!    │   Stage 2   │──► Skip 2: [batch, 128, D/4, H/4, W/4]
-//!    │  2 blocks   │
-//!    └─────────────┘
-//!          │ downsample
-//!          ▼
-//!    ┌─────────────┐
-//!    │   Stage 3   │──► Skip 3: [batch, 256, D/8, H/8, W/8]
-//!    │  2 blocks   │
-//!    └─────────────┘
-//!          │
-//!          ▼
+//!          â”‚
+//!          â–¼
+//!    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+//!    â”‚   Stage 0   â”‚â”€â”€â–º Skip 0: [batch, 32, D, H, W]
+//!    â”‚  2 blocks   â”‚
+//!    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+//!          â”‚ downsample
+//!          â–¼
+//!    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+//!    â”‚   Stage 1   â”‚â”€â”€â–º Skip 1: [batch, 64, D/2, H/2, W/2]
+//!    â”‚  2 blocks   â”‚
+//!    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+//!          â”‚ downsample
+//!          â–¼
+//!    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+//!    â”‚   Stage 2   â”‚â”€â”€â–º Skip 2: [batch, 128, D/4, H/4, W/4]
+//!    â”‚  2 blocks   â”‚
+//!    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+//!          â”‚ downsample
+//!          â–¼
+//!    â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+//!    â”‚   Stage 3   â”‚â”€â”€â–º Skip 3: [batch, 256, D/8, H/8, W/8]
+//!    â”‚  2 blocks   â”‚
+//!    â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+//!          â”‚
+//!          â–¼
 //!    Bottleneck: [batch, 256, D/8, H/8, W/8]
 //! ```
 
@@ -60,8 +60,7 @@ where
     /// Number of stages (stored, not config)
     num_stages: usize,
     /// Stage output channels
-    stage_channels: Vec<usize>,
-}
+    stage_channels: Vec<usize> }
 
 /// Multi-scale encoder result.
 pub struct SSMMorphEncoderOutput<B>
@@ -71,8 +70,7 @@ where
     /// Features retained for decoder skip connections.
     pub features: Vec<Var<f32, B>>,
     /// Lowest-resolution representation.
-    pub bottleneck: Var<f32, B>,
-}
+    pub bottleneck: Var<f32, B> }
 
 impl<B> SSMMorphEncoder<B>
 where
@@ -93,8 +91,7 @@ where
         Self {
             stages,
             num_stages: config.num_stages,
-            stage_channels,
-        }
+            stage_channels }
     }
 
     /// Get number of channels at each stage
@@ -125,8 +122,7 @@ where
 
         Ok(SSMMorphEncoderOutput {
             features,
-            bottleneck,
-        })
+            bottleneck })
     }
 
     /// Get number of stages

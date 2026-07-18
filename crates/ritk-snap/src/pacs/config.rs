@@ -1,4 +1,4 @@
-//! PACS server configuration for the snap viewer UI.
+﻿//! PACS server configuration for the snap viewer UI.
 //!
 //! Stores raw string fields edited directly in the egui config form.
 //! Conversion to [`AssociationConfig`] is performed at request submission time,
@@ -6,7 +6,7 @@
 
 use ritk_io::{literal_arraystring, AssociationConfig};
 
-// ── AutoLoadPolicy ────────────────────────────────────────────────────────────
+// â”€â”€ AutoLoadPolicy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Controls whether received DICOM objects are automatically loaded into the viewer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -14,10 +14,9 @@ pub enum AutoLoadPolicy {
     /// Automatically load every received instance (up to `auto_load_limit`).
     Automatic,
     /// Require explicit user action to load.
-    Manual,
-}
+    Manual }
 
-// ── PacsConfig ────────────────────────────────────────────────────────────────
+// â”€â”€ PacsConfig â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// PACS server configuration (UI-facing).
 ///
@@ -26,7 +25,7 @@ pub enum AutoLoadPolicy {
 /// by [`PacsConfig::to_association_config`] only when a request is submitted.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PacsConfig {
-    /// AE title of this application (calling AE title, PS 3.8 §7.1.1).
+    /// AE title of this application (calling AE title, PS 3.8 Â§7.1.1).
     pub calling_ae_title: String,
     /// AE title of the remote PACS (called AE title).
     pub called_ae_title: String,
@@ -54,8 +53,7 @@ pub struct PacsConfig {
     /// exceeds this limit, auto-load is suppressed and the user must
     /// manually click "Load Received". Default: 512 (covers a typical
     /// CT series of ~300-500 slices).
-    pub auto_load_limit: u32,
-}
+    pub auto_load_limit: u32 }
 
 impl Default for PacsConfig {
     fn default() -> Self {
@@ -69,8 +67,7 @@ impl Default for PacsConfig {
             scp_port: 11112,
             timeout_secs: 30,
             auto_load_policy: AutoLoadPolicy::Automatic,
-            auto_load_limit: 512,
-        }
+            auto_load_limit: 512 }
     }
 }
 

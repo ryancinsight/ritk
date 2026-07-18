@@ -1,4 +1,4 @@
-//! Cine playback timing state for slice navigation.
+﻿//! Cine playback timing state for slice navigation.
 //!
 //! Keeps frame-rate timing logic isolated from app-shell rendering code.
 
@@ -9,16 +9,14 @@ pub struct CinePlayback {
     pub enabled: bool,
     /// Target frames per second. Clamped to [1, 60].
     pub fps: f32,
-    last_tick_seconds: Option<f64>,
-}
+    last_tick_seconds: Option<f64> }
 
 impl Default for CinePlayback {
     fn default() -> Self {
         Self {
             enabled: false,
             fps: 12.0,
-            last_tick_seconds: None,
-        }
+            last_tick_seconds: None }
     }
 }
 

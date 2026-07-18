@@ -1,4 +1,4 @@
-use crate::errors::RitkResult;
+﻿use crate::errors::RitkResult;
 use crate::image::PyImage;
 use pyo3::prelude::*;
 use ritk_registration::diffeomorphic::bspline_syn::{BSplineSyNConfig, BSplineSyNRegistration};
@@ -24,8 +24,7 @@ pub struct PyBSplineSynOptions {
     #[pyo3(get, set)]
     pub regularization_weight: f64,
     #[pyo3(get, set)]
-    pub gradient_step: f64,
-}
+    pub gradient_step: f64 }
 
 impl Default for PyBSplineSynOptions {
     fn default() -> Self {
@@ -37,8 +36,7 @@ impl Default for PyBSplineSynOptions {
             sigma_smooth: 1.0,
             cc_radius: 2,
             regularization_weight: 0.001,
-            gradient_step: 0.25,
-        }
+            gradient_step: 0.25 }
     }
 }
 
@@ -74,8 +72,7 @@ impl PyBSplineSynOptions {
             sigma_smooth,
             cc_radius,
             regularization_weight,
-            gradient_step,
-        }
+            gradient_step }
     }
 }
 
@@ -105,8 +102,7 @@ pub fn bspline_syn_register(
             n_squarings: 6,
             cc_window_radius: opts.cc_radius,
             regularization_weight: opts.regularization_weight,
-            gradient_step: opts.gradient_step,
-        };
+            gradient_step: opts.gradient_step };
         let reg = BSplineSyNRegistration::new(config);
         reg.register(
             &inputs.fixed_vals,

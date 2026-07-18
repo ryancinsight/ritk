@@ -1,15 +1,15 @@
-//! Direct inverse-filter deconvolution — 2-D and 3-D.
+//! Direct inverse-filter deconvolution â€” 2-D and 3-D.
 //!
 //! # Theory
 //!
 //! The plain inverse filter, matching ITK's `InverseDeconvolutionImageFilter`:
 //!
 //! ```text
-//! U(ω) = G(ω) / H(ω) = G(ω)·H*(ω) / |H(ω)|²   if |H(ω)| >= τ, else 0
+//! U(Ï‰) = G(Ï‰) / H(Ï‰) = G(Ï‰)Â·H*(Ï‰) / |H(Ï‰)|Â²   if |H(Ï‰)| >= Ï„, else 0
 //! ```
 //!
 //! It divides directly by the optical transfer function, zeroing frequencies
-//! whose magnitude falls below `τ` (the kernel-zero-magnitude threshold) to avoid
+//! whose magnitude falls below `Ï„` (the kernel-zero-magnitude threshold) to avoid
 //! dividing by near-zero OTF values. Unlike [`super::TikhonovDeconvolution`] it
 //! adds no ridge term, so it is the sharpest (and noisiest) of the linear
 //! restorations.
@@ -24,13 +24,13 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 /// `InverseDeconvolutionImageFilter`:
 ///
 /// ```text
-/// U(ω) = G(ω) / H(ω)   if |H(ω)| >= τ, else 0
+/// U(Ï‰) = G(Ï‰) / H(Ï‰)   if |H(Ï‰)| >= Ï„, else 0
 /// ```
 ///
 /// # Complexity
 /// O(N log N).
 pub struct InverseDeconvolution {
-    /// Magnitude threshold `τ` below which an OTF frequency is zeroed
+    /// Magnitude threshold `Ï„` below which an OTF frequency is zeroed
     /// (ITK `KernelZeroMagnitudeThreshold`, SimpleITK default 1e-4).
     pub kernel_zero_magnitude_threshold: f32,
 }
@@ -47,9 +47,9 @@ impl InverseDeconvolution {
     /// Apply inverse-filter deconvolution to a D-dimensional image.
     pub fn apply<B: Backend, const D: usize>(
         &self,
-        image: &Image<B, D>,
-        kernel: &Image<B, D>,
-    ) -> Result<Image<B, D>> {
+        image: &Image<f32, B, D>,
+        kernel: &Image<f32, B, D>,
+    ) -> Result<Image<f32, B, D>> {
         let (img_vals, img_dims) = extract_vec(image)?;
         let (ker_vals, ker_dims) = extract_vec(kernel)?;
         let out_vals = apply_single_pass::<D, _>(

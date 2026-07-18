@@ -1,8 +1,8 @@
-use crate::errors::{RitkPyError, RitkResult};
+﻿use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{burn_into_py_image, py_image_to_burn, BurnBackend, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::ResampleImageFilter;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_interpolation::LinearInterpolator;
 use ritk_interpolation::{BSplineInterpolator, Lanczos5Interpolator, NearestNeighborInterpolator};
 use ritk_transform::affine::affine::AffineTransform;
@@ -12,7 +12,7 @@ use ritk_transform::affine::translation::TranslationTransform;
 ///
 /// The result matches SimpleITK's
 /// `Euler3DTransform.SetRotation(angle_x, angle_y, angle_z)` (with its default
-/// `ComputeZYX = false`, i.e. `R = R_z·R_x·R_y`) about the image centre, for
+/// `ComputeZYX = false`, i.e. `R = R_zÂ·R_xÂ·R_y`) about the image centre, for
 /// arbitrary single- or multi-axis rotations, spacings, and origins. Each
 /// `angle_<axis>` rotates about the corresponding physical axis.
 ///
@@ -24,7 +24,7 @@ use ritk_transform::affine::translation::TranslationTransform;
 ///     angle_x:             Rotation about physical X axis in radians (default 0.0).
 ///     angle_y:             Rotation about physical Y axis in radians (default 0.0).
 ///     angle_z:             Rotation about physical Z axis in radians (default 0.0).
-///     mode:                Interpolation mode — "linear" (default), "nearest",
+///     mode:                Interpolation mode â€” "linear" (default), "nearest",
 ///                          "bspline", "lanczos".
 ///     default_pixel_value: Fill value for voxels outside the field of view
 ///                          (default 0.0).
@@ -53,7 +53,7 @@ pub fn rotate_image(
         let sp = *inner.spacing();
         let orig = *inner.origin();
         let dir = *inner.direction();
-        let device: <BurnBackend as ritk_image::tensor::backend::Backend>::Device = Default::default();
+        let device: <BurnBackend as ritk_image::tensor::Backend>::Device = Default::default();
 
         // Centre of rotation in physical coordinates:
         //   c_d = origin_d + spacing_d * (shape_d - 1) / 2
@@ -61,19 +61,19 @@ pub fn rotate_image(
         let centre: Vec<f32> = (0..3)
             .map(|d| orig[d] as f32 + sp[d] as f32 * (shape[d] as f32 - 1.0) / 2.0)
             .collect();
-        let centre_t = Tensor::<BurnBackend, 1>::from_data(
-            TensorData::new(centre, Shape::new([3])),
+        let centre_t = Tensor::<f32, BurnBackend>::from_data(
+            ::new(centre, Shape::new([3])),
             &device,
         );
         // Zero translation (pure rotation about centre).
-        let translation = Tensor::<BurnBackend, 1>::zeros([3], &device);
+        let translation = Tensor::<f32, BurnBackend>::zeros([3], &device);
         // Build the rotation to match SimpleITK's `Euler3DTransform`
         // (`ComputeZYX = false`, the default), whose matrix in physical [x, y, z]
-        // space is `M = R_z(angle_z) · R_x(angle_x) · R_y(angle_y)`. ritk's
-        // resample operates in tensor-axis [z, y, x] space — the reverse of the
-        // physical axes — so the applied matrix is `P · M · Pᵀ` with `P` the
+        // space is `M = R_z(angle_z) Â· R_x(angle_x) Â· R_y(angle_y)`. ritk's
+        // resample operates in tensor-axis [z, y, x] space â€” the reverse of the
+        // physical axes â€” so the applied matrix is `P Â· M Â· Páµ€` with `P` the
         // axis-reversal permutation, i.e. `A[i][j] = M[2-i][2-j]`. Using the
-        // explicit matrix (instead of `RigidTransform`'s `R_z·R_y·R_x` Euler
+        // explicit matrix (instead of `RigidTransform`'s `R_zÂ·R_yÂ·R_x` Euler
         // builder) reproduces SimpleITK's composition for simultaneous
         // multi-axis rotations, not just one axis at a time.
         let m = euler_zxy_matrix(angle_x, angle_y, angle_z);
@@ -82,7 +82,7 @@ pub fn rotate_image(
             .map(|(i, j)| m[2 - i][2 - j] as f32)
             .collect();
         let matrix =
-            Tensor::<BurnBackend, 2>::from_data(TensorData::new(a, Shape::new([3, 3])), &device);
+            Tensor::<f32, BurnBackend>::from_slice_on([3, 3], &a, &device);
         let transform = AffineTransform::<BurnBackend, 3>::new(matrix, translation, centre_t);
 
         match mode.as_str() {
@@ -109,8 +109,7 @@ pub fn rotate_image(
             other => Err(format!(
                 "rotate_image: unknown interpolation mode '{}'. Use: nearest, linear, bspline, lanczos",
                 other
-            )),
-        }
+            )) }
     })
     .map_err(RitkPyError::value)
     .map(burn_into_py_image)
@@ -127,7 +126,7 @@ pub fn rotate_image(
 ///     shift_z:             Translation along Z axis in physical units (mm, default 0.0).
 ///     shift_y:             Translation along Y axis in physical units (mm, default 0.0).
 ///     shift_x:             Translation along X axis in physical units (mm, default 0.0).
-///     mode:                Interpolation mode — "linear" (default), "nearest",
+///     mode:                Interpolation mode â€” "linear" (default), "nearest",
 ///                          "bspline", "lanczos".
 ///     default_pixel_value: Fill value for voxels outside the field of view
 ///                          (default 0.0).
@@ -156,14 +155,14 @@ pub fn shift_image(
         let sp = *inner.spacing();
         let orig = *inner.origin();
         let dir = *inner.direction();
-        let device: <BurnBackend as ritk_image::tensor::backend::Backend>::Device =
+        let device: <BurnBackend as ritk_image::tensor::Backend>::Device =
             Default::default();
 
-        // TranslationTransform shifts the OUTPUT→INPUT mapping, so we negate:
+        // TranslationTransform shifts the OUTPUTâ†’INPUT mapping, so we negate:
         // to shift the image by (dz, dy, dx), the transform must map
-        // out_point → out_point - [dz, dy, dx] in physical space.
-        let translation = Tensor::<BurnBackend, 1>::from_data(
-            TensorData::new(
+        // out_point â†’ out_point - [dz, dy, dx] in physical space.
+        let translation = Tensor::<f32, BurnBackend>::from_data(
+            ::new(
                 vec![-shift_z as f32, -shift_y as f32, -shift_x as f32],
                 Shape::new([3]),
             ),
@@ -215,14 +214,13 @@ pub fn shift_image(
             other => Err(format!(
                 "shift_image: unknown mode '{}'. Use: nearest, linear, bspline, lanczos",
                 other
-            )),
-        }
+            )) }
     })
     .map_err(RitkPyError::value)
     .map(burn_into_py_image)
 }
 
-/// 3×3 product of two row-major matrices.
+/// 3Ã—3 product of two row-major matrices.
 fn matmul3(a: [[f64; 3]; 3], b: [[f64; 3]; 3]) -> [[f64; 3]; 3] {
     let mut c = [[0.0f64; 3]; 3];
     for (i, ci) in c.iter_mut().enumerate() {
@@ -233,8 +231,8 @@ fn matmul3(a: [[f64; 3]; 3], b: [[f64; 3]; 3]) -> [[f64; 3]; 3] {
     c
 }
 
-/// Rotation matrix `R_z(angle_z) · R_x(angle_x) · R_y(angle_y)` in physical
-/// [x, y, z] coordinates — the composition SimpleITK's `Euler3DTransform` uses
+/// Rotation matrix `R_z(angle_z) Â· R_x(angle_x) Â· R_y(angle_y)` in physical
+/// [x, y, z] coordinates â€” the composition SimpleITK's `Euler3DTransform` uses
 /// with its default `ComputeZYX = false`.
 fn euler_zxy_matrix(angle_x: f64, angle_y: f64, angle_z: f64) -> [[f64; 3]; 3] {
     let (sa, ca) = angle_x.sin_cos();
@@ -250,15 +248,15 @@ fn euler_zxy_matrix(angle_x: f64, angle_y: f64, angle_z: f64) -> [[f64; 3]; 3] {
 /// field, matching `SimpleITK.TransformToDisplacementField` for an
 /// `AffineTransform`.
 ///
-/// Returns the field `D(p) = T(p) − p`, `T(p) = M·(p − c) + c + t`, as three
-/// scalar component images `(disp_z, disp_y, disp_x)` on the reference grid —
-/// the order `filter.warp` consumes. `matrix` is row-major 3×3, `translation`
+/// Returns the field `D(p) = T(p) âˆ’ p`, `T(p) = MÂ·(p âˆ’ c) + c + t`, as three
+/// scalar component images `(disp_z, disp_y, disp_x)` on the reference grid â€”
+/// the order `filter.warp` consumes. `matrix` is row-major 3Ã—3, `translation`
 /// and `center` are length-3, all in the physical `(x, y, z)` frame (SimpleITK's
 /// `AffineTransform` convention).
 ///
 /// The reference should carry its loaded geometry (e.g. via `ritk.io.read_image`)
 /// so its Direction matches the file; physical points are taken from the
-/// canonical index→world transform.
+/// canonical indexâ†’world transform.
 #[pyfunction]
 #[pyo3(signature = (reference, matrix, translation, center=[0.0, 0.0, 0.0]))]
 pub fn transform_to_displacement_field(
@@ -284,8 +282,8 @@ pub fn transform_to_displacement_field(
 /// leaving the voxel data and spacing unchanged. Matches
 /// `SimpleITK.TransformGeometry` for an `AffineTransform`.
 ///
-/// ITK applies the inverse linear map: `origin' = A⁻¹·(origin − c − t) + c`,
-/// `direction' = A⁻¹·direction`. `matrix` is row-major 3×3, `translation` and
+/// ITK applies the inverse linear map: `origin' = Aâ»Â¹Â·(origin âˆ’ c âˆ’ t) + c`,
+/// `direction' = Aâ»Â¹Â·direction`. `matrix` is row-major 3Ã—3, `translation` and
 /// `center` are length-3, all in the physical `(x, y, z)` frame.
 ///
 /// The image should carry its loaded geometry (e.g. via `ritk.io.read_image`) so

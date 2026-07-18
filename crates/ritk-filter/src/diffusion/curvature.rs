@@ -2,38 +2,38 @@
 //!
 //! # Mathematical Specification
 //!
-//! Implements ITK's `CurvatureNDAnisotropicDiffusionFunction` — the Modified
+//! Implements ITK's `CurvatureNDAnisotropicDiffusionFunction` â€” the Modified
 //! Curvature Diffusion Equation (MCDE) of Whitaker & Xue (2001):
 //!
-//!   ∂I/∂t = |∇I| · ∇·( c(|∇I|) · ∇I/|∇I| )
+//!   âˆ‚I/âˆ‚t = |âˆ‡I| Â· âˆ‡Â·( c(|âˆ‡I|) Â· âˆ‡I/|âˆ‡I| )
 //!
 //! the curvature-driven analogue of Perona-Malik: the conductance-weighted flux
 //! is normalised by the gradient magnitude (so each level set evolves by its own
 //! conductance-modulated mean curvature) and the divergence is multiplied by an
-//! upwind approximation of |∇I|.
+//! upwind approximation of |âˆ‡I|.
 //!
 //! # Discretisation (per voxel, ITK-exact)
 //!
 //! With spacing-scaled forward/backward/central differences `dx_fwd[i]`,
 //! `dx_bwd[i]`, `dx[i]` (derivative scaled by `1/spacing[i]`):
 //!
-//! For each dimension `i`, the gradient magnitude squared at the `±i` faces is
+//! For each dimension `i`, the gradient magnitude squared at the `Â±i` faces is
 //! the face-normal difference plus the averaged tangential central differences:
 //!
-//!   gms±  = dx_{fwd,bwd}\[i\]² + Σ_{j≠i} ¼·(dx\[j\] + dx\[j\]^{±i})²
+//!   gmsÂ±  = dx_{fwd,bwd}\[i\]Â² + Î£_{jâ‰ i} Â¼Â·(dx\[j\] + dx\[j\]^{Â±i})Â²
 //!
-//! The conductance is `c± = exp(gms± / m_K)` with the average-gradient-magnitude
-//! `m_K = avgGradMagSq · K² · −2` (recomputed each iteration, shared with the
+//! The conductance is `cÂ± = exp(gmsÂ± / m_K)` with the average-gradient-magnitude
+//! `m_K = avgGradMagSq Â· KÂ² Â· âˆ’2` (recomputed each iteration, shared with the
 //! gradient filter), and the normalised flux is
 //!
-//!   speed = Σ_i [ (dx_fwd\[i\]/√(ε+gms⁺))·c⁺ − (dx_bwd\[i\]/√(ε+gms⁻))·c⁻ ],  ε = 1e-10
+//!   speed = Î£_i [ (dx_fwd\[i\]/âˆš(Îµ+gmsâº))Â·câº âˆ’ (dx_bwd\[i\]/âˆš(Îµ+gmsâ»))Â·câ» ],  Îµ = 1e-10
 //!
-//! Finally the update is `√(propagation_gradient) · speed`, where the upwind
+//! Finally the update is `âˆš(propagation_gradient) Â· speed`, where the upwind
 //! `propagation_gradient` selects forward/backward squared differences by the
 //! sign of `speed`. Boundary conditions are ZeroFluxNeumann (index-clamp).
 //!
 //! # Invariants
-//! - Constant image: all differences 0 → update 0 → image unchanged.
+//! - Constant image: all differences 0 â†’ update 0 â†’ image unchanged.
 //!
 //! # References
 //! - Whitaker, R. & Xue, X. (2001). Variable-conductance, level-set curvature
@@ -45,17 +45,17 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// ── Public types ──────────────────────────────────────────────────────────────
+// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Configuration for the curvature anisotropic diffusion filter.
 #[derive(Debug, Clone)]
 pub struct CurvatureConfig {
     /// Number of explicit Euler time steps to perform.
     pub num_iterations: usize,
-    /// Time step Δt.  Must satisfy Δt ≤ 1/6 for unit spacing.
+    /// Time step Î”t.  Must satisfy Î”t â‰¤ 1/6 for unit spacing.
     /// Default: 0.0625 = 1/16.
     pub time_step: f32,
-    /// Conductance parameter K. Larger K → more isotropic smoothing.
+    /// Conductance parameter K. Larger K â†’ more isotropic smoothing.
     /// ITK default: 3.0.
     pub conductance: f32,
 }
@@ -90,7 +90,7 @@ impl CurvatureAnisotropicDiffusionFilter {
     ///
     /// # Errors
     /// Returns an error if the image tensor cannot be converted to `f32`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals_vec, dims) = extract_vec(image)?;
         let vals = &vals_vec;
         let sp = image.spacing();
@@ -128,16 +128,16 @@ impl CurvatureAnisotropicDiffusionFilter {
     }
 }
 
-// ── Core computation (ITK CurvatureNDAnisotropicDiffusionFunction) ────────────
+// â”€â”€ Core computation (ITK CurvatureNDAnisotropicDiffusionFunction) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Gradient-magnitude floor (ITK `m_MIN_NORM`).
 const MIN_NORM: f64 = 1.0e-10;
 
 /// Run the MCDE explicit Euler curvature diffusion for the requested iterations.
 ///
-/// Per iteration: recompute `m_K = avgGradMagSq · K² · −2` (shared with the
+/// Per iteration: recompute `m_K = avgGradMagSq Â· KÂ² Â· âˆ’2` (shared with the
 /// gradient filter), then apply the conductance-weighted, gradient-normalised
-/// curvature flux multiplied by the upwind `√(propagation_gradient)`. Boundary
+/// curvature flux multiplied by the upwind `âˆš(propagation_gradient)`. Boundary
 /// conditions are ZeroFluxNeumann (index-clamp); derivatives are spacing-scaled.
 #[allow(clippy::needless_range_loop)]
 fn curvature_diffuse(
@@ -157,7 +157,7 @@ fn curvature_diffuse(
     let inv_2sp = [0.5 / spacing[0], 0.5 / spacing[1], 0.5 / spacing[2]];
 
     for _ in 0..config.num_iterations {
-        // Average gradient magnitude squared → m_K (identical to the gradient
+        // Average gradient magnitude squared â†’ m_K (identical to the gradient
         // anisotropic filter; ITK shares this via the base diffusion function).
         let mut sum_gms = 0.0_f64;
         for z in 0..nz as isize {
@@ -239,7 +239,7 @@ fn curvature_diffuse(
                         speed += (dxf[i] / grad_mag) * cx - (dxb[i] / grad_mag_d) * cxd;
                     }
 
-                    // Upwind |∇I| (propagation gradient), selected by sign of speed.
+                    // Upwind |âˆ‡I| (propagation gradient), selected by sign of speed.
                     let mut prop = 0.0_f64;
                     if speed > 0.0 {
                         for i in 0..3 {
@@ -265,7 +265,7 @@ fn curvature_diffuse(
     cur
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_curvature.rs"]
@@ -274,13 +274,13 @@ mod tests;
 #[cfg(test)]
 mod tests_native {
     use super::{CurvatureAnisotropicDiffusionFilter, CurvatureConfig};
-    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use crate::native_support::{assert_coeus_matches_coeus, make_native_image, native_vals};
     use coeus_core::SequentialBackend;
 
     #[test]
     fn matches_burn() {
         let vals: Vec<f32> = (0..60).map(|i| ((i * 7) % 13) as f32).collect();
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             vals,
             [3, 4, 5],
             |img| {

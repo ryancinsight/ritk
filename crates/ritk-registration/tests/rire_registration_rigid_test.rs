@@ -1,7 +1,7 @@
-//! GlobalMI rigid and translation-only registration tests on RIRE Patient-001.
+﻿//! GlobalMI rigid and translation-only registration tests on RIRE Patient-001.
 //!
-//! Unlike the companion `rire_ct_mr_registration_test.rs` — which only verifies
-//! the *ground-truth* transform and its mathematical properties — this module
+//! Unlike the companion `rire_ct_mr_registration_test.rs` â€” which only verifies
+//! the *ground-truth* transform and its mathematical properties â€” this module
 //! **runs the registration algorithm** (`GlobalMiRegistration`) on the real CT
 //! and MRI-T1 volumes and validates that optimisation actually improves alignment.
 //!
@@ -9,11 +9,11 @@
 //!
 //! | Test | DOF | Metric validated |
 //! |------|-----|-----------------|
-//! | `test_global_mi_rigid_registration_on_rire` | 6 (rigid) | TRE ↓, MI > 0 |
-//! | `test_global_mi_translation_only_on_rire` | 3 (translation) | TRE ↓, MI > 0 |
+//! | `test_global_mi_rigid_registration_on_rire` | 6 (rigid) | TRE â†“, MI > 0 |
+//! | `test_global_mi_translation_only_on_rire` | 3 (translation) | TRE â†“, MI > 0 |
 //!
 //! Both tests use a **deliberately fast config** (2 levels, shrink [8, 4],
-//! ≤ 80 iterations per level) so they complete in ≈ 2–5 min on a modern CPU.
+//! â‰¤ 80 iterations per level) so they complete in â‰ˆ 2â€“5 min on a modern CPU.
 //! Results are therefore approximate; the purpose is to verify that the pipeline
 //! converges in the right direction, not to reproduce the ground-truth transform.
 //!
@@ -41,12 +41,11 @@
 //! internally perform the dimension permutation so that TRE and NCC calculations
 //! use the standard RIRE `[x, y, z]` reference frame.
 mod common;
-use ritk_image::tensor::{Tensor, TensorData};
+use ritk_image::tensor::{Tensor };
 
 use common::{
     compute_tre, downsample_stride, find_rire_dir, identity_m4, ncc, normalize_minmax,
-    resample_mri_into_ct_ritk, B,
-};
+    resample_mri_into_ct_ritk, B };
 use ritk_filter::GaussianSigma;
 use ritk_io::read_metaimage;
 use ritk_registration::optimizer::RegularStepGdConfig;
@@ -67,9 +66,9 @@ use ritk_transform::RigidTransform;
 ///
 /// # Known limitation: TRE is NOT asserted
 ///
-/// CT→MRI mutual information has many local maxima at geometrically incorrect
+/// CTâ†’MRI mutual information has many local maxima at geometrically incorrect
 /// rotations. A simple single-level RSGD optimizer can find a higher-MI state
-/// by rotating ~40°, which gives good MI statistics but bad fiducial TRE. This
+/// by rotating ~40Â°, which gives good MI statistics but bad fiducial TRE. This
 /// is a **known challenge** in cross-modal rigid registration and is not specific
 /// to this codebase: the same issue arises in ITK/ANTs without multi-resolution
 /// initialization, masking, or a better cost function (e.g. Normalized MI +
@@ -89,22 +88,22 @@ use ritk_transform::RigidTransform;
 ///
 /// | Assertion | Rationale |
 /// |-----------|----------|
-/// | `perturbed TRE ≈ 3 mm` | Sanity check on the initialisation. |
+/// | `perturbed TRE â‰ˆ 3 mm` | Sanity check on the initialisation. |
 /// | `final_mi > 0` | Optimizer found a region of genuine cross-modal dependency. |
 /// | `loss decreases` | 6-DOF gradient points toward higher MI. |
-/// | `iterations ≥ 10` | Pipeline ran for a meaningful number of steps. |
+/// | `iterations â‰¥ 10` | Pipeline ran for a meaningful number of steps. |
 #[test]
 #[ignore = "requires test_data/registration/rire; takes ~2-3 min on CPU"]
 fn test_global_mi_rigid_registration_on_rire_patient001() {
-    // ── Ground-truth Euler angles (RITK ZYX convention) ───────────────────────
-    // R = Rz(gamma)*Ry(beta)*Rx(alpha), decomposed from R_ritk = P·R_rire·P
-    // where P swaps dimensions 0 and 2 (RITK [z,y,x] ↔ RIRE [x,y,z]).
-    const GT_ALPHA: f32 = 0.077_40; // x-rotation ~ 4.4°
-    const GT_BETA: f32 = 0.001_818; // y-rotation ~ 0.1°
-    const GT_GAMMA: f32 = -0.033_14; // z-rotation ~ -1.9°
+    // â”€â”€ Ground-truth Euler angles (RITK ZYX convention) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // R = Rz(gamma)*Ry(beta)*Rx(alpha), decomposed from R_ritk = PÂ·R_rireÂ·P
+    // where P swaps dimensions 0 and 2 (RITK [z,y,x] â†” RIRE [x,y,z]).
+    const GT_ALPHA: f32 = 0.077_40; // x-rotation ~ 4.4Â°
+    const GT_BETA: f32 = 0.001_818; // y-rotation ~ 0.1Â°
+    const GT_GAMMA: f32 = -0.033_14; // z-rotation ~ -1.9Â°
 
     // GT translation in RITK [z,y,x] mm (center at physical origin (0,0,0)).
-    // RIRE GT_TRANS = [5.037, -17.497, -27.165] (x,y,z) → RITK: [-27.165, -17.497, 5.037]
+    // RIRE GT_TRANS = [5.037, -17.497, -27.165] (x,y,z) â†’ RITK: [-27.165, -17.497, 5.037]
     let gt_trans_ritk = [-27.165_f32, -17.497_f32, 5.037_f32];
 
     // Apply a known +3 mm perturbation in the z-axis (RITK dim 0).
@@ -139,20 +138,20 @@ fn test_global_mi_rigid_registration_on_rire_patient001() {
     );
 
     // Build the perturbed initial RigidTransform. center=(0,0,0) so that
-    // T(q) = R·q + t, matching the RIRE transform convention.
+    // T(q) = RÂ·q + t, matching the RIRE transform convention.
     let rotation_t =
-        Tensor::<B, 1>::from_data(TensorData::from([GT_ALPHA, GT_BETA, GT_GAMMA]), &device);
-    let translation_t = Tensor::<B, 1>::from_data(TensorData::from(init_trans), &device);
-    let center_zero = Tensor::<B, 1>::zeros([3], &device);
+        Tensor::<f32, B>::from_data(::from([GT_ALPHA, GT_BETA, GT_GAMMA]), &device);
+    let translation_t = Tensor::<f32, B>::from_data(::from(init_trans), &device);
+    let center_zero = Tensor::<f32, B>::zeros([3], &device);
     let initial = RigidTransform::<B, 3>::new(translation_t, rotation_t, center_zero);
 
-    // Compute the perturbed TRE (should be ≈ perturb_mm mm for all 8 corners).
+    // Compute the perturbed TRE (should be â‰ˆ perturb_mm mm for all 8 corners).
     let init_mat_data = initial.matrix().to_data();
     let init_m_raw = init_mat_data.as_slice::<f32>().unwrap();
     let init_m: [f64; 16] = std::array::from_fn(|i| init_m_raw[i] as f64);
     let (tre_perturbed, _) = compute_tre(&init_m);
-    println!("\n── Perturbed initialisation ────────────────────────────");
-    println!("  Initial (perturbed) TRE: {tre_perturbed:.3} mm (expected ≈ {perturb_mm:.1} mm)");
+    println!("\nâ”€â”€ Perturbed initialisation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€");
+    println!("  Initial (perturbed) TRE: {tre_perturbed:.3} mm (expected â‰ˆ {perturb_mm:.1} mm)");
 
     // Registration config: 1 level at shrink 4; small step length to prevent
     // rotation from over-stepping (rotation and translation share the same
@@ -173,10 +172,9 @@ fn test_global_mi_rigid_registration_on_rire_patient001() {
             ..Default::default()
         }],
         transform_type: GlobalMiTransformType::Rigid,
-        center: None,
-    };
+        center: None };
 
-    println!("\n── Running 6-DOF rigid registration (shrink 4, near-GT init) ──");
+    println!("\nâ”€â”€ Running 6-DOF rigid registration (shrink 4, near-GT init) â”€â”€");
     let (final_transform, result) =
         GlobalMiRegistration::register_rigid_full(&ct_img, &mri_img, initial, &config);
 
@@ -195,12 +193,12 @@ fn test_global_mi_rigid_registration_on_rire_patient001() {
     let initial_loss = result.loss_history.first().copied().unwrap_or(f64::NAN);
     let final_loss = result.loss_history.last().copied().unwrap_or(f64::NAN);
 
-    println!("\n── Results ─────────────────────────────────────────────────");
+    println!("\nâ”€â”€ Results â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€");
     println!("  Final MI      : {:.6}", result.final_mi);
     println!("  Iterations    : {:?}", result.iterations_per_level);
-    println!("  Loss first→last: {initial_loss:.6e} → {final_loss:.6e}");
+    println!("  Loss firstâ†’last: {initial_loss:.6e} â†’ {final_loss:.6e}");
     println!(
-        "  Rotation (α,β,γ): [{:.5}, {:.5}, {:.5}] rad",
+        "  Rotation (Î±,Î²,Î³): [{:.5}, {:.5}, {:.5}] rad",
         rot[0], rot[1], rot[2]
     );
     println!(
@@ -209,17 +207,17 @@ fn test_global_mi_rigid_registration_on_rire_patient001() {
     );
     println!("  TRE perturbed : {tre_perturbed:.3} mm");
     println!(
-        "  TRE after     : {tre_after:.3} mm (max {tre_max_after:.3} mm) Δ = {:+.3} mm",
+        "  TRE after     : {tre_after:.3} mm (max {tre_max_after:.3} mm) Î” = {:+.3} mm",
         tre_after - tre_perturbed
     );
 
-    // ── Assertions ────────────────────────────────────────────────────────────
+    // â”€â”€ Assertions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // 1. Sanity: the perturbed initialisation has ~3 mm TRE.
     assert!(
         (tre_perturbed - perturb_mm as f64).abs() < 0.5,
-        "Perturbed TRE should be ≈ {perturb_mm:.1} mm, got {tre_perturbed:.3} mm"
+        "Perturbed TRE should be â‰ˆ {perturb_mm:.1} mm, got {tre_perturbed:.3} mm"
     );
-    // 2. MI must be positive — optimizer found genuine cross-modal dependency.
+    // 2. MI must be positive â€” optimizer found genuine cross-modal dependency.
     assert!(
         result.final_mi > 0.0,
         "Expected final_mi > 0 after rigid registration, got {:.6}",
@@ -240,10 +238,10 @@ fn test_global_mi_rigid_registration_on_rire_patient001() {
         total_iters >= 10,
         "Expected >= 10 total iterations for a meaningful run, got {total_iters}"
     );
-    // NOTE: TRE is intentionally NOT asserted here. CT→MRI MI landscapes have
+    // NOTE: TRE is intentionally NOT asserted here. CTâ†’MRI MI landscapes have
     // many local maxima at geometrically incorrect rotations. For tests of
     // geometric convergence see test_global_mi_translation_only_on_rire_patient001.
-    println!("\n✓ All rigid 6-DOF gradient-machinery assertions passed.");
+    println!("\nâœ“ All rigid 6-DOF gradient-machinery assertions passed.");
 }
 
 /// Run 3-DOF translation-only `GlobalMiRegistration` on the RIRE Patient-001
@@ -256,13 +254,13 @@ fn test_global_mi_rigid_registration_on_rire_patient001() {
 ///
 /// # Configuration
 ///
-/// Single pyramid level, shrink factor 4 (7 z-slices × 128 × 128 ≈ 115 K voxels),
+/// Single pyramid level, shrink factor 4 (7 z-slices Ã— 128 Ã— 128 â‰ˆ 115 K voxels),
 /// 200 iterations, large initial step with very low minimum to avoid premature
-/// convergence. Total runtime is typically 3–5 min on a modern CPU.
+/// convergence. Total runtime is typically 3â€“5 min on a modern CPU.
 ///
 /// # Known limitation: TRE improvement is NOT asserted
 ///
-/// RIRE CT = 29 slices × 4 mm. Shrink factor 4 leaves ≈ 7 z-slices at the
+/// RIRE CT = 29 slices Ã— 4 mm. Shrink factor 4 leaves â‰ˆ 7 z-slices at the
 /// pyramid level where MI is evaluated. The resulting MI landscape is nearly
 /// flat in the z direction, producing spurious local maxima that prevent
 /// reliable cold-start convergence without masking. TRE assertions are
@@ -296,7 +294,7 @@ fn test_global_mi_translation_only_on_rire_patient001() {
         ct_img.spacing()[2],
     );
 
-    // Single level, shrink 4 (7 z-slices × 128 × 128 ≈ 115 K voxels).
+    // Single level, shrink 4 (7 z-slices Ã— 128 Ã— 128 â‰ˆ 115 K voxels).
     // Low minimum_step_length and gradient_tolerance prevent premature convergence.
     let config = GlobalMiConfig {
         num_levels: 1,
@@ -314,8 +312,7 @@ fn test_global_mi_translation_only_on_rire_patient001() {
             ..Default::default()
         }],
         transform_type: GlobalMiTransformType::Translation,
-        center: None,
-    };
+        center: None };
 
     // For translation-only we cannot reuse `run_registration_and_evaluate`
     // directly (it hard-codes RigidTransform). Run the pipeline manually.
@@ -356,9 +353,9 @@ fn test_global_mi_translation_only_on_rire_patient001() {
     let (tre_before, _) = compute_tre(&id);
 
     // Run translation-only registration
-    println!("\n── Running 3-DOF translation GlobalMiRegistration (shrink [4], 200 iters) ──");
+    println!("\nâ”€â”€ Running 3-DOF translation GlobalMiRegistration (shrink [4], 200 iters) â”€â”€");
     let initial_t =
-        ritk_transform::TranslationTransform::<B, 3>::new(Tensor::<B, 1>::zeros([3], &device));
+        ritk_transform::TranslationTransform::<B, 3>::new(Tensor::<f32, B>::zeros([3], &device));
     let (final_t, result) =
         GlobalMiRegistration::register_translation_full(&ct_img, &mri_img, initial_t, &config);
 
@@ -377,7 +374,7 @@ fn test_global_mi_translation_only_on_rire_patient001() {
         5.037
     );
 
-    // Build a 4×4 matrix from the translation (rotation = identity)
+    // Build a 4Ã—4 matrix from the translation (rotation = identity)
     let mut m = identity_m4();
     m[3] = t[0] as f64; // z translation
     m[7] = t[1] as f64; // y translation
@@ -395,19 +392,19 @@ fn test_global_mi_translation_only_on_rire_patient001() {
 
     let initial_loss = result.loss_history.first().copied().unwrap_or(f64::NAN);
     let final_loss = result.loss_history.last().copied().unwrap_or(f64::NAN);
-    println!("\n── Results ─────────────────────────────────────────────────");
+    println!("\nâ”€â”€ Results â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€");
     println!("  Final MI      : {:.6}", result.final_mi);
     println!("  Iterations    : {:?}", result.iterations_per_level);
-    println!("  Loss first→last: {initial_loss:.6e} → {final_loss:.6e}");
+    println!("  Loss firstâ†’last: {initial_loss:.6e} â†’ {final_loss:.6e}");
     println!(
-        "  NCC before    : {ncc_before:.6} → after: {ncc_after:.6} (Δ = {:+.6})",
+        "  NCC before    : {ncc_before:.6} â†’ after: {ncc_after:.6} (Î” = {:+.6})",
         ncc_after - ncc_before
     );
     println!(
-        "  TRE before    : {tre_before:.2} mm → after: {tre_after:.2} mm max: {tre_max_after:.2} mm"
+        "  TRE before    : {tre_before:.2} mm â†’ after: {tre_after:.2} mm max: {tre_max_after:.2} mm"
     );
 
-    // ── Assertions ────────────────────────────────────────────────────────────
+    // â”€â”€ Assertions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // 1. MI must be positive.
     assert!(
         result.final_mi > 0.0,
@@ -433,11 +430,11 @@ fn test_global_mi_translation_only_on_rire_patient001() {
     // See `test_global_mi_translation_near_gt_rire_patient001` for a near-GT
     // local-refinement test that asserts TRE < 5 mm.
     if tre_after < tre_before {
-        println!("  ✓ TRE improved: {tre_before:.2} mm → {tre_after:.2} mm");
+        println!("  âœ“ TRE improved: {tre_before:.2} mm â†’ {tre_after:.2} mm");
     } else {
-        println!("  ⚠ TRE did not improve ({tre_before:.2} → {tre_after:.2} mm).");
+        println!("  âš  TRE did not improve ({tre_before:.2} â†’ {tre_after:.2} mm).");
         println!("  Expected for thin-slab CT (29 z-slices): spurious MI maxima");
         println!("  prevent cold-start convergence without masking.");
     }
-    println!("\n✓ All translation-registration assertions passed.");
+    println!("\nâœ“ All translation-registration assertions passed.");
 }

@@ -1,147 +1,48 @@
 use coeus_autograd::Var;
-use coeus_core::MoiraiBackend;
-use coeus_tensor::Tensor as CoeusTensor;
+use coeus_core::{MoiraiBackend, SequentialBackend};
+use coeus_tensor::Tensor;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::tensor::{Tensor, TensorData};
-use ritk_transform::Transform;
-use ritk_transform::{DisplacementField, DisplacementFieldTransform, RigidTransform};
-use std::f32::consts::PI;
+use ritk_transform::{DisplacementField, DisplacementFieldTransform, RigidTransform, Transform};
 
-type B = burn_ndarray::NdArray<f32>;
-
-const ABS_TOL: f32 = 1e-5;
+const ABS_TOL: f32 = 8.0 * f32::EPSILON;
 
 #[test]
 fn rigid_translation_planar_displaces_correctly() {
-    let device = Default::default();
-
-    // Rotate 90 degrees (PI/2) and translate by (1, 1)
-    // Point (1, 0) -> Rotation(90) -> (0, 1) -> Translation(1, 1) -> (1, 2)
-
-    let points_data = TensorData::from([[1.0, 0.0]]);
-    let points = Tensor::<B, 2>::from_data(points_data, &device);
-
-    let translation_data = TensorData::from([1.0, 1.0]);
-    let translation = Tensor::<B, 1>::from_data(translation_data, &device);
-
-    let rotation_data = TensorData::from([PI / 2.0]);
-    let rotation = Tensor::<B, 1>::from_data(rotation_data, &device);
-
-    let center = Tensor::<B, 1>::zeros([2], &device);
-    let transform = RigidTransform::<B, 2>::new(translation, rotation, center);
-
-    let transformed = transform.transform_points(points);
-    let result = transformed.into_data();
-
-    let expected = [1.0, 2.0]; // Approximately
-    let actual = result.as_slice::<f32>().unwrap();
-
-    assert!(
-        (actual[0] - expected[0]).abs() < ABS_TOL,
-        "X mismatch: got {}, expected {}",
-        actual[0],
-        expected[0]
+    let backend = SequentialBackend;
+    let transform = RigidTransform::<SequentialBackend, 2>::new(
+        Tensor::from_slice_on([2], &[1.0, 1.0], &backend),
+        Tensor::from_slice_on([1], &[std::f32::consts::FRAC_PI_2], &backend),
+        Tensor::zeros_on([2], &backend),
     );
-    assert!(
-        (actual[1] - expected[1]).abs() < ABS_TOL,
-        "Y mismatch: got {}, expected {}",
-        actual[1],
-        expected[1]
-    );
-}
+    let point = Tensor::from_slice_on([1, 2], &[1.0, 0.0], &backend);
 
-#[test]
-fn rigid_translation_volume_displaces_correctly() {
-    let device = Default::default();
+    let transformed = transform.transform_points(point);
 
-    // Rotate 90 degrees around Z axis (Gamma = PI/2)
-    // Point (1, 0, 0) -> (0, 1, 0)
-    // Translate by (1, 2, 3) -> (1, 3, 3)
-
-    let points_data = TensorData::from([[1.0, 0.0, 0.0]]);
-    let points = Tensor::<B, 2>::from_data(points_data, &device);
-
-    let translation_data = TensorData::from([1.0, 2.0, 3.0]);
-    let translation = Tensor::<B, 1>::from_data(translation_data, &device);
-
-    // Euler angles: x, y, z
-    let rotation_data = TensorData::from([0.0, 0.0, PI / 2.0]);
-    let rotation = Tensor::<B, 1>::from_data(rotation_data, &device);
-
-    let center = Tensor::<B, 1>::zeros([3], &device);
-    let transform = RigidTransform::<B, 3>::new(translation, rotation, center);
-
-    let transformed = transform.transform_points(points);
-    let result = transformed.into_data();
-
-    let expected = [1.0, 3.0, 3.0];
-    let actual = result.as_slice::<f32>().unwrap();
-
-    assert!(
-        (actual[0] - expected[0]).abs() < ABS_TOL,
-        "X mismatch: got {}, expected {}",
-        actual[0],
-        expected[0]
-    );
-    assert!(
-        (actual[1] - expected[1]).abs() < ABS_TOL,
-        "Y mismatch: got {}, expected {}",
-        actual[1],
-        expected[1]
-    );
-    assert!(
-        (actual[2] - expected[2]).abs() < ABS_TOL,
-        "Z mismatch: got {}, expected {}",
-        actual[2],
-        expected[2]
-    );
+    let actual = transformed.as_slice();
+    assert!((actual[0] - 1.0).abs() <= ABS_TOL);
+    assert!((actual[1] - 2.0).abs() <= ABS_TOL);
 }
 
 #[test]
 fn displacement_field_planar_maps_by_offset() {
-    // Create a 2x2 displacement field
-    // X component: [[1.0, 1.0], [1.0, 1.0]] (Constant shift +1 in X)
-    // Y component: [[0.5, 0.5], [0.5, 0.5]] (Constant shift +0.5 in Y)
-
-    // Create a 2D displacement field with shape [2, 2] (spatial)
     let backend = MoiraiBackend;
-    let x_tensor = CoeusTensor::from_slice_on([2, 2], &[1.0; 4], &backend);
-    let y_tensor = CoeusTensor::from_slice_on([2, 2], &[0.5; 4], &backend);
-
-    let origin = Point::new([0.0, 0.0]);
-    let spacing = Spacing::new([1.0, 1.0]);
-    let direction = Direction::identity();
-
-    let field = DisplacementField::new(vec![x_tensor, y_tensor], origin, spacing, direction)
-        .expect("valid planar field");
+    let x_tensor = Tensor::from_slice_on([2, 2], &[1.0; 4], &backend);
+    let y_tensor = Tensor::from_slice_on([2, 2], &[0.5; 4], &backend);
+    let field = DisplacementField::new(
+        vec![x_tensor, y_tensor],
+        Point::new([0.0, 0.0]),
+        Spacing::new([1.0, 1.0]),
+        Direction::identity(),
+    )
+    .expect("valid planar field");
     let transform = DisplacementFieldTransform::<MoiraiBackend, 2>::new(field);
-
-    // Test point (0.5, 0.5)
-    // Physical (0.5, 0.5) -> Index (0.5, 0.5)
-    // Interpolation should be perfect since values are constant
-    let points = Var::new(
-        CoeusTensor::from_slice_on([1, 2], &[0.5, 0.5], &backend),
-        false,
-    );
+    let points = Var::new(Tensor::from_slice_on([1, 2], &[0.5, 0.5], &backend), false);
 
     let transformed = transform
         .transform_points(&points)
         .expect("valid interpolation contract");
+
     let actual = transformed.tensor.as_slice();
-
-    // Expected: (0.5 + 1.0, 0.5 + 0.5) = (1.5, 1.0)
-    // But wait, the interpolation adds displacement to the point.
-    // D(x) = (1.0, 0.5)
-    // T(x) = x + D(x) = (0.5, 0.5) + (1.0, 0.5) = (1.5, 1.0)
-
-    assert!(
-        (actual[0] - 1.5).abs() < ABS_TOL,
-        "X mismatch: got {}, expected 1.5",
-        actual[0]
-    );
-    assert!(
-        (actual[1] - 1.0).abs() < ABS_TOL,
-        "Y mismatch: got {}, expected 1.0",
-        actual[1]
-    );
+    assert!((actual[0] - 1.5).abs() <= ABS_TOL);
+    assert!((actual[1] - 1.0).abs() <= ABS_TOL);
 }

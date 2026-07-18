@@ -7,9 +7,9 @@
 //! Distinct from [`InvertDisplacementField`](crate::InvertDisplacementField)
 //! (Chen et al. fixed point). Given a forward field `u`, it seeks `v` with
 //! `(x + v) + u(x + v) = x`. The first guess warps the negated field by itself,
-//! `v₀(x) = −u(x − u(x))`; then for each voxel a greedy line search over the
-//! mapped point `p = x + v` minimizes `‖p + u(p) − x‖` by trying `p ± step` along
-//! each physical axis (`step = spacing₀`, halved whenever a pass makes no move)
+//! `vâ‚€(x) = âˆ’u(x âˆ’ u(x))`; then for each voxel a greedy line search over the
+//! mapped point `p = x + v` minimizes `â€–p + u(p) âˆ’ xâ€–` by trying `p Â± step` along
+//! each physical axis (`step = spacingâ‚€`, halved whenever a pass makes no move)
 //! for `m_NumberOfIterations` iterations, stopping early if the error drops below
 //! `stop_value`.
 //!
@@ -47,10 +47,10 @@ impl IterativeInverseDisplacementField {
     /// inverted components `(dx, dy, dz)`.
     pub fn apply<B: Backend>(
         &self,
-        dx: &Image<B, 3>,
-        dy: &Image<B, 3>,
-        dz: &Image<B, 3>,
-    ) -> (Image<B, 3>, Image<B, 3>, Image<B, 3>) {
+        dx: &Image<f32, B, 3>,
+        dy: &Image<f32, B, 3>,
+        dz: &Image<f32, B, 3>,
+    ) -> (Image<f32, B, 3>, Image<f32, B, 3>, Image<f32, B, 3>) {
         let (ux, dims) = extract_vec_infallible(dx);
         let (uy, _) = extract_vec_infallible(dy);
         let (uz, _) = extract_vec_infallible(dz);
@@ -58,7 +58,7 @@ impl IterativeInverseDisplacementField {
         let n = nz * ny * nx;
         let sp = dx.spacing();
         let og = dx.origin();
-        // world axes: x ↔ tensor axis 2, y ↔ 1, z ↔ 0.
+        // world axes: x â†” tensor axis 2, y â†” 1, z â†” 0.
         let (sx, sy, sz) = (sp[2], sp[1], sp[0]);
         let (ox, oy, oz) = (og[0], og[1], og[2]);
         let step0 = sx; // ITK uses spacing[0] (the x axis) as the search step.
@@ -75,7 +75,7 @@ impl IterativeInverseDisplacementField {
             (ox + x as f64 * sx, oy + y as f64 * sy, oz + z as f64 * sz)
         };
         let idx = |px: f64, py: f64, pz: f64| ((pz - oz) / sz, (py - oy) / sy, (px - ox) / sx);
-        // u(point) → world (cx-component, cy, cz) = (interp ux, interp uy, interp uz).
+        // u(point) â†’ world (cx-component, cy, cz) = (interp ux, interp uy, interp uz).
         let eval = |ud: (&[f64], &[f64], &[f64]), px: f64, py: f64, pz: f64| {
             let (cz, cy, cx) = idx(px, py, pz);
             (
@@ -85,7 +85,7 @@ impl IterativeInverseDisplacementField {
             )
         };
 
-        // First guess: v₀(voxel) = neg warped by neg = interp(neg, x + neg(x)).
+        // First guess: vâ‚€(voxel) = neg warped by neg = interp(neg, x + neg(x)).
         let mut vx = vec![0.0f64; n];
         let mut vy = vec![0.0f64; n];
         let mut vz = vec![0.0f64; n];
@@ -214,7 +214,7 @@ impl IterativeInverseDisplacementField {
         let n = nz * ny * nx;
         let sp = dx.spacing();
         let og = dx.origin();
-        // world axes: x ↔ tensor axis 2, y ↔ 1, z ↔ 0.
+        // world axes: x â†” tensor axis 2, y â†” 1, z â†” 0.
         let (sx, sy, sz) = (sp[2], sp[1], sp[0]);
         let (ox, oy, oz) = (og[0], og[1], og[2]);
         let step0 = sx; // ITK uses spacing[0] (the x axis) as the search step.
@@ -231,7 +231,7 @@ impl IterativeInverseDisplacementField {
             (ox + x as f64 * sx, oy + y as f64 * sy, oz + z as f64 * sz)
         };
         let idx = |px: f64, py: f64, pz: f64| ((pz - oz) / sz, (py - oy) / sy, (px - ox) / sx);
-        // u(point) → world (cx-component, cy, cz) = (interp ux, interp uy, interp uz).
+        // u(point) â†’ world (cx-component, cy, cz) = (interp ux, interp uy, interp uz).
         let eval = |ud: (&[f64], &[f64], &[f64]), px: f64, py: f64, pz: f64| {
             let (cz, cy, cx) = idx(px, py, pz);
             (
@@ -241,7 +241,7 @@ impl IterativeInverseDisplacementField {
             )
         };
 
-        // First guess: v₀(voxel) = neg warped by neg = interp(neg, x + neg(x)).
+        // First guess: vâ‚€(voxel) = neg warped by neg = interp(neg, x + neg(x)).
         let mut vx = vec![0.0f64; n];
         let mut vy = vec![0.0f64; n];
         let mut vz = vec![0.0f64; n];

@@ -1,4 +1,4 @@
-use super::cache::MaskedHistogramCache;
+﻿use super::cache::MaskedHistogramCache;
 use super::parzen::ParzenJointHistogram;
 use ritk_core::image::Image;
 use ritk_core::transform::Transform;
@@ -25,7 +25,7 @@ fn get_masked_cached_w_fixed_t<B: Backend>(
     cache_guard: &Option<MaskedHistogramCache<B>>,
     cache_key: u64,
     n: usize,
-) -> Option<Tensor<B, 2>> {
+) -> Option<Tensor<f32, B>> {
     cache_guard.as_ref().and_then(|c| {
         (c.cache_key == cache_key && c.n == n)
             .then(|| c.w_fixed_transposed.clone())
@@ -67,43 +67,43 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// This is the brain-masked variant: instead of uniform random sampling, only
     /// foreground voxels (supplied by the caller in world space) contribute to the
     /// histogram. This prevents background intensities from dominating the MI
-    /// landscape during CT↔MRI registration.
+    /// landscape during CTâ†”MRI registration.
     ///
     /// # Arguments
-    /// * `fixed` — Fixed reference image.
-    /// * `fixed_world_points` — `[N, D]` world-space coordinates of the foreground voxels.
-    /// * `moving` — Moving image.
-    /// * `transform` — Current candidate transform (moving → fixed space mapping).
-    /// * `interpolator` — Interpolator for sampling the moving image (zero-pad recommended).
-    /// * `cache_key` — Optional caller-supplied key identifying the mask/point-set.
+    /// * `fixed` â€” Fixed reference image.
+    /// * `fixed_world_points` â€” `[N, D]` world-space coordinates of the foreground voxels.
+    /// * `moving` â€” Moving image.
+    /// * `transform` â€” Current candidate transform (moving â†’ fixed space mapping).
+    /// * `interpolator` â€” Interpolator for sampling the moving image (zero-pad recommended).
+    /// * `cache_key` â€” Optional caller-supplied key identifying the mask/point-set.
     ///   When `Some(key)`, the fixed-image Parzen weights (`w_fixed_transposed`) are
     ///   cached and reused across calls with the same key and point count, eliminating
-    ///   the O(N × num_bins) fixed-weight computation on every iteration after the first.
+    ///   the O(N Ã— num_bins) fixed-weight computation on every iteration after the first.
     ///   The caller should provide a generation counter or hash that changes only when
     ///   the mask changes (e.g., CMA-ES optimizer generation counter). Pass `None` to
     ///   disable caching (weights are recomputed on every call).
     pub fn compute_masked_joint_histogram<const D: usize>(
         &self,
-        fixed: &Image<B, D>,
-        fixed_world_points: &Tensor<B, 2>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        fixed_world_points: &Tensor<f32, B>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
         interpolator: &LinearInterpolator,
         cache_key: Option<u64>,
-    ) -> Tensor<B, 2> {
+    ) -> Tensor<f32, B> {
         let n = fixed_world_points.dims()[0];
         let device = fixed_world_points.device();
 
         if n == 0 {
-            // Degenerate: empty mask — return zero histogram.
-            return Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
+            // Degenerate: empty mask â€” return zero histogram.
+            return Tensor::<f32, B>::zeros([self.num_bins, self.num_bins], &device);
         }
 
         if n <= ritk_wgpu_compat::WGPU_CHUNK_SIZE {
-            // ── Non-chunked path ──────────────────────────────────────────────
+            // â”€â”€ Non-chunked path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
             // Apply transform to get moving world coords, then sample moving image.
-            let (moving_values, oob_mask): (Tensor<B, 1>, Option<Tensor<B, 1>>) = {
+            let (moving_values, oob_mask): (Tensor<f32, B>, Option<Tensor<f32, B>>) = {
                 let moving_world_points = transform.transform_points(fixed_world_points.clone());
                 let moving_voxel_indices = moving.world_to_index_tensor(moving_world_points);
                 let oob = if D == 3 {
@@ -141,7 +141,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
             let fixed_values = interpolator.interpolate(fixed.data(), fixed_voxel_indices);
 
             if let Some(key) = cache_key {
-                // Cache miss — compute W_fixed^T and store in cache.
+                // Cache miss â€” compute W_fixed^T and store in cache.
                 let w_fixed_transposed = self.compute_w_fixed_transposed(&fixed_values, n);
 
                 #[cfg(feature = "direct-parzen")]
@@ -169,10 +169,10 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 );
             }
 
-            // No cache key provided — fall through to uncached dispatch.
+            // No cache key provided â€” fall through to uncached dispatch.
             self.compute_joint_histogram_dispatch(&fixed_values, &moving_values, oob_mask.as_ref())
         } else {
-            // ── Chunked path ──────────────────────────────────────────────────
+            // â”€â”€ Chunked path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
             // If a cache key is provided, try to get the full cached W_fixed^T
             // and slice it per chunk instead of recomputing.
@@ -182,7 +182,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     .with_ref(|cache| get_masked_cached_w_fixed_t(cache, key, n));
 
                 if let Some(full_w_fixed_t) = cached_w_fixed_t {
-                    // Cache hit — slice the cached W_fixed^T per chunk.
+                    // Cache hit â€” slice the cached W_fixed^T per chunk.
                     return self.compute_masked_chunked_from_cache(
                         key,
                         n,
@@ -195,7 +195,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                     );
                 }
 
-                // Cache miss — compute full W_fixed^T, cache it, then use it.
+                // Cache miss â€” compute full W_fixed^T, cache it, then use it.
                 // We need fixed_values for the full point set to compute W_fixed^T.
                 let fixed_voxel_indices = fixed.world_to_index_tensor(fixed_world_points.clone());
                 let fixed_values = interpolator.interpolate(fixed.data(), fixed_voxel_indices);
@@ -228,9 +228,9 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 );
             }
 
-            // No cache key — fall through to the original uncached chunked path.
+            // No cache key â€” fall through to the original uncached chunked path.
             let num_chunks = n.div_ceil(ritk_wgpu_compat::WGPU_CHUNK_SIZE);
-            let mut joint_hist_acc = Tensor::<B, 2>::zeros([self.num_bins, self.num_bins], &device);
+            let mut joint_hist_acc = Tensor::<f32, B>::zeros([self.num_bins, self.num_bins], &device);
 
             for i in 0..num_chunks {
                 let start = i * ritk_wgpu_compat::WGPU_CHUNK_SIZE;
@@ -240,7 +240,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 let chunk_fixed_idx = fixed.world_to_index_tensor(chunk_fixed_world.clone());
                 let chunk_fixed_vals = interpolator.interpolate(fixed.data(), chunk_fixed_idx);
 
-                let (chunk_moving_vals, chunk_oob): (Tensor<B, 1>, Option<Tensor<B, 1>>) = {
+                let (chunk_moving_vals, chunk_oob): (Tensor<f32, B>, Option<Tensor<f32, B>>) = {
                     let chunk_moving_world = transform.transform_points(chunk_fixed_world);
                     let chunk_moving_idx = moving.world_to_index_tensor(chunk_moving_world);
                     let oob = if D == 3 {

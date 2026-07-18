@@ -1,7 +1,7 @@
-use super::*;
+﻿use super::*;
 use crate::tools::interaction::Annotation;
 
-// ── CSV determinism ───────────────────────────────────────────────────────
+// â”€â”€ CSV determinism â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn csv_empty_annotations_returns_header_only() {
@@ -30,12 +30,10 @@ fn csv_row_count_equals_annotation_count_plus_header() {
         Annotation::Length {
             p1: [0.0, 0.0],
             p2: [3.0, 4.0],
-            length_mm: 5.0,
-        },
+            length_mm: 5.0 },
         Annotation::HuPoint {
             pos: [10.0, 20.0],
-            value: 42.0,
-        },
+            value: 42.0 },
     ];
     let csv = csv_for(&annotations);
     let line_count = csv.lines().count();
@@ -53,8 +51,7 @@ fn csv_length_row_analytical() {
     let ann = Annotation::Length {
         p1: [0.0, 0.0],
         p2: [3.0, 4.0],
-        length_mm: 5.0,
-    };
+        length_mm: 5.0 };
     let csv = csv_for(std::slice::from_ref(&ann));
     let data_row = csv.lines().nth(1).expect("data row must exist");
     assert_eq!(
@@ -71,8 +68,7 @@ fn csv_angle_row_analytical() {
         p1: [0.0, 0.0],
         p2: [0.0, 1.0],
         p3: [1.0, 1.0],
-        angle_deg: 90.0,
-    };
+        angle_deg: 90.0 };
     let csv = csv_for(std::slice::from_ref(&ann));
     let data_row = csv.lines().nth(1).expect("data row must exist");
     assert_eq!(
@@ -83,8 +79,8 @@ fn csv_angle_row_analytical() {
 
 #[test]
 fn csv_roi_rect_row_analytical() {
-    // Analytical: mean=100.0, σ=10.0, area=50.0, index=0
-    // Expected: "0,ROI Rect,100.00,HU,σ=10.00 area=50.00mm²"
+    // Analytical: mean=100.0, Ïƒ=10.0, area=50.0, index=0
+    // Expected: "0,ROI Rect,100.00,HU,Ïƒ=10.00 area=50.00mmÂ²"
     let ann = Annotation::RoiRect {
         top_left: [0.0, 0.0],
         bottom_right: [5.0, 10.0],
@@ -92,20 +88,19 @@ fn csv_roi_rect_row_analytical() {
         std_dev: 10.0,
         min: 80.0,
         max: 120.0,
-        area_mm2: 50.0,
-    };
+        area_mm2: 50.0 };
     let csv = csv_for(std::slice::from_ref(&ann));
     let data_row = csv.lines().nth(1).expect("data row must exist");
     assert_eq!(
-        data_row, "0,ROI Rect,100.00,HU,σ=10.00 area=50.00mm²",
+        data_row, "0,ROI Rect,100.00,HU,Ïƒ=10.00 area=50.00mmÂ²",
         "ROI Rect CSV row must match analytical format"
     );
 }
 
 #[test]
 fn csv_roi_ellipse_row_analytical() {
-    // Analytical: mean=80.0, σ=5.0, area=25.0, index=0
-    // Expected: "0,ROI Ellipse,80.00,HU,σ=5.00 area=25.00mm²"
+    // Analytical: mean=80.0, Ïƒ=5.0, area=25.0, index=0
+    // Expected: "0,ROI Ellipse,80.00,HU,Ïƒ=5.00 area=25.00mmÂ²"
     let ann = Annotation::RoiEllipse {
         center: [5.0, 5.0],
         radii: [3.0, 2.0],
@@ -113,12 +108,11 @@ fn csv_roi_ellipse_row_analytical() {
         std_dev: 5.0,
         min: 60.0,
         max: 100.0,
-        area_mm2: 25.0,
-    };
+        area_mm2: 25.0 };
     let csv = csv_for(std::slice::from_ref(&ann));
     let data_row = csv.lines().nth(1).expect("data row must exist");
     assert_eq!(
-        data_row, "0,ROI Ellipse,80.00,HU,σ=5.00 area=25.00mm²",
+        data_row, "0,ROI Ellipse,80.00,HU,Ïƒ=5.00 area=25.00mmÂ²",
         "ROI Ellipse CSV row must match analytical format"
     );
 }
@@ -129,8 +123,7 @@ fn csv_hu_point_row_analytical() {
     // Expected: "0,HU Point,200.00,HU,"
     let ann = Annotation::HuPoint {
         pos: [10.0, 20.0],
-        value: 200.0,
-    };
+        value: 200.0 };
     let csv = csv_for(std::slice::from_ref(&ann));
     let data_row = csv.lines().nth(1).expect("data row must exist");
     assert_eq!(
@@ -141,23 +134,20 @@ fn csv_hu_point_row_analytical() {
 
 #[test]
 fn csv_multi_annotation_indices_are_sequential() {
-    // Analytical: three annotations → data rows must carry indices 0, 1, 2
+    // Analytical: three annotations â†’ data rows must carry indices 0, 1, 2
     let annotations = vec![
         Annotation::Length {
             p1: [0.0, 0.0],
             p2: [1.0, 0.0],
-            length_mm: 1.0,
-        },
+            length_mm: 1.0 },
         Annotation::HuPoint {
             pos: [0.0, 0.0],
-            value: 0.0,
-        },
+            value: 0.0 },
         Annotation::Angle {
             p1: [0.0, 0.0],
             p2: [1.0, 0.0],
             p3: [1.0, 1.0],
-            angle_deg: 90.0,
-        },
+            angle_deg: 90.0 },
     ];
     let csv = csv_for(&annotations);
     let rows: Vec<&str> = csv.lines().skip(1).collect();
@@ -176,7 +166,7 @@ fn csv_multi_annotation_indices_are_sequential() {
     );
 }
 
-// ── AnnotationPanelAction equality ────────────────────────────────────────
+// â”€â”€ AnnotationPanelAction equality â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn action_none_equals_none() {
@@ -190,8 +180,7 @@ fn action_delete_carries_index() {
         AnnotationPanelAction::Delete(i) => {
             assert_eq!(i, 3, "Delete must carry the exact index")
         }
-        _ => panic!("expected Delete variant"),
-    }
+        _ => panic!("expected Delete variant") }
 }
 
 #[test]
@@ -208,8 +197,7 @@ fn action_export_csv_payload_matches_csv_for() {
     let annotations = vec![Annotation::Length {
         p1: [0.0, 0.0],
         p2: [3.0, 4.0],
-        length_mm: 5.0,
-    }];
+        length_mm: 5.0 }];
     let expected_csv = csv_for(&annotations);
     let action = AnnotationPanelAction::ExportCsv(expected_csv.clone());
     match action {
@@ -219,19 +207,17 @@ fn action_export_csv_payload_matches_csv_for() {
                 "ExportCsv payload must equal csv_for output"
             );
         }
-        _ => panic!("expected ExportCsv variant"),
-    }
+        _ => panic!("expected ExportCsv variant") }
 }
 
-// ── annotation_label determinism ──────────────────────────────────────────
+// â”€â”€ annotation_label determinism â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn label_length_format() {
     let ann = Annotation::Length {
         p1: [0.0, 0.0],
         p2: [3.0, 4.0],
-        length_mm: 5.0,
-    };
+        length_mm: 5.0 };
     let label = annotation_label(0, &ann);
     assert!(
         label.contains("5.0 mm"),
@@ -246,11 +232,10 @@ fn label_angle_format() {
         p1: [0.0, 0.0],
         p2: [1.0, 0.0],
         p3: [1.0, 1.0],
-        angle_deg: 90.0,
-    };
+        angle_deg: 90.0 };
     let label = annotation_label(1, &ann);
     assert!(
-        label.contains("90.00°"),
+        label.contains("90.00Â°"),
         "angle label must contain formatted angle: got '{label}'"
     );
     assert!(label.starts_with("#1"), "label must begin with index");
@@ -260,8 +245,7 @@ fn label_angle_format() {
 fn label_hu_point_format() {
     let ann = Annotation::HuPoint {
         pos: [10.0, 20.0],
-        value: 150.0,
-    };
+        value: 150.0 };
     let label = annotation_label(2, &ann);
     assert!(
         label.contains("150"),

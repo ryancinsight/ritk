@@ -1,4 +1,4 @@
-use crate::domain::vtk_data_object::{AttributeArray, VtkCellType, VtkUnstructuredGrid};
+﻿use crate::domain::vtk_data_object::{AttributeArray, VtkCellType, VtkUnstructuredGrid};
 use crate::io::unstructured_xml::reader::parse_vtu;
 use crate::io::unstructured_xml::writer::write_vtu_str;
 
@@ -83,22 +83,19 @@ fn test_point_data_scalars_roundtrip() {
         "pressure".to_string(),
         AttributeArray::Scalars {
             values: vec![1.0, 2.0, 3.0, 4.0],
-            num_components: 1,
-        },
+            num_components: 1 },
     );
     let r = parse_vtu(&write_vtu_str(&g)).expect("scalars roundtrip");
     match r.point_data.get("pressure").expect("pressure attr") {
         AttributeArray::Scalars {
             values,
-            num_components,
-        } => {
+            num_components } => {
             assert_eq!(*num_components, 1);
             assert_eq!(values.len(), 4);
             assert!((values[0] - 1.0).abs() < 1e-5, "values[0] = {}", values[0]);
             assert!((values[3] - 4.0).abs() < 1e-5, "values[3] = {}", values[3]);
         }
-        other => panic!("expected Scalars, got {:?}", other),
-    }
+        other => panic!("expected Scalars, got {:?}", other) }
 }
 
 #[test]
@@ -108,8 +105,7 @@ fn test_cell_data_scalars_roundtrip() {
         "stress".to_string(),
         AttributeArray::Scalars {
             values: vec![42.0],
-            num_components: 1,
-        },
+            num_components: 1 },
     );
     let r = parse_vtu(&write_vtu_str(&g)).expect("cell scalars roundtrip");
     match r.cell_data.get("stress").expect("stress attr") {
@@ -117,8 +113,7 @@ fn test_cell_data_scalars_roundtrip() {
             assert_eq!(values.len(), 1);
             assert!((values[0] - 42.0).abs() < 1e-5, "values[0] = {}", values[0]);
         }
-        other => panic!("expected Scalars, got {:?}", other),
-    }
+        other => panic!("expected Scalars, got {:?}", other) }
 }
 
 #[test]
@@ -130,8 +125,7 @@ fn test_vectors_roundtrip() {
     g.point_data.insert(
         "vel".to_string(),
         AttributeArray::Vectors {
-            values: vec![[1.0, 2.0, 3.0]],
-        },
+            values: vec![[1.0, 2.0, 3.0]] },
     );
     let r = parse_vtu(&write_vtu_str(&g)).expect("vectors roundtrip");
     match r.point_data.get("vel").expect("vel attr") {
@@ -141,8 +135,7 @@ fn test_vectors_roundtrip() {
             assert!((values[0][1] - 2.0).abs() < 1e-5, "v.y = {}", values[0][1]);
             assert!((values[0][2] - 3.0).abs() < 1e-5, "v.z = {}", values[0][2]);
         }
-        other => panic!("expected Vectors, got {:?}", other),
-    }
+        other => panic!("expected Vectors, got {:?}", other) }
 }
 
 #[test]
@@ -154,8 +147,7 @@ fn test_normals_roundtrip() {
     g.point_data.insert(
         "normals".to_string(),
         AttributeArray::Normals {
-            values: vec![[0.0, 0.0, 1.0]],
-        },
+            values: vec![[0.0, 0.0, 1.0]] },
     );
     let r = parse_vtu(&write_vtu_str(&g)).expect("normals roundtrip");
     match r.point_data.get("normals").expect("normals attr") {
@@ -163,8 +155,7 @@ fn test_normals_roundtrip() {
             assert_eq!(values.len(), 1);
             assert!((values[0][2] - 1.0).abs() < 1e-5, "n.z = {}", values[0][2]);
         }
-        other => panic!("expected Normals, got {:?}", other),
-    }
+        other => panic!("expected Normals, got {:?}", other) }
 }
 
 #[test]
@@ -203,15 +194,13 @@ fn test_point_data_and_cell_data_both_present_roundtrip() {
         "temperature".to_string(),
         AttributeArray::Scalars {
             values: vec![100.0, 200.0, 300.0, 400.0],
-            num_components: 1,
-        },
+            num_components: 1 },
     );
     g.cell_data.insert(
         "volume".to_string(),
         AttributeArray::Scalars {
             values: vec![0.1667],
-            num_components: 1,
-        },
+            num_components: 1 },
     );
     let r = parse_vtu(&write_vtu_str(&g)).expect("dual attr roundtrip");
     match r.point_data.get("temperature").expect("temperature") {
@@ -220,15 +209,13 @@ fn test_point_data_and_cell_data_both_present_roundtrip() {
             assert!((values[0] - 100.0).abs() < 1e-3);
             assert!((values[3] - 400.0).abs() < 1e-3);
         }
-        other => panic!("expected Scalars, got {:?}", other),
-    }
+        other => panic!("expected Scalars, got {:?}", other) }
     match r.cell_data.get("volume").expect("volume") {
         AttributeArray::Scalars { values, .. } => {
             assert_eq!(values.len(), 1);
             assert!((values[0] - 0.1667).abs() < 1e-4, "volume = {}", values[0]);
         }
-        other => panic!("expected Scalars, got {:?}", other),
-    }
+        other => panic!("expected Scalars, got {:?}", other) }
 }
 
 #[test]
@@ -250,7 +237,7 @@ fn test_single_vertex_cell_roundtrip() {
 
 #[test]
 fn test_mixed_cell_sizes_connectivity_reconstruction() {
-    // Mixing a triangle (3 pts) and a tetra (4 pts) — offsets [3, 7].
+    // Mixing a triangle (3 pts) and a tetra (4 pts) â€” offsets [3, 7].
     let mut g = VtkUnstructuredGrid::new();
     g.points = vec![[0.0; 3]; 5];
     g.cells = vec![vec![0u32, 1, 2], vec![0u32, 1, 2, 3]];

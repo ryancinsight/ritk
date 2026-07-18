@@ -1,6 +1,6 @@
-use super::*;
+﻿use super::*;
 
-// ── Helper: signed-distance function for a sphere ────────────────────────────
+// â”€â”€ Helper: signed-distance function for a sphere â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn make_phi_sphere(dims: [usize; 3], center: [f64; 3], radius: f64) -> Image<Backend, 3> {
     let device: <Backend as BurnBackend>::Device = Default::default();
@@ -18,8 +18,8 @@ fn make_phi_sphere(dims: [usize; 3], center: [f64; 3], radius: f64) -> Image<Bac
             }
         }
     }
-    let td = TensorData::new(data, Shape::new(dims));
-    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+    let td = ::new(data, Shape::new(dims));
+    let tensor = Tensor::<f32, Backend>::from_data(td, &device);
     Image::new(
         tensor,
         Point::new([0.0; 3]),

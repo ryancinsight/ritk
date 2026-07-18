@@ -7,8 +7,8 @@
 //!
 //! | Filter | Description |
 //! |---|---|
-//! | [`ForwardFftFilter`] | Transform image to frequency domain (R² → C²) |
-//! | [`InverseFftFilter`] | Transform frequency domain back to spatial (C² → R²) |
+//! | [`ForwardFftFilter`] | Transform image to frequency domain (RÂ² â†’ CÂ²) |
+//! | [`InverseFftFilter`] | Transform frequency domain back to spatial (CÂ² â†’ RÂ²) |
 //! | [`FftShiftFilter`] | Swap quadrants of frequency-domain data for display/analysis |
 //! | [`RealFftShiftFilter`] | Cyclic roll of a real image so the DC component is centred after FFT |
 //! | [`FftConvolutionFilter`] | FFT-based convolution: O(N log N) via frequency multiplication |
@@ -26,9 +26,9 @@
 //! # FFT conventions
 //!
 //! Forward transform (ITK convention):
-//!   F(u) = Σ_{x} f(x) · e^{−2πi ⟨u,x⟩}
+//!   F(u) = Î£_{x} f(x) Â· e^{âˆ’2Ï€i âŸ¨u,xâŸ©}
 //! Inverse transform:
-//!   f(x) = (1/N) Σ_{u} F(u) · e^{^{+2πi ⟨u,x⟩}}
+//!   f(x) = (1/N) Î£_{u} F(u) Â· e^{^{+2Ï€i âŸ¨u,xâŸ©}}
 //!
 //! After forward transform, low-frequency components (DC, near-DC) are at the
 //! beginning of the array. [`FftShiftFilter`] moves them to the centre for

@@ -1,10 +1,9 @@
-use crate::errors::{RitkPyError, RitkResult};
+﻿use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     CyclicShiftImageFilter, ExpandImageFilter, FlipImageFilter, OrientImageFilter,
-    PermuteAxesImageFilter, ShrinkImageFilter,
-};
+    PermuteAxesImageFilter, ShrinkImageFilter };
 
 /// Flip the image along any combination of the Z, Y, X axes.
 /// ITK Parity: FlipImageFilter (`sitk.Flip` with `flipAxes` reversed to `[x,y,z]`).
@@ -91,7 +90,7 @@ pub fn permute_axes(
     .map(burn_into_py_image)
 }
 
-/// Reorient the image to a target DICOM orientation code (`"LPS"`, `"RAI"`, …),
+/// Reorient the image to a target DICOM orientation code (`"LPS"`, `"RAI"`, â€¦),
 /// relabeling the axes consistently across data, spacing, origin, and direction.
 /// ITK Parity: DICOMOrientImageFilter (`sitk.DICOMOrient`).
 #[pyfunction]

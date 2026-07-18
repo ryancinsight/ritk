@@ -1,28 +1,27 @@
-//! Fixed-point iterative inversion of a general displacement field.
+﻿//! Fixed-point iterative inversion of a general displacement field.
 //!
 //! # Mathematical Specification
 //!
 //! For a general displacement field `u`, the inverse `u^{-1}` satisfies:
 //!
-//!   `φ(x + u^{-1}(x)) = x  ⟹  u^{-1}(x) = −u(x + u^{-1}(x))`
+//!   `Ï†(x + u^{-1}(x)) = x  âŸ¹  u^{-1}(x) = âˆ’u(x + u^{-1}(x))`
 //!
 //! **Fixed-point iteration** (Christensen & Johnson 2001):
 //!
-//!   `u^{-1}_0(x)      = −u(x)`                         (initialisation)
-//!   `u^{-1}_{k+1}(x)  = −u(x + u^{-1}_k(x))`           (update rule)
+//!   `u^{-1}_0(x)      = âˆ’u(x)`                         (initialisation)
+//!   `u^{-1}_{k+1}(x)  = âˆ’u(x + u^{-1}_k(x))`           (update rule)
 //!
-//! **Convergence guarantee:** When the Lipschitz constant `L = max‖∇u‖ < 1`,
+//! **Convergence guarantee:** When the Lipschitz constant `L = maxâ€–âˆ‡uâ€– < 1`,
 //! the update map is a contraction and the iterate error satisfies:
 //!
-//!   `‖u^{-1}_{k+1} − u^{-1}_*‖_∞  ≤  L^k · ‖u^{-1}_1 − u^{-1}_0‖_∞`
+//!   `â€–u^{-1}_{k+1} âˆ’ u^{-1}_*â€–_âˆž  â‰¤  L^k Â· â€–u^{-1}_1 âˆ’ u^{-1}_0â€–_âˆž`
 //!
 //! # References
 //! - Christensen, G. E. & Johnson, H. J. (2001). Consistent image registration.
-//!   *IEEE Trans. Med. Imaging* 20(7):568–582.
+//!   *IEEE Trans. Med. Imaging* 20(7):568â€“582.
 
 use crate::deformable_field_ops::{
-    trilinear_interpolate_field, VectorField, VectorFieldMut, VelocityField,
-};
+    trilinear_interpolate_field, VectorField, VectorFieldMut, VelocityField };
 
 /// Default convergence tolerance for iterative inverse displacement field computation.
 /// Maximum per-voxel Euclidean-norm change threshold between successive iterates.
@@ -42,16 +41,14 @@ pub struct InverseFieldConfig {
     /// Terminates early when the maximum per-voxel Euclidean norm of the change
     /// between successive iterates drops below this value:
     ///
-    ///   `max_i ‖u^{-1}_{k+1}(i) − u^{-1}_k(i)‖_2 < tolerance`
-    pub tolerance: f64,
-}
+    ///   `max_i â€–u^{-1}_{k+1}(i) âˆ’ u^{-1}_k(i)â€–_2 < tolerance`
+    pub tolerance: f64 }
 
 impl Default for InverseFieldConfig {
     fn default() -> Self {
         Self {
             max_iterations: 20,
-            tolerance: DEFAULT_INVERSE_FIELD_TOLERANCE,
-        }
+            tolerance: DEFAULT_INVERSE_FIELD_TOLERANCE }
     }
 }
 
@@ -85,19 +82,16 @@ pub fn invert_displacement_field(
             VectorField {
                 z: disp_z,
                 y: disp_y,
-                x: disp_x,
-            },
+                x: disp_x },
             VectorField {
                 z: &inv_z,
                 y: &inv_y,
-                x: &inv_x,
-            },
+                x: &inv_x },
             dims,
             VectorFieldMut {
                 z: &mut next_z,
                 y: &mut next_y,
-                x: &mut next_x,
-            },
+                x: &mut next_x },
         );
 
         let max_change = (0..n)
@@ -122,8 +116,7 @@ pub fn invert_displacement_field(
         VelocityField {
             z: inv_z,
             y: inv_y,
-            x: inv_x,
-        },
+            x: inv_x },
         iters,
     )
 }
@@ -143,13 +136,11 @@ pub(super) fn warp_displacement_into(
     let VectorField {
         z: query_z,
         y: query_y,
-        x: query_x,
-    } = query;
+        x: query_x } = query;
     let VectorFieldMut {
         z: out_z,
         y: out_y,
-        x: out_x,
-    } = out;
+        x: out_x } = out;
 
     for iz in 0..nz {
         for iy in 0..ny {

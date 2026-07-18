@@ -1,20 +1,19 @@
-//! Transform-to-matrix conversion helpers and intensity range estimation.
+﻿//! Transform-to-matrix conversion helpers and intensity range estimation.
 
 use crate::types::AffineTransform;
 use ritk_core::image::Image;
-use ritk_image::tensor::{Backend, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor };
 use ritk_transform::{
-    AffineTransform as CoreAffineTransform, RigidTransform, TranslationTransform,
-};
+    AffineTransform as CoreAffineTransform, RigidTransform, TranslationTransform };
 
-// ─── Intensity Range Estimation ───────────────────────────────────────────────
+// â”€â”€â”€ Intensity Range Estimation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Estimate the intensity range [min, max] of an image for MI binning.
 ///
 /// Adds a 1% margin to each side to avoid boundary artifacts in Parzen
 /// window estimation.
 pub(crate) fn estimate_intensity_range<B: Backend, const D: usize>(
-    image: &Image<B, D>,
+    image: &Image<f32, B, D>,
 ) -> (f32, f32) {
     let slice = image.data_slice();
     let min_val = slice.iter().copied().fold(f32::INFINITY, f32::min);
@@ -24,9 +23,9 @@ pub(crate) fn estimate_intensity_range<B: Backend, const D: usize>(
     (min_val - margin, max_val + margin)
 }
 
-// ─── Matrix Extraction ────────────────────────────────────────────────────────
+// â”€â”€â”€ Matrix Extraction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Extract a 4×4 homogeneous matrix from a rigid transform.
+/// Extract a 4Ã—4 homogeneous matrix from a rigid transform.
 pub(crate) fn rigid_matrix_to_homogeneous<B: Backend>(
     transform: &RigidTransform<B, 3>,
 ) -> AffineTransform {
@@ -42,7 +41,7 @@ pub(crate) fn rigid_matrix_to_homogeneous<B: Backend>(
     AffineTransform(result)
 }
 
-/// Extract a 4×4 homogeneous matrix from an affine transform.
+/// Extract a 4Ã—4 homogeneous matrix from an affine transform.
 pub(crate) fn affine_matrix_to_homogeneous<B: Backend>(
     transform: &CoreAffineTransform<B, 3>,
 ) -> AffineTransform {
@@ -67,7 +66,7 @@ pub(crate) fn affine_matrix_to_homogeneous<B: Backend>(
     AffineTransform(result)
 }
 
-/// Extract a 4×4 homogeneous matrix from a translation transform.
+/// Extract a 4Ã—4 homogeneous matrix from a translation transform.
 pub(crate) fn translation_matrix_to_homogeneous<B: Backend, const D: usize>(
     transform: &TranslationTransform<B, D>,
 ) -> AffineTransform {
@@ -87,19 +86,18 @@ pub(crate) fn translation_matrix_to_homogeneous<B: Backend, const D: usize>(
     AffineTransform(result)
 }
 
-// ─── Center Computation ───────────────────────────────────────────────────────
+// â”€â”€â”€ Center Computation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Compute the physical center of an image from its shape and metadata.
-pub(crate) fn compute_image_center<B: Backend, const D: usize>(image: &Image<B, D>) -> [f64; 3] {
+pub(crate) fn compute_image_center<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> [f64; 3] {
     let shape = image.shape();
     let center_indices: Vec<f32> = (0..3)
         .map(|d| shape.get(d).copied().unwrap_or(1) as f32 / 2.0)
         .collect();
     let device = image.data().device();
-    let center_tensor =
-        Tensor::<B, 1>::from_data(TensorData::from(center_indices.as_slice()), &device);
+    let center_tensor = Tensor::<f32, B>::from_slice_on([D], &center_indices, &device);
     let physical = image.index_to_world_tensor(center_tensor.unsqueeze_dim(0));
-    let physical_flat: Tensor<B, 1> = physical.squeeze();
+    let physical_flat: Tensor<f32, B> = physical.squeeze();
     let data = physical_flat.into_data();
     let slice = data
         .as_slice::<f32>()

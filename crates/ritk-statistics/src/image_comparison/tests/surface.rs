@@ -9,12 +9,12 @@ use crate::image_comparison::{
 };
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
-use ritk_image::test_support::burn_compat::make_image_with_spacing;
+use ritk_image::test_support::make_image_with_spacing;
 use ritk_image::Image;
 
 #[test]
 fn test_hausdorff_identical_masks_is_zero() {
-    let mask: Image<TestBackend, 2> = make_image(vec![1.0f32; 9], [3, 3]);
+    let mask: Image<f32, TestBackend, 2> = make_image(vec![1.0f32; 9], [3, 3]);
     let spacing = [1.0f64, 1.0];
     let hd = hausdorff_distance(&mask, &mask, &spacing);
     assert!(
@@ -51,8 +51,8 @@ fn native_hausdorff_known_value_matches_surface_kernel() {
 
 #[test]
 fn test_hausdorff_1d_known_value() {
-    let pred: Image<TestBackend, 1> = make_image(vec![1.0, 1.0, 0.0, 0.0, 0.0], [5]);
-    let gt: Image<TestBackend, 1> = make_image(vec![0.0, 0.0, 0.0, 1.0, 1.0], [5]);
+    let pred: Image<f32, TestBackend, 1> = make_image(vec![1.0, 1.0, 0.0, 0.0, 0.0], [5]);
+    let gt: Image<f32, TestBackend, 1> = make_image(vec![0.0, 0.0, 0.0, 1.0, 1.0], [5]);
     let spacing = [1.0f64];
     let hd = hausdorff_distance(&pred, &gt, &spacing);
     assert!((hd - 3.0).abs() < 1e-4, "1D HD expected 3.0, got {}", hd);
@@ -60,9 +60,9 @@ fn test_hausdorff_1d_known_value() {
 
 #[test]
 fn test_hausdorff_scales_with_spacing() {
-    let pred_img: Image<TestBackend, 1> =
+    let pred_img: Image<f32, TestBackend, 1> =
         make_image_with_spacing(vec![1.0f32, 1.0, 0.0, 0.0, 0.0], [5], [2.0]);
-    let gt_img: Image<TestBackend, 1> =
+    let gt_img: Image<f32, TestBackend, 1> =
         make_image_with_spacing(vec![0.0f32, 0.0, 0.0, 1.0, 1.0], [5], [2.0]);
     let spacing = [2.0f64];
     let hd = hausdorff_distance(&pred_img, &gt_img, &spacing);
@@ -75,8 +75,8 @@ fn test_hausdorff_scales_with_spacing() {
 
 #[test]
 fn test_hausdorff_symmetry() {
-    let pred: Image<TestBackend, 1> = make_image(vec![1.0, 1.0, 0.0, 0.0, 0.0], [5]);
-    let gt: Image<TestBackend, 1> = make_image(vec![0.0, 0.0, 0.0, 1.0, 1.0], [5]);
+    let pred: Image<f32, TestBackend, 1> = make_image(vec![1.0, 1.0, 0.0, 0.0, 0.0], [5]);
+    let gt: Image<f32, TestBackend, 1> = make_image(vec![0.0, 0.0, 0.0, 1.0, 1.0], [5]);
     let spacing = [1.0f64];
     let hd_pg = hausdorff_distance(&pred, &gt, &spacing);
     let hd_gp = hausdorff_distance(&gt, &pred, &spacing);
@@ -90,8 +90,8 @@ fn test_hausdorff_symmetry() {
 
 #[test]
 fn test_hausdorff_both_empty_is_zero() {
-    let pred: Image<TestBackend, 3> = make_image(vec![0.0; 27], [3, 3, 3]);
-    let gt: Image<TestBackend, 3> = make_image(vec![0.0; 27], [3, 3, 3]);
+    let pred: Image<f32, TestBackend, 3> = make_image(vec![0.0; 27], [3, 3, 3]);
+    let gt: Image<f32, TestBackend, 3> = make_image(vec![0.0; 27], [3, 3, 3]);
     let spacing = [1.0f64, 1.0, 1.0];
     let hd = hausdorff_distance(&pred, &gt, &spacing);
     assert!(hd.abs() < F32_TOL, "both empty -> HD = 0.0, got {}", hd);
@@ -99,7 +99,7 @@ fn test_hausdorff_both_empty_is_zero() {
 
 #[test]
 fn test_msd_identical_masks_is_zero() {
-    let mask: Image<TestBackend, 2> = make_image(vec![1.0f32; 9], [3, 3]);
+    let mask: Image<f32, TestBackend, 2> = make_image(vec![1.0f32; 9], [3, 3]);
     let spacing = [1.0f64, 1.0];
     let msd = mean_surface_distance(&mask, &mask, &spacing);
     assert!(
@@ -136,8 +136,8 @@ fn native_msd_known_value_matches_surface_kernel() {
 
 #[test]
 fn test_msd_1d_known_value() {
-    let pred: Image<TestBackend, 1> = make_image(vec![1.0, 1.0, 0.0, 0.0, 0.0], [5]);
-    let gt: Image<TestBackend, 1> = make_image(vec![0.0, 0.0, 0.0, 1.0, 1.0], [5]);
+    let pred: Image<f32, TestBackend, 1> = make_image(vec![1.0, 1.0, 0.0, 0.0, 0.0], [5]);
+    let gt: Image<f32, TestBackend, 1> = make_image(vec![0.0, 0.0, 0.0, 1.0, 1.0], [5]);
     let spacing = [1.0f64];
     let msd = mean_surface_distance(&pred, &gt, &spacing);
     assert!((msd - 2.5).abs() < 1e-4, "1D MSD expected 2.5, got {}", msd);
@@ -145,8 +145,8 @@ fn test_msd_1d_known_value() {
 
 #[test]
 fn test_msd_leq_hausdorff() {
-    let pred: Image<TestBackend, 1> = make_image(vec![1.0, 1.0, 0.0, 0.0, 0.0], [5]);
-    let gt: Image<TestBackend, 1> = make_image(vec![0.0, 0.0, 0.0, 1.0, 1.0], [5]);
+    let pred: Image<f32, TestBackend, 1> = make_image(vec![1.0, 1.0, 0.0, 0.0, 0.0], [5]);
+    let gt: Image<f32, TestBackend, 1> = make_image(vec![0.0, 0.0, 0.0, 1.0, 1.0], [5]);
     let spacing = [1.0f64];
     let hd = hausdorff_distance(&pred, &gt, &spacing);
     let msd = mean_surface_distance(&pred, &gt, &spacing);
@@ -155,8 +155,8 @@ fn test_msd_leq_hausdorff() {
 
 #[test]
 fn test_msd_both_empty_is_zero() {
-    let pred: Image<TestBackend, 3> = make_image(vec![0.0; 27], [3, 3, 3]);
-    let gt: Image<TestBackend, 3> = make_image(vec![0.0; 27], [3, 3, 3]);
+    let pred: Image<f32, TestBackend, 3> = make_image(vec![0.0; 27], [3, 3, 3]);
+    let gt: Image<f32, TestBackend, 3> = make_image(vec![0.0; 27], [3, 3, 3]);
     let spacing = [1.0f64, 1.0, 1.0];
     let msd = mean_surface_distance(&pred, &gt, &spacing);
     assert!(msd.abs() < F32_TOL, "both empty -> MSD = 0.0, got {}", msd);
@@ -164,8 +164,10 @@ fn test_msd_both_empty_is_zero() {
 
 #[test]
 fn test_msd_symmetry() {
-    let pred: Image<TestBackend, 1> = make_image(vec![1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0], [8]);
-    let gt: Image<TestBackend, 1> = make_image(vec![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0], [8]);
+    let pred: Image<f32, TestBackend, 1> =
+        make_image(vec![1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0], [8]);
+    let gt: Image<f32, TestBackend, 1> =
+        make_image(vec![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0], [8]);
     let spacing = [1.0f64];
     let msd_pg = mean_surface_distance(&pred, &gt, &spacing);
     let msd_gp = mean_surface_distance(&gt, &pred, &spacing);

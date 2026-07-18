@@ -1,15 +1,13 @@
-use crate::errors::{RitkPyError, RitkResult};
+﻿use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{
     burn_into_py_image, into_py_image, py_image_to_burn, vec_to_image_like, with_image_slice,
-    PyImage,
-};
+    PyImage };
 use pyo3::prelude::*;
 use ritk_segmentation::{
     connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
     scalar_connected_components as core_scalar_connected_components,
     vector_connected_components_image as core_vector_connected_components,
-    ThresholdMaximumConnectedComponentsFilter,
-};
+    ThresholdMaximumConnectedComponentsFilter };
 use std::sync::Arc;
 
 /// Label connected components in a binary mask.
@@ -90,7 +88,7 @@ pub fn scalar_connected_component(
 /// Vector connected-component labeling, matching `sitk.VectorConnectedComponent`.
 ///
 /// Labels a multi-channel (vector) image: two face- or fully-connected
-/// neighbours join when `1 − |a · b| ≤ distance_threshold` over their channel
+/// neighbours join when `1 âˆ’ |a Â· b| â‰¤ distance_threshold` over their channel
 /// vectors (ITK assumes the vectors are normalized).  The component **partition**
 /// matches SimpleITK; label integers are renumbered consecutively (the standard
 /// connected-component parity convention).
@@ -131,8 +129,8 @@ pub fn vector_connected_component(
 /// components, matching `SimpleITK.ThresholdMaximumConnectedComponents`.
 ///
 /// Binary-searches the threshold `T` maximizing the count of connected
-/// components (size ≥ `minimum_object_size`, face connectivity) in the band
-/// `T ≤ I ≤ upper_boundary`, then returns that binary mask (1 inside, 0 outside).
+/// components (size â‰¥ `minimum_object_size`, face connectivity) in the band
+/// `T â‰¤ I â‰¤ upper_boundary`, then returns that binary mask (1 inside, 0 outside).
 ///
 /// Args:
 ///     image: Input (integer-valued) PyImage.
@@ -155,8 +153,7 @@ pub fn threshold_maximum_connected_components(
             minimum_object_size,
             upper_boundary,
             inside_value: 1.0,
-            outside_value: 0.0,
-        }
+            outside_value: 0.0 }
         .apply(&img)
     });
     burn_into_py_image(out)

@@ -1,9 +1,8 @@
-use anyhow::{anyhow, Context, Result};
+﻿use anyhow::{anyhow, Context, Result};
 
 use super::super::{
     infer_format, is_native_read_capable, is_native_write_capable, read_image_native, Backend,
-    NativeBackend,
-};
+    NativeBackend };
 
 pub(crate) fn read_native_input(
     input: &std::path::Path,

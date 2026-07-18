@@ -83,7 +83,7 @@ impl GrayscaleFillholeFilter {
     /// # Errors
     ///
     /// Returns `Err` if the underlying tensor data cannot be extracted as `f32`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
 
         let filled = fill_holes_3d(&vals, dims);

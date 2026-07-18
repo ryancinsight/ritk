@@ -1,15 +1,15 @@
-//! Backend-dispatched joint histogram computation.
+﻿//! Backend-dispatched joint histogram computation.
 //!
 //! When the `direct-parzen` feature is enabled, the **first** dispatch method
 //! (`compute_joint_histogram_dispatch`) extracts tensor data to host memory and
-//! calls the direct sparse-loop path (~6× faster on CPU). The **cached** dispatch
+//! calls the direct sparse-loop path (~6Ã— faster on CPU). The **cached** dispatch
 //! methods provide two paths:
 //!
-//! - `compute_joint_histogram_from_cache_dispatch` — always uses the tensor matmul
+//! - `compute_joint_histogram_from_cache_dispatch` â€” always uses the tensor matmul
 //!   path to preserve the autodiff gradient tape (needed by RSGD).
-//! - `compute_joint_histogram_from_cache_sparse_dispatch` — uses the sparse
+//! - `compute_joint_histogram_from_cache_sparse_dispatch` â€” uses the sparse
 //!   W_fixed^T representation for derivative-free backends (CMA-ES), eliminating
-//!   the `0..num_bins` inner scan and the `if w_f > 0.0` branch (~3× faster than
+//!   the `0..num_bins` inner scan and the `if w_f > 0.0` branch (~3Ã— faster than
 //!   the dense cache path on CPU).
 //!
 //! # Design
@@ -32,9 +32,9 @@
 //!
 //! # SSOT
 //!
-//! All sigma² conversions now go through `ParzenConfig::from_intensity_sigma`
+//! All sigmaÂ² conversions now go through `ParzenConfig::from_intensity_sigma`
 //! (SSOT-319-02). The former `sigma_sq_in_bins` standalone function has been
-//! removed — its 10+ call sites across `dispatch.rs`, `compute.rs`,
+//! removed â€” its 10+ call sites across `dispatch.rs`, `compute.rs`,
 //! `compute_image/mod.rs`, `masked/mod.rs`, and test files now call
 //! `ParzenConfig::from_intensity_sigma` directly.
 
@@ -54,7 +54,7 @@ use super::ParzenJointHistogram;
 /// return `Cow::Borrowed` on the no-normalization path.
 #[cfg(feature = "direct-parzen")]
 pub(in crate::metric::histogram) fn normalize_and_extract<B: Backend>(
-    values: &Tensor<B, 1>,
+    values: &Tensor<f32, B>,
     min_intensity: f32,
     max_intensity: f32,
     num_bins: usize,
@@ -72,12 +72,12 @@ pub(in crate::metric::histogram) fn normalize_and_extract<B: Backend>(
 /// Both `compute_joint_histogram_dispatch` and
 /// `compute_joint_histogram_from_cache_sparse_dispatch` shared the same
 /// 5-line extraction pattern. This helper is the SSOT for converting
-/// `Option<&Tensor<B, 1>>` → `Option<Cow<'_, [f32]>>` for the direct path.
+/// `Option<&Tensor<f32, B>>` â†’ `Option<Cow<'_, [f32]>>` for the direct path.
 /// Always returns `Cow::Owned` today; can switch to `Cow::Borrowed` when
 /// Burn exposes stable slice accessors.
 #[cfg(feature = "direct-parzen")]
 #[inline]
-fn extract_oob_mask<B: Backend>(oob_mask: Option<&Tensor<B, 1>>) -> Option<Cow<'static, [f32]>> {
+fn extract_oob_mask<B: Backend>(oob_mask: Option<&Tensor<f32, B>>) -> Option<Cow<'static, [f32]>> {
     oob_mask.map(|m| {
         Cow::Owned(
             m.clone()
@@ -103,10 +103,10 @@ impl<B: Backend> ParzenJointHistogram<B> {
     #[cfg(feature = "direct-parzen")]
     pub(crate) fn compute_joint_histogram_dispatch(
         &self,
-        fixed: &Tensor<B, 1>,
-        moving: &Tensor<B, 1>,
-        oob_mask: Option<&Tensor<B, 1>>,
-    ) -> Tensor<B, 2> {
+        fixed: &Tensor<f32, B>,
+        moving: &Tensor<f32, B>,
+        oob_mask: Option<&Tensor<f32, B>>,
+    ) -> Tensor<f32, B> {
         let [_n] = fixed.dims();
         let num_bins = self.num_bins;
         let device = fixed.device();
@@ -157,10 +157,10 @@ impl<B: Backend> ParzenJointHistogram<B> {
     #[cfg(feature = "direct-parzen")]
     pub(crate) fn compute_joint_histogram_from_cache_dispatch(
         &self,
-        w_fixed_transposed: &Tensor<B, 2>,
-        moving_values: &Tensor<B, 1>,
-        oob_mask: Option<&Tensor<B, 1>>,
-    ) -> Tensor<B, 2> {
+        w_fixed_transposed: &Tensor<f32, B>,
+        moving_values: &Tensor<f32, B>,
+        oob_mask: Option<&Tensor<f32, B>>,
+    ) -> Tensor<f32, B> {
         // Always use the tensor path so autodiff gradient tape is preserved.
         self.compute_joint_histogram_from_cache(w_fixed_transposed, moving_values, oob_mask)
     }
@@ -174,16 +174,16 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// Eliminates the `if w_f > 0.0` branch and the strided memory access
     /// pattern of the dense cache path.
     ///
-    /// **Only safe for derivative-free backends** — calling `into_data()` on
+    /// **Only safe for derivative-free backends** â€” calling `into_data()` on
     /// `moving_values` severs any autodiff tape. The tensor-path
     /// `compute_joint_histogram_from_cache_dispatch` must be used for RSGD.
     #[cfg(feature = "direct-parzen")]
     pub(crate) fn compute_joint_histogram_from_cache_sparse_dispatch(
         &self,
         sparse_w_fixed: &[(super::direct::SparseSampleCache, f32)],
-        moving_values: &Tensor<B, 1>,
-        oob_mask: Option<&Tensor<B, 1>>,
-    ) -> Tensor<B, 2> {
+        moving_values: &Tensor<f32, B>,
+        oob_mask: Option<&Tensor<f32, B>>,
+    ) -> Tensor<f32, B> {
         let num_bins = self.num_bins;
         let device = moving_values.device();
 
@@ -220,20 +220,20 @@ impl<B: Backend> ParzenJointHistogram<B> {
     #[cfg(not(feature = "direct-parzen"))]
     pub(crate) fn compute_joint_histogram_dispatch(
         &self,
-        fixed: &Tensor<B, 1>,
-        moving: &Tensor<B, 1>,
-        oob_mask: Option<&Tensor<B, 1>>,
-    ) -> Tensor<B, 2> {
+        fixed: &Tensor<f32, B>,
+        moving: &Tensor<f32, B>,
+        oob_mask: Option<&Tensor<f32, B>>,
+    ) -> Tensor<f32, B> {
         self.compute_joint_histogram(fixed, moving, oob_mask)
     }
 
     #[cfg(not(feature = "direct-parzen"))]
     pub(crate) fn compute_joint_histogram_from_cache_dispatch(
         &self,
-        w_fixed_transposed: &Tensor<B, 2>,
-        moving_values: &Tensor<B, 1>,
-        oob_mask: Option<&Tensor<B, 1>>,
-    ) -> Tensor<B, 2> {
+        w_fixed_transposed: &Tensor<f32, B>,
+        moving_values: &Tensor<f32, B>,
+        oob_mask: Option<&Tensor<f32, B>>,
+    ) -> Tensor<f32, B> {
         self.compute_joint_histogram_from_cache(w_fixed_transposed, moving_values, oob_mask)
     }
 }

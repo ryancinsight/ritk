@@ -1,10 +1,9 @@
-use super::super::error::{RegistrationError, Result};
+﻿use super::super::error::{RegistrationError, Result};
 use super::super::spatial::{
     apply_affine_perturbation, apply_transform_perturbation, build_homogeneous_matrix,
     center_points, compute_centroid, compute_fre, extract_spatial_transform,
     generate_affine_perturbations, generate_transform_perturbations, kabsch_algorithm,
-    SpatialTransform,
-};
+    SpatialTransform };
 use super::config::ClassicalConfig;
 use super::metric::MutualInformationMetric;
 use super::result::RegistrationResult;
@@ -22,16 +21,14 @@ type Matrix3 = FixedMatrix<f64, 3, 3>;
 #[derive(Debug, Clone)]
 pub struct ImageRegistration {
     config: ClassicalConfig,
-    similarity: MutualInformationMetric,
-}
+    similarity: MutualInformationMetric }
 
 impl ImageRegistration {
     /// Create a new ImageRegistration engine with default configuration.
     pub fn new() -> Self {
         Self {
             config: ClassicalConfig::default(),
-            similarity: MutualInformationMetric::default(),
-        }
+            similarity: MutualInformationMetric::default() }
     }
 
     /// Create with explicit configuration.
@@ -87,8 +84,7 @@ impl ImageRegistration {
             transform,
             spatial: SpatialTransform::RigidBody {
                 rotation,
-                translation,
-            },
+                translation },
             quality: RegistrationQualityMetrics {
                 fre: Some(fre),
                 tre: None,
@@ -97,9 +93,7 @@ impl ImageRegistration {
                 normalized_cross_correlation: 0.0,
                 convergence: ConvergenceStatus::Converged,
                 iterations: 1,
-                final_cost: fre,
-            },
-        })
+                final_cost: fre } })
     }
 
     /// Intensity-based rigid registration using mutual information optimization.
@@ -146,8 +140,7 @@ impl ImageRegistration {
                     current_transform = apply_transform_perturbation(&current_transform, &best);
                     iteration += 1;
                 }
-                None => break,
-            }
+                None => break }
         }
 
         let spatial = extract_spatial_transform(&current_transform)?;
@@ -167,9 +160,7 @@ impl ImageRegistration {
                     ConvergenceStatus::MaxIterationsReached
                 },
                 iterations: iteration,
-                final_cost: prev_loss,
-            },
-        })
+                final_cost: prev_loss } })
     }
 
     /// Intensity-based affine registration using mutual information optimization.
@@ -217,8 +208,7 @@ impl ImageRegistration {
                     current_transform = apply_affine_perturbation(&current_transform, &best);
                     iteration += 1;
                 }
-                None => break,
-            }
+                None => break }
         }
 
         let spatial = extract_spatial_transform(&current_transform)?;
@@ -238,9 +228,7 @@ impl ImageRegistration {
                     ConvergenceStatus::MaxIterationsReached
                 },
                 iterations: iteration,
-                final_cost: prev_loss,
-            },
-        })
+                final_cost: prev_loss } })
     }
 
     /// Synchronize temporal signals from multi-modal acquisitions.

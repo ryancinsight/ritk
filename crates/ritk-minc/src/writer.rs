@@ -1,18 +1,18 @@
-//! MINC2 writer: HDF5-based 3-D volumetric image export.
+﻿//! MINC2 writer: HDF5-based 3-D volumetric image export.
 //!
 //! # HDF5 Structure Written
 //!
 //! ```text
 //! / (root)
 //!   Attributes: ident, minc_version
-//!   â””â”€â”€ minc-2.0/ (group)
-//!       â”œâ”€â”€ dimensions/ (group)
-//!       â”‚   â”œâ”€â”€ xspace (group, attrs: start, step, length, direction_cosines)
-//!       â”‚   â”œâ”€â”€ yspace (group, same attrs)
-//!       â”‚   â””â”€â”€ zspace (group, same attrs)
-//!       â””â”€â”€ image/ (group)
-//!           â””â”€â”€ 0/ (group)
-//!               â””â”€â”€ image (dataset: f32 voxel data, contiguous layout)
+//!   Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ minc-2.0/ (group)
+//!       Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ dimensions/ (group)
+//!       Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ xspace (group, attrs: start, step, length, direction_cosines)
+//!       Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ yspace (group, same attrs)
+//!       Ã¢â€â€š   Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ zspace (group, same attrs)
+//!       Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ image/ (group)
+//!           Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ 0/ (group)
+//!               Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ image (dataset: f32 voxel data, contiguous layout)
 //!                   Attributes: dimorder, valid_range, signtype, complete
 //! ```
 //!
@@ -31,7 +31,7 @@ use crate::hdf5_binary::write_minc2_hdf5;
 use anyhow::{bail, Result};
 use std::path::Path;
 
-// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬ Public API Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 /// Write a 3-D `Image` as a MINC2 (.mnc) HDF5 file.
 ///
@@ -95,8 +95,7 @@ where
 
 /// Typed writer wrapping `write_minc` for API consistency.
 pub struct MincWriter<B: coeus_core::ComputeBackend> {
-    backend: B,
-}
+    backend: B }
 
 impl<B: coeus_core::ComputeBackend> MincWriter<B> {
     /// Construct a writer that extracts image data through `backend`.

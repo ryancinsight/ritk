@@ -1,11 +1,10 @@
-//! Atlas building and label fusion: population atlas, majority vote, and Joint Label Fusion.
+﻿//! Atlas building and label fusion: population atlas, majority vote, and Joint Label Fusion.
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
 use pyo3::prelude::*;
 use ritk_registration::atlas::label_fusion::{
-    joint_label_fusion, majority_vote, LabelFusionConfig,
-};
+    joint_label_fusion, majority_vote, LabelFusionConfig };
 use ritk_registration::atlas::{AtlasConfig, AtlasRegistration};
 use ritk_registration::diffeomorphic::multires_syn::{InverseConsistency, MultiResSyNConfig};
 
@@ -22,7 +21,7 @@ pub struct PyAtlasBuildOptions {
     /// Per-voxel RMS change threshold for early stopping.
     #[pyo3(get, set)]
     pub convergence_threshold: f64,
-    /// Per-level SyN iteration counts; `None` → [100, 70, 20].
+    /// Per-level SyN iteration counts; `None` â†’ [100, 70, 20].
     #[pyo3(get, set)]
     pub syn_iterations: Option<Vec<usize>>,
     /// Gaussian smoothing sigma for velocity fields (voxels).
@@ -33,8 +32,7 @@ pub struct PyAtlasBuildOptions {
     pub cc_radius: usize,
     /// Maximum per-iteration displacement in voxels.
     #[pyo3(get, set)]
-    pub gradient_step: f64,
-}
+    pub gradient_step: f64 }
 
 #[pymethods]
 impl PyAtlasBuildOptions {
@@ -61,8 +59,7 @@ impl PyAtlasBuildOptions {
             syn_iterations,
             sigma_smooth,
             cc_radius,
-            gradient_step,
-        }
+            gradient_step }
     }
 }
 
@@ -130,13 +127,11 @@ pub fn build_atlas(
             n_squarings: 6,
             cc_window_radius: cc_radius,
             enforce_inverse_consistency: InverseConsistency::Enforced,
-            gradient_step,
-        };
+            gradient_step };
         let config = AtlasConfig {
             max_iterations,
             convergence_threshold,
-            syn_config,
-        };
+            syn_config };
         let reg = AtlasRegistration::new(config);
         reg.build_atlas(&subject_slices, first_shape, [1.0, 1.0, 1.0])
             .map_err(|e| e.to_string())

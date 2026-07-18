@@ -1,10 +1,10 @@
-//! Parity: the Coeus-native MSE engine reproduces the Burn engine.
+﻿//! Parity: the Coeus-native MSE engine reproduces the Burn engine.
 //!
 //! Scope: these tests verify the MSE *reduction* over the resampled volume. The
-//! resample path itself (fixed grid → native batch transforms → native affine →
+//! resample path itself (fixed grid â†’ native batch transforms â†’ native affine â†’
 //! native trilinear) is the shared `ritk_filter::resample::native` substrate,
 //! already differentially verified against Burn under identity/integer/fractional
-//! translation by the native NGF parity suite — so it is not re-verified here.
+//! translation by the native NGF parity suite â€” so it is not re-verified here.
 //! MSE is intentionally full-volume (no mask, matching [`super::MeanSquaredError`]),
 //! so the differential oracle below uses only the identity transform, isolating
 //! the reduction from interpolation-order rounding.
@@ -14,7 +14,7 @@
 //!   difference vanishes).
 //! - Differential: `mse_value_native` reproduces Burn `MeanSquaredError::forward`
 //!   on reversed-image data under identity (both read bit-identical on-grid host
-//!   values; the two mean-squared reductions agree to the index↔world `f32`
+//!   values; the two mean-squared reductions agree to the indexâ†”world `f32`
 //!   round-trip, tol 1e-4 over an O(1) MSE magnitude).
 
 use super::super::super::trait_::Metric;
@@ -24,7 +24,7 @@ use super::mse_value_native;
 use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_image::Image as BurnImage;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::transform::affine::AtlasAffineTransform;
@@ -34,7 +34,7 @@ type BB = NdArray<f32>;
 type NB = SequentialBackend;
 
 /// Smooth, anisotropic-gradient volume of `[d, h, w]` so the fixed and moving
-/// intensities are non-degenerate (distinct per axis) — a constant or separable
+/// intensities are non-degenerate (distinct per axis) â€” a constant or separable
 /// field would hide column/axis mix-ups the parity test must catch.
 fn ramp(d: usize, h: usize, w: usize) -> Vec<f32> {
     let mut v = vec![0.0f32; d * h * w];
@@ -53,7 +53,7 @@ fn ramp(d: usize, h: usize, w: usize) -> Vec<f32> {
 fn burn_image(data: Vec<f32>, shape: [usize; 3]) -> BurnImage<BB, 3> {
     let device = Default::default();
     BurnImage::new(
-        Tensor::from_data(TensorData::new(data, Shape::new(shape)), &device),
+        Tensor::from_data(::new(data, Shape::new(shape)), &device),
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
@@ -73,11 +73,11 @@ fn native_image(data: Vec<f32>, shape: [usize; 3]) -> NativeImage<f32, NB, 3> {
 
 fn burn_translation(t: [f32; 3]) -> TranslationTransform<BB, 3> {
     let device = Default::default();
-    TranslationTransform::<BB, 3>::new(Tensor::from_data(TensorData::new(t.to_vec(), [3]), &device))
+    TranslationTransform::<BB, 3>::new(Tensor::from_data(::new(t.to_vec(), [3]), &device))
 }
 
 /// Native affine = identity matrix + `t` translation (center 0), so
-/// `T(x) = x + t` — the exact semantics of [`TranslationTransform`].
+/// `T(x) = x + t` â€” the exact semantics of [`TranslationTransform`].
 fn native_translation(t: [f32; 3]) -> AtlasAffineTransform<NB, 3> {
     let matrix = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
     AtlasAffineTransform::<NB, 3>::construct(&matrix, &t, &[0.0, 0.0, 0.0])

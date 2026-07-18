@@ -22,8 +22,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_scan_skull_ct_folder_with_dicomdir_loads_series() {
     println!("START test_scan_skull_ct_folder_with_dicomdir_loads_series");
-    let device: <burn_ndarray::NdArray<f32> as ritk_image::tensor::backend::Backend>::Device =
-        Default::default();
+    let device = coeus_core::SequentialBackend;
     let series_path =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test_data/2_skull_ct");
     let series_path = series_path.as_path();
@@ -44,7 +43,7 @@ fn test_scan_skull_ct_folder_with_dicomdir_loads_series() {
     );
     println!("Before read_dicom_series_with_metadata");
     let (image, _) =
-        read_dicom_series_with_metadata::<burn_ndarray::NdArray<f32>, _>(series_path, &device)
+        read_dicom_series_with_metadata::<coeus_core::SequentialBackend, _>(series_path, &device)
             .expect("read_dicom_series_with_metadata must succeed");
     println!("After read_dicom_series_with_metadata");
     assert_eq!(
@@ -60,14 +59,13 @@ fn test_scan_skull_ct_folder_with_dicomdir_loads_series() {
 
 #[test]
 fn test_scan_skull_ct_dicomdir_and_folder_agree_on_series() {
-    let device: <burn_ndarray::NdArray<f32> as ritk_image::tensor::backend::Backend>::Device =
-        Default::default();
+    let device = coeus_core::SequentialBackend;
     let series_path =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test_data/2_skull_ct");
     let series_path = series_path.as_path();
     let info = scan_dicom_directory(series_path).expect("scan_dicom_directory must succeed");
     let (image, _) =
-        read_dicom_series_with_metadata::<burn_ndarray::NdArray<f32>, _>(series_path, &device)
+        read_dicom_series_with_metadata::<coeus_core::SequentialBackend, _>(series_path, &device)
             .expect("read_dicom_series_with_metadata must succeed");
     let spatial = image.spacing();
     assert!(
@@ -111,7 +109,7 @@ fn test_scan_directory_selects_most_populated_series_when_same_dimensions() {
             VR::CS,
             PrimitiveValue::from("CT"),
         ));
-        // SeriesInstanceUID (0020,000E) — the tag under test.
+        // SeriesInstanceUID (0020,000E) â€” the tag under test.
         obj.put(DataElement::new(
             Tag(0x0020, 0x000E),
             VR::UI,
@@ -141,7 +139,7 @@ fn test_scan_directory_selects_most_populated_series_when_same_dimensions() {
             VR::DS,
             PrimitiveValue::from("1.0\\0.0\\0.0\\0.0\\1.0\\0.0"),
         ));
-        // Rows / Cols: 8×8
+        // Rows / Cols: 8Ã—8
         obj.put(DataElement::new(
             Tag(0x0028, 0x0010),
             VR::US,
@@ -190,7 +188,7 @@ fn test_scan_directory_selects_most_populated_series_when_same_dimensions() {
             VR::DS,
             PrimitiveValue::from("1.0\\1.0"),
         ));
-        // PixelData: 8×8 × 2 bytes = 128 bytes of zeroes
+        // PixelData: 8Ã—8 Ã— 2 bytes = 128 bytes of zeroes
         let pixel_bytes: Vec<u8> = vec![0u8; 8 * 8 * 2];
         obj.put(DataElement::new(
             Tag(0x7FE0, 0x0010),
@@ -208,11 +206,11 @@ fn test_scan_directory_selects_most_populated_series_when_same_dimensions() {
         file_obj.write_to_file(path).expect("write must not fail");
     };
 
-    // Series A: 3 slices — the most-populated series.
+    // Series A: 3 slices â€” the most-populated series.
     write_ct_slice(&dir.path().join("A1.dcm"), "2.25.A", 1, 0.0);
     write_ct_slice(&dir.path().join("A2.dcm"), "2.25.A", 2, 1.0);
     write_ct_slice(&dir.path().join("A3.dcm"), "2.25.A", 3, 2.0);
-    // Series B: 1 slice — must be excluded by plurality selection.
+    // Series B: 1 slice â€” must be excluded by plurality selection.
     write_ct_slice(&dir.path().join("B1.dcm"), "2.25.B", 1, 5.0);
 
     let result = scan_dicom_directory(dir.path())

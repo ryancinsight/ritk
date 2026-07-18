@@ -64,7 +64,10 @@ impl FftShiftFilter {
     ///
     /// # Errors
     /// Returns `Err` when the tensor data cannot be extracted as `f32`.
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Result<Image<B, D>> {
+    pub fn apply<B: Backend, const D: usize>(
+        &self,
+        image: &Image<f32, B, D>,
+    ) -> Result<Image<f32, B, D>> {
         Self::apply_inner(image)
     }
 
@@ -116,7 +119,9 @@ impl FftShiftFilter {
         crate::native_support::rebuild_image(out, dims, image, backend)
     }
 
-    fn apply_inner<B: Backend, const D: usize>(image: &Image<B, D>) -> Result<Image<B, D>> {
+    fn apply_inner<B: Backend, const D: usize>(
+        image: &Image<f32, B, D>,
+    ) -> Result<Image<f32, B, D>> {
         let dims = image.shape();
         let cw = dims[D - 1]; // complex width = 2 * W
         let w = cw / 2;
@@ -228,7 +233,7 @@ impl RealFftShiftFilter {
     ///
     /// # Errors
     /// Returns `Err` when the tensor data cannot be extracted as `f32`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let [dz, dy, dx] = dims;
         // ITK formula: inputIndex = (outputIndex - half + N) % N

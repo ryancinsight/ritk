@@ -1,9 +1,9 @@
-//! Python-exposed global Mutual Information registration.
+﻿//! Python-exposed global Mutual Information registration.
 //!
 //! Multi-resolution Mattes MI + RegularStepGradientDescent (RSGD) registration,
 //! supporting translation, rigid, and affine transform types. Converts PyImage
 //! data to Burn autodiff-backed tensors, runs registration via
-//! `ritk-registration`, and returns the 4×4 homogeneous matrix, final MI
+//! `ritk-registration`, and returns the 4Ã—4 homogeneous matrix, final MI
 //! value, and convergence diagnostics.
 //!
 //! The CMA-ES registration binding is in the `cma_es` submodule.
@@ -17,34 +17,33 @@ use pyo3::prelude::*;
 use ritk_core::image::Image;
 use ritk_filter::GaussianSigma;
 use ritk_image::burn::backend::Autodiff;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_registration::classical::global_mi::{
-    ConvergenceStatus, GlobalMiConfig, GlobalMiRegistration, GlobalMiTransformType,
-};
+    ConvergenceStatus, GlobalMiConfig, GlobalMiRegistration, GlobalMiTransformType };
 use ritk_registration::optimizer::regular_step_gd::RegularStepGdConfig;
 use ritk_transform::{AffineTransform, RigidTransform, TranslationTransform};
 
-// ─── Backend aliases ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Backend aliases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // NdArray<f32> is the concrete inner backend (matching crate::image::Backend).
 // Autodiff<NdArray<f32>> wraps it to provide gradient computation required by
 // the RSGD optimizer.
 pub(crate) type InnerBackend = NdArray<f32>;
-pub(crate) type AutodiffBackend = Autodiff<InnerBackend>;
+pub(crate) type Backend = Autodiff<InnerBackend>;
 
-// ─── Image conversion ────────────────────────────────────────────────────────
+// â”€â”€â”€ Image conversion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Convert a `PyImage` (which wraps `Image<NdArray<f32>, 3>`) into an
 /// `Image<Autodiff<NdArray<f32>>, 3>` by extracting the flat f32 data and
 /// re-creating the tensor on the autodiff backend.
 ///
-/// This is necessary because `GlobalMiRegistration` requires `B: AutodiffBackend`
+/// This is necessary because `GlobalMiRegistration` requires `B: Backend`
 /// for gradient computation, while `PyImage` stores data on the non-autodiff
 /// `NdArray<f32>` backend.
-pub(crate) fn py_image_to_autodiff_image(py_image: &PyImage) -> Image<AutodiffBackend, 3> {
+pub(crate) fn py_image_to_autodiff_image(py_image: &PyImage) -> Image<Backend, 3> {
     let (values, shape) = image_to_vec(py_image.inner.as_ref());
     let device = Default::default();
-    let tensor = Tensor::<AutodiffBackend, 3>::from_data(
-        TensorData::new(values, Shape::new(shape)),
+    let tensor = Tensor::<f32, Backend>::from_data(
+        ::new(values, Shape::new(shape)),
         &device,
     );
     Image::new(
@@ -58,8 +57,8 @@ pub(crate) fn py_image_to_autodiff_image(py_image: &PyImage) -> Image<AutodiffBa
 /// Compute the physical center of a 3D image from its metadata.
 ///
 /// The center is defined as: `center[d] = origin[d] + (shape[d] - 1) * spacing[d] / 2`
-/// for each spatial dimension `d ∈ {0, 1, 2}`.
-fn compute_image_center(image: &Image<AutodiffBackend, 3>) -> Tensor<AutodiffBackend, 1> {
+/// for each spatial dimension `d âˆˆ {0, 1, 2}`.
+fn compute_image_center(image: &Image<Backend, 3>) -> Tensor<f32, Backend> {
     let origin = image.origin();
     let spacing = image.spacing();
     let shape = image.shape();
@@ -67,7 +66,7 @@ fn compute_image_center(image: &Image<AutodiffBackend, 3>) -> Tensor<AutodiffBac
         (origin[d] as f32) + ((shape[d] - 1) as f32) * (spacing[d] as f32) / 2.0
     });
     Tensor::from_data(
-        TensorData::from(center_vals.as_slice()),
+        ::from(center_vals.as_slice()),
         &image.data().device(),
     )
 }
@@ -78,8 +77,7 @@ struct RsgdParams {
     initial_step_length: f64,
     relaxation_factor: f64,
     minimum_step_length: f64,
-    maximum_iterations: usize,
-}
+    maximum_iterations: usize }
 
 /// Build a `GlobalMiConfig` from Python parameters.
 ///
@@ -100,8 +98,7 @@ fn build_config(
         initial_step_length,
         relaxation_factor,
         minimum_step_length,
-        maximum_iterations,
-    } = rsgd;
+        maximum_iterations } = rsgd;
 
     // Build per-level RSGD configs with step-length decay across pyramid levels.
     // Coarse levels: larger step, fewer iterations. Fine levels: smaller step, more iterations.
@@ -132,11 +129,10 @@ fn build_config(
         sampling_percentage,
         rsgd_configs,
         transform_type,
-        center: None,
-    }
+        center: None }
 }
 
-// ─── Python function ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Python function â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// All scalar tuning knobs for `global_mi_register`, grouped to stay within
 /// the function argument limit.
@@ -147,8 +143,7 @@ pub(crate) struct GlobalMiOptions {
     smoothing_sigmas: Option<Vec<f64>>,
     num_mi_bins: usize,
     sampling_percentage: f32,
-    rsgd: RsgdParams,
-}
+    rsgd: RsgdParams }
 
 /// Core registration logic, separated from the `#[pyfunction]` entry point so
 /// the public Rust function signature stays within the argument limit.
@@ -158,7 +153,7 @@ fn run_global_mi_register(
     moving: &PyImage,
     opts: GlobalMiOptions,
 ) -> RitkResult<(Vec<f32>, f64, PyObject)> {
-    // ── 1. Parse transform type ──────────────────────────────────────────
+    // â”€â”€ 1. Parse transform type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let transform_type_enum = match opts.transform_type.as_str() {
         "translation" => GlobalMiTransformType::Translation,
         "rigid" => GlobalMiTransformType::Rigid,
@@ -172,21 +167,19 @@ fn run_global_mi_register(
     };
     let num_levels = opts.num_levels;
 
-    // ── 2. Apply default lists when not provided ─────────────────────────
+    // â”€â”€ 2. Apply default lists when not provided â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let shrink_factors = opts.shrink_factors.unwrap_or_else(|| match num_levels {
         0 => vec![],
         1 => vec![1],
         2 => vec![2, 1],
-        _ => vec![4, 2, 1],
-    });
+        _ => vec![4, 2, 1] });
     let smoothing_sigmas = opts.smoothing_sigmas.unwrap_or_else(|| match num_levels {
         0 => vec![],
         1 => vec![0.0],
         2 => vec![2.0, 0.0],
-        _ => vec![4.0, 2.0, 0.0],
-    });
+        _ => vec![4.0, 2.0, 0.0] });
 
-    // ── 3. Build configuration ───────────────────────────────────────────
+    // â”€â”€ 3. Build configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let config = build_config(
         transform_type_enum,
         num_levels,
@@ -197,17 +190,17 @@ fn run_global_mi_register(
         opts.rsgd,
     );
 
-    // ── 4. Convert PyImages to autodiff-backend Images ───────────────────
+    // â”€â”€ 4. Convert PyImages to autodiff-backend Images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let fixed_ad = py_image_to_autodiff_image(fixed);
     let moving_ad = py_image_to_autodiff_image(moving);
 
-    // ── 5. Run registration inside allow_threads ─────────────────────────
+    // â”€â”€ 5. Run registration inside allow_threads â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let (matrix, final_mi, convergence_history, iterations_per_level, loss_history, convergence) =
         py.allow_threads(|| {
             let device = Default::default();
             match transform_type_enum {
                 GlobalMiTransformType::Translation => {
-                    let initial = TranslationTransform::<AutodiffBackend, 3>::new(Tensor::zeros(
+                    let initial = TranslationTransform::<Backend, 3>::new(Tensor::zeros(
                         [3],
                         &device,
                     ));
@@ -226,7 +219,7 @@ fn run_global_mi_register(
                 GlobalMiTransformType::Rigid => {
                     let center = compute_image_center(&fixed_ad);
                     let initial =
-                        RigidTransform::<AutodiffBackend, 3>::identity(Some(center), &device);
+                        RigidTransform::<Backend, 3>::identity(Some(center), &device);
                     let (_transform, result) = GlobalMiRegistration::register_rigid_full(
                         &fixed_ad, &moving_ad, initial, &config,
                     );
@@ -242,7 +235,7 @@ fn run_global_mi_register(
                 GlobalMiTransformType::Affine => {
                     let center = compute_image_center(&fixed_ad);
                     let initial =
-                        AffineTransform::<AutodiffBackend, 3>::identity(Some(center), &device);
+                        AffineTransform::<Backend, 3>::identity(Some(center), &device);
                     let (_transform, result) = GlobalMiRegistration::register_affine_full(
                         &fixed_ad, &moving_ad, initial, &config,
                     );
@@ -258,10 +251,10 @@ fn run_global_mi_register(
             }
         });
 
-    // ── 6. Convert result matrix to Vec<f32> ─────────────────────────────
+    // â”€â”€ 6. Convert result matrix to Vec<f32> â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let matrix_vec: Vec<f32> = matrix.0.iter().map(|&v| v as f32).collect();
 
-    // ── 7. Build convergence info dict ───────────────────────────────────
+    // â”€â”€ 7. Build convergence info dict â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let convergence_strs: Vec<String> = convergence_history
         .iter()
         .map(|reason| match reason {
@@ -286,7 +279,7 @@ fn run_global_mi_register(
     Ok((matrix_vec, final_mi, info.unbind().into()))
 }
 
-// ─── Python-visible options class ────────────────────────────────────────────
+// â”€â”€â”€ Python-visible options class â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Registration options for `global_mi_register`.
 ///
@@ -327,8 +320,7 @@ pub struct PyGlobalMiOptions {
     #[pyo3(get, set)]
     pub minimum_step_length: f64,
     #[pyo3(get, set)]
-    pub maximum_iterations: usize,
-}
+    pub maximum_iterations: usize }
 
 impl Default for PyGlobalMiOptions {
     fn default() -> Self {
@@ -342,8 +334,7 @@ impl Default for PyGlobalMiOptions {
             initial_step_length: 1.0,
             relaxation_factor: 0.5,
             minimum_step_length: 1e-6,
-            maximum_iterations: 200,
-        }
+            maximum_iterations: 200 }
     }
 }
 
@@ -385,8 +376,7 @@ impl PyGlobalMiOptions {
             initial_step_length,
             relaxation_factor,
             minimum_step_length,
-            maximum_iterations,
-        }
+            maximum_iterations }
     }
 }
 
@@ -403,13 +393,11 @@ impl PyGlobalMiOptions {
                 initial_step_length: self.initial_step_length,
                 relaxation_factor: self.relaxation_factor,
                 minimum_step_length: self.minimum_step_length,
-                maximum_iterations: self.maximum_iterations,
-            },
-        }
+                maximum_iterations: self.maximum_iterations } }
     }
 }
 
-// ─── Python function ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Python function â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Register a moving image to a fixed image using global Mutual Information.
 ///
@@ -424,7 +412,7 @@ impl PyGlobalMiOptions {
 ///
 /// Returns:
 ///     (matrix, final_mi, info):
-///         - matrix: 4×4 homogeneous transform as 16 floats (row-major).
+///         - matrix: 4Ã—4 homogeneous transform as 16 floats (row-major).
 ///         - final_mi: Final Mattes MI value (positive; negated from the loss).
 ///         - info: Dict with keys `convergence_history`, `iterations_per_level`,
 ///           `converged`, `loss_history`.
@@ -441,6 +429,6 @@ pub fn global_mi_register(
     run_global_mi_register(py, fixed, moving, opts.into_options())
 }
 
-// ─── Re-exports ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Re-exports â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub use cma_es::{cma_mi_register, PyCmaMiOptions};

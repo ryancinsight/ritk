@@ -1,4 +1,4 @@
-//! VTK data model: types, pipeline traits, scene graph, observer system,
+﻿//! VTK data model: types, pipeline traits, scene graph, observer system,
 //! modification-time tracking, smart mapper, multi-block datasets, and
 //! concrete geometry filters.
 
@@ -14,14 +14,12 @@ pub mod vtk_scene;
 
 pub use filters::{ComputeNormalsFilter, SmoothFilter, ThresholdFilter};
 pub use mapper::{
-    ColormapPreset, PolygonMode, ScalarVisibility, SurfaceMapper, VtkLookupTable, VtkMapper,
-};
+    ColormapPreset, PolygonMode, ScalarVisibility, SurfaceMapper, VtkLookupTable, VtkMapper };
 pub use mtime::{Modifiable, ModifiedTime};
 pub use multi_block::{Block, LeafIter, VtkMultiBlockDataSet};
 pub use observer::{EventHandlers, EventId, Observable, ObserverCallback, ObserverTag};
 pub use vtk_data_object::{
     AttributeArray, VtkCellType, VtkDataObject, VtkImageData, VtkPolyData, VtkStructuredGrid,
-    VtkUnstructuredGrid,
-};
+    VtkUnstructuredGrid };
 pub use vtk_pipeline::{VtkFilter, VtkPipeline, VtkSink, VtkSource};
 pub use vtk_scene::{RenderProperties, Visibility, VtkActor, VtkScene};

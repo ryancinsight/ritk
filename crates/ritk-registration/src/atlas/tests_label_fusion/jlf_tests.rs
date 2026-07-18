@@ -1,19 +1,19 @@
-//! Joint label fusion (JLF) tests.
+﻿//! Joint label fusion (JLF) tests.
 
 use super::super::*;
 
-// ── JLF – positive tests ─────────────────────────────────────────────
+// â”€â”€ JLF â€“ positive tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// 3 equidistant atlases (all intensity 1.0, target 2.0), all label 5.
 ///
 /// Analytical derivation (patch_radius = 0, single-voxel patches):
-/// dᵢ = (1.0 − 2.0)² = 1.0 for all i.
+/// dáµ¢ = (1.0 âˆ’ 2.0)Â² = 1.0 for all i.
 /// M = [[2, 2, 2], [2, 2, 2], [2, 2, 2]].
-/// min(M) = 2, α = 0.1 × 2 = 0.2.
+/// min(M) = 2, Î± = 0.1 Ã— 2 = 0.2.
 /// M_reg = [[2.2, 2, 2], [2, 2.2, 2], [2, 2, 2.2]].
-/// By symmetry w₁ = w₂ = w₃ = w. Row sum: 6.2w = 1 → w = 1/6.2.
-/// Normalized: wᵢ = 1/3.
-/// All labels = 5 → fused = 5, confidence = 1.0.
+/// By symmetry wâ‚ = wâ‚‚ = wâ‚ƒ = w. Row sum: 6.2w = 1 â†’ w = 1/6.2.
+/// Normalized: wáµ¢ = 1/3.
+/// All labels = 5 â†’ fused = 5, confidence = 1.0.
 #[test]
 fn jlf_equidistant_same_labels() {
     let dims = [2, 2, 2];
@@ -30,8 +30,7 @@ fn jlf_equidistant_same_labels() {
 
     let config = LabelFusionConfig {
         patch_radius: 0,
-        beta: 0.1,
-    };
+        beta: 0.1 };
     let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     for i in 0..n {
@@ -47,9 +46,9 @@ fn jlf_equidistant_same_labels() {
 
 /// 3 equidistant atlases, 2 with label 1, 1 with label 2.
 ///
-/// Same M derivation as above: equal weights wᵢ = 1/3.
-/// Vote for label 1: w₁ + w₂ = 2/3.
-/// Vote for label 2: w₃ = 1/3.
+/// Same M derivation as above: equal weights wáµ¢ = 1/3.
+/// Vote for label 1: wâ‚ + wâ‚‚ = 2/3.
+/// Vote for label 2: wâ‚ƒ = 1/3.
 /// Fused = 1, confidence = 2/3.
 #[test]
 fn jlf_equidistant_majority() {
@@ -67,8 +66,7 @@ fn jlf_equidistant_majority() {
 
     let config = LabelFusionConfig {
         patch_radius: 0,
-        beta: 0.1,
-    };
+        beta: 0.1 };
     let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     let expected_conf = 2.0f64 / 3.0;
@@ -84,14 +82,14 @@ fn jlf_equidistant_majority() {
     }
 }
 
-/// 2 equidistant atlases with different labels: equal weights → tie →
+/// 2 equidistant atlases with different labels: equal weights â†’ tie â†’
 /// smallest label wins.
 ///
-/// A1 = 1.0, A2 = 3.0, T = 2.0. d₁ = d₂ = 1.0.
-/// M = [[2,2],[2,2]], min = 2, α = 0.2.
+/// A1 = 1.0, A2 = 3.0, T = 2.0. dâ‚ = dâ‚‚ = 1.0.
+/// M = [[2,2],[2,2]], min = 2, Î± = 0.2.
 /// M_reg = [[2.2,2],[2,2.2]], det = 0.84.
-/// M⁻¹·1 = (1/0.84)[0.2, 0.2] → normalized w = [0.5, 0.5].
-/// L1 = 1, L2 = 2, both weight 0.5 → tie → label 1 wins.
+/// Mâ»Â¹Â·1 = (1/0.84)[0.2, 0.2] â†’ normalized w = [0.5, 0.5].
+/// L1 = 1, L2 = 2, both weight 0.5 â†’ tie â†’ label 1 wins.
 /// Confidence = 0.5.
 #[test]
 fn jlf_equidistant_tie_smallest_label() {
@@ -107,8 +105,7 @@ fn jlf_equidistant_tie_smallest_label() {
 
     let config = LabelFusionConfig {
         patch_radius: 0,
-        beta: 0.1,
-    };
+        beta: 0.1 };
     let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     for i in 0..n {
@@ -126,9 +123,9 @@ fn jlf_equidistant_tie_smallest_label() {
     }
 }
 
-/// Atlases identical to target: all dᵢ = 0, min(M) = 0, α = 0.
-/// M is singular (all zeros) → uniform fallback → equal weights.
-/// All labels = 3 → fused = 3, confidence = 1.0.
+/// Atlases identical to target: all dáµ¢ = 0, min(M) = 0, Î± = 0.
+/// M is singular (all zeros) â†’ uniform fallback â†’ equal weights.
+/// All labels = 3 â†’ fused = 3, confidence = 1.0.
 #[test]
 fn jlf_zero_distance_singular_fallback() {
     let dims = [2, 2, 2];
@@ -141,8 +138,7 @@ fn jlf_zero_distance_singular_fallback() {
 
     let config = LabelFusionConfig {
         patch_radius: 0,
-        beta: 0.1,
-    };
+        beta: 0.1 };
     let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     for i in 0..n {
@@ -156,9 +152,9 @@ fn jlf_zero_distance_singular_fallback() {
     }
 }
 
-// ── JLF – boundary tests ─────────────────────────────────────────────
+// â”€â”€ JLF â€“ boundary tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Single atlas: 1×1 system M=[2d+α], w=[1/(2d+α)], normalized to 1.0.
+/// Single atlas: 1Ã—1 system M=[2d+Î±], w=[1/(2d+Î±)], normalized to 1.0.
 /// Fused labels equal the atlas labels, confidence = 1.0.
 #[test]
 fn jlf_single_atlas() {
@@ -175,8 +171,7 @@ fn jlf_single_atlas() {
 
     let config = LabelFusionConfig {
         patch_radius: 0,
-        beta: 0.1,
-    };
+        beta: 0.1 };
     let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     for i in 0..n {
@@ -207,13 +202,12 @@ fn jlf_nonzero_patch_radius_equidistant() {
 
     let config = LabelFusionConfig {
         patch_radius: 1,
-        beta: 0.1,
-    };
+        beta: 0.1 };
     let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     for i in 0..n {
         assert_eq!(result.labels[i], 1, "voxel {}", i);
-        // Equal weights → confidence = 1.0 (all same label).
+        // Equal weights â†’ confidence = 1.0 (all same label).
         assert!(
             (result.confidence[i] - 1.0).abs() < 1e-4,
             "voxel {} confidence {}",
@@ -223,7 +217,7 @@ fn jlf_nonzero_patch_radius_equidistant() {
     }
 }
 
-// ── JLF – negative tests ─────────────────────────────────────────────
+// â”€â”€ JLF â€“ negative tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Empty atlas list returns `InvalidConfiguration`.
 #[test]
@@ -241,7 +235,7 @@ fn jlf_empty_error() {
     );
 }
 
-/// Mismatched atlas_images / atlas_labels count → `DimensionMismatch`.
+/// Mismatched atlas_images / atlas_labels count â†’ `DimensionMismatch`.
 #[test]
 fn jlf_atlas_count_mismatch() {
     let target = vec![1.0f32; 8];
@@ -260,7 +254,7 @@ fn jlf_atlas_count_mismatch() {
     );
 }
 
-/// Target with wrong length → `DimensionMismatch`.
+/// Target with wrong length â†’ `DimensionMismatch`.
 #[test]
 fn jlf_target_dimension_mismatch() {
     let target = vec![1.0f32; 5]; // wrong for [2,2,2]
@@ -278,7 +272,7 @@ fn jlf_target_dimension_mismatch() {
     );
 }
 
-/// Atlas image with wrong length → `DimensionMismatch`.
+/// Atlas image with wrong length â†’ `DimensionMismatch`.
 #[test]
 fn jlf_atlas_image_dimension_mismatch() {
     let target = vec![1.0f32; 8];
@@ -296,7 +290,7 @@ fn jlf_atlas_image_dimension_mismatch() {
     );
 }
 
-/// Atlas label map with wrong length → `DimensionMismatch`.
+/// Atlas label map with wrong length â†’ `DimensionMismatch`.
 #[test]
 fn jlf_atlas_label_dimension_mismatch() {
     let target = vec![1.0f32; 8];

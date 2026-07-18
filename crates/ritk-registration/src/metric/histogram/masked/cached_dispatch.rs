@@ -1,4 +1,4 @@
-//! Cached masked-histogram dispatch.
+﻿//! Cached masked-histogram dispatch.
 //!
 //! Cache population and cache reuse converge here so sparse eligibility and
 //! dense fallback remain one policy per chunking regime.
@@ -18,10 +18,10 @@ impl<B: Backend> ParzenJointHistogram<B> {
         &self,
         cache_key: u64,
         n: usize,
-        w_fixed_transposed: &Tensor<B, 2>,
-        moving_values: &Tensor<B, 1>,
-        oob_mask: Option<&Tensor<B, 1>>,
-    ) -> Tensor<B, 2> {
+        w_fixed_transposed: &Tensor<f32, B>,
+        moving_values: &Tensor<f32, B>,
+        oob_mask: Option<&Tensor<f32, B>>,
+    ) -> Tensor<f32, B> {
         debug_assert!(self
             .masked_cache
             .with_ref(|cache| { get_masked_cached_w_fixed_t(cache, cache_key, n).is_some() }));
@@ -56,13 +56,13 @@ impl<B: Backend> ParzenJointHistogram<B> {
         &self,
         cache_key: u64,
         n: usize,
-        w_fixed_transposed: &Tensor<B, 2>,
-        fixed: &Image<B, D>,
-        fixed_world_points: &Tensor<B, 2>,
-        moving: &Image<B, D>,
+        w_fixed_transposed: &Tensor<f32, B>,
+        fixed: &Image<f32, B, D>,
+        fixed_world_points: &Tensor<f32, B>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
         interpolator: &LinearInterpolator,
-    ) -> Tensor<B, 2> {
+    ) -> Tensor<f32, B> {
         debug_assert!(self
             .masked_cache
             .with_ref(|cache| { get_masked_cached_w_fixed_t(cache, cache_key, n).is_some() }));

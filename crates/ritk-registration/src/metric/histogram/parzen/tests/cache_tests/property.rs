@@ -1,4 +1,4 @@
-//! Property-based histogram tests: symmetry, normalization, boundary.
+﻿//! Property-based histogram tests: symmetry, normalization, boundary.
 
 #![allow(clippy::needless_range_loop)]
 
@@ -10,7 +10,7 @@ fn histogram_symmetry_identical_images() {
     let dev = device();
     let hist = ParzenJointHistogram::<B>::new(16, 0.0, 255.0, 255.0 / 16.0, &dev);
     let fixed =
-        Tensor::<B, 1>::from_floats([50.0, 128.0, 200.0, 30.0, 175.0, 80.0, 210.0, 40.0], &dev);
+        Tensor::<f32, B>::from_floats([50.0, 128.0, 200.0, 30.0, 175.0, 80.0, 210.0, 40.0], &dev);
     let h = hist.compute_joint_histogram_dispatch(&fixed, &fixed, None);
     let data = h.into_data();
     let slice = data.as_slice::<f32>().unwrap();
@@ -35,8 +35,8 @@ fn histogram_normalization_total_weight() {
     let n = 100;
     let fixed: Vec<f32> = (0..n).map(|i| (i as f32 * 2.55) % 255.0).collect();
     let moving: Vec<f32> = (0..n).map(|i| (i as f32 * 1.87 + 5.0) % 255.0).collect();
-    let fixed_tensor = Tensor::<B, 1>::from_floats(fixed.as_slice(), &dev);
-    let moving_tensor = Tensor::<B, 1>::from_floats(moving.as_slice(), &dev);
+    let fixed_tensor = Tensor::<f32, B>::from_floats(fixed.as_slice(), &dev);
+    let moving_tensor = Tensor::<f32, B>::from_floats(moving.as_slice(), &dev);
     let hist = ParzenJointHistogram::<B>::new(32, 0.0, 255.0, 255.0 / 32.0, &dev);
     let h = hist.compute_joint_histogram_dispatch(&fixed_tensor, &moving_tensor, None);
     let sum: f32 = h.into_data().as_slice::<f32>().unwrap().iter().sum();
@@ -44,11 +44,11 @@ fn histogram_normalization_total_weight() {
     let expected_max = n as f32 * 1.5;
     assert!(
         sum > expected_min,
-        "normalized histogram total {sum} should be > {expected_min} (n × 0.5)"
+        "normalized histogram total {sum} should be > {expected_min} (n Ã— 0.5)"
     );
     assert!(
         sum < expected_max,
-        "normalized histogram total {sum} should be < {expected_max} (n × 1.5)"
+        "normalized histogram total {sum} should be < {expected_max} (n Ã— 1.5)"
     );
 }
 
@@ -56,8 +56,8 @@ fn histogram_normalization_total_weight() {
 #[test]
 fn histogram_boundary_bins_populated() {
     let dev = device();
-    let fixed = Tensor::<B, 1>::from_floats([0.0, 0.0, 0.0, 0.0, 0.0], &dev);
-    let moving = Tensor::<B, 1>::from_floats([0.0, 0.0, 0.0, 0.0, 0.0], &dev);
+    let fixed = Tensor::<f32, B>::from_floats([0.0, 0.0, 0.0, 0.0, 0.0], &dev);
+    let moving = Tensor::<f32, B>::from_floats([0.0, 0.0, 0.0, 0.0, 0.0], &dev);
     let hist = ParzenJointHistogram::<B>::new(32, 0.0, 255.0, 255.0 / 32.0, &dev);
     let h = hist.compute_joint_histogram_dispatch(&fixed, &moving, None);
     let data = h.into_data();

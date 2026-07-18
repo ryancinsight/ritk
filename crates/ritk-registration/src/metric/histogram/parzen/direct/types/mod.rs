@@ -1,19 +1,19 @@
-//! Shared types for the direct Parzen histogram computation path.
+﻿//! Shared types for the direct Parzen histogram computation path.
 //!
 //! Decomposed into vertical hierarchy (ARCH-330-01):
-//! - `half_width` — ±3σ half-width computation and constants
-//! - `stack_weights` — Stack-allocated weight array and iterator
-//! - `bin_range` — Clamped bin range type
-//! - `parzen_config` — Precomputed Parzen-window parameters
+//! - `half_width` â€” Â±3Ïƒ half-width computation and constants
+//! - `stack_weights` â€” Stack-allocated weight array and iterator
+//! - `bin_range` â€” Clamped bin range type
+//! - `parzen_config` â€” Precomputed Parzen-window parameters
 //!
 //! # Design principles
 //!
-//! - **SSOT**: `compute_half_width` is the sole ±3σ definition; `ParzenConfig`
-//!   is the sole per-axis σ holder and precomputed derivatives.
+//! - **SSOT**: `compute_half_width` is the sole Â±3Ïƒ definition; `ParzenConfig`
+//!   is the sole per-axis Ïƒ holder and precomputed derivatives.
 //! - **SRP**: `ParzenConfig` owns normalisation; `SampleWindow` owns
 //!   per-sample bin computation. Each type in its own module.
 //! - **DRY**: `SampleWindow::new` / `new_moving_only` share an OOB-filter helper.
-//! - **Zero-cost**: `SampleWindow` carries `StackWeights` for both axes — no
+//! - **Zero-cost**: `SampleWindow` carries `StackWeights` for both axes â€” no
 //!   heap allocation per sample. Sparse-cache path uses `SparseWFixedEntry`.
 
 pub(crate) mod bin_range;
@@ -21,7 +21,7 @@ pub(crate) mod half_width;
 pub(crate) mod parzen_config;
 pub(crate) mod stack_weights;
 
-// ── Re-exports for backward compatibility ──────────────────────────────────
+// â”€â”€ Re-exports for backward compatibility â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(crate) use bin_range::BinRange;
 pub(crate) use half_width::compute_half_width;
@@ -35,7 +35,7 @@ pub(crate) use stack_weights::StackWeights;
 #[cfg(test)]
 pub(crate) use stack_weights::STACK_WEIGHTS_CAPACITY;
 
-// ── CompactionSizes ────────────────────────────────────────────────────────
+// â”€â”€ CompactionSizes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Memory sizes of direct-Parzen types after field compaction.
 ///
@@ -45,19 +45,18 @@ pub(crate) use stack_weights::STACK_WEIGHTS_CAPACITY;
 #[doc(hidden)]
 #[derive(Debug, Clone, Copy)]
 pub struct CompactionSizes {
-    /// `StackWeights` — ~128 bytes with `u8` len (was ~136 with `usize`).
+    /// `StackWeights` â€” ~128 bytes with `u8` len (was ~136 with `usize`).
     pub stack_weights: usize,
-    /// `BinRange` — 4 bytes with `u16` fields (was 16 with `usize`).
+    /// `BinRange` â€” 4 bytes with `u16` fields (was 16 with `usize`).
     pub bin_range: usize,
-    /// `ParzenConfig` — 24 bytes with `usize` half_width (u16 attempt reverted; see parzen_config.rs).
+    /// `ParzenConfig` â€” 24 bytes with `usize` half_width (u16 attempt reverted; see parzen_config.rs).
     pub parzen_config: usize,
-    /// `SampleWindow` — ~272 bytes production with `u8` len, `u16` bin compactions (was ~304).
+    /// `SampleWindow` â€” ~272 bytes production with `u8` len, `u16` bin compactions (was ~304).
     pub sample_window: usize,
-    /// `SparseWFixedEntry` — 8 bytes with `u16` bin (was 16 with `usize`).
+    /// `SparseWFixedEntry` â€” 8 bytes with `u16` bin (was 16 with `usize`).
     pub sparse_fixed_entry: usize,
-    /// `SparseSampleCache` — 260 bytes stack cache.
-    pub sparse_sample_cache: usize,
-}
+    /// `SparseSampleCache` â€” 260 bytes stack cache.
+    pub sparse_sample_cache: usize }
 
 /// Return `size_of` for key direct-Parzen types (benchmark regression guard).
 #[doc(hidden)]
@@ -69,6 +68,5 @@ pub fn compaction_sizes() -> CompactionSizes {
         parzen_config: std::mem::size_of::<ParzenConfig>(),
         sample_window: std::mem::size_of::<super::sample::SampleWindow>(),
         sparse_fixed_entry: std::mem::size_of::<super::sample::SparseWFixedEntry>(),
-        sparse_sample_cache: std::mem::size_of::<super::sample::SparseSampleCache>(),
-    }
+        sparse_sample_cache: std::mem::size_of::<super::sample::SparseSampleCache>() }
 }

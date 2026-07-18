@@ -1,10 +1,10 @@
-//! Deep-learning similarity losses on the Coeus autodiff engine.
+﻿//! Deep-learning similarity losses on the Coeus autodiff engine.
 //!
 //! Atlas migration to the Coeus autodiff engine: these are the terminal image-similarity
 //! losses a learned registration model (e.g. a displacement/velocity predictor)
 //! minimizes during training. Each is built entirely from Coeus autograd
 //! [`coeus_autograd::Var`] ops, so `.backward()` on the returned scalar `Var`
-//! propagates gradients to whichever inputs carry `requires_grad` — the moving
+//! propagates gradients to whichever inputs carry `requires_grad` â€” the moving
 //! (warped) image and, through it, the model parameters.
 //!
 //! Inputs are rank-5 tensors `[Batch, Channel, D, H, W]` and the result is a
@@ -13,13 +13,12 @@
 
 use coeus_autograd::{
     avg_pool3d, broadcast_to, div, exp, log, matmul, mean, mul, neg, permute, reshape, scalar_add,
-    scalar_div, scalar_mul, sqrt, sub, sum, sum_axis, Var,
-};
+    scalar_div, scalar_mul, sqrt, sub, sum, sum_axis, Var };
 use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
-/// Squared magnitude `x·x` as a tracked op (avoids `pow`'s `Neg` bound).
+/// Squared magnitude `xÂ·x` as a tracked op (avoids `pow`'s `Neg` bound).
 #[inline]
 fn square<T, B>(x: &Var<T, B>) -> Var<T, B>
 where
@@ -32,8 +31,8 @@ where
 
 /// Mean Squared Error for rank-5 tensors `[B, C, D, H, W]`.
 ///
-/// `MSE = mean((fixed − moving)²)`, a scalar `Var`. Differentiable in both
-/// inputs; the reverse pass yields `∂MSE/∂moving = (2/N)·(moving − fixed)`.
+/// `MSE = mean((fixed âˆ’ moving)Â²)`, a scalar `Var`. Differentiable in both
+/// inputs; the reverse pass yields `âˆ‚MSE/âˆ‚moving = (2/N)Â·(moving âˆ’ fixed)`.
 pub fn mse_loss<T, B>(fixed: &Var<T, B>, moving: &Var<T, B>) -> Var<T, B>
 where
     T: Float,
@@ -45,12 +44,12 @@ where
 
 /// Global Normalized Cross-Correlation loss for rank-5 tensors.
 ///
-/// Computes NCC independently per `[Batch, Channel]` slice over the `N = D·H·W`
+/// Computes NCC independently per `[Batch, Channel]` slice over the `N = DÂ·HÂ·W`
 /// voxels (single-pass algebraic-moments form, Lewis 1995), averages across the
-/// `B·C` slices, and returns the **negative** so the loss is minimized: range
-/// `[−1, 1]`, `−1` at perfect correlation.
+/// `BÂ·C` slices, and returns the **negative** so the loss is minimized: range
+/// `[âˆ’1, 1]`, `âˆ’1` at perfect correlation.
 ///
-/// The moments form keeps the whole reduction on `[B·C]`-shaped vectors, so no
+/// The moments form keeps the whole reduction on `[BÂ·C]`-shaped vectors, so no
 /// broadcasting is needed and gradients flow to both inputs.
 pub fn ncc_loss<T, B>(fixed: &Var<T, B>, moving: &Var<T, B>) -> Var<T, B>
 where
@@ -63,7 +62,7 @@ where
     let f = reshape(fixed, [bc, n]);
     let m = reshape(moving, [bc, n]);
 
-    // Per-slice raw moments (`[B·C]` vectors, reduced over the voxel axis).
+    // Per-slice raw moments (`[BÂ·C]` vectors, reduced over the voxel axis).
     let s_f = sum_axis(&f, 1);
     let s_m = sum_axis(&m, 1);
     let s_ff = sum_axis(&square(&f), 1);
@@ -71,7 +70,7 @@ where
     let s_fm = sum_axis(&mul(&f, &m), 1);
 
     let inv_n = T::from_f64(n as f64);
-    // num = S_FM − S_F·S_M / N ; d_X = S_XX − S_X² / N.
+    // num = S_FM âˆ’ S_FÂ·S_M / N ; d_X = S_XX âˆ’ S_XÂ² / N.
     let num = sub(&s_fm, &scalar_div(&mul(&s_f, &s_m), inv_n));
     let d_f = sub(&s_ff, &scalar_div(&square(&s_f), inv_n));
     let d_m = sub(&s_mm, &scalar_div(&square(&s_m), inv_n));
@@ -84,13 +83,13 @@ where
 /// Local Normalized Cross-Correlation loss for rank-5 tensors.
 ///
 /// Replaces the global statistics of [`ncc_loss`] with local ones computed over
-/// a `kernel_size³` window via a uniform box filter (channel-wise 3-D average
+/// a `kernel_sizeÂ³` window via a uniform box filter (channel-wise 3-D average
 /// pooling, stride 1, `kernel_size/2` zero padding). Robust to spatially varying
 /// intensity relationships and bias fields. Returns the **negative** local CC
 /// averaged over all windows.
 ///
-/// `Var(X) = E[X²] − E[X]²`, `Cov(F, M) = E[FM] − E[F]·E[M]`, all as pooled
-/// fields; `LNCC = Cov / √(Var_F·Var_M + ε)`.
+/// `Var(X) = E[XÂ²] âˆ’ E[X]Â²`, `Cov(F, M) = E[FM] âˆ’ E[F]Â·E[M]`, all as pooled
+/// fields; `LNCC = Cov / âˆš(Var_FÂ·Var_M + Îµ)`.
 pub fn lncc_loss<T, B>(fixed: &Var<T, B>, moving: &Var<T, B>, kernel_size: usize) -> Var<T, B>
 where
     T: Float,
@@ -113,7 +112,7 @@ where
     neg(&mean(&cc))
 }
 
-/// Channel-wise uniform box filter (mean over each `kernel_size³` window) via
+/// Channel-wise uniform box filter (mean over each `kernel_sizeÂ³` window) via
 /// tracked 3-D average pooling with stride 1 and `kernel_size/2` zero padding.
 fn box_filter<T, B>(x: &Var<T, B>, kernel_size: usize) -> Var<T, B>
 where
@@ -125,7 +124,7 @@ where
     let [b, c, d, h, w] = [dims[0], dims[1], dims[2], dims[3], dims[4]];
     let pad = kernel_size / 2;
     let (stride, dilation) = (1usize, 1usize);
-    // Output spatial extent for stride 1, dilation 1: size + 2·pad − (k − 1).
+    // Output spatial extent for stride 1, dilation 1: size + 2Â·pad âˆ’ (k âˆ’ 1).
     let out_dim = |size: usize| size + 2 * pad + 1 - kernel_size;
     let backend = B::default();
     let mut out = Tensor::zeros_on([b, c, out_dim(d), out_dim(h), out_dim(w)], &backend);
@@ -148,10 +147,10 @@ where
 /// Mutual-Information loss for rank-5 tensors, differentiable via soft (RBF)
 /// histogram binning.
 ///
-/// Assigns each voxel a soft membership `exp(−(I − bin)²/(2σ²))` to `num_bins`
-/// bins over `[0, 1]`, forms the normalized joint histogram `Wᶠᵀ·Wᵐ / N` and its
+/// Assigns each voxel a soft membership `exp(âˆ’(I âˆ’ bin)Â²/(2ÏƒÂ²))` to `num_bins`
+/// bins over `[0, 1]`, forms the normalized joint histogram `Wá¶ áµ€Â·Wáµ / N` and its
 /// marginals, and returns the **negative** mutual information
-/// `−Σ P(i,j)·(log P(i,j) − log P(i) − log P(j))`. Inputs are assumed
+/// `âˆ’Î£ P(i,j)Â·(log P(i,j) âˆ’ log P(i) âˆ’ log P(j))`. Inputs are assumed
 /// pre-normalized to roughly `[0, 1]`. The `[N, num_bins]` soft-assignment
 /// matrices make this memory-intensive for large volumes.
 pub fn mi_loss<T, B>(
@@ -182,7 +181,7 @@ where
         [n, num_bins],
     );
 
-    // Soft membership of each voxel to each bin: exp(−(I − bin)²/(2σ²)).
+    // Soft membership of each voxel to each bin: exp(âˆ’(I âˆ’ bin)Â²/(2ÏƒÂ²)).
     let inv_2sigma2 = -1.0 / (2.0 * sigma * sigma);
     let soft = |img: &Var<T, B>| -> Var<T, B> {
         let col = broadcast_to(&reshape(img, [n, 1]), [n, num_bins]);
@@ -192,7 +191,7 @@ where
     let w_f = soft(fixed); // [N, bins]
     let w_m = soft(moving); // [N, bins]
 
-    // Joint histogram Wᶠᵀ·Wᵐ (`[bins, bins]`), normalized to a probability.
+    // Joint histogram Wá¶ áµ€Â·Wáµ (`[bins, bins]`), normalized to a probability.
     let joint = matmul(&permute(&w_f, &[1, 0]), &w_m);
     let joint_p = scalar_div(&joint, T::from_f64(n as f64));
 
@@ -210,7 +209,7 @@ where
     let log_joint = log(&scalar_add(&joint_p, eps));
     let log_pf = log(&scalar_add(&p_f, eps));
     let log_pm = log(&scalar_add(&p_m, eps));
-    // MI = Σ P(i,j)·(log P(i,j) − log P(i) − log P(j)); loss = −MI.
+    // MI = Î£ P(i,j)Â·(log P(i,j) âˆ’ log P(i) âˆ’ log P(j)); loss = âˆ’MI.
     let term = sub(&sub(&log_joint, &log_pf), &log_pm);
     neg(&sum(&mul(&joint_p, &term)))
 }
@@ -256,15 +255,15 @@ mod tests {
     fn mse_loss_known_constant_difference_matches_closed_form() {
         let zeros = from_vals(vec![0.0; 8], 2);
         let ones = from_vals(vec![1.0; 8], 2);
-        // mean((0 − 1)²) = 1.0 exactly.
+        // mean((0 âˆ’ 1)Â²) = 1.0 exactly.
         let loss = scalar(&mse_loss(&zeros, &ones));
         assert_eq!(loss, 1.0, "MSE of an all-zero/all-one pair must equal 1.0");
     }
 
     #[test]
     fn mse_loss_gradient_matches_closed_form() {
-        // ∂MSE/∂fixed = (2/N)·(fixed − moving). With fixed = 2·moving over N = 8
-        // voxels: each component is (2/8)·moving = moving/4.
+        // âˆ‚MSE/âˆ‚fixed = (2/N)Â·(fixed âˆ’ moving). With fixed = 2Â·moving over N = 8
+        // voxels: each component is (2/8)Â·moving = moving/4.
         let moving = from_vals((0..8).map(|i| i as f64).collect(), 2);
         let fixed = from_vals((0..8).map(|i| 2.0 * i as f64).collect(), 2);
         let loss = mse_loss(&fixed, &moving);
@@ -274,7 +273,7 @@ mod tests {
             let expected = (2.0 / 8.0) * (2.0 * i as f64 - i as f64);
             assert!(
                 (gv - expected).abs() < 1e-9,
-                "∂MSE/∂fixed[{i}] = {gv}, expected {expected}"
+                "âˆ‚MSE/âˆ‚fixed[{i}] = {gv}, expected {expected}"
             );
         }
     }
@@ -282,12 +281,12 @@ mod tests {
     #[test]
     fn ncc_loss_identical_non_constant_images_is_near_negative_one() {
         let image = ascending_volume(4);
-        // Self-correlation is exactly 1, so the negated NCC loss is exactly −1
+        // Self-correlation is exactly 1, so the negated NCC loss is exactly âˆ’1
         // up to the numerical-stability epsilon in the denominator.
         let loss = scalar(&ncc_loss(&image, &image));
         assert!(
             (loss - (-1.0)).abs() < 1e-3,
-            "NCC of an image with itself should be ~−1.0, got {loss}"
+            "NCC of an image with itself should be ~âˆ’1.0, got {loss}"
         );
     }
 
@@ -297,7 +296,7 @@ mod tests {
         let loss = scalar(&lncc_loss(&image, &image, 3));
         assert!(
             (loss - (-1.0)).abs() < 1e-2,
-            "LNCC of an image with itself should be ~−1.0, got {loss}"
+            "LNCC of an image with itself should be ~âˆ’1.0, got {loss}"
         );
     }
 

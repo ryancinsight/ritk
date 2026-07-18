@@ -1,10 +1,10 @@
-//! Tag trees (ISO 15444-1 §B.10.2).
+﻿//! Tag trees (ISO 15444-1 Â§B.10.2).
 //!
 //! A tag tree codes a 2-D grid of non-negative integers (one leaf per
 //! code-block) through a quad-tree whose internal nodes hold the minimum of
 //! their children. Coding is incremental against a growing threshold: a `0`
 //! bit means "the node's value is larger than the current lower bound"
-//! (increment), a `1` bit means "the value equals the lower bound" (known) —
+//! (increment), a `1` bit means "the value equals the lower bound" (known) â€”
 //! the standard polarity used by conformant codecs.
 //!
 //! One tree instance carries decoder/encoder state (`low`, `known`) across
@@ -22,20 +22,18 @@ struct Node {
     /// Whether `value` has been fully communicated.
     known: bool,
     /// Parent index (`usize::MAX` for the root).
-    parent: usize,
-}
+    parent: usize }
 
-/// Quad-tree over a `w × h` leaf grid.
+/// Quad-tree over a `w Ã— h` leaf grid.
 pub(crate) struct TagTree {
     nodes: Vec<Node>,
     /// Per-level grid widths/heights, finest (leaves) first.
     level_dims: Vec<(usize, usize)>,
     /// Node-index offset of each level, finest first.
-    level_offsets: Vec<usize>,
-}
+    level_offsets: Vec<usize> }
 
 impl TagTree {
-    /// Build a tree for a `w × h` leaf grid (`w, h ≥ 1`); all values start 0.
+    /// Build a tree for a `w Ã— h` leaf grid (`w, h â‰¥ 1`); all values start 0.
     pub(crate) fn new(w: usize, h: usize) -> Self {
         assert!(w >= 1 && h >= 1, "tag tree requires a non-empty leaf grid");
         let mut level_dims = vec![(w, h)];
@@ -56,11 +54,10 @@ impl TagTree {
                 value: 0,
                 low: 0,
                 known: false,
-                parent: usize::MAX,
-            };
+                parent: usize::MAX };
             total
         ];
-        // Wire parents: node (x, y) at level l → (x/2, y/2) at level l+1.
+        // Wire parents: node (x, y) at level l â†’ (x/2, y/2) at level l+1.
         for l in 0..level_dims.len() - 1 {
             let (dw, dh) = level_dims[l];
             let (pw, _) = level_dims[l + 1];
@@ -74,8 +71,7 @@ impl TagTree {
         Self {
             nodes,
             level_dims,
-            level_offsets,
-        }
+            level_offsets }
     }
 
     #[inline]
@@ -130,7 +126,7 @@ impl TagTree {
     }
 
     /// Encode information about leaf `(x, y)` up to `threshold`
-    /// (§B.10.2 / jasper `jpc_tagtree_encode`).
+    /// (Â§B.10.2 / jasper `jpc_tagtree_encode`).
     pub(crate) fn encode(&mut self, bw: &mut BitWriter, x: usize, y: usize, threshold: u32) {
         let mut low = 0u32;
         for idx in self.path(x, y) {
@@ -183,7 +179,7 @@ impl TagTree {
     }
 
     /// Decode the exact value of leaf `(x, y)` by growing the threshold until
-    /// it is known (used for missing-MSB coding, §B.10.5).
+    /// it is known (used for missing-MSB coding, Â§B.10.5).
     pub(crate) fn decode_value(&mut self, br: &mut BitReader, x: usize, y: usize) -> u32 {
         let mut t = self.nodes[self.leaf_index(x, y)].low + 1;
         while !self.nodes[self.leaf_index(x, y)].known {

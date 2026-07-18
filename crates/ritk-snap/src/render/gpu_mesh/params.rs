@@ -1,4 +1,4 @@
-//! GPU uniform buffer structs and SSAO kernel for mesh rendering.
+﻿//! GPU uniform buffer structs and SSAO kernel for mesh rendering.
 //!
 //! # Layout invariants (std140 / WebGPU alignment)
 //!
@@ -18,11 +18,11 @@
 use bytemuck::{Pod, Zeroable};
 use std::f32::consts::TAU;
 
-// ── Vertex layout ─────────────────────────────────────────────────────────────
+// â”€â”€ Vertex layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Interleaved vertex: position (xyz + pad) + normal (xyz + pad) = 32 bytes.
 ///
-/// Stride 32 matches `wgpu::VertexFormat::Float32x4` × 2 attributes.
+/// Stride 32 matches `wgpu::VertexFormat::Float32x4` Ã— 2 attributes.
 /// Padding is required for 16-byte alignment of each attribute slot.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
@@ -32,16 +32,15 @@ pub(super) struct MeshVertex {
     pub _pad0: f32,
     /// World-space normal (unit length).
     pub normal: [f32; 3],
-    pub _pad1: f32,
-}
+    pub _pad1: f32 }
 
 impl MeshVertex {
     pub const STRIDE: u64 = 32;
 
     /// Vertex buffer layout for `wgpu::RenderPipeline`.
     ///
-    /// Attribute 0 → `@location(0)` position vec4
-    /// Attribute 1 → `@location(1)` normal vec4
+    /// Attribute 0 â†’ `@location(0)` position vec4
+    /// Attribute 1 â†’ `@location(1)` normal vec4
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         use wgpu::{VertexAttribute, VertexFormat, VertexStepMode};
         wgpu::VertexBufferLayout {
@@ -51,37 +50,33 @@ impl MeshVertex {
                 VertexAttribute {
                     offset: 0,
                     shader_location: 0,
-                    format: VertexFormat::Float32x4,
-                },
+                    format: VertexFormat::Float32x4 },
                 VertexAttribute {
                     offset: 16,
                     shader_location: 1,
-                    format: VertexFormat::Float32x4,
-                },
-            ],
-        }
+                    format: VertexFormat::Float32x4 },
+            ] }
     }
 }
 
-// ── Scene / transform uniforms ────────────────────────────────────────────────
+// â”€â”€ Scene / transform uniforms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Model-view-projection and model-view matrices plus peel-pass index.
 ///
-/// `mvp` (column-major): world → clip
-/// `mv` (column-major): world → view, used for normal transform
+/// `mvp` (column-major): world â†’ clip
+/// `mv` (column-major): world â†’ view, used for normal transform
 /// `peel_pass`: 0 = base pass (no depth discard), i>0 = peel layer i
 ///
-/// std140: 2 × 64 + 4 + 12 = 144 bytes, align 16.
+/// std140: 2 Ã— 64 + 4 + 12 = 144 bytes, align 16.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub(super) struct SceneUniforms {
     pub mvp: [f32; 16],
     pub mv: [f32; 16],
     pub peel_pass: u32,
-    pub _pad: [u32; 3],
-}
+    pub _pad: [u32; 3] }
 
-// ── Light uniforms ────────────────────────────────────────────────────────────
+// â”€â”€ Light uniforms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// One directional light in view space.
 ///
@@ -98,19 +93,17 @@ pub(super) struct LightUniform {
     pub _pad1: f32,
     /// RGB ambient contribution in [0, 1].
     pub ambient: [f32; 3],
-    pub _pad2: f32,
-}
+    pub _pad2: f32 }
 
-/// Block of 2 directional lights. 2 × 48 = 96 bytes.
+/// Block of 2 directional lights. 2 Ã— 48 = 96 bytes.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub(super) struct LightBlock {
-    pub lights: [LightUniform; 2],
-}
+    pub lights: [LightUniform; 2] }
 
-// ── Material uniforms ─────────────────────────────────────────────────────────
+// â”€â”€ Material uniforms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Phong material packed as three `vec4<f32>` (3 × 16 = 48 bytes).
+/// Phong material packed as three `vec4<f32>` (3 Ã— 16 = 48 bytes).
 ///
 /// Layout:
 /// - `diffuse` (16 bytes): RGBA diffuse color
@@ -121,10 +114,9 @@ pub(super) struct LightBlock {
 pub(super) struct MaterialUniforms {
     pub diffuse: [f32; 4],
     pub specular_shine: [f32; 4],
-    pub opacity_pad: [f32; 4],
-}
+    pub opacity_pad: [f32; 4] }
 
-// ── SSAO uniforms ─────────────────────────────────────────────────────────────
+// â”€â”€ SSAO uniforms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Parameters for the SSAO compute pass.
 ///
@@ -132,7 +124,7 @@ pub(super) struct MaterialUniforms {
 /// `n_samples`: active hemisphere samples in `[1, 16]`.
 /// `strength`: AO blend factor; 0.0 disables occlusion effect.
 ///
-/// std140: 12 scalars × 4 = 48 bytes, align 4 (largest scalar).
+/// std140: 12 scalars Ã— 4 = 48 bytes, align 4 (largest scalar).
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub(super) struct SsaoUniforms {
@@ -146,10 +138,9 @@ pub(super) struct SsaoUniforms {
     pub strength: f32,
     pub viewport_w: u32,
     pub viewport_h: u32,
-    pub _pad: [u32; 2],
-}
+    pub _pad: [u32; 2] }
 
-// ── Composite uniforms ────────────────────────────────────────────────────────
+// â”€â”€ Composite uniforms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Viewport dimensions for the composite compute pass. 16 bytes.
 #[repr(C)]
@@ -157,27 +148,26 @@ pub(super) struct SsaoUniforms {
 pub(super) struct CompositeUniforms {
     pub rows: u32,
     pub cols: u32,
-    pub _pad: [u32; 2],
-}
+    pub _pad: [u32; 2] }
 
-// ── SSAO hemisphere kernel ────────────────────────────────────────────────────
+// â”€â”€ SSAO hemisphere kernel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Build a 16-sample cosine-weighted hemisphere kernel in view space.
 ///
 /// # Algorithm
 ///
 /// For sample `i` (i = 1 .. 16):
-/// - `h1 = halton(i, 2)` ∈ (0, 1) — controls polar angle
-/// - `h2 = halton(i, 3)` ∈ (0, 1) — controls azimuth
-/// - `z = h1` (always > 0 → positive hemisphere, i.e., toward surface normal)
-/// - `r_xy = √(1 − h1²)`
-/// - `x = r_xy · cos(2π·h2)`, `y = r_xy · sin(2π·h2)`
-/// - `scale = lerp(0.1, 1.0, (i/16)²)` — concentrate samples near origin
-/// - Final entry: `(x·scale, y·scale, z·scale, 1.0)`
+/// - `h1 = halton(i, 2)` âˆˆ (0, 1) â€” controls polar angle
+/// - `h2 = halton(i, 3)` âˆˆ (0, 1) â€” controls azimuth
+/// - `z = h1` (always > 0 â†’ positive hemisphere, i.e., toward surface normal)
+/// - `r_xy = âˆš(1 âˆ’ h1Â²)`
+/// - `x = r_xy Â· cos(2Ï€Â·h2)`, `y = r_xy Â· sin(2Ï€Â·h2)`
+/// - `scale = lerp(0.1, 1.0, (i/16)Â²)` â€” concentrate samples near origin
+/// - Final entry: `(xÂ·scale, yÂ·scale, zÂ·scale, 1.0)`
 ///
 /// # Invariant
 ///
-/// `z > 0` for all 16 samples (Halton(i,2) ∈ (0,1) for i ≥ 1).
+/// `z > 0` for all 16 samples (Halton(i,2) âˆˆ (0,1) for i â‰¥ 1).
 pub(super) fn build_ssao_kernel() -> [[f32; 4]; 16] {
     let mut k = [[0.0f32; 4]; 16];
     for (i, entry) in k.iter_mut().enumerate() {
@@ -187,9 +177,9 @@ pub(super) fn build_ssao_kernel() -> [[f32; 4]; 16] {
         let r_xy = (1.0 - h1 * h1).sqrt();
         let x = r_xy * phi.cos();
         let y = r_xy * phi.sin();
-        let z = h1; // z > 0 ∀ i ≥ 1
+        let z = h1; // z > 0 âˆ€ i â‰¥ 1
         let t = (i + 1) as f32 / 16.0;
-        let scale = 0.1 + 0.9 * t * t; // lerp(0.1, 1.0, t²)
+        let scale = 0.1 + 0.9 * t * t; // lerp(0.1, 1.0, tÂ²)
         *entry = [x * scale, y * scale, z * scale, 1.0];
     }
     k
@@ -197,7 +187,7 @@ pub(super) fn build_ssao_kernel() -> [[f32; 4]; 16] {
 
 /// Halton quasi-random low-discrepancy sequence in [0, 1).
 ///
-/// `halton(i, b) = Σ_k d_k / b^k` where `d_k` is the k-th digit of `i` in base `b`.
+/// `halton(i, b) = Î£_k d_k / b^k` where `d_k` is the k-th digit of `i` in base `b`.
 fn halton(mut i: u32, base: u32) -> f32 {
     let mut f = 1.0f32;
     let mut r = 0.0f32;
@@ -229,8 +219,8 @@ mod tests {
         let k = build_ssao_kernel();
         for (i, entry) in k.iter().enumerate() {
             let len = (entry[0].powi(2) + entry[1].powi(2) + entry[2].powi(2)).sqrt();
-            // scale = lerp(0.1, 1.0, t²) ∈ [0.1, 1.0]; the unscaled unit vector has norm 1.
-            // Actual norm = scale × ||(x,y,z)|| where ||(x,y,z)|| = 1 → len = scale ∈ [0.1, 1.0].
+            // scale = lerp(0.1, 1.0, tÂ²) âˆˆ [0.1, 1.0]; the unscaled unit vector has norm 1.
+            // Actual norm = scale Ã— ||(x,y,z)|| where ||(x,y,z)|| = 1 â†’ len = scale âˆˆ [0.1, 1.0].
             assert!(
                 (0.09..=1.01).contains(&len),
                 "sample {i}: len = {len} not in [0.1, 1.0]"

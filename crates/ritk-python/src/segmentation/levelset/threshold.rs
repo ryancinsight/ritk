@@ -1,4 +1,4 @@
-//! Threshold level set segmentation.
+﻿//! Threshold level set segmentation.
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
@@ -29,8 +29,7 @@ pub struct PyThresholdLevelSetOptions {
     pub max_iterations: usize,
     /// Convergence tolerance.
     #[pyo3(get, set)]
-    pub tolerance: f64,
-}
+    pub tolerance: f64 }
 
 #[pymethods]
 impl PyThresholdLevelSetOptions {
@@ -52,8 +51,7 @@ impl PyThresholdLevelSetOptions {
             curvature_weight,
             dt,
             max_iterations,
-            tolerance,
-        }
+            tolerance }
     }
 }
 

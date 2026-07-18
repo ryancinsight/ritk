@@ -1,13 +1,12 @@
 use super::*;
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
-fn make_label_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    let device = Default::default();
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(dims)), &device);
+fn make_label_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    let tensor = Tensor::<f32, B>::from_slice(dims, &vals);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -16,14 +15,14 @@ fn make_label_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
     )
 }
 
-fn flat(img: &Image<B, 3>) -> Vec<f32> {
+fn flat(img: &Image<f32, B, 3>) -> Vec<f32> {
     img.data_slice().into_owned()
 }
 
-/// Single component, no size threshold → relabeled as 1, count preserved.
+/// Single component, no size threshold â†’ relabeled as 1, count preserved.
 #[test]
 fn single_component_identity() {
-    // 2×1×1 image: both voxels are component 1.
+    // 2Ã—1Ã—1 image: both voxels are component 1.
     let img = make_label_image(vec![1.0, 1.0], [2, 1, 1]);
     let (out, stats) = RelabelComponentFilter::new()
         .apply(&img)
@@ -35,13 +34,13 @@ fn single_component_identity() {
     assert_eq!(stats[0].original_label, 1);
 }
 
-/// Three components with distinct sizes → sorted by descending count.
+/// Three components with distinct sizes â†’ sorted by descending count.
 ///
 /// Input labels and voxel counts: {1:5, 2:15, 3:3}.
-/// Expected new labels: 2→1 (15), 1→2 (5), 3→3 (3).
+/// Expected new labels: 2â†’1 (15), 1â†’2 (5), 3â†’3 (3).
 #[test]
 fn three_components_sorted_descending() {
-    // 1×1×23 flat image: label 1 appears 5×, label 2 appears 15×, label 3 appears 3×.
+    // 1Ã—1Ã—23 flat image: label 1 appears 5Ã—, label 2 appears 15Ã—, label 3 appears 3Ã—.
     let mut vals = vec![1.0_f32; 5];
     vals.extend(vec![2.0_f32; 15]);
     vals.extend(vec![3.0_f32; 3]);
@@ -65,7 +64,7 @@ fn three_components_sorted_descending() {
     assert_eq!(stats[2].voxel_count, 3);
     assert_eq!(stats[2].original_label, 3);
 
-    // Voxels that were 2 should now be 1, 1→2, 3→3.
+    // Voxels that were 2 should now be 1, 1â†’2, 3â†’3.
     let expected: Vec<f32> = vals
         .iter()
         .map(|&v| match v as u32 {
@@ -81,7 +80,7 @@ fn three_components_sorted_descending() {
 /// `minimum_object_size` removes components below threshold.
 ///
 /// Components: {1: 3 voxels, 2: 10 voxels}. Threshold = 5.
-/// Expected: component 1 removed (→0), component 2 relabeled to 1.
+/// Expected: component 1 removed (â†’0), component 2 relabeled to 1.
 #[test]
 fn minimum_object_size_removes_small() {
     let mut vals = vec![1.0_f32; 3]; // label 1, count=3 (small)
@@ -100,13 +99,13 @@ fn minimum_object_size_removes_small() {
     assert_eq!(stats[0].new_label, 1);
     assert_eq!(stats[0].voxel_count, 10);
 
-    // First 3 voxels (label 1) → 0; last 10 voxels (label 2) → 1.
+    // First 3 voxels (label 1) â†’ 0; last 10 voxels (label 2) â†’ 1.
     let mut expected = vec![0.0_f32; 3];
     expected.extend(vec![1.0_f32; 10]);
     assert_eq!(out_flat, expected);
 }
 
-/// All components below minimum_object_size → all-zero output.
+/// All components below minimum_object_size â†’ all-zero output.
 #[test]
 fn all_below_threshold_gives_all_zero() {
     let vals: Vec<f32> = (1..=4).map(|v| v as f32).collect(); // labels 1,2,3,4 each with 1 voxel
@@ -151,15 +150,11 @@ fn all_background_produces_empty_stats() {
 #[test]
 fn spatial_metadata_preserved() {
     use ritk_core::spatial::Direction;
-    let device = Default::default();
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 0.75, 1.25]);
     let direction = Direction::identity();
 
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![1.0_f32; 8], Shape::new([2, 2, 2])),
-        &device,
-    );
+    let tensor = Tensor::<f32, B>::from_slice([2, 2, 2], &[1.0_f32; 8]);
     let img = Image::new(tensor, origin, spacing, direction);
 
     let (out, _) = RelabelComponentFilter::new()
@@ -171,10 +166,10 @@ fn spatial_metadata_preserved() {
     assert_eq!(*out.direction(), direction);
 }
 
-/// Two equal-size components → sorted by original label ascending (tie-break).
+/// Two equal-size components â†’ sorted by original label ascending (tie-break).
 ///
 /// Both label 1 and label 2 have 4 voxels.
-/// Tie-break by ascending label: 1 → new 1, 2 → new 2.
+/// Tie-break by ascending label: 1 â†’ new 1, 2 â†’ new 2.
 #[test]
 fn equal_size_tiebreak_by_label() {
     let vals = vec![1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0];
@@ -213,10 +208,10 @@ fn relabel_consecutive_ascending_value_order() {
     use super::relabel_consecutive;
     use ritk_image::test_support as ts;
     use ritk_tensor_ops::extract_vec_infallible;
-    type B = burn_ndarray::NdArray<f32>;
+    type B = coeus_core::SequentialBackend;
     // labels 2,5,7,9 -> 1,2,3,4 (ascending original value)
     let data = vec![0.0, 5.0, 2.0, 9.0, 7.0, 0.0, 5.0, 2.0];
-    let img = ts::burn_compat::make_image::<B, 3>(data, [1, 1, 8]);
+    let img = ts::make_image::<f32, B, 3>(data, [1, 1, 8]);
     let out = relabel_consecutive(&img);
     let (v, _) = extract_vec_infallible(&out);
     assert_eq!(v, vec![0.0, 2.0, 1.0, 4.0, 3.0, 0.0, 2.0, 1.0]);

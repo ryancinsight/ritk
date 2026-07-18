@@ -1,10 +1,10 @@
 use crate::interpolation::kernel::sinc::{compute_lanczos_weights, lanczos_kernel};
 use crate::interpolation::{LanczosInterpolator, SincInterpolator};
-use burn_ndarray::NdArray;
+use coeus_core::MoiraiBackend;
+use coeus_tensor::Tensor;
 use ritk_core::interpolation::Interpolator;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 
-type TestBackend = NdArray<f32>;
+type TestBackend = MoiraiBackend;
 
 #[test]
 fn test_lanczos_kernel_at_origin() {
@@ -59,26 +59,19 @@ fn test_lanczos_weights_bounds() {
 
 #[test]
 fn test_sinc_interpolator_2d_at_grid_points() {
-    let device = Default::default();
-
     // Create a simple 4x4 image with known values
     let data_vec: Vec<f32> = (0..16).map(|i| i as f32).collect();
-    let data = Tensor::<TestBackend, 2>::from_data(
-        TensorData::new(data_vec.clone(), Shape::new([4, 4])),
-        &device,
-    );
+    let data = Tensor::<f32, TestBackend>::from_slice([4, 4], &data_vec);
 
     let interpolator = SincInterpolator::new();
 
     // At integer coordinates, should return exact values
-    let indices = Tensor::<TestBackend, 2>::from_floats(
-        [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]],
-        &device,
-    );
+    let indices =
+        Tensor::<f32, TestBackend>::from_slice([4, 2], &[0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0]);
 
     let result = interpolator.interpolate(&data, indices);
-    let result_data = result.into_data();
-    let slice = result_data.as_slice::<f32>().unwrap();
+    let contiguous = result.to_contiguous();
+    let slice = contiguous.as_slice();
 
     // At (0,0): value should be 0
     assert!(
@@ -108,24 +101,18 @@ fn test_sinc_interpolator_2d_at_grid_points() {
 
 #[test]
 fn test_sinc_interpolator_3d_at_grid_points() {
-    let device = Default::default();
-
     // Create a 2x2x2 volume
     let data_vec = vec![0.0, 1.0, 10.0, 11.0, 100.0, 101.0, 110.0, 111.0];
-    let data = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data_vec.clone(), Shape::new([2, 2, 2])),
-        &device,
-    );
+    let data = Tensor::<f32, TestBackend>::from_slice([2, 2, 2], &data_vec);
 
     let interpolator = SincInterpolator::new();
 
     // Test at corner points
-    let indices =
-        Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_slice([2, 3], &[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]);
 
     let result = interpolator.interpolate(&data, indices);
-    let result_data = result.into_data();
-    let slice = result_data.as_slice::<f32>().unwrap();
+    let contiguous = result.to_contiguous();
+    let slice = contiguous.as_slice();
 
     // At (0,0,0): should be ~0
     assert!(
@@ -143,37 +130,32 @@ fn test_sinc_interpolator_3d_at_grid_points() {
 
 #[test]
 fn test_sinc_interpolator_constant_image() {
-    let device = Default::default();
-
     // Constant image: all values are 42.0
     let data_vec: Vec<f32> = vec![42.0; 64];
-    let data =
-        Tensor::<TestBackend, 2>::from_data(TensorData::new(data_vec, Shape::new([8, 8])), &device);
+    let data = Tensor::<f32, TestBackend>::from_slice([8, 8], &data_vec);
 
     let interpolator = SincInterpolator::new();
 
     // Interpolate at various positions
-    let indices = Tensor::<TestBackend, 2>::from_floats(
-        [
-            [0.5, 0.5], // Center of first quadrant
-            [3.7, 2.3], // Arbitrary position
-            [7.0, 7.0], // Near edge
+    let indices = Tensor::<f32, TestBackend>::from_slice(
+        [3, 2],
+        &[
+            0.5, 0.5, // Center of first quadrant
+            3.7, 2.3, // Arbitrary position
+            7.0, 7.0, // Near edge
         ],
-        &device,
     );
 
     let result = interpolator.interpolate(&data, indices);
-    let result_data = result.into_data();
-    let slice = result_data.as_slice::<f32>().unwrap();
+    let contiguous = result.to_contiguous();
+    let slice = contiguous.as_slice();
 
     // The windowed-sinc kernel is not renormalized (ITK semantics — see
     // `compute_lanczos_weights`), so a constant `C` reconstructs as
     // `C · (Σ wx)(Σ wy)`, where the per-axis weight sum deviates from 1 by the
     // Lanczos-`A` partition-of-unity defect `δ = maxₓ |1 − Σ_k L_A(k − x)|`.
     // For `A = 3`, `δ ≈ 5.70e-3`, so the 2-D reconstruction error is bounded by
-    // `C·(1 − (1 − δ)²) ≈ 42 · 0.01137 ≈ 0.478` (attained at the half-integer
-    // offset (0.5, 0.5)). Renormalizing would null this defect but break parity
-    // with `sitk.Resample(..., sitkLanczosWindowedSinc)`.
+    // `C·(1 − (1 − δ)²) ≈ 42 · 0.01137 ≈ 0.478`.
     const A3_PU_DEFECT: f32 = 5.70e-3;
     let tol = 42.0 * (1.0 - (1.0 - A3_PU_DEFECT).powi(2)) + 1e-3;
     for (i, &val) in slice.iter().enumerate() {
@@ -187,31 +169,27 @@ fn test_sinc_interpolator_constant_image() {
 #[test]
 fn test_sinc_interpolator_bandlimited_signal() {
     // Test reconstruction of a bandlimited signal (cosine)
-    // Sinc interpolation should perfectly reconstruct signals below Nyquist
+    // Sinc interpolation should closely approximate signals below Nyquist
 
-    let device = Default::default();
     let n = 32;
 
-    // Generate samples of cos(2πx/8) - frequency well below Nyquist (Nyquist = 0.5 cycles/pixel)
+    // Generate samples of cos(2πx/8) - frequency well below Nyquist
     let period = 8.0;
     let data_vec: Vec<f32> = (0..n)
         .map(|i| (2.0 * std::f32::consts::PI * (i as f32) / period).cos())
         .collect();
 
-    let data = Tensor::<TestBackend, 1>::from_data(
-        TensorData::new(data_vec.clone(), Shape::new([n])),
-        &device,
-    );
+    let data = Tensor::<f32, TestBackend>::from_slice([n], &data_vec);
 
     let interpolator = SincInterpolator::new();
 
     // Reshape to 2D for interpolator (1D case not directly supported, use [1, N])
-    let data_2d = data.clone().reshape([1, n]);
+    let data_2d = data.reshape([1, n]);
     let x_test = 7.5f32; // Half-pixel offset
 
-    let indices = Tensor::<TestBackend, 2>::from_floats([[x_test, 0.0]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_slice([1, 2], &[x_test, 0.0]);
     let result = interpolator.interpolate(&data_2d, indices);
-    let interpolated = result.into_data().as_slice::<f32>().unwrap()[0];
+    let interpolated = result.to_contiguous().as_slice()[0];
 
     // Expected value
     let expected = (2.0 * std::f32::consts::PI * x_test / period).cos();
@@ -227,34 +205,28 @@ fn test_sinc_interpolator_bandlimited_signal() {
 
 #[test]
 fn test_lanczos_interpolator_various_window_sizes() {
-    let device = Default::default();
-
     let data_vec: Vec<f32> = (0..16).map(|i| i as f32).collect();
-    let data =
-        Tensor::<TestBackend, 2>::from_data(TensorData::new(data_vec, Shape::new([4, 4])), &device);
+    let data = Tensor::<f32, TestBackend>::from_slice([4, 4], &data_vec);
 
     // Test with different window sizes
     let interp3 = LanczosInterpolator::<3>::new();
     let interp4 = LanczosInterpolator::<4>::new();
     let interp5 = LanczosInterpolator::<5>::new();
 
-    let indices = Tensor::<TestBackend, 2>::from_floats([[1.5, 1.5]], &device);
+    let indices = Tensor::<f32, TestBackend>::from_slice([1, 2], &[1.5, 1.5]);
 
     let r3 = interp3
         .interpolate(&data, indices.clone())
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()[0];
+        .to_contiguous()
+        .as_slice()[0];
     let r4 = interp4
         .interpolate(&data, indices.clone())
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()[0];
+        .to_contiguous()
+        .as_slice()[0];
     let r5 = interp5
         .interpolate(&data, indices)
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()[0];
+        .to_contiguous()
+        .as_slice()[0];
 
     // All should give reasonable results (not NaN, not wildly different)
     assert!(r3.is_finite(), "Lanczos-3 produced non-finite result");

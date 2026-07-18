@@ -11,7 +11,6 @@ direct-parzen = []
 serde = ["dep:serde"]
 
 [dependencies]
-burn-ndarray = { workspace = true }
 ritk-core = { path = "../ritk-core" }
 ritk-image = { path = "../ritk-image" }
 ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
@@ -23,7 +22,6 @@ ritk-filter = { path = "../ritk-filter" }
 ritk-segmentation = { path = "../ritk-segmentation" }
 ritk-model = { path = "../ritk-model" }
 ritk-tensor-ops = { path = "../ritk-tensor-ops" }
-burn = { workspace = true }
 bytemuck = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }

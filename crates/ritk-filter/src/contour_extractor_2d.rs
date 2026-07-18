@@ -8,7 +8,7 @@
 //!
 //! ## Cell and corner convention
 //!
-//! For each 2×2 pixel cell at grid position (y, x):
+//! For each 2Ã—2 pixel cell at grid position (y, x):
 //! ```text
 //! v0 = I[y  ][x  ]   (top-left,     TL)  bit 0
 //! v1 = I[y  ][x+1]   (top-right,    TR)  bit 1
@@ -16,26 +16,26 @@
 //! v3 = I[y+1][x  ]   (bottom-left,  BL)  bit 3
 //! ```
 //!
-//! Case index = (v0>c)·2⁰ + (v1>c)·2¹ + (v2>c)·2² + (v3>c)·2³  → 16 cases.
+//! Case index = (v0>c)Â·2â° + (v1>c)Â·2Â¹ + (v2>c)Â·2Â² + (v3>c)Â·2Â³  â†’ 16 cases.
 //!
 //! ## Edge numbering
 //!
 //! ```text
-//! Edge 0 (top):    TL@(y,  x  ) → TR@(y,  x+1)   y constant,   x interpolated
-//! Edge 1 (right):  TR@(y,  x+1) → BR@(y+1,x+1)   x constant,   y interpolated
-//! Edge 2 (bottom): BR@(y+1,x+1) → BL@(y+1,x  )   y+1 constant, x interpolated
-//! Edge 3 (left):   BL@(y+1,x  ) → TL@(y,  x  )   x constant,   y interpolated
+//! Edge 0 (top):    TL@(y,  x  ) â†’ TR@(y,  x+1)   y constant,   x interpolated
+//! Edge 1 (right):  TR@(y,  x+1) â†’ BR@(y+1,x+1)   x constant,   y interpolated
+//! Edge 2 (bottom): BR@(y+1,x+1) â†’ BL@(y+1,x  )   y+1 constant, x interpolated
+//! Edge 3 (left):   BL@(y+1,x  ) â†’ TL@(y,  x  )   x constant,   y interpolated
 //! ```
 //!
 //! Crossing positions use linear interpolation:
-//! `t = (c − a) / (b − a)` clamped to [0, 1].
+//! `t = (c âˆ’ a) / (b âˆ’ a)` clamped to [0, 1].
 //!
 //! ## Ambiguous cases 5 and 10
 //!
 //! Resolved by splitting into two segments that maintain two isolated interior
 //! sub-regions (asymptotic-decider convention):
-//! - Case 5 (TL+BR above): segments (edge3→edge0) and (edge1→edge2).
-//! - Case 10 (TR+BL above): segments (edge0→edge1) and (edge2→edge3).
+//! - Case 5 (TL+BR above): segments (edge3â†’edge0) and (edge1â†’edge2).
+//! - Case 10 (TR+BL above): segments (edge0â†’edge1) and (edge2â†’edge3).
 //!
 //! ## Polyline assembly
 //!
@@ -51,7 +51,7 @@
 //!
 //! ## References
 //! - Lorensen, W.E. & Cline, H.E. (1987). "Marching cubes: A high-resolution 3D
-//!   surface construction algorithm." *SIGGRAPH '87*, pp. 163–169.
+//!   surface construction algorithm." *SIGGRAPH '87*, pp. 163â€“169.
 //! - Maple, C. (2003). "Geometric design and space planning using the marching
 //!   squares and marching cube algorithms." *Proc. ICCGM 2003*.
 
@@ -61,7 +61,7 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-// ── Public types ──────────────────────────────────────────────────────────────
+// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// A 2-D point `(y, x)` in pixel coordinates.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -78,7 +78,7 @@ pub struct ContourPoint {
 /// polyline they differ. In both cases `len() >= 2`.
 pub type Contour = Vec<ContourPoint>;
 
-// ── Filter ────────────────────────────────────────────────────────────────────
+// â”€â”€ Filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Marching-squares iso-contour extractor for a 2-D image.
 ///
@@ -107,12 +107,12 @@ impl ContourExtractor2DImageFilter {
     ///
     /// # Panics
     /// Panics if the backend tensor cannot be converted to `f32`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Vec<Contour> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Vec<Contour> {
         let (vals, dims) = extract_vec_infallible(image);
         let [_nz, ny, nx] = dims;
         debug_assert_eq!(_nz, 1, "ContourExtractor2DImageFilter requires nz = 1");
 
-        // Extract the z = 0 slice as a flat [ny × nx] row-major buffer.
+        // Extract the z = 0 slice as a flat [ny Ã— nx] row-major buffer.
         let slice = &vals[..ny * nx];
         let get = |y: usize, x: usize| -> f32 { slice[y * nx + x] };
 
@@ -142,12 +142,12 @@ impl ContourExtractor2DImageFilter {
                 // Compute the interpolated crossing point on a given edge.
                 let edge_pt = |edge: u8| -> ContourPoint {
                     match edge {
-                        // Edge 0 (top, TL→TR): y constant, x interpolated.
+                        // Edge 0 (top, TLâ†’TR): y constant, x interpolated.
                         0 => {
                             let t = interp(v0, v1, c);
                             ContourPoint { y: fy, x: fx + t }
                         }
-                        // Edge 1 (right, TR→BR): x = x+1 constant, y interpolated.
+                        // Edge 1 (right, TRâ†’BR): x = x+1 constant, y interpolated.
                         1 => {
                             let t = interp(v1, v2, c);
                             ContourPoint {
@@ -155,7 +155,7 @@ impl ContourExtractor2DImageFilter {
                                 x: fx + 1.0,
                             }
                         }
-                        // Edge 2 (bottom, BR→BL): y = y+1 constant, x decreases.
+                        // Edge 2 (bottom, BRâ†’BL): y = y+1 constant, x decreases.
                         2 => {
                             let t = interp(v2, v3, c);
                             ContourPoint {
@@ -163,7 +163,7 @@ impl ContourExtractor2DImageFilter {
                                 x: fx + 1.0 - t,
                             }
                         }
-                        // Edge 3 (left, BL→TL): x constant, y decreases.
+                        // Edge 3 (left, BLâ†’TL): x constant, y decreases.
                         _ => {
                             let t = interp(v3, v0, c);
                             ContourPoint {
@@ -261,7 +261,7 @@ impl ContourExtractor2DImageFilter {
     }
 }
 
-// ── Case table ────────────────────────────────────────────────────────────────
+// â”€â”€ Case table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Marching-squares 16-case edge-pair table.
 ///
@@ -276,28 +276,28 @@ impl ContourExtractor2DImageFilter {
 /// independent segments (asymptotic-decider / two-isolated-sub-regions resolution).
 static CASE_TABLE: &[&[[u8; 2]]] = &[
     &[],               // 0:  no crossing (handled before table)
-    &[[0, 3]],         // 1:  TL         → top ∩ left
-    &[[0, 1]],         // 2:  TR         → top ∩ right
-    &[[1, 3]],         // 3:  TL + TR    → right ∩ left
-    &[[1, 2]],         // 4:  BR         → right ∩ bottom
-    &[[3, 0], [1, 2]], // 5:  TL + BR    → (left ∩ top) + (right ∩ bottom)
-    &[[0, 2]],         // 6:  TR + BR    → top ∩ bottom
-    &[[2, 3]],         // 7:  TL+TR+BR   → bottom ∩ left
-    &[[2, 3]],         // 8:  BL         → bottom ∩ left
-    &[[0, 2]],         // 9:  TL + BL    → top ∩ bottom
-    &[[0, 1], [2, 3]], // 10: TR + BL    → (top ∩ right) + (bottom ∩ left)
-    &[[1, 2]],         // 11: TL+TR+BL   → right ∩ bottom
-    &[[1, 3]],         // 12: BR + BL    → right ∩ left
-    &[[0, 1]],         // 13: TL+BR+BL   → top ∩ right
-    &[[0, 3]],         // 14: TR+BR+BL   → top ∩ left
+    &[[0, 3]],         // 1:  TL         â†’ top âˆ© left
+    &[[0, 1]],         // 2:  TR         â†’ top âˆ© right
+    &[[1, 3]],         // 3:  TL + TR    â†’ right âˆ© left
+    &[[1, 2]],         // 4:  BR         â†’ right âˆ© bottom
+    &[[3, 0], [1, 2]], // 5:  TL + BR    â†’ (left âˆ© top) + (right âˆ© bottom)
+    &[[0, 2]],         // 6:  TR + BR    â†’ top âˆ© bottom
+    &[[2, 3]],         // 7:  TL+TR+BR   â†’ bottom âˆ© left
+    &[[2, 3]],         // 8:  BL         â†’ bottom âˆ© left
+    &[[0, 2]],         // 9:  TL + BL    â†’ top âˆ© bottom
+    &[[0, 1], [2, 3]], // 10: TR + BL    â†’ (top âˆ© right) + (bottom âˆ© left)
+    &[[1, 2]],         // 11: TL+TR+BL   â†’ right âˆ© bottom
+    &[[1, 3]],         // 12: BR + BL    â†’ right âˆ© left
+    &[[0, 1]],         // 13: TL+BR+BL   â†’ top âˆ© right
+    &[[0, 3]],         // 14: TR+BR+BL   â†’ top âˆ© left
     &[],               // 15: all inside (handled before table)
 ];
 
-// ── Linear interpolation helper ───────────────────────────────────────────────
+// â”€â”€ Linear interpolation helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Fractional crossing position along an edge from value `a` to value `b`.
 ///
-/// Returns `t ∈ [0, 1]` such that `a + t·(b − a) = c`. Clamped to [0, 1] to
+/// Returns `t âˆˆ [0, 1]` such that `a + tÂ·(b âˆ’ a) = c`. Clamped to [0, 1] to
 /// guard against values numerically equal to the contour level.
 #[inline]
 fn interp(a: f32, b: f32, c: f32) -> f32 {
@@ -308,7 +308,7 @@ fn interp(a: f32, b: f32, c: f32) -> f32 {
     ((c - a) / denom).clamp(0.0, 1.0)
 }
 
-// ── Polyline assembly ─────────────────────────────────────────────────────────
+// â”€â”€ Polyline assembly â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Chain raw segments into polylines by greedily matching shared endpoints.
 ///
@@ -330,7 +330,7 @@ fn assemble_polylines(segments: Vec<[ContourPoint; 2]>) -> Vec<Contour> {
     let n = segments.len();
     let mut used = vec![false; n];
 
-    // Build adjacency: endpoint key → list of segment indices sharing that endpoint.
+    // Build adjacency: endpoint key â†’ list of segment indices sharing that endpoint.
     let mut adj: HashMap<Key, Vec<usize>> = HashMap::with_capacity(2 * n);
     for (i, seg) in segments.iter().enumerate() {
         adj.entry(to_key(seg[0])).or_default().push(i);
@@ -388,36 +388,36 @@ fn assemble_polylines(segments: Vec<[ContourPoint; 2]>) -> Vec<Contour> {
     polylines
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
+
     use ritk_image::test_support as ts;
     use std::collections::HashSet;
 
-    type B = NdArray<f32>;
+    type B = coeus_core::SequentialBackend;
 
-    /// A 5×5 step image: columns 0–1 = 0.0, columns 2–4 = 2.0.
+    /// A 5Ã—5 step image: columns 0â€“1 = 0.0, columns 2â€“4 = 2.0.
     ///
     /// At contour value 1.0 the iso-contour is the vertical line x = 1.5.
-    /// Cells at (y=0..3, x=1) each contribute one segment (y, 1.5)→(y+1, 1.5),
+    /// Cells at (y=0..3, x=1) each contribute one segment (y, 1.5)â†’(y+1, 1.5),
     /// which chains into a single open polyline with 5 points, all at x = 1.5.
     ///
     /// # Derivation
     /// Case 6 (TR+BR above, TL+BL below) fires for every cell column x=1:
-    /// edges 0 (top) and 2 (bottom) are crossed at t=0.5 → x = 1 + 0.5 = 1.5.
+    /// edges 0 (top) and 2 (bottom) are crossed at t=0.5 â†’ x = 1 + 0.5 = 1.5.
     #[test]
     fn step_image_produces_one_vertical_contour() {
         let ny = 5usize;
         let nx = 5usize;
-        // Columns 0,1 → 0.0; columns 2,3,4 → 2.0.
+        // Columns 0,1 â†’ 0.0; columns 2,3,4 â†’ 2.0.
         let data: Vec<f32> = (0..ny)
             .flat_map(|_y| (0..nx).map(move |x| if x < 2 { 0.0_f32 } else { 2.0_f32 }))
             .collect();
 
-        let image = ts::burn_compat::make_image::<B, 3>(data, [1, ny, nx]);
+        let image = ts::make_image::<f32, B, 3>(data, [1, ny, nx]);
         let filter = ContourExtractor2DImageFilter { contour_value: 1.0 };
         let contours = filter.apply(&image);
 
@@ -445,22 +445,22 @@ mod tests {
         }
     }
 
-    /// A 4×4 image with a 2×2 square of 1.0 in the centre, surrounded by 0.0.
+    /// A 4Ã—4 image with a 2Ã—2 square of 1.0 in the centre, surrounded by 0.0.
     ///
     /// At contour value 0.5, marching squares produces 8 crossing segments that
     /// chain into one closed loop of 8 unique vertices (9 points with first == last).
     ///
     /// # Derivation (verified analytically)
-    /// Cell (0,0) case 4  → segment (0.5,1)→(1,0.5)
-    /// Cell (0,1) case 12 → segment (0.5,2)→(0.5,1)
-    /// Cell (0,2) case 8  → segment (1,2.5)→(0.5,2)
-    /// Cell (1,0) case 6  → segment (1,0.5)→(2,0.5)
-    /// Cell (1,2) case 9  → segment (1,2.5)→(2,2.5)
-    /// Cell (2,0) case 2  → segment (2,0.5)→(2.5,1)
-    /// Cell (2,1) case 3  → segment (2.5,2)→(2.5,1)
-    /// Cell (2,2) case 1  → segment (2,2.5)→(2.5,2)
+    /// Cell (0,0) case 4  â†’ segment (0.5,1)â†’(1,0.5)
+    /// Cell (0,1) case 12 â†’ segment (0.5,2)â†’(0.5,1)
+    /// Cell (0,2) case 8  â†’ segment (1,2.5)â†’(0.5,2)
+    /// Cell (1,0) case 6  â†’ segment (1,0.5)â†’(2,0.5)
+    /// Cell (1,2) case 9  â†’ segment (1,2.5)â†’(2,2.5)
+    /// Cell (2,0) case 2  â†’ segment (2,0.5)â†’(2.5,1)
+    /// Cell (2,1) case 3  â†’ segment (2.5,2)â†’(2.5,1)
+    /// Cell (2,2) case 1  â†’ segment (2,2.5)â†’(2.5,2)
     /// All 8 segments chain into the closed loop:
-    /// (0.5,1)→(1,0.5)→(2,0.5)→(2.5,1)→(2.5,2)→(2,2.5)→(1,2.5)→(0.5,2)→(0.5,1)
+    /// (0.5,1)â†’(1,0.5)â†’(2,0.5)â†’(2.5,1)â†’(2.5,2)â†’(2,2.5)â†’(1,2.5)â†’(0.5,2)â†’(0.5,1)
     #[test]
     fn square_block_produces_one_closed_loop() {
         #[rustfmt::skip]
@@ -471,7 +471,7 @@ mod tests {
             0.0,     0.0, 0.0, 0.0,
         ];
 
-        let image = ts::burn_compat::make_image::<B, 3>(data, [1, 4, 4]);
+        let image = ts::make_image::<f32, B, 3>(data, [1, 4, 4]);
         let filter = ContourExtractor2DImageFilter { contour_value: 0.5 };
         let contours = filter.apply(&image);
 

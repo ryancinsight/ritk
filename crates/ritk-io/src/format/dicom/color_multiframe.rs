@@ -1,7 +1,7 @@
 //! DICOM RGB multiframe loading.
 //!
 //! This module preserves true-color multiframe pixel data in `RgbVolume<f32, B>`
-//! instead of passing multi-sample frames through scalar `Image<B, 3>`.
+//! instead of passing multi-sample frames through scalar `Image<f32, B, 3>`.
 
 use std::path::Path;
 

@@ -16,7 +16,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 ///
 /// # Mathematical Specification
 ///
-/// `out(x) = min_{y ∈ S} ||x − y||₂` where `S = { y : in(y) > threshold }`
+/// `out(x) = min_{y âˆˆ S} ||x âˆ’ y||â‚‚` where `S = { y : in(y) > threshold }`
 ///
 /// # ITK Parity
 ///
@@ -27,7 +27,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 /// O(N) time via Meijster 2000; O(N) additional space.
 #[derive(Debug, Clone)]
 pub struct DistanceTransformImageFilter {
-    /// Intensity threshold separating background (≤ threshold) from foreground (> threshold).
+    /// Intensity threshold separating background (â‰¤ threshold) from foreground (> threshold).
     threshold: BinarizationThreshold,
     measure: DistanceMeasure,
 }
@@ -64,7 +64,7 @@ impl DistanceTransformImageFilter {
         self.measure
     }
 
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let dims = image.shape();
         let [nz, ny, nx] = dims;
         let (vals, _shape) = extract_vec_infallible(image);

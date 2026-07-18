@@ -1,9 +1,8 @@
-use anyhow::{anyhow, Context, Result};
+﻿use anyhow::{anyhow, Context, Result};
 use tracing::info;
 
 use ritk_segmentation::{
-    ConfidenceConnectedFilter, ConnectedThresholdFilter, NeighborhoodConnectedFilter,
-};
+    ConfidenceConnectedFilter, ConnectedThresholdFilter, NeighborhoodConnectedFilter };
 
 use super::super::{write_image_native, NativeBackend};
 use super::args::SegmentArgs;
@@ -14,8 +13,7 @@ struct NativeRegionInput {
     output_format: ritk_io::ImageFormat,
     seed: [usize; 3],
     lower: f32,
-    upper: f32,
-}
+    upper: f32 }
 
 /// Parse, validate, and read the shared native region-growing inputs.
 fn read_native_region_input(args: &SegmentArgs, method: &str) -> Result<NativeRegionInput> {
@@ -57,8 +55,7 @@ fn read_native_region_input(args: &SegmentArgs, method: &str) -> Result<NativeRe
         output_format,
         seed,
         lower,
-        upper,
-    })
+        upper })
 }
 
 fn write_native_region_mask(
@@ -71,7 +68,7 @@ fn write_native_region_mask(
     Ok(foreground)
 }
 
-// ── Connected-threshold region growing ───────────────────────────────────────
+// â”€â”€ Connected-threshold region growing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Apply connected-threshold BFS region growing from a user-specified seed.
 ///

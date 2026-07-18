@@ -59,7 +59,7 @@ pub mod native {
         use tempfile::tempdir;
 
         /// Trait-dispatched round trip: write through `ImageWriter`, read back
-        /// through `ImageReader`, exact voxel + shape parity — the unified
+        /// through `ImageReader`, exact voxel + shape parity â€” the unified
         /// contract is usable end-to-end on the Atlas substrate.
         #[test]
         fn native_contract_round_trips_tiff() {

@@ -33,7 +33,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 /// ```no_run
 /// # use ritk_filter::ShiftScaleImageFilter;
 /// let filter = ShiftScaleImageFilter::new(-1024.0, 0.001);
-/// // Converts Hounsfield units centred at â€“1024 to linear attenuation values
+/// // Converts Hounsfield units centred at Ã¢â‚¬â€œ1024 to linear attenuation values
 /// ```
 #[derive(Debug, Clone)]
 pub struct ShiftScaleImageFilter {
@@ -74,7 +74,7 @@ impl ShiftScaleImageFilter {
     ///
     /// Returns a new `Image` with identical spatial metadata and
     /// voxel values transformed by `(v + shift) * scale`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals_vec, dims) = extract_vec_infallible(image);
         let out_vals = shift_scale_vec(&vals_vec, self.shift, self.scale);
         Ok(rebuild(out_vals, dims, image))

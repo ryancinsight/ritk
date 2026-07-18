@@ -2,13 +2,12 @@ use super::{
     BinaryMinMaxCurvatureFlowConfig, BinaryMinMaxCurvatureFlowImageFilter,
     MinMaxCurvatureFlowConfig, MinMaxCurvatureFlowImageFilter,
 };
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_tensor_ops::extract_vec;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-// ── T-2: stencil_radius=0 guard ─────────────────────────────────────────────────
+// â”€â”€ T-2: stencil_radius=0 guard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// `stencil_radius = 0` is not a valid configuration: the directional
 /// threshold functions divide by `r` (radius as f64), which would produce
@@ -17,7 +16,7 @@ type B = LegacyBurnBackend;
 #[test]
 #[should_panic(expected = "stencil_radius must be >= 1")]
 fn min_max_stencil_radius_zero_panics() {
-    let img = ts::burn_compat::make_image::<B, 3>(vec![1.0_f32; 16], [1, 4, 4]);
+    let img = ts::make_image::<f32, B, 3>(vec![1.0_f32; 16], [1, 4, 4]);
     let _out = MinMaxCurvatureFlowImageFilter::new(MinMaxCurvatureFlowConfig {
         num_iterations: 1,
         time_step: 0.05,
@@ -40,7 +39,7 @@ fn binary_matches_sitk() {
             data[y * w + x] = base + 0.1 * ((x + y) % 3) as f32 - 0.1;
         }
     }
-    let img = ts::burn_compat::make_image::<B, 3>(data, [1, h, w]);
+    let img = ts::make_image::<f32, B, 3>(data, [1, h, w]);
     let out = BinaryMinMaxCurvatureFlowImageFilter::new(BinaryMinMaxCurvatureFlowConfig {
         num_iterations: 3,
         time_step: 0.05,
@@ -82,7 +81,7 @@ fn matches_sitk_min_max_curvature_flow() {
             data[y * w + x] = base + blob;
         }
     }
-    let img = ts::burn_compat::make_image::<B, 3>(data, [1, h, w]);
+    let img = ts::make_image::<f32, B, 3>(data, [1, h, w]);
     let out = MinMaxCurvatureFlowImageFilter::new(MinMaxCurvatureFlowConfig {
         num_iterations: 3,
         time_step: 0.05,

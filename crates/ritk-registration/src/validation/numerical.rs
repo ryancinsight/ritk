@@ -1,23 +1,25 @@
-//! Numerical constraint evaluation bounding configurations for optimization solvers.
+﻿//! Numerical constraint evaluation bounding configurations for optimization solvers.
 
 use super::config::{NumericalCheck, ValidationConfig};
 use crate::error::{RegistrationError, Result};
-use ritk_image::tensor::{Backend, ElementConversion, Tensor};
+use coeus_core::CpuAddressableStorage;
+use ritk_image::tensor::{Backend, Tensor};
 
-pub fn validate_tensor<B: Backend, const D: usize>(
-    tensor: &Tensor<B, D>,
+pub fn validate_tensor<B: Backend>(
+    tensor: &Tensor<f32, B>,
     config: &ValidationConfig,
-) -> Result<()> {
+) -> Result<()>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     if config.numerical_check == NumericalCheck::Disabled {
         return Ok(());
     }
 
     if let (Some(min), Some(max)) = (config.min_value, config.max_value) {
-        let min_val = tensor.clone().min().into_scalar();
-        let max_val = tensor.clone().max().into_scalar();
-
-        let min_val_f64 = min_val.elem::<f64>();
-        let max_val_f64 = max_val.elem::<f64>();
+        let values = tensor.as_slice();
+        let min_val_f64 = values.iter().copied().fold(f32::INFINITY, f32::min) as f64;
+        let max_val_f64 = values.iter().copied().fold(f32::NEG_INFINITY, f32::max) as f64;
 
         if min_val_f64 < min as f64 || max_val_f64 > max as f64 {
             return Err(RegistrationError::numerical_instability(format!(

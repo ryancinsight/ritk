@@ -24,10 +24,13 @@ impl<B: Backend> DownsampleFilter<B> {
     }
 
     /// Apply the filter to an image.
-    pub fn apply<const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
-        let (mut data, origin, mut spacing, direction) = image.clone().into_parts();
-        let device = data.device();
-        let dims: [usize; D] = data.shape().dims();
+    pub fn apply<const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
+        let (data, origin, mut spacing, direction) = image.clone().into_parts();
+        let dims: [usize; D] = data
+            .shape()
+            .try_into()
+            .expect("DownsampleFilter preserves the const-generic image rank");
+        let mut output_dims = dims;
         // Origin remains the same if we start sampling at index 0
         // (Physical location of first pixel is unchanged)
 
@@ -42,22 +45,44 @@ impl<B: Backend> DownsampleFilter<B> {
                 continue;
             }
 
-            let size = dims[d];
-            let _new_size = size.div_ceil(factor); // ceil division? or just floor?
-                                                   // Standard downsample usually floors: 0, factor, 2*factor...
-                                                   // If size is 10, factor 2: 0, 2, 4, 6, 8. Count = 5.
-
-            let indices_vec: Vec<i32> = (0..size).step_by(factor).map(|x| x as i32).collect();
-            let indices =
-                Tensor::<B, 1, ritk_image::tensor::Int>::from_ints(indices_vec.as_slice(), &device);
-
-            data = data.select(d, indices);
+            output_dims[d] = dims[d].div_ceil(factor);
 
             // Update spacing
             spacing[d] *= factor as f64;
         }
 
-        Image::new(data, origin, spacing, direction)
+        let source = data.to_vec();
+        let mut source_strides = [1usize; D];
+        let mut output_strides = [1usize; D];
+        for axis in (0..D.saturating_sub(1)).rev() {
+            source_strides[axis] = source_strides[axis + 1] * dims[axis + 1];
+            output_strides[axis] = output_strides[axis + 1] * output_dims[axis + 1];
+        }
+        let factors: [usize; D] = std::array::from_fn(|axis| {
+            self.factors
+                .get(axis)
+                .copied()
+                .unwrap_or(self.factors[0])
+                .max(1)
+        });
+        let output = (0..output_dims.iter().product())
+            .map(|linear| {
+                let source_index = (0..D)
+                    .map(|axis| {
+                        let coordinate = (linear / output_strides[axis]) % output_dims[axis];
+                        coordinate * factors[axis] * source_strides[axis]
+                    })
+                    .sum::<usize>();
+                source[source_index]
+            })
+            .collect::<Vec<_>>();
+
+        Image::new(
+            Tensor::<f32, B>::from_slice(output_dims, &output),
+            origin,
+            spacing,
+            direction,
+        )
     }
 }
 

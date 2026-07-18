@@ -1,4 +1,4 @@
-#![allow(clippy::needless_range_loop)]
+﻿#![allow(clippy::needless_range_loop)]
 
 use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
 use crate::io::image_xml::reader::parse_vti;
@@ -75,7 +75,7 @@ fn test_parse_vti_origin_and_spacing() {
 
 #[test]
 fn test_parse_vti_point_data_scalars() {
-    // extent "0 1 0 1 0 1" → n_points = 2*2*2 = 8
+    // extent "0 1 0 1 0 1" â†’ n_points = 2*2*2 = 8
     let pd = concat!(
         "      <PointData>\n",
         "        <DataArray type=\"Float32\" Name=\"intensity\"",
@@ -94,8 +94,7 @@ fn test_parse_vti_point_data_scalars() {
     {
         AttributeArray::Scalars {
             values,
-            num_components,
-        } => {
+            num_components } => {
             assert_eq!(*num_components, 1);
             assert_eq!(values.len(), 8);
             assert!(
@@ -109,13 +108,12 @@ fn test_parse_vti_point_data_scalars() {
                 values[7]
             );
         }
-        other => panic!("expected Scalars, got {:?}", other),
-    }
+        other => panic!("expected Scalars, got {:?}", other) }
 }
 
 #[test]
 fn test_parse_vti_multicomponent_vectors() {
-    // extent "0 0 0 0 0 0" → n_points = 1; 3-component DataArray → Vectors
+    // extent "0 0 0 0 0 0" â†’ n_points = 1; 3-component DataArray â†’ Vectors
     let pd = concat!(
         "      <PointData>\n",
         "        <DataArray type=\"Float32\" Name=\"velocity\"",
@@ -149,13 +147,12 @@ fn test_parse_vti_multicomponent_vectors() {
                 values[0][2]
             );
         }
-        other => panic!("expected Vectors, got {:?}", other),
-    }
+        other => panic!("expected Vectors, got {:?}", other) }
 }
 
 #[test]
 fn test_parse_vti_cell_data() {
-    // extent "0 1 0 1 0 1" → n_cells = 1*1*1 = 1
+    // extent "0 1 0 1 0 1" â†’ n_cells = 1*1*1 = 1
     let cd = concat!(
         "      <CellData>\n",
         "        <DataArray type=\"Float32\" Name=\"pressure\"",
@@ -174,8 +171,7 @@ fn test_parse_vti_cell_data() {
     {
         AttributeArray::Scalars {
             values,
-            num_components,
-        } => {
+            num_components } => {
             assert_eq!(*num_components, 1);
             assert_eq!(values.len(), 1);
             assert!(
@@ -184,8 +180,7 @@ fn test_parse_vti_cell_data() {
                 values[0]
             );
         }
-        other => panic!("expected Scalars, got {:?}", other),
-    }
+        other => panic!("expected Scalars, got {:?}", other) }
 }
 
 #[test]
@@ -206,7 +201,7 @@ fn test_parse_vti_empty_point_data() {
 #[test]
 fn test_read_vti_file_roundtrip() {
     // Write via write_vti_str, parse with parse_vti, verify full round-trip.
-    // extent [0,1,0,1,0,1] → n_points = 8
+    // extent [0,1,0,1,0,1] â†’ n_points = 8
     let mut img = VtkImageData {
         whole_extent: [0, 1, 0, 1, 0, 1],
         origin: [1.0, 2.0, 3.0],
@@ -217,8 +212,7 @@ fn test_read_vti_file_roundtrip() {
         "scalars".to_string(),
         AttributeArray::Scalars {
             values: vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-            num_components: 1,
-        },
+            num_components: 1 },
     );
     let xml = write_vti_str(&img);
     let parsed = parse_vti(&xml).expect("round-trip parse must succeed");
@@ -245,8 +239,7 @@ fn test_read_vti_file_roundtrip() {
     {
         AttributeArray::Scalars {
             values,
-            num_components,
-        } => {
+            num_components } => {
             assert_eq!(*num_components, 1);
             assert_eq!(values.len(), 8);
             let expected = [1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
@@ -257,8 +250,7 @@ fn test_read_vti_file_roundtrip() {
                 );
             }
         }
-        other => panic!("expected Scalars, got {:?}", other),
-    }
+        other => panic!("expected Scalars, got {:?}", other) }
 }
 
 #[test]
@@ -276,8 +268,7 @@ fn test_from_file_roundtrip() {
         "density".to_string(),
         AttributeArray::Scalars {
             values: (0..24).map(|i| i as f32 * 0.5).collect(),
-            num_components: 1,
-        },
+            num_components: 1 },
     );
 
     let tmp = NamedTempFile::new().expect("temp file creation must succeed");
@@ -291,8 +282,7 @@ fn test_from_file_roundtrip() {
         .expect("density must exist")
     {
         AttributeArray::Scalars { values, .. } => values.clone(),
-        other => panic!("expected Scalars, got {:?}", other),
-    };
+        other => panic!("expected Scalars, got {:?}", other) };
     assert_eq!(loaded_vals.len(), 24, "24 scalar values expected");
     for i in 0..24 {
         let exp = i as f32 * 0.5;
@@ -306,7 +296,7 @@ fn test_from_file_roundtrip() {
 
 #[test]
 fn test_missing_piece_tag_error() {
-    // Valid ImageData tag but no Piece element — parse must return Err.
+    // Valid ImageData tag but no Piece element â€” parse must return Err.
     let vti = concat!(
         "<?xml version=\"1.0\"?>\n",
         "<VTKFile type=\"ImageData\" version=\"0.1\" byte_order=\"LittleEndian\">\n",

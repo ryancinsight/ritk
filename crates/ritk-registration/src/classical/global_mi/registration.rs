@@ -1,39 +1,39 @@
-//! GlobalMiRegistration struct and multi-resolution optimization loop.
+﻿//! GlobalMiRegistration struct and multi-resolution optimization loop.
 
 use super::config::{GlobalMiConfig, GlobalMiTransformType};
 use super::result::{ConvergenceStatus, GlobalMiResult};
 use super::transforms::{
     affine_matrix_to_homogeneous, compute_image_center, estimate_intensity_range,
-    rigid_matrix_to_homogeneous, translation_matrix_to_homogeneous,
-};
+    rigid_matrix_to_homogeneous, translation_matrix_to_homogeneous };
 use crate::metric::{Metric, MutualInformation};
+use crate::optimizer::trait_::central_difference;
 use crate::optimizer::{ConvergenceReason, Optimizer, RegularStepGradientDescent};
 use crate::types::AffineTransform;
 
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::Module;
+use coeus_ops::BackendOps;
 use ritk_core::image::Image;
 use ritk_filter::pyramid::MultiResolutionPyramid;
-use ritk_image::burn::module::AutodiffModule;
-use ritk_image::burn::optim::GradientsParams;
-use ritk_image::tensor::AutodiffBackend;
+use ritk_image::tensor::Backend;
 use ritk_transform::{
     AffineTransform as CoreAffineTransform, Resampleable, RigidTransform, Transform,
-    TranslationTransform,
-};
+    TranslationTransform };
 
 /// Multi-resolution Mattes MI + RSGD global registration pipeline.
 ///
 /// Follows ITK's `ImageRegistrationMethod` architecture: multi-resolution
-/// pyramid (coarse → fine) with per-level Mattes MI metric and RSGD optimizer.
+/// pyramid (coarse â†’ fine) with per-level Mattes MI metric and RSGD optimizer.
 pub struct GlobalMiRegistration;
 
 impl GlobalMiRegistration {
-    // ─── Typed Entry Points ───────────────────────────────────────────────
+    // â”€â”€â”€ Typed Entry Points â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Execute multi-resolution Mattes MI + RSGD rigid registration
-    /// with proper 4×4 matrix extraction from the final transform.
-    pub fn register_rigid_full<B: AutodiffBackend>(
-        fixed: &Image<B, 3>,
-        moving: &Image<B, 3>,
+    /// with proper 4Ã—4 matrix extraction from the final transform.
+    pub fn register_rigid_full<B: Backend>(
+        fixed: &Image<f32, B, 3>,
+        moving: &Image<f32, B, 3>,
         initial_transform: RigidTransform<B, 3>,
         config: &GlobalMiConfig,
     ) -> (RigidTransform<B, 3>, GlobalMiResult<3>) {
@@ -45,10 +45,10 @@ impl GlobalMiRegistration {
     }
 
     /// Execute multi-resolution Mattes MI + RSGD affine registration
-    /// with proper 4×4 matrix extraction from the final transform.
-    pub fn register_affine_full<B: AutodiffBackend>(
-        fixed: &Image<B, 3>,
-        moving: &Image<B, 3>,
+    /// with proper 4Ã—4 matrix extraction from the final transform.
+    pub fn register_affine_full<B: Backend>(
+        fixed: &Image<f32, B, 3>,
+        moving: &Image<f32, B, 3>,
         initial_transform: CoreAffineTransform<B, 3>,
         config: &GlobalMiConfig,
     ) -> (CoreAffineTransform<B, 3>, GlobalMiResult<3>) {
@@ -60,10 +60,10 @@ impl GlobalMiRegistration {
     }
 
     /// Execute multi-resolution Mattes MI + RSGD translation registration
-    /// with proper 4×4 matrix extraction from the final transform.
-    pub fn register_translation_full<B: AutodiffBackend>(
-        fixed: &Image<B, 3>,
-        moving: &Image<B, 3>,
+    /// with proper 4Ã—4 matrix extraction from the final transform.
+    pub fn register_translation_full<B: Backend>(
+        fixed: &Image<f32, B, 3>,
+        moving: &Image<f32, B, 3>,
         initial_transform: TranslationTransform<B, 3>,
         config: &GlobalMiConfig,
     ) -> (TranslationTransform<B, 3>, GlobalMiResult<3>) {
@@ -76,9 +76,9 @@ impl GlobalMiRegistration {
 
     // Kept for backwards compatibility with callers using the non-full variants.
     /// Execute rigid registration (delegates to `register_rigid_full`).
-    pub fn register_rigid<B: AutodiffBackend>(
-        fixed: &Image<B, 3>,
-        moving: &Image<B, 3>,
+    pub fn register_rigid<B: Backend>(
+        fixed: &Image<f32, B, 3>,
+        moving: &Image<f32, B, 3>,
         initial_transform: RigidTransform<B, 3>,
         config: &GlobalMiConfig,
     ) -> (RigidTransform<B, 3>, GlobalMiResult<3>) {
@@ -86,9 +86,9 @@ impl GlobalMiRegistration {
     }
 
     /// Execute affine registration (delegates to `register_affine_full`).
-    pub fn register_affine<B: AutodiffBackend>(
-        fixed: &Image<B, 3>,
-        moving: &Image<B, 3>,
+    pub fn register_affine<B: Backend>(
+        fixed: &Image<f32, B, 3>,
+        moving: &Image<f32, B, 3>,
         initial_transform: CoreAffineTransform<B, 3>,
         config: &GlobalMiConfig,
     ) -> (CoreAffineTransform<B, 3>, GlobalMiResult<3>) {
@@ -96,33 +96,33 @@ impl GlobalMiRegistration {
     }
 
     /// Execute translation registration (delegates to `register_translation_full`).
-    pub fn register_translation<B: AutodiffBackend>(
-        fixed: &Image<B, 3>,
-        moving: &Image<B, 3>,
+    pub fn register_translation<B: Backend>(
+        fixed: &Image<f32, B, 3>,
+        moving: &Image<f32, B, 3>,
         initial_transform: TranslationTransform<B, 3>,
         config: &GlobalMiConfig,
     ) -> (TranslationTransform<B, 3>, GlobalMiResult<3>) {
         Self::register_translation_full(fixed, moving, initial_transform, config)
     }
 
-    // ─── Matrix Extraction Delegates ─────────────────────────────────────
+    // â”€â”€â”€ Matrix Extraction Delegates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    /// Compute the 4×4 homogeneous matrix from a rigid transform result.
-    pub fn rigid_result_matrix<B: AutodiffBackend>(
+    /// Compute the 4Ã—4 homogeneous matrix from a rigid transform result.
+    pub fn rigid_result_matrix<B: Backend>(
         transform: &RigidTransform<B, 3>,
     ) -> AffineTransform {
         rigid_matrix_to_homogeneous(transform)
     }
 
-    /// Compute the 4×4 homogeneous matrix from an affine transform result.
-    pub fn affine_result_matrix<B: AutodiffBackend>(
+    /// Compute the 4Ã—4 homogeneous matrix from an affine transform result.
+    pub fn affine_result_matrix<B: Backend>(
         transform: &CoreAffineTransform<B, 3>,
     ) -> AffineTransform {
         affine_matrix_to_homogeneous(transform)
     }
 
-    /// Compute the 4×4 homogeneous matrix from a translation transform result.
-    pub fn translation_result_matrix<B: AutodiffBackend>(
+    /// Compute the 4Ã—4 homogeneous matrix from a translation transform result.
+    pub fn translation_result_matrix<B: Backend>(
         transform: &TranslationTransform<B, 3>,
     ) -> AffineTransform {
         translation_matrix_to_homogeneous(transform)
@@ -130,36 +130,37 @@ impl GlobalMiRegistration {
 
     /// Compute the physical center of an image.
     pub fn image_center<B: ritk_image::tensor::Backend, const D: usize>(
-        image: &Image<B, D>,
+        image: &Image<f32, B, D>,
     ) -> [f64; 3] {
         compute_image_center(image)
     }
 
-    // ─── Generic Multi-Resolution Loop ───────────────────────────────────
+    // â”€â”€â”€ Generic Multi-Resolution Loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Core multi-resolution loop for any transform type T.
     ///
     /// Implements the ITK ImageRegistrationMethod workflow:
     /// 1. Build multi-resolution pyramids for fixed and moving images.
-    /// 2. For each level (coarse → fine):
+    /// 2. For each level (coarse â†’ fine):
     ///    a. Get downsampled fixed/moving images
     ///    b. Resample transform to current level
     ///    c. Estimate intensity range for MI binning
     ///    d. Create Mattes MI metric with sparse sampling
     ///    e. Create RSGD optimizer with level-specific config
-    ///    f. Run RSGD loop: forward → set_loss → backward → step
+    ///    f. Run RSGD loop: forward â†’ set_loss â†’ backward â†’ step
     /// 3. Build result from final transform parameters.
     fn execute_multires<B, T>(
-        fixed: &Image<B, 3>,
-        moving: &Image<B, 3>,
+        fixed: &Image<f32, B, 3>,
+        moving: &Image<f32, B, 3>,
         mut transform: T,
         config: &GlobalMiConfig,
     ) -> (T, GlobalMiResult<3>)
     where
-        B: AutodiffBackend,
-        T: Transform<B, 3> + AutodiffModule<B> + Resampleable<B, 3> + Clone + 'static,
+        B: Backend + BackendOps<f32> + Default,
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+        T: Transform<B, 3> + Module<f32, B> + Resampleable<B, 3> + Clone + 'static,
     {
-        // P1-01: stack-allocated per-level arrays — no `Vec<Vec<T>>` container,
+        // P1-01: stack-allocated per-level arrays â€” no `Vec<Vec<T>>` container,
         // no per-level inner Vec allocation. The factor/sigma config is a flat
         // slice (one entry per level, broadcast across D=3 axes), so each level
         // materialises to a 3-element array literal in a single mov.
@@ -197,8 +198,7 @@ impl GlobalMiRegistration {
             match config.transform_type {
                 GlobalMiTransformType::Translation => "translation",
                 GlobalMiTransformType::Rigid => "rigid",
-                GlobalMiTransformType::Affine => "affine",
-            }
+                GlobalMiTransformType::Affine => "affine" }
         );
 
         for level in 0..num_levels {
@@ -262,18 +262,15 @@ impl GlobalMiRegistration {
                 }
 
                 let loss = metric.forward(fixed_level, moving_level, &transform);
-                let loss_data = loss.to_data();
-                let loss_val = loss_data
-                    .as_slice::<f32>()
-                    .expect("loss value tensor data must be contiguous")[0]
-                    as f64;
+                let loss_val = f64::from(loss.as_slice()[0]);
                 level_loss_history.push(loss_val);
 
                 optimizer.set_loss(loss_val);
 
-                let grads = loss.backward();
-                let grads_params = GradientsParams::from_grads(grads, &transform);
-                transform = optimizer.step(transform, grads_params);
+                let gradients = central_difference(&transform, |candidate| {
+                    f64::from(metric.forward(fixed_level, moving_level, candidate).as_slice()[0])
+                });
+                transform = optimizer.step(transform, gradients);
 
                 level_iterations += 1;
             }
@@ -299,8 +296,8 @@ impl GlobalMiRegistration {
             }
         }
 
-        // Mutual information is mathematically non-negative (MI = H(X)+H(Y)−H(X,Y)
-        // ≥ 0); a tiny negative value (≈ −1e-7) is float32 cancellation in the
+        // Mutual information is mathematically non-negative (MI = H(X)+H(Y)âˆ’H(X,Y)
+        // â‰¥ 0); a tiny negative value (â‰ˆ âˆ’1e-7) is float32 cancellation in the
         // Parzen histogram entropies, not a real quantity.  Clamp so the reported
         // MI never goes below zero.
         let final_mi = (-final_loss_val).max(0.0);
@@ -328,8 +325,7 @@ impl GlobalMiRegistration {
                 ConvergenceStatus::Converged
             } else {
                 ConvergenceStatus::MaxIterationsReached
-            },
-        };
+            } };
 
         (transform, result)
     }

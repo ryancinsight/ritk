@@ -1,14 +1,13 @@
 use super::BitwiseNotImageFilter;
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn img(data: Vec<f32>) -> Image<B, 3> {
+fn img(data: Vec<f32>) -> Image<f32, B, 3> {
     let n = data.len();
-    ts::burn_compat::make_image::<B, 3>(data, [1, 1, n])
+    ts::make_image::<f32, B, 3>(data, [1, 1, n])
 }
 
 /// Unsigned 8-bit complement: `~x = 255 − x`.

@@ -1,9 +1,9 @@
-//! In-progress tool interaction state and ROI shape discriminant.
+﻿//! In-progress tool interaction state and ROI shape discriminant.
 
 use super::super::kind::ToolKind;
 use egui::Pos2;
 
-// ── In-progress tool state ────────────────────────────────────────────────────
+// â”€â”€ In-progress tool state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// In-progress interaction state for the active tool.
 ///
@@ -22,16 +22,14 @@ pub enum ToolState {
         /// Pointer position (screen pixels) where the drag started.
         start: Pos2,
         /// Viewport pan offset at the moment the drag started.
-        viewport_origin: Pos2,
-    },
+        viewport_origin: Pos2 },
 
     /// Zoom drag in progress.
     Zooming {
         /// Pointer position (screen pixels) where the drag started.
         start: Pos2,
         /// Zoom multiplier at the moment the drag started.
-        original_zoom: f32,
-    },
+        original_zoom: f32 },
 
     /// Window/Level drag in progress.
     WindowLevelDrag {
@@ -40,22 +38,19 @@ pub enum ToolState {
         /// Window centre at the moment the drag started.
         original_center: f64,
         /// Window width at the moment the drag started.
-        original_width: f64,
-    },
+        original_width: f64 },
 
     /// First point of a two-click length measurement has been placed.
     MeasureLength1 {
         /// First measurement point in image pixel coordinates `[row, col]`.
-        p1: Pos2,
-    },
+        p1: Pos2 },
 
     /// First two points of a three-click angle measurement have been placed.
     MeasureAngle2 {
         /// First point in image pixel coordinates `[row, col]`.
         p1: Pos2,
         /// Second point (vertex) in image pixel coordinates `[row, col]`.
-        p2: Pos2,
-    },
+        p2: Pos2 },
 
     /// ROI drag in progress.
     RoiDrag {
@@ -64,16 +59,13 @@ pub enum ToolState {
         /// Current pointer position in image pixel coordinates `[row, col]`.
         current: Pos2,
         /// Whether the ROI is rectangular or elliptical.
-        kind: RoiKind,
-    },
-}
+        kind: RoiKind } }
 
 /// Discriminant for the two supported ROI shapes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RoiKind {
     Rect,
-    Ellipse,
-}
+    Ellipse }
 
 impl ToolState {
     /// Returns `true` when no gesture is in progress.
@@ -97,7 +89,6 @@ impl ToolState {
             ToolState::RoiDrag {
                 kind: RoiKind::Ellipse,
                 ..
-            } => Some(ToolKind::RoiEllipse),
-        }
+            } => Some(ToolKind::RoiEllipse) }
     }
 }

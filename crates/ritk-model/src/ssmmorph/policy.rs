@@ -1,4 +1,4 @@
-//! Shared policy enums for the SSMMorph module.
+﻿//! Shared policy enums for the SSMMorph module.
 //!
 //! Enums used across multiple sub-modules are defined here and re-exported
 //! from `ssmmorph::mod` to provide a single canonical import path.
@@ -10,5 +10,4 @@ pub enum ScanDimensionality {
     Scan2d,
     /// 3D scanning over \[B, C, D, H, W\] tensors using 6 directions.
     #[default]
-    Scan3d,
-}
+    Scan3d }

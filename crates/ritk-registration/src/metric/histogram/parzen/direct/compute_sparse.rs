@@ -1,11 +1,11 @@
-//! Sparse-cache-path joint histogram computation.
+﻿//! Sparse-cache-path joint histogram computation.
 //!
 //! Extracted from `mod.rs` (ARCH-330-04) for SRP: this module owns the
 //! `build_sparse_w_fixed_transposed` and `compute_joint_histogram_from_cache_sparse`
-//! public APIs — the sparse W_fixed^T cache build and the CMA-ES iteration
+//! public APIs â€” the sparse W_fixed^T cache build and the CMA-ES iteration
 //! hot-path that reuses cached fixed-image weights.
 
-use ritk_image::tensor::{Shape, TensorData};
+use ritk_image::tensor::{Shape };
 
 use super::accumulate::{accumulate_sample_sparse, merge_histograms, validate_inputs};
 use super::pool::HistogramPool;
@@ -14,16 +14,16 @@ use super::types::ParzenConfig;
 
 /// Build the sparse W_fixed^T cache from normalized fixed-image values.
 ///
-/// Per sample, computes Gaussian weights only within ±3σ, storing
+/// Per sample, computes Gaussian weights only within Â±3Ïƒ, storing
 /// `(bin_index, weight)` pairs where weight > 1e-12. OOB samples get empty Vec.
 /// Each entry also stores `inv_sum_f = 1/sum_f` (SPARSE-329-01) so the
 /// sparse path can apply full joint normalization matching the direct path.
 ///
 /// # Arguments
-/// * `fixed_norm` — Normalized fixed-image values `[N]` in `[0, num_bins-1]`
-/// * `num_bins` — Number of histogram bins
-/// * `sigma_sq_fix` — Fixed-image Parzen sigma² (bin-index units)
-/// * `oob_mask` — Optional OOB mask `[N]` (1.0 = in-bounds, 0.0 = OOB)
+/// * `fixed_norm` â€” Normalized fixed-image values `[N]` in `[0, num_bins-1]`
+/// * `num_bins` â€” Number of histogram bins
+/// * `sigma_sq_fix` â€” Fixed-image Parzen sigmaÂ² (bin-index units)
+/// * `oob_mask` â€” Optional OOB mask `[N]` (1.0 = in-bounds, 0.0 = OOB)
 pub fn build_sparse_w_fixed_transposed(
     fixed_norm: &[f32],
     num_bins: usize,
@@ -40,7 +40,7 @@ pub fn build_sparse_w_fixed_transposed(
     // SPARSE-329-01: each element is (entries, inv_sum_f)
     let mut entries: SparseWFixedT = (0..n).map(|_| (SparseSampleCache::new(), 0.0f32)).collect();
     moirai::enumerate_mut_with::<moirai::Adaptive, _, _>(&mut entries, |i, entry| {
-        // OOB check — reuse SampleWindow::mask_val (ARCH-321-04)
+        // OOB check â€” reuse SampleWindow::mask_val (ARCH-321-04)
         if SampleWindow::mask_val(i, oob_mask).is_none() {
             return;
         }
@@ -66,18 +66,18 @@ pub fn build_sparse_w_fixed_transposed(
 /// cache (~7 non-zero entries/sample, eliminating full `0..num_bins` scan and
 /// `if w_f > 0.0` branch). Moirai parallel reduction (OPT-6) with histogram pool.
 ///
-/// SPARSE-329-01: Full joint normalization `inv_norm = inv_sum_f × inv_sum_m`
+/// SPARSE-329-01: Full joint normalization `inv_norm = inv_sum_f Ã— inv_sum_m`
 /// is now applied, matching the direct path. `inv_sum_f` is stored per-sample
 /// in the sparse cache; `inv_sum_m` is computed per-sample from moving values.
 /// This eliminates the asymmetry where the sparse path only normalized by
-/// `1/sum_m` (Sprint 328), making direct↔sparse histograms numerically identical.
+/// `1/sum_m` (Sprint 328), making directâ†”sparse histograms numerically identical.
 ///
 /// # Arguments
-/// * `sparse_w_fixed` — Sparse fixed-image weights per sample (from `build_sparse_w_fixed_transposed`)
-/// * `moving_norm` — Normalized moving-image values `[N]` in `[0, num_bins-1]`
-/// * `num_bins` — Number of histogram bins
-/// * `sigma_sq_mov` — Moving-image Parzen sigma² (bin-index units)
-/// * `oob_mask` — Optional OOB mask `[N]` (1.0 = in-bounds, 0.0 = OOB)
+/// * `sparse_w_fixed` â€” Sparse fixed-image weights per sample (from `build_sparse_w_fixed_transposed`)
+/// * `moving_norm` â€” Normalized moving-image values `[N]` in `[0, num_bins-1]`
+/// * `num_bins` â€” Number of histogram bins
+/// * `sigma_sq_mov` â€” Moving-image Parzen sigmaÂ² (bin-index units)
+/// * `oob_mask` â€” Optional OOB mask `[N]` (1.0 = in-bounds, 0.0 = OOB)
 #[allow(private_interfaces)]
 pub fn compute_joint_histogram_from_cache_sparse(
     sparse_w_fixed: &[(SparseSampleCache, f32)],
@@ -86,7 +86,7 @@ pub fn compute_joint_histogram_from_cache_sparse(
     sigma_sq_mov: f32,
     oob_mask: Option<&[f32]>,
     pool: Option<&HistogramPool>,
-) -> TensorData {
+) -> Vec<f32> {
     // Input validation (DRY-327-05)
     assert!(
         !sparse_w_fixed.is_empty(),
@@ -138,5 +138,5 @@ pub fn compute_joint_histogram_from_cache_sparse(
         },
     );
 
-    TensorData::new(histogram, Shape::new([num_bins, num_bins]))
+    histogram
 }

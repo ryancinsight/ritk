@@ -1,8 +1,8 @@
-//! Criterion benchmarks for Parzen joint histogram (Mutual Information) computation.
+﻿//! Criterion benchmarks for Parzen joint histogram (Mutual Information) computation.
 //!
 //! Benchmarks the core hot-path used by MutualInformation metrics during registration.
 use criterion::{criterion_group, criterion_main, Criterion};
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_registration::metric::histogram::ParzenJointHistogram;
 
 type B = burn_ndarray::NdArray<f32>;
@@ -12,13 +12,13 @@ fn bench_parzen_joint_histogram(c: &mut Criterion) {
     let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
     let n = 1000usize;
 
-    // Deterministic intensity samples spanning [0, 255] — no RNG needed.
+    // Deterministic intensity samples spanning [0, 255] â€” no RNG needed.
     let fixed_vec: Vec<f32> = (0..n).map(|i| (i % 256) as f32).collect();
     // Offset pattern to create a non-trivial joint distribution.
     let moving_vec: Vec<f32> = (0..n).map(|i| ((i * 3 + 17) % 256) as f32).collect();
 
-    let fixed = Tensor::<B, 1>::from_data(TensorData::new(fixed_vec, Shape::new([n])), &device);
-    let moving = Tensor::<B, 1>::from_data(TensorData::new(moving_vec, Shape::new([n])), &device);
+    let fixed = Tensor::<f32, B>::from_slice_on([n], &fixed_vec, &device);
+    let moving = Tensor::<f32, B>::from_slice_on([n], &moving_vec, &device);
 
     // 32 bins, intensity range [0, 255], sigma = 8.0 (roughly one bin-width).
     let histogram = ParzenJointHistogram::<B>::new(32, 0.0, 255.0, 8.0, &device);

@@ -1,4 +1,4 @@
-//! DicomObjectModel — ordered collection of DICOM object nodes.
+//! DicomObjectModel â€” ordered collection of DICOM object nodes.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;

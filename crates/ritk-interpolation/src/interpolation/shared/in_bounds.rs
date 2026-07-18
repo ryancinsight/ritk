@@ -1,18 +1,44 @@
 //! In-bounds mask computation for out-of-bounds zero-padding.
 //!
-//! The pattern `floor_c.clone().equal(floor_c.clamp(0.0, max)).float()` is
-//! duplicated across every interpolation dimension. This helper factors it
-//! into a single function, reducing clone overhead and centralising the
-//! contract: a sample is in-bounds along one axis iff its floor coordinate
-//! equals its clamped floor coordinate.
-//!
-//! # Contract
-//!
-//! Returns a tensor of `1.0` (in-bounds) or `0.0` (out-of-bounds) for each
-//! sample along a single axis. The product across all axes gives the
-//! multi-dimensional in-bounds mask.
+//! Shared out-of-bounds handling policy for interpolation kernels.
 
-use ritk_image::tensor::{backend::Backend, Tensor};
+use coeus_core::CpuAddressableStorage;
+use ritk_image::tensor::{Backend, Tensor};
+
+/// Compute a `{0.0, 1.0}` in-bounds mask for voxel indices.
+///
+/// Returns an `[N]` float tensor: `1.0` for in-bounds coordinates and `0.0`
+/// otherwise. Index columns are innermost-first (`[x, y, z]`) while `shape`
+/// remains row-major (`[z, y, x]`).
+#[must_use]
+pub fn compute_oob_mask<B: Backend>(
+    indices: &Tensor<f32, B>,
+    shape: &[usize],
+) -> Tensor<f32, B>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    let idx_shape = indices.shape();
+    assert_eq!(idx_shape.len(), 2, "indices must be rank-2 [N, D]");
+    let n = idx_shape[0];
+    let rank = idx_shape[1];
+    assert_eq!(rank, shape.len(), "index rank must match image rank");
+
+    let indices = indices.to_contiguous();
+    let values = indices.as_slice();
+    let mut mask = vec![1.0; n];
+    for sample in 0..n {
+        for axis in 0..rank {
+            let coordinate = values[sample * rank + (rank - 1 - axis)];
+            let floor = coordinate.floor() as isize;
+            if floor < 0 || floor >= shape[axis] as isize {
+                mask[sample] = 0.0;
+                break;
+            }
+        }
+    }
+    Tensor::from_slice([n], &mask)
+}
 
 /// Out-of-bounds handling policy for interpolation kernels.
 ///
@@ -25,54 +51,4 @@ pub enum OutOfBoundsMode {
     ZeroPad,
     /// Clamp out-of-bounds coordinates to the nearest valid boundary.
     Clamp,
-}
-
-/// Compute a per-sample in-bounds mask for a single axis.
-///
-/// `floor_c` is the floor of the continuous coordinate along this axis.
-/// `max` is the maximum valid index (`d_k - 1`).
-///
-/// A sample is in-bounds iff `floor_c == clamp(floor_c, 0, max)`, i.e.
-/// the coordinate was already within `[0, max]` before clamping.
-///
-/// # Implementation
-///
-/// `floor_c.clamp(0.0, max)` consumes `floor_c` (Burn's ownership model).
-/// The caller must `.clone()` `floor_c` before calling if the original
-/// value is needed later. However, by accepting `floor_c` by value and
-/// by accepting `floor_c` by value and
-/// cloning internally **only** when `mode` is `ZeroPad`, the `Clamp`
-/// path pays zero cost — the compiler dead-code eliminates the entire
-/// body when `mode` is `Clamp` at monomorphization time.
-///
-/// When `mode` is `Clamp`, returns `None` (caller skips mask logic).
-#[inline]
-pub fn in_bounds_mask<B: Backend>(
-    floor_c: Tensor<B, 1>,
-    max: f64,
-    mode: OutOfBoundsMode,
-) -> Option<Tensor<B, 1>> {
-    if mode == OutOfBoundsMode::ZeroPad {
-        let clamped = floor_c.clone().clamp(0.0, max);
-        Some(floor_c.equal(clamped).float())
-    } else {
-        None
-    }
-}
-
-/// Multiply a list of per-axis in-bounds masks into a single joint mask.
-///
-/// `None` entries are treated as all-ones (axis is unconditionally in-bounds,
-/// which happens when `mode` is `Clamp`). If every entry is `None`,
-/// returns `None` (no masking needed).
-#[inline]
-pub fn joint_in_bounds_mask<B: Backend>(masks: &[Option<Tensor<B, 1>>]) -> Option<Tensor<B, 1>> {
-    let mut product: Option<Tensor<B, 1>> = None;
-    for m in masks.iter().flatten() {
-        product = Some(match product {
-            None => m.clone(),
-            Some(p) => p * m.clone(),
-        });
-    }
-    product
 }

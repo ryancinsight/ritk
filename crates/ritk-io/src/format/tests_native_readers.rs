@@ -5,26 +5,24 @@
 //! reader and the Burn free-function reader and assert exact voxel and shape
 //! equality. Comparing two readers of one file (rather than reader output vs.
 //! original values) makes the oracle independent of any write-side lossiness
-//! (e.g. JPEG quantization) — the native adapter must decode identically to
+//! (e.g. JPEG quantization) â€” the native adapter must decode identically to
 //! the verified Burn path, byte-for-byte of the decoded stream.
 
 use crate::domain::{ImageReader, ImageWriter};
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image as BurnImage;
 use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::backend::Backend;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 
-type BurnBackend = NdArray<f32>;
+type BurnBackend = SequentialBackend;
 
 /// Read `path` through the native trait `reader` and the Burn `read_burn`
 /// free function; assert identical shape and exact voxel equality.
 fn assert_native_reader_matches_burn<R>(
     path: &Path,
     reader: &R,
-    read_burn: impl Fn(&Path) -> anyhow::Result<BurnImage<BurnBackend, 3>>,
+    read_burn: impl Fn(&Path) -> anyhow::Result<BurnImage<f32, BurnBackend, 3>>,
 ) where
     R: ImageReader<NativeImage<f32, SequentialBackend, 3>>,
 {
@@ -43,13 +41,12 @@ fn assert_native_reader_matches_burn<R>(
 }
 
 /// A small anisotropic Burn test volume for the formats with Burn writers.
-fn burn_volume(dims: [usize; 3]) -> BurnImage<BurnBackend, 3> {
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+fn burn_volume(dims: [usize; 3]) -> BurnImage<f32, BurnBackend, 3> {
+    use ritk_image::tensor::Tensor;
     let n = dims[0] * dims[1] * dims[2];
     let voxels: Vec<f32> = (0..n).map(|i| i as f32 * 0.5 - 4.0).collect();
-    let device = <BurnBackend as Backend>::Device::default();
-    let tensor =
-        Tensor::<BurnBackend, 3>::from_data(TensorData::new(voxels, Shape::new(dims)), &device);
+    let device = BurnBackend::default();
+    let tensor = Tensor::<f32, BurnBackend>::from_slice_on(dims, &voxels, &device);
     BurnImage::new(
         tensor,
         Point::new([1.0, -2.0, 3.0]),
@@ -58,8 +55,8 @@ fn burn_volume(dims: [usize; 3]) -> BurnImage<BurnBackend, 3> {
     )
 }
 
-fn burn_device() -> <BurnBackend as Backend>::Device {
-    <BurnBackend as Backend>::Device::default()
+fn burn_device() -> BurnBackend {
+    BurnBackend::default()
 }
 
 /// Round-trip a native volume through the unified [`crate::domain::ImageWriter`]
@@ -91,7 +88,7 @@ where
     assert_eq!(
         loaded.data_slice().expect("contiguous"),
         voxels.as_slice(),
-        "native writer→reader contract must preserve voxels exactly"
+        "native writerâ†’reader contract must preserve voxels exactly"
     );
 }
 

@@ -1,4 +1,4 @@
-//! Directional scan orchestration.
+﻿//! Directional scan orchestration.
 
 use coeus_autograd::{add, scalar_mul, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
@@ -11,40 +11,35 @@ use crate::ModelError;
 /// Cross-scan dimensionality.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CrossScanConfig {
-    dimensionality: ScanDimensionality,
-}
+    dimensionality: ScanDimensionality }
 
 impl CrossScanConfig {
     /// Construct a planar four-direction scan.
     #[must_use]
     pub const fn new_2d() -> Self {
         Self {
-            dimensionality: ScanDimensionality::Scan2d,
-        }
+            dimensionality: ScanDimensionality::Scan2d }
     }
 
     /// Construct a volumetric six-direction scan.
     #[must_use]
     pub const fn new_3d() -> Self {
         Self {
-            dimensionality: ScanDimensionality::Scan3d,
-        }
+            dimensionality: ScanDimensionality::Scan3d }
     }
 }
 
 /// Stateless cross-scan strategy.
 #[derive(Debug, Clone, Copy)]
 pub struct CrossScan {
-    dimensionality: ScanDimensionality,
-}
+    dimensionality: ScanDimensionality }
 
 impl CrossScan {
     /// Construct a cross-scan strategy.
     #[must_use]
     pub const fn new(config: CrossScanConfig) -> Self {
         Self {
-            dimensionality: config.dimensionality,
-        }
+            dimensionality: config.dimensionality }
     }
 
     /// Return whether this strategy operates on volumes.
@@ -58,8 +53,7 @@ impl CrossScan {
     pub fn directions(self) -> &'static [ScanDirection] {
         match self.dimensionality {
             ScanDimensionality::Scan2d => ScanDirection::all_2d(),
-            ScanDimensionality::Scan3d => ScanDirection::all_3d(),
-        }
+            ScanDimensionality::Scan3d => ScanDirection::all_3d() }
     }
 
     /// Produce one sequence view for every canonical direction.
@@ -72,8 +66,7 @@ impl CrossScan {
             .iter()
             .map(|&direction| match self.dimensionality {
                 ScanDimensionality::Scan2d => Scan2D::scan(input, direction),
-                ScanDimensionality::Scan3d => Scan3D::scan(input, direction),
-            })
+                ScanDimensionality::Scan3d => Scan3D::scan(input, direction) })
             .collect()
     }
 
@@ -94,8 +87,7 @@ impl CrossScan {
             return Err(ModelError::Shape {
                 operation: "CrossScan::merge_2d",
                 expected: "four planar directional sequences",
-                actual: vec![sequences.len()],
-            });
+                actual: vec![sequences.len()] });
         }
         let merged = sequences
             .iter()
@@ -123,8 +115,7 @@ impl CrossScan {
             return Err(ModelError::Shape {
                 operation: "CrossScan::merge_3d",
                 expected: "six volumetric directional sequences",
-                actual: vec![sequences.len()],
-            });
+                actual: vec![sequences.len()] });
         }
         let merged = sequences
             .iter()

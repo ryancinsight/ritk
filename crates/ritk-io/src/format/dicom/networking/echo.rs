@@ -1,4 +1,4 @@
-//! C-ECHO SCU — DICOM Verification Service Class (PS3.4 §A.5).
+//! C-ECHO SCU â€” DICOM Verification Service Class (PS3.4 Â§A.5).
 
 use super::association::{release_client_association, EchoResponse, NetworkingError};
 use super::command::{
@@ -54,7 +54,7 @@ pub fn echo(config: &AssociationConfig) -> Result<EchoResponse, NetworkingError>
     Ok(EchoResponse { status: rsp.status })
 }
 
-// ── Internal helpers ──────────────────────────────────────────────────────────
+// â”€â”€ Internal helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Find the first accepted presentation context ID (reason == 0).
 ///
@@ -155,7 +155,7 @@ mod tests {
     /// connect to an unbound `127.0.0.1` port; if `establish` faulted on
     /// refusal the worker thread would take the process down. (The 0xc0000005
     /// aborts observed under parallel `nextest` were a separate native
-    /// process-init race — see `.config/nextest.toml` — not this path: a
+    /// process-init race â€” see `.config/nextest.toml` â€” not this path: a
     /// no-network test aborted identically, and `-j1` passes. This test proves
     /// the connect path itself is safe.)
     #[test]

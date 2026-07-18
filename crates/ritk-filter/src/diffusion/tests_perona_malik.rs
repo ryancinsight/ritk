@@ -1,5 +1,4 @@
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
@@ -7,10 +6,10 @@ use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(vals, dims)
+fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(vals, dims)
 }
 
 fn image_stats(vals: &[f32]) -> (f32, f32) {
@@ -19,7 +18,7 @@ fn image_stats(vals: &[f32]) -> (f32, f32) {
     (mean, var.sqrt())
 }
 
-/// Uniform image → after N iterations the image is still uniform (all
+/// Uniform image â†’ after N iterations the image is still uniform (all
 /// fluxes are zero since all differences are zero).
 #[test]
 fn test_uniform_image_unchanged() {
@@ -83,8 +82,8 @@ fn native_anisotropic_preserves_geometry_and_matches_kernel() {
 ///
 /// After anisotropic diffusion with K large enough to inhibit diffusion
 /// across the edge:
-/// 1. Mean intensity is conserved (Neumann BC → no mass leaving domain).
-/// 2. The sign of (mean_right − mean_left) remains positive.
+/// 1. Mean intensity is conserved (Neumann BC â†’ no mass leaving domain).
+/// 2. The sign of (mean_right âˆ’ mean_left) remains positive.
 /// 3. The mean of the left homogeneous region stays close to 50.
 #[test]
 fn test_step_edge_preservation() {
@@ -110,21 +109,21 @@ fn test_step_edge_preservation() {
     let img = make_image(vals.clone(), [nz, ny, nx]);
     let filter = AnisotropicDiffusionFilter::<ExponentialConductance>::new(DiffusionConfig {
         num_iterations: 10,
-        conductance: 30.0, // large K → moderate edge inhibition
+        conductance: 30.0, // large K â†’ moderate edge inhibition
         ..Default::default()
     });
     let out = filter.apply(&img).unwrap();
 
     let (result, _) = extract_vec_infallible(&out);
 
-    // 1. Mean conservation (Neumann BC → total mass is invariant).
+    // 1. Mean conservation (Neumann BC â†’ total mass is invariant).
     let final_mean: f32 = result.iter().sum::<f32>() / n as f32;
     assert!(
         (final_mean - initial_mean).abs() < 0.5,
         "mean should be conserved: initial={initial_mean:.4} final={final_mean:.4}"
     );
 
-    // 2. Sign of (mean_right − mean_left) is preserved.
+    // 2. Sign of (mean_right âˆ’ mean_left) is preserved.
     let mut mean_left = 0.0_f32;
     let mut mean_right = 0.0_f32;
     let half = n / 2;

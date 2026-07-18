@@ -1,13 +1,14 @@
-use crate::error::Result;
+﻿use crate::error::Result;
 use crate::metric::Metric;
+use crate::optimizer::trait_::central_difference;
 use crate::optimizer::Optimizer;
 use crate::progress::ProgressTracker;
 use crate::validation::{
     validate_image_shapes, validate_iterations, validate_learning_rate, validate_tensor,
-    NumericalCheck, ShapeValidation,
-};
-use ritk_image::burn::optim::GradientsParams;
-use ritk_image::tensor::ElementConversion;
+    NumericalCheck, ShapeValidation };
+use coeus_core::{CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::Module;
+use coeus_ops::BackendOps;
 use ritk_image::Image;
 use ritk_transform::Transform;
 
@@ -20,15 +21,15 @@ struct LoopOutcome<T> {
     transform: T,
     loss_history: Vec<f64>,
     iterations_completed: usize,
-    stop_reason: StopReason,
-}
+    stop_reason: StopReason }
 
 impl<B, O, M, T, const D: usize> Registration<B, O, M, T, D>
 where
-    B: ritk_image::tensor::AutodiffBackend,
+    B: ritk_image::tensor::Backend + BackendOps<f32> + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
     O: Optimizer<T, B>,
     M: Metric<B, D>,
-    T: Transform<B, D> + ritk_image::burn::module::AutodiffModule<B>,
+    T: Transform<B, D> + Module<f32, B> + Clone,
 {
     /// Create a new registration.
     pub fn new(optimizer: O, metric: M) -> Self {
@@ -40,8 +41,7 @@ where
     pub fn with_config(optimizer: O, metric: M, config: RegistrationConfig) -> Self {
         let TrackerBuildResult {
             tracker: progress_tracker,
-            early_stopping,
-        } = config.build_tracker();
+            early_stopping } = config.build_tracker();
 
         Self {
             optimizer,
@@ -49,8 +49,7 @@ where
             config,
             progress_tracker,
             early_stopping,
-            _phantom: std::marker::PhantomData,
-        }
+            _phantom: std::marker::PhantomData }
     }
 
     /// Add a custom progress callback.
@@ -64,8 +63,8 @@ where
     /// Execute registration with validation and progress tracking.
     pub fn execute(
         &mut self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         transform: T,
         iterations: usize,
         learning_rate: f64,
@@ -78,8 +77,8 @@ where
     /// Execute registration and return execution diagnostics.
     pub fn execute_with_summary(
         &mut self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         transform: T,
         iterations: usize,
         learning_rate: f64,
@@ -119,15 +118,14 @@ where
             optimizer_telemetry,
             iterations_completed: outcome.iterations_completed,
             final_loss,
-            stop_reason: outcome.stop_reason,
-        })
+            stop_reason: outcome.stop_reason })
     }
 
     /// Execute registration with custom progress tracker.
     pub fn execute_with_tracker(
         &mut self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         transform: T,
         iterations: usize,
         learning_rate: f64,
@@ -163,8 +161,8 @@ where
     /// the loop exited before exhausting all iterations.
     fn run_loop(
         &mut self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         mut transform: T,
         iterations: usize,
         learning_rate: f64,
@@ -186,9 +184,9 @@ where
             // Get loss value.
             // `clone()` is a cheap Arc-increment; `into_scalar()` consumes the clone
             // so the original `loss` remains live for `backward()` below.
-            // `ElementConversion::elem()` converts B::FloatElem → f64 for any backend type,
+            // `ElementConversion::elem()` converts B::FloatElem â†’ f64 for any backend type,
             // avoiding the `as_slice::<f32>()` hardcode that panics on non-f32 backends.
-            let loss_val: f64 = loss.clone().into_scalar().elem();
+            let loss_val = f64::from(loss.as_slice()[0]);
             loss_history.push(loss_val);
 
             // Update progress
@@ -213,20 +211,16 @@ where
                 }
             }
 
-            // Backward pass
-            let grads = loss.backward();
-
-            let grads_params = GradientsParams::from_grads(grads, &transform);
-
-            // Optimizer step
-            transform = self.optimizer.step(transform, grads_params);
+            let gradients = central_difference(&transform, |candidate| {
+                f64::from(self.metric.forward(fixed, moving, candidate).as_slice()[0])
+            });
+            transform = self.optimizer.step(transform, gradients);
         }
 
         Ok(LoopOutcome {
             transform,
             loss_history,
             iterations_completed,
-            stop_reason,
-        })
+            stop_reason })
     }
 }

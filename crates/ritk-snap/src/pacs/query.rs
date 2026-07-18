@@ -1,16 +1,16 @@
-//! PACS query domain types: request, response, result rows, and state machine.
+﻿//! PACS query domain types: request, response, result rows, and state machine.
 //!
 //! # Overview
 //!
-//! - [`FindResultRow`] — a decoded C-FIND response dataset.
-//! - [`PacsRequest`] — outbound request variant sent to the background worker.
-//! - [`PacsResponse`] — response variant returned from the background worker.
-//! - [`QueryState`] — viewer-side state machine: `Idle → Pending → Results | Error`.
+//! - [`FindResultRow`] â€” a decoded C-FIND response dataset.
+//! - [`PacsRequest`] â€” outbound request variant sent to the background worker.
+//! - [`PacsResponse`] â€” response variant returned from the background worker.
+//! - [`QueryState`] â€” viewer-side state machine: `Idle â†’ Pending â†’ Results | Error`.
 
 use ritk_io::format::dicom::networking::parse_dataset_ivr_le;
 use ritk_io::{FindLevel, FindQuery, MoveResponse};
 
-// ── FindResultRowSeries ───────────────────────────────────────────────────────
+// â”€â”€ FindResultRowSeries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// A single result row decoded from a SERIES-level C-FIND response dataset.
 ///
@@ -37,18 +37,17 @@ pub struct FindResultRowSeries {
     pub num_instances: String,
     pub series_date: String,
     pub series_time: String,
-    pub accession_number: String,
-}
+    pub accession_number: String }
 
 impl FindResultRowSeries {
     /// Decode a `FindResultRowSeries` from a raw IVR-LE C-FIND response dataset.
     ///
     /// Missing or non-UTF-8 attributes produce empty strings.
     /// Malformed trailing bytes are silently ignored (graceful degradation per
-    /// DICOM PS 3.5 §7.1 — incomplete elements at end of stream are skipped).
+    /// DICOM PS 3.5 Â§7.1 â€” incomplete elements at end of stream are skipped).
     ///
     /// Uses a `HashMap` for O(1) per-field lookup (O(n) single pass to build
-    /// the map, then O(1) per field — total O(n + fields) vs the naive O(n×fields)).
+    /// the map, then O(1) per field â€” total O(n + fields) vs the naive O(nÃ—fields)).
     pub fn from_raw_bytes(bytes: &[u8]) -> Self {
         let attr_map: std::collections::HashMap<(u16, u16), Vec<u8>> =
             parse_dataset_ivr_le(bytes).into_iter().collect();
@@ -74,13 +73,12 @@ impl FindResultRowSeries {
             num_instances: get(0x0020, 0x1209), // NumberOfSeriesRelatedInstances (series scope)
             series_date: get(0x0008, 0x0021),
             series_time: get(0x0008, 0x0031),
-            accession_number: get(0x0008, 0x0050),
-        }
+            accession_number: get(0x0008, 0x0050) }
     }
 
     /// Build a series-level C-FIND query dataset for drilling into a study.
     ///
-    /// `study_instance_uid` is the required filter key — only series belonging
+    /// `study_instance_uid` is the required filter key â€” only series belonging
     /// to this study will be returned by the SCP.
     ///
     /// Return keys cover all nine attributes decoded by
@@ -99,7 +97,7 @@ impl FindResultRowSeries {
     }
 }
 
-// ── FindResultRow ──────────────────────────────────────────────────────────────
+// â”€â”€ FindResultRow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// A single result row decoded from a C-FIND response dataset.
 ///
@@ -122,8 +120,8 @@ impl FindResultRowSeries {
 /// `SeriesDescription` (0008,103E) and `SeriesInstanceUID` (0020,000E) are
 /// SERIES-level attributes and are never returned by a Study Root STUDY-level
 /// C-FIND query.  They are not decoded by this struct.
-/// `num_instances` uses tag (0020,1208) — `NumberOfStudyRelatedInstances`
-/// (study scope) — not (0020,1209) which is series-scoped.
+/// `num_instances` uses tag (0020,1208) â€” `NumberOfStudyRelatedInstances`
+/// (study scope) â€” not (0020,1209) which is series-scoped.
 #[derive(Debug, Clone, Default)]
 pub struct FindResultRow {
     pub patient_name: String,
@@ -134,18 +132,17 @@ pub struct FindResultRow {
     pub accession_number: String,
     pub study_instance_uid: String,
     pub num_series: String,
-    pub num_instances: String,
-}
+    pub num_instances: String }
 
 impl FindResultRow {
     /// Decode a `FindResultRow` from a raw IVR-LE C-FIND response dataset.
     ///
     /// Missing or non-UTF-8 attributes produce empty strings.
     /// Malformed trailing bytes are silently ignored (graceful degradation per
-    /// DICOM PS 3.5 §7.1 — incomplete elements at end of stream are skipped).
+    /// DICOM PS 3.5 Â§7.1 â€” incomplete elements at end of stream are skipped).
     ///
     /// Uses a `HashMap` for O(1) per-field lookup (O(n) single pass to build
-    /// the map, then O(1) per field — total O(n + fields) vs the naive O(n×fields)).
+    /// the map, then O(1) per field â€” total O(n + fields) vs the naive O(nÃ—fields)).
     pub fn from_raw_bytes(bytes: &[u8]) -> Self {
         let attr_map: std::collections::HashMap<(u16, u16), Vec<u8>> =
             parse_dataset_ivr_le(bytes).into_iter().collect();
@@ -207,36 +204,34 @@ impl FindResultRow {
     }
 }
 
-// ── Request / Response ────────────────────────────────────────────────────────
+// â”€â”€ Request / Response â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Outbound PACS request sent to the background worker thread.
 #[derive(Debug)]
 pub enum PacsRequest {
-    /// C-ECHO connectivity verification (PS 3.4 §A.5).
+    /// C-ECHO connectivity verification (PS 3.4 Â§A.5).
     Echo,
-    /// C-FIND study-level query (Study Root Query/Retrieve, PS 3.4 §C.4.1).
+    /// C-FIND study-level query (Study Root Query/Retrieve, PS 3.4 Â§C.4.1).
     ///
-    /// `study_date` — DICOM date range format (`YYYYMMDD-YYYYMMDD`, `YYYYMMDD-`,
+    /// `study_date` â€” DICOM date range format (`YYYYMMDD-YYYYMMDD`, `YYYYMMDD-`,
     /// `-YYYYMMDD`); empty string means no date filter (return all).
-    /// `accession_number` — exact-match filter; empty string = all.
+    /// `accession_number` â€” exact-match filter; empty string = all.
     FindStudies {
         patient_name: String,
         modality: String,
         study_date: String,
-        accession_number: String,
-    },
-    /// C-FIND series-level drill-down query (Study Root Query/Retrieve, PS 3.4 §C.4.1).
+        accession_number: String },
+    /// C-FIND series-level drill-down query (Study Root Query/Retrieve, PS 3.4 Â§C.4.1).
     ///
     /// Returns all series within the specified study.
     FindSeries { study_instance_uid: String },
-    /// C-MOVE study retrieval to a configured destination AE (PS 3.4 §C.4.2).
+    /// C-MOVE study retrieval to a configured destination AE (PS 3.4 Â§C.4.2).
     ///
     /// The PACS will forward matching instances to `move_destination` via
     /// C-STORE sub-operations. This SCU does not receive them directly.
     RetrieveStudy {
         study_instance_uid: String,
-        move_destination: String,
-    },
+        move_destination: String },
     /// C-MOVE series-level retrieval to a configured destination AE.
     ///
     /// Requests that the PACS transfer only instances belonging to the
@@ -244,9 +239,7 @@ pub enum PacsRequest {
     RetrieveSeries {
         study_instance_uid: String,
         series_instance_uid: String,
-        move_destination: String,
-    },
-}
+        move_destination: String } }
 
 /// Response returned from the background worker thread.
 ///
@@ -257,7 +250,7 @@ pub enum PacsResponse {
     EchoOk { status: u16 },
     /// C-ECHO failed with a human-readable error description.
     EchoErr(String),
-    /// C-FIND returned decoded result rows (may be empty — zero matches).
+    /// C-FIND returned decoded result rows (may be empty â€” zero matches).
     FindOk(Vec<FindResultRow>),
     /// C-FIND series-level returned decoded result rows.
     FindSeriesOk(Vec<FindResultRowSeries>),
@@ -270,20 +263,19 @@ pub enum PacsResponse {
     /// C-MOVE (series-level) completed; `MoveResponse` carries sub-operation counters.
     RetrieveSeriesOk(MoveResponse),
     /// C-MOVE (series-level) failed with a human-readable error description.
-    RetrieveSeriesErr(String),
-}
+    RetrieveSeriesErr(String) }
 
-// ── QueryState ────────────────────────────────────────────────────────────────
+// â”€â”€ QueryState â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// PACS panel query state machine.
 ///
 /// # Transitions
 ///
 /// ```text
-/// Idle → Pending → Results
-///               → Error
-/// Results → Idle  (user presses Clear)
-/// Error   → Idle  (user presses Clear)
+/// Idle â†’ Pending â†’ Results
+///               â†’ Error
+/// Results â†’ Idle  (user presses Clear)
+/// Error   â†’ Idle  (user presses Clear)
 /// ```
 #[derive(Debug, Default)]
 pub enum QueryState {
@@ -297,8 +289,6 @@ pub enum QueryState {
     /// Series-level drill-down results for a specific study.
     SeriesResults {
         study_instance_uid: String,
-        series: Vec<FindResultRowSeries>,
-    },
+        series: Vec<FindResultRowSeries> },
     /// The last operation failed; panel shows the error description.
-    Error(String),
-}
+    Error(String) }

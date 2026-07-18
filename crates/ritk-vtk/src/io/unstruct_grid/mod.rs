@@ -1,4 +1,4 @@
-//! VTK legacy UNSTRUCTURED_GRID reader/writer.
+﻿//! VTK legacy UNSTRUCTURED_GRID reader/writer.
 //!
 //! Unstructured grid G = (V, C, T, A_P, A_C):
 //! - V subset R^3, |V| = n_points
@@ -50,8 +50,7 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
     let binary = match enc_line.to_ascii_uppercase().trim() {
         "ASCII" => false,
         "BINARY" => true,
-        other => bail!("unsupported encoding: {}", other),
-    };
+        other => bail!("unsupported encoding: {}", other) };
 
     let ds_line = read_line(reader)?.with_context(|| "EOF before DATASET")?;
     if !ds_line.to_ascii_uppercase().contains("UNSTRUCTURED_GRID") {
@@ -80,8 +79,7 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
             };
             let arr = AttributeArray::Scalars {
                 values: vals,
-                num_components: nc,
-            };
+                num_components: nc };
             if ip {
                 grid.point_data.insert(nm, arr);
             } else {
@@ -128,8 +126,7 @@ fn parse_unstructured_grid(reader: &mut dyn BufRead) -> Result<VtkUnstructuredGr
 
         let line = match read_line(reader)? {
             Some(l) => l,
-            None => break,
-        };
+            None => break };
         let upper = line.to_ascii_uppercase();
         let toks: Vec<&str> = line.split_whitespace().collect();
         if toks.is_empty() {

@@ -1,22 +1,21 @@
-//! FFT-based convolution filters.
+﻿//! FFT-based convolution filters.
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{
     burn_into_py_image, image_to_vec, into_py_image, py_image_to_burn, vec_to_image_like,
-    BurnBackend, BurnImage, PyImage,
-};
+    BurnBackend, BurnImage, PyImage };
 use burn_ndarray::NdArrayDevice;
 use pyo3::prelude::*;
 use ritk_filter::{FftConvolution3DFilter, FftConvolutionFilter};
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_spatial::{Direction, Point, Spacing};
 use std::sync::Arc;
 
 /// Build a 2-D `Image<Backend, 2>` from a flat slice of f32 values.
 fn build_image_2d(vals: Vec<f32>, rows: usize, cols: usize) -> BurnImage<2> {
     let device = NdArrayDevice::default();
-    let td = TensorData::new(vals, Shape::new([rows, cols]));
-    let tensor = Tensor::<BurnBackend, 2>::from_data(td, &device);
+    let td = ::new(vals, Shape::new([rows, cols]));
+    let tensor = Tensor::<f32, BurnBackend>::from_data(td, &device);
     BurnImage::new(
         tensor,
         Point::new([0.0_f64, 0.0_f64]),

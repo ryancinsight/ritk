@@ -1,4 +1,4 @@
-//! Descriptive statistics, image comparison, noise estimation, and label statistics.
+﻿//! Descriptive statistics, image comparison, noise estimation, and label statistics.
 
 use crate::errors::RitkResult;
 use crate::image::{py_image_to_burn, with_image_slice, PyImage};
@@ -7,13 +7,11 @@ use pyo3::types::{PyDict, PyList};
 use ritk_statistics::compute_label_intensity_statistics_from_slices as core_label_intensity_stats_from_slices;
 use ritk_statistics::image_statistics::compute_statistics_from_slice;
 use ritk_statistics::noise_estimation::{
-    estimate_noise_mad_from_slice, estimate_noise_mad_masked_from_slices,
-};
+    estimate_noise_mad_from_slice, estimate_noise_mad_masked_from_slices };
 use ritk_statistics::{
     dice_coefficient as core_dice_coefficient, hausdorff_distance as core_hausdorff_distance,
     mean_surface_distance as core_mean_surface_distance, psnr as core_psnr,
-    similarity_index as core_similarity_index, ssim as core_ssim, ImageStatistics,
-};
+    similarity_index as core_similarity_index, ssim as core_ssim, ImageStatistics };
 
 /// Convert [`ImageStatistics`] to a Python dict with keys:
 /// `min`, `max`, `mean`, `std`, `p25`, `p50`, `p75`.
@@ -36,7 +34,7 @@ pub(super) fn stats_to_dict(py: Python<'_>, stats: &ImageStatistics) -> RitkResu
 /// Args:
 ///     image: Input PyImage.
 ///     ddof:  Delta degrees of freedom for `std` (numpy convention). 0 (default)
-///            = population std (÷N); 1 = sample std (÷N-1), matching
+///            = population std (Ã·N); 1 = sample std (Ã·N-1), matching
 ///            SimpleITK's StatisticsImageFilter.GetSigma().
 ///
 /// Returns:
@@ -94,7 +92,7 @@ pub fn masked_statistics(
     stats_to_dict(py, &stats)
 }
 
-/// Compute the Sørensen–Dice coefficient between two binary masks.
+/// Compute the SÃ¸rensenâ€“Dice coefficient between two binary masks.
 ///
 /// Delegates to `ritk_statistics::dice_coefficient`.
 ///
@@ -122,7 +120,7 @@ pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> f32 {
 ///     image2: Second label/mask PyImage (same shape as image1).
 ///
 /// Returns:
-///     Similarity index 2|A∩B|/(|A|+|B|) in [0, 1].
+///     Similarity index 2|Aâˆ©B|/(|A|+|B|) in [0, 1].
 #[pyfunction]
 pub fn similarity_index(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f32 {
     let arc1 = py_image_to_burn(image1);
@@ -133,7 +131,7 @@ pub fn similarity_index(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f
 /// Compute the symmetric Hausdorff distance between two binary masks.
 ///
 /// Delegates to `ritk_statistics::hausdorff_distance`.
-/// HD(A, B) = max( hd(∂A→∂B), hd(∂B→∂A) ). Distance in mm.
+/// HD(A, B) = max( hd(âˆ‚Aâ†’âˆ‚B), hd(âˆ‚Bâ†’âˆ‚A) ). Distance in mm.
 ///
 /// Args:
 ///     image1: First binary mask PyImage.
@@ -153,7 +151,7 @@ pub fn hausdorff_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) ->
 /// Compute the symmetric mean surface distance between two binary masks.
 ///
 /// Delegates to `ritk_statistics::mean_surface_distance`.
-/// MSD = ( MSD(∂A→∂B) + MSD(∂B→∂A) ) / 2. Distance in mm.
+/// MSD = ( MSD(âˆ‚Aâ†’âˆ‚B) + MSD(âˆ‚Bâ†’âˆ‚A) ) / 2. Distance in mm.
 ///
 /// Args:
 ///     image1: First binary mask PyImage.
@@ -173,7 +171,7 @@ pub fn mean_surface_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage)
 /// Compute the Peak Signal-to-Noise Ratio between two images.
 ///
 /// Delegates to `ritk_statistics::psnr`.
-/// Formula: PSNR = 10 · log₁₀(MAX² / MSE).
+/// Formula: PSNR = 10 Â· logâ‚â‚€(MAXÂ² / MSE).
 ///
 /// Args:
 ///     image1:  Test image (PyImage).
@@ -193,7 +191,7 @@ pub fn psnr(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
 /// Compute the Structural Similarity Index (SSIM) between two images.
 ///
 /// Delegates to `ritk_statistics::ssim`.
-/// Wang et al. (2004), C₁ = (0.01·MAX)², C₂ = (0.03·MAX)².
+/// Wang et al. (2004), Câ‚ = (0.01Â·MAX)Â², Câ‚‚ = (0.03Â·MAX)Â².
 ///
 /// Args:
 ///     image1:  Test image (PyImage).
@@ -210,10 +208,10 @@ pub fn ssim(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
     core_ssim(&a, &b, max_val)
 }
 
-/// Estimate additive Gaussian noise σ̂ via the Median Absolute Deviation (MAD).
+/// Estimate additive Gaussian noise ÏƒÌ‚ via the Median Absolute Deviation (MAD).
 ///
-/// Formula: σ̂ = 1.4826 · median(|Xᵢ − median(X)|).
-/// The 1.4826 constant is 1 / Φ⁻¹(3/4) (Hampel 1974).
+/// Formula: ÏƒÌ‚ = 1.4826 Â· median(|Xáµ¢ âˆ’ median(X)|).
+/// The 1.4826 constant is 1 / Î¦â»Â¹(3/4) (Hampel 1974).
 ///
 /// Args:
 ///     image: Input PyImage.
@@ -232,8 +230,7 @@ pub fn estimate_noise(image: &PyImage, mask: Option<&PyImage>) -> f32 {
                 estimate_noise_mad_masked_from_slices(img_slice, mask_slice)
             })
         }),
-        None => with_image_slice(image.inner.as_ref(), estimate_noise_mad_from_slice),
-    }
+        None => with_image_slice(image.inner.as_ref(), estimate_noise_mad_from_slice) }
 }
 
 /// Compute per-label intensity statistics over a co-registered intensity image.

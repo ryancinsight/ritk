@@ -1,16 +1,16 @@
-//! Image gradient filter (central differences → covariant vector field).
+//! Image gradient filter (central differences â†’ covariant vector field).
 //!
 //! Matches ITK `GradientImageFilter` / `sitk.Gradient`: emits a 3-component
 //! vector image whose component `k` is the first central-difference derivative
 //! along physical axis `k` in **sitk axis order** `(x, y, z)`. Each component is
 //! exactly [`DerivativeImageFilter`] of order 1, so spacing handling
-//! (`∂/∂x_k = (f[i+1] − f[i−1]) / (2·spacing_k)`) and zero-flux Neumann boundary
+//! (`âˆ‚/âˆ‚x_k = (f[i+1] âˆ’ f[iâˆ’1]) / (2Â·spacing_k)`) and zero-flux Neumann boundary
 //! handling are inherited unchanged.
 //!
-//! Component → ritk tensor axis mapping (tensor order is `[z, y, x]`):
-//! - component 0 (∂/∂x) ← axis 2
-//! - component 1 (∂/∂y) ← axis 1
-//! - component 2 (∂/∂z) ← axis 0
+//! Component â†’ ritk tensor axis mapping (tensor order is `[z, y, x]`):
+//! - component 0 (âˆ‚/âˆ‚x) â† axis 2
+//! - component 1 (âˆ‚/âˆ‚y) â† axis 1
+//! - component 2 (âˆ‚/âˆ‚z) â† axis 0
 
 use anyhow::Result;
 use ritk_image::native::{ColorVolume, Image};
@@ -33,13 +33,13 @@ impl GradientImageFilter {
     }
 
     /// Apply the gradient, returning a 3-component vector image with components
-    /// in sitk axis order `(∂/∂x, ∂/∂y, ∂/∂z)`.
+    /// in sitk axis order `(âˆ‚/âˆ‚x, âˆ‚/âˆ‚y, âˆ‚/âˆ‚z)`.
     pub fn apply<B>(&self, image: &Image<f32, B, 3>, backend: &B) -> Result<ColorVolume<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        // Component k (sitk axis k) is the derivative along ritk axis 2 − k.
+        // Component k (sitk axis k) is the derivative along ritk axis 2 âˆ’ k.
         let dx = DerivativeImageFilter::new(2, 1, self.use_image_spacing)
             .apply_native(image, backend)?;
         let dy = DerivativeImageFilter::new(1, 1, self.use_image_spacing)
@@ -70,7 +70,7 @@ impl GradientImageFilter {
     }
 }
 
-/// Gaussian-smoothed image gradient → 3-component covariant vector field.
+/// Gaussian-smoothed image gradient â†’ 3-component covariant vector field.
 ///
 /// Matches ITK `GradientRecursiveGaussianImageFilter` / `sitk.GradientRecursiveGaussian`:
 /// component `k` (sitk axis order `x, y, z`) is the first-order recursive
@@ -90,13 +90,13 @@ impl GradientRecursiveGaussianImageFilter {
     }
 
     /// Apply the smoothed gradient, returning a 3-component vector image with
-    /// components in sitk axis order `(∂/∂x, ∂/∂y, ∂/∂z)`.
+    /// components in sitk axis order `(âˆ‚/âˆ‚x, âˆ‚/âˆ‚y, âˆ‚/âˆ‚z)`.
     pub fn apply<B>(&self, image: &Image<f32, B, 3>, backend: &B) -> Result<ColorVolume<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        // Components in ritk axis order [∂/∂z, ∂/∂y, ∂/∂x] computed on raw
+        // Components in ritk axis order [âˆ‚/âˆ‚z, âˆ‚/âˆ‚y, âˆ‚/âˆ‚x] computed on raw
         // buffers (one tensor extraction, no per-pass Image rebuilds).
         let [dz, dy, dx] = gradient_recursive_gaussian_components(image, self.sigma)?;
 
@@ -112,7 +112,7 @@ impl GradientRecursiveGaussianImageFilter {
             interleaved[3 * i + 2] = bz[i];
         }
 
-        // sitk component order: 0 = ∂/∂x, 1 = ∂/∂y, 2 = ∂/∂z.
+        // sitk component order: 0 = âˆ‚/âˆ‚x, 1 = âˆ‚/âˆ‚y, 2 = âˆ‚/âˆ‚z.
         ColorVolume::<f32, B, 3>::from_flat_on(
             interleaved,
             dims,

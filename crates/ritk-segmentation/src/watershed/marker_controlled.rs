@@ -15,7 +15,7 @@
 //!
 //! Flooding follows `itk::MorphologicalWatershedFromMarkersImageFilter` exactly:
 //! a hierarchical FIFO (`fah`), one FIFO queue per gray level, processed in
-//! ascending gray order, with a neighbour at gray ≤ the current level pushed into
+//! ascending gray order, with a neighbour at gray â‰¤ the current level pushed into
 //! the current level's queue. This is bit-exact to
 //! `sitk.MorphologicalWatershedFromMarkers` across all
 //! ([`WatershedLinePolicy`], [`FloodConnectivity`]) combinations.
@@ -27,7 +27,7 @@
 //!    propagate, so basins cannot leak across the line.
 //! 2. **Without watershed lines** ([`WatershedLinePolicy::Omit`]): the queue
 //!    holds *labelled* voxels (the seeds). When popped, a voxel propagates its own
-//!    label to unlabelled neighbours — first front to arrive claims a voxel, and
+//!    label to unlabelled neighbours â€” first front to arrive claims a voxel, and
 //!    there are no lines.
 //!
 //! Connectivity is face (6-/4-) by default, or full (26-/8-) when
@@ -40,17 +40,17 @@
 //!
 //! # References
 //! - Meyer, F. (1994). "Topographic distance and watershed lines."
-//!   *Signal Processing*, 38(1), 113–125.
+//!   *Signal Processing*, 38(1), 113â€“125.
 //! - Vincent, L. & Soille, P. (1991). "Watersheds in digital spaces: An efficient
 //!   algorithm based on immersion simulations." *IEEE Trans. Pattern Anal. Mach. Intell.*,
-//!   13(6), 583–598.
+//!   13(6), 583â€“598.
 
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 use std::collections::{BTreeMap, VecDeque};
 
-// ── Public API ─────────────────────────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Marker-controlled watershed segmentation.
 ///
@@ -133,9 +133,9 @@ impl MarkerControlledWatershed {
     /// non-finite, negative, fractional, or not exactly representable as f32.
     pub fn apply<B: Backend>(
         &self,
-        gradient: &Image<B, 3>,
-        markers: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
+        gradient: &Image<f32, B, 3>,
+        markers: &Image<f32, B, 3>,
+    ) -> anyhow::Result<Image<f32, B, 3>> {
         let (g_vals, dims_g) = extract_vec_infallible(gradient);
         let (m_vals, dims_m) = extract_vec_infallible(markers);
         validate_inputs(
@@ -148,7 +148,7 @@ impl MarkerControlledWatershed {
             gradient.direction() == markers.direction(),
         )?;
 
-        let device = gradient.data().device();
+        let device = B::default();
 
         let labels = marker_controlled_flooding(
             &g_vals,
@@ -158,8 +158,7 @@ impl MarkerControlledWatershed {
             self.watershed_lines,
         );
 
-        let tensor =
-            Tensor::<B, 3>::from_data(TensorData::new(labels, Shape::new(dims_g)), &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(dims_g, &labels, &device);
 
         Ok(Image::new(
             tensor,
@@ -216,7 +215,7 @@ impl Default for MarkerControlledWatershed {
     }
 }
 
-// ── Core implementation ────────────────────────────────────────────────────────
+// â”€â”€ Core implementation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const MAX_EXACT_LABEL: f32 = (1u32 << f32::MANTISSA_DIGITS) as f32;
 
@@ -274,7 +273,7 @@ fn gray_key(grad: f32) -> u32 {
     grad.to_bits()
 }
 
-/// 6-connected face offsets for a 3D grid (±z, ±y, ±x).
+/// 6-connected face offsets for a 3D grid (Â±z, Â±y, Â±x).
 const FACE_OFFSETS: [(i64, i64, i64); 6] = [
     (-1, 0, 0),
     (1, 0, 0),
@@ -349,7 +348,7 @@ fn visit_neighbors<F>(
 /// Marker-controlled watershed flooding on flat voxel arrays.
 ///
 /// Returns a `Vec<f32>` of the same length as `grad_vals` containing integer
-/// labels encoded as `f32`: 0.0 for boundaries/unreachable, ≥1.0 for basins.
+/// labels encoded as `f32`: 0.0 for boundaries/unreachable, â‰¥1.0 for basins.
 ///
 /// Mirrors `itkMorphologicalWatershedFromMarkersImageFilter`: a hierarchical
 /// FIFO (`fah`) per gray level, flooded in ascending gray order. With
@@ -416,7 +415,7 @@ fn marker_controlled_flooding(
 
                 labels[idx] = if n_distinct == 1 { nbr_labels[0] } else { 0 };
 
-                // Collision (≥2 basins) → watershed line, does NOT propagate.
+                // Collision (â‰¥2 basins) â†’ watershed line, does NOT propagate.
                 if n_distinct >= 2 {
                     continue;
                 }
@@ -491,7 +490,7 @@ fn marker_controlled_flooding(
         .collect()
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_marker_controlled.rs"]

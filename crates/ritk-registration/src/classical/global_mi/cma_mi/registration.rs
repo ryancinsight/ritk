@@ -1,8 +1,8 @@
-// ─── Registration ─────────────────────────────────────────────────────────────
+﻿// â”€â”€â”€ Registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 use ritk_core::image::Image;
-use ritk_image::tensor::AutodiffBackend;
-use ritk_image::tensor::{Tensor, TensorData};
+use ritk_image::tensor::Backend;
+use ritk_image::tensor::{Tensor };
 use ritk_transform::RigidTransform;
 
 use super::super::registration::GlobalMiRegistration;
@@ -11,7 +11,7 @@ use super::config::{CmaMiConfig, InitStrategy};
 use super::helpers::run_cma_level;
 use super::result::CmaMiResult;
 
-/// CMA-ES → RSGD cascade rigid registration pipeline.
+/// CMA-ES â†’ RSGD cascade rigid registration pipeline.
 ///
 /// Performs a two-phase search:
 /// 1. **Global search** via CMA-ES on a coarse multi-resolution level (or a
@@ -22,9 +22,9 @@ use super::result::CmaMiResult;
 ///
 /// # Performance: Autodiff Stripping
 ///
-/// CMA-ES is derivative-free — it never calls `.backward()`. Evaluating MI
+/// CMA-ES is derivative-free â€” it never calls `.backward()`. Evaluating MI
 /// on `Image<Autodiff<B>, D>` would silently build an autodiff graph on every
-/// objective evaluation, wasting 2–5× CPU time on tape bookkeeping. This
+/// objective evaluation, wasting 2â€“5Ã— CPU time on tape bookkeeping. This
 /// implementation converts pyramid images to `Image<B::InnerBackend, 3>` and
 /// evaluates `MutualInformation<B::InnerBackend>` inside the CMA-ES loop.
 pub struct CmaMiRegistration;
@@ -34,9 +34,9 @@ impl CmaMiRegistration {
     ///
     /// Thin wrapper around [`register_rigid_with_mask`](Self::register_rigid_with_mask)
     /// with no brain mask (uniform stochastic sampling over all voxels).
-    pub fn register_rigid<B: AutodiffBackend>(
-        fixed: &Image<B, 3>,
-        moving: &Image<B, 3>,
+    pub fn register_rigid<B: Backend>(
+        fixed: &Image<f32, B, 3>,
+        moving: &Image<f32, B, 3>,
         initial_rotation: [f64; 3],
         initial_translation: Option<[f64; 3]>,
         config: &CmaMiConfig,
@@ -56,15 +56,15 @@ impl CmaMiRegistration {
     ///
     /// # Arguments
     ///
-    /// * `fixed` — Reference image (any modality).
-    /// * `moving` — Image to be aligned (may differ in modality from `fixed`).
-    /// * `initial_rotation` — Starting Euler angles `[alpha, beta, gamma]` in
+    /// * `fixed` â€” Reference image (any modality).
+    /// * `moving` â€” Image to be aligned (may differ in modality from `fixed`).
+    /// * `initial_rotation` â€” Starting Euler angles `[alpha, beta, gamma]` in
     ///   radians (ZYX convention). Pass `[0,0,0]` for no prior knowledge.
-    /// * `initial_translation` — Starting translation `[tz, ty, tx]` in mm
-    ///   (RITK `[z, y, x]` order). `None` → center-of-mass estimate when
+    /// * `initial_translation` â€” Starting translation `[tz, ty, tx]` in mm
+    ///   (RITK `[z, y, x]` order). `None` â†’ center-of-mass estimate when
     ///   `config.init_strategy == InitStrategy::CenterOfMass`.
-    /// * `config` — Pipeline configuration; see [`CmaMiConfig`].
-    /// * `fixed_mask` — Optional binary brain mask in fixed-image space. When
+    /// * `config` â€” Pipeline configuration; see [`CmaMiConfig`].
+    /// * `fixed_mask` â€” Optional binary brain mask in fixed-image space. When
     ///   `Some`, only voxels where `mask > 0.5` contribute to MI estimation at
     ///   each pyramid level (ANTs/ITK strategy). The mask is downsampled to
     ///   match each pyramid level using the same shrink factors as the images
@@ -75,13 +75,13 @@ impl CmaMiRegistration {
     ///
     /// `(transform, result)` where `transform` is the final [`RigidTransform`]
     /// and `result` contains diagnostics.
-    pub fn register_rigid_with_mask<B: AutodiffBackend>(
-        fixed: &Image<B, 3>,
-        moving: &Image<B, 3>,
+    pub fn register_rigid_with_mask<B: Backend>(
+        fixed: &Image<f32, B, 3>,
+        moving: &Image<f32, B, 3>,
         initial_rotation: [f64; 3],
         initial_translation: Option<[f64; 3]>,
         config: &CmaMiConfig,
-        fixed_mask: Option<&Image<B, 3>>,
+        fixed_mask: Option<&Image<f32, B, 3>>,
     ) -> (RigidTransform<B, 3>, CmaMiResult) {
         let t_init: [f64; 3] = match initial_translation {
             Some(t) => t,
@@ -102,8 +102,8 @@ impl CmaMiRegistration {
             initial_translation.is_none() && config.init_strategy == InitStrategy::CenterOfMass,
         );
 
-        // ── Normalised parameter space ────────────────────────────────────────
-        // x = [α_n, β_n, γ_n, tz_n, ty_n, tx_n]; each component ∈ [−1, 1]
+        // â”€â”€ Normalised parameter space â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // x = [Î±_n, Î²_n, Î³_n, tz_n, ty_n, tx_n]; each component âˆˆ [âˆ’1, 1]
         let rot_scale = config.rotation_range_rad;
         let trans_scale = config.translation_range_mm;
         let center_arr = [0.0f32; 3];
@@ -127,9 +127,9 @@ impl CmaMiRegistration {
             );
         }
 
-        // ── Phase 1: CMA-ES global search ────────────────────────────────────
+        // â”€â”€ Phase 1: CMA-ES global search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let cma_result = if config.pyramid_schedule.is_empty() {
-            // ── Single-level path ─────────────────────────────────────────────
+            // â”€â”€ Single-level path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             let per_axis = config.shrink_per_axis.unwrap_or([config.coarse_shrink; 3]);
             run_cma_level(
                 fixed,
@@ -148,7 +148,7 @@ impl CmaMiRegistration {
                 fixed_mask,
             )
         } else {
-            // ── Multi-scale cascade path ──────────────────────────────────────
+            // â”€â”€ Multi-scale cascade path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             let mut current_x: Vec<f64> = x0.to_vec();
             let mut last_result: Option<crate::optimizer::CmaEsResult> = None;
 
@@ -156,7 +156,7 @@ impl CmaMiRegistration {
                 let per_axis = level.shrink_per_axis.unwrap_or([level.shrink; 3]);
 
                 tracing::info!(
-                    "CmaMiRegistration: cascade level {} — \
+                    "CmaMiRegistration: cascade level {} â€” \
                      shrink={:?}, sigma_mm={:.1}, sigma0={:.3}, max_gen={}",
                     level_idx,
                     per_axis,
@@ -183,7 +183,7 @@ impl CmaMiRegistration {
                 );
 
                 tracing::info!(
-                    "CmaMiRegistration: cascade level {} done — \
+                    "CmaMiRegistration: cascade level {} done â€” \
                      gens={}, best_f={:.6e}, stop={:?}",
                     level_idx,
                     level_result.generations,
@@ -204,7 +204,7 @@ impl CmaMiRegistration {
         };
 
         tracing::info!(
-            "CmaMiRegistration: CMA-ES finished — \
+            "CmaMiRegistration: CMA-ES finished â€” \
              generations={}, best_f={:.6e}, stop={:?}, sigma={:.3e}",
             cma_result.generations,
             cma_result.best_f,
@@ -212,7 +212,7 @@ impl CmaMiRegistration {
             cma_result.final_sigma,
         );
 
-        // ── Reconstruct best CMA-ES transform (autodiff backend) ─────────────
+        // â”€â”€ Reconstruct best CMA-ES transform (autodiff backend) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let device = fixed.data().device();
         let best = &cma_result.best_x;
 
@@ -224,14 +224,14 @@ impl CmaMiRegistration {
         let b_tx = (best[5].clamp(-1.0, 1.0) * trans_scale) as f32;
 
         let b_rotation =
-            Tensor::<B, 1>::from_data(TensorData::from([b_alpha, b_beta, b_gamma]), &device);
+            Tensor::<f32, B>::from_slice_on([3], &[b_alpha, b_beta, b_gamma], &device);
         let b_translation =
-            Tensor::<B, 1>::from_data(TensorData::from([b_tz, b_ty, b_tx]), &device);
-        let b_center = Tensor::<B, 1>::zeros([3], &device);
+            Tensor::<f32, B>::from_slice_on([3], &[b_tz, b_ty, b_tx], &device);
+        let b_center = Tensor::<f32, B>::zeros_on([3], &device);
 
         let cma_transform = RigidTransform::<B, 3>::new(b_translation, b_rotation, b_center);
 
-        // ── Optional RSGD refinement (uses autodiff backend) ──────────────────
+        // â”€â”€ Optional RSGD refinement (uses autodiff backend) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let (final_transform, rsgd_iterations, rsgd_loss_history) = if let Some(ref rsgd_cfg) =
             config.rsgd_refine
         {
@@ -247,7 +247,7 @@ impl CmaMiRegistration {
             let iters: usize = rsgd_result.iterations_per_level.iter().sum();
 
             tracing::info!(
-                "CmaMiRegistration: RSGD complete — {} iters, final MI = {:.6e}",
+                "CmaMiRegistration: RSGD complete â€” {} iters, final MI = {:.6e}",
                 iters,
                 rsgd_result.final_mi,
             );
@@ -261,8 +261,8 @@ impl CmaMiRegistration {
             )
         };
 
-        // ── Assemble result ───────────────────────────────────────────────────
-        let final_mi = -cma_result.best_f; // negate: CMA-ES minimises −MI
+        // â”€â”€ Assemble result â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        let final_mi = -cma_result.best_f; // negate: CMA-ES minimises âˆ’MI
         let result = CmaMiResult {
             matrix: rigid_matrix_to_homogeneous(&final_transform),
             final_mi,
@@ -271,8 +271,7 @@ impl CmaMiRegistration {
             cma_final_sigma: cma_result.final_sigma,
             rsgd_iterations,
             rsgd_loss_history,
-            cma_best_params: cma_result.best_x.clone(),
-        };
+            cma_best_params: cma_result.best_x.clone() };
 
         (final_transform, result)
     }

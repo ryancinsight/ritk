@@ -1,13 +1,13 @@
-//! Elastic regularization for displacement fields.
+﻿//! Elastic regularization for displacement fields.
 //!
 //! Elastic regularization combines first-order (diffusion) and second-order
 //! (bending) terms, balancing smoothness and flexibility for image registration.
 //!
 //! The elastic regularization term is derived from linear elasticity theory:
 //!
-//! R(u) = ∫_Ω [μ|∇u + (∇u)^T|² + λ(div u)²] dx
+//! R(u) = âˆ«_Î© [Î¼|âˆ‡u + (âˆ‡u)^T|Â² + Î»(div u)Â²] dx
 //!
-//! where μ is the shear modulus and λ is the first Lamé parameter.
+//! where Î¼ is the shear modulus and Î» is the first LamÃ© parameter.
 //!
 //! Simplified forms used in practice:
 //! - Hyperelastic: Combines membrane energy with volume preservation
@@ -57,8 +57,7 @@ pub struct ElasticRegularizer {
     /// Weight for membrane (first-order smoothness) term
     alpha: f64,
     /// Weight for volume-preservation term
-    beta: f64,
-}
+    beta: f64 }
 
 impl ElasticRegularizer {
     /// Create a new elastic regularizer with custom weights.

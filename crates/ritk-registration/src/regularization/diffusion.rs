@@ -1,4 +1,4 @@
-//! Diffusion regularization for displacement fields.
+﻿//! Diffusion regularization for displacement fields.
 //!
 //! Diffusion regularization is a first-order regularization that penalizes
 //! spatial derivatives of the displacement field, encouraging smooth
@@ -6,9 +6,9 @@
 //!
 //! The diffusion regularization term is:
 //!
-//! R(u) = ∫_Ω |∇u|² dx
+//! R(u) = âˆ«_Î© |âˆ‡u|Â² dx
 //!
-//! where u is the displacement field and ∇u is its spatial gradient.
+//! where u is the displacement field and âˆ‡u is its spatial gradient.
 //!
 //! This is also known as:
 //! - Tikhonov regularization (first-order)
@@ -38,8 +38,7 @@ use coeus_tensor::Tensor;
 /// ```
 #[derive(Clone, Debug)]
 pub struct DiffusionRegularizer {
-    weight: f64,
-}
+    weight: f64 }
 
 impl DiffusionRegularizer {
     /// Create a new diffusion regularizer.

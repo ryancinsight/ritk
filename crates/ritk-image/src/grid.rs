@@ -1,5 +1,6 @@
 use coeus_core::{ComputeBackend, Scalar};
 use coeus_tensor::Tensor;
+use rand::Rng;
 
 /// Generate a grid of continuous indices for the given image shape.
 ///
@@ -49,6 +50,31 @@ where
     }
 
     Tensor::<T, B>::from_slice_on([total, D], &grid, backend)
+}
+
+/// Generate uniformly distributed continuous voxel indices.
+///
+/// Coordinate columns use the same innermost-first convention as
+/// [`generate_grid`]. Each coordinate lies in the closed voxel-center range
+/// `0..=shape[axis] - 1`.
+pub fn generate_random_points<T, B, const D: usize>(
+    shape: [usize; D],
+    count: usize,
+    backend: &B,
+) -> Tensor<T, B>
+where
+    T: Scalar,
+    B: ComputeBackend,
+{
+    let mut rng = rand::rng();
+    let mut points = Vec::with_capacity(count * D);
+    for _ in 0..count {
+        for column in 0..D {
+            let maximum = shape[D - 1 - column].saturating_sub(1) as f64;
+            points.push(T::from_f64(rng.random_range(0.0..=maximum)));
+        }
+    }
+    Tensor::from_slice_on([count, D], &points, backend)
 }
 
 #[cfg(test)]

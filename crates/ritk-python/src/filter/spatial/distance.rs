@@ -1,10 +1,9 @@
-use crate::errors::{RitkPyError, RitkResult};
+﻿use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     BinarizationThreshold, DistanceMeasure, DistanceTransformImageFilter,
-    SignedDistanceTransformImageFilter, SignedMaurerDistanceMapImageFilter,
-};
+    SignedDistanceTransformImageFilter, SignedMaurerDistanceMapImageFilter };
 
 /// Distance metric variant for distance transform, replacing `squared: bool`.
 ///
@@ -15,8 +14,7 @@ pub enum PyDistanceMetric {
     /// Euclidean distance (sqrt of sum of squares).
     Euclidean,
     /// Squared Euclidean distance (no sqrt; faster, preserves differentiability).
-    Squared,
-}
+    Squared }
 
 impl<'py> FromPyObject<'py> for PyDistanceMetric {
     fn extract_bound(ob: &pyo3::Bound<'py, PyAny>) -> PyResult<Self> {
@@ -27,8 +25,7 @@ impl<'py> FromPyObject<'py> for PyDistanceMetric {
             other => Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "Unknown distance metric '{}'. Choices: euclidean, squared",
                 other
-            ))),
-        }
+            ))) }
     }
 }
 
@@ -62,8 +59,7 @@ pub fn distance_transform(
     let arc = py_image_to_burn(image);
     let measure = match metric {
         PyDistanceMetric::Euclidean => DistanceMeasure::Euclidean,
-        PyDistanceMetric::Squared => DistanceMeasure::Squared,
-    };
+        PyDistanceMetric::Squared => DistanceMeasure::Squared };
     let threshold = BinarizationThreshold::new(foreground_threshold).map_err(RitkPyError::value)?;
     let result = py.allow_threads(|| {
         DistanceTransformImageFilter::new()
@@ -84,8 +80,8 @@ pub fn distance_transform(
 ///
 /// Float-exact to `scipy.ndimage.distance_transform_edt` (signed, voxel-centre
 /// convention). NOTE: this is distance to the nearest opposite-class voxel
-/// **centre** — it does NOT match `sitk.SignedMaurerDistanceMap`, which measures
-/// distance to the object boundary/interface (differs by up to √2 voxel).
+/// **centre** â€” it does NOT match `sitk.SignedMaurerDistanceMap`, which measures
+/// distance to the object boundary/interface (differs by up to âˆš2 voxel).
 #[pyfunction]
 #[pyo3(signature = (image, foreground_threshold=0.5_f32))]
 pub fn signed_distance_map(
@@ -113,7 +109,7 @@ pub fn signed_distance_map(
 /// Args:
 ///     image: Input image; background is `== background_value`.
 ///     inside_is_positive: If True, inside (foreground) distances are positive.
-///     squared_distance: If True (default, matching ITK), return signed `d²`.
+///     squared_distance: If True (default, matching ITK), return signed `dÂ²`.
 ///     use_image_spacing: If True (default), use the image spacing.
 ///     background_value: Pixel value identifying background (default 0.0).
 #[pyfunction]
@@ -133,8 +129,7 @@ pub fn signed_maurer_distance_map(
             background_value,
             inside_is_positive,
             squared_distance,
-            use_image_spacing,
-        }
+            use_image_spacing }
         .apply(&arc)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })

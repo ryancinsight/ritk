@@ -25,23 +25,20 @@ use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_write_series_load_series_intensity_roundtrip() {
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::Tensor;
     use ritk_spatial::{Direction, Point, Spacing};
-    type B = burn_ndarray::NdArray<f32>;
+    type B = coeus_core::SequentialBackend;
 
     let tmp = tempfile::tempdir().expect("tempdir");
     let series_path = tmp.path().join("e2e_roundtrip_series");
 
-    // 4 slices × 4 rows × 4 cols = 64 voxels.
+    // 4 slices Ã— 4 rows Ã— 4 cols = 64 voxels.
     // Intensities 0..=63, row-major order.
     let (depth, rows, cols) = (4usize, 4usize, 4usize);
     let original_data: Vec<f32> = (0..(depth * rows * cols)).map(|i| i as f32).collect();
-    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(original_data.clone(), Shape::new([depth, rows, cols])),
-        &device,
-    );
-    let image = Image::<B, 3>::new(
+    let device = B::default();
+    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &original_data, &device);
+    let image = Image::<f32, B, 3>::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
@@ -61,11 +58,11 @@ fn test_write_series_load_series_intensity_roundtrip() {
             original_data.len(),
             "loaded voxel count must equal original"
         );
-        // Analytical bound per slice: slope = range / 65535 = 15 / 65535 ≈ 2.29e-4.
+        // Analytical bound per slice: slope = range / 65535 = 15 / 65535 â‰ˆ 2.29e-4.
         // DS format {:.6} stores the slope/intercept with at most 0.5e-6 rounding error
         // per coefficient. Accumulated slope error over max u16 (65535):
-        // 65535 * 0.5e-6 ≈ 0.033.
-        // Quantization from round(): slope / 2 ≈ 1.14e-4.
+        // 65535 * 0.5e-6 â‰ˆ 0.033.
+        // Quantization from round(): slope / 2 â‰ˆ 1.14e-4.
         // Total analytical bound: 65535 * 0.5e-6 + 0.5e-6 + slope / 2.
         let slice_range = 15.0f32;
         let slope = slice_range / 65535.0_f32;
@@ -86,8 +83,8 @@ fn test_write_series_load_series_intensity_roundtrip() {
 #[test]
 fn native_dicom_loader_matches_legacy_loader() {
     use coeus_core::SequentialBackend;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
-    type B = burn_ndarray::NdArray<f32>;
+    use ritk_image::tensor::{Shape, Tensor};
+    type B = coeus_core::SequentialBackend;
 
     let tmp = tempfile::tempdir().expect("tempdir");
     let series_path = tmp.path().join("native_dicom_parity");
@@ -96,12 +93,9 @@ fn native_dicom_loader_matches_legacy_loader() {
     let original_data: Vec<f32> = (0..(depth * rows * cols))
         .map(|i| (i as f32 * 0.5) - 7.0)
         .collect();
-    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(original_data, Shape::new([depth, rows, cols])),
-        &device,
-    );
-    let image = Image::<B, 3>::new(
+    let device = B::default();
+    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &original_data, &device);
+    let image = Image::<f32, B, 3>::new(
         tensor,
         Point::new([3.0, -2.0, 11.0]),
         Spacing::new([1.25, 0.8, 0.6]),
@@ -146,10 +140,10 @@ fn native_dicom_loader_matches_legacy_loader() {
 #[test]
 fn test_write_metadata_series_load_series_intensity_roundtrip() {
     use ritk_core::image::Image;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::{Shape, Tensor};
     use ritk_spatial::{Direction, Point, Spacing};
     use std::collections::HashMap;
-    type B = burn_ndarray::NdArray<f32>;
+    type B = coeus_core::SequentialBackend;
 
     let tmp = tempfile::tempdir().expect("tempdir");
     let series_path = tmp.path().join("e2e_meta_roundtrip");
@@ -163,12 +157,9 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
             (slice_idx * 16 + intra_idx) as f32
         })
         .collect();
-    let device: <B as ritk_image::tensor::backend::Backend>::Device = Default::default();
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(original_data.clone(), Shape::new([depth, rows, cols])),
-        &device,
-    );
-    let image = Image::<B, 3>::new(
+    let device = B::default();
+    let tensor = Tensor::<f32, B>::from_slice_on([depth, rows, cols], &original_data, &device);
+    let image = Image::<f32, B, 3>::new(
         tensor,
         Point::new([5.0, 10.0, -20.0]),
         Spacing::new([1.5, 0.5, 0.5]),
@@ -189,7 +180,7 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
         dimensions: [rows, cols, depth],
         spacing: [1.5, 0.5, 0.5],
         origin: [5.0, 10.0, -20.0],
-        // RITK axial: N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
+        // RITK axial: NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
         direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
         bits_allocated: Some(16),
         bits_stored: Some(16),
@@ -226,8 +217,8 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
         // Analytical slope per slice: each slice has range=15, slope = 15/65535.
         // DS format {:.6} stores the slope/intercept with at most 0.5e-6 rounding error
         // per coefficient. Accumulated slope error over max u16 (65535):
-        // 65535 * 0.5e-6 ≈ 0.033.
-        // Quantization from round(): slope / 2 ≈ 1.14e-4.
+        // 65535 * 0.5e-6 â‰ˆ 0.033.
+        // Quantization from round(): slope / 2 â‰ˆ 1.14e-4.
         // Total analytical bound: 65535 * 0.5e-6 + 0.5e-6 + slope / 2.
         let slice_range = 15.0f32;
         let slope = slice_range / 65535.0_f32;
@@ -261,17 +252,17 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
     );
     assert!(
         (loaded_meta.spacing[0] - 1.5).abs() < pos_tol,
-        "spacing[0] (Δz) must be 1.5; got {}",
+        "spacing[0] (Î”z) must be 1.5; got {}",
         loaded_meta.spacing[0]
     );
     assert!(
         (loaded_meta.spacing[1] - 0.5).abs() < pos_tol,
-        "spacing[1] (ΔRow) must be 0.5; got {}",
+        "spacing[1] (Î”Row) must be 0.5; got {}",
         loaded_meta.spacing[1]
     );
     assert!(
         (loaded_meta.spacing[2] - 0.5).abs() < pos_tol,
-        "spacing[2] (ΔCol) must be 0.5; got {}",
+        "spacing[2] (Î”Col) must be 0.5; got {}",
         loaded_meta.spacing[2]
     );
 }

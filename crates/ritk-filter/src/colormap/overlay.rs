@@ -4,7 +4,7 @@ use ritk_tensor_ops::native::{extract_image_vec, rebuild_image};
 use std::collections::BTreeMap;
 
 /// ITK `LabelToRGBImageFilter` default 30-colour table (labels `1..=30`; label
-/// `k ≥ 1` maps to `LABEL_COLORS[(k − 1) mod 30]`). Extracted from
+/// `k â‰¥ 1` maps to `LABEL_COLORS[(k âˆ’ 1) mod 30]`). Extracted from
 /// `sitk.LabelToRGB`.
 const LABEL_COLORS: [[f32; 3]; 30] = [
     [0.0, 205.0, 0.0],
@@ -43,7 +43,7 @@ const LABEL_COLORS: [[f32; 3]; 30] = [
 /// (`itk::LabelToRGBImageFilter` / `sitk.LabelToRGB`).
 ///
 /// Background voxels (those equal to `background`, default `0`) map to black;
-/// every other label `k` maps to `LABEL_COLORS[(k − 1) mod 30]`, cycling through
+/// every other label `k` maps to `LABEL_COLORS[(k âˆ’ 1) mod 30]`, cycling through
 /// the 30-colour table.
 #[derive(Debug, Clone, Copy)]
 pub struct LabelToRGBFilter {
@@ -105,12 +105,12 @@ impl LabelToRGBFilter {
 /// `LABEL_COLORS` table:
 ///
 /// ```text
-/// out = floor((1 − opacity)·gray + opacity·LABEL_COLORS[(k−1) mod 30])
+/// out = floor((1 âˆ’ opacity)Â·gray + opacityÂ·LABEL_COLORS[(kâˆ’1) mod 30])
 /// ```
 ///
 /// The blend is truncated (C++ uint8 cast), verified against `sitk.LabelOverlay`
-/// (`gray = 200`, label 2, `opacity = 0.5` → blue channel `0.5·200 + 0.5·255 =
-/// 227.5 → 227`). The grayscale input is assumed already in `[0, 255]`.
+/// (`gray = 200`, label 2, `opacity = 0.5` â†’ blue channel `0.5Â·200 + 0.5Â·255 =
+/// 227.5 â†’ 227`). The grayscale input is assumed already in `[0, 255]`.
 #[derive(Debug, Clone, Copy)]
 pub struct LabelOverlayFilter {
     opacity: f64,
@@ -180,8 +180,8 @@ impl LabelOverlayFilter {
 }
 
 /// Offsets of an ITK `FlatStructuringElement::Ball(radius)`: a neighbour offset
-/// `d` is in the element iff `Σ (d_a)² ≤ (r_a + 0.5)²` per axis combined as an
-/// ellipsoid `Σ (d_a / (r_a + 0.5))² ≤ 1`.  Axes of size 1 (degenerate, e.g. a
+/// `d` is in the element iff `Î£ (d_a)Â² â‰¤ (r_a + 0.5)Â²` per axis combined as an
+/// ellipsoid `Î£ (d_a / (r_a + 0.5))Â² â‰¤ 1`.  Axes of size 1 (degenerate, e.g. a
 /// 2-D `z = 1` volume) contribute no off-plane offset.
 fn ball_offsets(radius: [usize; 3], dims: [usize; 3]) -> Vec<[isize; 3]> {
     let mut offs = Vec::new();
@@ -217,7 +217,7 @@ fn ball_offsets(radius: [usize; 3], dims: [usize; 3]) -> Vec<[isize; 3]> {
 /// Overlay the **contours** of a label image on a grayscale image as RGB
 /// (`itk::LabelMapContourOverlayImageFilter` / `sitk.LabelMapContourOverlay`).
 ///
-/// Each label region's contour band is `dilate(Ball(dilation_radius)) −
+/// Each label region's contour band is `dilate(Ball(dilation_radius)) âˆ’
 /// erode(Ball(contour_thickness))` (binary dilation with a background border,
 /// binary erosion with ITK's default foreground border).  Contours are painted
 /// in ascending-label order so the higher label wins on overlap
@@ -297,7 +297,7 @@ impl LabelMapContourOverlayFilter {
             self.dilation_radius[2] + self.contour_thickness[2],
         ];
 
-        // Contour-label image; ascending label order → higher label wins.
+        // Contour-label image; ascending label order â†’ higher label wins.
         let mut contour_labels = vec![0.0_f32; n];
         for (&lbl, coords) in &by_label {
             contour_band(
@@ -319,7 +319,7 @@ impl LabelMapContourOverlayFilter {
 
 /// Write the contour band of one label into `out` (flat `[z,y,x]` buffer).
 ///
-/// Computes `dilate(dil) − erode(thick)` over a clamped window around the label's
+/// Computes `dilate(dil) âˆ’ erode(thick)` over a clamped window around the label's
 /// bounding box: dilation treats out-of-image as background, erosion treats it as
 /// foreground (ITK `BinaryErode` default).  Sets `out[idx] = label` on the band.
 #[allow(clippy::too_many_arguments)]
@@ -408,9 +408,9 @@ fn contour_band(
                     let neigh = if in_window(nz, ny, nx) {
                         dilate[wlocal(nz as usize, ny as usize, nx as usize)]
                     } else if in_image(nz, ny, nx) {
-                        false // in image, out of window → background of dilate
+                        false // in image, out of window â†’ background of dilate
                     } else {
-                        true // out of image → ITK foreground border
+                        true // out of image â†’ ITK foreground border
                     };
                     if !neigh {
                         eroded = false;

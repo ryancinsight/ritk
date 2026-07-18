@@ -1,23 +1,23 @@
-//! Local Normalized Cross Correlation (LNCC) Metric implementation.
+﻿//! Local Normalized Cross Correlation (LNCC) Metric implementation.
 //!
 //! # Theorem: Local Normalized Cross Correlation
 //!
-//! **Theorem** (Cachier et al. 2003, *Comput. Vis. Image Underst.* 89:272–298):
+//! **Theorem** (Cachier et al. 2003, *Comput. Vis. Image Underst.* 89:272â€“298):
 //! The Local Normalized Cross Correlation (LNCC) between a fixed image $F$ and a moving image $M$
 //! evaluates the linear dependence of intensities within a local neighborhood defined by a
 //! Gaussian smoothing kernel $K$.
 //!
 //! ```text
-//! Local Mean:   μ_F = F * K,      μ_M = M * K
-//! Local Var:    v_F = F² * K - μ_F², v_M = M² * K - μ_M²
-//! Local Covar:  c_{FM} = (F · M) * K - μ_F · μ_M
+//! Local Mean:   Î¼_F = F * K,      Î¼_M = M * K
+//! Local Var:    v_F = FÂ² * K - Î¼_FÂ², v_M = MÂ² * K - Î¼_MÂ²
+//! Local Covar:  c_{FM} = (F Â· M) * K - Î¼_F Â· Î¼_M
 //!
-//! LNCC(F, M) = c_{FM} / √(v_F · v_M + ε)
+//! LNCC(F, M) = c_{FM} / âˆš(v_F Â· v_M + Îµ)
 //! ```
 //!
 //! # Architectural Optimization (O(1) Stationary Caching)
 //! Because the fixed image target $F$ is stationary during registration optimization,
-//! the computation of $μ_F$ and $v_F$ is redundant across iterations.
+//! the computation of $Î¼_F$ and $v_F$ is redundant across iterations.
 //! This implementation caches the local statistics of the fixed image upon first
 //! evaluation, reducing the computational payload strictly to $M$-dependent convolutions
 //! and eliminating $O(N)$ operations per forward pass.
@@ -29,14 +29,14 @@ use super::histogram::cache::collect_array;
 use super::trait_::Metric;
 use ritk_filter::gaussian::GaussianFilter;
 use ritk_filter::GaussianSigma;
-use ritk_image::generate_grid_burn;
+use ritk_image::generate_grid;
 use ritk_image::tensor::{Backend, Shape, Tensor};
 use ritk_image::Image;
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_transform::Transform;
 use std::sync::{Arc, RwLock};
 
-// ── FilterSlot (REG-03) ───────────────────────────────────────────────────────
+// â”€â”€ FilterSlot (REG-03) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Lazy-initialized slot for a `GaussianFilter<B>`, Arc-shared across clones.
 ///
@@ -103,14 +103,13 @@ struct LnccCacheEntry<B: Backend> {
     origin: [f64; 3],
     spacing: [f64; 3],
     direction: [f64; 9],
-    mean_f_flat: Tensor<B, 1>,
-    var_f_flat: Tensor<B, 1>,
-}
+    mean_f_flat: Tensor<f32, B>,
+    var_f_flat: Tensor<f32, B> }
 
 impl<B: Backend> LnccCacheEntry<B> {
     /// Returns `true` when this entry was computed from an image with the same
     /// spatial geometry as `fixed` (shape, origin, spacing, direction).
-    fn is_valid_for<const D: usize>(&self, fixed: &Image<B, D>) -> bool {
+    fn is_valid_for<const D: usize>(&self, fixed: &Image<f32, B, D>) -> bool {
         let fs = fixed.shape();
         self.shape.as_slice() == fs
             && self.origin.iter().eq(fixed.origin().0.iter())
@@ -131,8 +130,7 @@ pub struct LocalNormalizedCrossCorrelation<B: Backend> {
     // CacheSlot: lazy-initialized, validity-checked per fixed-image geometry, Arc-shared across clones.
     cache: CacheSlot<Arc<LnccCacheEntry<B>>>,
     // FilterSlot: GaussianFilter built once per dimension D (REG-03).
-    filter_slot: FilterSlot<B>,
-}
+    filter_slot: FilterSlot<B> }
 
 impl<B: Backend> LocalNormalizedCrossCorrelation<B> {
     /// Create a new LNCC metric.
@@ -145,17 +143,16 @@ impl<B: Backend> LocalNormalizedCrossCorrelation<B> {
             kernel_sigma,
             epsilon: 1e-5,
             cache: CacheSlot::empty(),
-            filter_slot: FilterSlot::empty(),
-        }
+            filter_slot: FilterSlot::empty() }
     }
 
     /// Computes local mean and variance using a Gaussian filter.
     fn compute_local_stats<const D: usize>(
         &self,
-        img: Tensor<B, D>,
+        img: Tensor<f32, B>,
         filter: &GaussianFilter<B>,
         spacing: &ritk_spatial::Spacing<D>,
-    ) -> (Tensor<B, D>, Tensor<B, D>) {
+    ) -> (Tensor<f32, B>, Tensor<f32, B>) {
         // Mean = I * K
         let mean = filter.apply_tensor(img.clone(), spacing);
 
@@ -176,15 +173,15 @@ impl<B: Backend> LocalNormalizedCrossCorrelation<B> {
 impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelation<B> {
     fn forward(
         &self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
-    ) -> Tensor<B, 1> {
+    ) -> Tensor<f32, B> {
         let fixed_shape = fixed.shape();
         let device = fixed.data().device();
 
         // 1. Generate grid (Full, as we need the full spatial structure for convolution)
-        let fixed_indices = generate_grid_burn(fixed_shape, &device); // [N, D]
+        let fixed_indices = generate_grid(fixed_shape, &device); // [N, D]
         let [n, _] = fixed_indices.dims();
 
         // 2. Resample moving image with chunking to avoid WGPU dispatch limits
@@ -236,8 +233,7 @@ impl<B: Backend, const D: usize> Metric<B, D> for LocalNormalizedCrossCorrelatio
                     spacing: collect_array::<3>(fixed.spacing().0.iter().copied()),
                     direction: collect_array::<9>(fixed.direction().0.iter().copied()),
                     mean_f_flat: m_f.flatten(0, D - 1),
-                    var_f_flat: v_f.flatten(0, D - 1),
-                })
+                    var_f_flat: v_f.flatten(0, D - 1) })
             },
         );
         let mean_f = entry.mean_f_flat.clone().reshape(Shape::new(shape_dims));

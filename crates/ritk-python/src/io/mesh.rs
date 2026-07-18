@@ -1,14 +1,14 @@
-//! Python-exposed mesh I/O (OBJ, STL, PLY, glTF, VTK polydata, VTP).
+﻿//! Python-exposed mesh I/O (OBJ, STL, PLY, glTF, VTK polydata, VTP).
 //!
 //! # Supported formats
 //! | Extension(s)       | Read | Write | Notes                      |
 //! |--------------------|------|-------|----------------------------|
-//! | `.obj`             | ✓    | ✓     | Wavefront OBJ ASCII        |
-//! | `.stl`             | ✓    | ✓     | STL ASCII + binary         |
-//! | `.ply`             | ✓    | ✓     | PLY ASCII + binary LE      |
-//! | `.gltf`            | ✗    | ✓     | glTF 2.0 JSON (base64 buf) |
-//! | `.vtk`             | ✓    | ✓     | VTK legacy polydata        |
-//! | `.vtp`             | ✓    | ✓     | VTK XML polydata           |
+//! | `.obj`             | âœ“    | âœ“     | Wavefront OBJ ASCII        |
+//! | `.stl`             | âœ“    | âœ“     | STL ASCII + binary         |
+//! | `.ply`             | âœ“    | âœ“     | PLY ASCII + binary LE      |
+//! | `.gltf`            | âœ—    | âœ“     | glTF 2.0 JSON (base64 buf) |
+//! | `.vtk`             | âœ“    | âœ“     | VTK legacy polydata        |
+//! | `.vtp`             | âœ“    | âœ“     | VTK XML polydata           |
 //!
 //! All functions raise `IOError` on read/write failure.
 
@@ -19,11 +19,10 @@ use pyo3::types::PyList;
 use ritk_io::{
     read_obj_mesh, read_ply_mesh, read_stl_mesh, read_vtk_polydata, read_vtp_polydata, write_gltf,
     write_obj_mesh, write_ply_ascii, write_ply_binary_le, write_stl_ascii, write_stl_binary,
-    write_vtk_polydata, write_vtp_polydata, VtkPolyData,
-};
+    write_vtk_polydata, write_vtp_polydata, VtkPolyData };
 use std::path::Path;
 
-// ── PyMesh ────────────────────────────────────────────────────────────────────
+// â”€â”€ PyMesh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Polygonal mesh with points, polygon connectivity, and optional normals.
 ///
@@ -39,8 +38,7 @@ use std::path::Path;
 /// ```
 #[pyclass(name = "Mesh")]
 pub struct PyMesh {
-    pub inner: VtkPolyData,
-}
+    pub inner: VtkPolyData }
 
 #[pymethods]
 impl PyMesh {
@@ -110,7 +108,7 @@ impl PyMesh {
     }
 }
 
-// ── read_mesh ─────────────────────────────────────────────────────────────────
+// â”€â”€ read_mesh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Read a polygonal mesh from file.
 ///
@@ -154,17 +152,17 @@ pub fn read_mesh(py: Python<'_>, path: &str) -> RitkResult<PyMesh> {
     })
 }
 
-// ── write_mesh ────────────────────────────────────────────────────────────────
+// â”€â”€ write_mesh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Write a polygonal mesh to file.
 ///
 /// The format is inferred from the file extension.
-/// - `.obj`  → OBJ ASCII
-/// - `.stl`  → STL binary
-/// - `.ply`  → PLY binary little-endian
-/// - `.gltf` → glTF 2.0 JSON (geometry as base64 data URI)
-/// - `.vtk`  → VTK legacy polydata
-/// - `.vtp`  → VTK XML polydata
+/// - `.obj`  â†’ OBJ ASCII
+/// - `.stl`  â†’ STL binary
+/// - `.ply`  â†’ PLY binary little-endian
+/// - `.gltf` â†’ glTF 2.0 JSON (geometry as base64 data URI)
+/// - `.vtk`  â†’ VTK legacy polydata
+/// - `.vtp`  â†’ VTK XML polydata
 ///
 /// Args:
 ///     path: Destination file path (str).

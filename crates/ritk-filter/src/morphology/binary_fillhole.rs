@@ -6,18 +6,18 @@
 //!
 //! 1. Compute the set of background voxels reachable from the image border
 //!    via 6-connected BFS (external background):
-//!    E = { x ∈ background(f) : x is 6-connected to any border voxel }
+//!    E = { x âˆˆ background(f) : x is 6-connected to any border voxel }
 //!
 //! 2. Background voxels not in E are interior holes:
 //!    H = background(f) \ E
 //!
 //! 3. Output:
-//!    output(x) = fg   if f(x) = fg  or  x ∈ H
-//!    output(x) = 0    if x ∈ E
+//!    output(x) = fg   if f(x) = fg  or  x âˆˆ H
+//!    output(x) = 0    if x âˆˆ E
 //!
 //! # Properties
 //!
-//! - **Extensivity**: `output(x) ≥ f(x)` — holes are filled; no fg removed.
+//! - **Extensivity**: `output(x) â‰¥ f(x)` â€” holes are filled; no fg removed.
 //! - **Topology preservation**: fills enclosed cavities only.
 //! - All foreground voxels in f remain foreground in the output.
 //! - Background voxels connected to the image border remain background.
@@ -35,8 +35,8 @@
 //!
 //! # References
 //!
-//! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer §5.6.
-//! - ITK Software Guide, Vol 2, §6.3.4 Binary Fillhole Image Filter.
+//! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer Â§5.6.
+//! - ITK Software Guide, Vol 2, Â§6.3.4 Binary Fillhole Image Filter.
 
 use super::types::ForegroundValue;
 use ritk_image::tensor::Backend;
@@ -44,7 +44,7 @@ use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 use std::collections::VecDeque;
 
-// ── Filter struct ─────────────────────────────────────────────────────────────
+// â”€â”€ Filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Binary hole filling filter for 3-D images.
 ///
@@ -75,7 +75,7 @@ impl BinaryFillholeFilter {
     ///
     /// Returns a new image with identical shape and spatial metadata.
     /// Output voxels are `foreground_value` (foreground or hole) or `0.0` (external background).
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec_infallible(image);
 
         let result = fill_holes_3d(&vals, dims, self.foreground_value);
@@ -115,23 +115,23 @@ impl Default for BinaryFillholeFilter {
     }
 }
 
-// ── Core algorithm ────────────────────────────────────────────────────────────
+// â”€â”€ Core algorithm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Binary hole filling on a flat Z×Y×X volume via 6-connected BFS.
+/// Binary hole filling on a flat ZÃ—YÃ—X volume via 6-connected BFS.
 ///
 /// # Algorithm
 ///
 /// 1. Seed the BFS queue with every background voxel on the 6 image faces.
 /// 2. BFS propagates through background voxels using 6-connected adjacency.
-/// 3. Any background voxel NOT reached by BFS is a hole → set to fg.
+/// 3. Any background voxel NOT reached by BFS is a hole â†’ set to fg.
 /// 4. All foreground voxels are preserved as fg.
 ///
 /// # Invariants
 ///
 /// - `output.len() == nz * ny * nx`.
-/// - `output[i] ∈ {fg, 0.0}`.
-/// - `f(i) == fg ⇒ output[i] == fg` (extensivity).
-/// - `i ∈ E ⇒ output[i] == 0.0` (external bg preserved).
+/// - `output[i] âˆˆ {fg, 0.0}`.
+/// - `f(i) == fg â‡’ output[i] == fg` (extensivity).
+/// - `i âˆˆ E â‡’ output[i] == 0.0` (external bg preserved).
 pub(crate) fn fill_holes_3d(data: &[f32], dims: [usize; 3], fg: ForegroundValue) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
@@ -141,7 +141,7 @@ pub(crate) fn fill_holes_3d(data: &[f32], dims: [usize; 3], fg: ForegroundValue)
     let mut reached = vec![false; n];
     let mut queue: VecDeque<usize> = VecDeque::new();
 
-    // ── Seed: all border background voxels ─────────────────────────────────
+    // â”€â”€ Seed: all border background voxels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let seed = |iz: usize,
                 iy: usize,
                 ix: usize,
@@ -183,7 +183,7 @@ pub(crate) fn fill_holes_3d(data: &[f32], dims: [usize; 3], fg: ForegroundValue)
         }
     }
 
-    // ── BFS through background using 6-connectivity ────────────────────────
+    // â”€â”€ BFS through background using 6-connectivity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     while let Some(idx) = queue.pop_front() {
         let iz = idx / (ny * nx);
         let rem = idx % (ny * nx);
@@ -220,7 +220,7 @@ pub(crate) fn fill_holes_3d(data: &[f32], dims: [usize; 3], fg: ForegroundValue)
         }
     }
 
-    // ── Build output ───────────────────────────────────────────────────────
+    // â”€â”€ Build output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // output[i] = fg if original fg OR unreached background (hole).
     // output[i] = 0.0 if external background (reached).
     (0..n)
@@ -234,7 +234,7 @@ pub(crate) fn fill_holes_3d(data: &[f32], dims: [usize; 3], fg: ForegroundValue)
         .collect()
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_binary_fillhole.rs"]

@@ -1,4 +1,4 @@
-use crate::FilterKind;
+﻿use crate::FilterKind;
 
 /// Render parameter controls for Smoothing + Segmentation filter variants
 /// (including ConnectedThreshold, ConfidenceConnected, NeighborhoodConnected).
@@ -9,7 +9,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
     match active_filter {
         FilterKind::Gaussian { sigma } => {
             ui.horizontal(|ui| {
-                ui.label("σ (mm):");
+                ui.label("Ïƒ (mm):");
                 ui.add(
                     egui::Slider::new(sigma, 0.1_f32..=20.0)
                         .step_by(0.1)
@@ -38,8 +38,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::Clahe {
             tile_grid_size,
-            clip_limit,
-        } => {
+            clip_limit } => {
             let mut ty = tile_grid_size[0] as i32;
             let mut tx = tile_grid_size[1] as i32;
             ui.horizontal(|ui| {
@@ -83,10 +82,9 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             sigma,
             amount,
             threshold,
-            clamp,
-        } => {
+            clamp } => {
             ui.horizontal(|ui| {
-                ui.label("σ (mm):");
+                ui.label("Ïƒ (mm):");
                 ui.add(
                     egui::Slider::new(sigma, 0.1_f32..=10.0)
                         .step_by(0.1)
@@ -117,8 +115,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         FilterKind::GradientAnisotropicDiffusion {
             iterations,
             time_step,
-            conductance,
-        } => {
+            conductance } => {
             let mut it = *iterations as i32;
             ui.horizontal(|ui| {
                 ui.label("Iterations:");
@@ -130,8 +127,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
                 }
             });
             ui.horizontal(|ui| {
-                ui.label("Time step Δt:");
-                // Stability bound: Δt ≤ 1/6 ≈ 0.1667 in 3-D.
+                ui.label("Time step Î”t:");
+                // Stability bound: Î”t â‰¤ 1/6 â‰ˆ 0.1667 in 3-D.
                 ui.add(egui::Slider::new(time_step, 0.01_f32..=0.1667).step_by(0.005));
             });
             ui.horizontal(|ui| {
@@ -146,15 +143,13 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::ConnectedComponents {
             connectivity,
-            background_value,
-        } => {
+            background_value } => {
             ui.horizontal(|ui| {
                 ui.label("Connectivity:");
                 egui::ComboBox::from_id_source("connected_components_connectivity")
                     .selected_text(match connectivity {
                         ritk_filter::Connectivity::Face6 => "6-connected (default)",
-                        ritk_filter::Connectivity::Vertex26 => "26-connected",
-                    })
+                        ritk_filter::Connectivity::Vertex26 => "26-connected" })
                     .show_ui(ui, |ui| {
                         ui.selectable_value(
                             connectivity,
@@ -173,14 +168,13 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
                 ui.add(egui::DragValue::new(background_value).speed(1.0).prefix(""));
             });
             ui.label(
-                egui::RichText::new("Output: integer label image (0=background, 1…N=components)")
+                egui::RichText::new("Output: integer label image (0=background, 1â€¦N=components)")
                     .small(),
             );
             true
         }
         FilterKind::RelabelComponents {
-            minimum_object_size,
-        } => {
+            minimum_object_size } => {
             // minimum_object_size is u32; use i32 proxy for DragValue.
             let mut mos = *minimum_object_size as i32;
             ui.horizontal(|ui| {
@@ -218,7 +212,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.label(
                 egui::RichText::new(
-                    "Output: class label image with values 0…K−1. ITK default K=3.",
+                    "Output: class label image with values 0â€¦Kâˆ’1. ITK default K=3.",
                 )
                 .small(),
             );
@@ -226,8 +220,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::CurvatureFlow {
             iterations,
-            time_step,
-        } => {
+            time_step } => {
             let mut iters_i = *iterations as i32;
             ui.horizontal(|ui| {
                 ui.label("Iterations:");
@@ -239,12 +232,12 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
                 }
             });
             ui.horizontal(|ui| {
-                ui.label("Time Step Δt:");
+                ui.label("Time Step Î”t:");
                 ui.add(egui::Slider::new(time_step, 0.001_f32..=0.166_f32).step_by(0.001));
             });
             ui.label(
                 egui::RichText::new(
-                    "ITK CurvatureFlowImageFilter. ∂I/∂t = κ (mean curvature, no gradient weighting). Stability: Δt ≤ 1/6.",
+                    "ITK CurvatureFlowImageFilter. âˆ‚I/âˆ‚t = Îº (mean curvature, no gradient weighting). Stability: Î”t â‰¤ 1/6.",
                 )
                 .small(),
             );
@@ -255,8 +248,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             seed_y,
             seed_x,
             lower,
-            upper,
-        } => {
+            upper } => {
             for (label, val) in [("Seed Z", seed_z), ("Seed Y", seed_y), ("Seed X", seed_x)] {
                 let mut v = *val as i32;
                 ui.horizontal(|ui| {
@@ -279,7 +271,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.label(
                 egui::RichText::new(
-                    "ITK ConnectedThresholdImageFilter. BFS flood-fill where I(v) ∈ [lower, upper]. Output: binary mask.",
+                    "ITK ConnectedThresholdImageFilter. BFS flood-fill where I(v) âˆˆ [lower, upper]. Output: binary mask.",
                 )
                 .small(),
             );
@@ -292,8 +284,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             initial_lower,
             initial_upper,
             multiplier,
-            max_iterations,
-        } => {
+            max_iterations } => {
             for (label, val) in [("Seed Z", seed_z), ("Seed Y", seed_y), ("Seed X", seed_x)] {
                 let mut v = *val as i32;
                 ui.horizontal(|ui| {
@@ -330,7 +321,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.label(
                 egui::RichText::new(
-                    "ITK ConfidenceConnectedImageFilter. Adaptive BFS: expands region using mean±k·σ statistics. Output: binary mask.",
+                    "ITK ConfidenceConnectedImageFilter. Adaptive BFS: expands region using meanÂ±kÂ·Ïƒ statistics. Output: binary mask.",
                 )
                 .small(),
             );
@@ -344,8 +335,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             upper,
             radius_z,
             radius_y,
-            radius_x,
-        } => {
+            radius_x } => {
             for (label, val) in [("Seed Z", seed_z), ("Seed Y", seed_y), ("Seed X", seed_x)] {
                 let mut v = *val as i32;
                 ui.horizontal(|ui| {
@@ -390,6 +380,5 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             );
             true
         }
-        _ => false,
-    }
+        _ => false }
 }

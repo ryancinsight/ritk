@@ -1,4 +1,4 @@
-//! Deterministic DICOM metadata table model for the viewer sidebar.
+﻿//! Deterministic DICOM metadata table model for the viewer sidebar.
 //!
 //! This module converts `ritk-io` DICOM metadata into a presentation-neutral
 //! row list. The egui sidebar renders rows only; it does not know how to walk
@@ -23,8 +23,7 @@ pub enum MetadataScope {
     /// Raw preserved element.
     PreservedRaw,
     /// Private scalar tag map entry.
-    PrivateTag,
-}
+    PrivateTag }
 
 impl MetadataScope {
     /// Stable label for rendering.
@@ -34,8 +33,7 @@ impl MetadataScope {
             Self::FirstSlice => "Slice[0]",
             Self::PreservedNode => "Preserved",
             Self::PreservedRaw => "Raw",
-            Self::PrivateTag => "Private",
-        }
+            Self::PrivateTag => "Private" }
     }
 }
 
@@ -53,8 +51,7 @@ pub struct MetadataRow<'a> {
     /// Value representation when known.
     pub vr: Cow<'a, str>,
     /// Stable textual value.
-    pub value: Cow<'a, str>,
-}
+    pub value: Cow<'a, str> }
 
 impl<'a> MetadataRow<'a> {
     fn series(tag: &'a str, keyword: &'a str, vr: &'a str, value: impl Into<Cow<'a, str>>) -> Self {
@@ -86,8 +83,7 @@ impl<'a> MetadataRow<'a> {
             tag: tag.into(),
             keyword: keyword.into(),
             vr: vr.into(),
-            value: value.into(),
-        }
+            value: value.into() }
     }
 }
 
@@ -312,8 +308,7 @@ fn value_to_text<'a>(value: &'a DicomValue) -> Cow<'a, str> {
         DicomValue::I32(val) => Cow::Owned(val.to_string()),
         DicomValue::F64(val) => Cow::Owned(format!("{val:.6}")),
         DicomValue::Sequence(items) => Cow::Owned(format!("{} items", items.len())),
-        DicomValue::Empty => Cow::Borrowed(""),
-    }
+        DicomValue::Empty => Cow::Borrowed("") }
 }
 
 fn format_usize3(values: [usize; 3]) -> String {

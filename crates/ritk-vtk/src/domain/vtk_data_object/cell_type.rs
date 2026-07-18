@@ -1,4 +1,4 @@
-/// VTK cell type codes per VTK File Formats specification (Table 2, Kitware Inc.).
+﻿/// VTK cell type codes per VTK File Formats specification (Table 2, Kitware Inc.).
 ///
 /// # Invariants
 /// - `u8::from(cell_type)` returns the canonical VTK integer cell type code.
@@ -35,8 +35,7 @@ pub enum VtkCellType {
     QuadraticLinearWedge = 31,
     BiquadraticQuadraticWedge = 32,
     BiquadraticQuadraticHexahedron = 33,
-    BilinearQuadraticWedge = 34,
-}
+    BilinearQuadraticWedge = 34 }
 
 /// Error returned when a `u8` value does not correspond to a known VTK cell type code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -97,7 +96,6 @@ impl TryFrom<u8> for VtkCellType {
             32 => Ok(Self::BiquadraticQuadraticWedge),
             33 => Ok(Self::BiquadraticQuadraticHexahedron),
             34 => Ok(Self::BilinearQuadraticWedge),
-            _ => Err(UnknownVtkCellType(v)),
-        }
+            _ => Err(UnknownVtkCellType(v)) }
     }
 }

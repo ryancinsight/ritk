@@ -1,4 +1,4 @@
-// ─── CMA-ES Registration Python binding ──────────────────────────────────────
+﻿// â”€â”€â”€ CMA-ES Registration Python binding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 use pyo3::prelude::*;
 
@@ -7,7 +7,7 @@ use crate::image::PyImage;
 use ritk_core::image::Image;
 use ritk_registration::{CmaMiConfig, CmaMiRegistration, InitStrategy};
 
-use super::{py_image_to_autodiff_image, AutodiffBackend};
+use super::{py_image_to_autodiff_image, Backend};
 
 /// Options for `cma_mi_register` (CMA-ES + optional RSGD cascade).
 ///
@@ -15,24 +15,24 @@ use super::{py_image_to_autodiff_image, AutodiffBackend};
 /// and adjust individual fields.
 ///
 /// Presets:
-/// - `"brain_default"` — Single-level CMA-ES, shrink=8, NMI, sigma0=0.7, 200 gen.
-/// - `"brain_multiscale"` — 3-level cascade [16→8→4], NMI, recommended for typical brain CT.
-/// - `"brain_multiscale_thin_slab"` — 3-level anisotropic cascade [\[1,16,16\]→...], NMI,
-/// recommended for RIRE-style thin CT (≤50 z-slices at ≥2 mm spacing).
-/// - `"fast_exploratory"` — Single-level, shrink=16, Mattes MI, fast but coarse.
-/// - `"custom"` — Build config from individual fields below.
+/// - `"brain_default"` â€” Single-level CMA-ES, shrink=8, NMI, sigma0=0.7, 200 gen.
+/// - `"brain_multiscale"` â€” 3-level cascade [16â†’8â†’4], NMI, recommended for typical brain CT.
+/// - `"brain_multiscale_thin_slab"` â€” 3-level anisotropic cascade [\[1,16,16\]â†’...], NMI,
+/// recommended for RIRE-style thin CT (â‰¤50 z-slices at â‰¥2 mm spacing).
+/// - `"fast_exploratory"` â€” Single-level, shrink=16, Mattes MI, fast but coarse.
+/// - `"custom"` â€” Build config from individual fields below.
 ///
 /// Custom fields (used when `preset == "custom"`):
 /// - `coarse_shrink`: Isotropic shrink factor for CMA-ES level (default 8).
 /// - `num_mi_bins`: Histogram bins (default 32).
 /// - `sampling_percentage`: Fraction of voxels sampled (default 0.25).
 /// - `translation_range_mm`: Half-range for translation search in mm (default 60.0).
-/// - `rotation_range_rad`: Half-range for rotation search in radians (default π/4).
+/// - `rotation_range_rad`: Half-range for rotation search in radians (default Ï€/4).
 /// - `sigma0`: CMA-ES initial step size in normalised space (default 0.7).
 /// - `max_generations`: Maximum CMA-ES generations (default 200).
 /// - `init_strategy`: Initialization strategy: "manual" (default) or "center_of_mass".
 ///   "center_of_mass" automatically computes a pre-alignment translation from
-///   the image centers of mass (unreliable for CT↔MRI T1 cross-modal).
+///   the image centers of mass (unreliable for CTâ†”MRI T1 cross-modal).
 ///   "manual" uses the provided initial transform or identity.
 #[pyclass(name = "CmaMiOptions")]
 #[derive(Clone)]
@@ -54,8 +54,7 @@ pub struct PyCmaMiOptions {
     #[pyo3(get, set)]
     pub max_generations: usize,
     #[pyo3(get, set)]
-    pub init_strategy: PyInitStrategy,
-}
+    pub init_strategy: PyInitStrategy }
 
 /// Initialization strategy for CMA-ES registration, replacing `use_com_init: bool`.
 ///
@@ -67,9 +66,8 @@ pub enum PyInitStrategy {
     #[default]
     Manual,
     /// Use center-of-mass of images as initial translation.
-    /// Note: unreliable for CT↔MRI T1 cross-modal registration.
-    CenterOfMass,
-}
+    /// Note: unreliable for CTâ†”MRI T1 cross-modal registration.
+    CenterOfMass }
 
 impl<'py> FromPyObject<'py> for PyInitStrategy {
     fn extract_bound(ob: &pyo3::Bound<'py, PyAny>) -> PyResult<Self> {
@@ -80,8 +78,7 @@ impl<'py> FromPyObject<'py> for PyInitStrategy {
             other => Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "Unknown init strategy '{}'. Choices: manual, center_of_mass",
                 other
-            ))),
-        }
+            ))) }
     }
 }
 
@@ -89,8 +86,7 @@ impl IntoPy<PyObject> for PyInitStrategy {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
             Self::Manual => "manual".into_py(py),
-            Self::CenterOfMass => "center_of_mass".into_py(py),
-        }
+            Self::CenterOfMass => "center_of_mass".into_py(py) }
     }
 }
 
@@ -98,8 +94,7 @@ impl From<PyInitStrategy> for InitStrategy {
     fn from(val: PyInitStrategy) -> Self {
         match val {
             PyInitStrategy::Manual => InitStrategy::Manual,
-            PyInitStrategy::CenterOfMass => InitStrategy::CenterOfMass,
-        }
+            PyInitStrategy::CenterOfMass => InitStrategy::CenterOfMass }
     }
 }
 
@@ -114,8 +109,7 @@ impl Default for PyCmaMiOptions {
             rotation_range_rad: std::f64::consts::FRAC_PI_4,
             sigma0: 0.7,
             max_generations: 200,
-            init_strategy: PyInitStrategy::Manual,
-        }
+            init_strategy: PyInitStrategy::Manual }
     }
 }
 
@@ -157,8 +151,7 @@ pub(crate) fn build_cma_config(opts: &PyCmaMiOptions) -> RitkResult<CmaMiConfig>
              \"brain_multiscale_thin_slab\", \"fast_exploratory\", \"custom\"; \
              got \"{}\"",
             other
-        ))),
-    }
+        ))) }
 }
 
 /// Register a moving image to a fixed image using CMA-ES global search + optional RSGD refinement.
@@ -175,12 +168,12 @@ pub(crate) fn build_cma_config(opts: &PyCmaMiOptions) -> RitkResult<CmaMiConfig>
 ///     fixed_mask: Optional binary mask in fixed-image space (same shape and
 ///         spacing as `fixed`). When provided, only voxels where the mask
 ///         value exceeds 0.5 contribute to MI estimation at each pyramid
-///         level (ANTs/ITK masking strategy). ``None`` → uniform stochastic
+///         level (ANTs/ITK masking strategy). ``None`` â†’ uniform stochastic
 ///         sampling over all voxels (default).
 ///
 /// Returns:
 ///     (matrix, final_mi, info):
-///         - matrix: 4×4 homogeneous transform as 16 floats (row-major).
+///         - matrix: 4Ã—4 homogeneous transform as 16 floats (row-major).
 ///         - final_mi: Final MI value (positive; negated from the minimisation objective).
 ///         - info: Dict with keys `cma_generations`, `stop_reason`, `final_sigma`,
 ///           `rsgd_iterations`.
@@ -202,7 +195,7 @@ pub fn cma_mi_register(
     // Convert PyImages to autodiff-backend Images
     let fixed_ad = py_image_to_autodiff_image(fixed);
     let moving_ad = py_image_to_autodiff_image(moving);
-    let mask_ad: Option<Image<AutodiffBackend, 3>> = fixed_mask.map(py_image_to_autodiff_image);
+    let mask_ad: Option<Image<Backend, 3>> = fixed_mask.map(py_image_to_autodiff_image);
 
     // Run CMA-ES + optional RSGD inside allow_threads to release the GIL
     let (

@@ -1,4 +1,4 @@
-//! PLY reader → VtkPolyData.
+﻿//! PLY reader â†’ VtkPolyData.
 //!
 //! Parses the PLY 1.0 header to determine format and element schemas, then
 //! reads vertex and face data in ASCII or binary little-endian encoding.
@@ -9,7 +9,7 @@
 //! - `element vertex N` with scalar properties (not list)
 //! - `element face M` with `property list <count_type> <index_type> vertex_indices`
 //! - Property types: `char` `uchar` `short` `ushort` `int` `uint` `float` `double`
-//!   and their sized aliases (`int8` … `float64`).
+//!   and their sized aliases (`int8` â€¦ `float64`).
 //! - `comment` and `obj_info` lines: skipped.
 
 use super::types::{PlyFormat, PlyHeader, PlyType};
@@ -18,9 +18,9 @@ use anyhow::{bail, Context, Result};
 use consus_io::bounded_capacity;
 use std::path::Path;
 
-// ── Public interface ──────────────────────────────────────────────────────────
+// â”€â”€ Public interface â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Read a PLY file (ASCII or binary little-endian) → [`VtkPolyData`].
+/// Read a PLY file (ASCII or binary little-endian) â†’ [`VtkPolyData`].
 pub fn read_ply_mesh(path: impl AsRef<Path>) -> Result<VtkPolyData> {
     let path = path.as_ref();
     let bytes =
@@ -41,11 +41,10 @@ pub(crate) fn parse_ply(bytes: &[u8]) -> Result<VtkPolyData> {
             &hdr,
         ),
         PlyFormat::BinaryLe => parse_binary_le_body(&bytes[data_off..], &hdr),
-        PlyFormat::BinaryBe => bail!("big-endian PLY not supported for read"),
-    }
+        PlyFormat::BinaryBe => bail!("big-endian PLY not supported for read") }
 }
 
-// ── Header parser ─────────────────────────────────────────────────────────────
+// â”€â”€ Header parser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn find_data_offset(bytes: &[u8]) -> Option<usize> {
     const MARKER: &[u8] = b"end_header";
@@ -87,8 +86,7 @@ fn parse_header(text: &str) -> Result<PlyHeader> {
         None,
         Vertex,
         Face,
-        Other,
-    }
+        Other }
     let mut cur = Cur::None;
 
     for line in lines {
@@ -107,8 +105,7 @@ fn parse_header(text: &str) -> Result<PlyHeader> {
                     "ascii" => PlyFormat::Ascii,
                     "binary_little_endian" => PlyFormat::BinaryLe,
                     "binary_big_endian" => PlyFormat::BinaryBe,
-                    other => bail!("unknown PLY format '{}'", other),
-                };
+                    other => bail!("unknown PLY format '{}'", other) };
             }
             "element" if toks.len() >= 3 => {
                 let count: usize = toks[2]
@@ -123,8 +120,7 @@ fn parse_header(text: &str) -> Result<PlyHeader> {
                         face_count = count;
                         Cur::Face
                     }
-                    _ => Cur::Other,
-                };
+                    _ => Cur::Other };
             }
             "property" => match cur {
                 Cur::Vertex if toks.len() >= 3 && toks[1] != "list" => {
@@ -156,11 +152,10 @@ fn parse_header(text: &str) -> Result<PlyHeader> {
         face_count,
         vertex_props,
         face_count_type,
-        face_index_type,
-    })
+        face_index_type })
 }
 
-// ── ASCII body reader ─────────────────────────────────────────────────────────
+// â”€â”€ ASCII body reader â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn parse_ascii_body(text: &str, hdr: &PlyHeader) -> Result<VtkPolyData> {
     let mut lines = text.lines();
@@ -244,7 +239,7 @@ fn parse_ascii_body(text: &str, hdr: &PlyHeader) -> Result<VtkPolyData> {
     build_ply_poly(points, polygons, normals)
 }
 
-// ── Binary LE body reader ─────────────────────────────────────────────────────
+// â”€â”€ Binary LE body reader â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn parse_binary_le_body(body: &[u8], hdr: &PlyHeader) -> Result<VtkPolyData> {
     let xi = hdr.find_prop("x").context("no x")?;
@@ -332,7 +327,7 @@ fn parse_binary_le_body(body: &[u8], hdr: &PlyHeader) -> Result<VtkPolyData> {
     build_ply_poly(points, polygons, normals)
 }
 
-// ── Shared builder ────────────────────────────────────────────────────────────
+// â”€â”€ Shared builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn build_ply_poly(
     points: Vec<[f32; 3]>,

@@ -1,14 +1,13 @@
 use super::*;
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support;
 use ritk_image::Image;
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
 
-fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
-    test_support::burn_compat::make_image_1d(data)
+fn make_image_1d(data: Vec<f32>) -> Image<f32, TestBackend, 1> {
+    test_support::make_image_1d(data)
 }
 
 // ── Positive tests ────────────────────────────────────────────────────────

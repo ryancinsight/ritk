@@ -1,4 +1,4 @@
-//! LDDMM registration engine — gradient-descent optimisation of v₀.
+﻿//! LDDMM registration engine â€” gradient-descent optimisation of vâ‚€.
 //!
 //! # Memory discipline
 //! All scratch buffers are pre-allocated before the iteration loop.
@@ -7,25 +7,22 @@
 //! pre-allocated scratch set (8n + 3 per-step reuse).
 
 use crate::deformable_field_ops::{
-    compute_gradient_into, validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother,
-};
+    compute_gradient_into, validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother };
 use crate::error::RegistrationError;
 
 use super::{
     config::{LddmmConfig, LddmmResult},
-    geodesic::integrate_geodesic_into_with_smoother,
-};
+    geodesic::integrate_geodesic_into_with_smoother };
 
 /// LDDMM registration engine.
 ///
-/// Optimises the initial velocity v₀ of a geodesic in diffeomorphism space
+/// Optimises the initial velocity vâ‚€ of a geodesic in diffeomorphism space
 /// to align a moving image to a fixed image under the MSE similarity metric
 /// with Sobolev-norm regularisation.
 #[derive(Debug, Clone)]
 pub struct LddmmRegistration {
     /// Algorithm configuration.
-    pub config: LddmmConfig,
-}
+    pub config: LddmmConfig }
 
 impl LddmmRegistration {
     /// Create a registration instance with the given configuration.
@@ -53,14 +50,14 @@ impl LddmmRegistration {
     ///
     /// When `smoother` is a [`crate::deformable_field_ops::GpuFieldSmoother`],
     /// the per-iteration momentum, adjoint, and body-force smoothing runs on
-    /// the GPU — 10–50× faster than the CPU path for typical 256³ fields.
+    /// the GPU â€” 10â€“50Ã— faster than the CPU path for typical 256Â³ fields.
     ///
     /// # Arguments
-    /// - `fixed`   — reference image, flat `[f32]` in Z-major order.
-    /// - `moving`  — moving image, same length as `fixed`.
-    /// - `dims`    — volume dimensions `[nz, ny, nx]`.
-    /// - `spacing` — physical voxel spacing `[sz, sy, sx]`.
-    /// - `smoother` — field smoother (CPU or GPU backend).
+    /// - `fixed`   â€” reference image, flat `[f32]` in Z-major order.
+    /// - `moving`  â€” moving image, same length as `fixed`.
+    /// - `dims`    â€” volume dimensions `[nz, ny, nx]`.
+    /// - `spacing` â€” physical voxel spacing `[sz, sy, sx]`.
+    /// - `smoother` â€” field smoother (CPU or GPU backend).
     ///
     /// # Errors
     /// Returns [`RegistrationError::DimensionMismatch`] when image lengths
@@ -86,7 +83,7 @@ impl LddmmRegistration {
         let mut v0y = vec![0.0_f32; n];
         let mut v0x = vec![0.0_f32; n];
 
-        // ── Pre-allocated scratch buffers (zero alloc inside the loop) ──
+        // â”€â”€ Pre-allocated scratch buffers (zero alloc inside the loop) â”€â”€
         let mut dz = vec![0.0_f32; n];
         let mut dy = vec![0.0_f32; n];
         let mut dx = vec![0.0_f32; n];
@@ -226,7 +223,6 @@ impl LddmmRegistration {
             displacement_field: (dz, dy, dx),
             warped_moving: warped,
             final_metric: final_mse,
-            num_iterations: num_iters,
-        })
+            num_iterations: num_iters })
     }
 }

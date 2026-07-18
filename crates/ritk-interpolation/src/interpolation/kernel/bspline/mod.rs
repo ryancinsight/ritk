@@ -4,9 +4,9 @@
 //! of image values at continuous coordinates.
 
 use super::BoundsPolicy;
+use coeus_core::{Backend, CpuAddressableStorage};
+use coeus_tensor::Tensor;
 use ritk_core::interpolation::Interpolator;
-use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Tensor, TensorData};
 
 mod flat;
 mod prefilter;
@@ -58,8 +58,8 @@ pub(crate) fn cubic_bspline(x: f32) -> f32 {
 /// interpolator and the mirror boundary used by the coefficient prefilter.
 /// When [`BoundsPolicy::ZeroPad`], query coordinates outside the valid voxel
 /// range `[0, dim-1]` return `0.0` immediately and out-of-bounds support taps
-/// contribute zero, matching \[`LinearInterpolator`\] and
-/// \[`NearestNeighborInterpolator`\] in zero-pad mode.
+/// contribute zero, matching [`crate::LinearInterpolator`] and
+/// [`crate::NearestNeighborInterpolator`] in zero-pad mode.
 #[derive(Debug, Clone, Copy)]
 pub struct BSplineInterpolator {
     /// Boundary handling policy. Default: `Extend`.
@@ -94,69 +94,53 @@ impl Default for BSplineInterpolator {
     }
 }
 
-impl<B: Backend> Interpolator<B> for BSplineInterpolator {
-    fn interpolate<const D: usize>(
-        &self,
-        data: &Tensor<B, D>,
-        indices: Tensor<B, 2>,
-    ) -> Tensor<B, 1> {
-        let device = indices.device();
-        let [n_points, rank] = indices.dims();
-        assert_eq!(rank, D, "Indices rank must match data dimensionality");
+impl<B: Backend> Interpolator<B> for BSplineInterpolator
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    fn interpolate(&self, data: &Tensor<f32, B>, indices: Tensor<f32, B>) -> Tensor<f32, B> {
+        let shape = data.shape().to_vec();
+        let rank = shape.len();
+        assert!(
+            matches!(rank, 2 | 3),
+            "B-Spline interpolation only supports 2D and 3D data"
+        );
 
-        struct BSplineDimGuard<const D: usize>;
-        impl<const D: usize> BSplineDimGuard<D> {
-            const _SUPPORTED_DIM: () = assert!(
-                matches!(D, 2 | 3),
-                "B-Spline interpolation only supports 2D and 3D"
-            );
-        }
-        let _: () = BSplineDimGuard::<D>::_SUPPORTED_DIM;
+        let idx_shape = indices.shape();
+        assert_eq!(idx_shape.len(), 2, "indices must be a 2D tensor [N, rank]");
+        let n_points = idx_shape[0];
+        let idx_rank = idx_shape[1];
+        assert_eq!(idx_rank, rank, "indices rank must match data rank");
 
-        let shape = data.shape();
-        let dims: Vec<usize> = shape.dims;
+        let data_contig = data.to_contiguous();
+        let volume_slice = data_contig.as_slice();
+        let coeffs = prefilter::compute_coefficients(volume_slice, &shape);
 
-        // Pre-extract the volume as a flat f32 slice, then recover the separable
-        // B-spline coefficients once (O(volume) prefilter). Sampling the
-        // coefficients — rather than the raw samples — is what makes this true
-        // interpolation (exact at grid points) instead of a smoothing
-        // approximation; it is also O(1) per query point.
-        let volume_data = data.to_data();
-        let volume_slice: &[f32] = volume_data
-            .as_slice::<f32>()
-            .expect("Volume data must be f32");
-        let coeffs = prefilter::compute_coefficients(volume_slice, &dims);
-
-        // Get all index data at once
-        let indices_data = indices.to_data();
-        let indices_slice: &[f32] = indices_data.as_slice::<f32>().expect("Indices must be f32");
-
-        if n_points == 0 {
-            return Tensor::zeros([0], &device);
-        }
+        let idx_contig = indices.to_contiguous();
+        let idx_slice = idx_contig.as_slice();
 
         let mut results = Vec::with_capacity(n_points);
 
         for i in 0..n_points {
-            let coords_start = i * D;
-            let value = match D {
+            let coords = &idx_slice[i * rank..(i + 1) * rank];
+            let value = match rank {
                 3 => flat::interpolate_point_3d_flat(
                     &coeffs,
-                    &indices_slice[coords_start..coords_start + D],
-                    &dims,
+                    coords,
+                    &shape,
                     self.bounds_policy.as_out_of_bounds_mode(),
                 ),
                 2 => flat::interpolate_point_2d_flat(
                     &coeffs,
-                    &indices_slice[coords_start..coords_start + D],
-                    &dims,
+                    coords,
+                    &shape,
                     self.bounds_policy.as_out_of_bounds_mode(),
                 ),
-                _ => unreachable!("D is asserted to be 2 or 3 above"),
+                _ => unreachable!(),
             };
             results.push(value);
         }
 
-        Tensor::<B, 1>::from_data(TensorData::new(results, [n_points]), &device)
+        Tensor::from_slice([n_points], &results)
     }
 }

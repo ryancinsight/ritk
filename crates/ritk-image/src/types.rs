@@ -125,18 +125,24 @@ where
 
 impl<T, B, const D: usize> Image<T, B, D>
 where
+    T: Scalar,
+    B: ComputeBackend + Default,
+{
+    /// Extract the underlying tensor data as a `Vec<T>`, propagating errors.
+    ///
+    /// Materializes logical tensor values through the backend's canonical
+    /// device-to-host transfer.
+    pub fn try_data_vec(&self) -> anyhow::Result<Vec<T>> {
+        Ok(self.data.to_vec())
+    }
+}
+
+impl<T, B, const D: usize> Image<T, B, D>
+where
     T: Scalar + std::fmt::Debug,
     B: ComputeBackend + Default,
     B::DeviceBuffer<T>: coeus_core::CpuAddressableStorage<T>,
 {
-    /// Extract the underlying tensor data as a `Vec<T>`, propagating errors.
-    ///
-    /// Materializes the tensor to host. For contiguous host backends this is
-    /// zero-copy via `as_slice()`.
-    pub fn try_data_vec(&self) -> anyhow::Result<Vec<T>> {
-        Ok(self.data.as_slice().to_vec())
-    }
-
     /// Provide a `&[T]` view of the image data to a closure without
     /// allocating a `Vec`.
     ///

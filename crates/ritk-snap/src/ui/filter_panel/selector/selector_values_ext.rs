@@ -1,4 +1,4 @@
-use crate::FilterKind;
+﻿use crate::FilterKind;
 use ritk_filter::{BinarizationThreshold, Connectivity};
 
 /// Second portion of the ComboBox selectable_value entries (FlipZ
@@ -26,15 +26,13 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         .selectable_value(
             &mut *active_filter,
             FilterKind::MaskThreshold {
-                threshold: BinarizationThreshold::DEFAULT,
-            },
+                threshold: BinarizationThreshold::DEFAULT },
             "Mask Threshold",
         )
         .clicked()
     {
         *active_filter = FilterKind::MaskThreshold {
-            threshold: BinarizationThreshold::DEFAULT,
-        };
+            threshold: BinarizationThreshold::DEFAULT };
     }
     if ui
         .selectable_value(
@@ -61,32 +59,28 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             &mut *active_filter,
             FilterKind::ShiftScale {
                 shift: 0.0,
-                scale: 1.0,
-            },
+                scale: 1.0 },
             "Shift Scale",
         )
         .clicked()
     {
         *active_filter = FilterKind::ShiftScale {
             shift: 0.0,
-            scale: 1.0,
-        };
+            scale: 1.0 };
     }
     if ui
         .selectable_value(
             &mut *active_filter,
             FilterKind::ZeroCrossing {
                 foreground_value: ritk_filter::ForegroundValue::ONE,
-                background_value: 0.0,
-            },
+                background_value: 0.0 },
             "Zero Crossing",
         )
         .clicked()
     {
         *active_filter = FilterKind::ZeroCrossing {
             foreground_value: ritk_filter::ForegroundValue::ONE,
-            background_value: 0.0,
-        };
+            background_value: 0.0 };
     }
     if ui
         .selectable_value(
@@ -97,8 +91,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
                 start_x: 0,
                 size_z: 1,
                 size_y: 1,
-                size_x: 1,
-            },
+                size_x: 1 },
             "Region Of Interest",
         )
         .clicked()
@@ -109,8 +102,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             start_x: 0,
             size_z: 1,
             size_y: 1,
-            size_x: 1,
-        };
+            size_x: 1 };
     }
     if ui
         .selectable_value(
@@ -118,8 +110,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             FilterKind::PermuteAxes {
                 order_0: 0,
                 order_1: 1,
-                order_2: 2,
-            },
+                order_2: 2 },
             "Permute Axes",
         )
         .clicked()
@@ -127,8 +118,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         *active_filter = FilterKind::PermuteAxes {
             order_0: 0,
             order_1: 1,
-            order_2: 2,
-        };
+            order_2: 2 };
     }
     if ui
         .selectable_value(&mut *active_filter, FilterKind::Mean { radius: 1 }, "Mean")
@@ -141,32 +131,28 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             &mut *active_filter,
             FilterKind::BinaryContour {
                 connectivity: Connectivity::Face6,
-                foreground_value: ritk_filter::ForegroundValue::ONE,
-            },
+                foreground_value: ritk_filter::ForegroundValue::ONE },
             "Binary Contour",
         )
         .clicked()
     {
         *active_filter = FilterKind::BinaryContour {
             connectivity: Connectivity::Face6,
-            foreground_value: ritk_filter::ForegroundValue::ONE,
-        };
+            foreground_value: ritk_filter::ForegroundValue::ONE };
     }
     if ui
         .selectable_value(
             &mut *active_filter,
             FilterKind::LabelContour {
                 connectivity: Connectivity::Face6,
-                background_value: 0.0,
-            },
+                background_value: 0.0 },
             "Label Contour",
         )
         .clicked()
     {
         *active_filter = FilterKind::LabelContour {
             connectivity: Connectivity::Face6,
-            background_value: 0.0,
-        };
+            background_value: 0.0 };
     }
     if ui
         .selectable_value(
@@ -176,8 +162,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
                 birth_threshold: 1,
                 survival_threshold: 1,
                 foreground_value: ritk_filter::ForegroundValue::ONE,
-                background_value: 0.0,
-            },
+                background_value: 0.0 },
             "Voting Binary",
         )
         .clicked()
@@ -187,8 +172,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             birth_threshold: 1,
             survival_threshold: 1,
             foreground_value: ritk_filter::ForegroundValue::ONE,
-            background_value: 0.0,
-        };
+            background_value: 0.0 };
     }
     if ui
         .selectable_value(
@@ -196,8 +180,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             FilterKind::Shrink {
                 factor_z: 2,
                 factor_y: 2,
-                factor_x: 2,
-            },
+                factor_x: 2 },
             "Shrink",
         )
         .clicked()
@@ -205,8 +188,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         *active_filter = FilterKind::Shrink {
             factor_z: 2,
             factor_y: 2,
-            factor_x: 2,
-        };
+            factor_x: 2 };
     }
     if ui
         .selectable_value(
@@ -218,8 +200,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
                 pad_upper_z: 1,
                 pad_upper_y: 1,
                 pad_upper_x: 1,
-                constant: 0.0,
-            },
+                constant: 0.0 },
             "Constant Pad",
         )
         .clicked()
@@ -231,8 +212,7 @@ pub fn show_second_half(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
             pad_upper_z: 1,
             pad_upper_y: 1,
             pad_upper_x: 1,
-            constant: 0.0,
-        };
+            constant: 0.0 };
     }
 
     super::selector_values_third::show_third_half(ui, active_filter);

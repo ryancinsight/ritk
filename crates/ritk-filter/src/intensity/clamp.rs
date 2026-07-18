@@ -16,7 +16,7 @@
 //!
 //! ## Invariants
 //!
-//! - All output values satisfy `lower â‰¤ out(x) â‰¤ upper`.
+//! - All output values satisfy `lower Ã¢â€°Â¤ out(x) Ã¢â€°Â¤ upper`.
 //! - If all input values already lie in `[lower, upper]`, the output equals
 //!   the input exactly.
 //! - `lower > upper` is a logic error; the constructor panics.
@@ -34,7 +34,7 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// â”€â”€ Filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬ Filter struct Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 /// Clamp image intensity to the closed interval `[lower, upper]`.
 ///
@@ -44,7 +44,7 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 ///
 /// # Invariants
 ///
-/// - `lower â‰¤ upper` (enforced by constructor panic).
+/// - `lower Ã¢â€°Â¤ upper` (enforced by constructor panic).
 /// - All output values lie in `[lower, upper]`.
 #[derive(Debug, Clone)]
 pub struct ClampImageFilter {
@@ -63,7 +63,7 @@ impl ClampImageFilter {
     pub fn new(lower: f32, upper: f32) -> Self {
         assert!(
             lower <= upper,
-            "ClampImageFilter: lower bound {lower} must be â‰¤ upper bound {upper}"
+            "ClampImageFilter: lower bound {lower} must be Ã¢â€°Â¤ upper bound {upper}"
         );
         Self { lower, upper }
     }
@@ -75,7 +75,7 @@ impl ClampImageFilter {
     /// # Errors
     ///
     /// Returns `Err` if the tensor data cannot be extracted as `f32`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let out = clamp_vec(&vals, self.lower, self.upper);
         Ok(rebuild(out, dims, image))
@@ -115,7 +115,7 @@ pub(crate) fn clamp_vec(vals: &[f32], lower: f32, upper: f32) -> Vec<f32> {
     vals.iter().map(|&v| v.clamp(lower, upper)).collect()
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_clamp.rs"]

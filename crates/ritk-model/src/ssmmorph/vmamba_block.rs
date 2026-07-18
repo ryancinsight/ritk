@@ -1,4 +1,4 @@
-//! VMamba convolution/state-space block.
+﻿//! VMamba convolution/state-space block.
 
 use coeus_autograd::{add, gelu, permute, reshape, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
@@ -22,8 +22,7 @@ pub struct VMambaBlockConfig {
     /// State-space output dropout probability.
     pub dropout: f64,
     /// Spatial dimensionality of the scan.
-    pub dimensionality: ScanDimensionality,
-}
+    pub dimensionality: ScanDimensionality }
 
 impl VMambaBlockConfig {
     /// Construct the standard volumetric block configuration.
@@ -34,8 +33,7 @@ impl VMambaBlockConfig {
             expand_factor: 2,
             state_dim: 16,
             dropout: 0.0,
-            dimensionality: ScanDimensionality::Scan3d,
-        }
+            dimensionality: ScanDimensionality::Scan3d }
     }
 }
 
@@ -52,8 +50,7 @@ where
     state_space: SelectiveStateSpace<B>,
     ffn_expand: Linear<f32, B>,
     ffn_project: Linear<f32, B>,
-    channels: usize,
-}
+    channels: usize }
 
 impl<B> VMambaBlock<B>
 where
@@ -69,12 +66,10 @@ where
             state_dim: config.state_dim,
             expand_factor: config.expand_factor,
             dt_rank: 16,
-            dropout: config.dropout,
-        });
+            dropout: config.dropout });
         let scan_config = match config.dimensionality {
             ScanDimensionality::Scan2d => CrossScanConfig::new_2d(),
-            ScanDimensionality::Scan3d => CrossScanConfig::new_3d(),
-        };
+            ScanDimensionality::Scan3d => CrossScanConfig::new_3d() };
         let mut block = Self {
             first_norm: LayerNorm::new(config.dim, 1e-5),
             second_norm: LayerNorm::new(config.dim, 1e-5),
@@ -83,8 +78,7 @@ where
             state_space,
             ffn_expand: Linear::new(config.dim, config.dim * 4, true),
             ffn_project: Linear::new(config.dim * 4, config.dim, true),
-            channels: config.dim,
-        };
+            channels: config.dim };
         crate::initialization::depthwise_convolution(&mut block.local_features, 3, 401);
         crate::initialization::linear(&mut block.ffn_expand, config.dim, config.dim * 4, 402);
         crate::initialization::linear(&mut block.ffn_project, config.dim * 4, config.dim, 403);
@@ -98,8 +92,7 @@ where
             return Err(ModelError::Shape {
                 operation: "VMambaBlock::forward",
                 expected: "[batch, channels, depth, height, width]",
-                actual: shape.to_vec(),
-            });
+                actual: shape.to_vec() });
         }
         let (batch, depth, height, width) = (shape[0], shape[2], shape[3], shape[4]);
         let normalized = self

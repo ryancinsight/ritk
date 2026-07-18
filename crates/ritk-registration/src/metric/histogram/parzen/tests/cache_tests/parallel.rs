@@ -1,4 +1,4 @@
-//! Parallel dispatch path verification.
+﻿//! Parallel dispatch path verification.
 
 use super::super::*;
 
@@ -12,8 +12,8 @@ fn direct_parallel_matches_sparse() {
     let fixed: Vec<f32> = (0..n).map(|i| (i as f32 * 0.25) % 255.0).collect();
     let moving: Vec<f32> = (0..n).map(|i| (i as f32 * 0.18 + 10.0) % 255.0).collect();
 
-    let fixed_tensor = Tensor::<B, 1>::from_floats(fixed.as_slice(), &dev);
-    let moving_tensor = Tensor::<B, 1>::from_floats(moving.as_slice(), &dev);
+    let fixed_tensor = Tensor::<f32, B>::from_floats(fixed.as_slice(), &dev);
+    let moving_tensor = Tensor::<f32, B>::from_floats(moving.as_slice(), &dev);
 
     let dispatch_hist = hist.compute_joint_histogram_dispatch(&fixed_tensor, &moving_tensor, None);
     let dispatch_data = dispatch_hist.into_data();
@@ -69,6 +69,6 @@ fn direct_parallel_matches_sparse() {
     let ratio = dispatch_total / sparse_total;
     assert!(
         (ratio - 1.0).abs() < 0.05,
-        "dispatch/sparse total ratio {ratio} should be ≈ 1.0 (SPARSE-329-01)"
+        "dispatch/sparse total ratio {ratio} should be â‰ˆ 1.0 (SPARSE-329-01)"
     );
 }

@@ -1,8 +1,7 @@
-use super::contexts::{mr_context, sc_context, zc_context, SubbandOrientation, CTX_AGG, CTX_UNI};
+﻿use super::contexts::{mr_context, sc_context, zc_context, SubbandOrientation, CTX_AGG, CTX_UNI};
 use super::{
     any_neighbour_sig, neighbour_sig_counts, neighbour_sig_total, sign_contributions, trace,
-    SampleState,
-};
+    SampleState };
 use crate::jpeg_2000::mq_coder::{initial_contexts, MqEncoder};
 
 /// Encoded code-block data (bitstream + metadata for the tier-2 packet header).
@@ -12,8 +11,7 @@ pub struct EncodedBlock {
     /// Number of coded bit-planes (P in the packet header).
     pub num_bit_planes: u8,
     /// Total number of coding passes included.
-    pub num_passes: u32,
-}
+    pub num_passes: u32 }
 
 /// Encode one EBCOT code-block.
 ///
@@ -28,7 +26,7 @@ pub fn encode_code_block(
     assert_eq!(
         samples.len(),
         width * height,
-        "EBCOT encode: samples length must equal width × height"
+        "EBCOT encode: samples length must equal width Ã— height"
     );
 
     // Determine sign and magnitude from DC-shifted samples.
@@ -42,8 +40,7 @@ pub fn encode_code_block(
         return EncodedBlock {
             bytes: vec![0u8; 2],
             num_bit_planes: 0,
-            num_passes: 0,
-        };
+            num_passes: 0 };
     }
 
     // Number of bit-planes = floor(log2(max_mag)) + 1.
@@ -61,13 +58,13 @@ pub fn encode_code_block(
     let mut ctxs = initial_contexts();
     let mut total_passes = 0u32;
 
-    // The first (MSB) plane is cleanup-only (ISO 15444-1 §D.4.1): SPP/MRP are
-    // skipped, giving the standard pass count 3P − 2 for P coded bit-planes.
+    // The first (MSB) plane is cleanup-only (ISO 15444-1 Â§D.4.1): SPP/MRP are
+    // skipped, giving the standard pass count 3P âˆ’ 2 for P coded bit-planes.
     for bp in (0..num_bit_planes as u32).rev() {
         let first_plane = bp + 1 == u32::from(num_bit_planes);
         if !first_plane {
-            // ── SPP ──────────────────────────────────────────────────────────────
-            // Stripe-oriented scan (ISO 15444-1 §D.2): 4-row stripes, columns
+            // â”€â”€ SPP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // Stripe-oriented scan (ISO 15444-1 Â§D.2): 4-row stripes, columns
             // within each stripe, rows within each column.
             let mut sy = 0;
             while sy < height {
@@ -102,7 +99,7 @@ pub fn encode_code_block(
             }
             total_passes += 1;
 
-            // ── MRP ──────────────────────────────────────────────────────────────
+            // â”€â”€ MRP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             let mut sy = 0;
             while sy < height {
                 for x in 0..width {
@@ -124,7 +121,7 @@ pub fn encode_code_block(
             total_passes += 1;
         } // end !first_plane (SPP + MRP)
 
-        // ── CUP ──────────────────────────────────────────────────────────────
+        // â”€â”€ CUP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let mut y = 0;
         while y < height {
             let mut x = 0;
@@ -226,6 +223,5 @@ pub fn encode_code_block(
     EncodedBlock {
         bytes,
         num_bit_planes,
-        num_passes: total_passes,
-    }
+        num_passes: total_passes }
 }

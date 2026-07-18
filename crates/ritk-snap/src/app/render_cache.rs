@@ -1,4 +1,4 @@
-use super::state::ProjectionMode;
+﻿use super::state::ProjectionMode;
 
 /// Per-voxel opacity scale for volume rendering. Canonical value per GPU VR spec.
 const DEFAULT_VR_ALPHA: f32 = 0.06;
@@ -28,13 +28,11 @@ impl SnapApp {
             let slice_index = match axis {
                 0 => self.viewer_state.slice_index,
                 1 => self.coronal_slice,
-                _ => self.sagittal_slice,
-            };
+                _ => self.sagittal_slice };
             let name = match axis {
                 0 => "slice_tex_axial",
                 1 => "slice_tex_coronal",
-                _ => "slice_tex_sagittal",
-            };
+                _ => "slice_tex_sagittal" };
             let img = SliceRenderer::render_with_scratch(
                 &mut self.render_buffer_pool,
                 vol,
@@ -52,8 +50,7 @@ impl SnapApp {
         match axis {
             0 => self.texture = Some(tex),
             1 => self.coronal_tex = Some(tex),
-            _ => self.sagittal_tex = Some(tex),
-        }
+            _ => self.sagittal_tex = Some(tex) }
     }
 
     /// Render the 3D-MIP projection through WL LUT and upload to the GPU.
@@ -72,13 +69,12 @@ impl SnapApp {
             .max(1.0) as f64;
         let wl = WindowLevel::new(wc, ww);
 
-        // ── GPU-accelerated MIP and VR (native only) ─────────────────────────
+        // â”€â”€ GPU-accelerated MIP and VR (native only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(ref mut gpu) = self.gpu_renderer {
             let gpu_img = match self.projection_mode {
                 ProjectionMode::Mip => gpu.render_mip(&vol, wl, self.colormap),
-                ProjectionMode::Vr => gpu.render_vr(&vol, wl, self.colormap, DEFAULT_VR_ALPHA),
-            };
+                ProjectionMode::Vr => gpu.render_vr(&vol, wl, self.colormap, DEFAULT_VR_ALPHA) };
             if let Some(img) = gpu_img {
                 self.mip_tex = Some(ctx.load_texture(
                     "slice_tex_mip_axial",
@@ -93,7 +89,7 @@ impl SnapApp {
             );
         }
 
-        // ── CPU fallback (always available) ──────────────────────────────────
+        // â”€â”€ CPU fallback (always available) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let color_image = match self.projection_mode {
             ProjectionMode::Mip => render_mip_axial_with_scratch(
                 &mut self.render_buffer_pool.rgba_u8,
@@ -107,8 +103,7 @@ impl SnapApp {
                 wl,
                 self.colormap,
                 0.06,
-            ),
-        };
+            ) };
         self.mip_tex = Some(ctx.load_texture(
             "slice_tex_mip_axial",
             color_image,
@@ -129,7 +124,7 @@ impl SnapApp {
             self.mip_tex.as_ref().map(|t| (t.id(), t.size()))
         else {
             ui.centered_and_justified(|ui| {
-                ui.label("3D MIP — open a volume to begin");
+                ui.label("3D MIP â€” open a volume to begin");
             });
             return;
         };
@@ -162,8 +157,7 @@ impl SnapApp {
         let painter = ui.painter_at(response.rect);
         let label = match self.projection_mode {
             ProjectionMode::Mip => "3D MIP",
-            ProjectionMode::Vr => "3D VR",
-        };
+            ProjectionMode::Vr => "3D VR" };
         painter.text(
             response.rect.min + egui::vec2(OVERLAY_LABEL_INSET, OVERLAY_LABEL_INSET),
             egui::Align2::LEFT_TOP,

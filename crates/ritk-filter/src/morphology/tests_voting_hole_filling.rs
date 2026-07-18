@@ -1,8 +1,7 @@
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
 fn filt() -> VotingBinaryHoleFillingImageFilter {
     VotingBinaryHoleFillingImageFilter::new([1, 1, 1], 1, 1.0, 0.0)
@@ -14,7 +13,7 @@ fn filt() -> VotingBinaryHoleFillingImageFilter {
 fn fills_surrounded_hole() {
     let mut v = vec![1.0f32; 25];
     v[2 * 5 + 2] = 0.0; // hole at (y=2, x=2)
-    let img = ts::burn_compat::make_image::<B, 3>(v, [1, 5, 5]);
+    let img = ts::make_image::<f32, B, 3>(v, [1, 5, 5]);
     let out = filt().apply(&img);
     assert_eq!(out.data_slice().into_owned()[2 * 5 + 2], 1.0);
 }
@@ -28,7 +27,7 @@ fn sparse_background_not_filled() {
     v[at(1, 1)] = 1.0;
     v[at(1, 2)] = 1.0;
     v[at(2, 1)] = 1.0;
-    let img = ts::burn_compat::make_image::<B, 3>(v, [1, 5, 5]);
+    let img = ts::make_image::<f32, B, 3>(v, [1, 5, 5]);
     let out = filt().apply(&img);
     assert_eq!(out.data_slice().into_owned()[2 * 5 + 2], 0.0);
 }
@@ -38,7 +37,7 @@ fn sparse_background_not_filled() {
 fn foreground_always_survives() {
     let mut v = vec![0.0f32; 25];
     v[2 * 5 + 2] = 1.0;
-    let img = ts::burn_compat::make_image::<B, 3>(v, [1, 5, 5]);
+    let img = ts::make_image::<f32, B, 3>(v, [1, 5, 5]);
     let out = filt().apply(&img);
     assert_eq!(out.data_slice().into_owned()[2 * 5 + 2], 1.0);
 }
@@ -49,7 +48,7 @@ fn foreground_always_survives() {
 fn corner_fills_under_clamp_boundary() {
     let mut v = vec![1.0f32; 16];
     v[0] = 0.0; // corner (0,0)
-    let img = ts::burn_compat::make_image::<B, 3>(v, [1, 4, 4]);
+    let img = ts::make_image::<f32, B, 3>(v, [1, 4, 4]);
     let out = filt().apply(&img);
     assert_eq!(out.data_slice().into_owned()[0], 1.0);
 }
@@ -60,7 +59,7 @@ fn corner_fills_under_clamp_boundary() {
 fn iterative_converges_and_zero_iters_is_identity() {
     let mut v = vec![1.0f32; 25];
     v[2 * 5 + 2] = 0.0;
-    let img = ts::burn_compat::make_image::<B, 3>(v.clone(), [1, 5, 5]);
+    let img = ts::make_image::<f32, B, 3>(v.clone(), [1, 5, 5]);
     let once = filt().apply(&img).data_slice().into_owned();
     let iter = filt().apply_iterative(&img, 10).data_slice().into_owned();
     assert_eq!(once, iter, "single converged pass == iterative fixed point");

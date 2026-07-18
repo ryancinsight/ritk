@@ -1,4 +1,4 @@
-//! Core TRE sanity and coordinate-system self-consistency tests for RIRE registration.
+﻿//! Core TRE sanity and coordinate-system self-consistency tests for RIRE registration.
 //!
 //! This file contains:
 //! - Pure-math TRE sanity tests (no data required)
@@ -6,8 +6,8 @@
 //! - Center-of-mass initialization test (data-gated)
 //!
 //! For the actual registration algorithm tests, see:
-//! - `rire_registration_rigid_test.rs` — GlobalMI rigid/translation tests
-//! - `rire_registration_cma_test.rs` — CMA-ES, multi-start, and multiscale tests
+//! - `rire_registration_rigid_test.rs` â€” GlobalMI rigid/translation tests
+//! - `rire_registration_cma_test.rs` â€” CMA-ES, multi-start, and multiscale tests
 //!
 //! # Running
 //!
@@ -39,15 +39,14 @@
 mod common;
 use common::{
     apply_ritk_m4_to_rire_point, compute_tre, find_rire_dir, identity_m4, ncc, normalize_minmax,
-    resample_mri_into_ct_ritk, B, RIRE_CORNERS,
-};
+    resample_mri_into_ct_ritk, B, RIRE_CORNERS };
 use ritk_io::read_metaimage;
 use ritk_registration::translation_from_centers_of_mass;
 
-// ── Pure-math TRE sanity (no data required) ─────────────────────────────────
+// â”€â”€ Pure-math TRE sanity (no data required) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Verify that `apply_ritk_m4_to_rire_point` with the identity matrix returns
-/// the input unchanged (i.e., the RIRE ↔ RITK permutation round-trips cleanly).
+/// the input unchanged (i.e., the RIRE â†” RITK permutation round-trips cleanly).
 #[test]
 fn test_identity_m4_gives_zero_coordinate_mapping_change() {
     let id = identity_m4();
@@ -70,7 +69,7 @@ fn test_identity_m4_gives_zero_coordinate_mapping_change() {
 fn test_identity_tre_reflects_rire_misalignment() {
     let id = identity_m4();
     let (mean_tre, max_tre) = compute_tre(&id);
-    println!("Identity TRE — mean: {mean_tre:.2} mm, max: {max_tre:.2} mm");
+    println!("Identity TRE â€” mean: {mean_tre:.2} mm, max: {max_tre:.2} mm");
     assert!(
         mean_tre > 30.0,
         "Expected identity mean TRE > 30 mm (confirming misalignment), got {mean_tre:.2} mm"
@@ -81,10 +80,10 @@ fn test_identity_tre_reflects_rire_misalignment() {
     );
 }
 
-// ── Coordinate-system self-consistency tests ─────────────────────────────────
+// â”€â”€ Coordinate-system self-consistency tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Verify that `resample_mri_into_ct_ritk` with the identity transform produces
-/// voxel values consistent with the direct volume data (i.e., the RITK→MRI-index
+/// voxel values consistent with the direct volume data (i.e., the RITKâ†’MRI-index
 /// mapping is correct when there is no motion).
 ///
 /// With identity transform and matching spacing/shape the resampled MRI should
@@ -119,7 +118,7 @@ fn test_resampling_helper_self_consistency() {
     let mri_resampled_norm = normalize_minmax(&mri_resampled);
     let self_ncc = ncc(&mri_norm, &mri_resampled_norm);
 
-    println!("Self-resample NCC (should be ≈ 1.0): {self_ncc:.6}");
+    println!("Self-resample NCC (should be â‰ˆ 1.0): {self_ncc:.6}");
     assert!(
         self_ncc > 0.99,
         "Self-resample NCC should be > 0.99 (identity transform, same grid), got {self_ncc:.6}"
@@ -130,7 +129,7 @@ fn test_resampling_helper_self_consistency() {
 ///
 /// This is a pure-math test (no registration run). It loads the CT and MRI
 /// images and checks that `translation_from_centers_of_mass` returns a
-/// vector whose magnitude is in a physically reasonable range (5–60 mm).
+/// vector whose magnitude is in a physically reasonable range (5â€“60 mm).
 /// The exact value is not asserted since it depends on image content, but
 /// any anatomically plausible scan should have the CoM translation within
 /// the expected range for the RIRE patient-001 dataset.

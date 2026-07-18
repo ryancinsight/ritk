@@ -3,19 +3,19 @@
 //!
 //! # Mathematical Specification
 //!
-//! Deterministic (NOT an iterative PDE). The zero level set of `φ` is located by
+//! Deterministic (NOT an iterative PDE). The zero level set of `Ï†` is located by
 //! a neighbourhood crossing extractor: a voxel adjacent to a sign change of
-//! `φ − level` is a fast-marching seed whose sub-pixel arrival time is
+//! `Ï† âˆ’ level` is a fast-marching seed whose sub-pixel arrival time is
 //!
 //! ```text
-//! distⱼ = centerVal / (centerVal − neighVal) · spacingⱼ   (nearest crossing along axis j)
-//! trial = 1 / √( Σⱼ 1/distⱼ² )                            (multi-axis crossing distance)
+//! distâ±¼ = centerVal / (centerVal âˆ’ neighVal) Â· spacingâ±¼   (nearest crossing along axis j)
+//! trial = 1 / âˆš( Î£â±¼ 1/distâ±¼Â² )                            (multi-axis crossing distance)
 //! ```
 //!
 //! Then [`FastMarchingFilter`] propagates unit speed
 //! from the *outside* seeds (`centerVal > 0`) and the *inside* seeds
-//! (`centerVal ≤ 0`); the output is `+T_out` on outside voxels and `−T_in` on
-//! inside voxels — a signed distance to the level set. Float-exact to SimpleITK.
+//! (`centerVal â‰¤ 0`); the output is `+T_out` on outside voxels and `âˆ’T_in` on
+//! inside voxels â€” a signed distance to the level set. Float-exact to SimpleITK.
 
 use anyhow::Result;
 use ritk_image::tensor::Backend;
@@ -38,7 +38,7 @@ impl ReinitializeLevelSetFilter {
     }
 
     /// Reinitialize the level set.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec_infallible(image);
         let [nz, ny, nx] = dims;
         let n = nz * ny * nx;

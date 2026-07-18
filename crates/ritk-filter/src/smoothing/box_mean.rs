@@ -7,13 +7,13 @@
 //! dividing by the number of in-bounds voxels actually summed:
 //!
 //! ```text
-//! out(z,y,x) = (1/|W|) · Σ_{(k)∈W} I(k),
-//! W = [z−rz, z+rz] × [y−ry, y+ry] × [x−rx, x+rx]  ∩  image
+//! out(z,y,x) = (1/|W|) Â· Î£_{(k)âˆˆW} I(k),
+//! W = [zâˆ’rz, z+rz] Ã— [yâˆ’ry, y+ry] Ã— [xâˆ’rx, x+rx]  âˆ©  image
 //! ```
 //!
 //! # Distinction from [`super::mean::MeanImageFilter`]
 //!
-//! ITK `MeanImageFilter` / `sitk.Mean` uses ZeroFluxNeumann boundaries — it
+//! ITK `MeanImageFilter` / `sitk.Mean` uses ZeroFluxNeumann boundaries â€” it
 //! clamps out-of-bounds neighbours to the edge voxel and divides by the **full**
 //! `(2r+1)^D` window. `BoxMeanImageFilter` instead **shrinks** the window at the
 //! border and divides by the actual in-bounds count. The two agree on the
@@ -25,7 +25,7 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
-/// Box mean filter — clipped-window average (ITK `BoxMeanImageFilter`).
+/// Box mean filter â€” clipped-window average (ITK `BoxMeanImageFilter`).
 #[derive(Debug, Clone, Copy)]
 pub struct BoxMeanImageFilter {
     /// Per-axis radii `[rz, ry, rx]`. ITK default `[1, 1, 1]`.
@@ -39,7 +39,7 @@ impl BoxMeanImageFilter {
     }
 
     /// Apply the box mean to a 3-D image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let (vals, dims) = extract_vec_infallible(image);
         let [nz, ny, nx] = dims;
         let [rz, ry, rx] = self.radius;

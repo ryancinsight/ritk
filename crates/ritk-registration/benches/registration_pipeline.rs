@@ -1,4 +1,4 @@
-//! Criterion benchmarks for the full MI forward-pass pipeline.
+﻿//! Criterion benchmarks for the full MI forward-pass pipeline.
 //!
 //! Measures the hot-path components used by CMA-ES and RSGD registration:
 //!   1. MI forward pass (Mattes, full volume)
@@ -7,7 +7,7 @@
 //!   4. Transform + interpolation chain only
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 
 use ritk_core::image::Image;
 use ritk_interpolation::{Interpolator, LinearInterpolator};
@@ -18,11 +18,11 @@ use ritk_transform::{Transform, TranslationTransform};
 
 type B = burn_ndarray::NdArray<f32>;
 
-/// Create a 32³ ramp test image with intensity range [0, 255].
-fn create_test_image(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<B, 3> {
+/// Create a 32Â³ ramp test image with intensity range [0, 255].
+fn create_test_image(device: &<B as ritk_image::tensor::Backend>::Device) -> Image<f32, B, 3> {
     let n = 32 * 32 * 32;
     let data: Vec<f32> = (0..n).map(|i| i as f32 % 256.0).collect();
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new([32, 32, 32])), device);
+    let tensor = Tensor::<f32, B>::from_slice_on([32, 32, 32], &data, device);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
@@ -47,7 +47,7 @@ fn bench_registration_pipeline(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("RegistrationPipeline");
 
-    // 1. Full MI forward pass (Mattes, 32³ dense)
+    // 1. Full MI forward pass (Mattes, 32Â³ dense)
     group.bench_function("mi_forward_mattes_32cubed", |b| {
         b.iter(|| {
             black_box(Metric::<B, 3>::forward(

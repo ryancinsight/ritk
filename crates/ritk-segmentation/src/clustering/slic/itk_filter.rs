@@ -1,5 +1,5 @@
 use ritk_core::image::Image;
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_tensor_ops::extract_vec_infallible;
 
 use super::itk::slic_itk_impl;
@@ -131,12 +131,12 @@ impl ItkSlicFilter {
     /// # Errors
     ///
     /// Returns an error for zero extents or non-finite samples.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (values, shape) = extract_vec_infallible(image);
         validate_input(&values, shape, self.config.super_grid)?;
         let labels = self.labels(&values, shape);
-        let device = image.data().device();
-        let tensor = Tensor::<B, 3>::from_data(TensorData::new(labels, Shape::new(shape)), &device);
+        let device = B::default();
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &labels, &device);
         Ok(Image::new(
             tensor,
             *image.origin(),

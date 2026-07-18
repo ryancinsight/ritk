@@ -1,5 +1,4 @@
 use super::AdaptiveHistogramEqualizationFilter;
-use crate::native_support::LegacyBurnBackend;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
@@ -7,16 +6,16 @@ use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn img(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(data, dims)
+fn img(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(data, dims)
 }
 
-/// With `α = β = 0` the cumulative function reduces to `0.5·sgn(u−v)`, giving a
+/// With `Î± = Î² = 0` the cumulative function reduces to `0.5Â·sgn(uâˆ’v)`, giving a
 /// rank-based remap. For `[0, 100, 200]` over a full window (radius 2 in x), the
-/// outputs are `iscale·(0.5 + mean_y 0.5·sgn(u−v)) + min`:
-/// pixel 0 → 200·(0.5 − 1/3) = 33.33…, pixel 1 → 100, pixel 2 → 200·(0.5 + 1/3) = 166.67…
+/// outputs are `iscaleÂ·(0.5 + mean_y 0.5Â·sgn(uâˆ’v)) + min`:
+/// pixel 0 â†’ 200Â·(0.5 âˆ’ 1/3) = 33.33â€¦, pixel 1 â†’ 100, pixel 2 â†’ 200Â·(0.5 + 1/3) = 166.67â€¦
 #[test]
 fn adaptive_eq_rank_remap_alpha_beta_zero() {
     let f = AdaptiveHistogramEqualizationFilter {

@@ -1,7 +1,7 @@
-//! J2K main codestream header parser.
+﻿//! J2K main codestream header parser.
 //!
 //! Parses SIZ, COD, QCD (and skips other markers) up to the first SOT.
-//! All fields match the ISO 15444-1 §A.5–§A.6 naming exactly.
+//! All fields match the ISO 15444-1 Â§A.5â€“Â§A.6 naming exactly.
 
 #![allow(dead_code)] // All struct fields are spec-mandated; consumed when full parsing support is added.
 
@@ -9,9 +9,9 @@ use anyhow::{bail, Context, Result};
 
 use super::marker;
 
-// ── Public header types ───────────────────────────────────────────────────────
+// â”€â”€ Public header types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// ISO 15444-1 §A.5.1 – Image and tile size.
+/// ISO 15444-1 Â§A.5.1 â€“ Image and tile size.
 #[derive(Debug, Clone)]
 pub struct SizMarker {
     /// Rsiz: decoder capabilities.
@@ -31,21 +31,19 @@ pub struct SizMarker {
     /// Csiz: number of components.
     pub csiz: u16,
     /// Per-component parameters.
-    pub components: Vec<ComponentSpec>,
-}
+    pub components: Vec<ComponentSpec> }
 
 /// Per-component parameters from SIZ.
 #[derive(Debug, Clone, Copy)]
 pub struct ComponentSpec {
-    /// Ssiz: bit-depth encoded – lower 7 bits = precision−1; bit 7 = signed flag.
+    /// Ssiz: bit-depth encoded â€“ lower 7 bits = precisionâˆ’1; bit 7 = signed flag.
     pub ssiz: u8,
     /// XRsiz / YRsiz: horizontal / vertical sub-sampling factors.
     pub xr_siz: u8,
-    pub yr_siz: u8,
-}
+    pub yr_siz: u8 }
 
 impl ComponentSpec {
-    /// Bit precision (1–38).
+    /// Bit precision (1â€“38).
     #[inline]
     pub fn precision(self) -> u32 {
         u32::from(self.ssiz & 0x7F) + 1
@@ -90,7 +88,7 @@ impl SizMarker {
     }
 }
 
-/// ISO 15444-1 §A.6.1 – Coding style default.
+/// ISO 15444-1 Â§A.6.1 â€“ Coding style default.
 #[derive(Debug, Clone)]
 pub struct CodMarker {
     /// Scod: coding style flags (bit 0 = custom precincts, bit 1 = SOP, bit 2 = EPH).
@@ -112,8 +110,7 @@ pub struct CodMarker {
     /// SPcod: wavelet transform (0 = 9/7 irreversible, 1 = 5/3 reversible).
     pub wavelet_transform: u8,
     /// Optional custom precinct sizes (one per resolution level 0..=num_decomp_levels).
-    pub precinct_sizes: Vec<u8>,
-}
+    pub precinct_sizes: Vec<u8> }
 
 impl CodMarker {
     /// `true` if the 5/3 reversible (lossless) wavelet is selected.
@@ -121,26 +118,25 @@ impl CodMarker {
     pub fn is_lossless(&self) -> bool {
         self.wavelet_transform == 1
     }
-    /// Code-block width (2^(xcb_o+2), clamped to the valid range 4–64).
+    /// Code-block width (2^(xcb_o+2), clamped to the valid range 4â€“64).
     #[inline]
     pub fn cb_width(&self) -> u32 {
         1u32 << (self.xcb_o as u32 + 2)
     }
-    /// Code-block height (2^(ycb_o+2), clamped to the valid range 4–64).
+    /// Code-block height (2^(ycb_o+2), clamped to the valid range 4â€“64).
     #[inline]
     pub fn cb_height(&self) -> u32 {
         1u32 << (self.ycb_o as u32 + 2)
     }
 }
 
-/// ISO 15444-1 §A.6.4 – Quantization default.
+/// ISO 15444-1 Â§A.6.4 â€“ Quantization default.
 #[derive(Debug, Clone)]
 pub struct QcdMarker {
     /// Sqcd: quantization style (lower 5 bits = style, upper 3 = guard bits).
     pub sqcd: u8,
     /// Quantization step sizes (raw bytes; interpretation depends on style).
-    pub step_sizes: Vec<u16>,
-}
+    pub step_sizes: Vec<u16> }
 
 impl QcdMarker {
     /// Number of guard bits (upper 3 bits of Sqcd).
@@ -154,9 +150,9 @@ impl QcdMarker {
         self.sqcd & 0x1F == 0
     }
 
-    /// Per-subband quantizer exponents ε_b in codestream subband order
-    /// (ISO 15444-1 §A.6.4): 1-byte entries carry ε in bits 7–3; 2-byte
-    /// scalar entries carry ε in bits 15–11.
+    /// Per-subband quantizer exponents Îµ_b in codestream subband order
+    /// (ISO 15444-1 Â§A.6.4): 1-byte entries carry Îµ in bits 7â€“3; 2-byte
+    /// scalar entries carry Îµ in bits 15â€“11.
     pub fn exponents(&self) -> Vec<u32> {
         let shift = if self.is_no_quantization() { 3 } else { 11 };
         self.step_sizes
@@ -165,7 +161,7 @@ impl QcdMarker {
             .collect()
     }
 
-    /// Per-subband quantizer mantissas μ_b (scalar styles only): the low 11 bits
+    /// Per-subband quantizer mantissas Î¼_b (scalar styles only): the low 11 bits
     /// of each 2-byte SPqcd entry.  Returns all-zero for the no-quantization
     /// style, where the entries are 1-byte exponents with no mantissa.
     pub fn mantissas(&self) -> Vec<u32> {
@@ -180,7 +176,7 @@ impl QcdMarker {
     }
 }
 
-/// ISO 15444-1 §A.4.2 – Start of Tile-part.
+/// ISO 15444-1 Â§A.4.2 â€“ Start of Tile-part.
 #[derive(Debug, Clone, Copy)]
 pub struct SotMarker {
     /// Isot: tile index.
@@ -190,24 +186,21 @@ pub struct SotMarker {
     /// TPsot: tile-part index within the tile.
     pub tpsot: u8,
     /// TNsot: total number of tile-parts (0 = unknown).
-    pub tnsot: u8,
-}
+    pub tnsot: u8 }
 
 /// Combined main codestream header (parsed fields of interest).
 #[derive(Debug, Clone)]
 pub struct MainHeader {
     pub siz: SizMarker,
     pub cod: CodMarker,
-    pub qcd: QcdMarker,
-}
+    pub qcd: QcdMarker }
 
-// ── Cursor ────────────────────────────────────────────────────────────────────
+// â”€â”€ Cursor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Stateful byte cursor over an immutable slice.
 pub struct Cursor<'a> {
     data: &'a [u8],
-    pos: usize,
-}
+    pos: usize }
 
 impl<'a> Cursor<'a> {
     pub fn new(data: &'a [u8]) -> Self {
@@ -269,7 +262,7 @@ impl<'a> Cursor<'a> {
     }
 }
 
-// ── Public parse entry points ─────────────────────────────────────────────────
+// â”€â”€ Public parse entry points â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Parse the main codestream header, returning the header and the byte offset
 /// at which the first SOT marker starts.
@@ -358,13 +351,12 @@ pub fn parse_sot(data: &[u8], offset: usize) -> Result<(SotMarker, usize)> {
             isot,
             psot,
             tpsot,
-            tnsot,
-        },
+            tnsot },
         offset + 2 + lsot,
     ))
 }
 
-// ── Private segment parsers ───────────────────────────────────────────────────
+// â”€â”€ Private segment parsers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Parse SIZ segment body (everything after the 2-byte length field).
 fn parse_siz(body: &[u8]) -> Result<SizMarker> {
@@ -398,8 +390,7 @@ fn parse_siz(body: &[u8]) -> Result<SizMarker> {
         components.push(ComponentSpec {
             ssiz: body[base],
             xr_siz: body[base + 1],
-            yr_siz: body[base + 2],
-        });
+            yr_siz: body[base + 2] });
     }
     if xt_siz == 0 || yt_siz == 0 {
         bail!("J2K: tile dimensions XTsiz={xt_siz} YTsiz={yt_siz} must be > 0");
@@ -415,13 +406,12 @@ fn parse_siz(body: &[u8]) -> Result<SizMarker> {
         xto_siz,
         yto_siz,
         csiz,
-        components,
-    })
+        components })
 }
 
 /// Parse COD segment body.
 fn parse_cod(body: &[u8]) -> Result<CodMarker> {
-    // Minimum body: Scod(1)+SGcod(4)+SPcod(9) = 14 – but we already stripped the 2-byte length.
+    // Minimum body: Scod(1)+SGcod(4)+SPcod(9) = 14 â€“ but we already stripped the 2-byte length.
     // Body starts at: Scod, progression_order, num_layers(2), MCT, num_decomp, xcb_o, ycb_o, cb_style, wavelet
     if body.len() < 10 {
         bail!("J2K: COD body too short ({})", body.len());
@@ -456,8 +446,7 @@ fn parse_cod(body: &[u8]) -> Result<CodMarker> {
         ycb_o,
         cb_style,
         wavelet_transform,
-        precinct_sizes,
-    })
+        precinct_sizes })
 }
 
 /// Parse QCD segment body.
@@ -485,8 +474,7 @@ fn parse_qcd(body: &[u8]) -> Result<QcdMarker> {
                 .map(|c| u16::from_be_bytes([c[0], c[1]]))
                 .collect()
         }
-        other => bail!("J2K: unknown QCD quantization style {other}"),
-    };
+        other => bail!("J2K: unknown QCD quantization style {other}") };
     Ok(QcdMarker { sqcd, step_sizes })
 }
 

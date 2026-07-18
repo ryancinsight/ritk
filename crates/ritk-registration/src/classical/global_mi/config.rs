@@ -1,9 +1,9 @@
-//! Configuration types for global MI registration.
+﻿//! Configuration types for global MI registration.
 
 use crate::optimizer::RegularStepGdConfig;
 use ritk_filter::GaussianSigma;
 
-// ─── Transform Type ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Transform Type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Transform type selection for global MI registration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,15 +13,14 @@ pub enum GlobalMiTransformType {
     /// 6 DOF rigid (3 rotation + 3 translation) with center of rotation.
     Rigid,
     /// 12 DOF affine (9 matrix + 3 translation) with center.
-    Affine,
-}
+    Affine }
 
-// ─── Configuration ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Configuration for multi-resolution Mattes MI + RSGD registration.
 ///
 /// Default values are calibrated to match ITK's `ImageRegistrationMethod`
-/// workflow for typical brain MRI registration (≈128³, 1mm isotropic).
+/// workflow for typical brain MRI registration (â‰ˆ128Â³, 1mm isotropic).
 #[derive(Debug, Clone)]
 pub struct GlobalMiConfig {
     /// Number of multi-resolution levels (default: 3).
@@ -43,8 +42,7 @@ pub struct GlobalMiConfig {
     /// Transform type.
     pub transform_type: GlobalMiTransformType,
     /// Center of rotation (None = image center).
-    pub center: Option<[f64; 3]>,
-}
+    pub center: Option<[f64; 3]> }
 
 impl GlobalMiConfig {
     /// Validate configuration invariants.
@@ -55,7 +53,7 @@ impl GlobalMiConfig {
     /// - `smoothing_sigmas.len() == num_levels`
     /// - `rsgd_configs.len() == num_levels`
     /// - `num_mi_bins >= 4`
-    /// - `sampling_percentage ∈ (0, 1]`
+    /// - `sampling_percentage âˆˆ (0, 1]`
     pub fn validate(&self) -> Result<(), String> {
         if self.num_levels == 0 {
             return Err("num_levels must be > 0".to_string());
@@ -145,8 +143,7 @@ impl GlobalMiConfig {
                 },
             ],
             transform_type: GlobalMiTransformType::Rigid,
-            center: None,
-        }
+            center: None }
     }
 
     /// Create a default affine registration configuration.

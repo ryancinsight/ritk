@@ -1,10 +1,10 @@
-//! Coordinate-system utilities for medical image display.
+﻿//! Coordinate-system utilities for medical image display.
 //!
 //! This module provides SSOT helpers for:
 //! - Anatomical frame conversion (`LPS` <-> `RAS`)
 //! - DICOM patient position parsing (`(0018,5100)`)
 
-// Re-export PatientPosition from ritk-io (SSOT — eliminates duplicate enum).
+// Re-export PatientPosition from ritk-io (SSOT â€” eliminates duplicate enum).
 pub use ritk_io::PatientPosition;
 
 /// Anatomical coordinate frame.
@@ -13,16 +13,14 @@ pub enum AnatomicalFrame {
     /// Left-Posterior-Superior patient frame (DICOM/ITK convention).
     Lps,
     /// Right-Anterior-Superior patient frame (NIfTI/FSL convention).
-    Ras,
-}
+    Ras }
 
 impl AnatomicalFrame {
     /// Short display label.
     pub fn label(self) -> &'static str {
         match self {
             Self::Lps => "LPS",
-            Self::Ras => "RAS",
-        }
+            Self::Ras => "RAS" }
     }
 }
 

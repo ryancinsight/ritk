@@ -1,4 +1,4 @@
-/// Configuration for selective state space parameters
+﻿/// Configuration for selective state space parameters
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct StateSpaceParameters {
     /// State dimension (N in paper)
@@ -10,8 +10,7 @@ pub struct StateSpaceParameters {
     /// Minimum value for discretization step
     pub dt_min: f64,
     /// Maximum value for discretization step
-    pub dt_max: f64,
-}
+    pub dt_max: f64 }
 
 impl Default for StateSpaceParameters {
     fn default() -> Self {
@@ -20,8 +19,7 @@ impl Default for StateSpaceParameters {
             expand_factor: 2,
             dt_rank: 16,
             dt_min: 0.001,
-            dt_max: 0.1,
-        }
+            dt_max: 0.1 }
     }
 }
 
@@ -39,8 +37,7 @@ pub struct SelectiveStateSpaceConfig {
     /// Rank for low-rank parameterization
     pub dt_rank: usize,
     /// Dropout probability
-    pub dropout: f64,
-}
+    pub dropout: f64 }
 
 impl SelectiveStateSpaceConfig {
     /// Initialize with input/output dimensions
@@ -51,7 +48,6 @@ impl SelectiveStateSpaceConfig {
             state_dim: 16,
             expand_factor: 2,
             dt_rank: 16,
-            dropout: 0.0,
-        }
+            dropout: 0.0 }
     }
 }

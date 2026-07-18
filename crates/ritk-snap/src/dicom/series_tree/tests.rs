@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 use std::path::{Path, PathBuf};
 
 /// Build a synthetic `SeriesEntry` for testing purposes.
@@ -21,8 +21,7 @@ fn make_entry<'a>(
         series_description: Cow::Owned(format!("{modality} series")),
         num_slices,
         study_date: study_date.map(Cow::Borrowed),
-        study_uid: study_uid.map(Cow::Borrowed),
-    }
+        study_uid: study_uid.map(Cow::Borrowed) }
 }
 
 /// Three series across two patients must produce exactly two patient nodes.
@@ -263,7 +262,7 @@ fn test_from_entries_splits_different_studies() {
     assert_eq!(tree.total_series(), 2);
 }
 
-// ── New Optimization & Architecture Verification Tests ───────────────────────
+// â”€â”€ New Optimization & Architecture Verification Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Test that GAT-based `SeriesEntryView` works for both `SeriesEntry` and `SeriesNode`.
 #[test]
@@ -274,8 +273,7 @@ fn test_gat_series_entry_view() {
         folder: Cow::Borrowed(Path::new("/s1")),
         modality: Cow::Borrowed("CT"),
         series_description: Cow::Borrowed("CT series"),
-        num_slices: 10,
-    };
+        num_slices: 10 };
 
     fn check_gat<V: SeriesEntryView>(view: &V) {
         assert_eq!(view.series_uid().as_ref(), "S1");
@@ -291,12 +289,12 @@ fn test_gat_series_entry_view() {
 /// Test that `ModalityMapper` using const generics correctly matches icons.
 #[test]
 fn test_const_generic_modality_mapper() {
-    let custom_icons: [(&str, &str); 2] = [("CT", "☢CT"), ("MR", "☢MR")];
+    let custom_icons: [(&str, &str); 2] = [("CT", "â˜¢CT"), ("MR", "â˜¢MR")];
     let mapper = ModalityMapper::new(custom_icons);
 
-    assert_eq!(mapper.get_icon("CT"), "☢CT");
-    assert_eq!(mapper.get_icon("MR"), "☢MR");
-    assert_eq!(mapper.get_icon("US"), "🗂"); // Default fallback
+    assert_eq!(mapper.get_icon("CT"), "â˜¢CT");
+    assert_eq!(mapper.get_icon("MR"), "â˜¢MR");
+    assert_eq!(mapper.get_icon("US"), "ðŸ—‚"); // Default fallback
 }
 
 /// Test that monomorphized `format_series_label` produces the expected format.
@@ -313,7 +311,7 @@ fn test_monomorphized_format_series_label() {
         123,
     );
     let label = format_series_label(&entry, &DEFAULT_MODALITY_MAPPER);
-    assert_eq!(label, "🫁 [CT] CT series (123 slices)");
+    assert_eq!(label, "ðŸ« [CT] CT series (123 slices)");
 
     // Test fallback when description is empty
     let empty_desc_entry = SeriesEntry {
@@ -325,10 +323,9 @@ fn test_monomorphized_format_series_label() {
         series_description: Cow::Borrowed(""),
         num_slices: 15,
         study_date: None,
-        study_uid: None,
-    };
+        study_uid: None };
     let label2 = format_series_label(&empty_desc_entry, &DEFAULT_MODALITY_MAPPER);
-    assert_eq!(label2, "🧠 [MR] my_folder (15 slices)");
+    assert_eq!(label2, "ðŸ§  [MR] my_folder (15 slices)");
 }
 
 /// Benchmark test to empirically validate the O(N) linear time construction complexity.
@@ -352,8 +349,7 @@ fn test_bench_tree_construction() {
             series_description: Cow::Borrowed("Bench CT"),
             num_slices: 100,
             study_date: Some(Cow::Borrowed("20260615")),
-            study_uid: Some(Cow::Owned(study_uid)),
-        });
+            study_uid: Some(Cow::Owned(study_uid)) });
     }
 
     let start = Instant::now();

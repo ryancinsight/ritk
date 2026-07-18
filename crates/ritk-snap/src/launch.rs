@@ -1,16 +1,15 @@
-use serde::{Deserialize, Serialize};
+﻿use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Startup configuration for the native `ritk-snap` application.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppLaunchOptions {
     /// Optional DICOM folder or medical image file to load at startup.
-    pub initial_path: Option<PathBuf>,
-}
+    pub initial_path: Option<PathBuf> }
 
 /// Launch the `ritk-snap` native GUI application.
 ///
-/// Initialises `eframe` with a 1280×800 viewport, constructs a `app::SnapApp`,
+/// Initialises `eframe` with a 1280Ã—800 viewport, constructs a `app::SnapApp`,
 /// via [`Default`], and enters the platform event loop. This function blocks
 /// until the window is closed.
 ///
@@ -31,7 +30,7 @@ pub fn run_app() -> anyhow::Result<()> {
 pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("ritk-snap — DICOM Viewer")
+            .with_title("ritk-snap â€” DICOM Viewer")
             .with_inner_size([1280.0, 800.0]),
         ..Default::default()
     };
@@ -42,8 +41,7 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
         Box::new(move |_cc| {
             let app = match options.initial_path.clone() {
                 Some(path) => crate::app::SnapApp::with_initial_path(path),
-                None => crate::app::SnapApp::default(),
-            };
+                None => crate::app::SnapApp::default() };
             Ok(Box::new(app))
         }),
     )

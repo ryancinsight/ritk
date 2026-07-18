@@ -1,4 +1,4 @@
-//! Image-level joint histogram computation with spatial transform and caching.
+﻿//! Image-level joint histogram computation with spatial transform and caching.
 //!
 //! Extracted from `compute.rs` to keep the 500-line structural limit.
 //! Cache/normalization helpers live in [`super::image_cache_helpers`].
@@ -12,13 +12,11 @@ pub(super) enum SamplingMode {
     /// A random subset of voxels is used (stochastic sampling).
     Sampled,
     /// All voxels are used (dense evaluation).
-    Dense,
-}
+    Dense }
 
 use super::super::cache::WFixedCache;
 use super::image_cache_helpers::{
-    cache_matches_image, extract_cached_points, get_cached_w_fixed_t,
-};
+    cache_matches_image, extract_cached_points, get_cached_w_fixed_t };
 #[cfg(feature = "direct-parzen")]
 use super::image_cache_helpers::{get_cached_sparse_w_fixed, normalize_fixed_values};
 use super::ParzenJointHistogram;
@@ -27,7 +25,7 @@ use ritk_core::image::Image;
 use ritk_core::transform::Transform;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
-use ritk_image::{generate_grid_burn, generate_random_points_burn};
+use ritk_image::{generate_grid, generate_random_points};
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 
 // `make_cache` was moved to `super::super::cache` in Sprint 354 (DRY-354-03).
@@ -40,12 +38,12 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// Handles chunking of the spatial domain to respect memory and dispatch limits.
     pub fn compute_image_joint_histogram<const D: usize>(
         &self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
         interpolator: &LinearInterpolator,
         sampling: SamplingConfig,
-    ) -> Tensor<B, 2> {
+    ) -> Tensor<f32, B> {
         let fixed_shape = fixed.shape();
         let device = fixed.data().device();
 
@@ -53,7 +51,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
         let total_voxels = fixed_shape.iter().product::<usize>();
         let (fixed_indices, n, use_sampling, cached_points) = if sampling.is_active() {
             let num_samples = resolve_n_points(&sampling, total_voxels);
-            let indices = generate_random_points_burn(fixed_shape, num_samples, &device);
+            let indices = generate_random_points(fixed_shape, num_samples, &device);
             (Some(indices), num_samples, SamplingMode::Sampled, None)
         } else {
             let cached_points = self.cache.with_ref(|cache| {
@@ -65,13 +63,13 @@ impl<B: Backend> ParzenJointHistogram<B> {
             if let Some(pts) = cached_points {
                 (None, total_voxels, SamplingMode::Dense, Some(pts))
             } else {
-                let indices = generate_grid_burn(fixed_shape, &device);
+                let indices = generate_grid(fixed_shape, &device);
                 (Some(indices), total_voxels, SamplingMode::Dense, None)
             }
         };
 
         if n <= ritk_wgpu_compat::WGPU_CHUNK_SIZE {
-            // ── Non-chunked path ──
+            // â”€â”€ Non-chunked path â”€â”€
             let cached_w_fixed_t = (use_sampling == SamplingMode::Dense)
                 .then(|| {
                     self.cache
@@ -99,7 +97,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 )
             };
 
-            let (moving_values, oob_mask): (Tensor<B, 1>, Option<Tensor<B, 1>>) = {
+            let (moving_values, oob_mask): (Tensor<f32, B>, Option<Tensor<f32, B>>) = {
                 let moving_points = transform.transform_points(fixed_points);
                 let moving_indices = moving.world_to_index_tensor(moving_points);
                 let oob = if D == 3 {
@@ -114,9 +112,9 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 (values, oob)
             };
 
-            // ── Sparse cache path (CMA-ES, direct-parzen) ────────────────────────────────────────────────────
+            // â”€â”€ Sparse cache path (CMA-ES, direct-parzen) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             // Prefer the sparse dispatch when available: it eliminates the
-            // 0..num_bins inner scan and the `if w_f > 0.0` branch (~3× faster
+            // 0..num_bins inner scan and the `if w_f > 0.0` branch (~3Ã— faster
             // than the dense cache path on CPU). Only safe for derivative-free
             // backends (CMA-ES uses B::InnerBackend).
             #[cfg(feature = "direct-parzen")]
@@ -183,7 +181,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 )
             }
         } else {
-            // ── Chunked path ──
+            // â”€â”€ Chunked path â”€â”€
             self.compute_image_joint_histogram_chunked(
                 fixed,
                 moving,
@@ -203,53 +201,53 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// This is the public cache-hit fast path: callers that have precomputed
     /// the fixed-image Parzen weight matrix once (e.g. via the first iteration
     /// of a registration level, then `extract_w_fixed_t_cache`) can pass the
-    /// matrix directly to avoid the O(N × num_bins) Parzen weight
+    /// matrix directly to avoid the O(N Ã— num_bins) Parzen weight
     /// recomputation on every iteration.
     ///
     /// # Arguments
-    /// * `fixed` — Fixed reference image (used for spatial transform, OOB mask, and cache key).
-    /// * `moving` — Moving image.
-    /// * `transform` — Current candidate transform.
-    /// * `interpolator` — Interpolator for sampling `moving`.
-    /// * `w_fixed_transposed` — Precomputed Parzen weight matrix `[num_bins, N]`.
-    ///   Treated as a constant — the autodiff path goes through the moving
+    /// * `fixed` â€” Fixed reference image (used for spatial transform, OOB mask, and cache key).
+    /// * `moving` â€” Moving image.
+    /// * `transform` â€” Current candidate transform.
+    /// * `interpolator` â€” Interpolator for sampling `moving`.
+    /// * `w_fixed_transposed` â€” Precomputed Parzen weight matrix `[num_bins, N]`.
+    ///   Treated as a constant â€” the autodiff path goes through the moving
     ///   image's interpolation only.
-    /// * `n` — Number of points `N` in `w_fixed_transposed`. Must match the
+    /// * `n` â€” Number of points `N` in `w_fixed_transposed`. Must match the
     ///   second dimension of `w_fixed_transposed`.
     ///
     /// # Returns
     /// Joint histogram `[num_bins, num_bins]` on autodiff graph.
     ///
     /// # Performance
-    /// For a 256³ volume with Mattes MI (50 bins), the full-grid
+    /// For a 256Â³ volume with Mattes MI (50 bins), the full-grid
     /// `W_fixed^T` matrix is `[50, 16M]` = ~3.2 GB. Recomputing it every
     /// iteration costs ~400 ms on a 16-core CPU; reusing it across iterations
     /// of one level saves ~99 % of that on iteration 2+. See
-    /// `docs/audit_optimization_sprint_350.md` §2.3 for the breakdown.
+    /// `docs/audit_optimization_sprint_350.md` Â§2.3 for the breakdown.
     pub fn compute_image_joint_histogram_with_w_fixed<const D: usize>(
         &self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
         interpolator: &LinearInterpolator,
-        w_fixed_transposed: &Tensor<B, 2>,
+        w_fixed_transposed: &Tensor<f32, B>,
         n: usize,
-    ) -> Tensor<B, 2> {
+    ) -> Tensor<f32, B> {
         let device = fixed.data().device();
 
         // Reuse cached fixed_points if available, else build them on demand.
-        // We do NOT populate the internal HistogramCache here — the caller
+        // We do NOT populate the internal HistogramCache here â€” the caller
         // owns the W_fixed^T.
         let fixed_points = if let Some(pts) = extract_cached_points(fixed, &self.cache) {
             pts
         } else {
-            let indices = generate_grid_burn(fixed.shape(), &device);
+            let indices = generate_grid(fixed.shape(), &device);
             fixed.index_to_world_tensor(indices)
         };
 
         if n <= ritk_wgpu_compat::WGPU_CHUNK_SIZE {
-            // ── Non-chunked path ──────────────────────────────────────────────
-            let (moving_values, oob_mask): (Tensor<B, 1>, Option<Tensor<B, 1>>) = {
+            // â”€â”€ Non-chunked path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            let (moving_values, oob_mask): (Tensor<f32, B>, Option<Tensor<f32, B>>) = {
                 let moving_points = transform.transform_points(fixed_points);
                 let moving_indices = moving.world_to_index_tensor(moving_points);
                 let oob = if D == 3 {
@@ -271,7 +269,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
                 oob_mask.as_ref(),
             )
         } else {
-            // ── Chunked path ──────────────────────────────────────────────────
+            // â”€â”€ Chunked path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             self.compute_image_joint_histogram_with_w_fixed_chunked(
                 fixed,
                 moving,
@@ -297,7 +295,7 @@ impl<B: Backend> ParzenJointHistogram<B> {
     /// across subsequent iterations.
     pub(crate) fn extract_w_fixed_t_cache<const D: usize>(
         &self,
-        fixed: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
         n: usize,
     ) -> Option<WFixedCache<B>> {
         self.cache.with_ref(|cache_opt| {

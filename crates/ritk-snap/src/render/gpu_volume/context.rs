@@ -1,4 +1,4 @@
-//! wgpu device + queue initialization for headless GPU compute.
+﻿//! wgpu device + queue initialization for headless GPU compute.
 //!
 //! `GpuContext::try_new()` acquires a wgpu adapter and device suitable for
 //! compute work on native targets. Returns `None` when no compatible GPU is
@@ -29,8 +29,7 @@ pub(crate) fn get_shared_device_queue() -> Option<(Arc<Device>, Arc<Queue>)> {
                     Ok("metal") => wgpu::Backends::METAL,
                     Ok("gl") => wgpu::Backends::GL,
                     Ok("browser") => wgpu::Backends::BROWSER_WEBGPU,
-                    _ => wgpu::Backends::all(),
-                };
+                    _ => wgpu::Backends::all() };
                 let instance = wgpu::Instance::new(InstanceDescriptor {
                     backends,
                     ..Default::default()
@@ -39,8 +38,7 @@ pub(crate) fn get_shared_device_queue() -> Option<(Arc<Device>, Arc<Queue>)> {
                     .request_adapter(&RequestAdapterOptions {
                         power_preference: wgpu::PowerPreference::HighPerformance,
                         compatible_surface: None,
-                        force_fallback_adapter: false,
-                    })
+                        force_fallback_adapter: false })
                     .await?;
                 let (device, queue) = adapter
                     .request_device(&wgpu::DeviceDescriptor::default(), None)
@@ -56,8 +54,7 @@ pub(crate) fn get_shared_device_queue() -> Option<(Arc<Device>, Arc<Queue>)> {
 #[derive(Clone)]
 pub(super) struct GpuContext {
     pub device: Arc<Device>,
-    pub queue: Arc<Queue>,
-}
+    pub queue: Arc<Queue> }
 
 impl GpuContext {
     /// Attempt to create a compute-capable GPU context.

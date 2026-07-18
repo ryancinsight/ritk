@@ -1,8 +1,8 @@
-//! RIRE CT/MRI T1 Registration Validation
+﻿//! RIRE CT/MRI T1 Registration Validation
 //!
-//! This example walks through the complete CT↔MRI registration validation
+//! This example walks through the complete CTâ†”MRI registration validation
 //! workflow for the *Retrospective Image Registration Evaluation* (RIRE)
-//! Patient-001 dataset. It is self-contained — all math helpers are inlined —
+//! Patient-001 dataset. It is self-contained â€” all math helpers are inlined â€”
 //! and uses only the CPU NdArray backend (no autodiff, no GPU required).
 //!
 //! # What RIRE is
@@ -11,7 +11,7 @@
 //! rigid inter-modality image registration. Fiducial markers implanted in
 //! cadaver skulls provide millimetre-accurate ground-truth transforms between
 //! CT, MRI-T1, MRI-T2, and PET modalities. The transforms are provided as
-//! ITK Euler3DTransform parameter files. We use Patient-001 CT → MRI T1 here.
+//! ITK Euler3DTransform parameter files. We use Patient-001 CT â†’ MRI T1 here.
 //!
 //! # Running
 //!
@@ -39,8 +39,7 @@ use std::path::PathBuf;
 use constants::{B, GT_ROT, GT_TRANS};
 use math::{
     downsample_stride, euler3d_from_matrix, mat3_det, mat3_mul, mat3_transpose, ncc,
-    normalize_minmax, resample_mri_into_ct_space,
-};
+    normalize_minmax, resample_mri_into_ct_space };
 use pipeline::{perturbation_and_recovery, print_inverse_and_roundtrip, run_cma_es};
 use viz::{ncc_bar, save_comparison_png};
 
@@ -73,25 +72,24 @@ pub struct RireData {
     pub pre_slice: Vec<f32>,
     pub ncc_slice_pre: f64,
     pub ncc_slice_post: f64,
-    pub output_dir: PathBuf,
-}
+    pub output_dir: PathBuf }
 
 fn main() -> anyhow::Result<()> {
-    // ── 1. Header ─────────────────────────────────────────────────────────────
-    println!("╔══════════════════════════════════════════════════════════════╗");
-    println!("║ RIRE CT / MRI-T1 Registration Validation (Patient-001) ║");
-    println!("╚══════════════════════════════════════════════════════════════╝");
+    // â”€â”€ 1. Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    println!("â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
+    println!("â•‘ RIRE CT / MRI-T1 Registration Validation (Patient-001) â•‘");
+    println!("â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
     println!();
     println!("The Retrospective Image Registration Evaluation (RIRE) benchmark");
     println!("provides fiducial-marker ground-truth transforms between CT, MRI,");
-    println!("and PET modalities. This example validates the Patient-001 CT→T1");
+    println!("and PET modalities. This example validates the Patient-001 CTâ†’T1");
     println!("transform by measuring Pearson NCC before and after alignment, then");
     println!("demonstrates that a known voxel-shift perturbation can be exactly");
     println!("inverted to recover the original alignment quality.");
     println!();
 
-    // ── 2. Locate data files ──────────────────────────────────────────────────
-    println!("── Locating RIRE data ─────────────────────────────────────────────");
+    // â”€â”€ 2. Locate data files â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    println!("â”€â”€ Locating RIRE data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€");
     let search_paths = [
         "test_data/registration/rire",
         "../test_data/registration/rire",
@@ -123,8 +121,8 @@ fn main() -> anyhow::Result<()> {
     }
     println!();
 
-    // ── 3. Load images and report metadata ───────────────────────────────────
-    println!("── Loading images ─────────────────────────────────────────────────");
+    // â”€â”€ 3. Load images and report metadata â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    println!("â”€â”€ Loading images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€");
     let device = Default::default();
     print!(" Loading CT ... ");
     let ct_img = read_metaimage::<B, _>(&ct_path, &device)?;
@@ -148,7 +146,7 @@ fn main() -> anyhow::Result<()> {
         let phys_z = sh[0] as f64 * sz;
         println!(" [{label}]");
         println!(
-            "  Shape          : [{} × {} × {}] (nz × ny × nx)",
+            "  Shape          : [{} Ã— {} Ã— {}] (nz Ã— ny Ã— nx)",
             sh[0], sh[1], sh[2]
         );
         println!(
@@ -156,16 +154,16 @@ fn main() -> anyhow::Result<()> {
             sz, sy, sx
         );
         println!(
-            "  Extent         : {:.1} × {:.1} × {:.1} mm (z × y × x)",
+            "  Extent         : {:.1} Ã— {:.1} Ã— {:.1} mm (z Ã— y Ã— x)",
             phys_z, phys_y, phys_x
         );
         println!("  Intensity range : [{:.1}, {:.1}]", vmin, vmax);
         println!();
     }
 
-    // ── 4. Ground-truth transform ─────────────────────────────────────────────
-    println!("── Ground-truth CT → MRI T1 transform ────────────────────────────");
-    println!(" Rotation matrix R (row-major 3×3):");
+    // â”€â”€ 4. Ground-truth transform â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    println!("â”€â”€ Ground-truth CT â†’ MRI T1 transform â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€");
+    println!(" Rotation matrix R (row-major 3Ã—3):");
     for row in 0..3 {
         println!(
             "  [ {:+.9} {:+.9} {:+.9} ]",
@@ -179,15 +177,15 @@ fn main() -> anyhow::Result<()> {
         GT_TRANS[0], GT_TRANS[1], GT_TRANS[2]
     );
 
-    // Decompose into ITK Euler3D angles (convention: R = Rz·Rx·Ry).
+    // Decompose into ITK Euler3D angles (convention: R = RzÂ·RxÂ·Ry).
     let (ax, ay, az) = euler3d_from_matrix(&GT_ROT);
     println!();
-    println!(" Euler3D angles (ITK convention R = Rz·Rx·Ry):");
-    println!("  aX = {:+.6} rad ({:+.3}°)", ax, ax.to_degrees());
-    println!("  aY = {:+.6} rad ({:+.3}°)", ay, ay.to_degrees());
-    println!("  aZ = {:+.6} rad ({:+.3}°)", az, az.to_degrees());
+    println!(" Euler3D angles (ITK convention R = RzÂ·RxÂ·Ry):");
+    println!("  aX = {:+.6} rad ({:+.3}Â°)", ax, ax.to_degrees());
+    println!("  aY = {:+.6} rad ({:+.3}Â°)", ay, ay.to_degrees());
+    println!("  aZ = {:+.6} rad ({:+.3}Â°)", az, az.to_degrees());
 
-    // Verify orthogonality: R·R^T should equal I.
+    // Verify orthogonality: RÂ·R^T should equal I.
     let rrt = mat3_mul(&GT_ROT, &mat3_transpose(&GT_ROT));
     let ortho_err = (0..9)
         .map(|i| {
@@ -198,21 +196,21 @@ fn main() -> anyhow::Result<()> {
     let det = mat3_det(&GT_ROT);
     println!();
     println!(" Orthogonality check:");
-    println!("  ‖R·R^T − I‖_∞ = {:.2e} (tol 1e-9)", ortho_err);
+    println!("  â€–RÂ·R^T âˆ’ Iâ€–_âˆž = {:.2e} (tol 1e-9)", ortho_err);
     println!("  det(R)        = {:.9} (should be +1.0)", det);
     println!();
 
-    // ── 5. Inverse transform ──────────────────────────────────────────────────
+    // â”€â”€ 5. Inverse transform â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     print_inverse_and_roundtrip();
 
-    // ── 6. Resample MRI into CT space ─────────────────────────────────────────
-    println!("── Resampling MRI into CT space (stride-4 downsample for speed) ───");
+    // â”€â”€ 6. Resample MRI into CT space â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    println!("â”€â”€ Resampling MRI into CT space (stride-4 downsample for speed) â”€â”€â”€");
     let ct_shape = ct_img.shape();
     let mri_shape = mri_img.shape();
     let ct_data: Vec<f32> = ct_img.data_slice().into_owned();
     let mri_data: Vec<f32> = mri_img.data_slice().into_owned();
 
-    // Spacing in (x/col, y/row, z/slice) order — note spacing()[0]=z, [2]=x.
+    // Spacing in (x/col, y/row, z/slice) order â€” note spacing()[0]=z, [2]=x.
     let ct_sx = ct_img.spacing()[2] as f64;
     let ct_sy = ct_img.spacing()[1] as f64;
     let ct_sz = ct_img.spacing()[0] as f64;
@@ -220,7 +218,7 @@ fn main() -> anyhow::Result<()> {
     let mri_sy = mri_img.spacing()[1] as f64;
     let mri_sz = mri_img.spacing()[0] as f64;
 
-    // Downsample CT with stride 4 → roughly [8 × 128 × 128] at ~2.6 mm/vox.
+    // Downsample CT with stride 4 â†’ roughly [8 Ã— 128 Ã— 128] at ~2.6 mm/vox.
     let stride = 4_usize;
     let (ct_ds_data, ct_ds_shape) = downsample_stride(&ct_data, ct_shape, stride);
     let ct_ds_spacing_xyz = [
@@ -251,7 +249,7 @@ fn main() -> anyhow::Result<()> {
     );
     println!(" GT-aligned resampling complete.");
 
-    // Perturbed resampling (+50 mm in x) — guaranteed to misalign the brains.
+    // Perturbed resampling (+50 mm in x) â€” guaranteed to misalign the brains.
     let t_perturbed = [GT_TRANS[0] + 50.0, GT_TRANS[1], GT_TRANS[2]];
     println!(" Resampling with +50 mm x-perturbation ...");
     let perturbed_mri = resample_mri_into_ct_space(
@@ -265,7 +263,7 @@ fn main() -> anyhow::Result<()> {
     );
     println!(" Perturbed resampling complete.");
 
-    // Identity (no transform) resampling — the "pre-registration" state.
+    // Identity (no transform) resampling â€” the "pre-registration" state.
     let identity_rot = [1.0f64, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
     let identity_trans = [0.0f64; 3];
     println!(" Resampling with identity transform (pre-registration baseline) ...");
@@ -281,11 +279,11 @@ fn main() -> anyhow::Result<()> {
     println!(" Identity resampling complete.");
     println!();
 
-    // ── 7. Side-by-side visual comparison (PNG) ───────────────────────────────
-    println!("── Side-by-side visual comparison (PNG output) ────────────────────");
+    // â”€â”€ 7. Side-by-side visual comparison (PNG) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    println!("â”€â”€ Side-by-side visual comparison (PNG output) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€");
     let [nz_vis, ny_vis, nx_vis] = ct_ds_shape;
 
-    // Pick the middle axial slice — typically the most informative for brain.
+    // Pick the middle axial slice â€” typically the most informative for brain.
     let mid_z = nz_vis / 2;
     let s = mid_z * ny_vis * nx_vis;
     let e = s + ny_vis * nx_vis;
@@ -315,23 +313,23 @@ fn main() -> anyhow::Result<()> {
     );
     println!();
     println!(
-        " Axial slice: z-index {} of {} → physical z ≈ {:.0} mm",
+        " Axial slice: z-index {} of {} â†’ physical z â‰ˆ {:.0} mm",
         mid_z,
         nz_vis,
         mid_z as f64 * ct_ds_spacing_xyz[2]
     );
     println!();
-    println!(" Panel legend (left → right):");
+    println!(" Panel legend (left â†’ right):");
     println!();
-    println!(" ═══════════════════════════════════════════════════════════════════════════");
+    println!(" â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
     println!(" [GREY header] Panel 1: CT (fixed image, soft-tissue window)");
     println!(" [RED  header] Panel 2: Pre-reg overlay (red=CT, green=MRI identity)");
-    println!(" [YELL header] Panel 3: Transform Δ (|GT-aligned − identity| voxelwise)");
+    println!(" [YELL header] Panel 3: Transform Î” (|GT-aligned âˆ’ identity| voxelwise)");
     println!(" [GRN  header] Panel 4: Post-reg overlay (red=CT, green=MRI GT-aligned)");
-    println!(" ═══════════════════════════════════════════════════════════════════════════");
+    println!(" â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
     println!();
     println!(" Overlay colour key:");
-    println!("  Yellow/white areas = good anatomical overlap (CT ≈ MRI after norm)");
+    println!("  Yellow/white areas = good anatomical overlap (CT â‰ˆ MRI after norm)");
     println!("  Red-only areas     = CT signal with no matching MRI tissue");
     println!("  Green-only areas   = MRI signal with no matching CT structure");
     println!();
@@ -344,8 +342,8 @@ fn main() -> anyhow::Result<()> {
     );
     println!();
 
-    // ── 8. Alignment quality (volume-wide) ───────────────────────────────────
-    println!("── Alignment quality (Pearson NCC on minmax-normalised volumes) ───");
+    // â”€â”€ 8. Alignment quality (volume-wide) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    println!("â”€â”€ Alignment quality (Pearson NCC on minmax-normalised volumes) â”€â”€â”€");
     let ct_norm = normalize_minmax(&ct_ds_data);
     let aligned_norm = normalize_minmax(&aligned_mri);
     let perturbed_norm = normalize_minmax(&perturbed_mri);
@@ -365,13 +363,13 @@ fn main() -> anyhow::Result<()> {
         improvement
     );
     if ncc_aligned > ncc_perturbed {
-        println!(" ✓ GT transform improves alignment over the perturbed baseline.");
+        println!(" âœ“ GT transform improves alignment over the perturbed baseline.");
     } else {
-        println!(" ✗ WARNING: GT transform did not improve NCC — check data paths.");
+        println!(" âœ— WARNING: GT transform did not improve NCC â€” check data paths.");
     }
     println!();
 
-    // ── 9. Perturbation-and-recovery workflow ─────────────────────────────────
+    // â”€â”€ 9. Perturbation-and-recovery workflow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let data = RireData {
         ct_path,
         mri_path,
@@ -397,15 +395,14 @@ fn main() -> anyhow::Result<()> {
         pre_slice,
         ncc_slice_pre,
         ncc_slice_post,
-        output_dir: output_dir.to_path_buf(),
-    };
+        output_dir: output_dir.to_path_buf() };
     let perturb = perturbation_and_recovery(&data);
 
-    // ── 10. Summary ────────────────────────────────────────────────────────────
+    // â”€â”€ 10. Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     println!("--- Summary ---");
     println!();
     println!(" Metric                                   NCC value");
-    println!(" ─────────────────────────────────────── ──────────");
+    println!(" â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€");
     println!(
         " CT vs GT-aligned MRI                    {:+.6}",
         data.ncc_aligned
@@ -423,7 +420,7 @@ fn main() -> anyhow::Result<()> {
         perturb.ncc_shift_perturbed
     );
     println!(
-        " CT vs −5-vox recovered                  {:+.6}",
+        " CT vs âˆ’5-vox recovered                  {:+.6}",
         perturb.ncc_shift_recovered
     );
     println!();
@@ -431,13 +428,13 @@ fn main() -> anyhow::Result<()> {
     println!("  1. The RIRE GT transform produces positive NCC (~0.64), confirming");
     println!("     that CT and MRI T1 are modality-correlated when aligned.");
     println!("  2. A 50 mm mis-registration degrades NCC by ~0.30, well beyond any");
-    println!("     noise floor — registration error is reliably detectable with NCC.");
+    println!("     noise floor â€” registration error is reliably detectable with NCC.");
     println!("  3. Composing a known forward shift with its exact inverse returns NCC");
-    println!("     to within 0.05 of the original, validating T ∘ T^{{-1}} ≈ id up to");
+    println!("     to within 0.05 of the original, validating T âˆ˜ T^{{-1}} â‰ˆ id up to");
     println!("     the ~4% boundary zero-padding introduced by the round-trip shift.");
     println!();
 
-    // ── 11. CMA-ES + Center-of-Mass Rigid Registration ───────────────────────
+    // â”€â”€ 11. CMA-ES + Center-of-Mass Rigid Registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let mut data = data;
     run_cma_es(&mut data)?;
 

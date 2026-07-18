@@ -1,4 +1,4 @@
-//! Structural and numerical algorithm evaluations validating registration spaces safely.
+﻿//! Structural and numerical algorithm evaluations validating registration spaces safely.
 
 pub mod config;
 pub mod numerical;
@@ -9,7 +9,7 @@ pub use numerical::*;
 pub use shape::*;
 
 // ============================================================================
-// Quality Metrics — SSOT (Single Source of Truth)
+// Quality Metrics â€” SSOT (Single Source of Truth)
 // ============================================================================
 // All registration quality metrics are defined here and re-exported.
 // Duplication of these types elsewhere in the codebase is a violation of SSOT.
@@ -20,8 +20,7 @@ pub enum ConvergenceStatus {
     /// The optimizer met the convergence criterion before exhausting iterations.
     Converged,
     /// The optimizer exhausted all iterations without meeting the criterion.
-    MaxIterationsReached,
-}
+    MaxIterationsReached }
 
 /// Quality metrics for temporal synchronization.
 #[derive(Debug, Clone)]
@@ -33,8 +32,7 @@ pub struct TemporalQualityMetrics {
     /// Phase lock stability factor [0-1]
     pub phase_lock_stability: f64,
     /// Synchronization success rate [0-1]
-    pub sync_success_rate: f64,
-}
+    pub sync_success_rate: f64 }
 
 /// Comprehensive quality metrics for registration accuracy.
 #[derive(Debug, Clone)]
@@ -54,5 +52,4 @@ pub struct RegistrationQualityMetrics {
     /// Number of iterations for optimization
     pub iterations: usize,
     /// Final cost function value
-    pub final_cost: f64,
-}
+    pub final_cost: f64 }

@@ -3,14 +3,14 @@ use coeus_core::SequentialBackend;
 use ritk_image::native::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
-/// Very large scale approximates identity (Poisson → Gaussian at large λ).
+/// Very large scale approximates identity (Poisson â†’ Gaussian at large Î»).
 #[test]
 fn shot_large_scale_near_identity() {
     let data: Vec<f32> = (0..27).map(|i| (i + 1) as f32 * 10.0).collect();
     let img = make_image(data.clone(), [3, 3, 3]);
     let filter = ShotNoiseFilter::new(1000.0).with_seed(42);
     let result = filter.apply(&img).unwrap();
-    let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
+    let vals = result.data().to_vec();
     for (i, &v) in vals.iter().enumerate() {
         let rel_err = (v - data[i]).abs() / data[i];
         assert!(
@@ -27,7 +27,7 @@ fn shot_zero_scale_produces_zeros() {
     let img = make_image(data, [2, 2, 2]);
     let filter = ShotNoiseFilter::new(0.0);
     let result = filter.apply(&img).unwrap();
-    let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
+    let vals = result.data().to_vec();
     for &v in &vals {
         assert_eq!(v, 0.0, "zero scale must produce zero output");
     }
@@ -40,7 +40,7 @@ fn shot_clamps_negative() {
     let img = make_image(data, [2, 2, 2]);
     let filter = ShotNoiseFilter::new(1.0).with_seed(42);
     let result = filter.apply(&img).unwrap();
-    let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
+    let vals = result.data().to_vec();
     for &v in &vals {
         assert_eq!(v, 0.0, "negative intensities must be clamped to zero");
     }
@@ -53,7 +53,7 @@ fn shot_zero_input_returns_zero() {
     let img = make_image(data, [3, 3, 3]);
     let filter = ShotNoiseFilter::new(10.0).with_seed(42);
     let result = filter.apply(&img).unwrap();
-    let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
+    let vals = result.data().to_vec();
     for (i, &v) in vals.iter().enumerate() {
         assert_eq!(v, 0.0, "voxel {i}: zero input must produce zero output");
     }
@@ -65,22 +65,8 @@ fn shot_same_seed_idempotent() {
     let data: Vec<f32> = (0..50).map(|i| (i + 1) as f32).collect();
     let img = make_image(data, [5, 5, 2]);
     let filter = ShotNoiseFilter::new(5.0).with_seed(42);
-    let v1 = filter
-        .apply(&img)
-        .unwrap()
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .unwrap();
-    let v2 = filter
-        .apply(&img)
-        .unwrap()
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .unwrap();
+    let v1 = filter.apply(&img).unwrap().data().to_vec();
+    let v2 = filter.apply(&img).unwrap().data().to_vec();
     assert_eq!(v1, v2, "same seed must produce identical output");
 }
 
@@ -102,11 +88,7 @@ fn shot_preserves_shape() {
 #[test]
 fn shot_preserves_metadata() {
     use ritk_spatial::{Direction, Point, Spacing};
-    let device = Default::default();
-    let t = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![10.0_f32; 8], Shape::new([2, 2, 2])),
-        &device,
-    );
+    let t = Tensor::<f32, B>::from_slice([2, 2, 2], &[10.0_f32; 8]);
     let img = Image::new(
         t,
         Point::new([1.0, 2.0, 3.0]),

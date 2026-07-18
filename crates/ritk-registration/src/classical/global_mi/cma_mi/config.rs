@@ -1,4 +1,4 @@
-// ─── Configuration ────────────────────────────────────────────────────────────
+﻿// â”€â”€â”€ Configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 use ritk_filter::GaussianSigma;
 
@@ -7,7 +7,7 @@ use crate::optimizer::{HistoryPolicy, PopulationEval};
 
 use super::super::config::GlobalMiConfig;
 
-// ── Per-level cascade configuration ──────────────────────────────────────────
+// â”€â”€ Per-level cascade configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Configuration for a single pyramid level in the CMA-ES multi-scale cascade.
 ///
@@ -26,10 +26,10 @@ pub struct CmaMiLevelConfig {
     pub shrink_per_axis: Option<[usize; 3]>,
 
     /// Gaussian pre-smoothing sigma (mm) applied before downsampling.
-    /// Should be ≥ shrink/2 to satisfy the Nyquist criterion.
+    /// Should be â‰¥ shrink/2 to satisfy the Nyquist criterion.
     pub sigma_mm: GaussianSigma,
 
-    /// CMA-ES initial step-size σ₀ at this level, in normalised parameter
+    /// CMA-ES initial step-size Ïƒâ‚€ at this level, in normalised parameter
     /// units.  Set larger (e.g. 0.8) at coarse levels for wide exploration and
     /// smaller (e.g. 0.1) at fine levels for local refinement.
     pub cma_sigma0: f64,
@@ -37,16 +37,15 @@ pub struct CmaMiLevelConfig {
     /// Maximum CMA-ES generations at this level.
     pub max_generations: usize,
 
-    /// CMA-ES population size λ (0 = auto: 4 + ⌊3·ln n⌋).
+    /// CMA-ES population size Î» (0 = auto: 4 + âŒŠ3Â·ln nâŒ‹).
     pub lambda: usize,
 
     /// IPOP restart count for this level (0 = disabled).
-    pub ipop_restarts: usize,
-}
+    pub ipop_restarts: usize }
 
 impl CmaMiLevelConfig {
     /// Convenience constructor: create a level with the given shrink, smoothing,
-    /// σ₀, and generation budget.  All other fields use sensible defaults.
+    /// Ïƒâ‚€, and generation budget.  All other fields use sensible defaults.
     pub fn new(
         shrink: usize,
         sigma_mm: GaussianSigma,
@@ -60,28 +59,26 @@ impl CmaMiLevelConfig {
             cma_sigma0,
             max_generations,
             lambda: 0,
-            ipop_restarts: 0,
-        }
+            ipop_restarts: 0 }
     }
 }
 
-// ── Main config ───────────────────────────────────────────────────────────────
+// â”€â”€ Main config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Center-of-mass pre-alignment strategy for CMA-ES registration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum InitStrategy {
     /// Automatically compute a center-of-mass translation for pre-alignment (default).
-    /// Note: unreliable for CT↔MRI T1 (HU vs T1 signal). Use `Manual` for cross-modal.
+    /// Note: unreliable for CTâ†”MRI T1 (HU vs T1 signal). Use `Manual` for cross-modal.
     #[default]
     CenterOfMass,
     /// Skip automatic pre-alignment; use the provided initial transform or identity.
-    Manual,
-}
+    Manual }
 
-/// Configuration for the CMA-ES → RSGD cascade registration pipeline.
+/// Configuration for the CMA-ES â†’ RSGD cascade registration pipeline.
 ///
-/// Tune `coarse_shrink` first: a factor of 8 on a typical 256³ brain image
-/// yields 32³ pyramid levels (~32k voxels), keeping each MI evaluation
+/// Tune `coarse_shrink` first: a factor of 8 on a typical 256Â³ brain image
+/// yields 32Â³ pyramid levels (~32k voxels), keeping each MI evaluation
 /// under ~1 ms on CPU.  Increase `cma_config.max_generations` if the search
 /// stalls before convergence.
 ///
@@ -106,16 +103,16 @@ pub struct CmaMiConfig {
     /// Number of histogram bins for MI estimation. Default: **32**.
     pub num_mi_bins: usize,
 
-    /// Fraction of voxels randomly sampled per MI evaluation ∈ (0, 1].
+    /// Fraction of voxels randomly sampled per MI evaluation âˆˆ (0, 1].
     /// Sparse sampling dramatically reduces wall time at the cost of
     /// gradient variance. Default: **0.15** (15%).
     pub sampling_percentage: f32,
 
     /// Half-range for translation parameters in mm. The CMA-ES searches
-    /// `t ∈ [−range, +range]` after normalisation. Default: **60.0 mm**.
+    /// `t âˆˆ [âˆ’range, +range]` after normalisation. Default: **60.0 mm**.
     pub translation_range_mm: f64,
 
-    /// Half-range for rotation parameters in radians. Default: **π/4**.
+    /// Half-range for rotation parameters in radians. Default: **Ï€/4**.
     pub rotation_range_rad: f64,
 
     /// Optional RSGD fine-refinement configuration. When `Some`, a
@@ -125,7 +122,7 @@ pub struct CmaMiConfig {
 
     /// Center-of-mass pre-alignment strategy. Default: [`InitStrategy::CenterOfMass`].
     ///
-    /// Note: CoM initialisation is unreliable for CT↔MRI T1 because HU
+    /// Note: CoM initialisation is unreliable for CTâ†”MRI T1 because HU
     /// densities are bone-dominated while T1 reflects tissue water content.
     /// Use [`InitStrategy::Manual`] for cross-modal registration.
     pub init_strategy: InitStrategy,
@@ -142,27 +139,26 @@ pub struct CmaMiConfig {
 
     /// Mutual information variant used during CMA-ES evaluation.
     ///
-    /// - `Mattes` (default) — cubic B-spline Parzen windows; well-tested.
-    /// - `Normalized(JointEntropy)` — NMI = (H(X)+H(Y))/H(X,Y); more robust
-    ///   to overlap changes during rotation; recommended for brain CT↔MRI.
-    /// - `Standard` — Viola–Wells; simpler but less accurate at sparse sampling.
+    /// - `Mattes` (default) â€” cubic B-spline Parzen windows; well-tested.
+    /// - `Normalized(JointEntropy)` â€” NMI = (H(X)+H(Y))/H(X,Y); more robust
+    ///   to overlap changes during rotation; recommended for brain CTâ†”MRI.
+    /// - `Standard` â€” Violaâ€“Wells; simpler but less accurate at sparse sampling.
     ///
     /// Default: `Mattes` (single-level path); `Normalized(JointEntropy)` in
     /// `brain_rigid_default()` and `brain_rigid_multiscale()`.
     pub mi_variant: MutualInformationVariant,
 
-    /// Multi-scale CMA-ES cascade schedule (coarse → fine).
+    /// Multi-scale CMA-ES cascade schedule (coarse â†’ fine).
     ///
     /// When non-empty, each element defines one pyramid level.  The best
-    /// parameter vector found at level *k* seeds level *k+1* at its σ₀.
+    /// parameter vector found at level *k* seeds level *k+1* at its Ïƒâ‚€.
     /// All levels share `num_mi_bins`, `sampling_percentage`,
     /// `translation_range_mm`, `rotation_range_rad`, `mi_variant`, and the
-    /// seed / σ_tol / ftol from `cma_config`.
+    /// seed / Ïƒ_tol / ftol from `cma_config`.
     ///
     /// When empty (default), the single-level path using `coarse_shrink` and
     /// `cma_config` is used.
-    pub pyramid_schedule: Vec<CmaMiLevelConfig>,
-}
+    pub pyramid_schedule: Vec<CmaMiLevelConfig> }
 
 impl Default for CmaMiConfig {
     fn default() -> Self {
@@ -172,15 +168,14 @@ impl Default for CmaMiConfig {
                 lambda: 0,
                 max_generations: 400,
                 sigma_tol: 1e-8,
-                // The MI objective is −MI(x) which is always negative.
-                // ftol = 1e-12 would fire immediately since −MI < 1e-12 always.
+                // The MI objective is âˆ’MI(x) which is always negative.
+                // ftol = 1e-12 would fire immediately since âˆ’MI < 1e-12 always.
                 // Setting NEG_INFINITY disables this criterion; the search
                 // terminates via max_generations or sigma_tol instead.
                 ftol: f64::NEG_INFINITY,
                 seed: 0xcafe_babe_dead_beef,
                 parallel_population: PopulationEval::Parallel,
-                record_history: HistoryPolicy::Discard,
-            },
+                record_history: HistoryPolicy::Discard },
             coarse_shrink: 8,
             coarse_sigma_mm: GaussianSigma::new_unchecked(4.0),
             num_mi_bins: 32,
@@ -192,22 +187,21 @@ impl Default for CmaMiConfig {
             shrink_per_axis: None,
             ipop_restarts: 0,
             mi_variant: MutualInformationVariant::Mattes,
-            pyramid_schedule: Vec::with_capacity(4),
-        }
+            pyramid_schedule: Vec::with_capacity(4) }
     }
 }
 
 impl CmaMiConfig {
-    /// Pre-tuned configuration for brain CT↔MRI T1 rigid registration without
+    /// Pre-tuned configuration for brain CTâ†”MRI T1 rigid registration without
     /// brain extraction or masking.
     ///
     /// Key design choices:
-    /// - `coarse_shrink = 8`: yields ~4×64×64 pyramid levels on typical brain
-    ///   images; each MI evaluation ≈ 5 ms in release.
+    /// - `coarse_shrink = 8`: yields ~4Ã—64Ã—64 pyramid levels on typical brain
+    ///   images; each MI evaluation â‰ˆ 5 ms in release.
     /// - `sampling_percentage = 0.30`: ~4,900 samples at shrink=8 (4.8/bin).
     /// - `sigma0 = 0.7`: covers ~42 mm from the 60 mm search range.
     /// - `init_strategy = Manual`: CoM is unreliable for CT/MRI (HU vs T1).
-    /// - `mi_variant = Normalized(AverageEntropy)`: 2·MI/(H(X)+H(Y)) is immune
+    /// - `mi_variant = Normalized(AverageEntropy)`: 2Â·MI/(H(X)+H(Y)) is immune
     ///   to the OOB zero-pad artefact that inflates JointEntropy NMI when the
     ///   transform maps many voxels outside the moving image field of view.
     pub fn brain_rigid_default() -> Self {
@@ -220,8 +214,7 @@ impl CmaMiConfig {
                 ftol: f64::NEG_INFINITY,
                 seed: 0xcafe_babe_dead_beef,
                 parallel_population: PopulationEval::Parallel,
-                record_history: HistoryPolicy::Discard,
-            },
+                record_history: HistoryPolicy::Discard },
             coarse_shrink: 8,
             coarse_sigma_mm: GaussianSigma::new_unchecked(4.0),
             num_mi_bins: 32,
@@ -233,15 +226,14 @@ impl CmaMiConfig {
             shrink_per_axis: None,
             ipop_restarts: 0,
             mi_variant: MutualInformationVariant::Normalized(NormalizationMethod::AverageEntropy),
-            pyramid_schedule: Vec::with_capacity(4),
-        }
+            pyramid_schedule: Vec::with_capacity(4) }
     }
 
-    /// Pre-tuned configuration for fast exploratory CT↔MRI registration.
+    /// Pre-tuned configuration for fast exploratory CTâ†”MRI registration.
     ///
     /// Uses a very coarse pyramid (shrink=16) and wider search ranges for rapid
     /// landscape exploration. Best used as a first pass before refining with
-    /// `brain_rigid_default()`.  Each MI evaluation ≈ 1 ms in release.
+    /// `brain_rigid_default()`.  Each MI evaluation â‰ˆ 1 ms in release.
     pub fn fast_exploratory() -> Self {
         Self {
             cma_config: crate::optimizer::CmaEsConfig {
@@ -252,8 +244,7 @@ impl CmaMiConfig {
                 ftol: f64::NEG_INFINITY,
                 seed: 0xcafe_babe_dead_beef,
                 parallel_population: PopulationEval::Parallel,
-                record_history: HistoryPolicy::Discard,
-            },
+                record_history: HistoryPolicy::Discard },
             coarse_shrink: 16,
             coarse_sigma_mm: GaussianSigma::new_unchecked(8.0),
             num_mi_bins: 16,
@@ -265,8 +256,7 @@ impl CmaMiConfig {
             shrink_per_axis: None,
             ipop_restarts: 0,
             mi_variant: MutualInformationVariant::Mattes,
-            pyramid_schedule: Vec::with_capacity(4),
-        }
+            pyramid_schedule: Vec::with_capacity(4) }
     }
 
     /// Pre-tuned configuration for thin-slab CT volumes with few z-slices.
@@ -282,25 +272,25 @@ impl CmaMiConfig {
         }
     }
 
-    /// Pre-tuned three-level coarse-to-fine CMA-ES cascade for brain CT↔MRI T1.
+    /// Pre-tuned three-level coarse-to-fine CMA-ES cascade for brain CTâ†”MRI T1.
     ///
     /// Runs three sequential passes:
     ///
-    /// | Level | Shrink | σ_mm | σ₀  | Max gen | Purpose                     |
+    /// | Level | Shrink | Ïƒ_mm | Ïƒâ‚€  | Max gen | Purpose                     |
     /// |-------|--------|------|-----|---------|-----------------------------|
     /// |   0   |   16   |  8.0 | 0.8 |   100   | Wide exploration, very fast |
     /// |   1   |    8   |  4.0 | 0.3 |   200   | Refine to rough basin       |
     /// |   2   |    4   |  2.0 | 0.1 |   100   | Fine convergence            |
     ///
     /// The best parameters from each level seed the next.  Total wall time is
-    /// roughly 3× the single `brain_rigid_default()` run but typically produces
+    /// roughly 3Ã— the single `brain_rigid_default()` run but typically produces
     /// better TRE by escaping coarse-scale local maxima.
     ///
-    /// Uses NMI (AverageEntropy = 2·MI/(H(X)+H(Y))) which is immune to the
+    /// Uses NMI (AverageEntropy = 2Â·MI/(H(X)+H(Y))) which is immune to the
     /// out-of-bounds (OOB) zero-pad artefact: when the transform maps most fixed
     /// voxels outside the moving image, the OOB samples return 0.0 which inflates
     /// the JointEntropy NMI (H(X)+H(Y))/H(X,Y) by concentrating the joint
-    /// histogram in one column.  AverageEntropy NMI = 2·MI/(H(X)+H(Y)) correctly
+    /// histogram in one column.  AverageEntropy NMI = 2Â·MI/(H(X)+H(Y)) correctly
     /// assigns zero score when MI=0 (full OOB or random mapping), making it a
     /// much cleaner objective for CMA-ES cold-start search.
     pub fn brain_rigid_multiscale() -> Self {
@@ -316,8 +306,7 @@ impl CmaMiConfig {
                 ftol: f64::NEG_INFINITY,
                 seed: 0xcafe_babe_dead_beef,
                 parallel_population: PopulationEval::Parallel,
-                record_history: HistoryPolicy::Discard,
-            },
+                record_history: HistoryPolicy::Discard },
             coarse_shrink: 8, // unused when pyramid_schedule is non-empty
             coarse_sigma_mm: GaussianSigma::new_unchecked(4.0), // unused when pyramid_schedule is non-empty
             num_mi_bins: 32,
@@ -328,15 +317,14 @@ impl CmaMiConfig {
             init_strategy: InitStrategy::Manual,
             shrink_per_axis: None,
             ipop_restarts: 0,
-            // AverageEntropy NMI = 2·MI/(H(X)+H(Y)) is immune to the OOB zero-pad
+            // AverageEntropy NMI = 2Â·MI/(H(X)+H(Y)) is immune to the OOB zero-pad
             // artefact that inflates JointEntropy NMI at large displacements.
             mi_variant: MutualInformationVariant::Normalized(NormalizationMethod::AverageEntropy),
             pyramid_schedule: vec![
                 CmaMiLevelConfig::new(16, GaussianSigma::new_unchecked(8.0), 0.8, 100),
                 CmaMiLevelConfig::new(8, GaussianSigma::new_unchecked(4.0), 0.3, 200),
                 CmaMiLevelConfig::new(4, GaussianSigma::new_unchecked(2.0), 0.1, 100),
-            ],
-        }
+            ] }
     }
 
     /// Pre-tuned three-level coarse-to-fine CMA-ES cascade for **thin-slab** CT volumes
@@ -359,8 +347,8 @@ impl CmaMiConfig {
             pyramid_schedule: vec![
                 CmaMiLevelConfig {
                     shrink_per_axis: Some([1, 16, 16]),
-                    // 1 IPOP restart doubles population → better escape from false MI maxima
-                    // at the very coarse 29×32×32 pyramid level where MI is noisy.
+                    // 1 IPOP restart doubles population â†’ better escape from false MI maxima
+                    // at the very coarse 29Ã—32Ã—32 pyramid level where MI is noisy.
                     ipop_restarts: 1,
                     ..CmaMiLevelConfig::new(16, GaussianSigma::new_unchecked(8.0), 0.8, 150)
                 },

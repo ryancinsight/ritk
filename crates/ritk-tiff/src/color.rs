@@ -1,4 +1,4 @@
-//! TIFF RGB reader for channel-explicit 3-D volumes.
+﻿//! TIFF RGB reader for channel-explicit 3-D volumes.
 //!
 //! Each RGB IFD page contributes one Z-slice to `RgbVolume<f32, B>` with tensor
 //! shape `[depth, height, width, 3]`.
@@ -131,14 +131,12 @@ fn validate_rgb_page<R: Read + Seek>(decoder: &mut Decoder<R>, page_index: usize
             "TIFF RGB color loader supports only RGB pages; page {} decoded as {:?}",
             page_index,
             other
-        )),
-    }
+        )) }
 }
 
 /// Backend-bound reader for RGB TIFF / BigTIFF files.
 pub struct TiffColorReader<B: ComputeBackend> {
-    backend: B,
-}
+    backend: B }
 
 impl<B: ComputeBackend> TiffColorReader<B> {
     pub fn new(backend: B) -> Self {

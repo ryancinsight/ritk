@@ -2,15 +2,15 @@
 //!
 //! # Mathematical Specification
 //!
-//! Unlike a plain morphological opening/closing (erosion∘dilation), the
+//! Unlike a plain morphological opening/closing (erosionâˆ˜dilation), the
 //! *by-reconstruction* variants restore the exact contours of the features that
 //! survive the marker step:
 //!
-//! - **Opening by reconstruction**: `OBR_B(f) = R^δ_f(ε_B(f))` — erode with the
+//! - **Opening by reconstruction**: `OBR_B(f) = R^Î´_f(Îµ_B(f))` â€” erode with the
 //!   structuring element `B`, then reconstruct the eroded marker under `f` by
 //!   dilation. Removes bright structures the SE cannot contain while leaving the
 //!   surviving structures geometrically intact (no corner rounding).
-//! - **Closing by reconstruction**: `CBR_B(f) = R^ε_f(δ_B(f))` — dilate, then
+//! - **Closing by reconstruction**: `CBR_B(f) = R^Îµ_f(Î´_B(f))` â€” dilate, then
 //!   reconstruct under `f` by erosion. The dual, for dark structures.
 //!
 //! The structuring element is a flat cubic (box) element of half-width
@@ -27,14 +27,14 @@
 //!
 //! # References
 //! - Vincent, L. (1993). Morphological grayscale reconstruction in image
-//!   analysis. *IEEE Trans. Image Process.* 2(2):176–201.
+//!   analysis. *IEEE Trans. Image Process.* 2(2):176â€“201.
 
 use crate::morphology::label_morphology::{MorphologicalReconstruction, ReconstructionMode};
 use crate::morphology::{Connectivity, GrayscaleDilation, GrayscaleErosion};
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
-/// Opening by reconstruction: `R^δ_f(ε_B(f))`.
+/// Opening by reconstruction: `R^Î´_f(Îµ_B(f))`.
 #[derive(Debug, Clone)]
 pub struct OpeningByReconstructionFilter {
     radius: usize,
@@ -59,7 +59,7 @@ impl OpeningByReconstructionFilter {
     }
 
     /// Apply opening by reconstruction.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let marker = GrayscaleErosion::new(self.radius).apply(image)?;
         MorphologicalReconstruction::new(ReconstructionMode::Dilation)
             .with_connectivity(self.connectivity)
@@ -91,7 +91,7 @@ impl OpeningByReconstructionFilter {
     }
 }
 
-/// Closing by reconstruction: `R^ε_f(δ_B(f))`.
+/// Closing by reconstruction: `R^Îµ_f(Î´_B(f))`.
 #[derive(Debug, Clone)]
 pub struct ClosingByReconstructionFilter {
     radius: usize,
@@ -115,7 +115,7 @@ impl ClosingByReconstructionFilter {
     }
 
     /// Apply closing by reconstruction.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let marker = GrayscaleDilation::new(self.radius).apply(image)?;
         MorphologicalReconstruction::new(ReconstructionMode::Erosion)
             .with_connectivity(self.connectivity)
@@ -147,7 +147,7 @@ impl ClosingByReconstructionFilter {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_reconstruction_opening_closing.rs"]

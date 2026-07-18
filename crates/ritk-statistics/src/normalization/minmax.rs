@@ -1,9 +1,9 @@
 //! Min-max intensity normalization.
 //!
 //! # Mathematical Specification
-//! Given an image X with intensity range [xₘᵢₙ, xₘₐₓ]:
+//! Given an image X with intensity range [xâ‚˜áµ¢â‚™, xâ‚˜â‚â‚“]:
 //!
-//!   N(x) = (x − xₘᵢₙ) / (xₘₐₓ − xₘᵢₙ + ε),   ε = 1e-8
+//!   N(x) = (x âˆ’ xâ‚˜áµ¢â‚™) / (xâ‚˜â‚â‚“ âˆ’ xâ‚˜áµ¢â‚™ + Îµ),   Îµ = 1e-8
 //!
 //! This maps intensities to [0, 1].  An optional affine remap then applies:
 //!
@@ -21,7 +21,7 @@ use super::intensity_range::IntensityRange;
 use crate::image_statistics::compute_statistics;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::native as tensor_ops;
 
@@ -62,34 +62,17 @@ impl MinMaxNormalizer {
     /// ```
     ///
     /// Spatial metadata is preserved exactly.
-    pub fn normalize<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn normalize<B: Backend, const D: usize>(
+        &self,
+        image: &Image<f32, B, D>,
+    ) -> Image<f32, B, D>
+    where
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
         let stats = compute_statistics(image);
-        let min = stats.min;
-        let max = stats.max;
-        let input_range = (max - min) + super::NORMALIZER_EPSILON;
-
-        // N(x) = (x − min) / (max − min + ε)
-        let normalized = image.data().clone().sub_scalar(min).div_scalar(input_range);
-
-        // R(x) = N(x) · range.span() + range.min()
-        let output_span = self.range.span();
-        let remapped = if (output_span - 1.0).abs() < super::UNIT_RANGE_EPSILON
-            && self.range.min().abs() < super::UNIT_RANGE_EPSILON
-        {
-            // Default [0,1] case: skip the remap arithmetic entirely.
-            normalized
-        } else {
-            normalized
-                .mul_scalar(output_span)
-                .add_scalar(self.range.min())
-        };
-
-        Image::new(
-            remapped,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        )
+        let (mut values, dims) = ritk_tensor_ops::extract_vec_infallible(image);
+        self.remap_values(&mut values, stats.min, stats.max);
+        ritk_tensor_ops::rebuild(values, dims, image)
     }
 }
 

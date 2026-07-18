@@ -1,4 +1,4 @@
-//! Pure-Rust J2K encoder.
+﻿//! Pure-Rust J2K encoder.
 //!
 //! Produces minimal conformant bare J2K codestreams (no JP2 wrapper), as
 //! required for DICOM-encapsulated JPEG 2000 (TS 1.2.840.10008.1.2.4.90 lossless,
@@ -18,7 +18,7 @@
 //! Correctness is verified by the round-trip tests in `mod.rs` which encode with
 //! this module and decode with the pure-Rust decoder: the 5/3 path reconstructs
 //! with exactly zero error (lossless invariant); the 9/7 path reconstructs an
-//! 8-bit image at PSNR ≥ 48 dB (near-lossless invariant).
+//! 8-bit image at PSNR â‰¥ 48 dB (near-lossless invariant).
 
 use super::packet::encode_tile_part;
 pub use super::packet::WaveletTransform;
@@ -36,11 +36,11 @@ const GUARD_BITS: u8 = 2;
 ///   original pixel values before DC shift; for signed they are the signed
 ///   stored values).
 /// - `rows` / `cols`: image dimensions.
-/// - `precision`: bit-depth (1–16; typically 8 or 16).
+/// - `precision`: bit-depth (1â€“16; typically 8 or 16).
 /// - `signed`: whether the component uses signed representation.
 ///
-/// # DC level shift (ISO 15444-1 §G.1.2)
-/// Unsigned components are DC-shifted by `−2^(precision−1)` before EBCOT
+/// # DC level shift (ISO 15444-1 Â§G.1.2)
+/// Unsigned components are DC-shifted by `âˆ’2^(precisionâˆ’1)` before EBCOT
 /// coding and the shift is reversed during decoding.
 pub fn encode_grayscale_j2k(
     pixels: &[i32],
@@ -54,7 +54,7 @@ pub fn encode_grayscale_j2k(
     assert_eq!(
         pixels.len(),
         (rows * cols) as usize,
-        "pixels length must equal rows × cols"
+        "pixels length must equal rows Ã— cols"
     );
     assert!((1..=38).contains(&precision), "precision must be in 1..=38");
 
@@ -92,7 +92,7 @@ pub fn encode_grayscale_j2k(
     //       XTsiz=cols, YTsiz=rows, XTOsiz=0, YTOsiz=0, Csiz=1,
     //       Ssiz=(precision-1)|(sign<<7), XRsiz=1, YRsiz=1.
     let ssiz = ((precision - 1) as u8) | (if is_signed { 0x80 } else { 0x00 });
-    let lsiz: u16 = 38 + 3; // 38 fixed + 3 per component × 1
+    let lsiz: u16 = 38 + 3; // 38 fixed + 3 per component Ã— 1
     let mut siz_body: Vec<u8> = Vec::new();
     siz_body.extend_from_slice(&0u16.to_be_bytes()); // Rsiz
     siz_body.extend_from_slice(&cols.to_be_bytes()); // Xsiz
@@ -124,17 +124,17 @@ pub fn encode_grayscale_j2k(
     cs.extend_from_slice(&1u16.to_be_bytes()); // SGcod: 1 layer
     cs.push(0x00); // SGcod: no MCT
     cs.push(num_decomp_levels); // SPcod: num_decomp_levels
-    cs.push(0x04); // SPcod: xcb_o = 4 → cb_width = 2^(4+2) = 64
-    cs.push(0x04); // SPcod: ycb_o = 4 → cb_height = 64
+    cs.push(0x04); // SPcod: xcb_o = 4 â†’ cb_width = 2^(4+2) = 64
+    cs.push(0x04); // SPcod: ycb_o = 4 â†’ cb_height = 64
     cs.push(0x00); // SPcod: cb_style = 0
     cs.push(match transform {
         WaveletTransform::Reversible => 0x01,   // 5/3 reversible
         WaveletTransform::Irreversible => 0x00, // 9/7 irreversible
     }); // SPcod: wavelet_transform
 
-    // QCD: reversible → no quantization (style 0, 1-byte ε entries); irreversible
-    // → scalar expounded (style 2, 2-byte ε/μ entries).  The irreversible encoder
-    // uses a unit step Δ_b = 1 (ε_b = precision + gain_b, μ_b = 0).
+    // QCD: reversible â†’ no quantization (style 0, 1-byte Îµ entries); irreversible
+    // â†’ scalar expounded (style 2, 2-byte Îµ/Î¼ entries).  The irreversible encoder
+    // uses a unit step Î”_b = 1 (Îµ_b = precision + gain_b, Î¼_b = 0).
     let num_bands = 3 * u16::from(num_decomp_levels) + 1;
     cs.extend_from_slice(&[0xFF, 0x5C]); // QCD marker
     match transform {
@@ -144,7 +144,7 @@ pub fn encode_grayscale_j2k(
             cs.extend_from_slice(&lqcd.to_be_bytes());
             cs.push(sqcd);
             for band in subband_layout(w, h, num_decomp_levels) {
-                cs.push((((precision + band.gain) << 3) & 0xFF) as u8); // ε in 7-3
+                cs.push((((precision + band.gain) << 3) & 0xFF) as u8); // Îµ in 7-3
             }
         }
         WaveletTransform::Irreversible => {
@@ -153,7 +153,7 @@ pub fn encode_grayscale_j2k(
             cs.extend_from_slice(&lqcd.to_be_bytes());
             cs.push(sqcd);
             for band in subband_layout(w, h, num_decomp_levels) {
-                // ε_b = R_b = precision + gain_b, μ_b = 0 (Δ_b = 1).
+                // Îµ_b = R_b = precision + gain_b, Î¼_b = 0 (Î”_b = 1).
                 cs.extend_from_slice(&pack_spqcd(precision + band.gain, 0).to_be_bytes());
             }
         }
@@ -183,8 +183,7 @@ mod tests {
             bits_allocated: bits,
             pixel_representation: signed,
             rescale_slope: 1.0,
-            rescale_intercept: 0.0,
-        }
+            rescale_intercept: 0.0 }
     }
 
     #[test]

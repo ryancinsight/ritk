@@ -1,10 +1,10 @@
-//! End-to-end verification of the generic `mse_metric` over translation and
+﻿//! End-to-end verification of the generic `mse_metric` over translation and
 //! affine `Transform`s.
 //!
 //! Evidence tier: analytical. Translation case: a moving image that is a linear
 //! ramp along x (`moving[z,y,x] = x`), a `[1,1,6]` volume so y/z are degenerate,
-//! and a fixed image shifted by one voxel in x — giving closed forms
-//! `loss(tx) = (tx − 1)²`, `∂loss/∂tx = 2(tx − 1)` (= −2 at `tx = 0`), with the
+//! and a fixed image shifted by one voxel in x â€” giving closed forms
+//! `loss(tx) = (tx âˆ’ 1)Â²`, `âˆ‚loss/âˆ‚tx = 2(tx âˆ’ 1)` (= âˆ’2 at `tx = 0`), with the
 //! degenerate axes contributing exactly zero gradient. Affine case: a linear
 //! field (trilinear-exact) gives a closed-form reference and convex landscape.
 //! Cross-checked with self-consistent central finite differences on the
@@ -54,8 +54,7 @@ fn loss_at_tx(grid_x: &[f64], fixed: &[f64], tx: f64) -> f64 {
         &var(fixed, false),
         &var_shaped(&[grid_x.len(), 3], &gf, false),
         &Translation {
-            t: var(&[0.0, 0.0, tx], false),
-        },
+            t: var(&[0.0, 0.0, tx], false) },
     );
     out.tensor.as_slice()[0]
 }
@@ -81,14 +80,14 @@ fn translation_zero_loss_and_zero_gradient_at_identity_alignment() {
     for (j, &g) in t.grad().expect("grad").as_slice().iter().enumerate() {
         assert!(
             g.abs() < 1e-12,
-            "∂loss/∂t[{j}] should be ~0 at alignment, got {g}"
+            "âˆ‚loss/âˆ‚t[{j}] should be ~0 at alignment, got {g}"
         );
     }
 }
 
 #[test]
 fn translation_gradient_points_toward_alignment_at_known_offset() {
-    // fixed = ramp shifted +1 in x ⇒ ∂loss/∂t = [0, 0, −2] at t = 0.
+    // fixed = ramp shifted +1 in x â‡’ âˆ‚loss/âˆ‚t = [0, 0, âˆ’2] at t = 0.
     let grid_x = [1.0, 2.0, 3.0];
     let fixed = [2.0, 3.0, 4.0];
     let gf = x_grid_flat(&grid_x);
@@ -112,7 +111,7 @@ fn translation_gradient_points_toward_alignment_at_known_offset() {
     );
     assert!(
         (g[2] - (-2.0)).abs() < 1e-12,
-        "∂loss/∂tx should be -2, got {}",
+        "âˆ‚loss/âˆ‚tx should be -2, got {}",
         g[2]
     );
     assert!(g[2] < 0.0, "gradient must point toward +tx alignment");
@@ -144,7 +143,7 @@ fn translation_tx_gradient_matches_self_consistent_finite_difference() {
 
 #[test]
 fn translation_gradient_descent_converges_to_the_true_offset() {
-    // GD on mse_metric + Translation converges tx → 1 (fixed = ramp shifted +1).
+    // GD on mse_metric + Translation converges tx â†’ 1 (fixed = ramp shifted +1).
     let grid_x = [1.0, 2.0, 3.0];
     let fixed = [2.0, 3.0, 4.0];
     let gf = x_grid_flat(&grid_x);
@@ -175,13 +174,13 @@ fn translation_gradient_descent_converges_to_the_true_offset() {
     assert!(prev_loss < 1e-10, "final loss must be ~0, got {prev_loss}");
 }
 
-// ── Affine-MSE metric ────────────────────────────────────────────────────────
+// â”€â”€ Affine-MSE metric â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const AFF_DIMS: [usize; 3] = [4, 4, 4];
 
 /// Linear moving image `m[z,y,x] = 0.5 + 0.3z + 0.2y + 0.1x`, flattened for
 /// `AFF_DIMS`. Trilinear interpolation of a linear field is exact at in-bounds
-/// points, so sampling equals the closed-form linear functional — giving an
+/// points, so sampling equals the closed-form linear functional â€” giving an
 /// exact reference and a convex optimization landscape.
 fn linear_moving() -> Vec<f64> {
     let [nz, ny, nx] = AFF_DIMS;
@@ -214,7 +213,7 @@ fn grid_points() -> Vec<[f64; 3]> {
 }
 
 /// Host affine-then-linear-sample-then-MSE reference (exact for the linear
-/// image; `out[n] = m(R·p_n + t)`, `loss = mean((out − fixed)²)`).
+/// image; `out[n] = m(RÂ·p_n + t)`, `loss = mean((out âˆ’ fixed)Â²)`).
 fn affine_mse_reference(grid: &[[f64; 3]], fixed: &[f64], r: &[f64; 9], t: &[f64; 3]) -> f64 {
     let mut acc = 0.0;
     for (p, &f) in grid.iter().zip(fixed.iter()) {
@@ -246,7 +245,7 @@ fn affine_metric_identity_is_zero_loss_and_zero_gradient() {
     let grid = grid_points();
     let n = grid.len();
     let grid_flat: Vec<f64> = grid.iter().flatten().copied().collect();
-    // fixed = moving sampled at the grid itself ⇒ aligned at R = I, t = 0.
+    // fixed = moving sampled at the grid itself â‡’ aligned at R = I, t = 0.
     let fixed: Vec<f64> = grid
         .iter()
         .map(|p| linear_value(p[0], p[1], p[2]))
@@ -271,13 +270,13 @@ fn affine_metric_identity_is_zero_loss_and_zero_gradient() {
     for &g in r.grad().expect("R grad").as_slice() {
         assert!(
             g.abs() < 1e-10,
-            "identity ∂loss/∂R entry should be ~0, got {g}"
+            "identity âˆ‚loss/âˆ‚R entry should be ~0, got {g}"
         );
     }
     for &g in t.grad().expect("t grad").as_slice() {
         assert!(
             g.abs() < 1e-10,
-            "identity ∂loss/∂t entry should be ~0, got {g}"
+            "identity âˆ‚loss/âˆ‚t entry should be ~0, got {g}"
         );
     }
 }
@@ -340,7 +339,7 @@ fn affine_metric_gradient_matches_self_consistent_finite_difference() {
             / (2.0 * h);
         assert!(
             (gr[i] - fd).abs() < 1e-5,
-            "∂loss/∂R[{i}]: analytic {}, fd {fd}",
+            "âˆ‚loss/âˆ‚R[{i}]: analytic {}, fd {fd}",
             gr[i]
         );
     }
@@ -354,7 +353,7 @@ fn affine_metric_gradient_matches_self_consistent_finite_difference() {
             / (2.0 * h);
         assert!(
             (gt[i] - fd).abs() < 1e-5,
-            "∂loss/∂t[{i}]: analytic {}, fd {fd}",
+            "âˆ‚loss/âˆ‚t[{i}]: analytic {}, fd {fd}",
             gt[i]
         );
     }
@@ -363,11 +362,11 @@ fn affine_metric_gradient_matches_self_consistent_finite_difference() {
 #[test]
 fn affine_metric_gradient_descent_reduces_loss_to_zero() {
     // End-to-end optimizability of the affine composition (tape through
-    // matmul → slice → reshape → trilinear → mse). R is held at identity; t is
+    // matmul â†’ slice â†’ reshape â†’ trilinear â†’ mse). R is held at identity; t is
     // optimized to align with a translated target. The linear moving field
     // makes the loss a convex quadratic, so GD robustly drives it to ~0.
-    // (The single-ramp field constrains only the combination slope·t, so t is
-    // not uniquely recovered — the alignment objective, i.e. loss → 0, is.)
+    // (The single-ramp field constrains only the combination slopeÂ·t, so t is
+    // not uniquely recovered â€” the alignment objective, i.e. loss â†’ 0, is.)
     let grid = grid_points();
     let n = grid.len();
     let grid_flat: Vec<f64> = grid.iter().flatten().copied().collect();

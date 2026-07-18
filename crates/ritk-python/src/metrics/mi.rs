@@ -1,22 +1,21 @@
-//! Histogram-based Mutual Information variants plus entropy pyfunction wrappers.
+﻿//! Histogram-based Mutual Information variants plus entropy pyfunction wrappers.
 //!
 //! Delegates all variants to `ritk_statistics::information`:
-//! - "standard":   hard nearest-bin assignment — `mutual_information`
-//! - "normalized": symmetric uncertainty 2·I/(H(A)+H(B)) ∈ `[0, 1]` — `symmetric_uncertainty`
-//! - "mattes":     bilinear soft-binning (Mattes 2003) — `mutual_information_mattes`
+//! - "standard":   hard nearest-bin assignment â€” `mutual_information`
+//! - "normalized": symmetric uncertainty 2Â·I/(H(A)+H(B)) âˆˆ `[0, 1]` â€” `symmetric_uncertainty`
+//! - "mattes":     bilinear soft-binning (Mattes 2003) â€” `mutual_information_mattes`
 //!
 //! New entrypoints:
 //! - `compute_entropy`: marginal entropy H(X).
 //! - `compute_joint_entropy`: joint entropy H(X,Y).
-//! - `compute_symmetric_uncertainty`: SU = 2·MI/(H(X)+H(Y)) ∈ `[0, 1]`.
+//! - `compute_symmetric_uncertainty`: SU = 2Â·MI/(H(X)+H(Y)) âˆˆ `[0, 1]`.
 
 use anyhow::Result;
 use pyo3::prelude::*;
 use ritk_statistics::information::{
     joint_entropy as core_joint_entropy, marginal_entropy as core_marginal_entropy,
     mutual_information as core_mi, mutual_information_mattes as core_mi_mattes,
-    symmetric_uncertainty as core_su,
-};
+    symmetric_uncertainty as core_su };
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, PyImage};
@@ -29,14 +28,13 @@ pub(super) fn mi_slices(a: &[f32], b: &[f32], num_bins: usize, variant: &str) ->
         "mattes" => core_mi_mattes(a, b, num_bins),
         "standard" => core_mi(a, b, num_bins),
         "normalized" => core_su(a, b, num_bins),
-        _ => unreachable!("variant validated before mi_slices"),
-    }
+        _ => unreachable!("variant validated before mi_slices") }
 }
 
 /// Marginal Shannon entropy H(X) of a single image.
 ///
 /// # Formula
-/// H(X) = −Σₖ p(k) log p(k)
+/// H(X) = âˆ’Î£â‚– p(k) log p(k)
 ///
 /// # Arguments
 /// - `image`: 3D image.
@@ -56,7 +54,7 @@ pub fn compute_entropy(image: &PyImage, num_bins: usize) -> RitkResult<f64> {
 /// Both images must have identical shapes.
 ///
 /// # Formula
-/// H(X,Y) = −Σⱼₖ p(j,k) log p(j,k)
+/// H(X,Y) = âˆ’Î£â±¼â‚– p(j,k) log p(j,k)
 ///
 /// # Arguments
 /// - `num_bins`: histogram bins per axis (default 64).
@@ -81,12 +79,12 @@ pub fn compute_joint_entropy(
     core_joint_entropy(&a, &b, num_bins).map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
-/// Symmetric uncertainty SU(X,Y) = 2·I(X;Y) / (H(X) + H(Y)) ∈ \[0,1\].
+/// Symmetric uncertainty SU(X,Y) = 2Â·I(X;Y) / (H(X) + H(Y)) âˆˆ \[0,1\].
 ///
 /// Both images must have identical shapes.
 ///
 /// # Formula (Fayyad & Irani 1993)
-/// SU = 2·I(X;Y) / (H(X) + H(Y))
+/// SU = 2Â·I(X;Y) / (H(X) + H(Y))
 ///
 /// SU=1 iff X=Y (or X is a deterministic function of Y); SU=0 iff X and Y are independent.
 ///
@@ -122,7 +120,7 @@ pub fn compute_symmetric_uncertainty(
 /// - `variant`: `"mattes"` (default), `"standard"`, or `"normalized"`.
 ///
 /// # Formula
-/// MI = H(A) + H(B) − H(A,B)
+/// MI = H(A) + H(B) âˆ’ H(A,B)
 #[pyfunction]
 #[pyo3(signature = (fixed, moving, num_bins=64, variant="mattes"))]
 pub fn compute_mutual_information(
@@ -178,7 +176,7 @@ mod tests {
 
     #[test]
     fn mi_normalized_variant_in_zero_one() {
-        // SU = 2·I/(H(A)+H(B)) ∈ [0,1].
+        // SU = 2Â·I/(H(A)+H(B)) âˆˆ [0,1].
         let a: Vec<f32> = (0..64).map(|x| (x % 16) as f32).collect();
         let b: Vec<f32> = (0..64).map(|x| ((x + 4) % 16) as f32).collect();
         let su = mi_slices(&a, &b, 16, "normalized").unwrap();
@@ -190,7 +188,7 @@ mod tests {
 
     #[test]
     fn mi_normalized_identical_is_one() {
-        // SU(X,X) = 2·H(X)/(H(X)+H(X)) = 1.0.
+        // SU(X,X) = 2Â·H(X)/(H(X)+H(X)) = 1.0.
         let a: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let su = mi_slices(&a, &a, 16, "normalized").unwrap();
         assert!((su - 1.0).abs() < 1e-9, "SU(X,X) must equal 1.0, got {su}");
@@ -221,7 +219,7 @@ mod tests {
 
     #[test]
     fn joint_entropy_geq_marginal_entropy() {
-        // H(X,Y) ≥ H(X) always.
+        // H(X,Y) â‰¥ H(X) always.
         let a: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let b: Vec<f32> = (0..64).map(|x| ((x / 8) % 8) as f32).collect();
         let h_xy = core_joint_entropy(&a, &b, 16).unwrap();
@@ -234,7 +232,7 @@ mod tests {
 
     #[test]
     fn symmetric_uncertainty_self_is_one() {
-        // SU(X,X) = 2·MI(X,X)/(H(X)+H(X)) = 1.0.
+        // SU(X,X) = 2Â·MI(X,X)/(H(X)+H(X)) = 1.0.
         let a: Vec<f32> = (0..64).map(|x| (x % 8) as f32).collect();
         let su = core_su(&a, &a, 16).unwrap();
         assert!((su - 1.0).abs() < 1e-9, "SU(X,X) must be 1.0, got {su}");

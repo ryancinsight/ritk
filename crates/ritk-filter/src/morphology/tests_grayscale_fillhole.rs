@@ -1,25 +1,19 @@
 //! Tests for grayscale_fillhole
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use crate::native_support::LegacyBurnBackend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(vals, dims)
+fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(vals, dims)
 }
 
-fn extract_vals(img: &Image<B, 3>) -> Vec<f32> {
-    img.data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn extract_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
+    img.data().to_vec()
 }
 
 fn flat(iz: usize, iy: usize, ix: usize, ny: usize, nx: usize) -> usize {
@@ -28,7 +22,7 @@ fn flat(iz: usize, iy: usize, ix: usize, ny: usize, nx: usize) -> usize {
 
 /// Constant image unchanged: no holes in a uniform field.
 ///
-/// **Proof**: every voxel has minimax path level = c. ∎
+/// **Proof**: every voxel has minimax path level = c. âˆŽ
 #[test]
 fn constant_image_unchanged() {
     let c = 7.0_f32;
@@ -40,7 +34,7 @@ fn constant_image_unchanged() {
     }
 }
 
-/// Output satisfies h[x] ≥ I[x] for all x (holes only raised, not lowered).
+/// Output satisfies h[x] â‰¥ I[x] for all x (holes only raised, not lowered).
 #[test]
 fn output_ge_input_everywhere() {
     let dims = [6, 6, 6];
@@ -52,7 +46,7 @@ fn output_ge_input_everywhere() {
     for (i, (&before, &after)) in vals.iter().zip(out_vals.iter()).enumerate() {
         assert!(
             after >= before - 1e-5,
-            "output must be ≥ input at voxel {i}: before={before} after={after}"
+            "output must be â‰¥ input at voxel {i}: before={before} after={after}"
         );
     }
 }
@@ -60,7 +54,7 @@ fn output_ge_input_everywhere() {
 /// Border voxels are never modified.
 ///
 /// **Proof**: border voxels are seeded with I[b]; they can only be updated
-/// by paths from other borders, which can never produce a lower level. ∎
+/// by paths from other borders, which can never produce a lower level. âˆŽ
 #[test]
 fn border_voxels_unchanged() {
     let [nz, ny, nx] = [5usize, 5, 5];
@@ -90,13 +84,13 @@ fn border_voxels_unchanged() {
 
 /// Enclosed dark pit filled to surrounding wall level.
 ///
-/// Volume: 3×3×3 (27 voxels). Only interior voxel is flat[13] at (1,1,1).
+/// Volume: 3Ã—3Ã—3 (27 voxels). Only interior voxel is flat[13] at (1,1,1).
 /// I = 5 everywhere on border; I[1,1,1] = 0 (dark pit).
 ///
 /// Expected: h[1,1,1] = 5.0 (raised to border level).
 ///
 /// **Proof**: minimax path from (1,1,1) to any border passes through exactly
-/// one border voxel at level 5. max along path = max(0, 5) = 5. ∎
+/// one border voxel at level 5. max along path = max(0, 5) = 5. âˆŽ
 #[test]
 fn enclosed_pit_filled_to_border_level() {
     let dims = [3usize, 3, 3];
@@ -115,7 +109,7 @@ fn enclosed_pit_filled_to_border_level() {
 
 /// Enclosed pit filled to WALL level (not border level) when wall < border.
 ///
-/// Volume: 5×5×5. Outer shell (border) = 1.0. Inner shell at iz/iy/ix ∈ {1..3}
+/// Volume: 5Ã—5Ã—5. Outer shell (border) = 1.0. Inner shell at iz/iy/ix âˆˆ {1..3}
 /// = 8.0. Innermost voxel (2,2,2) = 2.0.
 ///
 /// The minimum-barrier path from (2,2,2) to the border must pass through
@@ -123,7 +117,7 @@ fn enclosed_pit_filled_to_border_level() {
 ///
 /// **Proof**: any path from (2,2,2) to the border with |dx|+|dy|+|dz|=1 steps
 /// must pass through a voxel in the inner shell with value 8. The minimax
-/// path level is therefore min(8) = 8, not the border level 1. ∎
+/// path level is therefore min(8) = 8, not the border level 1. âˆŽ
 #[test]
 fn pit_filled_to_wall_level_not_border_level() {
     let [nz, ny, nx] = [5usize, 5, 5];
@@ -141,7 +135,7 @@ fn pit_filled_to_wall_level_not_border_level() {
             }
         }
     }
-    // Inner shell iz/iy/ix ∈ {1..3}: value 8
+    // Inner shell iz/iy/ix âˆˆ {1..3}: value 8
     for iz in 1..4 {
         for iy in 1..4 {
             for ix in 1..4 {
@@ -164,7 +158,7 @@ fn pit_filled_to_wall_level_not_border_level() {
 
 /// Border-connected dark region NOT filled.
 ///
-/// Volume: 3×3×3 with value 0 everywhere. All voxels are on the border
+/// Volume: 3Ã—3Ã—3 with value 0 everywhere. All voxels are on the border
 /// or connect to it through 0-valued paths. Fill should not increase anything.
 #[test]
 fn border_connected_dark_not_filled() {
@@ -182,9 +176,7 @@ fn spatial_metadata_preserved() {
     let origin = Point::new([2.0, 3.0, 4.0]);
     let spacing = Spacing::new([0.75, 0.75, 1.5]);
     let direction = Direction::identity();
-    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
-    let td = TensorData::new(vec![1.0_f32; 27], Shape::new([3, 3, 3]));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
+    let tensor = Tensor::<f32, B>::from_slice([3, 3, 3], &[1.0_f32; 27]);
     let img = Image::new(tensor, origin, spacing, direction);
     let out = GrayscaleFillholeFilter::new().apply(&img).unwrap();
     assert_eq!(out.origin(), img.origin());
@@ -192,7 +184,7 @@ fn spatial_metadata_preserved() {
 }
 
 /// A volume in which every voxel lies on the border has no interior to fill, so
-/// fill-hole is the identity. A 2×2×2 volume is all corners (every voxel is an
+/// fill-hole is the identity. A 2Ã—2Ã—2 volume is all corners (every voxel is an
 /// extremum of all three axes), so output = input exactly.
 #[test]
 fn all_border_volume_unchanged() {
@@ -202,14 +194,14 @@ fn all_border_volume_unchanged() {
     let out = GrayscaleFillholeFilter::new().apply(&img).unwrap();
     let out_vals = extract_vals(&out);
     for (i, (&a, &b)) in vals.iter().zip(out_vals.iter()).enumerate() {
-        assert!((a - b).abs() < 1e-6, "all-border voxel {i}: {a} ≠ {b}");
+        assert!((a - b).abs() < 1e-6, "all-border voxel {i}: {a} â‰  {b}");
     }
 }
 
 /// A `z = 1` slab is a genuine 2-D image, not an all-border volume: its interior
 /// dark pits must be filled (regression for the degenerate-axis border bug,
 /// where `iz == 0` wrongly flagged every voxel as border, making fill-hole a
-/// no-op on 2-D images). The 1-D signal `[5,5,1,5,1,5,5]` (as `1×1×7`) has its
+/// no-op on 2-D images). The 1-D signal `[5,5,1,5,1,5,5]` (as `1Ã—1Ã—7`) has its
 /// interior `1`-pits raised to the connecting wall level `5`.
 #[test]
 fn degenerate_axis_interior_pits_are_filled() {

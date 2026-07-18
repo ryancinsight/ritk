@@ -1,18 +1,17 @@
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use ritk_core::image::Image;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_image::test_support as ts;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(data, shape)
+fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(data, shape)
 }
 
-// ── DownsampleFilter ───────────────────────────────────────────────────────
+// â”€â”€ DownsampleFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Factor 1 in every dimension: shape, spacing, and voxel values are unchanged.
 #[test]
@@ -39,11 +38,8 @@ fn downsample_factor_one_is_identity() {
 fn downsample_factor_two_halves_shape_and_doubles_spacing() {
     let n = 4 * 6 * 8;
     let data: Vec<f32> = (0..n).map(|i| i as f32).collect();
-    let img = Image::<B, 3>::new(
-        Tensor::<B, 3>::from_data(
-            TensorData::new(data, Shape::new([4usize, 6, 8])),
-            &Default::default(),
-        ),
+    let img = Image::<f32, B, 3>::new(
+        Tensor::<f32, B>::from_slice([4usize, 6, 8], &data),
         Point::new([0.0; 3]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
@@ -79,11 +75,8 @@ fn downsample_scalar_factor_broadcast() {
 #[test]
 fn downsample_spacing_updated_proportionally() {
     let n = 6 * 6 * 6;
-    let img = Image::<B, 3>::new(
-        Tensor::<B, 3>::from_data(
-            TensorData::new(vec![0.0_f32; n], Shape::new([6usize, 6, 6])),
-            &Default::default(),
-        ),
+    let img = Image::<f32, B, 3>::new(
+        Tensor::<f32, B>::from_slice([6usize, 6, 6], &vec![0.0_f32; n]),
         Point::new([0.0; 3]),
         Spacing::new([0.5, 1.0, 2.0]),
         Direction::identity(),

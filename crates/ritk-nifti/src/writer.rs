@@ -1,4 +1,4 @@
-use anyhow::Result;
+﻿use anyhow::Result;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -177,8 +177,8 @@ where
     )
 }
 
-/// Flatten a 3×3 direction-cosine matrix to the row-major layout the header
-/// builder consumes (shared by the Burn and Coeus writer boundaries).
+/// Flatten a 3Ã—3 direction-cosine matrix to the row-major layout the header
+/// builder consumes.
 fn direction_row_major(direction: &ritk_spatial::Direction<3>) -> [f64; 9] {
     let d = direction.0;
     [
@@ -253,8 +253,7 @@ fn header_from_spatial(
             pixdim,
             srow_x: sform.x.map(f64::from),
             srow_y: sform.y.map(f64::from),
-            srow_z: sform.z.map(f64::from),
-        },
+            srow_z: sform.z.map(f64::from) },
     )
 }
 

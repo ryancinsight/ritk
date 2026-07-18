@@ -1,19 +1,19 @@
-//! Normalized Cross Correlation (NCC) metric implementation.
+﻿//! Normalized Cross Correlation (NCC) metric implementation.
 //!
 //! # Theorem: Zero-Normalized Cross Correlation (Single-Pass Algebraic Moments)
 //!
-//! **Theorem** (Lewis 1995, *Vision Interface* 9:120–123):
+//! **Theorem** (Lewis 1995, *Vision Interface* 9:120â€“123):
 //! The zero-normalized cross correlation between fixed image $F$ and moving image $M$
 //! over $N$ voxels can be computed exactly in a single pass using raw statistical moments:
 //!
 //! ```text
-//! S_F = ΣF,  S_M = ΣM,  S_{FF} = ΣF²,  S_{MM} = ΣM²,  S_{FM} = Σ(F·M)
+//! S_F = Î£F,  S_M = Î£M,  S_{FF} = Î£FÂ²,  S_{MM} = Î£MÂ²,  S_{FM} = Î£(FÂ·M)
 //!
-//! Numerator   = S_{FM} - (S_F · S_M) / N
-//! Variance_F  = S_{FF} - (S_F)² / N
-//! Variance_M  = S_{MM} - (S_M)² / N
+//! Numerator   = S_{FM} - (S_F Â· S_M) / N
+//! Variance_F  = S_{FF} - (S_F)Â² / N
+//! Variance_M  = S_{MM} - (S_M)Â² / N
 //!
-//! NCC(F, M)   = Numerator / √(Variance_F · Variance_M + ε)
+//! NCC(F, M)   = Numerator / âˆš(Variance_F Â· Variance_M + Îµ)
 //! ```
 //! By accumulating these five moments simultaneously, we eliminate the need for a
 //! two-pass interpolation loop, cutting scattered memory accesses and coordinate
@@ -22,7 +22,7 @@
 pub mod native;
 
 use super::trait_::Metric;
-use ritk_image::generate_grid_burn;
+use ritk_image::generate_grid;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 use ritk_image::Image;
@@ -38,15 +38,13 @@ use ritk_transform::Transform;
 /// Returns negative NCC as loss (to be minimized).
 /// Range: [-1, 1], where -1 is perfect correlation (minimized loss).
 pub struct NormalizedCrossCorrelation {
-    interpolator: LinearInterpolator,
-}
+    interpolator: LinearInterpolator }
 
 impl NormalizedCrossCorrelation {
     /// Create a new NCC metric.
     pub fn new() -> Self {
         Self {
-            interpolator: LinearInterpolator::new(),
-        }
+            interpolator: LinearInterpolator::new() }
     }
 }
 
@@ -59,15 +57,15 @@ impl Default for NormalizedCrossCorrelation {
 impl<B: Backend, const D: usize> Metric<B, D> for NormalizedCrossCorrelation {
     fn forward(
         &self,
-        fixed: &Image<B, D>,
-        moving: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
-    ) -> Tensor<B, 1> {
+    ) -> Tensor<f32, B> {
         let device = fixed.data().device();
         let fixed_shape = fixed.shape();
 
         // 1. Generate dense coordinate grid
-        let fixed_indices = generate_grid_burn(fixed_shape, &device);
+        let fixed_indices = generate_grid(fixed_shape, &device);
         let [n, _] = fixed_indices.dims();
 
         // 2. Process in chunks to respect GPU dispatch limits while maintaining single-pass

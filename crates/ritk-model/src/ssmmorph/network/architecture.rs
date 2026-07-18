@@ -1,4 +1,4 @@
-//! U-shaped VMamba registration network.
+﻿//! U-shaped VMamba registration network.
 
 use coeus_autograd::{cat, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
@@ -17,8 +17,7 @@ pub enum IntegrationMode {
     Direct,
     /// Integrate the decoder velocity by scaling and squaring.
     #[default]
-    Diffeomorphic,
-}
+    Diffeomorphic }
 
 /// SSMMorph forward result.
 #[derive(Clone)]
@@ -31,8 +30,7 @@ where
     /// Encoder features in increasing channel order.
     pub encoder_features: Vec<Var<f32, B>>,
     /// Lowest-resolution encoder representation.
-    pub bottleneck: Var<f32, B>,
-}
+    pub bottleneck: Var<f32, B> }
 
 /// SSMMorph topology and integration configuration.
 #[derive(Debug, Clone, PartialEq)]
@@ -46,8 +44,7 @@ pub struct SSMMorphConfig {
     /// Integration policy.
     pub integration: IntegrationMode,
     /// Scaling-and-squaring stage count.
-    pub integration_steps: usize,
-}
+    pub integration_steps: usize }
 
 impl SSMMorphConfig {
     /// Standard volumetric registration configuration.
@@ -58,8 +55,7 @@ impl SSMMorphConfig {
             decoder: None,
             out_channels: 3,
             integration: IntegrationMode::Diffeomorphic,
-            integration_steps: 7,
-        }
+            integration_steps: 7 }
     }
 
     /// Reduced-width inference configuration.
@@ -70,8 +66,7 @@ impl SSMMorphConfig {
             decoder: None,
             out_channels: 3,
             integration: IntegrationMode::Diffeomorphic,
-            integration_steps: 7,
-        }
+            integration_steps: 7 }
     }
 
     /// Wider research configuration.
@@ -82,8 +77,7 @@ impl SSMMorphConfig {
             decoder: None,
             out_channels: 3,
             integration: IntegrationMode::Diffeomorphic,
-            integration_steps: 10,
-        }
+            integration_steps: 10 }
     }
 
     /// Select direct decoder displacement output.
@@ -109,8 +103,7 @@ where
 {
     encoder: SSMMorphEncoder<B>,
     decoder: SSMMorphDecoder<B>,
-    integrator: Option<VecInt>,
-}
+    integrator: Option<VecInt> }
 
 impl<B> SSMMorph<B>
 where
@@ -129,8 +122,7 @@ where
             encoder,
             decoder,
             integrator: (config.integration == IntegrationMode::Diffeomorphic)
-                .then(|| VecInt::new(config.integration_steps)),
-        }
+                .then(|| VecInt::new(config.integration_steps)) }
     }
 
     /// Register a moving image to a fixed image.
@@ -150,13 +142,11 @@ where
             .forward(&encoded.bottleneck, &encoded.features)?;
         let displacement = match &self.integrator {
             Some(integrator) => integrator.forward(&velocity),
-            None => velocity,
-        };
+            None => velocity };
         Ok(SSMMorphOutput {
             displacement,
             encoder_features: encoded.features,
-            bottleneck: encoded.bottleneck,
-        })
+            bottleneck: encoded.bottleneck })
     }
 
     /// Encoder channel widths.
@@ -227,13 +217,11 @@ pub mod presets {
                 channel_mult: 2,
                 num_stages: 5,
                 blocks_per_stage: 2,
-                drop_path: DropPath::Disabled,
-            },
+                drop_path: DropPath::Disabled },
             decoder: None,
             out_channels: 3,
             integration: IntegrationMode::Diffeomorphic,
-            integration_steps: 7,
-        }
+            integration_steps: 7 }
     }
 
     /// Cardiac MRI registration.
@@ -270,13 +258,11 @@ mod tests {
                 channel_mult: 2,
                 num_stages: 2,
                 blocks_per_stage: 1,
-                drop_path: DropPath::Disabled,
-            },
+                drop_path: DropPath::Disabled },
             decoder: None,
             out_channels: 3,
             integration: IntegrationMode::Direct,
-            integration_steps: 2,
-        };
+            integration_steps: 2 };
         let model = SSMMorph::<MoiraiBackend>::new(&config);
         let input = Var::new(
             Tensor::ones_on([1, 2, 4, 4, 4], &MoiraiBackend::new()),

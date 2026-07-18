@@ -4,7 +4,7 @@
 //!
 //! Binary erosion with a box structuring element of half-width `radius` r:
 //!
-//! (M ⊖ B)(p) = 1  iff  ∀q ∈ N_r(p): M(q) = 1
+//! (M âŠ– B)(p) = 1  iff  âˆ€q âˆˆ N_r(p): M(q) = 1
 //!
 //! where N_r(p) is the set of voxels within Chebyshev distance r of p
 //! (the axis-aligned hypercube of side 2r+1 centred at p).
@@ -17,13 +17,13 @@
 //! This is the dual of dilation, whose out-of-bounds neighbours are background.
 //!
 //! # Complexity
-//! O(n · (2r+1)^D) where n is the total voxel count.
+//! O(n Â· (2r+1)^D) where n is the total voxel count.
 //!
 //! # Supported dimensionalities
 //! D = 1, 2, 3.  For D outside this set the function panics with a clear message.
 
 use ritk_core::image::Image;
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_tensor_ops::extract_vec_infallible;
 
 /// Binary erosion with a box structuring element of half-width `radius` voxels.
@@ -35,8 +35,8 @@ use ritk_tensor_ops::extract_vec_infallible;
 /// clipped to the image), matching ITK's `BinaryErodeImageFilter`.
 pub struct BinaryErosion {
     /// Half-width of the box structuring element in voxels.
-    /// Radius 0 → structuring element = {p} → erosion is the identity.
-    /// Radius 1 → 3^D neighbourhood.
+    /// Radius 0 â†’ structuring element = {p} â†’ erosion is the identity.
+    /// Radius 1 â†’ 3^D neighbourhood.
     pub radius: usize,
 }
 
@@ -49,13 +49,13 @@ impl BinaryErosion {
     /// Apply erosion to a binary mask image.
     ///
     /// Supports D = 1, 2, 3. Panics for other dimensionalities.
-    pub fn apply<B: Backend, const D: usize>(&self, mask: &Image<B, D>) -> Image<B, D> {
+    pub fn apply<B: Backend, const D: usize>(&self, mask: &Image<f32, B, D>) -> Image<f32, B, D> {
         let shape: [usize; D] = mask.shape();
-        let device = mask.data().device();
+        let device = B::default();
         let (flat_vals, _shape) = extract_vec_infallible(mask);
         let flat: &[f32] = &flat_vals;
         let output = erode(flat, &shape, self.radius);
-        let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device);
         Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
     }
 
@@ -92,12 +92,12 @@ impl Default for BinaryErosion {
 }
 
 impl<B: Backend, const D: usize> super::MorphologicalOperation<B, D> for BinaryErosion {
-    fn apply(&self, mask: &Image<B, D>) -> Image<B, D> {
+    fn apply(&self, mask: &Image<f32, B, D>) -> Image<f32, B, D> {
         self.apply(mask)
     }
 }
 
-// ── Core CPU-side erosion ─────────────────────────────────────────────────────
+// â”€â”€ Core CPU-side erosion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Apply binary erosion on a flat row-major array for shapes of rank 1, 2, or 3.
 ///
@@ -119,7 +119,7 @@ pub fn erode(flat: &[f32], shape: &[usize], radius: usize) -> Vec<f32> {
     }
 }
 
-// ── D = 1 ─────────────────────────────────────────────────────────────────────
+// â”€â”€ D = 1 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn erode_line(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
     let r = radius as isize;
@@ -131,7 +131,7 @@ fn erode_line(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
         let all_fg = ((-r)..=r).all(|dx| {
             let nb = ix as isize + dx;
             if nb < 0 || nb >= nx as isize {
-                return true; // out-of-bounds → foreground (no boundary erosion)
+                return true; // out-of-bounds â†’ foreground (no boundary erosion)
             }
             flat[nb as usize] > super::FOREGROUND_THRESHOLD
         });
@@ -142,7 +142,7 @@ fn erode_line(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
     output
 }
 
-// ── D = 2 ─────────────────────────────────────────────────────────────────────
+// â”€â”€ D = 2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn erode_plane(flat: &[f32], ny: usize, nx: usize, radius: usize) -> Vec<f32> {
     let r = radius as isize;
@@ -159,7 +159,7 @@ fn erode_plane(flat: &[f32], ny: usize, nx: usize, radius: usize) -> Vec<f32> {
                         let ny_i = iy as isize + dy;
                         let nx_i = ix as isize + dx;
                         if ny_i < 0 || ny_i >= ny as isize || nx_i < 0 || nx_i >= nx as isize {
-                            continue; // out-of-bounds → foreground (clip SE to image)
+                            continue; // out-of-bounds â†’ foreground (clip SE to image)
                         }
                         if flat[ny_i as usize * nx + nx_i as usize] <= super::FOREGROUND_THRESHOLD {
                             break 'outer false;
@@ -176,7 +176,7 @@ fn erode_plane(flat: &[f32], ny: usize, nx: usize, radius: usize) -> Vec<f32> {
     output
 }
 
-// ── D = 3 ─────────────────────────────────────────────────────────────────────
+// â”€â”€ D = 3 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn erode_volume(flat: &[f32], nz: usize, ny: usize, nx: usize, radius: usize) -> Vec<f32> {
     let r = radius as isize;
@@ -202,7 +202,7 @@ fn erode_volume(flat: &[f32], nz: usize, ny: usize, nx: usize, radius: usize) ->
                                     || nx_i < 0
                                     || nx_i >= nx as isize
                                 {
-                                    continue; // out-of-bounds → foreground (clip SE to image)
+                                    continue; // out-of-bounds â†’ foreground (clip SE to image)
                                 }
                                 let nb =
                                     nz_i as usize * ny * nx + ny_i as usize * nx + nx_i as usize;

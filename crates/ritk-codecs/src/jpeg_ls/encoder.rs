@@ -1,6 +1,6 @@
-//! Pure-Rust JPEG-LS (ISO 14495-1 / ITU-T T.87) encoder.
+﻿//! Pure-Rust JPEG-LS (ISO 14495-1 / ITU-T T.87) encoder.
 //!
-//! Produces single-component, non-interleaved streams — the exact profile
+//! Produces single-component, non-interleaved streams â€” the exact profile
 //! DICOM JPEG-LS requires: lossless (NEAR = 0, TS 1.2.840.10008.1.2.4.80) and
 //! near-lossless (NEAR > 0, TS 1.2.840.10008.1.2.4.81). The lossless path
 //! mirrors `super::scan::decode_scan` line-for-line; the shared context
@@ -8,9 +8,9 @@
 //!
 //! # Evidence tier
 //! Differential round-trip tests: encoder and decoder are independent code
-//! paths over the shared context model. Lossless ⟹ exact reconstruction
-//! (`|decoded − original| = 0`); near-lossless ⟹ `|decoded − original| ≤ NEAR`
-//! (ISO 14495-1 §A.4.4), asserted value-by-value in `jpeg_ls::tests` and in
+//! paths over the shared context model. Lossless âŸ¹ exact reconstruction
+//! (`|decoded âˆ’ original| = 0`); near-lossless âŸ¹ `|decoded âˆ’ original| â‰¤ NEAR`
+//! (ISO 14495-1 Â§A.4.4), asserted value-by-value in `jpeg_ls::tests` and in
 //! the ritk-io DICOM round-trip suite. Cross-implementation conformance was
 //! verified one-time against the CharLS reference decoder before the charls
 //! dependency was removed.
@@ -18,11 +18,10 @@
 use super::bitstream::BitWriter;
 use super::context::{
     compute_k, context_index, default_thresholds, error_correction, modulo_reduce, quant,
-    quantize_error, reconstruct, sign_normalize, update_context, CodingParams, ContextModel,
-};
+    quantize_error, reconstruct, sign_normalize, update_context, CodingParams, ContextModel };
 use super::scan::{predict, Predictor, J};
 
-/// Encode a grayscale image as a complete JPEG-LS stream (SOI … EOI).
+/// Encode a grayscale image as a complete JPEG-LS stream (SOI â€¦ EOI).
 ///
 /// # Parameters
 /// - `samples`: row-major sample values; each must satisfy `v < 2^bpp`.
@@ -31,8 +30,8 @@ use super::scan::{predict, Predictor, J};
 /// - `near`: maximum allowed reconstruction error per sample (0 = lossless).
 ///
 /// # Panics
-/// Panics when `samples.len() != rows × cols`, when a sample exceeds the
-/// `bpp` dynamic range, or when `bpp ∉ 8..=16` — these are programmer-error
+/// Panics when `samples.len() != rows Ã— cols`, when a sample exceeds the
+/// `bpp` dynamic range, or when `bpp âˆ‰ 8..=16` â€” these are programmer-error
 /// contract violations, not data-dependent failures.
 pub fn encode_grayscale_jpeg_ls(
     samples: &[u16],
@@ -44,13 +43,13 @@ pub fn encode_grayscale_jpeg_ls(
     assert_eq!(
         samples.len(),
         (rows * cols) as usize,
-        "samples length must equal rows × cols"
+        "samples length must equal rows Ã— cols"
     );
     assert!((8..=16).contains(&bpp), "bpp must be in 8..=16");
     let maxval = (1i32 << bpp) - 1;
     assert!(
         samples.iter().all(|&v| i32::from(v) <= maxval),
-        "sample exceeds 2^bpp − 1 dynamic range"
+        "sample exceeds 2^bpp âˆ’ 1 dynamic range"
     );
 
     let scan_bytes = encode_scan(samples, rows as usize, cols as usize, bpp, near as i32);
@@ -84,7 +83,7 @@ pub fn encode_grayscale_jpeg_ls(
     out
 }
 
-/// Forward error mapping (ISO 14495-1 §A.5.3): inverse of
+/// Forward error mapping (ISO 14495-1 Â§A.5.3): inverse of
 /// [`super::context::inverse_map`].
 #[inline(always)]
 fn forward_map(errval: i32) -> u32 {
@@ -95,7 +94,7 @@ fn forward_map(errval: i32) -> u32 {
     }
 }
 
-/// Encode one single-component scan — the mirror of
+/// Encode one single-component scan â€” the mirror of
 /// `super::scan::decode_scan`, generalised by the NEAR parameter.
 fn encode_scan(samples: &[u16], rows: usize, cols: usize, bpp: u32, near: i32) -> Vec<u8> {
     let cp = CodingParams::new(bpp, near);
@@ -144,7 +143,7 @@ fn encode_scan(samples: &[u16], rows: usize, cols: usize, bpp: u32, near: i32) -
             let q3 = quant(cc - a, t1, t2, t3, near);
 
             if q1 == 0 && q2 == 0 && q3 == 0 {
-                // ── Run mode (ISO 14495-1 §A.7) ──────────────────────────────
+                // â”€â”€ Run mode (ISO 14495-1 Â§A.7) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 let run_val = a;
                 let remaining = cols - c;
                 let mut run_len = 0usize;
@@ -198,7 +197,7 @@ fn encode_scan(samples: &[u16], rows: usize, cols: usize, bpp: u32, near: i32) -
                 c += run_len;
 
                 if run_len < remaining {
-                    // ── Run interruption sample (§A.7.2) ─────────────────────
+                    // â”€â”€ Run interruption sample (Â§A.7.2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     let xi = i32::from(samples[r * cols + c]);
                     let rb = buf[prev_off + c.min(cols - 1)];
                     let ra = if c > 0 { buf[row_off + c - 1] } else { rb };
@@ -240,7 +239,7 @@ fn encode_scan(samples: &[u16], rows: usize, cols: usize, bpp: u32, near: i32) -
                 continue;
             }
 
-            // ── Regular mode (ISO 14495-1 §A.4–A.5) ──────────────────────────
+            // â”€â”€ Regular mode (ISO 14495-1 Â§A.4â€“A.5) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             let (nq1, nq2, nq3, sign) = sign_normalize(q1, q2, q3);
             let qi = context_index(nq1, nq2, nq3);
             let ctx_reg = &mut ctx.regular[qi];

@@ -1,4 +1,4 @@
-//! Tool keyboard shortcut SSOT.
+﻿//! Tool keyboard shortcut SSOT.
 //!
 //! Defines single-key access to viewer interaction tools, allowing users to
 //! activate measurement, segmentation, and navigation tools without clicking
@@ -7,16 +7,16 @@
 //! # Shortcut design
 //!
 //! Shortcuts follow ITK-SNAP conventions and common imaging software patterns:
-//! - **L**   → Measure Length (distance between two points)
-//! - **A**   → Measure Angle (angle between three points)
-//! - **R**   → ROI Rectangle (rectangular region of interest)
-//! - **E**   → ROI Ellipse (elliptical region of interest)
-//! - **H**   → HU Point (single-point intensity readout)
-//! - **P**   → Pan (drag to scroll viewport without changing zoom/W&L)
-//! - **Z**   → Zoom (scroll wheel or drag to zoom)
-//! - **W**   → Window/Level (adjust display intensity mapping)
-//! - **B**   → LabelPaint (paint segmentation labels)
-//! - **E**   → LabelErase (erase segmentation labels; conflicts with ROI Ellipse — E prioritizes paint, use Shift+E for erase)
+//! - **L**   â†’ Measure Length (distance between two points)
+//! - **A**   â†’ Measure Angle (angle between three points)
+//! - **R**   â†’ ROI Rectangle (rectangular region of interest)
+//! - **E**   â†’ ROI Ellipse (elliptical region of interest)
+//! - **H**   â†’ HU Point (single-point intensity readout)
+//! - **P**   â†’ Pan (drag to scroll viewport without changing zoom/W&L)
+//! - **Z**   â†’ Zoom (scroll wheel or drag to zoom)
+//! - **W**   â†’ Window/Level (adjust display intensity mapping)
+//! - **B**   â†’ LabelPaint (paint segmentation labels)
+//! - **E**   â†’ LabelErase (erase segmentation labels; conflicts with ROI Ellipse â€” E prioritizes paint, use Shift+E for erase)
 //!
 //! Tools not directly selectable via single key (Crosshair) remain toolbar-only or
 //! are context-active (e.g., Crosshair is always active for viewport clicks).
@@ -33,7 +33,7 @@
 use crate::tools::kind::ToolKind;
 use egui::Key;
 
-// ── Shortcut constants ────────────────────────────────────────────────────────
+// â”€â”€ Shortcut constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Single-key shortcut for Measure Length tool.
 pub const KEY_MEASURE_LENGTH: Key = Key::L;
@@ -62,7 +62,7 @@ pub const KEY_WINDOW_LEVEL: Key = Key::W;
 /// Single-key shortcut for Label Paint tool.
 pub const KEY_LABEL_PAINT: Key = Key::B;
 
-// ── SSOT function ────────────────────────────────────────────────────────────
+// â”€â”€ SSOT function â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Map a key press to an optional tool kind.
 ///
@@ -75,15 +75,15 @@ pub const KEY_LABEL_PAINT: Key = Key::B;
 /// function to determine which tool (if any) should be activated.
 ///
 /// # Convention
-/// - **L** → Length measurement
-/// - **A** → Angle measurement
-/// - **R** → Rectangle ROI
-/// - **E** → Ellipse ROI
-/// - **H** → HU point readout
-/// - **P** → Pan
-/// - **Z** → Zoom
-/// - **W** → Window/Level
-/// - **B** → Label Paint
+/// - **L** â†’ Length measurement
+/// - **A** â†’ Angle measurement
+/// - **R** â†’ Rectangle ROI
+/// - **E** â†’ Ellipse ROI
+/// - **H** â†’ HU point readout
+/// - **P** â†’ Pan
+/// - **Z** â†’ Zoom
+/// - **W** â†’ Window/Level
+/// - **B** â†’ Label Paint
 ///
 /// All other keys return `None`.
 #[inline]
@@ -98,8 +98,7 @@ pub fn tool_kind_for_key(key: Key) -> Option<ToolKind> {
         KEY_ZOOM => Some(ToolKind::Zoom),
         KEY_WINDOW_LEVEL => Some(ToolKind::WindowLevel),
         KEY_LABEL_PAINT => Some(ToolKind::LabelPaint),
-        _ => None,
-    }
+        _ => None }
 }
 
 #[cfg(test)]

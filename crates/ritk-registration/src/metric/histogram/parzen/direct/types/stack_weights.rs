@@ -1,14 +1,14 @@
-//! Stack-allocated Parzen weights for one axis (OPT-5).
+﻿//! Stack-allocated Parzen weights for one axis (OPT-5).
 
-/// Stack weight array capacity (32×f32 = 128 B, AVX2-aligned).
+/// Stack weight array capacity (32Ã—f32 = 128 B, AVX2-aligned).
 ///
-/// Covers σ≈5.2 bins (half_width≤15, range≤31). Beyond-active slots
+/// Covers Ïƒâ‰ˆ5.2 bins (half_widthâ‰¤15, rangeâ‰¤31). Beyond-active slots
 /// are zero-filled. FIX-319-09: increased from 16 to 32.
 pub(crate) const STACK_WEIGHTS_CAPACITY: usize = 32;
 
 /// Stack-allocated Parzen weights for one axis (OPT-5).
 ///
-/// Avoids `Vec` heap allocation for ≤31 weights. `len` tracks active
+/// Avoids `Vec` heap allocation for â‰¤31 weights. `len` tracks active
 /// entries; beyond is zero-filled. `[f32; 32]` (not 31) for 128-byte SIMD
 /// alignment. `len` is `u8` (MEM-325-01): max=31 fits `u8`; `Copy` safe
 /// since padding is zero-filled.
@@ -16,8 +16,7 @@ pub(crate) const STACK_WEIGHTS_CAPACITY: usize = 32;
 pub(crate) struct StackWeights {
     pub(crate) weights: [f32; STACK_WEIGHTS_CAPACITY],
     /// Number of active weight entries. `u8` since max = 31 < 256.
-    pub(crate) len: u8,
-}
+    pub(crate) len: u8 }
 
 /// Iterator over active `(bin_offset, weight)` pairs of [`StackWeights`].
 ///
@@ -32,8 +31,7 @@ pub(crate) struct StackWeights {
 pub(crate) struct StackWeightsIter<'a> {
     slice: &'a [f32],
     pos: usize,
-    remaining: usize,
-}
+    remaining: usize }
 
 impl<'a> Iterator for StackWeightsIter<'a> {
     type Item = (usize, f32);
@@ -79,14 +77,14 @@ impl<'a> DoubleEndedIterator for StackWeightsIter<'a> {
 impl StackWeights {
     /// Build Parzen weights for bins `[lo..=hi]` from a normalised value.
     ///
-    /// Entry `j` = `exp(-(val-(lo+j))²/(2σ²))`. Beyond `hi-lo+1` is zero-filled.
+    /// Entry `j` = `exp(-(val-(lo+j))Â²/(2ÏƒÂ²))`. Beyond `hi-lo+1` is zero-filled.
     ///
     /// # Performance (PERF-319-04, PERF-331-02)
     ///
     /// **Exp-ratchet trick**: adjacent bins differ by 1 in `diff`, so exponent
     /// changes by a fixed second-difference increment. Reduces cost from
-    /// `N×exp()` to `1×exp()+(N-1)×fma` (~3× faster for 7-bin window).
-    /// Drift ≤31 ULP at max capacity, within 1e-4 test tolerance.
+    /// `NÃ—exp()` to `1Ã—exp()+(N-1)Ã—fma` (~3Ã— faster for 7-bin window).
+    /// Drift â‰¤31 ULP at max capacity, within 1e-4 test tolerance.
     ///
     /// **Sum in same pass (PERF-331-02)**: accumulates the weight sum
     /// during the exp-ratchet loop, avoiding a second pass over the
@@ -95,7 +93,7 @@ impl StackWeights {
     /// to skip the redundant `weights.iter().sum()` call.
     ///
     /// # Returns
-    /// `(weights, sum)` tuple where `sum = Σ weights[0..len]`. The sum is
+    /// `(weights, sum)` tuple where `sum = Î£ weights[0..len]`. The sum is
     /// exact up to the same drift as the exp-ratchet itself.
     #[inline]
     pub fn new_with_sum(val: f32, lo: usize, hi: usize, inv_2sigma_sq: f32) -> (Self, f32) {
@@ -109,7 +107,7 @@ impl StackWeights {
         let mut weights = [0.0f32; STACK_WEIGHTS_CAPACITY];
         let len = (hi - lo + 1) as u8;
 
-        // PERF-319-04: Exp-ratchet — see module docs for derivation.
+        // PERF-319-04: Exp-ratchet â€” see module docs for derivation.
         let diff0 = val - lo as f32;
         let mut exponent = diff0 * diff0 * inv_2sigma_sq;
         let two_inv_2sigma_sq = 2.0 * inv_2sigma_sq;
@@ -130,14 +128,14 @@ impl StackWeights {
 
     /// Build Parzen weights for bins `[lo..=hi]` from a normalised value.
     ///
-    /// Entry `j` = `exp(-(val-(lo+j))²/(2σ²))`. Beyond `hi-lo+1` is zero-filled.
+    /// Entry `j` = `exp(-(val-(lo+j))Â²/(2ÏƒÂ²))`. Beyond `hi-lo+1` is zero-filled.
     ///
     /// # Performance (PERF-319-04)
     ///
     /// **Exp-ratchet trick**: adjacent bins differ by 1 in `diff`, so exponent
     /// changes by a fixed second-difference increment. Reduces cost from
-    /// `N×exp()` to `1×exp()+(N-1)×fma` (~3× faster for 7-bin window).
-    /// Drift ≤31 ULP at max capacity, within 1e-4 test tolerance.
+    /// `NÃ—exp()` to `1Ã—exp()+(N-1)Ã—fma` (~3Ã— faster for 7-bin window).
+    /// Drift â‰¤31 ULP at max capacity, within 1e-4 test tolerance.
     #[cfg(test)]
     #[inline]
     pub fn new(val: f32, lo: usize, hi: usize, inv_2sigma_sq: f32) -> Self {
@@ -153,8 +151,7 @@ impl StackWeights {
         StackWeightsIter {
             slice: &self.weights[..self.len()], // via len() accessor (MEM-325-01)
             pos: 0,
-            remaining: self.len(),
-        }
+            remaining: self.len() }
     }
 
     /// Number of active weight entries (`usize`).

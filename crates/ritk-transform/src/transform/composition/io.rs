@@ -17,16 +17,16 @@
 //! | Variant              | Parameters                                               |
 //! |----------------------|----------------------------------------------------------|
 //! | `Translation`        | offset vector \[D\]                                      |
-//! | `Rigid`              | rotation matrix D×D (row-major) + translation \[D\]      |
-//! | `Affine`             | homogeneous matrix (D+1)×(D+1) (row-major)               |
+//! | `Rigid`              | rotation matrix DÃ—D (row-major) + translation \[D\]      |
+//! | `Affine`             | homogeneous matrix (D+1)Ã—(D+1) (row-major)               |
 //! | `DisplacementField`  | grid dims, origin, spacing, per-component displacement   |
 //! | `BSpline`            | grid dims, origin, spacing, per-component ctrl-pt displ. |
 //!
 //! # Composition order
 //!
 //! Transforms are applied **left-to-right** (first-to-last):
-//! a point `p` is mapped through `T[0]`, then `T[1]`, … , then `T[n-1]`.
-//! Mathematically this corresponds to `T_{n-1} ∘ … ∘ T_1 ∘ T_0`.
+//! a point `p` is mapped through `T[0]`, then `T[1]`, â€¦ , then `T[n-1]`.
+//! Mathematically this corresponds to `T_{n-1} âˆ˜ â€¦ âˆ˜ T_1 âˆ˜ T_0`.
 //!
 //! # Dependencies
 //!
@@ -55,19 +55,19 @@ pub enum TransformDescription {
         offset: Vec<f64>,
     },
 
-    /// Rigid: rotation matrix (D×D, row-major) + translation vector (length D).
+    /// Rigid: rotation matrix (DÃ—D, row-major) + translation vector (length D).
     ///
     /// The rotation matrix is stored as `D * D` elements in row-major order.
     Rigid {
-        /// D×D rotation matrix, row-major.
+        /// DÃ—D rotation matrix, row-major.
         rotation: Vec<f64>,
         /// Translation vector of length D.
         translation: Vec<f64>,
     },
 
-    /// Affine: full homogeneous matrix ((D+1)×(D+1), row-major).
+    /// Affine: full homogeneous matrix ((D+1)Ã—(D+1), row-major).
     Affine {
-        /// (D+1)×(D+1) homogeneous matrix, row-major.
+        /// (D+1)Ã—(D+1) homogeneous matrix, row-major.
         matrix: Vec<f64>,
     },
 
@@ -119,7 +119,7 @@ impl TransformDescription {
                 }
             }
             Self::Affine { matrix } => {
-                // (D+1)^2 elements → solve for D.
+                // (D+1)^2 elements â†’ solve for D.
                 let n = matrix.len();
                 let side = (n as f64).sqrt() as usize;
                 if side >= 2 && side * side == n {
@@ -140,11 +140,11 @@ impl TransformDescription {
 
 /// Ordered composite transform: applied first-to-last.
 ///
-/// `point → T[0] → T[1] → … → T[n-1]`
+/// `point â†’ T[0] â†’ T[1] â†’ â€¦ â†’ T[n-1]`
 ///
 /// # Invariants
 ///
-/// * `dimensionality ∈ {2, 3}` (enforced by convention, not by the type system,
+/// * `dimensionality âˆˆ {2, 3}` (enforced by convention, not by the type system,
 ///   to allow forward-compatible payloads).
 /// * Every element of `transforms` must have parameter lengths consistent with
 ///   `dimensionality`.

@@ -1,11 +1,11 @@
-//! Differential interoperability tests: RITK-native JPEG 2000 codec versus
+﻿//! Differential interoperability tests: RITK-native JPEG 2000 codec versus
 //! the `openjp2` reference implementation (the pure-Rust c2rust port of
 //! OpenJPEG, dev-dependency only).
 //!
 //! # Evidence tier
 //! Cross-implementation differential validation of the lossless contract:
-//! - `openjp2` encode → RITK decode: every sample exact.
-//! - RITK encode → `openjp2` decode: every sample exact.
+//! - `openjp2` encode â†’ RITK decode: every sample exact.
+//! - RITK encode â†’ `openjp2` decode: every sample exact.
 
 use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, WaveletTransform};
 use ritk_codecs::{decode_jpeg2000_fragment, PixelLayout, PixelSignedness};
@@ -20,8 +20,7 @@ fn layout(rows: usize, cols: usize, bits: u16) -> PixelLayout {
         bits_allocated: bits,
         pixel_representation: PixelSignedness::Unsigned,
         rescale_slope: 1.0,
-        rescale_intercept: 0.0,
-    }
+        rescale_intercept: 0.0 }
 }
 
 /// Deterministic CT-like content: gradient + LCG noise within `2^prec`.
@@ -41,7 +40,7 @@ fn synthetic(rows: u32, cols: u32, prec: u32) -> Vec<i32> {
 
 /// Encode a grayscale image to a bare J2K codestream with `openjp2`,
 /// `numresolution = num_decomp_levels + 1`. `irreversible` selects the wavelet:
-/// 0 → 5/3 reversible (lossless), 1 → 9/7 irreversible (lossy). With the
+/// 0 â†’ 5/3 reversible (lossless), 1 â†’ 9/7 irreversible (lossy). With the
 /// default rate allocation (no `tcp_rates`) the encoder retains every coding
 /// pass, so a lossy stream loses precision only through scalar quantization.
 fn openjp2_encode(
@@ -62,13 +61,12 @@ fn openjp2_encode(
             opj_end_compress, opj_image_create, opj_image_destroy,
             opj_set_default_encoder_parameters, opj_setup_encoder, opj_start_compress,
             opj_stream_create_default_file_stream, opj_stream_destroy, CODEC_FORMAT, COLOR_SPACE,
-            OPJ_BOOL, OPJ_FALSE, OPJ_TRUE,
-        };
+            OPJ_BOOL, OPJ_FALSE, OPJ_TRUE };
         use openjp2::opj_image_comptparm as opj_image_cmptparm_t;
 
         let mut params: opj_cparameters_t = std::mem::zeroed();
         opj_set_default_encoder_parameters(&mut params);
-        params.irreversible = irreversible; // 0 → 5/3 reversible, 1 → 9/7 irreversible
+        params.irreversible = irreversible; // 0 â†’ 5/3 reversible, 1 â†’ 9/7 irreversible
         params.numresolution = numres;
 
         let mut cmptparm: opj_image_cmptparm_t = std::mem::zeroed();
@@ -150,8 +148,7 @@ fn openjp2_decode(j2k: &[u8]) -> Vec<i32> {
             opj_create_decompress, opj_decode, opj_destroy_codec, opj_dparameters_t,
             opj_end_decompress, opj_image_destroy, opj_read_header, opj_setup_decoder,
             opj_stream_create_default_file_stream, opj_stream_destroy, CODEC_FORMAT, OPJ_BOOL,
-            OPJ_TRUE,
-        };
+            OPJ_TRUE };
         use openjp2::opj_image as opj_image_t;
 
         let mut parameters = opj_dparameters_t::default();
@@ -200,23 +197,23 @@ fn openjp2_decode(j2k: &[u8]) -> Vec<i32> {
     }
 }
 
-/// Reference → RITK: every sample must reconstruct exactly.
+/// Reference â†’ RITK: every sample must reconstruct exactly.
 fn assert_ritk_decodes_openjp2(rows: u32, cols: u32, prec: u32, numres: i32) {
     let pixels = synthetic(rows, cols, prec);
     let j2k = openjp2_encode(&pixels, cols, rows, prec, numres, 0);
     let bits = if prec <= 8 { 8u16 } else { 16 };
     let decoded = decode_jpeg2000_fragment(&j2k, layout(rows as usize, cols as usize, bits))
         .unwrap_or_else(|e| {
-            panic!("RITK decode of openjp2 stream failed ({rows}×{cols}, prec {prec}, numres {numres}): {e:#}")
+            panic!("RITK decode of openjp2 stream failed ({rows}Ã—{cols}, prec {prec}, numres {numres}): {e:#}")
         });
     let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
     assert_eq!(
         decoded, expected,
-        "openjp2 → RITK must be exact ({rows}×{cols}, prec {prec}, numres {numres})"
+        "openjp2 â†’ RITK must be exact ({rows}Ã—{cols}, prec {prec}, numres {numres})"
     );
 }
 
-/// RITK → reference: every sample must reconstruct exactly.
+/// RITK â†’ reference: every sample must reconstruct exactly.
 fn assert_openjp2_decodes_ritk(rows: u32, cols: u32, prec: u32, levels: u8) {
     let pixels = synthetic(rows, cols, prec);
     let j2k = encode_grayscale_j2k(
@@ -233,12 +230,12 @@ fn assert_openjp2_decodes_ritk(rows: u32, cols: u32, prec: u32, levels: u8) {
     for (i, (&orig, &dec)) in pixels.iter().zip(data.iter()).enumerate() {
         assert_eq!(
             dec, orig,
-            "RITK → openjp2 sample[{i}] mismatch ({rows}×{cols}, prec {prec}, L{levels})"
+            "RITK â†’ openjp2 sample[{i}] mismatch ({rows}Ã—{cols}, prec {prec}, L{levels})"
         );
     }
 }
 
-// ── openjp2 → RITK ───────────────────────────────────────────────────────────
+// â”€â”€ openjp2 â†’ RITK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn openjp2_to_ritk_64x64_8bit_no_dwt() {
@@ -261,8 +258,8 @@ fn openjp2_to_ritk_64x80_16bit_five_levels() {
     assert_ritk_decodes_openjp2(64, 80, 16, 6);
 }
 
-/// Full openjp2 → RITK matrix: sizes × {8, 12, 16}-bit × all resolution
-/// counts. Regression coverage for the §B.10.1 header bit-stuffing defect
+/// Full openjp2 â†’ RITK matrix: sizes Ã— {8, 12, 16}-bit Ã— all resolution
+/// counts. Regression coverage for the Â§B.10.1 header bit-stuffing defect
 /// (we byte-stuffed 0x00 after 0xFF instead of 7-bit stuffing), which only
 /// manifested when a packet header happened to contain 0xFF.
 #[test]
@@ -276,7 +273,7 @@ fn openjp2_to_ritk_matrix() {
     }
 }
 
-/// Full RITK → openjp2 matrix (reverse direction of [`openjp2_to_ritk_matrix`]).
+/// Full RITK â†’ openjp2 matrix (reverse direction of [`openjp2_to_ritk_matrix`]).
 #[test]
 fn ritk_to_openjp2_matrix() {
     for &(rows, cols) in &[(64u32, 64u32), (64, 80), (100, 150)] {
@@ -288,7 +285,7 @@ fn ritk_to_openjp2_matrix() {
     }
 }
 
-// ── RITK → openjp2 ───────────────────────────────────────────────────────────
+// â”€â”€ RITK â†’ openjp2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn ritk_to_openjp2_64x64_8bit_no_dwt() {
@@ -315,22 +312,22 @@ fn tile_body(j2k: &[u8]) -> &[u8] {
 }
 
 /// Escalation harness: byte-compare our encoder against openjp2 for a series
-/// of increasingly complex 8×8 images; reports the first differing byte.
+/// of increasingly complex 8Ã—8 images; reports the first differing byte.
 #[test]
 fn escalation_byte_compare_with_openjp2() {
-    // 128 is the 8-bit unsigned DC level: pixel 128 → coefficient 0, so these
+    // 128 is the 8-bit unsigned DC level: pixel 128 â†’ coefficient 0, so these
     // are true coefficient impulses after the encoder's DC shift.
     let mut impulse = vec![128i32; 64];
     impulse[0] = 138; // coefficient +10 at (0,0)
     let mut impulse_mid = vec![128i32; 64];
-    impulse_mid[3 * 8 + 1] = 100; // coefficient −28 at (1,3)
+    impulse_mid[3 * 8 + 1] = 100; // coefficient âˆ’28 at (1,3)
     let mut two = vec![128i32; 64];
     two[0] = 200; // +72
-    two[9] = 100; // −28
+    two[9] = 100; // âˆ’28
     let ramp: Vec<i32> = (0..64).map(|i| (i % 8) * 30).collect();
     let vramp: Vec<i32> = (0..64).map(|i| (i / 8) * 30).collect();
     let synth = synthetic(8, 8, 8);
-    // Bit-plane bisection: +1 → exactly one cleanup pass; +3 → CUP then one
+    // Bit-plane bisection: +1 â†’ exactly one cleanup pass; +3 â†’ CUP then one
     // SPP/MRP/CUP round.
     let mut v1 = vec![128i32; 64];
     v1[0] = 129;
@@ -397,23 +394,23 @@ fn escalation_byte_compare_with_openjp2() {
         "byte divergence in cases: {failures:?}"
     );
 }
-/// Regression (J2K-INTEROP): single-impulse 8×8 image, no DWT — the minimized
+/// Regression (J2K-INTEROP): single-impulse 8Ã—8 image, no DWT â€” the minimized
 /// case for the MQ probability-estimation defect (state advanced on every MPS
-/// instead of only on renormalisation, ISO 15444-1 §C.2.6/Figure C.7). Both
+/// instead of only on renormalisation, ISO 15444-1 Â§C.2.6/Figure C.7). Both
 /// cross-decode directions must reconstruct every sample exactly.
 #[test]
 fn cross_decode_impulse_8x8_regression() {
     let mut v1_mid = vec![128i32; 64];
     v1_mid[4 * 8 + 4] = 129;
 
-    // openjp2 stream → RITK decoder.
+    // openjp2 stream â†’ RITK decoder.
     let theirs = openjp2_encode(&v1_mid, 8, 8, 8, 1, 0);
     let dec = decode_jpeg2000_fragment(&theirs, layout(8, 8, 8))
         .expect("RITK decode of openjp2 impulse stream");
     let expected: Vec<f32> = v1_mid.iter().map(|&p| p as f32).collect();
-    assert_eq!(dec, expected, "openjp2 → RITK impulse reconstruction");
+    assert_eq!(dec, expected, "openjp2 â†’ RITK impulse reconstruction");
 
-    // RITK stream → openjp2 decoder.
+    // RITK stream â†’ openjp2 decoder.
     let ours = encode_grayscale_j2k(
         &v1_mid,
         8,
@@ -424,10 +421,10 @@ fn cross_decode_impulse_8x8_regression() {
         WaveletTransform::Reversible,
     );
     let data = openjp2_decode(&ours);
-    assert_eq!(data, v1_mid, "RITK → openjp2 impulse reconstruction");
+    assert_eq!(data, v1_mid, "RITK â†’ openjp2 impulse reconstruction");
 }
 
-// ── Lossy 9/7 differential decode (openjp2 → RITK vs the reference) ────────────
+// â”€â”€ Lossy 9/7 differential decode (openjp2 â†’ RITK vs the reference) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // The reversible interop tests prove the MQ coder, EBCOT, tier-2 packets, the
 // 5/3 wavelet, and the codestream parser are openjp2-conformant. The remaining
@@ -439,8 +436,8 @@ fn cross_decode_impulse_8x8_regression() {
 //
 // The oracle is *fidelity to the original image*, not per-sample agreement with
 // openjp2. JPEG 2000 leaves the dequantization reconstruction bias r (ISO 15444-1
-// §E.1.1.2) to the decoder — RITK uses the midpoint r = 0.5, openjp2 a different
-// value — and after the inverse 9/7 (whose synthesis filters have gain > 1) a
+// Â§E.1.1.2) to the decoder â€” RITK uses the midpoint r = 0.5, openjp2 a different
+// value â€” and after the inverse 9/7 (whose synthesis filters have gain > 1) a
 // sub-step bias difference propagates to several sample units. So the two
 // conformant reconstructions legitimately differ by more than one level; what a
 // *correct* 9/7-inverse + QCD-parse guarantees is that RITK reconstructs the
@@ -461,7 +458,7 @@ fn mse_vs_original(recon: impl Iterator<Item = f64>, original: &[i32]) -> f64 {
     sum / original.len() as f64
 }
 
-/// Peak-signal-to-noise ratio in dB for `prec`-bit samples (∞ when `mse == 0`).
+/// Peak-signal-to-noise ratio in dB for `prec`-bit samples (âˆž when `mse == 0`).
 fn psnr(mse: f64, prec: u32) -> f64 {
     if mse <= 0.0 {
         return f64::INFINITY;
@@ -470,7 +467,7 @@ fn psnr(mse: f64, prec: u32) -> f64 {
     10.0 * (peak * peak / mse).log10()
 }
 
-/// openjp2 9/7-irreversible encode → {RITK decode, openjp2 decode}; RITK must
+/// openjp2 9/7-irreversible encode â†’ {RITK decode, openjp2 decode}; RITK must
 /// reconstruct the original within 1 dB of the reference decoder's PSNR.
 fn assert_ritk_matches_openjp2_lossy(rows: u32, cols: u32, prec: u32, numres: i32) {
     let pixels = synthetic(rows, cols, prec);
@@ -479,7 +476,7 @@ fn assert_ritk_matches_openjp2_lossy(rows: u32, cols: u32, prec: u32, numres: i3
     let bits = if prec <= 8 { 8u16 } else { 16 };
     let ritk = decode_jpeg2000_fragment(&j2k, layout(rows as usize, cols as usize, bits))
         .unwrap_or_else(|e| {
-            panic!("RITK decode of openjp2 9/7 stream failed ({rows}×{cols}, prec {prec}, numres {numres}): {e:#}")
+            panic!("RITK decode of openjp2 9/7 stream failed ({rows}Ã—{cols}, prec {prec}, numres {numres}): {e:#}")
         });
 
     let openjp2 = openjp2_decode(&j2k);
@@ -487,7 +484,7 @@ fn assert_ritk_matches_openjp2_lossy(rows: u32, cols: u32, prec: u32, numres: i3
     assert_eq!(
         ritk.len(),
         openjp2.len(),
-        "sample-count mismatch ({rows}×{cols}, prec {prec}, numres {numres})"
+        "sample-count mismatch ({rows}Ã—{cols}, prec {prec}, numres {numres})"
     );
 
     let ritk_mse = mse_vs_original(ritk.iter().map(|&r| f64::from(r)), &pixels);
@@ -495,7 +492,7 @@ fn assert_ritk_matches_openjp2_lossy(rows: u32, cols: u32, prec: u32, numres: i3
     let (ritk_psnr, openjp2_psnr) = (psnr(ritk_mse, prec), psnr(openjp2_mse, prec));
 
     eprintln!(
-        "lossy {rows}×{cols} prec{prec} numres{numres}: RITK {ritk_psnr:.2} dB, openjp2 {openjp2_psnr:.2} dB \
+        "lossy {rows}Ã—{cols} prec{prec} numres{numres}: RITK {ritk_psnr:.2} dB, openjp2 {openjp2_psnr:.2} dB \
          (mse {ritk_mse:.3} vs {openjp2_mse:.3})"
     );
     // A correct 9/7 inverse + QCD parse tracks the reference to a fraction of a
@@ -504,7 +501,7 @@ fn assert_ritk_matches_openjp2_lossy(rows: u32, cols: u32, prec: u32, numres: i3
     assert!(
         ritk_psnr >= openjp2_psnr - 1.0,
         "RITK lossy PSNR {ritk_psnr:.2} dB is more than 1 dB below openjp2 {openjp2_psnr:.2} dB \
-         ({rows}×{cols}, prec {prec}, numres {numres}) — 9/7 inverse or QCD parse defect"
+         ({rows}Ã—{cols}, prec {prec}, numres {numres}) â€” 9/7 inverse or QCD parse defect"
     );
 }
 
@@ -522,9 +519,9 @@ fn lossy_openjp2_to_ritk_64x80_16bit_five_levels() {
 ///
 /// Covers `numres = 1..=6`, including the degenerate zero-decomposition-level
 /// case (no wavelet, pure scalar quantization). With the bitplane-aware
-/// reconstruction (a fully decoded index reconstructs at q·Δ, matching the
+/// reconstruction (a fully decoded index reconstructs at qÂ·Î”, matching the
 /// OpenJPEG reference), RITK tracks openjp2 within 1 dB PSNR across the whole
-/// matrix — the 9/7 inverse lifting, the QCD step-size parsing, and the
+/// matrix â€” the 9/7 inverse lifting, the QCD step-size parsing, and the
 /// dequantization reconstruction are all validated against the reference.
 #[test]
 fn lossy_openjp2_to_ritk_matrix() {

@@ -1,17 +1,16 @@
-//! Surface mesh overlay operations for [`SnapApp`].
+﻿//! Surface mesh overlay operations for [`SnapApp`].
 //!
 //! Provides three capabilities wired to the 3D-MIP viewport:
 //!
-//! - [`SnapApp::load_mesh_file`] — dispatch by extension, store in
+//! - [`SnapApp::load_mesh_file`] â€” dispatch by extension, store in
 //!   [`SnapApp::loaded_mesh`].
-//! - [`SnapApp::auto_camera_for_poly`] — AABB-fitted pinhole camera.
-//! - [`SnapApp::rebuild_mesh_texture`] — Phong-rasterize to an
+//! - [`SnapApp::auto_camera_for_poly`] â€” AABB-fitted pinhole camera.
+//! - [`SnapApp::rebuild_mesh_texture`] â€” Phong-rasterize to an
 //!   [`egui::TextureHandle`] composited on the MIP viewport.
 
 use super::state::SnapApp;
 use crate::render::mesh_render::{
-    normalize, DirectionalLight, MeshCamera, MeshRenderer, PhongMaterial,
-};
+    normalize, DirectionalLight, MeshCamera, MeshRenderer, PhongMaterial };
 use ritk_io::VtkPolyData;
 use std::f32::consts::PI;
 use std::path::Path;
@@ -21,9 +20,9 @@ impl SnapApp {
     /// Load a surface mesh from `path` and store it in [`Self::loaded_mesh`].
     ///
     /// Dispatch is on the lowercase file extension:
-    /// - `.stl` → [`ritk_io::read_stl_mesh`]
-    /// - `.obj` → [`ritk_io::read_obj_mesh`]
-    /// - `.ply` → [`ritk_io::read_ply_mesh`]
+    /// - `.stl` â†’ [`ritk_io::read_stl_mesh`]
+    /// - `.obj` â†’ [`ritk_io::read_obj_mesh`]
+    /// - `.ply` â†’ [`ritk_io::read_ply_mesh`]
     ///
     /// On success sets `mesh_dirty = true` and `show_mesh_overlay = true`.
     /// On failure the error is logged and written to [`Self::status_message`].
@@ -72,12 +71,12 @@ impl SnapApp {
     ///
     /// # Algorithm
     ///
-    /// 1. Compute per-axis min/max over all points → AABB.
+    /// 1. Compute per-axis min/max over all points â†’ AABB.
     /// 2. `center = (min + max) / 2`.
-    /// 3. `diag = ||max − min||`, clamped to ≥ 1.0 to avoid degenerate framing.
-    /// 4. `eye = [cx, cy, cz + diag · 1.5]` (Z-offset above the model).
-    /// 5. `up = [0, 1, 0]`, `fov_y = π/4`.
-    /// 6. `near = diag · 0.01`, `far = diag · 10.0`.
+    /// 3. `diag = ||max âˆ’ min||`, clamped to â‰¥ 1.0 to avoid degenerate framing.
+    /// 4. `eye = [cx, cy, cz + diag Â· 1.5]` (Z-offset above the model).
+    /// 5. `up = [0, 1, 0]`, `fov_y = Ï€/4`.
+    /// 6. `near = diag Â· 0.01`, `far = diag Â· 10.0`.
     ///
     /// For an empty point set, returns the default camera with the correct
     /// aspect ratio and without panicking.
@@ -120,11 +119,10 @@ impl SnapApp {
             fov_y: PI / 4.0,
             aspect,
             near: diag * 0.01,
-            far: diag * 10.0,
-        }
+            far: diag * 10.0 }
     }
 
-    /// Rebuild the mesh overlay [`egui::TextureHandle`] at pixel dimensions `w × h`.
+    /// Rebuild the mesh overlay [`egui::TextureHandle`] at pixel dimensions `w Ã— h`.
     ///
     /// Renders `self.loaded_mesh` via the CPU Phong rasterizer with two
     /// directional lights (key + fill) and uploads the result as
@@ -139,12 +137,10 @@ impl SnapApp {
             let camera = Self::auto_camera_for_poly(poly, w, h);
             let key_light = DirectionalLight {
                 direction: normalize([1.0, 1.0, 1.0]),
-                color: [1.0, 1.0, 1.0],
-            };
+                color: [1.0, 1.0, 1.0] };
             let fill_light = DirectionalLight {
                 direction: normalize([-0.5, -0.5, -1.0]),
-                color: [0.2, 0.2, 0.2],
-            };
+                color: [0.2, 0.2, 0.2] };
             let material = PhongMaterial::default();
             let renderer = MeshRenderer::new(w, h);
             renderer.render(poly, &camera, &material, &[key_light, fill_light])

@@ -1,4 +1,4 @@
-use super::state::SnapApp;
+﻿use super::state::SnapApp;
 
 mod native;
 
@@ -15,8 +15,7 @@ impl SnapApp {
             Err(error) => {
                 self.status_message = format!("Filter failed: {error:#}");
             }
-            Ok(output) => self.replace_loaded_volume_native(output),
-        }
+            Ok(output) => self.replace_loaded_volume_native(output) }
     }
 
     fn replace_loaded_volume_native(&mut self, output: native::NativeFilterOutput) {

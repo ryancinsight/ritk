@@ -1,23 +1,17 @@
 //! Extracted tests: K=4, K=5, between-class variance K=2 product formula, adversarial.
 use super::*;
-use burn_ndarray::NdArray;
-use ritk_image::test_support::burn_compat::make_image;
+use coeus_core::SequentialBackend;
+use ritk_image::test_support::make_image;
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
 
-fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
+fn make_image_1d(data: Vec<f32>) -> Image<f32, TestBackend, 1> {
     let n = data.len();
     make_image(data, [n])
 }
 
-fn get_values_1d(image: &Image<TestBackend, 1>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn get_values_1d(image: &Image<f32, TestBackend, 1>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
 // ── K=4: four-class segmentation ──────────────────────────────────────────

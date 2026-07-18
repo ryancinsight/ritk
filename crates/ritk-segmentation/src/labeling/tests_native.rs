@@ -1,13 +1,12 @@
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::native::Image as NativeImage;
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::test_support::make_image;
 
 use super::{ConnectedComponentsFilter, Connectivity};
 use crate::RelabelComponentFilter;
 
-type LegacyBackend = NdArray<f32>;
+type LegacyBackend = SequentialBackend;
 
 fn native_image(values: Vec<f32>) -> NativeImage<f32, SequentialBackend, 3> {
     NativeImage::from_flat_on(
@@ -25,7 +24,7 @@ fn native_image(values: Vec<f32>) -> NativeImage<f32, SequentialBackend, 3> {
 fn filter_owned_native_labeling_matches_legacy_exactly() {
     let values = vec![1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 2.0, 0.0];
     let native = native_image(values.clone());
-    let legacy = make_image::<LegacyBackend, 3>(values, [2, 2, 2]);
+    let legacy = make_image::<f32, LegacyBackend, 3>(values, [2, 2, 2]);
     let filter = ConnectedComponentsFilter::with_connectivity(Connectivity::Six);
     let (native_labels, native_statistics) = filter
         .apply_native(&native, &SequentialBackend)
@@ -48,7 +47,7 @@ fn filter_owned_native_labeling_matches_legacy_exactly() {
 fn filter_owned_native_relabeling_matches_legacy_exactly() {
     let values = vec![1.0, 1.0, 2.0, 2.0, 2.0, 0.0, 3.0, 0.0];
     let native = native_image(values.clone());
-    let legacy = make_image::<LegacyBackend, 3>(values, [2, 2, 2]);
+    let legacy = make_image::<f32, LegacyBackend, 3>(values, [2, 2, 2]);
     let filter = RelabelComponentFilter::with_minimum_object_size(2);
     let (native_labels, native_statistics) = filter
         .apply_native(&native, &SequentialBackend)

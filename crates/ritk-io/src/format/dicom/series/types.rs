@@ -1,4 +1,4 @@
-//! `DicomSeriesInfo` type — metadata for a discovered DICOM series.
+//! `DicomSeriesInfo` type â€” metadata for a discovered DICOM series.
 
 use arrayvec::ArrayString;
 use std::path::PathBuf;

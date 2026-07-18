@@ -1,19 +1,17 @@
-use crate::progress::{ProgressCallback, ProgressInfo};
+﻿use crate::progress::{ProgressCallback, ProgressInfo};
 use std::sync::{Arc, Mutex};
 
 /// History callback that records all progress information.
 #[derive(Debug, Clone)]
 pub struct HistoryCallback {
     /// History of progress information.
-    history: Arc<Mutex<Vec<ProgressInfo>>>,
-}
+    history: Arc<Mutex<Vec<ProgressInfo>>> }
 
 impl HistoryCallback {
     /// Create a new history callback.
     pub fn new() -> Self {
         Self {
-            history: Arc::new(Mutex::new(Vec::with_capacity(100))),
-        }
+            history: Arc::new(Mutex::new(Vec::with_capacity(100))) }
     }
 
     /// Create a new history callback with a pre-allocated capacity.
@@ -22,8 +20,7 @@ impl HistoryCallback {
     /// to avoid repeated re-allocations during the optimization loop.
     pub fn with_capacity(total_iterations: usize) -> Self {
         Self {
-            history: Arc::new(Mutex::new(Vec::with_capacity(total_iterations))),
-        }
+            history: Arc::new(Mutex::new(Vec::with_capacity(total_iterations))) }
     }
 
     /// Get the recorded history.

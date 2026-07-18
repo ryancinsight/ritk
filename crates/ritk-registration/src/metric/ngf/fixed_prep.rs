@@ -1,19 +1,19 @@
-use super::scalar::*;
+﻿use super::scalar::*;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Tensor, TensorData};
-use ritk_image::{generate_grid_burn, Image};
+use ritk_image::tensor::{Tensor };
+use ritk_image::{generate_grid, Image};
 use ritk_interpolation::{Interpolator, LinearInterpolator};
 use ritk_transform::Transform;
 
 /// Precomputed fixed-image NGF state for repeated transform evaluations across a
 /// registration. Building this ONCE removes from the optimiser's hot loop: the
-/// fixed-grid generation, the index→world mapping, the fixed host read, the fixed
-/// gradient field, and `η_F`. Each [`eval`](Self::eval) then only resamples the
-/// moving image and computes its gradient — roughly halving the per-evaluation
+/// fixed-grid generation, the indexâ†’world mapping, the fixed host read, the fixed
+/// gradient field, and `Î·_F`. Each [`eval`](Self::eval) then only resamples the
+/// moving image and computes its gradient â€” roughly halving the per-evaluation
 /// gradient work and eliminating the largest repeated allocations.
 pub(crate) struct NgfFixedPrep<B: Backend, const D: usize> {
     /// World coordinates of every fixed-grid voxel, `[N, D]` (constant).
-    fixed_points: Tensor<B, 2>,
+    fixed_points: Tensor<f32, B>,
     shape: [usize; D],
     stride: [usize; D],
     /// Precomputed fixed gradient field and its edge-noise scale.
@@ -23,39 +23,37 @@ pub(crate) struct NgfFixedPrep<B: Backend, const D: usize> {
     weights: Option<Vec<f32>>,
     interpolator: LinearInterpolator,
     /// When `Some`, [`eval`](Self::eval) estimates NGF on this fixed random voxel
-    /// subset instead of the full grid — orders of magnitude fewer resample +
+    /// subset instead of the full grid â€” orders of magnitude fewer resample +
     /// gradient operations per evaluation (elastix-style stochastic sampling).
-    sampling: Option<SamplePlan<B, D>>,
-}
+    sampling: Option<SamplePlan<B, D>> }
 
 /// A fixed random subset of mask voxels for stochastic NGF evaluation. Holds the
 /// world coordinates of each sample's axis-neighbours (so the moving gradient is
 /// a gather + finite difference), the precomputed fixed gradient/weight/denominator
 /// per sample, and the fixed edge-noise scale over the subset.
 struct SamplePlan<B: Backend, const D: usize> {
-    /// World coords of `[lo₀, hi₀, …, lo_{D-1}, hi_{D-1}]` per sample, row-major,
-    /// shape `[2D·S, D]`. Out-of-bounds neighbours reuse the sample's own index.
-    points: Tensor<B, 2>,
+    /// World coords of `[loâ‚€, hiâ‚€, â€¦, lo_{D-1}, hi_{D-1}]` per sample, row-major,
+    /// shape `[2DÂ·S, D]`. Out-of-bounds neighbours reuse the sample's own index.
+    points: Tensor<f32, B>,
     /// Fixed gradient at each sample voxel.
     gf: Vec<[f32; D]>,
-    /// Per-voxel weight at each sample (mask × optional center-Gaussian).
+    /// Per-voxel weight at each sample (mask Ã— optional center-Gaussian).
     weight: Vec<f64>,
     /// Per-axis finite-difference denominator (in-bounds neighbour count) per sample.
     denom: Vec<[f32; D]>,
-    /// `η_F²` over the sample subset.
+    /// `Î·_FÂ²` over the sample subset.
     eta_f2: f32,
     /// Number of samples `S`.
-    count: usize,
-}
+    count: usize }
 
 impl<B: Backend, const D: usize> NgfFixedPrep<B, D> {
     /// Precompute the fixed-image state for `fixed`, restricted to `mask` and
     /// scaled by `weights` (both row-major, fixed-image C-order).
-    pub(crate) fn new(fixed: &Image<B, D>, mask: Option<&[bool]>, weights: Option<&[f32]>) -> Self {
+    pub(crate) fn new(fixed: &Image<f32, B, D>, mask: Option<&[bool]>, weights: Option<&[f32]>) -> Self {
         let device = fixed.data().device();
         let shape = fixed.shape();
         let n: usize = shape.iter().product();
-        let fixed_indices = generate_grid_burn(shape, &device);
+        let fixed_indices = generate_grid(shape, &device);
         let fixed_points = fixed.index_to_world_tensor(fixed_indices);
         let f: Vec<f32> = fixed
             .data()
@@ -76,8 +74,7 @@ impl<B: Backend, const D: usize> NgfFixedPrep<B, D> {
             mask: mask.map(<[bool]>::to_vec),
             weights: weights.map(<[f32]>::to_vec),
             interpolator: LinearInterpolator::new(),
-            sampling: None,
-        }
+            sampling: None }
     }
 
     /// As [`new`](Self::new), but [`eval`](Self::eval) estimates NGF on a fixed
@@ -85,7 +82,7 @@ impl<B: Backend, const D: usize> NgfFixedPrep<B, D> {
     /// stride over the masked, positive-weight voxels). The subset is fixed for
     /// reproducibility; the estimate's variance is bounded by the sample count.
     pub(crate) fn new_sampled(
-        fixed: &Image<B, D>,
+        fixed: &Image<f32, B, D>,
         mask: Option<&[bool]>,
         weights: Option<&[f32]>,
         sample_count: usize,
@@ -106,7 +103,7 @@ impl<B: Backend, const D: usize> NgfFixedPrep<B, D> {
         let step = (candidates.len() / s).max(1);
         let samples: Vec<usize> = candidates.iter().copied().step_by(step).take(s).collect();
 
-        // One host read of the fixed image — the only O(N) operation. The full
+        // One host read of the fixed image â€” the only O(N) operation. The full
         // fixed grid and full gradient field are NOT built (the dominant cost at
         // fine pyramid levels); only the sampled gradients and the sampled
         // neighbour world coordinates are materialised.
@@ -120,8 +117,8 @@ impl<B: Backend, const D: usize> NgfFixedPrep<B, D> {
 
         let comp = |flat: usize, a: usize| (flat / stride[a]) % shape[a];
         // For each sample: the fixed gradient, weight, per-axis denominator, and
-        // the 2D neighbour VOXEL multi-indices (OOB → the sample itself, matching
-        // `grad_at`'s one-sided difference) laid out as `[lo₀, hi₀, …]` rows.
+        // the 2D neighbour VOXEL multi-indices (OOB â†’ the sample itself, matching
+        // `grad_at`'s one-sided difference) laid out as `[loâ‚€, hiâ‚€, â€¦]` rows.
         let mut idx_multi: Vec<f32> = Vec::with_capacity(samples.len() * 2 * D * D);
         let mut denom: Vec<[f32; D]> = Vec::with_capacity(samples.len());
         let mut gf_s: Vec<[f32; D]> = Vec::with_capacity(samples.len());
@@ -151,15 +148,15 @@ impl<B: Backend, const D: usize> NgfFixedPrep<B, D> {
             weight.push(voxel_weight(flat, mask, weights));
         }
 
-        // Index→world for only the sampled neighbours (`[2D·S, D]`).
+        // Indexâ†’world for only the sampled neighbours (`[2DÂ·S, D]`).
         let rows = samples.len() * 2 * D;
-        let idx = Tensor::<B, 2>::from_data(TensorData::new(idx_multi, [rows, D]), &device);
+        let idx = Tensor::<f32, B>::from_slice_on([rows, D], &idx_multi, &device);
         let points = fixed.index_to_world_tensor(idx);
         let eta_f2 = weighted_eta2_slice(&gf_s, &weight);
 
         Self {
             // Dense-path fields are unused when `sampling` is `Some`.
-            fixed_points: Tensor::<B, 2>::zeros([1, D], &device),
+            fixed_points: Tensor::<f32, B>::zeros([1, D], &device),
             shape,
             stride,
             gf: Vec::new(),
@@ -173,15 +170,13 @@ impl<B: Backend, const D: usize> NgfFixedPrep<B, D> {
                 weight,
                 denom,
                 eta_f2,
-                count: s,
-            }),
-        }
+                count: s }) }
     }
 
-    /// `NGF ∈ [0, 1]` of `moving` resampled through `transform` onto the fixed
+    /// `NGF âˆˆ [0, 1]` of `moving` resampled through `transform` onto the fixed
     /// grid, reusing the precomputed fixed state. Uses the stochastic-sample
     /// estimate when a [`SamplePlan`] is present, else the dense full-grid metric.
-    pub(crate) fn eval(&self, moving: &Image<B, D>, transform: &impl Transform<B, D>) -> f32 {
+    pub(crate) fn eval(&self, moving: &Image<f32, B, D>, transform: &impl Transform<B, D>) -> f32 {
         match &self.sampling {
             Some(plan) => self.eval_sampled(moving, transform, plan),
             None => {
@@ -203,9 +198,9 @@ impl<B: Backend, const D: usize> NgfFixedPrep<B, D> {
     /// `points` (`[K, D]`), returning the `K` interpolated host values.
     fn resample(
         &self,
-        moving: &Image<B, D>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
-        points: Tensor<B, 2>,
+        points: Tensor<f32, B>,
     ) -> Vec<f32> {
         let moving_points = transform.transform_points(points);
         let moving_indices = moving.world_to_index_tensor(moving_points);
@@ -217,13 +212,13 @@ impl<B: Backend, const D: usize> NgfFixedPrep<B, D> {
     }
 
     /// Stochastic NGF estimate over the [`SamplePlan`] subset: resample only the
-    /// `2D·S` neighbour points, finite-difference the moving gradient per sample,
+    /// `2DÂ·S` neighbour points, finite-difference the moving gradient per sample,
     /// and accumulate the weighted squared normalized dot product against the
     /// precomputed fixed gradients. Identical formula to the dense path, evaluated
     /// on `S` voxels instead of `N`.
     fn eval_sampled(
         &self,
-        moving: &Image<B, D>,
+        moving: &Image<f32, B, D>,
         transform: &impl Transform<B, D>,
         plan: &SamplePlan<B, D>,
     ) -> f32 {

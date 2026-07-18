@@ -1,11 +1,10 @@
-use super::contexts::{mr_context, sc_context, zc_context, SubbandOrientation, CTX_AGG, CTX_UNI};
+﻿use super::contexts::{mr_context, sc_context, zc_context, SubbandOrientation, CTX_AGG, CTX_UNI};
 use super::{
     any_neighbour_sig, neighbour_sig_counts, neighbour_sig_total, sign_contributions, trace,
-    SampleState,
-};
+    SampleState };
 use crate::jpeg_2000::mq_coder::{initial_contexts, MqDecoder};
 
-// ── Decoded code-block result ─────────────────────────────────────────────────
+// â”€â”€ Decoded code-block result â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Output of `decode_code_block`: reconstructed sign-magnitude samples in
 /// row-major order.  Values are the DC-shifted integer sample values (i32).
@@ -18,9 +17,8 @@ pub struct DecodedBlock {
     /// A truncated block stops at a higher plane, so the magnitudes carry zero
     /// in bits `0..lowest_bitplane`; the irreversible reconstruction uses this
     /// to place the dequantized value at the midpoint of the still-undecoded
-    /// interval (ISO 15444-1 §E.1.1.2) rather than a fixed half-step.
-    pub lowest_bitplane: u32,
-}
+    /// interval (ISO 15444-1 Â§E.1.1.2) rather than a fixed half-step.
+    pub lowest_bitplane: u32 }
 
 /// Decode one EBCOT code-block.
 ///
@@ -52,8 +50,7 @@ pub fn decode_code_block(
     if data.is_empty() || num_bit_planes == 0 || num_passes == 0 {
         return DecodedBlock {
             samples: vec![0i32; n],
-            lowest_bitplane: num_bit_planes as u32,
-        };
+            lowest_bitplane: num_bit_planes as u32 };
     }
 
     let mut mq = MqDecoder::new(data);
@@ -62,24 +59,24 @@ pub fn decode_code_block(
     let total_bit_planes = num_bit_planes as u32;
     let mut passes_remaining = num_passes;
     // Lowest bit-plane index touched by an executed pass; starts above the MSB
-    // and descends to the plane of the last pass run (0 ⟺ fully decoded).
+    // and descends to the plane of the last pass run (0 âŸº fully decoded).
     let mut lowest_bp = total_bit_planes;
 
     // Iterate bit-planes from MSB (highest) downward. The first (MSB) plane
-    // carries only a cleanup pass (ISO 15444-1 §D.4.1): nothing can be
+    // carries only a cleanup pass (ISO 15444-1 Â§D.4.1): nothing can be
     // significant yet, so SPP/MRP are skipped and the total pass count for a
-    // block with P planes is 3P − 2.
+    // block with P planes is 3P âˆ’ 2.
     for bp in (0..total_bit_planes).rev() {
         let first_plane = bp + 1 == total_bit_planes;
 
-        // ── Significance Propagation Pass ────────────────────────────────────
+        // â”€â”€ Significance Propagation Pass â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if !first_plane {
             if passes_remaining == 0 {
                 break;
             }
             passes_remaining -= 1;
             lowest_bp = bp;
-            // Stripe-oriented scan (ISO 15444-1 §D.2): 4-row stripes, columns
+            // Stripe-oriented scan (ISO 15444-1 Â§D.2): 4-row stripes, columns
             // within each stripe, rows within each column.
             let mut sy = 0;
             while sy < height {
@@ -112,7 +109,7 @@ pub fn decode_code_block(
                 sy += 4;
             }
 
-            // ── Magnitude Refinement Pass ─────────────────────────────────────────
+            // â”€â”€ Magnitude Refinement Pass â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if passes_remaining == 0 {
                 // Reset visit flags before leaving.
                 for s in &mut state {
@@ -142,7 +139,7 @@ pub fn decode_code_block(
             }
         } // end !first_plane (SPP + MRP)
 
-        // ── Cleanup Pass ──────────────────────────────────────────────────────
+        // â”€â”€ Cleanup Pass â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if passes_remaining == 0 {
             for s in &mut state {
                 s.visit = false;
@@ -275,6 +272,5 @@ pub fn decode_code_block(
 
     DecodedBlock {
         samples,
-        lowest_bitplane: lowest_bp,
-    }
+        lowest_bitplane: lowest_bp }
 }

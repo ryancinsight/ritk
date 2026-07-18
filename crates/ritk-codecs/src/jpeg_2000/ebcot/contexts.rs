@@ -1,4 +1,4 @@
-pub(crate) const CTX_ZC_BASE: usize = 0; // 9 significance contexts (0..8)
+﻿pub(crate) const CTX_ZC_BASE: usize = 0; // 9 significance contexts (0..8)
 pub(crate) const CTX_SC_BASE: usize = 9; // 5 sign contexts (9..13)
 pub(crate) const CTX_MR_BASE: usize = 14; // 3 magnitude-refinement contexts (14..16)
 pub(crate) const CTX_UNI: usize = 17; // uniform
@@ -13,10 +13,9 @@ pub enum SubbandOrientation {
     /// HL (horizontal low-pass, vertical high-pass).
     Hl,
     /// HH (both high-pass).
-    Hh,
-}
+    Hh }
 
-// ── Context helper functions (ISO 15444-1 §D.3) ───────────────────────────────
+// â”€â”€ Context helper functions (ISO 15444-1 Â§D.3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Significance context for LL / LH subbands (ISO 15444-1 Table D.1, columns H/V/D).
 #[inline]
@@ -31,8 +30,7 @@ pub(crate) fn zc_ll_lh(h: u32, v: u32, d: u32) -> usize {
             (0, 1, _) => 3,
             (0, 0, d) if d >= 2 => 2,
             (0, 0, 1) => 1,
-            _ => 0,
-        }
+            _ => 0 }
 }
 
 /// Significance context for HL subband (H and V roles swapped).
@@ -54,8 +52,7 @@ pub(crate) fn zc_hh(h: u32, v: u32, d: u32) -> usize {
             (1, 0) => 3,
             (0, hv) if hv >= 2 => 2,
             (0, 1) => 1,
-            _ => 0,
-        }
+            _ => 0 }
 }
 
 /// Choose the significance context given orientation and neighbour counts.
@@ -64,8 +61,7 @@ pub(crate) fn zc_context(orient: SubbandOrientation, h: u32, v: u32, d: u32) -> 
     match orient {
         SubbandOrientation::LlOrLh => zc_ll_lh(h, v, d),
         SubbandOrientation::Hl => zc_hl(h, v, d),
-        SubbandOrientation::Hh => zc_hh(h, v, d),
-    }
+        SubbandOrientation::Hh => zc_hh(h, v, d) }
 }
 
 /// Sign context from horizontal/vertical sign contributions (ISO 15444-1 Table D.3).
@@ -87,7 +83,7 @@ pub(crate) fn sc_context(kh: i32, kv: i32) -> (usize, u32) {
     }
 }
 
-/// Magnitude refinement context (ISO 15444-1 §D.3.3).
+/// Magnitude refinement context (ISO 15444-1 Â§D.3.3).
 #[inline]
 pub(crate) fn mr_context(has_sig_other: bool, refined_before: bool) -> usize {
     if refined_before {

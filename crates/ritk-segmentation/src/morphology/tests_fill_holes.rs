@@ -1,9 +1,9 @@
 use super::*;
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::test_support::make_image;
 use ritk_image::Image;
-type Backend = burn_ndarray::NdArray<f32>;
+type Backend = coeus_core::SequentialBackend;
 
-fn make_mask(vals: Vec<f32>, shape: [usize; 3]) -> Image<Backend, 3> {
+fn make_mask(vals: Vec<f32>, shape: [usize; 3]) -> Image<f32, Backend, 3> {
     make_image(vals, shape)
 }
 

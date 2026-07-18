@@ -8,8 +8,8 @@
 //! voxel, so the neighbourhood count `n` is constant everywhere):
 //!
 //! ```text
-//! n   = ∏_a (2·r_a + 1)
-//! out = sqrt( (Σ_k I(k)² − (Σ_k I(k))² / n) / (n − 1) )
+//! n   = âˆ_a (2Â·r_a + 1)
+//! out = sqrt( (Î£_k I(k)Â² âˆ’ (Î£_k I(k))Â² / n) / (n âˆ’ 1) )
 //! ```
 //!
 //! Accumulation is in `f64` (ITK `InputRealType` for a floating-point input).
@@ -19,7 +19,7 @@
 //! This differs from [`super::box_sigma::BoxSigmaImageFilter`] only at the
 //! border: `BoxSigma` clips the window to the image (a smaller `n`), whereas
 //! `NoiseImageFilter` keeps the full window and repeats the edge value
-//! (ZeroFluxNeumann). Interior voxels (≥ `r` from every face) are identical.
+//! (ZeroFluxNeumann). Interior voxels (â‰¥ `r` from every face) are identical.
 //!
 //! # ITK parity
 //!
@@ -50,7 +50,7 @@ impl NoiseImageFilter {
     }
 
     /// Estimate the per-voxel local noise of a 3-D image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let (vals, dims) = extract_vec_infallible(image);
         let [nz, ny, nx] = dims;
         let [rz, ry, rx] = self.radius;

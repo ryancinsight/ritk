@@ -12,13 +12,12 @@ use super::super::{
     ConnectivityEnforcement, InitializationPerturbation, ItkSlicConfig, ItkSlicFilter,
 };
 use super::*;
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::native::Image as NativeImage;
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::test_support::make_image;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
 #[rustfmt::skip]
 const IMG2D: [i32; 144] = [
@@ -235,7 +234,7 @@ fn full_3d_non_even_matches_sitk() {
 #[test]
 fn filter_native_legacy_and_sitk_outputs_are_exact() {
     let values = f(&IMG2D);
-    let legacy = make_image::<B, 3>(values.clone(), [1, 12, 12]);
+    let legacy = make_image::<f32, B, 3>(values.clone(), [1, 12, 12]);
     let native = NativeImage::from_flat_on(
         values,
         [1, 12, 12],
@@ -281,7 +280,7 @@ fn itk_slic_validation_errors_are_exact() {
             .to_string(),
         "ITK SLIC maximum iterations must be at least 1, got 0"
     );
-    let invalid = make_image::<B, 3>(vec![0.0, f32::NAN], [1, 1, 2]);
+    let invalid = make_image::<f32, B, 3>(vec![0.0, f32::NAN], [1, 1, 2]);
     assert_eq!(
         ItkSlicFilter::new(ItkSlicConfig::new(1).unwrap())
             .apply(&invalid)
@@ -336,7 +335,7 @@ fn itk_slic_validation_errors_are_exact() {
 #[test]
 fn itk_slic_policies_and_accessors_route_exactly() {
     let values = f(&IMG2D);
-    let image = make_image::<B, 3>(values.clone(), [1, 12, 12]);
+    let image = make_image::<f32, B, 3>(values.clone(), [1, 12, 12]);
     for (perturbation, connectivity) in [
         (
             InitializationPerturbation::Disabled,
@@ -384,7 +383,7 @@ fn itk_slic_policies_and_accessors_route_exactly() {
 
 #[test]
 fn itk_slic_extreme_representable_weight_keeps_exact_labels() {
-    let image = make_image::<B, 3>((0..16).map(|index| index as f32).collect(), [1, 4, 4]);
+    let image = make_image::<f32, B, 3>((0..16).map(|index| index as f32).collect(), [1, 4, 4]);
     let config = ItkSlicConfig::new(2)
         .unwrap()
         .with_spatial_proximity_weight((f64::MAX / 4.0).sqrt())

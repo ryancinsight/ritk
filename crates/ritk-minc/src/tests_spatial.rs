@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 
 #[test]
 fn default_direction_cosines_canonical_axes() {
@@ -16,22 +16,19 @@ fn order_dimensions_by_dimorder_zyx() {
             start: 0.0,
             step: 1.0,
             length: 64,
-            direction_cosines: [1.0, 0.0, 0.0],
-        },
+            direction_cosines: [1.0, 0.0, 0.0] },
         MincDimension {
             name: "yspace".to_string(),
             start: 0.0,
             step: 1.0,
             length: 80,
-            direction_cosines: [0.0, 1.0, 0.0],
-        },
+            direction_cosines: [0.0, 1.0, 0.0] },
         MincDimension {
             name: "zspace".to_string(),
             start: 0.0,
             step: 1.0,
             length: 48,
-            direction_cosines: [0.0, 0.0, 1.0],
-        },
+            direction_cosines: [0.0, 0.0, 1.0] },
     ];
     let dimorder = vec![
         "zspace".to_string(),
@@ -54,8 +51,7 @@ fn order_dimensions_missing_dim_errors() {
         start: 0.0,
         step: 1.0,
         length: 64,
-        direction_cosines: [1.0, 0.0, 0.0],
-    }];
+        direction_cosines: [1.0, 0.0, 0.0] }];
     let dimorder = vec![
         "zspace".to_string(),
         "yspace".to_string(),
@@ -72,22 +68,19 @@ fn build_spatial_metadata_positive_steps() {
             start: -10.0,
             step: 2.0,
             length: 20,
-            direction_cosines: [0.0, 0.0, 1.0],
-        },
+            direction_cosines: [0.0, 0.0, 1.0] },
         MincDimension {
             name: "yspace".to_string(),
             start: -20.0,
             step: 1.5,
             length: 30,
-            direction_cosines: [0.0, 1.0, 0.0],
-        },
+            direction_cosines: [0.0, 1.0, 0.0] },
         MincDimension {
             name: "xspace".to_string(),
             start: -15.0,
             step: 1.0,
             length: 40,
-            direction_cosines: [1.0, 0.0, 0.0],
-        },
+            direction_cosines: [1.0, 0.0, 0.0] },
     ];
     let (origin, spacing, _direction) = build_spatial_metadata(&dims);
     assert!((origin[0] - (-10.0)).abs() < 1e-10);
@@ -106,22 +99,19 @@ fn build_spatial_metadata_negative_step_negates_cosines() {
             start: 10.0,
             step: -2.0,
             length: 20,
-            direction_cosines: [0.0, 0.0, 1.0],
-        },
+            direction_cosines: [0.0, 0.0, 1.0] },
         MincDimension {
             name: "yspace".to_string(),
             start: 0.0,
             step: 1.0,
             length: 30,
-            direction_cosines: [0.0, 1.0, 0.0],
-        },
+            direction_cosines: [0.0, 1.0, 0.0] },
         MincDimension {
             name: "xspace".to_string(),
             start: 0.0,
             step: 1.0,
             length: 40,
-            direction_cosines: [1.0, 0.0, 0.0],
-        },
+            direction_cosines: [1.0, 0.0, 0.0] },
     ];
     let (origin, spacing, direction) = build_spatial_metadata(&dims);
     assert!((spacing[0] - 2.0).abs() < 1e-10);

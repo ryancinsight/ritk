@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 use ritk_registration::classical::{image_to_leto_volume, leto_volume_to_image};
 
 /// Run rigid-mi or affine-mi registration via the classical MI engine.
@@ -16,8 +16,7 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
     let config = ClassicalConfig {
         max_iterations: args.iterations,
         tolerance: 1e-6,
-        step_multiplier: 1.0,
-    };
+        step_multiplier: 1.0 };
     let registration = ImageRegistration::with_config(config, MutualInformationMetric::default());
     let initial_transform = ritk_registration::AffineTransform::IDENTITY;
     let result = match &args.method {
@@ -27,8 +26,7 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
         RegistrationMethod::AffineMi => registration
             .affine_registration_mutual_info(&moving_volume, &fixed_volume, &initial_transform)
             .with_context(|| "affine MI registration failed")?,
-        _ => unreachable!("run_mi_registration called with non-MI method"),
-    };
+        _ => unreachable!("run_mi_registration called with non-MI method") };
 
     let moving_original = super::super::read_image_native(&args.moving)?;
     let moving_original_volume = image_to_leto_volume(&moving_original)?;
@@ -52,7 +50,7 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
 
     let quality = &result.quality;
     println!(
-        "Registered {} → {} (method={}, iterations={}, converged={:?}, MI={:.6}, cost={:.6})",
+        "Registered {} â†’ {} (method={}, iterations={}, converged={:?}, MI={:.6}, cost={:.6})",
         args.moving.display(),
         args.output.display(),
         args.method,
@@ -80,8 +78,7 @@ mod tests {
     use ritk_image::native::Image;
     use ritk_io::{
         format::nifti::native::{NiftiReader, NiftiWriter},
-        ImageReader, ImageWriter,
-    };
+        ImageReader, ImageWriter };
     use ritk_registration::demons::DemonsVariant;
     use ritk_spatial::{Direction, Point, Spacing};
     use std::path::{Path, PathBuf};
@@ -141,8 +138,7 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
-            convergence_threshold: 1e-5,
-        }
+            convergence_threshold: 1e-5 }
     }
 
     #[test]

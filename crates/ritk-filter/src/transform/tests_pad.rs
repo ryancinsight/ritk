@@ -1,28 +1,27 @@
 use super::*;
-use crate::native_support::LegacyBurnBackend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(data, shape)
+fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(data, shape)
 }
 
-fn voxels(img: &Image<B, 3>) -> Vec<f32> {
+fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
     let (v, _) = extract_vec_infallible(img);
     v
 }
 
-// ── ConstantPadImageFilter tests ──────────────────────────────────────────
+// â”€â”€ ConstantPadImageFilter tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Zero-padding: padded voxels filled with 0.
 #[test]
 fn constant_pad_zero() {
-    // 1×1×2 image [3,7], pad by 1 on each side → 1×1×4 [0,3,7,0].
+    // 1Ã—1Ã—2 image [3,7], pad by 1 on each side â†’ 1Ã—1Ã—4 [0,3,7,0].
     let img = make_image(vec![3.0, 7.0], [1, 1, 2]);
     let out = ConstantPadImageFilter::new(Padding::new([0, 0, 1]), Padding::new([0, 0, 1]), 0.0)
         .apply(&img)
@@ -47,10 +46,8 @@ fn constant_pad_custom_value() {
 /// Constant pad preserves spacing, updates origin.
 #[test]
 fn constant_pad_origin_updated() {
-    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
-    let td = TensorData::new(vec![1.0f32], Shape::new([1, 1, 1]));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    // Origin at [0, 0, 10], spacing [1, 1, 2] — pad 1 voxel on lower X.
+    let tensor = Tensor::<f32, B>::from_slice([1, 1, 1], &[1.0f32]);
+    // Origin at [0, 0, 10], spacing [1, 1, 2] â€” pad 1 voxel on lower X.
     let img2 = Image::new(
         tensor,
         Point::new([0.0_f64, 0.0, 10.0]),
@@ -60,7 +57,7 @@ fn constant_pad_origin_updated() {
     let out = ConstantPadImageFilter::new(Padding::new([0, 0, 1]), Padding::new([0, 0, 0]), 0.0)
         .apply(&img2)
         .unwrap();
-    // Origin x (axis 2) shifts by -1 * spacing[2] = -1 * 2.0 = -2.0 → new origin[2] = 10 - 2 = 8.
+    // Origin x (axis 2) shifts by -1 * spacing[2] = -1 * 2.0 = -2.0 â†’ new origin[2] = 10 - 2 = 8.
     let ox = out.origin()[2];
     assert!((ox - 8.0).abs() < 1e-10, "origin[2]={ox}");
     // Origin z (axis 0) unchanged (pad_lower[0] = 0).
@@ -69,11 +66,7 @@ fn constant_pad_origin_updated() {
 
 #[test]
 fn constant_pad_origin_follows_direction_columns() {
-    let device: <B as ritk_image::tensor::Backend>::Device = Default::default();
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![1.0f32], Shape::new([1, 1, 1])),
-        &device,
-    );
+    let tensor = Tensor::<f32, B>::from_slice([1, 1, 1], &[1.0f32]);
     let direction = Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]);
     let image = Image::new(
         tensor,
@@ -121,10 +114,10 @@ fn native_constant_pad_preserves_direction_aware_origin() {
     );
 }
 
-// ── MirrorPadImageFilter tests ────────────────────────────────────────────
+// â”€â”€ MirrorPadImageFilter tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Mirror pad (ITK symmetric, boundary repeated): 1×1×3 = [1,2,3], pad 2 each
-/// side → [2,1,1,2,3,3,2]. Matches `sitk.MirrorPad` (verified) — the boundary
+/// Mirror pad (ITK symmetric, boundary repeated): 1Ã—1Ã—3 = [1,2,3], pad 2 each
+/// side â†’ [2,1,1,2,3,3,2]. Matches `sitk.MirrorPad` (verified) â€” the boundary
 /// voxel `1`/`3` is repeated at the fold, period 2n.
 #[test]
 fn mirror_pad_1d() {
@@ -134,7 +127,7 @@ fn mirror_pad_1d() {
         .unwrap();
     assert_eq!(out.shape(), [1, 1, 7]);
     let v = voxels(&out);
-    // index -2 → 1 (val 2), -1 → 0 (val 1), [1,2,3], +3 → 2 (val 3), +4 → 1 (val 2)
+    // index -2 â†’ 1 (val 2), -1 â†’ 0 (val 1), [1,2,3], +3 â†’ 2 (val 3), +4 â†’ 1 (val 2)
     let expected = [2.0f32, 1.0, 1.0, 2.0, 3.0, 3.0, 2.0];
     for (i, (&got, exp)) in v.iter().zip(expected).enumerate() {
         assert!((got - exp).abs() < 1e-5, "v[{i}]={got}, expected {exp}");
@@ -172,9 +165,9 @@ fn mirror_index_n1() {
     }
 }
 
-// ── WrapPadImageFilter tests ──────────────────────────────────────────────
+// â”€â”€ WrapPadImageFilter tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Wrap pad: 1×1×3 = [A,B,C], pad 2 on each side → [B,C,A,B,C,A,B].
+/// Wrap pad: 1Ã—1Ã—3 = [A,B,C], pad 2 on each side â†’ [B,C,A,B,C,A,B].
 #[test]
 fn wrap_pad_1d() {
     let img = make_image(vec![10.0, 20.0, 30.0], [1, 1, 3]);
@@ -183,14 +176,14 @@ fn wrap_pad_1d() {
         .unwrap();
     assert_eq!(out.shape(), [1, 1, 7]);
     let v = voxels(&out);
-    // index shifts: output i → input wrap(i-2, 3)
-    // i=0: wrap(-2,3)=1 → 20
-    // i=1: wrap(-1,3)=2 → 30
-    // i=2: wrap(0,3)=0 → 10
-    // i=3: wrap(1,3)=1 → 20
-    // i=4: wrap(2,3)=2 → 30
-    // i=5: wrap(3,3)=0 → 10
-    // i=6: wrap(4,3)=1 → 20
+    // index shifts: output i â†’ input wrap(i-2, 3)
+    // i=0: wrap(-2,3)=1 â†’ 20
+    // i=1: wrap(-1,3)=2 â†’ 30
+    // i=2: wrap(0,3)=0 â†’ 10
+    // i=3: wrap(1,3)=1 â†’ 20
+    // i=4: wrap(2,3)=2 â†’ 30
+    // i=5: wrap(3,3)=0 â†’ 10
+    // i=6: wrap(4,3)=1 â†’ 20
     assert!((v[0] - 20.0).abs() < 1e-5, "v[0]={}", v[0]);
     assert!((v[2] - 10.0).abs() < 1e-5, "v[2]={}", v[2]);
     assert!((v[5] - 10.0).abs() < 1e-5, "v[5]={}", v[5]);
@@ -229,7 +222,7 @@ fn wrap_pad_shape() {
     assert_eq!(out.shape(), [4, 7, 10]);
 }
 
-// ── ZeroFluxNeumannPadImageFilter tests ───────────────────────────────────────
+// â”€â”€ ZeroFluxNeumannPadImageFilter tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Edge-replicate pad of a 1-D ramp: lower pad repeats the first voxel, upper
 /// pad repeats the last. Matches ITK ZeroFluxNeumannPad.

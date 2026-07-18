@@ -1,8 +1,8 @@
-//! CMA-ES and multi-start rigid registration tests on RIRE Patient-001.
+﻿//! CMA-ES and multi-start rigid registration tests on RIRE Patient-001.
 //!
 //! | Test | Method | DOF | Key assertions |
 //! |------|--------|-----|----------------|
-//! | `test_cma_mi_rigid_on_rire_patient001` | CMA-ES (single-level) | 6 | MI > 0, σ adapted, bounds |
+//! | `test_cma_mi_rigid_on_rire_patient001` | CMA-ES (single-level) | 6 | MI > 0, Ïƒ adapted, bounds |
 //! | `test_multistart_rigid_on_rire_patient001` | Multi-start RSGD | 6 | MI > 0, best = max, iters |
 //!
 //! Multiscale cascade tests are in `rire_registration_cma_extended_test.rs`.
@@ -13,18 +13,16 @@
 //! cargo test --test rire_registration_cma_test -- --ignored --nocapture
 //! ```
 mod common;
-use ritk_image::tensor::{Tensor, TensorData};
+use ritk_image::tensor::{Tensor };
 
 use common::{compute_tre, find_rire_dir, identity_m4, B};
 use ritk_filter::GaussianSigma;
 use ritk_io::read_metaimage;
 use ritk_registration::optimizer::{
-    CmaEsConfig, HistoryPolicy, PopulationEval, RegularStepGdConfig,
-};
+    CmaEsConfig, HistoryPolicy, PopulationEval, RegularStepGdConfig };
 use ritk_registration::{
     CmaMiConfig, CmaMiRegistration, GlobalMiConfig, GlobalMiTransformType, InitStrategy,
-    MultiStartConfig, MultiStartMiRegistration,
-};
+    MultiStartConfig, MultiStartMiRegistration };
 use ritk_transform::RigidTransform;
 
 /// Run CMA-ES global rigid registration on the RIRE Patient-001 dataset.
@@ -45,14 +43,14 @@ use ritk_transform::RigidTransform;
 ///
 /// ```text
 /// MI at identity transform : 2.6e-3
-/// MI at GT transform       : 4.0e-3 (1.57x higher — a clear, real peak)
+/// MI at GT transform       : 4.0e-3 (1.57x higher â€” a clear, real peak)
 /// MI at common wrong local max: 2.0e-3 (lower than identity)
 /// ```
 ///
 /// However, on different random seeds or slightly different pyramid levels
 /// a distinct local maximum at a wrong transform (e.g., large lateral
 /// translation + mild rotation) can carry higher MI than GT within the
-/// ±π/4 rotation / ±60 mm translation search box. This is a fundamental
+/// Â±Ï€/4 rotation / Â±60 mm translation search box. This is a fundamental
 /// challenge in cross-modal rigid registration without preprocessing and is
 /// NOT specific to this codebase.
 ///
@@ -106,12 +104,11 @@ fn test_cma_mi_rigid_on_rire_patient001() {
             ftol: f64::NEG_INFINITY,
             seed: 0xcafe_babe_dead_beef,
             parallel_population: PopulationEval::Sequential,
-            record_history: HistoryPolicy::Discard,
-        },
+            record_history: HistoryPolicy::Discard },
         ..CmaMiConfig::default()
     };
 
-    println!("\n── Running CMA-ES rigid registration (shrink=8, 30% sampling, sigma0=0.7) ──");
+    println!("\nâ”€â”€ Running CMA-ES rigid registration (shrink=8, 30% sampling, sigma0=0.7) â”€â”€");
     let (final_transform, result) =
         CmaMiRegistration::register_rigid(&ct_img, &mri_img, [0.0, 0.0, 0.0], None, &config);
     let (tre_final, tre_max) = compute_tre(result.matrix.as_array());
@@ -121,13 +118,13 @@ fn test_cma_mi_rigid_on_rire_patient001() {
     let trans_data = final_transform.translation().into_data();
     let trans = trans_data.as_slice::<f32>().unwrap();
 
-    println!("\n── CMA-ES Results ──");
+    println!("\nâ”€â”€ CMA-ES Results â”€â”€");
     println!("  Generations   : {}", result.cma_generations);
     println!("  Stop reason   : {:?}", result.cma_stop_reason);
     println!("  Final sigma   : {:.3e}", result.cma_final_sigma);
     println!("  Final MI      : {:.6e}", result.final_mi);
     println!(
-        "  Rotation [α,β,γ]: [{:.5}, {:.5}, {:.5}] rad",
+        "  Rotation [Î±,Î²,Î³]: [{:.5}, {:.5}, {:.5}] rad",
         rot[0], rot[1], rot[2]
     );
     println!(
@@ -138,7 +135,7 @@ fn test_cma_mi_rigid_on_rire_patient001() {
     println!("  TRE CMA-ES    : {tre_final:.3} mm (max {tre_max:.3} mm)");
     println!("  TRE improvement: {:+.3} mm", tre_final - tre_identity);
 
-    // ── Assertions ──────────────────────────────────────────────────────
+    // â”€â”€ Assertions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     assert!(
         result.final_mi > 0.0,
         "CMA-ES final MI = {:.6e} must be > 0",
@@ -152,7 +149,7 @@ fn test_cma_mi_rigid_on_rire_patient001() {
     let sigma0 = config.cma_config.sigma0;
     assert!(
         result.cma_final_sigma < sigma0,
-        "Final sigma {:.3e} ≥ initial sigma0 {:.3e}; CMA-ES did not adapt",
+        "Final sigma {:.3e} â‰¥ initial sigma0 {:.3e}; CMA-ES did not adapt",
         result.cma_final_sigma,
         sigma0,
     );
@@ -168,17 +165,17 @@ fn test_cma_mi_rigid_on_rire_patient001() {
     for (i, &t) in trans.iter().enumerate() {
         assert!(
             t.abs() <= trans_limit + 1.0,
-            "Translation[{i}] = {t:.2} mm outside expected range ±{trans_limit:.0} mm"
+            "Translation[{i}] = {t:.2} mm outside expected range Â±{trans_limit:.0} mm"
         );
     }
 
     if tre_final < tre_identity {
-        println!("  ✓ TRE improved: {tre_identity:.2} mm → {tre_final:.2} mm");
+        println!("  âœ“ TRE improved: {tre_identity:.2} mm â†’ {tre_final:.2} mm");
     } else {
-        println!("  ⚠ TRE did not improve ({tre_identity:.2} → {tre_final:.2} mm).");
+        println!("  âš  TRE did not improve ({tre_identity:.2} â†’ {tre_final:.2} mm).");
         println!("  This is expected with Mattes MI at coarse scale without brain masking.");
     }
-    println!("\n✓ All CMA-ES rigid registration assertions passed.");
+    println!("\nâœ“ All CMA-ES rigid registration assertions passed.");
 }
 
 /// Run multi-start RSGD rigid registration on the RIRE Patient-001 dataset.
@@ -193,10 +190,10 @@ fn test_cma_mi_rigid_on_rire_patient001() {
 ///
 /// # Configuration
 ///
-/// 3 starts with a small rotation perturbation (0.3 rad ≈ 17°) so the test
+/// 3 starts with a small rotation perturbation (0.3 rad â‰ˆ 17Â°) so the test
 /// is fast enough for CI. The base config uses shrink=4, 100 max iterations.
 ///
-/// Runtime: ~2–4 min on a modern CPU (3 starts × ~1 min each).
+/// Runtime: ~2â€“4 min on a modern CPU (3 starts Ã— ~1 min each).
 #[test]
 #[ignore = "requires test_data/registration/rire; takes ~2-4 min on CPU"]
 fn test_multistart_rigid_on_rire_patient001() {
@@ -217,9 +214,9 @@ fn test_multistart_rigid_on_rire_patient001() {
     let init_trans = [gt_trans[0] + perturb_mm, gt_trans[1], gt_trans[2]];
 
     let rotation_t =
-        Tensor::<B, 1>::from_data(TensorData::from([GT_ALPHA, GT_BETA, GT_GAMMA]), &device);
-    let translation_t = Tensor::<B, 1>::from_data(TensorData::from(init_trans), &device);
-    let center_zero = Tensor::<B, 1>::zeros([3], &device);
+        Tensor::<f32, B>::from_data(::from([GT_ALPHA, GT_BETA, GT_GAMMA]), &device);
+    let translation_t = Tensor::<f32, B>::from_data(::from(init_trans), &device);
+    let center_zero = Tensor::<f32, B>::zeros([3], &device);
     let initial_transform = RigidTransform::<B, 3>::new(translation_t, rotation_t, center_zero);
 
     let ms_config = MultiStartConfig {
@@ -243,22 +240,20 @@ fn test_multistart_rigid_on_rire_patient001() {
                 ..Default::default()
             }],
             transform_type: GlobalMiTransformType::Rigid,
-            center: None,
-        },
-    };
+            center: None } };
 
     println!(
-        "\n── Running multi-start ({} starts) rigid registration ──",
+        "\nâ”€â”€ Running multi-start ({} starts) rigid registration â”€â”€",
         ms_config.num_starts
     );
     let (_final_transform, ms_result) =
         MultiStartMiRegistration::register_rigid(&ct_img, &mri_img, initial_transform, &ms_config);
 
-    println!("\n── Multi-Start Results ──");
+    println!("\nâ”€â”€ Multi-Start Results â”€â”€");
     println!("  Best start index  : {}", ms_result.best_start_index);
     println!("  Best MI           : {:.6e}", ms_result.best_mi);
     println!(
-        "  Best rotation [α,β,γ]: [{:.5}, {:.5}, {:.5}] rad",
+        "  Best rotation [Î±,Î²,Î³]: [{:.5}, {:.5}, {:.5}] rad",
         ms_result.best_rotation[0], ms_result.best_rotation[1], ms_result.best_rotation[2]
     );
     println!(
@@ -276,7 +271,7 @@ fn test_multistart_rigid_on_rire_patient001() {
     let (tre_best, tre_best_max) = compute_tre(ms_result.matrix.as_array());
     println!("  TRE best transform: {tre_best:.3} mm (max {tre_best_max:.3} mm)");
 
-    // ── Assertions ────────────────────────────────────────────────────────────
+    // â”€â”€ Assertions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     assert_eq!(
         ms_result.per_start_mi.len(),
         ms_config.num_starts,
@@ -316,5 +311,5 @@ fn test_multistart_rigid_on_rire_patient001() {
         n = ms_config.num_starts,
         expected = ms_config.num_starts * 5,
     );
-    println!("\n✓ All multi-start rigid registration assertions passed.");
+    println!("\nâœ“ All multi-start rigid registration assertions passed.");
 }

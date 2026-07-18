@@ -1,8 +1,8 @@
-use super::*;
+﻿use super::*;
 use crate::render::buffer_pool::RenderBufferPool;
 use egui::{Color32, ColorImage};
 
-/// Build a 3×2 (width=3, height=2) test image where each pixel encodes
+/// Build a 3Ã—2 (width=3, height=2) test image where each pixel encodes
 /// its position uniquely: pixel(row, col) = Color32::from_rgb(row as u8, col as u8, 0).
 fn make_test_image() -> ColorImage {
     // size = [width, height] = [3, 2]
@@ -16,15 +16,14 @@ fn make_test_image() -> ColorImage {
     }
     ColorImage {
         size: [w, h],
-        pixels,
-    }
+        pixels }
 }
 
 fn px(img: &ColorImage, row: usize, col: usize) -> Color32 {
     img.pixels[row * img.size[0] + col]
 }
 
-// ── Identity ──────────────────────────────────────────────────────────────
+// â”€â”€ Identity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_identity_no_change() {
@@ -37,13 +36,13 @@ fn test_identity_no_change() {
     );
 }
 
-// ── Flip horizontal ───────────────────────────────────────────────────────
+// â”€â”€ Flip horizontal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_flip_h_pixel_mapping() {
     // Original: pixel(0,0)=Color32::from_rgb(0,0,0), pixel(0,1)=Color32::from_rgb(0,1,0)
-    // After flip_h on width=3: col 0→2, col 1→1, col 2→0
-    let img = make_test_image(); // 3×2
+    // After flip_h on width=3: col 0â†’2, col 1â†’1, col 2â†’0
+    let img = make_test_image(); // 3Ã—2
     let flipped = flip_h_image(&img);
     assert_eq!(flipped.size, [3, 2], "flip_h must preserve dimensions");
     // Pixel originally at (row=0, col=0) must now be at (row=0, col=2)
@@ -71,17 +70,17 @@ fn test_flip_h_involution() {
     // Two flip_h applications compose to identity.
     let img = make_test_image();
     let twice = flip_h_image(&flip_h_image(&img));
-    assert_eq!(twice.pixels, img.pixels, "flip_h ∘ flip_h = identity");
+    assert_eq!(twice.pixels, img.pixels, "flip_h âˆ˜ flip_h = identity");
 }
 
-// ── Flip vertical ─────────────────────────────────────────────────────────
+// â”€â”€ Flip vertical â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_flip_v_pixel_mapping() {
-    let img = make_test_image(); // 3×2 (height=2)
+    let img = make_test_image(); // 3Ã—2 (height=2)
     let flipped = flip_v_image(&img);
     assert_eq!(flipped.size, [3, 2], "flip_v must preserve dimensions");
-    // Row 0 ↔ row 1 (height = 2 → H-1-0 = 1).
+    // Row 0 â†” row 1 (height = 2 â†’ H-1-0 = 1).
     assert_eq!(
         px(&flipped, 0, 0),
         px(&img, 1, 0),
@@ -98,40 +97,40 @@ fn test_flip_v_pixel_mapping() {
 fn test_flip_v_involution() {
     let img = make_test_image();
     let twice = flip_v_image(&flip_v_image(&img));
-    assert_eq!(twice.pixels, img.pixels, "flip_v ∘ flip_v = identity");
+    assert_eq!(twice.pixels, img.pixels, "flip_v âˆ˜ flip_v = identity");
 }
 
-// ── Rotation ──────────────────────────────────────────────────────────────
+// â”€â”€ Rotation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_rotate_90_cw_dimensions() {
-    // 3×2 (W=3, H=2) rotated 90° CW → 2×3 (W=H_orig, H=W_orig).
+    // 3Ã—2 (W=3, H=2) rotated 90Â° CW â†’ 2Ã—3 (W=H_orig, H=W_orig).
     let img = make_test_image();
     let r = rotate_90_cw_image(&img);
-    assert_eq!(r.size, [2, 3], "90° CW rotation: size must swap W↔H");
+    assert_eq!(r.size, [2, 3], "90Â° CW rotation: size must swap Wâ†”H");
 }
 
 #[test]
 fn test_rotate_90_cw_analytical_mapping() {
-    // For 3×2 (W=3, H=2): pixel at (row=0, col=0) maps to output (orow=0, ocol=H-1-row=1).
+    // For 3Ã—2 (W=3, H=2): pixel at (row=0, col=0) maps to output (orow=0, ocol=H-1-row=1).
     // For pixel at (row=1, col=2): output (orow=2, ocol=H-1-1=0).
     let img = make_test_image();
     let r = rotate_90_cw_image(&img);
-    // Original (0,0) → output (0, 1)
-    assert_eq!(px(&r, 0, 1), px(&img, 0, 0), "rotate_90_cw: (0,0)→(0,H-1)");
-    // Original (0,2) → output (2, 1)
+    // Original (0,0) â†’ output (0, 1)
+    assert_eq!(px(&r, 0, 1), px(&img, 0, 0), "rotate_90_cw: (0,0)â†’(0,H-1)");
+    // Original (0,2) â†’ output (2, 1)
     assert_eq!(
         px(&r, 2, 1),
         px(&img, 0, 2),
-        "rotate_90_cw: (0,W-1)→(W-1,H-1)"
+        "rotate_90_cw: (0,W-1)â†’(W-1,H-1)"
     );
-    // Original (1,0) → output (0, 0)
-    assert_eq!(px(&r, 0, 0), px(&img, 1, 0), "rotate_90_cw: (H-1,0)→(0,0)");
+    // Original (1,0) â†’ output (0, 0)
+    assert_eq!(px(&r, 0, 0), px(&img, 1, 0), "rotate_90_cw: (H-1,0)â†’(0,0)");
 }
 
 #[test]
 fn test_four_rotations_is_identity() {
-    // Four 90° CW rotations must produce the original dimensions and pixel values.
+    // Four 90Â° CW rotations must produce the original dimensions and pixel values.
     let img = make_test_image();
     let mut r = img.clone();
     for _ in 0..4 {
@@ -139,15 +138,15 @@ fn test_four_rotations_is_identity() {
     }
     assert_eq!(
         r.size, img.size,
-        "4×90° rotation: dimensions must be restored"
+        "4Ã—90Â° rotation: dimensions must be restored"
     );
     assert_eq!(
         r.pixels, img.pixels,
-        "4×90° rotation: pixels must be restored"
+        "4Ã—90Â° rotation: pixels must be restored"
     );
 }
 
-// ── ViewTransform helpers ─────────────────────────────────────────────────
+// â”€â”€ ViewTransform helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_is_identity_default() {
@@ -170,9 +169,9 @@ fn test_rotate_cw_four_times_is_identity() {
     assert!(t.is_identity());
 }
 
-// ── Differential equivalence: apply_to_image_into vs apply_to_image ────
+// â”€â”€ Differential equivalence: apply_to_image_into vs apply_to_image â”€â”€â”€â”€
 //
-// For every (flip_h, flip_v, rotation) combination (2×2×4 = 16), verify
+// For every (flip_h, flip_v, rotation) combination (2Ã—2Ã—4 = 16), verify
 // that the single-pass scratch-based function produces pixel-identical
 // output to the multi-step allocating function.
 
@@ -190,8 +189,7 @@ fn all_transforms() -> Vec<ViewTransform> {
                 out.push(ViewTransform {
                     flip_h,
                     flip_v,
-                    rotation,
-                });
+                    rotation });
             }
         }
     }
@@ -200,7 +198,7 @@ fn all_transforms() -> Vec<ViewTransform> {
 
 #[test]
 fn test_apply_to_image_into_differential_all_16_combinations() {
-    let img = make_test_image(); // 3×2
+    let img = make_test_image(); // 3Ã—2
     let mut pool = RenderBufferPool::default();
 
     for t in all_transforms() {
@@ -226,8 +224,7 @@ fn test_apply_to_image_into_pool_reuse_consistent() {
     let t = ViewTransform {
         flip_h: true,
         flip_v: false,
-        rotation: RotationSteps::Ninety,
-    };
+        rotation: RotationSteps::Ninety };
 
     let first = apply_to_image_into(&mut pool, &img, t);
     let second = apply_to_image_into(&mut pool, &img, t);
@@ -263,8 +260,7 @@ fn test_apply_to_image_into_square_image_all_combinations() {
     }
     let img = ColorImage {
         size: [w, h],
-        pixels,
-    };
+        pixels };
     let mut pool = RenderBufferPool::default();
 
     for t in all_transforms() {

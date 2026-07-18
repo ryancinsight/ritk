@@ -1,4 +1,4 @@
-use crate::errors::{RitkPyError, RitkResult};
+﻿use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
@@ -6,8 +6,7 @@ use ritk_filter::{
     BinaryMagnitudeImageFilter, DivideFloorImageFilter, DivideImageFilter, DivideRealImageFilter,
     EqualImageFilter, GreaterEqualImageFilter, GreaterImageFilter, ImageMaxFilter, ImageMinFilter,
     LessEqualImageFilter, LessImageFilter, MultiplyImageFilter, NotEqualImageFilter, OrImageFilter,
-    PowImageFilter, SquaredDifferenceImageFilter, SubtractImageFilter, XorImageFilter,
-};
+    PowImageFilter, SquaredDifferenceImageFilter, SubtractImageFilter, XorImageFilter };
 
 /// Pixelwise addition: out(x) = a(x) + b(x).
 ///
@@ -59,7 +58,7 @@ pub fn multiply_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<P
 /// Matches ITK/SimpleITK `DivideImageFilter` for all non-zero denominators.
 /// Division-by-zero convention differs: ritk yields 0 (a safer default for
 /// downstream computation), whereas ITK yields the maximum float value
-/// (`NumericTraits::max()`, ≈ 3.4e38). Pre-mask zeros if exact ITK behaviour is
+/// (`NumericTraits::max()`, â‰ˆ 3.4e38). Pre-mask zeros if exact ITK behaviour is
 /// required.
 #[pyfunction]
 pub fn divide_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
@@ -153,7 +152,7 @@ pub fn binary_magnitude_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> Ritk
 }
 
 /// Fold a binary image operation over a non-empty list of co-shaped images
-/// (`acc = op(op(op(i0, i1), i2), …)`). Used by the N-ary `Add` / `Maximum`.
+/// (`acc = op(op(op(i0, i1), i2), â€¦)`). Used by the N-ary `Add` / `Maximum`.
 fn nary_fold<Op: ritk_filter::BinaryOp>(
     py: Python<'_>,
     images: Vec<Py<PyImage>>,
@@ -180,7 +179,7 @@ fn nary_fold<Op: ritk_filter::BinaryOp>(
     .map(burn_into_py_image)
 }
 
-/// Pixelwise sum of any number of images: `out(x) = Σ_i img_i(x)`.
+/// Pixelwise sum of any number of images: `out(x) = Î£_i img_i(x)`.
 ///
 /// ITK Parity: NaryAddImageFilter (`sitk.NaryAdd`)
 #[pyfunction]

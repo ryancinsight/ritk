@@ -45,7 +45,7 @@ impl TobogganFilter {
     /// Returns an error for inaccessible storage, zero/overflowing shape,
     /// storage-cardinality mismatch, non-finite relief, or a volume whose
     /// possible labels exceed exact `f32` representation.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (input, dimensions) = extract_vec(image)?;
         validate_relief(&input, dimensions)?;
         Ok(rebuild(

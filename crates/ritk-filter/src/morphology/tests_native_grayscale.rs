@@ -2,16 +2,16 @@
 //! paths (erosion, dilation, opening, closing, white/black top-hat,
 //! hit-or-miss).
 //!
-//! Each native wrapper must be value-identical to the Burn filter it mirrors —
+//! Each native wrapper must be value-identical to the Burn filter it mirrors â€”
 //! both call the identical substrate-agnostic host core (shared harness in
-//! `native_support::assert_native_matches_burn`) — plus analytical oracles that
+//! `native_support::assert_coeus_matches_coeus`) â€” plus analytical oracles that
 //! pin the morphological algebra independent of the Burn reference.
 
 use crate::morphology::{
     BlackTopHatFilter, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,
     GrayscaleOpeningFilter, HitOrMissTransform, WhiteTopHatFilter,
 };
-use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+use crate::native_support::{assert_coeus_matches_coeus, make_native_image, native_vals};
 use coeus_core::SequentialBackend;
 
 fn scattered(dims: [usize; 3]) -> Vec<f32> {
@@ -19,12 +19,12 @@ fn scattered(dims: [usize; 3]) -> Vec<f32> {
     (0..n).map(|i| ((i * 37) % 17) as f32).collect()
 }
 
-// ── Erosion / dilation ────────────────────────────────────────────────────────
+// â”€â”€ Erosion / dilation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
-fn erosion_matches_burn() {
+fn erosion_matches_coeus() {
     let dims = [4usize, 5, 6];
-    assert_native_matches_burn(
+    assert_coeus_matches_coeus(
         scattered(dims),
         dims,
         |img| GrayscaleErosion::new(1).apply(img).expect("burn erosion"),
@@ -33,9 +33,9 @@ fn erosion_matches_burn() {
 }
 
 #[test]
-fn dilation_matches_burn() {
+fn dilation_matches_coeus() {
     let dims = [4usize, 5, 6];
-    assert_native_matches_burn(
+    assert_coeus_matches_coeus(
         scattered(dims),
         dims,
         |img| GrayscaleDilation::new(1).apply(img).expect("burn dilation"),
@@ -80,12 +80,12 @@ fn oracle_erosion_le_original_le_dilation() {
     }
 }
 
-// ── Opening / closing ─────────────────────────────────────────────────────────
+// â”€â”€ Opening / closing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
-fn opening_matches_burn() {
+fn opening_matches_coeus() {
     let dims = [4usize, 5, 6];
-    assert_native_matches_burn(
+    assert_coeus_matches_coeus(
         scattered(dims),
         dims,
         |img| {
@@ -98,9 +98,9 @@ fn opening_matches_burn() {
 }
 
 #[test]
-fn closing_matches_burn() {
+fn closing_matches_coeus() {
     let dims = [4usize, 5, 6];
-    assert_native_matches_burn(
+    assert_coeus_matches_coeus(
         scattered(dims),
         dims,
         |img| {
@@ -143,12 +143,12 @@ fn oracle_opening_le_original_le_closing() {
     }
 }
 
-// ── Top-hat ───────────────────────────────────────────────────────────────────
+// â”€â”€ Top-hat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
-fn white_top_hat_matches_burn() {
+fn white_top_hat_matches_coeus() {
     let dims = [4usize, 5, 6];
-    assert_native_matches_burn(
+    assert_coeus_matches_coeus(
         scattered(dims),
         dims,
         |img| {
@@ -161,9 +161,9 @@ fn white_top_hat_matches_burn() {
 }
 
 #[test]
-fn black_top_hat_matches_burn() {
+fn black_top_hat_matches_coeus() {
     let dims = [4usize, 5, 6];
-    assert_native_matches_burn(
+    assert_coeus_matches_coeus(
         scattered(dims),
         dims,
         |img| {
@@ -208,10 +208,10 @@ fn oracle_top_hat_non_negative() {
     }
 }
 
-// ── Hit-or-miss ───────────────────────────────────────────────────────────────
+// â”€â”€ Hit-or-miss â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
-fn hit_or_miss_matches_burn() {
+fn hit_or_miss_matches_coeus() {
     // Binary volume with a solid 3x3x3 fg block embedded in background.
     let dims = [5usize, 5, 5];
     let n = dims[0] * dims[1] * dims[2];
@@ -227,7 +227,7 @@ fn hit_or_miss_matches_burn() {
             }
         })
         .collect();
-    assert_native_matches_burn(
+    assert_coeus_matches_coeus(
         vals,
         dims,
         |img| {
@@ -239,7 +239,7 @@ fn hit_or_miss_matches_burn() {
     );
 }
 
-// ── Morphological gradient / Laplacian (added: native path) ─────────────────────
+// â”€â”€ Morphological gradient / Laplacian (added: native path) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 mod gradient_and_laplace {
     use super::*;
@@ -248,7 +248,7 @@ mod gradient_and_laplace {
     #[test]
     fn gradient_matches_burn() {
         let dims = [4usize, 5, 6];
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             scattered(dims),
             dims,
             |img| {
@@ -274,7 +274,7 @@ mod gradient_and_laplace {
     #[test]
     fn laplace_matches_burn() {
         let dims = [4usize, 5, 6];
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             scattered(dims),
             dims,
             |img| {
@@ -301,7 +301,7 @@ mod gradient_and_laplace {
     }
 }
 
-// ── Fill-hole (grayscale + binary) ──────────────────────────────────────────────
+// â”€â”€ Fill-hole (grayscale + binary) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 mod fillhole {
     use super::*;
@@ -318,7 +318,7 @@ mod fillhole {
     #[test]
     fn grayscale_matches_burn() {
         let (dims, v) = walled_pit();
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             v,
             dims,
             |img| {
@@ -350,7 +350,7 @@ mod fillhole {
         let (dims, v) = walled_pit();
         // Binary image: wall = 1, pit = 0.
         let bin: Vec<f32> = v.iter().map(|&x| if x > 5.0 { 1.0 } else { 0.0 }).collect();
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             bin,
             dims,
             |img| {
@@ -363,7 +363,7 @@ mod fillhole {
     }
 }
 
-// ── Voting binary ──────────────────────────────────────────────────────────────
+// â”€â”€ Voting binary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 mod voting_binary {
     use super::*;
@@ -374,7 +374,7 @@ mod voting_binary {
         let dims = [4usize, 4, 4];
         let n = dims[0] * dims[1] * dims[2];
         let vals: Vec<f32> = (0..n).map(|i| if i % 3 == 0 { 1.0 } else { 0.0 }).collect();
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             vals,
             dims,
             |img| {
@@ -387,7 +387,7 @@ mod voting_binary {
     }
 }
 
-// ── Geodesic reconstruction (two-input) + reconstruction opening/closing ────────
+// â”€â”€ Geodesic reconstruction (two-input) + reconstruction opening/closing â”€â”€â”€â”€â”€â”€â”€â”€
 
 mod reconstruction {
     use super::*;
@@ -395,16 +395,16 @@ mod reconstruction {
         ClosingByReconstructionFilter, GrayscaleGeodesicDilationFilter,
         OpeningByReconstructionFilter,
     };
-    use crate::native_support::assert_native_matches_burn_pair;
+    use crate::native_support::assert_coeus_matches_coeus_pair;
 
     #[test]
-    fn geodesic_dilation_matches_burn() {
+    fn geodesic_dilation_matches_coeus() {
         let dims = [3usize, 4, 5];
         let n = dims[0] * dims[1] * dims[2];
         let mask: Vec<f32> = (0..n).map(|i| ((i * 11) % 19) as f32).collect();
-        // Marker ≤ mask (dilation reconstruction precondition).
+        // Marker â‰¤ mask (dilation reconstruction precondition).
         let marker: Vec<f32> = mask.iter().map(|&m| m * 0.5).collect();
-        assert_native_matches_burn_pair(
+        assert_coeus_matches_coeus_pair(
             marker,
             mask,
             dims,
@@ -420,7 +420,7 @@ mod reconstruction {
     #[test]
     fn opening_by_reconstruction_matches_burn() {
         let dims = [4usize, 5, 6];
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             scattered(dims),
             dims,
             |img| {
@@ -435,7 +435,7 @@ mod reconstruction {
     #[test]
     fn closing_by_reconstruction_matches_burn() {
         let dims = [4usize, 5, 6];
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             scattered(dims),
             dims,
             |img| {

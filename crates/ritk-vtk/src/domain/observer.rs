@@ -1,10 +1,10 @@
-//! VTK-style observer/event notification system.
+﻿//! VTK-style observer/event notification system.
 //!
 //! # Mathematical Specification
 //!
 //! Let O = { (tag, event, callback) } be the observer registry.
-//! `add_observer(event, cb)` appends a new entry with a fresh unique tag τ
-//! and returns τ.  Tag uniqueness invariant: τ ≠ τ' for all distinct
+//! `add_observer(event, cb)` appends a new entry with a fresh unique tag Ï„
+//! and returns Ï„.  Tag uniqueness invariant: Ï„ â‰  Ï„' for all distinct
 //! `add_observer` calls on the same `EventHandlers` instance.
 //! `remove_observer(tag)` removes the unique entry with the given tag (O(n)).
 //! `invoke_event(event)` calls cb(event) for every entry where event' == event,
@@ -33,8 +33,7 @@ pub enum EventId {
     /// An actor was picked (selected interactively) in the scene.
     PickEvent,
     /// The renderer completed a frame.
-    RenderEvent,
-}
+    RenderEvent }
 
 /// Opaque registration handle returned by `add_observer`.
 ///
@@ -50,8 +49,7 @@ pub type ObserverCallback = Arc<dyn Fn(EventId) + Send + Sync>;
 #[derive(Default)]
 pub struct EventHandlers {
     next_tag: ObserverTag,
-    handlers: Vec<(ObserverTag, EventId, ObserverCallback)>,
-}
+    handlers: Vec<(ObserverTag, EventId, ObserverCallback)> }
 
 impl EventHandlers {
     /// Construct an empty registry.
@@ -124,7 +122,7 @@ pub trait Observable {
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 mod tests {

@@ -1,7 +1,6 @@
-use super::clinical_distribution::{
+﻿use super::clinical_distribution::{
     build_clinical_distribution_report, current_slice_path, distribution_root, media_root,
-    mpr_root, report_path, summary_from_loaded_volume, ClinicalDistributionExportSummary,
-};
+    mpr_root, report_path, summary_from_loaded_volume, ClinicalDistributionExportSummary };
 use super::state::SnapApp;
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
@@ -213,8 +212,7 @@ impl SnapApp {
             mpr_root: mpr,
             current_slice_written: true,
             mpr_written,
-            mpr_failed,
-        })
+            mpr_failed })
     }
 
     pub fn export_clinical_distribution_dialog(&mut self) {

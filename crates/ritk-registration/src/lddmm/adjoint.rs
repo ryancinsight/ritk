@@ -1,4 +1,4 @@
-//! EPDiff coadjoint operator ad*_v(m).
+﻿//! EPDiff coadjoint operator ad*_v(m).
 
 #[cfg(test)]
 use crate::deformable_field_ops::VelocityField;
@@ -6,9 +6,9 @@ use crate::deformable_field_ops::{flat, VectorField, VectorFieldMut};
 
 /// Compute the EPDiff coadjoint operator ad\*\_v(m).
 ///
-/// For each spatial component i ∈ {z, y, x}:
+/// For each spatial component i âˆˆ {z, y, x}:
 ///
-///   (ad\*\_v m)\_i = Σ\_j \[v\_j · ∂m\_i/∂x\_j + m\_j · ∂v\_i/∂x\_j\] + m\_i · div(v)
+///   (ad\*\_v m)\_i = Î£\_j \[v\_j Â· âˆ‚m\_i/âˆ‚x\_j + m\_j Â· âˆ‚v\_i/âˆ‚x\_j\] + m\_i Â· div(v)
 ///
 /// Derivatives use central differences at interior voxels and one-sided
 /// differences at boundaries, consistent with [`compute_gradient`].
@@ -32,14 +32,12 @@ pub(super) fn epdiff_adjoint(
         VectorFieldMut {
             z: &mut ad_z,
             y: &mut ad_y,
-            x: &mut ad_x,
-        },
+            x: &mut ad_x },
     );
     VelocityField {
         z: ad_z,
         y: ad_y,
-        x: ad_x,
-    }
+        x: ad_x }
 }
 
 /// Zero-allocation variant of `epdiff_adjoint`.
@@ -56,18 +54,15 @@ pub(super) fn epdiff_adjoint_into(
     let VectorField {
         z: vz,
         y: vy,
-        x: vx,
-    } = v;
+        x: vx } = v;
     let VectorField {
         z: mz,
         y: my,
-        x: mx,
-    } = m;
+        x: mx } = m;
     let VectorFieldMut {
         z: ad_z,
         y: ad_y,
-        x: ad_x,
-    } = out;
+        x: ad_x } = out;
     let [nz, ny, nx] = dims;
     let sz = spacing[0] as f32;
     let sy = spacing[1] as f32;

@@ -1,4 +1,4 @@
-//! CMA-ES algorithm state types: configuration, result, and convergence reasons.
+﻿//! CMA-ES algorithm state types: configuration, result, and convergence reasons.
 
 /// Population evaluation strategy for CMA-ES.
 ///
@@ -11,8 +11,7 @@ pub enum PopulationEval {
     Sequential,
     /// Evaluate candidates in parallel through Moirai.
     /// The objective function `f` must be `Sync`.
-    Parallel,
-}
+    Parallel }
 
 /// Per-generation history recording policy for CMA-ES.
 ///
@@ -24,35 +23,33 @@ pub enum HistoryPolicy {
     #[default]
     Discard,
     /// Record the best function value at each generation in `CmaEsResult::best_history`.
-    Record,
-}
+    Record }
 
 /// Reason the CMA-ES run terminated.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CmaEsStopReason {
-    /// Step-size σ fell below `CmaEsConfig::sigma_tol`.
+    /// Step-size Ïƒ fell below `CmaEsConfig::sigma_tol`.
     StepSizeTooSmall,
     /// Generation count reached `CmaEsConfig::max_generations`.
     MaxGenerations,
-    /// Cholesky condition number estimate exceeded 10¹⁴ (numerical ill-conditioning).
+    /// Cholesky condition number estimate exceeded 10Â¹â´ (numerical ill-conditioning).
     ConditionTooLarge,
     /// Best function value fell below `CmaEsConfig::ftol`.
-    FunctionTolerance,
-}
+    FunctionTolerance }
 
 /// Configuration for a single CMA-ES run.
 #[derive(Debug, Clone)]
 pub struct CmaEsConfig {
-    /// Initial global step-size σ₀. Calibrate to the expected search distance
+    /// Initial global step-size Ïƒâ‚€. Calibrate to the expected search distance
     /// (e.g., 0.3 for normalised parameters).
     pub sigma0: f64,
-    /// Population size λ (offspring per generation).
-    /// 0 = use the default formula λ = 4 + ⌊3 ln n⌋.
+    /// Population size Î» (offspring per generation).
+    /// 0 = use the default formula Î» = 4 + âŒŠ3 ln nâŒ‹.
     pub lambda: usize,
     /// Maximum number of generations before the run is declared converged by
     /// iteration limit.
     pub max_generations: usize,
-    /// Stop when the step-size σ falls below this threshold (convergence by
+    /// Stop when the step-size Ïƒ falls below this threshold (convergence by
     /// step-size shrinkage).
     pub sigma_tol: f64,
     /// Stop when the best function value falls below this threshold (solution
@@ -62,14 +59,13 @@ pub struct CmaEsConfig {
     /// give independent runs.
     pub seed: u64,
     /// Whether to evaluate the population in parallel using Moirai.
-    /// When [`PopulationEval::Parallel`], the λ candidates per generation are
+    /// When [`PopulationEval::Parallel`], the Î» candidates per generation are
     /// evaluated concurrently across CPU cores. The objective function `f`
     /// must be `Sync`.
     /// Default: [`PopulationEval::Sequential`] (backward-compatible).
     pub parallel_population: PopulationEval,
     /// Per-generation best-f recording policy.
-    pub record_history: HistoryPolicy,
-}
+    pub record_history: HistoryPolicy }
 
 impl Default for CmaEsConfig {
     fn default() -> Self {
@@ -81,8 +77,7 @@ impl Default for CmaEsConfig {
             ftol: 1e-15,
             seed: 0xcafe_babe_dead_beef,
             parallel_population: PopulationEval::default(),
-            record_history: HistoryPolicy::default(),
-        }
+            record_history: HistoryPolicy::default() }
     }
 }
 
@@ -99,11 +94,10 @@ pub struct CmaEsResult {
     pub stop_reason: CmaEsStopReason,
     /// LCG seed actually used (equals `CmaEsConfig::seed`).
     pub seed_used: u64,
-    /// Step-size σ at termination.
+    /// Step-size Ïƒ at termination.
     pub final_sigma: f64,
-    /// Cholesky-diagonal condition estimate (max dᵢ / min dᵢ)² at termination.
+    /// Cholesky-diagonal condition estimate (max dáµ¢ / min dáµ¢)Â² at termination.
     pub condition_estimate: f64,
     /// Per-generation best function values, populated when
     /// `CmaEsConfig::record_history` is true.
-    pub best_history: Option<Vec<f64>>,
-}
+    pub best_history: Option<Vec<f64>> }

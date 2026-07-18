@@ -8,15 +8,15 @@ use super::{merge_label_maps, MergeLabelError, MergeLabelMethod};
 use ritk_image::test_support as ts;
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = burn_ndarray::NdArray<f32>;
+type B = coeus_core::SequentialBackend;
 
 /// Build a z=1 label image from a 4×5 row-major slice.
-fn img(rows: [[f32; 5]; 4]) -> ritk_image::Image<B, 3> {
+fn img(rows: [[f32; 5]; 4]) -> ritk_image::Image<f32, B, 3> {
     let data: Vec<f32> = rows.iter().flatten().copied().collect();
-    ts::burn_compat::make_image::<B, 3>(data, [1, 4, 5])
+    ts::make_image::<f32, B, 3>(data, [1, 4, 5])
 }
 
-fn inputs() -> (ritk_image::Image<B, 3>, ritk_image::Image<B, 3>) {
+fn inputs() -> (ritk_image::Image<f32, B, 3>, ritk_image::Image<f32, B, 3>) {
     let a = img([
         [1.0, 1.0, 0.0, 0.0, 0.0],
         [0.0, 3.0, 0.0, 0.0, 0.0],
@@ -96,7 +96,7 @@ fn strict_disjoint_keeps_labels() {
 
 #[test]
 fn no_inputs_errors() {
-    let empty: [&ritk_image::Image<B, 3>; 0] = [];
+    let empty: [&ritk_image::Image<f32, B, 3>; 0] = [];
     assert_eq!(
         merge_label_maps(&empty, MergeLabelMethod::Keep).unwrap_err(),
         MergeLabelError::NoInputs

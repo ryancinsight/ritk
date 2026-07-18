@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+﻿use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use image::GrayImage;
 use ritk_image::native::Image;
@@ -47,8 +47,7 @@ fn write_jpeg_flat(path: &Path, shape: [usize; 3], values: &[f32]) -> Result<()>
 
 /// Backend-bound native JPEG writer.
 pub struct JpegWriter<B: ComputeBackend> {
-    backend: B,
-}
+    backend: B }
 
 impl<B: ComputeBackend> JpegWriter<B> {
     /// Creates a writer that extracts image data through `backend`.

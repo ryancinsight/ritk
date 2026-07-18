@@ -1,4 +1,4 @@
-use crate::FilterKind;
+﻿use crate::FilterKind;
 use ritk_filter::{Connectivity, ForegroundValue};
 
 /// Render parameter controls for Binary + Grayscale Morphology + Pad/Geometry
@@ -10,8 +10,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
     match active_filter {
         FilterKind::BinaryErode {
             radius,
-            foreground_value,
-        } => {
+            foreground_value } => {
             let mut r = *radius as i32;
             ui.horizontal(|ui| {
                 ui.label("Radius (voxels):");
@@ -34,8 +33,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::BinaryDilate {
             radius,
-            foreground_value,
-        } => {
+            foreground_value } => {
             let mut r = *radius as i32;
             ui.horizontal(|ui| {
                 ui.label("Radius (voxels):");
@@ -58,8 +56,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::BinaryClosing {
             radius,
-            foreground_value,
-        } => {
+            foreground_value } => {
             let mut r = *radius as i32;
             ui.horizontal(|ui| {
                 ui.label("Radius (voxels):");
@@ -87,8 +84,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::BinaryOpening {
             radius,
-            foreground_value,
-        } => {
+            foreground_value } => {
             let mut r = *radius as i32;
             ui.horizontal(|ui| {
                 ui.label("Radius (voxels):");
@@ -132,8 +128,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::BinaryContour {
             connectivity,
-            foreground_value,
-        } => {
+            foreground_value } => {
             ui.horizontal(|ui| {
                 ui.label("Connectivity:");
                 let mut fully = connectivity.fully_connected();
@@ -165,8 +160,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::LabelContour {
             connectivity,
-            background_value,
-        } => {
+            background_value } => {
             ui.horizontal(|ui| {
                 ui.label("Connectivity:");
                 let mut fully = connectivity.fully_connected();
@@ -198,8 +192,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             birth_threshold,
             survival_threshold,
             foreground_value,
-            background_value,
-        } => {
+            background_value } => {
             let mut r = *radius as i32;
             let mut bt = *birth_threshold as i32;
             let mut st = *survival_threshold as i32;
@@ -326,7 +319,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.label(
                 egui::RichText::new(
-                    "ITK GrayscaleErodeImageFilter (flat SE). E_B(f)(x) = min_{b∈B} f(x+b). Anti-extensive.",
+                    "ITK GrayscaleErodeImageFilter (flat SE). E_B(f)(x) = min_{bâˆˆB} f(x+b). Anti-extensive.",
                 )
                 .small(),
             );
@@ -345,7 +338,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.label(
                 egui::RichText::new(
-                    "ITK GrayscaleDilateImageFilter (flat SE). D_B(f)(x) = max_{b∈B} f(x+b). Extensive.",
+                    "ITK GrayscaleDilateImageFilter (flat SE). D_B(f)(x) = max_{bâˆˆB} f(x+b). Extensive.",
                 )
                 .small(),
             );
@@ -360,6 +353,5 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             );
             true
         }
-        _ => false,
-    }
+        _ => false }
 }

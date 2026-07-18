@@ -1,4 +1,4 @@
-use burn_ndarray::NdArrayDevice;
+﻿use burn_ndarray::NdArrayDevice;
 use ritk_core::image::Image;
 use ritk_filter::resample::ResampleImageFilter;
 use ritk_image::burn::backend::Autodiff;
@@ -19,7 +19,7 @@ fn create_sphere_image(
     spacing: Spacing3,
     center: Point3,
     radius: f64,
-) -> Image<B, 3> {
+) -> Image<f32, B, 3> {
     let device = NdArrayDevice::Cpu;
     let mut data = vec![0.0f32; size[0] * size[1] * size[2]];
 
@@ -43,7 +43,7 @@ fn create_sphere_image(
         }
     }
 
-    let tensor = Tensor::<B, 1>::from_floats(data.as_slice(), &device).reshape(size);
+    let tensor = Tensor::<f32, B>::from_floats(data.as_slice(), &device).reshape(size);
 
     Image::new(tensor, origin, spacing, Direction3::identity())
 }

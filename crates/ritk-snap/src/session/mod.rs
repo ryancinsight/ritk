@@ -1,4 +1,4 @@
-//! Viewer session snapshot persistence.
+﻿//! Viewer session snapshot persistence.
 //!
 //! A session snapshot captures complete presentation state including
 //! navigation, window/level, colormap, annotations, and tool selections.
@@ -23,9 +23,9 @@ use std::path::{Path, PathBuf};
 ///
 /// # Invariants
 ///
-/// - `axis ∈ [0, 2]` — clamped to 2 on restore.
-/// - `zoom ∈ [MIN_ZOOM, MAX_ZOOM]` — clamped on restore.
-/// - `cine_fps > 0` — not validated here; validation is the caller's
+/// - `axis âˆˆ [0, 2]` â€” clamped to 2 on restore.
+/// - `zoom âˆˆ [MIN_ZOOM, MAX_ZOOM]` â€” clamped on restore.
+/// - `cine_fps > 0` â€” not validated here; validation is the caller's
 ///   responsibility on restore.
 /// - `annotations` contains only complete (committed) annotations; in-progress
 ///   gesture state is never captured.
@@ -41,7 +41,7 @@ pub struct ViewerSessionSnapshot {
     pub axis: usize,
     /// Active interaction tool.
     pub active_tool: ToolKind,
-    /// Whether 2×2 MPR layout is active.
+    /// Whether 2Ã—2 MPR layout is active.
     pub multi_planar: bool,
     /// Overlay visibility.
     pub show_overlay: bool,
@@ -77,8 +77,7 @@ pub struct ViewerSessionSnapshot {
     /// (length_mm, angle_deg, area_mm2, statistics) are stored verbatim so
     /// they survive round-trip without requiring the volume to be loaded.
     #[serde(default)]
-    pub annotations: Vec<Annotation>,
-}
+    pub annotations: Vec<Annotation> }
 
 impl ViewerSessionSnapshot {
     /// Construct an empty default snapshot.
@@ -103,8 +102,7 @@ impl ViewerSessionSnapshot {
             zoom: 1.0,
             cine_enabled: false,
             cine_fps: 12.0,
-            annotations: Vec::new(),
-        }
+            annotations: Vec::new() }
     }
 }
 
@@ -118,7 +116,7 @@ fn default_rt_dose_opacity() -> f32 {
     0.5
 }
 
-// ─── SSOT file I/O ────────────────────────────────────────────────────────────
+// â”€â”€â”€ SSOT file I/O â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Serialize `snapshot` as pretty-printed JSON and write to `path`.
 ///

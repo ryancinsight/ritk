@@ -1,16 +1,15 @@
-use crate::errors::{RitkPyError, RitkResult};
+﻿use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{native_into_py_image, py_image_to_native, PyImage};
 use coeus_core::SequentialBackend;
 use pyo3::prelude::*;
 use ritk_segmentation::{
     FloodConnectivity, MarkerControlledWatershed, MorphologicalWatershed, TobogganFilter,
-    WatershedLinePolicy, WatershedSegmentation,
-};
+    WatershedLinePolicy, WatershedSegmentation };
 
 /// Toboggan watershed labeling, matching `sitk.Toboggan`.
 ///
 /// Each voxel slides along a face-connected steepest-descent path to a local
-/// minimum; voxels reaching the same minimum share a label (≥ 2, assigned in
+/// minimum; voxels reaching the same minimum share a label (â‰¥ 2, assigned in
 /// raster discovery order).
 ///
 /// ITK Parity: `TobogganImageFilter`.
@@ -19,7 +18,7 @@ use ritk_segmentation::{
 ///     image: scalar relief image (typically a gradient magnitude).
 ///
 /// Returns:
-///     label image (basin indices ≥ 2).
+///     label image (basin indices â‰¥ 2).
 #[pyfunction]
 pub fn toboggan(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     let image = py_image_to_native(image)?;
@@ -44,7 +43,7 @@ pub fn toboggan(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 ///     level: Depth below which shallow minima merge (default 0.0).
 ///
 /// Returns:
-///     Label PyImage (basin indices ≥ 1; 0 = watershed line / unreachable).
+///     Label PyImage (basin indices â‰¥ 1; 0 = watershed line / unreachable).
 #[pyfunction]
 #[pyo3(signature = (image, level=0.0_f32))]
 pub fn morphological_watershed(py: Python<'_>, image: &PyImage, level: f32) -> RitkResult<PyImage> {
@@ -63,7 +62,7 @@ pub fn morphological_watershed(py: Python<'_>, image: &PyImage, level: f32) -> R
 ///
 /// Delegates to `ritk_segmentation::WatershedSegmentation`. The input
 /// should be a gradient magnitude image. Each output voxel receives a basin
-/// label (≥ 1) or 0 for watershed boundaries.
+/// label (â‰¥ 1) or 0 for watershed boundaries.
 ///
 /// Args:
 ///     image: Input PyImage (typically gradient magnitude).

@@ -1,4 +1,4 @@
-//! Demo Registration Example
+﻿//! Demo Registration Example
 //!
 //! This example demonstrates rigid registration using the prepared test data.
 //! It aligns 'brain_moving.nii.gz' (Subject) to 'brain_fixed.nii.gz' (Template).
@@ -84,7 +84,7 @@ fn main() -> anyhow::Result<()> {
 
     // 2. Initialize Transform
     // Center of rotation at fixed image center
-    let center_idx = Tensor::<Backend, 1>::from_floats(
+    let center_idx = Tensor::<f32, Backend>::from_floats(
         [
             fixed.shape()[0] as f32 / 2.0,
             fixed.shape()[1] as f32 / 2.0,

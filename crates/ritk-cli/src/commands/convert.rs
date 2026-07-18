@@ -1,4 +1,4 @@
-//! `ritk convert` — format conversion command.
+﻿//! `ritk convert` â€” format conversion command.
 //!
 //! Reads an image from any supported input format (inferred from extension)
 //! and writes it to any supported output format (inferred from extension or
@@ -20,10 +20,9 @@ use tracing::info;
 
 use super::{
     infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
-    write_image_native,
-};
+    write_image_native };
 
-// ── CLI arguments ─────────────────────────────────────────────────────────────
+// â”€â”€ CLI arguments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Override output format.
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -38,8 +37,7 @@ pub enum OutputFormat {
     Tiff,
     Vtk,
     Jpeg,
-    Analyze,
-}
+    Analyze }
 
 /// Arguments for the `convert` subcommand.
 #[derive(Args, Debug)]
@@ -55,10 +53,9 @@ pub struct ConvertArgs {
 
     /// Override the output format.
     #[arg(long, value_enum, value_name = "FORMAT")]
-    pub format: Option<OutputFormat>,
-}
+    pub format: Option<OutputFormat> }
 
-// ── Command handler ───────────────────────────────────────────────────────────
+// â”€â”€ Command handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Execute the `convert` subcommand.
 ///
@@ -95,16 +92,14 @@ pub fn run(args: ConvertArgs) -> Result<()> {
             OutputFormat::Tiff => ImageFormat::Tiff,
             OutputFormat::Vtk => ImageFormat::Vtk,
             OutputFormat::Jpeg => ImageFormat::Jpeg,
-            OutputFormat::Analyze => ImageFormat::Analyze,
-        },
+            OutputFormat::Analyze => ImageFormat::Analyze },
         None => infer_format(&args.output).ok_or_else(|| {
             anyhow!(
                 "Cannot infer output format from path '{}'. \
                      Specify --format nifti|metaimage|nrrd.",
                 args.output.display()
             )
-        })?,
-    };
+        })? };
 
     anyhow::ensure!(
         is_native_read_capable(in_fmt),
@@ -143,7 +138,7 @@ pub fn run(args: ConvertArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 mod tests {
@@ -172,7 +167,7 @@ mod tests {
         .expect("invariant: image data matches shape")
     }
 
-    // ── Positive: NIfTI round-trip ────────────────────────────────────────────
+    // â”€â”€ Positive: NIfTI round-trip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Writing a NIfTI file and converting it back to another NIfTI must
     /// produce an output file with the same shape.
@@ -188,8 +183,7 @@ mod tests {
         run(ConvertArgs {
             input: input.clone(),
             output: output.clone(),
-            format: None,
-        })
+            format: None })
         .unwrap();
 
         assert!(output.exists(), "output NIfTI must be created");
@@ -201,7 +195,7 @@ mod tests {
         );
     }
 
-    // ── Positive: NIfTI → MetaImage ───────────────────────────────────────────
+    // â”€â”€ Positive: NIfTI â†’ MetaImage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Converting a NIfTI to a MetaImage must produce a `.mha` file with the
     /// same shape.
@@ -217,8 +211,7 @@ mod tests {
         run(ConvertArgs {
             input: input.clone(),
             output: output.clone(),
-            format: None,
-        })
+            format: None })
         .unwrap();
 
         assert!(output.exists(), "output MHA must be created");
@@ -226,7 +219,7 @@ mod tests {
         assert_eq!(recovered.shape(), [3, 4, 5]);
     }
 
-    // ── Positive: NIfTI → NRRD ───────────────────────────────────────────────
+    // â”€â”€ Positive: NIfTI â†’ NRRD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Converting a NIfTI to NRRD must produce a `.nrrd` file with the
     /// same shape.
@@ -242,8 +235,7 @@ mod tests {
         run(ConvertArgs {
             input: input.clone(),
             output: output.clone(),
-            format: None,
-        })
+            format: None })
         .unwrap();
 
         assert!(output.exists(), "output NRRD must be created");
@@ -251,7 +243,7 @@ mod tests {
         assert_eq!(recovered.shape(), [3, 4, 5]);
     }
 
-    // ── Positive: explicit --format overrides extension ───────────────────────
+    // â”€â”€ Positive: explicit --format overrides extension â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// When `--format nifti` is passed the output extension is ignored and a
     /// valid NIfTI file is produced.
@@ -268,14 +260,13 @@ mod tests {
         run(ConvertArgs {
             input: input.clone(),
             output: output.clone(),
-            format: Some(OutputFormat::Nifti),
-        })
+            format: Some(OutputFormat::Nifti) })
         .unwrap();
 
         assert!(output.exists());
     }
 
-    // ── Negative: unknown output extension without --format ───────────────────
+    // â”€â”€ Negative: unknown output extension without --format â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// When the output path has an unrecognised extension and no `--format`
     /// flag is provided, the command must return an error (not panic).
@@ -291,8 +282,7 @@ mod tests {
         let result = run(ConvertArgs {
             input,
             output,
-            format: None,
-        });
+            format: None });
         assert!(
             result.is_err(),
             "unknown output extension must yield an error"
@@ -304,7 +294,7 @@ mod tests {
         );
     }
 
-    // ── Negative: non-existent input file ─────────────────────────────────────
+    // â”€â”€ Negative: non-existent input file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Attempting to convert a path that does not exist must return an error.
     #[test]
@@ -316,12 +306,11 @@ mod tests {
         let result = run(ConvertArgs {
             input,
             output,
-            format: None,
-        });
+            format: None });
         assert!(result.is_err(), "missing input must yield an error");
     }
 
-    // ── Boundary: MetaImage round-trip ────────────────────────────────────────
+    // â”€â”€ Boundary: MetaImage round-trip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Writing a MetaImage and converting it back to NIfTI must preserve shape.
     #[test]
@@ -336,8 +325,7 @@ mod tests {
         run(ConvertArgs {
             input,
             output: output.clone(),
-            format: None,
-        })
+            format: None })
         .unwrap();
 
         assert!(output.exists());
@@ -345,7 +333,7 @@ mod tests {
         assert_eq!(recovered.shape(), [3, 4, 5]);
     }
 
-    // ── ADR 0003 Phase A: native-dispatch coverage ────────────────────────────
+    // â”€â”€ ADR 0003 Phase A: native-dispatch coverage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// `is_native_read_capable`/`is_native_write_capable` must agree exactly
     /// with the native format matrix: VTK is now read and written through its
@@ -413,8 +401,7 @@ mod tests {
         run(ConvertArgs {
             input: input.clone(),
             output: native_output.clone(),
-            format: None,
-        })
+            format: None })
         .unwrap();
 
         write_image_native(&direct_output, &image, ImageFormat::NIfTI).unwrap();
@@ -438,8 +425,7 @@ mod tests {
         run(ConvertArgs {
             input,
             output: output.clone(),
-            format: None,
-        })
+            format: None })
         .expect("native VTK input conversion");
         let recovered = read_image_native(&output).unwrap();
         assert_eq!(recovered.shape(), image.shape());
@@ -459,8 +445,7 @@ mod tests {
         run(ConvertArgs {
             input,
             output: output.clone(),
-            format: Some(OutputFormat::Vtk),
-        })
+            format: Some(OutputFormat::Vtk) })
         .expect("native VTK output conversion");
         let recovered = read_image_native(&output).unwrap();
         assert_eq!(recovered.shape(), image.shape());

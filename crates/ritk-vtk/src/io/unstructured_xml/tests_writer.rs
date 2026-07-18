@@ -1,4 +1,4 @@
-//! Tests for the VTK XML UnstructuredGrid (.vtu) writer.
+﻿//! Tests for the VTK XML UnstructuredGrid (.vtu) writer.
 
 use super::*;
 use crate::domain::vtk_data_object::{AttributeArray, VtkCellType, VtkUnstructuredGrid};
@@ -43,7 +43,7 @@ fn test_write_vtu_str_number_of_points_and_cells() {
 
 #[test]
 fn test_write_vtu_str_offsets_cumulative() {
-    // Two triangles: sizes [3, 3] → offsets [3, 6].
+    // Two triangles: sizes [3, 3] â†’ offsets [3, 6].
     let mut g = VtkUnstructuredGrid::new();
     g.points = vec![
         [0.0, 0.0, 0.0],
@@ -112,8 +112,7 @@ fn test_write_vtu_str_point_data_emitted() {
         "pressure".to_string(),
         AttributeArray::Scalars {
             values: vec![1.0, 2.0, 3.0, 4.0],
-            num_components: 1,
-        },
+            num_components: 1 },
     );
     let s = write_vtu_str(&g);
     assert!(s.contains("<PointData>"), "must emit PointData section");
@@ -132,8 +131,7 @@ fn test_write_vtu_str_cell_data_emitted() {
         "stress".to_string(),
         AttributeArray::Scalars {
             values: vec![42.0],
-            num_components: 1,
-        },
+            num_components: 1 },
     );
     let s = write_vtu_str(&g);
     assert!(s.contains("<CellData>"), "must emit CellData section");
@@ -178,8 +176,7 @@ fn test_write_vtu_str_vectors_in_point_data() {
     g.point_data.insert(
         "vel".to_string(),
         AttributeArray::Vectors {
-            values: vec![[1.0, 2.0, 3.0]],
-        },
+            values: vec![[1.0, 2.0, 3.0]] },
     );
     let s = write_vtu_str(&g);
     assert!(s.contains("Name=\"vel\""), "must emit vel DataArray");

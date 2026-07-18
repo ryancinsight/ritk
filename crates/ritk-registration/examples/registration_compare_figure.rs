@@ -1,4 +1,4 @@
-//! Visual comparison of CT↔MR rigid registration: identity (before), native
+﻿//! Visual comparison of CTâ†”MR rigid registration: identity (before), native
 //! classical mutual-information registration, and the SimpleElastix reference.
 //!
 //! Renders a mid-axial slice as an RGB overlay (R = CT, G = MR). Aligned
@@ -16,15 +16,12 @@ use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world
 use ritk_image::native::Image;
 use ritk_io::{
     format::nifti::native::{NiftiReader, NiftiWriter},
-    ImageReader, ImageWriter,
-};
+    ImageReader, ImageWriter };
 use ritk_registration::{
     classical::{
         engine::{ClassicalConfig, MutualInformationMetric},
-        image_to_leto_volume, index_affine_to_physical, ImageRegistration,
-    },
-    AffineTransform,
-};
+        image_to_leto_volume, index_affine_to_physical, ImageRegistration },
+    AffineTransform };
 use ritk_transform::transform::affine::AtlasAffineTransform;
 
 type Backend = SequentialBackend;
@@ -135,7 +132,7 @@ fn main() -> Result<()> {
         + result.transform.as_array()[5]
         + result.transform.as_array()[10];
     let angle_degrees = (((trace - 1.0) / 2.0).clamp(-1.0, 1.0)).acos().to_degrees();
-    println!("RITK MI recovered rotation {angle_degrees:.2}°");
+    println!("RITK MI recovered rotation {angle_degrees:.2}Â°");
 
     // Convert the index-space result to physical space before native sampling.
     let physical_transform = index_affine_to_physical(&result.transform, &ct, &mri)?;

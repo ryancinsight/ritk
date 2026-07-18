@@ -1,11 +1,9 @@
-//! NIfTI test suite migrated to the Atlas-native (Coeus) path — ADR 0002
-//! §Sub-batch #2.  All tests use the `native::` entry points and
-//! `SequentialBackend`; burn_ndarray is no longer required.
+﻿//! NIfTI codec tests using the native image entry points and
+//! `SequentialBackend`.
 
 use super::*;
 use crate::header::{
-    write_single_file_bytes, HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader,
-};
+    write_single_file_bytes, HeaderDims, HeaderSpatial, HeaderVersion, NiftiDatatype, NiftiHeader };
 use anyhow::Result;
 use coeus_core::SequentialBackend;
 use ritk_image::native::Image;
@@ -14,7 +12,7 @@ use tempfile::tempdir;
 
 type TestBackend = SequentialBackend;
 
-// ── Helper ──────────────────────────────────────────────────────────────
+// â”€â”€ Helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn make_image(
     values: Vec<f32>,
@@ -27,7 +25,7 @@ fn make_image(
         .expect("valid image dimensions")
 }
 
-// ── Tests ────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_read_write_nifti_cycle() -> Result<()> {
@@ -95,15 +93,13 @@ fn read_nifti_from_bytes_accepts_int16_voxels() -> Result<()> {
         HeaderDims {
             nx: 3,
             ny: 2,
-            nz: 2,
-        },
+            nz: 2 },
         NiftiDatatype::Int16,
         HeaderSpatial {
             pixdim: [1.0; 8],
             srow_x: [1.0, 0.0, 0.0, 0.0],
             srow_y: [0.0, 1.0, 0.0, 0.0],
-            srow_z: [0.0, 0.0, 1.0, 0.0],
-        },
+            srow_z: [0.0, 0.0, 1.0, 0.0] },
     )?;
     let values = [
         -1024_i16, -7, 0, 1, 42, 127, 256, 511, 1024, 2047, 3072, 4095,
@@ -249,7 +245,7 @@ fn test_oblique_nifti_round_trip_preserves_affine_and_voxels() -> Result<()> {
         }
     }
 
-    // Voxel value check using flat indexing (no burn tensor slicing needed)
+    // Voxel value check using the codec's row-major flat indexing contract.
     let voxels = loaded.data_slice().expect("contiguous host voxels");
     let [_, ny, nx] = loaded.shape();
     let sample = |z: usize, y: usize, x: usize| voxels[z * ny * nx + y * nx + x];
@@ -383,15 +379,13 @@ fn read_nifti_rejects_zero_sform_column() -> Result<()> {
         HeaderDims {
             nx: 2,
             ny: 2,
-            nz: 2,
-        },
+            nz: 2 },
         NiftiDatatype::Float32,
         HeaderSpatial {
             pixdim: [1.0; 8],
             srow_x: [1.0, 0.0, 0.0, 0.0],
             srow_y: [0.0, 1.0, 0.0, 0.0],
-            srow_z: [0.0, 0.0, 0.0, 0.0],
-        },
+            srow_z: [0.0, 0.0, 0.0, 0.0] },
     )?;
     let data = vec![0_u8; 2 * 2 * 2 * 4];
     std::fs::write(&file_path, write_single_file_bytes(&header, &data))?;

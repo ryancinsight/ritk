@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 use crate::domain::vtk_data_object::{AttributeArray, VtkDataObject, VtkImageData};
 
 fn image_2x2x1(values: [f32; 4]) -> VtkImageData {
@@ -11,8 +11,7 @@ fn image_2x2x1(values: [f32; 4]) -> VtkImageData {
         "scalars".to_string(),
         AttributeArray::Scalars {
             values: values.to_vec(),
-            num_components: 1,
-        },
+            num_components: 1 },
     );
     img
 }
@@ -25,7 +24,7 @@ fn all_below_lower_bound_gives_empty_output() {
     let VtkDataObject::UnstructuredGrid(ug) = out else {
         panic!()
     };
-    assert_eq!(ug.points.len(), 0, "all values below lower → empty output");
+    assert_eq!(ug.points.len(), 0, "all values below lower â†’ empty output");
     assert_eq!(ug.n_cells(), 0);
 }
 
@@ -37,7 +36,7 @@ fn all_above_upper_bound_gives_empty_output() {
     let VtkDataObject::UnstructuredGrid(ug) = out else {
         panic!()
     };
-    assert_eq!(ug.points.len(), 0, "all values above upper → empty output");
+    assert_eq!(ug.points.len(), 0, "all values above upper â†’ empty output");
 }
 
 #[test]
@@ -48,13 +47,13 @@ fn all_in_range_passes_all_points() {
     let VtkDataObject::UnstructuredGrid(ug) = out else {
         panic!()
     };
-    assert_eq!(ug.points.len(), 4, "all values in range → 4 points");
+    assert_eq!(ug.points.len(), 4, "all values in range â†’ 4 points");
     assert_eq!(ug.n_cells(), 4);
 }
 
 #[test]
 fn boundary_values_are_inclusive() {
-    // values = [0.1, 0.5, 0.8, 1.2]; threshold [0.5, 0.8] → passes indices 1 and 2
+    // values = [0.1, 0.5, 0.8, 1.2]; threshold [0.5, 0.8] â†’ passes indices 1 and 2
     let f = ThresholdFilter::new("scalars", 0.5, 0.8);
     let img = image_2x2x1([0.1, 0.5, 0.8, 1.2]);
     let out = f.execute(VtkDataObject::ImageData(img)).unwrap();
@@ -91,8 +90,7 @@ fn threshold_on_unstructured_grid_filters_cells() {
         "pressure".to_string(),
         AttributeArray::Scalars {
             values: vec![1.0, 5.0, 9.0],
-            num_components: 1,
-        },
+            num_components: 1 },
     );
     let f = ThresholdFilter::new("pressure", 4.0, 6.0);
     let out = f.execute(VtkDataObject::UnstructuredGrid(ug)).unwrap();

@@ -1,11 +1,11 @@
-//! Python-exposed composite transform I/O (read/write JSON).
+﻿//! Python-exposed composite transform I/O (read/write JSON).
 
 use crate::errors::{RitkPyError, RitkResult};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_transform::composition::io::{CompositeTransform, TransformDescription};
 
-// ── read_transform ────────────────────────────────────────────────────────────
+// â”€â”€ read_transform â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Read a composite transform from a JSON file.
 ///
@@ -25,8 +25,7 @@ pub fn read_transform(py: Python<'_>, path: &str) -> RitkResult<PyObject> {
             }
             TransformDescription::Rigid {
                 rotation,
-                translation,
-            } => {
+                translation } => {
                 d.set_item("type", "rigid")?;
                 d.set_item("rotation", rotation.clone())?;
                 d.set_item("translation", translation.clone())?;
@@ -39,8 +38,7 @@ pub fn read_transform(py: Python<'_>, path: &str) -> RitkResult<PyObject> {
                 dims,
                 origin,
                 spacing,
-                components,
-            } => {
+                components } => {
                 d.set_item("type", "displacement_field")?;
                 d.set_item("dims", dims.clone())?;
                 d.set_item("origin", origin.clone())?;
@@ -51,8 +49,7 @@ pub fn read_transform(py: Python<'_>, path: &str) -> RitkResult<PyObject> {
                 grid_dims,
                 grid_origin,
                 grid_spacing,
-                components,
-            } => {
+                components } => {
                 d.set_item("type", "bspline")?;
                 d.set_item("grid_dims", grid_dims.clone())?;
                 d.set_item("grid_origin", grid_origin.clone())?;
@@ -70,7 +67,7 @@ pub fn read_transform(py: Python<'_>, path: &str) -> RitkResult<PyObject> {
     Ok(result.into())
 }
 
-// ── write_transform ───────────────────────────────────────────────────────────
+// â”€â”€ write_transform â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Write a composite transform to a JSON file.
 #[pyfunction]
@@ -114,8 +111,7 @@ pub fn write_transform(
                     .extract()?;
                 TransformDescription::Rigid {
                     rotation,
-                    translation,
-                }
+                    translation }
             }
             "affine" => {
                 let matrix: Vec<f64> = dict
@@ -145,8 +141,7 @@ pub fn write_transform(
                     dims,
                     origin,
                     spacing,
-                    components,
-                }
+                    components }
             }
             "bspline" => {
                 let grid_dims: Vec<usize> = dict
@@ -169,8 +164,7 @@ pub fn write_transform(
                     grid_dims,
                     grid_origin,
                     grid_spacing,
-                    components,
-                }
+                    components }
             }
             other => {
                 return Err(RitkPyError::io(format!(

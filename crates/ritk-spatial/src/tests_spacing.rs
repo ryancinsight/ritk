@@ -1,4 +1,4 @@
-use super::*;
+﻿use super::*;
 
 // Type aliases for testing
 type Spacing3 = Spacing<3>;
@@ -107,8 +107,7 @@ fn test_spacing_new_unchecked_skips_validation() {
 fn test_invalid_spacing_display() {
     let err = InvalidSpacing {
         index: 2,
-        value: -1.5,
-    };
+        value: -1.5 };
     assert_eq!(
         format!("{err}"),
         "spacing component [2] must be positive, got -1.5"

@@ -1,7 +1,7 @@
 use super::*;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec;
 
@@ -13,8 +13,8 @@ use ritk_tensor_ops::extract_vec;
 #[allow(clippy::too_many_lines)]
 pub fn cpr_apply_reference<B: Backend>(
     cpr: &CprImageFilter,
-    image: &Image<B, 3>,
-) -> anyhow::Result<Image<B, 2>> {
+    image: &Image<f32, B, 3>,
+) -> anyhow::Result<Image<f32, B, 2>> {
     let (vals, dims) = extract_vec(image)?;
     let [nz, ny, nx] = dims;
 
@@ -46,7 +46,7 @@ pub fn cpr_apply_reference<B: Backend>(
     }
     let total_length = arc_lengths[dense_pts.len() - 1];
     if total_length < 1e-12 {
-        anyhow::bail!("CPR path has zero total length — all control points coincident");
+        anyhow::bail!("CPR path has zero total length â€” all control points coincident");
     }
 
     let mut path_pts = Vec::with_capacity(num_path);
@@ -114,10 +114,7 @@ pub fn cpr_apply_reference<B: Backend>(
                 trilinear_sample(&vals, [nz, ny, nx], &origin, &spacing, &direction, &sample);
         }
     }
-
-    let device = image.data().device();
-    let td_out = TensorData::new(output, Shape::new([num_cross, num_path]));
-    let tensor = Tensor::<B, 2>::from_data(td_out, &device);
+    let tensor = Tensor::<f32, B>::from_slice([num_cross, num_path], &output);
 
     let cs_step = if num_cross > 1 {
         2.0 * half_width / (num_cross - 1) as f64

@@ -1,15 +1,14 @@
-//! Comprehensive integration tests for all registration metrics with known-answer verification.
+﻿//! Comprehensive integration tests for all registration metrics with known-answer verification.
 //!
 //! Covers Mattes MI, NMI, CR, MI with separate ranges, MI with stochastic sampling,
-//! and MI monotonicity under rotation — all with absolute-value checks and relative
+//! and MI monotonicity under rotation â€” all with absolute-value checks and relative
 //! ordering assertions against synthetic images.
 use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_registration::metric::{
     CorrelationDirection, CorrelationRatio, Metric, MutualInformation, MutualInformationVariant,
-    NormalizationMethod,
-};
+    NormalizationMethod };
 use ritk_statistics::IntensityRange;
 use ritk_transform::{RigidTransform, TranslationTransform};
 
@@ -19,9 +18,9 @@ type B = burn_ndarray::NdArray<f32>;
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn create_test_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
+fn create_test_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
     let device = Default::default();
-    let tensor = Tensor::from_data(TensorData::new(data, Shape::new(shape)), &device);
+    let tensor = Tensor::from_data(::new(data, Shape::new(shape)), &device);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
     let origin = Point::new([0.0, 0.0, 0.0]);
     let direction = Direction::identity();
@@ -35,9 +34,9 @@ fn create_identity_transform() -> TranslationTransform<B, 3> {
 
 fn create_small_rotation_transform(angle_rad: f32) -> RigidTransform<B, 3> {
     let device = Default::default();
-    let rotation = Tensor::<B, 1>::from_data(TensorData::from([angle_rad, 0.0, 0.0]), &device);
-    let translation = Tensor::<B, 1>::zeros([3], &device);
-    let center = Tensor::<B, 1>::zeros([3], &device);
+    let rotation = Tensor::<f32, B>::from_data(::from([angle_rad, 0.0, 0.0]), &device);
+    let translation = Tensor::<f32, B>::zeros([3], &device);
+    let center = Tensor::<f32, B>::zeros([3], &device);
     RigidTransform::new(translation, rotation, center)
 }
 
@@ -56,7 +55,7 @@ fn create_gaussian_blob(size: usize, amplitude: f32) -> Vec<f32> {
 }
 
 // ===========================================================================
-// 1. Mattes MI — perfect alignment
+// 1. Mattes MI â€” perfect alignment
 // ===========================================================================
 
 #[test]
@@ -83,12 +82,12 @@ fn test_mattes_mi_perfect_alignment() {
 }
 
 // ===========================================================================
-// 2. Mattes MI — monotonicity under translation
+// 2. Mattes MI â€” monotonicity under translation
 // ===========================================================================
 
 #[test]
 fn test_mattes_mi_monotonicity() {
-    // Use a Gaussian blob — a linear ramp shifted by a few voxels still has
+    // Use a Gaussian blob â€” a linear ramp shifted by a few voxels still has
     // near-perfect linear correlation, making MI differences noise-level (~0.005).
     // A Gaussian blob has actual spatial structure where translation meaningfully
     // changes the joint distribution, producing clear monotonic MI degradation.
@@ -104,14 +103,14 @@ fn test_mattes_mi_monotonicity() {
 
     // Moderate translation (3 voxels along x)
     let t3 = TranslationTransform::new(Tensor::from_data(
-        TensorData::from([3.0f32, 0.0, 0.0]),
+        ::from([3.0f32, 0.0, 0.0]),
         &device,
     ));
     let loss3 = mattes.forward(&image, &image, &t3).into_scalar();
 
     // Larger translation (6 voxels along x)
     let t6 = TranslationTransform::new(Tensor::from_data(
-        TensorData::from([6.0f32, 0.0, 0.0]),
+        ::from([6.0f32, 0.0, 0.0]),
         &device,
     ));
     let loss6 = mattes.forward(&image, &image, &t6).into_scalar();
@@ -132,7 +131,7 @@ fn test_mattes_mi_monotonicity() {
 }
 
 // ===========================================================================
-// 3. NMI — perfect alignment ≈ 2.0
+// 3. NMI â€” perfect alignment â‰ˆ 2.0
 // ===========================================================================
 
 #[test]
@@ -156,7 +155,7 @@ fn test_nmi_perfect_alignment() {
     let loss = nmi.forward(&image, &image, &transform);
     let loss_val = loss.into_scalar();
 
-    // NMI = (H(X)+H(Y))/H(X,Y).  For identical images NMI → 2, loss → -2.
+    // NMI = (H(X)+H(Y))/H(X,Y).  For identical images NMI â†’ 2, loss â†’ -2.
     // Discretization in a small test image relaxes the threshold to -1.3
     // (consistent with existing normalized_mi_test).
     assert!(
@@ -167,7 +166,7 @@ fn test_nmi_perfect_alignment() {
 }
 
 // ===========================================================================
-// 4. NMI — shifted images have lower NMI
+// 4. NMI â€” shifted images have lower NMI
 // ===========================================================================
 
 #[test]
@@ -205,7 +204,7 @@ fn test_nmi_shift_sensitivity() {
 }
 
 // ===========================================================================
-// 5. CR — perfect alignment ≈ 1.0
+// 5. CR â€” perfect alignment â‰ˆ 1.0
 // ===========================================================================
 
 #[test]
@@ -228,7 +227,7 @@ fn test_cr_perfect_alignment() {
     let loss = cr.forward(&image, &image, &transform);
     let loss_val = loss.into_scalar();
 
-    // CR ≈ 1.0 for identical images → loss ≈ -1.0
+    // CR â‰ˆ 1.0 for identical images â†’ loss â‰ˆ -1.0
     assert!(
         loss_val < -0.9,
         "CR loss for identical images should be close to -1.0, got {}",
@@ -237,7 +236,7 @@ fn test_cr_perfect_alignment() {
 }
 
 // ===========================================================================
-// 6. CR — direction symmetry
+// 6. CR â€” direction symmetry
 // ===========================================================================
 
 #[test]
@@ -298,7 +297,7 @@ fn test_mi_separate_intensity_ranges() {
 
     // Fixed image in [0, 1]
     let fixed_data: Vec<f32> = (0..count).map(|i| (i as f32) / (count as f32)).collect();
-    // Moving image in [0, 10] — same monotonic pattern but different range
+    // Moving image in [0, 10] â€” same monotonic pattern but different range
     let moving_data: Vec<f32> = (0..count)
         .map(|i| ((i as f32) / (count as f32)) * 10.0)
         .collect();
@@ -323,7 +322,7 @@ fn test_mi_separate_intensity_ranges() {
     let loss = mi_sep.forward(&fixed, &moving, &transform);
     let loss_val = loss.into_scalar();
 
-    // The two images are deterministically related (Y = 10·X), so MI should be high.
+    // The two images are deterministically related (Y = 10Â·X), so MI should be high.
     // Loss = -MI should be well below -0.5.
     assert!(
         loss_val < -0.5,
@@ -383,12 +382,12 @@ fn test_mi_monotonicity_with_rotation() {
     let device = Default::default();
     let mattes = MutualInformation::<B>::new_mattes(32, 0.0, 1.0, &device);
 
-    // Small rotation (5°)
+    // Small rotation (5Â°)
     let small_angle = 5.0_f32.to_radians();
     let t_small = create_small_rotation_transform(small_angle);
     let loss_small = mattes.forward(&image, &image, &t_small).into_scalar();
 
-    // Large rotation (30°)
+    // Large rotation (30Â°)
     let large_angle = 30.0_f32.to_radians();
     let t_large = create_small_rotation_transform(large_angle);
     let loss_large = mattes.forward(&image, &image, &t_large).into_scalar();
@@ -401,13 +400,13 @@ fn test_mi_monotonicity_with_rotation() {
     // More negative loss = higher MI.  Ordering: identity < small < large
     assert!(
         loss_identity < loss_small,
-        "MI at identity ({}) should be higher than at 5° rotation ({})",
+        "MI at identity ({}) should be higher than at 5Â° rotation ({})",
         loss_identity,
         loss_small
     );
     assert!(
         loss_small < loss_large,
-        "MI at 5° rotation ({}) should be higher than at 30° rotation ({})",
+        "MI at 5Â° rotation ({}) should be higher than at 30Â° rotation ({})",
         loss_small,
         loss_large
     );

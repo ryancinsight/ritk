@@ -3,17 +3,17 @@
 //! Two patterns exist among the four deconvolution methods:
 //!
 //! **Pattern A** (single-pass): Wiener, Tikhonov
-//! Pad → FFT → frequency-domain update rule → IFFT → crop.
+//! Pad â†’ FFT â†’ frequency-domain update rule â†’ IFFT â†’ crop.
 //! Only the update rule differs between methods.
 //!
 //! **Pattern B** (iterative): Landweber, Richardson-Lucy
-//! Initialize → loop { convolve → residual/ratio → convolve → update estimate }.
+//! Initialize â†’ loop { convolve â†’ residual/ratio â†’ convolve â†’ update estimate }.
 //! The inner-loop update logic differs (additive vs multiplicative).
 //!
 //! This module defines:
-//! - [`Regularization`] — frequency-domain update rule for Pattern A
-//! - `apply_single_pass` — generic single-pass pipeline
-//! - `apply_iterative` — generic iterative pipeline
+//! - [`Regularization`] â€” frequency-domain update rule for Pattern A
+//! - `apply_single_pass` â€” generic single-pass pipeline
+//! - `apply_iterative` â€” generic iterative pipeline
 
 use super::helpers::{
     decode_coords, encode_flat, ifft_and_crop, pad_and_fft, pad_dims, pad_total, place_corner,
@@ -25,7 +25,7 @@ use eunomia::Complex;
 /// Default convergence tolerance for iterative deconvolution algorithms.
 pub(crate) const DEFAULT_ITERATIVE_TOLERANCE: f32 = 1e-6;
 
-// ── Pattern A: Frequency-domain regularization ─────────────────────────────
+// â”€â”€ Pattern A: Frequency-domain regularization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Frequency-domain update rule for single-pass deconvolution.
 ///
@@ -35,8 +35,8 @@ pub(crate) const DEFAULT_ITERATIVE_TOLERANCE: f32 = 1e-6;
 pub trait Regularization {
     /// Apply the frequency-domain update rule.
     ///
-    /// `img_padded` contains `G(ω)` on entry and `U(ω)` on exit.
-    /// `ker_padded` contains `H(ω)`.
+    /// `img_padded` contains `G(Ï‰)` on entry and `U(Ï‰)` on exit.
+    /// `ker_padded` contains `H(Ï‰)`.
     /// `pad_dims` gives the shape of the padded arrays.
     fn apply_rule(
         &self,
@@ -49,15 +49,15 @@ pub trait Regularization {
 /// Wiener filter, matching ITK's `WienerDeconvolutionImageFilter`:
 ///
 /// ```text
-/// U(ω) = G(ω)·H*(ω) / ( |H(ω)|² + Pn/|G(ω)|² )
+/// U(Ï‰) = G(Ï‰)Â·H*(Ï‰) / ( |H(Ï‰)|Â² + Pn/|G(Ï‰)|Â² )
 /// ```
 ///
-/// where the regularisation term `Pn/|G(ω)|²` = `1/snrSquared` matches
+/// where the regularisation term `Pn/|G(Ï‰)|Â²` = `1/snrSquared` matches
 /// ITK's `WienerDeconvolutionImageFilter::GenerateData()` exactly.
-/// `Pn` is the noise power spectral density — ITK's `NoiseVariance`.
-/// The regularisation is frequency-adaptive: frequencies where `|G(ω)|²` is
+/// `Pn` is the noise power spectral density â€” ITK's `NoiseVariance`.
+/// The regularisation is frequency-adaptive: frequencies where `|G(Ï‰)|Â²` is
 /// small (weak observed signal) receive stronger suppression. This differs from
-/// a constant-regularisation inverse filter (that is ITK's Tikhonov — see
+/// a constant-regularisation inverse filter (that is ITK's Tikhonov â€” see
 /// [`TikhonovRule`]).
 pub struct WienerRule {
     /// Noise power spectral density `Pn` (ITK `NoiseVariance`).
@@ -74,8 +74,8 @@ impl Regularization for WienerRule {
         let pn = self.noise_variance;
         for (g, &h) in img_padded.iter_mut().zip(ker_padded.iter()) {
             // SNR-based regularisation matching ITK's WienerDeconvolutionImageFilter:
-            //   snrSquared = |G(ω)|² / Pn
-            //   1/snrSquared = Pn / |G(ω)|²
+            //   snrSquared = |G(Ï‰)|Â² / Pn
+            //   1/snrSquared = Pn / |G(Ï‰)|Â²
             // Clamp denominator away from zero to suppress division-by-zero at DC
             // or background-only frequencies.
             let pf = g.norm_sqr();
@@ -97,13 +97,13 @@ impl Regularization for WienerRule {
 /// Tikhonov filter, matching ITK's `TikhonovDeconvolutionImageFilter`:
 ///
 /// ```text
-/// U(ω) = G(ω)·H*(ω) / ( |H(ω)|² + λ )
+/// U(Ï‰) = G(Ï‰)Â·H*(Ï‰) / ( |H(Ï‰)|Â² + Î» )
 /// ```
 ///
-/// A constant-regularised inverse filter: `λ` trades inversion sharpness against
+/// A constant-regularised inverse filter: `Î»` trades inversion sharpness against
 /// noise amplification uniformly across frequency.
 pub struct TikhonovRule {
-    /// Regularization parameter λ.
+    /// Regularization parameter Î».
     pub lambda: f32,
 }
 
@@ -133,16 +133,16 @@ impl Regularization for TikhonovRule {
 /// Direct inverse filter, matching ITK's `InverseDeconvolutionImageFilter`:
 ///
 /// ```text
-/// U(ω) = G(ω) / H(ω) = G(ω)·H*(ω) / |H(ω)|²   if |H(ω)| >= τ, else 0
+/// U(Ï‰) = G(Ï‰) / H(Ï‰) = G(Ï‰)Â·H*(Ï‰) / |H(Ï‰)|Â²   if |H(Ï‰)| >= Ï„, else 0
 /// ```
 ///
-/// Unlike Tikhonov (which adds a ridge term `λ`), the inverse filter divides
+/// Unlike Tikhonov (which adds a ridge term `Î»`), the inverse filter divides
 /// directly by the OTF and zeros any frequency whose magnitude falls below the
-/// `kernel_zero_magnitude_threshold` `τ` (ITK `KernelZeroMagnitudeThreshold`,
+/// `kernel_zero_magnitude_threshold` `Ï„` (ITK `KernelZeroMagnitudeThreshold`,
 /// default 1e-3 in ITK; SimpleITK exposes it per call). This prevents unbounded
 /// noise amplification at OTF nulls without smoothing the rest of the spectrum.
 pub struct InverseRule {
-    /// Magnitude threshold `τ` below which an OTF frequency is treated as zero.
+    /// Magnitude threshold `Ï„` below which an OTF frequency is treated as zero.
     pub kernel_zero_magnitude_threshold: f32,
 }
 
@@ -155,7 +155,7 @@ impl Regularization for InverseRule {
     ) {
         let tau = self.kernel_zero_magnitude_threshold;
         for (g, &h) in img_padded.iter_mut().zip(ker_padded.iter()) {
-            // |H(ω)| compared against τ (ITK uses the complex magnitude, not |H|²).
+            // |H(Ï‰)| compared against Ï„ (ITK uses the complex magnitude, not |H|Â²).
             if h.norm() < tau {
                 *g = Complex::new(0.0, 0.0);
             } else {
@@ -169,9 +169,9 @@ impl Regularization for InverseRule {
     }
 }
 
-// ── Generic pipelines ──────────────────────────────────────────────────────
+// â”€â”€ Generic pipelines â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Single-pass deconvolution: pad → FFT → regularization rule → IFFT → crop.
+/// Single-pass deconvolution: pad â†’ FFT â†’ regularization rule â†’ IFFT â†’ crop.
 ///
 /// Used by `WienerDeconvolution::apply` and `TikhonovDeconvolution::apply`
 /// via the const-generic `D` parameter.
@@ -184,7 +184,7 @@ pub(super) fn apply_single_pass<const D: usize, R: Regularization>(
 ) -> Vec<f32> {
     let pad = pad_dims::<D>(img_dims, ker_dims);
     let pad_n = pad_total::<D>(&pad);
-    // ITK CropOutput convention: crop at (kernelSize[d]-1)/2 ≈ ker_dims[d]/2 per axis.
+    // ITK CropOutput convention: crop at (kernelSize[d]-1)/2 â‰ˆ ker_dims[d]/2 per axis.
     // Place the image at the same offset so IFFT at the crop positions gives the
     // correctly aligned deconvolved estimate.
     let offset: [usize; D] = std::array::from_fn(|d| ker_dims[d] / 2);
@@ -213,7 +213,7 @@ fn reversed_kernel<const D: usize>(ker_vals: &[f32], ker_dims: &[usize; D]) -> V
     rev
 }
 
-// ── Iterative algorithm types ──────────────────────────────────────────────
+// â”€â”€ Iterative algorithm types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Per-iteration constraint applied to the Landweber estimate.
 ///
@@ -222,7 +222,7 @@ fn reversed_kernel<const D: usize>(ker_vals: &[f32], ker_dims: &[usize; D]) -> V
 /// projection; `None` is plain `LandweberDeconvolutionImageFilter`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LandweberProjection {
-    /// No constraint — plain Landweber gradient descent.
+    /// No constraint â€” plain Landweber gradient descent.
     #[default]
     None,
     /// Clamp the estimate to `>= 0` after each iteration.
@@ -233,16 +233,16 @@ pub enum LandweberProjection {
 ///
 /// Replaces `is_landweber: bool` to eliminate boolean blindness at call sites.
 pub enum IterativeAlgorithm {
-    /// Landweber gradient descent: additive update `uₖ₊₁ = uₖ + α · correction`,
+    /// Landweber gradient descent: additive update `uâ‚–â‚Šâ‚ = uâ‚– + Î± Â· correction`,
     /// optionally projected onto a constraint set each iteration.
     Landweber {
-        /// Step size α (must satisfy `0 < α < 2 / σ_max²` for convergence).
+        /// Step size Î± (must satisfy `0 < Î± < 2 / Ïƒ_maxÂ²` for convergence).
         step_size: f32,
         /// Per-iteration projection constraint.
         projection: LandweberProjection,
     },
     /// Richardson-Lucy expectation-maximization: multiplicative update
-    /// `uₖ₊₁ = uₖ · correction`.
+    /// `uâ‚–â‚Šâ‚ = uâ‚– Â· correction`.
     RichardsonLucy,
 }
 

@@ -10,7 +10,7 @@ fn salt_pepper_zero_prob_is_identity() {
     let img = make_image(data.clone(), [3, 3, 3]);
     let filter = SaltAndPepperNoiseFilter::new(0.0);
     let result = filter.apply(&img).unwrap();
-    let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
+    let vals = result.data().to_vec();
     assert_eq!(vals, data, "zero probability must leave image unchanged");
 }
 
@@ -21,7 +21,7 @@ fn salt_pepper_full_prob_saturates() {
     let img = make_image(data, [5, 5, 4]);
     let filter = SaltAndPepperNoiseFilter::new(1.0).with_seed(42);
     let result = filter.apply(&img).unwrap();
-    let vals = result.data().clone().into_data().into_vec::<f32>().unwrap();
+    let vals = result.data().to_vec();
     let min = vals.iter().fold(f32::INFINITY, |a, &b| a.min(b));
     let max = vals.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
     // Every voxel must be either min or max
@@ -36,22 +36,8 @@ fn salt_pepper_deterministic() {
     let data = vec![5.0_f32; 64];
     let img = make_image(data, [4, 4, 4]);
     let filter = SaltAndPepperNoiseFilter::new(0.3).with_seed(42);
-    let v1 = filter
-        .apply(&img)
-        .unwrap()
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .unwrap();
-    let v2 = filter
-        .apply(&img)
-        .unwrap()
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .unwrap();
+    let v1 = filter.apply(&img).unwrap().data().to_vec();
+    let v2 = filter.apply(&img).unwrap().data().to_vec();
     assert_eq!(v1, v2, "same seed must produce identical output");
 }
 

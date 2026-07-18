@@ -2,13 +2,13 @@
 //!
 //! # Mathematical Specification
 //!
-//! Let `I : â„¤Â³ â†’ â„` be the input image and `M : â„¤Â³ â†’ â„` the mask image.
+//! Let `I : Ã¢â€žÂ¤Ã‚Â³ Ã¢â€ â€™ Ã¢â€žÂ` be the input image and `M : Ã¢â€žÂ¤Ã‚Â³ Ã¢â€ â€™ Ã¢â€žÂ` the mask image.
 //!
 //! **`MaskImageFilter`** (inside mask):
 //! `out(x) = I(x)` if `M(x) > threshold`, else `outside_value`
 //!
 //! **`MaskNegatedImageFilter`** (outside mask):
-//! `out(x) = I(x)` if `M(x) â‰¤ threshold`, else `outside_value`
+//! `out(x) = I(x)` if `M(x) Ã¢â€°Â¤ threshold`, else `outside_value`
 //!
 //! Default `threshold = 0.5`, `outside_value = 0.0`.
 //! Spatial metadata (origin, spacing, direction) is taken from the input image `I`.
@@ -50,9 +50,9 @@ pub(crate) enum MaskFill {
 /// `on_inactive`. Encoding every family as a single predicate (`mask > thr`)
 /// with a per-branch [`MaskFill`] collapses the three previously-identical zips
 /// to one entry point:
-/// - [`MaskImageFilter`]: active → `Keep`, inactive → `Constant(outside)`.
-/// - [`MaskNegatedImageFilter`]: active → `Constant(outside)`, inactive → `Keep`.
-/// - [`MaskedAssignImageFilter`]: active → `Constant(assign)`, inactive → `Keep`.
+/// - [`MaskImageFilter`]: active â†’ `Keep`, inactive â†’ `Constant(outside)`.
+/// - [`MaskNegatedImageFilter`]: active â†’ `Constant(outside)`, inactive â†’ `Keep`.
+/// - [`MaskedAssignImageFilter`]: active â†’ `Constant(assign)`, inactive â†’ `Keep`.
 pub(crate) fn mask_combine(
     image: &[f32],
     mask: &[f32],
@@ -77,7 +77,7 @@ pub(crate) fn mask_combine(
         .collect()
 }
 
-// â”€â”€ MaskImageFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬ MaskImageFilter Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 /// Retain image values where the mask is active (> threshold); replace elsewhere.
 ///
@@ -118,9 +118,9 @@ impl MaskImageFilter {
 
     pub fn apply<B: Backend>(
         &self,
-        image: &Image<B, 3>,
-        mask: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
+        image: &Image<f32, B, 3>,
+        mask: &Image<f32, B, 3>,
+    ) -> anyhow::Result<Image<f32, B, 3>> {
         let dims = image.shape();
         check_shapes(dims, mask.shape())?;
         let (iv, _) = extract_vec(image)?;
@@ -162,11 +162,11 @@ impl MaskImageFilter {
     }
 }
 
-// â”€â”€ MaskNegatedImageFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬ MaskNegatedImageFilter Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
-/// Retain image values where the mask is **inactive** (â‰¤ threshold); replace elsewhere.
+/// Retain image values where the mask is **inactive** (Ã¢â€°Â¤ threshold); replace elsewhere.
 ///
-/// `out(x) = image(x)` if `mask(x) â‰¤ threshold`, else `outside_value`
+/// `out(x) = image(x)` if `mask(x) Ã¢â€°Â¤ threshold`, else `outside_value`
 ///
 /// # ITK Parity: `MaskNegatedImageFilter`
 #[derive(Debug, Clone)]
@@ -203,9 +203,9 @@ impl MaskNegatedImageFilter {
 
     pub fn apply<B: Backend>(
         &self,
-        image: &Image<B, 3>,
-        mask: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
+        image: &Image<f32, B, 3>,
+        mask: &Image<f32, B, 3>,
+    ) -> anyhow::Result<Image<f32, B, 3>> {
         let dims = image.shape();
         check_shapes(dims, mask.shape())?;
         let (iv, _) = extract_vec(image)?;
@@ -247,10 +247,10 @@ impl MaskNegatedImageFilter {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬ Tests Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 /// Assign `assign_value` where the mask is **active** (> threshold); keep the
-/// image elsewhere — the role-inverse of [`MaskImageFilter`].
+/// image elsewhere â€” the role-inverse of [`MaskImageFilter`].
 ///
 /// `out(x) = assign_value` if `mask(x) > threshold`, else `image(x)`
 ///
@@ -284,9 +284,9 @@ impl MaskedAssignImageFilter {
     /// Apply: write `assign_value` where `mask > threshold`, else keep `image`.
     pub fn apply<B: Backend>(
         &self,
-        image: &Image<B, 3>,
-        mask: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
+        image: &Image<f32, B, 3>,
+        mask: &Image<f32, B, 3>,
+    ) -> anyhow::Result<Image<f32, B, 3>> {
         let dims = image.shape();
         check_shapes(dims, mask.shape())?;
         let (iv, _) = extract_vec(image)?;

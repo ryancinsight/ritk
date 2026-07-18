@@ -1,10 +1,10 @@
-use super::{read_ply_mesh, write_ply_ascii, write_ply_binary_le};
+﻿use super::{read_ply_mesh, write_ply_ascii, write_ply_binary_le};
 use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
 use crate::io::ply::reader::parse_ply;
 use crate::io::ply::writer::{write_ply_ascii_to_writer, write_ply_binary_le_to_writer};
 use tempfile::NamedTempFile;
 
-// ── Test fixtures ─────────────────────────────────────────────────────────────
+// â”€â”€ Test fixtures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Regular tetrahedron with shared vertex topology.
 ///
@@ -38,14 +38,13 @@ fn tetrahedron_with_normals() -> VtkPolyData {
                 [1.0f32, 0.0, 0.0],
                 [0.0, 1.0, 0.0],
                 [0.0, 0.0, 1.0],
-                [0.577_350_3, 0.577_350_3, 0.577_350_3], // unit (1,1,1)/√3
-            ],
-        },
+                [0.577_350_3, 0.577_350_3, 0.577_350_3], // unit (1,1,1)/âˆš3
+            ] },
     );
     mesh
 }
 
-// ── Round-trip: ASCII ─────────────────────────────────────────────────────────
+// â”€â”€ Round-trip: ASCII â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_ply_ascii_roundtrip_coordinates() {
@@ -92,7 +91,7 @@ fn test_ply_ascii_roundtrip_polygon_indices() {
     }
 }
 
-// ── Round-trip: binary little-endian ─────────────────────────────────────────
+// â”€â”€ Round-trip: binary little-endian â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_ply_binary_le_roundtrip_coordinates() {
@@ -126,7 +125,7 @@ fn test_ply_binary_le_roundtrip_polygon_indices() {
     }
 }
 
-// ── Normals round-trip ────────────────────────────────────────────────────────
+// â”€â”€ Normals round-trip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_ply_ascii_normals_roundtrip() {
@@ -141,8 +140,7 @@ fn test_ply_ascii_normals_roundtrip() {
         .expect("Normals must be present")
     {
         AttributeArray::Normals { values } => values.clone(),
-        other => panic!("expected Normals, got {other:?}"),
-    };
+        other => panic!("expected Normals, got {other:?}") };
     assert_eq!(got.len(), 4);
     let eps = 1e-5_f32;
     assert!((got[0][0] - 1.0).abs() < eps, "V0 normal x must be 1.0");
@@ -159,8 +157,7 @@ fn test_ply_binary_le_normals_roundtrip() {
 
     let got = match loaded.point_data.get("Normals").unwrap() {
         AttributeArray::Normals { values } => values.clone(),
-        _ => panic!("expected Normals"),
-    };
+        _ => panic!("expected Normals") };
     assert_eq!(got.len(), 4);
     let eps = 1e-7_f32;
     assert!((got[0][0] - 1.0).abs() < eps, "V0 normal x");
@@ -168,7 +165,7 @@ fn test_ply_binary_le_normals_roundtrip() {
     assert!((got[2][2] - 1.0).abs() < eps, "V2 normal z");
 }
 
-// ── Empty mesh ────────────────────────────────────────────────────────────────
+// â”€â”€ Empty mesh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_ply_ascii_empty_roundtrip() {
@@ -190,7 +187,7 @@ fn test_ply_binary_le_empty_roundtrip() {
     assert_eq!(loaded.polygons.len(), 0);
 }
 
-// ── Negative / boundary ───────────────────────────────────────────────────────
+// â”€â”€ Negative / boundary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_ply_big_endian_rejected() {

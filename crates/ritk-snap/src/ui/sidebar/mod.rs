@@ -1,9 +1,9 @@
-//! Series browser and DICOM metadata panel.
+﻿//! Series browser and DICOM metadata panel.
 //!
 //! # Overview
 //!
 //! Three-tab panel:
-//! - **"Series" tab**: collapsible Patient → Study → Series tree; clicking a
+//! - **"Series" tab**: collapsible Patient â†’ Study â†’ Series tree; clicking a
 //!   series entry requests it be loaded.
 //! - **"Tags" tab**: scrollable table of DICOM metadata for the currently
 //!   loaded volume.
@@ -25,7 +25,7 @@ use crate::dicom::metadata_table::build_metadata_rows;
 use crate::dicom::series_tree::SeriesTree;
 use crate::LoadedVolume;
 
-// ── SidebarTab ────────────────────────────────────────────────────────────────
+// â”€â”€ SidebarTab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Active tab in the sidebar panel.
 ///
@@ -33,16 +33,15 @@ use crate::LoadedVolume;
 /// [`SidebarPanel::show`] is called.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub enum SidebarTab {
-    /// Shows the collapsible Patient → Study → Series browser tree.
+    /// Shows the collapsible Patient â†’ Study â†’ Series browser tree.
     #[default]
     Series,
     /// Shows the scrollable DICOM metadata table for the loaded volume.
     Metadata,
     /// Shows the PET SUV quantification panel (only meaningful for PT modality).
-    PetSuv,
-}
+    PetSuv }
 
-// ── SidebarPanel ──────────────────────────────────────────────────────────────
+// â”€â”€ SidebarPanel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Three-tab sidebar panel combining a DICOM series browser, a metadata table,
 /// and a PET SUV quantification panel.
@@ -54,10 +53,10 @@ pub enum SidebarTab {
 /// # Lifetime
 ///
 /// The lifetime `'a` covers all references:
-/// - `tree` — the series hierarchy model (immutable).
-/// - `selected_path` — the currently highlighted series folder (mutable).
-/// - `active_tab` — which tab is displayed (mutable).
-/// - `metadata_volume` — the currently loaded volume for the Tags tab
+/// - `tree` â€” the series hierarchy model (immutable).
+/// - `selected_path` â€” the currently highlighted series folder (mutable).
+/// - `active_tab` â€” which tab is displayed (mutable).
+/// - `metadata_volume` â€” the currently loaded volume for the Tags tab
 ///   (shared, optional).
 pub struct SidebarPanel<'a> {
     /// Hierarchical series tree to render in the Series tab.
@@ -72,8 +71,7 @@ pub struct SidebarPanel<'a> {
     /// SUVbw at the pointer position (for PET SUV tab).
     pub pointer_suv: Option<f32>,
     /// SUVbw at the linked-cursor position (for PET SUV tab).
-    pub cursor_suv: Option<f32>,
-}
+    pub cursor_suv: Option<f32> }
 
 impl<'a> SidebarPanel<'a> {
     /// Construct the panel from borrowed application state.
@@ -93,8 +91,7 @@ impl<'a> SidebarPanel<'a> {
             active_tab,
             metadata_volume,
             pointer_suv,
-            cursor_suv,
-        }
+            cursor_suv }
     }
 
     /// Construct the panel with an explicit tag search string (backwards-compat alias).
@@ -126,7 +123,7 @@ impl<'a> SidebarPanel<'a> {
     /// `Some(folder_path)` when the user clicks a series entry in the Series
     /// tab, requesting that series to be loaded. `None` on all other frames.
     pub fn show(&mut self, ui: &mut Ui) -> Option<std::path::PathBuf> {
-        // ── Tab selector row ──────────────────────────────────────────────────
+        // â”€â”€ Tab selector row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         ui.horizontal(|ui| {
             if ui
                 .selectable_label(*self.active_tab == SidebarTab::Series, "Series")
@@ -161,9 +158,9 @@ impl<'a> SidebarPanel<'a> {
         }
     }
 
-    // ── Series tab ────────────────────────────────────────────────────────────
+    // â”€â”€ Series tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    /// Render the Patient → Study → Series collapsible hierarchy.
+    /// Render the Patient â†’ Study â†’ Series collapsible hierarchy.
     ///
     /// # Borrow invariant
     ///
@@ -173,7 +170,7 @@ impl<'a> SidebarPanel<'a> {
     /// `*self.selected_path` records the newly selected path when the user
     /// clicked an entry.
     fn show_series_tab(&mut self, ui: &mut Ui) -> Option<std::path::PathBuf> {
-        // Copy the &'a SeriesTree reference — &T: Copy, releases borrow on self.
+        // Copy the &'a SeriesTree reference â€” &T: Copy, releases borrow on self.
         let tree: &'a SeriesTree<'static> = self.tree;
         // Clone current selection for inside-closure comparison without holding
         // a borrow on self.selected_path during the closure.
@@ -185,17 +182,17 @@ impl<'a> SidebarPanel<'a> {
             .show(ui, |ui| {
                 if tree.patients.is_empty() {
                     ui.label("No series found.");
-                    ui.label("Use File → Open DICOM folder to scan a directory.");
+                    ui.label("Use File â†’ Open DICOM folder to scan a directory.");
                     return;
                 }
                 for (patient_idx, patient) in tree.patients.iter().enumerate() {
-                    // ── Patient node ──────────────────────────────────────────
+                    // â”€â”€ Patient node â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                     let patient_label = if patient.patient_name.is_empty() {
-                        format!("👤 (anonymous) [{}]", patient.patient_id)
+                        format!("ðŸ‘¤ (anonymous) [{}]", patient.patient_id)
                     } else if patient.patient_id.is_empty() {
-                        format!("👤 {}", patient.patient_name)
+                        format!("ðŸ‘¤ {}", patient.patient_name)
                     } else {
-                        format!("👤 {} [{}]", patient.patient_name, patient.patient_id)
+                        format!("ðŸ‘¤ {} [{}]", patient.patient_name, patient.patient_id)
                     };
 
                     CollapsingHeader::new(patient_label)
@@ -203,12 +200,11 @@ impl<'a> SidebarPanel<'a> {
                         .default_open(true)
                         .show(ui, |ui| {
                             for (study_idx, study) in patient.studies.iter().enumerate() {
-                                // ── Study node ────────────────────────────────
+                                // â”€â”€ Study node â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                                 let study_label = match (&study.study_date, &study.study_uid) {
-                                    (Some(date), _) => format!("📅 {date}"),
-                                    (None, Some(uid)) => format!("📅 UID:{uid}"),
-                                    (None, None) => "📅 (unknown date)".to_string(),
-                                };
+                                    (Some(date), _) => format!("ðŸ“… {date}"),
+                                    (None, Some(uid)) => format!("ðŸ“… UID:{uid}"),
+                                    (None, None) => "ðŸ“… (unknown date)".to_string() };
 
                                 CollapsingHeader::new(study_label)
                                     .id_source((
@@ -222,7 +218,7 @@ impl<'a> SidebarPanel<'a> {
                                     .show(ui, |ui| {
                                         for (series_idx, series) in study.series.iter().enumerate()
                                         {
-                                            // ── Series entry ──────────────────
+                                            // â”€â”€ Series entry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                                             let is_selected = current_path
                                                 .as_ref()
                                                 .map(|p| p == series.folder.as_ref())
@@ -271,18 +267,18 @@ impl<'a> SidebarPanel<'a> {
         new_selection
     }
 
-    // ── Metadata (Tags) tab ───────────────────────────────────────────────────
+    // â”€â”€ Metadata (Tags) tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Render a scrollable table of DICOM metadata for the loaded volume.
     fn show_metadata_tab(&self, ui: &mut Ui) {
-        // ── Tag search input ──────────────────────────────────────────────────
+        // â”€â”€ Tag search input â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let search_id = egui::Id::new("dicom_tag_search_filter");
         let mut search: String = ui.data(|d| d.get_temp(search_id).unwrap_or_default());
         ui.horizontal(|ui| {
-            ui.label("🔍");
+            ui.label("ðŸ”");
             ui.text_edit_singleline(&mut search)
                 .on_hover_text("Filter tags by keyword or tag hex code (case-insensitive)");
-            if ui.small_button("✖").clicked() {
+            if ui.small_button("âœ–").clicked() {
                 search.clear();
             }
         });
@@ -311,17 +307,17 @@ impl<'a> SidebarPanel<'a> {
                             ui.label(val);
                             ui.end_row();
                         };
-                        row(ui, "Patient:", vol.patient_name.as_deref().unwrap_or("—"));
-                        row(ui, "ID:", vol.patient_id.as_deref().unwrap_or("—"));
-                        row(ui, "Date:", vol.study_date.as_deref().unwrap_or("—"));
-                        row(ui, "Modality:", vol.modality.as_deref().unwrap_or("—"));
+                        row(ui, "Patient:", vol.patient_name.as_deref().unwrap_or("â€”"));
+                        row(ui, "ID:", vol.patient_id.as_deref().unwrap_or("â€”"));
+                        row(ui, "Date:", vol.study_date.as_deref().unwrap_or("â€”"));
+                        row(ui, "Modality:", vol.modality.as_deref().unwrap_or("â€”"));
                         row(
                             ui,
                             "Series:",
-                            vol.series_description.as_deref().unwrap_or("—"),
+                            vol.series_description.as_deref().unwrap_or("â€”"),
                         );
-                        row(ui, "Dimensions:", &format!("{depth} × {rows} × {cols}"));
-                        row(ui, "Spacing:", &format!("{dz:.3} × {dy:.3} × {dx:.3} mm"));
+                        row(ui, "Dimensions:", &format!("{depth} Ã— {rows} Ã— {cols}"));
+                        row(ui, "Spacing:", &format!("{dz:.3} Ã— {dy:.3} Ã— {dx:.3} mm"));
                         row(ui, "Origin:", &format!("{ox:.2}, {oy:.2}, {oz:.2}"));
                         if let Some(src) = &vol.source {
                             row(ui, "Source:", &src.to_string_lossy());
@@ -382,7 +378,7 @@ impl<'a> SidebarPanel<'a> {
             });
     }
 
-    // ── PET SUV tab ────────────────────────────────────────────────────────
+    // â”€â”€ PET SUV tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Render the PET SUV quantification panel.
     ///
@@ -398,8 +394,7 @@ impl<'a> SidebarPanel<'a> {
                     vol.radionuclide_half_life_s,
                     vol.decay_correction.as_deref(),
                 ),
-                None => (None, None, None, None, None),
-            };
+                None => (None, None, None, None, None) };
         crate::ui::pet_suv_panel::draw_pet_suv_panel(
             ui,
             modality,

@@ -1,29 +1,28 @@
-//! Sparse fixed-weight entry and type alias for the sparse-cache Parzen path.
+﻿//! Sparse fixed-weight entry and type alias for the sparse-cache Parzen path.
 
-// ── SparseWFixedEntry ──────────────────────────────────────────────────────
+// â”€â”€ SparseWFixedEntry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// A single `(bin_index, weight)` entry in a sparse Parzen weight row.
 ///
 /// Newtype wrapper around `(u16, f32)` that prevents accidental index/weight
-/// swaps — a subtle bug when working with bare tuples where both types are
+/// swaps â€” a subtle bug when working with bare tuples where both types are
 /// numeric. Provides named field access (`entry.bin`, `entry.weight`) and
 /// `Copy` semantics for zero-cost passing in the hot loop.
 ///
 /// The `bin` field is `u16` (PERF-326-02): Parzen histograms never exceed
 /// 65535 bins (practical limit is ~256), so 2 bytes suffice. This compacts
 /// `SparseWFixedEntry` from 16 to 8 bytes (2+2 padding + 4 f32), halving
-/// the sparse cache memory footprint (~3.5 KB → ~1.75 KB for 32K samples
+/// the sparse cache memory footprint (~3.5 KB â†’ ~1.75 KB for 32K samples
 /// with 7 entries each).
 ///
 /// Used by the **sparse-cache path** only; the direct path uses `StackWeights`
 /// for both axes and never constructs `SparseWFixedEntry` values.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SparseWFixedEntry {
-    /// Histogram bin index on the fixed-image axis (`u16` since num_bins ≤ 65535).
+    /// Histogram bin index on the fixed-image axis (`u16` since num_bins â‰¤ 65535).
     pub bin: u16,
     /// Gaussian Parzen weight for this bin.
-    pub weight: f32,
-}
+    pub weight: f32 }
 
 impl SparseWFixedEntry {
     /// Construct a new sparse entry.
@@ -33,7 +32,7 @@ impl SparseWFixedEntry {
     }
 }
 
-// ── SparseSampleCache ──────────────────────────────────────────────────────
+// â”€â”€ SparseSampleCache â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// A stack-allocated collection of sparse fixed-image entries.
 ///
@@ -44,16 +43,14 @@ impl SparseWFixedEntry {
 pub struct SparseSampleCache {
     entries: [SparseWFixedEntry; 32],
     /// Number of active entries. `u8` is sufficient for max capacity 32.
-    len: u8,
-}
+    len: u8 }
 
 impl Default for SparseSampleCache {
     #[inline]
     fn default() -> Self {
         Self {
             entries: [SparseWFixedEntry::default(); 32],
-            len: 0,
-        }
+            len: 0 }
     }
 }
 
@@ -130,9 +127,9 @@ impl std::ops::DerefMut for SparseSampleCache {
 ///
 /// Each element is a `(SparseSampleCache, inv_sum_f)` pair:
 /// - The `SparseSampleCache` contains the non-zero fixed-axis bin entries
-///   within ±3σ (typically ~7 for σ ≈ 1 bin-width).
+///   within Â±3Ïƒ (typically ~7 for Ïƒ â‰ˆ 1 bin-width).
 /// - `inv_sum_f` is `1/sum_f` for this sample (SPARSE-329-01), enabling full
-///   joint normalization `inv_norm = inv_sum_f × inv_sum_m` in the sparse path,
+///   joint normalization `inv_norm = inv_sum_f Ã— inv_sum_m` in the sparse path,
 ///   matching the direct path (PERF-328-01).
 ///
 /// Used by `compute_joint_histogram_from_cache_sparse`; the direct path

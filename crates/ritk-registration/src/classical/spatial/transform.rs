@@ -1,4 +1,4 @@
-//! `SpatialTransform` variants and 4×4 homogeneous-matrix helpers.
+﻿//! `SpatialTransform` variants and 4Ã—4 homogeneous-matrix helpers.
 
 use leto::Array3;
 
@@ -8,26 +8,22 @@ use crate::types::AffineTransform;
 /// Classical spatial transform variants.
 #[derive(Debug, Clone)]
 pub enum SpatialTransform {
-    /// Rigid body transform: 3×3 rotation + 3×1 translation.
+    /// Rigid body transform: 3Ã—3 rotation + 3Ã—1 translation.
     RigidBody {
         /// Row-major 9-element rotation matrix.
         rotation: [f64; 9],
         /// Translation vector [tx, ty, tz].
-        translation: [f64; 3],
-    },
-    /// Affine transform: 3×4 matrix (12 DOF).
+        translation: [f64; 3] },
+    /// Affine transform: 3Ã—4 matrix (12 DOF).
     Affine {
         /// Row-major 12-element affine matrix [r00, r01, r02, t0, ...].
-        matrix: [f64; 12],
-    },
+        matrix: [f64; 12] },
     /// Non-rigid transform via deformation field.
     NonRigid {
         /// Deformation field tensor.
-        deformation_field: Array3<f64>,
-    },
-}
+        deformation_field: Array3<f64> } }
 
-/// Build 4×4 homogeneous transformation matrix from rotation and translation.
+/// Build 4Ã—4 homogeneous transformation matrix from rotation and translation.
 pub(crate) fn build_homogeneous_matrix(
     rotation: &[f64; 9],
     translation: &[f64; 3],
@@ -52,7 +48,7 @@ pub(crate) fn build_homogeneous_matrix(
     ])
 }
 
-/// Extract `SpatialTransform` from a 4×4 homogeneous matrix.
+/// Extract `SpatialTransform` from a 4Ã—4 homogeneous matrix.
 ///
 /// Determines rigid vs affine by checking whether all three column norms
 /// are within 1% of unity.
@@ -73,19 +69,17 @@ pub(crate) fn extract_spatial_transform(
         let translation = [m[3], m[7], m[11]];
         Ok(SpatialTransform::RigidBody {
             rotation,
-            translation,
-        })
+            translation })
     } else {
         let affine_matrix = [
             m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], m[9], m[10], m[11],
         ];
         Ok(SpatialTransform::Affine {
-            matrix: affine_matrix,
-        })
+            matrix: affine_matrix })
     }
 }
 
-/// Transform a single point using a 4×4 homogeneous matrix.
+/// Transform a single point using a 4Ã—4 homogeneous matrix.
 pub(crate) fn transform_point(point: &[f64; 3], transform: &AffineTransform) -> [f64; 3] {
     let t = &transform.0;
     let x = t[0] * point[0] + t[1] * point[1] + t[2] * point[2] + t[3];

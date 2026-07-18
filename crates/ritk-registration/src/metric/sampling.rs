@@ -1,7 +1,7 @@
-//! Shared sampling utility for similarity metrics (Sprint 354, DRY-354-01).
+﻿//! Shared sampling utility for similarity metrics (Sprint 354, DRY-354-01).
 //!
 //! Centralizes the `with_sampling` clamping logic and the
-//! `sampling_percentage → Some/None` encoding that was previously duplicated
+//! `sampling_percentage â†’ Some/None` encoding that was previously duplicated
 //! across `MutualInformation` and `CorrelationRatio`.
 //!
 //! # Usage
@@ -10,23 +10,23 @@
 //! use crate::metric::sampling::{SamplingConfig, SamplingMode, resolve_n_points};
 //!
 //! let cfg = SamplingConfig::new(0.20, SamplingMode::Uniform);
-//! let n = resolve_n_points(cfg, 10_000); // → 2_000
+//! let n = resolve_n_points(cfg, 10_000); // â†’ 2_000
 //!
-//! // Clamp to ≥ 1 to avoid degenerate empty batches:
+//! // Clamp to â‰¥ 1 to avoid degenerate empty batches:
 //! assert!(n >= 1);
 //! ```
 //!
 //! # Backward compatibility
 //!
-//! Existing call sites that use `with_sampling(0.20)` continue to work — the
+//! Existing call sites that use `with_sampling(0.20)` continue to work â€” the
 //! `SamplingConfig::from_percentage(0.20)` constructor applies the same clamp
 //! as the previous inline logic: `clamp(1e-4, 1.0)`, then `None` if `>= 1.0`.
 
 /// Sampling mode for stochastic / mask-based sample selection.
 ///
-/// * `Uniform` — randomly subsample `percentage * total` points from the
+/// * `Uniform` â€” randomly subsample `percentage * total` points from the
 ///   full grid (Mattes MI default).
-/// * `Mask`   — use the caller-supplied foreground mask points directly;
+/// * `Mask`   â€” use the caller-supplied foreground mask points directly;
 ///   `percentage` is ignored (or used as a per-mask subsample ratio).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SamplingMode {
@@ -34,37 +34,34 @@ pub enum SamplingMode {
     #[default]
     Uniform,
     /// Caller-supplied foreground mask points (e.g. `fixed_mask_points`).
-    Mask,
-}
+    Mask }
 
 /// Sampling configuration for similarity metrics.
 ///
 /// Encapsulates the previously-duplicated `sampling_percentage: Option<f32>`
 /// encoding used by `MutualInformation` and `CorrelationRatio`:
-/// * `percentage >= 1.0`  → no sampling (full grid)
-/// * `percentage ∈ (0, 1)` → stochastic subsample
-/// * `percentage <= 0.0`  → clamped to `1e-4` (degenerate, but not zero)
+/// * `percentage >= 1.0`  â†’ no sampling (full grid)
+/// * `percentage âˆˆ (0, 1)` â†’ stochastic subsample
+/// * `percentage <= 0.0`  â†’ clamped to `1e-4` (degenerate, but not zero)
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SamplingConfig {
-    /// Fraction of points to sample, ∈ (0, 1].  Stored as `Some(p)` when
+    /// Fraction of points to sample, âˆˆ (0, 1].  Stored as `Some(p)` when
     /// sampling is active, `None` when full-grid is used.
     pub percentage: Option<f32>,
     /// Sampling mode (uniform vs. mask).
-    pub mode: SamplingMode,
-}
+    pub mode: SamplingMode }
 
 impl SamplingConfig {
     /// Create a new `SamplingConfig` from a raw percentage (clamped).
     ///
     /// # Arguments
-    /// * `percentage` - Sampling fraction ∈ (0, 1]. Values outside this range
-    ///   are clamped: `<= 0.0` → `1e-4`, `> 1.0` → `1.0` (which disables
-    ///   sampling — the field is stored as `None`).
+    /// * `percentage` - Sampling fraction âˆˆ (0, 1]. Values outside this range
+    ///   are clamped: `<= 0.0` â†’ `1e-4`, `> 1.0` â†’ `1.0` (which disables
+    ///   sampling â€” the field is stored as `None`).
     pub fn new(percentage: f32, mode: SamplingMode) -> Self {
         Self {
             percentage: Self::clamp_percentage(percentage),
-            mode,
-        }
+            mode }
     }
 
     /// Convenience: uniform sampling (the historical default).
@@ -72,23 +69,21 @@ impl SamplingConfig {
         Self::new(percentage, SamplingMode::Uniform)
     }
 
-    /// Mask mode — `percentage` is ignored.
+    /// Mask mode â€” `percentage` is ignored.
     pub fn mask() -> Self {
         Self {
             percentage: None,
-            mode: SamplingMode::Mask,
-        }
+            mode: SamplingMode::Mask }
     }
 
-    /// Full-grid evaluation — all voxels, no subsampling.
+    /// Full-grid evaluation â€” all voxels, no subsampling.
     ///
     /// Equivalent to `percentage >= 1.0`: the `percentage` field is stored as
     /// `None` so [`is_active`](Self::is_active) returns `false`.
     pub fn full_grid() -> Self {
         Self {
             percentage: None,
-            mode: SamplingMode::Uniform,
-        }
+            mode: SamplingMode::Uniform }
     }
 
     /// Returns `true` if sampling is active (any percentage < 1.0).
@@ -151,9 +146,9 @@ impl Default for SamplingConfig {
 /// has to handle an empty batch.
 ///
 /// # Behavior
-/// * `config.percentage = None` → `total` (no sampling)
-/// * `config.percentage = Some(p)` → `max(1, (p * total) as usize)`
-/// * `config.mode = Mask` → `total` (caller provides the points; the
+/// * `config.percentage = None` â†’ `total` (no sampling)
+/// * `config.percentage = Some(p)` â†’ `max(1, (p * total) as usize)`
+/// * `config.mode = Mask` â†’ `total` (caller provides the points; the
 ///   `percentage` field is ignored in mask mode)
 #[inline]
 pub fn resolve_n_points(config: &SamplingConfig, total: usize) -> usize {
@@ -168,8 +163,7 @@ pub fn resolve_n_points(config: &SamplingConfig, total: usize) -> usize {
                 let n = (p * total as f32) as usize;
                 n.max(1)
             }
-        },
-    }
+        } }
 }
 
 #[cfg(test)]
@@ -186,7 +180,7 @@ mod tests {
 
     #[test]
     fn clamp_clamps_negative_to_epsilon() {
-        // p < 0 → clamped to 1e-4 (matches prior clamp(1e-4, 1.0))
+        // p < 0 â†’ clamped to 1e-4 (matches prior clamp(1e-4, 1.0))
         let cfg = SamplingConfig::uniform(-0.5);
         assert!(cfg.percentage.is_some());
         assert!((cfg.percentage.unwrap() - 1e-4).abs() < 1e-9);
@@ -194,7 +188,7 @@ mod tests {
 
     #[test]
     fn clamp_clamps_above_one() {
-        // p > 1 → clamped to 1.0 → stored as None
+        // p > 1 â†’ clamped to 1.0 â†’ stored as None
         let cfg = SamplingConfig::uniform(1.5);
         assert_eq!(cfg.percentage, None);
     }
@@ -214,7 +208,7 @@ mod tests {
 
     #[test]
     fn resolve_n_points_floor_at_one() {
-        // 1e-4 * 5 = 0.0005 → would truncate to 0; must clamp to 1
+        // 1e-4 * 5 = 0.0005 â†’ would truncate to 0; must clamp to 1
         let cfg = SamplingConfig::uniform(1e-4);
         assert_eq!(resolve_n_points(&cfg, 5), 1);
     }

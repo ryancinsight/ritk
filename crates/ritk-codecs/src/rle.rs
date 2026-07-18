@@ -1,4 +1,4 @@
-//! DICOM RLE Lossless frame decoding.
+﻿//! DICOM RLE Lossless frame decoding.
 //!
 //! # Correctness
 //! PackBits is lossless and byte-plane reassembly is a permutation from DICOM
@@ -121,8 +121,7 @@ mod tests {
                 bits_allocated: 8,
                 pixel_representation: crate::PixelSignedness::Unsigned,
                 rescale_slope: 1.0,
-                rescale_intercept: 0.0,
-            },
+                rescale_intercept: 0.0 },
         )
         .unwrap();
         assert_eq!(decoded, vec![42.0, 7.0, 128.0, 255.0]);

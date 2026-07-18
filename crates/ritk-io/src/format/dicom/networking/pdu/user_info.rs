@@ -11,9 +11,9 @@ use super::{
     SI_MAX_LEN, SI_ROLE, SI_USER_ID,
 };
 
-// ── Sub-item constants re-exported for internal use ──────────────────────────
+// â”€â”€ Sub-item constants re-exported for internal use â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── Sub-item types ───────────────────────────────────────────────────────────
+// â”€â”€ Sub-item types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -69,8 +69,8 @@ pub struct AsynchronousOperationsWindowSubItem {
 
 /// DICOM SCU/SCP role selection for a Presentation Context.
 ///
-/// Encodes the two-bit role negotiation from DICOM PS3.8 §D.3.3.4:
-/// each bit is independent — an association requestor may request both,
+/// Encodes the two-bit role negotiation from DICOM PS3.8 Â§D.3.3.4:
+/// each bit is independent â€” an association requestor may request both,
 /// either, or neither role.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DicomRole {
@@ -129,7 +129,7 @@ pub struct UserInformation {
     pub user_identity: Option<UserIdentity>,
 }
 
-// ── Helper constructors ──────────────────────────────────────────────────────
+// â”€â”€ Helper constructors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn ver_from_bytes(d: &[u8]) -> ArrayString<16> {
     let s = std::str::from_utf8(d).unwrap_or("").trim_end();
@@ -141,7 +141,7 @@ fn ver_from_bytes(d: &[u8]) -> ArrayString<16> {
     arr
 }
 
-// ── Encode / Decode ──────────────────────────────────────────────────────────
+// â”€â”€ Encode / Decode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(crate) fn enc_ui(ui: &UserInformation) -> Vec<u8> {
     let mut b = Vec::with_capacity(128);

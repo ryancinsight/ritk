@@ -1,13 +1,12 @@
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(vals, dims)
+fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(vals, dims)
 }
 
 fn cfg(iters: usize, dt: f32) -> CurvatureFlowConfig {
@@ -17,10 +16,10 @@ fn cfg(iters: usize, dt: f32) -> CurvatureFlowConfig {
     }
 }
 
-// ── Analytical tests ──────────────────────────────────────────────────────
+// â”€â”€ Analytical tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Constant image: every derivative is zero → κ = 0 → image unchanged.
-/// Proof: ∇I = 0 everywhere → N = 0 → κ = 0 → ΔI = 0 each iteration.
+/// Constant image: every derivative is zero â†’ Îº = 0 â†’ image unchanged.
+/// Proof: âˆ‡I = 0 everywhere â†’ N = 0 â†’ Îº = 0 â†’ Î”I = 0 each iteration.
 #[test]
 fn constant_image_unchanged() {
     let img = make_image(vec![42.0f32; 27], [3, 3, 3]);
@@ -51,7 +50,7 @@ fn zero_iterations_identity() {
 }
 
 /// Single voxel image: boundary conditions clamp all neighbours to same value
-/// → all derivatives are zero → κ = 0 → identity.
+/// â†’ all derivatives are zero â†’ Îº = 0 â†’ identity.
 #[test]
 fn single_voxel_identity() {
     let img = make_image(vec![100.0f32], [1, 1, 1]);
@@ -138,7 +137,7 @@ fn default_config_values() {
         (cfg.time_step - 0.0625f32).abs() < 1e-7,
         "default dt = 0.0625"
     );
-    // Stability: dt ≤ 1/6 ≈ 0.1667
+    // Stability: dt â‰¤ 1/6 â‰ˆ 0.1667
     assert!(
         cfg.time_step <= 1.0 / 6.0 + 1e-6,
         "default dt must be within stability bound"

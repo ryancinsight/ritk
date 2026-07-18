@@ -13,21 +13,21 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Poisson (shot) noise filter for low-photon-count simulation.
 ///
-/// Applies Poisson-distributed noise scaled by a factor `λ`:
+/// Applies Poisson-distributed noise scaled by a factor `Î»`:
 ///
 /// ```text
-/// in = scale · I(x)
+/// in = scale Â· I(x)
 /// I'(x) = Poisson(in) / scale            if in < 50  (Knuth, MT19937 uniforms)
-/// I'(x) = (in + √in · N(0,1)) / scale    if in ≥ 50  (Normal approx, FastNorm)
+/// I'(x) = (in + âˆšin Â· N(0,1)) / scale    if in â‰¥ 50  (Normal approx, FastNorm)
 /// ```
 ///
-/// Matches `sitk.ShotNoise` (run single-threaded): both ITK generators — the
+/// Matches `sitk.ShotNoise` (run single-threaded): both ITK generators â€” the
 /// MersenneTwister (Poisson) and the NormalVariateGenerator (Gaussian
-/// approximation) — are seeded from the same region seed and stepped only on the
+/// approximation) â€” are seeded from the same region seed and stepped only on the
 /// branch taken, reproducing ITK bit-for-bit.
 ///
 /// # Complexity
-/// O(N) where N is the number of voxels (Poisson sampling is O(λ) per voxel).
+/// O(N) where N is the number of voxels (Poisson sampling is O(Î») per voxel).
 pub struct ShotNoiseFilter {
     /// Scale factor for photon count (higher = less noise).
     pub scale: f64,
@@ -52,7 +52,7 @@ impl ShotNoiseFilter {
 
     /// Apply Poisson shot noise to a 3-D image, matching `sitk.ShotNoise`
     /// single-threaded.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         Ok(rebuild(self.apply_values(&vals), dims, image))
     }
@@ -98,7 +98,7 @@ impl ShotNoiseFilter {
                     }
                     ((k - 1) as f64 / scale) as f32
                 } else {
-                    // Normal approximation: Poisson(λ) ≈ N(λ, λ).
+                    // Normal approximation: Poisson(Î») â‰ˆ N(Î», Î»).
                     let out = inp + inp.sqrt() * randn.variate();
                     (out / scale) as f32
                 }

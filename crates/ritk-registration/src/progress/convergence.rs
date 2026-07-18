@@ -1,4 +1,4 @@
-//! Algorithmic bounds convergence state representations.
+﻿//! Algorithmic bounds convergence state representations.
 
 /// Check for mathematical convergence based upon empirical relative loss histories.
 ///
@@ -13,16 +13,14 @@ pub struct ConvergenceChecker {
     pub min_improvement: f64,
     /// Absolute generation limit tolerance before enforcing bounds evaluation.
     pub patience: usize,
-    pub min_loss: Option<f64>,
-}
+    pub min_loss: Option<f64> }
 
 impl Default for ConvergenceChecker {
     fn default() -> Self {
         Self {
             min_improvement: 1e-6,
             patience: 50,
-            min_loss: None,
-        }
+            min_loss: None }
     }
 }
 
@@ -31,8 +29,7 @@ impl ConvergenceChecker {
         Self {
             min_improvement,
             patience,
-            min_loss: None,
-        }
+            min_loss: None }
     }
 
     pub fn with_min_loss(mut self, min_loss: f64) -> Self {

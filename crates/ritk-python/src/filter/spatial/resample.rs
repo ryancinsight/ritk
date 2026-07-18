@@ -1,8 +1,8 @@
-use crate::errors::{RitkPyError, RitkResult};
+﻿use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{burn_into_py_image, py_image_to_burn, BurnBackend, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::ResampleImageFilter;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_interpolation::LinearInterpolator;
 use ritk_interpolation::{BSplineInterpolator, Lanczos5Interpolator, NearestNeighborInterpolator};
 use ritk_spatial::Spacing as CoreSpacing;
@@ -25,7 +25,7 @@ use ritk_transform::affine::translation::TranslationTransform;
 ///     Resampled PyImage with updated spacing and shape.
 ///
 /// Raises:
-///     ValueError: if any spacing is ≤ 0 or mode is unrecognized.
+///     ValueError: if any spacing is â‰¤ 0 or mode is unrecognized.
 #[pyfunction]
 #[pyo3(signature = (image, spacing_z=1.0_f64, spacing_y=1.0_f64, spacing_x=1.0_f64, mode="linear"))]
 pub fn resample_image(
@@ -61,10 +61,10 @@ pub fn resample_image(
             .max(1.0) as usize;
 
         let new_sp = CoreSpacing::new([spacing_z, spacing_y, spacing_x]);
-        let device: <BurnBackend as ritk_image::tensor::backend::Backend>::Device =
+        let device: <BurnBackend as ritk_image::tensor::Backend>::Device =
             Default::default();
-        let zero_t = Tensor::<BurnBackend, 1>::from_data(
-            TensorData::new(vec![0.0f32; 3], Shape::new([3])),
+        let zero_t = Tensor::<f32, BurnBackend>::from_data(
+            ::new(vec![0.0f32; 3], Shape::new([3])),
             &device,
         );
 
@@ -108,8 +108,7 @@ pub fn resample_image(
             other => Err(format!(
                 "Unknown interpolation mode '{}'. Use: nearest, linear, bspline, lanczos",
                 other
-            )),
-        }
+            )) }
     })
     .map_err(RitkPyError::value)
     .map(burn_into_py_image)
@@ -128,14 +127,14 @@ pub fn resample_image(
 ///     zoom_z:   Zoom factor along Z axis (default 1.0).
 ///     zoom_y:   Zoom factor along Y axis (default 1.0).
 ///     zoom_x:   Zoom factor along X axis (default 1.0).
-///     mode:     Interpolation mode — "linear" (default), "nearest",
+///     mode:     Interpolation mode â€” "linear" (default), "nearest",
 ///               "bspline", "lanczos".
 ///
 /// Returns:
 ///     Zoomed PyImage with new shape and updated spacing.
 ///
 /// Raises:
-///     ValueError: if any zoom factor is ≤ 0 or `mode` is unrecognised.
+///     ValueError: if any zoom factor is â‰¤ 0 or `mode` is unrecognised.
 #[pyfunction]
 #[pyo3(signature = (image, zoom_z=1.0_f64, zoom_y=1.0_f64, zoom_x=1.0_f64, mode="linear"))]
 pub fn zoom_image(

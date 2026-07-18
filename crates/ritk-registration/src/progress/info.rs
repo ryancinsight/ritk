@@ -1,4 +1,4 @@
-use std::time::Duration;
+﻿use std::time::Duration;
 
 /// Progress information for registration iterations.
 #[derive(Debug, Clone)]
@@ -16,8 +16,7 @@ pub struct ProgressInfo {
     /// Current learning rate.
     pub learning_rate: f64,
     /// Additional metrics.
-    pub metrics: Vec<(std::borrow::Cow<'static, str>, f64)>,
-}
+    pub metrics: Vec<(std::borrow::Cow<'static, str>, f64)> }
 
 impl ProgressInfo {
     /// Create new progress information.
@@ -35,8 +34,7 @@ impl ProgressInfo {
             elapsed,
             estimated_remaining: None,
             learning_rate,
-            metrics: Vec::with_capacity(8),
-        }
+            metrics: Vec::with_capacity(8) }
     }
 
     /// Calculate progress percentage.

@@ -11,7 +11,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 /// Implements `scipy.ndimage.distance_transform_cdt`: the **interior
 /// distance transform**, where:
 ///
-/// - **Background voxels** (intensity `≤ threshold`) receive `0.0`.
+/// - **Background voxels** (intensity `â‰¤ threshold`) receive `0.0`.
 /// - **Foreground voxels** (intensity `> threshold`) receive the chamfer
 ///   distance (in `mm`, scaled by `s_min`) to the **nearest background
 ///   voxel**.
@@ -22,10 +22,10 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 /// # Mathematical Specification
 ///
 /// With metric `Chessboard` and uniform spacing `s`:
-///   `out(x) = round(s · max(|x_a − y_a|))` for nearest background `y`
+///   `out(x) = round(s Â· max(|x_a âˆ’ y_a|))` for nearest background `y`
 ///
 /// With metric `Taxicab` and uniform spacing `s`:
-///   `out(x) = round(s · Σ |x_a − y_a|)` for nearest background `y`
+///   `out(x) = round(s Â· Î£ |x_a âˆ’ y_a|)` for nearest background `y`
 ///
 /// For non-uniform spacing, weights are `w_a = s_a / s_min` (rounded to
 /// integer). The output is therefore an `f32` image in **physical units
@@ -33,7 +33,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 ///
 /// # Complexity
 ///
-/// O(N) time, O(N) memory (the output is reused as the workspace — no
+/// O(N) time, O(N) memory (the output is reused as the workspace â€” no
 /// extra allocation).
 ///
 /// # scipy parity
@@ -44,7 +44,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 /// parameter; the per-axis spacing is an extension of this filter.
 #[derive(Debug, Clone)]
 pub struct ChamferDistanceTransform {
-    /// Intensity threshold separating background (≤ threshold) from foreground (> threshold).
+    /// Intensity threshold separating background (â‰¤ threshold) from foreground (> threshold).
     pub threshold: BinarizationThreshold,
     /// Distance metric.
     pub metric: ChamferMetric,
@@ -82,9 +82,9 @@ impl ChamferDistanceTransform {
 
     /// Apply the chamfer distance transform to a 3-D image.
     ///
-    /// Returns an `Image<B, 3>` with the same shape and physical metadata
+    /// Returns an `Image<f32, B, 3>` with the same shape and physical metadata
     /// as the input, with `f32` storage (scaled by `s_min`).
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let dims = image.shape();
         let [nz, ny, nx] = dims;
         let (vals, _shape) = extract_vec_infallible(image);

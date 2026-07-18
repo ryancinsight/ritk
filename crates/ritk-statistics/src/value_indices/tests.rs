@@ -1,21 +1,21 @@
 use super::compute::flat_to_multi;
 use super::*;
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_image::test_support;
 use ritk_image::Image;
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
 
-fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
-    test_support::burn_compat::make_image_1d(data)
+fn make_image_1d(data: Vec<f32>) -> Image<f32, TestBackend, 1> {
+    test_support::make_image_1d(data)
 }
 
-fn make_image_2d(data: Vec<f32>, dims: [usize; 2]) -> Image<TestBackend, 2> {
-    test_support::burn_compat::make_image(data, dims)
+fn make_image_2d(data: Vec<f32>, dims: [usize; 2]) -> Image<f32, TestBackend, 2> {
+    test_support::make_image(data, dims)
 }
 
-fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
-    test_support::burn_compat::make_image(data, dims)
+fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, TestBackend, 3> {
+    test_support::make_image(data, dims)
 }
 
 // ── 1-D ────────────────────────────────────────────────────────────────────

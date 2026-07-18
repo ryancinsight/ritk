@@ -1,10 +1,10 @@
-//! Direct-path joint histogram computation.
+﻿//! Direct-path joint histogram computation.
 //!
 //! Extracted from `mod.rs` (ARCH-330-04) for SRP: this module owns the
-//! `compute_joint_histogram_direct` public API — the hot-path that
+//! `compute_joint_histogram_direct` public API â€” the hot-path that
 //! iterates samples and accumulates directly into `[num_bins, num_bins]`.
 
-use ritk_image::tensor::{Shape, TensorData};
+use ritk_image::tensor::{Shape };
 
 use super::accumulate::{accumulate_sample_direct, merge_histograms, validate_inputs};
 use super::pool::HistogramPool;
@@ -16,18 +16,18 @@ use super::types::ParzenConfig;
 /// The host-native hot path iterates samples and accumulates directly into
 /// `[num_bins, num_bins]` instead of building full `[N, num_bins]` weight
 /// matrices. Fixed/moving weights pre-computed as `StackWeights` in
-/// `SampleWindow` — heap-free inner loop, no `SparseWFixedEntry`.
+/// `SampleWindow` â€” heap-free inner loop, no `SparseWFixedEntry`.
 ///
 /// Moirai parallel reduction uses thread-local histograms merged in the
 /// reduction phase, with no locks, atomics, or `unsafe`.
 ///
 /// # Arguments
-/// * `fixed_norm` — Normalized fixed-image values `[N]` in `[0, num_bins-1]`
-/// * `moving_norm` — Normalized moving-image values `[N]` in `[0, num_bins-1]`
-/// * `num_bins` — Number of histogram bins
-/// * `sigma_sq_fix` — Fixed-image Parzen sigma² (bin-index units)
-/// * `sigma_sq_mov` — Moving-image Parzen sigma² (bin-index units)
-/// * `oob_mask` — Optional OOB mask `[N]` (1.0 = in-bounds, 0.0 = OOB)
+/// * `fixed_norm` â€” Normalized fixed-image values `[N]` in `[0, num_bins-1]`
+/// * `moving_norm` â€” Normalized moving-image values `[N]` in `[0, num_bins-1]`
+/// * `num_bins` â€” Number of histogram bins
+/// * `sigma_sq_fix` â€” Fixed-image Parzen sigmaÂ² (bin-index units)
+/// * `sigma_sq_mov` â€” Moving-image Parzen sigmaÂ² (bin-index units)
+/// * `oob_mask` â€” Optional OOB mask `[N]` (1.0 = in-bounds, 0.0 = OOB)
 ///
 /// # Returns
 /// Flat row-major joint histogram with shape `[num_bins, num_bins]`.
@@ -105,17 +105,14 @@ pub fn compute_joint_histogram_direct(
     sigma_sq_mov: f32,
     oob_mask: Option<&[f32]>,
     pool: Option<&HistogramPool>,
-) -> TensorData {
-    TensorData::new(
-        compute_joint_histogram_values(
-            fixed_norm,
-            moving_norm,
-            num_bins,
-            sigma_sq_fix,
-            sigma_sq_mov,
-            oob_mask,
-            pool,
-        ),
-        Shape::new([num_bins, num_bins]),
+) -> Vec<f32> {
+    compute_joint_histogram_values(
+        fixed_norm,
+        moving_norm,
+        num_bins,
+        sigma_sq_fix,
+        sigma_sq_mov,
+        oob_mask,
+        pool,
     )
 }

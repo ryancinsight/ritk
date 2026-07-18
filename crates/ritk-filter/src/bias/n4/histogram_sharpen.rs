@@ -15,7 +15,7 @@ pub(crate) struct HistogramSharpenScratch {
     pub(crate) h_raw: Vec<f64>,
     /// Normalised histogram density (length `n_bins`).
     pub(crate) h: Vec<f64>,
-    /// Gaussian kernel (length varies with σ; resized as needed).
+    /// Gaussian kernel (length varies with Ïƒ; resized as needed).
     pub(crate) g: Vec<f64>,
     /// DFT of normalised histogram (length `n_dft`).
     pub(crate) h_hat: Vec<(f64, f64)>,
@@ -98,14 +98,14 @@ impl HistogramSharpenScratch {
 /// # Algorithm
 /// 1. Histogram `H` of `w` over `[w_min, w_max]`, `n_bins` bins (raw counts).
 /// 2. Circular Gaussian `G` whose width comes from the bias-field FWHM
-///    (`fwhm`, in log-intensity units): `σ = FWHM / (2√(2 ln 2))`,
-///    `σ_bins = σ / bin_width`, with `exp_factor = 4 ln 2 / fwhm_bins²` and the
-///    ITK normalisation `√(exp_factor/π)`.
-/// 3. Wiener deconvolution `Û = Ĥ·conj(Ĝ) / (|Ĝ|² + wiener_noise)` → `U`
-///    (the deconvolved/sharpened density), clamped to ≥ 0.
+///    (`fwhm`, in log-intensity units): `Ïƒ = FWHM / (2âˆš(2 ln 2))`,
+///    `Ïƒ_bins = Ïƒ / bin_width`, with `exp_factor = 4 ln 2 / fwhm_binsÂ²` and the
+///    ITK normalisation `âˆš(exp_factor/Ï€)`.
+/// 3. Wiener deconvolution `Ã› = Ä¤Â·conj(Äœ) / (|Äœ|Â² + wiener_noise)` â†’ `U`
+///    (the deconvolved/sharpened density), clamped to â‰¥ 0.
 /// 4. Expectation mapping `E[v|u]` via two Gaussian convolutions:
-///    `E[i] = (U·c ⋆ G)[i] / (U ⋆ G)[i]`, where `c[i]` is the bin centre. This
-///    pulls each observed intensity toward the deconvolved tissue peaks — the
+///    `E[i] = (UÂ·c â‹† G)[i] / (U â‹† G)[i]`, where `c[i]` is the bin centre. This
+///    pulls each observed intensity toward the deconvolved tissue peaks â€” the
 ///    actual N4 sharpening, replacing the earlier CDF/quantile transfer (which
 ///    was rank-preserving, hence insensitive to the smoothing width, leaving the
 ///    filter behaving like N3).
@@ -129,7 +129,7 @@ pub(crate) fn histogram_sharpen(
     let w_max = w.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
     let range = (w_max - w_min) as f64;
 
-    // Degenerate case: constant or near-constant input — no sharpening needed.
+    // Degenerate case: constant or near-constant input â€” no sharpening needed.
     if range < 1e-6 {
         scratch.ensure_voxels_capacity(n_voxels);
         scratch.w_sharp[..n_voxels].copy_from_slice(w);
@@ -147,7 +147,7 @@ pub(crate) fn histogram_sharpen(
         scratch.g.resize(n_dft, 0.0);
     }
 
-    // ── 1. Histogram (raw counts) ─────────────────────────────────────────
+    // â”€â”€ 1. Histogram (raw counts) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let h = &mut scratch.h[..n_bins];
     h.fill(0.0);
     for &wi in w {
@@ -156,10 +156,10 @@ pub(crate) fn histogram_sharpen(
         h[b] += 1.0;
     }
 
-    // ── 2. Circular Gaussian G (ITK normalisation) ────────────────────────
-    // FWHM is expressed in the histogram's (log-intensity) units → bins.
+    // â”€â”€ 2. Circular Gaussian G (ITK normalisation) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // FWHM is expressed in the histogram's (log-intensity) units â†’ bins.
     let fwhm_bins = (fwhm / bin_width).max(1e-3);
-    let exp_factor = 4.0 * std::f64::consts::LN_2 / (fwhm_bins * fwhm_bins); // 1/(2σ²)
+    let exp_factor = 4.0 * std::f64::consts::LN_2 / (fwhm_bins * fwhm_bins); // 1/(2ÏƒÂ²)
     let scale = (exp_factor / std::f64::consts::PI).sqrt();
     {
         let g = &mut scratch.g[..n_dft];
@@ -174,7 +174,7 @@ pub(crate) fn histogram_sharpen(
         }
     }
 
-    // ── 3. Wiener deconvolution: Û = Ĥ·conj(Ĝ) / (|Ĝ|² + noise) ────────────
+    // â”€â”€ 3. Wiener deconvolution: Ã› = Ä¤Â·conj(Äœ) / (|Äœ|Â² + noise) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     dft_real_into(&scratch.h[..n_bins], n_dft, &mut scratch.h_hat[..n_dft]);
     dft_real_into(&scratch.g[..n_dft], n_dft, &mut scratch.g_hat[..n_dft]);
     {
@@ -184,7 +184,7 @@ pub(crate) fn histogram_sharpen(
             .zip(vf[..n_dft].iter())
             .zip(vg[..n_dft].iter())
         {
-            let num_re = fr * gr + fi * gi; // Vf·conj(Vg)
+            let num_re = fr * gr + fi * gi; // VfÂ·conj(Vg)
             let num_im = fi * gr - fr * gi;
             let denom = gr * gr + gi * gi + wiener_noise;
             *out = (num_re / denom, num_im / denom);
@@ -195,14 +195,14 @@ pub(crate) fn histogram_sharpen(
         n_bins,
         &mut scratch.h_sharp_raw[..n_dft],
     );
-    // U = clamp(real(IFFT(Û)), ≥ 0): the deconvolved density.
+    // U = clamp(real(IFFT(Ã›)), â‰¥ 0): the deconvolved density.
     for i in 0..n_bins {
         scratch.h_sharp[i] = scratch.h_sharp_raw[i].max(0.0);
     }
 
-    // ── 4. Expectation map E[i] = (U·c ⋆ G)[i] / (U ⋆ G)[i] ────────────────
-    // numerator = conv(U·centre, G); denominator = conv(U, G).
-    // Reuse `h` for (U·centre), then FFT and multiply by Vg (= conv with G).
+    // â”€â”€ 4. Expectation map E[i] = (UÂ·c â‹† G)[i] / (U â‹† G)[i] â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // numerator = conv(UÂ·centre, G); denominator = conv(U, G).
+    // Reuse `h` for (UÂ·centre), then FFT and multiply by Vg (= conv with G).
     for i in 0..n_bins {
         let centre = w_min_wide + (i as f64 + 0.5) * bin_width;
         scratch.h[i] = scratch.h_sharp[i] * centre;
@@ -216,9 +216,9 @@ pub(crate) fn histogram_sharpen(
     for k in 0..n_dft {
         let (gr, gi) = scratch.g_hat[k];
         let (nr, ni) = scratch.h_hat[k];
-        scratch.h_hat[k] = (nr * gr - ni * gi, nr * gi + ni * gr); // numerator ⋆ G
+        scratch.h_hat[k] = (nr * gr - ni * gi, nr * gi + ni * gr); // numerator â‹† G
         let (dr, di) = scratch.h_sharp_hat[k];
-        scratch.h_sharp_hat[k] = (dr * gr - di * gi, dr * gi + di * gr); // denominator ⋆ G
+        scratch.h_sharp_hat[k] = (dr * gr - di * gi, dr * gi + di * gr); // denominator â‹† G
     }
     idft_real_into(
         &scratch.h_hat[..n_dft],
@@ -242,7 +242,7 @@ pub(crate) fn histogram_sharpen(
         };
     }
 
-    // ── 5. Per-voxel linear interpolation of E at the continuous bin index ──
+    // â”€â”€ 5. Per-voxel linear interpolation of E at the continuous bin index â”€â”€
     let HistogramSharpenScratch { w_sharp, cdf_h, .. } = scratch;
     for (i, &wi) in w.iter().enumerate() {
         // Continuous index aligned to bin centres (centre of bin j is at j).

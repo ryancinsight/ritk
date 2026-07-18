@@ -1,16 +1,15 @@
-//! YCbCr ↔ RGB color space conversion for JPEG baseline decode.
+﻿//! YCbCr â†” RGB color space conversion for JPEG baseline decode.
 //!
-//! JFIF §6 specifies ITU-R BT.601 YCbCr:
-//!   R = Y                    + 1.402   · (Cr − 128)
-//!   G = Y − 0.344136 · (Cb − 128) − 0.714136 · (Cr − 128)
-//!   B = Y + 1.772   · (Cb − 128)
+//! JFIF Â§6 specifies ITU-R BT.601 YCbCr:
+//!   R = Y                    + 1.402   Â· (Cr âˆ’ 128)
+//!   G = Y âˆ’ 0.344136 Â· (Cb âˆ’ 128) âˆ’ 0.714136 Â· (Cr âˆ’ 128)
+//!   B = Y + 1.772   Â· (Cb âˆ’ 128)
 //!
 //! Integer arithmetic uses signed 16.8 fixed-point (multiply by 256, round,
 //! shift) to avoid floating-point on each pixel.
 
 use crate::jpeg::constants::{
-    CB_B_COEFF, CB_G_COEFF, CR_G_COEFF, CR_R_COEFF, FIXED_SHIFT, YCBCR_BIAS,
-};
+    CB_B_COEFF, CB_G_COEFF, CR_G_COEFF, CR_R_COEFF, FIXED_SHIFT, YCBCR_BIAS };
 
 /// Convert a YCbCr triple to RGB using JFIF BT.601 fixed-point coefficients.
 ///
@@ -19,11 +18,11 @@ use crate::jpeg::constants::{
 pub(crate) fn ycbcr_to_rgb(y: i32, cb: i32, cr: i32) -> (u8, u8, u8) {
     let cb_bias = cb - YCBCR_BIAS;
     let cr_bias = cr - YCBCR_BIAS;
-    // Fixed-point coefficients × 256 (8 fractional bits):
-    //   1.402   × 256 = 358.912 → CR_R_COEFF
-    //   0.344136× 256 =  88.099 →  CB_G_COEFF
-    //   0.714136× 256 = 182.819 → CR_G_COEFF
-    //   1.772   × 256 = 453.632 → CB_B_COEFF
+    // Fixed-point coefficients Ã— 256 (8 fractional bits):
+    //   1.402   Ã— 256 = 358.912 â†’ CR_R_COEFF
+    //   0.344136Ã— 256 =  88.099 â†’  CB_G_COEFF
+    //   0.714136Ã— 256 = 182.819 â†’ CR_G_COEFF
+    //   1.772   Ã— 256 = 453.632 â†’ CB_B_COEFF
     let r = y + ((CR_R_COEFF * cr_bias + YCBCR_BIAS) >> FIXED_SHIFT);
     let g = y - ((CB_G_COEFF * cb_bias + CR_G_COEFF * cr_bias + YCBCR_BIAS) >> FIXED_SHIFT);
     let b = y + ((CB_B_COEFF * cb_bias + YCBCR_BIAS) >> FIXED_SHIFT);
@@ -39,7 +38,7 @@ mod tests {
     use super::*;
     use crate::jpeg::constants::YCBCR_BIAS;
 
-    /// White (Y=255, Cb=128, Cr=128) → RGB (255, 255, 255).
+    /// White (Y=255, Cb=128, Cr=128) â†’ RGB (255, 255, 255).
     #[test]
     fn ycbcr_white_maps_to_white() {
         let (r, g, b) = ycbcr_to_rgb(255, YCBCR_BIAS, YCBCR_BIAS);
@@ -48,7 +47,7 @@ mod tests {
         assert_eq!(b, 255);
     }
 
-    /// Black (Y=0, Cb=128, Cr=128) → RGB (0, 0, 0).
+    /// Black (Y=0, Cb=128, Cr=128) â†’ RGB (0, 0, 0).
     #[test]
     fn ycbcr_black_maps_to_black() {
         let (r, g, b) = ycbcr_to_rgb(0, YCBCR_BIAS, YCBCR_BIAS);
@@ -57,7 +56,7 @@ mod tests {
         assert_eq!(b, 0);
     }
 
-    /// Mid-gray (Y=128, Cb=128, Cr=128) → RGB all near 128.
+    /// Mid-gray (Y=128, Cb=128, Cr=128) â†’ RGB all near 128.
     #[test]
     fn ycbcr_midgray_maps_to_midgray() {
         let (r, g, b) = ycbcr_to_rgb(YCBCR_BIAS, YCBCR_BIAS, YCBCR_BIAS);
@@ -67,7 +66,7 @@ mod tests {
     }
 
     /// Pure red in YCbCr: Y=76, Cb=85, Cr=255.
-    /// Expected: R≈255, G≈0, B≈0 (within ±4 for integer rounding).
+    /// Expected: Râ‰ˆ255, Gâ‰ˆ0, Bâ‰ˆ0 (within Â±4 for integer rounding).
     #[test]
     fn ycbcr_red_maps_to_red() {
         let (r, g, b) = ycbcr_to_rgb(76, 85, 255);

@@ -1,4 +1,4 @@
-use crate::FilterKind;
+﻿use crate::FilterKind;
 
 mod selector_values;
 mod selector_values_ext;
@@ -70,8 +70,7 @@ pub fn show_selector(ui: &mut egui::Ui, active_filter: &mut FilterKind) {
         FilterKind::Acos => "Acos",
         FilterKind::BoundedReciprocal => "Bounded Reciprocal",
         FilterKind::CurvatureFlow { .. } => "Curvature Flow",
-        FilterKind::Cpr { .. } => "CPR",
-    };
+        FilterKind::Cpr { .. } => "CPR" };
 
     egui::ComboBox::from_label("Filter")
         .selected_text(kind_label)

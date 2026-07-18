@@ -1,4 +1,4 @@
-//! Shared convergence types for gradient-descent optimizers.
+﻿//! Shared convergence types for gradient-descent optimizers.
 
 /// Internal convergence state for gradient-descent optimizers.
 ///
@@ -10,8 +10,7 @@ pub enum ConvergenceFlag {
     #[default]
     Iterating,
     /// Convergence criterion was satisfied.
-    Converged,
-}
+    Converged }
 
 /// Reason the optimizer stopped iterating.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,5 +20,4 @@ pub enum ConvergenceReason {
     /// Step length fell below `minimum_step_length` after relaxation.
     StepConvergence,
     /// Number of accepted steps reached `maximum_iterations`.
-    MaximumIterations,
-}
+    MaximumIterations }

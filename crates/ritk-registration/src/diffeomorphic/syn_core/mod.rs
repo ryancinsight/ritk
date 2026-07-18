@@ -1,18 +1,18 @@
-//! SyN registration engine: `SyNResult`, `SyNRegistration`, and `register`.
+﻿//! SyN registration engine: `SyNResult`, `SyNRegistration`, and `register`.
 //!
 //! # Algorithm
 //! Greedy SyN (Avants 2008) with local cross-correlation metric.
-//! Both forward (fixed→midpoint) and inverse (moving→midpoint) velocity fields
+//! Both forward (fixedâ†’midpoint) and inverse (movingâ†’midpoint) velocity fields
 //! are updated symmetrically each iteration so the midpoint is equidistant from
 //! both images.
 //!
 //! **Per-iteration steps:**
-//! 1. φ₁ = exp(v₁), φ₂ = exp(v₂)
-//! 2. I_w = warp(F, φ₁), J_w = warp(M, φ₂)
-//! 3. u₁ = CC_gradient(I_w, J_w, ∇I_w); normalise max|u₁| ← gradient_step
-//! 4. u₂ = CC_gradient(J_w, I_w, ∇J_w); normalise max|u₂| ← gradient_step
-//! 5. v₁ ← v₁ + u₁; v₁ ← G_σ ∗ v₁
-//! 6. v₂ ← v₂ + u₂; v₂ ← G_σ ∗ v₂
+//! 1. Ï†â‚ = exp(vâ‚), Ï†â‚‚ = exp(vâ‚‚)
+//! 2. I_w = warp(F, Ï†â‚), J_w = warp(M, Ï†â‚‚)
+//! 3. uâ‚ = CC_gradient(I_w, J_w, âˆ‡I_w); normalise max|uâ‚| â† gradient_step
+//! 4. uâ‚‚ = CC_gradient(J_w, I_w, âˆ‡J_w); normalise max|uâ‚‚| â† gradient_step
+//! 5. vâ‚ â† vâ‚ + uâ‚; vâ‚ â† G_Ïƒ âˆ— vâ‚
+//! 6. vâ‚‚ â† vâ‚‚ + uâ‚‚; vâ‚‚ â† G_Ïƒ âˆ— vâ‚‚
 //! 7. Convergence: stop when variance of last `convergence_window` CC values
 //!    is below `convergence_threshold`.
 //!
@@ -33,29 +33,27 @@ use super::local_cc::bidirectional_cc_from_sats_into;
 use crate::deformable_field_ops::{
     cc_converged, compute_gradient_into, normalize_forces_into, scaling_and_squaring_into,
     validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother, VectorField,
-    VectorFieldMut, VelocityField,
-};
+    VectorFieldMut, VelocityField };
 use crate::error::RegistrationError;
 use buffers::SyNBuffers;
 
-// ── Public types ──────────────────────────────────────────────────────────────
+// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Result returned by [`SyNRegistration::register`].
 #[derive(Debug, Clone)]
 pub struct SyNResult {
-    /// Forward velocity field `v₁` components (fixed→midpoint), in (z, y, x) order.
+    /// Forward velocity field `vâ‚` components (fixedâ†’midpoint), in (z, y, x) order.
     pub forward_field: VelocityField,
-    /// Inverse velocity field `v₂` components (moving→midpoint), in (z, y, x) order.
+    /// Inverse velocity field `vâ‚‚` components (movingâ†’midpoint), in (z, y, x) order.
     pub inverse_field: VelocityField,
-    /// Fixed image warped to the midpoint by φ₁ = exp(v₁).
+    /// Fixed image warped to the midpoint by Ï†â‚ = exp(vâ‚).
     pub warped_fixed: Vec<f32>,
-    /// Moving image warped to the midpoint by φ₂ = exp(v₂).
+    /// Moving image warped to the midpoint by Ï†â‚‚ = exp(vâ‚‚).
     pub warped_moving: Vec<f32>,
     /// Final mean local CC value (higher is better; 1.0 = perfect alignment).
     pub final_cc: f64,
     /// Number of iterations actually performed.
-    pub num_iterations: usize,
-}
+    pub num_iterations: usize }
 
 /// SyN registration engine.
 ///
@@ -72,8 +70,7 @@ pub struct SyNResult {
 #[derive(Debug, Clone)]
 pub struct SyNRegistration {
     /// Algorithm configuration.
-    pub config: super::SyNConfig,
-}
+    pub config: super::SyNConfig }
 
 impl SyNRegistration {
     /// Create a registration instance with the given configuration.
@@ -100,7 +97,7 @@ impl SyNRegistration {
     /// [`FieldSmoother`] backend (CPU, GPU, or custom).
     ///
     /// # Arguments
-    /// - `smoother` — field smoother.  Its sigma must match
+    /// - `smoother` â€” field smoother.  Its sigma must match
     ///   `self.config.sigma_smooth`.
     ///
     /// # Errors
@@ -200,29 +197,25 @@ impl SyNRegistration {
                 VectorField {
                     z: &buf.gi_z,
                     y: &buf.gi_y,
-                    x: &buf.gi_x,
-                },
+                    x: &buf.gi_x },
                 VectorField {
                     z: &buf.gj_z,
                     y: &buf.gj_y,
-                    x: &buf.gj_x,
-                },
+                    x: &buf.gj_x },
                 dims,
                 &buf.cc_sats,
                 VectorFieldMut {
                     z: &mut buf.u1z,
                     y: &mut buf.u1y,
-                    x: &mut buf.u1x,
-                },
+                    x: &mut buf.u1x },
                 VectorFieldMut {
                     z: &mut buf.u2z,
                     y: &mut buf.u2y,
-                    x: &mut buf.u2x,
-                },
+                    x: &mut buf.u2x },
                 &mut buf.cc_slices,
             );
 
-            // Normalise forces so max|u₁| = max|u₂| = gradient_step
+            // Normalise forces so max|uâ‚| = max|uâ‚‚| = gradient_step
             normalize_forces_into(
                 &mut buf.u1z,
                 &mut buf.u1y,
@@ -243,7 +236,7 @@ impl SyNRegistration {
                 buf.v2x[i] += buf.u2x[i];
             }
 
-            // Gaussian smooth — dispatched via FieldSmoother trait
+            // Gaussian smooth â€” dispatched via FieldSmoother trait
             if self.config.sigma_smooth > 0.0 {
                 smoother.smooth_field(&mut buf.v1z, &mut buf.v1y, &mut buf.v1x);
                 smoother.smooth_field(&mut buf.v2z, &mut buf.v2y, &mut buf.v2x);
@@ -309,8 +302,7 @@ impl SyNRegistration {
             warped_fixed: buf.i_w,
             warped_moving: buf.j_w,
             final_cc,
-            num_iterations: iter,
-        })
+            num_iterations: iter })
     }
 }
 

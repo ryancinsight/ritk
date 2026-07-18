@@ -1,15 +1,15 @@
-//! Histogram buffer pool for the direct Parzen histogram computation path.
+﻿//! Histogram buffer pool for the direct Parzen histogram computation path.
 //!
 //! [`HistogramPool`] provides thread-local buffer reuse across Moirai
-//! fold/reduce calls, avoiding repeated O(num_bins²) allocations.
+//! fold/reduce calls, avoiding repeated O(num_binsÂ²) allocations.
 
 use std::sync::Mutex;
 
-// ── Histogram pool (ARCH-315-03, MEM-317-02) ───────────────────────────────
+// â”€â”€ Histogram pool (ARCH-315-03, MEM-317-02) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Thread-local histogram buffer pool for parallel reduction.
 ///
-/// Reuses `[num_bins²]` buffers across fold/reduce calls to avoid repeated
+/// Reuses `[num_binsÂ²]` buffers across fold/reduce calls to avoid repeated
 /// allocation + zeroing. Each thread checks out a buffer via [`Self::checkout`],
 /// zero-fills it, and returns it via [`Self::return_buffer`] after the reduce phase.
 ///
@@ -17,7 +17,7 @@ use std::sync::Mutex;
 ///
 /// When stored on `ParzenJointHistogram`, the pool persists across CMA-ES
 /// iterations, amortising the initial `Vec` allocation over many calls.
-/// Each call to `checkout()` zero-fills the buffer (O(num_bins²)), but the
+/// Each call to `checkout()` zero-fills the buffer (O(num_binsÂ²)), but the
 /// underlying `Vec` storage is reused from the pool, avoiding the
 /// allocation + deallocation cycle that was previously per-invocation.
 ///
@@ -28,18 +28,16 @@ use std::sync::Mutex;
 #[derive(Debug)]
 pub struct HistogramPool {
     buffers: Mutex<Vec<Vec<f32>>>,
-    num_bins_sq: usize,
-}
+    num_bins_sq: usize }
 
 impl HistogramPool {
-    /// Create a new empty pool for histograms of size `num_bins²`.
+    /// Create a new empty pool for histograms of size `num_binsÂ²`.
     pub fn new(num_bins_sq: usize) -> Self {
         Self {
-            // Capacity: pre-size for typical thread count (4–16); pool grows beyond
+            // Capacity: pre-size for typical thread count (4â€“16); pool grows beyond
             // this if more threads check out simultaneously.
             buffers: Mutex::new(Vec::with_capacity(8)),
-            num_bins_sq,
-        }
+            num_bins_sq }
     }
 
     /// Create a pool pre-allocated with `buffer_count` zeroed buffers.
@@ -51,16 +49,15 @@ impl HistogramPool {
     /// allocate new buffers as before).
     ///
     /// # Arguments
-    /// * `num_bins_sq` — Histogram buffer size (`num_bins²`)
-    /// * `buffer_count` — Number of buffers to pre-allocate
+    /// * `num_bins_sq` â€” Histogram buffer size (`num_binsÂ²`)
+    /// * `buffer_count` â€” Number of buffers to pre-allocate
     pub fn new_with_capacity(num_bins_sq: usize, buffer_count: usize) -> Self {
         let buffers: Vec<Vec<f32>> = (0..buffer_count)
             .map(|_| vec![0.0f32; num_bins_sq])
             .collect();
         Self {
             buffers: Mutex::new(buffers),
-            num_bins_sq,
-        }
+            num_bins_sq }
     }
 
     /// Check out a zeroed buffer from the pool, or allocate a new one.
@@ -68,7 +65,7 @@ impl HistogramPool {
     /// # Performance (PERF-319-05)
     ///
     /// Reused buffers are zeroed with `fill(0.0)`, which compiles to a
-    /// memset-like loop that is 2–3× faster than `vec![0.0; N]` for large
+    /// memset-like loop that is 2â€“3Ã— faster than `vec![0.0; N]` for large
     /// `N` because it skips the allocator. New buffers are allocated via
     /// `vec![0.0; N]` (already zeroed) and skip the redundant `fill`.
     pub fn checkout(&self) -> Vec<f32> {

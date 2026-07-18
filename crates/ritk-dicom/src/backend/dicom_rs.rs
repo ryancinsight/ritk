@@ -1,4 +1,4 @@
-//! `dicom-rs` frame decode backend.
+﻿//! `dicom-rs` frame decode backend.
 //!
 //! This module is the only place where `dicom-pixeldata::PixelDecoder` is bound
 //! to the RITK DICOM domain boundary.
@@ -12,8 +12,7 @@ use std::path::Path;
 
 use crate::backend::{
     DecodeFrameRequest, DecodedFrame, DicomParseBackend, EncapsulatedFrameSource,
-    NativeCodecBackend, PixelDecodeBackend,
-};
+    NativeCodecBackend, PixelDecodeBackend };
 use crate::pixel::{decode_native_pixel_bytes_checked, PixelLayout};
 use crate::syntax::TransferSyntaxKind;
 
@@ -34,8 +33,7 @@ impl EncapsulatedFrameSource for DefaultDicomObject {
                         seq.fragments().len()
                     )
                 }),
-            _ => bail!("Pixel Data is not encapsulated"),
-        }
+            _ => bail!("Pixel Data is not encapsulated") }
     }
 }
 
@@ -128,10 +126,10 @@ fn decode_via_dicom_rs(
                 request.transfer_syntax.uid()
             )
         })?;
-    // dicom-pixeldata applies the modality LUT (RescaleSlope × stored +
-    // RescaleIntercept) internally per DICOM PS3.3 §C.7.6.3.1.4. Passing the
+    // dicom-pixeldata applies the modality LUT (RescaleSlope Ã— stored +
+    // RescaleIntercept) internally per DICOM PS3.3 Â§C.7.6.3.1.4. Passing the
     // layout with rescale applied again would double-apply the linear
-    // transformation: (sample × slope + intercept) × slope + intercept.
+    // transformation: (sample Ã— slope + intercept) Ã— slope + intercept.
     // Use identity rescale (slope=1, intercept=0) so decode_native_pixel_bytes_checked
     // only performs the required integer-to-f32 conversion and byte-length validation.
     let identity_layout = PixelLayout {
@@ -141,8 +139,7 @@ fn decode_via_dicom_rs(
         bits_allocated: request.layout.bits_allocated,
         pixel_representation: request.layout.pixel_representation,
         rescale_slope: 1.0,
-        rescale_intercept: 0.0,
-    };
+        rescale_intercept: 0.0 };
     decode_native_pixel_bytes_checked(decoded.data(), identity_layout)
 }
 

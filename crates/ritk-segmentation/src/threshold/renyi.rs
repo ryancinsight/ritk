@@ -1,7 +1,7 @@
 //! Renyi-entropy thresholding (Kapur/Sahoo/Wong generalisation, Renyi 1961).
 //!
 //! Matches ITK's `RenyiEntropyThresholdCalculator`: compute the maximum-entropy
-//! threshold at three Renyi orders (α = 1, ½, 2), then combine them with
+//! threshold at three Renyi orders (Î± = 1, Â½, 2), then combine them with
 //! proximity-dependent weights.
 
 use ritk_image::tensor::Backend;
@@ -34,12 +34,12 @@ impl RenyiEntropyThreshold {
     }
 
     /// Compute the Renyi-entropy threshold intensity for `image`.
-    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> f32 {
+    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> f32 {
         <Self as AutoThreshold>::compute(self, image)
     }
 
     /// Apply the Renyi-entropy threshold to produce a binary mask.
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         <Self as AutoThreshold>::apply(self, image)
     }
 
@@ -68,7 +68,7 @@ impl Default for RenyiEntropyThreshold {
     }
 }
 
-/// Shannon-entropy (α = 1) maximum-entropy threshold.
+/// Shannon-entropy (Î± = 1) maximum-entropy threshold.
 fn max_entropy_a1(
     norm: &[f64],
     p1: &[f64],
@@ -103,7 +103,7 @@ fn max_entropy_a1(
     threshold
 }
 
-/// Renyi α = ½ maximum-entropy threshold.
+/// Renyi Î± = Â½ maximum-entropy threshold.
 fn max_entropy_a_half(
     norm: &[f64],
     p1: &[f64],
@@ -138,7 +138,7 @@ fn max_entropy_a_half(
     threshold
 }
 
-/// Renyi α = 2 maximum-entropy threshold.
+/// Renyi Î± = 2 maximum-entropy threshold.
 fn max_entropy_a2(
     norm: &[f64],
     p1: &[f64],
@@ -237,7 +237,7 @@ impl AutoThreshold for RenyiEntropyThreshold {
 }
 
 /// Convenience function: compute the Renyi-entropy threshold with 256 bins.
-pub fn renyi_entropy_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
+pub fn renyi_entropy_threshold<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> f32 {
     RenyiEntropyThreshold::new().compute(image)
 }
 

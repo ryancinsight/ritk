@@ -1,12 +1,11 @@
-//! Binary morphological operations: erosion, dilation, opening, closing, fill holes,
+﻿//! Binary morphological operations: erosion, dilation, opening, closing, fill holes,
 //! gradient, and skeletonization.
 
 use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
 use pyo3::prelude::*;
 use ritk_segmentation::{
     BinaryClosing, BinaryDilation, BinaryErosion, BinaryFillHoles, BinaryOpening,
-    MorphologicalGradient, MorphologicalOperation, Skeletonization,
-};
+    MorphologicalGradient, MorphologicalOperation, Skeletonization };
 
 /// Apply binary erosion with a box structuring element.
 ///
@@ -123,7 +122,7 @@ pub fn binary_fill_holes(py: Python<'_>, image: &PyImage) -> PyImage {
 /// Uses a box (hypercube) structuring element of half-width `radius`, matching
 /// `sitk.MorphologicalGradient(..., sitk.sitkBox)` exactly (the binary
 /// dilation/erosion it is built from are box-SE, like the rest of ritk's binary
-/// morphology — *not* a ball).
+/// morphology â€” *not* a ball).
 ///
 /// Args:
 ///     image: Binary mask PyImage (values in {0.0, 1.0}).

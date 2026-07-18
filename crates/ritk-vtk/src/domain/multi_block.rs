@@ -1,17 +1,17 @@
-//! VTK composite multi-block dataset.
+﻿//! VTK composite multi-block dataset.
 //!
 //! # Mathematical Specification
 //!
 //! A multi-block dataset is a rooted tree MB = (N, E) where:
-//! - Leaf nodes N_leaf ⊆ N each hold one `VtkDataObject`.
-//! - Inner nodes N_inner ⊆ N each hold an ordered sequence of `Block` children.
+//! - Leaf nodes N_leaf âŠ† N each hold one `VtkDataObject`.
+//! - Inner nodes N_inner âŠ† N each hold an ordered sequence of `Block` children.
 //! - `Block` = `Leaf(VtkDataObject)` | `Composite(VtkMultiBlockDataSet)`.
 //!
 //! Invariant: the tree is acyclic (ownership is direct, no shared references).
 //!
 //! `leaf_count()` = |N_leaf| (recursive sum over the full subtree).
 //! `iter_leaves()` performs a depth-first traversal of all leaves using an
-//! explicit stack (`LeafIter`) — no heap allocation per iteration step.
+//! explicit stack (`LeafIter`) â€” no heap allocation per iteration step.
 
 use crate::domain::vtk_data_object::VtkDataObject;
 
@@ -24,15 +24,13 @@ pub enum Block {
     /// Terminal block containing one VTK dataset.
     Leaf(VtkDataObject),
     /// Nested multi-block subtree.
-    Composite(VtkMultiBlockDataSet),
-}
+    Composite(VtkMultiBlockDataSet) }
 
-/// VTK composite multi-block dataset — an ordered, optionally named collection
+/// VTK composite multi-block dataset â€” an ordered, optionally named collection
 /// of `Block` entries that can be nested to arbitrary depth.
 #[derive(Debug, Clone, Default)]
 pub struct VtkMultiBlockDataSet {
-    blocks: Vec<(Option<String>, Block)>,
-}
+    blocks: Vec<(Option<String>, Block)> }
 
 impl VtkMultiBlockDataSet {
     /// Construct an empty multi-block dataset.
@@ -69,8 +67,7 @@ impl VtkMultiBlockDataSet {
             .iter()
             .map(|(_, b)| match b {
                 Block::Leaf(_) => 1,
-                Block::Composite(sub) => sub.leaf_count(),
-            })
+                Block::Composite(sub) => sub.leaf_count() })
             .sum()
     }
 
@@ -79,8 +76,7 @@ impl VtkMultiBlockDataSet {
     /// Uses an explicit stack; no allocation per `next()` call (amortised O(1)).
     pub fn iter_leaves(&self) -> LeafIter<'_> {
         LeafIter {
-            stack: vec![self.blocks.iter()],
-        }
+            stack: vec![self.blocks.iter()] }
     }
 }
 
@@ -89,8 +85,7 @@ impl VtkMultiBlockDataSet {
 /// Maintains an explicit stack of iterators (one per nesting level) to avoid
 /// recursive calls and `Box<dyn Iterator>` overhead.
 pub struct LeafIter<'a> {
-    stack: Vec<std::slice::Iter<'a, (Option<String>, Block)>>,
-}
+    stack: Vec<std::slice::Iter<'a, (Option<String>, Block)>> }
 
 impl<'a> Iterator for LeafIter<'a> {
     type Item = &'a VtkDataObject;
@@ -111,7 +106,7 @@ impl<'a> Iterator for LeafIter<'a> {
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 mod tests {
@@ -192,8 +187,7 @@ mod tests {
             .iter_leaves()
             .map(|obj| match obj {
                 VtkDataObject::PolyData(p) => p.points.len(),
-                _ => panic!("expected PolyData"),
-            })
+                _ => panic!("expected PolyData") })
             .collect();
         assert_eq!(counts, vec![1, 2, 3]);
     }
@@ -213,8 +207,7 @@ mod tests {
             .iter_leaves()
             .map(|obj| match obj {
                 VtkDataObject::PolyData(p) => p.points.len(),
-                _ => panic!("expected PolyData"),
-            })
+                _ => panic!("expected PolyData") })
             .collect();
         // DFS: outer[0]=1, then composite's leaves 10,20, then outer[2]=99
         assert_eq!(counts, vec![1, 10, 20, 99]);

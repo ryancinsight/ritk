@@ -1,15 +1,15 @@
-//! VTK-style modification time (MTime) for lazy pipeline re-execution.
+﻿//! VTK-style modification time (MTime) for lazy pipeline re-execution.
 //!
 //! # Mathematical Specification
 //!
-//! Let T: ℕ be a global monotonically increasing counter.
+//! Let T: â„• be a global monotonically increasing counter.
 //! `ModifiedTime::tick()` atomically increments T and returns the new value.
 //!
 //! Re-execution invariant: given pipeline stage P with output mtime M_out and
-//! input mtime M_in, P must re-execute iff M_in > M_out.  When M_in ≤ M_out,
+//! input mtime M_in, P must re-execute iff M_in > M_out.  When M_in â‰¤ M_out,
 //! the cached output is valid.
 //!
-//! Formally: `needs_update(dep_mtime) ⟺ dep_mtime > self.get_mtime()`.
+//! Formally: `needs_update(dep_mtime) âŸº dep_mtime > self.get_mtime()`.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -20,7 +20,7 @@ static GLOBAL_MTIME: AtomicU64 = AtomicU64::new(0);
 pub struct ModifiedTime(u64);
 
 impl ModifiedTime {
-    /// The zero timestamp — before any modification.
+    /// The zero timestamp â€” before any modification.
     pub const ZERO: ModifiedTime = ModifiedTime(0);
 
     /// Returns the raw counter value.
@@ -66,21 +66,19 @@ pub trait Modifiable {
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     struct Obj {
-        mtime: ModifiedTime,
-    }
+        mtime: ModifiedTime }
 
     impl Obj {
         fn new() -> Self {
             Self {
-                mtime: ModifiedTime::tick(),
-            }
+                mtime: ModifiedTime::tick() }
         }
     }
 
@@ -140,7 +138,7 @@ mod tests {
 
     #[test]
     fn mtime_needs_update_true_when_dependency_is_newer() {
-        // input created after output → input.mtime > output.mtime
+        // input created after output â†’ input.mtime > output.mtime
         let output = Obj::new();
         let input = Obj::new();
         assert!(
@@ -152,7 +150,7 @@ mod tests {
     #[test]
     fn mtime_needs_update_false_after_re_execution() {
         let input = Obj::new();
-        let mut output = Obj::new(); // created after input — but we simulate re-execution
+        let mut output = Obj::new(); // created after input â€” but we simulate re-execution
         output.modified(); // output stamps itself after input
         assert!(
             !output.needs_update(input.get_mtime()),
@@ -163,8 +161,7 @@ mod tests {
     #[test]
     fn mtime_needs_update_false_for_equal_zero_dependency() {
         struct Frozen {
-            mtime: ModifiedTime,
-        }
+            mtime: ModifiedTime }
         impl Modifiable for Frozen {
             fn get_mtime(&self) -> ModifiedTime {
                 self.mtime
@@ -173,10 +170,9 @@ mod tests {
                 self.mtime = ModifiedTime::tick();
             }
         }
-        // Both at ZERO — not strictly greater, so no update needed.
+        // Both at ZERO â€” not strictly greater, so no update needed.
         let frozen = Frozen {
-            mtime: ModifiedTime::ZERO,
-        };
+            mtime: ModifiedTime::ZERO };
         assert!(
             !frozen.needs_update(ModifiedTime::ZERO),
             "equal mtime must not trigger update"

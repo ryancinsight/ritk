@@ -1,12 +1,11 @@
-//! StackWeights, ParzenConfig, and accumulate-sample tests.
+﻿//! StackWeights, ParzenConfig, and accumulate-sample tests.
 
 use super::super::sample::SampleWindow;
 use super::super::types::{
-    BinRange, ParzenConfig, StackWeights, MAX_PARZEN_BINS, STACK_WEIGHTS_CAPACITY,
-};
+    BinRange, ParzenConfig, StackWeights, MAX_PARZEN_BINS, STACK_WEIGHTS_CAPACITY };
 use super::super::*;
 
-// ─── ParzenConfig tests (ARCH-317-01) ──────────────────────────────────────
+// â”€â”€â”€ ParzenConfig tests (ARCH-317-01) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn parzen_config_derives_half_width() {
@@ -28,10 +27,10 @@ fn parzen_config_broad_sigma() {
     assert!((cfg.inv_2sigma_sq() - (-0.125)).abs() < 1e-7);
 }
 
-// ─── StackWeights SIMD-alignment tests (PERF-316-03) ───────────────────────
+// â”€â”€â”€ StackWeights SIMD-alignment tests (PERF-316-03) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[test]
 fn stack_weights_array_size_is_simd_aligned() {
-    // PERF-316-03: The weight array must be 32 elements (128 bytes = 4× AVX2 __m256).
+    // PERF-316-03: The weight array must be 32 elements (128 bytes = 4Ã— AVX2 __m256).
     assert_eq!(STACK_WEIGHTS_CAPACITY, 32);
     const _: () = assert!(STACK_WEIGHTS_CAPACITY >= MAX_PARZEN_BINS);
 }
@@ -48,7 +47,7 @@ fn stack_weights_padding_slots_are_zero() {
     }
 }
 
-// ─── StackWeights correctness tests ────────────────────────────────────────
+// â”€â”€â”€ StackWeights correctness tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn stack_weights_correct() {
@@ -104,7 +103,7 @@ fn stack_weights_is_copy() {
     }
 }
 
-// ─── Monomorphized direct-path accumulate tests (ARCH-317-01) ──────────────
+// â”€â”€â”€ Monomorphized direct-path accumulate tests (ARCH-317-01) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn accumulate_sample_direct_matches_sparse_weights() {
@@ -174,9 +173,9 @@ fn accumulate_sample_direct_matches_sparse_weights() {
 #[test]
 fn accumulate_sample_direct_total_weight() {
     // ARCH-317-01 / PERF-327-04 / PERF-328-01: accumulate_sample_direct
-    // no longer returns a total — the return is `()`. Per PERF-328-01,
-    // per-sample normalization by 1/(sum_f × sum_m) means the histogram
-    // total for one sample should be ≈ 1.0. Verify correct accumulation
+    // no longer returns a total â€” the return is `()`. Per PERF-328-01,
+    // per-sample normalization by 1/(sum_f Ã— sum_m) means the histogram
+    // total for one sample should be â‰ˆ 1.0. Verify correct accumulation
     // by summing the histogram entries directly.
     let num_bins = 32;
     let fix_cfg = ParzenConfig::new(1.0);
@@ -193,11 +192,11 @@ fn accumulate_sample_direct_total_weight() {
     let hist_sum: f32 = hist.iter().sum();
     assert!(
         hist_sum > 0.5,
-        "normalized histogram sum must be > 0.5 (≈1.0 per sample), got {hist_sum}"
+        "normalized histogram sum must be > 0.5 (â‰ˆ1.0 per sample), got {hist_sum}"
     );
     assert!(
         hist_sum < 1.5,
-        "normalized histogram sum must be < 1.5 (≈1.0 per sample), got {hist_sum}"
+        "normalized histogram sum must be < 1.5 (â‰ˆ1.0 per sample), got {hist_sum}"
     );
     assert!(
         hist_sum.is_finite(),
@@ -205,7 +204,7 @@ fn accumulate_sample_direct_total_weight() {
     );
 }
 
-// ─── compute_half_width SSOT test ──────────────────────────────────────────
+// â”€â”€â”€ compute_half_width SSOT test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn compute_half_width_ssot_values() {
@@ -217,7 +216,7 @@ fn compute_half_width_ssot_values() {
     assert_eq!(compute_half_width(16.0), 12); // ceil(3*4)=12
 }
 
-// ─── ParzenConfig::from_intensity_sigma tests (SSOT-318-03) ──────────────
+// â”€â”€â”€ ParzenConfig::from_intensity_sigma tests (SSOT-318-03) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn parzen_config_from_intensity_sigma_basic() {
@@ -228,8 +227,8 @@ fn parzen_config_from_intensity_sigma_basic() {
     let max = 255.0_f32;
     let num_bins = 32;
     let cfg = ParzenConfig::from_intensity_sigma(sigma, min, max, num_bins);
-    // Manual: bin_width = 255/31 ≈ 8.226, sigma_in_bins = 8/8.226 ≈ 0.9725
-    // sigma_sq ≈ 0.9458
+    // Manual: bin_width = 255/31 â‰ˆ 8.226, sigma_in_bins = 8/8.226 â‰ˆ 0.9725
+    // sigma_sq â‰ˆ 0.9458
     let num_bins_f = (num_bins - 1) as f32;
     let bin_width = (max - min) / num_bins_f;
     let sigma_in_bins = sigma / bin_width;
@@ -282,7 +281,7 @@ fn parzen_config_from_intensity_sigma_rejects_zero_bins() {
     let _ = ParzenConfig::from_intensity_sigma(8.0, 0.0, 255.0, 0);
 }
 
-// ─── ParzenConfig PartialEq test (ARCH-318-08) ────────────────────────────
+// â”€â”€â”€ ParzenConfig PartialEq test (ARCH-318-08) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn parzen_config_partial_eq() {
@@ -293,7 +292,7 @@ fn parzen_config_partial_eq() {
     assert_ne!(a, c, "different ParzenConfigs must not be equal");
 }
 
-// ─── ParzenConfig half_width invariants (FIX-318-01 replacement) ─────────
+// â”€â”€â”€ ParzenConfig half_width invariants (FIX-318-01 replacement) â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn parzen_config_half_width_invariants() {
@@ -303,11 +302,11 @@ fn parzen_config_half_width_invariants() {
     assert_eq!(cfg2.half_width(), 6);
 }
 
-// ─── Broad sigma StackWeights test (FIX-318-01) ────────────────────────────
+// â”€â”€â”€ Broad sigma StackWeights test (FIX-318-01) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn stack_weights_broad_sigma() {
-    // FIX-318-01 / FIX-319-09: sigma_sq=4.0 → half_width=6 → range=13 bins.
+    // FIX-318-01 / FIX-319-09: sigma_sq=4.0 â†’ half_width=6 â†’ range=13 bins.
     // StackWeights must handle this without overflow now that
     // STACK_WEIGHTS_CAPACITY=32.
     let cfg = ParzenConfig::new(4.0);
@@ -342,7 +341,7 @@ fn stack_weights_broad_sigma() {
     );
 }
 
-// ─── ParzenConfig::support_bins tests (TEST-319-11) ───────────────────────
+// â”€â”€â”€ ParzenConfig::support_bins tests (TEST-319-11) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[test]
 fn parzen_config_support_bins() {
     let cfg = ParzenConfig::new(1.0); // half_width=3
@@ -355,7 +354,7 @@ fn parzen_config_support_bins() {
     assert_eq!(cfg3.support_bins(), 7);
 }
 
-// ─── Exp-ratchet precision test (PERF-319-04) ────────────────────────────
+// â”€â”€â”€ Exp-ratchet precision test (PERF-319-04) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[test]
 fn stack_weights_exp_ratchet_precision() {
     // PERF-319-04: StackWeights::new now uses exp-ratchet. Verify that

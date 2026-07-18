@@ -1,6 +1,6 @@
-//! VTK legacy structured points format reader.
+﻿//! VTK legacy structured points format reader.
 //!
-//! Parses the VTK legacy file format (version 1.0–5.1) restricted to
+//! Parses the VTK legacy file format (version 1.0â€“5.1) restricted to
 //! `DATASET STRUCTURED_POINTS` with scalar point data. Both ASCII and
 //! BINARY encoding are supported.
 //!
@@ -30,8 +30,7 @@ use std::path::Path;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum VtkEncoding {
     Ascii,
-    Binary,
-}
+    Binary }
 
 /// Scalar type declared by the `SCALARS` keyword.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,8 +41,7 @@ enum VtkScalarType {
     Short,
     UnsignedShort,
     Int,
-    UnsignedInt,
-}
+    UnsignedInt }
 
 impl VtkScalarType {
     fn from_str(s: &str) -> Result<Self> {
@@ -55,8 +53,7 @@ impl VtkScalarType {
             "unsigned_short" => Ok(Self::UnsignedShort),
             "int" => Ok(Self::Int),
             "unsigned_int" => Ok(Self::UnsignedInt),
-            other => bail!("unsupported VTK scalar type: {}", other),
-        }
+            other => bail!("unsupported VTK scalar type: {}", other) }
     }
 
     /// Byte width of a single scalar element in binary encoding.
@@ -68,8 +65,7 @@ impl VtkScalarType {
             Self::Short => 2,
             Self::UnsignedShort => 2,
             Self::Int => 4,
-            Self::UnsignedInt => 4,
-        }
+            Self::UnsignedInt => 4 }
     }
 }
 
@@ -80,8 +76,7 @@ struct VtkHeader {
     origin: [f64; 3],  // [ox, oy, oz]
     spacing: [f64; 3], // [sx, sy, sz]
     point_data_n: usize,
-    scalar_type: VtkScalarType,
-}
+    scalar_type: VtkScalarType }
 
 /// Decode a VTK legacy structured-points file into substrate-free flat voxel
 /// data plus geometry, without constructing any tensor or image carrier.
@@ -97,7 +92,7 @@ struct VtkHeader {
 /// Returns `(data, dims, origin, spacing)` where:
 /// - `data` is row-major scalar data with X varying fastest, Y next, Z slowest
 ///   (VTK's native storage order, matching RITK's `[nz, ny, nx]` tensor layout).
-/// - `dims` is `[nx, ny, nz]` — VTK header `DIMENSIONS` **[X, Y, Z]** order, not
+/// - `dims` is `[nx, ny, nz]` â€” VTK header `DIMENSIONS` **[X, Y, Z]** order, not
 ///   yet permuted to tensor `[nz, ny, nx]` order.
 /// - `origin` / `spacing` are `[ox, oy, oz]` / `[sx, sy, sz]` in VTK **[X, Y, Z]**
 ///   order, transferring directly to RITK spatial metadata without permutation.
@@ -132,7 +127,7 @@ pub fn read_vtk_flat<P: AsRef<Path>>(
     let expected_voxels = nx
         .checked_mul(ny)
         .and_then(|plane| plane.checked_mul(nz))
-        .with_context(|| format!("VTK DIMENSIONS product overflows usize: {nx}×{ny}×{nz}"))?;
+        .with_context(|| format!("VTK DIMENSIONS product overflows usize: {nx}Ã—{ny}Ã—{nz}"))?;
 
     if header.point_data_n != expected_voxels {
         bail!(
@@ -242,8 +237,7 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
     let encoding = match enc_line.to_ascii_uppercase().as_str() {
         "ASCII" => VtkEncoding::Ascii,
         "BINARY" => VtkEncoding::Binary,
-        other => bail!("unsupported VTK encoding: {}", other),
-    };
+        other => bail!("unsupported VTK encoding: {}", other) };
     tracing::debug!(?encoding, "VTK encoding parsed");
 
     // Line 4: dataset type
@@ -270,8 +264,7 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
     loop {
         let line = match next_meaningful_line(reader)? {
             Some(l) => l,
-            None => break,
-        };
+            None => break };
         let upper = line.to_ascii_uppercase();
         let tokens: Vec<&str> = line.split_whitespace().collect();
 
@@ -341,8 +334,7 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
         origin,
         spacing,
         point_data_n,
-        scalar_type,
-    })
+        scalar_type })
 }
 
 // ---------------------------------------------------------------------------
@@ -364,7 +356,7 @@ fn read_binary_scalars(
     // the bytes actually present. `read_exact_bounded` grows the buffer per
     // confirmed chunk and reports truncation rather than aborting on OOM.
     let raw = consus_io::read_exact_bounded(reader, total_bytes).with_context(|| {
-        format!("failed to read {total_bytes} bytes of VTK binary data ({count} voxels × {byte_width} bytes)")
+        format!("failed to read {total_bytes} bytes of VTK binary data ({count} voxels Ã— {byte_width} bytes)")
     })?;
 
     let mut out = Vec::with_capacity(count);

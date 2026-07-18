@@ -1,4 +1,4 @@
-//! DICOM viewer CLI command.
+﻿//! DICOM viewer CLI command.
 //!
 //! This command bridges the CLI and `ritk-snap` viewer core. It loads a DICOM
 //! study from disk, including flat folders and DICOMDIR-backed studies when the
@@ -12,8 +12,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use ritk_io::{
     load_native_dicom_series_with_metadata, scan_dicom_directory, DicomReadMetadata,
-    DicomSeriesInfo, DicomSliceMetadata,
-};
+    DicomSeriesInfo, DicomSliceMetadata };
 use ritk_snap::GeometrySummary;
 use std::path::PathBuf;
 
@@ -38,8 +37,7 @@ pub struct ViewerArgs {
 
     /// Print only the summary and exit.
     #[arg(long)]
-    pub summary: bool,
-}
+    pub summary: bool }
 
 /// Run the viewer command.
 pub fn run(args: ViewerArgs) -> Result<()> {
@@ -180,8 +178,7 @@ mod tests {
             path: PathBuf::from("test_data/2_skull_ct"),
             geometry: true,
             slices: true,
-            summary: false,
-        };
+            summary: false };
         assert_eq!(args.path, PathBuf::from("test_data/2_skull_ct"));
         assert!(args.geometry);
         assert!(args.slices);

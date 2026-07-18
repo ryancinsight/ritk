@@ -18,18 +18,17 @@
 //! slowst in memory (outermost loop), the leftmost varies fastest.
 
 use crate::bin_shrink::BinShrinkImageFilter;
-use crate::native_support::LegacyBurnBackend;
 use ritk_core::image::Image;
 use ritk_image::test_support as ts;
 use ritk_spatial::{Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-fn make_image_3d(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(data, shape)
+fn make_image_3d(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(data, shape)
 }
 
 fn make_image_3d_with_metadata(
@@ -37,8 +36,8 @@ fn make_image_3d_with_metadata(
     shape: [usize; 3],
     origin: [f64; 3],
     spacing: [f64; 3],
-) -> Image<B, 3> {
-    ts::burn_compat::make_image_with::<B, 3>(
+) -> Image<f32, B, 3> {
+    ts::make_image_with::<f32, B, 3>(
         data,
         shape,
         Some(Point::new(origin)),

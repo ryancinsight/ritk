@@ -1,4 +1,4 @@
-//! Registration integration tests: translation recovery, multires, rigid, sparse.
+﻿//! Registration integration tests: translation recovery, multires, rigid, sparse.
 
 use super::*;
 use ritk_filter::GaussianSigma;
@@ -21,7 +21,7 @@ fn translation_recovery_shifted_gaussian() {
     );
 
     let initial_transform = TranslationTransform::<TestBackend, 3>::new(
-        Tensor::<TestBackend, 1>::zeros([3], &device).require_grad(),
+        Tensor::<f32, TestBackend>::zeros([3], &device).require_grad(),
     );
 
     // Higher sampling (0.75 vs 0.50) and more iterations (300 vs 200) reduce
@@ -43,8 +43,7 @@ fn translation_recovery_shifted_gaussian() {
             ..Default::default()
         }],
         transform_type: GlobalMiTransformType::Translation,
-        center: None,
-    };
+        center: None };
 
     let (final_transform, result) = GlobalMiRegistration::register_translation_full(
         &fixed,
@@ -65,7 +64,7 @@ fn translation_recovery_shifted_gaussian() {
     // `[d0, d1, d2]`. `make_gaussian_blob` pairs `center[0]` with the innermost
     // axis (x = d2), so shifting `center` by `[tx, ty, tz]` displaces voxel axes
     // `[d2, d1, d0]`. With identity direction + unit spacing the world translation
-    // is therefore `[d0, d1, d2] = [tz, ty, tx]`. (A prior reversed index→world
+    // is therefore `[d0, d1, d2] = [tz, ty, tx]`. (A prior reversed indexâ†’world
     // bug made this `[tx, ty, tz]`; the geometry is now verified pixel-exact vs
     // SimpleITK, so the d0-first order is the correct expectation.)
     // Tolerance 0.8 accommodates stochastic-sampling variance.
@@ -97,7 +96,7 @@ fn multires_convergence_runs_all_levels() {
     let moving = make_gaussian_blob([32, 32, 32], [16.0, 16.0, 16.0], 4.0, &device);
 
     let center =
-        Tensor::<TestBackend, 1>::from_data(TensorData::from([16.0f32, 16.0, 16.0]), &device);
+        Tensor::<f32, TestBackend>::from_data(::from([16.0f32, 16.0, 16.0]), &device);
     let initial_transform = RigidTransform::<TestBackend, 3>::identity(Some(center), &device);
 
     let config = GlobalMiConfig {
@@ -127,8 +126,7 @@ fn multires_convergence_runs_all_levels() {
             },
         ],
         transform_type: GlobalMiTransformType::Rigid,
-        center: None,
-    };
+        center: None };
 
     let (_final_transform, result) =
         GlobalMiRegistration::register_rigid_full(&fixed, &moving, initial_transform, &config);
@@ -156,7 +154,7 @@ fn rigid_recovery_identity_validates_pipeline() {
     let moving = make_ellipsoid([32, 32, 32], [16.0, 16.0, 16.0], [8.0, 6.0, 5.0], &device);
 
     let center =
-        Tensor::<TestBackend, 1>::from_data(TensorData::from([16.0f32, 16.0, 16.0]), &device);
+        Tensor::<f32, TestBackend>::from_data(::from([16.0f32, 16.0, 16.0]), &device);
     let initial_transform =
         RigidTransform::<TestBackend, 3>::identity(Some(center.clone()), &device);
 
@@ -176,8 +174,7 @@ fn rigid_recovery_identity_validates_pipeline() {
             ..Default::default()
         }],
         transform_type: GlobalMiTransformType::Rigid,
-        center: None,
-    };
+        center: None };
 
     let (final_transform, result) =
         GlobalMiRegistration::register_rigid_full(&fixed, &moving, initial_transform, &config);
@@ -214,7 +211,7 @@ fn sparse_sampling_produces_comparable_result() {
     let moving = make_gaussian_blob([24, 24, 24], [14.0, 13.0, 12.0], 3.0, &device);
 
     let initial_transform = TranslationTransform::<TestBackend, 3>::new(
-        Tensor::<TestBackend, 1>::zeros([3], &device).require_grad(),
+        Tensor::<f32, TestBackend>::zeros([3], &device).require_grad(),
     );
 
     let config_sparse = GlobalMiConfig {
@@ -233,8 +230,7 @@ fn sparse_sampling_produces_comparable_result() {
             ..Default::default()
         }],
         transform_type: GlobalMiTransformType::Translation,
-        center: None,
-    };
+        center: None };
 
     let (transform_sparse, result_sparse) = GlobalMiRegistration::register_translation_full(
         &fixed,

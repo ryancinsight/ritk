@@ -7,7 +7,6 @@ use std::path::{Path, PathBuf};
 const BURN_TOKENS: &[&str] = &[
     "burn::",
     "burn_ndarray",
-    "ritk_image::tensor",
     "TensorData",
     "Shape::new",
     "AutodiffBackend",
@@ -406,7 +405,7 @@ mod tests {
             report.by_crate.get("ritk-core"),
             Some(&CrateBurnSurface {
                 manifest_dependency: true,
-                source_reference_count: 3,
+                source_reference_count: 2,
                 ..Default::default()
             })
         );
@@ -423,7 +422,7 @@ mod tests {
         .unwrap();
         fs::write(
             root.path().join("crates/ritk-transform/src/lib.rs"),
-            "use coeus_autograd::Var;\nuse coeus_nn::Conv3d;\nuse coeus_tensor::Tensor;\nstruct Field<B>(Tensor<f32, B>, Option<Var<f32, B>>, Option<Conv3d<f32, B>>);\n",
+            "use coeus_autograd::Var;\nuse coeus_nn::Conv3d;\nuse ritk_image::tensor::Tensor;\nstruct Field<B>(Tensor<f32, B>, Option<Var<f32, B>>, Option<Conv3d<f32, B>>);\n",
         )
         .unwrap();
 

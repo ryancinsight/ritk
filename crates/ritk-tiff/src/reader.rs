@@ -1,4 +1,4 @@
-//! TIFF / BigTIFF reader for 3-D volumetric images.
+﻿//! TIFF / BigTIFF reader for 3-D volumetric images.
 //!
 //! Each IFD (Image File Directory) page represents one Z-slice.  Pages are
 //! stacked in IFD order to form the Z dimension of the returned
@@ -14,7 +14,7 @@
 //! direction identity.
 //!
 //! # Supported pixel types
-//! u8, u16, u32, u64, i8, i16, i32, i64, f32, f64 — all converted to f32.
+//! u8, u16, u32, u64, i8, i16, i32, i64, f32, f64 â€” all converted to f32.
 //! Only single-channel (grayscale) pages are supported.
 //!
 //! # BigTIFF
@@ -165,19 +165,17 @@ pub(crate) fn decode_page_to_scalar(result: DecodingResult) -> Result<Vec<f32>> 
         DecodingResult::I32(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
         DecodingResult::I64(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
         DecodingResult::F32(v) => Ok(v),
-        DecodingResult::F64(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
-    }
+        DecodingResult::F64(v) => Ok(v.into_iter().map(|x| x as f32).collect()) }
 }
 
-// ── Reader struct ─────────────────────────────────────────────────────────────
+// â”€â”€ Reader struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Backend-bound reader for TIFF / BigTIFF files.
 ///
 /// Carries the compute device so it can implement the `ImageReader<B, 3>`
 /// trait from `ritk-io`.
 pub struct TiffReader<B: ComputeBackend> {
-    backend: B,
-}
+    backend: B }
 
 impl<B: ComputeBackend> TiffReader<B> {
     /// Create a reader bound to `backend`.
@@ -193,7 +191,7 @@ impl<B: ComputeBackend> TiffReader<B> {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_reader.rs"]

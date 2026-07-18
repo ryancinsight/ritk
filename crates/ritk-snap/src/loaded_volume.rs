@@ -1,4 +1,4 @@
-use arrayvec::ArrayString;
+﻿use arrayvec::ArrayString;
 
 /// Type-erased loaded volume for viewer use (avoids propagating `<B: Backend>` through UI).
 ///
@@ -44,8 +44,7 @@ pub struct LoadedVolume {
     /// Radiopharmaceutical start time (TM VR, max 16 chars).
     pub radiopharmaceutical_start_time: Option<ArrayString<16>>,
     /// Pixel decay-correction mode from (0054,1102) (CS VR, max 16 chars).
-    pub decay_correction: Option<ArrayString<16>>,
-}
+    pub decay_correction: Option<ArrayString<16>> }
 
 impl LoadedVolume {
     /// Get the first channel value at voxel position (d, r, c).
@@ -80,11 +79,11 @@ impl LoadedVolume {
     /// For multi-channel volumes, extracts only the first channel.
     ///
     /// # Axis semantics
-    /// - `axis = 0` — axial (fixed depth index `d`): output shape `[rows, cols]`,
+    /// - `axis = 0` â€” axial (fixed depth index `d`): output shape `[rows, cols]`,
     ///   returns `(pixels, cols, rows)`.
-    /// - `axis = 1` — coronal (fixed row index `r`): output shape `[depth, cols]`,
+    /// - `axis = 1` â€” coronal (fixed row index `r`): output shape `[depth, cols]`,
     ///   returns `(pixels, cols, depth)`.
-    /// - `axis = 2` — sagittal (fixed column index `c`): output shape `[depth, rows]`,
+    /// - `axis = 2` â€” sagittal (fixed column index `c`): output shape `[depth, rows]`,
     ///   returns `(pixels, rows, depth)`.
     ///
     /// An out-of-range `index` is silently clamped to the last valid position.
@@ -94,7 +93,7 @@ impl LoadedVolume {
         let ch = self.channels as usize;
         match axis {
             0 => {
-                // Axial: fixed d, contiguous rows×cols×channels slice;
+                // Axial: fixed d, contiguous rowsÃ—colsÃ—channels slice;
                 // take only the first channel of each voxel.
                 let d = index.min(depth.saturating_sub(1));
                 let stride = rows * cols * ch;
@@ -128,8 +127,7 @@ impl LoadedVolume {
                 }
                 (pixels, rows, depth)
             }
-            _ => (vec![], 0, 0),
-        }
+            _ => (vec![], 0, 0) }
     }
 
     /// Extract a 2-D slice into a pre-allocated buffer, returning `(width, height)`.
@@ -143,9 +141,9 @@ impl LoadedVolume {
     /// # Axis semantics
     ///
     /// Identical to [`Self::extract_slice`]:
-    /// - `axis = 0` — axial (fixed `d`): returns `(cols, rows)`.
-    /// - `axis = 1` — coronal (fixed `r`): returns `(cols, depth)`.
-    /// - `axis = 2` — sagittal (fixed `c`): returns `(rows, depth)`.
+    /// - `axis = 0` â€” axial (fixed `d`): returns `(cols, rows)`.
+    /// - `axis = 1` â€” coronal (fixed `r`): returns `(cols, depth)`.
+    /// - `axis = 2` â€” sagittal (fixed `c`): returns `(rows, depth)`.
     ///
     /// Unknown axes clear `out` and return `(0, 0)`.
     pub fn extract_slice_into(

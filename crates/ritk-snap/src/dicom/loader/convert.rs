@@ -1,4 +1,4 @@
-//! Image-to-LoadedVolume conversion and spatial metadata extraction.
+﻿//! Image-to-LoadedVolume conversion and spatial metadata extraction.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -10,12 +10,12 @@ use anyhow::Result;
 ///
 /// # Return order
 /// `(spacing, origin, direction)` where:
-/// - `spacing`: `[f64; 3]` — voxel pitch `[dz, dy, dx]` in mm/voxel.
-/// - `origin`: `[f64; 3]` — physical coordinate of the first voxel.
-/// - `direction`: `[f64; 9]` — row-major 3×3 direction cosine matrix.
+/// - `spacing`: `[f64; 3]` â€” voxel pitch `[dz, dy, dx]` in mm/voxel.
+/// - `origin`: `[f64; 3]` â€” physical coordinate of the first voxel.
+/// - `direction`: `[f64; 9]` â€” row-major 3Ã—3 direction cosine matrix.
 ///
 /// # Contract
-/// The `image` must be 3-dimensional. The direction matrix must be 3×3
+/// The `image` must be 3-dimensional. The direction matrix must be 3Ã—3
 /// (9 elements), which is guaranteed by `Direction<3>`.
 pub(super) fn extract_spatial_metadata(
     image: &ritk_image::native::Image<f32, coeus_core::SequentialBackend, 3>,
@@ -66,6 +66,5 @@ pub(super) fn volume_from_image_no_meta(
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None,
-    })
+        decay_correction: None })
 }

@@ -1,8 +1,7 @@
-use super::super::config::{DemonsConfig, DemonsResult};
+﻿use super::super::config::{DemonsConfig, DemonsResult};
 use super::SymmetricDemonsRegistration;
 use crate::deformable_field_ops::{
-    compute_gradient_into, validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother,
-};
+    compute_gradient_into, validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother };
 use crate::error::RegistrationError;
 
 impl SymmetricDemonsRegistration {
@@ -33,8 +32,8 @@ impl SymmetricDemonsRegistration {
     /// with pluggable [`FieldSmoother`] backends.
     ///
     /// # Arguments
-    /// - `fluid` — smoother for fluid regularisation (`sigma_fluid`).
-    /// - `diffusion` — smoother for diffusion regularisation (`sigma_diffusion`).
+    /// - `fluid` â€” smoother for fluid regularisation (`sigma_fluid`).
+    /// - `diffusion` â€” smoother for diffusion regularisation (`sigma_diffusion`).
     ///
     /// # Errors
     /// Returns [`RegistrationError`] if image lengths are inconsistent with `dims`.
@@ -169,12 +168,11 @@ impl SymmetricDemonsRegistration {
             vel_y: None,
             vel_x: None,
             final_mse,
-            num_iterations: iter,
-        })
+            num_iterations: iter })
     }
 }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
+// â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[allow(clippy::too_many_arguments)]
 fn symmetric_forces_into(

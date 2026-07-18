@@ -1,6 +1,6 @@
-use super::*;
+﻿use super::*;
 
-// ── x_to_intensity ──────────────────────────────────────────────────────────
+// â”€â”€ x_to_intensity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Left edge of canvas maps to hist_min.
 #[test]
@@ -18,7 +18,7 @@ fn x_to_intensity_right_edge_returns_hist_max() {
 
 /// Midpoint of canvas maps to midpoint of intensity range.
 ///
-/// Analytical: t = 0.5, v = -1000 + 0.5 × 4000 = 1000.
+/// Analytical: t = 0.5, v = -1000 + 0.5 Ã— 4000 = 1000.
 #[test]
 fn x_to_intensity_midpoint_maps_analytically() {
     let v = x_to_intensity(110.0, -1000.0, 3000.0, 10.0, 210.0);
@@ -54,7 +54,7 @@ fn x_to_intensity_degenerate_span_returns_min() {
     assert_eq!(v, 500.0);
 }
 
-// ── wl_from_histogram_drag ──────────────────────────────────────────────────
+// â”€â”€ wl_from_histogram_drag â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Zero drag delta leaves center and width unchanged.
 #[test]
@@ -66,8 +66,7 @@ fn wl_from_drag_zero_delta_identity() {
             canvas_width: 200.0,
             canvas_height: 80.0,
             hist_min: -1000.0,
-            hist_max: 3000.0,
-        },
+            hist_max: 3000.0 },
         40.0,
         400.0,
     );
@@ -77,7 +76,7 @@ fn wl_from_drag_zero_delta_identity() {
 
 /// Rightward drag (dx = canvas_width/2) shifts center by span/2.
 ///
-/// Analytical: Δcenter = (100/200) × 4000 = 2000; new center = 40 + 2000 = 2040.
+/// Analytical: Î”center = (100/200) Ã— 4000 = 2000; new center = 40 + 2000 = 2040.
 #[test]
 fn wl_from_drag_rightward_shifts_center() {
     let (c, _) = wl_from_histogram_drag(
@@ -87,8 +86,7 @@ fn wl_from_drag_rightward_shifts_center() {
             canvas_width: 200.0,
             canvas_height: 80.0,
             hist_min: -1000.0,
-            hist_max: 3000.0,
-        },
+            hist_max: 3000.0 },
         40.0,
         400.0,
     );
@@ -106,19 +104,18 @@ fn wl_from_drag_leftward_shifts_center_negative() {
             canvas_width: 200.0,
             canvas_height: 80.0,
             hist_min: -1000.0,
-            hist_max: 3000.0,
-        },
+            hist_max: 3000.0 },
         40.0,
         400.0,
     );
-    // Δcenter = (-200/200) × 4000 = -4000; new center = 40 - 4000 = -3960
+    // Î”center = (-200/200) Ã— 4000 = -4000; new center = 40 - 4000 = -3960
     let expected = 40.0_f32 - 4000.0_f32;
     assert!((c - expected).abs() < 1e-3, "got {c}, expected {expected}");
 }
 
 /// Upward drag (dy < 0) narrows the window width.
 ///
-/// Analytical: scale = 1 - (-40/80) = 1.5; new_width = 400 × 1.5 = 600.
+/// Analytical: scale = 1 - (-40/80) = 1.5; new_width = 400 Ã— 1.5 = 600.
 #[test]
 fn wl_from_drag_upward_narrows_width() {
     let (_, w) = wl_from_histogram_drag(
@@ -128,8 +125,7 @@ fn wl_from_drag_upward_narrows_width() {
             canvas_width: 200.0,
             canvas_height: 80.0,
             hist_min: -1000.0,
-            hist_max: 3000.0,
-        },
+            hist_max: 3000.0 },
         40.0,
         400.0,
     );
@@ -139,7 +135,7 @@ fn wl_from_drag_upward_narrows_width() {
 
 /// Downward drag (dy > 0) widens the window width.
 ///
-/// Analytical: scale = 1 - (80/80) = 0.0; new_width = max(1, 400 × 0.0) = 1.
+/// Analytical: scale = 1 - (80/80) = 0.0; new_width = max(1, 400 Ã— 0.0) = 1.
 #[test]
 fn wl_from_drag_extreme_downward_clamps_to_min_width() {
     let (_, w) = wl_from_histogram_drag(
@@ -149,8 +145,7 @@ fn wl_from_drag_extreme_downward_clamps_to_min_width() {
             canvas_width: 200.0,
             canvas_height: 80.0,
             hist_min: -1000.0,
-            hist_max: 3000.0,
-        },
+            hist_max: 3000.0 },
         40.0,
         400.0,
     );
@@ -168,8 +163,7 @@ fn wl_from_drag_degenerate_canvas_width_identity() {
             canvas_width: 0.0,
             canvas_height: 80.0,
             hist_min: -1000.0,
-            hist_max: 3000.0,
-        },
+            hist_max: 3000.0 },
         40.0,
         400.0,
     );
@@ -187,8 +181,7 @@ fn wl_from_drag_degenerate_span_identity() {
             canvas_width: 200.0,
             canvas_height: 80.0,
             hist_min: 1000.0,
-            hist_max: 1000.0,
-        },
+            hist_max: 1000.0 },
         40.0,
         400.0,
     );
@@ -196,7 +189,7 @@ fn wl_from_drag_degenerate_span_identity() {
     assert_eq!(w, 400.0);
 }
 
-// ── wl_center_from_click ─────────────────────────────────────────────────
+// â”€â”€ wl_center_from_click â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Click at canvas left gives hist_min.
 #[test]

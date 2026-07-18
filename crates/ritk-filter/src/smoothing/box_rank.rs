@@ -2,20 +2,20 @@
 //!
 //! # Mathematical Specification
 //!
-//! For per-axis radii `[rz, ry, rx]` and a rank fraction `rank ∈ [0, 1]`, each
-//! voxel is replaced by the order statistic at index `floor(rank·(n−1))` of the
+//! For per-axis radii `[rz, ry, rx]` and a rank fraction `rank âˆˆ [0, 1]`, each
+//! voxel is replaced by the order statistic at index `floor(rankÂ·(nâˆ’1))` of the
 //! **sorted** `(2r+1)` window clipped to the image bounds (`n` = in-bounds
 //! count):
 //!
 //! ```text
-//! W = ([z−rz, z+rz] × [y−ry, y+ry] × [x−rx, x+rx]) ∩ image,  n = |W|
-//! out(z,y,x) = sort(W)[ floor(rank·(n−1)) ]
+//! W = ([zâˆ’rz, z+rz] Ã— [yâˆ’ry, y+ry] Ã— [xâˆ’rx, x+rx]) âˆ© image,  n = |W|
+//! out(z,y,x) = sort(W)[ floor(rankÂ·(nâˆ’1)) ]
 //! ```
 //!
 //! `rank = 0.5` is the median, `0.0` the minimum, `1.0` the maximum. Verified
-//! against `sitk.Rank`: `[10,20,30,40,50]` r=1, rank 0.5 → `[10,20,30,40,40]`
+//! against `sitk.Rank`: `[10,20,30,40,50]` r=1, rank 0.5 â†’ `[10,20,30,40,40]`
 //! (boundary windows shrink to the in-bounds voxels), and the floor index is
-//! pinned by `[10,20,30,40]` (n=4) rank 0.5 → `20` (`floor(0.5·3)=1`), not `30`.
+//! pinned by `[10,20,30,40]` (n=4) rank 0.5 â†’ `20` (`floor(0.5Â·3)=1`), not `30`.
 //!
 //! Distinct from the structuring-element [`crate::rank::PercentileFilter`],
 //! which uses replicate (clamp) padding and indexes by the full SE size; this
@@ -26,7 +26,7 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
-/// Box rank filter — order statistic over a clipped window (ITK `RankImageFilter`).
+/// Box rank filter â€” order statistic over a clipped window (ITK `RankImageFilter`).
 #[derive(Debug, Clone, Copy)]
 pub struct RankImageFilter {
     /// Per-axis radii `[rz, ry, rx]`. ITK default `[1, 1, 1]`.
@@ -42,7 +42,7 @@ impl RankImageFilter {
     }
 
     /// Apply the box rank filter to a 3-D image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let (vals, dims) = extract_vec_infallible(image);
         let [nz, ny, nx] = dims;
         let [rz, ry, rx] = self.radius;

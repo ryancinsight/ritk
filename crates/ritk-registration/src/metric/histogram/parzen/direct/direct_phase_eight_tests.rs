@@ -1,4 +1,4 @@
-//! Phase Eight tests for the direct Parzen histogram computation path.
+﻿//! Phase Eight tests for the direct Parzen histogram computation path.
 //!
 //! Tests for TEST-321-07 (histogram symmetry), TEST-321-08 (normalize_and_extract
 //! correctness), PERF-321-06 (HistogramPool new_with_capacity),
@@ -9,7 +9,7 @@ use super::sample::SampleWindow;
 use super::types::ParzenConfig;
 use super::*;
 
-// ─── Direct-path histogram symmetry (TEST-321-07) ─────────────────────────
+// â”€â”€â”€ Direct-path histogram symmetry (TEST-321-07) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn direct_histogram_symmetric_equal_sigma() {
@@ -109,7 +109,7 @@ fn sparse_histogram_symmetric_equal_sigma() {
     }
 }
 
-// ─── normalize_and_extract correctness (TEST-321-08) ──────────────────────
+// â”€â”€â”€ normalize_and_extract correctness (TEST-321-08) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // These tests use dispatch::normalize_and_extract which is only available
 // under the direct-parzen feature.
 
@@ -127,11 +127,11 @@ fn normalize_and_extract_known_values() {
     let device = Default::default();
 
     // Simple case: 4 values in [0, 100], 8 bins
-    let values = Tensor::<B, 1>::from_floats([0.0, 50.0, 100.0, 25.0], &device);
+    let values = Tensor::<f32, B>::from_floats([0.0, 50.0, 100.0, 25.0], &device);
     let result = normalize_and_extract::<B>(&values, 0.0, 100.0, 8);
 
     // num_bins_f = 7.0, scale = 7.0/100 = 0.07, offset = 0
-    // 0.0 → 0.0, 50.0 → 3.5, 100.0 → 7.0, 25.0 → 1.75
+    // 0.0 â†’ 0.0, 50.0 â†’ 3.5, 100.0 â†’ 7.0, 25.0 â†’ 1.75
     assert!((result[0] - 0.0).abs() < 1e-5, "val=0: got {}", result[0]);
     assert!((result[1] - 3.5).abs() < 1e-5, "val=50: got {}", result[1]);
     assert!((result[2] - 7.0).abs() < 1e-5, "val=100: got {}", result[2]);
@@ -150,7 +150,7 @@ fn normalize_and_extract_clamps_out_of_range() {
     type B = NdArray<f32>;
     let device = Default::default();
 
-    let values = Tensor::<B, 1>::from_floats([-10.0, 200.0], &device);
+    let values = Tensor::<f32, B>::from_floats([-10.0, 200.0], &device);
     let result = normalize_and_extract::<B>(&values, 0.0, 100.0, 8);
 
     // -10 should clamp to 0.0, 200 should clamp to 7.0
@@ -178,8 +178,8 @@ fn normalize_and_extract_with_offset() {
     type B = NdArray<f32>;
     let device = Default::default();
 
-    // Range [100, 200], 16 bins → num_bins_f=15, scale=15/100=0.15, offset=-100*0.15=-15
-    let values = Tensor::<B, 1>::from_floats([100.0, 150.0, 200.0], &device);
+    // Range [100, 200], 16 bins â†’ num_bins_f=15, scale=15/100=0.15, offset=-100*0.15=-15
+    let values = Tensor::<f32, B>::from_floats([100.0, 150.0, 200.0], &device);
     let result = normalize_and_extract::<B>(&values, 100.0, 200.0, 16);
 
     assert!((result[0] - 0.0).abs() < 1e-5, "val=100: got {}", result[0]);
@@ -191,7 +191,7 @@ fn normalize_and_extract_with_offset() {
     );
 }
 
-// ─── HistogramPool new_with_capacity (PERF-321-06) ────────────────────────
+// â”€â”€â”€ HistogramPool new_with_capacity (PERF-321-06) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn histogram_pool_new_with_capacity() {
@@ -199,11 +199,11 @@ fn histogram_pool_new_with_capacity() {
     // specified number of buffers, each of the correct size.
     let pool = HistogramPool::new_with_capacity(256, 4);
 
-    // Check out 4 buffers — should come from the pre-allocated pool
+    // Check out 4 buffers â€” should come from the pre-allocated pool
     let bufs: Vec<Vec<f32>> = (0..4).map(|_| pool.checkout()).collect();
 
     for buf in &bufs {
-        assert_eq!(buf.len(), 256, "buffer size must be num_bins²");
+        assert_eq!(buf.len(), 256, "buffer size must be num_binsÂ²");
         assert!(
             buf.iter().all(|&v| v == 0.0),
             "pre-allocated buffers must be zeroed"
@@ -222,7 +222,7 @@ fn histogram_pool_new_with_capacity_grows_beyond() {
     // if more buffers are requested than pre-allocated.
     let pool = HistogramPool::new_with_capacity(100, 2);
 
-    // Check out 3 buffers — the third should be allocated on demand
+    // Check out 3 buffers â€” the third should be allocated on demand
     let b1 = pool.checkout();
     let b2 = pool.checkout();
     let b3 = pool.checkout();
@@ -232,7 +232,7 @@ fn histogram_pool_new_with_capacity_grows_beyond() {
     assert_eq!(b3.len(), 100);
 }
 
-// ─── SampleWindow::mask_val DRY (ARCH-321-04) ─────────────────────────────
+// â”€â”€â”€ SampleWindow::mask_val DRY (ARCH-321-04) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn sample_window_mask_val_matches_inline() {
@@ -254,7 +254,7 @@ fn sample_window_mask_val_matches_inline() {
     assert!(SampleWindow::mask_val(999, None).is_some());
 }
 
-// ─── ParzenConfig::sigma_sq() accessor (ARCH-321-10) ──────────────────────
+// â”€â”€â”€ ParzenConfig::sigma_sq() accessor (ARCH-321-10) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn parzen_config_sigma_sq_accessor() {
@@ -265,7 +265,7 @@ fn parzen_config_sigma_sq_accessor() {
     assert!((cfg.sigma_sq() - 2.5).abs() < 1e-10);
 }
 
-// ─── DRY normalize_to_bins via dispatch path (DRY-321-01) ─────────────────
+// â”€â”€â”€ DRY normalize_to_bins via dispatch path (DRY-321-01) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(feature = "direct-parzen")]
 #[test]
@@ -279,7 +279,7 @@ fn normalize_to_bins_matches_dispatch() {
     type B = NdArray<f32>;
     let device = Default::default();
 
-    let values = Tensor::<B, 1>::from_floats([0.0, 50.0, 100.0, 25.0, 75.0], &device);
+    let values = Tensor::<f32, B>::from_floats([0.0, 50.0, 100.0, 25.0, 75.0], &device);
     let host_result = normalize_and_extract::<B>(&values, 0.0, 100.0, 32);
 
     // Verify the host-side normalization is deterministic

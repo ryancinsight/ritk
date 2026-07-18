@@ -1,6 +1,5 @@
-use super::contexts::{
-    mr_context, sc_context, zc_context, zc_ll_lh, SubbandOrientation, CTX_SC_BASE, CTX_ZC_BASE,
-};
+﻿use super::contexts::{
+    mr_context, sc_context, zc_context, zc_ll_lh, SubbandOrientation, CTX_SC_BASE, CTX_ZC_BASE };
 use super::*;
 use crate::jpeg_2000::mq_coder::{initial_contexts, MqDecoder, MqEncoder};
 
@@ -90,7 +89,7 @@ fn trace_encode_symbols(samples: &[i32], w: usize) -> Vec<(u32, usize)> {
             out.push(((mag[idx] >> bp) & 1, ctx));
             state[idx].refine = true;
         }
-        // CUP (height 1 → no RLC)
+        // CUP (height 1 â†’ no RLC)
         for x in 0..w {
             let idx = x;
             if state[idx].sig || state[idx].visit {
@@ -116,7 +115,7 @@ fn trace_encode_symbols(samples: &[i32], w: usize) -> Vec<(u32, usize)> {
 #[test]
 fn ebcot_1x7_symbol_trace_round_trips_at_mq_level() {
     // Drive the MQ pair with the exact EBCOT symbol/context trace of the
-    // failing 1×7 input; isolates MQ-level loss from EBCOT divergence.
+    // failing 1Ã—7 input; isolates MQ-level loss from EBCOT divergence.
     let trace = trace_encode_symbols(&[51i32, 90, 124, 50, 69, 68, 8], 7);
     let mut enc_ctxs = initial_contexts();
     let mut enc = MqEncoder::new();
@@ -148,7 +147,7 @@ fn ebcot_1x7_symbol_trace_round_trips_at_mq_level() {
 
 #[test]
 fn ebcot_1x7_tail_refinement_shifted_round_trip() {
-    // Same data ×2: errors should move with the tail if flush is lossy.
+    // Same data Ã—2: errors should move with the tail if flush is lossy.
     enc_dec_roundtrip(
         &[102i32, 180, 248, 100, 138, 136, 16],
         7,
@@ -160,7 +159,7 @@ fn ebcot_1x7_tail_refinement_shifted_round_trip() {
 #[test]
 fn ebcot_1x7_tail_refinement_round_trip() {
     // Regression (proptest seed 3841344251786497144): the final-plane MRP
-    // bits sit at the stream tail; a lossy MQ flush decoded LSB 0 → 1.
+    // bits sit at the stream tail; a lossy MQ flush decoded LSB 0 â†’ 1.
     enc_dec_roundtrip(
         &[51i32, 90, 124, 50, 69, 68, 8],
         7,

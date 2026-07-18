@@ -1,7 +1,7 @@
-use ritk_core::image::Image;
+﻿use ritk_core::image::Image;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::burn::backend::Autodiff;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::{Shape, Tensor };
 use ritk_registration::metric::MeanSquaredError;
 use ritk_registration::optimizer::AdamOptimizer;
 use ritk_registration::registration::Registration;
@@ -49,9 +49,9 @@ fn test_registration_affine_translation() {
     let moving_data = make_ellipsoid([11.0, 12.0, 13.0], [2.0, 3.0, 4.0]);
 
     let fixed_tensor =
-        Tensor::<B, 3>::from_data(TensorData::new(fixed_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &fixed_data, &device);
     let moving_tensor =
-        Tensor::<B, 3>::from_data(TensorData::new(moving_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &moving_data, &device);
 
     let origin = Point::new([0.0, 0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
@@ -62,7 +62,7 @@ fn test_registration_affine_translation() {
 
     // 2. Initialize Affine Transform (Identity)
     // Center at (10, 10, 10)
-    let center = Tensor::<B, 1>::from_floats([10.0, 10.0, 10.0], &device);
+    let center = Tensor::<f32, B>::from_floats([10.0, 10.0, 10.0], &device);
     let transform = AffineTransform::<B, 3>::identity(Some(center), &device);
 
     // 3. Setup Optimizer and Metric
@@ -140,9 +140,9 @@ fn test_registration_affine_scaling() {
     let moving_data = make_ellipsoid([10.0, 10.0, 10.0], [2.0, 3.0, 4.0]);
 
     let fixed_tensor =
-        Tensor::<B, 3>::from_data(TensorData::new(fixed_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &fixed_data, &device);
     let moving_tensor =
-        Tensor::<B, 3>::from_data(TensorData::new(moving_data, Shape::new(shape)), &device);
+        Tensor::<f32, B>::from_slice_on(shape, &moving_data, &device);
 
     let origin = Point::new([0.0, 0.0, 0.0]);
     let spacing = Spacing::new([1.0, 1.0, 1.0]);
@@ -152,7 +152,7 @@ fn test_registration_affine_scaling() {
     let moving = Image::new(moving_tensor, origin, spacing, direction);
 
     // 2. Initialize Affine Transform (Identity)
-    let center = Tensor::<B, 1>::from_floats([10.0, 10.0, 10.0], &device);
+    let center = Tensor::<f32, B>::from_floats([10.0, 10.0, 10.0], &device);
     let transform = AffineTransform::<B, 3>::identity(Some(center), &device);
 
     // 3. Setup Optimizer and Metric

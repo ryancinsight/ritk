@@ -1,26 +1,24 @@
-use super::*;
+﻿use super::*;
 use burn_ndarray::NdArray;
 use ritk_image::burn::backend::Autodiff;
 use ritk_image::burn::module::Module;
 use ritk_image::tensor::Tensor;
-use ritk_image::tensor::{Backend, TensorData};
+use ritk_image::tensor::{Backend };
 
 type TestBackend = Autodiff<NdArray<f32>>;
 
 #[derive(Module, Debug)]
 struct Quadratic<B: Backend> {
-    x: Param<Tensor<B, 1>>,
-}
+    x: Param<Tensor<f32, B>> }
 
 impl<B: Backend> Quadratic<B> {
     fn new(x0: &[f32], device: &B::Device) -> Self {
-        let x = Tensor::<B, 1>::from_data(TensorData::from(x0), device);
+        let x = Tensor::<f32, B>::from_data(::from(x0), device);
         Self {
-            x: Param::from_tensor(x),
-        }
+            x: Param::from_tensor(x) }
     }
 
-    fn forward(&self) -> Tensor<B, 1> {
+    fn forward(&self) -> Tensor<f32, B> {
         let x = self.x.val();
         x.clone() * x
     }
@@ -48,8 +46,7 @@ fn asgd_minimizes_quadratic_function() {
         sigmoid_min: -0.5,
         sigmoid_scale: 1e-4,
         gradient_tolerance: 1e-6,
-        maximum_iterations: 500,
-    };
+        maximum_iterations: 500 };
 
     let mut optimizer: AdaptiveStochasticGradientDescent<Quadratic<TestBackend>, TestBackend> =
         AdaptiveStochasticGradientDescent::new(config);

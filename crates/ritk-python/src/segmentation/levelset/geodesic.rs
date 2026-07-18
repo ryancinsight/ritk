@@ -1,4 +1,4 @@
-//! Geodesic Active Contour level set segmentation.
+﻿//! Geodesic Active Contour level set segmentation.
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
@@ -10,28 +10,27 @@ use ritk_segmentation::GeodesicActiveContourSegmentation;
 #[pyclass(name = "GeodesicActiveContourOptions")]
 #[derive(Clone)]
 pub struct PyGacOptions {
-    /// Balloon force ν (expansion if > 0).
+    /// Balloon force Î½ (expansion if > 0).
     #[pyo3(get, set)]
     pub propagation_weight: f64,
     /// Weight on curvature regularisation.
     #[pyo3(get, set)]
     pub curvature_weight: f64,
-    /// Weight on ∇g·∇φ edge attraction.
+    /// Weight on âˆ‡gÂ·âˆ‡Ï† edge attraction.
     #[pyo3(get, set)]
     pub advection_weight: f64,
     /// Edge stopping sensitivity parameter k.
     #[pyo3(get, set)]
     pub edge_k: f64,
-    /// Gaussian pre-smoothing σ for gradient.
+    /// Gaussian pre-smoothing Ïƒ for gradient.
     #[pyo3(get, set)]
     pub sigma: f64,
-    /// Euler forward time step Δt.
+    /// Euler forward time step Î”t.
     #[pyo3(get, set)]
     pub dt: f64,
     /// Maximum PDE iterations.
     #[pyo3(get, set)]
-    pub max_iterations: usize,
-}
+    pub max_iterations: usize }
 
 #[pymethods]
 impl PyGacOptions {
@@ -53,8 +52,7 @@ impl PyGacOptions {
             edge_k,
             sigma,
             dt,
-            max_iterations,
-        }
+            max_iterations }
     }
 }
 
@@ -67,11 +65,11 @@ impl PyGacOptions {
 /// Args:
 ///     image: Input PyImage.
 ///     initial_phi: Initial level set function PyImage (same shape as image).
-///         φ < 0 inside the initial contour, φ > 0 outside.
+///         Ï† < 0 inside the initial contour, Ï† > 0 outside.
 ///     opts: `GeodesicActiveContourOptions` controlling PDE parameters.
 ///
 /// Returns:
-///     Binary mask PyImage (1.0 where φ < 0, 0.0 elsewhere).
+///     Binary mask PyImage (1.0 where Ï† < 0, 0.0 elsewhere).
 ///
 /// Raises:
 ///     RuntimeError: if image and initial_phi shapes do not match.

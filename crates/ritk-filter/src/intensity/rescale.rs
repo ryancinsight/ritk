@@ -39,7 +39,7 @@ impl RescaleIntensityFilter {
     }
 
     /// Apply the rescaling to a 3-D image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let out = rescale_vec(&vals, self.out_min, self.out_max);
         Ok(rebuild(out, dims, image))
@@ -81,7 +81,7 @@ pub(crate) fn rescale_vec(vals: &[f32], out_min: f32, out_max: f32) -> Vec<f32> 
 
     // Fused parallel min/max reduction (one pass over the data instead of
     // two sequential folds). NaN compares `false` in `min`/`max`, leaving
-    // the running extremum unchanged — matching the prior `f32::min`/`max`.
+    // the running extremum unchanged â€” matching the prior `f32::min`/`max`.
     let (i_min, i_max) = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
         n,
         || (f32::INFINITY, f32::NEG_INFINITY),

@@ -1,6 +1,6 @@
-use super::*;
+﻿use super::*;
 
-// ── Thirion Demons registration ───────────────────────────────────────────────
+// â”€â”€ Thirion Demons registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Run Thirion Demons deformable registration.
 ///
@@ -19,8 +19,7 @@ pub(super) fn run_demons(args: &RegisterArgs) -> Result<()> {
         max_iterations: args.iterations,
         sigma_diffusion: Some(GaussianSigma::new_unchecked(1.5)),
         sigma_fluid: None,
-        max_step_length: 2.0,
-    };
+        max_step_length: 2.0 };
     let reg = ThirionDemonsRegistration::new(config);
     let result = reg
         .register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
@@ -44,7 +43,7 @@ pub(super) fn run_demons(args: &RegisterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Multi-resolution Demons registration ─────────────────────────────────────────
+// â”€â”€ Multi-resolution Demons registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Run multi-resolution Demons deformable registration.
 ///
@@ -52,8 +51,7 @@ pub(super) fn run_demons(args: &RegisterArgs) -> Result<()> {
 /// and reconstructs the output image from `result.warped`.
 pub(super) fn run_multires_demons(args: &RegisterArgs) -> Result<()> {
     use ritk_registration::demons::{
-        DemonsConfig, MultiResDemonsConfig, MultiResDemonsRegistration,
-    };
+        DemonsConfig, MultiResDemonsConfig, MultiResDemonsRegistration };
 
     let fixed_img = super::super::read_image(&args.fixed)?;
     let moving_img = super::super::read_image(&args.moving)?;
@@ -66,12 +64,10 @@ pub(super) fn run_multires_demons(args: &RegisterArgs) -> Result<()> {
             max_iterations: args.iterations,
             sigma_diffusion: Some(GaussianSigma::new_unchecked(1.5)),
             sigma_fluid: None,
-            max_step_length: 2.0,
-        },
+            max_step_length: 2.0 },
         levels: args.levels,
         variant: args.variant,
-        n_squarings: 6,
-    };
+        n_squarings: 6 };
     let reg = MultiResDemonsRegistration::new(config);
     let result = reg
         .register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
@@ -96,7 +92,7 @@ pub(super) fn run_multires_demons(args: &RegisterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Inverse-consistent diffeomorphic Demons registration ──────────────────────
+// â”€â”€ Inverse-consistent diffeomorphic Demons registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Run inverse-consistent diffeomorphic Demons registration.
 ///
@@ -105,8 +101,7 @@ pub(super) fn run_multires_demons(args: &RegisterArgs) -> Result<()> {
 pub(super) fn run_inverse_consistent_demons(args: &RegisterArgs) -> Result<()> {
     use ritk_registration::demons::{
         DemonsConfig, InverseConsistentDemonsConfig,
-        InverseConsistentDiffeomorphicDemonsRegistration,
-    };
+        InverseConsistentDiffeomorphicDemonsRegistration };
 
     let fixed_img = super::super::read_image(&args.fixed)?;
     let moving_img = super::super::read_image(&args.moving)?;
@@ -119,11 +114,9 @@ pub(super) fn run_inverse_consistent_demons(args: &RegisterArgs) -> Result<()> {
             max_iterations: args.iterations,
             sigma_diffusion: Some(GaussianSigma::new_unchecked(1.5)),
             sigma_fluid: None,
-            max_step_length: 2.0,
-        },
+            max_step_length: 2.0 },
         inverse_consistency_weight: args.inverse_consistency_weight,
-        n_squarings: args.n_squarings,
-    };
+        n_squarings: args.n_squarings };
     let reg = InverseConsistentDiffeomorphicDemonsRegistration::new(config);
     let result = reg
         .register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])

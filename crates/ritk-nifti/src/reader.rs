@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+﻿use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
 use flate2::read::GzDecoder;
 use ritk_image::native::Image;
@@ -43,8 +43,7 @@ pub fn read_nifti_from_bytes<B: ComputeBackend>(
     let DecodedNifti {
         data,
         dims,
-        spatial,
-    } = decode_nifti_bytes(bytes)?;
+        spatial } = decode_nifti_bytes(bytes)?;
     Image::from_flat_on(
         data,
         dims,
@@ -59,8 +58,7 @@ pub fn read_nifti_from_bytes<B: ComputeBackend>(
 struct DecodedNifti {
     data: Vec<f32>,
     dims: [usize; 3],
-    spatial: InternalSpatialMetadata,
-}
+    spatial: InternalSpatialMetadata }
 
 /// Decode NIfTI bytes (gzip-detected) into a backend-agnostic [`DecodedNifti`].
 fn decode_nifti_bytes(bytes: &[u8]) -> Result<DecodedNifti> {
@@ -100,8 +98,7 @@ fn decode_single_file(bytes: &[u8]) -> Result<DecodedNifti> {
     Ok(DecodedNifti {
         data: data_vec,
         dims: [nz, ny, nx],
-        spatial,
-    })
+        spatial })
 }
 
 /// Read a NIfTI file as an integer label map in ZYX order.

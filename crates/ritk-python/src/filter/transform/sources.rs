@@ -1,14 +1,13 @@
-use crate::image::{into_py_image, vec_to_image, PyImage};
+﻿use crate::image::{into_py_image, vec_to_image, PyImage};
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::{
     gabor_image_source as core_gabor_image_source,
     gaussian_image_source as core_gaussian_image_source,
-    grid_image_source as core_grid_image_source,
-};
+    grid_image_source as core_grid_image_source };
 /// Generate a Gaussian blob image (`itk::GaussianImageSource` / `sitk.GaussianSource`).
 ///
-/// `out(index) = scale · exp(−½ · Σ_d ((origin_d + index_d·spacing_d − mean_d)/sigma_d)²)`
+/// `out(index) = scale Â· exp(âˆ’Â½ Â· Î£_d ((origin_d + index_dÂ·spacing_d âˆ’ mean_d)/sigma_d)Â²)`
 /// (non-normalised; peak value = `scale`). All `(x, y, z)` tuples are in sitk
 /// axis order; the produced image carries the given spacing/origin (identity
 /// direction). ITK Parity: GaussianImageSource.
@@ -44,7 +43,7 @@ pub fn gaussian_image_source(
 
 /// Generate a grid-pattern image (`itk::GridImageSource` / `sitk.GridSource`):
 /// dark periodic Gaussian lines on a bright background,
-/// `out = scale·Π_{selected d}(1 − Σ_lines exp(−(p_d−line)²/(2σ_d²)))`.
+/// `out = scaleÂ·Î _{selected d}(1 âˆ’ Î£_lines exp(âˆ’(p_dâˆ’line)Â²/(2Ïƒ_dÂ²)))`.
 /// All `(x, y, z)` tuples are in sitk axis order. ITK Parity: GridImageSource.
 #[pyfunction]
 #[pyo3(signature = (size, spacing=(1.0, 1.0, 1.0), origin=(0.0, 0.0, 0.0), sigma=(0.5, 0.5, 0.5), grid_spacing=(4.0, 4.0, 4.0), grid_offset=(0.0, 0.0, 0.0), scale=255.0, which_dimensions=(true, true, true)))]
@@ -83,7 +82,7 @@ pub fn grid_image_source(
 
 /// Generate a Gabor-wavelet image (`itk::GaborImageSource` / `sitk.GaborSource`):
 /// a Gaussian envelope modulated by a cosine along x (the real part),
-/// `out = exp(−½·Σ((p_d−mean_d)/sigma_d)²)·cos(2π·frequency·(p_x−mean_x))`.
+/// `out = exp(âˆ’Â½Â·Î£((p_dâˆ’mean_d)/sigma_d)Â²)Â·cos(2Ï€Â·frequencyÂ·(p_xâˆ’mean_x))`.
 /// All `(x, y, z)` tuples are in sitk axis order. ITK Parity: GaborImageSource.
 #[pyfunction]
 #[pyo3(signature = (size, spacing=(1.0, 1.0, 1.0), origin=(0.0, 0.0, 0.0), sigma=(16.0, 16.0, 16.0), mean=(32.0, 32.0, 32.0), frequency=0.4))]

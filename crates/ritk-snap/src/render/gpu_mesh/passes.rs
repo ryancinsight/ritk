@@ -1,11 +1,11 @@
-//! GPU render pass execution: depth peeling, SSAO, composite, async readback.
+﻿//! GPU render pass execution: depth peeling, SSAO, composite, async readback.
 //!
 //! All GPU work is encoded into a single `CommandBuffer` per frame:
-//!  1. Pass 0 (base): geometry → `color_array[0]` + `depth_texes[0]` + normal_depth_tex
-//!  2. Passes 1..N-1 (peel): geometry with depth discard → `color_array[i]` + `depth_texes[i]`
-//!  3. SSAO compute: normal_depth_tex → ao_buf
-//!  4. Composite compute: color_array + ao_buf → output_buf
-//!  5. Copy: output_buf → staging_buf (COPY_SRC → COPY_DST)
+//!  1. Pass 0 (base): geometry â†’ `color_array[0]` + `depth_texes[0]` + normal_depth_tex
+//!  2. Passes 1..N-1 (peel): geometry with depth discard â†’ `color_array[i]` + `depth_texes[i]`
+//!  3. SSAO compute: normal_depth_tex â†’ ao_buf
+//!  4. Composite compute: color_array + ao_buf â†’ output_buf
+//!  5. Copy: output_buf â†’ staging_buf (COPY_SRC â†’ COPY_DST)
 //!
 //! `submit_mesh_async` submits this command buffer and registers `map_async` on
 //! the staging buffer.  `collect_mesh_result` reads the mapped data and returns
@@ -19,10 +19,9 @@ use super::{
     context::GpuMeshContext,
     frame_cache::{GpuMeshFrameCache, N_PEEL_LAYERS},
     mesh_buf::GpuMeshBufs,
-    params::{CompositeUniforms, LightBlock, MaterialUniforms, SceneUniforms, SsaoUniforms},
-};
+    params::{CompositeUniforms, LightBlock, MaterialUniforms, SceneUniforms, SsaoUniforms} };
 
-// ── Public interface ──────────────────────────────────────────────────────────
+// â”€â”€ Public interface â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Submit all GPU passes for one mesh frame and register non-blocking readback.
 ///
@@ -57,15 +56,13 @@ pub(super) fn submit_mesh_async(
         cast_slice(&[CompositeUniforms {
             rows: cache.rows as u32,
             cols: cache.cols as u32,
-            _pad: [0, 0],
-        }]),
+            _pad: [0, 0] }]),
     );
 
     let mut encoder = ctx
         .device
         .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("mesh_encoder"),
-        });
+            label: Some("mesh_encoder") });
 
     encode_geometry_passes(ctx, cache, mesh, &mut encoder, peel_layers);
     encode_ssao_pass(ctx, cache, &mut encoder);
@@ -103,11 +100,10 @@ pub(super) fn collect_mesh_result(cache: &GpuMeshFrameCache) -> ColorImage {
     cache.staging_buf.unmap();
     ColorImage {
         size: [cache.cols, cache.rows],
-        pixels,
-    }
+        pixels }
 }
 
-// ── Geometry passes ───────────────────────────────────────────────────────────
+// â”€â”€ Geometry passes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn encode_geometry_passes(
     ctx: &GpuMeshContext,
@@ -120,7 +116,7 @@ fn encode_geometry_passes(
     let w = cache.cols as u32;
     let h = cache.rows as u32;
 
-    // Pass 0: base pass — writes color_array[0] + depth_texes[0] + normal_depth_tex.
+    // Pass 0: base pass â€” writes color_array[0] + depth_texes[0] + normal_depth_tex.
     {
         let color0_view = cache
             .color_array_tex
@@ -141,18 +137,14 @@ fn encode_geometry_passes(
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: cache.scene_buf.as_entire_binding(),
-                },
+                    resource: cache.scene_buf.as_entire_binding() },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: cache.lights_buf.as_entire_binding(),
-                },
+                    resource: cache.lights_buf.as_entire_binding() },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: cache.material_buf.as_entire_binding(),
-                },
-            ],
-        });
+                    resource: cache.material_buf.as_entire_binding() },
+            ] });
 
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("geom_base_pass"),
@@ -162,26 +154,20 @@ fn encode_geometry_passes(
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: wgpu::StoreOp::Store,
-                    },
-                }),
+                        store: wgpu::StoreOp::Store } }),
                 Some(wgpu::RenderPassColorAttachment {
                     view: &nd_view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: wgpu::StoreOp::Store,
-                    },
-                }),
+                        store: wgpu::StoreOp::Store } }),
             ],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &depth0_view,
                 depth_ops: Some(wgpu::Operations {
                     load: wgpu::LoadOp::Clear(1.0),
-                    store: wgpu::StoreOp::Store,
-                }),
-                stencil_ops: None,
-            }),
+                    store: wgpu::StoreOp::Store }),
+                stencil_ops: None }),
             ..Default::default()
         });
 
@@ -193,7 +179,7 @@ fn encode_geometry_passes(
         rpass.draw_indexed(0..mesh.n_indices, 0, 0..1);
     }
 
-    // Passes 1..layers-1: peel passes, each discarding geometry ≤ prev depth.
+    // Passes 1..layers-1: peel passes, each discarding geometry â‰¤ prev depth.
     for i in 1..layers {
         let color_view = cache
             .color_array_tex
@@ -215,22 +201,17 @@ fn encode_geometry_passes(
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: cache.scene_buf.as_entire_binding(),
-                },
+                    resource: cache.scene_buf.as_entire_binding() },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: cache.lights_buf.as_entire_binding(),
-                },
+                    resource: cache.lights_buf.as_entire_binding() },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: cache.material_buf.as_entire_binding(),
-                },
+                    resource: cache.material_buf.as_entire_binding() },
                 wgpu::BindGroupEntry {
                     binding: 3,
-                    resource: wgpu::BindingResource::TextureView(&prev_depth_view),
-                },
-            ],
-        });
+                    resource: wgpu::BindingResource::TextureView(&prev_depth_view) },
+            ] });
 
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some(&format!("geom_peel_pass_{i}")),
@@ -239,17 +220,13 @@ fn encode_geometry_passes(
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                    store: wgpu::StoreOp::Store,
-                },
-            })],
+                    store: wgpu::StoreOp::Store } })],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &depth_view,
                 depth_ops: Some(wgpu::Operations {
                     load: wgpu::LoadOp::Clear(1.0),
-                    store: wgpu::StoreOp::Store,
-                }),
-                stencil_ops: None,
-            }),
+                    store: wgpu::StoreOp::Store }),
+                stencil_ops: None }),
             ..Default::default()
         });
 
@@ -262,7 +239,7 @@ fn encode_geometry_passes(
     }
 }
 
-// ── SSAO pass ─────────────────────────────────────────────────────────────────
+// â”€â”€ SSAO pass â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn encode_ssao_pass(
     ctx: &GpuMeshContext,
@@ -279,27 +256,21 @@ fn encode_ssao_pass(
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: cache.ssao_uniforms_buf.as_entire_binding(),
-            },
+                resource: cache.ssao_uniforms_buf.as_entire_binding() },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: wgpu::BindingResource::TextureView(&nd_view),
-            },
+                resource: wgpu::BindingResource::TextureView(&nd_view) },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: cache.ao_buf.as_entire_binding(),
-            },
+                resource: cache.ao_buf.as_entire_binding() },
             wgpu::BindGroupEntry {
                 binding: 3,
-                resource: cache.ssao_kernel_buf.as_entire_binding(),
-            },
-        ],
-    });
+                resource: cache.ssao_kernel_buf.as_entire_binding() },
+        ] });
 
     let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
         label: Some("ssao_pass"),
-        timestamp_writes: None,
-    });
+        timestamp_writes: None });
     cpass.set_pipeline(&ctx.ssao_pipeline);
     cpass.set_bind_group(0, &bg, &[]);
     let wx = (cache.cols as u32).div_ceil(8);
@@ -307,7 +278,7 @@ fn encode_ssao_pass(
     cpass.dispatch_workgroups(wx, wy, 1);
 }
 
-// ── Composite pass ────────────────────────────────────────────────────────────
+// â”€â”€ Composite pass â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn encode_composite_pass(
     ctx: &GpuMeshContext,
@@ -327,27 +298,21 @@ fn encode_composite_pass(
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: wgpu::BindingResource::TextureView(&color_array_view),
-            },
+                resource: wgpu::BindingResource::TextureView(&color_array_view) },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: cache.ao_buf.as_entire_binding(),
-            },
+                resource: cache.ao_buf.as_entire_binding() },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: cache.output_buf.as_entire_binding(),
-            },
+                resource: cache.output_buf.as_entire_binding() },
             wgpu::BindGroupEntry {
                 binding: 3,
-                resource: cache.comp_params_buf.as_entire_binding(),
-            },
-        ],
-    });
+                resource: cache.comp_params_buf.as_entire_binding() },
+        ] });
 
     let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
         label: Some("composite_pass"),
-        timestamp_writes: None,
-    });
+        timestamp_writes: None });
     cpass.set_pipeline(&ctx.composite_pipeline);
     cpass.set_bind_group(0, &bg, &[]);
     let wx = (cache.cols as u32).div_ceil(8);

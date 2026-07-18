@@ -1,4 +1,4 @@
-//! Per-generation CMA-ES update step.
+﻿//! Per-generation CMA-ES update step.
 //!
 //! Owns the mutable state that evolves across generations and the function that
 //! advances it by exactly one generation.  Separating this from the outer loop
@@ -16,20 +16,20 @@ use std::sync::Mutex;
 pub(super) struct GenerationState {
     /// Current distribution mean m.
     pub mean: Vec<f64>,
-    /// Global step-size σ.
+    /// Global step-size Ïƒ.
     pub sigma: f64,
-    /// Packed lower-triangular Cholesky factor A where C = A·Aᵀ.
-    /// Index formula: `chol[i*(i+1)/2 + j]` for j ≤ i.
+    /// Packed lower-triangular Cholesky factor A where C = AÂ·Aáµ€.
+    /// Index formula: `chol[i*(i+1)/2 + j]` for j â‰¤ i.
     pub chol: Vec<f64>,
-    /// Full n×n covariance matrix C (row-major flat storage).
+    /// Full nÃ—n covariance matrix C (row-major flat storage).
     pub cov: Vec<f64>,
-    /// Step-size cumulation path p_σ (length n).
+    /// Step-size cumulation path p_Ïƒ (length n).
     pub p_sigma: Vec<f64>,
     /// Covariance cumulation path p_c (length n).
     pub p_c: Vec<f64>,
-    /// Isotropic samples buffer of length λ·n (row k occupies `[k*n .. (k+1)*n]`).
+    /// Isotropic samples buffer of length Î»Â·n (row k occupies `[k*n .. (k+1)*n]`).
     pub zs: Vec<f64>,
-    /// Transformed offspring buffer of length λ·n.
+    /// Transformed offspring buffer of length Î»Â·n.
     pub xs: Vec<f64>,
     /// Per-candidate `(f_value, candidate_index)` sorted ascending by f.
     pub fvals: Vec<(f64, usize)>,
@@ -39,11 +39,10 @@ pub(super) struct GenerationState {
     pub best_f: f64,
     /// LCG state advancing the Box-Muller sampler.
     pub rng: u64,
-    /// Cholesky-diagonal condition estimate (max dᵢ / min dᵢ)².
+    /// Cholesky-diagonal condition estimate (max dáµ¢ / min dáµ¢)Â².
     pub condition_estimate: f64,
     /// Per-generation best-f trace; `None` when `config.record_history` is false.
-    pub best_history: Option<Vec<f64>>,
-}
+    pub best_history: Option<Vec<f64>> }
 
 impl GenerationState {
     /// Initialise all buffers from `x0`, performing one objective evaluation
@@ -80,20 +79,19 @@ impl GenerationState {
             best_f,
             rng: config.seed,
             condition_estimate: 1.0_f64,
-            best_history: matches!(config.record_history, HistoryPolicy::Record).then(Vec::new),
-        }
+            best_history: matches!(config.record_history, HistoryPolicy::Record).then(Vec::new) }
     }
 }
 
 /// Advance one CMA-ES generation in place.
 ///
 /// Performs one complete per-generation update (Hansen 2016, Algorithm 1):
-/// 1. Sample λ offspring xₖ = m + σ·A·zₖ  (LCG Box-Muller + Cholesky multiply)
+/// 1. Sample Î» offspring xâ‚– = m + ÏƒÂ·AÂ·zâ‚–  (LCG Box-Muller + Cholesky multiply)
 /// 2. Evaluate and rank candidates
-/// 3. Weighted recombination → new mean m
-/// 4. Step-size path p_σ update and σ adaptation
-/// 5. Heaviside h_σ indicator + covariance path p_c update
-/// 6. Rank-1 + rank-μ covariance matrix update
+/// 3. Weighted recombination â†’ new mean m
+/// 4. Step-size path p_Ïƒ update and Ïƒ adaptation
+/// 5. Heaviside h_Ïƒ indicator + covariance path p_c update
+/// 6. Rank-1 + rank-Î¼ covariance matrix update
 /// 7. Cholesky recompute with diagonal regularisation fallback
 /// 8. Condition number check
 ///
@@ -102,12 +100,12 @@ impl GenerationState {
 /// `None` is returned; stopping conditions short-circuit before that step.
 ///
 /// # Arguments
-/// * `state`     — mutable per-generation state (all buffers live here)
-/// * `n`         — problem dimension
-/// * `constants` — immutable adaptation constants (Hansen 2016, Table 1)
-/// * `config`    — run configuration
-/// * `f`         — objective function (`Sync` for parallel evaluation)
-/// * `gen`       — zero-based generation index used in the h_σ correction term
+/// * `state`     â€” mutable per-generation state (all buffers live here)
+/// * `n`         â€” problem dimension
+/// * `constants` â€” immutable adaptation constants (Hansen 2016, Table 1)
+/// * `config`    â€” run configuration
+/// * `f`         â€” objective function (`Sync` for parallel evaluation)
+/// * `gen`       â€” zero-based generation index used in the h_Ïƒ correction term
 pub(super) fn run_one_generation<F>(
     state: &mut GenerationState,
     n: usize,
@@ -131,7 +129,7 @@ where
     let chi_n = constants.chi_n;
     let n_f = n as f64;
 
-    // 1. Sample λ offspring: xₖ = m + σ·A·zₖ
+    // 1. Sample Î» offspring: xâ‚– = m + ÏƒÂ·AÂ·zâ‚–
     //    Use a single advancing LCG + Box-Muller for uncorrelated draws.
     for k in 0..lambda {
         let mut d = 0;
@@ -158,7 +156,7 @@ where
     }
 
     for k in 0..lambda {
-        // Borrow zs and chol immutably, then write to xs — three disjoint fields.
+        // Borrow zs and chol immutably, then write to xs â€” three disjoint fields.
         let az = chol_mul(&state.chol, &state.zs[k * n..(k + 1) * n], n);
         for ((xi, mi), azi) in state.xs[k * n..(k + 1) * n]
             .iter_mut()
@@ -171,7 +169,7 @@ where
 
     // 2. Evaluate and rank
     if config.parallel_population == PopulationEval::Parallel {
-        // Parallel evaluation through Moirai — each candidate
+        // Parallel evaluation through Moirai â€” each candidate
         // evaluation is independent (read-only access to the objective
         // closure's captured state). The objective must be Sync. Results are
         // appended under one lock because their production order is irrelevant:
@@ -221,7 +219,7 @@ where
         return Some(CmaEsStopReason::FunctionTolerance);
     }
 
-    // 3. Weighted recombination: m_new = Σ wᵢ · x_{i:λ}
+    // 3. Weighted recombination: m_new = Î£ wáµ¢ Â· x_{i:Î»}
     let mut m_new = vec![0.0_f64; n];
     for (rank, &(_, k)) in state.fvals.iter().take(mu).enumerate() {
         let x_slice = &state.xs[k * n..(k + 1) * n];
@@ -230,28 +228,28 @@ where
         }
     }
 
-    // Step direction (before σ update)
+    // Step direction (before Ïƒ update)
     let step: Vec<f64> = (0..n)
         .map(|i| (m_new[i] - state.mean[i]) / state.sigma)
         .collect();
 
-    // 4. Step-size path p_σ ← (1-c_σ)p_σ + √(c_σ(2-c_σ)μ_eff) · C^{-½} · step
-    //    C^{-½} · v = A^{-1}·v  (forward substitution on lower-triangular A)
-    //    since C = A·Aᵀ implies C^{½} = A, C^{-½} = A^{-1}.
+    // 4. Step-size path p_Ïƒ â† (1-c_Ïƒ)p_Ïƒ + âˆš(c_Ïƒ(2-c_Ïƒ)Î¼_eff) Â· C^{-Â½} Â· step
+    //    C^{-Â½} Â· v = A^{-1}Â·v  (forward substitution on lower-triangular A)
+    //    since C = AÂ·Aáµ€ implies C^{Â½} = A, C^{-Â½} = A^{-1}.
     let cov_half_inv_step = chol_solve_lower(&state.chol, &step, n);
     let sqrt_term = (c_sigma * (2.0 - c_sigma) * mu_eff).sqrt();
     for (ps, &inv_step) in state.p_sigma.iter_mut().zip(cov_half_inv_step.iter()) {
         *ps = (1.0 - c_sigma) * *ps + sqrt_term * inv_step;
     }
 
-    // Save σ_old before step-size update (rank-μ yᵢ must use σ_old, Hansen 2016 eq. 31)
+    // Save Ïƒ_old before step-size update (rank-Î¼ yáµ¢ must use Ïƒ_old, Hansen 2016 eq. 31)
     let sigma_old = state.sigma;
 
-    // Step-size update: σ ← σ · exp(c_σ/d_σ · (‖p_σ‖/χ_n − 1))
+    // Step-size update: Ïƒ â† Ïƒ Â· exp(c_Ïƒ/d_Ïƒ Â· (â€–p_Ïƒâ€–/Ï‡_n âˆ’ 1))
     let ps_norm = vec_norm(&state.p_sigma);
     state.sigma *= ((c_sigma / d_sigma) * (ps_norm / chi_n - 1.0)).exp();
 
-    // 5. Heaviside h_σ: suppress p_c update when σ evolution is stuck
+    // 5. Heaviside h_Ïƒ: suppress p_c update when Ïƒ evolution is stuck
     let threshold = (1.4 + 2.0 / (n_f + 1.0)) * chi_n;
     let h_sigma =
         if ps_norm / (1.0_f64 - (1.0 - c_sigma).powi(2 * (gen + 1) as i32)).sqrt() < threshold {
@@ -266,8 +264,8 @@ where
         *pc = (1.0 - c_c) * *pc + h_sigma * sqrt_cc * si;
     }
 
-    // 7. Rank-1 + rank-μ covariance update
-    //    C ← (1−c₁−c_μ)C + c₁·p_c·p_cᵀ + c_μ·Σwᵢ·yᵢ·yᵢᵀ
+    // 7. Rank-1 + rank-Î¼ covariance update
+    //    C â† (1âˆ’câ‚âˆ’c_Î¼)C + câ‚Â·p_cÂ·p_cáµ€ + c_Î¼Â·Î£wáµ¢Â·yáµ¢Â·yáµ¢áµ€
     let delta_h = (1.0 - h_sigma) * c_c * (2.0 - c_c); // heaviside correction
     for i in 0..n {
         for j in 0..=i {
@@ -277,7 +275,7 @@ where
             // Rank-1 term
             let rank1 = c1 * (state.p_c[i] * state.p_c[j] + delta_h * state.cov[idx_ij]);
 
-            // Rank-μ term: yᵢ = (x_{i:λ} - m_old) / σ_old  (Hansen 2016, eq. 31)
+            // Rank-Î¼ term: yáµ¢ = (x_{i:Î»} - m_old) / Ïƒ_old  (Hansen 2016, eq. 31)
             let mut rank_mu = 0.0;
             for (rank, &(_, k)) in state.fvals.iter().take(mu).enumerate() {
                 let x_slice = &state.xs[k * n..(k + 1) * n];
@@ -316,8 +314,8 @@ where
         state.chol = nc;
     }
 
-    // Condition number check via Cholesky diagonal (d_i = √λᵢ for eigenvalue proxy).
-    // cond(C) ≈ (max dᵢ / min dᵢ)² where dᵢ = chol_ii.
+    // Condition number check via Cholesky diagonal (d_i = âˆšÎ»áµ¢ for eigenvalue proxy).
+    // cond(C) â‰ˆ (max dáµ¢ / min dáµ¢)Â² where dáµ¢ = chol_ii.
     let mut chol_diag_max = f64::MIN;
     let mut chol_diag_min = f64::MAX;
     for i in 0..n {
