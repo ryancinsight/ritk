@@ -35,12 +35,17 @@ commit `a2e4f390`, matching the provider used by local verification.
 
 ## CI-658-12 audit (2026-07-17)
 
-Apollo `origin/main` now declares `apollo-fft` 0.25.0 at
-`c8742814be8c01f925aa8ead77c215ebbb9ff66f`, while RITK still constrains and
-checks out 0.24.0. The only RITK production use remains the public
-`FftPlan1D`/`Shape1D` API, which Apollo 0.25.0 retains. This follow-up owns the
-provider requirement, lockfile, and CI checkout pin; completion requires
-locked owner-package verification and a Leo retry against the unified graph.
+Apollo `origin/main` declares `apollo-fft` 0.25.0 at
+`c8742814be8c01f925aa8ead77c215ebbb9ff66f`, while RITK previously constrained
+and checked out 0.24.0. The only RITK production use remains the public
+`FftPlan1D`/`Shape1D` API, which Apollo 0.25.0 retains. RITK now aligns its
+requirement, lockfile, and CI checkout pin to that provider. The workspace also
+contained unused Hephaestus dependencies and patch entries; with no consuming
+RITK crate, they emitted Cargo warnings and matching `patch.unused` lock
+metadata, so both are removed. Locked offline `ritk-filter` check,
+warning-denied Clippy, Nextest, doctests, Rustdoc, formatting, and diff
+integrity pass. Evidence tier: native compilation and value-semantic tests; the
+remaining consumer evidence is Leo's focused package retry.
 
 ## CI-658-12 audit (2026-07-17, prior 0.24.0 alignment)
 

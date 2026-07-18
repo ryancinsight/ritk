@@ -38,10 +38,12 @@
   the native image↔Leto conversion boundary. The classical index-space affine
   converts to physical coordinates before native resampling, and the shared
   metric resampler uses `ritk-image`'s native grid generator.
-- The RITK Apollo requirement and lockfile now consume the current 0.24.0
+- The RITK Apollo requirement and lockfile now consume the current 0.25.0
   provider release, and the CI checkout selects Apollo main at
-  `157467eedac139394ecb788cbdd245f1952b29f1` to keep downstream
-  path-provider resolution coherent.
+  `c8742814be8c01f925aa8ead77c215ebbb9ff66f` to keep downstream path-provider
+  resolution coherent. Remove unused Hephaestus workspace dependencies, patch
+  entries, and `patch.unused` lock metadata that emitted Cargo warnings without
+  serving a RITK consumer.
 - Native displacement inversion now returns `NativeDisplacementField` with
   named physical-axis components, rather than an anonymous triple of images.
 - Color-component and colormap regressions now construct native images and
