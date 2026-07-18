@@ -88,9 +88,7 @@ coeus-leto = { path = "../coeus/coeus-leto" }
 coeus-autograd = { path = "../coeus/coeus-autograd" }
 leto = { path = "../leto/crates/leto", version = "0.38.0" }
 leto-ops = { path = "../leto/crates/leto-ops", version = "0.38.0" }
-hephaestus-core = { path = "../hephaestus/crates/hephaestus-core", version = "0.15.0" }
-hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu", version = "0.15.0" }
-apollo-fft = { path = "../apollo/crates/apollo-fft", version = "0.24.0" }
+apollo-fft = { path = "../apollo/crates/apollo-fft", version = "0.25.0" }
 anyhow = "1.0"
 thiserror = "2.0"
 tracing = "0.1"
@@ -177,10 +175,6 @@ eunomia = { path = "../eunomia/crates/eunomia" }
 [patch."https://github.com/ryancinsight/leto.git"]
 leto = { path = "../leto/crates/leto" }
 leto-ops = { path = "../leto/crates/leto-ops" }
-
-[patch."https://github.com/ryancinsight/hephaestus.git"]
-hephaestus-core = { path = "../hephaestus/crates/hephaestus-core" }
-hephaestus-wgpu = { path = "../hephaestus/crates/hephaestus-wgpu" }
 
 [patch."https://github.com/ryancinsight/melinoe.git"]
 melinoe = { path = "../melinoe" }

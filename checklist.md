@@ -39,7 +39,7 @@
       `a2e4f390d7b7e88589d4f2510e48f57c303360d2`, which supplies the
       `CastFrom<float> for usize` contract used by RITK.
 
-## CI-658-12 — Align RITK with the current Apollo FFT provider
+## CI-658-12 — Align RITK with Apollo FFT 0.25.0
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
 
@@ -54,6 +54,19 @@
       run stable cargo check -p ritk-filter --locked --offline` passes.
 - [x] Verify source formatting and diff integrity. Evidence: `rustup run stable
       cargo fmt --check` and `git diff --check` pass.
+- [x] Raise the workspace Apollo FFT constraint and lockfile from 0.24.0 to
+      0.25.0. Cargo selects the current provider without changing the
+      established RITK `FftPlan1D`/`Shape1D` call surface.
+- [x] Advance the CI Apollo checkout to merged Apollo main `c8742814be8c01f925aa8ead77c215ebbb9ff66f`,
+      which declares 0.25.0. CI and local path resolution select the same
+      provider source.
+- [x] Remove unused Hephaestus workspace dependencies and patch entries with
+      their `patch.unused` lock metadata. No RITK crate consumes the provider,
+      so retaining the declarations produced a Cargo warning without changing
+      behavior.
+- [x] Verify the owner package: locked offline check, warning-denied Clippy,
+      focused Nextest, doctests, Rustdoc, formatting, and diff integrity exit
+      successfully. The next consumer gate is the Leo mesh/GUI regression.
 
 ## CI-658-02 — Restore current PR compile gates
 **Target version**: 0.3.0

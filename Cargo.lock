@@ -258,7 +258,7 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "apollo-fft"
-version = "0.24.0"
+version = "0.25.0"
 dependencies = [
  "apollo-fft-macros",
  "apollo-leto-interop",
@@ -11335,11 +11335,3 @@ dependencies = [
  "quote",
  "syn 2.0.118",
 ]
-
-[[patch.unused]]
-name = "hephaestus-core"
-version = "0.16.1"
-
-[[patch.unused]]
-name = "hephaestus-wgpu"
-version = "0.16.1"
