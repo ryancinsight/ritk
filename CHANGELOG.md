@@ -25,6 +25,13 @@
 - Added Coeus host `Cow` materialization at explicit I/O boundaries and
   consolidated CLI and Analyze/DICOM consumers onto the provider-native image
   contract.
+- Intensity projections now borrow contiguous Coeus image storage through the
+  canonical `Cow` host contract instead of copying the complete input before
+  read-only reduction. Non-contiguous views still materialize once in logical
+  row-major order.
+- Median projection now uses the deterministic IEEE-754 total order, preventing
+  NaN input from panicking and defining the ordering of NaNs, infinities, and
+  signed zero.
 - Aligned the hosted dependency checkout with merged Coeus `5ee07a26`, which
   owns the host materialization contract used by the cutover.
 - Corrected the NGF normalized augmented-gradient numerator to include the

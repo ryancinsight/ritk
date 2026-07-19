@@ -2,7 +2,7 @@ use super::ProjectionAxis;
 use anyhow::Result;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
-use ritk_tensor_ops::{extract_vec, rebuild};
+use ritk_tensor_ops::rebuild;
 
 /// Reduce the collapsed axis using a native-`f32` fold (max / min).
 pub(super) fn fold_native<B, F>(
@@ -16,7 +16,7 @@ where
     F: Fn(f32, f32) -> f32 + Sync,
 {
     let [nz, ny, nx] = image.shape();
-    let (vals, _) = extract_vec(image)?;
+    let vals = image.data_cow();
     match axis {
         ProjectionAxis::Z => {
             let out: Vec<f32> =
@@ -59,7 +59,7 @@ where
     F: Fn(f64, usize) -> f32 + Sync,
 {
     let [nz, ny, nx] = image.shape();
-    let (vals, _) = extract_vec(image)?;
+    let vals = image.data_cow();
     match axis {
         ProjectionAxis::Z => {
             let out: Vec<f32> =
@@ -107,7 +107,7 @@ pub(super) fn project_stddev<B: Backend>(
     image: &Image<f32, B, 3>,
 ) -> Result<Image<f32, B, 3>> {
     let [nz, ny, nx] = image.shape();
-    let (vals, _) = extract_vec(image)?;
+    let vals = image.data_cow();
     match axis {
         ProjectionAxis::Z => {
             let out: Vec<f32> =
@@ -161,6 +161,10 @@ pub(super) fn project_stddev<B: Backend>(
 }
 
 /// Median of a slice via `select_nth_unstable` at `len/2` (ITK convention).
+///
+/// `f32::total_cmp` gives every IEEE-754 value a deterministic position,
+/// including NaNs, infinities, and signed zero, so projection never panics on
+/// valid floating-point image data.
 #[inline]
 fn median_at_half(buf: &mut [f32]) -> f32 {
     let n = buf.len();
@@ -168,7 +172,7 @@ fn median_at_half(buf: &mut [f32]) -> f32 {
         return 0.0;
     }
     let k = n / 2;
-    let (_, m, _) = buf.select_nth_unstable_by(k, |a, b| a.partial_cmp(b).unwrap());
+    let (_, m, _) = buf.select_nth_unstable_by(k, f32::total_cmp);
     *m
 }
 
@@ -177,7 +181,7 @@ pub(super) fn project_median<B: Backend>(
     image: &Image<f32, B, 3>,
 ) -> Result<Image<f32, B, 3>> {
     let [nz, ny, nx] = image.shape();
-    let (vals, _) = extract_vec(image)?;
+    let vals = image.data_cow();
     match axis {
         ProjectionAxis::Z => {
             let mut out = vec![0.0_f32; ny * nx];
@@ -250,7 +254,7 @@ where
 {
     let pick = |hit: bool| if hit { foreground } else { background };
     let [nz, ny, nx] = image.shape();
-    let (vals, _) = extract_vec(image)?;
+    let vals = image.data_cow();
     match axis {
         ProjectionAxis::Z => {
             let out: Vec<f32> =
