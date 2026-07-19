@@ -174,6 +174,82 @@ impl ImageRegistration {
         })
     }
 
+    /// Intensity-based translation registration using mutual-information
+    /// hill climbing.
+    ///
+    /// The returned transform maps fixed output indices to moving source
+    /// indices. Each iteration evaluates the six axis-aligned neighbors at
+    /// `config.step_multiplier` voxels and accepts the candidate with the
+    /// highest mutual information.
+    pub fn translation_registration_mutual_info(
+        &self,
+        volume: &Array3<f64>,
+        reference: &Array3<f64>,
+        initial_transform: &AffineTransform,
+    ) -> Result<RegistrationResult> {
+        if self.config.step_multiplier <= 0.0 || !self.config.step_multiplier.is_finite() {
+            return Err(RegistrationError::InvalidInput(format!(
+                "translation step_multiplier must be finite and positive, got {}",
+                self.config.step_multiplier
+            )));
+        }
+
+        let mut current_transform = *initial_transform;
+        let initial_volume = super::super::spatial::apply_transform(volume, &current_transform);
+        let mut current_similarity = self.similarity.compute(&initial_volume, reference);
+        let mut iteration = 0;
+
+        while iteration < self.config.max_iterations {
+            let mut best: Option<(AffineTransform, f64)> = None;
+            for axis in 0..3 {
+                for direction in [-1.0, 1.0] {
+                    let mut candidate = current_transform;
+                    candidate.0[axis * 4 + 3] += direction * self.config.step_multiplier;
+                    let transformed = super::super::spatial::apply_transform(volume, &candidate);
+                    let similarity = self.similarity.compute(&transformed, reference);
+                    if similarity > current_similarity
+                        && best
+                            .as_ref()
+                            .is_none_or(|(_, best_similarity)| similarity > *best_similarity)
+                    {
+                        best = Some((candidate, similarity));
+                    }
+                }
+            }
+
+            let Some((candidate, similarity)) = best else {
+                break;
+            };
+            let improvement = similarity - current_similarity;
+            current_transform = candidate;
+            current_similarity = similarity;
+            iteration += 1;
+            if improvement < self.config.tolerance {
+                break;
+            }
+        }
+
+        let spatial = extract_spatial_transform(&current_transform)?;
+        Ok(RegistrationResult {
+            transform: current_transform,
+            spatial,
+            quality: RegistrationQualityMetrics {
+                fre: None,
+                tre: None,
+                mutual_information: current_similarity,
+                correlation_coefficient: 0.0,
+                normalized_cross_correlation: 0.0,
+                convergence: if iteration < self.config.max_iterations {
+                    ConvergenceStatus::Converged
+                } else {
+                    ConvergenceStatus::MaxIterationsReached
+                },
+                iterations: iteration,
+                final_cost: -current_similarity,
+            },
+        })
+    }
+
     /// Intensity-based affine registration using mutual information optimization.
     ///
     /// Uses gradient-free hill-climbing with affine perturbations (9 DOF:

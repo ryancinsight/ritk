@@ -433,7 +433,6 @@ def test_registration_public_functions_exist():
         "majority_vote_fusion",
         "joint_label_fusion_py",
         "global_mi_register",
-        "cma_mi_register",
     ]
     missing = [fn for fn in required if not callable(getattr(rr, fn, None))]
     assert not missing, f"Missing callable functions in ritk.registration: {missing}"

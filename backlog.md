@@ -9,7 +9,9 @@
   migration audit, warning-denied workspace Clippy, and 4,644/4,644 Nextest
   tests with 12 explicitly skipped, plus clean doctest and Rustdoc gates. The
   hosted dependency action now pins merged Coeus `5ee07a26`; PR publication
-  and merge remain.
+  and merge remain. Hosted Python testing exposed a stale Burn-only CMA
+  contract and a missing global-MI cutover; the CMA surface is deleted and
+  global MI now executes through the native Leto classical engine.
 
 - **MIG-660-01 [patch] - Remove stale Burn contract text from native owner
   crates (BLOCKED; owner=Codex `/root`; scope=`crates/ritk-core/src/

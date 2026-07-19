@@ -18,6 +18,8 @@
 - Removed the unused `ritk-macros` crate and the obsolete compatibility image
   modules. No forwarding aliases or dual substrate paths remain for those
   surfaces.
+- Removed the Python `cma_mi_register` contract because its implementation was
+  wholly owned by the deleted Burn autodiff/CMA stack.
 
 ### Changed
 - Added Coeus host `Cow` materialization at explicit I/O boundaries and
@@ -27,6 +29,9 @@
   owns the host materialization contract used by the cutover.
 - Corrected the NGF normalized augmented-gradient numerator to include the
   edge-scale inner-product term, making identical nonconstant images score one.
+- Restored Python global mutual-information registration through the native
+  Leto classical engine, including a translation-specific MI optimizer and
+  physical-space transform conversion.
 - Native `ritk-core` interpolation and transform contracts now document Coeus
   backend ownership, and the native NIfTI codec documentation no longer
   describes removed Burn writer/test boundaries. The obsolete NIfTI test

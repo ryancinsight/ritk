@@ -93,3 +93,46 @@ fn intensity_registration_reports_final_transform_metric() {
     assert_eq!(affine.quality.mutual_information, expected);
     assert_ne!(expected, untransformed);
 }
+
+#[test]
+fn translation_mutual_information_recovers_known_shift() {
+    let fixed = Array3::from_vec(
+        [5, 5, 5],
+        (0..125)
+            .map(|index| {
+                let z = index / 25;
+                let y = (index / 5) % 5;
+                let x = index % 5;
+                f64::from((z * z + 3 * y + 7 * x) as u32)
+            })
+            .collect(),
+    )
+    .unwrap();
+    let generating_transform = crate::types::AffineTransform::new([
+        1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+    ]);
+    let moving = crate::classical::spatial::apply_transform(&fixed, &generating_transform);
+    let metric = MutualInformationMetric::new(16, 0.0, 60.0);
+    let initial_similarity = metric.compute(&moving, &fixed);
+    let registration = ImageRegistration::with_config(
+        ClassicalConfig {
+            max_iterations: 4,
+            tolerance: 0.0,
+            step_multiplier: 1.0,
+        },
+        metric,
+    );
+
+    let result = registration
+        .translation_registration_mutual_info(
+            &moving,
+            &fixed,
+            &crate::types::AffineTransform::IDENTITY,
+        )
+        .unwrap();
+
+    assert_eq!(result.transform.0[3], -1.0);
+    assert_eq!(result.transform.0[7], 0.0);
+    assert_eq!(result.transform.0[11], 0.0);
+    assert!(result.quality.mutual_information > initial_similarity);
+}

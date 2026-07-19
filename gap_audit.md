@@ -31,6 +31,16 @@ source defect: the dependency action checked out Coeus `093f31f`, which
 predates the host materialization contract used by the cutover. The action now
 pins merged Coeus `5ee07a26`, matching the locally verified provider graph.
 
+Hosted Python parity then exposed two registration API residuals. The
+`cma_mi_register` stub described a deleted Burn autodiff/CMA implementation and
+is removed from the Python contract. `global_mi_register` retains a live
+value-semantic parity test, so it now dispatches to the Leto classical
+mutual-information engine. Translation uses a dedicated six-neighbor
+hill-climbing kernel and returns a physical-space homogeneous transform.
+Evidence tier: warning-denied type checking, an exact known-shift regression,
+the existing SimpleITK structural/MI parity test, and a clean Python API drift
+report.
+
 ## MIG-660-01 audit (2026-07-18)
 
 The native `ritk-core` interpolation/transform traits and `ritk-nifti` codec

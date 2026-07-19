@@ -30,6 +30,8 @@
 - [x] Complete workspace doctest and warning-clean Rustdoc gates.
 - [x] Align the hosted dependency checkout with merged Coeus
       `5ee07a26cf13f13917a980cc94f145f69c34186c`.
+- [x] Restore Python global mutual-information registration on the Leto
+      classical engine and delete the obsolete Burn-only CMA binding contract.
 - [ ] Commit, push, and merge the migration PR.
 
 ## MIG-660-01 — Remove stale Burn contract text from native owner crates
