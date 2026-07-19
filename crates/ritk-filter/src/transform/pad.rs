@@ -14,13 +14,13 @@
 //!
 //! ## ConstantPadImageFilter
 //! Padded voxels are filled with a fixed constant `c`.
-//! - `out(iz,iy,ix) = I(iz−lz, iy−ly, ix−lx)` for interior voxels.
+//! - `out(iz,iy,ix) = I(izâˆ’lz, iyâˆ’ly, ixâˆ’lx)` for interior voxels.
 //! - `out(iz,iy,ix) = c` otherwise.
 //!
 //! ## MirrorPadImageFilter
 //! Padded voxels are filled by reflecting the image about its boundaries.
-//! - `reflect(k, N) = |2·N − 2 − (k mod 2(N−1))| mod (2(N−1))`
-//!   (period-`2(N−1)` symmetric extension, matching ITK MirrorPadImageFilter).
+//! - `reflect(k, N) = |2Â·N âˆ’ 2 âˆ’ (k mod 2(Nâˆ’1))| mod (2(Nâˆ’1))`
+//!   (period-`2(Nâˆ’1)` symmetric extension, matching ITK MirrorPadImageFilter).
 //!   For `N=1`, reflected index = 0 always.
 //!
 //! ## WrapPadImageFilter
@@ -34,18 +34,18 @@
 //! - `itk::WrapPadImageFilter`: periodic extension.
 //!
 //! Origin is updated so the physical position of voxel `(0,0,0)` of the output
-//! corresponds to the physical position of voxel `(−lz, −ly, −lx)` of the input.
+//! corresponds to the physical position of voxel `(âˆ’lz, âˆ’ly, âˆ’lx)` of the input.
 //!
 //! # Reference
 //!
-//! - ITK Software Guide, 2nd ed., §6.2 Padding.
+//! - ITK Software Guide, 2nd ed., Â§6.2 Padding.
 
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_origin};
 
-// ── Padding newtype ─────────────────────────────────────────────────────────
+// â”€â”€ Padding newtype â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Per-axis padding extents for a 3-D volume: `[pad_z, pad_y, pad_x]`.
 ///
@@ -96,7 +96,7 @@ impl AsRef<[usize; 3]> for Padding {
     }
 }
 
-// ── Shared ───────────────────────────────────────────────────────────────────
+// â”€â”€ Shared â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn updated_origin(
     origin: &Point<3>,
@@ -112,7 +112,7 @@ fn updated_origin(
     }))
 }
 
-// ── ConstantPadImageFilter ────────────────────────────────────────────────────
+// â”€â”€ ConstantPadImageFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Constant-value padding filter.
 ///
@@ -146,7 +146,7 @@ impl Default for ConstantPadImageFilter {
 
 impl ConstantPadImageFilter {
     /// Apply the constant pad filter.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let [nz, ny, nx] = image.shape();
         let [lz, ly, lx] = *self.pad_lower.as_array();
         let [uz, uy, ux] = *self.pad_upper.as_array();
@@ -190,9 +190,9 @@ impl ConstantPadImageFilter {
     /// Apply constant padding to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -211,7 +211,7 @@ impl ConstantPadImageFilter {
                 }
             }
         }
-        ritk_image::native::Image::from_flat_on(
+        ritk_image::Image::from_flat_on(
             output,
             [oz, oy, ox],
             updated_origin(
@@ -227,7 +227,7 @@ impl ConstantPadImageFilter {
     }
 }
 
-// ── MirrorPadImageFilter ──────────────────────────────────────────────────────
+// â”€â”€ MirrorPadImageFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Mirror (reflective) padding filter.
 ///
@@ -278,7 +278,7 @@ fn mirror_index(i: i64, n: usize) -> usize {
 
 impl MirrorPadImageFilter {
     /// Apply the mirror pad filter.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let [nz, ny, nx] = image.shape();
         let [lz, ly, lx] = *self.pad_lower.as_array();
         let [uz, uy, ux] = *self.pad_upper.as_array();
@@ -312,9 +312,9 @@ impl MirrorPadImageFilter {
     /// Apply mirror padding to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -329,7 +329,7 @@ impl MirrorPadImageFilter {
     }
 }
 
-// ── WrapPadImageFilter ────────────────────────────────────────────────────────
+// â”€â”€ WrapPadImageFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Wrap (periodic) padding filter.
 ///
@@ -369,7 +369,7 @@ fn wrap_index(i: i64, n: usize) -> usize {
 
 impl WrapPadImageFilter {
     /// Apply the wrap pad filter.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let [nz, ny, nx] = image.shape();
         let [lz, ly, lx] = *self.pad_lower.as_array();
         let [uz, uy, ux] = *self.pad_upper.as_array();
@@ -403,9 +403,9 @@ impl WrapPadImageFilter {
     /// Apply wrap padding to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -415,12 +415,12 @@ impl WrapPadImageFilter {
 }
 
 fn padded_native<B>(
-    image: &ritk_image::native::Image<f32, B, 3>,
+    image: &ritk_image::Image<f32, B, 3>,
     backend: &B,
     lower: &Padding,
     upper: &Padding,
     index: fn(i64, usize) -> usize,
-) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend,
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -441,7 +441,7 @@ where
             }
         }
     }
-    ritk_image::native::Image::from_flat_on(
+    ritk_image::Image::from_flat_on(
         output,
         [oz, oy, ox],
         updated_origin(image.origin(), image.spacing(), image.direction(), lower),
@@ -451,11 +451,11 @@ where
     )
 }
 
-// ── ZeroFluxNeumannPadImageFilter ─────────────────────────────────────────────
+// â”€â”€ ZeroFluxNeumannPadImageFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Zero-flux Neumann (edge-replicate / clamp) padding filter.
 ///
-/// Extends the image by repeating the nearest edge voxel — out-of-bounds index
+/// Extends the image by repeating the nearest edge voxel â€” out-of-bounds index
 /// `i` along an axis of length `n` reads `clamp(i, 0, n-1)`. Matches ITK
 /// `ZeroFluxNeumannPadImageFilter` (`sitk.ZeroFluxNeumannPad`).
 #[derive(Debug, Clone)]
@@ -492,7 +492,7 @@ fn clamp_index(i: i64, n: usize) -> usize {
 
 impl ZeroFluxNeumannPadImageFilter {
     /// Apply the zero-flux Neumann (edge-replicate) pad filter.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let [nz, ny, nx] = image.shape();
         let [lz, ly, lx] = *self.pad_lower.as_array();
         let [uz, uy, ux] = *self.pad_upper.as_array();
@@ -526,9 +526,9 @@ impl ZeroFluxNeumannPadImageFilter {
     /// Coeus-native sister of [`ZeroFluxNeumannPadImageFilter::apply`].
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -558,7 +558,7 @@ impl ZeroFluxNeumannPadImageFilter {
             image.direction(),
             &self.pad_lower,
         );
-        ritk_image::native::Image::from_flat_on(
+        ritk_image::Image::from_flat_on(
             out,
             [oz, oy, ox],
             new_origin,
@@ -569,7 +569,7 @@ impl ZeroFluxNeumannPadImageFilter {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_pad.rs"]

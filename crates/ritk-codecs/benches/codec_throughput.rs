@@ -7,9 +7,9 @@
 //!   with `cargo bench -p ritk-codecs -- --baseline <name>`.
 //!
 //! Workloads:
-//! - JPEG-LS lossless 512×512 16-bit (CT-slice-class payload).
-//! - JPEG-LS near-lossless (NEAR=2) 512×512 16-bit.
-//! - JPEG 2000 lossless 64×64 16-bit (single code-block) and 512×512 16-bit
+//! - JPEG-LS lossless 512Ã—512 16-bit (CT-slice-class payload).
+//! - JPEG-LS near-lossless (NEAR=2) 512Ã—512 16-bit.
+//! - JPEG 2000 lossless 64Ã—64 16-bit (single code-block) and 512Ã—512 16-bit
 //!   with 5 DWT levels (multi-code-block, multi-resolution).
 
 use criterion::{criterion_group, criterion_main, Criterion};

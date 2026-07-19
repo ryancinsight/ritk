@@ -1,16 +1,16 @@
 //! Coeus-native NGF engine (`Image<f32, B, 3>` substrate).
 //!
-//! Atlas migration (burn → coeus): the register-engine parallel path for the
+//! Atlas migration (burn â†’ coeus): the register-engine parallel path for the
 //! Normalized Gradient Fields metric. The Burn-generic [`super::fixed_prep`]
-//! /[`super::NormalizedGradientField`] surface stays unchanged (its consumers —
-//! [`crate::ngf_rigid`], cli/python — remain on Burn until their own cutover);
+//! /[`super::NormalizedGradientField`] surface stays unchanged (its consumers â€”
+//! [`crate::ngf_rigid`], cli/python â€” remain on Burn until their own cutover);
 //! this module ADDS the native substrate alongside so registration's eventual
-//! `Image<B>` → native cutover is unblocked.
+//! `Image<B>` â†’ native cutover is unblocked.
 //!
 //! The metric arithmetic is unchanged: the fixed/moving gradient fields, the
-//! edge-noise scale `η`, and the weighted squared-normalized-dot reduction all
+//! edge-noise scale `Î·`, and the weighted squared-normalized-dot reduction all
 //! flow through the same host-slice functions in [`super::scalar`]. Only the
-//! substrate that produces the resampled moving volume differs — Coeus batch
+//! substrate that produces the resampled moving volume differs â€” Coeus batch
 //! point transforms ([`Image::index_to_world_native`]/
 //! [`Image::world_to_index_native`], differential-verified bit-faithful to the
 //! Burn `index_to_world_tensor`/`world_to_index_tensor`), the native affine
@@ -28,14 +28,14 @@ use super::scalar::{
 };
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_transform::transform::affine::AtlasAffineTransform;
 
 /// Precomputed native fixed-image NGF state for repeated transform evaluations.
 ///
 /// The Coeus-native sister of `NgfFixedPrep`'s dense path:
-/// building it ONCE removes the fixed-grid generation, the index→world mapping,
-/// the fixed host read, the fixed gradient field, and `η_F` from the optimiser's
+/// building it ONCE removes the fixed-grid generation, the indexâ†’world mapping,
+/// the fixed host read, the fixed gradient field, and `Î·_F` from the optimiser's
 /// hot loop. Each [`eval`](Self::eval) resamples only the moving image and
 /// computes its gradient.
 pub struct NgfFixedPrepNative<B>
@@ -83,7 +83,7 @@ where
         }
     }
 
-    /// `NGF ∈ [0, 1]` of `moving` resampled through `transform` onto the fixed
+    /// `NGF âˆˆ [0, 1]` of `moving` resampled through `transform` onto the fixed
     /// grid, reusing the precomputed fixed state.
     pub fn eval(&self, moving: &Image<f32, B, 3>, transform: &AtlasAffineTransform<B, 3>) -> f32 {
         let m = self.resample(moving, transform);
@@ -110,7 +110,7 @@ where
     }
 }
 
-/// One-shot native NGF: `NGF ∈ [0, 1]` of `moving` resampled through `transform`
+/// One-shot native NGF: `NGF âˆˆ [0, 1]` of `moving` resampled through `transform`
 /// onto the `fixed` grid over the `true` voxels of `mask` (or all if `None`),
 /// each masked voxel scaled by `weights` (or 1). The Coeus-native sister of
 /// `NormalizedGradientField::ngf_value_weighted`; the registration hot
@@ -128,7 +128,3 @@ where
 {
     NgfFixedPrepNative::new(fixed, mask, weights).eval(moving, transform)
 }
-
-#[cfg(test)]
-#[path = "tests_native.rs"]
-mod tests_native;

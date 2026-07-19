@@ -35,7 +35,7 @@ impl GpuMeshContext {
     pub fn try_new() -> Option<Self> {
         let (device, queue) = crate::render::gpu_volume::context::get_shared_device_queue()?;
 
-        // ── Shader modules ────────────────────────────────────────────────────
+        // â”€â”€ Shader modules â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let geom_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("geom_shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("geometry.wgsl").into()),
@@ -53,7 +53,7 @@ impl GpuMeshContext {
             source: wgpu::ShaderSource::Wgsl(include_str!("composite.wgsl").into()),
         });
 
-        // ── Bind group layout helpers ─────────────────────────────────────────
+        // â”€â”€ Bind group layout helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let uniform_entry = |binding: u32, vis: wgpu::ShaderStages| wgpu::BindGroupLayoutEntry {
             binding,
             visibility: vis,
@@ -89,7 +89,7 @@ impl GpuMeshContext {
         let fs = wgpu::ShaderStages::FRAGMENT;
         let cs = wgpu::ShaderStages::COMPUTE;
 
-        // ── geom_base BGL: bindings 0=scene(VS+FS), 1=lights(FS), 2=material(FS) ─
+        // â”€â”€ geom_base BGL: bindings 0=scene(VS+FS), 1=lights(FS), 2=material(FS) â”€
         let geom_base_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("geom_base_bgl"),
             entries: &[
@@ -99,7 +99,7 @@ impl GpuMeshContext {
             ],
         });
 
-        // ── geom_peel BGL: same + 3=prev_depth(FS, texture_depth_2d) ────────
+        // â”€â”€ geom_peel BGL: same + 3=prev_depth(FS, texture_depth_2d) â”€â”€â”€â”€â”€â”€â”€â”€
         let geom_peel_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("geom_peel_bgl"),
             entries: &[
@@ -119,8 +119,8 @@ impl GpuMeshContext {
             ],
         });
 
-        // ── ssao BGL: 0=ssao_params(U,CS), 1=normal_depth(tex,CS),
-        //              2=ao_buf(rw,CS), 3=kernel(ro,CS) ─────────────────────
+        // â”€â”€ ssao BGL: 0=ssao_params(U,CS), 1=normal_depth(tex,CS),
+        //              2=ao_buf(rw,CS), 3=kernel(ro,CS) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let ssao_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("ssao_bgl"),
             entries: &[
@@ -140,8 +140,8 @@ impl GpuMeshContext {
             ],
         });
 
-        // ── composite BGL: 0=color_layers(D2Array,CS), 1=ao_buf(ro,CS),
-        //                   2=output(rw,CS), 3=comp_params(U,CS) ─────────────
+        // â”€â”€ composite BGL: 0=color_layers(D2Array,CS), 1=ao_buf(ro,CS),
+        //                   2=output(rw,CS), 3=comp_params(U,CS) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let composite_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("composite_bgl"),
             entries: &[
@@ -161,7 +161,7 @@ impl GpuMeshContext {
             ],
         });
 
-        // ── Render pipelines ──────────────────────────────────────────────────
+        // â”€â”€ Render pipelines â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let depth_stencil = wgpu::DepthStencilState {
             format: wgpu::TextureFormat::Depth32Float,
             depth_write_enabled: true,
@@ -249,7 +249,7 @@ impl GpuMeshContext {
             multiview: None,
         });
 
-        // ── Compute pipelines ─────────────────────────────────────────────────
+        // â”€â”€ Compute pipelines â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let ssao_pl_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("ssao_pl_layout"),
             bind_group_layouts: &[&ssao_bgl],

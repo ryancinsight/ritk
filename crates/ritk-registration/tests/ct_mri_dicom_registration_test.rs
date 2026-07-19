@@ -4,19 +4,19 @@
 //! These tests require the MRI-DIR CT (3_head_ct_mridir/DICOM/) and MRI
 //! (2_head_mri_t2/DICOM/) DICOM series to be present under test_data/.
 //!
-//! CT: 409 slices, 512×512, 0.625mm thickness, 0.390625mm pixel spacing,
+//! CT: 409 slices, 512Ã—512, 0.625mm thickness, 0.390625mm pixel spacing,
 //!     from TCIA MRI-DIR collection (zzmeatphantom, CC BY 4.0,
 //!     Ger et al. 2018, DOI: 10.1002/mp.13090).
-//! MRI: 94 slices, T2-weighted, same phantom, paired for CT↔MRI registration.
+//! MRI: 94 slices, T2-weighted, same phantom, paired for CTâ†”MRI registration.
 //!
 //! To run these tests:
 //!   cargo test --test ct_mri_dicom_registration_test -- --ignored
 
 use coeus_core::SequentialBackend;
-use ritk_io::{read_native_dicom_series_with_metadata, DicomReadMetadata};
+use ritk_io::{read_dicom_series_with_metadata, DicomReadMetadata};
 use ritk_registration::bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, VolumeDims};
 
-// ── Test helpers ──────────────────────────────────────────────────────────────
+// â”€â”€ Test helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn find_test_data_dir() -> Option<std::path::PathBuf> {
     for p in &["test_data", "../test_data", "../../test_data"] {
@@ -65,9 +65,9 @@ fn normalize_minmax(data: &[f32]) -> Vec<f32> {
 ///
 /// # Mathematical basis
 /// ```text
-/// NCC(a, b) = Σᵢ (aᵢ − ā)(bᵢ − b̄)
-///             ─────────────────────────
-///             ‖a − ā‖₂ · ‖b − b̄‖₂
+/// NCC(a, b) = Î£áµ¢ (aáµ¢ âˆ’ Ä)(báµ¢ âˆ’ bÌ„)
+///             â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+///             â€–a âˆ’ Äâ€–â‚‚ Â· â€–b âˆ’ bÌ„â€–â‚‚
 /// ```
 /// Returns `0.0` when either input has zero standard deviation (degenerate
 /// case where the denominator would be < `1e-12`).
@@ -97,17 +97,17 @@ fn ncc(a: &[f32], b: &[f32]) -> f64 {
     num / (da * db)
 }
 
-// ── Integration tests ─────────────────────────────────────────────────────────
+// â”€â”€ Integration tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// # Specification
 ///
 /// The MRI-DIR CT series (TCIA, zzmeatphantom, CC BY 4.0) must load with:
 /// - Modality == `"CT"`
-/// - Shape: 409 slices × 512 rows × 512 columns (±4 tolerance for DICOM
+/// - Shape: 409 slices Ã— 512 rows Ã— 512 columns (Â±4 tolerance for DICOM
 ///   padding artefacts introduced during multi-frame reconstruction)
-/// - z spacing (slice thickness) ≈ 0.625 mm (±0.15)
-/// - y spacing (row pixel spacing) ≈ 0.390625 mm (±0.01)
-/// - x spacing (col pixel spacing) ≈ 0.390625 mm (±0.01)
+/// - z spacing (slice thickness) â‰ˆ 0.625 mm (Â±0.15)
+/// - y spacing (row pixel spacing) â‰ˆ 0.390625 mm (Â±0.01)
+/// - x spacing (col pixel spacing) â‰ˆ 0.390625 mm (Â±0.01)
 ///
 /// # Reference
 /// Ger et al., Medical Physics 2018, DOI: 10.1002/mp.13090
@@ -129,10 +129,10 @@ fn test_ct_dicom_series_metadata() {
 
     let backend = SequentialBackend;
     let (image, metadata): (_, DicomReadMetadata) =
-        read_native_dicom_series_with_metadata(&ct_dir, &backend)
+        read_dicom_series_with_metadata(&ct_dir, &backend)
             .expect("CT DICOM series must load without error");
 
-    // ── Modality ──────────────────────────────────────────────────────────
+    // â”€â”€ Modality â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     assert_eq!(
         metadata.modality.as_deref(),
         Some("CT"),
@@ -140,17 +140,17 @@ fn test_ct_dicom_series_metadata() {
         metadata.modality
     );
 
-    // ── Shape [nz, ny, nx] ────────────────────────────────────────────────
+    // â”€â”€ Shape [nz, ny, nx] â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let shape = image.shape();
     assert!(
         (405..=413).contains(&shape[0]),
-        "expected 409 ± 4 slices, got {}",
+        "expected 409 Â± 4 slices, got {}",
         shape[0]
     );
     assert_eq!(shape[1], 512, "expected 512 rows, got {}", shape[1]);
     assert_eq!(shape[2], 512, "expected 512 columns, got {}", shape[2]);
 
-    // ── Physical spacing [sz, sy, sx] ─────────────────────────────────────
+    // â”€â”€ Physical spacing [sz, sy, sx] â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // spacing()[0] = z (slice thickness); spacing()[1] = y (row); spacing()[2] = x (col).
     let sz = image.spacing()[0];
     let sy = image.spacing()[1];
@@ -158,17 +158,17 @@ fn test_ct_dicom_series_metadata() {
 
     assert!(
         (sz - 0.625_f64).abs() <= 0.15,
-        "z spacing (slice thickness) expected ≈ 0.625 mm ± 0.15, got {:.6}",
+        "z spacing (slice thickness) expected â‰ˆ 0.625 mm Â± 0.15, got {:.6}",
         sz
     );
     assert!(
         (sy - 0.390_625_f64).abs() <= 0.01,
-        "y spacing (row pixel spacing) expected ≈ 0.390625 mm ± 0.01, got {:.6}",
+        "y spacing (row pixel spacing) expected â‰ˆ 0.390625 mm Â± 0.01, got {:.6}",
         sy
     );
     assert!(
         (sx - 0.390_625_f64).abs() <= 0.01,
-        "x spacing (col pixel spacing) expected ≈ 0.390625 mm ± 0.01, got {:.6}",
+        "x spacing (col pixel spacing) expected â‰ˆ 0.390625 mm Â± 0.01, got {:.6}",
         sx
     );
 }
@@ -177,9 +177,9 @@ fn test_ct_dicom_series_metadata() {
 ///
 /// The MRI-DIR T2 MRI series must load with:
 /// - Modality == `"MR"`
-/// - Shape: 94 slices ± 2 tolerance
-/// - In-plane dimensions: rows ≥ 64, columns ≥ 64
-/// - Non-trivial intensity range: `min < 0.01 × max` (rules out constant,
+/// - Shape: 94 slices Â± 2 tolerance
+/// - In-plane dimensions: rows â‰¥ 64, columns â‰¥ 64
+/// - Non-trivial intensity range: `min < 0.01 Ã— max` (rules out constant,
 ///   all-zero, and binary volumes)
 ///
 /// # Reference
@@ -202,10 +202,10 @@ fn test_mri_dir_mri_series_metadata() {
 
     let backend = SequentialBackend;
     let (image, metadata): (_, DicomReadMetadata) =
-        read_native_dicom_series_with_metadata(&mri_dir, &backend)
+        read_dicom_series_with_metadata(&mri_dir, &backend)
             .expect("MRI DICOM series must load without error");
 
-    // ── Modality ──────────────────────────────────────────────────────────
+    // â”€â”€ Modality â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     assert_eq!(
         metadata.modality.as_deref(),
         Some("MR"),
@@ -213,17 +213,17 @@ fn test_mri_dir_mri_series_metadata() {
         metadata.modality
     );
 
-    // ── Shape [nz, ny, nx] ────────────────────────────────────────────────
+    // â”€â”€ Shape [nz, ny, nx] â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let shape = image.shape();
     assert!(
         (92..=96).contains(&shape[0]),
-        "expected 94 ± 2 slices, got {}",
+        "expected 94 Â± 2 slices, got {}",
         shape[0]
     );
-    assert!(shape[1] >= 64, "expected ≥64 rows, got {}", shape[1]);
-    assert!(shape[2] >= 64, "expected ≥64 columns, got {}", shape[2]);
+    assert!(shape[1] >= 64, "expected â‰¥64 rows, got {}", shape[1]);
+    assert!(shape[2] >= 64, "expected â‰¥64 columns, got {}", shape[2]);
 
-    // ── Non-trivial intensity range ───────────────────────────────────────
+    // â”€â”€ Non-trivial intensity range â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let voxels = image.data_cow_on(&backend).into_owned();
     let vmin = voxels.iter().cloned().fold(f32::INFINITY, f32::min);
     let vmax = voxels.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
@@ -235,7 +235,7 @@ fn test_mri_dir_mri_series_metadata() {
     );
     assert!(
         vmin < 0.01 * vmax,
-        "MRI min ({:.4}) must be < 0.01 × max ({:.4}) — data must have dynamic range",
+        "MRI min ({:.4}) must be < 0.01 Ã— max ({:.4}) â€” data must have dynamic range",
         vmin,
         vmax
     );
@@ -243,26 +243,26 @@ fn test_mri_dir_mri_series_metadata() {
 
 /// # Specification
 ///
-/// Given a downsampled CT sub-volume (stride = 16, yielding ≈ 26×32×32 voxels)
+/// Given a downsampled CT sub-volume (stride = 16, yielding â‰ˆ 26Ã—32Ã—32 voxels)
 /// minmax-normalized to `[0, 1]`, and a second volume derived by a cyclic
 /// 2-voxel shift in x:
 ///
 /// ```text
-/// NCC(fixed, warped_after) > NCC(fixed, moving_before) − 0.001
-/// NCC(fixed, warped_after) ≥ 0.80
+/// NCC(fixed, warped_after) > NCC(fixed, moving_before) âˆ’ 0.001
+/// NCC(fixed, warped_after) â‰¥ 0.80
 /// ```
 ///
 /// # Mathematical basis
 ///
-/// NCC ∈ `[−1, 1]`. A cyclic 2-voxel translation in x on a ≈26×32×32
-/// normalized CT volume reduces NCC from 1.0 to approximately 0.7–0.9
+/// NCC âˆˆ `[âˆ’1, 1]`. A cyclic 2-voxel translation in x on a â‰ˆ26Ã—32Ã—32
+/// normalized CT volume reduces NCC from 1.0 to approximately 0.7â€“0.9
 /// depending on the spatial frequency content of the sub-volume. A single-level
 /// BSpline FFD with `initial_control_spacing = [4, 4, 4]` and 50 gradient-
 /// descent iterations maximizes the NCC objective, recovering the shift.
-/// The assertion `NCC_after ≥ 0.80` bounds the minimum acceptable recovery.
+/// The assertion `NCC_after â‰¥ 0.80` bounds the minimum acceptable recovery.
 ///
 /// # Reference
-/// Rueckert et al., IEEE TMI 18(8):712–721, 1999 (B-spline FFD).
+/// Rueckert et al., IEEE TMI 18(8):712â€“721, 1999 (B-spline FFD).
 #[test]
 #[ignore = "requires test data"]
 fn test_bspline_ffd_mridir_ct_synthetic_shift_recovery() {
@@ -284,16 +284,16 @@ fn test_bspline_ffd_mridir_ct_synthetic_shift_recovery() {
     }
 
     let backend = SequentialBackend;
-    let (image, _metadata) = read_native_dicom_series_with_metadata(&ct_dir, &backend)
+    let (image, _metadata) = read_dicom_series_with_metadata(&ct_dir, &backend)
         .expect("CT DICOM series must load for registration test");
 
     let full_shape = image.shape();
     let raw_data = image.data_cow_on(&backend).into_owned();
 
-    // Downsample to ≈26×32×32 with stride = 16.
+    // Downsample to â‰ˆ26Ã—32Ã—32 with stride = 16.
     let (ds_data, ds_dims) = downsample_stride(&raw_data, full_shape, 16);
 
-    // Minmax-normalize to [0, 1] so NCC is interpretable against the [−1, 1] range.
+    // Minmax-normalize to [0, 1] so NCC is interpretable against the [âˆ’1, 1] range.
     let fixed = normalize_minmax(&ds_data);
 
     // Construct moving: cyclic 2-voxel shift in x.
@@ -344,7 +344,7 @@ fn test_bspline_ffd_mridir_ct_synthetic_shift_recovery() {
     );
     assert!(
         ncc_after >= 0.80,
-        "NCC after recovering 2-voxel x-shift must be ≥ 0.80, got {:.6} \
+        "NCC after recovering 2-voxel x-shift must be â‰¥ 0.80, got {:.6} \
          (ncc_before={:.6})",
         ncc_after,
         ncc_before
@@ -356,13 +356,13 @@ fn test_bspline_ffd_mridir_ct_synthetic_shift_recovery() {
 /// CT (Hounsfield units) and T2-weighted MRI (signal intensity) from the same
 /// porcine phantom must exhibit different intensity distributions:
 ///
-/// 1. CT raw range `(max − min)` must exceed 100 HU (air→soft-tissue span is
+/// 1. CT raw range `(max âˆ’ min)` must exceed 100 HU (airâ†’soft-tissue span is
 ///    > 1000 HU; even highly downsampled this bound holds).
 /// 2. CT mean and MRI mean (in their native intensity scales) must differ by
 ///    more than 1.0 unit (different acquisition physics produce different
 ///    numeric ranges).
 /// 3. The Pearson NCC between their minmax-normalized, downsampled, co-truncated
-///    flat arrays must be `< 0.95` — confirming multi-modal contrast difference
+///    flat arrays must be `< 0.95` â€” confirming multi-modal contrast difference
 ///    even in gross spatial structure.
 ///
 /// # Reference
@@ -390,10 +390,10 @@ fn test_ct_mri_pair_intensity_statistics_differ() {
     }
 
     let backend = SequentialBackend;
-    let (ct_img, _ct_meta) = read_native_dicom_series_with_metadata(&ct_dir, &backend)
-        .expect("CT DICOM series must load");
-    let (mri_img, _mri_meta) = read_native_dicom_series_with_metadata(&mri_dir, &backend)
-        .expect("MRI DICOM series must load");
+    let (ct_img, _ct_meta) =
+        read_dicom_series_with_metadata(&ct_dir, &backend).expect("CT DICOM series must load");
+    let (mri_img, _mri_meta) =
+        read_dicom_series_with_metadata(&mri_dir, &backend).expect("MRI DICOM series must load");
 
     let ct_raw = ct_img.data_cow_on(&backend).into_owned();
     let mri_raw = mri_img.data_cow_on(&backend).into_owned();
@@ -405,7 +405,7 @@ fn test_ct_mri_pair_intensity_statistics_differ() {
     let (ct_down, _ct_ds_dims) = downsample_stride(&ct_raw, ct_shape, 16);
     let (mri_down, _mri_ds_dims) = downsample_stride(&mri_raw, mri_shape, 16);
 
-    // ── Statistics on raw (unnormalized) downsampled volumes ──────────────
+    // â”€â”€ Statistics on raw (unnormalized) downsampled volumes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let ct_min = ct_down.iter().cloned().fold(f32::INFINITY, f32::min);
     let ct_max = ct_down.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
     let ct_mean: f64 = ct_down.iter().map(|&v| v as f64).sum::<f64>() / ct_down.len() as f64;
@@ -417,7 +417,7 @@ fn test_ct_mri_pair_intensity_statistics_differ() {
     // Assertion 1: CT HU range exceeds 100 (air to soft tissue > 1000 HU in-vivo).
     assert!(
         (ct_max - ct_min) as f64 > 100.0,
-        "CT range (max − min) must exceed 100 HU, got {:.2} (min={:.2}, max={:.2})",
+        "CT range (max âˆ’ min) must exceed 100 HU, got {:.2} (min={:.2}, max={:.2})",
         ct_max - ct_min,
         ct_min,
         ct_max
@@ -433,8 +433,8 @@ fn test_ct_mri_pair_intensity_statistics_differ() {
     );
 
     // Assertion 3: Normalized cross-NCC of the two modalities must be < 0.95.
-    // Volumes have different sizes after downsampling (CT: ≈26×32×32, MRI: ≈6×ny×nx);
-    // truncate to the common prefix length — sufficient to distinguish modalities.
+    // Volumes have different sizes after downsampling (CT: â‰ˆ26Ã—32Ã—32, MRI: â‰ˆ6Ã—nyÃ—nx);
+    // truncate to the common prefix length â€” sufficient to distinguish modalities.
     let ct_norm = normalize_minmax(&ct_down);
     let mri_norm = normalize_minmax(&mri_down);
     let common_len = ct_norm.len().min(mri_norm.len());
@@ -442,7 +442,7 @@ fn test_ct_mri_pair_intensity_statistics_differ() {
     // Sanity: both volumes must contribute samples to the comparison.
     assert!(
         common_len >= 256,
-        "common_len must be ≥ 256 for a meaningful cross-NCC, got {}",
+        "common_len must be â‰¥ 256 for a meaningful cross-NCC, got {}",
         common_len
     );
 

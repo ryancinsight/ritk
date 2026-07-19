@@ -3,14 +3,14 @@
 //! # Reader specification
 //!
 //! A multi-frame DICOM file stores N frames in one file:
-//! - (0028,0008) NumberOfFrames: N (absent ⇒ 1)
+//! - (0028,0008) NumberOfFrames: N (absent â‡’ 1)
 //! - (0028,0010) Rows, (0028,0011) Columns
-//! - (7FE0,0010) PixelData: `N × Rows × Cols × (BitsAllocated/8)` bytes
+//! - (7FE0,0010) PixelData: `N Ã— Rows Ã— Cols Ã— (BitsAllocated/8)` bytes
 //!
 //! ## Reader invariants
 //! - `n_frames >= 1`
 //! - Output tensor shape: `[n_frames, rows, cols]`
-//! - RescaleSlope (absent ⇒ 1.0) and RescaleIntercept (absent ⇒ 0.0) applied.
+//! - RescaleSlope (absent â‡’ 1.0) and RescaleIntercept (absent â‡’ 0.0) applied.
 //! - 8-bit and 16-bit BitsAllocated are both supported.
 //! - ImagePositionPatient (0020,0032) sets the image origin when present.
 //! - ImageOrientationPatient (0020,0037) sets the direction matrix when present;
@@ -18,7 +18,7 @@
 //!
 //! # Writer specification (`write_dicom_multiframe`)
 //!
-//! Writes a 3-D `Image<B, 3>` with shape `[n_frames, rows, cols]` as a single
+//! Writes a 3-D `Image<f32, B, 3>` with shape `[n_frames, rows, cols]` as a single
 //! DICOM Part 10 file. The writer enforces the following constraints:
 //!
 //! ## Encoding constraints
@@ -46,7 +46,7 @@
 //!
 //! ## Interoperability limits
 //! - The file is readable by `load_dicom_multiframe` (round-trip invariant:
-//!   |recovered − original| ≤ rescale_slope + 1.0).
+//!   |recovered âˆ’ original| â‰¤ rescale_slope + 1.0).
 //! - DICOM conformance: the file satisfies the Multi-Frame Grayscale Word SC IOD
 //!   but does NOT carry a conformance statement or General Series / Frame Of
 //!   Reference modules required for Enhanced Multi-Frame objects.

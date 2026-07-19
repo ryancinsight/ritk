@@ -1,11 +1,10 @@
 use super::*;
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::test_support::make_image;
+use ritk_image::Image as NativeImage;
 
-type LegacyBackend = NdArray<f32>;
+type LegacyBackend = SequentialBackend;
 
 fn assert_native_case<A: AutoThreshold>(
     algorithm: &A,
@@ -24,7 +23,7 @@ fn assert_native_case<A: AutoThreshold>(
         &SequentialBackend,
     )
     .expect("invariant: valid native image");
-    let legacy = make_image::<LegacyBackend, 3>(values, dimensions);
+    let legacy = make_image::<f32, LegacyBackend, 3>(values, dimensions);
 
     let native_threshold = algorithm
         .compute_native(&native)
@@ -46,7 +45,9 @@ fn assert_native_case<A: AutoThreshold>(
     assert_eq!(*native_mask.direction(), direction);
     assert_eq!(
         native_mask.data_slice().expect("contiguous native mask"),
-        legacy_mask.data_slice().as_ref()
+        legacy_mask
+            .data_slice()
+            .expect("invariant: contiguous host storage")
     );
     assert_eq!(
         native_mask_only

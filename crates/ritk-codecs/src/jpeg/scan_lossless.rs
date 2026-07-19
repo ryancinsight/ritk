@@ -1,18 +1,18 @@
 //! JPEG lossless (SOF3) scan decode.
 //!
 //! # Specification
-//! ITU-T T.81 §H: Lossless sequential Huffman-coded JPEG.
+//! ITU-T T.81 Â§H: Lossless sequential Huffman-coded JPEG.
 //! Each sample is decoded as: Rx = clamp(predictor(Ra,Rb,Rc) + diff, 0, MAXVAL)
 //! where diff is Huffman-coded using the DC Huffman table.
 //!
-//! Predictors (T.81 §H.1.2):
+//! Predictors (T.81 Â§H.1.2):
 //!   Ss=1: Ra       Ss=2: Rb       Ss=3: Rc
 //!   Ss=4: Ra+Rb-Rc Ss=5: Ra+((Rb-Rc)>>1)
 //!   Ss=6: Rb+((Ra-Rc)>>1) Ss=7: (Ra+Rb)>>1
 //!
 //! Initial conditions (first row and first column of each row):
-//!   - (0,0): predictor = 2^(P−Pt−1)  where P=precision, Pt=point_transform
-//!   - row=0, x>0: use predictor Ss=1 (Ra=left) — equivalent to predicting left
+//!   - (0,0): predictor = 2^(Pâˆ’Ptâˆ’1)  where P=precision, Pt=point_transform
+//!   - row=0, x>0: use predictor Ss=1 (Ra=left) â€” equivalent to predicting left
 //!   - row>0, x=0: use Rb (above pixel) as predictor
 
 use anyhow::{bail, Context, Result};
@@ -39,7 +39,7 @@ fn predict(ra: i32, rb: i32, rc: i32, ss: u8) -> i32 {
 /// Decode a JPEG Lossless (SOF3) scan.
 ///
 /// Returns `JpegDecoded` with:
-/// - `pixel_format = L8`  for precision ≤ 8
+/// - `pixel_format = L8`  for precision â‰¤ 8
 /// - `pixel_format = L16` for precision 9..=16 (2 bytes per pixel, native endian)
 /// - Multi-component images are not supported; single-component only.
 pub(crate) fn decode_lossless_scan(
@@ -147,7 +147,7 @@ pub(crate) fn decode_lossless_scan(
             pixels,
         })
     } else {
-        // 9–16 bit: pack as native-endian u16.
+        // 9â€“16 bit: pack as native-endian u16.
         let mut pixels = Vec::with_capacity(n_pixels * 2);
         for s in samples {
             pixels.extend_from_slice(&(s as u16).to_ne_bytes());
@@ -166,10 +166,10 @@ pub(crate) mod tests {
     use super::*;
     use crate::jpeg::marker::parse_jpeg;
 
-    /// Hand-crafted lossless 8-bit 1×1 JPEG fixture.
-    /// Huffman: BITS=[1,0,...], HUFFVAL=[0] (one code of length 1 → symbol 0).
-    /// Predictor Ss=1 (Ra). Initial predictor = 2^7 = 128. diff=0 → pixel=128.
-    /// Entropy byte 0x7F: first bit is 0 → Huffman code 0 → category 0 → diff=0.
+    /// Hand-crafted lossless 8-bit 1Ã—1 JPEG fixture.
+    /// Huffman: BITS=[1,0,...], HUFFVAL=[0] (one code of length 1 â†’ symbol 0).
+    /// Predictor Ss=1 (Ra). Initial predictor = 2^7 = 128. diff=0 â†’ pixel=128.
+    /// Entropy byte 0x7F: first bit is 0 â†’ Huffman code 0 â†’ category 0 â†’ diff=0.
     pub(crate) fn lossless_8bit_fixture() -> Vec<u8> {
         vec![
             0xFF, 0xD8, // SOI
@@ -192,16 +192,16 @@ pub(crate) mod tests {
             0x01, // Ss=1 (predictor Ra)
             0x00, // Se=0
             0x00, // Ah=0, Al=0
-            0x7F, // entropy: bit 0 → Huffman→category=0 → diff=0 → pixel=128
+            0x7F, // entropy: bit 0 â†’ Huffmanâ†’category=0 â†’ diff=0 â†’ pixel=128
             0xFF, 0xD9, // EOI
         ]
     }
 
-    /// Hand-crafted lossless 16-bit 1×1 JPEG fixture.
-    /// Huffman: BITS=[1,0,...], HUFFVAL=[15] (one code of length 1 → symbol 15).
-    /// Initial predictor = 2^15 = 32768. diff=-28108 → pixel = 32768-28108 = 4660 = 0x1234.
-    /// Entropy [0x12,0x33]: first bit 0 → category 15, next 15 bits = 0x1233=4659,
-    /// receive_and_extend(15): 4659 < 2^14 → negative → 4659-32767 = -28108.
+    /// Hand-crafted lossless 16-bit 1Ã—1 JPEG fixture.
+    /// Huffman: BITS=[1,0,...], HUFFVAL=[15] (one code of length 1 â†’ symbol 15).
+    /// Initial predictor = 2^15 = 32768. diff=-28108 â†’ pixel = 32768-28108 = 4660 = 0x1234.
+    /// Entropy [0x12,0x33]: first bit 0 â†’ category 15, next 15 bits = 0x1233=4659,
+    /// receive_and_extend(15): 4659 < 2^14 â†’ negative â†’ 4659-32767 = -28108.
     pub(crate) fn lossless_16bit_fixture() -> Vec<u8> {
         vec![
             0xFF, 0xD8, 0xFF, 0xC3, 0x00, 0x0B, 0x10, // precision 16

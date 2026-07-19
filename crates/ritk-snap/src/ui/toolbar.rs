@@ -3,24 +3,24 @@
 //! # Layout
 //!
 //! ```text
-//! [File ▾] | [Image ▾] | [Tools ▾] | [View ▾] | [Help ▾]
+//! [File â–¾] | [Image â–¾] | [Tools â–¾] | [View â–¾] | [Help â–¾]
 //! ```
 //!
 //! **File Menu:**
-//! - Open DICOM Folder…
-//! - Open File (NIfTI/MetaImage/…)…
+//! - Open DICOM Folderâ€¦
+//! - Open File (NIfTI/MetaImage/â€¦)â€¦
 //! - Open Recent
 //! - Close Study
-//! - ─────────────────
-//! - Save Segmentation…
-//! - Export Surface (VTK)…
-//! - Export Slices (PNG)…
-//! - ─────────────────
+//! - â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//! - Save Segmentationâ€¦
+//! - Export Surface (VTK)â€¦
+//! - Export Slices (PNG)â€¦
+//! - â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //! - Exit
 //!
 //! **Image Menu:**
-//! - Window/Level Presets → (Brain, Lung, Bone, Soft Tissue, Custom)
-//! - Colormap → (Grayscale, Hot, Jet, Plasma, Viridis, Turbo, Phase, Seismic)
+//! - Window/Level Presets â†’ (Brain, Lung, Bone, Soft Tissue, Custom)
+//! - Colormap â†’ (Grayscale, Hot, Jet, Plasma, Viridis, Turbo, Phase, Seismic)
 //! - Manual W/C DragValues
 //!
 //! **Tools Menu:**
@@ -36,8 +36,8 @@
 //! - Query HU (Ctrl+0)
 //!
 //! **View Menu:**
-//! - Layout → (Single, 2×2, 1+3, 3+1, Side-by-Side)
-//! - ─────────────────
+//! - Layout â†’ (Single, 2Ã—2, 1+3, 3+1, Side-by-Side)
+//! - â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //! - Show Series Browser (Ctrl+B)
 //! - Show Metadata Panel (Ctrl+M)
 //! - Show Measurements (Ctrl+A)
@@ -62,7 +62,7 @@ use crate::{
     ui::{layout::LayoutMode, window_presets::WindowPreset},
 };
 
-// ── ToolbarState ──────────────────────────────────────────────────────────────
+// â”€â”€ ToolbarState â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Persistent toolbar state shared across frames.
 #[derive(Debug, Clone)]
@@ -91,7 +91,7 @@ impl Default for ToolbarState {
     }
 }
 
-// ── ToolbarPanel ──────────────────────────────────────────────────────────────
+// â”€â”€ ToolbarPanel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Ephemeral toolbar widget; borrows mutable references for one `update()` call.
 pub struct ToolbarPanel<'a> {
@@ -130,12 +130,12 @@ impl<'a> ToolbarPanel<'a> {
         let mut layout_changed = false;
 
         ui.horizontal(|ui| {
-            // ── File Menu ─────────────────────────────────────────────────
-            ui.menu_button("📂 File", |ui| {
-                if ui.button("Open DICOM Folder…").clicked() {
+            // â”€â”€ File Menu â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            ui.menu_button("ðŸ“‚ File", |ui| {
+                if ui.button("Open DICOM Folderâ€¦").clicked() {
                     ui.close_menu();
                 }
-                if ui.button("Open File (NIfTI/MetaImage/…)…").clicked() {
+                if ui.button("Open File (NIfTI/MetaImage/â€¦)â€¦").clicked() {
                     ui.close_menu();
                 }
                 ui.separator();
@@ -143,15 +143,15 @@ impl<'a> ToolbarPanel<'a> {
                     ui.close_menu();
                 }
                 ui.separator();
-                if ui.button("Save Segmentation…").clicked() {
+                if ui.button("Save Segmentationâ€¦").clicked() {
                     ui.close_menu();
                 }
                 if ui
                     .menu_button("Export", |ui| {
-                        if ui.button("Surface as VTK…").clicked() {
+                        if ui.button("Surface as VTKâ€¦").clicked() {
                             ui.close_menu();
                         }
-                        if ui.button("Slices as PNG…").clicked() {
+                        if ui.button("Slices as PNGâ€¦").clicked() {
                             ui.close_menu();
                         }
                     })
@@ -168,8 +168,8 @@ impl<'a> ToolbarPanel<'a> {
 
             ui.separator();
 
-            // ── Image Menu (Presets, Colormap, W/L) ───────────────────────
-            ui.menu_button("🎨 Image", |ui| {
+            // â”€â”€ Image Menu (Presets, Colormap, W/L) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            ui.menu_button("ðŸŽ¨ Image", |ui| {
                 ui.label("Window/Level Presets:");
                 let presets = WindowPreset::for_modality(self.modality_hint);
                 for preset in presets {
@@ -212,8 +212,8 @@ impl<'a> ToolbarPanel<'a> {
 
             ui.separator();
 
-            // ── Tools Menu ────────────────────────────────────────────────
-            ui.menu_button("🔨 Tools", |ui| {
+            // â”€â”€ Tools Menu â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            ui.menu_button("ðŸ”¨ Tools", |ui| {
                 for &tool in ToolKind::all() {
                     let is_active = self.state.active_tool == tool;
                     let label = format!("{} {}", tool.icon(), tool.label());
@@ -226,8 +226,8 @@ impl<'a> ToolbarPanel<'a> {
 
             ui.separator();
 
-            // ── View Menu (Layout, Panels) ────────────────────────────────
-            ui.menu_button("👁 View", |ui| {
+            // â”€â”€ View Menu (Layout, Panels) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            ui.menu_button("ðŸ‘ View", |ui| {
                 ui.label("Layout Mode:");
                 for &mode in LayoutMode::all() {
                     if ui
@@ -242,7 +242,7 @@ impl<'a> ToolbarPanel<'a> {
                 ui.separator();
 
                 let browser_label = if self.state.show_series_browser {
-                    "✓ Series Browser (Ctrl+B)"
+                    "âœ“ Series Browser (Ctrl+B)"
                 } else {
                     "  Series Browser (Ctrl+B)"
                 };
@@ -252,7 +252,7 @@ impl<'a> ToolbarPanel<'a> {
                 }
 
                 let metadata_label = if self.state.show_metadata_panel {
-                    "✓ Metadata Panel (Ctrl+M)"
+                    "âœ“ Metadata Panel (Ctrl+M)"
                 } else {
                     "  Metadata Panel (Ctrl+M)"
                 };
@@ -262,7 +262,7 @@ impl<'a> ToolbarPanel<'a> {
                 }
 
                 let meas_label = if self.state.show_measurements {
-                    "✓ Measurements (Ctrl+A)"
+                    "âœ“ Measurements (Ctrl+A)"
                 } else {
                     "  Measurements (Ctrl+A)"
                 };
@@ -274,8 +274,8 @@ impl<'a> ToolbarPanel<'a> {
 
             ui.separator();
 
-            // ── Help Menu ─────────────────────────────────────────────────
-            ui.menu_button("❓ Help", |ui| {
+            // â”€â”€ Help Menu â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            ui.menu_button("â“ Help", |ui| {
                 if ui.button("Keyboard Shortcuts").clicked() {
                     ui.close_menu();
                 }
@@ -289,7 +289,7 @@ impl<'a> ToolbarPanel<'a> {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 mod tests {

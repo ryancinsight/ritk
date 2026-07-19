@@ -1,5 +1,5 @@
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 
 pub(crate) fn from_values<B, const D: usize>(
     source: &Image<f32, B, D>,

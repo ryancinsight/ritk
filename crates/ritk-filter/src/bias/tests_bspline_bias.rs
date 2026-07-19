@@ -106,7 +106,7 @@ fn mba_preserves_low_frequency_ramp() {
 fn mba_fit_of_zero_is_zero() {
     let dims = [8usize, 8, 8];
     let cg = [4usize, 4, 4];
-    let ctrl = bspline_fit(&vec![0.0f32; 8 * 8 * 8], dims, cg).expect("bspline_fit failed");
+    let ctrl = bspline_fit(&[0.0f32; 8 * 8 * 8], dims, cg).expect("bspline_fit failed");
     let approx = bspline_evaluate(&ctrl, cg, dims);
     let max_abs = approx.iter().fold(0.0f32, |m, &v| m.max(v.abs()));
     assert!(

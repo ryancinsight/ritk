@@ -17,7 +17,7 @@ fn test_filter_cpr_creates_output() {
 
     run_cpr(&args).expect("CPR must succeed");
     let output =
-        crate::commands::read_image_native(&output).expect("CPR output must be natively readable");
+        crate::commands::read_image(&output).expect("CPR output must be natively readable");
     assert_eq!(
         output.shape(),
         [1, 16, 32],

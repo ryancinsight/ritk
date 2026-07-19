@@ -1,25 +1,19 @@
 //! Tests for binary_closing
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use crate::native_support::LegacyBurnBackend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(vals, dims)
+fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(vals, dims)
 }
 
-fn flat(img: &Image<B, 3>) -> Vec<f32> {
-    img.data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn flat(img: &Image<f32, B, 3>) -> Vec<f32> {
+    img.data().to_vec()
 }
 
 /// T1: Radius-0 closing is identity.
@@ -31,19 +25,19 @@ fn radius_zero_is_identity() {
     assert_eq!(flat(&out), vals);
 }
 
-/// T2: Extensivity — interior fg voxels survive closing.
+/// T2: Extensivity â€” interior fg voxels survive closing.
 ///
-/// For any f and B: C_B(f)(x) ≥ f(x) for interior voxels.
-/// Uses 3×3×9 image with fg at (1,1,{2..6}) — all interior voxels at
-/// distance ≥1 from every border face in Z and Y.
+/// For any f and B: C_B(f)(x) â‰¥ f(x) for interior voxels.
+/// Uses 3Ã—3Ã—9 image with fg at (1,1,{2..6}) â€” all interior voxels at
+/// distance â‰¥1 from every border face in Z and Y.
 ///
 /// Proof that fg voxels survive:
-/// 1. Dilate r=1: fg expands to iz∈{0..2}, iy∈{0..2}, ix∈{1..7}.
-/// 2. Erode dilated r=1: iz=1, iy=1, ix∈{2..6} all have full SE in-bounds
-///    and fg in dilated → all original fg voxels preserved.
+/// 1. Dilate r=1: fg expands to izâˆˆ{0..2}, iyâˆˆ{0..2}, ixâˆˆ{1..7}.
+/// 2. Erode dilated r=1: iz=1, iy=1, ixâˆˆ{2..6} all have full SE in-bounds
+///    and fg in dilated â†’ all original fg voxels preserved.
 #[test]
 fn extensivity_no_foreground_lost() {
-    let mut vals = vec![0.0_f32; 81]; // 3×3×9
+    let mut vals = vec![0.0_f32; 81]; // 3Ã—3Ã—9
     for ix in 2..=6usize {
         vals[1 * 27 + 1 * 9 + ix] = 1.0;
     }
@@ -62,17 +56,17 @@ fn extensivity_no_foreground_lost() {
 
 /// T3: Gap filling by closing in a proper 3D volume.
 ///
-/// 3×3×7 image: fg at (1,1,{1,2,4,5}), bg at (1,1,{0,3,6}) and all other voxels.
+/// 3Ã—3Ã—7 image: fg at (1,1,{1,2,4,5}), bg at (1,1,{0,3,6}) and all other voxels.
 /// The single-voxel gap at (1,1,3) separates two fg blobs.
 ///
 /// Closing analysis:
 /// 1. Dilate r=1: the two blobs expand and bridge the gap at ix=3. The
-///    dilated image covers iz∈{0..2}, iy∈{0..2}, ix∈{0..6} (all 63 voxels).
-/// 2. Erode all-fg 3×3×7 r=1: iz=1, iy=1, ix∈{1..5} survive.
-///    Voxel (1,1,3) flat index = 1*21+1*7+3 = 31 → present in output.
+///    dilated image covers izâˆˆ{0..2}, iyâˆˆ{0..2}, ixâˆˆ{0..6} (all 63 voxels).
+/// 2. Erode all-fg 3Ã—3Ã—7 r=1: iz=1, iy=1, ixâˆˆ{1..5} survive.
+///    Voxel (1,1,3) flat index = 1*21+1*7+3 = 31 â†’ present in output.
 #[test]
 fn small_hole_filled_by_closing() {
-    let mut vals = vec![0.0_f32; 63]; // 3×3×7
+    let mut vals = vec![0.0_f32; 63]; // 3Ã—3Ã—7
     for ix in [1usize, 2, 4, 5] {
         vals[1 * 21 + 1 * 7 + ix] = 1.0;
     }
@@ -96,7 +90,7 @@ fn all_background_stays_background() {
 /// Closing an all-fg image: dilate(fg) = fg, erode(fg) = fg.
 #[test]
 fn all_foreground_stays_foreground() {
-    // Use a 5×5×5 volume; inner voxels survive erosion.
+    // Use a 5Ã—5Ã—5 volume; inner voxels survive erosion.
     let img = make_image(vec![1.0; 125], [5, 5, 5]);
     let out = BinaryMorphologicalClosing::new(1).apply(&img).unwrap();
     let result = flat(&out);
@@ -104,7 +98,7 @@ fn all_foreground_stays_foreground() {
     assert_eq!(result[62], 1.0);
 }
 
-/// T6: Idempotence — applying closing twice gives the same result as once.
+/// T6: Idempotence â€” applying closing twice gives the same result as once.
 #[test]
 fn idempotence() {
     let vals: Vec<f32> = vec![0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0];
@@ -117,15 +111,12 @@ fn idempotence() {
 /// T7: Spatial metadata preserved.
 #[test]
 fn spatial_metadata_preserved() {
-    let device = Default::default();
     let origin = Point::new([1.0, 0.0, 0.0]);
     let spacing = Spacing::new([2.0, 2.0, 2.0]);
     let direction = Direction::identity();
-    let t = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![1.0_f32; 27], Shape::new([3, 3, 3])),
-        &device,
-    );
-    let img = Image::new(t, origin, spacing, direction);
+    let t = Tensor::<f32, B>::from_slice([3, 3, 3], &[1.0_f32; 27]);
+    let img = Image::new(t, origin, spacing, direction)
+        .expect("invariant: fixture tensor has the declared rank");
     let out = BinaryMorphologicalClosing::new(1).apply(&img).unwrap();
     assert_eq!(*out.origin(), origin);
     assert_eq!(*out.spacing(), spacing);

@@ -1,7 +1,7 @@
 //! Flat-buffer native trilinear interpolation.
 //!
 //! Zero-copy path for callers that already hold contiguous host buffers and
-//! do not need the `ritk_image::native::Image` wrapper overhead. The function
+//! do not need the `ritk_image::Image` wrapper overhead. The function
 //! here is a SSOT for the flat-buffer trilinear kernel; the Image-backed sister
 //! in [`crate::interpolation::trilinear_interpolation`] delegates to the same
 //! math via `coeus_ops::linear_interpolation`.

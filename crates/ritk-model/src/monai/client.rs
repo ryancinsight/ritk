@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 use tracing::{debug, instrument};
 
-// ── MonaiLabelClient ──────────────────────────────────────────────────────────
+// â”€â”€ MonaiLabelClient â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Synchronous REST client for MONAI Label Server inference endpoints.
 ///
@@ -56,7 +56,7 @@ impl MonaiLabelClient {
         }
     }
 
-    // ── GET /info ─────────────────────────────────────────────────────────────
+    // â”€â”€ GET /info â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Retrieve server metadata from `GET /info`.
     ///
@@ -78,11 +78,11 @@ impl MonaiLabelClient {
         Ok(info)
     }
 
-    // ── GET /models ───────────────────────────────────────────────────────────
+    // â”€â”€ GET /models â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// List available inference models from `GET /models`.
     ///
-    /// MONAI returns a JSON object mapping model-name → model-metadata.  The model
+    /// MONAI returns a JSON object mapping model-name â†’ model-metadata.  The model
     /// `name` field is injected from the map key when absent in the value object.
     #[instrument(skip(self), fields(base_url = %self.base_url))]
     pub fn models(&self) -> Result<Vec<ModelInfo>, MonaiError> {
@@ -111,14 +111,14 @@ impl MonaiLabelClient {
             .collect()
     }
 
-    // ── POST /infer/{model} ───────────────────────────────────────────────────
+    // â”€â”€ POST /infer/{model} â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Run AI inference via `POST /infer/{model}?image={image_id}`.
     ///
     /// `request.params` is serialised as JSON in the request body.  The server
     /// responds with `multipart/form-data` containing:
-    /// - `label`  — binary NIfTI segmentation mask.
-    /// - `params` — JSON inference metadata (timing, confidence, model version).
+    /// - `label`  â€” binary NIfTI segmentation mask.
+    /// - `params` â€” JSON inference metadata (timing, confidence, model version).
     ///
     /// # Errors
     ///
@@ -150,7 +150,7 @@ impl MonaiLabelClient {
     }
 }
 
-// ── Response parser ───────────────────────────────────────────────────────────
+// â”€â”€ Response parser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Parse a MONAI Label Server multipart infer response into [`InferResponse`].
 ///

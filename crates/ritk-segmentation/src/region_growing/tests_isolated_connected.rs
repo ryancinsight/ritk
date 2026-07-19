@@ -1,16 +1,15 @@
 use super::{IsolatedConnectedConfig, IsolatedConnectedFilter, IsolationThreshold};
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
-fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(data, dims)
+fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(data, dims)
 }
 
 fn two_blob_values(bridge: f32) -> Vec<f32> {
@@ -126,7 +125,12 @@ fn native_and_legacy_outputs_are_exact_with_nonidentity_geometry() {
     assert_eq!(actual.thresholding_failed(), expected.thresholding_failed());
     let expected = expected.into_image();
     let actual = actual.into_image();
-    assert_eq!(actual.data_slice().unwrap(), expected.data_slice().as_ref());
+    assert_eq!(
+        actual.data_slice().unwrap(),
+        expected
+            .data_slice()
+            .expect("invariant: contiguous host storage")
+    );
     assert_eq!(*actual.origin(), origin);
     assert_eq!(*actual.spacing(), spacing);
     assert_eq!(*actual.direction(), direction);

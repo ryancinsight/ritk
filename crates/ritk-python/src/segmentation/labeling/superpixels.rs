@@ -17,7 +17,7 @@ use ritk_segmentation::{
 /// volumes are handled as genuine 2-D images).
 ///
 /// Args:
-///     image: scalar image (`z==1` ⇒ 2-D).
+///     image: scalar image (`z==1` â‡’ 2-D).
 ///     super_grid_size: uniform per-axis grid step (sitk `superGridSize`).
 ///     spatial_proximity_weight: sitk `spatialProximityWeight` (default 10.0).
 ///     maximum_number_of_iterations: sitk `maximumNumberOfIterations` (default 5).

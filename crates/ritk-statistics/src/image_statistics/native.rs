@@ -1,11 +1,11 @@
 //! Coeus-backed image statistics boundary.
 //!
 //! The statistical algorithm remains owned by the parent module.  This module
-//! only adapts `ritk_image::native::Image` into borrowed host slices through the
+//! only adapts `ritk_image::Image` into borrowed host slices through the
 //! Coeus tensor-ops migration seam.
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_tensor_ops::native as tensor_ops;
 
 use super::{compute_from_owned, compute_statistics_from_slice, ImageStatistics};

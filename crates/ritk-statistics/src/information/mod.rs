@@ -5,11 +5,11 @@
 //!
 //! ```text
 //! information/
-//! ├── entropy.rs            — H(X), H(X,Y), H(X₁,…,Xₙ)
+//! â”œâ”€â”€ entropy.rs            â€” H(X), H(X,Y), H(Xâ‚,â€¦,Xâ‚™)
 //! ├── mutual_information.rs — I(X;Y), NMI(X,Y), I(X;Y|Z), II(X;Y;Z)
-//! ├── variation_of_information.rs — VI(X,Y), VI_n(X₁,…,Xₙ)
-//! ├── total_correlation.rs  — TC(X₁,…,Xₙ)         (Watanabe 1960)
-//! ├── o_information.rs      — DTC(X₁,…,Xₙ), Ω     (Han 1978; Rosas 2019)
+//! â”œâ”€â”€ variation_of_information.rs â€” VI(X,Y), VI_n(Xâ‚,â€¦,Xâ‚™)
+//! â”œâ”€â”€ total_correlation.rs  â€” TC(Xâ‚,â€¦,Xâ‚™)         (Watanabe 1960)
+//! â”œâ”€â”€ o_information.rs      â€” DTC(Xâ‚,â€¦,Xâ‚™), Î©     (Han 1978; Rosas 2019)
 //! └── tests/                — unit tests per submodule
 //! ```
 

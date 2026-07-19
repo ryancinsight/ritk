@@ -1,7 +1,7 @@
 //! Derivatives, Laplacian, and Sobel gradient filters.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     DerivativeImageFilter, GradientMagnitudeFilter, LaplacianFilter, LaplacianSharpeningFilter,
@@ -27,19 +27,19 @@ pub fn derivative(
             "derivative: direction must be 0 (x), 1 (y), or 2 (z); got {direction}"
         )));
     }
-    // sitk direction [x,y,z] → ritk tensor axis [z,y,x].
+    // sitk direction [x,y,z] â†’ ritk tensor axis [z,y,x].
     let axis = 2 - direction;
     // TODO: DerivativeImageFilter still lacks apply_native; keep Burn roundtrip for now.
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     py.allow_threads(|| {
         DerivativeImageFilter::new(axis, order, use_image_spacing)
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
-/// Compute the gradient magnitude |∇I| via central finite differences.
+/// Compute the gradient magnitude |âˆ‡I| via central finite differences.
 ///
 /// Each gradient component is divided by the corresponding physical spacing so
 /// the result is in (intensity / mm) units.
@@ -64,10 +64,10 @@ pub fn gradient_magnitude(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage
     .map(into_py_image)
 }
 
-/// Compute the discrete Laplacian ∇²I = ∂²I/∂z² + ∂²I/∂y² + ∂²I/∂x².
+/// Compute the discrete Laplacian âˆ‡Â²I = âˆ‚Â²I/âˆ‚zÂ² + âˆ‚Â²I/âˆ‚yÂ² + âˆ‚Â²I/âˆ‚xÂ².
 ///
 /// Uses second-order central finite differences with the image's physical
-/// spacing, so the result is in (intensity / mm²) units.
+/// spacing, so the result is in (intensity / mmÂ²) units.
 ///
 /// Args:
 ///     image: Input PyImage.
@@ -95,11 +95,11 @@ pub fn laplacian(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 /// The Laplacian is rescaled into the input intensity range, subtracted from the
 /// input, mean-restored, and clamped to the input range. With
 /// `use_image_spacing` (default, ITK default) each axis second-derivative is
-/// divided by `spacing²`. All intermediate computation is in f64.
+/// divided by `spacingÂ²`. All intermediate computation is in f64.
 ///
 /// Args:
 ///     image: Input PyImage.
-///     use_image_spacing: Scale the Laplacian by `1/spacing²` per axis (default True).
+///     use_image_spacing: Scale the Laplacian by `1/spacingÂ²` per axis (default True).
 ///
 /// Returns:
 ///     Sharpened PyImage, same shape and metadata as input.
@@ -111,14 +111,14 @@ pub fn laplacian_sharpening(
     use_image_spacing: bool,
 ) -> RitkResult<PyImage> {
     // TODO: LaplacianSharpeningFilter still lacks apply_native; keep Burn roundtrip for now.
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let out = py.allow_threads(|| LaplacianSharpeningFilter::new(use_image_spacing).apply(&arc));
-    Ok(burn_into_py_image(out))
+    Ok(into_py_image(out))
 }
 
 /// Compute the Sobel gradient magnitude of an image.
 ///
-/// Applies the 3×3×3 Sobel operator along each axis, scaled by the image's
+/// Applies the 3Ã—3Ã—3 Sobel operator along each axis, scaled by the image's
 /// physical spacing, then returns the Euclidean magnitude of the gradient
 /// vector.
 ///
@@ -134,7 +134,7 @@ pub fn laplacian_sharpening(
 #[pyfunction]
 pub fn sobel_gradient(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     // TODO: SobelFilter still lacks apply_native; keep Burn roundtrip for now.
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         let spacing = image.spacing();
         let filter = SobelFilter::new(*spacing);
@@ -142,5 +142,5 @@ pub fn sobel_gradient(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

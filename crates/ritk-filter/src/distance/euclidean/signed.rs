@@ -10,12 +10,12 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 ///
 /// Convention:
 /// - Background voxels: `+dist` (positive = outside the object)
-/// - Foreground voxels: `−dist` (negative = inside the object, distance to nearest background)
+/// - Foreground voxels: `âˆ’dist` (negative = inside the object, distance to nearest background)
 ///
 /// # Mathematical Specification
 ///
-/// `SEDT(x) = EDT_bg(x)` if `in(x) ≤ threshold` (outside object)
-/// `SEDT(x) = −EDT_fg(x)` if `in(x) > threshold` (inside object)
+/// `SEDT(x) = EDT_bg(x)` if `in(x) â‰¤ threshold` (outside object)
+/// `SEDT(x) = âˆ’EDT_fg(x)` if `in(x) > threshold` (inside object)
 ///
 /// where `EDT_bg` = distance to nearest background voxel **centre**, `EDT_fg` =
 /// distance to nearest foreground voxel **centre**.
@@ -23,10 +23,10 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 /// # Parity
 ///
 /// Float-exact to `scipy.ndimage.distance_transform_edt` applied to each region
-/// (signed: `−edt(mask)` inside, `+edt(¬mask)` outside), with `UseImageSpacing`.
-/// This is **distance to the nearest opposite-class voxel centre** — it does NOT
+/// (signed: `âˆ’edt(mask)` inside, `+edt(Â¬mask)` outside), with `UseImageSpacing`.
+/// This is **distance to the nearest opposite-class voxel centre** â€” it does NOT
 /// match ITK `SignedMaurerDistanceMapImageFilter`, which measures distance to the
-/// object *boundary/interface* (the two differ by up to √2 voxel; an earlier doc
+/// object *boundary/interface* (the two differ by up to âˆš2 voxel; an earlier doc
 /// claimed Maurer parity in error).
 #[derive(Debug, Clone)]
 pub struct SignedDistanceTransformImageFilter {
@@ -56,7 +56,7 @@ impl SignedDistanceTransformImageFilter {
         self.threshold
     }
 
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let dims = image.shape();
         let [nz, ny, nx] = dims;
         let (vals, _shape) = extract_vec_infallible(image);
@@ -75,9 +75,9 @@ impl SignedDistanceTransformImageFilter {
 
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

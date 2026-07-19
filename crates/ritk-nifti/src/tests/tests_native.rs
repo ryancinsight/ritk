@@ -7,7 +7,7 @@ use coeus_core::SequentialBackend;
 
 #[test]
 fn read_nifti_native_preserves_shape_and_voxels() {
-    // 2×2×2 cube: file order (x-fastest) equals output [z, y, x] order, so the
+    // 2Ã—2Ã—2 cube: file order (x-fastest) equals output [z, y, x] order, so the
     // decoded voxels equal the input sequence 0..8 element-for-element.
     let header = NiftiHeader::new_3d(
         HeaderDims {
@@ -61,15 +61,9 @@ fn test_volume() -> (Vec<f32>, [usize; 3], Point<3>, Spacing<3>, Direction<3>) {
 fn native_writer_round_trips_through_native_reader() {
     let (voxels, dims, origin, spacing, direction) = test_volume();
     let backend = SequentialBackend;
-    let image = ritk_image::native::Image::from_flat_on(
-        voxels.clone(),
-        dims,
-        origin,
-        spacing,
-        direction,
-        &backend,
-    )
-    .expect("native image");
+    let image =
+        ritk_image::Image::from_flat_on(voxels.clone(), dims, origin, spacing, direction, &backend)
+            .expect("native image");
 
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("coeus_roundtrip.nii");

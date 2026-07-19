@@ -1,17 +1,16 @@
-//! Transform sub-modules — the concrete transform types moved from ritk-core.
+//! Transform sub-modules â€” the concrete transform types moved from ritk-core.
 //!
 //! Module declarations match the original `ritk-core/src/transform/` layout.
 
-// ── Transform trait (from ritk-core) ─────────────────────────────────────────
+// â”€â”€ Transform trait (from ritk-core) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub use ritk_core::transform::{Resampleable, Transform};
 
-// ── Sub-modules ──────────────────────────────────────────────────────────────
+// â”€â”€ Sub-modules â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub mod affine;
-pub mod bspline;
 pub mod composition;
 pub mod displacement_field;
 
-// ── Concrete type re-exports ─────────────────────────────────────────────────
+// â”€â”€ Concrete type re-exports â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // Affine family
 pub use affine::affine::AffineTransform;
@@ -19,9 +18,6 @@ pub use affine::rigid::RigidTransform;
 pub use affine::scale::ScaleTransform;
 pub use affine::translation::TranslationTransform;
 pub use affine::versor::VersorRigid3DTransform;
-
-// B-spline
-pub use bspline::BSplineTransform;
 
 // Composition
 pub use composition::chain::ChainedTransform;

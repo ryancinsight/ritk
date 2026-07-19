@@ -1,8 +1,8 @@
-//! Differential encoder↔decoder round-trip tests.
+//! Differential encoderâ†”decoder round-trip tests.
 //!
 //! The encoder ([`encoder::encode_grayscale_jpeg_ls`]) and the scan decoder
 //! are independent code paths over the shared context model; lossless coding
-//! (NEAR = 0) requires exact reconstruction: `decoded[i] == original[i]` ∀ i.
+//! (NEAR = 0) requires exact reconstruction: `decoded[i] == original[i]` âˆ€ i.
 
 use super::*;
 use crate::jpeg_ls::encoder::encode_grayscale_jpeg_ls;
@@ -100,7 +100,7 @@ fn round_trip_single_pixel() {
 
 proptest::proptest! {
     /// Lossless invariant over random images: any sample matrix in the bpp
-    /// dynamic range must round-trip exactly through encode → decode.
+    /// dynamic range must round-trip exactly through encode â†’ decode.
     #[test]
     fn round_trip_random(
         rows in 1u32..12,
@@ -135,7 +135,7 @@ proptest::proptest! {
     }
 
     /// Near-lossless invariant over random images: reconstruction error is
-    /// bounded by NEAR per sample (ISO 14495-1 §A.4.4; the bound is exact).
+    /// bounded by NEAR per sample (ISO 14495-1 Â§A.4.4; the bound is exact).
     #[test]
     fn round_trip_random_near_lossless(
         rows in 1u32..10,
@@ -171,7 +171,7 @@ proptest::proptest! {
 /// (fixed by emitting the stuffed 7-bit follow byte at flush).
 #[test]
 fn round_trip_16bit_regression_seed() {
-    // Proptest generator (run-mixing LCG), minimized case rows 3 × cols 8.
+    // Proptest generator (run-mixing LCG), minimized case rows 3 Ã— cols 8.
     let mut state = 18395098268947010898u64 | 1;
     let mut samples: Vec<u16> = Vec::with_capacity(24);
     let mut last = 0u16;

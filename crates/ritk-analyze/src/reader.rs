@@ -1,12 +1,12 @@
-//! Analyze 7.5 reader — parses a 348-byte `.hdr` header and raw `.img` voxel data.
+//! Analyze 7.5 reader â€” parses a 348-byte `.hdr` header and raw `.img` voxel data.
 //!
 //! # Format Overview
 //!
 //! Analyze 7.5 (Mayo Clinic, 1989) stores a 3-D volume as two files sharing the
 //! same base name:
 //!
-//! * `<name>.hdr` — 348-byte binary header (little-endian).
-//! * `<name>.img` — raw voxel values (little-endian, type given by `datatype` field).
+//! * `<name>.hdr` â€” 348-byte binary header (little-endian).
+//! * `<name>.img` â€” raw voxel values (little-endian, type given by `datatype` field).
 //!
 //! # Header Layout (key fields)
 //!
@@ -24,7 +24,7 @@
 //! |     88 | f32   | `pixdim[3]`       | Z spacing (mm)                           |
 //! |    108 | f32   | `vox_offset`      | Byte offset to data in `.img` (0 = start)|
 //! |    112 | f32   | `funused1`        | Intensity scale factor (0 or 1 = no-op)  |
-//! |    253 | i16×5 | `originator`      | Voxel-space origin (x, y, z, 0, 0)       |
+//! |    253 | i16Ã—5 | `originator`      | Voxel-space origin (x, y, z, 0, 0)       |
 //!
 //! # Axis Convention
 //!
@@ -38,15 +38,15 @@
 //! The file stores spacing in file-axis order `pixdim[1..3] = [sx, sy, sz]`.
 //! RITK's core `Spacing` is per tensor axis `[z, y, x]` (matching the `[nz, ny,
 //! nx]` tensor shape), so the file components are reversed to `[sz, sy, sx]` on
-//! read — the same column reorder the MetaImage/NRRD readers apply. The core
+//! read â€” the same column reorder the MetaImage/NRRD readers apply. The core
 //! `origin` is a world-space point `[x, y, z]` and is **not** reversed.
 //!
 //! The physical origin is reconstructed from `originator` voxel coordinates:
 //!
 //! ```text
-//!   origin_x = originator[0] × sx
-//!   origin_y = originator[1] × sy
-//!   origin_z = originator[2] × sz
+//!   origin_x = originator[0] Ã— sx
+//!   origin_y = originator[1] Ã— sy
+//!   origin_z = originator[2] Ã— sz
 //! ```
 //!
 //! Note: the `originator` field is unreliable across writers (Analyze 7.5 is a
@@ -62,7 +62,7 @@ use std::path::Path;
 use crate::codec::{read_le, HDR_SIZE};
 pub use crate::codec::{DT_DOUBLE, DT_FLOAT, DT_SIGNED_INT, DT_SIGNED_SHORT, DT_UNSIGNED_CHAR};
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Read a 3-D image from an Analyze 7.5 `.hdr` / `.img` file pair.
 ///
@@ -84,7 +84,7 @@ pub use crate::codec::{DT_DOUBLE, DT_FLOAT, DT_SIGNED_INT, DT_SIGNED_SHORT, DT_U
 pub fn read_analyze<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
-) -> Result<ritk_image::native::Image<f32, B, 3>> {
+) -> Result<ritk_image::Image<f32, B, 3>> {
     let DecodedAnalyze {
         data,
         dims,
@@ -93,7 +93,7 @@ pub fn read_analyze<B: ComputeBackend, P: AsRef<Path>>(
         direction,
     } = decode_analyze(path)?;
 
-    ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+    ritk_image::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
 }
 
 /// Substrate-agnostic decode of an Analyze `.hdr`/`.img` pair into flat
@@ -113,7 +113,7 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
     let hdr_path = path.with_extension("hdr");
     let img_path = path.with_extension("img");
 
-    // ── Read and validate the 348-byte header ─────────────────────────────────
+    // â”€â”€ Read and validate the 348-byte header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let mut hdr_file = std::fs::File::open(&hdr_path).context("Cannot open Analyze header")?;
     let mut hdr = [0u8; HDR_SIZE];
     hdr_file
@@ -129,7 +129,7 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
         ));
     }
 
-    // ── Parse image dimensions ────────────────────────────────────────────────
+    // â”€â”€ Parse image dimensions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let nx = read_le::<i16>(&hdr, 42) as usize;
     let ny = read_le::<i16>(&hdr, 44) as usize;
     let nz = read_le::<i16>(&hdr, 46) as usize;
@@ -143,10 +143,10 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
         ));
     }
 
-    // ── Parse voxel type ──────────────────────────────────────────────────────
+    // â”€â”€ Parse voxel type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let datatype = read_le::<i16>(&hdr, 70);
 
-    // ── Parse physical spacing (pixdim[1..3]) ─────────────────────────────────
+    // â”€â”€ Parse physical spacing (pixdim[1..3]) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let sx_raw = read_le::<f32>(&hdr, 80) as f64;
     let sy_raw = read_le::<f32>(&hdr, 84) as f64;
     let sz_raw = read_le::<f32>(&hdr, 88) as f64;
@@ -155,14 +155,14 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
     let sy = if sy_raw > 0.0 { sy_raw } else { 1.0 };
     let sz = if sz_raw > 0.0 { sz_raw } else { 1.0 };
 
-    // ── Parse scale factor (funused1 at offset 112) ───────────────────────────
+    // â”€â”€ Parse scale factor (funused1 at offset 112) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let scale_raw = read_le::<f32>(&hdr, 112);
     let scale = if scale_raw == 0.0 { 1.0_f32 } else { scale_raw };
 
-    // ── Parse vox_offset (offset 108) ────────────────────────────────────────
+    // â”€â”€ Parse vox_offset (offset 108) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let vox_offset = { read_le::<f32>(&hdr, 108) as u64 };
 
-    // ── Parse origin from originator[10] (5 × i16 at offset 253) ─────────────
+    // â”€â”€ Parse origin from originator[10] (5 Ã— i16 at offset 253) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let ox_vox = read_le::<i16>(&hdr, 253) as f64;
     let oy_vox = read_le::<i16>(&hdr, 255) as f64;
     let oz_vox = read_le::<i16>(&hdr, 257) as f64;
@@ -170,7 +170,7 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
     let oy = oy_vox * sy;
     let oz = oz_vox * sz;
 
-    // ── Read raw voxel data from .img ─────────────────────────────────────────
+    // â”€â”€ Read raw voxel data from .img â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let img_bytes = std::fs::read(&img_path).context("Cannot read Analyze data file")?;
 
     // Skip past vox_offset bytes if non-zero (uncommon for standard files).
@@ -186,7 +186,7 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
 
     let n = nx * ny * nz;
 
-    // ── Convert to Vec<f32> ───────────────────────────────────────────────────
+    // â”€â”€ Convert to Vec<f32> â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let vals: Vec<f32> = match datatype {
         DT_UNSIGNED_CHAR => {
             if raw.len() < n {
@@ -284,7 +284,7 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
     })
 }
 
-// ── Reader wrapper type ───────────────────────────────────────────────────────
+// â”€â”€ Reader wrapper type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Read-side wrapper type implementing the `ImageReader` domain trait.
 pub struct AnalyzeReader<B: ComputeBackend> {
@@ -298,7 +298,7 @@ impl<B: ComputeBackend> AnalyzeReader<B> {
     }
 
     /// Read an Analyze image through the bound backend.
-    pub fn read<P: AsRef<Path>>(&self, path: P) -> Result<ritk_image::native::Image<f32, B, 3>> {
+    pub fn read<P: AsRef<Path>>(&self, path: P) -> Result<ritk_image::Image<f32, B, 3>> {
         read_analyze(path, &self.backend)
     }
 }

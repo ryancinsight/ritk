@@ -33,8 +33,7 @@ impl<'py> FromPyObject<'py> for PyCleaningPolicy {
             other => Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "Unknown cleaning policy '{}'. Choices: none, clean_pixel_data, clean_private_tags, clean_all",
                 other
-            ))),
-        }
+            ))) }
     }
 }
 

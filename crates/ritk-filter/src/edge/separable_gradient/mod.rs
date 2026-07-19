@@ -2,25 +2,25 @@
 //!
 //! # Architecture
 //!
-//! Both Sobel and Prewitt decompose their 3×3×3 kernels into three sequential
+//! Both Sobel and Prewitt decompose their 3Ã—3Ã—3 kernels into three sequential
 //! 1-D convolutions: one derivative pass and two smoothing passes. The only
 //! difference is the smoothing kernel and normalization factor.
 //!
 //! This module provides:
-//! - [`GradientKernel`] — a ZST trait encoding the smoothing kernel and
+//! - [`GradientKernel`] â€” a ZST trait encoding the smoothing kernel and
 //!   normalization factor at the type level.
-//! - [`SeparableGradientFilter<K>`] — a generic filter struct parameterized
+//! - [`SeparableGradientFilter<K>`] â€” a generic filter struct parameterized
 //!   by the kernel ZST, monomorphizing to zero-cost Sobel/Prewitt variants.
-//! - [`convolve_1d_axis`] — the canonical 3-tap 1-D convolution with
+//! - [`convolve_1d_axis`] â€” the canonical 3-tap 1-D convolution with
 //!   replicate padding, shared by all gradient filters.
 //!
 //! # SIMD boundary/interior split
 //!
 //! The 1-D convolution kernel is split into:
-//! 1. **Boundary pass** — processes the first and last voxel of each 1-D
+//! 1. **Boundary pass** â€” processes the first and last voxel of each 1-D
 //!    line where the -1 or +1 neighbor index would go out of bounds.
 //!    Uses clamped indexing (conditionals).
-//! 2. **Interior pass** — processes all remaining voxels with known-in-bounds
+//! 2. **Interior pass** â€” processes all remaining voxels with known-in-bounds
 //!    neighbor access at uniform stride. No conditionals per iteration,
 //!    enabling LLVM auto-vectorization of the FMA chain.
 
@@ -33,7 +33,9 @@ use ritk_image::tensor::Backend;
 use ritk_spatial::Spacing;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// ── Generic filter ────────────────────────────────────────────────────────────
+type GradientImages<B> = (Image<f32, B, 3>, Image<f32, B, 3>, Image<f32, B, 3>);
+
+// â”€â”€ Generic filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// 3-D separable gradient filter parameterized by smoothing kernel type.
 ///
@@ -46,7 +48,7 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 ///
 /// - Interior voxels receive second-order central-difference gradient estimates.
 /// - Output shape equals input shape.
-/// - For a linear field `I = c·x_a`, the interior component along axis `a`
+/// - For a linear field `I = cÂ·x_a`, the interior component along axis `a`
 ///   equals `c`, and all orthogonal components equal zero.
 #[derive(Debug, Clone)]
 pub struct SeparableGradientFilter<K: GradientKernel> {
@@ -74,8 +76,8 @@ impl<K: GradientKernel> SeparableGradientFilter<K> {
 
     /// Compute the gradient magnitude image.
     ///
-    /// Returns an `Image` whose voxel values are |∇I| = √(G_z² + G_y² + G_x²).
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    /// Returns an `Image` whose voxel values are |âˆ‡I| = âˆš(G_zÂ² + G_yÂ² + G_xÂ²).
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let mag = gradient_magnitude_vec::<K>(&vals, dims, &self.spacing);
         Ok(rebuild(mag, dims, image))
@@ -93,8 +95,8 @@ impl<K: GradientKernel> SeparableGradientFilter<K> {
     /// or the rebuilt tensor fails shape validation.
     pub fn apply_native<BC>(
         &self,
-        image: &ritk_image::native::Image<f32, BC, 3>,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, BC, 3>>
+        image: &ritk_image::Image<f32, BC, 3>,
+    ) -> anyhow::Result<ritk_image::Image<f32, BC, 3>>
     where
         BC: coeus_core::ComputeBackend + Default,
         BC::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -110,8 +112,8 @@ impl<K: GradientKernel> SeparableGradientFilter<K> {
     /// and physical metadata as `image`.
     pub fn apply_components<B: Backend>(
         &self,
-        image: &Image<B, 3>,
-    ) -> anyhow::Result<(Image<B, 3>, Image<B, 3>, Image<B, 3>)> {
+        image: &Image<f32, B, 3>,
+    ) -> anyhow::Result<GradientImages<B>> {
         let (vals, dims) = extract_vec(image)?;
         let (gz, gy, gx) = gradient_components::<K>(&vals, dims, &self.spacing);
         Ok((
@@ -122,7 +124,7 @@ impl<K: GradientKernel> SeparableGradientFilter<K> {
     }
 }
 
-// ── Component computation ─────────────────────────────────────────────────────
+// â”€â”€ Component computation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Derivative kernel shared by all separable gradient filters.
 const DERIV: [f32; 3] = [-1.0, 0.0, 1.0];
@@ -132,7 +134,7 @@ const DERIV: [f32; 3] = [-1.0, 0.0, 1.0];
 /// For each component:
 /// 1. Apply derivative kernel `[-1, 0, 1]` along the target axis.
 /// 2. Apply `K::SMOOTH` along each orthogonal axis.
-/// 3. Normalize by `K::NORM_BASE · h_axis`.
+/// 3. Normalize by `K::NORM_BASE Â· h_axis`.
 ///
 /// Boundary handling: replicate (clamp) padding.
 fn gradient_components<K: GradientKernel>(
@@ -169,7 +171,7 @@ fn gradient_components<K: GradientKernel>(
     (gz, gy, gx)
 }
 
-/// Gradient magnitude `√(gz² + gy² + gx²)` from the separable components.
+/// Gradient magnitude `âˆš(gzÂ² + gyÂ² + gxÂ²)` from the separable components.
 ///
 /// Single host realization shared by the Burn [`SeparableGradientFilter::apply`]
 /// path and the Coeus-native [`SeparableGradientFilter::apply_native`] path.
@@ -193,27 +195,27 @@ fn normalize_vec(v: Vec<f32>, norm: f32) -> Vec<f32> {
     v.into_iter().map(|x| x * inv).collect()
 }
 
-// ── 1-D convolution ──────────────────────────────────────────────────────────
+// â”€â”€ 1-D convolution â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Apply a 3-tap 1-D convolution along the specified axis with replicate padding.
 ///
 /// `axis`: 0 = z, 1 = y, 2 = x.
 /// `kernel`: 3-element filter `[k_{-1}, k_0, k_{+1}]`.
 ///
-/// Boundary indices are clamped to `[0, dim_size − 1]` (replicate padding).
+/// Boundary indices are clamped to `[0, dim_size âˆ’ 1]` (replicate padding).
 ///
 /// # Boundary/interior split
 ///
 /// The loop over each 1-D line is split into:
-/// 1. **Boundary pass** — `i=0` (clamped `i−1`) and `i=len−1` (clamped `i+1`).
+/// 1. **Boundary pass** â€” `i=0` (clamped `iâˆ’1`) and `i=lenâˆ’1` (clamped `i+1`).
 ///    These use conditional neighbor-index clamping.
-/// 2. **Interior pass** — `i=1..len−2`, where both `i−1` and `i+1` are
+/// 2. **Interior pass** â€” `i=1..lenâˆ’2`, where both `iâˆ’1` and `i+1` are
 ///    guaranteed in-bounds. No conditionals, uniform stride.
 ///    LLVM can auto-vectorize the 3-tap FMA body.
 ///
 /// # Complexity
 ///
-/// O(N) where N = nz × ny × nx. Each voxel performs exactly 3 multiply-adds.
+/// O(N) where N = nz Ã— ny Ã— nx. Each voxel performs exactly 3 multiply-adds.
 pub fn convolve_1d_axis(
     data: &[f32],
     dims: [usize; 3],
@@ -256,7 +258,7 @@ pub fn convolve_1d_axis(
     })
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 mod tests_separable_gradient;

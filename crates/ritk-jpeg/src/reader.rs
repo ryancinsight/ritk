@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 

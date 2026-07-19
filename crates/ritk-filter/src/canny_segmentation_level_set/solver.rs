@@ -33,7 +33,7 @@ impl CannySegmentationLevelSet {
             offsets.push((1, 0, 0));
         }
 
-        // ── ZeroCrossing(shifted) → active set (float-exact to ITK) ──────────
+        // â”€â”€ ZeroCrossing(shifted) â†’ active set (float-exact to ITK) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let sign_change = |a: f64, b: f64| (a * b < 0.0) || ((a == 0.0) != (b == 0.0));
         let mut is_active = vec![false; n];
         for (f, &v) in shifted.iter().enumerate() {
@@ -89,7 +89,7 @@ impl CannySegmentationLevelSet {
                 }
             }
         }
-        // ConstructLayer i → i+2.
+        // ConstructLayer i â†’ i+2.
         for i in 1..(num - 2) {
             let cur: Vec<usize> = layers[i as usize].clone();
             for f in cur {
@@ -102,7 +102,7 @@ impl CannySegmentationLevelSet {
                 }
             }
         }
-        // InitializeActiveLayerValues: clamp(shifted / upwind_len, ±½).
+        // InitializeActiveLayerValues: clamp(shifted / upwind_len, Â±Â½).
         for &f in &layers[0] {
             let c = shifted[f];
             let mut l2 = 0.0f64;
@@ -191,7 +191,7 @@ impl CannySegmentationLevelSet {
             let (zi, yi, xi) = (iz as isize, iy as isize, ix as isize);
             let c = phi[f];
             let g = |dz: isize, dy: isize, dx: isize| gh.gphi(phi, zi + dz, yi + dy, xi + dx);
-            // φ derivatives (axis 0=x, 1=y, 2=z).
+            // Ï† derivatives (axis 0=x, 1=y, 2=z).
             let dxf = g(0, 0, 1) - c;
             let dxb = c - g(0, 0, -1);
             let dyf = g(0, 1, 0) - c;
@@ -213,7 +213,7 @@ impl CannySegmentationLevelSet {
                 0.0
             };
 
-            // ── Curvature term (ComputeCurvatureTerm) ────────────────────────
+            // â”€â”€ Curvature term (ComputeCurvatureTerm) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             let (curv, dzf, dzb);
             if gh.ndim == 2 {
                 let gm2 = fx * fx + fy * fy + GRAD_EPS;
@@ -236,7 +236,7 @@ impl CannySegmentationLevelSet {
             }
             let curv_term = curv * curv_w;
 
-            // ── Propagation term (Godunov upwind in sign of P) ───────────────
+            // â”€â”€ Propagation term (Godunov upwind in sign of P) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             let prop_term = prop_w * prop;
             let pg = if prop_term > 0.0 {
                 dxb.max(0.0).powi(2)
@@ -255,7 +255,7 @@ impl CannySegmentationLevelSet {
             };
             let propagation = prop_term * pg.sqrt();
 
-            // ── Advection term (simple upwind per component) ─────────────────
+            // â”€â”€ Advection term (simple upwind per component) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             let mut adv_term =
                 ax * (if ax > 0.0 { dxb } else { dxf }) + ay * (if ay > 0.0 { dyb } else { dyf });
             if gh.ndim == 3 {
@@ -270,7 +270,7 @@ impl CannySegmentationLevelSet {
             (update, curv_term.abs(), prop_term.abs(), max_adv)
         };
 
-        // ── ApplyUpdate loop ──
+        // â”€â”€ ApplyUpdate loop â”€â”€
         for _ in 0..self.number_of_iterations {
             let al: Vec<usize> = layers[0].clone();
             // CalculateChange: per-voxel update + global maxima for the time step.
@@ -422,7 +422,7 @@ impl CannySegmentationLevelSet {
             }
         }
 
-        // PostProcessOutput: background voxels → ±(NL+1) by current sign.
+        // PostProcessOutput: background voxels â†’ Â±(NL+1) by current sign.
         for f in 0..n {
             if status[f] == ST_NULL {
                 phi[f] = if phi[f] > 0.0 { bg_val } else { -bg_val };

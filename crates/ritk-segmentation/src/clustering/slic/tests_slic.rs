@@ -4,40 +4,27 @@
 
 use super::*;
 use crate::clustering::slic::coords::decode_coords_dyn as decode_coords;
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::test_support::make_image;
+use ritk_image::Image as NativeImage;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
-fn make_image_2d(data: Vec<f32>, dims: [usize; 2]) -> Image<B, 2> {
+fn make_image_2d(data: Vec<f32>, dims: [usize; 2]) -> Image<f32, B, 2> {
     make_image(data, dims)
 }
 
-fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
+fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
     make_image(data, dims)
 }
 
-fn get_slice_2d(image: &Image<B, 2>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn get_slice_2d(image: &Image<f32, B, 2>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
-fn get_slice_3d(image: &Image<B, 3>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn get_slice_3d(image: &Image<f32, B, 3>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
 fn config(
@@ -384,13 +371,15 @@ fn assert_native_legacy_exact<const D: usize>(values: Vec<f32>, dimensions: [usi
         &SequentialBackend,
     )
     .unwrap();
-    let legacy = make_image::<B, D>(values, dimensions);
+    let legacy = make_image::<f32, B, D>(values, dimensions);
     let filter = SlicSuperpixelFilter::new(config(4, 5.0, 10, 0.0, 0));
     let native_output = filter.apply_native(&native, &SequentialBackend).unwrap();
     let legacy_output = filter.apply(&legacy).unwrap();
     assert_eq!(
         native_output.data_slice().unwrap(),
-        legacy_output.data_slice().as_ref()
+        legacy_output
+            .data_slice()
+            .expect("invariant: contiguous host storage")
     );
     assert_eq!(*native_output.origin(), Point::new([2.0; D]));
     assert_eq!(*native_output.spacing(), Spacing::new([0.5; D]));
@@ -443,7 +432,7 @@ fn standard_slic_rejects_nonfinite_samples_and_unsupported_rank() {
             .to_string(),
         "standard SLIC sample at flat index 1 must be finite, got NaN"
     );
-    let rank_one = make_image::<B, 1>(vec![0.0, 1.0], [2]);
+    let rank_one = make_image::<f32, B, 1>(vec![0.0, 1.0], [2]);
     assert_eq!(
         SlicSuperpixelFilter::new(SlicConfig::default())
             .apply(&rank_one)
@@ -510,7 +499,9 @@ fn standard_slic_extreme_compactness_produces_finite_exact_labels() {
     .apply(&image)
     .unwrap();
     assert_eq!(
-        labels.data_slice().as_ref(),
+        labels
+            .data_slice()
+            .expect("invariant: contiguous host storage"),
         &[0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 2.0, 2.0, 3.0, 3.0]
     );
 }

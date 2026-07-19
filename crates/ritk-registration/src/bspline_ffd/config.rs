@@ -17,7 +17,7 @@ pub struct BSplineFFDConfig {
     pub max_iterations_per_level: usize,
     /// Learning rate (step size) for gradient descent on control displacements.
     pub learning_rate: f64,
-    /// Bending-energy regularization weight λ.
+    /// Bending-energy regularization weight Î».
     pub regularization_weight: f64,
     /// Convergence threshold: optimization stops when the relative change in
     /// the NCC metric between consecutive iterations falls below this value.
@@ -45,11 +45,11 @@ pub struct BSplineFFDResult {
     pub control_points: (Vec<f32>, Vec<f32>, Vec<f32>),
     /// Control grid dimensions `[depth_ctrl, rows_ctrl, cols_ctrl]`.
     pub control_grid_dims: ControlGridDims,
-    /// Control-point spacing at the finest level `[δz, δy, δx]` in voxels.
+    /// Control-point spacing at the finest level `[Î´z, Î´y, Î´x]` in voxels.
     pub control_spacing: [f64; 3],
     /// Moving image warped to the fixed image domain.
     pub warped_moving: Vec<f32>,
-    /// Final NCC metric value (higher → better alignment).
+    /// Final NCC metric value (higher â†’ better alignment).
     pub final_metric: f64,
     /// Total gradient-descent iterations across all levels.
     pub num_iterations: usize,

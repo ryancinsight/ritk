@@ -9,13 +9,13 @@
 //! 1. **Gaussian smooth** the input with [`DiscreteGaussianFilter`] (`variance`,
 //!    `maximum_error`).
 //! 2. **Second directional derivative** of the smoothed image `I`:
-//!    `D = (Σ_i I_i²·I_ii + Σ_{i<j} 2·I_i·I_j·I_ij) / (Σ_i I_i² + α²)`, `α² = 1e-4`,
+//!    `D = (Î£_i I_iÂ²Â·I_ii + Î£_{i<j} 2Â·I_iÂ·I_jÂ·I_ij) / (Î£_i I_iÂ² + Î±Â²)`, `Î±Â² = 1e-4`,
 //!    with `I_i` the central first derivative, `I_ii` the second, `I_ij` the 0.25
 //!    diagonal cross derivative (ZeroFluxNeumann boundary).
-//! 3. **Gradient-maximum mask × magnitude**: `U = ⟦∂D/∂n ≤ 0⟧ · |∇I|`, where
-//!    `n = ∇I / |∇I|` is the gradient direction and `|∇I| = sqrt(α² + Σ I_i²)`.
+//! 3. **Gradient-maximum mask Ã— magnitude**: `U = âŸ¦âˆ‚D/âˆ‚n â‰¤ 0âŸ§ Â· |âˆ‡I|`, where
+//!    `n = âˆ‡I / |âˆ‡I|` is the gradient direction and `|âˆ‡I| = sqrt(Î±Â² + Î£ I_iÂ²)`.
 //! 4. **Zero crossing** of `D` (via `ZeroCrossingImageFilter`).
-//! 5. **Multiply**: `M = U · ZeroCross(D)`.
+//! 5. **Multiply**: `M = U Â· ZeroCross(D)`.
 //! 6. **Hysteresis threshold**: edge voxels are the connected weak set
 //!    (`M > lower_threshold`) reachable from any strong voxel (`M > upper_threshold`),
 //!    flooded over face connectivity. Output is `1.0` at edges, `0.0` elsewhere.
@@ -47,7 +47,7 @@ const ALPHA_SQ: f32 = 0.0001;
 /// - `lower_threshold = 0.0`, `upper_threshold = 0.0`
 #[derive(Debug, Clone)]
 pub struct CannyEdgeDetectionImageFilter {
-    /// Gaussian smoothing variance (σ², physical units).
+    /// Gaussian smoothing variance (ÏƒÂ², physical units).
     pub variance: f64,
     /// Discrete-Gaussian truncation error.
     pub maximum_error: f64,
@@ -69,8 +69,8 @@ impl Default for CannyEdgeDetectionImageFilter {
 }
 
 impl CannyEdgeDetectionImageFilter {
-    /// Detect edges in a 3-D image (`nz == 1` ⇒ 2-D).
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    /// Detect edges in a 3-D image (`nz == 1` â‡’ 2-D).
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         // 1. Gaussian smoothing (DiscreteGaussian, ITK discrete kernel).
         let sm_img = DiscreteGaussianFilter::<B>::new_isotropic(self.variance)
             .with_maximum_error(self.maximum_error)
@@ -95,9 +95,9 @@ impl CannyEdgeDetectionImageFilter {
     /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -118,8 +118,8 @@ impl CannyEdgeDetectionImageFilter {
     }
 }
 
-/// Substrate-agnostic host core: ITK zero-crossing Canny stages 2–6 on the
-/// already-smoothed flat z-major buffer `sm` — second directional derivative,
+/// Substrate-agnostic host core: ITK zero-crossing Canny stages 2â€“6 on the
+/// already-smoothed flat z-major buffer `sm` â€” second directional derivative,
 /// gradient-maximum masking, zero crossing of `D`, product, and hysteresis
 /// flood. Single source of truth for the Burn
 /// [`apply`](CannyEdgeDetectionImageFilter::apply) and Coeus-native
@@ -185,7 +185,7 @@ fn canny_edge_detection_flat(
         }
     }
 
-    // 3. U = ⟦∂D/∂n ≤ 0⟧ · |∇I|  (gradient-maximum mask × magnitude).
+    // 3. U = âŸ¦âˆ‚D/âˆ‚n â‰¤ 0âŸ§ Â· |âˆ‡I|  (gradient-maximum mask Ã— magnitude).
     let mut upd = vec![0.0f32; n];
     for z in 0..nz {
         for y in 0..ny {
@@ -206,7 +206,7 @@ fn canny_edge_detection_flat(
     // 4. Zero crossing of D (ITK default fg = 1.0, bg = 0.0).
     let zc = zero_crossing_vec(&deriv, dims, 1.0, 0.0);
 
-    // 5. Multiply: edge strength M = U · ZeroCross(D).
+    // 5. Multiply: edge strength M = U Â· ZeroCross(D).
     let mult: Vec<f32> = upd.iter().zip(zc.iter()).map(|(&u, &z)| u * z).collect();
 
     // 6. Hysteresis: flood the weak set (M > lower) from strong seeds
@@ -259,7 +259,7 @@ mod tests_canny_edge_detection;
 #[cfg(test)]
 mod tests_native {
     use super::CannyEdgeDetectionImageFilter;
-    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use crate::native_support::{assert_coeus_matches_coeus, make_native_image, native_vals};
     use coeus_core::SequentialBackend;
 
     fn filter() -> CannyEdgeDetectionImageFilter {
@@ -275,7 +275,7 @@ mod tests_native {
     fn matches_burn() {
         // A single axial slice with a bright half-plane step so the ITK
         // zero-crossing edge lands on the boundary. Both paths share the
-        // discrete-Gaussian smoothing and stage-2–6 cores → bitwise-identical.
+        // discrete-Gaussian smoothing and stage-2â€“6 cores â†’ bitwise-identical.
         let (nz, ny, nx) = (1usize, 7usize, 7usize);
         let mut vals = vec![0.0f32; nz * ny * nx];
         for y in 0..ny {
@@ -285,7 +285,7 @@ mod tests_native {
                 }
             }
         }
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             vals,
             [nz, ny, nx],
             |img| filter().apply(img),
@@ -296,7 +296,7 @@ mod tests_native {
     #[test]
     fn oracle_constant_has_no_edges() {
         // DiscreteGaussian replicate-padding preserves a constant field exactly,
-        // so all derivatives vanish, D ≡ 0, its zero-crossing set is empty, and
+        // so all derivatives vanish, D â‰¡ 0, its zero-crossing set is empty, and
         // no voxel is an edge.
         let img = make_native_image(vec![42.0f32; 125], [5, 5, 5]);
         let out = filter()

@@ -1,17 +1,16 @@
 use super::transform_geometry;
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point};
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
 const ID: [[f64; 3]; 3] = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
 
-fn img_with_origin(origin: [f64; 3]) -> Image<B, 3> {
+fn img_with_origin(origin: [f64; 3]) -> Image<f32, B, 3> {
     let data: Vec<f32> = (0..24).map(|v| v as f32).collect();
-    ts::burn_compat::make_image_with::<B, 3>(data, [2, 3, 4], Some(Point::new(origin)), None, None)
+    ts::make_image_with::<f32, B, 3>(data, [2, 3, 4], Some(Point::new(origin)), None, None)
 }
 
 /// The identity transform leaves geometry and data unchanged.

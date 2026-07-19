@@ -32,7 +32,7 @@ use consus_hdf5::dataset::StorageLayout;
 use consus_hdf5::file::Hdf5File;
 use std::path::Path;
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Read a MINC2 (.mnc / .mnc2) file into a 3-D `Image`.
 ///
@@ -48,7 +48,7 @@ use std::path::Path;
 /// - The required MINC2 HDF5 structure is missing or malformed.
 /// - The image dataset uses chunked storage (not yet supported).
 /// - A data type conversion fails.
-pub fn read_minc<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
+pub fn read_minc<B, P>(path: P, backend: &B) -> Result<ritk_image::Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend,
     P: AsRef<Path>,
@@ -60,7 +60,7 @@ where
         spacing,
         direction,
     } = decode_minc(path)?;
-    ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+    ritk_image::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
 }
 
 /// Backend-agnostic decoded MINC2 volume: voxels plus derived physical metadata.
@@ -165,10 +165,7 @@ impl<B: coeus_core::ComputeBackend> MincReader<B> {
     }
 
     /// Read a MINC2 file into a 3-D image using the stored backend.
-    pub fn read_image<P: AsRef<Path>>(
-        &self,
-        path: P,
-    ) -> Result<ritk_image::native::Image<f32, B, 3>> {
+    pub fn read_image<P: AsRef<Path>>(&self, path: P) -> Result<ritk_image::Image<f32, B, 3>> {
         read_minc(path, &self.backend)
     }
 }

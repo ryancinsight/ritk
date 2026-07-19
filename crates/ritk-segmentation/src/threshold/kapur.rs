@@ -8,10 +8,10 @@
 //!   H(t) = H_b(t) + H_f(t)
 //!
 //! where:
-//! - P_b(t) = Σ_{i=0}^{t} p(i)                          (background probability mass)
-//! - P_f(t) = Σ_{i=t+1}^{N-1} p(i)                      (foreground probability mass)
-//! - H_b(t) = -Σ_{i=0}^{t} (p(i)/P_b) · ln(p(i)/P_b)   (background entropy)
-//! - H_f(t) = -Σ_{i=t+1}^{N-1} (p(i)/P_f) · ln(p(i)/P_f) (foreground entropy)
+//! - P_b(t) = Î£_{i=0}^{t} p(i)                          (background probability mass)
+//! - P_f(t) = Î£_{i=t+1}^{N-1} p(i)                      (foreground probability mass)
+//! - H_b(t) = -Î£_{i=0}^{t} (p(i)/P_b) Â· ln(p(i)/P_b)   (background entropy)
+//! - H_f(t) = -Î£_{i=t+1}^{N-1} (p(i)/P_f) Â· ln(p(i)/P_f) (foreground entropy)
 //! - p(i)   = count\[i\] / n_total                          (normalised histogram)
 //!
 //! The optimal threshold in original intensity units is:
@@ -21,20 +21,20 @@
 //!
 //! # Complexity
 //! Histogram construction: O(n) voxels.
-//! Threshold search:       O(N²) bins (entropy sums per candidate).
-//! Total:                  O(n + N²).
+//! Threshold search:       O(NÂ²) bins (entropy sums per candidate).
+//! Total:                  O(n + NÂ²).
 //!
 //! # References
 //! - J. N. Kapur, P. K. Sahoo, A. K. C. Wong, "A New Method for Gray-Level
 //!   Picture Thresholding Using the Entropy of the Histogram," *Computer
-//!   Vision, Graphics, and Image Processing*, 29(3):273–285, 1985.
+//!   Vision, Graphics, and Image Processing*, 29(3):273â€“285, 1985.
 
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 use super::auto_threshold::{bin_center, itk_bin_width, threshold_from_slice, AutoThreshold};
 
-// ── Public API ─────────────────────────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Maximum-entropy threshold segmentation (Kapur et al. 1985).
 ///
@@ -67,19 +67,19 @@ impl KapurThreshold {
     /// For a constant image, returns the image's uniform intensity (degenerate case).
     ///
     /// Delegates to [`AutoThreshold::compute`].
-    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> f32 {
+    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> f32 {
         <Self as AutoThreshold>::compute(self, image)
     }
 
     /// Apply the Kapur threshold to produce a binary mask.
     ///
-    /// - Pixels with intensity ≥ t* → 1.0 (foreground).
-    /// - Pixels with intensity <  t* → 0.0 (background).
+    /// - Pixels with intensity â‰¥ t* â†’ 1.0 (foreground).
+    /// - Pixels with intensity <  t* â†’ 0.0 (background).
     ///
     /// Spatial metadata (origin, spacing, direction) is preserved exactly.
     ///
     /// Delegates to [`AutoThreshold::apply`].
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         <Self as AutoThreshold>::apply(self, image)
     }
 
@@ -91,9 +91,9 @@ impl KapurThreshold {
     /// or the native output image cannot be constructed.
     pub fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -108,7 +108,7 @@ impl Default for KapurThreshold {
     }
 }
 
-// ── AutoThreshold implementation ───────────────────────────────────────────────
+// â”€â”€ AutoThreshold implementation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 impl AutoThreshold for KapurThreshold {
     fn num_bins(&self) -> usize {
@@ -120,7 +120,7 @@ impl AutoThreshold for KapurThreshold {
     /// # Algorithm
     /// 1. Normalise `hist` to probabilities `h[i] = count[i] / n_total`.
     /// 2. Build cumulative probability prefix sums.
-    /// 3. For each candidate t ∈ [0, N−2]:
+    /// 3. For each candidate t âˆˆ [0, Nâˆ’2]:
     ///    H(t) = H_b(t) + H_f(t)
     ///    (background and foreground Shannon entropies of their respective
     ///    conditional distributions).
@@ -153,7 +153,7 @@ impl AutoThreshold for KapurThreshold {
                 continue;
             }
 
-            // Background entropy: H_b = -Σ_{i=0}^{t} (p(i)/P_b)·ln(p(i)/P_b).
+            // Background entropy: H_b = -Î£_{i=0}^{t} (p(i)/P_b)Â·ln(p(i)/P_b).
             let mut h_b = 0.0_f64;
             for &hi in h.iter().take(t + 1) {
                 if hi > super::PROB_ZERO_GUARD {
@@ -162,7 +162,7 @@ impl AutoThreshold for KapurThreshold {
                 }
             }
 
-            // Foreground entropy: H_f = -Σ_{i=t+1}^{N-1} (p(i)/P_f)·ln(p(i)/P_f).
+            // Foreground entropy: H_f = -Î£_{i=t+1}^{N-1} (p(i)/P_f)Â·ln(p(i)/P_f).
             let mut h_f = 0.0_f64;
             for &hi in h.iter().take(n_bins).skip(t + 1) {
                 if hi > super::PROB_ZERO_GUARD {
@@ -183,10 +183,10 @@ impl AutoThreshold for KapurThreshold {
     }
 }
 
-// ── Convenience functions ──────────────────────────────────────────────────────
+// â”€â”€ Convenience functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Convenience function: compute the Kapur threshold with 256 bins.
-pub fn kapur_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
+pub fn kapur_threshold<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> f32 {
     KapurThreshold::new().compute(image)
 }
 

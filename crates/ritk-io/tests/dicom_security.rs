@@ -2,7 +2,7 @@ use arrayvec::ArrayString;
 use dicom::core::Tag;
 use dicom::object::open_file;
 use ritk_core::image::Image;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_io::{
     read_analyze, read_dicom_series_with_metadata, write_analyze, write_dicom_series_with_metadata,
 };
@@ -10,21 +10,24 @@ use ritk_spatial::{Direction, Point, Spacing};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-type TestBackend = burn_ndarray::NdArray<f32>;
+type TestBackend = coeus_core::SequentialBackend;
 
-fn make_test_image(depth: usize, rows: usize, cols: usize, fill: f32) -> Image<TestBackend, 3> {
+fn make_test_image(
+    depth: usize,
+    rows: usize,
+    cols: usize,
+    fill: f32,
+) -> Image<f32, TestBackend, 3> {
     let device = Default::default();
     let data = vec![fill; depth * rows * cols];
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(data, Shape::new([depth, rows, cols])),
-        &device,
-    );
+    let tensor = Tensor::<f32, TestBackend>::from_slice_on([depth, rows, cols], &data, &device);
     Image::new(
         tensor,
         Point::new([10.0, 20.0, 30.0]),
         Spacing::new([2.5, 0.5, 0.5]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 fn make_test_metadata() -> ritk_io::DicomReadMetadata {
@@ -49,7 +52,7 @@ fn make_test_metadata() -> ritk_io::DicomReadMetadata {
         dimensions: [4, 4, 3],
         spacing: [2.5, 0.5, 0.5],
         origin: [10.0, 20.0, 30.0],
-        // RITK axial convention: N̂=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
+        // RITK axial convention: NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
         // from_column_slice([0,0,1, 0,1,0, 1,0,0])
         direction: [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0],
         bits_allocated: Some(16),
@@ -200,16 +203,14 @@ fn test_write_analyze_path_leak() {
 
     let non_existent_path = PathBuf::from("/non/existent/path/output.hdr");
     let image = {
-        let tensor = Tensor::<TestBackend, 3>::from_data(
-            TensorData::new(vec![0.0_f32], Shape::new([1, 1, 1])),
-            &device,
-        );
+        let tensor = Tensor::<f32, TestBackend>::from_slice_on([1, 1, 1], &[0.0_f32], &device);
         Image::new(
             tensor,
             Point::new([0.0, 0.0, 0.0]),
             Spacing::new([1.0, 1.0, 1.0]),
             Direction::identity(),
         )
+        .expect("invariant: fixture tensor has the declared rank")
     };
 
     let result = write_analyze(&non_existent_path, &image);

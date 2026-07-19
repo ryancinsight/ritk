@@ -1,5 +1,5 @@
 use ritk_core::image::Image;
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_tensor_ops::extract_vec_infallible;
 
 use super::itk::slic_itk_impl;
@@ -131,18 +131,18 @@ impl ItkSlicFilter {
     /// # Errors
     ///
     /// Returns an error for zero extents or non-finite samples.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (values, shape) = extract_vec_infallible(image);
         validate_input(&values, shape, self.config.super_grid)?;
         let labels = self.labels(&values, shape);
-        let device = image.data().device();
-        let tensor = Tensor::<B, 3>::from_data(TensorData::new(labels, Shape::new(shape)), &device);
-        Ok(Image::new(
+        let device = B::default();
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &labels, &device);
+        Image::new(
             tensor,
             *image.origin(),
             *image.spacing(),
             *image.direction(),
-        ))
+        )
     }
 
     /// Apply fixed-grid SLIC to a Coeus-native 3-D image.
@@ -152,9 +152,9 @@ impl ItkSlicFilter {
     /// Returns an input-validation, backend storage, or output-construction error.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

@@ -326,7 +326,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.label(
                 egui::RichText::new(
-                    "ITK GrayscaleErodeImageFilter (flat SE). E_B(f)(x) = min_{b∈B} f(x+b). Anti-extensive.",
+                    "ITK GrayscaleErodeImageFilter (flat SE). E_B(f)(x) = min_{bâˆˆB} f(x+b). Anti-extensive.",
                 )
                 .small(),
             );
@@ -345,7 +345,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.label(
                 egui::RichText::new(
-                    "ITK GrayscaleDilateImageFilter (flat SE). D_B(f)(x) = max_{b∈B} f(x+b). Extensive.",
+                    "ITK GrayscaleDilateImageFilter (flat SE). D_B(f)(x) = max_{bâˆˆB} f(x+b). Extensive.",
                 )
                 .small(),
             );

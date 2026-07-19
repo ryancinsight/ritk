@@ -1,5 +1,5 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     CyclicShiftImageFilter, ExpandImageFilter, FlipImageFilter, OrientImageFilter,
@@ -17,13 +17,13 @@ pub fn flip(
     flip_y: bool,
     flip_x: bool,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     py.allow_threads(|| {
         FlipImageFilter::from_bools([flip_z, flip_y, flip_x])
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Subsample (ITK `Shrink`) by integer per-axis factors. Keeps one voxel per
@@ -39,13 +39,13 @@ pub fn shrink(
     factor_y: usize,
     factor_x: usize,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     py.allow_threads(|| {
         ShrinkImageFilter::new([factor_z, factor_y, factor_x])
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Expand (upsample) the image by integer per-axis factors `(fz, fy, fx)` using
@@ -54,10 +54,10 @@ pub fn shrink(
 /// factors `[fx,fy,fz]`).
 #[pyfunction]
 pub fn expand(py: Python<'_>, image: &PyImage, factors: (usize, usize, usize)) -> PyImage {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let out =
         py.allow_threads(|| ExpandImageFilter::new([factors.0, factors.1, factors.2]).apply(&arc));
-    burn_into_py_image(out)
+    into_py_image(out)
 }
 
 /// Cyclically roll the image by `shift = (z, y, x)` voxels (periodic wrap-around,
@@ -68,10 +68,10 @@ pub fn cyclic_shift(
     image: &PyImage,
     shift: (i64, i64, i64),
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let out =
         py.allow_threads(|| CyclicShiftImageFilter::new([shift.0, shift.1, shift.2]).apply(&arc));
-    Ok(burn_into_py_image(out))
+    Ok(into_py_image(out))
 }
 
 /// Permute the tensor axes. `order` is a permutation of `(0, 1, 2)` in `[z,y,x]`
@@ -82,21 +82,21 @@ pub fn permute_axes(
     image: &PyImage,
     order: (usize, usize, usize),
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     py.allow_threads(|| {
         PermuteAxesImageFilter::new([order.0, order.1, order.2])
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
-/// Reorient the image to a target DICOM orientation code (`"LPS"`, `"RAI"`, …),
+/// Reorient the image to a target DICOM orientation code (`"LPS"`, `"RAI"`, â€¦),
 /// relabeling the axes consistently across data, spacing, origin, and direction.
 /// ITK Parity: DICOMOrientImageFilter (`sitk.DICOMOrient`).
 #[pyfunction]
 pub fn dicom_orient(py: Python<'_>, image: &PyImage, orientation: &str) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let filter =
         OrientImageFilter::from_code(orientation).map_err(|e| RitkPyError::value(e.to_string()))?;
     py.allow_threads(|| {
@@ -104,5 +104,5 @@ pub fn dicom_orient(py: Python<'_>, image: &PyImage, orientation: &str) -> RitkR
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

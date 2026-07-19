@@ -1,4 +1,4 @@
-//! DIMSE command element types — VR, value representation, and element structure.
+//! DIMSE command element types â€” VR, value representation, and element structure.
 
 /// VR types used in command sets (Explicit VR LE, PS3.5 Table 6.2-1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -88,7 +88,7 @@ impl CommandVr {
         }
     }
 
-    /// Padding byte for even-length conformity. UI → 0x00; others → space.
+    /// Padding byte for even-length conformity. UI â†’ 0x00; others â†’ space.
     pub fn pad_byte(self) -> u8 {
         if self == Self::Ui {
             0x00
@@ -98,7 +98,7 @@ impl CommandVr {
     }
 }
 
-/// Value of a command element — small fixed-size values are stored inline
+/// Value of a command element â€” small fixed-size values are stored inline
 /// without heap allocation (US=2 bytes, UL=4 bytes). Variable-length values
 /// (UI, AE, CS, etc.) use heap storage.
 #[derive(Debug, Clone)]
@@ -111,7 +111,7 @@ pub enum CommandValue {
 }
 
 impl CommandValue {
-    /// Create an inline US (unsigned short) value — zero allocation.
+    /// Create an inline US (unsigned short) value â€” zero allocation.
     pub fn us(v: u16) -> Self {
         let bytes = v.to_le_bytes();
         Self::Inline([bytes[0], bytes[1], 0, 0], 2)

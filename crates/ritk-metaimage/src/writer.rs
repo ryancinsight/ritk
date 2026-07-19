@@ -1,7 +1,7 @@
 use crate::spatial::file_spatial_fields_from_internal;
 use anyhow::{anyhow, Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -80,7 +80,7 @@ fn write_metaimage_flat(
         ));
     }
 
-    // ── Spatial metadata ──────────────────────────────────────────────────
+    // â”€â”€ Spatial metadata â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let dir = direction.0;
     let spatial_fields = file_spatial_fields_from_internal(
         [spacing[0], spacing[1], spacing[2]],
@@ -98,12 +98,12 @@ fn write_metaimage_flat(
     );
     let tm = spatial_fields.transform_matrix_row_major;
 
-    // ── File I/O ──────────────────────────────────────────────────────────
+    // â”€â”€ File I/O â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let file = std::fs::File::create(path)
         .with_context(|| format!("Cannot create MetaImage file {:?}", path))?;
     let mut writer = BufWriter::new(file);
 
-    // Header — field order matches the ITK MetaImageIO convention.
+    // Header â€” field order matches the ITK MetaImageIO convention.
     writeln!(writer, "ObjectType = Image")?;
     writeln!(writer, "NDims = 3")?;
     writeln!(writer, "BinaryData = True")?;
@@ -129,9 +129,9 @@ fn write_metaimage_flat(
     // LOCAL signals that binary data follows immediately.
     writeln!(writer, "ElementDataFile = LOCAL")?;
 
-    // Binary payload — little-endian f32, written in a single bulk call.
+    // Binary payload â€” little-endian f32, written in a single bulk call.
     // On little-endian targets the f32 slice reinterprets to bytes with no copy
-    // (BinaryDataByteOrderMSB = False); a per-element `write_all` loop is ~10×
+    // (BinaryDataByteOrderMSB = False); a per-element `write_all` loop is ~10Ã—
     // slower from the per-call overhead across millions of voxels.
     #[cfg(target_endian = "little")]
     writer.write_all(bytemuck::cast_slice(f32_slice))?;
@@ -151,7 +151,7 @@ fn write_metaimage_flat(
     Ok(())
 }
 
-// ── Public writer struct ──────────────────────────────────────────────────────
+// â”€â”€ Public writer struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Thin writer struct for MetaImage files.
 ///

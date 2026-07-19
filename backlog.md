@@ -1,5 +1,38 @@
 # RITK Backlog - Active Planning
 
+- **MIG-661-01 [arch] - Complete the Coeus/Leto/Hephaestus cutover (REVIEW;
+  owner=Codex `/root`; scope=workspace source, manifests, lockfile, migration
+  audit, and PM artifacts).** Every workspace package now builds on the
+  provider-native image/tensor graph with zero Burn/ndarray manifest edges.
+  Compatibility image modules and the unused macro crate are deleted; CLI and
+  I/O consumers use the canonical Coeus path. Acceptance evidence: clean
+  migration audit, warning-denied workspace Clippy, and 4,644/4,644 Nextest
+  tests with 12 explicitly skipped, plus clean doctest and Rustdoc gates. The
+  hosted dependency action now pins merged Coeus `5ee07a26`; PR publication
+  and merge remain. Hosted Python testing exposed a stale Burn-only CMA
+  contract and a missing global-MI cutover; the CMA surface is deleted and
+  global MI now executes through the native Leto classical engine. Wheel parity
+  then exposed the legacy displacement-warp export and reversed physical
+  component mapping; the duplicate path is deleted and the canonical Coeus
+  sampler now owns warp execution.
+
+- **MIG-660-01 [patch] - Remove stale Burn contract text from native owner
+  crates (BLOCKED; owner=Codex `/root`; scope=`crates/ritk-core/src/
+  {interpolation,transform}/trait_.rs`, `crates/ritk-nifti/src/{writer.rs,
+  tests/mod.rs}`, `xtask/burn_surface.allowlist`, migration audit, PM
+  artifacts).** The current APIs already bind Coeus backend/tensor contracts
+  and the NIfTI codec is native-only, but their Rustdoc and test module docs
+  still describe removed Burn boundaries. Acceptance: the four files contain
+  no Burn-surface audit tokens, owner-crate Rustdoc remains warning-clean where
+  the concurrent MIG-658 source cutover permits compilation, and the migration
+  audit decreases without an allowlist expansion. NIfTI's full package gate is
+  green. The `ritk-core` gate is blocked before compiling the claimed files by
+  the actively changing MIG-658 `ritk-statistics` scope: 38 compile errors
+  currently require native storage bounds or replacement of Burn-shaped tensor
+  operators. Reopen when that owner scope compiles. Publication is also blocked
+  while the peer has staged the broader migration directly on the shared
+  `main` tree.
+
 - **MIG-659-01 [major] - Move native interpolation scalar ownership to Eunomia
   (DONE; owner=Codex `/root` stale-peer takeover;
   scope=`Cargo.toml`, `Cargo.lock`,

@@ -21,7 +21,7 @@ use super::*;
 use ritk_io::VtkPolyData;
 use std::f32::consts::PI;
 
-// ── Shared test helpers ───────────────────────────────────────────────────────
+// â”€â”€ Shared test helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn front_facing_triangle() -> VtkPolyData {
     let mut mesh = VtkPolyData::default();
@@ -61,9 +61,9 @@ fn opaque_config() -> MeshRenderConfig {
     }
 }
 
-// ── CPU-only parameter tests ──────────────────────────────────────────────────
+// â”€â”€ CPU-only parameter tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// SceneUniforms must be exactly 144 bytes (2 × mat4×4 + u32 × 4).
+/// SceneUniforms must be exactly 144 bytes (2 Ã— mat4Ã—4 + u32 Ã— 4).
 #[test]
 fn scene_uniforms_size() {
     assert_eq!(
@@ -73,7 +73,7 @@ fn scene_uniforms_size() {
     );
 }
 
-/// LightUniform must be exactly 48 bytes (3 × vec3 padded to 16 each).
+/// LightUniform must be exactly 48 bytes (3 Ã— vec3 padded to 16 each).
 #[test]
 fn light_uniform_size() {
     assert_eq!(
@@ -83,13 +83,13 @@ fn light_uniform_size() {
     );
 }
 
-/// LightBlock must be exactly 96 bytes (2 × 48).
+/// LightBlock must be exactly 96 bytes (2 Ã— 48).
 #[test]
 fn light_block_size() {
     assert_eq!(std::mem::size_of::<LightBlock>(), 96);
 }
 
-/// MaterialUniforms must be exactly 48 bytes (3 × vec4<f32>).
+/// MaterialUniforms must be exactly 48 bytes (3 Ã— vec4<f32>).
 #[test]
 fn material_uniforms_size() {
     assert_eq!(std::mem::size_of::<MaterialUniforms>(), 48);
@@ -108,7 +108,7 @@ fn mesh_render_config_default_peel_layers() {
     assert_eq!(cfg.peel_layers, N_PEEL_LAYERS);
 }
 
-// ── GPU tests (skipped if no GPU) ─────────────────────────────────────────────
+// â”€â”€ GPU tests (skipped if no GPU) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Guard: returns true if a GPU renderer is available.
 fn gpu_available() -> bool {
@@ -167,7 +167,7 @@ fn gpu_mesh_async_yields_image_after_poll() {
     assert_eq!(
         img.pixels.len(),
         64 * 64,
-        "pixel count must be width × height"
+        "pixel count must be width Ã— height"
     );
 }
 
@@ -214,7 +214,7 @@ fn gpu_mesh_output_dimensions_match_viewport() {
 
     assert_eq!(img.size[0], 80, "width must be 80");
     assert_eq!(img.size[1], 60, "height must be 60");
-    assert_eq!(img.pixels.len(), 80 * 60, "pixel count must be 80 × 60");
+    assert_eq!(img.pixels.len(), 80 * 60, "pixel count must be 80 Ã— 60");
 }
 
 /// GPU output buffer must contain the correct byte length (4 bytes per pixel).
@@ -250,10 +250,10 @@ fn gpu_mesh_viewport_resize_updates_dimensions() {
     let lights = [default_light()];
     let cfg = opaque_config();
 
-    // First render at 32×32.
+    // First render at 32Ã—32.
     let _ = r.render_sync(&mesh, &camera, &mat, &lights, 32, 32, &cfg);
 
-    // Second render at 48×48 — must restart and return correct dimensions.
+    // Second render at 48Ã—48 â€” must restart and return correct dimensions.
     let img = r
         .render_sync(&mesh, &camera, &mat, &lights, 48, 48, &cfg)
         .expect("render_sync after resize must return Some");

@@ -18,12 +18,12 @@ pub(crate) const DICOM_SOP_CLASS_SECONDARY_CAPTURE: &str = "1.2.840.10008.5.1.4.
 ///
 /// # Mathematical specification
 ///
-/// Let range = max(max_val - min_val, ε). Then:
-///   `pixel[i] = round((v[i] - min) / range × 65535).clamp(0, 65535)`
+/// Let range = max(max_val - min_val, Îµ). Then:
+///   `pixel[i] = round((v[i] - min) / range Ã— 65535).clamp(0, 65535)`
 ///   `rescale_slope = range / 65535`
 ///   `rescale_intercept = min_val`
 ///
-/// Reconstruction invariant: `|v[i] - (pixel[i] × slope + intercept)| ≤ slope / 2`.
+/// Reconstruction invariant: `|v[i] - (pixel[i] Ã— slope + intercept)| â‰¤ slope / 2`.
 pub(crate) fn normalize_to_u16(data: &[f32]) -> (Vec<u16>, f32, f32) {
     let min_val = data.iter().copied().fold(f32::INFINITY, f32::min);
     let max_val = data.iter().copied().fold(f32::NEG_INFINITY, f32::max);
@@ -91,7 +91,7 @@ pub(crate) fn generate_series_uid() -> String {
         .unwrap_or_default()
         .as_nanos() as u64;
     let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-    // Format: 2.25.<ns>.<seq> — distinct UIDs guaranteed within a process.
+    // Format: 2.25.<ns>.<seq> â€” distinct UIDs guaranteed within a process.
     format!("2.25.{}.{}", t, n)
 }
 

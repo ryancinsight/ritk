@@ -1,46 +1,46 @@
 use super::*;
 
-// ── Helper: uniform gradient and two-seed marker images ───────────────────────
+// â”€â”€ Helper: uniform gradient and two-seed marker images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Build a 3×3×3 image with uniform intensity 0.5.
+/// Build a 3Ã—3Ã—3 image with uniform intensity 0.5.
 ///
 /// Used as a synthetic gradient image for marker-watershed tests.
 /// A flat gradient means all pairwise edge weights are equal, so the
 /// watershed assigns labels purely by proximity to the seed voxels.
-fn make_uniform_gradient_image() -> Image<Backend, 3> {
-    let device: <Backend as BurnBackend>::Device = Default::default();
+fn make_uniform_gradient_image() -> Image<f32, Backend, 3> {
+    let backend = Backend::default();
     let values = vec![0.5_f32; 27];
-    let td = TensorData::new(values, Shape::new([3, 3, 3]));
-    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([3, 3, 3], &values, &backend);
     Image::new(
         tensor,
         Point::new([0.0; 3]),
         Spacing::new([1.0; 3]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
-/// Build a 3×3×3 marker image with two seeds at opposite corners.
+/// Build a 3Ã—3Ã—3 marker image with two seeds at opposite corners.
 ///
-/// Flat index 0  (z=0, y=0, x=0) → label 1.0
-/// Flat index 26 (z=2, y=2, x=2) → label 2.0
-/// All other voxels               → 0.0 (unmarked).
-fn make_two_seed_marker_image() -> Image<Backend, 3> {
-    let device: <Backend as BurnBackend>::Device = Default::default();
+/// Flat index 0  (z=0, y=0, x=0) â†’ label 1.0
+/// Flat index 26 (z=2, y=2, x=2) â†’ label 2.0
+/// All other voxels               â†’ 0.0 (unmarked).
+fn make_two_seed_marker_image() -> Image<f32, Backend, 3> {
+    let backend = Backend::default();
     let mut values = vec![0.0_f32; 27];
     values[0] = 1.0;
     values[26] = 2.0;
-    let td = TensorData::new(values, Shape::new([3, 3, 3]));
-    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([3, 3, 3], &values, &backend);
     Image::new(
         tensor,
         Point::new([0.0; 3]),
         Spacing::new([1.0; 3]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
-// ── Positive: Watershed creates output with basin labels ──────────────────
+// â”€â”€ Positive: Watershed creates output with basin labels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_segment_watershed_creates_output() {
@@ -62,7 +62,14 @@ fn test_segment_watershed_creates_output() {
     let expected = ritk_segmentation::WatershedSegmentation::new()
         .apply(&relief)
         .unwrap();
-    assert_eq!(labels.data_slice(), expected.data_slice());
+    assert_eq!(
+        labels
+            .data_slice()
+            .expect("invariant: result storage is contiguous"),
+        expected
+            .data_slice()
+            .expect("invariant: result storage is contiguous")
+    );
     assert_eq!(labels.origin(), relief.origin());
     assert_eq!(labels.spacing(), relief.spacing());
     assert_eq!(labels.direction(), relief.direction());
@@ -73,16 +80,14 @@ fn native_watershed_cli_rejects_nonfinite_relief_before_output() {
     let dir = tempdir().unwrap();
     let input = dir.path().join("input.nii");
     let output = dir.path().join("labels.nii");
-    let device: <Backend as BurnBackend>::Device = Default::default();
+    let backend = Backend::default();
     let image = Image::new(
-        Tensor::<Backend, 3>::from_data(
-            TensorData::new(vec![0.0, f32::NAN], Shape::new([1, 1, 2])),
-            &device,
-        ),
+        Tensor::<f32, Backend>::from_slice_on([1, 1, 2], &[0.0, f32::NAN], &backend),
         Point::new([0.0; 3]),
         Spacing::new([1.0; 3]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     ritk_io::write_nifti(&input, &image).unwrap();
     let error = run(default_args(
         input,
@@ -97,7 +102,7 @@ fn native_watershed_cli_rejects_nonfinite_relief_before_output() {
     assert!(!output.exists());
 }
 
-// ── Negative: marker-watershed missing markers path returns error ─────────
+// â”€â”€ Negative: marker-watershed missing markers path returns error â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_segment_marker_watershed_missing_markers_returns_error() {
@@ -123,9 +128,9 @@ fn test_segment_marker_watershed_missing_markers_returns_error() {
     );
 }
 
-// ── Positive: Marker-watershed creates output with correct shape ──────────
+// â”€â”€ Positive: Marker-watershed creates output with correct shape â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Marker-watershed must produce a 3×3×3 output image when given valid
+/// Marker-watershed must produce a 3Ã—3Ã—3 output image when given valid
 /// gradient and marker inputs.
 ///
 /// Invariant: output shape == input shape == [3, 3, 3].
@@ -164,7 +169,7 @@ fn test_segment_marker_watershed_creates_output_with_correct_shape() {
 
 /// Marker-watershed must propagate both seed labels into the output image.
 ///
-/// With two seeds at opposite corners of a uniform-gradient 3×3×3 volume,
+/// With two seeds at opposite corners of a uniform-gradient 3Ã—3Ã—3 volume,
 /// the flood fill assigns every voxel to the nearer seed.  At minimum the
 /// seed voxels themselves carry their original labels, so label 1.0 and
 /// label 2.0 must each appear at least once in the output.
@@ -189,7 +194,10 @@ fn test_segment_marker_watershed_output_contains_both_basin_labels() {
     run(args).expect("marker-watershed must succeed with valid inputs");
 
     let img = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
-    img.with_data_slice(|vals| {
+    {
+        let vals = img
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         let has_label_1 = vals.contains(&1.0_f32);
         let has_label_2 = vals.contains(&2.0_f32);
         assert!(
@@ -204,7 +212,7 @@ fn test_segment_marker_watershed_output_contains_both_basin_labels() {
              got values: {:?}",
             &vals[..vals.len().min(27)]
         );
-    });
+    }
 }
 
 #[test]
@@ -231,7 +239,14 @@ fn native_marker_watershed_cli_matches_canonical_legacy_output_exactly() {
         .apply(&gradient, &markers)
         .unwrap();
     let actual = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
-    assert_eq!(actual.data_slice(), expected.data_slice());
+    assert_eq!(
+        actual
+            .data_slice()
+            .expect("invariant: result storage is contiguous"),
+        expected
+            .data_slice()
+            .expect("invariant: result storage is contiguous")
+    );
     assert_eq!(actual.origin(), gradient.origin());
     assert_eq!(actual.spacing(), gradient.spacing());
     assert_eq!(actual.direction(), gradient.direction());

@@ -3,8 +3,8 @@ use super::super::{
 };
 
 /// Invariant: write_dicom_seg packs BINARY frames MSB-first (inverse of unpack_pixel_data).
-/// Frame 0: pixels 0-7 = 1 → byte 0 = 0xFF; pixels 8-15 = 0 → byte 1 = 0x00.
-/// Frame 1: pixels 0-7 = 0 → byte 0 = 0x00; pixels 8-15 = 1 → byte 1 = 0xFF.
+/// Frame 0: pixels 0-7 = 1 â†’ byte 0 = 0xFF; pixels 8-15 = 0 â†’ byte 1 = 0x00.
+/// Frame 1: pixels 0-7 = 0 â†’ byte 0 = 0x00; pixels 8-15 = 1 â†’ byte 1 = 0xFF.
 /// read_dicom_seg must recover the original pixel vectors exactly.
 #[test]
 fn test_write_dicom_seg_binary_roundtrip() {

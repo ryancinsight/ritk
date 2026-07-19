@@ -9,6 +9,21 @@ from typing import Any
 
 from ritk._ritk.image import Image
 
+class GlobalMiOptions:
+    transform_type: str
+    num_mi_bins: int
+    maximum_iterations: int
+    tolerance: float
+    step_multiplier: float
+    def __init__(
+        self,
+        transform_type: str = "rigid",
+        num_mi_bins: int = 32,
+        maximum_iterations: int = 100,
+        tolerance: float = 1e-6,
+        step_multiplier: float = 1.0,
+    ) -> None: ...
+
 def demons_register(
     fixed: Image,
     moving: Image,
@@ -131,11 +146,5 @@ def joint_label_fusion_py(
 def global_mi_register(
     fixed: Image,
     moving: Image,
-    opts: Any | None = None,
-) -> tuple[list[float], float, dict[str, Any]]: ...
-def cma_mi_register(
-    fixed: Image,
-    moving: Image,
-    opts: Any | None = None,
-    fixed_mask: Image | None = None,
+    opts: GlobalMiOptions | None = None,
 ) -> tuple[list[float], float, dict[str, Any]]: ...

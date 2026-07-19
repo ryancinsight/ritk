@@ -162,7 +162,7 @@ impl SnapApp {
         }
     }
 
-    // ── Submit helpers ────────────────────────────────────────────────────────
+    // â”€â”€ Submit helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     pub(crate) fn submit_pacs_echo(&mut self) {
         if self.pacs_worker.is_some() {
@@ -170,7 +170,7 @@ impl SnapApp {
             return;
         }
         self.pacs_query_state = QueryState::Pending {
-            label: "C-ECHO…".to_owned(),
+            label: "C-ECHOâ€¦".to_owned(),
         };
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -200,7 +200,7 @@ impl SnapApp {
             return;
         }
         self.pacs_query_state = QueryState::Pending {
-            label: "C-FIND…".to_owned(),
+            label: "C-FINDâ€¦".to_owned(),
         };
         self.pacs_selected_row = None;
 
@@ -235,7 +235,7 @@ impl SnapApp {
         self.start_pacs_scp();
         let move_destination = self.pacs_config.move_destination.clone();
         self.pacs_query_state = QueryState::Pending {
-            label: format!("C-MOVE → {move_destination}…"),
+            label: format!("C-MOVE â†’ {move_destination}â€¦"),
         };
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -292,7 +292,7 @@ impl SnapApp {
         self.start_pacs_scp();
         let move_destination = self.pacs_config.move_destination.clone();
         self.pacs_query_state = QueryState::Pending {
-            label: format!("C-MOVE series → {move_destination}\u{2026}"),
+            label: format!("C-MOVE series â†’ {move_destination}\u{2026}"),
         };
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -412,7 +412,7 @@ impl SnapApp {
     /// Load all buffered SCP-received instances into the viewer.
     ///
     /// Parses each [`StoredInstance`] in-memory via the zero-disk DICOM
-    /// loading path (Part 10 bytes → `scan_dicom_instances` → pixel decode).
+    /// loading path (Part 10 bytes â†’ `scan_dicom_instances` â†’ pixel decode).
     /// On success, the received instances buffer and counter are cleared.
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn load_received_scp_instances(&mut self) {
@@ -421,14 +421,14 @@ impl SnapApp {
             return;
         }
         let count = self.pacs_pending_instances.len();
-        self.status_message = format!("Loading {count} received DICOM instance(s)…");
+        self.status_message = format!("Loading {count} received DICOM instance(s)â€¦");
         match crate::dicom::loader::load_dicom_series_from_stored_instances(
             &self.pacs_pending_instances,
         ) {
             Ok(vol) => {
                 let shape = vol.shape;
                 let msg = format!(
-                    "Loaded {count} SCP-received instance(s) — shape {:?}",
+                    "Loaded {count} SCP-received instance(s) â€” shape {:?}",
                     shape
                 );
                 self.load_volume(vol, msg);
@@ -444,7 +444,7 @@ impl SnapApp {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[cfg(test)]
 #[path = "tests_pacs_ops.rs"]
 mod tests;

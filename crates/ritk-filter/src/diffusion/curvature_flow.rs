@@ -4,41 +4,41 @@
 //!
 //! Implements level-set mean curvature flow (Osher & Sethian 1988):
 //!
-//!   ∂I/∂t = |∇I|·κ = N / |∇I|²
+//!   âˆ‚I/âˆ‚t = |âˆ‡I|Â·Îº = N / |âˆ‡I|Â²
 //!
-//! where κ = div(∇I / |∇I|) is the mean curvature and N is the curvature
-//! numerator (see below). The |∇I| factor that distinguishes this from bare
-//! κ = N/|∇I|³ cancels the flat-region 0/0 singularity and keeps the
+//! where Îº = div(âˆ‡I / |âˆ‡I|) is the mean curvature and N is the curvature
+//! numerator (see below). The |âˆ‡I| factor that distinguishes this from bare
+//! Îº = N/|âˆ‡I|Â³ cancels the flat-region 0/0 singularity and keeps the
 //! evolution stable. This matches ITK `itk::CurvatureFlowImageFilter` exactly.
 //!
 //! # 3-D Finite-Difference Discretisation
 //!
 //! Let first derivatives (central differences at interior, one-sided at boundaries):
-//! I_x = (I\[p+x\] − I\[p−x\]) / 2
-//! I_y = (I\[p+y\] − I\[p−y\]) / 2
-//! I_z = (I\[p+z\] − I\[p−z\]) / 2
+//! I_x = (I\[p+x\] âˆ’ I\[pâˆ’x\]) / 2
+//! I_y = (I\[p+y\] âˆ’ I\[pâˆ’y\]) / 2
+//! I_z = (I\[p+z\] âˆ’ I\[pâˆ’z\]) / 2
 //!
 //! Let second derivatives (symmetric 3-point stencils):
-//! I_xx = I\[p+x\] − 2·I\[p\] + I\[p−x\]
+//! I_xx = I\[p+x\] âˆ’ 2Â·I\[p\] + I\[pâˆ’x\]
 //!   ... (similarly for yy, zz, xy, xz, yz)
 //!
 //! Mean curvature numerator (Caselles, Kimmel, Sapiro 1997):
-//!   N = I_xx·(I_y² + I_z²)
-//!     + I_yy·(I_x² + I_z²)
-//!     + I_zz·(I_x² + I_y²)
-//!     − 2·I_x·I_y·I_xy
-//!     − 2·I_x·I_z·I_xz
-//!     − 2·I_y·I_z·I_yz
+//!   N = I_xxÂ·(I_yÂ² + I_zÂ²)
+//!     + I_yyÂ·(I_xÂ² + I_zÂ²)
+//!     + I_zzÂ·(I_xÂ² + I_yÂ²)
+//!     âˆ’ 2Â·I_xÂ·I_yÂ·I_xy
+//!     âˆ’ 2Â·I_xÂ·I_zÂ·I_xz
+//!     âˆ’ 2Â·I_yÂ·I_zÂ·I_yz
 //!
-//! Gradient magnitude squared: |∇I|² = I_x² + I_y² + I_z²
+//! Gradient magnitude squared: |âˆ‡I|Â² = I_xÂ² + I_yÂ² + I_zÂ²
 //!
-//! Update (speed = |∇I|·κ = N / |∇I|²):
-//!   speed(p) = N / |∇I|²  if |∇I|² > ε, else 0
-//!   I_new(p) = I(p) + Δt · speed(p)
+//! Update (speed = |âˆ‡I|Â·Îº = N / |âˆ‡I|Â²):
+//!   speed(p) = N / |âˆ‡I|Â²  if |âˆ‡I|Â² > Îµ, else 0
+//!   I_new(p) = I(p) + Î”t Â· speed(p)
 //!
 //! # Precision
 //!
-//! All intermediate arithmetic (derivatives, curvature numerator, |∇I|²)
+//! All intermediate arithmetic (derivatives, curvature numerator, |âˆ‡I|Â²)
 //! is performed in `f64`, matching ITK's hard typedef
 //! `using PixelRealType = double` in `itkFiniteDifferenceFunction.h`.
 //! Input pixels are widened from `f32` to `f64` on read; the final update is
@@ -55,10 +55,10 @@
 //!
 //! # Stability
 //!
-//! For 3-D isotropic grids (Δx = Δy = Δz = 1), the explicit-Euler stability bound is:
-//!   Δt ≤ 1/6 ≈ 0.1667
+//! For 3-D isotropic grids (Î”x = Î”y = Î”z = 1), the explicit-Euler stability bound is:
+//!   Î”t â‰¤ 1/6 â‰ˆ 0.1667
 //!
-//! ITK default: iterations=5, Δt=0.0625 (well within stability bound).
+//! ITK default: iterations=5, Î”t=0.0625 (well within stability bound).
 //!
 //! # Time-step CFL Note
 //!
@@ -80,15 +80,15 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// ── Stability constant ────────────────────────────────────────────────────────
+// â”€â”€ Stability constant â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Minimum |∇I|² below which curvature is clamped to zero (flat regions).
+/// Minimum |âˆ‡I|Â² below which curvature is clamped to zero (flat regions).
 ///
 /// Declared as `f64` because all inner-loop arithmetic uses `f64` to match
 /// ITK's `PixelRealType = double` (see `itkFiniteDifferenceFunction.h`).
 const GRAD_MAG_EPSILON: f64 = 1e-9;
 
-// ── CurvatureFlowConfig ───────────────────────────────────────────────────────
+// â”€â”€ CurvatureFlowConfig â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Configuration for `CurvatureFlowImageFilter`.
 ///
@@ -97,7 +97,7 @@ const GRAD_MAG_EPSILON: f64 = 1e-9;
 pub struct CurvatureFlowConfig {
     /// Number of explicit-Euler iterations. ITK default: 5.
     pub num_iterations: usize,
-    /// Explicit Euler time step Δt. Must satisfy `Δt ≤ 1/6` for 3-D stability.
+    /// Explicit Euler time step Î”t. Must satisfy `Î”t â‰¤ 1/6` for 3-D stability.
     /// ITK default: 0.0625.
     pub time_step: f32,
 }
@@ -111,11 +111,11 @@ impl Default for CurvatureFlowConfig {
     }
 }
 
-// ── CurvatureFlowImageFilter ──────────────────────────────────────────────────
+// â”€â”€ CurvatureFlowImageFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Pure mean curvature flow filter.
 ///
-/// Evolves the image by `∂I/∂t = |∇I|·κ = N / |∇I|²` (level-set mean curvature
+/// Evolves the image by `âˆ‚I/âˆ‚t = |âˆ‡I|Â·Îº = N / |âˆ‡I|Â²` (level-set mean curvature
 /// flow, matching ITK `CurvatureFlowImageFilter`) for a fixed number of
 /// explicit-Euler iterations.  This smooths small structures while preserving
 /// larger geometric features longer than Gaussian smoothing.
@@ -158,12 +158,12 @@ impl CurvatureFlowImageFilter {
     /// Per-iteration layout:
     /// - **Double buffer**: `cur` (read) and `next` (write) are pre-allocated
     ///   before the loop; `std::mem::swap` rotates them at zero cost, eliminating
-    ///   the `n × 4` byte allocation that `map_collect_index_with` would produce
+    ///   the `n Ã— 4` byte allocation that `map_collect_index_with` would produce
     ///   every iteration.  This matches the `MinMaxCurvatureFlowImageFilter` pattern.
     /// - **Slab dispatch**: `for_each_chunk_mut_enumerated_with` dispatches one
     ///   task per z-slab rather than per voxel, improving output-write cache
     ///   locality and reducing task-queue overhead.
-    /// - **Interior fast path**: ~95 % of voxels in any volume larger than 3×3×3
+    /// - **Interior fast path**: ~95 % of voxels in any volume larger than 3Ã—3Ã—3
     ///   are strictly interior (no dimension touches a face).  For these, all
     ///   stencil reads use direct flat-index arithmetic (zero `isize` clamps).
     ///   The axis-aligned neighbours `{xm,xp,ym,yp,zm,zp}` are loaded once and
@@ -173,7 +173,7 @@ impl CurvatureFlowImageFilter {
     ///   path, preserving the same Neumann boundary condition as before.
     ///
     /// Returns `anyhow::Error` if the voxel data cannot be extracted as `f32`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals_vec, dims) = extract_vec(image)?;
         let sp = image.spacing();
         let result = curvature_flow_evolve(&vals_vec, dims, [sp[0], sp[1], sp[2]], &self.config);
@@ -193,9 +193,9 @@ impl CurvatureFlowImageFilter {
     /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -208,17 +208,17 @@ impl CurvatureFlowImageFilter {
     }
 }
 
-// ── Core computation (ITK CurvatureFlowImageFilter, explicit Euler) ──────────
+// â”€â”€ Core computation (ITK CurvatureFlowImageFilter, explicit Euler) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Substrate-agnostic host core: `config.num_iterations` explicit-Euler sweeps
-/// of level-set mean curvature flow (`speed = N / |∇I|²`) on a flat z-major
+/// of level-set mean curvature flow (`speed = N / |âˆ‡I|Â²`) on a flat z-major
 /// buffer, double-buffered. All stencil arithmetic runs in `f64` (ITK
 /// `PixelRealType = double`); the per-iteration update is narrowed to `f32` on
 /// write. Boundary voxels use the clamped (ZeroFluxNeumann) accessor.
 ///
 /// Single source of truth for the Burn [`apply`](CurvatureFlowImageFilter::apply)
 /// and Coeus-native [`apply_native`](CurvatureFlowImageFilter::apply_native)
-/// paths — both call this, so their outputs are bitwise-identical.
+/// paths â€” both call this, so their outputs are bitwise-identical.
 fn curvature_flow_evolve(
     vals: &[f32],
     dims: [usize; 3],
@@ -228,7 +228,7 @@ fn curvature_flow_evolve(
     let [nz, ny, nx] = dims;
     let slab = ny * nx;
 
-    // Loop-invariant inverse spacings and time step — computed once, hoisted
+    // Loop-invariant inverse spacings and time step â€” computed once, hoisted
     // outside the per-iteration and per-voxel scopes.
     let isp: [f64; 3] = [
         spacing[2].recip(), // x-axis
@@ -238,7 +238,7 @@ fn curvature_flow_evolve(
     let dt64 = config.time_step as f64;
 
     let mut cur: Vec<f32> = vals.to_vec();
-    // Pre-allocate output buffer: avoids one `n × 4` byte heap allocation per
+    // Pre-allocate output buffer: avoids one `n Ã— 4` byte heap allocation per
     // iteration (vs. `map_collect_index_with` which calls `collect()` each
     // sweep).  `MinMaxCurvatureFlowImageFilter` uses the identical pattern.
     let mut next: Vec<f32> = vec![0.0_f32; nz * slab];
@@ -279,7 +279,7 @@ fn curvature_flow_evolve(
 
                             let (ix_, iy_, iz_, ixx, iyy, izz, ixy, ixz, iyz) =
                                 if z_interior && y_interior && ix >= 1 && ix < nx - 1 {
-                                    // ── Interior fast path ──────────────────────────
+                                    // â”€â”€ Interior fast path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                                     // No clamp overhead (~95 % of voxels).
                                     // Axis-aligned neighbours loaded once, reused for
                                     // both 1st and 2nd derivatives (CSE by let binding).
@@ -323,7 +323,7 @@ fn curvature_flow_evolve(
 
                                     (ix_, iy_, iz_, ixx, iyy, izz, ixy, ixz, iyz)
                                 } else {
-                                    // ── Boundary path ─────────────────────────────
+                                    // â”€â”€ Boundary path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                                     // Clamped get; only ~5 % of voxels.
                                     let x = ix as isize;
                                     let xm = get(z, y, x - 1);
@@ -374,7 +374,7 @@ fn curvature_flow_evolve(
                                 - 2.0 * ix_ * iz_ * ixz
                                 - 2.0 * iy_ * iz_ * iyz;
 
-                            // Speed = |∇I|·κ = N / |∇I|².  The |∇I| factor
+                            // Speed = |âˆ‡I|Â·Îº = N / |âˆ‡I|Â².  The |âˆ‡I| factor
                             // cancels the flat-region singularity.
                             let grad_sq = ix_ * ix_ + iy_ * iy_ + iz_ * iz_;
                             let speed = if grad_sq > GRAD_MAG_EPSILON {
@@ -397,7 +397,7 @@ fn curvature_flow_evolve(
     cur
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_curvature_flow.rs"]
@@ -406,13 +406,13 @@ mod tests;
 #[cfg(test)]
 mod tests_native {
     use super::{CurvatureFlowConfig, CurvatureFlowImageFilter};
-    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use crate::native_support::{assert_coeus_matches_coeus, make_native_image, native_vals};
     use coeus_core::SequentialBackend;
 
     #[test]
     fn matches_burn() {
         let vals: Vec<f32> = (0..60).map(|i| ((i * 11) % 17) as f32).collect();
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             vals,
             [3, 4, 5],
             |img| {
@@ -430,7 +430,7 @@ mod tests_native {
     #[test]
     fn oracle_constant_field_preserved() {
         // Mean curvature flow of a constant field: all derivatives are 0, so
-        // the speed N/|∇I|² is gated to 0 (|∇I|² ≤ ε) and the image is a fixed
+        // the speed N/|âˆ‡I|Â² is gated to 0 (|âˆ‡I|Â² â‰¤ Îµ) and the image is a fixed
         // point of the evolution.
         let img = make_native_image(vec![7.0f32; 27], [3, 3, 3]);
         let out = CurvatureFlowImageFilter::new(CurvatureFlowConfig::default())

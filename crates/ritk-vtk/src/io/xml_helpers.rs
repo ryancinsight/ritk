@@ -100,9 +100,9 @@ pub(crate) fn named_da(section: &str, name: &str) -> Option<String> {
 /// Parse all `<DataArray>` elements in a PointData/CellData section into an
 /// attribute map.
 ///
-/// - `NumberOfComponents="3"` → `Vectors` (or `Normals` when name contains "normal").
-/// - `NumberOfComponents="2"` → `TextureCoords` with `dim=2`.
-/// - All other component counts → `Scalars` with that `num_components`.
+/// - `NumberOfComponents="3"` â†’ `Vectors` (or `Normals` when name contains "normal").
+/// - `NumberOfComponents="2"` â†’ `TextureCoords` with `dim=2`.
+/// - All other component counts â†’ `Scalars` with that `num_components`.
 pub(crate) fn parse_attrs(section: &str) -> HashMap<String, AttributeArray> {
     let mut map = HashMap::new();
     let mut rest = section;

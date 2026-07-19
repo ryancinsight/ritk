@@ -27,7 +27,7 @@ impl HitOrMissTransform {
             bg_radius,
         }
     }
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let result = hit_or_miss_3d(&vals, dims, self.fg_radius, self.bg_radius);
         Ok(rebuild(result, dims, image))
@@ -35,7 +35,7 @@ impl HitOrMissTransform {
 
     /// Coeus-native sister of [`HitOrMissTransform::apply`].
     ///
-    /// Runs the identical `(M ⊖ SE1) ∧ (Mᶜ ⊖ SE2)` transform via the shared
+    /// Runs the identical `(M âŠ– SE1) âˆ§ (Má¶œ âŠ– SE2)` transform via the shared
     /// `hit_or_miss_3d` host core on the image's contiguous host buffer, so the
     /// result is bitwise-identical to the Burn path. No Burn tensor is
     /// constructed. Spatial metadata is preserved.
@@ -45,9 +45,9 @@ impl HitOrMissTransform {
     /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -59,7 +59,7 @@ impl HitOrMissTransform {
 }
 
 /// True if the offset addresses a **degenerate (size-1) axis** off its only
-/// plane — such an axis has no extent, so the structuring element carries no
+/// plane â€” such an axis has no extent, so the structuring element carries no
 /// component along it (a 2-D `z = 1` image uses a 2-D SE). These offsets are
 /// skipped rather than counted as out-of-bounds, which otherwise made every
 /// hit-or-miss query fail on a 2-D image (all-zero output).
@@ -181,7 +181,7 @@ fn hit_or_miss_3d(data: &[f32], dims: [usize; 3], fg_r: usize, bg_r: usize) -> V
     out
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_hit_or_miss.rs"]

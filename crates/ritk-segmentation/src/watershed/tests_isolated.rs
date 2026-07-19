@@ -8,28 +8,22 @@
 use super::isolated_watershed_values;
 use super::IsolatedWatershed;
 use super::IsolatedWatershedConfig;
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::test_support::make_image;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
 /// Build a `[1, ny, nx]` image (z == 1 → 2-D) from a flat row-major slice.
-fn image_2d(data: Vec<f32>, ny: usize, nx: usize) -> Image<B, 3> {
+fn image_2d(data: Vec<f32>, ny: usize, nx: usize) -> Image<f32, B, 3> {
     make_image(data, [1, ny, nx])
 }
 
 /// Extract labels as a flat `Vec<f32>` from a label image.
-fn labels(img: &Image<B, 3>) -> Vec<f32> {
-    img.data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .expect("label image must be f32")
-        .to_vec()
+fn labels(img: &Image<f32, B, 3>) -> Vec<f32> {
+    img.data().to_vec()
 }
 
 // ── Gradient-descent IsolatedWatershed (7×7 two-valley relief) ─────────────────
@@ -220,7 +214,12 @@ fn native_and_legacy_execution_are_exact_with_geometry() {
     let filter = IsolatedWatershed::new([0, 1, 3], [0, 5, 3], IsolatedWatershedConfig::default());
     let expected = filter.apply(&legacy).unwrap();
     let actual = filter.apply_native(&native, &SequentialBackend).unwrap();
-    assert_eq!(actual.data_slice().unwrap(), expected.data_slice().as_ref());
+    assert_eq!(
+        actual.data_slice().unwrap(),
+        expected
+            .data_slice()
+            .expect("invariant: contiguous host storage")
+    );
     assert_eq!(*actual.origin(), origin);
     assert_eq!(*actual.spacing(), spacing);
     assert_eq!(*actual.direction(), direction);

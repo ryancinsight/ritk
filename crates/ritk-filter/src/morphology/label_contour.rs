@@ -1,10 +1,10 @@
-//! Label contour filter — boundaries between labelled regions.
+//! Label contour filter â€” boundaries between labelled regions.
 //!
 //! # Mathematical Specification
 //!
-//! Given a label image `L : ℤ³ → ℕ₀`, a voxel `p` is a **label contour voxel** if:
-//! - `L(p) ≠ background_label`, AND
-//! - at least one neighbour `q ∈ N(p)` satisfies `L(q) ≠ L(p)`.
+//! Given a label image `L : â„¤Â³ â†’ â„•â‚€`, a voxel `p` is a **label contour voxel** if:
+//! - `L(p) â‰  background_label`, AND
+//! - at least one neighbour `q âˆˆ N(p)` satisfies `L(q) â‰  L(p)`.
 //!
 //! The connectivity topology `N(p)` is determined by [`Connectivity`]:
 //! - [`Connectivity::Face6`] (default): 6-connected face neighbours (ITK default).
@@ -91,7 +91,7 @@ fn n26() -> Vec<(i32, i32, i32)> {
 
 impl LabelContourImageFilter {
     /// Apply the label contour filter to a 3-D image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let [nz, ny, nx] = dims;
 
@@ -109,7 +109,7 @@ impl LabelContourImageFilter {
                     }
                     // A labelled voxel is a contour voxel iff an IN-BOUNDS
                     // neighbour has a different label. Out-of-bounds neighbours
-                    // are skipped, NOT treated as a different label — ITK /
+                    // are skipped, NOT treated as a different label â€” ITK /
                     // `sitk.LabelContour` leaves a single full-label image empty
                     // and never marks the image border. (Treating OOB as a
                     // different label also broke z=1 images.)
@@ -150,14 +150,14 @@ impl LabelContourImageFilter {
     /// Apply label contour extraction to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
+        ritk_image::Image::from_flat_on(
             self.contour_values(image.data_slice()?, image.shape()),
             image.shape(),
             *image.origin(),
@@ -206,7 +206,7 @@ impl LabelContourImageFilter {
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_label_contour.rs"]

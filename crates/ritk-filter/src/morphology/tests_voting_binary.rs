@@ -1,17 +1,18 @@
 //! Tests for voting_binary
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(data, shape)
+fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(data, shape)
 }
 
-fn voxels(img: &Image<B, 3>) -> Vec<f32> {
-    img.data_slice().into_owned()
+fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
+    img.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 /// All-background image with birth_threshold=1 and high survival_threshold=0:

@@ -1,13 +1,12 @@
 //! Tests for hit_or_miss
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
 #[test]
 fn native_transform_matches_legacy_boundary_and_preserves_geometry() {
@@ -85,17 +84,20 @@ fn native_transform_matches_legacy_for_three_dimensional_background_ring() {
         1.0
     );
 }
-fn img(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    let t = Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(dims)), &Default::default());
+fn img(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    let t = Tensor::<f32, B>::from_slice(dims, &vals);
     Image::new(
         t,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
-fn vv(i: &Image<B, 3>) -> Vec<f32> {
-    i.data_slice().into_owned()
+fn vv(i: &Image<f32, B, 3>) -> Vec<f32> {
+    i.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 #[test]
 fn test_identity_both_zero() {
@@ -140,14 +142,14 @@ fn test_isolated_voxel_detected() {
 fn test_metadata_preserved() {
     let dims = [5, 5, 5];
     let n = dims[0] * dims[1] * dims[2];
-    let t = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![1.0_f32; n], Shape::new(dims)),
-        &Default::default(),
-    );
+    let t = Tensor::<f32, B>::from_slice(dims, &vec![1.0_f32; n]);
     let o = Point::new([1.0, 2.0, 3.0]);
     let s = Spacing::new([0.5, 0.5, 0.5]);
     let r = HitOrMissTransform::new(0, 0)
-        .apply(&Image::new(t, o, s, Direction::identity()))
+        .apply(
+            &Image::new(t, o, s, Direction::identity())
+                .expect("invariant: fixture tensor has the declared rank"),
+        )
         .unwrap();
     assert_eq!(*r.origin(), o);
     assert_eq!(*r.spacing(), s);
@@ -166,9 +168,9 @@ fn test_anti_extensivity() {
 }
 
 /// Regression for the z=1 degenerate-axis trap: a 2-D (z=1) image is a genuine
-/// 2-D problem, so the structuring element is 2-D. A 5×5 foreground block (in a
-/// 7×7 frame) with fg_radius=1 erodes to its 3×3 interior (9 voxels). Before the
-/// fix, every box query failed on the OOB z=±1 neighbours → all-zero output.
+/// 2-D problem, so the structuring element is 2-D. A 5Ã—5 foreground block (in a
+/// 7Ã—7 frame) with fg_radius=1 erodes to its 3Ã—3 interior (9 voxels). Before the
+/// fix, every box query failed on the OOB z=Â±1 neighbours â†’ all-zero output.
 #[test]
 fn hit_or_miss_works_on_2d_z1_image() {
     let dims = [1, 7, 7];
@@ -182,6 +184,6 @@ fn hit_or_miss_works_on_2d_z1_image() {
     let hits = out.iter().filter(|&&x| x > 0.5).count();
     assert_eq!(
         hits, 9,
-        "2-D hit-or-miss must detect the 3×3 eroded interior"
+        "2-D hit-or-miss must detect the 3Ã—3 eroded interior"
     );
 }

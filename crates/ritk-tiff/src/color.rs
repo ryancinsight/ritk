@@ -8,7 +8,7 @@ use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_image::native::RgbVolume;
+use ritk_image::RgbVolume;
 use ritk_spatial::{Direction, Point, Spacing};
 use tiff::decoder::Decoder;
 use tiff::ColorType;

@@ -3,10 +3,10 @@
 //!
 //! # Mathematical Specification
 //!
-//! A structuring element (SE) is a finite subset of ℤ³ used as the footprint
+//! A structuring element (SE) is a finite subset of â„¤Â³ used as the footprint
 //! of morphological operations (erosion, dilation, opening, closing, top-hat,
 //! rank/percentile, etc.). An SE is represented by a list of integer offsets
-//! `(Δz, Δy, Δx)` relative to the origin (0, 0, 0).
+//! `(Î”z, Î”y, Î”x)` relative to the origin (0, 0, 0).
 //!
 //! # Origin Invariant
 //!
@@ -46,7 +46,7 @@ use super::shape_markers::{Ball, Cross, Cube, SeShape};
 /// ```ignore
 /// use ritk_morphology::{StructuringElement, Cube, Cross, Ball};
 ///
-/// // Cube 3×3×3 SE (r = 1, 27 voxels)
+/// // Cube 3Ã—3Ã—3 SE (r = 1, 27 voxels)
 /// let cube = StructuringElement::cube(1);
 /// assert_eq!(cube.len(), 27);
 ///
@@ -54,7 +54,7 @@ use super::shape_markers::{Ball, Cross, Cube, SeShape};
 /// let cross = StructuringElement::cross(1);
 /// assert_eq!(cross.len(), 7);
 ///
-/// // Ball SE (r = 1, 7 voxels — same as cross for r=1)
+/// // Ball SE (r = 1, 7 voxels â€” same as cross for r=1)
 /// let ball = StructuringElement::ball(1);
 /// assert_eq!(ball.len(), 7);
 ///
@@ -64,7 +64,7 @@ use super::shape_markers::{Ball, Cross, Cube, SeShape};
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct StructuringElement {
-    /// Voxel offsets `(Δz, Δy, Δx)`. Always contains `(0, 0, 0)` when
+    /// Voxel offsets `(Î”z, Î”y, Î”x)`. Always contains `(0, 0, 0)` when
     /// non-empty.
     offsets: Vec<Offset3D>,
     /// Half-width `r` that produced the offsets.
@@ -89,7 +89,7 @@ impl StructuringElement {
 
     /// Construct a cube SE of half-width `radius`.
     ///
-    /// Cardinality: `(2r+1)³`. Delegated to [`Cube::offsets`].
+    /// Cardinality: `(2r+1)Â³`. Delegated to [`Cube::offsets`].
     #[inline]
     pub fn cube(radius: usize) -> Self {
         Self {
@@ -111,7 +111,7 @@ impl StructuringElement {
 
     /// Construct a Euclidean ball SE of half-width `radius`.
     ///
-    /// Cardinality: `#{x ∈ ℤ³ : ‖x‖₂ ≤ r}`. Delegated to [`Ball::offsets`].
+    /// Cardinality: `#{x âˆˆ â„¤Â³ : â€–xâ€–â‚‚ â‰¤ r}`. Delegated to [`Ball::offsets`].
     #[inline]
     pub fn ball(radius: usize) -> Self {
         Self {
@@ -128,7 +128,7 @@ impl StructuringElement {
 
     /// Borrow the SE offset list.
     ///
-    /// Returns a `&[Offset3D]` — zero-copy. Callers (e.g. rank/percentile
+    /// Returns a `&[Offset3D]` â€” zero-copy. Callers (e.g. rank/percentile
     /// filters) may iterate the slice without allocating.
     #[inline]
     pub fn offsets(&self) -> &[Offset3D] {

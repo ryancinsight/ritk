@@ -2,16 +2,16 @@
 //!
 //! # Mathematical Specification
 //!
-//! For `VtkImageData` with point-data scalar field S (‖S‖ = n_points):
-//!   Output ⊆ {(x, y, z, s) | S(x,y,z) ∈ [lower, upper]}
+//! For `VtkImageData` with point-data scalar field S (â€–Sâ€– = n_points):
+//!   Output âŠ† {(x, y, z, s) | S(x,y,z) âˆˆ [lower, upper]}
 //! Each passing point becomes a `VtkCellType::Vertex` cell in a
 //! `VtkUnstructuredGrid`, preserving its 3-D coordinate and scalar value.
 //!
 //! For `VtkUnstructuredGrid` with cell-data scalar field S:
-//!   Output ⊆ {cell_i | S(cell_i) ∈ [lower, upper]}
+//!   Output âŠ† {cell_i | S(cell_i) âˆˆ [lower, upper]}
 //! All points are copied; only cells whose associated scalar passes are retained.
 //!
-//! Bounds are inclusive: `lower ≤ S ≤ upper`.
+//! Bounds are inclusive: `lower â‰¤ S â‰¤ upper`.
 
 use crate::domain::mtime::{Modifiable, ModifiedTime};
 use crate::domain::vtk_data_object::{
@@ -132,7 +132,7 @@ impl VtkFilter for ThresholdFilter {
 
                 // Narrow thresholds to f32 to match the precision of the stored scalars.
                 // Comparing f32 cast to f64 against an f64 threshold introduces
-                // representation error: 0.8_f32 as f64 = 0.800000011…, which would
+                // representation error: 0.8_f32 as f64 = 0.800000011â€¦, which would
                 // falsely exclude the upper boundary.
                 let lo = self.lower as f32;
                 let hi = self.upper as f32;
@@ -218,7 +218,7 @@ impl VtkFilter for ThresholdFilter {
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_threshold.rs"]

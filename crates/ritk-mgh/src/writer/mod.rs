@@ -10,7 +10,7 @@ use anyhow::{anyhow, Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufWriter, Write};
 use std::path::Path;

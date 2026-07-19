@@ -42,7 +42,7 @@ fn native_region_growing_cli_family_matches_legacy_boundaries_exactly() {
         ritk_io::write_nifti(&input, &fixture).unwrap();
 
         run(args).unwrap();
-        let actual = crate::commands::read_image_native(&output)
+        let actual = crate::commands::read_image(&output)
             .expect("region-growing output is natively readable");
 
         assert_eq!(actual.shape(), expected.shape());
@@ -50,8 +50,12 @@ fn native_region_growing_cli_family_matches_legacy_boundaries_exactly() {
         assert_eq!(*actual.spacing(), *expected.spacing());
         assert_eq!(*actual.direction(), *expected.direction());
         assert_eq!(
-            actual.data_slice().expect("contiguous native mask"),
-            expected.data_slice().as_ref(),
+            actual
+                .data_slice()
+                .expect("invariant: image storage is contiguous"),
+            expected
+                .data_slice()
+                .expect("invariant: contiguous host storage"),
             "{label} native CLI output diverged from its legacy public boundary"
         );
     }
@@ -108,7 +112,7 @@ fn region_growing_rejects_nonnative_output_before_io() {
     assert!(!output.exists());
 }
 
-// ── Positive: Connected-threshold grows sphere region ─────────────────────
+// â”€â”€ Positive: Connected-threshold grows sphere region â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Seeding at the centre of the sphere must grow exactly the 7 high-intensity
 /// voxels (centre + 6 face-adjacent neighbours).
@@ -142,7 +146,7 @@ fn test_segment_connected_threshold_grows_sphere_from_centre_seed() {
     );
 }
 
-// ── Positive: Connected-threshold output is strictly binary ───────────────
+// â”€â”€ Positive: Connected-threshold output is strictly binary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_segment_connected_threshold_output_is_strictly_binary() {
@@ -166,17 +170,20 @@ fn test_segment_connected_threshold_output_is_strictly_binary() {
     .unwrap();
 
     let mask = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
-    mask.with_data_slice(|values| {
+    {
+        let values = mask
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in values {
             assert!(
                 v == 0.0 || v == 1.0,
                 "connected-threshold output must be strictly binary, got {v}"
             );
         }
-    });
+    }
 }
 
-// ── Negative: connected-threshold missing --lower ─────────────────────────
+// â”€â”€ Negative: connected-threshold missing --lower â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_segment_connected_threshold_missing_lower_returns_error() {
@@ -205,7 +212,7 @@ fn test_segment_connected_threshold_missing_lower_returns_error() {
     );
 }
 
-// ── Negative: connected-threshold missing --upper ─────────────────────────
+// â”€â”€ Negative: connected-threshold missing --upper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_segment_connected_threshold_missing_upper_returns_error() {
@@ -234,7 +241,7 @@ fn test_segment_connected_threshold_missing_upper_returns_error() {
     );
 }
 
-// ── Negative: connected-threshold missing --seed ──────────────────────────
+// â”€â”€ Negative: connected-threshold missing --seed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_segment_connected_threshold_missing_seed_returns_error() {
@@ -263,7 +270,7 @@ fn test_segment_connected_threshold_missing_seed_returns_error() {
     );
 }
 
-// ── Negative: connected-threshold lower > upper ───────────────────────────
+// â”€â”€ Negative: connected-threshold lower > upper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_segment_connected_threshold_lower_gt_upper_returns_error() {
@@ -292,7 +299,7 @@ fn test_segment_connected_threshold_lower_gt_upper_returns_error() {
     );
 }
 
-// ── Negative: out-of-bounds seed returns error ────────────────────────────
+// â”€â”€ Negative: out-of-bounds seed returns error â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_segment_connected_threshold_out_of_bounds_seed_returns_error() {
@@ -321,7 +328,7 @@ fn test_segment_connected_threshold_out_of_bounds_seed_returns_error() {
     );
 }
 
-// ── Negative: malformed seed string returns error ─────────────────────────
+// â”€â”€ Negative: malformed seed string returns error â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_segment_malformed_seed_returns_error() {
@@ -394,14 +401,17 @@ fn test_segment_confidence_connected_output_is_binary() {
     run(args).unwrap();
 
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    mask.with_data_slice(|vals| {
+    {
+        let vals = mask
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in vals {
             assert!(
                 v == 0.0 || v == 1.0,
                 "all voxels must be 0.0 or 1.0, found {v}"
             );
         }
-    });
+    }
 }
 
 #[test]
@@ -492,12 +502,15 @@ fn test_segment_neighborhood_connected_output_is_binary() {
     run(args).unwrap();
 
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    mask.with_data_slice(|vals| {
+    {
+        let vals = mask
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in vals {
             assert!(
                 v == 0.0 || v == 1.0,
                 "all voxels must be 0.0 or 1.0, found {v}"
             );
         }
-    });
+    }
 }

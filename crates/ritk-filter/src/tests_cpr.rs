@@ -1,18 +1,17 @@
 #![allow(clippy::identity_op, clippy::erasing_op)]
 
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(vals, dims)
+fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(vals, dims)
 }
 
 fn make_image_with_metadata(
@@ -21,14 +20,8 @@ fn make_image_with_metadata(
     origin: Point<3>,
     spacing: Spacing<3>,
     direction: Direction<3>,
-) -> Image<B, 3> {
-    ts::burn_compat::make_image_with::<B, 3>(
-        vals,
-        dims,
-        Some(origin),
-        Some(spacing),
-        Some(direction),
-    )
+) -> Image<f32, B, 3> {
+    ts::make_image_with::<f32, B, 3>(vals, dims, Some(origin), Some(spacing), Some(direction))
 }
 
 #[test]
@@ -351,15 +344,15 @@ fn cpr_apply_matches_brute_force_reference() {
     }
     assert!(
         max_abs <= 1e-5,
-        "max |Δ| between optimized and reference = {max_abs} exceeds 1e-5"
+        "max |Î”| between optimized and reference = {max_abs} exceeds 1e-5"
     );
-    assert!(max_rel <= 1e-5, "max relative Δ = {max_rel} exceeds 1e-5");
+    assert!(max_rel <= 1e-5, "max relative Î” = {max_rel} exceeds 1e-5");
 }
 
 #[test]
 fn cpr_apply_matches_brute_force_reference_nonidentity_direction() {
-    // Stress the direction matrix: 90° rotation about Z maps (x, y) → (-y, x)
-    // which forces inv_dir ≠ identity and exercises every matrix entry of
+    // Stress the direction matrix: 90Â° rotation about Z maps (x, y) â†’ (-y, x)
+    // which forces inv_dir â‰  identity and exercises every matrix entry of
     // the hoisted transform.
     use ritk_core::image::Image as RitkImage;
     let dim: usize = 10;
@@ -372,14 +365,10 @@ fn cpr_apply_matches_brute_force_reference_nonidentity_direction() {
         }
     }
 
-    // 90° rotation about Z in RITK [z, y, x] convention: direction columns
+    // 90Â° rotation about Z in RITK [z, y, x] convention: direction columns
     // are the image-axis vectors expressed in physical space. We place the
     // first two columns as the rotated (y, -x) pair, third as (0, 0, 1).
-    let device = Default::default();
-    let data = ritk_image::tensor::Tensor::<B, 3>::from_data(
-        ritk_image::tensor::TensorData::new(vals, ritk_image::tensor::Shape::new([dim, dim, dim])),
-        &device,
-    );
+    let data = ritk_image::tensor::Tensor::<f32, B>::from_slice([dim, dim, dim], &vals);
     let mut direction = Direction::identity();
     {
         let m = direction.inner_mut();
@@ -393,7 +382,8 @@ fn cpr_apply_matches_brute_force_reference_nonidentity_direction() {
         Point::new([1.0, 2.0, 3.0]),
         Spacing::new([0.5, 1.5, 2.0]),
         direction,
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
 
     let cpr = CprImageFilter::new(
         vec![[3.0, 2.0, 1.0], [5.0, 6.0, 9.0]],
@@ -419,6 +409,6 @@ fn cpr_apply_matches_brute_force_reference_nonidentity_direction() {
     }
     assert!(
         max_abs <= 1e-5,
-        "non-identity direction: max |Δ| = {max_abs} exceeds 1e-5"
+        "non-identity direction: max |Î”| = {max_abs} exceeds 1e-5"
     );
 }

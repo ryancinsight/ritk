@@ -17,7 +17,7 @@
 //! 3. **Label remaining components** at the level as new regional-minimum
 //!    basins before advancing to the next height.
 //! 4. **Output**: a label image where each voxel holds its basin label
-//!    (1, 2, …, K) or 0 for watershed boundaries.
+//!    (1, 2, â€¦, K) or 0 for watershed boundaries.
 //!
 //! ## Properties
 //!
@@ -30,17 +30,17 @@
 //! # Complexity
 //!
 //! - Sorting:    O(n log n) where n = total voxels.
-//! - Labelling:  O(n) with constant-time (≤6) neighbour lookups per voxel.
+//! - Labelling:  O(n) with constant-time (â‰¤6) neighbour lookups per voxel.
 //! - Total:      O(n log n).
 //! - Memory:     O(n) for the label map and sorted index array.
 //!
 //! # References
 //!
 //! - Meyer, F. (1994). "Topographic distance and watershed lines."
-//!   *Signal Processing*, 38(1), 113–125.
+//!   *Signal Processing*, 38(1), 113â€“125.
 //! - Vincent, L. and Soille, P. (1991). "Watersheds in digital spaces: an
 //!   efficient algorithm based on immersion simulations." *IEEE TPAMI*,
-//!   13(6), 583–598. DOI: 10.1109/34.87344.
+//!   13(6), 583â€“598. DOI: 10.1109/34.87344.
 
 mod hierarchy;
 pub mod isolated;
@@ -50,18 +50,18 @@ pub mod toboggan;
 pub use isolated::{IsolatedWatershed, IsolatedWatershedConfig};
 pub use marker_controlled::{FloodConnectivity, MarkerControlledWatershed, WatershedLinePolicy};
 pub use morphological::MorphologicalWatershed;
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
 use std::collections::VecDeque;
 pub use toboggan::TobogganFilter;
 
-// ── Public API ─────────────────────────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Watershed segmentation via Meyer's flooding algorithm.
 ///
 /// Operates on 3D images (typically gradient magnitude). Each voxel is assigned
-/// a basin label (≥ 1) or marked as a watershed boundary (0).
+/// a basin label (â‰¥ 1) or marked as a watershed boundary (0).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct WatershedSegmentation;
 
@@ -76,7 +76,7 @@ impl WatershedSegmentation {
     /// The input should be a scalar 3D image (e.g. gradient magnitude).
     /// Returns a label image of the same shape where:
     /// - Label 0 = watershed boundary.
-    /// - Label 1, 2, … K = catchment basin indices (encoded as `f32`).
+    /// - Label 1, 2, â€¦ K = catchment basin indices (encoded as `f32`).
     ///
     /// # Errors
     ///
@@ -84,21 +84,21 @@ impl WatershedSegmentation {
     /// cardinality overflows, the storage length differs from the shape, the
     /// relief contains a non-finite sample, or the volume can produce more
     /// basin labels than `f32` represents exactly.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let dims = image.shape();
-        let device = image.data().device();
+        let device = B::default();
         let (vals, _) = extract_vec(image)?;
         validate_relief(&vals, dims)?;
         let labels = watershed_flooding(&vals, dims);
 
-        let tensor = Tensor::<B, 3>::from_data(TensorData::new(labels, Shape::new(dims)), &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(dims, &labels, &device);
 
-        Ok(Image::new(
+        Image::new(
             tensor,
             *image.origin(),
             *image.spacing(),
             *image.direction(),
-        ))
+        )
     }
 
     /// Apply Meyer flooding to a Coeus-native image.
@@ -109,9 +109,9 @@ impl WatershedSegmentation {
     /// backend storage/output construction error.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -122,9 +122,9 @@ impl WatershedSegmentation {
     }
 }
 
-// ── Core implementation ────────────────────────────────────────────────────────
+// â”€â”€ Core implementation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// 6-connected neighbour offsets for a 3D grid (±z, ±y, ±x).
+/// 6-connected neighbour offsets for a 3D grid (Â±z, Â±y, Â±x).
 const NEIGHBOUR_OFFSETS: [(i64, i64, i64); 6] = [
     (-1, 0, 0),
     (1, 0, 0),
@@ -170,7 +170,7 @@ fn validate_relief(values: &[f32], dimensions: [usize; 3]) -> anyhow::Result<()>
 /// Meyer's flooding watershed on a flat voxel array with shape `[nz, ny, nx]`.
 ///
 /// Returns a `Vec<f32>` of the same length as `vals`, containing integer labels
-/// encoded as `f32`: 0.0 for watershed boundaries, 1.0, 2.0, … for basins.
+/// encoded as `f32`: 0.0 for watershed boundaries, 1.0, 2.0, â€¦ for basins.
 fn watershed_flooding(vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
     let n = vals.len();
     debug_assert_eq!(
@@ -179,7 +179,7 @@ fn watershed_flooding(vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
         "validated shape cardinality must equal relief length"
     );
 
-    // ── 1. Sort voxels by canonical relief level and linear index ──────────────
+    // â”€â”€ 1. Sort voxels by canonical relief level and linear index â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let mut indices: Vec<usize> = (0..n).collect();
     let canonical_level = |value: f32| if value == 0.0 { 0.0 } else { value };
     indices.sort_by(|&a, &b| {
@@ -271,7 +271,7 @@ fn watershed_flooding(vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
         level_start = level_end;
     }
 
-    // ── 3. Convert to f32 label image ──────────────────────────────────────────
+    // â”€â”€ 3. Convert to f32 label image â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     debug_assert!(labels.iter().all(|&label| label != INIT && label != MASK));
     labels.into_iter().map(|label| label as f32).collect()
 }
@@ -300,7 +300,7 @@ where
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_watershed.rs"]

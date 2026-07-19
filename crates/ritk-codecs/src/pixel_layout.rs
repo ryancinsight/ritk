@@ -9,7 +9,7 @@ use anyhow::{bail, Result};
 ///
 /// DICOM PixelRepresentation (0028,0103) encodes signedness as 0 = unsigned,
 /// 1 = signed two's complement. This enum lifts that convention into the type
-/// system so invalid values (2, 3, …) are unrepresentable.
+/// system so invalid values (2, 3, â€¦) are unrepresentable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum PixelSignedness {
     /// Unsigned pixel representation (PixelRepresentation = 0).

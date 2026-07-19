@@ -1,13 +1,8 @@
 use anyhow::{anyhow, Result};
 use tracing::info;
 
-#[cfg(test)]
-use super::Backend;
 use super::{
-    super::{
-        infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
-        write_image_native, NativeBackend,
-    },
+    super::{infer_format, is_read_capable, is_write_capable, read_image, write_image, Backend},
     FilterArgs,
 };
 
@@ -19,11 +14,11 @@ pub(super) fn run_bed_separation(args: &FilterArgs) -> Result<()> {
     let output_format = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        is_read_capable(input_format) && is_write_capable(output_format),
         "bed-separation requires native input/output formats"
     );
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
 
     let config = BedSeparationConfig {
         body_threshold: args.bed.body_threshold,
@@ -34,7 +29,7 @@ pub(super) fn run_bed_separation(args: &FilterArgs) -> Result<()> {
     };
     let filtered = BedSeparationFilter::new(config).apply_native(&image, &backend)?;
 
-    write_image_native(&args.output, &filtered, output_format)?;
+    write_image(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied bed-separation (body_threshold={}, closing_radius={}, opening_radius={}, outside={}) to {} -> {}",
@@ -58,21 +53,21 @@ pub(super) fn run_rescale_intensity(args: &FilterArgs) -> Result<()> {
     let output_format = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(input_format),
+        is_read_capable(input_format),
         "rescale-intensity requires native input support for {:?}",
         input_format
     );
     anyhow::ensure!(
-        is_native_write_capable(output_format),
+        is_write_capable(output_format),
         "rescale-intensity requires native output support for {:?}",
         output_format
     );
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
     let filtered = RescaleIntensityFilter::new(args.range.out_min, args.range.out_max)
         .apply_native(&image, &backend)?;
 
-    write_image_native(&args.output, &filtered, output_format)?;
+    write_image(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied rescale-intensity (out=[{},{}]) to {} -> {}",
@@ -94,17 +89,17 @@ pub(super) fn run_intensity_windowing(args: &FilterArgs) -> Result<()> {
     let output_format = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(input_format),
+        is_read_capable(input_format),
         "intensity-windowing requires native input support for {:?}",
         input_format
     );
     anyhow::ensure!(
-        is_native_write_capable(output_format),
+        is_write_capable(output_format),
         "intensity-windowing requires native output support for {:?}",
         output_format
     );
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
     let filtered = IntensityWindowingFilter::new(
         args.window.window_min,
         args.window.window_max,
@@ -113,7 +108,7 @@ pub(super) fn run_intensity_windowing(args: &FilterArgs) -> Result<()> {
     )
     .apply_native(&image, &backend)?;
 
-    write_image_native(&args.output, &filtered, output_format)?;
+    write_image(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied intensity-windowing (window=[{},{}], out=[{},{}]) to {} -> {}",
@@ -137,16 +132,16 @@ pub(super) fn run_threshold_below(args: &FilterArgs) -> Result<()> {
     let output_format = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        is_read_capable(input_format) && is_write_capable(output_format),
         "threshold-below requires native input/output formats"
     );
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
     let filtered =
         ThresholdImageFilter::below(args.threshold.threshold_value, args.band.outside_value)
             .apply_native(&image, &backend)?;
 
-    write_image_native(&args.output, &filtered, output_format)?;
+    write_image(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied threshold-below (threshold={}, outside={}) to {} -> {}",
@@ -168,16 +163,16 @@ pub(super) fn run_threshold_above(args: &FilterArgs) -> Result<()> {
     let output_format = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        is_read_capable(input_format) && is_write_capable(output_format),
         "threshold-above requires native input/output formats"
     );
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
     let filtered =
         ThresholdImageFilter::above(args.threshold.threshold_value, args.band.outside_value)
             .apply_native(&image, &backend)?;
 
-    write_image_native(&args.output, &filtered, output_format)?;
+    write_image(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied threshold-above (threshold={}, outside={}) to {} -> {}",
@@ -199,11 +194,11 @@ pub(super) fn run_threshold_outside(args: &FilterArgs) -> Result<()> {
     let output_format = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        is_read_capable(input_format) && is_write_capable(output_format),
         "threshold-outside requires native input/output formats"
     );
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
     let filtered = ThresholdImageFilter::outside(
         args.band.lower_threshold,
         args.band.upper_threshold,
@@ -211,7 +206,7 @@ pub(super) fn run_threshold_outside(args: &FilterArgs) -> Result<()> {
     )
     .apply_native(&image, &backend)?;
 
-    write_image_native(&args.output, &filtered, output_format)?;
+    write_image(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied threshold-outside ([{},{}], outside={}) to {} -> {}",
@@ -234,17 +229,17 @@ pub(super) fn run_sigmoid(args: &FilterArgs) -> Result<()> {
     let output_format = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(input_format),
+        is_read_capable(input_format),
         "sigmoid requires native input support for {:?}",
         input_format
     );
     anyhow::ensure!(
-        is_native_write_capable(output_format),
+        is_write_capable(output_format),
         "sigmoid requires native output support for {:?}",
         output_format
     );
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
     let filtered = SigmoidImageFilter::new(
         args.sigmoid.midpoint,
         args.sigmoid.steepness,
@@ -253,7 +248,7 @@ pub(super) fn run_sigmoid(args: &FilterArgs) -> Result<()> {
     )
     .apply_native(&image, &backend)?;
 
-    write_image_native(&args.output, &filtered, output_format)?;
+    write_image(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied sigmoid (midpoint={}, steepness={}, out=[{},{}]) to {} -> {}",
@@ -272,15 +267,15 @@ pub(super) fn run_sigmoid(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_binary_threshold(args: &FilterArgs) -> Result<()> {
     use ritk_segmentation::BinaryThreshold;
 
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
     let filtered = BinaryThreshold::new(args.band.lower_threshold, args.band.upper_threshold)
         .with_values(args.band.foreground_value, args.band.background_value)
         .apply_native(&image, &backend)?;
 
     let fmt = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
-    write_image_native(&args.output, &filtered, fmt)?;
+    write_image(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied binary-threshold ([{},{}] fg={} bg={}) to {} -> {}",
@@ -296,14 +291,13 @@ pub(super) fn run_binary_threshold(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::commands::filter::{default_args, make_test_image, FilterKind};
     use ritk_core::image::Image;
-    use ritk_image::tensor::Backend as BurnBackend;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::Tensor;
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
@@ -317,15 +311,15 @@ mod tests {
             -1000.0, -1000.0, -1000.0, -1000.0, -200.0, -150.0, 50.0, 60.0, -1000.0, -1000.0,
             -1000.0, -1000.0, -1000.0, -1000.0, -1000.0, -1000.0,
         ];
-        let device: <Backend as BurnBackend>::Device = Default::default();
-        let td = TensorData::new(values, Shape::new([1, 4, 4]));
-        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let backend = Backend::default();
+        let tensor = Tensor::<f32, Backend>::from_slice_on([1, 4, 4], &values, &backend);
         let image = Image::new(
             tensor,
             Point::new([0.0; 3]),
             Spacing::new([1.0; 3]),
             Direction::identity(),
-        );
+        )
+        .expect("invariant: tensor has the declared image rank");
         ritk_io::write_metaimage(&input, &image).unwrap();
 
         let mut args = default_args(input.clone(), output.clone(), FilterKind::BedSeparation);
@@ -336,7 +330,9 @@ mod tests {
         super::run_bed_separation(&args).unwrap();
 
         let result = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
-        let result_data = result.data_slice();
+        let result_data = result
+            .data_slice()
+            .expect("invariant: result storage is contiguous");
         assert_eq!(result_data[0], -2048.0);
         assert_eq!(result_data[1], -2048.0);
         assert_eq!(result_data[4], -200.0);
@@ -358,7 +354,10 @@ mod tests {
         assert!(output.exists());
 
         let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-        result.with_data_slice(|vals| {
+        {
+            let vals = result
+                .data_slice()
+                .expect("invariant: image storage is contiguous");
             let min_val = vals.iter().cloned().fold(f32::INFINITY, f32::min);
             let max_val = vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
             assert!(
@@ -371,7 +370,7 @@ mod tests {
                 "rescale-intensity max must be 1.0, got {}",
                 max_val
             );
-        });
+        }
     }
 
     #[test]
@@ -409,7 +408,10 @@ mod tests {
         assert!(output.exists());
 
         let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-        result.with_data_slice(|vals| {
+        {
+            let vals = result
+                .data_slice()
+                .expect("invariant: image storage is contiguous");
             // All pixels that were < 50 should now be 0.0
             // Original values are 0..124, so values 0..49 -> 0.0
             let count_zero = vals.iter().filter(|&&v| v == 0.0).count();
@@ -418,7 +420,7 @@ mod tests {
                 "at least 50 pixels should be zeroed, got {}",
                 count_zero
             );
-        });
+        }
     }
 
     #[test]
@@ -475,7 +477,10 @@ mod tests {
         assert!(output.exists());
 
         let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-        result.with_data_slice(|vals| {
+        {
+            let vals = result
+                .data_slice()
+                .expect("invariant: image storage is contiguous");
             for &v in vals {
                 assert!(
                     (0.0..=1.0).contains(&v),
@@ -483,7 +488,7 @@ mod tests {
                     v
                 );
             }
-        });
+        }
     }
 
     #[test]
@@ -503,7 +508,10 @@ mod tests {
         assert!(output.exists());
 
         let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-        result.with_data_slice(|vals| {
+        {
+            let vals = result
+                .data_slice()
+                .expect("invariant: image storage is contiguous");
             for &v in vals {
                 assert!(
                     v == 0.0 || v == 1.0,
@@ -511,6 +519,6 @@ mod tests {
                     v
                 );
             }
-        });
+        }
     }
 }

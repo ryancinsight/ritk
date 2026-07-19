@@ -15,8 +15,8 @@
 
 use crate::image_statistics::{compute_statistics, masked_statistics};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 use ritk_tensor_ops::native as tensor_ops;
@@ -52,20 +52,17 @@ impl ZScoreNormalizer {
     /// `output = (input − mean) / (std + 1e-8)`
     ///
     /// Spatial metadata is preserved exactly.
-    pub fn normalize<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn normalize<B: Backend, const D: usize>(
+        &self,
+        image: &Image<f32, B, D>,
+    ) -> Image<f32, B, D>
+    where
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
         let stats = compute_statistics(image);
-        let mean = stats.mean;
-        let std = stats.std;
-        let denom = std + super::NORMALIZER_EPSILON;
-
-        let normalized = image.data().clone().sub_scalar(mean).div_scalar(denom);
-
-        Image::new(
-            normalized,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        )
+        let (mut values, dims) = extract_vec_infallible(image);
+        zscore_values(&mut values, stats.mean, stats.std);
+        ritk_tensor_ops::rebuild(values, dims, image)
     }
 
     /// Normalize `image` to zero mean, unit variance using statistics derived
@@ -88,9 +85,12 @@ impl ZScoreNormalizer {
     ///   [`masked_statistics`].
     pub fn normalize_masked<B: Backend, const D: usize>(
         &self,
-        image: &Image<B, D>,
-        mask: &Image<B, D>,
-    ) -> Image<B, D> {
+        image: &Image<f32, B, D>,
+        mask: &Image<f32, B, D>,
+    ) -> Image<f32, B, D>
+    where
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    {
         // Extract mask slice once to check for foreground before calling
         // masked_statistics, which panics on an empty foreground set.
         let (mask_vals, _) = extract_vec_infallible(mask);
@@ -103,18 +103,9 @@ impl ZScoreNormalizer {
             compute_statistics(image)
         };
 
-        let mean = stats.mean;
-        let std = stats.std;
-        let denom = std + super::NORMALIZER_EPSILON;
-
-        let normalized = image.data().clone().sub_scalar(mean).div_scalar(denom);
-
-        Image::new(
-            normalized,
-            *image.origin(),
-            *image.spacing(),
-            *image.direction(),
-        )
+        let (mut values, dims) = extract_vec_infallible(image);
+        zscore_values(&mut values, stats.mean, stats.std);
+        ritk_tensor_ops::rebuild(values, dims, image)
     }
 }
 

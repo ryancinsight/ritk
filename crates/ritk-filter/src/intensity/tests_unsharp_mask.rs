@@ -1,31 +1,25 @@
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_image::test_support as ts;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(vals: Vec<f32>, depth: usize, rows: usize, cols: usize) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(vals, [depth, rows, cols])
+fn make_image(vals: Vec<f32>, depth: usize, rows: usize, cols: usize) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(vals, [depth, rows, cols])
 }
 
-fn image_vals(img: &Image<B, 3>) -> Vec<f32> {
-    img.data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .expect("f32 extraction failed")
-        .to_vec()
+fn image_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
+    img.data().to_vec()
 }
 
-/// Invariant: uniform input → output = input.
+/// Invariant: uniform input â†’ output = input.
 ///
-/// Proof: G_σ * constant = constant (Gaussian kernel sums to 1),
-/// so mask = 0 everywhere, |mask| = 0 < threshold for any threshold ≥ 0,
+/// Proof: G_Ïƒ * constant = constant (Gaussian kernel sums to 1),
+/// so mask = 0 everywhere, |mask| = 0 < threshold for any threshold â‰¥ 0,
 /// output = input.
 #[test]
 fn uniform_input_is_identity() {
@@ -46,9 +40,9 @@ fn uniform_input_is_identity() {
     }
 }
 
-/// Invariant: amount = 0 → output = input identically.
+/// Invariant: amount = 0 â†’ output = input identically.
 ///
-/// Proof: output = I + 0 · (...) = I for all p.
+/// Proof: output = I + 0 Â· (...) = I for all p.
 #[test]
 fn amount_zero_is_exact_identity() {
     // Non-trivial image with gradient values.
@@ -70,13 +64,13 @@ fn amount_zero_is_exact_identity() {
     }
 }
 
-/// Invariant: threshold > all |mask| values → output = input.
+/// Invariant: threshold > all |mask| values â†’ output = input.
 ///
 /// Construction: use a constant image (mask = 0 everywhere) with threshold = 100.0;
 /// since |mask| = 0 < 100.0 for all voxels, sharpening is never triggered.
 #[test]
 fn threshold_suppresses_all_sharpening() {
-    // Constant image → mask = 0 < threshold = 100.0 everywhere.
+    // Constant image â†’ mask = 0 < threshold = 100.0 everywhere.
     let img = make_image(vec![42.0_f32; 2 * 3 * 3], 2, 3, 3);
     let filter = UnsharpMaskFilter::new(
         vec![GaussianSigma::new_unchecked(1.0)],
@@ -94,13 +88,13 @@ fn threshold_suppresses_all_sharpening() {
     }
 }
 
-/// Invariant: clamp=true → output(p) ≤ max(input) for all p.
+/// Invariant: clamp=true â†’ output(p) â‰¤ max(input) for all p.
 ///
 /// Construction: step edge [0, 0, ..., 1, 1, ...] with large amount (5.0);
-/// without clamping, edge voxels would exceed 1.0. Clamping enforces ≤ 1.0.
+/// without clamping, edge voxels would exceed 1.0. Clamping enforces â‰¤ 1.0.
 #[test]
 fn clamp_enforces_upper_bound() {
-    // 1×1×8 step edge: [0,0,0,0,1,1,1,1]
+    // 1Ã—1Ã—8 step edge: [0,0,0,0,1,1,1,1]
     let vals: Vec<f32> = vec![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0];
     let img = make_image(vals.clone(), 1, 1, 8);
     // Large amount to ensure edge overshoot without clamping.
@@ -126,13 +120,13 @@ fn clamp_enforces_upper_bound() {
     }
 }
 
-/// Invariant: clamp=false → sharpening can produce values outside [min(I), max(I)].
+/// Invariant: clamp=false â†’ sharpening can produce values outside [min(I), max(I)].
 ///
 /// Construction: same step edge with large amount; at least one edge voxel must
 /// exceed 1.0 (the input maximum), proving the unsharp mask is genuinely applied.
 #[test]
 fn no_clamp_allows_overshoot() {
-    // 1×1×8 step edge: [0,0,0,0,1,1,1,1]
+    // 1Ã—1Ã—8 step edge: [0,0,0,0,1,1,1,1]
     let vals: Vec<f32> = vec![0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0];
     let img = make_image(vals.clone(), 1, 1, 8);
     let filter = UnsharpMaskFilter::new(
@@ -143,7 +137,7 @@ fn no_clamp_allows_overshoot() {
     );
     let out = filter.apply::<B>(&img).expect("apply failed");
     let out_vals = image_vals(&out);
-    // At the step boundary (positions 4–5), the sharpened output must exceed 1.0.
+    // At the step boundary (positions 4â€“5), the sharpened output must exceed 1.0.
     let any_above_max = out_vals.iter().any(|&v| v > 1.0 + 1e-5);
     assert!(
         any_above_max,
@@ -156,13 +150,12 @@ fn no_clamp_allows_overshoot() {
 /// Invariant: spatial metadata (origin, spacing, direction) is preserved.
 #[test]
 fn spatial_metadata_preserved() {
-    let device = Default::default();
-    let td = TensorData::new(vec![1.0_f32; 2 * 3 * 3], Shape::new([2, 3, 3]));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
+    let tensor = Tensor::<f32, B>::from_slice([2, 3, 3], &[1.0_f32; 2 * 3 * 3]);
     let origin = Point::new([10.0, 20.0, 30.0]);
     let spacing = Spacing::new([1.5, 2.0, 0.75]);
     let dir = Direction::<3>::identity();
-    let img = Image::new(tensor, origin, spacing, dir);
+    let img = Image::new(tensor, origin, spacing, dir)
+        .expect("invariant: fixture tensor has the declared rank");
     let filter = UnsharpMaskFilter::default();
     let out = filter.apply::<B>(&img).expect("apply failed");
     assert_eq!(out.origin(), img.origin(), "origin changed");
@@ -172,12 +165,12 @@ fn spatial_metadata_preserved() {
 
 /// Invariant: sharpening genuinely increases contrast near step edges.
 ///
-/// For a step edge [0.0, 1.0] embedded in a 1×1×4 image, after sharpening with
+/// For a step edge [0.0, 1.0] embedded in a 1Ã—1Ã—4 image, after sharpening with
 /// threshold=0 and amount>0, the difference between the edge voxels must be
 /// strictly greater than in the input.
 #[test]
 fn sharpening_increases_edge_contrast() {
-    // 1×1×4 step: [0, 0, 1, 1]
+    // 1Ã—1Ã—4 step: [0, 0, 1, 1]
     let vals: Vec<f32> = vec![0.0, 0.0, 1.0, 1.0];
     let img = make_image(vals, 1, 1, 4);
     // amount=2.0, no clamping so we can observe the actual sharpened values.
@@ -189,7 +182,7 @@ fn sharpening_increases_edge_contrast() {
     );
     let out = filter.apply::<B>(&img).expect("apply failed");
     let out_vals = image_vals(&out);
-    // The output step contrast (max − min) must be > input contrast (1.0 − 0.0 = 1.0).
+    // The output step contrast (max âˆ’ min) must be > input contrast (1.0 âˆ’ 0.0 = 1.0).
     let out_min = out_vals.iter().cloned().fold(f32::INFINITY, f32::min);
     let out_max = out_vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
     let out_contrast = out_max - out_min;

@@ -228,7 +228,7 @@ fn test_vtk_image_data_n_points_and_cells() {
 
 #[test]
 fn test_vtk_image_data_validate_ok() {
-    // extent [0,1,0,1,0,1] → n_points = 2*2*2 = 8
+    // extent [0,1,0,1,0,1] â†’ n_points = 2*2*2 = 8
     let mut img = VtkImageData {
         whole_extent: [0, 1, 0, 1, 0, 1],
         ..Default::default()
@@ -245,7 +245,7 @@ fn test_vtk_image_data_validate_ok() {
 
 #[test]
 fn test_vtk_image_data_validate_wrong_scalar_len() {
-    // extent [0,1,0,1,0,1] → n_points = 8; supplying 5 → Err
+    // extent [0,1,0,1,0,1] â†’ n_points = 8; supplying 5 â†’ Err
     let mut img = VtkImageData {
         whole_extent: [0, 1, 0, 1, 0, 1],
         ..Default::default()
@@ -267,7 +267,7 @@ fn test_vtk_image_data_validate_wrong_scalar_len() {
 
 #[test]
 fn test_vtk_image_data_data_object_variant() {
-    // extent [0,2,0,3,0,4] → n_points = 60
+    // extent [0,2,0,3,0,4] â†’ n_points = 60
     let img = VtkImageData {
         whole_extent: [0, 2, 0, 3, 0, 4],
         ..Default::default()

@@ -10,12 +10,12 @@ use std::sync::Arc;
 
 /// Apply grayscale morphological erosion with a flat cubic structuring element.
 ///
-/// Each output voxel is the minimum of its (2r+1)³ cubic neighbourhood
+/// Each output voxel is the minimum of its (2r+1)Â³ cubic neighbourhood
 /// (replicate padding at boundaries).
 ///
 /// Args:
 ///     image:  Input PyImage.
-///     radius: Structuring element half-width in voxels (default 1 → 3×3×3).
+///     radius: Structuring element half-width in voxels (default 1 â†’ 3Ã—3Ã—3).
 ///
 /// Returns:
 ///     Eroded PyImage with identical shape and spatial metadata.
@@ -38,12 +38,12 @@ pub fn grayscale_erosion(py: Python<'_>, image: &PyImage, radius: usize) -> Ritk
 
 /// Apply grayscale morphological dilation with a flat cubic structuring element.
 ///
-/// Each output voxel is the maximum of its (2r+1)³ cubic neighbourhood
+/// Each output voxel is the maximum of its (2r+1)Â³ cubic neighbourhood
 /// (replicate padding at boundaries).
 ///
 /// Args:
 ///     image:  Input PyImage.
-///     radius: Structuring element half-width in voxels (default 1 → 3×3×3).
+///     radius: Structuring element half-width in voxels (default 1 â†’ 3Ã—3Ã—3).
 ///
 /// Returns:
 ///     Dilated PyImage with identical shape and spatial metadata.

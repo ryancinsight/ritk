@@ -1,14 +1,14 @@
-//! Binary contour filter — foreground border voxels of binary objects.
+//! Binary contour filter â€” foreground border voxels of binary objects.
 //!
 //! # Mathematical Specification
 //!
-//! Given a binary image `I ∈ {0, fg}`, a voxel `p` is a **border voxel** if:
+//! Given a binary image `I âˆˆ {0, fg}`, a voxel `p` is a **border voxel** if:
 //! - `I(p) = fg` (is foreground), AND
-//! - at least one neighbour `q ∈ N(p)` satisfies `I(q) ≠ fg`.
+//! - at least one neighbour `q âˆˆ N(p)` satisfies `I(q) â‰  fg`.
 //!
 //! The connectivity topology `N(p)` is determined by [`Connectivity`]:
-//! - [`Connectivity::Face6`] (default): 6-connected — 6 face-neighbours in ℤ³ (ITK default).
-//! - [`Connectivity::Vertex26`]: 26-connected — all 26 neighbours within the unit cube.
+//! - [`Connectivity::Face6`] (default): 6-connected â€” 6 face-neighbours in â„¤Â³ (ITK default).
+//! - [`Connectivity::Vertex26`]: 26-connected â€” all 26 neighbours within the unit cube.
 //!
 //! # ITK Parity
 //!
@@ -67,7 +67,7 @@ impl Default for BinaryContourImageFilter {
     }
 }
 
-/// 6-connected face neighbours (±z, ±y, ±x).
+/// 6-connected face neighbours (Â±z, Â±y, Â±x).
 const N6: [(i32, i32, i32); 6] = [
     (-1, 0, 0),
     (1, 0, 0),
@@ -77,7 +77,7 @@ const N6: [(i32, i32, i32); 6] = [
     (0, 0, 1),
 ];
 
-/// 26-connected neighbours (all offsets in {-1,0,1}³ except (0,0,0)).
+/// 26-connected neighbours (all offsets in {-1,0,1}Â³ except (0,0,0)).
 fn n26() -> Vec<(i32, i32, i32)> {
     let mut v = Vec::with_capacity(26);
     for dz in -1i32..=1 {
@@ -94,7 +94,7 @@ fn n26() -> Vec<(i32, i32, i32)> {
 
 impl BinaryContourImageFilter {
     /// Apply the binary contour filter to a 3-D image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let [nz, ny, nx] = dims;
 
@@ -148,14 +148,14 @@ impl BinaryContourImageFilter {
     /// Apply binary contour extraction to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
+        ritk_image::Image::from_flat_on(
             self.contour_values(image.data_slice()?, image.shape()),
             image.shape(),
             *image.origin(),
@@ -201,7 +201,7 @@ impl BinaryContourImageFilter {
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_binary_contour.rs"]

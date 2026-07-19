@@ -78,8 +78,8 @@ impl RankFilter {
     /// to `f32`.
     pub fn apply<'a, B: Backend>(
         &self,
-        image: &'a Image<B, 3>,
-    ) -> anyhow::Result<Cow<'a, Image<B, 3>>> {
+        image: &'a Image<f32, B, 3>,
+    ) -> anyhow::Result<Cow<'a, Image<f32, B, 3>>> {
         if self.se.is_empty() {
             return Err(anyhow::anyhow!(
                 "RankFilter: structuring element is empty (use a non-zero radius)"

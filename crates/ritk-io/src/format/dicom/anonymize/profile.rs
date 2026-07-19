@@ -87,7 +87,7 @@ impl AnonymizationProfile {
     }
 }
 
-// ─── Basic profile (PS 3.15 Annex E Table E.1-1) ─────────────────────────────
+// â”€â”€â”€ Basic profile (PS 3.15 Annex E Table E.1-1) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // Invariant: every tag listed in Annex E Table E.1-1 for the Basic
 // Application Level Confidentiality Profile is covered. Tags are grouped
@@ -95,9 +95,9 @@ impl AnonymizationProfile {
 
 fn basic_actions() -> Vec<(Tag, TagAction)> {
     vec![
-        // ── D (Delete / Remove) — patient demographics ──────────────────
-        (Tag(0x0010, 0x0010), TagAction::Dummy), // PatientName → configurable dummy
-        (Tag(0x0010, 0x0020), TagAction::Dummy), // PatientID → configurable dummy
+        // â”€â”€ D (Delete / Remove) â€” patient demographics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        (Tag(0x0010, 0x0010), TagAction::Dummy), // PatientName â†’ configurable dummy
+        (Tag(0x0010, 0x0020), TagAction::Dummy), // PatientID â†’ configurable dummy
         (Tag(0x0010, 0x0030), TagAction::Empty), // PatientBirthDate
         (Tag(0x0010, 0x0032), TagAction::Remove), // PatientBirthTime
         (Tag(0x0010, 0x0050), TagAction::Remove), // PatientInsurancePlanCodeSequence
@@ -111,7 +111,7 @@ fn basic_actions() -> Vec<(Tag, TagAction)> {
         (Tag(0x0010, 0x2150), TagAction::Remove), // CountryOfResidence
         (Tag(0x0010, 0x2152), TagAction::Remove), // RegionOfResidence
         (Tag(0x0010, 0x2154), TagAction::Remove), // PatientTelephoneNumbers
-        // ── D (Delete / Remove) — institution & personnel ───────────────
+        // â”€â”€ D (Delete / Remove) â€” institution & personnel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0008, 0x0050), TagAction::Empty), // AccessionNumber (Z/D per Annex E)
         (Tag(0x0008, 0x0080), TagAction::Remove), // InstitutionName
         (Tag(0x0008, 0x0081), TagAction::Remove), // InstitutionAddress
@@ -129,26 +129,26 @@ fn basic_actions() -> Vec<(Tag, TagAction)> {
         (Tag(0x0008, 0x1070), TagAction::Remove), // OperatorsName
         (Tag(0x0008, 0x1080), TagAction::Remove), // AdmittingDiagnosesDescription
         (Tag(0x0008, 0x1110), TagAction::Remove), // ReferencedStudySequence
-        // ── Z (Zero / Empty) — additional personnel ─────────────────────
+        // â”€â”€ Z (Zero / Empty) â€” additional personnel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0008, 0x009C), TagAction::Empty), // ConsultingPhysicianName
         (Tag(0x0008, 0x1048), TagAction::Empty), // PhysicianApprovingInterpretation
         (Tag(0x0010, 0x0021), TagAction::Empty), // IssuerOfPatientID
-        // ── D (Delete / Remove) — device & protocol ─────────────────────
+        // â”€â”€ D (Delete / Remove) â€” device & protocol â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0018, 0x1000), TagAction::Remove), // DeviceSerialNumber
         (Tag(0x0018, 0x1002), TagAction::Remove), // DeviceUID
         (Tag(0x0018, 0x1030), TagAction::Remove), // ProtocolName
-        // ── D (Delete / Remove) — image comments & descriptions ─────────
+        // â”€â”€ D (Delete / Remove) â€” image comments & descriptions â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0028, 0x4000), TagAction::Remove), // ImageComments
-        // ── D (Delete / Remove) — study-level references ────────────────
+        // â”€â”€ D (Delete / Remove) â€” study-level references â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0020, 0x0200), TagAction::Remove), // SynchronizationFrameOfReferenceUID
         (Tag(0x0020, 0x3404), TagAction::Remove), // FrameOfReferenceTransformDescription
-        // ── D (Delete / Remove) — request & procedure ───────────────────
+        // â”€â”€ D (Delete / Remove) â€” request & procedure â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0032, 0x1032), TagAction::Remove), // RequestingPhysician
         (Tag(0x0032, 0x1033), TagAction::Remove), // RequestingService
         (Tag(0x0038, 0x0010), TagAction::Remove), // AdmissionID
         (Tag(0x0038, 0x0011), TagAction::Remove), // IssuerOfAdmissionID
         (Tag(0x0038, 0x0040), TagAction::Remove), // DischargeDiagnosisDescription
-        // ── D (Delete / Remove) — scheduled procedure steps ─────────────
+        // â”€â”€ D (Delete / Remove) â€” scheduled procedure steps â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0040, 0x0001), TagAction::Remove), // ScheduledStationAETitle
         (Tag(0x0040, 0x0002), TagAction::Remove), // ScheduledProcedureStepStartDate
         (Tag(0x0040, 0x0003), TagAction::Remove), // ScheduledProcedureStepStartTime
@@ -156,7 +156,7 @@ fn basic_actions() -> Vec<(Tag, TagAction)> {
         (Tag(0x0040, 0x0005), TagAction::Remove), // ScheduledProcedureStepEndTime
         (Tag(0x0040, 0x0006), TagAction::Remove), // ScheduledPerformingPhysicianName
         (Tag(0x0040, 0x0010), TagAction::Remove), // ScheduledStationName
-        // ── D (Delete / Remove) — performed procedure steps ─────────────
+        // â”€â”€ D (Delete / Remove) â€” performed procedure steps â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0040, 0x0241), TagAction::Remove), // PerformedStationAETitle
         (Tag(0x0040, 0x0242), TagAction::Remove), // PerformedStationName
         (Tag(0x0040, 0x0243), TagAction::Remove), // PerformedLocation
@@ -166,24 +166,24 @@ fn basic_actions() -> Vec<(Tag, TagAction)> {
         (Tag(0x0040, 0x0254), TagAction::Remove), // PerformedProcedureStepEndTime
         (Tag(0x0040, 0x0275), TagAction::Remove), // RequestAttributeSequence
         (Tag(0x0040, 0x0280), TagAction::Remove), // CommentsOnThePerformedProcedureStep
-        // ── D (Delete / Remove) — verification & content ────────────────
+        // â”€â”€ D (Delete / Remove) â€” verification & content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0040, 0xA024), TagAction::Remove), // VerifyingOrganization
         (Tag(0x0040, 0xA120), TagAction::Remove), // DateTime
         (Tag(0x0040, 0xA123), TagAction::Remove), // PersonName
-        // ── D (Delete / Remove) — annotations & graphic content ─────────
+        // â”€â”€ D (Delete / Remove) â€” annotations & graphic content â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0070, 0x0001), TagAction::Remove), // GraphicAnnotationSequence
         (Tag(0x0070, 0x0084), TagAction::Remove), // ContentCreatorName
-        // ── D (Delete / Remove) — storage & icon ────────────────────────
+        // â”€â”€ D (Delete / Remove) â€” storage & icon â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0088, 0x0140), TagAction::Remove), // StorageMediaFileSetUID
         (Tag(0x0088, 0x0200), TagAction::Remove), // IconImageSequence
-        // ── D (Delete / Remove) — digital signatures & encrypted attrs ──
+        // â”€â”€ D (Delete / Remove) â€” digital signatures & encrypted attrs â”€â”€
         (Tag(0x0400, 0x0100), TagAction::Remove), // DigitalSignatureUID
         (Tag(0x0400, 0x0402), TagAction::Remove), // ReferencedDigitalSignatureSequence
         (Tag(0x0400, 0x0403), TagAction::Remove), // ReferencedSOPInstanceMACSequence
         (Tag(0x0400, 0x0550), TagAction::Remove), // OriginalAttributesSequence
         (Tag(0xFFFA, 0xFFFA), TagAction::Remove), // DigitalSignaturesSequence
         (Tag(0xFFFC, 0xFFFC), TagAction::Remove), // EncryptedAttributesSequence
-        // ── Z/D (Empty) — study/series ID ───────────────────────────────
+        // â”€â”€ Z/D (Empty) â€” study/series ID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0020, 0x0010), TagAction::Empty), // StudyID
         (Tag(0x0010, 0x0040), TagAction::Empty), // PatientSex
     ]
@@ -210,7 +210,7 @@ fn uid_actions() -> Vec<(Tag, TagAction)> {
 /// description strings that could contribute to re-identification.
 fn aggressive_actions() -> Vec<(Tag, TagAction)> {
     vec![
-        // ── Date fields ──────────────────────────────────────────────────
+        // â”€â”€ Date fields â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0008, 0x0020), TagAction::Empty), // StudyDate
         (Tag(0x0008, 0x0021), TagAction::Empty), // SeriesDate
         (Tag(0x0008, 0x0022), TagAction::Empty), // AcquisitionDate
@@ -218,7 +218,7 @@ fn aggressive_actions() -> Vec<(Tag, TagAction)> {
         (Tag(0x0008, 0x0024), TagAction::Empty), // OverlayDate
         (Tag(0x0008, 0x0025), TagAction::Empty), // CurveDate
         (Tag(0x0008, 0x002A), TagAction::Empty), // AcquisitionDateTime
-        // ── Time fields ──────────────────────────────────────────────────
+        // â”€â”€ Time fields â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0008, 0x0030), TagAction::Empty), // StudyTime
         (Tag(0x0008, 0x0031), TagAction::Empty), // SeriesTime
         (Tag(0x0008, 0x0032), TagAction::Empty), // AcquisitionTime
@@ -226,7 +226,7 @@ fn aggressive_actions() -> Vec<(Tag, TagAction)> {
         (Tag(0x0008, 0x0034), TagAction::Empty), // OverlayTime
         (Tag(0x0008, 0x0035), TagAction::Empty), // CurveTime
         (Tag(0x0008, 0x0201), TagAction::Empty), // TimezoneOffsetFromUTC
-        // ── Descriptive text ─────────────────────────────────────────────
+        // â”€â”€ Descriptive text â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0008, 0x1030), TagAction::Remove), // StudyDescription
         (Tag(0x0008, 0x103E), TagAction::Remove), // SeriesDescription
         (Tag(0x0018, 0x1030), TagAction::Remove), // ProtocolName
@@ -237,16 +237,16 @@ fn aggressive_actions() -> Vec<(Tag, TagAction)> {
 /// and digital signature cleanup beyond the Aggressive profile.
 fn enhanced_actions() -> Vec<(Tag, TagAction)> {
     vec![
-        // ── Additional procedure-step removal ────────────────────────────
+        // â”€â”€ Additional procedure-step removal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0040, 0x0007), TagAction::Remove), // ScheduledProcedureStepDescription
         (Tag(0x0040, 0x000B), TagAction::Remove), // ScheduledProcedureStepLocation
         (Tag(0x0040, 0x000E), TagAction::Remove), // ScheduledProcedureStepReason
-        // ── Content annotations ──────────────────────────────────────────
+        // â”€â”€ Content annotations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0040, 0xA027), TagAction::Remove), // VerifyingObserverName
         (Tag(0x0040, 0xA030), TagAction::Remove), // VerificationDateTime
         (Tag(0x0040, 0xA032), TagAction::Remove), // ObservationDateTime
         (Tag(0x0040, 0xA075), TagAction::Remove), // VerifyingObserverIdentificationCodeSequence
-        // ── Additional content ───────────────────────────────────────────
+        // â”€â”€ Additional content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         (Tag(0x0008, 0x2111), TagAction::Remove), // DerivationDescription
         (Tag(0x0020, 0x4000), TagAction::Remove), // ImageComments (already in Basic, repeated for safety)
         (Tag(0x3006, 0x0024), TagAction::Remove), // ReferencedFrameOfReferenceUID

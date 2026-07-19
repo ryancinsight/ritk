@@ -10,7 +10,7 @@ impl From<CliInverseConsistency> for InverseConsistency {
     }
 }
 
-// ── SyN diffeomorphic registration ────────────────────────────────────────────
+// â”€â”€ SyN diffeomorphic registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Run greedy SyN diffeomorphic registration.
 ///
@@ -57,7 +57,7 @@ pub(super) fn run_syn(args: &RegisterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── BSpline FFD registration ───────────────────────────────────────────────
+// â”€â”€ BSpline FFD registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Run B-Spline Free-Form Deformation registration.
 ///
@@ -113,7 +113,7 @@ pub(super) fn run_bspline_ffd(args: &RegisterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Multi-resolution SyN registration ────────────────────────────────────────────
+// â”€â”€ Multi-resolution SyN registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Run Multi-Resolution SyN diffeomorphic registration.
 ///
@@ -165,7 +165,7 @@ pub(super) fn run_multires_syn(args: &RegisterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── BSpline SyN registration ──────────────────────────────────────────────
+// â”€â”€ BSpline SyN registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Run BSpline SyN diffeomorphic registration.
 ///
@@ -276,7 +276,7 @@ mod tests {
         (dir, output)
     }
 
-    // ── Positive: syn creates output file ─────────────────────────────────
+    // â”€â”€ Positive: syn creates output file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Running `syn` on identical fixed/moving images must produce a warped
     /// output file whose shape matches the input.
@@ -295,24 +295,27 @@ mod tests {
         );
     }
 
-    // ── Positive: syn identity registration produces finite voxels ────────
+    // â”€â”€ Positive: syn identity registration produces finite voxels â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// When fixed == moving, the SyN output voxels must all be finite.
     #[test]
     fn test_register_syn_identity_finite_voxels() {
         let (_dir, output) = run_method(RegistrationMethod::Syn, "warped.nii");
         let warped = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-        warped.with_data_slice(|vals| {
+        {
+            let vals = warped
+                .data_slice()
+                .expect("invariant: image storage is contiguous");
             for (i, &v) in vals.iter().enumerate() {
                 assert!(
                     v.is_finite(),
                     "syn output voxel [{i}] must be finite, got {v}"
                 );
             }
-        });
+        }
     }
 
-    // ── BSpline FFD ──────────────────────────────────────────────────────────────
+    // â”€â”€ BSpline FFD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn test_register_bspline_ffd_creates_output_with_correct_shape() {
@@ -325,15 +328,18 @@ mod tests {
     fn test_register_bspline_ffd_identity_finite_voxels() {
         let (_dir, output) = run_method(RegistrationMethod::BsplineFfd, "output.nii");
         let out = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-        out.with_data_slice(|vals| {
+        {
+            let vals = out
+                .data_slice()
+                .expect("invariant: image storage is contiguous");
             assert!(
                 vals.iter().all(|v| v.is_finite()),
                 "all output voxels must be finite"
             );
-        });
+        }
     }
 
-    // ── Multi-resolution SyN ─────────────────────────────────────────────────────
+    // â”€â”€ Multi-resolution SyN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn test_register_multires_syn_creates_output_with_correct_shape() {
@@ -346,15 +352,18 @@ mod tests {
     fn test_register_multires_syn_identity_finite_voxels() {
         let (_dir, output) = run_method(RegistrationMethod::MultiResSyn, "output.nii");
         let out = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-        out.with_data_slice(|vals| {
+        {
+            let vals = out
+                .data_slice()
+                .expect("invariant: image storage is contiguous");
             assert!(
                 vals.iter().all(|v| v.is_finite()),
                 "all output voxels must be finite"
             );
-        });
+        }
     }
 
-    // ── BSpline SyN ─────────────────────────────────────────────────────────────
+    // â”€â”€ BSpline SyN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn test_register_bspline_syn_creates_output_with_correct_shape() {
@@ -367,11 +376,14 @@ mod tests {
     fn test_register_bspline_syn_identity_finite_voxels() {
         let (_dir, output) = run_method(RegistrationMethod::BsplineSyn, "output.nii");
         let out = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-        out.with_data_slice(|vals| {
+        {
+            let vals = out
+                .data_slice()
+                .expect("invariant: image storage is contiguous");
             assert!(
                 vals.iter().all(|v| v.is_finite()),
                 "all output voxels must be finite"
             );
-        });
+        }
     }
 }

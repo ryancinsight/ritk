@@ -3,15 +3,15 @@
 //!
 //! # Mathematical Specification
 //!
-//! Stark's (2000) generalized local equalization, parameterized by `α, β ∈ [0, 1]`
+//! Stark's (2000) generalized local equalization, parameterized by `Î±, Î² âˆˆ [0, 1]`
 //! that interpolate between classic adaptive histogram equalization
-//! (`α = 0`) and unsharp masking / identity. Intensities are normalized to
-//! `[−0.5, 0.5]` via the global range `iscale = max − min`:
+//! (`Î± = 0`) and unsharp masking / identity. Intensities are normalized to
+//! `[âˆ’0.5, 0.5]` via the global range `iscale = max âˆ’ min`:
 //!
 //! ```text
-//! u(x) = (I(x) − min)/iscale − 0.5
-//! cumf(u, v) = 0.5·sgn(u−v)·|2(u−v)|^α − 0.5·β·sgn(u−v)·|2(u−v)| + β·u
-//! out(x) = iscale·( 0.5 + (1/k(x))·Σ_{y ∈ W(x)∩image} cumf(u(x), u(y)) ) + min
+//! u(x) = (I(x) âˆ’ min)/iscale âˆ’ 0.5
+//! cumf(u, v) = 0.5Â·sgn(uâˆ’v)Â·|2(uâˆ’v)|^Î± âˆ’ 0.5Â·Î²Â·sgn(uâˆ’v)Â·|2(uâˆ’v)| + Î²Â·u
+//! out(x) = iscaleÂ·( 0.5 + (1/k(x))Â·Î£_{y âˆˆ W(x)âˆ©image} cumf(u(x), u(y)) ) + min
 //! ```
 //!
 //! where `W(x)` is the box window of the given per-axis radius and `k(x)` is the
@@ -29,9 +29,9 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 pub struct AdaptiveHistogramEqualizationFilter {
     /// Box-window radius per tensor axis `[z, y, x]` (ITK/sitk default `[5, 5, 5]`).
     pub radius: [usize; 3],
-    /// `α` — equalization exponent (sitk default `0.3`).
+    /// `Î±` â€” equalization exponent (sitk default `0.3`).
     pub alpha: f64,
-    /// `β` — unsharp/identity blend (sitk default `0.3`).
+    /// `Î²` â€” unsharp/identity blend (sitk default `0.3`).
     pub beta: f64,
 }
 
@@ -45,7 +45,7 @@ impl Default for AdaptiveHistogramEqualizationFilter {
     }
 }
 
-/// ITK's `Math::sgn`: `-1`, `0`, or `1` (note `f64::signum` returns `±1` at zero).
+/// ITK's `Math::sgn`: `-1`, `0`, or `1` (note `f64::signum` returns `Â±1` at zero).
 #[inline]
 fn sgn(x: f64) -> f64 {
     if x > 0.0 {
@@ -58,7 +58,7 @@ fn sgn(x: f64) -> f64 {
 }
 
 impl AdaptiveHistogramEqualizationFilter {
-    /// Construct with the given window radius (α, β default to `0.3`).
+    /// Construct with the given window radius (Î±, Î² default to `0.3`).
     pub fn new(radius: [usize; 3]) -> Self {
         Self {
             radius,
@@ -67,7 +67,7 @@ impl AdaptiveHistogramEqualizationFilter {
     }
 
     /// Apply the adaptive equalization.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec_infallible(image);
         let out = adaptive_equalize_vec(&vals, dims, self.radius, self.alpha, self.beta);
         Ok(rebuild(out, dims, image))
@@ -85,9 +85,9 @@ impl AdaptiveHistogramEqualizationFilter {
     /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

@@ -19,7 +19,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         FilterKind::InvertIntensity { maximum } => {
             ui.label(
                 egui::RichText::new(
-                    "ITK InvertIntensityImageFilter. out(x) = maximum - in(x). maximum=None → computed from image.",
+                    "ITK InvertIntensityImageFilter. out(x) = maximum - in(x). maximum=None â†’ computed from image.",
                 )
                 .small(),
             );
@@ -38,7 +38,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         FilterKind::NormalizeIntensity => {
             ui.label(
                 egui::RichText::new(
-                    "ITK NormalizeImageFilter. out(x) = (in(x) - mean) / std. Constant image → all zero. No adjustable parameters.",
+                    "ITK NormalizeImageFilter. out(x) = (in(x) - mean) / std. Constant image â†’ all zero. No adjustable parameters.",
                 )
                 .small(),
             );
@@ -47,7 +47,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         FilterKind::Square => {
             ui.label(
                 egui::RichText::new(
-                    "ITK SquareImageFilter / ImageJ Square. out(x) = in(x)². No adjustable parameters.",
+                    "ITK SquareImageFilter / ImageJ Square. out(x) = in(x)Â². No adjustable parameters.",
                 )
                 .small(),
             );
@@ -56,7 +56,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         FilterKind::Sqrt => {
             ui.label(
                 egui::RichText::new(
-                    "ITK SqrtImageFilter / ImageJ Square Root. out(x) = √in(x). Negative → NaN. No adjustable parameters.",
+                    "ITK SqrtImageFilter / ImageJ Square Root. out(x) = âˆšin(x). Negative â†’ NaN. No adjustable parameters.",
                 )
                 .small(),
             );
@@ -65,7 +65,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         FilterKind::Log => {
             ui.label(
                 egui::RichText::new(
-                    "ITK LogImageFilter / ImageJ Log. out(x) = ln(in(x)). Non-positive → -inf/NaN. No adjustable parameters.",
+                    "ITK LogImageFilter / ImageJ Log. out(x) = ln(in(x)). Non-positive â†’ -inf/NaN. No adjustable parameters.",
                 )
                 .small(),
             );
@@ -133,7 +133,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         FilterKind::ShiftScale { shift, scale } => {
             ui.label(
                 egui::RichText::new(
-                    "ITK ShiftScaleImageFilter: out(x) = (in(x) + shift) × scale. Applied in f64 precision.",
+                    "ITK ShiftScaleImageFilter: out(x) = (in(x) + shift) Ã— scale. Applied in f64 precision.",
                 )
                 .small(),
             );
@@ -259,7 +259,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             let mut o1 = *order_1 as i32;
             let mut o2 = *order_2 as i32;
             ui.horizontal(|ui| {
-                ui.label("Output axis 0 ← input axis:");
+                ui.label("Output axis 0 â† input axis:");
                 egui::ComboBox::from_id_source("perm_ax0")
                     .selected_text(format!("{o0}"))
                     .show_ui(ui, |ui| {
@@ -270,7 +270,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
                 *order_0 = o0.max(0) as usize;
             });
             ui.horizontal(|ui| {
-                ui.label("Output axis 1 ← input axis:");
+                ui.label("Output axis 1 â† input axis:");
                 egui::ComboBox::from_id_source("perm_ax1")
                     .selected_text(format!("{o1}"))
                     .show_ui(ui, |ui| {
@@ -281,7 +281,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
                 *order_1 = o1.max(0) as usize;
             });
             ui.horizontal(|ui| {
-                ui.label("Output axis 2 ← input axis:");
+                ui.label("Output axis 2 â† input axis:");
                 egui::ComboBox::from_id_source("perm_ax2")
                     .selected_text(format!("{o2}"))
                     .show_ui(ui, |ui| {
@@ -306,7 +306,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.label(
                 egui::RichText::new(
-                    "ITK MeanImageFilter: arithmetic mean of (2r+1)³ neighbourhood.",
+                    "ITK MeanImageFilter: arithmetic mean of (2r+1)Â³ neighbourhood.",
                 )
                 .small(),
             );
@@ -336,7 +336,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.label(
                 egui::RichText::new(
-                    "ITK BinaryThresholdImageFilter. out = fg if lower≤I≤upper, else bg.",
+                    "ITK BinaryThresholdImageFilter. out = fg if lowerâ‰¤Iâ‰¤upper, else bg.",
                 )
                 .small(),
             );
@@ -376,7 +376,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         FilterKind::Atan => {
             ui.label(
                 egui::RichText::new(
-                    "ITK AtanImageFilter. out(x) = atan(in(x)). Range (−π/2, π/2). No parameters.",
+                    "ITK AtanImageFilter. out(x) = atan(in(x)). Range (âˆ’Ï€/2, Ï€/2). No parameters.",
                 )
                 .small(),
             );
@@ -385,7 +385,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         FilterKind::Sin => {
             ui.label(
                 egui::RichText::new(
-                    "ITK SinImageFilter. out(x) = sin(in(x)), input in radians. Range [−1, 1]. No parameters.",
+                    "ITK SinImageFilter. out(x) = sin(in(x)), input in radians. Range [âˆ’1, 1]. No parameters.",
                 )
                 .small(),
             );
@@ -394,7 +394,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         FilterKind::Cos => {
             ui.label(
                 egui::RichText::new(
-                    "ITK CosImageFilter. out(x) = cos(in(x)), input in radians. Range [−1, 1]. No parameters.",
+                    "ITK CosImageFilter. out(x) = cos(in(x)), input in radians. Range [âˆ’1, 1]. No parameters.",
                 )
                 .small(),
             );
@@ -412,7 +412,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         FilterKind::Asin => {
             ui.label(
                 egui::RichText::new(
-                    "ITK AsinImageFilter. out(x) = asin(in(x)). Domain [−1,1], range [−π/2, π/2]. No parameters.",
+                    "ITK AsinImageFilter. out(x) = asin(in(x)). Domain [âˆ’1,1], range [âˆ’Ï€/2, Ï€/2]. No parameters.",
                 )
                 .small(),
             );
@@ -421,7 +421,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         FilterKind::Acos => {
             ui.label(
                 egui::RichText::new(
-                    "ITK AcosImageFilter. out(x) = acos(in(x)). Domain [−1,1], range [0, π]. No parameters.",
+                    "ITK AcosImageFilter. out(x) = acos(in(x)). Domain [âˆ’1,1], range [0, Ï€]. No parameters.",
                 )
                 .small(),
             );

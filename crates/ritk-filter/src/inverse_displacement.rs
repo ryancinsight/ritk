@@ -3,25 +3,25 @@
 //!
 //! # Mathematical specification
 //!
-//! Given a forward field `u` (transform `x ↦ x + u(x)` in world coordinates),
+//! Given a forward field `u` (transform `x â†¦ x + u(x)` in world coordinates),
 //! the inverse field `v` is built by fitting a kernel (thin-plate-spline)
 //! transform to landmark pairs sampled from `u`:
 //!
 //! 1. **Subsample** the field every `subsampling_factor`-th voxel per axis. The
 //!    subsampled grid is a subset of the input grid, so the sample at subsampled
-//!    point `k` is the exact field value at input index `k·factor` (no
-//!    interpolation). `N = ∏_a ⌊size_a / factor⌋` landmarks.
+//!    point `k` is the exact field value at input index `kÂ·factor` (no
+//!    interpolation). `N = âˆ_a âŒŠsize_a / factorâŒ‹` landmarks.
 //! 2. **Landmarks**: for subsampled voxel at world point `p` with displacement
 //!    `d`, `source = p + d`, `target = p`; the kernel displacement is
-//!    `target − source = −d`.
+//!    `target âˆ’ source = âˆ’d`.
 //! 3. **Fit** the ITK `KernelTransform` (G(r) = r, the thin-plate-spline kernel):
-//!    solve `L·W = Y` with `L = [[K, P], [Pᵀ, 0]]`, `K_ij = ‖s_i − s_j‖·I_d`,
-//!    `P_i = [s_i[0]·I_d, …, s_i[d−1]·I_d, I_d]`, `Y = [−d_i; 0]`. Reorganise
-//!    `W` into the spline matrix `D` (d×N), affine `A` (d×d), and translation
-//!    `B` (d): `D[k][i] = W[i·d+k]`, `A[i][j] = W[N·d + j·d + i]` (note the
-//!    transpose), `B[k] = W[N·d + d·d + k]`.
+//!    solve `LÂ·W = Y` with `L = [[K, P], [Páµ€, 0]]`, `K_ij = â€–s_i âˆ’ s_jâ€–Â·I_d`,
+//!    `P_i = [s_i[0]Â·I_d, â€¦, s_i[dâˆ’1]Â·I_d, I_d]`, `Y = [âˆ’d_i; 0]`. Reorganise
+//!    `W` into the spline matrix `D` (dÃ—N), affine `A` (dÃ—d), and translation
+//!    `B` (d): `D[k][i] = W[iÂ·d+k]`, `A[i][j] = W[NÂ·d + jÂ·d + i]` (note the
+//!    transpose), `B[k] = W[NÂ·d + dÂ·d + k]`.
 //! 4. **Evaluate** per output voxel `q` (world): the inverse displacement is
-//!    `A·q + B + Σ_i ‖q − s_i‖·D[:,i]` (`= TransformPoint(q) − q`).
+//!    `AÂ·q + B + Î£_i â€–q âˆ’ s_iâ€–Â·D[:,i]` (`= TransformPoint(q) âˆ’ q`).
 //!
 //! The TPS system is unique and well-conditioned, so the result is float-exact
 //! to `sitk.InverseDisplacementField` (independent of the linear solver). A
@@ -48,8 +48,8 @@ impl Default for InverseDisplacementField {
     }
 }
 
-/// Solve the dense system `a·x = b` by Gaussian elimination with partial
-/// pivoting. `a` is a **flat row-major** `n×n` matrix (`a[r*n + c]`),
+/// Solve the dense system `aÂ·x = b` by Gaussian elimination with partial
+/// pivoting. `a` is a **flat row-major** `nÃ—n` matrix (`a[r*n + c]`),
 /// consumed along with `b`. The TPS matrix is non-singular, so the solution
 /// is unique.
 ///
@@ -59,7 +59,7 @@ impl Default for InverseDisplacementField {
 fn solve_linear(mut a: Vec<f64>, mut b: Vec<f64>) -> Vec<f64> {
     let n = b.len();
     for col in 0..n {
-        // Partial pivot — find the row ≥ col with the largest absolute value
+        // Partial pivot â€” find the row â‰¥ col with the largest absolute value
         // in column col.
         let mut piv = col;
         let mut best = a[col * n + col].abs();
@@ -109,10 +109,10 @@ impl InverseDisplacementField {
     /// inverse components `(inv_x, inv_y, inv_z)` on the same grid.
     pub fn apply<B: Backend>(
         &self,
-        comp_x: &Image<B, 3>,
-        comp_y: &Image<B, 3>,
-        comp_z: &Image<B, 3>,
-    ) -> (Image<B, 3>, Image<B, 3>, Image<B, 3>) {
+        comp_x: &Image<f32, B, 3>,
+        comp_y: &Image<f32, B, 3>,
+        comp_z: &Image<f32, B, 3>,
+    ) -> (Image<f32, B, 3>, Image<f32, B, 3>, Image<f32, B, 3>) {
         let (ux, dims) = extract_vec_infallible(comp_x);
         let (uy, _) = extract_vec_infallible(comp_y);
         let (uz, _) = extract_vec_infallible(comp_z);
@@ -136,7 +136,7 @@ impl InverseDisplacementField {
         // World position along active-axis position `k` of axis `axes[t]`.
         let world = |t: usize, idx: usize| -> f64 { og[axes[t]] + idx as f64 * sp[axes[t]] };
 
-        // ── Build landmarks (source = p + d, target = p; Y = −d) ─────────────
+        // â”€â”€ Build landmarks (source = p + d, target = p; Y = âˆ’d) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let counts: Vec<usize> = axes.iter().map(|&a| (dims[a] / f).max(1)).collect();
         let n_land: usize = counts.iter().product();
         if n_land == 0 {
@@ -148,12 +148,12 @@ impl InverseDisplacementField {
         }
         // Flat row-major layout: src[li * d + t] = world source coordinate of
         // landmark li along active axis t. Eliminates n_land per-landmark heap
-        // allocations and gives contiguous access in the O(n_land²) K-block loop
-        // and the O(n_voxels × n_land) evaluation loop.
+        // allocations and gives contiguous access in the O(n_landÂ²) K-block loop
+        // and the O(n_voxels Ã— n_land) evaluation loop.
         let mut src = vec![0.0_f64; n_land * d];
-        let mut ymat = vec![0.0_f64; d * (n_land + d + 1)]; // RHS (−d then zeros)
+        let mut ymat = vec![0.0_f64; d * (n_land + d + 1)]; // RHS (âˆ’d then zeros)
         for li in 0..n_land {
-            // Decode landmark grid index → per-active-axis voxel index (×factor).
+            // Decode landmark grid index â†’ per-active-axis voxel index (Ã—factor).
             let mut full = [0usize; 3];
             let mut rem = li;
             for t in 0..d {
@@ -171,11 +171,11 @@ impl InverseDisplacementField {
             }
         }
 
-        // ── Assemble L = [[K, P], [Pᵀ, 0]] and solve L·W = Y ─────────────────
+        // â”€â”€ Assemble L = [[K, P], [Páµ€, 0]] and solve LÂ·W = Y â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Flat row-major layout: l[r * sz + c]. Eliminates sz per-row heap
         // allocations and gives contiguous row access for forward elimination.
         let sz = d * (n_land + d + 1);
-        let pcol = n_land * d; // column offset for the P and Pᵀ blocks (constant)
+        let pcol = n_land * d; // column offset for the P and Páµ€ blocks (constant)
         let mut l = vec![0.0_f64; sz * sz];
         for i in 0..n_land {
             for j in 0..n_land {
@@ -192,7 +192,7 @@ impl InverseDisplacementField {
                     l[(i * d + k) * sz + (j * d + k)] = g;
                 }
             }
-            // P block (rows i·d.., cols n_land·d..).
+            // P block (rows iÂ·d.., cols n_landÂ·d..).
             for j in 0..d {
                 for k in 0..d {
                     l[(i * d + k) * sz + pcol + j * d + k] = src[i * d + j];
@@ -202,7 +202,7 @@ impl InverseDisplacementField {
                 l[(i * d + k) * sz + pcol + d * d + k] = 1.0;
             }
         }
-        // Pᵀ block (lower-left).
+        // Páµ€ block (lower-left).
         for i in 0..n_land {
             for j in 0..d {
                 for k in 0..d {
@@ -215,7 +215,7 @@ impl InverseDisplacementField {
         }
         let w = solve_linear(l, ymat);
 
-        // Reorganise W → spline D (d×N), affine A (d×d), translation B (d).
+        // Reorganise W â†’ spline D (dÃ—N), affine A (dÃ—d), translation B (d).
         // Flat row-major coefficient blocks keep the read-heavy Moirai
         // evaluation path contiguous and avoid d + d per-row heap allocations.
         let mut dmat = Vec::with_capacity(d * n_land);
@@ -232,7 +232,7 @@ impl InverseDisplacementField {
         }
         let bvec: Vec<f64> = (0..d).map(|k| w[n_land * d + d * d + k]).collect();
 
-        // ── Evaluate inverse displacement at every output voxel ──────────────
+        // â”€â”€ Evaluate inverse displacement at every output voxel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // The per-voxel evaluation (affine part + spline sum) is embarrassingly
         // parallel over fi: each voxel reads shared immutable flat data (src,
         // dmat, amat, bvec) and writes to its own slot. Parallelised via moirai.
@@ -251,7 +251,7 @@ impl InverseDisplacementField {
                 for t in 0..d {
                     q[t] = og[axes[t]] + full[axes[t]] as f64 * sp[axes[t]];
                 }
-                // Affine part A·q + B.
+                // Affine part AÂ·q + B.
                 let mut res = [0.0_f64; 3];
                 for t in 0..d {
                     let mut acc = bvec[t];
@@ -260,7 +260,7 @@ impl InverseDisplacementField {
                     }
                     res[t] = acc;
                 }
-                // Spline part Σ_i ‖q − s_i‖ · D[:, i].
+                // Spline part Î£_i â€–q âˆ’ s_iâ€– Â· D[:, i].
                 for i in 0..n_land {
                     let r2: f64 = (0..d)
                         .map(|t| {
@@ -301,9 +301,9 @@ impl InverseDisplacementField {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        comp_x: &ritk_image::native::Image<f32, B, 3>,
-        comp_y: &ritk_image::native::Image<f32, B, 3>,
-        comp_z: &ritk_image::native::Image<f32, B, 3>,
+        comp_x: &ritk_image::Image<f32, B, 3>,
+        comp_y: &ritk_image::Image<f32, B, 3>,
+        comp_z: &ritk_image::Image<f32, B, 3>,
         backend: &B,
     ) -> anyhow::Result<crate::NativeDisplacementField<B>>
     where
@@ -333,7 +333,7 @@ impl InverseDisplacementField {
         // World position along active-axis position `k` of axis `axes[t]`.
         let world = |t: usize, idx: usize| -> f64 { og[axes[t]] + idx as f64 * sp[axes[t]] };
 
-        // ── Build landmarks (source = p + d, target = p; Y = −d) ─────────────
+        // â”€â”€ Build landmarks (source = p + d, target = p; Y = âˆ’d) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let counts: Vec<usize> = axes.iter().map(|&a| (dims[a] / f).max(1)).collect();
         let n_land: usize = counts.iter().product();
         if n_land == 0 {
@@ -349,12 +349,12 @@ impl InverseDisplacementField {
         }
         // Flat row-major layout: src[li * d + t] = world source coordinate of
         // landmark li along active axis t. Eliminates n_land per-landmark heap
-        // allocations and gives contiguous access in the O(n_land²) K-block loop
-        // and the O(n_voxels × n_land) evaluation loop.
+        // allocations and gives contiguous access in the O(n_landÂ²) K-block loop
+        // and the O(n_voxels Ã— n_land) evaluation loop.
         let mut src = vec![0.0_f64; n_land * d];
-        let mut ymat = vec![0.0_f64; d * (n_land + d + 1)]; // RHS (−d then zeros)
+        let mut ymat = vec![0.0_f64; d * (n_land + d + 1)]; // RHS (âˆ’d then zeros)
         for li in 0..n_land {
-            // Decode landmark grid index → per-active-axis voxel index (×factor).
+            // Decode landmark grid index â†’ per-active-axis voxel index (Ã—factor).
             let mut full = [0usize; 3];
             let mut rem = li;
             for t in 0..d {
@@ -372,11 +372,11 @@ impl InverseDisplacementField {
             }
         }
 
-        // ── Assemble L = [[K, P], [Pᵀ, 0]] and solve L·W = Y ─────────────────
+        // â”€â”€ Assemble L = [[K, P], [Páµ€, 0]] and solve LÂ·W = Y â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Flat row-major layout: l[r * sz + c]. Eliminates sz per-row heap
         // allocations and gives contiguous row access for forward elimination.
         let sz = d * (n_land + d + 1);
-        let pcol = n_land * d; // column offset for the P and Pᵀ blocks (constant)
+        let pcol = n_land * d; // column offset for the P and Páµ€ blocks (constant)
         let mut l = vec![0.0_f64; sz * sz];
         for i in 0..n_land {
             for j in 0..n_land {
@@ -393,7 +393,7 @@ impl InverseDisplacementField {
                     l[(i * d + k) * sz + (j * d + k)] = g;
                 }
             }
-            // P block (rows i·d.., cols n_land·d..).
+            // P block (rows iÂ·d.., cols n_landÂ·d..).
             for j in 0..d {
                 for k in 0..d {
                     l[(i * d + k) * sz + pcol + j * d + k] = src[i * d + j];
@@ -403,7 +403,7 @@ impl InverseDisplacementField {
                 l[(i * d + k) * sz + pcol + d * d + k] = 1.0;
             }
         }
-        // Pᵀ block (lower-left).
+        // Páµ€ block (lower-left).
         for i in 0..n_land {
             for j in 0..d {
                 for k in 0..d {
@@ -416,7 +416,7 @@ impl InverseDisplacementField {
         }
         let w = solve_linear(l, ymat);
 
-        // Reorganise W → spline D (d×N), affine A (d×d), translation B (d).
+        // Reorganise W â†’ spline D (dÃ—N), affine A (dÃ—d), translation B (d).
         // Flat row-major coefficient blocks keep the read-heavy Moirai
         // evaluation path contiguous and avoid d + d per-row heap allocations.
         let mut dmat = Vec::with_capacity(d * n_land);
@@ -433,7 +433,7 @@ impl InverseDisplacementField {
         }
         let bvec: Vec<f64> = (0..d).map(|k| w[n_land * d + d * d + k]).collect();
 
-        // ── Evaluate inverse displacement at every output voxel ──────────────
+        // â”€â”€ Evaluate inverse displacement at every output voxel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // The per-voxel evaluation (affine part + spline sum) is embarrassingly
         // parallel over fi: each voxel reads shared immutable flat data (src,
         // dmat, amat, bvec) and writes to its own slot. Parallelised via moirai.
@@ -452,7 +452,7 @@ impl InverseDisplacementField {
                 for t in 0..d {
                     q[t] = og[axes[t]] + full[axes[t]] as f64 * sp[axes[t]];
                 }
-                // Affine part A·q + B.
+                // Affine part AÂ·q + B.
                 let mut res = [0.0_f64; 3];
                 for t in 0..d {
                     let mut acc = bvec[t];
@@ -461,7 +461,7 @@ impl InverseDisplacementField {
                     }
                     res[t] = acc;
                 }
-                // Spline part Σ_i ‖q − s_i‖ · D[:, i].
+                // Spline part Î£_i â€–q âˆ’ s_iâ€– Â· D[:, i].
                 for i in 0..n_land {
                     let r2: f64 = (0..d)
                         .map(|t| {
@@ -504,20 +504,20 @@ impl InverseDisplacementField {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
+
     use ritk_image::test_support as ts;
 
-    type B = NdArray<f32>;
+    type B = coeus_core::SequentialBackend;
 
-    /// The inverse of a constant translation field `(a, b)` is `(−a, −b)`
-    /// everywhere (the TPS reduces to a pure affine translation). z=1 ⇒ 2-D.
+    /// The inverse of a constant translation field `(a, b)` is `(âˆ’a, âˆ’b)`
+    /// everywhere (the TPS reduces to a pure affine translation). z=1 â‡’ 2-D.
     #[test]
     fn translation_inverse_is_negated() {
         let (h, w) = (16usize, 16usize);
         let n = h * w;
-        let dx = ts::burn_compat::make_image::<B, 3>(vec![2.0; n], [1, h, w]);
-        let dy = ts::burn_compat::make_image::<B, 3>(vec![3.0; n], [1, h, w]);
-        let dz = ts::burn_compat::make_image::<B, 3>(vec![0.0; n], [1, h, w]);
+        let dx = ts::make_image::<f32, B, 3>(vec![2.0; n], [1, h, w]);
+        let dy = ts::make_image::<f32, B, 3>(vec![3.0; n], [1, h, w]);
+        let dz = ts::make_image::<f32, B, 3>(vec![0.0; n], [1, h, w]);
         let (ix, iy, _iz) = InverseDisplacementField {
             subsampling_factor: 8,
         }

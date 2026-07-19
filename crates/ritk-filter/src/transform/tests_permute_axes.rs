@@ -1,16 +1,15 @@
 //! Tests for permute_axes
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_spatial::{Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(vals: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image_with::<B, 3>(
+fn make_image(vals: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image_with::<f32, B, 3>(
         vals,
         shape,
         Some(Point::new([0.0, 0.0, 0.0])),
@@ -19,7 +18,7 @@ fn make_image(vals: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
     )
 }
 
-fn voxels(img: &Image<B, 3>) -> Vec<f32> {
+fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
     let (v, _) = extract_vec_infallible(img);
     v
 }
@@ -92,7 +91,7 @@ fn permute_axes_invalid_order_returns_error() {
 #[test]
 fn native_permute_axes_preserves_origin_and_reorders_geometry() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
 
     let image = NativeImage::from_flat_on(
         (1..=6).map(|value| value as f32).collect(),

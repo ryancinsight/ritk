@@ -110,8 +110,8 @@ fn measurement_spacing_all_axes_are_distinct() {
 /// screen position `origin + (c * scale, r * scale)`.
 ///
 /// Analytical: origin=(10, 20), scale=2.0, img=(3, 5)
-/// x = 10 + 3 × 2 = 16
-/// y = 20 + 5 × 2 = 30
+/// x = 10 + 3 Ã— 2 = 16
+/// y = 20 + 5 Ã— 2 = 30
 #[test]
 fn measurement_img_to_screen_analytical() {
     let origin = egui::pos2(10.0, 20.0);
@@ -121,7 +121,7 @@ fn measurement_img_to_screen_analytical() {
     assert_eq!(
         (screen.x, screen.y),
         (16.0, 30.0),
-        "img_to_screen must compute origin + img × scale analytically"
+        "img_to_screen must compute origin + img Ã— scale analytically"
     );
 }
 

@@ -50,7 +50,7 @@ mod writer;
 pub use reader::{read_nifti, read_nifti_from_bytes, read_nifti_labels};
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use std::path::Path;
 pub use writer::{write_nifti, write_nifti2, write_nifti2_labels, write_nifti_labels};
 

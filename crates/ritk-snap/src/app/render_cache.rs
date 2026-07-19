@@ -72,7 +72,7 @@ impl SnapApp {
             .max(1.0) as f64;
         let wl = WindowLevel::new(wc, ww);
 
-        // ── GPU-accelerated MIP and VR (native only) ─────────────────────────
+        // â”€â”€ GPU-accelerated MIP and VR (native only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         #[cfg(not(target_arch = "wasm32"))]
         if let Some(ref mut gpu) = self.gpu_renderer {
             let gpu_img = match self.projection_mode {
@@ -93,7 +93,7 @@ impl SnapApp {
             );
         }
 
-        // ── CPU fallback (always available) ──────────────────────────────────
+        // â”€â”€ CPU fallback (always available) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let color_image = match self.projection_mode {
             ProjectionMode::Mip => render_mip_axial_with_scratch(
                 &mut self.render_buffer_pool.rgba_u8,
@@ -129,7 +129,7 @@ impl SnapApp {
             self.mip_tex.as_ref().map(|t| (t.id(), t.size()))
         else {
             ui.centered_and_justified(|ui| {
-                ui.label("3D MIP — open a volume to begin");
+                ui.label("3D MIP â€” open a volume to begin");
             });
             return;
         };

@@ -8,6 +8,69 @@
 
 # RITK Gap Audit - Active
 
+## MIG-661-01 audit (2026-07-18)
+
+The workspace now has zero Burn and ndarray manifest dependencies and zero
+active source tokens under the migration audit. The only allowlisted source
+matches are three uses of “legacy” that name the VTK legacy file format in
+`ritk-python`; they are domain terminology, not compatibility paths.
+`ritk-image` is the canonical Coeus image contract, Leto owns array/storage
+operations, Hephaestus remains the accelerated provider boundary, and the
+unused `ritk-macros` crate and compatibility image modules are removed.
+
+The full workspace run exposed an NGF formula defect: the denominator modeled
+the edge scale as an augmented gradient component, but the numerator omitted
+the corresponding `η_F η_M` inner-product term. The corrected normalized
+augmented-gradient identity scores identical volumes as one. Evidence tier:
+native compilation, warning-denied static analysis, and value-semantic
+empirical verification; formatting and all-target/all-feature Clippy pass,
+and 4,644/4,644 Nextest tests pass with 12 explicitly skipped.
+
+The first hosted Clippy run exposed provider-pin drift rather than a RITK
+source defect: the dependency action checked out Coeus `093f31f`, which
+predates the host materialization contract used by the cutover. The action now
+pins merged Coeus `5ee07a26`, matching the locally verified provider graph.
+
+Hosted Python parity then exposed two registration API residuals. The
+`cma_mi_register` stub described a deleted Burn autodiff/CMA implementation and
+is removed from the Python contract. `global_mi_register` retains a live
+value-semantic parity test, so it now dispatches to the Leto classical
+mutual-information engine. Translation uses a dedicated six-neighbor
+hill-climbing kernel and returns a physical-space homogeneous transform.
+Evidence tier: warning-denied type checking, an exact known-shift regression,
+the existing SimpleITK structural/MI parity test, and a clean Python API drift
+report.
+
+The hosted wheel suite exposed three displacement-warp parity failures with
+maximum intensity errors of 94.4–97.7. The canonical `warp_image` export still
+selected a duplicate host-extraction implementation, while the Coeus-native
+sampler remained under a `_native` suffix. The duplicate is deleted and the
+native sampler owns the canonical name. Its public `(disp_z, disp_y, disp_x)`
+arguments now map to physical world `[x, y, z]` columns as `(D_x, D_y, D_z)`.
+Evidence tier: an exact physical-axis regression, five native warp contract
+tests, and all three SimpleITK differential cases.
+
+## MIG-660-01 audit (2026-07-18)
+
+The native `ritk-core` interpolation/transform traits and `ritk-nifti` codec
+retained stale Burn contract text after their provider boundaries moved to
+Coeus. The claimed four files now describe the current native contracts and
+contain no Burn tokens. The obsolete NIfTI test allowlist entry is deleted.
+The migration audit remains clean with zero Burn manifest dependencies, 503
+token-bearing source files, and no cleanup candidates. Evidence tier:
+source-residue audit plus native compilation and value-semantic tests for the
+NIfTI owner crate; formatting, warning-denied Clippy, 37/37 Nextest tests,
+doctests, and warning-denied Rustdoc pass.
+
+The `ritk-core` compile gate is not evidence for this slice: the active
+MIG-658 source cutover fails first in peer-owned `ritk-statistics` with 38
+errors. The diagnostic classes are missing `CpuAddressableStorage<f32>` bounds
+at host-extraction boundaries and Burn-shaped tensor operations (`Mul`, `sum`,
+`sub_scalar`) absent from Coeus. Adding downstream adapters would preserve the
+obsolete API shape and is rejected. Re-run the core gate after the owner scope
+uses native Coeus/Leto operations. Publication is separately blocked while
+that broader migration remains staged on the shared `main` tree.
+
 ## MIG-659-01 audit (2026-07-17)
 
 The stale peer diff correctly identified that native flat-buffer interpolation

@@ -1,7 +1,7 @@
 use super::*;
 use crate::image_comparison::{pearson_correlation, psnr, psnr_native, ssim, ssim_native};
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image as NativeImage;
 
 #[test]
 fn pearson_correlation_parallel_affine_contracts() {
@@ -44,7 +44,7 @@ fn pearson_correlation_constant_inputs_are_zero() {
 
 #[test]
 fn test_psnr_identical_images_is_infinity() {
-    let img: Image<TestBackend, 1> = make_image(vec![1.0, 2.0, 3.0, 4.0, 5.0], [5]);
+    let img: Image<f32, TestBackend, 1> = make_image(vec![1.0, 2.0, 3.0, 4.0, 5.0], [5]);
     let result = psnr(&img, &img, 255.0);
     assert!(
         result.is_infinite() && result > 0.0,
@@ -79,8 +79,8 @@ fn native_psnr_known_value_matches_formula() {
 
 #[test]
 fn test_psnr_known_value() {
-    let img: Image<TestBackend, 1> = make_image(vec![0.0, 0.0], [2]);
-    let reference: Image<TestBackend, 1> = make_image(vec![0.1, 0.1], [2]);
+    let img: Image<f32, TestBackend, 1> = make_image(vec![0.0, 0.0], [2]);
+    let reference: Image<f32, TestBackend, 1> = make_image(vec![0.1, 0.1], [2]);
     let result = psnr(&img, &reference, 1.0);
     assert!(
         (result - 20.0).abs() < 1e-3,
@@ -91,8 +91,8 @@ fn test_psnr_known_value() {
 
 #[test]
 fn test_psnr_symmetry() {
-    let a: Image<TestBackend, 1> = make_image(vec![0.0, 1.0, 2.0, 3.0], [4]);
-    let b: Image<TestBackend, 1> = make_image(vec![0.5, 1.5, 2.5, 3.5], [4]);
+    let a: Image<f32, TestBackend, 1> = make_image(vec![0.0, 1.0, 2.0, 3.0], [4]);
+    let b: Image<f32, TestBackend, 1> = make_image(vec![0.5, 1.5, 2.5, 3.5], [4]);
     let psnr_ab = psnr(&a, &b, 10.0);
     let psnr_ba = psnr(&b, &a, 10.0);
     assert!(
@@ -105,9 +105,9 @@ fn test_psnr_symmetry() {
 
 #[test]
 fn test_psnr_larger_error_lower_value() {
-    let img: Image<TestBackend, 1> = make_image(vec![0.0; 4], [4]);
-    let small_err: Image<TestBackend, 1> = make_image(vec![0.1; 4], [4]);
-    let large_err: Image<TestBackend, 1> = make_image(vec![1.0; 4], [4]);
+    let img: Image<f32, TestBackend, 1> = make_image(vec![0.0; 4], [4]);
+    let small_err: Image<f32, TestBackend, 1> = make_image(vec![0.1; 4], [4]);
+    let large_err: Image<f32, TestBackend, 1> = make_image(vec![1.0; 4], [4]);
     let psnr_small = psnr(&img, &small_err, 1.0);
     let psnr_large = psnr(&img, &large_err, 1.0);
     assert!(
@@ -120,7 +120,7 @@ fn test_psnr_larger_error_lower_value() {
 
 #[test]
 fn test_ssim_identical_images_is_one() {
-    let img: Image<TestBackend, 1> = make_image(vec![1.0, 2.0, 3.0, 4.0, 5.0], [5]);
+    let img: Image<f32, TestBackend, 1> = make_image(vec![1.0, 2.0, 3.0, 4.0, 5.0], [5]);
     let result = ssim(&img, &img, 5.0);
     assert!(
         (result - 1.0).abs() < F32_TOL,
@@ -146,16 +146,16 @@ fn native_ssim_identical_images_is_one() {
 
 #[test]
 fn test_ssim_negated_image_is_low() {
-    let img: Image<TestBackend, 1> = make_image(vec![-1.0, -0.5, 0.0, 0.5, 1.0], [5]);
-    let neg: Image<TestBackend, 1> = make_image(vec![1.0, 0.5, 0.0, -0.5, -1.0], [5]);
+    let img: Image<f32, TestBackend, 1> = make_image(vec![-1.0, -0.5, 0.0, 0.5, 1.0], [5]);
+    let neg: Image<f32, TestBackend, 1> = make_image(vec![1.0, 0.5, 0.0, -0.5, -1.0], [5]);
     let result = ssim(&img, &neg, 1.0);
     assert!(result < 0.0, "negated image -> SSIM < 0, got {}", result);
 }
 
 #[test]
 fn test_ssim_symmetry() {
-    let a: Image<TestBackend, 1> = make_image(vec![1.0, 3.0, 5.0, 7.0], [4]);
-    let b: Image<TestBackend, 1> = make_image(vec![2.0, 4.0, 6.0, 8.0], [4]);
+    let a: Image<f32, TestBackend, 1> = make_image(vec![1.0, 3.0, 5.0, 7.0], [4]);
+    let b: Image<f32, TestBackend, 1> = make_image(vec![2.0, 4.0, 6.0, 8.0], [4]);
     let ssim_ab = ssim(&a, &b, 10.0);
     let ssim_ba = ssim(&b, &a, 10.0);
     assert!(
@@ -168,7 +168,7 @@ fn test_ssim_symmetry() {
 
 #[test]
 fn test_ssim_constant_identical_is_one() {
-    let img: Image<TestBackend, 1> = make_image(vec![42.0; 10], [10]);
+    let img: Image<f32, TestBackend, 1> = make_image(vec![42.0; 10], [10]);
     let result = ssim(&img, &img, 255.0);
     assert!(
         (result - 1.0).abs() < F32_TOL,

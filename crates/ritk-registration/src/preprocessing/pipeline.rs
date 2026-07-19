@@ -34,30 +34,28 @@ impl PreprocessingPipeline {
 mod tests {
     use super::PreprocessingPipeline;
     use crate::preprocessing::{IntensityRescaleMode, PreprocessingStep};
-    use burn_ndarray::NdArray;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use coeus_core::SequentialBackend;
+    use ritk_image::tensor::Tensor;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
 
-    type B = NdArray<f32>;
+    type B = SequentialBackend;
 
-    fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
+    fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
         let device = Default::default();
-        let t = Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(dims)), &device);
+        let t = Tensor::<f32, B>::from_slice_on(dims, &vals, &device);
         Image::new(
             t,
             Point::new([0.0, 0.0, 0.0]),
             Spacing::new([1.0, 1.0, 1.0]),
             Direction::identity(),
         )
+        .expect("invariant: fixture tensor preserves the declared image rank")
     }
 
-    fn extract(img: &Image<B, 3>) -> Vec<f32> {
-        img.data()
-            .clone()
-            .into_data()
-            .as_slice::<f32>()
-            .unwrap()
+    fn extract(img: &Image<f32, B, 3>) -> Vec<f32> {
+        img.data_slice()
+            .expect("fixture image is CPU-addressable")
             .to_vec()
     }
 

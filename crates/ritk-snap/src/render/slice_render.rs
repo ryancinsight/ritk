@@ -2,27 +2,27 @@
 //!
 //! # Mathematical specification
 //!
-//! ## Window/Level (DICOM PS 3.3 §C.7.6.3.1.5)
+//! ## Window/Level (DICOM PS 3.3 Â§C.7.6.3.1.5)
 //!
 //! Given centre `c` and width `w`, define:
 //! ```text
-//! L = c − w/2        (lower bound)
+//! L = c âˆ’ w/2        (lower bound)
 //! U = c + w/2        (upper bound)
 //! ```
 //! For pixel value `v`:
 //! ```text
-//! output = 0                              if v ≤ L
-//! output = 255                            if v ≥ U
-//! output = round((v − L) / (U − L) × 255) otherwise
+//! output = 0                              if v â‰¤ L
+//! output = 255                            if v â‰¥ U
+//! output = round((v âˆ’ L) / (U âˆ’ L) Ã— 255) otherwise
 //! ```
 //!
 //! ## Slice extraction (row-major [D, R, C] volume)
 //!
 //! | `axis` | Fixed index | Pixel at (row, col) in output      | Output dimensions |
 //! |--------|-------------|-------------------------------------|-------------------|
-//! | 0      | d (axial)   | data[d×R×C + row×C + col]           | (rows=R, cols=C)  |
-//! | 1      | r (coronal) | data[depth×R×C + r×C + col]         | (rows=D, cols=C)  |
-//! | 2      | c (sagittal)| data[depth×R×C + row×C + c]         | (rows=D, cols=R)  |
+//! | 0      | d (axial)   | data[dÃ—RÃ—C + rowÃ—C + col]           | (rows=R, cols=C)  |
+//! | 1      | r (coronal) | data[depthÃ—RÃ—C + rÃ—C + col]         | (rows=D, cols=C)  |
+//! | 2      | c (sagittal)| data[depthÃ—RÃ—C + rowÃ—C + c]         | (rows=D, cols=R)  |
 //!
 //! The `SliceRenderer` converts extracted pixels through the WL LUT and then
 //! through a [`Colormap`], producing an [`egui::ColorImage`] of size
@@ -32,7 +32,7 @@ use super::buffer_pool::RenderBufferPool;
 use super::colormap::Colormap;
 use crate::LoadedVolume;
 
-// ── WindowLevel ───────────────────────────────────────────────────────────────
+// â”€â”€ WindowLevel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Window/Level lookup table for linear DICOM intensity windowing.
 ///
@@ -40,21 +40,21 @@ use crate::LoadedVolume;
 /// - The mapping is monotone non-decreasing in `v`.
 /// - Output is always in `[0, 255]` regardless of input magnitude.
 ///
-/// # Mathematical specification (DICOM PS 3.3 §C.7.6.3.1.5)
+/// # Mathematical specification (DICOM PS 3.3 Â§C.7.6.3.1.5)
 ///
-/// Let `L = center − width/2`,  `U = center + width/2`.
+/// Let `L = center âˆ’ width/2`,  `U = center + width/2`.
 ///
 /// For pixel value `v`:
 /// ```text
-/// output = 0                               if v ≤ L
-/// output = 255                             if v ≥ U
-/// output = round((v − L) / (U − L) × 255) otherwise
+/// output = 0                               if v â‰¤ L
+/// output = 255                             if v â‰¥ U
+/// output = round((v âˆ’ L) / (U âˆ’ L) Ã— 255) otherwise
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct WindowLevel {
-    /// Display window centre — the midpoint of the visible intensity range.
+    /// Display window centre â€” the midpoint of the visible intensity range.
     pub center: f64,
-    /// Display window width — the span of the visible intensity range.
+    /// Display window width â€” the span of the visible intensity range.
     ///
     /// A width of zero or a negative value causes all inputs to saturate:
     /// values equal to or below `center` clamp to 0, values above clamp to 255.
@@ -70,8 +70,8 @@ impl WindowLevel {
     /// Apply the WL LUT to a single pixel value `v`, returning the u8 display value.
     ///
     /// # Safety comment
-    /// Division by `(u − l)` is guarded by the branch structure: the division
-    /// executes only when `l < v < u`, which implies `u − l = width > 0`.
+    /// Division by `(u âˆ’ l)` is guarded by the branch structure: the division
+    /// executes only when `l < v < u`, which implies `u âˆ’ l = width > 0`.
     #[inline]
     pub fn apply(&self, v: f64) -> u8 {
         let l = self.center - self.width * 0.5;
@@ -81,7 +81,7 @@ impl WindowLevel {
         } else if v >= u {
             255
         } else {
-            // SAFETY: l < v < u ⟹ u − l = width > 0, no division by zero.
+            // SAFETY: l < v < u âŸ¹ u âˆ’ l = width > 0, no division by zero.
             ((v - l) / (u - l) * super::U8_MAX_F32 as f64).round() as u8
         }
     }
@@ -89,13 +89,13 @@ impl WindowLevel {
     /// Apply the WL LUT to every element of `pixels`, returning `Vec<u8>`.
     ///
     /// Each `f32` is widened to `f64` before applying the formula to preserve
-    /// arithmetic precision across the full HU range (≈ −32 768 … +32 767).
+    /// arithmetic precision across the full HU range (â‰ˆ âˆ’32 768 â€¦ +32 767).
     pub fn apply_slice(&self, pixels: &[f32]) -> Vec<u8> {
         pixels.iter().map(|&p| self.apply(p as f64)).collect()
     }
 }
 
-// ── SliceRenderer ─────────────────────────────────────────────────────────────
+// â”€â”€ SliceRenderer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Renders a single 2-D slice from a [`LoadedVolume`] to an [`egui::ColorImage`].
 ///
@@ -108,19 +108,19 @@ impl WindowLevel {
 /// | 2      | Sagittal | column `c`  | `[rows, depth]`                   |
 ///
 /// An out-of-range `index` is silently clamped. An unknown `axis` yields a
-/// 1×1 black image rather than a panic.
+/// 1Ã—1 black image rather than a panic.
 pub struct SliceRenderer;
 
 impl SliceRenderer {
     /// Extract and render a single slice from `volume`.
     ///
     /// # Parameters
-    /// - `volume`   — source volume with row-major `[depth, rows, cols]` layout.
-    /// - `axis`     — 0 = axial (fixed depth), 1 = coronal (fixed row),
+    /// - `volume`   â€” source volume with row-major `[depth, rows, cols]` layout.
+    /// - `axis`     â€” 0 = axial (fixed depth), 1 = coronal (fixed row),
     ///   2 = sagittal (fixed column).
-    /// - `index`    — position along `axis`; clamped to the valid range silently.
-    /// - `wl`       — DICOM window/level parameters for intensity mapping.
-    /// - `colormap` — colormap applied after WL normalisation.
+    /// - `index`    â€” position along `axis`; clamped to the valid range silently.
+    /// - `wl`       â€” DICOM window/level parameters for intensity mapping.
+    /// - `colormap` â€” colormap applied after WL normalisation.
     ///
     /// # Returns
     /// An [`egui::ColorImage`] of size `[width, height]` (see table above)

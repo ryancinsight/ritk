@@ -19,7 +19,7 @@ use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::sync::mpsc;
 
-// ── Connection handler ────────────────────────────────────────────────────────
+// â”€â”€ Connection handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(super) fn handle_connection(
     mut stream: TcpStream,
@@ -119,7 +119,7 @@ pub(super) fn handle_connection(
     Ok(())
 }
 
-// ── C-STORE-RQ handler ────────────────────────────────────────────────────────
+// â”€â”€ C-STORE-RQ handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn handle_store_rq(
     stream: &mut TcpStream,
@@ -135,7 +135,7 @@ fn handle_store_rq(
     let dataset_bytes = msg.data_set.unwrap_or_default();
     let transfer_syntax_uid = ctx_map.get(&cid).map(|(_, ts)| *ts).unwrap_or_default();
 
-    // Always respond Success — protocol requires a response regardless of channel state.
+    // Always respond Success â€” protocol requires a response regardless of channel state.
     let rsp = DimseMessage::c_store_rsp(
         msg_id,
         &sop_class_uid,
@@ -160,7 +160,7 @@ fn handle_store_rq(
     Ok(())
 }
 
-// ── Message reception ─────────────────────────────────────────────────────────
+// â”€â”€ Message reception â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Outcome of receiving one DIMSE protocol event.
 enum ScpMessageResult {
@@ -263,7 +263,7 @@ fn recv_data_fragments(
     }
 }
 
-// ── PDU I/O helpers ───────────────────────────────────────────────────────────
+// â”€â”€ PDU I/O helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(super) fn read_pdu_stream(stream: &mut TcpStream) -> Result<Pdu, NetworkingError> {
     let mut hdr = [0u8; 6];

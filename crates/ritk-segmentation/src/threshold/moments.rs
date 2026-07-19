@@ -32,12 +32,12 @@ impl MomentsThreshold {
     }
 
     /// Compute the Moments threshold intensity for `image`.
-    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> f32 {
+    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> f32 {
         <Self as AutoThreshold>::compute(self, image)
     }
 
     /// Apply the Moments threshold to produce a binary mask.
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         <Self as AutoThreshold>::apply(self, image)
     }
 
@@ -49,9 +49,9 @@ impl MomentsThreshold {
     /// or the native output image cannot be constructed.
     pub fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -124,7 +124,7 @@ impl AutoThreshold for MomentsThreshold {
 }
 
 /// Convenience function: compute the Moments threshold with 256 bins.
-pub fn moments_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
+pub fn moments_threshold<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> f32 {
     MomentsThreshold::new().compute(image)
 }
 

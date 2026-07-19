@@ -10,15 +10,15 @@ use anyhow::Result;
 ///
 /// # Return order
 /// `(spacing, origin, direction)` where:
-/// - `spacing`: `[f64; 3]` — voxel pitch `[dz, dy, dx]` in mm/voxel.
-/// - `origin`: `[f64; 3]` — physical coordinate of the first voxel.
-/// - `direction`: `[f64; 9]` — row-major 3×3 direction cosine matrix.
+/// - `spacing`: `[f64; 3]` â€” voxel pitch `[dz, dy, dx]` in mm/voxel.
+/// - `origin`: `[f64; 3]` â€” physical coordinate of the first voxel.
+/// - `direction`: `[f64; 9]` â€” row-major 3Ã—3 direction cosine matrix.
 ///
 /// # Contract
-/// The `image` must be 3-dimensional. The direction matrix must be 3×3
+/// The `image` must be 3-dimensional. The direction matrix must be 3Ã—3
 /// (9 elements), which is guaranteed by `Direction<3>`.
 pub(super) fn extract_spatial_metadata(
-    image: &ritk_image::native::Image<f32, coeus_core::SequentialBackend, 3>,
+    image: &ritk_image::Image<f32, coeus_core::SequentialBackend, 3>,
 ) -> ([f64; 3], [f64; 3], [f64; 9]) {
     let sp = image.spacing();
     let orig = image.origin();
@@ -37,7 +37,7 @@ pub(super) fn extract_spatial_metadata(
 /// This function is also used by `mod.rs` for MetaImage, NRRD, and MGH
 /// format loading paths, which produce an `Image` without DICOM metadata.
 pub(super) fn volume_from_image_no_meta(
-    image: ritk_image::native::Image<f32, coeus_core::SequentialBackend, 3>,
+    image: ritk_image::Image<f32, coeus_core::SequentialBackend, 3>,
     source_path: PathBuf,
 ) -> Result<LoadedVolume> {
     let shape = image.shape();

@@ -1,6 +1,6 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{
-    burn_into_py_image, native_into_py_image, py_image_to_burn, py_image_to_native, PyImage,
+    image_from_py, into_py_image, native_into_py_image, py_image_to_native, PyImage,
 };
 use coeus_core::SequentialBackend;
 use pyo3::prelude::*;
@@ -16,7 +16,7 @@ use super::contour::connectivity_from;
 /// Geodesic morphological reconstruction.
 ///
 /// Args:
-///     marker: seed image (marker ≤ mask for dilation, marker ≥ mask for erosion).
+///     marker: seed image (marker â‰¤ mask for dilation, marker â‰¥ mask for erosion).
 ///     mask: constraint image.
 ///     mode: "dilation" or "erosion".
 ///     fully_connected: if False (default), use face connectivity (6-connected in
@@ -42,15 +42,15 @@ pub fn morphological_reconstruction(
         }
     };
     let connectivity = connectivity_from(fully_connected);
-    let marker_arc = py_image_to_burn(marker);
-    let mask_arc = py_image_to_burn(mask);
+    let marker_arc = image_from_py(marker);
+    let mask_arc = image_from_py(mask);
     py.allow_threads(|| {
         MorphologicalReconstruction::new(recon_mode)
             .with_connectivity(connectivity)
             .apply(&marker_arc, &mask_arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// H-maxima transform: suppress bright regional maxima with contrast below
@@ -63,7 +63,7 @@ pub fn h_maxima(
     height: f32,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         HMaximaFilter::new(height)
@@ -71,7 +71,7 @@ pub fn h_maxima(
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// H-minima transform: suppress dark regional minima with contrast below
@@ -95,7 +95,7 @@ pub fn h_minima(
     .map(native_into_py_image)
 }
 
-/// H-convex transform: `f − HMaxima_h(f)`, the bright dynamic suppressed by
+/// H-convex transform: `f âˆ’ HMaxima_h(f)`, the bright dynamic suppressed by
 /// the h-maxima transform. ITK Parity: HConvexImageFilter (`sitk.HConvex`).
 #[pyfunction]
 #[pyo3(signature = (image, height, fully_connected = false))]
@@ -105,7 +105,7 @@ pub fn h_convex(
     height: f32,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         HConvexFilter::new(height)
@@ -113,10 +113,10 @@ pub fn h_convex(
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
-/// H-concave transform: `HMinima_h(f) − f`, the dark dynamic suppressed by the
+/// H-concave transform: `HMinima_h(f) âˆ’ f`, the dark dynamic suppressed by the
 /// h-minima transform. ITK Parity: HConcaveImageFilter (`sitk.HConcave`).
 #[pyfunction]
 #[pyo3(signature = (image, height, fully_connected = false))]
@@ -126,7 +126,7 @@ pub fn h_concave(
     height: f32,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         HConcaveFilter::new(height)
@@ -134,7 +134,7 @@ pub fn h_concave(
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Binary regional maxima: `foreground` on regional maxima, `background`
@@ -148,7 +148,7 @@ pub fn regional_maxima(
     background: f32,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         RegionalMaximaFilter::new()
@@ -157,7 +157,7 @@ pub fn regional_maxima(
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Binary regional minima. ITK Parity: RegionalMinimaImageFilter
@@ -184,7 +184,7 @@ pub fn regional_minima(
 }
 
 /// Valued regional maxima: keep the input value on regional maxima, set
-/// non-maxima to −FLT_MAX. ITK Parity: ValuedRegionalMaximaImageFilter
+/// non-maxima to âˆ’FLT_MAX. ITK Parity: ValuedRegionalMaximaImageFilter
 /// (`sitk.ValuedRegionalMaxima`).
 #[pyfunction]
 #[pyo3(signature = (image, fully_connected = false))]
@@ -193,7 +193,7 @@ pub fn valued_regional_maxima(
     image: &PyImage,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         ValuedRegionalMaximaFilter::new()
@@ -201,7 +201,7 @@ pub fn valued_regional_maxima(
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Valued regional minima: keep the input value on regional minima, set
@@ -214,7 +214,7 @@ pub fn valued_regional_minima(
     image: &PyImage,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         ValuedRegionalMinimaFilter::new()
@@ -222,7 +222,7 @@ pub fn valued_regional_minima(
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Opening by reconstruction: erode with a box SE of half-width `radius`, then
@@ -236,7 +236,7 @@ pub fn opening_by_reconstruction(
     radius: usize,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         OpeningByReconstructionFilter::new(radius)
@@ -244,7 +244,7 @@ pub fn opening_by_reconstruction(
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Closing by reconstruction: dilate with a box SE of half-width `radius`, then
@@ -258,7 +258,7 @@ pub fn closing_by_reconstruction(
     radius: usize,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         ClosingByReconstructionFilter::new(radius)
@@ -266,20 +266,20 @@ pub fn closing_by_reconstruction(
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Grayscale fill-hole: raise dark regional minima not connected to the image
 /// border. ITK Parity: GrayscaleFillholeImageFilter (`sitk.GrayscaleFillhole`).
 #[pyfunction]
 pub fn grayscale_fillhole(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     py.allow_threads(|| {
         GrayscaleFillholeFilter::new()
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Grayscale grind-peak: grind down bright peaks not connected to the image
@@ -292,7 +292,7 @@ pub fn grayscale_grind_peak(
     image: &PyImage,
     fully_connected: bool,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let conn = connectivity_from(fully_connected);
     py.allow_threads(|| {
         GrayscaleGrindPeakFilter::new()
@@ -300,5 +300,5 @@ pub fn grayscale_grind_peak(
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

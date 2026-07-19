@@ -8,15 +8,20 @@ use super::{label_set_morph, LabelSetMorphOp};
 use ritk_image::test_support as ts;
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = burn_ndarray::NdArray<f32>;
+type B = coeus_core::SequentialBackend;
 
 /// z=1 label image from a flat `rows×cols` slice.
-fn z1(flat: Vec<f32>, rows: usize, cols: usize) -> ritk_image::Image<B, 3> {
+fn z1(flat: Vec<f32>, rows: usize, cols: usize) -> ritk_image::Image<f32, B, 3> {
     assert_eq!(flat.len(), rows * cols);
-    ts::burn_compat::make_image::<B, 3>(flat, [1, rows, cols])
+    ts::make_image::<f32, B, 3>(flat, [1, rows, cols])
 }
 
-fn run(img: &ritk_image::Image<B, 3>, r: f64, use_spacing: bool, op: LabelSetMorphOp) -> Vec<f32> {
+fn run(
+    img: &ritk_image::Image<f32, B, 3>,
+    r: f64,
+    use_spacing: bool,
+    op: LabelSetMorphOp,
+) -> Vec<f32> {
     let out = label_set_morph(img, [r, r, 0.0], use_spacing, op);
     extract_vec_infallible(&out).0
 }
@@ -26,7 +31,7 @@ fn f(v: &[i32]) -> Vec<f32> {
 }
 
 /// 7×7 multi-label scene (labels 1, 2, 3).
-fn scene() -> ritk_image::Image<B, 3> {
+fn scene() -> ritk_image::Image<f32, B, 3> {
     let mut a = vec![0i32; 49];
     a[8] = 1;
     a[9] = 1;
@@ -74,7 +79,7 @@ fn dilate_spacing_r1_is_near_identity() {
 }
 
 /// 9×9 solid 5×5 block of label 4 (rows/cols 2..7).
-fn block() -> ritk_image::Image<B, 3> {
+fn block() -> ritk_image::Image<f32, B, 3> {
     let mut b = vec![0i32; 81];
     for r in 2..7 {
         for c in 2..7 {

@@ -7,8 +7,8 @@
 //!
 //! 1. **Discrete Gaussian** smoothing with per-axis `variance` (physical units,
 //!    `UseImageSpacing`) and `maximum_error` truncation.
-//! 2. **Laplacian** `∇²` of the smoothed image (ZeroFluxNeumann boundary,
-//!    divided by `spacing²` per axis).
+//! 2. **Laplacian** `âˆ‡Â²` of the smoothed image (ZeroFluxNeumann boundary,
+//!    divided by `spacingÂ²` per axis).
 //! 3. **Zero crossing** detection on the Laplacian, marking edge voxels with
 //!    `foreground_value` and the rest with `background_value`.
 //!
@@ -68,8 +68,11 @@ impl ZeroCrossingBasedEdgeDetectionFilter {
         }
     }
 
-    /// Run the Gaussian → Laplacian → zero-crossing mini-pipeline.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    /// Run the Gaussian â†’ Laplacian â†’ zero-crossing mini-pipeline.
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>>
+    where
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
         let smoothed = DiscreteGaussianFilter::<B>::new_isotropic(self.variance)
             .with_maximum_error(self.maximum_error)
             .apply(image);
@@ -83,17 +86,16 @@ impl ZeroCrossingBasedEdgeDetectionFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
-        B: coeus_core::ComputeBackend + Default,
+        B: coeus_core::Backend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        let smoothed =
-            DiscreteGaussianFilter::<burn_ndarray::NdArray<f32>>::new_isotropic(self.variance)
-                .with_maximum_error(self.maximum_error)
-                .apply_native(image)?;
+        let smoothed = DiscreteGaussianFilter::<B>::new_isotropic(self.variance)
+            .with_maximum_error(self.maximum_error)
+            .apply_native(image)?;
         let laplacian = LaplacianFilter::new(*image.spacing()).apply_native(&smoothed)?;
         ZeroCrossingImageFilter::new()
             .with_foreground(self.foreground_value)

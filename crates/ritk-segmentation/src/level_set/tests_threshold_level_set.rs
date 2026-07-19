@@ -3,21 +3,20 @@
 
 use super::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::test_support::burn_compat::make_image_with;
+use ritk_image::test_support::make_image_with;
 
-type B = burn_ndarray::NdArray<f32>;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(dims: [usize; 3], val: f32) -> Image<B, 3> {
+fn make_image(dims: [usize; 3], val: f32) -> Image<f32, B, 3> {
     let n: usize = dims.iter().product();
-    let device = Default::default();
-    let tensor =
-        Tensor::<B, 3>::from_data(TensorData::new(vec![val; n], Shape::new(dims)), &device);
+    let tensor = Tensor::<f32, B>::from_slice(dims, &vec![val; n]);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 fn make_image_with_metadata(
@@ -25,7 +24,7 @@ fn make_image_with_metadata(
     dims: [usize; 3],
     origin: [f64; 3],
     spacing: [f64; 3],
-) -> Image<B, 3> {
+) -> Image<f32, B, 3> {
     make_image_with(
         data,
         dims,
@@ -35,7 +34,7 @@ fn make_image_with_metadata(
     )
 }
 
-fn sphere_phi(dims: [usize; 3], center: [f64; 3], radius: f64) -> Image<B, 3> {
+fn sphere_phi(dims: [usize; 3], center: [f64; 3], radius: f64) -> Image<f32, B, 3> {
     let n: usize = dims.iter().product();
     let [nz, ny, nx] = dims;
     let mut data = vec![0.0_f32; n];
@@ -51,13 +50,14 @@ fn sphere_phi(dims: [usize; 3], center: [f64; 3], radius: f64) -> Image<B, 3> {
         }
     }
     let device = Default::default();
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
+    let tensor = Tensor::<f32, B>::from_slice_on(dims, &data, &device);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 fn make_bimodal_image(
@@ -66,7 +66,7 @@ fn make_bimodal_image(
     radius: f64,
     inside_val: f32,
     outside_val: f32,
-) -> Image<B, 3> {
+) -> Image<f32, B, 3> {
     let n: usize = dims.iter().product();
     let [nz, ny, nx] = dims;
     let mut data = vec![outside_val; n];
@@ -84,30 +84,25 @@ fn make_bimodal_image(
         }
     }
     let device = Default::default();
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(dims)), &device);
+    let tensor = Tensor::<f32, B>::from_slice_on(dims, &data, &device);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
-fn get_values(image: &Image<B, 3>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn get_values(image: &Image<f32, B, 3>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
-fn count_foreground(image: &Image<B, 3>) -> usize {
+fn count_foreground(image: &Image<f32, B, 3>) -> usize {
     get_values(image).iter().filter(|&&v| v == 1.0).count()
 }
 
-fn count_phi_inside(phi: &Image<B, 3>) -> usize {
+fn count_phi_inside(phi: &Image<f32, B, 3>) -> usize {
     get_values(phi).iter().filter(|&&v| v < 0.0).count()
 }
 

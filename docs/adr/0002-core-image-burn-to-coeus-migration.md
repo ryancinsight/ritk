@@ -1,6 +1,6 @@
 # ADR 0002 — Core `Image` / tensor-substrate Burn→Coeus migration strategy
 
-- Status: Accepted
+- Status: Superseded by completed cutover
 - Change class: [arch]
 - Date: 2026-06-30
 - Related: `docs/coeus_migration.md`, ADR 0001 (registration traits), backlog
@@ -199,3 +199,17 @@ complete cutover.
 Verification consists of the Eunomia generic cast suite, an interpolation
 regression instantiated at `f32` and `f64`, locked package compilation,
 warning-denied all-target/all-feature Clippy, and the package Nextest suite.
+
+## Amendment A4 (2026-07-18) — Cutover complete
+
+All workspace packages now use the canonical Coeus image/tensor contract and
+Leto-owned storage operations. Burn and ndarray manifest edges are zero, the
+migration audit reports zero active source tokens, compatibility image modules
+and the unused macro crate are deleted, and consumer call sites compile without
+adapters or fallback paths. The three remaining allowlisted “legacy” tokens
+name the VTK legacy file format and are not substrate compatibility surfaces.
+
+Verification is workspace-wide: formatting and warning-denied
+all-target/all-feature Clippy pass, and 4,644/4,644 Nextest tests pass with 12
+explicitly skipped. Coeus host materialization support was delivered upstream
+and merged on Coeus main at `5ee07a2`.

@@ -1,11 +1,11 @@
-//! `ritk normalize` — image intensity normalization command.
+//! `ritk normalize` â€” image intensity normalization command.
 //!
 //! Applies one of five normalization strategies to a 3-D medical image:
 //!
 //! | Method             | Description                                        |
 //! |--------------------|----------------------------------------------------|
 //! | `histogram-match`  | CDF-based histogram matching to a reference image  |
-//! | `nyul`             | Nyúl-Udupa piecewise-linear standardization        |
+//! | `nyul`             | NyÃºl-Udupa piecewise-linear standardization        |
 //! | `zscore`           | Zero-mean, unit-variance normalization             |
 //! | `minmax`           | Rescale intensities to \[0, 1\]                    |
 //! | `white-stripe`     | Brain MRI white-stripe normalization               |
@@ -20,12 +20,9 @@ use ritk_statistics::normalization::{
     WhiteStripeNormalizer, ZScoreNormalizer,
 };
 
-use super::{
-    infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
-    write_image_native,
-};
+use super::{infer_format, is_read_capable, is_write_capable, read_image, write_image};
 
-// ── CLI arguments ─────────────────────────────────────────────────────────────
+// â”€â”€ CLI arguments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// MRI contrast type for white-stripe normalization.
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -106,7 +103,7 @@ pub struct NormalizeArgs {
 
     /// Optional binary mask image path for masked Z-score normalization.
     ///
-    /// Only used with `--method zscore`. When supplied, μ and σ are computed
+    /// Only used with `--method zscore`. When supplied, Î¼ and Ïƒ are computed
     /// from foreground voxels (mask > 0.5); all voxels are still transformed.
     /// If the mask contains no foreground voxels, the method falls back to
     /// full-image statistics.
@@ -114,7 +111,7 @@ pub struct NormalizeArgs {
     pub mask: Option<PathBuf>,
 }
 
-// ── Command handler ───────────────────────────────────────────────────────────
+// â”€â”€ Command handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Execute the `normalize` subcommand.
 ///
@@ -155,18 +152,18 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             )
         })?;
         anyhow::ensure!(
-            is_native_read_capable(input_format),
+            is_read_capable(input_format),
             "{} normalization does not support {:?} input until its native reader exists",
             args.method,
             input_format
         );
         anyhow::ensure!(
-            is_native_write_capable(output_format),
+            is_write_capable(output_format),
             "{} normalization does not support {:?} output until its native writer exists",
             args.method,
             output_format
         );
-        let input = read_image_native(&args.input)?;
+        let input = read_image(&args.input)?;
         let output = match args.method {
             NormalizeMethod::Minmax => MinMaxNormalizer::default().normalize_native(&input)?,
             NormalizeMethod::Zscore => {
@@ -178,11 +175,11 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
                         )
                     })?;
                     anyhow::ensure!(
-                        is_native_read_capable(mask_format),
+                        is_read_capable(mask_format),
                         "zscore normalization does not support {:?} mask input until its native reader exists",
                         mask_format
                     );
-                    let mask = read_image_native(mask_path)?;
+                    let mask = read_image(mask_path)?;
                     ZScoreNormalizer::new().normalize_masked_native(&input, &mask)?
                 } else {
                     ZScoreNormalizer::new().normalize_native(&input)?
@@ -199,11 +196,11 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
                     )
                 })?;
                 anyhow::ensure!(
-                    is_native_read_capable(reference_format),
+                    is_read_capable(reference_format),
                     "histogram-match normalization does not support {:?} reference input until its native reader exists",
                     reference_format
                 );
-                let reference = read_image_native(reference_path)?;
+                let reference = read_image(reference_path)?;
                 HistogramMatcher::new(args.num_bins).match_histograms_native(&input, &reference)?
             }
             NormalizeMethod::Nyul => {
@@ -216,11 +213,11 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
                         )
                     })?;
                     anyhow::ensure!(
-                        is_native_read_capable(reference_format),
+                        is_read_capable(reference_format),
                         "nyul normalization does not support {:?} reference input until its native reader exists",
                         reference_format
                     );
-                    let reference = read_image_native(reference_path)?;
+                    let reference = read_image(reference_path)?;
                     normalizer.learn_standard_native(&[&input, &reference])?;
                 } else {
                     normalizer.learn_standard_native(&[&input])?;
@@ -249,7 +246,7 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
                 result.normalized
             }
         };
-        write_image_native(&args.output, &output, output_format)?;
+        write_image(&args.output, &output, output_format)?;
         println!(
             "normalize: wrote {} -> {}",
             args.method,

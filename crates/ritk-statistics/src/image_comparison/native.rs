@@ -2,7 +2,7 @@
 //!
 //! These are the Coeus-backend counterparts to the Burn-generic free functions
 //! in the parent module. Each adapter borrows contiguous host storage from a
-//! [`ritk_image::native::Image`] via the [`ritk_tensor_ops::native`] seam and
+//! [`ritk_image::Image`] via the [`ritk_tensor_ops::native`] seam and
 //! delegates to the same shared host core the Burn path uses, so the metric math
 //! has exactly one home per metric (no cloned algorithm).
 //!
@@ -12,7 +12,7 @@
 //! `mean_surface_distance`) share the identical core.
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_tensor_ops::native as tensor_ops;
 
 use super::overlap::{dice_from_slices, similarity_index_from_slices};

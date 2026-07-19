@@ -4,21 +4,20 @@
 //! frequency-domain filtering pipeline.
 
 use crate::fft::frequency_filter::{FftFilterKind, FrequencyDomainFilter};
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-fn make_image_2d(vals: Vec<f32>, h: usize, w: usize) -> Image<B, 2> {
-    ts::burn_compat::make_image::<B, 2>(vals, [h, w])
+fn make_image_2d(vals: Vec<f32>, h: usize, w: usize) -> Image<f32, B, 2> {
+    ts::make_image::<f32, B, 2>(vals, [h, w])
 }
 
-fn make_image_3d(vals: Vec<f32>, d: usize, h: usize, w: usize) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(vals, [d, h, w])
+fn make_image_3d(vals: Vec<f32>, d: usize, h: usize, w: usize) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(vals, [d, h, w])
 }
 
 // ── 2-D tests ─────────────────────────────────────────────────────────────────

@@ -6,12 +6,11 @@ license.workspace = true
 
 [features]
 default = ["direct-parzen", "serde"]
-# Use direct (sparse-loop) histogram computation for NdArray backends.
+# Use direct sparse-loop histogram computation.
 direct-parzen = []
 serde = ["dep:serde"]
 
 [dependencies]
-burn-ndarray = { workspace = true }
 ritk-core = { path = "../ritk-core" }
 ritk-image = { path = "../ritk-image" }
 ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
@@ -23,7 +22,6 @@ ritk-filter = { path = "../ritk-filter" }
 ritk-segmentation = { path = "../ritk-segmentation" }
 ritk-model = { path = "../ritk-model" }
 ritk-tensor-ops = { path = "../ritk-tensor-ops" }
-burn = { workspace = true }
 bytemuck = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
@@ -52,18 +50,6 @@ tempfile = { workspace = true }
 ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
 
 [[bench]]
-name = "mi_histogram"
-harness = false
-
-[[bench]]
-name = "registration_pipeline"
-harness = false
-
-[[bench]]
-name = "parzen_direct"
-harness = false
-
-[[bench]]
 name = "bspline_displacement"
 harness = false
 
@@ -72,20 +58,8 @@ name = "lddmm_smoothing"
 harness = false
 
 [[example]]
-name = "rigid_registration"
-path = "examples/rigid_registration.rs"
-
-[[example]]
 name = "dl_registration"
 path = "examples/dl_registration.rs"
-
-[[example]]
-name = "brain_ct_mri_registration"
-path = "examples/brain_ct_mri_registration.rs"
-
-[[example]]
-name = "rire_mri_ct_registration"
-path = "examples/rire_mri_ct_registration/main.rs"
 
 [[example]]
 name = "dl_train"

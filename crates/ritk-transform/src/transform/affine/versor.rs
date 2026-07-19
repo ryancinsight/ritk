@@ -1,182 +1,198 @@
-//! Versor Rigid transform implementation.
-//!
-//! This module provides a versor rigid transform (quaternion rotation + translation).
-//! It is robust against Gimbal lock and is suitable for 3D registration.
+//! Trainable three-dimensional quaternion rigid transform.
 
+use super::rigid::matrix_from_rows;
+use coeus_autograd::{add, broadcast_to, div, mul, reshape, sqrt, sub, sum, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::Module;
+use coeus_ops::BackendOps;
 use ritk_core::transform::Transform;
-use ritk_image::burn::module::{Module, Param};
-use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 
-/// Versor Rigid Transform (Quaternion Rotation + Translation).
+/// Quaternion rotation and translation about a fixed center.
 ///
-/// Supports 3D only.
-/// Includes a fixed center of rotation: T(x) = R(x - c) + c + t
-#[derive(Module, Debug)]
-pub struct VersorRigid3DTransform<B: Backend> {
-    translation: Param<Tensor<B, 1>>,
-    rotation: Param<Tensor<B, 1>>, // [4] Quaternion (x, y, z, w)
-    center: Tensor<B, 1>,          // Fixed center of rotation
+/// The quaternion component order is `(x, y, z, w)`.
+#[derive(Clone)]
+pub struct VersorRigid3DTransform<B: Backend + BackendOps<f32>> {
+    translation: Var<f32, B>,
+    rotation: Var<f32, B>,
+    center: Var<f32, B>,
 }
 
-impl<B: Backend> VersorRigid3DTransform<B> {
-    /// Create a new versor rigid transform.
+impl<B: Backend + BackendOps<f32> + Default> VersorRigid3DTransform<B>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    /// Construct a trainable versor transform.
     ///
-    /// # Arguments
-    /// * `translation` - Tensor of shape `[3]` containing the translation vector
-    /// * `rotation` - Tensor of shape `[4]` containing the quaternion (x, y, z, w)
-    /// * `center` - Tensor of shape `[3]` containing the fixed center of rotation
-    pub fn new(translation: Tensor<B, 1>, rotation: Tensor<B, 1>, center: Tensor<B, 1>) -> Self {
+    /// # Panics
+    ///
+    /// Panics unless translation and center are `[3]`, rotation is `[4]`, and
+    /// the quaternion has a finite nonzero norm.
+    #[must_use]
+    pub fn new(
+        translation: Tensor<f32, B>,
+        rotation: Tensor<f32, B>,
+        center: Tensor<f32, B>,
+    ) -> Self {
+        assert_eq!(
+            translation.shape(),
+            [3],
+            "versor translation must have shape [3]"
+        );
+        assert_eq!(
+            rotation.shape(),
+            [4],
+            "versor quaternion must have shape [4]"
+        );
+        assert_eq!(center.shape(), [3], "versor center must have shape [3]");
+        let squared_norm = rotation
+            .to_contiguous()
+            .as_slice()
+            .iter()
+            .map(|value| value * value)
+            .sum::<f32>();
+        assert!(
+            squared_norm.is_finite() && squared_norm > 0.0,
+            "versor quaternion must have a finite nonzero norm"
+        );
         Self {
-            translation: Param::from_tensor(translation),
-            rotation: Param::from_tensor(rotation),
-            center,
+            translation: Var::new(translation, true),
+            rotation: Var::new(rotation, true),
+            center: Var::new(center, false),
         }
     }
 
-    /// Get the translation vector.
-    pub fn translation(&self) -> Tensor<B, 1> {
-        self.translation.val().clone()
+    /// Clone the current translation.
+    #[must_use]
+    pub fn translation(&self) -> Tensor<f32, B> {
+        self.translation.tensor.clone()
     }
 
-    /// Get the rotation quaternion.
-    pub fn rotation(&self) -> Tensor<B, 1> {
-        self.rotation.val().clone()
+    /// Clone the current quaternion.
+    #[must_use]
+    pub fn rotation(&self) -> Tensor<f32, B> {
+        self.rotation.tensor.clone()
     }
 
-    /// Get the center of rotation.
-    pub fn center(&self) -> Tensor<B, 1> {
-        self.center.clone()
+    /// Clone the fixed center.
+    #[must_use]
+    pub fn center(&self) -> Tensor<f32, B> {
+        self.center.tensor.clone()
     }
 
-    /// Build the rotation matrix from Quaternion.
-    ///
-    /// Extracts the four quaternion components as host scalars, computes all nine
-    /// rotation-matrix entries on the CPU, then uploads the result as a single
-    /// `[3, 3]` tensor. This avoids the ~28 intermediate tensor allocations
-    /// (clones, element-wise products, scalar constants) that the previous
-    /// tensor-only formulation required.
-    fn build_rotation_matrix(&self) -> Tensor<B, 2> {
-        let q = self.rotation.val();
-        let dev = q.device();
+    /// Apply the transform while retaining the Coeus autograd graph.
+    #[must_use]
+    pub fn transform_variables(&self, points: &Var<f32, B>) -> Var<f32, B> {
+        let shape = points.tensor.shape();
+        assert!(
+            shape.len() == 2 && shape[1] == 3,
+            "versor transform requires points shaped [N, 3], got {shape:?}"
+        );
+        let target = vec![shape[0], 3];
+        let center = broadcast_to(&reshape(&self.center, [1, 3]), target.clone());
+        let translation = broadcast_to(&reshape(&self.translation, [1, 3]), target);
+        let centered = sub(points, &center);
+        let rotated = coeus_autograd::matmul(
+            &centered,
+            &coeus_autograd::transpose_2d(&self.rotation_matrix()),
+        );
+        add(&add(&rotated, &center), &translation)
+    }
 
-        // Extract normalised quaternion components as host scalars.
-        let norm_data = q.clone().powf_scalar(2.0).sum().sqrt().into_data();
-        let norm_val = norm_data
-            .as_slice::<f32>()
-            .expect("norm tensor must be contiguous f32")[0];
-        // Quaternion norm guard: prevents divide-by-zero during normalization.
-        // Practical threshold well above f32 underflow (~1.2e-38).
-        const QUAT_NORM_GUARD: f32 = 1e-12;
-        let norm = norm_val + QUAT_NORM_GUARD; // Avoid div by zero
-        let q_data = (q / norm).into_data();
-        let q_slice = q_data
-            .as_slice::<f32>()
-            .expect("quaternion tensor must be contiguous f32");
-        let x = q_slice[0] as f64;
-        let y = q_slice[1] as f64;
-        let z = q_slice[2] as f64;
-        let w = q_slice[3] as f64;
+    fn rotation_matrix(&self) -> Var<f32, B> {
+        let norm = sqrt(&sum(&mul(&self.rotation, &self.rotation)));
+        let quaternion = div(&self.rotation, &broadcast_to(&norm, vec![4]));
+        let component = |index| coeus_autograd::slice(&quaternion, &[(index, index + 1)]);
+        let (x, y, z, w) = (component(0), component(1), component(2), component(3));
+        let one = Var::new(Tensor::from_slice_on([1], &[1.0], &B::default()), false);
+        let two = Var::new(Tensor::from_slice_on([1], &[2.0], &B::default()), false);
+        let twice = |value: &Var<f32, B>| mul(&two, value);
 
-        // Pre-compute products (each used 1–3 times).
-        let xx = x * x;
-        let yy = y * y;
-        let zz = z * z;
-        let xy = x * y;
-        let xz = x * z;
-        let yz = y * z;
-        let xw = x * w;
-        let yw = y * w;
-        let zw = z * w;
+        let xx = mul(&x, &x);
+        let yy = mul(&y, &y);
+        let zz = mul(&z, &z);
+        let xy = mul(&x, &y);
+        let xz = mul(&x, &z);
+        let yz = mul(&y, &z);
+        let xw = mul(&x, &w);
+        let yw = mul(&y, &w);
+        let zw = mul(&z, &w);
 
-        let r11 = 1.0 - 2.0 * (yy + zz);
-        let r12 = 2.0 * (xy - zw);
-        let r13 = 2.0 * (xz + yw);
-        let r21 = 2.0 * (xy + zw);
-        let r22 = 1.0 - 2.0 * (xx + zz);
-        let r23 = 2.0 * (yz - xw);
-        let r31 = 2.0 * (xz - yw);
-        let r32 = 2.0 * (yz + xw);
-        let r33 = 1.0 - 2.0 * (xx + yy);
+        let r11 = sub(&one, &twice(&add(&yy, &zz)));
+        let r12 = twice(&sub(&xy, &zw));
+        let r13 = twice(&add(&xz, &yw));
+        let r21 = twice(&add(&xy, &zw));
+        let r22 = sub(&one, &twice(&add(&xx, &zz)));
+        let r23 = twice(&sub(&yz, &xw));
+        let r31 = twice(&sub(&xz, &yw));
+        let r32 = twice(&add(&yz, &xw));
+        let r33 = sub(&one, &twice(&add(&xx, &yy)));
 
-        Tensor::<B, 2>::from_floats(
-            [
-                [r11 as f32, r12 as f32, r13 as f32],
-                [r21 as f32, r22 as f32, r23 as f32],
-                [r31 as f32, r32 as f32, r33 as f32],
-            ],
-            &dev,
-        )
+        matrix_from_rows(&[[&r11, &r12, &r13], [&r21, &r22, &r23], [&r31, &r32, &r33]])
     }
 }
 
-impl<B: Backend> Transform<B, 3> for VersorRigid3DTransform<B> {
-    fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
-        // points: [Batch, 3]
-        // R: [3, 3]
-        // t: [3]
-        // c: [3]
-        // T(x) = R(x - c) + c + t
+impl<B: Backend + BackendOps<f32> + Default> Transform<B, 3> for VersorRigid3DTransform<B>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
+        self.transform_variables(&Var::new(points, false)).tensor
+    }
+}
 
-        let r = self.build_rotation_matrix();
-        let t = self.translation.val().reshape([1, 3]);
-        let c = self.center.clone().reshape([1, 3]);
+impl<B: Backend + BackendOps<f32> + Default> Module<f32, B> for VersorRigid3DTransform<B>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    fn parameters(&self) -> Vec<Var<f32, B>> {
+        vec![self.translation.clone(), self.rotation.clone()]
+    }
 
-        let centered = points - c.clone();
-        let rotated = centered.matmul(r.transpose());
+    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<f32, B>> {
+        vec![
+            coeus_autograd::Parameter::new(self.translation.clone(), "translation"),
+            coeus_autograd::Parameter::new(self.rotation.clone(), "rotation"),
+        ]
+    }
 
-        rotated + c + t
+    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
+        self.transform_variables(input)
+    }
+
+    fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {
+        assert_eq!(
+            parameters.len(),
+            2,
+            "invariant: versor transform owns translation and rotation parameters"
+        );
+        self.translation = parameters[0].clone();
+        self.rotation = parameters[1].clone();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
-
-    type TestBackend = NdArray<f32>;
+    use coeus_core::SequentialBackend;
 
     #[test]
-    fn identity_quaternion_leaves_point_unchanged() {
-        let device = Default::default();
-        let translation = Tensor::<TestBackend, 1>::zeros([3], &device);
-        let rotation = Tensor::<TestBackend, 1>::from_floats([0.0, 0.0, 0.0, 1.0], &device); // Identity quaternion (x=0,y=0,z=0,w=1)
-        let center = Tensor::<TestBackend, 1>::zeros([3], &device);
-        let transform = VersorRigid3DTransform::<TestBackend>::new(translation, rotation, center);
+    fn quarter_turn_about_x_maps_y_to_z() {
+        let backend = SequentialBackend;
+        let half_angle = std::f32::consts::FRAC_1_SQRT_2;
+        let transform = VersorRigid3DTransform::<SequentialBackend>::new(
+            Tensor::zeros_on([3], &backend),
+            Tensor::from_slice_on([4], &[half_angle, 0.0, 0.0, half_angle], &backend),
+            Tensor::zeros_on([3], &backend),
+        );
+        let point = Tensor::from_slice_on([1, 3], &[0.0, 1.0, 0.0], &backend);
 
-        let points = Tensor::<TestBackend, 2>::from_floats([[1.0, 2.0, 3.0]], &device);
+        let transformed = transform.transform_points(point);
 
-        let transformed = transform.transform_points(points);
-        let data = transformed.to_data();
-        let vals = data.as_slice::<f32>().unwrap();
-
-        assert_eq!(vals[0], 1.0);
-        assert_eq!(vals[1], 2.0);
-        assert_eq!(vals[2], 3.0);
-    }
-
-    #[test]
-    fn rotation_x_90deg_maps_y_to_z() {
-        let device = Default::default();
-        let translation = Tensor::<TestBackend, 1>::zeros([3], &device);
-        // Rotate 90 degrees around X axis
-        // q = [sin(45)*1, 0, 0, cos(45)] = [1/√2, 0, 0, 1/√2]
-        let s = std::f32::consts::FRAC_1_SQRT_2;
-        let rotation = Tensor::<TestBackend, 1>::from_floats([s, 0.0, 0.0, s], &device);
-        let center = Tensor::<TestBackend, 1>::zeros([3], &device);
-        let transform = VersorRigid3DTransform::<TestBackend>::new(translation, rotation, center);
-
-        // Point (0, 1, 0) should rotate to (0, 0, 1)
-        let points = Tensor::<TestBackend, 2>::from_floats([[0.0, 1.0, 0.0]], &device);
-
-        let transformed = transform.transform_points(points);
-        let data = transformed.to_data();
-        let vals = data.as_slice::<f32>().unwrap();
-
-        // Check closeness
-        const QUATERNION_ROTATION_TOL: f32 = 1e-4;
-        assert!((vals[0] - 0.0).abs() < QUATERNION_ROTATION_TOL);
-        assert!((vals[1] - 0.0).abs() < QUATERNION_ROTATION_TOL);
-        assert!((vals[2] - 1.0).abs() < QUATERNION_ROTATION_TOL);
+        let values = transformed.as_slice();
+        let bound = 8.0 * f32::EPSILON;
+        assert!(values[0].abs() <= bound);
+        assert!(values[1].abs() <= bound);
+        assert!((values[2] - 1.0).abs() <= bound);
     }
 }

@@ -5,14 +5,14 @@
 //! ```text
 //! / (root)
 //!   Attributes: ident, minc_version
-//!   â””â”€â”€ minc-2.0/ (group)
-//!       â”œâ”€â”€ dimensions/ (group)
-//!       â”‚   â”œâ”€â”€ xspace (group, attrs: start, step, length, direction_cosines)
-//!       â”‚   â”œâ”€â”€ yspace (group, same attrs)
-//!       â”‚   â””â”€â”€ zspace (group, same attrs)
-//!       â””â”€â”€ image/ (group)
-//!           â””â”€â”€ 0/ (group)
-//!               â””â”€â”€ image (dataset: f32 voxel data, contiguous layout)
+//!   Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ minc-2.0/ (group)
+//!       Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ dimensions/ (group)
+//!       Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ xspace (group, attrs: start, step, length, direction_cosines)
+//!       Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ yspace (group, same attrs)
+//!       Ã¢â€â€š   Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ zspace (group, same attrs)
+//!       Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ image/ (group)
+//!           Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ 0/ (group)
+//!               Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ image (dataset: f32 voxel data, contiguous layout)
 //!                   Attributes: dimorder, valid_range, signtype, complete
 //! ```
 //!
@@ -31,7 +31,7 @@ use crate::hdf5_binary::write_minc2_hdf5;
 use anyhow::{bail, Result};
 use std::path::Path;
 
-// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬ Public API Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
 /// Write a 3-D `Image` as a MINC2 (.mnc) HDF5 file.
 ///
@@ -44,11 +44,7 @@ use std::path::Path;
 ///
 /// Returns `Err` when the file cannot be created, tensor data extraction
 /// fails, or an I/O error occurs during HDF5 writing.
-pub fn write_minc<B, P>(
-    image: &ritk_image::native::Image<f32, B, 3>,
-    path: P,
-    backend: &B,
-) -> Result<()>
+pub fn write_minc<B, P>(image: &ritk_image::Image<f32, B, 3>, path: P, backend: &B) -> Result<()>
 where
     B: coeus_core::ComputeBackend + Default,
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -105,11 +101,7 @@ impl<B: coeus_core::ComputeBackend> MincWriter<B> {
     }
 
     /// Write a 3-D image as a MINC2 file.
-    pub fn write<P: AsRef<Path>>(
-        &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
-        path: P,
-    ) -> Result<()>
+    pub fn write<P: AsRef<Path>>(&self, image: &ritk_image::Image<f32, B, 3>, path: P) -> Result<()>
     where
         B: Default,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

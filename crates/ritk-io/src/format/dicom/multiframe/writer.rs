@@ -7,8 +7,8 @@ use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 use ritk_core::image::Image;
-use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
+use ritk_image::Image as NativeImage;
 use std::path::Path;
 
 use super::types::{MultiFrameSpatialMetadata, MultiFrameWriterConfig};
@@ -17,13 +17,13 @@ use crate::format::dicom::writer::utils::{
     emit_pixel_format_tags, generate_series_uid, normalize_to_u16, MONOCHROME2,
 };
 
-/// Write a 3-D `Image<B, 3>` with shape `[n_frames, rows, cols]` as a single
+/// Write a 3-D `Image<f32, B, 3>` with shape `[n_frames, rows, cols]` as a single
 /// multi-frame DICOM Part 10 file.
 ///
 /// ## Invariants
 /// - `n_frames >= 1`, `rows >= 1`, `cols >= 1`; returns `Err` otherwise.
 /// - A single linear rescale (slope/intercept) maps the full f32 volume to
-///   the [0, 65535] u16 range. When max == min, slope ≈ ε/65535 and
+///   the [0, 65535] u16 range. When max == min, slope â‰ˆ Îµ/65535 and
 ///   intercept = min_val (flat-image degenerate case; reconstruction is exact).
 /// - The emitted file is readable by `load_dicom_multiframe` (round-trip
 ///   invariant: abs(recovered - original) <= rescale_slope + 1.0).
@@ -34,12 +34,12 @@ use crate::format::dicom::writer::utils::{
 /// (1.2.840.10008.5.1.4.1.1.7.3).
 pub fn write_dicom_multiframe<B: Backend, P: AsRef<Path>>(
     path: P,
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
 ) -> Result<()> {
     write_multiframe_impl(path.as_ref(), image, &MultiFrameWriterConfig::default())
 }
 
-/// Write a 3-D `Image<B, 3>` as a multi-frame DICOM file with optional spatial metadata.
+/// Write a 3-D `Image<f32, B, 3>` as a multi-frame DICOM file with optional spatial metadata.
 ///
 /// When `spatial` is `None`, behaves identically to [`write_dicom_multiframe`].
 /// When `spatial` is `Some`, also emits:
@@ -50,7 +50,7 @@ pub fn write_dicom_multiframe<B: Backend, P: AsRef<Path>>(
 /// - (0008,0060) Modality (overrides default "OT")
 pub fn write_dicom_multiframe_with_options<B: Backend, P: AsRef<Path>>(
     path: P,
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
     spatial: Option<&MultiFrameSpatialMetadata>,
 ) -> Result<()> {
     let config = MultiFrameWriterConfig {
@@ -60,17 +60,17 @@ pub fn write_dicom_multiframe_with_options<B: Backend, P: AsRef<Path>>(
     write_multiframe_impl(path.as_ref(), image, &config)
 }
 
-/// Write a 3-D `Image<B, 3>` as a multi-frame DICOM file with full writer configuration.
+/// Write a 3-D `Image<f32, B, 3>` as a multi-frame DICOM file with full writer configuration.
 ///
 /// Accepts a [`MultiFrameWriterConfig`] for SOP class override, spatial metadata,
 /// and instance number. When `config.spatial` is `None`, no spatial tags are emitted.
 ///
 /// ## Invariants
 /// - `n_frames >= 1`, `rows >= 1`, `cols >= 1`; returns `Err` otherwise.
-/// - Round-trip invariant: |recovered − original| ≤ rescale_slope + 1.0.
+/// - Round-trip invariant: |recovered âˆ’ original| â‰¤ rescale_slope + 1.0.
 pub fn write_dicom_multiframe_with_config<B: Backend, P: AsRef<Path>>(
     path: P,
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
     config: &MultiFrameWriterConfig,
 ) -> Result<()> {
     write_multiframe_impl(path.as_ref(), image, config)
@@ -117,7 +117,7 @@ pub fn write_dicom_multiframe_native_with_config<P: AsRef<Path>>(
 
 fn write_multiframe_impl<B: Backend>(
     path: &Path,
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
     config: &MultiFrameWriterConfig,
 ) -> Result<()> {
     let all_data = image
@@ -184,7 +184,7 @@ fn write_multiframe_flat(
         PrimitiveValue::from(sop_instance_uid.as_str()),
     ));
 
-    // Patient Module — Type 2 mandatory (PS3.3 C.7.1.1)
+    // Patient Module â€” Type 2 mandatory (PS3.3 C.7.1.1)
     obj.put(DataElement::new(
         Tag(0x0010, 0x0010),
         VR::PN,
@@ -196,7 +196,7 @@ fn write_multiframe_flat(
         PrimitiveValue::from(""),
     ));
 
-    // General Study Module — Type 1/2 mandatory (PS3.3 C.7.2.1)
+    // General Study Module â€” Type 1/2 mandatory (PS3.3 C.7.2.1)
     obj.put(DataElement::new(
         Tag(0x0020, 0x000D),
         VR::UI,
@@ -218,7 +218,7 @@ fn write_multiframe_flat(
         PrimitiveValue::from(""),
     ));
 
-    // General Series Module — Type 1/2 mandatory (PS3.3 C.7.3.1)
+    // General Series Module â€” Type 1/2 mandatory (PS3.3 C.7.3.1)
     obj.put(DataElement::new(
         Tag(0x0020, 0x000E),
         VR::UI,

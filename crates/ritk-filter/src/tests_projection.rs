@@ -1,40 +1,34 @@
 //! Tests for intensity projection filters.
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use ritk_core::image::Image;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-// ── Helper ────────────────────────────────────────────────────────────────────
+// â”€â”€ Helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-fn make_volume(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    let device = Default::default();
-    let td = TensorData::new(data, Shape::new(shape));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
+fn make_volume(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
+    let tensor = Tensor::<f32, B>::from_slice(shape, &data);
     Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
-fn extract_vals(img: &Image<B, 3>) -> Vec<f32> {
-    img.data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .expect("test: f32 backend required")
+fn extract_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
+    img.data().to_vec()
 }
 
-// ── 1. max_projection_z_shape ─────────────────────────────────────────────────
+// â”€â”€ 1. max_projection_z_shape â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// MaxIP along Z of a [4,3,2] volume must produce shape [1,3,2].
 ///
-/// Invariant: collapsed axis → size 1; other axes unchanged.
+/// Invariant: collapsed axis â†’ size 1; other axes unchanged.
 #[test]
 fn max_projection_z_shape() {
     let img = make_volume(vec![0.0_f32; 4 * 3 * 2], [4, 3, 2]);
@@ -43,7 +37,7 @@ fn max_projection_z_shape() {
     assert_eq!(out.shape(), [1, 3, 2], "MaxIP-Z shape must be [1, 3, 2]");
 }
 
-// ── 2. max_projection_z_values ────────────────────────────────────────────────
+// â”€â”€ 2. max_projection_z_values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// MaxIP along Z of a [3,2,2] image with known layer values.
 ///
@@ -55,7 +49,7 @@ fn max_projection_z_shape() {
 ///   (y=1,x=1): max(4,8,9)=9
 #[test]
 fn max_projection_z_values() {
-    // Row-major [Z,Y,X]: Z=0→[1,2,3,4], Z=1→[5,6,7,8], Z=2→[2,3,1,9]
+    // Row-major [Z,Y,X]: Z=0â†’[1,2,3,4], Z=1â†’[5,6,7,8], Z=2â†’[2,3,1,9]
     let data: Vec<f32> = vec![1., 2., 3., 4., 5., 6., 7., 8., 2., 3., 1., 9.];
     let img = make_volume(data, [3, 2, 2]);
     let filter = MaxIntensityProjectionFilter::new(ProjectionAxis::Z);
@@ -71,7 +65,7 @@ fn max_projection_z_values() {
     }
 }
 
-// ── 3. min_projection_y_shape ─────────────────────────────────────────────────
+// â”€â”€ 3. min_projection_y_shape â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// MinIP along Y of a [3,5,4] volume must produce shape [3,1,4].
 #[test]
@@ -82,7 +76,7 @@ fn min_projection_y_shape() {
     assert_eq!(out.shape(), [3, 1, 4], "MinIP-Y shape must be [3, 1, 4]");
 }
 
-// ── 4. mean_projection_x_shape ────────────────────────────────────────────────
+// â”€â”€ 4. mean_projection_x_shape â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// MeanIP along X of a [3,4,6] volume must produce shape [3,4,1].
 #[test]
@@ -93,11 +87,11 @@ fn mean_projection_x_shape() {
     assert_eq!(out.shape(), [3, 4, 1], "MeanIP-X shape must be [3, 4, 1]");
 }
 
-// ── 5. mean_projection_x_values ───────────────────────────────────────────────
+// â”€â”€ 5. mean_projection_x_values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// MeanIP along X of a constant-1 image must return all-1 output.
 ///
-/// Proof: mean(1, 1, …, 1) = 1 for any n ≥ 1.
+/// Proof: mean(1, 1, â€¦, 1) = 1 for any n â‰¥ 1.
 #[test]
 fn mean_projection_x_values() {
     let img = make_volume(vec![1.0_f32; 4 * 3 * 2], [4, 3, 2]);
@@ -113,7 +107,7 @@ fn mean_projection_x_values() {
     }
 }
 
-// ── 6. sum_projection_z_values ────────────────────────────────────────────────
+// â”€â”€ 6. sum_projection_z_values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// SumIP along Z of a [2,2,2] image with Z=0 all 1.0 and Z=1 all 2.0 must
 /// produce shape [1,2,2] with every pixel = 3.0.
@@ -136,14 +130,14 @@ fn sum_projection_z_values() {
     }
 }
 
-// ── 7. stddev_projection_z_values ─────────────────────────────────────────────
+// â”€â”€ 7. stddev_projection_z_values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// StdDevIP along Z of a [2,1,1] image with values [0.0, 1.0] must produce
 /// shape [1,1,1] with the sample standard deviation.
 ///
-/// Derivation (sample / N−1 std-dev, matching ITK):
-///   μ = (0 + 1) / 2 = 0.5
-///   σ = sqrt(((0 − 0.5)² + (1 − 0.5)²) / (2 − 1)) = sqrt(0.5) ≈ 0.70710678
+/// Derivation (sample / Nâˆ’1 std-dev, matching ITK):
+///   Î¼ = (0 + 1) / 2 = 0.5
+///   Ïƒ = sqrt(((0 âˆ’ 0.5)Â² + (1 âˆ’ 0.5)Â²) / (2 âˆ’ 1)) = sqrt(0.5) â‰ˆ 0.70710678
 #[test]
 fn stddev_projection_z_values() {
     let img = make_volume(vec![0.0_f32, 1.0_f32], [2, 1, 1]);
@@ -163,7 +157,7 @@ fn stddev_projection_z_values() {
 /// count, ITK's `nth_element` at size/2 takes the upper-middle element.
 #[test]
 fn median_projection_x_values() {
-    // 1×2×4: row0 = [1,2,3,4] (median@2 = 3), row1 = [10,5,5,5] (sorted 5,5,5,10 → @2 = 5)
+    // 1Ã—2Ã—4: row0 = [1,2,3,4] (median@2 = 3), row1 = [10,5,5,5] (sorted 5,5,5,10 â†’ @2 = 5)
     let img = make_volume(vec![1.0, 2.0, 3.0, 4.0, 10.0, 5.0, 5.0, 5.0], [1, 2, 4]);
     let out = MedianIntensityProjectionFilter::new(ProjectionAxis::X)
         .apply(&img)
@@ -175,7 +169,7 @@ fn median_projection_x_values() {
 /// Binary projection: foreground if any voxel along the axis equals foreground.
 #[test]
 fn binary_projection_x_any_foreground() {
-    // 1×2×3: row0 = [0,1,0] (has fg 1 → 1), row1 = [0,0,0] (no fg → 0)
+    // 1Ã—2Ã—3: row0 = [0,1,0] (has fg 1 â†’ 1), row1 = [0,0,0] (no fg â†’ 0)
     let img = make_volume(vec![0.0, 1.0, 0.0, 0.0, 0.0, 0.0], [1, 2, 3]);
     let out = BinaryProjectionFilter::new(ProjectionAxis::X, 1.0, 0.0)
         .apply(&img)
@@ -186,7 +180,7 @@ fn binary_projection_x_any_foreground() {
 /// Binary-threshold projection: foreground if any voxel along the axis >= threshold.
 #[test]
 fn binary_threshold_projection_x_any_ge() {
-    // 1×2×3: row0 = [1,2,3] (max 3 ≥ 3 → 1), row1 = [1,1,2] (max 2 < 3 → 0)
+    // 1Ã—2Ã—3: row0 = [1,2,3] (max 3 â‰¥ 3 â†’ 1), row1 = [1,1,2] (max 2 < 3 â†’ 0)
     let img = make_volume(vec![1.0, 2.0, 3.0, 1.0, 1.0, 2.0], [1, 2, 3]);
     let out = BinaryThresholdProjectionFilter::new(ProjectionAxis::X, 3.0, 1.0, 0.0)
         .apply(&img)
@@ -194,14 +188,14 @@ fn binary_threshold_projection_x_any_ge() {
     assert_eq!(extract_vals(&out), vec![1.0, 0.0]);
 }
 
-// ── T-3: even-axis-length median ───────────────────────────────────────────────────
+// â”€â”€ T-3: even-axis-length median â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Median along X of a [1, 1, 4] image [1.0, 2.0, 3.0, 4.0].
 ///
 /// With n = 4 (even), `median_at_half` uses k = n/2 = 2.
-/// `select_nth_unstable_by(2, …)` on a 4-element sequence returns the
+/// `select_nth_unstable_by(2, â€¦)` on a 4-element sequence returns the
 /// element that ranks at index 2 in sorted order: sorted = [1,2,3,4], so
-/// the result is 3.0 (upper-middle, matching ITK’s nth_element at size/2).
+/// the result is 3.0 (upper-middle, matching ITKâ€™s nth_element at size/2).
 #[test]
 fn median_projection_x_even_axis_length() {
     let img = make_volume(vec![1.0_f32, 2.0, 3.0, 4.0], [1, 1, 4]);

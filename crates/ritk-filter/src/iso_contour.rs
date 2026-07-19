@@ -4,16 +4,16 @@
 //!
 //! Ports `itk::IsoContourDistanceImageFilter`. It computes a narrow-band signed
 //! distance to the `level_set_value` iso-contour of the input. The output is
-//! initialized to `±far_value` (sign of `I − level`), and then for every pair of
+//! initialized to `Â±far_value` (sign of `I âˆ’ level`), and then for every pair of
 //! adjacent voxels straddling the iso-surface a first-order distance estimate is
 //! written to both, combined by **minimum absolute value** (so a voxel adjacent
 //! to several crossings keeps the nearest):
 //!
 //! ```text
-//! val0 = I(p) − level,   val1 = I(p+eₙ) − level    (sign change ⇒ crossing)
-//! grad = (∇I(p)·½ + ∇I(p+eₙ)·½) / (2·spacing)       (central differences)
-//! s    = |gradₙ|·spacingₙ / ‖grad‖ / (|val0 − val1|)
-//! O(p)    ⊕= val0·s,   O(p+eₙ) ⊕= val1·s            (⊕ = keep smaller |·|)
+//! val0 = I(p) âˆ’ level,   val1 = I(p+eâ‚™) âˆ’ level    (sign change â‡’ crossing)
+//! grad = (âˆ‡I(p)Â·Â½ + âˆ‡I(p+eâ‚™)Â·Â½) / (2Â·spacing)       (central differences)
+//! s    = |gradâ‚™|Â·spacingâ‚™ / â€–gradâ€– / (|val0 âˆ’ val1|)
+//! O(p)    âŠ•= val0Â·s,   O(p+eâ‚™) âŠ•= val1Â·s            (âŠ• = keep smaller |Â·|)
 //! ```
 //!
 //! The min-abs combine is order-independent, so the serial sweep is bitwise
@@ -59,7 +59,7 @@ impl IsoContourDistanceFilter {
     }
 
     /// Compute the narrow-band iso-contour signed distance.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let (vals, dims) = extract_vec_infallible(image);
         let [nz, ny, nx] = dims;
         let sp = [image.spacing()[0], image.spacing()[1], image.spacing()[2]];
@@ -68,12 +68,12 @@ impl IsoContourDistanceFilter {
 
         let cl = |i: isize, n: usize| -> usize { i.clamp(0, n as isize - 1) as usize };
         let idx = |z: usize, y: usize, x: usize| (z * ny + y) * nx + x;
-        // I(p) − level, ZeroFluxNeumann clamped.
+        // I(p) âˆ’ level, ZeroFluxNeumann clamped.
         let gp = |z: isize, y: isize, x: isize| -> f64 {
             vals[idx(cl(z, nz), cl(y, ny), cl(x, nx))] as f64 - level
         };
 
-        // Initialize: ±far away from the contour, 0 on it.
+        // Initialize: Â±far away from the contour, 0 on it.
         let mut out: Vec<f32> = vals
             .iter()
             .map(|&v| {
@@ -151,9 +151,9 @@ impl IsoContourDistanceFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -166,12 +166,12 @@ impl IsoContourDistanceFilter {
 
         let cl = |i: isize, n: usize| -> usize { i.clamp(0, n as isize - 1) as usize };
         let idx = |z: usize, y: usize, x: usize| (z * ny + y) * nx + x;
-        // I(p) − level, ZeroFluxNeumann clamped.
+        // I(p) âˆ’ level, ZeroFluxNeumann clamped.
         let gp = |z: isize, y: isize, x: isize| -> f64 {
             vals[idx(cl(z, nz), cl(y, ny), cl(x, nx))] as f64 - level
         };
 
-        // Initialize: ±far away from the contour, 0 on it.
+        // Initialize: Â±far away from the contour, 0 on it.
         let mut out: Vec<f32> = vals
             .iter()
             .map(|&v| {

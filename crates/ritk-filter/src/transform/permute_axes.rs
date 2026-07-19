@@ -52,7 +52,7 @@ impl PermuteAxesImageFilter {
     /// Apply the permutation to a 3-D image.
     ///
     /// Returns `Err` if `order` is not a valid permutation of `{0, 1, 2}`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals_vec, in_shape) = extract_vec_infallible(image);
         let (out, out_shape, new_spacing, new_dir) =
             self.permute(&vals_vec, in_shape, image.spacing(), image.direction())?;
@@ -70,9 +70,9 @@ impl PermuteAxesImageFilter {
     /// Apply the axis permutation to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -83,14 +83,7 @@ impl PermuteAxesImageFilter {
             image.spacing(),
             image.direction(),
         )?;
-        ritk_image::native::Image::from_flat_on(
-            values,
-            shape,
-            *image.origin(),
-            spacing,
-            direction,
-            backend,
-        )
+        ritk_image::Image::from_flat_on(values, shape, *image.origin(), spacing, direction, backend)
     }
 
     fn permute(
@@ -146,7 +139,7 @@ impl PermuteAxesImageFilter {
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_permute_axes.rs"]

@@ -16,7 +16,7 @@
 //! indicates folding (anatomically invalid).
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_statistics::jacobian;
 
@@ -45,14 +45,14 @@ pub fn jacobian_determinant(
     disp_y: &PyImage,
     disp_x: &PyImage,
 ) -> RitkResult<PyImage> {
-    let dz = py_image_to_burn(disp_z);
-    let dy = py_image_to_burn(disp_y);
-    let dx = py_image_to_burn(disp_x);
+    let dz = image_from_py(disp_z);
+    let dy = image_from_py(disp_y);
+    let dx = image_from_py(disp_x);
     py.allow_threads(|| {
         jacobian::jacobian_determinant(&dz, &dy, &dx)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Analyze a Jacobian determinant field and return summary statistics.
@@ -86,7 +86,7 @@ pub fn analyze_jacobian<'a>(
     py: Python<'a>,
     jac: &PyImage,
 ) -> RitkResult<pyo3::Bound<'a, pyo3::types::PyDict>> {
-    let jac_inner = py_image_to_burn(jac);
+    let jac_inner = image_from_py(jac);
     let stats = py.allow_threads(|| {
         jacobian::analyze_jacobian(&jac_inner).map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;

@@ -2,10 +2,10 @@
 //! # Invariants under test
 //!
 //! ```text
-//! ∀ pixel p: |gpu_mip(p) − cpu_mip(p)| ≤ 2 (u8 channel value)
+//! âˆ€ pixel p: |gpu_mip(p) âˆ’ cpu_mip(p)| â‰¤ 2 (u8 channel value)
 //! ```
 //!
-//! The ±2 tolerance accounts for:
+//! The Â±2 tolerance accounts for:
 //! - LUT index truncation (`floor(norm * 255)`) vs CPU `colormap.map(norm)`.
 //! - `pack4x8unorm` rounding vs CPU integer truncation (`as u8`).
 //!
@@ -17,7 +17,7 @@
 //! # Headless GPU guard
 //!
 //! All tests call `GpuVolumeRenderer::try_create()`. If this returns `None`
-//! (no GPU available — typical on headless CI), the test logs a skip and
+//! (no GPU available â€” typical on headless CI), the test logs a skip and
 //! returns successfully. Tests never fail due to missing GPU hardware.
 
 use std::sync::Arc;
@@ -30,7 +30,7 @@ use crate::LoadedVolume;
 
 use super::GpuVolumeRenderer;
 
-// ── Test helpers ─────────────────────────────────────────────────────────────
+// â”€â”€ Test helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Submit MIP work, block until the GPU completes, then collect and return
 /// the result. Two flush rounds guarantee the returned image was rendered
@@ -39,8 +39,8 @@ use super::GpuVolumeRenderer;
 ///
 /// # Protocol
 ///
-/// Round 1: `render_mip` (flushes any previously pending work) → `poll_blocking`.
-/// Round 2: `render_mip` (submits work for the current volume) → `poll_blocking`.
+/// Round 1: `render_mip` (flushes any previously pending work) â†’ `poll_blocking`.
+/// Round 2: `render_mip` (submits work for the current volume) â†’ `poll_blocking`.
 /// Round 3: `render_mip` (collects and returns the current volume's result).
 ///
 /// # Invariant
@@ -129,13 +129,13 @@ fn make_test_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
 ///
 /// # Invariant
 ///
-/// For all pixels: |gpu_r − cpu_r| ≤ 2 ∧ |gpu_g − cpu_g| ≤ 2 ∧ |gpu_b − cpu_b| ≤ 2.
-/// Bound: LUT truncation (≤1) + pack4x8unorm rounding (≤1) = ≤2 total.
+/// For all pixels: |gpu_r âˆ’ cpu_r| â‰¤ 2 âˆ§ |gpu_g âˆ’ cpu_g| â‰¤ 2 âˆ§ |gpu_b âˆ’ cpu_b| â‰¤ 2.
+/// Bound: LUT truncation (â‰¤1) + pack4x8unorm rounding (â‰¤1) = â‰¤2 total.
 #[test]
 fn gpu_mip_matches_cpu_mip_grayscale() {
     let renderer = GpuVolumeRenderer::try_create();
     let Some(mut renderer) = renderer else {
-        tracing::info!("No GPU available — skipping GPU MIP differential test");
+        tracing::info!("No GPU available â€” skipping GPU MIP differential test");
         return;
     };
 
@@ -165,7 +165,7 @@ fn gpu_mip_matches_cpu_mip_grayscale() {
         }
         assert!(
             diff <= 2,
-            "Pixel {i}: CPU={c:?} GPU={g:?} max_channel_diff={diff} exceeds ±2 tolerance"
+            "Pixel {i}: CPU={c:?} GPU={g:?} max_channel_diff={diff} exceeds Â±2 tolerance"
         );
     }
     tracing::info!(max_diff, "GPU vs CPU MIP max |channel diff|");
@@ -173,7 +173,7 @@ fn gpu_mip_matches_cpu_mip_grayscale() {
 
 /// GPU MIP cache: rendering different volumes produces different output.
 ///
-/// Also verifies that zero-intensity volume with WL(0, 200) → all black pixels
+/// Also verifies that zero-intensity volume with WL(0, 200) â†’ all black pixels
 /// (norm = 0, Grayscale LUT index 0 = black, alpha = 255).
 #[test]
 fn gpu_mip_cache_invalidated_on_volume_change() {
@@ -208,7 +208,7 @@ fn gpu_mip_cache_invalidated_on_volume_change() {
     };
 
     // wl_lo = 100 - 0.5*200 = 0; wl_range = 200.
-    // vol_b norm = (0 - 0) / 200 = 0 → black; alpha always 255 (MIP).
+    // vol_b norm = (0 - 0) / 200 = 0 â†’ black; alpha always 255 (MIP).
     let wl = WindowLevel::new(100.0, 200.0);
     let cm = Colormap::Grayscale;
 
@@ -219,7 +219,7 @@ fn gpu_mip_cache_invalidated_on_volume_change() {
     for &p in &img_b.pixels {
         assert_eq!(
             p, zero_pixel,
-            "vol_b must render to black (norm=0 → Grayscale LUT[0]=black)"
+            "vol_b must render to black (norm=0 â†’ Grayscale LUT[0]=black)"
         );
     }
 
@@ -231,12 +231,12 @@ fn gpu_mip_cache_invalidated_on_volume_change() {
     assert!(!all_same, "vol_a and vol_b MIP outputs must differ");
 }
 
-/// GPU MIP: uniform volume with intensity below WL floor → all black pixels.
+/// GPU MIP: uniform volume with intensity below WL floor â†’ all black pixels.
 ///
 /// # Derivation
 ///
 /// wl_lo = 128 - 0.5*256 = 0; wl_range = 256.
-/// voxel = -100.0 → norm = clamp((-100 - 0)/256, 0, 1) = 0 → LUT[0] = black.
+/// voxel = -100.0 â†’ norm = clamp((-100 - 0)/256, 0, 1) = 0 â†’ LUT[0] = black.
 /// Alpha always 255 for MIP (pack4x8unorm(*, *, *, 1.0)).
 #[test]
 fn gpu_mip_wl_clamps_below_floor_all_black() {
@@ -262,13 +262,13 @@ fn gpu_mip_wl_clamps_below_floor_all_black() {
     }
 }
 
-/// GPU MIP: uniform volume with intensity above WL ceiling → all white pixels.
+/// GPU MIP: uniform volume with intensity above WL ceiling â†’ all white pixels.
 ///
 /// # Derivation
 ///
 /// wl_lo = 128 - 0.5*256 = 0; wl_range = 256.
-/// voxel = 5000.0 → norm = clamp((5000 - 0)/256, 0, 1) = 1.0 → LUT[255].
-/// Grayscale LUT[255] = [255/255, 255/255, 255/255] → pack4x8unorm gives white.
+/// voxel = 5000.0 â†’ norm = clamp((5000 - 0)/256, 0, 1) = 1.0 â†’ LUT[255].
+/// Grayscale LUT[255] = [255/255, 255/255, 255/255] â†’ pack4x8unorm gives white.
 #[test]
 fn gpu_mip_wl_clamps_above_ceiling_all_white() {
     let Some(mut renderer) = GpuVolumeRenderer::try_create() else {
@@ -300,7 +300,7 @@ fn gpu_mip_wl_clamps_above_ceiling_all_white() {
 ///
 /// # Protocol
 ///
-/// Both frames are rendered via `render_mip_sync` (submit → poll_blocking →
+/// Both frames are rendered via `render_mip_sync` (submit â†’ poll_blocking â†’
 /// collect) to get deterministic, value-verified results.
 #[test]
 fn gpu_mip_repeated_render_identical() {

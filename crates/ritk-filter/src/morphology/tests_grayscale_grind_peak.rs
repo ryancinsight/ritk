@@ -1,15 +1,17 @@
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn img(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(vals, dims)
+fn img(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(vals, dims)
 }
 
-fn vals(image: &Image<B, 3>) -> Vec<f32> {
-    image.data_slice().into_owned()
+fn vals(image: &Image<f32, B, 3>) -> Vec<f32> {
+    image
+        .data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 /// A 5×5 image with a bright column connected to the top border (preserved) and

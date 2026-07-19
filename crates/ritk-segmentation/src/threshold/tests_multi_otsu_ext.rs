@@ -1,13 +1,12 @@
 //! Extracted tests: general invariants, edge cases, internal variance, negative, from_slice.
 use super::*;
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
-use ritk_image::test_support::burn_compat::{make_image, make_image_with};
+use ritk_image::test_support::{make_image, make_image_with};
+use ritk_image::Image as NativeImage;
 use ritk_tensor_ops::extract_vec_infallible;
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
 
 fn assert_native_multi_otsu_conformance<const D: usize>(
     values: Vec<f32>,
@@ -25,7 +24,7 @@ fn assert_native_multi_otsu_conformance<const D: usize>(
         &SequentialBackend,
     )
     .expect("invariant: valid native image");
-    let legacy = make_image::<TestBackend, D>(values, dimensions);
+    let legacy = make_image::<f32, TestBackend, D>(values, dimensions);
     let filter = MultiOtsuThreshold::new(3);
 
     let native_thresholds = filter
@@ -48,7 +47,9 @@ fn assert_native_multi_otsu_conformance<const D: usize>(
     assert_eq!(*native_labels.direction(), direction);
     assert_eq!(
         native_labels.data_slice().expect("contiguous labels"),
-        legacy_labels.data_slice().as_ref()
+        legacy_labels
+            .data_slice()
+            .expect("invariant: contiguous host storage")
     );
     assert_eq!(
         native_labels_only.data_slice().expect("contiguous labels"),
@@ -174,23 +175,17 @@ fn slice_thresholds_reject_more_classes_than_bins() {
     let _ = compute_multi_otsu_thresholds_from_slice(&[0.0, 1.0], 3, 2);
 }
 
-fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
+fn make_image_1d(data: Vec<f32>) -> Image<f32, TestBackend, 1> {
     let n = data.len();
     make_image(data, [n])
 }
 
-fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
+fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, TestBackend, 3> {
     make_image(data, dims)
 }
 
-fn get_values_1d(image: &Image<TestBackend, 1>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn get_values_1d(image: &Image<f32, TestBackend, 1>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
 // ── General invariants ─────────────────────────────────────────────────────
@@ -267,7 +262,7 @@ fn test_apply_preserves_spatial_metadata_volumetric() {
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 0.5, 0.5]);
     let direction = Direction::<3>::identity();
-    let image: Image<TestBackend, 3> =
+    let image: Image<f32, TestBackend, 3> =
         make_image_with(data, [3, 3, 3], Some(origin), Some(spacing), None);
     let labels = MultiOtsuThreshold::new(3).apply(&image);
     assert_eq!(labels.origin(), &origin, "origin must be preserved");

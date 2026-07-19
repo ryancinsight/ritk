@@ -1,32 +1,26 @@
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 use super::{connected_threshold, ConnectedThresholdFilter};
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::tensor::Tensor;
+use ritk_image::test_support::make_image;
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
 
-fn get_values(image: &Image<TestBackend, 3>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn get_values(image: &Image<f32, TestBackend, 3>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
-fn count_foreground(image: &Image<TestBackend, 3>) -> usize {
+fn count_foreground(image: &Image<f32, TestBackend, 3>) -> usize {
     get_values(image).iter().filter(|&&v| v > 0.5).count()
 }
 
-// ── Positive tests ────────────────────────────────────────────────────────────
+// â”€â”€ Positive tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_uniform_image_grows_entire_volume() {
-    // All voxels have intensity 100; lower=50, upper=150 → entire 4×4×4 grown.
+    // All voxels have intensity 100; lower=50, upper=150 â†’ entire 4Ã—4Ã—4 grown.
     let image = make_image(vec![100.0_f32; 64], [4, 4, 4]);
     let result = connected_threshold(&image, [0, 0, 0], 50.0, 150.0);
     assert_eq!(count_foreground(&result), 64);
@@ -34,7 +28,7 @@ fn test_uniform_image_grows_entire_volume() {
 
 #[test]
 fn test_single_voxel_exactly_on_lower_bound() {
-    // Seed has intensity exactly equal to lower → should be included.
+    // Seed has intensity exactly equal to lower â†’ should be included.
     let image = make_image(vec![50.0_f32; 8], [2, 2, 2]);
     let result = connected_threshold(&image, [0, 0, 0], 50.0, 100.0);
     assert_eq!(count_foreground(&result), 8);
@@ -49,8 +43,8 @@ fn test_single_voxel_exactly_on_upper_bound() {
 
 #[test]
 fn test_two_regions_seed_selects_one() {
-    // 1×1×6 volume: [100, 100, 100, 10, 10, 10].
-    // Seed at (0,0,0) with lower=50, upper=200 → only first 3 voxels.
+    // 1Ã—1Ã—6 volume: [100, 100, 100, 10, 10, 10].
+    // Seed at (0,0,0) with lower=50, upper=200 â†’ only first 3 voxels.
     let values = vec![100.0, 100.0, 100.0, 10.0, 10.0, 10.0];
     let image = make_image(values, [1, 1, 6]);
     let result = connected_threshold(&image, [0, 0, 0], 50.0, 200.0);
@@ -65,7 +59,7 @@ fn test_two_regions_seed_selects_one() {
 
 #[test]
 fn test_connectivity_is_6_not_diagonal() {
-    // 3×3×1 slice:
+    // 3Ã—3Ã—1 slice:
     //   A 0 0
     //   0 0 0
     //   0 0 B
@@ -99,11 +93,11 @@ fn test_filter_struct_matches_function() {
     );
 }
 
-// ── Negative / boundary tests ─────────────────────────────────────────────────
+// â”€â”€ Negative / boundary tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_seed_outside_range_returns_all_zero() {
-    // Seed intensity = 5.0, range [50, 200] → seed excluded → empty mask.
+    // Seed intensity = 5.0, range [50, 200] â†’ seed excluded â†’ empty mask.
     let image = make_image(vec![5.0_f32; 8], [2, 2, 2]);
     let result = connected_threshold(&image, [0, 0, 0], 50.0, 200.0);
     assert_eq!(count_foreground(&result), 0);
@@ -139,13 +133,12 @@ fn test_fully_grown_region_output_is_strictly_binary() {
 #[test]
 fn test_spatial_metadata_preserved() {
     use ritk_core::spatial::{Direction, Point, Spacing};
-    let device: <TestBackend as ritk_image::tensor::Backend>::Device = Default::default();
-    let td = TensorData::new(vec![100.0_f32; 27], Shape::new([3, 3, 3]));
-    let tensor = Tensor::<TestBackend, 3>::from_data(td, &device);
+    let tensor = Tensor::<f32, TestBackend>::from_slice([3, 3, 3], &[100.0_f32; 27]);
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 1.0, 2.0]);
     let direction = Direction::identity();
-    let image = Image::new(tensor, origin, spacing, direction);
+    let image = Image::new(tensor, origin, spacing, direction)
+        .expect("invariant: fixture tensor has the declared rank");
 
     let result = connected_threshold(&image, [0, 0, 0], 50.0, 150.0);
     assert_eq!(result.origin(), &origin);
@@ -153,11 +146,11 @@ fn test_spatial_metadata_preserved() {
     assert_eq!(result.direction(), &direction);
 }
 
-// ── 3-D volumetric test ───────────────────────────────────────────────────────
+// â”€â”€ 3-D volumetric test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_3d_sphere_region_growing() {
-    // 9×9×9 image with a sphere of radius 3 at center (4,4,4) with intensity 200;
+    // 9Ã—9Ã—9 image with a sphere of radius 3 at center (4,4,4) with intensity 200;
     // background intensity 50; lower=150, upper=255.
     // Region growing from center should capture exactly the sphere.
     let (nz, ny, nx) = (9, 9, 9);

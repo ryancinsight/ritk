@@ -1,6 +1,5 @@
-//! NIfTI test suite migrated to the Atlas-native (Coeus) path — ADR 0002
-//! §Sub-batch #2.  All tests use the `native::` entry points and
-//! `SequentialBackend`; burn_ndarray is no longer required.
+//! NIfTI codec tests using the native image entry points and
+//! `SequentialBackend`.
 
 use super::*;
 use crate::header::{
@@ -8,13 +7,13 @@ use crate::header::{
 };
 use anyhow::Result;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
 type TestBackend = SequentialBackend;
 
-// ── Helper ──────────────────────────────────────────────────────────────
+// â”€â”€ Helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn make_image(
     values: Vec<f32>,
@@ -27,7 +26,7 @@ fn make_image(
         .expect("valid image dimensions")
 }
 
-// ── Tests ────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_read_write_nifti_cycle() -> Result<()> {
@@ -249,7 +248,7 @@ fn test_oblique_nifti_round_trip_preserves_affine_and_voxels() -> Result<()> {
         }
     }
 
-    // Voxel value check using flat indexing (no burn tensor slicing needed)
+    // Voxel value check using the codec's row-major flat indexing contract.
     let voxels = loaded.data_slice().expect("contiguous host voxels");
     let [_, ny, nx] = loaded.shape();
     let sample = |z: usize, y: usize, x: usize| voxels[z * ny * nx + y * nx + x];

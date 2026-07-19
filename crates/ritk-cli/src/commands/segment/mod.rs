@@ -1,11 +1,11 @@
-//! `ritk segment` — image segmentation command.
+//! `ritk segment` â€” image segmentation command.
 //!
 //! Applies one of the following segmentation algorithms to a 3-D medical image:
 //!
 //! | Method               | Algorithm                                      |
 //! |----------------------|------------------------------------------------|
 //! | `otsu`               | Single-threshold Otsu (maximises between-class variance) |
-//! | `multi-otsu`         | Multi-class Otsu (K−1 thresholds, K classes)   |
+//! | `multi-otsu`         | Multi-class Otsu (Kâˆ’1 thresholds, K classes)   |
 //! | `connected-threshold`| BFS flood-fill region growing from a seed voxel|
 //! | `li`                 | Li minimum cross-entropy threshold             |
 //! | `yen`                | Yen maximum correlation criterion threshold    |

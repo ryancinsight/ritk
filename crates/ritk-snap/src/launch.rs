@@ -10,7 +10,7 @@ pub struct AppLaunchOptions {
 
 /// Launch the `ritk-snap` native GUI application.
 ///
-/// Initialises `eframe` with a 1280×800 viewport, constructs a `app::SnapApp`,
+/// Initialises `eframe` with a 1280Ã—800 viewport, constructs a `app::SnapApp`,
 /// via [`Default`], and enters the platform event loop. This function blocks
 /// until the window is closed.
 ///
@@ -31,7 +31,7 @@ pub fn run_app() -> anyhow::Result<()> {
 pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_title("ritk-snap — DICOM Viewer")
+            .with_title("ritk-snap â€” DICOM Viewer")
             .with_inner_size([1280.0, 800.0]),
         ..Default::default()
     };

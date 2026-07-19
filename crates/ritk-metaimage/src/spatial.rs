@@ -102,7 +102,7 @@ fn metadata_from_internal_scaled_columns(
 /// ITK's MetaImage `TransformMatrix` is **row-major with each row the direction
 /// cosine of one image axis** (the transpose of the ITK/SimpleITK direction
 /// matrix, whose columns are axis directions). Row `axis` is therefore the file
-/// axis-`axis` direction. Reading the column instead transposed the matrix —
+/// axis-`axis` direction. Reading the column instead transposed the matrix â€”
 /// invisible for identity/symmetric directions but corrupting oblique or
 /// axis-permuted volumes on read/write.
 fn scaled_file_direction_column(

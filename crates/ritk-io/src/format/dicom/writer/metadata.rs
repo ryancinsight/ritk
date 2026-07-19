@@ -12,7 +12,7 @@ use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 use ritk_core::image::Image;
-use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 
@@ -30,7 +30,7 @@ use std::path::{Path, PathBuf};
 /// before Pixel Data.
 pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     path: P,
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
     metadata: Option<&DicomReadMetadata>,
 ) -> Result<()> {
     let path = path.as_ref();
@@ -60,7 +60,7 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
     let direction = metadata
         .map(|m| m.direction)
         .unwrap_or([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
-    // Slice normal is column 0 of direction matrix = direction[0..3] = N̂.
+    // Slice normal is column 0 of direction matrix = direction[0..3] = NÌ‚.
     let normal = [direction[0], direction[1], direction[2]];
 
     let all_data = image
@@ -169,13 +169,13 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
             obj.put(DataElement::new(
                 Tag(0x0028, 0x0030),
                 VR::DS,
-                // PixelSpacing = [ΔRow, ΔCol] = [spacing[1], spacing[2]]
+                // PixelSpacing = [Î”Row, Î”Col] = [spacing[1], spacing[2]]
                 PrimitiveValue::from(format_pair([spacing[1], spacing[2]])),
             ));
             obj.put(DataElement::new(
                 Tag(0x0018, 0x0050),
                 VR::DS,
-                // SliceThickness = Δz = spacing[0]
+                // SliceThickness = Î”z = spacing[0]
                 PrimitiveValue::from(format!("{:.6}", spacing[0])),
             ));
         }

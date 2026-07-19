@@ -23,48 +23,45 @@
 //! Normalization: `out[r,c] = buf[r,c].re / (H*W) = 1.0  for all (r,c)`.
 
 use super::InverseFftFilter;
-use crate::native_support::LegacyBurnBackend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Construct a 2-D complex image with shape `[h, w_complex]`.
 ///
 /// `w_complex` must equal `2 * w_real`. Re and Im are interleaved in the last
 /// dimension: Re at column `2c`, Im at column `2c+1`.
-fn make_complex_2d(data: Vec<f32>, h: usize, w_complex: usize) -> Image<B, 2> {
-    let device = Default::default();
-    let td = TensorData::new(data, Shape::new([h, w_complex]));
-    let tensor = Tensor::<B, 2>::from_data(td, &device);
+fn make_complex_2d(data: Vec<f32>, h: usize, w_complex: usize) -> Image<f32, B, 2> {
+    let tensor = Tensor::<f32, B>::from_slice([h, w_complex], &data);
     Image::new(
         tensor,
         Point::origin(),
         Spacing::new([1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 /// Construct a 3-D complex image with shape `[depth, h, w_complex]`.
 ///
 /// `w_complex` must equal `2 * w_real`.
-fn make_complex_3d(data: Vec<f32>, depth: usize, h: usize, w_complex: usize) -> Image<B, 3> {
-    let device = Default::default();
-    let td = TensorData::new(data, Shape::new([depth, h, w_complex]));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
+fn make_complex_3d(data: Vec<f32>, depth: usize, h: usize, w_complex: usize) -> Image<f32, B, 3> {
+    let tensor = Tensor::<f32, B>::from_slice([depth, h, w_complex], &data);
     Image::new(
         tensor,
         Point::origin(),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Shape contract: `apply_2d([4, 12])` -> `[4, 6]`.
 ///
@@ -163,23 +160,22 @@ fn dc_only_complex_input_reconstructs_to_constant() {
     }
 }
 
-// ── Half-Hermitian inverse FFT round-trip ────────────────────────────────────
+// â”€â”€ Half-Hermitian inverse FFT round-trip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Construct a 3-D real image `[d, h, w]`.
-fn make_real_3d(data: Vec<f32>, d: usize, h: usize, w: usize) -> Image<B, 3> {
-    let device = Default::default();
-    let td = TensorData::new(data, Shape::new([d, h, w]));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
+fn make_real_3d(data: Vec<f32>, d: usize, h: usize, w: usize) -> Image<f32, B, 3> {
+    let tensor = Tensor::<f32, B>::from_slice([d, h, w], &data);
     Image::new(
         tensor,
         Point::new([0.0_f64, 0.0, 0.0]),
         Spacing::new([1.0_f64, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
-/// HalfHermitianToReal ∘ RealToHalfHermitian is the identity (to f32 rounding),
-/// for both even and odd last-axis widths — the Hermitian reconstruction is
+/// HalfHermitianToReal âˆ˜ RealToHalfHermitian is the identity (to f32 rounding),
+/// for both even and odd last-axis widths â€” the Hermitian reconstruction is
 /// exact, so the round-trip equals a full forward/inverse round-trip.
 #[test]
 fn half_hermitian_inverse_round_trip() {

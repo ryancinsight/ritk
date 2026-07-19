@@ -1,7 +1,7 @@
 use super::AttributeArray;
 use std::collections::HashMap;
 
-/// VTK ImageData domain object — a regular Cartesian grid of scalar/vector/tensor fields.
+/// VTK ImageData domain object â€” a regular Cartesian grid of scalar/vector/tensor fields.
 ///
 /// # Invariants (mathematical)
 /// - `whole_extent[2i+1] >= whole_extent[2i]` for i in {0,1,2}.
@@ -12,7 +12,7 @@ use std::collections::HashMap;
 /// - Each `AttributeArray::Vectors` in `point_data` has `values.len() == n_points()`.
 #[derive(Debug, Clone, Default)]
 pub struct VtkImageData {
-    /// `[x0, x1, y0, y1, z0, z1]` — inclusive extent indices (VTK convention).
+    /// `[x0, x1, y0, y1, z0, z1]` â€” inclusive extent indices (VTK convention).
     pub whole_extent: [i64; 6],
     /// Physical origin of the dataset (coordinate of the first point).
     pub origin: [f64; 3],
@@ -72,7 +72,7 @@ impl VtkImageData {
                         ));
                     }
                 }
-                // values: Vec<[f32; 3]> — one 3-vector per point.
+                // values: Vec<[f32; 3]> â€” one 3-vector per point.
                 AttributeArray::Vectors { values } if values.len() != np => {
                     return Err(format!(
                         "point_data vectors '{}': expected {} vectors, got {}",

@@ -5,7 +5,6 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
-burn-ndarray = { workspace = true }
 ritk-core = { path = "../ritk-core" }
 ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
 ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }

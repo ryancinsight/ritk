@@ -2,20 +2,20 @@
 //!
 //! # Mathematical Specification
 //!
-//! Ports `itk::BinaryThinningImageFilter` — the Gonzalez & Woods iterative
+//! Ports `itk::BinaryThinningImageFilter` â€” the Gonzalez & Woods iterative
 //! thinning that reduces a binary object to a 1-pixel-wide 8-connected skeleton.
 //! Operating on the single `z`-plane of a `z = 1` image, the input is binarized
-//! (`≠ 0 → 1`) and then, until no pixel changes, four sub-iterations sweep the
+//! (`â‰  0 â†’ 1`) and then, until no pixel changes, four sub-iterations sweep the
 //! image; in each sweep every foreground pixel `p1` with 8-neighbours
 //! `p2..p9` (clockwise from north, ZeroFluxNeumann boundary) is marked for
 //! deletion when **all** hold, and marked pixels are removed only after the full
 //! sweep:
 //!
 //! ```text
-//! A: 1 < Σ p_i < 7                          (not an endpoint / not interior)
-//! B: (Σ |p_{i+1} − p_i|)/2 == 1             (exactly one 0→1 transition)
-//! step 1: p4 == 0 ∨ p6 == 0   step 2: p2 == 0 ∧ p8 == 0
-//! step 3: p2 == 0 ∨ p8 == 0   step 4: p4 == 0 ∧ p6 == 0
+//! A: 1 < Î£ p_i < 7                          (not an endpoint / not interior)
+//! B: (Î£ |p_{i+1} âˆ’ p_i|)/2 == 1             (exactly one 0â†’1 transition)
+//! step 1: p4 == 0 âˆ¨ p6 == 0   step 2: p2 == 0 âˆ§ p8 == 0
+//! step 3: p2 == 0 âˆ¨ p8 == 0   step 4: p4 == 0 âˆ§ p6 == 0
 //! ```
 //!
 //! The output is binary (`1.0` skeleton, `0.0` background). The process is pure
@@ -39,7 +39,7 @@ impl BinaryThinningFilter {
     }
 
     /// Thin the single `z`-plane of a `z = 1` binary image to its skeleton.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let (vals, dims) = extract_vec_infallible(image);
         let [nz, ny, nx] = dims;
         // ITK BinaryThinning is a 2-D filter; ritk represents 2-D as z = 1.
@@ -114,9 +114,9 @@ impl BinaryThinningFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

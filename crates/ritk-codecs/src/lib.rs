@@ -9,12 +9,12 @@
 //! |-------------|-------------------|--------------------------------------|--------|
 //! | JPEG 2000   | (none)            | ISO 15444-1 codec in [`jpeg_2000`]   | done (lossless, 0 DWT levels; multi-level DWT: J2K-DECODE-DWT) |
 //! | JPEG        | `jpeg-decoder`    | Pure Rust JPEG decoder (Rust crate)  | done   |
-//! | JPEG-LS     | (none — RITK-native since Sprint 127) |                  | done   |
-//! | PackBits    | (none — pure Rust) |                                     | done   |
-//! | RLE         | (none — pure Rust) |                                     | done   |
+//! | JPEG-LS     | (none â€” RITK-native since Sprint 127) |                  | done   |
+//! | PackBits    | (none â€” pure Rust) |                                     | done   |
+//! | RLE         | (none â€” pure Rust) |                                     | done   |
 //!
 //! `openjpeg-sys` / `openjp2` / `jpeg2k` / `charls` are no longer workspace
-//! dependencies — all DICOM codec paths (decode and the JPEG 2000 / JPEG-LS
+//! dependencies â€” all DICOM codec paths (decode and the JPEG 2000 / JPEG-LS
 //! encoders) are pure Rust with no C/C++ FFI.
 
 pub mod byte_decode;

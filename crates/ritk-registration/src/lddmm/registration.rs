@@ -1,4 +1,4 @@
-//! LDDMM registration engine — gradient-descent optimisation of v₀.
+//! LDDMM registration engine â€” gradient-descent optimisation of vâ‚€.
 //!
 //! # Memory discipline
 //! All scratch buffers are pre-allocated before the iteration loop.
@@ -18,7 +18,7 @@ use super::{
 
 /// LDDMM registration engine.
 ///
-/// Optimises the initial velocity v₀ of a geodesic in diffeomorphism space
+/// Optimises the initial velocity vâ‚€ of a geodesic in diffeomorphism space
 /// to align a moving image to a fixed image under the MSE similarity metric
 /// with Sobolev-norm regularisation.
 #[derive(Debug, Clone)]
@@ -53,14 +53,14 @@ impl LddmmRegistration {
     ///
     /// When `smoother` is a [`crate::deformable_field_ops::GpuFieldSmoother`],
     /// the per-iteration momentum, adjoint, and body-force smoothing runs on
-    /// the GPU — 10–50× faster than the CPU path for typical 256³ fields.
+    /// the GPU â€” 10â€“50Ã— faster than the CPU path for typical 256Â³ fields.
     ///
     /// # Arguments
-    /// - `fixed`   — reference image, flat `[f32]` in Z-major order.
-    /// - `moving`  — moving image, same length as `fixed`.
-    /// - `dims`    — volume dimensions `[nz, ny, nx]`.
-    /// - `spacing` — physical voxel spacing `[sz, sy, sx]`.
-    /// - `smoother` — field smoother (CPU or GPU backend).
+    /// - `fixed`   â€” reference image, flat `[f32]` in Z-major order.
+    /// - `moving`  â€” moving image, same length as `fixed`.
+    /// - `dims`    â€” volume dimensions `[nz, ny, nx]`.
+    /// - `spacing` â€” physical voxel spacing `[sz, sy, sx]`.
+    /// - `smoother` â€” field smoother (CPU or GPU backend).
     ///
     /// # Errors
     /// Returns [`RegistrationError::DimensionMismatch`] when image lengths
@@ -86,7 +86,7 @@ impl LddmmRegistration {
         let mut v0y = vec![0.0_f32; n];
         let mut v0x = vec![0.0_f32; n];
 
-        // ── Pre-allocated scratch buffers (zero alloc inside the loop) ──
+        // â”€â”€ Pre-allocated scratch buffers (zero alloc inside the loop) â”€â”€
         let mut dz = vec![0.0_f32; n];
         let mut dy = vec![0.0_f32; n];
         let mut dx = vec![0.0_f32; n];

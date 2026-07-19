@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
 use flate2::read::GzDecoder;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use std::fs;
 use std::io::Read;
 use std::path::Path;

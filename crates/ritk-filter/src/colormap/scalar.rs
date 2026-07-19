@@ -3,13 +3,13 @@ use anyhow::{bail, Result};
 /// Linear-LUT colormaps (those expressible without a piecewise table).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Colormap {
-    /// Greyscale — `(s, s, s)`. ITK default.
+    /// Greyscale â€” `(s, s, s)`. ITK default.
     Grey,
-    /// Red ramp — `(s, 0, 0)`.
+    /// Red ramp â€” `(s, 0, 0)`.
     Red,
-    /// Green ramp — `(0, s, 0)`.
+    /// Green ramp â€” `(0, s, 0)`.
     Green,
-    /// Blue ramp — `(0, 0, s)`.
+    /// Blue ramp â€” `(0, 0, s)`.
     Blue,
 }
 
@@ -55,9 +55,9 @@ impl ScalarToRGBColormapFilter {
     /// `[0, 255]`).
     pub fn apply<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::ColorVolume<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::ColorVolume<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -94,7 +94,7 @@ impl ScalarToRGBColormapFilter {
             interleaved[3 * i + 2] = b[i];
         }
 
-        ritk_image::native::ColorVolume::<f32, B, 3>::from_flat_on(
+        ritk_image::ColorVolume::<f32, B, 3>::from_flat_on(
             interleaved,
             dims,
             *image.origin(),

@@ -1,4 +1,4 @@
-//! DICOM Association SCU — association lifecycle per PS 3.8.
+//! DICOM Association SCU â€” association lifecycle per PS 3.8.
 //!
 //! Establishes a TCP-level association with a remote SCP, exchanges PDU
 //! frames, sends/receives DIMSE messages over negotiated presentation
@@ -33,7 +33,7 @@ impl FindResult {
     /// Decode a string attribute from the first match dataset for `(group, element)`.
     ///
     /// Returns `None` when no match is present in `self.matches` or the tag is absent.
-    /// Trailing null (`\x00`) and space padding per DICOM PS3.5 §6.2 are stripped.
+    /// Trailing null (`\x00`) and space padding per DICOM PS3.5 Â§6.2 are stripped.
     pub fn get_string(&self, group: u16, element: u16) -> Option<String> {
         use super::command::parse_dataset_ivr_le;
         self.matches.first().and_then(|m| {

@@ -1,7 +1,7 @@
 //! RIRE CT/MR T1 diffeomorphic edge-case integration tests.
 //!
 //! These tests validate inverse-transform recovery and ground-truth alignment
-//! improvements for the CT↔MRI T1 pair. They require the RIRE test data under
+//! improvements for the CTâ†”MRI T1 pair. They require the RIRE test data under
 //! `test_data/registration/rire/` and can be run with:
 //!
 //! ```shell
@@ -33,11 +33,11 @@ use ritk_io::{format::metaimage::native::MetaImageReader, ImageReader};
 ///
 /// The test:
 /// 1. Loads CT and MRI T1 volumes.
-/// 2. Downsamples CT with stride 4 → effective spacing (2.614, 2.614, 16.0) mm.
+/// 2. Downsamples CT with stride 4 â†’ effective spacing (2.614, 2.614, 16.0) mm.
 /// 3. Resamples the full-resolution MRI into the CT-downsampled grid using
-///    the GT transform → `ncc_gt_aligned`.
+///    the GT transform â†’ `ncc_gt_aligned`.
 /// 4. Resamples the full-resolution MRI using GT + [+50 mm, 0, 0] perturbation
-///    (guaranteed to misalign the brains) → `ncc_perturbed`.
+///    (guaranteed to misalign the brains) â†’ `ncc_perturbed`.
 /// 5. Asserts `ncc_gt_aligned > ncc_perturbed` and `ncc_gt_aligned > -0.5`.
 ///
 /// The 50 mm x-shift is larger than the full MRI FOV displacement introduced
@@ -72,7 +72,7 @@ fn test_rire_gt_transform_improves_ct_mri_alignment() {
     let ct_img = reader.read(&ct_path).expect("CT .mha must load");
     let mri_img = reader.read(&mri_path).expect("MRI T1 .mha must load");
 
-    // ── Spacing in (x/col, y/row, z/slice) order ──────────────────────────
+    // â”€â”€ Spacing in (x/col, y/row, z/slice) order â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // image.spacing(): [0]=z, [1]=y, [2]=x
     let ct_sz = ct_img.spacing()[0]; // z=4.0
     let ct_sy = ct_img.spacing()[1]; // y=0.653595
@@ -87,7 +87,7 @@ fn test_rire_gt_transform_improves_ct_mri_alignment() {
     let ct_data = ct_img.data_cow_on(&backend).into_owned();
     let mri_data = mri_img.data_cow_on(&backend).into_owned();
 
-    // ── Downsample CT with stride=4 ────────────────────────────────────────
+    // â”€â”€ Downsample CT with stride=4 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let stride = 4_usize;
     let (ct_ds_data, ct_ds_shape) = downsample_stride(&ct_data, ct_shape, stride);
 
@@ -101,7 +101,7 @@ fn test_rire_gt_transform_improves_ct_mri_alignment() {
     // Full-res MRI spacing (x, y, z order):
     let mri_spacing_xyz = [mri_sx, mri_sy, mri_sz];
 
-    // ── GT-aligned resampling ─────────────────────────────────────────────
+    // â”€â”€ GT-aligned resampling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let aligned_mri = resample_mri_into_ct_space(
         &ct_ds_data,
         ct_ds_shape,
@@ -113,7 +113,7 @@ fn test_rire_gt_transform_improves_ct_mri_alignment() {
         &GT_TRANS,
     );
 
-    // ── Perturbed resampling (+50 mm in x) ────────────────────────────────
+    // â”€â”€ Perturbed resampling (+50 mm in x) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let t_perturbed = [GT_TRANS[0] + 50.0, GT_TRANS[1], GT_TRANS[2]];
     let perturbed_mri = resample_mri_into_ct_space(
         &ct_ds_data,
@@ -126,7 +126,7 @@ fn test_rire_gt_transform_improves_ct_mri_alignment() {
         &t_perturbed,
     );
 
-    // ── NCC comparison ────────────────────────────────────────────────────
+    // â”€â”€ NCC comparison â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let ct_norm = normalize_minmax(&ct_ds_data);
     let aligned_norm = normalize_minmax(&aligned_mri);
     let perturbed_norm = normalize_minmax(&perturbed_mri);
@@ -135,7 +135,7 @@ fn test_rire_gt_transform_improves_ct_mri_alignment() {
     let ncc_perturbed = ncc(&ct_norm, &perturbed_norm);
 
     eprintln!(
-        "Alignment NCC — GT: {:.6}, Perturbed (+50mm x): {:.6}, Δ: {:.6}",
+        "Alignment NCC â€” GT: {:.6}, Perturbed (+50mm x): {:.6}, Î”: {:.6}",
         ncc_gt_aligned,
         ncc_perturbed,
         ncc_gt_aligned - ncc_perturbed
@@ -160,29 +160,29 @@ fn test_rire_gt_transform_improves_ct_mri_alignment() {
 /// # Specification
 ///
 /// Applying a known 5-voxel (+13 mm) column shift to the GT-aligned MRI and
-/// then its exact inverse (−5 voxels) must recover the original NCC to within
+/// then its exact inverse (âˆ’5 voxels) must recover the original NCC to within
 /// 0.05.
 ///
-/// Validates the fundamental invertibility property: `T ∘ T^{-1} = id` (to
-/// within boundary effects from zero-padding: ~5/128 ≈ 4% of voxels along x).
+/// Validates the fundamental invertibility property: `T âˆ˜ T^{-1} = id` (to
+/// within boundary effects from zero-padding: ~5/128 â‰ˆ 4% of voxels along x).
 ///
 /// The test:
 /// 1. Loads CT and MRI T1.
-/// 2. Downsamples CT with stride 4 → shape ≈ [8, 128, 128], effective
+/// 2. Downsamples CT with stride 4 â†’ shape â‰ˆ [8, 128, 128], effective
 ///    spacing (2.614, 2.614, 16.0) mm.
-/// 3. Resamples full MRI into CT-downsampled grid using GT → `aligned_mri`.
-/// 4. Applies a +5 voxel column shift to `aligned_mri` → `perturbed_mri`
+/// 3. Resamples full MRI into CT-downsampled grid using GT â†’ `aligned_mri`.
+/// 4. Applies a +5 voxel column shift to `aligned_mri` â†’ `perturbed_mri`
 ///    (source from `ix - 5`, zero-pad left border).
-/// 5. Applies the inverse shift (−5 voxels: source from `ix + 5`) to
-///    `perturbed_mri` → `recovered_mri`.
+/// 5. Applies the inverse shift (âˆ’5 voxels: source from `ix + 5`) to
+///    `perturbed_mri` â†’ `recovered_mri`.
 /// 6. Normalizes CT, aligned, perturbed, and recovered with `normalize_minmax`.
 /// 7. Assertions:
 ///    - `ncc_perturbed < ncc_aligned - 0.01`
 ///    - `ncc_recovered > ncc_perturbed`
-///    - `|ncc_recovered − ncc_aligned| < 0.05`
+///    - `|ncc_recovered âˆ’ ncc_aligned| < 0.05`
 ///
 /// The tolerance 0.05 accounts for edge effects from zero-padding
-/// (~5/128 ≈ 4 % of x-extent voxels).
+/// (~5/128 â‰ˆ 4 % of x-extent voxels).
 #[test]
 #[ignore = "requires test_data/registration/rire/"]
 fn test_rire_inverse_transform_recovers_shifted_mri() {
@@ -213,7 +213,7 @@ fn test_rire_inverse_transform_recovers_shifted_mri() {
     let ct_img = reader.read(&ct_path).expect("CT .mha must load");
     let mri_img = reader.read(&mri_path).expect("MRI T1 .mha must load");
 
-    // ── Spacing in (x/col, y/row, z/slice) order ──────────────────────────
+    // â”€â”€ Spacing in (x/col, y/row, z/slice) order â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let ct_sz = ct_img.spacing()[0]; // z=4.0
     let ct_sy = ct_img.spacing()[1]; // y=0.653595
     let ct_sx = ct_img.spacing()[2]; // x=0.653595
@@ -227,7 +227,7 @@ fn test_rire_inverse_transform_recovers_shifted_mri() {
     let ct_data = ct_img.data_cow_on(&backend).into_owned();
     let mri_data = mri_img.data_cow_on(&backend).into_owned();
 
-    // ── Downsample CT with stride=4 ────────────────────────────────────────
+    // â”€â”€ Downsample CT with stride=4 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let stride = 4_usize;
     let (ct_ds_data, ct_ds_shape) = downsample_stride(&ct_data, ct_shape, stride);
     let [nz, ny, nx] = ct_ds_shape;
@@ -239,7 +239,7 @@ fn test_rire_inverse_transform_recovers_shifted_mri() {
     ];
     let mri_spacing_xyz = [mri_sx, mri_sy, mri_sz];
 
-    // ── Step 3: Resample MRI into CT-downsampled space using GT ───────────
+    // â”€â”€ Step 3: Resample MRI into CT-downsampled space using GT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let aligned_mri = resample_mri_into_ct_space(
         &ct_ds_data,
         ct_ds_shape,
@@ -251,7 +251,7 @@ fn test_rire_inverse_transform_recovers_shifted_mri() {
         &GT_TRANS,
     );
 
-    // ── Step 4: Apply +5 voxel column shift ───────────────────────────────
+    // â”€â”€ Step 4: Apply +5 voxel column shift â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // perturbed[iz, iy, ix] = aligned[iz, iy, ix - 5] if ix >= 5, else 0.0
     let shift: usize = 5;
     let mut perturbed_mri = vec![0.0_f32; nz * ny * nx];
@@ -267,7 +267,7 @@ fn test_rire_inverse_transform_recovers_shifted_mri() {
         }
     }
 
-    // ── Step 5: Apply inverse shift (−5 voxels) ───────────────────────────
+    // â”€â”€ Step 5: Apply inverse shift (âˆ’5 voxels) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // recovered[iz, iy, ix] = perturbed[iz, iy, ix + 5] if ix + 5 < nx, else 0.0
     let mut recovered_mri = vec![0.0_f32; nz * ny * nx];
     for iz in 0..nz {
@@ -282,7 +282,7 @@ fn test_rire_inverse_transform_recovers_shifted_mri() {
         }
     }
 
-    // ── Normalize and compute NCC ─────────────────────────────────────────
+    // â”€â”€ Normalize and compute NCC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let ct_norm = normalize_minmax(&ct_ds_data);
     let aligned_norm = normalize_minmax(&aligned_mri);
     let perturbed_norm = normalize_minmax(&perturbed_mri);
@@ -298,7 +298,7 @@ fn test_rire_inverse_transform_recovers_shifted_mri() {
     let boundary_fraction = boundary_zeros as f64 / total_voxels as f64;
 
     eprintln!(
-        "Shift recovery NCC — aligned: {:.6}, perturbed: {:.6}, recovered: {:.6}",
+        "Shift recovery NCC â€” aligned: {:.6}, perturbed: {:.6}, recovered: {:.6}",
         ncc_aligned, ncc_perturbed, ncc_recovered
     );
     eprintln!(
@@ -335,7 +335,7 @@ fn test_rire_inverse_transform_recovers_shifted_mri() {
     assert!(
         (ncc_recovered - ncc_aligned).abs() < 0.05,
         "Recovered NCC ({:.6}) must be within 0.05 of aligned NCC ({:.6}); \
- got |Δ| = {:.6}. This validates T ∘ T^{{-1}} ≈ identity to within \
+ got |Î”| = {:.6}. This validates T âˆ˜ T^{{-1}} â‰ˆ identity to within \
  boundary effects ({:.2}% padded voxels).",
         ncc_recovered,
         ncc_aligned,

@@ -100,7 +100,7 @@ pub fn scan_dicom_directory<P: AsRef<Path>>(path: P) -> Result<Vec<DicomSeriesIn
     .filter_map(|r| r.ok().flatten())
     .collect();
 
-    // 2. Sequential merge — no Mutex required.
+    // 2. Sequential merge â€” no Mutex required.
     let mut map: HashMap<ArrayString<64>, DicomSeriesInfo> = HashMap::new();
     for (uid, description, modality, patient_id, file_path) in raw {
         map.entry(uid)

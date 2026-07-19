@@ -1,4 +1,4 @@
-﻿//! Spatial metadata construction for MINC2 volumes.
+//! Spatial metadata construction for MINC2 volumes.
 //!
 //! Provides functions to:
 //! - determine the canonical direction cosine for each MINC2 axis,

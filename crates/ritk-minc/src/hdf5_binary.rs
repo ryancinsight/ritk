@@ -32,7 +32,7 @@ struct Minc2VolumeGeometry {
 /// - `shape`: `[nz, ny, nx]`.
 /// - `origin`: physical start per dimorder axis.
 /// - `spacing`: voxel spacing per dimorder axis.
-/// - `direction`: 3×3 direction matrix (columns = axis direction cosines).
+/// - `direction`: 3Ã—3 direction matrix (columns = axis direction cosines).
 pub fn write_minc2_hdf5(
     path: &std::path::Path,
     raw_data: &[u8],
@@ -68,7 +68,7 @@ pub fn write_minc2_hdf5(
     Ok(())
 }
 
-// ── Object header helpers ─────────────────────────────────────────────────────
+// â”€â”€ Object header helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Write a v1 object header with the given messages at `offset`.
 ///
@@ -104,7 +104,7 @@ fn build_link_msg(name: &str, target_addr: u64) -> Vec<u8> {
     wrap_message(0x0006, msg_data)
 }
 
-// ── Attribute message helpers ─────────────────────────────────────────────────
+// â”€â”€ Attribute message helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[inline]
 fn pad8(n: usize) -> usize {
@@ -254,7 +254,7 @@ pub(crate) fn build_attr_msg_float_array(name: &str, values: &[f64; 3]) -> Vec<u
     ds[8..16].copy_from_slice(&3u64.to_le_bytes());
     msg_data.extend_from_slice(&ds);
 
-    // Data: 3 × f64 LE.
+    // Data: 3 Ã— f64 LE.
     for &v in values {
         msg_data.extend_from_slice(&v.to_le_bytes());
     }
@@ -266,7 +266,7 @@ fn wrap_attr_envelope(msg_data: Vec<u8>) -> Vec<u8> {
     wrap_message(0x000C, msg_data)
 }
 
-// ── Main builder ──────────────────────────────────────────────────────────────
+// â”€â”€ Main builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Build the HDF5 binary of a MINC2 file using positioned writes.
 ///
@@ -274,15 +274,15 @@ fn wrap_attr_envelope(msg_data: Vec<u8>) -> Vec<u8> {
 ///
 /// ```text
 /// Offset 0:    Superblock v2 (44 bytes)
-/// Offset 44:   Root group OH  → link "minc-2.0"
-/// ...          minc-2.0 OH    → links "dimensions", "image"
-/// ...          dimensions OH  → links xspace, yspace, zspace
-/// ...          xspace OH      → attrs: start, step, length, direction_cosines
-/// ...          yspace OH      → (same)
-/// ...          zspace OH      → (same)
-/// ...          image grp OH   → link "0"
-/// ...          0 grp OH       → link "image"
-/// ...          image ds OH    → datatype, dataspace, layout
+/// Offset 44:   Root group OH  â†’ link "minc-2.0"
+/// ...          minc-2.0 OH    â†’ links "dimensions", "image"
+/// ...          dimensions OH  â†’ links xspace, yspace, zspace
+/// ...          xspace OH      â†’ attrs: start, step, length, direction_cosines
+/// ...          yspace OH      â†’ (same)
+/// ...          zspace OH      â†’ (same)
+/// ...          image grp OH   â†’ link "0"
+/// ...          0 grp OH       â†’ link "image"
+/// ...          image ds OH    â†’ datatype, dataspace, layout
 /// offset N:    raw voxel data (contiguous f32 LE)
 /// ```
 fn build_minc2_hdf5_binary(
@@ -322,7 +322,7 @@ fn build_minc2_hdf5_binary(
 
     let eof = data_offset + raw_data.len() as u64;
 
-    // ── Superblock v2 ─────────────────────────────────────────────────────
+    // â”€â”€ Superblock v2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let mut sb = [0u8; 44];
     sb[0..8].copy_from_slice(b"\x89HDF\r\n\x1a\n");
     sb[8] = 2; // version
@@ -336,16 +336,16 @@ fn build_minc2_hdf5_binary(
     file.write_at(0, &sb)
         .map_err(|e| anyhow::anyhow!("Failed to write superblock: {}", e))?;
 
-    // ── Root group OH ────────────────────────────────────────────────────
+    // â”€â”€ Root group OH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let link_minc20 = build_link_msg("minc-2.0", minc20_addr);
     write_v1_oh(file, root_addr, &[link_minc20])?;
 
-    // ── minc-2.0 group OH ────────────────────────────────────────────────
+    // â”€â”€ minc-2.0 group OH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let link_dims = build_link_msg("dimensions", dims_addr);
     let link_image = build_link_msg("image", image_grp_addr);
     write_v1_oh(file, minc20_addr, &[link_dims, link_image])?;
 
-    // ── dimensions group OH ──────────────────────────────────────────────
+    // â”€â”€ dimensions group OH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let dim_addrs = [xspace_addr, yspace_addr, zspace_addr];
     let dim_links: Vec<Vec<u8>> = dim_names
         .iter()
@@ -354,7 +354,7 @@ fn build_minc2_hdf5_binary(
         .collect();
     write_v1_oh(file, dims_addr, &dim_links)?;
 
-    // ── Dimension group OHs ───────────────────────────────────────────────
+    // â”€â”€ Dimension group OHs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     for (i, &addr) in dim_addrs.iter().enumerate() {
         let start_attr = build_attr_msg_float("start", origin[i]);
         let step_attr = build_attr_msg_float("step", spacing[i]);
@@ -365,15 +365,15 @@ fn build_minc2_hdf5_binary(
         write_v1_oh(file, addr, &[start_attr, step_attr, length_attr, dc_attr])?;
     }
 
-    // ── image group OH ────────────────────────────────────────────────────
+    // â”€â”€ image group OH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let link_zero = build_link_msg("0", zero_grp_addr);
     write_v1_oh(file, image_grp_addr, &[link_zero])?;
 
-    // ── 0 group OH ────────────────────────────────────────────────────────
+    // â”€â”€ 0 group OH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let link_image_ds = build_link_msg("image", image_ds_addr);
     write_v1_oh(file, zero_grp_addr, &[link_image_ds])?;
 
-    // ── image dataset OH ──────────────────────────────────────────────────
+    // â”€â”€ image dataset OH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // DATATYPE (0x0003): 32-bit LE float.
     let dt_msg = wrap_msg(0x0003, &float_datatype(4));
 
@@ -395,7 +395,7 @@ fn build_minc2_hdf5_binary(
 
     write_v1_oh(file, image_ds_addr, &[dt_msg, ds_msg, layout_msg])?;
 
-    // ── Raw voxel data ────────────────────────────────────────────────────
+    // â”€â”€ Raw voxel data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     file.write_at(data_offset, raw_data)
         .map_err(|e| anyhow::anyhow!("Failed to write voxel data: {}", e))?;
 

@@ -6,14 +6,14 @@
 //! contracts directly on the native path.
 
 use crate::median::MedianFilter;
-use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+use crate::native_support::{assert_coeus_matches_coeus, make_native_image, native_vals};
 
 #[test]
 fn matches_burn_radius_one() {
     let dims = [6, 5, 7];
     let n = dims[0] * dims[1] * dims[2];
     let vals: Vec<f32> = (0..n).map(|i| ((i * 17) % 43) as f32 * 0.3 - 5.0).collect();
-    assert_native_matches_burn(
+    assert_coeus_matches_coeus(
         vals,
         dims,
         |img| MedianFilter::new(1).apply(img).expect("burn"),

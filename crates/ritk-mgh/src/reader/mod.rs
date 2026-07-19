@@ -11,7 +11,7 @@ use crate::{is_gzip_path, MRI_FLOAT, MRI_INT, MRI_SHORT, MRI_UCHAR, PADDING_LEN,
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
 use flate2::read::GzDecoder;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
@@ -139,7 +139,7 @@ fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
         .ok_or_else(|| anyhow::anyhow!("Volume dimensions overflow: {}x{}x{}", nx, ny, nz))?;
     let bpv = bytes_per_voxel(mri_type)?;
     let data_size = n_voxels.checked_mul(bpv).ok_or_else(|| {
-        anyhow::anyhow!("Data size overflow: {} voxels × {} bytes", n_voxels, bpv)
+        anyhow::anyhow!("Data size overflow: {} voxels Ã— {} bytes", n_voxels, bpv)
     })?;
 
     // Bound the speculative allocation: `data_size` derives from the header

@@ -63,12 +63,12 @@ fn affine_transform_applies_predicted_matrix() {
 #[test]
 fn network_is_differentiable_end_to_end() {
     // The predicted affine parameters are differentiable with respect to the
-    // network input through the full conv → norm → relu → pool → linear chain.
-    // 36³ keeps every InstanceNorm's spatial extent > 1 (36→18→9→5→3→2); a
+    // network input through the full conv â†’ norm â†’ relu â†’ pool â†’ linear chain.
+    // 36Â³ keeps every InstanceNorm's spatial extent > 1 (36â†’18â†’9â†’5â†’3â†’2); a
     // smaller volume collapses a stage to one voxel, where zero variance makes
     // the norm constant and the gradient vanish (an architectural property).
     let shape = [1usize, 2, 36, 36, 36];
-    // Narrow channels keep the 36³ chain tractable in a debug build.
+    // Narrow channels keep the 36Â³ chain tractable in a debug build.
     let model = AffineNetworkConfig {
         channels: vec![2, 3, 4, 5, 6],
     }
@@ -93,7 +93,7 @@ fn network_output_drives_transform_forward() {
     // Composition check: the network's [B,12] output is a valid affine for the
     // transform, and the warp produces a finite, correctly-shaped volume.
     // (An untrained network may steer samples out of bounds, where zero-padding
-    // legitimately yields zeros — so this asserts shape and finiteness, while
+    // legitimately yields zeros â€” so this asserts shape and finiteness, while
     // gradient correctness is covered by the per-component FD checks.)
     let feat_shape = [1usize, 2, 36, 36, 36];
     let model = AffineNetworkConfig {

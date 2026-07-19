@@ -57,7 +57,7 @@ fn exp_output_always_positive() {
 /// Spatial metadata is preserved.
 #[test]
 fn exp_preserves_metadata() {
-    use ritk_image::native::Image;
+    use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     let sp = Spacing::new([0.5, 0.5, 0.5]);
     let img = Image::from_flat_on(

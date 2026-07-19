@@ -85,7 +85,7 @@ fn label_shortcut_undo_redo_updates_map_and_status() {
 ///
 /// Drag (dx=+10, dy=-5) with default sensitivity 4.0:
 /// new_width = 400 + 10*4 = 440
-/// new_center = 40 − (−5)*4 = 60
+/// new_center = 40 âˆ’ (âˆ’5)*4 = 60
 #[test]
 fn window_level_drag_updates_center_and_width_via_ssot() {
     use crate::tools::interaction::ToolState;
@@ -103,7 +103,7 @@ fn window_level_drag_updates_center_and_width_via_ssot() {
 
     let new_center = app.viewer_state.window_center.expect("center set");
     let new_width = app.viewer_state.window_width.expect("width set");
-    // Analytical: center = 40 − (−5)*4 = 60, width = 400 + 10*4 = 440
+    // Analytical: center = 40 âˆ’ (âˆ’5)*4 = 60, width = 400 + 10*4 = 440
     assert_eq!(new_center, 60.0_f32, "center mismatch");
     assert_eq!(new_width, 440.0_f32, "width mismatch");
     assert!(app.texture_dirty, "axial dirty not set");

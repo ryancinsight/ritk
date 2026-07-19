@@ -2,7 +2,7 @@ use crate::edge::GaussianSigma;
 
 use super::pde::compute_divergence_into;
 
-// ── Gradient buffer ──────────────────────────────────────────────────────────
+// â”€â”€ Gradient buffer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Gradient buffer: [gz, gy, gx] stored contiguously, each of length n.
 pub struct Gradient {
@@ -11,11 +11,11 @@ pub struct Gradient {
     pub gx: Vec<f64>,
 }
 
-// ── Structure tensor products ─────────────────────────────────────────────────
+// â”€â”€ Structure tensor products â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// 6 independent components of the outer product ∇I·∇Iᵀ at each voxel.
+/// 6 independent components of the outer product âˆ‡IÂ·âˆ‡Iáµ€ at each voxel.
 ///
-/// Layout per voxel: [I_z², I_z·I_y, I_z·I_x, I_y², I_y·I_x, I_x²]
+/// Layout per voxel: [I_zÂ², I_zÂ·I_y, I_zÂ·I_x, I_yÂ², I_yÂ·I_x, I_xÂ²]
 pub struct StructureTensorProducts {
     pub data: Vec<[f64; 6]>,
 }
@@ -47,17 +47,17 @@ pub fn compute_structure_tensor_products_from_slices(
         let gz = gz[i];
         let gy = gy[i];
         let gx = gx[i];
-        out[0] = gz * gz; // J_11 = I_z²
-        out[1] = gz * gy; // J_12 = I_z·I_y
-        out[2] = gz * gx; // J_13 = I_z·I_x
-        out[3] = gy * gy; // J_22 = I_y²
-        out[4] = gy * gx; // J_23 = I_y·I_x
-        out[5] = gx * gx; // J_33 = I_x²
+        out[0] = gz * gz; // J_11 = I_zÂ²
+        out[1] = gz * gy; // J_12 = I_zÂ·I_y
+        out[2] = gz * gx; // J_13 = I_zÂ·I_x
+        out[3] = gy * gy; // J_22 = I_yÂ²
+        out[4] = gy * gx; // J_23 = I_yÂ·I_x
+        out[5] = gx * gx; // J_33 = I_xÂ²
     });
     st
 }
 
-// ── Scratch storage ───────────────────────────────────────────────────────────
+// â”€â”€ Scratch storage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Pre-allocated scratch buffers for the CED iteration loop.
 ///
@@ -288,7 +288,7 @@ impl Default for CedScratch {
     }
 }
 
-// ── Internal helpers (write into pre-allocated buffers) ───────────────────────
+// â”€â”€ Internal helpers (write into pre-allocated buffers) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Central-difference gradient with Neumann (replicate) boundary conditions.
 fn compute_gradient_into(

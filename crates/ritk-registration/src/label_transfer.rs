@@ -1,52 +1,57 @@
-//! Atlas / label-map transfer — the ANTs-style "apply a transform to a label map".
+//! Atlas / label-map transfer â€” the ANTs-style "apply a transform to a label map".
 //!
-//! ritk has registration (rigid [`crate::register_rigid_ngf`], affine/MI
-//! [`crate::GlobalMiRegistration`], deformable [`crate::MultiResSyNRegistration`])
+//! ritk has classical [`crate::ImageRegistration`] and deformable
+//! [`crate::MultiResSyNRegistration`] registration
 //! and intensity resampling, but no single primitive to carry an integer LABEL /
 //! atlas map through a recovered transform. [`warp_label_map`] fills that gap: it
 //! resamples a moving-space label image onto a reference grid with NEAREST-NEIGHBOUR
 //! interpolation, so integer region IDs are preserved exactly (no label blending).
 //!
-//! Atlas-to-patient pipeline (e.g. MNI152 → patient T1):
+//! Atlas-to-patient pipeline (e.g. MNI152 â†’ patient T1):
 //! 1. Register the patient (fixed) to the atlas (moving) with any ritk registration,
-//!    obtaining a [`Transform`] that maps patient → atlas world coordinates.
+//!    obtaining a [`Transform`] that maps patient â†’ atlas world coordinates.
 //! 2. `let patient_labels = warp_label_map(&atlas_labels, &transform, &patient_t1);`
-//!    — the atlas region labels now live on the patient grid; read region centroids
+//!    â€” the atlas region labels now live on the patient grid; read region centroids
 //!    for targeting.
 //!
 //! For a deformable result the displacement/velocity field implements [`Transform`]
 //! too, so the same call warps labels through a SyN/Demons/B-spline field.
 
+use coeus_core::CpuAddressableStorage;
+use coeus_ops::BackendOps;
 use ritk_image::tensor::Backend;
-use ritk_image::{generate_grid_burn, Image};
+use ritk_image::{generate_grid, Image};
 use ritk_interpolation::{Interpolator, NearestNeighborInterpolator};
 use ritk_transform::Transform;
 use std::collections::BTreeMap;
 
 /// Warp a moving-space label/atlas image onto `reference`'s grid through
-/// `transform` (mapping reference → moving world coordinates), using
+/// `transform` (mapping reference â†’ moving world coordinates), using
 /// nearest-neighbour interpolation so integer labels are preserved exactly.
 /// Reference-grid voxels whose mapped point falls outside the label image are set
 /// to `0` (background).
 ///
 /// The result shares `reference`'s shape and spatial metadata, so it overlays the
 /// reference image voxel-for-voxel.
-#[must_use]
-pub fn warp_label_map<B: Backend>(
-    labels: &Image<B, 3>,
+pub fn warp_label_map<B>(
+    labels: &Image<f32, B, 3>,
     transform: &impl Transform<B, 3>,
-    reference: &Image<B, 3>,
-) -> Image<B, 3> {
-    let device = reference.data().device();
+    reference: &Image<f32, B, 3>,
+) -> anyhow::Result<Image<f32, B, 3>>
+where
+    B: Backend + BackendOps<f32> + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    let backend = B::default();
     let shape = reference.shape();
 
-    // reference voxel → world → (transform) → label-image world → label index.
-    let indices = generate_grid_burn(shape, &device);
-    let ref_world = reference.index_to_world_tensor(indices);
+    // reference voxel â†’ world â†’ (transform) â†’ label-image world â†’ label index.
+    let indices = generate_grid(shape, &backend);
+    let ref_world = reference.index_to_world_native(&indices);
     let label_world = transform.transform_points(ref_world);
-    let label_idx = labels.world_to_index_tensor(label_world);
+    let label_idx = labels.world_to_index_native(&label_world);
 
-    // Nearest-neighbour keeps integer labels intact; zero-pad → background outside FOV.
+    // Nearest-neighbour keeps integer labels intact; zero-pad â†’ background outside FOV.
     let warped = NearestNeighborInterpolator::new_zero_pad()
         .interpolate(labels.data(), label_idx)
         .reshape(shape);
@@ -64,10 +69,14 @@ pub fn warp_label_map<B: Backend>(
 /// into target points: register the patient to an atlas, [`warp_label_map`] the
 /// atlas regions into patient space, then read each region's centroid as an
 /// array-center / focus target. Centroids are in the image's physical (LPS) world
-/// frame, consistent with [`Image::index_to_world_tensor`].
-pub fn label_centroids<B: Backend>(labels: &Image<B, 3>) -> anyhow::Result<Vec<(u32, [f64; 3])>> {
+/// frame, consistent with [`Image::index_to_world_native`].
+pub fn label_centroids<B>(labels: &Image<f32, B, 3>) -> anyhow::Result<Vec<(u32, [f64; 3])>>
+where
+    B: Backend,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     let [d0, d1, d2] = labels.shape();
-    let data = labels.try_data_slice()?;
+    let data = labels.data_slice()?;
     let origin = labels.origin();
     let spacing = labels.spacing();
     let direction = labels.direction();
@@ -101,7 +110,7 @@ pub fn label_centroids<B: Backend>(labels: &Image<B, 3>) -> anyhow::Result<Vec<(
         .into_iter()
         .map(|(lab, (sum, cnt))| {
             let mean = [sum[0] / cnt, sum[1] / cnt, sum[2] / cnt];
-            // world[c] = origin[c] + Σ_axis mean[axis]·spacing[axis]·direction[(c, axis)]
+            // world[c] = origin[c] + Î£_axis mean[axis]Â·spacing[axis]Â·direction[(c, axis)]
             let mut world = [0.0_f64; 3];
             for (c, wc) in world.iter_mut().enumerate() {
                 let mut a = origin[c];
@@ -119,36 +128,33 @@ pub fn label_centroids<B: Backend>(labels: &Image<B, 3>) -> anyhow::Result<Vec<(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use coeus_core::SequentialBackend;
+    use ritk_image::tensor::Tensor;
     use ritk_spatial::{Direction, Point, Spacing};
     use ritk_transform::TranslationTransform;
 
-    type B = NdArray<f32>;
+    type B = SequentialBackend;
 
-    fn label_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
+    fn label_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
         let device = Default::default();
-        let t = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(shape)), &device);
+        let t = Tensor::<f32, B>::from_slice_on(shape, &data, &device);
         Image::new(
             t,
             Point::new([0.0; 3]),
             Spacing::new([1.0; 3]),
             Direction::identity(),
         )
+        .expect("invariant: fixture tensor preserves the declared image rank")
     }
 
-    fn host(img: &Image<B, 3>) -> Vec<f32> {
-        let n: usize = img.shape().iter().product();
-        img.data()
-            .clone()
-            .reshape([n])
-            .into_data()
+    fn host(img: &Image<f32, B, 3>) -> Vec<f32> {
+        img.data_slice()
+            .expect("fixture image is CPU-addressable")
             .to_vec()
-            .unwrap()
     }
 
     /// Identity warp reproduces the label map exactly (validates the full chain:
-    /// grid → index↔world → nearest interpolate → reshape).
+    /// grid â†’ indexâ†”world â†’ nearest interpolate â†’ reshape).
     #[test]
     fn identity_warp_preserves_labels_exactly() {
         let (d, h, w) = (6usize, 6, 6);
@@ -162,11 +168,9 @@ mod tests {
         }
         let img = label_image(v.clone(), [d, h, w]);
         let device = Default::default();
-        let ident = TranslationTransform::<B, 3>::new(Tensor::from_data(
-            TensorData::new(vec![0.0f32, 0.0, 0.0], [3]),
-            &device,
-        ));
-        let out = warp_label_map(&img, &ident, &img);
+        let ident =
+            TranslationTransform::<B, 3>::new(Tensor::from_slice_on([3], &[0.0; 3], &device));
+        let out = warp_label_map(&img, &ident, &img).unwrap();
         assert_eq!(host(&out), v, "identity warp must preserve labels exactly");
     }
 
@@ -186,11 +190,12 @@ mod tests {
         let img = label_image(v.clone(), [d, h, w]);
         let device = Default::default();
         // Small in-bounds shift along the x/d2 world axis (component 2, identity dir).
-        let t = TranslationTransform::<B, 3>::new(Tensor::from_data(
-            TensorData::new(vec![0.0f32, 0.0, -2.0], [3]),
+        let t = TranslationTransform::<B, 3>::new(Tensor::from_slice_on(
+            [3],
+            &[0.0, 0.0, -2.0],
             &device,
         ));
-        let out = host(&warp_label_map(&img, &t, &img));
+        let out = host(&warp_label_map(&img, &t, &img).unwrap());
         // No blending: only the original label values appear.
         for &val in &out {
             assert!(
@@ -208,14 +213,14 @@ mod tests {
     }
 
     /// Region centroids land at the geometric centres (identity direction + unit
-    /// spacing + zero origin ⇒ world centroid == mean voxel multi-index [d0,d1,d2]).
+    /// spacing + zero origin â‡’ world centroid == mean voxel multi-index [d0,d1,d2]).
     #[test]
     fn label_centroids_finds_region_centres() {
         let (d, h, w) = (10usize, 10, 10);
         let mut v = vec![0.0f32; d * h * w];
         // Label 1: single voxel at index (d0,d1,d2) = (2, 3, 4).
         v[(2 * h + 3) * w + 4] = 1.0;
-        // Label 2: 2×2×2 block over [6,8) on each axis → centroid 6.5 each.
+        // Label 2: 2Ã—2Ã—2 block over [6,8) on each axis â†’ centroid 6.5 each.
         for z in 6..8 {
             for y in 6..8 {
                 for x in 6..8 {

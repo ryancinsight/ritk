@@ -1,7 +1,7 @@
 use ritk_filter::{BedSeparationConfig, ComponentPolicy};
 use serde::{Deserialize, Serialize};
 
-// ── Remote serde helper ──────────────────────────────────────────────────────
+// â”€â”€ Remote serde helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // `BedSeparationConfig` is defined in `ritk-core` and does not derive
 // `Serialize`/`Deserialize`. The `#[serde(remote = "...")]` pattern generates

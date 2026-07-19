@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 

@@ -2,7 +2,7 @@ use crate::spatial::metadata_from_file_transform;
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
 use ritk_codecs::{decode_bytes_to_f32, parse_f64_vec, parse_usize_vec, ByteOrder};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::Point;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
@@ -25,9 +25,9 @@ use std::path::Path;
 /// `MET_FLOAT`, `MET_DOUBLE`.  All are converted to `f32` in the tensor.
 ///
 /// # File formats
-/// * `.mha` — single file; header followed immediately by binary data
+/// * `.mha` â€” single file; header followed immediately by binary data
 ///   (`ElementDataFile = LOCAL`).
-/// * `.mhd` / `.raw` — ASCII header references a separate raw file.
+/// * `.mhd` / `.raw` â€” ASCII header references a separate raw file.
 pub fn read_metaimage<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
@@ -59,7 +59,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         .with_context(|| format!("Cannot open MetaImage file {:?}", path))?;
     let mut reader = BufReader::new(file);
 
-    // ── Header parsing ────────────────────────────────────────────────────
+    // â”€â”€ Header parsing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Read line-by-line, accumulating byte offset so we can seek to the
     // binary payload after the `ElementDataFile` line.
     let mut headers: HashMap<String, String> = HashMap::new();
@@ -101,7 +101,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         ));
     }
 
-    // ── Required fields ───────────────────────────────────────────────────
+    // â”€â”€ Required fields â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let ndims: usize = headers
         .get("NDims")
         .ok_or_else(|| anyhow!("Missing 'NDims' in MetaImage header"))?
@@ -150,7 +150,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         vec![offset_raw[0], offset_raw[1], 0.0]
     };
 
-    // TransformMatrix is row-major direction cosines (ndims² entries); defaults to
+    // TransformMatrix is row-major direction cosines (ndimsÂ² entries); defaults to
     // identity when absent.  A 2-D `[a b; c d]` matrix promotes to the 3-D
     // `[a b 0; c d 0; 0 0 1]` (identity through-plane z-axis).
     let tm_default = if ndims == 3 {
@@ -177,7 +177,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         .clone();
     let (elem_size, signed, is_float) = element_type_spec(&element_type)?;
 
-    // BinaryDataByteOrderMSB = True → big-endian; default is little-endian.
+    // BinaryDataByteOrderMSB = True â†’ big-endian; default is little-endian.
     let byte_order = ByteOrder::from_metaimage_msb(
         headers
             .get("BinaryDataByteOrderMSB")
@@ -185,7 +185,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
             .unwrap_or("FALSE"),
     );
 
-    // CompressedData = True → the payload is zlib-deflated; default is raw.
+    // CompressedData = True â†’ the payload is zlib-deflated; default is raw.
     let compressed = headers
         .get("CompressedData")
         .map(|s| s.to_uppercase() == "TRUE")
@@ -196,11 +196,11 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         .ok_or_else(|| anyhow!("Missing 'ElementDataFile' in MetaImage header"))?
         .clone();
 
-    // ── Binary data ───────────────────────────────────────────────────────
+    // â”€â”€ Binary data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let total_voxels = checked_voxel_count(nx, ny, nz)?;
     let expected_payload_bytes = total_voxels.checked_mul(elem_size).ok_or_else(|| {
         anyhow!(
-            "MetaImage byte count overflow: {} voxels × {} bytes",
+            "MetaImage byte count overflow: {} voxels Ã— {} bytes",
             total_voxels,
             elem_size
         )
@@ -250,7 +250,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
     };
     if raw_bytes.len() != expected_payload_bytes {
         return Err(anyhow!(
-            "MetaImage payload length mismatch: expected {} bytes from DimSize ({} voxels × {} bytes for {}), got {} bytes",
+            "MetaImage payload length mismatch: expected {} bytes from DimSize ({} voxels Ã— {} bytes for {}), got {} bytes",
             expected_payload_bytes,
             total_voxels,
             elem_size,
@@ -277,7 +277,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         ));
     }
 
-    // ── Spatial metadata ──────────────────────────────────────────────────
+    // â”€â”€ Spatial metadata â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // MetaImage X-fastest flat order equals row-major order for RITK [Z,Y,X].
     let origin = Point::new([offset_vals[0], offset_vals[1], offset_vals[2]]);
     let spatial = metadata_from_file_transform(
@@ -297,7 +297,7 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
     })
 }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
+// â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn checked_voxel_count(nx: usize, ny: usize, nz: usize) -> Result<usize> {
     nx.checked_mul(ny)
@@ -327,7 +327,7 @@ fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool)> {
     Ok(spec)
 }
 
-// ── Public reader struct ──────────────────────────────────────────────────────
+// â”€â”€ Public reader struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Thin reader struct for MetaImage files.
 ///

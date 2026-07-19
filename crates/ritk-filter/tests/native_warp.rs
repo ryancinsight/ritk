@@ -1,6 +1,6 @@
 use coeus_core::SequentialBackend;
-use ritk_filter::warp_image_native;
-use ritk_image::native::Image;
+use ritk_filter::warp_image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Eight weighted samples and seven additions bound constant-field rounding by
@@ -8,12 +8,20 @@ use ritk_spatial::{Direction, Point, Spacing};
 const TRILINEAR_CONSTANT_TOLERANCE: f32 = 16.0 * f32::EPSILON * 7.0;
 
 fn image(values: Vec<f32>, shape: [usize; 3]) -> Image<f32, SequentialBackend, 3> {
+    image_with_direction(values, shape, Direction::identity())
+}
+
+fn image_with_direction(
+    values: Vec<f32>,
+    shape: [usize; 3],
+    direction: Direction<3>,
+) -> Image<f32, SequentialBackend, 3> {
     Image::from_flat_on(
         values,
         shape,
         Point::new([1.0, 2.0, 3.0]),
         Spacing::new([2.0, 1.0, 0.5]),
-        Direction::identity(),
+        direction,
         &SequentialBackend,
     )
     .expect("test image shape is valid")
@@ -32,7 +40,7 @@ fn native_warp_preserves_constant_interior_values() {
             .collect(),
         shape,
     );
-    let output = warp_image_native(&moving, &dz, &dy, &dx).expect("warp is valid");
+    let output = warp_image(&moving, &dz, &dy, &dx).expect("warp is valid");
     let values = output.data_slice().expect("contiguous output");
 
     for z in 1..shape[0] - 1 {
@@ -56,7 +64,7 @@ fn native_warp_zero_fills_out_of_bounds_samples() {
     let dy = image(vec![100.0; 27], shape);
     let dx = image(vec![100.0; 27], shape);
 
-    let output = warp_image_native(&moving, &dz, &dy, &dx).expect("warp is valid");
+    let output = warp_image(&moving, &dz, &dy, &dx).expect("warp is valid");
     assert_eq!(
         output.data_slice().expect("contiguous output"),
         vec![0.0; 27]
@@ -71,8 +79,31 @@ fn native_warp_zero_displacement_is_exact_identity() {
     let moving = image(values.clone(), shape);
     let zero = image(vec![0.0; count], shape);
 
-    let output = warp_image_native(&moving, &zero, &zero, &zero).expect("warp is valid");
+    let output = warp_image(&moving, &zero, &zero, &zero).expect("warp is valid");
     assert_eq!(output.data_slice().expect("contiguous output"), values);
+}
+
+#[test]
+fn native_warp_maps_public_components_to_physical_axes() {
+    let shape = [3, 3, 3];
+    let count: usize = shape.iter().product();
+    let values: Vec<f32> = (1..=count).map(|value| value as f32).collect();
+    let direction = Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]);
+    let moving = image_with_direction(values.clone(), shape, direction);
+    let zero = image_with_direction(vec![0.0; count], shape, direction);
+    let dx = image_with_direction(vec![0.5; count], shape, direction);
+
+    let output = warp_image(&moving, &zero, &zero, &dx).expect("warp is valid");
+    let expected = (0..count)
+        .map(|index| {
+            if index % shape[2] < shape[2] - 1 {
+                values[index + 1]
+            } else {
+                0.0
+            }
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(output.data_slice().expect("contiguous output"), expected);
 }
 
 #[test]
@@ -82,8 +113,8 @@ fn native_warp_rejects_mismatched_component_shapes() {
     let dy = image(vec![0.0; 27], [3, 3, 3]);
     let dx = image(vec![0.0; 8], [2, 2, 2]);
 
-    let error = warp_image_native(&moving, &dz, &dy, &dx)
-        .expect_err("mismatched field components must fail");
+    let error =
+        warp_image(&moving, &dz, &dy, &dx).expect_err("mismatched field components must fail");
     assert_eq!(
         error.to_string(),
         "warp: displacement y component shape [3, 3, 3] differs from z component shape [2, 2, 2]"
@@ -106,7 +137,7 @@ fn native_warp_rejects_mismatched_component_geometry() {
     let dx = image(vec![0.0; 8], [2, 2, 2]);
 
     let error =
-        warp_image_native(&moving, &dz, &dy, &dx).expect_err("mismatched field geometry must fail");
+        warp_image(&moving, &dz, &dy, &dx).expect_err("mismatched field geometry must fail");
     assert_eq!(
         error.to_string(),
         "warp: displacement y component geometry differs from z component geometry"

@@ -11,7 +11,7 @@ pub(super) const NCC_SIGMA_GUARD: f64 = 1e-12;
 /// Compute global normalized cross-correlation between two images.
 ///
 /// ```text
-/// NCC = Σ (F − μ_F)(M − μ_M) / sqrt(Σ (F − μ_F)² · Σ (M − μ_M)²)
+/// NCC = Î£ (F âˆ’ Î¼_F)(M âˆ’ Î¼_M) / sqrt(Î£ (F âˆ’ Î¼_F)Â² Â· Î£ (M âˆ’ Î¼_M)Â²)
 /// ```
 ///
 /// Returns a value in `[-1, 1]` where 1.0 indicates identical images up to
@@ -50,25 +50,25 @@ pub(super) fn compute_ncc(fixed: &[f32], warped: &[f32]) -> f64 {
 /// Uses the chain rule:
 ///
 /// ```text
-/// ∂NCC/∂cᵢ = Σ_x (∂NCC/∂φ(x)) · (∂φ(x)/∂cᵢ)
+/// âˆ‚NCC/âˆ‚cáµ¢ = Î£_x (âˆ‚NCC/âˆ‚Ï†(x)) Â· (âˆ‚Ï†(x)/âˆ‚cáµ¢)
 /// ```
 ///
-/// where `∂NCC/∂φ(x)` is the voxel-wise NCC gradient propagated through the
-/// spatial gradient of the warped moving image, and `∂φ(x)/∂cᵢ = β₃((x−xᵢ)/δ)`.
+/// where `âˆ‚NCC/âˆ‚Ï†(x)` is the voxel-wise NCC gradient propagated through the
+/// spatial gradient of the warped moving image, and `âˆ‚Ï†(x)/âˆ‚cáµ¢ = Î²â‚ƒ((xâˆ’xáµ¢)/Î´)`.
 ///
 /// # NCC Gradient Derivation
 ///
-/// For the global NCC `ρ = Σ f̃ w̃ / sqrt(Σ f̃² · Σ w̃²)` where `f̃ = F − μ_F`
-/// and `w̃ = W − μ_W`:
+/// For the global NCC `Ï = Î£ fÌƒ wÌƒ / sqrt(Î£ fÌƒÂ² Â· Î£ wÌƒÂ²)` where `fÌƒ = F âˆ’ Î¼_F`
+/// and `wÌƒ = W âˆ’ Î¼_W`:
 ///
 /// ```text
-/// ∂ρ/∂W(x) = (1/σ_W) [ (f̃(x) / (n · σ_F)) − ρ · (w̃(x) / (n · σ_W)) ]
+/// âˆ‚Ï/âˆ‚W(x) = (1/Ïƒ_W) [ (fÌƒ(x) / (n Â· Ïƒ_F)) âˆ’ Ï Â· (wÌƒ(x) / (n Â· Ïƒ_W)) ]
 /// ```
 ///
 /// and the displacement gradient at voxel x is:
 ///
 /// ```text
-/// ∂NCC/∂φ_d(x) = (∂ρ/∂W(x)) · ∇_d M_warped(x)
+/// âˆ‚NCC/âˆ‚Ï†_d(x) = (âˆ‚Ï/âˆ‚W(x)) Â· âˆ‡_d M_warped(x)
 /// ```
 /// Pre-allocated scratch buffers for [`compute_metric_gradient_fast_into`].
 ///
@@ -238,7 +238,7 @@ pub(super) fn compute_metric_gradient_fast_into(
                 let vg_y = drho_dw * scratch.gw_y[fi] as f64;
                 let vg_x = drho_dw * scratch.gw_x[fi] as f64;
 
-                // Interior: all three axes in-bounds → skip bounds checks.
+                // Interior: all three axes in-bounds â†’ skip bounds checks.
                 let interior = iz >= iz_lo
                     && iz < iz_hi
                     && iy >= iy_lo
@@ -310,7 +310,7 @@ pub(super) fn compute_metric_gradient_fast_into(
         }
     }
 
-    // Convert f64 accumulators → f32 output buffers in-place.
+    // Convert f64 accumulators â†’ f32 output buffers in-place.
     for i in 0..cn {
         scratch.grad_z[i] = scratch.acc_z[i] as f32;
         scratch.grad_y[i] = scratch.acc_y[i] as f32;

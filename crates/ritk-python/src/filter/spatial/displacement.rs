@@ -1,6 +1,6 @@
 use crate::errors::RitkPyError;
 use crate::errors::RitkResult;
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 
 /// Warp a moving image through a dense displacement field.
@@ -18,14 +18,14 @@ pub fn warp(
     disp_y: &PyImage,
     disp_x: &PyImage,
 ) -> RitkResult<PyImage> {
-    let mv = py_image_to_burn(moving);
-    let dz = py_image_to_burn(disp_z);
-    let dy = py_image_to_burn(disp_y);
-    let dx = py_image_to_burn(disp_x);
+    let mv = image_from_py(moving);
+    let dz = image_from_py(disp_z);
+    let dy = image_from_py(disp_y);
+    let dx = image_from_py(disp_x);
     py.allow_threads(|| {
         ritk_filter::warp_image(&mv, &dz, &dy, &dx).map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Iteratively invert a dense displacement field, matching
@@ -60,9 +60,9 @@ pub fn invert_displacement_field(
     mean_error_tolerance: f64,
     enforce_boundary: bool,
 ) -> (PyImage, PyImage, PyImage) {
-    let az = py_image_to_burn(disp_z);
-    let ay = py_image_to_burn(disp_y);
-    let ax = py_image_to_burn(disp_x);
+    let az = image_from_py(disp_z);
+    let ay = image_from_py(disp_y);
+    let ax = image_from_py(disp_x);
     let (vx, vy, vz) = py.allow_threads(|| {
         ritk_filter::InvertDisplacementField {
             max_iterations,
@@ -73,11 +73,7 @@ pub fn invert_displacement_field(
         .apply(&ax, &ay, &az)
     });
     // Return in (disp_z, disp_y, disp_x) order to match the input convention.
-    (
-        burn_into_py_image(vz),
-        burn_into_py_image(vy),
-        burn_into_py_image(vx),
-    )
+    (into_py_image(vz), into_py_image(vy), into_py_image(vx))
 }
 
 /// Invert a dense displacement field by thin-plate-spline fitting, matching
@@ -105,17 +101,13 @@ pub fn inverse_displacement_field(
     disp_x: &PyImage,
     subsampling_factor: usize,
 ) -> (PyImage, PyImage, PyImage) {
-    let az = py_image_to_burn(disp_z);
-    let ay = py_image_to_burn(disp_y);
-    let ax = py_image_to_burn(disp_x);
+    let az = image_from_py(disp_z);
+    let ay = image_from_py(disp_y);
+    let ax = image_from_py(disp_x);
     let (vx, vy, vz) = py.allow_threads(|| {
         ritk_filter::InverseDisplacementField { subsampling_factor }.apply(&ax, &ay, &az)
     });
-    (
-        burn_into_py_image(vz),
-        burn_into_py_image(vy),
-        burn_into_py_image(vx),
-    )
+    (into_py_image(vz), into_py_image(vy), into_py_image(vx))
 }
 
 /// Iteratively invert a dense displacement field by coordinate-descent line
@@ -142,9 +134,9 @@ pub fn iterative_inverse_displacement_field(
     number_of_iterations: usize,
     stop_value: f64,
 ) -> (PyImage, PyImage, PyImage) {
-    let az = py_image_to_burn(disp_z);
-    let ay = py_image_to_burn(disp_y);
-    let ax = py_image_to_burn(disp_x);
+    let az = image_from_py(disp_z);
+    let ay = image_from_py(disp_y);
+    let ax = image_from_py(disp_x);
     let (vx, vy, vz) = py.allow_threads(|| {
         ritk_filter::IterativeInverseDisplacementField {
             number_of_iterations,
@@ -152,9 +144,5 @@ pub fn iterative_inverse_displacement_field(
         }
         .apply(&ax, &ay, &az)
     });
-    (
-        burn_into_py_image(vz),
-        burn_into_py_image(vy),
-        burn_into_py_image(vx),
-    )
+    (into_py_image(vz), into_py_image(vy), into_py_image(vx))
 }

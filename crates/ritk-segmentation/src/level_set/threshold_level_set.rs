@@ -11,7 +11,7 @@
 //! Reconstruction from Range Data." IJCV.
 
 use super::helpers;
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
 /// Threshold Level Set segmentation parameters.
@@ -90,9 +90,9 @@ impl ThresholdLevelSet {
     /// Returns `Err` if shapes mismatch or tensor data cannot be read as f32.
     pub fn apply<B: Backend>(
         &self,
-        image: &Image<B, 3>,
-        initial_phi: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
+        image: &Image<f32, B, 3>,
+        initial_phi: &Image<f32, B, 3>,
+    ) -> anyhow::Result<Image<f32, B, 3>> {
         let dims = image.shape();
         let phi_dims = initial_phi.shape();
         if dims != phi_dims {
@@ -103,7 +103,7 @@ impl ThresholdLevelSet {
             );
         }
 
-        let device = image.data().device();
+        let device = B::default();
         let [nz, ny, nx] = dims;
         let n: usize = nz * ny * nx;
 
@@ -182,14 +182,14 @@ impl ThresholdLevelSet {
             .map(|&v| if v < 0.0 { 1.0_f32 } else { 0.0_f32 })
             .collect();
 
-        let tensor = Tensor::<B, 3>::from_data(TensorData::new(mask, Shape::new(dims)), &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(dims, &mask, &device);
 
-        Ok(Image::new(
+        Image::new(
             tensor,
             *image.origin(),
             *image.spacing(),
             *image.direction(),
-        ))
+        )
     }
 
     /// Apply threshold level set segmentation to Coeus-native images.
@@ -201,10 +201,10 @@ impl ThresholdLevelSet {
     /// output image cannot be constructed.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
-        initial_phi: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
+        initial_phi: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

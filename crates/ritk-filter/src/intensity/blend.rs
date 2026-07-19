@@ -2,10 +2,10 @@
 //!
 //! # Mathematical Specification
 //!
-//! Let `A, B : ℤ³ → ℝ` be two images with identical shape `[nz, ny, nx]`,
-//! and let `α ∈ [0, 1]` be a blending weight.
+//! Let `A, B : â„¤Â³ â†’ â„` be two images with identical shape `[nz, ny, nx]`,
+//! and let `Î± âˆˆ [0, 1]` be a blending weight.
 //!
-//! `out(x) = (1 - α) * A(x) + α * B(x)`
+//! `out(x) = (1 - Î±) * A(x) + Î± * B(x)`
 //!
 //! Spatial metadata (origin, spacing, direction) is taken from the **first** input image.
 //! Both images must have identical shapes; a shape mismatch returns `Err`.
@@ -14,10 +14,10 @@
 //!
 //! `itk::BlendImageFilter`
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use coeus_core::ComputeBackend;
 use ritk_annotation::overlay::Opacity;
 use ritk_image::tensor::Backend;
-use ritk_image::{native::Image as NativeImage, Image};
+use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Linearly blend two co-registered images.
@@ -57,9 +57,9 @@ impl BlendImageFilter {
 
     pub fn apply<B: Backend>(
         &self,
-        a: &Image<B, 3>,
-        b: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
+        a: &Image<f32, B, 3>,
+        b: &Image<f32, B, 3>,
+    ) -> anyhow::Result<Image<f32, B, 3>> {
         anyhow::ensure!(
             a.shape() == b.shape(),
             "BlendImageFilter: shape mismatch {:?} vs {:?}",
@@ -87,13 +87,12 @@ impl BlendImageFilter {
     /// Blend two co-registered Coeus-native images.
     pub fn apply_native<B>(
         &self,
-        a: &NativeImage<f32, B, 3>,
-        b: &NativeImage<f32, B, 3>,
+        a: &Image<f32, B, 3>,
+        b: &Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    ) -> anyhow::Result<Image<f32, B, 3>>
     where
         B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         anyhow::ensure!(
             a.shape() == b.shape(),
@@ -103,13 +102,14 @@ impl BlendImageFilter {
         );
         let alpha = self.alpha.get();
         let complement = 1.0 - alpha;
-        let values = a
-            .data_slice()?
+        let left = a.try_data_vec_on(backend)?;
+        let right = b.try_data_vec_on(backend)?;
+        let values = left
             .iter()
-            .zip(b.data_slice()?)
+            .zip(&right)
             .map(|(&left, &right)| complement * left + alpha * right)
             .collect();
-        NativeImage::from_flat_on(
+        Image::from_flat_on(
             values,
             a.shape(),
             *a.origin(),

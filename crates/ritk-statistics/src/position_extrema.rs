@@ -23,7 +23,7 @@
 //! 4-byte (or 8-byte) running extremum and the returned `[usize; D]`.
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 
 /// Return the multi-index of the **minimum** voxel value.
 ///
@@ -37,7 +37,7 @@ use ritk_image::native::Image;
 ///
 /// ```
 /// use coeus_core::MoiraiBackend;
-/// use ritk_image::native::Image;
+/// use ritk_image::Image;
 /// use ritk_spatial::{Direction, Point, Spacing};
 /// use ritk_statistics::minimum_position;
 ///
@@ -55,10 +55,11 @@ pub fn minimum_position<B, const D: usize>(
     image: &Image<f32, B, D>,
 ) -> anyhow::Result<Option<[usize; D]>>
 where
-    B: ComputeBackend,
+    B: ComputeBackend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
-    Ok(argmin_position(image.data_slice()?, image.shape()))
+    let values = image.data_slice()?;
+    Ok(argmin_position(values, image.shape()))
 }
 
 /// Return the multi-index of the **maximum** voxel value.
@@ -72,10 +73,11 @@ pub fn maximum_position<B, const D: usize>(
     image: &Image<f32, B, D>,
 ) -> anyhow::Result<Option<[usize; D]>>
 where
-    B: ComputeBackend,
+    B: ComputeBackend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
-    Ok(argmax_position(image.data_slice()?, image.shape()))
+    let values = image.data_slice()?;
+    Ok(argmax_position(values, image.shape()))
 }
 
 /// Slice-level argmin: returns the multi-index of the minimum.

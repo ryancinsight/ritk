@@ -1,4 +1,4 @@
-//! Kittler–Illingworth minimum-error thresholding (Kittler & Illingworth 1986).
+//! Kittlerâ€“Illingworth minimum-error thresholding (Kittler & Illingworth 1986).
 //!
 //! Matches ITK's `KittlerIllingworthThresholdCalculator`: model each class as a
 //! Gaussian and iteratively solve the quadratic that minimises the
@@ -9,7 +9,7 @@ use ritk_image::Image;
 
 use super::auto_threshold::{bin_center, itk_bin_width, threshold_from_slice, AutoThreshold};
 
-/// Kittler–Illingworth minimum-error threshold.
+/// Kittlerâ€“Illingworth minimum-error threshold.
 #[derive(Debug, Clone)]
 pub struct KittlerIllingworthThreshold {
     /// Number of equally-spaced histogram bins. Default 256.
@@ -31,13 +31,13 @@ impl KittlerIllingworthThreshold {
         Self { num_bins }
     }
 
-    /// Compute the Kittler–Illingworth threshold intensity for `image`.
-    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> f32 {
+    /// Compute the Kittlerâ€“Illingworth threshold intensity for `image`.
+    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> f32 {
         <Self as AutoThreshold>::compute(self, image)
     }
 
-    /// Apply the Kittler–Illingworth threshold to produce a binary mask.
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    /// Apply the Kittlerâ€“Illingworth threshold to produce a binary mask.
+    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         <Self as AutoThreshold>::apply(self, image)
     }
 
@@ -49,9 +49,9 @@ impl KittlerIllingworthThreshold {
     /// or the native output image cannot be constructed.
     pub fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -78,7 +78,7 @@ impl AutoThreshold for KittlerIllingworthThreshold {
             |v: f64| (((v - x_min as f64) / bw).floor().max(0.0) as usize).min(n_bins - 1) as isize;
         let eps = f64::EPSILON;
 
-        // Cumulative moment functions A (freq), B (meas·freq), C (meas²·freq).
+        // Cumulative moment functions A (freq), B (measÂ·freq), C (measÂ²Â·freq).
         let mut a = vec![0.0_f64; n_bins];
         let mut b = vec![0.0_f64; n_bins];
         let mut c = vec![0.0_f64; n_bins];
@@ -147,12 +147,12 @@ impl AutoThreshold for KittlerIllingworthThreshold {
     }
 }
 
-/// Convenience function: compute the Kittler–Illingworth threshold with 256 bins.
-pub fn kittler_illingworth_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
+/// Convenience function: compute the Kittlerâ€“Illingworth threshold with 256 bins.
+pub fn kittler_illingworth_threshold<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> f32 {
     KittlerIllingworthThreshold::new().compute(image)
 }
 
-/// Compute the Kittler–Illingworth threshold directly from a flat `&[f32]` slice.
+/// Compute the Kittlerâ€“Illingworth threshold directly from a flat `&[f32]` slice.
 pub fn compute_kittler_illingworth_threshold_from_slice(slice: &[f32], num_bins: usize) -> f32 {
     threshold_from_slice(&KittlerIllingworthThreshold::with_bins(num_bins), slice)
 }

@@ -2,7 +2,7 @@
 //!
 //! This module defines the per-slice and per-series metadata structs, the
 //! patient position enum, and associated helpers. These types carry no I/O
-//! logic — they are the typed output of the read path.
+//! logic â€” they are the typed output of the read path.
 
 use arrayvec::ArrayString;
 use std::collections::HashMap;
@@ -176,10 +176,10 @@ pub struct DicomReadMetadata {
     pub series_time: Option<ArrayString<16>>,
     /// Image dimensions `\[rows, cols, slices\]`.
     pub dimensions: [usize; 3],
-    /// Physical spacing `\[Δz, ΔRow, ΔCol\]`.
+    /// Physical spacing `\[Î”z, Î”Row, Î”Col\]`.
     pub spacing: [f64; 3],
     pub origin: [f64; 3],
-    /// Direction cosines in row-major 3×3 order.
+    /// Direction cosines in row-major 3Ã—3 order.
     pub direction: [f64; 9],
     pub bits_allocated: Option<u16>,
     pub bits_stored: Option<u16>,
@@ -248,7 +248,7 @@ pub(super) struct SeriesGeometry {
     pub spacing: [f64; 3],
     /// Image position of the first slice in patient coordinates \[mm\].
     pub origin: [f64; 3],
-    /// 3×3 row-major direction cosine matrix (col 0 = normal, col 1 = F_c, col 2 = F_r).
+    /// 3Ã—3 row-major direction cosine matrix (col 0 = normal, col 1 = F_c, col 2 = F_r).
     pub direction: [f64; 9],
 }
 

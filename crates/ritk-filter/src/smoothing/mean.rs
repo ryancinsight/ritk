@@ -7,7 +7,7 @@
 //! neighbourhood of half-width `radius`:
 //!
 //! ```text
-//! M(iz, iy, ix) = (1 / |N|) · Σ_{(kz,ky,kx)∈N(iz,iy,ix)} I(kz, ky, kx)
+//! M(iz, iy, ix) = (1 / |N|) Â· Î£_{(kz,ky,kx)âˆˆN(iz,iy,ix)} I(kz, ky, kx)
 //! ```
 //!
 //! where `N(p)` is the set of voxels within `radius` steps in each axis
@@ -16,26 +16,26 @@
 //! # Neighbourhood cardinality
 //!
 //! ```text
-//! |N| = (min(iz, r)−max(iz−r, 0) + ... = (wz)(wy)(wx)
+//! |N| = (min(iz, r)âˆ’max(izâˆ’r, 0) + ... = (wz)(wy)(wx)
 //! ```
-//! where `wz = min(iz+r, Nz-1) − max(iz−r, 0) + 1`, etc. This accounts for
+//! where `wz = min(iz+r, Nz-1) âˆ’ max(izâˆ’r, 0) + 1`, etc. This accounts for
 //! boundary voxels that have fewer neighbours.
 //!
 //! # ITK parity
 //!
 //! Corresponds to `itk::MeanImageFilter<InputImageType, OutputImageType>`.
-//! ITK default radius = 1 (3×3×3 kernel). `radius = 0` is the identity.
+//! ITK default radius = 1 (3Ã—3Ã—3 kernel). `radius = 0` is the identity.
 //!
 //! # Complexity
 //!
-//! O(N · (2r+1)³) — a separable integral-image approach would be O(N) per
-//! radius, but (2r+1)³ ≤ 125 for default `r=1`, so the direct approach
+//! O(N Â· (2r+1)Â³) â€” a separable integral-image approach would be O(N) per
+//! radius, but (2r+1)Â³ â‰¤ 125 for default `r=1`, so the direct approach
 //! matches expected workload. Fanned out over the flat voxel index (moirai).
 //!
 //! # Reference
 //!
 //! - Gonzalez, R.C. & Woods, R.E. (2008). *Digital Image Processing*, 3rd ed.
-//!   §3.5.1 Smoothing Linear Filters.
+//!   Â§3.5.1 Smoothing Linear Filters.
 
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
@@ -44,7 +44,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 /// Mean (box) smoothing filter.
 ///
 /// Replaces each voxel with the arithmetic mean of its
-/// `(2·radius+1)³` cubic neighbourhood.
+/// `(2Â·radius+1)Â³` cubic neighbourhood.
 /// `radius = 0` is the identity transform.
 #[derive(Debug, Clone)]
 pub struct MeanImageFilter {
@@ -69,7 +69,7 @@ impl MeanImageFilter {
     /// Apply the mean filter to a 3-D image.
     ///
     /// Spatial metadata (origin, spacing, direction) is preserved exactly.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals_vec, dims) = extract_vec_infallible(image);
         let out = self.mean_values(&vals_vec, dims);
         Ok(rebuild(out, dims, image))
@@ -78,15 +78,15 @@ impl MeanImageFilter {
     /// Apply the mean filter to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
         let values = self.mean_values(image.data_slice()?, image.shape());
-        ritk_image::native::Image::from_flat_on(
+        ritk_image::Image::from_flat_on(
             values,
             image.shape(),
             *image.origin(),
@@ -107,7 +107,7 @@ impl MeanImageFilter {
         }
 
         // Boundary: ITK MeanImageFilter uses a ZeroFluxNeumann (edge-replicate)
-        // neighbourhood — the window is always the full (2r+1)³ samples with
+        // neighbourhood â€” the window is always the full (2r+1)Â³ samples with
         // out-of-bounds positions clamped to the nearest edge, and the average
         // divides by the full count. (A shrinking window with a smaller divisor
         // gives different boundary values; the interior is unaffected.)
@@ -141,7 +141,7 @@ impl MeanImageFilter {
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_mean.rs"]

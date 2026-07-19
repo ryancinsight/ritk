@@ -1,13 +1,13 @@
 //! DICOM series discovery, hierarchical organisation, and volume loading.
 //!
 //! # Sub-modules
-//! - [`series_tree`] — flat `SeriesEntry` records and the patient→study→series
+//! - [`series_tree`] â€” flat `SeriesEntry` records and the patientâ†’studyâ†’series
 //!   tree used by the series browser sidebar.
-//! - [`loader`]      — volume loading from DICOM folders and NIfTI files;
+//! - [`loader`]      â€” volume loading from DICOM folders and NIfTI files;
 //!   wraps `ritk-io` and produces [`crate::LoadedVolume`] values.
-//! - [`metadata_table`] — presentation-neutral DICOM tag inspector rows.
-//! - [`input_path`] — DICOM folder and DICOMDIR file normalization.
-//! - [`hanging_protocol`] — deterministic load-time protocol selection.
+//! - [`metadata_table`] â€” presentation-neutral DICOM tag inspector rows.
+//! - [`input_path`] â€” DICOM folder and DICOMDIR file normalization.
+//! - [`hanging_protocol`] â€” deterministic load-time protocol selection.
 
 pub mod hanging_protocol;
 pub mod input_path;

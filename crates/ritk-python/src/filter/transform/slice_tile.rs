@@ -1,14 +1,13 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{
-    burn_into_py_image, into_py_image, py_image_to_burn, vec_to_image, vec_to_image_like,
-    with_image_slice, PyImage,
+    image_from_py, into_py_image, vec_to_image, vec_to_image_like, with_image_slice, PyImage,
 };
 use pyo3::prelude::*;
 use ritk_filter::PasteImageFilter;
 
 /// Extract a strided sub-region (numpy-style `start:stop:step` per axis).
 /// `start`/`stop`/`step` are `(z, y, x)` in ritk tensor order; each axis keeps
-/// indices `start, start+step, … < stop` (clamped to `[0, dim]`, `step ≥ 1`).
+/// indices `start, start+step, â€¦ < stop` (clamped to `[0, dim]`, `step â‰¥ 1`).
 ///
 /// ITK Parity: SliceImageFilter (`sitk.Slice`, with `[x,y,z]` parameters).
 #[pyfunction]
@@ -145,7 +144,7 @@ pub fn tile(
     }
     let (nx, ny, nz) = layout;
     if nx == 0 || ny == 0 || nz == 0 {
-        return Err(RitkPyError::value("tile: layout dimensions must be ≥ 1"));
+        return Err(RitkPyError::value("tile: layout dimensions must be â‰¥ 1"));
     }
     let arcs: Vec<_> = images
         .iter()
@@ -192,8 +191,8 @@ pub fn tile(
     )))
 }
 
-/// Stack a list of images along the Z axis (concatenate `[zᵢ, Y, X]` volumes
-/// into `[Σzᵢ, Y, X]`). All inputs must share the same `Y`/`X` extent.
+/// Stack a list of images along the Z axis (concatenate `[záµ¢, Y, X]` volumes
+/// into `[Î£záµ¢, Y, X]`). All inputs must share the same `Y`/`X` extent.
 ///
 /// ITK Parity: JoinSeriesImageFilter (`sitk.JoinSeries`, which stacks N 2-D
 /// slices into a 3-D volume along the new last axis = ritk's Z).
@@ -235,12 +234,12 @@ pub fn paste(
     source: &PyImage,
     dest_start: (usize, usize, usize),
 ) -> RitkResult<PyImage> {
-    let d = py_image_to_burn(dest);
-    let s = py_image_to_burn(source);
+    let d = image_from_py(dest);
+    let s = image_from_py(source);
     py.allow_threads(|| {
         PasteImageFilter::new([dest_start.0, dest_start.1, dest_start.2])
             .apply(&d, &s)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

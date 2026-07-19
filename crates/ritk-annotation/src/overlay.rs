@@ -44,7 +44,7 @@ impl Opacity {
         Self(v)
     }
 
-    /// Construct without validation. Caller must guarantee `v ∈ [0.0, 1.0]`.
+    /// Construct without validation. Caller must guarantee `v âˆˆ [0.0, 1.0]`.
     ///
     /// # Safety contract (invariant)
     /// This function is safe; "unchecked" refers to domain invariant only.

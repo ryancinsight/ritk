@@ -1,4 +1,4 @@
-//! C-STORE SCU — DICOM Storage Service Class (PS3.4 §B).
+//! C-STORE SCU â€” DICOM Storage Service Class (PS3.4 Â§B).
 
 use super::association::{release_client_association, NetworkingError, StoreResponse};
 use super::command::{

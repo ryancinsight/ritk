@@ -6,9 +6,9 @@ use crate::deformable_field_ops::{flat, VectorField, VectorFieldMut};
 
 /// Compute the EPDiff coadjoint operator ad\*\_v(m).
 ///
-/// For each spatial component i ∈ {z, y, x}:
+/// For each spatial component i âˆˆ {z, y, x}:
 ///
-///   (ad\*\_v m)\_i = Σ\_j \[v\_j · ∂m\_i/∂x\_j + m\_j · ∂v\_i/∂x\_j\] + m\_i · div(v)
+///   (ad\*\_v m)\_i = Î£\_j \[v\_j Â· âˆ‚m\_i/âˆ‚x\_j + m\_j Â· âˆ‚v\_i/âˆ‚x\_j\] + m\_i Â· div(v)
 ///
 /// Derivatives use central differences at interior voxels and one-sided
 /// differences at boundaries, consistent with [`compute_gradient`].

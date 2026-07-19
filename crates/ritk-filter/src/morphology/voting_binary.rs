@@ -1,4 +1,4 @@
-//! Voting binary image filter — cellular-automata label voting.
+//! Voting binary image filter â€” cellular-automata label voting.
 //!
 //! # Mathematical Specification
 //!
@@ -26,7 +26,7 @@
 //! # Reference
 //!
 //! - Breu, H. et al. (1995). Linear time Euclidean distance algorithms.
-//!   *IEEE Trans. PAMI* 17(5):529–533.
+//!   *IEEE Trans. PAMI* 17(5):529â€“533.
 
 use super::types::ForegroundValue;
 use ritk_image::tensor::Backend;
@@ -79,7 +79,7 @@ impl Default for VotingBinaryImageFilter {
 
 impl VotingBinaryImageFilter {
     /// Apply a single voting step to a 3-D image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let out = voting_binary_vec(
             &vals,
@@ -105,9 +105,9 @@ impl VotingBinaryImageFilter {
     /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -139,7 +139,7 @@ pub(crate) fn voting_binary_vec(
 ) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let slab = ny * nx;
-    // PERF-378-01: parallelise over flat voxel index — each voxel reads a window from
+    // PERF-378-01: parallelise over flat voxel index â€” each voxel reads a window from
     // vals (read-only) with no inter-voxel output dependencies; bit-identical to serial.
     moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |flat| {
         let iz = flat / slab;
@@ -182,7 +182,7 @@ pub(crate) fn voting_binary_vec(
     })
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_voting_binary.rs"]

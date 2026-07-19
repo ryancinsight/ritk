@@ -2,12 +2,12 @@
 //!
 //! # Algorithm
 //! For each centre voxel **p** the output is the weighted average of all
-//! voxels **q** inside the axis-aligned cube `[p ± r]³`, where
-//! `r = ⌈3 · σ_s⌉`:
+//! voxels **q** inside the axis-aligned cube `[p Â± r]Â³`, where
+//! `r = âŒˆ3 Â· Ïƒ_sâŒ‰`:
 //!
 //! ```text
-//! w(p, q) = exp(−‖p − q‖² / (2 σ_s²)) · exp(−(I(p) − I(q))² / (2 σ_r²))
-//! Output(p) = Σ w(p,q) · I(q)  /  Σ w(p,q)
+//! w(p, q) = exp(âˆ’â€–p âˆ’ qâ€–Â² / (2 Ïƒ_sÂ²)) Â· exp(âˆ’(I(p) âˆ’ I(q))Â² / (2 Ïƒ_rÂ²))
+//! Output(p) = Î£ w(p,q) Â· I(q)  /  Î£ w(p,q)
 //! ```
 //!
 //! Out-of-bounds neighbours are **skipped** (only in-bounds voxels contribute
@@ -19,38 +19,38 @@
 //! cancellation.
 //!
 //! # Complexity
-//! O(n · (2r+1)³) per image, where `r = ⌈3 · σ_s⌉`.
+//! O(n Â· (2r+1)Â³) per image, where `r = âŒˆ3 Â· Ïƒ_sâŒ‰`.
 //!
 //! # Performance notes (Sprint 377)
 //!
 //! Per-voxel cost is dominated by the inner neighbour loop, which executes
-//! `(2r+1)³` iterations and pays one `f64` `exp` plus four table lookups
-//! (`data[...]` + `spatial_w[d²]` + the spatial-weight is precomputed).
+//! `(2r+1)Â³` iterations and pays one `f64` `exp` plus four table lookups
+//! (`data[...]` + `spatial_w[dÂ²]` + the spatial-weight is precomputed).
 //!
 //! ## Carry-forward: range-domain LUT (PERF-377-02)
 //!
-//! The remaining `exp` call is `exp(-rd² / (2σ_r²))` where `rd = I(p)−I(q)`.
-//! A 1-D LUT `range_w[k] = exp(-k² / (2σ_r²))` over `k = round(rd·qscale)`
+//! The remaining `exp` call is `exp(-rdÂ² / (2Ïƒ_rÂ²))` where `rd = I(p)âˆ’I(q)`.
+//! A 1-D LUT `range_w[k] = exp(-kÂ² / (2Ïƒ_rÂ²))` over `k = round(rdÂ·qscale)`
 //! is the natural mirror of the spatial LUT, but a worst-case
 //! quantisation analysis shows it **cannot meet the existing `1e-5`
 //! uniform-image test epsilon** without an unworkably large table:
 //!
-//! - At the kernel knee `|rd| ≈ σ_r` the absolute weight perturbation per
-//!   neighbour is `|δw| ≤ |dw/drd| · Δrd = (1/σ_r)·exp(-½)·(½/qscale)`.
-//! - Propagating through `B(p) = Σw·I / Σw` yields
-//!   `|ΔB| ≤ |δw| · (|max I| + |B|) / w_avg`. With typical imaging-range
-//!   `M ≈ 300` HU and `w_avg ≈ 0.5`:
-//!   `ΔB ≤ (1/σ_r)·exp(-½)·(½/qscale) · 600`
-//! - To hold `ΔB < 1e-5` with σ_r = 50: `qscale ≳ 728 000` bins/unit,
-//!   i.e. **millions of f64 entries per σ_r** — not a real trade.
+//! - At the kernel knee `|rd| â‰ˆ Ïƒ_r` the absolute weight perturbation per
+//!   neighbour is `|Î´w| â‰¤ |dw/drd| Â· Î”rd = (1/Ïƒ_r)Â·exp(-Â½)Â·(Â½/qscale)`.
+//! - Propagating through `B(p) = Î£wÂ·I / Î£w` yields
+//!   `|Î”B| â‰¤ |Î´w| Â· (|max I| + |B|) / w_avg`. With typical imaging-range
+//!   `M â‰ˆ 300` HU and `w_avg â‰ˆ 0.5`:
+//!   `Î”B â‰¤ (1/Ïƒ_r)Â·exp(-Â½)Â·(Â½/qscale) Â· 600`
+//! - To hold `Î”B < 1e-5` with Ïƒ_r = 50: `qscale â‰³ 728 000` bins/unit,
+//!   i.e. **millions of f64 entries per Ïƒ_r** â€” not a real trade.
 //!
 //! Alternative paths and their trade-offs:
-//! 1. **Hybrid**: exact `exp` for `|rd| ≤ 3σ_r` (kernel-sensitive band),
+//! 1. **Hybrid**: exact `exp` for `|rd| â‰¤ 3Ïƒ_r` (kernel-sensitive band),
 //!    LUT for the heavily-attenuated tail. Saves only the asymptotic
-//!    `exp` slab; expected speedup ≤ ~2× at typical σ_r.
+//!    `exp` slab; expected speedup â‰¤ ~2Ã— at typical Ïƒ_r.
 //! 2. **Loosen the test tolerance** to a value derived from the analysis
-//!    above (~`0.05` HU for bilateral at σ_r ≥ 50, comparable to scipy /
-//!    ITK defaults). Behaviour-equivalent to a 5–10× faster algorithm
+//!    above (~`0.05` HU for bilateral at Ïƒ_r â‰¥ 50, comparable to scipy /
+//!    ITK defaults). Behaviour-equivalent to a 5â€“10Ã— faster algorithm
 //!    only after the test contract is updated; a `[minor]`-class change.
 //! 3. **Drop the LUT** and keep the current `exp`-per-neighbour path.
 //!
@@ -58,7 +58,7 @@
 //! LUT) was committed at the parallelism-only stage (`ca5b49a5`) and the
 //! analytical note above is the rationale for leaving the per-neighbour
 //! `exp` in place. Reopen the work item when either (a) a workload
-//! justifies the 2× from option 1, or (b) a test-tolerance re-baselining
+//! justifies the 2Ã— from option 1, or (b) a test-tolerance re-baselining
 //! is approved by the test contract owner.
 //!
 //! ## Why no Huang-style median sliding histogram here
@@ -76,9 +76,9 @@ use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
 use serde::{Deserialize, Serialize};
 
-/// Spatial-domain sigma for bilateral filtering (σ_s > 0).
+/// Spatial-domain sigma for bilateral filtering (Ïƒ_s > 0).
 ///
-/// Controls the spatial extent of influence: larger values → smoother edges.
+/// Controls the spatial extent of influence: larger values â†’ smoother edges.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct SpatialSigma(f64);
@@ -99,9 +99,9 @@ impl SpatialSigma {
     }
 }
 
-/// Intensity-domain sigma for bilateral filtering (σ_r > 0).
+/// Intensity-domain sigma for bilateral filtering (Ïƒ_r > 0).
 ///
-/// Controls the intensity extent of influence: larger values → less edge-preserving.
+/// Controls the intensity extent of influence: larger values â†’ less edge-preserving.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct RangeSigma(f64);
@@ -130,7 +130,7 @@ impl RangeSigma {
 /// # Invariants
 /// - `spatial_sigma` and `range_sigma` are clamped to a minimum of `1e-10`
 ///   before use, preventing division by zero.
-/// - The neighbourhood radius is `⌈3 · spatial_sigma⌉` voxels.
+/// - The neighbourhood radius is `âŒˆ3 Â· spatial_sigmaâŒ‰` voxels.
 /// - Accumulation uses `f64` arithmetic.
 pub struct BilateralFilter {
     /// Spatial Gaussian sigma in voxels.
@@ -143,8 +143,8 @@ impl BilateralFilter {
     /// Construct a new bilateral filter.
     ///
     /// # Arguments
-    /// * `spatial_sigma` — standard deviation of the spatial Gaussian (voxels).
-    /// * `range_sigma`   — standard deviation of the intensity Gaussian.
+    /// * `spatial_sigma` â€” standard deviation of the spatial Gaussian (voxels).
+    /// * `range_sigma`   â€” standard deviation of the intensity Gaussian.
     pub fn new(spatial_sigma: f64, range_sigma: f64) -> Self {
         Self {
             spatial_sigma: SpatialSigma::new(spatial_sigma),
@@ -159,7 +159,7 @@ impl BilateralFilter {
     ///
     /// # Errors
     /// Returns `Err` if the tensor data cannot be read as `f32`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (data, dims) = extract_vec(image)?;
         let filtered = compute(
             &data,
@@ -182,9 +182,9 @@ impl BilateralFilter {
     /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -200,26 +200,26 @@ impl BilateralFilter {
 /// Minimum sigma value to prevent division-by-zero in bilateral weighting.
 const SIGMA_MIN: f64 = 1e-10;
 
-// ── bilateral_3d ────────────────────────────────────────────────────────────────
+// â”€â”€ bilateral_3d â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Bilateral filter on a 3-D volume stored in flat Z×Y×X order.
+/// Bilateral filter on a 3-D volume stored in flat ZÃ—YÃ—X order.
 ///
 /// # Algorithm
 /// For each centre voxel **p**:
-/// 1. Neighbourhood radius `r = ⌈3 · σ_s⌉`.
-/// 2. For each neighbour **q** in `[p ± r]³` (out-of-bounds skipped):
-///    `w(p, q) = exp(−d_s² / (2 σ_s²)) · exp(−d_r² / (2 σ_r²))`
-///    where `d_s = ‖p − q‖`, `d_r = |I(p) − I(q)|`.
-/// 3. `Output(p) = Σ w·I(q) / Σ w`.
+/// 1. Neighbourhood radius `r = âŒˆ3 Â· Ïƒ_sâŒ‰`.
+/// 2. For each neighbour **q** in `[p Â± r]Â³` (out-of-bounds skipped):
+///    `w(p, q) = exp(âˆ’d_sÂ² / (2 Ïƒ_sÂ²)) Â· exp(âˆ’d_rÂ² / (2 Ïƒ_rÂ²))`
+///    where `d_s = â€–p âˆ’ qâ€–`, `d_r = |I(p) âˆ’ I(q)|`.
+/// 3. `Output(p) = Î£ wÂ·I(q) / Î£ w`.
 ///
 /// # Performance
 ///
-/// - The spatial kernel `exp(−d_s² / (2 σ_s²))` depends only on the squared
+/// - The spatial kernel `exp(âˆ’d_sÂ² / (2 Ïƒ_sÂ²))` depends only on the squared
 ///   offset, so it is precomputed once into a 1-D table
-///   `spatial_w[d²]` for `d² ∈ 0..=3·r²`. Each neighbour lookup is one
+///   `spatial_w[dÂ²]` for `dÂ² âˆˆ 0..=3Â·rÂ²`. Each neighbour lookup is one
 ///   table-load instead of three squarings + one mul + one `exp`.
 /// - The neighbourhood bounds are clamped once per centre voxel
-///   (`iz..=iz±r` → `z_lo..z_hi`, same for y, x), removing every
+///   (`iz..=izÂ±r` â†’ `z_lo..z_hi`, same for y, x), removing every
 ///   per-neighbour `as isize` cast and branch and letting the inner
 ///   loop walk a simple `usize` range.
 /// - The outer Z-loop is parallelised across z-slices via `moirai`'s
@@ -242,7 +242,7 @@ fn compute(data: &[f32], dims: [usize; 3], spatial_sigma: f64, range_sigma: f64)
     let inv_two_sr2 = 1.0_f64 / (2.0 * range_sigma * range_sigma);
 
     // Precompute the 1-D spatial-kernel lookup table:
-    //   spatial_w[d²] = exp(-d² / (2 σ_s²)),   0 ≤ d² ≤ 3·r²
+    //   spatial_w[dÂ²] = exp(-dÂ² / (2 Ïƒ_sÂ²)),   0 â‰¤ dÂ² â‰¤ 3Â·rÂ²
     //
     // Index 0 (the centre voxel, d=0) is always 1.0; offsets beyond the
     // neighbourhood footprint are never accessed.
@@ -268,10 +268,10 @@ fn compute(data: &[f32], dims: [usize; 3], spatial_sigma: f64, range_sigma: f64)
             let z_hi = (iz + r + 1).min(nz);
             let center_val_offset = iz * slab;
 
-            // Pre-bake `(dz², dz² + dy²)` for every (z, y) pair we will
-            // touch below: the inner x-loop only walks `dx²`. Skipping
+            // Pre-bake `(dzÂ², dzÂ² + dyÂ²)` for every (z, y) pair we will
+            // touch below: the inner x-loop only walks `dxÂ²`. Skipping
             // the `as isize` cast + the squaring per (z, y, x) ticks
-            // saves `(2r+1)² -- (2r+1)` redundant multiplies per voxel.
+            // saves `(2r+1)Â² -- (2r+1)` redundant multiplies per voxel.
             for (iy, out_row) in iz_out.chunks_exact_mut(nx).enumerate() {
                 let y_lo = iy.saturating_sub(r);
                 let y_hi = (iy + r + 1).min(ny);
@@ -287,7 +287,7 @@ fn compute(data: &[f32], dims: [usize; 3], spatial_sigma: f64, range_sigma: f64)
                     let mut weighted_sum = 0.0_f64;
                     let mut weight_total = 0.0_f64;
 
-                    // Clamped neighbourhood walk: `(2r+1)³` candidates with
+                    // Clamped neighbourhood walk: `(2r+1)Â³` candidates with
                     // single dynamic bound check per axis (already known),
                     // then a `usize` triple-nested loop with one table lookup
                     // and one range `exp` per neighbour. No `as isize` casts,
@@ -326,7 +326,7 @@ fn compute(data: &[f32], dims: [usize; 3], spatial_sigma: f64, range_sigma: f64)
     output
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_bilateral.rs"]
@@ -335,13 +335,13 @@ mod tests;
 #[cfg(test)]
 mod tests_native {
     use super::BilateralFilter;
-    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use crate::native_support::{assert_coeus_matches_coeus, make_native_image, native_vals};
     use coeus_core::SequentialBackend;
 
     #[test]
     fn matches_burn() {
         let vals: Vec<f32> = (0..60).map(|i| ((i * 7) % 11) as f32).collect();
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             vals,
             [3, 4, 5],
             |img| {

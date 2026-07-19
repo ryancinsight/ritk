@@ -3,7 +3,7 @@
 use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_filter::bias::{apply_n4_bias_correction_values, N4Config};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Spacing, VolumeDims};
 
 use crate::deformable_field_ops::gaussian_smooth_with_scratch_per_axis;

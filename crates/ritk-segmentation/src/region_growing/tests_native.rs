@@ -1,12 +1,11 @@
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing, VoxelIndex};
-use ritk_image::native::Image as NativeImage;
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::test_support::make_image;
+use ritk_image::Image as NativeImage;
 
 use super::{ConfidenceConnectedFilter, ConnectedThresholdFilter, NeighborhoodConnectedFilter};
 
-type LegacyBackend = NdArray<f32>;
+type LegacyBackend = SequentialBackend;
 
 fn native_image(values: Vec<f32>) -> NativeImage<f32, SequentialBackend, 3> {
     NativeImage::from_flat_on(
@@ -39,7 +38,7 @@ fn assert_native_matches_legacy(
 fn filter_owned_native_region_growing_matches_legacy_boundaries_exactly() {
     let values: Vec<f32> = (0..27).map(|index| index as f32).collect();
     let native = native_image(values.clone());
-    let legacy = make_image::<LegacyBackend, 3>(values, [3, 3, 3]);
+    let legacy = make_image::<f32, LegacyBackend, 3>(values, [3, 3, 3]);
     let seed = VoxelIndex::from([1, 1, 1]);
 
     let connected = ConnectedThresholdFilter::new(seed, 8.0, 18.0);
@@ -49,7 +48,10 @@ fn filter_owned_native_region_growing_matches_legacy_boundaries_exactly() {
     assert_native_matches_legacy(
         &native,
         &connected_native,
-        connected.apply(&legacy).data_slice().as_ref(),
+        connected
+            .apply(&legacy)
+            .data_slice()
+            .expect("invariant: contiguous host storage"),
     );
     assert_eq!(connected.seed(), seed);
     assert_eq!(connected.lower(), 8.0);
@@ -65,7 +67,10 @@ fn filter_owned_native_region_growing_matches_legacy_boundaries_exactly() {
     assert_native_matches_legacy(
         &native,
         &confidence_native,
-        confidence.apply(&legacy).data_slice().as_ref(),
+        confidence
+            .apply(&legacy)
+            .data_slice()
+            .expect("invariant: contiguous host storage"),
     );
     assert_eq!(confidence.seed(), seed);
     assert_eq!(confidence.initial_lower(), 8.0);
@@ -80,7 +85,10 @@ fn filter_owned_native_region_growing_matches_legacy_boundaries_exactly() {
     assert_native_matches_legacy(
         &native,
         &neighborhood_native,
-        neighborhood.apply(&legacy).data_slice().as_ref(),
+        neighborhood
+            .apply(&legacy)
+            .data_slice()
+            .expect("invariant: contiguous host storage"),
     );
     assert_eq!(neighborhood.seed(), seed);
     assert_eq!(neighborhood.lower(), 8.0);

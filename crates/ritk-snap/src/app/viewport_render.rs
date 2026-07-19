@@ -10,7 +10,7 @@ use crate::render::slice_render::WindowLevel;
 use crate::tools::kind::ToolKind;
 use crate::ui::overlay::{OverlayContext, OverlayRenderer};
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
-// ── Overlay label constants ──────────────────────────────────────────────────
+// â”€â”€ Overlay label constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Pixel inset from the viewport corner for overlay text labels.
 pub(crate) const OVERLAY_LABEL_INSET: f32 = 6.0;
@@ -30,7 +30,7 @@ impl SnapApp {
     /// # Responsibilities
     ///
     /// 1. Rebuild the texture for this axis if dirty or absent.
-    /// 2. Compute fit scale: `min(avail_w / tex_w, avail_h / tex_h) × zoom`.
+    /// 2. Compute fit scale: `min(avail_w / tex_w, avail_h / tex_h) Ã— zoom`.
     /// 3. Display the image widget with click-and-drag sensing.
     /// 4. Draw the axis label and slice counter as overlay text.
     /// 5. Draw the DICOM 4-corner overlay when `show_overlay` is set.
@@ -43,7 +43,7 @@ impl SnapApp {
         ctx: &egui::Context,
         axis: usize,
     ) {
-        // ── 1. Rebuild texture if stale ────────────────────────────────────────
+        // â”€â”€ 1. Rebuild texture if stale â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let needs_rebuild = match axis {
             0 => self.texture_dirty || self.texture.is_none(),
             1 => self.coronal_dirty || self.coronal_tex.is_none(),
@@ -59,7 +59,7 @@ impl SnapApp {
             }
         }
 
-        // ── 2. Extract texture ID and size (copy, releases borrow) ─────────────
+        // â”€â”€ 2. Extract texture ID and size (copy, releases borrow) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let tex_info: Option<(egui::TextureId, [usize; 2])> = match axis {
             0 => self.texture.as_ref().map(|t| (t.id(), t.size())),
             1 => self.coronal_tex.as_ref().map(|t| (t.id(), t.size())),
@@ -71,13 +71,13 @@ impl SnapApp {
             None => {
                 ui.centered_and_justified(|ui| {
                     let label = self.axis_label(axis);
-                    ui.label(format!("{label} — open a volume to begin"));
+                    ui.label(format!("{label} â€” open a volume to begin"));
                 });
                 return;
             }
         };
 
-        // ── 3. Compute spacing-aware fit and render image ─────────────────────
+        // â”€â”€ 3. Compute spacing-aware fit and render image â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let tex_w = tex_w_usize as f32;
         let tex_h = tex_h_usize as f32;
         let available = ui.available_size();
@@ -130,7 +130,7 @@ impl SnapApp {
             self.status_axis = axis;
         }
 
-        // ── 4–6. Overlay text, DICOM overlay, crosshair ────────────────────────
+        // â”€â”€ 4â€“6. Overlay text, DICOM overlay, crosshair â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Painter::new clones the Arc<Context>; it does not hold a borrow on ui.
         let painter = ui.painter_at(response.rect);
 
@@ -227,24 +227,24 @@ impl SnapApp {
             }
         }
 
-        // ── 7. Measurement annotations and live tool preview ───────────────────
+        // â”€â”€ 7. Measurement annotations and live tool preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         //
         // Mathematical mapping:
-        //   screen_px = rect.min + img_px × scale
-        //   img_px    = (screen_px − rect.min) / scale
+        //   screen_px = rect.min + img_px Ã— scale
+        //   img_px    = (screen_px âˆ’ rect.min) / scale
         //
-        // `scale = fit_scale × zoom` where fit_scale = min(avail_w/tex_w, avail_h/tex_h).
+        // `scale = fit_scale Ã— zoom` where fit_scale = min(avail_w/tex_w, avail_h/tex_h).
         // The image widget occupies exactly response.rect (egui places it top-left).
         {
-            // img_to_screen: image-pixel Pos2 { x: col, y: row } → screen Pos2
+            // img_to_screen: image-pixel Pos2 { x: col, y: row } â†’ screen Pos2
             let origin = response.rect.min;
             let img_to_screen =
                 |p: egui::Pos2| egui::pos2(origin.x + p.x * scale_x, origin.y + p.y * scale_y);
 
             // Per-axis 2-D spacing: [row_mm_per_px, col_mm_per_px]
-            //   axis 0 axial  → dy, dx
-            //   axis 1 coronal → dz, dx
-            //   axis 2 sagittal→ dz, dy
+            //   axis 0 axial  â†’ dy, dx
+            //   axis 1 coronal â†’ dz, dx
+            //   axis 2 sagittalâ†’ dz, dy
             let spacing_2d: [f32; 2] = if let Some(vol) = &self.loaded {
                 let [dz, dy, dx] = vol.spacing.map(|s| s as f32);
                 match axis {
@@ -265,7 +265,7 @@ impl SnapApp {
                 None
             };
 
-            // Re-acquire the painter (drop(painter) has not been called yet —
+            // Re-acquire the painter (drop(painter) has not been called yet â€”
             // this block replaces it; the original painter is consumed below).
             let meas_painter = ui.painter_at(response.rect);
 
@@ -285,7 +285,7 @@ impl SnapApp {
         } // painter is dropped here; no longer borrows ui.
         drop(painter);
 
-        // ── 7. Wheel input: zoom or slice navigation ───────────────────────────
+        // â”€â”€ 7. Wheel input: zoom or slice navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let (scroll_y, ctrl_or_cmd) = ctx.input(|i| {
             (
                 i.smooth_scroll_delta.y,
@@ -303,7 +303,7 @@ impl SnapApp {
             }
         }
 
-        // ── 8. Pointer events ──────────────────────────────────────────────────
+        // â”€â”€ 8. Pointer events â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         // Update pointer intensity whenever pointer is over the viewport
         if response.hovered() || response.dragged() || response.interact_pointer_pos().is_some() {
             self.update_pointer_intensity(axis, response.interact_pointer_pos(), response.rect);

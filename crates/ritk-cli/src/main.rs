@@ -7,7 +7,7 @@ use clap::{Parser, Subcommand};
 
 mod commands;
 
-/// RITK — medical imaging toolkit command-line interface.
+/// RITK â€” medical imaging toolkit command-line interface.
 ///
 /// All subcommands propagate errors through `anyhow::Result<()>` so that
 /// a single, structured error message is printed on failure and the process

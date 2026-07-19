@@ -16,7 +16,7 @@ use super::{make_image, F32_TOL};
 use crate::image_comparison as burn_metrics;
 use crate::image_comparison::native as native_metrics;
 use coeus_core::MoiraiBackend;
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Native adapter and Burn adapter share the identical host core → bitwise equal.
@@ -73,7 +73,8 @@ fn dice_matches_burn() {
     let bd = burn_metrics::dice_coefficient(
         &make_image(pred.clone(), [8]),
         &make_image(gt.clone(), [8]),
-    );
+    )
+    .expect("matched image shapes");
     let nd =
         native_metrics::dice_coefficient(&make_native(pred, [8]), &make_native(gt, [8])).unwrap();
     assert!((bd - nd).abs() <= PARITY_DIFF, "dice burn={bd} native={nd}");
@@ -93,7 +94,8 @@ fn similarity_index_matches_burn_exactly() {
     let a = vec![0.0, 1.0, 1.0, 0.0, 2.0, 2.0];
     let b = vec![0.0, 1.0, 0.0, 1.0, 2.0, 0.0];
     let bs =
-        burn_metrics::similarity_index(&make_image(a.clone(), [6]), &make_image(b.clone(), [6]));
+        burn_metrics::similarity_index(&make_image(a.clone(), [6]), &make_image(b.clone(), [6]))
+            .expect("matched image shapes");
     let ns = native_metrics::similarity_index(&make_native(a, [6]), &make_native(b, [6])).unwrap();
     assert!((bs - ns).abs() <= PARITY_EXACT, "SI burn={bs} native={ns}");
     // 4/7 analytical oracle.

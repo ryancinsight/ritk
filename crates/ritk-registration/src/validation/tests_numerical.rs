@@ -1,16 +1,16 @@
 use super::*;
-use burn_ndarray::NdArray;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use coeus_core::SequentialBackend;
+use ritk_image::tensor::Tensor;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
-fn make_tensor_1d(vals: Vec<f32>) -> Tensor<B, 1> {
+fn make_tensor_1d(vals: Vec<f32>) -> Tensor<f32, B> {
     let n = vals.len();
     let device = Default::default();
-    Tensor::<B, 1>::from_data(TensorData::new(vals, Shape::new([n])), &device)
+    Tensor::<f32, B>::from_slice_on([n], &vals, &device)
 }
 
-// ── validate_tensor ────────────────────────────────────────────────────
+// â”€â”€ validate_tensor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn validate_tensor_within_bounds_passes() {
@@ -40,7 +40,7 @@ fn validate_tensor_skipped_when_checks_disabled() {
     );
 }
 
-// ── validate_learning_rate ─────────────────────────────────────────────
+// â”€â”€ validate_learning_rate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn validate_lr_typical_passes() {
@@ -75,7 +75,7 @@ fn validate_lr_too_small_fails() {
     );
 }
 
-// ── validate_iterations ──────────────────────────────────────────────
+// â”€â”€ validate_iterations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn validate_iterations_typical_passes() {
@@ -97,7 +97,7 @@ fn validate_iterations_overflow_fails() {
     );
 }
 
-// ── validate_histogram_params ─────────────────────────────────────────
+// â”€â”€ validate_histogram_params â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn validate_histogram_typical_passes() {
@@ -136,7 +136,7 @@ fn validate_histogram_equal_bounds_fails() {
     );
 }
 
-// ── validate_lbfgs_history_size ─────────────────────────────────────────
+// â”€â”€ validate_lbfgs_history_size â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn validate_lbfgs_typical_passes() {

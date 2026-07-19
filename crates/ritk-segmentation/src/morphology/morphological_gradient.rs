@@ -9,7 +9,7 @@
 //! 0.0 at interior foreground, exterior background, and all other voxels.
 
 use super::MorphologicalOperation;
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
@@ -46,9 +46,9 @@ impl MorphologicalGradient {
     /// or output construction failure.
     pub fn apply_native<B>(
         &self,
-        mask: &ritk_image::native::Image<f32, B, 3>,
+        mask: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -64,13 +64,14 @@ impl MorphologicalGradient {
 }
 
 impl<B: Backend> MorphologicalOperation<B, 3> for MorphologicalGradient {
-    fn apply(&self, mask: &Image<B, 3>) -> Image<B, 3> {
+    fn apply(&self, mask: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let shape = mask.shape();
-        let device = mask.data().device();
+        let device = B::default();
         let (values, _) = extract_vec_infallible(mask);
         let out = gradient_values(&values, shape, self.radius);
-        let tensor = Tensor::<B, 3>::from_data(TensorData::new(out, Shape::new(shape)), &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &out, &device);
         Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
+            .expect("invariant: segmentation output tensor preserves the image rank")
     }
 }
 

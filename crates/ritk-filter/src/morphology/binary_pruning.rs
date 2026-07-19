@@ -2,16 +2,16 @@
 //!
 //! # Mathematical Specification
 //!
-//! Ports `itk::BinaryPruningImageFilter` — removes short spurs from a binary
+//! Ports `itk::BinaryPruningImageFilter` â€” removes short spurs from a binary
 //! skeleton. Operating on the `z`-plane of a `z = 1` image, the input is
-//! binarized (`≠ 0 → 1`) and the image is swept `iteration` times in raster
+//! binarized (`â‰  0 â†’ 1`) and the image is swept `iteration` times in raster
 //! order; **in place**, every foreground pixel whose 8-neighbour on-count is
 //! below 2 (an endpoint or isolated pixel) is set to 0, so a deletion is visible
 //! to later pixels within the same sweep (ZeroFluxNeumann boundary).
 //!
 //! ```text
-//! genus = Σ_{8-neighbours} p
-//! if center == 1 and genus < 2:  center ← 0
+//! genus = Î£_{8-neighbours} p
+//! if center == 1 and genus < 2:  center â† 0
 //! ```
 //!
 //! Pure binary topology (no floating point), so it is bit-exact to
@@ -42,7 +42,7 @@ impl BinaryPruningFilter {
     }
 
     /// Prune skeleton spurs from the `z`-plane(s) of a binary image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let (vals, dims) = extract_vec_infallible(image);
         let [nz, ny, nx] = dims;
         let mut img: Vec<u8> = vals.iter().map(|&v| u8::from(v != 0.0)).collect();
@@ -86,9 +86,9 @@ impl BinaryPruningFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

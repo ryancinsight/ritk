@@ -10,7 +10,7 @@
 
 use coeus_core::SequentialBackend;
 use ritk_io::{
-    format::{analyze::native::AnalyzeReader, nifti::native::NiftiWriter},
+    format::{analyze::AnalyzeReader, nifti::native::NiftiWriter},
     ImageReader, ImageWriter,
 };
 use std::env;

@@ -8,6 +8,61 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-661-01 — Complete the Coeus/Leto/Hephaestus cutover
+**Target version**: Unreleased breaking
+**Sprint phase**: Closure
+
+- [x] Remove all Burn and ndarray manifest dependencies across the workspace.
+- [x] Move every workspace package to the canonical Coeus image/tensor
+      contract and Leto-owned storage operations; remove `ritk-macros` and
+      compatibility image modules once no callers remain.
+- [x] Consolidate CLI and Analyze/DICOM I/O consumers onto one provider-native
+      path and remove obsolete differential tests that compared aliases of the
+      same Coeus implementation.
+- [x] Add the missing zero-copy Coeus host materialization contract upstream
+      and consume merged Coeus main `5ee07a2`.
+- [x] Correct the NGF augmented-gradient numerator exposed by the full
+      workspace test run; identical volumes now score one.
+- [x] Verify the migration audit: zero Burn/ndarray manifest edges, zero active
+      source tokens, and three allowlisted VTK-format uses of “legacy”.
+- [x] Verify the workspace: formatting and warning-denied all-target/all-feature
+      Clippy pass; 4,644/4,644 Nextest tests pass with 12 explicitly skipped.
+- [x] Complete workspace doctest and warning-clean Rustdoc gates.
+- [x] Align the hosted dependency checkout with merged Coeus
+      `5ee07a26cf13f13917a980cc94f145f69c34186c`.
+- [x] Restore Python global mutual-information registration on the Leto
+      classical engine and delete the obsolete Burn-only CMA binding contract.
+- [x] Delete the legacy displacement-warp implementation and verify the
+      Coeus-native sampler against SimpleITK physical-axis parity.
+- [ ] Commit, push, and merge the migration PR.
+
+## MIG-660-01 — Remove stale Burn contract text from native owner crates
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Reconcile the live migration state. The concurrent MIG-658 source
+      cutover owns 419 dirty files and currently reports zero Burn manifest
+      edges but 504 token-bearing source files; do not edit its claimed files.
+- [x] Correct the stale backend/type-parameter Rustdoc in `ritk-core` and the
+      obsolete dual-writer/test migration prose in `ritk-nifti`.
+- [x] Run the focused source-residue scan and Burn migration audit. Completion
+      condition: the four claimed files contain no Burn tokens and the
+      obsolete NIfTI test entry is removed from the allowlist without adding a
+      replacement. Evidence: the audit remains clean, reports zero Burn
+      manifest dependencies and 503 token-bearing source files, and has no
+      allowlist cleanup candidates.
+- [x] Run formatting and the available owner-crate gates. NIfTI
+      warning-denied Clippy, 37/37 Nextest tests, doctests, and warning-denied
+      Rustdoc pass. `ritk-core` is blocked before its own compilation by 38
+      errors in the actively changing MIG-658 `ritk-statistics` scope,
+      including missing `CpuAddressableStorage` bounds and unsupported
+      Burn-shaped `Mul`, `sum`, and `sub_scalar` calls.
+- [x] Synchronize the audit/history entries.
+- [ ] Commit only the claimed files. Blocker: a peer is actively editing and
+      has staged the broader migration on the shared `main` tree. Reopen when
+      that increment commits or moves to its migration branch; do not include
+      peer-owned staged files in this patch.
+
 ## MIG-659-01 — Move native interpolation scalar ownership to Eunomia
 **Target version**: ritk-interpolation 0.4.0
 **Sprint phase**: Closure

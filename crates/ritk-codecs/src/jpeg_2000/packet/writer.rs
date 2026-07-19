@@ -9,9 +9,9 @@ use super::{band_cblks, band_trees, lblock_extra_bits, CblkRef, WaveletTransform
 /// Write individual bits, MSB first, into a byte buffer.
 ///
 /// The JPEG 2000 packet-header bit stream uses **bit**-stuffing (ISO 15444-1
-/// §B.10.1, = OpenJPEG `opj_bio_byteout`): a byte following 0xFF carries only
+/// Â§B.10.1, = OpenJPEG `opj_bio_byteout`): a byte following 0xFF carries only
 /// 7 payload bits (its MSB is a stuffed 0), so 0xFF can never be followed by a
-/// byte with the MSB set. This is not byte-stuffing — no full 0x00 is inserted.
+/// byte with the MSB set. This is not byte-stuffing â€” no full 0x00 is inserted.
 pub(crate) struct BitWriter {
     out: Vec<u8>,
     /// 16-bit sliding window: bits accumulate in the low byte; the high byte
@@ -64,11 +64,11 @@ impl BitWriter {
 
 /// Encode `ncp` (number of new coding passes) into a `BitWriter`
 /// (ISO 15444-1 Table B.4):
-/// - 1 pass    → `0`
-/// - 2 passes  → `10`
-/// - 3–5       → `11` + 2 bits (ncp − 3 ∈ 0..=2)
-/// - 6–36      → `1111` + 5 bits (ncp − 6 ∈ 0..=30)
-/// - 37–164    → `111111111` + 7 bits (ncp − 37)
+/// - 1 pass    â†’ `0`
+/// - 2 passes  â†’ `10`
+/// - 3â€“5       â†’ `11` + 2 bits (ncp âˆ’ 3 âˆˆ 0..=2)
+/// - 6â€“36      â†’ `1111` + 5 bits (ncp âˆ’ 6 âˆˆ 0..=30)
+/// - 37â€“164    â†’ `111111111` + 7 bits (ncp âˆ’ 37)
 pub(crate) fn write_num_passes(bw: &mut BitWriter, ncp: u32) {
     match ncp {
         0 => {} // No passes: write nothing (caller ensures code-block is excluded).
@@ -97,7 +97,7 @@ pub(crate) fn write_num_passes(bw: &mut BitWriter, ncp: u32) {
 
 /// Encode one tile-component into a J2K tile-part byte stream:
 /// SOT + SOD + LRCP packets (one quality layer, one precinct per
-/// resolution/band, 64×64 nominal code-blocks).
+/// resolution/band, 64Ã—64 nominal code-blocks).
 ///
 /// # Parameters
 /// - `samples`: DC-shifted i32 samples in row-major order.
@@ -118,20 +118,20 @@ pub fn encode_tile_part(
 ) -> Vec<u8> {
     // Forward DWT into the Mallat coefficient layout.  The irreversible 9/7
     // path transforms in floating point and then dead-zone quantizes with a
-    // unit step (Δ_b = 1, i.e. ε_b = R_b = precision + gain_b, μ_b = 0) so the
-    // quantized integer coefficients reuse the same Mb = G + ε_b − 1 bit-plane
+    // unit step (Î”_b = 1, i.e. Îµ_b = R_b = precision + gain_b, Î¼_b = 0) so the
+    // quantized integer coefficients reuse the same Mb = G + Îµ_b âˆ’ 1 bit-plane
     // budget and entropy-coding path as the reversible 5/3 transform.
     let mallat = match transform {
         WaveletTransform::Reversible => {
             let mut m = samples.to_vec();
             forward_dwt_5_3(&mut m, width, height, num_decomp_levels)
-                .expect("invariant: samples.len() == width × height");
+                .expect("invariant: samples.len() == width Ã— height");
             m
         }
         WaveletTransform::Irreversible => {
             let mut f: Vec<f32> = samples.iter().map(|&v| v as f32).collect();
             forward_dwt_9_7(&mut f, width, height, num_decomp_levels)
-                .expect("invariant: samples.len() == width × height");
+                .expect("invariant: samples.len() == width Ã— height");
             f.iter().map(|&c| quantize(c, 1.0)).collect()
         }
     };
@@ -157,7 +157,7 @@ pub fn encode_tile_part(
             let (msbs, passes, data) = if enc.num_bit_planes == 0 {
                 (0u32, 0u32, Vec::new())
             } else {
-                // Mb = ε_b + G − 1 (ISO 15444-1 §E.1), ε_b = precision + gain.
+                // Mb = Îµ_b + G âˆ’ 1 (ISO 15444-1 Â§E.1), Îµ_b = precision + gain.
                 let total_bp = u32::from(num_guard_bits) + precision + b.gain - 1;
                 (
                     total_bp.saturating_sub(u32::from(enc.num_bit_planes)),
@@ -177,7 +177,7 @@ pub fn encode_tile_part(
 
     // Build per-band tag trees: inclusion layer (0 = layer 0, 1 = never) and
     // missing MSBs (excluded blocks contribute 0, which only affects internal
-    // minima — the decoder never reads their leaves).
+    // minima â€” the decoder never reads their leaves).
     let mut trees = band_trees(&bands);
     for (bi, list) in per_band_cblks.iter().enumerate() {
         if let Some(t) = trees[bi].as_mut() {
@@ -196,7 +196,7 @@ pub fn encode_tile_part(
     for r in 0..=usize::from(num_decomp_levels) {
         let (s, e) = resolution_band_range(r);
         let mut bw = BitWriter::new();
-        bw.write_bit(1); // non-empty packet (§B.10.3: 1 = data present)
+        bw.write_bit(1); // non-empty packet (Â§B.10.3: 1 = data present)
         for bi in s..e {
             let Some(t) = trees[bi].as_mut() else {
                 continue;
@@ -211,7 +211,7 @@ pub fn encode_tile_part(
                 // Missing MSBs tag tree, fully communicated.
                 t.msbs.encode(&mut bw, gx, gy, ec.msbs + 1);
                 write_num_passes(&mut bw, ec.passes);
-                // Lblock signalling (§B.10.7.1).
+                // Lblock signalling (Â§B.10.7.1).
                 let lextra = lblock_extra_bits(ec.passes);
                 let len = ec.data.len() as u32;
                 let needed_bits = (u32::BITS - len.leading_zeros()).max(1) as u8;

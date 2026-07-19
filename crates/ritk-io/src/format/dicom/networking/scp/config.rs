@@ -11,7 +11,7 @@ use std::time::Duration;
 /// Polling interval for the non-blocking accept loop between connection attempts.
 pub(super) const ACCEPT_POLL_INTERVAL: Duration = Duration::from_millis(5);
 
-// ── StoredInstance ─────────────────────────────────────────────────────────────
+// â”€â”€ StoredInstance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// A DICOM instance received by the embedded C-STORE SCP.
 ///
@@ -60,7 +60,7 @@ impl StoredInstance {
         // Tags are written in ascending order per PS3.5.
         let mut meta = Vec::with_capacity(256);
 
-        // (0002,0000) File Meta Information Group Length — placeholder, filled below.
+        // (0002,0000) File Meta Information Group Length â€” placeholder, filled below.
         // The group length value will be corrected after all meta elements are written.
         meta.extend_from_slice(&[0x00, 0x00, 0x02, 0x00]); // tag
         meta.extend_from_slice(b"UL"); // VR
@@ -112,7 +112,7 @@ impl StoredInstance {
 
         // Correct the File Meta Information Group Length (0002,0000).
         // This is the byte length of the group 0002 elements EXCLUDING
-        // the (0002,0000) element itself, per PS3.10 §7.1.
+        // the (0002,0000) element itself, per PS3.10 Â§7.1.
         let group_length = (meta.len() - 12) as u32; // subtract the 12 bytes of (0002,0000)
         meta[group_length_offset..group_length_offset + 4]
             .copy_from_slice(&group_length.to_le_bytes());
@@ -127,7 +127,7 @@ impl StoredInstance {
     }
 }
 
-// ── ScpConfig ─────────────────────────────────────────────────────────────────
+// â”€â”€ ScpConfig â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Configuration for the embedded C-STORE SCP.
 #[derive(Debug, Clone)]
@@ -171,7 +171,7 @@ impl Default for ScpConfig {
     }
 }
 
-// ── StoreScpHandle ─────────────────────────────────────────────────────────────
+// â”€â”€ StoreScpHandle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Handle to a running embedded C-STORE SCP.
 ///

@@ -3,9 +3,9 @@ use super::super::{
 };
 use super::*;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::tensor::Tensor;
+use ritk_image::test_support::make_image;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 
 // ── Test 1: Synthetic tri-modal T1 → WM peak detection ────────────────
@@ -13,7 +13,7 @@ use ritk_image::Image;
 #[test]
 fn test_trimodal_t1_wm_peak_detection() {
     let (data, total) = make_trimodal_volume(500, 1000, 800);
-    let image: Image<TestBackend, 3> = make_image(data, [1, 1, total]);
+    let image: Image<f32, TestBackend, 3> = make_image(data, [1, 1, total]);
 
     let config = WhiteStripeConfig {
         contrast: MriContrast::T1,
@@ -80,7 +80,7 @@ fn native_white_stripe_preserves_geometry_and_reports_diagnostics() {
 #[test]
 fn test_normalized_white_stripe_mean_zero_std_one() {
     let (data, total) = make_trimodal_volume(500, 1000, 800);
-    let image: Image<TestBackend, 3> = make_image(data.clone(), [1, 1, total]);
+    let image: Image<f32, TestBackend, 3> = make_image(data.clone(), [1, 1, total]);
 
     let config = WhiteStripeConfig::default();
 
@@ -166,7 +166,7 @@ fn test_t2_contrast_wm_peak_lower_range() {
     }
 
     let total = data.len();
-    let image: Image<TestBackend, 3> = make_image(data, [1, 1, total]);
+    let image: Image<f32, TestBackend, 3> = make_image(data, [1, 1, total]);
 
     let config = WhiteStripeConfig {
         contrast: MriContrast::T2,
@@ -194,7 +194,7 @@ fn test_t2_contrast_wm_peak_lower_range() {
 #[test]
 fn test_default_config_non_degenerate() {
     let (data, total) = make_trimodal_volume(300, 600, 500);
-    let image: Image<TestBackend, 3> = make_image(data, [1, 1, total]);
+    let image: Image<f32, TestBackend, 3> = make_image(data, [1, 1, total]);
 
     let config = WhiteStripeConfig::default();
     let result = WhiteStripeNormalizer::normalize(&image, None, &config);
@@ -211,7 +211,7 @@ fn test_default_config_non_degenerate() {
 fn test_uniform_image_sigma_near_zero() {
     let val = 0.5f32;
     let data = vec![val; 1000];
-    let image: Image<TestBackend, 3> = make_image(data, [10, 10, 10]);
+    let image: Image<f32, TestBackend, 3> = make_image(data, [10, 10, 10]);
 
     let config = WhiteStripeConfig::default();
     let result = WhiteStripeNormalizer::normalize(&image, None, &config);
@@ -255,8 +255,8 @@ fn test_mask_restricts_foreground() {
     }
 
     let total = data.len();
-    let image: Image<TestBackend, 3> = make_image(data.clone(), [1, 1, total]);
-    let mask: Image<TestBackend, 3> = make_image(mask_data, [1, 1, total]);
+    let image: Image<f32, TestBackend, 3> = make_image(data.clone(), [1, 1, total]);
+    let mask: Image<f32, TestBackend, 3> = make_image(mask_data, [1, 1, total]);
 
     let config = WhiteStripeConfig {
         contrast: MriContrast::T1,
@@ -284,14 +284,12 @@ fn test_mask_restricts_foreground() {
 #[test]
 fn test_preserves_spatial_metadata() {
     let device = Default::default();
-    let tensor = Tensor::<TestBackend, 3>::from_data(
-        TensorData::new(vec![0.5f32; 27], Shape::new([3, 3, 3])),
-        &device,
-    );
+    let tensor = Tensor::<f32, TestBackend>::from_slice_on([3, 3, 3], &[0.5f32; 27], &device);
     let origin = ritk_spatial::Point::new([1.0, 2.0, 3.0]);
     let spacing = ritk_spatial::Spacing::new([0.5, 0.5, 0.5]);
     let direction = ritk_spatial::Direction::identity();
-    let image: Image<TestBackend, 3> = Image::new(tensor, origin, spacing, direction);
+    let image: Image<f32, TestBackend, 3> = Image::new(tensor, origin, spacing, direction)
+        .expect("invariant: fixture tensor has the declared rank");
 
     let config = WhiteStripeConfig::default();
     let result = WhiteStripeNormalizer::normalize(&image, None, &config);
@@ -311,7 +309,7 @@ fn test_preserves_spatial_metadata() {
 #[test]
 fn test_explicit_bandwidth() {
     let (data, total) = make_trimodal_volume(500, 1000, 800);
-    let image: Image<TestBackend, 3> = make_image(data, [1, 1, total]);
+    let image: Image<f32, TestBackend, 3> = make_image(data, [1, 1, total]);
 
     let config_auto = WhiteStripeConfig {
         contrast: MriContrast::T1,

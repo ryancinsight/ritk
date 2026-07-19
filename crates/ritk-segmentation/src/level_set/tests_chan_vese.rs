@@ -2,11 +2,11 @@
 //! Extracted to keep the 500-line structural limit.
 
 use super::*;
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Point, Spacing};
-use ritk_image::test_support::burn_compat::{make_image, make_image_with};
+use ritk_image::test_support::{make_image, make_image_with};
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
 /// Delegation wrapper so tests call `compute_curvature` while production code uses
 /// `compute_curvature_into` directly.
@@ -19,7 +19,7 @@ fn make_image_with_metadata(
     dims: [usize; 3],
     origin: [f64; 3],
     spacing: [f64; 3],
-) -> Image<B, 3> {
+) -> Image<f32, B, 3> {
     make_image_with(
         data,
         dims,
@@ -29,14 +29,8 @@ fn make_image_with_metadata(
     )
 }
 
-fn get_values(image: &Image<B, 3>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn get_values(image: &Image<f32, B, 3>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
 // ── Test 1: Bimodal sphere recovery ────────────────────────────────────────

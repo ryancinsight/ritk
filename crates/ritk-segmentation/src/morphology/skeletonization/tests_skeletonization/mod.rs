@@ -3,69 +3,51 @@
 #![allow(clippy::needless_range_loop)]
 
 use super::*;
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::test_support::make_image;
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
 
 // ── 1-D helpers ───────────────────────────────────────────────────────
 
-pub(super) fn make_mask_1d(values: Vec<f32>, nx: usize) -> Image<TestBackend, 1> {
+pub(super) fn make_mask_1d(values: Vec<f32>, nx: usize) -> Image<f32, TestBackend, 1> {
     make_image(values, [nx])
 }
 
-pub(super) fn values_1d(image: &Image<TestBackend, 1>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+pub(super) fn values_1d(image: &Image<f32, TestBackend, 1>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
-pub(super) fn count_fg_1d(image: &Image<TestBackend, 1>) -> usize {
+pub(super) fn count_fg_1d(image: &Image<f32, TestBackend, 1>) -> usize {
     values_1d(image).iter().filter(|&&v| v > 0.5).count()
 }
 
 // ── 2-D helpers ───────────────────────────────────────────────────────
 
-pub(super) fn make_mask_2d(values: Vec<f32>, shape: [usize; 2]) -> Image<TestBackend, 2> {
+pub(super) fn make_mask_2d(values: Vec<f32>, shape: [usize; 2]) -> Image<f32, TestBackend, 2> {
     make_image(values, shape)
 }
 
-pub(super) fn values_2d(image: &Image<TestBackend, 2>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+pub(super) fn values_2d(image: &Image<f32, TestBackend, 2>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
-pub(super) fn count_fg_2d(image: &Image<TestBackend, 2>) -> usize {
+pub(super) fn count_fg_2d(image: &Image<f32, TestBackend, 2>) -> usize {
     values_2d(image).iter().filter(|&&v| v > 0.5).count()
 }
 
 // ── 3-D helpers ───────────────────────────────────────────────────────
 
-pub(super) fn make_mask_3d(values: Vec<f32>, shape: [usize; 3]) -> Image<TestBackend, 3> {
+pub(super) fn make_mask_3d(values: Vec<f32>, shape: [usize; 3]) -> Image<f32, TestBackend, 3> {
     make_image(values, shape)
 }
 
-pub(super) fn values_3d(image: &Image<TestBackend, 3>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+pub(super) fn values_3d(image: &Image<f32, TestBackend, 3>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
-pub(super) fn count_fg_3d(image: &Image<TestBackend, 3>) -> usize {
+pub(super) fn count_fg_3d(image: &Image<f32, TestBackend, 3>) -> usize {
     values_3d(image).iter().filter(|&&v| v > 0.5).count()
 }
 

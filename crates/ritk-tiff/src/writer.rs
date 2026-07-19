@@ -2,7 +2,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use std::io::{BufWriter, Seek, Write};
 use std::path::Path;
 use tiff::encoder::{colortype, TiffEncoder};

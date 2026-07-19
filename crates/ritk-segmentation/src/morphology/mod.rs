@@ -59,7 +59,7 @@ pub trait MorphologicalOperation<B: ritk_image::tensor::Backend, const D: usize>
     /// # Returns
     /// A new  with the same shape and spatial metadata as ,
     /// containing the morphologically transformed binary mask.
-    fn apply(&self, mask: &ritk_image::Image<B, D>) -> ritk_image::Image<B, D>;
+    fn apply(&self, mask: &ritk_image::Image<f32, B, D>) -> ritk_image::Image<f32, B, D>;
 }
 
 #[cfg(test)]

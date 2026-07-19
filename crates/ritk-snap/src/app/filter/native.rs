@@ -1,7 +1,7 @@
 //! Coeus-native Snap filter dispatch.
 //!
 //! The viewer owns host-side [`crate::LoadedVolume`] buffers, while native RITK
-//! filters operate on `ritk_image::native::Image`. This module is the sole
+//! filters operate on `ritk_image::Image`. This module is the sole
 //! explicit application boundary between those representations. Every current
 //! [`FilterKind`] enters this native path; unsupported variants cannot silently
 //! continue through a legacy provider.
@@ -27,7 +27,7 @@ use ritk_filter::{
     TanImageFilter, ThresholdImageFilter, TileMeanShrinkFilter, UnsharpMaskFilter,
     VotingBinaryImageFilter, WrapPadImageFilter, ZeroCrossingImageFilter,
 };
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_segmentation::{
     labeling::Connectivity as SegmentationConnectivity, BinaryThreshold, ConfidenceConnectedFilter,
     ConnectedComponentsFilter, ConnectedThresholdFilter, MultiOtsuThreshold,

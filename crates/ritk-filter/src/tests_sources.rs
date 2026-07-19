@@ -3,8 +3,8 @@ use super::{
 };
 
 /// Peak at the mean voxel, value = scale; symmetric falloff matching
-/// `exp(−½·((p−mean)/sigma)²)`. 1-D along x: size 9, sigma 6, mean 8, scale 100,
-/// origin 2, spacing 1 → physical p = 2+x, peak at x=6 (p=8). Pinned by sitk.
+/// `exp(âˆ’Â½Â·((pâˆ’mean)/sigma)Â²)`. 1-D along x: size 9, sigma 6, mean 8, scale 100,
+/// origin 2, spacing 1 â†’ physical p = 2+x, peak at x=6 (p=8). Pinned by sitk.
 #[test]
 fn gaussian_source_matches_physical_formula() {
     let (buf, dims) = gaussian_image_source(
@@ -44,7 +44,7 @@ fn gaussian_source_3d_peak_is_scale() {
 }
 
 /// 1-D grid: dark on grid lines (x=0,4,8), bright between. Pinned by sitk:
-/// `gridSpacing=4, sigma=0.5, scale=255` → x=0→0, x=1→220.49, x=2→254.83.
+/// `gridSpacing=4, sigma=0.5, scale=255` â†’ x=0â†’0, x=1â†’220.49, x=2â†’254.83.
 #[test]
 fn grid_source_dark_lines_bright_between() {
     let (buf, dims) = grid_image_source(
@@ -64,9 +64,9 @@ fn grid_source_dark_lines_bright_between() {
     assert!(buf[4].abs() < 1e-2, "line x=4 should be ~0, got {}", buf[4]);
 }
 
-/// Physical-point source: component d holds `origin_d + index_d·spacing_d`.
+/// Physical-point source: component d holds `origin_d + index_dÂ·spacing_d`.
 /// size [3,2,1] (x,y,z), origin (2,3,4), spacing (10,20,30): voxel (z0,y1,x2)
-/// → (2+2·10, 3+1·20, 4) = (22, 23, 4). Pinned by sitk.
+/// â†’ (2+2Â·10, 3+1Â·20, 4) = (22, 23, 4). Pinned by sitk.
 #[test]
 fn physical_point_source_holds_coordinate() {
     let ([cx, cy, cz], dims) =
@@ -79,8 +79,8 @@ fn physical_point_source_holds_coordinate() {
     assert_eq!((cx[0], cy[0], cz[0]), (2.0, 3.0, 4.0));
 }
 
-/// Gabor real part: Gaussian envelope × cosine along x. 1-D size 11, sigma 2,
-/// mean 5, freq 0.1 → peak 1 at x=5; x=4 → env·cos = e^-0.125·cos(0.2π) = 0.714.
+/// Gabor real part: Gaussian envelope Ã— cosine along x. 1-D size 11, sigma 2,
+/// mean 5, freq 0.1 â†’ peak 1 at x=5; x=4 â†’ envÂ·cos = e^-0.125Â·cos(0.2Ï€) = 0.714.
 /// Pinned by sitk.
 #[test]
 fn gabor_source_envelope_times_cosine() {

@@ -5,9 +5,9 @@ macro_rules! unary_math_pyfn {
         #[doc = concat!("ITK Parity: ", $itk)]
         #[pyfunction]
         pub fn $name(py: Python<'_>, image: &PyImage) -> PyImage {
-            let arc = crate::image::py_image_to_burn(image);
+            let arc = crate::image::image_from_py(image);
             let out = py.allow_threads(|| $filter::new().apply(&arc));
-            crate::image::burn_into_py_image(out)
+            crate::image::into_py_image(out)
         }
     };
 }
@@ -19,14 +19,14 @@ macro_rules! binary_pyfn {
         #[doc = concat!("ITK Parity: ", $itk)]
         #[pyfunction]
         pub fn $name(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
-            let a_arc = crate::image::py_image_to_burn(a);
-            let b_arc = crate::image::py_image_to_burn(b);
+            let a_arc = crate::image::image_from_py(a);
+            let b_arc = crate::image::image_from_py(b);
             py.allow_threads(|| {
                 $filter::new()
                     .apply(&a_arc, &b_arc)
                     .map_err(|e| RitkPyError::runtime(e.to_string()))
             })
-            .map(crate::image::burn_into_py_image)
+            .map(crate::image::into_py_image)
         }
     };
 }
@@ -38,15 +38,15 @@ macro_rules! ternary_pyfn {
         #[doc = concat!("ITK Parity: ", $itk)]
         #[pyfunction]
         pub fn $name(py: Python<'_>, a: &PyImage, b: &PyImage, c: &PyImage) -> RitkResult<PyImage> {
-            let a_arc = crate::image::py_image_to_burn(a);
-            let b_arc = crate::image::py_image_to_burn(b);
-            let c_arc = crate::image::py_image_to_burn(c);
+            let a_arc = crate::image::image_from_py(a);
+            let b_arc = crate::image::image_from_py(b);
+            let c_arc = crate::image::image_from_py(c);
             py.allow_threads(|| {
                 $filter::new()
                     .apply(&a_arc, &b_arc, &c_arc)
                     .map_err(|e| RitkPyError::runtime(e.to_string()))
             })
-            .map(crate::image::burn_into_py_image)
+            .map(crate::image::into_py_image)
         }
     };
 }

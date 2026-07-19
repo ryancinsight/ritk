@@ -1,16 +1,15 @@
 use super::MorphologicalWatershed;
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
-fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(data, dims)
+fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(data, dims)
 }
 
 /// A W-shaped 1-D relief has two minima (x=2, x=6) split by a ridge at x=4.
@@ -81,7 +80,12 @@ fn morphological_watershed_native_matches_legacy_at_all_levels() {
         assert_eq!(filter.level(), level);
         let expected = filter.apply(&legacy).unwrap();
         let actual = filter.apply_native(&native, &SequentialBackend).unwrap();
-        assert_eq!(actual.data_slice().unwrap(), expected.data_slice().as_ref());
+        assert_eq!(
+            actual.data_slice().unwrap(),
+            expected
+                .data_slice()
+                .expect("invariant: contiguous host storage")
+        );
         assert_eq!(*actual.origin(), origin);
         assert_eq!(*actual.spacing(), spacing);
         assert_eq!(*actual.direction(), direction);

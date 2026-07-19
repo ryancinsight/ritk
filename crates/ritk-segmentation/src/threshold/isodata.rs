@@ -1,4 +1,4 @@
-//! IsoData (Ridler–Calvard iterative intermeans) thresholding.
+//! IsoData (Ridlerâ€“Calvard iterative intermeans) thresholding.
 //!
 //! Matches ITK's `IsoDataThresholdCalculator` / the Fiji Auto_Threshold
 //! "IsoData" method: iteratively refine the threshold to the midpoint of the
@@ -9,7 +9,7 @@ use ritk_image::Image;
 
 use super::auto_threshold::{bin_center, itk_bin_width, threshold_from_slice, AutoThreshold};
 
-/// IsoData (Ridler–Calvard) iterative-intermeans threshold.
+/// IsoData (Ridlerâ€“Calvard) iterative-intermeans threshold.
 #[derive(Debug, Clone)]
 pub struct IsoDataThreshold {
     /// Number of equally-spaced histogram bins. Default 256.
@@ -32,12 +32,12 @@ impl IsoDataThreshold {
     }
 
     /// Compute the IsoData threshold intensity for `image`.
-    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> f32 {
+    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> f32 {
         <Self as AutoThreshold>::compute(self, image)
     }
 
     /// Apply the IsoData threshold to produce a binary mask.
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         <Self as AutoThreshold>::apply(self, image)
     }
 
@@ -49,9 +49,9 @@ impl IsoDataThreshold {
     /// or the native output image cannot be constructed.
     pub fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -71,7 +71,7 @@ impl AutoThreshold for IsoDataThreshold {
         self.num_bins
     }
 
-    /// Ridler–Calvard iteration, faithful to `itk::IsoDataThresholdCalculator`.
+    /// Ridlerâ€“Calvard iteration, faithful to `itk::IsoDataThresholdCalculator`.
     ///
     /// The means are computed over the bin-centre **measurements** (not indices),
     /// the background is `[0, pos]` (inclusive) and the foreground `[pos+1, N)`,
@@ -135,7 +135,7 @@ fn histogram_mean(hist: &[u32], meas: &impl Fn(usize) -> f64, n_bins: usize) -> 
 }
 
 /// Convenience function: compute the IsoData threshold with 256 bins.
-pub fn isodata_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
+pub fn isodata_threshold<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> f32 {
     IsoDataThreshold::new().compute(image)
 }
 

@@ -9,7 +9,7 @@ pub use numerical::*;
 pub use shape::*;
 
 // ============================================================================
-// Quality Metrics — SSOT (Single Source of Truth)
+// Quality Metrics â€” SSOT (Single Source of Truth)
 // ============================================================================
 // All registration quality metrics are defined here and re-exported.
 // Duplication of these types elsewhere in the codebase is a violation of SSOT.

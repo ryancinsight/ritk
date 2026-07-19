@@ -2,24 +2,24 @@
 //!
 //! # Mathematical Specification
 //!
-//! CLAHE (Zuiderveld 1994) divides an image into a grid of `n_tiles_y × n_tiles_x`
+//! CLAHE (Zuiderveld 1994) divides an image into a grid of `n_tiles_y Ã— n_tiles_x`
 //! non-overlapping rectangular tiles, computes a clip-limited histogram mapping
 //! per tile, and interpolates between neighbouring tile mappings for each pixel.
 //!
 //! ## Tile CDF computation (per tile T with n_T pixels, bins B):
 //!
-//! 1. **Histogram**: `H_T[b] = |{p ∈ T : bin(p) = b}|`
+//! 1. **Histogram**: `H_T[b] = |{p âˆˆ T : bin(p) = b}|`
 //!    where `bin(p) = floor((p - v_min) / span * (B - 1))`, clamped to `[0, B-1]`.
 //!
 //! 2. **Clip threshold**: `C = max(1, alpha * n_T / B)`
-//!    where `alpha = clip_limit` (dimensionless factor; uniform distribution ≡ 1.0).
+//!    where `alpha = clip_limit` (dimensionless factor; uniform distribution â‰¡ 1.0).
 //!
 //! 3. **Redistribution**:
-//!    - excess `E = Σ_{b: H_T[b] > C} (H_T[b] - C)`
+//!    - excess `E = Î£_{b: H_T[b] > C} (H_T[b] - C)`
 //!    - `H'_T[b] = min(H_T[b], C) + floor(E / B)` for all b
 //!    - `H'_T[b] += 1` for the first `E mod B` bins (distributes the integer remainder)
 //!
-//! 4. **Normalised CDF**: `F_T[b] = (Σ_{i=0}^{b} H'_T[i]) / n_T`
+//! 4. **Normalised CDF**: `F_T[b] = (Î£_{i=0}^{b} H'_T[i]) / n_T`
 //!    Domain: `[0.0, 1.0]`.
 //!
 //! ## Per-pixel mapping:
@@ -39,7 +39,7 @@
 //!
 //! ## Output invariant:
 //!
-//! `output_range ⊆ [v_min, v_max]` where `v_min, v_max` are the per-slice min/max.
+//! `output_range âŠ† [v_min, v_max]` where `v_min, v_max` are the per-slice min/max.
 //! When `v_min == v_max` (uniform slice), output equals input.
 //!
 //! # Scratch-buffer reuse
@@ -71,12 +71,12 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 /// of a 3-D image. Spatial metadata (origin, spacing, direction) is preserved.
 ///
 /// # Default parameters
-/// - `tile_grid_size = [8, 8]` — 8×8 tile grid per slice
-/// - `clip_limit = 40.0` — clip factor relative to uniform distribution
-/// - `bins = 256` — histogram bin count
+/// - `tile_grid_size = [8, 8]` â€” 8Ã—8 tile grid per slice
+/// - `clip_limit = 40.0` â€” clip factor relative to uniform distribution
+/// - `bins = 256` â€” histogram bin count
 ///
 /// # Complexity
-/// O(depth × rows × cols × (2r+1)) where r = 0 for bin lookups; total O(N × B/T)
+/// O(depth Ã— rows Ã— cols Ã— (2r+1)) where r = 0 for bin lookups; total O(N Ã— B/T)
 /// for T tiles, B bins per tile (amortized over interpolation).
 pub struct ClaheFilter {
     /// Number of tiles in [rows, cols] direction per 2D slice.
@@ -153,9 +153,9 @@ impl ClaheFilter {
     /// Create a new CLAHE filter with explicit parameters.
     ///
     /// # Arguments
-    /// * `tile_grid_size` — `[n_tiles_rows, n_tiles_cols]`, minimum 1 along each axis.
-    /// * `clip_limit` — clip factor ≥ 1.0 (1.0 = no clipping; higher = more enhancement).
-    /// * `bins` — histogram bins ≥ 2.
+    /// * `tile_grid_size` â€” `[n_tiles_rows, n_tiles_cols]`, minimum 1 along each axis.
+    /// * `clip_limit` â€” clip factor â‰¥ 1.0 (1.0 = no clipping; higher = more enhancement).
+    /// * `bins` â€” histogram bins â‰¥ 2.
     pub fn new(tile_grid_size: [usize; 2], clip_limit: f32, bins: usize) -> Self {
         Self {
             tile_grid_size: [tile_grid_size[0].max(1), tile_grid_size[1].max(1)],
@@ -164,7 +164,7 @@ impl ClaheFilter {
         }
     }
 
-    /// Default CLAHE filter: 8×8 tiles, clip_limit=40.0, 256 bins.
+    /// Default CLAHE filter: 8Ã—8 tiles, clip_limit=40.0, 256 bins.
     ///
     /// Matches common ImageJ/SimpleITK defaults for medical image preprocessing.
     pub fn default_medical() -> Self {
@@ -178,7 +178,7 @@ impl ClaheFilter {
     ///
     /// # Errors
     /// Returns `Err` if the tensor data cannot be extracted as `f32`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         let (vals_vec, dims) = extract_vec(image)?;
         let out = self.clahe_flat(&vals_vec, dims);
         Ok(rebuild(out, dims, image))
@@ -197,9 +197,9 @@ impl ClaheFilter {
     /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -251,9 +251,9 @@ impl ClaheFilter {
     /// Returns `Err` if the tensor data cannot be extracted as `f32`.
     pub fn apply_with_scratch<B: Backend>(
         &self,
-        image: &Image<B, 3>,
+        image: &Image<f32, B, 3>,
         scratch: &mut ClaheScratch,
-    ) -> Result<Image<B, 3>> {
+    ) -> Result<Image<f32, B, 3>> {
         let shape = image.shape();
         let [depth, rows, cols] = [shape[0], shape[1], shape[2]];
         let (vals_vec, dims) = extract_vec(image)?;
@@ -294,7 +294,7 @@ impl ClaheFilter {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[cfg(test)]
 #[path = "../tests_clahe.rs"]
 mod tests_clahe;
@@ -306,14 +306,14 @@ mod tests_clahe_apply;
 #[cfg(test)]
 mod tests_native {
     use super::ClaheFilter;
-    use crate::native_support::{assert_native_matches_burn, make_native_image, native_vals};
+    use crate::native_support::{assert_coeus_matches_coeus, make_native_image, native_vals};
     use coeus_core::SequentialBackend;
 
     #[test]
     fn matches_burn() {
         // Two axial slices, structured intensities so tile histograms differ.
         let vals: Vec<f32> = (0..128).map(|i| ((i * 17) % 64) as f32).collect();
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             vals,
             [2, 8, 8],
             |img| {

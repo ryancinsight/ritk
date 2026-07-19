@@ -1,6 +1,6 @@
 //! Value-semantic tests for native trilinear interpolation.
 
-use ritk_image::native::Image as AtlasImage;
+use ritk_image::Image as AtlasImage;
 
 type B = coeus_core::MoiraiBackend;
 

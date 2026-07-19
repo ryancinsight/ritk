@@ -8,7 +8,7 @@
 pub enum LayoutSuggestion {
     /// Single-pane axial view.
     SinglePane,
-    /// 2×2 multi-planar reformat (axial, coronal, sagittal + 3D).
+    /// 2Ã—2 multi-planar reformat (axial, coronal, sagittal + 3D).
     MultiPlanarReformat,
 }
 
@@ -95,7 +95,7 @@ fn first_non_empty_axis(shape: [usize; 3]) -> usize {
     }
 }
 
-// ── Protocol constants ───────────────────────────────────────────────────────
+// â”€â”€ Protocol constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 //
 // All window/axis/layout values live here as named consts.
 // Adding a new protocol: add one const, update `select_hanging_protocol`.

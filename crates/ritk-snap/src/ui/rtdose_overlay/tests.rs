@@ -36,7 +36,7 @@ fn invert3x3_identity_returns_identity() {
     for i in 0..9 {
         assert!(
             (inv[i] - id[i]).abs() < 1e-10,
-            "inv[{i}] = {} ≠ {}",
+            "inv[{i}] = {} â‰  {}",
             inv[i],
             id[i]
         );
@@ -45,14 +45,14 @@ fn invert3x3_identity_returns_identity() {
 
 #[test]
 fn invert3x3_singular_returns_none() {
-    // Rows are linearly dependent → det = 0.
+    // Rows are linearly dependent â†’ det = 0.
     let m = [1.0, 2.0, 3.0, 2.0, 4.0, 6.0, 1.0, 0.0, 0.0];
     assert!(invert3x3(m).is_none());
 }
 
 #[test]
 fn invert3x3_round_trip() {
-    // A · A⁻¹ = I (Frobenius error < 1e-10).
+    // A Â· Aâ»Â¹ = I (Frobenius error < 1e-10).
     let m = [2.0, 1.0, 0.0, 1.5, 3.0, 0.5, 0.0, 0.5, 2.0];
     let inv = invert3x3(m).expect("matrix must be invertible");
     for i in 0..3 {
@@ -64,7 +64,7 @@ fn invert3x3_round_trip() {
             let expected = if i == j { 1.0 } else { 0.0 };
             assert!(
                 (sum - expected).abs() < 1e-10,
-                "m·inv[{i},{j}] = {sum:.2e} ≠ {expected}"
+                "mÂ·inv[{i},{j}] = {sum:.2e} â‰  {expected}"
             );
         }
     }
@@ -100,7 +100,7 @@ fn dose_to_rgba_midpoint_is_greenish() {
 
 #[test]
 fn cross3_unit_vectors() {
-    // Analytical: x × y = z, y × z = x, z × x = y.
+    // Analytical: x Ã— y = z, y Ã— z = x, z Ã— x = y.
     let x = [1.0_f64, 0.0, 0.0];
     let y = [0.0, 1.0, 0.0];
     let z = [0.0, 0.0, 1.0];
@@ -109,7 +109,7 @@ fn cross3_unit_vectors() {
         (xy[0] - z[0]).abs() < 1e-12
             && (xy[1] - z[1]).abs() < 1e-12
             && (xy[2] - z[2]).abs() < 1e-12,
-        "x×y != z: {:?}",
+        "xÃ—y != z: {:?}",
         xy
     );
     let yz = cross3(y, z);
@@ -117,7 +117,7 @@ fn cross3_unit_vectors() {
         (yz[0] - x[0]).abs() < 1e-12
             && (yz[1] - x[1]).abs() < 1e-12
             && (yz[2] - x[2]).abs() < 1e-12,
-        "y×z != x: {:?}",
+        "yÃ—z != x: {:?}",
         yz
     );
 }

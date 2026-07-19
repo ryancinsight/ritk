@@ -3,7 +3,7 @@ use super::helpers::{make_image, Backend};
 use dicom::core::Tag;
 use dicom::object::open_file;
 use ritk_core::image::Image;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 
 #[test]
@@ -97,16 +97,15 @@ fn test_series_pixel_clamp_unsigned_range() {
     let data: Vec<f32> = (0..n_frames * rows * cols)
         .map(|i| (i as f32 + 1.0) * (65535.0_f32 / 16.0_f32))
         .collect();
-    let tensor = Tensor::<Backend, 3>::from_data(
-        TensorData::new(data, Shape::new([n_frames, rows, cols])),
-        &Default::default(),
-    );
+    let tensor =
+        Tensor::<f32, Backend>::from_slice_on([n_frames, rows, cols], &data, &Default::default());
     let image = Image::new(
         tensor,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     write_dicom_series(&out_path, &image).expect("write_dicom_series");
 
     for entry in std::fs::read_dir(&out_path).expect("read_dir") {

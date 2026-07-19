@@ -1,120 +1,39 @@
 use super::*;
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 
-type TestBackend = NdArray<f32>;
+const ROTATION_BOUND: f32 = 8.0 * f32::EPSILON;
 
 #[test]
-fn translation_2d_shifts_point_correctly() {
-    let device = Default::default();
-    let translation = Tensor::<TestBackend, 1>::from_floats([1.0, 2.0], &device);
-    let rotation = Tensor::<TestBackend, 1>::from_floats([0.0], &device); // No rotation
-    let center = Tensor::<TestBackend, 1>::zeros([2], &device);
-    let transform = RigidTransform::<TestBackend, 2>::new(translation, rotation, center);
+fn planar_quarter_turn_maps_x_to_y() {
+    let backend = SequentialBackend;
+    let transform = RigidTransform::<SequentialBackend, 2>::new(
+        Tensor::zeros_on([2], &backend),
+        Tensor::from_slice_on([1], &[std::f32::consts::FRAC_PI_2], &backend),
+        Tensor::zeros_on([2], &backend),
+    );
+    let point = Tensor::from_slice_on([1, 2], &[1.0, 0.0], &backend);
 
-    let points = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0], [1.0, 1.0]], &device);
+    let transformed = transform.transform_points(point);
 
-    let transformed = transform.transform_points(points);
-    let data = transformed.to_data();
-
-    // With no rotation, just translation
-    assert_eq!(data.as_slice::<f32>().unwrap()[0], 1.0);
-    assert_eq!(data.as_slice::<f32>().unwrap()[1], 2.0);
-    assert_eq!(data.as_slice::<f32>().unwrap()[2], 2.0);
-    assert_eq!(data.as_slice::<f32>().unwrap()[3], 3.0);
+    let values = transformed.as_slice();
+    assert!(values[0].abs() <= ROTATION_BOUND);
+    assert!((values[1] - 1.0).abs() <= ROTATION_BOUND);
 }
 
 #[test]
-fn translation_3d_shifts_point_correctly() {
-    let device = Default::default();
-    let translation = Tensor::<TestBackend, 1>::from_floats([1.0, 2.0, 3.0], &device);
-    let rotation = Tensor::<TestBackend, 1>::from_floats([0.0, 0.0, 0.0], &device); // No rotation
-    let center = Tensor::<TestBackend, 1>::zeros([3], &device);
-    let transform = RigidTransform::<TestBackend, 3>::new(translation, rotation, center);
+fn volume_translation_and_z_rotation_compose() {
+    let backend = SequentialBackend;
+    let transform = RigidTransform::<SequentialBackend, 3>::new(
+        Tensor::from_slice_on([3], &[1.0, 2.0, 3.0], &backend),
+        Tensor::from_slice_on([3], &[0.0, 0.0, std::f32::consts::FRAC_PI_2], &backend),
+        Tensor::zeros_on([3], &backend),
+    );
+    let point = Tensor::from_slice_on([1, 3], &[1.0, 0.0, 0.0], &backend);
 
-    let points = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], &device);
+    let transformed = transform.transform_points(point);
 
-    let transformed = transform.transform_points(points);
-    let data = transformed.to_data();
-
-    // With no rotation, just translation
-    assert_eq!(data.as_slice::<f32>().unwrap()[0], 1.0);
-    assert_eq!(data.as_slice::<f32>().unwrap()[1], 2.0);
-    assert_eq!(data.as_slice::<f32>().unwrap()[2], 3.0);
-    assert_eq!(data.as_slice::<f32>().unwrap()[3], 2.0);
-    assert_eq!(data.as_slice::<f32>().unwrap()[4], 3.0);
-    assert_eq!(data.as_slice::<f32>().unwrap()[5], 4.0);
-}
-
-#[test]
-fn rotation_2d_maps_axes_correctly() {
-    let device = Default::default();
-    let translation = Tensor::<TestBackend, 1>::zeros([2], &device);
-    let rotation = Tensor::<TestBackend, 1>::from_floats([std::f32::consts::FRAC_PI_2], &device); // 90 degrees
-    let center = Tensor::<TestBackend, 1>::zeros([2], &device);
-    let transform = RigidTransform::<TestBackend, 2>::new(translation, rotation, center);
-
-    // Point (1, 0)
-    let points = Tensor::<TestBackend, 2>::from_floats([[1.0, 0.0]], &device);
-
-    let transformed = transform.transform_points(points);
-    let data = transformed.to_data();
-    let slice = data.as_slice::<f32>().unwrap();
-
-    // Should be (0, 1) (approximately)
-    assert!((slice[0] - 0.0).abs() < 1e-6);
-    assert!((slice[1] - 1.0).abs() < 1e-6);
-}
-
-#[test]
-fn rotation_3d_z_maps_x_to_y() {
-    let device = Default::default();
-    let translation = Tensor::<TestBackend, 1>::zeros([3], &device);
-    // Rotate 90 deg around Z. Euler: x, y, z. So [0, 0, PI/2]
-    let rotation =
-        Tensor::<TestBackend, 1>::from_floats([0.0, 0.0, std::f32::consts::FRAC_PI_2], &device);
-    let center = Tensor::<TestBackend, 1>::zeros([3], &device);
-    let transform = RigidTransform::<TestBackend, 3>::new(translation, rotation, center);
-
-    // Point (1, 0, 0) should become (0, 1, 0)
-    let points = Tensor::<TestBackend, 2>::from_floats([[1.0, 0.0, 0.0]], &device);
-
-    let transformed = transform.transform_points(points);
-    let data = transformed.to_data();
-    let slice = data.as_slice::<f32>().unwrap();
-
-    assert!((slice[0] - 0.0).abs() < 1e-6);
-    assert!((slice[1] - 1.0).abs() < 1e-6);
-    assert!((slice[2] - 0.0).abs() < 1e-6);
-}
-
-#[test]
-fn translation_1d_shifts_scalar_correctly() {
-    let device = Default::default();
-    let translation = Tensor::<TestBackend, 1>::from_floats([1.0], &device);
-    let rotation = Tensor::<TestBackend, 1>::zeros([0], &device);
-    let center = Tensor::<TestBackend, 1>::zeros([1], &device);
-    let transform = RigidTransform::<TestBackend, 1>::new(translation, rotation, center);
-
-    let points = Tensor::<TestBackend, 2>::from_floats([[1.0]], &device);
-    let transformed = transform.transform_points(points);
-    let val = transformed.into_data().as_slice::<f32>().unwrap()[0];
-    assert_eq!(val, 2.0);
-}
-
-#[test]
-fn translation_4d_shifts_four_coords() {
-    let device = Default::default();
-    let translation = Tensor::<TestBackend, 1>::from_floats([1.0, 1.0, 1.0, 1.0], &device);
-    let rotation = Tensor::<TestBackend, 1>::zeros([6], &device); // Usually 6 for 4D but we ignore it
-    let center = Tensor::<TestBackend, 1>::zeros([4], &device);
-    let transform = RigidTransform::<TestBackend, 4>::new(translation, rotation, center);
-
-    let points = Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.0, 0.0]], &device);
-    let transformed = transform.transform_points(points);
-    let result = transformed.into_data().as_slice::<f32>().unwrap().to_vec();
-
-    assert_eq!(result[0], 1.0);
-    assert_eq!(result[1], 1.0);
-    assert_eq!(result[2], 1.0);
-    assert_eq!(result[3], 1.0);
+    let values = transformed.as_slice();
+    assert!((values[0] - 1.0).abs() <= ROTATION_BOUND);
+    assert!((values[1] - 3.0).abs() <= ROTATION_BOUND);
+    assert!((values[2] - 3.0).abs() <= ROTATION_BOUND);
 }

@@ -16,26 +16,26 @@ use coeus_ops::BackendOps;
 
 use super::traits::Transform;
 
-/// Differentiable affine transform of a batch of points: `out = coords·Rᵀ + t`,
-/// i.e. `out[n, :] = R · coords[n, :] + t` per point.
+/// Differentiable affine transform of a batch of points: `out = coordsÂ·Ráµ€ + t`,
+/// i.e. `out[n, :] = R Â· coords[n, :] + t` per point.
 ///
 /// - `coords`: `[N, 3]` batch of points (row per point).
-/// - `r`: `[3, 3]` linear map (rotation/scale/shear); `out = matmul(coords, Rᵀ)`.
+/// - `r`: `[3, 3]` linear map (rotation/scale/shear); `out = matmul(coords, Ráµ€)`.
 /// - `t`: `[3]` translation, broadcast across all `N` points.
 ///
 /// Returns `[N, 3]`. The autograd graph links back to `r` (through
 /// `matmul`/`transpose_2d`) and `t` (through `broadcast_to`, whose summing
-/// backward gives `∂loss/∂t_j = Σ_n ∂loss/∂out[n,j]`) — and to `coords` if it
+/// backward gives `âˆ‚loss/âˆ‚t_j = Î£_n âˆ‚loss/âˆ‚out[n,j]`) â€” and to `coords` if it
 /// requires grad. This is the general affine that a rigid/similarity/affine
 /// registration optimizer parameterizes; `R` is the natural `[3, 3]` parameter
 /// tensor (contrast the per-axis scalar form, which would need 9 separate
-/// scalars). Uses Coeus `matmul` — the Atlas replacement for the Burn/nalgebra
+/// scalars). Uses Coeus `matmul` â€” the Atlas replacement for the Burn/nalgebra
 /// matrix path.
 ///
 /// # Panics
 ///
 /// Panics if `coords` is not `[N, 3]`, `r` is not `[3, 3]`, or `t` is not `[3]`
-/// — caller invariants.
+/// â€” caller invariants.
 pub fn affine_transform<T, B>(coords: &Var<T, B>, r: &Var<T, B>, t: &Var<T, B>) -> Var<T, B>
 where
     T: Scalar,
@@ -60,9 +60,9 @@ where
     assert_eq!(t.tensor.shape(), [3], "affine_transform: t must be [3]");
     let n = coords_shape[0];
 
-    // out = coords[N,3] · Rᵀ[3,3]  ⇒  out[n,j] = Σ_k coords[n,k]·R[j,k] = (R·coords[n])[j].
+    // out = coords[N,3] Â· Ráµ€[3,3]  â‡’  out[n,j] = Î£_k coords[n,k]Â·R[j,k] = (RÂ·coords[n])[j].
     let linear = matmul(coords, &transpose_2d(r));
-    // Broadcast t[3] → [1,3] → [N,3] and add.
+    // Broadcast t[3] â†’ [1,3] â†’ [N,3] and add.
     let t_row = reshape(t, [1usize, 3]);
     let t_broadcast = broadcast_to(&t_row, vec![n, 3]);
     add(&linear, &t_broadcast)
@@ -99,7 +99,7 @@ where
 }
 
 /// Affine transform parameter bundle: a `[3, 3]` linear map plus a `[3]`
-/// translation. Implements [`Transform`] (`out = points·Rᵀ + t`).
+/// translation. Implements [`Transform`] (`out = pointsÂ·Ráµ€ + t`).
 #[derive(Clone)]
 pub struct Affine<T, B>
 where

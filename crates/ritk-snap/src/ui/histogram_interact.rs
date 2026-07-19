@@ -12,16 +12,16 @@
 //! pixel x-range `[x_left, x_right]`.  The inverse linear map is:
 //!
 //! ```text
-//! t   = clamp((x − x_left) / (x_right − x_left), 0, 1)
-//! v(x) = hist_min + t × (hist_max − hist_min)
+//! t   = clamp((x âˆ’ x_left) / (x_right âˆ’ x_left), 0, 1)
+//! v(x) = hist_min + t Ã— (hist_max âˆ’ hist_min)
 //! ```
 //!
 //! **Drag interaction** maps a 2D pointer delta `(dx, dy)` to:
 //!
 //! ```text
-//! Δcenter = (dx / canvas_width)  × (hist_max − hist_min)   [horizontal shift]
-//! scale   = 1 − dy / canvas_height                          [up = narrow, down = widen]
-//! new_width = max(1, current_width × scale)
+//! Î”center = (dx / canvas_width)  Ã— (hist_max âˆ’ hist_min)   [horizontal shift]
+//! scale   = 1 âˆ’ dy / canvas_height                          [up = narrow, down = widen]
+//! new_width = max(1, current_width Ã— scale)
 //! ```
 //!
 //! **Click interaction** (no drag threshold crossed) sets:
@@ -40,24 +40,24 @@
 //!
 //! - `x_to_intensity(x_left, ...)  = hist_min`
 //! - `x_to_intensity(x_right, ...) = hist_max`
-//! - `x_to_intensity` ∘ `wl_to_x`  = identity on `[hist_min, hist_max]`
+//! - `x_to_intensity` âˆ˜ `wl_to_x`  = identity on `[hist_min, hist_max]`
 //! - `wl_from_histogram_drag(0, 0, ...) = (current_center, current_width)` (zero delta invariant)
-//! - `new_width ≥ 1.0` always (enforced by clamp)
+//! - `new_width â‰¥ 1.0` always (enforced by clamp)
 
-// ── x_to_intensity ─────────────────────────────────────────────────────────────
+// â”€â”€ x_to_intensity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Map a canvas x-coordinate back to its corresponding intensity value.
 ///
 /// This is the inverse of [`crate::ui::histogram::wl_to_x`]:
 ///
 /// ```text
-/// t   = clamp((x − x_left) / (x_right − x_left), 0.0, 1.0)
-/// v   = hist_min + t × (hist_max − hist_min)
+/// t   = clamp((x âˆ’ x_left) / (x_right âˆ’ x_left), 0.0, 1.0)
+/// v   = hist_min + t Ã— (hist_max âˆ’ hist_min)
 /// ```
 ///
 /// # Degenerate input
 ///
-/// Returns `hist_min` when `x_right − x_left < ε` or `hist_max − hist_min < ε`.
+/// Returns `hist_min` when `x_right âˆ’ x_left < Îµ` or `hist_max âˆ’ hist_min < Îµ`.
 #[inline]
 pub fn x_to_intensity(x: f32, hist_min: f32, hist_max: f32, x_left: f32, x_right: f32) -> f32 {
     let canvas_span = x_right - x_left;
@@ -69,7 +69,7 @@ pub fn x_to_intensity(x: f32, hist_min: f32, hist_max: f32, x_left: f32, x_right
     hist_min + t * intensity_span
 }
 
-// ── wl_from_histogram_drag ─────────────────────────────────────────────────────
+// â”€â”€ wl_from_histogram_drag â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Canvas geometry and intensity range for histogram interaction.
 ///
@@ -88,13 +88,13 @@ pub struct HistogramCanvasGeometry {
 ///
 /// # Contract
 ///
-/// - `dx > 0` shifts center toward higher intensity: `Δcenter = (dx/canvas_width) × span`.
-/// - `dy < 0` (upward drag) narrows the window: `scale = 1 − dy/canvas_height > 1`.
-/// - `dy > 0` (downward drag) widens the window: `scale = 1 − dy/canvas_height < 1`.
-/// - `new_width ≥ 1.0` always, regardless of how extreme the drag is.
+/// - `dx > 0` shifts center toward higher intensity: `Î”center = (dx/canvas_width) Ã— span`.
+/// - `dy < 0` (upward drag) narrows the window: `scale = 1 âˆ’ dy/canvas_height > 1`.
+/// - `dy > 0` (downward drag) widens the window: `scale = 1 âˆ’ dy/canvas_height < 1`.
+/// - `new_width â‰¥ 1.0` always, regardless of how extreme the drag is.
 ///
-/// Returns `(current_center, current_width)` unchanged when `canvas_width ≤ 0`
-/// or `intensity_span ≤ 0`.
+/// Returns `(current_center, current_width)` unchanged when `canvas_width â‰¤ 0`
+/// or `intensity_span â‰¤ 0`.
 pub fn wl_from_histogram_drag(
     dx: f32,
     dy: f32,
@@ -127,7 +127,7 @@ pub fn wl_from_histogram_drag(
     (new_center, new_width)
 }
 
-// ── wl_center_from_click ───────────────────────────────────────────────────────
+// â”€â”€ wl_center_from_click â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Compute a new window center from a single click on the histogram canvas.
 ///

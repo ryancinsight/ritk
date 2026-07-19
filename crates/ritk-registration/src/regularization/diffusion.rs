@@ -6,9 +6,9 @@
 //!
 //! The diffusion regularization term is:
 //!
-//! R(u) = ∫_Ω |∇u|² dx
+//! R(u) = âˆ«_Î© |âˆ‡u|Â² dx
 //!
-//! where u is the displacement field and ∇u is its spatial gradient.
+//! where u is the displacement field and âˆ‡u is its spatial gradient.
 //!
 //! This is also known as:
 //! - Tikhonov regularization (first-order)

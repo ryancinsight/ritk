@@ -1,5 +1,5 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     AbsoluteValueDifferenceImageFilter, AddImageFilter, AndImageFilter, Atan2ImageFilter,
@@ -14,14 +14,14 @@ use ritk_filter::{
 /// ITK Parity: AddImageFilter
 #[pyfunction]
 pub fn add_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
-    let a_arc = py_image_to_burn(a);
-    let b_arc = py_image_to_burn(b);
+    let a_arc = image_from_py(a);
+    let b_arc = image_from_py(b);
     py.allow_threads(|| {
         AddImageFilter::new()
             .apply(&a_arc, &b_arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Pixelwise subtraction: out(x) = a(x) - b(x).
@@ -29,14 +29,14 @@ pub fn add_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImag
 /// ITK Parity: SubtractImageFilter
 #[pyfunction]
 pub fn subtract_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
-    let a_arc = py_image_to_burn(a);
-    let b_arc = py_image_to_burn(b);
+    let a_arc = image_from_py(a);
+    let b_arc = image_from_py(b);
     py.allow_threads(|| {
         SubtractImageFilter::new()
             .apply(&a_arc, &b_arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Pixelwise multiplication: out(x) = a(x) * b(x).
@@ -44,14 +44,14 @@ pub fn subtract_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<P
 /// ITK Parity: MultiplyImageFilter
 #[pyfunction]
 pub fn multiply_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
-    let a_arc = py_image_to_burn(a);
-    let b_arc = py_image_to_burn(b);
+    let a_arc = image_from_py(a);
+    let b_arc = image_from_py(b);
     py.allow_threads(|| {
         MultiplyImageFilter::new()
             .apply(&a_arc, &b_arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Pixelwise division: out(x) = a(x) / b(x).
@@ -59,18 +59,18 @@ pub fn multiply_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<P
 /// Matches ITK/SimpleITK `DivideImageFilter` for all non-zero denominators.
 /// Division-by-zero convention differs: ritk yields 0 (a safer default for
 /// downstream computation), whereas ITK yields the maximum float value
-/// (`NumericTraits::max()`, ≈ 3.4e38). Pre-mask zeros if exact ITK behaviour is
+/// (`NumericTraits::max()`, â‰ˆ 3.4e38). Pre-mask zeros if exact ITK behaviour is
 /// required.
 #[pyfunction]
 pub fn divide_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
-    let a_arc = py_image_to_burn(a);
-    let b_arc = py_image_to_burn(b);
+    let a_arc = image_from_py(a);
+    let b_arc = image_from_py(b);
     py.allow_threads(|| {
         DivideImageFilter::new()
             .apply(&a_arc, &b_arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Pixelwise squared difference: out(x) = (a(x) - b(x))^2.
@@ -78,14 +78,14 @@ pub fn divide_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyI
 /// ITK Parity: SquaredDifferenceImageFilter
 #[pyfunction]
 pub fn squared_difference_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
-    let a_arc = py_image_to_burn(a);
-    let b_arc = py_image_to_burn(b);
+    let a_arc = image_from_py(a);
+    let b_arc = image_from_py(b);
     py.allow_threads(|| {
         SquaredDifferenceImageFilter::new()
             .apply(&a_arc, &b_arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Pixelwise absolute difference: out(x) = |a(x) - b(x)|.
@@ -97,14 +97,14 @@ pub fn absolute_value_difference_images(
     a: &PyImage,
     b: &PyImage,
 ) -> RitkResult<PyImage> {
-    let a_arc = py_image_to_burn(a);
-    let b_arc = py_image_to_burn(b);
+    let a_arc = image_from_py(a);
+    let b_arc = image_from_py(b);
     py.allow_threads(|| {
         AbsoluteValueDifferenceImageFilter::new()
             .apply(&a_arc, &b_arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Pixelwise four-quadrant arctangent: out(x) = atan2(a(x), b(x)).
@@ -112,14 +112,14 @@ pub fn absolute_value_difference_images(
 /// ITK Parity: Atan2ImageFilter
 #[pyfunction]
 pub fn atan2_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
-    let a_arc = py_image_to_burn(a);
-    let b_arc = py_image_to_burn(b);
+    let a_arc = image_from_py(a);
+    let b_arc = image_from_py(b);
     py.allow_threads(|| {
         Atan2ImageFilter::new()
             .apply(&a_arc, &b_arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Pixelwise power: out(x) = a(x) ^ b(x).
@@ -127,14 +127,14 @@ pub fn atan2_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyIm
 /// ITK Parity: PowImageFilter
 #[pyfunction]
 pub fn pow_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
-    let a_arc = py_image_to_burn(a);
-    let b_arc = py_image_to_burn(b);
+    let a_arc = image_from_py(a);
+    let b_arc = image_from_py(b);
     py.allow_threads(|| {
         PowImageFilter::new()
             .apply(&a_arc, &b_arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Pixelwise magnitude: out(x) = sqrt(a(x)^2 + b(x)^2).
@@ -142,18 +142,18 @@ pub fn pow_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImag
 /// ITK Parity: BinaryMagnitudeImageFilter
 #[pyfunction]
 pub fn binary_magnitude_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
-    let a_arc = py_image_to_burn(a);
-    let b_arc = py_image_to_burn(b);
+    let a_arc = image_from_py(a);
+    let b_arc = image_from_py(b);
     py.allow_threads(|| {
         BinaryMagnitudeImageFilter::new()
             .apply(&a_arc, &b_arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Fold a binary image operation over a non-empty list of co-shaped images
-/// (`acc = op(op(op(i0, i1), i2), …)`). Used by the N-ary `Add` / `Maximum`.
+/// (`acc = op(op(op(i0, i1), i2), â€¦)`). Used by the N-ary `Add` / `Maximum`.
 fn nary_fold<Op: ritk_filter::BinaryOp>(
     py: Python<'_>,
     images: Vec<Py<PyImage>>,
@@ -166,7 +166,7 @@ fn nary_fold<Op: ritk_filter::BinaryOp>(
     }
     let arcs: Vec<_> = images
         .iter()
-        .map(|p| py_image_to_burn(&p.bind(py).borrow()))
+        .map(|p| image_from_py(&p.bind(py).borrow()))
         .collect();
     py.allow_threads(|| {
         let mut acc = arcs[0].clone();
@@ -177,10 +177,10 @@ fn nary_fold<Op: ritk_filter::BinaryOp>(
         }
         Ok(acc)
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
-/// Pixelwise sum of any number of images: `out(x) = Σ_i img_i(x)`.
+/// Pixelwise sum of any number of images: `out(x) = Î£_i img_i(x)`.
 ///
 /// ITK Parity: NaryAddImageFilter (`sitk.NaryAdd`)
 #[pyfunction]
@@ -269,14 +269,14 @@ binary_pyfn!(
 /// ITK Parity: MinimumImageFilter
 #[pyfunction]
 pub fn minimum_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
-    let a_arc = py_image_to_burn(a);
-    let b_arc = py_image_to_burn(b);
+    let a_arc = image_from_py(a);
+    let b_arc = image_from_py(b);
     py.allow_threads(|| {
         ImageMinFilter::new()
             .apply(&a_arc, &b_arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Pixelwise maximum: out(x) = max(a(x), b(x)).
@@ -284,12 +284,12 @@ pub fn minimum_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<Py
 /// ITK Parity: MaximumImageFilter
 #[pyfunction]
 pub fn maximum_images(py: Python<'_>, a: &PyImage, b: &PyImage) -> RitkResult<PyImage> {
-    let a_arc = py_image_to_burn(a);
-    let b_arc = py_image_to_burn(b);
+    let a_arc = image_from_py(a);
+    let b_arc = image_from_py(b);
     py.allow_threads(|| {
         ImageMaxFilter::new()
             .apply(&a_arc, &b_arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

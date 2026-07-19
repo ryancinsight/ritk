@@ -15,26 +15,24 @@ pub use format::dicom::{
     load_atlas_color_multiframe, load_color_multiframe_flat, load_color_volume_flat,
     load_color_volume_flat_from_path, load_dicom_from_series, load_dicom_multiframe,
     load_dicom_multiframe_flat, load_dicom_multiframe_native, load_dicom_series,
-    load_dicom_series_with_metadata, load_native_dicom_from_series, load_native_dicom_series,
-    load_native_dicom_series_with_metadata, model_to_in_mem, read_dicom_seg, read_dicom_series,
-    read_dicom_series_with_metadata, read_multiframe_info, read_native_dicom_series,
-    read_native_dicom_series_with_metadata, read_rt_dose, read_rt_plan, read_rt_struct,
-    rt_roi_to_polydata, scan_dicom_directory, scan_dicom_instances, scan_dicom_part10_bytes,
-    write_dicom_multiframe, write_dicom_multiframe_native,
-    write_dicom_multiframe_native_with_config, write_dicom_multiframe_native_with_options,
-    write_dicom_multiframe_with_config, write_dicom_multiframe_with_options, write_dicom_object,
-    write_dicom_seg, write_dicom_series, write_dicom_series_native,
-    write_dicom_series_with_metadata, write_rt_dose, write_rt_plan, write_rt_struct, AeTitle,
-    AnonymizationProfile, AnonymizeOptions, AnonymizeResult, AnonymizeStats, AssociationConfig,
-    CleaningPolicy, ColorMultiFrameVolume, ContourGeometricType, DicomAddress, DicomObjectModel,
-    DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomReadMetadata,
-    DicomSegmentInfo, DicomSegmentation, DicomSequenceItem, DicomSeriesInfo, DicomSliceMetadata,
-    DicomTag, DicomValue, DicomWriter, EchoResponse, FindLevel, FindQuery, FindResult,
-    MoveDestination, MoveResponse, MultiFrameInfo, MultiFrameSpatialMetadata, MultiFrameVolume,
-    MultiFrameWriterConfig, NetworkingError, PatientPosition, PixelSignedness, RtBeamInfo,
-    RtContour, RtDoseGrid, RtDoseSummationType, RtDoseType, RtFractionGroup, RtPlanInfo, RtRoiInfo,
-    RtRoiInterpretedType, RtStructureSet, ScannedDicomSeries, ScpConfig, SegEncoding,
-    SegmentAlgorithmType, SegmentationType, StoreResponse, StoreScp, StoreScpHandle,
+    load_dicom_series_with_metadata, load_native_dicom_series, model_to_in_mem, read_dicom_seg,
+    read_dicom_series, read_dicom_series_with_metadata, read_multiframe_info,
+    read_native_dicom_series, read_rt_dose, read_rt_plan, read_rt_struct, rt_roi_to_polydata,
+    scan_dicom_directory, scan_dicom_instances, scan_dicom_part10_bytes, write_dicom_multiframe,
+    write_dicom_multiframe_native, write_dicom_multiframe_native_with_config,
+    write_dicom_multiframe_native_with_options, write_dicom_multiframe_with_config,
+    write_dicom_multiframe_with_options, write_dicom_object, write_dicom_seg, write_dicom_series,
+    write_dicom_series_native, write_dicom_series_with_metadata, write_rt_dose, write_rt_plan,
+    write_rt_struct, AeTitle, AnonymizationProfile, AnonymizeOptions, AnonymizeResult,
+    AnonymizeStats, AssociationConfig, CleaningPolicy, ColorMultiFrameVolume, ContourGeometricType,
+    DicomAddress, DicomObjectModel, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
+    DicomReadMetadata, DicomSegmentInfo, DicomSegmentation, DicomSequenceItem, DicomSeriesInfo,
+    DicomSliceMetadata, DicomTag, DicomValue, DicomWriter, EchoResponse, FindLevel, FindQuery,
+    FindResult, MoveDestination, MoveResponse, MultiFrameInfo, MultiFrameSpatialMetadata,
+    MultiFrameVolume, MultiFrameWriterConfig, NetworkingError, PatientPosition, PixelSignedness,
+    RtBeamInfo, RtContour, RtDoseGrid, RtDoseSummationType, RtDoseType, RtFractionGroup,
+    RtPlanInfo, RtRoiInfo, RtRoiInterpretedType, RtStructureSet, ScannedDicomSeries, ScpConfig,
+    SegEncoding, SegmentAlgorithmType, SegmentationType, StoreResponse, StoreScp, StoreScpHandle,
     StoredInstance, TagAction, TransferSyntaxKind, RT_DOSE_SOP_CLASS_UID, RT_PLAN_SOP_CLASS_UID,
 };
 pub use format::dicomweb::{DicomWebClient, QidoSearchParams, StowFailure, StowResponse};
@@ -63,7 +61,7 @@ pub use format::vtk::{
     write_vtk_polydata, write_vtp_polydata,
 };
 
-// ── Image format enumeration ──────────────────────────────────────────────────
+// â”€â”€ Image format enumeration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Canonical medical image format.
 ///
@@ -154,7 +152,7 @@ impl ImageFormat {
     }
 }
 
-// ── Native image dispatch ─────────────────────────────────────────────────────
+// â”€â”€ Native image dispatch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Native CPU backend used by consumer-level image I/O.
 ///
@@ -163,7 +161,7 @@ impl ImageFormat {
 pub type NativeBackend = coeus_core::SequentialBackend;
 
 /// Native 3-D f32 image used by consumer-level image I/O.
-pub type NativeImage = ritk_image::native::Image<f32, NativeBackend, 3>;
+pub type NativeImage = ritk_image::Image<f32, NativeBackend, 3>;
 
 /// True when `fmt` has a native reader in the unified `ritk-io` contract.
 #[must_use]
@@ -262,7 +260,7 @@ pub fn read_image_native<P: AsRef<std::path::Path>>(path: P) -> anyhow::Result<N
             path,
         ),
         ImageFormat::Analyze => crate::ImageReader::read(
-            &format::analyze::native::AnalyzeReader::new(NativeBackend::default()),
+            &format::analyze::AnalyzeReader::new(NativeBackend::default()),
             path,
         ),
         ImageFormat::Vtk => crate::ImageReader::read(
@@ -323,7 +321,7 @@ pub fn write_image_native<P: AsRef<std::path::Path>>(
             image,
         ),
         ImageFormat::Analyze => crate::ImageWriter::write(
-            &format::analyze::native::AnalyzeWriter::new(NativeBackend::default()),
+            &format::analyze::AnalyzeWriter::new(NativeBackend::default()),
             path,
             image,
         ),

@@ -20,7 +20,7 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::time::Duration;
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn rpc(uid: &str, ts: &[&str]) -> RequestedPresentationContext {
     RequestedPresentationContext {
@@ -62,7 +62,7 @@ fn build_pdata_pdv(triples: &[(u8, MessageControlHeader, &[u8])]) -> Pdu {
     })
 }
 
-// ── SCP mock server ───────────────────────────────────────────────────────────
+// â”€â”€ SCP mock server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn scp_thread(listener: TcpListener) {
     let (mut stream, _) = listener.accept().expect("SCP accept");
@@ -180,7 +180,7 @@ fn scp_thread(listener: TcpListener) {
                 }
             }
             Pdu::ReleaseRq(_) => {
-                // Remote released without sending C-STORE — unexpected but handle.
+                // Remote released without sending C-STORE â€” unexpected but handle.
                 let rp = Pdu::ReleaseRp(crate::format::dicom::networking::pdu::ReleaseRpPdu);
                 write_pdu(&mut stream, &rp.encode()).expect("SCP write A-RELEASE-RP");
                 return;
@@ -216,7 +216,7 @@ fn scp_thread(listener: TcpListener) {
     write_pdu(&mut stream, &rp.encode()).expect("SCP write A-RELEASE-RP");
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn test_c_store_loopback_success() {
@@ -224,7 +224,7 @@ fn test_c_store_loopback_success() {
     const TEST_INSTANCE_UID: &str = "1.2.3.4.5.6.7.8.9.10";
 
     // Minimal synthetic dataset (not a valid DICOM object, but exercises
-    // the transport layer — the SCP does not parse the data set bytes).
+    // the transport layer â€” the SCP does not parse the data set bytes).
     let dataset: Vec<u8> = vec![0x08, 0x00, 0x5A, 0x44, 0x04, 0x00, 0x54, 0x45, 0x53, 0x54]; // dummy tag+VR+value
 
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");

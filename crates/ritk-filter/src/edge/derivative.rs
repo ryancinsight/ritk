@@ -4,12 +4,12 @@
 //! `order`-th central-difference operator along one axis. With
 //! `use_image_spacing = true` the result is divided by `spacing` **once**
 //! (ITK's `DerivativeOperator` scales its coefficients by `1/spacing`
-//! regardless of order — verified against sitk). Boundary handling is zero-flux
+//! regardless of order â€” verified against sitk). Boundary handling is zero-flux
 //! Neumann (edge-clamp), matching ITK's `NeighborhoodOperatorImageFilter`.
 //!
 //! Supported orders (the ITK `DerivativeOperator` coefficients):
-//! - order 1: `[−½, 0, ½]`  →  `(f[i+1] − f[i−1]) / 2`
-//! - order 2: `[1, −2, 1]`  →  `f[i+1] − 2f[i] + f[i−1]`
+//! - order 1: `[âˆ’Â½, 0, Â½]`  â†’  `(f[i+1] âˆ’ f[iâˆ’1]) / 2`
+//! - order 2: `[1, âˆ’2, 1]`  â†’  `f[i+1] âˆ’ 2f[i] + f[iâˆ’1]`
 
 use anyhow::{bail, Result};
 use ritk_image::tensor::Backend;
@@ -38,7 +38,7 @@ impl DerivativeImageFilter {
     }
 
     /// Apply the derivative along the configured axis.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         if self.axis > 2 {
             bail!("derivative: axis must be 0, 1, or 2; got {}", self.axis);
         }
@@ -103,9 +103,9 @@ impl DerivativeImageFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

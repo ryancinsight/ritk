@@ -5,16 +5,16 @@
 //! The Canny edge detection algorithm (Canny 1986) produces a binary edge map
 //! through four stages:
 //!
-//! 1. **Gaussian smoothing**: Convolve with G_σ to suppress noise.
-//! 2. **Gradient computation**: Estimate ∇I via central finite differences,
-//!    yielding gradient magnitude |∇I| and direction θ = atan2(g_y, g_x) at
+//! 1. **Gaussian smoothing**: Convolve with G_Ïƒ to suppress noise.
+//! 2. **Gradient computation**: Estimate âˆ‡I via central finite differences,
+//!    yielding gradient magnitude |âˆ‡I| and direction Î¸ = atan2(g_y, g_x) at
 //!    each voxel.
-//! 3. **Non-maximum suppression (NMS)**: For each voxel, step ±1 pixel along
+//! 3. **Non-maximum suppression (NMS)**: For each voxel, step Â±1 pixel along
 //!    the continuous gradient direction and evaluate the magnitude via
 //!    trilinear interpolation; suppress the voxel if either interpolated
 //!    neighbour exceeds its magnitude (sub-pixel NMS, no direction quantisation).
 //! 4. **Double hysteresis thresholding**: Classify surviving voxels as
-//!    *strong* (|∇I| ≥ T_high) or *weak* (T_low ≤ |∇I| < T_high). Retain
+//!    *strong* (|âˆ‡I| â‰¥ T_high) or *weak* (T_low â‰¤ |âˆ‡I| < T_high). Retain
 //!    weak edges only if they are connected to a strong edge via BFS on the
 //!    26-connected neighbourhood.
 //!
@@ -30,14 +30,14 @@
 //!
 //! - Canny, J. (1986). A computational approach to edge detection. *IEEE
 //!   Transactions on Pattern Analysis and Machine Intelligence*, 8(6),
-//!   pp. 679–698.
+//!   pp. 679â€“698.
 
 use super::GaussianSigma;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::Spacing;
 use std::collections::VecDeque;
 
-// ── Filter struct ─────────────────────────────────────────────────────────────
+// â”€â”€ Filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Canny edge detector for 3-D images.
 ///
@@ -62,10 +62,10 @@ impl CannyEdgeDetector {
     ///
     /// # Arguments
     ///
-    /// * `sigma` — Standard deviation of the Gaussian smoothing kernel,
+    /// * `sigma` â€” Standard deviation of the Gaussian smoothing kernel,
     ///   wrapped in [`GaussianSigma`] (physical units).
-    /// * `low_threshold` — Lower hysteresis threshold on gradient magnitude.
-    /// * `high_threshold` — Upper hysteresis threshold on gradient magnitude.
+    /// * `low_threshold` â€” Lower hysteresis threshold on gradient magnitude.
+    /// * `high_threshold` â€” Upper hysteresis threshold on gradient magnitude.
     ///
     /// # Panics
     ///
@@ -134,11 +134,11 @@ impl CannyEdgeDetector {
     /// tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Parity
-    /// Stages 2–4 are bitwise-identical to the legacy Burn path (shared core).
+    /// Stages 2â€“4 are bitwise-identical to the legacy Burn path (shared core).
     /// The native Gaussian (`convolve_zero_pad_3d`) and the legacy Burn
     /// Gaussian (`conv1d`) evaluate the same kernels but sum taps in different
     /// orders, so the pre-threshold magnitude field differs by accumulation
-    /// rounding only (`O(width·ε·‖I‖∞)`); the binary edge map is unaffected
+    /// rounding only (`O(widthÂ·ÎµÂ·â€–Iâ€–âˆž)`); the binary edge map is unaffected
     /// except for voxels whose magnitude sits within that bound of a threshold.
     ///
     /// # Errors
@@ -172,7 +172,7 @@ impl CannyEdgeDetector {
     }
 }
 
-/// Substrate-agnostic host core for [`CannyEdgeDetector`] stages 2–4: gradient
+/// Substrate-agnostic host core for [`CannyEdgeDetector`] stages 2â€“4: gradient
 /// magnitude/direction, non-maximum suppression along the continuous gradient,
 /// and double-hysteresis thresholding with BFS connectivity, on an
 /// already-smoothed flat z-major buffer. Returns the binary edge map (`1.0`
@@ -196,7 +196,7 @@ fn canny_edges_flat(
 /// Gradient magnitude threshold below which a pixel is treated as flat.
 const NEAR_ZERO_MAG: f32 = 1e-10;
 
-// ── Gradient computation ──────────────────────────────────────────────────────
+// â”€â”€ Gradient computation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Compute gradient magnitude and per-component direction using central
 /// differences with one-sided boundary handling, parallelised over z-slices.
@@ -288,7 +288,7 @@ fn compute_gradient(
     (mag, dz, dy, dx)
 }
 
-// ── Non-maximum suppression ───────────────────────────────────────────────────
+// â”€â”€ Non-maximum suppression â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Trilinearly interpolate `vals` at continuous position `(fz, fy, fx)` within
 /// `dims`, clamped to the valid voxel range.
@@ -327,16 +327,16 @@ fn trilinear_interp(vals: &[f32], dims: &[usize; 3], fz: f64, fy: f64, fx: f64) 
 /// Suppress voxels whose gradient magnitude is not a local maximum along the
 /// continuous gradient direction, evaluated via trilinear interpolation.
 ///
-/// For each voxel the magnitude at positions ±1 step along the unit gradient
+/// For each voxel the magnitude at positions Â±1 step along the unit gradient
 /// vector `(gx, gy, gz)` is obtained by trilinear interpolation from the
 /// magnitude field; the voxel is suppressed if either interpolated value
 /// exceeds its own magnitude.  Parallelised over z-slices.
 ///
 /// # Parameters
 ///
-/// * `gx` — x-component of the normalised gradient direction.
-/// * `gy` — y-component of the normalised gradient direction.
-/// * `gz` — z-component of the normalised gradient direction.
+/// * `gx` â€” x-component of the normalised gradient direction.
+/// * `gy` â€” y-component of the normalised gradient direction.
+/// * `gz` â€” z-component of the normalised gradient direction.
 fn non_maximum_suppression(
     mag: &[f32],
     gx: &[f32],
@@ -396,13 +396,13 @@ fn non_maximum_suppression(
     out
 }
 
-// ── Double hysteresis thresholding ────────────────────────────────────────────
+// â”€â”€ Double hysteresis thresholding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Apply double hysteresis thresholding with BFS connectivity.
 ///
 /// A voxel is marked as an edge if:
-/// - Its NMS-surviving magnitude ≥ `high_threshold` (*strong* edge), OR
-/// - Its magnitude ≥ `low_threshold` (*weak* edge) AND it is 26-connected to
+/// - Its NMS-surviving magnitude â‰¥ `high_threshold` (*strong* edge), OR
+/// - Its magnitude â‰¥ `low_threshold` (*weak* edge) AND it is 26-connected to
 ///   at least one strong edge.
 ///
 /// The BFS starts from all strong-edge voxels and propagates to adjacent weak

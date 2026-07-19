@@ -6,38 +6,38 @@
 //! where the deformation force is the level-set motion equation:
 //!
 //! ```text
-//! u^{n+1} = G_σ ⊛ (u^n + (F - M∘φ^n) · ∇F / (|∇F|² + α²))
+//! u^{n+1} = G_Ïƒ âŠ› (u^n + (F - Mâˆ˜Ï†^n) Â· âˆ‡F / (|âˆ‡F|Â² + Î±Â²))
 //! ```
 //!
-//! where G_σ is a Gaussian smoothing kernel applied for regularisation.
+//! where G_Ïƒ is a Gaussian smoothing kernel applied for regularisation.
 //!
 //! ## Parameters
 //!
 //! - `number_of_iterations`: outer PDE steps (default 20)
 //! - `smoothing_sigma`: standard deviation of the regularisation Gaussian (default 1.0)
-//! - `intensity_difference_threshold`: α² in the force denominator (default 0.001)
+//! - `intensity_difference_threshold`: Î±Â² in the force denominator (default 0.001)
 //!
 //! ## Force Denominator vs Thirion Demons
 //!
-//! Thirion: `|∇F|² + (F − M)²/σₓ² + ε`  (adaptive; residual-dependent)
-//! Level-set motion: `|∇F|² + α²`          (constant α² independent of residual)
+//! Thirion: `|âˆ‡F|Â² + (F âˆ’ M)Â²/Ïƒâ‚“Â² + Îµ`  (adaptive; residual-dependent)
+//! Level-set motion: `|âˆ‡F|Â² + Î±Â²`          (constant Î±Â² independent of residual)
 //!
-//! The constant α² stabilises the force where the fixed gradient is small
+//! The constant Î±Â² stabilises the force where the fixed gradient is small
 //! without coupling the damping to the current intensity residual.  In flat
-//! regions (|∇F| ≈ 0) both the numerator `(F − M) · ∇F` and denominator
-//! `|∇F|² + α²` approach 0 and α² respectively, so forces vanish: no deformation
+//! regions (|âˆ‡F| â‰ˆ 0) both the numerator `(F âˆ’ M) Â· âˆ‡F` and denominator
+//! `|âˆ‡F|Â² + Î±Â²` approach 0 and Î±Â² respectively, so forces vanish: no deformation
 //! is generated where the image provides no structural information.
 //!
 //! # Evidence Tier
 //!
 //! Force formula: analytical derivation from ITK source, cross-validated
 //! against Vercauteren et al. (2008), paragraph 2.2.
-//! Numerical stability: `denom ≥ α² > 0` is a compile-time invariant
+//! Numerical stability: `denom â‰¥ Î±Â² > 0` is a compile-time invariant
 //! enforced by the `threshold > 0.0` contract.
 //!
 //! # References
 //!
-//! - Vercauteren et al. (2008), paragraph 2.2 — level-set motion equivalent
+//! - Vercauteren et al. (2008), paragraph 2.2 â€” level-set motion equivalent
 //!   to classic Thirion Demons on the fixed-image gradient.
 //! - ITK: `itk::LevelSetMotionRegistrationFilter`.
 
@@ -54,10 +54,10 @@ use ritk_spatial::VolumeDims;
 /// Computes a dense displacement field by iterating the level-set motion PDE:
 ///
 /// ```text
-/// u^{n+1} = G_σ ⊛ (u^n + (F − M∘φ^n) · ∇F / (|∇F|² + α²))
+/// u^{n+1} = G_Ïƒ âŠ› (u^n + (F âˆ’ Mâˆ˜Ï†^n) Â· âˆ‡F / (|âˆ‡F|Â² + Î±Â²))
 /// ```
 ///
-/// The constant threshold α² (`intensity_difference_threshold`) stabilises
+/// The constant threshold Î±Â² (`intensity_difference_threshold`) stabilises
 /// forces in flat (near-zero gradient) regions independently of the current
 /// intensity residual, unlike the Thirion denominator which grows with the
 /// residual.
@@ -65,14 +65,14 @@ use ritk_spatial::VolumeDims;
 pub struct LevelSetMotionRegistration {
     /// Number of outer PDE iterations.
     pub number_of_iterations: usize,
-    /// Gaussian regularisation σ applied to the displacement field after each
+    /// Gaussian regularisation Ïƒ applied to the displacement field after each
     /// iteration (voxels). Set to 0.0 to disable smoothing.
     pub smoothing_sigma: f32,
-    /// α² in the force denominator: `|∇F|² + α²`.
+    /// Î±Â² in the force denominator: `|âˆ‡F|Â² + Î±Â²`.
     ///
     /// Prevents near-zero denominator in flat image regions.
     /// Default 0.001 is appropriate for images with gradient magnitudes of
-    /// order 1.  Must be strictly positive (invariant: `denom ≥ α² > 0`).
+    /// order 1.  Must be strictly positive (invariant: `denom â‰¥ Î±Â² > 0`).
     pub intensity_difference_threshold: f32,
 }
 
@@ -93,10 +93,10 @@ impl LevelSetMotionRegistration {
     /// Prefer [`register_with`](Self::register_with) to pass a GPU smoother.
     ///
     /// # Arguments
-    /// - `fixed`   — reference image, flat Z-major `[nz, ny, nx]`.
-    /// - `moving`  — moving image, same shape and length.
-    /// - `dims`    — `[nz, ny, nx]` volume dimensions.
-    /// - `spacing` — physical voxel size per axis (mm or arbitrary units).
+    /// - `fixed`   â€” reference image, flat Z-major `[nz, ny, nx]`.
+    /// - `moving`  â€” moving image, same shape and length.
+    /// - `dims`    â€” `[nz, ny, nx]` volume dimensions.
+    /// - `spacing` â€” physical voxel size per axis (mm or arbitrary units).
     ///
     /// # Errors
     /// Returns [`RegistrationError`] if `fixed` and `moving` have different
@@ -115,8 +115,8 @@ impl LevelSetMotionRegistration {
 
     /// Register `moving` to `fixed` with a pluggable [`FieldSmoother`].
     ///
-    /// Accepts any [`FieldSmoother`] implementation — `CpuFieldSmoother` or
-    /// `GpuFieldSmoother` — so the smoothing backend is chosen at the call site.
+    /// Accepts any [`FieldSmoother`] implementation â€” `CpuFieldSmoother` or
+    /// `GpuFieldSmoother` â€” so the smoothing backend is chosen at the call site.
     ///
     /// # Errors
     /// Returns [`RegistrationError`] if lengths or dims are inconsistent.
@@ -140,7 +140,7 @@ impl LevelSetMotionRegistration {
         // Uses central differences at interior voxels; one-sided at boundaries.
         let grad = compute_gradient(fixed, VolumeDims::new(dims), spacing);
 
-        // m_warped begins as the identity warp — a copy of moving.
+        // m_warped begins as the identity warp â€” a copy of moving.
         // Each iteration re-warps with the updated displacement; first iteration
         // sees moving unwarped (displacement = 0), matching ITK semantics.
         let mut m_warped = moving.to_vec();
@@ -213,16 +213,16 @@ impl LevelSetMotionRegistration {
 ///
 /// Force at voxel `i`:
 /// ```text
-/// f(i) = (F(i) − M_w(i)) · ∇F(i) / (|∇F(i)|² + α²)
+/// f(i) = (F(i) âˆ’ M_w(i)) Â· âˆ‡F(i) / (|âˆ‡F(i)|Â² + Î±Â²)
 /// ```
 ///
 /// # Invariants
-/// - `denom = |∇F|² + threshold ≥ threshold > 0`: no division-by-zero.
-/// - In flat regions (`|∇F| ≈ 0`): numerator `(F−M)·∇F → 0` faster than
-///   `denom → threshold`, so forces naturally vanish.
-/// - No explicit magnitude clamping: the `α²` threshold provides global
+/// - `denom = |âˆ‡F|Â² + threshold â‰¥ threshold > 0`: no division-by-zero.
+/// - In flat regions (`|âˆ‡F| â‰ˆ 0`): numerator `(Fâˆ’M)Â·âˆ‡F â†’ 0` faster than
+///   `denom â†’ threshold`, so forces naturally vanish.
+/// - No explicit magnitude clamping: the `Î±Â²` threshold provides global
 ///   damping at near-zero gradients; high-gradient regions are bounded by
-///   the AM-GM inequality `|∇F|/(|∇F|²+α²) ≤ 1/(2√α²)`.
+///   the AM-GM inequality `|âˆ‡F|/(|âˆ‡F|Â²+Î±Â²) â‰¤ 1/(2âˆšÎ±Â²)`.
 fn level_set_motion_forces_into(
     fixed: &[f32],
     m_warped: &[f32],
@@ -244,7 +244,7 @@ fn level_set_motion_forces_into(
     for i in 0..fixed.len() {
         let diff = fixed[i] - m_warped[i];
         let grad_sq = gz[i] * gz[i] + gy[i] * gy[i] + gx[i] * gx[i];
-        // denom ≥ threshold > 0: finite by construction.
+        // denom â‰¥ threshold > 0: finite by construction.
         let denom = grad_sq + threshold;
         let scale = diff / denom;
         fz[i] = scale * gz[i];

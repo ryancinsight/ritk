@@ -2,7 +2,7 @@
 //! normalize, unsharp mask, and zero crossing.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
@@ -142,7 +142,7 @@ pub fn threshold_outside(
 /// f(I; alpha, beta) = (max - min) / (1 + exp(-(I - beta) / alpha)) + min
 ///
 /// Parameter convention matches SimpleITK `SigmoidImageFilter`:
-/// - alpha controls the slope (transition width): positive → increasing, negative → decreasing.
+/// - alpha controls the slope (transition width): positive â†’ increasing, negative â†’ decreasing.
 /// - beta is the shift (inflection point): output = (max + min) / 2 when I = beta.
 ///
 /// At I = beta: exp(0) = 1, so output = (max - min) / 2 + min = (max + min) / 2.
@@ -262,8 +262,8 @@ pub fn blend_images(py: Python<'_>, a: &PyImage, b: &PyImage, alpha: f32) -> Rit
 
 /// Zero-mean, unit-variance intensity normalization.
 ///
-/// Computes global mean μ and standard deviation σ, then outputs
-/// `(I(x) − μ) / σ` for each voxel. Constant images (σ = 0) produce
+/// Computes global mean Î¼ and standard deviation Ïƒ, then outputs
+/// `(I(x) âˆ’ Î¼) / Ïƒ` for each voxel. Constant images (Ïƒ = 0) produce
 /// all-zero output. Equivalent to ITK `NormalizeImageFilter`.
 ///
 /// Args:
@@ -285,7 +285,7 @@ pub fn normalize_image(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 }
 
 /// Scale the image so the sum of all voxels equals `constant`
-/// (`out = in · constant / Σin`). ITK Parity: NormalizeToConstantImageFilter
+/// (`out = in Â· constant / Î£in`). ITK Parity: NormalizeToConstantImageFilter
 /// (`sitk.NormalizeToConstant`).
 #[pyfunction]
 #[pyo3(signature = (image, constant=1.0))]
@@ -315,7 +315,7 @@ pub fn normalize_to_constant(
 /// output(p) = I(p) + amount * max(|mask(p)| - threshold, 0) * sign(mask(p))
 /// ```
 /// With `clamp=False` (the default) the result matches SimpleITK's
-/// `UnsharpMask` (which only clamps to the *output pixel type's* range — a no-op
+/// `UnsharpMask` (which only clamps to the *output pixel type's* range â€” a no-op
 /// for ritk's f32). `clamp=True` additionally clamps the output to the input
 /// value range `[min(I), max(I)]`, the ImageJ "Unsharp Mask" behaviour.
 ///
@@ -323,11 +323,11 @@ pub fn normalize_to_constant(
 ///     image:     Input PyImage.
 ///     sigma:     Gaussian blur sigma in physical units (mm). Applied
 ///                isotropically to all three axes (default 1.0).
-///     amount:    Sharpening strength in [0, ∞). Default 0.5.
+///     amount:    Sharpening strength in [0, âˆž). Default 0.5.
 ///     threshold: Minimum absolute mask value to trigger sharpening.
 ///                Voxels with |mask| < threshold are left unchanged (default 0.0).
 ///     clamp:     If True, clamp output to the input value range (ImageJ style).
-///                Default False — matches SimpleITK's `UnsharpMask`.
+///                Default False â€” matches SimpleITK's `UnsharpMask`.
 ///
 /// Returns:
 ///     Sharpened PyImage with identical shape and spatial metadata.
@@ -463,14 +463,14 @@ pub fn bitwise_not(
     signed: bool,
 ) -> RitkResult<PyImage> {
     // TODO: BitwiseNotImageFilter still lacks apply_native; keep Burn roundtrip for now.
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let filter = if signed {
         BitwiseNotImageFilter::signed()
     } else {
         BitwiseNotImageFilter::unsigned(bits)
     };
     let out = py.allow_threads(|| filter.apply(&arc));
-    Ok(burn_into_py_image(out))
+    Ok(into_py_image(out))
 }
 
 /// Apply a linear shift-then-scale to every voxel.

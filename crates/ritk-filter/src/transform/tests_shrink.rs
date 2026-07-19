@@ -1,17 +1,16 @@
 //! Tests for shrink
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(data: Vec<f32>, shape: [usize; 3], spacing: [f64; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image_with_spacing::<B, 3>(data, shape, spacing)
+fn make_image(data: Vec<f32>, shape: [usize; 3], spacing: [f64; 3]) -> Image<f32, B, 3> {
+    ts::make_image_with_spacing::<f32, B, 3>(data, shape, spacing)
 }
 
-fn voxels(img: &Image<B, 3>) -> Vec<f32> {
+fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
     let (v, _) = extract_vec_infallible(img);
     v
 }
@@ -71,7 +70,7 @@ fn tile_mean_odd_size_ceil_division() {
 #[test]
 fn native_tile_mean_preserves_origin_and_scales_spacing() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
     use ritk_spatial::{Direction, Point};
 
     let image = NativeImage::from_flat_on(

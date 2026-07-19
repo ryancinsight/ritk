@@ -9,17 +9,17 @@
 //! - Sprint 284: Embedded SCP configuration defaults
 //! - auto_load_policy / auto_load_limit defaults
 //!
-//! No network connections are required — all tests run fully offline.
+//! No network connections are required â€” all tests run fully offline.
 
 use super::config::PacsConfig;
 use super::query::FindResultRow;
 
-// ── IVR-LE encoding helper ────────────────────────────────────────────────────
+// â”€â”€ IVR-LE encoding helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Encode a single DICOM IVR-LE element as bytes.
 ///
 /// Format: `[group:u16-LE][element:u16-LE][length:u32-LE][value:bytes]`
-/// (PS 3.5 §7.1 Table 7.1-1, Implicit VR Little Endian).
+/// (PS 3.5 Â§7.1 Table 7.1-1, Implicit VR Little Endian).
 fn encode_ivr_le_tag(group: u16, element: u16, value: &[u8]) -> Vec<u8> {
     let mut buf = Vec::with_capacity(8 + value.len());
     buf.extend_from_slice(&group.to_le_bytes());
@@ -29,7 +29,7 @@ fn encode_ivr_le_tag(group: u16, element: u16, value: &[u8]) -> Vec<u8> {
     buf
 }
 
-// ── PacsConfig defaults (continued) ───────────────────────────────────────────
+// â”€â”€ PacsConfig defaults (continued) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Default `PacsConfig::timeout_secs` must be 30.
 ///
@@ -42,7 +42,7 @@ fn test_pacs_config_default_timeout_secs() {
     assert_eq!(cfg.timeout_secs, 30, "default timeout must be 30 seconds");
 }
 
-/// Default `PacsConfig::called_ae_title` must be "ORTHANC" (≤ 16 chars).
+/// Default `PacsConfig::called_ae_title` must be "ORTHANC" (â‰¤ 16 chars).
 #[test]
 fn test_pacs_config_default_called_ae_title() {
     let cfg = PacsConfig::default();
@@ -53,7 +53,7 @@ fn test_pacs_config_default_called_ae_title() {
     );
     assert!(
         cfg.called_ae_title.len() <= 16,
-        "called AE title must be ≤ 16 characters per PS 3.8"
+        "called AE title must be â‰¤ 16 characters per PS 3.8"
     );
 }
 
@@ -74,7 +74,7 @@ fn test_pacs_config_default_move_destination() {
     );
 }
 
-// ── FindResultRow — all study-level fields ────────────────────────────────────
+// â”€â”€ FindResultRow â€” all study-level fields â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Positive: all 8 study-level attributes decoded from a synthetic IVR-LE dataset.
 ///
@@ -103,7 +103,7 @@ fn test_find_result_row_all_study_fields_parsed() {
     assert_eq!(row.num_instances, "128", "num_instances via (0020,1208)");
 }
 
-// ── build_study_query — complete return-key coverage ─────────────────────────
+// â”€â”€ build_study_query â€” complete return-key coverage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// `build_study_query` must include return keys for all 8 study-level attributes
 /// decoded by `FindResultRow::from_raw_bytes`.
@@ -155,7 +155,7 @@ fn test_build_study_query_includes_all_return_keys() {
     );
 }
 
-// ── PacsPanelAction default ───────────────────────────────────────────────────
+// â”€â”€ PacsPanelAction default â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// `PacsPanelAction::default()` must be `None`.
 ///
@@ -171,7 +171,7 @@ fn test_pacs_panel_action_default_is_none() {
     );
 }
 
-// ── Sprint 283: AccessionNumber + StudyDate range tests ───────────────────────────
+// â”€â”€ Sprint 283: AccessionNumber + StudyDate range tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// `FindResultRow::from_raw_bytes` must decode AccessionNumber (0008,0050).
 ///
@@ -249,7 +249,7 @@ fn test_build_study_query_empty_date_is_wildcard() {
     assert_eq!(
         date_val,
         Some(""),
-        "Empty study_date must produce empty value for (0008,0020) — match-all semantics"
+        "Empty study_date must produce empty value for (0008,0020) â€” match-all semantics"
     );
 }
 
@@ -278,7 +278,7 @@ fn test_pacs_request_find_studies_has_new_filter_fields() {
     }
 }
 
-// ── Sprint 284: Embedded SCP configuration tests ─────────────────────────────
+// â”€â”€ Sprint 284: Embedded SCP configuration tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// `PacsConfig::scp_ae_title` default must be "RITKSNAP".
 ///
@@ -298,7 +298,7 @@ fn test_pacs_config_scp_ae_title_default() {
     );
     assert!(
         cfg.scp_ae_title.len() <= 16,
-        "scp_ae_title must be ≤16 chars per PS 3.8"
+        "scp_ae_title must be â‰¤16 chars per PS 3.8"
     );
 }
 

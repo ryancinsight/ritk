@@ -16,8 +16,7 @@ const REPOSITORY_NIFTI_SOURCES: &[RepositoryFixtureSource] = &[RepositoryFixture
     relative_path: "../../test_data/registration/brain_fixed.nii.gz",
     format: "NIfTI-1 gzip single-file",
     source: "ANTs example MNI152 atlas, copied from test_data/ants_example/mni152.nii.gz; documented in test_data/registration/README.md",
-    license: "Per ANTs/MNI152 distribution terms; see test_data/README.md licensing table",
-}];
+    license: "Per ANTs/MNI152 distribution terms; see test_data/README.md licensing table" }];
 
 fn repository_path(relative_path: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(relative_path)

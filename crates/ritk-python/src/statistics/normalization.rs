@@ -2,7 +2,7 @@
 //! white stripe, and Nyul-Udupa piecewise-linear standardization.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_statistics::normalization::white_stripe::{
     MriContrast, WhiteStripeConfig, WhiteStripeNormalizer,
@@ -27,7 +27,7 @@ pub(super) fn validate_range(target_min: f32, target_max: f32) -> Result<(), Str
 pub(super) fn validate_percentiles(p: &[f64]) -> Result<(), String> {
     if p.len() < 2 {
         return Err(format!(
-            "nyul_udupa_normalize: percentiles must contain ≥ 2 values, got {}",
+            "nyul_udupa_normalize: percentiles must contain â‰¥ 2 values, got {}",
             p.len()
         ));
     }
@@ -35,7 +35,7 @@ pub(super) fn validate_percentiles(p: &[f64]) -> Result<(), String> {
         if p[i] <= p[i - 1] {
             return Err(format!(
                 "nyul_udupa_normalize: percentiles must be strictly ascending: \
-                 p[{}]={} ≤ p[{}]={}",
+                 p[{}]={} â‰¤ p[{}]={}",
                 i,
                 p[i],
                 i - 1,
@@ -48,7 +48,7 @@ pub(super) fn validate_percentiles(p: &[f64]) -> Result<(), String> {
 
 /// Normalize image intensities to [0, 1] via min-max rescaling.
 ///
-/// Formula: output = (input − min) / (max − min + ε), ε = 1e-8.
+/// Formula: output = (input âˆ’ min) / (max âˆ’ min + Îµ), Îµ = 1e-8.
 ///
 /// Args:
 ///     image: Input PyImage.
@@ -57,12 +57,12 @@ pub(super) fn validate_percentiles(p: &[f64]) -> Result<(), String> {
 ///     Normalized PyImage with intensities in [0, 1].
 #[pyfunction]
 pub fn minmax_normalize(image: &PyImage) -> PyImage {
-    burn_into_py_image(MinMaxNormalizer::new().normalize(&py_image_to_burn(image)))
+    into_py_image(MinMaxNormalizer::new().normalize(&image_from_py(image)))
 }
 
 /// Normalize image intensities to [target_min, target_max] via min-max rescaling.
 ///
-/// Formula: N(x) = (x − min) / (max − min + ε); output = N(x) · (target_max − target_min) + target_min.
+/// Formula: N(x) = (x âˆ’ min) / (max âˆ’ min + Îµ); output = N(x) Â· (target_max âˆ’ target_min) + target_min.
 ///
 /// Args:
 ///     image:      Input PyImage.
@@ -80,14 +80,14 @@ pub fn minmax_normalize_range(
     if let Err(e) = validate_range(target_min, target_max) {
         return Err(RitkPyError::value(e));
     }
-    Ok(burn_into_py_image(
-        MinMaxNormalizer::with_range(target_min, target_max).normalize(&py_image_to_burn(image)),
+    Ok(into_py_image(
+        MinMaxNormalizer::with_range(target_min, target_max).normalize(&image_from_py(image)),
     ))
 }
 
 /// Normalize image intensities to zero mean and unit variance (Z-score).
 ///
-/// Formula: output = (input − μ) / (σ + ε), ε = 1e-8.
+/// Formula: output = (input âˆ’ Î¼) / (Ïƒ + Îµ), Îµ = 1e-8.
 ///
 /// Args:
 ///     image: Input PyImage.
@@ -95,7 +95,7 @@ pub fn minmax_normalize_range(
 ///            same element count as `image`. Defaults to None (full-image stats).
 ///
 /// Returns:
-///     Normalized PyImage with E\[output\] ≈ 0, Var\[output\] ≈ 1.
+///     Normalized PyImage with E\[output\] â‰ˆ 0, Var\[output\] â‰ˆ 1.
 #[pyfunction]
 #[pyo3(signature = (image, mask = None))]
 pub fn zscore_normalize(
@@ -103,7 +103,7 @@ pub fn zscore_normalize(
     image: &PyImage,
     mask: Option<&PyImage>,
 ) -> RitkResult<PyImage> {
-    let image_arc = py_image_to_burn(image);
+    let image_arc = image_from_py(image);
     let result = match mask {
         Some(m) => {
             if image_arc.shape() != m.inner.shape() {
@@ -111,12 +111,12 @@ pub fn zscore_normalize(
                     "zscore_normalize: mask must have the same shape as image",
                 ));
             }
-            let mask_arc = py_image_to_burn(m);
+            let mask_arc = image_from_py(m);
             py.allow_threads(|| ZScoreNormalizer::new().normalize_masked(&image_arc, &mask_arc))
         }
         None => py.allow_threads(|| ZScoreNormalizer::new().normalize(&image_arc)),
     };
-    Ok(burn_into_py_image(result))
+    Ok(into_py_image(result))
 }
 
 /// Match the intensity histogram of a source image to a reference image.
@@ -148,24 +148,24 @@ pub fn histogram_match(
 ) -> RitkResult<PyImage> {
     if num_bins < 2 {
         return Err(RitkPyError::value(format!(
-            "histogram_match: num_bins must be ≥ 2, got {num_bins}"
+            "histogram_match: num_bins must be â‰¥ 2, got {num_bins}"
         )));
     }
-    let source_arc = py_image_to_burn(source);
-    let reference_arc = py_image_to_burn(reference);
+    let source_arc = image_from_py(source);
+    let reference_arc = image_from_py(reference);
     let result = py.allow_threads(|| {
         HistogramMatcher::new(num_bins)
             .with_match_points(num_match_points)
             .with_threshold_at_mean(threshold_at_mean)
             .match_histograms(&source_arc, &reference_arc)
     });
-    Ok(burn_into_py_image(result))
+    Ok(into_py_image(result))
 }
 
 /// Normalize a brain MRI using the Shinohara et al. (2014) white stripe method.
 ///
 /// Detects the WM peak via KDE, selects voxels within a quantile stripe,
-/// and normalizes: I_norm = (I − μ_ws) / (σ_ws + ε).
+/// and normalizes: I_norm = (I âˆ’ Î¼_ws) / (Ïƒ_ws + Îµ).
 ///
 /// Args:
 ///     image:    Input brain MRI PyImage.
@@ -204,8 +204,8 @@ pub fn white_stripe_normalize(
         ..Default::default()
     };
 
-    let image_arc = py_image_to_burn(image);
-    let mask_arc = mask.map(py_image_to_burn);
+    let image_arc = image_from_py(image);
+    let mask_arc = mask.map(image_from_py);
 
     let result = py.allow_threads(|| {
         let mask_ref = mask_arc.as_ref();
@@ -213,7 +213,7 @@ pub fn white_stripe_normalize(
     });
 
     Ok((
-        burn_into_py_image(result.normalized),
+        into_py_image(result.normalized),
         result.mu,
         result.sigma,
         result.wm_peak,
@@ -229,7 +229,7 @@ pub fn white_stripe_normalize(
 ///     image:           Image to normalize.
 ///     training_images: List of PyImage used to learn the standard landmarks.
 ///     percentiles:     Optional list of percentile ranks in [0, 100] (strictly
-///                      ascending, ≥ 2 values). Default: [1,10,20,...,90,99].
+///                      ascending, â‰¥ 2 values). Default: [1,10,20,...,90,99].
 ///
 /// Returns:
 ///     Normalized PyImage with the same shape and spatial metadata as `image`.
@@ -259,9 +259,9 @@ pub fn nyul_udupa_normalize(
 
     let training_arcs: Vec<_> = training_images
         .iter()
-        .map(|py_img| py_image_to_burn(py_img))
+        .map(|py_img| image_from_py(py_img))
         .collect();
-    let input_arc = py_image_to_burn(image);
+    let input_arc = image_from_py(image);
 
     py.allow_threads(|| {
         let refs: Vec<_> = training_arcs.iter().collect();
@@ -273,7 +273,7 @@ pub fn nyul_udupa_normalize(
         normalizer.apply(&input_arc).map_err(|e| e.to_string())
     })
     .map_err(RitkPyError::runtime)
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 #[cfg(test)]
@@ -286,8 +286,8 @@ mod tests {
         assert!(result.is_err(), "empty slice must be rejected");
         let msg = result.unwrap_err();
         assert!(
-            msg.contains("≥ 2"),
-            "error must mention ≥ 2 values, got: {msg}"
+            msg.contains("â‰¥ 2"),
+            "error must mention â‰¥ 2 values, got: {msg}"
         );
     }
 
@@ -297,8 +297,8 @@ mod tests {
         assert!(result.is_err(), "single element must be rejected");
         let msg = result.unwrap_err();
         assert!(
-            msg.contains("≥ 2"),
-            "error must mention ≥ 2 values, got: {msg}"
+            msg.contains("â‰¥ 2"),
+            "error must mention â‰¥ 2 values, got: {msg}"
         );
     }
 

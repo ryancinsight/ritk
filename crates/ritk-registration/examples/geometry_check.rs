@@ -1,7 +1,7 @@
 //! Verify ritk's NIfTI import + index→world against SimpleITK ground truth.
 //! Prints geometry and index→world for fixed voxel indices; compare to sitk.
 use coeus_core::SequentialBackend;
-use ritk_image::{grid, native::Image};
+use ritk_image::{grid, Image};
 use ritk_io::{format::nifti::native::NiftiReader, ImageReader};
 
 type B = SequentialBackend;

@@ -3,15 +3,15 @@
 //! # Mathematical Specification
 //!
 //! Voxel `x` is marked a zero crossing when some 6-connected neighbour `y` has a
-//! **sign change** — opposite signs (`I(x)·I(y) < 0`) or exactly one of the two
-//! is zero — **and** `x` is the side closer to zero. Per axis the forward (+)
-//! neighbour is accepted with `|I(x)| <= |I(y)|` and the backward (−) neighbour
+//! **sign change** â€” opposite signs (`I(x)Â·I(y) < 0`) or exactly one of the two
+//! is zero â€” **and** `x` is the side closer to zero. Per axis the forward (+)
+//! neighbour is accepted with `|I(x)| <= |I(y)|` and the backward (âˆ’) neighbour
 //! with the strict `|I(x)| < |I(y)|`, so an exact-magnitude tie is resolved
 //! toward the forward voxel.
 //!
 //! This is float-exact to ITK `ZeroCrossingImageFilter`, which marks only the
 //! voxel on the near-zero side of each crossing. An exact zero is a crossing only
-//! when it has a non-zero neighbour — a zero with all-zero neighbours (e.g. the
+//! when it has a non-zero neighbour â€” a zero with all-zero neighbours (e.g. the
 //! Laplacian of a flat region) is **not** marked, otherwise whole constant
 //! regions would be flagged.
 //!
@@ -70,7 +70,7 @@ impl ZeroCrossingImageFilter {
     }
 
     /// Apply to a 3-D image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals_vec, dims) = extract_vec_infallible(image);
         let out = zero_crossing_vec(
             &vals_vec,
@@ -93,9 +93,9 @@ impl ZeroCrossingImageFilter {
     /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -127,7 +127,7 @@ pub(crate) fn zero_crossing_vec(vals: &[f32], dims: [usize; 3], fg: f32, bg: f32
                 // exactly one of the two is zero) AND it is the side *closer to
                 // zero* (`|v| < |nv|` strictly; an exact-magnitude tie is broken
                 // toward the forward `+` neighbour via `<=`). An exact zero is
-                // NOT a crossing on its own — only when it has a non-zero
+                // NOT a crossing on its own â€” only when it has a non-zero
                 // neighbour (otherwise flat zero regions, e.g. the Laplacian of
                 // constant background, would be marked wholesale).
                 let in_b = |z: isize, y: isize, x: isize| {
@@ -170,7 +170,7 @@ pub(crate) fn zero_crossing_vec(vals: &[f32], dims: [usize; 3], fg: f32, bg: f32
     out
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_zero_crossing.rs"]

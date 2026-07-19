@@ -5,18 +5,19 @@
 //! structural invariants of the level-set output.
 
 use super::AntiAliasBinaryImageFilter;
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make(binary: &[f32], dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(binary.to_vec(), dims)
+fn make(binary: &[f32], dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(binary.to_vec(), dims)
 }
 
-fn voxels(img: &Image<B, 3>) -> Vec<f32> {
-    img.data_slice().into_owned()
+fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
+    img.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 /// A straight binary edge yields the exact half-integer signed-distance lattice

@@ -1,12 +1,9 @@
 use crate::native as coeus_tensor_ops;
-use burn::tensor::{Shape, Tensor as BurnTensor, TensorData};
-use burn_ndarray::NdArray;
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor as CoeusTensor;
-use ritk_image::native::Image as CoeusImage;
+use ritk_image::Image as CoeusImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type BurnB = NdArray<f32>;
 type Shape2 = [usize; 2];
 
 #[derive(Clone, Copy)]
@@ -67,24 +64,12 @@ fn native_image(values: &[f32]) -> CoeusImage<f32, MoiraiBackend, 2> {
     .unwrap()
 }
 
-fn burn_tensor(values: &[f32]) -> BurnTensor<BurnB, 2> {
-    let device = Default::default();
-    BurnTensor::<BurnB, 2>::from_data(TensorData::new(values.to_vec(), Shape::new(SHAPE)), &device)
-}
-
 fn native_data(tensor: &CoeusTensor<f32, MoiraiBackend>) -> Vec<f32> {
     tensor.as_slice().to_vec()
 }
 
-fn burn_data<const D: usize>(tensor: BurnTensor<BurnB, D>) -> Vec<f32> {
-    tensor
-        .into_data()
-        .into_vec::<f32>()
-        .expect("invariant: Burn differential tensor stores f32 values")
-}
-
 #[test]
-fn differential_elementwise_binary_ops() {
+fn elementwise_binary_ops_match_exact_values() {
     for case in BINARY_CASES {
         let backend = MoiraiBackend;
         let lhs_coeus = native_tensor(case.lhs);
@@ -96,22 +81,12 @@ fn differential_elementwise_binary_ops() {
             BinaryOp::Div => native_data(&coeus_ops::div(&lhs_coeus, &rhs_coeus, &backend)),
         };
 
-        let lhs_burn = burn_tensor(case.lhs);
-        let rhs_burn = burn_tensor(case.rhs);
-        let got_burn = match case.op {
-            BinaryOp::Add => burn_data(lhs_burn.add(rhs_burn)),
-            BinaryOp::Sub => burn_data(lhs_burn.sub(rhs_burn)),
-            BinaryOp::Mul => burn_data(lhs_burn.mul(rhs_burn)),
-            BinaryOp::Div => burn_data(lhs_burn.div(rhs_burn)),
-        };
-
         assert_eq!(got_coeus, case.expected);
-        assert_eq!(got_coeus, got_burn);
     }
 }
 
 #[test]
-fn differential_shape_ops_preserve_values() {
+fn shape_ops_preserve_values() {
     let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 
     let coeus = native_tensor(&values);
@@ -128,21 +103,14 @@ fn differential_shape_ops_preserve_values() {
     assert_eq!(transposed_coeus.get(&[2, 0]), 3.0);
     assert_eq!(transposed_coeus.get(&[2, 1]), 6.0);
 
-    let burn = burn_tensor(&values);
-    let reshaped_burn = burn.clone().reshape([3, 2]);
-    assert_eq!(reshaped_burn.shape().dims, [3, 2]);
-    assert_eq!(burn_data(reshaped_burn), values);
-
-    let transposed_burn = burn.transpose();
-    assert_eq!(transposed_burn.shape().dims, [3, 2]);
     assert_eq!(
-        burn_data(transposed_burn),
+        transposed_coeus.to_vec(),
         vec![1.0, 4.0, 2.0, 5.0, 3.0, 6.0]
     );
 }
 
 #[test]
-fn differential_reductions() {
+fn reductions_match_exact_values() {
     let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
 
     let backend = MoiraiBackend;
@@ -150,14 +118,8 @@ fn differential_reductions() {
     let got_sum_coeus = coeus_ops::sum(&coeus, &backend);
     let got_mean_coeus = coeus_ops::mean(&coeus, &backend);
 
-    let burn = burn_tensor(&values);
-    let got_sum_burn = burn_data(burn.clone().sum())[0];
-    let got_mean_burn = burn_data(burn.mean())[0];
-
     assert_eq!(got_sum_coeus, 21.0);
     assert_eq!(got_mean_coeus, 3.5);
-    assert_eq!(got_sum_coeus, got_sum_burn);
-    assert_eq!(got_mean_coeus, got_mean_burn);
 }
 
 #[test]

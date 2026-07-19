@@ -52,9 +52,9 @@ pub enum FilterKind {
     GradientAnisotropicDiffusion {
         /// Number of explicit Euler iterations. ITK default: 5.
         iterations: u32,
-        /// Time step Δt. Must satisfy Δt ≤ 1/6. ITK default: 0.125.
+        /// Time step Î”t. Must satisfy Î”t â‰¤ 1/6. ITK default: 0.125.
         time_step: f32,
-        /// Conductance K. Larger K → more isotropic smoothing. ITK default: 1.0.
+        /// Conductance K. Larger K â†’ more isotropic smoothing. ITK default: 1.0.
         conductance: f32,
     },
 
@@ -74,7 +74,7 @@ pub enum FilterKind {
 
     #[doc = include_str!("variant_docs/multi_otsu.md")]
     MultiOtsuThreshold {
-        /// Number of intensity classes to segment into. Must be ≥ 2. ITK default: 3.
+        /// Number of intensity classes to segment into. Must be â‰¥ 2. ITK default: 3.
         num_classes: u32,
     },
 
@@ -136,7 +136,7 @@ pub enum FilterKind {
 
     #[doc = include_str!("variant_docs/invert_intensity.md")]
     InvertIntensity {
-        /// Fixed inversion maximum. `None` → computed from image.
+        /// Fixed inversion maximum. `None` â†’ computed from image.
         maximum: Option<f32>,
     },
 
@@ -234,7 +234,7 @@ pub enum FilterKind {
         order_2: usize,
     },
 
-    /// Arithmetic mean of (2·radius+1)³ neighbourhood (ITK `MeanImageFilter`).
+    /// Arithmetic mean of (2Â·radius+1)Â³ neighbourhood (ITK `MeanImageFilter`).
     Mean {
         /// Neighbourhood half-width in voxels. Default: 1.
         radius: usize,
@@ -260,9 +260,9 @@ pub enum FilterKind {
     VotingBinary {
         /// Neighbourhood half-width in voxels.
         radius: usize,
-        /// Min foreground neighbours needed for birth (background→foreground).
+        /// Min foreground neighbours needed for birth (backgroundâ†’foreground).
         birth_threshold: usize,
-        /// Min foreground neighbours needed for survival (foreground→foreground).
+        /// Min foreground neighbours needed for survival (foregroundâ†’foreground).
         survival_threshold: usize,
         /// Foreground voxel value. Default: 1.0.
         foreground_value: ForegroundValue,
@@ -375,11 +375,11 @@ pub enum FilterKind {
         seed_y: usize,
         /// Seed voxel column index (x).
         seed_x: usize,
-        /// Initial lower bound (first iteration when σ=0). Default: 0.0.
+        /// Initial lower bound (first iteration when Ïƒ=0). Default: 0.0.
         initial_lower: f32,
-        /// Initial upper bound (first iteration when σ=0). Default: 100.0.
+        /// Initial upper bound (first iteration when Ïƒ=0). Default: 100.0.
         initial_upper: f32,
-        /// k multiplier for k·σ interval. Default: 2.5.
+        /// k multiplier for kÂ·Ïƒ interval. Default: 2.5.
         multiplier: f32,
         /// Maximum iterations. Default: 15.
         max_iterations: u32,
@@ -420,11 +420,11 @@ pub enum FilterKind {
     /// Pixelwise bounded reciprocal (ITK `BoundedReciprocalImageFilter`). `out(x) = 1/(1+|x|)`.
     BoundedReciprocal,
 
-    /// Pure mean curvature flow (ITK `CurvatureFlowImageFilter`). `∂I/∂t = κ`.
+    /// Pure mean curvature flow (ITK `CurvatureFlowImageFilter`). `âˆ‚I/âˆ‚t = Îº`.
     CurvatureFlow {
         /// Number of explicit-Euler iterations.
         iterations: u32,
-        /// Time step Δt ≤ 1/6.
+        /// Time step Î”t â‰¤ 1/6.
         time_step: f32,
     },
     #[doc = include_str!("variant_docs/cpr.md")]

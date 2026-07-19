@@ -1,7 +1,7 @@
 //! Shape Detection level set segmentation.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
 use ritk_segmentation::ShapeDetectionSegmentation;
@@ -112,8 +112,8 @@ pub fn shape_detection_segment(
     opts: Option<PyShapeDetectionOptions>,
 ) -> RitkResult<PyImage> {
     let opts = opts.unwrap_or_default();
-    let image_arc = py_image_to_burn(image);
-    let phi_arc = py_image_to_burn(initial_phi);
+    let image_arc = image_from_py(image);
+    let phi_arc = image_from_py(initial_phi);
     py.allow_threads(|| {
         let mut seg = ShapeDetectionSegmentation::new();
         seg.curvature_weight = opts.curvature_weight;
@@ -127,5 +127,5 @@ pub fn shape_detection_segment(
         seg.apply(&image_arc, &phi_arc).map_err(|e| e.to_string())
     })
     .map_err(RitkPyError::runtime)
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

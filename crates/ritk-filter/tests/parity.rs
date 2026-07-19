@@ -3,7 +3,7 @@
 //! not from empirical RITK output observation. This documents and verifies that
 //! RITK produces results consistent with ITK/SimpleITK for the same inputs.
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;
@@ -159,9 +159,9 @@ fn parity_zscore_zero_mean_unit_variance() {
 /// dice(A, A) = 1.0 for any non-empty binary mask A.
 #[test]
 fn parity_dice_perfect_overlap() {
-    use ritk_statistics::dice_coefficient_native;
+    use ritk_statistics::image_comparison::native::dice_coefficient;
     let seg = make_image(vec![1.0, 0.0, 1.0, 0.0, 1.0], [5, 1, 1]);
-    let d = dice_coefficient_native(&seg, &seg).unwrap();
+    let d = dice_coefficient(&seg, &seg).unwrap();
     assert!(
         (d - 1.0).abs() < 1e-5,
         "perfect overlap must yield 1.0, got {d}"
@@ -171,10 +171,10 @@ fn parity_dice_perfect_overlap() {
 /// dice(A, complement(A)) = 0.0 when A and complement are disjoint.
 #[test]
 fn parity_dice_zero_overlap() {
-    use ritk_statistics::dice_coefficient_native;
+    use ritk_statistics::image_comparison::native::dice_coefficient;
     let a = make_image(vec![1.0, 0.0, 1.0], [3, 1, 1]);
     let b = make_image(vec![0.0, 1.0, 0.0], [3, 1, 1]);
-    let d = dice_coefficient_native(&a, &b).unwrap();
+    let d = dice_coefficient(&a, &b).unwrap();
     assert!(d.abs() < 1e-5, "disjoint segments must yield 0.0, got {d}");
 }
 

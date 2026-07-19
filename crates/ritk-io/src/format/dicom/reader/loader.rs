@@ -6,14 +6,10 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_image::tensor::backend::Backend;
-
-use ritk_image::tensor::{Shape, Tensor, TensorData};
 use std::path::Path;
 
-use ritk_core::image::Image as BurnImage;
 use ritk_dicom::TransferSyntaxKind;
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 use super::geometry::{
@@ -25,37 +21,20 @@ use super::scan::scan_dicom_directory;
 use super::types::{DicomReadMetadata, DicomSeriesInfo};
 
 /// Read a DICOM series and return both the image and metadata.
-pub fn read_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
+pub fn read_dicom_series_with_metadata<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
-    device: &B::Device,
-) -> Result<(BurnImage<B, 3>, DicomReadMetadata)> {
+    backend: &B,
+) -> Result<(Image<f32, B, 3>, DicomReadMetadata)> {
     let series = scan_dicom_directory(path)?;
-    load_from_series(series, device)
+    load_from_series(series, backend)
 }
 
 /// Load a DICOM series from a pre-scanned descriptor and return image plus metadata.
-pub fn load_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
-    path: P,
-    device: &B::Device,
-) -> Result<(BurnImage<B, 3>, DicomReadMetadata)> {
-    read_dicom_series_with_metadata(path, device)
-}
-
-/// Read a DICOM series into a native Coeus-backed image and return metadata.
-pub fn read_native_dicom_series_with_metadata<B: ComputeBackend, P: AsRef<Path>>(
+pub fn load_dicom_series_with_metadata<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
-) -> Result<(NativeImage<f32, B, 3>, DicomReadMetadata)> {
-    let series = scan_dicom_directory(path)?;
-    load_native_from_series(series, backend)
-}
-
-/// Load a DICOM series into a native Coeus-backed image and return metadata.
-pub fn load_native_dicom_series_with_metadata<B: ComputeBackend, P: AsRef<Path>>(
-    path: P,
-    backend: &B,
-) -> Result<(NativeImage<f32, B, 3>, DicomReadMetadata)> {
-    read_native_dicom_series_with_metadata(path, backend)
+) -> Result<(Image<f32, B, 3>, DicomReadMetadata)> {
+    read_dicom_series_with_metadata(path, backend)
 }
 
 /// Load a DICOM series from a pre-scanned [`DicomSeriesInfo`] and return image plus metadata.
@@ -65,41 +44,19 @@ pub fn load_native_dicom_series_with_metadata<B: ComputeBackend, P: AsRef<Path>>
 /// [`scan_dicom_instances`](super::scan::scan_dicom_instances)) pass it directly
 /// instead of re-scanning a directory. Pixel decode uses `part10_bytes` from the
 /// slice metadata when present, falling back to file-path I/O otherwise.
-pub fn load_dicom_from_series<B: Backend>(
-    series: DicomSeriesInfo,
-    device: &B::Device,
-) -> Result<(BurnImage<B, 3>, DicomReadMetadata)> {
-    load_from_series(series, device)
-}
-
-/// Load a pre-scanned DICOM descriptor into a native Coeus-backed image.
-pub fn load_native_dicom_from_series<B: ComputeBackend>(
+pub fn load_dicom_from_series<B: ComputeBackend>(
     series: DicomSeriesInfo,
     backend: &B,
-) -> Result<(NativeImage<f32, B, 3>, DicomReadMetadata)> {
-    load_native_from_series(series, backend)
+) -> Result<(Image<f32, B, 3>, DicomReadMetadata)> {
+    load_from_series(series, backend)
 }
 
-pub(crate) fn load_from_series<B: Backend>(
-    series: DicomSeriesInfo,
-    device: &B::Device,
-) -> Result<(BurnImage<B, 3>, DicomReadMetadata)> {
-    let decoded = decode_series(series)?;
-    let tensor = Tensor::<B, 3>::from_data(
-        TensorData::new(decoded.volume, Shape::new(decoded.shape)),
-        device,
-    );
-    let image = BurnImage::new(tensor, decoded.origin, decoded.spacing, decoded.direction);
-
-    Ok((image, decoded.metadata))
-}
-
-pub(crate) fn load_native_from_series<B: ComputeBackend>(
+pub(crate) fn load_from_series<B: ComputeBackend>(
     series: DicomSeriesInfo,
     backend: &B,
-) -> Result<(NativeImage<f32, B, 3>, DicomReadMetadata)> {
+) -> Result<(Image<f32, B, 3>, DicomReadMetadata)> {
     let decoded = decode_series(series)?;
-    let image = NativeImage::from_flat_on(
+    let image = Image::from_flat_on(
         decoded.volume,
         decoded.shape,
         decoded.origin,

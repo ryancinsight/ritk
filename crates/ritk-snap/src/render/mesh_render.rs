@@ -9,7 +9,7 @@
 //! # Algorithm
 //!
 //! 1. **Fan-triangulate** all polygons from `VtkPolyData::polygons`.
-//! 2. **MVP transform**: world → clip via view-projection matrix.
+//! 2. **MVP transform**: world â†’ clip via view-projection matrix.
 //! 3. **Clip & cull**: drop back-facing triangles and those outside the near/far planes.
 //! 4. **Rasterize**: scan-line fill each triangle into an RGBA buffer with Z-buffer.
 //! 5. **Phong shading**: per-face ambient + diffuse + specular lighting.
@@ -25,13 +25,13 @@
 //!
 //! # Complexity
 //!
-//! O(T · A_avg) where T = number of triangles and A_avg = average triangle
+//! O(T Â· A_avg) where T = number of triangles and A_avg = average triangle
 //! screen area in pixels.
 
 use ritk_io::VtkPolyData;
 use std::f32::consts::PI;
 
-// ── Camera ────────────────────────────────────────────────────────────────────
+// â”€â”€ Camera â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Pinhole perspective camera.
 #[derive(Debug, Clone)]
@@ -42,7 +42,7 @@ pub struct MeshCamera {
     pub target: [f32; 3],
     /// Up vector (normalized before use).
     pub up: [f32; 3],
-    /// Vertical field of view in radians (default: π/4).
+    /// Vertical field of view in radians (default: Ï€/4).
     pub fov_y: f32,
     /// Viewport aspect ratio width/height.
     pub aspect: f32,
@@ -66,7 +66,7 @@ impl Default for MeshCamera {
     }
 }
 
-// ── Material ──────────────────────────────────────────────────────────────────
+// â”€â”€ Material â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Phong material parameters.
 #[derive(Debug, Clone)]
@@ -91,7 +91,7 @@ impl Default for PhongMaterial {
     }
 }
 
-// ── Light ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Light â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Directional (parallel) light source.
 #[derive(Debug, Clone)]
@@ -111,7 +111,7 @@ impl Default for DirectionalLight {
     }
 }
 
-// ── Renderer ─────────────────────────────────────────────────────────────────
+// â”€â”€ Renderer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// CPU Phong-shaded Z-buffer mesh renderer.
 ///
@@ -186,7 +186,7 @@ impl MeshRenderer {
     }
 }
 
-// ── Triangle rasterization ────────────────────────────────────────────────────
+// â”€â”€ Triangle rasterization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Project a world-space point through the MVP matrix and perform perspective
 /// divide to obtain NDC coordinates.
@@ -235,7 +235,7 @@ fn rasterize_triangle(
         return;
     }
 
-    // NDC → screen coordinates (integer pixel centers)
+    // NDC â†’ screen coordinates (integer pixel centers)
     let to_screen = |xn: f32, yn: f32| -> (f32, f32) {
         ((xn * 0.5 + 0.5) * w as f32, (0.5 - yn * 0.5) * h as f32)
     };
@@ -293,22 +293,22 @@ fn rasterize_triangle(
     }
 }
 
-// ── Phong lighting ────────────────────────────────────────────────────────────
+// â”€â”€ Phong lighting â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Compute Phong shading for a face.
 ///
 /// # Equation
 ///
 /// ```text
-/// I = k_a · I_a + Σ_i [ k_d · max(n·l_i, 0) · I_i
-///                       + k_s · max(r_i·v, 0)^s · I_i ]
+/// I = k_a Â· I_a + Î£_i [ k_d Â· max(nÂ·l_i, 0) Â· I_i
+///                       + k_s Â· max(r_iÂ·v, 0)^s Â· I_i ]
 /// ```
 ///
 /// where:
 /// - `k_a, k_d, k_s` = material ambient/diffuse/specular
 /// - `n` = face normal (normalized)
 /// - `l_i` = unit vector toward light i
-/// - `r_i = 2(n·l_i)n − l_i` = specular reflection vector
+/// - `r_i = 2(nÂ·l_i)n âˆ’ l_i` = specular reflection vector
 /// - `v` = unit vector toward camera (view direction)
 /// - `s` = shininess exponent
 pub fn phong_shade(
@@ -348,9 +348,9 @@ pub fn phong_shade(
     ]
 }
 
-// ── Matrix math ───────────────────────────────────────────────────────────────
+// â”€â”€ Matrix math â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Column-major 4×4 matrix multiplication: C = A * B.
+/// Column-major 4Ã—4 matrix multiplication: C = A * B.
 pub fn mat4_mul(a: [f32; 16], b: [f32; 16]) -> [f32; 16] {
     let mut c = [0.0_f32; 16];
     for row in 0..4 {
@@ -394,7 +394,7 @@ pub fn look_at(eye: [f32; 3], target: [f32; 3], up: [f32; 3]) -> [f32; 16] {
 
 /// Symmetric perspective projection matrix (column-major, OpenGL convention).
 ///
-/// Maps view frustum to NDC cube [-1,1]³ with depth range [-1,1].
+/// Maps view frustum to NDC cube [-1,1]Â³ with depth range [-1,1].
 pub fn perspective(fov_y: f32, aspect: f32, near: f32, far: f32) -> [f32; 16] {
     let f = 1.0 / (fov_y / 2.0).tan();
     let d = near - far;
@@ -422,7 +422,7 @@ pub fn compute_face_normal(p0: [f32; 3], p1: [f32; 3], p2: [f32; 3]) -> [f32; 3]
     [n[0] / len, n[1] / len, n[2] / len]
 }
 
-// ── Vector helpers ────────────────────────────────────────────────────────────
+// â”€â”€ Vector helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[inline]
 pub(crate) fn normalize(v: [f32; 3]) -> [f32; 3] {
@@ -457,7 +457,7 @@ pub(crate) fn cross(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     ]
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_mesh_render.rs"]

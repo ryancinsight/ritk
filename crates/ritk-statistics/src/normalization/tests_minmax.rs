@@ -1,29 +1,16 @@
 use super::*;
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
-use ritk_image::test_support::burn_compat::{make_image, make_image_with};
+use ritk_image::test_support::{make_image, make_image_with};
+use ritk_image::Image as NativeImage;
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
 
-fn get_values(image: &Image<TestBackend, 1>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn get_values(image: &Image<f32, TestBackend, 1>) -> Vec<f32> {
+    ritk_tensor_ops::extract_vec_infallible(image).0
 }
 
-fn get_values_3d(image: &Image<TestBackend, 3>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn get_values_3d(image: &Image<f32, TestBackend, 3>) -> Vec<f32> {
+    ritk_tensor_ops::extract_vec_infallible(image).0
 }
 
 // ── Positive tests ─────────────────────────────────────────────────────────
@@ -34,7 +21,7 @@ fn test_minmax_known_values_unit_range() {
     //   N(0)  = 0.0
     //   N(5)  = 0.5
     //   N(10) = (10−0)/(10+1e-8) ≈ 1.0
-    let image: Image<TestBackend, 1> = make_image(vec![0.0, 5.0, 10.0], [3]);
+    let image: Image<f32, TestBackend, 1> = make_image(vec![0.0, 5.0, 10.0], [3]);
     let normalizer = MinMaxNormalizer::new();
     let result = normalizer.normalize(&image);
     let values = get_values(&result);
@@ -79,7 +66,7 @@ fn native_minmax_maps_endpoints_and_preserves_metadata() {
 fn test_minmax_min_is_zero_after_normalization() {
     // Minimum value must map to 0 in [0,1] range.
     let data: Vec<f32> = (1u8..=8).map(|x| x as f32).collect();
-    let image: Image<TestBackend, 1> = make_image(data, [8]);
+    let image: Image<f32, TestBackend, 1> = make_image(data, [8]);
     let normalizer = MinMaxNormalizer::new();
     let result = normalizer.normalize(&image);
 
@@ -95,7 +82,7 @@ fn test_minmax_min_is_zero_after_normalization() {
 fn test_minmax_max_is_one_after_normalization() {
     // Maximum value must map to ≈ 1 in [0,1] range.
     let data: Vec<f32> = (1u8..=8).map(|x| x as f32).collect();
-    let image: Image<TestBackend, 1> = make_image(data, [8]);
+    let image: Image<f32, TestBackend, 1> = make_image(data, [8]);
     let normalizer = MinMaxNormalizer::new();
     let result = normalizer.normalize(&image);
 
@@ -111,7 +98,7 @@ fn test_minmax_max_is_one_after_normalization() {
 fn test_minmax_ordering_preserved() {
     // Monotone input order must be preserved in the output.
     let data: Vec<f32> = (0u8..8).map(|x| x as f32).collect();
-    let image: Image<TestBackend, 1> = make_image(data, [8]);
+    let image: Image<f32, TestBackend, 1> = make_image(data, [8]);
     let normalizer = MinMaxNormalizer::new();
     let result = normalizer.normalize(&image);
     let values = get_values(&result);
@@ -134,7 +121,7 @@ fn test_minmax_with_custom_range() {
     //   N(0)  = 0.0  → −1.0 + 0   * 2 = −1.0
     //   N(5)  = 0.5  → −1.0 + 0.5 * 2 =  0.0
     //   N(10) ≈ 1.0  → −1.0 + 1   * 2 =  1.0
-    let image: Image<TestBackend, 1> = make_image(vec![0.0, 5.0, 10.0], [3]);
+    let image: Image<f32, TestBackend, 1> = make_image(vec![0.0, 5.0, 10.0], [3]);
     let normalizer = MinMaxNormalizer::with_range(-1.0, 1.0);
     let result = normalizer.normalize(&image);
     let values = get_values(&result);
@@ -158,7 +145,7 @@ fn test_minmax_with_positive_shift() {
     //   N(2) = 0.0 → 100.0
     //   N(4) = 0.5 → 150.0
     //   N(6) ≈ 1.0 → 200.0
-    let image: Image<TestBackend, 1> = make_image(vec![2.0, 4.0, 6.0], [3]);
+    let image: Image<f32, TestBackend, 1> = make_image(vec![2.0, 4.0, 6.0], [3]);
     let normalizer = MinMaxNormalizer::with_range(100.0, 200.0);
     let result = normalizer.normalize(&image);
     let values = get_values(&result);
@@ -184,7 +171,7 @@ fn test_minmax_with_positive_shift() {
 fn test_minmax_negative_input_values() {
     // Values [−10, 0, 10]:
     //   range = 20,  N(−10)=0, N(0)=0.5, N(10)≈1
-    let image: Image<TestBackend, 1> = make_image(vec![-10.0, 0.0, 10.0], [3]);
+    let image: Image<f32, TestBackend, 1> = make_image(vec![-10.0, 0.0, 10.0], [3]);
     let normalizer = MinMaxNormalizer::new();
     let result = normalizer.normalize(&image);
     let values = get_values(&result);
@@ -207,7 +194,7 @@ fn test_minmax_preserves_metadata() {
     let origin = ritk_spatial::Point::new([1.0, 2.0, 3.0]);
     let spacing = ritk_spatial::Spacing::new([0.5, 0.5, 0.5]);
     let direction = ritk_spatial::Direction::<3>::identity();
-    let image: Image<TestBackend, 3> = make_image_with(
+    let image: Image<f32, TestBackend, 3> = make_image_with(
         vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
         [2, 2, 2],
         Some(origin),
@@ -230,7 +217,8 @@ fn test_minmax_preserves_metadata() {
 
 #[test]
 fn test_minmax_3d_shape_preserved() {
-    let image: Image<TestBackend, 3> = make_image((0..27).map(|x| x as f32).collect(), [3, 3, 3]);
+    let image: Image<f32, TestBackend, 3> =
+        make_image((0..27).map(|x| x as f32).collect(), [3, 3, 3]);
     let normalizer = MinMaxNormalizer::new();
     let result = normalizer.normalize(&image);
     assert_eq!(result.shape(), [3, 3, 3]);
@@ -257,7 +245,7 @@ fn test_minmax_3d_shape_preserved() {
 fn test_minmax_constant_image_does_not_panic() {
     // Constant image: range = 0. Division by (0 + 1e-8) must not panic.
     // N(c) = (c − c) / ε = 0.  Remapped: range.min() + 0 * range.span() = range.min().
-    let image: Image<TestBackend, 1> = make_image(vec![7.0; 8], [8]);
+    let image: Image<f32, TestBackend, 1> = make_image(vec![7.0; 8], [8]);
     let normalizer = MinMaxNormalizer::new();
     let result = normalizer.normalize(&image);
     let values = get_values(&result);
@@ -275,7 +263,7 @@ fn test_minmax_constant_image_does_not_panic() {
 fn test_minmax_constant_image_custom_range_maps_to_target_min() {
     // Constant image with custom range [5, 10]:
     //   N(c) = 0 → 5 + 0 * 5 = 5 = range.min().
-    let image: Image<TestBackend, 1> = make_image(vec![7.0; 4], [4]);
+    let image: Image<f32, TestBackend, 1> = make_image(vec![7.0; 4], [4]);
     let normalizer = MinMaxNormalizer::with_range(5.0, 10.0);
     let result = normalizer.normalize(&image);
     let values = get_values(&result);
@@ -292,7 +280,7 @@ fn test_minmax_constant_image_custom_range_maps_to_target_min() {
 #[test]
 fn test_minmax_single_voxel() {
     // Single voxel: range = 0, N = 0, output = range.min() = 0.
-    let image: Image<TestBackend, 1> = make_image(vec![42.0], [1]);
+    let image: Image<f32, TestBackend, 1> = make_image(vec![42.0], [1]);
     let normalizer = MinMaxNormalizer::new();
     let result = normalizer.normalize(&image);
     let values = get_values(&result);

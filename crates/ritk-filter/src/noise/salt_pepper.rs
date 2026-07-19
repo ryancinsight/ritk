@@ -5,10 +5,10 @@ use super::mersenne::MersenneTwister;
 use super::DEFAULT_NOISE_SEED;
 use crate::native_support::map_flat_image;
 use anyhow::Result;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use coeus_core::ComputeBackend;
 use ritk_core::image::Image;
-use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
+use ritk_image::Image as NativeImage;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Salt-and-pepper (impulse) noise filter.
@@ -19,18 +19,18 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 /// ```text
 /// With probability p:      I'(x) = salt_value   if the 2nd draw < 0.5
 ///                          I'(x) = pepper_value otherwise
-/// With probability 1 − p:  I'(x) = I(x)         (unchanged)
+/// With probability 1 âˆ’ p:  I'(x) = I(x)         (unchanged)
 /// ```
 ///
 /// Matches `sitk.SaltAndPepperNoise` (run single-threaded): the MT19937 generator
 /// is drawn once per voxel to test the probability, and a second time (only when
 /// the voxel is hit) to choose salt vs pepper. `salt_value`/`pepper_value` default
-/// to ITK's `±NumericTraits<float>::max()`.
+/// to ITK's `Â±NumericTraits<float>::max()`.
 ///
 /// # Complexity
 /// O(N) where N is the number of voxels.
 pub struct SaltAndPepperNoiseFilter {
-    /// Probability of a voxel being replaced (0.0–1.0).
+    /// Probability of a voxel being replaced (0.0â€“1.0).
     pub probability: f64,
     /// Random seed (matched against SimpleITK's `uint32` seed; default: 42).
     pub seed: u32,
@@ -57,9 +57,9 @@ impl SaltAndPepperNoiseFilter {
         self
     }
 
-    /// Apply salt-and-pepper noise to a 3-D image. Single region ⇒
+    /// Apply salt-and-pepper noise to a 3-D image. Single region â‡’
     /// `seed = Hash(userSeed, 0)`; the generator is stepped in scanline order.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         Ok(rebuild(self.apply_values(&vals), dims, image))
     }
@@ -72,7 +72,6 @@ impl SaltAndPepperNoiseFilter {
     ) -> Result<NativeImage<f32, B, 3>>
     where
         B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         map_flat_image(image, backend, |values, _| self.apply_values(values))
     }

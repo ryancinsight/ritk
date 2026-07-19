@@ -32,7 +32,7 @@ fn num_passes_encode_decode_round_trip() {
 
 /// Faithful port of OpenJPEG's tier-1 ENCODER control flow (t1.c
 /// `opj_t1_enc_sigpass/refpass/clnpass`, flag-based, vsc off) producing a
-/// `(ctx, bit)` symbol trace — used to diff symbol framing against ours.
+/// `(ctx, bit)` symbol trace â€” used to diff symbol framing against ours.
 fn opj_reference_trace(coeffs: &[i32], w: usize, h: usize) -> Vec<(usize, u32)> {
     use crate::jpeg_2000::ebcot::{sc_context_for_test, zc_context_for_test, SubbandOrientation};
     const SIG: u8 = 1;
@@ -87,7 +87,7 @@ fn opj_reference_trace(coeffs: &[i32], w: usize, h: usize) -> Vec<(usize, u32)> 
         let one = 1u32 << bp;
         let first = bp + 1 == numbps;
         if !first {
-            // ── sigpass ──────────────────────────────────────────────
+            // â”€â”€ sigpass â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             let mut k = 0;
             while k < h {
                 for x in 0..w {
@@ -110,7 +110,7 @@ fn opj_reference_trace(coeffs: &[i32], w: usize, h: usize) -> Vec<(usize, u32)> 
                 }
                 k += 4;
             }
-            // ── refpass ──────────────────────────────────────────────
+            // â”€â”€ refpass â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             let mut k = 0;
             while k < h {
                 for x in 0..w {
@@ -134,7 +134,7 @@ fn opj_reference_trace(coeffs: &[i32], w: usize, h: usize) -> Vec<(usize, u32)> 
                 k += 4;
             }
         }
-        // ── clnpass ──────────────────────────────────────────────────
+        // â”€â”€ clnpass â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let mut k = 0;
         while k < h {
             for x in 0..w {
@@ -188,7 +188,7 @@ fn opj_reference_trace(coeffs: &[i32], w: usize, h: usize) -> Vec<(usize, u32)> 
 
 #[test]
 fn trace_v1_mid_ours_vs_port() {
-    // +1 impulse at (4,4) of an 8×8 block: single cleanup pass.
+    // +1 impulse at (4,4) of an 8Ã—8 block: single cleanup pass.
     let mut coeffs = vec![0i32; 64];
     coeffs[4 * 8 + 4] = 1;
     let _ = crate::jpeg_2000::ebcot::cup_trace_take();
@@ -207,13 +207,13 @@ fn trace_v1_mid_ours_vs_port() {
 }
 
 /// Fixed-vector conformance: a tile body captured from OpenJPEG 2.5.2
-/// (the C library, 8×8 8-bit synthetic, numres=1). The tier-2 header must
-/// parse exactly (msbs=2, ncp=3·nbp−2, body fills the tile-part), our
+/// (the C library, 8Ã—8 8-bit synthetic, numres=1). The tier-2 header must
+/// parse exactly (msbs=2, ncp=3Â·nbpâˆ’2, body fills the tile-part), our
 /// tier-1 decoder must reconstruct every sample, and our encoder must
 /// reproduce the code-block body byte-for-byte.
 #[test]
 fn openjp2_captured_packet_conformance() {
-    // Captured 8×8 8-bit numres=1 OpenJPEG 2.5.2 tile body (after SOD).
+    // Captured 8Ã—8 8-bit numres=1 OpenJPEG 2.5.2 tile body (after SOD).
     let body: [u8; 65] = [
         0xCF, 0xB4, 0xF8, 0x12, 0x51, 0x7A, 0x62, 0x3E, 0xFC, 0x7B, 0x8E, 0x3E, 0x6C, 0xBF, 0x33,
         0xA9, 0xB6, 0xED, 0xDD, 0x98, 0x8C, 0x61, 0x4E, 0x7B, 0x10, 0x37, 0x1E, 0x00, 0x55, 0x20,
@@ -239,17 +239,21 @@ fn openjp2_captured_packet_conformance() {
         "PROBE msbs={msbs} ncp={ncp} lblock={lblock} len={len} header_bytes={header_bytes} body_total={}",
         body.len()
     );
-    // 8-bit, guard 2, ε = 8 → Mb = ε + G − 1 = 9 planes. Expected pass
-    // budget is 3·nbp − 2 with nbp = 9 − msbs. Body must fit exactly.
+    // 8-bit, guard 2, Îµ = 8 â†’ Mb = Îµ + G âˆ’ 1 = 9 planes. Expected pass
+    // budget is 3Â·nbp âˆ’ 2 with nbp = 9 âˆ’ msbs. Body must fit exactly.
     assert_eq!(
         header_bytes + len,
         body.len(),
         "packet body must fill the tile-part"
     );
-    assert_eq!(ncp, 3 * (9 - msbs) - 2, "pass count must equal 3·nbp − 2");
+    assert_eq!(
+        ncp,
+        3 * (9 - msbs) - 2,
+        "pass count must equal 3Â·nbp âˆ’ 2"
+    );
 
     // Tier-1: decode the code-block body and compare with the source
-    // image (8×8 synthetic from the interop suite, DC-shifted by −128).
+    // image (8Ã—8 synthetic from the interop suite, DC-shifted by âˆ’128).
     let mut state = 0xC0FF_EE00_DEAD_F00Du64;
     let expected: Vec<i32> = (0..64)
         .map(|i| {
@@ -286,8 +290,8 @@ fn openjp2_captured_packet_conformance() {
 
 #[test]
 fn tile_part_round_trip_2x2_one_dwt_level() {
-    // Regression (proptest seed 3404172460139922156): 2×2, 1 DWT level,
-    // four 1×1 code-blocks across two LRCP packets.
+    // Regression (proptest seed 3404172460139922156): 2Ã—2, 1 DWT level,
+    // four 1Ã—1 code-blocks across two LRCP packets.
     let samples = vec![64i32, -119, -42, -28];
     let tp = encode_tile_part(&samples, 2, 2, 2, 8, 0, 1, WaveletTransform::Reversible);
     let sod = tp
@@ -309,7 +313,7 @@ fn tile_part_round_trip_2x2_one_dwt_level() {
         },
     )
     .expect("decode must succeed");
-    assert_eq!(result.samples, samples, "1-level DWT 2×2 must be lossless");
+    assert_eq!(result.samples, samples, "1-level DWT 2Ã—2 must be lossless");
 }
 
 #[test]
@@ -322,7 +326,7 @@ fn tile_part_encode_decode_round_trip_uniform() {
 
 #[test]
 fn tile_part_encode_decode_round_trip_gradient() {
-    // DC-shifted: pixels 0..8 → -128..-121
+    // DC-shifted: pixels 0..8 â†’ -128..-121
     let samples: Vec<i32> = (0..8i32).map(|v| v - 128).collect();
     let tp = encode_tile_part(&samples, 4, 2, 2, 8, 0, 0, WaveletTransform::Reversible);
     assert!(tp.len() >= 14);

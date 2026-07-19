@@ -10,7 +10,7 @@ use ritk_image::tensor::{Backend, Tensor};
 /// which is essential for image registration and resampling.
 ///
 /// # Type Parameters
-/// * `B` - The Burn backend
+/// * `B` - The Coeus compute backend
 ///
 /// # Dimension restriction
 /// Only `D ∈ {1, 2, 3, 4}` is supported. The dispatch layer enforces
@@ -26,9 +26,5 @@ pub trait Interpolator<B: Backend> {
     ///
     /// # Returns
     /// Tensor of sampled values `[Batch]`
-    fn interpolate<const D: usize>(
-        &self,
-        data: &Tensor<B, D>,
-        indices: Tensor<B, 2>,
-    ) -> Tensor<B, 1>;
+    fn interpolate(&self, data: &Tensor<f32, B>, indices: Tensor<f32, B>) -> Tensor<f32, B>;
 }

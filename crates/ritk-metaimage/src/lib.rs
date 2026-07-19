@@ -17,12 +17,12 @@
 //!
 //! # File Formats
 //!
-//! - `.mha` — single file with header and inline binary data (`ElementDataFile = LOCAL`)
-//! - `.mhd` / `.raw` — ASCII header referencing a separate binary raw file
+//! - `.mha` â€” single file with header and inline binary data (`ElementDataFile = LOCAL`)
+//! - `.mhd` / `.raw` â€” ASCII header referencing a separate binary raw file
 //!
 //! # Spatial Metadata
 //!
-//! TransformMatrix encodes the 3×3 direction matrix (row-major) in MetaImage
+//! TransformMatrix encodes the 3Ã—3 direction matrix (row-major) in MetaImage
 //! `[X,Y,Z]` file-axis order. The reader/writer convert spacing and direction
 //! columns to and from RITK internal `[Z,Y,X]` image-axis order.
 
@@ -34,7 +34,7 @@ pub use reader::{read_metaimage, MetaImageReader};
 pub use writer::{write_metaimage, write_metaimage_with_data, MetaImageWriter};
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use std::path::Path;
 
 /// DIP boundary executing strict spatial metadata preservation over standard MetaImage datasets.

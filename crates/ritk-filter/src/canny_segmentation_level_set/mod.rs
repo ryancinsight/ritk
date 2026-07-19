@@ -13,43 +13,43 @@
 //!    `lower_threshold = 0`, `upper_threshold = threshold`).
 //! 2. **Speed image** `P = DanielssonDistanceMap(cannyEdges)` (unsigned Euclidean
 //!    distance to the nearest edge voxel) via [`DistanceTransformImageFilter`].
-//! 3. **Advection field** `A = P · ∇P` (central interior differences, one-sided
-//!    boundaries — `numpy.gradient` convention).
+//! 3. **Advection field** `A = P Â· âˆ‡P` (central interior differences, one-sided
+//!    boundaries â€” `numpy.gradient` convention).
 //!
 //! ## SparseField evolution (`itk::LevelSetFunction::ComputeUpdate`)
 //!
-//! Per active-layer voxel the update is `κ·c_w − P·√(godunov)·p_w − (A·∇φ)·a_w`,
+//! Per active-layer voxel the update is `ÎºÂ·c_w âˆ’ PÂ·âˆš(godunov)Â·p_w âˆ’ (AÂ·âˆ‡Ï†)Â·a_w`,
 //! where
-//! - `κ = (Σ_{i≠j} φ_jj·φ_i² − φ_i·φ_j·φ_ij) / (1e-6 + |∇φ|²)` is ITK's
+//! - `Îº = (Î£_{iâ‰ j} Ï†_jjÂ·Ï†_iÂ² âˆ’ Ï†_iÂ·Ï†_jÂ·Ï†_ij) / (1e-6 + |âˆ‡Ï†|Â²)` is ITK's
 //!   `ComputeCurvatureTerm` (mean-curvature numerator over squared gradient),
 //! - the propagation gradient uses the Godunov upwind scheme in the sign of `P`,
 //! - the advection term uses simple upwinding in the sign of each `A` component.
 //!
 //! **InterpolateSurfaceLocation** (ON): `P` and `A` are sampled not at the pixel
-//! centre but at the sub-voxel surface location `idx − offset`, where
-//! `offset[i] = d[i]·φ(x) / (Σ d² + MIN_NORM)` and `d[i]` is the larger-magnitude
-//! one-sided φ-derivative along axis `i` (or the zero-surface direction when the
-//! axis neighbours straddle the surface) — `itkSparseFieldLevelSetImageFilter`
+//! centre but at the sub-voxel surface location `idx âˆ’ offset`, where
+//! `offset[i] = d[i]Â·Ï†(x) / (Î£ dÂ² + MIN_NORM)` and `d[i]` is the larger-magnitude
+//! one-sided Ï†-derivative along axis `i` (or the zero-surface direction when the
+//! axis neighbours straddle the surface) â€” `itkSparseFieldLevelSetImageFilter`
 //! `CalculateChange`. Sampling is multilinear (`LinearInterpolateImageFunction`).
 //!
-//! The global time step is `Δt = min(waveDT/(maxAdv+maxProp), DT/maxCurv)` with
-//! `waveDT = DT = 1/(2·dim)` (`ComputeGlobalTimeStep`), recomputed each iteration
+//! The global time step is `Î”t = min(waveDT/(maxAdv+maxProp), DT/maxCurv)` with
+//! `waveDT = DT = 1/(2Â·dim)` (`ComputeGlobalTimeStep`), recomputed each iteration
 //! from the per-voxel maxima of the (weighted, offset-sampled) terms.
 //!
 //! Narrow-band bookkeeping (status lists, layer construction, value propagation,
 //! the `ProcessStatusList` cascade and orphan node-deletion) is identical to
 //! [`crate::AntiAliasBinaryImageFilter`]; `NumberOfLayers = 2` (the SparseField
-//! default — only AntiAlias overrides it to the image dimension).
+//! default â€” only AntiAlias overrides it to the image dimension).
 //!
-//! Output is the evolved level set φ (band values plus a `±(NumberOfLayers+1)`
-//! far field), **not** a binary mask — threshold at φ < 0 for the region.
+//! Output is the evolved level set Ï† (band values plus a `Â±(NumberOfLayers+1)`
+//! far field), **not** a binary mask â€” threshold at Ï† < 0 for the region.
 //!
-//! Validated bit-exact (max-err 0.0 across iterations 1–5) against
+//! Validated bit-exact (max-err 0.0 across iterations 1â€“5) against
 //! `sitk.CannySegmentationLevelSet` on a square feature with a circular init.
 //!
 //! ## References
 //! - Whitaker, R.T. (1998). "A Level-Set Approach to 3D Reconstruction from Range
-//!   Data." *IJCV*, 29(3), 203–231.
+//!   Data." *IJCV*, 29(3), 203â€“231.
 //! - ITK `itkCannySegmentationLevelSetFunction.hxx`,
 //!   `itkSegmentationLevelSetFunction.hxx`, `itkLevelSetFunction.hxx`,
 //!   `itkSparseFieldLevelSetImageFilter.hxx`.
@@ -65,7 +65,7 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 use crate::{CannyEdgeDetectionImageFilter, DistanceTransformImageFilter};
 use advection::advection_field;
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// `m_ConstantGradientValue` (unit spacing).
 const CGV: f64 = 1.0;
@@ -82,11 +82,11 @@ const ST_CHG: i32 = -2;
 const ST_CUP: i32 = -3;
 const ST_CDN: i32 = -4;
 
-// ── Public API ─────────────────────────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Canny-edge-guided segmentation level set (faithful ITK SparseField solver).
 ///
-/// Returns the evolved level set φ (negative inside the segmented region). The
+/// Returns the evolved level set Ï† (negative inside the segmented region). The
 /// zero crossing is the segmentation boundary. Bit-exact to
 /// `sitk.CannySegmentationLevelSet`.
 ///
@@ -134,7 +134,7 @@ impl CannySegmentationLevelSet {
     /// Evolve a level set toward Canny edges in the feature image.
     ///
     /// # Arguments
-    /// - `initial_level_set`: φ₀ with **φ < `iso_surface_value` inside** the ROI.
+    /// - `initial_level_set`: Ï†â‚€ with **Ï† < `iso_surface_value` inside** the ROI.
     /// - `feature_image`: the image from which Canny edges are derived. Must have
     ///   the same shape as `initial_level_set`.
     ///
@@ -142,9 +142,12 @@ impl CannySegmentationLevelSet {
     /// Returns `Err` if tensor extraction fails or the shapes differ.
     pub fn apply<B: Backend>(
         &self,
-        initial_level_set: &Image<B, 3>,
-        feature_image: &Image<B, 3>,
-    ) -> anyhow::Result<Image<B, 3>> {
+        initial_level_set: &Image<f32, B, 3>,
+        feature_image: &Image<f32, B, 3>,
+    ) -> anyhow::Result<Image<f32, B, 3>>
+    where
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
         let dims = initial_level_set.shape();
         if dims != feature_image.shape() {
             anyhow::bail!(
@@ -159,7 +162,7 @@ impl CannySegmentationLevelSet {
             return Ok(initial_level_set.clone());
         }
 
-        // ── Speed image P = DanielssonDistanceMap(CannyEdges(feature)) ───────
+        // â”€â”€ Speed image P = DanielssonDistanceMap(CannyEdges(feature)) â”€â”€â”€â”€â”€â”€â”€
         let edges = CannyEdgeDetectionImageFilter {
             variance: self.canny_variance as f64,
             maximum_error: CANNY_MAX_ERROR,
@@ -171,11 +174,11 @@ impl CannySegmentationLevelSet {
         let (p_f32, _) = extract_vec(&p_img)?;
         let p: Vec<f64> = p_f32.iter().map(|&v| v as f64).collect();
 
-        // ── Advection field A[axis] = P · ∂P/∂axis (numpy.gradient convention) ──
+        // â”€â”€ Advection field A[axis] = P Â· âˆ‚P/âˆ‚axis (numpy.gradient convention) â”€â”€
         // axis 0 = x (innermost), 1 = y, 2 = z, matching ITK index ordering.
         let adv = advection_field(&p, dims);
 
-        // ── Initial level set, shifted so iso_surface_value maps to 0 ────────
+        // â”€â”€ Initial level set, shifted so iso_surface_value maps to 0 â”€â”€â”€â”€â”€â”€â”€â”€
         let (sh_f32, _) = extract_vec(initial_level_set)?;
         let iso = self.iso_surface_value as f64;
         let shifted: Vec<f64> = sh_f32.iter().map(|&v| v as f64 - iso).collect();
@@ -188,10 +191,10 @@ impl CannySegmentationLevelSet {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        initial_level_set: &ritk_image::native::Image<f32, B, 3>,
-        feature_image: &ritk_image::native::Image<f32, B, 3>,
+        initial_level_set: &ritk_image::Image<f32, B, 3>,
+        feature_image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -232,7 +235,7 @@ impl CannySegmentationLevelSet {
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "../tests_canny_segmentation_level_set.rs"]

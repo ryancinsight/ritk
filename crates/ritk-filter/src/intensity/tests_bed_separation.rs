@@ -1,12 +1,11 @@
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(values: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(values, dims)
+fn make_image(values: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(values, dims)
 }
 
 #[test]
@@ -38,7 +37,9 @@ fn test_mask_preserves_foreground_and_removes_background() {
     let img = make_image(values, dims);
     let filter = BedSeparationFilter::new(BedSeparationConfig::default());
     let out = filter.mask(&img).unwrap();
-    let vals = out.data_slice();
+    let vals = out
+        .data_slice()
+        .expect("invariant: result storage is contiguous");
     assert_eq!(vals.len(), 8);
     assert_eq!(vals.iter().filter(|&&v| v > 0.5).count(), 8);
     assert_eq!(vals[0], 1.0);
@@ -67,9 +68,11 @@ fn test_apply_uses_outside_value() {
 
     let filter = BedSeparationFilter::new(config);
     let out = filter.apply(&img).unwrap();
-    let vals = out.data_slice();
+    let vals = out
+        .data_slice()
+        .expect("invariant: result storage is contiguous");
 
-    assert_eq!(&*vals, &[-2048.0, -500.0, 50.0, 200.0]);
+    assert_eq!(vals, &[-2048.0, -500.0, 50.0, 200.0]);
 }
 
 #[test]

@@ -62,16 +62,19 @@ impl ForwardFftFilter {
     /// At each frequency column `c`:
     /// `out[..., 2*c] = Re(F[..., c])`
     /// `out[..., 2*c + 1] = Im(F[..., c])`
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Result<Image<B, D>> {
+    pub fn apply<B: Backend, const D: usize>(
+        &self,
+        image: &Image<f32, B, D>,
+    ) -> Result<Image<f32, B, D>> {
         Self::apply_inner(image)
     }
 
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -91,7 +94,9 @@ impl ForwardFftFilter {
         crate::native_support::rebuild_image(out, out_dims, image, backend)
     }
 
-    fn apply_inner<B: Backend, const D: usize>(image: &Image<B, D>) -> Result<Image<B, D>> {
+    fn apply_inner<B: Backend, const D: usize>(
+        image: &Image<f32, B, D>,
+    ) -> Result<Image<f32, B, D>> {
         let dims = image.shape();
         let (vals, _) = extract_vec(image)?;
 
@@ -138,7 +143,10 @@ impl RealToHalfHermitianForwardFftFilter {
     }
 
     /// Apply the half-Hermitian forward FFT to a D-dimensional real image.
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Result<Image<B, D>> {
+    pub fn apply<B: Backend, const D: usize>(
+        &self,
+        image: &Image<f32, B, D>,
+    ) -> Result<Image<f32, B, D>> {
         let dims = image.shape();
         let w = dims[D - 1];
         let half_cols = w / 2 + 1;

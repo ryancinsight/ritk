@@ -29,7 +29,7 @@ use std::sync::mpsc;
 use super::config::PacsConfig;
 use super::query::{FindResultRow, FindResultRowSeries, PacsRequest, PacsResponse};
 
-// ── PacsWorkerHandle ──────────────────────────────────────────────────────────
+// â”€â”€ PacsWorkerHandle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Handle to an in-flight PACS background operation.
 ///
@@ -44,7 +44,7 @@ impl PacsWorkerHandle {
     ///
     /// Returns `Some(response)` when the worker has finished; `None` while the
     /// operation is still running.  After `Some` is returned the handle is
-    /// exhausted — no further responses will arrive.
+    /// exhausted â€” no further responses will arrive.
     pub fn try_recv(&self) -> Option<PacsResponse> {
         self.rx.try_recv().ok()
     }
@@ -56,7 +56,7 @@ impl PacsWorkerHandle {
     }
 }
 
-// ── spawn_pacs_request ────────────────────────────────────────────────────────
+// â”€â”€ spawn_pacs_request â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Spawn a background thread to execute `request` against `config`.
 ///
@@ -85,7 +85,7 @@ fn send_worker_response(tx: mpsc::SyncSender<PacsResponse>, resp: PacsResponse) 
     }
 }
 
-// ── Execution helpers (non-WASM only) ────────────────────────────────────────
+// â”€â”€ Execution helpers (non-WASM only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(not(target_arch = "wasm32"))]
 fn execute_request(config: &PacsConfig, request: PacsRequest) -> PacsResponse {

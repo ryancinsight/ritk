@@ -1,5 +1,5 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{MaskImageFilter, MaskNegatedImageFilter, MaskedAssignImageFilter};
 
@@ -13,15 +13,15 @@ pub fn mask_image(
     mask: &PyImage,
     outside_value: f32,
 ) -> RitkResult<PyImage> {
-    let img = py_image_to_burn(image);
-    let msk = py_image_to_burn(mask);
+    let img = image_from_py(image);
+    let msk = image_from_py(mask);
     py.allow_threads(|| {
         MaskImageFilter::new()
             .with_outside_value(outside_value)
             .apply(&img, &msk)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Assign `assign_value` where `mask > 0`; keep `image` elsewhere (the role-
@@ -34,14 +34,14 @@ pub fn masked_assign(
     mask: &PyImage,
     assign_value: f32,
 ) -> RitkResult<PyImage> {
-    let img = py_image_to_burn(image);
-    let msk = py_image_to_burn(mask);
+    let img = image_from_py(image);
+    let msk = image_from_py(mask);
     py.allow_threads(|| {
         MaskedAssignImageFilter::new(assign_value)
             .apply(&img, &msk)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Mask `image` by the negation of `mask`: keep where mask ≤ 0, else
@@ -54,13 +54,13 @@ pub fn mask_negated_image(
     mask: &PyImage,
     outside_value: f32,
 ) -> RitkResult<PyImage> {
-    let img = py_image_to_burn(image);
-    let msk = py_image_to_burn(mask);
+    let img = image_from_py(image);
+    let msk = image_from_py(mask);
     py.allow_threads(|| {
         MaskNegatedImageFilter::new()
             .with_outside_value(outside_value)
             .apply(&img, &msk)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

@@ -14,7 +14,7 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-// ── ServerInfo ────────────────────────────────────────────────────────────────
+// â”€â”€ ServerInfo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// MONAI Label Server metadata returned by `GET /info`.
 ///
@@ -29,19 +29,19 @@ pub struct ServerInfo {
     /// Server version string (semver or custom).
     #[serde(default)]
     pub version: String,
-    /// Label map or metadata; structure is model-specific — stored as raw JSON.
+    /// Label map or metadata; structure is model-specific â€” stored as raw JSON.
     #[serde(default)]
     pub labels: serde_json::Value,
 }
 
-// ── ModelType ─────────────────────────────────────────────────────────────────
+// â”€â”€ ModelType â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Classification of a MONAI Label model.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ModelType {
     /// Standard volumetric segmentation (e.g., organ or lesion).
     Segmentation,
-    /// DeepEdit — interactive, annotation-driven segmentation.
+    /// DeepEdit â€” interactive, annotation-driven segmentation.
     DeepEdit,
     /// Active learning query strategy.
     ActiveLearning,
@@ -78,7 +78,7 @@ impl Serialize for ModelType {
     }
 }
 
-// ── ModelInfo ─────────────────────────────────────────────────────────────────
+// â”€â”€ ModelInfo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Metadata for a single MONAI Label model, as returned in `GET /models`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -99,7 +99,7 @@ pub struct ModelInfo {
     pub dimension: u32,
 }
 
-// ── InferRequest ─────────────────────────────────────────────────────────────
+// â”€â”€ InferRequest â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Parameters for a single `POST /infer/{model}?image={image_id}` call.
 #[derive(Debug, Clone)]
@@ -124,13 +124,13 @@ impl InferRequest {
     }
 }
 
-// ── InferResponse ─────────────────────────────────────────────────────────────
+// â”€â”€ InferResponse â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Response from a `POST /infer/{model}` call.
 ///
 /// MONAI Label Server returns multipart/form-data with two named parts:
-/// - `label`  — binary NIfTI segmentation mask (typically `.nii.gz`).
-/// - `params` — JSON metadata: timing, class probabilities, model version.
+/// - `label`  â€” binary NIfTI segmentation mask (typically `.nii.gz`).
+/// - `params` â€” JSON metadata: timing, class probabilities, model version.
 #[derive(Debug, Clone)]
 pub struct InferResponse {
     /// Raw segmentation label bytes (NIfTI or NIfTI-compressed format).
@@ -139,7 +139,7 @@ pub struct InferResponse {
     pub params: serde_json::Value,
 }
 
-// ── MonaiError ────────────────────────────────────────────────────────────────
+// â”€â”€ MonaiError â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// All failure modes for MONAI Label Server client operations.
 #[derive(Debug, Error)]

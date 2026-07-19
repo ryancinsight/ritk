@@ -1,15 +1,15 @@
 //! Integer-factor image expansion (upsampling) with linear interpolation.
 //!
 //! Matches ITK `ExpandImageFilter` / `sitk.Expand` (default linear interpolator):
-//! the output grid has `size·factor` voxels and `spacing/factor` per axis, with
+//! the output grid has `sizeÂ·factor` voxels and `spacing/factor` per axis, with
 //! its origin shifted so the sample positions interleave the input grid:
 //!
 //! - `spacing_out = spacing / factor`
-//! - `origin_out  = origin − ½·spacing + ½·spacing_out`
+//! - `origin_out  = origin âˆ’ Â½Â·spacing + Â½Â·spacing_out`
 //!
 //! Output voxel `j` along an axis reads the **continuous input index**
-//! `ci(j) = (j + ½)/factor − ½` and is linearly interpolated with **edge-clamp**
-//! boundary handling (positions outside `[0, n−1]` clamp to the nearest sample),
+//! `ci(j) = (j + Â½)/factor âˆ’ Â½` and is linearly interpolated with **edge-clamp**
+//! boundary handling (positions outside `[0, nâˆ’1]` clamp to the nearest sample),
 //! exactly as ITK's `LinearInterpolateImageFunction` behaves at the Expand grid.
 
 use ritk_core::spatial::{Point, Spacing};
@@ -20,7 +20,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_metadata};
 /// Integer-factor expansion filter.
 #[derive(Debug, Clone, Copy)]
 pub struct ExpandImageFilter {
-    /// Per-axis expansion factors `[fz, fy, fx]` (each ≥ 1).
+    /// Per-axis expansion factors `[fz, fy, fx]` (each â‰¥ 1).
     pub factors: [usize; 3],
 }
 
@@ -30,8 +30,8 @@ impl ExpandImageFilter {
         Self { factors }
     }
 
-    /// Apply the expansion. Output is `[nz·fz, ny·fy, nx·fx]`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    /// Apply the expansion. Output is `[nzÂ·fz, nyÂ·fy, nxÂ·fx]`.
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let (vals, [nz, ny, nx]) = extract_vec_infallible(image);
         let [fz, fy, fx] = self.factors;
         let (oz_n, oy_n, ox_n) = (nz * fz, ny * fy, nx * fx);
@@ -89,9 +89,9 @@ impl ExpandImageFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

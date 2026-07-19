@@ -6,7 +6,7 @@
 
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::Point3;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_interpolation::trilinear_interpolation;
 use ritk_io::{format::nifti::native::NiftiReader, ImageReader};
 use ritk_spatial::{Direction, Point, Spacing};

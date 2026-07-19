@@ -1,19 +1,19 @@
 //! Differential coverage: `distance_transform` must be value-identical
-//! to the Burn-generic `DistanceTransformImageFilter::apply` it mirrors —
+//! to the Burn-generic `DistanceTransformImageFilter::apply` it mirrors â€”
 //! both call the same `euclidean_dt` core (shared harness in `coeus_support`).
 
 use crate::distance::euclidean::{
     DistanceTransformImageFilter, SignedDistanceTransformImageFilter,
 };
 use crate::distance::DistanceMeasure;
-use crate::native_support::assert_native_matches_burn;
+use crate::native_support::assert_coeus_matches_coeus;
 
 fn check(vals: Vec<f32>, dims: [usize; 3]) {
     check_measure(vals, dims, DistanceMeasure::Euclidean);
 }
 
 fn check_measure(vals: Vec<f32>, dims: [usize; 3], measure: DistanceMeasure) {
-    assert_native_matches_burn(
+    assert_coeus_matches_coeus(
         vals,
         dims,
         |img| {
@@ -57,15 +57,15 @@ fn matches_burn_scattered_foreground() {
 }
 
 #[test]
-fn squared_measure_matches_burn_exactly() {
+fn squared_measure_matches_coeus() {
     let mut values = vec![0.0; 27];
     values[0] = 1.0;
     check_measure(values, [3, 3, 3], DistanceMeasure::Squared);
 }
 
 #[test]
-fn signed_matches_burn_voxel_centre_convention() {
-    assert_native_matches_burn(
+fn signed_matches_coeus() {
+    assert_coeus_matches_coeus(
         vec![0.0, 1.0, 0.0],
         [1, 1, 3],
         |image| {

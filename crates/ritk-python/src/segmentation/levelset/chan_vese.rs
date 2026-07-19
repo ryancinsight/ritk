@@ -1,7 +1,7 @@
 //! Chan-Vese level set segmentation.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_segmentation::ChanVeseSegmentation;
 
@@ -27,7 +27,7 @@ pub struct PyChanVeseOptions {
     /// Euler forward time step.
     #[pyo3(get, set)]
     pub dt: f64,
-    /// Convergence tolerance on max|Δφ|/dt.
+    /// Convergence tolerance on max|Î”Ï†|/dt.
     #[pyo3(get, set)]
     pub tolerance: f64,
 }
@@ -77,7 +77,7 @@ pub fn chan_vese_segment(
     opts: Option<PyChanVeseOptions>,
 ) -> RitkResult<PyImage> {
     let opts = opts.unwrap_or_else(|| PyChanVeseOptions::new(0.25, 0.0, 1.0, 1.0, 200, 0.1, 1e-3));
-    let image_arc = py_image_to_burn(image);
+    let image_arc = image_from_py(image);
     py.allow_threads(|| {
         let mut seg = ChanVeseSegmentation::new();
         seg.mu = opts.mu;
@@ -90,5 +90,5 @@ pub fn chan_vese_segment(
         seg.apply(&image_arc).map_err(|e| e.to_string())
     })
     .map_err(RitkPyError::runtime)
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

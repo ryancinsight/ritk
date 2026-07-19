@@ -43,7 +43,7 @@ fn test_write_vtu_str_number_of_points_and_cells() {
 
 #[test]
 fn test_write_vtu_str_offsets_cumulative() {
-    // Two triangles: sizes [3, 3] → offsets [3, 6].
+    // Two triangles: sizes [3, 3] â†’ offsets [3, 6].
     let mut g = VtkUnstructuredGrid::new();
     g.points = vec![
         [0.0, 0.0, 0.0],

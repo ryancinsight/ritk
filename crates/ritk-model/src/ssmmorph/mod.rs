@@ -9,13 +9,13 @@
 //!
 //! ```text
 //! ssmmorph/
-//! ├── state_space/       - Core SSM implementation (Selective State Space S6)
-//! ├── cross_scan/        - 2D/3D cross-scan for spatial sequence modeling
-//! ├── vmamba_block/      - VMamba block combining CNN and SSM
-//! ├── encoder/           - Hierarchical feature encoder
-//! ├── decoder/           - Hierarchical decoder with skip connections
-//! ├── network/           - Complete registration network
-//! │   └── architecture/  - SSMMorph network definition and presets
+//! â”œâ”€â”€ state_space/       - Core SSM implementation (Selective State Space S6)
+//! â”œâ”€â”€ cross_scan/        - 2D/3D cross-scan for spatial sequence modeling
+//! â”œâ”€â”€ vmamba_block/      - VMamba block combining CNN and SSM
+//! â”œâ”€â”€ encoder/           - Hierarchical feature encoder
+//! â”œâ”€â”€ decoder/           - Hierarchical decoder with skip connections
+//! â”œâ”€â”€ network/           - Complete registration network
+//! â”‚   â””â”€â”€ architecture/  - SSMMorph network definition and presets
 //! ```
 //!
 //! # Quick Start

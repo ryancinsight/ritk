@@ -1,6 +1,6 @@
 //! Gaussian-family smoothing filters: FIR Gaussian, discrete Gaussian, and recursive Gaussian (IIR).
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
@@ -50,12 +50,12 @@ pub fn gaussian_filter(py: Python<'_>, image: &PyImage, sigma: f64) -> RitkResul
 ///
 /// Args:
 ///     image: Input PyImage.
-///     variance: Gaussian variance σ² in physical units².
+///     variance: Gaussian variance ÏƒÂ² in physical unitsÂ².
 ///     maximum_error: Kernel truncation tolerance in (0, 1) (default 0.01).
-///     spacing_mode: Whether to convert physical σ to pixel σ using image
+///     spacing_mode: Whether to convert physical Ïƒ to pixel Ïƒ using image
 ///         spacing. [`PySpacingMode::Physical`] (default) applies the
 ///         per-axis spacing divisor;
-///         [`PySpacingMode::Voxel`] treats σ as already in voxel units.
+///         [`PySpacingMode::Voxel`] treats Ïƒ as already in voxel units.
 ///
 /// Returns:
 ///     Smoothed PyImage with identical shape and spatial metadata.
@@ -74,7 +74,7 @@ pub fn discrete_gaussian(
             PySpacingMode::Physical => ritk_filter::discrete_gaussian::SpacingMode::Physical,
             PySpacingMode::Voxel => ritk_filter::discrete_gaussian::SpacingMode::Voxel,
         };
-        let filter = DiscreteGaussianFilter::<crate::image::BurnBackend>::new(vec![
+        let filter = DiscreteGaussianFilter::<crate::image::Backend>::new(vec![
             ritk_filter::GaussianSigma::new(variance.sqrt())
                 .expect("invariant: variance must be positive (validated by caller)"),
         ])
@@ -111,8 +111,8 @@ pub fn discrete_gaussian_derivative(
     use_image_spacing: bool,
 ) -> PyImage {
     // TODO: migrate once DiscreteGaussianDerivativeFilter gains apply_native.
-    let image = py_image_to_burn(image);
-    // sitk (x, y, z) → ritk axis-major (z, y, x).
+    let image = image_from_py(image);
+    // sitk (x, y, z) â†’ ritk axis-major (z, y, x).
     let order = [order_z, order_y, order_x];
     let result = py.allow_threads(|| {
         ritk_filter::DiscreteGaussianDerivativeFilter::new(
@@ -123,19 +123,19 @@ pub fn discrete_gaussian_derivative(
         )
         .apply(&image)
     });
-    burn_into_py_image(result)
+    into_py_image(result)
 }
 
-/// Apply a recursive Gaussian (Young–van Vliet 3rd-order IIR) filter.
+/// Apply a recursive Gaussian (Youngâ€“van Vliet 3rd-order IIR) filter.
 ///
 /// Separable IIR approximation of the Gaussian and its first/second
-/// derivatives. Constant-time per voxel regardless of σ (no explicit kernel
+/// derivatives. Constant-time per voxel regardless of Ïƒ (no explicit kernel
 /// construction).
 ///
 /// Args:
 ///     image: Input PyImage.
-///     sigma: Gaussian σ in physical units (mm, default 1.0).
-///     order: Derivative order — 0 = smoothing, 1 = first derivative,
+///     sigma: Gaussian Ïƒ in physical units (mm, default 1.0).
+///     order: Derivative order â€” 0 = smoothing, 1 = first derivative,
 ///         2 = second derivative (default 0).
 ///
 /// Returns:
@@ -183,9 +183,9 @@ pub fn recursive_gaussian(
 ///
 /// Args:
 ///     image: Input PyImage.
-///     sigma: Gaussian σ in physical units (mm).
-///     order: Derivative order — 0 = smoothing, 1 = first, 2 = second derivative.
-///     direction: Axis index in ritk `(z, y, x)` order — 0 = z, 1 = y, 2 = x.
+///     sigma: Gaussian Ïƒ in physical units (mm).
+///     order: Derivative order â€” 0 = smoothing, 1 = first, 2 = second derivative.
+///     direction: Axis index in ritk `(z, y, x)` order â€” 0 = z, 1 = y, 2 = x.
 ///         (SimpleITK's `direction` is in `(x, y, z)` order, so sitk direction 0
 ///         (x) corresponds to `direction=2` here.)
 ///
@@ -193,7 +193,7 @@ pub fn recursive_gaussian(
 ///     Filtered PyImage with identical shape and spatial metadata.
 ///
 /// Raises:
-///     ValueError: if `order ∉ {0,1,2}` or `direction ∉ {0,1,2}`.
+///     ValueError: if `order âˆ‰ {0,1,2}` or `direction âˆ‰ {0,1,2}`.
 ///     RuntimeError: on internal computation failure.
 #[pyfunction]
 #[pyo3(signature = (image, sigma=1.0, order=0, direction=2))]

@@ -1,7 +1,7 @@
 //! Vesselness filters: Frangi multiscale vesselness, Sato line filter.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::vesselness::{FrangiConfig, SatoConfig, VesselPolarity};
 use ritk_filter::{FrangiVesselnessFilter, SatoLineFilter};
@@ -45,11 +45,11 @@ impl From<PyVesselPolarity> for VesselPolarity {
 ///
 /// Detects tubular structures (blood vessels, airways) by analysing Hessian
 /// eigenvalues at multiple spatial scales. Reference: Frangi et al. (1998),
-/// *MICCAI* LNCS 1496:130–137.
+/// *MICCAI* LNCS 1496:130â€“137.
 ///
 /// Args:
 /// image: Input PyImage (should be pre-smoothed for noisy data).
-/// scales: List of σ values in mm (default [0.5, 1.0, 2.0]).
+/// scales: List of Ïƒ values in mm (default [0.5, 1.0, 2.0]).
 /// alpha: Plate-vs-line anisotropy parameter (default 0.5).
 /// beta: Blobness parameter (default 0.5).
 /// gamma: Noise-suppression structureness threshold (default 15.0).
@@ -73,7 +73,7 @@ pub fn frangi_vesselness(
     gamma: f64,
     polarity: PyVesselPolarity,
 ) -> RitkResult<PyImage> {
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         let config = FrangiConfig {
             scales: scales.unwrap_or_else(|| vec![0.5, 1.0, 2.0]),
@@ -87,7 +87,7 @@ pub fn frangi_vesselness(
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Apply the Sato multi-scale line filter for curvilinear structure detection.
@@ -97,7 +97,7 @@ pub fn frangi_vesselness(
 ///
 /// Args:
 /// image: Input PyImage.
-/// scales: List of Gaussian σ values (physical units, mm). Default [1.0, 2.0, 3.0].
+/// scales: List of Gaussian Ïƒ values (physical units, mm). Default [1.0, 2.0, 3.0].
 /// alpha: Cross-section anisotropy exponent [0.5, 2.0]. Default 0.5.
 /// polarity: Vessel polarity: "bright" (default) or "dark".
 ///     "bright" detects bright tubes on dark background.
@@ -117,7 +117,7 @@ pub fn sato_line_filter(
     alpha: f64,
     polarity: PyVesselPolarity,
 ) -> RitkResult<PyImage> {
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         let filter = SatoLineFilter::new(SatoConfig {
             scales: scales.unwrap_or_else(|| vec![1.0, 2.0, 3.0]),
@@ -128,5 +128,5 @@ pub fn sato_line_filter(
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

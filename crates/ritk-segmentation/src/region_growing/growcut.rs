@@ -1,31 +1,31 @@
 //! GrowCut interactive segmentation via cellular automaton.
 //!
 //! # Algorithm
-//! Vezhnevets & Konouchine (2005) "GrowCut — Interactive Multi-Label
+//! Vezhnevets & Konouchine (2005) "GrowCut â€” Interactive Multi-Label
 //! N-D Image Segmentation by Cellular Automata", GRAPHITE 2005.
 //!
-//! Each voxel i maintains a label L\[i\] ∈ {0,1,…,K} and a strength C\[i\] ∈ \[0,1\].
+//! Each voxel i maintains a label L\[i\] âˆˆ {0,1,â€¦,K} and a strength C\[i\] âˆˆ \[0,1\].
 //! Seeds are initialized with L\[i\] = seed, C\[i\] = 1.0. Unlabeled voxels start
 //! with L\[i\] = 0, C\[i\] = 0.0. Seed voxels are immutable.
 //!
 //! At each iteration a labeled neighbor j "attacks" i if:
-//! C\[j\] · g(j,i) > C\[i\] where g(j,i) = 1 − |I\[j\]−I\[i\]| / max_diff
-//! On a successful attack L\[i\] ← L\[j\], C\[i\] ← C\[j\]·g(j,i).
+//! C\[j\] Â· g(j,i) > C\[i\] where g(j,i) = 1 âˆ’ |I\[j\]âˆ’I\[i\]| / max_diff
+//! On a successful attack L\[i\] â† L\[j\], C\[i\] â† C\[j\]Â·g(j,i).
 //!
 //! Terminates when no voxel changes label or `max_iter` is reached.
 //!
 //! # Complexity
-//! O(max_iter · N · 6) = O(max_iter · N). Each iteration is fully data-parallel.
+//! O(max_iter Â· N Â· 6) = O(max_iter Â· N). Each iteration is fully data-parallel.
 //!
 //! # ITK Parity
 //! `itk::FastMarchingSegmentationModule` / GrowCut filter (3D Slicer extension).
 
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-// ── Public types ──────────────────────────────────────────────────────────────
+// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// GrowCut interactive segmentation filter for 3-D images.
 pub struct GrowCutFilter {
@@ -49,7 +49,11 @@ impl GrowCutFilter {
     ///
     /// `seeds` must have the same shape as `image`.  Voxels with `seeds[i] > 0.5`
     /// are treated as seeds with their integer label; all others are unlabeled (0).
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>, seeds: &Image<B, 3>) -> Image<B, 3> {
+    pub fn apply<B: Backend>(
+        &self,
+        image: &Image<f32, B, 3>,
+        seeds: &Image<f32, B, 3>,
+    ) -> Image<f32, B, 3> {
         growcut(image, seeds, self.max_iter)
     }
 
@@ -61,10 +65,10 @@ impl GrowCutFilter {
     /// host-addressable, or the native output image cannot be constructed.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
-        seeds: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
+        seeds: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -75,7 +79,7 @@ impl GrowCutFilter {
     }
 }
 
-// ── Public function ───────────────────────────────────────────────────────────
+// â”€â”€ Public function â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Run GrowCut segmentation on a 3-D image.
 ///
@@ -86,10 +90,10 @@ impl GrowCutFilter {
 /// # Panics
 /// Panics if `image` and `seeds` have different shapes.
 pub fn growcut<B: Backend>(
-    image: &Image<B, 3>,
-    seeds: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
+    seeds: &Image<f32, B, 3>,
     max_iter: usize,
-) -> Image<B, 3> {
+) -> Image<f32, B, 3> {
     assert_eq!(
         image.shape(),
         seeds.shape(),
@@ -103,18 +107,17 @@ pub fn growcut<B: Backend>(
 
     let result = growcut_slice(&img_vals, &seed_vals, [nz, ny, nx], max_iter);
 
-    let device = image.data().device();
-    let td = TensorData::new(result, Shape::new([nz, ny, nx]));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
+    let tensor = Tensor::<f32, B>::from_slice([nz, ny, nx], &result);
     Image::new(
         tensor,
         *image.origin(),
         *image.spacing(),
         *image.direction(),
     )
+    .expect("invariant: segmentation output tensor preserves the image rank")
 }
 
-// ── Core automaton ────────────────────────────────────────────────────────────
+// â”€â”€ Core automaton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Run GrowCut automaton on flat slices.
 ///
@@ -247,7 +250,7 @@ pub fn growcut_slice(
     labels.into_iter().map(|l| l as f32).collect()
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_growcut.rs"]

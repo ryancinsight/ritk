@@ -1,6 +1,6 @@
 use crate::HEADER_SIZE;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 pub(crate) type TestBackend = SequentialBackend;

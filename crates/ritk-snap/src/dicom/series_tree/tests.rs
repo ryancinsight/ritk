@@ -263,7 +263,7 @@ fn test_from_entries_splits_different_studies() {
     assert_eq!(tree.total_series(), 2);
 }
 
-// ── New Optimization & Architecture Verification Tests ───────────────────────
+// â”€â”€ New Optimization & Architecture Verification Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Test that GAT-based `SeriesEntryView` works for both `SeriesEntry` and `SeriesNode`.
 #[test]
@@ -291,12 +291,12 @@ fn test_gat_series_entry_view() {
 /// Test that `ModalityMapper` using const generics correctly matches icons.
 #[test]
 fn test_const_generic_modality_mapper() {
-    let custom_icons: [(&str, &str); 2] = [("CT", "☢CT"), ("MR", "☢MR")];
+    let custom_icons: [(&str, &str); 2] = [("CT", "â˜¢CT"), ("MR", "â˜¢MR")];
     let mapper = ModalityMapper::new(custom_icons);
 
-    assert_eq!(mapper.get_icon("CT"), "☢CT");
-    assert_eq!(mapper.get_icon("MR"), "☢MR");
-    assert_eq!(mapper.get_icon("US"), "🗂"); // Default fallback
+    assert_eq!(mapper.get_icon("CT"), "â˜¢CT");
+    assert_eq!(mapper.get_icon("MR"), "â˜¢MR");
+    assert_eq!(mapper.get_icon("US"), "ðŸ—‚"); // Default fallback
 }
 
 /// Test that monomorphized `format_series_label` produces the expected format.
@@ -313,7 +313,7 @@ fn test_monomorphized_format_series_label() {
         123,
     );
     let label = format_series_label(&entry, &DEFAULT_MODALITY_MAPPER);
-    assert_eq!(label, "🫁 [CT] CT series (123 slices)");
+    assert_eq!(label, "ðŸ« [CT] CT series (123 slices)");
 
     // Test fallback when description is empty
     let empty_desc_entry = SeriesEntry {
@@ -328,7 +328,7 @@ fn test_monomorphized_format_series_label() {
         study_uid: None,
     };
     let label2 = format_series_label(&empty_desc_entry, &DEFAULT_MODALITY_MAPPER);
-    assert_eq!(label2, "🧠 [MR] my_folder (15 slices)");
+    assert_eq!(label2, "ðŸ§  [MR] my_folder (15 slices)");
 }
 
 /// Benchmark test to empirically validate the O(N) linear time construction complexity.

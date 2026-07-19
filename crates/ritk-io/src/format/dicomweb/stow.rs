@@ -7,7 +7,7 @@ pub struct StowClient<'a> {
     auth_header: &'a Option<String>,
 }
 
-/// Outcome of a STOW-RS store operation (PS 3.18 §10.5).
+/// Outcome of a STOW-RS store operation (PS 3.18 Â§10.5).
 #[derive(Debug, Clone)]
 pub struct StowResponse {
     /// SOPInstanceUIDs of instances successfully stored.
@@ -16,7 +16,7 @@ pub struct StowResponse {
     pub failed: Vec<StowFailure>,
 }
 
-/// A single STOW-RS failure entry from the response (PS 3.18 §10.5.1).
+/// A single STOW-RS failure entry from the response (PS 3.18 Â§10.5.1).
 #[derive(Debug, Clone)]
 pub struct StowFailure {
     pub sop_instance_uid: String,
@@ -30,7 +30,7 @@ pub const MULTIPART_BOUNDARY: &str = "DICOMwebBoundary42";
 /// Constructs the STOW-RS target URL.
 ///
 /// Returns `{base}/studies` or `{base}/studies/{study_uid}` when `study_uid` is `Some`,
-/// per PS 3.18 §10.5.
+/// per PS 3.18 Â§10.5.
 pub fn build_stow_url(base: &str, study_uid: Option<&str>) -> String {
     match study_uid {
         None => format!("{}/studies", base),
@@ -38,7 +38,7 @@ pub fn build_stow_url(base: &str, study_uid: Option<&str>) -> String {
     }
 }
 
-/// Constructs a `multipart/related` MIME body for STOW-RS per PS 3.18 §10.5.
+/// Constructs a `multipart/related` MIME body for STOW-RS per PS 3.18 Â§10.5.
 ///
 /// Each element of `parts` contributes one MIME part with:
 /// - `Content-Type: application/dicom`
@@ -65,8 +65,8 @@ pub fn build_multipart_body(parts: &[(String, Vec<u8>)], boundary: &str) -> Vec<
 /// satisfying the minimal contract for SCP implementations that return no body.
 ///
 /// JSON field mapping (DICOM NativeDICOM JSON):
-/// - `"00081199"`: ReferencedSOPSequence — successfully stored instances
-/// - `"00081198"`: FailedSOPSequence — failed instances
+/// - `"00081199"`: ReferencedSOPSequence â€” successfully stored instances
+/// - `"00081198"`: FailedSOPSequence â€” failed instances
 /// - `"00081155"`: ReferencedSOPInstanceUID within each sequence item
 /// - `"00081197"`: FailureReason code within each failed sequence item
 pub fn parse_stow_response(body: &[u8]) -> anyhow::Result<StowResponse> {

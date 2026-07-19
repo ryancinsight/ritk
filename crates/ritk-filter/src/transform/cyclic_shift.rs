@@ -1,7 +1,7 @@
 //! Cyclic (periodic) shift of a 3-D image.
 //!
 //! Rolls the image by an integer per-axis offset with wrap-around: the voxel at
-//! output index `i` reads input index `(i − shift) mod n` along each axis, so
+//! output index `i` reads input index `(i âˆ’ shift) mod n` along each axis, so
 //! every voxel is preserved and merely repositioned (no interpolation, no data
 //! loss). Matches ITK `CyclicShiftImageFilter` / `sitk.CyclicShift`.
 
@@ -24,7 +24,7 @@ impl CyclicShiftImageFilter {
     }
 
     /// Apply the cyclic shift. Output has identical shape and spatial metadata.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let (vals, dims) = extract_vec_infallible(image);
         let [nz, ny, nx] = dims;
         // Reduce each shift modulo the (positive) axis length.
@@ -57,9 +57,9 @@ impl CyclicShiftImageFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

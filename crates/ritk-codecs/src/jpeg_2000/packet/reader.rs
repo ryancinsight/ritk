@@ -9,7 +9,7 @@ use crate::jpeg_2000::wavelet_9_7::inverse_dwt_9_7;
 
 use super::{band_cblks, cblk_grid, lblock_extra_bits, CblkRef, WaveletTransform};
 
-/// Read individual bits (MSB first) from a §B.10.1 bit-stuffed header: after
+/// Read individual bits (MSB first) from a Â§B.10.1 bit-stuffed header: after
 /// a 0xFF byte, the following byte contributes only its low 7 bits
 /// (= OpenJPEG `opj_bio_bytein`).
 pub struct BitReader {
@@ -99,7 +99,7 @@ struct CblkState {
     num_passes: u32,
     /// Missing MSBs signalled at first inclusion.
     msbs: u32,
-    /// Lblock state (§B.10.7.1), persists across layers.
+    /// Lblock state (Â§B.10.7.1), persists across layers.
     lblock: u8,
     /// Whether this code-block has been included in an earlier layer.
     included_before: bool,
@@ -139,20 +139,20 @@ pub struct TileComponentSamples {
 /// Tile coding parameters extracted from the COD/QCD main-header segments.
 #[derive(Clone, Copy, Debug)]
 pub struct TileCodingParams<'a> {
-    /// Guard bits from QCD (ISO 15444-1 §A.6.4).
+    /// Guard bits from QCD (ISO 15444-1 Â§A.6.4).
     pub num_guard_bits: u8,
     /// Component bit precision (Ssiz + 1).
     pub precision: u32,
-    /// DWT decomposition levels from COD (§A.6.1).
+    /// DWT decomposition levels from COD (Â§A.6.1).
     pub num_decomp_levels: u8,
-    /// Quality layers from COD; must be ≥ 1.
+    /// Quality layers from COD; must be â‰¥ 1.
     pub num_layers: u16,
-    /// Per-subband quantizer exponents ε_b from QCD in codestream subband
+    /// Per-subband quantizer exponents Îµ_b from QCD in codestream subband
     /// order; when empty (or too short) the reversible default
     /// `precision + gain_b` is used.
     pub exponents: &'a [u32],
-    /// Per-subband quantizer mantissas μ_b from QCD (scalar style only); empty
-    /// for the no-quantization style, where μ_b = 0.
+    /// Per-subband quantizer mantissas Î¼_b from QCD (scalar style only); empty
+    /// for the no-quantization style, where Î¼_b = 0.
     pub mantissas: &'a [u32],
     /// Wavelet transform family (from COD); selects the inverse DWT and whether
     /// coefficients are dequantized.
@@ -162,7 +162,7 @@ pub struct TileCodingParams<'a> {
 /// Decode the tile-part body starting immediately after the SOD marker.
 ///
 /// Supports the LRCP progression with one precinct per resolution/band,
-/// 64×64 nominal code-blocks, any number of 5/3 decomposition levels, and
+/// 64Ã—64 nominal code-blocks, any number of 5/3 decomposition levels, and
 /// multiple quality layers (per-code-block pass accumulation).
 ///
 /// # Errors
@@ -220,7 +220,7 @@ pub fn decode_tile_part(
                     for ci in band_ranges[bi].clone() {
                         let c = cblks[ci];
                         let st = &mut states[ci];
-                        // Inclusion (§B.10.4): tag tree before first
+                        // Inclusion (Â§B.10.4): tag tree before first
                         // inclusion, a single raw bit afterwards.
                         let included_now = if st.included_before {
                             br.read_bit() == 1
@@ -263,7 +263,7 @@ pub fn decode_tile_part(
     // EBCOT-decode each code-block into the Mallat coefficient plane. `bp_plane`
     // records, per coefficient, the lowest bit-plane its code-block decoded so
     // the irreversible reconstruction can place the dequantized value at the
-    // midpoint of the still-undecoded interval (ISO 15444-1 §E.1.1.2).
+    // midpoint of the still-undecoded interval (ISO 15444-1 Â§E.1.1.2).
     let mut mallat = vec![0i32; width * height];
     let mut bp_plane = vec![0u32; width * height];
     for (ci, c) in cblks.iter().enumerate() {
@@ -274,7 +274,7 @@ pub fn decode_tile_part(
             .get(c.band)
             .copied()
             .unwrap_or(coding.precision + b.gain);
-        // Mb = ε_b + G − 1 (ISO 15444-1 §E.1).
+        // Mb = Îµ_b + G âˆ’ 1 (ISO 15444-1 Â§E.1).
         let total_bp = (u32::from(coding.num_guard_bits) + exponent).saturating_sub(1);
         let num_bit_planes = if st.included_before {
             total_bp.saturating_sub(st.msbs)
@@ -303,12 +303,12 @@ pub fn decode_tile_part(
             inverse_dwt_5_3(&mut mallat, width, height, coding.num_decomp_levels)?;
         }
         WaveletTransform::Irreversible => {
-            // Dequantize each subband (Δ_b from the QCD ε_b/μ_b relative to
+            // Dequantize each subband (Î”_b from the QCD Îµ_b/Î¼_b relative to
             // R_b = precision + gain_b), inverse 9/7, then round to integers.
-            // With ≥ 1 decomposition level the coefficients are continuous 9/7
-            // outputs (sub-step uncertainty → midpoint reconstruction); with zero
+            // With â‰¥ 1 decomposition level the coefficients are continuous 9/7
+            // outputs (sub-step uncertainty â†’ midpoint reconstruction); with zero
             // levels the single LL band is the original integer image captured
-            // losslessly (exact → no reconstruction bias).
+            // losslessly (exact â†’ no reconstruction bias).
             let continuous = coding.num_decomp_levels > 0;
             let mut coeffs = vec![0f32; width * height];
             for (bi, b) in bands.iter().enumerate() {

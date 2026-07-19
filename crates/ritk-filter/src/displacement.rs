@@ -1,4 +1,4 @@
-//! Transform-to-displacement-field: sample an affine transform onto a grid.
+﻿//! Transform-to-displacement-field: sample an affine transform onto a grid.
 //!
 //! # Mathematical Specification
 //!
@@ -7,88 +7,76 @@
 //! is the transform applied minus the point itself:
 //!
 //! ```text
-//! D(p) = T(p) − p,    T(p) = M·(p − c) + c + t
+//! D(p) = T(p) âˆ’ p,    T(p) = MÂ·(p âˆ’ c) + c + t
 //! ```
 //!
-//! where `M` is the 3×3 matrix, `t` the translation, and `c` the centre, all in
+//! where `M` is the 3Ã—3 matrix, `t` the translation, and `c` the centre, all in
 //! the physical `(x, y, z)` frame (SimpleITK's `AffineTransform` convention).
 //! Physical points come from the image's canonical
-//! [`Image::index_to_world_tensor`], whose innermost-first columns are exactly
+//! [`Image::index_to_world_native`], whose innermost-first columns are exactly
 //! `(x, y, z)`, so the result is float-exact to `sitk.TransformToDisplacementField`.
 //!
 //! The field is returned as three scalar component images `(D_z, D_y, D_x)` on
-//! the reference grid — the same `(disp_z, disp_y, disp_x)` order
-//! [`crate::warp::warp_image`] consumes, so `warp(moving, …) ≡ resample(moving,
+//! the reference grid â€” the same `(disp_z, disp_y, disp_x)` order
+//! [`crate::warp::warp_image`] consumes, so `warp(moving, â€¦) â‰¡ resample(moving,
 //! transform)`.
 
 use anyhow::Result;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
-use ritk_image::{generate_grid_burn as generate_grid, Image};
+use ritk_image::tensor::Tensor;
+use ritk_image::Image;
+use ritk_spatial::Point;
 
-/// Sample an affine transform `T(p) = M·(p − c) + c + t` onto the reference
-/// grid, returning the dense displacement field `D(p) = T(p) − p` as
+type DisplacementImages<B> = (Image<f32, B, 3>, Image<f32, B, 3>, Image<f32, B, 3>);
+
+/// Sample an affine transform `T(p) = MÂ·(p âˆ’ c) + c + t` onto the reference
+/// grid, returning the dense displacement field `D(p) = T(p) âˆ’ p` as
 /// `(disp_z, disp_y, disp_x)` scalar component images.
 ///
 /// `matrix`, `translation`, and `center` are in the physical `(x, y, z)` frame
 /// (row-major matrix), matching SimpleITK's `AffineTransform`.
 pub fn transform_to_displacement_field<B: Backend>(
-    reference: &Image<B, 3>,
+    reference: &Image<f32, B, 3>,
     matrix: [[f64; 3]; 3],
     translation: [f64; 3],
     center: [f64; 3],
-) -> Result<(Image<B, 3>, Image<B, 3>, Image<B, 3>)> {
+) -> Result<DisplacementImages<B>> {
     let dims = reference.shape();
     let n: usize = dims.iter().product();
-    let device = reference.data().device();
+    let mut components = [
+        Vec::with_capacity(n),
+        Vec::with_capacity(n),
+        Vec::with_capacity(n),
+    ];
+    let plane = dims[1] * dims[2];
+    for linear in 0..n {
+        let index = Point::new([
+            (linear / plane) as f64,
+            ((linear % plane) / dims[2]) as f64,
+            (linear % dims[2]) as f64,
+        ]);
+        let point = reference.transform_continuous_index_to_physical_point(&index);
+        for (row, component) in components.iter_mut().enumerate() {
+            let transformed = (0..3)
+                .map(|column| matrix[row][column] * (point[column] - center[column]))
+                .sum::<f64>()
+                + center[row]
+                + translation[row];
+            component.push((transformed - point[row]) as f32);
+        }
+    }
 
-    // Reference-grid physical points. `index_to_world_tensor` returns world
-    // columns in [x, y, z] order (output column c = world component c, paired
-    // with origin[c] and direction[(c, axis)]), matching SimpleITK's frame.
-    let indices = generate_grid::<B, 3>(dims, &device);
-    let world = reference.index_to_world_tensor(indices); // [N, 3], cols [x, y, z]
-
-    // T(p) = M·(p − c) + c + t, computed row-wise as
-    // (p − c) · Mᵀ + (c + t). Build Mᵀ so `world_centered.matmul(mt)` applies M
-    // to each row in [x, y, z] order.
-    let mt_data: Vec<f32> = (0..3)
-        .flat_map(|i| (0..3).map(move |j| matrix[j][i] as f32))
-        .collect();
-    let mt = Tensor::<B, 2>::from_data(TensorData::new(mt_data, Shape::new([3, 3])), &device);
-    let c_row = Tensor::<B, 2>::from_data(
-        TensorData::new(center.map(|v| v as f32).to_vec(), Shape::new([1, 3])),
-        &device,
-    );
-    let ct_row = Tensor::<B, 2>::from_data(
-        TensorData::new(
-            [
-                (center[0] + translation[0]) as f32,
-                (center[1] + translation[1]) as f32,
-                (center[2] + translation[2]) as f32,
-            ]
-            .to_vec(),
-            Shape::new([1, 3]),
-        ),
-        &device,
-    );
-
-    let centered_xyz = world.clone() - c_row;
-    let transformed_xyz = centered_xyz.matmul(mt) + ct_row; // T(p) in [x, y, z]
-    let disp_xyz = transformed_xyz - world; // D(p) = T(p) − p, columns [Dx, Dy, Dz]
-
-    let extract_component = |col_tensor: Tensor<B, 2>| -> Image<B, 3> {
-        let c = col_tensor.reshape(Shape::new(dims));
+    let extract_component = |values: Vec<f32>| -> Image<f32, B, 3> {
         Image::new(
-            c,
+            Tensor::<f32, B>::from_slice(dims, &values),
             *reference.origin(),
             *reference.spacing(),
             *reference.direction(),
         )
+        .expect("displacement component tensor has the reference image rank")
     };
 
-    let dx = extract_component(disp_xyz.clone().slice([0..n, 0..1]));
-    let dy = extract_component(disp_xyz.clone().slice([0..n, 1..2]));
-    let dz = extract_component(disp_xyz.clone().slice([0..n, 2..3]));
+    let [dx, dy, dz] = components.map(extract_component);
 
     Ok((dz, dy, dx))
 }

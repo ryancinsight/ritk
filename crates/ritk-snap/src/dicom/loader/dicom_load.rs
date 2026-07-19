@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use coeus_core::SequentialBackend;
 use ritk_io::{
     is_rgb_dicom_series, load_color_volume_flat, load_color_volume_flat_from_path,
-    load_native_dicom_from_series, load_native_dicom_series_with_metadata,
+    load_dicom_from_series, load_dicom_series_with_metadata,
 };
 use tracing::info;
 
@@ -44,11 +44,11 @@ pub fn load_volume_from_scanned_series(
 /// [`load_dicom_volume`] and [`load_volume_from_scanned_series`].
 ///
 /// # Parameters
-/// - `image` — the reconstructed 3-D scalar image.
-/// - `meta` — per-series DICOM metadata.
-/// - `source` — optional filesystem source path (absent for SCP-received instances).
+/// - `image` â€” the reconstructed 3-D scalar image.
+/// - `meta` â€” per-series DICOM metadata.
+/// - `source` â€” optional filesystem source path (absent for SCP-received instances).
 fn loaded_volume_from_scalar_image(
-    image: ritk_image::native::Image<f32, SequentialBackend, 3>,
+    image: ritk_image::Image<f32, SequentialBackend, 3>,
     meta: ritk_io::DicomReadMetadata,
     source: Option<std::path::PathBuf>,
     backend: &SequentialBackend,
@@ -91,7 +91,7 @@ fn load_dicom_scalar_volume_from_scanned_series(
     series: ritk_io::ScannedDicomSeries,
 ) -> Result<LoadedVolume> {
     let backend = SequentialBackend;
-    let (image, meta) = load_native_dicom_from_series(series, &backend)
+    let (image, meta) = load_dicom_from_series(series, &backend)
         .with_context(|| "failed to load DICOM series from scanned instances")?;
     loaded_volume_from_scalar_image(image, meta, None, &backend)
 }
@@ -177,7 +177,7 @@ pub fn load_dicom_volume<P: AsRef<Path>>(folder: P) -> Result<LoadedVolume> {
     }
 
     let backend = SequentialBackend;
-    let (image, meta) = load_native_dicom_series_with_metadata(folder, &backend)
+    let (image, meta) = load_dicom_series_with_metadata(folder, &backend)
         .with_context(|| format!("failed to load DICOM series from '{}'", folder.display()))?;
     loaded_volume_from_scalar_image(image, meta, Some(folder.to_path_buf()), &backend)
 }

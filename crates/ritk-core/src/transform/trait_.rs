@@ -9,11 +9,11 @@ use ritk_image::tensor::{Backend, Tensor};
 ///
 /// Maps points from one physical space to another.
 /// All transforms must implement this trait to be used in registration.
-/// Note: This trait does not enforce `ritk_image::burn::module::Module` inheritance,
-/// allowing for both trainable (Module) and non-trainable (pure) transforms.
+/// Trainability is a separate concern, so pure and trainable transforms can
+/// implement the same spatial contract.
 ///
 /// # Type Parameters
-/// * `B` - The Burn backend
+/// * `B` - The Coeus compute backend
 /// * `D` - The spatial dimensionality (2 or 3)
 pub trait Transform<B: Backend, const D: usize>: Sized {
     /// Apply transform to a batch of points.
@@ -23,7 +23,7 @@ pub trait Transform<B: Backend, const D: usize>: Sized {
     ///
     /// # Returns
     /// Tensor of shape `[Batch, D]` containing the transformed points
-    fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2>;
+    fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B>;
 
     /// Get the inverse transform (if available).
     ///

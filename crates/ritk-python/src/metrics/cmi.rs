@@ -1,8 +1,8 @@
 //! Conditional Mutual Information and Interaction Information pyfunction wrappers.
 //!
 //! Delegates to `ritk_statistics::information`:
-//! - I(X;Y|Z) = H(X,Z) + H(Y,Z) − H(X,Y,Z) − H(Z)   (conditional MI)
-//! - II(X;Y;Z) = I(X;Y) − I(X;Y|Z)                     (interaction info, McGill 1954)
+//! - I(X;Y|Z) = H(X,Z) + H(Y,Z) âˆ’ H(X,Y,Z) âˆ’ H(Z)   (conditional MI)
+//! - II(X;Y;Z) = I(X;Y) âˆ’ I(X;Y|Z)                     (interaction info, McGill 1954)
 
 use anyhow::Result;
 use pyo3::prelude::*;
@@ -25,10 +25,10 @@ pub(super) fn ii_slices(x: &[f32], y: &[f32], z: &[f32], num_bins: usize) -> Res
 
 /// Conditional Mutual Information I(X;Y|Z) between three images.
 ///
-/// All images must have identical shapes. Returns CMI ≥ 0.
+/// All images must have identical shapes. Returns CMI â‰¥ 0.
 ///
 /// # Formula
-/// I(X;Y|Z) = H(X,Z) + H(Y,Z) − H(X,Y,Z) − H(Z)
+/// I(X;Y|Z) = H(X,Z) + H(Y,Z) âˆ’ H(X,Y,Z) âˆ’ H(Z)
 ///
 /// # Arguments
 /// - `num_bins`: histogram bins per axis (default 32).
@@ -60,7 +60,7 @@ pub fn compute_conditional_mutual_information(
 /// All images must have identical shapes. Result may be negative.
 ///
 /// # Formula
-/// II(X;Y;Z) = I(X;Y) − I(X;Y|Z)
+/// II(X;Y;Z) = I(X;Y) âˆ’ I(X;Y|Z)
 ///
 /// - II > 0: Z introduces synergy (knowing Z increases I(X;Y)).
 /// - II < 0: Z is redundant (knowing Z decreases apparent I(X;Y)).

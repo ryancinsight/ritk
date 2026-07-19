@@ -1,21 +1,20 @@
 //! Tests for sobel
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use crate::native_support::LegacyBurnBackend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
 /// Construct a test image from flat data, dimensions, and spacing.
-fn make_image(vals: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image_with_spacing::<B, 3>(vals, dims, spacing)
+fn make_image(vals: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Image<f32, B, 3> {
+    ts::make_image_with_spacing::<f32, B, 3>(vals, dims, spacing)
 }
 
-/// Uniform image → gradient magnitude = 0.0 everywhere.
+/// Uniform image â†’ gradient magnitude = 0.0 everywhere.
 ///
 /// Proof: derivative of a constant is identically zero. The derivative
 /// kernel [-1, 0, 1] applied to [c, c, c] yields 0 regardless of padding
@@ -43,13 +42,13 @@ fn test_uniform_image_zero_gradient() {
 ///   gx = 1.0, gy = 0.0, gz = 0.0, magnitude = 1.0
 ///
 /// Derivation:
-///   Derivative along x: (x+1)−(x−1) = 2
-///   Smooth y: [1,2,1]·[2,2,2] = 8
-///   Smooth z: [1,2,1]·[8,8,8] = 32
-///   Normalized: 32 / (32·1) = 1.0
+///   Derivative along x: (x+1)âˆ’(xâˆ’1) = 2
+///   Smooth y: [1,2,1]Â·[2,2,2] = 8
+///   Smooth z: [1,2,1]Â·[8,8,8] = 32
+///   Normalized: 32 / (32Â·1) = 1.0
 ///
-///   Derivative along y of I=x: I(y+1,x)−I(y−1,x) = x−x = 0 → gy = 0
-///   Derivative along z of I=x: analogous → gz = 0
+///   Derivative along y of I=x: I(y+1,x)âˆ’I(yâˆ’1,x) = xâˆ’x = 0 â†’ gy = 0
+///   Derivative along z of I=x: analogous â†’ gz = 0
 #[test]
 fn test_ramp_x_unit_spacing() {
     let [nz, ny, nx] = [8usize, 8, 12];
@@ -105,13 +104,13 @@ fn test_ramp_x_unit_spacing() {
 
 /// Diagonal ramp I(z,y,x) = x + y + z with unit spacing.
 ///
-/// Expected at interior: each component = 1.0, magnitude = √3.
+/// Expected at interior: each component = 1.0, magnitude = âˆš3.
 ///
 /// Derivation (each axis identical by symmetry):
-///   Derivative along a: (c_a+1)−(c_a−1) = 2
-///   Two smoothing passes on constant 2 → 32
-///   Normalized: 32 / (32·1) = 1.0
-///   |∇I| = √(1²+1²+1²) = √3 ≈ 1.7320508
+///   Derivative along a: (c_a+1)âˆ’(c_aâˆ’1) = 2
+///   Two smoothing passes on constant 2 â†’ 32
+///   Normalized: 32 / (32Â·1) = 1.0
+///   |âˆ‡I| = âˆš(1Â²+1Â²+1Â²) = âˆš3 â‰ˆ 1.7320508
 #[test]
 fn test_diagonal_ramp_magnitude() {
     let [nz, ny, nx] = [10usize, 10, 10];
@@ -175,7 +174,7 @@ fn test_diagonal_ramp_magnitude() {
 ///
 /// Derivation:
 ///   Raw convolution is identical to unit-spacing case (index-space): 32
-///   Normalized: 32 / (32 · 2.0) = 0.5
+///   Normalized: 32 / (32 Â· 2.0) = 0.5
 #[test]
 fn test_non_unit_spacing() {
     let [nz, ny, nx] = [6usize, 6, 10];
@@ -241,11 +240,9 @@ fn test_metadata_preserved() {
     direction[(0, 1)] = -1.0;
     direction[(1, 0)] = 1.0;
     direction[(1, 1)] = 0.0;
-
-    let device = Default::default();
-    let td = TensorData::new(vals, Shape::new(dims));
-    let tensor = Tensor::<B, 3>::from_data(td, &device);
-    let img = Image::new(tensor, origin, spacing_val, direction);
+    let tensor = Tensor::<f32, B>::from_slice(dims, &vals);
+    let img = Image::new(tensor, origin, spacing_val, direction)
+        .expect("invariant: fixture tensor has the declared rank");
 
     let filter = SobelFilter::new([0.5, 1.5, 2.5].into());
 
@@ -368,7 +365,7 @@ fn test_ramp_z_axis_separation() {
 ///   gz = 1.0 / 0.5 = 2.0
 ///   gy = 1.0 / 1.0 = 1.0
 ///   gx = 1.0 / 2.0 = 0.5
-///   |∇I| = √(4.0 + 1.0 + 0.25) = √5.25 ≈ 2.2912878
+///   |âˆ‡I| = âˆš(4.0 + 1.0 + 0.25) = âˆš5.25 â‰ˆ 2.2912878
 #[test]
 fn test_anisotropic_spacing_diagonal() {
     let [nz, ny, nx] = [8usize, 8, 8];

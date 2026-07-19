@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::{Path, PathBuf};
 
@@ -226,7 +226,7 @@ mod tests {
         image.save(path).expect("test PNG write must succeed");
     }
 
-    fn tensor_values(image: &ritk_image::native::Image<f32, TestBackend, 3>) -> Vec<f32> {
+    fn tensor_values(image: &ritk_image::Image<f32, TestBackend, 3>) -> Vec<f32> {
         image.data_slice().expect("contiguous image data").to_vec()
     }
 

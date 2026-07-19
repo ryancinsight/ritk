@@ -1,4 +1,4 @@
-//! `ritk stats` — image statistics and comparison metrics command.
+//! `ritk stats` â€” image statistics and comparison metrics command.
 //!
 //! Computes single-image statistics or pairwise comparison metrics between
 //! an input image and a reference image.
@@ -20,7 +20,7 @@ use tracing::info;
 
 mod metrics;
 
-// ── CLI arguments ─────────────────────────────────────────────────────────────
+// â”€â”€ CLI arguments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Image quality and similarity metric to compute.
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -74,7 +74,7 @@ pub struct StatsArgs {
     pub max_val: f32,
 }
 
-// ── Command handler ───────────────────────────────────────────────────────────
+// â”€â”€ Command handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Execute the `stats` subcommand.
 ///

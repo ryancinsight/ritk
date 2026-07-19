@@ -1,4 +1,4 @@
-//! `ritk register` — image registration command.
+//! `ritk register` â€” image registration command.
 //!
 //! Registers a moving image to a fixed reference image.
 //!
@@ -24,10 +24,10 @@
 //! 3. Convert both images to `leto::Array3<f64>` (for MI methods) or
 //!    flat `Vec<f32>` (for deformable methods).
 //! 4. Run the selected registration method; initial transform is identity.
-//! 5. Apply the estimated 4×4 homogeneous transform to the moving image
+//! 5. Apply the estimated 4Ã—4 homogeneous transform to the moving image
 //!    (MI methods) or reconstruct from warped output (deformable methods).
 //! 6. Write the warped image to `--output`.
-//! 7. Optionally serialise the 4×4 transform matrix to JSON at
+//! 7. Optionally serialise the 4Ã—4 transform matrix to JSON at
 //!    `--output-transform` (MI methods only).
 //! 8. Print a registration summary (iterations, metric value, convergence status).
 
@@ -39,13 +39,11 @@ mod mi;
 use anyhow::{Context, Result};
 use clap::Args;
 use leto::Array3;
-use ritk_image::tensor::Backend as BurnBackend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use std::path::PathBuf;
 use tracing::info;
 
 use super::Backend;
-use super::NativeBackend;
 use ritk_core::image::Image;
 use ritk_filter::{GaussianFilter, GaussianSigma};
 use ritk_registration::classical::engine::{ClassicalConfig, MutualInformationMetric};
@@ -71,7 +69,7 @@ fn parse_gaussian_sigma(s: &str) -> Result<GaussianSigma, String> {
     GaussianSigma::new(v).ok_or_else(|| format!("sigma must be > 0, got {v}"))
 }
 
-// ── CLI types ────────────────────────────────────────────────────────────────
+// â”€â”€ CLI types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// CLI representation of the `--inverse-consistency` flag for Multi-Resolution SyN.
 ///
@@ -122,7 +120,7 @@ impl std::fmt::Display for RegistrationMethod {
     }
 }
 
-// ── CLI arguments ─────────────────────────────────────────────────────────────
+// â”€â”€ CLI arguments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Arguments for the `register` subcommand.
 #[derive(Args, Debug)]
@@ -147,7 +145,7 @@ pub struct RegisterArgs {
     pub method: RegistrationMethod,
 
     /// Output path for the estimated transform (JSON array of 16 floats
-    /// representing a row-major 4×4 homogeneous matrix). Optional.
+    /// representing a row-major 4Ã—4 homogeneous matrix). Optional.
     /// Only produced by `rigid-mi` and `affine-mi`.
     #[arg(long, value_name = "PATH")]
     pub output_transform: Option<PathBuf>,
@@ -213,9 +211,9 @@ pub struct RegisterArgs {
     pub n_squarings: usize,
 }
 
-// ── Image ↔ Leto volume conversion ────────────────────────────────────────────
+// â”€â”€ Image â†” Leto volume conversion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Convert a 3-D `Image<Backend, 3>` to a `leto::Array3<f64>`.
+/// Convert a 3-D `Image<f32, Backend, 3>` to a `leto::Array3<f64>`.
 ///
 /// Data is extracted in the image's native [Z, Y, X] layout (C-order) and
 /// cast element-wise from `f32` to `f64`.
@@ -223,68 +221,70 @@ pub struct RegisterArgs {
 /// # Panics
 /// Panics if the tensor data cannot be extracted as `f32`.
 #[allow(dead_code)]
-pub(super) fn image_to_leto_volume(image: &Image<Backend, 3>) -> Array3<f64> {
+pub(super) fn image_to_leto_volume(image: &Image<f32, Backend, 3>) -> Array3<f64> {
     let shape = image.shape();
-    let slice = image.data_slice();
+    let slice = image.data_slice().unwrap();
     let f64_vec: Vec<f64> = slice.iter().map(|&v| v as f64).collect();
     Array3::from_shape_vec([shape[0], shape[1], shape[2]], f64_vec)
         .expect("shape derived from image must be consistent with data length")
 }
 
-/// Convert a warped `leto::Array3<f64>` back to `Image<Backend, 3>`.
+/// Convert a warped `leto::Array3<f64>` back to `Image<f32, Backend, 3>`.
 ///
 /// The spatial metadata (origin, spacing, direction) is copied from
 /// `reference` so the output image lives in the fixed image's frame.
 #[allow(dead_code)]
 pub(super) fn leto_volume_to_image(
     volume: Array3<f64>,
-    reference: &Image<Backend, 3>,
-) -> Image<Backend, 3> {
-    let device: <Backend as BurnBackend>::Device = Default::default();
+    reference: &Image<f32, Backend, 3>,
+) -> Image<f32, Backend, 3> {
     let [nz, ny, nx] = volume.shape();
     let f32_vec: Vec<f32> = volume.iter().map(|&v| v as f32).collect();
-    let td = TensorData::new(f32_vec, Shape::new([nz, ny, nx]));
-    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+    let backend = Backend::default();
+    let tensor = Tensor::<f32, Backend>::from_slice_on([nz, ny, nx], &f32_vec, &backend);
+
     Image::new(
         tensor,
         *reference.origin(),
         *reference.spacing(),
         *reference.direction(),
     )
+    .expect("image reconstruction from flat data must succeed")
 }
 
-// ── Image ↔ flat Vec<f32> conversion (for demons / SyN) ──────────────────────
+// â”€â”€ Image â†” flat Vec<f32> conversion (for demons / SyN) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Extract a flat `Vec<f32>` in Z-major order and the `[nz, ny, nx]` shape
 /// from a 3-D image.
 ///
 /// # Panics
 /// Panics if the tensor data cannot be extracted as `f32`.
-pub(super) fn image_to_flat_vec(image: &Image<Backend, 3>) -> (Vec<f32>, [usize; 3]) {
+pub(super) fn image_to_flat_vec(image: &Image<f32, Backend, 3>) -> (Vec<f32>, [usize; 3]) {
     let shape = image.shape();
-    let data: Vec<f32> = image.data_slice().into_owned();
+    let data: Vec<f32> = image.data_vec();
     (data, [shape[0], shape[1], shape[2]])
 }
 
-/// Reconstruct an `Image<Backend, 3>` from flat `Vec<f32>` data and a
+/// Reconstruct an `Image<f32, Backend, 3>` from flat `Vec<f32>` data and a
 /// `[nz, ny, nx]` shape, copying spatial metadata from `reference`.
 pub(super) fn flat_vec_to_image(
     data: Vec<f32>,
     shape: [usize; 3],
-    reference: &Image<Backend, 3>,
-) -> Image<Backend, 3> {
-    let device: <Backend as BurnBackend>::Device = Default::default();
-    let td = TensorData::new(data, Shape::new(shape));
-    let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+    reference: &Image<f32, Backend, 3>,
+) -> Image<f32, Backend, 3> {
+    let backend = Backend::default();
+    let tensor = Tensor::<f32, Backend>::from_slice_on(shape, &data, &backend);
+
     Image::new(
         tensor,
         *reference.origin(),
         *reference.spacing(),
         *reference.direction(),
     )
+    .expect("image reconstruction from flat data must succeed")
 }
 
-// ── Command handler ───────────────────────────────────────────────────────────
+// â”€â”€ Command handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Execute the `register` subcommand.
 ///
@@ -322,40 +322,40 @@ pub fn run(args: RegisterArgs) -> Result<()> {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use ritk_core::image::Image;
-    use ritk_image::tensor::Backend as BurnBackend;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use ritk_image::tensor::Tensor;
     use ritk_registration::demons::DemonsVariant;
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
-    /// Build a deterministic 4×4×4 image from a ramp of intensities.
+    /// Build a deterministic 4Ã—4Ã—4 image from a ramp of intensities.
     ///
     /// Using a ramp (not constant) so the MI metric has a non-degenerate
     /// joint histogram to work with.
-    pub(crate) fn make_ramp_image() -> Image<Backend, 3> {
-        let device: <Backend as BurnBackend>::Device = Default::default();
+    pub(crate) fn make_ramp_image() -> Image<f32, Backend, 3> {
+        let backend = Backend::default();
         let values: Vec<f32> = (0..64).map(|i| i as f32 * 4.0).collect();
-        let td = TensorData::new(values, Shape::new([4, 4, 4]));
-        let tensor = Tensor::<Backend, 3>::from_data(td, &device);
+        let tensor = Tensor::<f32, Backend>::from_slice_on([4, 4, 4], &values, &backend);
+
         Image::new(
             tensor,
             Point::new([0.0; 3]),
             Spacing::new([1.0; 3]),
             Direction::identity(),
         )
+        .expect("invariant: tensor has the declared image rank")
     }
 
-    // ── Negative: invalid method names are rejected by clap at parse time;
+    // â”€â”€ Negative: invalid method names are rejected by clap at parse time;
     //    `run()` is exhaustive over `RegistrationMethod` and cannot receive
-    //    an unknown variant. ─────────────────────────────────────────────
+    //    an unknown variant. â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    // ── Negative: missing fixed image returns error ───────────────────────
+    // â”€â”€ Negative: missing fixed image returns error â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn test_register_missing_fixed_returns_error() {

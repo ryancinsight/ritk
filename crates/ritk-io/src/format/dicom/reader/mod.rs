@@ -4,7 +4,7 @@
 //! - `scan`: directory discovery, SOP filtering, and series geometry assembly.
 //! - `parse`: per-file DICOM metadata extraction and preservation capture.
 //! - `pixel`: per-slice scalar pixel decode through the `ritk-dicom` backend.
-//! - `loader`: conversion from scanned series metadata to `Image<B, 3>`.
+//! - `loader`: conversion from scanned series metadata to `Image<f32, B, 3>`.
 //!
 //! # Invariants
 //!
@@ -28,9 +28,7 @@ pub(super) mod utils;
 mod tests;
 
 pub use loader::{
-    load_dicom_from_series, load_dicom_series_with_metadata, load_native_dicom_from_series,
-    load_native_dicom_series_with_metadata, read_dicom_series_with_metadata,
-    read_native_dicom_series_with_metadata,
+    load_dicom_from_series, load_dicom_series_with_metadata, read_dicom_series_with_metadata,
 };
 pub use scan::{scan_dicom_instances, scan_dicom_part10_bytes};
 // scan::scan_dicom_directory is accessed directly via `reader::scan::scan_dicom_directory`

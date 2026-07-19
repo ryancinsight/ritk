@@ -90,7 +90,7 @@ fn test_load_nifti_volume_shape() {
     assert_eq!(
         vol.data.len(),
         expected_len,
-        "pixel data length {actual} must equal depth×rows×cols = {expected_len}",
+        "pixel data length {actual} must equal depthÃ—rowsÃ—cols = {expected_len}",
         actual = vol.data.len(),
     );
     // Source path must be recorded.
@@ -106,7 +106,7 @@ fn test_load_volume_from_bytes_nifti_roundtrip_shape() {
     let dir = tempdir().expect("create temp dir");
     let path = dir.path().join("drop_test.nii");
     let backend = coeus_core::SequentialBackend;
-    let image = ritk_image::native::Image::from_flat_on(
+    let image = ritk_image::Image::from_flat_on(
         (0..24).map(|v| v as f32).collect(),
         [3, 2, 4],
         Point::new([1.0, 2.0, 3.0]),
@@ -206,7 +206,7 @@ fn test_load_dicom_volume_shape() {
     assert_eq!(
         vol.data.len(),
         depth * rows * cols,
-        "pixel buffer length must equal depth×rows×cols"
+        "pixel buffer length must equal depthÃ—rowsÃ—cols"
     );
 }
 
@@ -246,7 +246,7 @@ fn test_load_head_mri_t2_volume_shape() {
     assert_eq!(
         vol.data.len(),
         depth * rows * cols,
-        "pixel buffer length must equal depth×rows×cols"
+        "pixel buffer length must equal depthÃ—rowsÃ—cols"
     );
     // Modality must be MR.
     assert_eq!(
@@ -256,8 +256,8 @@ fn test_load_head_mri_t2_volume_shape() {
     );
 }
 
-/// `scan_folder_for_series` must return an empty [`SeriesTree`] — not an
-/// error — when the target directory contains no DICOM files.
+/// `scan_folder_for_series` must return an empty [`SeriesTree`] â€” not an
+/// error â€” when the target directory contains no DICOM files.
 #[test]
 fn test_scan_folder_for_series_empty_dir() {
     let dir = tempfile::tempdir().expect("tempdir must be created");

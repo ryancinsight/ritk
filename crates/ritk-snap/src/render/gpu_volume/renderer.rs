@@ -1,4 +1,4 @@
-//! `GpuVolumeRenderer` implementation — pipeline creation, volume upload, MIP/VR render.
+//! `GpuVolumeRenderer` implementation â€” pipeline creation, volume upload, MIP/VR render.
 //!
 //! This file holds the `impl GpuVolumeRenderer` block. The struct definition,
 //! `PendingReadback`, and `build_colormap_lut` live in [`super`] so that the
@@ -28,7 +28,7 @@ impl GpuVolumeRenderer {
     pub fn try_create() -> Option<Self> {
         let ctx = GpuContext::try_new()?;
 
-        // ── MIP pipeline ──────────────────────────────────────────────────────
+        // â”€â”€ MIP pipeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let mip_shader = ctx
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -74,7 +74,7 @@ impl GpuVolumeRenderer {
                         },
                         count: None,
                     },
-                    // binding 3: colormap LUT (storage, read-only, 256 × 4 f32)
+                    // binding 3: colormap LUT (storage, read-only, 256 Ã— 4 f32)
                     wgpu::BindGroupLayoutEntry {
                         binding: 3,
                         visibility: wgpu::ShaderStages::COMPUTE,
@@ -106,7 +106,7 @@ impl GpuVolumeRenderer {
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             });
 
-        // ── VR pipeline ───────────────────────────────────────────────────────
+        // â”€â”€ VR pipeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let vr_shader = ctx
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -230,7 +230,7 @@ impl GpuVolumeRenderer {
         let raw = &*volume.data;
 
         // Zero-copy path for single-channel volumes: the data is already in
-        // [depth, rows, cols] row-major order — no extraction needed.
+        // [depth, rows, cols] row-major order â€” no extraction needed.
         let extracted: Option<Vec<f32>> = if ch == 1 && raw.len() >= n_voxels {
             None
         } else {
@@ -312,7 +312,7 @@ impl GpuVolumeRenderer {
         if let Some(pending) = self.mip_pending.take() {
             match pending.rx.try_recv() {
                 Ok(Ok(())) => {
-                    // GPU finished — read the mapped staging buffer.
+                    // GPU finished â€” read the mapped staging buffer.
                     let img = {
                         let cache = self.mip_cache.as_ref().unwrap();
                         collect_mip_result(&cache.staging_buf, pending.rows, pending.cols)
@@ -321,14 +321,14 @@ impl GpuVolumeRenderer {
                     // mip_pending remains None; new work submitted below.
                 }
                 Ok(Err(e)) => {
-                    // map_async failed — log and retry on next cycle.
+                    // map_async failed â€” log and retry on next cycle.
                     tracing::warn!(?e, "MIP map_async failed; retrying next render cycle");
                 }
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => {
                     tracing::warn!("MIP readback channel disconnected unexpectedly");
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {
-                    // GPU still executing — restore pending, return cached frame.
+                    // GPU still executing â€” restore pending, return cached frame.
                     self.mip_pending = Some(pending);
                     return self.mip_last.clone();
                 }

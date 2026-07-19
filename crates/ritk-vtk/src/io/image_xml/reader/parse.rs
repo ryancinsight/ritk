@@ -17,7 +17,7 @@ pub fn read_vti_image_data<P: AsRef<Path>>(path: P) -> Result<VtkImageData> {
 
 /// Parse an ASCII-inline VTI XML string into a [`VtkImageData`].
 pub(crate) fn parse_vti(input: &str) -> Result<VtkImageData> {
-    // ── ImageData opening tag ────────────────────────────────────────────────
+    // â”€â”€ ImageData opening tag â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let image_tag = find_tag(input, "ImageData")
         .ok_or_else(|| anyhow::anyhow!("missing <ImageData> tag in VTI document"))?;
 
@@ -49,11 +49,11 @@ pub(crate) fn parse_vti(input: &str) -> Result<VtkImageData> {
         *dst = spacing_vals.get(i).copied().unwrap_or(1.0);
     }
 
-    // ── Piece tag (required) ─────────────────────────────────────────────────
+    // â”€â”€ Piece tag (required) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let _piece = find_tag(input, "Piece")
         .ok_or_else(|| anyhow::anyhow!("missing <Piece> tag in VTI document"))?;
 
-    // ── Attribute sections (optional) ────────────────────────────────────────
+    // â”€â”€ Attribute sections (optional) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let point_data = find_section(input, "PointData")
         .map(|sec| parse_attrs(&sec))
         .unwrap_or_default();

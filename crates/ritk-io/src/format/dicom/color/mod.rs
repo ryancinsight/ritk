@@ -2,7 +2,7 @@
 //!
 //! This module is the color-volume counterpart to the scalar DICOM loaders.
 //! It preserves RGB samples in a typed `ColorVolume<f32, B, 3>` instead of forcing
-//! multi-sample frames through scalar `Image<B, 3>`.
+//! multi-sample frames through scalar `Image<f32, B, 3>`.
 
 use std::path::Path;
 
@@ -41,7 +41,7 @@ pub fn is_rgb_dicom_series<P: AsRef<Path>>(path: P) -> Result<bool> {
         bail!("no files found in '{}'", dir.display());
     }
 
-    // Try each file until one parses as valid DICOM — skips DICOMDIR,
+    // Try each file until one parses as valid DICOM â€” skips DICOMDIR,
     // thumbnails, and other non-DICOM files.
     for entry in entries {
         let obj = match parse_file_with::<DicomRsBackend, _>(entry.path()) {
@@ -63,7 +63,7 @@ pub fn is_rgb_dicom_series<P: AsRef<Path>>(path: P) -> Result<bool> {
 /// Read a DICOM RGB series directory into a flat interleaved-RGB buffer.
 ///
 /// Substrate-agnostic counterpart of [`load_color_volume_flat`] that scans a
-/// directory first. The returned buffer holds `depth·rows·cols·3` `f32`
+/// directory first. The returned buffer holds `depthÂ·rowsÂ·colsÂ·3` `f32`
 /// samples in `[depth, rows, cols, 3]` row-major order (channel fastest),
 /// paired with that shape and the resolved series metadata. Only
 /// byte-addressable unsigned interleaved RGB data is accepted; scalar,
@@ -81,7 +81,7 @@ pub fn load_color_volume_flat_from_path<P: AsRef<Path>>(
 /// performs the pixel decode, interleaves the RGB samples into a flat `f32`
 /// buffer, and validates per-slice geometry, without constructing any tensor
 /// carrier. Callers wrap the buffer in their chosen image container
-/// (`ritk_image::native::Image::from_flat`). Pixel decode uses `part10_bytes`
+/// (`ritk_image::Image::from_flat`). Pixel decode uses `part10_bytes`
 /// from the slice metadata when present, falling back to file-path I/O.
 ///
 /// Returns `(flat, [depth, rows, cols, 3], metadata)` with `metadata.dimensions`

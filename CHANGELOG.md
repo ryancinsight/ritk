@@ -10,7 +10,34 @@
 
 ## [Unreleased] — Native extended label-shape statistics (MIG-657-01)
 
+### Breaking
+- Removed the Burn and ndarray substrate APIs from every RITK package. Images,
+  tensors, registration, filtering, segmentation, codecs, CLI, GUI, and PyO3
+  bindings now use the Coeus/Leto provider graph directly. Callers must use
+  `ritk_image::Image<T, B, D>` with a Coeus compute backend.
+- Removed the unused `ritk-macros` crate and the obsolete compatibility image
+  modules. No forwarding aliases or dual substrate paths remain for those
+  surfaces.
+- Removed the Python `cma_mi_register` contract because its implementation was
+  wholly owned by the deleted Burn autodiff/CMA stack.
+
 ### Changed
+- Added Coeus host `Cow` materialization at explicit I/O boundaries and
+  consolidated CLI and Analyze/DICOM consumers onto the provider-native image
+  contract.
+- Aligned the hosted dependency checkout with merged Coeus `5ee07a26`, which
+  owns the host materialization contract used by the cutover.
+- Corrected the NGF normalized augmented-gradient numerator to include the
+  edge-scale inner-product term, making identical nonconstant images score one.
+- Restored Python global mutual-information registration through the native
+  Leto classical engine, including a translation-specific MI optimizer and
+  physical-space transform conversion.
+- Consolidated displacement warping onto the Coeus-native resampling pipeline
+  and corrected public `(z, y, x)` components to physical `[x, y, z]` columns.
+- Native `ritk-core` interpolation and transform contracts now document Coeus
+  backend ownership, and the native NIfTI codec documentation no longer
+  describes removed Burn writer/test boundaries. The obsolete NIfTI test
+  entry is removed from the Burn-surface allowlist.
 - `ritk-interpolation` 0.4.0 now expresses native flat-buffer trilinear
   sampling through Eunomia `FloatElement` and `CastFrom` contracts instead of
   `num-traits`. The unused root workspace `num-complex`/`num-traits`

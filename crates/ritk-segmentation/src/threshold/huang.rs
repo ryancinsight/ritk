@@ -32,12 +32,12 @@ impl HuangThreshold {
     }
 
     /// Compute the Huang threshold intensity for `image`.
-    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> f32 {
+    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> f32 {
         <Self as AutoThreshold>::compute(self, image)
     }
 
     /// Apply the Huang threshold to produce a binary mask.
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         <Self as AutoThreshold>::apply(self, image)
     }
 
@@ -49,9 +49,9 @@ impl HuangThreshold {
     /// or the native output image cannot be constructed.
     pub fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -88,7 +88,7 @@ impl AutoThreshold for HuangThreshold {
             return meas(first) as f32;
         }
 
-        // Cumulative frequency S and cumulative measurement·frequency W.
+        // Cumulative frequency S and cumulative measurementÂ·frequency W.
         let mut s = vec![0.0_f64; last + 1];
         let mut w = vec![0.0_f64; last + 1];
         s[0] = hist[0] as f64;
@@ -111,7 +111,7 @@ impl AutoThreshold for HuangThreshold {
         let mut best_entropy = f64::MAX;
         for threshold in first..last {
             let mut entropy = 0.0_f64;
-            // Background class mean → its bin index.
+            // Background class mean â†’ its bin index.
             let mu = (w[threshold] / s[threshold]).round();
             let mu_idx = index_of(mu) as isize;
             for (i, &count) in hist[first..=threshold].iter().enumerate() {
@@ -119,7 +119,7 @@ impl AutoThreshold for HuangThreshold {
                 let d = (i as isize - mu_idx).unsigned_abs();
                 entropy += smu_at(d) * count as f64;
             }
-            // Foreground class mean → its bin index.
+            // Foreground class mean â†’ its bin index.
             let mu2 = ((w[last] - w[threshold]) / (s[last] - s[threshold])).round();
             let mu2_idx = index_of(mu2) as isize;
             for (i, &count) in hist[threshold + 1..=last].iter().enumerate() {
@@ -138,7 +138,7 @@ impl AutoThreshold for HuangThreshold {
 }
 
 /// Convenience function: compute the Huang threshold with 256 bins.
-pub fn huang_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
+pub fn huang_threshold<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> f32 {
     HuangThreshold::new().compute(image)
 }
 

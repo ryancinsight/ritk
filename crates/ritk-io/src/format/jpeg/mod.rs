@@ -8,7 +8,7 @@ pub use ritk_jpeg::{read_jpeg_color_to_volume, JpegColorReader};
 pub mod native {
     use crate::domain::{to_io_err, ImageReader, ImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};
-    use ritk_image::native::Image;
+    use ritk_image::Image;
     use std::path::Path;
 
     /// Backend-bound Atlas-native reader (counterpart of the Burn `JpegReader`).

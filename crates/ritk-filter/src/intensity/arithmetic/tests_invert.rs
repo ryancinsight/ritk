@@ -1,21 +1,22 @@
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use ritk_core::image::Image;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_image::test_support as ts;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(data, shape)
+fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(data, shape)
 }
 
-fn vals(img: &Image<B, 3>) -> Vec<f32> {
-    img.data_slice().into_owned()
+fn vals(img: &Image<f32, B, 3>) -> Vec<f32> {
+    img.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
-/// Auto maximum: [1,2,3] → max=3, out=[2,1,0].
+/// Auto maximum: [1,2,3] â†’ max=3, out=[2,1,0].
 #[test]
 fn invert_auto_max() {
     let img = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
@@ -28,7 +29,7 @@ fn invert_auto_max() {
     );
 }
 
-/// Fixed maximum: [1,4,7] with max=10 → [9,6,3].
+/// Fixed maximum: [1,4,7] with max=10 â†’ [9,6,3].
 #[test]
 fn invert_fixed_max() {
     let img = make_image(vec![1.0, 4.0, 7.0], [1, 1, 3]);
@@ -48,17 +49,17 @@ fn invert_max_maps_to_zero_min_maps_to_range() {
     let out = InvertIntensityFilter::new().apply(&img);
     let v = vals(&out);
     // auto max = 5.0; 5 - 5 = 0, 5 - 2 = 3
-    assert_eq!(v[0], 3.0_f32, "minimum voxel 2 with max=5 → 5-2=3");
-    assert_eq!(v[1], 0.0_f32, "maximum voxel 5 with max=5 → 5-5=0");
+    assert_eq!(v[0], 3.0_f32, "minimum voxel 2 with max=5 â†’ 5-2=3");
+    assert_eq!(v[1], 0.0_f32, "maximum voxel 5 with max=5 â†’ 5-5=0");
 }
 
-/// Constant image with auto max → all zero.
+/// Constant image with auto max â†’ all zero.
 #[test]
 fn invert_constant_auto_max_all_zero() {
     let img = make_image(vec![4.0, 4.0, 4.0], [1, 1, 3]);
     let out = InvertIntensityFilter::new().apply(&img);
     for &v in vals(&out).iter() {
-        assert_eq!(v, 0.0_f32, "constant image with auto max → 0 everywhere");
+        assert_eq!(v, 0.0_f32, "constant image with auto max â†’ 0 everywhere");
     }
 }
 
@@ -66,10 +67,9 @@ fn invert_constant_auto_max_all_zero() {
 #[test]
 fn invert_preserves_metadata() {
     let sp = Spacing::new([1.5, 2.5, 3.5]);
-    let device = Default::default();
-    let td = TensorData::new(vec![1.0_f32, 3.0], Shape::new([1usize, 1, 2]));
-    let t = Tensor::<B, 3>::from_data(td, &device);
-    let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp, Direction::identity());
+    let t = Tensor::<f32, B>::from_slice([1usize, 1, 2], &[1.0_f32, 3.0]);
+    let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp, Direction::identity())
+        .expect("invariant: fixture tensor has the declared rank");
     let out = InvertIntensityFilter::new().apply(&img);
     assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
 }
@@ -77,7 +77,7 @@ fn invert_preserves_metadata() {
 #[test]
 fn native_invert_matches_fixed_maximum_contract() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
 
     let image = NativeImage::from_flat_on(
         vec![1.0, 4.0, 7.0],

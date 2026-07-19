@@ -1,4 +1,4 @@
-//! STL writer ← VtkPolyData.
+//! STL writer â† VtkPolyData.
 //!
 //! Both variants require that every polygon in `polygons` has exactly three
 //! vertices.  Quads or higher-order polygons return `Err`.
@@ -8,10 +8,10 @@
 //! [80 bytes]  ASCII header (filled with "RITK binary STL" + padding spaces)
 //! [4  bytes]  n_triangles as u32 LE
 //! Per triangle (50 bytes):
-//!   [12 bytes] facet normal  (3 × f32 LE)
-//!   [12 bytes] vertex 0      (3 × f32 LE)
-//!   [12 bytes] vertex 1      (3 × f32 LE)
-//!   [12 bytes] vertex 2      (3 × f32 LE)
+//!   [12 bytes] facet normal  (3 Ã— f32 LE)
+//!   [12 bytes] vertex 0      (3 Ã— f32 LE)
+//!   [12 bytes] vertex 1      (3 Ã— f32 LE)
+//!   [12 bytes] vertex 2      (3 Ã— f32 LE)
 //!   [ 2 bytes] attribute byte count = 0 (u16 LE)
 //! ```
 //! If `cell_data["Normals"]` is absent, the facet normal is written as
@@ -40,7 +40,7 @@ pub fn write_stl_ascii(path: impl AsRef<Path>, poly: &VtkPolyData) -> Result<()>
     write_stl_ascii_to_writer(&mut BufWriter::new(file), poly)
 }
 
-// ── In-memory sinks (exposed for testing) ────────────────────────────────────
+// â”€â”€ In-memory sinks (exposed for testing) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(crate) fn write_stl_binary_to_writer(w: &mut impl Write, poly: &VtkPolyData) -> Result<()> {
     // 80-byte header: "RITK binary STL" padded with spaces.
@@ -99,7 +99,7 @@ pub(crate) fn write_stl_ascii_to_writer(w: &mut impl Write, poly: &VtkPolyData) 
     Ok(())
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn validate_triangles(poly: &VtkPolyData) -> Result<()> {
     for (i, p) in poly.polygons.iter().enumerate() {

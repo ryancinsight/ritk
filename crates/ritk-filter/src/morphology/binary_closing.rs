@@ -10,7 +10,7 @@
 //!
 //! # Properties
 //!
-//! - **Extensivity**: `C_B(f) ≥ f` — closing does not remove foreground voxels.
+//! - **Extensivity**: `C_B(f) â‰¥ f` â€” closing does not remove foreground voxels.
 //! - **Hole filling**: removes dark cavities / holes smaller than B.
 //! - **Idempotence**: `C_B(C_B(f)) = C_B(f)`.
 //!
@@ -23,7 +23,7 @@
 //!
 //! # Complexity
 //!
-//! O(2 · N · (2r + 1)³): one dilation pass + one erosion pass.
+//! O(2 Â· N Â· (2r + 1)Â³): one dilation pass + one erosion pass.
 //!
 //! # References
 //!
@@ -37,7 +37,7 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// ── Filter struct ─────────────────────────────────────────────────────────────
+// â”€â”€ Filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Binary morphological closing filter for 3-D images.
 ///
@@ -70,7 +70,7 @@ impl BinaryMorphologicalClosing {
     ///
     /// Returns a new image with identical shape and spatial metadata.
     /// Output voxels are `foreground_value` (foreground) or `0.0` (background).
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
 
         // Closing = erode(dilate(f))
@@ -82,9 +82,9 @@ impl BinaryMorphologicalClosing {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -105,7 +105,7 @@ impl Default for BinaryMorphologicalClosing {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[allow(clippy::identity_op, clippy::erasing_op)]

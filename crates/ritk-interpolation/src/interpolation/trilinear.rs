@@ -1,7 +1,7 @@
 //! Native coordinate-grid trilinear interpolation.
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut};
-use ritk_image::native::Image;
+use ritk_image::Image;
 
 /// Sample a rank-5 image at a `(z, y, x)` voxel-coordinate grid.
 ///

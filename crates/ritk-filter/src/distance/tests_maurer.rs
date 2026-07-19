@@ -1,9 +1,8 @@
 use super::SignedMaurerDistanceMapImageFilter;
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_tensor_ops::extract_vec;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
 /// 3×3 foreground block in a 9×9 image — the canonical ITK Maurer reference.
 /// Border voxels (the whole 3×3 ring, all 8-adjacent to background) are the
@@ -23,7 +22,7 @@ fn test_signed_maurer_3x3_block_values() {
         squared_distance: false,
         ..Default::default()
     }
-    .apply(&ts::burn_compat::make_image::<B, 3>(img, [1, ny, nx]))
+    .apply(&ts::make_image::<f32, B, 3>(img, [1, ny, nx]))
     .unwrap();
     let (d, _) = extract_vec(&out).unwrap();
     let at = |y: usize, x: usize| d[y * nx + x];
@@ -56,7 +55,7 @@ fn test_signed_maurer_squared() {
         squared_distance: true,
         ..Default::default()
     }
-    .apply(&ts::burn_compat::make_image::<B, 3>(img, [1, ny, nx]))
+    .apply(&ts::make_image::<f32, B, 3>(img, [1, ny, nx]))
     .unwrap();
     let (d, _) = extract_vec(&out).unwrap();
     // Far corner squared: 18; sign positive (background).
@@ -84,7 +83,7 @@ fn test_signed_maurer_inside_positive() {
         inside_is_positive: true,
         ..Default::default()
     }
-    .apply(&ts::burn_compat::make_image::<B, 3>(img, [1, ny, nx]))
+    .apply(&ts::make_image::<f32, B, 3>(img, [1, ny, nx]))
     .unwrap();
     let (d, _) = extract_vec(&out).unwrap();
     // Foreground centre now positive.

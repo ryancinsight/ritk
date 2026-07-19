@@ -47,7 +47,7 @@ impl DicomWebClient {
         self
     }
 
-    // ── QIDO-RS ──────────────────────────────────────────────────────────────
+    // â”€â”€ QIDO-RS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Searches studies at `{base_url}/qido-rs/studies`.
     pub fn search_studies(
@@ -82,7 +82,7 @@ impl DicomWebClient {
         QidoClient::new(&self.client, &qido_base, &self.auth_header).search(&endpoint, params)
     }
 
-    // ── WADO-RS ──────────────────────────────────────────────────────────────
+    // â”€â”€ WADO-RS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Retrieves a single DICOM P10 instance as raw bytes from
     /// `{base_url}/wado-rs/studies/{study_uid}/series/{series_uid}/instances/{sop_uid}`.
@@ -97,7 +97,7 @@ impl DicomWebClient {
             .retrieve_instance(study_uid, series_uid, sop_uid)
     }
 
-    // ── STOW-RS ──────────────────────────────────────────────────────────────
+    // â”€â”€ STOW-RS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Stores DICOM P10 instances via a multipart/related POST to
     /// `{base_url}/stow-rs/studies[/{study_uid}]`.

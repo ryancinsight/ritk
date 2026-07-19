@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_transform::composition::io::{CompositeTransform, TransformDescription};
 
-// ── read_transform ────────────────────────────────────────────────────────────
+// â”€â”€ read_transform â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Read a composite transform from a JSON file.
 ///
@@ -70,7 +70,7 @@ pub fn read_transform(py: Python<'_>, path: &str) -> RitkResult<PyObject> {
     Ok(result.into())
 }
 
-// ── write_transform ───────────────────────────────────────────────────────────
+// â”€â”€ write_transform â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Write a composite transform to a JSON file.
 #[pyfunction]

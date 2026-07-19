@@ -2,15 +2,15 @@
 //!
 //! # Mathematical Specification
 //!
-//! For a 3-D image `I : ℤ³ → ℝ` with shape `[nz, ny, nx]` and flip policies
+//! For a 3-D image `I : â„¤Â³ â†’ â„` with shape `[nz, ny, nx]` and flip policies
 //! `flip = [fz, fy, fx]` where each `f*` is [`FlipPolicy::Keep`] or [`FlipPolicy::Flip`]:
 //!
 //! `out(iz, iy, ix) = I(iz', iy', ix')`
 //!
 //! where:
-//! - `iz' = if fz { nz − 1 − iz } else { iz }`
-//! - `iy' = if fy { ny − 1 − iy } else { iy }`
-//! - `ix' = if fx { nx − 1 − ix } else { ix }`
+//! - `iz' = if fz { nz âˆ’ 1 âˆ’ iz } else { iz }`
+//! - `iy' = if fy { ny âˆ’ 1 âˆ’ iy } else { iy }`
+//! - `ix' = if fx { nx âˆ’ 1 âˆ’ ix } else { ix }`
 //!
 //! # Properties
 //!
@@ -100,7 +100,7 @@ impl FlipImageFilter {
         Self::new([FlipPolicy::Keep, FlipPolicy::Keep, FlipPolicy::Flip])
     }
 
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals_vec, dims) = extract_vec_infallible(image);
         let vals = &vals_vec;
 
@@ -139,9 +139,9 @@ impl FlipImageFilter {
     /// Apply the configured axis flips to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -178,7 +178,7 @@ impl FlipImageFilter {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_flip.rs"]

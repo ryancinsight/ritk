@@ -1,4 +1,4 @@
-//! PLY writer ← VtkPolyData.
+//! PLY writer â† VtkPolyData.
 //!
 //! Writes `format ascii 1.0` and `format binary_little_endian 1.0`.
 //!
@@ -10,7 +10,7 @@
 //! property float x
 //! property float y
 //! property float z
-//! [property float nx]   ← only when point_data["Normals"] is present
+//! [property float nx]   â† only when point_data["Normals"] is present
 //! [property float ny]
 //! [property float nz]
 //! element face M
@@ -20,7 +20,7 @@
 //!
 //! ## Binary body layout (little-endian)
 //! Per vertex:  `float x`, `float y`, `float z` (+ `float nx ny nz` if normals)
-//! Per face:    `uchar count`, then `count × int32 LE indices`
+//! Per face:    `uchar count`, then `count Ã— int32 LE indices`
 
 use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
 use anyhow::Result;
@@ -39,7 +39,7 @@ pub fn write_ply_binary_le(path: impl AsRef<Path>, poly: &VtkPolyData) -> Result
     write_ply_binary_le_to_writer(&mut BufWriter::new(file), poly)
 }
 
-// ── In-memory sinks ───────────────────────────────────────────────────────────
+// â”€â”€ In-memory sinks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(crate) fn write_ply_ascii_to_writer(w: &mut impl Write, poly: &VtkPolyData) -> Result<()> {
     let normals = extract_normals(poly);
@@ -109,7 +109,7 @@ pub(crate) fn write_ply_binary_le_to_writer(w: &mut impl Write, poly: &VtkPolyDa
     Ok(())
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn write_ply_header(
     w: &mut impl Write,

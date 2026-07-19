@@ -2,11 +2,11 @@
 //!
 //! # Filters
 //!
-//! - [`FlipImageFilter`] — reverses voxel ordering along any combination of axes
+//! - [`FlipImageFilter`] â€” reverses voxel ordering along any combination of axes
 //!   (ITK `FlipImageFilter`, ImageJ Image > Transform)
-//! - [`ShrinkImageFilter`] — integer downsampling by subsampling (ITK `Shrink`)
-//! - [`TileMeanShrinkFilter`] — integer downsampling by tile-averaging (display)
-//! - [`ConstantPadImageFilter`], [`MirrorPadImageFilter`], [`WrapPadImageFilter`] — padding
+//! - [`ShrinkImageFilter`] â€” integer downsampling by subsampling (ITK `Shrink`)
+//! - [`TileMeanShrinkFilter`] â€” integer downsampling by tile-averaging (display)
+//! - [`ConstantPadImageFilter`], [`MirrorPadImageFilter`], [`WrapPadImageFilter`] â€” padding
 
 pub mod cyclic_shift;
 pub mod expand;

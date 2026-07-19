@@ -6,8 +6,8 @@ use ritk_image::Image;
 
 /// Validate that two images strictly mirror shape geometry sizes precisely avoiding structural scaling shifts internally.
 pub fn validate_image_shapes<B: Backend, const D: usize>(
-    fixed: &Image<B, D>,
-    moving: &Image<B, D>,
+    fixed: &Image<f32, B, D>,
+    moving: &Image<f32, B, D>,
 ) -> Result<()> {
     let fixed_shape = fixed.shape();
     let moving_shape = moving.shape();

@@ -1,8 +1,8 @@
-//! STL reader → VtkPolyData.
+//! STL reader â†’ VtkPolyData.
 //!
 //! # Format detection
 //! Binary STL is detected by checking whether the file size satisfies the
-//! invariant: `file_len == n_triangles × 50 + 84`, where `n_triangles` is the
+//! invariant: `file_len == n_triangles Ã— 50 + 84`, where `n_triangles` is the
 //! `u32 LE` value at bytes `[80..84]`.  If the invariant holds, binary parsing
 //! is used; otherwise, ASCII parsing is attempted.
 //!
@@ -34,7 +34,7 @@ pub(crate) fn parse_stl(bytes: &[u8]) -> Result<VtkPolyData> {
 
 /// Returns `true` when the byte slice satisfies the binary STL size invariant.
 ///
-/// Invariant: `bytes.len() == n_tri × 50 + 84` where `n_tri` is the LE `u32`
+/// Invariant: `bytes.len() == n_tri Ã— 50 + 84` where `n_tri` is the LE `u32`
 /// stored at `bytes[80..84]`.
 fn is_binary_stl(bytes: &[u8]) -> bool {
     if bytes.len() < 84 {
@@ -44,7 +44,7 @@ fn is_binary_stl(bytes: &[u8]) -> bool {
     bytes.len() == n * 50 + 84
 }
 
-// ── ASCII parser ──────────────────────────────────────────────────────────────
+// â”€â”€ ASCII parser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn parse_stl_ascii(bytes: &[u8]) -> Result<VtkPolyData> {
     let text = std::str::from_utf8(bytes).context("STL ASCII file is not valid UTF-8")?;
@@ -116,13 +116,13 @@ fn parse_stl_ascii(bytes: &[u8]) -> Result<VtkPolyData> {
             current_normal = None;
             current_verts.clear();
         }
-        // "solid …", "endsolid …": silently skipped.
+        // "solid â€¦", "endsolid â€¦": silently skipped.
     }
 
     build_stl_poly(points, polygons, cell_normals)
 }
 
-// ── Binary parser ─────────────────────────────────────────────────────────────
+// â”€â”€ Binary parser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn parse_stl_binary(bytes: &[u8]) -> Result<VtkPolyData> {
     // bytes[0..80]  : header (ignored)
@@ -158,7 +158,7 @@ fn parse_stl_binary(bytes: &[u8]) -> Result<VtkPolyData> {
     build_stl_poly(points, polygons, cell_normals)
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[inline]
 fn read_f32x3_le(bytes: &[u8], off: usize) -> [f32; 3] {

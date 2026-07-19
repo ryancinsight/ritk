@@ -2,15 +2,15 @@
 //!
 //! # Mathematical Specification
 //!
-//! For each polygon P = [v_0, v_1, …, v_{k-1}] with k ≥ 3:
-//!   e_1 = points\[v_1\] − points\[v_0\]
-//!   e_2 = points\[v_2\] − points\[v_0\]
-//!   N_face = e_1 × e_2        (area-weighted face normal; ‖N_face‖ = 2·area)
+//! For each polygon P = [v_0, v_1, â€¦, v_{k-1}] with k â‰¥ 3:
+//!   e_1 = points\[v_1\] âˆ’ points\[v_0\]
+//!   e_2 = points\[v_2\] âˆ’ points\[v_0\]
+//!   N_face = e_1 Ã— e_2        (area-weighted face normal; â€–N_faceâ€– = 2Â·area)
 //!
 //! Each vertex accumulates N_face from all polygons it belongs to:
 //!   A\[v_i\] += N_face  for all i in P
 //!
-//! The per-vertex normal is N_v = A\[v\] / ‖A\[v\]‖.
+//! The per-vertex normal is N_v = A\[v\] / â€–A\[v\]â€–.
 //! For degenerate (zero-area) vertices, the fallback normal is [0, 0, 1].
 //!
 //! The output is stored as `AttributeArray::Normals { values }` under the
@@ -25,7 +25,7 @@ use anyhow::Result;
 /// Accepts `VtkDataObject::PolyData`; returns an error for all other variants.
 ///
 /// Stateless filter: no parameters, so `mtime()` defaults to `ModifiedTime::ZERO`,
-/// which is intentional — stateless filters never force re-execution through mtime.
+/// which is intentional â€” stateless filters never force re-execution through mtime.
 #[derive(Debug, Clone, Default)]
 pub struct ComputeNormalsFilter;
 
@@ -45,7 +45,7 @@ impl VtkFilter for ComputeNormalsFilter {
                     let p2 = poly.points[polygon[2] as usize];
                     let e1 = sub3(p1, p0);
                     let e2 = sub3(p2, p0);
-                    let face_n = cross3(e1, e2); // ‖face_n‖ = 2·area
+                    let face_n = cross3(e1, e2); // â€–face_nâ€– = 2Â·area
                     for &idx in polygon {
                         let a = &mut accum[idx as usize];
                         a[0] += face_n[0];
@@ -69,7 +69,7 @@ impl VtkFilter for ComputeNormalsFilter {
     }
 }
 
-// ── Geometry helpers ───────────────────────────────────────────────────────
+// â”€â”€ Geometry helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[inline]
 fn sub3(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
@@ -105,7 +105,7 @@ pub(crate) fn data_object_type_name(obj: &VtkDataObject) -> &'static str {
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_normals.rs"]

@@ -22,8 +22,8 @@ fn decoder_new_initializes_defaults() {
 
 #[test]
 fn decode_fragment_near_lossless_bounded_error() {
-    // NEAR=2 native encode → native decode must satisfy |s' − s| ≤ 2 for all
-    // samples (ISO 14495-1 §A.4.4 analytical bound; tolerance is exact).
+    // NEAR=2 native encode â†’ native decode must satisfy |s' âˆ’ s| â‰¤ 2 for all
+    // samples (ISO 14495-1 Â§A.4.4 analytical bound; tolerance is exact).
     let original: Vec<u16> = vec![
         10, 50, 100, 150, 200, 245, 30, 80, 130, 180, 220, 60, 110, 160, 210, 40,
     ];
@@ -44,7 +44,7 @@ fn decode_fragment_near_lossless_bounded_error() {
         let err = (f32::from(orig) - dec).abs();
         assert!(
             err <= 2.0,
-            "sample[{i}]: |{dec} − {orig}| = {err} exceeds NEAR=2 bound"
+            "sample[{i}]: |{dec} âˆ’ {orig}| = {err} exceeds NEAR=2 bound"
         );
     }
 }

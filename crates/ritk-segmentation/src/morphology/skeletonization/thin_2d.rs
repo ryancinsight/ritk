@@ -1,7 +1,7 @@
-//! D = 2: Zhang–Suen thinning.
+//! D = 2: Zhangâ€“Suen thinning.
 //!
 //! Two sub-iterations per pass on 8-connected foreground / 4-connected
-//! background. Neighbors P₂..P₉ are labeled clockwise from north.
+//! background. Neighbors Pâ‚‚..Pâ‚‰ are labeled clockwise from north.
 
 /// Read a pixel from the mask, treating out-of-bounds as background.
 #[inline]
@@ -13,7 +13,7 @@ fn pixel(mask: &[bool], ny: usize, nx: usize, y: isize, x: isize) -> u8 {
     }
 }
 
-/// Count 0→1 transitions in the cyclic neighbor sequence P₂..P₉,P₂.
+/// Count 0â†’1 transitions in the cyclic neighbor sequence Pâ‚‚..Pâ‚‰,Pâ‚‚.
 #[inline]
 fn transitions(nb: &[u8; 8]) -> u8 {
     let mut count = 0u8;
@@ -25,7 +25,7 @@ fn transitions(nb: &[u8; 8]) -> u8 {
     count
 }
 
-/// Sub-iteration selector for Zhang–Suen thinning.
+/// Sub-iteration selector for Zhangâ€“Suen thinning.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ZhangSuenPass {
     /// Sub-iteration 1: remove from south-east border pixels.
@@ -34,7 +34,7 @@ enum ZhangSuenPass {
     Pass2,
 }
 
-/// One sub-iteration of Zhang–Suen. Returns the number of pixels removed.
+/// One sub-iteration of Zhangâ€“Suen. Returns the number of pixels removed.
 fn zhang_suen_step(mask: &mut [bool], ny: usize, nx: usize, pass: ZhangSuenPass) -> usize {
     // Heuristic: thinning typically removes a fraction of border voxels per step.
     let mut to_remove: Vec<usize> = Vec::with_capacity(ny * nx / 16);
@@ -65,7 +65,7 @@ fn zhang_suen_step(mask: &mut [bool], ny: usize, nx: usize, pass: ZhangSuenPass)
             }
             let (p2, p4, p6, p8) = (nb[0], nb[2], nb[4], nb[6]);
             if pass == ZhangSuenPass::Pass1 {
-                // Sub-iteration 1: P2·P4·P6 = 0 AND P4·P6·P8 = 0
+                // Sub-iteration 1: P2Â·P4Â·P6 = 0 AND P4Â·P6Â·P8 = 0
                 if p2 * p4 * p6 != 0 {
                     continue;
                 }
@@ -73,7 +73,7 @@ fn zhang_suen_step(mask: &mut [bool], ny: usize, nx: usize, pass: ZhangSuenPass)
                     continue;
                 }
             } else {
-                // Sub-iteration 2: P2·P4·P8 = 0 AND P2·P6·P8 = 0
+                // Sub-iteration 2: P2Â·P4Â·P8 = 0 AND P2Â·P6Â·P8 = 0
                 if p2 * p4 * p8 != 0 {
                     continue;
                 }
@@ -91,7 +91,7 @@ fn zhang_suen_step(mask: &mut [bool], ny: usize, nx: usize, pass: ZhangSuenPass)
     count
 }
 
-/// Zhang–Suen iterative thinning for 2-D binary images.
+/// Zhangâ€“Suen iterative thinning for 2-D binary images.
 pub(super) fn zhang_suen(flat: &[f32], ny: usize, nx: usize) -> Vec<f32> {
     let mut mask: Vec<bool> = flat.iter().map(|&v| v > 0.5).collect();
     loop {

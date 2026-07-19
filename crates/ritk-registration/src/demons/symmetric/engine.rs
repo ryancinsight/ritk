@@ -33,8 +33,8 @@ impl SymmetricDemonsRegistration {
     /// with pluggable [`FieldSmoother`] backends.
     ///
     /// # Arguments
-    /// - `fluid` — smoother for fluid regularisation (`sigma_fluid`).
-    /// - `diffusion` — smoother for diffusion regularisation (`sigma_diffusion`).
+    /// - `fluid` â€” smoother for fluid regularisation (`sigma_fluid`).
+    /// - `diffusion` â€” smoother for diffusion regularisation (`sigma_diffusion`).
     ///
     /// # Errors
     /// Returns [`RegistrationError`] if image lengths are inconsistent with `dims`.
@@ -174,7 +174,7 @@ impl SymmetricDemonsRegistration {
     }
 }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
+// â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[allow(clippy::too_many_arguments)]
 fn symmetric_forces_into(

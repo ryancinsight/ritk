@@ -5,7 +5,7 @@
 //! images (shape `[1, H, W]`) are handled without special-casing.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     InverseDeconvolution, LandweberDeconvolution, LandweberProjection, RichardsonLucyDeconvolution,
@@ -18,7 +18,7 @@ use ritk_filter::{
 ///
 /// Matches `SimpleITK.WienerDeconvolution`. In the frequency domain:
 /// ```text
-/// U(ω) = G(ω) · H*(ω) / ( |H(ω)|² + Pn / (|G(ω)|² − Pn) )
+/// U(Ï‰) = G(Ï‰) Â· H*(Ï‰) / ( |H(Ï‰)|Â² + Pn / (|G(Ï‰)|Â² âˆ’ Pn) )
 /// ```
 ///
 /// Args:
@@ -38,28 +38,28 @@ pub fn wiener_deconvolution(
     kernel: &PyImage,
     noise_variance: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = py_image_to_burn(image);
-    let ker_ref = py_image_to_burn(kernel);
+    let img_ref = image_from_py(image);
+    let ker_ref = image_from_py(kernel);
     let result = py.allow_threads(|| {
         WienerDeconvolution::new(noise_variance)
             .apply(&img_ref, &ker_ref)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
-    Ok(burn_into_py_image(result))
+    Ok(into_py_image(result))
 }
 
 /// Apply Tikhonov-regularized deconvolution to a 3-D image.
 ///
-/// Matches `SimpleITK.TikhonovDeconvolution` — a constant-regularised inverse
+/// Matches `SimpleITK.TikhonovDeconvolution` â€” a constant-regularised inverse
 /// filter. In the frequency domain:
 /// ```text
-/// U(ω) = G(ω) · H*(ω) / (|H(ω)|² + λ)
+/// U(Ï‰) = G(Ï‰) Â· H*(Ï‰) / (|H(Ï‰)|Â² + Î»)
 /// ```
 ///
 /// Args:
 ///     image: Degraded PyImage (any shape [Z, Y, X]).
 ///     kernel: 3-D PSF kernel PyImage.
-///     lambda: Regularization parameter λ (default 0.01).
+///     lambda: Regularization parameter Î» (default 0.01).
 ///
 /// Returns:
 ///     Restored PyImage with the same shape as `image`.
@@ -71,30 +71,30 @@ pub fn tikhonov_deconvolution(
     kernel: &PyImage,
     lambda: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = py_image_to_burn(image);
-    let ker_ref = py_image_to_burn(kernel);
+    let img_ref = image_from_py(image);
+    let ker_ref = image_from_py(kernel);
     let result = py.allow_threads(|| {
         TikhonovDeconvolution::new(lambda)
             .apply(&img_ref, &ker_ref)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
-    Ok(burn_into_py_image(result))
+    Ok(into_py_image(result))
 }
 
 /// Apply direct inverse-filter deconvolution to a 3-D image.
 ///
 /// Matches `SimpleITK.InverseDeconvolution`. In the frequency domain:
 /// ```text
-/// U(ω) = G(ω) / H(ω)   if |H(ω)| >= τ, else 0
+/// U(Ï‰) = G(Ï‰) / H(Ï‰)   if |H(Ï‰)| >= Ï„, else 0
 /// ```
 ///
 /// Args:
 ///     image: Degraded PyImage (any shape [Z, Y, X]).
 ///     kernel: 3-D PSF kernel PyImage.
-///     kernel_zero_magnitude_threshold: OTF magnitude threshold τ below which a
+///     kernel_zero_magnitude_threshold: OTF magnitude threshold Ï„ below which a
 ///         frequency is zeroed (sitk `kernelZeroMagnitudeThreshold`, default
-///         1e-4). Parity with sitk is tightest near the default; larger τ may
-///         flip borderline frequencies (|H| ≈ τ) due to FFT-magnitude rounding.
+///         1e-4). Parity with sitk is tightest near the default; larger Ï„ may
+///         flip borderline frequencies (|H| â‰ˆ Ï„) due to FFT-magnitude rounding.
 ///
 /// Returns:
 ///     Restored PyImage with the same shape as `image`.
@@ -106,14 +106,14 @@ pub fn inverse_deconvolution(
     kernel: &PyImage,
     kernel_zero_magnitude_threshold: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = py_image_to_burn(image);
-    let ker_ref = py_image_to_burn(kernel);
+    let img_ref = image_from_py(image);
+    let ker_ref = image_from_py(kernel);
     let result = py.allow_threads(|| {
         InverseDeconvolution::new(kernel_zero_magnitude_threshold)
             .apply(&img_ref, &ker_ref)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
-    Ok(burn_into_py_image(result))
+    Ok(into_py_image(result))
 }
 
 /// Apply Richardson-Lucy iterative deconvolution to a 3-D image.
@@ -121,8 +121,8 @@ pub fn inverse_deconvolution(
 /// Expectation-maximization algorithm for Poisson-noise restoration:
 ///
 /// ```text
-/// u₀ = g
-/// uₖ₊₁ = uₖ · (h* ⋆ (g / (h ⋆ uₖ)))
+/// uâ‚€ = g
+/// uâ‚–â‚Šâ‚ = uâ‚– Â· (h* â‹† (g / (h â‹† uâ‚–)))
 /// ```
 ///
 /// Preserves non-negativity and total flux.
@@ -144,8 +144,8 @@ pub fn richardson_lucy_deconvolution(
     max_iterations: usize,
     tolerance: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = py_image_to_burn(image);
-    let ker_ref = py_image_to_burn(kernel);
+    let img_ref = image_from_py(image);
+    let ker_ref = image_from_py(kernel);
     let result = py.allow_threads(|| {
         RichardsonLucyDeconvolution::new()
             .with_max_iterations(max_iterations)
@@ -153,22 +153,22 @@ pub fn richardson_lucy_deconvolution(
             .apply(&img_ref, &ker_ref)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
-    Ok(burn_into_py_image(result))
+    Ok(into_py_image(result))
 }
 
 /// Apply Landweber iterative deconvolution to a 3-D image.
 ///
-/// Gradient descent minimization of `||g − h ∗ u||²`:
+/// Gradient descent minimization of `||g âˆ’ h âˆ— u||Â²`:
 ///
 /// ```text
-/// u₀ = g
-/// uₖ₊₁ = uₖ + α · h* ⋆ (g − h ⋆ uₖ)
+/// uâ‚€ = g
+/// uâ‚–â‚Šâ‚ = uâ‚– + Î± Â· h* â‹† (g âˆ’ h â‹† uâ‚–)
 /// ```
 ///
 /// Args:
 ///     image: Degraded PyImage (any shape [Z, Y, X]).
 ///     kernel: 3-D PSF kernel PyImage.
-///     step_size: Gradient descent step size α (default 0.1).
+///     step_size: Gradient descent step size Î± (default 0.1).
 ///     max_iterations: Maximum iterations (default 100).
 ///     tolerance: Convergence tolerance (default 1e-6).
 ///
@@ -184,8 +184,8 @@ pub fn landweber_deconvolution(
     max_iterations: usize,
     tolerance: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = py_image_to_burn(image);
-    let ker_ref = py_image_to_burn(kernel);
+    let img_ref = image_from_py(image);
+    let ker_ref = image_from_py(kernel);
     let result = py.allow_threads(|| {
         LandweberDeconvolution::new()
             .with_step_size(step_size)
@@ -194,7 +194,7 @@ pub fn landweber_deconvolution(
             .apply(&img_ref, &ker_ref)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
-    Ok(burn_into_py_image(result))
+    Ok(into_py_image(result))
 }
 
 /// Apply projected Landweber deconvolution (non-negativity constraint) to a 3-D
@@ -206,7 +206,7 @@ pub fn landweber_deconvolution(
 /// Args:
 ///     image: Degraded PyImage (any shape [Z, Y, X]).
 ///     kernel: 3-D PSF kernel PyImage.
-///     step_size: Gradient descent step size α (default 0.1).
+///     step_size: Gradient descent step size Î± (default 0.1).
 ///     max_iterations: Maximum iterations (default 100).
 ///     tolerance: Convergence tolerance (default 1e-6).
 ///
@@ -222,8 +222,8 @@ pub fn projected_landweber_deconvolution(
     max_iterations: usize,
     tolerance: f32,
 ) -> RitkResult<PyImage> {
-    let img_ref = py_image_to_burn(image);
-    let ker_ref = py_image_to_burn(kernel);
+    let img_ref = image_from_py(image);
+    let ker_ref = image_from_py(kernel);
     let result = py.allow_threads(|| {
         LandweberDeconvolution::new()
             .with_step_size(step_size)
@@ -233,5 +233,5 @@ pub fn projected_landweber_deconvolution(
             .apply(&img_ref, &ker_ref)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })?;
-    Ok(burn_into_py_image(result))
+    Ok(into_py_image(result))
 }

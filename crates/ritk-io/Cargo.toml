@@ -5,12 +5,10 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
-burn-ndarray = { workspace = true }
-burn = { workspace = true }
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
 ritk-core = { path = "../ritk-core" }
-ritk-image = { path = "../ritk-image", features = ["burn-compat"] }
+ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }
 ritk-annotation = { path = "../ritk-annotation" }
 ritk-filter = { path = "../ritk-filter" }
@@ -56,7 +54,6 @@ dicom-transfer-syntax-registry = { workspace = true }
 [dev-dependencies]
 ritk-codecs = { workspace = true }
 tempfile = { workspace = true }
-burn = { workspace = true }
 zune-jpegxl = { workspace = true, default-features = false, features = ["std"] }
 zune-core = { workspace = true, default-features = false }
 

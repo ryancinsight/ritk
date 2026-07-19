@@ -8,7 +8,7 @@ use crate::io::image_xml::writer::write_vti_binary_appended_bytes;
 #[test]
 #[allow(clippy::approx_constant)]
 fn test_read_vti_binary_appended_cell_data_roundtrip() {
-    // extent [0,1,0,1,0,1] → n_cells = 1×1×1 = 1; n_points = 2×2×2 = 8
+    // extent [0,1,0,1,0,1] â†’ n_cells = 1Ã—1Ã—1 = 1; n_points = 2Ã—2Ã—2 = 8
     let grid = VtkImageData {
         whole_extent: [0, 1, 0, 1, 0, 1],
         origin: [0.0, 0.0, 0.0],
@@ -54,7 +54,7 @@ fn test_read_vti_binary_appended_cell_data_roundtrip() {
 #[test]
 #[allow(clippy::approx_constant)]
 fn test_read_vti_binary_appended_preserves_both_sections() {
-    // extent [0,1,0,1,0,0] → n_points = 2×2×1 = 4; n_cells = 1×1×1 = 1
+    // extent [0,1,0,1,0,0] â†’ n_points = 2Ã—2Ã—1 = 4; n_cells = 1Ã—1Ã—1 = 1
     let grid = VtkImageData {
         whole_extent: [0, 1, 0, 1, 0, 0],
         origin: [0.0, 0.0, 0.0],

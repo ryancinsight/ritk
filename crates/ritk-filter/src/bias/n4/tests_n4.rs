@@ -2,21 +2,22 @@
 //! Extracted to keep the 500-line structural limit.
 
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing, VolumeDims};
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(vals, dims)
+fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(vals, dims)
 }
 
-fn extract_vals(img: Image<B, 3>) -> Vec<f32> {
-    img.data_slice().into_owned()
+fn extract_vals(img: Image<f32, B, 3>) -> Vec<f32> {
+    img.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 #[test]
@@ -56,7 +57,7 @@ fn native_n4_preserves_geometry_and_matches_values_provider() {
     );
 }
 
-/// Coefficient of variation (σ/μ) for a subset of voxels identified by indices.
+/// Coefficient of variation (Ïƒ/Î¼) for a subset of voxels identified by indices.
 fn within_class_cov(vals: &[f32], indices: &[usize]) -> f64 {
     assert!(!indices.is_empty(), "within_class_cov: empty class");
     let n = indices.len() as f64;
@@ -211,7 +212,7 @@ fn histogram_sharpen_continuous_bimodal_reduces_spread() {
     assert!(var_b_after < var_b_before, "histogram_sharpen did not reduce Mode-B variance: before={var_b_before:.6} after={var_b_after:.6}");
 }
 
-/// Constant image: no crash; all output values within 100.0 ± 5.0.
+/// Constant image: no crash; all output values within 100.0 Â± 5.0.
 #[test]
 fn constant_image_stable() {
     let dims = [8usize, 8, 8];
@@ -345,7 +346,7 @@ fn idft_real(freq: &[(f64, f64)], n: usize) -> Vec<f64> {
     out
 }
 
-/// DFT round-trip: IDFT(DFT(x)) ≈ x for a short real sequence.
+/// DFT round-trip: IDFT(DFT(x)) â‰ˆ x for a short real sequence.
 #[test]
 fn dft_round_trip() {
     let data = vec![1.0f64, 2.0, 0.5, 0.0, 1.5, 0.0, 0.0, 0.0];

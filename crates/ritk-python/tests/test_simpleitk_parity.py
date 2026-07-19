@@ -3122,13 +3122,13 @@ def test_morphological_reconstruction_dilation_fills_masked_region():
 
 
 # ==========================================================================
-# Section 6 -- global_mi_register parity vs SimpleITK Mattes MI + RSGD
+# Section 6 -- native global MI parity vs SimpleITK Mattes MI
 # ==========================================================================
 
 
 def test_global_mi_register_translation_parity_vs_sitk():
-    """global_mi_register (translation) must achieve positive Mattes MI comparable
-    to SimpleITK Mattes MI + RSGD on a 4-voxel x-shifted 3D Gaussian blob.
+    """Native global MI translation must achieve positive MI comparable to
+    SimpleITK Mattes MI + RSGD on a 4-voxel x-shifted 3D Gaussian blob.
 
     Mathematical basis:
     Mattes Mutual Information (Mattes 2003) ∈ [0, ∞).  For two statistically
@@ -3136,14 +3136,13 @@ def test_global_mi_register_translation_parity_vs_sitk():
     4-voxel x-shift; Pearson r ≈ 0.758 before registration), the Mattes MI
     computed by the optimizer is strictly positive after ≥ 1 iteration.
 
-    Both RITK (RegularStepGradientDescent with full sampling) and SimpleITK
-    (RegularStepGradientDescent, NONE sampling) must return:
+    Both RITK (deterministic Leto histogram-MI hill climbing) and SimpleITK
+    (RegularStepGradientDescent with NONE sampling) must return:
       - a positive final MI value (> 0.01 nats/bits)
       - a structurally valid 4×4 homogeneous matrix with identity rotation block
 
-    The test uses sampling_percentage=1.0 (full, deterministic) for RITK and
-    SetMetricSamplingStrategy(NONE) for SimpleITK.  This eliminates random
-    sampling variance from both metric values.
+    Both implementations evaluate deterministically: RITK uses a fixed-stride
+    Leto histogram and SimpleITK uses SetMetricSamplingStrategy(NONE).
     """
     c = SIZE // 2
     z, y, x = np.mgrid[:SIZE, :SIZE, :SIZE]
@@ -3154,8 +3153,15 @@ def test_global_mi_register_translation_parity_vs_sitk():
     arr_moving = np.roll(arr_fixed, 4, axis=2).astype(np.float32)
 
     # ── RITK global_mi_register ─────────────────────────────────────────────
-    matrix_flat, final_mi_ritk, info = ritk.registration.global_mi_register(_ritk(arr_fixed),
-        _ritk(arr_moving), ritk.registration.GlobalMiOptions(transform_type="translation",num_levels=2,maximum_iterations=100,sampling_percentage=1.0,num_mi_bins=32))
+    matrix_flat, final_mi_ritk, info = ritk.registration.global_mi_register(
+        _ritk(arr_fixed),
+        _ritk(arr_moving),
+        ritk.registration.GlobalMiOptions(
+            transform_type="translation",
+            maximum_iterations=100,
+            num_mi_bins=32,
+        ),
+    )
 
     # 4×4 row-major homogeneous matrix; rotation block must be identity for
     # a pure translation transform.

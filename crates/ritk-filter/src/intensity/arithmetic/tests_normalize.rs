@@ -1,32 +1,33 @@
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use ritk_core::image::Image;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_image::test_support as ts;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(data, shape)
+fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(data, shape)
 }
 
-fn vals(img: &Image<B, 3>) -> Vec<f32> {
-    img.data_slice().into_owned()
+fn vals(img: &Image<f32, B, 3>) -> Vec<f32> {
+    img.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
-/// [1,1,3,3] → mean=2, sample std=√(4/3) → ±√3/2 (ITK sample-σ normalisation).
+/// [1,1,3,3] â†’ mean=2, sample std=âˆš(4/3) â†’ Â±âˆš3/2 (ITK sample-Ïƒ normalisation).
 ///
 /// # Derivation
 /// values = [1,1,3,3], N=4, mean=8/4=2.0
-/// sample variance = (1+1+1+1)/(4−1) = 4/3, std = √(4/3) = 1.1547005
-/// normalized = (v − 2.0) / 1.1547005 = [−0.8660254, −0.8660254, 0.8660254, 0.8660254]
+/// sample variance = (1+1+1+1)/(4âˆ’1) = 4/3, std = âˆš(4/3) = 1.1547005
+/// normalized = (v âˆ’ 2.0) / 1.1547005 = [âˆ’0.8660254, âˆ’0.8660254, 0.8660254, 0.8660254]
 #[test]
 fn normalize_known_values() {
     let img = make_image(vec![1.0, 1.0, 3.0, 3.0], [1, 2, 2]);
     let out = NormalizeImageFilter::new().apply(&img);
     let v = vals(&out);
-    let s = 0.866_025_4_f32; // √3 / 2
+    let s = 0.866_025_4_f32; // âˆš3 / 2
     let expected = [-s, -s, s, s];
     for (a, b) in v.iter().zip(expected.iter()) {
         assert!(
@@ -36,7 +37,7 @@ fn normalize_known_values() {
     }
 }
 
-/// Constant image → all zero (degenerate std=0 case).
+/// Constant image â†’ all zero (degenerate std=0 case).
 #[test]
 fn normalize_constant_image_all_zero() {
     let img = make_image(vec![5.0, 5.0, 5.0], [1, 1, 3]);
@@ -46,12 +47,12 @@ fn normalize_constant_image_all_zero() {
     }
 }
 
-/// Output mean ≈ 0 and output *sample* variance ≈ 1 for non-constant input.
+/// Output mean â‰ˆ 0 and output *sample* variance â‰ˆ 1 for non-constant input.
 ///
 /// # Derivation
-/// values = [0,2,4,6,8,10], N=6, mean=5, sample variance = Σ(v−5)²/(N−1) = 70/5 = 14.
-/// Normalising by the sample σ makes Σ(out)²/(N−1) = 1 exactly (ITK convention);
-/// the population variance Σ(out)²/N is then (N−1)/N = 5/6.
+/// values = [0,2,4,6,8,10], N=6, mean=5, sample variance = Î£(vâˆ’5)Â²/(Nâˆ’1) = 70/5 = 14.
+/// Normalising by the sample Ïƒ makes Î£(out)Â²/(Nâˆ’1) = 1 exactly (ITK convention);
+/// the population variance Î£(out)Â²/N is then (Nâˆ’1)/N = 5/6.
 #[test]
 fn normalize_output_mean_zero_variance_one() {
     let img = make_image(vec![0.0, 2.0, 4.0, 6.0, 8.0, 10.0], [1, 2, 3]);
@@ -67,32 +68,32 @@ fn normalize_output_mean_zero_variance_one() {
         })
         .sum::<f64>()
         / (n - 1.0);
-    assert!(mean.abs() < 1e-5, "output mean must be ≈ 0; got {mean}");
+    assert!(mean.abs() < 1e-5, "output mean must be â‰ˆ 0; got {mean}");
     assert!(
         (sample_variance - 1.0).abs() < 1e-4,
-        "output sample variance must be ≈ 1; got {sample_variance}"
+        "output sample variance must be â‰ˆ 1; got {sample_variance}"
     );
 }
 
-/// Two-element [0,2]: mean=1, sample std=√2 → ∓√2/2 (ITK sample-σ).
+/// Two-element [0,2]: mean=1, sample std=âˆš2 â†’ âˆ“âˆš2/2 (ITK sample-Ïƒ).
 ///
 /// # Derivation
-/// sample variance = (1+1)/(2−1) = 2, std = √2 = 1.4142136;
-/// out = (v−1)/√2 = [−0.7071068, 0.7071068].
+/// sample variance = (1+1)/(2âˆ’1) = 2, std = âˆš2 = 1.4142136;
+/// out = (vâˆ’1)/âˆš2 = [âˆ’0.7071068, 0.7071068].
 #[test]
 fn normalize_two_element() {
     let img = make_image(vec![0.0, 2.0], [1, 1, 2]);
     let out = NormalizeImageFilter::new().apply(&img);
     let v = vals(&out);
-    let s = std::f32::consts::FRAC_1_SQRT_2; // √2 / 2
+    let s = std::f32::consts::FRAC_1_SQRT_2; // âˆš2 / 2
     assert!(
         (v[0] + s).abs() < 1e-5,
-        "normalize([0,2])[0] must be −√2/2; got {}",
+        "normalize([0,2])[0] must be âˆ’âˆš2/2; got {}",
         v[0]
     );
     assert!(
         (v[1] - s).abs() < 1e-5,
-        "normalize([0,2])[1] must be +√2/2; got {}",
+        "normalize([0,2])[1] must be +âˆš2/2; got {}",
         v[1]
     );
 }
@@ -101,10 +102,9 @@ fn normalize_two_element() {
 #[test]
 fn normalize_preserves_metadata() {
     let sp = Spacing::new([0.5, 1.0, 2.0]);
-    let device = Default::default();
-    let td = TensorData::new(vec![1.0_f32, 3.0], Shape::new([1usize, 1, 2]));
-    let t = Tensor::<B, 3>::from_data(td, &device);
-    let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp, Direction::identity());
+    let t = Tensor::<f32, B>::from_slice([1usize, 1, 2], &[1.0_f32, 3.0]);
+    let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp, Direction::identity())
+        .expect("invariant: fixture tensor has the declared rank");
     let out = NormalizeImageFilter::new().apply(&img);
     assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
 }
@@ -115,7 +115,10 @@ fn normalize_preserves_metadata() {
 fn normalize_to_constant_scales_sum() {
     let img = make_image(vec![1.0, 2.0, 3.0, 4.0], [1, 1, 4]); // sum 10
     let out = NormalizeToConstantImageFilter::new(5.0).apply(&img);
-    let v = out.data_slice().into_owned();
+    let v = out
+        .data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec();
     assert_eq!(v, vec![0.5, 1.0, 1.5, 2.0]);
     assert!(
         (v.iter().sum::<f32>() - 5.0).abs() < 1e-5,
@@ -128,13 +131,18 @@ fn normalize_to_constant_scales_sum() {
 fn normalize_to_constant_zero_sum_is_zero() {
     let img = make_image(vec![1.0, -1.0, 2.0, -2.0], [1, 1, 4]); // sum 0
     let out = NormalizeToConstantImageFilter::new(1.0).apply(&img);
-    assert_eq!(out.data_slice().into_owned(), vec![0.0, 0.0, 0.0, 0.0]);
+    assert_eq!(
+        out.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec(),
+        vec![0.0, 0.0, 0.0, 0.0]
+    );
 }
 
 #[test]
 fn native_normalize_uses_sample_standard_deviation() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
 
     let image = NativeImage::from_flat_on(
         vec![1.0, 2.0, 3.0],
@@ -157,7 +165,7 @@ fn native_normalize_uses_sample_standard_deviation() {
 #[test]
 fn native_normalize_to_constant_preserves_sum_and_metadata() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
 
     let image = NativeImage::from_flat_on(
         vec![1.0, 2.0, 3.0],

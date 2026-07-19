@@ -7,9 +7,9 @@
 //!
 //! The total variation term is:
 //!
-//! R(u) = ∫_Ω |∇u| dx
+//! R(u) = âˆ«_Î© |âˆ‡u| dx
 //!
-//! where |∇u| is the L1 norm of the gradient.
+//! where |âˆ‡u| is the L1 norm of the gradient.
 //!
 //! ## Characteristics
 //!
@@ -40,7 +40,7 @@ use coeus_tensor::Tensor;
 /// regions.
 ///
 /// The isotropic TV variant penalizes:
-/// TV(u) = ∫_Ω √(∑|∂u_i/∂x_j|²) dx
+/// TV(u) = âˆ«_Î© âˆš(âˆ‘|âˆ‚u_i/âˆ‚x_j|Â²) dx
 ///
 /// # Example
 ///

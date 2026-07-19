@@ -1,12 +1,12 @@
 //! JPEG Baseline (SOF0/SOF1) sequential DCT scan decode.
 //!
 //! # Specification
-//! ITU-T T.81 §F.2: Sequential entropy decode for Baseline and Extended DCT.
+//! ITU-T T.81 Â§F.2: Sequential entropy decode for Baseline and Extended DCT.
 //! Coefficient decode order: DC first (one per block), then AC (up to 63 per block).
-//! AC encoding: run-length pairs (run, size) per T.81 §F.1.2.1.
+//! AC encoding: run-length pairs (run, size) per T.81 Â§F.1.2.1.
 //!
-//! After decode, dequantize and apply 2D IDCT to each 8×8 block.
-//! Level-shift: add 2^(P-1) (= 128 for P=8) after IDCT, clamp to [0, 2^P − 1].
+//! After decode, dequantize and apply 2D IDCT to each 8Ã—8 block.
+//! Level-shift: add 2^(P-1) (= 128 for P=8) after IDCT, clamp to [0, 2^P âˆ’ 1].
 
 use anyhow::{bail, Context, Result};
 
@@ -17,14 +17,14 @@ use super::huffman::{receive_and_extend, BitReader};
 use super::idct::idct_8x8;
 use super::marker::{JpegFrameData, QuantPrecision, SOF0, SOF1};
 
-/// Natural zigzag-to-raster reorder (T.81 §A.3.6).
+/// Natural zigzag-to-raster reorder (T.81 Â§A.3.6).
 const ZIGZAG: [usize; DCT_BLOCK_CELLS] = [
     0, 1, 8, 16, 9, 2, 3, 10, 17, 24, 32, 25, 18, 11, 4, 5, 12, 19, 26, 33, 40, 48, 41, 34, 27, 20,
     13, 6, 7, 14, 21, 28, 35, 42, 49, 56, 57, 50, 43, 36, 29, 22, 15, 23, 30, 37, 44, 51, 58, 59,
     52, 45, 38, 31, 39, 46, 53, 60, 61, 54, 47, 55, 62, 63,
 ];
 
-/// Decode one 8×8 block from the entropy stream into dequantised IDCT output.
+/// Decode one 8Ã—8 block from the entropy stream into dequantised IDCT output.
 ///
 /// `prev_dc` is updated in-place (DC differential coding).
 fn decode_block(
@@ -50,13 +50,13 @@ fn decode_block(
         );
     }
 
-    // Decode DC coefficient (T.81 §F.2.2.1)
+    // Decode DC coefficient (T.81 Â§F.2.2.1)
     let dc_cat = dc_table.decode(reader)?;
     let dc_diff = receive_and_extend(reader, dc_cat)?;
     *prev_dc += dc_diff;
     let dc = *prev_dc;
 
-    // Decode AC coefficients (T.81 §F.2.2.2)
+    // Decode AC coefficients (T.81 Â§F.2.2.2)
     let mut coeffs_zigzag = [0i16; DCT_BLOCK_CELLS];
     coeffs_zigzag[0] = dc as i16;
 
@@ -92,7 +92,7 @@ fn decode_block(
     Ok(coeffs_raster)
 }
 
-/// Apply 8×8 IDCT to a block of quantized coefficients and level-shift.
+/// Apply 8Ã—8 IDCT to a block of quantized coefficients and level-shift.
 fn reconstruct_block(coeffs: &[i16; DCT_BLOCK_CELLS], precision: u8) -> [u8; DCT_BLOCK_CELLS] {
     let mut block = [0.0f32; DCT_BLOCK_CELLS];
     for (i, &c) in coeffs.iter().enumerate() {
@@ -141,7 +141,7 @@ pub(crate) fn decode_baseline_scan(
     let height = frame.sof.height as usize;
     let ncomp = frame.sof.components.len();
 
-    // Map component id → frame component index
+    // Map component id â†’ frame component index
     let comp_by_id = |id: u8| -> Result<usize> {
         frame
             .sof
@@ -186,7 +186,7 @@ fn decode_baseline_grayscale(
                 &mut prev_dc,
             )?;
             let block = reconstruct_block(&coeffs, frame.sof.precision);
-            // Write 8×8 block into output, clamping to image bounds
+            // Write 8Ã—8 block into output, clamping to image bounds
             for r in 0..DCT_BLOCK_DIM {
                 let py = by * DCT_BLOCK_DIM + r;
                 if py >= height {
@@ -255,7 +255,7 @@ fn decode_baseline_ycbcr(
                 let fc_idx = comp_by_id(sc.id)?;
                 let fc = &frame.sof.components[fc_idx];
 
-                // Decode h_samp × v_samp blocks for this component per MCU
+                // Decode h_samp Ã— v_samp blocks for this component per MCU
                 for bv in 0..(fc.v_samp as usize) {
                     for bh in 0..(fc.h_samp as usize) {
                         let coeffs = decode_block(
@@ -270,7 +270,7 @@ fn decode_baseline_ycbcr(
 
                         // Block position in the padded component plane.
                         // Component (ci) has sampling h_samp:max_h, v_samp:max_v.
-                        // Each MCU has max_h*8 × max_v*8 pixels at full resolution.
+                        // Each MCU has max_h*8 Ã— max_v*8 pixels at full resolution.
                         // Component ci's sub-blocks map to that MCU region.
                         let base_x = mcu_x * max_h as usize * DCT_BLOCK_DIM + bh * DCT_BLOCK_DIM;
                         let base_y = mcu_y * max_v as usize * DCT_BLOCK_DIM + bv * DCT_BLOCK_DIM;
@@ -292,7 +292,7 @@ fn decode_baseline_ycbcr(
     }
 
     // Upsample chroma and interleave into RGB.
-    // For each component, scale position by (max_h/h_samp) × (max_v/v_samp).
+    // For each component, scale position by (max_h/h_samp) Ã— (max_v/v_samp).
     let mut pixels = vec![0u8; width * height * 3];
     for py in 0..height {
         for px in 0..width {

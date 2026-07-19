@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use image::GrayImage;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use std::path::Path;
 
 /// Writes a native grayscale image with shape `[1, height, width]` as JPEG.

@@ -4,7 +4,7 @@
 //! native-Image implementation (ADR 0002).
 
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 type Backend = SequentialBackend;

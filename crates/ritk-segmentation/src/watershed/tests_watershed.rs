@@ -1,24 +1,17 @@
 use super::*;
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::test_support::make_image;
+use ritk_image::Image as NativeImage;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
-fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
+fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
     make_image(data, dims)
 }
 
-fn get_labels(image: &Image<B, 3>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn get_labels(image: &Image<f32, B, 3>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
 // ── Constant / uniform image ───────────────────────────────────────────────
@@ -169,7 +162,12 @@ fn native_and_legacy_execution_are_exact_and_deterministic() {
     let expected = filter.apply(&legacy).unwrap();
     let first = filter.apply_native(&native, &SequentialBackend).unwrap();
     let second = filter.apply_native(&native, &SequentialBackend).unwrap();
-    assert_eq!(first.data_slice().unwrap(), expected.data_slice().as_ref());
+    assert_eq!(
+        first.data_slice().unwrap(),
+        expected
+            .data_slice()
+            .expect("invariant: contiguous host storage")
+    );
     assert_eq!(second.data_slice().unwrap(), first.data_slice().unwrap());
     assert_eq!(*first.origin(), origin);
     assert_eq!(*first.spacing(), spacing);
@@ -219,7 +217,12 @@ fn plateau_flooding_matches_simpleitk_oracle_exactly() {
     // fullyConnected=false) returns this symmetric geodesic split.
     let image = make_image_3d(vec![0.0, 100.0, 100.0, 100.0, 0.0], [1, 1, 5]);
     let labels = WatershedSegmentation::new().apply(&image).unwrap();
-    assert_eq!(labels.data_slice().as_ref(), &[1.0, 1.0, 0.0, 2.0, 2.0]);
+    assert_eq!(
+        labels
+            .data_slice()
+            .expect("invariant: contiguous host storage"),
+        &[1.0, 1.0, 0.0, 2.0, 2.0]
+    );
 }
 
 #[test]
@@ -228,7 +231,14 @@ fn signed_zero_substitution_preserves_plateau_partition() {
     let signed = make_image_3d(vec![-0.0, 0.0, -0.0, 1.0, -0.0], [1, 1, 5]);
     let positive_labels = WatershedSegmentation::new().apply(&positive).unwrap();
     let signed_labels = WatershedSegmentation::new().apply(&signed).unwrap();
-    assert_eq!(signed_labels.data_slice(), positive_labels.data_slice());
+    assert_eq!(
+        signed_labels
+            .data_slice()
+            .expect("invariant: result storage is contiguous"),
+        positive_labels
+            .data_slice()
+            .expect("invariant: result storage is contiguous")
+    );
 }
 
 #[test]
@@ -237,7 +247,15 @@ fn plateau_partition_is_reversal_invariant() {
     let reverse = make_image_3d(vec![1.0, 5.0, 5.0, 5.0, 0.0], [1, 1, 5]);
     let forward_labels = WatershedSegmentation::new().apply(&forward).unwrap();
     let reverse_labels = WatershedSegmentation::new().apply(&reverse).unwrap();
-    let mut reflected = reverse_labels.data_slice().to_vec();
+    let mut reflected = reverse_labels
+        .data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec();
     reflected.reverse();
-    assert_eq!(reflected, forward_labels.data_slice().as_ref());
+    assert_eq!(
+        reflected,
+        forward_labels
+            .data_slice()
+            .expect("invariant: contiguous host storage")
+    );
 }

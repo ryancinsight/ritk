@@ -106,6 +106,7 @@ where
         spacing,
         direction,
     )
+    .expect("test fixture tensor rank equals the const image dimension")
 }
 
 /// Build an [`Image<T, B, D>`] from raw voxel data with custom per-axis spacing
@@ -187,76 +188,5 @@ mod tests {
     }
 }
 
-// ── Burn-compat test helpers ───────────────────────────────────────────────────
-// These are provided when `burn-compat` is active so legacy crates (ritk-statistics,
-// ritk-filter, etc.) can call make_image with burn's Backend and get
-// a burn-backed Image<B, D>.
-
-#[cfg(feature = "burn-compat")]
-pub mod burn_compat {
-    use crate::burn_compat_types::Image;
-    use ::burn::tensor::{backend::Backend, Shape, Tensor, TensorData};
-    use ritk_spatial::{Direction, Point, Spacing};
-
-    /// Build a burn-backed `Image<B, D>` from flat f32 data with default metadata.
-    pub fn make_image<B: Backend, const D: usize>(data: Vec<f32>, dims: [usize; D]) -> Image<B, D>
-    where
-        B::Device: Default,
-    {
-        let device = B::Device::default();
-        let t = Tensor::<B, D>::from_data(TensorData::new(data, Shape::new(dims)), &device);
-        Image::new(
-            t,
-            Point::new([0.0_f64; D]),
-            Spacing::new([1.0_f64; D]),
-            Direction::identity(),
-        )
-    }
-
-    /// Build a burn-backed `Image<B, D>` with custom per-axis spacing.
-    pub fn make_image_with_spacing<B: Backend, const D: usize>(
-        data: Vec<f32>,
-        dims: [usize; D],
-        spacing: [f64; D],
-    ) -> Image<B, D>
-    where
-        B::Device: Default,
-    {
-        let device = B::Device::default();
-        let t = Tensor::<B, D>::from_data(TensorData::new(data, Shape::new(dims)), &device);
-        Image::new(
-            t,
-            Point::new([0.0_f64; D]),
-            Spacing::new(spacing),
-            Direction::identity(),
-        )
-    }
-
-    /// Build a burn-backed `Image<B, 1>` from flat f32 data.
-    pub fn make_image_1d<B: Backend>(data: Vec<f32>) -> Image<B, 1>
-    where
-        B::Device: Default,
-    {
-        let n = data.len();
-        make_image::<B, 1>(data, [n])
-    }
-
-    /// Build a burn-backed `Image<B, D>` with all spatial metadata specified.
-    pub fn make_image_with<B: Backend, const D: usize>(
-        data: Vec<f32>,
-        dims: [usize; D],
-        origin: Option<ritk_spatial::Point<D>>,
-        spacing: Option<ritk_spatial::Spacing<D>>,
-        direction: Option<ritk_spatial::Direction<D>>,
-    ) -> Image<B, D>
-    where
-        B::Device: Default,
-    {
-        let device = B::Device::default();
-        let t = Tensor::<B, D>::from_data(TensorData::new(data, Shape::new(dims)), &device);
-        let origin = origin.unwrap_or_else(|| Point::new([0.0_f64; D]));
-        let spacing = spacing.unwrap_or_else(|| Spacing::new([1.0_f64; D]));
-        let direction = direction.unwrap_or_else(ritk_spatial::Direction::identity);
-        Image::new(t, origin, spacing, direction)
-    }
-}
+// No burn-compat helpers remain; use `make_image` and friends above for
+// Coeus-backed test images.

@@ -1,13 +1,12 @@
 //! Tests for binary_threshold
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
-use ritk_image::test_support::burn_compat::{make_image, make_image_with};
+use ritk_image::test_support::{make_image, make_image_with};
+use ritk_image::Image as NativeImage;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
 fn assert_native_legacy_conformance<const D: usize>(values: Vec<f32>, dimensions: [usize; D]) {
     let native = NativeImage::from_flat_on(
@@ -23,12 +22,14 @@ fn assert_native_legacy_conformance<const D: usize>(values: Vec<f32>, dimensions
     let native_output = filter
         .apply_native(&native, &SequentialBackend)
         .expect("native binary threshold succeeds");
-    let legacy_output = filter.apply(&make_image::<B, D>(values, dimensions));
+    let legacy_output = filter.apply(&make_image::<f32, B, D>(values, dimensions));
 
     assert_eq!(native_output.shape(), dimensions);
     assert_eq!(
         native_output.data_slice().expect("contiguous output"),
-        legacy_output.data_slice().as_ref()
+        legacy_output
+            .data_slice()
+            .expect("invariant: contiguous host storage")
     );
 }
 
@@ -56,7 +57,7 @@ fn nan_voxels_map_to_outside_value_on_both_boundaries() {
     let native_output = filter
         .apply_native(&native, &SequentialBackend)
         .expect("native binary threshold succeeds");
-    let legacy_output = filter.apply(&make_image::<B, 1>(values, dimensions));
+    let legacy_output = filter.apply(&make_image::<f32, B, 1>(values, dimensions));
 
     assert_eq!(
         native_output.data_slice().expect("contiguous output"),
@@ -102,33 +103,21 @@ fn native_threshold_matches_legacy_boundary_and_preserves_geometry() {
     );
 }
 
-fn make_image_1d(data: Vec<f32>) -> Image<B, 1> {
+fn make_image_1d(data: Vec<f32>) -> Image<f32, B, 1> {
     let n = data.len();
     make_image(data, [n])
 }
 
-fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
+fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
     make_image(data, dims)
 }
 
-fn get_slice_1d(image: &Image<B, 1>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn get_slice_1d(image: &Image<f32, B, 1>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
-fn get_slice_3d(image: &Image<B, 3>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn get_slice_3d(image: &Image<f32, B, 3>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
 // ── Positive: all inside band ─────────────────────────────────────────────
@@ -297,7 +286,7 @@ fn test_spatial_metadata_preserved() {
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 1.0, 2.0]);
     let direction = Direction::<3>::identity();
-    let image: Image<B, 3> = make_image_with(
+    let image: Image<f32, B, 3> = make_image_with(
         vec![100.0_f32; 24],
         [2, 3, 4],
         Some(origin),

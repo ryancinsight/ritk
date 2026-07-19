@@ -14,15 +14,15 @@
 //! # Rendering passes
 //!
 //! Internal dispatch logic lives in dedicated sub-modules:
-//! - `mip_pass` — MIP dispatch; WL+LUT applied in-shader; packed u32 RGBA output.
-//! - `vr_pass` — VR dispatch; packed u32 RGBA output.
+//! - `mip_pass` â€” MIP dispatch; WL+LUT applied in-shader; packed u32 RGBA output.
+//! - `vr_pass` â€” VR dispatch; packed u32 RGBA output.
 //!
 //! # Performance
 //!
 //! - **MIP**: WL normalisation and colormap LUT applied on GPU; zero CPU
 //!   post-processing after readback.
 //! - **VR**: output packed as u32 RGBA (4 bytes/pixel, vs 16 bytes/pixel
-//!   previously); staging buffer 4× smaller; zero CPU conversion.
+//!   previously); staging buffer 4Ã— smaller; zero CPU conversion.
 //! - **Buffer caching**: output and staging buffers are reused across frames
 //!   while dimensions are constant (typical medical imaging: fixed viewport).
 //! - **Volume upload**: single-channel volumes bypass extraction with a
@@ -43,10 +43,10 @@
 //!
 //! For all valid inputs and the Grayscale colormap:
 //! ```text
-//! ∀ pixel p: |gpu_mip(p) − cpu_mip(p)| ≤ 2 (u8 channel value)
-//! ∀ pixel p: |gpu_vr(p) − cpu_vr(p)| ≤ 2 (u8 channel value, premultiplied)
+//! âˆ€ pixel p: |gpu_mip(p) âˆ’ cpu_mip(p)| â‰¤ 2 (u8 channel value)
+//! âˆ€ pixel p: |gpu_vr(p) âˆ’ cpu_vr(p)| â‰¤ 2 (u8 channel value, premultiplied)
 //! ```
-//! The ±2 tolerance accounts for f32→u8 rounding (LUT truncation vs round)
+//! The Â±2 tolerance accounts for f32â†’u8 rounding (LUT truncation vs round)
 //! and pack4x8unorm rounding vs CPU truncation.
 
 use crate::render::Colormap;
@@ -72,7 +72,7 @@ use frame_cache::GpuFrameCache;
 /// Build a 256-entry f32 RGBA colormap LUT for GPU upload.
 ///
 /// Entry `i` maps `i / 255.0` through `colormap.map()` and stores the result
-/// as `[R, G, B, 1.0]` in f32 ∈ [0, 1]. Stored flat as 256 × 4 = 1 024 f32
+/// as `[R, G, B, 1.0]` in f32 âˆˆ [0, 1]. Stored flat as 256 Ã— 4 = 1 024 f32
 /// values for direct upload to the `lut` storage buffer.
 ///
 /// # Invariant
@@ -102,9 +102,9 @@ fn build_colormap_lut(colormap: Colormap) -> Vec<f32> {
 pub(in crate::render::gpu_volume) struct PendingReadback {
     /// Receiver fired by the `map_async` callback.
     ///
-    /// - `Ok(Ok(()))` — GPU done; staging buffer is mapped and safe to read.
-    /// - `Ok(Err(_))` — `map_async` failed (device loss, OOM); retry next cycle.
-    /// - `Err(Disconnected)` — internal error; treat as `map_async` failure.
+    /// - `Ok(Ok(()))` â€” GPU done; staging buffer is mapped and safe to read.
+    /// - `Ok(Err(_))` â€” `map_async` failed (device loss, OOM); retry next cycle.
+    /// - `Err(Disconnected)` â€” internal error; treat as `map_async` failure.
     pub(in crate::render::gpu_volume) rx:
         std::sync::mpsc::Receiver<Result<(), wgpu::BufferAsyncError>>,
     /// Expected output dimensions; validated against the collected image.
@@ -121,11 +121,11 @@ pub(in crate::render::gpu_volume) struct PendingReadback {
 /// # Async readback model
 ///
 /// Each `render_mip` / `render_vr` call:
-/// 1. Calls `device.poll(Poll)` — non-blocking; fires any completed callbacks.
+/// 1. Calls `device.poll(Poll)` â€” non-blocking; fires any completed callbacks.
 /// 2. If a pending readback is complete, collects the result into `*_last`.
 /// 3. If no readback is in-flight, submits new GPU work and registers
 ///    `map_async` (stores `PendingReadback`).
-/// 4. Returns the last completed frame — `None` only on the first call before
+/// 4. Returns the last completed frame â€” `None` only on the first call before
 ///    any frame has been rendered.
 ///
 /// This decouples GPU execution from CPU readback: the render thread is never

@@ -12,9 +12,9 @@ pub mod position_extrema;
 pub mod value_indices;
 pub use histogram::{histogram, histogram_from_slice, Histogram};
 pub use image_comparison::{
-    dice_coefficient, dice_coefficient_native, hausdorff_distance, hausdorff_distance_native,
-    mean_surface_distance, mean_surface_distance_native, pearson_correlation, psnr, psnr_native,
-    similarity_index, ssim, ssim_native,
+    dice_coefficient, hausdorff_distance, hausdorff_distance_native, mean_surface_distance,
+    mean_surface_distance_native, pearson_correlation, psnr, psnr_native, similarity_index, ssim,
+    ssim_native,
 };
 pub use image_statistics::{compute_statistics, masked_statistics, ImageStatistics};
 pub use information::{

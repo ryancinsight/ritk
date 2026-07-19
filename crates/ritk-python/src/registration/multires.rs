@@ -79,8 +79,8 @@ impl PyMultiresDemonsOptions {
 ///     opts: `MultiResDemonsOptions` controlling pyramid and algorithm variant.
 ///
 /// Returns:
-///     (warped_moving, displacement_field) — same convention as demons_register.
-///     displacement_field has shape [3·Z, Y, X].
+///     (warped_moving, displacement_field) â€” same convention as demons_register.
+///     displacement_field has shape [3Â·Z, Y, X].
 ///
 /// Raises:
 ///     RuntimeError: if image shapes do not match or registration fails.
@@ -161,7 +161,7 @@ pub fn multires_demons_register(
 /// Uses a stationary velocity field `v` and maintains the forward transform
 /// `exp(v)` and exact inverse transform `exp(-v)` throughout optimization.
 /// The bilateral objective is:
-/// E(v) = (1-w) ||F - M o exp(v)||² + w ||M - F o exp(-v)||²
+/// E(v) = (1-w) ||F - M o exp(v)||Â² + w ||M - F o exp(-v)||Â²
 ///
 /// Args:
 ///     fixed: Fixed (reference) image.
@@ -175,7 +175,7 @@ pub fn multires_demons_register(
 ///         and exp(-v) (default 6).
 ///
 /// Returns:
-///     (warped_moving, displacement_field) — same convention as
+///     (warped_moving, displacement_field) â€” same convention as
 ///     `demons_register`.
 ///
 /// Raises:

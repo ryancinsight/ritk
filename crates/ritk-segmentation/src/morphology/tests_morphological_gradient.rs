@@ -1,11 +1,11 @@
 #![allow(clippy::needless_range_loop)]
 
 use super::*;
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::test_support::make_image;
 use ritk_image::Image;
-type Backend = burn_ndarray::NdArray<f32>;
+type Backend = coeus_core::SequentialBackend;
 
-fn make_mask(vals: Vec<f32>, shape: [usize; 3]) -> Image<Backend, 3> {
+fn make_mask(vals: Vec<f32>, shape: [usize; 3]) -> Image<f32, Backend, 3> {
     make_image(vals, shape)
 }
 
@@ -13,12 +13,13 @@ fn make_mask(vals: Vec<f32>, shape: [usize; 3]) -> Image<Backend, 3> {
 fn test_gradient_all_zero_gives_all_zero() {
     let mask = make_mask(vec![0.0f32; 27], [3, 3, 3]);
     let result = MorphologicalGradient::new(1).apply(&mask);
-    result.with_data_slice(|vals| {
-        assert!(
-            vals.iter().all(|&v| v < 0.5),
-            "all-zero input must produce all-zero gradient"
-        );
-    });
+    let vals = result
+        .data_slice()
+        .expect("invariant: result storage is contiguous");
+    assert!(
+        vals.iter().all(|&v| v < 0.5),
+        "all-zero input must produce all-zero gradient"
+    );
 }
 
 /// BinaryErosion treats out-of-bounds neighbors as background (0.0).
@@ -31,20 +32,21 @@ fn test_gradient_all_one_interior_voxels_zero() {
     // 5x5x5 all-one mask; interior indices 1..=3 in each axis have a complete r=1 cube.
     let mask = make_mask(vec![1.0f32; 125], [5, 5, 5]);
     let result = MorphologicalGradient::new(1).apply(&mask);
-    result.with_data_slice(|vals| {
-        for iz in 1..=3usize {
-            for iy in 1..=3usize {
-                for ix in 1..=3usize {
-                    let i = iz * 25 + iy * 5 + ix;
-                    assert_eq!(
-                        vals[i], 0.0,
-                        "interior voxel ({},{},{}) must have zero gradient for all-one mask",
-                        iz, iy, ix
-                    );
-                }
+    let vals = result
+        .data_slice()
+        .expect("invariant: result storage is contiguous");
+    for iz in 1..=3usize {
+        for iy in 1..=3usize {
+            for ix in 1..=3usize {
+                let i = iz * 25 + iy * 5 + ix;
+                assert_eq!(
+                    vals[i], 0.0,
+                    "interior voxel ({},{},{}) must have zero gradient for all-one mask",
+                    iz, iy, ix
+                );
             }
         }
-    });
+    }
 }
 
 #[test]
@@ -64,18 +66,19 @@ fn test_gradient_solid_ball_only_boundary_voxels_nonzero() {
     }
     let mask = make_mask(vals.clone(), shape);
     let result = MorphologicalGradient::new(1).apply(&mask);
-    result.with_data_slice(|out_vals| {
-        let center_idx = 3 * 49 + 3 * 7 + 3;
-        assert_eq!(
-            out_vals[center_idx], 0.0,
-            "center voxel must not be a boundary"
-        );
-        let boundary_count = out_vals.iter().filter(|&&v| v >= 0.5).count();
-        assert!(
-            boundary_count > 0,
-            "gradient must detect at least one boundary voxel"
-        );
-    });
+    let out_vals = result
+        .data_slice()
+        .expect("invariant: result storage is contiguous");
+    let center_idx = 3 * 49 + 3 * 7 + 3;
+    assert_eq!(
+        out_vals[center_idx], 0.0,
+        "center voxel must not be a boundary"
+    );
+    let boundary_count = out_vals.iter().filter(|&&v| v >= 0.5).count();
+    assert!(
+        boundary_count > 0,
+        "gradient must detect at least one boundary voxel"
+    );
 }
 
 #[test]
@@ -93,10 +96,11 @@ fn test_gradient_values_binary() {
     }
     let mask = make_mask(vals, [5, 5, 5]);
     let result = MorphologicalGradient::new(1).apply(&mask);
-    result.with_data_slice(|out_vals| {
-        assert!(
-            out_vals.iter().all(|&v| v == 0.0 || v == 1.0),
-            "gradient output must be binary"
-        );
-    });
+    let out_vals = result
+        .data_slice()
+        .expect("invariant: result storage is contiguous");
+    assert!(
+        out_vals.iter().all(|&v| v == 0.0 || v == 1.0),
+        "gradient output must be binary"
+    );
 }

@@ -1,6 +1,4 @@
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::backend::Backend;
+use coeus_core::{Backend, CpuAddressableStorage};
 use ritk_image::Image;
 
 /// Dice similarity coefficient over two flat host buffers.
@@ -70,45 +68,12 @@ pub(crate) fn similarity_index_from_slices(a: &[f32], b: &[f32]) -> f32 {
 ///
 /// # Formula
 /// `Dice = 2 * |P intersect G| / (|P| + |G|)`
-pub fn dice_coefficient<B: Backend, const D: usize>(
-    prediction: &Image<B, D>,
-    ground_truth: &Image<B, D>,
-) -> f32 {
-    let intersection_sum: f32 = {
-        let t = prediction.data().clone() * ground_truth.data().clone();
-        let d = t.sum().into_data();
-        d.as_slice::<f32>().expect("f32 intersection tensor")[0]
-    };
-
-    let pred_vol: f32 = {
-        let d = prediction.data().clone().sum().into_data();
-        d.as_slice::<f32>().expect("f32 prediction sum")[0]
-    };
-
-    let gt_vol: f32 = {
-        let d = ground_truth.data().clone().sum().into_data();
-        d.as_slice::<f32>().expect("f32 ground truth sum")[0]
-    };
-
-    let denom = pred_vol + gt_vol;
-    if denom < f32::EPSILON {
-        return 1.0;
-    }
-
-    2.0 * intersection_sum / denom
-}
-
-/// Compute Dice overlap between two Coeus-native binary masks.
-///
-/// # Errors
-/// Returns an error when either image is not CPU-addressable or the images
-/// have different element counts.
-pub fn dice_coefficient_native<B, const D: usize>(
-    prediction: &NativeImage<f32, B, D>,
-    ground_truth: &NativeImage<f32, B, D>,
+pub fn dice_coefficient<B, const D: usize>(
+    prediction: &Image<f32, B, D>,
+    ground_truth: &Image<f32, B, D>,
 ) -> anyhow::Result<f32>
 where
-    B: ComputeBackend,
+    B: Backend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
     let prediction_values = prediction.data_slice()?;
@@ -119,8 +84,10 @@ where
         prediction_values.len(),
         ground_truth_values.len()
     );
-    let (intersection, prediction_sum, ground_truth_sum) =
-        prediction_values.iter().zip(ground_truth_values).fold(
+    let (intersection, prediction_sum, ground_truth_sum) = prediction_values
+        .iter()
+        .zip(ground_truth_values.iter())
+        .fold(
             (0.0_f32, 0.0_f32, 0.0_f32),
             |(intersection, prediction, ground_truth), (&left, &right)| {
                 (
@@ -147,6 +114,15 @@ where
 /// # Formula
 /// `SI = 2 * |A intersect B| / (|A| + |B|)` over the binarized sets
 /// `A = {x : a(x) != 0}`, `B = {x : b(x) != 0}`.
-pub fn similarity_index<B: Backend, const D: usize>(a: &Image<B, D>, b: &Image<B, D>) -> f32 {
-    similarity_index_from_slices(&a.data_slice(), &b.data_slice())
+pub fn similarity_index<B, const D: usize>(
+    a: &Image<f32, B, D>,
+    b: &Image<f32, B, D>,
+) -> anyhow::Result<f32>
+where
+    B: Backend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
+    let a_values = a.data_slice()?;
+    let b_values = b.data_slice()?;
+    Ok(similarity_index_from_slices(a_values, b_values))
 }

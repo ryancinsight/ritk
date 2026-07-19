@@ -5,14 +5,11 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
-burn-ndarray = { workspace = true }
 eunomia = { workspace = true }
 ritk-core = { path = "../ritk-core" }
 ritk-image = { path = "../ritk-image" }
 ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
 ritk-spatial = { path = "../ritk-spatial" }
-ritk-macros = { path = "../ritk-macros" }
-burn = { workspace = true }
 serde = { workspace = true }
 anyhow = { workspace = true }
 coeus-core = { workspace = true }

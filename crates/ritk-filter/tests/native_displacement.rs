@@ -1,6 +1,6 @@
 use coeus_core::SequentialBackend;
 use ritk_filter::{InverseDisplacementField, NativeDisplacementField};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 fn zero_component() -> Image<f32, SequentialBackend, 3> {

@@ -8,7 +8,7 @@ pub use ritk_tiff::{read_tiff_color_to_volume, TiffColorReader};
 pub mod native {
     use crate::domain::{to_io_err, ImageReader, ImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};
-    use ritk_image::native::Image;
+    use ritk_image::Image;
     use std::path::Path;
 
     /// Backend-bound Atlas-native reader (counterpart of the Burn `TiffReader`).
@@ -59,7 +59,7 @@ pub mod native {
         use tempfile::tempdir;
 
         /// Trait-dispatched round trip: write through `ImageWriter`, read back
-        /// through `ImageReader`, exact voxel + shape parity — the unified
+        /// through `ImageReader`, exact voxel + shape parity â€” the unified
         /// contract is usable end-to-end on the Atlas substrate.
         #[test]
         fn native_contract_round_trips_tiff() {

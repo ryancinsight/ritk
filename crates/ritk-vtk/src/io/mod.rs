@@ -1,4 +1,4 @@
-//! VTK I/O module — free functions, VtkReader/VtkWriter wrappers, and sub-modules.
+//! VTK I/O module â€” free functions, VtkReader/VtkWriter wrappers, and sub-modules.
 
 pub mod polydata;
 pub use polydata::{read_vtk_polydata, write_vtk_polydata};
@@ -46,7 +46,7 @@ pub use reader::{read_vtk, read_vtk_flat};
 pub use writer::{encode_vtk_flat, write_vtk};
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use std::path::Path;
 
 /// Simple wrapper for reading VTK legacy structured-points images.

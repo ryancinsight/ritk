@@ -33,8 +33,8 @@
 //!   Deviation. *J. Amer. Statist. Assoc.*, 88(424), 1273–1283.
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image as NativeImage;
-use ritk_image::tensor::backend::Backend;
+use ritk_image::tensor::Backend;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
@@ -106,7 +106,10 @@ fn mad_sigma(values: &mut [f32]) -> f32 {
 ///
 /// # Complexity
 /// O(n log n) where n is the total number of voxels.
-pub fn estimate_noise_mad<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
+pub fn estimate_noise_mad<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> f32
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     let (vals, _) = extract_vec_infallible(image);
     let mut values = vals;
     mad_sigma(&mut values)
@@ -120,10 +123,11 @@ pub fn estimate_noise_mad_native<B, const D: usize>(
     image: &NativeImage<f32, B, D>,
 ) -> anyhow::Result<f32>
 where
-    B: ComputeBackend,
+    B: ComputeBackend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
-    Ok(estimate_noise_mad_from_slice(image.data_slice()?))
+    let values = image.data_slice()?;
+    Ok(estimate_noise_mad_from_slice(values))
 }
 
 /// Estimate the standard deviation of additive Gaussian noise in `image` using
@@ -151,9 +155,12 @@ where
 /// # Complexity
 /// O(n log n) where n is the number of foreground voxels.
 pub fn estimate_noise_mad_masked<B: Backend, const D: usize>(
-    image: &Image<B, D>,
-    mask: &Image<B, D>,
-) -> f32 {
+    image: &Image<f32, B, D>,
+    mask: &Image<f32, B, D>,
+) -> f32
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     let (img_vals, _) = extract_vec_infallible(image);
     let img_slice: &[f32] = &img_vals;
     let (mask_vals, _) = extract_vec_infallible(mask);

@@ -1,14 +1,13 @@
 use super::transform_to_displacement_field;
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make(dims: [usize; 3]) -> Image<B, 3> {
+fn make(dims: [usize; 3]) -> Image<f32, B, 3> {
     let n: usize = dims.iter().product();
-    ts::burn_compat::make_image::<B, 3>(vec![0.0f32; n], dims)
+    ts::make_image::<f32, B, 3>(vec![0.0f32; n], dims)
 }
 
 const ID: [[f64; 3]; 3] = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
@@ -37,7 +36,7 @@ fn transform_to_displacement_translation_is_constant() {
     let (tx, ty, tz) = (1.5f64, -2.0, 0.75);
     let (dz, dy, dx) =
         transform_to_displacement_field(&make(dims), ID, [tx, ty, tz], [1.0, 1.0, 1.0]).unwrap();
-    let check = |img: &Image<B, 3>, want: f64| {
+    let check = |img: &Image<f32, B, 3>, want: f64| {
         let (v, _) = extract_vec_infallible(img);
         assert!(
             v.iter().all(|&c| (c as f64 - want).abs() < 1e-5),

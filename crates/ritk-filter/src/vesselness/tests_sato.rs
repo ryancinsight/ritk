@@ -1,19 +1,18 @@
 //! Tests for Sato vesselness filter.
 
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
 // Re-import using the crate's own paths (within ritk-core).
 use ritk_image::Image as CoreImage;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(data: Vec<f32>, dims: [usize; 3]) -> CoreImage<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(data, dims)
+fn make_image(data: Vec<f32>, dims: [usize; 3]) -> CoreImage<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(data, dims)
 }
 
 #[test]
@@ -86,7 +85,7 @@ fn make_sphere(nz: usize, ny: usize, nx: usize, cz: f32, cy: f32, cx: f32, r: f3
         .collect()
 }
 
-// ── Test 1 ────────────────────────────────────────────────────────────────
+// â”€â”€ Test 1 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// A bright cylinder along the z-axis must produce a high Sato response
 /// at its centre compared to the background.
@@ -107,15 +106,7 @@ fn test_cylindrical_tube_detects_line() {
     };
     let filter = SatoLineFilter::new(config);
     let result = filter.apply(&image).expect("apply failed");
-
-    let _device: <B as ritk_image::tensor::Backend>::Device = Default::default();
-    let out: Vec<f32> = result
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec();
+    let out: Vec<f32> = result.data().to_vec();
 
     // Centre column: z = any, y = 16, x = 16 (flat index = z*N*N + 16*N + 16).
     let mut centre_responses: Vec<f32> = (0..N).map(|iz| out[iz * N * N + 16 * N + 16]).collect();
@@ -134,11 +125,11 @@ fn test_cylindrical_tube_detects_line() {
     );
     assert!(
         median_centre > median_bg * 3.0,
-        "centre response ({median_centre:.6}) should exceed background ({median_bg:.6}) by 3×"
+        "centre response ({median_centre:.6}) should exceed background ({median_bg:.6}) by 3Ã—"
     );
 }
 
-// ── Test 2 ────────────────────────────────────────────────────────────────
+// â”€â”€ Test 2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// A bright sphere has a lower peak Sato response than the cylinder tube
 /// produced by test 1, because spheres are blob-like, not line-like.
@@ -158,24 +149,8 @@ fn test_sphere_lower_response_than_tube() {
     let tube_img = make_image(tube_data, [N, N, N]);
     let sphere_img = make_image(sphere_data, [N, N, N]);
 
-    let tube_out: Vec<f32> = filter
-        .apply(&tube_img)
-        .unwrap()
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec();
-    let sphere_out: Vec<f32> = filter
-        .apply(&sphere_img)
-        .unwrap()
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec();
+    let tube_out: Vec<f32> = filter.apply(&tube_img).unwrap().data().to_vec();
+    let sphere_out: Vec<f32> = filter.apply(&sphere_img).unwrap().data().to_vec();
 
     let tube_peak = tube_out.iter().cloned().fold(0.0_f32, f32::max);
     let sphere_peak = sphere_out.iter().cloned().fold(0.0_f32, f32::max);
@@ -186,7 +161,7 @@ fn test_sphere_lower_response_than_tube() {
     );
 }
 
-// ── Test 3 ────────────────────────────────────────────────────────────────
+// â”€â”€ Test 3 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// With `bright_tubes = true`, a dark tube (intensity 0, background 1)
 /// must produce near-zero response everywhere.
@@ -201,17 +176,11 @@ fn test_dark_tube_rejected_by_bright_gate() {
     let config = SatoConfig {
         scales: vec![1.5],
         alpha: 0.5,
-        polarity: VesselPolarity::Bright, // bright gate — should reject the dark tube
+        polarity: VesselPolarity::Bright, // bright gate â€” should reject the dark tube
     };
     let filter = SatoLineFilter::new(config);
     let result = filter.apply(&make_image(dark_tube, [N, N, N])).unwrap();
-    let out: Vec<f32> = result
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec();
+    let out: Vec<f32> = result.data().to_vec();
 
     let max_resp = out.iter().cloned().fold(0.0_f32, f32::max);
     assert!(
@@ -220,7 +189,7 @@ fn test_dark_tube_rejected_by_bright_gate() {
     );
 }
 
-// ── Test 4 ────────────────────────────────────────────────────────────────
+// â”€â”€ Test 4 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// A uniform image has zero Hessian everywhere, so all Sato responses are zero.
 #[test]
@@ -231,13 +200,7 @@ fn test_uniform_image_zero_response() {
     let config = SatoConfig::default();
     let filter = SatoLineFilter::new(config);
     let result = filter.apply(&make_image(data, [N, N, N])).unwrap();
-    let out: Vec<f32> = result
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec();
+    let out: Vec<f32> = result.data().to_vec();
 
     let max_resp = out.iter().cloned().fold(0.0_f32, f32::max);
     assert!(
@@ -246,7 +209,7 @@ fn test_uniform_image_zero_response() {
     );
 }
 
-// ── Test 5 ────────────────────────────────────────────────────────────────
+// â”€â”€ Test 5 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// All output voxels must be finite for any non-trivial input.
 #[test]
@@ -272,13 +235,7 @@ fn test_response_all_finite() {
     };
     let filter = SatoLineFilter::new(config);
     let result = filter.apply(&make_image(data, [N, N, N])).unwrap();
-    let out: Vec<f32> = result
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec();
+    let out: Vec<f32> = result.data().to_vec();
 
     for (i, &v) in out.iter().enumerate() {
         assert!(v.is_finite(), "voxel {i} is non-finite: {v}");

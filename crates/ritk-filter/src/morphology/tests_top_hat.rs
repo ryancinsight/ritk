@@ -1,22 +1,24 @@
 //! Tests for top_hat
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use crate::native_support::LegacyBurnBackend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
-type B = LegacyBurnBackend;
-fn img(v: Vec<f32>, d: [usize; 3]) -> Image<B, 3> {
-    let t = Tensor::<B, 3>::from_data(TensorData::new(v, Shape::new(d)), &Default::default());
+type B = coeus_core::SequentialBackend;
+fn img(v: Vec<f32>, d: [usize; 3]) -> Image<f32, B, 3> {
+    let t = Tensor::<f32, B>::from_slice(d, &v);
     Image::new(
         t,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
-fn vv(i: &Image<B, 3>) -> Vec<f32> {
-    i.data_slice().into_owned()
+fn vv(i: &Image<f32, B, 3>) -> Vec<f32> {
+    i.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 #[test]
@@ -59,14 +61,14 @@ fn test_wth_radius_zero() {
 fn test_wth_metadata() {
     let d = [5, 5, 5];
     let n = d[0] * d[1] * d[2];
-    let t = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![1.0_f32; n], Shape::new(d)),
-        &Default::default(),
-    );
+    let t = Tensor::<f32, B>::from_slice(d, &vec![1.0_f32; n]);
     let o = Point::new([1.0, 2.0, 3.0]);
     let s = Spacing::new([0.5, 0.5, 0.5]);
     let r = WhiteTopHatFilter::new(1)
-        .apply(&Image::new(t, o, s, Direction::identity()))
+        .apply(
+            &Image::new(t, o, s, Direction::identity())
+                .expect("invariant: fixture tensor has the declared rank"),
+        )
         .unwrap();
     assert_eq!(*r.origin(), o);
     assert_eq!(*r.spacing(), s);
@@ -121,14 +123,14 @@ fn test_bth_radius_zero() {
 fn test_bth_metadata() {
     let d = [5, 5, 5];
     let n = d[0] * d[1] * d[2];
-    let t = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![1.0_f32; n], Shape::new(d)),
-        &Default::default(),
-    );
+    let t = Tensor::<f32, B>::from_slice(d, &vec![1.0_f32; n]);
     let o = Point::new([1.0, 2.0, 3.0]);
     let s = Spacing::new([0.5, 0.5, 0.5]);
     let r = BlackTopHatFilter::new(1)
-        .apply(&Image::new(t, o, s, Direction::identity()))
+        .apply(
+            &Image::new(t, o, s, Direction::identity())
+                .expect("invariant: fixture tensor has the declared rank"),
+        )
         .unwrap();
     assert_eq!(*r.origin(), o);
     assert_eq!(*r.spacing(), s);

@@ -1,13 +1,12 @@
-use burn_ndarray::NdArray;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 
 use super::statistics::inverse_covariance;
 use super::{segment_values, VectorConfidenceConnectedConfig, VectorConfidenceConnectedFilter};
 
-type LegacyBackend = NdArray<f32>;
+type LegacyBackend = SequentialBackend;
 
 fn scene() -> (Vec<Vec<f32>>, [usize; 3]) {
     let (height, width) = (10usize, 10usize);
@@ -231,7 +230,7 @@ fn legacy_and_native_outputs_are_exact_with_nonidentity_geometry() {
     let origin = Point::new([2.0, 3.0, 5.0]);
     let spacing = Spacing::new([0.5, 1.0, 2.0]);
     let direction = Direction::from_rows([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]);
-    let legacy: Vec<Image<LegacyBackend, 3>> = channels
+    let legacy: Vec<Image<f32, LegacyBackend, 3>> = channels
         .iter()
         .map(|values| {
             Image::from_flat_on(
@@ -242,6 +241,7 @@ fn legacy_and_native_outputs_are_exact_with_nonidentity_geometry() {
                 direction,
                 &Default::default(),
             )
+            .expect("invariant: fixture tensor has the declared rank")
         })
         .collect();
     let native: Vec<_> = channels
@@ -265,7 +265,12 @@ fn legacy_and_native_outputs_are_exact_with_nonidentity_geometry() {
     let actual = filter
         .apply_native(&native_refs, &SequentialBackend)
         .unwrap();
-    assert_eq!(actual.data_slice().unwrap(), expected.data_slice().as_ref());
+    assert_eq!(
+        actual.data_slice().unwrap(),
+        expected
+            .data_slice()
+            .expect("invariant: contiguous host storage")
+    );
     assert_eq!(*actual.origin(), origin);
     assert_eq!(*actual.spacing(), spacing);
     assert_eq!(*actual.direction(), direction);
@@ -273,22 +278,24 @@ fn legacy_and_native_outputs_are_exact_with_nonidentity_geometry() {
 
 #[test]
 fn channel_geometry_mismatch_is_rejected_exactly() {
-    let first = Image::<LegacyBackend, 3>::from_flat_on(
+    let first = Image::<f32, LegacyBackend, 3>::from_flat_on(
         vec![1.0],
         [1, 1, 1],
         Point::new([0.0; 3]),
         Spacing::new([1.0; 3]),
         Direction::identity(),
         &Default::default(),
-    );
-    let second = Image::<LegacyBackend, 3>::from_flat_on(
+    )
+    .expect("invariant: fixture tensor has the declared rank");
+    let second = Image::<f32, LegacyBackend, 3>::from_flat_on(
         vec![1.0],
         [1, 1, 1],
         Point::new([1.0, 0.0, 0.0]),
         Spacing::new([1.0; 3]),
         Direction::identity(),
         &Default::default(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     let filter = VectorConfidenceConnectedFilter::new([[0, 0, 0]], config());
     assert_eq!(
         filter.apply(&[&first, &second]).unwrap_err().to_string(),

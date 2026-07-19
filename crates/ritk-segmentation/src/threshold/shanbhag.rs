@@ -2,7 +2,7 @@
 //!
 //! Matches ITK's `ShanbhagThresholdCalculator`: choose the threshold that
 //! balances the information measures of the background and foreground fuzzy
-//! membership distributions (minimises `|ent_back − ent_obj|`).
+//! membership distributions (minimises `|ent_back âˆ’ ent_obj|`).
 
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
@@ -34,12 +34,12 @@ impl ShanbhagThreshold {
     }
 
     /// Compute the Shanbhag threshold intensity for `image`.
-    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> f32 {
+    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> f32 {
         <Self as AutoThreshold>::compute(self, image)
     }
 
     /// Apply the Shanbhag threshold to produce a binary mask.
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         <Self as AutoThreshold>::apply(self, image)
     }
 
@@ -51,9 +51,9 @@ impl ShanbhagThreshold {
     /// or the native output image cannot be constructed.
     pub fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -126,7 +126,7 @@ impl AutoThreshold for ShanbhagThreshold {
 }
 
 /// Convenience function: compute the Shanbhag threshold with 256 bins.
-pub fn shanbhag_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
+pub fn shanbhag_threshold<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> f32 {
     ShanbhagThreshold::new().compute(image)
 }
 

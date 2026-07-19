@@ -2,7 +2,7 @@ use coeus_core::SequentialBackend;
 use ritk_filter::resample::native::{
     fixed_world_points, resample_image_native, sample_moving_at_world,
 };
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::transform::affine::AtlasAffineTransform;
 

@@ -4,18 +4,18 @@
 //!
 //! Li's method iteratively minimizes the cross-entropy between the original
 //! image and its thresholded version. The iteration scheme converges to the
-//! threshold that minimizes the Kullback–Leibler divergence of the two-class
+//! threshold that minimizes the Kullbackâ€“Leibler divergence of the two-class
 //! model from the original intensity distribution.
 //!
 //! ## Algorithm
 //!
 //! 1. Compute a normalized histogram h\[i\] over N bins.
-//! 2. Initialize: t₀ = μ (global mean intensity in bin-index space).
+//! 2. Initialize: tâ‚€ = Î¼ (global mean intensity in bin-index space).
 //! 3. Iterate:
-//!    μ_b(t) = Σ_{i=0}^{⌊t⌋}   i·h\[i\] / Σ_{i=0}^{⌊t⌋}   h\[i\]
-//!    μ_f(t) = Σ_{i=⌊t⌋+1}^{N-1} i·h\[i\] / Σ_{i=⌊t⌋+1}^{N-1} h\[i\]
-//!    t_{n+1} = (μ_b + μ_f) / 2
-//! 4. Converge when |t_{n+1} − t_n| < tolerance (1e-6) or max_iterations reached.
+//!    Î¼_b(t) = Î£_{i=0}^{âŒŠtâŒ‹}   iÂ·h\[i\] / Î£_{i=0}^{âŒŠtâŒ‹}   h\[i\]
+//!    Î¼_f(t) = Î£_{i=âŒŠtâŒ‹+1}^{N-1} iÂ·h\[i\] / Î£_{i=âŒŠtâŒ‹+1}^{N-1} h\[i\]
+//!    t_{n+1} = (Î¼_b + Î¼_f) / 2
+//! 4. Converge when |t_{n+1} âˆ’ t_n| < tolerance (1e-6) or max_iterations reached.
 //! 5. Convert the converged bin index to intensity units:
 //!    t*_intensity = centre of the converged bin under ITK histogram geometry
 //!    (see `auto_threshold`); the iteration runs in measurement space.
@@ -24,19 +24,19 @@
 //!
 //! Histogram construction: O(n) voxels.
 //! Each iteration:          O(N) bins.
-//! Total:                   O(n + k·N), k = number of iterations until convergence.
+//! Total:                   O(n + kÂ·N), k = number of iterations until convergence.
 //!
 //! # References
 //!
 //! - Li, C.H. & Tam, P.K.S. (1998). "An iterative algorithm for minimum
-//!   cross entropy thresholding." *Pattern Recognition Letters*, 19(8), 771–776.
+//!   cross entropy thresholding." *Pattern Recognition Letters*, 19(8), 771â€“776.
 
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 use super::auto_threshold::{bin_center, itk_bin_width, threshold_from_slice, AutoThreshold};
 
-// ── Public API ─────────────────────────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Li's minimum cross-entropy thresholding.
 ///
@@ -66,19 +66,19 @@ impl LiThreshold {
     /// For a constant image, returns the image's uniform intensity.
     ///
     /// Delegates to [`AutoThreshold::compute`].
-    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> f32 {
+    pub fn compute<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> f32 {
         <Self as AutoThreshold>::compute(self, image)
     }
 
     /// Apply the Li threshold to produce a binary mask.
     ///
-    /// - Pixels with intensity ≥ t* → 1.0 (foreground).
-    /// - Pixels with intensity <  t* → 0.0 (background).
+    /// - Pixels with intensity â‰¥ t* â†’ 1.0 (foreground).
+    /// - Pixels with intensity <  t* â†’ 0.0 (background).
     ///
     /// Spatial metadata (origin, spacing, direction) is preserved exactly.
     ///
     /// Delegates to [`AutoThreshold::apply`].
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         <Self as AutoThreshold>::apply(self, image)
     }
 
@@ -90,9 +90,9 @@ impl LiThreshold {
     /// or the native output image cannot be constructed.
     pub fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -107,7 +107,7 @@ impl Default for LiThreshold {
     }
 }
 
-// ── AutoThreshold implementation ───────────────────────────────────────────────
+// â”€â”€ AutoThreshold implementation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 impl AutoThreshold for LiThreshold {
     fn num_bins(&self) -> usize {
@@ -119,19 +119,19 @@ impl AutoThreshold for LiThreshold {
     ///
     /// # Algorithm
     /// The iteration runs in **measurement (intensity) space** over the bin
-    /// centres `c[i] = x_min + (i + 0.5)·bin_width`, not bin-index space — the
+    /// centres `c[i] = x_min + (i + 0.5)Â·bin_width`, not bin-index space â€” the
     /// `log` in Li's update is non-linear, so index-space and measurement-space
     /// iterations converge to different thresholds.
     ///
-    /// 1. `mean = Σ c[i]·f[i] / Σ f[i]`; initialise `new = mean`, `old = NaN`.
+    /// 1. `mean = Î£ c[i]Â·f[i] / Î£ f[i]`; initialise `new = mean`, `old = NaN`.
     /// 2. `bin_min = min(x_min, 0)` (shift applied before the logs so they are
     ///    defined for non-positive intensities).
-    /// 3. Loop while `|new − old| > 0.5` (ITK's fixed tolerance):
+    /// 3. Loop while `|new âˆ’ old| > 0.5` (ITK's fixed tolerance):
     ///    - `ht` = bin index containing `old`.
-    ///    - `μ_b` = mean centre of bins `[0, ht]`, `μ_f` = mean centre of bins
-    ///      `(ht, N)`; both shifted by `−bin_min`.
-    ///    - `temp = (μ_b − μ_f) / (ln μ_b − ln μ_f)`, **rounded to the nearest
-    ///      integer** (ITK truncates `temp ± 0.5` toward zero), then
+    ///    - `Î¼_b` = mean centre of bins `[0, ht]`, `Î¼_f` = mean centre of bins
+    ///      `(ht, N)`; both shifted by `âˆ’bin_min`.
+    ///    - `temp = (Î¼_b âˆ’ Î¼_f) / (ln Î¼_b âˆ’ ln Î¼_f)`, **rounded to the nearest
+    ///      integer** (ITK truncates `temp Â± 0.5` toward zero), then
     ///      `new = temp + bin_min`.
     /// 4. Return the centre of the bin containing the converged `new`
     ///    (ITK `GetMeasurement(ht)`).
@@ -197,7 +197,7 @@ impl AutoThreshold for LiThreshold {
                 (mean_back - mean_obj) / (mean_back.ln() - mean_obj.ln())
             };
 
-            // ITK rounds toward the nearest integer, truncating ±0.5 toward zero.
+            // ITK rounds toward the nearest integer, truncating Â±0.5 toward zero.
             let temp = if temp < -eps {
                 (temp - 0.5).trunc()
             } else {
@@ -211,10 +211,10 @@ impl AutoThreshold for LiThreshold {
     }
 }
 
-// ── Convenience functions ──────────────────────────────────────────────────────
+// â”€â”€ Convenience functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Convenience function: compute the Li threshold with default parameters (256 bins, 1000 iterations).
-pub fn li_threshold<B: Backend, const D: usize>(image: &Image<B, D>) -> f32 {
+pub fn li_threshold<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> f32 {
     LiThreshold::new().compute(image)
 }
 
@@ -237,7 +237,7 @@ pub fn compute_li_threshold_from_slice(
     )
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_li.rs"]

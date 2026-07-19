@@ -28,7 +28,7 @@ pub fn encode_code_block(
     assert_eq!(
         samples.len(),
         width * height,
-        "EBCOT encode: samples length must equal width × height"
+        "EBCOT encode: samples length must equal width Ã— height"
     );
 
     // Determine sign and magnitude from DC-shifted samples.
@@ -61,13 +61,13 @@ pub fn encode_code_block(
     let mut ctxs = initial_contexts();
     let mut total_passes = 0u32;
 
-    // The first (MSB) plane is cleanup-only (ISO 15444-1 §D.4.1): SPP/MRP are
-    // skipped, giving the standard pass count 3P − 2 for P coded bit-planes.
+    // The first (MSB) plane is cleanup-only (ISO 15444-1 Â§D.4.1): SPP/MRP are
+    // skipped, giving the standard pass count 3P âˆ’ 2 for P coded bit-planes.
     for bp in (0..num_bit_planes as u32).rev() {
         let first_plane = bp + 1 == u32::from(num_bit_planes);
         if !first_plane {
-            // ── SPP ──────────────────────────────────────────────────────────────
-            // Stripe-oriented scan (ISO 15444-1 §D.2): 4-row stripes, columns
+            // â”€â”€ SPP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // Stripe-oriented scan (ISO 15444-1 Â§D.2): 4-row stripes, columns
             // within each stripe, rows within each column.
             let mut sy = 0;
             while sy < height {
@@ -102,7 +102,7 @@ pub fn encode_code_block(
             }
             total_passes += 1;
 
-            // ── MRP ──────────────────────────────────────────────────────────────
+            // â”€â”€ MRP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             let mut sy = 0;
             while sy < height {
                 for x in 0..width {
@@ -124,7 +124,7 @@ pub fn encode_code_block(
             total_passes += 1;
         } // end !first_plane (SPP + MRP)
 
-        // ── CUP ──────────────────────────────────────────────────────────────
+        // â”€â”€ CUP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let mut y = 0;
         while y < height {
             let mut x = 0;

@@ -4,11 +4,11 @@
 //!
 //! A "peak" is a bright regional maximum enclosed by a darker surround that is
 //! not connected to the image boundary. Grind-peak grinds each such peak down to
-//! the level of the highest "saddle" connecting it to the border — the dual of
+//! the level of the highest "saddle" connecting it to the border â€” the dual of
 //! [`super::grayscale_fillhole`], which raises enclosed dark pits.
 //!
 //! Computed as a morphological reconstruction by dilation:
-//! `GrindPeak(f) = R^δ_f(J)` where the marker `J` equals `f` on the image border
+//! `GrindPeak(f) = R^Î´_f(J)` where the marker `J` equals `f` on the image border
 //! and the global minimum of `f` in the interior. Reconstruction by dilation
 //! lifts the interior marker back up to `f`, but bright peaks not reachable from
 //! the border (where the marker stayed at the global minimum) are ground down to
@@ -17,10 +17,10 @@
 //! # ITK / SimpleITK Parity
 //!
 //! Matches `itk::GrayscaleGrindPeakImageFilter` / `sitk.GrayscaleGrindPeak`
-//! (`FullyConnectedOff` → 6-connected in 3-D). Output satisfies `g[x] ≤ f[x]`.
+//! (`FullyConnectedOff` â†’ 6-connected in 3-D). Output satisfies `g[x] â‰¤ f[x]`.
 //!
 //! # References
-//! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer, §6.3.
+//! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer, Â§6.3.
 
 use crate::morphology::label_morphology::{MorphologicalReconstruction, ReconstructionMode};
 use crate::morphology::{on_image_border, Connectivity};
@@ -56,7 +56,7 @@ impl GrayscaleGrindPeakFilter {
     }
 
     /// Apply the grind-peak filter to a 3-D image.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         let [nz, ny, nx] = dims;
         let gmin = vals.iter().copied().fold(f32::INFINITY, f32::min);
@@ -82,9 +82,9 @@ impl GrayscaleGrindPeakFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -111,7 +111,7 @@ impl GrayscaleGrindPeakFilter {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_grayscale_grind_peak.rs"]

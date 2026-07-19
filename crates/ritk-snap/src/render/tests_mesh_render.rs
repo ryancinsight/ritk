@@ -11,7 +11,7 @@
 use super::*;
 use ritk_io::VtkPolyData;
 
-// ── Vector math tests ─────────────────────────────────────────────────────────
+// â”€â”€ Vector math tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// normalize([3, 4, 0]) must yield [0.6, 0.8, 0.0] (Pythagorean triple).
 #[test]
@@ -51,9 +51,9 @@ fn cross3_standard_basis() {
     assert!((c[2] - 1.0).abs() < 1e-10);
 }
 
-// ── Face normal tests ─────────────────────────────────────────────────────────
+// â”€â”€ Face normal tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Unit square in XY plane → normal = [0, 0, ±1].
+/// Unit square in XY plane â†’ normal = [0, 0, Â±1].
 ///
 /// p0=(0,0,0), p1=(1,0,0), p2=(0,1,0):
 ///   e0 = (1,0,0), e1 = (0,1,0), cross = (0,0,1)
@@ -72,7 +72,7 @@ fn face_normal_degenerate_triangle() {
     assert_eq!(n, [0.0, 0.0, 1.0]);
 }
 
-// ── Phong shading tests ───────────────────────────────────────────────────────
+// â”€â”€ Phong shading tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Ambient-only illumination (diffuse=specular=[0,0,0]) must equal ambient.
 ///
@@ -101,7 +101,7 @@ fn phong_ambient_only() {
 /// Light directly facing the surface normal yields maximum diffuse contribution.
 ///
 /// Normal = [0,0,1], light direction = [0,0,1] (toward light = away from surface).
-/// n · l = 1.0 → I_diffuse = k_d * I_light = 0.8 (per channel).
+/// n Â· l = 1.0 â†’ I_diffuse = k_d * I_light = 0.8 (per channel).
 /// Total = ambient(0.1) + diffuse(0.8 * 1.0) = 0.9 (clamped).
 #[test]
 fn phong_diffuse_head_on_light() {
@@ -133,7 +133,7 @@ fn phong_diffuse_head_on_light() {
     }
 }
 
-/// Light behind the surface must yield zero diffuse (n·l < 0 → clamped to 0).
+/// Light behind the surface must yield zero diffuse (nÂ·l < 0 â†’ clamped to 0).
 #[test]
 fn phong_back_light_no_diffuse() {
     let material = PhongMaterial {
@@ -191,9 +191,9 @@ fn phong_output_clamped_to_unit_range() {
     }
 }
 
-// ── Matrix tests ──────────────────────────────────────────────────────────────
+// â”€â”€ Matrix tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Identity matrix × identity matrix = identity.
+/// Identity matrix Ã— identity matrix = identity.
 #[test]
 fn mat4_mul_identity_times_identity() {
     let identity = [
@@ -230,7 +230,7 @@ fn look_at_eye_to_origin_z_depth() {
 /// perspective matrix diagonal: m[0] = f/aspect, m[5] = f.
 #[test]
 fn perspective_diagonal_elements() {
-    let fov_y = PI / 2.0; // 90 degrees → f = tan⁻¹(45°) = 1.0
+    let fov_y = PI / 2.0; // 90 degrees â†’ f = tanâ»Â¹(45Â°) = 1.0
     let aspect = 2.0;
     let m = perspective(fov_y, aspect, 0.1, 1000.0);
     let f = 1.0 / (fov_y / 2.0).tan();
@@ -238,7 +238,7 @@ fn perspective_diagonal_elements() {
     assert!((m[5] - f).abs() < 1e-6, "m[5] = {}", m[5]);
 }
 
-// ── Renderer coverage tests ───────────────────────────────────────────────────
+// â”€â”€ Renderer coverage tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// A single front-facing triangle centered on Z-axis must produce at least one
 /// non-transparent pixel.
@@ -365,7 +365,7 @@ fn renderer_z_buffer_nearer_occludes_farther() {
 #[test]
 fn renderer_back_facing_triangle_culled() {
     let mut mesh = VtkPolyData::default();
-    // Reversed winding: [0,2,1] instead of [0,1,2] — back-facing
+    // Reversed winding: [0,2,1] instead of [0,1,2] â€” back-facing
     mesh.points = vec![[-0.5, -0.5, 0.0], [0.5, -0.5, 0.0], [0.0, 0.5, 0.0]];
     mesh.polygons = vec![vec![0, 2, 1]]; // reversed
 

@@ -49,7 +49,7 @@ fn warp_displacement(
 
 /// The exact inverse of the zero velocity field is the zero velocity field.
 ///
-/// Base case: `exp(0) ∘ exp(−0) = id ∘ id = id`.
+/// Base case: `exp(0) âˆ˜ exp(âˆ’0) = id âˆ˜ id = id`.
 #[test]
 fn test_velocity_field_negation_is_exact_inverse() {
     let n = 4 * 4 * 4;
@@ -118,7 +118,7 @@ fn test_invert_displacement_identity_field_is_zero() {
 }
 
 /// The inverse of a uniform x-translation by +2.0 voxels has mean
-/// x-displacement in [−2.1, −1.9].
+/// x-displacement in [âˆ’2.1, âˆ’1.9].
 #[test]
 fn test_invert_small_translation() {
     let dims = [16usize, 16, 16];
@@ -134,7 +134,7 @@ fn test_invert_small_translation() {
     let mean_inv_x: f64 = inv.x.iter().map(|&v| v as f64).sum::<f64>() / n as f64;
     assert!(
         (-2.1..=-1.9).contains(&mean_inv_x),
-        "mean(inv_x) = {mean_inv_x:.6}, expected in [−2.1, −1.9]"
+        "mean(inv_x) = {mean_inv_x:.6}, expected in [âˆ’2.1, âˆ’1.9]"
     );
 
     let mean_inv_z: f64 = inv.z.iter().map(|&v| v as f64).sum::<f64>() / n as f64;

@@ -4,9 +4,9 @@
 //!
 //! Ports `itk::ErodeObjectMorphologyImageFilter` (box structuring element). The
 //! output starts as a copy of the input. Every voxel equal to `object_value`
-//! that is **on the object boundary** — i.e. at least one of its `3×3×3`
+//! that is **on the object boundary** â€” i.e. at least one of its `3Ã—3Ã—3`
 //! immediate neighbours is not `object_value`, with out-of-image neighbours
-//! treated as non-object (ITK's erode boundary condition `= max`) — paints its
+//! treated as non-object (ITK's erode boundary condition `= max`) â€” paints its
 //! entire `(2r+1)^3` box footprint in the output with `background_value`.
 //!
 //! Equivalently, a shell of thickness `r` is removed from every object surface,
@@ -56,7 +56,7 @@ impl ErodeObjectMorphologyFilter {
     }
 
     /// Erode the object surface by the box structuring element.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let (vals, dims) = extract_vec_infallible(image);
         let [nz, ny, nx] = dims;
         let [rz, ry, rx] = self.radius;
@@ -66,7 +66,7 @@ impl ErodeObjectMorphologyFilter {
         let idx = |z: usize, y: usize, x: usize| (z * ny + y) * nx + x;
 
         // Boundary-scan radius per axis: 0 for a size-1 (z=1-promoted 2-D) axis
-        // so its absent border is not mistaken for a non-object neighbour — a
+        // so its absent border is not mistaken for a non-object neighbour â€” a
         // genuine 3-D axis (size > 1) keeps radius 1, where out-of-image still
         // counts as non-object (ITK's erode boundary condition).
         let bz = if nz > 1 { 1i32 } else { 0 };
@@ -79,7 +79,7 @@ impl ErodeObjectMorphologyFilter {
                     if vals[idx(z, y, x)] != obj {
                         continue;
                     }
-                    // Boundary: any neighbour in the (existing) 3×3×3 window is
+                    // Boundary: any neighbour in the (existing) 3Ã—3Ã—3 window is
                     // non-object, with out-of-image neighbours counted as
                     // non-object.
                     let mut boundary = false;
@@ -128,9 +128,9 @@ impl ErodeObjectMorphologyFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -144,7 +144,7 @@ impl ErodeObjectMorphologyFilter {
         let idx = |z: usize, y: usize, x: usize| (z * ny + y) * nx + x;
 
         // Boundary-scan radius per axis: 0 for a size-1 (z=1-promoted 2-D) axis
-        // so its absent border is not mistaken for a non-object neighbour — a
+        // so its absent border is not mistaken for a non-object neighbour â€” a
         // genuine 3-D axis (size > 1) keeps radius 1, where out-of-image still
         // counts as non-object (ITK's erode boundary condition).
         let bz = if nz > 1 { 1i32 } else { 0 };
@@ -157,7 +157,7 @@ impl ErodeObjectMorphologyFilter {
                     if vals[idx(z, y, x)] != obj {
                         continue;
                     }
-                    // Boundary: any neighbour in the (existing) 3×3×3 window is
+                    // Boundary: any neighbour in the (existing) 3Ã—3Ã—3 window is
                     // non-object, with out-of-image neighbours counted as
                     // non-object.
                     let mut boundary = false;

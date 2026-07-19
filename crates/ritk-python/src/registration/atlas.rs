@@ -22,7 +22,7 @@ pub struct PyAtlasBuildOptions {
     /// Per-voxel RMS change threshold for early stopping.
     #[pyo3(get, set)]
     pub convergence_threshold: f64,
-    /// Per-level SyN iteration counts; `None` → [100, 70, 20].
+    /// Per-level SyN iteration counts; `None` â†’ [100, 70, 20].
     #[pyo3(get, set)]
     pub syn_iterations: Option<Vec<usize>>,
     /// Gaussian smoothing sigma for velocity fields (voxels).

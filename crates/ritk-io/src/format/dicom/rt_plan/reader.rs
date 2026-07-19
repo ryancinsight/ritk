@@ -1,4 +1,4 @@
-//! RT Plan reader — parse a DICOM RT Plan Storage file into [`RtPlanInfo`].
+//! RT Plan reader â€” parse a DICOM RT Plan Storage file into [`RtPlanInfo`].
 
 use anyhow::{bail, Context, Result};
 use arrayvec::ArrayString;
@@ -24,7 +24,7 @@ fn parse_u32_is(raw: &str, field: &str) -> Result<u32> {
 ///
 /// # Errors
 /// - `path` does not exist or is not readable.
-/// - The file's `MediaStorageSOPClassUID` ≠ `1.2.840.10008.5.1.4.1.1.481.5`.
+/// - The file's `MediaStorageSOPClassUID` â‰  `1.2.840.10008.5.1.4.1.1.481.5`.
 /// - Present RT Plan sequence integer fields are malformed.
 /// - Present beam or fraction-group sequence elements are not DICOM sequences.
 pub fn read_rt_plan<P: AsRef<Path>>(path: P) -> Result<RtPlanInfo> {
@@ -218,22 +218,17 @@ pub fn read_rt_plan<P: AsRef<Path>>(path: P) -> Result<RtPlanInfo> {
                                     .collect::<Result<Vec<_>>>()?,
                                 _ => bail!(
                                     "ReferencedBeamSequence (300A,00B6) is present but is not a sequence"
-                                ),
-                            },
-                            Err(_) => Vec::new(),
-                        };
+                                ) },
+                            Err(_) => Vec::new() };
 
                     Ok(RtFractionGroup {
                         fraction_group_number,
                         n_fractions_planned,
-                        referenced_beam_numbers,
-                    })
+                        referenced_beam_numbers })
                 })
                 .collect::<Result<Vec<_>>>()?,
-            _ => bail!("FractionGroupSequence (300A,0070) is present but is not a sequence"),
-        },
-        Err(_) => Vec::new(),
-    };
+            _ => bail!("FractionGroupSequence (300A,0070) is present but is not a sequence") },
+        Err(_) => Vec::new() };
 
     tracing::debug!(
         "read_rt_plan: label='{}' n_beams={} n_fraction_groups={}",

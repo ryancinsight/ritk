@@ -1,5 +1,5 @@
 //! Differential coverage: each native binary-morphology wrapper must be
-//! value-identical to the Burn filter it mirrors — both call the identical
+//! value-identical to the Burn filter it mirrors â€” both call the identical
 //! substrate-agnostic core (shared harness in `native_support`).
 
 use super::{binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening};
@@ -7,13 +7,13 @@ use crate::morphology::{
     BinaryDilateFilter, BinaryErodeFilter, BinaryFillholeFilter, BinaryMorphologicalClosing,
     BinaryMorphologicalOpening,
 };
-use crate::native_support::assert_native_matches_burn;
+use crate::native_support::assert_coeus_matches_coeus;
 
 mod erode {
     use super::*;
 
     fn check(vals: Vec<f32>, dims: [usize; 3], radius: usize) {
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             vals,
             dims,
             |img| {
@@ -53,7 +53,7 @@ mod dilate {
     use super::*;
 
     fn check(vals: Vec<f32>, dims: [usize; 3], radius: usize) {
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             vals,
             dims,
             |img| {
@@ -96,7 +96,7 @@ mod closing {
     use super::*;
 
     fn check(vals: Vec<f32>, dims: [usize; 3], radius: usize) {
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             vals,
             dims,
             |img| {
@@ -138,7 +138,7 @@ mod opening {
     use super::*;
 
     fn check(vals: Vec<f32>, dims: [usize; 3], radius: usize) {
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             vals,
             dims,
             |img| {
@@ -162,7 +162,7 @@ mod opening {
     fn matches_burn_isolated_voxel_removed_radius_one() {
         let dims = [3usize, 3, 3];
         let mut vals = vec![0.0f32; 27];
-        vals[13] = 1.0; // lone centre voxel — erosion kills it, opening yields all-bg
+        vals[13] = 1.0; // lone centre voxel â€” erosion kills it, opening yields all-bg
         check(vals, dims, 1);
     }
 
@@ -187,7 +187,7 @@ mod fill_holes {
     fn matches_burn_for_enclosed_center_hole() {
         let mut values = vec![1.0; 27];
         values[13] = 0.0;
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             values,
             [3, 3, 3],
             |image| {
@@ -205,7 +205,7 @@ mod fill_holes {
         values[0] = 0.0;
         values[1] = 0.0;
         values[13] = 0.0;
-        assert_native_matches_burn(
+        assert_coeus_matches_coeus(
             values,
             [3, 3, 3],
             |image| {

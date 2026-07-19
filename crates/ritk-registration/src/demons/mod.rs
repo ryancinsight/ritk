@@ -29,20 +29,20 @@
 //! # Module Layout
 /// ```text
 /// demons/
-/// ├── mod.rs ← this file (re-exports)
-/// ├── config.rs ← DemonsConfig, DemonsResult (SSOT)
-/// ├── level_set_motion.rs ← ITK LevelSetMotionRegistrationFilter variant
-/// ├── thirion/ ← Thirion 1998 classic Demons
-/// ├── diffeomorphic/ ← Vercauteren 2009 diffeomorphic variant
-/// ├── symmetric/  ← Pennec 1999 symmetric-force variant
-/// │   ├── mod.rs
-/// │   └── tests.rs
-/// ├── inverse/ ← Exact SVF inverse + iterative displacement inverse
-/// ├── exact_inverse_diffeomorphic/ ← Inverse-consistent diffeomorphic Demons
-/// └── multires/ ← Multi-resolution coarse-to-fine pyramid
-///     ├── mod.rs
-///     ├── resample.rs
-///     └── tests_multires.rs
+/// â”œâ”€â”€ mod.rs â† this file (re-exports)
+/// â”œâ”€â”€ config.rs â† DemonsConfig, DemonsResult (SSOT)
+/// â”œâ”€â”€ level_set_motion.rs â† ITK LevelSetMotionRegistrationFilter variant
+/// â”œâ”€â”€ thirion/ â† Thirion 1998 classic Demons
+/// â”œâ”€â”€ diffeomorphic/ â† Vercauteren 2009 diffeomorphic variant
+/// â”œâ”€â”€ symmetric/  â† Pennec 1999 symmetric-force variant
+/// â”‚   â”œâ”€â”€ mod.rs
+/// â”‚   â””â”€â”€ tests.rs
+/// â”œâ”€â”€ inverse/ â† Exact SVF inverse + iterative displacement inverse
+/// â”œâ”€â”€ exact_inverse_diffeomorphic/ â† Inverse-consistent diffeomorphic Demons
+/// â””â”€â”€ multires/ â† Multi-resolution coarse-to-fine pyramid
+///     â”œâ”€â”€ mod.rs
+///     â”œâ”€â”€ resample.rs
+///     â””â”€â”€ tests_multires.rs
 /// ```
 ///
 /// Shared CPU primitives (indexing, interpolation, gradient, smoothing,

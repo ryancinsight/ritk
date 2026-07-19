@@ -1,4 +1,5 @@
-use ritk_image::tensor::backend::Backend;
+use coeus_core::CpuAddressableStorage;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
@@ -179,10 +180,13 @@ pub(crate) fn msd_from_flat<const D: usize>(
 
 /// Compute the Hausdorff distance between two binary segmentation masks.
 pub fn hausdorff_distance<B: Backend, const D: usize>(
-    prediction: &Image<B, D>,
-    ground_truth: &Image<B, D>,
+    prediction: &Image<f32, B, D>,
+    ground_truth: &Image<f32, B, D>,
     spacing: &[f64; D],
-) -> f32 {
+) -> f32
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     let (pred_flat, pred_shape) = extract_vec_infallible(prediction);
     let (gt_flat, gt_shape) = extract_vec_infallible(ground_truth);
     hausdorff_from_flat(&pred_flat, pred_shape, &gt_flat, gt_shape, spacing)
@@ -190,10 +194,13 @@ pub fn hausdorff_distance<B: Backend, const D: usize>(
 
 /// Compute the symmetric mean surface distance between two binary masks.
 pub fn mean_surface_distance<B: Backend, const D: usize>(
-    prediction: &Image<B, D>,
-    ground_truth: &Image<B, D>,
+    prediction: &Image<f32, B, D>,
+    ground_truth: &Image<f32, B, D>,
     spacing: &[f64; D],
-) -> f32 {
+) -> f32
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     let (pred_flat, pred_shape) = extract_vec_infallible(prediction);
     let (gt_flat, gt_shape) = extract_vec_infallible(ground_truth);
     msd_from_flat(&pred_flat, pred_shape, &gt_flat, gt_shape, spacing)

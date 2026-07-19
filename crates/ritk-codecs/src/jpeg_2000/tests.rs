@@ -14,11 +14,11 @@ fn layout(rows: usize, cols: usize, bits: u16, signed: PixelSignedness) -> Pixel
     }
 }
 
-// ── Marker constant tests ────────────────────────────────────────────────
+// â”€â”€ Marker constant tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn soc_marker_constant_matches_iso_15444_1() {
-    assert_eq!(SOC, 0xFF4F, "SOC must equal 0xFF4F per ISO 15444-1 §A.3.1");
+    assert_eq!(SOC, 0xFF4F, "SOC must equal 0xFF4F per ISO 15444-1 Â§A.3.1");
     assert_eq!(SOC >> 8, 0xFF, "SOC high byte must be 0xFF");
     assert_eq!(SOC & 0xFF, 0x4F, "SOC low byte must be 0x4F");
 }
@@ -29,7 +29,7 @@ fn soi_constant_matches_jpeg_start_of_image() {
     assert_ne!(SOI, SOC, "SOI and SOC must be distinct markers");
 }
 
-// ── Codestream detection ─────────────────────────────────────────────────
+// â”€â”€ Codestream detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn is_jpeg2000_codestream_detects_soc_at_byte_0() {
@@ -52,7 +52,7 @@ fn is_jpeg2000_codestream_rejects_empty_and_single_byte() {
     assert!(!is_jpeg2000_codestream(&[0xFF]));
 }
 
-// ── Error-path tests ─────────────────────────────────────────────────────
+// â”€â”€ Error-path tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn decode_returns_error_for_non_soc_prefix() {
@@ -82,7 +82,7 @@ fn decode_returns_error_for_truncated_codestream() {
     );
 }
 
-// ── Lossless round-trip tests ────────────────────────────────────────────
+// â”€â”€ Lossless round-trip tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn decode_jpeg2000_lossless_round_trip_4x4_uniform() {
@@ -180,7 +180,7 @@ fn decode_jpeg2000_lossless_rescale_applied_correctly() {
     let decoded = decode_jpeg2000_fragment(&j2k, pixel_layout)
         .expect("single-pixel rescale test must succeed");
 
-    assert_eq!(decoded, vec![-824.0f32]); // 100 × 2 + (−1024) = −824
+    assert_eq!(decoded, vec![-824.0f32]); // 100 Ã— 2 + (âˆ’1024) = âˆ’824
 }
 
 #[test]
@@ -205,7 +205,7 @@ fn decode_jpeg2000_lossless_round_trip_unsigned_16bit() {
 
 proptest::proptest! {
     /// Lossless invariant (ISO 15444-1, 5/3 reversible, 0 DWT levels):
-    /// for any image and precision, |decoded − original| = 0 exactly.
+    /// for any image and precision, |decoded âˆ’ original| = 0 exactly.
     #[test]
     fn decode_jpeg2000_lossless_round_trip_random(
         rows in 1u32..9,
@@ -358,7 +358,7 @@ fn ritk_native_decoder_replaces_openjp2_backend() {
     );
 }
 
-// ── Lossy 9/7 irreversible round-trips ───────────────────────────────────
+// â”€â”€ Lossy 9/7 irreversible round-trips â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn decode_jpeg2000_lossy_9_7_round_trip_structured_8bit() {

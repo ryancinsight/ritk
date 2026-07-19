@@ -3,7 +3,7 @@ use ritk_filter::{
     Colormap, LabelMapContourOverlayFilter, LabelOverlayFilter, LabelToRGBFilter,
     ScalarToRGBColormapFilter,
 };
-use ritk_image::native::{ColorVolume, Image};
+use ritk_image::{ColorVolume, Image};
 use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;
@@ -35,8 +35,8 @@ fn assert_rgb_components(volume: &ColorVolume<f32, B, 3>, expected: [&[f32]; 3])
     }
 }
 
-/// Grey colormap on a `[10,20,30,40,50]` ramp → `[0,63,127,191,255]` per channel
-/// (normalize by image min/max, ×255, floor — `0.25·255 = 63.75 → 63`).
+/// Grey colormap on a `[10,20,30,40,50]` ramp â†’ `[0,63,127,191,255]` per channel
+/// (normalize by image min/max, Ã—255, floor â€” `0.25Â·255 = 63.75 â†’ 63`).
 #[test]
 fn grey_ramp_matches_itk_truncation() {
     let img = native_image(vec![10.0, 20.0, 30.0, 40.0, 50.0], [1, 1, 5]);
@@ -59,7 +59,7 @@ fn red_colormap_channel_selection() {
     assert_rgb_components(&out, [&red, &black, &black]);
 }
 
-/// A constant image maps to all-zero (`range = 0 → t = 0`).
+/// A constant image maps to all-zero (`range = 0 â†’ t = 0`).
 #[test]
 fn constant_image_maps_to_zero() {
     let img = native_image(vec![7.0; 8], [2, 2, 2]);
@@ -79,7 +79,7 @@ fn unsupported_colormap_rejected() {
     assert_eq!(Colormap::from_name("gray").unwrap(), Colormap::Grey);
 }
 
-/// LabelToRGB: background→black, labels 1..7 use the ITK table, and the table
+/// LabelToRGB: backgroundâ†’black, labels 1..7 use the ITK table, and the table
 /// cycles with period 30 (label 31 == label 1's colour). Pinned by sitk probe.
 #[test]
 fn label_to_rgb_matches_itk_table_and_cycles() {
@@ -99,7 +99,7 @@ fn label_to_rgb_matches_itk_table_and_cycles() {
 
 /// LabelOverlay: background passes grayscale through; labels alpha-blend with
 /// the colour table at `opacity=0.5` (floor). Pinned by sitk probe:
-/// gray=[100,100,200,200], label=[0,1,0,2] → [[100,100,100],[50,152,50],
+/// gray=[100,100,200,200], label=[0,1,0,2] â†’ [[100,100,100],[50,152,50],
 /// [200,200,200],[100,100,227]].
 #[test]
 fn label_overlay_blends_with_table() {
@@ -111,9 +111,9 @@ fn label_overlay_blends_with_table() {
     let c = out.data_cow_on(&B::default());
     let rgb = |i: usize| [c[3 * i], c[3 * i + 1], c[3 * i + 2]];
     assert_eq!(rgb(0), [100.0, 100.0, 100.0]); // background
-    assert_eq!(rgb(1), [50.0, 152.0, 50.0]); // label1: ½·100+½·[0,205,0]
+    assert_eq!(rgb(1), [50.0, 152.0, 50.0]); // label1: Â½Â·100+Â½Â·[0,205,0]
     assert_eq!(rgb(2), [200.0, 200.0, 200.0]); // background
-    assert_eq!(rgb(3), [100.0, 100.0, 227.0]); // label2: ½·200+½·[0,0,255], 227.5→227
+    assert_eq!(rgb(3), [100.0, 100.0, 227.0]); // label2: Â½Â·200+Â½Â·[0,0,255], 227.5â†’227
 }
 
 /// Opacity 1.0 yields the pure label colour over labelled voxels.
@@ -129,7 +129,7 @@ fn label_overlay_full_opacity_is_label_color() {
     assert_eq!([c[3], c[4], c[5]], [0.0, 0.0, 255.0]);
 }
 
-/// LabelMapContourOverlay default geometry on an 8×8 (z=1) scene, vs the exact
+/// LabelMapContourOverlay default geometry on an 8Ã—8 (z=1) scene, vs the exact
 /// `sitk.LabelMapContourOverlay` RGB output (uint8 feature = arange 0..63).
 #[test]
 fn label_map_contour_overlay_matches_sitk() {

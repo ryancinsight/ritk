@@ -5,7 +5,7 @@ use super::{
     native::{compute_statistics, masked_statistics},
 };
 use coeus_core::MoiraiBackend;
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
 type Native3DImage = NativeImage<f32, MoiraiBackend, 3>;

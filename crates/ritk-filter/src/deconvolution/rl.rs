@@ -1,19 +1,19 @@
-//! Richardson-Lucy iterative deconvolution — 2-D and 3-D.
+//! Richardson-Lucy iterative deconvolution â€” 2-D and 3-D.
 //!
 //! # Theory
 //!
 //! For Poisson noise model (photon-counting detectors), EM update:
 //!
 //! ```text
-//! u₀ = g
-//! uₖ₊₁ = uₖ · (h* ⋆ (g / (h ⋆ uₖ)))
+//! uâ‚€ = g
+//! uâ‚–â‚Šâ‚ = uâ‚– Â· (h* â‹† (g / (h â‹† uâ‚–)))
 //! ```
 //!
 //! where `h*` is the reversed (transposed) PSF kernel.
 //!
 //! # Properties
 //! - Preserves non-negativity when initialized with non-negative input
-//! - Preserves total flux: Σ uₖ = Σ g for all k
+//! - Preserves total flux: Î£ uâ‚– = Î£ g for all k
 //! - Converges to the maximum-likelihood estimate under Poisson noise
 
 use super::regularization::{
@@ -29,19 +29,19 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 /// For Poisson noise model (appropriate for photon-counting detectors):
 ///
 /// ```text
-/// u₀ = g (or uniform)
-/// uₖ₊₁ = uₖ · (h* ⋆ (g / (h ⋆ uₖ)))
+/// uâ‚€ = g (or uniform)
+/// uâ‚–â‚Šâ‚ = uâ‚– Â· (h* â‹† (g / (h â‹† uâ‚–)))
 /// ```
 ///
 /// where `h*` is the reversed (transposed) PSF kernel.
 ///
 /// # Properties
 /// - Preserves non-negativity if initialized with non-negative values
-/// - Preserves total flux: Σ uₖ = Σ g for all k
+/// - Preserves total flux: Î£ uâ‚– = Î£ g for all k
 /// - Converges to the maximum-likelihood estimate under Poisson noise
 ///
 /// # Complexity
-/// O(iterations · N log N) for FFT-based convolution.
+/// O(iterations Â· N log N) for FFT-based convolution.
 pub struct RichardsonLucyDeconvolution {
     /// Maximum number of iterations (default: 30).
     pub max_iterations: usize,
@@ -73,9 +73,9 @@ impl RichardsonLucyDeconvolution {
     /// Apply Richardson-Lucy deconvolution to a D-dimensional image.
     pub fn apply<B: Backend, const D: usize>(
         &self,
-        image: &Image<B, D>,
-        kernel: &Image<B, D>,
-    ) -> Result<Image<B, D>> {
+        image: &Image<f32, B, D>,
+        kernel: &Image<f32, B, D>,
+    ) -> Result<Image<f32, B, D>> {
         let (img_vals, img_dims) = extract_vec(image)?;
         let (ker_vals, ker_dims) = extract_vec(kernel)?;
         let out_vals = apply_iterative::<D>(
@@ -95,10 +95,10 @@ impl RichardsonLucyDeconvolution {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
-        kernel: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
+        kernel: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

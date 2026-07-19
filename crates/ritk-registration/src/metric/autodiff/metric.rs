@@ -14,7 +14,7 @@
 //! - [`super::mse::mean_squared_error`] reduces to the scalar loss.
 //!
 //! The whole chain stays on the autograd tape, so `.backward()` on the returned
-//! loss accumulates the gradient into the transform's parameters — the signal a
+//! loss accumulates the gradient into the transform's parameters â€” the signal a
 //! gradient-descent optimizer consumes to drive alignment. [`affine_mse`]
 //! is a thin convenience wrapper constructing an [`Affine`] and dispatching.
 
@@ -30,24 +30,24 @@ use super::transform::Affine;
 /// Differentiable MSE between `fixed` and the `moving` image sampled at an
 /// affine-transformed copy of the fixed sampling grid.
 ///
-/// - `moving_flat`: flattened moving image, shape `[Z·Y·X]` with
+/// - `moving_flat`: flattened moving image, shape `[ZÂ·YÂ·X]` with
 ///   `dims = [Z, Y, X]` (row-major).
 /// - `fixed`: fixed-image intensities at the `N` grid points, shape `[N]`.
 /// - `grid`: fixed-grid voxel coordinates as `[N, 3]` rows ordered `(z, y, x)`.
-/// - `r`: `[3, 3]` linear map, `t`: `[3]` translation — the affine parameters;
+/// - `r`: `[3, 3]` linear map, `t`: `[3]` translation â€” the affine parameters;
 ///   mark `requires_grad` to receive the alignment gradient.
 ///
 /// Returns the scalar (`[1]`) loss `Var`. Internally the affine's `[N, 3]`
 /// output is split into the three per-axis coordinate `Var`s the trilinear
 /// sampler consumes, via the differentiable `slice` (its scatter backward keeps
-/// the tape intact through the split), so `.backward()` accumulates `∂loss/∂R`
-/// and `∂loss/∂t`.
+/// the tape intact through the split), so `.backward()` accumulates `âˆ‚loss/âˆ‚R`
+/// and `âˆ‚loss/âˆ‚t`.
 ///
 /// # Panics
 ///
 /// Panics on the shape-invariant violations of the composed primitives
 /// (non-flat `moving_flat`, `grid` not `[N, 3]`, `r` not `[3, 3]`, `t` not
-/// `[3]`) — caller invariants.
+/// `[3]`) â€” caller invariants.
 pub fn affine_mse<T, B>(
     moving_flat: &Var<T, B>,
     dims: [usize; 3],
@@ -61,7 +61,7 @@ where
     B: ComputeBackend + BackendOps<T> + Default,
     B::DeviceBuffer<T>: CpuAddressableStorage<T> + CpuAddressableStorageMut<T>,
 {
-    // Thin wrapper: the split → sample → reduce composition lives once in
+    // Thin wrapper: the split â†’ sample â†’ reduce composition lives once in
     // `evaluate`; this bundles the affine parameters and picks the MSE metric.
     let transform = Affine {
         r: r.clone(),
@@ -93,10 +93,10 @@ where
 /// [`Transform`] (ADR 0001). This is the single composition SSOT:
 /// `metric.reduce(sample_trilinear(moving, split(transform(grid))), fixed)`.
 ///
-/// - `moving_flat`: flattened moving image `[Z·Y·X]` with `dims = [Z, Y, X]`.
+/// - `moving_flat`: flattened moving image `[ZÂ·YÂ·X]` with `dims = [Z, Y, X]`.
 /// - `fixed`: fixed-image intensities at the `N` grid points, `[N]`.
 /// - `grid`: fixed-grid voxel coordinates as `[N, 3]` rows `(z, y, x)`.
-/// - `metric`: the intensity-loss reduction ([`Mse`], [`super::ncc::Ncc`], …).
+/// - `metric`: the intensity-loss reduction ([`Mse`], [`super::ncc::Ncc`], â€¦).
 /// - `transform`: the differentiable coordinate transform; its parameters
 ///   receive the alignment gradient via `.backward()` on the returned loss.
 ///
@@ -107,7 +107,7 @@ where
 /// # Panics
 ///
 /// Panics if `grid` is not `[N, 3]` or on the composed primitives' shape
-/// invariants — caller invariants.
+/// invariants â€” caller invariants.
 pub fn evaluate<T, B, M, Tf>(
     moving_flat: &Var<T, B>,
     dims: [usize; 3],

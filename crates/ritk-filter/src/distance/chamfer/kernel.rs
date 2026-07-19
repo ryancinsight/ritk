@@ -1,23 +1,23 @@
 //! Low-level chamfer distance transform kernel: two raster scans over a
-//! 3×3×3 mask.
+//! 3Ã—3Ã—3 mask.
 
-// ── ZST chamfer strategy ────────────────────────────────────────────────────
+// â”€â”€ ZST chamfer strategy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Trait for chamfer distance weight computation.
 ///
 /// Each implementation is a zero-sized type so that the compiler monomorphises
 /// the two-pass raster scan with the weight call fully inlined and the match
-/// branch eliminated — zero runtime overhead versus a hand-written variant.
+/// branch eliminated â€” zero runtime overhead versus a hand-written variant.
 pub trait ChamferKernel: Default {
     /// Compute the chamfer weight for an offset `(dz, dy, dx)` with per-axis
     /// physical weights `w = [wz, wy, wx]`.
     ///
-    /// Caller must pass `(dz, dy, dx) ∈ {−1, 0, +1}³ ∖ {(0, 0, 0)}`;
+    /// Caller must pass `(dz, dy, dx) âˆˆ {âˆ’1, 0, +1}Â³ âˆ– {(0, 0, 0)}`;
     /// behaviour is unspecified for any other input.
     fn weight(dz: i32, dy: i32, dx: i32, w: [i32; 3]) -> i32;
 }
 
-/// L∞ (chessboard) metric: distance is the maximum absolute voxel offset
+/// Lâˆž (chessboard) metric: distance is the maximum absolute voxel offset
 /// along any axis. Matches `scipy.ndimage.distance_transform_cdt` default.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Chessboard;
@@ -28,7 +28,7 @@ impl ChamferKernel for Chessboard {
         let wz = if dz != 0 { w[0] } else { 0 };
         let wy = if dy != 0 { w[1] } else { 0 };
         let wx = if dx != 0 { w[2] } else { 0 };
-        // L∞ — max weighted axis delta (manual ternary since `Ord::max`
+        // Lâˆž â€” max weighted axis delta (manual ternary since `Ord::max`
         // is not yet stable in `const fn`).
         if wz >= wy && wz >= wx {
             wz
@@ -51,19 +51,19 @@ impl ChamferKernel for Taxicab {
         let wz = if dz != 0 { w[0] } else { 0 };
         let wy = if dy != 0 { w[1] } else { 0 };
         let wx = if dx != 0 { w[2] } else { 0 };
-        // L1 — sum of weighted axis deltas.
+        // L1 â€” sum of weighted axis deltas.
         wz + wy + wx
     }
 }
 
-// ── Backward-compatible enum ─────────────────────────────────────────────────
+// â”€â”€ Backward-compatible enum â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Chamfer distance metric.
 ///
 /// Preserved for API compatibility. Internally converted to the
 /// corresponding ZST strategy type before computation.
 ///
-/// `Chessboard` matches the L∞ norm; `Taxicab` matches the L1 norm. Both
+/// `Chessboard` matches the Lâˆž norm; `Taxicab` matches the L1 norm. Both
 /// produce an integer-valued distance map.
 ///
 /// Note: this kernel implements the **interior distance transform** of
@@ -72,8 +72,8 @@ impl ChamferKernel for Taxicab {
 /// background voxels receive 0.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ChamferMetric {
-    /// L∞ norm: distance is the maximum absolute voxel offset along any axis.
-    /// The default — matches `scipy.ndimage.distance_transform_cdt` default.
+    /// Lâˆž norm: distance is the maximum absolute voxel offset along any axis.
+    /// The default â€” matches `scipy.ndimage.distance_transform_cdt` default.
     #[default]
     Chessboard,
     /// L1 norm: distance is the sum of absolute voxel offsets along all axes.
@@ -84,9 +84,9 @@ pub enum ChamferMetric {
 /// `i32::MAX` exceeds any practical chamfer distance for real data.
 pub const INF: i32 = i32::MAX;
 
-/// Returns the 7-tap predecessor half-mask S⁻ = {−1, 0}³ ∖ {(0,0,0)} as
-/// `(dz, dy, dx)` tuples. Each has all components in {−1, 0} with at least
-/// one −1. Together with the 7-tap successor half S⁺, all 26 unique
+/// Returns the 7-tap predecessor half-mask Sâ» = {âˆ’1, 0}Â³ âˆ– {(0,0,0)} as
+/// `(dz, dy, dx)` tuples. Each has all components in {âˆ’1, 0} with at least
+/// one âˆ’1. Together with the 7-tap successor half Sâº, all 26 unique
 /// neighbours of a voxel are covered.
 #[inline]
 const fn predecessor_offsets() -> [(i32, i32, i32); 7] {
@@ -101,7 +101,7 @@ const fn predecessor_offsets() -> [(i32, i32, i32); 7] {
     ]
 }
 
-/// Returns the 7-tap successor half-mask S⁺ = {0, +1}³ ∖ {(0,0,0)} as
+/// Returns the 7-tap successor half-mask Sâº = {0, +1}Â³ âˆ– {(0,0,0)} as
 /// `(dz, dy, dx)` tuples. Each has all components in {0, +1} with at least
 /// one +1.
 #[inline]
@@ -124,9 +124,9 @@ const fn successor_offsets() -> [(i32, i32, i32); 7] {
 /// spacing, `weights = round(s / s_min)` per axis.
 ///
 /// The two-pass algorithm uses the **full 7-tap half-mask** in both
-/// directions: predecessor S⁻ = {−1, 0}³ ∖ {(0,0,0)} in pass 1 and
-/// successor S⁺ = {0, +1}³ ∖ {(0,0,0)} in pass 2. With the L∞ weight
-/// assignment, this gives the exact L∞ distance (chessboard); with the
+/// directions: predecessor Sâ» = {âˆ’1, 0}Â³ âˆ– {(0,0,0)} in pass 1 and
+/// successor Sâº = {0, +1}Â³ âˆ– {(0,0,0)} in pass 2. With the Lâˆž weight
+/// assignment, this gives the exact Lâˆž distance (chessboard); with the
 /// L1 weight assignment, this gives the exact L1 distance (taxicab) on a
 /// uniform grid.
 pub fn cdt<K: ChamferKernel>(fg: &[bool], dims: [usize; 3], weights: [i32; 3]) -> Vec<i32> {
@@ -135,7 +135,7 @@ pub fn cdt<K: ChamferKernel>(fg: &[bool], dims: [usize; 3], weights: [i32; 3]) -
     let pred = predecessor_offsets();
     let succ = successor_offsets();
 
-    // Seed: **background → 0, foreground → INF** (scipy interior-distance
+    // Seed: **background â†’ 0, foreground â†’ INF** (scipy interior-distance
     // convention). Background voxels stay at 0 across both passes; only
     // foreground voxels are relaxed, accumulating the chamfer distance to
     // the nearest background seed.
@@ -214,7 +214,7 @@ pub fn cdt_dispatch(
     }
 }
 
-/// Free-function form (no Image<B, 3> binding) for callers that already have
+/// Free-function form (no Image<f32, B, 3> binding) for callers that already have
 /// a binary mask in row-major order.
 ///
 /// Returns the chamfer distance map as `Vec<i32>` in units of `s_min`.

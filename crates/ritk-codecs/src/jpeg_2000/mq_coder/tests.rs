@@ -72,7 +72,7 @@ proptest::proptest! {
 #[test]
 fn trace_openjp2_reference_prefix() {
     // First bytes of the 62-byte code-block body captured from OpenJPEG
-    // 2.5.2 (8×8, prec 8, numres 1).
+    // 2.5.2 (8Ã—8, prec 8, numres 1).
     let body: [u8; 12] = [
         0x12, 0x51, 0x7A, 0x62, 0x3E, 0xFC, 0x7B, 0x8E, 0x3E, 0x6C, 0xBF, 0x33,
     ];
@@ -188,7 +188,7 @@ impl RefMq {
                 ctx.state = entry.nmps;
                 self.renorme();
             } else {
-                // No renorm → no state transition (opj_mqc_codemps).
+                // No renorm â†’ no state transition (opj_mqc_codemps).
                 self.c += qe;
             }
         } else {
@@ -244,7 +244,7 @@ fn reference_port_register_differential() {
 
 #[test]
 fn trace_v1_mid_reference() {
-    // OpenJPEG body for the +1 impulse at (4,4) of an 8×8 block (single
+    // OpenJPEG body for the +1 impulse at (4,4) of an 8Ã—8 block (single
     // cleanup pass). Our cleanup script: stripe0 = 8 AGG zeros; stripe1 =
     // 4 AGG zeros, col4 RLC (AGG, UNI, UNI, sign), col4 rows 5-7 ZC,
     // col5 4 ZC, cols 6-7 AGG zeros.

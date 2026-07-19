@@ -3,7 +3,7 @@
 //!
 //! Reproduces SimpleITK bit-for-bit when seeded identically
 //! (`SetSeed(Hash(userSeed, regionStart))`). `GetVariate()` returns a closed-range
-//! `[0, 1]` double, `int / (2³² − 1)`.
+//! `[0, 1]` double, `int / (2Â³Â² âˆ’ 1)`.
 
 const N: usize = 624;
 const M: usize = 397;
@@ -77,7 +77,7 @@ impl MersenneTwister {
     }
 
     /// Half-open uniform variate in `[0, 1)` (ITK `GetVariateWithOpenUpperRange`),
-    /// `int / 2³²`.
+    /// `int / 2Â³Â²`.
     #[inline]
     pub(crate) fn variate_open_upper(&mut self) -> f64 {
         self.integer() as f64 / 4_294_967_296.0

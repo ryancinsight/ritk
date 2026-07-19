@@ -5,11 +5,11 @@
 //! Given variance v_d (physical units^2) and voxel spacing h_d, the pixel
 //! variance is t = v_d / h_d^2. The kernel is ITK's *discrete* Gaussian
 //! (`GaussianOperator`), the discrete analog of the Gaussian (Lindeberg 1990):
-//!   g\[k\] = e^{-t} · I_{|k|}(t)   for k in {-r,...,r}
+//!   g\[k\] = e^{-t} Â· I_{|k|}(t)   for k in {-r,...,r}
 //! where I_n is the modified Bessel function of the first kind. One-sided
-//! coefficients are accumulated until the mass g\[0\] + 2·Sum_{i>=1} g\[i\]
+//! coefficients are accumulated until the mass g\[0\] + 2Â·Sum_{i>=1} g\[i\]
 //! reaches 1 - maximum_error (radius capped at 32), then normalised by that sum.
-//! This is NOT a sampled continuous Gaussian — it is float-exact to SimpleITK.
+//! This is NOT a sampled continuous Gaussian â€” it is float-exact to SimpleITK.
 //!
 //! # Boundary Conditions
 //! Replicate (edge) padding is used for all convolutions. This preserves the
@@ -37,7 +37,7 @@ pub(crate) use convolve::convolve_separable;
 use crate::edge::GaussianSigma;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
@@ -94,7 +94,7 @@ pub struct DiscreteGaussianFilter<B: Backend> {
 impl<B: Backend> DiscreteGaussianFilter<B> {
     /// Create with per-dimension Gaussian sigmas (physical units).
     ///
-    /// Variance is computed internally as `sigma²` for each dimension.
+    /// Variance is computed internally as `sigmaÂ²` for each dimension.
     /// Panics if `sigmas` is empty.
     pub fn new(sigmas: Vec<GaussianSigma>) -> Self {
         assert!(!sigmas.is_empty(), "sigmas list must not be empty");
@@ -138,10 +138,11 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
     }
 
     /// Apply the filter; spatial metadata preserved.
-    pub fn apply<const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn apply<const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         let (tensor, origin, spacing, direction) = image.clone().into_parts();
         let smoothed = self.apply_inner(tensor, &spacing);
         Image::new(smoothed, origin, spacing, direction)
+            .expect("filter preserves the statically validated image rank")
     }
 
     /// Build the per-axis discrete-Gaussian kernels for the given spacing.
@@ -166,20 +167,22 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
     #[inline]
     fn apply_inner<const D: usize>(
         &self,
-        data: Tensor<B, D>,
+        data: Tensor<f32, B>,
         spacing: &ritk_spatial::Spacing<D>,
-    ) -> Tensor<B, D> {
-        let device = data.device();
-        let dims: [usize; D] = data.shape().dims();
+    ) -> Tensor<f32, B> {
+        let dims: [usize; D] = data
+            .shape()
+            .try_into()
+            .expect("DiscreteGaussianFilter preserves the const-generic image rank");
 
         let kernels = self.kernels_for_spacing::<D>(spacing);
         if kernels.iter().all(|k| k.is_none()) {
             return data;
         }
 
-        let flat: Vec<f32> = data.into_data().into_vec::<f32>().expect("f32 tensor data");
+        let flat = data.to_vec();
         let result = convolve_separable(flat, dims, &kernels);
-        Tensor::<B, D>::from_data(TensorData::new(result, Shape::new(dims)), &device)
+        Tensor::<f32, B>::from_slice(dims, &result)
     }
 
     /// Coeus-native sister of [`DiscreteGaussianFilter::apply`].
@@ -196,8 +199,8 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
     /// or the rebuilt tensor fails shape validation.
     pub fn apply_native<BC>(
         &self,
-        image: &ritk_image::native::Image<f32, BC, 3>,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, BC, 3>>
+        image: &ritk_image::Image<f32, BC, 3>,
+    ) -> anyhow::Result<ritk_image::Image<f32, BC, 3>>
     where
         BC: coeus_core::ComputeBackend + Default,
         BC::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -220,8 +223,8 @@ const VARIANCE_MIN: f64 = 1e-18;
 ///
 /// Returns `[Option<Vec<f32>>; D]`: `None` for an axis whose pixel variance is
 /// below [`VARIANCE_MIN`] or whose kernel collapses to the identity impulse
-/// (length ≤ 1). `variance` is the per-axis physical-variance schedule
-/// (broadcast from the last entry); `spacing_mode` selects the physical→pixel
+/// (length â‰¤ 1). `variance` is the per-axis physical-variance schedule
+/// (broadcast from the last entry); `spacing_mode` selects the physicalâ†’pixel
 /// conversion. Shared by [`DiscreteGaussianFilter::kernels_for_spacing`] and
 /// [`discrete_gaussian_smooth_flat`].
 pub(crate) fn discrete_gaussian_kernels<const D: usize>(
@@ -278,9 +281,9 @@ pub(crate) fn discrete_gaussian_smooth_flat(
 const GAUSSIAN_MAX_KERNEL_RADIUS: usize = 32;
 
 /// Build ITK's discrete Gaussian operator (`GaussianOperator`): the symmetric,
-/// normalised coefficients `g[k] = e^{-t}·I_{|k|}(t)` where `t` is the pixel
+/// normalised coefficients `g[k] = e^{-t}Â·I_{|k|}(t)` where `t` is the pixel
 /// variance and `I_n` is the modified Bessel function. One-sided coefficients
-/// accumulate until the running mass reaches `1 − maximum_error`, capped at
+/// accumulate until the running mass reaches `1 âˆ’ maximum_error`, capped at
 /// radius 32. Float-exact to SimpleITK `DiscreteGaussian`.
 pub(crate) fn gaussian_operator_1d(pixel_variance: f64, maximum_error: f64) -> Vec<f32> {
     let t = pixel_variance;

@@ -3,7 +3,7 @@ use crate::native_support::{make_native_image, make_native_image_with_metadata, 
 use coeus_core::SequentialBackend;
 use ritk_spatial::{Direction, Point, Spacing};
 
-fn make_image(vals: Vec<f32>) -> ritk_image::native::Image<f32, SequentialBackend, 3> {
+fn make_image(vals: Vec<f32>) -> ritk_image::Image<f32, SequentialBackend, 3> {
     let n = vals.len();
     make_native_image(vals, [1, 1, n])
 }

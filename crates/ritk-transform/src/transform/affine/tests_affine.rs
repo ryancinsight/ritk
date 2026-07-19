@@ -1,17 +1,9 @@
-//! Atlas-typed tests for the affine transform sister adapter.
-//!
-//! Strict subtractive on test surface (ADR 0012 §Decision §Sub-batch #3.f):
-//! every affine case exercises [`super::super::atlas_affine::AtlasAffineTransform`]
-//! (sister API) + `super::super::atlas_affine::AtlasAffineError` over
-//! host-slice params, rather than the legacy tensor-backed
-//! `super::super::affine::AffineTransform<B, D>` (which carries the
-//! `Module` derive and `Param<Tensor>` wrapping — sub-batch #5 owns the
-//! `coeus_nn::Module` derive migration).
+//! Value-semantic tests for the host-backed affine transform.
 //!
 //! The `test_atlas_affine_seeded_from_rigid_rotation_reproduces_rigid`
 //! test uses the same closed-form Euler convention documented by
 //! `RigidTransform::build_rotation_matrix()` (`R = R_z * R_y * R_x`) while
-//! keeping this rewritten test file free of legacy tensor construction.
+//! keeping this test independent of tensor construction.
 
 use super::super::atlas_affine::AtlasAffineTransform;
 use coeus_core::MoiraiBackend;
@@ -84,7 +76,7 @@ fn test_atlas_affine_transform_identity() {
 
     let points_values: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
     let dims = [2usize, 3];
-    let points = ritk_image::native::Image::<f32, MoiraiBackend, 2>::from_flat(
+    let points = ritk_image::Image::<f32, MoiraiBackend, 2>::from_flat(
         points_values,
         dims,
         ritk_spatial::Point::origin(),
@@ -119,7 +111,7 @@ fn test_atlas_affine_transform_translation_with_center() {
     // Point at center `[10, 10, 0]`: T(c) = c + t = `[11, 11, 0]`.
     let points_values: Vec<f32> = vec![10.0, 10.0, 0.0];
     let dims = [1usize, 3];
-    let points = ritk_image::native::Image::<f32, MoiraiBackend, 2>::from_flat(
+    let points = ritk_image::Image::<f32, MoiraiBackend, 2>::from_flat(
         points_values,
         dims,
         ritk_spatial::Point::origin(),
@@ -150,7 +142,7 @@ fn test_atlas_affine_transform_scale_with_center() {
     // Point `[2, 1]` (1 unit right of center): T(x) = 2 · (x - c) + c = `[3, 1]`.
     let points_values: Vec<f32> = vec![2.0, 1.0];
     let dims = [1usize, 2];
-    let points = ritk_image::native::Image::<f32, MoiraiBackend, 2>::from_flat(
+    let points = ritk_image::Image::<f32, MoiraiBackend, 2>::from_flat(
         points_values,
         dims,
         ritk_spatial::Point::origin(),
@@ -202,7 +194,7 @@ fn test_atlas_affine_seeded_from_rigid_rotation_reproduces_rigid() {
 
     let pts_values: Vec<f32> = vec![1.0, 2.0, 3.0, 10.0, -4.0, 0.5];
     let pts_dims = [2usize, 3];
-    let pts = ritk_image::native::Image::<f32, MoiraiBackend, 2>::from_flat(
+    let pts = ritk_image::Image::<f32, MoiraiBackend, 2>::from_flat(
         pts_values,
         pts_dims,
         ritk_spatial::Point::origin(),

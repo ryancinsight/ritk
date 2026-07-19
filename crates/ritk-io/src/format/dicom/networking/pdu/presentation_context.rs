@@ -5,7 +5,7 @@ use arrayvec::ArrayString;
 
 use super::{r16, r8, rbytes, uid_from_bytes_64, w_item, IT_ABS_SYN, IT_XFER_SYN};
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PresentationContextItemRq {
@@ -21,7 +21,7 @@ pub struct PresentationContextItemAc {
     pub transfer_syntax_uid: ArrayString<64>,
 }
 
-// ── Encode / Decode ──────────────────────────────────────────────────────────
+// â”€â”€ Encode / Decode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub(crate) fn enc_pc_rq(pc: &PresentationContextItemRq) -> Vec<u8> {
     let mut b = vec![pc.presentation_context_id, 0x00, 0x00, 0x00];

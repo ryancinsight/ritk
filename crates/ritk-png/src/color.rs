@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
 use image::{ColorType, RgbImage};
-use ritk_image::native::RgbVolume;
+use ritk_image::RgbVolume;
 use ritk_spatial::{Direction, Point, Spacing};
 
 use crate::sorted_png_files;

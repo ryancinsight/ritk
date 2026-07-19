@@ -1,17 +1,16 @@
 use super::{ApproximateSignedDistanceMapFilter, FastChamferDistanceFilter};
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn img(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(data, dims)
+fn img(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(data, dims)
 }
 
 /// A single zero seed in a far field propagates the face weight `0.92644` per
-/// step (two passes resolve both directions): `[20,20,0,20,20] → [2w,w,0,w,2w]`.
+/// step (two passes resolve both directions): `[20,20,0,20,20] â†’ [2w,w,0,w,2w]`.
 #[test]
 fn fast_chamfer_propagates_face_weight() {
     let f = FastChamferDistanceFilter {

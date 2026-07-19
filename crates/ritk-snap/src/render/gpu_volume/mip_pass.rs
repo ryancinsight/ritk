@@ -1,15 +1,15 @@
-//! Stateless GPU MIP rendering pass — non-blocking async readback.
+//! Stateless GPU MIP rendering pass â€” non-blocking async readback.
 //!
 //! # Protocol
 //!
 //! GPU work is decoupled from CPU readback via two functions:
 //!
-//! 1. [`submit_mip_async`] — encodes and submits the MIP compute pass, then
+//! 1. [`submit_mip_async`] â€” encodes and submits the MIP compute pass, then
 //!    registers a non-blocking `map_async` on `cache.staging_buf`.  Returns
 //!    an `mpsc::Receiver` that fires when the GPU has finished and the staged
 //!    bytes are ready to read.
 //!
-//! 2. [`collect_mip_result`] — reads the already-mapped `staging_buf` and
+//! 2. [`collect_mip_result`] â€” reads the already-mapped `staging_buf` and
 //!    returns a [`ColorImage`].  Must only be called after the receiver from
 //!    `submit_mip_async` fires `Ok(Ok(()))`.
 //!
@@ -23,7 +23,7 @@
 //! # Per-frame zero-allocation
 //!
 //! `params_buf` and `lut_buf` live in [`GpuFrameCache`] and are updated
-//! via `queue.write_buffer` each frame — no `create_buffer_init` per call.
+//! via `queue.write_buffer` each frame â€” no `create_buffer_init` per call.
 //! `output_buf` and `staging_buf` are also cached; the bind group is the
 //! only per-frame GPU object created.
 
@@ -42,16 +42,16 @@ use super::params::RenderParams;
 ///
 /// Updates `cache.params_buf` and `cache.lut_buf` via `queue.write_buffer`
 /// (zero new GPU buffer allocation), then encodes the compute dispatch +
-/// output→staging copy, submits, and registers `map_async` on `cache.staging_buf`.
+/// outputâ†’staging copy, submits, and registers `map_async` on `cache.staging_buf`.
 ///
 /// # Returns
 ///
 /// An `mpsc::Receiver` that fires:
-/// - `Ok(Ok(()))` — GPU finished; `cache.staging_buf` is mapped and readable
+/// - `Ok(Ok(()))` â€” GPU finished; `cache.staging_buf` is mapped and readable
 ///   via [`collect_mip_result`].
-/// - `Ok(Err(_))` — `map_async` failed (device loss, OOM); caller should retry
+/// - `Ok(Err(_))` â€” `map_async` failed (device loss, OOM); caller should retry
 ///   on the next render cycle.
-/// - `Err(Disconnected)` — internal error; treat as `map_async` failure.
+/// - `Err(Disconnected)` â€” internal error; treat as `map_async` failure.
 ///
 /// # Non-blocking guarantee
 ///
@@ -160,7 +160,7 @@ pub(super) fn submit_mip_async(
 /// # Output
 ///
 /// `pack4x8unorm` writes `[R, G, B, A]` bytes on little-endian; the byte
-/// layout is forwarded directly to `from_rgba_unmultiplied` — no CPU
+/// layout is forwarded directly to `from_rgba_unmultiplied` â€” no CPU
 /// conversion required.
 pub(super) fn collect_mip_result(
     staging_buf: &wgpu::Buffer,

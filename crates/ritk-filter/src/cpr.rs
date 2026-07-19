@@ -9,7 +9,7 @@
 //! ## Algorithm
 //!
 //! 1. **Path generation**: Control points are interpolated with a Catmull-Rom
-//!    spline, oversampled at `10 × num_path_samples`, then resampled at
+//!    spline, oversampled at `10 Ã— num_path_samples`, then resampled at
 //!    evenly-spaced arc-length intervals to produce `num_path_samples` points.
 //!
 //! 2. **Cross-section basis**: At each path point, the tangent is estimated
@@ -30,19 +30,19 @@
 //! - **Columns** correspond to distance along path
 //!
 //! Spatial metadata:
-//! - Origin: `Point2(-half_width, 0.0)` — start of cross-section, start of path
-//! - Spacing: `(2·half_width / (num_cross-1), total_path_length / (num_path-1))`
+//! - Origin: `Point2(-half_width, 0.0)` â€” start of cross-section, start of path
+//! - Spacing: `(2Â·half_width / (num_cross-1), total_path_length / (num_path-1))`
 //! - Direction: identity (CPR space is a straightened coordinate system)
 //!
 //! ## References
-//! - Kanitsar, A. et al. (2002). "CPR — Curved Planar Reformation."
-//!   *IEEE Visualization*, pp. 37–44.
+//! - Kanitsar, A. et al. (2002). "CPR â€” Curved Planar Reformation."
+//!   *IEEE Visualization*, pp. 37â€“44.
 //! - Catmull, E. and Rom, R. (1974). "A class of local interpolating splines."
 //!   In *Computer Aided Geometric Design*, Academic Press.
 
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec;
 
@@ -99,7 +99,7 @@ impl Default for CprConfig {
 ///     vec![[0.0, 0.0, 0.0], [10.0, 0.0, 0.0], [20.0, 10.0, 0.0]],
 ///     CprConfig::default(),
 /// );
-/// let result: Image<B, 2> = filter.apply(&volume)?;
+/// let result: Image<f32, B, 2> = filter.apply(&volume)?;
 /// ```
 #[derive(Debug, Clone)]
 pub struct CprImageFilter {
@@ -129,7 +129,7 @@ impl CprImageFilter {
     /// Apply the CPR filter.
     ///
     /// Returns a 2-D `Image` where rows = cross-section offset and columns = path position.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 2>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 2>> {
         let (vals, dims) = extract_vec(image)?;
         let result = self.apply_values(
             &vals,
@@ -138,25 +138,16 @@ impl CprImageFilter {
             *image.spacing(),
             *image.direction(),
         )?;
-        let device = image.data().device();
-        let tensor = Tensor::<B, 2>::from_data(
-            TensorData::new(result.values, Shape::new(result.shape)),
-            &device,
-        );
-        Ok(Image::new(
-            tensor,
-            result.origin,
-            result.spacing,
-            Direction::identity(),
-        ))
+        let tensor = Tensor::<f32, B>::from_slice(result.shape, &result.values);
+        Image::new(tensor, result.origin, result.spacing, Direction::identity())
     }
 
     /// Apply CPR to a Coeus-native volume.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 2>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 2>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -168,7 +159,7 @@ impl CprImageFilter {
             *image.spacing(),
             *image.direction(),
         )?;
-        ritk_image::native::Image::from_flat_on(
+        ritk_image::Image::from_flat_on(
             result.values,
             result.shape,
             result.origin,
@@ -199,7 +190,7 @@ impl CprImageFilter {
         let num_cross = self.config.num_cross_samples;
         let half_width = self.config.cross_section_half_width;
 
-        // ── 1. Generate arc-length-parameterised path ──────────────────────────
+        // â”€â”€ 1. Generate arc-length-parameterised path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let dense_pts = generate_path_batch(&self.control_points, num_path * CPR_DENSE_FACTOR);
 
         let mut arc_lengths = vec![0.0_f64; dense_pts.len()];
@@ -214,7 +205,7 @@ impl CprImageFilter {
         let total_length = arc_lengths[dense_pts.len() - 1];
 
         if total_length < 1e-12 {
-            anyhow::bail!("CPR path has zero total length — all control points coincident");
+            anyhow::bail!("CPR path has zero total length â€” all control points coincident");
         }
 
         let mut path_pts = Vec::with_capacity(num_path);
@@ -249,17 +240,17 @@ impl CprImageFilter {
             path_pts.push(p);
         }
 
-        // ── 2. Sample cross-sections along the path ───────────────────────────
+        // â”€â”€ 2. Sample cross-sections along the path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         //
         // Per-call work hoisted out of the per-pixel inner loop (see
-        // OPTIMIZATION.md § Sprint 376 CPR-PERF-01):
+        // OPTIMIZATION.md Â§ Sprint 376 CPR-PERF-01):
         //
-        // (a) `inv_dir = direction.inverse()` — 3×3 matrix inverse computed
+        // (a) `inv_dir = direction.inverse()` â€” 3Ã—3 matrix inverse computed
         //     once instead of once per cross-section sample.
         // (b) For each path point `p[i]`:
-        //       - `idx_p[i,0] = (inv_dir * (p[i] - origin)) ./ spacing` —
+        //       - `idx_p[i,0] = (inv_dir * (p[i] - origin)) ./ spacing` â€”
         //         continuous index at the path centre, computed once per i.
-        //       - `slope[i] = (inv_dir * v_up[i]) ./ spacing` — derivative
+        //       - `slope[i] = (inv_dir * v_up[i]) ./ spacing` â€” derivative
         //         of the continuous index w.r.t. the cross-section offset,
         //         computed once per i.
         //     Then per cross-section sample at offset `s`:
@@ -306,7 +297,7 @@ impl CprImageFilter {
             let c0 = id[(2, 0)] * p[0] + id[(2, 1)] * p[1] + id[(2, 2)] * p[2] + inv_oz;
             let idx_p0 = [a0 / spacing[0], b0 / spacing[1], c0 / spacing[2]];
 
-            // slope[i] = (id * v_up) ./ spacing — derivative of idx per unit
+            // slope[i] = (id * v_up) ./ spacing â€” derivative of idx per unit
             // cross-section offset.
             let sa = id[(0, 0)] * v_up[0] + id[(0, 1)] * v_up[1] + id[(0, 2)] * v_up[2];
             let sb = id[(1, 0)] * v_up[0] + id[(1, 1)] * v_up[1] + id[(1, 2)] * v_up[2];
@@ -331,7 +322,7 @@ impl CprImageFilter {
             }
         }
 
-        // ── 3. Describe the straightened 2-D output ────────────────────────────
+        // â”€â”€ 3. Describe the straightened 2-D output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let cs_step = if num_cross > 1 {
             2.0 * half_width / (num_cross - 1) as f64
         } else {
@@ -352,7 +343,7 @@ impl CprImageFilter {
     }
 }
 
-// ── Tests ────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[cfg(test)]
 #[path = "tests_cpr.rs"]
 mod tests;

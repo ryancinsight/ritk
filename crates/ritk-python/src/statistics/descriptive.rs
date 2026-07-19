@@ -1,7 +1,7 @@
 //! Descriptive statistics, image comparison, noise estimation, and label statistics.
 
-use crate::errors::RitkResult;
-use crate::image::{py_image_to_burn, with_image_slice, PyImage};
+use crate::errors::{RitkPyError, RitkResult};
+use crate::image::{image_from_py, with_image_slice, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_statistics::compute_label_intensity_statistics_from_slices as core_label_intensity_stats_from_slices;
@@ -36,7 +36,7 @@ pub(super) fn stats_to_dict(py: Python<'_>, stats: &ImageStatistics) -> RitkResu
 /// Args:
 ///     image: Input PyImage.
 ///     ddof:  Delta degrees of freedom for `std` (numpy convention). 0 (default)
-///            = population std (÷N); 1 = sample std (÷N-1), matching
+///            = population std (Ã·N); 1 = sample std (Ã·N-1), matching
 ///            SimpleITK's StatisticsImageFilter.GetSigma().
 ///
 /// Returns:
@@ -94,7 +94,7 @@ pub fn masked_statistics(
     stats_to_dict(py, &stats)
 }
 
-/// Compute the Sørensen–Dice coefficient between two binary masks.
+/// Compute the SÃ¸rensenâ€“Dice coefficient between two binary masks.
 ///
 /// Delegates to `ritk_statistics::dice_coefficient`.
 ///
@@ -105,10 +105,10 @@ pub fn masked_statistics(
 /// Returns:
 ///     Dice coefficient in [0, 1]. Returns 1.0 if both images have zero volume.
 #[pyfunction]
-pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> f32 {
-    let a = py_image_to_burn(image1);
-    let b = py_image_to_burn(image2);
-    core_dice_coefficient(&a, &b)
+pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> RitkResult<f32> {
+    let a = image_from_py(image1);
+    let b = image_from_py(image2);
+    core_dice_coefficient(&a, &b).map_err(RitkPyError::value)
 }
 
 /// Compute the ITK `SimilarityIndexImageFilter` overlap between two images.
@@ -122,18 +122,19 @@ pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> f32 {
 ///     image2: Second label/mask PyImage (same shape as image1).
 ///
 /// Returns:
-///     Similarity index 2|A∩B|/(|A|+|B|) in [0, 1].
+///     Similarity index 2|Aâˆ©B|/(|A|+|B|) in [0, 1].
 #[pyfunction]
-pub fn similarity_index(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f32 {
-    let arc1 = py_image_to_burn(image1);
-    let arc2 = py_image_to_burn(image2);
+pub fn similarity_index(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> RitkResult<f32> {
+    let arc1 = image_from_py(image1);
+    let arc2 = image_from_py(image2);
     py.allow_threads(|| core_similarity_index(&arc1, &arc2))
+        .map_err(RitkPyError::value)
 }
 
 /// Compute the symmetric Hausdorff distance between two binary masks.
 ///
 /// Delegates to `ritk_statistics::hausdorff_distance`.
-/// HD(A, B) = max( hd(∂A→∂B), hd(∂B→∂A) ). Distance in mm.
+/// HD(A, B) = max( hd(âˆ‚Aâ†’âˆ‚B), hd(âˆ‚Bâ†’âˆ‚A) ). Distance in mm.
 ///
 /// Args:
 ///     image1: First binary mask PyImage.
@@ -145,15 +146,15 @@ pub fn similarity_index(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f
 pub fn hausdorff_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f32 {
     let sp = image1.inner.spacing();
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
-    let arc1 = py_image_to_burn(image1);
-    let arc2 = py_image_to_burn(image2);
+    let arc1 = image_from_py(image1);
+    let arc2 = image_from_py(image2);
     py.allow_threads(|| core_hausdorff_distance(&arc1, &arc2, &spacing))
 }
 
 /// Compute the symmetric mean surface distance between two binary masks.
 ///
 /// Delegates to `ritk_statistics::mean_surface_distance`.
-/// MSD = ( MSD(∂A→∂B) + MSD(∂B→∂A) ) / 2. Distance in mm.
+/// MSD = ( MSD(âˆ‚Aâ†’âˆ‚B) + MSD(âˆ‚Bâ†’âˆ‚A) ) / 2. Distance in mm.
 ///
 /// Args:
 ///     image1: First binary mask PyImage.
@@ -165,15 +166,15 @@ pub fn hausdorff_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) ->
 pub fn mean_surface_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f32 {
     let sp = image1.inner.spacing();
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
-    let arc1 = py_image_to_burn(image1);
-    let arc2 = py_image_to_burn(image2);
+    let arc1 = image_from_py(image1);
+    let arc2 = image_from_py(image2);
     py.allow_threads(|| core_mean_surface_distance(&arc1, &arc2, &spacing))
 }
 
 /// Compute the Peak Signal-to-Noise Ratio between two images.
 ///
 /// Delegates to `ritk_statistics::psnr`.
-/// Formula: PSNR = 10 · log₁₀(MAX² / MSE).
+/// Formula: PSNR = 10 Â· logâ‚â‚€(MAXÂ² / MSE).
 ///
 /// Args:
 ///     image1:  Test image (PyImage).
@@ -185,15 +186,15 @@ pub fn mean_surface_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage)
 #[pyfunction]
 #[pyo3(signature = (image1, image2, max_val=1.0))]
 pub fn psnr(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
-    let a = py_image_to_burn(image1);
-    let b = py_image_to_burn(image2);
+    let a = image_from_py(image1);
+    let b = image_from_py(image2);
     core_psnr(&a, &b, max_val)
 }
 
 /// Compute the Structural Similarity Index (SSIM) between two images.
 ///
 /// Delegates to `ritk_statistics::ssim`.
-/// Wang et al. (2004), C₁ = (0.01·MAX)², C₂ = (0.03·MAX)².
+/// Wang et al. (2004), Câ‚ = (0.01Â·MAX)Â², Câ‚‚ = (0.03Â·MAX)Â².
 ///
 /// Args:
 ///     image1:  Test image (PyImage).
@@ -205,15 +206,15 @@ pub fn psnr(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
 #[pyfunction]
 #[pyo3(signature = (image1, image2, max_val=1.0))]
 pub fn ssim(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
-    let a = py_image_to_burn(image1);
-    let b = py_image_to_burn(image2);
+    let a = image_from_py(image1);
+    let b = image_from_py(image2);
     core_ssim(&a, &b, max_val)
 }
 
-/// Estimate additive Gaussian noise σ̂ via the Median Absolute Deviation (MAD).
+/// Estimate additive Gaussian noise ÏƒÌ‚ via the Median Absolute Deviation (MAD).
 ///
-/// Formula: σ̂ = 1.4826 · median(|Xᵢ − median(X)|).
-/// The 1.4826 constant is 1 / Φ⁻¹(3/4) (Hampel 1974).
+/// Formula: ÏƒÌ‚ = 1.4826 Â· median(|Xáµ¢ âˆ’ median(X)|).
+/// The 1.4826 constant is 1 / Î¦â»Â¹(3/4) (Hampel 1974).
 ///
 /// Args:
 ///     image: Input PyImage.

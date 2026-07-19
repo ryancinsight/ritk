@@ -20,7 +20,7 @@ pub enum ToolKind {
     /// Scroll to zoom, or drag with the secondary pointer button.
     Zoom,
     /// Click-drag to adjust window/level
-    /// (horizontal drag → window width, vertical drag → window centre).
+    /// (horizontal drag â†’ window width, vertical drag â†’ window centre).
     WindowLevel,
     /// Click two points to measure distance in mm.
     MeasureLength,
@@ -74,16 +74,16 @@ impl ToolKind {
                  distance in millimetres."
             }
             ToolKind::MeasureAngle => {
-                "Measure Angle: click three points — the second point is the vertex — \
+                "Measure Angle: click three points â€” the second point is the vertex â€” \
                  to display the included angle in degrees."
             }
             ToolKind::RoiRect => {
                 "ROI Rectangle: drag a rectangle to compute mean, std, min, max \
-                 HU and area (mm²) within the selection."
+                 HU and area (mmÂ²) within the selection."
             }
             ToolKind::RoiEllipse => {
                 "ROI Ellipse: drag an ellipse to compute mean, std, min, max \
-                 HU and area (mm²) within the selection."
+                 HU and area (mmÂ²) within the selection."
             }
             ToolKind::Crosshair => {
                 "Crosshair: click to set a reference point that is synchronised \
@@ -107,15 +107,15 @@ impl ToolKind {
     /// Unicode icon or emoji representing the tool in the toolbar.
     pub fn icon(&self) -> &'static str {
         match self {
-            ToolKind::Pan => "✋",
-            ToolKind::Zoom => "🔍",
-            ToolKind::WindowLevel => "☀",
-            ToolKind::MeasureLength => "📏",
-            ToolKind::MeasureAngle => "📐",
+            ToolKind::Pan => "âœ‹",
+            ToolKind::Zoom => "ðŸ”",
+            ToolKind::WindowLevel => "â˜€",
+            ToolKind::MeasureLength => "ðŸ“",
+            ToolKind::MeasureAngle => "ðŸ“",
             ToolKind::RoiRect => "▭",
             ToolKind::RoiEllipse => "⬭",
-            ToolKind::Crosshair => "⊕",
-            ToolKind::PointHu => "⊙",
+            ToolKind::Crosshair => "âŠ•",
+            ToolKind::PointHu => "âŠ™",
             ToolKind::LabelPaint => "P",
             ToolKind::LabelErase => "E",
         }
@@ -124,7 +124,7 @@ impl ToolKind {
     /// All variants in toolbar display order.
     ///
     /// Every variant appears exactly once. This slice is the single source of
-    /// truth for iteration — toolbar rendering, serialisation round-trips, and
+    /// truth for iteration â€” toolbar rendering, serialisation round-trips, and
     /// tests all consume this slice.
     pub fn all() -> &'static [ToolKind] {
         &[

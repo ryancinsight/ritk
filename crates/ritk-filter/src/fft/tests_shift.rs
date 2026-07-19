@@ -1,49 +1,45 @@
 //! Tests for [`FftShiftFilter`].
 //!
 //! Verification chain:
-//!   shape invariant → self-inverse property → DC-to-centre mapping → 3-D shape invariant
+//!   shape invariant â†’ self-inverse property â†’ DC-to-centre mapping â†’ 3-D shape invariant
 
 use crate::fft::{FftShiftFilter, RealFftShiftFilter};
-use crate::native_support::LegacyBurnBackend;
-use ritk_image::tensor::{Shape, TensorData};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-fn make_complex_2d(vals: &[f32], h: usize, cw: usize) -> Image<B, 2> {
-    let device = Default::default();
-    let td = TensorData::new(vals.to_vec(), Shape::new([h, cw]));
-    let tensor = ritk_image::tensor::Tensor::<B, 2>::from_data(td, &device);
+fn make_complex_2d(vals: &[f32], h: usize, cw: usize) -> Image<f32, B, 2> {
+    let tensor = ritk_image::tensor::Tensor::<f32, B>::from_slice([h, cw], vals);
     Image::new(
         tensor,
         Point::new([0.0_f64, 0.0_f64]),
         Spacing::new([1.0_f64, 1.0_f64]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
-fn make_complex_3d(vals: &[f32], depth: usize, h: usize, cw: usize) -> Image<B, 3> {
-    let device = Default::default();
-    let td = TensorData::new(vals.to_vec(), Shape::new([depth, h, cw]));
-    let tensor = ritk_image::tensor::Tensor::<B, 3>::from_data(td, &device);
+fn make_complex_3d(vals: &[f32], depth: usize, h: usize, cw: usize) -> Image<f32, B, 3> {
+    let tensor = ritk_image::tensor::Tensor::<f32, B>::from_slice([depth, h, cw], vals);
     Image::new(
         tensor,
         Point::new([0.0_f64, 0.0_f64, 0.0_f64]),
         Spacing::new([1.0_f64, 1.0_f64, 1.0_f64]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// `apply_2d` must preserve the input shape `[H, 2·W]` unchanged.
+/// `apply_2d` must preserve the input shape `[H, 2Â·W]` unchanged.
 #[test]
 fn output_shape_unchanged_after_shift() {
     let h = 4_usize;
-    let cw = 8_usize; // 2·W where W = 4
+    let cw = 8_usize; // 2Â·W where W = 4
     let vals: Vec<f32> = (0..(h * cw)).map(|i| i as f32).collect();
     let img = make_complex_2d(&vals, h, cw);
 
@@ -58,8 +54,8 @@ fn output_shape_unchanged_after_shift() {
 /// Let `s_h = H/2`, `s_w = W/2`.
 /// First shift:  `out1[r,c] = in[(r + s_h) % H, (c + s_w) % W]`.
 /// Second shift: `out2[r,c] = out1[(r + s_h) % H, (c + s_w) % W]`
-///                          `= in[(r + 2·s_h) % H, (c + 2·s_w) % W]`.
-/// For even H: `2·s_h = H`, so `(r + H) % H = r`. ∎
+///                          `= in[(r + 2Â·s_h) % H, (c + 2Â·s_w) % W]`.
+/// For even H: `2Â·s_h = H`, so `(r + H) % H = r`. âˆŽ
 #[test]
 fn double_shift_is_identity() {
     let h = 4_usize;
@@ -92,7 +88,7 @@ fn double_shift_is_identity() {
 /// Input: shape `[4, 8]`, all zeros except `Re(F[0,0]) = 1.0`, `Im(F[0,0]) = 0.0`.
 /// Formula: `out[r,c] = in[(r + H/2) % H, (c + W/2) % W]`.
 /// At `(r=2, c=2)`: `src_r = (2+2)%4 = 0`, `src_c = (2+2)%4 = 0`.
-/// → `out[2·8 + 2·2] = in[0·8 + 2·0] = 1.0`. ∎
+/// â†’ `out[2Â·8 + 2Â·2] = in[0Â·8 + 2Â·0] = 1.0`. âˆŽ
 #[test]
 fn dc_moves_to_center_after_shift() {
     let h = 4_usize;
@@ -106,7 +102,7 @@ fn dc_moves_to_center_after_shift() {
     let shifted = FftShiftFilter::new().apply(&img).unwrap();
     let (shifted_data, _) = ritk_tensor_ops::extract_vec(&shifted).unwrap();
 
-    // Expected centre: row=2, col=2 → flat indices 2·8 + 2·2 = 20 and 21.
+    // Expected centre: row=2, col=2 â†’ flat indices 2Â·8 + 2Â·2 = 20 and 21.
     let re_idx = 2 * cw + 2 * 2; // = 20
     let im_idx = 2 * cw + 2 * 2 + 1; // = 21
     assert_eq!(
@@ -119,12 +115,12 @@ fn dc_moves_to_center_after_shift() {
     );
 }
 
-/// `apply_3d` must preserve the input shape `[D, H, 2·W]` unchanged.
+/// `apply_3d` must preserve the input shape `[D, H, 2Â·W]` unchanged.
 #[test]
 fn output_shape_unchanged_after_shift_volume() {
     let depth = 3_usize;
     let h = 4_usize;
-    let cw = 8_usize; // 2·W where W = 4
+    let cw = 8_usize; // 2Â·W where W = 4
     let vals: Vec<f32> = (0..(depth * h * cw)).map(|i| i as f32).collect();
     let img = make_complex_3d(&vals, depth, h, cw);
 
@@ -225,7 +221,7 @@ fn odd_dimension_volume_shifts_correctly() {
     }
 }
 
-// ── RealFftShiftFilter Tests ──────────────────────────────────────────────────
+// â”€â”€ RealFftShiftFilter Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[test]
 fn real_fft_shift_even_dims_is_identity_twice() {

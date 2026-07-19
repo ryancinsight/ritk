@@ -7,7 +7,7 @@ mod user_info;
 use anyhow::{bail, Result};
 use arrayvec::ArrayString;
 
-// ── Public re-exports — preserves the original `pdu::*` API ──────────────────
+// â”€â”€ Public re-exports â€” preserves the original `pdu::*` API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub use presentation_context::{PresentationContextItemAc, PresentationContextItemRq};
 pub use user_info::{
@@ -16,7 +16,7 @@ pub use user_info::{
     ScpScuRoleSelectionSubItem, UserIdentity, UserIdentityType, UserInformation,
 };
 
-// ── Constants ────────────────────────────────────────────────────────────────
+// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 pub const RITK_IMPLEMENTATION_VERSION: &str = "RITK_0_50_71";
 pub const RITK_IMPLEMENTATION_CLASS_UID: &str = "1.2.826.0.1.3690043.9.7433.1.1";
@@ -44,7 +44,7 @@ const SI_ROLE: u8 = 0x54;
 const SI_EXT_NEG: u8 = 0x56;
 const SI_USER_ID: u8 = 0x58;
 
-// ── Small enums ──────────────────────────────────────────────────────────────
+// â”€â”€ Small enums â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
@@ -76,7 +76,7 @@ pub enum AbortSource {
     DicomUlServiceProviderAcse = 2,
 }
 
-// ── PDU structs ──────────────────────────────────────────────────────────────
+// â”€â”€ PDU structs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AssociateRqPdu {
@@ -105,7 +105,7 @@ pub struct AssociateRjPdu {
     pub reason: u8,
 }
 
-/// Position of a PDV item within a fragmented DIMSE message (PS 3.8 §9.3.5.1).
+/// Position of a PDV item within a fragmented DIMSE message (PS 3.8 Â§9.3.5.1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FragmentPosition {
     /// This is the last (or only) fragment of the message.
@@ -154,7 +154,7 @@ pub enum Pdu {
     Abort(AbortPdu),
 }
 
-// ── Low-level write helpers (shared with submodules) ─────────────────────────
+// â”€â”€ Low-level write helpers (shared with submodules) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn pad_ae(title: &str) -> [u8; 16] {
     let mut b = [b' '; 16];

@@ -39,7 +39,7 @@
 //!
 //! - ITK `itk::IsolatedWatershedImageFilter`
 
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
 
@@ -86,8 +86,8 @@ fn almost_equal(left: f32, right: f32) -> bool {
 }
 
 /// ITK `GradientMagnitudeImageFilter`: per-axis central difference
-/// `(f[+1] − f[−1]) / 2` with ZeroFluxNeumann (edge-clamp) boundaries, magnitude
-/// `sqrt(Σ dᵢ²)`. Unit spacing is the isolated-watershed internal convention. A
+/// `(f[+1] âˆ’ f[âˆ’1]) / 2` with ZeroFluxNeumann (edge-clamp) boundaries, magnitude
+/// `sqrt(Î£ dáµ¢Â²)`. Unit spacing is the isolated-watershed internal convention. A
 /// `z == 1` volume yields `dz == 0` via the clamp, reducing to the 2-D gradient.
 fn gradient_magnitude(vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
     let [nz, ny, nx] = dims;
@@ -196,7 +196,7 @@ pub(super) fn watershed_basins_gd(g: &[f32], dims: [usize; 3]) -> Vec<usize> {
         .collect()
 }
 
-// ── Configuration ─────────────────────────────────────────────────────────────
+// â”€â”€ Configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Parameters for isolated watershed segmentation.
 ///
@@ -265,14 +265,14 @@ impl Default for IsolatedWatershedConfig {
     }
 }
 
-// ── Core algorithm ─────────────────────────────────────────────────────────────
+// â”€â”€ Core algorithm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Gradient-descent watershed segmentation matching ITK's
 /// `IsolatedWatershedImageFilter`.
 ///
 /// Each voxel is assigned the label of the seed whose gradient-descent basin
 /// it belongs to.  `seed1`/`seed2` are flat linear indices
-/// (`flat = z·ny·nx + y·nx + x`).
+/// (`flat = zÂ·nyÂ·nx + yÂ·nx + x`).
 ///
 fn isolated_watershed_values(
     vals: &[f32],
@@ -315,7 +315,7 @@ fn isolated_watershed_values(
         .collect()
 }
 
-// ── Public filter struct ───────────────────────────────────────────────────────
+// â”€â”€ Public filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Isolated watershed segmentation filter.
 ///
@@ -355,7 +355,7 @@ impl IsolatedWatershed {
     ///
     /// Returns an error if tensor extraction fails or shape, seed, or sample
     /// validation fails.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         validate_image_and_seeds(&vals, dims, self.seed1, self.seed2)?;
         let [_, ny, nx] = dims;
@@ -365,23 +365,23 @@ impl IsolatedWatershed {
 
         let labels = isolated_watershed_values(&vals, dims, seed1_flat, seed2_flat, &self.config);
 
-        let device = image.data().device();
-        let tensor = Tensor::<B, 3>::from_data(TensorData::new(labels, Shape::new(dims)), &device);
+        let device = B::default();
+        let tensor = Tensor::<f32, B>::from_slice_on(dims, &labels, &device);
 
-        Ok(Image::new(
+        Image::new(
             tensor,
             *image.origin(),
             *image.spacing(),
             *image.direction(),
-        ))
+        )
     }
 
     /// Apply isolated watershed to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -442,7 +442,7 @@ fn validate_image_and_seeds(
     Ok(())
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_isolated.rs"]

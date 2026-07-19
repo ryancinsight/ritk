@@ -1,15 +1,15 @@
-//! OBJ ASCII writer ← VtkPolyData.
+//! OBJ ASCII writer â† VtkPolyData.
 //!
 //! Output format:
 //! ```text
 //! # Written by RITK
 //!
 //! v x y z
-//! …
-//! [vn nx ny nz …]   (only if point_data["Normals"] is present)
+//! â€¦
+//! [vn nx ny nz â€¦]   (only if point_data["Normals"] is present)
 //!
-//! f v1[//n1] v2[//n2] v3[//n3] …
-//! …
+//! f v1[//n1] v2[//n2] v3[//n3] â€¦
+//! â€¦
 //! ```
 //! Indices are 1-based as required by the OBJ specification.
 
@@ -56,7 +56,7 @@ pub(crate) fn write_obj_to_writer(w: &mut impl Write, poly: &VtkPolyData) -> Res
             let one = idx + 1;
             if with_normals {
                 // Vertex index and normal index are always identical in our
-                // convention (i-th point → i-th normal).
+                // convention (i-th point â†’ i-th normal).
                 write!(w, " {one}//{one}")?;
             } else {
                 write!(w, " {one}")?;

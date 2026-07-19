@@ -9,7 +9,7 @@
 //! image returns a [1, H, W] PyImage.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::projection::{
     BinaryProjectionFilter, BinaryThresholdProjectionFilter, MaxIntensityProjectionFilter,
@@ -36,7 +36,7 @@ fn parse_axis(axis: usize) -> RitkResult<ProjectionAxis> {
 ///
 /// Args:
 ///     image: Input PyImage [D, H, W].
-///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
+///     axis:  Axis to project along â€” 0 (Z), 1 (Y), or 2 (X).
 ///
 /// Returns:
 ///     Projected PyImage with size 1 along `axis`.
@@ -52,20 +52,20 @@ pub fn max_intensity_projection(
     axis: usize,
 ) -> RitkResult<PyImage> {
     let ax = parse_axis(axis)?;
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         MaxIntensityProjectionFilter::new(ax)
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Minimum intensity projection along a spatial axis.
 ///
 /// Args:
 ///     image: Input PyImage [D, H, W].
-///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
+///     axis:  Axis to project along â€” 0 (Z), 1 (Y), or 2 (X).
 ///
 /// Returns:
 ///     Projected PyImage with size 1 along `axis`.
@@ -81,20 +81,20 @@ pub fn min_intensity_projection(
     axis: usize,
 ) -> RitkResult<PyImage> {
     let ax = parse_axis(axis)?;
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         MinIntensityProjectionFilter::new(ax)
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Mean intensity projection along a spatial axis.
 ///
 /// Args:
 ///     image: Input PyImage [D, H, W].
-///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
+///     axis:  Axis to project along â€” 0 (Z), 1 (Y), or 2 (X).
 ///
 /// Returns:
 ///     Projected PyImage with size 1 along `axis`.
@@ -110,13 +110,13 @@ pub fn mean_intensity_projection(
     axis: usize,
 ) -> RitkResult<PyImage> {
     let ax = parse_axis(axis)?;
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         MeanIntensityProjectionFilter::new(ax)
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Binary projection: foreground if any voxel along `axis` equals `foreground`.
@@ -132,13 +132,13 @@ pub fn binary_projection(
     background: f32,
 ) -> RitkResult<PyImage> {
     let ax = parse_axis(axis)?;
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         BinaryProjectionFilter::new(ax, foreground, background)
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Binary-threshold projection: foreground if any voxel along `axis` is
@@ -156,13 +156,13 @@ pub fn binary_threshold_projection(
     background: f32,
 ) -> RitkResult<PyImage> {
     let ax = parse_axis(axis)?;
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         BinaryThresholdProjectionFilter::new(ax, threshold, foreground, background)
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Median intensity projection along a spatial axis.
@@ -176,20 +176,20 @@ pub fn median_intensity_projection(
     axis: usize,
 ) -> RitkResult<PyImage> {
     let ax = parse_axis(axis)?;
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         MedianIntensityProjectionFilter::new(ax)
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Sum intensity projection along a spatial axis.
 ///
 /// Args:
 ///     image: Input PyImage [D, H, W].
-///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
+///     axis:  Axis to project along â€” 0 (Z), 1 (Y), or 2 (X).
 ///
 /// Returns:
 ///     Projected PyImage with size 1 along `axis`.
@@ -205,13 +205,13 @@ pub fn sum_intensity_projection(
     axis: usize,
 ) -> RitkResult<PyImage> {
     let ax = parse_axis(axis)?;
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         SumIntensityProjectionFilter::new(ax)
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Standard-deviation intensity projection along a spatial axis.
@@ -221,7 +221,7 @@ pub fn sum_intensity_projection(
 ///
 /// Args:
 ///     image: Input PyImage [D, H, W].
-///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
+///     axis:  Axis to project along â€” 0 (Z), 1 (Y), or 2 (X).
 ///
 /// Returns:
 ///     Projected PyImage with size 1 along `axis`.
@@ -237,11 +237,11 @@ pub fn stddev_intensity_projection(
     axis: usize,
 ) -> RitkResult<PyImage> {
     let ax = parse_axis(axis)?;
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         StdDevIntensityProjectionFilter::new(ax)
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

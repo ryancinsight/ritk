@@ -1,4 +1,4 @@
-//! Tests for `scan_dicom_instances` and `scan_dicom_part10_bytes` — in-memory
+//! Tests for `scan_dicom_instances` and `scan_dicom_part10_bytes` â€” in-memory
 //! SCP-received instance scanning and Part 10 byte payload scanning.
 
 use arrayvec::ArrayString;

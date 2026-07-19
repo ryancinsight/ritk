@@ -1,18 +1,17 @@
 use super::CollidingFrontsFilter;
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
-fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(data, dims)
+fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(data, dims)
 }
 
 /// Two fronts collide head-on along a 1-D unit-speed line: front 1 (from x=0)
-/// has gradient +1, front 2 (from x=6) has gradient −1, so the potential
-/// `∇T1·∇T2 = −1` everywhere in the interior. Seeds are pinned to −1e-6, and the
+/// has gradient +1, front 2 (from x=6) has gradient âˆ’1, so the potential
+/// `âˆ‡T1Â·âˆ‡T2 = âˆ’1` everywhere in the interior. Seeds are pinned to âˆ’1e-6, and the
 /// whole line is the connected colliding corridor.
 #[test]
 fn colliding_fronts_unit_line_potential_is_minus_one() {
@@ -20,7 +19,7 @@ fn colliding_fronts_unit_line_potential_is_minus_one() {
     let speed = make(vec![1.0f32; nx], [1, 1, nx]);
     let out = CollidingFrontsFilter::new(vec![[0, 0, 0]], vec![[0, 0, 6]]).apply(&speed);
     let (ov, _) = extract_vec_infallible(&out);
-    assert!(ov.iter().all(|&v| v <= 1e-6), "potential is ≤ 0");
+    assert!(ov.iter().all(|&v| v <= 1e-6), "potential is â‰¤ 0");
     for &x in &[2usize, 3, 4] {
         assert!(
             (ov[x] + 1.0).abs() < 1e-4,
@@ -34,8 +33,8 @@ fn colliding_fronts_unit_line_potential_is_minus_one() {
     );
 }
 
-/// Without connectivity the raw `∇T1·∇T2` potential is returned (no flood-fill
-/// restriction), still with the seeds pinned and the interior at −1.
+/// Without connectivity the raw `âˆ‡T1Â·âˆ‡T2` potential is returned (no flood-fill
+/// restriction), still with the seeds pinned and the interior at âˆ’1.
 #[test]
 fn colliding_fronts_no_connectivity_returns_full_potential() {
     let nx = 7usize;

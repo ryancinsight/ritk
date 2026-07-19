@@ -11,7 +11,7 @@ use crate::diffeomorphic::local_cc::CcSats;
 /// Sized to `n = nz * ny * nx` dense voxels and `cp_n = cp_d[0]*cp_d[1]*cp_d[2]`
 /// control points. All buffers are 0-initialized.
 pub(super) struct BSplineSyNBuffers {
-    // ── Control-point lattice (one field per SyN branch, per spatial axis) ──
+    // â”€â”€ Control-point lattice (one field per SyN branch, per spatial axis) â”€â”€
     pub cp1z: Vec<f32>,
     pub cp1y: Vec<f32>,
     pub cp1x: Vec<f32>,
@@ -19,7 +19,7 @@ pub(super) struct BSplineSyNBuffers {
     pub cp2y: Vec<f32>,
     pub cp2x: Vec<f32>,
 
-    // ── Dense velocity fields v₁, v₂ ──
+    // â”€â”€ Dense velocity fields vâ‚, vâ‚‚ â”€â”€
     pub v1z: Vec<f32>,
     pub v1y: Vec<f32>,
     pub v1x: Vec<f32>,
@@ -27,7 +27,7 @@ pub(super) struct BSplineSyNBuffers {
     pub v2y: Vec<f32>,
     pub v2x: Vec<f32>,
 
-    // ── Exponential maps φ₁ = exp(v₁), φ₂ = exp(v₂) ──
+    // â”€â”€ Exponential maps Ï†â‚ = exp(vâ‚), Ï†â‚‚ = exp(vâ‚‚) â”€â”€
     pub phi1_z: Vec<f32>,
     pub phi1_y: Vec<f32>,
     pub phi1_x: Vec<f32>,
@@ -35,16 +35,16 @@ pub(super) struct BSplineSyNBuffers {
     pub phi2_y: Vec<f32>,
     pub phi2_x: Vec<f32>,
 
-    // ── Scaling-and-squaring scratch (ping-pong buffers) ──
+    // â”€â”€ Scaling-and-squaring scratch (ping-pong buffers) â”€â”€
     pub scratch_ss_z: Vec<f32>,
     pub scratch_ss_y: Vec<f32>,
     pub scratch_ss_x: Vec<f32>,
 
-    // ── Warped images ──
+    // â”€â”€ Warped images â”€â”€
     pub i_w: Vec<f32>,
     pub j_w: Vec<f32>,
 
-    // ── Image gradients ──
+    // â”€â”€ Image gradients â”€â”€
     pub gi_z: Vec<f32>,
     pub gi_y: Vec<f32>,
     pub gi_x: Vec<f32>,
@@ -52,7 +52,7 @@ pub(super) struct BSplineSyNBuffers {
     pub gj_y: Vec<f32>,
     pub gj_x: Vec<f32>,
 
-    // ── CC force fields ──
+    // â”€â”€ CC force fields â”€â”€
     pub u1z: Vec<f32>,
     pub u1y: Vec<f32>,
     pub u1x: Vec<f32>,
@@ -60,11 +60,11 @@ pub(super) struct BSplineSyNBuffers {
     pub u2y: Vec<f32>,
     pub u2x: Vec<f32>,
 
-    // ── Local-CC statistics and per-slice reductions ──
+    // â”€â”€ Local-CC statistics and per-slice reductions â”€â”€
     pub cc_sats: CcSats,
     pub cc_slices: Vec<(f64, usize)>,
 
-    // ── CP-space gradient and Laplacian buffers ──
+    // â”€â”€ CP-space gradient and Laplacian buffers â”€â”€
     pub cp_accum: Vec<f64>,
     pub cp_weight: Vec<f64>,
     pub d1z: Vec<f32>,

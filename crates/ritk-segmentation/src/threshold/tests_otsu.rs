@@ -1,29 +1,23 @@
 //! Tests for otsu
 //! Extracted to keep the 500-line structural limit.
 use super::*;
-use burn_ndarray::NdArray;
-use ritk_image::test_support::burn_compat::{make_image, make_image_with};
+use coeus_core::SequentialBackend;
+use ritk_image::test_support::{make_image, make_image_with};
 use ritk_tensor_ops::extract_vec_infallible;
 
-type TestBackend = NdArray<f32>;
+type TestBackend = SequentialBackend;
 
-fn make_image_1d(data: Vec<f32>) -> Image<TestBackend, 1> {
+fn make_image_1d(data: Vec<f32>) -> Image<f32, TestBackend, 1> {
     let n = data.len();
     make_image(data, [n])
 }
 
-fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<TestBackend, 3> {
+fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, TestBackend, 3> {
     make_image(data, dims)
 }
 
-fn get_slice_1d(image: &Image<TestBackend, 1>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+fn get_slice_1d(image: &Image<f32, TestBackend, 1>) -> Vec<f32> {
+    image.data().to_vec()
 }
 
 // ── Positive tests ──────────────────────────────────────────────────────────
@@ -130,7 +124,7 @@ fn test_apply_preserves_spatial_metadata() {
     let origin = ritk_core::spatial::Point::new([1.0, 2.0, 3.0]);
     let spacing = ritk_core::spatial::Spacing::new([0.5, 0.5, 0.5]);
     let direction = ritk_core::spatial::Direction::<3>::identity();
-    let image: Image<TestBackend, 3> = make_image_with(
+    let image: Image<f32, TestBackend, 3> = make_image_with(
         (0u8..27).map(|x| x as f32).collect::<Vec<f32>>(),
         [3, 3, 3],
         Some(origin),

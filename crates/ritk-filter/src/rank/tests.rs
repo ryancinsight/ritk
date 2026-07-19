@@ -1,20 +1,20 @@
 //! Tests for [`PercentileFilter`] and [`RankFilter`].
 
 use super::*;
-use burn_ndarray::NdArray;
+
 use ritk_image::test_support as ts;
 use ritk_image::Image;
 use ritk_morphology::StructuringElement;
 use ritk_tensor_ops::extract_vec;
 use std::borrow::Cow;
 
-type B = NdArray<f32>;
+type B = coeus_core::SequentialBackend;
 
-fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
-    ts::burn_compat::make_image::<B, 3>(data, shape)
+fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
+    ts::make_image::<f32, B, 3>(data, shape)
 }
 
-fn to_vec(image: &Image<B, 3>) -> Vec<f32> {
+fn to_vec(image: &Image<f32, B, 3>) -> Vec<f32> {
     let (v, _) = extract_vec(image).unwrap();
     v
 }

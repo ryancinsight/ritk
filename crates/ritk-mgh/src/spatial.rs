@@ -6,9 +6,9 @@ use ritk_spatial::{Direction, Point, Spacing, Vector};
 /// header is valid and should be used to derive image geometry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RasValidity {
-    /// RAS fields are valid — use them to compute origin, spacing, direction.
+    /// RAS fields are valid â€” use them to compute origin, spacing, direction.
     Valid,
-    /// RAS fields are absent or unreliable — fall back to identity geometry.
+    /// RAS fields are absent or unreliable â€” fall back to identity geometry.
     Synthetic,
 }
 

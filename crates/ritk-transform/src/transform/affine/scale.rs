@@ -1,143 +1,145 @@
-//! Scale transform implementation.
-//!
-//! This module provides a scale transform (scaling around a center).
+//! Trainable axis-aligned scale transform.
 
+use coeus_autograd::{
+    add as add_variables, broadcast_to as broadcast_variable, mul as mul_variables, reshape,
+    sub as sub_variables, Var,
+};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::Module;
+use coeus_ops::{add, broadcast_to, mul, sub, BackendOps};
 use ritk_core::transform::Transform;
-use ritk_image::burn::module::{Module, Param};
-use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 
-/// Scale Transform.
-///
-/// Represents a scaling transformation with a fixed center:
-/// T(x) = S * (x - c) + c
-///
-/// where:
-/// * S is a D-dimensional scale vector (diagonal matrix)
-/// * c is a D-dimensional fixed center of scaling
-#[derive(Module, Debug)]
-pub struct ScaleTransform<B: Backend, const D: usize> {
-    scale: Param<Tensor<B, 1>>, // [D] scale factors
-    center: Tensor<B, 1>,       // [D] fixed center
+/// Scale about a fixed center: `T(x) = scale * (x - center) + center`.
+#[derive(Clone)]
+pub struct ScaleTransform<B: Backend + BackendOps<f32>, const D: usize> {
+    scale: Var<f32, B>,
+    center: Var<f32, B>,
 }
 
-impl<B: Backend, const D: usize> ScaleTransform<B, D> {
-    /// Create a new scale transform.
+impl<B: Backend + BackendOps<f32>, const D: usize> ScaleTransform<B, D> {
+    /// Construct a trainable scale parameter and fixed center.
     ///
-    /// # Arguments
-    /// * `scale` - Tensor of shape `[D]` containing the scale factors
-    /// * `center` - Tensor of shape `[D]` containing the fixed center
-    pub fn new(scale: Tensor<B, 1>, center: Tensor<B, 1>) -> Self {
+    /// # Panics
+    ///
+    /// Panics unless both tensors have shape `[D]`.
+    #[must_use]
+    pub fn new(scale: Tensor<f32, B>, center: Tensor<f32, B>) -> Self {
+        assert_eq!(scale.shape(), [D], "scale parameter must have shape [{D}]");
+        assert_eq!(center.shape(), [D], "scale center must have shape [{D}]");
         Self {
-            scale: Param::from_tensor(scale),
-            center,
+            scale: Var::new(scale, true),
+            center: Var::new(center, false),
         }
     }
 
-    /// Create an identity scale transform (scale = 1.0).
-    ///
-    /// # Arguments
-    /// * `center` - Optional center of scaling. If None, uses origin (0,0...0).
-    /// * `device` - Device to create tensors on.
-    pub fn identity(center: Option<Tensor<B, 1>>, device: &B::Device) -> Self {
-        let scale = Tensor::<B, 1>::ones([D], device);
-        let center = center.unwrap_or_else(|| Tensor::<B, 1>::zeros([D], device));
-        Self::new(scale, center)
+    /// Construct the identity scale.
+    #[must_use]
+    pub fn identity(center: Option<Tensor<f32, B>>, backend: &B) -> Self {
+        Self::new(
+            Tensor::ones_on([D], backend),
+            center.unwrap_or_else(|| Tensor::zeros_on([D], backend)),
+        )
     }
 
-    /// Get the scale factors.
-    pub fn scale(&self) -> Tensor<B, 1> {
-        self.scale.val()
+    /// Clone the current scale factors.
+    #[must_use]
+    pub fn scale(&self) -> Tensor<f32, B> {
+        self.scale.tensor.clone()
     }
 
-    /// Get the center of scaling.
-    pub fn center(&self) -> Tensor<B, 1> {
-        self.center.clone()
+    /// Clone the fixed center.
+    #[must_use]
+    pub fn center(&self) -> Tensor<f32, B> {
+        self.center.tensor.clone()
+    }
+
+    /// Apply the scale while retaining the Coeus autograd graph.
+    #[must_use]
+    pub fn transform_variables(&self, points: &Var<f32, B>) -> Var<f32, B>
+    where
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    {
+        let shape = points.tensor.shape();
+        assert!(
+            shape.len() == 2 && shape[1] == D,
+            "scale transform requires points shaped [N, {D}], got {shape:?}"
+        );
+        let target = vec![shape[0], D];
+        let center = broadcast_variable(&reshape(&self.center, [1, D]), target.clone());
+        let scale = broadcast_variable(&reshape(&self.scale, [1, D]), target);
+        add_variables(
+            &mul_variables(&sub_variables(points, &center), &scale),
+            &center,
+        )
     }
 }
 
-impl<B: Backend, const D: usize> Transform<B, D> for ScaleTransform<B, D> {
-    fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
-        // points: [Batch, D]
-        // scale (s): [D]
-        // center (c): [D]
-        //
-        // T(x) = s * (x - c) + c
-        // Element-wise multiplication since s is diagonal
+impl<B: Backend + BackendOps<f32> + Default, const D: usize> Transform<B, D>
+    for ScaleTransform<B, D>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
+        let shape = points.shape();
+        assert!(
+            shape.len() == 2 && shape[1] == D,
+            "scale transform requires points shaped [N, {D}], got {shape:?}"
+        );
+        let backend = B::default();
+        let target = [shape[0], D];
+        let center = broadcast_to(&self.center.tensor.reshape([1, D]), &target, &backend);
+        let scale = broadcast_to(&self.scale.tensor.reshape([1, D]), &target, &backend);
+        add(
+            &mul(&sub(&points, &center, &backend), &scale, &backend),
+            &center,
+            &backend,
+        )
+    }
+}
 
-        let c = self.center.clone().reshape([1, D]);
-        let s = self.scale.val().reshape([1, D]);
+impl<B: Backend + BackendOps<f32> + Default, const D: usize> Module<f32, B> for ScaleTransform<B, D>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    fn parameters(&self) -> Vec<Var<f32, B>> {
+        vec![self.scale.clone()]
+    }
 
-        let centered = points - c.clone();
+    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<f32, B>> {
+        vec![coeus_autograd::Parameter::new(self.scale.clone(), "scale")]
+    }
 
-        // Element-wise multiplication broadcast
-        let scaled = centered * s;
+    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
+        self.transform_variables(input)
+    }
 
-        scaled + c
+    fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {
+        assert_eq!(
+            parameters.len(),
+            1,
+            "invariant: scale transform owns one parameter"
+        );
+        self.scale = parameters[0].clone();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
-
-    type B = NdArray<f32>;
-
-    /// Tolerance for scale transform exact-value arithmetic.
-    /// Scale factors are exact floats; error bound is 4 × f32::EPSILON.
-    const SCALE_TRANSFORM_TOL: f32 = f32::EPSILON * 4.0;
+    use coeus_core::SequentialBackend;
 
     #[test]
-    fn test_scale_transform() {
-        let device = Default::default();
-        let scale = Tensor::<B, 1>::from_floats([2.0, 0.5, 1.0], &device); // Scale X by 2, Y by 0.5, Z by 1
-        let center = Tensor::<B, 1>::zeros([3], &device);
-
-        let transform = ScaleTransform::<B, 3>::new(scale, center);
-
-        let points = Tensor::<B, 2>::from_floats([[1.0, 2.0, 3.0], [2.0, 4.0, 6.0]], &device);
+    fn scales_about_fixed_center() {
+        let backend = SequentialBackend;
+        let transform = ScaleTransform::<SequentialBackend, 2>::new(
+            Tensor::from_slice_on([2], &[2.0, 2.0], &backend),
+            Tensor::from_slice_on([2], &[1.0, 1.0], &backend),
+        );
+        let points = Tensor::from_slice_on([2, 2], &[1.0, 1.0, 2.0, 2.0], &backend);
 
         let transformed = transform.transform_points(points);
-        let data = transformed.into_data();
-        let slice = data.as_slice::<f32>().unwrap();
 
-        // Point 1: [1*2, 2*0.5, 3*1] = [2, 1, 3]
-        assert!((slice[0] - 2.0).abs() < SCALE_TRANSFORM_TOL);
-        assert!((slice[1] - 1.0).abs() < SCALE_TRANSFORM_TOL);
-        assert!((slice[2] - 3.0).abs() < SCALE_TRANSFORM_TOL);
-
-        // Point 2: [2*2, 4*0.5, 6*1] = [4, 2, 6]
-        assert!((slice[3] - 4.0).abs() < SCALE_TRANSFORM_TOL);
-        assert!((slice[4] - 2.0).abs() < SCALE_TRANSFORM_TOL);
-        assert!((slice[5] - 6.0).abs() < SCALE_TRANSFORM_TOL);
-    }
-
-    #[test]
-    fn test_scale_transform_with_center() {
-        let device = Default::default();
-        let scale = Tensor::<B, 1>::from_floats([2.0, 2.0], &device);
-        let center = Tensor::<B, 1>::from_floats([1.0, 1.0], &device);
-
-        let transform = ScaleTransform::<B, 2>::new(scale, center);
-
-        // Point at center should not move
-        let points = Tensor::<B, 2>::from_floats([[1.0, 1.0]], &device);
-        let transformed = transform.transform_points(points);
-        let data = transformed.into_data();
-        let slice = data.as_slice::<f32>().unwrap();
-
-        assert!((slice[0] - 1.0).abs() < SCALE_TRANSFORM_TOL);
-        assert!((slice[1] - 1.0).abs() < SCALE_TRANSFORM_TOL);
-
-        // Point at (2, 2). Relative to center (1, 1) is (1, 1).
-        // Scale by 2 -> (2, 2). Add center -> (3, 3).
-        let points = Tensor::<B, 2>::from_floats([[2.0, 2.0]], &device);
-        let transformed = transform.transform_points(points);
-        let data = transformed.into_data();
-        let slice = data.as_slice::<f32>().unwrap();
-
-        assert!((slice[0] - 3.0).abs() < SCALE_TRANSFORM_TOL);
-        assert!((slice[1] - 3.0).abs() < SCALE_TRANSFORM_TOL);
+        assert_eq!(transformed.as_slice(), &[1.0, 1.0, 3.0, 3.0]);
     }
 }

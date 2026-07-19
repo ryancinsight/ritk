@@ -9,7 +9,7 @@ use crate::ui::{
 };
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
-// ── Pointer / interaction event handlers ───────────────────────────────────
+// â”€â”€ Pointer / interaction event handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 impl SnapApp {
     pub(crate) fn on_drag_start(&mut self, pos: Option<egui::Pos2>) {
@@ -191,7 +191,7 @@ impl SnapApp {
         }
     }
 
-    // ── Annotation helpers ────────────────────────────────────────────────
+    // â”€â”€ Annotation helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Compute ROI rect statistics for the pixel region between `start` and
     /// `end` (screen-space corners) on the current primary-axis slice.
@@ -356,7 +356,7 @@ impl SnapApp {
 
     /// Select the default colormap for a modality string.
     ///
-    /// PT → `Colormap::Hot` (standard PET display); all others → `Colormap::Grayscale`.
+    /// PT â†’ `Colormap::Hot` (standard PET display); all others â†’ `Colormap::Grayscale`.
     pub(crate) fn colormap_for_modality(modality: Option<&str>) -> Colormap {
         if modality == Some("PT") {
             Colormap::Hot

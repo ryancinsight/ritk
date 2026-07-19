@@ -11,7 +11,7 @@
 //! - [`LayoutMode::viewport_ids`] returns exactly the set of [`ViewportId`]s
 //!   active in that layout; the length of the slice equals N for that layout.
 //!
-//! ## Viewport id → axis mapping (conventional)
+//! ## Viewport id â†’ axis mapping (conventional)
 //! | ViewportId   | MPR axis |
 //! |--------------|----------|
 //! | TopLeft      | Axial    |
@@ -28,7 +28,7 @@
 pub enum LayoutMode {
     /// Single viewport occupying the full central panel area.
     Single,
-    /// 2×2 grid: top-left = axial, top-right = coronal,
+    /// 2Ã—2 grid: top-left = axial, top-right = coronal,
     /// bottom-left = sagittal, bottom-right = 3-D/MIP.
     TwoByTwo,
     /// One large main view on the left plus three smaller views stacked on
@@ -49,13 +49,13 @@ pub enum ViewportId {
     /// The sole viewport in [`LayoutMode::Single`]; large left pane in
     /// [`LayoutMode::OneMainThreeSmall`].
     Main,
-    /// Top-left cell of the 2×2 grid (axial).
+    /// Top-left cell of the 2Ã—2 grid (axial).
     TopLeft,
-    /// Top-right cell of the 2×2 grid (coronal).
+    /// Top-right cell of the 2Ã—2 grid (coronal).
     TopRight,
-    /// Bottom-left cell of the 2×2 grid (sagittal).
+    /// Bottom-left cell of the 2Ã—2 grid (sagittal).
     BottomLeft,
-    /// Bottom-right cell of the 2×2 grid (3-D/MIP).
+    /// Bottom-right cell of the 2Ã—2 grid (3-D/MIP).
     BottomRight,
     /// Left pane of a side-by-side or three-horizontal layout.
     Left,
@@ -99,7 +99,7 @@ impl LayoutMode {
     pub fn label(&self) -> &'static str {
         match self {
             LayoutMode::Single => "Single",
-            LayoutMode::TwoByTwo => "2×2",
+            LayoutMode::TwoByTwo => "2Ã—2",
             LayoutMode::OneMainThreeSmall => "1+3",
             LayoutMode::SideBySide => "Side-by-Side",
             LayoutMode::ThreeHorizontal => "3H",
@@ -126,7 +126,7 @@ impl LayoutMode {
     /// valid axis value.
     pub fn default_axis(&self, id: ViewportId) -> usize {
         match (self, id) {
-            // 2×2
+            // 2Ã—2
             (LayoutMode::TwoByTwo, ViewportId::TopLeft) => 0, // axial
             (LayoutMode::TwoByTwo, ViewportId::TopRight) => 1, // coronal
             (LayoutMode::TwoByTwo, ViewportId::BottomLeft) => 2, // sagittal

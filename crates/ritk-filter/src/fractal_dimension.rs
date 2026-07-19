@@ -19,7 +19,7 @@
 //! non-finite values, matching ITK's degenerate logarithm.
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 
 /// Stochastic fractal dimension filter (`itk::StochasticFractalDimensionImageFilter`).
 #[derive(Debug, Clone, Copy)]
@@ -53,7 +53,7 @@ impl StochasticFractalDimensionFilter {
         backend: &B,
     ) -> anyhow::Result<Image<f32, B, 3>>
     where
-        B: ComputeBackend,
+        B: ComputeBackend + Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         let (values, [nz, ny, nx]) = ritk_tensor_ops::native::extract_image_vec(image)?;

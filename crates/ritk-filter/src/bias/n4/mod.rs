@@ -2,30 +2,30 @@
 //!
 //! # Reference
 //! Tustison, N.J., et al. (2010). N4ITK: Improved N3 Bias Correction.
-//! *IEEE Trans. Med. Imaging*, 29(6):1310–1320. doi:10.1109/TMI.2010.2046908
+//! *IEEE Trans. Med. Imaging*, 29(6):1310â€“1320. doi:10.1109/TMI.2010.2046908
 //!
 //! # Algorithm
-//! Models multiplicative bias: I(x) = S(x)·B(x). In log-space this becomes
+//! Models multiplicative bias: I(x) = S(x)Â·B(x). In log-space this becomes
 //! v(x) = ln(S(x)) + ln(B(x)). The accumulated log-bias field b is estimated
 //! via a multi-resolution B-spline fitting loop.
 //!
 //! Per-level iteration:
-//! 1. w = v − b (current debiased log-intensity)
-//! 2. w̃ = histogram_sharpen(w) (Wiener deconvolution sharpens tissue peaks)
-//! 3. r = w − w̃ (residual ≈ remaining low-frequency bias)
-//! 4. Δb = bspline_smooth(r) (smooth B-spline fit to residual)
-//! 5. b ← b + Δb (additive accumulation)
-//! 6. Converge when ‖Δb‖_RMS < threshold.
+//! 1. w = v âˆ’ b (current debiased log-intensity)
+//! 2. wÌƒ = histogram_sharpen(w) (Wiener deconvolution sharpens tissue peaks)
+//! 3. r = w âˆ’ wÌƒ (residual â‰ˆ remaining low-frequency bias)
+//! 4. Î”b = bspline_smooth(r) (smooth B-spline fit to residual)
+//! 5. b â† b + Î”b (additive accumulation)
+//! 6. Converge when â€–Î”bâ€–_RMS < threshold.
 //!
-//! Corrected image: exp(v − b).
+//! Corrected image: exp(v âˆ’ b).
 //!
 //! # Histogram Sharpening
 //! Faithful to ITK `N4BiasFieldCorrectionImageFilter::SharpenImage`. Models
-//! H_observed = H_true ∗ G_noise, recovers the deconvolved density U via Wiener
-//! deconvolution Û\[k\] = Ĥ\[k\]·Ĝ*\[k\] / (|Ĝ\[k\]|² + wiener_noise), then maps
+//! H_observed = H_true âˆ— G_noise, recovers the deconvolved density U via Wiener
+//! deconvolution Ã›\[k\] = Ä¤\[k\]Â·Äœ*\[k\] / (|Äœ\[k\]|Â² + wiener_noise), then maps
 //! each intensity through the conditional expectation
-//! E\[i\] = (U·c ⋆ G)\[i\] / (U ⋆ G)\[i\] (c = bin centre). This pulls intensities
-//! toward the sharpened tissue peaks — the actual N4 sharpening, in place of the
+//! E\[i\] = (UÂ·c â‹† G)\[i\] / (U â‹† G)\[i\] (c = bin centre). This pulls intensities
+//! toward the sharpened tissue peaks â€” the actual N4 sharpening, in place of the
 //! earlier rank-preserving CDF/quantile transfer that left N4 behaving like N3.
 
 mod dft;
@@ -33,7 +33,7 @@ mod histogram_sharpen;
 
 use super::bspline_bias::{bspline_evaluate, bspline_fit};
 use anyhow::{anyhow, bail};
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use coeus_core::ComputeBackend;
 use histogram_sharpen::{histogram_sharpen, HistogramSharpenScratch};
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
@@ -47,7 +47,7 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 #[cfg(test)]
 pub(crate) use dft::{dft_real_into, idft_real_into, next_pow2};
 
-// ── Public types ───────────────────────────────────────────────────────────────
+// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Configuration for the N4 bias field correction filter.
 #[derive(Debug, Clone)]
@@ -56,7 +56,7 @@ pub struct N4Config {
     pub num_fitting_levels: usize,
     /// Maximum iterations per fitting level.
     pub num_iterations: usize,
-    /// Convergence threshold: ‖Δb‖_RMS < threshold triggers early exit.
+    /// Convergence threshold: â€–Î”bâ€–_RMS < threshold triggers early exit.
     pub convergence_threshold: f64,
     /// Number of histogram bins for Wiener-based sharpening.
     pub num_histogram_bins: usize,
@@ -67,16 +67,16 @@ pub struct N4Config {
     pub bias_field_fwhm: f64,
     /// Initial B-spline mesh resolution (number of mesh *elements* per dimension)
     /// at level 0. Control points per dimension at level `L` are
-    /// `mesh\[d\]·2^L + spline_order(3)`, doubling the element count each level
+    /// `mesh\[d\]Â·2^L + spline_order(3)`, doubling the element count each level
     /// (ITK/ANTs control-lattice refinement). ANTs default: one element per dim.
     pub bspline_mesh: VolumeDims,
     /// Wiener filter noise term in the histogram-sharpening deconvolution
-    /// (ITK/ANTs default 0.01): Û = Ĥ·conj(Ĝ) / (|Ĝ|² + wiener_noise).
+    /// (ITK/ANTs default 0.01): Ã› = Ä¤Â·conj(Äœ) / (|Äœ|Â² + wiener_noise).
     pub noise_estimate: f64,
     /// Isotropic shrink factor: the EM bias estimation runs on the input
     /// downsampled by this factor (block averaging), then the fitted log-bias
     /// control lattice is evaluated at full resolution (ITK/ANTs `shrinkFactor`,
-    /// default 4). Adapted down so the smallest shrunk dimension stays ≥ 4.
+    /// default 4). Adapted down so the smallest shrunk dimension stays â‰¥ 4.
     pub shrink_factor: usize,
 }
 
@@ -119,7 +119,7 @@ impl N4BiasFieldCorrectionFilter {
     ///
     /// # Errors
     /// Returns `Err` if the tensor data cannot be read as `f32`.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, shape) = extract_vec(image)?;
         let out = apply_n4_bias_correction_values(&vals, shape, &self.config)?;
 
@@ -129,15 +129,15 @@ impl N4BiasFieldCorrectionFilter {
     /// Apply N4 bias correction to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
-            apply_n4_bias_correction_values(image.data_slice()?, image.shape(), &self.config)?,
+        let values = image.try_data_vec_on(backend)?;
+        ritk_image::Image::from_flat_on(
+            apply_n4_bias_correction_values(&values, image.shape(), &self.config)?,
             image.shape(),
             *image.origin(),
             *image.spacing(),
@@ -165,7 +165,7 @@ pub fn apply_n4_bias_correction_values(
     const SPLINE_ORDER: usize = 3;
     const EPS: f32 = 1e-4;
 
-    // ── 1. Extract CPU data; full-resolution log-intensity ─────────────
+    // â”€â”€ 1. Extract CPU data; full-resolution log-intensity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let [nz, ny, nx] = dims;
     let n_full = checked_voxel_count(dims)?;
     if vals.len() != n_full {
@@ -179,9 +179,9 @@ pub fn apply_n4_bias_correction_values(
     let dims = [nz, ny, nx];
     let v_full: Vec<f32> = vals.iter().map(|&x| x.max(EPS).ln()).collect();
 
-    // ── 2. Shrink the log-intensity grid (block averaging) ─────────────
+    // â”€â”€ 2. Shrink the log-intensity grid (block averaging) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // The shrink factor is adapted down per session so the smallest shrunk
-    // dimension stays ≥ 4 (cubic B-spline needs ≥ 1 span = 4 control points).
+    // dimension stays â‰¥ 4 (cubic B-spline needs â‰¥ 1 span = 4 control points).
     let min_dim = dims.iter().copied().min().unwrap_or(1);
     let shrink = config.shrink_factor.clamp(1, (min_dim / 4).max(1));
     let sdims: [usize; 3] = std::array::from_fn(|d| (dims[d] / shrink).max(1));
@@ -189,7 +189,7 @@ pub fn apply_n4_bias_correction_values(
     let n_s = sz * sy * sx;
     let v_s = block_average(&v_full, dims, sdims, shrink);
 
-    // ── 3. Multi-resolution bias estimation on the shrunk grid ─────────
+    // â”€â”€ 3. Multi-resolution bias estimation on the shrunk grid â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // b_s accumulates the log-bias field at shrunk resolution (drives the EM);
     // b_full accumulates it at full resolution (drives the final correction).
     let mut b_s = vec![0.0f32; n_s];
@@ -200,7 +200,7 @@ pub fn apply_n4_bias_correction_values(
 
     for level in 0..config.num_fitting_levels {
         // Control-lattice refinement: element count doubles each level.
-        // cg[d] = mesh[d]·2^level + order, capped to the shrunk extent.
+        // cg[d] = mesh[d]Â·2^level + order, capped to the shrunk extent.
         let shift = 1usize << level;
         let cg: [usize; 3] = std::array::from_fn(|d| {
             (config.bspline_mesh.0[d] * shift + SPLINE_ORDER)
@@ -209,7 +209,7 @@ pub fn apply_n4_bias_correction_values(
         });
 
         for _ in 0..config.num_iterations {
-            // w = v_s − b_s
+            // w = v_s âˆ’ b_s
             for i in 0..n_s {
                 w[i] = v_s[i] - b_s[i];
             }
@@ -224,7 +224,7 @@ pub fn apply_n4_bias_correction_values(
                 &mut hs_scratch,
             )?;
 
-            // r = w − w_sharp (residual ≈ remaining low-frequency bias)
+            // r = w âˆ’ w_sharp (residual â‰ˆ remaining low-frequency bias)
             for i in 0..n_s {
                 r[i] = w[i] - hs_scratch.w_sharp[i];
             }
@@ -236,7 +236,7 @@ pub fn apply_n4_bias_correction_values(
             let delta_s = bspline_evaluate(&ctrl, cg, sdims);
             let delta_full = bspline_evaluate(&ctrl, cg, dims);
 
-            // Convergence criterion: ‖Δb‖_RMS (shrunk grid) < threshold.
+            // Convergence criterion: â€–Î”bâ€–_RMS (shrunk grid) < threshold.
             let change: f64 = {
                 let ss: f64 = delta_s.iter().map(|&x| (x as f64).powi(2)).sum();
                 (ss / n_s as f64).sqrt()
@@ -255,7 +255,7 @@ pub fn apply_n4_bias_correction_values(
         }
     }
 
-    // ── 4. Corrected image at full resolution: exp(v − b) ──────────────
+    // â”€â”€ 4. Corrected image at full resolution: exp(v âˆ’ b) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let mut out = vec![0.0f32; n_full];
     for i in 0..n_full {
         out[i] = (v_full[i] - b_full[i]).exp();
@@ -265,10 +265,10 @@ pub fn apply_n4_bias_correction_values(
 }
 
 /// Downsample a z-major `dims` volume to `sdims` by averaging each
-/// `shrink × shrink × shrink` block (ITK `ShrinkImageFilter` block mean).
+/// `shrink Ã— shrink Ã— shrink` block (ITK `ShrinkImageFilter` block mean).
 ///
 /// Block `(sz, sy, sx)` averages source voxels in
-/// `[sz·f, sz·f + f) × …`, clamped to the source extent. `sdims[d]` is assumed
+/// `[szÂ·f, szÂ·f + f) Ã— â€¦`, clamped to the source extent. `sdims[d]` is assumed
 /// to equal `max(1, dims[d] / shrink)`.
 fn block_average(src: &[f32], dims: [usize; 3], sdims: [usize; 3], shrink: usize) -> Vec<f32> {
     let [nz, ny, nx] = dims;
@@ -297,7 +297,7 @@ fn block_average(src: &[f32], dims: [usize; 3], sdims: [usize; 3], shrink: usize
                         }
                     }
                 }
-                // count ≥ 1: oz < sz ≤ nz/f ⇒ z0 < nz ⇒ z1 > z0 (likewise y, x).
+                // count â‰¥ 1: oz < sz â‰¤ nz/f â‡’ z0 < nz â‡’ z1 > z0 (likewise y, x).
                 out[(oz * sy + oy) * sx + ox] = (sum / count as f64) as f32;
             }
         }

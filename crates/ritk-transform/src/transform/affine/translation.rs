@@ -1,49 +1,84 @@
-//! Translation transform implementation.
-//!
-//! This module provides a simple translation transform.
+//! Trainable translation transform.
 
+use coeus_autograd::{add as add_variables, broadcast_to as broadcast_variable, reshape, Var};
+use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_nn::Module;
+use coeus_ops::{add, broadcast_to, BackendOps};
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_core::transform::{Resampleable, Transform};
-use ritk_image::burn::module::{Module, Param};
-use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 
-/// Simple Translation Transform.
-///
-/// Translates points by a fixed offset vector.
-#[derive(Module, Debug)]
-pub struct TranslationTransform<B: Backend, const D: usize> {
-    translation: Param<Tensor<B, 1>>,
+/// Translation by one trainable `[D]` offset vector.
+#[derive(Clone)]
+pub struct TranslationTransform<B: Backend + BackendOps<f32>, const D: usize> {
+    translation: Var<f32, B>,
 }
 
-impl<B: Backend, const D: usize> TranslationTransform<B, D> {
-    /// Create a new translation transform.
+impl<B: Backend + BackendOps<f32>, const D: usize> TranslationTransform<B, D> {
+    /// Construct a trainable translation parameter.
     ///
-    /// # Arguments
-    /// * `translation` - Tensor of shape `[D]` containing the translation vector
-    pub fn new(translation: Tensor<B, 1>) -> Self {
+    /// # Panics
+    ///
+    /// Panics when `translation` is not shaped `[D]`.
+    #[must_use]
+    pub fn new(translation: Tensor<f32, B>) -> Self {
+        assert_eq!(
+            translation.shape(),
+            [D],
+            "translation parameter must have shape [{D}]"
+        );
         Self {
-            translation: Param::from_tensor(translation),
+            translation: Var::new(translation, true),
         }
     }
 
-    /// Get the translation vector.
-    pub fn translation(&self) -> Tensor<B, 1> {
-        self.translation.val().clone()
+    /// Clone the current translation tensor.
+    #[must_use]
+    pub fn translation(&self) -> Tensor<f32, B> {
+        self.translation.tensor.clone()
+    }
+
+    /// Apply the translation while retaining the Coeus autograd graph.
+    ///
+    /// # Panics
+    ///
+    /// Panics when `points` is not shaped `[N, D]`.
+    #[must_use]
+    pub fn transform_variables(&self, points: &Var<f32, B>) -> Var<f32, B>
+    where
+        B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    {
+        let shape = points.tensor.shape();
+        assert!(
+            shape.len() == 2 && shape[1] == D,
+            "translation transform requires points shaped [N, {D}], got {shape:?}"
+        );
+        let translation = reshape(&self.translation, [1, D]);
+        add_variables(points, &broadcast_variable(&translation, vec![shape[0], D]))
     }
 }
 
-impl<B: Backend, const D: usize> Transform<B, D> for TranslationTransform<B, D> {
-    fn transform_points(&self, points: Tensor<B, 2>) -> Tensor<B, 2> {
-        // points: [Batch, D]
-        // translation: [D]
-        // Broadcast translation to [Batch, D]
-        let t = self.translation.val().reshape([1, D]);
-        points + t
+impl<B: Backend + BackendOps<f32> + Default, const D: usize> Transform<B, D>
+    for TranslationTransform<B, D>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    fn transform_points(&self, points: Tensor<f32, B>) -> Tensor<f32, B> {
+        let shape = points.shape();
+        assert!(
+            shape.len() == 2 && shape[1] == D,
+            "translation transform requires points shaped [N, {D}], got {shape:?}"
+        );
+        let backend = B::default();
+        let translation = self.translation.tensor.reshape([1, D]);
+        let translated = broadcast_to(&translation, &[shape[0], D], &backend);
+        add(&points, &translated, &backend)
     }
 }
 
-impl<B: Backend, const D: usize> Resampleable<B, D> for TranslationTransform<B, D> {
+impl<B: Backend + BackendOps<f32>, const D: usize> Resampleable<B, D>
+    for TranslationTransform<B, D>
+{
     fn resample(
         &self,
         _shape: [usize; D],
@@ -51,35 +86,55 @@ impl<B: Backend, const D: usize> Resampleable<B, D> for TranslationTransform<B, 
         _spacing: Spacing<D>,
         _direction: Direction<D>,
     ) -> Self {
-        // Translation is independent of grid resolution
         self.clone()
+    }
+}
+
+impl<B: Backend + BackendOps<f32> + Default, const D: usize> Module<f32, B>
+    for TranslationTransform<B, D>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+{
+    fn parameters(&self) -> Vec<Var<f32, B>> {
+        vec![self.translation.clone()]
+    }
+
+    fn named_parameters(&self) -> Vec<coeus_autograd::Parameter<f32, B>> {
+        vec![coeus_autograd::Parameter::new(
+            self.translation.clone(),
+            "translation",
+        )]
+    }
+
+    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
+        self.transform_variables(input)
+    }
+
+    fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {
+        assert_eq!(
+            parameters.len(),
+            1,
+            "invariant: translation transform owns one parameter"
+        );
+        self.translation = parameters[0].clone();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
-
-    type TestBackend = NdArray<f32>;
+    use coeus_core::SequentialBackend;
 
     #[test]
-    fn test_translation_transform() {
-        let device = Default::default();
-        let translation = Tensor::<TestBackend, 1>::from_floats([1.0, 2.0, 3.0], &device);
-        let transform = TranslationTransform::<TestBackend, 3>::new(translation);
-
+    fn translates_every_point() {
+        let backend = SequentialBackend;
+        let translation = Tensor::<f32, _>::from_slice_on([3], &[1.0, 2.0, 3.0], &backend);
+        let transform = TranslationTransform::<SequentialBackend, 3>::new(translation);
         let points =
-            Tensor::<TestBackend, 2>::from_floats([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], &device);
+            Tensor::<f32, _>::from_slice_on([2, 3], &[0.0, 0.0, 0.0, 1.0, 1.0, 1.0], &backend);
 
         let transformed = transform.transform_points(points);
-        let data = transformed.to_data();
 
-        assert_eq!(data.as_slice::<f32>().unwrap()[0], 1.0);
-        assert_eq!(data.as_slice::<f32>().unwrap()[1], 2.0);
-        assert_eq!(data.as_slice::<f32>().unwrap()[2], 3.0);
-        assert_eq!(data.as_slice::<f32>().unwrap()[3], 2.0);
-        assert_eq!(data.as_slice::<f32>().unwrap()[4], 3.0);
-        assert_eq!(data.as_slice::<f32>().unwrap()[5], 4.0);
+        assert_eq!(transformed.as_slice(), &[1.0, 2.0, 3.0, 2.0, 3.0, 4.0]);
     }
 }

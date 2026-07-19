@@ -2,10 +2,10 @@
 
 use super::conv_2d::make_image_2d;
 use crate::fft::FftNormalizedCorrelationFilter;
-use burn_ndarray::NdArray;
+
 use ritk_tensor_ops::extract_vec;
 
-type B = NdArray<f32>;
+type B = coeus_core::SequentialBackend;
 
 /// Cross-correlation output shape must equal input shape.
 #[test]

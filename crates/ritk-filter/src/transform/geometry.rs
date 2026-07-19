@@ -30,11 +30,11 @@ use ritk_spatial::{Direction, Point, Vector};
 /// `matrix` is row-major in the physical `(x, y, z)` frame. Returns `Err` if the
 /// matrix is singular (no inverse).
 pub fn transform_geometry<B: Backend>(
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
     matrix: [[f64; 3]; 3],
     translation: [f64; 3],
     center: [f64; 3],
-) -> Result<Image<B, 3>> {
+) -> Result<Image<f32, B, 3>> {
     let a = Direction::from_rows(matrix);
     let Some(a_inv) = a.try_inverse() else {
         bail!("transform_geometry: matrix is singular (no inverse)");
@@ -49,12 +49,12 @@ pub fn transform_geometry<B: Backend>(
     // Each direction column is a world vector; A⁻¹ left-multiplies the matrix.
     let new_dir = a_inv * *image.direction();
 
-    Ok(Image::new(
+    Image::new(
         image.data().clone(),
         Point::new(new_o.to_array()),
         *image.spacing(),
         new_dir,
-    ))
+    )
 }
 
 #[cfg(test)]

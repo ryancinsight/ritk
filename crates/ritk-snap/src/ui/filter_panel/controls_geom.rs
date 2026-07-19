@@ -59,12 +59,12 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             constant,
         } => {
             for (label, val) in [
-                ("↓Z", pad_lower_z),
-                ("↓Y", pad_lower_y),
-                ("↓X", pad_lower_x),
-                ("↑Z", pad_upper_z),
-                ("↑Y", pad_upper_y),
-                ("↑X", pad_upper_x),
+                ("â†“Z", pad_lower_z),
+                ("â†“Y", pad_lower_y),
+                ("â†“X", pad_lower_x),
+                ("â†‘Z", pad_upper_z),
+                ("â†‘Y", pad_upper_y),
+                ("â†‘X", pad_upper_x),
             ] {
                 let mut v = *val as i32;
                 ui.horizontal(|ui| {
@@ -93,12 +93,12 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             pad_upper_x,
         } => {
             for (label, val) in [
-                ("↓Z", pad_lower_z),
-                ("↓Y", pad_lower_y),
-                ("↓X", pad_lower_x),
-                ("↑Z", pad_upper_z),
-                ("↑Y", pad_upper_y),
-                ("↑X", pad_upper_x),
+                ("â†“Z", pad_lower_z),
+                ("â†“Y", pad_lower_y),
+                ("â†“X", pad_lower_x),
+                ("â†‘Z", pad_upper_z),
+                ("â†‘Y", pad_upper_y),
+                ("â†‘X", pad_upper_x),
             ] {
                 let mut v = *val as i32;
                 ui.horizontal(|ui| {
@@ -125,12 +125,12 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             pad_upper_x,
         } => {
             for (label, val) in [
-                ("↓Z", pad_lower_z),
-                ("↓Y", pad_lower_y),
-                ("↓X", pad_lower_x),
-                ("↑Z", pad_upper_z),
-                ("↑Y", pad_upper_y),
-                ("↑X", pad_upper_x),
+                ("â†“Z", pad_lower_z),
+                ("â†“Y", pad_lower_y),
+                ("â†“X", pad_lower_x),
+                ("â†‘Z", pad_upper_z),
+                ("â†‘Y", pad_upper_y),
+                ("â†‘X", pad_upper_x),
             ] {
                 let mut v = *val as i32;
                 ui.horizontal(|ui| {

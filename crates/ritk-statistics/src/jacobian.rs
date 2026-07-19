@@ -2,8 +2,8 @@
 //!
 //! # Mathematical Specification
 //!
-//! Given a displacement field **u**(x) = (u₀, u₁, u₂) at each voxel x, the
-//! deformation φ(x) = x + **u**(x).  The Jacobian matrix of φ at x is:
+//! Given a displacement field **u**(x) = (uâ‚€, uâ‚, uâ‚‚) at each voxel x, the
+//! deformation Ï†(x) = x + **u**(x).  The Jacobian matrix of Ï† at x is:
 //!
 //!   J(x) = I + ∇**u**(x)
 //!
@@ -39,7 +39,8 @@
 //! The outer Z loop is parallelised with `moirai::Adaptive`; each Z-slice is independent.
 
 use anyhow::{anyhow, Result};
-use ritk_image::tensor::backend::Backend;
+use coeus_core::CpuAddressableStorage;
+use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
@@ -203,7 +204,7 @@ fn det3(m: [f32; 9]) -> f32 {
 ///   each of shape [nz, ny, nx] with the same physical spacing.
 ///
 /// # Returns
-/// `Image<B, 3>` of shape [nz, ny, nx] where each voxel holds det(J(φ)).
+/// `Image<f32, B, 3>` of shape [nz, ny, nx] where each voxel holds det(J(Ï†)).
 ///
 /// # Errors
 /// Returns `Err` when the three displacement components differ in shape or when
@@ -213,10 +214,13 @@ fn det3(m: [f32; 9]) -> f32 {
 /// - det(J) > 0 everywhere → topology-preserving deformation.
 /// - det(J) ≤ 0 at any voxel → folding (anatomically invalid).
 pub fn jacobian_determinant<B: Backend>(
-    disp_z: &Image<B, 3>,
-    disp_y: &Image<B, 3>,
-    disp_x: &Image<B, 3>,
-) -> Result<Image<B, 3>> {
+    disp_z: &Image<f32, B, 3>,
+    disp_y: &Image<f32, B, 3>,
+    disp_x: &Image<f32, B, 3>,
+) -> Result<Image<f32, B, 3>>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     let (uz, dims) = extract_vec(disp_z)?;
     let (uy, dims_y) = extract_vec(disp_y)?;
     let (ux, dims_x) = extract_vec(disp_x)?;
@@ -307,7 +311,10 @@ pub fn jacobian_determinant<B: Backend>(
 /// # Errors
 /// Returns `Err` when the backend tensor cannot be converted to f32, or the
 /// image is empty.
-pub fn analyze_jacobian<B: Backend>(jac: &Image<B, 3>) -> Result<JacobianStats> {
+pub fn analyze_jacobian<B: Backend>(jac: &Image<f32, B, 3>) -> Result<JacobianStats>
+where
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+{
     let (vals, _) = extract_vec(jac)?;
     let n = vals.len();
     if n == 0 {

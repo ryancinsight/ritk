@@ -3,11 +3,11 @@ use ritk_registration::classical::{image_to_leto_volume, leto_volume_to_image};
 
 /// Run rigid-mi or affine-mi registration via the classical MI engine.
 pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
-    let fixed_native = super::super::read_image_native(&args.fixed)?;
-    let moving_native = super::super::read_image_native(&args.moving)?;
+    let fixed_native = super::super::read_image(&args.fixed)?;
+    let moving_native = super::super::read_image(&args.moving)?;
 
-    let filter = GaussianFilter::<super::NativeBackend>::new(vec![args.sigma_fixed; 3]);
-    let backend = super::NativeBackend::default();
+    let filter = GaussianFilter::<crate::commands::Backend>::new(vec![args.sigma_fixed; 3]);
+    let backend = crate::commands::Backend::default();
     let fixed_smoothed = filter.apply_native(&fixed_native, &backend)?;
     let moving_smoothed = filter.apply_native(&moving_native, &backend)?;
 
@@ -30,13 +30,13 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
         _ => unreachable!("run_mi_registration called with non-MI method"),
     };
 
-    let moving_original = super::super::read_image_native(&args.moving)?;
+    let moving_original = super::super::read_image(&args.moving)?;
     let moving_original_volume = image_to_leto_volume(&moving_original)?;
     let warped_volume = spatial::apply_transform(&moving_original_volume, &result.transform);
     let warped_native = leto_volume_to_image(&warped_volume, &fixed_native, &backend)?;
     let format = super::super::infer_format(&args.output)
         .ok_or_else(|| anyhow::anyhow!("Cannot infer output format: {}", args.output.display()))?;
-    super::super::write_image_native(&args.output, &warped_native, format)?;
+    super::super::write_image(&args.output, &warped_native, format)?;
 
     if let Some(transform_path) = &args.output_transform {
         let json = serde_json::to_string_pretty(result.transform.as_array())
@@ -52,7 +52,7 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
 
     let quality = &result.quality;
     println!(
-        "Registered {} → {} (method={}, iterations={}, converged={:?}, MI={:.6}, cost={:.6})",
+        "Registered {} â†’ {} (method={}, iterations={}, converged={:?}, MI={:.6}, cost={:.6})",
         args.moving.display(),
         args.output.display(),
         args.method,
@@ -77,7 +77,7 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
 mod tests {
     use super::*;
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image;
+    use ritk_image::Image;
     use ritk_io::{
         format::nifti::native::{NiftiReader, NiftiWriter},
         ImageReader, ImageWriter,

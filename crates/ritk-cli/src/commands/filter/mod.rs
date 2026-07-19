@@ -1,13 +1,15 @@
-//! `ritk filter` — image filtering command.
+//! `ritk filter` â€” image filtering command.
 //!
 //! Applies one of 34 filters to a 3-D medical image. The CLI surface uses
 //! `--filter <KIND>` for closed-set dispatch (typed by [`FilterKind`]) so
 //! unknown filter names are rejected at parse time, not at runtime.
 
+#[cfg(test)]
+use super::Backend;
 use anyhow::Result;
+#[cfg(test)]
+use ritk_image::Image;
 use tracing::info;
-
-pub(crate) use super::{Backend, NativeBackend};
 
 pub mod args;
 pub use args::*;
@@ -22,7 +24,7 @@ mod spatial_file;
 #[cfg(test)]
 mod tests;
 
-// ── Command handler ───────────────────────────────────────────────────────────
+// â”€â”€ Command handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Execute the `filter` subcommand.
 ///
@@ -82,12 +84,12 @@ pub fn run(args: FilterArgs) -> Result<()> {
     }
 }
 
-// ── Test helpers (shared across leaf modules) ─────────────────────────────────
+// â”€â”€ Test helpers (shared across leaf modules) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 use std::path::PathBuf;
 
-/// Default `FilterArgs` builder — sets every per-family field to its
+/// Default `FilterArgs` builder â€” sets every per-family field to its
 /// reasonable default and lets the caller override what is needed.
 #[cfg(test)]
 pub(crate) fn default_args(input: PathBuf, output: PathBuf, kind: FilterKind) -> FilterArgs {
@@ -162,21 +164,21 @@ pub(crate) fn default_args(input: PathBuf, output: PathBuf, kind: FilterKind) ->
     }
 }
 
-/// Build a 5×5×5 test image whose voxel values are `0, 1, 2, …, 124`.
+/// Build a 5Ã—5Ã—5 test image whose voxel values are `0, 1, 2, â€¦, 124`.
 #[cfg(test)]
-pub(crate) fn make_test_image() -> NativeImage<f32, NativeBackend, 3> {
-    use crate::commands::NativeBackend;
-    use ritk_image::native::Image as NativeImage;
+pub(crate) fn make_test_image() -> Image<f32, Backend, 3> {
+    use crate::commands::Backend;
+    use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
 
     let values: Vec<f32> = (0..125).map(|i| i as f32).collect();
-    NativeImage::from_flat_on(
+    Image::from_flat_on(
         values,
         [5, 5, 5],
         Point::new([0.0; 3]),
         Spacing::new([1.0; 3]),
         Direction::identity(),
-        &NativeBackend::default(),
+        &Backend::default(),
     )
-    .expect("invariant: valid 5×5×5 ramp image")
+    .expect("invariant: valid 5Ã—5Ã—5 ramp image")
 }

@@ -2,7 +2,7 @@
 //! registration.
 //!
 //! Measures wall-clock time for a single gradient-descent iteration on a
-//! 256³ synthetic volume with 10 geodesic integration steps.
+//! 256Â³ synthetic volume with 10 geodesic integration steps.
 //!
 //! # Running
 //!
@@ -44,11 +44,11 @@ fn bench_lddmm_smoothing(c: &mut Criterion) {
     };
 
     let mut group = c.benchmark_group("LDDMM_256cubed_10steps");
-    // LDDMM on 256³ is heavy — keep sample size low to avoid
+    // LDDMM on 256Â³ is heavy â€” keep sample size low to avoid
     // multi-minute benchmark runs.
     group.sample_size(10);
 
-    // ── CPU path: CpuFieldSmoother (via register()) ──────────────────────
+    // â”€â”€ CPU path: CpuFieldSmoother (via register()) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     group.bench_function("cpu_smoother", |b| {
         let reg = LddmmRegistration::new(config.clone());
         b.iter(|| {
@@ -64,7 +64,7 @@ fn bench_lddmm_smoothing(c: &mut Criterion) {
         })
     });
 
-    // ── Preallocated native CPU path (via register_with) ────────────────────
+    // â”€â”€ Preallocated native CPU path (via register_with) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     group.bench_function("preallocated_cpu_smoother", |b| {
         let mut smoother = CpuFieldSmoother::new(dims, 2.0);
         let reg = LddmmRegistration::new(config.clone());

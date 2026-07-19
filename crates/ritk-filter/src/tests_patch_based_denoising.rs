@@ -1,9 +1,8 @@
 use super::*;
-use crate::native_support::LegacyBurnBackend;
 use ritk_image::test_support as ts;
 use ritk_tensor_ops::extract_vec;
 
-type B = LegacyBurnBackend;
+type B = coeus_core::SequentialBackend;
 
 /// The ITK MersenneTwister port must reproduce the canonical MT19937 sequence:
 /// seed 0 → first output 2357136044; seed 5489 → 3499211612.
@@ -73,7 +72,7 @@ fn test_zero_weight_elision_preserves_finite_patch_distance() {
 fn test_patch_based_denoising_deterministic() {
     let (ny, nx) = (12usize, 12);
     let vals: Vec<f32> = (0..ny * nx).map(|i| ((i * 37) % 90) as f32 + 5.0).collect();
-    let img = ts::burn_compat::make_image::<B, 3>(vals, [1, ny, nx]);
+    let img = ts::make_image::<f32, B, 3>(vals, [1, ny, nx]);
     let filt = PatchBasedDenoisingImageFilter {
         patch_radius: 1,
         number_of_iterations: 1,
@@ -231,7 +230,7 @@ fn test_patch_displacements_match_coordinate_indices() {
 
 #[test]
 fn test_patch_based_denoising_rejects_unbounded_sample_storage() {
-    let image = ts::burn_compat::make_image::<B, 3>(vec![1.0f32; 9], [1, 3, 3]);
+    let image = ts::make_image::<f32, B, 3>(vec![1.0f32; 9], [1, 3, 3]);
     let max_samples = SAMPLE_BATCH_BYTES / size_of::<usize>();
     let error = PatchBasedDenoisingImageFilter {
         number_of_sample_patches: max_samples + 1,
@@ -251,7 +250,7 @@ fn test_patch_based_denoising_rejects_unbounded_sample_storage() {
 
 #[test]
 fn test_patch_based_denoising_rejects_invalid_configuration() {
-    let image = ts::burn_compat::make_image::<B, 3>(vec![1.0f32; 81], [1, 9, 9]);
+    let image = ts::make_image::<f32, B, 3>(vec![1.0f32; 81], [1, 9, 9]);
     let cases = [
         (
             PatchBasedDenoisingImageFilter {
@@ -313,8 +312,8 @@ fn test_patch_based_denoising_rejects_invalid_configuration() {
 
 #[test]
 fn test_patch_based_denoising_rejects_image_smaller_than_patch() {
-    let planar = ts::burn_compat::make_image::<B, 3>(vec![1.0f32; 9], [1, 3, 3]);
-    let volumetric = ts::burn_compat::make_image::<B, 3>(vec![1.0f32; 5 * 9 * 9], [5, 9, 9]);
+    let planar = ts::make_image::<f32, B, 3>(vec![1.0f32; 9], [1, 3, 3]);
+    let volumetric = ts::make_image::<f32, B, 3>(vec![1.0f32; 5 * 9 * 9], [5, 9, 9]);
     let filter = PatchBasedDenoisingImageFilter::default();
 
     assert_eq!(
@@ -332,7 +331,7 @@ fn test_patch_based_denoising_rejects_image_smaller_than_patch() {
 #[test]
 fn test_patch_based_denoising_constant_is_fixed_point() {
     let (ny, nx) = (10usize, 10);
-    let img = ts::burn_compat::make_image::<B, 3>(vec![42.0f32; ny * nx], [1, ny, nx]);
+    let img = ts::make_image::<f32, B, 3>(vec![42.0f32; ny * nx], [1, ny, nx]);
     let out = PatchBasedDenoisingImageFilter {
         patch_radius: 1,
         ..Default::default()

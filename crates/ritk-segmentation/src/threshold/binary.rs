@@ -24,11 +24,11 @@
 //! # References
 //! - ITK `BinaryThresholdImageFilter` (www.itk.org/Doxygen/html/classitk_1_1BinaryThresholdImageFilter.html)
 
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-// ── Public API ─────────────────────────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// User-specified binary threshold segmentation.
 ///
@@ -114,7 +114,7 @@ impl BinaryThreshold {
     /// Returns an image with the same shape and spatial metadata as `image`.
     /// Each voxel is set to `inside_value` or `outside_value` according to the
     /// threshold interval \[lower, upper\].
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         binary_threshold(
             image,
             self.lower,
@@ -133,14 +133,14 @@ impl BinaryThreshold {
     /// from the computed flat volume and input geometry.
     pub fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
+        ritk_image::Image::from_flat_on(
             apply_binary_threshold_to_slice(
                 image.data_slice()?,
                 self.lower,
@@ -168,7 +168,7 @@ impl Default for BinaryThreshold {
     }
 }
 
-// ── Public function ───────────────────────────────────────────────────────────
+// â”€â”€ Public function â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Apply a user-specified binary threshold to `image`.
 ///
@@ -178,12 +178,12 @@ impl Default for BinaryThreshold {
 /// # Panics
 /// Panics if `lower > upper` or if either value is not finite.
 pub fn binary_threshold<B: Backend, const D: usize>(
-    image: &Image<B, D>,
+    image: &Image<f32, B, D>,
     lower: f32,
     upper: f32,
     inside_value: f32,
     outside_value: f32,
-) -> Image<B, D> {
+) -> Image<f32, B, D> {
     assert!(
         lower <= upper,
         "lower bound {lower} must be ≤ upper bound {upper}"
@@ -197,7 +197,7 @@ pub fn binary_threshold<B: Backend, const D: usize>(
         "outside_value must be finite, got {outside_value}"
     );
 
-    let device = image.data().device();
+    let device = B::default();
     let shape: [usize; D] = image.shape();
     let (img_vals, _shape) = extract_vec_infallible(image);
     let slice: &[f32] = &img_vals;
@@ -205,7 +205,7 @@ pub fn binary_threshold<B: Backend, const D: usize>(
     let output: Vec<f32> =
         apply_binary_threshold_to_slice(slice, lower, upper, inside_value, outside_value);
 
-    let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
+    let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device);
 
     Image::new(
         tensor,
@@ -213,9 +213,10 @@ pub fn binary_threshold<B: Backend, const D: usize>(
         *image.spacing(),
         *image.direction(),
     )
+    .expect("invariant: segmentation output tensor preserves the image rank")
 }
 
-// ── Core implementation ───────────────────────────────────────────────────────
+// â”€â”€ Core implementation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Apply binary threshold directly to a flat `&[f32]` slice.
 ///
@@ -239,7 +240,7 @@ pub fn apply_binary_threshold_to_slice(
         .collect()
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_binary_threshold.rs"]

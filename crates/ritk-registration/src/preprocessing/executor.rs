@@ -3,7 +3,7 @@
 use anyhow::{Context, Result};
 use ritk_filter::bias::N4Config;
 use ritk_filter::{GaussianFilter, GaussianSigma, N4BiasFieldCorrectionFilter};
-use ritk_image::tensor::{Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_image::Image;
 
 use super::pipeline::PreprocessingPipeline;
@@ -16,7 +16,10 @@ impl PreprocessingPipeline {
     /// Execute all steps sequentially.
     ///
     /// Invariant: each step receives the output of the previous step.
-    pub fn execute<B: Backend>(&self, mut image: Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn execute<B: Backend + Default>(
+        &self,
+        mut image: Image<f32, B, 3>,
+    ) -> Result<Image<f32, B, 3>> {
         for step in &self.steps {
             image = match step {
                 PreprocessingStep::N4BiasCorrection {
@@ -73,47 +76,40 @@ impl PreprocessingPipeline {
 }
 
 /// Reconstruct a 3-D image from a flat `Vec<f32>`, preserving spatial metadata.
-fn rebuild_image<B: Backend>(src: &Image<B, 3>, vals: Vec<f32>) -> Result<Image<B, 3>> {
+fn rebuild_image<B: Backend>(src: &Image<f32, B, 3>, vals: Vec<f32>) -> Result<Image<f32, B, 3>> {
     let shape = src.shape();
     validate_value_count(vals.len(), shape, "preprocessing rebuild")?;
-    let device = src.data().device();
-    let tensor = Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(shape)), &device);
-    Ok(Image::new(
-        tensor,
-        *src.origin(),
-        *src.spacing(),
-        *src.direction(),
-    ))
+    let backend = B::default();
+    let tensor = Tensor::<f32, B>::from_slice_on(shape, &vals, &backend);
+    Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
 }
 
 #[cfg(test)]
 mod tests {
     use super::super::pipeline::PreprocessingPipeline;
     use crate::preprocessing::{IntensityRescaleMode, PreprocessingStep};
-    use burn_ndarray::NdArray;
-    use ritk_image::tensor::{Shape, Tensor, TensorData};
+    use coeus_core::SequentialBackend;
+    use ritk_image::tensor::Tensor;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
 
-    type B = NdArray<f32>;
+    type B = SequentialBackend;
 
-    fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<B, 3> {
+    fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
         let device = Default::default();
-        let t = Tensor::<B, 3>::from_data(TensorData::new(vals, Shape::new(dims)), &device);
+        let t = Tensor::<f32, B>::from_slice_on(dims, &vals, &device);
         Image::new(
             t,
             Point::new([0.0, 0.0, 0.0]),
             Spacing::new([1.0, 1.0, 1.0]),
             Direction::identity(),
         )
+        .expect("invariant: fixture tensor preserves the declared image rank")
     }
 
-    fn extract(img: &Image<B, 3>) -> Vec<f32> {
-        img.data()
-            .clone()
-            .into_data()
-            .as_slice::<f32>()
-            .unwrap()
+    fn extract(img: &Image<f32, B, 3>) -> Vec<f32> {
+        img.data_slice()
+            .expect("fixture image is CPU-addressable")
             .to_vec()
     }
 

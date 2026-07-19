@@ -53,7 +53,7 @@ impl BinaryNotImageFilter {
 
     /// Apply the binary NOT pixelwise.  Works for any spatial dimensionality
     /// `D`; spatial metadata is preserved identically.
-    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<B, D>) -> Image<B, D> {
+    pub fn apply<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         let (vals, dims) = extract_vec(image);
         let (fg, bg) = (self.foreground, self.background);
         let out: Vec<f32> = vals
@@ -65,9 +65,9 @@ impl BinaryNotImageFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

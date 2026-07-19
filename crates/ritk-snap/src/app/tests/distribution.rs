@@ -57,7 +57,7 @@ fn clinical_distribution_report_redacts_identifiers_and_lists_media_layout() {
     assert!(report.contains("Clinical Distribution Report"));
     let plane_label = anatomical_label_for_axis(Some(&volume), 0);
     assert!(report.contains(&format!("Current plane: {} (axis 0)", plane_label)));
-    assert!(report.contains("Volume shape [depth, rows, cols]: 2 × 3 × 4"));
+    assert!(report.contains("Volume shape [depth, rows, cols]: 2 Ã— 3 Ã— 4"));
     assert!(report.contains("Window centre: 40.0000"));
     assert!(report.contains("Window width: 400.0000"));
     assert!(report.contains("Patient name: [redacted]"));

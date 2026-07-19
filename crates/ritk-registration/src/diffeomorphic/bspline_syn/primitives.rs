@@ -3,23 +3,23 @@
 //!
 //! # Cubic B-Spline Basis
 //!
-//! Uniform cubic B-spline basis over parameter `u ∈ [0,1)`:
-//! - `B₀(u) = (1 − u)³ / 6`
-//! - `B₁(u) = (3u³ − 6u² + 4) / 6`
-//! - `B₂(u) = (−3u³ + 3u² + 3u + 1) / 6`
-//! - `B₃(u) = u³ / 6`
+//! Uniform cubic B-spline basis over parameter `u âˆˆ [0,1)`:
+//! - `Bâ‚€(u) = (1 âˆ’ u)Â³ / 6`
+//! - `Bâ‚(u) = (3uÂ³ âˆ’ 6uÂ² + 4) / 6`
+//! - `Bâ‚‚(u) = (âˆ’3uÂ³ + 3uÂ² + 3u + 1) / 6`
+//! - `Bâ‚ƒ(u) = uÂ³ / 6`
 //!
-//! **Partition of unity**: `Σₖ Bₖ(u) = 1 ∀ u ∈ [0,1]`.
+//! **Partition of unity**: `Î£â‚– Bâ‚–(u) = 1 âˆ€ u âˆˆ [0,1]`.
 
 use crate::deformable_field_ops::flat;
 
-// ── Basis evaluation ──────────────────────────────────────────────────────────
+// â”€â”€ Basis evaluation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Evaluate the `k`-th uniform cubic B-spline basis function at parameter
-/// `u ∈ [0, 1]`.
+/// `u âˆˆ [0, 1]`.
 ///
 /// # Partition of unity
-/// `Σ_{k=0}^{3} Bₖ(u) = 1` for all `u ∈ [0, 1]`.
+/// `Î£_{k=0}^{3} Bâ‚–(u) = 1` for all `u âˆˆ [0, 1]`.
 #[inline]
 pub(crate) fn bspline_basis(k: usize, u: f64) -> f64 {
     let u2 = u * u;
@@ -33,12 +33,12 @@ pub(crate) fn bspline_basis(k: usize, u: f64) -> f64 {
     }
 }
 
-// ── Control-point layout ──────────────────────────────────────────────────────
+// â”€â”€ Control-point layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Number of control points along one axis for image dimension `dim` and
 /// control-point spacing `spacing`.
 ///
-/// Formula: `⌊(dim − 1) / spacing⌋ + 4`, ensuring the cubic B-spline support
+/// Formula: `âŒŠ(dim âˆ’ 1) / spacingâŒ‹ + 4`, ensuring the cubic B-spline support
 /// (4 CPs per knot span) covers the entire image domain.
 #[inline]
 pub(crate) fn cp_count(dim: usize, spacing: usize) -> usize {
@@ -48,7 +48,7 @@ pub(crate) fn cp_count(dim: usize, spacing: usize) -> usize {
     (dim - 1) / spacing + 4
 }
 
-// ── Dense field evaluation ────────────────────────────────────────────────────
+// â”€â”€ Dense field evaluation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Zero-allocation variant of `evaluate_dense`: writes the dense displacement
 /// field into a caller-provided buffer.
@@ -107,7 +107,7 @@ pub(crate) fn evaluate_dense(
     out
 }
 
-// ── Force accumulation ────────────────────────────────────────────────────────
+// â”€â”€ Force accumulation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Zero-allocation variant of `accumulate_to_cp`: reuses caller-provided
 /// `accum` and `weight` temporaries and writes the result into `out`.
@@ -187,7 +187,7 @@ pub(crate) fn accumulate_to_cp(
     out
 }
 
-// ── Laplacian regularisation ──────────────────────────────────────────────────
+// â”€â”€ Laplacian regularisation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Zero-allocation variant of `cp_laplacian`: writes the Laplacian into a
 /// caller-provided buffer.
@@ -241,7 +241,7 @@ pub(crate) fn cp_laplacian(cp: &[f32], cp_dims: [usize; 3]) -> Vec<f32> {
     out
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 mod tests {

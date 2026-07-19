@@ -6,7 +6,7 @@
 
 use ritk_io::{literal_arraystring, AssociationConfig};
 
-// ── AutoLoadPolicy ────────────────────────────────────────────────────────────
+// â”€â”€ AutoLoadPolicy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Controls whether received DICOM objects are automatically loaded into the viewer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -17,7 +17,7 @@ pub enum AutoLoadPolicy {
     Manual,
 }
 
-// ── PacsConfig ────────────────────────────────────────────────────────────────
+// â”€â”€ PacsConfig â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// PACS server configuration (UI-facing).
 ///
@@ -26,7 +26,7 @@ pub enum AutoLoadPolicy {
 /// by [`PacsConfig::to_association_config`] only when a request is submitted.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PacsConfig {
-    /// AE title of this application (calling AE title, PS 3.8 §7.1.1).
+    /// AE title of this application (calling AE title, PS 3.8 Â§7.1.1).
     pub calling_ae_title: String,
     /// AE title of the remote PACS (called AE title).
     pub called_ae_title: String,

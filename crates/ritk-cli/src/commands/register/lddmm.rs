@@ -1,6 +1,6 @@
 use super::*;
 
-// ── LDDMM registration ────────────────────────────────────────────────────
+// â”€â”€ LDDMM registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Run LDDMM (Large Deformation Diffeomorphic Metric Mapping) registration.
 ///
@@ -54,7 +54,7 @@ mod tests {
     use ritk_registration::demons::DemonsVariant;
     use tempfile::tempdir;
 
-    // ── LDDMM: output shape ────────────────────────────────────────────────────────────
+    // â”€â”€ LDDMM: output shape â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     #[test]
     fn test_register_lddmm_creates_output_with_correct_shape() {
@@ -130,15 +130,18 @@ mod tests {
         .expect("lddmm must succeed");
 
         let out = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
-        out.with_data_slice(|vals| {
+        {
+            let vals = out
+                .data_slice()
+                .expect("invariant: image storage is contiguous");
             assert!(
                 vals.iter().all(|v| v.is_finite()),
                 "all output voxels must be finite"
             );
-        });
+        }
     }
 
-    // ── Boundary: Leto volume round-trip preserves values ────────────────
+    // â”€â”€ Boundary: Leto volume round-trip preserves values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Converting an image to `leto::Array3<f64>` and back must preserve voxel
     /// values within f32 precision.
@@ -154,7 +157,7 @@ mod tests {
             "array shape must match image shape"
         );
 
-        // Verify values: flat index i → value i * 4.0.
+        // Verify values: flat index i â†’ value i * 4.0.
         let flat: Vec<f64> = volume.iter().copied().collect();
         for (i, &v) in flat.iter().enumerate() {
             let expected = i as f64 * 4.0;
@@ -166,15 +169,25 @@ mod tests {
 
         // Convert back and verify sum is preserved.
         let reconstructed = leto_volume_to_image(volume, &image);
-        let orig_sum: f32 = image.with_data_slice(|s| s.iter().copied().sum());
-        let recon_sum: f32 = reconstructed.with_data_slice(|s| s.iter().copied().sum());
+        let orig_sum: f32 = image
+            .data_slice()
+            .expect("invariant: image storage is contiguous")
+            .iter()
+            .copied()
+            .sum();
+        let recon_sum: f32 = reconstructed
+            .data_slice()
+            .expect("invariant: image storage is contiguous")
+            .iter()
+            .copied()
+            .sum();
         assert!(
             (orig_sum - recon_sum).abs() < 1e-3,
             "voxel sum must be preserved: orig={orig_sum}, recon={recon_sum}"
         );
     }
 
-    // ── Boundary: image_to_flat_vec round-trip preserves values ───────────
+    // â”€â”€ Boundary: image_to_flat_vec round-trip preserves values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /// Converting an image to flat vec and back must preserve voxel values.
     #[test]
@@ -196,8 +209,8 @@ mod tests {
 
         // Round-trip.
         let reconstructed = flat_vec_to_image(data, shape, &image);
-        let recon_vals: Vec<f32> = reconstructed.data_slice().into_owned();
-        let orig_vals: Vec<f32> = image.data_slice().into_owned();
+        let recon_vals: Vec<f32> = reconstructed.data_vec();
+        let orig_vals: Vec<f32> = image.data_vec();
         for (i, (&o, &r)) in orig_vals.iter().zip(recon_vals.iter()).enumerate() {
             assert!(
                 (o - r).abs() < 1e-6,

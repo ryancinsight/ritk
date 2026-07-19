@@ -17,7 +17,7 @@ fn make_default_config() -> BSplineSyNConfig {
     }
 }
 
-/// Smooth test image: `I[z,y,x] = sin(π·z/nz) · cos(π·y/ny) · (x + 1)`.
+/// Smooth test image: `I[z,y,x] = sin(Ï€Â·z/nz) Â· cos(Ï€Â·y/ny) Â· (x + 1)`.
 /// Analytically derived to produce non-trivial gradients in all three axes.
 fn make_test_image(dims: [usize; 3]) -> Vec<f32> {
     let [nz, ny, nx] = dims;
@@ -47,9 +47,9 @@ fn translate_x(data: &[f32], dims: [usize; 3], shift: usize) -> Vec<f32> {
     out
 }
 
-// ── B-spline basis tests ──────────────────────────────────────────────────────
+// â”€â”€ B-spline basis tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Partition of unity: `Σ_{k=0}^{3} Bₖ(u) = 1` for all `u ∈ [0, 1]`.
+/// Partition of unity: `Î£_{k=0}^{3} Bâ‚–(u) = 1` for all `u âˆˆ [0, 1]`.
 /// Verified at 101 uniformly-spaced parameter values (analytically exact
 /// for uniform cubic B-splines).
 #[test]
@@ -64,7 +64,7 @@ fn bspline_basis_partition_of_unity() {
     }
 }
 
-/// Boundary values: `B₀(0) = 1/6`, `B₁(0) = 4/6`, `B₂(0) = 1/6`, `B₃(0) = 0`.
+/// Boundary values: `Bâ‚€(0) = 1/6`, `Bâ‚(0) = 4/6`, `Bâ‚‚(0) = 1/6`, `Bâ‚ƒ(0) = 0`.
 #[test]
 fn bspline_basis_boundary_values() {
     let tol = 1e-14;
@@ -79,7 +79,7 @@ fn bspline_basis_boundary_values() {
     assert!((bspline_basis(3, 1.0) - 1.0 / 6.0).abs() < tol);
 }
 
-/// All basis values are non-negative for `u ∈ [0, 1]`.
+/// All basis values are non-negative for `u âˆˆ [0, 1]`.
 #[test]
 fn bspline_basis_non_negative() {
     for i in 0..=1000 {
@@ -91,7 +91,7 @@ fn bspline_basis_non_negative() {
     }
 }
 
-// ── CP lattice tests ──────────────────────────────────────────────────────────
+// â”€â”€ CP lattice tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// `cp_count` formula: `(dim - 1) / spacing + 4` for `dim > 1`.
 #[test]
@@ -143,15 +143,15 @@ fn laplacian_single_spike() {
     let centre = flat(2, 2, 2, 5, 5);
     cp[centre] = 1.0;
     let lap = cp_laplacian(&cp, cp_dims);
-    // At centre: Δ = 0 + 0 + 0 + 0 + 0 + 0 − 6 · 1 = −6
+    // At centre: Î” = 0 + 0 + 0 + 0 + 0 + 0 âˆ’ 6 Â· 1 = âˆ’6
     assert!(
         (lap[centre] - (-6.0)).abs() < 1e-6,
         "centre Laplacian should be -6.0, got {}",
         lap[centre]
     );
-    // At each face neighbour: Δ = 1 − 6·0 = 1 (if interior with 6 neighbours)
+    // At each face neighbour: Î” = 1 âˆ’ 6Â·0 = 1 (if interior with 6 neighbours)
     // but if the neighbour is not on the boundary of the lattice and only has
-    // one non-zero neighbour (the centre), Δ = 1 - count*0 = 1.
+    // one non-zero neighbour (the centre), Î” = 1 - count*0 = 1.
     let nb = flat(2, 2, 3, 5, 5);
     assert!(
         (lap[nb] - 1.0).abs() < 1e-6,
@@ -177,7 +177,7 @@ fn accumulate_constant_force() {
     }
 }
 
-// ── Registration tests ────────────────────────────────────────────────────────
+// â”€â”€ Registration tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Registering identical images produces CC > 0.9.
 #[test]
@@ -319,7 +319,7 @@ fn bspline_field_smoothness() {
     );
 }
 
-// ── Error-case tests ──────────────────────────────────────────────────────────
+// â”€â”€ Error-case tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Mismatched fixed-image length returns DimensionMismatch.
 #[test]
@@ -372,7 +372,7 @@ fn zero_control_spacing_returns_error() {
     );
 }
 
-// ── CC primitive tests ────────────────────────────────────────────────────────
+// â”€â”€ CC primitive tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// mean_local_cc of identical non-constant images is close to 1.0.
 #[test]
@@ -382,11 +382,11 @@ fn mean_local_cc_identical_images() {
     let cc = mean_local_cc(&image, &image, dims, 1);
     assert!(
         cc > 0.99,
-        "CC of identical images should be ≈ 1.0, got {cc}"
+        "CC of identical images should be â‰ˆ 1.0, got {cc}"
     );
 }
 
-/// mean_local_cc of constant images is 0 (zero variance → degenerate).
+/// mean_local_cc of constant images is 0 (zero variance â†’ degenerate).
 #[test]
 fn mean_local_cc_constant_images_is_zero() {
     let dims = [5, 5, 5];

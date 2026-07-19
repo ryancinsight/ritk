@@ -1,9 +1,9 @@
 use super::*;
-use ritk_image::test_support::burn_compat::make_image;
+use ritk_image::test_support::make_image;
 use ritk_image::Image;
-type Backend = burn_ndarray::NdArray<f32>;
+type Backend = coeus_core::SequentialBackend;
 
-fn make_mask(vals: Vec<f32>, shape: [usize; 3]) -> Image<Backend, 3> {
+fn make_mask(vals: Vec<f32>, shape: [usize; 3]) -> Image<f32, Backend, 3> {
     make_image(vals, shape)
 }
 
@@ -25,9 +25,10 @@ fn test_fill_holes_solid_sphere_unchanged() {
     }
     let mask = make_mask(vals.clone(), shape);
     let result = BinaryFillHoles.apply(&mask);
-    result.with_data_slice(|out_vals| {
-        assert_eq!(out_vals, vals.as_slice(), "solid sphere must be unchanged");
-    });
+    let out_vals = result
+        .data_slice()
+        .expect("invariant: result storage is contiguous");
+    assert_eq!(out_vals, vals.as_slice(), "solid sphere must be unchanged");
 }
 
 #[test]
@@ -44,20 +45,21 @@ fn test_fill_holes_z1_in_plane_hole() {
     vals[3 * 7 + 3] = 0.0; // interior hole at (y=3, x=3)
     let mask = make_mask(vals, [1, 7, 7]);
     let result = BinaryFillHoles.apply(&mask);
-    result.with_data_slice(|out| {
-        assert_eq!(out[3 * 7 + 3], 1.0, "interior hole must be filled");
-        // The full 5×5 square is now solid; nothing outside it changed.
-        for y in 0..7 {
-            for x in 0..7 {
-                let want = if (1..6).contains(&y) && (1..6).contains(&x) {
-                    1.0
-                } else {
-                    0.0
-                };
-                assert_eq!(out[y * 7 + x], want, "at (y={y}, x={x})");
-            }
+    let out = result
+        .data_slice()
+        .expect("invariant: result storage is contiguous");
+    assert_eq!(out[3 * 7 + 3], 1.0, "interior hole must be filled");
+    // The full 5×5 square is now solid; nothing outside it changed.
+    for y in 0..7 {
+        for x in 0..7 {
+            let want = if (1..6).contains(&y) && (1..6).contains(&x) {
+                1.0
+            } else {
+                0.0
+            };
+            assert_eq!(out[y * 7 + x], want, "at (y={y}, x={x})");
         }
-    });
+    }
 }
 
 #[test]
@@ -78,27 +80,27 @@ fn test_fill_holes_hollow_sphere_fills_interior() {
     }
     let mask = make_mask(vals.clone(), shape);
     let result = BinaryFillHoles.apply(&mask);
-    result.with_data_slice(|out_vals| {
-        for iz in 0..7usize {
-            for iy in 0..7usize {
-                for ix in 0..7usize {
-                    let d2 = ((iz as i32 - 3).pow(2)
-                        + (iy as i32 - 3).pow(2)
-                        + (ix as i32 - 3).pow(2)) as f32;
-                    if d2 < 4.0 {
-                        assert_eq!(
-                            out_vals[iz * 49 + iy * 7 + ix],
-                            1.0,
-                            "interior hole at ({},{},{}) must be filled",
-                            iz,
-                            iy,
-                            ix
-                        );
-                    }
+    let out_vals = result
+        .data_slice()
+        .expect("invariant: result storage is contiguous");
+    for iz in 0..7usize {
+        for iy in 0..7usize {
+            for ix in 0..7usize {
+                let d2 = ((iz as i32 - 3).pow(2) + (iy as i32 - 3).pow(2) + (ix as i32 - 3).pow(2))
+                    as f32;
+                if d2 < 4.0 {
+                    assert_eq!(
+                        out_vals[iz * 49 + iy * 7 + ix],
+                        1.0,
+                        "interior hole at ({},{},{}) must be filled",
+                        iz,
+                        iy,
+                        ix
+                    );
                 }
             }
         }
-    });
+    }
 }
 
 #[test]
@@ -107,9 +109,10 @@ fn test_fill_holes_all_zero_unchanged() {
     let vals = vec![0.0f32; 27];
     let mask = make_mask(vals.clone(), shape);
     let result = BinaryFillHoles.apply(&mask);
-    result.with_data_slice(|out_vals| {
-        assert_eq!(out_vals, vals.as_slice(), "all-zero mask must be unchanged");
-    });
+    let out_vals = result
+        .data_slice()
+        .expect("invariant: result storage is contiguous");
+    assert_eq!(out_vals, vals.as_slice(), "all-zero mask must be unchanged");
 }
 
 #[test]
@@ -118,9 +121,10 @@ fn test_fill_holes_all_one_unchanged() {
     let vals = vec![1.0f32; 27];
     let mask = make_mask(vals.clone(), shape);
     let result = BinaryFillHoles.apply(&mask);
-    result.with_data_slice(|out_vals| {
-        assert_eq!(out_vals, vals.as_slice(), "all-one mask must be unchanged");
-    });
+    let out_vals = result
+        .data_slice()
+        .expect("invariant: result storage is contiguous");
+    assert_eq!(out_vals, vals.as_slice(), "all-one mask must be unchanged");
 }
 
 #[test]

@@ -6,28 +6,28 @@
 //! anatomical direction, given by a three-letter DICOM orientation code (e.g.
 //! `"LPS"`, `"RAI"`). The relabeling is a signed axis permutation applied
 //! consistently to the voxel data, spacing, origin, and direction matrix, leaving
-//! the physical object unchanged — only its index parameterization changes.
+//! the physical object unchanged â€” only its index parameterization changes.
 //!
 //! Anatomical letters (LPS-positive world frame, world axes `x, y, z`):
 //!
 //! ```text
-//! L = +x   R = −x   P = +y   A = −y   S = +z   I = −z
+//! L = +x   R = âˆ’x   P = +y   A = âˆ’y   S = +z   I = âˆ’z
 //! ```
 //!
-//! For each output image axis `j ∈ {x, y, z}` the code letter fixes a target unit
+//! For each output image axis `j âˆˆ {x, y, z}` the code letter fixes a target unit
 //! world vector `v_j`. The input tensor axis `a` whose physical direction
-//! (column `a` of the core direction matrix) is most parallel to `±v_j` is chosen,
-//! with sign `σ = sign(D_in.col(a) · v_j)`; that axis becomes output axis `j`,
-//! reversed when `σ < 0`. Spacing follows the permutation, the output direction
+//! (column `a` of the core direction matrix) is most parallel to `Â±v_j` is chosen,
+//! with sign `Ïƒ = sign(D_in.col(a) Â· v_j)`; that axis becomes output axis `j`,
+//! reversed when `Ïƒ < 0`. Spacing follows the permutation, the output direction
 //! column is set to `v_j`, and the origin is recomputed as the world position of
 //! the output corner voxel:
 //!
 //! ```text
-//! origin_out = origin_in + Σ_a D_in.col(a) · spacing_in[a] · c_a
+//! origin_out = origin_in + Î£_a D_in.col(a) Â· spacing_in[a] Â· c_a
 //! ```
 //!
 //! where `c_a` is the input index of the output `(0,0,0)` voxel along tensor axis
-//! `a` (`dim_a − 1` if that axis is reversed, else `0`). Float-exact to
+//! `a` (`dim_a âˆ’ 1` if that axis is reversed, else `0`). Float-exact to
 //! `sitk.DICOMOrient` (axis-aligned input directions).
 
 use anyhow::{bail, Result};
@@ -40,12 +40,12 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_metadata};
 #[derive(Debug, Clone)]
 pub struct OrientImageFilter {
     /// Per image-axis `(x, y, z)` target: `(world_axis, sign)`.
-    /// `world_axis ∈ {0=x, 1=y, 2=z}`, `sign ∈ {+1.0, −1.0}`.
+    /// `world_axis âˆˆ {0=x, 1=y, 2=z}`, `sign âˆˆ {+1.0, âˆ’1.0}`.
     target: [(usize, f64); 3],
 }
 
 impl OrientImageFilter {
-    /// Build from a three-letter DICOM code (`"LPS"`, `"RAI"`, `"PIR"`, …).
+    /// Build from a three-letter DICOM code (`"LPS"`, `"RAI"`, `"PIR"`, â€¦).
     ///
     /// Returns `Err` if the code is malformed (not three letters, an unknown
     /// letter, or a repeated anatomical axis).
@@ -76,7 +76,7 @@ impl OrientImageFilter {
     }
 
     /// Apply the reorientation.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec_infallible(image);
         let dir = image.direction();
         let sp_in = image.spacing();
@@ -134,7 +134,7 @@ impl OrientImageFilter {
                 out_idx[1] = oy;
                 for ox in 0..onx {
                     out_idx[2] = ox;
-                    // Map output tensor coords → input tensor coords.
+                    // Map output tensor coords â†’ input tensor coords.
                     let mut in_lin = 0usize;
                     for o in 0..3 {
                         let a = perm[o];
@@ -155,7 +155,7 @@ impl OrientImageFilter {
         let sp_out = Spacing::new([sp_in[perm[0]], sp_in[perm[1]], sp_in[perm[2]]]);
 
         // Origin = world position of the output (0,0,0) voxel. Its input index
-        // along tensor axis a = perm[o] is (dim_a − 1) if reversed, else 0.
+        // along tensor axis a = perm[o] is (dim_a âˆ’ 1) if reversed, else 0.
         let mut corner = [0usize; 3];
         for o in 0..3 {
             corner[perm[o]] = if flip[o] { in_dims[perm[o]] - 1 } else { 0 };
@@ -181,9 +181,9 @@ impl OrientImageFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -245,7 +245,7 @@ impl OrientImageFilter {
                 out_idx[1] = oy;
                 for ox in 0..onx {
                     out_idx[2] = ox;
-                    // Map output tensor coords → input tensor coords.
+                    // Map output tensor coords â†’ input tensor coords.
                     let mut in_lin = 0usize;
                     for o in 0..3 {
                         let a = perm[o];
@@ -266,7 +266,7 @@ impl OrientImageFilter {
         let sp_out = Spacing::new([sp_in[perm[0]], sp_in[perm[1]], sp_in[perm[2]]]);
 
         // Origin = world position of the output (0,0,0) voxel. Its input index
-        // along tensor axis a = perm[o] is (dim_a − 1) if reversed, else 0.
+        // along tensor axis a = perm[o] is (dim_a âˆ’ 1) if reversed, else 0.
         let mut corner = [0usize; 3];
         for o in 0..3 {
             corner[perm[o]] = if flip[o] { in_dims[perm[o]] - 1 } else { 0 };

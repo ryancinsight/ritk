@@ -1,20 +1,20 @@
-//! Landweber iterative deconvolution — 2-D and 3-D.
+//! Landweber iterative deconvolution â€” 2-D and 3-D.
 //!
 //! # Theory
 //!
-//! Minimizes `||g − h ∗ u||²` via steepest descent:
+//! Minimizes `||g âˆ’ h âˆ— u||Â²` via steepest descent:
 //!
 //! ```text
-//! u₀ = g
-//! uₖ₊₁ = uₖ + α · h* ⋆ (g − h ⋆ uₖ)
+//! uâ‚€ = g
+//! uâ‚–â‚Šâ‚ = uâ‚– + Î± Â· h* â‹† (g âˆ’ h â‹† uâ‚–)
 //! ```
 //!
 //! # Convergence condition
-//! α must satisfy `0 < α < 2 / σ_max²` where σ_max is the largest singular
-//! value of the convolution operator H (≈ max|H(ω)| in frequency domain).
+//! Î± must satisfy `0 < Î± < 2 / Ïƒ_maxÂ²` where Ïƒ_max is the largest singular
+//! value of the convolution operator H (â‰ˆ max|H(Ï‰)| in frequency domain).
 //!
 //! # Properties
-//! - Guaranteed convergence for sufficiently small α
+//! - Guaranteed convergence for sufficiently small Î±
 //! - Slower than conjugate-gradient methods but simple and analyzable
 
 use super::regularization::{
@@ -28,24 +28,24 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Landweber iterative deconvolution (gradient descent).
 ///
-/// Minimizes `||g − h ∗ u||²` via steepest descent:
+/// Minimizes `||g âˆ’ h âˆ— u||Â²` via steepest descent:
 ///
 /// ```text
-/// u₀ = g
-/// uₖ₊₁ = uₖ + α · h* ⋆ (g − h ⋆ uₖ)
+/// uâ‚€ = g
+/// uâ‚–â‚Šâ‚ = uâ‚– + Î± Â· h* â‹† (g âˆ’ h â‹† uâ‚–)
 /// ```
 ///
-/// where α must satisfy `0 < α < 2 / σ_max²` for convergence.
+/// where Î± must satisfy `0 < Î± < 2 / Ïƒ_maxÂ²` for convergence.
 ///
 /// # Properties
 /// - Simple to implement and analyze
 /// - Slower convergence than conjugate gradient methods
-/// - Guaranteed convergence for small enough α
+/// - Guaranteed convergence for small enough Î±
 ///
 /// # Complexity
-/// O(iterations · N log N).
+/// O(iterations Â· N log N).
 pub struct LandweberDeconvolution {
-    /// Step size α (default: 0.1).
+    /// Step size Î± (default: 0.1).
     pub step_size: f32,
     /// Maximum number of iterations (default: 100).
     pub max_iterations: usize,
@@ -75,7 +75,7 @@ impl LandweberDeconvolution {
         self
     }
 
-    /// Set the gradient descent step size α.
+    /// Set the gradient descent step size Î±.
     pub fn with_step_size(mut self, alpha: f32) -> Self {
         self.step_size = alpha;
         self
@@ -96,9 +96,9 @@ impl LandweberDeconvolution {
     /// Apply Landweber deconvolution to a D-dimensional image.
     pub fn apply<B: Backend, const D: usize>(
         &self,
-        image: &Image<B, D>,
-        kernel: &Image<B, D>,
-    ) -> Result<Image<B, D>> {
+        image: &Image<f32, B, D>,
+        kernel: &Image<f32, B, D>,
+    ) -> Result<Image<f32, B, D>> {
         let (img_vals, img_dims) = extract_vec(image)?;
         let (ker_vals, ker_dims) = extract_vec(kernel)?;
         let out_vals = apply_iterative::<D>(
@@ -121,10 +121,10 @@ impl LandweberDeconvolution {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
-        kernel: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
+        kernel: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

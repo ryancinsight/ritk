@@ -7,17 +7,17 @@
 //! Extended query builder, SCP configuration, and filter propagation tests
 //! are in `tests_query.rs`.
 //!
-//! No network connections are required — all tests run fully offline.
+//! No network connections are required â€” all tests run fully offline.
 
 use super::config::PacsConfig;
 use super::query::{FindResultRow, FindResultRowSeries, PacsResponse, QueryState};
 
-// ── IVR-LE encoding helper ────────────────────────────────────────────────────
+// â”€â”€ IVR-LE encoding helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Encode a single DICOM IVR-LE element as bytes.
 ///
 /// Format: `[group:u16-LE][element:u16-LE][length:u32-LE][value:bytes]`
-/// (PS 3.5 §7.1 Table 7.1-1, Implicit VR Little Endian).
+/// (PS 3.5 Â§7.1 Table 7.1-1, Implicit VR Little Endian).
 fn encode_ivr_le_tag(group: u16, element: u16, value: &[u8]) -> Vec<u8> {
     let mut buf = Vec::with_capacity(8 + value.len());
     buf.extend_from_slice(&group.to_le_bytes());
@@ -27,9 +27,9 @@ fn encode_ivr_le_tag(group: u16, element: u16, value: &[u8]) -> Vec<u8> {
     buf
 }
 
-// ── FindResultRow parsing ─────────────────────────────────────────────────────
+// â”€â”€ FindResultRow parsing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Boundary: zero-length input → all fields default to empty string.
+/// Boundary: zero-length input â†’ all fields default to empty string.
 ///
 /// Analytical basis: `parse_dataset_ivr_le(&[])` returns an empty attribute
 /// list; `get(g, e)` on an empty list returns the `Default` for `String` = `""`.
@@ -55,10 +55,10 @@ fn test_find_result_row_from_empty_bytes_all_fields_empty() {
     assert!(row.num_instances.is_empty(), "num_instances must be empty");
 }
 
-/// Positive: single PatientName tag (0010,0010) → `patient_name` field populated.
+/// Positive: single PatientName tag (0010,0010) â†’ `patient_name` field populated.
 ///
 /// Analytical basis: IVR-LE element with group=0x0010, element=0x0010,
-/// value="DOE^JOHN" (8 bytes). All other fields absent → empty.
+/// value="DOE^JOHN" (8 bytes). All other fields absent â†’ empty.
 #[test]
 fn test_find_result_row_patient_name_parsed() {
     let value = b"DOE^JOHN";
@@ -75,7 +75,7 @@ fn test_find_result_row_patient_name_parsed() {
     );
 }
 
-/// Positive: four tags encoded in tag-ascending order → all decoded correctly.
+/// Positive: four tags encoded in tag-ascending order â†’ all decoded correctly.
 ///
 /// Tags encoded: StudyDate (0008,0020), Modality (0008,0060),
 /// PatientName (0010,0010), StudyInstanceUID (0020,000D).
@@ -96,11 +96,11 @@ fn test_find_result_row_multiple_tags_parsed() {
     assert!(row.study_description.is_empty());
 }
 
-/// Boundary: DICOM string values are null-padded to even length (PS 3.5 §6.2).
+/// Boundary: DICOM string values are null-padded to even length (PS 3.5 Â§6.2).
 /// Trailing null byte must be stripped by `from_raw_bytes`.
 ///
 /// PatientID tag (0010,0020) with value "P123\0" (null-padded to 5 bytes is odd,
-/// so DICOM pads to 6: "P123\0 " — here we test with a direct trailing null).
+/// so DICOM pads to 6: "P123\0 " â€” here we test with a direct trailing null).
 #[test]
 fn test_find_result_row_null_padded_value_trimmed() {
     // Value "P123" padded with a trailing null byte.
@@ -113,11 +113,11 @@ fn test_find_result_row_null_padded_value_trimmed() {
     );
 }
 
-/// Boundary: space-padded string values (PS 3.5 §6.2 CS/LO/SH VR even-length padding).
+/// Boundary: space-padded string values (PS 3.5 Â§6.2 CS/LO/SH VR even-length padding).
 /// Trailing space must be stripped.
 #[test]
 fn test_find_result_row_space_padded_modality_trimmed() {
-    // Modality "MR " (space-padded to 3 bytes — would be odd, but test trimming).
+    // Modality "MR " (space-padded to 3 bytes â€” would be odd, but test trimming).
     let value = b"MR ";
     let bytes = encode_ivr_le_tag(0x0008, 0x0060, value);
     let row = FindResultRow::from_raw_bytes(&bytes);
@@ -127,12 +127,12 @@ fn test_find_result_row_space_padded_modality_trimmed() {
     );
 }
 
-// ── PacsConfig ────────────────────────────────────────────────────────────────
+// â”€â”€ PacsConfig â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Verify default calling AE title is "RITKSNAP".
 ///
 /// This value is the self-identification of the RITK viewer in DICOM
-/// associations. It must never be empty (PS 3.8 §7.1.1 requires 1–16 chars).
+/// associations. It must never be empty (PS 3.8 Â§7.1.1 requires 1â€“16 chars).
 #[test]
 fn test_pacs_config_default_calling_ae_title() {
     let cfg = PacsConfig::default();
@@ -143,7 +143,7 @@ fn test_pacs_config_default_calling_ae_title() {
     );
     assert!(
         cfg.calling_ae_title.len() <= 16,
-        "calling AE title must be ≤ 16 characters per PS 3.8"
+        "calling AE title must be â‰¤ 16 characters per PS 3.8"
     );
 }
 
@@ -180,7 +180,7 @@ fn test_pacs_config_to_association_config_copies_fields() {
     assert_eq!(assoc.timeout, std::time::Duration::from_secs(60));
 }
 
-// ── QueryState ────────────────────────────────────────────────────────────────
+// â”€â”€ QueryState â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Default `QueryState` must be `Idle` (no pending request, no results).
 #[test]
@@ -193,11 +193,11 @@ fn test_query_state_default_is_idle() {
     );
 }
 
-// ── FindQuery builder ─────────────────────────────────────────────────────────
+// â”€â”€ FindQuery builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// ── FindResultRowSeries parsing ──────────────────────────────────────────────
+// â”€â”€ FindResultRowSeries parsing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Boundary: zero-length input → all series fields default to empty string.
+/// Boundary: zero-length input â†’ all series fields default to empty string.
 #[test]
 fn test_find_series_row_from_empty_bytes_all_fields_empty() {
     let row = FindResultRowSeries::from_raw_bytes(&[]);
@@ -255,7 +255,7 @@ fn test_find_series_row_all_fields_parsed() {
     assert_eq!(row.study_instance_uid, "1.2.840.99.1", "study_instance_uid");
 }
 
-// ── build_series_query ─────────────────────────────────────────────────────
+// â”€â”€ build_series_query â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// `build_series_query` must include StudyInstanceUID as the mandatory filter
 /// key and all 8 series-level return keys.
@@ -304,7 +304,7 @@ fn test_build_series_query_includes_all_return_keys() {
     );
 }
 
-// ── PacsResponse ────────────────────────────────────────────────────────────
+// â”€â”€ PacsResponse â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// `PacsResponse::RetrieveSeriesOk` round-trips through debug formatting.
 #[test]
@@ -341,7 +341,7 @@ fn test_pacs_response_retrieve_series_err_stores_message() {
 /// `build_study_query` with a patient name wildcard must include that wildcard
 /// as the PatientName key (0010,0010).
 ///
-/// Analytical basis: the patient name key is the primary filter — a DICOM SCP
+/// Analytical basis: the patient name key is the primary filter â€” a DICOM SCP
 /// matches it against the PatientName attribute using wildcard matching.
 #[test]
 fn test_build_study_query_contains_patient_name_wildcard() {
@@ -359,7 +359,7 @@ fn test_build_study_query_contains_patient_name_wildcard() {
 }
 
 /// When modality is empty, the query must include a Modality key (0008,0060)
-/// with value `""` (request all modalities — DICOM matching semantics).
+/// with value `""` (request all modalities â€” DICOM matching semantics).
 #[test]
 fn test_build_study_query_empty_modality_uses_empty_key() {
     let q = FindResultRow::build_study_query("*", "", "", "");
@@ -391,7 +391,7 @@ fn test_build_study_query_ct_modality_uses_ct_filter() {
     );
 }
 
-// ── QueryState transitions ────────────────────────────────────────────────────
+// â”€â”€ QueryState transitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// `QueryState::Pending` stores the operation label string.
 ///

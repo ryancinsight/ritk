@@ -15,7 +15,7 @@ use ritk_filter::{
     gradient_recursive_gaussian_components, recursive_gaussian::recursive_gaussian_directional,
     DerivativeOrder,
 };
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;
@@ -88,7 +88,7 @@ fn main() {
         }
     }
     assert_eq!(a, b, "native gradient paths must remain float-identical");
-    println!("max |old − new| = {maxdiff:e} (expect 0)");
+    println!("max |old âˆ’ new| = {maxdiff:e} (expect 0)");
 
     let iters = 20;
     let t0 = Instant::now();
@@ -104,7 +104,7 @@ fn main() {
     let new_ms = t1.elapsed().as_secs_f64() * 1e3 / iters as f64;
 
     println!("{n}^3 volume, sigma {sigma}, {iters} iters:");
-    println!("  old (9× Image passes):  {old_ms:.2} ms/call");
+    println!("  old (9Ã— Image passes):  {old_ms:.2} ms/call");
     println!("  new (buffer-level):     {new_ms:.2} ms/call");
-    println!("  speedup: {:.2}×", old_ms / new_ms);
+    println!("  speedup: {:.2}Ã—", old_ms / new_ms);
 }

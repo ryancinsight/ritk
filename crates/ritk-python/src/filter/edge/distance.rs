@@ -1,7 +1,7 @@
 //! Distance transform, level set reinitialisation, and zero-crossing filters.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     ApproximateSignedDistanceMapFilter, IsoContourDistanceFilter, ReinitializeLevelSetFilter,
@@ -11,8 +11,8 @@ use ritk_filter::{
 /// Zero-crossing-based edge detection, matching
 /// `SimpleITK.ZeroCrossingBasedEdgeDetection`.
 ///
-/// Pipeline: DiscreteGaussian (isotropic `variance`, `maximum_error`) → Laplacian
-/// → zero-crossing detection. Edge voxels take `foreground_value`, the rest
+/// Pipeline: DiscreteGaussian (isotropic `variance`, `maximum_error`) â†’ Laplacian
+/// â†’ zero-crossing detection. Edge voxels take `foreground_value`, the rest
 /// `background_value`.
 ///
 /// Args:
@@ -34,7 +34,7 @@ pub fn zero_crossing_based_edge_detection(
     foreground_value: f32,
     background_value: f32,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     py.allow_threads(|| {
         ZeroCrossingBasedEdgeDetectionFilter::new(
             variance,
@@ -45,7 +45,7 @@ pub fn zero_crossing_based_edge_detection(
         .apply(&arc)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Narrow-band signed distance to the iso-contour, matching
@@ -53,7 +53,7 @@ pub fn zero_crossing_based_edge_detection(
 ///
 /// Voxels straddling the `level_set_value` iso-surface get a first-order signed
 /// distance estimate (averaged-gradient interpolation, combined by minimum
-/// magnitude); voxels away from it keep `±far_value`.
+/// magnitude); voxels away from it keep `Â±far_value`.
 ///
 /// Args:
 ///     image: Input PyImage (a level-set / scalar field).
@@ -70,10 +70,10 @@ pub fn iso_contour_distance(
     level_set_value: f64,
     far_value: f64,
 ) -> PyImage {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let out =
         py.allow_threads(|| IsoContourDistanceFilter::new(level_set_value, far_value).apply(&arc));
-    burn_into_py_image(out)
+    into_py_image(out)
 }
 
 /// Approximate signed distance map of a binary/label image, matching
@@ -97,7 +97,7 @@ pub fn approximate_signed_distance_map(
     inside_value: f64,
     outside_value: f64,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     py.allow_threads(|| {
         ApproximateSignedDistanceMapFilter {
             inside_value,
@@ -106,7 +106,7 @@ pub fn approximate_signed_distance_map(
         .apply(&arc)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Reinitialize a level-set image to a signed distance function, matching
@@ -128,11 +128,11 @@ pub fn reinitialize_level_set(
     image: &PyImage,
     level_set_value: f64,
 ) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     py.allow_threads(|| {
         ReinitializeLevelSetFilter::new(level_set_value)
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

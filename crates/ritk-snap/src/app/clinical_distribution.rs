@@ -99,7 +99,7 @@ pub(crate) fn build_clinical_distribution_report(
     writeln!(
         &mut report,
         "- Modality: {}",
-        summary.modality.unwrap_or("—")
+        summary.modality.unwrap_or("â€”")
     )
     .unwrap();
     writeln!(
@@ -116,19 +116,19 @@ pub(crate) fn build_clinical_distribution_report(
     .unwrap();
     writeln!(
         &mut report,
-        "- Volume shape [depth, rows, cols]: {} × {} × {}",
+        "- Volume shape [depth, rows, cols]: {} Ã— {} Ã— {}",
         summary.shape[0], summary.shape[1], summary.shape[2]
     )
     .unwrap();
     writeln!(
         &mut report,
-        "- Spacing [dz, dy, dx] mm: {:.4} × {:.4} × {:.4}",
+        "- Spacing [dz, dy, dx] mm: {:.4} Ã— {:.4} Ã— {:.4}",
         summary.spacing[0], summary.spacing[1], summary.spacing[2]
     )
     .unwrap();
     writeln!(
         &mut report,
-        "- Origin [z, y, x] mm: {:.4} × {:.4} × {:.4}",
+        "- Origin [z, y, x] mm: {:.4} Ã— {:.4} Ã— {:.4}",
         summary.origin[0], summary.origin[1], summary.origin[2]
     )
     .unwrap();
@@ -156,7 +156,7 @@ pub(crate) fn build_clinical_distribution_report(
         summary
             .window_center
             .map(|v| format!("{v:.4}"))
-            .unwrap_or_else(|| "—".to_owned())
+            .unwrap_or_else(|| "â€”".to_owned())
     )
     .unwrap();
     writeln!(
@@ -165,7 +165,7 @@ pub(crate) fn build_clinical_distribution_report(
         summary
             .window_width
             .map(|v| format!("{v:.4}"))
-            .unwrap_or_else(|| "—".to_owned())
+            .unwrap_or_else(|| "â€”".to_owned())
     )
     .unwrap();
     writeln!(&mut report, "- Colormap: {}", summary.colormap_label).unwrap();
@@ -292,7 +292,7 @@ fn write_redacted_line(report: &mut String, label: &str, present: bool) {
         report,
         "- {}: {}",
         label,
-        if present { "[redacted]" } else { "—" }
+        if present { "[redacted]" } else { "â€”" }
     )
     .unwrap();
 }

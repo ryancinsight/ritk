@@ -6,7 +6,7 @@ use ritk_filter::recursive_gaussian::{
     recursive_gaussian_directional,
 };
 use ritk_filter::{DerivativeOrder, RecursiveGaussianFilter};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;
@@ -146,7 +146,7 @@ fn second_derivative_of_quadratic_is_constant_interior() {
     );
 }
 
-/// For `f(x) = x²`, the physical Laplacian is exactly two regardless of voxel
+/// For `f(x) = xÂ²`, the physical Laplacian is exactly two regardless of voxel
 /// spacing. The tolerance bounds the finite IIR approximation after its boundary
 /// transient decays.
 #[test]
@@ -173,7 +173,7 @@ fn laplacian_of_physical_quadratic_is_two() {
     }
 }
 
-/// For `f(x) = a·x`, the physical gradient magnitude is `|a|` regardless of
+/// For `f(x) = aÂ·x`, the physical gradient magnitude is `|a|` regardless of
 /// voxel spacing once the boundary transient decays.
 #[test]
 fn gradient_magnitude_of_physical_ramp_is_slope() {

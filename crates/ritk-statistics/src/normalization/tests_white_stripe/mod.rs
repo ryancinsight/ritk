@@ -1,16 +1,10 @@
-use burn_ndarray::NdArray;
+use coeus_core::SequentialBackend;
 use ritk_image::Image;
 
-pub(super) type TestBackend = NdArray<f32>;
+pub(super) type TestBackend = SequentialBackend;
 
-pub(super) fn get_values(image: &Image<TestBackend, 3>) -> Vec<f32> {
-    image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .unwrap()
-        .to_vec()
+pub(super) fn get_values(image: &Image<f32, TestBackend, 3>) -> Vec<f32> {
+    ritk_tensor_ops::extract_vec_infallible(image).0
 }
 
 /// Generate a synthetic tri-modal brain MRI volume.

@@ -11,13 +11,13 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use ritk_io::{
-    load_native_dicom_series_with_metadata, scan_dicom_directory, DicomReadMetadata,
-    DicomSeriesInfo, DicomSliceMetadata,
+    load_dicom_series_with_metadata, scan_dicom_directory, DicomReadMetadata, DicomSeriesInfo,
+    DicomSliceMetadata,
 };
 use ritk_snap::GeometrySummary;
 use std::path::PathBuf;
 
-use super::NativeBackend;
+use super::Backend;
 
 /// Inspect a DICOM study from the command line.
 #[derive(Debug, Clone, Parser)]
@@ -72,12 +72,9 @@ pub fn run(args: ViewerArgs) -> Result<()> {
 
 fn load_scalar_dicom_for_viewer(
     path: &std::path::Path,
-) -> Result<(
-    ritk_image::native::Image<f32, NativeBackend, 3>,
-    DicomReadMetadata,
-)> {
-    let backend = NativeBackend::default();
-    let (image, metadata) = load_native_dicom_series_with_metadata(path, &backend)
+) -> Result<(ritk_image::Image<f32, Backend, 3>, DicomReadMetadata)> {
+    let backend = Backend::default();
+    let (image, metadata) = load_dicom_series_with_metadata(path, &backend)
         .with_context(|| format!("failed to load DICOM study at {}", path.display()))?;
 
     Ok((image, metadata))
@@ -86,7 +83,7 @@ fn load_scalar_dicom_for_viewer(
 fn print_summary(
     path: &std::path::Path,
     series: &DicomSeriesInfo,
-    image: &ritk_image::native::Image<f32, NativeBackend, 3>,
+    image: &ritk_image::Image<f32, Backend, 3>,
 ) {
     let shape = image.shape();
     println!("DICOM study: {}", path.display());

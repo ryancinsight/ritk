@@ -1,14 +1,14 @@
-//! Displacement field composition φ₁ ∘ φ₂.
+//! Displacement field composition Ï†â‚ âˆ˜ Ï†â‚‚.
 
 #[cfg(test)]
 use super::VelocityField;
 use super::{trilinear_interpolate_field, VectorField, VectorFieldMut};
 use ritk_spatial::VolumeDims;
 
-/// Compute the composition `φ_composed = φ₁ ∘ φ₂` into caller-provided buffers.
+/// Compute the composition `Ï†_composed = Ï†â‚ âˆ˜ Ï†â‚‚` into caller-provided buffers.
 ///
-/// `φ_composed(x) = φ₁(x + φ₂(x))` — the combined displacement at each voxel
-/// `x` is obtained by displacing `x` by `φ₂(x)` and then sampling `φ₁` at the
+/// `Ï†_composed(x) = Ï†â‚(x + Ï†â‚‚(x))` â€” the combined displacement at each voxel
+/// `x` is obtained by displacing `x` by `Ï†â‚‚(x)` and then sampling `Ï†â‚` at the
 /// resulting position via trilinear interpolation.
 ///
 /// Output buffers must have length `dims.total_voxels()`.
@@ -45,12 +45,12 @@ pub(crate) fn compose_fields_into(
                     let local = iy * nx + ix;
                     let fi = base + local;
 
-                    // Displaced position x + φ₂(x).
+                    // Displaced position x + Ï†â‚‚(x).
                     let wz = iz as f32 + phi2_z[fi];
                     let wy = iy as f32 + phi2_y[fi];
                     let wx = ix as f32 + phi2_x[fi];
 
-                    // Sample φ₁ at the displaced position with one shared stencil.
+                    // Sample Ï†â‚ at the displaced position with one shared stencil.
                     let [sample_z, sample_y, sample_x] =
                         trilinear_interpolate_field(phi1, dims, wz, wy, wx);
                     out_z_s[local] = phi2_z[fi] + sample_z;
@@ -62,7 +62,7 @@ pub(crate) fn compose_fields_into(
     );
 }
 
-/// Compute the composition `φ_composed = φ₁ ∘ φ₂`.
+/// Compute the composition `Ï†_composed = Ï†â‚ âˆ˜ Ï†â‚‚`.
 #[cfg(test)]
 pub(crate) fn compose_fields(
     phi1_z: &[f32],
@@ -110,7 +110,7 @@ pub(crate) fn compose_fields(
 mod tests {
     use super::*;
 
-    /// Identity composition: φ ∘ 0 = φ.
+    /// Identity composition: Ï† âˆ˜ 0 = Ï†.
     #[test]
     fn compose_with_zero_is_identity() {
         let dims = VolumeDims::new([4, 4, 4]);
@@ -144,7 +144,7 @@ mod tests {
         }
     }
 
-    /// 0 ∘ φ = φ.
+    /// 0 âˆ˜ Ï† = Ï†.
     #[test]
     fn compose_zero_with_field_is_field() {
         let dims = VolumeDims::new([4, 4, 4]);

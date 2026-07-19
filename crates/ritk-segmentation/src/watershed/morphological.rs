@@ -14,7 +14,7 @@
 //! fills basins shallower than `level`, so only sufficiently deep minima seed a
 //! basin. The composition is bit-exact, label-for-label, to
 //! `sitk.MorphologicalWatershed(level, markWatershedLine=True,
-//! fullyConnected=False)` — verified for level 0/5/10 on the cthead gradient.
+//! fullyConnected=False)` â€” verified for level 0/5/10 on the cthead gradient.
 //!
 //! Watershed-line voxels are label 0. Face (6-)connectivity throughout.
 
@@ -57,14 +57,14 @@ impl MorphologicalWatershed {
     }
 
     /// Segment the relief `image` into watershed basins from its regional minima.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         // Suppress minima shallower than `level` (identity at level 0).
         let base = if self.level > 0.0 {
             HMinimaFilter::new(self.level).apply(image)?
         } else {
             image.clone()
         };
-        // Regional minima → binary seeds → labelled markers.
+        // Regional minima â†’ binary seeds â†’ labelled markers.
         let minima = RegionalMinimaFilter::new()
             .with_values(1.0, 0.0)
             .apply(&base)?;
@@ -81,9 +81,9 @@ impl MorphologicalWatershed {
     /// intermediate, or marker-controlled flooding failure.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

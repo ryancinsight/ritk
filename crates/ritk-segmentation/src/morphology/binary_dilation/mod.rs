@@ -4,7 +4,7 @@
 //!
 //! Binary dilation with a box structuring element of half-width `radius` r:
 //!
-//! (M ⊕ B)(p) = 1 iff ∃q ∈ N_r(p): M(q) = 1
+//! (M âŠ• B)(p) = 1 iff âˆƒq âˆˆ N_r(p): M(q) = 1
 //!
 //! where N_r(p) is the set of voxels within Chebyshev distance r of p
 //! (the axis-aligned hypercube of side 2r+1 centred at p).
@@ -14,14 +14,14 @@
 //!
 //! # Complexity
 //!
-//! O(n · (2r+1)^D) where n is the total voxel count.
+//! O(n Â· (2r+1)^D) where n is the total voxel count.
 //!
 //! # Supported dimensionalities
 //!
 //! D = 1, 2, 3. For D outside this set the function panics with a clear message.
 
 use ritk_core::image::Image;
-use ritk_image::tensor::{backend::Backend, Shape, Tensor, TensorData};
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_tensor_ops::extract_vec_infallible;
 
 /// Binary dilation with a box structuring element of half-width `radius` voxels.
@@ -35,8 +35,8 @@ use ritk_tensor_ops::extract_vec_infallible;
 /// neighbour is foreground.
 pub struct BinaryDilation {
     /// Half-width of the box structuring element in voxels.
-    /// Radius 0 → structuring element = {p} → dilation is the identity.
-    /// Radius 1 → 3^D neighbourhood.
+    /// Radius 0 â†’ structuring element = {p} â†’ dilation is the identity.
+    /// Radius 1 â†’ 3^D neighbourhood.
     pub radius: usize,
 }
 
@@ -49,14 +49,15 @@ impl BinaryDilation {
     /// Apply dilation to a binary mask image.
     ///
     /// Supports D = 1, 2, 3. Panics for other dimensionalities.
-    pub fn apply<B: Backend, const D: usize>(&self, mask: &Image<B, D>) -> Image<B, D> {
+    pub fn apply<B: Backend, const D: usize>(&self, mask: &Image<f32, B, D>) -> Image<f32, B, D> {
         let shape: [usize; D] = mask.shape();
-        let device = mask.data().device();
+        let device = B::default();
         let (flat_vals, _shape) = extract_vec_infallible(mask);
         let flat: &[f32] = &flat_vals;
         let output = dilate_nd(flat, &shape, self.radius);
-        let tensor = Tensor::<B, D>::from_data(TensorData::new(output, Shape::new(shape)), &device);
+        let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device);
         Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
+            .expect("invariant: segmentation output tensor preserves the image rank")
     }
 
     /// Apply dilation to a Coeus-native binary mask image.
@@ -67,14 +68,14 @@ impl BinaryDilation {
     /// or the native output image cannot be constructed.
     pub fn apply_native<B, const D: usize>(
         &self,
-        mask: &ritk_image::native::Image<f32, B, D>,
+        mask: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
+        ritk_image::Image::from_flat_on(
             dilate_nd(mask.data_slice()?, &mask.shape(), self.radius),
             mask.shape(),
             *mask.origin(),
@@ -92,12 +93,12 @@ impl Default for BinaryDilation {
 }
 
 impl<B: Backend, const D: usize> super::MorphologicalOperation<B, D> for BinaryDilation {
-    fn apply(&self, mask: &Image<B, D>) -> Image<B, D> {
+    fn apply(&self, mask: &Image<f32, B, D>) -> Image<f32, B, D> {
         self.apply(mask)
     }
 }
 
-// ── Core CPU-side dilation ────────────────────────────────────────────────────
+// â”€â”€ Core CPU-side dilation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Apply binary dilation on a flat row-major array for shapes of rank 1, 2, or 3.
 ///
@@ -111,7 +112,7 @@ pub(super) fn dilate_nd(flat: &[f32], shape: &[usize], radius: usize) -> Vec<f32
     }
 }
 
-// ── D = 1 ─────────────────────────────────────────────────────────────────────
+// â”€â”€ D = 1 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn dilate_line(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
     let r = radius as isize;
@@ -120,7 +121,7 @@ fn dilate_line(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
         let any_fg = ((-r)..=r).any(|dx| {
             let nb = ix as isize + dx;
             if nb < 0 || nb >= nx as isize {
-                return false; // out-of-bounds → skip
+                return false; // out-of-bounds â†’ skip
             }
             flat[nb as usize] > super::FOREGROUND_THRESHOLD
         });
@@ -131,7 +132,7 @@ fn dilate_line(flat: &[f32], nx: usize, radius: usize) -> Vec<f32> {
     output
 }
 
-// ── D = 2 ─────────────────────────────────────────────────────────────────────
+// â”€â”€ D = 2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn dilate_plane(flat: &[f32], ny: usize, nx: usize, radius: usize) -> Vec<f32> {
     let r = radius as isize;
@@ -144,7 +145,7 @@ fn dilate_plane(flat: &[f32], ny: usize, nx: usize, radius: usize) -> Vec<f32> {
                         let ny_i = iy as isize + dy;
                         let nx_i = ix as isize + dx;
                         if ny_i < 0 || ny_i >= ny as isize || nx_i < 0 || nx_i >= nx as isize {
-                            continue; // out-of-bounds → skip
+                            continue; // out-of-bounds â†’ skip
                         }
                         if flat[ny_i as usize * nx + nx_i as usize] > super::FOREGROUND_THRESHOLD {
                             break 'outer true;
@@ -161,7 +162,7 @@ fn dilate_plane(flat: &[f32], ny: usize, nx: usize, radius: usize) -> Vec<f32> {
     output
 }
 
-// ── D = 3 ─────────────────────────────────────────────────────────────────────
+// â”€â”€ D = 3 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn dilate_volume(flat: &[f32], nz: usize, ny: usize, nx: usize, radius: usize) -> Vec<f32> {
     let r = radius as isize;
@@ -183,7 +184,7 @@ fn dilate_volume(flat: &[f32], nz: usize, ny: usize, nx: usize, radius: usize) -
                                     || nx_i < 0
                                     || nx_i >= nx as isize
                                 {
-                                    continue; // out-of-bounds → skip
+                                    continue; // out-of-bounds â†’ skip
                                 }
                                 let nb =
                                     nz_i as usize * ny * nx + ny_i as usize * nx + nx_i as usize;

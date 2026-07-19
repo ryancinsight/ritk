@@ -4,7 +4,5 @@
 //! interpolation paths, eliminating duplicated clone-and-compare patterns.
 
 pub mod in_bounds;
-pub mod oob_mask;
 
-pub use in_bounds::{in_bounds_mask, joint_in_bounds_mask, OutOfBoundsMode};
-pub use oob_mask::compute_oob_mask;
+pub use in_bounds::{compute_oob_mask, OutOfBoundsMode};

@@ -3,7 +3,7 @@
 //!
 //! Every Coeus-native filter wrapper in `ritk-filter` follows the same
 //! extract → compute → reconstruct sequence: pull the contiguous voxel
-//! buffer out of a [`ritk_image::native::Image`], hand it to an
+//! buffer out of a [`ritk_image::Image`], hand it to an
 //! already-substrate-agnostic pure function, and rebuild an `Image` from
 //! the result with the source's spatial metadata preserved. `map_flat_image`
 //! is the single generic entry point for that sequence (consolidation:
@@ -12,8 +12,8 @@
 //! trigger to factor it out, not a third).
 
 use anyhow::Result;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use coeus_core::ComputeBackend;
+use ritk_image::Image;
 
 /// Apply a pure flat-buffer transform to a Coeus 3-D image, preserving its
 /// shape and spatial metadata (origin, spacing, direction).
@@ -30,12 +30,11 @@ pub(crate) fn map_flat_image<B, F>(
 ) -> Result<Image<f32, B, 3>>
 where
     B: ComputeBackend,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     F: FnOnce(&[f32], [usize; 3]) -> Vec<f32>,
 {
     let dims = image.shape();
-    let vals = image.data_slice()?;
-    let result = f(vals, dims);
+    let vals = image.try_data_vec_on(backend)?;
+    let result = f(&vals, dims);
     Image::from_flat_on(
         result,
         dims,
@@ -62,7 +61,6 @@ pub(crate) fn map_flat_pair<B, F>(
 ) -> Result<Image<f32, B, 3>>
 where
     B: ComputeBackend,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     F: FnOnce(&[f32], &[f32], [usize; 3]) -> Vec<f32>,
 {
     let dims = primary.shape();
@@ -72,9 +70,9 @@ where
         dims,
         secondary.shape()
     );
-    let a = primary.data_slice()?;
-    let b = secondary.data_slice()?;
-    let result = f(a, b, dims);
+    let a = primary.try_data_vec_on(backend)?;
+    let b = secondary.try_data_vec_on(backend)?;
+    let result = f(&a, &b, dims);
     Image::from_flat_on(
         result,
         dims,
@@ -129,11 +127,6 @@ pub(crate) fn make_native_image(
 ) -> Image<f32, coeus_core::SequentialBackend, 3> {
     make_native_image_nd(data, shape)
 }
-
-/// Test-only legacy Burn backend alias for filters whose type parameters are
-/// independent from their Coeus-native execution path.
-#[cfg(test)]
-pub(crate) type LegacyBurnBackend = burn_ndarray::NdArray<f32>;
 
 /// Construct a Coeus-native image of any dimensionality with identity metadata.
 #[cfg(test)]
@@ -191,121 +184,128 @@ pub(crate) fn native_vals_nd<const D: usize>(
         .to_vec()
 }
 
-/// Shared differential-test harness for Coeus-native filter wrappers.
-///
-/// Runs a Burn-generic filter (`burn_apply`, on an `NdArray<f32>` image built
-/// from `vals`/`dims`) and its Coeus-native counterpart (`coeus_apply`, on a
-/// `SequentialBackend` image built from the same buffer) and asserts every
-/// output voxel is bitwise-identical. Both sides of every wrapper in this
-/// crate call the same substrate-agnostic core, so any divergence indicates
-/// a boundary-marshaling bug, not an algorithmic one — no epsilon is
-/// warranted (see numerical_discipline). Consolidated on the second
-/// occurrence of this harness (the binary-morphology family) rather than
-/// copied per filter.
+/// Differentially compare the canonical image surface on Sequential with the
+/// migration image surface on Moirai.
 #[cfg(test)]
-pub(crate) fn assert_native_matches_burn<FB, FC>(
+pub(crate) fn assert_coeus_matches_coeus<FB, FC>(
     vals: Vec<f32>,
     dims: [usize; 3],
-    burn_apply: FB,
-    coeus_apply: FC,
+    backend_a: FB,
+    backend_b: FC,
 ) where
     FB: FnOnce(
-        &ritk_image::Image<burn_ndarray::NdArray<f32>, 3>,
-    ) -> ritk_image::Image<burn_ndarray::NdArray<f32>, 3>,
+        &ritk_image::Image<f32, coeus_core::SequentialBackend, 3>,
+    ) -> ritk_image::Image<f32, coeus_core::SequentialBackend, 3>,
     FC: FnOnce(
-        &Image<f32, coeus_core::SequentialBackend, 3>,
-        &coeus_core::SequentialBackend,
-    ) -> Result<Image<f32, coeus_core::SequentialBackend, 3>>,
+        &Image<f32, coeus_core::MoiraiBackend, 3>,
+        &coeus_core::MoiraiBackend,
+    ) -> Result<Image<f32, coeus_core::MoiraiBackend, 3>>,
 {
-    use ritk_image::test_support as ts;
-    use ritk_spatial::{Direction, Point, Spacing};
-
-    let burn_image =
-        ts::burn_compat::make_image::<burn_ndarray::NdArray<f32>, 3>(vals.clone(), dims);
-    let burn_result = burn_apply(&burn_image);
-    let burn_vals = burn_result
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .expect("burn result slice")
-        .to_vec();
-
-    let coeus_image = Image::from_flat_on(
-        vals,
+    let backend_a_input = ritk_image::Image::from_flat_on(
+        vals.clone(),
         dims,
-        Point::new([0.0, 0.0, 0.0]),
-        Spacing::new([1.0, 1.0, 1.0]),
-        Direction::identity(),
+        ritk_spatial::Point::origin(),
+        ritk_spatial::Spacing::uniform(1.0),
+        ritk_spatial::Direction::identity(),
         &coeus_core::SequentialBackend,
     )
-    .expect("coeus image construction");
-    let coeus_result =
-        coeus_apply(&coeus_image, &coeus_core::SequentialBackend).expect("coeus filter apply");
-    let coeus_vals = coeus_result.data_slice().expect("coeus result slice");
+    .expect("backend A fixture shape");
+    let backend_b_provider = coeus_core::MoiraiBackend;
+    let backend_b_input = Image::from_flat_on(
+        vals,
+        dims,
+        ritk_spatial::Point::origin(),
+        ritk_spatial::Spacing::uniform(1.0),
+        ritk_spatial::Direction::identity(),
+        &backend_b_provider,
+    )
+    .expect("backend B fixture shape");
+    let backend_a_result = backend_a(&backend_a_input);
+    let backend_b_result =
+        backend_b(&backend_b_input, &backend_b_provider).expect("backend B filter apply");
 
-    assert_eq!(
-        coeus_vals.len(),
-        burn_vals.len(),
-        "coeus/burn output length mismatch"
-    );
-    for (i, (&c, &b)) in coeus_vals.iter().zip(burn_vals.iter()).enumerate() {
-        assert_eq!(
-            c, b,
-            "coeus/burn divergence at flat index {i}: coeus={c}, burn={b}"
-        );
+    let vals_a = backend_a_result
+        .data_slice()
+        .expect("backend A result slice");
+    let vals_b = backend_b_result
+        .data_slice()
+        .expect("backend B result slice");
+
+    assert_eq!(vals_a.len(), vals_b.len(), "backend output length mismatch");
+    for (i, (&a, &b)) in vals_a.iter().zip(vals_b.iter()).enumerate() {
+        assert_eq!(a, b, "backend divergence at flat index {i}: A={a}, B={b}");
     }
 }
 
-/// Two-input companion to [`assert_native_matches_burn`] for filters taking a
-/// `(primary, secondary)` image pair (mask, geodesic reconstruction). Both sides
-/// call the identical host core, so the outputs must be bitwise-identical.
+/// Two-input companion to [`assert_coeus_matches_coeus`].
 #[cfg(test)]
-pub(crate) fn assert_native_matches_burn_pair<FB, FC>(
-    a_vals: Vec<f32>,
-    b_vals: Vec<f32>,
+pub(crate) fn assert_coeus_matches_coeus_pair<FB, FC>(
+    lhs: Vec<f32>,
+    rhs: Vec<f32>,
     dims: [usize; 3],
-    burn_apply: FB,
-    coeus_apply: FC,
+    backend_a: FB,
+    backend_b: FC,
 ) where
     FB: FnOnce(
-        &ritk_image::Image<burn_ndarray::NdArray<f32>, 3>,
-        &ritk_image::Image<burn_ndarray::NdArray<f32>, 3>,
-    ) -> ritk_image::Image<burn_ndarray::NdArray<f32>, 3>,
+        &ritk_image::Image<f32, coeus_core::SequentialBackend, 3>,
+        &ritk_image::Image<f32, coeus_core::SequentialBackend, 3>,
+    ) -> ritk_image::Image<f32, coeus_core::SequentialBackend, 3>,
     FC: FnOnce(
-        &Image<f32, coeus_core::SequentialBackend, 3>,
-        &Image<f32, coeus_core::SequentialBackend, 3>,
-        &coeus_core::SequentialBackend,
-    ) -> Result<Image<f32, coeus_core::SequentialBackend, 3>>,
+        &Image<f32, coeus_core::MoiraiBackend, 3>,
+        &Image<f32, coeus_core::MoiraiBackend, 3>,
+        &coeus_core::MoiraiBackend,
+    ) -> Result<Image<f32, coeus_core::MoiraiBackend, 3>>,
 {
-    use ritk_image::test_support as ts;
+    let backend_a_lhs = ritk_image::Image::from_flat_on(
+        lhs.clone(),
+        dims,
+        ritk_spatial::Point::origin(),
+        ritk_spatial::Spacing::uniform(1.0),
+        ritk_spatial::Direction::identity(),
+        &coeus_core::SequentialBackend,
+    )
+    .expect("backend A left fixture shape");
+    let backend_a_rhs = ritk_image::Image::from_flat_on(
+        rhs.clone(),
+        dims,
+        ritk_spatial::Point::origin(),
+        ritk_spatial::Spacing::uniform(1.0),
+        ritk_spatial::Direction::identity(),
+        &coeus_core::SequentialBackend,
+    )
+    .expect("backend A right fixture shape");
+    let backend_b_provider = coeus_core::MoiraiBackend;
+    let backend_b_lhs = Image::from_flat_on(
+        lhs,
+        dims,
+        ritk_spatial::Point::origin(),
+        ritk_spatial::Spacing::uniform(1.0),
+        ritk_spatial::Direction::identity(),
+        &backend_b_provider,
+    )
+    .expect("backend B left fixture shape");
+    let backend_b_rhs = Image::from_flat_on(
+        rhs,
+        dims,
+        ritk_spatial::Point::origin(),
+        ritk_spatial::Spacing::uniform(1.0),
+        ritk_spatial::Direction::identity(),
+        &backend_b_provider,
+    )
+    .expect("backend B right fixture shape");
+    let backend_a_result = backend_a(&backend_a_lhs, &backend_a_rhs);
+    let backend_b_result = backend_b(&backend_b_lhs, &backend_b_rhs, &backend_b_provider)
+        .expect("backend B filter apply");
 
-    let burn_a = ts::burn_compat::make_image::<burn_ndarray::NdArray<f32>, 3>(a_vals.clone(), dims);
-    let burn_b = ts::burn_compat::make_image::<burn_ndarray::NdArray<f32>, 3>(b_vals.clone(), dims);
-    let burn_result = burn_apply(&burn_a, &burn_b);
-    let burn_vals = burn_result
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .expect("burn result slice")
-        .to_vec();
+    let vals_a = backend_a_result
+        .data_slice()
+        .expect("backend A result slice");
+    let vals_b = backend_b_result
+        .data_slice()
+        .expect("backend B result slice");
 
-    let coeus_a = make_native_image(a_vals, dims);
-    let coeus_b = make_native_image(b_vals, dims);
-    let coeus_result = coeus_apply(&coeus_a, &coeus_b, &coeus_core::SequentialBackend)
-        .expect("coeus filter apply");
-    let coeus_vals = coeus_result.data_slice().expect("coeus result slice");
-
-    assert_eq!(
-        coeus_vals.len(),
-        burn_vals.len(),
-        "coeus/burn output length mismatch"
-    );
-    for (i, (&c, &b)) in coeus_vals.iter().zip(burn_vals.iter()).enumerate() {
-        assert_eq!(
-            c, b,
-            "coeus/burn pair divergence at flat index {i}: coeus={c}, burn={b}"
-        );
+    assert_eq!(vals_a.len(), vals_b.len(), "backend output length mismatch");
+    for (i, (&a, &b)) in vals_a.iter().zip(vals_b.iter()).enumerate() {
+        assert_eq!(a, b, "backend divergence at flat index {i}: A={a}, B={b}");
     }
 }

@@ -1,7 +1,7 @@
-// ── Re-export gaussian_kernel from ritk-core::filter ────────────────────────────
+// â”€â”€ Re-export gaussian_kernel from ritk-core::filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub use ritk_tensor_ops::gaussian_kernel;
 
-// ── Bias correction ──────────────────────────────────────────────────────────
+// â”€â”€ Bias correction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub mod bias;
 pub use bias::N4BiasFieldCorrectionFilter;
 pub mod bspline_decomposition;
@@ -18,7 +18,7 @@ pub use sources::{
     gabor_image_source, gaussian_image_source, grid_image_source, physical_point_image_source,
 };
 
-// ── Denoising & smoothing ────────────────────────────────────────────────────
+// â”€â”€ Denoising & smoothing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub mod bilateral;
 pub mod diffusion;
 pub mod discrete_gaussian;
@@ -54,7 +54,7 @@ pub use smoothing::{
     NoiseImageFilter, RankImageFilter, SpatialConvolutionFilter,
 };
 
-// ── Intensity & histogram ────────────────────────────────────────────────────
+// â”€â”€ Intensity & histogram â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub mod intensity;
 
 pub use intensity::binary_ops::{AddOp, BinaryOp, BinaryOpFilter, MaxOp};
@@ -80,7 +80,7 @@ pub use intensity::{
     ZeroCrossingImageFilter,
 };
 
-// ── Morphology ────────────────────────────────────────────────────────────────
+// â”€â”€ Morphology â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub mod morphology;
 
 pub use morphology::{
@@ -98,7 +98,7 @@ pub use morphology::{
     WhiteTopHatFilter,
 };
 
-// ── Edge detection & vesselness ──────────────────────────────────────────────
+// â”€â”€ Edge detection & vesselness â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub mod edge;
 pub mod vesselness;
 
@@ -112,7 +112,7 @@ pub use vesselness::{
     FrangiConfig, FrangiVesselnessFilter, SatoConfig, SatoLineFilter, VesselPolarity,
 };
 
-// ── Frequency domain & deconvolution ─────────────────────────────────────────
+// â”€â”€ Frequency domain & deconvolution â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub mod deconvolution;
 pub mod fft;
 
@@ -128,7 +128,7 @@ pub use fft::{
     RealToHalfHermitianForwardFftFilter,
 };
 
-// ── Spatial transforms & grid operations ─────────────────────────────────────
+// â”€â”€ Spatial transforms & grid operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub mod bin_shrink;
 pub mod cpr;
 pub mod downsample;
@@ -159,7 +159,7 @@ pub use transform::{
 mod native_displacement;
 mod native_support;
 
-// ── Surface & distance ───────────────────────────────────────────────────────
+// â”€â”€ Surface & distance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub mod colliding_fronts;
 pub mod displacement;
 pub mod distance;
@@ -175,9 +175,8 @@ pub mod rank;
 pub mod reinitialize_level_set;
 pub mod surface;
 pub mod warp;
-pub use warp::warp_image_native;
 
-// ── New filters ──────────────────────────────────────────────────────────────
+// â”€â”€ New filters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub mod canny_segmentation_level_set;
 pub use canny_segmentation_level_set::CannySegmentationLevelSet;
 
@@ -209,7 +208,7 @@ pub use reinitialize_level_set::ReinitializeLevelSetFilter;
 pub use surface::{MarchingCubesFilter, Mesh, MeshBuilder};
 pub use warp::warp_image;
 
-// ── Anti-alias & contour ─────────────────────────────────────────────────────
+// â”€â”€ Anti-alias & contour â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub mod anti_alias_binary;
 pub use anti_alias_binary::AntiAliasBinaryImageFilter;
 pub mod contour_extractor_2d;

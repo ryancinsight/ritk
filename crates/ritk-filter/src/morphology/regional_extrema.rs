@@ -11,7 +11,7 @@
 //!
 //! This is computed exactly by a flat-zone flood: BFS each connected
 //! equal-valued component, then mark it extremal iff no out-of-zone neighbour is
-//! strictly more extreme. Unlike the `f − R^δ_f(f − 1)` reconstruction shortcut,
+//! strictly more extreme. Unlike the `f âˆ’ R^Î´_f(f âˆ’ 1)` reconstruction shortcut,
 //! this is correct for arbitrary float values (the shortcut merges extrema whose
 //! contrast is below the unit shift).
 //!
@@ -26,11 +26,11 @@
 //!
 //! Binary filters emit `foreground` on extrema and `background` elsewhere
 //! (ITK defaults 1 / 0). Valued filters keep the input value on extrema and set
-//! non-extrema to the type's non-extremal sentinel — `f32::MIN` (`−FLT_MAX`) for
-//! maxima, `f32::MAX` (`+FLT_MAX`) for minima — matching ITK's `NumericTraits`.
+//! non-extrema to the type's non-extremal sentinel â€” `f32::MIN` (`âˆ’FLT_MAX`) for
+//! maxima, `f32::MAX` (`+FLT_MAX`) for minima â€” matching ITK's `NumericTraits`.
 //!
 //! # References
-//! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer, §6.3.
+//! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer, Â§6.3.
 
 use crate::morphology::Connectivity;
 use ritk_image::tensor::Backend;
@@ -148,11 +148,11 @@ fn validate_samples(data: &[f32]) -> anyhow::Result<()> {
 
 /// Shared driver: extract, detect, map each voxel through `value`, rebuild.
 fn run<B: Backend>(
-    image: &Image<B, 3>,
+    image: &Image<f32, B, 3>,
     conn: Connectivity,
     kind: ExtremaKind,
     value: impl Fn(bool, f32) -> f32,
-) -> anyhow::Result<Image<B, 3>> {
+) -> anyhow::Result<Image<f32, B, 3>> {
     let (vals, dims) = extract_vec(image)?;
     validate_samples(&vals)?;
     let mask = regional_extrema_mask(&vals, dims, conn, kind);
@@ -165,12 +165,12 @@ fn run<B: Backend>(
 }
 
 fn run_native<B>(
-    image: &ritk_image::native::Image<f32, B, 3>,
+    image: &ritk_image::Image<f32, B, 3>,
     conn: Connectivity,
     kind: ExtremaKind,
     value: impl Fn(bool, f32) -> f32,
     backend: &B,
-) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend,
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -178,7 +178,7 @@ where
     let values = image.data_slice()?;
     validate_samples(values)?;
     let mask = regional_extrema_mask(values, image.shape(), conn, kind);
-    ritk_image::native::Image::from_flat_on(
+    ritk_image::Image::from_flat_on(
         mask.iter()
             .zip(values)
             .map(|(&is_extremum, &sample)| value(is_extremum, sample))
@@ -191,7 +191,7 @@ where
     )
 }
 
-// ── Binary regional maxima / minima ───────────────────────────────────────────
+// â”€â”€ Binary regional maxima / minima â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Binary regional-maxima filter: `foreground` on regional maxima, `background`
 /// elsewhere. ITK `RegionalMaximaImageFilter` (defaults foreground 1.0 / 0.0).
@@ -232,7 +232,7 @@ impl RegionalMaximaFilter {
     }
 
     /// Apply the binary regional-maxima transform.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (fg, bg) = (self.foreground, self.background);
         run(
             image,
@@ -287,7 +287,7 @@ impl RegionalMinimaFilter {
     }
 
     /// Apply the binary regional-minima transform.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (fg, bg) = (self.foreground, self.background);
         run(
             image,
@@ -311,9 +311,9 @@ impl RegionalMinimaFilter {
     /// native output construction failure.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -335,10 +335,10 @@ impl RegionalMinimaFilter {
     }
 }
 
-// ── Valued regional maxima / minima ───────────────────────────────────────────
+// â”€â”€ Valued regional maxima / minima â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Valued regional-maxima filter: keep the input value on regional maxima, set
-/// non-maxima to `f32::MIN` (`−FLT_MAX`). ITK `ValuedRegionalMaximaImageFilter`.
+/// non-maxima to `f32::MIN` (`âˆ’FLT_MAX`). ITK `ValuedRegionalMaximaImageFilter`.
 #[derive(Debug, Clone)]
 pub struct ValuedRegionalMaximaFilter {
     connectivity: Connectivity,
@@ -365,7 +365,7 @@ impl ValuedRegionalMaximaFilter {
     }
 
     /// Apply the valued regional-maxima transform.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         run(image, self.connectivity, ExtremaKind::Maxima, |m, v| {
             if m {
                 v
@@ -404,7 +404,7 @@ impl ValuedRegionalMinimaFilter {
     }
 
     /// Apply the valued regional-minima transform.
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> anyhow::Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         run(image, self.connectivity, ExtremaKind::Minima, |m, v| {
             if m {
                 v
@@ -415,7 +415,7 @@ impl ValuedRegionalMinimaFilter {
     }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "tests_regional_extrema.rs"]

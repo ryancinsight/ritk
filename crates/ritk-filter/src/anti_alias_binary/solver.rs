@@ -57,14 +57,14 @@ impl AntiAliasBinaryImageFilter {
         let upper_bin = mx; // foreground value
         let shifted: Vec<f32> = binary.iter().map(|&v| v - iso).collect();
 
-        // ZeroCrossing(shifted) → active set, float-exact to ITK.
+        // ZeroCrossing(shifted) â†’ active set, float-exact to ITK.
         let sign_change = |a: f32, b: f32| (a * b < 0.0) || ((a == 0.0) != (b == 0.0));
         let mut is_active = vec![false; n];
         for f in 0..n {
             let v = shifted[f];
             let av = v.abs();
             let mut crosses = false;
-            // forward (+) accept |v|<=|nv|; backward (−) strict |v|<|nv|.
+            // forward (+) accept |v|<=|nv|; backward (âˆ’) strict |v|<|nv|.
             for &off in &offsets {
                 // forward
                 if let Some(g) = neighbor(f, off) {
@@ -104,8 +104,8 @@ impl AntiAliasBinaryImageFilter {
             }};
         }
 
-        // ConstructActiveLayer (raster scan): active voxels → layer 0; their
-        // non-active neighbours → first inside(1, shifted<0) / outside(2) layer.
+        // ConstructActiveLayer (raster scan): active voxels â†’ layer 0; their
+        // non-active neighbours â†’ first inside(1, shifted<0) / outside(2) layer.
         for f in 0..n {
             if is_active[f] {
                 push_layer!(f, 0);
@@ -119,7 +119,7 @@ impl AntiAliasBinaryImageFilter {
                 }
             }
         }
-        // ConstructLayer i → i+2.
+        // ConstructLayer i â†’ i+2.
         for i in 1..(num - 2) {
             let cur: Vec<usize> = layers[i as usize].clone();
             for f in cur {
@@ -132,7 +132,7 @@ impl AntiAliasBinaryImageFilter {
                 }
             }
         }
-        // InitializeActiveLayerValues: clamp(shifted/upwind_len, ±CGV/2).
+        // InitializeActiveLayerValues: clamp(shifted/upwind_len, Â±CGV/2).
         let cf = CGV / 2.0;
         for &f in &layers[0] {
             let c = shifted[f];
@@ -217,7 +217,7 @@ impl AntiAliasBinaryImageFilter {
         }
         propagate_all!();
 
-        // ── ApplyUpdate loop ──
+        // â”€â”€ ApplyUpdate loop â”€â”€
         for _ in 0..self.number_of_iterations {
             let al: Vec<usize> = layers[0].clone();
             let update: Vec<f32> = al
@@ -255,7 +255,7 @@ impl AntiAliasBinaryImageFilter {
                             }
                         }
                     }
-                    // move f out of active (layers[0]) → CUP
+                    // move f out of active (layers[0]) â†’ CUP
                     status[f] = ST_CUP;
                     up[0].insert(0, f);
                 } else if nv < -cf {
@@ -342,7 +342,7 @@ impl AntiAliasBinaryImageFilter {
             }
             u = proc(&mut layers, &mut status, u, up_to, ST_NULL);
             d = proc(&mut layers, &mut status, d, dn_to, ST_NULL);
-            // ProcessOutsideList: remaining work-list voxels → outermost layers.
+            // ProcessOutsideList: remaining work-list voxels â†’ outermost layers.
             for f in u {
                 move_to(&mut layers, &mut status, f, num - 2);
             }
@@ -362,7 +362,7 @@ impl AntiAliasBinaryImageFilter {
             }
         }
 
-        // PostProcessOutput: background voxels → ±(NL+1) by current sign.
+        // PostProcessOutput: background voxels â†’ Â±(NL+1) by current sign.
         for f in 0..n {
             if status[f] == ST_NULL {
                 phi[f] = if phi[f] > 0.0 { bg_val } else { -bg_val };

@@ -34,10 +34,10 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 /// `template` is the (odd-sized) neighbourhood operator. Returns `Err` on a
 /// shape mismatch or an even template extent.
 pub fn normalized_correlation<B: Backend>(
-    image: &Image<B, 3>,
-    mask: &Image<B, 3>,
-    template: &Image<B, 3>,
-) -> Result<Image<B, 3>> {
+    image: &Image<f32, B, 3>,
+    mask: &Image<f32, B, 3>,
+    template: &Image<f32, B, 3>,
+) -> Result<Image<f32, B, 3>> {
     let (img, dims) = extract_vec_infallible(image);
     let (msk, mdims) = extract_vec_infallible(mask);
     let (tpl, tdims) = extract_vec_infallible(template);

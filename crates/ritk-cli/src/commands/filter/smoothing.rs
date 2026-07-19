@@ -2,19 +2,16 @@ use anyhow::{anyhow, Result};
 use tracing::info;
 
 use super::{
-    super::{
-        infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
-        write_image_native, NativeBackend,
-    },
-    Backend, FilterArgs,
+    super::{infer_format, is_read_capable, is_write_capable, read_image, write_image, Backend},
+    FilterArgs,
 };
 
-// ── Gaussian filter ───────────────────────────────────────────────────────────
+// â”€â”€ Gaussian filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 /// Apply a Gaussian smoothing filter to the input image and write the result.
 ///
 /// The sigma value from `args.smoothing.sigma` is applied uniformly along all
 /// three spatial dimensions. The `GaussianFilter` implementation skips any
-/// dimension whose sigma is ≤ 1e-6, so `--sigma 0.0` is a valid no-op.
+/// dimension whose sigma is â‰¤ 1e-6, so `--sigma 0.0` is a valid no-op.
 pub(super) fn run_gaussian(args: &FilterArgs) -> Result<()> {
     use ritk_filter::GaussianFilter;
     use ritk_filter::GaussianSigma;
@@ -25,13 +22,13 @@ pub(super) fn run_gaussian(args: &FilterArgs) -> Result<()> {
     let output_format = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        is_read_capable(input_format) && is_write_capable(output_format),
         "gaussian requires native input/output formats"
     );
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
 
-    // sigma ≤ 0 is documented as a no-op at the CLI level; skip the filter
+    // sigma â‰¤ 0 is documented as a no-op at the CLI level; skip the filter
     // and return the image unmodified rather than constructing a near-zero sigma.
     let filtered = if sigma > 0.0 {
         let sigma = GaussianSigma::new(sigma)
@@ -42,7 +39,7 @@ pub(super) fn run_gaussian(args: &FilterArgs) -> Result<()> {
         image
     };
 
-    write_image_native(&args.output, &filtered, output_format)?;
+    write_image(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied gaussian (\u{03c3}={}) to {} \u{2192} {}",
@@ -60,7 +57,7 @@ pub(super) fn run_gaussian(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── N4 bias field correction ──────────────────────────────────────────────────
+// â”€â”€ N4 bias field correction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub(super) fn run_n4_bias(args: &FilterArgs) -> Result<()> {
     use ritk_filter::bias::N4Config;
     use ritk_filter::N4BiasFieldCorrectionFilter;
@@ -70,11 +67,11 @@ pub(super) fn run_n4_bias(args: &FilterArgs) -> Result<()> {
     let output_format = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        is_read_capable(input_format) && is_write_capable(output_format),
         "n4-bias requires native input/output formats"
     );
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
 
     let config = N4Config {
         num_fitting_levels: args.diffusion.levels,
@@ -84,7 +81,7 @@ pub(super) fn run_n4_bias(args: &FilterArgs) -> Result<()> {
     let filter = N4BiasFieldCorrectionFilter::new(config);
     let filtered = filter.apply_native(&image, &backend)?;
 
-    write_image_native(&args.output, &filtered, output_format)?;
+    write_image(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied n4-bias (levels={}, iters={}) to {} \u{2192} {}",
@@ -104,7 +101,7 @@ pub(super) fn run_n4_bias(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Anisotropic diffusion ─────────────────────────────────────────────────────
+// â”€â”€ Anisotropic diffusion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub(super) fn run_anisotropic(args: &FilterArgs) -> Result<()> {
     use ritk_filter::diffusion::{ConductanceFunction, DiffusionConfig};
     use ritk_filter::AnisotropicDiffusionFilter;
@@ -115,11 +112,11 @@ pub(super) fn run_anisotropic(args: &FilterArgs) -> Result<()> {
     let output_format = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        is_read_capable(input_format) && is_write_capable(output_format),
         "anisotropic requires native input/output formats"
     );
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
 
     let config = DiffusionConfig {
         num_iterations: args.diffusion.iterations,
@@ -130,7 +127,7 @@ pub(super) fn run_anisotropic(args: &FilterArgs) -> Result<()> {
     let filter = AnisotropicDiffusionFilter::<ExponentialConductance>::new(config);
     let filtered = filter.apply_native(&image, &backend)?;
 
-    write_image_native(&args.output, &filtered, output_format)?;
+    write_image(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied anisotropic (iters={}, K={}) to {} \u{2192} {}",
@@ -159,11 +156,11 @@ pub(super) fn run_curvature(args: &FilterArgs) -> Result<()> {
     let output_format = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        is_read_capable(input_format) && is_write_capable(output_format),
         "curvature requires native input/output formats"
     );
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
 
     let config = CurvatureConfig {
         num_iterations: args.diffusion.iterations,
@@ -173,7 +170,7 @@ pub(super) fn run_curvature(args: &FilterArgs) -> Result<()> {
     let filter = CurvatureAnisotropicDiffusionFilter::new(config);
     let filtered = filter.apply_native(&image, &backend)?;
 
-    write_image_native(&args.output, &filtered, output_format)?;
+    write_image(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied curvature (iters={}, dt={}) to {} -> {}",
@@ -196,11 +193,11 @@ pub(super) fn run_sato(args: &FilterArgs) -> Result<()> {
     let output_format = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        is_read_capable(input_format) && is_write_capable(output_format),
         "sato requires native input/output formats"
     );
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
 
     let scales = args.vesselness.scales.clone();
     let scales = if scales.is_empty() {
@@ -217,7 +214,7 @@ pub(super) fn run_sato(args: &FilterArgs) -> Result<()> {
     let filter = SatoLineFilter::new(config);
     let filtered = filter.apply_native(&image, &backend)?;
 
-    write_image_native(&args.output, &filtered, output_format)?;
+    write_image(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied sato (scales={:?}, alpha={}) to {} -> {}",
@@ -240,7 +237,7 @@ pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
     let output_format = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        is_read_capable(input_format) && is_write_capable(output_format),
         "discrete-gaussian requires native input/output formats"
     );
 
@@ -248,9 +245,9 @@ pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
     if variance < 0.0 {
         anyhow::bail!("--variance must be non-negative, got {}", variance);
     }
-    let image = read_image_native(&args.input)?;
+    let image = read_image(&args.input)?;
     if variance == 0.0 {
-        write_image_native(&args.output, &image, output_format)?;
+        write_image(&args.output, &image, output_format)?;
         println!(
             "Applied discrete-gaussian (variance=0.0: identity) to {} -> {}",
             args.input.display(),
@@ -259,7 +256,7 @@ pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
         return Ok(());
     }
 
-    // CLI accepts variance (σ²); DiscreteGaussianFilter API takes sigma (σ).
+    // CLI accepts variance (ÏƒÂ²); DiscreteGaussianFilter API takes sigma (Ïƒ).
     let sigma = GaussianSigma::new(variance.sqrt())
         .expect("invariant: sqrt of positive variance yields positive sigma");
     let filter = DiscreteGaussianFilter::<Backend>::new(vec![sigma])
@@ -267,7 +264,7 @@ pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
         .with_spacing_mode(args.discrete.spacing_mode);
     let filtered = filter.apply_native(&image)?;
 
-    write_image_native(&args.output, &filtered, output_format)?;
+    write_image(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied discrete-gaussian (variance={}, maximum_error={}, spacing_mode={}) to {} -> {}",
@@ -282,19 +279,17 @@ pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::commands::filter::{default_args, make_test_image, FilterKind};
-    use crate::commands::{read_image_native, write_image_native, NativeBackend};
+    use crate::commands::{read_image, write_image, Backend};
     use ritk_filter::SpacingMode;
-    use ritk_image::native::Image as NativeImage;
     use ritk_io::ImageFormat;
-    use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
-    // ── Positive: Gaussian creates output file ────────────────────────────
+    // â”€â”€ Positive: Gaussian creates output file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     /// Applying the Gaussian filter must create the output file.
     #[test]
     fn test_filter_gaussian_creates_output_file() {
@@ -302,7 +297,7 @@ mod tests {
         let input = dir.path().join("input.nii");
         let output = dir.path().join("filtered.nii");
 
-        write_image_native(&input, &make_test_image(), ImageFormat::NIfTI).unwrap();
+        write_image(&input, &make_test_image(), ImageFormat::NIfTI).unwrap();
 
         run_gaussian(&default_args(
             input.clone(),
@@ -313,7 +308,7 @@ mod tests {
         assert!(output.exists(), "output file must be created");
     }
 
-    // ── Positive: Gaussian preserves shape ───────────────────────────────
+    // â”€â”€ Positive: Gaussian preserves shape â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     /// The output image must have the same voxel dimensions as the input.
     #[test]
     fn test_filter_gaussian_preserves_shape() {
@@ -321,7 +316,7 @@ mod tests {
         let input = dir.path().join("input.mha");
         let output = dir.path().join("filtered.mha");
 
-        write_image_native(&input, &make_test_image(), ImageFormat::MetaImage).unwrap();
+        write_image(&input, &make_test_image(), ImageFormat::MetaImage).unwrap();
 
         run_gaussian(&default_args(
             input.clone(),
@@ -330,7 +325,7 @@ mod tests {
         ))
         .unwrap();
 
-        let result = read_image_native(&output).expect("Gaussian output must be natively readable");
+        let result = read_image(&output).expect("Gaussian output must be natively readable");
         assert_eq!(
             result.shape(),
             [5, 5, 5],
@@ -338,9 +333,9 @@ mod tests {
         );
     }
 
-    // ── Positive: Gaussian with sigma=0 is a no-op ──────────────────────
+    // â”€â”€ Positive: Gaussian with sigma=0 is a no-op â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     /// `--sigma 0.0` must leave voxel values unchanged (GaussianFilter skips
-    /// dimensions with σ ≤ 1e-6).
+    /// dimensions with Ïƒ â‰¤ 1e-6).
     #[test]
     fn test_filter_gaussian_sigma_zero_is_noop() {
         let dir = tempdir().unwrap();
@@ -348,12 +343,9 @@ mod tests {
         let output = dir.path().join("filtered.mha");
 
         let original = make_test_image();
-        let original_data: Vec<f32> = original
-            .data()
-            .clone()
-            .into_data()
-            .as_slice::<f32>()
-            .unwrap()
+        let original_data = original
+            .data_slice()
+            .expect("invariant: fixture storage is contiguous")
             .to_vec();
         ritk_io::write_metaimage(&input, &original).unwrap();
 
@@ -362,15 +354,12 @@ mod tests {
         run_gaussian(&args).unwrap();
 
         let result = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
-        let result_data: Vec<f32> = result
-            .data()
-            .clone()
-            .into_data()
-            .as_slice::<f32>()
-            .unwrap()
+        let result_data = result
+            .data_slice()
+            .expect("invariant: result storage is contiguous")
             .to_vec();
 
-        // Sigma = 0 → no convolution → values must be identical after round-trip.
+        // Sigma = 0 â†’ no convolution â†’ values must be identical after round-trip.
         // NIfTI/MetaImage round-trip may reorder axes; compare sums as a
         // scalar invariant that is permutation-independent.
         let orig_sum: f32 = original_data.iter().sum();
@@ -381,7 +370,7 @@ mod tests {
         );
     }
 
-    // ── Positive: N4 bias-field correction creates output file ───────────
+    // â”€â”€ Positive: N4 bias-field correction creates output file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     #[test]
     fn test_filter_n4_applies_correction() {
         let dir = tempdir().unwrap();
@@ -394,12 +383,12 @@ mod tests {
         args.diffusion.levels = 1;
         args.diffusion.iterations = 5;
         run_n4_bias(&args).expect("N4 bias correction must succeed");
-        let output = crate::commands::read_image_native(&output)
-            .expect("N4 output must be natively readable");
+        let output =
+            crate::commands::read_image(&output).expect("N4 output must be natively readable");
         assert_eq!(output.shape(), [5, 5, 5], "output shape must match input");
     }
 
-    // ── Positive: anisotropic diffusion creates output file ──────────────
+    // â”€â”€ Positive: anisotropic diffusion creates output file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     #[test]
     fn test_filter_anisotropic_creates_output() {
         let dir = tempdir().unwrap();
@@ -411,7 +400,7 @@ mod tests {
         let mut args = default_args(input, output.clone(), FilterKind::Anisotropic);
         args.diffusion.iterations = 5;
         run_anisotropic(&args).expect("anisotropic must succeed");
-        let output = crate::commands::read_image_native(&output)
+        let output = crate::commands::read_image(&output)
             .expect("anisotropic output must be natively readable");
         assert_eq!(output.shape(), [5, 5, 5], "output shape must match input");
     }
@@ -427,7 +416,7 @@ mod tests {
         let mut args = default_args(input, output.clone(), FilterKind::Curvature);
         args.diffusion.iterations = 3;
         run_curvature(&args).expect("curvature must succeed");
-        let out_img = crate::commands::read_image_native(&output)
+        let out_img = crate::commands::read_image(&output)
             .expect("curvature output must be natively readable");
         assert_eq!(out_img.shape(), [5, 5, 5], "output shape must match input");
     }
@@ -445,7 +434,7 @@ mod tests {
         args.discrete.maximum_error = 0.01;
         args.discrete.spacing_mode = SpacingMode::Physical;
         run_discrete_gaussian(&args).expect("discrete-gaussian must succeed");
-        let out_img = crate::commands::read_image_native(&output)
+        let out_img = crate::commands::read_image(&output)
             .expect("discrete Gaussian output must be natively readable");
         assert_eq!(out_img.shape(), [5, 5, 5], "output shape must match input");
     }
@@ -458,11 +447,8 @@ mod tests {
 
         let image = make_test_image();
         let input_sum: f32 = image
-            .data()
-            .clone()
-            .into_data()
-            .as_slice::<f32>()
-            .unwrap()
+            .data_slice()
+            .expect("invariant: fixture storage is contiguous")
             .iter()
             .copied()
             .sum();
@@ -471,7 +457,7 @@ mod tests {
         let mut args = default_args(input, output.clone(), FilterKind::DiscreteGaussian);
         args.discrete.variance = 0.0;
         run_discrete_gaussian(&args).expect("zero-variance discrete Gaussian must succeed");
-        let out_img = crate::commands::read_image_native(&output)
+        let out_img = crate::commands::read_image(&output)
             .expect("identity output must be natively readable");
         let output_sum: f32 = out_img
             .data_slice()
@@ -496,8 +482,8 @@ mod tests {
         let mut args = default_args(input, output.clone(), FilterKind::Sato);
         args.vesselness.scales = vec![1.0];
         run_sato(&args).expect("Sato must succeed");
-        let output = crate::commands::read_image_native(&output)
-            .expect("Sato output must be natively readable");
+        let output =
+            crate::commands::read_image(&output).expect("Sato output must be natively readable");
         assert_eq!(output.shape(), [5, 5, 5], "output shape must match input");
     }
 }

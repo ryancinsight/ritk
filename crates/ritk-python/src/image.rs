@@ -1,24 +1,18 @@
-//! Python-exposed Image class wrapping native `ritk_image::native::Image`.
+//! Python-exposed Image class wrapping native `ritk_image::Image`.
 
 use crate::errors::{RitkPyError, RitkResult};
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use numpy::{ndarray::Array3, IntoPyArray, PyArray3, PyReadonlyArray3, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image as NativeImage;
 use std::sync::Arc;
 
 /// Native backend used throughout ritk-python scalar image bindings.
 pub type Backend = MoiraiBackend;
 
-/// Legacy Burn backend retained for burn-only filters and transforms.
-pub type BurnBackend = burn_ndarray::NdArray<f32>;
-
 /// Native 3-D scalar image carrier used by `PyImage`.
 pub type ScalarImage = NativeImage<f32, MoiraiBackend, 3>;
-
-/// Legacy Burn-backed scalar image carrier for adapters into burn-only crates.
-pub type BurnImage<const D: usize> = ritk_core::image::Image<BurnBackend, D>;
 
 /// Medical image with physical-space metadata.
 #[pyclass(name = "Image")]
@@ -123,29 +117,14 @@ impl IntoPyImage for ScalarImage {
     }
 }
 
-impl IntoPyImage for BurnImage<3> {
-    fn into_py_image(self) -> PyImage {
-        let (values, shape) = burn_image_to_vec(&self);
-        vec_to_image(
-            values,
-            shape,
-            *self.origin(),
-            *self.spacing(),
-            *self.direction(),
-        )
-        .into_py_image()
-    }
-}
-
-/// Wrap either a native or Burn-backed image in `PyImage`.
+/// Wrap a native image in `PyImage`.
 pub fn into_py_image<I: IntoPyImage>(image: I) -> PyImage {
     image.into_py_image()
 }
 
 /// Convert a native image from `ritk-io` onto `MoiraiBackend`.
 pub fn native_into_py_image(image: ritk_io::NativeImage) -> PyImage {
-    let backend = SequentialBackend;
-    let values = image.data_vec_on(&backend);
+    let values = image.data_vec_on(&SequentialBackend);
     let shape = image.shape();
     into_py_image(
         NativeImage::from_flat_on(
@@ -173,20 +152,9 @@ pub fn py_image_to_native(image: &PyImage) -> RitkResult<ritk_io::NativeImage> {
     .map_err(|e| RitkPyError::runtime(e.to_string()))
 }
 
-/// Convert a native Python image to a legacy Burn-backed image for burn-only algorithms.
-pub fn py_image_to_burn(image: &PyImage) -> BurnImage<3> {
-    let (values, shape) = image_to_vec(image.inner.as_ref());
-    let device = <BurnBackend as ritk_image::tensor::backend::Backend>::Device::default();
-    let tensor = ritk_image::tensor::Tensor::<BurnBackend, 3>::from_data(
-        ritk_image::tensor::TensorData::new(values, ritk_image::tensor::Shape::new(shape)),
-        &device,
-    );
-    BurnImage::new(
-        tensor,
-        *image.inner.origin(),
-        *image.inner.spacing(),
-        *image.inner.direction(),
-    )
+/// Clone the native image owned by the Python carrier.
+pub fn image_from_py(image: &PyImage) -> ScalarImage {
+    image.inner.as_ref().clone()
 }
 
 /// Extract logical row-major image data as `Vec<f32>` plus shape `[Z, Y, X]`.
@@ -211,32 +179,6 @@ pub(crate) fn with_image_pair_slices<R, F: FnOnce(&[f32], &[f32]) -> R>(
     with_image_slice(first, |first_values| {
         with_image_slice(second, |second_values| f(first_values, second_values))
     })
-}
-
-/// Wrap a legacy Burn-backed image result back into a `PyImage` by converting
-/// via a flat `Vec<f32>` round-trip. Used as the return adapter for burn-only
-/// filter algorithms that cannot yet operate on native Coeus images.
-pub fn burn_into_py_image(image: BurnImage<3>) -> PyImage {
-    let (values, shape) = burn_image_to_vec(&image);
-    into_py_image(vec_to_image(
-        values,
-        shape,
-        *image.origin(),
-        *image.spacing(),
-        *image.direction(),
-    ))
-}
-
-pub(crate) fn burn_image_to_vec<const D: usize>(image: &BurnImage<D>) -> (Vec<f32>, [usize; D]) {
-    let dims = image.shape();
-    let values = image
-        .data()
-        .clone()
-        .into_data()
-        .as_slice::<f32>()
-        .expect("burn_image_to_vec: contiguous f32 image")
-        .to_vec();
-    (values, dims)
 }
 
 /// Construct a native image from a flat `Vec<f32>`, shape `[Z, Y, X]`,

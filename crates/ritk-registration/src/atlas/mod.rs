@@ -2,30 +2,30 @@
 //!
 //! # Mathematical Specification
 //!
-//! Given N subject images {I₁, ..., Iₙ}, the algorithm constructs a
+//! Given N subject images {Iâ‚, ..., Iâ‚™}, the algorithm constructs a
 //! population-specific template T by iterating:
 //!
-//! 1. Initialize T⁰ = (1/N) Σᵢ Iᵢ (voxel-wise mean of all subjects).
+//! 1. Initialize Tâ° = (1/N) Î£áµ¢ Iáµ¢ (voxel-wise mean of all subjects).
 //! 2. For iteration k = 1, ..., K:
-//!    a. Register each Iᵢ to T^{k−1} via Multi-Resolution SyN → velocity φᵢ,
-//!    warped image Iᵢ ∘ φᵢ⁻¹.
-//!    b. Compute T̃^k = (1/N) Σᵢ Iᵢ ∘ φᵢ⁻¹ (mean of warped subjects).
-//!    c. Compute mean forward velocity: v̄ = (1/N) Σᵢ vᵢ (component-wise).
-//!    d. Template sharpening: T^k = warp(T̃^k, exp(−G_σ ∗ v̄)) where G_σ is
+//!    a. Register each Iáµ¢ to T^{kâˆ’1} via Multi-Resolution SyN â†’ velocity Ï†áµ¢,
+//!    warped image Iáµ¢ âˆ˜ Ï†áµ¢â»Â¹.
+//!    b. Compute TÌƒ^k = (1/N) Î£áµ¢ Iáµ¢ âˆ˜ Ï†áµ¢â»Â¹ (mean of warped subjects).
+//!    c. Compute mean forward velocity: vÌ„ = (1/N) Î£áµ¢ váµ¢ (component-wise).
+//!    d. Template sharpening: T^k = warp(TÌƒ^k, exp(âˆ’G_Ïƒ âˆ— vÌ„)) where G_Ïƒ is
 //!    Gaussian smoothing applied to the negated mean velocity before
 //!    exponentiation via scaling-and-squaring.  This removes mean-drift
 //!    bias so the template lies at the geometric centre of the population
 //!    in diffeomorphism space.
-//!    e. Convergence: stop when ‖T^k − T^{k−1}‖₂ / √n < threshold.
+//!    e. Convergence: stop when â€–T^k âˆ’ T^{kâˆ’1}â€–â‚‚ / âˆšn < threshold.
 //!
 //! # References
 //!
 //! - Avants, B. B. & Gee, J. C. (2004). Geodesic estimation for large
 //!   deformation anatomical shape averaging and interpolation. *NeuroImage*
-//!   23:S139–S150.
+//!   23:S139â€“S150.
 //! - Guimond, A., Meunier, J. & Thirion, J.-P. (2000). Average brain models:
 //!   A convergence study. *Computer Vision and Image Understanding*
-//!   77(2):192–210.
+//!   77(2):192â€“210.
 
 pub mod label_fusion;
 
@@ -47,10 +47,10 @@ use crate::error::RegistrationError;
 /// [`MultiResSyNConfig`].
 #[derive(Debug, Clone)]
 pub struct AtlasConfig {
-    /// Maximum template-building iterations (must be ≥ 1).
+    /// Maximum template-building iterations (must be â‰¥ 1).
     pub max_iterations: usize,
     /// Convergence threshold on per-voxel RMS change of the template.
-    /// The outer loop terminates when ‖T^k − T^{k−1}‖₂ / √n falls below
+    /// The outer loop terminates when â€–T^k âˆ’ T^{kâˆ’1}â€–â‚‚ / âˆšn falls below
     /// this value.
     pub convergence_threshold: f64,
     /// Multi-Resolution SyN configuration used for every pairwise
@@ -61,9 +61,9 @@ pub struct AtlasConfig {
 /// Per-subject registration result retained from the final atlas iteration.
 #[derive(Debug, Clone)]
 pub struct SubjectResult {
-    /// Forward velocity field (z, y, x) — template → midpoint.
+    /// Forward velocity field (z, y, x) â€” template â†’ midpoint.
     pub forward_field: VelocityField,
-    /// Inverse velocity field (z, y, x) — subject → midpoint.
+    /// Inverse velocity field (z, y, x) â€” subject â†’ midpoint.
     pub inverse_field: VelocityField,
     /// Final local CC value for this subject's registration.
     pub final_cc: f64,
@@ -127,11 +127,11 @@ impl AtlasRegistration {
     ///
     /// When the factory returns [`CpuOrGpu::Gpu`], the per-level
     /// velocity-field smoothing in the inner SyN registrations and the
-    /// per-iteration template-sharpening smoothing both run on the GPU —
-    /// 10–50× faster than the CPU path for typical 256³ fields.
+    /// per-iteration template-sharpening smoothing both run on the GPU â€”
+    /// 10â€“50Ã— faster than the CPU path for typical 256Â³ fields.
     ///
     /// # Arguments
-    /// - `smoother_factory` — creates a smoother for a given `[nz, ny, nx]`
+    /// - `smoother_factory` â€” creates a smoother for a given `[nz, ny, nx]`
     ///   shape.  Called once per resolution level (the SyN multires
     ///   registration creates its own per-level smoothers) and once for the
     ///   full-resolution template sharpening.
@@ -169,7 +169,7 @@ impl AtlasRegistration {
             ));
         }
 
-        // ── Step 1: T⁰ = voxel-wise mean ─────────────────────────────────
+        // â”€â”€ Step 1: Tâ° = voxel-wise mean â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let inv_n = 1.0f32 / n_subjects as f32;
         let mut template = vec![0.0f32; n_voxels];
         for s in subjects {
@@ -193,7 +193,7 @@ impl AtlasRegistration {
                 syn_results.push(res);
             }
 
-            // 2b. T̃^k = (1/N) Σᵢ warped_moving_i.
+            // 2b. TÌƒ^k = (1/N) Î£áµ¢ warped_moving_i.
             let mut new_template = vec![0.0f32; n_voxels];
             for res in &syn_results {
                 for (dst, &src) in new_template.iter_mut().zip(res.warped_moving.iter()) {
@@ -204,7 +204,7 @@ impl AtlasRegistration {
                 *v *= inv_n;
             }
 
-            // 2c. Mean forward velocity v̄ = (1/N) Σᵢ vᵢ.
+            // 2c. Mean forward velocity vÌ„ = (1/N) Î£áµ¢ váµ¢.
             let mut mean_vz = vec![0.0f32; n_voxels];
             let mut mean_vy = vec![0.0f32; n_voxels];
             let mut mean_vx = vec![0.0f32; n_voxels];

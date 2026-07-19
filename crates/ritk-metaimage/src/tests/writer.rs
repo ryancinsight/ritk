@@ -4,7 +4,7 @@ use coeus_core::SequentialBackend;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
-use ritk_image::native::Image;
+use ritk_image::Image;
 
 type TestBackend = SequentialBackend;
 

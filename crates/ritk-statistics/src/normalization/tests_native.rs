@@ -1,13 +1,13 @@
 //! Coeus-native normalization paths: analytical oracles plus differential parity
-//! against the Burn path.
+//! against the sequential Coeus path.
 //!
 //! ## Tolerances
 //! - `HistogramMatcher`, `NyulUdupaNormalizer`, `WhiteStripeNormalizer`: the
-//!   native and Burn adapters delegate to the **same** host core
+//!   native and sequential adapters delegate to the **same** host core
 //!   (`transform_values` / `compute_white_stripe`), so their outputs are bitwise
 //!   identical — asserted with `PARITY = 1e-6` (allowing only for tensor
 //!   round-trip representation, which is exact for `f32`).
-//! - `ZScoreNormalizer`, `MinMaxNormalizer`: the Burn path uses on-device tensor
+//! - `ZScoreNormalizer`, `MinMaxNormalizer`: the sequential path uses tensor
 //!   scalar ops and the native path a host `f32` loop, but both execute the same
 //!   `f32` operations in the same order on statistics derived from the identical
 //!   `f64` two-pass reduction, so the results agree to `PARITY`.
@@ -15,13 +15,11 @@
 //!   values`) use tolerances derived from the `f32` epsilon of the closed form.
 
 use super::*;
-use coeus_core::MoiraiBackend;
-use ritk_image::native::Image as NativeImage;
+use coeus_core::{MoiraiBackend, SequentialBackend};
 use ritk_image::test_support;
-use ritk_image::Image as BurnImage;
+use ritk_image::Image as NativeImage;
+use ritk_image::Image as SequentialImage;
 use ritk_spatial::{Direction, Point, Spacing};
-
-type Burn = burn_ndarray::NdArray<f32>;
 
 /// Shared-core paths are bitwise identical; `f32` tensor round-trip is exact.
 const PARITY: f32 = 1e-6;
@@ -37,8 +35,11 @@ fn native<const D: usize>(data: Vec<f32>, dims: [usize; D]) -> NativeImage<f32, 
     .expect("native image construction")
 }
 
-fn burn<const D: usize>(data: Vec<f32>, dims: [usize; D]) -> BurnImage<Burn, D> {
-    test_support::burn_compat::make_image(data, dims)
+fn sequential<const D: usize>(
+    data: Vec<f32>,
+    dims: [usize; D],
+) -> SequentialImage<f32, SequentialBackend, D> {
+    test_support::make_image(data, dims)
 }
 
 fn native_values<const D: usize>(image: &NativeImage<f32, MoiraiBackend, D>) -> Vec<f32> {
@@ -48,7 +49,9 @@ fn native_values<const D: usize>(image: &NativeImage<f32, MoiraiBackend, D>) -> 
         .to_vec()
 }
 
-fn burn_values<const D: usize>(image: &BurnImage<Burn, D>) -> Vec<f32> {
+fn sequential_values<const D: usize>(
+    image: &SequentialImage<f32, SequentialBackend, D>,
+) -> Vec<f32> {
     ritk_tensor_ops::extract_vec_infallible(image).0
 }
 
@@ -73,26 +76,32 @@ fn zscore_ramp_has_zero_mean_unit_variance() {
 }
 
 #[test]
-fn zscore_matches_burn() {
+fn zscore_matches_sequential() {
     let data = vec![2.0, -1.0, 4.0, 7.0, 0.5, 3.3];
     let nb = ZScoreNormalizer::new()
         .normalize_native(&native(data.clone(), [6]))
         .unwrap();
-    let bb = ZScoreNormalizer::new().normalize(&burn(data, [6]));
-    assert_close(&native_values(&nb), &burn_values(&bb), PARITY, "zscore");
+    let sequential_result = ZScoreNormalizer::new().normalize(&sequential(data, [6]));
+    assert_close(
+        &native_values(&nb),
+        &sequential_values(&sequential_result),
+        PARITY,
+        "zscore",
+    );
 }
 
 #[test]
-fn zscore_masked_matches_burn() {
+fn zscore_masked_matches_sequential() {
     let data = vec![10.0, 20.0, 30.0, 40.0, 50.0, 60.0];
     let mask = vec![1.0, 1.0, 0.0, 0.0, 1.0, 0.0];
     let nb = ZScoreNormalizer::new()
         .normalize_masked_native(&native(data.clone(), [6]), &native(mask.clone(), [6]))
         .unwrap();
-    let bb = ZScoreNormalizer::new().normalize_masked(&burn(data, [6]), &burn(mask, [6]));
+    let sequential_result =
+        ZScoreNormalizer::new().normalize_masked(&sequential(data, [6]), &sequential(mask, [6]));
     assert_close(
         &native_values(&nb),
-        &burn_values(&bb),
+        &sequential_values(&sequential_result),
         PARITY,
         "zscore_masked",
     );
@@ -112,27 +121,39 @@ fn minmax_known_unit_range() {
 }
 
 #[test]
-fn minmax_custom_range_matches_burn() {
+fn minmax_custom_range_matches_sequential() {
     let data = vec![-3.0, 1.0, 4.0, 9.0, 2.0];
     let nb = MinMaxNormalizer::with_range(-1.0, 2.0)
         .normalize_native(&native(data.clone(), [5]))
         .unwrap();
-    let bb = MinMaxNormalizer::with_range(-1.0, 2.0).normalize(&burn(data, [5]));
-    assert_close(&native_values(&nb), &burn_values(&bb), PARITY, "minmax");
+    let sequential_result =
+        MinMaxNormalizer::with_range(-1.0, 2.0).normalize(&sequential(data, [5]));
+    assert_close(
+        &native_values(&nb),
+        &sequential_values(&sequential_result),
+        PARITY,
+        "minmax",
+    );
 }
 
 // ── Histogram matching ───────────────────────────────────────────────────────
 
 #[test]
-fn histogram_matching_matches_burn() {
+fn histogram_matching_matches_sequential() {
     let src: Vec<f32> = (0..64).map(|i| i as f32).collect();
     let reference: Vec<f32> = (0..64).map(|i| (i as f32) * 2.0 + 5.0).collect();
     let matcher = HistogramMatcher::new(32);
     let nb = matcher
         .match_histograms_native(&native(src.clone(), [64]), &native(reference.clone(), [64]))
         .unwrap();
-    let bb = matcher.match_histograms(&burn(src, [64]), &burn(reference, [64]));
-    assert_close(&native_values(&nb), &burn_values(&bb), PARITY, "histogram");
+    let sequential_result =
+        matcher.match_histograms(&sequential(src, [64]), &sequential(reference, [64]));
+    assert_close(
+        &native_values(&nb),
+        &sequential_values(&sequential_result),
+        PARITY,
+        "histogram",
+    );
 }
 
 #[test]
@@ -148,7 +169,7 @@ fn histogram_matching_constant_source_unchanged() {
 // ── Nyúl-Udupa ───────────────────────────────────────────────────────────────
 
 #[test]
-fn nyul_udupa_matches_burn() {
+fn nyul_udupa_matches_sequential() {
     let train_a: Vec<f32> = (0..50).map(|i| i as f32).collect();
     let train_b: Vec<f32> = (0..50).map(|i| (i as f32) * 1.5 + 3.0).collect();
     let target: Vec<f32> = (0..50).map(|i| (i as f32) * 0.8 - 2.0).collect();
@@ -161,11 +182,18 @@ fn nyul_udupa_matches_burn() {
     .unwrap();
     let nb = n.apply_native(&native(target.clone(), [50])).unwrap();
 
-    let mut b = NyulUdupaNormalizer::new();
-    b.learn_standard(&[&burn(train_a, [50]), &burn(train_b, [50])]);
-    let bb = b.apply(&burn(target, [50])).unwrap();
+    let mut sequential_normalizer = NyulUdupaNormalizer::new();
+    sequential_normalizer.learn_standard(&[&sequential(train_a, [50]), &sequential(train_b, [50])]);
+    let sequential_result = sequential_normalizer
+        .apply(&sequential(target, [50]))
+        .unwrap();
 
-    assert_close(&native_values(&nb), &burn_values(&bb), PARITY, "nyul");
+    assert_close(
+        &native_values(&nb),
+        &sequential_values(&sequential_result),
+        PARITY,
+        "nyul",
+    );
 }
 
 #[test]
@@ -177,7 +205,7 @@ fn nyul_udupa_apply_before_learn_errors() {
 // ── White stripe ─────────────────────────────────────────────────────────────
 
 #[test]
-fn white_stripe_matches_burn() {
+fn white_stripe_matches_sequential() {
     // Bimodal-ish intensity distribution with a clear upper (WM) mode.
     let mut data = Vec::with_capacity(400);
     for i in 0..400 {
@@ -192,30 +220,31 @@ fn white_stripe_matches_burn() {
     let nb =
         WhiteStripeNormalizer::normalize_native(&native(data.clone(), [400, 1, 1]), None, &cfg)
             .unwrap();
-    let bb = WhiteStripeNormalizer::normalize(&burn(data, [400, 1, 1]), None, &cfg);
+    let sequential_result =
+        WhiteStripeNormalizer::normalize(&sequential(data, [400, 1, 1]), None, &cfg);
 
     assert!(
-        (nb.mu - bb.mu).abs() < 1e-9,
-        "mu native={} burn={}",
+        (nb.mu - sequential_result.mu).abs() < 1e-9,
+        "mu native={} sequential={}",
         nb.mu,
-        bb.mu
+        sequential_result.mu
     );
     assert!(
-        (nb.sigma - bb.sigma).abs() < 1e-9,
-        "sigma native={} burn={}",
+        (nb.sigma - sequential_result.sigma).abs() < 1e-9,
+        "sigma native={} sequential={}",
         nb.sigma,
-        bb.sigma
+        sequential_result.sigma
     );
     assert!(
-        (nb.wm_peak - bb.wm_peak).abs() < 1e-9,
-        "wm_peak native={} burn={}",
+        (nb.wm_peak - sequential_result.wm_peak).abs() < 1e-9,
+        "wm_peak native={} sequential={}",
         nb.wm_peak,
-        bb.wm_peak
+        sequential_result.wm_peak
     );
-    assert_eq!(nb.stripe_size, bb.stripe_size, "stripe_size");
+    assert_eq!(nb.stripe_size, sequential_result.stripe_size, "stripe_size");
     assert_close(
         &native_values(&nb.normalized),
-        &burn_values(&bb.normalized),
+        &sequential_values(&sequential_result.normalized),
         PARITY,
         "white_stripe",
     );

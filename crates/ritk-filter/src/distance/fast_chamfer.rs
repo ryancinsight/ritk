@@ -7,16 +7,16 @@
 //! outward with a two-pass chamfer sweep (Butt & Maragos weights). For 3-D the
 //! per-neighbour-class weights are `[0.92644, 1.34065, 1.65849]` (face, edge,
 //! corner). Pass 1 raster-scans forward propagating to the "ahead" neighbours,
-//! pass 2 scans backward to the "behind" neighbours; voxels with `|value| ≥
+//! pass 2 scans backward to the "behind" neighbours; voxels with `|value| â‰¥
 //! maximum_distance` are not propagation sources. Updates take the minimum on the
 //! positive side and the maximum on the negative side, so the field stays signed.
 //!
 //! [`ApproximateSignedDistanceMapFilter`] composes ITK's mini-pipeline: an
 //! [`IsoContourDistanceFilter`] at level `(inside + outside)/2` and far value
-//! `d+1` (`d = ⌊√Σ sizeᵢ²⌋`), then a chamfer sweep with `maximum_distance = d`.
+//! `d+1` (`d = âŒŠâˆšÎ£ sizeáµ¢Â²âŒ‹`), then a chamfer sweep with `maximum_distance = d`.
 //! ritk's iso-contour is inside-positive; ITK's signed-distance convention is
 //! inside-negative, so the iso field is negated before the chamfer (the chamfer
-//! is antisymmetric, `chamfer(−f) = −chamfer(f)`). Float-exact to SimpleITK.
+//! is antisymmetric, `chamfer(âˆ’f) = âˆ’chamfer(f)`). Float-exact to SimpleITK.
 
 use anyhow::Result;
 use ritk_image::tensor::Backend;
@@ -34,7 +34,7 @@ type Neighbour = (i64, i64, i64, f32);
 /// Fast chamfer distance propagation over a signed narrow band.
 #[derive(Debug, Clone)]
 pub struct FastChamferDistanceFilter {
-    /// Voxels with `|value| ≥ maximum_distance` are not propagated (ITK default 10).
+    /// Voxels with `|value| â‰¥ maximum_distance` are not propagated (ITK default 10).
     pub maximum_distance: f64,
 }
 
@@ -46,7 +46,7 @@ impl Default for FastChamferDistanceFilter {
     }
 }
 
-/// Forward neighbour offsets (linear index > 13 in the 3×3×3 kernel).
+/// Forward neighbour offsets (linear index > 13 in the 3Ã—3Ã—3 kernel).
 ///
 /// Each entry is `(dz, dy, dx, weight)`. Linear index: `(dz+1)*9 + (dy+1)*3 + (dx+1)`.
 /// Class: `|dz|+|dy|+|dx| - 1`; weights `[face=0.92644, edge=1.34065, corner=1.65849]`.
@@ -66,7 +66,7 @@ const FWD_NEIGHBOURS: &[Neighbour] = &[
     (1, 1, 1, 1.65849),   // lin=26 corner class=2
 ];
 
-/// Backward neighbour offsets (linear index < 13 in the 3×3×3 kernel).
+/// Backward neighbour offsets (linear index < 13 in the 3Ã—3Ã—3 kernel).
 ///
 /// Each entry is `(dz, dy, dx, weight)`. Linear index: `(dz+1)*9 + (dy+1)*3 + (dx+1)`.
 /// Class: `|dz|+|dy|+|dx| - 1`; weights `[face=0.92644, edge=1.34065, corner=1.65849]`.
@@ -88,7 +88,7 @@ const BWD_NEIGHBOURS: &[Neighbour] = &[
 
 impl FastChamferDistanceFilter {
     /// Run the chamfer sweep over a signed field (modifies a copy of the values).
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let (mut out, dims) = extract_vec_infallible(image);
         self.run(&mut out, dims);
         rebuild(out, dims, image)
@@ -97,9 +97,9 @@ impl FastChamferDistanceFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -180,7 +180,7 @@ impl Default for ApproximateSignedDistanceMapFilter {
 
 impl ApproximateSignedDistanceMapFilter {
     /// Compute the approximate signed distance map (inside negative, outside positive).
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Result<Image<B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         let dims = image.shape();
         let diag2: f64 = dims.iter().map(|&s| (s * s) as f64).sum();
         let max_distance = diag2.sqrt().floor();
@@ -200,9 +200,9 @@ impl ApproximateSignedDistanceMapFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

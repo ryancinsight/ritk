@@ -1,28 +1,29 @@
-use super::*;
-use burn_ndarray::NdArray;
-use ritk_image::tensor::{Shape, Tensor, TensorData};
+﻿use super::*;
+use coeus_core::MoiraiBackend;
+use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
 
-type B = NdArray<f32>;
+type B = MoiraiBackend;
 
-fn make_test_image(data: Vec<f32>, shape: [usize; 3]) -> Image<B, 3> {
+fn make_test_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
     let device = Default::default();
-    let t = Tensor::<B, 3>::from_data(TensorData::new(data, Shape::new(shape)), &device);
+    let t = Tensor::<f32, B>::from_slice_on(shape, &data, &device);
     Image::new(
         t,
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
-// ── extract_vec ────────────────────────────────────────────────────────
+// â”€â”€ extract_vec â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Round-trip: extract_vec then rebuild must reproduce the original image.
 ///
 /// # Derivation
 /// extract_vec(I) = (v, d)  and  rebuild(v, d, I) = I' must satisfy:
-///   ∀ i: I'(i) = I(i)    (element-wise equality within f32 precision)
+///   âˆ€ i: I'(i) = I(i)    (element-wise equality within f32 precision)
 ///   shape(I') = shape(I)
 #[test]
 fn extract_and_rebuild_roundtrip() {
@@ -34,26 +35,19 @@ fn extract_and_rebuild_roundtrip() {
     assert_eq!(dims, [2, 3, 4], "extracted dims must match image shape");
 
     let rebuilt = rebuild(vals, dims, &img);
-    let got = rebuilt
-        .data()
-        .clone()
-        .into_data()
-        .into_vec::<f32>()
-        .unwrap();
+    let got = rebuilt.data().to_vec();
     assert_eq!(got, data, "rebuilt image must reproduce original data");
 }
 
-/// Spatial metadata is preserved through extract → rebuild.
+/// Spatial metadata is preserved through extract â†’ rebuild.
 #[test]
 fn rebuild_preserves_metadata() {
     let sp = Spacing::new([2.5, 1.0, 0.5]);
     let orig = Point::new([10.0, 20.0, 30.0]);
     let device = Default::default();
-    let t = Tensor::<B, 3>::from_data(
-        TensorData::new(vec![1.0_f32; 6], Shape::new([1usize, 2, 3])),
-        &device,
-    );
-    let img = Image::new(t, orig, sp, Direction::identity());
+    let t = Tensor::<f32, B>::from_slice_on([1usize, 2, 3], &[1.0_f32; 6], &device);
+    let img = Image::new(t, orig, sp, Direction::identity())
+        .expect("invariant: fixture tensor has the declared rank");
 
     let (vals, dims) = extract_vec(&img).unwrap();
     let rebuilt = rebuild(vals, dims, &img);
@@ -93,7 +87,7 @@ fn rebuild_output_has_correct_shape() {
     );
 }
 
-// ── gaussian_kernel ────────────────────────────────────────────────
+// â”€â”€ gaussian_kernel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Kernel sums to 1.0 (wide-precision f64 variant).
 #[test]
@@ -125,12 +119,12 @@ fn gaussian_kernel_explicit_radius() {
     assert_eq!(kernel.len(), 11); // 2 * 5 + 1
 }
 
-/// Centre-to-adjacent ratio verifies the exponent denominator is exactly 2σ².
+/// Centre-to-adjacent ratio verifies the exponent denominator is exactly 2ÏƒÂ².
 ///
 /// # Derivation
-/// For d=1 from centre: w₁/w₀ = exp(-1 / (2σ²)).
-/// With σ=2.0: expected = exp(-1/8) ≈ 0.882497.
-/// The previous defect (`1 + σ²` = 5) would produce exp(-1/5) ≈ 0.818731 — a ~7% error.
+/// For d=1 from centre: wâ‚/wâ‚€ = exp(-1 / (2ÏƒÂ²)).
+/// With Ïƒ=2.0: expected = exp(-1/8) â‰ˆ 0.882497.
+/// The previous defect (`1 + ÏƒÂ²` = 5) would produce exp(-1/5) â‰ˆ 0.818731 â€” a ~7% error.
 #[test]
 fn gaussian_kernel_exponent_denominator_is_two_sigma_squared() {
     let sigma = 2.0_f64;
@@ -140,7 +134,7 @@ fn gaussian_kernel_exponent_denominator_is_two_sigma_squared() {
     let actual_ratio = kernel[centre - 1] / kernel[centre];
     assert!(
         (actual_ratio - expected_ratio).abs() < 1e-12,
-        "ratio kernel[r-1]/kernel[r] = {actual_ratio:.9}, expected exp(-1/(2σ²)) = {expected_ratio:.9}"
+        "ratio kernel[r-1]/kernel[r] = {actual_ratio:.9}, expected exp(-1/(2ÏƒÂ²)) = {expected_ratio:.9}"
     );
 }
 

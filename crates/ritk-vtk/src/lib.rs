@@ -1,4 +1,4 @@
-//! `ritk-vtk` — VTK-native data model and I/O for the RITK toolkit.
+//! `ritk-vtk` â€” VTK-native data model and I/O for the RITK toolkit.
 //!
 //! Provides the authoritative VTK data model (domain types) and all VTK-format
 //! I/O free functions. Designed as a pure VTK-domain library with no

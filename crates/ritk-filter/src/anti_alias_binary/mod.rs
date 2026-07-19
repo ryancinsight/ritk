@@ -16,7 +16,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 mod curvature;
 mod solver;
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// ITK `CurvatureFlowImageFilter` default explicit-Euler time step.
 const DT: f32 = 0.05;
@@ -31,11 +31,11 @@ const ST_CHG: i32 = -2;
 const ST_CUP: i32 = -3;
 const ST_CDN: i32 = -4;
 
-// ── Filter ────────────────────────────────────────────────────────────────────
+// â”€â”€ Filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Anti-alias binary image filter (faithful ITK SparseField solver).
 ///
-/// Smooths the boundary of a binary object, returning the signed level-set φ
+/// Smooths the boundary of a binary object, returning the signed level-set Ï†
 /// (negative inside the smoothed object, positive outside; the zero crossing is
 /// the anti-aliased sub-voxel boundary). Bit-exact to `sitk.AntiAliasBinary`.
 ///
@@ -64,7 +64,7 @@ impl AntiAliasBinaryImageFilter {
     ///
     /// `image`: binary float32 (foreground == max value, background == min),
     /// shape `[nz, ny, nx]` (`nz == 1` is treated as a 2-D image, matching sitk).
-    pub fn apply<B: Backend>(&self, image: &Image<B, 3>) -> Image<B, 3> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let (binary, dims) = extract_vec_infallible(image);
         let out = self.run(&binary, dims);
         rebuild(out, dims, image)
@@ -72,9 +72,9 @@ impl AntiAliasBinaryImageFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -85,7 +85,7 @@ impl AntiAliasBinaryImageFilter {
     }
 }
 
-// ── Tests ──────────────────────────────────────────────────────────────────────
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 #[cfg(test)]
 #[path = "../tests_anti_alias_binary.rs"]
