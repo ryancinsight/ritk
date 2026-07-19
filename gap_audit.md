@@ -8,6 +8,18 @@
 
 # RITK Gap Audit - Active
 
+## SAFE-662-01 audit (2026-07-18)
+
+All intensity-projection kernels call the owned `extract_vec` boundary before
+read-only reduction, paying an O(N) allocation and copy even for contiguous
+Coeus storage. The canonical `Image::data_cow` contract already borrows that
+storage and materializes only non-contiguous views, so projection-local owned
+extraction is redundant. Median projection also calls
+`partial_cmp(...).unwrap()`, which panics on NaN and leaves its special-value
+ordering unspecified. This increment replaces both defects at their owner.
+Initial evidence tier: source audit; implementation and value-semantic
+verification remain in progress.
+
 ## MIG-661-01 audit (2026-07-18)
 
 The workspace now has zero Burn and ndarray manifest dependencies and zero

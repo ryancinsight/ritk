@@ -1,5 +1,16 @@
 # RITK Backlog - Active Planning
 
+- **SAFE-662-01 [patch] - Make projections copy-on-write and total-ordered
+  (IN PROGRESS; owner=Codex `/root`; scope=`crates/ritk-filter/src/projection/
+  {mod.rs,ops.rs}`, `crates/ritk-filter/src/tests_projection.rs`, PM
+  artifacts).** Every projection currently materializes an owned copy of the
+  complete input even when Coeus storage is contiguous, and median projection
+  unwraps a partial floating-point comparison that panics on NaN. Acceptance:
+  every read-only projection borrows contiguous input through the canonical
+  image `Cow` contract, strided input retains explicit materialization,
+  median uses a documented deterministic IEEE total order, value-semantic
+  finite/NaN/Infinity regressions pass, and the focused filter gates are clean.
+
 - **MIG-661-01 [arch] - Complete the Coeus/Leto/Hephaestus cutover (DONE;
   owner=Codex `/root`; scope=workspace source, manifests, lockfile, migration
   audit, and PM artifacts).** Every workspace package now builds on the

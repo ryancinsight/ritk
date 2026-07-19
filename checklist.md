@@ -8,6 +8,22 @@
 
 # RITK Sprint Checklist — Active
 
+## SAFE-662-01 — Copy-on-write, total-ordered projections
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Reconcile `main`, provider migration evidence, and current projection
+      ownership.
+- [ ] Replace read-only full-image extraction with the canonical Coeus image
+      `Cow` contract; completion condition: contiguous inputs are borrowed and
+      non-contiguous inputs materialize exactly once.
+- [ ] Define median projection over `f32::total_cmp` and add finite, NaN, and
+      Infinity value-semantic regressions for the public filter.
+- [ ] Synchronize projection Rustdoc, `CHANGELOG.md`, and `gap_audit.md`.
+- [ ] Run formatting, warning-denied `ritk-filter` Clippy, focused Nextest,
+      doctests, and warning-clean Rustdoc.
+- [ ] Commit, push, and merge the verified increment.
+
 ## MIG-661-01 — Complete the Coeus/Leto/Hephaestus cutover
 **Target version**: Unreleased breaking
 **Sprint phase**: Closure
