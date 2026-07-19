@@ -50,6 +50,12 @@ arguments now map to physical world `[x, y, z]` columns as `(D_x, D_y, D_z)`.
 Evidence tier: an exact physical-axis regression, five native warp contract
 tests, and all three SimpleITK differential cases.
 
+PR #42 merged the complete cutover to `main` at `db41b6e9`. Its final hosted
+head passed the migration audit, formatting, warning-denied Clippy, workspace
+dependency alignment, Python 3.9-3.13 matrix on every configured operating
+system, wheel smoke, and full Linux, macOS, and Windows suites. Evidence tier:
+GitHub Actions machine-checked execution on the merged source.
+
 ## MIG-660-01 audit (2026-07-18)
 
 The native `ritk-core` interpolation/transform traits and `ritk-nifti` codec

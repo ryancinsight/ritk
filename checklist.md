@@ -34,7 +34,9 @@
       classical engine and delete the obsolete Burn-only CMA binding contract.
 - [x] Delete the legacy displacement-warp implementation and verify the
       Coeus-native sampler against SimpleITK physical-axis parity.
-- [ ] Commit, push, and merge the migration PR.
+- [x] Commit, push, and merge PR #42. The provider cutover is on `main` at
+      merge commit `db41b6e9`; every hosted migration, Rust, Python, wheel, and
+      operating-system check passed.
 
 ## MIG-660-01 — Remove stale Burn contract text from native owner crates
 **Target version**: Unreleased patch
