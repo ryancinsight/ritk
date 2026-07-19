@@ -8,7 +8,13 @@
 //! # Precision
 //! Max and min accumulation uses native `f32`. Mean, sum, and std-dev
 //! accumulation uses `f64` to prevent catastrophic cancellation across
-//! large slabs.
+//! large slabs. Median follows [`f32::total_cmp`], giving NaNs, infinities,
+//! and signed zero a deterministic order without panicking.
+//!
+//! # Memory
+//! Projection inputs use the image's canonical copy-on-write host view.
+//! Contiguous Coeus storage is borrowed without allocation; a non-contiguous
+//! view is materialized once in logical row-major order.
 //!
 //! # Parallelization
 //! Each filter parallelises over the output pixels (the non-collapsed axes)

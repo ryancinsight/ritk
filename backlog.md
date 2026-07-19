@@ -1,7 +1,7 @@
 # RITK Backlog - Active Planning
 
 - **SAFE-662-01 [patch] - Make projections copy-on-write and total-ordered
-  (IN PROGRESS; owner=Codex `/root`; scope=`crates/ritk-filter/src/projection/
+  (REVIEW; owner=Codex `/root`; scope=`crates/ritk-filter/src/projection/
   {mod.rs,ops.rs}`, `crates/ritk-filter/src/tests_projection.rs`, PM
   artifacts).** Every projection currently materializes an owned copy of the
   complete input even when Coeus storage is contiguous, and median projection

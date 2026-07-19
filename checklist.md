@@ -14,13 +14,13 @@
 
 - [x] Reconcile `main`, provider migration evidence, and current projection
       ownership.
-- [ ] Replace read-only full-image extraction with the canonical Coeus image
+- [x] Replace read-only full-image extraction with the canonical Coeus image
       `Cow` contract; completion condition: contiguous inputs are borrowed and
       non-contiguous inputs materialize exactly once.
-- [ ] Define median projection over `f32::total_cmp` and add finite, NaN, and
+- [x] Define median projection over `f32::total_cmp` and add finite, NaN, and
       Infinity value-semantic regressions for the public filter.
-- [ ] Synchronize projection Rustdoc, `CHANGELOG.md`, and `gap_audit.md`.
-- [ ] Run formatting, warning-denied `ritk-filter` Clippy, focused Nextest,
+- [x] Synchronize projection Rustdoc, `CHANGELOG.md`, and `gap_audit.md`.
+- [x] Run formatting, warning-denied `ritk-filter` Clippy, focused Nextest,
       doctests, and warning-clean Rustdoc.
 - [ ] Commit, push, and merge the verified increment.
 

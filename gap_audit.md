@@ -17,8 +17,15 @@ storage and materializes only non-contiguous views, so projection-local owned
 extraction is redundant. Median projection also calls
 `partial_cmp(...).unwrap()`, which panics on NaN and leaves its special-value
 ordering unspecified. This increment replaces both defects at their owner.
-Initial evidence tier: source audit; implementation and value-semantic
-verification remain in progress.
+All projection kernels now consume `Image::data_cow`: contiguous storage is a
+borrowed slice with no full-input allocation, while strided views materialize
+once through the canonical Coeus contract. Median selection uses
+`f32::total_cmp`; a public-filter regression covers positive NaN, both
+infinities, and signed zero with an exact median oracle. Evidence tier:
+type/API-encoded allocation behavior plus value-semantic testing. Verification:
+warning-denied all-target/all-feature `ritk-filter` Clippy; 14/14 focused
+projection tests; 1,121/1,121 full package Nextest tests; 2/2 compiled
+doctests; warning-clean package Rustdoc; clean migration audit.
 
 ## MIG-661-01 audit (2026-07-18)
 

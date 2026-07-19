@@ -211,3 +211,52 @@ fn median_projection_x_even_axis_length() {
         vals[0]
     );
 }
+
+/// Median projection uses the IEEE total order for special values.
+///
+/// Positive NaN sorts after positive infinity, while negative zero sorts
+/// before positive zero. The seven values therefore order as
+/// `[-∞, -0, +0, 2, 4, +∞, NaN]`, whose middle element is exactly `2`.
+#[test]
+fn median_projection_total_orders_special_values() {
+    let img = make_volume(
+        vec![
+            f32::NAN,
+            f32::INFINITY,
+            4.0,
+            0.0,
+            -0.0,
+            f32::NEG_INFINITY,
+            2.0,
+        ],
+        [1, 1, 7],
+    );
+    let out = MedianIntensityProjectionFilter::new(ProjectionAxis::X)
+        .apply(&img)
+        .expect("special floating-point values are valid image data");
+
+    assert_eq!(out.shape(), [1, 1, 1]);
+    assert_eq!(extract_vals(&out), vec![2.0]);
+}
+
+/// A strided input view is materialized once in logical row-major order.
+#[test]
+fn median_projection_materializes_strided_input_logically() {
+    let tensor = Tensor::<f32, B>::from_slice([1, 2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        .permute(&[0, 2, 1]);
+    assert!(!tensor.is_contiguous());
+    let image = Image::new(
+        tensor,
+        Point::new([0.0, 0.0, 0.0]),
+        Spacing::new([1.0, 1.0, 1.0]),
+        Direction::identity(),
+    )
+    .expect("permutation preserves the image rank");
+
+    let out = MedianIntensityProjectionFilter::new(ProjectionAxis::X)
+        .apply(&image)
+        .expect("strided input has a logical host representation");
+
+    assert_eq!(out.shape(), [1, 3, 1]);
+    assert_eq!(extract_vals(&out), vec![4.0, 5.0, 6.0]);
+}
