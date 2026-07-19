@@ -175,7 +175,6 @@ pub mod rank;
 pub mod reinitialize_level_set;
 pub mod surface;
 pub mod warp;
-pub use warp::warp_image_native;
 
 // â”€â”€ New filters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub mod canny_segmentation_level_set;

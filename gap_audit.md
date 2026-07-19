@@ -41,6 +41,15 @@ Evidence tier: warning-denied type checking, an exact known-shift regression,
 the existing SimpleITK structural/MI parity test, and a clean Python API drift
 report.
 
+The hosted wheel suite exposed three displacement-warp parity failures with
+maximum intensity errors of 94.4–97.7. The canonical `warp_image` export still
+selected a duplicate host-extraction implementation, while the Coeus-native
+sampler remained under a `_native` suffix. The duplicate is deleted and the
+native sampler owns the canonical name. Its public `(disp_z, disp_y, disp_x)`
+arguments now map to physical world `[x, y, z]` columns as `(D_x, D_y, D_z)`.
+Evidence tier: an exact physical-axis regression, five native warp contract
+tests, and all three SimpleITK differential cases.
+
 ## MIG-660-01 audit (2026-07-18)
 
 The native `ritk-core` interpolation/transform traits and `ritk-nifti` codec

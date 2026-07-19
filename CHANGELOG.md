@@ -32,6 +32,8 @@
 - Restored Python global mutual-information registration through the native
   Leto classical engine, including a translation-specific MI optimizer and
   physical-space transform conversion.
+- Consolidated displacement warping onto the Coeus-native resampling pipeline
+  and corrected public `(z, y, x)` components to physical `[x, y, z]` columns.
 - Native `ritk-core` interpolation and transform contracts now document Coeus
   backend ownership, and the native NIfTI codec documentation no longer
   describes removed Burn writer/test boundaries. The obsolete NIfTI test

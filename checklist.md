@@ -32,6 +32,8 @@
       `5ee07a26cf13f13917a980cc94f145f69c34186c`.
 - [x] Restore Python global mutual-information registration on the Leto
       classical engine and delete the obsolete Burn-only CMA binding contract.
+- [x] Delete the legacy displacement-warp implementation and verify the
+      Coeus-native sampler against SimpleITK physical-axis parity.
 - [ ] Commit, push, and merge the migration PR.
 
 ## MIG-660-01 — Remove stale Burn contract text from native owner crates

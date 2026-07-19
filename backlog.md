@@ -11,7 +11,10 @@
   hosted dependency action now pins merged Coeus `5ee07a26`; PR publication
   and merge remain. Hosted Python testing exposed a stale Burn-only CMA
   contract and a missing global-MI cutover; the CMA surface is deleted and
-  global MI now executes through the native Leto classical engine.
+  global MI now executes through the native Leto classical engine. Wheel parity
+  then exposed the legacy displacement-warp export and reversed physical
+  component mapping; the duplicate path is deleted and the canonical Coeus
+  sampler now owns warp execution.
 
 - **MIG-660-01 [patch] - Remove stale Burn contract text from native owner
   crates (BLOCKED; owner=Codex `/root`; scope=`crates/ritk-core/src/
