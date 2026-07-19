@@ -1,7 +1,17 @@
 # RITK Backlog - Active Planning
 
+- **SAFE-663-01 [patch] - Reject non-finite level-set reinitialization input
+  (IN PROGRESS; owner=Codex `/root`; scope=`crates/ritk-filter/src/
+  {reinitialize_level_set.rs,tests_reinitialize_level_set.rs}`, PM
+  artifacts).** `ReinitializeLevelSetFilter::apply` is fallible but currently
+  lets NaN reach a partial-order sort and panic; infinity produces undefined
+  crossing classification. Acceptance: both provider entry points reject a
+  non-finite configured level and non-finite image samples with contextual
+  errors, finite behavior remains value-identical, exact negative regressions
+  pass, and focused package gates are clean.
+
 - **SAFE-662-01 [patch] - Make projections copy-on-write and total-ordered
-  (REVIEW; owner=Codex `/root`; scope=`crates/ritk-filter/src/projection/
+  (DONE; owner=Codex `/root`; scope=`crates/ritk-filter/src/projection/
   {mod.rs,ops.rs}`, `crates/ritk-filter/src/tests_projection.rs`, PM
   artifacts).** Every projection currently materializes an owned copy of the
   complete input even when Coeus storage is contiguous, and median projection
@@ -10,6 +20,7 @@
   image `Cow` contract, strided input retains explicit materialization,
   median uses a documented deterministic IEEE total order, value-semantic
   finite/NaN/Infinity regressions pass, and the focused filter gates are clean.
+  Merged through PR #44 at `688eb8e0`.
 
 - **MIG-661-01 [arch] - Complete the Coeus/Leto/Hephaestus cutover (DONE;
   owner=Codex `/root`; scope=workspace source, manifests, lockfile, migration

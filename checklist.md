@@ -8,9 +8,23 @@
 
 # RITK Sprint Checklist — Active
 
-## SAFE-662-01 — Copy-on-write, total-ordered projections
+## SAFE-663-01 — Finite level-set reinitialization contract
 **Target version**: Unreleased patch
 **Sprint phase**: Execution
+
+- [x] Audit reinitialization and fast-marching special-value propagation.
+- [ ] Add one canonical finite-input validator shared by both provider entry
+      points.
+- [ ] Add exact NaN/infinity error regressions without weakening finite-value
+      oracles.
+- [ ] Synchronize Rustdoc, `CHANGELOG.md`, and `gap_audit.md`.
+- [ ] Run formatting, warning-denied `ritk-filter` Clippy, focused Nextest,
+      doctests, and warning-clean Rustdoc.
+- [ ] Commit, push, and merge the verified increment.
+
+## SAFE-662-01 — Copy-on-write, total-ordered projections
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
 
 - [x] Reconcile `main`, provider migration evidence, and current projection
       ownership.
@@ -22,7 +36,8 @@
 - [x] Synchronize projection Rustdoc, `CHANGELOG.md`, and `gap_audit.md`.
 - [x] Run formatting, warning-denied `ritk-filter` Clippy, focused Nextest,
       doctests, and warning-clean Rustdoc.
-- [ ] Commit, push, and merge the verified increment.
+- [x] Commit, push, and merge the verified increment through PR #44 at
+      `688eb8e0`.
 
 ## MIG-661-01 — Complete the Coeus/Leto/Hephaestus cutover
 **Target version**: Unreleased breaking

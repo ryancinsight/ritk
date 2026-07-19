@@ -8,6 +8,17 @@
 
 # RITK Gap Audit - Active
 
+## SAFE-663-01 audit (2026-07-19)
+
+`ReinitializeLevelSetFilter::apply` returns `Result` but accepts a non-finite
+configured iso-value or image sample. NaN reaches
+`node.sort_by(partial_cmp(...).unwrap())` and panics; infinity makes sign-change
+classification and crossing interpolation undefined. Both provider entry
+points duplicate this exposure. The correct owner-local contract is to reject
+non-finite values once through a shared validator before crossing extraction.
+Initial evidence tier: source audit; implementation and value-semantic negative
+verification remain in progress.
+
 ## SAFE-662-01 audit (2026-07-18)
 
 All intensity-projection kernels call the owned `extract_vec` boundary before
