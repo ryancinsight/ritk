@@ -28,6 +28,8 @@
 - [x] Verify the workspace: formatting and warning-denied all-target/all-feature
       Clippy pass; 4,644/4,644 Nextest tests pass with 12 explicitly skipped.
 - [x] Complete workspace doctest and warning-clean Rustdoc gates.
+- [x] Align the hosted dependency checkout with merged Coeus
+      `5ee07a26cf13f13917a980cc94f145f69c34186c`.
 - [ ] Commit, push, and merge the migration PR.
 
 ## MIG-660-01 — Remove stale Burn contract text from native owner crates

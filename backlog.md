@@ -7,7 +7,9 @@
   Compatibility image modules and the unused macro crate are deleted; CLI and
   I/O consumers use the canonical Coeus path. Acceptance evidence: clean
   migration audit, warning-denied workspace Clippy, and 4,644/4,644 Nextest
-  tests with 12 explicitly skipped. Doctest/Rustdoc and publication remain.
+  tests with 12 explicitly skipped, plus clean doctest and Rustdoc gates. The
+  hosted dependency action now pins merged Coeus `5ee07a26`; PR publication
+  and merge remain.
 
 - **MIG-660-01 [patch] - Remove stale Burn contract text from native owner
   crates (BLOCKED; owner=Codex `/root`; scope=`crates/ritk-core/src/

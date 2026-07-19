@@ -23,6 +23,8 @@
 - Added Coeus host `Cow` materialization at explicit I/O boundaries and
   consolidated CLI and Analyze/DICOM consumers onto the provider-native image
   contract.
+- Aligned the hosted dependency checkout with merged Coeus `5ee07a26`, which
+  owns the host materialization contract used by the cutover.
 - Corrected the NGF normalized augmented-gradient numerator to include the
   edge-scale inner-product term, making identical nonconstant images score one.
 - Native `ritk-core` interpolation and transform contracts now document Coeus

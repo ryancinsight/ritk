@@ -26,6 +26,11 @@ native compilation, warning-denied static analysis, and value-semantic
 empirical verification; formatting and all-target/all-feature Clippy pass,
 and 4,644/4,644 Nextest tests pass with 12 explicitly skipped.
 
+The first hosted Clippy run exposed provider-pin drift rather than a RITK
+source defect: the dependency action checked out Coeus `093f31f`, which
+predates the host materialization contract used by the cutover. The action now
+pins merged Coeus `5ee07a26`, matching the locally verified provider graph.
+
 ## MIG-660-01 audit (2026-07-18)
 
 The native `ritk-core` interpolation/transform traits and `ritk-nifti` codec
