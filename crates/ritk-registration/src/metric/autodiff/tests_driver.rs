@@ -1,4 +1,4 @@
-﻿//! Verification of the gradient-descent registration driver.
+//! Verification of the gradient-descent registration driver.
 //!
 //! Evidence tier: end-to-end optimizability â€” on a linear moving field (convex
 //! MSE landscape) the driver drives the loss to ~0 and recovers a known
@@ -77,7 +77,8 @@ fn driver_reduces_loss_and_reports_matching_final_loss() {
         |p| Translation { t: p[0].clone() },
         GradientDescentConfig {
             iterations: 200,
-            learning_rate: 0.5 },
+            learning_rate: 0.5,
+        },
     );
 
     assert!(
@@ -125,10 +126,12 @@ fn driver_is_generic_over_affine_transform() {
         ],
         |p| Affine {
             r: p[0].clone(),
-            t: p[1].clone() },
+            t: p[1].clone(),
+        },
         GradientDescentConfig {
             iterations: 200,
-            learning_rate: 0.2 },
+            learning_rate: 0.2,
+        },
     );
 
     assert_eq!(outcome.params.len(), 2, "R and t params preserved");

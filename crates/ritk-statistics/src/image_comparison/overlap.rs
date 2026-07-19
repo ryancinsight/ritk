@@ -76,8 +76,8 @@ where
     B: Backend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
-    let prediction_values = prediction.data_slice();
-    let ground_truth_values = ground_truth.data_slice();
+    let prediction_values = prediction.data_slice()?;
+    let ground_truth_values = ground_truth.data_slice()?;
     anyhow::ensure!(
         prediction_values.len() == ground_truth_values.len(),
         "dice coefficient requires equal element counts: {} != {}",
@@ -122,8 +122,7 @@ where
     B: Backend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
-    Ok(similarity_index_from_slices(
-        &a.data_slice(),
-        &b.data_slice(),
-    ))
+    let a_values = a.data_slice()?;
+    let b_values = b.data_slice()?;
+    Ok(similarity_index_from_slices(a_values, b_values))
 }

@@ -1,9 +1,9 @@
-﻿use std::path::Path;
+use std::path::Path;
 
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
 use image::{ColorType, RgbImage};
-use ritk_image::native::RgbVolume;
+use ritk_image::RgbVolume;
 use ritk_spatial::{Direction, Point, Spacing};
 
 use crate::sorted_png_files;
@@ -56,7 +56,8 @@ where
 
 /// Backend-bound RGB PNG reader.
 pub struct PngColorReader<B: ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: ComputeBackend> PngColorReader<B> {
     /// Creates a single-slice color reader on `backend`.
@@ -72,7 +73,8 @@ impl<B: ComputeBackend> PngColorReader<B> {
 
 /// Backend-bound RGB PNG series reader.
 pub struct PngColorSeriesReader<B: ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: ComputeBackend> PngColorSeriesReader<B> {
     /// Creates a color-series reader on `backend`.

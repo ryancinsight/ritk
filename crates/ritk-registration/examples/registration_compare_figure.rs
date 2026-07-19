@@ -1,4 +1,4 @@
-﻿//! Visual comparison of CTâ†”MR rigid registration: identity (before), native
+//! Visual comparison of CTâ†”MR rigid registration: identity (before), native
 //! classical mutual-information registration, and the SimpleElastix reference.
 //!
 //! Renders a mid-axial slice as an RGB overlay (R = CT, G = MR). Aligned
@@ -13,15 +13,18 @@ use coeus_core::SequentialBackend;
 use eunomia::CastFrom;
 use image::{Rgb, RgbImage};
 use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_io::{
     format::nifti::native::{NiftiReader, NiftiWriter},
-    ImageReader, ImageWriter };
+    ImageReader, ImageWriter,
+};
 use ritk_registration::{
     classical::{
         engine::{ClassicalConfig, MutualInformationMetric},
-        image_to_leto_volume, index_affine_to_physical, ImageRegistration },
-    AffineTransform };
+        image_to_leto_volume, index_affine_to_physical, ImageRegistration,
+    },
+    AffineTransform,
+};
 use ritk_transform::transform::affine::AtlasAffineTransform;
 
 type Backend = SequentialBackend;

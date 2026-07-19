@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 use std::sync::Arc;
 
 /// Create a test volume with known shape and pixel data.
@@ -22,7 +22,8 @@ fn test_volume(shape: [usize; 3], data: Vec<f32>) -> LoadedVolume {
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None }
+        decay_correction: None,
+    }
 }
 
 /// In-bounds voxel lookup must return the correct value from the buffer.

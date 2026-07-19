@@ -1,4 +1,4 @@
-﻿//! PACS network panel â€” egui UI for PACS server configuration, C-ECHO, C-FIND,
+//! PACS network panel â€” egui UI for PACS server configuration, C-ECHO, C-FIND,
 //! and C-MOVE triggers.
 //!
 //! # Overview
@@ -49,7 +49,8 @@ pub enum PacsPanelAction {
         patient_name: String,
         modality: String,
         study_date: String,
-        accession_number: String },
+        accession_number: String,
+    },
     /// User pressed "Retrieve (C-MOVE)" for a specific study.
     SubmitRetrieve { study_uid: String },
     /// User pressed "Show Series" to drill into a study's series list.
@@ -57,7 +58,8 @@ pub enum PacsPanelAction {
     /// User pressed "Retrieve Series (C-MOVE)" for a specific series.
     SubmitRetrieveSeries {
         series_uid: String,
-        study_uid: String },
+        study_uid: String,
+    },
     /// User pressed "Back to studies" to return from series drill-down.
     BackToStudies,
     /// User pressed "Clear" to reset the results table.
@@ -67,7 +69,8 @@ pub enum PacsPanelAction {
     /// User pressed "Stop SCP".
     StopScp,
     /// User pressed "Load Received" to load buffered SCP instances into the viewer.
-    LoadReceived }
+    LoadReceived,
+}
 
 // â”€â”€ show_pacs_panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -284,7 +287,8 @@ pub fn show_pacs_panel(
                 patient_name: patient_name.clone(),
                 modality: modality.clone(),
                 study_date: study_date.clone(),
-                accession_number: accession_number.clone() };
+                accession_number: accession_number.clone(),
+            };
         }
         if matches!(query_state, QueryState::Results(_) | QueryState::Error(_))
             && ui.button("Clear").clicked()

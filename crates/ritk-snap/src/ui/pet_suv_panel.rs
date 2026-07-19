@@ -1,4 +1,4 @@
-﻿//! PET/CT SUV sidebar panel for the ritk-snap viewer.
+//! PET/CT SUV sidebar panel for the ritk-snap viewer.
 //!
 //! Displays SUV quantification information when a PET volume is loaded,
 //! including pointer SUVbw, cursor SUVbw, patient weight, injected dose,
@@ -17,7 +17,8 @@ use egui::Ui;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PetSuvPanelAction {
     /// No action taken.
-    None }
+    None,
+}
 
 /// Render the PET SUV information panel.
 ///

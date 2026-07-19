@@ -1,4 +1,4 @@
-﻿//! Annotation state for interactive segmentation workflows.
+//! Annotation state for interactive segmentation workflows.
 //!
 //! # Mathematical Specification
 //!
@@ -22,21 +22,24 @@ pub struct PointAnnotation {
     /// Physical-space coordinate in mm.
     pub position: Point<3>,
     /// Optional label ID this point belongs to (e.g., a seed for region growing).
-    pub label_id: Option<LabelId> }
+    pub label_id: Option<LabelId>,
+}
 
 impl PointAnnotation {
     /// Construct a point annotation with no label association.
     pub fn new(position: impl Into<Point<3>>) -> Self {
         Self {
             position: position.into(),
-            label_id: None }
+            label_id: None,
+        }
     }
 
     /// Construct a point annotation bound to a label ID.
     pub fn with_label(position: impl Into<Point<3>>, label_id: impl Into<LabelId>) -> Self {
         Self {
             position: position.into(),
-            label_id: Some(label_id.into()) }
+            label_id: Some(label_id.into()),
+        }
     }
 }
 
@@ -48,7 +51,8 @@ pub struct AnnotationState {
     /// Closed contours (each has >= 2 points).
     pub contours: Vec<Vec<Point<3>>>,
     /// Open polylines (each has >= 2 points).
-    pub polylines: Vec<Vec<Point<3>>> }
+    pub polylines: Vec<Vec<Point<3>>>,
+}
 
 impl AnnotationState {
     /// Construct an empty annotation state.
@@ -66,7 +70,8 @@ impl AnnotationState {
         if points.len() < 2 {
             return Err(AnnotationError::TooFewPoints {
                 kind: "contour",
-                count: points.len() });
+                count: points.len(),
+            });
         }
         self.contours.push(points);
         Ok(())
@@ -77,7 +82,8 @@ impl AnnotationState {
         if points.len() < 2 {
             return Err(AnnotationError::TooFewPoints {
                 kind: "polyline",
-                count: points.len() });
+                count: points.len(),
+            });
         }
         self.polylines.push(points);
         Ok(())

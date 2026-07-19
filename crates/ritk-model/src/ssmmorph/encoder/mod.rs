@@ -1,4 +1,4 @@
-﻿//! SSMMorph Encoder - Hierarchical Feature Extraction
+//! SSMMorph Encoder - Hierarchical Feature Extraction
 //!
 //! Multi-scale encoder using VMamba blocks for hierarchical feature
 //! extraction. The encoder progressively downsamples the input while
@@ -60,7 +60,8 @@ where
     /// Number of stages (stored, not config)
     num_stages: usize,
     /// Stage output channels
-    stage_channels: Vec<usize> }
+    stage_channels: Vec<usize>,
+}
 
 /// Multi-scale encoder result.
 pub struct SSMMorphEncoderOutput<B>
@@ -70,7 +71,8 @@ where
     /// Features retained for decoder skip connections.
     pub features: Vec<Var<f32, B>>,
     /// Lowest-resolution representation.
-    pub bottleneck: Var<f32, B> }
+    pub bottleneck: Var<f32, B>,
+}
 
 impl<B> SSMMorphEncoder<B>
 where
@@ -91,7 +93,8 @@ where
         Self {
             stages,
             num_stages: config.num_stages,
-            stage_channels }
+            stage_channels,
+        }
     }
 
     /// Get number of channels at each stage
@@ -122,7 +125,8 @@ where
 
         Ok(SSMMorphEncoderOutput {
             features,
-            bottleneck })
+            bottleneck,
+        })
     }
 
     /// Get number of stages

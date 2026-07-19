@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 use crate::PixelSignedness;
 use encoder::{encode_grayscale_j2k, WaveletTransform};
 
@@ -10,7 +10,8 @@ fn layout(rows: usize, cols: usize, bits: u16, signed: PixelSignedness) -> Pixel
         bits_allocated: bits,
         pixel_representation: signed,
         rescale_slope: 1.0,
-        rescale_intercept: 0.0 }
+        rescale_intercept: 0.0,
+    }
 }
 
 // â”€â”€ Marker constant tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

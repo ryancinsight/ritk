@@ -1,20 +1,24 @@
-﻿//! ViewportPanel struct â€” constructor and rendering.
+//! ViewportPanel struct â€” constructor and rendering.
 
 use egui::{pos2, vec2, Color32, Pos2, Rect, Sense, Stroke, TextureOptions, Ui, Vec2};
 
 use super::super::state::{
     draw_crosshair, img_to_screen, screen_to_img, screen_to_img_exact, slice_dims, ViewportPanel,
-    ViewportRenderMode, ViewportState };
+    ViewportRenderMode, ViewportState,
+};
 use crate::{
     render::{
         mip_vr::{render_mip_axial, render_vr_axial},
-        slice_render::SliceRenderer },
+        slice_render::SliceRenderer,
+    },
     tools::interaction::ToolState,
     ui::{
         measurements::MeasurementLayer,
         overlay::{OverlayContext, OverlayRenderer},
-        zoom::fit_view_transform },
-    LoadedVolume };
+        zoom::fit_view_transform,
+    },
+    LoadedVolume,
+};
 
 impl<'a> ViewportPanel<'a> {
     /// Construct a viewport panel.
@@ -28,7 +32,8 @@ impl<'a> ViewportPanel<'a> {
             id,
             volume,
             state,
-            active_tool: tool }
+            active_tool: tool,
+        }
     }
 
     /// Render the viewport into `ui`.
@@ -64,7 +69,8 @@ impl<'a> ViewportPanel<'a> {
             let render_key = match self.state.render_mode {
                 ViewportRenderMode::Slice => (self.state.axis, self.state.slice_index),
                 // Volume projections do not vary with slice index.
-                ViewportRenderMode::Mip | ViewportRenderMode::Vr => (self.state.axis, 0) };
+                ViewportRenderMode::Mip | ViewportRenderMode::Vr => (self.state.axis, 0),
+            };
             let needs_render =
                 self.state.texture_slice_key != Some(render_key) || self.state.texture.is_none();
             if needs_render {
@@ -140,7 +146,8 @@ impl<'a> ViewportPanel<'a> {
                         cursor_value: cursor_hu,
                         pointer_intensity,
                         cursor_suv: None,
-                        pointer_suv: None },
+                        pointer_suv: None,
+                    },
                 );
             }
 
@@ -165,7 +172,8 @@ impl<'a> ViewportPanel<'a> {
             let spacing_2d: [f32; 2] = match self.state.axis {
                 0 => [sp[1] as f32, sp[2] as f32],
                 1 => [sp[0] as f32, sp[2] as f32],
-                _ => [sp[0] as f32, sp[1] as f32] };
+                _ => [sp[0] as f32, sp[1] as f32],
+            };
             MeasurementLayer::draw_in_progress(
                 &painter,
                 &self.state.tool_state,

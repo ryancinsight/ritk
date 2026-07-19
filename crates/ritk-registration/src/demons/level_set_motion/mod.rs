@@ -1,4 +1,4 @@
-﻿//! Level-set motion registration filter.
+//! Level-set motion registration filter.
 //!
 //! # Mathematical Specification
 //!
@@ -43,7 +43,8 @@
 
 use crate::deformable_field_ops::{
     compute_gradient, compute_mse_inplace, validate_image_pair, warp_image_into, CpuFieldSmoother,
-    FieldSmoother, VectorField, VectorFieldMut };
+    FieldSmoother, VectorField, VectorFieldMut,
+};
 use crate::demons::config::DemonsResult;
 use crate::error::RegistrationError;
 use ritk_spatial::VolumeDims;
@@ -72,14 +73,16 @@ pub struct LevelSetMotionRegistration {
     /// Prevents near-zero denominator in flat image regions.
     /// Default 0.001 is appropriate for images with gradient magnitudes of
     /// order 1.  Must be strictly positive (invariant: `denom â‰¥ Î±Â² > 0`).
-    pub intensity_difference_threshold: f32 }
+    pub intensity_difference_threshold: f32,
+}
 
 impl Default for LevelSetMotionRegistration {
     fn default() -> Self {
         Self {
             number_of_iterations: 20,
             smoothing_sigma: 1.0,
-            intensity_difference_threshold: 0.001 }
+            intensity_difference_threshold: 0.001,
+        }
     }
 }
 
@@ -155,12 +158,14 @@ impl LevelSetMotionRegistration {
                 VectorField {
                     z: &grad.z,
                     y: &grad.y,
-                    x: &grad.x },
+                    x: &grad.x,
+                },
                 threshold,
                 VectorFieldMut {
                     z: &mut fz,
                     y: &mut fy,
-                    x: &mut fx },
+                    x: &mut fx,
+                },
             );
 
             for i in 0..n {
@@ -199,7 +204,8 @@ impl LevelSetMotionRegistration {
             vel_y: None,
             vel_x: None,
             final_mse,
-            num_iterations: self.number_of_iterations })
+            num_iterations: self.number_of_iterations,
+        })
     }
 }
 
@@ -227,11 +233,13 @@ fn level_set_motion_forces_into(
     let VectorField {
         z: gz,
         y: gy,
-        x: gx } = grad;
+        x: gx,
+    } = grad;
     let VectorFieldMut {
         z: fz,
         y: fy,
-        x: fx } = forces;
+        x: fx,
+    } = forces;
 
     for i in 0..fixed.len() {
         let diff = fixed[i] - m_warped[i];

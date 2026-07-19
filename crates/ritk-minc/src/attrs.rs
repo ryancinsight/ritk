@@ -1,4 +1,4 @@
-﻿//! Attribute extraction helpers for MINC2 HDF5 files.
+//! Attribute extraction helpers for MINC2 HDF5 files.
 //!
 //! Provides functions to decode typed `AttributeValue` instances into
 //! Rust scalars, arrays, and strings, plus dimension-group attribute
@@ -17,7 +17,8 @@ pub fn extract_scalar_float(val: &AttributeValue) -> Result<f64> {
         AttributeValue::Int(v) => Ok(*v as f64),
         AttributeValue::Uint(v) => Ok(*v as f64),
         AttributeValue::FloatArray(arr) if arr.len() == 1 => Ok(arr[0]),
-        other => bail!("Expected scalar float, got {:?}", other) }
+        other => bail!("Expected scalar float, got {:?}", other),
+    }
 }
 
 /// Extract a scalar `i64` from an `AttributeValue`.
@@ -26,7 +27,8 @@ pub fn extract_i64(val: &AttributeValue) -> Result<i64> {
         AttributeValue::Int(v) => Ok(*v),
         AttributeValue::Uint(v) => i64::try_from(*v)
             .with_context(|| format!("Unsigned integer value {} exceeds i64::MAX", v)),
-        other => bail!("Expected scalar integer, got {:?}", other) }
+        other => bail!("Expected scalar integer, got {:?}", other),
+    }
 }
 
 /// Extract a 3-element `f64` array from an `AttributeValue`.
@@ -39,7 +41,8 @@ pub fn extract_float_array_3(val: &AttributeValue) -> Result<[f64; 3]> {
                 arr.len()
             )
         }
-        other => bail!("Expected float array of length exactly 3, got {:?}", other) }
+        other => bail!("Expected float array of length exactly 3, got {:?}", other),
+    }
 }
 
 /// Extract a string from an `AttributeValue`.
@@ -51,7 +54,8 @@ pub fn extract_string(val: &AttributeValue) -> Result<String> {
             let end = b.iter().position(|&x| x == 0).unwrap_or(b.len());
             Ok(String::from_utf8_lossy(&b[..end]).into_owned())
         }
-        other => bail!("Expected string, got {:?}", other) }
+        other => bail!("Expected string, got {:?}", other),
+    }
 }
 
 // â”€â”€ Dimorder parsing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -154,7 +158,8 @@ pub fn parse_dimension_attrs(
         start,
         step,
         length,
-        direction_cosines })
+        direction_cosines,
+    })
 }
 
 #[cfg(test)]

@@ -1,11 +1,11 @@
-﻿mod decode;
+mod decode;
 use decode::*;
 
 use crate::spatial::{metadata_from_file_space_directions, metadata_from_file_spacings};
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
 use ritk_codecs::{parse_f64_vec, parse_usize_vec, ByteOrder};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read};
@@ -17,7 +17,8 @@ struct DecodedNrrd {
     dims: [usize; 3],
     origin: Point<3>,
     spacing: Spacing<3>,
-    direction: Direction<3> }
+    direction: Direction<3>,
+}
 
 /// Read a NRRD (Nearly Raw Raster Data) file into a 3-D `Image`.
 ///
@@ -57,7 +58,8 @@ pub fn read_nrrd<B: ComputeBackend, P: AsRef<Path>>(
         dims,
         origin,
         spacing,
-        direction } = decode_nrrd(path)?;
+        direction,
+    } = decode_nrrd(path)?;
 
     // NRRD raw order is X-fastest. RITK [Z,Y,X] row-major tensors are also
     // X-fastest in flat memory, so the decoded payload is shaped directly.
@@ -273,7 +275,8 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         dims: [nz, ny, nx],
         origin,
         spacing: spatial.spacing,
-        direction: spatial.direction })
+        direction: spatial.direction,
+    })
 }
 
 // â”€â”€ Public reader struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

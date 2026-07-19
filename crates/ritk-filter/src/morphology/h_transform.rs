@@ -71,12 +71,12 @@ fn reconstruct_h_extrema<B: Backend>(
 }
 
 fn reconstruct_h_extrema_native<B>(
-    image: &ritk_image::native::Image<f32, B, 3>,
+    image: &ritk_image::Image<f32, B, 3>,
     height: f32,
     mode: ReconstructionMode,
     connectivity: Connectivity,
     backend: &B,
-) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend,
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -87,7 +87,7 @@ where
         ReconstructionMode::Dilation => -height,
         ReconstructionMode::Erosion => height,
     };
-    let marker = ritk_image::native::Image::from_flat_on(
+    let marker = ritk_image::Image::from_flat_on(
         shifted_marker(values, shift)?,
         image.shape(),
         *image.origin(),
@@ -227,9 +227,9 @@ impl HMinimaFilter {
     /// inaccessible backend storage, or native output construction failure.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

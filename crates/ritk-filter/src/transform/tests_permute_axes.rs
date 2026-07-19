@@ -91,7 +91,7 @@ fn permute_axes_invalid_order_returns_error() {
 #[test]
 fn native_permute_axes_preserves_origin_and_reorders_geometry() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
 
     let image = NativeImage::from_flat_on(
         (1..=6).map(|value| value as f32).collect(),

@@ -75,7 +75,7 @@ fn test_segment_multi_otsu_classes_lt_2_returns_error() {
     assert!(result.is_err(), "classes < 2 must yield an error");
     let msg = result.unwrap_err().to_string();
     assert!(
-        msg.contains("\u{2265} 2"),
+        msg.contains(">= 2"),
         "error must state the minimum class count, got: {msg}"
     );
 }
@@ -91,7 +91,7 @@ fn multi_otsu_rejects_classes_above_default_bin_count_before_io() {
     );
     args.classes = 257;
     let error = run(args).expect_err("classes above bins must be rejected before I/O");
-    assert!(error.to_string().contains("must be ≤ 256"));
+    assert!(error.to_string().contains("must be <= 256"));
     assert!(!output.exists());
 }
 

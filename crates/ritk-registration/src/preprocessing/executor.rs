@@ -1,26 +1,31 @@
-﻿//! `execute()` implementation and per-step dispatch logic.
+//! `execute()` implementation and per-step dispatch logic.
 
 use anyhow::{Context, Result};
 use ritk_filter::bias::N4Config;
 use ritk_filter::{GaussianFilter, GaussianSigma, N4BiasFieldCorrectionFilter};
-use ritk_image::tensor::{Backend, Shape, Tensor };
+use ritk_image::tensor::{Backend, Tensor};
 use ritk_image::Image;
 
 use super::pipeline::PreprocessingPipeline;
 use super::step::PreprocessingStep;
 use super::value_ops::{
-    apply_mask_values, clamp_values, normalize_values, validate_mask, validate_value_count };
+    apply_mask_values, clamp_values, normalize_values, validate_mask, validate_value_count,
+};
 
 impl PreprocessingPipeline {
     /// Execute all steps sequentially.
     ///
     /// Invariant: each step receives the output of the previous step.
-    pub fn execute<B: Backend>(&self, mut image: Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
+    pub fn execute<B: Backend + Default>(
+        &self,
+        mut image: Image<f32, B, 3>,
+    ) -> Result<Image<f32, B, 3>> {
         for step in &self.steps {
             image = match step {
                 PreprocessingStep::N4BiasCorrection {
                     n_iterations,
-                    n_fitting_levels } => {
+                    n_fitting_levels,
+                } => {
                     let cfg = N4Config {
                         num_fitting_levels: *n_fitting_levels as usize,
                         num_iterations: *n_iterations as usize,
@@ -47,7 +52,8 @@ impl PreprocessingPipeline {
 
                 PreprocessingStep::Masking {
                     mask,
-                    dims: mask_dims } => {
+                    dims: mask_dims,
+                } => {
                     let shape = image.shape();
                     validate_mask(mask, *mask_dims, shape)?;
                     let vals = image
@@ -73,26 +79,21 @@ impl PreprocessingPipeline {
 fn rebuild_image<B: Backend>(src: &Image<f32, B, 3>, vals: Vec<f32>) -> Result<Image<f32, B, 3>> {
     let shape = src.shape();
     validate_value_count(vals.len(), shape, "preprocessing rebuild")?;
-    let device = src.data().device();
-    let tensor = Tensor::<f32, B>::from_slice_on(shape, &vals, &device);
-    Ok(Image::new(
-        tensor,
-        *src.origin(),
-        *src.spacing(),
-        *src.direction(),
-    ))
+    let backend = B::default();
+    let tensor = Tensor::<f32, B>::from_slice_on(shape, &vals, &backend);
+    Image::new(tensor, *src.origin(), *src.spacing(), *src.direction())
 }
 
 #[cfg(test)]
 mod tests {
     use super::super::pipeline::PreprocessingPipeline;
     use crate::preprocessing::{IntensityRescaleMode, PreprocessingStep};
-    use burn_ndarray::NdArray;
-    use ritk_image::tensor::{Shape, Tensor };
+    use coeus_core::SequentialBackend;
+    use ritk_image::tensor::Tensor;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
 
-    type B = NdArray<f32>;
+    type B = SequentialBackend;
 
     fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
         let device = Default::default();
@@ -103,14 +104,12 @@ mod tests {
             Spacing::new([1.0, 1.0, 1.0]),
             Direction::identity(),
         )
+        .expect("invariant: fixture tensor preserves the declared image rank")
     }
 
     fn extract(img: &Image<f32, B, 3>) -> Vec<f32> {
-        img.data()
-            .clone()
-            .into_data()
-            .as_slice::<f32>()
-            .unwrap()
+        img.data_slice()
+            .expect("fixture image is CPU-addressable")
             .to_vec()
     }
 
@@ -121,7 +120,8 @@ mod tests {
         let img = make_image(vals, [2, 2, 2]);
         let pipeline = PreprocessingPipeline::new().add_step(PreprocessingStep::Clamp {
             lower: 0.0,
-            upper: 1.0 });
+            upper: 1.0,
+        });
         let out = extract(&pipeline.execute(img).unwrap());
         for &v in &out {
             assert!((0.0..=1.0).contains(&v), "value {} outside [0,1]", v);
@@ -139,7 +139,8 @@ mod tests {
         let img = make_image(vals.clone(), [2, 2, 2]);
         let pipeline = PreprocessingPipeline::new().add_step(PreprocessingStep::Masking {
             mask: mask.clone(),
-            dims: [2, 2, 2] });
+            dims: [2, 2, 2],
+        });
         let out = extract(&pipeline.execute(img).unwrap());
         assert_eq!(out[1], 0.0f32, "voxel 1 (mask=0) must be 0");
         assert_eq!(out[3], 0.0f32, "voxel 3 (mask=0) must be 0");
@@ -168,7 +169,8 @@ mod tests {
         let img = make_image(vec![5.0f32; 8], [2, 2, 2]);
         let pipeline =
             PreprocessingPipeline::new().add_step(PreprocessingStep::IntensityNormalization {
-                mode: IntensityRescaleMode::ZScore });
+                mode: IntensityRescaleMode::ZScore,
+            });
         let out = extract(&pipeline.execute(img).unwrap());
         for &v in &out {
             assert!(
@@ -189,7 +191,9 @@ mod tests {
             PreprocessingPipeline::new().add_step(PreprocessingStep::IntensityNormalization {
                 mode: IntensityRescaleMode::MinMax {
                     out_min: 0.0,
-                    out_max: 1.0 } });
+                    out_max: 1.0,
+                },
+            });
         let out = extract(&pipeline.execute(img).unwrap());
         let out_min = out.iter().cloned().fold(f32::INFINITY, f32::min);
         let out_max = out.iter().cloned().fold(f32::NEG_INFINITY, f32::max);

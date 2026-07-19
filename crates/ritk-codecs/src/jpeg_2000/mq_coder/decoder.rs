@@ -1,4 +1,4 @@
-﻿use super::{CtxState, QE_TABLE};
+use super::{CtxState, QE_TABLE};
 
 /// MQ arithmetic decoder (ISO 15444-1 Â§C.3).
 ///
@@ -15,7 +15,8 @@ pub struct MqDecoder<'a> {
     /// Code register (bits 16â€“31 = Chigh).
     c: u32,
     /// Remaining bit-shifts available before the next `bytein`.
-    ct: u32 }
+    ct: u32,
+}
 
 impl<'a> MqDecoder<'a> {
     /// Initialise the MQ decoder over `src` (ISO 15444-1 Â§C.3.2 INITDEC).
@@ -30,7 +31,8 @@ impl<'a> MqDecoder<'a> {
             prev: b0,
             a: 0,
             c: u32::from(b0) << 16,
-            ct: 0 };
+            ct: 0,
+        };
         d.bytein();
         d.c <<= 7;
         d.ct -= 7;

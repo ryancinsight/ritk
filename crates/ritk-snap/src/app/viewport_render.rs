@@ -1,4 +1,4 @@
-﻿//! Per-axis viewport renderer for [`SnapApp`].
+//! Per-axis viewport renderer for [`SnapApp`].
 //
 //! Builds or refreshes GPU textures, computes spacing-aware fit scales,
 //! paints overlays (DICOM 4-corner, crosshair, annotations), and dispatches
@@ -47,21 +47,24 @@ impl SnapApp {
         let needs_rebuild = match axis {
             0 => self.texture_dirty || self.texture.is_none(),
             1 => self.coronal_dirty || self.coronal_tex.is_none(),
-            _ => self.sagittal_dirty || self.sagittal_tex.is_none() };
+            _ => self.sagittal_dirty || self.sagittal_tex.is_none(),
+        };
 
         if needs_rebuild && self.loaded.is_some() {
             self.rebuild_texture_for_axis(ctx, axis);
             match axis {
                 0 => self.texture_dirty = false,
                 1 => self.coronal_dirty = false,
-                _ => self.sagittal_dirty = false }
+                _ => self.sagittal_dirty = false,
+            }
         }
 
         // â”€â”€ 2. Extract texture ID and size (copy, releases borrow) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let tex_info: Option<(egui::TextureId, [usize; 2])> = match axis {
             0 => self.texture.as_ref().map(|t| (t.id(), t.size())),
             1 => self.coronal_tex.as_ref().map(|t| (t.id(), t.size())),
-            _ => self.sagittal_tex.as_ref().map(|t| (t.id(), t.size())) };
+            _ => self.sagittal_tex.as_ref().map(|t| (t.id(), t.size())),
+        };
 
         let (tex_id, [tex_w_usize, tex_h_usize]) = match tex_info {
             Some(info) => info,
@@ -84,7 +87,8 @@ impl SnapApp {
             match axis {
                 0 => (dy.max(1e-6), dx.max(1e-6)),
                 1 => (dz.max(1e-6), dx.max(1e-6)),
-                _ => (dz.max(1e-6), dy.max(1e-6)) }
+                _ => (dz.max(1e-6), dy.max(1e-6)),
+            }
         } else {
             (1.0, 1.0)
         };
@@ -178,7 +182,8 @@ impl SnapApp {
                         cursor_value,
                         pointer_intensity: self.pointer_intensity,
                         cursor_suv: self.current_cursor_suv(),
-                        pointer_suv: self.pointer_suv },
+                        pointer_suv: self.pointer_suv,
+                    },
                 );
                 OverlayRenderer::draw_orientation_labels(
                     &painter,
@@ -245,7 +250,8 @@ impl SnapApp {
                 match axis {
                     0 => [dy, dx],
                     1 => [dz, dx],
-                    _ => [dz, dy] }
+                    _ => [dz, dy],
+                }
             } else {
                 [1.0, 1.0]
             };

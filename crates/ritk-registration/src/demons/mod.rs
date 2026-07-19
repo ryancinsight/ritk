@@ -1,4 +1,4 @@
-﻿//! Demons-family deformable image registration algorithms.
+//! Demons-family deformable image registration algorithms.
 //!
 //! This module provides three variants of the Demons registration algorithm,
 //! all operating on flat `Vec<f32>` buffers with shape `[nz, ny, nx]` (Z-major).
@@ -61,7 +61,8 @@ pub use config::{DemonsConfig, DemonsResult, DemonsVariant};
 pub use diffeomorphic::DiffeomorphicDemonsRegistration;
 pub use exact_inverse_diffeomorphic::{
     InverseConsistentDemonsConfig, InverseConsistentDemonsResult,
-    InverseConsistentDiffeomorphicDemonsRegistration };
+    InverseConsistentDiffeomorphicDemonsRegistration,
+};
 pub use inverse::{invert_displacement_field, invert_velocity_field, InverseFieldConfig};
 pub use level_set_motion::LevelSetMotionRegistration;
 pub use multires::{MultiResDemonsConfig, MultiResDemonsRegistration};

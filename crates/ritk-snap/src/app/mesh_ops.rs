@@ -1,4 +1,4 @@
-﻿//! Surface mesh overlay operations for [`SnapApp`].
+//! Surface mesh overlay operations for [`SnapApp`].
 //!
 //! Provides three capabilities wired to the 3D-MIP viewport:
 //!
@@ -10,7 +10,8 @@
 
 use super::state::SnapApp;
 use crate::render::mesh_render::{
-    normalize, DirectionalLight, MeshCamera, MeshRenderer, PhongMaterial };
+    normalize, DirectionalLight, MeshCamera, MeshRenderer, PhongMaterial,
+};
 use ritk_io::VtkPolyData;
 use std::f32::consts::PI;
 use std::path::Path;
@@ -119,7 +120,8 @@ impl SnapApp {
             fov_y: PI / 4.0,
             aspect,
             near: diag * 0.01,
-            far: diag * 10.0 }
+            far: diag * 10.0,
+        }
     }
 
     /// Rebuild the mesh overlay [`egui::TextureHandle`] at pixel dimensions `w Ã— h`.
@@ -137,10 +139,12 @@ impl SnapApp {
             let camera = Self::auto_camera_for_poly(poly, w, h);
             let key_light = DirectionalLight {
                 direction: normalize([1.0, 1.0, 1.0]),
-                color: [1.0, 1.0, 1.0] };
+                color: [1.0, 1.0, 1.0],
+            };
             let fill_light = DirectionalLight {
                 direction: normalize([-0.5, -0.5, -1.0]),
-                color: [0.2, 0.2, 0.2] };
+                color: [0.2, 0.2, 0.2],
+            };
             let material = PhongMaterial::default();
             let renderer = MeshRenderer::new(w, h);
             renderer.render(poly, &camera, &material, &[key_light, fill_light])

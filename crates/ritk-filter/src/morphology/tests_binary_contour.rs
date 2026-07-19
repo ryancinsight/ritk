@@ -10,7 +10,9 @@ fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data_slice().into_owned()
+    img.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 /// All-background → all-zero output.

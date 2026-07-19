@@ -1,4 +1,4 @@
-﻿//! DICOM-style 4-corner information overlay and patient-orientation labels.
+//! DICOM-style 4-corner information overlay and patient-orientation labels.
 //!
 //! # Overlay layout
 //!
@@ -62,7 +62,8 @@ pub struct OverlayContext {
     pub cursor_value: Option<f32>,
     pub pointer_intensity: f32,
     pub pointer_suv: Option<f32>,
-    pub cursor_suv: Option<f32> }
+    pub cursor_suv: Option<f32>,
+}
 
 /// Renders DICOM-style information overlays on a viewport rectangle.
 ///
@@ -104,7 +105,8 @@ impl OverlayRenderer {
             cursor_value,
             pointer_intensity,
             pointer_suv,
-            cursor_suv } = ctx;
+            cursor_suv,
+        } = ctx;
         let [depth, rows, cols] = volume.shape;
 
         // â”€â”€ Top-left: patient information â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -161,7 +163,8 @@ impl OverlayRenderer {
         let (total_slices, dim_w, dim_h) = match axis {
             0 => (depth, cols, rows),
             1 => (rows, cols, depth),
-            _ => (cols, rows, depth) };
+            _ => (cols, rows, depth),
+        };
         let axis_name = anatomical_label_for_axis(Some(volume), axis);
 
         let [dz, dy, dx] = volume.spacing;
@@ -245,7 +248,8 @@ impl OverlayRenderer {
             left: label_left,
             right: label_right,
             top: label_top,
-            bottom: label_bottom } = orientation_labels(axis, direction);
+            bottom: label_bottom,
+        } = orientation_labels(axis, direction);
 
         let font = FontId::proportional(14.0);
         let cx = rect.center().x;
@@ -315,11 +319,13 @@ impl OverlayRenderer {
         let x = match anchor.x() {
             egui::Align::Min => rect.min.x + MARGIN,
             egui::Align::Center => rect.center().x,
-            egui::Align::Max => rect.max.x - MARGIN };
+            egui::Align::Max => rect.max.x - MARGIN,
+        };
         let y = match anchor.y() {
             egui::Align::Min => rect.min.y + MARGIN,
             egui::Align::Center => rect.center().y,
-            egui::Align::Max => rect.max.y - MARGIN };
+            egui::Align::Max => rect.max.y - MARGIN,
+        };
         Pos2::new(x, y)
     }
 }
@@ -329,7 +335,8 @@ struct OrientationLabels {
     left: &'static str,
     right: &'static str,
     top: &'static str,
-    bottom: &'static str }
+    bottom: &'static str,
+}
 
 fn orientation_labels(axis: usize, direction: &[f64; 9]) -> OrientationLabels {
     let col = |j: usize| -> [f64; 3] { [direction[j], direction[3 + j], direction[6 + j]] };
@@ -341,13 +348,15 @@ fn orientation_labels(axis: usize, direction: &[f64; 9]) -> OrientationLabels {
     let (horiz, vert) = match axis {
         0 => (col_axis, row_axis),
         1 => (col_axis, depth_axis),
-        _ => (row_axis, depth_axis) };
+        _ => (row_axis, depth_axis),
+    };
 
     OrientationLabels {
         left: lps_label(horiz, false),
         right: lps_label(horiz, true),
         top: lps_label(vert, false),
-        bottom: lps_label(vert, true) }
+        bottom: lps_label(vert, true),
+    }
 }
 
 fn lps_label(v: [f64; 3], positive: bool) -> &'static str {
@@ -366,7 +375,8 @@ fn lps_label(v: [f64; 3], positive: bool) -> &'static str {
         (1, true) => "P",
         (1, false) => "A",
         (2, true) => "S",
-        _ => "I" }
+        _ => "I",
+    }
 }
 
 // â”€â”€ Pure display-string helpers (testable) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -379,7 +389,8 @@ pub(crate) fn format_pointer_str(pointer_intensity: f32, pointer_suv: Option<f32
     match pointer_suv {
         Some(s) => format!("Pointer SUV: {:.2}", s),
         None if pointer_intensity != 0.0 => format!("Pointer HU: {:.0}", pointer_intensity),
-        _ => String::new() }
+        _ => String::new(),
+    }
 }
 
 /// Format the cursor-position intensity label.
@@ -390,7 +401,8 @@ pub(crate) fn format_cursor_str(cursor_value: Option<f32>, cursor_suv: Option<f3
     match (cursor_suv, cursor_value) {
         (Some(s), _) => format!("Cursor SUV: {:.2}", s),
         (None, Some(v)) => format!("Cursor HU: {:.0}", v),
-        _ => String::new() }
+        _ => String::new(),
+    }
 }
 
 // â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

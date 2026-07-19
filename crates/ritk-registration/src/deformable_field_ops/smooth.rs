@@ -1,4 +1,4 @@
-﻿//! Separable 3-D Gaussian smoothing for displacement fields.
+//! Separable 3-D Gaussian smoothing for displacement fields.
 //!
 //! The three per-axis convolution passes are unified into a single
 //! `convolve_axis<const AXIS: usize>` function. Because `AXIS` is a
@@ -14,7 +14,7 @@
 
 use super::{flat, FieldSmoother, VectorField, VectorFieldMut};
 use ritk_filter::gaussian_kernel;
-use ritk_image::tensor::{Backend, Shape, Tensor };
+use ritk_image::tensor::{Backend, Shape, Tensor};
 use ritk_spatial::{Spacing, VolumeDims};
 
 /// Convolve `data` along axis `AXIS` (0 = Z, 1 = Y, 2 = X) with `kernel`;
@@ -54,7 +54,8 @@ pub(super) fn convolve_axis<const AXIS: usize>(
                         let src_fi = match AXIS {
                             0 => flat(src_coord, iy, ix, ny, nx),
                             1 => flat(iz, src_coord, ix, ny, nx),
-                            _ => flat(iz, iy, src_coord, ny, nx) };
+                            _ => flat(iz, iy, src_coord, ny, nx),
+                        };
                         acc += kv * data[src_fi] as f64;
                     }
                     out_s[local] = acc as f32;
@@ -78,7 +79,8 @@ fn convolve_axis_field<const AXIS: usize>(
     let VectorFieldMut {
         z: output_z,
         y: output_y,
-        x: output_x } = output;
+        x: output_x,
+    } = output;
 
     moirai::for_each_chunk_triple_mut_enumerated_with::<moirai::Adaptive, _, _, _, _>(
         output_z,
@@ -101,7 +103,8 @@ fn convolve_axis_field<const AXIS: usize>(
                         let source = match AXIS {
                             0 => flat(source_coord, iy, ix, ny, nx),
                             1 => flat(iz, source_coord, ix, ny, nx),
-                            _ => flat(iz, iy, source_coord, ny, nx) };
+                            _ => flat(iz, iy, source_coord, ny, nx),
+                        };
                         sum_z += weight * data.z[source] as f64;
                         sum_y += weight * data.y[source] as f64;
                         sum_x += weight * data.x[source] as f64;
@@ -206,43 +209,50 @@ pub(crate) fn gaussian_smooth_field_with_kernel(
     let VectorFieldMut {
         z: scratch_z,
         y: scratch_y,
-        x: scratch_x } = scratch;
+        x: scratch_x,
+    } = scratch;
 
     convolve_axis_field::<0>(
         VectorField {
             z: &*z,
             y: &*y,
-            x: &*x },
+            x: &*x,
+        },
         dims,
         kernel,
         VectorFieldMut {
             z: &mut *scratch_z,
             y: &mut *scratch_y,
-            x: &mut *scratch_x },
+            x: &mut *scratch_x,
+        },
     );
     convolve_axis_field::<1>(
         VectorField {
             z: &*scratch_z,
             y: &*scratch_y,
-            x: &*scratch_x },
+            x: &*scratch_x,
+        },
         dims,
         kernel,
         VectorFieldMut {
             z: &mut *z,
             y: &mut *y,
-            x: &mut *x },
+            x: &mut *x,
+        },
     );
     convolve_axis_field::<2>(
         VectorField {
             z: &*z,
             y: &*y,
-            x: &*x },
+            x: &*x,
+        },
         dims,
         kernel,
         VectorFieldMut {
             z: &mut *scratch_z,
             y: &mut *scratch_y,
-            x: &mut *scratch_x },
+            x: &mut *scratch_x,
+        },
     );
     z.copy_from_slice(scratch_z);
     y.copy_from_slice(scratch_y);
@@ -291,7 +301,8 @@ pub struct GpuFieldSmoother<B: Backend> {
     /// back here for the next iteration.
     staging_z: Vec<f32>,
     staging_y: Vec<f32>,
-    staging_x: Vec<f32> }
+    staging_x: Vec<f32>,
+}
 
 impl<B: Backend> FieldSmoother for GpuFieldSmoother<B> {
     fn smooth_field(&mut self, z: &mut [f32], y: &mut [f32], x: &mut [f32]) {
@@ -313,7 +324,7 @@ impl<B: Backend> GpuFieldSmoother<B> {
     /// Panics if `dims` has a zero dimension.
     pub fn new(dims: [usize; 3], spacing: Spacing<3>, sigma: f64, device: &B) -> Self {
         assert!(dims.iter().all(|&d| d > 0), "dims must be nonzero");
-        let shape = Shape::new(dims);
+        let shape = dims.to_vec();
         let n = dims[0] * dims[1] * dims[2];
         let sigmas = vec![
             ritk_filter::GaussianSigma::new_unchecked(sigma),
@@ -327,7 +338,8 @@ impl<B: Backend> GpuFieldSmoother<B> {
             shape,
             staging_z: vec![0.0_f32; n],
             staging_y: vec![0.0_f32; n],
-            staging_x: vec![0.0_f32; n] }
+            staging_x: vec![0.0_f32; n],
+        }
     }
 
     /// Smooth a 3-component displacement or velocity field **in place** using
@@ -376,18 +388,9 @@ impl<B: Backend> GpuFieldSmoother<B> {
         let tx = self.filter.apply_tensor(tx, &self.spacing);
 
         // â”€â”€ Download â€” consume tensors, recover staging buffers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        self.staging_z = tz
-            .into_data()
-            .into_vec::<f32>()
-            .expect("GPU smoother: z tensor must be f32");
-        self.staging_y = ty
-            .into_data()
-            .into_vec::<f32>()
-            .expect("GPU smoother: y tensor must be f32");
-        self.staging_x = tx
-            .into_data()
-            .into_vec::<f32>()
-            .expect("GPU smoother: x tensor must be f32");
+        self.staging_z = tz.to_vec();
+        self.staging_y = ty.to_vec();
+        self.staging_x = tx.to_vec();
 
         fz.copy_from_slice(&self.staging_z);
         fy.copy_from_slice(&self.staging_y);

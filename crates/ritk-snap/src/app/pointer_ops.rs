@@ -1,11 +1,12 @@
-﻿use super::state::SnapApp;
+use super::state::SnapApp;
 use crate::render::colormap::Colormap;
 use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 use crate::ui::{
     anatomical_label_for_axis, axis_for_plane_in_volume, intensity_at_voxel, pan_from_drag_delta,
     viewport_point_to_voxel, window_level_from_drag_delta, zoom_from_drag_delta, AnatomicalPlane,
-    WINDOW_LEVEL_SENSITIVITY };
+    WINDOW_LEVEL_SENSITIVITY,
+};
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
 // â”€â”€ Pointer / interaction event handlers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -17,12 +18,14 @@ impl SnapApp {
             ToolKind::Pan => {
                 self.tool_state = ToolState::Panning {
                     start: pos,
-                    viewport_origin: egui::Pos2::new(self.pan_offset.x, self.pan_offset.y) };
+                    viewport_origin: egui::Pos2::new(self.pan_offset.x, self.pan_offset.y),
+                };
             }
             ToolKind::Zoom => {
                 self.tool_state = ToolState::Zooming {
                     start: pos,
-                    original_zoom: self.zoom };
+                    original_zoom: self.zoom,
+                };
             }
             ToolKind::WindowLevel => {
                 let wc = self
@@ -36,19 +39,22 @@ impl SnapApp {
                 self.tool_state = ToolState::WindowLevelDrag {
                     start: pos,
                     original_center: wc,
-                    original_width: ww };
+                    original_width: ww,
+                };
             }
             ToolKind::RoiRect => {
                 self.tool_state = ToolState::RoiDrag {
                     start: pos,
                     current: pos,
-                    kind: RoiKind::Rect };
+                    kind: RoiKind::Rect,
+                };
             }
             ToolKind::RoiEllipse => {
                 self.tool_state = ToolState::RoiDrag {
                     start: pos,
                     current: pos,
-                    kind: RoiKind::Ellipse };
+                    kind: RoiKind::Ellipse,
+                };
             }
             _ => {}
         }
@@ -59,12 +65,14 @@ impl SnapApp {
         match self.tool_state.clone() {
             ToolState::Panning {
                 start,
-                viewport_origin } => {
+                viewport_origin,
+            } => {
                 self.pan_offset = pan_from_drag_delta(viewport_origin, start, pos);
             }
             ToolState::Zooming {
                 start,
-                original_zoom } => {
+                original_zoom,
+            } => {
                 let drag_delta_y = pos.y - start.y;
                 self.zoom = zoom_from_drag_delta(original_zoom, drag_delta_y);
                 self.status_message = format!("Zoom: {:.0}%", self.zoom * 100.0);
@@ -72,7 +80,8 @@ impl SnapApp {
             ToolState::WindowLevelDrag {
                 start,
                 original_center,
-                original_width } => {
+                original_width,
+            } => {
                 let (new_center, new_width) = window_level_from_drag_delta(
                     original_center,
                     original_width,
@@ -91,7 +100,8 @@ impl SnapApp {
                 self.tool_state = ToolState::RoiDrag {
                     start,
                     current: pos,
-                    kind };
+                    kind,
+                };
             }
             _ => {}
         }
@@ -103,13 +113,15 @@ impl SnapApp {
                 ToolState::RoiDrag {
                     start,
                     current,
-                    kind: RoiKind::Rect } => {
+                    kind: RoiKind::Rect,
+                } => {
                     self.finalise_roi_rect(start, current);
                 }
                 ToolState::RoiDrag {
                     start,
                     current,
-                    kind: RoiKind::Ellipse } => {
+                    kind: RoiKind::Ellipse,
+                } => {
                     self.finalise_roi_ellipse(start, current);
                 }
                 _ => {}
@@ -130,7 +142,8 @@ impl SnapApp {
                     self.annotations.push(Annotation::Length {
                         p1: p1_arr,
                         p2: p2_arr,
-                        length_mm });
+                        length_mm,
+                    });
                     self.tool_state = ToolState::Idle;
                 }
                 _ => {
@@ -147,7 +160,8 @@ impl SnapApp {
                         p1: a,
                         p2: b,
                         p3: c,
-                        angle_deg });
+                        angle_deg,
+                    });
                     self.tool_state = ToolState::Idle;
                 }
                 ToolState::MeasureLength1 { p1 } => {
@@ -167,7 +181,8 @@ impl SnapApp {
                     let value = if idx < pixels.len() { pixels[idx] } else { 0.0 };
                     self.annotations.push(Annotation::HuPoint {
                         pos: [pos.y, pos.x],
-                        value });
+                        value,
+                    });
                     self.status_message = format!("HU at col={col} row={row}: {value:.0}");
                 }
             }
@@ -195,7 +210,8 @@ impl SnapApp {
             std_dev,
             min,
             max,
-            area_mm2 });
+            area_mm2,
+        });
         self.status_message =
             format!("ROI: \u{03bc}={mean:.1} \u{03c3}={std_dev:.1} [{min:.0}, {max:.0}] {area_mm2:.1} mm\u{b2}");
     }
@@ -215,7 +231,8 @@ impl SnapApp {
             std_dev,
             min,
             max,
-            area_mm2 });
+            area_mm2,
+        });
         self.status_message = format!(
             "Ellipse ROI: \u{03bc}={mean:.1} \u{03c3}={std_dev:.1} [{min:.0}, {max:.0}] {area_mm2:.1} mm\u{b2}"
         );
@@ -236,7 +253,8 @@ impl SnapApp {
         match self.axis {
             0 => [dy, dx],
             1 => [dz, dx],
-            _ => [dz, dy] }
+            _ => [dz, dy],
+        }
     }
 
     pub(crate) fn apply_label_at_pointer(
@@ -262,7 +280,8 @@ impl SnapApp {
         let result = match self.active_tool {
             ToolKind::LabelPaint => editor.paint_sphere(voxel, self.label_brush_radius),
             ToolKind::LabelErase => editor.erase_sphere(voxel, self.label_brush_radius),
-            _ => return };
+            _ => return,
+        };
         match result {
             Ok(changed) if changed > 0 => {
                 self.status_message = format!(

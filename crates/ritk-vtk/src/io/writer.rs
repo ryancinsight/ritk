@@ -17,7 +17,7 @@
 
 use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 

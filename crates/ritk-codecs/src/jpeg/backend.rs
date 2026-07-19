@@ -1,4 +1,4 @@
-﻿//! Static JPEG decoder backend boundary.
+//! Static JPEG decoder backend boundary.
 //!
 //! The sealed `JpegDecodeBackend` trait is the single replacement point for the
 //! JPEG decoder. `RitkJpegDecoder` in `ritk_decoder.rs` is the authoritative
@@ -11,26 +11,30 @@ use anyhow::Result;
 pub(crate) enum JpegPixelFormat {
     L8,
     L16,
-    Rgb24 }
+    Rgb24,
+}
 
 impl JpegPixelFormat {
     pub(crate) const fn pixel_bytes(self) -> usize {
         match self {
             Self::L8 => 1,
             Self::L16 => 2,
-            Self::Rgb24 => 3 }
+            Self::Rgb24 => 3,
+        }
     }
 
     pub(crate) const fn samples_per_pixel(self) -> usize {
         match self {
             Self::L8 | Self::L16 => 1,
-            Self::Rgb24 => 3 }
+            Self::Rgb24 => 3,
+        }
     }
 
     pub(crate) const fn bits_allocated(self) -> u16 {
         match self {
             Self::L8 | Self::Rgb24 => 8,
-            Self::L16 => 16 }
+            Self::L16 => 16,
+        }
     }
 }
 
@@ -42,7 +46,8 @@ pub(crate) struct JpegDecoded {
     pub(crate) pixel_format: JpegPixelFormat,
     /// Raster-order pixel bytes: 1 byte/pixel for L8, 2 for L16 (native endian),
     /// 3 interleaved for Rgb24.
-    pub(crate) pixels: Vec<u8> }
+    pub(crate) pixels: Vec<u8>,
+}
 
 /// Sealed static-dispatch JPEG decode backend.
 pub(crate) trait JpegDecodeBackend: private::Sealed {

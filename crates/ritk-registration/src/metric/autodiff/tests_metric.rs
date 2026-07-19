@@ -1,4 +1,4 @@
-﻿//! End-to-end verification of the generic `mse_metric` over translation and
+//! End-to-end verification of the generic `mse_metric` over translation and
 //! affine `Transform`s.
 //!
 //! Evidence tier: analytical. Translation case: a moving image that is a linear
@@ -54,7 +54,8 @@ fn loss_at_tx(grid_x: &[f64], fixed: &[f64], tx: f64) -> f64 {
         &var(fixed, false),
         &var_shaped(&[grid_x.len(), 3], &gf, false),
         &Translation {
-            t: var(&[0.0, 0.0, tx], false) },
+            t: var(&[0.0, 0.0, tx], false),
+        },
     );
     out.tensor.as_slice()[0]
 }

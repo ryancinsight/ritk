@@ -1,4 +1,4 @@
-﻿//! Swin-block MLP, Coeus-native.
+//! Swin-block MLP, Coeus-native.
 //!
 //! A two-layer feed-forward network (`Linear â†’ GELU â†’ Linear`) applied along the
 //! channel (last) axis of a `[B, D, H, W, C]` token volume. Built on
@@ -15,7 +15,8 @@ use coeus_ops::BackendOps;
 #[derive(Clone)]
 pub struct Mlp<B: Backend + BackendOps<f32> + Default> {
     fc1: Linear<f32, B>,
-    fc2: Linear<f32, B> }
+    fc2: Linear<f32, B>,
+}
 
 impl<B> Mlp<B>
 where

@@ -83,7 +83,7 @@ pub fn extract_vec_infallible<B: Backend, const D: usize>(
     let dims = image.shape();
     let vals = image
         .try_data_vec()
-        .expect("filter ops: extract_vec_infallible requires an f32 backend tensor");
+        .expect("filter ops: canonical Coeus host extraction is infallible");
     (vals, dims)
 }
 
@@ -120,6 +120,7 @@ pub fn rebuild<B: Backend, const D: usize>(
         *src.direction(),
         &backend,
     )
+    .expect("rebuild preserves the source rank and validated output shape")
 }
 
 #[inline]
@@ -138,6 +139,7 @@ pub fn rebuild_with_origin<B: Backend, const D: usize>(
         *src.direction(),
         &backend,
     )
+    .expect("rebuild preserves the source rank and validated output shape")
 }
 
 #[inline]
@@ -151,6 +153,7 @@ pub fn rebuild_with_metadata<B: Backend, const D: usize>(
 ) -> Image<f32, B, D> {
     let backend = B::default();
     Image::from_flat_on(vals, dims, new_origin, new_spacing, new_direction, &backend)
+        .expect("rebuild preserves the source rank and validated output shape")
 }
 
 // ── gaussian_kernel ─────────────────────────────────────────────────────────

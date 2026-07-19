@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 
 #[test]
 fn jpeg_ls_marker_constants_correct() {
@@ -35,7 +35,8 @@ fn decode_fragment_near_lossless_bounded_error() {
         bits_allocated: 8,
         pixel_representation: crate::PixelSignedness::Unsigned,
         rescale_slope: 1.0,
-        rescale_intercept: 0.0 };
+        rescale_intercept: 0.0,
+    };
     let decoded =
         decode_jpeg_ls_fragment(&stream, layout).expect("near-lossless decode must succeed");
     assert_eq!(decoded.len(), original.len());
@@ -85,5 +86,6 @@ fn one_component_decoder(
         point_transform,
         t1: 0,
         t2: 0,
-        t3: 0 }
+        t3: 0,
+    }
 }

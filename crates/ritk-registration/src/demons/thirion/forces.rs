@@ -1,4 +1,4 @@
-﻿//! Optical-flow force computation and field clamping utilities.
+//! Optical-flow force computation and field clamping utilities.
 
 use crate::deformable_field_ops::{VectorField, VectorFieldMut};
 
@@ -24,11 +24,13 @@ pub(crate) fn thirion_forces_into(
     let VectorField {
         z: grad_z,
         y: grad_y,
-        x: grad_x } = grad;
+        x: grad_x,
+    } = grad;
     let VectorFieldMut {
         z: fz,
         y: fy,
-        x: fx } = forces;
+        x: fx,
+    } = forces;
     let sigma_x2 = max_step_length * max_step_length;
 
     moirai::for_each_chunk_triple_mut_enumerated_with::<moirai::Adaptive, _, _, _, _>(

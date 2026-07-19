@@ -1,4 +1,4 @@
-﻿//! JPEG 2000 tier-2 packet encoder and decoder (ISO 15444-1 Annex B).
+//! JPEG 2000 tier-2 packet encoder and decoder (ISO 15444-1 Annex B).
 
 pub mod reader;
 pub mod writer;
@@ -24,7 +24,8 @@ pub enum WaveletTransform {
     /// 5/3 integer lifting â€” bit-exact, no quantization.
     Reversible,
     /// 9/7 floating-point lifting â€” lossy, dead-zone scalar quantization.
-    Irreversible }
+    Irreversible,
+}
 
 // â”€â”€ Code-block partitioning â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -44,7 +45,8 @@ pub(crate) struct CblkRef {
     pub(crate) x0: usize,
     pub(crate) y0: usize,
     pub(crate) w: usize,
-    pub(crate) h: usize }
+    pub(crate) h: usize,
+}
 
 /// Per-band code-block grid dimensions (`ceil(dim / CBLK_SIZE)`).
 pub(crate) fn cblk_grid(band_w: usize, band_h: usize) -> (usize, usize) {
@@ -69,7 +71,8 @@ pub(crate) fn band_cblks(band_idx: usize, band: &Subband) -> Vec<CblkRef> {
                 x0,
                 y0,
                 w: (band.w - x0).min(CBLK_SIZE),
-                h: (band.h - y0).min(CBLK_SIZE) });
+                h: (band.h - y0).min(CBLK_SIZE),
+            });
         }
     }
     out
@@ -77,7 +80,8 @@ pub(crate) fn band_cblks(band_idx: usize, band: &Subband) -> Vec<CblkRef> {
 
 pub(crate) struct BandTrees {
     pub(crate) incl: TagTree,
-    pub(crate) msbs: TagTree }
+    pub(crate) msbs: TagTree,
+}
 
 pub(crate) fn band_trees(bands: &[Subband]) -> Vec<Option<BandTrees>> {
     bands
@@ -89,7 +93,8 @@ pub(crate) fn band_trees(bands: &[Subband]) -> Vec<Option<BandTrees>> {
                 let (gw, gh) = cblk_grid(b.w, b.h);
                 Some(BandTrees {
                     incl: TagTree::new(gw, gh),
-                    msbs: TagTree::new(gw, gh) })
+                    msbs: TagTree::new(gw, gh),
+                })
             }
         })
         .collect()

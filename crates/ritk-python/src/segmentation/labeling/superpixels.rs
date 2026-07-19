@@ -1,11 +1,12 @@
-﻿use crate::errors::RitkPyError;
+use crate::errors::RitkPyError;
 use crate::errors::RitkResult;
 use crate::image::{native_into_py_image, py_image_to_native, PyImage};
 use coeus_core::SequentialBackend;
 use pyo3::prelude::*;
 use ritk_segmentation::{
     ConnectivityEnforcement, InitializationPerturbation, ItkSlicConfig, ItkSlicFilter, SlicConfig,
-    SlicSuperpixelFilter };
+    SlicSuperpixelFilter,
+};
 
 /// SLIC super-pixel segmentation matching `SimpleITK.SLIC`.
 ///

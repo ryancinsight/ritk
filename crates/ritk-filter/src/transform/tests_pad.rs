@@ -53,7 +53,8 @@ fn constant_pad_origin_updated() {
         Point::new([0.0_f64, 0.0, 10.0]),
         Spacing::new([1.0_f64, 1.0, 2.0]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     let out = ConstantPadImageFilter::new(Padding::new([0, 0, 1]), Padding::new([0, 0, 0]), 0.0)
         .apply(&img2)
         .unwrap();
@@ -73,7 +74,8 @@ fn constant_pad_origin_follows_direction_columns() {
         Point::new([10.0, 20.0, 30.0]),
         Spacing::new([2.0, 3.0, 5.0]),
         direction,
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     let output = ConstantPadImageFilter::new(Padding::new([0, 0, 1]), Padding::zero(), 0.0)
         .apply(&image)
         .expect("constant padding succeeds");
@@ -87,7 +89,7 @@ fn constant_pad_origin_follows_direction_columns() {
 #[test]
 fn native_constant_pad_preserves_direction_aware_origin() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
 
     let direction = Direction::from_rows([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]);
     let image = NativeImage::from_flat_on(
@@ -137,7 +139,7 @@ fn mirror_pad_1d() {
 #[test]
 fn native_mirror_pad_matches_symmetric_extension() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
 
     let image = NativeImage::from_flat_on(
         vec![1.0, 2.0, 3.0],
@@ -192,7 +194,7 @@ fn wrap_pad_1d() {
 #[test]
 fn native_wrap_pad_matches_periodic_extension() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
 
     let image = NativeImage::from_flat_on(
         vec![10.0, 20.0, 30.0],

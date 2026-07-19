@@ -1,4 +1,4 @@
-﻿//! Tool interaction tests: zoom, pan, label undo/redo, window/level, shortcuts.
+//! Tool interaction tests: zoom, pan, label undo/redo, window/level, shortcuts.
 
 use super::*;
 use crate::ui::tool_kind_for_key;
@@ -97,7 +97,8 @@ fn window_level_drag_updates_center_and_width_via_ssot() {
     app.tool_state = ToolState::WindowLevelDrag {
         start: Pos2::new(100.0, 100.0),
         original_center: 40.0,
-        original_width: 400.0 };
+        original_width: 400.0,
+    };
     app.on_drag(Some(Pos2::new(110.0, 95.0)));
 
     let new_center = app.viewer_state.window_center.expect("center set");

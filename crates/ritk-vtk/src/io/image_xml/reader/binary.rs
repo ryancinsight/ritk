@@ -1,8 +1,9 @@
-﻿//! Binary-appended VTI reader: `read_vti_binary_appended_bytes`, helpers.
+//! Binary-appended VTI reader: `read_vti_binary_appended_bytes`, helpers.
 
 use super::xml_helpers::{
     attr_val, find_section, find_tag, parse_floats, parse_i64s, DEFAULT_ORIGIN_STR,
-    DEFAULT_SPACING_STR };
+    DEFAULT_SPACING_STR,
+};
 use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
 use anyhow::{bail, Context, Result};
 use std::collections::HashMap;
@@ -29,7 +30,8 @@ fn parse_appended_attrs(
         rest = &rest[start..];
         let te = match rest.find('>') {
             Some(e) => e + 1,
-            None => break };
+            None => break,
+        };
         let tag = &rest[..te];
         let name = attr_val(tag, "Name").unwrap_or_default();
         let ncomp: usize = attr_val(tag, "NumberOfComponents")
@@ -82,10 +84,13 @@ fn parse_appended_attrs(
                 }
                 2 => AttributeArray::TextureCoords {
                     values: floats,
-                    dim: 2 },
+                    dim: 2,
+                },
                 n => AttributeArray::Scalars {
                     values: floats,
-                    num_components: n } };
+                    num_components: n,
+                },
+            };
             map.insert(name, attr);
         }
         // Advance past the current DataArray opening tag (self-closing or otherwise).
@@ -186,7 +191,8 @@ pub fn read_vti_binary_appended_bytes(data: &[u8]) -> Result<VtkImageData> {
         origin,
         spacing,
         point_data,
-        cell_data })
+        cell_data,
+    })
 }
 
 /// Read a binary-appended VTI XML file from disk into a [`VtkImageData`].

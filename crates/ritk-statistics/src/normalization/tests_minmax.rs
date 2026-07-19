@@ -1,7 +1,7 @@
 use super::*;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::{make_image, make_image_with};
+use ritk_image::Image as NativeImage;
 
 type TestBackend = SequentialBackend;
 

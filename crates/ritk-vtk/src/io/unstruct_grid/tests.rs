@@ -1,4 +1,4 @@
-﻿#![allow(clippy::needless_range_loop)]
+#![allow(clippy::needless_range_loop)]
 
 use super::*;
 
@@ -20,13 +20,15 @@ fn test_unstructured_grid_roundtrip_tetrahedra() {
         "pressure".to_string(),
         AttributeArray::Scalars {
             values: vec![0.0, 1.0, 2.0, 3.0],
-            num_components: 1 },
+            num_components: 1,
+        },
     );
     grid.cell_data.insert(
         "stress".to_string(),
         AttributeArray::Scalars {
             values: vec![42.0],
-            num_components: 1 },
+            num_components: 1,
+        },
     );
 
     let tmp = NamedTempFile::new().expect("temp");
@@ -52,7 +54,8 @@ fn test_unstructured_grid_roundtrip_tetrahedra() {
                 );
             }
         }
-        other => panic!("expected Scalars: {:?}", other) }
+        other => panic!("expected Scalars: {:?}", other),
+    }
 
     match r.cell_data.get("stress").expect("stress") {
         AttributeArray::Scalars { values, .. } => {
@@ -63,7 +66,8 @@ fn test_unstructured_grid_roundtrip_tetrahedra() {
                 values[0]
             );
         }
-        other => panic!("expected Scalars: {:?}", other) }
+        other => panic!("expected Scalars: {:?}", other),
+    }
 }
 
 #[test]

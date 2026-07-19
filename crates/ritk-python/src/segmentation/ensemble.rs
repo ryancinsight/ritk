@@ -1,14 +1,14 @@
-﻿//! Python bindings for ensemble segmentation (STAPLE) and GrowCut.
+//! Python bindings for ensemble segmentation (STAPLE) and GrowCut.
 
 use crate::errors::RitkResult;
 use crate::image::vec_to_image_like;
-use crate::image::{
-    burn_into_py_image, into_py_image, py_image_to_burn, with_image_slice, PyImage };
+use crate::image::{image_from_py, into_py_image, with_image_slice, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use ritk_segmentation::{
     growcut as core_growcut, multi_label_staple as core_multi_label_staple, staple as core_staple,
-    StapleConvergence };
+    StapleConvergence,
+};
 use std::sync::Arc;
 
 /// Run the STAPLE algorithm on K binary rater segmentation masks.
@@ -179,8 +179,8 @@ pub fn growcut_segment(
     seeds: &PyImage,
     max_iter: usize,
 ) -> PyImage {
-    let img_arc = py_image_to_burn(image);
-    let seed_arc = py_image_to_burn(seeds);
+    let img_arc = image_from_py(image);
+    let seed_arc = image_from_py(seeds);
     let result = py.allow_threads(move || core_growcut(&img_arc, &seed_arc, max_iter));
-    burn_into_py_image(result)
+    into_py_image(result)
 }

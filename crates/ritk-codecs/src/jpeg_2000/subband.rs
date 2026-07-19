@@ -1,4 +1,4 @@
-﻿//! Subband geometry for the Mallat DWT layout (ISO 15444-1 Â§B.5).
+//! Subband geometry for the Mallat DWT layout (ISO 15444-1 Â§B.5).
 //!
 //! For a tile of `width Ã— height` with `N` decomposition levels the codestream
 //! carries `3N + 1` subbands in resolution order:
@@ -23,7 +23,8 @@ pub(crate) struct Subband {
     pub h: usize,
     /// log2 coefficient gain of the 5/3 reversible transform
     /// (LL: 0, HL/LH: 1, HH: 2) â€” ISO 15444-1 Â§E.1.1.
-    pub gain: u32 }
+    pub gain: u32,
+}
 
 /// Build the subband list for `width Ã— height` with `num_levels` decomposition
 /// levels, in codestream order (see module docs). For `num_levels == 0` the
@@ -39,7 +40,8 @@ pub(crate) fn subband_layout(width: usize, height: usize, num_levels: u8) -> Vec
         y0: 0,
         w: ceil_div_pow2(width, n),
         h: ceil_div_pow2(height, n),
-        gain: 0 });
+        gain: 0,
+    });
 
     // Levels from coarsest (N) to finest (1): HL, LH, HH.
     for lvl in (1..=n).rev() {
@@ -58,7 +60,8 @@ pub(crate) fn subband_layout(width: usize, height: usize, num_levels: u8) -> Vec
             y0: 0,
             w: dn_x,
             h: sn_y,
-            gain: 1 });
+            gain: 1,
+        });
         // LH: horizontally low-pass, vertically high-pass (bottom half) â€”
         // shares the LL/LH ZC table.
         bands.push(Subband {
@@ -67,7 +70,8 @@ pub(crate) fn subband_layout(width: usize, height: usize, num_levels: u8) -> Vec
             y0: sn_y,
             w: sn_x,
             h: dn_y,
-            gain: 1 });
+            gain: 1,
+        });
         // HH: high-pass in both directions.
         bands.push(Subband {
             orient: SubbandOrientation::Hh,
@@ -75,7 +79,8 @@ pub(crate) fn subband_layout(width: usize, height: usize, num_levels: u8) -> Vec
             y0: sn_y,
             w: dn_x,
             h: dn_y,
-            gain: 2 });
+            gain: 2,
+        });
     }
 
     bands

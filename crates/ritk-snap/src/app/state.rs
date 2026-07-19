@@ -1,4 +1,4 @@
-﻿use crate::label::LabelEditor;
+use crate::label::LabelEditor;
 use crate::render::colormap::Colormap;
 use crate::render::RenderBufferPool;
 use crate::tools::interaction::{Annotation, ToolState};
@@ -18,17 +18,20 @@ pub(crate) struct RtDoseOverlayCacheEntry {
     pub(crate) vol_shape: [usize; 3],
     pub(crate) dose_dims: [usize; 3],
     pub(crate) opacity_alpha: u8,
-    pub(crate) texture: egui::TextureHandle }
+    pub(crate) texture: egui::TextureHandle,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SeriesLoadTarget {
     Primary,
-    Secondary }
+    Secondary,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ProjectionMode {
     Mip,
-    Vr }
+    Vr,
+}
 
 // â”€â”€ SnapApp â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -252,7 +255,8 @@ pub(crate) struct SnapApp {
     /// GPU-accelerated volume renderer.  `None` when no suitable GPU is
     /// available or when running on wasm32.  CPU path is the fallback.
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) gpu_renderer: Option<crate::render::gpu_volume::GpuVolumeRenderer> }
+    pub(crate) gpu_renderer: Option<crate::render::gpu_volume::GpuVolumeRenderer>,
+}
 
 impl Default for SnapApp {
     fn default() -> Self {
@@ -326,7 +330,8 @@ impl Default for SnapApp {
             selected_series: None,
             sidebar_tab: crate::ui::sidebar::SidebarTab::Series,
             series_load_target: SeriesLoadTarget::Primary,
-            status_message: "No study loaded â€” use File > Open to load a DICOM folder.".to_owned(),
+            status_message: "No study loaded â€” use File > Open to load a DICOM folder."
+                .to_owned(),
             pending_load: None,
             pending_secondary_load: None,
             pacs_config: crate::pacs::PacsConfig::default(),
@@ -349,7 +354,8 @@ impl Default for SnapApp {
             pacs_auto_loaded_this_frame: None,
             status_axis: 0,
             #[cfg(not(target_arch = "wasm32"))]
-            gpu_renderer: crate::render::gpu_volume::GpuVolumeRenderer::try_create() }
+            gpu_renderer: crate::render::gpu_volume::GpuVolumeRenderer::try_create(),
+        }
     }
 }
 

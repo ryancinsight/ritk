@@ -1,4 +1,4 @@
-﻿//! ITK-SNAP workflow annotation primitives.
+//! ITK-SNAP workflow annotation primitives.
 //!
 //! Provides the data structures for interactive segmentation workflows:
 //! label tables, dense label maps, seed/contour annotations, undo/redo history,
@@ -28,6 +28,7 @@ pub use error::AnnotationError;
 pub use label_map::LabelMap;
 pub use label_table::{LabelEntry, LabelTable};
 pub use overlay::{
-    Colormap, ContourOverlay, ImageOverlay, MaskOverlay, Opacity, OverlayState, Visibility };
+    Colormap, ContourOverlay, ImageOverlay, MaskOverlay, Opacity, OverlayState, Visibility,
+};
 pub use types::LabelId;
 pub use undo_redo::UndoRedoStack;

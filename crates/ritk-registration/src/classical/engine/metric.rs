@@ -1,4 +1,4 @@
-﻿//! Mutual Information similarity metric for classical registration.
+//! Mutual Information similarity metric for classical registration.
 
 use leto::{Array2, Array3, Storage};
 
@@ -18,7 +18,8 @@ pub struct MutualInformationMetric {
     /// Minimum intensity value for binning.
     min_intensity: f64,
     /// Width of each histogram bin.
-    bin_width: f64 }
+    bin_width: f64,
+}
 
 impl MutualInformationMetric {
     /// Create a new Mutual Information metric with explicit parameters.
@@ -27,7 +28,8 @@ impl MutualInformationMetric {
         Self {
             num_bins,
             min_intensity,
-            bin_width }
+            bin_width,
+        }
     }
 
     /// Compute joint histogram between two volumes.

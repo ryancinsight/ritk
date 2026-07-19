@@ -1,4 +1,4 @@
-﻿//! Resample subcommand -- resamples a 3-D image to new voxel spacing.
+//! Resample subcommand -- resamples a 3-D image to new voxel spacing.
 //!
 //! Physical extent E_d = N_d * S_d.
 //! Output size: N_d_prime = max(1, round(E_d / S_d_prime)).
@@ -7,10 +7,10 @@
 use anyhow::{bail, Result};
 use clap;
 use ritk_filter::resample::ResampleImageFilter;
-use ritk_image::tensor::Backend as BurnBackend;
-use ritk_image::tensor::{Shape, Tensor };
+use ritk_image::tensor::Tensor;
 use ritk_interpolation::{
-    BSplineInterpolator, Lanczos5Interpolator, LinearInterpolator, NearestNeighborInterpolator };
+    BSplineInterpolator, Lanczos5Interpolator, LinearInterpolator, NearestNeighborInterpolator,
+};
 use ritk_transform::TranslationTransform;
 use std::path::PathBuf;
 use tracing::info;
@@ -28,7 +28,8 @@ pub enum InterpolationMode {
     BSpline,
     /// Lanczos (windowed sinc, kernel radius 5): highest quality for
     /// downsampling. Matches SimpleITK's `sitkLanczosWindowedSinc`.
-    Lanczos }
+    Lanczos,
+}
 
 /// Resample an image to a new voxel spacing.
 #[derive(clap::Args, Debug)]
@@ -42,7 +43,8 @@ pub struct ResampleArgs {
     pub spacing: Vec<f64>,
     /// Interpolation mode.
     #[arg(long, value_enum, default_value_t = InterpolationMode::Linear)]
-    pub interpolation: InterpolationMode }
+    pub interpolation: InterpolationMode,
+}
 
 /// Execute the `resample` subcommand.
 pub fn run(args: ResampleArgs) -> Result<()> {
@@ -87,9 +89,8 @@ pub fn run(args: ResampleArgs) -> Result<()> {
 
     use ritk_spatial::Spacing;
     let new_spacing = Spacing::new([new_sz, new_sy, new_sx]);
-    let device: <Backend as BurnBackend>::Device = Default::default();
-    let zero_t =
-        Tensor::<f32, Backend>::from_data(::new(vec![0.0f32; 3], Shape::new([3])), &device);
+    let backend = Backend::default();
+    let zero_t = Tensor::<f32, Backend>::from_slice_on([3], &[0.0f32; 3], &backend);
 
     let result = match args.interpolation {
         InterpolationMode::Nearest => ResampleImageFilter::new(
@@ -127,7 +128,8 @@ pub fn run(args: ResampleArgs) -> Result<()> {
             TranslationTransform::<Backend, 3>::new(zero_t),
             Lanczos5Interpolator::new(),
         )
-        .apply(&image) };
+        .apply(&image),
+    };
 
     write_image_inferred(&args.output, &result)?;
     info!(
@@ -140,21 +142,21 @@ pub fn run(args: ResampleArgs) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::tensor::{Shape, Tensor };
+    use ritk_image::tensor::Tensor;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
     fn write_test_nifti(path: &std::path::Path, data: Vec<f32>, shape: [usize; 3], sp: [f64; 3]) {
-        let dev: <Backend as BurnBackend>::Device = Default::default();
-        let td = ::new(data, Shape::new(shape));
-        let t = Tensor::<f32, Backend>::from_data(td, &dev);
+        let backend = Backend::default();
+        let t = Tensor::<f32, Backend>::from_slice_on(shape, &data, &backend);
         let img = Image::new(
             t,
             Point::new([0.0; 3]),
             Spacing::new(sp),
             Direction::identity(),
-        );
+        )
+        .expect("invariant: tensor has the declared image rank");
         ritk_io::write_nifti::<Backend, _>(path, &img).expect("write ok");
     }
 
@@ -168,11 +170,12 @@ mod tests {
             input: input.clone(),
             output: output.clone(),
             spacing: vec![1.0, 1.0, 1.0],
-            interpolation: InterpolationMode::Linear };
+            interpolation: InterpolationMode::Linear,
+        };
         run(args).expect("resample must succeed");
         assert!(output.exists());
-        let dev: <Backend as BurnBackend>::Device = Default::default();
-        let loaded = ritk_io::read_nifti::<Backend, _>(&output, &dev).unwrap();
+        let backend = Backend::default();
+        let loaded = ritk_io::read_nifti::<Backend, _>(&output, &backend).unwrap();
         assert_eq!(loaded.shape(), [4, 4, 4], "shape preserved");
     }
 
@@ -186,23 +189,24 @@ mod tests {
         let dir = tempdir().unwrap();
         let input = dir.path().join("in.nrrd");
         let output = dir.path().join("out.nrrd");
-        let dev: <Backend as BurnBackend>::Device = Default::default();
-        let td = ::new(vec![1.0f32; 64], Shape::new([4, 4, 4]));
-        let t = Tensor::<f32, Backend>::from_data(td, &dev);
+        let backend = Backend::default();
+        let t = Tensor::<f32, Backend>::from_slice_on([4, 4, 4], &vec![1.0f32; 64], &backend);
         let img = Image::new(
             t,
             Point::new([0.0; 3]),
             Spacing::new([2.0, 2.0, 2.0]),
             Direction::identity(),
-        );
+        )
+        .expect("invariant: tensor has the declared image rank");
         ritk_io::write_nrrd::<Backend, _>(&input, &img).expect("write_nrrd must succeed");
         let args = ResampleArgs {
             input: input.clone(),
             output: output.clone(),
             spacing: vec![1.0, 1.0, 1.0],
-            interpolation: InterpolationMode::Linear };
+            interpolation: InterpolationMode::Linear,
+        };
         run(args).unwrap();
-        let loaded = ritk_io::read_nrrd::<Backend, _>(&output, &dev).unwrap();
+        let loaded = ritk_io::read_nrrd::<Backend, _>(&output, &backend).unwrap();
         assert_eq!(
             loaded.shape(),
             [8, 8, 8],
@@ -220,11 +224,14 @@ mod tests {
             input,
             output: output.clone(),
             spacing: vec![1.0, 1.0, 1.0],
-            interpolation: InterpolationMode::Nearest };
+            interpolation: InterpolationMode::Nearest,
+        };
         run(args).unwrap();
-        let dev: <Backend as BurnBackend>::Device = Default::default();
-        let loaded = ritk_io::read_nifti::<Backend, _>(&output, &dev).unwrap();
-        let vals = loaded.data_slice();
+        let backend = Backend::default();
+        let loaded = ritk_io::read_nifti::<Backend, _>(&output, &backend).unwrap();
+        let vals = loaded
+            .data_slice()
+            .expect("invariant: loaded image storage is contiguous");
         for &v in vals.iter() {
             assert!(
                 (v - 5.0).abs() < 1e-3,
@@ -247,7 +254,8 @@ mod tests {
             input,
             output,
             spacing: vec![1.0, 2.0],
-            interpolation: InterpolationMode::Linear };
+            interpolation: InterpolationMode::Linear,
+        };
         let result = run(args);
         assert!(result.is_err());
         let msg = result.unwrap_err().to_string();

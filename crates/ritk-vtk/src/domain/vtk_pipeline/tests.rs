@@ -1,4 +1,4 @@
-﻿//! Value-semantic tests for VtkPipeline, VtkSource, VtkFilter, and VtkSink.
+//! Value-semantic tests for VtkPipeline, VtkSource, VtkFilter, and VtkSink.
 
 use super::*;
 use crate::domain::mtime::{Modifiable, ModifiedTime};
@@ -25,13 +25,15 @@ impl VtkSource for StaticSource {
 /// A source whose mtime can be bumped externally for testing staleness detection.
 struct MutatingSource {
     data: VtkPolyData,
-    mtime: AtomicU64 }
+    mtime: AtomicU64,
+}
 
 impl MutatingSource {
     fn new(data: VtkPolyData) -> Self {
         Self {
             data,
-            mtime: AtomicU64::new(ModifiedTime::tick().value()) }
+            mtime: AtomicU64::new(ModifiedTime::tick().value()),
+        }
     }
 }
 
@@ -75,7 +77,8 @@ impl VtkFilter for TranslateFilter {
                 }
                 Ok(VtkDataObject::PolyData(p))
             }
-            other => Ok(other) }
+            other => Ok(other),
+        }
     }
 }
 
@@ -349,14 +352,16 @@ fn test_pipeline_source_mtime_change_triggers_rerun() {
     struct PostExecuteBumpingSource {
         data: VtkPolyData,
         mtime: AtomicU64,
-        mtime_call_count: AtomicUsize }
+        mtime_call_count: AtomicUsize,
+    }
 
     impl PostExecuteBumpingSource {
         fn new(data: VtkPolyData) -> Self {
             Self {
                 data,
                 mtime: AtomicU64::new(ModifiedTime::tick().value()),
-                mtime_call_count: AtomicUsize::new(0) }
+                mtime_call_count: AtomicUsize::new(0),
+            }
         }
     }
 

@@ -1,4 +1,4 @@
-﻿//! Diffusion regularization for displacement fields.
+//! Diffusion regularization for displacement fields.
 //!
 //! Diffusion regularization is a first-order regularization that penalizes
 //! spatial derivatives of the displacement field, encouraging smooth
@@ -38,7 +38,8 @@ use coeus_tensor::Tensor;
 /// ```
 #[derive(Clone, Debug)]
 pub struct DiffusionRegularizer {
-    weight: f64 }
+    weight: f64,
+}
 
 impl DiffusionRegularizer {
     /// Create a new diffusion regularizer.

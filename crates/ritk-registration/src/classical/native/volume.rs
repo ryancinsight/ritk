@@ -3,7 +3,7 @@
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use eunomia::CastFrom;
 use leto::Array3;
-use ritk_image::native::Image;
+use ritk_image::Image;
 
 use super::NativeConversionError;
 

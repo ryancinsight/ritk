@@ -1,4 +1,4 @@
-﻿//! VTK I/O module â€” free functions, VtkReader/VtkWriter wrappers, and sub-modules.
+//! VTK I/O module â€” free functions, VtkReader/VtkWriter wrappers, and sub-modules.
 
 pub mod polydata;
 pub use polydata::{read_vtk_polydata, write_vtk_polydata};
@@ -8,14 +8,16 @@ pub mod image_xml;
 pub use image_xml::{
     read_vti_binary_appended, read_vti_binary_appended_bytes, read_vti_image_data,
     write_vti_binary_appended_bytes, write_vti_binary_appended_to_file, write_vti_image_data,
-    write_vti_str };
+    write_vti_str,
+};
 pub mod struct_grid;
 pub mod unstruct_grid;
 pub use struct_grid::{read_vtk_structured_grid, write_vtk_structured_grid};
 pub use unstruct_grid::{read_vtk_unstructured_grid, write_vtk_unstructured_grid};
 pub mod unstructured_xml;
 pub use unstructured_xml::{
-    read_vtu_unstructured_grid, write_vtu_str, write_vtu_unstructured_grid };
+    read_vtu_unstructured_grid, write_vtu_str, write_vtu_unstructured_grid,
+};
 
 pub mod obj;
 pub use obj::{read_obj_mesh, write_obj_mesh};
@@ -29,7 +31,8 @@ pub use gltf::write_gltf;
 pub mod mesh_indexed;
 pub use mesh_indexed::{
     read_obj_indexed, read_ply_indexed, read_stl_indexed, write_indexed_glb, write_indexed_obj,
-    write_indexed_ply, write_indexed_stl_ascii, write_indexed_stl_binary };
+    write_indexed_ply, write_indexed_stl_ascii, write_indexed_stl_binary,
+};
 
 pub(crate) mod legacy_write_attribute;
 pub(crate) mod read_helpers;
@@ -43,7 +46,7 @@ pub use reader::{read_vtk, read_vtk_flat};
 pub use writer::{encode_vtk_flat, write_vtk};
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use std::path::Path;
 
 /// Simple wrapper for reading VTK legacy structured-points images.
@@ -51,7 +54,8 @@ use std::path::Path;
 /// Does not implement `ritk_io::ImageReader`; that wrapper lives in `ritk-io`
 /// to avoid orphan-rule violations.
 pub struct VtkReader<B: ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: ComputeBackend> VtkReader<B> {
     pub fn new(backend: B) -> Self {
@@ -69,7 +73,8 @@ impl<B: ComputeBackend> VtkReader<B> {
 /// Does not implement `ritk_io::ImageWriter`; that wrapper lives in `ritk-io`
 /// to avoid orphan-rule violations.
 pub struct VtkWriter<B: ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: ComputeBackend> VtkWriter<B> {
     pub fn new(backend: B) -> Self {

@@ -1,8 +1,8 @@
 use super::MorphologicalWatershed;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
@@ -80,7 +80,12 @@ fn morphological_watershed_native_matches_legacy_at_all_levels() {
         assert_eq!(filter.level(), level);
         let expected = filter.apply(&legacy).unwrap();
         let actual = filter.apply_native(&native, &SequentialBackend).unwrap();
-        assert_eq!(actual.data_slice().unwrap(), expected.data_slice().as_ref());
+        assert_eq!(
+            actual.data_slice().unwrap(),
+            expected
+                .data_slice()
+                .expect("invariant: contiguous host storage")
+        );
         assert_eq!(*actual.origin(), origin);
         assert_eq!(*actual.spacing(), spacing);
         assert_eq!(*actual.direction(), direction);

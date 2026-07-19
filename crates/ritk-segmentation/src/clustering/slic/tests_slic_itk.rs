@@ -14,8 +14,8 @@ use super::super::{
 use super::*;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::make_image;
+use ritk_image::Image as NativeImage;
 
 type B = SequentialBackend;
 
@@ -254,12 +254,16 @@ fn filter_native_legacy_and_sitk_outputs_are_exact() {
     let legacy_output = filter.apply(&legacy).unwrap();
     let native_output = filter.apply_native(&native, &SequentialBackend).unwrap();
     assert_eq!(
-        legacy_output.data_slice().as_ref(),
+        legacy_output
+            .data_slice()
+            .expect("invariant: contiguous host storage"),
         &FULL2D.map(|value| value as f32)
     );
     assert_eq!(
         native_output.data_slice().unwrap(),
-        legacy_output.data_slice().as_ref()
+        legacy_output
+            .data_slice()
+            .expect("invariant: contiguous host storage")
     );
     assert_eq!(*native_output.origin(), Point::new([2.0, 3.0, 5.0]));
     assert_eq!(*native_output.spacing(), Spacing::new([0.5, 1.0, 2.0]));
@@ -377,7 +381,12 @@ fn itk_slic_policies_and_accessors_route_exactly() {
             perturbation == InitializationPerturbation::Enabled,
             connectivity == ConnectivityEnforcement::Enabled,
         );
-        assert_eq!(actual.data_slice().as_ref(), expected);
+        assert_eq!(
+            actual
+                .data_slice()
+                .expect("invariant: contiguous host storage"),
+            expected
+        );
     }
 }
 
@@ -392,7 +401,9 @@ fn itk_slic_extreme_representable_weight_keeps_exact_labels() {
         .with_connectivity(ConnectivityEnforcement::Disabled);
     let labels = ItkSlicFilter::new(config).apply(&image).unwrap();
     assert_eq!(
-        labels.data_slice().as_ref(),
+        labels
+            .data_slice()
+            .expect("invariant: contiguous host storage"),
         &[0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 2.0, 2.0, 3.0, 3.0]
     );
 }

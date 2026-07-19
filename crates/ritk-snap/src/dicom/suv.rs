@@ -1,4 +1,4 @@
-﻿//! Standard Uptake Value â€” body-weight normalisation (SUVbw).
+//! Standard Uptake Value â€” body-weight normalisation (SUVbw).
 //!
 //! # Mathematical specification
 //!
@@ -65,7 +65,8 @@ pub struct SuvParams {
     ///
     /// Set to `1.0` when DICOM pixels are already decay-corrected to injection
     /// time (Decay Correction = "START").
-    pub decay_factor: f64 }
+    pub decay_factor: f64,
+}
 
 impl SuvParams {
     /// Construct `SuvParams` for decay-corrected DICOM pixels.
@@ -85,7 +86,8 @@ impl SuvParams {
         Self {
             injected_dose_bq,
             patient_weight_g,
-            decay_factor: 1.0 }
+            decay_factor: 1.0,
+        }
     }
 
     /// Construct `SuvParams` with physical decay correction.
@@ -132,7 +134,8 @@ impl SuvParams {
         Self {
             injected_dose_bq,
             patient_weight_g,
-            decay_factor }
+            decay_factor,
+        }
     }
 }
 

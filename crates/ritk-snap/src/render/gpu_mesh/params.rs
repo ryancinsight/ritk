@@ -1,4 +1,4 @@
-﻿//! GPU uniform buffer structs and SSAO kernel for mesh rendering.
+//! GPU uniform buffer structs and SSAO kernel for mesh rendering.
 //!
 //! # Layout invariants (std140 / WebGPU alignment)
 //!
@@ -32,7 +32,8 @@ pub(super) struct MeshVertex {
     pub _pad0: f32,
     /// World-space normal (unit length).
     pub normal: [f32; 3],
-    pub _pad1: f32 }
+    pub _pad1: f32,
+}
 
 impl MeshVertex {
     pub const STRIDE: u64 = 32;
@@ -50,12 +51,15 @@ impl MeshVertex {
                 VertexAttribute {
                     offset: 0,
                     shader_location: 0,
-                    format: VertexFormat::Float32x4 },
+                    format: VertexFormat::Float32x4,
+                },
                 VertexAttribute {
                     offset: 16,
                     shader_location: 1,
-                    format: VertexFormat::Float32x4 },
-            ] }
+                    format: VertexFormat::Float32x4,
+                },
+            ],
+        }
     }
 }
 
@@ -74,7 +78,8 @@ pub(super) struct SceneUniforms {
     pub mvp: [f32; 16],
     pub mv: [f32; 16],
     pub peel_pass: u32,
-    pub _pad: [u32; 3] }
+    pub _pad: [u32; 3],
+}
 
 // â”€â”€ Light uniforms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -93,13 +98,15 @@ pub(super) struct LightUniform {
     pub _pad1: f32,
     /// RGB ambient contribution in [0, 1].
     pub ambient: [f32; 3],
-    pub _pad2: f32 }
+    pub _pad2: f32,
+}
 
 /// Block of 2 directional lights. 2 Ã— 48 = 96 bytes.
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub(super) struct LightBlock {
-    pub lights: [LightUniform; 2] }
+    pub lights: [LightUniform; 2],
+}
 
 // â”€â”€ Material uniforms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -114,7 +121,8 @@ pub(super) struct LightBlock {
 pub(super) struct MaterialUniforms {
     pub diffuse: [f32; 4],
     pub specular_shine: [f32; 4],
-    pub opacity_pad: [f32; 4] }
+    pub opacity_pad: [f32; 4],
+}
 
 // â”€â”€ SSAO uniforms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -138,7 +146,8 @@ pub(super) struct SsaoUniforms {
     pub strength: f32,
     pub viewport_w: u32,
     pub viewport_h: u32,
-    pub _pad: [u32; 2] }
+    pub _pad: [u32; 2],
+}
 
 // â”€â”€ Composite uniforms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -148,7 +157,8 @@ pub(super) struct SsaoUniforms {
 pub(super) struct CompositeUniforms {
     pub rows: u32,
     pub cols: u32,
-    pub _pad: [u32; 2] }
+    pub _pad: [u32; 2],
+}
 
 // â”€â”€ SSAO hemisphere kernel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 

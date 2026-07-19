@@ -1,6 +1,6 @@
-﻿//! Gaussian-family smoothing filters: FIR Gaussian, discrete Gaussian, and recursive Gaussian (IIR).
+//! Gaussian-family smoothing filters: FIR Gaussian, discrete Gaussian, and recursive Gaussian (IIR).
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
@@ -13,7 +13,8 @@ use std::sync::Arc;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PySpacingMode {
     Physical,
-    Voxel }
+    Voxel,
+}
 
 /// Apply Gaussian smoothing to an image.
 ///
@@ -71,8 +72,9 @@ pub fn discrete_gaussian(
     py.allow_threads(|| {
         let spacing_mode = match spacing_mode {
             PySpacingMode::Physical => ritk_filter::discrete_gaussian::SpacingMode::Physical,
-            PySpacingMode::Voxel => ritk_filter::discrete_gaussian::SpacingMode::Voxel };
-        let filter = DiscreteGaussianFilter::<crate::image::BurnBackend>::new(vec![
+            PySpacingMode::Voxel => ritk_filter::discrete_gaussian::SpacingMode::Voxel,
+        };
+        let filter = DiscreteGaussianFilter::<crate::image::Backend>::new(vec![
             ritk_filter::GaussianSigma::new(variance.sqrt())
                 .expect("invariant: variance must be positive (validated by caller)"),
         ])
@@ -109,7 +111,7 @@ pub fn discrete_gaussian_derivative(
     use_image_spacing: bool,
 ) -> PyImage {
     // TODO: migrate once DiscreteGaussianDerivativeFilter gains apply_native.
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     // sitk (x, y, z) â†’ ritk axis-major (z, y, x).
     let order = [order_z, order_y, order_x];
     let result = py.allow_threads(|| {
@@ -121,7 +123,7 @@ pub fn discrete_gaussian_derivative(
         )
         .apply(&image)
     });
-    burn_into_py_image(result)
+    into_py_image(result)
 }
 
 /// Apply a recursive Gaussian (Youngâ€“van Vliet 3rd-order IIR) filter.

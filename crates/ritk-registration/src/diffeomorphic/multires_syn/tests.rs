@@ -1,4 +1,4 @@
-﻿use super::super::local_cc::{cc_forces, mean_local_cc};
+use super::super::local_cc::{cc_forces, mean_local_cc};
 use super::pyramid::{downsample, upsample_field};
 use super::{InverseConsistency, MultiResSyNConfig, MultiResSyNRegistration};
 
@@ -45,7 +45,8 @@ fn make_config(num_levels: usize, iters: Vec<usize>, ic: bool) -> MultiResSyNCon
             InverseConsistency::Enforced
         } else {
             InverseConsistency::Relaxed
-        } }
+        },
+    }
 }
 
 // â”€â”€ Downsample / upsample â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

@@ -3,7 +3,7 @@
 use coeus_core::ComputeBackend;
 use eunomia::CastFrom;
 use leto::FixedMatrix;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_transform::transform::affine::AtlasAffineTransform;
 
 use crate::types::AffineTransform;

@@ -1,4 +1,4 @@
-﻿//! ISO 14495-1 context model for JPEG-LS lossless decoding.
+//! ISO 14495-1 context model for JPEG-LS lossless decoding.
 //!
 //! # Context Selection (ISO 14495-1 Â§A.2)
 //! For each sample, three local gradients D1, D2, D3 are computed from the
@@ -24,7 +24,8 @@ pub(crate) struct ContextState {
     /// Predictor bias correction value (C, clamped to [MIN_C, MAX_C]).
     pub(crate) c: i32,
     /// Sample count (N, initialized to 1).
-    pub(crate) n: u32 }
+    pub(crate) n: u32,
+}
 
 impl Default for ContextState {
     /// Returns the ISO 14495-1 initial state: n=1 (avoids zero-division in k computation).
@@ -33,7 +34,8 @@ impl Default for ContextState {
             a: 0,
             b: 0,
             c: 0,
-            n: 1 }
+            n: 1,
+        }
     }
 }
 
@@ -58,7 +60,8 @@ pub(crate) struct ContextModel {
     /// Run-interrupt context for `RItype = 1` (Â§A.6).
     pub(crate) run_int_same: RunInterruptionContext,
     /// Run-mode Golomb J-table index per component (Â§A.6.4, Rl).
-    pub(crate) run_index: usize }
+    pub(crate) run_index: usize,
+}
 
 impl ContextModel {
     /// Initialize all context states.
@@ -70,12 +73,14 @@ impl ContextModel {
             a: a_init,
             b: 0,
             c: 0,
-            n: 1 };
+            n: 1,
+        };
         Self {
             regular: [s; CONTEXTS],
             run_int_diff: RunInterruptionContext::new(0, a_init),
             run_int_same: RunInterruptionContext::new(1, a_init),
-            run_index: 0 }
+            run_index: 0,
+        }
     }
 }
 
@@ -85,7 +90,8 @@ pub(crate) struct RunInterruptionContext {
     run_interruption_type: u32,
     a: u32,
     n: u32,
-    nn: u32 }
+    nn: u32,
+}
 
 impl RunInterruptionContext {
     pub(crate) const fn new(run_interruption_type: u32, a_init: u32) -> Self {
@@ -93,7 +99,8 @@ impl RunInterruptionContext {
             run_interruption_type,
             a: a_init,
             n: 1,
-            nn: 0 }
+            nn: 0,
+        }
     }
 
     #[inline(always)]
@@ -313,7 +320,8 @@ pub(crate) struct CodingParams {
     /// Context initialisation value `max(2, (RANGE + 32)/64)`.
     pub(crate) a_init: u32,
     /// NEAR bound (0 = lossless).
-    pub(crate) near: i32 }
+    pub(crate) near: i32,
+}
 
 impl CodingParams {
     pub(crate) fn new(bpp: u32, near: i32) -> Self {
@@ -328,7 +336,8 @@ impl CodingParams {
             qbpp,
             limit,
             a_init,
-            near }
+            near,
+        }
     }
 }
 

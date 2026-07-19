@@ -1,4 +1,4 @@
-﻿//! Histogram canvas interaction SSOT.
+//! Histogram canvas interaction SSOT.
 //!
 //! # Overview
 //!
@@ -80,7 +80,8 @@ pub struct HistogramCanvasGeometry {
     pub canvas_width: f32,
     pub canvas_height: f32,
     pub hist_min: f32,
-    pub hist_max: f32 }
+    pub hist_max: f32,
+}
 
 /// Compute updated `(window_center, window_width)` from a histogram canvas
 /// pointer drag delta.
@@ -105,7 +106,8 @@ pub fn wl_from_histogram_drag(
         canvas_width,
         canvas_height,
         hist_min,
-        hist_max } = canvas;
+        hist_max,
+    } = canvas;
     let intensity_span = hist_max - hist_min;
     if intensity_span <= 0.0 || canvas_width <= 0.0 {
         return (current_center, current_width);

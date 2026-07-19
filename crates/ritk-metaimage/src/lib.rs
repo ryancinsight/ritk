@@ -1,4 +1,4 @@
-﻿//! MetaImage (MHA/MHD) I/O for RITK.
+//! MetaImage (MHA/MHD) I/O for RITK.
 //!
 //! This crate provides canonical single-source-of-truth implementations for reading and writing
 //! MetaImage files (.mha / .mhd format). It separates MetaImage logic from the polymorphic I/O
@@ -34,12 +34,13 @@ pub use reader::{read_metaimage, MetaImageReader};
 pub use writer::{write_metaimage, write_metaimage_with_data, MetaImageWriter};
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use std::path::Path;
 
 /// DIP boundary executing strict spatial metadata preservation over standard MetaImage datasets.
 pub struct MetaImageDipReader<B: ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: ComputeBackend> MetaImageDipReader<B> {
     pub fn new(backend: B) -> Self {
@@ -53,7 +54,8 @@ impl<B: ComputeBackend> MetaImageDipReader<B> {
 
 /// DIP boundary executing strict spatial metadata preservation over standard MetaImage datasets.
 pub struct MetaImageDipWriter<B: ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: ComputeBackend> MetaImageDipWriter<B> {
     pub fn new(backend: B) -> Self {

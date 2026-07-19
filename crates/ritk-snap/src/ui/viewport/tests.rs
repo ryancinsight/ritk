@@ -1,4 +1,4 @@
-﻿//! Viewport unit tests.
+//! Viewport unit tests.
 
 use super::state::{img_to_screen, img_to_volume, screen_to_img, screen_to_img_exact, slice_dims};
 use super::*;
@@ -27,7 +27,8 @@ fn make_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None }
+        decay_correction: None,
+    }
 }
 
 // â”€â”€ image_transform â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

@@ -1,4 +1,4 @@
-﻿//! Differentiable coordinate transforms on Coeus autograd `Var`s.
+//! Differentiable coordinate transforms on Coeus autograd `Var`s.
 //!
 //! The transform maps a fixed-image sampling grid into moving-image coordinate
 //! space as a function of trainable parameters; its output feeds
@@ -77,7 +77,8 @@ where
     B: ComputeBackend + BackendOps<T> + Default,
 {
     /// Translation vector, shape `[3]`; mark `requires_grad` to optimize it.
-    pub t: Var<T, B> }
+    pub t: Var<T, B>,
+}
 
 impl<T, B> Transform<T, B> for Translation<T, B>
 where
@@ -108,7 +109,8 @@ where
     /// Linear map, shape `[3, 3]`.
     pub r: Var<T, B>,
     /// Translation vector, shape `[3]`.
-    pub t: Var<T, B> }
+    pub t: Var<T, B>,
+}
 
 impl<T, B> Transform<T, B> for Affine<T, B>
 where

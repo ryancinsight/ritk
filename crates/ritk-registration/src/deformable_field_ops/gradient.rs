@@ -1,4 +1,4 @@
-﻿//! Image gradient computation via finite differences.
+//! Image gradient computation via finite differences.
 
 use super::{flat, VelocityField};
 use ritk_spatial::VolumeDims;
@@ -88,7 +88,8 @@ pub(crate) fn compute_gradient(data: &[f32], dims: VolumeDims, spacing: [f64; 3]
     VelocityField {
         z: gz,
         y: gy,
-        x: gx }
+        x: gx,
+    }
 }
 
 #[cfg(test)]

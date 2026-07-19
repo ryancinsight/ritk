@@ -1,4 +1,4 @@
-﻿//! Differentiable linear/trilinear image sampling on Coeus autograd `Var`s.
+//! Differentiable linear/trilinear image sampling on Coeus autograd `Var`s.
 //!
 //! Interpolates an image at continuous coordinates such that the gradient of
 //! the sampled values flows back to the **coordinate** leaves. This is the step
@@ -43,7 +43,8 @@ where
     w0: Var<T, B>,
     w1: Var<T, B>,
     idx0: Vec<usize>,
-    idx1: Vec<usize> }
+    idx1: Vec<usize>,
+}
 
 /// Decompose one coordinate axis (`coords`, shape `[N]`) against an `extent`
 /// (`[0, extent-1]`) into its corner weights and clamped corner indices.
@@ -211,7 +212,8 @@ where
                 let term = mul(&value, &weight);
                 acc = Some(match acc {
                     Some(prev) => add(&prev, &term),
-                    None => term });
+                    None => term,
+                });
             }
         }
     }

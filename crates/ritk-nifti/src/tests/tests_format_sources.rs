@@ -1,4 +1,4 @@
-﻿//! NIfTI format-source and import coverage.
+//! NIfTI format-source and import coverage.
 
 use super::*;
 use std::path::PathBuf;
@@ -8,7 +8,8 @@ struct RepositoryFixtureSource {
     relative_path: &'static str,
     format: &'static str,
     source: &'static str,
-    license: &'static str }
+    license: &'static str,
+}
 
 const REPOSITORY_NIFTI_SOURCES: &[RepositoryFixtureSource] = &[RepositoryFixtureSource {
     name: "MNI152 atlas copy used as brain_fixed",
@@ -132,13 +133,15 @@ fn imports_generated_uint8_nifti1_fixture() -> Result<()> {
         HeaderDims {
             nx: 4,
             ny: 3,
-            nz: 2 },
+            nz: 2,
+        },
         NiftiDatatype::Uint8,
         HeaderSpatial {
             pixdim: [1.0, 0.5, 0.75, 1.25, 1.0, 1.0, 1.0, 1.0],
             srow_x: [-0.5, 0.0, 0.0, 1.0],
             srow_y: [0.0, -0.75, 0.0, 2.0],
-            srow_z: [0.0, 0.0, 1.25, 3.0] },
+            srow_z: [0.0, 0.0, 1.25, 3.0],
+        },
     )?;
     let values = (0..24).map(|value| value as u8).collect::<Vec<_>>();
     let bytes = write_single_file_bytes(&header, &values);

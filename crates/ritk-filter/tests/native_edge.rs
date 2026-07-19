@@ -5,7 +5,7 @@ use ritk_filter::{
     CannyEdgeDetector, GaussianSigma, GradientImageFilter, GradientMagnitudeFilter,
     GradientRecursiveGaussianImageFilter, LaplacianFilter, LaplacianOfGaussianFilter, SobelFilter,
 };
-use ritk_image::native::{ColorVolume, Image};
+use ritk_image::{ColorVolume, Image};
 use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;

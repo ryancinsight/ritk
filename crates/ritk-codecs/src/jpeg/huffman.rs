@@ -1,4 +1,4 @@
-﻿//! JPEG Huffman table construction and entropy-coded bit reader.
+//! JPEG Huffman table construction and entropy-coded bit reader.
 //!
 //! # Specification
 //! ITU-T T.81 Â§C.1: Canonical Huffman tables are derived from BITS[1..16]
@@ -25,7 +25,8 @@ pub(crate) struct HuffmanTable {
     pub(crate) maxcode: [i32; MAX_CODE_LEN],
     pub(crate) mincode: [i32; MAX_CODE_LEN],
     pub(crate) valptr: [usize; MAX_CODE_LEN],
-    pub(crate) huffval: [u8; MAX_HUFFVAL] }
+    pub(crate) huffval: [u8; MAX_HUFFVAL],
+}
 
 impl HuffmanTable {
     /// Build a canonical Huffman table from `bits[0..15]` (one-indexed lengths
@@ -68,7 +69,8 @@ impl HuffmanTable {
             maxcode,
             mincode,
             valptr,
-            huffval: hv })
+            huffval: hv,
+        })
     }
 
     /// Decode one symbol using the given `BitReader`.
@@ -100,7 +102,8 @@ pub(crate) struct BitReader<'a> {
     pub(crate) data: &'a [u8],
     pub(crate) pos: usize,
     pub(crate) buf: u32,
-    pub(crate) avail: u8 }
+    pub(crate) avail: u8,
+}
 
 impl<'a> BitReader<'a> {
     pub(crate) fn new(data: &'a [u8]) -> Self {
@@ -108,7 +111,8 @@ impl<'a> BitReader<'a> {
             data,
             pos: 0,
             buf: 0,
-            avail: 0 }
+            avail: 0,
+        }
     }
 
     /// Read the next raw byte with byte-stuffing removal.

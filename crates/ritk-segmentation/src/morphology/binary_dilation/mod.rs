@@ -57,6 +57,7 @@ impl BinaryDilation {
         let output = dilate_nd(flat, &shape, self.radius);
         let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device);
         Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
+            .expect("invariant: segmentation output tensor preserves the image rank")
     }
 
     /// Apply dilation to a Coeus-native binary mask image.
@@ -67,14 +68,14 @@ impl BinaryDilation {
     /// or the native output image cannot be constructed.
     pub fn apply_native<B, const D: usize>(
         &self,
-        mask: &ritk_image::native::Image<f32, B, D>,
+        mask: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
+        ritk_image::Image::from_flat_on(
             dilate_nd(mask.data_slice()?, &mask.shape(), self.radius),
             mask.shape(),
             *mask.origin(),

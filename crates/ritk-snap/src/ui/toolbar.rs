@@ -1,4 +1,4 @@
-﻿//! Menu-based toolbar for the ritk-snap viewer.
+//! Menu-based toolbar for the ritk-snap viewer.
 //!
 //! # Layout
 //!
@@ -59,7 +59,8 @@ use egui::Ui;
 use crate::{
     render::{colormap::Colormap, slice_render::WindowLevel},
     tools::kind::ToolKind,
-    ui::{layout::LayoutMode, window_presets::WindowPreset} };
+    ui::{layout::LayoutMode, window_presets::WindowPreset},
+};
 
 // â”€â”€ ToolbarState â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -75,7 +76,8 @@ pub struct ToolbarState {
     /// The active viewport layout.
     pub layout_mode: LayoutMode,
     /// Whether measurement annotations are visible.
-    pub show_measurements: bool }
+    pub show_measurements: bool,
+}
 
 impl Default for ToolbarState {
     fn default() -> Self {
@@ -84,7 +86,8 @@ impl Default for ToolbarState {
             show_series_browser: true,
             show_metadata_panel: false,
             layout_mode: LayoutMode::TwoByTwo,
-            show_measurements: true }
+            show_measurements: true,
+        }
     }
 }
 
@@ -99,7 +102,8 @@ pub struct ToolbarPanel<'a> {
     /// Active colormap applied to all viewports.
     pub active_colormap: &'a mut Colormap,
     /// DICOM modality hint from the loaded volume (e.g. `"CT"`, `"MR"`).
-    pub modality_hint: Option<&'a str> }
+    pub modality_hint: Option<&'a str>,
+}
 
 impl<'a> ToolbarPanel<'a> {
     /// Construct a toolbar panel.
@@ -113,7 +117,8 @@ impl<'a> ToolbarPanel<'a> {
             state,
             active_wl,
             active_colormap,
-            modality_hint }
+            modality_hint,
+        }
     }
 
     /// Render the menu bar into `ui`.

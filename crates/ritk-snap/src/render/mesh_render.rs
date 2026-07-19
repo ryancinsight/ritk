@@ -1,4 +1,4 @@
-﻿//! CPU Phong-shaded surface mesh renderer (GAP-262-VIZ-02).
+//! CPU Phong-shaded surface mesh renderer (GAP-262-VIZ-02).
 //!
 //! # Overview
 //!
@@ -49,7 +49,8 @@ pub struct MeshCamera {
     /// Near clip plane distance (must be > 0).
     pub near: f32,
     /// Far clip plane distance (must be > near).
-    pub far: f32 }
+    pub far: f32,
+}
 
 impl Default for MeshCamera {
     fn default() -> Self {
@@ -60,7 +61,8 @@ impl Default for MeshCamera {
             fov_y: PI / 4.0,
             aspect: 1.0,
             near: 0.1,
-            far: 1000.0 }
+            far: 1000.0,
+        }
     }
 }
 
@@ -74,7 +76,8 @@ pub struct PhongMaterial {
     pub specular: [f32; 3],
     pub shininess: f32,
     /// Overall opacity [0, 1].
-    pub opacity: f32 }
+    pub opacity: f32,
+}
 
 impl Default for PhongMaterial {
     fn default() -> Self {
@@ -83,7 +86,8 @@ impl Default for PhongMaterial {
             diffuse: [0.8, 0.8, 0.8],
             specular: [0.5, 0.5, 0.5],
             shininess: 32.0,
-            opacity: 1.0 }
+            opacity: 1.0,
+        }
     }
 }
 
@@ -95,13 +99,15 @@ pub struct DirectionalLight {
     /// Unit direction toward the light (world space, normalized).
     pub direction: [f32; 3],
     /// Light color RGB in [0, 1].
-    pub color: [f32; 3] }
+    pub color: [f32; 3],
+}
 
 impl Default for DirectionalLight {
     fn default() -> Self {
         Self {
             direction: normalize([1.0, 1.0, 1.0]),
-            color: [1.0, 1.0, 1.0] }
+            color: [1.0, 1.0, 1.0],
+        }
     }
 }
 
@@ -113,7 +119,8 @@ impl Default for DirectionalLight {
 /// `[height * width * 4]` in row-major order.
 pub struct MeshRenderer {
     pub width: usize,
-    pub height: usize }
+    pub height: usize,
+}
 
 impl MeshRenderer {
     /// Create a renderer for a viewport of the given pixel dimensions.

@@ -1,4 +1,4 @@
-﻿//! Tests for atlas registration.
+//! Tests for atlas registration.
 
 use super::*;
 use crate::diffeomorphic::multires_syn::InverseConsistency;
@@ -14,14 +14,16 @@ fn test_syn_config() -> MultiResSyNConfig {
         n_squarings: 2,
         cc_window_radius: 1,
         gradient_step: 0.25,
-        enforce_inverse_consistency: InverseConsistency::Relaxed }
+        enforce_inverse_consistency: InverseConsistency::Relaxed,
+    }
 }
 
 fn test_atlas_config() -> AtlasConfig {
     AtlasConfig {
         max_iterations: 3,
         convergence_threshold: 1e-3,
-        syn_config: test_syn_config() }
+        syn_config: test_syn_config(),
+    }
 }
 
 // â”€â”€ Positive tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

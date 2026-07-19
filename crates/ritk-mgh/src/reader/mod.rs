@@ -1,4 +1,4 @@
-﻿//! MGH / MGZ reader for 3-D volumetric images.
+//! MGH / MGZ reader for 3-D volumetric images.
 //!
 //! Voxels are stored in MGH Fortran order `x + y*nx + z*nx*ny`, which is
 //! identical to RITK row-major `[z, y, x]` order. No axis permutation is
@@ -11,7 +11,7 @@ use crate::{is_gzip_path, MRI_FLOAT, MRI_INT, MRI_SHORT, MRI_UCHAR, PADDING_LEN,
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
 use flate2::read::GzDecoder;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
@@ -48,7 +48,8 @@ struct DecodedMgh {
     dims: [usize; 3],
     origin: ritk_spatial::Point<3>,
     spacing: ritk_spatial::Spacing<3>,
-    direction: ritk_spatial::Direction<3> }
+    direction: ritk_spatial::Direction<3>,
+}
 
 fn read_mgh_from_reader<B: ComputeBackend, R: Read>(
     reader: &mut R,
@@ -59,7 +60,8 @@ fn read_mgh_from_reader<B: ComputeBackend, R: Read>(
         dims,
         origin,
         spacing,
-        direction } = decode_mgh(reader)?;
+        direction,
+    } = decode_mgh(reader)?;
     Image::from_flat_on(data, dims, origin, spacing, direction, backend)
 }
 
@@ -153,7 +155,8 @@ fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
         dims: [nz, ny, nx],
         origin,
         spacing,
-        direction })
+        direction,
+    })
 }
 
 fn read_direction_columns<R: Read>(reader: &mut R) -> Result<[[f32; 3]; 3]> {
@@ -181,7 +184,8 @@ fn decode_voxels(mri_type: i32, raw: &[u8]) -> Vec<f32> {
             .chunks_exact(4)
             .map(|c| f32::from_be_bytes([c[0], c[1], c[2], c[3]]))
             .collect(),
-        _ => unreachable!("bytes_per_voxel validates the type code") }
+        _ => unreachable!("bytes_per_voxel validates the type code"),
+    }
 }
 
 /// Stateless reader for MGH / MGZ files.

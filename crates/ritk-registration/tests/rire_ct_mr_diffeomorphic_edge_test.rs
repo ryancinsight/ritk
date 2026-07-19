@@ -1,4 +1,4 @@
-﻿//! RIRE CT/MR T1 diffeomorphic edge-case integration tests.
+//! RIRE CT/MR T1 diffeomorphic edge-case integration tests.
 //!
 //! These tests validate inverse-transform recovery and ground-truth alignment
 //! improvements for the CTâ†”MRI T1 pair. They require the RIRE test data under
@@ -22,7 +22,8 @@ mod common;
 use coeus_core::SequentialBackend;
 use common::{
     downsample_stride, find_rire_dir, ncc, normalize_minmax, resample_mri_into_ct_space, GT_ROT,
-    GT_TRANS };
+    GT_TRANS,
+};
 use ritk_io::{format::metaimage::native::MetaImageReader, ImageReader};
 
 /// # Specification

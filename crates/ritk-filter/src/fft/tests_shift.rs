@@ -19,6 +19,7 @@ fn make_complex_2d(vals: &[f32], h: usize, cw: usize) -> Image<f32, B, 2> {
         Spacing::new([1.0_f64, 1.0_f64]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 fn make_complex_3d(vals: &[f32], depth: usize, h: usize, cw: usize) -> Image<f32, B, 3> {
@@ -29,6 +30,7 @@ fn make_complex_3d(vals: &[f32], depth: usize, h: usize, cw: usize) -> Image<f32
         Spacing::new([1.0_f64, 1.0_f64, 1.0_f64]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 // â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

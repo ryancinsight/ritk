@@ -16,7 +16,7 @@ use super::{make_image, F32_TOL};
 use crate::image_comparison as burn_metrics;
 use crate::image_comparison::native as native_metrics;
 use coeus_core::MoiraiBackend;
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Native adapter and Burn adapter share the identical host core → bitwise equal.

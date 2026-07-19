@@ -1,4 +1,4 @@
-﻿//! Overlay composition state for annotation rendering.
+//! Overlay composition state for annotation rendering.
 //!
 //! Mathematical specification:
 //!   O = (image_overlays, contour_overlays, mask_overlays)
@@ -23,7 +23,8 @@ pub enum Visibility {
     Hidden,
     /// Overlay is rendered.
     #[default]
-    Visible }
+    Visible,
+}
 
 /// Normalized opacity value in the closed interval `[0.0, 1.0]`.
 ///
@@ -73,7 +74,8 @@ pub enum Colormap {
     Hot,
     Cool,
     Jet,
-    Custom(Vec<[f32; 4]>) }
+    Custom(Vec<[f32; 4]>),
+}
 
 /// Secondary image overlay. Invariant: data.len() == dims product.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,7 +85,8 @@ pub struct ImageOverlay {
     pub dims: VolumeDims,
     pub opacity: Opacity,
     pub colormap: Colormap,
-    pub visible: Visibility }
+    pub visible: Visibility,
+}
 impl ImageOverlay {
     /// Panics when `data.len() != dims.total_voxels()`.
     pub fn new(name: impl Into<String>, data: Vec<f32>, dims: impl Into<VolumeDims>) -> Self {
@@ -103,7 +106,8 @@ impl ImageOverlay {
             dims,
             opacity: Opacity::new(1.0),
             colormap: Colormap::Grayscale,
-            visible: Visibility::Visible }
+            visible: Visibility::Visible,
+        }
     }
     pub fn with_opacity(mut self, v: f32) -> Self {
         self.opacity = Opacity::new(v);
@@ -127,7 +131,8 @@ pub struct ContourOverlay {
     pub contours: Vec<Vec<[f64; 3]>>,
     pub color: RgbaLinear,
     pub line_width: f32,
-    pub visible: Visibility }
+    pub visible: Visibility,
+}
 impl ContourOverlay {
     pub fn new(name: impl Into<String>, label_id: impl Into<LabelId>) -> Self {
         Self {
@@ -136,7 +141,8 @@ impl ContourOverlay {
             contours: Vec::new(),
             color: RgbaLinear::new(1.0, 1.0, 1.0, 1.0),
             line_width: 1.0,
-            visible: Visibility::Visible }
+            visible: Visibility::Visible,
+        }
     }
     /// Returns `Err` when `pts.len() < 2`.
     pub fn add_contour(&mut self, pts: Vec<[f64; 3]>) -> Result<(), String> {
@@ -163,7 +169,8 @@ pub struct MaskOverlay {
     pub data: Vec<u32>,
     pub dims: VolumeDims,
     pub opacity: Opacity,
-    pub visible: Visibility }
+    pub visible: Visibility,
+}
 impl MaskOverlay {
     /// Panics when `data.len() != dims.total_voxels()`.
     pub fn new(name: impl Into<String>, data: Vec<u32>, dims: impl Into<VolumeDims>) -> Self {
@@ -182,7 +189,8 @@ impl MaskOverlay {
             data,
             dims,
             opacity: Opacity::new(0.5),
-            visible: Visibility::Visible }
+            visible: Visibility::Visible,
+        }
     }
     pub fn with_opacity(mut self, v: f32) -> Self {
         self.opacity = Opacity::new(v);
@@ -204,7 +212,8 @@ impl MaskOverlay {
 pub struct OverlayState {
     pub image_overlays: Vec<ImageOverlay>,
     pub contour_overlays: Vec<ContourOverlay>,
-    pub mask_overlays: Vec<MaskOverlay> }
+    pub mask_overlays: Vec<MaskOverlay>,
+}
 impl OverlayState {
     pub fn new() -> Self {
         Self::default()

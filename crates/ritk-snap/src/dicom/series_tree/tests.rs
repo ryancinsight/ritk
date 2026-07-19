@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 use std::path::{Path, PathBuf};
 
 /// Build a synthetic `SeriesEntry` for testing purposes.
@@ -21,7 +21,8 @@ fn make_entry<'a>(
         series_description: Cow::Owned(format!("{modality} series")),
         num_slices,
         study_date: study_date.map(Cow::Borrowed),
-        study_uid: study_uid.map(Cow::Borrowed) }
+        study_uid: study_uid.map(Cow::Borrowed),
+    }
 }
 
 /// Three series across two patients must produce exactly two patient nodes.
@@ -273,7 +274,8 @@ fn test_gat_series_entry_view() {
         folder: Cow::Borrowed(Path::new("/s1")),
         modality: Cow::Borrowed("CT"),
         series_description: Cow::Borrowed("CT series"),
-        num_slices: 10 };
+        num_slices: 10,
+    };
 
     fn check_gat<V: SeriesEntryView>(view: &V) {
         assert_eq!(view.series_uid().as_ref(), "S1");
@@ -323,7 +325,8 @@ fn test_monomorphized_format_series_label() {
         series_description: Cow::Borrowed(""),
         num_slices: 15,
         study_date: None,
-        study_uid: None };
+        study_uid: None,
+    };
     let label2 = format_series_label(&empty_desc_entry, &DEFAULT_MODALITY_MAPPER);
     assert_eq!(label2, "ðŸ§  [MR] my_folder (15 slices)");
 }
@@ -349,7 +352,8 @@ fn test_bench_tree_construction() {
             series_description: Cow::Borrowed("Bench CT"),
             num_slices: 100,
             study_date: Some(Cow::Borrowed("20260615")),
-            study_uid: Some(Cow::Owned(study_uid)) });
+            study_uid: Some(Cow::Owned(study_uid)),
+        });
     }
 
     let start = Instant::now();

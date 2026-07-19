@@ -1,4 +1,4 @@
-﻿//! VTK-style observer/event notification system.
+//! VTK-style observer/event notification system.
 //!
 //! # Mathematical Specification
 //!
@@ -33,7 +33,8 @@ pub enum EventId {
     /// An actor was picked (selected interactively) in the scene.
     PickEvent,
     /// The renderer completed a frame.
-    RenderEvent }
+    RenderEvent,
+}
 
 /// Opaque registration handle returned by `add_observer`.
 ///
@@ -49,7 +50,8 @@ pub type ObserverCallback = Arc<dyn Fn(EventId) + Send + Sync>;
 #[derive(Default)]
 pub struct EventHandlers {
     next_tag: ObserverTag,
-    handlers: Vec<(ObserverTag, EventId, ObserverCallback)> }
+    handlers: Vec<(ObserverTag, EventId, ObserverCallback)>,
+}
 
 impl EventHandlers {
     /// Construct an empty registry.

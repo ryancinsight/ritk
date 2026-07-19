@@ -13,10 +13,13 @@ fn make_label_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 fn flat(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data_slice().into_owned()
+    img.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 /// Single component, no size threshold â†’ relabeled as 1, count preserved.
@@ -155,7 +158,8 @@ fn spatial_metadata_preserved() {
     let direction = Direction::identity();
 
     let tensor = Tensor::<f32, B>::from_slice([2, 2, 2], &[1.0_f32; 8]);
-    let img = Image::new(tensor, origin, spacing, direction);
+    let img = Image::new(tensor, origin, spacing, direction)
+        .expect("invariant: fixture tensor has the declared rank");
 
     let (out, _) = RelabelComponentFilter::new()
         .apply(&img)

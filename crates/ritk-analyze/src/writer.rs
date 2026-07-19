@@ -1,4 +1,4 @@
-﻿//! Analyze 7.5 writer â€” produces a `.hdr` header file and a `.img` raw-data file.
+//! Analyze 7.5 writer â€” produces a `.hdr` header file and a `.img` raw-data file.
 //!
 //! # Format Overview
 //!
@@ -56,11 +56,7 @@ use std::path::Path;
 /// - `path`'s parent directory does not exist.
 /// - Any dimension exceeds `i16::MAX` (32 767).
 /// - Writing the header or data file fails.
-pub fn write_analyze<B, P>(
-    path: P,
-    image: &ritk_image::native::Image<f32, B, 3>,
-    backend: &B,
-) -> Result<()>
+pub fn write_analyze<B, P>(path: P, image: &ritk_image::Image<f32, B, 3>, backend: &B) -> Result<()>
 where
     B: ComputeBackend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
@@ -169,7 +165,8 @@ fn write_analyze_flat(
 
 /// Write-side type implementing the `ImageWriter` domain trait.
 pub struct AnalyzeWriter<B: ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: ComputeBackend> AnalyzeWriter<B> {
     /// Construct a new writer.
@@ -178,11 +175,7 @@ impl<B: ComputeBackend> AnalyzeWriter<B> {
     }
 
     /// Write an Analyze image through the bound backend.
-    pub fn write<P: AsRef<Path>>(
-        &self,
-        path: P,
-        image: &ritk_image::native::Image<f32, B, 3>,
-    ) -> Result<()>
+    pub fn write<P: AsRef<Path>>(&self, path: P, image: &ritk_image::Image<f32, B, 3>) -> Result<()>
     where
         B: Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,

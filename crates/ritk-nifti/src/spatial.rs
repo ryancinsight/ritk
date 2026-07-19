@@ -1,4 +1,4 @@
-﻿//! NIfTI file-space affine conversion for RITK's internal ZYX image axes.
+//! NIfTI file-space affine conversion for RITK's internal ZYX image axes.
 //!
 //! RITK stores tensors as `[depth, row, col] = [z, y, x]`; NIfTI stores voxel
 //! axes as `[x, y, z]`. RITK physical coordinates use LPS, while NIfTI affines
@@ -18,13 +18,15 @@ use ritk_spatial::{Direction, Point, Spacing, Vector};
 pub(crate) struct InternalSpatialMetadata {
     pub(crate) origin: Point<3>,
     pub(crate) spacing: Spacing<3>,
-    pub(crate) direction: Direction<3> }
+    pub(crate) direction: Direction<3>,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct NiftiSformRows {
     pub(crate) x: [f32; 4],
     pub(crate) y: [f32; 4],
-    pub(crate) z: [f32; 4] }
+    pub(crate) z: [f32; 4],
+}
 
 /// Convert a NIfTI RAS affine into RITK LPS metadata for internal `[z,y,x]`
 /// tensor axes.
@@ -61,7 +63,8 @@ pub(crate) fn metadata_from_nifti_ras_affine(
     Ok(InternalSpatialMetadata {
         origin,
         spacing,
-        direction: Direction::from_columns(direction_columns) })
+        direction: Direction::from_columns(direction_columns),
+    })
 }
 
 /// Build NIfTI RAS sform rows from RITK LPS metadata whose axes are ordered
@@ -104,7 +107,8 @@ pub(crate) fn sform_from_internal_lps_metadata(
             file_columns[1][2] as f32,
             file_columns[2][2] as f32,
             origin[2] as f32,
-        ] }
+        ],
+    }
 }
 
 fn ras_affine_to_lps_file_axes(affine: [[f32; 4]; 4]) -> [[f64; 4]; 3] {

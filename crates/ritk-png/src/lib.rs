@@ -1,15 +1,16 @@
-﻿//! Native PNG single-slice, sequential-volume, and RGB image I/O.
+//! Native PNG single-slice, sequential-volume, and RGB image I/O.
 
 use anyhow::{Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::{Path, PathBuf};
 
 mod color;
 
 pub use color::{
-    read_png_color_series, read_png_color_to_volume, PngColorReader, PngColorSeriesReader };
+    read_png_color_series, read_png_color_to_volume, PngColorReader, PngColorSeriesReader,
+};
 
 /// Reads a grayscale PNG into a native image shaped `[1, height, width]`.
 pub fn read_png_to_image<B, P>(path: P, backend: &B) -> Result<Image<f32, B, 3>>
@@ -119,7 +120,8 @@ pub(crate) fn sorted_png_files(directory: &Path) -> Result<Vec<PathBuf>> {
 
 /// Backend-bound grayscale PNG reader.
 pub struct PngReader<B: ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: ComputeBackend> PngReader<B> {
     /// Creates a single-slice reader on `backend`.
@@ -135,7 +137,8 @@ impl<B: ComputeBackend> PngReader<B> {
 
 /// Backend-bound grayscale PNG series reader.
 pub struct PngSeriesReader<B: ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: ComputeBackend> PngSeriesReader<B> {
     /// Creates a series reader on `backend`.
@@ -201,7 +204,8 @@ fn natural_cmp(left: &str, right: &str) -> std::cmp::Ordering {
             }
             (Some(_), None) => return std::cmp::Ordering::Greater,
             (None, Some(_)) => return std::cmp::Ordering::Less,
-            (None, None) => return std::cmp::Ordering::Equal }
+            (None, None) => return std::cmp::Ordering::Equal,
+        }
     }
 }
 
@@ -222,7 +226,7 @@ mod tests {
         image.save(path).expect("test PNG write must succeed");
     }
 
-    fn tensor_values(image: &ritk_image::native::Image<f32, TestBackend, 3>) -> Vec<f32> {
+    fn tensor_values(image: &ritk_image::Image<f32, TestBackend, 3>) -> Vec<f32> {
         image.data_slice().expect("contiguous image data").to_vec()
     }
 
@@ -267,7 +271,8 @@ mod tests {
         let result = crate::read_png_series(dir.path(), &backend);
         let msg = match result {
             Ok(_) => panic!("mismatched PNG dimensions must fail"),
-            Err(err) => format!("{err:?}") };
+            Err(err) => format!("{err:?}"),
+        };
 
         assert!(
             msg.contains("PNG size mismatch"),

@@ -1,4 +1,4 @@
-﻿//! Explicit discrete shape geometry constraints avoiding dimensional divergence.
+//! Explicit discrete shape geometry constraints avoiding dimensional divergence.
 
 use crate::error::{RegistrationError, Result};
 use ritk_image::tensor::Backend;
@@ -15,7 +15,8 @@ pub fn validate_image_shapes<B: Backend, const D: usize>(
     if fixed_shape != moving_shape {
         return Err(RegistrationError::ShapeMismatch {
             expected: fixed_shape.to_vec(),
-            actual: moving_shape.to_vec() });
+            actual: moving_shape.to_vec(),
+        });
     }
 
     Ok(())

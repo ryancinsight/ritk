@@ -13,7 +13,7 @@
 //! where `M` is the 3Ã—3 matrix, `t` the translation, and `c` the centre, all in
 //! the physical `(x, y, z)` frame (SimpleITK's `AffineTransform` convention).
 //! Physical points come from the image's canonical
-//! [`Image::index_to_world_tensor`], whose innermost-first columns are exactly
+//! [`Image::index_to_world_native`], whose innermost-first columns are exactly
 //! `(x, y, z)`, so the result is float-exact to `sitk.TransformToDisplacementField`.
 //!
 //! The field is returned as three scalar component images `(D_z, D_y, D_x)` on
@@ -73,6 +73,7 @@ pub fn transform_to_displacement_field<B: Backend>(
             *reference.spacing(),
             *reference.direction(),
         )
+        .expect("displacement component tensor has the reference image rank")
     };
 
     let [dx, dy, dz] = components.map(extract_component);

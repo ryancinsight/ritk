@@ -1,4 +1,4 @@
-﻿use anyhow::{bail, Result};
+use anyhow::{bail, Result};
 
 use crate::jpeg_2000::ebcot::decode_code_block;
 use crate::jpeg_2000::quantization::{dequantize, step_size};
@@ -19,7 +19,8 @@ pub struct BitReader {
     /// 16-bit sliding window (high byte = previously consumed byte).
     buf: u32,
     /// Unread bits remaining in the low byte of `buf`.
-    ct: u8 }
+    ct: u8,
+}
 
 impl BitReader {
     /// Create a `BitReader` over a raw packet-header byte slice.
@@ -28,7 +29,8 @@ impl BitReader {
             bytes: raw.to_vec(),
             pos: 0,
             buf: 0,
-            ct: 0 }
+            ct: 0,
+        }
     }
 
     fn bytein(&mut self) {
@@ -100,12 +102,14 @@ struct CblkState {
     /// Lblock state (Â§B.10.7.1), persists across layers.
     lblock: u8,
     /// Whether this code-block has been included in an earlier layer.
-    included_before: bool }
+    included_before: bool,
+}
 
 /// Per-band tag trees (inclusion + missing MSBs), persistent across layers.
 struct BandTrees {
     incl: TagTree,
-    msbs: TagTree }
+    msbs: TagTree,
+}
 
 fn band_trees(bands: &[Subband]) -> Vec<Option<BandTrees>> {
     bands
@@ -117,7 +121,8 @@ fn band_trees(bands: &[Subband]) -> Vec<Option<BandTrees>> {
                 let (gw, gh) = cblk_grid(b.w, b.h);
                 Some(BandTrees {
                     incl: TagTree::new(gw, gh),
-                    msbs: TagTree::new(gw, gh) })
+                    msbs: TagTree::new(gw, gh),
+                })
             }
         })
         .collect()
@@ -128,7 +133,8 @@ fn band_trees(bands: &[Subband]) -> Vec<Option<BandTrees>> {
 pub struct TileComponentSamples {
     pub samples: Vec<i32>,
     pub width: usize,
-    pub height: usize }
+    pub height: usize,
+}
 
 /// Tile coding parameters extracted from the COD/QCD main-header segments.
 #[derive(Clone, Copy, Debug)]
@@ -150,7 +156,8 @@ pub struct TileCodingParams<'a> {
     pub mantissas: &'a [u32],
     /// Wavelet transform family (from COD); selects the inverse DWT and whether
     /// coefficients are dequantized.
-    pub transform: WaveletTransform }
+    pub transform: WaveletTransform,
+}
 
 /// Decode the tile-part body starting immediately after the SOD marker.
 ///
@@ -326,5 +333,6 @@ pub fn decode_tile_part(
     Ok(TileComponentSamples {
         samples: mallat,
         width,
-        height })
+        height,
+    })
 }

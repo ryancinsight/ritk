@@ -1,19 +1,21 @@
-﻿use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use tracing::info;
 
 use ritk_segmentation::{
-    ConfidenceConnectedFilter, ConnectedThresholdFilter, NeighborhoodConnectedFilter };
+    ConfidenceConnectedFilter, ConnectedThresholdFilter, NeighborhoodConnectedFilter,
+};
 
-use super::super::{write_image_native, NativeBackend};
+use super::super::{write_image, Backend};
 use super::args::SegmentArgs;
 use super::helpers::{count_native_foreground, parse_seed, read_native_input};
 
 struct NativeRegionInput {
-    image: ritk_image::native::Image<f32, NativeBackend, 3>,
+    image: ritk_image::Image<f32, Backend, 3>,
     output_format: ritk_io::ImageFormat,
     seed: [usize; 3],
     lower: f32,
-    upper: f32 }
+    upper: f32,
+}
 
 /// Parse, validate, and read the shared native region-growing inputs.
 fn read_native_region_input(args: &SegmentArgs, method: &str) -> Result<NativeRegionInput> {
@@ -55,16 +57,17 @@ fn read_native_region_input(args: &SegmentArgs, method: &str) -> Result<NativeRe
         output_format,
         seed,
         lower,
-        upper })
+        upper,
+    })
 }
 
 fn write_native_region_mask(
     args: &SegmentArgs,
-    mask: &ritk_image::native::Image<f32, NativeBackend, 3>,
+    mask: &ritk_image::Image<f32, Backend, 3>,
     format: ritk_io::ImageFormat,
 ) -> Result<usize> {
     let foreground = count_native_foreground(mask)?;
-    write_image_native(&args.output, mask, format)?;
+    write_image(&args.output, mask, format)?;
     Ok(foreground)
 }
 
@@ -85,7 +88,7 @@ fn write_native_region_mask(
 /// non-host-addressable storage.
 pub(super) fn run_connected_threshold(args: &SegmentArgs) -> Result<()> {
     let input = read_native_region_input(args, "connected-threshold")?;
-    let backend = NativeBackend::default();
+    let backend = Backend::default();
     let mask = ConnectedThresholdFilter::new(input.seed, input.lower, input.upper)
         .apply_native(&input.image, &backend)?;
     let n_foreground = write_native_region_mask(args, &mask, input.output_format)?;
@@ -131,7 +134,7 @@ pub(super) fn run_confidence_connected(args: &SegmentArgs) -> Result<()> {
     let filter = ConfidenceConnectedFilter::new(input.seed, input.lower, input.upper)
         .with_multiplier(args.multiplier)?
         .with_max_iterations(args.max_iterations);
-    let backend = NativeBackend::default();
+    let backend = Backend::default();
     let mask = filter.apply_native(&input.image, &backend)?;
     let n_foreground = write_native_region_mask(args, &mask, input.output_format)?;
 
@@ -157,7 +160,7 @@ pub(super) fn run_neighborhood_connected(args: &SegmentArgs) -> Result<()> {
     let r = args.neighborhood_radius;
     let filter = NeighborhoodConnectedFilter::new(input.seed, input.lower, input.upper)
         .with_radius([r, r, r]);
-    let backend = NativeBackend::default();
+    let backend = Backend::default();
     let mask = filter.apply_native(&input.image, &backend)?;
     let n_foreground = write_native_region_mask(args, &mask, input.output_format)?;
 

@@ -1,4 +1,4 @@
-﻿//! Rank dispatch and native spatial-operator kernels for regularizers.
+//! Rank dispatch and native spatial-operator kernels for regularizers.
 //!
 //! Routes regularizer loss computation to the correct rank-specific kernel
 //! based on the displacement field's runtime rank. Only rank âˆˆ {4, 5} is
@@ -129,7 +129,8 @@ fn laplacian_squared_mean<T: Scalar>(data: &[T], shape: &[usize], op: &str) -> T
             let [b, c, d, h, w] = rank_dims(shape, op);
             laplacian_squared_mean_volumetric(data, b * c, d, h, w)
         }
-        rank => panic!("{op}: displacement field must be rank 4 or 5, got rank {rank}") }
+        rank => panic!("{op}: displacement field must be rank 4 or 5, got rank {rank}"),
+    }
 }
 
 #[inline]
@@ -143,7 +144,8 @@ fn gradient_squared_mean<T: Scalar>(data: &[T], shape: &[usize], op: &str) -> T 
             let [b, c, d, h, w] = rank_dims(shape, op);
             gradient_squared_mean_volumetric(data, b * c, d, h, w)
         }
-        rank => panic!("{op}: displacement field must be rank 4 or 5, got rank {rank}") }
+        rank => panic!("{op}: displacement field must be rank 4 or 5, got rank {rank}"),
+    }
 }
 
 #[inline]
@@ -157,7 +159,8 @@ fn gradient_magnitude_mean<T: Scalar>(data: &[T], shape: &[usize], op: &str) -> 
             let [b, c, d, h, w] = rank_dims(shape, op);
             gradient_magnitude_mean_volumetric(data, b * c, d, h, w)
         }
-        rank => panic!("{op}: displacement field must be rank 4 or 5, got rank {rank}") }
+        rank => panic!("{op}: displacement field must be rank 4 or 5, got rank {rank}"),
+    }
 }
 
 #[inline]
@@ -171,7 +174,8 @@ fn elastic<T: Scalar>(data: &[T], shape: &[usize], alpha: T, beta: T) -> T {
             let [b, c, d, h, w] = rank_dims(shape, "elastic");
             elastic_volumetric(data, b, c, d, h, w, alpha, beta)
         }
-        rank => panic!("elastic: displacement field must be rank 4 or 5, got rank {rank}") }
+        rank => panic!("elastic: displacement field must be rank 4 or 5, got rank {rank}"),
+    }
 }
 
 // â”€â”€ Native finite-difference kernels (planar, `[BC, H, W]`) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

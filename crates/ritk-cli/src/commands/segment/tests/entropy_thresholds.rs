@@ -1,4 +1,4 @@
-﻿use super::*; // â”€â”€ Positive: Li threshold creates binary output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ /// Li thresholding on a bimodal image must produce a binary mask with the
+use super::*; // â”€â”€ Positive: Li threshold creates binary output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ /// Li thresholding on a bimodal image must produce a binary mask with the
 /// threshold between the two modes.
 #[test]
 fn test_segment_li_creates_output_and_threshold_between_modes() {
@@ -15,14 +15,17 @@ fn test_segment_li_creates_output_and_threshold_between_modes() {
     assert!(output.exists(), "li output mask must be created");
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(mask.shape(), [4, 4, 4], "output shape must match input");
-    mask.with_data_slice(|values| {
+    {
+        let values = mask
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in values {
             assert!(
                 v == 0.0 || v == 1.0,
                 "Li output must be strictly binary, got {v}"
             );
         }
-    });
+    }
     let threshold = LiThreshold::new().compute(&make_bimodal_image());
     assert!(
         threshold > 20.0 && threshold < 200.0,
@@ -46,14 +49,17 @@ fn test_segment_yen_creates_output_and_threshold_between_modes() {
     assert!(output.exists(), "yen output mask must be created");
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(mask.shape(), [4, 4, 4]);
-    mask.with_data_slice(|values| {
+    {
+        let values = mask
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in values {
             assert!(
                 v == 0.0 || v == 1.0,
                 "Yen output must be strictly binary, got {v}"
             );
         }
-    });
+    }
     let threshold = YenThreshold::new().compute(&make_bimodal_image());
     assert!(
         threshold > 20.0 && threshold < 200.0,
@@ -77,14 +83,17 @@ fn test_segment_kapur_creates_output_and_threshold_between_modes() {
     assert!(output.exists(), "kapur output mask must be created");
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(mask.shape(), [4, 4, 4]);
-    mask.with_data_slice(|values| {
+    {
+        let values = mask
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in values {
             assert!(
                 v == 0.0 || v == 1.0,
                 "Kapur output must be strictly binary, got {v}"
             );
         }
-    });
+    }
     let threshold = KapurThreshold::new().compute(&make_bimodal_image());
     assert!(
         (20.0..=200.0).contains(&threshold),
@@ -108,14 +117,17 @@ fn test_segment_triangle_creates_output_and_threshold_between_modes() {
     assert!(output.exists(), "triangle output mask must be created");
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(mask.shape(), [4, 4, 4]);
-    mask.with_data_slice(|values| {
+    {
+        let values = mask
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in values {
             assert!(
                 v == 0.0 || v == 1.0,
                 "Triangle output must be strictly binary, got {v}"
             );
         }
-    });
+    }
     let threshold = TriangleThreshold::new().compute(&make_bimodal_image());
     assert!(
         threshold > 20.0 && threshold < 200.0,
@@ -207,7 +219,8 @@ fn test_segment_triangle_foreground_count() {
 #[test]
 fn automatic_threshold_cli_family_matches_legacy_public_boundaries_exactly() {
     use ritk_segmentation::{
-        KapurThreshold, LiThreshold, OtsuThreshold, TriangleThreshold, YenThreshold };
+        KapurThreshold, LiThreshold, OtsuThreshold, TriangleThreshold, YenThreshold,
+    };
 
     let dir = tempdir().unwrap();
     for method in [
@@ -227,11 +240,12 @@ fn automatic_threshold_cli_family_matches_legacy_public_boundaries_exactly() {
             SegmentMethod::Yen => YenThreshold::new().apply(&fixture),
             SegmentMethod::Kapur => KapurThreshold::new().apply(&fixture),
             SegmentMethod::Triangle => TriangleThreshold::new().apply(&fixture),
-            _ => unreachable!("test enumerates only automatic threshold methods") };
+            _ => unreachable!("test enumerates only automatic threshold methods"),
+        };
         ritk_io::write_nifti(&input, &fixture).unwrap();
 
         run(default_args(input, output.clone(), method)).unwrap();
-        let actual = crate::commands::read_image_native(&output)
+        let actual = crate::commands::read_image(&output)
             .expect("automatic threshold output is natively readable");
 
         assert_eq!(actual.shape(), expected.shape());
@@ -239,8 +253,12 @@ fn automatic_threshold_cli_family_matches_legacy_public_boundaries_exactly() {
         assert_eq!(*actual.spacing(), *expected.spacing());
         assert_eq!(*actual.direction(), *expected.direction());
         assert_eq!(
-            actual.data_slice().expect("contiguous native output"),
-            expected.data_slice().as_ref(),
+            actual
+                .data_slice()
+                .expect("invariant: image storage is contiguous"),
+            expected
+                .data_slice()
+                .expect("invariant: contiguous host storage"),
             "{label} native CLI output diverged from its public legacy boundary"
         );
     }

@@ -1,4 +1,4 @@
-﻿//! Endian-aware byte-field primitives for NIfTI header (de)serialization.
+//! Endian-aware byte-field primitives for NIfTI header (de)serialization.
 //!
 //! Pure little/big-endian scalar reads and little-endian writes over byte
 //! slices, with bounds-checked reads. No NIfTI semantics live here â€” only the
@@ -11,7 +11,8 @@ use anyhow::{anyhow, Result};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum Endian {
     Little,
-    Big }
+    Big,
+}
 
 pub(super) fn read_array<const N: usize>(bytes: &[u8], offset: usize) -> Result<[u8; N]> {
     bytes
@@ -25,42 +26,48 @@ pub(super) fn read_u16(bytes: &[u8], offset: usize, endian: Endian) -> Result<u1
     let raw = read_array::<2>(bytes, offset)?;
     Ok(match endian {
         Endian::Little => u16::from_le_bytes(raw),
-        Endian::Big => u16::from_be_bytes(raw) })
+        Endian::Big => u16::from_be_bytes(raw),
+    })
 }
 
 pub(super) fn read_i16(bytes: &[u8], offset: usize, endian: Endian) -> Result<i16> {
     let raw = read_array::<2>(bytes, offset)?;
     Ok(match endian {
         Endian::Little => i16::from_le_bytes(raw),
-        Endian::Big => i16::from_be_bytes(raw) })
+        Endian::Big => i16::from_be_bytes(raw),
+    })
 }
 
 pub(super) fn read_i32(bytes: &[u8], offset: usize, endian: Endian) -> Result<i32> {
     let raw = read_array::<4>(bytes, offset)?;
     Ok(match endian {
         Endian::Little => i32::from_le_bytes(raw),
-        Endian::Big => i32::from_be_bytes(raw) })
+        Endian::Big => i32::from_be_bytes(raw),
+    })
 }
 
 pub(super) fn read_i64(bytes: &[u8], offset: usize, endian: Endian) -> Result<i64> {
     let raw = read_array::<8>(bytes, offset)?;
     Ok(match endian {
         Endian::Little => i64::from_le_bytes(raw),
-        Endian::Big => i64::from_be_bytes(raw) })
+        Endian::Big => i64::from_be_bytes(raw),
+    })
 }
 
 pub(super) fn read_f32(bytes: &[u8], offset: usize, endian: Endian) -> Result<f32> {
     let raw = read_array::<4>(bytes, offset)?;
     Ok(match endian {
         Endian::Little => f32::from_le_bytes(raw),
-        Endian::Big => f32::from_be_bytes(raw) })
+        Endian::Big => f32::from_be_bytes(raw),
+    })
 }
 
 pub(super) fn read_f64(bytes: &[u8], offset: usize, endian: Endian) -> Result<f64> {
     let raw = read_array::<8>(bytes, offset)?;
     Ok(match endian {
         Endian::Little => f64::from_le_bytes(raw),
-        Endian::Big => f64::from_be_bytes(raw) })
+        Endian::Big => f64::from_be_bytes(raw),
+    })
 }
 
 pub(super) fn read_f32x4_as_f64(bytes: &[u8], offset: usize, endian: Endian) -> Result<[f64; 4]> {

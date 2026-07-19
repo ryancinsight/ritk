@@ -1,4 +1,4 @@
-﻿use super::{read_obj_mesh, write_obj_mesh};
+use super::{read_obj_mesh, write_obj_mesh};
 use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
 use crate::io::obj::reader::parse_obj;
 use crate::io::obj::writer::write_obj_to_writer;
@@ -39,7 +39,8 @@ fn triangle_with_normals() -> VtkPolyData {
     mesh.point_data.insert(
         "Normals".to_string(),
         AttributeArray::Normals {
-            values: vec![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]] },
+            values: vec![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+        },
     );
     mesh
 }
@@ -93,7 +94,8 @@ fn test_obj_normals_roundtrip() {
         .expect("Normals must be present")
     {
         AttributeArray::Normals { values } => values.clone(),
-        other => panic!("expected AttributeArray::Normals, got {other:?}") };
+        other => panic!("expected AttributeArray::Normals, got {other:?}"),
+    };
 
     assert_eq!(got_normals.len(), 3, "one normal per point");
     let expected = [[1.0f32, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
@@ -166,7 +168,8 @@ fn test_obj_face_v_slash_slash_n_format() {
     assert_eq!(poly.polygons[0], vec![0, 1, 2]);
     let normals = match poly.point_data.get("Normals").unwrap() {
         AttributeArray::Normals { values } => values.clone(),
-        _ => panic!("expected Normals") };
+        _ => panic!("expected Normals"),
+    };
     let eps = 1e-6_f32;
     for n in &normals {
         assert!(

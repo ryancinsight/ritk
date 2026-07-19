@@ -1,4 +1,4 @@
-﻿//! Measurement label routing: per-axis spacing selection and coordinate mapping tests.
+//! Measurement label routing: per-axis spacing selection and coordinate mapping tests.
 //!
 //! The per-axis spacing selection used in `render_axis_viewport` for
 //! measurement label routing follows the ITK-SNAP convention:
@@ -35,7 +35,8 @@ fn make_anisotropic_volume() -> LoadedVolume {
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None }
+        decay_correction: None,
+    }
 }
 
 /// Axial (axis 0): row_spacing = dy = 3.0, col_spacing = dx = 5.0
@@ -46,7 +47,8 @@ fn measurement_spacing_axial_selects_dy_dx() {
     let spacing_2d: [f32; 2] = match 0usize {
         0 => [dy, dx],
         1 => [dz, dx],
-        _ => [dz, dy] };
+        _ => [dz, dy],
+    };
     assert_eq!(
         spacing_2d,
         [3.0, 5.0],
@@ -62,7 +64,8 @@ fn measurement_spacing_coronal_selects_dz_dx() {
     let spacing_2d: [f32; 2] = match 1usize {
         0 => [dy, dx],
         1 => [dz, dx],
-        _ => [dz, dy] };
+        _ => [dz, dy],
+    };
     assert_eq!(
         spacing_2d,
         [2.0, 5.0],
@@ -78,7 +81,8 @@ fn measurement_spacing_sagittal_selects_dz_dy() {
     let spacing_2d: [f32; 2] = match 2usize {
         0 => [dy, dx],
         1 => [dz, dx],
-        _ => [dz, dy] };
+        _ => [dz, dy],
+    };
     assert_eq!(
         spacing_2d,
         [2.0, 3.0],

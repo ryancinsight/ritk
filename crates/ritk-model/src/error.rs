@@ -1,4 +1,4 @@
-﻿//! Model graph contract failures.
+//! Model graph contract failures.
 
 /// Failure produced while evaluating a registration model graph.
 #[derive(Debug, thiserror::Error)]
@@ -11,7 +11,9 @@ pub enum ModelError {
         /// Expected shape contract.
         expected: &'static str,
         /// Actual runtime shape.
-        actual: Vec<usize> },
+        actual: Vec<usize>,
+    },
     /// Coordinate-grid interpolation rejected its inputs.
     #[error(transparent)]
-    Interpolation(#[from] coeus_ops::InterpolationError) }
+    Interpolation(#[from] coeus_ops::InterpolationError),
+}

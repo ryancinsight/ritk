@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 
 #[test]
 fn cursor_segment_body_round_trips_length() {
@@ -15,13 +15,15 @@ fn component_spec_precision_and_signed() {
     let c = ComponentSpec {
         ssiz: 0x87,
         xr_siz: 1,
-        yr_siz: 1 };
+        yr_siz: 1,
+    };
     assert_eq!(c.precision(), 8);
     assert!(c.is_signed());
     let u = ComponentSpec {
         ssiz: 0x07,
         xr_siz: 1,
-        yr_siz: 1 };
+        yr_siz: 1,
+    };
     assert_eq!(u.precision(), 8);
     assert!(!u.is_signed());
 }

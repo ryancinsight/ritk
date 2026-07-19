@@ -1,4 +1,4 @@
-﻿//! Pre-allocated scratch buffers for zero-allocation SyN iteration.
+//! Pre-allocated scratch buffers for zero-allocation SyN iteration.
 //!
 //! All volume-sized buffers are sized at construction time and rebuilt or
 //! overwritten in place. The fused CC dispatcher retains one bounded `O(nz)`
@@ -56,7 +56,8 @@ pub(super) struct SyNBuffers {
 
     // â”€â”€ Per-z-slice CC reductions â”€â”€
     pub cc_slices: Vec<(f64, usize)>,
-    pub cc_sats: CcSats }
+    pub cc_sats: CcSats,
+}
 
 impl SyNBuffers {
     /// Allocate all 29 buffers for a volume with `n = nz*ny*nx` voxels.
@@ -92,6 +93,7 @@ impl SyNBuffers {
             u2y: vec![0.0_f32; n],
             u2x: vec![0.0_f32; n],
             cc_slices: vec![(0.0_f64, 0usize); dims[0]],
-            cc_sats: CcSats::new(dims, cc_radius) }
+            cc_sats: CcSats::new(dims, cc_radius),
+        }
     }
 }

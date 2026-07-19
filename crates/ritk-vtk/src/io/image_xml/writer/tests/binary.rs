@@ -1,7 +1,8 @@
-﻿use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
+use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
 use crate::io::image_xml::reader::read_vti_binary_appended_bytes;
 use crate::io::image_xml::writer::{
-    write_vti_binary_appended_bytes, write_vti_binary_appended_to_file };
+    write_vti_binary_appended_bytes, write_vti_binary_appended_to_file,
+};
 
 /// Build a 2Ã—2Ã—2-point grid (extent [0,1,0,1,0,1], 8 points, 1 cell)
 /// with a scalar point-data field named "density".
@@ -16,11 +17,13 @@ fn grid_2x2x2_binary() -> VtkImageData {
                 "density".to_string(),
                 AttributeArray::Scalars {
                     values: vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-                    num_components: 1 },
+                    num_components: 1,
+                },
             );
             m
         },
-        cell_data: std::collections::HashMap::new() }
+        cell_data: std::collections::HashMap::new(),
+    }
 }
 
 /// Invariant: binary-appended output contains `format="appended"` in the
@@ -38,11 +41,13 @@ fn test_write_vti_binary_appended_header_contains_appended_format() {
                 "values".to_string(),
                 AttributeArray::Scalars {
                     values: vec![1.0f32, 2.0, 3.0, 4.0],
-                    num_components: 1 },
+                    num_components: 1,
+                },
             );
             m
         },
-        cell_data: std::collections::HashMap::new() };
+        cell_data: std::collections::HashMap::new(),
+    };
 
     let bytes = write_vti_binary_appended_bytes(&grid)
         .expect("write_vti_binary_appended_bytes must succeed on valid grid");
@@ -97,11 +102,13 @@ fn test_write_vti_binary_appended_roundtrip() {
                 "scalars".to_string(),
                 AttributeArray::Scalars {
                     values: expected_values.clone(),
-                    num_components: 1 },
+                    num_components: 1,
+                },
             );
             m
         },
-        cell_data: std::collections::HashMap::new() };
+        cell_data: std::collections::HashMap::new(),
+    };
 
     let bytes = write_vti_binary_appended_bytes(&grid)
         .expect("write_vti_binary_appended_bytes must succeed");
@@ -133,7 +140,8 @@ fn test_write_vti_binary_appended_roundtrip() {
         other => panic!(
             "expected Scalars variant for 'scalars' key, got {:?}",
             other
-        ) };
+        ),
+    };
     assert_eq!(
         parsed_vals.len(),
         expected_values.len(),
@@ -162,13 +170,15 @@ fn test_write_vti_binary_appended_offset_correctness() {
         "A".to_string(),
         AttributeArray::Scalars {
             values: vec![1.0f32, 2.0],
-            num_components: 1 },
+            num_components: 1,
+        },
     );
     grid.point_data.insert(
         "B".to_string(),
         AttributeArray::Scalars {
             values: vec![3.0f32, 4.0, 5.0, 6.0],
-            num_components: 2 },
+            num_components: 2,
+        },
     );
 
     let bytes = write_vti_binary_appended_bytes(&grid).expect("write must succeed on valid grid");
@@ -216,10 +226,12 @@ fn test_write_vti_binary_appended_cell_data_only_roundtrip() {
                 "pressure".to_string(),
                 AttributeArray::Scalars {
                     values: vec![42.0f32],
-                    num_components: 1 },
+                    num_components: 1,
+                },
             );
             m
-        } };
+        },
+    };
 
     let bytes = write_vti_binary_appended_bytes(&grid)
         .expect("write_vti_binary_appended_bytes must succeed on valid cell-data-only grid");
@@ -240,7 +252,8 @@ fn test_write_vti_binary_appended_cell_data_only_roundtrip() {
     );
     let values = match parsed.cell_data.get("pressure").unwrap() {
         AttributeArray::Scalars { values, .. } => values.clone(),
-        other => panic!("expected Scalars variant for 'pressure', got {:?}", other) };
+        other => panic!("expected Scalars variant for 'pressure', got {:?}", other),
+    };
     assert_eq!(values.len(), 1, "pressure CellData must have 1 value");
     assert!(
         (values[0] - 42.0f32).abs() < 1e-6,
@@ -264,7 +277,8 @@ fn test_write_vti_binary_appended_mixed_point_and_cell_data() {
                 "density".to_string(),
                 AttributeArray::Scalars {
                     values: vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-                    num_components: 1 },
+                    num_components: 1,
+                },
             );
             m
         },
@@ -274,10 +288,12 @@ fn test_write_vti_binary_appended_mixed_point_and_cell_data() {
                 "material".to_string(),
                 AttributeArray::Scalars {
                     values: vec![7.0f32],
-                    num_components: 1 },
+                    num_components: 1,
+                },
             );
             m
-        } };
+        },
+    };
 
     let bytes = write_vti_binary_appended_bytes(&grid)
         .expect("write_vti_binary_appended_bytes must succeed on mixed grid");
@@ -294,7 +310,8 @@ fn test_write_vti_binary_appended_mixed_point_and_cell_data() {
     );
     let pd_vals = match parsed.point_data.get("density").unwrap() {
         AttributeArray::Scalars { values, .. } => values.clone(),
-        other => panic!("expected Scalars for 'density', got {:?}", other) };
+        other => panic!("expected Scalars for 'density', got {:?}", other),
+    };
     assert_eq!(pd_vals.len(), 8, "density must have 8 values");
     let expected_density = [1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
     for (i, (&got, &exp)) in pd_vals.iter().zip(expected_density.iter()).enumerate() {
@@ -313,7 +330,8 @@ fn test_write_vti_binary_appended_mixed_point_and_cell_data() {
     );
     let cd_vals = match parsed.cell_data.get("material").unwrap() {
         AttributeArray::Scalars { values, .. } => values.clone(),
-        other => panic!("expected Scalars for 'material', got {:?}", other) };
+        other => panic!("expected Scalars for 'material', got {:?}", other),
+    };
     assert_eq!(cd_vals.len(), 1, "material must have 1 value");
     assert!(
         (cd_vals[0] - 7.0f32).abs() < 1e-6,
@@ -337,16 +355,19 @@ fn test_write_vti_binary_appended_vector_and_normal_roundtrip() {
             m.insert(
                 "Normals".to_string(),
                 AttributeArray::Normals {
-                    values: vec![[0.0f32, 1.0, 0.0], [0.0, 0.0, 1.0]] },
+                    values: vec![[0.0f32, 1.0, 0.0], [0.0, 0.0, 1.0]],
+                },
             );
             m.insert(
                 "velocity".to_string(),
                 AttributeArray::Vectors {
-                    values: vec![[1.0f32, 2.0, 3.0], [4.0, 5.0, 6.0]] },
+                    values: vec![[1.0f32, 2.0, 3.0], [4.0, 5.0, 6.0]],
+                },
             );
             m
         },
-        cell_data: std::collections::HashMap::new() };
+        cell_data: std::collections::HashMap::new(),
+    };
 
     let bytes =
         write_vti_binary_appended_bytes(&grid).expect("write must succeed for vector point data");
@@ -354,7 +375,8 @@ fn test_write_vti_binary_appended_vector_and_normal_roundtrip() {
 
     let velocity = match parsed.point_data.get("velocity") {
         Some(AttributeArray::Vectors { values }) => values,
-        other => panic!("expected velocity vectors, got {:?}", other) };
+        other => panic!("expected velocity vectors, got {:?}", other),
+    };
     assert_eq!(
         velocity,
         &vec![[1.0f32, 2.0, 3.0], [4.0, 5.0, 6.0]],
@@ -363,7 +385,8 @@ fn test_write_vti_binary_appended_vector_and_normal_roundtrip() {
 
     let normals = match parsed.point_data.get("Normals") {
         Some(AttributeArray::Normals { values }) => values,
-        other => panic!("expected normal vectors, got {:?}", other) };
+        other => panic!("expected normal vectors, got {:?}", other),
+    };
     assert_eq!(
         normals,
         &vec![[0.0f32, 1.0, 0.0], [0.0, 0.0, 1.0]],
@@ -385,13 +408,15 @@ fn test_write_vti_binary_appended_cell_data_offset_after_point_data() {
         "pd".to_string(),
         AttributeArray::Scalars {
             values: vec![1.0f32, 2.0],
-            num_components: 1 },
+            num_components: 1,
+        },
     );
     grid.cell_data.insert(
         "cd".to_string(),
         AttributeArray::Scalars {
             values: vec![9.0f32],
-            num_components: 1 },
+            num_components: 1,
+        },
     );
 
     let bytes = write_vti_binary_appended_bytes(&grid).expect("write must succeed on valid grid");

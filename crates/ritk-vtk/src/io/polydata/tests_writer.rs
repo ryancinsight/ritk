@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
 use crate::io::polydata::reader::parse_polydata;
 use std::io::Cursor;
@@ -44,7 +44,8 @@ fn test_write_with_point_data_scalars() {
         "temperature".to_string(),
         AttributeArray::Scalars {
             values: vec![36.0, 37.0, 38.0],
-            num_components: 1 },
+            num_components: 1,
+        },
     );
     let result = round_trip(&poly);
     match result.point_data.get("temperature").unwrap() {
@@ -53,7 +54,8 @@ fn test_write_with_point_data_scalars() {
             assert!((values[1] - 37.0).abs() < 1e-5);
             assert!((values[2] - 38.0).abs() < 1e-5);
         }
-        _ => panic!("expected Scalars") }
+        _ => panic!("expected Scalars"),
+    }
 }
 
 #[test]
@@ -110,7 +112,8 @@ fn test_write_vectors_round_trip() {
     poly.point_data.insert(
         "velocity".to_string(),
         AttributeArray::Vectors {
-            values: vec![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]] },
+            values: vec![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+        },
     );
     let result = round_trip(&poly);
     match result.point_data.get("velocity").unwrap() {
@@ -119,5 +122,6 @@ fn test_write_vectors_round_trip() {
             assert!((values[0][0] - 1.0).abs() < 1e-5);
             assert!((values[1][1] - 1.0).abs() < 1e-5);
         }
-        _ => panic!("expected Vectors") }
+        _ => panic!("expected Vectors"),
+    }
 }

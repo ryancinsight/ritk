@@ -22,7 +22,8 @@
 //!
 //! where `count(t)` is the number of connected components (face connectivity,
 //! ITK default `FullyConnected = false`) of size â‰¥ `minimum_object_size` in the
-//! mask thresholded at `t`. Because ritk's [`connected_components`] is bit-exact
+//! mask thresholded at `t`. Because ritk's
+//! [`connected_components`](crate::labeling::connected_components) is bit-exact
 //! to `sitk.ConnectedComponent`, the chosen threshold â€” and thus the binary
 //! output â€” is bit-exact to `sitk.ThresholdMaximumConnectedComponents`.
 
@@ -93,9 +94,9 @@ impl ThresholdMaximumConnectedComponentsFilter {
     /// or the native output image cannot be constructed.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

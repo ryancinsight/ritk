@@ -1,6 +1,6 @@
-﻿use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -174,7 +174,8 @@ fn format_nrrd_vector(vector: [f64; 3]) -> String {
 /// The backend `B` is supplied per-call so a single `NrrdWriter` instance can
 /// write images from different backends.
 pub struct NrrdWriter<B: ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: ComputeBackend> NrrdWriter<B> {
     /// Creates a writer that extracts image storage through `backend`.

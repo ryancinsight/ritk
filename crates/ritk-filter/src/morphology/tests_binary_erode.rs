@@ -1,7 +1,7 @@
 //! Value-semantic coverage for canonical native binary erosion.
 
 use coeus_core::MoiraiBackend;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 use super::erode_binary_3d;

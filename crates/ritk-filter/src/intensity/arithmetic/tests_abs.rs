@@ -47,7 +47,7 @@ fn abs_all_negative_all_positive() {
 /// Spatial metadata is preserved.
 #[test]
 fn abs_preserves_metadata() {
-    use ritk_image::native::Image;
+    use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     let sp = Spacing::new([2.0, 3.0, 4.0]);
     let img = Image::from_flat_on(

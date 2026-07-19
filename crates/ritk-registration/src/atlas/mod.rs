@@ -1,4 +1,4 @@
-﻿//! Groupwise atlas construction via iterative template building.
+//! Groupwise atlas construction via iterative template building.
 //!
 //! # Mathematical Specification
 //!
@@ -31,7 +31,8 @@ pub mod label_fusion;
 
 use crate::deformable_field_ops::{
     scaling_and_squaring, validate_image, warp_image, CpuFieldSmoother, CpuOrGpu, FieldSmoother,
-    VelocityField, WarpInterpolation };
+    VelocityField, WarpInterpolation,
+};
 use crate::diffeomorphic::multires_syn::{MultiResSyNConfig, MultiResSyNRegistration};
 use crate::error::RegistrationError;
 
@@ -54,7 +55,8 @@ pub struct AtlasConfig {
     pub convergence_threshold: f64,
     /// Multi-Resolution SyN configuration used for every pairwise
     /// subject-to-template registration.
-    pub syn_config: MultiResSyNConfig }
+    pub syn_config: MultiResSyNConfig,
+}
 
 /// Per-subject registration result retained from the final atlas iteration.
 #[derive(Debug, Clone)]
@@ -64,7 +66,8 @@ pub struct SubjectResult {
     /// Inverse velocity field (z, y, x) â€” subject â†’ midpoint.
     pub inverse_field: VelocityField,
     /// Final local CC value for this subject's registration.
-    pub final_cc: f64 }
+    pub final_cc: f64,
+}
 
 /// Result of atlas construction.
 #[derive(Debug, Clone)]
@@ -79,7 +82,8 @@ pub struct AtlasResult {
     pub num_iterations: usize,
     /// Per-iteration template RMS change values.  Length equals
     /// `num_iterations`.
-    pub convergence_history: Vec<f64> }
+    pub convergence_history: Vec<f64>,
+}
 
 /// Atlas registration engine implementing iterative template building.
 ///
@@ -89,7 +93,8 @@ pub struct AtlasResult {
 #[derive(Debug, Clone)]
 pub struct AtlasRegistration {
     /// Algorithm configuration.
-    pub config: AtlasConfig }
+    pub config: AtlasConfig,
+}
 
 // ---------------------------------------------------------------------------
 // Implementation
@@ -263,7 +268,8 @@ impl AtlasRegistration {
                 .map(|r| SubjectResult {
                     forward_field: r.forward_field,
                     inverse_field: r.inverse_field,
-                    final_cc: r.final_cc })
+                    final_cc: r.final_cc,
+                })
                 .collect();
 
             template = sharpened;
@@ -273,7 +279,8 @@ impl AtlasRegistration {
                     template,
                     subject_results,
                     num_iterations: k + 1,
-                    convergence_history });
+                    convergence_history,
+                });
             }
         }
 
@@ -281,7 +288,8 @@ impl AtlasRegistration {
             template,
             subject_results,
             num_iterations: self.config.max_iterations,
-            convergence_history })
+            convergence_history,
+        })
     }
 }
 

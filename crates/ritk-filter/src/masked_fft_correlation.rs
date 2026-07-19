@@ -179,12 +179,12 @@ impl MaskedFftNormalizedCorrelationFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        fixed: &ritk_image::native::Image<f32, B, 3>,
-        moving: &ritk_image::native::Image<f32, B, 3>,
-        fixed_mask: &ritk_image::native::Image<f32, B, 3>,
-        moving_mask: &ritk_image::native::Image<f32, B, 3>,
+        fixed: &ritk_image::Image<f32, B, 3>,
+        moving: &ritk_image::Image<f32, B, 3>,
+        fixed_mask: &ritk_image::Image<f32, B, 3>,
+        moving_mask: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -269,7 +269,7 @@ impl MaskedFftNormalizedCorrelationFilter {
             0.0
         });
 
-        ritk_image::native::Image::from_flat_on(
+        ritk_image::Image::from_flat_on(
             out,
             dims,
             Point::new([0.0, 0.0, 0.0]),

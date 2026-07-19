@@ -1,4 +1,4 @@
-﻿//! 3-D thinning tests and internal predicate / trait tests.
+//! 3-D thinning tests and internal predicate / trait tests.
 
 use super::*;
 use ritk_core::image::Image;
@@ -115,7 +115,8 @@ fn test_3d_spatial_metadata_preserved() {
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 1.0, 2.0]);
     let direction = Direction::identity();
-    let image = Image::new(tensor, origin, spacing, direction);
+    let image = Image::new(tensor, origin, spacing, direction)
+        .expect("invariant: fixture tensor has the declared rank");
     let result = Skeletonization::new().apply(&image);
     assert_eq!(result.origin(), &origin);
     assert_eq!(result.spacing(), &spacing);

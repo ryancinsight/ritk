@@ -165,12 +165,12 @@ fn run<B: Backend>(
 }
 
 fn run_native<B>(
-    image: &ritk_image::native::Image<f32, B, 3>,
+    image: &ritk_image::Image<f32, B, 3>,
     conn: Connectivity,
     kind: ExtremaKind,
     value: impl Fn(bool, f32) -> f32,
     backend: &B,
-) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend,
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -178,7 +178,7 @@ where
     let values = image.data_slice()?;
     validate_samples(values)?;
     let mask = regional_extrema_mask(values, image.shape(), conn, kind);
-    ritk_image::native::Image::from_flat_on(
+    ritk_image::Image::from_flat_on(
         mask.iter()
             .zip(values)
             .map(|(&is_extremum, &sample)| value(is_extremum, sample))
@@ -311,9 +311,9 @@ impl RegionalMinimaFilter {
     /// native output construction failure.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

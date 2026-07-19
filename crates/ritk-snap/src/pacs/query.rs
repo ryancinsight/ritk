@@ -1,4 +1,4 @@
-﻿//! PACS query domain types: request, response, result rows, and state machine.
+//! PACS query domain types: request, response, result rows, and state machine.
 //!
 //! # Overview
 //!
@@ -37,7 +37,8 @@ pub struct FindResultRowSeries {
     pub num_instances: String,
     pub series_date: String,
     pub series_time: String,
-    pub accession_number: String }
+    pub accession_number: String,
+}
 
 impl FindResultRowSeries {
     /// Decode a `FindResultRowSeries` from a raw IVR-LE C-FIND response dataset.
@@ -73,7 +74,8 @@ impl FindResultRowSeries {
             num_instances: get(0x0020, 0x1209), // NumberOfSeriesRelatedInstances (series scope)
             series_date: get(0x0008, 0x0021),
             series_time: get(0x0008, 0x0031),
-            accession_number: get(0x0008, 0x0050) }
+            accession_number: get(0x0008, 0x0050),
+        }
     }
 
     /// Build a series-level C-FIND query dataset for drilling into a study.
@@ -132,7 +134,8 @@ pub struct FindResultRow {
     pub accession_number: String,
     pub study_instance_uid: String,
     pub num_series: String,
-    pub num_instances: String }
+    pub num_instances: String,
+}
 
 impl FindResultRow {
     /// Decode a `FindResultRow` from a raw IVR-LE C-FIND response dataset.
@@ -220,7 +223,8 @@ pub enum PacsRequest {
         patient_name: String,
         modality: String,
         study_date: String,
-        accession_number: String },
+        accession_number: String,
+    },
     /// C-FIND series-level drill-down query (Study Root Query/Retrieve, PS 3.4 Â§C.4.1).
     ///
     /// Returns all series within the specified study.
@@ -231,7 +235,8 @@ pub enum PacsRequest {
     /// C-STORE sub-operations. This SCU does not receive them directly.
     RetrieveStudy {
         study_instance_uid: String,
-        move_destination: String },
+        move_destination: String,
+    },
     /// C-MOVE series-level retrieval to a configured destination AE.
     ///
     /// Requests that the PACS transfer only instances belonging to the
@@ -239,7 +244,9 @@ pub enum PacsRequest {
     RetrieveSeries {
         study_instance_uid: String,
         series_instance_uid: String,
-        move_destination: String } }
+        move_destination: String,
+    },
+}
 
 /// Response returned from the background worker thread.
 ///
@@ -263,7 +270,8 @@ pub enum PacsResponse {
     /// C-MOVE (series-level) completed; `MoveResponse` carries sub-operation counters.
     RetrieveSeriesOk(MoveResponse),
     /// C-MOVE (series-level) failed with a human-readable error description.
-    RetrieveSeriesErr(String) }
+    RetrieveSeriesErr(String),
+}
 
 // â”€â”€ QueryState â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -289,6 +297,8 @@ pub enum QueryState {
     /// Series-level drill-down results for a specific study.
     SeriesResults {
         study_instance_uid: String,
-        series: Vec<FindResultRowSeries> },
+        series: Vec<FindResultRowSeries>,
+    },
     /// The last operation failed; panel shows the error description.
-    Error(String) }
+    Error(String),
+}

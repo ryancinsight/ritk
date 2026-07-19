@@ -1,4 +1,4 @@
-﻿//! VTK-style data-flow pipeline abstractions.
+//! VTK-style data-flow pipeline abstractions.
 //!
 //! # Architecture
 //!
@@ -95,7 +95,8 @@ pub struct VtkPipeline {
     sink: Option<Box<dyn VtkSink>>,
     mtime: ModifiedTime,
     event_handlers: EventHandlers,
-    cached_output: Option<VtkDataObject> }
+    cached_output: Option<VtkDataObject>,
+}
 
 impl VtkPipeline {
     /// Construct a pipeline with the given source and no filters or sink.
@@ -106,7 +107,8 @@ impl VtkPipeline {
             sink: None,
             mtime: ModifiedTime::tick(),
             event_handlers: EventHandlers::new(),
-            cached_output: None }
+            cached_output: None,
+        }
     }
 
     /// Append a filter stage. Returns `&mut Self` for chaining.

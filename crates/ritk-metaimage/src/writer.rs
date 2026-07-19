@@ -1,7 +1,7 @@
-﻿use crate::spatial::file_spatial_fields_from_internal;
+use crate::spatial::file_spatial_fields_from_internal;
 use anyhow::{anyhow, Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -158,7 +158,8 @@ fn write_metaimage_flat(
 /// The backend `B` is supplied per-call so a single `MetaImageWriter`
 /// instance can write images from different backends.
 pub struct MetaImageWriter<B: ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: ComputeBackend> MetaImageWriter<B> {
     /// Creates a writer that extracts image storage through `backend`.

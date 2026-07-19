@@ -1,4 +1,4 @@
-﻿//! MINC2 (.mnc / .mnc2) reader and writer for 3-D medical images.
+//! MINC2 (.mnc / .mnc2) reader and writer for 3-D medical images.
 //!
 //! # Format
 //!
@@ -91,7 +91,8 @@ pub struct MincDimension {
     /// Number of voxels along this axis.
     pub length: usize,
     /// Direction cosine vector (3 components).
-    pub direction_cosines: [f64; 3] }
+    pub direction_cosines: [f64; 3],
+}
 
 #[cfg(test)]
 mod tests {
@@ -104,7 +105,8 @@ mod tests {
             start: -64.0,
             step: 1.0,
             length: 128,
-            direction_cosines: [1.0, 0.0, 0.0] };
+            direction_cosines: [1.0, 0.0, 0.0],
+        };
         assert_eq!(dim.name, "xspace");
         assert!((dim.start - (-64.0)).abs() < 1e-10);
         assert!((dim.step - 1.0).abs() < 1e-10);

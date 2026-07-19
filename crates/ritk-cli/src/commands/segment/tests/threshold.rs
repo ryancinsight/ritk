@@ -42,14 +42,17 @@ fn test_segment_otsu_output_is_strictly_binary() {
     .unwrap();
 
     let mask = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
-    mask.with_data_slice(|values| {
+    {
+        let values = mask
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in values {
             assert!(
                 v == 0.0 || v == 1.0,
                 "Otsu output must be strictly binary (0.0 or 1.0), got {v}"
             );
         }
-    });
+    }
 }
 
 // ── Positive: Otsu threshold is between the two modes ─────────────────────
@@ -114,15 +117,19 @@ fn test_segment_multi_otsu_creates_output_with_correct_shape() {
     .unwrap();
 
     assert!(output.exists(), "output label image must be created");
-    let labels = crate::commands::read_image_native(&output)
-        .expect("Multi-Otsu output is natively readable");
+    let labels =
+        crate::commands::read_image(&output).expect("Multi-Otsu output is natively readable");
     assert_eq!(labels.shape(), [6, 6, 6], "label shape must match input");
     assert_eq!(*labels.origin(), *expected.origin());
     assert_eq!(*labels.spacing(), *expected.spacing());
     assert_eq!(*labels.direction(), *expected.direction());
     assert_eq!(
-        labels.data_slice().expect("contiguous native labels"),
-        expected.data_slice().as_ref()
+        labels
+            .data_slice()
+            .expect("invariant: image storage is contiguous"),
+        expected
+            .data_slice()
+            .expect("invariant: contiguous host storage")
     );
 }
 
@@ -145,7 +152,10 @@ fn test_segment_multi_otsu_labels_in_valid_set() {
     .unwrap();
 
     let labels = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
-    labels.with_data_slice(|values| {
+    {
+        let values = labels
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         let valid = [0.0_f32, 1.0_f32, 2.0_f32];
         for &v in values {
             assert!(
@@ -153,7 +163,7 @@ fn test_segment_multi_otsu_labels_in_valid_set() {
                 "label value {v} is not in the valid set {{0, 1, 2}} for K=3"
             );
         }
-    });
+    }
 }
 
 // ── Positive: Multi-Otsu returns K-1 thresholds ───────────────────────────
@@ -198,13 +208,15 @@ fn test_segment_binary_threshold_writes_exact_native_output() {
     run(args).unwrap();
 
     assert!(output.exists(), "output file must be created");
-    let out_image = crate::commands::read_image_native(&output)
-        .expect("binary threshold output is natively readable");
+    let out_image =
+        crate::commands::read_image(&output).expect("binary threshold output is natively readable");
     assert_eq!(out_image.shape(), [4, 4, 4]);
     assert_eq!(*out_image.origin(), Point::new([0.0; 3]));
     assert_eq!(*out_image.spacing(), Spacing::new([1.0; 3]));
     assert_eq!(
-        out_image.data_slice().expect("contiguous output"),
+        out_image
+            .data_slice()
+            .expect("invariant: image storage is contiguous"),
         [vec![0.0; 32], vec![1.0; 32]].concat()
     );
 }
@@ -222,14 +234,17 @@ fn test_segment_binary_threshold_output_is_strictly_binary() {
     run(args).unwrap();
 
     let out_image = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    out_image.with_data_slice(|slice| {
+    {
+        let slice = out_image
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in slice {
             assert!(
                 v == 0.0 || v == 1.0,
                 "binary threshold output must be in {{0,1}}, got {v}"
             );
         }
-    });
+    }
 }
 
 #[test]
@@ -243,10 +258,13 @@ fn test_segment_binary_threshold_no_bounds_all_inside() {
     run(args).unwrap();
 
     let out_image = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    out_image.with_data_slice(|slice| {
+    {
+        let slice = out_image
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         assert!(
             slice.iter().all(|&v| v == 1.0),
             "no bounds → all voxels inside → all 1.0"
         );
-    });
+    }
 }

@@ -321,24 +321,25 @@ fn test_load_series_jpeg_baseline_codec_round_trip() {
         "shape must be [1, H, W] for single-slice series"
     );
 
-    img.with_data_slice(|floats: &[f32]| {
-        assert_eq!(floats.len(), 16, "pixel count must equal H Ã— W");
-        // Each decoded value must be within JPEG tolerance of the original.
-        let max_error = original
-            .iter()
-            .zip(floats.iter())
-            .map(|(&o, &d)| (o as f32 - d).abs())
-            .fold(0.0f32, f32::max);
-        // Analytical bound: JPEG Q75 DC quantization step = 8 â†’ â‰¤4 per pixel;
-        // primary AC terms (1,0),(0,1),(1,1) each â‰¤ 3 per pixel; sum = 13.
-        // Tolerance set to 16 (next power-of-2 â‰¥ 13) per the derivation in
-        // codec::tests::test_decode_compressed_frame_jpeg_baseline_round_trip.
-        assert!(
-            max_error <= 16.0,
-            "codec round-trip error {max_error} exceeds analytical JPEG tolerance of 16.0 \
-             (Q75: DCâ‰¤4 + AC(1,0)â‰¤3 + AC(0,1)â‰¤3 + AC(1,1)â‰¤3 + higher-order margin = 16)"
-        );
-    });
+    let floats = img
+        .data_slice()
+        .expect("invariant: decoded image storage is contiguous");
+    assert_eq!(floats.len(), 16, "pixel count must equal H Ã— W");
+    // Each decoded value must be within JPEG tolerance of the original.
+    let max_error = original
+        .iter()
+        .zip(floats.iter())
+        .map(|(&o, &d)| (o as f32 - d).abs())
+        .fold(0.0f32, f32::max);
+    // Analytical bound: JPEG Q75 DC quantization step = 8 â†’ â‰¤4 per pixel;
+    // primary AC terms (1,0),(0,1),(1,1) each â‰¤ 3 per pixel; sum = 13.
+    // Tolerance set to 16 (next power-of-2 â‰¥ 13) per the derivation in
+    // codec::tests::test_decode_compressed_frame_jpeg_baseline_round_trip.
+    assert!(
+        max_error <= 16.0,
+        "codec round-trip error {max_error} exceeds analytical JPEG tolerance of 16.0 \
+         (Q75: DCâ‰¤4 + AC(1,0)â‰¤3 + AC(0,1)â‰¤3 + AC(1,1)â‰¤3 + higher-order margin = 16)"
+    );
 }
 
 #[test]

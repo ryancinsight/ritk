@@ -1,4 +1,4 @@
-﻿//! Shared XML parsing helpers for VTK XML formats (VTI, VTP, VTU).
+//! Shared XML parsing helpers for VTK XML formats (VTI, VTP, VTU).
 
 use crate::domain::vtk_data_object::AttributeArray;
 use anyhow::{Context, Result};
@@ -73,11 +73,13 @@ pub(crate) fn parse_ints(s: &str) -> Vec<i32> {
 pub(crate) fn extract_da_content(section: &str) -> String {
     let da_start = match section.find("<DataArray") {
         Some(p) => p,
-        None => return String::new() };
+        None => return String::new(),
+    };
     let rest = &section[da_start..];
     let gt = match rest.find('>') {
         Some(p) => p + 1,
-        None => return String::new() };
+        None => return String::new(),
+    };
     let lt = rest[gt..].find("</").map(|p| gt + p).unwrap_or(rest.len());
     rest[gt..lt].trim().to_string()
 }
@@ -109,7 +111,8 @@ pub(crate) fn parse_attrs(section: &str) -> HashMap<String, AttributeArray> {
         rest = &rest[start..];
         let te = match rest.find('>') {
             Some(e) => e + 1,
-            None => break };
+            None => break,
+        };
         let tag = &rest[..te];
         let name = attr_val(tag, "Name").unwrap_or_default();
         let ncomp: usize = attr_val(tag, "NumberOfComponents")
@@ -117,7 +120,8 @@ pub(crate) fn parse_attrs(section: &str) -> HashMap<String, AttributeArray> {
             .unwrap_or(1);
         let de = match rest.find(close) {
             Some(e) => e,
-            None => break };
+            None => break,
+        };
         let data = rest[te..de].trim().to_string();
         let floats = parse_floats::<f32>(&data);
         if !name.is_empty() {
@@ -133,10 +137,13 @@ pub(crate) fn parse_attrs(section: &str) -> HashMap<String, AttributeArray> {
                 }
                 2 => AttributeArray::TextureCoords {
                     values: floats,
-                    dim: 2 },
+                    dim: 2,
+                },
                 n => AttributeArray::Scalars {
                     values: floats,
-                    num_components: n } };
+                    num_components: n,
+                },
+            };
             map.insert(name, attr);
         }
         rest = &rest[de + close.len()..];

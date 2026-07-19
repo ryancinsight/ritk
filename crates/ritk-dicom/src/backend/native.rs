@@ -1,4 +1,4 @@
-﻿//! RITK-native frame decode backend.
+//! RITK-native frame decode backend.
 //!
 //! This backend owns dispatch for transfer syntaxes implemented inside
 //! `ritk-dicom`. External DICOM object libraries stay outside this module.
@@ -6,10 +6,12 @@
 use anyhow::{bail, Result};
 
 use crate::backend::{
-    DecodeFrameRequest, DecodedFrame, EncapsulatedFrameSource, PixelDecodeBackend };
+    DecodeFrameRequest, DecodedFrame, EncapsulatedFrameSource, PixelDecodeBackend,
+};
 use crate::codec::{
     decode_jpeg2000_fragment, decode_jpeg_fragment, decode_jpeg_ls_fragment,
-    decode_rle_lossless_fragment };
+    decode_rle_lossless_fragment,
+};
 use crate::syntax::TransferSyntaxKind;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -40,7 +42,8 @@ where
             syntax => bail!(
                 "transfer syntax {} is not implemented by NativeCodecBackend",
                 syntax.uid()
-            ) };
+            ),
+        };
         Ok(DecodedFrame { pixels })
     }
 }
@@ -91,7 +94,8 @@ mod tests {
             bits_allocated: 8,
             pixel_representation: crate::pixel::PixelSignedness::Unsigned,
             rescale_slope: 1.0,
-            rescale_intercept: 0.0 }
+            rescale_intercept: 0.0,
+        }
     }
 
     fn encode_grayscale_jpeg(width: u32, height: u32, pixels: &[u8]) -> Vec<u8> {
@@ -132,7 +136,8 @@ mod tests {
             DecodeFrameRequest {
                 frame_index: 0,
                 transfer_syntax: TransferSyntaxKind::RleLossless,
-                layout: layout(2, 2) },
+                layout: layout(2, 2),
+            },
         )
         .unwrap();
 
@@ -151,7 +156,8 @@ mod tests {
                     rescale_slope: 2.0,
                     rescale_intercept: -10.0,
                     ..layout(2, 2)
-                } },
+                },
+            },
         )
         .unwrap();
 
@@ -180,7 +186,9 @@ mod tests {
                     bits_allocated: 8,
                     pixel_representation: crate::pixel::PixelSignedness::Unsigned,
                     rescale_slope: 1.0,
-                    rescale_intercept: 0.0 } },
+                    rescale_intercept: 0.0,
+                },
+            },
         )
         .unwrap();
 
@@ -201,7 +209,8 @@ mod tests {
             DecodeFrameRequest {
                 frame_index: 0,
                 transfer_syntax: TransferSyntaxKind::JpegXl,
-                layout: layout(2, 2) },
+                layout: layout(2, 2),
+            },
         )
         .unwrap_err();
 
@@ -220,7 +229,8 @@ mod tests {
             DecodeFrameRequest {
                 frame_index: 0,
                 transfer_syntax: TransferSyntaxKind::JpegLsLossless,
-                layout: layout(2, 2) },
+                layout: layout(2, 2),
+            },
         );
 
         // Should NOT get "not implemented by NativeCodecBackend" error

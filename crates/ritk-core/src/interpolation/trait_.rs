@@ -26,9 +26,5 @@ pub trait Interpolator<B: Backend> {
     ///
     /// # Returns
     /// Tensor of sampled values `[Batch]`
-    fn interpolate(
-        &self,
-        data: &Tensor<f32, B>,
-        indices: Tensor<f32, B>,
-    ) -> Tensor<f32, B>;
+    fn interpolate(&self, data: &Tensor<f32, B>, indices: Tensor<f32, B>) -> Tensor<f32, B>;
 }

@@ -1,4 +1,4 @@
-﻿//! Hierarchical VMamba decoder.
+//! Hierarchical VMamba decoder.
 
 use coeus_autograd::{cat, permute, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
@@ -15,7 +15,8 @@ pub enum SkipConnections {
     Disabled,
     /// Fuse the corresponding encoder feature at every stage.
     #[default]
-    Enabled }
+    Enabled,
+}
 
 /// One decoder stage configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -25,7 +26,8 @@ pub struct DecoderStageConfig {
     /// Output channels.
     pub out_channels: usize,
     /// VMamba block count.
-    pub depth: usize }
+    pub depth: usize,
+}
 
 /// Decoder topology.
 #[derive(Debug, Clone, PartialEq)]
@@ -39,7 +41,8 @@ pub struct SSMMorphDecoderConfig {
     /// VMamba blocks per stage.
     pub blocks_per_stage: usize,
     /// Skip-connection policy.
-    pub skip_connections: SkipConnections }
+    pub skip_connections: SkipConnections,
+}
 
 impl SSMMorphDecoderConfig {
     /// Construct a decoder mirroring encoder channel widths.
@@ -50,7 +53,8 @@ impl SSMMorphDecoderConfig {
             out_channels,
             num_stages: encoder_channels.len(),
             blocks_per_stage: 2,
-            skip_connections: SkipConnections::Enabled }
+            skip_connections: SkipConnections::Enabled,
+        }
     }
 
     /// Derive stage channel contracts in decoding order.
@@ -64,7 +68,8 @@ impl SSMMorphDecoderConfig {
                 let config = DecoderStageConfig {
                     in_channels: input,
                     out_channels: output,
-                    depth: self.blocks_per_stage };
+                    depth: self.blocks_per_stage,
+                };
                 input = output;
                 config
             })
@@ -81,7 +86,8 @@ where
     upsample: ConvTranspose3d<f32, B>,
     fusion: Option<Conv3d<f32, B>>,
     blocks: Vec<VMambaBlock<B>>,
-    norm: LayerNorm<f32, B> }
+    norm: LayerNorm<f32, B>,
+}
 
 impl<B> DecoderStage<B>
 where
@@ -117,7 +123,8 @@ where
             blocks: (0..depth)
                 .map(|_| VMambaBlock::new(VMambaBlockConfig::new_with_dim(output_channels)))
                 .collect(),
-            norm: LayerNorm::new(output_channels, 1e-5) }
+            norm: LayerNorm::new(output_channels, 1e-5),
+        }
     }
 
     fn forward(
@@ -133,7 +140,8 @@ where
                 return Err(ModelError::Shape {
                     operation: "DecoderStage::forward",
                     expected: "skip input matching decoder skip policy",
-                    actual: upsampled.tensor.shape().to_vec() });
+                    actual: upsampled.tensor.shape().to_vec(),
+                });
             }
         };
         let mut output = permute(
@@ -195,7 +203,8 @@ where
 {
     stages: Vec<DecoderStage<B>>,
     output_projection: Conv3d<f32, B>,
-    use_skips: bool }
+    use_skips: bool,
+}
 
 impl<B> SSMMorphDecoder<B>
 where
@@ -227,7 +236,8 @@ where
         Self {
             stages,
             output_projection,
-            use_skips }
+            use_skips,
+        }
     }
 
     /// Decode a bottleneck and encoder features into a displacement field.
@@ -240,7 +250,8 @@ where
             return Err(ModelError::Shape {
                 operation: "SSMMorphDecoder::forward",
                 expected: "one skip feature per decoder stage",
-                actual: vec![skip_features.len()] });
+                actual: vec![skip_features.len()],
+            });
         }
         let mut output = bottleneck.clone();
         for (index, stage) in self.stages.iter().enumerate() {

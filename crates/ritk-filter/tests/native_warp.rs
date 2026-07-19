@@ -1,6 +1,6 @@
 use coeus_core::SequentialBackend;
 use ritk_filter::warp_image_native;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Eight weighted samples and seven additions bound constant-field rounding by

@@ -8,7 +8,7 @@ use ritk_image::tensor::Tensor;
 use std::path::Path;
 
 fn native_to_legacy<B: Backend>(
-    native: ritk_image::native::Image<f32, SequentialBackend, 3>,
+    native: ritk_image::Image<f32, SequentialBackend, 3>,
     device: &B,
 ) -> Image<f32, B, 3> {
     let values = native.data_cow_on(&SequentialBackend);
@@ -19,13 +19,14 @@ fn native_to_legacy<B: Backend>(
         *native.spacing(),
         *native.direction(),
     )
+    .expect("invariant: backend conversion preserves the validated image rank")
 }
 
 fn legacy_metadata_to_native<B: Backend>(
     image: &Image<f32, B, 3>,
     values: Vec<f32>,
-) -> Result<ritk_image::native::Image<f32, SequentialBackend, 3>> {
-    ritk_image::native::Image::from_flat_on(
+) -> Result<ritk_image::Image<f32, SequentialBackend, 3>> {
+    ritk_image::Image::from_flat_on(
         values,
         image.shape(),
         *image.origin(),
@@ -87,7 +88,7 @@ impl<B: Backend> ImageWriter<Image<f32, B, 3>> for MetaImageWriter {
 pub mod native {
     use crate::domain::{to_io_err, ImageReader, ImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};
-    use ritk_image::native::Image;
+    use ritk_image::Image;
     use std::path::Path;
 
     /// Backend-bound native reader.

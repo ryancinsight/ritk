@@ -11,10 +11,7 @@ use ritk_image::tensor::{Backend, Tensor};
 /// otherwise. Index columns are innermost-first (`[x, y, z]`) while `shape`
 /// remains row-major (`[z, y, x]`).
 #[must_use]
-pub fn compute_oob_mask<B: Backend>(
-    indices: &Tensor<f32, B>,
-    shape: &[usize],
-) -> Tensor<f32, B>
+pub fn compute_oob_mask<B: Backend>(indices: &Tensor<f32, B>, shape: &[usize]) -> Tensor<f32, B>
 where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {

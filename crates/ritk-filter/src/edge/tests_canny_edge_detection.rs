@@ -11,7 +11,9 @@ fn make(v: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
     ts::make_image::<f32, B, 3>(v, dims)
 }
 fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data_slice().into_owned()
+    img.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 /// A square produces a closed ring of edge voxels (output is binary 0/1).

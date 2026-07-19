@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 
 #[test]
 fn classify_directory_uses_directory_as_dicom_root() {
@@ -28,7 +28,8 @@ fn classify_dicomdir_file_uses_parent_as_dicom_root() {
         classified,
         DicomInputPath::DicomDirFile {
             file: dicomdir.clone(),
-            root: dir.path().to_path_buf() }
+            root: dir.path().to_path_buf()
+        }
     );
     assert_eq!(
         classified.dicom_root(),
@@ -80,7 +81,8 @@ fn classify_single_dicom_file_by_extension_uses_parent_as_dicom_root() {
         classified,
         DicomInputPath::SingleDicomFile {
             file: file.clone(),
-            root: dir.path().to_path_buf() }
+            root: dir.path().to_path_buf()
+        }
     );
     assert_eq!(
         classified.dicom_root(),
@@ -104,7 +106,8 @@ fn classify_single_dicom_file_by_preamble_uses_parent_as_dicom_root() {
         classified,
         DicomInputPath::SingleDicomFile {
             file: file.clone(),
-            root: dir.path().to_path_buf() }
+            root: dir.path().to_path_buf()
+        }
     );
     assert_eq!(
         classified.dicom_root(),

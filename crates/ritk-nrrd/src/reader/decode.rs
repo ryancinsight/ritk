@@ -1,4 +1,4 @@
-﻿//! NRRD header parsing and byte decoding helpers.
+//! NRRD header parsing and byte decoding helpers.
 
 use anyhow::{anyhow, Context, Result};
 use ritk_codecs::{decode_bytes_to_f32, ByteOrder};
@@ -161,7 +161,8 @@ pub(super) fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool
         "unsigned int" | "uint32" | "uint" | "unsigned int 32" => (4, false, false),
         "float" => (4, false, true),
         "double" => (8, false, true),
-        other => return Err(anyhow!("Unsupported NRRD type: '{}'", other)) };
+        other => return Err(anyhow!("Unsupported NRRD type: '{}'", other)),
+    };
     Ok(spec)
 }
 
@@ -169,7 +170,8 @@ pub(super) fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool
 mod tests {
     use super::{
         parse_nrrd_point, parse_nrrd_point_planar, parse_parenthesized_vectors,
-        parse_space_directions, parse_space_directions_planar };
+        parse_space_directions, parse_space_directions_planar,
+    };
 
     #[test]
     fn parse_space_directions_returns_fixed_vectors() {

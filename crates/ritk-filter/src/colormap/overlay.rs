@@ -1,5 +1,5 @@
 use anyhow::bail;
-use ritk_image::native::{ColorVolume, Image};
+use ritk_image::{ColorVolume, Image};
 use ritk_tensor_ops::native::{extract_image_vec, rebuild_image};
 use std::collections::BTreeMap;
 

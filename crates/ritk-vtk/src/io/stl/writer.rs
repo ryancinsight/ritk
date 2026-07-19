@@ -1,4 +1,4 @@
-﻿//! STL writer â† VtkPolyData.
+//! STL writer â† VtkPolyData.
 //!
 //! Both variants require that every polygon in `polygons` has exactly three
 //! vertices.  Quads or higher-order polygons return `Err`.
@@ -116,7 +116,8 @@ fn validate_triangles(poly: &VtkPolyData) -> Result<()> {
 fn extract_cell_normals(poly: &VtkPolyData) -> Option<&Vec<[f32; 3]>> {
     poly.cell_data.get("Normals").and_then(|a| match a {
         AttributeArray::Normals { values } => Some(values),
-        _ => None })
+        _ => None,
+    })
 }
 
 #[inline]

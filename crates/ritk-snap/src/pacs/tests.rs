@@ -1,4 +1,4 @@
-﻿//! Unit tests for the PACS module.
+//! Unit tests for the PACS module.
 //!
 //! Tests cover IVR-LE response parsing, configuration defaults, query state
 //! transitions, and C-FIND query construction. All tests are value-semantic:
@@ -170,7 +170,8 @@ fn test_pacs_config_to_association_config_copies_fields() {
         scp_port: 11112,
         timeout_secs: 60,
         auto_load_policy: crate::pacs::config::AutoLoadPolicy::Automatic,
-        auto_load_limit: 512 };
+        auto_load_limit: 512,
+    };
     let assoc = cfg.to_association_config();
     assert_eq!(assoc.calling_ae_title.as_str(), "CALLER");
     assert_eq!(assoc.called_ae_title.as_str(), "PACS01");
@@ -312,14 +313,16 @@ fn test_pacs_response_retrieve_series_ok_message() {
         completed: 5,
         failed: 0,
         warning: 0,
-        final_status: 0x0000 });
+        final_status: 0x0000,
+    });
     match &rsp {
         PacsResponse::RetrieveSeriesOk(m) => {
             assert_eq!(m.completed, 5, "completed count must round-trip");
             assert_eq!(m.failed, 0, "failed count must be 0");
             assert_eq!(m.final_status, 0x0000, "status must be Success (0x0000)");
         }
-        other => panic!("expected RetrieveSeriesOk, got {other:?}") }
+        other => panic!("expected RetrieveSeriesOk, got {other:?}"),
+    }
 }
 
 /// `PacsResponse::RetrieveSeriesErr` stores the error description.
@@ -331,7 +334,8 @@ fn test_pacs_response_retrieve_series_err_stores_message() {
         PacsResponse::RetrieveSeriesErr(msg) => {
             assert_eq!(msg, &err, "error message must round-trip")
         }
-        other => panic!("expected RetrieveSeriesErr, got {other:?}") }
+        other => panic!("expected RetrieveSeriesErr, got {other:?}"),
+    }
 }
 
 /// `build_study_query` with a patient name wildcard must include that wildcard
@@ -396,7 +400,8 @@ fn test_build_study_query_ct_modality_uses_ct_filter() {
 #[test]
 fn test_query_state_pending_has_label() {
     let state = QueryState::Pending {
-        label: "C-FIND\u{2026}".to_owned() };
+        label: "C-FIND\u{2026}".to_owned(),
+    };
     match state {
         QueryState::Pending { label } => {
             assert_eq!(
@@ -404,7 +409,8 @@ fn test_query_state_pending_has_label() {
                 "Pending label must equal the supplied string"
             );
         }
-        other => panic!("expected Pending, got {:?}", other) }
+        other => panic!("expected Pending, got {:?}", other),
+    }
 }
 
 /// `QueryState::Error` stores the error message string.
@@ -417,5 +423,6 @@ fn test_query_state_error_stores_message() {
     let state = QueryState::Error(msg.clone());
     match state {
         QueryState::Error(m) => assert_eq!(m, msg, "Error must store the exact message"),
-        other => panic!("expected Error, got {:?}", other) }
+        other => panic!("expected Error, got {:?}", other),
+    }
 }

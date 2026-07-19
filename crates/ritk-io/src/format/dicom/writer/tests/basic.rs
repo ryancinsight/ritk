@@ -104,7 +104,8 @@ fn test_series_pixel_clamp_unsigned_range() {
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     write_dicom_series(&out_path, &image).expect("write_dicom_series");
 
     for entry in std::fs::read_dir(&out_path).expect("read_dir") {

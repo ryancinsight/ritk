@@ -1,4 +1,4 @@
-﻿//! Viewer session snapshot persistence.
+//! Viewer session snapshot persistence.
 //!
 //! A session snapshot captures complete presentation state including
 //! navigation, window/level, colormap, annotations, and tool selections.
@@ -77,7 +77,8 @@ pub struct ViewerSessionSnapshot {
     /// (length_mm, angle_deg, area_mm2, statistics) are stored verbatim so
     /// they survive round-trip without requiring the volume to be loaded.
     #[serde(default)]
-    pub annotations: Vec<Annotation> }
+    pub annotations: Vec<Annotation>,
+}
 
 impl ViewerSessionSnapshot {
     /// Construct an empty default snapshot.
@@ -102,7 +103,8 @@ impl ViewerSessionSnapshot {
             zoom: 1.0,
             cine_enabled: false,
             cine_fps: 12.0,
-            annotations: Vec::new() }
+            annotations: Vec::new(),
+        }
     }
 }
 

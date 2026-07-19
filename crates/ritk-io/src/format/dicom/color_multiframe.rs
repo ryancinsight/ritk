@@ -12,7 +12,7 @@ use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
     PixelSignedness, TransferSyntaxKind,
 };
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Substrate-agnostic decoded RGB multi-frame volume: a flat interleaved-RGB

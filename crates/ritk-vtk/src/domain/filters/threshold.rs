@@ -1,4 +1,4 @@
-﻿//! Threshold filter: extract dataset elements within a scalar range.
+//! Threshold filter: extract dataset elements within a scalar range.
 //!
 //! # Mathematical Specification
 //!
@@ -15,7 +15,8 @@
 
 use crate::domain::mtime::{Modifiable, ModifiedTime};
 use crate::domain::vtk_data_object::{
-    AttributeArray, VtkCellType, VtkDataObject, VtkUnstructuredGrid };
+    AttributeArray, VtkCellType, VtkDataObject, VtkUnstructuredGrid,
+};
 use crate::domain::vtk_pipeline::VtkFilter;
 use anyhow::{bail, Result};
 use std::any::Any;
@@ -34,7 +35,8 @@ pub struct ThresholdFilter {
     /// Inclusive upper bound.
     upper: f64,
     /// Modification timestamp; bumped on any parameter change.
-    mtime: ModifiedTime }
+    mtime: ModifiedTime,
+}
 
 impl ThresholdFilter {
     /// Construct a threshold filter for the given field and range.
@@ -43,7 +45,8 @@ impl ThresholdFilter {
             scalar_name: scalar_name.into(),
             lower,
             upper,
-            mtime: ModifiedTime::tick() }
+            mtime: ModifiedTime::tick(),
+        }
     }
 
     /// Set the threshold range (inclusive lower and upper bounds).
@@ -112,11 +115,13 @@ impl VtkFilter for ThresholdFilter {
                 let values = match scalars {
                     AttributeArray::Scalars {
                         values,
-                        num_components: 1 } => values,
+                        num_components: 1,
+                    } => values,
                     _ => bail!(
                         "ThresholdFilter: scalar field '{}' must have num_components=1",
                         self.scalar_name
-                    ) };
+                    ),
+                };
                 let e = &img.whole_extent;
                 let nx = (e[1] - e[0] + 1) as usize;
                 let ny = (e[3] - e[2] + 1) as usize;
@@ -155,7 +160,8 @@ impl VtkFilter for ThresholdFilter {
                     self.scalar_name.clone(),
                     AttributeArray::Scalars {
                         values: out_scalars,
-                        num_components: 1 },
+                        num_components: 1,
+                    },
                 );
                 Ok(VtkDataObject::UnstructuredGrid(out))
             }
@@ -170,11 +176,13 @@ impl VtkFilter for ThresholdFilter {
                 let values = match scalars {
                     AttributeArray::Scalars {
                         values,
-                        num_components: 1 } => values.clone(),
+                        num_components: 1,
+                    } => values.clone(),
                     _ => bail!(
                         "ThresholdFilter: scalar field '{}' must have num_components=1",
                         self.scalar_name
-                    ) };
+                    ),
+                };
 
                 let mut out = VtkUnstructuredGrid::new();
                 out.points = ug.points.clone();
@@ -196,7 +204,8 @@ impl VtkFilter for ThresholdFilter {
                     self.scalar_name.clone(),
                     AttributeArray::Scalars {
                         values: out_scalars,
-                        num_components: 1 },
+                        num_components: 1,
+                    },
                 );
                 Ok(VtkDataObject::UnstructuredGrid(out))
             }
@@ -204,7 +213,8 @@ impl VtkFilter for ThresholdFilter {
             other => Err(anyhow::anyhow!(
                 "ThresholdFilter requires ImageData or UnstructuredGrid input; received {}",
                 crate::domain::filters::normals::data_object_type_name(&other)
-            )) }
+            )),
+        }
     }
 }
 

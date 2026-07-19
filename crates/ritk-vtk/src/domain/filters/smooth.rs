@@ -1,4 +1,4 @@
-﻿//! Laplacian surface smoothing filter for polygonal meshes.
+//! Laplacian surface smoothing filter for polygonal meshes.
 //!
 //! # Mathematical Specification
 //!
@@ -35,7 +35,8 @@ pub struct SmoothFilter {
     /// Number of Laplacian smoothing iterations. Default: 20.
     iterations: usize,
     /// Modification timestamp; bumped on any parameter change.
-    mtime: ModifiedTime }
+    mtime: ModifiedTime,
+}
 
 impl SmoothFilter {
     /// Construct a new smoothing filter with the given parameters.
@@ -43,7 +44,8 @@ impl SmoothFilter {
         Self {
             relaxation_factor,
             iterations,
-            mtime: ModifiedTime::tick() }
+            mtime: ModifiedTime::tick(),
+        }
     }
 
     /// Set the relaxation factor Î».
@@ -117,7 +119,8 @@ impl VtkFilter for SmoothFilter {
             other => Err(anyhow::anyhow!(
                 "SmoothFilter requires PolyData input; received {}",
                 crate::domain::filters::normals::data_object_type_name(&other)
-            )) }
+            )),
+        }
     }
 }
 

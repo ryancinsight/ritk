@@ -1,4 +1,4 @@
-﻿//! Tests for local cross-correlation primitives.
+//! Tests for local cross-correlation primitives.
 
 use super::*;
 
@@ -236,21 +236,25 @@ fn bidirectional_fusion_matches_independent_passes() {
         crate::deformable_field_ops::VectorField {
             z: &fixed_gradient.z,
             y: &fixed_gradient.y,
-            x: &fixed_gradient.x },
+            x: &fixed_gradient.x,
+        },
         crate::deformable_field_ops::VectorField {
             z: &moving_gradient.z,
             y: &moving_gradient.y,
-            x: &moving_gradient.x },
+            x: &moving_gradient.x,
+        },
         dims,
         &sats,
         crate::deformable_field_ops::VectorFieldMut {
             z: fused_iz,
             y: fused_iy,
-            x: fused_ix },
+            x: fused_ix,
+        },
         crate::deformable_field_ops::VectorFieldMut {
             z: fused_jz,
             y: fused_jy,
-            x: fused_jx },
+            x: fused_jx,
+        },
         &mut slice_cc,
     );
 

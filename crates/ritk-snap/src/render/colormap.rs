@@ -1,4 +1,4 @@
-﻿//! Named colormaps for medical image display.
+//! Named colormaps for medical image display.
 //!
 //! # Mathematical specification
 //!
@@ -37,7 +37,8 @@ pub enum Colormap {
     Cool,
     Bone,
     Jet,
-    Plasma }
+    Plasma,
+}
 
 // â”€â”€ piecewise-linear helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -226,7 +227,8 @@ impl Colormap {
             Colormap::Cool => "Cool",
             Colormap::Bone => "Bone",
             Colormap::Jet => "Jet",
-            Colormap::Plasma => "Plasma" }
+            Colormap::Plasma => "Plasma",
+        }
     }
 
     /// All variants in display order, suitable for UI iteration.

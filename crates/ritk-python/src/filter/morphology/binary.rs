@@ -1,10 +1,11 @@
-﻿use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, into_py_image, py_image_to_burn, PyImage};
+use crate::errors::{RitkPyError, RitkResult};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{
     BinaryPruningFilter, BinaryThinningFilter, ErodeObjectMorphologyFilter, HitOrMissTransform,
-    VotingBinaryHoleFillingImageFilter, VotingBinaryImageFilter };
+    VotingBinaryHoleFillingImageFilter, VotingBinaryImageFilter,
+};
 use std::sync::Arc;
 
 /// Thin a binary image to its 1-pixel-wide skeleton, matching
@@ -22,9 +23,9 @@ use std::sync::Arc;
 #[pyfunction]
 pub fn binary_thinning(py: Python<'_>, image: &PyImage) -> PyImage {
     // TODO: BinaryThinningFilter still lacks apply_native; keep Burn roundtrip for now.
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let out = py.allow_threads(|| BinaryThinningFilter::new().apply(&arc));
-    burn_into_py_image(out)
+    into_py_image(out)
 }
 
 /// Prune short spurs from a binary skeleton, matching `SimpleITK.BinaryPruning`
@@ -42,9 +43,9 @@ pub fn binary_thinning(py: Python<'_>, image: &PyImage) -> PyImage {
 #[pyo3(signature = (image, iteration=3))]
 pub fn binary_pruning(py: Python<'_>, image: &PyImage, iteration: usize) -> PyImage {
     // TODO: BinaryPruningFilter still lacks apply_native; keep Burn roundtrip for now.
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let out = py.allow_threads(|| BinaryPruningFilter::new(iteration).apply(&arc));
-    burn_into_py_image(out)
+    into_py_image(out)
 }
 
 /// Erode an object's surface with a box structuring element, matching
@@ -73,12 +74,12 @@ pub fn erode_object_morphology(
     background_value: f32,
 ) -> PyImage {
     // TODO: ErodeObjectMorphologyFilter still lacks apply_native; keep Burn roundtrip for now.
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let out = py.allow_threads(|| {
         ErodeObjectMorphologyFilter::new([radius, radius, radius], object_value, background_value)
             .apply(&arc)
     });
-    burn_into_py_image(out)
+    into_py_image(out)
 }
 
 /// Apply hit-or-miss transform for shape detection in binary images.

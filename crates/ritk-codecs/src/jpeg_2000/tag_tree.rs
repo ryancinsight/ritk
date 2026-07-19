@@ -1,4 +1,4 @@
-﻿//! Tag trees (ISO 15444-1 Â§B.10.2).
+//! Tag trees (ISO 15444-1 Â§B.10.2).
 //!
 //! A tag tree codes a 2-D grid of non-negative integers (one leaf per
 //! code-block) through a quad-tree whose internal nodes hold the minimum of
@@ -22,7 +22,8 @@ struct Node {
     /// Whether `value` has been fully communicated.
     known: bool,
     /// Parent index (`usize::MAX` for the root).
-    parent: usize }
+    parent: usize,
+}
 
 /// Quad-tree over a `w Ã— h` leaf grid.
 pub(crate) struct TagTree {
@@ -30,7 +31,8 @@ pub(crate) struct TagTree {
     /// Per-level grid widths/heights, finest (leaves) first.
     level_dims: Vec<(usize, usize)>,
     /// Node-index offset of each level, finest first.
-    level_offsets: Vec<usize> }
+    level_offsets: Vec<usize>,
+}
 
 impl TagTree {
     /// Build a tree for a `w Ã— h` leaf grid (`w, h â‰¥ 1`); all values start 0.
@@ -54,7 +56,8 @@ impl TagTree {
                 value: 0,
                 low: 0,
                 known: false,
-                parent: usize::MAX };
+                parent: usize::MAX
+            };
             total
         ];
         // Wire parents: node (x, y) at level l â†’ (x/2, y/2) at level l+1.
@@ -71,7 +74,8 @@ impl TagTree {
         Self {
             nodes,
             level_dims,
-            level_offsets }
+            level_offsets,
+        }
     }
 
     #[inline]

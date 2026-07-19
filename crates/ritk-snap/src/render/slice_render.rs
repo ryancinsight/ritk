@@ -1,4 +1,4 @@
-﻿//! 2-D slice rendering pipeline for medical volume display.
+//! 2-D slice rendering pipeline for medical volume display.
 //!
 //! # Mathematical specification
 //!
@@ -58,7 +58,8 @@ pub struct WindowLevel {
     ///
     /// A width of zero or a negative value causes all inputs to saturate:
     /// values equal to or below `center` clamp to 0, values above clamp to 255.
-    pub width: f64 }
+    pub width: f64,
+}
 
 impl WindowLevel {
     /// Construct a `WindowLevel` with the given centre and width.

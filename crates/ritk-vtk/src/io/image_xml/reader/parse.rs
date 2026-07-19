@@ -1,8 +1,9 @@
-﻿//! ASCII-inline VTI reader: `read_vti_image_data`, `parse_vti`, `parse_attrs`.
+//! ASCII-inline VTI reader: `read_vti_image_data`, `parse_vti`, `parse_attrs`.
 
 use super::xml_helpers::{
     attr_val, find_section, find_tag, parse_attrs, parse_floats, parse_i64s, DEFAULT_ORIGIN_STR,
-    DEFAULT_SPACING_STR };
+    DEFAULT_SPACING_STR,
+};
 use crate::domain::vtk_data_object::VtkImageData;
 use anyhow::{bail, Context, Result};
 use std::path::Path;
@@ -65,5 +66,6 @@ pub(crate) fn parse_vti(input: &str) -> Result<VtkImageData> {
         origin,
         spacing,
         point_data,
-        cell_data })
+        cell_data,
+    })
 }

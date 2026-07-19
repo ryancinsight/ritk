@@ -225,12 +225,12 @@ impl KMeansSegmentation {
 
         let tensor = Tensor::<f32, B>::from_slice_on(shape, &labels, &device);
 
-        Ok(Image::new(
+        Image::new(
             tensor,
             *image.origin(),
             *image.spacing(),
             *image.direction(),
-        ))
+        )
     }
 
     /// Apply K-means clustering to a Coeus-native image.
@@ -241,9 +241,9 @@ impl KMeansSegmentation {
     /// host-addressable, or the output image cannot be constructed.
     pub fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

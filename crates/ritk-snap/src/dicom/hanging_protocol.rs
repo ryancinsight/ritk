@@ -1,4 +1,4 @@
-﻿//! Deterministic hanging protocol selection for viewer startup.
+//! Deterministic hanging protocol selection for viewer startup.
 //!
 //! This module is the SSOT for translating study metadata into viewer
 //! presentation defaults. The decision is pure and side-effect free.
@@ -9,7 +9,8 @@ pub enum LayoutSuggestion {
     /// Single-pane axial view.
     SinglePane,
     /// 2Ã—2 multi-planar reformat (axial, coronal, sagittal + 3D).
-    MultiPlanarReformat }
+    MultiPlanarReformat,
+}
 
 /// Selected startup presentation policy for one loaded study.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -23,7 +24,8 @@ pub struct HangingProtocolDecision {
     /// Preferred primary axis: 0=axial, 1=coronal, 2=sagittal.
     pub preferred_axis: usize,
     /// Suggested viewer layout mode.
-    pub layout: LayoutSuggestion }
+    pub layout: LayoutSuggestion,
+}
 
 /// Select a hanging protocol from modality and series description.
 ///
@@ -106,67 +108,78 @@ const CT_BRAIN: HangingProtocolDecision = HangingProtocolDecision {
     window_center: 40.0,
     window_width: 80.0,
     preferred_axis: 0,
-    layout: MPR };
+    layout: MPR,
+};
 const CT_LUNG: HangingProtocolDecision = HangingProtocolDecision {
     protocol_name: "CT Lung",
     window_center: -400.0,
     window_width: 1500.0,
     preferred_axis: 0,
-    layout: MPR };
+    layout: MPR,
+};
 const CT_BONE: HangingProtocolDecision = HangingProtocolDecision {
     protocol_name: "CT Bone",
     window_center: 400.0,
     window_width: 1000.0,
     preferred_axis: 0,
-    layout: MPR };
+    layout: MPR,
+};
 const CT_ANGIO: HangingProtocolDecision = HangingProtocolDecision {
     protocol_name: "CT Angio",
     window_center: 300.0,
     window_width: 600.0,
     preferred_axis: 0,
-    layout: MPR };
+    layout: MPR,
+};
 const CT_SOFT_TISSUE: HangingProtocolDecision = HangingProtocolDecision {
     protocol_name: "CT Soft Tissue",
     window_center: 60.0,
     window_width: 400.0,
     preferred_axis: 0,
-    layout: MPR };
+    layout: MPR,
+};
 const MR_T1: HangingProtocolDecision = HangingProtocolDecision {
     protocol_name: "MR T1",
     window_center: 500.0,
     window_width: 800.0,
     preferred_axis: 0,
-    layout: MPR };
+    layout: MPR,
+};
 const MR_T2: HangingProtocolDecision = HangingProtocolDecision {
     protocol_name: "MR T2",
     window_center: 600.0,
     window_width: 1200.0,
     preferred_axis: 0,
-    layout: MPR };
+    layout: MPR,
+};
 const MR_FLAIR: HangingProtocolDecision = HangingProtocolDecision {
     protocol_name: "MR FLAIR",
     window_center: 400.0,
     window_width: 800.0,
     preferred_axis: 0,
-    layout: MPR };
+    layout: MPR,
+};
 const MR_SPINE: HangingProtocolDecision = HangingProtocolDecision {
     protocol_name: "MR Spine",
     window_center: 600.0,
     window_width: 1200.0,
     preferred_axis: 1,
-    layout: MPR };
+    layout: MPR,
+};
 const GENERIC: HangingProtocolDecision = HangingProtocolDecision {
     protocol_name: "Generic",
     window_center: 128.0,
     window_width: 256.0,
     preferred_axis: 0,
-    layout: SGL };
+    layout: SGL,
+};
 const PET_SUV: HangingProtocolDecision = HangingProtocolDecision {
     protocol_name: "PET SUV",
     window_center: 3.0,
     window_width: 6.0,
     preferred_axis: 0,
-    layout: MPR };
+    layout: MPR,
+};
 
 #[cfg(test)]
 mod tests {

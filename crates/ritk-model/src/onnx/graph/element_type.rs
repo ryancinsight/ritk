@@ -1,4 +1,4 @@
-﻿//! ONNX element data types.
+//! ONNX element data types.
 
 /// ONNX element data types.
 ///
@@ -36,7 +36,8 @@ pub enum OnnxElementType {
     /// Complex with 32-bit float real and imaginary parts
     Complex64,
     /// Complex with 64-bit float real and imaginary parts
-    Complex128 }
+    Complex128,
+}
 
 impl OnnxElementType {
     /// Get the size of each element in bytes.
@@ -57,7 +58,8 @@ impl OnnxElementType {
             OnnxElementType::Uint64 => 8,
             OnnxElementType::Bfloat16 => 2,
             OnnxElementType::Complex64 => 8,
-            OnnxElementType::Complex128 => 16 }
+            OnnxElementType::Complex128 => 16,
+        }
     }
 
     /// Check if this is a floating-point type.
@@ -105,6 +107,7 @@ impl std::fmt::Display for OnnxElementType {
             OnnxElementType::Uint64 => write!(f, "uint64"),
             OnnxElementType::Bfloat16 => write!(f, "bfloat16"),
             OnnxElementType::Complex64 => write!(f, "complex64"),
-            OnnxElementType::Complex128 => write!(f, "complex128") }
+            OnnxElementType::Complex128 => write!(f, "complex128"),
+        }
     }
 }

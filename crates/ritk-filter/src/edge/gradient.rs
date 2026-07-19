@@ -13,7 +13,7 @@
 //! - component 2 (âˆ‚/âˆ‚z) â† axis 0
 
 use anyhow::Result;
-use ritk_image::native::{ColorVolume, Image};
+use ritk_image::{ColorVolume, Image};
 
 use super::derivative::DerivativeImageFilter;
 use crate::recursive_gaussian::gradient_recursive_gaussian_components;

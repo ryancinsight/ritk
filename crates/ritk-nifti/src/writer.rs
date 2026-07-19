@@ -1,8 +1,8 @@
-﻿use anyhow::Result;
+use anyhow::Result;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -253,7 +253,8 @@ fn header_from_spatial(
             pixdim,
             srow_x: sform.x.map(f64::from),
             srow_y: sform.y.map(f64::from),
-            srow_z: sform.z.map(f64::from) },
+            srow_z: sform.z.map(f64::from),
+        },
     )
 }
 

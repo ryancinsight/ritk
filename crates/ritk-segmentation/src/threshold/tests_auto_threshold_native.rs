@@ -1,8 +1,8 @@
 use super::*;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::make_image;
+use ritk_image::Image as NativeImage;
 
 type LegacyBackend = SequentialBackend;
 
@@ -45,7 +45,9 @@ fn assert_native_case<A: AutoThreshold>(
     assert_eq!(*native_mask.direction(), direction);
     assert_eq!(
         native_mask.data_slice().expect("contiguous native mask"),
-        legacy_mask.data_slice().as_ref()
+        legacy_mask
+            .data_slice()
+            .expect("invariant: contiguous host storage")
     );
     assert_eq!(
         native_mask_only

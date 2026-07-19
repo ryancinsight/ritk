@@ -1,4 +1,4 @@
-﻿//! Spatial metadata transforms between MGH RAS header fields and RITK images.
+//! Spatial metadata transforms between MGH RAS header fields and RITK images.
 
 use ritk_spatial::{Direction, Point, Spacing, Vector};
 
@@ -9,7 +9,8 @@ pub(crate) enum RasValidity {
     /// RAS fields are valid â€” use them to compute origin, spacing, direction.
     Valid,
     /// RAS fields are absent or unreliable â€” fall back to identity geometry.
-    Synthetic }
+    Synthetic,
+}
 
 pub(crate) fn derive_image_geometry(
     ras_validity: RasValidity,

@@ -8,7 +8,10 @@ fn img(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 fn vals(image: &Image<f32, B, 3>) -> Vec<f32> {
-    image.data_slice().into_owned()
+    image
+        .data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 /// 1-D roll by +1 along x: [0,1,2,3,4] → [4,0,1,2,3] (last wraps to front).

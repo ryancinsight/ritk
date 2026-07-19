@@ -1,4 +1,4 @@
-﻿use std::time::Duration;
+use std::time::Duration;
 
 use crate::ui::{advance_wrapped, axis_total, clamp_index, step_clamped};
 use crate::LoadedVolume;
@@ -10,7 +10,8 @@ impl SnapApp {
         match axis {
             0 => volume.shape[0],
             1 => volume.shape[1],
-            _ => volume.shape[2] }
+            _ => volume.shape[2],
+        }
     }
 
     pub(crate) fn map_slice_index_between_volumes(
@@ -40,7 +41,8 @@ impl SnapApp {
         match axis {
             0 => (self.viewer_state.slice_index, total),
             1 => (self.coronal_slice, total),
-            _ => (self.sagittal_slice, total) }
+            _ => (self.sagittal_slice, total),
+        }
     }
 
     /// Step the slice for `axis` by `delta`, clamped to the valid range.
@@ -121,7 +123,8 @@ impl SnapApp {
         let current = match axis {
             0 => self.viewer_state.slice_index,
             1 => self.coronal_slice,
-            _ => self.sagittal_slice };
+            _ => self.sagittal_slice,
+        };
         let next = advance_wrapped(current, total, steps);
         self.set_slice_for_axis(axis, next);
     }

@@ -133,14 +133,14 @@ impl BinaryThreshold {
     /// from the computed flat volume and input geometry.
     pub fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
+        ritk_image::Image::from_flat_on(
             apply_binary_threshold_to_slice(
                 image.data_slice()?,
                 self.lower,
@@ -213,6 +213,7 @@ pub fn binary_threshold<B: Backend, const D: usize>(
         *image.spacing(),
         *image.direction(),
     )
+    .expect("invariant: segmentation output tensor preserves the image rank")
 }
 
 // â”€â”€ Core implementation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

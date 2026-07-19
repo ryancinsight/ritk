@@ -1,4 +1,4 @@
-﻿//! Stateless GPU MIP rendering pass â€” non-blocking async readback.
+//! Stateless GPU MIP rendering pass â€” non-blocking async readback.
 //!
 //! # Protocol
 //!
@@ -82,7 +82,8 @@ pub(super) fn submit_mip_async(
         wl_lo,
         wl_range: width,
         _pad2: 0.0,
-        _pad3: 0.0 };
+        _pad3: 0.0,
+    };
 
     // Update cached uniform and LUT buffers without re-allocation.
     // write_buffer operations are ordered before the subsequent submit call.
@@ -98,26 +99,33 @@ pub(super) fn submit_mip_async(
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: vol_buf.as_entire_binding() },
+                resource: vol_buf.as_entire_binding(),
+            },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: cache.output_buf.as_entire_binding() },
+                resource: cache.output_buf.as_entire_binding(),
+            },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: cache.params_buf.as_entire_binding() },
+                resource: cache.params_buf.as_entire_binding(),
+            },
             wgpu::BindGroupEntry {
                 binding: 3,
-                resource: cache.lut_buf.as_entire_binding() },
-        ] });
+                resource: cache.lut_buf.as_entire_binding(),
+            },
+        ],
+    });
 
     let mut encoder = ctx
         .device
         .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("gpu_mip_enc") });
+            label: Some("gpu_mip_enc"),
+        });
     {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("gpu_mip_pass"),
-            timestamp_writes: None });
+            timestamp_writes: None,
+        });
         pass.set_pipeline(pipeline);
         pass.set_bind_group(0, &bg, &[]);
         let wg_x = (cols as u32).div_ceil(8);

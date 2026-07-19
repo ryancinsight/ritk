@@ -2,7 +2,7 @@
 
 use coeus_core::SequentialBackend;
 use ritk_filter::{map_color_components, MedianFilter};
-use ritk_image::native::{ColorVolume, Image};
+use ritk_image::{ColorVolume, Image};
 
 type B = SequentialBackend;
 

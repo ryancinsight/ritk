@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 use ritk_io::{RtDoseGrid, RtDoseSummationType, RtDoseType};
 
 // Helper to build a minimal RtDoseGrid for testing.
@@ -24,7 +24,8 @@ fn make_dose_grid(
         image_position: Some(origin),
         image_orientation: Some(orient),
         pixel_spacing: Some(spacing),
-        referenced_rt_plan_sop_instance_uid: None }
+        referenced_rt_plan_sop_instance_uid: None,
+    }
 }
 
 #[test]
@@ -167,7 +168,8 @@ fn extract_dose_no_spatial_metadata_returns_none() {
         image_position: None,
         image_orientation: Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
         pixel_spacing: Some([1.0, 1.0]),
-        referenced_rt_plan_sop_instance_uid: None };
+        referenced_rt_plan_sop_instance_uid: None,
+    };
     let result = extract_dose_slice_for_volume(
         &dose,
         0,

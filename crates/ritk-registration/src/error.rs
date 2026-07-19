@@ -1,4 +1,4 @@
-﻿//! Error types for registration operations.
+//! Error types for registration operations.
 //!
 //! This module provides structured error types for registration workflows,
 //! enabling better error handling and debugging.
@@ -48,7 +48,9 @@ pub enum RegistrationError {
     #[error("Shape mismatch: expected {expected:?}, got {actual:?}")]
     ShapeMismatch {
         expected: Vec<usize>,
-        actual: Vec<usize> } }
+        actual: Vec<usize>,
+    },
+}
 
 /// Result type for registration operations.
 pub type Result<T> = std::result::Result<T, RegistrationError>;
@@ -120,7 +122,8 @@ mod tests {
     fn test_shape_mismatch() {
         let err = RegistrationError::ShapeMismatch {
             expected: vec![10, 10],
-            actual: vec![5, 5] };
+            actual: vec![5, 5],
+        };
         let err_str = err.to_string();
         assert!(err_str.contains("expected"));
         assert!(err_str.contains("got"));

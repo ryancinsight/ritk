@@ -1,4 +1,4 @@
-﻿/// Classical (non-ML) image registration algorithms.
+/// Classical (non-ML) image registration algorithms.
 ///
 /// This module provides deterministic, CPU-based registration algorithms
 /// that do not require a deep-learning backend:
@@ -12,7 +12,6 @@
 /// - `TemporalQualityMetrics` from [`crate::validation`]
 pub mod engine;
 pub mod error;
-pub mod global_mi;
 pub mod native;
 pub mod spatial;
 pub mod temporal;
@@ -21,18 +20,15 @@ pub mod translation;
 // Re-export core types for convenience
 pub use engine::{ImageRegistration, RegistrationResult};
 pub use error::{RegistrationError, Result};
-pub use global_mi::{
-    compute_center_of_mass, translation_from_centers_of_mass, CmaMiConfig, CmaMiLevelConfig,
-    CmaMiRegistration, CmaMiResult, ConvergenceStatus, GlobalMiConfig, GlobalMiRegistration,
-    GlobalMiResult, GlobalMiTransformType, InitStrategy, MultiStartConfig,
-    MultiStartMiRegistration, MultiStartResult };
 pub use native::{
-    image_to_leto_volume, index_affine_to_physical, leto_volume_to_image, NativeConversionError };
+    image_to_leto_volume, index_affine_to_physical, leto_volume_to_image, NativeConversionError,
+};
 pub use spatial::SpatialTransform;
 pub use temporal::TemporalSync;
 pub use translation::{
     register_translation, MeanSquaredDifference, NormalizedCrossCorrelation, TranslationMetric,
-    TranslationRegistrationError };
+    TranslationRegistrationError,
+};
 
 // Re-export quality metrics from validation (SSOT)
 pub use crate::validation::{RegistrationQualityMetrics, TemporalQualityMetrics};

@@ -1,4 +1,4 @@
-﻿//! Fixed-point iterative inversion of a general displacement field.
+//! Fixed-point iterative inversion of a general displacement field.
 //!
 //! # Mathematical Specification
 //!
@@ -21,7 +21,8 @@
 //!   *IEEE Trans. Med. Imaging* 20(7):568â€“582.
 
 use crate::deformable_field_ops::{
-    trilinear_interpolate_field, VectorField, VectorFieldMut, VelocityField };
+    trilinear_interpolate_field, VectorField, VectorFieldMut, VelocityField,
+};
 
 /// Default convergence tolerance for iterative inverse displacement field computation.
 /// Maximum per-voxel Euclidean-norm change threshold between successive iterates.
@@ -42,13 +43,15 @@ pub struct InverseFieldConfig {
     /// between successive iterates drops below this value:
     ///
     ///   `max_i â€–u^{-1}_{k+1}(i) âˆ’ u^{-1}_k(i)â€–_2 < tolerance`
-    pub tolerance: f64 }
+    pub tolerance: f64,
+}
 
 impl Default for InverseFieldConfig {
     fn default() -> Self {
         Self {
             max_iterations: 20,
-            tolerance: DEFAULT_INVERSE_FIELD_TOLERANCE }
+            tolerance: DEFAULT_INVERSE_FIELD_TOLERANCE,
+        }
     }
 }
 
@@ -82,16 +85,19 @@ pub fn invert_displacement_field(
             VectorField {
                 z: disp_z,
                 y: disp_y,
-                x: disp_x },
+                x: disp_x,
+            },
             VectorField {
                 z: &inv_z,
                 y: &inv_y,
-                x: &inv_x },
+                x: &inv_x,
+            },
             dims,
             VectorFieldMut {
                 z: &mut next_z,
                 y: &mut next_y,
-                x: &mut next_x },
+                x: &mut next_x,
+            },
         );
 
         let max_change = (0..n)
@@ -116,7 +122,8 @@ pub fn invert_displacement_field(
         VelocityField {
             z: inv_z,
             y: inv_y,
-            x: inv_x },
+            x: inv_x,
+        },
         iters,
     )
 }
@@ -136,11 +143,13 @@ pub(super) fn warp_displacement_into(
     let VectorField {
         z: query_z,
         y: query_y,
-        x: query_x } = query;
+        x: query_x,
+    } = query;
     let VectorFieldMut {
         z: out_z,
         y: out_y,
-        x: out_x } = out;
+        x: out_x,
+    } = out;
 
     for iz in 0..nz {
         for iy in 0..ny {

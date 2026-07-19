@@ -124,7 +124,8 @@ fn spatial_metadata_preserved() {
     let spacing = Spacing::new([1.5, 1.5, 1.5]);
     let direction = Direction::identity();
     let t = Tensor::<f32, B>::from_slice([3, 3, 3], &[1.0_f32; 27]);
-    let img = Image::new(t, origin, spacing, direction);
+    let img = Image::new(t, origin, spacing, direction)
+        .expect("invariant: fixture tensor has the declared rank");
     let out = BinaryMorphologicalOpening::new(0).apply(&img).unwrap();
     assert_eq!(*out.origin(), origin);
     assert_eq!(*out.spacing(), spacing);

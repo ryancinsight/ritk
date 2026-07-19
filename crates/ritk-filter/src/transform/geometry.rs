@@ -49,12 +49,12 @@ pub fn transform_geometry<B: Backend>(
     // Each direction column is a world vector; A⁻¹ left-multiplies the matrix.
     let new_dir = a_inv * *image.direction();
 
-    Ok(Image::new(
+    Image::new(
         image.data().clone(),
         Point::new(new_o.to_array()),
         *image.spacing(),
         new_dir,
-    ))
+    )
 }
 
 #[cfg(test)]

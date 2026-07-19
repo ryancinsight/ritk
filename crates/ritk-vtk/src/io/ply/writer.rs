@@ -1,4 +1,4 @@
-﻿//! PLY writer â† VtkPolyData.
+//! PLY writer â† VtkPolyData.
 //!
 //! Writes `format ascii 1.0` and `format binary_little_endian 1.0`.
 //!
@@ -138,5 +138,6 @@ fn write_ply_header(
 fn extract_normals(poly: &VtkPolyData) -> Option<&Vec<[f32; 3]>> {
     poly.point_data.get("Normals").and_then(|a| match a {
         AttributeArray::Normals { values } => Some(values),
-        _ => None })
+        _ => None,
+    })
 }

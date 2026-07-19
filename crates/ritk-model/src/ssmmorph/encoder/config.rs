@@ -1,4 +1,4 @@
-﻿//! Configuration mappings for hierarchical encodings
+//! Configuration mappings for hierarchical encodings
 /// Whether an encoder stage performs spatial downsampling.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DownsamplePolicy {
@@ -6,7 +6,8 @@ pub enum DownsamplePolicy {
     KeepResolution,
     /// Apply strided convolution to halve spatial dimensions.
     #[default]
-    Downsample }
+    Downsample,
+}
 
 /// Whether stochastic depth (drop-path) is applied during training.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
@@ -15,7 +16,8 @@ pub enum DropPath {
     #[default]
     Disabled,
     /// Drop-path is applied at the configured rate.
-    Enabled }
+    Enabled,
+}
 
 /// Configuration for encoder stage
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -27,7 +29,8 @@ pub struct EncoderStageConfig {
     /// Number of VMamba blocks in this stage
     pub depth: usize,
     /// Whether to downsample at the end of this stage
-    pub downsample: DownsamplePolicy }
+    pub downsample: DownsamplePolicy,
+}
 
 /// Configuration for SSMMorph encoder
 #[derive(Debug, Clone, PartialEq)]
@@ -43,7 +46,8 @@ pub struct SSMMorphEncoderConfig {
     /// Number of VMamba blocks per stage
     pub blocks_per_stage: usize,
     /// Use drop path (stochastic depth)
-    pub drop_path: DropPath }
+    pub drop_path: DropPath,
+}
 
 impl SSMMorphEncoderConfig {
     /// Create configuration for standard 3D registration
@@ -54,7 +58,8 @@ impl SSMMorphEncoderConfig {
             channel_mult: 2,
             num_stages: 4,
             blocks_per_stage: 2,
-            drop_path: DropPath::Disabled }
+            drop_path: DropPath::Disabled,
+        }
     }
 
     /// Create lightweight configuration
@@ -65,7 +70,8 @@ impl SSMMorphEncoderConfig {
             channel_mult: 2,
             num_stages: 3,
             blocks_per_stage: 1,
-            drop_path: DropPath::Disabled }
+            drop_path: DropPath::Disabled,
+        }
     }
 
     /// Create high-quality configuration
@@ -76,7 +82,8 @@ impl SSMMorphEncoderConfig {
             channel_mult: 2,
             num_stages: 4,
             blocks_per_stage: 3,
-            drop_path: DropPath::Enabled }
+            drop_path: DropPath::Enabled,
+        }
     }
 
     /// Get stage configurations
@@ -95,7 +102,8 @@ impl SSMMorphEncoderConfig {
                 in_channels: in_ch,
                 out_channels: out_ch,
                 depth: self.blocks_per_stage,
-                downsample });
+                downsample,
+            });
 
             in_ch = out_ch;
             out_ch *= self.channel_mult;

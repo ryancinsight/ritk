@@ -1,4 +1,4 @@
-﻿//! Header-derived JPEG-LS decoder state and scan dispatch.
+//! Header-derived JPEG-LS decoder state and scan dispatch.
 
 use super::bitstream::BitReader;
 use super::scan::{decode_scan, Predictor, ScanParams};
@@ -15,7 +15,8 @@ use anyhow::{bail, Context, Result};
 pub(crate) enum InterleaveMode {
     None = 0,
     LineInterleaved = 1,
-    SampleInterleaved = 2 }
+    SampleInterleaved = 2,
+}
 
 impl TryFrom<u8> for InterleaveMode {
     type Error = u8;
@@ -25,7 +26,8 @@ impl TryFrom<u8> for InterleaveMode {
             0 => Ok(Self::None),
             1 => Ok(Self::LineInterleaved),
             2 => Ok(Self::SampleInterleaved),
-            other => Err(other) }
+            other => Err(other),
+        }
     }
 }
 
@@ -47,7 +49,8 @@ pub(crate) struct JpegLsDecoder {
     /// LSE-specified thresholds; zero values mean ISO defaults.
     pub(crate) t1: i32,
     pub(crate) t2: i32,
-    pub(crate) t3: i32 }
+    pub(crate) t3: i32,
+}
 
 impl JpegLsDecoder {
     /// Create a decoder with default uninitialized header fields.
@@ -62,7 +65,8 @@ impl JpegLsDecoder {
             point_transform: 0,
             t1: 0,
             t2: 0,
-            t3: 0 }
+            t3: 0,
+        }
     }
 
     /// Decode scan data after the SOS header into DICOM native pixel bytes.
@@ -107,7 +111,8 @@ impl JpegLsDecoder {
             predictor: Predictor::Adaptive,
             t1: self.t1,
             t2: self.t2,
-            t3: self.t3 };
+            t3: self.t3,
+        };
 
         let mut reader = BitReader::new(data);
         let mut samples = Vec::with_capacity(pixel_count);

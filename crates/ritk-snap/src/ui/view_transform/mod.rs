@@ -1,4 +1,4 @@
-﻿//! Viewport image orientation transforms (flip/rotate).
+//! Viewport image orientation transforms (flip/rotate).
 //!
 //! # Mathematical Specification
 //!
@@ -35,7 +35,8 @@ pub enum RotationSteps {
     Zero,
     Ninety,
     OneEighty,
-    TwoSeventy }
+    TwoSeventy,
+}
 
 impl RotationSteps {
     /// Advance by one 90Â° clockwise step.
@@ -44,7 +45,8 @@ impl RotationSteps {
             Self::Zero => Self::Ninety,
             Self::Ninety => Self::OneEighty,
             Self::OneEighty => Self::TwoSeventy,
-            Self::TwoSeventy => Self::Zero }
+            Self::TwoSeventy => Self::Zero,
+        }
     }
 
     /// Reverse by one 90Â° step (counter-clockwise).
@@ -53,7 +55,8 @@ impl RotationSteps {
             Self::Zero => Self::TwoSeventy,
             Self::Ninety => Self::Zero,
             Self::OneEighty => Self::Ninety,
-            Self::TwoSeventy => Self::OneEighty }
+            Self::TwoSeventy => Self::OneEighty,
+        }
     }
 }
 
@@ -69,7 +72,8 @@ pub struct ViewTransform {
     /// Mirror the image about its horizontal axis (upâ†”down).
     pub flip_v: bool,
     /// Clockwise rotation applied after flips.
-    pub rotation: RotationSteps }
+    pub rotation: RotationSteps,
+}
 
 impl ViewTransform {
     /// True when the transform is the identity (no flip, no rotation).
@@ -131,7 +135,8 @@ pub fn flip_h_image(img: &ColorImage) -> ColorImage {
     }
     ColorImage {
         size: [w, h],
-        pixels: out }
+        pixels: out,
+    }
 }
 
 /// Apply a vertical flip (upâ†”down) to a `ColorImage`.
@@ -148,7 +153,8 @@ pub fn flip_v_image(img: &ColorImage) -> ColorImage {
     }
     ColorImage {
         size: [w, h],
-        pixels: out }
+        pixels: out,
+    }
 }
 
 /// Rotate a `ColorImage` 90Â° clockwise.
@@ -173,7 +179,8 @@ pub fn rotate_90_cw_image(img: &ColorImage) -> ColorImage {
     }
     ColorImage {
         size: [ow, oh],
-        pixels: out }
+        pixels: out,
+    }
 }
 
 /// Apply a `ViewTransform` to a `ColorImage`.
@@ -447,7 +454,8 @@ pub(crate) fn apply_to_image_into(
     // (one per transform step) to exactly one final construction.
     ColorImage {
         size: [out_w, out_h],
-        pixels: out.to_vec() }
+        pixels: out.to_vec(),
+    }
 }
 
 #[cfg(test)]

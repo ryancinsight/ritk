@@ -6,9 +6,9 @@
 //! evaluates the moving volume. All samples outside ITK's half-voxel buffer are
 //! zero-filled rather than clamped.
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut};
+use coeus_core::{ComputeBackend, CpuAddressableStorageMut};
 use coeus_tensor::Tensor;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_interpolation::native::trilinear_interpolation;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::transform::affine::AtlasAffineTransform;
@@ -18,7 +18,7 @@ use ritk_transform::transform::affine::AtlasAffineTransform;
 pub fn fixed_world_points<B>(fixed: &Image<f32, B, 3>) -> Vec<f32>
 where
     B: coeus_core::Backend + ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     let indices = ritk_image::grid::generate_grid::<f32, B, 3>(fixed.shape(), &B::default());
     fixed.index_to_world_native(&indices).as_slice().to_vec()
@@ -39,7 +39,7 @@ pub fn sample_moving_at_world<B>(
 ) -> anyhow::Result<Vec<f32>>
 where
     B: coeus_core::Backend + ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     anyhow::ensure!(
         world_points.len().is_multiple_of(3),
@@ -112,7 +112,7 @@ pub fn resample_moving_at_world<B>(
 ) -> anyhow::Result<Vec<f32>>
 where
     B: coeus_core::Backend + ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     anyhow::ensure!(
         fixed_world.len().is_multiple_of(3),
@@ -145,7 +145,7 @@ pub fn resample_image_native<B>(
 ) -> anyhow::Result<Image<f32, B, 3>>
 where
     B: coeus_core::Backend + ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     Image::from_flat(
         resample_moving_at_world(&fixed_world_points(reference), moving, transform)?,

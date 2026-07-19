@@ -1,7 +1,7 @@
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::make_image;
+use ritk_image::Image as NativeImage;
 
 use super::{BinaryFillHoles, MorphologicalGradient, MorphologicalOperation, Skeletonization};
 
@@ -44,7 +44,13 @@ fn filter_owned_native_postprocessing_matches_legacy_exactly() {
         .apply_native(&native, &SequentialBackend)
         .expect("native fill holes succeeds");
     let legacy_fill = BinaryFillHoles.apply(&legacy);
-    assert_exact(&native, &native_fill, legacy_fill.data_slice().as_ref());
+    assert_exact(
+        &native,
+        &native_fill,
+        legacy_fill
+            .data_slice()
+            .expect("invariant: contiguous host storage"),
+    );
 
     let gradient = MorphologicalGradient::new(1);
     let native_gradient = gradient
@@ -54,7 +60,9 @@ fn filter_owned_native_postprocessing_matches_legacy_exactly() {
     assert_exact(
         &native,
         &native_gradient,
-        legacy_gradient.data_slice().as_ref(),
+        legacy_gradient
+            .data_slice()
+            .expect("invariant: contiguous host storage"),
     );
     assert_eq!(gradient.radius(), 1);
 
@@ -65,7 +73,9 @@ fn filter_owned_native_postprocessing_matches_legacy_exactly() {
     assert_exact(
         &native,
         &native_skeleton,
-        legacy_skeleton.data_slice().as_ref(),
+        legacy_skeleton
+            .data_slice()
+            .expect("invariant: contiguous host storage"),
     );
 }
 

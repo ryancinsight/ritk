@@ -1,7 +1,7 @@
 use super::*;
 use crate::image_comparison::{pearson_correlation, psnr, psnr_native, ssim, ssim_native};
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image as NativeImage;
 
 #[test]
 fn pearson_correlation_parallel_affine_contracts() {

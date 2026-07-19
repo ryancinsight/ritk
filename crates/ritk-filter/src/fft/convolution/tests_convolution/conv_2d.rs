@@ -17,6 +17,7 @@ pub(super) fn make_image_2d(vals: Vec<f32>, h: usize, w: usize) -> Image<f32, B,
         Spacing::new([1.0_f64, 1.0_f64]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 /// Output spatial shape must equal input spatial shape ("same" convention).

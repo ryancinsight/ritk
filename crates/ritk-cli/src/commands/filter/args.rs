@@ -1,4 +1,4 @@
-﻿use clap::Args;
+use clap::Args;
 use ritk_filter::SpacingMode;
 use std::path::PathBuf;
 
@@ -11,14 +11,16 @@ pub enum CliDerivativeOrder {
     #[value(name = "1")]
     First,
     #[value(name = "2")]
-    Second }
+    Second,
+}
 
 impl std::fmt::Display for CliDerivativeOrder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
             Self::Zero => "0",
             Self::First => "1",
-            Self::Second => "2" })
+            Self::Second => "2",
+        })
     }
 }
 
@@ -82,7 +84,8 @@ pub enum FilterKind {
     LabelClosing,
     #[value(name = "morphological-reconstruction")]
     MorphologicalReconstruction,
-    Cpr }
+    Cpr,
+}
 
 impl std::fmt::Display for FilterKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -120,7 +123,8 @@ impl std::fmt::Display for FilterKind {
             Self::LabelOpening => "label-opening",
             Self::LabelClosing => "label-closing",
             Self::MorphologicalReconstruction => "morphological-reconstruction",
-            Self::Cpr => "cpr" })
+            Self::Cpr => "cpr",
+        })
     }
 }
 
@@ -131,7 +135,8 @@ impl std::fmt::Display for FilterKind {
 pub struct SmoothingArgs {
     /// Gaussian standard deviation in physical units (mm).
     #[arg(long, default_value = "1.0", value_name = "FLOAT")]
-    pub sigma: f64 }
+    pub sigma: f64,
+}
 
 /// Iterative / diffusion parameters (n4-bias, anisotropic, curvature).
 #[derive(Args, Debug, Default)]
@@ -149,7 +154,8 @@ pub struct DiffusionArgs {
     /// Explicit Euler time step Î”t for curvature anisotropic diffusion.
     /// Stability requires Î”t â‰¤ 1/6 for unit spacing.
     #[arg(long, default_value = "0.0625", value_name = "FLOAT")]
-    pub time_step: f64 }
+    pub time_step: f64,
+}
 
 /// Vesselness parameters (frangi, sato).
 #[derive(Args, Debug, Default)]
@@ -166,7 +172,8 @@ pub struct VesselnessArgs {
     pub beta: f64,
     /// Frangi Î³ parameter (background-noise sensitivity).
     #[arg(long, default_value = "15.0", value_name = "FLOAT")]
-    pub gamma: f64 }
+    pub gamma: f64,
+}
 
 /// Edge parameters (bilateral, canny). Distinct field names avoid
 /// `#[command(flatten)]` collisions with `SmoothingArgs::sigma`.
@@ -183,7 +190,8 @@ pub struct EdgeArgs {
     pub low: f32,
     /// Upper hysteresis threshold for the Canny edge detector.
     #[arg(long, default_value = "0.3", value_name = "FLOAT")]
-    pub high: f32 }
+    pub high: f32,
+}
 
 /// Discrete Gaussian parameters (variance-based smoothing).
 #[derive(Args, Debug, Default)]
@@ -201,7 +209,8 @@ pub struct DiscreteArgs {
     /// `voxel`: treat variance as already in pixel units.
     #[arg(long = "spacing-mode", default_value = "physical", value_name = "MODE",
           value_parser = |s: &str| s.parse::<SpacingMode>().map_err(|e| e.to_string()))]
-    pub spacing_mode: SpacingMode }
+    pub spacing_mode: SpacingMode,
+}
 
 /// Neighbourhood radius (median + morphology family).
 ///
@@ -210,14 +219,16 @@ pub struct DiscreteArgs {
 pub struct KernelArgs {
     /// Neighbourhood half-width in voxels.
     #[arg(long, default_value = "1", value_name = "INT")]
-    pub radius: usize }
+    pub radius: usize,
+}
 
 /// Derivative order for the recursive Gaussian filter.
 #[derive(Args, Debug, Default)]
 pub struct RecursiveArgs {
     /// Derivative order (0 = smoothing, 1 = first derivative, 2 = second).
     #[arg(long, default_value = "0", value_enum, value_name = "ORDER")]
-    pub order: CliDerivativeOrder }
+    pub order: CliDerivativeOrder,
+}
 
 /// Bed-separation parameters.
 ///
@@ -242,7 +253,8 @@ pub struct BedArgs {
         default_value = "-1024.0",
         value_name = "FLOAT"
     )]
-    pub outside_value: f32 }
+    pub outside_value: f32,
+}
 
 /// Output range (rescale-intensity, sigmoid, intensity-windowing).
 #[derive(Args, Debug, Default)]
@@ -252,7 +264,8 @@ pub struct RangeArgs {
     pub out_min: f32,
     /// Maximum output value.
     #[arg(long, default_value = "1.0", value_name = "FLOAT")]
-    pub out_max: f32 }
+    pub out_max: f32,
+}
 
 /// Window boundaries (intensity-windowing).
 #[derive(Args, Debug, Default)]
@@ -262,7 +275,8 @@ pub struct WindowArgs {
     pub window_min: f32,
     /// Maximum of intensity window.
     #[arg(long, default_value = "255.0", value_name = "FLOAT")]
-    pub window_max: f32 }
+    pub window_max: f32,
+}
 
 /// Threshold band (threshold-outside, binary-threshold).
 #[derive(Args, Debug, Default)]
@@ -281,21 +295,24 @@ pub struct BandArgs {
     pub foreground_value: f32,
     /// Background value for binary-threshold filter.
     #[arg(long, default_value = "0.0", value_name = "FLOAT")]
-    pub background_value: f32 }
+    pub background_value: f32,
+}
 
 /// Single-threshold parameter (threshold-below, threshold-above).
 #[derive(Args, Debug, Default)]
 pub struct ThresholdArgs {
     /// Threshold value for threshold-below and threshold-above filters.
     #[arg(long, default_value = "0.5", value_name = "FLOAT")]
-    pub threshold_value: f32 }
+    pub threshold_value: f32,
+}
 
 /// Optional mask image path (morphological-reconstruction).
 #[derive(Args, Debug, Default)]
 pub struct MaskInputArgs {
     /// Path to a mask image for filters requiring two inputs.
     #[arg(long)]
-    pub mask: Option<std::path::PathBuf> }
+    pub mask: Option<std::path::PathBuf>,
+}
 
 /// CPR (Curved Planar Reformation) parameters.
 #[derive(Args, Debug, Default)]
@@ -312,7 +329,8 @@ pub struct CprArgs {
     pub cpr_half_width: f32,
     /// Number of cross-section samples (output rows) for CPR.
     #[arg(long, default_value = "64", value_name = "INT")]
-    pub cpr_cross_samples: u32 }
+    pub cpr_cross_samples: u32,
+}
 
 /// Sigmoid parameters.
 ///
@@ -340,7 +358,8 @@ pub struct SigmoidArgs {
         default_value = "20.0",
         value_name = "FLOAT"
     )]
-    pub steepness: f32 }
+    pub steepness: f32,
+}
 
 /// Arguments for the `filter` subcommand.
 ///
@@ -403,4 +422,5 @@ pub struct FilterArgs {
     pub cpr: CprArgs,
 
     #[command(flatten)]
-    pub sigmoid: SigmoidArgs }
+    pub sigmoid: SigmoidArgs,
+}

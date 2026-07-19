@@ -1,4 +1,4 @@
-﻿//! Diffeomorphic Demons registration struct and iteration loop.
+//! Diffeomorphic Demons registration struct and iteration loop.
 
 use super::super::config::{DemonsConfig, DemonsResult};
 use super::super::inverse::invert_velocity_field;
@@ -6,7 +6,8 @@ use super::super::thirion::thirion_forces_into;
 use crate::deformable_field_ops::{
     compute_gradient, compute_mse_inplace, scaling_and_squaring, scaling_and_squaring_into,
     validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother, VectorField,
-    VectorFieldMut, VelocityField };
+    VectorFieldMut, VelocityField,
+};
 use crate::error::RegistrationError;
 
 /// Diffeomorphic Demons registration using stationary velocity fields.
@@ -25,7 +26,8 @@ pub struct DiffeomorphicDemonsRegistration {
     pub config: DemonsConfig,
     /// Number of scaling-and-squaring steps for computing `exp(v)`.
     /// Standard value: 6 (2â¶ = 64 integration steps).
-    pub n_squarings: usize }
+    pub n_squarings: usize,
+}
 
 impl DiffeomorphicDemonsRegistration {
     /// Create a registration instance with the given configuration.
@@ -34,14 +36,16 @@ impl DiffeomorphicDemonsRegistration {
     pub fn new(config: DemonsConfig) -> Self {
         Self {
             config,
-            n_squarings: 6 }
+            n_squarings: 6,
+        }
     }
 
     /// Create with a custom number of squaring steps.
     pub fn with_squarings(config: DemonsConfig, n_squarings: usize) -> Self {
         Self {
             config,
-            n_squarings }
+            n_squarings,
+        }
     }
 
     /// Register `moving` to `fixed` with CPU Gaussian field smoothing.
@@ -120,12 +124,14 @@ impl DiffeomorphicDemonsRegistration {
                 VectorField {
                     z: &grad.z,
                     y: &grad.y,
-                    x: &grad.x },
+                    x: &grad.x,
+                },
                 self.config.max_step_length,
                 VectorFieldMut {
                     z: &mut fz,
                     y: &mut fy,
-                    x: &mut fx },
+                    x: &mut fx,
+                },
                 dims,
             );
 
@@ -172,7 +178,8 @@ impl DiffeomorphicDemonsRegistration {
             vel_y: Some(vel_y),
             vel_x: Some(vel_x),
             final_mse,
-            num_iterations: iter })
+            num_iterations: iter,
+        })
     }
 
     /// Compute the inverse displacement field of a registration result.

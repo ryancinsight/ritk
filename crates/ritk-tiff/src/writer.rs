@@ -1,8 +1,8 @@
-﻿//! Native multi-page TIFF writer.
+//! Native multi-page TIFF writer.
 
 use anyhow::{anyhow, Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use std::io::{BufWriter, Seek, Write};
 use std::path::Path;
 use tiff::encoder::{colortype, TiffEncoder};
@@ -78,7 +78,8 @@ fn write_tiff_flat<W: Write + Seek>(
 
 /// Backend-bound native TIFF writer.
 pub struct TiffWriter<B: ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: ComputeBackend> TiffWriter<B> {
     /// Creates a writer that extracts image storage through `backend`.

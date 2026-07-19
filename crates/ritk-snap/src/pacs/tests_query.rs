@@ -1,4 +1,4 @@
-﻿//! Extended PACS query builder, state transition, and SCP configuration tests.
+//! Extended PACS query builder, state transition, and SCP configuration tests.
 //!
 //! This file covers:
 //! - Remaining PacsConfig default-field tests
@@ -260,7 +260,8 @@ fn test_pacs_request_find_studies_has_new_filter_fields() {
         patient_name: "*".to_owned(),
         modality: "CT".to_owned(),
         study_date: "20240101-".to_owned(),
-        accession_number: "ACC-001".to_owned() };
+        accession_number: "ACC-001".to_owned(),
+    };
     match req {
         crate::pacs::query::PacsRequest::FindStudies {
             study_date,
@@ -273,7 +274,8 @@ fn test_pacs_request_find_studies_has_new_filter_fields() {
                 "accession_number field must round-trip"
             );
         }
-        _ => panic!("expected FindStudies variant") }
+        _ => panic!("expected FindStudies variant"),
+    }
 }
 
 // â”€â”€ Sprint 284: Embedded SCP configuration tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

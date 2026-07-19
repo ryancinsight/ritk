@@ -1,4 +1,4 @@
-﻿//! `PreprocessingPipeline` struct and builder methods.
+//! `PreprocessingPipeline` struct and builder methods.
 
 use super::step::PreprocessingStep;
 
@@ -6,7 +6,8 @@ use super::step::PreprocessingStep;
 #[derive(Debug, Clone, Default)]
 pub struct PreprocessingPipeline {
     /// Steps visible to sibling `executor` module for dispatch.
-    pub(crate) steps: Vec<PreprocessingStep> }
+    pub(crate) steps: Vec<PreprocessingStep>,
+}
 
 impl PreprocessingPipeline {
     pub fn new() -> Self {
@@ -33,12 +34,12 @@ impl PreprocessingPipeline {
 mod tests {
     use super::PreprocessingPipeline;
     use crate::preprocessing::{IntensityRescaleMode, PreprocessingStep};
-    use burn_ndarray::NdArray;
-    use ritk_image::tensor::{Shape, Tensor };
+    use coeus_core::SequentialBackend;
+    use ritk_image::tensor::Tensor;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
 
-    type B = NdArray<f32>;
+    type B = SequentialBackend;
 
     fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
         let device = Default::default();
@@ -49,14 +50,12 @@ mod tests {
             Spacing::new([1.0, 1.0, 1.0]),
             Direction::identity(),
         )
+        .expect("invariant: fixture tensor preserves the declared image rank")
     }
 
     fn extract(img: &Image<f32, B, 3>) -> Vec<f32> {
-        img.data()
-            .clone()
-            .into_data()
-            .as_slice::<f32>()
-            .unwrap()
+        img.data_slice()
+            .expect("fixture image is CPU-addressable")
             .to_vec()
     }
 
@@ -77,10 +76,12 @@ mod tests {
         assert_eq!(p0.step_count(), 0);
         let p1 = p0.add_step(PreprocessingStep::Clamp {
             lower: 0.0,
-            upper: 1.0 });
+            upper: 1.0,
+        });
         assert_eq!(p1.step_count(), 1);
         let p2 = p1.add_step(PreprocessingStep::IntensityNormalization {
-            mode: IntensityRescaleMode::ZScore });
+            mode: IntensityRescaleMode::ZScore,
+        });
         assert_eq!(p2.step_count(), 2);
     }
 
@@ -94,11 +95,14 @@ mod tests {
         let pipeline = PreprocessingPipeline::new()
             .add_step(PreprocessingStep::Clamp {
                 lower: 0.0,
-                upper: 10.0 })
+                upper: 10.0,
+            })
             .add_step(PreprocessingStep::IntensityNormalization {
                 mode: IntensityRescaleMode::MinMax {
                     out_min: 0.0,
-                    out_max: 1.0 } });
+                    out_max: 1.0,
+                },
+            });
         let out = extract(&pipeline.execute(img).unwrap());
         assert!(
             out[0].abs() < 1e-5,
@@ -130,7 +134,8 @@ mod tests {
         let img = make_image(vals, [4, 4, 4]);
         let pipeline = PreprocessingPipeline::new().add_step(PreprocessingStep::N4BiasCorrection {
             n_iterations: 5,
-            n_fitting_levels: 1 });
+            n_fitting_levels: 1,
+        });
         let result = pipeline.execute(img);
         assert!(
             result.is_ok(),

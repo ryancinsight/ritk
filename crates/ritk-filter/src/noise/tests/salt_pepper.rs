@@ -1,6 +1,6 @@
 use super::*;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Zero probability leaves image unchanged.
@@ -53,7 +53,10 @@ fn salt_pepper_matches_sitk_mt19937() {
         .with_seed(42)
         .apply(&img)
         .unwrap();
-    let v = out.data_slice().into_owned();
+    let v = out
+        .data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec();
     // Output is each voxel either unchanged, +f32::MAX (salt), or -f32::MAX (pepper).
     for (i, &x) in v.iter().enumerate() {
         assert!(
@@ -66,7 +69,13 @@ fn salt_pepper_matches_sitk_mt19937() {
         .with_seed(42)
         .apply(&img)
         .unwrap();
-    assert_eq!(v, out2.data_slice().into_owned(), "same seed deterministic");
+    assert_eq!(
+        v,
+        out2.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec(),
+        "same seed deterministic"
+    );
 }
 
 #[test]

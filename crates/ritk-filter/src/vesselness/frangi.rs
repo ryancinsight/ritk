@@ -124,9 +124,9 @@ impl FrangiVesselnessFilter {
     /// or the rebuilt image fails shape validation.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -325,7 +325,7 @@ pub(crate) fn gaussian_blur_vec(
 mod tests {
     use super::*;
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image;
+    use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
 
     type B = SequentialBackend;

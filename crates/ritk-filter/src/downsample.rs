@@ -83,6 +83,7 @@ impl<B: Backend> DownsampleFilter<B> {
             spacing,
             direction,
         )
+        .expect("downsampling constructs a tensor with the source image rank")
     }
 }
 

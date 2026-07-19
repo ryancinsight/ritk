@@ -1,4 +1,4 @@
-﻿use crate::FilterKind;
+use crate::FilterKind;
 
 /// Render parameter controls for Smoothing + Segmentation filter variants
 /// (including ConnectedThreshold, ConfidenceConnected, NeighborhoodConnected).
@@ -38,7 +38,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::Clahe {
             tile_grid_size,
-            clip_limit } => {
+            clip_limit,
+        } => {
             let mut ty = tile_grid_size[0] as i32;
             let mut tx = tile_grid_size[1] as i32;
             ui.horizontal(|ui| {
@@ -82,7 +83,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             sigma,
             amount,
             threshold,
-            clamp } => {
+            clamp,
+        } => {
             ui.horizontal(|ui| {
                 ui.label("Ïƒ (mm):");
                 ui.add(
@@ -115,7 +117,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         FilterKind::GradientAnisotropicDiffusion {
             iterations,
             time_step,
-            conductance } => {
+            conductance,
+        } => {
             let mut it = *iterations as i32;
             ui.horizontal(|ui| {
                 ui.label("Iterations:");
@@ -143,13 +146,15 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::ConnectedComponents {
             connectivity,
-            background_value } => {
+            background_value,
+        } => {
             ui.horizontal(|ui| {
                 ui.label("Connectivity:");
                 egui::ComboBox::from_id_source("connected_components_connectivity")
                     .selected_text(match connectivity {
                         ritk_filter::Connectivity::Face6 => "6-connected (default)",
-                        ritk_filter::Connectivity::Vertex26 => "26-connected" })
+                        ritk_filter::Connectivity::Vertex26 => "26-connected",
+                    })
                     .show_ui(ui, |ui| {
                         ui.selectable_value(
                             connectivity,
@@ -174,7 +179,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             true
         }
         FilterKind::RelabelComponents {
-            minimum_object_size } => {
+            minimum_object_size,
+        } => {
             // minimum_object_size is u32; use i32 proxy for DragValue.
             let mut mos = *minimum_object_size as i32;
             ui.horizontal(|ui| {
@@ -220,7 +226,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::CurvatureFlow {
             iterations,
-            time_step } => {
+            time_step,
+        } => {
             let mut iters_i = *iterations as i32;
             ui.horizontal(|ui| {
                 ui.label("Iterations:");
@@ -248,7 +255,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             seed_y,
             seed_x,
             lower,
-            upper } => {
+            upper,
+        } => {
             for (label, val) in [("Seed Z", seed_z), ("Seed Y", seed_y), ("Seed X", seed_x)] {
                 let mut v = *val as i32;
                 ui.horizontal(|ui| {
@@ -284,7 +292,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             initial_lower,
             initial_upper,
             multiplier,
-            max_iterations } => {
+            max_iterations,
+        } => {
             for (label, val) in [("Seed Z", seed_z), ("Seed Y", seed_y), ("Seed X", seed_x)] {
                 let mut v = *val as i32;
                 ui.horizontal(|ui| {
@@ -335,7 +344,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             upper,
             radius_z,
             radius_y,
-            radius_x } => {
+            radius_x,
+        } => {
             for (label, val) in [("Seed Z", seed_z), ("Seed Y", seed_y), ("Seed X", seed_x)] {
                 let mut v = *val as i32;
                 ui.horizontal(|ui| {
@@ -380,5 +390,6 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             );
             true
         }
-        _ => false }
+        _ => false,
+    }
 }

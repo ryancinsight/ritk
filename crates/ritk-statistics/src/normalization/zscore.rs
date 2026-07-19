@@ -15,8 +15,8 @@
 
 use crate::image_statistics::{compute_statistics, masked_statistics};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 use ritk_tensor_ops::native as tensor_ops;

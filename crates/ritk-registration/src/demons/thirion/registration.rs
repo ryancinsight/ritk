@@ -1,10 +1,11 @@
-﻿//! Thirion Demons registration struct and iteration loop.
+//! Thirion Demons registration struct and iteration loop.
 
 use super::super::config::{DemonsConfig, DemonsResult};
 use super::forces::thirion_forces_into;
 use crate::deformable_field_ops::{
     compute_gradient, compute_mse_inplace, validate_image_pair, warp_image_into, CpuFieldSmoother,
-    FieldSmoother, VectorField, VectorFieldMut, VelocityField };
+    FieldSmoother, VectorField, VectorFieldMut, VelocityField,
+};
 use crate::error::RegistrationError;
 
 /// Thirion Demons registration (classic variant).
@@ -20,7 +21,8 @@ use crate::error::RegistrationError;
 #[derive(Debug, Clone)]
 pub struct ThirionDemonsRegistration {
     /// Algorithm configuration.
-    pub config: DemonsConfig }
+    pub config: DemonsConfig,
+}
 
 impl ThirionDemonsRegistration {
     /// Create a registration instance with the given configuration.
@@ -100,12 +102,14 @@ impl ThirionDemonsRegistration {
                 VectorField {
                     z: &grad.z,
                     y: &grad.y,
-                    x: &grad.x },
+                    x: &grad.x,
+                },
                 self.config.max_step_length,
                 VectorFieldMut {
                     z: &mut fz,
                     y: &mut fy,
-                    x: &mut fx },
+                    x: &mut fx,
+                },
                 dims,
             );
 
@@ -158,7 +162,8 @@ impl ThirionDemonsRegistration {
             vel_y: None,
             vel_x: None,
             final_mse,
-            num_iterations: iter })
+            num_iterations: iter,
+        })
     }
 
     /// Compute the inverse displacement field of a registration result.

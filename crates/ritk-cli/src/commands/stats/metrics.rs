@@ -1,10 +1,11 @@
-﻿// â”€â”€ Metric implementations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€ Metric implementations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 use anyhow::Result;
 use ritk_statistics::image_statistics::native::compute_statistics as compute_native_statistics;
 use ritk_statistics::{
-    dice_coefficient_native, estimate_noise_mad_native, hausdorff_distance_native,
-    mean_surface_distance_native, psnr_native, ssim_native };
+    dice_coefficient, estimate_noise_mad_native, hausdorff_distance_native,
+    mean_surface_distance_native, psnr_native, ssim_native,
+};
 use tracing::info;
 
 use super::StatsArgs;
@@ -14,7 +15,7 @@ use super::StatsArgs;
 /// Print min, max, mean, std, and percentiles (p25, p50, p75) for the input
 /// image.
 pub(super) fn run_summary(args: &StatsArgs) -> Result<()> {
-    let image = super::super::read_image_native(&args.input)?;
+    let image = super::super::read_image(&args.input)?;
     let s = compute_native_statistics(&image)?;
 
     println!("Image statistics for {}:", args.input.display());
@@ -46,13 +47,13 @@ pub(super) fn run_summary(args: &StatsArgs) -> Result<()> {
 /// reference images are passed directly to `dice_coefficient` which treats
 /// non-zero voxels as foreground.
 pub(super) fn run_dice(args: &StatsArgs) -> Result<()> {
-    let image = super::super::read_image_native(&args.input)?;
+    let image = super::super::read_image(&args.input)?;
     let ref_path = args.reference.as_ref().ok_or_else(|| {
         anyhow::anyhow!("--reference is required for the '{}' metric", args.metric)
     })?;
-    let reference = super::super::read_image_native(ref_path)?;
+    let reference = super::super::read_image(ref_path)?;
 
-    let value = dice_coefficient_native(&image, &reference)?;
+    let value = dice_coefficient(&image, &reference)?;
     println!(
         "Dice coefficient: {:.6} (input={}, reference={})",
         value,
@@ -70,11 +71,11 @@ pub(super) fn run_dice(args: &StatsArgs) -> Result<()> {
 ///
 /// Physical spacing from the input image is used for distance computation.
 pub(super) fn run_hausdorff(args: &StatsArgs) -> Result<()> {
-    let image = super::super::read_image_native(&args.input)?;
+    let image = super::super::read_image(&args.input)?;
     let ref_path = args.reference.as_ref().ok_or_else(|| {
         anyhow::anyhow!("--reference is required for the '{}' metric", args.metric)
     })?;
-    let reference = super::super::read_image_native(ref_path)?;
+    let reference = super::super::read_image(ref_path)?;
 
     let sp = image.spacing();
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
@@ -94,11 +95,11 @@ pub(super) fn run_hausdorff(args: &StatsArgs) -> Result<()> {
 
 /// Compute Peak Signal-to-Noise Ratio between input and reference.
 pub(super) fn run_psnr(args: &StatsArgs) -> Result<()> {
-    let image = super::super::read_image_native(&args.input)?;
+    let image = super::super::read_image(&args.input)?;
     let ref_path = args.reference.as_ref().ok_or_else(|| {
         anyhow::anyhow!("--reference is required for the '{}' metric", args.metric)
     })?;
-    let reference = super::super::read_image_native(ref_path)?;
+    let reference = super::super::read_image(ref_path)?;
 
     let value = psnr_native(&image, &reference, args.max_val)?;
     println!(
@@ -117,11 +118,11 @@ pub(super) fn run_psnr(args: &StatsArgs) -> Result<()> {
 
 /// Compute the Structural Similarity Index between input and reference.
 pub(super) fn run_ssim(args: &StatsArgs) -> Result<()> {
-    let image = super::super::read_image_native(&args.input)?;
+    let image = super::super::read_image(&args.input)?;
     let ref_path = args.reference.as_ref().ok_or_else(|| {
         anyhow::anyhow!("--reference is required for the '{}' metric", args.metric)
     })?;
-    let reference = super::super::read_image_native(ref_path)?;
+    let reference = super::super::read_image(ref_path)?;
 
     let value = ssim_native(&image, &reference, args.max_val)?;
     println!(
@@ -142,11 +143,11 @@ pub(super) fn run_ssim(args: &StatsArgs) -> Result<()> {
 ///
 /// Physical spacing from the input image is used for distance computation.
 pub(super) fn run_mean_surface_distance(args: &StatsArgs) -> Result<()> {
-    let image = super::super::read_image_native(&args.input)?;
+    let image = super::super::read_image(&args.input)?;
     let ref_path = args.reference.as_ref().ok_or_else(|| {
         anyhow::anyhow!("--reference is required for the '{}' metric", args.metric)
     })?;
-    let reference = super::super::read_image_native(ref_path)?;
+    let reference = super::super::read_image(ref_path)?;
 
     let sp = image.spacing();
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
@@ -168,7 +169,7 @@ pub(super) fn run_mean_surface_distance(args: &StatsArgs) -> Result<()> {
 ///
 /// Formula: sigma_hat = 1.4826 * MAD(I). No reference image required.
 pub(super) fn run_noise_estimate(args: &StatsArgs) -> Result<()> {
-    let image = super::super::read_image_native(&args.input)?;
+    let image = super::super::read_image(&args.input)?;
     let sigma = estimate_noise_mad_native(&image)?;
 
     println!(

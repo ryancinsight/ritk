@@ -14,6 +14,7 @@ fn make_test_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 // â”€â”€ extract_vec â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -45,7 +46,8 @@ fn rebuild_preserves_metadata() {
     let orig = Point::new([10.0, 20.0, 30.0]);
     let device = Default::default();
     let t = Tensor::<f32, B>::from_slice_on([1usize, 2, 3], &[1.0_f32; 6], &device);
-    let img = Image::new(t, orig, sp, Direction::identity());
+    let img = Image::new(t, orig, sp, Direction::identity())
+        .expect("invariant: fixture tensor has the declared rank");
 
     let (vals, dims) = extract_vec(&img).unwrap();
     let rebuilt = rebuild(vals, dims, &img);

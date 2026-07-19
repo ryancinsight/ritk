@@ -1,4 +1,4 @@
-﻿//! PACS server configuration for the snap viewer UI.
+//! PACS server configuration for the snap viewer UI.
 //!
 //! Stores raw string fields edited directly in the egui config form.
 //! Conversion to [`AssociationConfig`] is performed at request submission time,
@@ -14,7 +14,8 @@ pub enum AutoLoadPolicy {
     /// Automatically load every received instance (up to `auto_load_limit`).
     Automatic,
     /// Require explicit user action to load.
-    Manual }
+    Manual,
+}
 
 // â”€â”€ PacsConfig â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -53,7 +54,8 @@ pub struct PacsConfig {
     /// exceeds this limit, auto-load is suppressed and the user must
     /// manually click "Load Received". Default: 512 (covers a typical
     /// CT series of ~300-500 slices).
-    pub auto_load_limit: u32 }
+    pub auto_load_limit: u32,
+}
 
 impl Default for PacsConfig {
     fn default() -> Self {
@@ -67,7 +69,8 @@ impl Default for PacsConfig {
             scp_port: 11112,
             timeout_secs: 30,
             auto_load_policy: AutoLoadPolicy::Automatic,
-            auto_load_limit: 512 }
+            auto_load_limit: 512,
+        }
     }
 }
 

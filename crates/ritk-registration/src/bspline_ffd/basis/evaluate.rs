@@ -1,4 +1,4 @@
-﻿//! B-spline displacement field evaluation from control-point grids.
+//! B-spline displacement field evaluation from control-point grids.
 //!
 //! Implements the fast evaluation path using pre-computed [`BasisCache`]:
 //! - Basis values and control-point indices are looked up (not recomputed).
@@ -94,7 +94,8 @@ pub fn evaluate_bspline_displacement_fast(
     VelocityField {
         z: dz,
         y: dy,
-        x: dx }
+        x: dx,
+    }
 }
 
 /// Zero-allocation variant of [`evaluate_bspline_displacement_fast`].

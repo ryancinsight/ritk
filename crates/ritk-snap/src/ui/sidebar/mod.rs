@@ -1,4 +1,4 @@
-﻿//! Series browser and DICOM metadata panel.
+//! Series browser and DICOM metadata panel.
 //!
 //! # Overview
 //!
@@ -39,7 +39,8 @@ pub enum SidebarTab {
     /// Shows the scrollable DICOM metadata table for the loaded volume.
     Metadata,
     /// Shows the PET SUV quantification panel (only meaningful for PT modality).
-    PetSuv }
+    PetSuv,
+}
 
 // â”€â”€ SidebarPanel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -71,7 +72,8 @@ pub struct SidebarPanel<'a> {
     /// SUVbw at the pointer position (for PET SUV tab).
     pub pointer_suv: Option<f32>,
     /// SUVbw at the linked-cursor position (for PET SUV tab).
-    pub cursor_suv: Option<f32> }
+    pub cursor_suv: Option<f32>,
+}
 
 impl<'a> SidebarPanel<'a> {
     /// Construct the panel from borrowed application state.
@@ -91,7 +93,8 @@ impl<'a> SidebarPanel<'a> {
             active_tab,
             metadata_volume,
             pointer_suv,
-            cursor_suv }
+            cursor_suv,
+        }
     }
 
     /// Construct the panel with an explicit tag search string (backwards-compat alias).
@@ -204,7 +207,8 @@ impl<'a> SidebarPanel<'a> {
                                 let study_label = match (&study.study_date, &study.study_uid) {
                                     (Some(date), _) => format!("ðŸ“… {date}"),
                                     (None, Some(uid)) => format!("ðŸ“… UID:{uid}"),
-                                    (None, None) => "ðŸ“… (unknown date)".to_string() };
+                                    (None, None) => "ðŸ“… (unknown date)".to_string(),
+                                };
 
                                 CollapsingHeader::new(study_label)
                                     .id_source((
@@ -394,7 +398,8 @@ impl<'a> SidebarPanel<'a> {
                     vol.radionuclide_half_life_s,
                     vol.decay_correction.as_deref(),
                 ),
-                None => (None, None, None, None, None) };
+                None => (None, None, None, None, None),
+            };
         crate::ui::pet_suv_panel::draw_pet_suv_panel(
             ui,
             modality,

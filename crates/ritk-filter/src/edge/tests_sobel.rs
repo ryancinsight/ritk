@@ -241,7 +241,8 @@ fn test_metadata_preserved() {
     direction[(1, 0)] = 1.0;
     direction[(1, 1)] = 0.0;
     let tensor = Tensor::<f32, B>::from_slice(dims, &vals);
-    let img = Image::new(tensor, origin, spacing_val, direction);
+    let img = Image::new(tensor, origin, spacing_val, direction)
+        .expect("invariant: fixture tensor has the declared rank");
 
     let filter = SobelFilter::new([0.5, 1.5, 2.5].into());
 

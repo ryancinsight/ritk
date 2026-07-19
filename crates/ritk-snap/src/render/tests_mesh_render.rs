@@ -1,4 +1,4 @@
-﻿//! Value-semantic tests for the CPU Phong mesh renderer (GAP-262-VIZ-02).
+//! Value-semantic tests for the CPU Phong mesh renderer (GAP-262-VIZ-02).
 #![allow(clippy::needless_range_loop)]
 //!
 //! Each test derives expected results analytically:
@@ -84,7 +84,8 @@ fn phong_ambient_only() {
         diffuse: [0.0, 0.0, 0.0],
         specular: [0.0, 0.0, 0.0],
         shininess: 32.0,
-        opacity: 1.0 };
+        opacity: 1.0,
+    };
     let color = phong_shade(
         [0.0, 0.0, 1.0],
         [0.0, 0.0, 10.0],
@@ -109,10 +110,12 @@ fn phong_diffuse_head_on_light() {
         diffuse: [0.8, 0.8, 0.8],
         specular: [0.0, 0.0, 0.0],
         shininess: 32.0,
-        opacity: 1.0 };
+        opacity: 1.0,
+    };
     let light = DirectionalLight {
         direction: [0.0, 0.0, 1.0], // toward light
-        color: [1.0, 1.0, 1.0] };
+        color: [1.0, 1.0, 1.0],
+    };
     let color = phong_shade(
         [0.0, 0.0, 1.0],   // surface normal points +Z
         [0.0, 0.0, 100.0], // eye far away in +Z
@@ -138,10 +141,12 @@ fn phong_back_light_no_diffuse() {
         diffuse: [0.8, 0.8, 0.8],
         specular: [0.0, 0.0, 0.0],
         shininess: 32.0,
-        opacity: 1.0 };
+        opacity: 1.0,
+    };
     let light = DirectionalLight {
         direction: [0.0, 0.0, -1.0], // behind the surface
-        color: [1.0, 1.0, 1.0] };
+        color: [1.0, 1.0, 1.0],
+    };
     let color = phong_shade(
         [0.0, 0.0, 1.0],
         [0.0, 0.0, 10.0],
@@ -167,10 +172,12 @@ fn phong_output_clamped_to_unit_range() {
         diffuse: [1.0, 1.0, 1.0],
         specular: [1.0, 1.0, 1.0],
         shininess: 1.0,
-        opacity: 1.0 };
+        opacity: 1.0,
+    };
     let light = DirectionalLight {
         direction: [0.0, 0.0, 1.0],
-        color: [1.0, 1.0, 1.0] };
+        color: [1.0, 1.0, 1.0],
+    };
     let color = phong_shade(
         [0.0, 0.0, 1.0],
         [0.0, 0.0, 1.0],
@@ -251,7 +258,8 @@ fn renderer_front_facing_triangle_produces_pixels() {
         fov_y: PI / 2.0,
         aspect: 1.0,
         near: 0.1,
-        far: 100.0 };
+        far: 100.0,
+    };
     let renderer = MeshRenderer::new(64, 64);
     let buf = renderer.render(
         &mesh,
@@ -336,7 +344,8 @@ fn renderer_z_buffer_nearer_occludes_farther() {
         fov_y: PI / 2.0,
         aspect: 1.0,
         near: 0.1,
-        far: 100.0 };
+        far: 100.0,
+    };
     let renderer = MeshRenderer::new(64, 64);
     let buf = renderer.render(
         &mesh,
@@ -367,7 +376,8 @@ fn renderer_back_facing_triangle_culled() {
         fov_y: PI / 2.0,
         aspect: 1.0,
         near: 0.1,
-        far: 100.0 };
+        far: 100.0,
+    };
     let renderer = MeshRenderer::new(64, 64);
     let buf = renderer.render(
         &mesh,

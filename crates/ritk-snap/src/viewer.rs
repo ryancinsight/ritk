@@ -1,4 +1,4 @@
-﻿//! Viewer navigation state.
+//! Viewer navigation state.
 
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +10,8 @@ pub struct ViewerState {
     /// Window center for intensity display.
     pub window_center: Option<f32>,
     /// Window width for intensity display.
-    pub window_width: Option<f32> }
+    pub window_width: Option<f32>,
+}
 
 impl ViewerState {
     /// Create a default state at the first slice.
@@ -19,7 +20,8 @@ impl ViewerState {
         Self {
             slice_index: 0,
             window_center: None,
-            window_width: None }
+            window_width: None,
+        }
     }
 }
 

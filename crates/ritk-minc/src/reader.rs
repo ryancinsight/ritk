@@ -1,4 +1,4 @@
-﻿//! MINC2 reader: HDF5-based 3-D volumetric image import.
+//! MINC2 reader: HDF5-based 3-D volumetric image import.
 //!
 //! # Algorithm
 //!
@@ -23,8 +23,10 @@ use crate::{
     convert::decode_raw_bytes,
     spatial::{
         build_spatial_metadata, order_dimensions_by_dimorder, read_dimension_metadata,
-        read_dimorder },
-    IMAGE_PATH };
+        read_dimorder,
+    },
+    IMAGE_PATH,
+};
 use anyhow::{bail, Context, Result};
 use consus_hdf5::dataset::StorageLayout;
 use consus_hdf5::file::Hdf5File;
@@ -46,7 +48,7 @@ use std::path::Path;
 /// - The required MINC2 HDF5 structure is missing or malformed.
 /// - The image dataset uses chunked storage (not yet supported).
 /// - A data type conversion fails.
-pub fn read_minc<B, P>(path: P, backend: &B) -> Result<ritk_image::native::Image<f32, B, 3>>
+pub fn read_minc<B, P>(path: P, backend: &B) -> Result<ritk_image::Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend,
     P: AsRef<Path>,
@@ -56,8 +58,9 @@ where
         dims,
         origin,
         spacing,
-        direction } = decode_minc(path)?;
-    ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+        direction,
+    } = decode_minc(path)?;
+    ritk_image::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
 }
 
 /// Backend-agnostic decoded MINC2 volume: voxels plus derived physical metadata.
@@ -67,7 +70,8 @@ struct DecodedMinc {
     dims: [usize; 3],
     origin: ritk_spatial::Point<3>,
     spacing: ritk_spatial::Spacing<3>,
-    direction: ritk_spatial::Direction<3> }
+    direction: ritk_spatial::Direction<3>,
+}
 
 fn decode_minc<P: AsRef<Path>>(path: P) -> Result<DecodedMinc> {
     let path = path.as_ref();
@@ -145,12 +149,14 @@ fn decode_minc<P: AsRef<Path>>(path: P) -> Result<DecodedMinc> {
         dims: shape_arr,
         origin,
         spacing,
-        direction })
+        direction,
+    })
 }
 
 /// Backend-bound MINC2 reader.
 pub struct MincReader<B: coeus_core::ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: coeus_core::ComputeBackend> MincReader<B> {
     /// Construct a reader that creates images on `backend`.
@@ -159,10 +165,7 @@ impl<B: coeus_core::ComputeBackend> MincReader<B> {
     }
 
     /// Read a MINC2 file into a 3-D image using the stored backend.
-    pub fn read_image<P: AsRef<Path>>(
-        &self,
-        path: P,
-    ) -> Result<ritk_image::native::Image<f32, B, 3>> {
+    pub fn read_image<P: AsRef<Path>>(&self, path: P) -> Result<ritk_image::Image<f32, B, 3>> {
         read_minc(path, &self.backend)
     }
 }

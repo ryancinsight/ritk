@@ -1,4 +1,4 @@
-﻿//! Tests for confidence_connected
+//! Tests for confidence_connected
 //! Extracted to keep the 500-line structural limit.
 #![allow(clippy::identity_op, clippy::erasing_op)]
 use super::*;
@@ -115,7 +115,8 @@ fn test_spatial_metadata_preserved() {
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 1.0, 2.0]);
     let direction = Direction::identity();
-    let image = Image::new(tensor, origin, spacing, direction);
+    let image = Image::new(tensor, origin, spacing, direction)
+        .expect("invariant: fixture tensor has the declared rank");
     let result = confidence_connected(&image, [0, 0, 0], 50.0, 150.0, 2.5, 15);
     assert_eq!(result.origin(), &origin);
     assert_eq!(result.spacing(), &spacing);

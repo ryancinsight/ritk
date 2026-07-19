@@ -1,4 +1,4 @@
-﻿use crate::errors::RitkResult;
+use crate::errors::RitkResult;
 use crate::image::PyImage;
 use pyo3::prelude::*;
 use ritk_registration::diffeomorphic::{SyNConfig, SyNRegistration};
@@ -18,7 +18,8 @@ pub struct PySynConfig {
     #[pyo3(get, set)]
     pub gradient_step: f64,
     #[pyo3(get, set)]
-    pub convergence_threshold: f64 }
+    pub convergence_threshold: f64,
+}
 
 impl Default for PySynConfig {
     fn default() -> Self {
@@ -27,7 +28,8 @@ impl Default for PySynConfig {
             sigma_smooth: 3.0,
             cc_radius: 2,
             gradient_step: 0.25,
-            convergence_threshold: 1e-8 }
+            convergence_threshold: 1e-8,
+        }
     }
 }
 
@@ -53,7 +55,8 @@ impl PySynConfig {
             sigma_smooth,
             cc_radius,
             gradient_step,
-            convergence_threshold }
+            convergence_threshold,
+        }
     }
 }
 

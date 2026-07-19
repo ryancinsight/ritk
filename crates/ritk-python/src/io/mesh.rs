@@ -1,4 +1,4 @@
-﻿//! Python-exposed mesh I/O (OBJ, STL, PLY, glTF, VTK polydata, VTP).
+//! Python-exposed mesh I/O (OBJ, STL, PLY, glTF, VTK polydata, VTP).
 //!
 //! # Supported formats
 //! | Extension(s)       | Read | Write | Notes                      |
@@ -19,7 +19,8 @@ use pyo3::types::PyList;
 use ritk_io::{
     read_obj_mesh, read_ply_mesh, read_stl_mesh, read_vtk_polydata, read_vtp_polydata, write_gltf,
     write_obj_mesh, write_ply_ascii, write_ply_binary_le, write_stl_ascii, write_stl_binary,
-    write_vtk_polydata, write_vtp_polydata, VtkPolyData };
+    write_vtk_polydata, write_vtp_polydata, VtkPolyData,
+};
 use std::path::Path;
 
 // â”€â”€ PyMesh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -38,7 +39,8 @@ use std::path::Path;
 /// ```
 #[pyclass(name = "Mesh")]
 pub struct PyMesh {
-    pub inner: VtkPolyData }
+    pub inner: VtkPolyData,
+}
 
 #[pymethods]
 impl PyMesh {

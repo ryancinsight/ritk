@@ -1,4 +1,4 @@
-﻿//! Error types for classical registration operations.
+//! Error types for classical registration operations.
 use thiserror::Error;
 
 use super::spatial::SpatialError;
@@ -14,14 +14,16 @@ pub enum RegistrationError {
     NumericalFailure(String),
     /// Optimisation did not converge within the iteration budget
     #[error("Convergence failure: {0}")]
-    ConvergenceFailure(String) }
+    ConvergenceFailure(String),
+}
 
 impl From<SpatialError> for RegistrationError {
     fn from(err: SpatialError) -> Self {
         match err {
             SpatialError::InvalidPointSet(msg) => RegistrationError::InvalidInput(msg),
             SpatialError::SvdConvergence(msg) => RegistrationError::NumericalFailure(msg),
-            SpatialError::InvalidTransform(msg) => RegistrationError::InvalidInput(msg) }
+            SpatialError::InvalidTransform(msg) => RegistrationError::InvalidInput(msg),
+        }
     }
 }
 

@@ -8,8 +8,8 @@ use crate::image_comparison::{
     mean_surface_distance_native,
 };
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::make_image_with_spacing;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 
 #[test]

@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 use crate::render::colormap::Colormap;
 use crate::render::slice_render::WindowLevel;
 use crate::tools::ToolKind;
@@ -128,20 +128,23 @@ fn test_tool_state_non_idle_variants() {
         (
             ToolState::Panning {
                 start: Pos2::ZERO,
-                viewport_origin: Pos2::ZERO },
+                viewport_origin: Pos2::ZERO,
+            },
             ToolKind::Pan,
         ),
         (
             ToolState::Zooming {
                 start: Pos2::ZERO,
-                original_zoom: 1.0 },
+                original_zoom: 1.0,
+            },
             ToolKind::Zoom,
         ),
         (
             ToolState::WindowLevelDrag {
                 start: Pos2::ZERO,
                 original_center: 0.0,
-                original_width: 1.0 },
+                original_width: 1.0,
+            },
             ToolKind::WindowLevel,
         ),
         (
@@ -151,21 +154,24 @@ fn test_tool_state_non_idle_variants() {
         (
             ToolState::MeasureAngle2 {
                 p1: Pos2::ZERO,
-                p2: Pos2::new(1.0, 0.0) },
+                p2: Pos2::new(1.0, 0.0),
+            },
             ToolKind::MeasureAngle,
         ),
         (
             ToolState::RoiDrag {
                 start: Pos2::ZERO,
                 current: Pos2::new(1.0, 1.0),
-                kind: RoiKind::Rect },
+                kind: RoiKind::Rect,
+            },
             ToolKind::RoiRect,
         ),
         (
             ToolState::RoiDrag {
                 start: Pos2::ZERO,
                 current: Pos2::new(1.0, 1.0),
-                kind: RoiKind::Ellipse },
+                kind: RoiKind::Ellipse,
+            },
             ToolKind::RoiEllipse,
         ),
     ];

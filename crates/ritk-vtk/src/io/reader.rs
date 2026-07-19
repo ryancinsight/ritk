@@ -1,4 +1,4 @@
-﻿//! VTK legacy structured points format reader.
+//! VTK legacy structured points format reader.
 //!
 //! Parses the VTK legacy file format (version 1.0â€“5.1) restricted to
 //! `DATASET STRUCTURED_POINTS` with scalar point data. Both ASCII and
@@ -21,7 +21,7 @@
 
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
@@ -30,7 +30,8 @@ use std::path::Path;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum VtkEncoding {
     Ascii,
-    Binary }
+    Binary,
+}
 
 /// Scalar type declared by the `SCALARS` keyword.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,7 +42,8 @@ enum VtkScalarType {
     Short,
     UnsignedShort,
     Int,
-    UnsignedInt }
+    UnsignedInt,
+}
 
 impl VtkScalarType {
     fn from_str(s: &str) -> Result<Self> {
@@ -53,7 +55,8 @@ impl VtkScalarType {
             "unsigned_short" => Ok(Self::UnsignedShort),
             "int" => Ok(Self::Int),
             "unsigned_int" => Ok(Self::UnsignedInt),
-            other => bail!("unsupported VTK scalar type: {}", other) }
+            other => bail!("unsupported VTK scalar type: {}", other),
+        }
     }
 
     /// Byte width of a single scalar element in binary encoding.
@@ -65,7 +68,8 @@ impl VtkScalarType {
             Self::Short => 2,
             Self::UnsignedShort => 2,
             Self::Int => 4,
-            Self::UnsignedInt => 4 }
+            Self::UnsignedInt => 4,
+        }
     }
 }
 
@@ -76,7 +80,8 @@ struct VtkHeader {
     origin: [f64; 3],  // [ox, oy, oz]
     spacing: [f64; 3], // [sx, sy, sz]
     point_data_n: usize,
-    scalar_type: VtkScalarType }
+    scalar_type: VtkScalarType,
+}
 
 /// Decode a VTK legacy structured-points file into substrate-free flat voxel
 /// data plus geometry, without constructing any tensor or image carrier.
@@ -237,7 +242,8 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
     let encoding = match enc_line.to_ascii_uppercase().as_str() {
         "ASCII" => VtkEncoding::Ascii,
         "BINARY" => VtkEncoding::Binary,
-        other => bail!("unsupported VTK encoding: {}", other) };
+        other => bail!("unsupported VTK encoding: {}", other),
+    };
     tracing::debug!(?encoding, "VTK encoding parsed");
 
     // Line 4: dataset type
@@ -264,7 +270,8 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
     loop {
         let line = match next_meaningful_line(reader)? {
             Some(l) => l,
-            None => break };
+            None => break,
+        };
         let upper = line.to_ascii_uppercase();
         let tokens: Vec<&str> = line.split_whitespace().collect();
 
@@ -334,7 +341,8 @@ fn parse_header(reader: &mut BufReader<std::fs::File>) -> Result<VtkHeader> {
         origin,
         spacing,
         point_data_n,
-        scalar_type })
+        scalar_type,
+    })
 }
 
 // ---------------------------------------------------------------------------

@@ -13,6 +13,7 @@ fn make_image(dims: [usize; 3], val: f32) -> Image<f32, B, 3> {
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 fn make_image_with_metadata(
@@ -54,6 +55,7 @@ fn sphere_phi(dims: [usize; 3], center: [f64; 3], radius: f64) -> Image<f32, B, 
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 fn count_foreground(image: &Image<f32, B, 3>) -> usize {
@@ -123,7 +125,8 @@ fn test_shape_detection_stops_at_edges() {
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
 
     let phi = sphere_phi(dims, center, 2.0);
     let initial_inside = count_phi_inside(&phi);

@@ -17,6 +17,7 @@ fn make_image_3d(vals: Vec<f32>, d: usize, h: usize, w: usize) -> Image<f32, B, 
         Spacing::new([1.0_f64, 1.0_f64, 1.0_f64]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 // â”€â”€ FftConvolution3DFilter tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

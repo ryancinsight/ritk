@@ -10,7 +10,9 @@ fn modulus_matches_itk_truncated_remainder() {
     let img = ts::make_image::<f32, B, 3>(vec![7.0, 8.0, 9.0, 10.0, -7.0, -8.0], [1, 1, 6]);
     let out = ModulusImageFilter::new(3).apply(&img);
     assert_eq!(
-        out.data_slice().into_owned(),
+        out.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec(),
         vec![1.0, 2.0, 0.0, 1.0, -1.0, -2.0]
     );
 }
@@ -20,7 +22,12 @@ fn modulus_matches_itk_truncated_remainder() {
 fn modulus_by_one_is_zero() {
     let img = ts::make_image::<f32, B, 3>(vec![3.0, 17.0, -42.0, 0.0], [1, 1, 4]);
     let out = ModulusImageFilter::new(1).apply(&img);
-    assert_eq!(out.data_slice().into_owned(), vec![0.0; 4]);
+    assert_eq!(
+        out.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec(),
+        vec![0.0; 4]
+    );
 }
 
 #[test]

@@ -38,7 +38,8 @@ fn test_scan_preserves_private_text_and_bytes_through_write_read_cycle() {
         Point::new([0.0; 3]),
         Spacing::new([1.0; 3]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
 
     // Preservation: private text tag + raw OB bytes tag.
     let mut preservation = DicomPreservationSet::new();

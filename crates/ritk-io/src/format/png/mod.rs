@@ -10,7 +10,7 @@ pub use ritk_png::{
 pub mod native {
     use crate::domain::{to_io_err, ImageReader};
     use coeus_core::ComputeBackend;
-    use ritk_image::native::Image;
+    use ritk_image::Image;
     use std::path::Path;
 
     /// Backend-bound Atlas-native reader (counterpart of the Burn `PngReader`).

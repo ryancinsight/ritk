@@ -1,4 +1,4 @@
-﻿//! Viewer viewport layout modes and slot identifiers.
+//! Viewer viewport layout modes and slot identifiers.
 //!
 //! # Mathematical specification
 //!
@@ -37,7 +37,8 @@ pub enum LayoutMode {
     /// Two side-by-side viewports for direct image comparison.
     SideBySide,
     /// Three horizontal viewports: axial | coronal | sagittal.
-    ThreeHorizontal }
+    ThreeHorizontal,
+}
 
 /// Identity token for a viewport slot within the active layout.
 ///
@@ -61,7 +62,8 @@ pub enum ViewportId {
     /// Centre pane of a three-horizontal layout.
     Center,
     /// Right pane of a side-by-side or three-horizontal layout.
-    Right }
+    Right,
+}
 
 impl LayoutMode {
     /// The [`ViewportId`]s that are active (rendered) in this layout,
@@ -100,7 +102,8 @@ impl LayoutMode {
             LayoutMode::TwoByTwo => "2Ã—2",
             LayoutMode::OneMainThreeSmall => "1+3",
             LayoutMode::SideBySide => "Side-by-Side",
-            LayoutMode::ThreeHorizontal => "3H" }
+            LayoutMode::ThreeHorizontal => "3H",
+        }
     }
 
     /// All layout modes in display order.
@@ -144,7 +147,8 @@ impl LayoutMode {
             (LayoutMode::ThreeHorizontal, ViewportId::Right) => 2,
 
             // Single / fallback
-            _ => 0 }
+            _ => 0,
+        }
     }
 }
 

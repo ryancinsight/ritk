@@ -1,4 +1,4 @@
-﻿//! Deep-learning similarity losses on the Coeus autodiff engine.
+//! Deep-learning similarity losses on the Coeus autodiff engine.
 //!
 //! Atlas migration to the Coeus autodiff engine: these are the terminal image-similarity
 //! losses a learned registration model (e.g. a displacement/velocity predictor)
@@ -13,7 +13,8 @@
 
 use coeus_autograd::{
     avg_pool3d, broadcast_to, div, exp, log, matmul, mean, mul, neg, permute, reshape, scalar_add,
-    scalar_div, scalar_mul, sqrt, sub, sum, sum_axis, Var };
+    scalar_div, scalar_mul, sqrt, sub, sum, sum_axis, Var,
+};
 use coeus_core::{ComputeBackend, CpuAddressableStorage, CpuAddressableStorageMut, Float};
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;

@@ -1,10 +1,11 @@
-﻿use super::state::{SeriesLoadTarget, SnapApp};
+use super::state::{SeriesLoadTarget, SnapApp};
 use crate::session::ViewerSessionSnapshot;
 use crate::tools::interaction::ToolState;
 use crate::ui::window_presets::WindowPreset;
 use crate::ui::{
     decide_dropped_input_action, format_lps, show_colorbar, voxel_to_lps, DroppedInputAction,
-    LinkedCursor, MAX_ZOOM, MIN_ZOOM };
+    LinkedCursor, MAX_ZOOM, MIN_ZOOM,
+};
 use crate::viewer::{DEFAULT_WINDOW_CENTER, DEFAULT_WINDOW_WIDTH};
 
 impl SnapApp {
@@ -65,7 +66,8 @@ impl SnapApp {
             zoom: self.zoom,
             cine_enabled: self.cine.enabled,
             cine_fps: self.cine.fps,
-            annotations: self.annotations.clone() }
+            annotations: self.annotations.clone(),
+        }
     }
 
     pub(crate) fn apply_session_snapshot(&mut self, snapshot: ViewerSessionSnapshot) {
@@ -186,7 +188,8 @@ impl SnapApp {
                 if let Some(folder) = sidebar_result {
                     match self.series_load_target {
                         SeriesLoadTarget::Primary => self.pending_load = Some(folder),
-                        SeriesLoadTarget::Secondary => self.pending_secondary_load = Some(folder) }
+                        SeriesLoadTarget::Secondary => self.pending_secondary_load = Some(folder),
+                    }
                 }
             });
     }
@@ -335,7 +338,8 @@ impl SnapApp {
                             0 => (self.viewer_state.slice_index, depth),
                             1 => (self.coronal_slice, rows),
                             2 => (self.sagittal_slice, cols),
-                            _ => (self.viewer_state.slice_index, depth) };
+                            _ => (self.viewer_state.slice_index, depth),
+                        };
                         let axis_name = self.axis_label(self.status_axis);
                         row(ui, axis_name, &format!("{}/{}", slice_idx + 1, total));
 

@@ -3,9 +3,9 @@ use super::super::{
 };
 use super::*;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Tensor;
 use ritk_image::test_support::make_image;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 
 // ── Test 1: Synthetic tri-modal T1 → WM peak detection ────────────────
@@ -288,7 +288,8 @@ fn test_preserves_spatial_metadata() {
     let origin = ritk_spatial::Point::new([1.0, 2.0, 3.0]);
     let spacing = ritk_spatial::Spacing::new([0.5, 0.5, 0.5]);
     let direction = ritk_spatial::Direction::identity();
-    let image: Image<f32, TestBackend, 3> = Image::new(tensor, origin, spacing, direction);
+    let image: Image<f32, TestBackend, 3> = Image::new(tensor, origin, spacing, direction)
+        .expect("invariant: fixture tensor has the declared rank");
 
     let config = WhiteStripeConfig::default();
     let result = WhiteStripeNormalizer::normalize(&image, None, &config);

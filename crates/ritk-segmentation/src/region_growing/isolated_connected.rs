@@ -182,9 +182,9 @@ impl IsolatedConnectedFilter {
     /// returned with `thresholding_failed` set, matching ITK.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<IsolatedConnectedOutput<ritk_image::native::Image<f32, B, 3>>>
+    ) -> anyhow::Result<IsolatedConnectedOutput<ritk_image::Image<f32, B, 3>>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

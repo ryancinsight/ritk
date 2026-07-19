@@ -1,11 +1,12 @@
-﻿//! Python bindings for noise simulation filters (GAP-262-FLT-05).
+//! Python bindings for noise simulation filters (GAP-262-FLT-05).
 
 use crate::errors::RitkResult;
-use crate::image::{burn_into_py_image, into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     AdditiveGaussianNoiseFilter, PatchBasedDenoisingImageFilter, SaltAndPepperNoiseFilter,
-    ShotNoiseFilter, SpeckleNoiseFilter };
+    ShotNoiseFilter, SpeckleNoiseFilter,
+};
 
 /// Add additive Gaussian noise to a 3-D image.
 ///
@@ -30,7 +31,7 @@ pub fn additive_gaussian_noise(
     mean: f64,
     seed: u32,
 ) -> RitkResult<PyImage> {
-    let img = py_image_to_burn(image);
+    let img = image_from_py(image);
     let result = py
         .allow_threads(|| {
             AdditiveGaussianNoiseFilter::new(std)
@@ -61,7 +62,7 @@ pub fn salt_and_pepper_noise(
     probability: f64,
     seed: u32,
 ) -> RitkResult<PyImage> {
-    let img = py_image_to_burn(image);
+    let img = image_from_py(image);
     let result = py
         .allow_threads(|| {
             SaltAndPepperNoiseFilter::new(probability)
@@ -88,7 +89,7 @@ pub fn salt_and_pepper_noise(
 #[pyfunction]
 #[pyo3(signature = (image, scale, seed=42_u32))]
 pub fn shot_noise(py: Python<'_>, image: &PyImage, scale: f64, seed: u32) -> RitkResult<PyImage> {
-    let img = py_image_to_burn(image);
+    let img = image_from_py(image);
     let result = py
         .allow_threads(|| ShotNoiseFilter::new(scale).with_seed(seed).apply(&img))
         .map_err(|e| crate::errors::RitkPyError::runtime(e.to_string()))?;
@@ -113,7 +114,7 @@ pub fn shot_noise(py: Python<'_>, image: &PyImage, scale: f64, seed: u32) -> Rit
 #[pyfunction]
 #[pyo3(signature = (image, std, seed=42_u32))]
 pub fn speckle_noise(py: Python<'_>, image: &PyImage, std: f64, seed: u32) -> RitkResult<PyImage> {
-    let img = py_image_to_burn(image);
+    let img = image_from_py(image);
     let result = py
         .allow_threads(|| SpeckleNoiseFilter::new(std).with_seed(seed).apply(&img))
         .map_err(|e| crate::errors::RitkPyError::runtime(e.to_string()))?;
@@ -158,17 +159,18 @@ pub fn patch_based_denoising(
             "Kernel bandwidth estimation is not implemented in ritk; set kernel_bandwidth_estimation=False".to_string()
         ));
     }
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let result = py.allow_threads(|| {
         PatchBasedDenoisingImageFilter {
             number_of_iterations,
             number_of_sample_patches,
             patch_radius,
             sample_variance,
-            kernel_sigma }
+            kernel_sigma,
+        }
         .apply(&arc)
     });
     result
-        .map(burn_into_py_image)
+        .map(into_py_image)
         .map_err(|e| crate::errors::RitkPyError::runtime(e.to_string()))
 }

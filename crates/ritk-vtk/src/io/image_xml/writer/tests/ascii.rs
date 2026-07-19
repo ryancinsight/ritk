@@ -1,4 +1,4 @@
-﻿use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
+use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
 use crate::io::image_xml::writer::{write_vti_image_data, write_vti_str};
 use tempfile::NamedTempFile;
 
@@ -13,11 +13,13 @@ fn grid_2x2x2() -> VtkImageData {
                 "density".to_string(),
                 AttributeArray::Scalars {
                     values: vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-                    num_components: 1 },
+                    num_components: 1,
+                },
             );
             m
         },
-        cell_data: std::collections::HashMap::new() }
+        cell_data: std::collections::HashMap::new(),
+    }
 }
 
 #[test]
@@ -104,7 +106,8 @@ fn test_write_vti_multicomponent() {
     grid.point_data.insert(
         "velocity".to_string(),
         AttributeArray::Vectors {
-            values: vec![[1.0f32, 2.0, 3.0]] },
+            values: vec![[1.0f32, 2.0, 3.0]],
+        },
     );
     let s = write_vti_str(&grid);
     assert!(
@@ -130,7 +133,8 @@ fn test_write_vti_cell_data() {
         "pressure".to_string(),
         AttributeArray::Scalars {
             values: vec![99.0f32],
-            num_components: 1 },
+            num_components: 1,
+        },
     );
     let s = write_vti_str(&grid);
     assert!(s.contains("<CellData>"), "must emit CellData section");
@@ -191,10 +195,12 @@ fn test_write_vti_file_roundtrip_via_string() {
     }
     let orig_vals = match grid.point_data.get("density").unwrap() {
         AttributeArray::Scalars { values, .. } => values.clone(),
-        _ => panic!("expected Scalars") };
+        _ => panic!("expected Scalars"),
+    };
     let parsed_vals = match parsed.point_data.get("density").unwrap() {
         AttributeArray::Scalars { values, .. } => values.clone(),
-        _ => panic!("expected Scalars after parse") };
+        _ => panic!("expected Scalars after parse"),
+    };
     assert_eq!(orig_vals.len(), parsed_vals.len(), "value count must match");
     for (i, (o, p)) in orig_vals.iter().zip(parsed_vals.iter()).enumerate() {
         assert!(
@@ -217,7 +223,8 @@ fn test_write_vti_rejects_invalid_grid() {
         "bad".to_string(),
         AttributeArray::Scalars {
             values: vec![0.0f32; 5],
-            num_components: 1 },
+            num_components: 1,
+        },
     );
     let tmp = NamedTempFile::new().expect("temp file");
     let result = write_vti_image_data(tmp.path(), &grid);

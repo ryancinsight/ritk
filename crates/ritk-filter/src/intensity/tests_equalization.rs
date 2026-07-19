@@ -1,8 +1,8 @@
 use super::*;
 
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 type B = coeus_core::SequentialBackend;
 use ritk_image::Image;

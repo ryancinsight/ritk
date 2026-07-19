@@ -94,9 +94,9 @@ impl RelabelComponentFilter {
     /// native output image cannot be constructed.
     pub fn apply_native<B>(
         &self,
-        label_image: &ritk_image::native::Image<f32, B, 3>,
+        label_image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<(ritk_image::native::Image<f32, B, 3>, Vec<RelabelStatistics>)>
+    ) -> anyhow::Result<(ritk_image::Image<f32, B, 3>, Vec<RelabelStatistics>)>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -143,7 +143,8 @@ impl RelabelComponentFilter {
             *label_image.origin(),
             *label_image.spacing(),
             *label_image.direction(),
-        );
+        )
+        .expect("invariant: segmentation output tensor preserves the image rank");
 
         Ok((out_image, stats))
     }

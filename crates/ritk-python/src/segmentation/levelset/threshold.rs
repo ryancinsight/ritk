@@ -1,7 +1,7 @@
-﻿//! Threshold level set segmentation.
+//! Threshold level set segmentation.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_segmentation::ThresholdLevelSet;
 
@@ -29,7 +29,8 @@ pub struct PyThresholdLevelSetOptions {
     pub max_iterations: usize,
     /// Convergence tolerance.
     #[pyo3(get, set)]
-    pub tolerance: f64 }
+    pub tolerance: f64,
+}
 
 #[pymethods]
 impl PyThresholdLevelSetOptions {
@@ -51,7 +52,8 @@ impl PyThresholdLevelSetOptions {
             curvature_weight,
             dt,
             max_iterations,
-            tolerance }
+            tolerance,
+        }
     }
 }
 
@@ -79,8 +81,8 @@ pub fn threshold_level_set_segment(
     initial_phi: &PyImage,
     opts: PyThresholdLevelSetOptions,
 ) -> RitkResult<PyImage> {
-    let image_arc = py_image_to_burn(image);
-    let phi_arc = py_image_to_burn(initial_phi);
+    let image_arc = image_from_py(image);
+    let phi_arc = image_from_py(initial_phi);
     py.allow_threads(|| {
         let mut seg = ThresholdLevelSet::new(opts.lower_threshold, opts.upper_threshold);
         seg.propagation_weight = opts.propagation_weight;
@@ -91,5 +93,5 @@ pub fn threshold_level_set_segment(
         seg.apply(&image_arc, &phi_arc).map_err(|e| e.to_string())
     })
     .map_err(RitkPyError::runtime)
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

@@ -6,7 +6,7 @@
 use crate::format::dicom::read_native_dicom_series;
 use crate::format::dicom::writer::write_dicom_series_native;
 use coeus_core::{MoiraiBackend, SequentialBackend};
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
 const DIMS: [usize; 3] = [3, 4, 5];

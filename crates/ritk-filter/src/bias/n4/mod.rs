@@ -33,7 +33,7 @@ mod histogram_sharpen;
 
 use super::bspline_bias::{bspline_evaluate, bspline_fit};
 use anyhow::{anyhow, bail};
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use coeus_core::ComputeBackend;
 use histogram_sharpen::{histogram_sharpen, HistogramSharpenScratch};
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
@@ -129,15 +129,15 @@ impl N4BiasFieldCorrectionFilter {
     /// Apply N4 bias correction to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
-            apply_n4_bias_correction_values(image.data_slice()?, image.shape(), &self.config)?,
+        let values = image.try_data_vec_on(backend)?;
+        ritk_image::Image::from_flat_on(
+            apply_n4_bias_correction_values(&values, image.shape(), &self.config)?,
             image.shape(),
             *image.origin(),
             *image.spacing(),

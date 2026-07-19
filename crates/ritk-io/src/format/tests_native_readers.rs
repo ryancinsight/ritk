@@ -1,63 +1,10 @@
-//! Differential coverage for the Atlas-native reader implementors of the
-//! unified [`crate::domain::ImageReader`] contract.
-//!
-//! One harness, all formats: read the *same file* through the native trait
-//! reader and the Burn free-function reader and assert exact voxel and shape
-//! equality. Comparing two readers of one file (rather than reader output vs.
-//! original values) makes the oracle independent of any write-side lossiness
-//! (e.g. JPEG quantization) â€” the native adapter must decode identically to
-//! the verified Burn path, byte-for-byte of the decoded stream.
+//! Value-semantic coverage for the unified image reader and writer contracts.
 
 use crate::domain::{ImageReader, ImageWriter};
 use coeus_core::SequentialBackend;
-use ritk_core::image::Image as BurnImage;
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
-
-type BurnBackend = SequentialBackend;
-
-/// Read `path` through the native trait `reader` and the Burn `read_burn`
-/// free function; assert identical shape and exact voxel equality.
-fn assert_native_reader_matches_burn<R>(
-    path: &Path,
-    reader: &R,
-    read_burn: impl Fn(&Path) -> anyhow::Result<BurnImage<f32, BurnBackend, 3>>,
-) where
-    R: ImageReader<NativeImage<f32, SequentialBackend, 3>>,
-{
-    let native: NativeImage<f32, SequentialBackend, 3> =
-        reader.read(path).expect("native trait read");
-    let burn = read_burn(path).expect("burn read");
-
-    assert_eq!(native.shape(), burn.shape(), "shape parity");
-    let native_vals = native.data_slice().expect("contiguous native data");
-    let burn_vals = burn.try_data_vec().expect("burn host data");
-    assert_eq!(
-        native_vals,
-        burn_vals.as_slice(),
-        "native trait reader must decode identically to the burn reader"
-    );
-}
-
-/// A small anisotropic Burn test volume for the formats with Burn writers.
-fn burn_volume(dims: [usize; 3]) -> BurnImage<f32, BurnBackend, 3> {
-    use ritk_image::tensor::Tensor;
-    let n = dims[0] * dims[1] * dims[2];
-    let voxels: Vec<f32> = (0..n).map(|i| i as f32 * 0.5 - 4.0).collect();
-    let device = BurnBackend::default();
-    let tensor = Tensor::<f32, BurnBackend>::from_slice_on(dims, &voxels, &device);
-    BurnImage::new(
-        tensor,
-        Point::new([1.0, -2.0, 3.0]),
-        Spacing::new([2.0, 1.5, 0.75]),
-        Direction::identity(),
-    )
-}
-
-fn burn_device() -> BurnBackend {
-    BurnBackend::default()
-}
 
 /// Round-trip a native volume through the unified [`crate::domain::ImageWriter`]
 /// then [`crate::domain::ImageReader`] adapters; assert exact voxel + shape
@@ -107,8 +54,8 @@ fn native_analyze_writer_reader_contract_round_trips() {
     let dir = tempfile::tempdir().expect("tempdir");
     assert_native_writer_reader_round_trips(
         &dir.path().join("contract.hdr"),
-        &super::analyze::native::AnalyzeWriter::new(SequentialBackend),
-        &super::analyze::native::AnalyzeReader::new(SequentialBackend),
+        &super::analyze::AnalyzeWriter::new(SequentialBackend),
+        &super::analyze::AnalyzeReader::new(SequentialBackend),
     );
 }
 
@@ -149,54 +96,6 @@ fn native_tiff_writer_reader_contract_round_trips() {
         &dir.path().join("contract.tiff"),
         &super::tiff::native::TiffWriter::new(SequentialBackend),
         &super::tiff::native::TiffReader::new(SequentialBackend),
-    );
-}
-
-#[test]
-fn native_mgh_reader_matches_burn() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let path = dir.path().join("vol.mgh");
-    super::mgh::write_mgh(&burn_volume([2, 3, 4]), &path).expect("mgh write");
-    assert_native_reader_matches_burn(
-        &path,
-        &super::mgh::native::MghReader::new(SequentialBackend),
-        |p| super::mgh::read_mgh::<BurnBackend, _>(p, &burn_device()),
-    );
-}
-
-#[test]
-fn native_metaimage_reader_matches_burn() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let path = dir.path().join("vol.mha");
-    super::metaimage::write_metaimage(&path, &burn_volume([2, 3, 4])).expect("mha write");
-    assert_native_reader_matches_burn(
-        &path,
-        &super::metaimage::native::MetaImageReader::new(SequentialBackend),
-        |p| super::metaimage::read_metaimage::<BurnBackend, _>(p, &burn_device()),
-    );
-}
-
-#[test]
-fn native_nrrd_reader_matches_burn() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let path = dir.path().join("vol.nrrd");
-    super::nrrd::write_nrrd(&path, &burn_volume([2, 3, 4])).expect("nrrd write");
-    assert_native_reader_matches_burn(
-        &path,
-        &super::nrrd::native::NrrdReader::new(SequentialBackend),
-        |p| super::nrrd::read_nrrd::<BurnBackend, _>(p, &burn_device()),
-    );
-}
-
-#[test]
-fn native_analyze_reader_matches_burn() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let path = dir.path().join("vol.hdr");
-    super::analyze::write_analyze(&path, &burn_volume([2, 3, 4])).expect("analyze write");
-    assert_native_reader_matches_burn(
-        &path,
-        &super::analyze::native::AnalyzeReader::new(SequentialBackend),
-        |p| super::analyze::read_analyze::<BurnBackend, _>(p, &burn_device()),
     );
 }
 

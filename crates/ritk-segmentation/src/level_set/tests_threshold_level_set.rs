@@ -1,4 +1,4 @@
-﻿//! Tests for threshold_level_set.
+//! Tests for threshold_level_set.
 //! Extracted to keep the 500-line structural limit.
 
 use super::*;
@@ -16,6 +16,7 @@ fn make_image(dims: [usize; 3], val: f32) -> Image<f32, B, 3> {
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 fn make_image_with_metadata(
@@ -56,6 +57,7 @@ fn sphere_phi(dims: [usize; 3], center: [f64; 3], radius: f64) -> Image<f32, B, 
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 fn make_bimodal_image(
@@ -89,6 +91,7 @@ fn make_bimodal_image(
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 fn get_values(image: &Image<f32, B, 3>) -> Vec<f32> {

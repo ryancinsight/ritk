@@ -1,4 +1,4 @@
-﻿//! VTK scene graph and renderable actor model.
+//! VTK scene graph and renderable actor model.
 //!
 //! A scene S = (A_1, ..., A_n) is an ordered list of actors.
 //! Each actor A_i = (data, properties, name, visible).
@@ -16,7 +16,8 @@ pub enum Visibility {
     #[default]
     Hidden,
     /// The object is visible (rendered).
-    Visible }
+    Visible,
+}
 
 /// Rendering display properties for a VTK actor.
 #[derive(Debug, Clone, PartialEq)]
@@ -24,7 +25,8 @@ pub struct RenderProperties {
     pub color: [f32; 3],
     pub opacity: f32,
     pub point_size: f32,
-    pub line_width: f32 }
+    pub line_width: f32,
+}
 
 impl Default for RenderProperties {
     fn default() -> Self {
@@ -32,7 +34,8 @@ impl Default for RenderProperties {
             color: [1.0, 1.0, 1.0],
             opacity: 1.0,
             point_size: 2.0,
-            line_width: 1.0 }
+            line_width: 1.0,
+        }
     }
 }
 
@@ -42,7 +45,8 @@ pub struct VtkActor {
     pub name: String,
     pub data: VtkDataObject,
     pub properties: RenderProperties,
-    pub visible: Visibility }
+    pub visible: Visibility,
+}
 
 impl VtkActor {
     pub fn new(name: impl Into<String>, data: VtkDataObject) -> Self {
@@ -50,7 +54,8 @@ impl VtkActor {
             name: name.into(),
             data,
             properties: RenderProperties::default(),
-            visible: Visibility::Visible }
+            visible: Visibility::Visible,
+        }
     }
     pub fn with_properties(mut self, props: RenderProperties) -> Self {
         self.properties = props;
@@ -65,7 +70,8 @@ impl VtkActor {
 /// VTK scene: an ordered collection of renderable actors.
 #[derive(Debug, Default)]
 pub struct VtkScene {
-    actors: Vec<VtkActor> }
+    actors: Vec<VtkActor>,
+}
 
 impl VtkScene {
     pub fn new() -> Self {

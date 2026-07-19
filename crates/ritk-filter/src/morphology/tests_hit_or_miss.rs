@@ -2,8 +2,8 @@
 //! Extracted to keep the 500-line structural limit.
 use super::*;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Tensor;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 type B = coeus_core::SequentialBackend;
@@ -92,9 +92,12 @@ fn img(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 fn vv(i: &Image<f32, B, 3>) -> Vec<f32> {
-    i.data_slice().into_owned()
+    i.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 #[test]
 fn test_identity_both_zero() {
@@ -143,7 +146,10 @@ fn test_metadata_preserved() {
     let o = Point::new([1.0, 2.0, 3.0]);
     let s = Spacing::new([0.5, 0.5, 0.5]);
     let r = HitOrMissTransform::new(0, 0)
-        .apply(&Image::new(t, o, s, Direction::identity()))
+        .apply(
+            &Image::new(t, o, s, Direction::identity())
+                .expect("invariant: fixture tensor has the declared rank"),
+        )
         .unwrap();
     assert_eq!(*r.origin(), o);
     assert_eq!(*r.spacing(), s);

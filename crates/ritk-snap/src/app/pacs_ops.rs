@@ -1,4 +1,4 @@
-﻿//! PACS networking operations for `SnapApp`.
+//! PACS networking operations for `SnapApp`.
 //!
 //! Provides methods to submit PACS requests, poll the background worker,
 //! and apply worker responses to the viewer state.
@@ -80,7 +80,8 @@ impl SnapApp {
                 info!("{}", msg);
                 self.pacs_query_state = QueryState::SeriesResults {
                     study_instance_uid: study_uid,
-                    series };
+                    series,
+                };
                 self.pacs_selected_row = None;
                 self.pacs_selected_series_row = None;
             }
@@ -120,7 +121,8 @@ impl SnapApp {
                 patient_name,
                 modality,
                 study_date,
-                accession_number } => {
+                accession_number,
+            } => {
                 self.submit_pacs_find(patient_name, modality, study_date, accession_number);
             }
             PacsPanelAction::SubmitRetrieve { study_uid } => {
@@ -131,7 +133,8 @@ impl SnapApp {
             }
             PacsPanelAction::SubmitRetrieveSeries {
                 series_uid,
-                study_uid } => {
+                study_uid,
+            } => {
                 self.submit_pacs_retrieve_series(study_uid, series_uid);
             }
             PacsPanelAction::BackToStudies => {
@@ -167,7 +170,8 @@ impl SnapApp {
             return;
         }
         self.pacs_query_state = QueryState::Pending {
-            label: "C-ECHOâ€¦".to_owned() };
+            label: "C-ECHOâ€¦".to_owned(),
+        };
 
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -196,7 +200,8 @@ impl SnapApp {
             return;
         }
         self.pacs_query_state = QueryState::Pending {
-            label: "C-FINDâ€¦".to_owned() };
+            label: "C-FINDâ€¦".to_owned(),
+        };
         self.pacs_selected_row = None;
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -208,7 +213,8 @@ impl SnapApp {
                     patient_name,
                     modality,
                     study_date,
-                    accession_number },
+                    accession_number,
+                },
             ));
         }
         #[cfg(target_arch = "wasm32")]
@@ -229,7 +235,8 @@ impl SnapApp {
         self.start_pacs_scp();
         let move_destination = self.pacs_config.move_destination.clone();
         self.pacs_query_state = QueryState::Pending {
-            label: format!("C-MOVE â†’ {move_destination}â€¦") };
+            label: format!("C-MOVE â†’ {move_destination}â€¦"),
+        };
 
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -238,7 +245,8 @@ impl SnapApp {
                 self.pacs_config.clone(),
                 PacsRequest::RetrieveStudy {
                     study_instance_uid: study_uid,
-                    move_destination },
+                    move_destination,
+                },
             ));
         }
         #[cfg(target_arch = "wasm32")]
@@ -255,7 +263,8 @@ impl SnapApp {
             return;
         }
         self.pacs_query_state = QueryState::Pending {
-            label: "C-FIND series\u{2026}".to_owned() };
+            label: "C-FIND series\u{2026}".to_owned(),
+        };
         self.pacs_selected_series_row = None;
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -283,7 +292,8 @@ impl SnapApp {
         self.start_pacs_scp();
         let move_destination = self.pacs_config.move_destination.clone();
         self.pacs_query_state = QueryState::Pending {
-            label: format!("C-MOVE series â†’ {move_destination}\u{2026}") };
+            label: format!("C-MOVE series â†’ {move_destination}\u{2026}"),
+        };
 
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -293,7 +303,8 @@ impl SnapApp {
                 PacsRequest::RetrieveSeries {
                     study_instance_uid: study_uid,
                     series_instance_uid: series_uid,
-                    move_destination },
+                    move_destination,
+                },
             ));
         }
         #[cfg(target_arch = "wasm32")]

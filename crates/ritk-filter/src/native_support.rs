@@ -3,7 +3,7 @@
 //!
 //! Every Coeus-native filter wrapper in `ritk-filter` follows the same
 //! extract → compute → reconstruct sequence: pull the contiguous voxel
-//! buffer out of a [`ritk_image::native::Image`], hand it to an
+//! buffer out of a [`ritk_image::Image`], hand it to an
 //! already-substrate-agnostic pure function, and rebuild an `Image` from
 //! the result with the source's spatial metadata preserved. `map_flat_image`
 //! is the single generic entry point for that sequence (consolidation:
@@ -12,8 +12,8 @@
 //! trigger to factor it out, not a third).
 
 use anyhow::Result;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use coeus_core::ComputeBackend;
+use ritk_image::Image;
 
 /// Apply a pure flat-buffer transform to a Coeus 3-D image, preserving its
 /// shape and spatial metadata (origin, spacing, direction).
@@ -30,12 +30,11 @@ pub(crate) fn map_flat_image<B, F>(
 ) -> Result<Image<f32, B, 3>>
 where
     B: ComputeBackend,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     F: FnOnce(&[f32], [usize; 3]) -> Vec<f32>,
 {
     let dims = image.shape();
-    let vals = image.data_slice()?;
-    let result = f(vals, dims);
+    let vals = image.try_data_vec_on(backend)?;
+    let result = f(&vals, dims);
     Image::from_flat_on(
         result,
         dims,
@@ -62,7 +61,6 @@ pub(crate) fn map_flat_pair<B, F>(
 ) -> Result<Image<f32, B, 3>>
 where
     B: ComputeBackend,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     F: FnOnce(&[f32], &[f32], [usize; 3]) -> Vec<f32>,
 {
     let dims = primary.shape();
@@ -72,9 +70,9 @@ where
         dims,
         secondary.shape()
     );
-    let a = primary.data_slice()?;
-    let b = secondary.data_slice()?;
-    let result = f(a, b, dims);
+    let a = primary.try_data_vec_on(backend)?;
+    let b = secondary.try_data_vec_on(backend)?;
+    let result = f(&a, &b, dims);
     Image::from_flat_on(
         result,
         dims,
@@ -210,7 +208,8 @@ pub(crate) fn assert_coeus_matches_coeus<FB, FC>(
         ritk_spatial::Spacing::uniform(1.0),
         ritk_spatial::Direction::identity(),
         &coeus_core::SequentialBackend,
-    );
+    )
+    .expect("backend A fixture shape");
     let backend_b_provider = coeus_core::MoiraiBackend;
     let backend_b_input = Image::from_flat_on(
         vals,
@@ -225,7 +224,9 @@ pub(crate) fn assert_coeus_matches_coeus<FB, FC>(
     let backend_b_result =
         backend_b(&backend_b_input, &backend_b_provider).expect("backend B filter apply");
 
-    let vals_a = backend_a_result.data_slice();
+    let vals_a = backend_a_result
+        .data_slice()
+        .expect("backend A result slice");
     let vals_b = backend_b_result
         .data_slice()
         .expect("backend B result slice");
@@ -262,7 +263,8 @@ pub(crate) fn assert_coeus_matches_coeus_pair<FB, FC>(
         ritk_spatial::Spacing::uniform(1.0),
         ritk_spatial::Direction::identity(),
         &coeus_core::SequentialBackend,
-    );
+    )
+    .expect("backend A left fixture shape");
     let backend_a_rhs = ritk_image::Image::from_flat_on(
         rhs.clone(),
         dims,
@@ -270,7 +272,8 @@ pub(crate) fn assert_coeus_matches_coeus_pair<FB, FC>(
         ritk_spatial::Spacing::uniform(1.0),
         ritk_spatial::Direction::identity(),
         &coeus_core::SequentialBackend,
-    );
+    )
+    .expect("backend A right fixture shape");
     let backend_b_provider = coeus_core::MoiraiBackend;
     let backend_b_lhs = Image::from_flat_on(
         lhs,
@@ -294,7 +297,9 @@ pub(crate) fn assert_coeus_matches_coeus_pair<FB, FC>(
     let backend_b_result = backend_b(&backend_b_lhs, &backend_b_rhs, &backend_b_provider)
         .expect("backend B filter apply");
 
-    let vals_a = backend_a_result.data_slice();
+    let vals_a = backend_a_result
+        .data_slice()
+        .expect("backend A result slice");
     let vals_b = backend_b_result
         .data_slice()
         .expect("backend B result slice");

@@ -227,12 +227,12 @@ impl LaplacianLevelSet {
 
         let tensor = Tensor::<f32, B>::from_slice_on(dims, &mask, &device);
 
-        Ok(Image::new(
+        Image::new(
             tensor,
             *image.origin(),
             *image.spacing(),
             *image.direction(),
-        ))
+        )
     }
 
     /// Apply Laplacian level set segmentation to Coeus-native images.
@@ -244,10 +244,10 @@ impl LaplacianLevelSet {
     /// output image cannot be constructed.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
-        initial_phi: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
+        initial_phi: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

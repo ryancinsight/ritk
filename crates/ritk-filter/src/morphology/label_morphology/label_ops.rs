@@ -16,7 +16,7 @@
 //! # References
 //! - Serra, J. (1982). Image Analysis and Mathematical Morphology. Academic Press.
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use coeus_core::ComputeBackend;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
@@ -53,15 +53,15 @@ impl LabelDilation {
     /// Apply label dilation to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
-            dilate_labels(image.data_slice()?, image.shape(), self.radius),
+        let values = image.try_data_vec_on(backend)?;
+        ritk_image::Image::from_flat_on(
+            dilate_labels(&values, image.shape(), self.radius),
             image.shape(),
             *image.origin(),
             *image.spacing(),
@@ -190,15 +190,15 @@ impl LabelErosion {
     /// Apply label erosion to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        ritk_image::native::Image::from_flat_on(
-            erode_labels(image.data_slice()?, image.shape(), self.radius),
+        let values = image.try_data_vec_on(backend)?;
+        ritk_image::Image::from_flat_on(
+            erode_labels(&values, image.shape(), self.radius),
             image.shape(),
             *image.origin(),
             *image.spacing(),
@@ -293,12 +293,11 @@ impl LabelOpening {
     /// Apply label opening to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         let eroded = LabelErosion::new(self.radius).apply_native(image, backend)?;
         LabelDilation::new(self.radius).apply_native(&eroded, backend)
@@ -331,12 +330,11 @@ impl LabelClosing {
     /// Apply label closing to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         let dilated = LabelDilation::new(self.radius).apply_native(image, backend)?;
         LabelErosion::new(self.radius).apply_native(&dilated, backend)

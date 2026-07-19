@@ -1,4 +1,4 @@
-﻿//! Annotation history panel SSOT â€” per-entry delete and CSV export.
+//! Annotation history panel SSOT â€” per-entry delete and CSV export.
 //!
 //! # Responsibilities
 //!
@@ -54,7 +54,8 @@ pub enum AnnotationPanelAction {
     ClearAll,
     /// The user clicked "Export CSV".  The payload is the fully-formed CSV
     /// string (header + one row per annotation).
-    ExportCsv(String) }
+    ExportCsv(String),
+}
 
 // â”€â”€ CSV serialisation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 

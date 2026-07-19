@@ -1,4 +1,4 @@
-﻿//! VTK legacy POLYDATA reader.
+//! VTK legacy POLYDATA reader.
 //!
 //! Parses the VTK legacy ASCII and BINARY POLYDATA dataset format.
 //!
@@ -43,7 +43,8 @@ pub(crate) fn parse_polydata(reader: &mut dyn BufRead) -> Result<VtkPolyData> {
     let binary = match enc_line.to_ascii_uppercase().trim() {
         "ASCII" => false,
         "BINARY" => true,
-        other => bail!("unsupported VTK encoding '{}'", other) };
+        other => bail!("unsupported VTK encoding '{}'", other),
+    };
     // Line 4: DATASET
     let ds_line = read_line(reader)?.with_context(|| "EOF before DATASET line")?;
     if !ds_line.to_ascii_uppercase().starts_with("DATASET POLYDATA") {
@@ -77,7 +78,8 @@ pub(crate) fn parse_polydata(reader: &mut dyn BufRead) -> Result<VtkPolyData> {
             };
             let arr = AttributeArray::Scalars {
                 values,
-                num_components: ncomp };
+                num_components: ncomp,
+            };
             if is_pd {
                 poly.point_data.insert(name, arr);
             } else {
@@ -128,7 +130,8 @@ pub(crate) fn parse_polydata(reader: &mut dyn BufRead) -> Result<VtkPolyData> {
 
         let line = match read_line(reader)? {
             Some(l) => l,
-            None => break };
+            None => break,
+        };
         let upper = line.to_ascii_uppercase();
         let tokens: Vec<&str> = line.split_whitespace().collect();
         if tokens.is_empty() {

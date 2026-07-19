@@ -1,4 +1,4 @@
-﻿//! One hierarchical VMamba encoder stage.
+//! One hierarchical VMamba encoder stage.
 
 use coeus_autograd::Var;
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
@@ -19,7 +19,8 @@ where
     blocks: Vec<VMambaBlock<B>>,
     downsample: Option<Conv3d<f32, B>>,
     /// Output channel count.
-    pub out_channels: usize }
+    pub out_channels: usize,
+}
 
 /// Encoder-stage outputs before and after optional downsampling.
 pub struct EncoderStageOutput<B>
@@ -29,7 +30,8 @@ where
     /// Features retained for the decoder skip connection.
     pub features: Var<f32, B>,
     /// Features passed to the next encoder stage.
-    pub continuation: Option<Var<f32, B>> }
+    pub continuation: Option<Var<f32, B>>,
+}
 
 impl<B> EncoderStage<B>
 where
@@ -58,7 +60,8 @@ where
             projection,
             blocks,
             downsample,
-            out_channels: config.out_channels }
+            out_channels: config.out_channels,
+        }
     }
 
     /// Return pre-downsample features and an optional downsampled continuation.
@@ -73,7 +76,8 @@ where
         let continuation = self.downsample.as_ref().map(|layer| layer.forward(&output));
         Ok(EncoderStageOutput {
             features: output,
-            continuation })
+            continuation,
+        })
     }
 }
 

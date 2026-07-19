@@ -1,4 +1,4 @@
-﻿//! Tests for labeling
+//! Tests for labeling
 //! Extracted to keep the 500-line structural limit.
 use super::*;
 use coeus_core::SequentialBackend;
@@ -145,7 +145,8 @@ fn test_metadata_preserved() {
     let origin = Point::new([5.0, 6.0, 7.0]);
     let spacing = Spacing::new([0.5, 0.5, 0.5]);
     let direction = Direction::identity();
-    let mask = Image::new(tensor, origin, spacing, direction);
+    let mask = Image::new(tensor, origin, spacing, direction)
+        .expect("invariant: fixture tensor has the declared rank");
 
     let (label_img, _) = connected_components(&mask, Connectivity::Six);
     assert_eq!(label_img.origin(), &origin);

@@ -22,6 +22,7 @@ pub(super) fn make_image(
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 pub(super) fn make_image_with_spatial(
@@ -41,6 +42,7 @@ pub(super) fn make_image_with_spatial(
         Spacing::new(spacing),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 pub(super) fn make_test_metadata() -> DicomReadMetadata {

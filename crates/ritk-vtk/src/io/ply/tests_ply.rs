@@ -1,4 +1,4 @@
-﻿use super::{read_ply_mesh, write_ply_ascii, write_ply_binary_le};
+use super::{read_ply_mesh, write_ply_ascii, write_ply_binary_le};
 use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
 use crate::io::ply::reader::parse_ply;
 use crate::io::ply::writer::{write_ply_ascii_to_writer, write_ply_binary_le_to_writer};
@@ -39,7 +39,8 @@ fn tetrahedron_with_normals() -> VtkPolyData {
                 [0.0, 1.0, 0.0],
                 [0.0, 0.0, 1.0],
                 [0.577_350_3, 0.577_350_3, 0.577_350_3], // unit (1,1,1)/âˆš3
-            ] },
+            ],
+        },
     );
     mesh
 }
@@ -140,7 +141,8 @@ fn test_ply_ascii_normals_roundtrip() {
         .expect("Normals must be present")
     {
         AttributeArray::Normals { values } => values.clone(),
-        other => panic!("expected Normals, got {other:?}") };
+        other => panic!("expected Normals, got {other:?}"),
+    };
     assert_eq!(got.len(), 4);
     let eps = 1e-5_f32;
     assert!((got[0][0] - 1.0).abs() < eps, "V0 normal x must be 1.0");
@@ -157,7 +159,8 @@ fn test_ply_binary_le_normals_roundtrip() {
 
     let got = match loaded.point_data.get("Normals").unwrap() {
         AttributeArray::Normals { values } => values.clone(),
-        _ => panic!("expected Normals") };
+        _ => panic!("expected Normals"),
+    };
     assert_eq!(got.len(), 4);
     let eps = 1e-7_f32;
     assert!((got[0][0] - 1.0).abs() < eps, "V0 normal x");

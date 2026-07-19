@@ -1,4 +1,4 @@
-﻿//! Configuration and result types for inverse-consistent diffeomorphic Demons registration.
+//! Configuration and result types for inverse-consistent diffeomorphic Demons registration.
 
 use super::super::config::DemonsConfig;
 
@@ -10,14 +10,16 @@ pub struct InverseConsistentDemonsConfig {
     /// Weight of the backward (inverse) force. Range `[0, 1]`. Default 0.5.
     pub inverse_consistency_weight: f64,
     /// Scaling-and-squaring steps for exp(v). Default 6.
-    pub n_squarings: usize }
+    pub n_squarings: usize,
+}
 
 impl Default for InverseConsistentDemonsConfig {
     fn default() -> Self {
         Self {
             demons: DemonsConfig::default(),
             inverse_consistency_weight: 0.5,
-            n_squarings: 6 }
+            n_squarings: 6,
+        }
     }
 }
 
@@ -48,4 +50,5 @@ pub struct InverseConsistentDemonsResult {
     /// Number of iterations executed.
     pub num_iterations: usize,
     /// IC residual: meanâ€–Ï†_fwd(Ï†_inv(x)) âˆ’ xâ€–â‚‚.
-    pub inverse_consistency_residual: f64 }
+    pub inverse_consistency_residual: f64,
+}

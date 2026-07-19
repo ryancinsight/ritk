@@ -1,9 +1,9 @@
-﻿use super::*;
+use super::*;
 
 // â”€â”€ Helper: signed-distance function for a sphere â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-fn make_phi_sphere(dims: [usize; 3], center: [f64; 3], radius: f64) -> Image<Backend, 3> {
-    let device: <Backend as BurnBackend>::Device = Default::default();
+fn make_phi_sphere(dims: [usize; 3], center: [f64; 3], radius: f64) -> Image<f32, Backend, 3> {
+    let backend = Backend::default();
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
     let mut data = vec![0.0_f32; n];
@@ -18,14 +18,14 @@ fn make_phi_sphere(dims: [usize; 3], center: [f64; 3], radius: f64) -> Image<Bac
             }
         }
     }
-    let td = ::new(data, Shape::new(dims));
-    let tensor = Tensor::<f32, Backend>::from_data(td, &device);
+    let tensor = Tensor::<f32, Backend>::from_slice_on(dims, &data, &backend);
     Image::new(
         tensor,
         Point::new([0.0; 3]),
         Spacing::new([1.0; 3]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 // -- Shape-detection tests --------------------------------------------------
@@ -64,11 +64,14 @@ fn test_segment_shape_detection_output_is_binary() {
     args.level_set_max_iterations = 50;
     run(args).unwrap();
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    mask.with_data_slice(|vals| {
+    {
+        let vals = mask
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in vals {
             assert!(v == 0.0 || v == 1.0, "output must be binary, got {v}");
         }
-    });
+    }
 }
 
 #[test]
@@ -135,11 +138,14 @@ fn test_segment_threshold_level_set_output_is_binary() {
     args.level_set_max_iterations = 50;
     run(args).unwrap();
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    mask.with_data_slice(|vals| {
+    {
+        let vals = mask
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in vals {
             assert!(v == 0.0 || v == 1.0, "output must be binary, got {v}");
         }
-    });
+    }
 }
 
 #[test]
@@ -261,7 +267,10 @@ fn test_segment_chan_vese_output_is_binary() {
     args.level_set_max_iterations = 50;
     run(args).unwrap();
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    mask.with_data_slice(|slice| {
+    {
+        let slice = mask
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for (i, &v) in slice.iter().enumerate() {
             assert!(
                 v == 0.0 || v == 1.0,
@@ -270,7 +279,7 @@ fn test_segment_chan_vese_output_is_binary() {
                 v
             );
         }
-    });
+    }
 }
 
 // -- Geodesic active contour tests -----------------------------------------
@@ -317,7 +326,10 @@ fn test_segment_geodesic_active_contour_output_is_binary() {
     args.level_set_max_iterations = 50;
     run(args).unwrap();
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    mask.with_data_slice(|slice| {
+    {
+        let slice = mask
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for (i, &v) in slice.iter().enumerate() {
             assert!(
                 v == 0.0 || v == 1.0,
@@ -326,7 +338,7 @@ fn test_segment_geodesic_active_contour_output_is_binary() {
                 v
             );
         }
-    });
+    }
 }
 
 #[test]
@@ -395,7 +407,10 @@ fn test_segment_laplacian_level_set_output_is_binary() {
     args.level_set_max_iterations = 50;
     run(args).unwrap();
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    mask.with_data_slice(|slice| {
+    {
+        let slice = mask
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for (i, &v) in slice.iter().enumerate() {
             assert!(
                 v == 0.0 || v == 1.0,
@@ -404,7 +419,7 @@ fn test_segment_laplacian_level_set_output_is_binary() {
                 v
             );
         }
-    });
+    }
 }
 
 #[test]

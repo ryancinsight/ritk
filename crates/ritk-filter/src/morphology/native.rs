@@ -1,13 +1,13 @@
 //! Coeus-native binary-morphology operations.
 //!
-//! Each wrapper marshals a [`ritk_image::native::Image`] boundary around the
+//! Each wrapper marshals a [`ritk_image::Image`] boundary around the
 //! same substrate-agnostic core its Burn counterpart calls, via
 //! `crate::native_support::map_flat_image` — generic over
 //! `B: ComputeBackend`, statically dispatched, zero-cost.
 
 use anyhow::Result;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use coeus_core::ComputeBackend;
+use ritk_image::Image;
 
 use crate::native_support::map_flat_image;
 
@@ -30,7 +30,6 @@ pub fn binary_erode<B>(
 ) -> Result<Image<f32, B, 3>>
 where
     B: ComputeBackend,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
     map_flat_image(image, backend, |vals, dims| {
         erode_binary_3d(vals, dims, radius, foreground_value)
@@ -51,7 +50,6 @@ pub fn binary_dilate<B>(
 ) -> Result<Image<f32, B, 3>>
 where
     B: ComputeBackend,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
     map_flat_image(image, backend, |vals, dims| {
         dilate_binary_3d(vals, dims, radius, foreground_value)
@@ -72,7 +70,6 @@ pub fn binary_closing<B>(
 ) -> Result<Image<f32, B, 3>>
 where
     B: ComputeBackend,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
     map_flat_image(image, backend, |vals, dims| {
         let dilated = dilate_binary_3d(vals, dims, radius, foreground_value);
@@ -94,7 +91,6 @@ pub fn binary_opening<B>(
 ) -> Result<Image<f32, B, 3>>
 where
     B: ComputeBackend,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
     map_flat_image(image, backend, |vals, dims| {
         let eroded = erode_binary_3d(vals, dims, radius, foreground_value);
@@ -114,7 +110,6 @@ pub fn binary_fill_holes<B>(
 ) -> Result<Image<f32, B, 3>>
 where
     B: ComputeBackend,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
     map_flat_image(image, backend, |vals, dims| {
         fill_holes_3d(vals, dims, foreground_value)

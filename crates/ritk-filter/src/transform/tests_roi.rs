@@ -74,7 +74,8 @@ fn roi_updates_origin_with_identity_direction() {
         Point::new([0.0f64, 0.0, 0.0]),
         Spacing::new([2.0f64, 3.0, 4.0]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     let out = RegionOfInterestImageFilter::new([1, 1, 1], [2, 2, 2])
         .apply(&img)
         .unwrap();
@@ -107,7 +108,7 @@ fn roi_out_of_bounds_returns_error() {
 #[test]
 fn native_roi_extracts_value_and_translates_origin() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
 
     let image = NativeImage::from_flat_on(
         (1..=8).map(|value| value as f32).collect(),

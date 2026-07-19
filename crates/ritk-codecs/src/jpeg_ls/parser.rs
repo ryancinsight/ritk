@@ -1,4 +1,4 @@
-﻿//! JPEG-LS marker parser.
+//! JPEG-LS marker parser.
 
 use super::{ComponentInfo, InterleaveMode, JpegLsDecoder, DNL, DRI, EOI, LSE, SOF55, SOI, SOS};
 use anyhow::{bail, Result};
@@ -23,7 +23,8 @@ pub(crate) fn parse_jpeg_ls_headers(decoder: &mut JpegLsDecoder, data: &[u8]) ->
             DNL => pos = parse_dnl(decoder, data, pos)?,
             DRI => pos = parse_dri(decoder, data, pos)?,
             LSE => pos = parse_lse(decoder, data, pos)?,
-            _ => pos = skip_variable_marker(data, pos) }
+            _ => pos = skip_variable_marker(data, pos),
+        }
     }
 
     parse_sos(decoder, data, pos)?;

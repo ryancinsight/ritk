@@ -1,8 +1,9 @@
-﻿//! VTU reader: `read_vtu_unstructured_grid`, `parse_vtu`.
+//! VTU reader: `read_vtu_unstructured_grid`, `parse_vtu`.
 
 use super::xml_helpers::{
     attr_usize, extract_da_content, find_section, find_tag, named_da, parse_attrs, parse_floats,
-    parse_ints };
+    parse_ints,
+};
 use crate::domain::vtk_data_object::{VtkCellType, VtkUnstructuredGrid};
 use anyhow::{bail, Context, Result};
 use std::path::Path;
@@ -126,7 +127,8 @@ pub(crate) fn parse_vtu(input: &str) -> Result<VtkUnstructuredGrid> {
         cells,
         cell_types,
         point_data,
-        cell_data };
+        cell_data,
+    };
     grid.validate().map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(grid)
 }

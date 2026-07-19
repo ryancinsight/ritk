@@ -1,8 +1,8 @@
-﻿//! Intensity transform filters: rescale, windowing, thresholds, sigmoid, binary threshold, blend,
+//! Intensity transform filters: rescale, windowing, thresholds, sigmoid, binary threshold, blend,
 //! normalize, unsharp mask, and zero crossing.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
@@ -11,7 +11,8 @@ use ritk_filter::{
     BlendImageFilter, ClampPolicy, DoubleThresholdImageFilter, IntensityWindowingFilter,
     NormalizeImageFilter, NormalizeToConstantImageFilter, RescaleIntensityFilter,
     ShiftScaleImageFilter, SigmoidImageFilter, ThresholdImageFilter, UnsharpMaskFilter,
-    ZeroCrossingImageFilter };
+    ZeroCrossingImageFilter,
+};
 use std::sync::Arc;
 
 /// Linearly rescale image intensity to [out_min, out_max].
@@ -432,7 +433,8 @@ pub fn adaptive_histogram_equalization(
         AdaptiveHistogramEqualizationFilter {
             radius: [radius.0, radius.1, radius.2],
             alpha,
-            beta }
+            beta,
+        }
         .apply_native(native.as_ref(), &backend)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
@@ -461,14 +463,14 @@ pub fn bitwise_not(
     signed: bool,
 ) -> RitkResult<PyImage> {
     // TODO: BitwiseNotImageFilter still lacks apply_native; keep Burn roundtrip for now.
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let filter = if signed {
         BitwiseNotImageFilter::signed()
     } else {
         BitwiseNotImageFilter::unsigned(bits)
     };
     let out = py.allow_threads(|| filter.apply(&arc));
-    Ok(burn_into_py_image(out))
+    Ok(into_py_image(out))
 }
 
 /// Apply a linear shift-then-scale to every voxel.

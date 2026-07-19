@@ -1,4 +1,4 @@
-﻿//! MINC2 writer: HDF5-based 3-D volumetric image export.
+//! MINC2 writer: HDF5-based 3-D volumetric image export.
 //!
 //! # HDF5 Structure Written
 //!
@@ -44,11 +44,7 @@ use std::path::Path;
 ///
 /// Returns `Err` when the file cannot be created, tensor data extraction
 /// fails, or an I/O error occurs during HDF5 writing.
-pub fn write_minc<B, P>(
-    image: &ritk_image::native::Image<f32, B, 3>,
-    path: P,
-    backend: &B,
-) -> Result<()>
+pub fn write_minc<B, P>(image: &ritk_image::Image<f32, B, 3>, path: P, backend: &B) -> Result<()>
 where
     B: coeus_core::ComputeBackend + Default,
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -95,7 +91,8 @@ where
 
 /// Typed writer wrapping `write_minc` for API consistency.
 pub struct MincWriter<B: coeus_core::ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: coeus_core::ComputeBackend> MincWriter<B> {
     /// Construct a writer that extracts image data through `backend`.
@@ -104,11 +101,7 @@ impl<B: coeus_core::ComputeBackend> MincWriter<B> {
     }
 
     /// Write a 3-D image as a MINC2 file.
-    pub fn write<P: AsRef<Path>>(
-        &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
-        path: P,
-    ) -> Result<()>
+    pub fn write<P: AsRef<Path>>(&self, image: &ritk_image::Image<f32, B, 3>, path: P) -> Result<()>
     where
         B: Default,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

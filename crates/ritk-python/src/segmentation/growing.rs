@@ -1,4 +1,4 @@
-﻿//! Region growing segmentation: connected-threshold, confidence-connected,
+//! Region growing segmentation: connected-threshold, confidence-connected,
 //! and neighbourhood-connected.
 
 use crate::errors::{RitkPyError, RitkResult};
@@ -8,7 +8,8 @@ use pyo3::prelude::*;
 use ritk_segmentation::{
     ConfidenceConnectedFilter, ConnectedThresholdFilter, IsolatedConnectedConfig,
     IsolatedConnectedFilter, IsolatedWatershed, IsolatedWatershedConfig, IsolationThreshold,
-    NeighborhoodConnectedFilter, VectorConfidenceConnectedConfig, VectorConfidenceConnectedFilter };
+    NeighborhoodConnectedFilter, VectorConfidenceConnectedConfig, VectorConfidenceConnectedFilter,
+};
 
 /// Vector confidence-connected region growing, matching
 /// `sitk.VectorConfidenceConnected`.

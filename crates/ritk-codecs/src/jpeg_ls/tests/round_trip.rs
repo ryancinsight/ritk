@@ -1,4 +1,4 @@
-﻿//! Differential encoderâ†”decoder round-trip tests.
+//! Differential encoderâ†”decoder round-trip tests.
 //!
 //! The encoder ([`encoder::encode_grayscale_jpeg_ls`]) and the scan decoder
 //! are independent code paths over the shared context model; lossless coding
@@ -16,7 +16,8 @@ fn layout(rows: usize, cols: usize, bits: u16) -> PixelLayout {
         bits_allocated: bits,
         pixel_representation: PixelSignedness::Unsigned,
         rescale_slope: 1.0,
-        rescale_intercept: 0.0 }
+        rescale_intercept: 0.0,
+    }
 }
 
 fn round_trip(samples: &[u16], rows: u32, cols: u32, bpp: u32) {

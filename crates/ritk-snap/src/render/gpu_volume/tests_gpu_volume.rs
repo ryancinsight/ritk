@@ -1,4 +1,4 @@
-﻿//! Differential equivalence tests: GPU MIP vs CPU reference path. //!
+//! Differential equivalence tests: GPU MIP vs CPU reference path. //!
 //! # Invariants under test
 //!
 //! ```text
@@ -86,7 +86,8 @@ fn make_uniform_volume(depth: usize, rows: usize, cols: usize, value: f32) -> Lo
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None }
+        decay_correction: None,
+    }
 }
 
 /// Build a small synthetic `LoadedVolume` with a deterministic voxel pattern.
@@ -120,7 +121,8 @@ fn make_test_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None }
+        decay_correction: None,
+    }
 }
 
 /// GPU MIP vs CPU MIP: Grayscale colormap, synthetic ramp volume.
@@ -201,7 +203,8 @@ fn gpu_mip_cache_invalidated_on_volume_change() {
             injected_dose_bq: None,
             radionuclide_half_life_s: None,
             radiopharmaceutical_start_time: None,
-            decay_correction: None }
+            decay_correction: None,
+        }
     };
 
     // wl_lo = 100 - 0.5*200 = 0; wl_range = 200.

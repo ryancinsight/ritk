@@ -1,4 +1,4 @@
-﻿use clap::Args;
+use clap::Args;
 use std::path::PathBuf;
 
 /// Segmentation algorithm.
@@ -41,7 +41,8 @@ pub enum SegmentMethod {
     GeodesicActiveContour,
     Binary,
     #[value(name = "marker-watershed")]
-    MarkerWatershed }
+    MarkerWatershed,
+}
 
 impl std::fmt::Display for SegmentMethod {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -68,7 +69,8 @@ impl std::fmt::Display for SegmentMethod {
             Self::ChanVese => "chan-vese",
             Self::GeodesicActiveContour => "geodesic-active-contour",
             Self::Binary => "binary",
-            Self::MarkerWatershed => "marker-watershed" })
+            Self::MarkerWatershed => "marker-watershed",
+        })
     }
 }
 
@@ -196,7 +198,8 @@ pub struct SegmentArgs {
     // -- Marker-watershed --------------------------------------------------
     /// Path to marker label image (for marker-watershed method).
     #[arg(long, value_name = "PATH")]
-    pub markers: Option<PathBuf> }
+    pub markers: Option<PathBuf>,
+}
 
 impl Default for SegmentArgs {
     fn default() -> Self {
@@ -231,6 +234,7 @@ impl Default for SegmentArgs {
             lambda1: 1.0,
             lambda2: 1.0,
             epsilon: 1.0,
-            markers: None }
+            markers: None,
+        }
     }
 }

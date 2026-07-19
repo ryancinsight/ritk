@@ -1,4 +1,4 @@
-﻿//! B-Spline Symmetric Normalization (BSplineSyN) registration.
+//! B-Spline Symmetric Normalization (BSplineSyN) registration.
 //!
 //! # Mathematical Specification
 //!
@@ -67,7 +67,8 @@ pub struct BSplineSyNConfig {
     /// `gradientStep` parameter.  Default: 0.25.
     pub gradient_step: f64,
     /// Bending energy regularisation weight (Laplacian smoothing on CPs).
-    pub regularization_weight: f64 }
+    pub regularization_weight: f64,
+}
 
 /// Result returned by [`BSplineSyNRegistration::register`].
 #[derive(Debug, Clone)]
@@ -83,7 +84,8 @@ pub struct BSplineSyNResult {
     /// Final mean local CC value (higher is better; 1.0 = perfect alignment).
     pub final_cc: f64,
     /// Number of iterations actually performed.
-    pub num_iterations: usize }
+    pub num_iterations: usize,
+}
 
 /// BSplineSyN registration engine.
 ///
@@ -93,4 +95,5 @@ pub struct BSplineSyNResult {
 #[derive(Debug, Clone)]
 pub struct BSplineSyNRegistration {
     /// Algorithm configuration.
-    pub config: BSplineSyNConfig }
+    pub config: BSplineSyNConfig,
+}

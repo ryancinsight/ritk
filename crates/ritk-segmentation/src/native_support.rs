@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 
 /// Apply a pure flat-buffer transform to a Coeus-native image, preserving its
 /// shape and spatial metadata.

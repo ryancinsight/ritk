@@ -1,4 +1,4 @@
-﻿//! VR rendering and async pipeline tests for GpuVolumeRenderer.
+//! VR rendering and async pipeline tests for GpuVolumeRenderer.
 //!
 //! Split from `tests_gpu_volume.rs` to keep file sizes under 500 lines.
 //!
@@ -55,7 +55,8 @@ fn make_uniform_volume(depth: usize, rows: usize, cols: usize, value: f32) -> Lo
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None }
+        decay_correction: None,
+    }
 }
 
 /// Build a small synthetic `LoadedVolume` with a deterministic voxel pattern.
@@ -89,7 +90,8 @@ fn make_test_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None }
+        decay_correction: None,
+    }
 }
 
 /// GPU VR vs CPU VR: Grayscale colormap, synthetic ramp volume.

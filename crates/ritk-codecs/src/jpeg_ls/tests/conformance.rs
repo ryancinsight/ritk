@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 
 fn layout_8bit(rows: usize, cols: usize, slope: f32, intercept: f32) -> PixelLayout {
     PixelLayout {
@@ -8,7 +8,8 @@ fn layout_8bit(rows: usize, cols: usize, slope: f32, intercept: f32) -> PixelLay
         bits_allocated: 8,
         pixel_representation: crate::PixelSignedness::Unsigned,
         rescale_slope: slope,
-        rescale_intercept: intercept }
+        rescale_intercept: intercept,
+    }
 }
 
 /// Build a minimal single-component JPEG-LS 8-bit lossless frame.

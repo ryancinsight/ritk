@@ -140,7 +140,7 @@ fn flip_all_axes_2x3x4_correctness() {
 #[test]
 fn native_flip_x_reverses_values() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
     use ritk_spatial::{Direction, Point, Spacing};
 
     let image = NativeImage::from_flat_on(

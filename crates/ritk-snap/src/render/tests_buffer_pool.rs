@@ -1,4 +1,4 @@
-﻿use super::RenderBufferPool;
+use super::RenderBufferPool;
 use crate::render::colormap::Colormap;
 use crate::render::mip_vr::{render_mip_axial, render_mip_axial_with_scratch};
 use crate::render::slice_render::{SliceRenderer, WindowLevel};
@@ -30,7 +30,8 @@ fn make_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None }
+        decay_correction: None,
+    }
 }
 
 /// Resizing `pixel_f32` to the same length twice must not shrink capacity.

@@ -1,6 +1,6 @@
-﻿//! Fast marching and colliding fronts filters.
+//! Fast marching and colliding fronts filters.
 
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{CollidingFrontsFilter, FastMarchingFilter};
 
@@ -31,16 +31,17 @@ pub fn fast_marching(
     stopping_value: Option<f64>,
     initial_trial_values: Vec<f64>,
 ) -> PyImage {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let out = py.allow_threads(|| {
         FastMarchingFilter {
             trial_points,
             initial_trial_values,
             normalization_factor,
-            stopping_value: stopping_value.unwrap_or(f64::MAX / 2.0) }
+            stopping_value: stopping_value.unwrap_or(f64::MAX / 2.0),
+        }
         .apply(&arc)
     });
-    burn_into_py_image(out)
+    into_py_image(out)
 }
 
 /// Colliding-fronts segmentation potential, matching `SimpleITK.CollidingFronts`.
@@ -70,14 +71,15 @@ pub fn colliding_fronts(
     apply_connectivity: bool,
     negative_epsilon: f64,
 ) -> PyImage {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let out = py.allow_threads(|| {
         CollidingFrontsFilter {
             seeds1,
             seeds2,
             apply_connectivity,
-            negative_epsilon }
+            negative_epsilon,
+        }
         .apply(&arc)
     });
-    burn_into_py_image(out)
+    into_py_image(out)
 }

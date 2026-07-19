@@ -1,12 +1,11 @@
-﻿//! Brain-mask generation for cross-modal rigid registration.
+//! Brain-mask generation for cross-modal rigid registration.
 //!
 //! Cross-modal CTâ†”MRI mutual-information registration is prone to converging on
 //! a geometrically wrong pose: evaluated over the whole field of view, the MI
 //! objective is dominated by the high-contrast skull/air boundary (and any
 //! scanner bed/headrest in the CT), whose global maximum need not coincide with
 //! brain alignment. Restricting the metric to a brain mask removes that bias and
-//! lets MI peak at the true brain alignment (see
-//! [`CmaMiRegistration::register_rigid_with_mask`](crate::CmaMiRegistration::register_rigid_with_mask)).
+//! lets MI peak at the true brain alignment.
 //!
 //! [`ct_brain_mask`] derives such a mask from a CT volume by threshold +
 //! morphology, with no atlas or learned model:
@@ -36,7 +35,8 @@ pub struct CtBrainMaskConfig {
     /// Erosion radius \[voxels\] â€” severs thin skull/meninges/muscle bridges.
     pub erode_radius: usize,
     /// Dilation radius \[voxels\] â€” restores the brain boundary after erosion.
-    pub dilate_radius: usize }
+    pub dilate_radius: usize,
+}
 
 impl Default for CtBrainMaskConfig {
     /// Soft-tissue window `[0, 100]` HU with radius-2 erode/dilate â€” the values
@@ -46,7 +46,8 @@ impl Default for CtBrainMaskConfig {
             hu_low: 0.0,
             hu_high: 100.0,
             erode_radius: 2,
-            dilate_radius: 2 }
+            dilate_radius: 2,
+        }
     }
 }
 
@@ -57,7 +58,10 @@ impl Default for CtBrainMaskConfig {
 /// Panics if a morphology/threshold stage fails or the eroded soft-tissue mask
 /// has no connected component (e.g. an empty or non-CT input).
 #[must_use]
-pub fn ct_brain_mask<B: Backend>(ct: &Image<f32, B, 3>, config: &CtBrainMaskConfig) -> Image<f32, B, 3> {
+pub fn ct_brain_mask<B: Backend>(
+    ct: &Image<f32, B, 3>,
+    config: &CtBrainMaskConfig,
+) -> Image<f32, B, 3> {
     let mask = binary_threshold(ct, config.hu_low, config.hu_high, 1.0, 0.0);
 
     let eroded = BinaryErodeFilter::new(config.erode_radius)
@@ -85,11 +89,11 @@ pub fn ct_brain_mask<B: Backend>(ct: &Image<f32, B, 3>, config: &CtBrainMaskConf
 #[cfg(test)]
 mod tests {
     use super::*;
-    use burn_ndarray::NdArray;
+    use coeus_core::SequentialBackend;
     use ritk_core::{Direction, Point, Spacing};
-    use ritk_image::tensor::{Tensor };
+    use ritk_image::tensor::Tensor;
 
-    type B = NdArray<f32>;
+    type B = SequentialBackend;
 
     /// A solid soft-tissue cube (50 HU) embedded in air (âˆ’1000 HU), wrapped in a
     /// one-voxel bone shell (1000 HU): the mask must recover the cube interior.
@@ -108,15 +112,16 @@ mod tests {
                 }
             }
         }
-        let img = Image::<B, 3>::new(
-            Tensor::<f32, B>::from_data(::new(v, [n, n, n]), &device),
+        let img = Image::<f32, B, 3>::new(
+            Tensor::<f32, B>::from_slice_on([n, n, n], &v, &device),
             Point::new([0.0; 3]),
             Spacing::new([1.0; 3]),
             Direction::identity(),
-        );
+        )
+        .expect("invariant: fixture tensor preserves the declared image rank");
 
         let mask = ct_brain_mask(&img, &CtBrainMaskConfig::default());
-        let m = mask.data_slice();
+        let m = mask.data_slice().expect("fixture image is CPU-addressable");
         let fg = m.iter().filter(|&&x| x > 0.5).count();
         // Non-empty, and well inside the total volume (not the whole cube/air).
         assert!(fg > 0, "brain mask is empty");

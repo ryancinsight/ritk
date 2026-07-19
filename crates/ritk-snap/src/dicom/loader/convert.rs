@@ -1,4 +1,4 @@
-﻿//! Image-to-LoadedVolume conversion and spatial metadata extraction.
+//! Image-to-LoadedVolume conversion and spatial metadata extraction.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -18,7 +18,7 @@ use anyhow::Result;
 /// The `image` must be 3-dimensional. The direction matrix must be 3Ã—3
 /// (9 elements), which is guaranteed by `Direction<3>`.
 pub(super) fn extract_spatial_metadata(
-    image: &ritk_image::native::Image<f32, coeus_core::SequentialBackend, 3>,
+    image: &ritk_image::Image<f32, coeus_core::SequentialBackend, 3>,
 ) -> ([f64; 3], [f64; 3], [f64; 9]) {
     let sp = image.spacing();
     let orig = image.origin();
@@ -37,7 +37,7 @@ pub(super) fn extract_spatial_metadata(
 /// This function is also used by `mod.rs` for MetaImage, NRRD, and MGH
 /// format loading paths, which produce an `Image` without DICOM metadata.
 pub(super) fn volume_from_image_no_meta(
-    image: ritk_image::native::Image<f32, coeus_core::SequentialBackend, 3>,
+    image: ritk_image::Image<f32, coeus_core::SequentialBackend, 3>,
     source_path: PathBuf,
 ) -> Result<LoadedVolume> {
     let shape = image.shape();
@@ -66,5 +66,6 @@ pub(super) fn volume_from_image_no_meta(
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None })
+        decay_correction: None,
+    })
 }

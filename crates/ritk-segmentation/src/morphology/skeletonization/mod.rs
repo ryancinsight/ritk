@@ -126,9 +126,9 @@ impl Skeletonization {
     /// samples, inaccessible backend storage, or output construction failure.
     pub fn apply_native<B, const D: usize>(
         &self,
-        mask: &ritk_image::native::Image<f32, B, D>,
+        mask: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -157,6 +157,7 @@ impl Skeletonization {
         let output = skeleton_nd(flat, &shape);
         let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device);
         Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
+            .expect("invariant: segmentation output tensor preserves the image rank")
     }
 }
 

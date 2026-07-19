@@ -1,10 +1,11 @@
-﻿use crate::errors::{RitkPyError, RitkResult};
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{native_into_py_image, py_image_to_native, PyImage};
 use coeus_core::SequentialBackend;
 use pyo3::prelude::*;
 use ritk_segmentation::{
     FloodConnectivity, MarkerControlledWatershed, MorphologicalWatershed, TobogganFilter,
-    WatershedLinePolicy, WatershedSegmentation };
+    WatershedLinePolicy, WatershedSegmentation,
+};
 
 /// Toboggan watershed labeling, matching `sitk.Toboggan`.
 ///

@@ -1,7 +1,8 @@
-﻿use super::contexts::{mr_context, sc_context, zc_context, SubbandOrientation, CTX_AGG, CTX_UNI};
+use super::contexts::{mr_context, sc_context, zc_context, SubbandOrientation, CTX_AGG, CTX_UNI};
 use super::{
     any_neighbour_sig, neighbour_sig_counts, neighbour_sig_total, sign_contributions, trace,
-    SampleState };
+    SampleState,
+};
 use crate::jpeg_2000::mq_coder::{initial_contexts, MqEncoder};
 
 /// Encoded code-block data (bitstream + metadata for the tier-2 packet header).
@@ -11,7 +12,8 @@ pub struct EncodedBlock {
     /// Number of coded bit-planes (P in the packet header).
     pub num_bit_planes: u8,
     /// Total number of coding passes included.
-    pub num_passes: u32 }
+    pub num_passes: u32,
+}
 
 /// Encode one EBCOT code-block.
 ///
@@ -40,7 +42,8 @@ pub fn encode_code_block(
         return EncodedBlock {
             bytes: vec![0u8; 2],
             num_bit_planes: 0,
-            num_passes: 0 };
+            num_passes: 0,
+        };
     }
 
     // Number of bit-planes = floor(log2(max_mag)) + 1.
@@ -223,5 +226,6 @@ pub fn encode_code_block(
     EncodedBlock {
         bytes,
         num_bit_planes,
-        num_passes: total_passes }
+        num_passes: total_passes,
+    }
 }

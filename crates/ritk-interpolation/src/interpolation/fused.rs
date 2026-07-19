@@ -13,7 +13,7 @@ use coeus_core::{Backend, CpuAddressableStorage};
 use coeus_tensor::Tensor;
 use ritk_core::interpolation::Interpolator;
 use ritk_core::transform::Transform;
-use ritk_image::native::Image;
+use ritk_image::Image;
 
 use crate::interpolation::kernel::linear::LinearInterpolator;
 use crate::interpolation::shared::compute_oob_mask;

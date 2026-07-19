@@ -1,4 +1,4 @@
-﻿//! Primary/secondary fused slice rendering.
+//! Primary/secondary fused slice rendering.
 //!
 //! This module is the SSOT for 2-volume compare blending used by the app shell.
 //!
@@ -23,7 +23,8 @@ use crate::LoadedVolume;
 #[derive(Clone, Copy)]
 struct DisplayValueTransform {
     pet: Option<PetAcquisitionParams>,
-    delta_t_s: f64 }
+    delta_t_s: f64,
+}
 
 impl DisplayValueTransform {
     fn for_volume(volume: &LoadedVolume) -> Self {
@@ -34,7 +35,8 @@ impl DisplayValueTransform {
         };
         Self {
             pet,
-            delta_t_s: PetAcquisitionParams::delta_t_s_from_vol(volume) }
+            delta_t_s: PetAcquisitionParams::delta_t_s_from_vol(volume),
+        }
     }
 
     #[inline]
@@ -58,7 +60,8 @@ pub struct FusedSliceParams<'a> {
     pub axis: usize,
     pub slice: usize,
     pub wl: WindowLevel,
-    pub colormap: Colormap }
+    pub colormap: Colormap,
+}
 
 /// Render a fused compare slice where the output geometry follows `primary`.
 ///

@@ -1,4 +1,4 @@
-﻿//! Diffeomorphic image registration via Symmetric Normalization (SyN).
+//! Diffeomorphic image registration via Symmetric Normalization (SyN).
 //!
 //! # Mathematical Specification
 //!
@@ -57,7 +57,8 @@ pub struct SyNConfig {
     /// Maximum per-step displacement (voxels) used to normalise the CC gradient
     /// before accumulating into the velocity field.  Mirrors the ANTs
     /// `gradientStep` parameter.  Default: 0.25.
-    pub gradient_step: f64 }
+    pub gradient_step: f64,
+}
 
 impl Default for SyNConfig {
     fn default() -> Self {
@@ -68,6 +69,7 @@ impl Default for SyNConfig {
             convergence_window: 10,
             n_squarings: 6,
             cc_window_radius: 2,
-            gradient_step: 0.25 }
+            gradient_step: 0.25,
+        }
     }
 }

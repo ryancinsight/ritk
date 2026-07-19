@@ -1,4 +1,4 @@
-﻿//! TIFF / BigTIFF reader for 3-D volumetric images.
+//! TIFF / BigTIFF reader for 3-D volumetric images.
 //!
 //! Each IFD (Image File Directory) page represents one Z-slice.  Pages are
 //! stacked in IFD order to form the Z dimension of the returned
@@ -23,7 +23,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufReader, Read, Seek};
 use std::path::Path;
@@ -165,7 +165,8 @@ pub(crate) fn decode_page_to_scalar(result: DecodingResult) -> Result<Vec<f32>> 
         DecodingResult::I32(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
         DecodingResult::I64(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
         DecodingResult::F32(v) => Ok(v),
-        DecodingResult::F64(v) => Ok(v.into_iter().map(|x| x as f32).collect()) }
+        DecodingResult::F64(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
+    }
 }
 
 // â”€â”€ Reader struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -175,7 +176,8 @@ pub(crate) fn decode_page_to_scalar(result: DecodingResult) -> Result<Vec<f32>> 
 /// Carries the compute device so it can implement the `ImageReader<B, 3>`
 /// trait from `ritk-io`.
 pub struct TiffReader<B: ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: ComputeBackend> TiffReader<B> {
     /// Create a reader bound to `backend`.

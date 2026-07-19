@@ -10,8 +10,8 @@ use super::IsolatedWatershed;
 use super::IsolatedWatershedConfig;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::make_image;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 
 type B = SequentialBackend;
@@ -214,7 +214,12 @@ fn native_and_legacy_execution_are_exact_with_geometry() {
     let filter = IsolatedWatershed::new([0, 1, 3], [0, 5, 3], IsolatedWatershedConfig::default());
     let expected = filter.apply(&legacy).unwrap();
     let actual = filter.apply_native(&native, &SequentialBackend).unwrap();
-    assert_eq!(actual.data_slice().unwrap(), expected.data_slice().as_ref());
+    assert_eq!(
+        actual.data_slice().unwrap(),
+        expected
+            .data_slice()
+            .expect("invariant: contiguous host storage")
+    );
     assert_eq!(*actual.origin(), origin);
     assert_eq!(*actual.spacing(), spacing);
     assert_eq!(*actual.direction(), direction);

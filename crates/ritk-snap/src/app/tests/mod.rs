@@ -1,4 +1,4 @@
-﻿//! Domain-partitioned test modules for `SnapApp`.
+//! Domain-partitioned test modules for `SnapApp`.
 //!
 //! Each submodule exercises one cohesive domain: cursor, navigation, session,
 //! tool, measurement, colormap, segmentation loading, and RT dose/plan.
@@ -52,5 +52,6 @@ pub(crate) fn test_volume(shape: [usize; 3]) -> LoadedVolume {
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None }
+        decay_correction: None,
+    }
 }

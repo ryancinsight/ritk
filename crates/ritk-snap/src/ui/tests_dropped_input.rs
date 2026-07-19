@@ -1,4 +1,4 @@
-﻿use std::fs;
+use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -57,7 +57,8 @@ fn dicom_path_has_priority_over_volume_path() {
         DroppedInputAction::QueueDicom(path) => {
             assert_eq!(path, dicom_path);
         }
-        other => panic!("expected QueueDicom, got {other:?}") }
+        other => panic!("expected QueueDicom, got {other:?}"),
+    }
 }
 
 #[test]
@@ -80,7 +81,8 @@ fn pathless_drop_returns_named_guidance_message() {
             assert!(msg.contains("browser-file.dcm"));
             assert!(msg.contains("no filesystem path"));
         }
-        other => panic!("expected Message, got {other:?}") }
+        other => panic!("expected Message, got {other:?}"),
+    }
 }
 
 #[test]
@@ -96,7 +98,8 @@ fn pathless_nifti_with_bytes_routes_to_in_memory_load() {
             assert_eq!(name, "dropped.nii");
             assert_eq!(bytes.as_ref(), [1, 2, 3]);
         }
-        other => panic!("expected LoadVolumeBytes, got {other:?}") }
+        other => panic!("expected LoadVolumeBytes, got {other:?}"),
+    }
 }
 
 #[test]
@@ -111,7 +114,8 @@ fn pathless_dicom_with_bytes_routes_to_dicom_batch_load() {
             assert_eq!(files.len(), 1);
             assert_eq!(files[0].0, "slice_001");
         }
-        other => panic!("expected LoadDicomSeriesBytes, got {other:?}") }
+        other => panic!("expected LoadDicomSeriesBytes, got {other:?}"),
+    }
 }
 
 #[test]

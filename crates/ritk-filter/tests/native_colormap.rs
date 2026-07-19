@@ -3,7 +3,7 @@ use ritk_filter::{
     Colormap, LabelMapContourOverlayFilter, LabelOverlayFilter, LabelToRGBFilter,
     ScalarToRGBColormapFilter,
 };
-use ritk_image::native::{ColorVolume, Image};
+use ritk_image::{ColorVolume, Image};
 use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;

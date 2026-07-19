@@ -1,5 +1,6 @@
-﻿use super::super::basis::{
-    cubic_bspline_basis, evaluate_bspline_displacement_fast, init_control_grid, BasisCache };
+use super::super::basis::{
+    cubic_bspline_basis, evaluate_bspline_displacement_fast, init_control_grid, BasisCache,
+};
 use super::super::volume_dims::VolumeDims;
 
 #[test]

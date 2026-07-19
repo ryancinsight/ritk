@@ -1,4 +1,4 @@
-﻿//! TransMorph model, Coeus-native.
+//! TransMorph model, Coeus-native.
 //!
 //! Encoderâ€“decoder registration network: a Swin-transformer encoder (patch
 //! embedding + four hierarchical stages with strided-conv downsampling), a
@@ -17,7 +17,8 @@ use coeus_nn::{module::Module, Conv3d};
 use coeus_ops::BackendOps;
 
 use crate::transmorph::{
-    integration::VecInt, spatial_transform::SpatialTransformer, swin::SwinTransformerBlock };
+    integration::VecInt, spatial_transform::SpatialTransformer, swin::SwinTransformerBlock,
+};
 
 /// Output of the TransMorph forward pass.
 #[derive(Clone)]
@@ -25,7 +26,8 @@ pub struct TransMorphOutput<B: Backend + BackendOps<f32> + Default> {
     /// Warped moving image `[B, C, D, H, W]`.
     pub warped: Var<f32, B>,
     /// Final displacement field `[B, 3, D, H, W]`.
-    pub flow: Var<f32, B> }
+    pub flow: Var<f32, B>,
+}
 
 /// TransMorph registration network.
 #[derive(Clone)]
@@ -43,7 +45,8 @@ pub struct TransMorph<B: Backend + BackendOps<f32> + Default> {
     pub(crate) up_conv3: Conv3d<f32, B>,
     pub(crate) flow_conv: Conv3d<f32, B>,
     pub(crate) integration: Option<VecInt>,
-    pub(crate) spatial_transform: SpatialTransformer }
+    pub(crate) spatial_transform: SpatialTransformer,
+}
 
 impl<B> TransMorph<B>
 where
@@ -82,7 +85,8 @@ where
 
         let flow = match &self.integration {
             Some(integration) => integration.forward(&flow),
-            None => flow };
+            None => flow,
+        };
 
         let warped = self.spatial_transform.forward(image, &flow);
         TransMorphOutput { warped, flow }

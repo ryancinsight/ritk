@@ -1,9 +1,10 @@
-﻿use super::*;
+use super::*;
 use arrayvec::ArrayString;
 use ritk_io::PixelSignedness;
 use ritk_io::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomReadMetadata,
-    DicomSliceMetadata, DicomTag, PatientPosition };
+    DicomSliceMetadata, DicomTag, PatientPosition,
+};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -69,7 +70,8 @@ fn metadata_fixture() -> DicomReadMetadata {
         decay_correction: None,
         radionuclide_total_dose_bq: None,
         radiopharmaceutical_start_time: None,
-        radionuclide_half_life_s: None }
+        radionuclide_half_life_s: None,
+    }
 }
 
 #[test]

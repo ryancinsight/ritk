@@ -1,10 +1,11 @@
-﻿use crate::image::{into_py_image, vec_to_image, PyImage};
+use crate::image::{into_py_image, vec_to_image, PyImage};
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::{
     gabor_image_source as core_gabor_image_source,
     gaussian_image_source as core_gaussian_image_source,
-    grid_image_source as core_grid_image_source };
+    grid_image_source as core_grid_image_source,
+};
 /// Generate a Gaussian blob image (`itk::GaussianImageSource` / `sitk.GaussianSource`).
 ///
 /// `out(index) = scale Â· exp(âˆ’Â½ Â· Î£_d ((origin_d + index_dÂ·spacing_d âˆ’ mean_d)/sigma_d)Â²)`

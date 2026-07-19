@@ -1,4 +1,4 @@
-﻿//! `GpuVolumeRenderer` implementation â€” pipeline creation, volume upload, MIP/VR render.
+//! `GpuVolumeRenderer` implementation â€” pipeline creation, volume upload, MIP/VR render.
 //!
 //! This file holds the `impl GpuVolumeRenderer` block. The struct definition,
 //! `PendingReadback`, and `build_colormap_lut` live in [`super`] so that the
@@ -33,7 +33,8 @@ impl GpuVolumeRenderer {
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("gpu_mip_shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("mip.wgsl").into()) });
+                source: wgpu::ShaderSource::Wgsl(include_str!("mip.wgsl").into()),
+            });
 
         let mip_bgl = ctx
             .device
@@ -47,8 +48,10 @@ impl GpuVolumeRenderer {
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: true },
                             has_dynamic_offset: false,
-                            min_binding_size: None },
-                        count: None },
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                     // binding 1: mip_out (storage, read-write, packed u32 RGBA)
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
@@ -56,8 +59,10 @@ impl GpuVolumeRenderer {
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
-                            min_binding_size: None },
-                        count: None },
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                     // binding 2: RenderParams uniform (32 bytes: shape + WL)
                     wgpu::BindGroupLayoutEntry {
                         binding: 2,
@@ -65,8 +70,10 @@ impl GpuVolumeRenderer {
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
-                            min_binding_size: None },
-                        count: None },
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                     // binding 3: colormap LUT (storage, read-only, 256 Ã— 4 f32)
                     wgpu::BindGroupLayoutEntry {
                         binding: 3,
@@ -74,16 +81,20 @@ impl GpuVolumeRenderer {
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: true },
                             has_dynamic_offset: false,
-                            min_binding_size: None },
-                        count: None },
-                ] });
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+            });
 
         let mip_pl = ctx
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("gpu_mip_pl"),
                 bind_group_layouts: &[&mip_bgl],
-                push_constant_ranges: &[] });
+                push_constant_ranges: &[],
+            });
 
         let mip_pipeline = ctx
             .device
@@ -92,14 +103,16 @@ impl GpuVolumeRenderer {
                 layout: Some(&mip_pl),
                 module: &mip_shader,
                 entry_point: "mip_main",
-                compilation_options: wgpu::PipelineCompilationOptions::default() });
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            });
 
         // â”€â”€ VR pipeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let vr_shader = ctx
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some("gpu_vr_shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("vr.wgsl").into()) });
+                source: wgpu::ShaderSource::Wgsl(include_str!("vr.wgsl").into()),
+            });
 
         let vr_bgl = ctx
             .device
@@ -113,8 +126,10 @@ impl GpuVolumeRenderer {
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: true },
                             has_dynamic_offset: false,
-                            min_binding_size: None },
-                        count: None },
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                     // binding 1: output packed u32 RGBA buffer (storage, read-write)
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
@@ -122,8 +137,10 @@ impl GpuVolumeRenderer {
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: false },
                             has_dynamic_offset: false,
-                            min_binding_size: None },
-                        count: None },
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                     // binding 2: VrParams uniform
                     wgpu::BindGroupLayoutEntry {
                         binding: 2,
@@ -131,8 +148,10 @@ impl GpuVolumeRenderer {
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Uniform,
                             has_dynamic_offset: false,
-                            min_binding_size: None },
-                        count: None },
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
                     // binding 3: colormap LUT (storage, read-only)
                     wgpu::BindGroupLayoutEntry {
                         binding: 3,
@@ -140,16 +159,20 @@ impl GpuVolumeRenderer {
                         ty: wgpu::BindingType::Buffer {
                             ty: wgpu::BufferBindingType::Storage { read_only: true },
                             has_dynamic_offset: false,
-                            min_binding_size: None },
-                        count: None },
-                ] });
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+            });
 
         let vr_pl = ctx
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("gpu_vr_pl"),
                 bind_group_layouts: &[&vr_bgl],
-                push_constant_ranges: &[] });
+                push_constant_ranges: &[],
+            });
 
         let vr_pipeline = ctx
             .device
@@ -158,7 +181,8 @@ impl GpuVolumeRenderer {
                 layout: Some(&vr_pl),
                 module: &vr_shader,
                 entry_point: "vr_main",
-                compilation_options: wgpu::PipelineCompilationOptions::default() });
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            });
 
         Some(GpuVolumeRenderer {
             ctx,
@@ -174,7 +198,8 @@ impl GpuVolumeRenderer {
             mip_pending: None,
             mip_last: None,
             vr_pending: None,
-            vr_last: None })
+            vr_last: None,
+        })
     }
 
     /// Upload `volume` to a GPU storage buffer if the volume has changed since
@@ -219,7 +244,8 @@ impl GpuVolumeRenderer {
 
         let slice: &[f32] = match extracted.as_deref() {
             Some(s) => s,
-            None => &raw[..n_voxels] };
+            None => &raw[..n_voxels],
+        };
 
         let buf = self
             .ctx
@@ -227,7 +253,8 @@ impl GpuVolumeRenderer {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("gpu_vol_data"),
                 contents: bytemuck::cast_slice(slice),
-                usage: wgpu::BufferUsages::STORAGE });
+                usage: wgpu::BufferUsages::STORAGE,
+            });
 
         self.vol_buffer = Some(buf);
         self.vol_size = Some(volume.shape);

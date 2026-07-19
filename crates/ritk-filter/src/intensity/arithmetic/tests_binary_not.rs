@@ -8,7 +8,12 @@ type B = coeus_core::SequentialBackend;
 fn binary_not_default_labels_flip_mask() {
     let img = ts::make_image::<f32, B, 3>(vec![0.0, 1.0, 2.0, 0.0, 5.0], [1, 1, 5]);
     let out = BinaryNotImageFilter::new().apply(&img);
-    assert_eq!(out.data_slice().into_owned(), vec![1.0, 0.0, 1.0, 1.0, 1.0]);
+    assert_eq!(
+        out.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec(),
+        vec![1.0, 0.0, 1.0, 1.0, 1.0]
+    );
 }
 
 /// Custom labels (fg=5, bg=9): only the foreground value maps to background.
@@ -16,5 +21,10 @@ fn binary_not_default_labels_flip_mask() {
 fn binary_not_custom_labels() {
     let img = ts::make_image::<f32, B, 3>(vec![0.0, 1.0, 2.0, 0.0, 5.0], [1, 1, 5]);
     let out = BinaryNotImageFilter::with_labels(5.0, 9.0).apply(&img);
-    assert_eq!(out.data_slice().into_owned(), vec![5.0, 5.0, 5.0, 5.0, 9.0]);
+    assert_eq!(
+        out.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec(),
+        vec![5.0, 5.0, 5.0, 5.0, 9.0]
+    );
 }

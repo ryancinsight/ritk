@@ -1,4 +1,4 @@
-﻿//! JPEG Baseline (SOF0/SOF1) sequential DCT scan decode.
+//! JPEG Baseline (SOF0/SOF1) sequential DCT scan decode.
 //!
 //! # Specification
 //! ITU-T T.81 Â§F.2: Sequential entropy decode for Baseline and Extended DCT.
@@ -154,7 +154,8 @@ pub(crate) fn decode_baseline_scan(
     match ncomp {
         1 => decode_baseline_grayscale(frame, entropy_data, width, height, comp_by_id),
         3 => decode_baseline_ycbcr(frame, entropy_data, width, height, comp_by_id),
-        _ => bail!("JPEG Baseline: unsupported component count {ncomp}") }
+        _ => bail!("JPEG Baseline: unsupported component count {ncomp}"),
+    }
 }
 
 fn decode_baseline_grayscale(
@@ -206,7 +207,8 @@ fn decode_baseline_grayscale(
         width,
         height,
         pixel_format: JpegPixelFormat::L8,
-        pixels })
+        pixels,
+    })
 }
 
 fn decode_baseline_ycbcr(
@@ -321,5 +323,6 @@ fn decode_baseline_ycbcr(
         width,
         height,
         pixel_format: JpegPixelFormat::Rgb24,
-        pixels })
+        pixels,
+    })
 }

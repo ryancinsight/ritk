@@ -1,12 +1,13 @@
-﻿//! Canny edge detection, Laplacian of Gaussian, and level set filters.
+//! Canny edge detection, Laplacian of Gaussian, and level set filters.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use ritk_filter::{
     edge::GaussianSigma, CannyEdgeDetectionImageFilter, CannyEdgeDetector,
-    CannySegmentationLevelSet, LaplacianOfGaussianFilter };
+    CannySegmentationLevelSet, LaplacianOfGaussianFilter,
+};
 use std::sync::Arc;
 
 /// Apply the Canny edge detector to an image.
@@ -85,7 +86,8 @@ pub fn canny_edge_detection(
             variance,
             maximum_error,
             lower_threshold,
-            upper_threshold }
+            upper_threshold,
+        }
         .apply_native(native.as_ref(), &backend)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
@@ -162,8 +164,8 @@ pub fn canny_segmentation_level_set(
     iso_surface_value: f32,
 ) -> RitkResult<PyImage> {
     // TODO: CannySegmentationLevelSet still lacks apply_native; keep Burn roundtrip for now.
-    let arc_init = py_image_to_burn(initial_level_set);
-    let arc_feat = py_image_to_burn(feature_image);
+    let arc_init = image_from_py(initial_level_set);
+    let arc_feat = image_from_py(feature_image);
     let result = py.allow_threads(|| {
         CannySegmentationLevelSet {
             canny_threshold: threshold,
@@ -173,10 +175,11 @@ pub fn canny_segmentation_level_set(
             propagation_scaling,
             curvature_scaling,
             advection_scaling,
-            iso_surface_value }
+            iso_surface_value,
+        }
         .apply(&arc_init, &arc_feat)
     });
     result
-        .map(burn_into_py_image)
+        .map(into_py_image)
         .map_err(|e| RitkPyError::runtime(e.to_string()))
 }

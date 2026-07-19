@@ -1,4 +1,4 @@
-﻿//! Pure-Rust J2K encoder.
+//! Pure-Rust J2K encoder.
 //!
 //! Produces minimal conformant bare J2K codestreams (no JP2 wrapper), as
 //! required for DICOM-encapsulated JPEG 2000 (TS 1.2.840.10008.1.2.4.90 lossless,
@@ -183,7 +183,8 @@ mod tests {
             bits_allocated: bits,
             pixel_representation: signed,
             rescale_slope: 1.0,
-            rescale_intercept: 0.0 }
+            rescale_intercept: 0.0,
+        }
     }
 
     #[test]

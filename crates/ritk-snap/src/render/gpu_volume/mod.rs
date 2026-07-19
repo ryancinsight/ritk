@@ -1,4 +1,4 @@
-﻿//! GPU-accelerated volume MIP and VR rendering via wgpu compute shaders.
+//! GPU-accelerated volume MIP and VR rendering via wgpu compute shaders.
 //!
 //! # Architecture
 //!
@@ -109,7 +109,8 @@ pub(in crate::render::gpu_volume) struct PendingReadback {
         std::sync::mpsc::Receiver<Result<(), wgpu::BufferAsyncError>>,
     /// Expected output dimensions; validated against the collected image.
     pub(in crate::render::gpu_volume) rows: usize,
-    pub(in crate::render::gpu_volume) cols: usize }
+    pub(in crate::render::gpu_volume) cols: usize,
+}
 
 /// GPU-accelerated MIP and VR volume renderer with non-blocking async readback.
 ///
@@ -153,4 +154,5 @@ pub struct GpuVolumeRenderer {
     /// In-flight VR readback awaiting GPU completion.
     pub(in crate::render::gpu_volume) vr_pending: Option<PendingReadback>,
     /// Last successfully collected VR frame; `None` before any frame completes.
-    pub(in crate::render::gpu_volume) vr_last: Option<egui::ColorImage> }
+    pub(in crate::render::gpu_volume) vr_last: Option<egui::ColorImage>,
+}

@@ -1,4 +1,4 @@
-﻿//! Python-exposed FFT filter functions.
+//! Python-exposed FFT filter functions.
 //!
 //! All filters delegate to `ritk_filter::fft` (SSOT).
 //!
@@ -18,18 +18,19 @@ mod frequency;
 pub use convolution::{fft_convolve, fft_convolve_3d};
 pub use correlation::{
     fft_normalized_correlate, fft_normalized_correlate_3d, masked_fft_normalized_correlation,
-    normalized_correlation };
+    normalized_correlation,
+};
 pub use frequency::{
-    fft_butterworth_high_pass, fft_butterworth_low_pass, fft_ideal_high_pass, fft_ideal_low_pass };
+    fft_butterworth_high_pass, fft_butterworth_low_pass, fft_ideal_high_pass, fft_ideal_low_pass,
+};
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{
-    burn_into_py_image, into_py_image, py_image_to_burn, vec_to_image_like, with_image_slice,
-    PyImage };
+use crate::image::{image_from_py, into_py_image, vec_to_image_like, with_image_slice, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     FftShiftFilter, ForwardFftFilter, HalfHermitianToRealInverseFftFilter, InverseFftFilter,
-    RealFftShiftFilter, RealToHalfHermitianForwardFftFilter };
+    RealFftShiftFilter, RealToHalfHermitianForwardFftFilter,
+};
 
 /// Deinterleave a complex image `[D, H, 2W]` (real,imag pairs along X) into a
 /// real `[D, H, W]` image by mapping each `(re, im)` pair through `f`.
@@ -164,13 +165,13 @@ pub fn complex_to_phase(image: &PyImage) -> RitkResult<PyImage> {
 ///     RuntimeError: on internal FFT failure.
 #[pyfunction]
 pub fn forward_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         ForwardFftFilter::new()
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Real-to-half-Hermitian forward FFT, matching
@@ -188,13 +189,13 @@ pub fn forward_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 ///     Half-Hermitian complex PyImage of shape [D, H, 2*(W/2+1)].
 #[pyfunction]
 pub fn real_to_half_hermitian_forward_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         RealToHalfHermitianForwardFftFilter::new()
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Half-Hermitian-to-real inverse FFT, matching
@@ -218,13 +219,13 @@ pub fn half_hermitian_to_real_inverse_fft(
     image: &PyImage,
     actual_x_is_odd: bool,
 ) -> RitkResult<PyImage> {
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         HalfHermitianToRealInverseFftFilter::new(actual_x_is_odd)
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Apply the inverse FFT to a complex frequency-domain image.
@@ -245,13 +246,13 @@ pub fn half_hermitian_to_real_inverse_fft(
 ///     RuntimeError: on internal IFFT failure.
 #[pyfunction]
 pub fn inverse_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         InverseFftFilter::new()
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Apply FFT shift to a complex frequency-domain image.
@@ -273,13 +274,13 @@ pub fn inverse_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 ///     RuntimeError: on internal shift failure.
 #[pyfunction]
 pub fn fft_shift(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         FftShiftFilter::new()
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Shift a real-valued spatial-domain image so that the zero-frequency
@@ -306,11 +307,11 @@ pub fn fft_shift(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 ///     RuntimeError: on internal tensor extraction failure.
 #[pyfunction]
 pub fn real_fft_shift(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         RealFftShiftFilter::new()
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

@@ -1,7 +1,7 @@
-﻿//! Vesselness filters: Frangi multiscale vesselness, Sato line filter.
+//! Vesselness filters: Frangi multiscale vesselness, Sato line filter.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::vesselness::{FrangiConfig, SatoConfig, VesselPolarity};
 use ritk_filter::{FrangiVesselnessFilter, SatoLineFilter};
@@ -15,7 +15,8 @@ pub enum PyVesselPolarity {
     /// Detect bright structures on dark background.
     Bright,
     /// Detect dark structures on bright background.
-    Dark }
+    Dark,
+}
 
 impl<'py> FromPyObject<'py> for PyVesselPolarity {
     fn extract_bound(ob: &pyo3::Bound<'py, PyAny>) -> PyResult<Self> {
@@ -26,7 +27,8 @@ impl<'py> FromPyObject<'py> for PyVesselPolarity {
             other => Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "Unknown vessel polarity '{}'. Choices: bright, dark",
                 other
-            ))) }
+            ))),
+        }
     }
 }
 
@@ -34,7 +36,8 @@ impl From<PyVesselPolarity> for VesselPolarity {
     fn from(val: PyVesselPolarity) -> Self {
         match val {
             PyVesselPolarity::Bright => VesselPolarity::Bright,
-            PyVesselPolarity::Dark => VesselPolarity::Dark }
+            PyVesselPolarity::Dark => VesselPolarity::Dark,
+        }
     }
 }
 
@@ -70,20 +73,21 @@ pub fn frangi_vesselness(
     gamma: f64,
     polarity: PyVesselPolarity,
 ) -> RitkResult<PyImage> {
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         let config = FrangiConfig {
             scales: scales.unwrap_or_else(|| vec![0.5, 1.0, 2.0]),
             alpha,
             beta,
             gamma,
-            polarity: VesselPolarity::from(polarity) };
+            polarity: VesselPolarity::from(polarity),
+        };
         let filter = FrangiVesselnessFilter::new(config);
         filter
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Apply the Sato multi-scale line filter for curvilinear structure detection.
@@ -113,15 +117,16 @@ pub fn sato_line_filter(
     alpha: f64,
     polarity: PyVesselPolarity,
 ) -> RitkResult<PyImage> {
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         let filter = SatoLineFilter::new(SatoConfig {
             scales: scales.unwrap_or_else(|| vec![1.0, 2.0, 3.0]),
             alpha,
-            polarity: VesselPolarity::from(polarity) });
+            polarity: VesselPolarity::from(polarity),
+        });
         filter
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

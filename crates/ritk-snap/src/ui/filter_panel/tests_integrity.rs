@@ -1,4 +1,4 @@
-﻿use crate::FilterKind;
+use crate::FilterKind;
 use ritk_filter::ForegroundValue;
 
 // Verify that the default `FilterKind` values exposed by the panel are
@@ -87,12 +87,14 @@ fn binary_threshold_defaults_ordered() {
         lower: 100.0,
         upper: 500.0,
         foreground: ForegroundValue::ONE,
-        background: 0.0 };
+        background: 0.0,
+    };
     if let FilterKind::BinaryThreshold {
         lower,
         upper,
         foreground,
-        background } = fk
+        background,
+    } = fk
     {
         assert!(lower <= upper, "lower={lower} must be â‰¤ upper={upper}");
         assert_ne!(
@@ -111,7 +113,8 @@ fn binary_threshold_defaults_ordered() {
 fn rescale_intensity_defaults_ordered() {
     let fk = FilterKind::RescaleIntensity {
         out_min: 0.0,
-        out_max: 1.0 };
+        out_max: 1.0,
+    };
     if let FilterKind::RescaleIntensity { out_min, out_max } = fk {
         assert!(
             out_min < out_max,
@@ -127,7 +130,8 @@ fn rescale_intensity_defaults_ordered() {
 fn clamp_defaults_ordered() {
     let fk = FilterKind::Clamp {
         lower: 0.0,
-        upper: 255.0 };
+        upper: 255.0,
+    };
     if let FilterKind::Clamp { lower, upper } = fk {
         assert!(lower <= upper, "lower={lower} must be â‰¤ upper={upper}");
     } else {
@@ -143,7 +147,8 @@ fn connected_threshold_defaults_ordered() {
         seed_y: 0,
         seed_x: 0,
         lower: 100.0,
-        upper: 500.0 };
+        upper: 500.0,
+    };
     if let FilterKind::ConnectedThreshold { lower, upper, .. } = fk {
         assert!(lower <= upper, "lower={lower} must be â‰¤ upper={upper}");
     } else {
@@ -161,7 +166,8 @@ fn confidence_connected_defaults_valid() {
         initial_lower: 0.0,
         initial_upper: 100.0,
         multiplier: 2.5,
-        max_iterations: 15 };
+        max_iterations: 15,
+    };
     if let FilterKind::ConfidenceConnected {
         multiplier,
         max_iterations,
@@ -195,7 +201,8 @@ fn neighborhood_connected_defaults_valid() {
         upper: 500.0,
         radius_z: 1,
         radius_y: 1,
-        radius_x: 1 };
+        radius_x: 1,
+    };
     if let FilterKind::NeighborhoodConnected {
         lower,
         upper,

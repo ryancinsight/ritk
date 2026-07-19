@@ -218,7 +218,8 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.5, 1.0, 1.0]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
 
     // Coronal IOP: F_r=[1,0,0], F_c=[0,0,-1], NÌ‚=F_rÃ—F_c=[0,1,0].
     // RITK direction = from_column_slice([NÌ‚, F_c, F_r]) = [0,1,0, 0,0,-1, 1,0,0].

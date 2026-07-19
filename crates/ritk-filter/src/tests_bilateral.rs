@@ -10,7 +10,9 @@ fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
 
 /// Extract flat `Vec<f32>` from an image (test utility).
 fn extract_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data_slice().into_owned()
+    img.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 // ── 1. Uniform image → unchanged ─────────────────────────────────────

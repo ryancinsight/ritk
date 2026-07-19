@@ -11,7 +11,9 @@ fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 fn vals(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data_slice().into_owned()
+    img.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 /// Auto maximum: [1,2,3] â†’ max=3, out=[2,1,0].
@@ -66,7 +68,8 @@ fn invert_constant_auto_max_all_zero() {
 fn invert_preserves_metadata() {
     let sp = Spacing::new([1.5, 2.5, 3.5]);
     let t = Tensor::<f32, B>::from_slice([1usize, 1, 2], &[1.0_f32, 3.0]);
-    let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp, Direction::identity());
+    let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp, Direction::identity())
+        .expect("invariant: fixture tensor has the declared rank");
     let out = InvertIntensityFilter::new().apply(&img);
     assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
 }
@@ -74,7 +77,7 @@ fn invert_preserves_metadata() {
 #[test]
 fn native_invert_matches_fixed_maximum_contract() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
 
     let image = NativeImage::from_flat_on(
         vec![1.0, 4.0, 7.0],

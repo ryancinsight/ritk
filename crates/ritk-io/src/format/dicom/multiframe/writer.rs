@@ -7,8 +7,8 @@ use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 use ritk_core::image::Image;
-use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
+use ritk_image::Image as NativeImage;
 use std::path::Path;
 
 use super::types::{MultiFrameSpatialMetadata, MultiFrameWriterConfig};

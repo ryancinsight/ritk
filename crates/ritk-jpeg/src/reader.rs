@@ -1,6 +1,6 @@
-﻿use anyhow::{Context, Result};
+use anyhow::{Context, Result};
 use coeus_core::ComputeBackend;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::Path;
 
@@ -26,7 +26,8 @@ where
 
 struct DecodedJpeg {
     data: Vec<f32>,
-    dims: [usize; 3] }
+    dims: [usize; 3],
+}
 
 fn decode_jpeg<P: AsRef<Path>>(path: P) -> Result<DecodedJpeg> {
     let path = path.as_ref();
@@ -37,12 +38,14 @@ fn decode_jpeg<P: AsRef<Path>>(path: P) -> Result<DecodedJpeg> {
     tracing::debug!(path = %path.display(), width, height, dtype = "Luma8", "read JPEG image");
     Ok(DecodedJpeg {
         data: image.into_raw().into_iter().map(f32::from).collect(),
-        dims: [1, height as usize, width as usize] })
+        dims: [1, height as usize, width as usize],
+    })
 }
 
 /// Backend-bound native JPEG reader.
 pub struct JpegReader<B: ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: ComputeBackend> JpegReader<B> {
     /// Creates a reader that constructs images on `backend`.

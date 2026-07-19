@@ -137,6 +137,7 @@ impl MultiOtsuThreshold {
             *image.spacing(),
             *image.direction(),
         )
+        .expect("invariant: segmentation output tensor preserves the image rank")
     }
 
     /// Compute thresholds directly from a Coeus-native image.
@@ -146,7 +147,7 @@ impl MultiOtsuThreshold {
     /// Returns an error when backend storage is not host-addressable.
     pub fn compute_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
     ) -> anyhow::Result<Vec<f32>>
     where
         B: coeus_core::ComputeBackend,
@@ -167,9 +168,9 @@ impl MultiOtsuThreshold {
     /// output image cannot be constructed.
     pub fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -186,16 +187,16 @@ impl MultiOtsuThreshold {
     /// output image cannot be constructed.
     pub fn apply_native_with_thresholds<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<(ritk_image::native::Image<f32, B, D>, Vec<f32>)>
+    ) -> anyhow::Result<(ritk_image::Image<f32, B, D>, Vec<f32>)>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
         let (thresholds, output) =
             multi_otsu_labels_from_slice(image.data_slice()?, self.num_classes, self.num_bins);
-        let labels = ritk_image::native::Image::from_flat_on(
+        let labels = ritk_image::Image::from_flat_on(
             output,
             image.shape(),
             *image.origin(),

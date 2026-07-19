@@ -44,7 +44,7 @@ mod tests {
     /// Spatial metadata is preserved.
     #[test]
     fn square_preserves_metadata() {
-        use ritk_image::native::Image;
+        use ritk_image::Image;
         use ritk_spatial::{Direction, Point, Spacing};
         let sp = Spacing::new([3.0, 3.0, 3.0]);
         let img = Image::from_flat_on(

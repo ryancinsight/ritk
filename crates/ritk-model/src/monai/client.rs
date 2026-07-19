@@ -1,4 +1,4 @@
-﻿//! MONAI Label Server REST client implementation.
+//! MONAI Label Server REST client implementation.
 //!
 //! # Protocol
 //!
@@ -31,7 +31,8 @@ use tracing::{debug, instrument};
 /// `Send + Sync`.  Multiple threads may share a reference to a single client.
 pub struct MonaiLabelClient {
     base_url: String,
-    client: Client }
+    client: Client,
+}
 
 impl MonaiLabelClient {
     /// Create a client with a 30-second connect/read timeout.
@@ -51,7 +52,8 @@ impl MonaiLabelClient {
             .expect("reqwest blocking Client must build");
         Self {
             base_url: base_url.into().trim_end_matches('/').to_owned(),
-            client }
+            client,
+        }
     }
 
     // â”€â”€ GET /info â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -69,7 +71,8 @@ impl MonaiLabelClient {
             let body = resp.text().unwrap_or_default();
             return Err(MonaiError::ServerError {
                 status: status.as_u16(),
-                body });
+                body,
+            });
         }
         let info: ServerInfo = resp.json()?;
         Ok(info)
@@ -91,7 +94,8 @@ impl MonaiLabelClient {
             let body = resp.text().unwrap_or_default();
             return Err(MonaiError::ServerError {
                 status: status.as_u16(),
-                body });
+                body,
+            });
         }
         let raw: HashMap<String, serde_json::Value> = resp.json()?;
         raw.into_iter()
@@ -132,7 +136,8 @@ impl MonaiLabelClient {
             let body = resp.text().unwrap_or_default();
             return Err(MonaiError::ServerError {
                 status: status.as_u16(),
-                body });
+                body,
+            });
         }
         let content_type = resp
             .headers()
@@ -176,7 +181,8 @@ pub(crate) fn parse_infer_response(
     body: &[u8],
 ) -> Result<InferResponse, MonaiError> {
     let boundary = extract_boundary(content_type).ok_or_else(|| MonaiError::ParseError {
-        message: format!("missing multipart boundary in Content-Type: {content_type}") })?;
+        message: format!("missing multipart boundary in Content-Type: {content_type}"),
+    })?;
 
     let parts = split_multipart(body, boundary.as_bytes());
     let mut label: Option<Vec<u8>> = None;
@@ -197,7 +203,8 @@ pub(crate) fn parse_infer_response(
     }
 
     let label = label.ok_or_else(|| MonaiError::ParseError {
-        message: "missing 'label' part in multipart infer response".to_owned() })?;
+        message: "missing 'label' part in multipart infer response".to_owned(),
+    })?;
 
     Ok(InferResponse { label, params })
 }

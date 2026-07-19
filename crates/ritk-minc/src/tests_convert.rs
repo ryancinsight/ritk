@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 use std::num::NonZeroUsize;
 
 #[test]
@@ -7,7 +7,8 @@ fn le_round_trips() {
     let raw = val.to_le_bytes().to_vec();
     let dtype = Datatype::Float {
         bits: NonZeroUsize::new(32).unwrap(),
-        byte_order: consus_core::ByteOrder::LittleEndian };
+        byte_order: consus_core::ByteOrder::LittleEndian,
+    };
     let result = decode_raw_bytes(&raw, &dtype).unwrap();
     assert_eq!(result.len(), 1);
     assert!((result[0] - std::f32::consts::PI).abs() < 1e-5);
@@ -19,7 +20,8 @@ fn be_round_trips() {
     let raw = val.to_be_bytes().to_vec();
     let dtype = Datatype::Float {
         bits: NonZeroUsize::new(32).unwrap(),
-        byte_order: consus_core::ByteOrder::BigEndian };
+        byte_order: consus_core::ByteOrder::BigEndian,
+    };
     let result = decode_raw_bytes(&raw, &dtype).unwrap();
     assert_eq!(result.len(), 1);
     assert!((result[0] - 2.71).abs() < 1e-5);
@@ -31,7 +33,8 @@ fn double_precision_le_narrows_to_single() {
     let raw = val.to_le_bytes().to_vec();
     let dtype = Datatype::Float {
         bits: NonZeroUsize::new(64).unwrap(),
-        byte_order: consus_core::ByteOrder::LittleEndian };
+        byte_order: consus_core::ByteOrder::LittleEndian,
+    };
     let result = decode_raw_bytes(&raw, &dtype).unwrap();
     assert_eq!(result.len(), 1);
     assert!((result[0] - 1.234_567_9_f32).abs() < 1e-5);
@@ -43,7 +46,8 @@ fn u8_identity_is_preserved() {
     let dtype = Datatype::Integer {
         bits: NonZeroUsize::new(8).unwrap(),
         byte_order: consus_core::ByteOrder::LittleEndian,
-        signed: false };
+        signed: false,
+    };
     let result = decode_raw_bytes(&raw, &dtype).unwrap();
     assert_eq!(result, vec![0.0, 128.0, 255.0]);
 }
@@ -54,7 +58,8 @@ fn i8_signed_range_is_preserved() {
     let dtype = Datatype::Integer {
         bits: NonZeroUsize::new(8).unwrap(),
         byte_order: consus_core::ByteOrder::LittleEndian,
-        signed: true };
+        signed: true,
+    };
     let result = decode_raw_bytes(&raw, &dtype).unwrap();
     assert_eq!(result, vec![0.0, 127.0, -128.0]);
 }
@@ -69,7 +74,8 @@ fn signed_short_le_boundary_values() {
     let dtype = Datatype::Integer {
         bits: NonZeroUsize::new(16).unwrap(),
         byte_order: consus_core::ByteOrder::LittleEndian,
-        signed: true };
+        signed: true,
+    };
     let result = decode_raw_bytes(&raw, &dtype).unwrap();
     assert_eq!(result, vec![0.0, 32767.0, -32768.0]);
 }
@@ -84,7 +90,8 @@ fn convert_boolean_maps_nonzero_to_one() {
 #[test]
 fn convert_unsupported_type_errors() {
     let dtype = Datatype::VariableString {
-        encoding: consus_core::StringEncoding::Utf8 };
+        encoding: consus_core::StringEncoding::Utf8,
+    };
     assert!(decode_raw_bytes(&[], &dtype).is_err());
 }
 
@@ -94,7 +101,8 @@ fn multiple_le_float_values() {
     let raw: Vec<u8> = values.iter().flat_map(|v| v.to_le_bytes()).collect();
     let dtype = Datatype::Float {
         bits: NonZeroUsize::new(32).unwrap(),
-        byte_order: consus_core::ByteOrder::LittleEndian };
+        byte_order: consus_core::ByteOrder::LittleEndian,
+    };
     let result = decode_raw_bytes(&raw, &dtype).unwrap();
     assert_eq!(result.len(), 5);
     for (i, &expected) in values.iter().enumerate() {

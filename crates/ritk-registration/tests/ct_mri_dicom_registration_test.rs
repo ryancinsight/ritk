@@ -1,4 +1,4 @@
-﻿//! CT+MRI DICOM registration integration tests.
+//! CT+MRI DICOM registration integration tests.
 //!
 //! # Test Data
 //! These tests require the MRI-DIR CT (3_head_ct_mridir/DICOM/) and MRI
@@ -13,7 +13,7 @@
 //!   cargo test --test ct_mri_dicom_registration_test -- --ignored
 
 use coeus_core::SequentialBackend;
-use ritk_io::{read_native_dicom_series_with_metadata, DicomReadMetadata};
+use ritk_io::{read_dicom_series_with_metadata, DicomReadMetadata};
 use ritk_registration::bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, VolumeDims};
 
 // â”€â”€ Test helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -129,7 +129,7 @@ fn test_ct_dicom_series_metadata() {
 
     let backend = SequentialBackend;
     let (image, metadata): (_, DicomReadMetadata) =
-        read_native_dicom_series_with_metadata(&ct_dir, &backend)
+        read_dicom_series_with_metadata(&ct_dir, &backend)
             .expect("CT DICOM series must load without error");
 
     // â”€â”€ Modality â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -202,7 +202,7 @@ fn test_mri_dir_mri_series_metadata() {
 
     let backend = SequentialBackend;
     let (image, metadata): (_, DicomReadMetadata) =
-        read_native_dicom_series_with_metadata(&mri_dir, &backend)
+        read_dicom_series_with_metadata(&mri_dir, &backend)
             .expect("MRI DICOM series must load without error");
 
     // â”€â”€ Modality â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -284,7 +284,7 @@ fn test_bspline_ffd_mridir_ct_synthetic_shift_recovery() {
     }
 
     let backend = SequentialBackend;
-    let (image, _metadata) = read_native_dicom_series_with_metadata(&ct_dir, &backend)
+    let (image, _metadata) = read_dicom_series_with_metadata(&ct_dir, &backend)
         .expect("CT DICOM series must load for registration test");
 
     let full_shape = image.shape();
@@ -322,7 +322,8 @@ fn test_bspline_ffd_mridir_ct_synthetic_shift_recovery() {
         max_iterations_per_level: 50,
         learning_rate: 1.0,
         regularization_weight: 1e-3,
-        convergence_threshold: 1e-5 };
+        convergence_threshold: 1e-5,
+    };
 
     let result = BSplineFFDRegistration::register(
         &fixed,
@@ -389,10 +390,10 @@ fn test_ct_mri_pair_intensity_statistics_differ() {
     }
 
     let backend = SequentialBackend;
-    let (ct_img, _ct_meta) = read_native_dicom_series_with_metadata(&ct_dir, &backend)
-        .expect("CT DICOM series must load");
-    let (mri_img, _mri_meta) = read_native_dicom_series_with_metadata(&mri_dir, &backend)
-        .expect("MRI DICOM series must load");
+    let (ct_img, _ct_meta) =
+        read_dicom_series_with_metadata(&ct_dir, &backend).expect("CT DICOM series must load");
+    let (mri_img, _mri_meta) =
+        read_dicom_series_with_metadata(&mri_dir, &backend).expect("MRI DICOM series must load");
 
     let ct_raw = ct_img.data_cow_on(&backend).into_owned();
     let mri_raw = mri_img.data_cow_on(&backend).into_owned();

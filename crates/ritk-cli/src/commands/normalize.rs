@@ -1,4 +1,4 @@
-﻿//! `ritk normalize` â€” image intensity normalization command.
+//! `ritk normalize` â€” image intensity normalization command.
 //!
 //! Applies one of five normalization strategies to a 3-D medical image:
 //!
@@ -17,11 +17,10 @@ use tracing::info;
 
 use ritk_statistics::normalization::{
     HistogramMatcher, MinMaxNormalizer, MriContrast, NyulUdupaNormalizer, WhiteStripeConfig,
-    WhiteStripeNormalizer, ZScoreNormalizer };
+    WhiteStripeNormalizer, ZScoreNormalizer,
+};
 
-use super::{
-    infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
-    write_image_native };
+use super::{infer_format, is_read_capable, is_write_capable, read_image, write_image};
 
 // â”€â”€ CLI arguments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -31,7 +30,8 @@ pub enum CliContrast {
     #[value(name = "t1")]
     T1,
     #[value(name = "t2")]
-    T2 }
+    T2,
+}
 
 /// Normalization method for the `normalize` subcommand.
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -44,7 +44,8 @@ pub enum NormalizeMethod {
     #[value(name = "minmax")]
     Minmax,
     #[value(name = "white-stripe")]
-    WhiteStripe }
+    WhiteStripe,
+}
 
 impl std::fmt::Display for NormalizeMethod {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -53,7 +54,8 @@ impl std::fmt::Display for NormalizeMethod {
             Self::Nyul => "nyul",
             Self::Zscore => "zscore",
             Self::Minmax => "minmax",
-            Self::WhiteStripe => "white-stripe" })
+            Self::WhiteStripe => "white-stripe",
+        })
     }
 }
 
@@ -106,7 +108,8 @@ pub struct NormalizeArgs {
     /// If the mask contains no foreground voxels, the method falls back to
     /// full-image statistics.
     #[arg(long, value_name = "MASK")]
-    pub mask: Option<PathBuf> }
+    pub mask: Option<PathBuf>,
+}
 
 // â”€â”€ Command handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -149,18 +152,18 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             )
         })?;
         anyhow::ensure!(
-            is_native_read_capable(input_format),
+            is_read_capable(input_format),
             "{} normalization does not support {:?} input until its native reader exists",
             args.method,
             input_format
         );
         anyhow::ensure!(
-            is_native_write_capable(output_format),
+            is_write_capable(output_format),
             "{} normalization does not support {:?} output until its native writer exists",
             args.method,
             output_format
         );
-        let input = read_image_native(&args.input)?;
+        let input = read_image(&args.input)?;
         let output = match args.method {
             NormalizeMethod::Minmax => MinMaxNormalizer::default().normalize_native(&input)?,
             NormalizeMethod::Zscore => {
@@ -172,11 +175,11 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
                         )
                     })?;
                     anyhow::ensure!(
-                        is_native_read_capable(mask_format),
+                        is_read_capable(mask_format),
                         "zscore normalization does not support {:?} mask input until its native reader exists",
                         mask_format
                     );
-                    let mask = read_image_native(mask_path)?;
+                    let mask = read_image(mask_path)?;
                     ZScoreNormalizer::new().normalize_masked_native(&input, &mask)?
                 } else {
                     ZScoreNormalizer::new().normalize_native(&input)?
@@ -193,11 +196,11 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
                     )
                 })?;
                 anyhow::ensure!(
-                    is_native_read_capable(reference_format),
+                    is_read_capable(reference_format),
                     "histogram-match normalization does not support {:?} reference input until its native reader exists",
                     reference_format
                 );
-                let reference = read_image_native(reference_path)?;
+                let reference = read_image(reference_path)?;
                 HistogramMatcher::new(args.num_bins).match_histograms_native(&input, &reference)?
             }
             NormalizeMethod::Nyul => {
@@ -210,11 +213,11 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
                         )
                     })?;
                     anyhow::ensure!(
-                        is_native_read_capable(reference_format),
+                        is_read_capable(reference_format),
                         "nyul normalization does not support {:?} reference input until its native reader exists",
                         reference_format
                     );
-                    let reference = read_image_native(reference_path)?;
+                    let reference = read_image(reference_path)?;
                     normalizer.learn_standard_native(&[&input, &reference])?;
                 } else {
                     normalizer.learn_standard_native(&[&input])?;
@@ -224,7 +227,8 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
             NormalizeMethod::WhiteStripe => {
                 let contrast = match args.contrast.unwrap_or(CliContrast::T1) {
                     CliContrast::T1 => MriContrast::T1,
-                    CliContrast::T2 => MriContrast::T2 };
+                    CliContrast::T2 => MriContrast::T2,
+                };
                 let config = WhiteStripeConfig {
                     contrast,
                     width: args.ws_width.unwrap_or(0.05),
@@ -242,7 +246,7 @@ pub fn run(args: NormalizeArgs) -> Result<()> {
                 result.normalized
             }
         };
-        write_image_native(&args.output, &output, output_format)?;
+        write_image(&args.output, &output, output_format)?;
         println!(
             "normalize: wrote {} -> {}",
             args.method,

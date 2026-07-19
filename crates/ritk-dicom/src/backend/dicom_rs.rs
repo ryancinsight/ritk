@@ -1,4 +1,4 @@
-﻿//! `dicom-rs` frame decode backend.
+//! `dicom-rs` frame decode backend.
 //!
 //! This module is the only place where `dicom-pixeldata::PixelDecoder` is bound
 //! to the RITK DICOM domain boundary.
@@ -12,7 +12,8 @@ use std::path::Path;
 
 use crate::backend::{
     DecodeFrameRequest, DecodedFrame, DicomParseBackend, EncapsulatedFrameSource,
-    NativeCodecBackend, PixelDecodeBackend };
+    NativeCodecBackend, PixelDecodeBackend,
+};
 use crate::pixel::{decode_native_pixel_bytes_checked, PixelLayout};
 use crate::syntax::TransferSyntaxKind;
 
@@ -33,7 +34,8 @@ impl EncapsulatedFrameSource for DefaultDicomObject {
                         seq.fragments().len()
                     )
                 }),
-            _ => bail!("Pixel Data is not encapsulated") }
+            _ => bail!("Pixel Data is not encapsulated"),
+        }
     }
 }
 
@@ -139,7 +141,8 @@ fn decode_via_dicom_rs(
         bits_allocated: request.layout.bits_allocated,
         pixel_representation: request.layout.pixel_representation,
         rescale_slope: 1.0,
-        rescale_intercept: 0.0 };
+        rescale_intercept: 0.0,
+    };
     decode_native_pixel_bytes_checked(decoded.data(), identity_layout)
 }
 

@@ -1,10 +1,11 @@
-﻿//! Benchmarks comparing BSpline displacement evaluation performance.
+//! Benchmarks comparing BSpline displacement evaluation performance.
 //!
 //! Measures the speedup from the pre-computed basis cache + interior fast
 //! path (Sprint 308).
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ritk_registration::bspline_ffd::basis::{
-    evaluate_bspline_displacement_fast, init_control_grid, BasisCache };
+    evaluate_bspline_displacement_fast, init_control_grid, BasisCache,
+};
 use ritk_registration::bspline_ffd::VolumeDims;
 
 fn bench_displacement_evaluation(c: &mut Criterion) {

@@ -1,4 +1,4 @@
-﻿//! Criterion benchmarks comparing default and preallocated field smoothing in LDDMM
+//! Criterion benchmarks comparing default and preallocated field smoothing in LDDMM
 //! registration.
 //!
 //! Measures wall-clock time for a single gradient-descent iteration on a
@@ -40,7 +40,8 @@ fn bench_lddmm_smoothing(c: &mut Criterion) {
         kernel_sigma: ritk_filter::GaussianSigma::new_unchecked(2.0),
         learning_rate: 0.1,
         regularization_weight: 1.0,
-        convergence_threshold: 1e-5 };
+        convergence_threshold: 1e-5,
+    };
 
     let mut group = c.benchmark_group("LDDMM_256cubed_10steps");
     // LDDMM on 256Â³ is heavy â€” keep sample size low to avoid

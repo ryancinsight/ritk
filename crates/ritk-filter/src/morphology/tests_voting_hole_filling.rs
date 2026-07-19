@@ -15,7 +15,12 @@ fn fills_surrounded_hole() {
     v[2 * 5 + 2] = 0.0; // hole at (y=2, x=2)
     let img = ts::make_image::<f32, B, 3>(v, [1, 5, 5]);
     let out = filt().apply(&img);
-    assert_eq!(out.data_slice().into_owned()[2 * 5 + 2], 1.0);
+    assert_eq!(
+        out.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec()[2 * 5 + 2],
+        1.0
+    );
 }
 
 /// A lone background voxel with too few foreground neighbours is not filled.
@@ -29,7 +34,12 @@ fn sparse_background_not_filled() {
     v[at(2, 1)] = 1.0;
     let img = ts::make_image::<f32, B, 3>(v, [1, 5, 5]);
     let out = filt().apply(&img);
-    assert_eq!(out.data_slice().into_owned()[2 * 5 + 2], 0.0);
+    assert_eq!(
+        out.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec()[2 * 5 + 2],
+        0.0
+    );
 }
 
 /// Foreground is never removed (even an isolated foreground voxel survives).
@@ -39,7 +49,12 @@ fn foreground_always_survives() {
     v[2 * 5 + 2] = 1.0;
     let img = ts::make_image::<f32, B, 3>(v, [1, 5, 5]);
     let out = filt().apply(&img);
-    assert_eq!(out.data_slice().into_owned()[2 * 5 + 2], 1.0);
+    assert_eq!(
+        out.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec()[2 * 5 + 2],
+        1.0
+    );
 }
 
 /// Corner background voxel fills under clamp (replicate) boundary: in-bounds fg
@@ -50,7 +65,12 @@ fn corner_fills_under_clamp_boundary() {
     v[0] = 0.0; // corner (0,0)
     let img = ts::make_image::<f32, B, 3>(v, [1, 4, 4]);
     let out = filt().apply(&img);
-    assert_eq!(out.data_slice().into_owned()[0], 1.0);
+    assert_eq!(
+        out.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec()[0],
+        1.0
+    );
 }
 
 /// Iterative filling reaches the same fixed point as a converged single pass and
@@ -60,9 +80,21 @@ fn iterative_converges_and_zero_iters_is_identity() {
     let mut v = vec![1.0f32; 25];
     v[2 * 5 + 2] = 0.0;
     let img = ts::make_image::<f32, B, 3>(v.clone(), [1, 5, 5]);
-    let once = filt().apply(&img).data_slice().into_owned();
-    let iter = filt().apply_iterative(&img, 10).data_slice().into_owned();
+    let once = filt()
+        .apply(&img)
+        .data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec();
+    let iter = filt()
+        .apply_iterative(&img, 10)
+        .data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec();
     assert_eq!(once, iter, "single converged pass == iterative fixed point");
-    let zero = filt().apply_iterative(&img, 0).data_slice().into_owned();
+    let zero = filt()
+        .apply_iterative(&img, 0)
+        .data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec();
     assert_eq!(zero, v, "zero iterations is the identity");
 }

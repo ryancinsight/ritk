@@ -1,6 +1,6 @@
 use coeus_core::SequentialBackend;
 use ritk_filter::NativeMultiResolutionPyramid;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 fn image(values: Vec<f32>, shape: [usize; 3]) -> Image<f32, SequentialBackend, 3> {

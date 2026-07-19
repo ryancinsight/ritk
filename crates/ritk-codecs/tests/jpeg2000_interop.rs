@@ -1,4 +1,4 @@
-﻿//! Differential interoperability tests: RITK-native JPEG 2000 codec versus
+//! Differential interoperability tests: RITK-native JPEG 2000 codec versus
 //! the `openjp2` reference implementation (the pure-Rust c2rust port of
 //! OpenJPEG, dev-dependency only).
 //!
@@ -20,7 +20,8 @@ fn layout(rows: usize, cols: usize, bits: u16) -> PixelLayout {
         bits_allocated: bits,
         pixel_representation: PixelSignedness::Unsigned,
         rescale_slope: 1.0,
-        rescale_intercept: 0.0 }
+        rescale_intercept: 0.0,
+    }
 }
 
 /// Deterministic CT-like content: gradient + LCG noise within `2^prec`.
@@ -61,7 +62,8 @@ fn openjp2_encode(
             opj_end_compress, opj_image_create, opj_image_destroy,
             opj_set_default_encoder_parameters, opj_setup_encoder, opj_start_compress,
             opj_stream_create_default_file_stream, opj_stream_destroy, CODEC_FORMAT, COLOR_SPACE,
-            OPJ_BOOL, OPJ_FALSE, OPJ_TRUE };
+            OPJ_BOOL, OPJ_FALSE, OPJ_TRUE,
+        };
         use openjp2::opj_image_comptparm as opj_image_cmptparm_t;
 
         let mut params: opj_cparameters_t = std::mem::zeroed();
@@ -148,7 +150,8 @@ fn openjp2_decode(j2k: &[u8]) -> Vec<i32> {
             opj_create_decompress, opj_decode, opj_destroy_codec, opj_dparameters_t,
             opj_end_decompress, opj_image_destroy, opj_read_header, opj_setup_decoder,
             opj_stream_create_default_file_stream, opj_stream_destroy, CODEC_FORMAT, OPJ_BOOL,
-            OPJ_TRUE };
+            OPJ_TRUE,
+        };
         use openjp2::opj_image as opj_image_t;
 
         let mut parameters = opj_dparameters_t::default();

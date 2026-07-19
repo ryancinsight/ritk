@@ -1,7 +1,7 @@
-﻿//! Coeus-native Snap filter dispatch.
+//! Coeus-native Snap filter dispatch.
 //!
 //! The viewer owns host-side [`crate::LoadedVolume`] buffers, while native RITK
-//! filters operate on `ritk_image::native::Image`. This module is the sole
+//! filters operate on `ritk_image::Image`. This module is the sole
 //! explicit application boundary between those representations. Every current
 //! [`FilterKind`] enters this native path; unsupported variants cannot silently
 //! continue through a legacy provider.
@@ -10,7 +10,8 @@ use anyhow::{Context, Result};
 use coeus_core::SequentialBackend;
 use ritk_filter::{
     morphology::native::{
-        binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening },
+        binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening,
+    },
     AbsImageFilter, AcosImageFilter, AsinImageFilter, AtanImageFilter, BedSeparationFilter,
     BinaryContourImageFilter, BoundedReciprocalImageFilter, ClaheFilter, ClampImageFilter,
     ConstantPadImageFilter, CosImageFilter, CprConfig, CprImageFilter, CurvatureFlowConfig,
@@ -24,12 +25,14 @@ use ritk_filter::{
     RegionOfInterestImageFilter, RescaleIntensityFilter, ShiftScaleImageFilter,
     SignedDistanceTransformImageFilter, SinImageFilter, SqrtImageFilter, SquareImageFilter,
     TanImageFilter, ThresholdImageFilter, TileMeanShrinkFilter, UnsharpMaskFilter,
-    VotingBinaryImageFilter, WrapPadImageFilter, ZeroCrossingImageFilter };
-use ritk_image::native::Image;
+    VotingBinaryImageFilter, WrapPadImageFilter, ZeroCrossingImageFilter,
+};
+use ritk_image::Image;
 use ritk_segmentation::{
     labeling::Connectivity as SegmentationConnectivity, BinaryThreshold, ConfidenceConnectedFilter,
     ConnectedComponentsFilter, ConnectedThresholdFilter, MultiOtsuThreshold,
-    NeighborhoodConnectedFilter, RelabelComponentFilter };
+    NeighborhoodConnectedFilter, RelabelComponentFilter,
+};
 use ritk_spatial::{Direction, Point, Spacing};
 use std::ops::Deref;
 
@@ -45,7 +48,8 @@ pub(super) struct NativeFilterOutput {
     pub(super) shape: [usize; 3],
     pub(super) origin: [f64; 3],
     pub(super) spacing: [f64; 3],
-    pub(super) direction: [f64; 9] }
+    pub(super) direction: [f64; 9],
+}
 
 impl Deref for NativeFilterOutput {
     type Target = [f32];
@@ -73,7 +77,8 @@ pub(super) fn apply_if_supported(
         control_points,
         num_path_samples,
         cross_section_half_width,
-        num_cross_samples } = filter
+        num_cross_samples,
+    } = filter
     {
         return Some(apply_cpr(
             volume,
@@ -139,7 +144,8 @@ fn apply_cpr(
         CprConfig {
             num_path_samples,
             cross_section_half_width,
-            num_cross_samples },
+            num_cross_samples,
+        },
     )
     .apply_native(&image, &backend)
     .context("Coeus-native CPR failed")?;
@@ -152,7 +158,8 @@ fn apply_cpr(
         shape: [1, rows, columns],
         origin: [0.0, origin[0], origin[1]],
         spacing: [1.0, spacing[0], spacing[1]],
-        direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0] })
+        direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+    })
 }
 
 fn apply_supported_filter(
@@ -179,7 +186,8 @@ fn apply_supported_filter(
             Some(maximum) => {
                 InvertIntensityFilter::with_maximum(*maximum).apply_native(&image, &backend)
             }
-            None => InvertIntensityFilter::new().apply_native(&image, &backend) },
+            None => InvertIntensityFilter::new().apply_native(&image, &backend),
+        },
         FilterKind::Clamp { lower, upper } => {
             ClampImageFilter::new(*lower, *upper).apply_native(&image, &backend)
         }
@@ -201,7 +209,8 @@ fn apply_supported_filter(
             start_x,
             size_z,
             size_y,
-            size_x } => RegionOfInterestImageFilter::new(
+            size_x,
+        } => RegionOfInterestImageFilter::new(
             [*start_z, *start_y, *start_x],
             [*size_z, *size_y, *size_x],
         )
@@ -209,12 +218,14 @@ fn apply_supported_filter(
         FilterKind::PermuteAxes {
             order_0,
             order_1,
-            order_2 } => PermuteAxesImageFilter::new([*order_0, *order_1, *order_2])
+            order_2,
+        } => PermuteAxesImageFilter::new([*order_0, *order_1, *order_2])
             .apply_native(&image, &backend),
         FilterKind::Shrink {
             factor_z,
             factor_y,
-            factor_x } => TileMeanShrinkFilter::new([*factor_z, *factor_y, *factor_x])
+            factor_x,
+        } => TileMeanShrinkFilter::new([*factor_z, *factor_y, *factor_x])
             .apply_native(&image, &backend),
         FilterKind::ConstantPad {
             pad_lower_z,
@@ -223,7 +234,8 @@ fn apply_supported_filter(
             pad_upper_z,
             pad_upper_y,
             pad_upper_x,
-            constant } => ConstantPadImageFilter::new(
+            constant,
+        } => ConstantPadImageFilter::new(
             ritk_filter::Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
             ritk_filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
             *constant,
@@ -235,7 +247,8 @@ fn apply_supported_filter(
             pad_lower_x,
             pad_upper_z,
             pad_upper_y,
-            pad_upper_x } => MirrorPadImageFilter::new(
+            pad_upper_x,
+        } => MirrorPadImageFilter::new(
             ritk_filter::Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
             ritk_filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
         )
@@ -246,7 +259,8 @@ fn apply_supported_filter(
             pad_lower_x,
             pad_upper_z,
             pad_upper_y,
-            pad_upper_x } => WrapPadImageFilter::new(
+            pad_upper_x,
+        } => WrapPadImageFilter::new(
             ritk_filter::Padding::new([*pad_lower_z, *pad_lower_y, *pad_lower_x]),
             ritk_filter::Padding::new([*pad_upper_z, *pad_upper_y, *pad_upper_x]),
         )
@@ -287,18 +301,21 @@ fn apply_supported_filter(
         }
         FilterKind::BinaryContour {
             connectivity,
-            foreground_value } => BinaryContourImageFilter::new(*connectivity, *foreground_value)
+            foreground_value,
+        } => BinaryContourImageFilter::new(*connectivity, *foreground_value)
             .apply_native(&image, &backend),
         FilterKind::LabelContour {
             connectivity,
-            background_value } => LabelContourImageFilter::new(*connectivity, *background_value)
+            background_value,
+        } => LabelContourImageFilter::new(*connectivity, *background_value)
             .apply_native(&image, &backend),
         FilterKind::VotingBinary {
             radius,
             birth_threshold,
             survival_threshold,
             foreground_value,
-            background_value } => VotingBinaryImageFilter::new(
+            background_value,
+        } => VotingBinaryImageFilter::new(
             *radius,
             *birth_threshold,
             *survival_threshold,
@@ -317,22 +334,27 @@ fn apply_supported_filter(
         }
         FilterKind::ZeroCrossing {
             foreground_value,
-            background_value } => ZeroCrossingImageFilter::new()
+            background_value,
+        } => ZeroCrossingImageFilter::new()
             .with_foreground(*foreground_value)
             .with_background(*background_value)
             .apply_native(&image, &backend),
         FilterKind::BinaryErode {
             radius,
-            foreground_value } => binary_erode(&image, *radius, *foreground_value, &backend),
+            foreground_value,
+        } => binary_erode(&image, *radius, *foreground_value, &backend),
         FilterKind::BinaryDilate {
             radius,
-            foreground_value } => binary_dilate(&image, *radius, *foreground_value, &backend),
+            foreground_value,
+        } => binary_dilate(&image, *radius, *foreground_value, &backend),
         FilterKind::BinaryClosing {
             radius,
-            foreground_value } => binary_closing(&image, *radius, *foreground_value, &backend),
+            foreground_value,
+        } => binary_closing(&image, *radius, *foreground_value, &backend),
         FilterKind::BinaryOpening {
             radius,
-            foreground_value } => binary_opening(&image, *radius, *foreground_value, &backend),
+            foreground_value,
+        } => binary_opening(&image, *radius, *foreground_value, &backend),
         FilterKind::BinaryFillhole { foreground_value } => {
             binary_fill_holes(&image, *foreground_value, &backend)
         }
@@ -346,17 +368,20 @@ fn apply_supported_filter(
         }
         FilterKind::ConnectedComponents {
             connectivity,
-            background_value } => {
+            background_value,
+        } => {
             let connectivity = match connectivity {
                 ritk_filter::Connectivity::Face6 => SegmentationConnectivity::Six,
-                ritk_filter::Connectivity::Vertex26 => SegmentationConnectivity::TwentySix };
+                ritk_filter::Connectivity::Vertex26 => SegmentationConnectivity::TwentySix,
+            };
             ConnectedComponentsFilter::with_connectivity(connectivity)
                 .with_background(*background_value)
                 .and_then(|filter| filter.apply_native(&image, &backend))
                 .map(|(labels, _statistics)| labels)
         }
         FilterKind::RelabelComponents {
-            minimum_object_size } => RelabelComponentFilter::with_minimum_object_size(*minimum_object_size as usize)
+            minimum_object_size,
+        } => RelabelComponentFilter::with_minimum_object_size(*minimum_object_size as usize)
             .apply_native(&image, &backend)
             .map(|(labels, _statistics)| labels),
         FilterKind::MultiOtsuThreshold { num_classes } => {
@@ -368,26 +393,32 @@ fn apply_supported_filter(
         }
         FilterKind::Clahe {
             tile_grid_size,
-            clip_limit } => ClaheFilter::new(*tile_grid_size, *clip_limit, 256).apply_native(&image, &backend),
+            clip_limit,
+        } => ClaheFilter::new(*tile_grid_size, *clip_limit, 256).apply_native(&image, &backend),
         FilterKind::GradientAnisotropicDiffusion {
             iterations,
             time_step,
-            conductance } => GradientAnisotropicDiffusionFilter::new(GradientDiffusionConfig {
+            conductance,
+        } => GradientAnisotropicDiffusionFilter::new(GradientDiffusionConfig {
             num_iterations: *iterations as usize,
             time_step: *time_step,
-            conductance: *conductance })
+            conductance: *conductance,
+        })
         .apply_native(&image, &backend),
         FilterKind::CurvatureFlow {
             iterations,
-            time_step } => CurvatureFlowImageFilter::new(CurvatureFlowConfig {
+            time_step,
+        } => CurvatureFlowImageFilter::new(CurvatureFlowConfig {
             num_iterations: *iterations as usize,
-            time_step: *time_step })
+            time_step: *time_step,
+        })
         .apply_native(&image, &backend),
         FilterKind::UnsharpMask {
             sigma,
             amount,
             threshold,
-            clamp } => UnsharpMaskFilter::new(
+            clamp,
+        } => UnsharpMaskFilter::new(
             vec![ritk_filter::GaussianSigma::new_unchecked(f64::from(*sigma))],
             f64::from(*amount),
             f64::from(*threshold),
@@ -399,7 +430,8 @@ fn apply_supported_filter(
             seed_y,
             seed_x,
             lower,
-            upper } => ConnectedThresholdFilter::new([*seed_z, *seed_y, *seed_x], *lower, *upper)
+            upper,
+        } => ConnectedThresholdFilter::new([*seed_z, *seed_y, *seed_x], *lower, *upper)
             .apply_native(&image, &backend),
         FilterKind::ConfidenceConnected {
             seed_z,
@@ -408,7 +440,8 @@ fn apply_supported_filter(
             initial_lower,
             initial_upper,
             multiplier,
-            max_iterations } => ConfidenceConnectedFilter::new(
+            max_iterations,
+        } => ConfidenceConnectedFilter::new(
             [*seed_z, *seed_y, *seed_x],
             *initial_lower,
             *initial_upper,
@@ -424,19 +457,22 @@ fn apply_supported_filter(
             upper,
             radius_z,
             radius_y,
-            radius_x } => NeighborhoodConnectedFilter::new([*seed_z, *seed_y, *seed_x], *lower, *upper)
+            radius_x,
+        } => NeighborhoodConnectedFilter::new([*seed_z, *seed_y, *seed_x], *lower, *upper)
             .with_radius([*radius_z, *radius_y, *radius_x])
             .apply_native(&image, &backend),
         FilterKind::BinaryThreshold {
             lower,
             upper,
             foreground,
-            background } => BinaryThreshold::new(*lower, *upper)
+            background,
+        } => BinaryThreshold::new(*lower, *upper)
             .with_values((*foreground).into(), *background)
             .apply_native(&image, &backend),
         FilterKind::Cpr { .. } => anyhow::bail!(
             "CPR must be routed through the native CPR output path before 3-D filter dispatch"
-        ) }
+        ),
+    }
     .context("Coeus-native filter failed")?;
 
     let origin = output.origin();
@@ -457,7 +493,8 @@ fn apply_supported_filter(
             direction[(2, 0)],
             direction[(2, 1)],
             direction[(2, 2)],
-        ] })
+        ],
+    })
 }
 
 #[cfg(test)]
@@ -513,7 +550,8 @@ mod tests {
         let fixed = apply_if_supported(
             &volume,
             &FilterKind::InvertIntensity {
-                maximum: Some(10.0) },
+                maximum: Some(10.0),
+            },
         )
         .expect("invariant: inversion has a native implementation")
         .expect("native inversion succeeds");
@@ -533,7 +571,8 @@ mod tests {
             &volume,
             &FilterKind::Clamp {
                 lower: 0.0,
-                upper: 100.0 },
+                upper: 100.0,
+            },
         )
         .expect("invariant: clamp has a native implementation")
         .expect("native clamp succeeds");
@@ -549,7 +588,8 @@ mod tests {
             &volume,
             &FilterKind::ShiftScale {
                 shift: -1024.0,
-                scale: 0.001 },
+                scale: 0.001,
+            },
         )
         .expect("invariant: shift-scale has a native implementation")
         .expect("native shift-scale succeeds");
@@ -564,7 +604,8 @@ mod tests {
             &volume,
             &FilterKind::RescaleIntensity {
                 out_min: -1.0,
-                out_max: 1.0 },
+                out_max: 1.0,
+            },
         )
         .expect("invariant: rescale has a native implementation")
         .expect("native rescale succeeds");
@@ -604,7 +645,8 @@ mod tests {
                 start_x: 1,
                 size_z: 1,
                 size_y: 1,
-                size_x: 1 },
+                size_x: 1,
+            },
         )
         .expect("invariant: ROI has a native implementation")
         .expect("native ROI accepts an in-bounds scalar volume");
@@ -626,7 +668,8 @@ mod tests {
             &FilterKind::PermuteAxes {
                 order_0: 2,
                 order_1: 1,
-                order_2: 0 },
+                order_2: 0,
+            },
         )
         .expect("invariant: axis permutation has a native implementation")
         .expect("native axis permutation accepts a valid order");
@@ -648,7 +691,8 @@ mod tests {
             &FilterKind::Shrink {
                 factor_z: 1,
                 factor_y: 1,
-                factor_x: 2 },
+                factor_x: 2,
+            },
         )
         .expect("invariant: tile-mean shrink has a native implementation")
         .expect("native tile-mean shrink accepts valid factors");
@@ -674,7 +718,8 @@ mod tests {
                 pad_upper_z: 0,
                 pad_upper_y: 0,
                 pad_upper_x: 0,
-                constant: -1.0 },
+                constant: -1.0,
+            },
         )
         .expect("invariant: constant padding has a native implementation")
         .expect("native constant padding succeeds");
@@ -696,7 +741,8 @@ mod tests {
                     pad_lower_x: 1,
                     pad_upper_z: 0,
                     pad_upper_y: 0,
-                    pad_upper_x: 1 },
+                    pad_upper_x: 1,
+                },
                 vec![1.0, 1.0, 2.0, 3.0, 3.0],
             ),
             (
@@ -706,7 +752,8 @@ mod tests {
                     pad_lower_x: 1,
                     pad_upper_z: 0,
                     pad_upper_y: 0,
-                    pad_upper_x: 1 },
+                    pad_upper_x: 1,
+                },
                 vec![3.0, 1.0, 2.0, 3.0, 1.0],
             ),
         ];
@@ -726,7 +773,8 @@ mod tests {
         let output = apply_if_supported(
             &volume,
             &FilterKind::MaskThreshold {
-                threshold: BinarizationThreshold::DEFAULT },
+                threshold: BinarizationThreshold::DEFAULT,
+            },
         )
         .expect("invariant: threshold masking has a native implementation")
         .expect("native threshold masking succeeds");
@@ -839,7 +887,8 @@ mod tests {
             &volume,
             &FilterKind::BinaryContour {
                 connectivity: ritk_filter::Connectivity::Face6,
-                foreground_value: ForegroundValue::ONE },
+                foreground_value: ForegroundValue::ONE,
+            },
         )
         .expect("invariant: binary contour has a native implementation")
         .expect("native binary contour succeeds");
@@ -856,7 +905,8 @@ mod tests {
             &volume,
             &FilterKind::LabelContour {
                 connectivity: ritk_filter::Connectivity::Face6,
-                background_value: 0.0 },
+                background_value: 0.0,
+            },
         )
         .expect("invariant: label contour has a native implementation")
         .expect("native label contour succeeds");
@@ -875,7 +925,8 @@ mod tests {
                 birth_threshold: 1,
                 survival_threshold: 1,
                 foreground_value: ForegroundValue::ONE,
-                background_value: 0.0 },
+                background_value: 0.0,
+            },
         )
         .expect("invariant: voting binary has a native implementation")
         .expect("native voting binary succeeds");
@@ -921,7 +972,8 @@ mod tests {
             &volume,
             &FilterKind::ZeroCrossing {
                 foreground_value: ForegroundValue::ONE,
-                background_value: 0.0 },
+                background_value: 0.0,
+            },
         )
         .expect("invariant: zero crossing has a native implementation")
         .expect("native zero crossing succeeds");
@@ -948,16 +1000,20 @@ mod tests {
         let identity_variants = [
             FilterKind::BinaryErode {
                 radius: 0,
-                foreground_value: ForegroundValue::ONE },
+                foreground_value: ForegroundValue::ONE,
+            },
             FilterKind::BinaryDilate {
                 radius: 0,
-                foreground_value: ForegroundValue::ONE },
+                foreground_value: ForegroundValue::ONE,
+            },
             FilterKind::BinaryClosing {
                 radius: 0,
-                foreground_value: ForegroundValue::ONE },
+                foreground_value: ForegroundValue::ONE,
+            },
             FilterKind::BinaryOpening {
                 radius: 0,
-                foreground_value: ForegroundValue::ONE },
+                foreground_value: ForegroundValue::ONE,
+            },
         ];
 
         for filter in identity_variants {
@@ -976,7 +1032,8 @@ mod tests {
         let output = apply_if_supported(
             &volume,
             &FilterKind::BinaryFillhole {
-                foreground_value: ForegroundValue::ONE },
+                foreground_value: ForegroundValue::ONE,
+            },
         )
         .expect("invariant: binary fill-hole has a native implementation")
         .expect("native binary fill-hole accepts a scalar volume");
@@ -991,7 +1048,8 @@ mod tests {
         let output = apply_if_supported(
             &volume,
             &FilterKind::DistanceTransform {
-                threshold: BinarizationThreshold::DEFAULT },
+                threshold: BinarizationThreshold::DEFAULT,
+            },
         )
         .expect("invariant: unsigned distance transform has a native implementation")
         .expect("native distance transform accepts a scalar volume");
@@ -1007,7 +1065,8 @@ mod tests {
         let output = apply_if_supported(
             &volume,
             &FilterKind::SignedDistanceTransform {
-                threshold: BinarizationThreshold::DEFAULT },
+                threshold: BinarizationThreshold::DEFAULT,
+            },
         )
         .expect("invariant: signed distance transform has a native implementation")
         .expect("native signed distance transform accepts a scalar volume");
@@ -1023,7 +1082,8 @@ mod tests {
             &volume,
             &FilterKind::ConnectedComponents {
                 connectivity: ritk_filter::Connectivity::Face6,
-                background_value: 0.0 },
+                background_value: 0.0,
+            },
         )
         .expect("invariant: connected components has a native implementation")
         .expect("native connected components accepts a scalar volume");
@@ -1038,7 +1098,8 @@ mod tests {
         let output = apply_if_supported(
             &volume,
             &FilterKind::RelabelComponents {
-                minimum_object_size: 2 },
+                minimum_object_size: 2,
+            },
         )
         .expect("invariant: relabel components has a native implementation")
         .expect("native relabel components accepts a scalar label volume");
@@ -1088,7 +1149,8 @@ mod tests {
             &volume,
             &FilterKind::Clahe {
                 tile_grid_size: [1, 1],
-                clip_limit: 40.0 },
+                clip_limit: 40.0,
+            },
         )
         .expect("invariant: clahe has a native implementation")
         .expect("native clahe accepts a scalar volume");
@@ -1105,7 +1167,8 @@ mod tests {
             &FilterKind::GradientAnisotropicDiffusion {
                 iterations: 2,
                 time_step: 0.125,
-                conductance: 1.0 },
+                conductance: 1.0,
+            },
         )
         .expect("invariant: gradient diffusion has a native implementation")
         .expect("native gradient diffusion accepts a scalar volume");
@@ -1124,7 +1187,8 @@ mod tests {
                 seed_y: 0,
                 seed_x: 0,
                 lower: 1.0,
-                upper: 1.0 },
+                upper: 1.0,
+            },
         )
         .expect("invariant: connected threshold has a native implementation")
         .expect("native connected threshold accepts a scalar volume");
@@ -1144,7 +1208,8 @@ mod tests {
                 initial_lower: 1.0,
                 initial_upper: 3.0,
                 multiplier: 2.5,
-                max_iterations: 2 },
+                max_iterations: 2,
+            },
         )
         .expect("invariant: confidence connected has a native implementation")
         .expect("native confidence connected succeeds");
@@ -1165,7 +1230,8 @@ mod tests {
                 upper: 1.0,
                 radius_z: 0,
                 radius_y: 0,
-                radius_x: 1 },
+                radius_x: 1,
+            },
         )
         .expect("invariant: neighborhood connected has a native implementation")
         .expect("native neighborhood connected succeeds");
@@ -1193,7 +1259,8 @@ mod tests {
             &volume,
             &FilterKind::CurvatureFlow {
                 iterations: 2,
-                time_step: 0.0625 },
+                time_step: 0.0625,
+            },
         )
         .expect("invariant: curvature flow has a native implementation")
         .expect("native curvature flow succeeds");
@@ -1210,7 +1277,8 @@ mod tests {
                 sigma: 1.0,
                 amount: 2.0,
                 threshold: 0.0,
-                clamp: ritk_filter::ClampPolicy::NoClamp },
+                clamp: ritk_filter::ClampPolicy::NoClamp,
+            },
         )
         .expect("invariant: unsharp mask has a native implementation")
         .expect("native unsharp mask succeeds");
@@ -1227,7 +1295,8 @@ mod tests {
                 control_points: vec![[2.0, 2.0, 2.0], [4.0, 2.0, 2.0]],
                 num_path_samples: 4,
                 cross_section_half_width: 1.0,
-                num_cross_samples: 3 },
+                num_cross_samples: 3,
+            },
         )
         .expect("invariant: CPR has a native implementation")
         .expect("native CPR succeeds");
@@ -1252,7 +1321,8 @@ mod tests {
                 lower: 0.0,
                 upper: 100.0,
                 foreground: ForegroundValue::ONE,
-                background: 0.0 },
+                background: 0.0,
+            },
         )
         .expect("invariant: binary threshold has a native implementation")
         .expect("native binary threshold accepts a scalar volume");
@@ -1309,7 +1379,8 @@ mod tests {
         app.loaded = Some(volume);
         app.active_filter = FilterKind::BinaryDilate {
             radius: 1,
-            foreground_value: ForegroundValue::ONE };
+            foreground_value: ForegroundValue::ONE,
+        };
 
         app.apply_filter_to_loaded_volume();
 
@@ -1328,7 +1399,8 @@ mod tests {
         volume.spacing = [1.0, 1.0, 2.0];
         app.loaded = Some(volume);
         app.active_filter = FilterKind::DistanceTransform {
-            threshold: BinarizationThreshold::DEFAULT };
+            threshold: BinarizationThreshold::DEFAULT,
+        };
 
         app.apply_filter_to_loaded_volume();
 
@@ -1347,7 +1419,8 @@ mod tests {
         volume.spacing = [1.0, 1.0, 2.0];
         app.loaded = Some(volume);
         app.active_filter = FilterKind::SignedDistanceTransform {
-            threshold: BinarizationThreshold::DEFAULT };
+            threshold: BinarizationThreshold::DEFAULT,
+        };
 
         app.apply_filter_to_loaded_volume();
 
@@ -1366,7 +1439,8 @@ mod tests {
         app.loaded = Some(volume);
         app.active_filter = FilterKind::ConnectedComponents {
             connectivity: ritk_filter::Connectivity::Face6,
-            background_value: 0.0 };
+            background_value: 0.0,
+        };
 
         app.apply_filter_to_loaded_volume();
 
@@ -1384,7 +1458,8 @@ mod tests {
         volume.data = Arc::new(vec![1.0, 2.0, 2.0, 2.0, 0.0]);
         app.loaded = Some(volume);
         app.active_filter = FilterKind::RelabelComponents {
-            minimum_object_size: 2 };
+            minimum_object_size: 2,
+        };
 
         app.apply_filter_to_loaded_volume();
 
@@ -1454,7 +1529,8 @@ mod tests {
         app.loaded = Some(volume);
         app.active_filter = FilterKind::Clahe {
             tile_grid_size: [1, 1],
-            clip_limit: 40.0 };
+            clip_limit: 40.0,
+        };
 
         app.apply_filter_to_loaded_volume();
 
@@ -1474,7 +1550,8 @@ mod tests {
         app.active_filter = FilterKind::GradientAnisotropicDiffusion {
             iterations: 2,
             time_step: 0.125,
-            conductance: 1.0 };
+            conductance: 1.0,
+        };
 
         app.apply_filter_to_loaded_volume();
 
@@ -1495,7 +1572,8 @@ mod tests {
             control_points: vec![[2.0, 2.0, 2.0], [4.0, 2.0, 2.0]],
             num_path_samples: 4,
             cross_section_half_width: 1.0,
-            num_cross_samples: 3 };
+            num_cross_samples: 3,
+        };
 
         app.apply_filter_to_loaded_volume();
 
@@ -1521,7 +1599,8 @@ mod tests {
             lower: 1.0,
             upper: 2.0,
             foreground: ForegroundValue::ONE,
-            background: 0.0 };
+            background: 0.0,
+        };
 
         app.apply_filter_to_loaded_volume();
 
@@ -1545,7 +1624,8 @@ mod tests {
             start_x: 1,
             size_z: 1,
             size_y: 1,
-            size_x: 1 };
+            size_x: 1,
+        };
 
         app.apply_filter_to_loaded_volume();
 
@@ -1568,7 +1648,8 @@ mod tests {
         app.active_filter = FilterKind::PermuteAxes {
             order_0: 2,
             order_1: 1,
-            order_2: 0 };
+            order_2: 0,
+        };
 
         app.apply_filter_to_loaded_volume();
 
@@ -1593,7 +1674,8 @@ mod tests {
         app.active_filter = FilterKind::Shrink {
             factor_z: 1,
             factor_y: 1,
-            factor_x: 2 };
+            factor_x: 2,
+        };
 
         app.apply_filter_to_loaded_volume();
 

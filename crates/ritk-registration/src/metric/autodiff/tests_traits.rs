@@ -1,4 +1,4 @@
-﻿//! Verification of the `Transform` seam and the generic `mse_metric`
+//! Verification of the `Transform` seam and the generic `mse_metric`
 //! dispatching over it (ADR 0001).
 //!
 //! Evidence tier: differential â€” the trait path must be value-identical to the
@@ -67,7 +67,8 @@ fn affine_transform_struct_matches_free_function() {
     let via_fn = affine_transform(&grid, &var_shaped(&[3, 3], &r0, false), &var(&t0, false));
     let via_trait = Affine {
         r: var_shaped(&[3, 3], &r0, false),
-        t: var(&t0, false) }
+        t: var(&t0, false),
+    }
     .transform_points(&grid);
 
     let a = via_fn.tensor.as_slice();
@@ -143,7 +144,8 @@ fn mse_metric_with_affine_matches_affine_mse_free_function() {
         &var_shaped(&[n, 3], &gf, false),
         &Affine {
             r: var_shaped(&[3, 3], &r0, false),
-            t: var(&t0, false) },
+            t: var(&t0, false),
+        },
     );
     assert!(
         (via_free.tensor.as_slice()[0] - via_trait.tensor.as_slice()[0]).abs() < 1e-14,
@@ -305,7 +307,8 @@ fn evaluate_ncc_gradient_reaches_affine_r_and_is_shift_invariant_in_t() {
         &Ncc,
         &Affine {
             r: r.clone(),
-            t: t.clone() },
+            t: t.clone(),
+        },
     );
     loss.backward();
 

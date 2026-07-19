@@ -2,7 +2,7 @@ use super::*;
 use crate::image_comparison::native::dice_coefficient as dice_coefficient_native;
 use crate::image_comparison::{dice_coefficient, similarity_index};
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image as NativeImage;
 
 #[test]
 fn test_dice_identical_masks_is_one() {

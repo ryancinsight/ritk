@@ -1,4 +1,4 @@
-﻿//! Spatial metadata construction for MINC2 volumes.
+//! Spatial metadata construction for MINC2 volumes.
 //!
 //! Provides functions to:
 //! - determine the canonical direction cosine for each MINC2 axis,
@@ -8,7 +8,8 @@
 
 use crate::{
     attrs::{extract_dimorder, parse_dimension_attrs},
-    MincDimension, DIMENSIONS_PATH, SPATIAL_DIM_NAMES };
+    MincDimension, DIMENSIONS_PATH, SPATIAL_DIM_NAMES,
+};
 use anyhow::{bail, Result};
 use ritk_spatial::{Direction, Point, Spacing, Vector};
 
@@ -25,7 +26,8 @@ pub fn default_direction_cosines(name: &str) -> [f64; 3] {
         "xspace" => [1.0, 0.0, 0.0],
         "yspace" => [0.0, 1.0, 0.0],
         "zspace" => [0.0, 0.0, 1.0],
-        _ => [1.0, 0.0, 0.0] }
+        _ => [1.0, 0.0, 0.0],
+    }
 }
 
 // â”€â”€ Dimension metadata reading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

@@ -48,8 +48,8 @@
 //!   foreground voxel.
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 use ritk_tensor_ops::native as tensor_ops;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
@@ -129,7 +129,7 @@ pub struct WhiteStripeResult<B: Backend> {
 /// Coeus-native white stripe result (sister of [`WhiteStripeResult`]).
 ///
 /// Field-shape identical to the Burn-keyed result except the `normalized` image
-/// is the Coeus-backed [`ritk_image::native::Image`].
+/// is the Coeus-backed [`ritk_image::Image`].
 #[derive(Debug, Clone)]
 pub struct NativeWhiteStripeResult<B: ComputeBackend> {
     /// Normalized image: `I_norm = (I − μ_ws) / (σ_ws + ε)`.

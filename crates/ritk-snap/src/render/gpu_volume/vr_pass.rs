@@ -1,4 +1,4 @@
-﻿//! Stateless GPU VR rendering pass â€” non-blocking async readback.
+//! Stateless GPU VR rendering pass â€” non-blocking async readback.
 //!
 //! Mirrors the protocol in [`super::mip_pass`]:
 //!
@@ -76,7 +76,8 @@ pub(super) fn submit_vr_async(
         wl_lo,
         wl_range: width,
         alpha_scale,
-        _pad1: 0.0 };
+        _pad1: 0.0,
+    };
 
     // Update cached uniform and LUT buffers without re-allocation.
     ctx.queue
@@ -91,26 +92,33 @@ pub(super) fn submit_vr_async(
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: vol_buf.as_entire_binding() },
+                resource: vol_buf.as_entire_binding(),
+            },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: cache.output_buf.as_entire_binding() },
+                resource: cache.output_buf.as_entire_binding(),
+            },
             wgpu::BindGroupEntry {
                 binding: 2,
-                resource: cache.params_buf.as_entire_binding() },
+                resource: cache.params_buf.as_entire_binding(),
+            },
             wgpu::BindGroupEntry {
                 binding: 3,
-                resource: cache.lut_buf.as_entire_binding() },
-        ] });
+                resource: cache.lut_buf.as_entire_binding(),
+            },
+        ],
+    });
 
     let mut encoder = ctx
         .device
         .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("gpu_vr_enc") });
+            label: Some("gpu_vr_enc"),
+        });
     {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
             label: Some("gpu_vr_pass"),
-            timestamp_writes: None });
+            timestamp_writes: None,
+        });
         pass.set_pipeline(pipeline);
         pass.set_bind_group(0, &bg, &[]);
         let wg_x = (cols as u32).div_ceil(8);

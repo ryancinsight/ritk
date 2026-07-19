@@ -10,8 +10,8 @@
 //! with no per-filter reimplementation.
 
 use anyhow::Result;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::{ColorVolume, Image};
+use coeus_core::ComputeBackend;
+use ritk_image::{ColorVolume, Image};
 use ritk_tensor_ops::native::extract_image_vec;
 
 /// Apply a scalar 3-D image filter independently to each component of `vol`,
@@ -33,7 +33,7 @@ pub fn map_color_components<B, const C: usize, F>(
 ) -> Result<ColorVolume<f32, B, C>>
 where
     B: ComputeBackend + Default,
-    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     F: FnMut(&Image<f32, B, 3>) -> Image<f32, B, 3>,
 {
     let spatial = vol.spatial_shape();

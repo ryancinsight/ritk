@@ -1,4 +1,4 @@
-﻿//! Analyze 7.5 reader â€” parses a 348-byte `.hdr` header and raw `.img` voxel data.
+//! Analyze 7.5 reader â€” parses a 348-byte `.hdr` header and raw `.img` voxel data.
 //!
 //! # Format Overview
 //!
@@ -84,15 +84,16 @@ pub use crate::codec::{DT_DOUBLE, DT_FLOAT, DT_SIGNED_INT, DT_SIGNED_SHORT, DT_U
 pub fn read_analyze<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
-) -> Result<ritk_image::native::Image<f32, B, 3>> {
+) -> Result<ritk_image::Image<f32, B, 3>> {
     let DecodedAnalyze {
         data,
         dims,
         origin,
         spacing,
-        direction } = decode_analyze(path)?;
+        direction,
+    } = decode_analyze(path)?;
 
-    ritk_image::native::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+    ritk_image::Image::from_flat_on(data, dims, origin, spacing, direction, backend)
 }
 
 /// Substrate-agnostic decode of an Analyze `.hdr`/`.img` pair into flat
@@ -102,7 +103,8 @@ struct DecodedAnalyze {
     dims: [usize; 3],
     origin: Point<3>,
     spacing: Spacing<3>,
-    direction: Direction<3> }
+    direction: Direction<3>,
+}
 
 fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
     let path = path.as_ref();
@@ -278,14 +280,16 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
         dims: [nz, ny, nx],
         origin: Point::new([ox, oy, oz]),
         spacing: Spacing::new([sz, sy, sx]),
-        direction: Direction::identity() })
+        direction: Direction::identity(),
+    })
 }
 
 // â”€â”€ Reader wrapper type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Read-side wrapper type implementing the `ImageReader` domain trait.
 pub struct AnalyzeReader<B: ComputeBackend> {
-    pub(crate) backend: B }
+    pub(crate) backend: B,
+}
 
 impl<B: ComputeBackend> AnalyzeReader<B> {
     /// Construct a reader bound to `backend`.
@@ -294,7 +298,7 @@ impl<B: ComputeBackend> AnalyzeReader<B> {
     }
 
     /// Read an Analyze image through the bound backend.
-    pub fn read<P: AsRef<Path>>(&self, path: P) -> Result<ritk_image::native::Image<f32, B, 3>> {
+    pub fn read<P: AsRef<Path>>(&self, path: P) -> Result<ritk_image::Image<f32, B, 3>> {
         read_analyze(path, &self.backend)
     }
 }

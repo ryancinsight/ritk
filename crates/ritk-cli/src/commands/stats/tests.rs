@@ -1,40 +1,41 @@
-﻿use super::*;
-use crate::commands::{read_image_native, write_image_native, NativeBackend};
-use ritk_image::native::Image as NativeImage;
+use super::*;
+use crate::commands::{read_image, write_image, Backend};
+use ritk_image::Image;
 use ritk_io::ImageFormat;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_statistics::{
-    dice_coefficient_native, hausdorff_distance_native,
+    dice_coefficient, hausdorff_distance_native,
     image_statistics::native::compute_statistics as compute_native_statistics, psnr_native,
-    ssim_native };
+    ssim_native,
+};
 use std::path::PathBuf;
 use tempfile::tempdir;
 
 /// Build a 4Ã—4Ã—4 image filled with the given constant value.
-fn native_image(values: Vec<f32>) -> NativeImage<f32, NativeBackend, 3> {
-    NativeImage::from_flat_on(
+fn native_image(values: Vec<f32>) -> Image<f32, Backend, 3> {
+    Image::from_flat_on(
         values,
         [4, 4, 4],
         Point::new([0.0; 3]),
         Spacing::new([1.0; 3]),
         Direction::identity(),
-        &NativeBackend::default(),
+        &Backend::default(),
     )
     .expect("invariant: valid native stats fixture")
 }
 
-fn make_constant_image(value: f32) -> NativeImage<f32, NativeBackend, 3> {
+fn make_constant_image(value: f32) -> Image<f32, Backend, 3> {
     native_image(vec![value; 64])
 }
 
 /// Build a 4Ã—4Ã—4 ramp image whose voxel at flat index i has value `i as f32`.
-fn make_ramp_image() -> NativeImage<f32, NativeBackend, 3> {
+fn make_ramp_image() -> Image<f32, Backend, 3> {
     native_image((0..64).map(|i| i as f32).collect())
 }
 
 /// Build a 4Ã—4Ã—4 binary mask with the first `n_foreground` voxels set to
 /// 1.0 and the remainder set to 0.0.
-fn make_binary_mask(n_foreground: usize) -> NativeImage<f32, NativeBackend, 3> {
+fn make_binary_mask(n_foreground: usize) -> Image<f32, Backend, 3> {
     native_image(
         (0..64)
             .map(|i| if i < n_foreground { 1.0 } else { 0.0 })
@@ -43,13 +44,9 @@ fn make_binary_mask(n_foreground: usize) -> NativeImage<f32, NativeBackend, 3> {
 }
 
 /// Helper: write a NIfTI image and return the path.
-fn write_nifti_tmp(
-    dir: &std::path::Path,
-    name: &str,
-    image: &NativeImage<f32, NativeBackend, 3>,
-) -> PathBuf {
+fn write_nifti_tmp(dir: &std::path::Path, name: &str, image: &Image<f32, Backend, 3>) -> PathBuf {
     let path = dir.join(name);
-    write_image_native(&path, image, ImageFormat::NIfTI).expect("write native NIfTI fixture");
+    write_image(&path, image, ImageFormat::NIfTI).expect("write native NIfTI fixture");
     path
 }
 
@@ -66,7 +63,8 @@ fn test_stats_summary_constant_image() {
         input,
         reference: None,
         metric: StatMetric::Summary,
-        max_val: 255.0 });
+        max_val: 255.0,
+    });
     assert!(result.is_ok(), "summary must succeed: {:?}", result.err());
 }
 
@@ -104,12 +102,13 @@ fn test_stats_dice_identical_masks_returns_one() {
         input: input.clone(),
         reference: Some(reference),
         metric: StatMetric::Dice,
-        max_val: 255.0 });
+        max_val: 255.0,
+    });
     assert!(result.is_ok(), "dice must succeed: {:?}", result.err());
 
     // Verify the value directly via the library function.
-    let img = read_image_native(&input).expect("read native Dice fixture");
-    let value = dice_coefficient_native(&img, &img).expect("native Dice succeeds");
+    let img = read_image(&input).expect("read native Dice fixture");
+    let value = dice_coefficient(&img, &img).expect("native Dice succeeds");
     assert!(
         (value - 1.0).abs() < 1e-5,
         "Dice of identical masks must be 1.0, got {value}"
@@ -126,7 +125,7 @@ fn test_stats_dice_disjoint_masks_returns_zero() {
     // Mask B: last 32 voxels foreground.
     let b = native_image((0..64).map(|i| if i >= 32 { 1.0 } else { 0.0 }).collect());
 
-    let value = dice_coefficient_native(&a, &b).expect("native Dice succeeds");
+    let value = dice_coefficient(&a, &b).expect("native Dice succeeds");
     assert!(
         value.abs() < 1e-5,
         "Dice of disjoint masks must be 0.0, got {value}"
@@ -146,10 +145,11 @@ fn test_stats_psnr_identical_images_returns_inf() {
         input: input.clone(),
         reference: Some(reference),
         metric: StatMetric::Psnr,
-        max_val: 63.0 });
+        max_val: 63.0,
+    });
     assert!(result.is_ok(), "psnr must succeed: {:?}", result.err());
 
-    let img = read_image_native(&input).expect("read native PSNR fixture");
+    let img = read_image(&input).expect("read native PSNR fixture");
     let value = psnr_native(&img, &img, 63.0).expect("native PSNR succeeds");
     assert!(
         value.is_infinite() || value > 100.0,
@@ -170,10 +170,11 @@ fn test_stats_ssim_identical_images_returns_one() {
         input: input.clone(),
         reference: Some(reference),
         metric: StatMetric::Ssim,
-        max_val: 63.0 });
+        max_val: 63.0,
+    });
     assert!(result.is_ok(), "ssim must succeed: {:?}", result.err());
 
-    let img = read_image_native(&input).expect("read native SSIM fixture");
+    let img = read_image(&input).expect("read native SSIM fixture");
     let value = ssim_native(&img, &img, 63.0).expect("native SSIM succeeds");
     assert!(
         (value - 1.0).abs() < 1e-4,
@@ -194,10 +195,11 @@ fn test_stats_hausdorff_identical_masks_returns_zero() {
         input: input.clone(),
         reference: Some(reference),
         metric: StatMetric::Hausdorff,
-        max_val: 255.0 });
+        max_val: 255.0,
+    });
     assert!(result.is_ok(), "hausdorff must succeed: {:?}", result.err());
 
-    let img = read_image_native(&input).expect("read native Hausdorff fixture");
+    let img = read_image(&input).expect("read native Hausdorff fixture");
     let sp = img.spacing();
     let spacing = [sp[0], sp[1], sp[2]];
     let value = hausdorff_distance_native(&img, &img, &spacing).expect("native Hausdorff succeeds");
@@ -223,7 +225,8 @@ fn test_stats_dice_without_reference_returns_error() {
         input,
         reference: None,
         metric: StatMetric::Dice,
-        max_val: 255.0 });
+        max_val: 255.0,
+    });
     assert!(result.is_err(), "dice without --reference must return Err");
 
     let msg = result.unwrap_err().to_string();
@@ -243,7 +246,8 @@ fn test_stats_psnr_without_reference_returns_error() {
         input,
         reference: None,
         metric: StatMetric::Psnr,
-        max_val: 255.0 });
+        max_val: 255.0,
+    });
     assert!(result.is_err(), "psnr without --reference must return Err");
 
     let msg = result.unwrap_err().to_string();
@@ -263,7 +267,8 @@ fn test_stats_ssim_without_reference_returns_error() {
         input,
         reference: None,
         metric: StatMetric::Ssim,
-        max_val: 255.0 });
+        max_val: 255.0,
+    });
     assert!(result.is_err(), "ssim without --reference must return Err");
 
     let msg = result.unwrap_err().to_string();
@@ -283,7 +288,8 @@ fn test_stats_hausdorff_without_reference_returns_error() {
         input,
         reference: None,
         metric: StatMetric::Hausdorff,
-        max_val: 255.0 });
+        max_val: 255.0,
+    });
     assert!(
         result.is_err(),
         "hausdorff without --reference must return Err"
@@ -307,7 +313,8 @@ fn test_stats_missing_input_returns_error() {
         input,
         reference: None,
         metric: StatMetric::Summary,
-        max_val: 255.0 });
+        max_val: 255.0,
+    });
     assert!(result.is_err(), "missing input must yield an error");
 }
 
@@ -324,7 +331,8 @@ fn test_stats_mean_surface_distance_identical_masks_returns_zero() {
         input: path_a,
         reference: Some(path_b),
         metric: StatMetric::MeanSurfaceDistance,
-        max_val: 255.0 };
+        max_val: 255.0,
+    };
     run(args).expect("mean-surface-distance must succeed");
 }
 
@@ -340,7 +348,8 @@ fn test_stats_noise_estimate_constant_image_returns_zero() {
         input: path,
         reference: None,
         metric: StatMetric::NoiseEstimate,
-        max_val: 255.0 };
+        max_val: 255.0,
+    };
     run(args).expect("noise-estimate must succeed");
 }
 
@@ -356,6 +365,7 @@ fn test_stats_mean_surface_distance_without_reference_returns_error() {
         input: path,
         reference: None,
         metric: StatMetric::MeanSurfaceDistance,
-        max_val: 255.0 };
+        max_val: 255.0,
+    };
     assert!(run(args).is_err(), "must error without --reference");
 }

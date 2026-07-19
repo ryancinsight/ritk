@@ -1,4 +1,4 @@
-﻿//! VTK legacy ASCII POLYDATA writer.
+//! VTK legacy ASCII POLYDATA writer.
 //!
 //! Writes a `VtkPolyData` to the VTK legacy ASCII format.
 //!
@@ -92,7 +92,8 @@ fn write_attribute(w: &mut dyn Write, name: &str, attr: &AttributeArray) -> Resu
     match attr {
         AttributeArray::Scalars {
             values,
-            num_components } => {
+            num_components,
+        } => {
             writeln!(w, "SCALARS {} float {}", name, num_components)?;
             writeln!(w, "LOOKUP_TABLE default")?;
             for v in values {

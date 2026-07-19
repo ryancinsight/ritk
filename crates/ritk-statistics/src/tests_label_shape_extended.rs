@@ -6,7 +6,7 @@
 
 use coeus_core::SequentialBackend;
 use coeus_tensor::Tensor;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 use super::*;

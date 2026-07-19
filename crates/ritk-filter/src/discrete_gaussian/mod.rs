@@ -142,6 +142,7 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
         let (tensor, origin, spacing, direction) = image.clone().into_parts();
         let smoothed = self.apply_inner(tensor, &spacing);
         Image::new(smoothed, origin, spacing, direction)
+            .expect("filter preserves the statically validated image rank")
     }
 
     /// Build the per-axis discrete-Gaussian kernels for the given spacing.
@@ -198,8 +199,8 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
     /// or the rebuilt tensor fails shape validation.
     pub fn apply_native<BC>(
         &self,
-        image: &ritk_image::native::Image<f32, BC, 3>,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, BC, 3>>
+        image: &ritk_image::Image<f32, BC, 3>,
+    ) -> anyhow::Result<ritk_image::Image<f32, BC, 3>>
     where
         BC: coeus_core::ComputeBackend + Default,
         BC::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

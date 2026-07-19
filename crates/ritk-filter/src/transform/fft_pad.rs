@@ -133,7 +133,10 @@ impl FftPadImageFilter {
     }
 
     /// Apply the FFT pad filter.
-    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>>
+    where
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
         let (lower, upper) = self.pad_extents(image.shape());
         match self.boundary {
             FftPadBoundary::Zero => ConstantPadImageFilter::new(lower, upper, 0.0).apply(image),
@@ -147,9 +150,9 @@ impl FftPadImageFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

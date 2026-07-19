@@ -126,6 +126,7 @@ pub trait AutoThreshold: sealed::Sealed {
             *image.spacing(),
             *image.direction(),
         )
+        .expect("invariant: segmentation output tensor preserves the image rank")
     }
 
     /// Compute the threshold directly from a Coeus-native image.
@@ -136,7 +137,7 @@ pub trait AutoThreshold: sealed::Sealed {
     /// contiguous host slice.
     fn compute_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
     ) -> anyhow::Result<f32>
     where
         B: coeus_core::ComputeBackend,
@@ -153,9 +154,9 @@ pub trait AutoThreshold: sealed::Sealed {
     /// contiguous host slice or when the output image cannot be constructed.
     fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -172,15 +173,15 @@ pub trait AutoThreshold: sealed::Sealed {
     /// contiguous host slice or when the output image cannot be constructed.
     fn apply_native_with_threshold<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<(ritk_image::native::Image<f32, B, D>, f32)>
+    ) -> anyhow::Result<(ritk_image::Image<f32, B, D>, f32)>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
         let (threshold, output) = threshold_mask_from_slice(self, image.data_slice()?);
-        let mask = ritk_image::native::Image::from_flat_on(
+        let mask = ritk_image::Image::from_flat_on(
             output,
             image.shape(),
             *image.origin(),

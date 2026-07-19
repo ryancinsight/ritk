@@ -1,4 +1,4 @@
-﻿//! Scalar cubic B-spline basis functions and per-axis pre-computation.
+//! Scalar cubic B-spline basis functions and per-axis pre-computation.
 //!
 //! Implements Rueckert (1999) uniform cubic B-spline basis:
 //!
@@ -41,7 +41,8 @@ pub struct AxisBasis {
     /// `k[i]` = first control-point index for image coordinate i.
     pub k: Vec<isize>,
     /// `b[i]` = `[Î²â‚ƒâ‚€(t_i), Î²â‚ƒâ‚(t_i), Î²â‚ƒâ‚‚(t_i), Î²â‚ƒâ‚ƒ(t_i)]`.
-    pub b: Vec<[f64; 4]> }
+    pub b: Vec<[f64; 4]>,
+}
 
 impl AxisBasis {
     /// Pre-compute basis data for `dim` coordinates with the given control spacing.

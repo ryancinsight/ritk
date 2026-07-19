@@ -1,13 +1,14 @@
-﻿use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Result};
 use tracing::info;
 
 use ritk_segmentation::{
     AutoThreshold, BinaryThreshold, KapurThreshold, LiThreshold, MultiOtsuThreshold, OtsuThreshold,
-    TriangleThreshold, YenThreshold };
+    TriangleThreshold, YenThreshold,
+};
 
 use super::super::{
-    infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
-    write_image_native, NativeBackend };
+    infer_format, is_read_capable, is_write_capable, read_image, write_image, Backend,
+};
 use super::args::SegmentArgs;
 use super::helpers::read_native_input;
 
@@ -23,14 +24,14 @@ fn apply_auto_threshold_native<A: AutoThreshold>(
 ) -> Result<(f32, usize)> {
     let (image, output_format) =
         read_native_input(&args.input, &args.output, "automatic thresholding")?;
-    let backend = NativeBackend::default();
+    let backend = Backend::default();
     let (mask, threshold) = algorithm.apply_native_with_threshold(&image, &backend)?;
     let foreground = mask
         .data_slice()?
         .iter()
         .filter(|&&value| value > 0.5)
         .count();
-    write_image_native(&args.output, &mask, output_format)?;
+    write_image(&args.output, &mask, output_format)?;
     Ok((threshold, foreground))
 }
 
@@ -39,7 +40,7 @@ fn apply_auto_threshold_native<A: AutoThreshold>(
 /// Apply single-threshold Otsu segmentation.
 ///
 /// Computes the optimal threshold t* that maximises between-class variance,
-/// then maps voxels â‰¥ t* to 1.0 (foreground) and voxels < t* to 0.0
+/// then maps voxels >= t* to 1.0 (foreground) and voxels < t* to 0.0
 /// (background).
 pub(super) fn run_otsu(args: &SegmentArgs) -> Result<()> {
     let (threshold, n_foreground) = apply_auto_threshold_native(args, &OtsuThreshold::new())?;
@@ -76,19 +77,19 @@ pub(super) fn run_otsu(args: &SegmentArgs) -> Result<()> {
 pub(super) fn run_multi_otsu(args: &SegmentArgs) -> Result<()> {
     if args.classes < 2 {
         return Err(anyhow!(
-            "--classes must be â‰¥ 2 for multi-otsu, got {}",
+            "--classes must be >= 2 for multi-otsu, got {}",
             args.classes
         ));
     }
     if args.classes > 256 {
         return Err(anyhow!(
-            "--classes must be â‰¤ 256 for the 256-bin Multi-Otsu histogram, got {}",
+            "--classes must be <= 256 for the 256-bin Multi-Otsu histogram, got {}",
             args.classes
         ));
     }
 
     let (image, output_format) = read_native_input(&args.input, &args.output, "multi-otsu")?;
-    let backend = NativeBackend::default();
+    let backend = Backend::default();
     let (labeled, thresholds) =
         MultiOtsuThreshold::new(args.classes).apply_native_with_thresholds(&image, &backend)?;
     let n_labeled = labeled
@@ -96,7 +97,7 @@ pub(super) fn run_multi_otsu(args: &SegmentArgs) -> Result<()> {
         .iter()
         .filter(|&&value| value > 0.0)
         .count();
-    write_image_native(&args.output, &labeled, output_format)?;
+    write_image(&args.output, &labeled, output_format)?;
 
     let thresh_str: Vec<String> = thresholds.iter().map(|t| format!("{t:.4}")).collect();
     println!(
@@ -122,7 +123,7 @@ pub(super) fn run_multi_otsu(args: &SegmentArgs) -> Result<()> {
 /// Apply Li minimum cross-entropy thresholding.
 ///
 /// Computes t* that minimises the cross-entropy between the image and its
-/// binary thresholded version, then maps voxels â‰¥ t* to 1.0.
+/// binary thresholded version, then maps voxels >= t* to 1.0.
 pub(super) fn run_li(args: &SegmentArgs) -> Result<()> {
     let (threshold, n_foreground) = apply_auto_threshold_native(args, &LiThreshold::new())?;
 
@@ -148,7 +149,7 @@ pub(super) fn run_li(args: &SegmentArgs) -> Result<()> {
 /// Apply Yen maximum correlation criterion thresholding.
 ///
 /// Computes t* that maximises the correlation criterion, then maps
-/// voxels â‰¥ t* to 1.0.
+/// voxels >= t* to 1.0.
 pub(super) fn run_yen(args: &SegmentArgs) -> Result<()> {
     let (threshold, n_foreground) = apply_auto_threshold_native(args, &YenThreshold::new())?;
 
@@ -174,7 +175,7 @@ pub(super) fn run_yen(args: &SegmentArgs) -> Result<()> {
 /// Apply Kapur maximum entropy thresholding.
 ///
 /// Computes t* that maximises the sum of foreground and background
-/// entropies, then maps voxels â‰¥ t* to 1.0.
+/// entropies, then maps voxels >= t* to 1.0.
 pub(super) fn run_kapur(args: &SegmentArgs) -> Result<()> {
     let (threshold, n_foreground) = apply_auto_threshold_native(args, &KapurThreshold::new())?;
 
@@ -201,7 +202,7 @@ pub(super) fn run_kapur(args: &SegmentArgs) -> Result<()> {
 ///
 /// Constructs a line between the histogram peak and the histogram tail,
 /// then selects the bin with maximum perpendicular distance as the
-/// threshold.  Maps voxels â‰¥ t* to 1.0.
+/// threshold.  Maps voxels >= t* to 1.0.
 pub(super) fn run_triangle(args: &SegmentArgs) -> Result<()> {
     let (threshold, n_foreground) = apply_auto_threshold_native(args, &TriangleThreshold::new())?;
 
@@ -232,7 +233,7 @@ pub(super) fn run_triangle(args: &SegmentArgs) -> Result<()> {
 ///
 /// # Mathematical Specification
 ///
-/// S(v) = 1.0  if lower â‰¤ I(v) â‰¤ upper
+/// S(v) = 1.0  if lower <= I(v) <= upper
 /// S(v) = 0.0  otherwise
 ///
 /// # Errors
@@ -249,7 +250,7 @@ pub(super) fn run_binary(args: &SegmentArgs) -> Result<()> {
     }
     if lower > upper {
         return Err(anyhow!(
-            "binary threshold: lower ({lower}) must be â‰¤ upper ({upper})"
+            "binary threshold: lower ({lower}) must be <= upper ({upper})"
         ));
     }
 
@@ -258,18 +259,18 @@ pub(super) fn run_binary(args: &SegmentArgs) -> Result<()> {
     let output_format = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        is_read_capable(input_format) && is_write_capable(output_format),
         "binary threshold requires native input/output formats"
     );
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
     let mask = BinaryThreshold::new(lower, upper).apply_native(&image, &backend)?;
     let n_foreground = mask
         .data_slice()?
         .iter()
         .filter(|&&value| value > 0.5)
         .count();
-    write_image_native(&args.output, &mask, output_format)?;
+    write_image(&args.output, &mask, output_format)?;
 
     println!(
         "Segmented {} (binary): [{lower:.4}, {upper:.4}] â†’ {n_foreground} foreground voxels",

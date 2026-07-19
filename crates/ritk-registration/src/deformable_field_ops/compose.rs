@@ -1,4 +1,4 @@
-﻿//! Displacement field composition Ï†â‚ âˆ˜ Ï†â‚‚.
+//! Displacement field composition Ï†â‚ âˆ˜ Ï†â‚‚.
 
 #[cfg(test)]
 use super::VelocityField;
@@ -22,11 +22,13 @@ pub(crate) fn compose_fields_into(
     let VectorField {
         z: phi2_z,
         y: phi2_y,
-        x: phi2_x } = phi2;
+        x: phi2_x,
+    } = phi2;
     let VectorFieldMut {
         z: out_z,
         y: out_y,
-        x: out_x } = out;
+        x: out_x,
+    } = out;
 
     // Parallelize over z-slices: each slice writes to a disjoint contiguous
     // range in the output buffers; all reads are from immutable inputs.
@@ -82,22 +84,26 @@ pub(crate) fn compose_fields(
         VectorField {
             z: phi1_z,
             y: phi1_y,
-            x: phi1_x },
+            x: phi1_x,
+        },
         VectorField {
             z: phi2_z,
             y: phi2_y,
-            x: phi2_x },
+            x: phi2_x,
+        },
         dims,
         VectorFieldMut {
             z: &mut cz,
             y: &mut cy,
-            x: &mut cx },
+            x: &mut cx,
+        },
     );
 
     VelocityField {
         z: cz,
         y: cy,
-        x: cx }
+        x: cx,
+    }
 }
 
 #[cfg(test)]

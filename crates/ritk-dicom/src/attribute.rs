@@ -1,4 +1,4 @@
-﻿//! Typed DICOM attribute access owned by RITK.
+//! Typed DICOM attribute access owned by RITK.
 //!
 //! This module keeps backend-specific object access behind the `ritk-dicom`
 //! boundary so consumers do not depend on dicom-rs tags or object APIs.
@@ -13,7 +13,8 @@ pub struct DicomTag {
     /// DICOM group number.
     pub group: u16,
     /// DICOM element number.
-    pub element: u16 }
+    pub element: u16,
+}
 
 impl DicomTag {
     /// Create a DICOM tag.

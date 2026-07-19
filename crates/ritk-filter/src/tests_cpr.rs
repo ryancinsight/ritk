@@ -3,8 +3,8 @@
 use super::*;
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::extract_vec_infallible;
 
@@ -382,7 +382,8 @@ fn cpr_apply_matches_brute_force_reference_nonidentity_direction() {
         Point::new([1.0, 2.0, 3.0]),
         Spacing::new([0.5, 1.5, 2.0]),
         direction,
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
 
     let cpr = CprImageFilter::new(
         vec![[3.0, 2.0, 1.0], [5.0, 6.0, 9.0]],

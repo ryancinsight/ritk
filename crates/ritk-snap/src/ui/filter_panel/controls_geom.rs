@@ -1,4 +1,4 @@
-﻿use crate::FilterKind;
+use crate::FilterKind;
 
 /// Render parameter controls for geometry and padding filter variants
 /// (`Shrink`, `ConstantPad`, `MirrorPad`, `WrapPad`).
@@ -9,7 +9,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         FilterKind::Shrink {
             factor_z,
             factor_y,
-            factor_x } => {
+            factor_x,
+        } => {
             let mut fz = *factor_z as i32;
             let mut fy = *factor_y as i32;
             let mut fx = *factor_x as i32;
@@ -55,7 +56,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             pad_upper_z,
             pad_upper_y,
             pad_upper_x,
-            constant } => {
+            constant,
+        } => {
             for (label, val) in [
                 ("â†“Z", pad_lower_z),
                 ("â†“Y", pad_lower_y),
@@ -88,7 +90,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             pad_lower_x,
             pad_upper_z,
             pad_upper_y,
-            pad_upper_x } => {
+            pad_upper_x,
+        } => {
             for (label, val) in [
                 ("â†“Z", pad_lower_z),
                 ("â†“Y", pad_lower_y),
@@ -119,7 +122,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             pad_lower_x,
             pad_upper_z,
             pad_upper_y,
-            pad_upper_x } => {
+            pad_upper_x,
+        } => {
             for (label, val) in [
                 ("â†“Z", pad_lower_z),
                 ("â†“Y", pad_lower_y),
@@ -142,5 +146,6 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             ui.label(egui::RichText::new("ITK WrapPadImageFilter: periodic extension.").small());
             true
         }
-        _ => false }
+        _ => false,
+    }
 }

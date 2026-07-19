@@ -9,8 +9,8 @@ use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
     PixelSignedness, TransferSyntaxKind,
 };
-use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
+use ritk_image::Image as NativeImage;
 
 use ritk_image::tensor::Tensor;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -215,7 +215,7 @@ pub fn load_dicom_multiframe<B: Backend, P: AsRef<Path>>(
         direction,
     } = load_dicom_multiframe_flat(path)?;
     let tensor = Tensor::<f32, B>::from_slice_on(shape, &data, device);
-    Ok(Image::new(tensor, origin, spacing, direction))
+    Image::new(tensor, origin, spacing, direction)
 }
 
 /// Load a multi-frame DICOM file into a native Coeus-backed image.

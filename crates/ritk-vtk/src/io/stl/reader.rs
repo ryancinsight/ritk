@@ -1,4 +1,4 @@
-﻿//! STL reader â†’ VtkPolyData.
+//! STL reader â†’ VtkPolyData.
 //!
 //! # Format detection
 //! Binary STL is detected by checking whether the file size satisfies the
@@ -192,7 +192,8 @@ fn build_stl_poly(
         poly.cell_data.insert(
             "Normals".to_string(),
             AttributeArray::Normals {
-                values: cell_normals },
+                values: cell_normals,
+            },
         );
     }
     Ok(poly)

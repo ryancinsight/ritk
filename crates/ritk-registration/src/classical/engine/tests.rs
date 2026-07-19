@@ -64,3 +64,32 @@ fn test_mutual_information_different() {
         nmi
     );
 }
+
+#[test]
+fn intensity_registration_reports_final_transform_metric() {
+    let volume =
+        Array3::from_vec([3, 3, 3], (0..27).map(|value| value as f64 * 8.0).collect()).unwrap();
+    let initial = crate::types::AffineTransform::new([
+        1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+    ]);
+    let config = ClassicalConfig {
+        max_iterations: 0,
+        ..ClassicalConfig::default()
+    };
+    let metric = MutualInformationMetric::default();
+    let registration = ImageRegistration::with_config(config, metric.clone());
+    let transformed = crate::classical::spatial::apply_transform(&volume, &initial);
+    let expected = metric.compute(&transformed, &volume);
+    let untransformed = metric.compute(&volume, &volume);
+
+    let rigid = registration
+        .rigid_registration_mutual_info(&volume, &volume, &initial)
+        .unwrap();
+    let affine = registration
+        .affine_registration_mutual_info(&volume, &volume, &initial)
+        .unwrap();
+
+    assert_eq!(rigid.quality.mutual_information, expected);
+    assert_eq!(affine.quality.mutual_information, expected);
+    assert_ne!(expected, untransformed);
+}

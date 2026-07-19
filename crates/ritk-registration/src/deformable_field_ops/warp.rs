@@ -1,4 +1,4 @@
-﻿//! Image warping and streaming MSE under displacement fields.
+//! Image warping and streaming MSE under displacement fields.
 
 use super::trilinear_interpolate;
 use ritk_spatial::VolumeDims;
@@ -16,7 +16,8 @@ pub enum WarpInterpolation {
     #[default]
     Trilinear,
     /// Nearest-neighbour â€” for integer label maps / categorical data.
-    Nearest }
+    Nearest,
+}
 
 /// Nearest-neighbour sample of `data` at continuous index `(z, y, x)` with
 /// clamp-to-border BC (matching [`trilinear_interpolate`]'s boundary handling).

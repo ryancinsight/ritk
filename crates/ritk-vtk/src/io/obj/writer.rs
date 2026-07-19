@@ -1,4 +1,4 @@
-﻿//! OBJ ASCII writer â† VtkPolyData.
+//! OBJ ASCII writer â† VtkPolyData.
 //!
 //! Output format:
 //! ```text
@@ -37,7 +37,8 @@ pub(crate) fn write_obj_to_writer(w: &mut impl Write, poly: &VtkPolyData) -> Res
     let normal_values: Option<&Vec<[f32; 3]>> =
         poly.point_data.get("Normals").and_then(|a| match a {
             AttributeArray::Normals { values } => Some(values),
-            _ => None });
+            _ => None,
+        });
 
     if let Some(normals) = normal_values {
         writeln!(w)?;

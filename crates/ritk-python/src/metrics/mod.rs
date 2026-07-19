@@ -1,4 +1,4 @@
-﻿//! Python-exposed image similarity and information-theoretic metrics.
+//! Python-exposed image similarity and information-theoretic metrics.
 //!
 //! # Functions
 //! - `compute_entropy`: marginal entropy H(X).
@@ -45,7 +45,8 @@ use pyo3::prelude::*;
 pub use cmi::{compute_conditional_mutual_information, compute_interaction_information};
 pub use mi::{
     compute_entropy, compute_joint_entropy, compute_mutual_information,
-    compute_symmetric_uncertainty };
+    compute_symmetric_uncertainty,
+};
 pub use mse::compute_mse;
 pub use multivariate_vi::compute_multivariate_variation_of_information;
 pub use ncc::compute_ncc;
@@ -107,7 +108,8 @@ mod tests {
                 ritk_core::spatial::Point::new([0.0; 3]),
                 ritk_core::spatial::Spacing::new([1.0; 3]),
                 ritk_core::spatial::Direction::identity(),
-            )) }
+            )),
+        }
     }
 
     #[test]

@@ -1,4 +1,4 @@
-﻿//! Joint label fusion (JLF) tests.
+//! Joint label fusion (JLF) tests.
 
 use super::super::*;
 
@@ -30,7 +30,8 @@ fn jlf_equidistant_same_labels() {
 
     let config = LabelFusionConfig {
         patch_radius: 0,
-        beta: 0.1 };
+        beta: 0.1,
+    };
     let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     for i in 0..n {
@@ -66,7 +67,8 @@ fn jlf_equidistant_majority() {
 
     let config = LabelFusionConfig {
         patch_radius: 0,
-        beta: 0.1 };
+        beta: 0.1,
+    };
     let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     let expected_conf = 2.0f64 / 3.0;
@@ -105,7 +107,8 @@ fn jlf_equidistant_tie_smallest_label() {
 
     let config = LabelFusionConfig {
         patch_radius: 0,
-        beta: 0.1 };
+        beta: 0.1,
+    };
     let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     for i in 0..n {
@@ -138,7 +141,8 @@ fn jlf_zero_distance_singular_fallback() {
 
     let config = LabelFusionConfig {
         patch_radius: 0,
-        beta: 0.1 };
+        beta: 0.1,
+    };
     let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     for i in 0..n {
@@ -171,7 +175,8 @@ fn jlf_single_atlas() {
 
     let config = LabelFusionConfig {
         patch_radius: 0,
-        beta: 0.1 };
+        beta: 0.1,
+    };
     let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     for i in 0..n {
@@ -202,7 +207,8 @@ fn jlf_nonzero_patch_radius_equidistant() {
 
     let config = LabelFusionConfig {
         patch_radius: 1,
-        beta: 0.1 };
+        beta: 0.1,
+    };
     let result = joint_label_fusion(&target, &atlas_images, &atlas_labels, dims, &config).unwrap();
 
     for i in 0..n {

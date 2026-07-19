@@ -1,4 +1,4 @@
-﻿//! JPEG marker and frame header parsing.
+//! JPEG marker and frame header parsing.
 //!
 //! Parses the JPEG bitstream up to and including the first SOS marker,
 //! collecting all tables and metadata needed for entropy decoding.
@@ -33,7 +33,8 @@ pub(crate) const DRI: u16 = 0xFFDD;
 #[repr(u8)]
 pub(crate) enum QuantPrecision {
     Bits8 = 0,
-    Bits16 = 1 }
+    Bits16 = 1,
+}
 
 impl TryFrom<u8> for QuantPrecision {
     type Error = u8;
@@ -42,7 +43,8 @@ impl TryFrom<u8> for QuantPrecision {
         match v {
             0 => Ok(Self::Bits8),
             1 => Ok(Self::Bits16),
-            other => Err(other) }
+            other => Err(other),
+        }
     }
 }
 
@@ -59,7 +61,8 @@ pub(crate) struct FrameComponent {
     pub(crate) id: u8,
     pub(crate) h_samp: u8,
     pub(crate) v_samp: u8,
-    pub(crate) quant_id: u8 }
+    pub(crate) quant_id: u8,
+}
 
 /// SOFn frame header (T.81 Â§B.2.2).
 #[derive(Debug, Clone)]
@@ -68,14 +71,16 @@ pub(crate) struct SofFrame {
     pub(crate) precision: u8,
     pub(crate) height: u16,
     pub(crate) width: u16,
-    pub(crate) components: Vec<FrameComponent> }
+    pub(crate) components: Vec<FrameComponent>,
+}
 
 /// Per-component scan header entry (T.81 Â§B.2.3).
 #[derive(Debug, Clone)]
 pub(crate) struct ScanComponent {
     pub(crate) id: u8,
     pub(crate) dc_table_id: u8,
-    pub(crate) ac_table_id: u8 }
+    pub(crate) ac_table_id: u8,
+}
 
 /// SOS scan header (T.81 Â§B.2.3).
 #[derive(Debug, Clone)]
@@ -88,7 +93,8 @@ pub(crate) struct SosHeader {
     /// Ah: successive approximation bit position high.
     pub(crate) ah: u8,
     /// Al: successive approximation bit position low / point transform (lossless).
-    pub(crate) al: u8 }
+    pub(crate) al: u8,
+}
 
 /// Fully parsed JPEG frame up to the first SOS, with all tables.
 #[derive(Debug)]
@@ -99,7 +105,8 @@ pub(crate) struct JpegFrameData {
     pub(crate) ac_huff: [Option<HuffmanTable>; 4],
     pub(crate) sos: SosHeader,
     /// Byte offset in the original fragment where entropy data begins.
-    pub(crate) scan_data_start: usize }
+    pub(crate) scan_data_start: usize,
+}
 
 // â”€â”€â”€ Parser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -243,7 +250,8 @@ pub(crate) fn parse_jpeg(data: &[u8]) -> Result<JpegFrameData> {
                         id,
                         h_samp,
                         v_samp,
-                        quant_id });
+                        quant_id,
+                    });
                 }
                 let _ = len; // length already consumed field-by-field
                 sof = Some(SofFrame {
@@ -251,7 +259,8 @@ pub(crate) fn parse_jpeg(data: &[u8]) -> Result<JpegFrameData> {
                     precision,
                     height,
                     width,
-                    components });
+                    components,
+                });
             }
             SOS => {
                 let len = read_u16(data, pos)? as usize;
@@ -268,7 +277,8 @@ pub(crate) fn parse_jpeg(data: &[u8]) -> Result<JpegFrameData> {
                     scan_comps.push(ScanComponent {
                         id,
                         dc_table_id,
-                        ac_table_id });
+                        ac_table_id,
+                    });
                 }
                 let ss = data[pos];
                 let se = data[pos + 1];
@@ -283,7 +293,8 @@ pub(crate) fn parse_jpeg(data: &[u8]) -> Result<JpegFrameData> {
                     ss,
                     se,
                     ah,
-                    al };
+                    al,
+                };
                 let frame = sof.context("SOS before SOF in JPEG stream")?;
                 return Ok(JpegFrameData {
                     sof: frame,
@@ -291,7 +302,8 @@ pub(crate) fn parse_jpeg(data: &[u8]) -> Result<JpegFrameData> {
                     dc_huff,
                     ac_huff,
                     sos,
-                    scan_data_start: pos });
+                    scan_data_start: pos,
+                });
             }
             other => {
                 // Unknown marker with length segment: skip it.

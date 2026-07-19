@@ -1,18 +1,15 @@
-﻿//! Multi-component image volumes with physical metadata.
+//! Multi-component image volumes with physical metadata.
 //!
 //! `ColorVolume<f32, B, C>` stores C interleaved samples per voxel in a rank-4
 //! tensor with shape `[depth, rows, cols, C]`. Spatial metadata remains 3-D.
 
 use std::fmt;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use coeus_core::{ComputeBackend, Scalar};
 use coeus_tensor::Tensor;
 
 use ritk_spatial::{Direction, Point, Spacing};
-
-/// Coeus-backed color volumes with a non-spatial component axis.
-pub mod native;
 
 /// 3-D multi-component image volume.
 ///
@@ -28,7 +25,8 @@ where
     data: Tensor<T, B>,
     origin: Point<3>,
     spacing: Spacing<3>,
-    direction: Direction<3> }
+    direction: Direction<3>,
+}
 
 impl<T, B, const C: usize> fmt::Debug for ColorVolume<T, B, C>
 where
@@ -53,6 +51,43 @@ where
     T: Scalar,
     B: ComputeBackend,
 {
+    /// Construct a color volume from interleaved flat component storage.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for zero channels, shape-product overflow, or a data
+    /// length that differs from `depth * rows * columns * C`.
+    pub fn from_flat_on(
+        data: Vec<T>,
+        spatial_shape: [usize; 3],
+        origin: Point<3>,
+        spacing: Spacing<3>,
+        direction: Direction<3>,
+        backend: &B,
+    ) -> Result<Self> {
+        if C == 0 {
+            bail!("color volume channel count must be positive");
+        }
+        let expected = spatial_shape
+            .into_iter()
+            .chain([C])
+            .try_fold(1usize, |product, dimension| product.checked_mul(dimension))
+            .context("color volume shape product overflows usize")?;
+        if data.len() != expected {
+            bail!(
+                "color volume data length {} does not match spatial shape {spatial_shape:?} with {C} channels ({expected})",
+                data.len()
+            );
+        }
+        let [depth, rows, columns] = spatial_shape;
+        Self::try_new(
+            Tensor::from_slice_on([depth, rows, columns, C], &data, backend),
+            origin,
+            spacing,
+            direction,
+        )
+    }
+
     /// Construct a color volume after verifying the channel axis.
     pub fn try_new(
         data: Tensor<T, B>,
@@ -81,7 +116,8 @@ where
             data,
             origin,
             spacing,
-            direction })
+            direction,
+        })
     }
 
     /// Get the image data tensor.
@@ -151,6 +187,16 @@ where
         f(self.data.as_slice())
     }
 
+    /// Return logical row-major host data, borrowing contiguous storage.
+    #[must_use]
+    pub fn data_cow_on(&self, backend: &B) -> std::borrow::Cow<'_, [T]> {
+        if self.data.is_contiguous() {
+            std::borrow::Cow::Borrowed(self.data.as_slice())
+        } else {
+            std::borrow::Cow::Owned(self.data.to_contiguous_on(backend).as_slice().to_vec())
+        }
+    }
+
     /// Deinterleave the volume into `C` scalar component buffers, each of length
     /// `depthÂ·rowsÂ·cols` in `[depth, rows, cols]` row-major order.
     ///
@@ -163,13 +209,12 @@ where
     {
         let [d, r, c, _ch] = self.shape();
         let n = d * r * c;
-        self.with_data_slice(|interleaved| {
-            let mut comps: Vec<Vec<T>> = (0..C).map(|_| Vec::with_capacity(n)).collect();
-            for (i, v) in interleaved.iter().enumerate() {
-                comps[i % C].push(*v);
-            }
-            comps
-        })
+        let interleaved = self.data.to_vec();
+        let mut comps: Vec<Vec<T>> = (0..C).map(|_| Vec::with_capacity(n)).collect();
+        for (i, v) in interleaved.into_iter().enumerate() {
+            comps[i % C].push(v);
+        }
+        comps
     }
 
     /// Rebuild a color volume from `C` scalar component buffers (each in

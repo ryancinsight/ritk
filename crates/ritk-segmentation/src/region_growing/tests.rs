@@ -1,4 +1,4 @@
-﻿// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 use super::{connected_threshold, ConnectedThresholdFilter};
 use coeus_core::SequentialBackend;
@@ -137,7 +137,8 @@ fn test_spatial_metadata_preserved() {
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 1.0, 2.0]);
     let direction = Direction::identity();
-    let image = Image::new(tensor, origin, spacing, direction);
+    let image = Image::new(tensor, origin, spacing, direction)
+        .expect("invariant: fixture tensor has the declared rank");
 
     let result = connected_threshold(&image, [0, 0, 0], 50.0, 150.0);
     assert_eq!(result.origin(), &origin);

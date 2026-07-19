@@ -1,4 +1,4 @@
-﻿//! Tests for Demons/IC-Demons/Diffeomorphic-Demons registration CLI.
+//! Tests for Demons/IC-Demons/Diffeomorphic-Demons registration CLI.
 use super::*;
 use crate::commands::register::tests::make_ramp_image;
 use ritk_registration::demons::DemonsVariant;
@@ -38,7 +38,8 @@ fn test_register_demons_creates_output_with_correct_shape() {
         learning_rate: 0.01,
         inverse_consistency_weight: 0.5,
         n_squarings: 6,
-        convergence_threshold: 1e-5 })
+        convergence_threshold: 1e-5,
+    })
     .unwrap();
 
     assert!(
@@ -86,19 +87,23 @@ fn test_register_demons_identity_low_mse() {
         learning_rate: 0.01,
         inverse_consistency_weight: 0.5,
         n_squarings: 6,
-        convergence_threshold: 1e-5 })
+        convergence_threshold: 1e-5,
+    })
     .unwrap();
 
     // Verify the warped image has finite voxel values.
     let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
-    warped.with_data_slice(|vals| {
+    {
+        let vals = warped
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for (i, &v) in vals.iter().enumerate() {
             assert!(
                 v.is_finite(),
                 "demons output voxel [{i}] must be finite, got {v}"
             );
         }
-    });
+    }
 }
 
 // -- Positive: multires-demons creates output file -------------------------
@@ -135,7 +140,8 @@ fn test_register_multires_demons_creates_output_with_correct_shape() {
         learning_rate: 0.01,
         inverse_consistency_weight: 0.5,
         n_squarings: 6,
-        convergence_threshold: 1e-5 })
+        convergence_threshold: 1e-5,
+    })
     .unwrap();
 
     assert!(
@@ -183,19 +189,23 @@ fn test_register_multires_demons_identity_low_mse() {
         learning_rate: 0.01,
         inverse_consistency_weight: 0.5,
         n_squarings: 6,
-        convergence_threshold: 1e-5 })
+        convergence_threshold: 1e-5,
+    })
     .unwrap();
 
     // Verify the warped image has finite voxel values (identity => MSE near 0).
     let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
-    warped.with_data_slice(|vals| {
+    {
+        let vals = warped
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for (i, &v) in vals.iter().enumerate() {
             assert!(
                 v.is_finite(),
                 "multires-demons output voxel [{i}] must be finite, got {v}"
             );
         }
-    });
+    }
 }
 
 // â”€â”€ Inverse-consistent Demons: output shape â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -230,7 +240,8 @@ fn test_register_ic_demons_creates_output_with_correct_shape() {
         learning_rate: 0.01,
         inverse_consistency_weight: 0.5,
         n_squarings: 6,
-        convergence_threshold: 1e-5 })
+        convergence_threshold: 1e-5,
+    })
     .unwrap();
 
     assert!(
@@ -275,16 +286,20 @@ fn test_register_ic_demons_identity_finite_voxels() {
         learning_rate: 0.01,
         inverse_consistency_weight: 0.5,
         n_squarings: 6,
-        convergence_threshold: 1e-5 })
+        convergence_threshold: 1e-5,
+    })
     .unwrap();
 
     let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
-    warped.with_data_slice(|vals| {
+    {
+        let vals = warped
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for (i, &v) in vals.iter().enumerate() {
             assert!(
                 v.is_finite(),
                 "ic-demons output voxel [{i}] must be finite, got {v}"
             );
         }
-    });
+    }
 }

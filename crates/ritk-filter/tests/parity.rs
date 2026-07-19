@@ -3,7 +3,7 @@
 //! not from empirical RITK output observation. This documents and verifies that
 //! RITK produces results consistent with ITK/SimpleITK for the same inputs.
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;

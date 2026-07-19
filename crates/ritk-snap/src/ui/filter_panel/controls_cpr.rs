@@ -1,4 +1,4 @@
-﻿use crate::FilterKind;
+use crate::FilterKind;
 
 /// Render parameter controls for CPR (Curved Planar Reformation) filter.
 ///
@@ -9,7 +9,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             control_points,
             num_path_samples,
             cross_section_half_width,
-            num_cross_samples } => {
+            num_cross_samples,
+        } => {
             ui.label(egui::RichText::new("CPR generates a 2-D straightened view along a curved path defined by 3-D control points.").small());
 
             let mut nps = *num_path_samples as i32;
@@ -78,5 +79,6 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
 
             true
         }
-        _ => false }
+        _ => false,
+    }
 }

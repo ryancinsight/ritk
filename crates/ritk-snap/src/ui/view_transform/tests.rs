@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 use crate::render::buffer_pool::RenderBufferPool;
 use egui::{Color32, ColorImage};
 
@@ -16,7 +16,8 @@ fn make_test_image() -> ColorImage {
     }
     ColorImage {
         size: [w, h],
-        pixels }
+        pixels,
+    }
 }
 
 fn px(img: &ColorImage, row: usize, col: usize) -> Color32 {
@@ -117,7 +118,11 @@ fn test_rotate_90_cw_analytical_mapping() {
     let img = make_test_image();
     let r = rotate_90_cw_image(&img);
     // Original (0,0) â†’ output (0, 1)
-    assert_eq!(px(&r, 0, 1), px(&img, 0, 0), "rotate_90_cw: (0,0)â†’(0,H-1)");
+    assert_eq!(
+        px(&r, 0, 1),
+        px(&img, 0, 0),
+        "rotate_90_cw: (0,0)â†’(0,H-1)"
+    );
     // Original (0,2) â†’ output (2, 1)
     assert_eq!(
         px(&r, 2, 1),
@@ -125,7 +130,11 @@ fn test_rotate_90_cw_analytical_mapping() {
         "rotate_90_cw: (0,W-1)â†’(W-1,H-1)"
     );
     // Original (1,0) â†’ output (0, 0)
-    assert_eq!(px(&r, 0, 0), px(&img, 1, 0), "rotate_90_cw: (H-1,0)â†’(0,0)");
+    assert_eq!(
+        px(&r, 0, 0),
+        px(&img, 1, 0),
+        "rotate_90_cw: (H-1,0)â†’(0,0)"
+    );
 }
 
 #[test]
@@ -189,7 +198,8 @@ fn all_transforms() -> Vec<ViewTransform> {
                 out.push(ViewTransform {
                     flip_h,
                     flip_v,
-                    rotation });
+                    rotation,
+                });
             }
         }
     }
@@ -224,7 +234,8 @@ fn test_apply_to_image_into_pool_reuse_consistent() {
     let t = ViewTransform {
         flip_h: true,
         flip_v: false,
-        rotation: RotationSteps::Ninety };
+        rotation: RotationSteps::Ninety,
+    };
 
     let first = apply_to_image_into(&mut pool, &img, t);
     let second = apply_to_image_into(&mut pool, &img, t);
@@ -260,7 +271,8 @@ fn test_apply_to_image_into_square_image_all_combinations() {
     }
     let img = ColorImage {
         size: [w, h],
-        pixels };
+        pixels,
+    };
     let mut pool = RenderBufferPool::default();
 
     for t in all_transforms() {

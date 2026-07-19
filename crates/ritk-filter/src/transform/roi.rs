@@ -106,9 +106,9 @@ impl RegionOfInterestImageFilter {
     /// Apply the ROI crop to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -120,7 +120,7 @@ impl RegionOfInterestImageFilter {
         let values = image.data_slice()?;
         let new_origin = self.cropped_origin(origin, spacing, direction);
         let output = self.crop_values(values, image.shape());
-        ritk_image::native::Image::from_flat_on(
+        ritk_image::Image::from_flat_on(
             output,
             [self.size_z, self.size_y, self.size_x],
             new_origin,

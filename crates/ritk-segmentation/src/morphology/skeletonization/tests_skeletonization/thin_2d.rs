@@ -1,4 +1,4 @@
-﻿//! 2-D Zhang-Suen thinning tests.
+//! 2-D Zhang-Suen thinning tests.
 #![allow(clippy::identity_op, clippy::erasing_op)]
 
 use super::*;
@@ -138,7 +138,8 @@ fn test_2d_spatial_metadata_preserved() {
     let origin = Point::new([1.0, 2.0]);
     let spacing = Spacing::new([0.5, 1.5]);
     let direction = Direction::identity();
-    let image = Image::new(tensor, origin, spacing, direction);
+    let image = Image::new(tensor, origin, spacing, direction)
+        .expect("invariant: fixture tensor has the declared rank");
     let result = Skeletonization::new().apply(&image);
     assert_eq!(result.origin(), &origin);
     assert_eq!(result.spacing(), &spacing);

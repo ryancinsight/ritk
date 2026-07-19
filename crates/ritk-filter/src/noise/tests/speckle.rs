@@ -1,6 +1,6 @@
 use super::*;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Zero std dev produces no change.
@@ -136,7 +136,8 @@ fn speckle_preserves_metadata() {
         Point::new([1.0, 2.0, 3.0]),
         Spacing::new([0.5, 0.5, 2.0]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     let filter = SpeckleNoiseFilter::new(0.1).with_seed(42);
     let result = filter.apply(&img).unwrap();
     assert_eq!(result.origin(), img.origin(), "origin must be preserved");

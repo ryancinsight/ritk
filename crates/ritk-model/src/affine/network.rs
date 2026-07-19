@@ -1,4 +1,4 @@
-﻿//! Affine registration CNN, Coeus-native.
+//! Affine registration CNN, Coeus-native.
 //!
 //! A five-stage `Conv3d â†’ InstanceNorm3d â†’ ReLU` feature extractor followed by
 //! global average pooling and a linear head predicting the 12 parameters of a
@@ -52,12 +52,14 @@ fn identity_affine<T: Float>() -> [T; AFFINE_PARAMS] {
 #[derive(Debug, Clone)]
 pub struct AffineNetworkConfig {
     /// Output channels for each of the five convolution stages.
-    pub channels: Vec<usize> }
+    pub channels: Vec<usize>,
+}
 
 impl Default for AffineNetworkConfig {
     fn default() -> Self {
         Self {
-            channels: vec![16, 32, 64, 128, 256] }
+            channels: vec![16, 32, 64, 128, 256],
+        }
     }
 }
 
@@ -111,7 +113,8 @@ impl AffineNetworkConfig {
             bn4: InstanceNorm3d::new(c[3], NORM_EPS),
             conv5,
             bn5: InstanceNorm3d::new(c[4], NORM_EPS),
-            fc }
+            fc,
+        }
     }
 }
 
@@ -131,7 +134,8 @@ pub struct AffineNetwork<T: Float, B: BackendOps<T> + Default = MoiraiBackend> {
     bn4: InstanceNorm3d<T, B>,
     conv5: Conv3d<T, B>,
     bn5: InstanceNorm3d<T, B>,
-    fc: Linear<T, B> }
+    fc: Linear<T, B>,
+}
 
 /// Append `module`'s named parameters under `prefix` to `out`.
 fn extend_named<T, B, M>(out: &mut Vec<Parameter<T, B>>, prefix: &str, module: &M)
@@ -329,7 +333,8 @@ mod tests {
         // add graph the gradient check validates (channel width does not change
         // the differentiated computation).
         let net = AffineNetworkConfig {
-            channels: vec![2, 3, 4, 5, 6] }
+            channels: vec![2, 3, 4, 5, 6],
+        }
         .init::<f32, B>();
         let shape = [1usize, 2, 36, 36, 36];
         let n: usize = shape.iter().product();

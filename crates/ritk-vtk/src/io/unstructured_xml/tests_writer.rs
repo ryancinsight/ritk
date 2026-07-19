@@ -1,4 +1,4 @@
-﻿//! Tests for the VTK XML UnstructuredGrid (.vtu) writer.
+//! Tests for the VTK XML UnstructuredGrid (.vtu) writer.
 
 use super::*;
 use crate::domain::vtk_data_object::{AttributeArray, VtkCellType, VtkUnstructuredGrid};
@@ -112,7 +112,8 @@ fn test_write_vtu_str_point_data_emitted() {
         "pressure".to_string(),
         AttributeArray::Scalars {
             values: vec![1.0, 2.0, 3.0, 4.0],
-            num_components: 1 },
+            num_components: 1,
+        },
     );
     let s = write_vtu_str(&g);
     assert!(s.contains("<PointData>"), "must emit PointData section");
@@ -131,7 +132,8 @@ fn test_write_vtu_str_cell_data_emitted() {
         "stress".to_string(),
         AttributeArray::Scalars {
             values: vec![42.0],
-            num_components: 1 },
+            num_components: 1,
+        },
     );
     let s = write_vtu_str(&g);
     assert!(s.contains("<CellData>"), "must emit CellData section");
@@ -176,7 +178,8 @@ fn test_write_vtu_str_vectors_in_point_data() {
     g.point_data.insert(
         "vel".to_string(),
         AttributeArray::Vectors {
-            values: vec![[1.0, 2.0, 3.0]] },
+            values: vec![[1.0, 2.0, 3.0]],
+        },
     );
     let s = write_vtu_str(&g);
     assert!(s.contains("Name=\"vel\""), "must emit vel DataArray");

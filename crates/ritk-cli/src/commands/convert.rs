@@ -1,4 +1,4 @@
-﻿//! `ritk convert` â€” format conversion command.
+//! `ritk convert` â€” format conversion command.
 //!
 //! Reads an image from any supported input format (inferred from extension)
 //! and writes it to any supported output format (inferred from extension or
@@ -18,9 +18,7 @@ use ritk_io::ImageFormat;
 use std::path::PathBuf;
 use tracing::info;
 
-use super::{
-    infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
-    write_image_native };
+use super::{infer_format, is_read_capable, is_write_capable, read_image, write_image};
 
 // â”€â”€ CLI arguments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -37,7 +35,8 @@ pub enum OutputFormat {
     Tiff,
     Vtk,
     Jpeg,
-    Analyze }
+    Analyze,
+}
 
 /// Arguments for the `convert` subcommand.
 #[derive(Args, Debug)]
@@ -53,7 +52,8 @@ pub struct ConvertArgs {
 
     /// Override the output format.
     #[arg(long, value_enum, value_name = "FORMAT")]
-    pub format: Option<OutputFormat> }
+    pub format: Option<OutputFormat>,
+}
 
 // â”€â”€ Command handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -92,29 +92,31 @@ pub fn run(args: ConvertArgs) -> Result<()> {
             OutputFormat::Tiff => ImageFormat::Tiff,
             OutputFormat::Vtk => ImageFormat::Vtk,
             OutputFormat::Jpeg => ImageFormat::Jpeg,
-            OutputFormat::Analyze => ImageFormat::Analyze },
+            OutputFormat::Analyze => ImageFormat::Analyze,
+        },
         None => infer_format(&args.output).ok_or_else(|| {
             anyhow!(
                 "Cannot infer output format from path '{}'. \
                      Specify --format nifti|metaimage|nrrd.",
                 args.output.display()
             )
-        })? };
+        })?,
+    };
 
     anyhow::ensure!(
-        is_native_read_capable(in_fmt),
+        is_read_capable(in_fmt),
         "convert does not support {:?} input until its native reader exists",
         in_fmt
     );
     anyhow::ensure!(
-        is_native_write_capable(out_fmt),
+        is_write_capable(out_fmt),
         "convert does not support {:?} output until its native writer exists",
         out_fmt
     );
-    let image = read_image_native(&args.input)?;
+    let image = read_image(&args.input)?;
     let shape = image.shape();
     let spacing = *image.spacing();
-    write_image_native(&args.output, &image, out_fmt)?;
+    write_image(&args.output, &image, out_fmt)?;
 
     println!(
         "Converted {} \u{2192} {} (shape: {}x{}x{}, spacing: {:.4}\u{d7}{:.4}\u{d7}{:.4})",
@@ -143,17 +145,17 @@ pub fn run(args: ConvertArgs) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ritk_image::native::Image;
+    use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
-    use crate::commands::NativeBackend;
+    use crate::commands::Backend;
 
     /// Build a small deterministic 3-D image for testing.
     ///
     /// Shape is [3, 4, 5] (nz=3, ny=4, nx=5).  Voxel value at flat index i is
     /// `i as f32`.  Origin and spacing are identity.
-    fn make_test_image() -> Image<f32, NativeBackend, 3> {
+    fn make_test_image() -> Image<f32, Backend, 3> {
         let n = 3 * 4 * 5;
         let values: Vec<f32> = (0..n).map(|i| i as f32).collect();
         Image::from_flat_on(
@@ -162,7 +164,7 @@ mod tests {
             Point::new([0.0; 3]),
             Spacing::new([1.0, 1.5, 2.0]),
             Direction::identity(),
-            &NativeBackend::default(),
+            &Backend::default(),
         )
         .expect("invariant: image data matches shape")
     }
@@ -178,16 +180,17 @@ mod tests {
         let output = dir.path().join("output.nii");
 
         let image = make_test_image();
-        write_image_native(&input, &image, ImageFormat::NIfTI).unwrap();
+        write_image(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {
             input: input.clone(),
             output: output.clone(),
-            format: None })
+            format: None,
+        })
         .unwrap();
 
         assert!(output.exists(), "output NIfTI must be created");
-        let recovered = read_image_native(&output).unwrap();
+        let recovered = read_image(&output).unwrap();
         assert_eq!(
             recovered.shape(),
             [3, 4, 5],
@@ -206,16 +209,17 @@ mod tests {
         let output = dir.path().join("output.mha");
 
         let image = make_test_image();
-        write_image_native(&input, &image, ImageFormat::NIfTI).unwrap();
+        write_image(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {
             input: input.clone(),
             output: output.clone(),
-            format: None })
+            format: None,
+        })
         .unwrap();
 
         assert!(output.exists(), "output MHA must be created");
-        let recovered = read_image_native(&output).unwrap();
+        let recovered = read_image(&output).unwrap();
         assert_eq!(recovered.shape(), [3, 4, 5]);
     }
 
@@ -230,16 +234,17 @@ mod tests {
         let output = dir.path().join("output.nrrd");
 
         let image = make_test_image();
-        write_image_native(&input, &image, ImageFormat::NIfTI).unwrap();
+        write_image(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {
             input: input.clone(),
             output: output.clone(),
-            format: None })
+            format: None,
+        })
         .unwrap();
 
         assert!(output.exists(), "output NRRD must be created");
-        let recovered = read_image_native(&output).unwrap();
+        let recovered = read_image(&output).unwrap();
         assert_eq!(recovered.shape(), [3, 4, 5]);
     }
 
@@ -255,12 +260,13 @@ mod tests {
         let output = dir.path().join("output.nii");
 
         let image = make_test_image();
-        write_image_native(&input, &image, ImageFormat::NIfTI).unwrap();
+        write_image(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {
             input: input.clone(),
             output: output.clone(),
-            format: Some(OutputFormat::Nifti) })
+            format: Some(OutputFormat::Nifti),
+        })
         .unwrap();
 
         assert!(output.exists());
@@ -277,12 +283,13 @@ mod tests {
         let output = dir.path().join("output.xyz");
 
         let image = make_test_image();
-        write_image_native(&input, &image, ImageFormat::NIfTI).unwrap();
+        write_image(&input, &image, ImageFormat::NIfTI).unwrap();
 
         let result = run(ConvertArgs {
             input,
             output,
-            format: None });
+            format: None,
+        });
         assert!(
             result.is_err(),
             "unknown output extension must yield an error"
@@ -306,7 +313,8 @@ mod tests {
         let result = run(ConvertArgs {
             input,
             output,
-            format: None });
+            format: None,
+        });
         assert!(result.is_err(), "missing input must yield an error");
     }
 
@@ -320,28 +328,29 @@ mod tests {
         let output = dir.path().join("output.nii");
 
         let image = make_test_image();
-        write_image_native(&input, &image, ImageFormat::MetaImage).unwrap();
+        write_image(&input, &image, ImageFormat::MetaImage).unwrap();
 
         run(ConvertArgs {
             input,
             output: output.clone(),
-            format: None })
+            format: None,
+        })
         .unwrap();
 
         assert!(output.exists());
-        let recovered = read_image_native(&output).unwrap();
+        let recovered = read_image(&output).unwrap();
         assert_eq!(recovered.shape(), [3, 4, 5]);
     }
 
     // â”€â”€ ADR 0003 Phase A: native-dispatch coverage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    /// `is_native_read_capable`/`is_native_write_capable` must agree exactly
+    /// `is_read_capable`/`is_write_capable` must agree exactly
     /// with the native format matrix: VTK is now read and written through its
     /// native adapter, while PNG and DICOM remain read-only. A drift here would silently misroute a
     /// command onto the wrong substrate without any other test catching it.
     #[test]
     fn test_native_capability_predicates_match_adr_0003_matrix() {
-        use super::super::{is_native_read_capable, is_native_write_capable};
+        use super::super::{is_read_capable, is_write_capable};
 
         let read_and_write = [
             ImageFormat::NIfTI,
@@ -354,36 +363,24 @@ mod tests {
             ImageFormat::Vtk,
         ];
         for fmt in read_and_write {
-            assert!(is_native_read_capable(fmt), "{fmt:?} must read natively");
-            assert!(is_native_write_capable(fmt), "{fmt:?} must write natively");
+            assert!(is_read_capable(fmt), "{fmt:?} must read natively");
+            assert!(is_write_capable(fmt), "{fmt:?} must write natively");
         }
 
+        assert!(is_read_capable(ImageFormat::Png), "PNG reads natively");
         assert!(
-            is_native_read_capable(ImageFormat::Png),
-            "PNG reads natively"
-        );
-        assert!(
-            !is_native_write_capable(ImageFormat::Png),
+            !is_write_capable(ImageFormat::Png),
             "PNG has no native writer"
         );
 
+        assert!(is_read_capable(ImageFormat::Dicom), "DICOM reads natively");
         assert!(
-            is_native_read_capable(ImageFormat::Dicom),
-            "DICOM reads natively"
-        );
-        assert!(
-            !is_native_write_capable(ImageFormat::Dicom),
+            !is_write_capable(ImageFormat::Dicom),
             "DICOM has no native writer yet"
         );
 
-        assert!(
-            is_native_read_capable(ImageFormat::Vtk),
-            "VTK reads natively"
-        );
-        assert!(
-            is_native_write_capable(ImageFormat::Vtk),
-            "VTK writes natively"
-        );
+        assert!(is_read_capable(ImageFormat::Vtk), "VTK reads natively");
+        assert!(is_write_capable(ImageFormat::Vtk), "VTK writes natively");
     }
 
     /// Conversion preserves native NIfTI serialization bytes when no format
@@ -396,15 +393,16 @@ mod tests {
         let direct_output = dir.path().join("via_native_direct.nii");
 
         let image = make_test_image();
-        write_image_native(&input, &image, ImageFormat::NIfTI).unwrap();
+        write_image(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {
             input: input.clone(),
             output: native_output.clone(),
-            format: None })
+            format: None,
+        })
         .unwrap();
 
-        write_image_native(&direct_output, &image, ImageFormat::NIfTI).unwrap();
+        write_image(&direct_output, &image, ImageFormat::NIfTI).unwrap();
 
         assert_eq!(
             std::fs::read(&native_output).unwrap(),
@@ -420,14 +418,15 @@ mod tests {
         let input = dir.path().join("input.vtk");
         let output = dir.path().join("output.nii");
         let image = make_test_image();
-        write_image_native(&input, &image, ImageFormat::Vtk).unwrap();
+        write_image(&input, &image, ImageFormat::Vtk).unwrap();
 
         run(ConvertArgs {
             input,
             output: output.clone(),
-            format: None })
+            format: None,
+        })
         .expect("native VTK input conversion");
-        let recovered = read_image_native(&output).unwrap();
+        let recovered = read_image(&output).unwrap();
         assert_eq!(recovered.shape(), image.shape());
         assert_eq!(recovered.data_slice().unwrap(), image.data_slice().unwrap());
     }
@@ -440,14 +439,15 @@ mod tests {
         let output = dir.path().join("output.vtk");
 
         let image = make_test_image();
-        write_image_native(&input, &image, ImageFormat::NIfTI).unwrap();
+        write_image(&input, &image, ImageFormat::NIfTI).unwrap();
 
         run(ConvertArgs {
             input,
             output: output.clone(),
-            format: Some(OutputFormat::Vtk) })
+            format: Some(OutputFormat::Vtk),
+        })
         .expect("native VTK output conversion");
-        let recovered = read_image_native(&output).unwrap();
+        let recovered = read_image(&output).unwrap();
         assert_eq!(recovered.shape(), image.shape());
         assert_eq!(recovered.data_slice().unwrap(), image.data_slice().unwrap());
     }

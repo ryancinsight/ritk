@@ -68,9 +68,9 @@ impl<B> GaussianFilter<B> {
     /// or the rebuilt image fails shape validation.
     pub fn apply_native<C>(
         &self,
-        image: &ritk_image::native::Image<f32, C, 3>,
+        image: &ritk_image::Image<f32, C, 3>,
         backend: &C,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, C, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, C, 3>>
     where
         C: coeus_core::ComputeBackend,
         C::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -96,6 +96,7 @@ impl<B: Backend> GaussianFilter<B> {
         let (tensor, origin, spacing, direction) = image.clone().into_parts();
         let data = self.apply_tensor(tensor, &spacing);
         Image::new(data, origin, spacing, direction)
+            .expect("filter preserves the statically validated image rank")
     }
 
     /// Apply the filter to a tensor directly.

@@ -1,4 +1,4 @@
-﻿//! Voxel intensity histogram widget and rendering utilities.
+//! Voxel intensity histogram widget and rendering utilities.
 //!
 //! # Overview
 //!
@@ -27,7 +27,8 @@ use egui::{Color32, Painter, Pos2, Rect, Stroke, Ui};
 
 use crate::render::histogram::{histogram_peak_count, Histogram};
 use crate::ui::histogram_interact::{
-    wl_center_from_click, wl_from_histogram_drag, HistogramCanvasGeometry };
+    wl_center_from_click, wl_from_histogram_drag, HistogramCanvasGeometry,
+};
 
 // â”€â”€ visual constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -210,7 +211,8 @@ pub fn draw_histogram(
                 canvas_width: rect.width(),
                 canvas_height: rect.height(),
                 hist_min,
-                hist_max },
+                hist_max,
+            },
             window_center,
             window_width,
         );

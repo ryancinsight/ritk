@@ -1,4 +1,4 @@
-﻿use super::ctrl_dims::ControlGridDims;
+use super::ctrl_dims::ControlGridDims;
 
 /// Default bending-energy regularization weight for B-Spline FFD.
 pub const DEFAULT_REGULARIZATION_WEIGHT: f64 = 1e-3;
@@ -21,7 +21,8 @@ pub struct BSplineFFDConfig {
     pub regularization_weight: f64,
     /// Convergence threshold: optimization stops when the relative change in
     /// the NCC metric between consecutive iterations falls below this value.
-    pub convergence_threshold: f64 }
+    pub convergence_threshold: f64,
+}
 
 impl Default for BSplineFFDConfig {
     fn default() -> Self {
@@ -31,7 +32,8 @@ impl Default for BSplineFFDConfig {
             max_iterations_per_level: 100,
             learning_rate: 1.0,
             regularization_weight: DEFAULT_REGULARIZATION_WEIGHT,
-            convergence_threshold: DEFAULT_CONVERGENCE_THRESHOLD }
+            convergence_threshold: DEFAULT_CONVERGENCE_THRESHOLD,
+        }
     }
 }
 
@@ -50,4 +52,5 @@ pub struct BSplineFFDResult {
     /// Final NCC metric value (higher â†’ better alignment).
     pub final_metric: f64,
     /// Total gradient-descent iterations across all levels.
-    pub num_iterations: usize }
+    pub num_iterations: usize,
+}

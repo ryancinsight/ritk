@@ -1,4 +1,4 @@
-﻿//! DICOM Transfer Syntax classification.
+//! DICOM Transfer Syntax classification.
 //!
 //! # Invariants
 //! - `from_uid(x.uid()) == x` for every non-unknown variant.
@@ -28,7 +28,8 @@ pub enum TransferSyntaxKind {
     JpegXlLossless,
     JpegXlJpegRecompression,
     JpegXl,
-    Unknown(ArrayString<64>) }
+    Unknown(ArrayString<64>),
+}
 
 impl TransferSyntaxKind {
     pub fn from_uid(uid: &str) -> Self {
@@ -49,7 +50,8 @@ impl TransferSyntaxKind {
             "1.2.840.10008.1.2.4.110" => Self::JpegXlLossless,
             "1.2.840.10008.1.2.4.111" => Self::JpegXlJpegRecompression,
             "1.2.840.10008.1.2.4.112" => Self::JpegXl,
-            other => Self::Unknown(ArrayString::<64>::try_from(other).unwrap_or_default()) }
+            other => Self::Unknown(ArrayString::<64>::try_from(other).unwrap_or_default()),
+        }
     }
 
     pub fn uid(&self) -> &str {
@@ -70,7 +72,8 @@ impl TransferSyntaxKind {
             Self::JpegXlLossless => "1.2.840.10008.1.2.4.110",
             Self::JpegXlJpegRecompression => "1.2.840.10008.1.2.4.111",
             Self::JpegXl => "1.2.840.10008.1.2.4.112",
-            Self::Unknown(uid) => uid.as_str() }
+            Self::Unknown(uid) => uid.as_str(),
+        }
     }
 
     pub fn is_encapsulated(&self) -> bool {

@@ -1,4 +1,4 @@
-﻿//! J2K main codestream header parser.
+//! J2K main codestream header parser.
 //!
 //! Parses SIZ, COD, QCD (and skips other markers) up to the first SOT.
 //! All fields match the ISO 15444-1 Â§A.5â€“Â§A.6 naming exactly.
@@ -31,7 +31,8 @@ pub struct SizMarker {
     /// Csiz: number of components.
     pub csiz: u16,
     /// Per-component parameters.
-    pub components: Vec<ComponentSpec> }
+    pub components: Vec<ComponentSpec>,
+}
 
 /// Per-component parameters from SIZ.
 #[derive(Debug, Clone, Copy)]
@@ -40,7 +41,8 @@ pub struct ComponentSpec {
     pub ssiz: u8,
     /// XRsiz / YRsiz: horizontal / vertical sub-sampling factors.
     pub xr_siz: u8,
-    pub yr_siz: u8 }
+    pub yr_siz: u8,
+}
 
 impl ComponentSpec {
     /// Bit precision (1â€“38).
@@ -110,7 +112,8 @@ pub struct CodMarker {
     /// SPcod: wavelet transform (0 = 9/7 irreversible, 1 = 5/3 reversible).
     pub wavelet_transform: u8,
     /// Optional custom precinct sizes (one per resolution level 0..=num_decomp_levels).
-    pub precinct_sizes: Vec<u8> }
+    pub precinct_sizes: Vec<u8>,
+}
 
 impl CodMarker {
     /// `true` if the 5/3 reversible (lossless) wavelet is selected.
@@ -136,7 +139,8 @@ pub struct QcdMarker {
     /// Sqcd: quantization style (lower 5 bits = style, upper 3 = guard bits).
     pub sqcd: u8,
     /// Quantization step sizes (raw bytes; interpretation depends on style).
-    pub step_sizes: Vec<u16> }
+    pub step_sizes: Vec<u16>,
+}
 
 impl QcdMarker {
     /// Number of guard bits (upper 3 bits of Sqcd).
@@ -186,21 +190,24 @@ pub struct SotMarker {
     /// TPsot: tile-part index within the tile.
     pub tpsot: u8,
     /// TNsot: total number of tile-parts (0 = unknown).
-    pub tnsot: u8 }
+    pub tnsot: u8,
+}
 
 /// Combined main codestream header (parsed fields of interest).
 #[derive(Debug, Clone)]
 pub struct MainHeader {
     pub siz: SizMarker,
     pub cod: CodMarker,
-    pub qcd: QcdMarker }
+    pub qcd: QcdMarker,
+}
 
 // â”€â”€ Cursor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Stateful byte cursor over an immutable slice.
 pub struct Cursor<'a> {
     data: &'a [u8],
-    pos: usize }
+    pos: usize,
+}
 
 impl<'a> Cursor<'a> {
     pub fn new(data: &'a [u8]) -> Self {
@@ -351,7 +358,8 @@ pub fn parse_sot(data: &[u8], offset: usize) -> Result<(SotMarker, usize)> {
             isot,
             psot,
             tpsot,
-            tnsot },
+            tnsot,
+        },
         offset + 2 + lsot,
     ))
 }
@@ -390,7 +398,8 @@ fn parse_siz(body: &[u8]) -> Result<SizMarker> {
         components.push(ComponentSpec {
             ssiz: body[base],
             xr_siz: body[base + 1],
-            yr_siz: body[base + 2] });
+            yr_siz: body[base + 2],
+        });
     }
     if xt_siz == 0 || yt_siz == 0 {
         bail!("J2K: tile dimensions XTsiz={xt_siz} YTsiz={yt_siz} must be > 0");
@@ -406,7 +415,8 @@ fn parse_siz(body: &[u8]) -> Result<SizMarker> {
         xto_siz,
         yto_siz,
         csiz,
-        components })
+        components,
+    })
 }
 
 /// Parse COD segment body.
@@ -446,7 +456,8 @@ fn parse_cod(body: &[u8]) -> Result<CodMarker> {
         ycb_o,
         cb_style,
         wavelet_transform,
-        precinct_sizes })
+        precinct_sizes,
+    })
 }
 
 /// Parse QCD segment body.
@@ -474,7 +485,8 @@ fn parse_qcd(body: &[u8]) -> Result<QcdMarker> {
                 .map(|c| u16::from_be_bytes([c[0], c[1]]))
                 .collect()
         }
-        other => bail!("J2K: unknown QCD quantization style {other}") };
+        other => bail!("J2K: unknown QCD quantization style {other}"),
+    };
     Ok(QcdMarker { sqcd, step_sizes })
 }
 

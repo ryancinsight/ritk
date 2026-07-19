@@ -1,11 +1,12 @@
-﻿use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Startup configuration for the native `ritk-snap` application.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppLaunchOptions {
     /// Optional DICOM folder or medical image file to load at startup.
-    pub initial_path: Option<PathBuf> }
+    pub initial_path: Option<PathBuf>,
+}
 
 /// Launch the `ritk-snap` native GUI application.
 ///
@@ -41,7 +42,8 @@ pub fn run_app_with_options(options: AppLaunchOptions) -> anyhow::Result<()> {
         Box::new(move |_cc| {
             let app = match options.initial_path.clone() {
                 Some(path) => crate::app::SnapApp::with_initial_path(path),
-                None => crate::app::SnapApp::default() };
+                None => crate::app::SnapApp::default(),
+            };
             Ok(Box::new(app))
         }),
     )

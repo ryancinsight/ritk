@@ -5801,7 +5801,6 @@ dependencies = [
  "rand 0.9.2",
  "ritk-core",
  "ritk-image",
- "ritk-macros",
  "ritk-spatial",
  "ritk-tensor-ops",
  "ritk-wgpu-compat",
@@ -5867,15 +5866,6 @@ dependencies = [
  "ritk-spatial",
  "tempfile",
  "tracing",
-]
-
-[[package]]
-name = "ritk-macros"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.118",
 ]
 
 [[package]]

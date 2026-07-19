@@ -1,4 +1,4 @@
-﻿use super::{read_stl_mesh, write_stl_ascii, write_stl_binary};
+use super::{read_stl_mesh, write_stl_ascii, write_stl_binary};
 use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
 use crate::io::stl::reader::parse_stl;
 use crate::io::stl::writer::{write_stl_ascii_to_writer, write_stl_binary_to_writer};
@@ -51,7 +51,8 @@ fn tet_stl() -> VtkPolyData {
     cell_data.insert(
         "Normals".to_string(),
         AttributeArray::Normals {
-            values: cell_normals },
+            values: cell_normals,
+        },
     );
     VtkPolyData {
         points,
@@ -98,7 +99,8 @@ fn test_stl_ascii_roundtrip_cell_normals() {
         .expect("cell normals required")
     {
         AttributeArray::Normals { values } => values.clone(),
-        other => panic!("expected Normals, got {other:?}") };
+        other => panic!("expected Normals, got {other:?}"),
+    };
     assert_eq!(normals.len(), 4);
     let eps = 1e-5_f32;
     // T0 normal = (0,0,-1)
@@ -136,7 +138,8 @@ fn test_stl_binary_roundtrip_cell_normals() {
 
     let normals = match loaded.cell_data.get("Normals").unwrap() {
         AttributeArray::Normals { values } => values.clone(),
-        _ => panic!("expected Normals") };
+        _ => panic!("expected Normals"),
+    };
     let eps = 1e-6_f32;
     assert!(
         (normals[0][2] - (-1.0)).abs() < eps,

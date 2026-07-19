@@ -1,4 +1,4 @@
-﻿//! ONNX node attribute types and extraction trait.
+//! ONNX node attribute types and extraction trait.
 
 use super::{OnnxGraph, OnnxTensor};
 
@@ -24,7 +24,8 @@ pub enum OnnxAttribute {
     /// List of tensors
     Tensors(Vec<OnnxTensor>),
     /// List of graphs
-    Graphs(Vec<OnnxGraph>) }
+    Graphs(Vec<OnnxGraph>),
+}
 
 /// Trait for extracting typed values from ONNX attributes.
 pub trait FromOnnxAttribute: Sized {
@@ -38,7 +39,8 @@ impl FromOnnxAttribute for i64 {
             _ => Err(format!(
                 "Attribute '{}' on node '{}' is not an integer",
                 name, node
-            )) }
+            )),
+        }
     }
 }
 
@@ -49,7 +51,8 @@ impl FromOnnxAttribute for f32 {
             _ => Err(format!(
                 "Attribute '{}' on node '{}' is not a float",
                 name, node
-            )) }
+            )),
+        }
     }
 }
 
@@ -60,7 +63,8 @@ impl FromOnnxAttribute for String {
             _ => Err(format!(
                 "Attribute '{}' on node '{}' is not a string",
                 name, node
-            )) }
+            )),
+        }
     }
 }
 
@@ -72,7 +76,8 @@ impl FromOnnxAttribute for Vec<i64> {
             _ => Err(format!(
                 "Attribute '{}' on node '{}' is not an integer list",
                 name, node
-            )) }
+            )),
+        }
     }
 }
 
@@ -84,7 +89,8 @@ impl FromOnnxAttribute for Vec<f32> {
             _ => Err(format!(
                 "Attribute '{}' on node '{}' is not a float list",
                 name, node
-            )) }
+            )),
+        }
     }
 }
 
@@ -95,6 +101,7 @@ impl FromOnnxAttribute for OnnxTensor {
             _ => Err(format!(
                 "Attribute '{}' on node '{}' is not a tensor",
                 name, node
-            )) }
+            )),
+        }
     }
 }

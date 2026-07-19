@@ -1,4 +1,4 @@
-﻿//! RT Dose analytics and DVH rendering helpers.
+//! RT Dose analytics and DVH rendering helpers.
 //!
 //! Computes ROI-linked dose statistics by rasterizing RT-STRUCT closed planar
 //! contours onto the loaded volume grid and sampling the projected RT-DOSE map.
@@ -16,12 +16,14 @@ struct RasterPolygon {
     row_min: usize,
     row_max: usize,
     col_min: usize,
-    col_max: usize }
+    col_max: usize,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DvhPoint {
     pub dose_gy: f32,
-    pub volume_fraction_ge: f32 }
+    pub volume_fraction_ge: f32,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RoiDoseAnalytics {
@@ -32,7 +34,8 @@ pub struct RoiDoseAnalytics {
     pub mean_dose_gy: f32,
     pub max_dose_gy: f32,
     pub d95_gy: f32,
-    pub curve: Vec<DvhPoint> }
+    pub curve: Vec<DvhPoint>,
+}
 
 /// Physical geometry of the loaded volume, grouped to reduce argument count.
 #[derive(Debug, Clone, Copy)]
@@ -40,7 +43,8 @@ pub struct VolumeGeometry {
     pub shape: [usize; 3],
     pub origin: [f64; 3],
     pub direction: [f64; 9],
-    pub spacing: [f64; 3] }
+    pub spacing: [f64; 3],
+}
 
 pub fn compute_roi_dose_analytics(
     rt_struct: &RtStructureSet,
@@ -176,7 +180,8 @@ pub fn compute_roi_dose_analytics(
         mean_dose_gy: mean_dose,
         max_dose_gy: max_dose,
         d95_gy: d95,
-        curve })
+        curve,
+    })
 }
 
 fn build_raster_polygon(
@@ -219,7 +224,8 @@ fn build_raster_polygon(
         row_min,
         row_max: row_max.min(rows.saturating_sub(1)),
         col_min,
-        col_max: col_max.min(cols.saturating_sub(1)) })
+        col_max: col_max.min(cols.saturating_sub(1)),
+    })
 }
 
 fn select_nth_smallest(values: &mut [f32], rank: usize) -> Option<f32> {
@@ -260,7 +266,8 @@ fn build_dvh_curve_histogram(dose_samples: &[f32], max_dose: f32, bins: usize) -
         let t = i as f32 / bins as f32;
         curve.push(DvhPoint {
             dose_gy: max_dose_safe * t,
-            volume_fraction_ge: count as f32 / n as f32 });
+            volume_fraction_ge: count as f32 / n as f32,
+        });
     }
     curve
 }

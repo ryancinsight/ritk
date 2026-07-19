@@ -1,12 +1,12 @@
-﻿use super::*;
+use super::*;
 
 // â”€â”€ Helper: binary image with specified components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 fn make_binary_image_with_components(
     dims: [usize; 3],
     components: &[(usize, usize, usize, usize, usize, usize)],
-) -> Image<Backend, 3> {
-    let device: <Backend as BurnBackend>::Device = Default::default();
+) -> Image<f32, Backend, 3> {
+    let backend = Backend::default();
     let [nz, ny, nx] = dims;
     let n = nz * ny * nx;
     let mut vals = vec![0.0_f32; n];
@@ -19,14 +19,14 @@ fn make_binary_image_with_components(
             }
         }
     }
-    let td = ::new(vals, Shape::new(dims));
-    let tensor = Tensor::<f32, Backend>::from_data(td, &device);
+    let tensor = Tensor::<f32, Backend>::from_slice_on(dims, &vals, &backend);
     Image::new(
         tensor,
         Point::new([0.0; 3]),
         Spacing::new([1.0; 3]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 // â”€â”€ Positive: K-Means creates output with cluster labels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -49,7 +49,7 @@ fn test_segment_kmeans_creates_output_with_valid_labels() {
     assert!(output.exists(), "kmeans output must be created");
     let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(labels.shape(), [6, 6, 6]);
-    let vals: Vec<f32> = labels.data_slice().into_owned();
+    let vals: Vec<f32> = labels.data_vec();
     for &v in &vals {
         assert!(
             (0.0..3.0 + 0.5).contains(&v),
@@ -109,8 +109,8 @@ fn test_segment_kmeans_seed_produces_deterministic_output() {
     run(make_args(inp1, out1.clone())).unwrap();
     run(make_args(inp2, out2.clone())).unwrap();
     let read_vals = |p: &std::path::Path| -> Vec<f32> {
-        let im: Image<Backend, 3> = ritk_io::read_nifti(p, &Default::default()).unwrap();
-        im.data_slice().into_owned()
+        let im: Image<f32, Backend, 3> = ritk_io::read_nifti(p, &Default::default()).unwrap();
+        im.data_vec()
     };
     assert_eq!(
         read_vals(&out1),
@@ -169,7 +169,14 @@ fn native_kmeans_cli_matches_canonical_legacy_output_exactly() {
         .apply(&image)
         .unwrap();
     let actual = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    assert_eq!(actual.data_slice(), expected.data_slice());
+    assert_eq!(
+        actual
+            .data_slice()
+            .expect("invariant: result storage is contiguous"),
+        expected
+            .data_slice()
+            .expect("invariant: result storage is contiguous")
+    );
     assert_eq!(actual.origin(), image.origin());
     assert_eq!(actual.spacing(), image.spacing());
     assert_eq!(actual.direction(), image.direction());
@@ -211,7 +218,10 @@ fn test_segment_distance_transform_creates_output() {
     assert!(output.exists(), "distance-transform output must be created");
     let dt = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
     assert_eq!(dt.shape(), [4, 4, 4], "shape must be preserved");
-    dt.with_data_slice(|vals| {
+    {
+        let vals = dt
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in vals {
             assert!(
                 v >= 0.0,
@@ -223,7 +233,7 @@ fn test_segment_distance_transform_creates_output() {
             has_positive,
             "distance-transform must produce at least one positive value for a non-trivial mask"
         );
-    });
+    }
 }
 
 #[test]
@@ -232,16 +242,16 @@ fn test_segment_distance_transform_background_is_zero() {
     let input = dir.path().join("input.nii");
     let output = dir.path().join("dt.nii");
 
-    let device: <Backend as BurnBackend>::Device = Default::default();
+    let backend = Backend::default();
     let values = vec![0.0_f32; 27];
-    let td = ::new(values, Shape::new([3, 3, 3]));
-    let tensor = Tensor::<f32, Backend>::from_data(td, &device);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([3, 3, 3], &values, &backend);
     let img = Image::new(
         tensor,
         Point::new([0.0; 3]),
         Spacing::new([1.0; 3]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     ritk_io::write_nifti(&input, &img).unwrap();
 
     run(default_args(
@@ -252,14 +262,17 @@ fn test_segment_distance_transform_background_is_zero() {
     .unwrap();
 
     let dt = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    dt.with_data_slice(|vals| {
+    {
+        let vals = dt
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in vals {
             assert_eq!(
                 v, 0.0,
                 "all-background image must have EDT=0 everywhere, got {v}"
             );
         }
-    });
+    }
 }
 
 #[test]
@@ -267,17 +280,15 @@ fn native_distance_transform_cli_preserves_exact_physical_values_and_geometry() 
     let dir = tempdir().unwrap();
     let input = dir.path().join("input.nii");
     let output = dir.path().join("distance.nii");
-    let device: <Backend as BurnBackend>::Device = Default::default();
-    let tensor = Tensor::<f32, Backend>::from_data(
-        ::new(vec![1.0, 0.0, 0.0, 0.0], Shape::new([1, 1, 4])),
-        &device,
-    );
+    let backend = Backend::default();
+    let tensor = Tensor::<f32, Backend>::from_slice_on([1, 1, 4], &[1.0, 0.0, 0.0, 0.0], &backend);
     let image = Image::new(
         tensor,
         Point::new([2.0, 3.0, 5.0]),
         Spacing::new([2.0, 3.0, 4.0]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     ritk_io::write_nifti(&input, &image).unwrap();
     run(default_args(
         input,
@@ -286,7 +297,12 @@ fn native_distance_transform_cli_preserves_exact_physical_values_and_geometry() 
     ))
     .unwrap();
     let actual = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    assert_eq!(actual.data_slice().as_ref(), &[0.0, 4.0, 8.0, 12.0]);
+    assert_eq!(
+        actual
+            .data_slice()
+            .expect("invariant: contiguous host storage"),
+        &[0.0, 4.0, 8.0, 12.0]
+    );
     assert_eq!(actual.origin(), image.origin());
     assert_eq!(actual.spacing(), image.spacing());
     assert_eq!(actual.direction(), image.direction());
@@ -299,7 +315,7 @@ fn test_segment_fill_holes_fills_enclosed_cavity() {
     let dir = tempdir().unwrap();
     let input = dir.path().join("input.nii");
     let output = dir.path().join("filled.nii");
-    let device: <Backend as BurnBackend>::Device = Default::default();
+    let backend = Backend::default();
     let (nz, ny, nx) = (7usize, 7usize, 7usize);
     let n = nz * ny * nx;
     let mut vals = vec![0.0_f32; n];
@@ -314,14 +330,14 @@ fn test_segment_fill_holes_fills_enclosed_cavity() {
             }
         }
     }
-    let td = ::new(vals, Shape::new([nz, ny, nx]));
-    let tensor = Tensor::<f32, Backend>::from_data(td, &device);
+    let tensor = Tensor::<f32, Backend>::from_slice_on([nz, ny, nx], &vals, &backend);
     let hollow_sphere = Image::new(
         tensor,
         Point::new([0.0; 3]),
         Spacing::new([1.0; 3]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     ritk_io::write_nifti(&input, &hollow_sphere).unwrap();
     run(default_args(
         input.clone(),
@@ -330,7 +346,10 @@ fn test_segment_fill_holes_fills_enclosed_cavity() {
     ))
     .unwrap();
     let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    result.with_data_slice(|out_vals| {
+    {
+        let out_vals = result
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for iz in 0..nz {
             for iy in 0..ny {
                 for ix in 0..nx {
@@ -351,7 +370,7 @@ fn test_segment_fill_holes_fills_enclosed_cavity() {
                 }
             }
         }
-    });
+    }
 }
 
 // â”€â”€ Morphological gradient tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -369,7 +388,10 @@ fn test_segment_morphological_gradient_extracts_boundary() {
     ))
     .unwrap();
     let result = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    result.with_data_slice(|vals| {
+    {
+        let vals = result
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         assert_eq!(vals.len(), 125);
         assert!(
             vals.contains(&1.0),
@@ -379,7 +401,7 @@ fn test_segment_morphological_gradient_extracts_boundary() {
             vals.iter().all(|&v| v == 0.0 || v == 1.0),
             "morphological gradient must be binary"
         );
-    });
+    }
 }
 
 // â”€â”€ Skeletonization tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -416,20 +438,24 @@ fn test_segment_skeletonization_strictly_binary() {
     ))
     .unwrap();
     let skel = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    skel.with_data_slice(|vals| {
+    {
+        let vals = skel
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in vals {
             assert!(
                 v == 0.0 || v == 1.0,
                 "skeleton voxels must be 0.0 or 1.0, found {v}"
             );
         }
-    });
+    }
 }
 
 #[test]
 fn native_postprocessing_cli_matches_legacy_exactly() {
     use ritk_segmentation::{
-        BinaryFillHoles, MorphologicalGradient, MorphologicalOperation, Skeletonization };
+        BinaryFillHoles, MorphologicalGradient, MorphologicalOperation, Skeletonization,
+    };
 
     let dir = tempdir().unwrap();
     let input = dir.path().join("input.nii");
@@ -438,25 +464,39 @@ fn native_postprocessing_cli_matches_legacy_exactly() {
     let cases = [
         (
             SegmentMethod::FillHoles,
-            BinaryFillHoles.apply(&image).data_slice().to_vec(),
+            BinaryFillHoles
+                .apply(&image)
+                .data_slice()
+                .expect("invariant: contiguous host storage")
+                .to_vec(),
         ),
         (
             SegmentMethod::MorphologicalGradient,
             MorphologicalGradient::new(1)
                 .apply(&image)
                 .data_slice()
+                .expect("invariant: contiguous host storage")
                 .to_vec(),
         ),
         (
             SegmentMethod::Skeletonization,
-            Skeletonization::new().apply(&image).data_slice().to_vec(),
+            Skeletonization::new()
+                .apply(&image)
+                .data_slice()
+                .expect("invariant: contiguous host storage")
+                .to_vec(),
         ),
     ];
     for (index, (method, expected)) in cases.into_iter().enumerate() {
         let output = dir.path().join(format!("output-{index}.nii"));
         run(default_args(input.clone(), output.clone(), method)).unwrap();
         let actual = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-        assert_eq!(actual.data_slice(), expected);
+        assert_eq!(
+            actual
+                .data_slice()
+                .expect("invariant: result storage is contiguous"),
+            expected
+        );
         assert_eq!(actual.origin(), image.origin());
         assert_eq!(actual.spacing(), image.spacing());
         assert_eq!(actual.direction(), image.direction());
@@ -507,7 +547,10 @@ fn test_segment_connected_components_output_labels_are_valid() {
     run(args).unwrap();
 
     let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    labels.with_data_slice(|slice| {
+    {
+        let slice = labels
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in slice {
             assert!(
                 v == 0.0 || v == 1.0 || v == 2.0,
@@ -519,7 +562,7 @@ fn test_segment_connected_components_output_labels_are_valid() {
         let has_label_2 = slice.contains(&2.0);
         assert!(has_label_1, "label 1 must be present");
         assert!(has_label_2, "label 2 must be present");
-    });
+    }
 }
 
 #[test]
@@ -542,11 +585,14 @@ fn test_segment_connected_components_connectivity_26() {
     run(args).unwrap();
 
     let labels = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    labels.with_data_slice(|slice| {
+    {
+        let slice = labels
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         let has_label_1 = slice.contains(&1.0);
         assert!(
             has_label_1,
             "component must be labeled with 26-connectivity"
         );
-    });
+    }
 }

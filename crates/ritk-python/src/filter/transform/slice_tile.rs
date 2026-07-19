@@ -1,7 +1,7 @@
-﻿use crate::errors::{RitkPyError, RitkResult};
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{
-    burn_into_py_image, into_py_image, py_image_to_burn, vec_to_image, vec_to_image_like,
-    with_image_slice, PyImage };
+    image_from_py, into_py_image, vec_to_image, vec_to_image_like, with_image_slice, PyImage,
+};
 use pyo3::prelude::*;
 use ritk_filter::PasteImageFilter;
 
@@ -234,12 +234,12 @@ pub fn paste(
     source: &PyImage,
     dest_start: (usize, usize, usize),
 ) -> RitkResult<PyImage> {
-    let d = py_image_to_burn(dest);
-    let s = py_image_to_burn(source);
+    let d = image_from_py(dest);
+    let s = image_from_py(source);
     py.allow_threads(|| {
         PasteImageFilter::new([dest_start.0, dest_start.1, dest_start.2])
             .apply(&d, &s)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

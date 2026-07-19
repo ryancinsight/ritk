@@ -17,6 +17,7 @@ fn make_volume(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 fn extract_vals(img: &Image<f32, B, 3>) -> Vec<f32> {

@@ -1,4 +1,4 @@
-﻿//! Background PACS worker: spawns a thread per request, returns a bounded
+//! Background PACS worker: spawns a thread per request, returns a bounded
 //! response channel.
 //!
 //! # Threading model
@@ -36,7 +36,8 @@ use super::query::{FindResultRow, FindResultRowSeries, PacsRequest, PacsResponse
 /// The caller polls [`PacsWorkerHandle::try_recv`] on every egui frame to
 /// detect completion.  Exactly one response is produced per handle.
 pub struct PacsWorkerHandle {
-    rx: mpsc::Receiver<PacsResponse> }
+    rx: mpsc::Receiver<PacsResponse>,
+}
 
 impl PacsWorkerHandle {
     /// Poll for a completed response without blocking.
@@ -94,7 +95,8 @@ fn execute_request(config: &PacsConfig, request: PacsRequest) -> PacsResponse {
             patient_name,
             modality,
             study_date,
-            accession_number } => execute_find(
+            accession_number,
+        } => execute_find(
             config,
             &patient_name,
             &modality,
@@ -103,19 +105,22 @@ fn execute_request(config: &PacsConfig, request: PacsRequest) -> PacsResponse {
         ),
         PacsRequest::RetrieveStudy {
             study_instance_uid,
-            move_destination } => execute_retrieve(config, &study_instance_uid, &move_destination),
+            move_destination,
+        } => execute_retrieve(config, &study_instance_uid, &move_destination),
         PacsRequest::FindSeries { study_instance_uid } => {
             execute_find_series(config, &study_instance_uid)
         }
         PacsRequest::RetrieveSeries {
             study_instance_uid,
             series_instance_uid,
-            move_destination } => execute_retrieve_series(
+            move_destination,
+        } => execute_retrieve_series(
             config,
             &study_instance_uid,
             &series_instance_uid,
             &move_destination,
-        ) }
+        ),
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -124,7 +129,8 @@ fn execute_echo(config: &PacsConfig) -> PacsResponse {
     let assoc_cfg = config.to_association_config();
     match dicom_echo(&assoc_cfg) {
         Ok(rsp) => PacsResponse::EchoOk { status: rsp.status },
-        Err(e) => PacsResponse::EchoErr(e.to_string()) }
+        Err(e) => PacsResponse::EchoErr(e.to_string()),
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -148,7 +154,8 @@ fn execute_find(
                 .collect();
             PacsResponse::FindOk(rows)
         }
-        Err(e) => PacsResponse::FindErr(e.to_string()) }
+        Err(e) => PacsResponse::FindErr(e.to_string()),
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -165,7 +172,8 @@ fn execute_find_series(config: &PacsConfig, study_instance_uid: &str) -> PacsRes
                 .collect();
             PacsResponse::FindSeriesOk(rows)
         }
-        Err(e) => PacsResponse::FindErr(e.to_string()) }
+        Err(e) => PacsResponse::FindErr(e.to_string()),
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -174,11 +182,13 @@ fn execute_retrieve(config: &PacsConfig, study_uid: &str, move_destination: &str
     let assoc_cfg = config.to_association_config();
     let dest_ae = match AeTitle::new(move_destination) {
         Ok(ae) => ae,
-        Err(e) => return PacsResponse::RetrieveErr(e.to_string()) };
+        Err(e) => return PacsResponse::RetrieveErr(e.to_string()),
+    };
     let destination = MoveDestination::new(dest_ae);
     match dicom_retrieve(&assoc_cfg, &destination, study_uid) {
         Ok(rsp) => PacsResponse::RetrieveOk(rsp),
-        Err(e) => PacsResponse::RetrieveErr(e.to_string()) }
+        Err(e) => PacsResponse::RetrieveErr(e.to_string()),
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -192,11 +202,13 @@ fn execute_retrieve_series(
     let assoc_cfg = config.to_association_config();
     let dest_ae = match AeTitle::new(move_destination) {
         Ok(ae) => ae,
-        Err(e) => return PacsResponse::RetrieveSeriesErr(e.to_string()) };
+        Err(e) => return PacsResponse::RetrieveSeriesErr(e.to_string()),
+    };
     let destination = MoveDestination::new(dest_ae);
     match dicom_retrieve_series(&assoc_cfg, &destination, study_uid, series_uid) {
         Ok(rsp) => PacsResponse::RetrieveSeriesOk(rsp),
-        Err(e) => PacsResponse::RetrieveSeriesErr(e.to_string()) }
+        Err(e) => PacsResponse::RetrieveSeriesErr(e.to_string()),
+    }
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]

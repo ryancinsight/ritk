@@ -1,4 +1,4 @@
-﻿#![allow(clippy::needless_range_loop)]
+#![allow(clippy::needless_range_loop)]
 
 use crate::domain::vtk_data_object::{AttributeArray, VtkImageData};
 use crate::io::image_xml::reader::parse_vti;
@@ -94,7 +94,8 @@ fn test_parse_vti_point_data_scalars() {
     {
         AttributeArray::Scalars {
             values,
-            num_components } => {
+            num_components,
+        } => {
             assert_eq!(*num_components, 1);
             assert_eq!(values.len(), 8);
             assert!(
@@ -108,7 +109,8 @@ fn test_parse_vti_point_data_scalars() {
                 values[7]
             );
         }
-        other => panic!("expected Scalars, got {:?}", other) }
+        other => panic!("expected Scalars, got {:?}", other),
+    }
 }
 
 #[test]
@@ -147,7 +149,8 @@ fn test_parse_vti_multicomponent_vectors() {
                 values[0][2]
             );
         }
-        other => panic!("expected Vectors, got {:?}", other) }
+        other => panic!("expected Vectors, got {:?}", other),
+    }
 }
 
 #[test]
@@ -171,7 +174,8 @@ fn test_parse_vti_cell_data() {
     {
         AttributeArray::Scalars {
             values,
-            num_components } => {
+            num_components,
+        } => {
             assert_eq!(*num_components, 1);
             assert_eq!(values.len(), 1);
             assert!(
@@ -180,7 +184,8 @@ fn test_parse_vti_cell_data() {
                 values[0]
             );
         }
-        other => panic!("expected Scalars, got {:?}", other) }
+        other => panic!("expected Scalars, got {:?}", other),
+    }
 }
 
 #[test]
@@ -212,7 +217,8 @@ fn test_read_vti_file_roundtrip() {
         "scalars".to_string(),
         AttributeArray::Scalars {
             values: vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
-            num_components: 1 },
+            num_components: 1,
+        },
     );
     let xml = write_vti_str(&img);
     let parsed = parse_vti(&xml).expect("round-trip parse must succeed");
@@ -239,7 +245,8 @@ fn test_read_vti_file_roundtrip() {
     {
         AttributeArray::Scalars {
             values,
-            num_components } => {
+            num_components,
+        } => {
             assert_eq!(*num_components, 1);
             assert_eq!(values.len(), 8);
             let expected = [1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
@@ -250,7 +257,8 @@ fn test_read_vti_file_roundtrip() {
                 );
             }
         }
-        other => panic!("expected Scalars, got {:?}", other) }
+        other => panic!("expected Scalars, got {:?}", other),
+    }
 }
 
 #[test]
@@ -268,7 +276,8 @@ fn test_from_file_roundtrip() {
         "density".to_string(),
         AttributeArray::Scalars {
             values: (0..24).map(|i| i as f32 * 0.5).collect(),
-            num_components: 1 },
+            num_components: 1,
+        },
     );
 
     let tmp = NamedTempFile::new().expect("temp file creation must succeed");
@@ -282,7 +291,8 @@ fn test_from_file_roundtrip() {
         .expect("density must exist")
     {
         AttributeArray::Scalars { values, .. } => values.clone(),
-        other => panic!("expected Scalars, got {:?}", other) };
+        other => panic!("expected Scalars, got {:?}", other),
+    };
     assert_eq!(loaded_vals.len(), 24, "24 scalar values expected");
     for i in 0..24 {
         let exp = i as f32 * 0.5;

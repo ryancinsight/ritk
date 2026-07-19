@@ -1,4 +1,4 @@
-﻿//! `ritk-vtk` â€” VTK-native data model and I/O for the RITK toolkit.
+//! `ritk-vtk` â€” VTK-native data model and I/O for the RITK toolkit.
 //!
 //! Provides the authoritative VTK data model (domain types) and all VTK-format
 //! I/O free functions. Designed as a pure VTK-domain library with no
@@ -14,7 +14,8 @@ pub use domain::{
     RenderProperties, ScalarVisibility, SmoothFilter, SurfaceMapper, ThresholdFilter, Visibility,
     VtkActor, VtkCellType, VtkDataObject, VtkFilter, VtkImageData, VtkLookupTable, VtkMapper,
     VtkMultiBlockDataSet, VtkPipeline, VtkPolyData, VtkScene, VtkSink, VtkSource,
-    VtkStructuredGrid, VtkUnstructuredGrid };
+    VtkStructuredGrid, VtkUnstructuredGrid,
+};
 
 pub use io::{
     encode_vtk_flat,
@@ -58,6 +59,7 @@ pub use io::{
     write_vtu_str,
     write_vtu_unstructured_grid,
     VtkReader,
-    VtkWriter };
+    VtkWriter,
+};
 
 pub use domain::mesh_bridge::{indexed_mesh_to_poly, poly_to_indexed_mesh};

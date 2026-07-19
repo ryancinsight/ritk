@@ -1,11 +1,12 @@
-﻿use super::*;
+use super::*;
 use ritk_registration::diffeomorphic::multires_syn::InverseConsistency;
 
 impl From<CliInverseConsistency> for InverseConsistency {
     fn from(v: CliInverseConsistency) -> Self {
         match v {
             CliInverseConsistency::Enforced => Self::Enforced,
-            CliInverseConsistency::Relaxed => Self::Relaxed }
+            CliInverseConsistency::Relaxed => Self::Relaxed,
+        }
     }
 }
 
@@ -82,7 +83,8 @@ pub(super) fn run_bspline_ffd(args: &RegisterArgs) -> Result<()> {
         max_iterations_per_level: args.iterations,
         learning_rate: args.learning_rate,
         regularization_weight: args.regularization_weight,
-        convergence_threshold: args.convergence_threshold };
+        convergence_threshold: args.convergence_threshold,
+    };
     let result = BSplineFFDRegistration::register(
         &fixed_vals,
         &moving_vals,
@@ -119,7 +121,8 @@ pub(super) fn run_bspline_ffd(args: &RegisterArgs) -> Result<()> {
 /// level-doubling velocity fields and optional inverse consistency enforcement.
 pub(super) fn run_multires_syn(args: &RegisterArgs) -> Result<()> {
     use ritk_registration::diffeomorphic::multires_syn::{
-        MultiResSyNConfig, MultiResSyNRegistration };
+        MultiResSyNConfig, MultiResSyNRegistration,
+    };
 
     let fixed_img = super::super::read_image(&args.fixed)?;
     let moving_img = super::super::read_image(&args.moving)?;
@@ -136,7 +139,8 @@ pub(super) fn run_multires_syn(args: &RegisterArgs) -> Result<()> {
         n_squarings: 6,
         cc_window_radius: args.cc_radius,
         enforce_inverse_consistency: args.inverse_consistency.into(),
-        gradient_step: 0.25 };
+        gradient_step: 0.25,
+    };
     let reg = MultiResSyNRegistration::new(config);
     let result = reg
         .register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
@@ -190,7 +194,8 @@ pub(super) fn run_bspline_syn(args: &RegisterArgs) -> Result<()> {
         n_squarings: 6,
         cc_window_radius: args.cc_radius,
         regularization_weight: args.regularization_weight,
-        gradient_step: 0.25 };
+        gradient_step: 0.25,
+    };
     let reg = BSplineSyNRegistration::new(config);
     let result = reg
         .register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
@@ -253,7 +258,8 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
-            convergence_threshold: 1e-5 }
+            convergence_threshold: 1e-5,
+        }
     }
 
     /// Run a diffeomorphic method with default args and return the temp dir + output path.
@@ -296,14 +302,17 @@ mod tests {
     fn test_register_syn_identity_finite_voxels() {
         let (_dir, output) = run_method(RegistrationMethod::Syn, "warped.nii");
         let warped = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-        warped.with_data_slice(|vals| {
+        {
+            let vals = warped
+                .data_slice()
+                .expect("invariant: image storage is contiguous");
             for (i, &v) in vals.iter().enumerate() {
                 assert!(
                     v.is_finite(),
                     "syn output voxel [{i}] must be finite, got {v}"
                 );
             }
-        });
+        }
     }
 
     // â”€â”€ BSpline FFD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -319,12 +328,15 @@ mod tests {
     fn test_register_bspline_ffd_identity_finite_voxels() {
         let (_dir, output) = run_method(RegistrationMethod::BsplineFfd, "output.nii");
         let out = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-        out.with_data_slice(|vals| {
+        {
+            let vals = out
+                .data_slice()
+                .expect("invariant: image storage is contiguous");
             assert!(
                 vals.iter().all(|v| v.is_finite()),
                 "all output voxels must be finite"
             );
-        });
+        }
     }
 
     // â”€â”€ Multi-resolution SyN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -340,12 +352,15 @@ mod tests {
     fn test_register_multires_syn_identity_finite_voxels() {
         let (_dir, output) = run_method(RegistrationMethod::MultiResSyn, "output.nii");
         let out = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-        out.with_data_slice(|vals| {
+        {
+            let vals = out
+                .data_slice()
+                .expect("invariant: image storage is contiguous");
             assert!(
                 vals.iter().all(|v| v.is_finite()),
                 "all output voxels must be finite"
             );
-        });
+        }
     }
 
     // â”€â”€ BSpline SyN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -361,11 +376,14 @@ mod tests {
     fn test_register_bspline_syn_identity_finite_voxels() {
         let (_dir, output) = run_method(RegistrationMethod::BsplineSyn, "output.nii");
         let out = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-        out.with_data_slice(|vals| {
+        {
+            let vals = out
+                .data_slice()
+                .expect("invariant: image storage is contiguous");
             assert!(
                 vals.iter().all(|v| v.is_finite()),
                 "all output voxels must be finite"
             );
-        });
+        }
     }
 }

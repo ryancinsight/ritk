@@ -1,11 +1,12 @@
-﻿//! Geodesic integration via forward Euler for LDDMM.
+//! Geodesic integration via forward Euler for LDDMM.
 
 #[cfg(test)]
 use crate::deformable_field_ops::gaussian_smooth_field_inplace;
 #[cfg(test)]
 use crate::deformable_field_ops::VelocityField;
 use crate::deformable_field_ops::{
-    compose_fields_into, FieldSmoother, VectorField, VectorFieldMut };
+    compose_fields_into, FieldSmoother, VectorField, VectorFieldMut,
+};
 
 use super::adjoint::epdiff_adjoint_into;
 
@@ -67,17 +68,20 @@ pub(super) fn integrate_geodesic(
             VectorField {
                 z: &vz,
                 y: &vy,
-                x: &vx },
+                x: &vx,
+            },
             VectorField {
                 z: &mz,
                 y: &my,
-                x: &mx },
+                x: &mx,
+            },
             dims,
             spacing,
             VectorFieldMut {
                 z: &mut adz,
                 y: &mut ady,
-                x: &mut adx },
+                x: &mut adx,
+            },
         );
         gaussian_smooth_field_inplace(&mut adz, &mut ady, &mut adx, dims.into(), kernel_sigma);
 
@@ -100,16 +104,19 @@ pub(super) fn integrate_geodesic(
             VectorField {
                 z: &adz,
                 y: &ady,
-                x: &adx },
+                x: &adx,
+            },
             VectorField {
                 z: &dz,
                 y: &dy,
-                x: &dx },
+                x: &dx,
+            },
             dims.into(),
             VectorFieldMut {
                 z: &mut comp_z,
                 y: &mut comp_y,
-                x: &mut comp_x },
+                x: &mut comp_x,
+            },
         );
         dz.copy_from_slice(&comp_z);
         dy.copy_from_slice(&comp_y);
@@ -119,7 +126,8 @@ pub(super) fn integrate_geodesic(
     VelocityField {
         z: dz,
         y: dy,
-        x: dx }
+        x: dx,
+    }
 }
 
 /// Zero-allocation EPDiff geodesic integration using a [`FieldSmoother`] for
@@ -183,17 +191,20 @@ pub(super) fn integrate_geodesic_into_with_smoother(
             VectorField {
                 z: vel_z,
                 y: vel_y,
-                x: vel_x },
+                x: vel_x,
+            },
             VectorField {
                 z: mom_z,
                 y: mom_y,
-                x: mom_x },
+                x: mom_x,
+            },
             dims,
             spacing,
             VectorFieldMut {
                 z: adj_z,
                 y: adj_y,
-                x: adj_x },
+                x: adj_x,
+            },
         );
         smoother.smooth_field(adj_z, adj_y, adj_x);
 
@@ -223,16 +234,19 @@ pub(super) fn integrate_geodesic_into_with_smoother(
                 VectorField {
                     z: step_z,
                     y: step_y,
-                    x: step_x },
+                    x: step_x,
+                },
                 VectorField {
                     z: d_z,
                     y: d_y,
-                    x: d_x },
+                    x: d_x,
+                },
                 dims.into(),
                 VectorFieldMut {
                     z: comp_z,
                     y: comp_y,
-                    x: comp_x },
+                    x: comp_x,
+                },
             );
         }
 

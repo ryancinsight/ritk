@@ -137,12 +137,12 @@ impl ItkSlicFilter {
         let labels = self.labels(&values, shape);
         let device = B::default();
         let tensor = Tensor::<f32, B>::from_slice_on(shape, &labels, &device);
-        Ok(Image::new(
+        Image::new(
             tensor,
             *image.origin(),
             *image.spacing(),
             *image.direction(),
-        ))
+        )
     }
 
     /// Apply fixed-grid SLIC to a Coeus-native 3-D image.
@@ -152,9 +152,9 @@ impl ItkSlicFilter {
     /// Returns an input-validation, backend storage, or output-construction error.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

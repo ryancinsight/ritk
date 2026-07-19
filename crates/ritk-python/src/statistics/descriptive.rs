@@ -1,17 +1,19 @@
-﻿//! Descriptive statistics, image comparison, noise estimation, and label statistics.
+//! Descriptive statistics, image comparison, noise estimation, and label statistics.
 
-use crate::errors::RitkResult;
-use crate::image::{py_image_to_burn, with_image_slice, PyImage};
+use crate::errors::{RitkPyError, RitkResult};
+use crate::image::{image_from_py, with_image_slice, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_statistics::compute_label_intensity_statistics_from_slices as core_label_intensity_stats_from_slices;
 use ritk_statistics::image_statistics::compute_statistics_from_slice;
 use ritk_statistics::noise_estimation::{
-    estimate_noise_mad_from_slice, estimate_noise_mad_masked_from_slices };
+    estimate_noise_mad_from_slice, estimate_noise_mad_masked_from_slices,
+};
 use ritk_statistics::{
     dice_coefficient as core_dice_coefficient, hausdorff_distance as core_hausdorff_distance,
     mean_surface_distance as core_mean_surface_distance, psnr as core_psnr,
-    similarity_index as core_similarity_index, ssim as core_ssim, ImageStatistics };
+    similarity_index as core_similarity_index, ssim as core_ssim, ImageStatistics,
+};
 
 /// Convert [`ImageStatistics`] to a Python dict with keys:
 /// `min`, `max`, `mean`, `std`, `p25`, `p50`, `p75`.
@@ -103,10 +105,10 @@ pub fn masked_statistics(
 /// Returns:
 ///     Dice coefficient in [0, 1]. Returns 1.0 if both images have zero volume.
 #[pyfunction]
-pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> f32 {
-    let a = py_image_to_burn(image1);
-    let b = py_image_to_burn(image2);
-    core_dice_coefficient(&a, &b)
+pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> RitkResult<f32> {
+    let a = image_from_py(image1);
+    let b = image_from_py(image2);
+    core_dice_coefficient(&a, &b).map_err(RitkPyError::value)
 }
 
 /// Compute the ITK `SimilarityIndexImageFilter` overlap between two images.
@@ -122,10 +124,11 @@ pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> f32 {
 /// Returns:
 ///     Similarity index 2|Aâˆ©B|/(|A|+|B|) in [0, 1].
 #[pyfunction]
-pub fn similarity_index(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f32 {
-    let arc1 = py_image_to_burn(image1);
-    let arc2 = py_image_to_burn(image2);
+pub fn similarity_index(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> RitkResult<f32> {
+    let arc1 = image_from_py(image1);
+    let arc2 = image_from_py(image2);
     py.allow_threads(|| core_similarity_index(&arc1, &arc2))
+        .map_err(RitkPyError::value)
 }
 
 /// Compute the symmetric Hausdorff distance between two binary masks.
@@ -143,8 +146,8 @@ pub fn similarity_index(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f
 pub fn hausdorff_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f32 {
     let sp = image1.inner.spacing();
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
-    let arc1 = py_image_to_burn(image1);
-    let arc2 = py_image_to_burn(image2);
+    let arc1 = image_from_py(image1);
+    let arc2 = image_from_py(image2);
     py.allow_threads(|| core_hausdorff_distance(&arc1, &arc2, &spacing))
 }
 
@@ -163,8 +166,8 @@ pub fn hausdorff_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) ->
 pub fn mean_surface_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> f32 {
     let sp = image1.inner.spacing();
     let spacing: [f64; 3] = [sp[0], sp[1], sp[2]];
-    let arc1 = py_image_to_burn(image1);
-    let arc2 = py_image_to_burn(image2);
+    let arc1 = image_from_py(image1);
+    let arc2 = image_from_py(image2);
     py.allow_threads(|| core_mean_surface_distance(&arc1, &arc2, &spacing))
 }
 
@@ -183,8 +186,8 @@ pub fn mean_surface_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage)
 #[pyfunction]
 #[pyo3(signature = (image1, image2, max_val=1.0))]
 pub fn psnr(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
-    let a = py_image_to_burn(image1);
-    let b = py_image_to_burn(image2);
+    let a = image_from_py(image1);
+    let b = image_from_py(image2);
     core_psnr(&a, &b, max_val)
 }
 
@@ -203,8 +206,8 @@ pub fn psnr(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
 #[pyfunction]
 #[pyo3(signature = (image1, image2, max_val=1.0))]
 pub fn ssim(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
-    let a = py_image_to_burn(image1);
-    let b = py_image_to_burn(image2);
+    let a = image_from_py(image1);
+    let b = image_from_py(image2);
     core_ssim(&a, &b, max_val)
 }
 
@@ -230,7 +233,8 @@ pub fn estimate_noise(image: &PyImage, mask: Option<&PyImage>) -> f32 {
                 estimate_noise_mad_masked_from_slices(img_slice, mask_slice)
             })
         }),
-        None => with_image_slice(image.inner.as_ref(), estimate_noise_mad_from_slice) }
+        None => with_image_slice(image.inner.as_ref(), estimate_noise_mad_from_slice),
+    }
 }
 
 /// Compute per-label intensity statistics over a co-registered intensity image.

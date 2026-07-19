@@ -1,4 +1,4 @@
-﻿//! RT-DOSE overlay colorization helpers.
+//! RT-DOSE overlay colorization helpers.
 //!
 //! Converts projected RT-DOSE scalar slices into `egui::ColorImage` textures.
 //! The app shell caches these textures to avoid per-frame per-pixel draw calls.
@@ -46,7 +46,8 @@ pub fn build_overlay_image(
     }
     Some(ColorImage {
         size: [cols, rows],
-        pixels })
+        pixels,
+    })
 }
 
 #[cfg(test)]

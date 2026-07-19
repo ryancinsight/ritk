@@ -1,4 +1,4 @@
-﻿//! Pre-computed B-spline basis cache for all three image axes.
+//! Pre-computed B-spline basis cache for all three image axes.
 //!
 //! Building the cache is O(nz + ny + nx) â€” negligible (~0.01 ms for a 256Â³ volume).
 //! Each `evaluate_bspline_displacement_fast` call saves ~50M `cubic_bspline_1d`
@@ -12,7 +12,8 @@ use super::scalar::AxisBasis;
 pub struct BasisCache {
     pub z: AxisBasis,
     pub y: AxisBasis,
-    pub x: AxisBasis }
+    pub x: AxisBasis,
+}
 
 impl BasisCache {
     /// Build the basis cache for the given image dimensions and control spacing.
@@ -21,7 +22,8 @@ impl BasisCache {
         Self {
             z: AxisBasis::new(nz, ctrl_spacing[0]),
             y: AxisBasis::new(ny, ctrl_spacing[1]),
-            x: AxisBasis::new(nx, ctrl_spacing[2]) }
+            x: AxisBasis::new(nx, ctrl_spacing[2]),
+        }
     }
 
     /// Return interior z-range `[z_lo, z_hi)` where all 4 control points

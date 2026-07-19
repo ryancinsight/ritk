@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 
 #[test]
 fn quant_boundary_mapping() {
@@ -201,7 +201,8 @@ fn update_context_bias_positive_decrements_b() {
         a: 0,
         b: 5,
         c: 0,
-        n: 4 };
+        n: 4,
+    };
     // b > 0 â†’ b -= n â†’ b = 5 - 4 = 1 â†’ clamp to min(1, 0) = 0 in the code?
     // Actually: b = (b - n).min(0) = (1).min(0) = 0. Wait let me re-check the code.
     // After errval=0: ctx.b += 0*(2*0+1) = 0, so b stays 5.

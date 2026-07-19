@@ -1,4 +1,4 @@
-﻿//! `ritk segment` â€” image segmentation command.
+//! `ritk segment` â€” image segmentation command.
 //!
 //! Applies one of the following segmentation algorithms to a 3-D medical image:
 //!
@@ -80,5 +80,6 @@ pub fn run(args: SegmentArgs) -> Result<()> {
         SegmentMethod::ChanVese => level_set::run_chan_vese(&args),
         SegmentMethod::GeodesicActiveContour => level_set::run_geodesic_active_contour(&args),
         SegmentMethod::Binary => threshold::run_binary(&args),
-        SegmentMethod::MarkerWatershed => watershed::run_marker_watershed(&args) }
+        SegmentMethod::MarkerWatershed => watershed::run_marker_watershed(&args),
+    }
 }

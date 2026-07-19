@@ -13,9 +13,12 @@ fn img(v: Vec<f32>, d: [usize; 3]) -> Image<f32, B, 3> {
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 fn vv(i: &Image<f32, B, 3>) -> Vec<f32> {
-    i.data_slice().into_owned()
+    i.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 #[test]
@@ -62,7 +65,10 @@ fn test_wth_metadata() {
     let o = Point::new([1.0, 2.0, 3.0]);
     let s = Spacing::new([0.5, 0.5, 0.5]);
     let r = WhiteTopHatFilter::new(1)
-        .apply(&Image::new(t, o, s, Direction::identity()))
+        .apply(
+            &Image::new(t, o, s, Direction::identity())
+                .expect("invariant: fixture tensor has the declared rank"),
+        )
         .unwrap();
     assert_eq!(*r.origin(), o);
     assert_eq!(*r.spacing(), s);
@@ -121,7 +127,10 @@ fn test_bth_metadata() {
     let o = Point::new([1.0, 2.0, 3.0]);
     let s = Spacing::new([0.5, 0.5, 0.5]);
     let r = BlackTopHatFilter::new(1)
-        .apply(&Image::new(t, o, s, Direction::identity()))
+        .apply(
+            &Image::new(t, o, s, Direction::identity())
+                .expect("invariant: fixture tensor has the declared rank"),
+        )
         .unwrap();
     assert_eq!(*r.origin(), o);
     assert_eq!(*r.spacing(), s);

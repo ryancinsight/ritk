@@ -106,6 +106,7 @@ where
         spacing,
         direction,
     )
+    .expect("test fixture tensor rank equals the const image dimension")
 }
 
 /// Build an [`Image<T, B, D>`] from raw voxel data with custom per-axis spacing

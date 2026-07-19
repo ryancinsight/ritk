@@ -66,7 +66,8 @@ impl<B: Backend, const D: usize> MorphologicalOperation<B, D> for BinaryClosing 
                 *mask.origin(),
                 *mask.spacing(),
                 *mask.direction(),
-            );
+            )
+            .expect("invariant: segmentation output tensor preserves the image rank");
         }
         let padded = pad_background(mask, self.radius);
         let dilated = apply_morphological_op(&padded, self.radius, MorphOp::Dilation);
@@ -116,6 +117,7 @@ fn pad_background<B: Backend, const D: usize>(
     let device = B::default();
     let tensor = Tensor::<f32, B>::from_slice_on(new_shape, &out, &device);
     Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
+        .expect("invariant: segmentation output tensor preserves the image rank")
 }
 
 /// Crop `r` voxels from every face of `padded`, restoring `original`'s shape and
@@ -150,6 +152,7 @@ fn crop_border<B: Backend, const D: usize>(
         *original.spacing(),
         *original.direction(),
     )
+    .expect("invariant: segmentation output tensor preserves the image rank")
 }
 
 // â”€â”€ Shared implementation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -194,6 +197,7 @@ pub(super) fn apply_morphological_op<B: Backend, const D: usize>(
     let tensor = Tensor::<f32, B>::from_slice_on(shape, &output, &device);
 
     Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
+        .expect("invariant: segmentation output tensor preserves the image rank")
 }
 
 /// Scan the hypercube neighbourhood of `center` and return the erosion/dilation

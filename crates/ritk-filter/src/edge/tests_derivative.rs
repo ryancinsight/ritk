@@ -4,7 +4,10 @@ use ritk_image::test_support as ts;
 type B = coeus_core::SequentialBackend;
 
 fn vals(image: &Image<f32, B, 3>) -> Vec<f32> {
-    image.data_slice().into_owned()
+    image
+        .data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 /// Order-1 derivative of a ramp along X (axis 2), unit spacing: central
@@ -55,7 +58,8 @@ fn derivative_respects_image_spacing() {
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 2.0]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     let out = vals(&DerivativeImageFilter::new(2, 1, true).apply(&img).unwrap());
     // central diff / (2*spacing) = 20/(2*2) = 5 in the interior.
     assert!(

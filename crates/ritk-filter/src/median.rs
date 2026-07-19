@@ -60,8 +60,8 @@ impl MedianFilter {
     /// or the rebuilt tensor fails shape validation.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+        image: &ritk_image::Image<f32, B, 3>,
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend + Default,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -198,8 +198,8 @@ mod tests {
 
     use coeus_core::SequentialBackend;
     use ritk_core::image::Image;
-    use ritk_image::native::Image as NativeImage;
     use ritk_image::tensor::Tensor;
+    use ritk_image::Image as NativeImage;
     use ritk_spatial::{Direction, Point, Spacing};
 
     type B = coeus_core::SequentialBackend;
@@ -218,11 +218,14 @@ mod tests {
             Spacing::new(spacing),
             Direction::identity(),
         )
+        .expect("invariant: fixture tensor has the declared rank")
     }
 
     /// Extract voxel data as `Vec<f32>` from an image.
     fn extract_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
-        img.data_slice().into_owned()
+        img.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec()
     }
 
     // â”€â”€ Test 1: Uniform image is unchanged â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

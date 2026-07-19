@@ -1,4 +1,4 @@
-﻿//! Full J2K codestream decoder and pixel extractor.
+//! Full J2K codestream decoder and pixel extractor.
 //!
 //! # Pipeline (ISO 15444-1)
 //! 1. Parse main header (SIZ, COD, QCD) via `codestream`.
@@ -145,7 +145,8 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
                             num_layers: cod.num_layers.max(1),
                             exponents: &qcd_exponents,
                             mantissas: &qcd_mantissas,
-                            transform },
+                            transform,
+                        },
                     )
                     .with_context(|| format!("J2K: decode tile {isot} component {ci}"))?;
 
@@ -241,7 +242,8 @@ mod tests {
             bits_allocated: bits,
             pixel_representation: signed,
             rescale_slope: 1.0,
-            rescale_intercept: 0.0 }
+            rescale_intercept: 0.0,
+        }
     }
 
     #[test]

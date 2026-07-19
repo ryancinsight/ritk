@@ -1,7 +1,8 @@
-﻿use super::contexts::{mr_context, sc_context, zc_context, SubbandOrientation, CTX_AGG, CTX_UNI};
+use super::contexts::{mr_context, sc_context, zc_context, SubbandOrientation, CTX_AGG, CTX_UNI};
 use super::{
     any_neighbour_sig, neighbour_sig_counts, neighbour_sig_total, sign_contributions, trace,
-    SampleState };
+    SampleState,
+};
 use crate::jpeg_2000::mq_coder::{initial_contexts, MqDecoder};
 
 // â”€â”€ Decoded code-block result â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -18,7 +19,8 @@ pub struct DecodedBlock {
     /// in bits `0..lowest_bitplane`; the irreversible reconstruction uses this
     /// to place the dequantized value at the midpoint of the still-undecoded
     /// interval (ISO 15444-1 Â§E.1.1.2) rather than a fixed half-step.
-    pub lowest_bitplane: u32 }
+    pub lowest_bitplane: u32,
+}
 
 /// Decode one EBCOT code-block.
 ///
@@ -50,7 +52,8 @@ pub fn decode_code_block(
     if data.is_empty() || num_bit_planes == 0 || num_passes == 0 {
         return DecodedBlock {
             samples: vec![0i32; n],
-            lowest_bitplane: num_bit_planes as u32 };
+            lowest_bitplane: num_bit_planes as u32,
+        };
     }
 
     let mut mq = MqDecoder::new(data);
@@ -272,5 +275,6 @@ pub fn decode_code_block(
 
     DecodedBlock {
         samples,
-        lowest_bitplane: lowest_bp }
+        lowest_bitplane: lowest_bp,
+    }
 }

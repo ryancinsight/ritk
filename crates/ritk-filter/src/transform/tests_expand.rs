@@ -4,7 +4,10 @@ use ritk_image::test_support as ts;
 type B = coeus_core::SequentialBackend;
 
 fn vals(image: &Image<f32, B, 3>) -> Vec<f32> {
-    image.data_slice().into_owned()
+    image
+        .data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 /// Expand a 1-D ramp by factor 2 along X. Matches the ITK/sitk grid exactly
@@ -43,7 +46,8 @@ fn expand_updates_spacing_and_origin() {
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 2.0]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     let out = ExpandImageFilter::new([1, 1, 2]).apply(&img);
     // X spacing 2.0/2 = 1.0; X origin 0 - 0.5*2 + 0.5*1 = -0.5.
     assert!((out.spacing().to_array()[2] - 1.0).abs() < 1e-9);

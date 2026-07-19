@@ -1,4 +1,4 @@
-﻿//! MONAI Label Server domain types.
+//! MONAI Label Server domain types.
 //!
 //! # Domain model
 //!
@@ -31,7 +31,8 @@ pub struct ServerInfo {
     pub version: String,
     /// Label map or metadata; structure is model-specific â€” stored as raw JSON.
     #[serde(default)]
-    pub labels: serde_json::Value }
+    pub labels: serde_json::Value,
+}
 
 // â”€â”€ ModelType â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -45,7 +46,8 @@ pub enum ModelType {
     /// Active learning query strategy.
     ActiveLearning,
     /// Any type string not in the above set.
-    Unknown(String) }
+    Unknown(String),
+}
 
 impl Default for ModelType {
     fn default() -> Self {
@@ -60,7 +62,8 @@ impl<'de> Deserialize<'de> for ModelType {
             "segmentation" | "Segmentation" => Self::Segmentation,
             "deepedit" | "DeepEdit" => Self::DeepEdit,
             "activelearning" | "ActiveLearning" => Self::ActiveLearning,
-            other => Self::Unknown(other.to_owned()) })
+            other => Self::Unknown(other.to_owned()),
+        })
     }
 }
 
@@ -70,7 +73,8 @@ impl Serialize for ModelType {
             Self::Segmentation => "segmentation",
             Self::DeepEdit => "deepedit",
             Self::ActiveLearning => "activelearning",
-            Self::Unknown(o) => o.as_str() })
+            Self::Unknown(o) => o.as_str(),
+        })
     }
 }
 
@@ -92,7 +96,8 @@ pub struct ModelInfo {
     pub labels: Vec<String>,
     /// Spatial dimensionality of the model input (2 or 3).
     #[serde(default)]
-    pub dimension: u32 }
+    pub dimension: u32,
+}
 
 // â”€â”€ InferRequest â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -105,7 +110,8 @@ pub struct InferRequest {
     pub image_id: String,
     /// Optional model-specific inference parameters; sent as JSON body.
     /// Use `serde_json::json!({})` for an empty parameter set.
-    pub params: serde_json::Value }
+    pub params: serde_json::Value,
+}
 
 impl InferRequest {
     /// Construct a request with an empty JSON params object.
@@ -113,7 +119,8 @@ impl InferRequest {
         Self {
             model: model.into(),
             image_id: image_id.into(),
-            params: serde_json::Value::Object(Default::default()) }
+            params: serde_json::Value::Object(Default::default()),
+        }
     }
 }
 
@@ -129,7 +136,8 @@ pub struct InferResponse {
     /// Raw segmentation label bytes (NIfTI or NIfTI-compressed format).
     pub label: Vec<u8>,
     /// Inference metadata from the server (timing, scores, label map, etc.).
-    pub params: serde_json::Value }
+    pub params: serde_json::Value,
+}
 
 // â”€â”€ MonaiError â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -150,10 +158,13 @@ pub enum MonaiError {
         /// HTTP status code (e.g. 404, 500).
         status: u16,
         /// Response body text for diagnostic context.
-        body: String },
+        body: String,
+    },
 
     /// Multipart or JSON response structure was unexpected.
     #[error("response parse error: {message}")]
     ParseError {
         /// Human-readable description of the parsing failure.
-        message: String } }
+        message: String,
+    },
+}

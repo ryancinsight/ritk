@@ -1,4 +1,4 @@
-﻿use super::super::local_cc::mean_local_cc;
+use super::super::local_cc::mean_local_cc;
 use super::primitives::{accumulate_to_cp, bspline_basis, cp_count, cp_laplacian, evaluate_dense};
 use super::{BSplineSyNConfig, BSplineSyNRegistration};
 use crate::deformable_field_ops::flat;
@@ -13,7 +13,8 @@ fn make_default_config() -> BSplineSyNConfig {
         n_squarings: 6,
         cc_window_radius: 2,
         gradient_step: 0.25,
-        regularization_weight: 0.01 }
+        regularization_weight: 0.01,
+    }
 }
 
 /// Smooth test image: `I[z,y,x] = sin(Ï€Â·z/nz) Â· cos(Ï€Â·y/ny) Â· (x + 1)`.
@@ -210,7 +211,8 @@ fn bspline_registration_non_divergence() {
         n_squarings: 6,
         cc_window_radius: 2,
         gradient_step: 0.25,
-        regularization_weight: 0.01 };
+        regularization_weight: 0.01,
+    };
     let reg = BSplineSyNRegistration::new(cfg);
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])

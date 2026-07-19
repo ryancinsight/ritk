@@ -9,7 +9,7 @@ use ritk_image::tensor::Tensor;
 use std::path::Path;
 
 fn native_to_legacy<B: Backend>(
-    native: ritk_image::native::Image<f32, SequentialBackend, 3>,
+    native: ritk_image::Image<f32, SequentialBackend, 3>,
     device: &B,
 ) -> Image<f32, B, 3> {
     let values = native.data_cow_on(&SequentialBackend);
@@ -20,6 +20,7 @@ fn native_to_legacy<B: Backend>(
         *native.spacing(),
         *native.direction(),
     )
+    .expect("invariant: backend conversion preserves the validated image rank")
 }
 
 /// Reads NIfTI through the native provider and converts at this legacy boundary.
@@ -37,14 +38,14 @@ pub fn read_nifti_from_bytes<B: Backend>(bytes: &[u8], device: &B) -> Result<Ima
 pub fn read_nifti_from_bytes_native<B: coeus_core::ComputeBackend>(
     bytes: &[u8],
     backend: &B,
-) -> Result<ritk_image::native::Image<f32, B, 3>> {
+) -> Result<ritk_image::Image<f32, B, 3>> {
     ritk_nifti::read_nifti_from_bytes(bytes, backend)
 }
 
 /// Writes a legacy image through the native NIfTI provider.
 pub fn write_nifti<B: Backend, P: AsRef<Path>>(path: P, image: &Image<f32, B, 3>) -> Result<()> {
     let backend = SequentialBackend;
-    let native = ritk_image::native::Image::from_flat_on(
+    let native = ritk_image::Image::from_flat_on(
         image.try_data_vec()?,
         image.shape(),
         *image.origin(),
@@ -85,7 +86,7 @@ impl<B: Backend> crate::domain::ImageWriter<Image<f32, B, 3>> for NiftiWriter {
 pub mod native {
     use crate::domain::{to_io_err, ImageReader, ImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};
-    use ritk_image::native::Image;
+    use ritk_image::Image;
     use std::path::Path;
 
     /// Backend-bound NIfTI reader.

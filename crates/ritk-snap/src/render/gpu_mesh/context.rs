@@ -1,4 +1,4 @@
-﻿//! wgpu device init and pipeline compilation for the GPU mesh renderer.
+//! wgpu device init and pipeline compilation for the GPU mesh renderer.
 //!
 //! `GpuMeshContext` owns the `wgpu::Device` and `wgpu::Queue` plus the four
 //! compiled pipelines and their bind group layouts:
@@ -25,7 +25,8 @@ pub(super) struct GpuMeshContext {
     pub geom_base_bgl: wgpu::BindGroupLayout,
     pub geom_peel_bgl: wgpu::BindGroupLayout,
     pub ssao_bgl: wgpu::BindGroupLayout,
-    pub composite_bgl: wgpu::BindGroupLayout }
+    pub composite_bgl: wgpu::BindGroupLayout,
+}
 
 impl GpuMeshContext {
     /// Initialize a headless wgpu context and compile all four pipelines.
@@ -37,16 +38,20 @@ impl GpuMeshContext {
         // â”€â”€ Shader modules â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let geom_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("geom_shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("geometry.wgsl").into()) });
+            source: wgpu::ShaderSource::Wgsl(include_str!("geometry.wgsl").into()),
+        });
         let peel_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("peel_shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("peel.wgsl").into()) });
+            source: wgpu::ShaderSource::Wgsl(include_str!("peel.wgsl").into()),
+        });
         let ssao_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("ssao_shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("ssao.wgsl").into()) });
+            source: wgpu::ShaderSource::Wgsl(include_str!("ssao.wgsl").into()),
+        });
         let comp_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("composite_shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("composite.wgsl").into()) });
+            source: wgpu::ShaderSource::Wgsl(include_str!("composite.wgsl").into()),
+        });
 
         // â”€â”€ Bind group layout helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let uniform_entry = |binding: u32, vis: wgpu::ShaderStages| wgpu::BindGroupLayoutEntry {
@@ -55,24 +60,30 @@ impl GpuMeshContext {
             ty: wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Uniform,
                 has_dynamic_offset: false,
-                min_binding_size: None },
-            count: None };
+                min_binding_size: None,
+            },
+            count: None,
+        };
         let storage_ro_entry = |binding: u32, vis: wgpu::ShaderStages| wgpu::BindGroupLayoutEntry {
             binding,
             visibility: vis,
             ty: wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Storage { read_only: true },
                 has_dynamic_offset: false,
-                min_binding_size: None },
-            count: None };
+                min_binding_size: None,
+            },
+            count: None,
+        };
         let storage_rw_entry = |binding: u32, vis: wgpu::ShaderStages| wgpu::BindGroupLayoutEntry {
             binding,
             visibility: vis,
             ty: wgpu::BindingType::Buffer {
                 ty: wgpu::BufferBindingType::Storage { read_only: false },
                 has_dynamic_offset: false,
-                min_binding_size: None },
-            count: None };
+                min_binding_size: None,
+            },
+            count: None,
+        };
 
         let vs_fs = wgpu::ShaderStages::VERTEX_FRAGMENT;
         let fs = wgpu::ShaderStages::FRAGMENT;
@@ -85,7 +96,8 @@ impl GpuMeshContext {
                 uniform_entry(0, vs_fs),
                 uniform_entry(1, fs),
                 uniform_entry(2, fs),
-            ] });
+            ],
+        });
 
         // â”€â”€ geom_peel BGL: same + 3=prev_depth(FS, texture_depth_2d) â”€â”€â”€â”€â”€â”€â”€â”€
         let geom_peel_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -100,9 +112,12 @@ impl GpuMeshContext {
                     ty: wgpu::BindingType::Texture {
                         sample_type: wgpu::TextureSampleType::Depth,
                         view_dimension: wgpu::TextureViewDimension::D2,
-                        multisampled: false },
-                    count: None },
-            ] });
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+            ],
+        });
 
         // â”€â”€ ssao BGL: 0=ssao_params(U,CS), 1=normal_depth(tex,CS),
         //              2=ao_buf(rw,CS), 3=kernel(ro,CS) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -116,11 +131,14 @@ impl GpuMeshContext {
                     ty: wgpu::BindingType::Texture {
                         sample_type: wgpu::TextureSampleType::Float { filterable: false },
                         view_dimension: wgpu::TextureViewDimension::D2,
-                        multisampled: false },
-                    count: None },
+                        multisampled: false,
+                    },
+                    count: None,
+                },
                 storage_rw_entry(2, cs),
                 storage_ro_entry(3, cs),
-            ] });
+            ],
+        });
 
         // â”€â”€ composite BGL: 0=color_layers(D2Array,CS), 1=ao_buf(ro,CS),
         //                   2=output(rw,CS), 3=comp_params(U,CS) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -133,12 +151,15 @@ impl GpuMeshContext {
                     ty: wgpu::BindingType::Texture {
                         sample_type: wgpu::TextureSampleType::Float { filterable: false },
                         view_dimension: wgpu::TextureViewDimension::D2Array,
-                        multisampled: false },
-                    count: None },
+                        multisampled: false,
+                    },
+                    count: None,
+                },
                 storage_ro_entry(1, cs),
                 storage_rw_entry(2, cs),
                 uniform_entry(3, cs),
-            ] });
+            ],
+        });
 
         // â”€â”€ Render pipelines â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let depth_stencil = wgpu::DepthStencilState {
@@ -146,7 +167,8 @@ impl GpuMeshContext {
             depth_write_enabled: true,
             depth_compare: wgpu::CompareFunction::Less,
             stencil: wgpu::StencilState::default(),
-            bias: wgpu::DepthBiasState::default() };
+            bias: wgpu::DepthBiasState::default(),
+        };
 
         let primitive = wgpu::PrimitiveState {
             topology: wgpu::PrimitiveTopology::TriangleList,
@@ -155,13 +177,15 @@ impl GpuMeshContext {
             cull_mode: Some(wgpu::Face::Back),
             polygon_mode: wgpu::PolygonMode::Fill,
             unclipped_depth: false,
-            conservative: false };
+            conservative: false,
+        };
 
         // Base pipeline: 2 color targets (Rgba8Unorm + Rgba16Float).
         let base_pl_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("geom_base_pl_layout"),
             bind_group_layouts: &[&geom_base_bgl],
-            push_constant_ranges: &[] });
+            push_constant_ranges: &[],
+        });
         let geom_base_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("geom_base_pipeline"),
             layout: Some(&base_pl_layout),
@@ -169,7 +193,8 @@ impl GpuMeshContext {
                 module: &geom_module,
                 entry_point: "vs_main",
                 buffers: &[MeshVertex::desc()],
-                compilation_options: wgpu::PipelineCompilationOptions::default() },
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            },
             primitive,
             depth_stencil: Some(depth_stencil.clone()),
             multisample: wgpu::MultisampleState::default(),
@@ -180,20 +205,25 @@ impl GpuMeshContext {
                     Some(wgpu::ColorTargetState {
                         format: wgpu::TextureFormat::Rgba8Unorm,
                         blend: None,
-                        write_mask: wgpu::ColorWrites::ALL }),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    }),
                     Some(wgpu::ColorTargetState {
                         format: wgpu::TextureFormat::Rgba16Float,
                         blend: None,
-                        write_mask: wgpu::ColorWrites::ALL }),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    }),
                 ],
-                compilation_options: wgpu::PipelineCompilationOptions::default() }),
-            multiview: None });
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            }),
+            multiview: None,
+        });
 
         // Peel pipeline: 1 color target (Rgba8Unorm), + prev_depth binding.
         let peel_pl_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("geom_peel_pl_layout"),
             bind_group_layouts: &[&geom_peel_bgl],
-            push_constant_ranges: &[] });
+            push_constant_ranges: &[],
+        });
         let geom_peel_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("geom_peel_pipeline"),
             layout: Some(&peel_pl_layout),
@@ -201,7 +231,8 @@ impl GpuMeshContext {
                 module: &peel_module,
                 entry_point: "vs_main",
                 buffers: &[MeshVertex::desc()],
-                compilation_options: wgpu::PipelineCompilationOptions::default() },
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            },
             primitive,
             depth_stencil: Some(depth_stencil),
             multisample: wgpu::MultisampleState::default(),
@@ -211,32 +242,39 @@ impl GpuMeshContext {
                 targets: &[Some(wgpu::ColorTargetState {
                     format: wgpu::TextureFormat::Rgba8Unorm,
                     blend: None,
-                    write_mask: wgpu::ColorWrites::ALL })],
-                compilation_options: wgpu::PipelineCompilationOptions::default() }),
-            multiview: None });
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+            }),
+            multiview: None,
+        });
 
         // â”€â”€ Compute pipelines â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         let ssao_pl_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("ssao_pl_layout"),
             bind_group_layouts: &[&ssao_bgl],
-            push_constant_ranges: &[] });
+            push_constant_ranges: &[],
+        });
         let ssao_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("ssao_pipeline"),
             layout: Some(&ssao_pl_layout),
             module: &ssao_module,
             entry_point: "ssao_main",
-            compilation_options: wgpu::PipelineCompilationOptions::default() });
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+        });
 
         let comp_pl_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("composite_pl_layout"),
             bind_group_layouts: &[&composite_bgl],
-            push_constant_ranges: &[] });
+            push_constant_ranges: &[],
+        });
         let composite_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("composite_pipeline"),
             layout: Some(&comp_pl_layout),
             module: &comp_module,
             entry_point: "composite_main",
-            compilation_options: wgpu::PipelineCompilationOptions::default() });
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+        });
 
         Some(Self {
             device,
@@ -248,6 +286,7 @@ impl GpuMeshContext {
             geom_base_bgl,
             geom_peel_bgl,
             ssao_bgl,
-            composite_bgl })
+            composite_bgl,
+        })
     }
 }

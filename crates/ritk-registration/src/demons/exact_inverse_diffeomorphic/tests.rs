@@ -1,4 +1,4 @@
-﻿//! Unit tests for inverse-consistent diffeomorphic Demons registration.
+//! Unit tests for inverse-consistent diffeomorphic Demons registration.
 
 use super::engine::InverseConsistentDiffeomorphicDemonsRegistration;
 use super::types::InverseConsistentDemonsConfig;
@@ -12,9 +12,11 @@ fn default_config() -> InverseConsistentDemonsConfig {
             max_iterations: 20,
             sigma_diffusion: Some(GaussianSigma::new_unchecked(1.0)),
             sigma_fluid: None,
-            max_step_length: 2.0 },
+            max_step_length: 2.0,
+        },
         inverse_consistency_weight: 0.5,
-        n_squarings: 6 }
+        n_squarings: 6,
+    }
 }
 
 fn make_image(nz: usize, ny: usize, nx: usize) -> Vec<f32> {
@@ -147,9 +149,11 @@ fn test_weight_zero_matches_standard_diffeomorphic() {
             max_iterations: 10,
             sigma_diffusion: Some(GaussianSigma::new_unchecked(1.0)),
             sigma_fluid: None,
-            max_step_length: 2.0 },
+            max_step_length: 2.0,
+        },
         inverse_consistency_weight: 0.0,
-        n_squarings: 6 };
+        n_squarings: 6,
+    };
     let reg_ic = InverseConsistentDiffeomorphicDemonsRegistration::new(config_ic);
     let result_ic = reg_ic.register(&img, &img, dims, spacing).unwrap();
 
@@ -157,7 +161,8 @@ fn test_weight_zero_matches_standard_diffeomorphic() {
         max_iterations: 10,
         sigma_diffusion: Some(GaussianSigma::new_unchecked(1.0)),
         sigma_fluid: None,
-        max_step_length: 2.0 };
+        max_step_length: 2.0,
+    };
     let reg_std = DiffeomorphicDemonsRegistration::with_squarings(config_std, 6);
     let result_std = reg_std.register(&img, &img, dims, spacing).unwrap();
 
@@ -180,18 +185,22 @@ fn test_ic_residual_decreases_with_symmetric_weight() {
                 max_iterations: 15,
                 sigma_diffusion: Some(GaussianSigma::new_unchecked(1.0)),
                 sigma_fluid: None,
-                max_step_length: 2.0 },
+                max_step_length: 2.0,
+            },
             inverse_consistency_weight: 0.0,
-            n_squarings: 6 });
+            n_squarings: 6,
+        });
     let reg_sym =
         InverseConsistentDiffeomorphicDemonsRegistration::new(InverseConsistentDemonsConfig {
             demons: DemonsConfig {
                 max_iterations: 15,
                 sigma_diffusion: Some(GaussianSigma::new_unchecked(1.0)),
                 sigma_fluid: None,
-                max_step_length: 2.0 },
+                max_step_length: 2.0,
+            },
             inverse_consistency_weight: 0.5,
-            n_squarings: 6 });
+            n_squarings: 6,
+        });
     let result_fwd = reg_fwd.register(&img, &img, dims, [1.0; 3]).unwrap();
     let result_sym = reg_sym.register(&img, &img, dims, [1.0; 3]).unwrap();
 

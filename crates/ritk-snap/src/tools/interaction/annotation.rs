@@ -1,4 +1,4 @@
-﻿//! Completed measurement annotations with computed physical values.
+//! Completed measurement annotations with computed physical values.
 //!
 //! # Coordinate system
 //!
@@ -56,7 +56,8 @@ pub enum Annotation {
         /// End point as `[row, col]` in image pixels.
         p2: [f32; 2],
         /// Euclidean distance in millimetres.
-        length_mm: f32 },
+        length_mm: f32,
+    },
 
     /// Angle at vertex `p2` between the rays `p2â†’p1` and `p2â†’p3`.
     Angle {
@@ -67,7 +68,8 @@ pub enum Annotation {
         /// Second ray endpoint as `[row, col]` in image pixels.
         p3: [f32; 2],
         /// Included angle in degrees.
-        angle_deg: f32 },
+        angle_deg: f32,
+    },
 
     /// Axis-aligned rectangle ROI with intensity statistics.
     RoiRect {
@@ -84,7 +86,8 @@ pub enum Annotation {
         /// Maximum intensity within the ROI.
         max: f32,
         /// ROI area in mmÂ².
-        area_mm2: f32 },
+        area_mm2: f32,
+    },
 
     /// Ellipse ROI with intensity statistics computed over pixels whose centres
     /// lie inside the ellipse mask.
@@ -119,14 +122,17 @@ pub enum Annotation {
         /// Maximum intensity within the ellipse mask.
         max: f32,
         /// Physical area of the ellipse in mmÂ².
-        area_mm2: f32 },
+        area_mm2: f32,
+    },
 
     /// Single-point HU measurement.
     HuPoint {
         /// Point location as `[row, col]` in image pixels.
         pos: [f32; 2],
         /// Intensity value at the point (HU or relative).
-        value: f32 } }
+        value: f32,
+    },
+}
 
 impl Annotation {
     /// Compute the Euclidean distance between two image points in physical space.

@@ -104,10 +104,10 @@ impl PasteImageFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        dest: &ritk_image::native::Image<f32, B, 3>,
-        source: &ritk_image::native::Image<f32, B, 3>,
+        dest: &ritk_image::Image<f32, B, 3>,
+        source: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

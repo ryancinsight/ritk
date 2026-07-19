@@ -1,4 +1,4 @@
-﻿//! End-to-end shape check for the Coeus-native TransMorph through the public API.
+//! End-to-end shape check for the Coeus-native TransMorph through the public API.
 
 use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
@@ -18,7 +18,8 @@ fn test_transmorph_forward() {
         out_channels: 3,
         window_size: 4,
         integration: TransformIntegration::Direct,
-        integration_steps: 4 };
+        integration_steps: 4,
+    };
     let model: TransMorph<Backend> = config.init();
 
     let shape = [1usize, 1, 32, 32, 32];

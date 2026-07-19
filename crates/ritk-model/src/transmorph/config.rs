@@ -1,4 +1,4 @@
-﻿//! TransMorph configuration and builder, Coeus-native.
+//! TransMorph configuration and builder, Coeus-native.
 //!
 //! [`TransMorphConfig`] specifies the channel widths and window/integration
 //! parameters, and [`TransMorphConfig::init`] instantiates a [`TransMorph`] with
@@ -12,7 +12,8 @@ use coeus_ops::BackendOps;
 
 use crate::transmorph::{
     integration::VecInt, model::TransMorph, spatial_transform::SpatialTransformer,
-    swin::SwinTransformerBlock };
+    swin::SwinTransformerBlock,
+};
 
 /// Convolution dilation (isotropic, unit).
 const DILATION: usize = 1;
@@ -32,7 +33,8 @@ pub enum TransformIntegration {
     Direct,
     /// Flow field is integrated via scaling-and-squaring into a diffeomorphic warp.
     #[default]
-    Integrated }
+    Integrated,
+}
 
 /// Configuration for a [`TransMorph`] network.
 #[derive(Debug, Clone)]
@@ -48,7 +50,8 @@ pub struct TransMorphConfig {
     /// Integration mode for the predicted flow field.
     pub integration: TransformIntegration,
     /// Number of scaling-and-squaring steps when integrating.
-    pub integration_steps: usize }
+    pub integration_steps: usize,
+}
 
 impl TransMorphConfig {
     /// Construct a config with default window (4) and integration (7 steps).
@@ -60,7 +63,8 @@ impl TransMorphConfig {
             out_channels,
             window_size: 4,
             integration: TransformIntegration::Integrated,
-            integration_steps: 7 }
+            integration_steps: 7,
+        }
     }
 
     /// Override the attention-window side length.
@@ -122,7 +126,8 @@ impl TransMorphConfig {
 
         let integration = match self.integration {
             TransformIntegration::Integrated => Some(VecInt::new(self.integration_steps)),
-            TransformIntegration::Direct => None };
+            TransformIntegration::Direct => None,
+        };
         TransMorph {
             patch_embed,
             stage1,
@@ -137,6 +142,7 @@ impl TransMorphConfig {
             up_conv3,
             flow_conv,
             integration,
-            spatial_transform: SpatialTransformer::new() }
+            spatial_transform: SpatialTransformer::new(),
+        }
     }
 }

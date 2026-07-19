@@ -1,4 +1,4 @@
-﻿//! LDDMM configuration and result types.
+//! LDDMM configuration and result types.
 
 use ritk_filter::GaussianSigma;
 
@@ -16,7 +16,8 @@ pub struct LddmmConfig {
     /// Weight Î» on the regularisation term â€–vâ‚€â€–Â²\_V.
     pub regularization_weight: f64,
     /// Stop when |MSE\_{k} âˆ’ MSE\_{kâˆ’1}| / (MSE\_{kâˆ’1} + Îµ) < threshold.
-    pub convergence_threshold: f64 }
+    pub convergence_threshold: f64,
+}
 
 impl Default for LddmmConfig {
     fn default() -> Self {
@@ -26,7 +27,8 @@ impl Default for LddmmConfig {
             kernel_sigma: GaussianSigma::new_unchecked(2.0),
             learning_rate: 0.1,
             regularization_weight: 1.0,
-            convergence_threshold: 1e-5 }
+            convergence_threshold: 1e-5,
+        }
     }
 }
 
@@ -42,4 +44,5 @@ pub struct LddmmResult {
     /// Final MSE after the last forward pass.
     pub final_metric: f64,
     /// Number of gradient-descent iterations executed.
-    pub num_iterations: usize }
+    pub num_iterations: usize,
+}

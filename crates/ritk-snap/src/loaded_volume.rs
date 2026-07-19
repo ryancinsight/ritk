@@ -1,4 +1,4 @@
-﻿use arrayvec::ArrayString;
+use arrayvec::ArrayString;
 
 /// Type-erased loaded volume for viewer use (avoids propagating `<B: Backend>` through UI).
 ///
@@ -44,7 +44,8 @@ pub struct LoadedVolume {
     /// Radiopharmaceutical start time (TM VR, max 16 chars).
     pub radiopharmaceutical_start_time: Option<ArrayString<16>>,
     /// Pixel decay-correction mode from (0054,1102) (CS VR, max 16 chars).
-    pub decay_correction: Option<ArrayString<16>> }
+    pub decay_correction: Option<ArrayString<16>>,
+}
 
 impl LoadedVolume {
     /// Get the first channel value at voxel position (d, r, c).
@@ -127,7 +128,8 @@ impl LoadedVolume {
                 }
                 (pixels, rows, depth)
             }
-            _ => (vec![], 0, 0) }
+            _ => (vec![], 0, 0),
+        }
     }
 
     /// Extract a 2-D slice into a pre-allocated buffer, returning `(width, height)`.

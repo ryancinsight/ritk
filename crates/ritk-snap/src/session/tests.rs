@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 use crate::tools::interaction::Annotation;
 
 // â”€â”€â”€ Helper: build a canonical snapshot with known values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -9,7 +9,8 @@ fn canonical_snapshot_no_annotations() -> ViewerSessionSnapshot {
         viewer_state: ViewerState {
             slice_index: 12,
             window_center: Some(40.0),
-            window_width: Some(400.0) },
+            window_width: Some(400.0),
+        },
         colormap: Colormap::Bone,
         axis: 2,
         active_tool: ToolKind::MeasureAngle,
@@ -27,7 +28,8 @@ fn canonical_snapshot_no_annotations() -> ViewerSessionSnapshot {
         zoom: 2.5,
         cine_enabled: true,
         cine_fps: 18.0,
-        annotations: Vec::new() }
+        annotations: Vec::new(),
+    }
 }
 
 /// Build all Annotation variants with analytically exact values.
@@ -42,12 +44,14 @@ fn all_annotation_variants() -> Vec<Annotation> {
         Annotation::Length {
             p1: [0.0, 0.0],
             p2: [3.0, 4.0],
-            length_mm: 5.0 },
+            length_mm: 5.0,
+        },
         Annotation::Angle {
             p1: [0.0, 1.0],
             p2: [0.0, 0.0],
             p3: [1.0, 0.0],
-            angle_deg: 90.0 },
+            angle_deg: 90.0,
+        },
         Annotation::RoiRect {
             top_left: [10.0, 10.0],
             bottom_right: [20.0, 30.0],
@@ -55,7 +59,8 @@ fn all_annotation_variants() -> Vec<Annotation> {
             std_dev: 1.25,
             min: 40.0,
             max: 45.0,
-            area_mm2: 200.0 },
+            area_mm2: 200.0,
+        },
         Annotation::RoiEllipse {
             center: [15.0, 20.0],
             radii: [5.0, 10.0],
@@ -63,10 +68,12 @@ fn all_annotation_variants() -> Vec<Annotation> {
             std_dev: 2.0,
             min: 33.0,
             max: 41.0,
-            area_mm2: 314.159_27 },
+            area_mm2: 314.159_27,
+        },
         Annotation::HuPoint {
             pos: [5.0, 8.0],
-            value: -150.0 },
+            value: -150.0,
+        },
     ]
 }
 
@@ -135,7 +142,8 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
             assert_eq!(*p2, [3.0f32, 4.0f32]);
             assert_eq!(*length_mm, 5.0f32, "5-4-3 right triangle: length = 5 mm");
         }
-        other => panic!("expected Length, got {:?}", other) }
+        other => panic!("expected Length, got {:?}", other),
+    }
 
     // Verify Angle annotation values round-trip exactly.
     match &recovered.annotations[1] {
@@ -143,13 +151,15 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
             p1,
             p2,
             p3,
-            angle_deg } => {
+            angle_deg,
+        } => {
             assert_eq!(*p1, [0.0f32, 1.0f32]);
             assert_eq!(*p2, [0.0f32, 0.0f32]);
             assert_eq!(*p3, [1.0f32, 0.0f32]);
             assert_eq!(*angle_deg, 90.0f32, "orthogonal rays form 90Â°");
         }
-        other => panic!("expected Angle, got {:?}", other) }
+        other => panic!("expected Angle, got {:?}", other),
+    }
 
     // Verify HU point annotation round-trips negative value exactly.
     match &recovered.annotations[4] {
@@ -157,7 +167,8 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
             assert_eq!(*pos, [5.0f32, 8.0f32]);
             assert_eq!(*value, -150.0f32);
         }
-        other => panic!("expected HuPoint, got {:?}", other) }
+        other => panic!("expected HuPoint, got {:?}", other),
+    }
 }
 
 #[test]
@@ -229,7 +240,8 @@ fn save_to_file_produces_valid_json_with_annotations_key() {
     let mut snapshot = ViewerSessionSnapshot::default();
     snapshot.annotations.push(Annotation::HuPoint {
         pos: [1.0, 2.0],
-        value: 100.0 });
+        value: 100.0,
+    });
 
     let dir = std::env::temp_dir();
     let path = dir.join("ritk_snap_session_test_annotations_key.json");

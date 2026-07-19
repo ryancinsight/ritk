@@ -1,8 +1,9 @@
-﻿use crate::errors::{RitkPyError, RitkResult};
+use crate::errors::{RitkPyError, RitkResult};
 use crate::image::PyImage;
 use pyo3::prelude::*;
 use ritk_filter::{
-    TernaryAddImageFilter, TernaryMagnitudeImageFilter, TernaryMagnitudeSquaredImageFilter };
+    TernaryAddImageFilter, TernaryMagnitudeImageFilter, TernaryMagnitudeSquaredImageFilter,
+};
 
 ternary_pyfn!(
     ternary_add_images,

@@ -1,4 +1,4 @@
-﻿//! Selective State Space (S6) module, Coeus-native.
+//! Selective State Space (S6) module, Coeus-native.
 //!
 //! Coeus-native reimplementation of the Mamba/S6 selective state space block
 //! (`SelectiveStateSpace`, still Burn-typed for the
@@ -17,7 +17,8 @@
 
 use coeus_autograd::{
     exp, mul, neg, permute, reshape, selective_scan, sigmoid, slice, softplus, sum_axis, unsqueeze,
-    Parameter, Var };
+    Parameter, Var,
+};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::module::Module;
 use coeus_nn::Linear;
@@ -42,7 +43,8 @@ pub struct SelectiveStateSpaceConfig {
     /// Expansion factor for the inner (hidden) dimension.
     pub expand_factor: usize,
     /// Rank for the low-rank `Î”` parameterization.
-    pub dt_rank: usize }
+    pub dt_rank: usize,
+}
 
 impl SelectiveStateSpaceConfig {
     /// Configuration with `input_dim`/`output_dim` and the paper defaults
@@ -54,7 +56,8 @@ impl SelectiveStateSpaceConfig {
             output_dim,
             state_dim: 16,
             expand_factor: 2,
-            dt_rank: 16 }
+            dt_rank: 16,
+        }
     }
 
     /// Instantiate a [`SelectiveStateSpace`] over backend `B`.
@@ -90,7 +93,8 @@ pub struct SelectiveStateSpace<B: Backend + BackendOps<f32> + Default> {
     input_dim: usize,
     output_dim: usize,
     state_dim: usize,
-    expand_factor: usize }
+    expand_factor: usize,
+}
 
 impl<B> SelectiveStateSpace<B>
 where
@@ -143,7 +147,8 @@ where
             input_dim: config.input_dim,
             output_dim: config.output_dim,
             state_dim: config.state_dim,
-            expand_factor: config.expand_factor }
+            expand_factor: config.expand_factor,
+        }
     }
 
     /// Selective-scan forward for a `[batch, seq, input_dim]` sequence.
@@ -321,7 +326,8 @@ mod tests {
             output_dim: 4,
             state_dim: 3,
             expand_factor: 2,
-            dt_rank: 3 };
+            dt_rank: 3,
+        };
         config.init()
     }
 

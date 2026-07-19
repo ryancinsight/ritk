@@ -16,9 +16,9 @@
 //! - Transforms voxels from Bq/mL to unitless SUV.
 
 use crate::native_support::map_flat_image;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use coeus_core::ComputeBackend;
 use ritk_image::tensor::Backend;
-use ritk_image::{native::Image as NativeImage, Image};
+use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Convert PET activity concentration (Bq/mL) to SUV Body Weight (SUVbw).
@@ -79,12 +79,11 @@ impl SuvBodyWeightImageFilter {
     /// Apply the SUVbw conversion to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &NativeImage<f32, B, 3>,
+        image: &Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    ) -> anyhow::Result<Image<f32, B, 3>>
     where
         B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         let factor = self.suv_factor();
         map_flat_image(image, backend, move |values, _| {
@@ -101,7 +100,7 @@ mod tests {
     use super::*;
 
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
     use ritk_image::Image;
     use ritk_spatial::{Direction, Point, Spacing};
 
@@ -116,10 +115,13 @@ mod tests {
             Spacing::new([1.0_f64, 1.0, 1.0]),
             Direction::identity(),
         )
+        .expect("invariant: fixture tensor has the declared rank")
     }
 
     fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
-        img.data_slice().into_owned()
+        img.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec()
     }
 
     #[test]

@@ -43,7 +43,8 @@ fn test_scan_metadata_round_trip_spatial_fields() {
         Point::new([10.0, 20.0, -50.0]),
         Spacing::new([2.5, 0.8, 0.8]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
 
     let meta = DicomReadMetadata {
         series_instance_uid: Some("1.2.3.4.5.6.789".try_into().unwrap()),
@@ -248,7 +249,8 @@ fn test_scan_metadata_round_trip_rescale_params() {
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
 
     let meta = DicomReadMetadata {
         series_instance_uid: None,
@@ -338,7 +340,8 @@ fn test_scan_metadata_round_trip_transfer_syntax() {
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
 
     let meta = DicomReadMetadata {
         series_instance_uid: None,

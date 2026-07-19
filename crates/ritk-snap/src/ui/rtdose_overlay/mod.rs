@@ -1,4 +1,4 @@
-﻿//! RT Dose Grid slice projection for viewport overlay rendering.
+//! RT Dose Grid slice projection for viewport overlay rendering.
 //!
 //! Projects an [`RtDoseGrid`] onto a volume MPR slice by mapping each volume
 //! voxel to patient space and then into dose grid coordinates via the inverse
@@ -100,7 +100,8 @@ pub fn extract_dose_slice_for_volume(
             vol_depth,
             vol_rows,
             slice_index.min(vol_cols.saturating_sub(1)),
-        ) };
+        ),
+    };
 
     let dose_depth = rt_dose.n_frames;
     let dose_rows = rt_dose.rows;
@@ -135,7 +136,8 @@ pub fn extract_dose_slice_for_volume(
             let (vd, vr, vc): (usize, usize, usize) = match axis {
                 0 => (fixed_idx, sr, sc),
                 1 => (sr, fixed_idx, sc),
-                _ => (sr, sc, fixed_idx) };
+                _ => (sr, sc, fixed_idx),
+            };
 
             // Volume voxel â†’ patient space.
             // P = vol_origin + vc*vol_direction[0..3]*dx + vr*vol_direction[3..6]*dy + vd*vol_direction[6..9]*dz

@@ -1,4 +1,4 @@
-﻿//! DICOM backend abstraction.
+//! DICOM backend abstraction.
 //!
 //! Parsing and frame decode are generic so call sites monomorphize backend
 //! dispatch. Concrete libraries remain replaceable implementation details.
@@ -16,11 +16,13 @@ use crate::syntax::TransferSyntaxKind;
 pub struct DecodeFrameRequest {
     pub frame_index: u32,
     pub transfer_syntax: TransferSyntaxKind,
-    pub layout: PixelLayout }
+    pub layout: PixelLayout,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DecodedFrame {
-    pub pixels: Vec<f32> }
+    pub pixels: Vec<f32>,
+}
 
 pub trait DicomParseBackend {
     type Object;

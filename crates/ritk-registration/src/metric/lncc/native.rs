@@ -22,7 +22,7 @@ use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_filter::gaussian::gaussian_smooth_flat_3d;
 use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
 use ritk_filter::GaussianSigma;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_transform::transform::affine::AtlasAffineTransform;
 
 /// Local mean `μ = K∗I` and local variance `v = max(K∗I² − μ², 0)` of the flat
@@ -94,7 +94,3 @@ where
 
     -(acc / n as f32)
 }
-
-#[cfg(test)]
-#[path = "tests_native.rs"]
-mod tests_native;

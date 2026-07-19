@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 
 /// Construct a minimal [`LoadedVolume`] for shape and value tests.
 ///
@@ -26,7 +26,8 @@ fn make_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
         injected_dose_bq: None,
         radionuclide_half_life_s: None,
         radiopharmaceutical_start_time: None,
-        decay_correction: None }
+        decay_correction: None,
+    }
 }
 
 // â”€â”€ WindowLevel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

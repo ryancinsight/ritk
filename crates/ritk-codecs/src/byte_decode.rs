@@ -1,4 +1,4 @@
-﻿//! Shared byte-decoding and whitespace-parse helpers.
+//! Shared byte-decoding and whitespace-parse helpers.
 //!
 //! Single source of truth for the low-level format-agnostic primitives that
 //! were previously duplicated across [`ritk-metaimage`], [`ritk-nrrd`],
@@ -26,7 +26,8 @@ pub enum ByteOrder {
     /// Most-significant byte first (big-endian).
     MostSignificantByteFirst,
     /// Least-significant byte first (little-endian).
-    LeastSignificantByteFirst }
+    LeastSignificantByteFirst,
+}
 
 impl ByteOrder {
     /// Parse the textual byte-order markers used by MetaImage (`"True"` /
@@ -48,7 +49,8 @@ impl ByteOrder {
     pub fn from_nrrd(value: &str) -> Self {
         match value.trim().to_ascii_lowercase().as_str() {
             "big" => Self::MostSignificantByteFirst,
-            _ => Self::LeastSignificantByteFirst }
+            _ => Self::LeastSignificantByteFirst,
+        }
     }
 }
 
@@ -125,7 +127,8 @@ pub fn decode_bytes_to_f32(
                 "Unsupported float element size {} for type '{}'",
                 other,
                 type_name
-            )) }
+            )),
+        }
     } else {
         // Integer path
         Ok(match (elem_size, signed) {

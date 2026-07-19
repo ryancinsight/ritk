@@ -1,4 +1,4 @@
-﻿//! Viewport state types and struct definitions.
+//! Viewport state types and struct definitions.
 //!
 //! [`ViewportRenderMode`] â€” rendering mode enum (Slice / Mip / Vr).
 //! [`ViewportState`] â€” persistent per-viewport display state.
@@ -52,8 +52,10 @@ use crate::{
     render::{colormap::Colormap, slice_render::WindowLevel},
     tools::{
         interaction::{Annotation, ToolState},
-        kind::ToolKind },
-    LoadedVolume };
+        kind::ToolKind,
+    },
+    LoadedVolume,
+};
 use egui::{pos2, Color32, Id, Pos2, Rect, Stroke, TextureHandle, Vec2};
 
 /// Rendering mode for a viewport slot.
@@ -64,7 +66,8 @@ pub enum ViewportRenderMode {
     /// Axial maximum-intensity projection across full depth.
     Mip,
     /// Axial front-to-back alpha composited volume rendering.
-    Vr }
+    Vr,
+}
 
 // â”€â”€ ViewportState â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -99,7 +102,8 @@ pub struct ViewportState {
     /// `None` means the texture must be (re-)rendered.
     pub texture_slice_key: Option<(usize, usize)>,
     /// Rendering mode for this viewport slot.
-    pub render_mode: ViewportRenderMode }
+    pub render_mode: ViewportRenderMode,
+}
 
 impl ViewportState {
     /// Construct a viewport state for the given `axis` and initial WL.
@@ -117,7 +121,8 @@ impl ViewportState {
             show_crosshair: true,
             texture: None,
             texture_slice_key: None,
-            render_mode: ViewportRenderMode::Slice }
+            render_mode: ViewportRenderMode::Slice,
+        }
     }
 
     /// Axial viewport (axis = 0).
@@ -210,7 +215,8 @@ pub struct ViewportPanel<'a> {
     /// Mutable viewport state.
     pub state: &'a mut ViewportState,
     /// Currently active tool, used to route pointer events.
-    pub active_tool: ToolKind }
+    pub active_tool: ToolKind,
+}
 
 // â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -225,7 +231,8 @@ pub(super) fn slice_dims(volume: &LoadedVolume, axis: usize) -> (usize, usize) {
     match axis {
         0 => (cols, rows),
         1 => (cols, depth),
-        _ => (rows, depth) }
+        _ => (rows, depth),
+    }
 }
 
 /// Convert a screen position to integer image coordinates `(col, row)`.
@@ -289,7 +296,8 @@ pub(super) fn img_to_volume(
     match axis {
         0 => [slice, img_row, img_col],
         1 => [img_row, slice, img_col],
-        _ => [img_row, img_col, slice] }
+        _ => [img_row, img_col, slice],
+    }
 }
 
 /// Draw a thin crosshair (full-length horizontal + vertical lines) through

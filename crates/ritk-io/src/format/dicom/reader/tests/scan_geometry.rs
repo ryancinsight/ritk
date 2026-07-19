@@ -47,7 +47,8 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
             Point::new([0.0, 0.0, 0.0]),
             Spacing::new([1.0, 1.0, 1.0]),
             Direction::identity(),
-        );
+        )
+        .expect("invariant: fixture tensor has the declared rank");
         let meta = DicomReadMetadata {
             series_instance_uid: Some("2.25.62001".try_into().unwrap()),
             study_instance_uid: Some("2.25.62002".try_into().unwrap()),
@@ -90,7 +91,8 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
             Point::new([0.0, 1.0, 0.0]),
             Spacing::new([1.0, 1.0, 1.0]),
             Direction::identity(),
-        );
+        )
+        .expect("invariant: fixture tensor has the declared rank");
         let meta = DicomReadMetadata {
             series_instance_uid: Some("2.25.62003".try_into().unwrap()),
             study_instance_uid: Some("2.25.62004".try_into().unwrap()),
@@ -187,7 +189,8 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
             Point::new([0.0, 0.0, 0.0]),
             Spacing::new([1.0, 0.8, 0.8]),
             Direction::identity(),
-        );
+        )
+        .expect("invariant: fixture tensor has the declared rank");
         let meta = DicomReadMetadata {
             series_instance_uid: Some("2.25.63001".try_into().unwrap()),
             study_instance_uid: Some("2.25.63002".try_into().unwrap()),
@@ -229,7 +232,8 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
             Point::new([0.0, 0.0, 1.0]),
             Spacing::new([1.0, 1.0, 1.0]),
             Direction::identity(),
-        );
+        )
+        .expect("invariant: fixture tensor has the declared rank");
         let meta = DicomReadMetadata {
             series_instance_uid: Some("2.25.63003".try_into().unwrap()),
             study_instance_uid: Some("2.25.63004".try_into().unwrap()),
@@ -322,7 +326,8 @@ fn test_physical_transform_depth_index_advances_along_slice_normal() {
         0.0, 1.0, 0.0, // col 1 = F_c
         1.0, 0.0, 0.0, // col 2 = F_r
     ]);
-    let image = ritk_core::image::Image::new(tensor, origin, spacing, dir);
+    let image = ritk_core::image::Image::new(tensor, origin, spacing, dir)
+        .expect("invariant: fixture tensor has the declared rank");
 
     // Voxel (0,0,0): must be at origin
     let p0 = image.transform_continuous_index_to_physical_point(&Point::new([0.0, 0.0, 0.0]));

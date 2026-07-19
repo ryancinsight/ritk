@@ -1,4 +1,4 @@
-﻿//! Temporal synchronization via cross-correlation phase estimation
+//! Temporal synchronization via cross-correlation phase estimation
 //! (Sprint 354 split, ARCH-350-04).
 //!
 //! Provides deterministic algorithms for aligning multi-modal temporal
@@ -39,13 +39,15 @@ const SIGNAL_VARIANCE_GUARD: f64 = 1e-10;
 /// with different slice timing) using sub-sample accurate cross-correlation.
 #[derive(Debug, Clone)]
 pub struct TemporalSync {
-    pub(crate) config: TemporalSyncConfig }
+    pub(crate) config: TemporalSyncConfig,
+}
 
 impl TemporalSync {
     /// Create a new TemporalSync with default configuration.
     pub fn new() -> Self {
         Self {
-            config: TemporalSyncConfig::default() }
+            config: TemporalSyncConfig::default(),
+        }
     }
 
     /// Create with explicit configuration.
@@ -108,7 +110,8 @@ impl TemporalSync {
                     rms_timing_error: 0.0,
                     max_timing_deviation: 0.0,
                     phase_lock_stability: rate,
-                    sync_success_rate: rate },
+                    sync_success_rate: rate,
+                },
             ));
         }
 
@@ -161,7 +164,8 @@ impl TemporalSync {
             rms_timing_error: rms_error,
             max_timing_deviation: max_deviation,
             phase_lock_stability: stability,
-            sync_success_rate };
+            sync_success_rate,
+        };
 
         Ok((shift_seconds, metrics))
     }

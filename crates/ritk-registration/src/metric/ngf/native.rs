@@ -1,4 +1,4 @@
-﻿//! Coeus-native NGF engine (`Image<f32, B, 3>` substrate).
+//! Coeus-native NGF engine (`Image<f32, B, 3>` substrate).
 //!
 //! Atlas migration (burn â†’ coeus): the register-engine parallel path for the
 //! Normalized Gradient Fields metric. The Burn-generic [`super::fixed_prep`]
@@ -24,10 +24,11 @@
 //! yet and is left on Burn (recorded as a residual gap).
 
 use super::scalar::{
-    compute_gradient_field, row_major_strides, weighted_eta2, weighted_ngf_from_fixed };
+    compute_gradient_field, row_major_strides, weighted_eta2, weighted_ngf_from_fixed,
+};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_transform::transform::affine::AtlasAffineTransform;
 
 /// Precomputed native fixed-image NGF state for repeated transform evaluations.
@@ -50,7 +51,8 @@ where
     eta_f2: f32,
     mask: Option<Vec<bool>>,
     weights: Option<Vec<f32>>,
-    _backend: std::marker::PhantomData<B> }
+    _backend: std::marker::PhantomData<B>,
+}
 
 impl<B> NgfFixedPrepNative<B>
 where
@@ -77,7 +79,8 @@ where
             eta_f2,
             mask: mask.map(<[bool]>::to_vec),
             weights: weights.map(<[f32]>::to_vec),
-            _backend: std::marker::PhantomData }
+            _backend: std::marker::PhantomData,
+        }
     }
 
     /// `NGF âˆˆ [0, 1]` of `moving` resampled through `transform` onto the fixed
@@ -125,7 +128,3 @@ where
 {
     NgfFixedPrepNative::new(fixed, mask, weights).eval(moving, transform)
 }
-
-#[cfg(test)]
-#[path = "tests_native.rs"]
-mod tests_native;

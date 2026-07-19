@@ -1,4 +1,4 @@
-﻿//! PLY reader â†’ VtkPolyData.
+//! PLY reader â†’ VtkPolyData.
 //!
 //! Parses the PLY 1.0 header to determine format and element schemas, then
 //! reads vertex and face data in ASCII or binary little-endian encoding.
@@ -41,7 +41,8 @@ pub(crate) fn parse_ply(bytes: &[u8]) -> Result<VtkPolyData> {
             &hdr,
         ),
         PlyFormat::BinaryLe => parse_binary_le_body(&bytes[data_off..], &hdr),
-        PlyFormat::BinaryBe => bail!("big-endian PLY not supported for read") }
+        PlyFormat::BinaryBe => bail!("big-endian PLY not supported for read"),
+    }
 }
 
 // â”€â”€ Header parser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -86,7 +87,8 @@ fn parse_header(text: &str) -> Result<PlyHeader> {
         None,
         Vertex,
         Face,
-        Other }
+        Other,
+    }
     let mut cur = Cur::None;
 
     for line in lines {
@@ -105,7 +107,8 @@ fn parse_header(text: &str) -> Result<PlyHeader> {
                     "ascii" => PlyFormat::Ascii,
                     "binary_little_endian" => PlyFormat::BinaryLe,
                     "binary_big_endian" => PlyFormat::BinaryBe,
-                    other => bail!("unknown PLY format '{}'", other) };
+                    other => bail!("unknown PLY format '{}'", other),
+                };
             }
             "element" if toks.len() >= 3 => {
                 let count: usize = toks[2]
@@ -120,7 +123,8 @@ fn parse_header(text: &str) -> Result<PlyHeader> {
                         face_count = count;
                         Cur::Face
                     }
-                    _ => Cur::Other };
+                    _ => Cur::Other,
+                };
             }
             "property" => match cur {
                 Cur::Vertex if toks.len() >= 3 && toks[1] != "list" => {
@@ -152,7 +156,8 @@ fn parse_header(text: &str) -> Result<PlyHeader> {
         face_count,
         vertex_props,
         face_count_type,
-        face_index_type })
+        face_index_type,
+    })
 }
 
 // â”€â”€ ASCII body reader â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

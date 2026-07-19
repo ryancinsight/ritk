@@ -1,9 +1,9 @@
-﻿use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context, Result};
 use tracing::info;
 
 use super::super::{
-    infer_format, is_native_read_capable, is_native_write_capable, read_image_native,
-    write_image_native, NativeBackend };
+    infer_format, is_read_capable, is_write_capable, read_image, write_image, Backend,
+};
 use super::FilterArgs;
 
 // â”€â”€ Gradient magnitude â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -11,12 +11,12 @@ use super::FilterArgs;
 pub(super) fn run_gradient_magnitude(args: &FilterArgs) -> Result<()> {
     use ritk_filter::GradientMagnitudeFilter;
 
-    let image = read_image_native(&args.input)?;
+    let image = read_image(&args.input)?;
     let filter = GradientMagnitudeFilter::new(*image.spacing());
     let filtered = filter.apply_native(&image)?;
     let fmt = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
-    write_image_native(&args.output, &filtered, fmt)?;
+    write_image(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied gradient-magnitude to {} \u{2192} {}",
@@ -36,12 +36,12 @@ pub(super) fn run_gradient_magnitude(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_laplacian(args: &FilterArgs) -> Result<()> {
     use ritk_filter::LaplacianFilter;
 
-    let image = read_image_native(&args.input)?;
+    let image = read_image(&args.input)?;
     let filter = LaplacianFilter::new(*image.spacing());
     let filtered = filter.apply_native(&image)?;
     let fmt = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
-    write_image_native(&args.output, &filtered, fmt)?;
+    write_image(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied laplacian to {} \u{2192} {}",
@@ -62,7 +62,7 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
     use ritk_filter::vesselness::FrangiConfig;
     use ritk_filter::FrangiVesselnessFilter;
 
-    let image = read_image_native(&args.input)?;
+    let image = read_image(&args.input)?;
 
     // Use the scales from the vesselness Args chunk.
     let scales = args.vesselness.scales.clone();
@@ -77,13 +77,14 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
         alpha: args.vesselness.alpha,
         beta: args.vesselness.beta,
         gamma: args.vesselness.gamma,
-        polarity: ritk_filter::VesselPolarity::Bright };
+        polarity: ritk_filter::VesselPolarity::Bright,
+    };
     let filter = FrangiVesselnessFilter { config };
-    let backend = NativeBackend::default();
+    let backend = Backend::default();
     let filtered = filter.apply_native(&image, &backend)?;
     let fmt = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
-    write_image_native(&args.output, &filtered, fmt)?;
+    write_image(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied frangi (scales={:?}, \u{03b1}={}, \u{03b2}={}, \u{03b3}={}) to {} \u{2192} {}",
@@ -118,13 +119,13 @@ pub(super) fn run_median(args: &FilterArgs) -> Result<()> {
     let output_format = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        is_read_capable(input_format) && is_write_capable(output_format),
         "median requires native input/output formats"
     );
-    let image = read_image_native(&args.input)?;
+    let image = read_image(&args.input)?;
     let filter = MedianFilter::new(args.kernel.radius);
     let filtered = filter.apply_native(&image)?;
-    write_image_native(&args.output, &filtered, output_format)?;
+    write_image(&args.output, &filtered, output_format)?;
 
     println!(
         "Applied median (radius={}) to {} \u{2192} {}",
@@ -149,13 +150,13 @@ pub(super) fn run_median(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_bilateral(args: &FilterArgs) -> Result<()> {
     use ritk_filter::BilateralFilter;
 
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
     let filter = BilateralFilter::new(args.edge.sigma_spatial, args.edge.sigma_range);
     let filtered = filter.apply_native(&image, &backend)?;
     let fmt = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
-    write_image_native(&args.output, &filtered, fmt)?;
+    write_image(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied bilateral (\u{03c3}_spatial={}, \u{03c3}_range={}) to {} \u{2192} {}",
@@ -183,15 +184,15 @@ pub(super) fn run_canny(args: &FilterArgs) -> Result<()> {
     use ritk_filter::edge::GaussianSigma;
     use ritk_filter::CannyEdgeDetector;
 
-    let image = read_image_native(&args.input)?;
+    let image = read_image(&args.input)?;
     let sigma = GaussianSigma::new(args.smoothing.sigma)
         .ok_or_else(|| anyhow!("--sigma must be > 0, got {}", args.smoothing.sigma))?;
-    let backend = NativeBackend::default();
+    let backend = Backend::default();
     let detector = CannyEdgeDetector::new(sigma, args.edge.low as f64, args.edge.high as f64);
     let filtered = detector.apply_native(&image, &backend)?;
     let fmt = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
-    write_image_native(&args.output, &filtered, fmt)?;
+    write_image(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied canny (\u{03c3}={}, low={}, high={}) to {} \u{2192} {}",
@@ -220,12 +221,12 @@ pub(super) fn run_canny(args: &FilterArgs) -> Result<()> {
 pub(super) fn run_sobel(args: &FilterArgs) -> Result<()> {
     use ritk_filter::SobelFilter;
 
-    let image = read_image_native(&args.input)?;
+    let image = read_image(&args.input)?;
     let filter = SobelFilter::new(*image.spacing());
     let filtered = filter.apply_native(&image)?;
     let fmt = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
-    write_image_native(&args.output, &filtered, fmt)?;
+    write_image(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied sobel to {} \u{2192} {}",
@@ -247,15 +248,15 @@ pub(super) fn run_log(args: &FilterArgs) -> Result<()> {
     use ritk_filter::edge::GaussianSigma;
     use ritk_filter::LaplacianOfGaussianFilter;
 
-    let image = read_image_native(&args.input)?;
+    let image = read_image(&args.input)?;
     let sigma = GaussianSigma::new(args.smoothing.sigma)
         .ok_or_else(|| anyhow!("--sigma must be > 0, got {}", args.smoothing.sigma))?;
-    let backend = NativeBackend::default();
+    let backend = Backend::default();
     let filter = LaplacianOfGaussianFilter::new(sigma);
     let filtered = filter.apply_native(&image, &backend)?;
     let fmt = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
-    write_image_native(&args.output, &filtered, fmt)?;
+    write_image(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied log (\u{03c3}={}) to {} \u{2192} {}",
@@ -283,15 +284,16 @@ pub(super) fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
     let order = match args.recursive.order {
         CliDerivativeOrder::Zero => DerivativeOrder::Zero,
         CliDerivativeOrder::First => DerivativeOrder::First,
-        CliDerivativeOrder::Second => DerivativeOrder::Second };
+        CliDerivativeOrder::Second => DerivativeOrder::Second,
+    };
 
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
     let filter = RecursiveGaussianFilter::new(args.smoothing.sigma).with_derivative_order(order);
     let filtered = filter.apply_native(&image, &backend)?;
     let fmt = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
-    write_image_native(&args.output, &filtered, fmt)?;
+    write_image(&args.output, &filtered, fmt)?;
 
     println!(
         "Applied recursive-gaussian (\u{03c3}={}, order={}) to {} \u{2192} {}",
@@ -349,18 +351,19 @@ pub(super) fn run_cpr(args: &FilterArgs) -> Result<()> {
     let output_format = infer_format(&args.output)
         .ok_or_else(|| anyhow!("Cannot infer output format: {}", args.output.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(input_format) && is_native_write_capable(output_format),
+        is_read_capable(input_format) && is_write_capable(output_format),
         "cpr requires native input/output formats"
     );
-    let image = read_image_native(&args.input)?;
-    let backend = NativeBackend::default();
+    let image = read_image(&args.input)?;
+    let backend = Backend::default();
 
     let cpr_filter = CprImageFilter::new(
         control_points,
         CprConfig {
             num_path_samples: args.cpr.cpr_path_samples as usize,
             cross_section_half_width: f64::from(args.cpr.cpr_half_width),
-            num_cross_samples: args.cpr.cpr_cross_samples as usize },
+            num_cross_samples: args.cpr.cpr_cross_samples as usize,
+        },
     );
 
     let image_2d = cpr_filter.apply_native(&image, &backend)?;
@@ -369,15 +372,18 @@ pub(super) fn run_cpr(args: &FilterArgs) -> Result<()> {
     let [nr, nc] = image_2d.shape();
     let origin = image_2d.origin();
     let spacing = image_2d.spacing();
-    let image_3d = ritk_image::native::Image::from_flat_on(
-        image_2d.data_slice()?.to_vec(),
+    let image_3d = ritk_image::Image::from_flat_on(
+        image_2d
+            .data_slice()
+            .expect("invariant: image storage is contiguous")
+            .to_vec(),
         [1, nr, nc],
         Point::new([0.0, origin[0], origin[1]]),
         Spacing::new([1.0, spacing[0], spacing[1]]),
         Direction::identity(),
         &backend,
     )?;
-    write_image_native(&args.output, &image_3d, output_format)?;
+    write_image(&args.output, &image_3d, output_format)?;
 
     println!(
         "Applied CPR to {} â†’ {}",

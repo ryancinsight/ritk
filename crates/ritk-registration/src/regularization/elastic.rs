@@ -1,4 +1,4 @@
-﻿//! Elastic regularization for displacement fields.
+//! Elastic regularization for displacement fields.
 //!
 //! Elastic regularization combines first-order (diffusion) and second-order
 //! (bending) terms, balancing smoothness and flexibility for image registration.
@@ -57,7 +57,8 @@ pub struct ElasticRegularizer {
     /// Weight for membrane (first-order smoothness) term
     alpha: f64,
     /// Weight for volume-preservation term
-    beta: f64 }
+    beta: f64,
+}
 
 impl ElasticRegularizer {
     /// Create a new elastic regularizer with custom weights.

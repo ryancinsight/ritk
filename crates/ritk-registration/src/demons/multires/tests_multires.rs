@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 use crate::demons::config::DemonsVariant;
 use crate::demons::DemonsConfig;
 
@@ -32,7 +32,8 @@ fn test_multires_thirion_identity_mse_below_threshold() {
         },
         levels: 2,
         variant: DemonsVariant::Classic,
-        n_squarings: 6 };
+        n_squarings: 6,
+    };
     let reg = MultiResDemonsRegistration::new(config);
     let result = reg
         .register(&image, &image, dims, [1.0f32, 1.0, 1.0])
@@ -75,7 +76,8 @@ fn test_multires_thirion_shifted_image_mse_decreases() {
         },
         levels: 2,
         variant: DemonsVariant::Classic,
-        n_squarings: 6 };
+        n_squarings: 6,
+    };
     let reg = MultiResDemonsRegistration::new(config);
     let result = reg
         .register(&fixed, &moving, dims, [1.0f32, 1.0, 1.0])
@@ -99,7 +101,8 @@ fn test_multires_diffeomorphic_identity_mse_below_threshold() {
         },
         levels: 2,
         variant: DemonsVariant::Diffeomorphic,
-        n_squarings: 6 };
+        n_squarings: 6,
+    };
     let reg = MultiResDemonsRegistration::new(config);
     let result = reg
         .register(&image, &image, dims, [1.0f32, 1.0, 1.0])
@@ -143,7 +146,8 @@ fn test_multires_single_level_equals_thirion() {
         base_config: base_config.clone(),
         levels: 1,
         variant: DemonsVariant::Classic,
-        n_squarings: 6 };
+        n_squarings: 6,
+    };
     let multi_reg = MultiResDemonsRegistration::new(multi_config);
     let multi_result = multi_reg
         .register(&image, &image, dims, [1.0f32, 1.0, 1.0])

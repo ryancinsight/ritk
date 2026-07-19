@@ -1,4 +1,4 @@
-﻿//! Exact inverse of a stationary velocity field via negation.
+//! Exact inverse of a stationary velocity field via negation.
 //!
 //! # Mathematical Basis
 //!
@@ -41,5 +41,6 @@ pub fn invert_velocity_field(vel_z: &[f32], vel_y: &[f32], vel_x: &[f32]) -> Vel
     VelocityField {
         z: inv_z,
         y: inv_y,
-        x: inv_x }
+        x: inv_x,
+    }
 }

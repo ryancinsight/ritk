@@ -1,11 +1,12 @@
-﻿//! Derivatives, Laplacian, and Sobel gradient filters.
+//! Derivatives, Laplacian, and Sobel gradient filters.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::{
     DerivativeImageFilter, GradientMagnitudeFilter, LaplacianFilter, LaplacianSharpeningFilter,
-    SobelFilter };
+    SobelFilter,
+};
 use std::sync::Arc;
 
 /// Directional derivative (central differences) along `direction` (sitk axis:
@@ -29,13 +30,13 @@ pub fn derivative(
     // sitk direction [x,y,z] â†’ ritk tensor axis [z,y,x].
     let axis = 2 - direction;
     // TODO: DerivativeImageFilter still lacks apply_native; keep Burn roundtrip for now.
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     py.allow_threads(|| {
         DerivativeImageFilter::new(axis, order, use_image_spacing)
             .apply(&arc)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }
 
 /// Compute the gradient magnitude |âˆ‡I| via central finite differences.
@@ -110,9 +111,9 @@ pub fn laplacian_sharpening(
     use_image_spacing: bool,
 ) -> RitkResult<PyImage> {
     // TODO: LaplacianSharpeningFilter still lacks apply_native; keep Burn roundtrip for now.
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     let out = py.allow_threads(|| LaplacianSharpeningFilter::new(use_image_spacing).apply(&arc));
-    Ok(burn_into_py_image(out))
+    Ok(into_py_image(out))
 }
 
 /// Compute the Sobel gradient magnitude of an image.
@@ -133,7 +134,7 @@ pub fn laplacian_sharpening(
 #[pyfunction]
 pub fn sobel_gradient(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
     // TODO: SobelFilter still lacks apply_native; keep Burn roundtrip for now.
-    let image = py_image_to_burn(image);
+    let image = image_from_py(image);
     py.allow_threads(|| {
         let spacing = image.spacing();
         let filter = SobelFilter::new(*spacing);
@@ -141,5 +142,5 @@ pub fn sobel_gradient(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
             .apply(&image)
             .map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

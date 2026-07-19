@@ -1,4 +1,4 @@
-﻿//! Warp filter: resample a moving image through a dense displacement field.
+//! Warp filter: resample a moving image through a dense displacement field.
 //!
 //! # Mathematical Specification
 //!
@@ -11,7 +11,7 @@
 //! ```
 //!
 //! Coordinate mapping is delegated entirely to the image's canonical
-//! [`Image::index_to_world_tensor`] / [`Image::world_to_index_tensor`] â€” the same
+//! [`Image::index_to_world_native`] / [`Image::world_to_index_native`] â€” the same
 //! transforms `ResampleImageFilter` uses and which are verified float-exact to
 //! SimpleITK on loaded anisotropic data. Operating on the tensor directly (rather
 //! than a hand-rolled flat-index loop) makes the filter agnostic to image
@@ -79,12 +79,12 @@ pub fn warp_image<B: Backend>(
         })
         .collect::<Vec<_>>();
 
-    Ok(Image::new(
+    Image::new(
         Tensor::<f32, B>::from_slice(field_dims, &output),
         *disp_z.origin(),
         *disp_z.spacing(),
         *disp_z.direction(),
-    ))
+    )
 }
 
 fn trilinear_sample(values: &[f32], shape: [usize; 3], index: Point<3>) -> f32 {
@@ -132,11 +132,11 @@ fn trilinear_sample(values: &[f32], shape: [usize; 3], index: Point<3>) -> f32 {
 /// Returns an error when field component shapes or spatial metadata differ, or
 /// when the shared native sampler rejects the moving image or point batch.
 pub fn warp_image_native<B>(
-    moving: &ritk_image::native::Image<f32, B, 3>,
-    disp_z: &ritk_image::native::Image<f32, B, 3>,
-    disp_y: &ritk_image::native::Image<f32, B, 3>,
-    disp_x: &ritk_image::native::Image<f32, B, 3>,
-) -> Result<ritk_image::native::Image<f32, B, 3>>
+    moving: &ritk_image::Image<f32, B, 3>,
+    disp_z: &ritk_image::Image<f32, B, 3>,
+    disp_y: &ritk_image::Image<f32, B, 3>,
+    disp_x: &ritk_image::Image<f32, B, 3>,
+) -> Result<ritk_image::Image<f32, B, 3>>
 where
     B: coeus_core::Backend + coeus_core::ComputeBackend + Default,
     B::DeviceBuffer<f32>:
@@ -170,7 +170,7 @@ where
         point[2] += x;
     }
 
-    ritk_image::native::Image::from_flat(
+    ritk_image::Image::from_flat(
         sample_moving_at_world(moving, &moving_world)?,
         shape,
         *disp_z.origin(),

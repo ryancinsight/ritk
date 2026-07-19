@@ -1,4 +1,4 @@
-﻿//! NRRD file-space conversion for RITK's internal ZYX image axes.
+//! NRRD file-space conversion for RITK's internal ZYX image axes.
 //!
 //! RITK stores tensors and spatial metadata in `[depth,row,col] = [z,y,x]`
 //! order. NRRD `sizes` and `space directions` fields list file axes as
@@ -16,7 +16,8 @@ use ritk_spatial::{Direction, Spacing, Vector};
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct InternalSpatialMetadata {
     pub(crate) spacing: Spacing<3>,
-    pub(crate) direction: Direction<3> }
+    pub(crate) direction: Direction<3>,
+}
 
 /// Convert NRRD `[x,y,z]` space-direction vectors into RITK internal
 /// `[depth,row,col]` spacing and direction columns.
@@ -79,7 +80,8 @@ fn metadata_from_internal_scaled_columns(
 
     InternalSpatialMetadata {
         spacing,
-        direction: Direction::from_columns(direction_columns) }
+        direction: Direction::from_columns(direction_columns),
+    }
 }
 
 fn vector_from_array(value: [f64; 3]) -> Vector<3> {

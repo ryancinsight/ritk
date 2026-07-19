@@ -1,4 +1,4 @@
-﻿//! SSMMorph: State Space Model-based Medical Image Registration
+//! SSMMorph: State Space Model-based Medical Image Registration
 //!
 //! Implementation based on VMambaMorph and MambaBIR papers:
 //! - Selective State Space (S6) with input-dependent parameters
@@ -69,11 +69,14 @@ pub use vmamba_block::{VMambaBlock, VMambaBlockConfig};
 
 pub use encoder::{
     DownsamplePolicy, DropPath, EncoderStage, EncoderStageConfig, SSMMorphEncoder,
-    SSMMorphEncoderConfig };
+    SSMMorphEncoderConfig,
+};
 
 pub use decoder::{
-    DecoderStage, DecoderStageConfig, SSMMorphDecoder, SSMMorphDecoderConfig, SkipConnections };
+    DecoderStage, DecoderStageConfig, SSMMorphDecoder, SSMMorphDecoderConfig, SkipConnections,
+};
 
 // Network re-exports (primary API)
 pub use network::architecture::{
-    presets as network_presets, IntegrationMode, SSMMorph, SSMMorphConfig, SSMMorphOutput };
+    presets as network_presets, IntegrationMode, SSMMorph, SSMMorphConfig, SSMMorphOutput,
+};

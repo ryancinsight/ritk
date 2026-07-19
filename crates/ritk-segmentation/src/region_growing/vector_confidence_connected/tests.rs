@@ -1,6 +1,6 @@
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 
 use super::statistics::inverse_covariance;
@@ -241,6 +241,7 @@ fn legacy_and_native_outputs_are_exact_with_nonidentity_geometry() {
                 direction,
                 &Default::default(),
             )
+            .expect("invariant: fixture tensor has the declared rank")
         })
         .collect();
     let native: Vec<_> = channels
@@ -264,7 +265,12 @@ fn legacy_and_native_outputs_are_exact_with_nonidentity_geometry() {
     let actual = filter
         .apply_native(&native_refs, &SequentialBackend)
         .unwrap();
-    assert_eq!(actual.data_slice().unwrap(), expected.data_slice().as_ref());
+    assert_eq!(
+        actual.data_slice().unwrap(),
+        expected
+            .data_slice()
+            .expect("invariant: contiguous host storage")
+    );
     assert_eq!(*actual.origin(), origin);
     assert_eq!(*actual.spacing(), spacing);
     assert_eq!(*actual.direction(), direction);
@@ -279,7 +285,8 @@ fn channel_geometry_mismatch_is_rejected_exactly() {
         Spacing::new([1.0; 3]),
         Direction::identity(),
         &Default::default(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     let second = Image::<f32, LegacyBackend, 3>::from_flat_on(
         vec![1.0],
         [1, 1, 1],
@@ -287,7 +294,8 @@ fn channel_geometry_mismatch_is_rejected_exactly() {
         Spacing::new([1.0; 3]),
         Direction::identity(),
         &Default::default(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     let filter = VectorConfidenceConnectedFilter::new([[0, 0, 0]], config());
     assert_eq!(
         filter.apply(&[&first, &second]).unwrap_err().to_string(),

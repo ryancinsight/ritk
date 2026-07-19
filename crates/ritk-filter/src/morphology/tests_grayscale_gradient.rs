@@ -13,7 +13,9 @@ fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 fn vals(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data_slice().into_owned()
+    img.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 /// Constant image â†’ gradient = 0 everywhere.
@@ -113,7 +115,8 @@ fn step_edge_gradient_at_boundary() {
 fn spatial_metadata_preserved() {
     let sp = Spacing::new([2.5, 3.5, 4.5]);
     let t = Tensor::<f32, B>::from_slice([1usize, 1, 3], &[1.0_f32, 2.0, 3.0]);
-    let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp, Direction::identity());
+    let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp, Direction::identity())
+        .expect("invariant: fixture tensor has the declared rank");
     let out = GrayscaleMorphologicalGradientFilter::new(1)
         .apply(&img)
         .unwrap();

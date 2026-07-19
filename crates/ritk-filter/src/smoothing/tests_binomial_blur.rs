@@ -11,7 +11,9 @@ fn rep1_interior_impulse_is_kernel() {
     let img = ts::make_image::<f32, B, 3>(v, [1, 1, 7]);
     let out = BinomialBlurImageFilter::new(1).apply(&img);
     assert_eq!(
-        out.data_slice().into_owned(),
+        out.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec(),
         vec![0.0, 0.0, 1.0, 2.0, 1.0, 0.0, 0.0]
     );
 }
@@ -24,7 +26,9 @@ fn rep2_interior_impulse() {
     let img = ts::make_image::<f32, B, 3>(v, [1, 1, 7]);
     let out = BinomialBlurImageFilter::new(2).apply(&img);
     assert_eq!(
-        out.data_slice().into_owned(),
+        out.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec(),
         vec![0.0, 0.25, 1.0, 1.5, 1.0, 0.25, 0.0]
     );
 }
@@ -35,7 +39,12 @@ fn rep2_interior_impulse() {
 fn reflect_boundary_edge_impulse() {
     let img = ts::make_image::<f32, B, 3>(vec![4.0, 0.0, 0.0, 0.0, 0.0], [1, 1, 5]);
     let out = BinomialBlurImageFilter::new(1).apply(&img);
-    assert_eq!(out.data_slice().into_owned(), vec![2.0, 1.0, 0.0, 0.0, 0.0]);
+    assert_eq!(
+        out.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec(),
+        vec![2.0, 1.0, 0.0, 0.0, 0.0]
+    );
 }
 
 /// Low-end reflect: impulse at index 1 → `[2,2,1,0,0]` (disambiguates reflect
@@ -44,7 +53,12 @@ fn reflect_boundary_edge_impulse() {
 fn reflect_boundary_near_edge_impulse() {
     let img = ts::make_image::<f32, B, 3>(vec![0.0, 4.0, 0.0, 0.0, 0.0], [1, 1, 5]);
     let out = BinomialBlurImageFilter::new(1).apply(&img);
-    assert_eq!(out.data_slice().into_owned(), vec![2.0, 2.0, 1.0, 0.0, 0.0]);
+    assert_eq!(
+        out.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec(),
+        vec![2.0, 2.0, 1.0, 0.0, 0.0]
+    );
 }
 
 /// High-end clamp (ITK asymmetry): impulse at the LAST index → `[0,0,0,1,3]`
@@ -53,7 +67,12 @@ fn reflect_boundary_near_edge_impulse() {
 fn clamp_boundary_high_edge_impulse() {
     let img = ts::make_image::<f32, B, 3>(vec![0.0, 0.0, 0.0, 0.0, 4.0], [1, 1, 5]);
     let out = BinomialBlurImageFilter::new(1).apply(&img);
-    assert_eq!(out.data_slice().into_owned(), vec![0.0, 0.0, 0.0, 1.0, 3.0]);
+    assert_eq!(
+        out.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec(),
+        vec![0.0, 0.0, 0.0, 1.0, 3.0]
+    );
 }
 
 /// A constant image is preserved (reflect makes every weighted sum = c).
@@ -61,7 +80,11 @@ fn clamp_boundary_high_edge_impulse() {
 fn constant_image_preserved() {
     let img = ts::make_image::<f32, B, 3>(vec![10.0; 27], [3, 3, 3]);
     let out = BinomialBlurImageFilter::new(3).apply(&img);
-    for &x in out.data_slice().iter() {
+    for &x in out
+        .data_slice()
+        .expect("invariant: contiguous host storage")
+        .iter()
+    {
         assert!((x - 10.0).abs() < 1e-5, "got {x}");
     }
 }
@@ -72,5 +95,10 @@ fn zero_repetitions_is_identity() {
     let data: Vec<f32> = (0..27).map(|i| i as f32).collect();
     let img = ts::make_image::<f32, B, 3>(data.clone(), [3, 3, 3]);
     let out = BinomialBlurImageFilter::new(0).apply(&img);
-    assert_eq!(out.data_slice().into_owned(), data);
+    assert_eq!(
+        out.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec(),
+        data
+    );
 }

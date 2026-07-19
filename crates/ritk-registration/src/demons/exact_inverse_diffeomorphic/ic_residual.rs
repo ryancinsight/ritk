@@ -1,4 +1,4 @@
-﻿//! IC residual computation for inverse-consistent diffeomorphic Demons.
+//! IC residual computation for inverse-consistent diffeomorphic Demons.
 //!
 //! IC residual = (1/n) * Î£_x â€–Ï†_fwd(Ï†_inv(x)) âˆ’ xâ€–â‚‚
 //!
@@ -29,7 +29,8 @@ pub(super) fn compute_ic_residual(
     let phi = VectorField {
         z: phi_z,
         y: phi_y,
-        x: phi_x };
+        x: phi_x,
+    };
     let mut sum_dist = 0.0_f64;
 
     for iz in 0..nz {

@@ -1,4 +1,4 @@
-﻿//! RITK-owned JPEG decoder implementing `JpegDecodeBackend`.
+//! RITK-owned JPEG decoder implementing `JpegDecodeBackend`.
 //!
 //! Routes based on the SOF marker encountered in the bitstream:
 //! - SOF0/SOF1 â†’ Baseline/Extended sequential DCT decode (`scan_dct`)
@@ -29,6 +29,7 @@ impl JpegDecodeBackend for RitkJpegDecoder {
         match frame.sof.sof_marker {
             SOF0 | SOF1 => scan_dct::decode_baseline_scan(&frame, entropy),
             SOF3 => scan_lossless::decode_lossless_scan(&frame, entropy),
-            other => bail!("unsupported JPEG SOF marker: 0x{other:04X}") }
+            other => bail!("unsupported JPEG SOF marker: 0x{other:04X}"),
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿//! Directions for Cross-Scan implementations
+//! Directions for Cross-Scan implementations
 
 /// Scan direction for cross-scan operation
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,7 +14,8 @@ pub enum ScanDirection {
     /// Front to back (3D)
     DepthForward,
     /// Back to front (3D)
-    DepthReverse }
+    DepthReverse,
+}
 
 impl ScanDirection {
     /// Get all 2D scan directions

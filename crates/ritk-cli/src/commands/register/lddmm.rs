@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 
 // â”€â”€ LDDMM registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -86,7 +86,8 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
-            convergence_threshold: 1e-5 })
+            convergence_threshold: 1e-5,
+        })
         .expect("lddmm must succeed");
 
         assert!(output_path.exists(), "output must exist");
@@ -124,16 +125,20 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
-            convergence_threshold: 1e-5 })
+            convergence_threshold: 1e-5,
+        })
         .expect("lddmm must succeed");
 
         let out = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).unwrap();
-        out.with_data_slice(|vals| {
+        {
+            let vals = out
+                .data_slice()
+                .expect("invariant: image storage is contiguous");
             assert!(
                 vals.iter().all(|v| v.is_finite()),
                 "all output voxels must be finite"
             );
-        });
+        }
     }
 
     // â”€â”€ Boundary: Leto volume round-trip preserves values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -164,8 +169,18 @@ mod tests {
 
         // Convert back and verify sum is preserved.
         let reconstructed = leto_volume_to_image(volume, &image);
-        let orig_sum: f32 = image.with_data_slice(|s| s.iter().copied().sum());
-        let recon_sum: f32 = reconstructed.with_data_slice(|s| s.iter().copied().sum());
+        let orig_sum: f32 = image
+            .data_slice()
+            .expect("invariant: image storage is contiguous")
+            .iter()
+            .copied()
+            .sum();
+        let recon_sum: f32 = reconstructed
+            .data_slice()
+            .expect("invariant: image storage is contiguous")
+            .iter()
+            .copied()
+            .sum();
         assert!(
             (orig_sum - recon_sum).abs() < 1e-3,
             "voxel sum must be preserved: orig={orig_sum}, recon={recon_sum}"
@@ -194,8 +209,8 @@ mod tests {
 
         // Round-trip.
         let reconstructed = flat_vec_to_image(data, shape, &image);
-        let recon_vals: Vec<f32> = reconstructed.data_slice().into_owned();
-        let orig_vals: Vec<f32> = image.data_slice().into_owned();
+        let recon_vals: Vec<f32> = reconstructed.data_vec();
+        let orig_vals: Vec<f32> = image.data_vec();
         for (i, (&o, &r)) in orig_vals.iter().zip(recon_vals.iter()).enumerate() {
             assert!(
                 (o - r).abs() < 1e-6,

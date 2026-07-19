@@ -1,6 +1,6 @@
 use super::*;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Very large scale approximates identity (Poisson â†’ Gaussian at large Î»).
@@ -94,7 +94,8 @@ fn shot_preserves_metadata() {
         Point::new([1.0, 2.0, 3.0]),
         Spacing::new([0.5, 0.5, 2.0]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     let filter = ShotNoiseFilter::new(5.0).with_seed(42);
     let result = filter.apply(&img).unwrap();
     assert_eq!(result.origin(), img.origin(), "origin must be preserved");
@@ -125,7 +126,9 @@ fn native_shot_matches_tensor_sequence_across_sampling_regimes() {
     let tensor = filter.apply(&make_image(values, [1, 1, 2])).unwrap();
     assert_eq!(
         native.data_slice().expect("contiguous native output"),
-        tensor.data_slice().as_ref()
+        tensor
+            .data_slice()
+            .expect("invariant: contiguous host storage")
     );
     assert_eq!(native.origin(), image.origin());
     assert_eq!(native.spacing(), image.spacing());

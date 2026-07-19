@@ -1,4 +1,4 @@
-﻿//! Bit-level reader for JPEG-LS compressed scan data.
+//! Bit-level reader for JPEG-LS compressed scan data.
 //!
 //! # JPEG-LS Bit Stuffing (ISO 14495-1 Â§C.2.1)
 //! In a JPEG-LS scan, an encoded `0xFF` data byte is followed by one stuffed
@@ -17,7 +17,8 @@ pub(super) struct BitReader<'a> {
     /// Bit accumulator (MSB aligned).
     buf: u32,
     /// Number of valid bits in `buf`.
-    bits: u32 }
+    bits: u32,
+}
 
 impl<'a> BitReader<'a> {
     /// Construct and prime the buffer.
@@ -26,7 +27,8 @@ impl<'a> BitReader<'a> {
             data,
             pos: 0,
             buf: 0,
-            bits: 0 };
+            bits: 0,
+        };
         r.refill();
         r
     }
@@ -135,7 +137,8 @@ pub(super) struct BitWriter {
     /// Bits currently held in `cur`.
     used: u32,
     /// Capacity of the byte being assembled: 8 normally, 7 after an 0xFF.
-    cap: u32 }
+    cap: u32,
+}
 
 impl BitWriter {
     pub(super) fn new() -> Self {
@@ -143,7 +146,8 @@ impl BitWriter {
             out: Vec::new(),
             cur: 0,
             used: 0,
-            cap: 8 }
+            cap: 8,
+        }
     }
 
     #[inline(always)]

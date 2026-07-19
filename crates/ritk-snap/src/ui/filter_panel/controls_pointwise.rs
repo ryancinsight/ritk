@@ -1,4 +1,4 @@
-﻿use crate::FilterKind;
+use crate::FilterKind;
 use ritk_filter::BinarizationThreshold;
 
 /// Render parameter controls for Pointwise + Geometry + Threshold filter variants.
@@ -149,7 +149,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::ZeroCrossing {
             foreground_value,
-            background_value } => {
+            background_value,
+        } => {
             ui.label(
                 egui::RichText::new(
                     "ITK ZeroCrossingImageFilter: emits foreground_value where a sign change (or exact zero) exists in the 6-connected neighbourhood.",
@@ -172,7 +173,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             start_x,
             size_z,
             size_y,
-            size_x } => {
+            size_x,
+        } => {
             ui.label(
                 egui::RichText::new(
                     "ITK RegionOfInterestImageFilter: extract a rectangular sub-volume. Origin is updated to the physical start voxel.",
@@ -244,7 +246,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         FilterKind::PermuteAxes {
             order_0,
             order_1,
-            order_2 } => {
+            order_2,
+        } => {
             ui.label(
                 egui::RichText::new(
                     "ITK PermuteAxesImageFilter: rearrange axes. order[i] = source axis for output axis i. Must be a permutation of {0, 1, 2}.",
@@ -313,7 +316,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             lower,
             upper,
             foreground,
-            background } => {
+            background,
+        } => {
             ui.horizontal(|ui| {
                 ui.label("Lower:");
                 ui.add(egui::DragValue::new(lower).speed(1.0));
@@ -432,5 +436,6 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             );
             true
         }
-        _ => false }
+        _ => false,
+    }
 }

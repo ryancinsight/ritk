@@ -1,4 +1,4 @@
-﻿//! Summed-area tables for O(1) local CC window statistics.
+//! Summed-area tables for O(1) local CC window statistics.
 //!
 //! # Numerical contract
 //! Inputs must be approximately [0, 1]-normalized (typical for SyN after
@@ -24,7 +24,8 @@ pub(crate) struct CcSats {
     /// SAT dimensions = (pnz+1, pny+1, pnx+1) where pnd = dims[d] + 2*r
     sdims: [usize; 3],
     r: usize,
-    cnt: f64 }
+    cnt: f64,
+}
 
 impl CcSats {
     /// Allocate the five tables for one image shape and window radius.
@@ -48,7 +49,8 @@ impl CcSats {
             sat_fm: vec![0.0_f64; sat_size],
             sdims: [snz, sny, snx],
             r,
-            cnt }
+            cnt,
+        }
     }
 
     /// Build all five tables from `i_w` and `j_w`.

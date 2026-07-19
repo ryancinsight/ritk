@@ -1,4 +1,4 @@
-﻿//! Conditional Mutual Information and Interaction Information pyfunction wrappers.
+//! Conditional Mutual Information and Interaction Information pyfunction wrappers.
 //!
 //! Delegates to `ritk_statistics::information`:
 //! - I(X;Y|Z) = H(X,Z) + H(Y,Z) âˆ’ H(X,Y,Z) âˆ’ H(Z)   (conditional MI)
@@ -7,7 +7,8 @@
 use anyhow::Result;
 use pyo3::prelude::*;
 use ritk_statistics::information::{
-    conditional_mutual_information as core_cmi, interaction_information as core_ii };
+    conditional_mutual_information as core_cmi, interaction_information as core_ii,
+};
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, PyImage};

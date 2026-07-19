@@ -1,4 +1,4 @@
-﻿//! VTK smart mapper abstraction: scalar-to-color mapping and rendering strategy selection.
+//! VTK smart mapper abstraction: scalar-to-color mapping and rendering strategy selection.
 //!
 //! # Architecture
 //!
@@ -26,7 +26,8 @@ pub enum PolygonMode {
     /// Polygon outlines only.
     Wireframe,
     /// Polygon vertices only.
-    Points }
+    Points,
+}
 
 /// Built-in colormap presets for `VtkLookupTable`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -41,7 +42,8 @@ pub enum ColormapPreset {
     /// Perceptually uniform dark-purple â†’ yellow (Matplotlib viridis).
     Viridis,
     /// HSV rainbow hue sweep blue â†’ red.
-    Rainbow }
+    Rainbow,
+}
 
 /// 256-entry RGBA lookup table mapping normalised scalars to colours.
 ///
@@ -75,7 +77,8 @@ impl VtkLookupTable {
         Self {
             range,
             preset,
-            table }
+            table,
+        }
     }
 
     /// Map scalar `v` to an RGBA colour.
@@ -107,7 +110,8 @@ fn sample_colormap(preset: ColormapPreset, t: f32) -> [f32; 3] {
         ColormapPreset::Jet => jet_color(t),
         ColormapPreset::CoolWarm => cool_warm_color(t),
         ColormapPreset::Viridis => viridis_color(t),
-        ColormapPreset::Rainbow => rainbow_color(t) }
+        ColormapPreset::Rainbow => rainbow_color(t),
+    }
 }
 
 /// MATLAB-style jet colormap: piecewise linear blueâ†’cyanâ†’greenâ†’yellowâ†’red.
@@ -202,7 +206,8 @@ fn hsv_to_rgb(h: f32, s: f32, v: f32) -> [f32; 3] {
         2 => [p, v, t],
         3 => [p, q, v],
         4 => [t, p, v],
-        _ => [v, p, q] }
+        _ => [v, p, q],
+    }
 }
 
 /// Linear interpolation between two RGB triples.
@@ -226,7 +231,8 @@ pub enum ScalarVisibility {
     #[default]
     Hidden,
     /// Scalar values drive colour via the lookup table.
-    Visible }
+    Visible,
+}
 
 /// Abstraction for VTK rendering mappers â€” converts a dataset to a renderable
 /// representation using a lookup table and a chosen polygon display mode.
@@ -249,7 +255,8 @@ pub struct SurfaceMapper {
     /// Overall opacity in [0, 1]; 1.0 = fully opaque.
     pub opacity: f32,
     lut: VtkLookupTable,
-    scalar_visibility: ScalarVisibility }
+    scalar_visibility: ScalarVisibility,
+}
 
 impl Default for SurfaceMapper {
     fn default() -> Self {
@@ -257,7 +264,8 @@ impl Default for SurfaceMapper {
             mode: PolygonMode::Surface,
             opacity: 1.0,
             lut: VtkLookupTable::new([0.0, 1.0], ColormapPreset::Grayscale),
-            scalar_visibility: ScalarVisibility::Visible }
+            scalar_visibility: ScalarVisibility::Visible,
+        }
     }
 }
 
@@ -268,7 +276,8 @@ impl SurfaceMapper {
             mode,
             opacity: 1.0,
             lut,
-            scalar_visibility: ScalarVisibility::Visible }
+            scalar_visibility: ScalarVisibility::Visible,
+        }
     }
 }
 

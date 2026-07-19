@@ -1,4 +1,4 @@
-﻿//! RIRE CT/MR T1 rigid-transform pure math tests.
+//! RIRE CT/MR T1 rigid-transform pure math tests.
 //!
 //! These tests exercise the rigid-transform math helpers (apply, inverse,
 //! orthogonality) and the 8-corner fiducial verification from the RIRE
@@ -17,7 +17,8 @@
 mod common;
 
 use common::{
-    apply_rigid, mat3_det, mat3_mul, mat3_transpose, rigid_inverse, GT_ROT, GT_TRANS, RIRE_CORNERS };
+    apply_rigid, mat3_det, mat3_mul, mat3_transpose, rigid_inverse, GT_ROT, GT_TRANS, RIRE_CORNERS,
+};
 use std::f64::consts::PI;
 
 // â”€â”€ Group 1 â€” Pure math tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

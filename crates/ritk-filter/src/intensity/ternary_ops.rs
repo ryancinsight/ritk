@@ -16,9 +16,9 @@
 //! `TernaryMagnitudeSquaredImageFilter` (`sitk.TernaryAdd`,
 //! `sitk.TernaryMagnitude`, `sitk.TernaryMagnitudeSquared`).
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use coeus_core::ComputeBackend;
 use ritk_image::tensor::Backend;
-use ritk_image::{native::Image as NativeImage, Image};
+use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec as extract, rebuild};
 
 /// Pointwise ternary operation on a voxel triple (zero-sized strategy type).
@@ -104,30 +104,29 @@ impl<Op: TernaryOp> TernaryOpFilter<Op> {
     /// Apply the ternary operation to three co-registered Coeus-native images.
     pub fn apply_native<B>(
         &self,
-        a: &NativeImage<f32, B, 3>,
-        b: &NativeImage<f32, B, 3>,
-        c: &NativeImage<f32, B, 3>,
+        a: &Image<f32, B, 3>,
+        b: &Image<f32, B, 3>,
+        c: &Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    ) -> anyhow::Result<Image<f32, B, 3>>
     where
         B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         let (sa, sb, sc) = (a.shape(), b.shape(), c.shape());
         anyhow::ensure!(
             sa == sb && sb == sc,
             "ternary image filter: shape mismatch {sa:?} / {sb:?} / {sc:?}"
         );
-        let av = a.data_slice()?;
-        let bv = b.data_slice()?;
-        let cv = c.data_slice()?;
+        let av = a.try_data_vec_on(backend)?;
+        let bv = b.try_data_vec_on(backend)?;
+        let cv = c.try_data_vec_on(backend)?;
         let values = av
             .iter()
-            .zip(bv)
-            .zip(cv)
+            .zip(&bv)
+            .zip(&cv)
             .map(|((&x, &y), &z)| Op::apply(x, y, z))
             .collect();
-        NativeImage::from_flat_on(
+        Image::from_flat_on(
             values,
             sa,
             *a.origin(),

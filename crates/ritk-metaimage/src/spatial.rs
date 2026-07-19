@@ -1,4 +1,4 @@
-﻿//! MetaImage file-space conversion for RITK's internal ZYX image axes.
+//! MetaImage file-space conversion for RITK's internal ZYX image axes.
 //!
 //! RITK tensors and spatial metadata use `[depth,row,col] = [z,y,x]`.
 //! MetaImage `DimSize`, `ElementSpacing`, and `TransformMatrix` fields are
@@ -16,12 +16,14 @@ use ritk_spatial::{Direction, Spacing, Vector};
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct InternalSpatialMetadata {
     pub(crate) spacing: Spacing<3>,
-    pub(crate) direction: Direction<3> }
+    pub(crate) direction: Direction<3>,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct MetaImageSpatialFields {
     pub(crate) element_spacing: [f64; 3],
-    pub(crate) transform_matrix_row_major: [f64; 9] }
+    pub(crate) transform_matrix_row_major: [f64; 9],
+}
 
 /// Convert MetaImage `[x,y,z]` spacing and direction fields into RITK
 /// `[depth,row,col]` spacing and direction columns.
@@ -70,7 +72,8 @@ pub(crate) fn file_spatial_fields_from_internal(
             file_columns[2][0],
             file_columns[2][1],
             file_columns[2][2],
-        ] }
+        ],
+    }
 }
 
 fn metadata_from_internal_scaled_columns(
@@ -90,7 +93,8 @@ fn metadata_from_internal_scaled_columns(
 
     InternalSpatialMetadata {
         spacing,
-        direction: Direction::from_columns(direction_columns) }
+        direction: Direction::from_columns(direction_columns),
+    }
 }
 
 /// Direction cosine vector of file axis `axis`, scaled by its spacing.

@@ -1,4 +1,4 @@
-﻿//! Multi-resolution and inverse-consistent Demons registration algorithms.
+//! Multi-resolution and inverse-consistent Demons registration algorithms.
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
@@ -7,7 +7,8 @@ use ritk_filter::GaussianSigma;
 use ritk_registration::demons::{
     DemonsConfig, DemonsVariant, InverseConsistentDemonsConfig,
     InverseConsistentDiffeomorphicDemonsRegistration, MultiResDemonsConfig,
-    MultiResDemonsRegistration };
+    MultiResDemonsRegistration,
+};
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Configuration options for [`multires_demons_register`].
@@ -28,7 +29,8 @@ pub struct PyMultiresDemonsOptions {
     pub variant: String,
     /// Scaling-and-squaring steps when variant=diffeomorphic.
     #[pyo3(get, set)]
-    pub n_squarings: usize }
+    pub n_squarings: usize,
+}
 
 #[pymethods]
 impl PyMultiresDemonsOptions {
@@ -61,7 +63,8 @@ impl PyMultiresDemonsOptions {
             sigma_diffusion,
             levels,
             variant: normalized,
-            n_squarings })
+            n_squarings,
+        })
     }
 }
 
@@ -110,16 +113,19 @@ pub fn multires_demons_register(
     py.allow_threads(|| {
         let variant = match opts.variant.as_str() {
             "diffeomorphic" => DemonsVariant::Diffeomorphic,
-            _ => DemonsVariant::Classic };
+            _ => DemonsVariant::Classic,
+        };
         let config = MultiResDemonsConfig {
             base_config: DemonsConfig {
                 max_iterations,
                 sigma_diffusion: GaussianSigma::new(sigma_diffusion),
                 sigma_fluid: None,
-                max_step_length: 2.0 },
+                max_step_length: 2.0,
+            },
             levels,
             variant,
-            n_squarings };
+            n_squarings,
+        };
         MultiResDemonsRegistration::new(config)
             .register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
             .map_err(|e| e.to_string())
@@ -203,9 +209,11 @@ pub fn inverse_consistent_demons_register(
                 max_iterations,
                 sigma_diffusion: GaussianSigma::new(sigma_diffusion),
                 sigma_fluid: None,
-                max_step_length: 2.0 },
+                max_step_length: 2.0,
+            },
             inverse_consistency_weight,
-            n_squarings };
+            n_squarings,
+        };
         let reg = InverseConsistentDiffeomorphicDemonsRegistration::new(config);
         reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
             .map_err(|e| e.to_string())

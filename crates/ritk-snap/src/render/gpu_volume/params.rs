@@ -1,4 +1,4 @@
-﻿//! GPU uniform buffer structs for the MIP/VR compute shaders.
+//! GPU uniform buffer structs for the MIP/VR compute shaders.
 //!
 //! `RenderParams` must match `struct RenderParams` in `mip.wgsl`.
 //! `VrParams` must match `struct VrParams` in `vr.wgsl`.
@@ -53,7 +53,8 @@ pub(super) struct RenderParams {
     /// Padding â€” reserved for future use (e.g., gamma or transfer curve).
     pub _pad2: f32,
     /// Padding to 32-byte std140 boundary.
-    pub _pad3: f32 }
+    pub _pad3: f32,
+}
 
 /// Uniform parameters for the VR compute shader.
 ///
@@ -92,4 +93,5 @@ pub(super) struct VrParams {
     pub wl_range: f32,
     /// Per-voxel opacity scale factor. Canonical app value: `0.06`.
     pub alpha_scale: f32,
-    pub _pad1: f32 }
+    pub _pad1: f32,
+}

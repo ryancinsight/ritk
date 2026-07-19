@@ -1,4 +1,4 @@
-﻿//! Histogram-based Mutual Information variants plus entropy pyfunction wrappers.
+//! Histogram-based Mutual Information variants plus entropy pyfunction wrappers.
 //!
 //! Delegates all variants to `ritk_statistics::information`:
 //! - "standard":   hard nearest-bin assignment â€” `mutual_information`
@@ -15,7 +15,8 @@ use pyo3::prelude::*;
 use ritk_statistics::information::{
     joint_entropy as core_joint_entropy, marginal_entropy as core_marginal_entropy,
     mutual_information as core_mi, mutual_information_mattes as core_mi_mattes,
-    symmetric_uncertainty as core_su };
+    symmetric_uncertainty as core_su,
+};
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, PyImage};
@@ -28,7 +29,8 @@ pub(super) fn mi_slices(a: &[f32], b: &[f32], num_bins: usize, variant: &str) ->
         "mattes" => core_mi_mattes(a, b, num_bins),
         "standard" => core_mi(a, b, num_bins),
         "normalized" => core_su(a, b, num_bins),
-        _ => unreachable!("variant validated before mi_slices") }
+        _ => unreachable!("variant validated before mi_slices"),
+    }
 }
 
 /// Marginal Shannon entropy H(X) of a single image.

@@ -1,8 +1,8 @@
 use super::*;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Tensor;
 use ritk_image::test_support as ts;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -154,7 +154,8 @@ fn spatial_metadata_preserved() {
     let origin = Point::new([10.0, 20.0, 30.0]);
     let spacing = Spacing::new([1.5, 2.0, 0.75]);
     let dir = Direction::<3>::identity();
-    let img = Image::new(tensor, origin, spacing, dir);
+    let img = Image::new(tensor, origin, spacing, dir)
+        .expect("invariant: fixture tensor has the declared rank");
     let filter = UnsharpMaskFilter::default();
     let out = filter.apply::<B>(&img).expect("apply failed");
     assert_eq!(out.origin(), img.origin(), "origin changed");

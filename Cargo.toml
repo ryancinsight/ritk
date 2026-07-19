@@ -3,7 +3,6 @@ members = [
   "crates/ritk-filter",
   "crates/ritk-segmentation",
   "crates/ritk-vtk",
-  "crates/ritk-macros",
   "crates/ritk-core",
   "crates/ritk-dicom",
   "crates/ritk-codecs",
@@ -67,10 +66,6 @@ ritk-annotation = { path = "crates/ritk-annotation" }
 ritk-tensor-ops = { path = "crates/ritk-tensor-ops" }
 ritk-statistics = { path = "crates/ritk-statistics" }
 gaia = { path = "../gaia", default-features = false }
-# burn-ndarray removed: migrated to Coeus/leto test infrastructure
-# burn = { version = "0.19", default-features = false, features = ["std", "ndarray", "autodiff"] }
-# burn-ndarray = "0.19" # For CPU testing - REMOVED
-
 criterion = { version = "0.5", features = ["html_reports"] }
 coeus-nn = { path = "../coeus/coeus-nn" }
 coeus-optim = { path = "../coeus/coeus-optim" }
@@ -113,9 +108,6 @@ indicatif = "0.17"
 dirs = "5.0"
 sha2 = "0.10"
 hex = "0.4"
-proc-macro2 = "1.0"
-quote = "1.0"
-syn = "2.0"
 openjp2 = { version = "0.6.1", default-features = false }
 zune-core = { version = "0.4", default-features = false }
 zune-jpegxl = { version = "0.4", default-features = false }

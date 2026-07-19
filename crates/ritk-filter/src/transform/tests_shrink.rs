@@ -70,7 +70,7 @@ fn tile_mean_odd_size_ceil_division() {
 #[test]
 fn native_tile_mean_preserves_origin_and_scales_spacing() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
     use ritk_spatial::{Direction, Point};
 
     let image = NativeImage::from_flat_on(

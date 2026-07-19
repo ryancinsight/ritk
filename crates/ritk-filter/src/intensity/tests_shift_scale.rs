@@ -99,7 +99,7 @@ fn shift_scale_zero_scale_gives_zero() {
 #[test]
 fn native_shift_scale_preserves_hu_conversion() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
     use ritk_spatial::{Direction, Point, Spacing};
 
     let image = NativeImage::from_flat_on(

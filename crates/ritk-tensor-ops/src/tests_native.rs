@@ -1,7 +1,7 @@
-﻿use crate::native as coeus_tensor_ops;
+use crate::native as coeus_tensor_ops;
 use coeus_core::MoiraiBackend;
 use coeus_tensor::Tensor as CoeusTensor;
-use ritk_image::native::Image as CoeusImage;
+use ritk_image::Image as CoeusImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
 type Shape2 = [usize; 2];
@@ -11,13 +11,15 @@ enum BinaryOp {
     Add,
     Sub,
     Mul,
-    Div }
+    Div,
+}
 
 struct BinaryCase {
     op: BinaryOp,
     lhs: &'static [f32],
     rhs: &'static [f32],
-    expected: &'static [f32] }
+    expected: &'static [f32],
+}
 
 const SHAPE: Shape2 = [2, 3];
 
@@ -26,22 +28,26 @@ const BINARY_CASES: &[BinaryCase] = &[
         op: BinaryOp::Add,
         lhs: &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
         rhs: &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0],
-        expected: &[11.0, 22.0, 33.0, 44.0, 55.0, 66.0] },
+        expected: &[11.0, 22.0, 33.0, 44.0, 55.0, 66.0],
+    },
     BinaryCase {
         op: BinaryOp::Sub,
         lhs: &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
         rhs: &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0],
-        expected: &[-9.0, -18.0, -27.0, -36.0, -45.0, -54.0] },
+        expected: &[-9.0, -18.0, -27.0, -36.0, -45.0, -54.0],
+    },
     BinaryCase {
         op: BinaryOp::Mul,
         lhs: &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
         rhs: &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0],
-        expected: &[10.0, 40.0, 90.0, 160.0, 250.0, 360.0] },
+        expected: &[10.0, 40.0, 90.0, 160.0, 250.0, 360.0],
+    },
     BinaryCase {
         op: BinaryOp::Div,
         lhs: &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0],
         rhs: &[2.0, 4.0, 5.0, 8.0, 10.0, 12.0],
-        expected: &[5.0, 5.0, 6.0, 5.0, 5.0, 5.0] },
+        expected: &[5.0, 5.0, 6.0, 5.0, 5.0, 5.0],
+    },
 ];
 
 fn native_tensor(values: &[f32]) -> CoeusTensor<f32, MoiraiBackend> {
@@ -72,7 +78,8 @@ fn elementwise_binary_ops_match_exact_values() {
             BinaryOp::Add => native_data(&coeus_ops::add(&lhs_coeus, &rhs_coeus, &backend)),
             BinaryOp::Sub => native_data(&coeus_ops::sub(&lhs_coeus, &rhs_coeus, &backend)),
             BinaryOp::Mul => native_data(&coeus_ops::mul(&lhs_coeus, &rhs_coeus, &backend)),
-            BinaryOp::Div => native_data(&coeus_ops::div(&lhs_coeus, &rhs_coeus, &backend)) };
+            BinaryOp::Div => native_data(&coeus_ops::div(&lhs_coeus, &rhs_coeus, &backend)),
+        };
 
         assert_eq!(got_coeus, case.expected);
     }
@@ -173,7 +180,8 @@ fn native_rebuild_validates_shape_product() {
         &backend,
     ) {
         Ok(_) => panic!("shape/data mismatch must be reported"),
-        Err(err) => err };
+        Err(err) => err,
+    };
 
     assert_eq!(
         err.to_string(),

@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 use crate::domain::vtk_data_object::{AttributeArray, VtkDataObject, VtkImageData};
 
 fn image_2x2x1(values: [f32; 4]) -> VtkImageData {
@@ -11,7 +11,8 @@ fn image_2x2x1(values: [f32; 4]) -> VtkImageData {
         "scalars".to_string(),
         AttributeArray::Scalars {
             values: values.to_vec(),
-            num_components: 1 },
+            num_components: 1,
+        },
     );
     img
 }
@@ -24,7 +25,11 @@ fn all_below_lower_bound_gives_empty_output() {
     let VtkDataObject::UnstructuredGrid(ug) = out else {
         panic!()
     };
-    assert_eq!(ug.points.len(), 0, "all values below lower â†’ empty output");
+    assert_eq!(
+        ug.points.len(),
+        0,
+        "all values below lower â†’ empty output"
+    );
     assert_eq!(ug.n_cells(), 0);
 }
 
@@ -36,7 +41,11 @@ fn all_above_upper_bound_gives_empty_output() {
     let VtkDataObject::UnstructuredGrid(ug) = out else {
         panic!()
     };
-    assert_eq!(ug.points.len(), 0, "all values above upper â†’ empty output");
+    assert_eq!(
+        ug.points.len(),
+        0,
+        "all values above upper â†’ empty output"
+    );
 }
 
 #[test]
@@ -90,7 +99,8 @@ fn threshold_on_unstructured_grid_filters_cells() {
         "pressure".to_string(),
         AttributeArray::Scalars {
             values: vec![1.0, 5.0, 9.0],
-            num_components: 1 },
+            num_components: 1,
+        },
     );
     let f = ThresholdFilter::new("pressure", 4.0, 6.0);
     let out = f.execute(VtkDataObject::UnstructuredGrid(ug)).unwrap();

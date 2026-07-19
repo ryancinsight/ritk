@@ -43,7 +43,7 @@ fn make_identity_image() -> Image<f32, Backend, 3> {
     let origin = Point3::new([0.0, 0.0, 0.0]);
     let spacing = Spacing3::new([1.0, 1.0, 1.0]);
     let direction = Direction3::identity();
-    Image::new(data, origin, spacing, direction)
+    Image::new(data, origin, spacing, direction).expect("invariant: fixture tensor has the declared rank")
 }
 
 #[test]
@@ -72,7 +72,7 @@ fn test_fused_identity_image_zero_translation() {
         Point3::new([0.0, 0.0, 0.0]),
         Spacing3::new([1.0, 1.0, 1.0]),
         Direction3::identity(),
-    );
+    ).expect("invariant: fixture tensor has the declared rank");
 
     let transform = TranslationTransform {
         offset: [0.0, 0.0, 0.0],
@@ -102,7 +102,7 @@ fn test_fused_identity_image_with_translation() {
         Point3::new([10.0, 10.0, 10.0]),
         Spacing3::new([1.0, 1.0, 1.0]),
         Direction3::identity(),
-    );
+    ).expect("invariant: fixture tensor has the declared rank");
 
     // Transform: fixed_world + [10, 10, 10] -> moving_world
     // Then: index = (moving_world - [10,10,10]) / 1.0 = fixed_world
@@ -131,7 +131,7 @@ fn test_fused_non_identity_spacing() {
         Point3::new([0.0, 0.0, 0.0]),
         Spacing3::new([2.0, 2.0, 2.0]),
         Direction3::identity(),
-    );
+    ).expect("invariant: fixture tensor has the declared rank");
 
     let transform = TranslationTransform {
         offset: [0.0, 0.0, 0.0],
@@ -156,7 +156,7 @@ fn test_fused_matches_unfused() {
     let origin = Point3::new([5.0, 5.0, 5.0]);
     let spacing = Spacing3::new([2.0, 3.0, 4.0]);
     let direction = Direction3::identity();
-    let moving = Image::new(data, origin, spacing, direction);
+    let moving = Image::new(data, origin, spacing, direction).expect("invariant: fixture tensor has the declared rank");
 
     let transform = TranslationTransform {
         offset: [3.0, -1.0, 7.0],
@@ -198,7 +198,7 @@ fn test_fused_identity_direction_anisotropic_matches_unfused() {
     let data = Tensor::<f32, Backend>::from_slice([3, 4, 5], &data_vec);
     let origin = Point3::new([10.0, -20.0, 30.0]);
     let spacing = Spacing3::new([2.0, 3.0, 5.0]);
-    let moving = Image::new(data, origin, spacing, Direction3::identity());
+    let moving = Image::new(data, origin, spacing, Direction3::identity()).expect("invariant: fixture tensor has the declared rank");
 
     let transform = TranslationTransform {
         offset: [1.5, -2.0, 7.5],
@@ -252,7 +252,7 @@ fn test_fused_general_direction_matches_unfused() {
     direction[(1, 1)] = 0.0;
     direction[(2, 2)] = 1.0;
 
-    let moving = Image::new(data, origin, spacing, direction);
+    let moving = Image::new(data, origin, spacing, direction).expect("invariant: fixture tensor has the declared rank");
 
     let transform = TranslationTransform {
         offset: [0.0, 0.0, 0.0],
@@ -297,7 +297,7 @@ fn test_fused_oob_mask() {
         Point3::new([0.0, 0.0, 0.0]),
         Spacing3::new([1.0, 1.0, 1.0]),
         Direction3::identity(),
-    );
+    ).expect("invariant: fixture tensor has the declared rank");
 
     let transform = TranslationTransform {
         offset: [0.0, 0.0, 0.0],

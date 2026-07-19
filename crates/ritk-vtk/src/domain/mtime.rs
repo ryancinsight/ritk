@@ -1,4 +1,4 @@
-﻿//! VTK-style modification time (MTime) for lazy pipeline re-execution.
+//! VTK-style modification time (MTime) for lazy pipeline re-execution.
 //!
 //! # Mathematical Specification
 //!
@@ -73,12 +73,14 @@ mod tests {
     use super::*;
 
     struct Obj {
-        mtime: ModifiedTime }
+        mtime: ModifiedTime,
+    }
 
     impl Obj {
         fn new() -> Self {
             Self {
-                mtime: ModifiedTime::tick() }
+                mtime: ModifiedTime::tick(),
+            }
         }
     }
 
@@ -161,7 +163,8 @@ mod tests {
     #[test]
     fn mtime_needs_update_false_for_equal_zero_dependency() {
         struct Frozen {
-            mtime: ModifiedTime }
+            mtime: ModifiedTime,
+        }
         impl Modifiable for Frozen {
             fn get_mtime(&self) -> ModifiedTime {
                 self.mtime
@@ -172,7 +175,8 @@ mod tests {
         }
         // Both at ZERO â€” not strictly greater, so no update needed.
         let frozen = Frozen {
-            mtime: ModifiedTime::ZERO };
+            mtime: ModifiedTime::ZERO,
+        };
         assert!(
             !frozen.needs_update(ModifiedTime::ZERO),
             "equal mtime must not trigger update"

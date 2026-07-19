@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::tensor::Tensor;
@@ -15,11 +15,17 @@ fn make_mask_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, TestBackend, 3> 
 }
 
 fn values_3d(image: &Image<f32, TestBackend, 3>) -> Vec<f32> {
-    image.data_slice().into_owned()
+    image
+        .data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 fn values_1d(image: &Image<f32, TestBackend, 1>) -> Vec<f32> {
-    image.data_slice().into_owned()
+    image
+        .data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 fn count_fg_3d(image: &Image<f32, TestBackend, 3>) -> usize {
@@ -228,7 +234,8 @@ fn test_preserves_spatial_metadata() {
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 0.5, 0.5]);
     let direction = Direction::identity();
-    let mask: Image<f32, TestBackend, 3> = Image::new(tensor, origin, spacing, direction);
+    let mask: Image<f32, TestBackend, 3> = Image::new(tensor, origin, spacing, direction)
+        .expect("invariant: fixture tensor has the declared rank");
     let result = BinaryDilation::new(1).apply(&mask);
     assert_eq!(result.origin(), &origin, "origin must be preserved");
     assert_eq!(result.spacing(), &spacing, "spacing must be preserved");

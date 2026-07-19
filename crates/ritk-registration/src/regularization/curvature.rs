@@ -1,4 +1,4 @@
-﻿//! Curvature regularization for displacement fields.
+//! Curvature regularization for displacement fields.
 //!
 //! Curvature regularization is a higher-order regularization that penalizes
 //! the rate of change of the field's curvature, encouraging even smoother
@@ -46,7 +46,8 @@ use coeus_tensor::Tensor;
 /// ```
 #[derive(Clone, Debug)]
 pub struct CurvatureRegularizer {
-    weight: f64 }
+    weight: f64,
+}
 
 impl CurvatureRegularizer {
     /// Create a new curvature regularizer.

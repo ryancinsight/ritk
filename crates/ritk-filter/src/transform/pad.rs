@@ -190,9 +190,9 @@ impl ConstantPadImageFilter {
     /// Apply constant padding to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -211,7 +211,7 @@ impl ConstantPadImageFilter {
                 }
             }
         }
-        ritk_image::native::Image::from_flat_on(
+        ritk_image::Image::from_flat_on(
             output,
             [oz, oy, ox],
             updated_origin(
@@ -312,9 +312,9 @@ impl MirrorPadImageFilter {
     /// Apply mirror padding to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -403,9 +403,9 @@ impl WrapPadImageFilter {
     /// Apply wrap padding to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -415,12 +415,12 @@ impl WrapPadImageFilter {
 }
 
 fn padded_native<B>(
-    image: &ritk_image::native::Image<f32, B, 3>,
+    image: &ritk_image::Image<f32, B, 3>,
     backend: &B,
     lower: &Padding,
     upper: &Padding,
     index: fn(i64, usize) -> usize,
-) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
 where
     B: coeus_core::ComputeBackend,
     B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -441,7 +441,7 @@ where
             }
         }
     }
-    ritk_image::native::Image::from_flat_on(
+    ritk_image::Image::from_flat_on(
         output,
         [oz, oy, ox],
         updated_origin(image.origin(), image.spacing(), image.direction(), lower),
@@ -526,9 +526,9 @@ impl ZeroFluxNeumannPadImageFilter {
     /// Coeus-native sister of [`ZeroFluxNeumannPadImageFilter::apply`].
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -558,7 +558,7 @@ impl ZeroFluxNeumannPadImageFilter {
             image.direction(),
             &self.pad_lower,
         );
-        ritk_image::native::Image::from_flat_on(
+        ritk_image::Image::from_flat_on(
             out,
             [oz, oy, ox],
             new_origin,

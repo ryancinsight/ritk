@@ -409,7 +409,7 @@ fn test_round_trip_nrrd() -> Result<()> {
     let origin = Point::new([10.0, 20.0, 30.0]);
     let spacing = Spacing::new([0.9, 0.75, 1.5]);
     let direction = Direction::identity();
-    let image = ritk_image::native::Image::from_flat_on(
+    let image = ritk_image::Image::from_flat_on(
         data_vec.clone(),
         [2, 3, 4],
         origin,

@@ -1,4 +1,4 @@
-﻿//! Cached per-frame GPU buffers for one render pass.
+//! Cached per-frame GPU buffers for one render pass.
 //!
 //! Holds four buffers that are reused across frames to eliminate per-frame
 //! GPU allocation overhead:
@@ -42,7 +42,8 @@ pub(super) struct GpuFrameCache {
     ///
     /// Layout: `lut[i*4 + c]` = channel `c` âˆˆ `[0, 1]` for LUT entry `i`.
     /// Size: 256 Ã— 4 Ã— 4 = 4 096 bytes.
-    pub lut_buf: wgpu::Buffer }
+    pub lut_buf: wgpu::Buffer,
+}
 
 impl GpuFrameCache {
     /// Allocate all four GPU buffers for a `rows Ã— cols` output viewport.
@@ -64,13 +65,15 @@ impl GpuFrameCache {
             label: Some("gpu_frame_output"),
             size: pixel_bytes,
             usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC,
-            mapped_at_creation: false });
+            mapped_at_creation: false,
+        });
 
         let staging_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("gpu_frame_staging"),
             size: pixel_bytes,
             usage: BufferUsages::MAP_READ | BufferUsages::COPY_DST,
-            mapped_at_creation: false });
+            mapped_at_creation: false,
+        });
 
         // COPY_DST is required for queue.write_buffer.
         // Both RenderParams and VrParams are exactly 32 bytes (see params.rs).
@@ -78,14 +81,16 @@ impl GpuFrameCache {
             label: Some("gpu_frame_params"),
             size: 32,
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-            mapped_at_creation: false });
+            mapped_at_creation: false,
+        });
 
         // 256 entries Ã— 4 channels Ã— sizeof(f32) = 4 096 bytes.
         let lut_buf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("gpu_frame_lut"),
             size: 256 * 4 * 4,
             usage: BufferUsages::STORAGE | BufferUsages::COPY_DST,
-            mapped_at_creation: false });
+            mapped_at_creation: false,
+        });
 
         Self {
             rows,
@@ -93,6 +98,7 @@ impl GpuFrameCache {
             output_buf,
             staging_buf,
             params_buf,
-            lut_buf }
+            lut_buf,
+        }
     }
 }

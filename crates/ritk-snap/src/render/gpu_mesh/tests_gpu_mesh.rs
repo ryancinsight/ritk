@@ -1,4 +1,4 @@
-﻿//! Value-semantic and differential GPU mesh renderer tests (GAP-262-VIZ-02).
+//! Value-semantic and differential GPU mesh renderer tests (GAP-262-VIZ-02).
 //!
 //! # Test categories
 //!
@@ -38,7 +38,8 @@ fn default_camera() -> MeshCamera {
         fov_y: PI / 2.0,
         aspect: 1.0,
         near: 0.1,
-        far: 100.0 }
+        far: 100.0,
+    }
 }
 
 fn default_material() -> PhongMaterial {
@@ -56,7 +57,8 @@ fn opaque_config() -> MeshRenderConfig {
         ssao: SsaoConfig {
             strength: 0.0,
             ..SsaoConfig::default()
-        } }
+        },
+    }
 }
 
 // â”€â”€ CPU-only parameter tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

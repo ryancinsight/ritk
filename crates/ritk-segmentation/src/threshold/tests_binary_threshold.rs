@@ -3,8 +3,8 @@
 use super::*;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::{make_image, make_image_with};
+use ritk_image::Image as NativeImage;
 
 type B = SequentialBackend;
 
@@ -27,7 +27,9 @@ fn assert_native_legacy_conformance<const D: usize>(values: Vec<f32>, dimensions
     assert_eq!(native_output.shape(), dimensions);
     assert_eq!(
         native_output.data_slice().expect("contiguous output"),
-        legacy_output.data_slice().as_ref()
+        legacy_output
+            .data_slice()
+            .expect("invariant: contiguous host storage")
     );
 }
 

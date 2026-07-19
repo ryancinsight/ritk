@@ -1,4 +1,4 @@
-﻿//! Swin transformer block (3-D), Coeus-native.
+//! Swin transformer block (3-D), Coeus-native.
 //!
 //! One Swin block: `LayerNorm â†’ (shifted) window attention â†’ residual`, then
 //! `LayerNorm â†’ MLP â†’ residual`, over a `[B, D, H, W, C]` token volume. Window
@@ -27,7 +27,8 @@ pub struct SwinTransformerBlock<B: Backend + BackendOps<f32> + Default> {
     norm2: LayerNorm<f32, B>,
     mlp: Mlp<B>,
     shift_size: usize,
-    window_size: usize }
+    window_size: usize,
+}
 
 impl<B> SwinTransformerBlock<B>
 where
@@ -54,7 +55,8 @@ where
             norm2: LayerNorm::new(input_dim, NORM_EPS),
             mlp: Mlp::new(input_dim, mlp_hidden_dim, seed ^ 0x1357_9BDF),
             shift_size,
-            window_size }
+            window_size,
+        }
     }
 
     /// Forward pass over a `[B, D, H, W, C]` token volume.

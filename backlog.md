@@ -1,5 +1,14 @@
 # RITK Backlog - Active Planning
 
+- **MIG-661-01 [arch] - Complete the Coeus/Leto/Hephaestus cutover (REVIEW;
+  owner=Codex `/root`; scope=workspace source, manifests, lockfile, migration
+  audit, and PM artifacts).** Every workspace package now builds on the
+  provider-native image/tensor graph with zero Burn/ndarray manifest edges.
+  Compatibility image modules and the unused macro crate are deleted; CLI and
+  I/O consumers use the canonical Coeus path. Acceptance evidence: clean
+  migration audit, warning-denied workspace Clippy, and 4,644/4,644 Nextest
+  tests with 12 explicitly skipped. Doctest/Rustdoc and publication remain.
+
 - **MIG-660-01 [patch] - Remove stale Burn contract text from native owner
   crates (BLOCKED; owner=Codex `/root`; scope=`crates/ritk-core/src/
   {interpolation,transform}/trait_.rs`, `crates/ritk-nifti/src/{writer.rs,

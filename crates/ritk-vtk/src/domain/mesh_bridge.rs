@@ -1,4 +1,4 @@
-﻿//! Bidirectional bridge between [`gaia::IndexedMesh`] and [`VtkPolyData`].
+//! Bidirectional bridge between [`gaia::IndexedMesh`] and [`VtkPolyData`].
 //!
 //! # Architecture
 //!
@@ -159,7 +159,8 @@ mod tests {
             .expect("Normals must be present")
         {
             AttributeArray::Normals { values } => values,
-            other => panic!("expected Normals, got {other:?}") };
+            other => panic!("expected Normals, got {other:?}"),
+        };
         assert_eq!(
             normals.len(),
             mesh.vertex_count(),

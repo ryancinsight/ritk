@@ -1,9 +1,9 @@
-﻿use std::path::Path;
+use std::path::Path;
 
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
 use image::{ColorType, RgbImage};
-use ritk_image::native::RgbVolume;
+use ritk_image::RgbVolume;
 use ritk_spatial::{Direction, Point, Spacing};
 
 const RGB_CHANNELS: usize = 3;
@@ -23,7 +23,8 @@ where
 
 /// Backend-bound RGB JPEG reader.
 pub struct JpegColorReader<B: ComputeBackend> {
-    backend: B }
+    backend: B,
+}
 
 impl<B: ComputeBackend> JpegColorReader<B> {
     /// Creates a reader that constructs RGB volumes on `backend`.

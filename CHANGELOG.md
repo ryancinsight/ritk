@@ -10,7 +10,21 @@
 
 ## [Unreleased] — Native extended label-shape statistics (MIG-657-01)
 
+### Breaking
+- Removed the Burn and ndarray substrate APIs from every RITK package. Images,
+  tensors, registration, filtering, segmentation, codecs, CLI, GUI, and PyO3
+  bindings now use the Coeus/Leto provider graph directly. Callers must use
+  `ritk_image::Image<T, B, D>` with a Coeus compute backend.
+- Removed the unused `ritk-macros` crate and the obsolete compatibility image
+  modules. No forwarding aliases or dual substrate paths remain for those
+  surfaces.
+
 ### Changed
+- Added Coeus host `Cow` materialization at explicit I/O boundaries and
+  consolidated CLI and Analyze/DICOM consumers onto the provider-native image
+  contract.
+- Corrected the NGF normalized augmented-gradient numerator to include the
+  edge-scale inner-product term, making identical nonconstant images score one.
 - Native `ritk-core` interpolation and transform contracts now document Coeus
   backend ownership, and the native NIfTI codec documentation no longer
   describes removed Burn writer/test boundaries. The obsolete NIfTI test

@@ -1,4 +1,4 @@
-﻿//! Cubic B-spline primitives: basis evaluation, control-point layout,
+//! Cubic B-spline primitives: basis evaluation, control-point layout,
 //! dense-field synthesis, force accumulation, and Laplacian regularisation.
 //!
 //! # Cubic B-Spline Basis
@@ -29,7 +29,8 @@ pub(crate) fn bspline_basis(k: usize, u: f64) -> f64 {
         1 => (4.0 - 6.0 * u2 + 3.0 * u3) / 6.0,
         2 => (1.0 + 3.0 * u + 3.0 * u2 - 3.0 * u3) / 6.0,
         3 => u3 / 6.0,
-        _ => 0.0 }
+        _ => 0.0,
+    }
 }
 
 // â”€â”€ Control-point layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

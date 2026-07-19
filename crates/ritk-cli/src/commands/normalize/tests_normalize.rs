@@ -1,7 +1,7 @@
-﻿//! Tests for the `normalize` command.
+//! Tests for the `normalize` command.
 use super::*;
-use crate::commands::NativeBackend;
-use ritk_image::native::Image as NativeImage;
+use crate::commands::Backend;
+use ritk_image::Image;
 use ritk_io::ImageFormat;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::path::{Path, PathBuf};
@@ -10,8 +10,8 @@ use std::path::{Path, PathBuf};
 
 fn write_ramp_image(path: &Path) {
     let vals: Vec<f32> = (0..64).map(|i| i as f32).collect();
-    let backend = NativeBackend::default();
-    let image = NativeImage::from_flat_on(
+    let backend = Backend::default();
+    let image = Image::from_flat_on(
         vals,
         [4, 4, 4],
         Point::new([0.0; 3]),
@@ -20,7 +20,7 @@ fn write_ramp_image(path: &Path) {
         &backend,
     )
     .expect("invariant: valid native ramp image");
-    write_image_native(path, &image, ImageFormat::NIfTI).expect("write native ramp image");
+    write_image(path, &image, ImageFormat::NIfTI).expect("write native ramp image");
 }
 
 fn default_args(method: NormalizeMethod, input: PathBuf, output: PathBuf) -> NormalizeArgs {
@@ -32,7 +32,8 @@ fn default_args(method: NormalizeMethod, input: PathBuf, output: PathBuf) -> Nor
         num_bins: 256,
         contrast: None,
         ws_width: None,
-        mask: None }
+        mask: None,
+    }
 }
 
 // â”€â”€ zscore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -55,8 +56,10 @@ fn test_normalize_zscore_output_has_near_zero_mean() {
     let output = dir.path().join("out.nii.gz");
     write_ramp_image(&input);
     run(default_args(NormalizeMethod::Zscore, input, output.clone())).unwrap();
-    let im = read_image_native(&output).expect("read native z-score output");
-    let vals = im.data_slice().expect("contiguous native z-score output");
+    let im = read_image(&output).expect("read native z-score output");
+    let vals = im
+        .data_slice()
+        .expect("invariant: image storage is contiguous");
     let mean: f64 = vals.iter().map(|&v| v as f64).sum::<f64>() / vals.len() as f64;
     assert!(mean.abs() < 1e-4, "zscore mean must be â‰ˆ0, got {mean}");
 }
@@ -70,8 +73,10 @@ fn test_normalize_minmax_output_in_zero_one() {
     let output = dir.path().join("out.nii.gz");
     write_ramp_image(&input);
     run(default_args(NormalizeMethod::Minmax, input, output.clone())).unwrap();
-    let im = read_image_native(&output).expect("read native minmax output");
-    let vals = im.data_slice().expect("contiguous native minmax output");
+    let im = read_image(&output).expect("read native minmax output");
+    let vals = im
+        .data_slice()
+        .expect("invariant: image storage is contiguous");
     let min = vals.iter().cloned().fold(f32::INFINITY, f32::min);
     let max = vals.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
     assert!(min >= -1e-5, "minmax output min must be >= 0, got {min}");
@@ -155,8 +160,8 @@ fn write_half_mask_image(path: &Path) {
     for v in vals[..32].iter_mut() {
         *v = 1.0;
     }
-    let backend = NativeBackend::default();
-    let image = NativeImage::from_flat_on(
+    let backend = Backend::default();
+    let image = Image::from_flat_on(
         vals,
         [4, 4, 4],
         Point::new([0.0; 3]),
@@ -165,7 +170,7 @@ fn write_half_mask_image(path: &Path) {
         &backend,
     )
     .expect("invariant: valid native mask image");
-    write_image_native(path, &image, ImageFormat::NIfTI).expect("write native mask image");
+    write_image(path, &image, ImageFormat::NIfTI).expect("write native mask image");
 }
 
 #[test]
@@ -201,7 +206,7 @@ fn test_normalize_zscore_masked_mean_of_foreground_voxels_near_zero() {
         ..default_args(NormalizeMethod::Zscore, input, output.clone())
     };
     run(args).unwrap();
-    let im = read_image_native(&output).expect("read native masked z-score output");
+    let im = read_image(&output).expect("read native masked z-score output");
     let vals = im
         .data_slice()
         .expect("contiguous native masked z-score output");

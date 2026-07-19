@@ -6,8 +6,8 @@
 use super::{validate_relief, TobogganFilter, MAX_SAMPLE_COUNT};
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_image::Image as NativeImage;
 use ritk_tensor_ops::extract_vec_infallible;
 
 type B = coeus_core::SequentialBackend;
@@ -76,7 +76,12 @@ fn native_and_legacy_execution_are_exact_with_geometry() {
     let filter = TobogganFilter::new();
     let expected = filter.apply(&legacy).unwrap();
     let actual = filter.apply_native(&native, &SequentialBackend).unwrap();
-    assert_eq!(actual.data_slice().unwrap(), expected.data_slice().as_ref());
+    assert_eq!(
+        actual.data_slice().unwrap(),
+        expected
+            .data_slice()
+            .expect("invariant: contiguous host storage")
+    );
     assert_eq!(*actual.origin(), origin);
     assert_eq!(*actual.spacing(), spacing);
     assert_eq!(*actual.direction(), direction);

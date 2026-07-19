@@ -4,10 +4,10 @@ use super::fastnorm::{hash, FastNorm};
 use super::DEFAULT_NOISE_SEED;
 use crate::native_support::map_flat_image;
 use anyhow::Result;
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use coeus_core::ComputeBackend;
 use ritk_core::image::Image;
-use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
+use ritk_image::Image as NativeImage;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Additive Gaussian noise filter.
@@ -77,7 +77,6 @@ impl AdditiveGaussianNoiseFilter {
     ) -> Result<NativeImage<f32, B, 3>>
     where
         B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         map_flat_image(image, backend, |values, _| self.apply_values(values))
     }

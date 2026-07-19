@@ -1,4 +1,4 @@
-﻿//! PET acquisition parameter SSOT for SUVbw normalisation.
+//! PET acquisition parameter SSOT for SUVbw normalisation.
 //!
 //! # Responsibility
 //!
@@ -35,7 +35,8 @@ pub enum DecayCorrectionKind {
     /// Pixels corrected to administration time; treated as `Start` for SUVbw.
     Admin,
     /// Raw activity at scan acquisition; physical decay factor must be applied.
-    None }
+    None,
+}
 
 impl DecayCorrectionKind {
     /// Parse a DICOM (0054,1102) Decay Correction string (case-sensitive, per PS3.3).
@@ -46,7 +47,8 @@ impl DecayCorrectionKind {
         match s.trim() {
             "START" => Self::Start,
             "ADMIN" => Self::Admin,
-            _ => Self::None }
+            _ => Self::None,
+        }
     }
 }
 
@@ -68,7 +70,8 @@ pub struct PetAcquisitionParams {
     /// Radionuclide physical half-life \[s\].
     pub radionuclide_half_life_s: f64,
     /// Pixel decay-correction mode from (0054,1102).
-    pub decay_correction: DecayCorrectionKind }
+    pub decay_correction: DecayCorrectionKind,
+}
 
 impl PetAcquisitionParams {
     /// Attempt to construct from a [`LoadedVolume`].
@@ -93,7 +96,8 @@ impl PetAcquisitionParams {
             patient_weight_kg,
             injected_dose_bq,
             radionuclide_half_life_s,
-            decay_correction })
+            decay_correction,
+        })
     }
 
     /// Convert to [`SuvParams`] for use with [`compute_suvbw`].
@@ -112,7 +116,8 @@ impl PetAcquisitionParams {
                 weight_g,
                 self.radionuclide_half_life_s,
                 delta_t_s,
-            ) }
+            ),
+        }
     }
 
     /// Compute SUVbw for a single voxel expressed in \[Bq/mL\].
@@ -138,7 +143,8 @@ impl PetAcquisitionParams {
         let series = vol.series_time.as_deref().and_then(parse_dicom_tm);
         match (rph_start, series) {
             (Some(t0), Some(t1)) => compute_delta_t_s(t0, t1),
-            _ => 0.0 }
+            _ => 0.0,
+        }
     }
 }
 

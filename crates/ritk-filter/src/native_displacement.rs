@@ -1,7 +1,7 @@
 //! Native representation of a three-dimensional displacement field.
 
 use coeus_core::ComputeBackend;
-use ritk_image::native::Image;
+use ritk_image::Image;
 
 /// Three physical-axis components of a Coeus-native displacement field.
 ///

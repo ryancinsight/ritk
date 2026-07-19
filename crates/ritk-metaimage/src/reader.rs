@@ -1,8 +1,8 @@
-﻿use crate::spatial::metadata_from_file_transform;
+use crate::spatial::metadata_from_file_transform;
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
 use ritk_codecs::{decode_bytes_to_f32, parse_f64_vec, parse_usize_vec, ByteOrder};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::Point;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
@@ -37,7 +37,8 @@ pub fn read_metaimage<B: ComputeBackend, P: AsRef<Path>>(
         dims,
         origin,
         spacing,
-        direction } = decode_metaimage(path)?;
+        direction,
+    } = decode_metaimage(path)?;
     Image::from_flat_on(data, dims, origin, spacing, direction, backend)
 }
 
@@ -48,7 +49,8 @@ struct DecodedMetaImage {
     dims: [usize; 3],
     origin: ritk_spatial::Point<3>,
     spacing: ritk_spatial::Spacing<3>,
-    direction: ritk_spatial::Direction<3> }
+    direction: ritk_spatial::Direction<3>,
+}
 
 fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
     let path = path.as_ref();
@@ -291,7 +293,8 @@ fn decode_metaimage<P: AsRef<Path>>(path: P) -> Result<DecodedMetaImage> {
         dims: [nz, ny, nx],
         origin,
         spacing: spatial.spacing,
-        direction: spatial.direction })
+        direction: spatial.direction,
+    })
 }
 
 // â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -319,7 +322,8 @@ fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool)> {
         "MET_UINT" => (4, false, false),
         "MET_FLOAT" => (4, false, true),
         "MET_DOUBLE" => (8, false, true),
-        other => return Err(anyhow!("Unsupported MetaImage ElementType: '{}'", other)) };
+        other => return Err(anyhow!("Unsupported MetaImage ElementType: '{}'", other)),
+    };
     Ok(spec)
 }
 

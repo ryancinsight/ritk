@@ -1,4 +1,4 @@
-﻿//! Tests for the loader module.
+//! Tests for the loader module.
 
 use super::*;
 use crate::dicom::series_tree::SeriesEntry;
@@ -18,7 +18,8 @@ fn sort_series_entries_is_deterministic() {
             series_description: Cow::Borrowed("S2"),
             num_slices: 1,
             study_date: Some(Cow::Borrowed("20260102")),
-            study_uid: Some(Cow::Borrowed("ST2")) },
+            study_uid: Some(Cow::Borrowed("ST2")),
+        },
         SeriesEntry {
             series_uid: Cow::Borrowed("UID-A2"),
             folder: Cow::Borrowed(std::path::Path::new("b/path")),
@@ -28,7 +29,8 @@ fn sort_series_entries_is_deterministic() {
             series_description: Cow::Borrowed("S1"),
             num_slices: 1,
             study_date: Some(Cow::Borrowed("20260101")),
-            study_uid: Some(Cow::Borrowed("ST1")) },
+            study_uid: Some(Cow::Borrowed("ST1")),
+        },
         SeriesEntry {
             series_uid: Cow::Borrowed("UID-A1"),
             folder: Cow::Borrowed(std::path::Path::new("a/path")),
@@ -38,7 +40,8 @@ fn sort_series_entries_is_deterministic() {
             series_description: Cow::Borrowed("S1"),
             num_slices: 1,
             study_date: Some(Cow::Borrowed("20260101")),
-            study_uid: Some(Cow::Borrowed("ST1")) },
+            study_uid: Some(Cow::Borrowed("ST1")),
+        },
     ];
     scan::sort_series_entries_deterministically(&mut entries);
     let ordered_uids: Vec<&str> = entries.iter().map(|e| e.series_uid.as_ref()).collect();
@@ -103,7 +106,7 @@ fn test_load_volume_from_bytes_nifti_roundtrip_shape() {
     let dir = tempdir().expect("create temp dir");
     let path = dir.path().join("drop_test.nii");
     let backend = coeus_core::SequentialBackend;
-    let image = ritk_image::native::Image::from_flat_on(
+    let image = ritk_image::Image::from_flat_on(
         (0..24).map(|v| v as f32).collect(),
         [3, 2, 4],
         Point::new([1.0, 2.0, 3.0]),

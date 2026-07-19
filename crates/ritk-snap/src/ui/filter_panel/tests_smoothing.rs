@@ -1,4 +1,4 @@
-﻿use crate::FilterKind;
+use crate::FilterKind;
 use ritk_filter::Connectivity;
 
 // Verify that the default `FilterKind` values exposed by the panel are
@@ -32,10 +32,12 @@ fn median_default_radius_in_range() {
 fn clahe_defaults_in_range() {
     let fk = FilterKind::Clahe {
         tile_grid_size: [8, 8],
-        clip_limit: 40.0 };
+        clip_limit: 40.0,
+    };
     if let FilterKind::Clahe {
         tile_grid_size,
-        clip_limit } = fk
+        clip_limit,
+    } = fk
     {
         assert!(
             tile_grid_size[0] >= 1 && tile_grid_size[0] <= 32,
@@ -77,12 +79,14 @@ fn unsharp_mask_defaults_in_range() {
         sigma: 1.0,
         amount: 0.5,
         threshold: 0.0,
-        clamp: ritk_filter::ClampPolicy::ClampToInputRange };
+        clamp: ritk_filter::ClampPolicy::ClampToInputRange,
+    };
     if let FilterKind::UnsharpMask {
         sigma,
         amount,
         threshold,
-        clamp } = fk
+        clamp,
+    } = fk
     {
         assert!(
             (0.1..=10.0).contains(&sigma),
@@ -117,11 +121,13 @@ fn gradient_anisotropic_diffusion_defaults_in_range() {
     let fk = FilterKind::GradientAnisotropicDiffusion {
         iterations: 5,
         time_step: 0.125,
-        conductance: 1.0 };
+        conductance: 1.0,
+    };
     if let FilterKind::GradientAnisotropicDiffusion {
         iterations,
         time_step,
-        conductance } = fk
+        conductance,
+    } = fk
     {
         assert!(
             (1..=50).contains(&iterations),
@@ -152,10 +158,12 @@ fn gradient_anisotropic_diffusion_defaults_in_range() {
 fn connected_components_defaults_are_valid() {
     let fk = FilterKind::ConnectedComponents {
         connectivity: Connectivity::Face6,
-        background_value: 0.0 };
+        background_value: 0.0,
+    };
     if let FilterKind::ConnectedComponents {
         connectivity,
-        background_value } = fk
+        background_value,
+    } = fk
     {
         assert_eq!(
             connectivity,
@@ -186,9 +194,11 @@ fn connected_components_defaults_are_valid() {
 #[test]
 fn relabel_components_defaults_are_valid() {
     let fk = FilterKind::RelabelComponents {
-        minimum_object_size: 0 };
+        minimum_object_size: 0,
+    };
     if let FilterKind::RelabelComponents {
-        minimum_object_size } = fk
+        minimum_object_size,
+    } = fk
     {
         assert_eq!(
             minimum_object_size, 0,
@@ -230,10 +240,12 @@ fn multi_otsu_threshold_defaults_are_valid() {
 fn binary_erode_defaults_are_valid() {
     let fk = FilterKind::BinaryErode {
         radius: 1,
-        foreground_value: ritk_filter::ForegroundValue::ONE };
+        foreground_value: ritk_filter::ForegroundValue::ONE,
+    };
     if let FilterKind::BinaryErode {
         radius,
-        foreground_value } = fk
+        foreground_value,
+    } = fk
     {
         assert!(radius <= 10, "default radius {radius} must be â‰¤ 10");
         assert_eq!(
@@ -250,10 +262,12 @@ fn binary_erode_defaults_are_valid() {
 fn binary_dilate_defaults_are_valid() {
     let fk = FilterKind::BinaryDilate {
         radius: 1,
-        foreground_value: ritk_filter::ForegroundValue::ONE };
+        foreground_value: ritk_filter::ForegroundValue::ONE,
+    };
     if let FilterKind::BinaryDilate {
         radius,
-        foreground_value } = fk
+        foreground_value,
+    } = fk
     {
         assert!(radius <= 10, "default radius {radius} must be â‰¤ 10");
         assert_eq!(
@@ -270,10 +284,12 @@ fn binary_dilate_defaults_are_valid() {
 fn binary_closing_defaults_are_valid() {
     let fk = FilterKind::BinaryClosing {
         radius: 1,
-        foreground_value: ritk_filter::ForegroundValue::ONE };
+        foreground_value: ritk_filter::ForegroundValue::ONE,
+    };
     if let FilterKind::BinaryClosing {
         radius,
-        foreground_value } = fk
+        foreground_value,
+    } = fk
     {
         assert!(radius <= 10, "default radius {radius} must be â‰¤ 10");
         assert_eq!(
@@ -290,10 +306,12 @@ fn binary_closing_defaults_are_valid() {
 fn binary_opening_defaults_are_valid() {
     let fk = FilterKind::BinaryOpening {
         radius: 1,
-        foreground_value: ritk_filter::ForegroundValue::ONE };
+        foreground_value: ritk_filter::ForegroundValue::ONE,
+    };
     if let FilterKind::BinaryOpening {
         radius,
-        foreground_value } = fk
+        foreground_value,
+    } = fk
     {
         assert!(radius <= 10, "default radius {radius} must be â‰¤ 10");
         assert_eq!(
@@ -309,7 +327,8 @@ fn binary_opening_defaults_are_valid() {
 #[test]
 fn binary_fillhole_defaults_are_valid() {
     let fk = FilterKind::BinaryFillhole {
-        foreground_value: ritk_filter::ForegroundValue::ONE };
+        foreground_value: ritk_filter::ForegroundValue::ONE,
+    };
     if let FilterKind::BinaryFillhole { foreground_value } = fk {
         assert_eq!(
             foreground_value, 1.0,
@@ -415,10 +434,12 @@ fn grayscale_dilate_default_radius_valid() {
 fn curvature_flow_default_time_step_is_stable() {
     let fk = FilterKind::CurvatureFlow {
         iterations: 5,
-        time_step: 0.0625 };
+        time_step: 0.0625,
+    };
     if let FilterKind::CurvatureFlow {
         iterations,
-        time_step } = fk
+        time_step,
+    } = fk
     {
         assert!(iterations >= 1, "iterations must be â‰¥ 1: {iterations}");
         assert!(
@@ -436,7 +457,8 @@ fn curvature_flow_default_time_step_is_stable() {
 fn curvature_flow_default_iterations_matches_itk() {
     let fk = FilterKind::CurvatureFlow {
         iterations: 5,
-        time_step: 0.0625 };
+        time_step: 0.0625,
+    };
     if let FilterKind::CurvatureFlow { iterations, .. } = fk {
         assert_eq!(iterations, 5, "ITK default iterations = 5");
     } else {

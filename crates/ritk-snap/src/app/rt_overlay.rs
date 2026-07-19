@@ -1,9 +1,10 @@
-﻿use super::state::{RtDoseOverlayCacheEntry, SnapApp};
+use super::state::{RtDoseOverlayCacheEntry, SnapApp};
 use crate::ui::rtdose_overlay::extract_dose_slice_for_volume;
 use crate::ui::rtdose_texture::{build_overlay_image, overlay_alpha, positive_finite_dose_range};
 use crate::ui::{
     axis_slice_dimensions, compute_roi_dose_analytics, map_view_row_col_to_voxel,
-    project_rt_struct_contours_for_slice, rt_dose_analytics::VolumeGeometry };
+    project_rt_struct_contours_for_slice, rt_dose_analytics::VolumeGeometry,
+};
 use ritk_annotation::Visibility;
 use tracing::{error, info};
 
@@ -60,7 +61,8 @@ impl SnapApp {
                 shape: vol.shape,
                 origin: vol.origin,
                 direction: vol.direction,
-                spacing: vol.spacing },
+                spacing: vol.spacing,
+            },
             128,
         );
     }
@@ -201,7 +203,8 @@ impl SnapApp {
         let (slice_rows, slice_cols) = match axis {
             0 => (rows, cols),
             1 => (depth, cols),
-            _ => (depth, rows) };
+            _ => (depth, rows),
+        };
 
         if slice_rows == 0 || slice_cols == 0 {
             return;
@@ -230,7 +233,8 @@ impl SnapApp {
             vol_shape,
             dose_dims,
             opacity_alpha,
-            texture });
+            texture,
+        });
 
         painter.image(
             texture_id,

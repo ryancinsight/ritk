@@ -16,7 +16,7 @@
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_transform::transform::affine::AtlasAffineTransform;
 
 /// `MSE = (1/N) · Σ (Fixed(x) − Moving(T(x)))²` of `moving` resampled through
@@ -52,7 +52,3 @@ where
         .sum();
     sum_sq / n as f32
 }
-
-#[cfg(test)]
-#[path = "tests_native.rs"]
-mod tests_native;

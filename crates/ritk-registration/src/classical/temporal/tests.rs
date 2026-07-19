@@ -1,4 +1,4 @@
-﻿//! Tests for temporal synchronization (Sprint 354 split, ARCH-350-04).
+//! Tests for temporal synchronization (Sprint 354 split, ARCH-350-04).
 //!
 //! Extracted from the monolithic `classical/temporal.rs` so that the test
 //! module lives next to the code it tests without bloating the public
@@ -101,7 +101,8 @@ fn test_success_rate_thresholds() {
     let config = TemporalSyncConfig {
         frame_spacing: 1.0 / 30.0,
         search_range: 10,
-        min_correlation: 0.3 };
+        min_correlation: 0.3,
+    };
     let sync = TemporalSync::with_config(config);
 
     // Both signals constant - should have high stability

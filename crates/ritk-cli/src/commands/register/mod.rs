@@ -1,4 +1,4 @@
-﻿//! `ritk register` â€” image registration command.
+//! `ritk register` â€” image registration command.
 //!
 //! Registers a moving image to a fixed reference image.
 //!
@@ -39,13 +39,11 @@ mod mi;
 use anyhow::{Context, Result};
 use clap::Args;
 use leto::Array3;
-use ritk_image::tensor::Backend as BurnBackend;
-use ritk_image::tensor::{Shape, Tensor };
+use ritk_image::tensor::Tensor;
 use std::path::PathBuf;
 use tracing::info;
 
 use super::Backend;
-use super::NativeBackend;
 use ritk_core::image::Image;
 use ritk_filter::{GaussianFilter, GaussianSigma};
 use ritk_registration::classical::engine::{ClassicalConfig, MutualInformationMetric};
@@ -59,7 +57,8 @@ fn parse_demons_variant(s: &str) -> Result<ritk_registration::demons::DemonsVari
         "diffeomorphic" => Ok(ritk_registration::demons::DemonsVariant::Diffeomorphic),
         other => Err(format!(
             "Invalid Demons variant '{other}'. Expected 'thirion' or 'diffeomorphic'."
-        )) }
+        )),
+    }
 }
 
 /// Parse a clap string argument into a validated [`GaussianSigma`].
@@ -79,7 +78,8 @@ fn parse_gaussian_sigma(s: &str) -> Result<GaussianSigma, String> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum CliInverseConsistency {
     Relaxed,
-    Enforced }
+    Enforced,
+}
 
 /// Registration algorithm to use.
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -100,7 +100,8 @@ pub enum RegistrationMethod {
     MultiResSyn,
     #[value(name = "bspline-syn")]
     BsplineSyn,
-    Lddmm }
+    Lddmm,
+}
 
 impl std::fmt::Display for RegistrationMethod {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -114,7 +115,8 @@ impl std::fmt::Display for RegistrationMethod {
             Self::BsplineFfd => "bspline-ffd",
             Self::MultiResSyn => "multires-syn",
             Self::BsplineSyn => "bspline-syn",
-            Self::Lddmm => "lddmm" })
+            Self::Lddmm => "lddmm",
+        })
     }
 }
 
@@ -206,11 +208,12 @@ pub struct RegisterArgs {
 
     /// Scaling-and-squaring steps for diffeomorphic Demons variants (default 6).
     #[arg(long, default_value = "6", value_name = "INT")]
-    pub n_squarings: usize }
+    pub n_squarings: usize,
+}
 
 // â”€â”€ Image â†” Leto volume conversion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-/// Convert a 3-D `Image<Backend, 3>` to a `leto::Array3<f64>`.
+/// Convert a 3-D `Image<f32, Backend, 3>` to a `leto::Array3<f64>`.
 ///
 /// Data is extracted in the image's native [Z, Y, X] layout (C-order) and
 /// cast element-wise from `f32` to `f64`.
@@ -218,34 +221,35 @@ pub struct RegisterArgs {
 /// # Panics
 /// Panics if the tensor data cannot be extracted as `f32`.
 #[allow(dead_code)]
-pub(super) fn image_to_leto_volume(image: &Image<Backend, 3>) -> Array3<f64> {
+pub(super) fn image_to_leto_volume(image: &Image<f32, Backend, 3>) -> Array3<f64> {
     let shape = image.shape();
-    let slice = image.data_slice();
+    let slice = image.data_slice().unwrap();
     let f64_vec: Vec<f64> = slice.iter().map(|&v| v as f64).collect();
     Array3::from_shape_vec([shape[0], shape[1], shape[2]], f64_vec)
         .expect("shape derived from image must be consistent with data length")
 }
 
-/// Convert a warped `leto::Array3<f64>` back to `Image<Backend, 3>`.
+/// Convert a warped `leto::Array3<f64>` back to `Image<f32, Backend, 3>`.
 ///
 /// The spatial metadata (origin, spacing, direction) is copied from
 /// `reference` so the output image lives in the fixed image's frame.
 #[allow(dead_code)]
 pub(super) fn leto_volume_to_image(
     volume: Array3<f64>,
-    reference: &Image<Backend, 3>,
-) -> Image<Backend, 3> {
-    let device: <Backend as BurnBackend>::Device = Default::default();
+    reference: &Image<f32, Backend, 3>,
+) -> Image<f32, Backend, 3> {
     let [nz, ny, nx] = volume.shape();
     let f32_vec: Vec<f32> = volume.iter().map(|&v| v as f32).collect();
-    let td = ::new(f32_vec, Shape::new([nz, ny, nx]));
-    let tensor = Tensor::<f32, Backend>::from_data(td, &device);
+    let backend = Backend::default();
+    let tensor = Tensor::<f32, Backend>::from_slice_on([nz, ny, nx], &f32_vec, &backend);
+
     Image::new(
         tensor,
         *reference.origin(),
         *reference.spacing(),
         *reference.direction(),
     )
+    .expect("image reconstruction from flat data must succeed")
 }
 
 // â”€â”€ Image â†” flat Vec<f32> conversion (for demons / SyN) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -255,28 +259,29 @@ pub(super) fn leto_volume_to_image(
 ///
 /// # Panics
 /// Panics if the tensor data cannot be extracted as `f32`.
-pub(super) fn image_to_flat_vec(image: &Image<Backend, 3>) -> (Vec<f32>, [usize; 3]) {
+pub(super) fn image_to_flat_vec(image: &Image<f32, Backend, 3>) -> (Vec<f32>, [usize; 3]) {
     let shape = image.shape();
-    let data: Vec<f32> = image.data_slice().into_owned();
+    let data: Vec<f32> = image.data_vec();
     (data, [shape[0], shape[1], shape[2]])
 }
 
-/// Reconstruct an `Image<Backend, 3>` from flat `Vec<f32>` data and a
+/// Reconstruct an `Image<f32, Backend, 3>` from flat `Vec<f32>` data and a
 /// `[nz, ny, nx]` shape, copying spatial metadata from `reference`.
 pub(super) fn flat_vec_to_image(
     data: Vec<f32>,
     shape: [usize; 3],
-    reference: &Image<Backend, 3>,
-) -> Image<Backend, 3> {
-    let device: <Backend as BurnBackend>::Device = Default::default();
-    let td = ::new(data, Shape::new(shape));
-    let tensor = Tensor::<f32, Backend>::from_data(td, &device);
+    reference: &Image<f32, Backend, 3>,
+) -> Image<f32, Backend, 3> {
+    let backend = Backend::default();
+    let tensor = Tensor::<f32, Backend>::from_slice_on(shape, &data, &backend);
+
     Image::new(
         tensor,
         *reference.origin(),
         *reference.spacing(),
         *reference.direction(),
     )
+    .expect("image reconstruction from flat data must succeed")
 }
 
 // â”€â”€ Command handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -313,7 +318,8 @@ pub fn run(args: RegisterArgs) -> Result<()> {
         RegistrationMethod::BsplineFfd => diffeomorphic::run_bspline_ffd(&args),
         RegistrationMethod::MultiResSyn => diffeomorphic::run_multires_syn(&args),
         RegistrationMethod::BsplineSyn => diffeomorphic::run_bspline_syn(&args),
-        RegistrationMethod::Lddmm => lddmm::run_lddmm(&args) }
+        RegistrationMethod::Lddmm => lddmm::run_lddmm(&args),
+    }
 }
 
 // â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -322,8 +328,7 @@ pub fn run(args: RegisterArgs) -> Result<()> {
 mod tests {
     use super::*;
     use ritk_core::image::Image;
-    use ritk_image::tensor::Backend as BurnBackend;
-    use ritk_image::tensor::{Shape, Tensor };
+    use ritk_image::tensor::Tensor;
     use ritk_registration::demons::DemonsVariant;
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
@@ -332,17 +337,18 @@ mod tests {
     ///
     /// Using a ramp (not constant) so the MI metric has a non-degenerate
     /// joint histogram to work with.
-    pub(crate) fn make_ramp_image() -> Image<Backend, 3> {
-        let device: <Backend as BurnBackend>::Device = Default::default();
+    pub(crate) fn make_ramp_image() -> Image<f32, Backend, 3> {
+        let backend = Backend::default();
         let values: Vec<f32> = (0..64).map(|i| i as f32 * 4.0).collect();
-        let td = ::new(values, Shape::new([4, 4, 4]));
-        let tensor = Tensor::<f32, Backend>::from_data(td, &device);
+        let tensor = Tensor::<f32, Backend>::from_slice_on([4, 4, 4], &values, &backend);
+
         Image::new(
             tensor,
             Point::new([0.0; 3]),
             Spacing::new([1.0; 3]),
             Direction::identity(),
         )
+        .expect("invariant: tensor has the declared image rank")
     }
 
     // â”€â”€ Negative: invalid method names are rejected by clap at parse time;
@@ -380,7 +386,8 @@ mod tests {
             learning_rate: 0.01,
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
-            convergence_threshold: 1e-5 });
+            convergence_threshold: 1e-5,
+        });
 
         assert!(result.is_err(), "missing fixed image must yield an error");
     }

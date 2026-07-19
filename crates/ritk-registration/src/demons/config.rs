@@ -1,4 +1,4 @@
-﻿//! Shared configuration and result types for Demons-family registration.
+//! Shared configuration and result types for Demons-family registration.
 
 use ritk_filter::GaussianSigma;
 
@@ -12,7 +12,8 @@ pub enum DemonsVariant {
     #[default]
     Classic,
     /// Diffeomorphic Demons via stationary velocity field exponentiation.
-    Diffeomorphic }
+    Diffeomorphic,
+}
 
 impl DemonsVariant {
     /// Returns `true` if this variant is [`Diffeomorphic`](DemonsVariant::Diffeomorphic).
@@ -35,7 +36,8 @@ pub struct DemonsConfig {
     pub sigma_fluid: Option<GaussianSigma>,
     /// Maximum per-voxel step length in voxel units.  Forces whose magnitude
     /// exceeds this value are rescaled to exactly `max_step_length`.
-    pub max_step_length: f32 }
+    pub max_step_length: f32,
+}
 
 impl Default for DemonsConfig {
     fn default() -> Self {
@@ -43,7 +45,8 @@ impl Default for DemonsConfig {
             max_iterations: 50,
             sigma_diffusion: Some(GaussianSigma::new_unchecked(1.5)),
             sigma_fluid: None,
-            max_step_length: 2.0 }
+            max_step_length: 2.0,
+        }
     }
 }
 
@@ -72,4 +75,5 @@ pub struct DemonsResult {
     pub final_mse: f64,
     /// Actual number of iterations performed (may be less than `max_iterations`
     /// if convergence was reached).
-    pub num_iterations: usize }
+    pub num_iterations: usize,
+}

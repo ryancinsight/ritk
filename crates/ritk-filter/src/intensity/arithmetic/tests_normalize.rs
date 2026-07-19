@@ -11,7 +11,9 @@ fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 fn vals(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data_slice().into_owned()
+    img.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 /// [1,1,3,3] â†’ mean=2, sample std=âˆš(4/3) â†’ Â±âˆš3/2 (ITK sample-Ïƒ normalisation).
@@ -101,7 +103,8 @@ fn normalize_two_element() {
 fn normalize_preserves_metadata() {
     let sp = Spacing::new([0.5, 1.0, 2.0]);
     let t = Tensor::<f32, B>::from_slice([1usize, 1, 2], &[1.0_f32, 3.0]);
-    let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp, Direction::identity());
+    let img = Image::new(t, Point::new([0.0, 0.0, 0.0]), sp, Direction::identity())
+        .expect("invariant: fixture tensor has the declared rank");
     let out = NormalizeImageFilter::new().apply(&img);
     assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
 }
@@ -112,7 +115,10 @@ fn normalize_preserves_metadata() {
 fn normalize_to_constant_scales_sum() {
     let img = make_image(vec![1.0, 2.0, 3.0, 4.0], [1, 1, 4]); // sum 10
     let out = NormalizeToConstantImageFilter::new(5.0).apply(&img);
-    let v = out.data_slice().into_owned();
+    let v = out
+        .data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec();
     assert_eq!(v, vec![0.5, 1.0, 1.5, 2.0]);
     assert!(
         (v.iter().sum::<f32>() - 5.0).abs() < 1e-5,
@@ -125,13 +131,18 @@ fn normalize_to_constant_scales_sum() {
 fn normalize_to_constant_zero_sum_is_zero() {
     let img = make_image(vec![1.0, -1.0, 2.0, -2.0], [1, 1, 4]); // sum 0
     let out = NormalizeToConstantImageFilter::new(1.0).apply(&img);
-    assert_eq!(out.data_slice().into_owned(), vec![0.0, 0.0, 0.0, 0.0]);
+    assert_eq!(
+        out.data_slice()
+            .expect("invariant: contiguous host storage")
+            .to_vec(),
+        vec![0.0, 0.0, 0.0, 0.0]
+    );
 }
 
 #[test]
 fn native_normalize_uses_sample_standard_deviation() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
 
     let image = NativeImage::from_flat_on(
         vec![1.0, 2.0, 3.0],
@@ -154,7 +165,7 @@ fn native_normalize_uses_sample_standard_deviation() {
 #[test]
 fn native_normalize_to_constant_preserves_sum_and_metadata() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
 
     let image = NativeImage::from_flat_on(
         vec![1.0, 2.0, 3.0],

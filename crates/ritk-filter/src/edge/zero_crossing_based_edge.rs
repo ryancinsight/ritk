@@ -69,7 +69,10 @@ impl ZeroCrossingBasedEdgeDetectionFilter {
     }
 
     /// Run the Gaussian â†’ Laplacian â†’ zero-crossing mini-pipeline.
-    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
+    pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>>
+    where
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
         let smoothed = DiscreteGaussianFilter::<B>::new_isotropic(self.variance)
             .with_maximum_error(self.maximum_error)
             .apply(image);
@@ -83,9 +86,9 @@ impl ZeroCrossingBasedEdgeDetectionFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::Backend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

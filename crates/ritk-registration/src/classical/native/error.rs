@@ -1,4 +1,4 @@
-﻿//! Typed failures at the native classical-registration boundary.
+//! Typed failures at the native classical-registration boundary.
 
 use thiserror::Error;
 
@@ -24,7 +24,9 @@ pub enum NativeConversionError {
         /// Matrix or translation component family.
         role: &'static str,
         /// Failing value before conversion to `f32`.
-        value: f64 },
+        value: f64,
+    },
     /// Native affine construction rejected a checked shape.
     #[error("native physical affine construction failed: {0}")]
-    PhysicalAffineConstruction(#[source] ritk_transform::transform::affine::AtlasAffineError) }
+    PhysicalAffineConstruction(#[source] ritk_transform::transform::affine::AtlasAffineError),
+}

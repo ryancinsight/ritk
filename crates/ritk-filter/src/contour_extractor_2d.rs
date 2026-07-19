@@ -187,7 +187,7 @@ impl ContourExtractor2DImageFilter {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         _backend: &B,
     ) -> anyhow::Result<Vec<Contour>>
     where

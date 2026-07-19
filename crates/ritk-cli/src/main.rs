@@ -1,4 +1,4 @@
-﻿//! RITK CLI entrypoint.
+//! RITK CLI entrypoint.
 //!
 //! Parses the command-line, initialises the `tracing` subscriber, and
 //! dispatches each subcommand to its dedicated handler module.
@@ -21,7 +21,8 @@ mod commands;
 )]
 struct Cli {
     #[command(subcommand)]
-    command: Commands }
+    command: Commands,
+}
 
 #[derive(Subcommand, Debug)]
 enum Commands {
@@ -47,7 +48,8 @@ enum Commands {
     Resample(commands::resample::ResampleArgs),
 
     /// Normalize image intensities (histogram-match, nyul, zscore, minmax, white-stripe).
-    Normalize(commands::normalize::NormalizeArgs) }
+    Normalize(commands::normalize::NormalizeArgs),
+}
 
 fn main() -> anyhow::Result<()> {
     // Structured, filterable logging.  Set RUST_LOG=debug (or trace) to see spans.
@@ -65,5 +67,6 @@ fn main() -> anyhow::Result<()> {
         Commands::Segment(args) => commands::segment::run(args),
         Commands::Stats(args) => commands::stats::run(args),
         Commands::Resample(args) => commands::resample::run(args),
-        Commands::Normalize(args) => commands::normalize::run(args) }
+        Commands::Normalize(args) => commands::normalize::run(args),
+    }
 }

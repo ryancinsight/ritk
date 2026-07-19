@@ -1,4 +1,4 @@
-﻿//! `SpatialError` â€” error variants for classical spatial transform operations.
+//! `SpatialError` â€” error variants for classical spatial transform operations.
 
 use thiserror::Error;
 
@@ -10,4 +10,5 @@ pub enum SpatialError {
     #[error("SVD did not converge: {0}")]
     SvdConvergence(String),
     #[error("Invalid transform matrix: {0}")]
-    InvalidTransform(String) }
+    InvalidTransform(String),
+}

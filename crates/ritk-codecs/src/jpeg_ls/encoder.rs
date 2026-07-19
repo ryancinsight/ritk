@@ -1,4 +1,4 @@
-﻿//! Pure-Rust JPEG-LS (ISO 14495-1 / ITU-T T.87) encoder.
+//! Pure-Rust JPEG-LS (ISO 14495-1 / ITU-T T.87) encoder.
 //!
 //! Produces single-component, non-interleaved streams â€” the exact profile
 //! DICOM JPEG-LS requires: lossless (NEAR = 0, TS 1.2.840.10008.1.2.4.80) and
@@ -18,7 +18,8 @@
 use super::bitstream::BitWriter;
 use super::context::{
     compute_k, context_index, default_thresholds, error_correction, modulo_reduce, quant,
-    quantize_error, reconstruct, sign_normalize, update_context, CodingParams, ContextModel };
+    quantize_error, reconstruct, sign_normalize, update_context, CodingParams, ContextModel,
+};
 use super::scan::{predict, Predictor, J};
 
 /// Encode a grayscale image as a complete JPEG-LS stream (SOI â€¦ EOI).

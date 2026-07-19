@@ -1,4 +1,4 @@
-﻿//! Integration coverage for the Coeus-native affine registration head.
+//! Integration coverage for the Coeus-native affine registration head.
 
 use coeus_autograd::Var;
 use coeus_core::SequentialBackend;
@@ -70,7 +70,8 @@ fn network_is_differentiable_end_to_end() {
     let shape = [1usize, 2, 36, 36, 36];
     // Narrow channels keep the 36Â³ chain tractable in a debug build.
     let model = AffineNetworkConfig {
-        channels: vec![2, 3, 4, 5, 6] }
+        channels: vec![2, 3, 4, 5, 6],
+    }
     .init::<f32, TestBackend>();
     let input = Var::new(
         Tensor::from_slice_on(shape, &deterministic(&shape, 1.0, -0.5), &SequentialBackend),
@@ -96,7 +97,8 @@ fn network_output_drives_transform_forward() {
     // gradient correctness is covered by the per-component FD checks.)
     let feat_shape = [1usize, 2, 36, 36, 36];
     let model = AffineNetworkConfig {
-        channels: vec![2, 3, 4, 5, 6] }
+        channels: vec![2, 3, 4, 5, 6],
+    }
     .init::<f32, TestBackend>();
     let stn = AffineTransform::new();
     let features = Var::new(

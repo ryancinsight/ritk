@@ -1,7 +1,7 @@
-﻿//! Python-exposed multi-component (RGB/vector) color image and per-component
+//! Python-exposed multi-component (RGB/vector) color image and per-component
 //! filters.
 //!
-//! `ColorImage` wraps `ritk_image::native::ColorVolume<f32, MoiraiBackend, 3>` (channel-interleaved
+//! `ColorImage` wraps `ritk_image::ColorVolume<f32, MoiraiBackend, 3>` (channel-interleaved
 //! `[Z, Y, X, 3]`). Per-component filters reuse the scalar filter library via
 //! `ritk_filter::map_color_components`, matching ITK's vector-image semantics
 //! (each component filtered independently).
@@ -16,8 +16,9 @@ use ritk_filter::{
     map_color_components, physical_point_image_source as core_physical_point_image_source,
     Colormap, GradientImageFilter, GradientRecursiveGaussianImageFilter,
     LabelMapContourOverlayFilter, LabelOverlayFilter, LabelToRGBFilter, MeanImageFilter,
-    MedianFilter, RecursiveGaussianFilter, ScalarToRGBColormapFilter };
-use ritk_image::native::ColorVolume;
+    MedianFilter, RecursiveGaussianFilter, ScalarToRGBColormapFilter,
+};
+use ritk_image::ColorVolume;
 use std::sync::Arc;
 
 type Rgb = ColorVolume<f32, MoiraiBackend, 3>;
@@ -25,7 +26,8 @@ type Rgb = ColorVolume<f32, MoiraiBackend, 3>;
 /// A 3-component (RGB) color image, channel-interleaved as `[Z, Y, X, 3]`.
 #[pyclass(name = "ColorImage")]
 pub struct PyColorImage {
-    pub inner: Arc<Rgb> }
+    pub inner: Arc<Rgb>,
+}
 
 #[pymethods]
 impl PyColorImage {
@@ -58,7 +60,8 @@ impl PyColorImage {
         )
         .map_err(|e| RitkPyError::value(e.to_string()))?;
         Ok(Self {
-            inner: Arc::new(vol) })
+            inner: Arc::new(vol),
+        })
     }
 
     /// Convert to an f32 NumPy array of shape `[Z, Y, X, 3]`.
@@ -102,7 +105,8 @@ pub fn color_median(
         })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
-        inner: Arc::new(out) })
+        inner: Arc::new(out),
+    })
 }
 
 /// Per-component mean (box) filter on a color image.
@@ -125,7 +129,8 @@ pub fn color_mean(py: Python<'_>, image: &PyColorImage, radius: usize) -> RitkRe
         })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
-        inner: Arc::new(out) })
+        inner: Arc::new(out),
+    })
 }
 
 /// Generate a physical-point vector image: each voxel holds its own physical
@@ -157,7 +162,8 @@ pub fn physical_point_image_source(
     )
     .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
-        inner: Arc::new(vol) })
+        inner: Arc::new(vol),
+    })
 }
 
 /// Compose three scalar images into a 3-component (RGB) color image.
@@ -185,7 +191,8 @@ pub fn compose(c0: &PyImage, c1: &PyImage, c2: &PyImage) -> RitkResult<PyColorIm
     )
     .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
-        inner: Arc::new(vol) })
+        inner: Arc::new(vol),
+    })
 }
 
 /// Central-difference image gradient â†’ 3-component vector image with components
@@ -206,7 +213,8 @@ pub fn gradient(
         })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
-        inner: Arc::new(out) })
+        inner: Arc::new(out),
+    })
 }
 
 /// Gaussian-smoothed image gradient â†’ 3-component vector image with components
@@ -227,7 +235,8 @@ pub fn gradient_recursive_gaussian(
         })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
-        inner: Arc::new(out) })
+        inner: Arc::new(out),
+    })
 }
 
 /// Map a scalar image to a 3-component RGB image via a colormap (channel values
@@ -248,7 +257,8 @@ pub fn scalar_to_rgb_colormap(
         .allow_threads(|| ScalarToRGBColormapFilter::new(cmap).apply(&native, &MoiraiBackend))
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
-        inner: Arc::new(out) })
+        inner: Arc::new(out),
+    })
 }
 
 /// Map a label image to RGB using ITK's default 30-colour label table
@@ -262,7 +272,8 @@ pub fn label_to_rgb(py: Python<'_>, image: &PyImage, background: i64) -> RitkRes
         .allow_threads(|| LabelToRGBFilter::new(background).apply(&native, &MoiraiBackend))
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
-        inner: Arc::new(out) })
+        inner: Arc::new(out),
+    })
 }
 
 /// Overlay a `label` image on a grayscale `image` as RGB, alpha-blending each
@@ -285,7 +296,8 @@ pub fn label_overlay(
         })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
-        inner: Arc::new(out) })
+        inner: Arc::new(out),
+    })
 }
 
 /// Overlay the contours of a `label` image on a grayscale `image` as RGB,
@@ -310,7 +322,8 @@ pub fn label_map_contour_overlay(
         })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
-        inner: Arc::new(out) })
+        inner: Arc::new(out),
+    })
 }
 
 /// Extract one component (`index` âˆˆ [0, 2]) of a color image as a scalar image.
@@ -407,5 +420,6 @@ pub fn color_smoothing_recursive_gaussian(
         })
         .map_err(|e| RitkPyError::runtime(e.to_string()))?;
     Ok(PyColorImage {
-        inner: Arc::new(out) })
+        inner: Arc::new(out),
+    })
 }

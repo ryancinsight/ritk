@@ -1,9 +1,9 @@
-﻿use anyhow::Result;
+use anyhow::Result;
 use coeus_core::SequentialBackend;
 use ritk_spatial::{Direction, Point, Spacing};
 use tempfile::tempdir;
 
-use ritk_image::native::Image;
+use ritk_image::Image;
 
 type TestBackend = SequentialBackend;
 
@@ -253,7 +253,8 @@ fn test_missing_file_returns_error() {
     let result = crate::read_metaimage("/nonexistent/path/file.mha", &backend);
     let msg = match result {
         Ok(_) => panic!("missing file must fail"),
-        Err(err) => format!("{err:?}") };
+        Err(err) => format!("{err:?}"),
+    };
     assert!(
         msg.contains("Cannot open MetaImage file"),
         "error must preserve file-open context, got: {msg}"
@@ -280,7 +281,8 @@ fn test_missing_required_field_returns_error() -> Result<()> {
     let result = crate::read_metaimage(&path, &backend);
     let msg = match result {
         Ok(_) => panic!("missing DimSize must fail"),
-        Err(err) => format!("{err:?}") };
+        Err(err) => format!("{err:?}"),
+    };
     assert!(
         msg.contains("DimSize"),
         "error must name the missing field, got: {msg}"

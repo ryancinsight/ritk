@@ -1,8 +1,9 @@
-﻿use std::collections::VecDeque;
+use std::collections::VecDeque;
 
 use crate::deformable_field_ops::{
     compute_gradient_into, normalize_forces_into, scaling_and_squaring_into, warp_image_into,
-    CpuFieldSmoother, FieldSmoother, VectorField, VectorFieldMut, VelocityField };
+    CpuFieldSmoother, FieldSmoother, VectorField, VectorFieldMut, VelocityField,
+};
 use crate::error::RegistrationError;
 
 use super::buffers::BSplineSyNBuffers;
@@ -163,21 +164,25 @@ impl BSplineSyNRegistration {
                 VectorField {
                     z: &buf.gi_z,
                     y: &buf.gi_y,
-                    x: &buf.gi_x },
+                    x: &buf.gi_x,
+                },
                 VectorField {
                     z: &buf.gj_z,
                     y: &buf.gj_y,
-                    x: &buf.gj_x },
+                    x: &buf.gj_x,
+                },
                 dims,
                 &buf.cc_sats,
                 VectorFieldMut {
                     z: &mut buf.u1z,
                     y: &mut buf.u1y,
-                    x: &mut buf.u1x },
+                    x: &mut buf.u1x,
+                },
                 VectorFieldMut {
                     z: &mut buf.u2z,
                     y: &mut buf.u2y,
-                    x: &mut buf.u2x },
+                    x: &mut buf.u2x,
+                },
                 &mut buf.cc_slices,
             );
 
@@ -344,6 +349,7 @@ impl BSplineSyNRegistration {
             warped_fixed: buf.i_w,
             warped_moving: buf.j_w,
             final_cc,
-            num_iterations: iter })
+            num_iterations: iter,
+        })
     }
 }

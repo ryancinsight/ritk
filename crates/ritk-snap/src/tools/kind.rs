@@ -1,4 +1,4 @@
-﻿//! Viewer interaction tool identifiers.
+//! Viewer interaction tool identifiers.
 //!
 //! Each [`ToolKind`] variant maps to a distinct cursor-interaction mode. The
 //! enum is used as a discriminant in the toolbar, in tool-state transitions,
@@ -37,7 +37,8 @@ pub enum ToolKind {
     /// Paint the active segmentation label onto voxels under the cursor.
     LabelPaint,
     /// Erase segmentation labels to background under the cursor.
-    LabelErase }
+    LabelErase,
+}
 
 impl ToolKind {
     /// Short human-readable label used in the toolbar button and menu entries.
@@ -53,7 +54,8 @@ impl ToolKind {
             ToolKind::Crosshair => "Crosshair",
             ToolKind::PointHu => "HU Point",
             ToolKind::LabelPaint => "Label Paint",
-            ToolKind::LabelErase => "Label Erase" }
+            ToolKind::LabelErase => "Label Erase",
+        }
     }
 
     /// Longer description shown in the toolbar tooltip on hover.
@@ -110,12 +112,13 @@ impl ToolKind {
             ToolKind::WindowLevel => "â˜€",
             ToolKind::MeasureLength => "ðŸ“",
             ToolKind::MeasureAngle => "ðŸ“",
-            ToolKind::RoiRect => "â–­",
-            ToolKind::RoiEllipse => "â¬­",
+            ToolKind::RoiRect => "▭",
+            ToolKind::RoiEllipse => "⬭",
             ToolKind::Crosshair => "âŠ•",
             ToolKind::PointHu => "âŠ™",
             ToolKind::LabelPaint => "P",
-            ToolKind::LabelErase => "E" }
+            ToolKind::LabelErase => "E",
+        }
     }
 
     /// All variants in toolbar display order.

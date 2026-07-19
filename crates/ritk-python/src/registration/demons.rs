@@ -1,4 +1,4 @@
-﻿//! Demons-family registration algorithms: Thirion, Diffeomorphic, and Symmetric Demons.
+//! Demons-family registration algorithms: Thirion, Diffeomorphic, and Symmetric Demons.
 
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
@@ -6,7 +6,8 @@ use pyo3::prelude::*;
 use ritk_filter::GaussianSigma;
 use ritk_registration::demons::{
     DemonsConfig, DiffeomorphicDemonsRegistration, LevelSetMotionRegistration,
-    SymmetricDemonsRegistration, ThirionDemonsRegistration };
+    SymmetricDemonsRegistration, ThirionDemonsRegistration,
+};
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Register a moving image to a fixed image using Thirion's Demons algorithm.
@@ -58,7 +59,8 @@ pub fn demons_register(
             max_iterations,
             sigma_diffusion: GaussianSigma::new(sigma_diffusion),
             sigma_fluid: None,
-            max_step_length: 2.0 };
+            max_step_length: 2.0,
+        };
         let reg = ThirionDemonsRegistration::new(config);
         reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
             .map_err(|e| e.to_string())
@@ -138,10 +140,12 @@ pub fn diffeomorphic_demons_register(
             max_iterations,
             sigma_diffusion: GaussianSigma::new(sigma_diffusion),
             sigma_fluid: None,
-            max_step_length: 2.0 };
+            max_step_length: 2.0,
+        };
         let reg = DiffeomorphicDemonsRegistration {
             config,
-            n_squarings };
+            n_squarings,
+        };
         reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
             .map_err(|e| e.to_string())
     })
@@ -223,7 +227,8 @@ pub fn level_set_motion_register(
         let reg = LevelSetMotionRegistration {
             number_of_iterations,
             smoothing_sigma,
-            intensity_difference_threshold };
+            intensity_difference_threshold,
+        };
         reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
             .map_err(|e| e.to_string())
     })
@@ -299,7 +304,8 @@ pub fn symmetric_demons_register(
             max_iterations,
             sigma_diffusion: GaussianSigma::new(sigma_diffusion),
             sigma_fluid: None,
-            max_step_length: 2.0 };
+            max_step_length: 2.0,
+        };
         let reg = SymmetricDemonsRegistration::new(config);
         reg.register(&fixed_vals, &moving_vals, fixed_shape, [1.0, 1.0, 1.0])
             .map_err(|e| e.to_string())

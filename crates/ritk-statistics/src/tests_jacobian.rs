@@ -22,6 +22,7 @@ fn make_disp(data: Vec<f32>, dims: [usize; 3], spacing: [f64; 3]) -> Image<f32, 
         Spacing::new(spacing),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 fn zero_disp(dims: [usize; 3]) -> Image<f32, TestBackend, 3> {

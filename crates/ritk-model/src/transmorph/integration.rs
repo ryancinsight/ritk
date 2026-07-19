@@ -1,4 +1,4 @@
-﻿//! Stationary-velocity-field integration (scaling and squaring), Coeus-native.
+//! Stationary-velocity-field integration (scaling and squaring), Coeus-native.
 //!
 //! Integrates a stationary velocity field into a diffeomorphic displacement
 //! field via scaling and squaring: scale the field by `1/2^N`, then compose it
@@ -17,7 +17,8 @@ use coeus_ops::BackendOps;
 #[derive(Debug, Clone, Copy)]
 pub struct VecInt {
     stn: SpatialTransformer,
-    nsteps: usize }
+    nsteps: usize,
+}
 
 impl VecInt {
     /// Create an integrator with `nsteps` squaring steps (`2^nsteps` sub-steps).
@@ -25,7 +26,8 @@ impl VecInt {
     pub fn new(nsteps: usize) -> Self {
         Self {
             stn: SpatialTransformer::new(),
-            nsteps }
+            nsteps,
+        }
     }
 
     /// Integrate velocity field `flow` `[B, 3, D, H, W]` to a displacement field.

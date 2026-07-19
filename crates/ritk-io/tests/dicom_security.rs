@@ -27,6 +27,7 @@ fn make_test_image(
         Spacing::new([2.5, 0.5, 0.5]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 fn make_test_metadata() -> ritk_io::DicomReadMetadata {
@@ -209,6 +210,7 @@ fn test_write_analyze_path_leak() {
             Spacing::new([1.0, 1.0, 1.0]),
             Direction::identity(),
         )
+        .expect("invariant: fixture tensor has the declared rank")
     };
 
     let result = write_analyze(&non_existent_path, &image);

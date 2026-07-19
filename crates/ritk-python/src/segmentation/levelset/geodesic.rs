@@ -1,7 +1,7 @@
-﻿//! Geodesic Active Contour level set segmentation.
+//! Geodesic Active Contour level set segmentation.
 
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
 use ritk_filter::edge::GaussianSigma;
 use ritk_segmentation::GeodesicActiveContourSegmentation;
@@ -30,7 +30,8 @@ pub struct PyGacOptions {
     pub dt: f64,
     /// Maximum PDE iterations.
     #[pyo3(get, set)]
-    pub max_iterations: usize }
+    pub max_iterations: usize,
+}
 
 #[pymethods]
 impl PyGacOptions {
@@ -52,7 +53,8 @@ impl PyGacOptions {
             edge_k,
             sigma,
             dt,
-            max_iterations }
+            max_iterations,
+        }
     }
 }
 
@@ -82,8 +84,8 @@ pub fn geodesic_active_contour_segment(
     opts: Option<PyGacOptions>,
 ) -> RitkResult<PyImage> {
     let opts = opts.unwrap_or_else(|| PyGacOptions::new(1.0, 1.0, 1.0, 1.0, 1.0, 0.05, 200));
-    let image_arc = py_image_to_burn(image);
-    let phi_arc = py_image_to_burn(initial_phi);
+    let image_arc = image_from_py(image);
+    let phi_arc = image_from_py(initial_phi);
     py.allow_threads(|| {
         let mut seg = GeodesicActiveContourSegmentation::new();
         seg.propagation_weight = opts.propagation_weight;
@@ -96,5 +98,5 @@ pub fn geodesic_active_contour_segment(
         seg.apply(&image_arc, &phi_arc).map_err(|e| e.to_string())
     })
     .map_err(RitkPyError::runtime)
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

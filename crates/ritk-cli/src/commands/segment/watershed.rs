@@ -1,11 +1,10 @@
-﻿use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context, Result};
 
 use tracing::info;
 
 use ritk_segmentation::{MarkerControlledWatershed, WatershedSegmentation};
 
-use super::super::{
-    infer_format, is_native_read_capable, read_image_native, write_image_native, NativeBackend };
+use super::super::{infer_format, is_read_capable, read_image, write_image, Backend};
 use super::args::SegmentArgs;
 use super::helpers::read_native_input;
 
@@ -18,7 +17,7 @@ use super::helpers::read_native_input;
 /// labels 1..K = catchment basin indices.
 pub(super) fn run_watershed(args: &SegmentArgs) -> Result<()> {
     let (image, output_format) = read_native_input(&args.input, &args.output, "watershed")?;
-    let backend = NativeBackend::default();
+    let backend = Backend::default();
 
     let ws = WatershedSegmentation::new();
     let labeled = ws.apply_native(&image, &backend)?;
@@ -30,7 +29,7 @@ pub(super) fn run_watershed(args: &SegmentArgs) -> Result<()> {
         .fold(0.0_f32, f32::max);
     let n_basins = max_label as usize;
 
-    write_image_native(&args.output, &labeled, output_format)?;
+    write_image(&args.output, &labeled, output_format)?;
 
     println!(
         "Segmented {} (watershed): found {} catchment basins",
@@ -72,11 +71,11 @@ pub(super) fn run_marker_watershed(args: &SegmentArgs) -> Result<()> {
     let marker_format = infer_format(markers_path)
         .ok_or_else(|| anyhow!("Cannot infer marker format: {}", markers_path.display()))?;
     anyhow::ensure!(
-        is_native_read_capable(marker_format),
+        is_read_capable(marker_format),
         "marker-watershed requires native marker format"
     );
-    let markers = read_image_native(markers_path)?;
-    let backend = NativeBackend::default();
+    let markers = read_image(markers_path)?;
+    let backend = Backend::default();
 
     let labeled = MarkerControlledWatershed::new()
         .apply_native(&gradient, &markers, &backend)
@@ -89,7 +88,7 @@ pub(super) fn run_marker_watershed(args: &SegmentArgs) -> Result<()> {
         .fold(0.0_f32, f32::max);
     let n_basins = max_label as usize;
 
-    write_image_native(&args.output, &labeled, output_format)?;
+    write_image(&args.output, &labeled, output_format)?;
 
     println!(
         "Segmented {} (marker-watershed): found {} basins",

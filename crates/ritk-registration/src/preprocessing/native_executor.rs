@@ -1,9 +1,9 @@
-﻿//! Coeus-backed preprocessing executor for scalar image steps.
+//! Coeus-backed preprocessing executor for scalar image steps.
 
 use anyhow::{Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_filter::bias::{apply_n4_bias_correction_values, N4Config};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Spacing, VolumeDims};
 
 use crate::deformable_field_ops::gaussian_smooth_with_scratch_per_axis;
@@ -11,7 +11,8 @@ use crate::deformable_field_ops::gaussian_smooth_with_scratch_per_axis;
 use super::pipeline::PreprocessingPipeline;
 use super::step::PreprocessingStep;
 use super::value_ops::{
-    apply_mask_values, clamp_values, normalize_values, validate_mask, validate_value_count };
+    apply_mask_values, clamp_values, normalize_values, validate_mask, validate_value_count,
+};
 
 impl PreprocessingPipeline {
     /// Execute preprocessing steps on a Coeus-backed image.
@@ -49,7 +50,8 @@ impl PreprocessingPipeline {
                 }
                 PreprocessingStep::Masking {
                     mask,
-                    dims: mask_dims } => {
+                    dims: mask_dims,
+                } => {
                     validate_mask(mask, *mask_dims, image.shape())?;
                     let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(&image).context(
                         "coeus preprocessing masking requires contiguous f32 image data",
@@ -73,7 +75,8 @@ impl PreprocessingPipeline {
                 }
                 PreprocessingStep::N4BiasCorrection {
                     n_iterations,
-                    n_fitting_levels } => {
+                    n_fitting_levels,
+                } => {
                     let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(&image)
                         .context("coeus preprocessing N4 requires contiguous f32 image data")?;
                     let cfg = N4Config {
@@ -148,7 +151,8 @@ mod tests {
         let direction = *image.direction();
         let pipeline = PreprocessingPipeline::new().add_step(PreprocessingStep::Clamp {
             lower: 0.0,
-            upper: 1.0 });
+            upper: 1.0,
+        });
 
         let out = pipeline.execute_native(image, &backend).unwrap();
 
@@ -164,7 +168,8 @@ mod tests {
         let image = make_image(vec![1.0, 2.0, 3.0, 4.0], [1, 2, 2]);
         let pipeline = PreprocessingPipeline::new().add_step(PreprocessingStep::Masking {
             mask: vec![1, 0, 1, 0],
-            dims: [1, 2, 2] });
+            dims: [1, 2, 2],
+        });
 
         let out = pipeline.execute_native(image, &backend).unwrap();
 
@@ -179,7 +184,9 @@ mod tests {
             PreprocessingPipeline::new().add_step(PreprocessingStep::IntensityNormalization {
                 mode: IntensityRescaleMode::MinMax {
                     out_min: 0.0,
-                    out_max: 1.0 } });
+                    out_max: 1.0,
+                },
+            });
 
         let out = pipeline.execute_native(image, &backend).unwrap();
 
@@ -271,7 +278,8 @@ mod tests {
         let direction = *image.direction();
         let pipeline = PreprocessingPipeline::new().add_step(PreprocessingStep::N4BiasCorrection {
             n_iterations: 1,
-            n_fitting_levels: 1 });
+            n_fitting_levels: 1,
+        });
         let cfg = N4Config {
             num_iterations: 1,
             num_fitting_levels: 1,

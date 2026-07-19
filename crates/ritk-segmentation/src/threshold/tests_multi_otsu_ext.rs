@@ -2,8 +2,8 @@
 use super::*;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::{make_image, make_image_with};
+use ritk_image::Image as NativeImage;
 use ritk_tensor_ops::extract_vec_infallible;
 
 type TestBackend = SequentialBackend;
@@ -47,7 +47,9 @@ fn assert_native_multi_otsu_conformance<const D: usize>(
     assert_eq!(*native_labels.direction(), direction);
     assert_eq!(
         native_labels.data_slice().expect("contiguous labels"),
-        legacy_labels.data_slice().as_ref()
+        legacy_labels
+            .data_slice()
+            .expect("invariant: contiguous host storage")
     );
     assert_eq!(
         native_labels_only.data_slice().expect("contiguous labels"),

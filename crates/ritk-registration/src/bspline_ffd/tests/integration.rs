@@ -1,4 +1,4 @@
-﻿use super::super::config::BSplineFFDConfig;
+use super::super::config::BSplineFFDConfig;
 use super::super::metric::compute_ncc;
 use super::super::registration::BSplineFFDRegistration;
 use super::super::volume_dims::VolumeDims;
@@ -32,7 +32,8 @@ fn metric_improves_after_iterations() {
         max_iterations_per_level: 10,
         learning_rate: 0.5,
         regularization_weight: 0.0,
-        convergence_threshold: 1e-8 };
+        convergence_threshold: 1e-8,
+    };
 
     let initial_ncc = compute_ncc(&fixed, &moving);
 

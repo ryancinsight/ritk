@@ -49,9 +49,9 @@ impl MomentsThreshold {
     /// or the native output image cannot be constructed.
     pub fn apply_native<B, const D: usize>(
         &self,
-        image: &ritk_image::native::Image<f32, B, D>,
+        image: &ritk_image::Image<f32, B, D>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, D>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, D>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

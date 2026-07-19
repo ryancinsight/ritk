@@ -27,6 +27,7 @@ fn make_real_2d(data: Vec<f32>, h: usize, w: usize) -> Image<f32, B, 2> {
         Spacing::new([1.0_f64, 1.0_f64]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 /// Build a 3-D real image with row-major data and shape `[d, h, w]`.
@@ -38,6 +39,7 @@ fn make_real_3d(data: Vec<f32>, d: usize, h: usize, w: usize) -> Image<f32, B, 3
         Spacing::new([1.0_f64, 1.0_f64, 1.0_f64]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 // â”€â”€ Shape contract â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

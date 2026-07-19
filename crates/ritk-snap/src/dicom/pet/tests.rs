@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 use arrayvec::ArrayString;
 use std::sync::Arc;
 
@@ -30,7 +30,8 @@ fn minimal_vol(
         injected_dose_bq,
         radionuclide_half_life_s,
         radiopharmaceutical_start_time: None,
-        decay_correction: decay_correction.map(|s| ArrayString::from(s).unwrap()) }
+        decay_correction: decay_correction.map(|s| ArrayString::from(s).unwrap()),
+    }
 }
 
 // â”€â”€ from_loaded_volume â€” missing field guards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -168,7 +169,8 @@ fn to_suv_params_start_gives_unit_decay_factor() {
         patient_weight_kg: 70.0,
         injected_dose_bq: 370_000_000.0,
         radionuclide_half_life_s: F18_HALF_LIFE_S,
-        decay_correction: DecayCorrectionKind::Start };
+        decay_correction: DecayCorrectionKind::Start,
+    };
     let params = pet.to_suv_params(3_600.0);
     assert_eq!(
         params.decay_factor, 1.0,
@@ -184,7 +186,8 @@ fn to_suv_params_admin_gives_unit_decay_factor() {
         patient_weight_kg: 70.0,
         injected_dose_bq: 370_000_000.0,
         radionuclide_half_life_s: F18_HALF_LIFE_S,
-        decay_correction: DecayCorrectionKind::Admin };
+        decay_correction: DecayCorrectionKind::Admin,
+    };
     let params = pet.to_suv_params(3_600.0);
     assert_eq!(
         params.decay_factor, 1.0,
@@ -202,7 +205,8 @@ fn to_suv_params_none_at_half_life_gives_half_decay_factor() {
         patient_weight_kg: 70.0,
         injected_dose_bq: 370_000_000.0,
         radionuclide_half_life_s: F18_HALF_LIFE_S,
-        decay_correction: DecayCorrectionKind::None };
+        decay_correction: DecayCorrectionKind::None,
+    };
     let params = pet.to_suv_params(F18_HALF_LIFE_S);
     assert!(
         (params.decay_factor - 0.5).abs() < 1e-12,
@@ -220,7 +224,8 @@ fn to_suv_params_converts_kg_to_g() {
         patient_weight_kg: 70.0,
         injected_dose_bq: 370_000_000.0,
         radionuclide_half_life_s: F18_HALF_LIFE_S,
-        decay_correction: DecayCorrectionKind::Start };
+        decay_correction: DecayCorrectionKind::Start,
+    };
     let params = pet.to_suv_params(0.0);
     assert_eq!(
         params.patient_weight_g, 70_000.0,
@@ -241,7 +246,8 @@ fn pixel_to_suvbw_start_corrected_realistic_fdg() {
         patient_weight_kg: 70.0,
         injected_dose_bq: 370_000_000.0,
         radionuclide_half_life_s: F18_HALF_LIFE_S,
-        decay_correction: DecayCorrectionKind::Start };
+        decay_correction: DecayCorrectionKind::Start,
+    };
     let pixel_bqml = 10_000.0_f64;
     let expected = pixel_bqml * 70_000.0 / 370_000_000.0;
     let suv = pet.pixel_to_suvbw(pixel_bqml, 0.0);
@@ -265,7 +271,8 @@ fn pixel_to_suvbw_none_correction_exceeds_start_correction() {
         patient_weight_kg: 70.0,
         injected_dose_bq: 370_000_000.0,
         radionuclide_half_life_s: F18_HALF_LIFE_S,
-        decay_correction: DecayCorrectionKind::Start };
+        decay_correction: DecayCorrectionKind::Start,
+    };
     let none = PetAcquisitionParams {
         decay_correction: DecayCorrectionKind::None,
         ..start

@@ -1,7 +1,7 @@
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::make_image;
+use ritk_image::Image as NativeImage;
 
 use super::{ConnectedComponentsFilter, Connectivity};
 use crate::RelabelComponentFilter;
@@ -33,7 +33,9 @@ fn filter_owned_native_labeling_matches_legacy_exactly() {
 
     assert_eq!(
         native_labels.data_slice().expect("contiguous labels"),
-        legacy_labels.data_slice().as_ref()
+        legacy_labels
+            .data_slice()
+            .expect("invariant: contiguous host storage")
     );
     assert_eq!(native_statistics, legacy_statistics);
     assert_eq!(native_labels.origin(), native.origin());
@@ -56,7 +58,9 @@ fn filter_owned_native_relabeling_matches_legacy_exactly() {
 
     assert_eq!(
         native_labels.data_slice().expect("contiguous labels"),
-        legacy_labels.data_slice().as_ref()
+        legacy_labels
+            .data_slice()
+            .expect("invariant: contiguous host storage")
     );
     assert_eq!(native_statistics, legacy_statistics);
     assert_eq!(native_labels.origin(), native.origin());

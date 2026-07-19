@@ -45,7 +45,7 @@
 //!   derivative filters. *Proc. 14th ICPR*, pp. 509â€“514.
 
 use crate::edge::GaussianSigma;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use serde::{Deserialize, Serialize};
 
 #[path = "iir.rs"]

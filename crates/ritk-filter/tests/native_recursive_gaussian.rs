@@ -6,7 +6,7 @@ use ritk_filter::recursive_gaussian::{
     recursive_gaussian_directional,
 };
 use ritk_filter::{DerivativeOrder, RecursiveGaussianFilter};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 
 type B = SequentialBackend;

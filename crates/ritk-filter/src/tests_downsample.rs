@@ -43,7 +43,8 @@ fn downsample_factor_two_halves_shape_and_doubles_spacing() {
         Point::new([0.0; 3]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     let out = DownsampleFilter::<B>::new(vec![2, 2, 2]).apply(&img);
     let s = out.shape();
     assert_eq!(s[0], 2, "dim0: 4 / step_by(2) = 2 elements");
@@ -80,7 +81,8 @@ fn downsample_spacing_updated_proportionally() {
         Point::new([0.0; 3]),
         Spacing::new([0.5, 1.0, 2.0]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
     let out = DownsampleFilter::<B>::new(vec![3, 2, 1]).apply(&img);
     assert!(
         (out.spacing()[0] - 1.5).abs() < 1e-9,

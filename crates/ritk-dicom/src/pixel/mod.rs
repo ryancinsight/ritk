@@ -1,7 +1,8 @@
-﻿//! Pixel layout and native sample decoding.
+//! Pixel layout and native sample decoding.
 //!
 //! Re-exports from `ritk-codecs` â€” the single source of truth for codec
 //! domain primitives. All internal `ritk-dicom` modules continue to use
 //! `crate::pixel::PixelLayout` without modification.
 pub use ritk_codecs::pixel_layout::{
-    decode_native_pixel_bytes_checked, PixelLayout, PixelSignedness };
+    decode_native_pixel_bytes_checked, PixelLayout, PixelSignedness,
+};

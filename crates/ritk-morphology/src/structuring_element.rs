@@ -1,4 +1,4 @@
-﻿//! [`StructuringElement`] value type: a list of integer offsets plus the
+//! [`StructuringElement`] value type: a list of integer offsets plus the
 //! half-width that produced them.
 //!
 //! # Mathematical Specification
@@ -68,7 +68,8 @@ pub struct StructuringElement {
     /// non-empty.
     offsets: Vec<Offset3D>,
     /// Half-width `r` that produced the offsets.
-    radius: usize }
+    radius: usize,
+}
 
 impl StructuringElement {
     /// Construct an SE from an explicit offset list and radius.
@@ -93,7 +94,8 @@ impl StructuringElement {
     pub fn cube(radius: usize) -> Self {
         Self {
             offsets: Cube::offsets(radius),
-            radius }
+            radius,
+        }
     }
 
     /// Construct a cross SE of half-width `radius`.
@@ -103,7 +105,8 @@ impl StructuringElement {
     pub fn cross(radius: usize) -> Self {
         Self {
             offsets: Cross::offsets(radius),
-            radius }
+            radius,
+        }
     }
 
     /// Construct a Euclidean ball SE of half-width `radius`.
@@ -113,7 +116,8 @@ impl StructuringElement {
     pub fn ball(radius: usize) -> Self {
         Self {
             offsets: Ball::offsets(radius),
-            radius }
+            radius,
+        }
     }
 
     /// Half-width `r` that produced the SE.

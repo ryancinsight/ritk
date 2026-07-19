@@ -1,4 +1,4 @@
-﻿//! Bending energy regularizer for the B-spline displacement field.
+//! Bending energy regularizer for the B-spline displacement field.
 //!
 //! Implements the Rueckert (1999) bending energy:
 //!
@@ -107,13 +107,15 @@ pub fn bending_energy(
 #[derive(Clone, Debug)]
 pub(super) struct BendingEnergyScratch {
     /// Temporary buffer for the Laplacian computation `[cn]`.
-    pub lap: Vec<f64> }
+    pub lap: Vec<f64>,
+}
 
 impl BendingEnergyScratch {
     /// Allocate scratch buffers for a control grid with `cn` nodes.
     pub fn new(cn: usize) -> Self {
         Self {
-            lap: vec![0.0_f64; cn] }
+            lap: vec![0.0_f64; cn],
+        }
     }
 
     /// Resize scratch buffers when the control grid changes.

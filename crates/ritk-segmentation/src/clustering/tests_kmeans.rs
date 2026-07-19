@@ -3,8 +3,8 @@
 use super::*;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::make_image;
+use ritk_image::Image as NativeImage;
 
 type B = SequentialBackend;
 
@@ -266,7 +266,9 @@ fn native_and_legacy_boundaries_are_exactly_equivalent() {
 
     assert_eq!(
         native_output.data_slice().unwrap(),
-        legacy_output.data_slice().as_ref()
+        legacy_output
+            .data_slice()
+            .expect("invariant: contiguous host storage")
     );
     assert_eq!(native_output.shape(), dimensions);
     assert_eq!(*native_output.origin(), origin);
@@ -401,5 +403,10 @@ fn large_same_sign_samples_compute_without_overflow() {
         .with_seed(7)
         .apply(&make_image_1d(values))
         .unwrap();
-    assert_eq!(labels.data_slice().as_ref(), &[1.0, 1.0, 0.0, 0.0]);
+    assert_eq!(
+        labels
+            .data_slice()
+            .expect("invariant: contiguous host storage"),
+        &[1.0, 1.0, 0.0, 0.0]
+    );
 }

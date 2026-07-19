@@ -1,4 +1,4 @@
-﻿//! Viewer-side segmentation label editing.
+//! Viewer-side segmentation label editing.
 //!
 //! This module is the `ritk-snap` application boundary for interactive label
 //! editing. It composes the canonical annotation primitives from `ritk-annotation`
@@ -29,7 +29,8 @@ const DEFAULT_LABEL_COLOR: RgbaBytes = RgbaBytes([255, 0, 0, 180]);
 #[derive(Debug, Clone)]
 pub struct LabelEditor {
     history: UndoRedoStack<LabelMap>,
-    active_label_id: LabelId }
+    active_label_id: LabelId,
+}
 
 impl LabelEditor {
     /// Construct an editor with a background-filled label map and default label.
@@ -37,7 +38,8 @@ impl LabelEditor {
         let table = default_label_table();
         Self {
             history: UndoRedoStack::new(LabelMap::new(shape, table)),
-            active_label_id: DEFAULT_LABEL_ID }
+            active_label_id: DEFAULT_LABEL_ID,
+        }
     }
 
     /// Construct an editor with a caller-provided table and active label.
@@ -53,7 +55,8 @@ impl LabelEditor {
         validate_label_exists(&table, active_label_id)?;
         Ok(Self {
             history: UndoRedoStack::new(LabelMap::new(shape, table)),
-            active_label_id })
+            active_label_id,
+        })
     }
 
     /// Construct an editor from an existing label map, setting the active label
@@ -69,7 +72,8 @@ impl LabelEditor {
             .unwrap_or(DEFAULT_LABEL_ID);
         Self {
             history: UndoRedoStack::new(map),
-            active_label_id: active }
+            active_label_id: active,
+        }
     }
 
     /// Current immutable label map snapshot.

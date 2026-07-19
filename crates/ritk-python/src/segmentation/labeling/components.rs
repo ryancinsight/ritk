@@ -1,13 +1,12 @@
-﻿use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{
-    burn_into_py_image, into_py_image, py_image_to_burn, vec_to_image_like, with_image_slice,
-    PyImage };
+use crate::errors::{RitkPyError, RitkResult};
+use crate::image::{image_from_py, into_py_image, vec_to_image_like, with_image_slice, PyImage};
 use pyo3::prelude::*;
 use ritk_segmentation::{
     connected_components as core_connected_components, labeling::Connectivity as SegConnectivity,
     scalar_connected_components as core_scalar_connected_components,
     vector_connected_components_image as core_vector_connected_components,
-    ThresholdMaximumConnectedComponentsFilter };
+    ThresholdMaximumConnectedComponentsFilter,
+};
 use std::sync::Arc;
 
 /// Label connected components in a binary mask.
@@ -38,7 +37,7 @@ pub fn connected_components(
         )));
     }
 
-    let mask = py_image_to_burn(mask);
+    let mask = image_from_py(mask);
     let (label_image, num_components) = {
         let seg_conn = if connectivity == 6 {
             SegConnectivity::Six
@@ -116,13 +115,13 @@ pub fn vector_connected_component(
             "vector_connected_component: at least one channel is required",
         ));
     }
-    let burns: Vec<_> = channels.iter().map(|p| py_image_to_burn(p)).collect();
+    let burns: Vec<_> = channels.iter().map(|p| image_from_py(p)).collect();
     let conn = if fully_connected { 26 } else { 6 };
     let out = py.allow_threads(|| {
         let refs: Vec<_> = burns.iter().collect();
         core_vector_connected_components(&refs, distance_threshold, conn)
     });
-    Ok(burn_into_py_image(out))
+    Ok(into_py_image(out))
 }
 
 /// Threshold an image at the lower value that maximizes the number of connected
@@ -147,14 +146,15 @@ pub fn threshold_maximum_connected_components(
     minimum_object_size: usize,
     upper_boundary: Option<i64>,
 ) -> PyImage {
-    let img = py_image_to_burn(image);
+    let img = image_from_py(image);
     let out = py.allow_threads(|| {
         ThresholdMaximumConnectedComponentsFilter {
             minimum_object_size,
             upper_boundary,
             inside_value: 1.0,
-            outside_value: 0.0 }
+            outside_value: 0.0,
+        }
         .apply(&img)
     });
-    burn_into_py_image(out)
+    into_py_image(out)
 }

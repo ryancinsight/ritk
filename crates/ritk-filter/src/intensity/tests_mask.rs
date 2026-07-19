@@ -9,7 +9,9 @@ fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data_slice().into_owned()
+    img.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 #[test]
@@ -92,7 +94,7 @@ fn mask_filter_preserves_spatial_metadata() {
 #[test]
 fn native_threshold_mask_retains_only_strictly_greater_values() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
     use ritk_spatial::{Direction, Point, Spacing};
 
     let image = NativeImage::from_flat_on(
@@ -194,7 +196,7 @@ fn masked_assign_all_inactive_is_identity() {
 #[test]
 fn native_mask_family_matches_each_contract() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
     use ritk_spatial::{Direction, Point, Spacing};
 
     let image = NativeImage::from_flat_on(

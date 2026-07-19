@@ -15,7 +15,9 @@ fn make(binary: &[f32], dims: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
-    img.data_slice().into_owned()
+    img.data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 /// A straight binary edge yields the exact half-integer signed-distance lattice

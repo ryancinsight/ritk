@@ -1,4 +1,4 @@
-﻿//! MQ arithmetic coder â€“ encoder and decoder (ISO 15444-1 Annex C).
+//! MQ arithmetic coder â€“ encoder and decoder (ISO 15444-1 Annex C).
 
 pub mod decoder;
 pub mod encoder;
@@ -16,7 +16,8 @@ pub(crate) struct QeEntry {
     pub(crate) qe: u16,
     pub(crate) nlps: u8,
     pub(crate) nmps: u8,
-    pub(crate) switch_flag: bool }
+    pub(crate) switch_flag: bool,
+}
 
 #[rustfmt::skip]
 pub(crate) const QE_TABLE: [QeEntry; 47] = [
@@ -79,7 +80,8 @@ pub struct CtxState {
     /// Index into `QE_TABLE` (0â€“46).
     pub state: u8,
     /// Current Most-Probable Symbol (0 or 1).
-    pub mps: u8 }
+    pub mps: u8,
+}
 
 /// Create the 19-context initial state array (ISO 15444-1 Table D.7).
 ///

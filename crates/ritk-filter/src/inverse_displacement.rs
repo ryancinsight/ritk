@@ -301,9 +301,9 @@ impl InverseDisplacementField {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        comp_x: &ritk_image::native::Image<f32, B, 3>,
-        comp_y: &ritk_image::native::Image<f32, B, 3>,
-        comp_z: &ritk_image::native::Image<f32, B, 3>,
+        comp_x: &ritk_image::Image<f32, B, 3>,
+        comp_y: &ritk_image::Image<f32, B, 3>,
+        comp_z: &ritk_image::Image<f32, B, 3>,
         backend: &B,
     ) -> anyhow::Result<crate::NativeDisplacementField<B>>
     where

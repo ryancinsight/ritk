@@ -130,7 +130,8 @@ fn spatial_metadata_preserved() {
     let spacing = Spacing::new([0.8, 0.8, 1.2]);
     let direction = Direction::identity();
     let t = Tensor::<f32, B>::from_slice([2, 2, 2], &[1.0_f32; 8]);
-    let img = Image::new(t, origin, spacing, direction);
+    let img = Image::new(t, origin, spacing, direction)
+        .expect("invariant: fixture tensor has the declared rank");
     let out = BinaryFillholeFilter::new().apply(&img).unwrap();
     assert_eq!(*out.origin(), origin);
     assert_eq!(*out.spacing(), spacing);

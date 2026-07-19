@@ -44,7 +44,7 @@
 //! B ≪ N). One parallel fold groups voxel indices; one parallel map over labels.
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::Point;
 use std::collections::HashMap;
 use std::f64::consts::PI;
@@ -289,7 +289,7 @@ pub fn compute_label_shape_statistics_extended<B>(
     label_image: &Image<f32, B, 3>,
 ) -> anyhow::Result<Vec<LabelShapeStatisticsExtended>>
 where
-    B: ComputeBackend,
+    B: ComputeBackend + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
     let label_values = label_image.data_slice()?;

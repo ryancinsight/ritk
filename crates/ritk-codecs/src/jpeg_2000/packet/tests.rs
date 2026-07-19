@@ -1,4 +1,4 @@
-﻿use super::reader::{read_num_passes, BitReader};
+use super::reader::{read_num_passes, BitReader};
 use super::writer::{write_num_passes, BitWriter};
 use super::*;
 use crate::jpeg_2000::ebcot::{decode_code_block, encode_code_block};
@@ -246,7 +246,11 @@ fn openjp2_captured_packet_conformance() {
         body.len(),
         "packet body must fill the tile-part"
     );
-    assert_eq!(ncp, 3 * (9 - msbs) - 2, "pass count must equal 3Â·nbp âˆ’ 2");
+    assert_eq!(
+        ncp,
+        3 * (9 - msbs) - 2,
+        "pass count must equal 3Â·nbp âˆ’ 2"
+    );
 
     // Tier-1: decode the code-block body and compare with the source
     // image (8Ã—8 synthetic from the interop suite, DC-shifted by âˆ’128).
@@ -305,7 +309,8 @@ fn tile_part_round_trip_2x2_one_dwt_level() {
             num_layers: 1,
             exponents: &[],
             mantissas: &[],
-            transform: WaveletTransform::Reversible },
+            transform: WaveletTransform::Reversible,
+        },
     )
     .expect("decode must succeed");
     assert_eq!(result.samples, samples, "1-level DWT 2Ã—2 must be lossless");
@@ -342,7 +347,8 @@ fn tile_part_encode_decode_round_trip_gradient() {
             num_layers: 1,
             exponents: &[],
             mantissas: &[],
-            transform: WaveletTransform::Reversible },
+            transform: WaveletTransform::Reversible,
+        },
     )
     .expect("decode_tile_part must succeed");
     assert_eq!(

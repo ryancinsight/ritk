@@ -1,4 +1,4 @@
-﻿use crate::jpeg_2000::ebcot::encode_code_block;
+use crate::jpeg_2000::ebcot::encode_code_block;
 use crate::jpeg_2000::quantization::quantize;
 use crate::jpeg_2000::subband::{resolution_band_range, subband_layout};
 use crate::jpeg_2000::wavelet::forward_dwt_5_3;
@@ -18,14 +18,16 @@ pub(crate) struct BitWriter {
     /// is the previously completed byte (drives the 7-bit follow rule).
     buf: u32,
     /// Bits still available in the current byte (7 after emitting 0xFF).
-    ct: u8 }
+    ct: u8,
+}
 
 impl BitWriter {
     pub(crate) fn new() -> Self {
         Self {
             out: Vec::new(),
             buf: 0,
-            ct: 8 }
+            ct: 8,
+        }
     }
 
     fn byteout(&mut self) {
@@ -140,7 +142,8 @@ pub fn encode_tile_part(
         cblk: CblkRef,
         msbs: u32,
         passes: u32,
-        data: Vec<u8> }
+        data: Vec<u8>,
+    }
     let mut per_band_cblks: Vec<Vec<EncCblk>> = Vec::with_capacity(bands.len());
     for (bi, b) in bands.iter().enumerate() {
         let mut list = Vec::new();
@@ -166,7 +169,8 @@ pub fn encode_tile_part(
                 cblk,
                 msbs,
                 passes,
-                data });
+                data,
+            });
         }
         per_band_cblks.push(list);
     }

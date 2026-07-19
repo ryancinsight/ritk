@@ -1,4 +1,4 @@
-﻿//! Tests for polydata reader.
+//! Tests for polydata reader.
 
 use super::*;
 use std::io::Cursor;
@@ -55,13 +55,15 @@ LOOKUP_TABLE default\n\
     match attr {
         AttributeArray::Scalars {
             values,
-            num_components } => {
+            num_components,
+        } => {
             assert_eq!(*num_components, 1);
             assert!((values[0] - 10.0).abs() < 1e-6);
             assert!((values[1] - 20.0).abs() < 1e-6);
             assert!((values[2] - 30.0).abs() < 1e-6);
         }
-        _ => panic!("expected Scalars") }
+        _ => panic!("expected Scalars"),
+    }
 }
 
 #[test]
@@ -94,7 +96,8 @@ LOOKUP_TABLE default\n\
                 values[0]
             );
         }
-        _ => panic!("expected Scalars") }
+        _ => panic!("expected Scalars"),
+    }
 }
 
 #[test]
@@ -126,11 +129,13 @@ NORMALS norm float\n\
             assert!((values[0][0] - 1.0).abs() < 1e-6);
             assert!((values[1][1] - 1.0).abs() < 1e-6);
         }
-        _ => panic!("expected Vectors") }
+        _ => panic!("expected Vectors"),
+    }
     match poly.point_data.get("norm").unwrap() {
         AttributeArray::Normals { values } => {
             assert_eq!(values.len(), 2);
             assert!((values[0][2] - 1.0).abs() < 1e-6);
         }
-        _ => panic!("expected Normals") }
+        _ => panic!("expected Normals"),
+    }
 }

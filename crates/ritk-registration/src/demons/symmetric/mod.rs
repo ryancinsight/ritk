@@ -1,4 +1,4 @@
-﻿//! Symmetric Demons deformable image registration.
+//! Symmetric Demons deformable image registration.
 //!
 //! # Mathematical Specification
 //!
@@ -69,7 +69,8 @@ use super::config::DemonsConfig;
 #[derive(Debug, Clone)]
 pub struct SymmetricDemonsRegistration {
     /// Algorithm configuration (shared with Thirion Demons).
-    pub config: DemonsConfig }
+    pub config: DemonsConfig,
+}
 
 #[cfg(test)]
 mod tests;

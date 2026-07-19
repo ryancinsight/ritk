@@ -2,8 +2,8 @@ use super::*;
 use crate::edge::GaussianSigma;
 use coeus_core::SequentialBackend;
 use ritk_core::image::Image;
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 type B = coeus_core::SequentialBackend;
 
@@ -98,7 +98,8 @@ fn test_spatial_metadata_preserved() {
     let origin = Point::new([1.0, 2.0, 3.0]);
     let spacing = Spacing::new([0.5, 1.0, 2.0]);
     let dir = Direction::identity();
-    let img = Image::new(t, origin, spacing, dir);
+    let img = Image::new(t, origin, spacing, dir)
+        .expect("invariant: fixture tensor has the declared rank");
     let out = DiscreteGaussianFilter::<B>::new(vec![GaussianSigma::new_unchecked(1.0)]).apply(&img);
     assert_eq!(out.origin(), &origin);
     assert_eq!(out.spacing(), &spacing);

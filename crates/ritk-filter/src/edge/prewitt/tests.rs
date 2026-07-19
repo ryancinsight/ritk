@@ -14,6 +14,7 @@ fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, TestBackend, 3> {
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 fn values(img: &Image<f32, TestBackend, 3>) -> Vec<f32> {

@@ -8,6 +8,24 @@
 
 # RITK Gap Audit - Active
 
+## MIG-661-01 audit (2026-07-18)
+
+The workspace now has zero Burn and ndarray manifest dependencies and zero
+active source tokens under the migration audit. The only allowlisted source
+matches are three uses of “legacy” that name the VTK legacy file format in
+`ritk-python`; they are domain terminology, not compatibility paths.
+`ritk-image` is the canonical Coeus image contract, Leto owns array/storage
+operations, Hephaestus remains the accelerated provider boundary, and the
+unused `ritk-macros` crate and compatibility image modules are removed.
+
+The full workspace run exposed an NGF formula defect: the denominator modeled
+the edge scale as an augmented gradient component, but the numerator omitted
+the corresponding `η_F η_M` inner-product term. The corrected normalized
+augmented-gradient identity scores identical volumes as one. Evidence tier:
+native compilation, warning-denied static analysis, and value-semantic
+empirical verification; formatting and all-target/all-feature Clippy pass,
+and 4,644/4,644 Nextest tests pass with 12 explicitly skipped.
+
 ## MIG-660-01 audit (2026-07-18)
 
 The native `ritk-core` interpolation/transform traits and `ritk-nifti` codec

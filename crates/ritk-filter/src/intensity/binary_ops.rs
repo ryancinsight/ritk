@@ -43,9 +43,9 @@
 //! | `Atan2ImageFilter` | `Atan2ImageFilter` | â€” |
 //! | `PowImageFilter` | `PowImageFilter` | â€” |
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
-use ritk_image::native::Image as NativeImage;
+use coeus_core::ComputeBackend;
 use ritk_image::tensor::Backend;
+use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec as extract, rebuild};
 
@@ -371,13 +371,13 @@ impl<Op: BinaryOp> BinaryOpFilter<Op> {
     ) -> anyhow::Result<NativeImage<f32, B, 3>>
     where
         B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         check_shapes(a.shape(), b.shape())?;
-        let output = a
-            .data_slice()?
+        let left = a.try_data_vec_on(backend)?;
+        let right = b.try_data_vec_on(backend)?;
+        let output = left
             .iter()
-            .zip(b.data_slice()?)
+            .zip(&right)
             .map(|(&left, &right)| Op::apply(left, right))
             .collect();
         NativeImage::from_flat_on(

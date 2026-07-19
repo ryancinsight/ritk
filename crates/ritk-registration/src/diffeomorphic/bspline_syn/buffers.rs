@@ -1,4 +1,4 @@
-﻿//! Pre-allocated scratch buffers for zero-allocation BSplineSyN iteration.
+//! Pre-allocated scratch buffers for zero-allocation BSplineSyN iteration.
 //!
 //! All volume-sized buffers are sized at construction time and rebuilt or
 //! overwritten in place. The fused CC dispatcher retains one bounded `O(nz)`
@@ -78,7 +78,8 @@ pub(super) struct BSplineSyNBuffers {
     pub l1x: Vec<f32>,
     pub l2z: Vec<f32>,
     pub l2y: Vec<f32>,
-    pub l2x: Vec<f32> }
+    pub l2x: Vec<f32>,
+}
 
 impl BSplineSyNBuffers {
     /// Allocate all buffers for a volume with `n = nz*ny*nx` voxels and
@@ -135,6 +136,7 @@ impl BSplineSyNBuffers {
             l1x: vec![0.0_f32; cp_n],
             l2z: vec![0.0_f32; cp_n],
             l2y: vec![0.0_f32; cp_n],
-            l2x: vec![0.0_f32; cp_n] }
+            l2x: vec![0.0_f32; cp_n],
+        }
     }
 }

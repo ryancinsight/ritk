@@ -1,4 +1,4 @@
-﻿//! YCbCr â†” RGB color space conversion for JPEG baseline decode.
+//! YCbCr â†” RGB color space conversion for JPEG baseline decode.
 //!
 //! JFIF Â§6 specifies ITU-R BT.601 YCbCr:
 //!   R = Y                    + 1.402   Â· (Cr âˆ’ 128)
@@ -9,7 +9,8 @@
 //! shift) to avoid floating-point on each pixel.
 
 use crate::jpeg::constants::{
-    CB_B_COEFF, CB_G_COEFF, CR_G_COEFF, CR_R_COEFF, FIXED_SHIFT, YCBCR_BIAS };
+    CB_B_COEFF, CB_G_COEFF, CR_G_COEFF, CR_R_COEFF, FIXED_SHIFT, YCBCR_BIAS,
+};
 
 /// Convert a YCbCr triple to RGB using JFIF BT.601 fixed-point coefficients.
 ///

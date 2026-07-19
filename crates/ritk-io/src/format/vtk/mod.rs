@@ -53,7 +53,7 @@ pub use mesh_writer::{mesh_to_vtk_string, write_mesh_as_vtk};
 pub mod native {
     use crate::domain::{to_io_err, ImageReader, ImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};
-    use ritk_image::native::Image;
+    use ritk_image::Image;
     use std::path::Path;
 
     /// Backend-bound VTK reader.

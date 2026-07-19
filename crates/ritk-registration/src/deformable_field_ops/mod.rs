@@ -1,4 +1,4 @@
-﻿//! Shared computational primitives for deformable image registration algorithms.
+//! Shared computational primitives for deformable image registration algorithms.
 //!
 //! All functions operate on flat `Vec<f32>` buffers with shape `[nz, ny, nx]`
 //! (Z-major / row-major order): flat index = `iz * ny * nx + iy * nx + ix`.
@@ -36,7 +36,7 @@ pub(crate) use smooth::gaussian_smooth_field_inplace;
 pub(crate) use smooth::gaussian_smooth_with_scratch_per_axis;
 pub(crate) use smooth::{gaussian_smooth_field_with_kernel, gaussian_smooth_inplace};
 
-// â”€â”€ GPU-accelerated smoothing (Burn tensor path) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â”€â”€ GPU-accelerated smoothing  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 pub use smooth::GpuFieldSmoother;
 pub(crate) use validation::{cc_converged, validate_image, validate_image_pair};
 pub(crate) use warp::{compute_mse_inplace, compute_mse_streaming, warp_image_into};
@@ -47,7 +47,7 @@ pub use warp::{warp_image, WarpInterpolation};
 /// Smooth a 3-component displacement or velocity field in place.
 ///
 /// Implementations include [`CpuFieldSmoother`] (CPU `moirai` path) and
-/// [`GpuFieldSmoother`] (Burn GPU path).  Registration engines accept
+/// [`GpuFieldSmoother`] (backend-dispatched GPU path).  Registration engines accept
 /// `impl FieldSmoother` so callers choose the backend at the call site
 /// without needing separate `register_with_gpu_smoother` entry points.
 pub trait FieldSmoother {
@@ -81,7 +81,8 @@ pub struct CpuFieldSmoother {
     smooth_tmp_y: Vec<f32>,
     smooth_tmp_x: Vec<f32>,
     dims: VolumeDims,
-    kernel: Vec<f64> }
+    kernel: Vec<f64>,
+}
 
 impl CpuFieldSmoother {
     /// Create a CPU smoother for `dims` with isotropic `sigma` in voxels.
@@ -102,7 +103,8 @@ impl CpuFieldSmoother {
             smooth_tmp_y: vec![0.0_f32; scratch_len],
             smooth_tmp_x: vec![0.0_f32; scratch_len],
             dims: VolumeDims::new(dims),
-            kernel }
+            kernel,
+        }
     }
 }
 
@@ -131,7 +133,8 @@ impl FieldSmoother for CpuFieldSmoother {
             VectorFieldMut {
                 z: &mut self.smooth_tmp_z,
                 y: &mut self.smooth_tmp_y,
-                x: &mut self.smooth_tmp_x },
+                x: &mut self.smooth_tmp_x,
+            },
         );
     }
 }
@@ -147,20 +150,22 @@ impl FieldSmoother for CpuFieldSmoother {
 ///
 /// # Type parameter
 ///
-/// `B` is the Burn backend used by the GPU variant.  For CPU-only usage,
-/// the default [`ritk_image::burn::backend::NdArray`] backend keeps the enum usable without
+/// `B` is the compute backend used by the GPU variant. For CPU-only usage,
+/// the default sequential backend keeps the enum usable without
 /// selecting a concrete GPU provider.
 pub enum CpuOrGpu<B: Backend = coeus_core::SequentialBackend> {
     /// CPU Gaussian smoother with pre-allocated scratch buffer.
     Cpu(CpuFieldSmoother),
-    /// GPU Gaussian smoother with Burn backend `B`.
-    Gpu(GpuFieldSmoother<B>) }
+    /// GPU Gaussian smoother with compute backend `B`.
+    Gpu(GpuFieldSmoother<B>),
+}
 
 impl<B: Backend> FieldSmoother for CpuOrGpu<B> {
     fn smooth_field(&mut self, z: &mut [f32], y: &mut [f32], x: &mut [f32]) {
         match self {
             Self::Cpu(s) => s.smooth_field(z, y, x),
-            Self::Gpu(s) => s.smooth_field(z, y, x) }
+            Self::Gpu(s) => s.smooth_field(z, y, x),
+        }
     }
 }
 
@@ -177,7 +182,8 @@ pub(crate) struct VectorField<'a> {
     /// Y-component.
     pub y: &'a [f32],
     /// X-component.
-    pub x: &'a [f32] }
+    pub x: &'a [f32],
+}
 
 /// Mutable 3D vector field: three co-equal flat component slice-muts (z, y, x).
 #[derive(Debug)]
@@ -187,7 +193,8 @@ pub(crate) struct VectorFieldMut<'a> {
     /// Y-component.
     pub y: &'a mut [f32],
     /// X-component.
-    pub x: &'a mut [f32] }
+    pub x: &'a mut [f32],
+}
 
 /// Owned 3-D velocity or displacement field: three flat `Vec<f32>` component buffers.
 ///
@@ -201,7 +208,8 @@ pub struct VelocityField {
     /// Y-component buffer.
     pub y: Vec<f32>,
     /// X-component buffer.
-    pub x: Vec<f32> }
+    pub x: Vec<f32>,
+}
 
 impl VelocityField {
     /// Construct from separate component buffers.
@@ -214,7 +222,8 @@ impl VelocityField {
         Self {
             z: vec![0.0_f32; n],
             y: vec![0.0_f32; n],
-            x: vec![0.0_f32; n] }
+            x: vec![0.0_f32; n],
+        }
     }
 
     /// Total number of voxels (length of each component buffer).
@@ -255,7 +264,8 @@ struct TrilinearStencil {
     indices: [usize; 8],
     dz: f32,
     dy: f32,
-    dx: f32 }
+    dx: f32,
+}
 
 impl TrilinearStencil {
     #[inline(always)]
@@ -284,7 +294,8 @@ impl TrilinearStencil {
             ],
             dz: z - iz0 as f32,
             dy: y - iy0 as f32,
-            dx: x - ix0 as f32 }
+            dx: x - ix0 as f32,
+        }
     }
 
     #[inline(always)]
@@ -384,7 +395,8 @@ mod tests {
             VectorField {
                 z: &z,
                 y: &y,
-                x: &x },
+                x: &x,
+            },
             dims,
             position[0],
             position[1],

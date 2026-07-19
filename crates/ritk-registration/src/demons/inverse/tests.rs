@@ -1,4 +1,4 @@
-﻿//! Unit tests for displacement field inversion.
+//! Unit tests for displacement field inversion.
 
 use super::displacement::{invert_displacement_field, warp_displacement_into, InverseFieldConfig};
 use super::svf::invert_velocity_field;
@@ -21,16 +21,19 @@ fn warp_displacement(
         VectorField {
             z: disp_z,
             y: disp_y,
-            x: disp_x },
+            x: disp_x,
+        },
         VectorField {
             z: query_z,
             y: query_y,
-            x: query_x },
+            x: query_x,
+        },
         dims,
         VectorFieldMut {
             z: &mut out_z,
             y: &mut out_y,
-            x: &mut out_x },
+            x: &mut out_x,
+        },
     );
     for v in &mut out_z {
         *v = -*v;
@@ -173,7 +176,8 @@ fn test_invert_result_composition_near_identity() {
 
     let config = InverseFieldConfig {
         max_iterations: 20,
-        tolerance: 1e-6 };
+        tolerance: 1e-6,
+    };
     let (inv, _iters) = invert_displacement_field(&disp_z, &disp_y, &disp_x, dims, &config);
 
     let (comp_z, comp_y, comp_x) =
@@ -219,7 +223,8 @@ fn test_max_iterations_bound() {
     let max_iter = 5usize;
     let config = InverseFieldConfig {
         max_iterations: max_iter,
-        tolerance: 1e-30 };
+        tolerance: 1e-30,
+    };
 
     let (_, iters) = invert_displacement_field(&disp_z, &disp_y, &disp_x, dims, &config);
 

@@ -1,4 +1,4 @@
-﻿//! Image metadata types.
+//! Image metadata types.
 //!
 //! This module provides types for representing image metadata
 //! such as origin, spacing, and direction.
@@ -15,7 +15,8 @@ pub struct ImageMetadata<const D: usize> {
     /// Physical distance between pixels along each axis.
     spacing: Spacing<D>,
     /// Orientation of the image axes.
-    direction: Direction<D> }
+    direction: Direction<D>,
+}
 
 impl<const D: usize> ImageMetadata<D> {
     /// Create new image metadata.
@@ -23,7 +24,8 @@ impl<const D: usize> ImageMetadata<D> {
         Self {
             origin,
             spacing,
-            direction }
+            direction,
+        }
     }
 
     /// Get the origin.
@@ -61,7 +63,8 @@ impl<const D: usize> ImageMetadata<D> {
         Self {
             origin: Point::origin(),
             spacing: Spacing::uniform(1.0),
-            direction: Direction::identity() }
+            direction: Direction::identity(),
+        }
     }
 }
 
@@ -70,7 +73,8 @@ impl<const D: usize> Default for ImageMetadata<D> {
         Self {
             origin: Point::origin(),
             spacing: Spacing::uniform(1.0),
-            direction: Direction::identity() }
+            direction: Direction::identity(),
+        }
     }
 }
 

@@ -1,4 +1,4 @@
-﻿use crate::render::colormap::Colormap;
+use crate::render::colormap::Colormap;
 use crate::tools::kind::ToolKind;
 use crate::ui::anatomical_label_for_axis;
 use crate::{LoadedVolume, ViewerState};
@@ -19,7 +19,8 @@ pub(crate) struct ClinicalDistributionExportSummary {
     pub mpr_root: PathBuf,
     pub current_slice_written: bool,
     pub mpr_written: usize,
-    pub mpr_failed: usize }
+    pub mpr_failed: usize,
+}
 
 /// DICOM metadata presence flags for clinical distribution reports.
 ///
@@ -34,7 +35,8 @@ pub(crate) struct DcmPresenceFlags {
     pub source: bool,
     pub segmentation: bool,
     pub rt_struct: bool,
-    pub rt_dose: bool }
+    pub rt_dose: bool,
+}
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ClinicalDistributionSummary<'a> {
@@ -51,7 +53,8 @@ pub(crate) struct ClinicalDistributionSummary<'a> {
     pub colormap_label: &'a str,
     pub active_tool_label: &'a str,
     pub annotation_count: usize,
-    pub presence: DcmPresenceFlags }
+    pub presence: DcmPresenceFlags,
+}
 
 pub(crate) fn distribution_root(base: &Path) -> PathBuf {
     base.join(CLINICAL_DISTRIBUTION_DIR)
@@ -279,7 +282,9 @@ pub(crate) fn summary_from_loaded_volume<'a>(
             source: volume.source.is_some(),
             segmentation: segmentation_present,
             rt_struct: rt_struct_present,
-            rt_dose: rt_dose_present } }
+            rt_dose: rt_dose_present,
+        },
+    }
 }
 
 fn write_redacted_line(report: &mut String, label: &str, present: bool) {
@@ -296,5 +301,6 @@ fn plane_folder_name(axis: usize) -> &'static str {
     match axis {
         0 => "axial",
         1 => "coronal",
-        _ => "sagittal" }
+        _ => "sagittal",
+    }
 }

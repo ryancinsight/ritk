@@ -1,4 +1,4 @@
-﻿//! Bending energy regularization for displacement fields.
+//! Bending energy regularization for displacement fields.
 //!
 //! Bending energy regularization (also known as thin-plate bending energy)
 //! penalizes second-order spatial derivatives of the displacement field,
@@ -40,7 +40,8 @@ use coeus_tensor::Tensor;
 /// ```
 #[derive(Clone, Debug)]
 pub struct BendingEnergyRegularizer {
-    weight: f64 }
+    weight: f64,
+}
 
 impl BendingEnergyRegularizer {
     /// Create a new bending energy regularizer.

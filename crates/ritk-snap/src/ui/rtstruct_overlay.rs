@@ -1,4 +1,4 @@
-﻿//! RT Structure Set contour projection from patient space to viewport image space.
+//! RT Structure Set contour projection from patient space to viewport image space.
 //!
 //! This module is the SSOT for converting RT-STRUCT contour points (patient mm)
 //! into 2-D row/column coordinates for a selected MPR slice.
@@ -13,7 +13,8 @@ pub struct ProjectedRtContour {
     /// Whether the contour is geometrically closed.
     pub closed: bool,
     /// Row/column points in continuous image coordinates.
-    pub points_row_col: Vec<[f32; 2]> }
+    pub points_row_col: Vec<[f32; 2]>,
+}
 
 /// Project RT-STRUCT contours onto the selected axis/slice.
 ///
@@ -35,7 +36,8 @@ pub fn project_rt_struct_contours_for_slice(
     let (row_dim, col_dim) = match axis {
         0 => (shape[1] as f64, shape[2] as f64),
         1 => (shape[0] as f64, shape[2] as f64),
-        _ => (shape[0] as f64, shape[1] as f64) };
+        _ => (shape[0] as f64, shape[1] as f64),
+    };
 
     let mut out = Vec::new();
     for roi in &rt.rois {
@@ -80,7 +82,8 @@ pub fn project_rt_struct_contours_for_slice(
             out.push(ProjectedRtContour {
                 color,
                 closed,
-                points_row_col });
+                points_row_col,
+            });
         }
     }
 
@@ -91,14 +94,16 @@ fn axis_coordinate(voxel: [f64; 3], axis: usize) -> f64 {
     match axis {
         0 => voxel[0],
         1 => voxel[1],
-        _ => voxel[2] }
+        _ => voxel[2],
+    }
 }
 
 fn row_col_from_voxel(voxel: [f64; 3], axis: usize) -> (f64, f64) {
     match axis {
         0 => (voxel[1], voxel[2]),
         1 => (voxel[0], voxel[2]),
-        _ => (voxel[0], voxel[1]) }
+        _ => (voxel[0], voxel[1]),
+    }
 }
 
 fn patient_to_voxel(point_mm: [f64; 3], origin: [f64; 3], inv_phys_to_voxel: [f64; 9]) -> [f64; 3] {

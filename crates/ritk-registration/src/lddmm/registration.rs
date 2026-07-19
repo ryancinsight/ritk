@@ -1,4 +1,4 @@
-﻿//! LDDMM registration engine â€” gradient-descent optimisation of vâ‚€.
+//! LDDMM registration engine â€” gradient-descent optimisation of vâ‚€.
 //!
 //! # Memory discipline
 //! All scratch buffers are pre-allocated before the iteration loop.
@@ -7,12 +7,14 @@
 //! pre-allocated scratch set (8n + 3 per-step reuse).
 
 use crate::deformable_field_ops::{
-    compute_gradient_into, validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother };
+    compute_gradient_into, validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother,
+};
 use crate::error::RegistrationError;
 
 use super::{
     config::{LddmmConfig, LddmmResult},
-    geodesic::integrate_geodesic_into_with_smoother };
+    geodesic::integrate_geodesic_into_with_smoother,
+};
 
 /// LDDMM registration engine.
 ///
@@ -22,7 +24,8 @@ use super::{
 #[derive(Debug, Clone)]
 pub struct LddmmRegistration {
     /// Algorithm configuration.
-    pub config: LddmmConfig }
+    pub config: LddmmConfig,
+}
 
 impl LddmmRegistration {
     /// Create a registration instance with the given configuration.
@@ -223,6 +226,7 @@ impl LddmmRegistration {
             displacement_field: (dz, dy, dx),
             warped_moving: warped,
             final_metric: final_mse,
-            num_iterations: num_iters })
+            num_iterations: num_iters,
+        })
     }
 }

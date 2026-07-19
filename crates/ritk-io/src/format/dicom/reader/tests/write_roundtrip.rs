@@ -6,8 +6,7 @@ use super::super::geometry::{
     analyze_slice_spacing, dot, normalize, resample_frames_linear, slice_normal_from_iop,
 };
 use super::super::loader::{
-    load_dicom_series_with_metadata, load_from_series, load_native_dicom_series_with_metadata,
-    read_dicom_series_with_metadata,
+    load_dicom_series_with_metadata, load_from_series, read_dicom_series_with_metadata,
 };
 use super::super::pixel::{decode_pixel_bytes, read_slice_pixels};
 use super::super::scan::scan_dicom_directory;
@@ -43,7 +42,8 @@ fn test_write_series_load_series_intensity_roundtrip() {
         Point::new([0.0, 0.0, 0.0]),
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
 
     crate::format::dicom::writer::write_dicom_series(&series_path, &image)
         .expect("write_dicom_series must succeed");
@@ -52,32 +52,33 @@ fn test_write_series_load_series_intensity_roundtrip() {
         .expect("load_dicom_series_with_metadata must succeed")
         .0;
 
-    loaded_image.with_data_slice(|loaded_vals: &[f32]| {
-        assert_eq!(
-            loaded_vals.len(),
-            original_data.len(),
-            "loaded voxel count must equal original"
+    let loaded_vals = loaded_image
+        .data_slice()
+        .expect("invariant: decoded image storage is contiguous");
+    assert_eq!(
+        loaded_vals.len(),
+        original_data.len(),
+        "loaded voxel count must equal original"
+    );
+    // Analytical bound per slice: slope = range / 65535 = 15 / 65535 â‰ˆ 2.29e-4.
+    // DS format {:.6} stores the slope/intercept with at most 0.5e-6 rounding error
+    // per coefficient. Accumulated slope error over max u16 (65535):
+    // 65535 * 0.5e-6 â‰ˆ 0.033.
+    // Quantization from round(): slope / 2 â‰ˆ 1.14e-4.
+    // Total analytical bound: 65535 * 0.5e-6 + 0.5e-6 + slope / 2.
+    let slice_range = 15.0f32;
+    let slope = slice_range / 65535.0_f32;
+    let ds_half_ulp = 0.5e-6_f32;
+    let tol = 65535.0_f32 * ds_half_ulp + ds_half_ulp + slope / 2.0_f32;
+    // The writer writes per-slice rescale; reader applies per-slice rescale.
+    // Re-sort loaded voxels by z-position. The series may be loaded in sorted order.
+    for (idx, (&orig, &loaded)) in original_data.iter().zip(loaded_vals.iter()).enumerate() {
+        let err = (loaded - orig).abs();
+        assert!(
+            err <= tol,
+            "voxel[{idx}]: |{loaded} - {orig}| = {err} > tol {tol}; slope={slope}"
         );
-        // Analytical bound per slice: slope = range / 65535 = 15 / 65535 â‰ˆ 2.29e-4.
-        // DS format {:.6} stores the slope/intercept with at most 0.5e-6 rounding error
-        // per coefficient. Accumulated slope error over max u16 (65535):
-        // 65535 * 0.5e-6 â‰ˆ 0.033.
-        // Quantization from round(): slope / 2 â‰ˆ 1.14e-4.
-        // Total analytical bound: 65535 * 0.5e-6 + 0.5e-6 + slope / 2.
-        let slice_range = 15.0f32;
-        let slope = slice_range / 65535.0_f32;
-        let ds_half_ulp = 0.5e-6_f32;
-        let tol = 65535.0_f32 * ds_half_ulp + ds_half_ulp + slope / 2.0_f32;
-        // The writer writes per-slice rescale; reader applies per-slice rescale.
-        // Re-sort loaded voxels by z-position. The series may be loaded in sorted order.
-        for (idx, (&orig, &loaded)) in original_data.iter().zip(loaded_vals.iter()).enumerate() {
-            let err = (loaded - orig).abs();
-            assert!(
-                err <= tol,
-                "voxel[{idx}]: |{loaded} - {orig}| = {err} > tol {tol}; slope={slope}"
-            );
-        }
-    });
+    }
 }
 
 #[test]
@@ -100,7 +101,8 @@ fn native_dicom_loader_matches_legacy_loader() {
         Point::new([3.0, -2.0, 11.0]),
         Spacing::new([1.25, 0.8, 0.6]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
 
     crate::format::dicom::writer::write_dicom_series(&series_path, &image)
         .expect("write_dicom_series must succeed");
@@ -108,17 +110,15 @@ fn native_dicom_loader_matches_legacy_loader() {
     let (legacy, legacy_meta) =
         load_dicom_series_with_metadata::<B, _>(&series_path, &device).expect("legacy load");
     let (native, native_meta) =
-        load_native_dicom_series_with_metadata(&series_path, &SequentialBackend)
-            .expect("native load");
+        load_dicom_series_with_metadata(&series_path, &SequentialBackend).expect("native load");
 
     assert_eq!(native.shape(), legacy.shape());
-    legacy.with_data_slice(|legacy_values: &[f32]| {
-        assert_eq!(
-            native.data_slice().expect("native data must be contiguous"),
-            legacy_values,
-            "native DICOM loader must reuse the same decoded voxel contract"
-        );
-    });
+    let legacy_values = legacy.data_slice().expect("legacy data must be contiguous");
+    assert_eq!(
+        native.data_slice().expect("native data must be contiguous"),
+        legacy_values,
+        "native DICOM loader must reuse the same decoded voxel contract"
+    );
 
     assert_eq!(native_meta.dimensions, legacy_meta.dimensions);
     assert_eq!(native_meta.spacing, legacy_meta.spacing);
@@ -164,7 +164,8 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
         Point::new([5.0, 10.0, -20.0]),
         Spacing::new([1.5, 0.5, 0.5]),
         Direction::identity(),
-    );
+    )
+    .expect("invariant: fixture tensor has the declared rank");
 
     let meta = DicomReadMetadata {
         series_instance_uid: Some("1.2.3.4.5.6.999".try_into().unwrap()),
@@ -208,30 +209,31 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
             .expect("load_dicom_series_with_metadata must succeed");
 
     // --- Intensity round-trip ---
-    loaded_image.with_data_slice(|loaded_vals: &[f32]| {
-        assert_eq!(
-            loaded_vals.len(),
-            original_data.len(),
-            "voxel count must match"
+    let loaded_vals = loaded_image
+        .data_slice()
+        .expect("invariant: decoded image storage is contiguous");
+    assert_eq!(
+        loaded_vals.len(),
+        original_data.len(),
+        "voxel count must match"
+    );
+    // Analytical slope per slice: each slice has range=15, slope = 15/65535.
+    // DS format {:.6} stores the slope/intercept with at most 0.5e-6 rounding error
+    // per coefficient. Accumulated slope error over max u16 (65535):
+    // 65535 * 0.5e-6 â‰ˆ 0.033.
+    // Quantization from round(): slope / 2 â‰ˆ 1.14e-4.
+    // Total analytical bound: 65535 * 0.5e-6 + 0.5e-6 + slope / 2.
+    let slice_range = 15.0f32;
+    let slope = slice_range / 65535.0_f32;
+    let ds_half_ulp = 0.5e-6_f32;
+    let tol = 65535.0_f32 * ds_half_ulp + ds_half_ulp + slope / 2.0_f32;
+    for (idx, (&orig, &loaded)) in original_data.iter().zip(loaded_vals.iter()).enumerate() {
+        let err = (loaded - orig).abs();
+        assert!(
+            err <= tol,
+            "voxel[{idx}]: |{loaded} - {orig}| = {err} > tol {tol}"
         );
-        // Analytical slope per slice: each slice has range=15, slope = 15/65535.
-        // DS format {:.6} stores the slope/intercept with at most 0.5e-6 rounding error
-        // per coefficient. Accumulated slope error over max u16 (65535):
-        // 65535 * 0.5e-6 â‰ˆ 0.033.
-        // Quantization from round(): slope / 2 â‰ˆ 1.14e-4.
-        // Total analytical bound: 65535 * 0.5e-6 + 0.5e-6 + slope / 2.
-        let slice_range = 15.0f32;
-        let slope = slice_range / 65535.0_f32;
-        let ds_half_ulp = 0.5e-6_f32;
-        let tol = 65535.0_f32 * ds_half_ulp + ds_half_ulp + slope / 2.0_f32;
-        for (idx, (&orig, &loaded)) in original_data.iter().zip(loaded_vals.iter()).enumerate() {
-            let err = (loaded - orig).abs();
-            assert!(
-                err <= tol,
-                "voxel[{idx}]: |{loaded} - {orig}| = {err} > tol {tol}"
-            );
-        }
-    });
+    }
 
     // --- Spatial metadata round-trip ---
     let pos_tol = 1e-4_f64;

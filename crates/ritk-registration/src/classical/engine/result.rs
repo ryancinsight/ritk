@@ -1,4 +1,4 @@
-﻿//! Registration result types for classical algorithms.
+//! Registration result types for classical algorithms.
 
 use super::super::spatial::SpatialTransform;
 use crate::types::AffineTransform;
@@ -12,4 +12,5 @@ pub struct RegistrationResult {
     /// Spatial transform classification.
     pub spatial: SpatialTransform,
     /// Registration quality metrics.
-    pub quality: RegistrationQualityMetrics }
+    pub quality: RegistrationQualityMetrics,
+}

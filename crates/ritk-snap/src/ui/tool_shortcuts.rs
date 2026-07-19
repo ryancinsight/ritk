@@ -1,4 +1,4 @@
-﻿//! Tool keyboard shortcut SSOT.
+//! Tool keyboard shortcut SSOT.
 //!
 //! Defines single-key access to viewer interaction tools, allowing users to
 //! activate measurement, segmentation, and navigation tools without clicking
@@ -98,7 +98,8 @@ pub fn tool_kind_for_key(key: Key) -> Option<ToolKind> {
         KEY_ZOOM => Some(ToolKind::Zoom),
         KEY_WINDOW_LEVEL => Some(ToolKind::WindowLevel),
         KEY_LABEL_PAINT => Some(ToolKind::LabelPaint),
-        _ => None }
+        _ => None,
+    }
 }
 
 #[cfg(test)]

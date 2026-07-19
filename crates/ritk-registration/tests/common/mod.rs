@@ -18,10 +18,9 @@
 //! standard Rust idiom for shared test-utility modules.
 
 #![allow(dead_code)]
-use ritk_image::burn::backend::Autodiff;
 
-/// Backend with autodiff — required by `GlobalMiRegistration`.
-pub type B = Autodiff<burn_ndarray::NdArray<f32>>;
+/// Host backend used by native RIRE integration tests.
+pub type B = coeus_core::SequentialBackend;
 
 // ── Constants ────────────────────────────────────────────────────────────────
 

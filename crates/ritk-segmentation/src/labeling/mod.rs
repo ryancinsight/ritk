@@ -152,9 +152,9 @@ impl ConnectedComponentsFilter {
     /// native label image cannot be constructed.
     pub fn apply_native<B>(
         &self,
-        mask: &ritk_image::native::Image<f32, B, 3>,
+        mask: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<(ritk_image::native::Image<f32, B, 3>, Vec<LabelStatistics>)>
+    ) -> anyhow::Result<(ritk_image::Image<f32, B, 3>, Vec<LabelStatistics>)>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -192,7 +192,8 @@ impl ConnectedComponentsFilter {
 
         let tensor = Tensor::<f32, B>::from_slice(shape, &label_vec);
 
-        let label_image = Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction());
+        let label_image = Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
+            .expect("invariant: segmentation output tensor preserves the image rank");
 
         (label_image, stats)
     }

@@ -1,4 +1,4 @@
-﻿//! Deterministic MPR PNG export planning.
+//! Deterministic MPR PNG export planning.
 //!
 //! This module is the SSOT for planning all per-axis slice exports for a loaded
 //! `[depth, rows, cols]` volume. It is intentionally pure to support direct
@@ -14,14 +14,16 @@ pub struct PlannedSliceExport {
     /// Axis folder name used under the selected export root.
     pub axis_folder: &'static str,
     /// File name of the exported PNG.
-    pub file_name: String }
+    pub file_name: String,
+}
 
 /// Return the canonical folder label for an axis.
 pub fn axis_folder_name(axis: usize) -> &'static str {
     match axis {
         0 => "axial",
         1 => "coronal",
-        _ => "sagittal" }
+        _ => "sagittal",
+    }
 }
 
 /// Return the number of slices for an axis given volume shape `[d, r, c]`.
@@ -29,7 +31,8 @@ pub fn axis_slice_total(shape: [usize; 3], axis: usize) -> usize {
     match axis {
         0 => shape[0],
         1 => shape[1],
-        _ => shape[2] }
+        _ => shape[2],
+    }
 }
 
 /// Plan deterministic export entries for all axial/coronal/sagittal slices.
@@ -45,7 +48,8 @@ pub fn plan_all_mpr_exports(shape: [usize; 3]) -> Vec<PlannedSliceExport> {
                 axis,
                 slice_index,
                 axis_folder,
-                file_name: format!("{}_{:04}.png", axis_folder, slice_index) });
+                file_name: format!("{}_{:04}.png", axis_folder, slice_index),
+            });
         }
     }
     plan

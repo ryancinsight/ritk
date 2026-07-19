@@ -1,4 +1,4 @@
-﻿//! Generic differentiable MSE registration metric on Coeus autograd `Var`s
+//! Generic differentiable MSE registration metric on Coeus autograd `Var`s
 //! (ADR 0001).
 //!
 //! [`mse_metric`] is the single composition SSOT:
@@ -65,7 +65,8 @@ where
     // `evaluate`; this bundles the affine parameters and picks the MSE metric.
     let transform = Affine {
         r: r.clone(),
-        t: t.clone() };
+        t: t.clone(),
+    };
     mse_metric(moving_flat, dims, fixed, grid, &transform)
 }
 

@@ -1,4 +1,4 @@
-﻿//! Scaling-and-squaring exponential map for stationary velocity fields.
+//! Scaling-and-squaring exponential map for stationary velocity fields.
 
 use super::compose::compose_fields_into;
 use super::{VectorField, VectorFieldMut, VelocityField};
@@ -45,16 +45,19 @@ pub(crate) fn scaling_and_squaring(
             VectorField {
                 z: &phiz,
                 y: &phiy,
-                x: &phix },
+                x: &phix,
+            },
             VectorField {
                 z: &phiz,
                 y: &phiy,
-                x: &phix },
+                x: &phix,
+            },
             dims,
             VectorFieldMut {
                 z: &mut next_z,
                 y: &mut next_y,
-                x: &mut next_x },
+                x: &mut next_x,
+            },
         );
         std::mem::swap(&mut phiz, &mut next_z);
         std::mem::swap(&mut phiy, &mut next_y);
@@ -64,7 +67,8 @@ pub(crate) fn scaling_and_squaring(
     VelocityField {
         z: phiz,
         y: phiy,
-        x: phix }
+        x: phix,
+    }
 }
 
 /// Zero-allocation variant: computes `exp(v)` into caller-provided buffers.
@@ -107,24 +111,28 @@ pub(crate) fn scaling_and_squaring_into(
                 VectorField {
                     z: out_z,
                     y: out_y,
-                    x: out_x },
+                    x: out_x,
+                },
                 dims,
                 VectorFieldMut {
                     z: scratch_z,
                     y: scratch_y,
-                    x: scratch_x },
+                    x: scratch_x,
+                },
             );
         } else {
             square_into(
                 VectorField {
                     z: scratch_z,
                     y: scratch_y,
-                    x: scratch_x },
+                    x: scratch_x,
+                },
                 dims,
                 VectorFieldMut {
                     z: out_z,
                     y: out_y,
-                    x: out_x },
+                    x: out_x,
+                },
             );
         }
         result_is_out = !result_is_out;

@@ -1,4 +1,4 @@
-﻿//! SyN registration engine: `SyNResult`, `SyNRegistration`, and `register`.
+//! SyN registration engine: `SyNResult`, `SyNRegistration`, and `register`.
 //!
 //! # Algorithm
 //! Greedy SyN (Avants 2008) with local cross-correlation metric.
@@ -33,7 +33,8 @@ use super::local_cc::bidirectional_cc_from_sats_into;
 use crate::deformable_field_ops::{
     cc_converged, compute_gradient_into, normalize_forces_into, scaling_and_squaring_into,
     validate_image_pair, warp_image_into, CpuFieldSmoother, FieldSmoother, VectorField,
-    VectorFieldMut, VelocityField };
+    VectorFieldMut, VelocityField,
+};
 use crate::error::RegistrationError;
 use buffers::SyNBuffers;
 
@@ -53,7 +54,8 @@ pub struct SyNResult {
     /// Final mean local CC value (higher is better; 1.0 = perfect alignment).
     pub final_cc: f64,
     /// Number of iterations actually performed.
-    pub num_iterations: usize }
+    pub num_iterations: usize,
+}
 
 /// SyN registration engine.
 ///
@@ -70,7 +72,8 @@ pub struct SyNResult {
 #[derive(Debug, Clone)]
 pub struct SyNRegistration {
     /// Algorithm configuration.
-    pub config: super::SyNConfig }
+    pub config: super::SyNConfig,
+}
 
 impl SyNRegistration {
     /// Create a registration instance with the given configuration.
@@ -197,21 +200,25 @@ impl SyNRegistration {
                 VectorField {
                     z: &buf.gi_z,
                     y: &buf.gi_y,
-                    x: &buf.gi_x },
+                    x: &buf.gi_x,
+                },
                 VectorField {
                     z: &buf.gj_z,
                     y: &buf.gj_y,
-                    x: &buf.gj_x },
+                    x: &buf.gj_x,
+                },
                 dims,
                 &buf.cc_sats,
                 VectorFieldMut {
                     z: &mut buf.u1z,
                     y: &mut buf.u1y,
-                    x: &mut buf.u1x },
+                    x: &mut buf.u1x,
+                },
                 VectorFieldMut {
                     z: &mut buf.u2z,
                     y: &mut buf.u2y,
-                    x: &mut buf.u2x },
+                    x: &mut buf.u2x,
+                },
                 &mut buf.cc_slices,
             );
 
@@ -302,7 +309,8 @@ impl SyNRegistration {
             warped_fixed: buf.i_w,
             warped_moving: buf.j_w,
             final_cc,
-            num_iterations: iter })
+            num_iterations: iter,
+        })
     }
 }
 

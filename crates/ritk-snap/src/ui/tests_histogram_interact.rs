@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 
 // â”€â”€ x_to_intensity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -66,7 +66,8 @@ fn wl_from_drag_zero_delta_identity() {
             canvas_width: 200.0,
             canvas_height: 80.0,
             hist_min: -1000.0,
-            hist_max: 3000.0 },
+            hist_max: 3000.0,
+        },
         40.0,
         400.0,
     );
@@ -86,7 +87,8 @@ fn wl_from_drag_rightward_shifts_center() {
             canvas_width: 200.0,
             canvas_height: 80.0,
             hist_min: -1000.0,
-            hist_max: 3000.0 },
+            hist_max: 3000.0,
+        },
         40.0,
         400.0,
     );
@@ -104,7 +106,8 @@ fn wl_from_drag_leftward_shifts_center_negative() {
             canvas_width: 200.0,
             canvas_height: 80.0,
             hist_min: -1000.0,
-            hist_max: 3000.0 },
+            hist_max: 3000.0,
+        },
         40.0,
         400.0,
     );
@@ -125,7 +128,8 @@ fn wl_from_drag_upward_narrows_width() {
             canvas_width: 200.0,
             canvas_height: 80.0,
             hist_min: -1000.0,
-            hist_max: 3000.0 },
+            hist_max: 3000.0,
+        },
         40.0,
         400.0,
     );
@@ -145,7 +149,8 @@ fn wl_from_drag_extreme_downward_clamps_to_min_width() {
             canvas_width: 200.0,
             canvas_height: 80.0,
             hist_min: -1000.0,
-            hist_max: 3000.0 },
+            hist_max: 3000.0,
+        },
         40.0,
         400.0,
     );
@@ -163,7 +168,8 @@ fn wl_from_drag_degenerate_canvas_width_identity() {
             canvas_width: 0.0,
             canvas_height: 80.0,
             hist_min: -1000.0,
-            hist_max: 3000.0 },
+            hist_max: 3000.0,
+        },
         40.0,
         400.0,
     );
@@ -181,7 +187,8 @@ fn wl_from_drag_degenerate_span_identity() {
             canvas_width: 200.0,
             canvas_height: 80.0,
             hist_min: 1000.0,
-            hist_max: 1000.0 },
+            hist_max: 1000.0,
+        },
         40.0,
         400.0,
     );

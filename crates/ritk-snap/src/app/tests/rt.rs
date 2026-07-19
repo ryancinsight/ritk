@@ -1,4 +1,4 @@
-﻿//! RT dose/plan and viewer metadata tests.
+//! RT dose/plan and viewer metadata tests.
 
 use super::*;
 use arrayvec::ArrayString;
@@ -21,11 +21,14 @@ fn load_rt_plan_file_sets_plan_summary_state() {
             radiation_type: ArrayString::from("PHOTON").expect("valid fixed radiation type"),
             treatment_delivery_type: ArrayString::from("TREATMENT")
                 .expect("valid fixed delivery type"),
-            n_control_points: 2 }],
+            n_control_points: 2,
+        }],
         fraction_groups: vec![ritk_io::RtFractionGroup {
             fraction_group_number: 1,
             n_fractions_planned: 30,
-            referenced_beam_numbers: vec![1] }] };
+            referenced_beam_numbers: vec![1],
+        }],
+    };
     ritk_io::write_rt_plan(&path, &plan).expect("write rt plan");
     app.load_rt_plan_file(path);
     let loaded = app.rt_plan.as_ref().expect("rt plan loaded");
@@ -45,7 +48,8 @@ fn rt_dose_plan_link_status_reports_linked_uid() {
         rt_plan_description: String::new(),
         plan_intent: ArrayString::new(),
         beams: vec![],
-        fraction_groups: vec![] });
+        fraction_groups: vec![],
+    });
     app.rt_dose = Some(ritk_io::RtDoseGrid {
         rows: 1,
         cols: 1,
@@ -60,7 +64,8 @@ fn rt_dose_plan_link_status_reports_linked_uid() {
         pixel_spacing: None,
         referenced_rt_plan_sop_instance_uid: Some(
             ArrayString::from("2.25.9001").expect("valid fixed uid"),
-        ) });
+        ),
+    });
 
     let message = app.rt_dose_plan_link_status().expect("link status present");
     assert!(message.contains("linked to loaded RT-PLAN UID 2.25.9001"));

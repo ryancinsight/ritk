@@ -81,7 +81,7 @@ pub fn load_color_volume_flat_from_path<P: AsRef<Path>>(
 /// performs the pixel decode, interleaves the RGB samples into a flat `f32`
 /// buffer, and validates per-slice geometry, without constructing any tensor
 /// carrier. Callers wrap the buffer in their chosen image container
-/// (`ritk_image::native::Image::from_flat`). Pixel decode uses `part10_bytes`
+/// (`ritk_image::Image::from_flat`). Pixel decode uses `part10_bytes`
 /// from the slice metadata when present, falling back to file-path I/O.
 ///
 /// Returns `(flat, [depth, rows, cols, 3], metadata)` with `metadata.dimensions`

@@ -1,4 +1,4 @@
-﻿//! NCC similarity metric and its gradient w.r.t. control-point displacements.
+//! NCC similarity metric and its gradient w.r.t. control-point displacements.
 
 use super::basis::BasisCache;
 use super::ctrl_dims::ControlGridDims;
@@ -93,7 +93,8 @@ pub(super) struct MetricGradientScratch {
     /// Warped-image spatial gradient y-component `[n]`.
     pub gw_y: Vec<f32>,
     /// Warped-image spatial gradient x-component `[n]`.
-    pub gw_x: Vec<f32> }
+    pub gw_x: Vec<f32>,
+}
 
 impl MetricGradientScratch {
     /// Allocate scratch buffers for the given image and control-grid dimensions.
@@ -113,7 +114,8 @@ impl MetricGradientScratch {
             grad_x: vec![0.0_f32; cn],
             gw_z: vec![0.0_f32; n],
             gw_y: vec![0.0_f32; n],
-            gw_x: vec![0.0_f32; n] }
+            gw_x: vec![0.0_f32; n],
+        }
     }
 
     /// Re-size scratch buffers when the control grid changes between

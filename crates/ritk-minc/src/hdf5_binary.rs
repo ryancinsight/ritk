@@ -1,4 +1,4 @@
-﻿//! Low-level HDF5 binary construction for MINC2 files.
+//! Low-level HDF5 binary construction for MINC2 files.
 //!
 //! Builds a v1-object-header HDF5 file with the MINC2 group hierarchy.
 //! Uses `consus_io::WriteAt` for positioned writes.
@@ -20,7 +20,8 @@ struct Minc2VolumeGeometry {
     shape: [usize; 3],
     origin: [f64; 3],
     spacing: [f64; 3],
-    direction: Direction<3> }
+    direction: Direction<3>,
+}
 
 /// Construct a MINC2-compliant HDF5 file at `path`.
 ///
@@ -54,7 +55,8 @@ pub fn write_minc2_hdf5(
             shape,
             origin,
             spacing,
-            direction: *direction },
+            direction: *direction,
+        },
         dim_names,
         offset_size,
         length_size,
@@ -139,7 +141,8 @@ fn float_datatype(size: u32) -> Vec<u8> {
     let (exp_size, mant_size, bias): (u8, u8, u32) = match size {
         4 => (8, 23, 127),
         8 => (11, 52, 1023),
-        other => unreachable!("unsupported float datatype size {other}") };
+        other => unreachable!("unsupported float datatype size {other}"),
+    };
     let precision = (size * 8) as u16;
     let mut dt = vec![0u8; 20];
     dt[0] = 0x11; // version 1, class 1 (floating-point)
@@ -294,7 +297,8 @@ fn build_minc2_hdf5_binary(
         shape,
         origin,
         spacing,
-        direction } = geom;
+        direction,
+    } = geom;
     let _s = offset_size as usize;
     let _l = length_size as usize;
 

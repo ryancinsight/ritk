@@ -1,4 +1,4 @@
-﻿//! 3-D window multi-head self-attention, Coeus-native.
+//! 3-D window multi-head self-attention, Coeus-native.
 //!
 //! Windowed self-attention with a learned relative-position bias, as used by the
 //! Swin transformer. Query/key/value/output projections are [`coeus_nn::Linear`]
@@ -8,7 +8,8 @@
 //! gradients flow to every projection and to the bias table.
 
 use coeus_autograd::{
-    add, index_select, matmul, permute, reshape, scalar_mul, softmax, transpose, Parameter, Var };
+    add, index_select, matmul, permute, reshape, scalar_mul, softmax, transpose, Parameter, Var,
+};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::{module::Module, Linear};
 use coeus_ops::BackendOps;
@@ -27,7 +28,8 @@ pub struct WindowAttention<B: Backend + BackendOps<f32> + Default> {
     relative_position_index: Var<f32, B>,
     num_heads: usize,
     head_dim: usize,
-    scale: f32 }
+    scale: f32,
+}
 
 impl<B> WindowAttention<B>
 where
@@ -86,7 +88,8 @@ where
             relative_position_index,
             num_heads,
             head_dim,
-            scale: (head_dim as f64).powf(-0.5) as f32 }
+            scale: (head_dim as f64).powf(-0.5) as f32,
+        }
     }
 
     /// Precompute the `[N*N]` relative-position index for a cubic window.
@@ -150,7 +153,8 @@ where
 
         let attn = match mask {
             Some(mask) => add(&attn, mask),
-            None => attn };
+            None => attn,
+        };
         let attn = softmax(&attn, -1);
 
         // Aggregate values and merge heads: [B, nH, N, hd] â†’ [B, N, C].

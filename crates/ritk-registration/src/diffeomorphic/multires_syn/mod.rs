@@ -1,4 +1,4 @@
-﻿//! Multi-Resolution Symmetric Normalization (SyN) registration.
+//! Multi-Resolution Symmetric Normalization (SyN) registration.
 //!
 //! # Mathematical Specification
 //!
@@ -61,7 +61,8 @@ pub enum InverseConsistency {
     #[default]
     Relaxed,
     /// Enforce inverse consistency via `v â† (v âˆ’ compose(vâ‚,vâ‚‚)) / 2`.
-    Enforced }
+    Enforced,
+}
 
 #[cfg(test)]
 mod tests;
@@ -89,9 +90,11 @@ pub struct MultiResSyNConfig {
     pub gradient_step: f64,
     /// Inverse-consistency enforcement policy.
     /// Default: [`InverseConsistency::Relaxed`].
-    pub enforce_inverse_consistency: InverseConsistency }
+    pub enforce_inverse_consistency: InverseConsistency,
+}
 
 /// Multi-resolution SyN registration engine.
 #[derive(Debug, Clone)]
 pub struct MultiResSyNRegistration {
-    pub config: MultiResSyNConfig }
+    pub config: MultiResSyNConfig,
+}

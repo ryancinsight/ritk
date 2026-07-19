@@ -1,4 +1,4 @@
-﻿use std::io::Cursor;
+use std::io::Cursor;
 
 use super::*;
 use crate::jpeg::backend::JpegDecodeBackend;
@@ -24,7 +24,8 @@ fn layout_with_bits(
         bits_allocated,
         pixel_representation,
         rescale_slope: slope,
-        rescale_intercept: intercept }
+        rescale_intercept: intercept,
+    }
 }
 
 fn encode_grayscale_jpeg(width: u32, height: u32, pixels: &[u8]) -> Vec<u8> {
@@ -98,7 +99,8 @@ fn jpeg_rgb24_fragment_decodes_interleaved_samples() {
         bits_allocated: 8,
         pixel_representation: PixelSignedness::Unsigned,
         rescale_slope: 1.0,
-        rescale_intercept: 0.0 };
+        rescale_intercept: 0.0,
+    };
 
     let decoded = decode_jpeg_fragment(&jpeg, layout).unwrap();
 

@@ -71,7 +71,8 @@ fn preserves_spatial_metadata() {
     let origin = Point::new([3.0_f64, 5.0, 7.0]);
     let spacing = Spacing::new([2.0_f64, 3.0, 4.0]);
     let dir = Direction::identity();
-    let img = Image::new(tensor, origin, spacing, dir);
+    let img = Image::new(tensor, origin, spacing, dir)
+        .expect("invariant: fixture tensor has the declared rank");
     let out = MeanImageFilter::new(1).apply(&img).unwrap();
     assert_eq!(*out.origin(), origin);
     assert_eq!(*out.spacing(), spacing);
@@ -88,7 +89,7 @@ fn output_shape_matches_input() {
 #[test]
 fn native_mean_uses_zero_flux_boundary() {
     use coeus_core::SequentialBackend;
-    use ritk_image::native::Image as NativeImage;
+    use ritk_image::Image as NativeImage;
     use ritk_spatial::Direction;
 
     let image = NativeImage::from_flat_on(

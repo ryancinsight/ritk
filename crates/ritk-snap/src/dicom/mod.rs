@@ -1,4 +1,4 @@
-﻿//! DICOM series discovery, hierarchical organisation, and volume loading.
+//! DICOM series discovery, hierarchical organisation, and volume loading.
 //!
 //! # Sub-modules
 //! - [`series_tree`] â€” flat `SeriesEntry` records and the patientâ†’studyâ†’series
@@ -21,6 +21,7 @@ pub use hanging_protocol::{select_hanging_protocol, HangingProtocolDecision};
 pub use input_path::{classify_dicom_input_path, DicomInputPath};
 pub use loader::{
     load_dicom_volume, load_nifti_volume, load_volume_from_bytes, load_volume_from_path,
-    scan_folder_for_series };
+    scan_folder_for_series,
+};
 pub use metadata_table::{build_metadata_rows, MetadataRow, MetadataScope};
 pub use series_tree::{PatientNode, SeriesEntry, SeriesTree, StudyNode};

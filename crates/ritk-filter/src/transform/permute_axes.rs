@@ -70,9 +70,9 @@ impl PermuteAxesImageFilter {
     /// Apply the axis permutation to a Coeus-native image.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -83,14 +83,7 @@ impl PermuteAxesImageFilter {
             image.spacing(),
             image.direction(),
         )?;
-        ritk_image::native::Image::from_flat_on(
-            values,
-            shape,
-            *image.origin(),
-            spacing,
-            direction,
-            backend,
-        )
+        ritk_image::Image::from_flat_on(values, shape, *image.origin(), spacing, direction, backend)
     }
 
     fn permute(

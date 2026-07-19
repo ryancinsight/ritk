@@ -1,4 +1,4 @@
-﻿#![allow(
+#![allow(
     clippy::too_many_arguments,
     clippy::type_complexity,
     clippy::doc_overindented_list_items,  // sub-list continuations (a., b., etc.) don't match heuristic
@@ -7,10 +7,10 @@
 
 //! ritk-registration: Unified image registration framework for the ritk toolkit.
 //!
-//! This crate provides both ML-based (deep learning) and classical (non-ML)
-//! registration algorithms under a unified API:
+//! This crate provides differentiable Coeus operations and classical
+//! Leto-based registration algorithms under a unified API:
 //!
-//! - **ML-based registration**: Uses Burn autodiff for gradient-based optimization
+//! - **Differentiable registration**: Coeus autograd operations and transforms
 //! - **Classical registration**: Deterministic CPU algorithms (Kabsch SVD, MI hill-climb)
 //!
 //! # Quick Start
@@ -33,12 +33,9 @@
 //! â”œâ”€â”€ classical/     - Non-ML algorithms
 //! â”‚   â”œâ”€â”€ engine/    - Registration orchestrator
 //! â”‚   â”œâ”€â”€ error.rs   - Error types
-//! â”‚   â”œâ”€â”€ global_mi/ - MI-based registration
 //! â”‚   â”œâ”€â”€ spatial/   - Kabsch SVD, transforms
 //! â”‚   â””â”€â”€ temporal/  - Temporal sync
-//! â”œâ”€â”€ metric/        - Similarity metrics (ML path)
-//! â”œâ”€â”€ optimizer/     - Optimization algorithms
-//! â”œâ”€â”€ registration/  - Registration workflow
+//! â”œâ”€â”€ metric/        - Coeus differentiable operations
 //! â”œâ”€â”€ regularization/ - Regularization terms
 //! â””â”€â”€ validation/   - Quality metrics
 //! ```
@@ -53,11 +50,6 @@ pub mod error;
 pub mod label_transfer;
 pub mod lddmm;
 pub mod metric;
-pub mod multires;
-pub mod ngf_rigid;
-pub mod optimizer;
-pub mod progress;
-pub mod registration;
 pub mod regularization;
 pub mod types;
 pub mod validation;
@@ -66,9 +58,6 @@ pub mod validation;
 // Re-exports â€” SSOT for quality metrics
 // ============================================================================
 pub use error::{RegistrationError, Result};
-pub use progress::{
-    ConsoleProgressCallback, ConvergenceChecker, EarlyStoppingCallback, HistoryCallback,
-    ProgressCallback, ProgressDisplay, ProgressInfo, ProgressTracker };
 pub use types::AffineTransform;
 pub use validation::{NumericalCheck, ShapeValidation, ValidationConfig};
 
@@ -79,7 +68,8 @@ pub use demons::{
     DemonsConfig, DemonsResult, DiffeomorphicDemonsRegistration, InverseConsistentDemonsConfig,
     InverseConsistentDemonsResult, InverseConsistentDiffeomorphicDemonsRegistration,
     LevelSetMotionRegistration, MultiResDemonsConfig, MultiResDemonsRegistration,
-    SymmetricDemonsRegistration, ThirionDemonsRegistration };
+    SymmetricDemonsRegistration, ThirionDemonsRegistration,
+};
 
 // ============================================================================
 // Re-exports â€” B-Spline FFD registration
@@ -91,7 +81,8 @@ pub use bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, BSplineFFDResult
 // ============================================================================
 pub use deformable_field_ops::{
     warp_image, CpuFieldSmoother, CpuOrGpu, FieldSmoother, GpuFieldSmoother, VelocityField,
-    WarpInterpolation };
+    WarpInterpolation,
+};
 pub use diffeomorphic::{SyNConfig, SyNRegistration, SyNResult};
 
 // ============================================================================
@@ -109,26 +100,18 @@ pub use lddmm::{LddmmConfig, LddmmRegistration, LddmmResult};
 // Re-exports â€” Atlas / Groupwise registration + Label Fusion
 // ============================================================================
 pub use atlas::label_fusion::{
-    joint_label_fusion, majority_vote, LabelFusionConfig, LabelFusionResult };
+    joint_label_fusion, majority_vote, LabelFusionConfig, LabelFusionResult,
+};
 pub use atlas::{AtlasConfig, AtlasRegistration, AtlasResult, SubjectResult};
 
 // ============================================================================
 // Re-exports â€” Classical (non-ML) registration
 // ============================================================================
 pub use classical::{
-    compute_center_of_mass, register_translation, translation_from_centers_of_mass, CmaMiConfig,
-    CmaMiLevelConfig, CmaMiRegistration, CmaMiResult, ConvergenceStatus, GlobalMiConfig,
-    GlobalMiRegistration, GlobalMiResult, GlobalMiTransformType, ImageRegistration, InitStrategy,
-    MeanSquaredDifference, MultiStartConfig, MultiStartMiRegistration, MultiStartResult,
-    NormalizedCrossCorrelation, RegistrationQualityMetrics, RegistrationResult, SpatialTransform,
-    TemporalQualityMetrics, TemporalSync, TranslationMetric, TranslationRegistrationError };
-
-// ============================================================================
-// Re-exports â€” NGF (Normalized Gradient Fields) cross-modal rigid registration
-// ============================================================================
-pub use ngf_rigid::{
-    default_ngf_pyramid, register_rigid_ngf, register_rigid_ngf_multires, NgfPyramidLevel,
-    NgfRigidConfig, NgfRigidResult };
+    register_translation, ImageRegistration, MeanSquaredDifference, NormalizedCrossCorrelation,
+    RegistrationQualityMetrics, RegistrationResult, SpatialTransform, TemporalQualityMetrics,
+    TemporalSync, TranslationMetric, TranslationRegistrationError,
+};
 
 // ============================================================================
 // Re-exports â€” atlas / label-map transfer (apply a transform to a label map)
@@ -136,15 +119,10 @@ pub use ngf_rigid::{
 pub use label_transfer::{label_centroids, warp_label_map};
 
 // ============================================================================
-// Re-exports â€” ML-based registration
-// ============================================================================
-pub use registration::{
-    EarlyStoppingPolicy, Registration, RegistrationConfig, RegistrationSummary, StopReason };
-
-// ============================================================================
 // Re-exports â€” ANTs preprocessing pipeline
 // ============================================================================
 pub mod preprocessing;
 pub use preprocessing::{
     ct_brain_mask, CtBrainMaskConfig, IntensityRescaleMode, PreprocessingPipeline,
-    PreprocessingStep };
+    PreprocessingStep,
+};

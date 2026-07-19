@@ -1,4 +1,4 @@
-﻿//! Spacing type for representing physical distances between pixels/voxels.
+//! Spacing type for representing physical distances between pixels/voxels.
 //!
 //! `Spacing<D>` is a `#[repr(transparent)]` newtype over `Vector<D>` that
 //! enforces domain separation: spacing values represent positive physical
@@ -28,7 +28,8 @@ pub struct InvalidSpacing {
     /// The index of the first offending component.
     pub index: usize,
     /// The invalid value that was rejected (â‰¤ 0 or NaN).
-    pub value: f64 }
+    pub value: f64,
+}
 
 impl std::fmt::Display for InvalidSpacing {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

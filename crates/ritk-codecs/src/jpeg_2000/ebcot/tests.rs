@@ -1,5 +1,6 @@
-﻿use super::contexts::{
-    mr_context, sc_context, zc_context, zc_ll_lh, SubbandOrientation, CTX_SC_BASE, CTX_ZC_BASE };
+use super::contexts::{
+    mr_context, sc_context, zc_context, zc_ll_lh, SubbandOrientation, CTX_SC_BASE, CTX_ZC_BASE,
+};
 use super::*;
 use crate::jpeg_2000::mq_coder::{initial_contexts, MqDecoder, MqEncoder};
 

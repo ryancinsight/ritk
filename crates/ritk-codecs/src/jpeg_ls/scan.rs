@@ -1,4 +1,4 @@
-﻿//! ISO 14495-1 JPEG-LS lossless scan decoder.
+//! ISO 14495-1 JPEG-LS lossless scan decoder.
 //!
 //! Implements both regular-mode and run-mode decoding per Â§A.3â€“Â§A.6.
 //! Processes one single-component scan; multi-component support is not
@@ -10,7 +10,8 @@ use anyhow::Result;
 use super::bitstream::BitReader;
 use super::context::{
     compute_k, context_index, error_correction, inverse_map, quant, reconstruct, sign_normalize,
-    update_context, CodingParams, ContextModel };
+    update_context, CodingParams, ContextModel,
+};
 
 /// Golomb run-length table `J[0..32]` â€” ISO 14495-1 Table C.1.
 ///
@@ -44,7 +45,8 @@ pub(super) enum Predictor {
     /// Predictor 6: a + (c âˆ’ b)/2. ISO 14495-1 mode 6.
     LeftPlusHalfDiff = 6,
     /// Predictor 7: ISO edge-detecting adaptive predictor (Â§6.3.1, default).
-    Adaptive = 7 }
+    Adaptive = 7,
+}
 
 /// ISO 14495-1 Â§6.3.1 edge-detecting predictor.
 ///
@@ -96,7 +98,8 @@ pub(super) fn predict(
         Predictor::UpPlusLeftMinusUpLeft => a + b - c,
         Predictor::UpPlusHalfDiff => b + (c - a) / 2,
         Predictor::LeftPlusHalfDiff => a + (c - b) / 2,
-        Predictor::Adaptive => predict_adaptive(a, b, c) }
+        Predictor::Adaptive => predict_adaptive(a, b, c),
+    }
 }
 
 /// Decoded scan parameters extracted from the SOF55 and SOS headers.
@@ -109,7 +112,8 @@ pub(super) struct ScanParams {
     /// Override thresholds from LSE marker; (0, 0, 0) means use defaults.
     pub(super) t1: i32,
     pub(super) t2: i32,
-    pub(super) t3: i32 }
+    pub(super) t3: i32,
+}
 
 /// Decode a single-component JPEG-LS lossless scan into sample values.
 ///
@@ -373,7 +377,8 @@ mod tests {
             predictor: Predictor::Left,
             t1: 0,
             t2: 0,
-            t3: 0 };
+            t3: 0,
+        };
         // Actually NEAR is used in update_context; the scan itself doesn't bail on NEARâ‰ 0 at scan level.
         // The bail happens in decode_jpeg_ls_fragment. decode_scan itself runs.
         // For this test, just verify the scan completes (no panic) with near=1.

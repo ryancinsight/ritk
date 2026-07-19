@@ -1,7 +1,7 @@
 use super::*;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support as ts;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
 type B = coeus_core::SequentialBackend;
@@ -11,7 +11,10 @@ fn img(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 fn vals(image: &Image<f32, B, 3>) -> Vec<f32> {
-    image.data_slice().into_owned()
+    image
+        .data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec()
 }
 
 // Signal with two maxima plateaus (10; 6,6), a boundary max (last 2), pits, and
@@ -36,7 +39,12 @@ fn regional_minima_native_matches_legacy_and_preserves_geometry() {
     let filter = RegionalMinimaFilter::new().with_values(3.0, -1.0);
     let expected = filter.apply(&legacy).unwrap();
     let actual = filter.apply_native(&native, &SequentialBackend).unwrap();
-    assert_eq!(actual.data_slice().unwrap(), expected.data_slice().as_ref());
+    assert_eq!(
+        actual.data_slice().unwrap(),
+        expected
+            .data_slice()
+            .expect("invariant: contiguous host storage")
+    );
     assert_eq!(*actual.origin(), origin);
     assert_eq!(*actual.spacing(), spacing);
     assert_eq!(*actual.direction(), direction);

@@ -1,4 +1,4 @@
-﻿use super::AttributeArray;
+use super::AttributeArray;
 use std::collections::HashMap;
 
 /// VTK ImageData domain object â€” a regular Cartesian grid of scalar/vector/tensor fields.
@@ -21,7 +21,8 @@ pub struct VtkImageData {
     /// Named point-centered attribute arrays, keyed by name.
     pub point_data: HashMap<String, AttributeArray>,
     /// Named cell-centered attribute arrays, keyed by name.
-    pub cell_data: HashMap<String, AttributeArray> }
+    pub cell_data: HashMap<String, AttributeArray>,
+}
 
 impl VtkImageData {
     /// Number of points = product of (extent_max - extent_min + 1) over all 3 axes.
@@ -59,7 +60,8 @@ impl VtkImageData {
             match arr {
                 AttributeArray::Scalars {
                     values,
-                    num_components } => {
+                    num_components,
+                } => {
                     let expected = np * *num_components;
                     if values.len() != expected {
                         return Err(format!(
@@ -86,7 +88,8 @@ impl VtkImageData {
         for (name, arr) in &self.cell_data {
             if let AttributeArray::Scalars {
                 values,
-                num_components } = arr
+                num_components,
+            } = arr
             {
                 let expected = nc * *num_components;
                 if values.len() != expected {

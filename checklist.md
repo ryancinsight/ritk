@@ -8,6 +8,28 @@
 
 # RITK Sprint Checklist — Active
 
+## MIG-661-01 — Complete the Coeus/Leto/Hephaestus cutover
+**Target version**: Unreleased breaking
+**Sprint phase**: Closure
+
+- [x] Remove all Burn and ndarray manifest dependencies across the workspace.
+- [x] Move every workspace package to the canonical Coeus image/tensor
+      contract and Leto-owned storage operations; remove `ritk-macros` and
+      compatibility image modules once no callers remain.
+- [x] Consolidate CLI and Analyze/DICOM I/O consumers onto one provider-native
+      path and remove obsolete differential tests that compared aliases of the
+      same Coeus implementation.
+- [x] Add the missing zero-copy Coeus host materialization contract upstream
+      and consume merged Coeus main `5ee07a2`.
+- [x] Correct the NGF augmented-gradient numerator exposed by the full
+      workspace test run; identical volumes now score one.
+- [x] Verify the migration audit: zero Burn/ndarray manifest edges, zero active
+      source tokens, and three allowlisted VTK-format uses of “legacy”.
+- [x] Verify the workspace: formatting and warning-denied all-target/all-feature
+      Clippy pass; 4,644/4,644 Nextest tests pass with 12 explicitly skipped.
+- [x] Complete workspace doctest and warning-clean Rustdoc gates.
+- [ ] Commit, push, and merge the migration PR.
+
 ## MIG-660-01 — Remove stale Burn contract text from native owner crates
 **Target version**: Unreleased patch
 **Sprint phase**: Execution

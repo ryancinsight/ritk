@@ -1,4 +1,4 @@
-﻿//! Cubic B-spline basis functions, pre-computed axis cache, and displacement evaluation.
+//! Cubic B-spline basis functions, pre-computed axis cache, and displacement evaluation.
 //!
 //! Implements the Rueckert (1999) uniform cubic B-spline for the
 //! BSpline FFD deformable registration engine.
@@ -16,5 +16,6 @@ pub(super) mod scalar;
 pub use cache::BasisCache;
 pub use evaluate::{
     evaluate_bspline_displacement, evaluate_bspline_displacement_fast,
-    evaluate_bspline_displacement_fast_into, init_control_grid };
+    evaluate_bspline_displacement_fast_into, init_control_grid,
+};
 pub use scalar::{cubic_bspline_basis, AxisBasis};

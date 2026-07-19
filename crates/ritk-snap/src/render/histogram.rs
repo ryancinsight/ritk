@@ -1,4 +1,4 @@
-﻿//! Voxel intensity histogram computation SSOT.
+//! Voxel intensity histogram computation SSOT.
 //!
 //! # Mathematical specification
 //!
@@ -44,7 +44,8 @@ pub struct Histogram {
     /// of clamping).
     max_bits: u32,
     /// Number of bins; equals `counts.len()`.
-    pub bins: usize }
+    pub bins: usize,
+}
 
 impl Histogram {
     /// Lower bound of the histogrammed intensity range.
@@ -65,7 +66,8 @@ impl Histogram {
             counts: Vec::new(),
             min_bits: min.to_bits(),
             max_bits: max.to_bits(),
-            bins: 0 }
+            bins: 0,
+        }
     }
 }
 
@@ -126,7 +128,8 @@ pub fn compute_histogram(data: &[f32], min: f32, max: f32, bins: usize) -> Histo
         counts,
         min_bits: min.to_bits(),
         max_bits: max.to_bits(),
-        bins }
+        bins,
+    }
 }
 
 // â”€â”€ histogram_peak_count â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

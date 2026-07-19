@@ -6,8 +6,8 @@ use super::*;
 use crate::clustering::slic::coords::decode_coords_dyn as decode_coords;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::make_image;
+use ritk_image::Image as NativeImage;
 
 type B = SequentialBackend;
 
@@ -377,7 +377,9 @@ fn assert_native_legacy_exact<const D: usize>(values: Vec<f32>, dimensions: [usi
     let legacy_output = filter.apply(&legacy).unwrap();
     assert_eq!(
         native_output.data_slice().unwrap(),
-        legacy_output.data_slice().as_ref()
+        legacy_output
+            .data_slice()
+            .expect("invariant: contiguous host storage")
     );
     assert_eq!(*native_output.origin(), Point::new([2.0; D]));
     assert_eq!(*native_output.spacing(), Spacing::new([0.5; D]));
@@ -497,7 +499,9 @@ fn standard_slic_extreme_compactness_produces_finite_exact_labels() {
     .apply(&image)
     .unwrap();
     assert_eq!(
-        labels.data_slice().as_ref(),
+        labels
+            .data_slice()
+            .expect("invariant: contiguous host storage"),
         &[0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 3.0, 3.0, 2.0, 2.0, 3.0, 3.0]
     );
 }

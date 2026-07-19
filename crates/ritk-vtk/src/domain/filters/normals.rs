@@ -1,4 +1,4 @@
-﻿//! Compute per-vertex surface normals from polygonal geometry.
+//! Compute per-vertex surface normals from polygonal geometry.
 //!
 //! # Mathematical Specification
 //!
@@ -64,7 +64,8 @@ impl VtkFilter for ComputeNormalsFilter {
             other => Err(anyhow::anyhow!(
                 "ComputeNormalsFilter requires PolyData input; received {}",
                 data_object_type_name(&other)
-            )) }
+            )),
+        }
     }
 }
 
@@ -100,7 +101,8 @@ pub(crate) fn data_object_type_name(obj: &VtkDataObject) -> &'static str {
         VtkDataObject::PolyData(_) => "PolyData",
         VtkDataObject::StructuredGrid(_) => "StructuredGrid",
         VtkDataObject::UnstructuredGrid(_) => "UnstructuredGrid",
-        VtkDataObject::ImageData(_) => "ImageData" }
+        VtkDataObject::ImageData(_) => "ImageData",
+    }
 }
 
 // â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

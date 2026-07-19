@@ -9,9 +9,9 @@ use ritk_dicom::{
     decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
     PixelSignedness,
 };
-use ritk_image::native::Image as NativeImage;
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing, Vector};
 use std::path::{Path, PathBuf};
 
@@ -30,12 +30,7 @@ pub fn load_dicom_series<B: Backend>(
     let decoded = decode_series(series)?;
     let tensor = Tensor::<f32, B>::from_slice_on(decoded.shape, &decoded.voxels, device);
 
-    Ok(Image::new(
-        tensor,
-        decoded.origin,
-        decoded.spacing,
-        decoded.direction,
-    ))
+    Image::new(tensor, decoded.origin, decoded.spacing, decoded.direction)
 }
 
 /// Load a specific DICOM series into a native Coeus-backed 3D Image.
@@ -375,7 +370,8 @@ mod tests {
             Point::new([1.0, 2.0, 3.0]),
             Spacing::new([1.5, 0.75, 0.5]),
             Direction::identity(),
-        );
+        )
+        .expect("invariant: fixture tensor has the declared rank");
 
         let meta = crate::format::dicom::DicomReadMetadata {
             series_instance_uid: Some("2.25.71001".try_into().unwrap()),
@@ -421,13 +417,14 @@ mod tests {
             load_native_dicom_series(&series, &SequentialBackend).expect("native series load");
 
         assert_eq!(native.shape(), legacy.shape());
-        legacy.with_data_slice(|legacy_values: &[f32]| {
-            assert_eq!(
-                native.data_slice().expect("native contiguous data"),
-                legacy_values,
-                "native series facade must use the same decoded voxels"
-            );
-        });
+        let legacy_values = legacy
+            .data_slice()
+            .expect("legacy series data must be contiguous");
+        assert_eq!(
+            native.data_slice().expect("native contiguous data"),
+            legacy_values,
+            "native series facade must use the same decoded voxels"
+        );
         assert_eq!(native.origin().to_array(), legacy.origin().to_array());
         assert_eq!(native.spacing().to_array(), legacy.spacing().to_array());
         for row in 0..3 {

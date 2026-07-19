@@ -1,7 +1,8 @@
-﻿use super::*;
+use super::*;
 use ritk_io::{
     ContourGeometricType, RtContour, RtDoseGrid, RtDoseSummationType, RtDoseType, RtRoiInfo,
-    RtRoiInterpretedType, RtStructureSet };
+    RtRoiInterpretedType, RtStructureSet,
+};
 
 fn square_roi() -> RtStructureSet {
     RtStructureSet {
@@ -20,7 +21,10 @@ fn square_roi() -> RtStructureSet {
                     [0.0, 2.0, 0.0],
                     [0.0, 2.0, 2.0],
                     [0.0, 0.0, 2.0],
-                ] }] }] }
+                ],
+            }],
+        }],
+    }
 }
 
 fn uniform_dose_3x3() -> RtDoseGrid {
@@ -36,7 +40,8 @@ fn uniform_dose_3x3() -> RtDoseGrid {
         image_position: Some([0.0, 0.0, 0.0]),
         image_orientation: Some([1.0, 0.0, 0.0, 0.0, 1.0, 0.0]),
         pixel_spacing: Some([1.0, 1.0]),
-        referenced_rt_plan_sop_instance_uid: None }
+        referenced_rt_plan_sop_instance_uid: None,
+    }
 }
 
 #[test]
@@ -56,7 +61,8 @@ fn compute_roi_dvh_uniform_dose_is_step_like() {
             shape: [1, 3, 3],
             origin: [0.0, 0.0, 0.0],
             direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-            spacing: [1.0, 1.0, 1.0] },
+            spacing: [1.0, 1.0, 1.0],
+        },
         10,
     )
     .expect("analytics");
@@ -85,7 +91,8 @@ fn compute_roi_dvh_missing_roi_returns_none() {
             shape: [1, 3, 3],
             origin: [0.0, 0.0, 0.0],
             direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
-            spacing: [1.0, 1.0, 1.0] },
+            spacing: [1.0, 1.0, 1.0],
+        },
         10,
     );
     assert!(result.is_none());

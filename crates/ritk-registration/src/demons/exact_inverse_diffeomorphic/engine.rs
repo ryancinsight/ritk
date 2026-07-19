@@ -1,4 +1,4 @@
-﻿//! Inverse-consistent diffeomorphic Demons registration engine.
+//! Inverse-consistent diffeomorphic Demons registration engine.
 
 use super::super::inverse::invert_velocity_field_into;
 use super::super::thirion::thirion_forces_into;
@@ -6,7 +6,8 @@ use super::ic_residual::compute_ic_residual;
 use super::types::{InverseConsistentDemonsConfig, InverseConsistentDemonsResult};
 use crate::deformable_field_ops::{
     compute_gradient, compute_mse_inplace, scaling_and_squaring_into, validate_image_pair,
-    warp_image_into, CpuFieldSmoother, FieldSmoother, VectorField, VectorFieldMut };
+    warp_image_into, CpuFieldSmoother, FieldSmoother, VectorField, VectorFieldMut,
+};
 use crate::error::RegistrationError;
 
 /// Inverse-consistent diffeomorphic Demons registration.
@@ -24,7 +25,8 @@ use crate::error::RegistrationError;
 /// v â† G_{Ïƒ_diff} âˆ— v
 #[derive(Debug, Clone)]
 pub struct InverseConsistentDiffeomorphicDemonsRegistration {
-    pub config: InverseConsistentDemonsConfig }
+    pub config: InverseConsistentDemonsConfig,
+}
 
 impl InverseConsistentDiffeomorphicDemonsRegistration {
     pub fn new(config: InverseConsistentDemonsConfig) -> Self {
@@ -153,12 +155,14 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
                 VectorField {
                     z: &gf.z,
                     y: &gf.y,
-                    x: &gf.x },
+                    x: &gf.x,
+                },
                 cfg.max_step_length,
                 VectorFieldMut {
                     z: &mut fz_fwd,
                     y: &mut fy_fwd,
-                    x: &mut fx_fwd },
+                    x: &mut fx_fwd,
+                },
                 dims,
             );
             thirion_forces_into(
@@ -167,12 +171,14 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
                 VectorField {
                     z: &gm.z,
                     y: &gm.y,
-                    x: &gm.x },
+                    x: &gm.x,
+                },
                 cfg.max_step_length,
                 VectorFieldMut {
                     z: &mut fz_bwd,
                     y: &mut fy_bwd,
-                    x: &mut fx_bwd },
+                    x: &mut fx_bwd,
+                },
                 dims,
             );
 
@@ -249,6 +255,7 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
             vel_x,
             final_mse,
             num_iterations: iter,
-            inverse_consistency_residual: ic_residual })
+            inverse_consistency_residual: ic_residual,
+        })
     }
 }

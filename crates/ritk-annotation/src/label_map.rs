@@ -1,4 +1,4 @@
-﻿//! Dense label map for volumetric segmentation.
+//! Dense label map for volumetric segmentation.
 //!
 //! # Mathematical Specification
 //!
@@ -40,7 +40,8 @@ pub struct LabelMap {
     /// Flat label buffer in ZYX layout. Label 0 denotes background.
     data: Arc<[u32]>,
     /// Label-to-display-properties table.
-    pub table: LabelTable }
+    pub table: LabelTable,
+}
 
 impl LabelMap {
     /// Construct a LabelMap filled with background (0) for the given shape and table.
@@ -50,7 +51,8 @@ impl LabelMap {
         Self {
             shape,
             data: Arc::from(vec![0u32; n]),
-            table }
+            table,
+        }
     }
 
     /// Construct a LabelMap from an existing flat buffer.
@@ -73,7 +75,8 @@ impl LabelMap {
         Ok(Self {
             shape,
             data: Arc::from(data),
-            table })
+            table,
+        })
     }
 
     /// Total number of voxels.

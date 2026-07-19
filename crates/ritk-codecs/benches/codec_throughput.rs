@@ -1,4 +1,4 @@
-﻿//! Codec throughput baselines (criterion).
+//! Codec throughput baselines (criterion).
 //!
 //! # Methodology (performance_engineering)
 //! - Inputs are pinned: deterministic LCG-generated images at fixed sizes.
@@ -42,7 +42,8 @@ fn layout(rows: usize, cols: usize, bits: u16) -> PixelLayout {
         bits_allocated: bits,
         pixel_representation: PixelSignedness::Unsigned,
         rescale_slope: 1.0,
-        rescale_intercept: 0.0 }
+        rescale_intercept: 0.0,
+    }
 }
 
 fn bench_jpeg_ls(c: &mut Criterion) {

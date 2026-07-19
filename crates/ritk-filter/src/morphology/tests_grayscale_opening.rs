@@ -125,7 +125,8 @@ fn spatial_metadata_preserved() {
     let spacing = Spacing::new([0.5, 0.5, 1.0]);
     let direction = Direction::identity();
     let tensor = Tensor::<f32, B>::from_slice([3, 3, 3], &[1.0_f32; 27]);
-    let img = Image::new(tensor, origin, spacing, direction);
+    let img = Image::new(tensor, origin, spacing, direction)
+        .expect("invariant: fixture tensor has the declared rank");
     let out = GrayscaleOpeningFilter::new(1).apply(&img).unwrap();
     assert_eq!(out.origin(), img.origin());
     assert_eq!(out.spacing(), img.spacing());

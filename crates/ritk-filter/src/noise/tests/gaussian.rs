@@ -1,6 +1,6 @@
 use super::*;
 use coeus_core::SequentialBackend;
-use ritk_image::native::Image as NativeImage;
+use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
 /// Deterministic Gaussian noise with seed=42 produces known output.
@@ -83,7 +83,10 @@ fn gaussian_matches_sitk_fastnorm_sequence() {
         .with_seed(42)
         .apply(&img)
         .unwrap();
-    let vals = out.data_slice().into_owned();
+    let vals = out
+        .data_slice()
+        .expect("invariant: contiguous host storage")
+        .to_vec();
     let expected = [
         -2.0906951_f32,
         -1.9422115,

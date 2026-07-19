@@ -93,12 +93,12 @@ impl WatershedSegmentation {
 
         let tensor = Tensor::<f32, B>::from_slice_on(dims, &labels, &device);
 
-        Ok(Image::new(
+        Image::new(
             tensor,
             *image.origin(),
             *image.spacing(),
             *image.direction(),
-        ))
+        )
     }
 
     /// Apply Meyer flooding to a Coeus-native image.
@@ -109,9 +109,9 @@ impl WatershedSegmentation {
     /// backend storage/output construction error.
     pub fn apply_native<B>(
         &self,
-        image: &ritk_image::native::Image<f32, B, 3>,
+        image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

@@ -33,9 +33,9 @@ impl BinaryFillHoles {
     /// or output construction failure.
     pub fn apply_native<B>(
         &self,
-        mask: &ritk_image::native::Image<f32, B, 3>,
+        mask: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
@@ -54,6 +54,7 @@ impl<B: Backend> MorphologicalOperation<B, 3> for BinaryFillHoles {
         let out = fill_holes_values(&vals_vec, shape);
         let tensor = Tensor::<f32, B>::from_slice_on(shape, &out, &device);
         Image::new(tensor, *mask.origin(), *mask.spacing(), *mask.direction())
+            .expect("invariant: segmentation output tensor preserves the image rank")
     }
 }
 

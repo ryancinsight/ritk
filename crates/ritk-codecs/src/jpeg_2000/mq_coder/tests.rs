@@ -1,4 +1,4 @@
-﻿use super::*;
+use super::*;
 
 /// Encode `symbols` with a fresh context array, then decode them back.
 /// All symbols must reconstruct to the original values exactly.
@@ -112,7 +112,8 @@ struct RefMq {
     ct: u32,
     b: u32,
     first: bool,
-    out: Vec<u8> }
+    out: Vec<u8>,
+}
 
 impl RefMq {
     fn new() -> Self {
@@ -122,7 +123,8 @@ impl RefMq {
             ct: 12,
             b: 0,
             first: true,
-            out: Vec::new() }
+            out: Vec::new(),
+        }
     }
     fn commit(&mut self) {
         if self.first {

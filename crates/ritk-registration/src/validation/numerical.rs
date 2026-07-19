@@ -1,14 +1,11 @@
-﻿//! Numerical constraint evaluation bounding configurations for optimization solvers.
+//! Numerical constraint evaluation bounding configurations for optimization solvers.
 
 use super::config::{NumericalCheck, ValidationConfig};
 use crate::error::{RegistrationError, Result};
 use coeus_core::CpuAddressableStorage;
 use ritk_image::tensor::{Backend, Tensor};
 
-pub fn validate_tensor<B: Backend>(
-    tensor: &Tensor<f32, B>,
-    config: &ValidationConfig,
-) -> Result<()>
+pub fn validate_tensor<B: Backend>(tensor: &Tensor<f32, B>, config: &ValidationConfig) -> Result<()>
 where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {

@@ -1,6 +1,4 @@
 #[cfg(test)]
-mod differential;
-#[cfg(test)]
 mod per_frame;
 #[cfg(test)]
 mod reader;
@@ -17,7 +15,7 @@ pub(super) use dicom::core::smallvec::SmallVec;
 pub(super) use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 pub(super) use dicom::object::meta::FileMetaTableBuilder;
 pub(super) use dicom::object::InMemDicomObject;
-pub(super) use ritk_image::native::Image as NativeImage;
+pub(super) use ritk_image::Image as NativeImage;
 pub(super) use ritk_spatial::{Direction, Point, Spacing};
 
 /// Build a native `Image<f32, MoiraiBackend, 3>` test carrier from a flat

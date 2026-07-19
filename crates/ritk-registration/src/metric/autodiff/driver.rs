@@ -1,4 +1,4 @@
-﻿//! Gradient-descent registration driver on the autodiff seams.
+//! Gradient-descent registration driver on the autodiff seams.
 //!
 //! Ties the verified primitives into one reusable entry point: given a moving
 //! image, a fixed sampling grid, a [`Metric`], and a [`Transform`]
@@ -28,7 +28,8 @@ pub struct GradientDescentConfig<T> {
     /// Maximum number of gradient-descent iterations.
     pub iterations: usize,
     /// Learning rate applied per parameter step.
-    pub learning_rate: T }
+    pub learning_rate: T,
+}
 
 /// Outcome of a [`gradient_descent`] run.
 pub struct RegistrationOutcome<T, B>
@@ -42,7 +43,8 @@ where
     /// Loss at the final parameter values.
     pub final_loss: T,
     /// Loss at the initial parameter values (before any step).
-    pub initial_loss: T }
+    pub initial_loss: T,
+}
 
 /// Run gradient descent to align `moving` to `fixed` under a differentiable
 /// transform, minimizing `metric`.
@@ -110,7 +112,8 @@ where
     RegistrationOutcome {
         params,
         final_loss,
-        initial_loss: initial_loss.unwrap_or(final_loss) }
+        initial_loss: initial_loss.unwrap_or(final_loss),
+    }
 }
 
 #[cfg(test)]

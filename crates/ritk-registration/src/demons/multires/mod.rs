@@ -1,4 +1,4 @@
-﻿//! Multi-resolution Demons deformable image registration.
+//! Multi-resolution Demons deformable image registration.
 //!
 //! Coarse-to-fine pyramid: at scale factor k = 2^l (level l):
 //! 1. Gaussian pre-smooth with sigma = 0.5*k to prevent aliasing.
@@ -32,7 +32,8 @@ pub struct MultiResDemonsConfig {
     /// Default: [`DemonsVariant::Classic`] (Thirion Demons).
     pub variant: DemonsVariant,
     /// Number of scaling-and-squaring steps (only when variant=Diffeomorphic).
-    pub n_squarings: usize }
+    pub n_squarings: usize,
+}
 
 impl Default for MultiResDemonsConfig {
     fn default() -> Self {
@@ -40,7 +41,8 @@ impl Default for MultiResDemonsConfig {
             base_config: DemonsConfig::default(),
             levels: 3,
             variant: DemonsVariant::default(),
-            n_squarings: 6 }
+            n_squarings: 6,
+        }
     }
 }
 
@@ -53,7 +55,8 @@ impl MultiResDemonsConfig {
 
 /// Multi-resolution Demons registration (coarse-to-fine pyramid).
 pub struct MultiResDemonsRegistration {
-    pub config: MultiResDemonsConfig }
+    pub config: MultiResDemonsConfig,
+}
 
 impl MultiResDemonsRegistration {
     pub fn new(config: MultiResDemonsConfig) -> Self {
@@ -125,7 +128,8 @@ impl MultiResDemonsRegistration {
                     &warmed_moving,
                     cdims,
                     coarse_spacing,
-                )? };
+                )?,
+            };
 
             // First-order displacement composition: d_total = d_init + d_level.
             let total_z: Vec<f32> = init_z
@@ -153,7 +157,8 @@ impl MultiResDemonsRegistration {
                 vel_y: None,
                 vel_x: None,
                 final_mse: level_result.final_mse,
-                num_iterations: level_result.num_iterations });
+                num_iterations: level_result.num_iterations,
+            });
             prev_cdims = cdims;
         }
         // levels >= 1 guarantees prev_result is Some.
@@ -188,7 +193,8 @@ impl MultiResDemonsRegistration {
             vel_y: None,
             vel_x: None,
             final_mse,
-            num_iterations: final_result.num_iterations })
+            num_iterations: final_result.num_iterations,
+        })
     }
 }
 

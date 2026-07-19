@@ -1,4 +1,4 @@
-﻿use crate::FilterKind;
+use crate::FilterKind;
 use ritk_filter::{Connectivity, ForegroundValue};
 
 /// Render parameter controls for Binary + Grayscale Morphology + Pad/Geometry
@@ -10,7 +10,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
     match active_filter {
         FilterKind::BinaryErode {
             radius,
-            foreground_value } => {
+            foreground_value,
+        } => {
             let mut r = *radius as i32;
             ui.horizontal(|ui| {
                 ui.label("Radius (voxels):");
@@ -33,7 +34,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::BinaryDilate {
             radius,
-            foreground_value } => {
+            foreground_value,
+        } => {
             let mut r = *radius as i32;
             ui.horizontal(|ui| {
                 ui.label("Radius (voxels):");
@@ -56,7 +58,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::BinaryClosing {
             radius,
-            foreground_value } => {
+            foreground_value,
+        } => {
             let mut r = *radius as i32;
             ui.horizontal(|ui| {
                 ui.label("Radius (voxels):");
@@ -84,7 +87,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::BinaryOpening {
             radius,
-            foreground_value } => {
+            foreground_value,
+        } => {
             let mut r = *radius as i32;
             ui.horizontal(|ui| {
                 ui.label("Radius (voxels):");
@@ -128,7 +132,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::BinaryContour {
             connectivity,
-            foreground_value } => {
+            foreground_value,
+        } => {
             ui.horizontal(|ui| {
                 ui.label("Connectivity:");
                 let mut fully = connectivity.fully_connected();
@@ -160,7 +165,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
         }
         FilterKind::LabelContour {
             connectivity,
-            background_value } => {
+            background_value,
+        } => {
             ui.horizontal(|ui| {
                 ui.label("Connectivity:");
                 let mut fully = connectivity.fully_connected();
@@ -192,7 +198,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             birth_threshold,
             survival_threshold,
             foreground_value,
-            background_value } => {
+            background_value,
+        } => {
             let mut r = *radius as i32;
             let mut bt = *birth_threshold as i32;
             let mut st = *survival_threshold as i32;
@@ -353,5 +360,6 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             );
             true
         }
-        _ => false }
+        _ => false,
+    }
 }

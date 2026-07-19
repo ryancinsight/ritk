@@ -1,4 +1,4 @@
-﻿//! Joint Label Fusion (Wang et al. 2013).
+//! Joint Label Fusion (Wang et al. 2013).
 
 use std::collections::HashMap;
 
@@ -128,7 +128,8 @@ pub fn joint_label_fusion(
 
                 let mut w: Vec<f64> = match raw_weights {
                     Some(ww) => ww,
-                    None => vec![1.0 / n as f64; n] };
+                    None => vec![1.0 / n as f64; n],
+                };
 
                 // Clamp negatives to 0.
                 for v in w.iter_mut() {

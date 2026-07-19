@@ -44,6 +44,7 @@ fn make_complex_2d(data: Vec<f32>, h: usize, w_complex: usize) -> Image<f32, B, 
         Spacing::new([1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 /// Construct a 3-D complex image with shape `[depth, h, w_complex]`.
@@ -57,6 +58,7 @@ fn make_complex_3d(data: Vec<f32>, depth: usize, h: usize, w_complex: usize) -> 
         Spacing::new([1.0, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 // â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -169,6 +171,7 @@ fn make_real_3d(data: Vec<f32>, d: usize, h: usize, w: usize) -> Image<f32, B, 3
         Spacing::new([1.0_f64, 1.0, 1.0]),
         Direction::identity(),
     )
+    .expect("invariant: fixture tensor has the declared rank")
 }
 
 /// HalfHermitianToReal âˆ˜ RealToHalfHermitian is the identity (to f32 rounding),

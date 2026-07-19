@@ -12,18 +12,18 @@ pub fn read_mgh<B: Backend, P: AsRef<Path>>(path: P, device: &B) -> Result<Image
     let native = ritk_mgh::read_mgh(path, &SequentialBackend)?;
     let values = native.data_cow_on(&SequentialBackend);
     let tensor = Tensor::<f32, B>::from_slice_on(native.shape(), values.as_ref(), device);
-    Ok(Image::new(
+    Image::new(
         tensor,
         *native.origin(),
         *native.spacing(),
         *native.direction(),
-    ))
+    )
 }
 
 /// Writes a legacy image through the native MGH provider.
 pub fn write_mgh<B: Backend, P: AsRef<Path>>(image: &Image<f32, B, 3>, path: P) -> Result<()> {
     let backend = SequentialBackend;
-    let native = ritk_image::native::Image::from_flat_on(
+    let native = ritk_image::Image::from_flat_on(
         image.try_data_vec()?,
         image.shape(),
         *image.origin(),
@@ -61,7 +61,7 @@ impl<B: Backend> ImageWriter<Image<f32, B, 3>> for MghWriter {
 pub mod native {
     use crate::domain::{to_io_err, ImageReader, ImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};
-    use ritk_image::native::Image;
+    use ritk_image::Image;
     use std::path::Path;
 
     /// Backend-bound Atlas-native reader (counterpart of the Burn [`super::MghReader`]).

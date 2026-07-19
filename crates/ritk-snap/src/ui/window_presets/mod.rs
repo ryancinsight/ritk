@@ -1,4 +1,4 @@
-﻿//! Standard clinical window/level presets for DICOM display.
+//! Standard clinical window/level presets for DICOM display.
 //!
 //! # Mathematical specification
 //!
@@ -47,7 +47,8 @@ pub struct WindowPreset {
     ///
     /// Must be > 0 for a well-defined mapping; `for_modality` guarantees
     /// this for all presets returned by this module.
-    pub width: f64 }
+    pub width: f64,
+}
 
 impl WindowPreset {
     // â”€â”€ CT presets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -76,59 +77,73 @@ impl WindowPreset {
             WindowPreset {
                 name: "Brain",
                 center: 40.0,
-                width: 80.0 },
+                width: 80.0,
+            },
             WindowPreset {
                 name: "Brain (wide)",
                 center: 40.0,
-                width: 375.0 },
+                width: 375.0,
+            },
             WindowPreset {
                 name: "Subdural",
                 center: 80.0,
-                width: 200.0 },
+                width: 200.0,
+            },
             WindowPreset {
                 name: "Stroke",
                 center: 32.0,
-                width: 8.0 },
+                width: 8.0,
+            },
             WindowPreset {
                 name: "Lung",
                 center: -400.0,
-                width: 1500.0 },
+                width: 1500.0,
+            },
             WindowPreset {
                 name: "Lung (soft)",
                 center: -600.0,
-                width: 1600.0 },
+                width: 1600.0,
+            },
             WindowPreset {
                 name: "Mediastinum",
                 center: 50.0,
-                width: 350.0 },
+                width: 350.0,
+            },
             WindowPreset {
                 name: "Bone",
                 center: 400.0,
-                width: 1000.0 },
+                width: 1000.0,
+            },
             WindowPreset {
                 name: "Abdomen",
                 center: 60.0,
-                width: 400.0 },
+                width: 400.0,
+            },
             WindowPreset {
                 name: "Liver",
                 center: 60.0,
-                width: 160.0 },
+                width: 160.0,
+            },
             WindowPreset {
                 name: "Spine (soft)",
                 center: 50.0,
-                width: 250.0 },
+                width: 250.0,
+            },
             WindowPreset {
                 name: "Spine (bone)",
                 center: 400.0,
-                width: 1000.0 },
+                width: 1000.0,
+            },
             WindowPreset {
                 name: "Angio",
                 center: 300.0,
-                width: 600.0 },
+                width: 600.0,
+            },
             WindowPreset {
                 name: "Head (temporal bone)",
                 center: 500.0,
-                width: 4000.0 },
+                width: 4000.0,
+            },
         ]
     }
 
@@ -153,15 +168,18 @@ impl WindowPreset {
             WindowPreset {
                 name: "SUV whole body",
                 center: 3.0,
-                width: 6.0 },
+                width: 6.0,
+            },
             WindowPreset {
                 name: "SUV brain (FDG)",
                 center: 6.0,
-                width: 12.0 },
+                width: 12.0,
+            },
             WindowPreset {
                 name: "SUV tumour",
                 center: 5.0,
-                width: 10.0 },
+                width: 10.0,
+            },
         ]
     }
 
@@ -183,19 +201,23 @@ impl WindowPreset {
             WindowPreset {
                 name: "Brain T1",
                 center: 500.0,
-                width: 800.0 },
+                width: 800.0,
+            },
             WindowPreset {
                 name: "Brain T2",
                 center: 600.0,
-                width: 1200.0 },
+                width: 1200.0,
+            },
             WindowPreset {
                 name: "Brain FLAIR",
                 center: 400.0,
-                width: 800.0 },
+                width: 800.0,
+            },
             WindowPreset {
                 name: "Spine",
                 center: 600.0,
-                width: 1200.0 },
+                width: 1200.0,
+            },
         ]
     }
 
@@ -231,7 +253,8 @@ impl WindowPreset {
                     Self::ct_presets()
                 }
             }
-            None => Self::ct_presets() }
+            None => Self::ct_presets(),
+        }
     }
 }
 

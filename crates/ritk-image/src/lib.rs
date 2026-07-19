@@ -6,7 +6,6 @@
 pub mod color;
 pub mod grid;
 pub mod metadata;
-pub mod native;
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod test_support;
 pub mod transform;
@@ -29,7 +28,9 @@ pub mod coeus {
 
 /// Coeus tensor aliases and backend re-exports.
 pub mod tensor {
-    pub use coeus_core::{Backend, ComputeBackend, Float, MoiraiBackend, Scalar, SequentialBackend};
+    pub use coeus_core::{
+        Backend, ComputeBackend, Float, MoiraiBackend, Scalar, SequentialBackend,
+    };
     pub use coeus_tensor::Tensor;
 
     /// Shape alias — coeus uses `Vec<usize>` / `&[usize]`.

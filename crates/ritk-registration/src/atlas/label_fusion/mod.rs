@@ -1,4 +1,4 @@
-﻿//! Multi-atlas label fusion algorithms.
+//! Multi-atlas label fusion algorithms.
 //!
 //! Implements two algorithms for combining segmentation results from multiple
 //! registered atlas label maps into a single consensus segmentation:
@@ -61,14 +61,16 @@ pub struct LabelFusionConfig {
     pub patch_radius: usize,
     /// Regularization factor Î². The diagonal regularization added to the
     /// pairwise similarity matrix is Î± = Î² Â· min_{ij}(M_{ij}).
-    pub beta: f64 }
+    pub beta: f64,
+}
 
 impl Default for LabelFusionConfig {
     /// Default: `patch_radius = 2`, `beta = 0.1`.
     fn default() -> Self {
         Self {
             patch_radius: 2,
-            beta: 0.1 }
+            beta: 0.1,
+        }
     }
 }
 
@@ -83,7 +85,8 @@ pub struct LabelFusionResult {
     ///   label (range \[1/N, 1\]).
     /// - For JLF: sum of weights assigned to the winning label (range
     ///   \[0, 1\]).
-    pub confidence: Vec<f32> }
+    pub confidence: Vec<f32>,
+}
 
 // ---------------------------------------------------------------------------
 // Shared validation helpers

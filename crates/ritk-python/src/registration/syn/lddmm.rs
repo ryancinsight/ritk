@@ -1,4 +1,4 @@
-﻿use crate::errors::RitkResult;
+use crate::errors::RitkResult;
 use crate::image::PyImage;
 use pyo3::prelude::*;
 use ritk_filter::GaussianSigma;
@@ -19,7 +19,8 @@ pub struct PyLddmmConfig {
     #[pyo3(get, set)]
     pub learning_rate: f64,
     #[pyo3(get, set)]
-    pub regularization_weight: f64 }
+    pub regularization_weight: f64,
+}
 
 impl Default for PyLddmmConfig {
     fn default() -> Self {
@@ -28,7 +29,8 @@ impl Default for PyLddmmConfig {
             num_time_steps: 10,
             kernel_sigma: 2.0,
             learning_rate: 0.1,
-            regularization_weight: 1.0 }
+            regularization_weight: 1.0,
+        }
     }
 }
 
@@ -54,7 +56,8 @@ impl PyLddmmConfig {
             num_time_steps,
             kernel_sigma,
             learning_rate,
-            regularization_weight }
+            regularization_weight,
+        }
     }
 }
 

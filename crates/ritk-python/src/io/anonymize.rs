@@ -1,4 +1,4 @@
-﻿//! Python-exposed DICOM de-identification / anonymization (PS 3.15 Annex E).
+//! Python-exposed DICOM de-identification / anonymization (PS 3.15 Annex E).
 
 use crate::errors::{RitkPyError, RitkResult};
 use pyo3::prelude::*;
@@ -19,7 +19,8 @@ pub enum PyCleaningPolicy {
     /// Remove all private DICOM tags.
     CleanPrivateTags,
     /// Both pixel data zero-padding and private tag removal.
-    CleanAll }
+    CleanAll,
+}
 
 impl<'py> FromPyObject<'py> for PyCleaningPolicy {
     fn extract_bound(ob: &pyo3::Bound<'py, PyAny>) -> PyResult<Self> {
@@ -90,14 +91,16 @@ pub fn anonymize_dicom_dir(
         PyCleaningPolicy::None => (CleaningPolicy::Skip, CleaningPolicy::Skip),
         PyCleaningPolicy::CleanPixelData => (CleaningPolicy::Clean, CleaningPolicy::Skip),
         PyCleaningPolicy::CleanPrivateTags => (CleaningPolicy::Skip, CleaningPolicy::Clean),
-        PyCleaningPolicy::CleanAll => (CleaningPolicy::Clean, CleaningPolicy::Clean) };
+        PyCleaningPolicy::CleanAll => (CleaningPolicy::Clean, CleaningPolicy::Clean),
+    };
     let options = AnonymizeOptions {
         profile: anon_profile,
         patient_name: patient_name.to_owned(),
         patient_id: patient_id.to_owned(),
         uid_salt: uid_salt.to_owned(),
         clean_pixel_data: clean_pixel,
-        clean_private_tags: clean_private };
+        clean_private_tags: clean_private,
+    };
 
     let input_owned = input_dir.to_string();
     let output_owned = output_dir.to_string();

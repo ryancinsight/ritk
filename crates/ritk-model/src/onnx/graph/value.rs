@@ -1,4 +1,4 @@
-﻿//! ONNX tensor value and shape info types.
+//! ONNX tensor value and shape info types.
 
 use super::OnnxElementType;
 
@@ -8,14 +8,16 @@ pub struct OnnxValue {
     /// Tensor name
     pub name: String,
     /// Type and shape information
-    pub value_info: OnnxValueInfo }
+    pub value_info: OnnxValueInfo,
+}
 
 impl OnnxValue {
     /// Create a new ONNX value.
     pub fn new(name: String, elem_type: OnnxElementType, shape: Vec<i64>) -> Self {
         Self {
             name,
-            value_info: OnnxValueInfo { elem_type, shape } }
+            value_info: OnnxValueInfo { elem_type, shape },
+        }
     }
 }
 
@@ -25,7 +27,8 @@ pub struct OnnxValueInfo {
     /// Element data type
     pub elem_type: OnnxElementType,
     /// Tensor shape (dimensions may be -1 for dynamic)
-    pub shape: Vec<i64> }
+    pub shape: Vec<i64>,
+}
 
 impl OnnxValueInfo {
     /// Create new value info.

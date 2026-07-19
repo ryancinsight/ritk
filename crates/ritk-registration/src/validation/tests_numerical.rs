@@ -1,8 +1,8 @@
-﻿use super::*;
-use burn_ndarray::NdArray;
-use ritk_image::tensor::{Shape, Tensor };
+use super::*;
+use coeus_core::SequentialBackend;
+use ritk_image::tensor::Tensor;
 
-type B = NdArray<f32>;
+type B = SequentialBackend;
 
 fn make_tensor_1d(vals: Vec<f32>) -> Tensor<f32, B> {
     let n = vals.len();

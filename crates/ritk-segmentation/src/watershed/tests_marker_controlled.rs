@@ -1,8 +1,8 @@
 use super::*;
 use coeus_core::SequentialBackend;
 use ritk_core::spatial::{Direction, Point, Spacing};
-use ritk_image::native::Image as NativeImage;
 use ritk_image::test_support::make_image;
+use ritk_image::Image as NativeImage;
 
 type B = SequentialBackend;
 
@@ -228,7 +228,12 @@ fn native_legacy_and_all_policy_combinations_are_exact() {
         let native = filter
             .apply_native(&native_gradient, &native_markers, &SequentialBackend)
             .unwrap();
-        assert_eq!(native.data_slice().unwrap(), legacy.data_slice().as_ref());
+        assert_eq!(
+            native.data_slice().unwrap(),
+            legacy
+                .data_slice()
+                .expect("invariant: contiguous host storage")
+        );
         assert_eq!(*native.origin(), origin);
         assert_eq!(*native.spacing(), spacing);
         assert_eq!(*native.direction(), direction);

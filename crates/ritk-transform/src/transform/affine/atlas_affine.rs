@@ -1,15 +1,14 @@
 //! Host-backed affine transform used at explicit tensor/host boundaries.
 //!
 //! The transform owns matrix, translation, and center values as contiguous
-//! host storage. Tensor-backed trainable transforms remain in
-//! [`super::AffineTransform`]. To avoid a
+//! host storage. Tensor-backed trainable transforms remain separate. To avoid a
 //! `thiserror` dep-add, the [`AtlasAffineError`] enum derives
 //! `Debug+Clone+PartialEq+Eq` only and carries a hand-rolled `Display`
 //! impl via [`std::fmt::Display`] + [`std::error::Error`] â€” zero new
 //! crate-graph edges in this file.
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage, MoiraiBackend};
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::native as tensor_ops;
 

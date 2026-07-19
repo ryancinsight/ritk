@@ -14,10 +14,10 @@
 //!
 //! `itk::BlendImageFilter`
 
-use coeus_core::{ComputeBackend, CpuAddressableStorage};
+use coeus_core::ComputeBackend;
 use ritk_annotation::overlay::Opacity;
 use ritk_image::tensor::Backend;
-use ritk_image::{native::Image as NativeImage, Image};
+use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Linearly blend two co-registered images.
@@ -87,13 +87,12 @@ impl BlendImageFilter {
     /// Blend two co-registered Coeus-native images.
     pub fn apply_native<B>(
         &self,
-        a: &NativeImage<f32, B, 3>,
-        b: &NativeImage<f32, B, 3>,
+        a: &Image<f32, B, 3>,
+        b: &Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<NativeImage<f32, B, 3>>
+    ) -> anyhow::Result<Image<f32, B, 3>>
     where
         B: ComputeBackend,
-        B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
         anyhow::ensure!(
             a.shape() == b.shape(),
@@ -103,13 +102,14 @@ impl BlendImageFilter {
         );
         let alpha = self.alpha.get();
         let complement = 1.0 - alpha;
-        let values = a
-            .data_slice()?
+        let left = a.try_data_vec_on(backend)?;
+        let right = b.try_data_vec_on(backend)?;
+        let values = left
             .iter()
-            .zip(b.data_slice()?)
+            .zip(&right)
             .map(|(&left, &right)| complement * left + alpha * right)
             .collect();
-        NativeImage::from_flat_on(
+        Image::from_flat_on(
             values,
             a.shape(),
             *a.origin(),

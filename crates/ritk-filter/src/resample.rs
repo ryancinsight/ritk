@@ -111,6 +111,7 @@ where
             .reshape(self.size);
 
         Image::new(output_data, self.origin, self.spacing, self.direction)
+            .expect("resampling constructss a tensor with the configured image rank")
     }
 
     /// Resample the values for one block of output grid indices: map output
@@ -124,7 +125,7 @@ where
     ) -> Tensor<f32, B> {
         let output_points = self.indices_to_physical(output_indices);
         let input_points = self.transform.transform_points(output_points);
-        let input_indices = input.world_to_index_tensor(input_points);
+        let input_indices = input.world_to_index_native(&input_points);
         let values = self
             .interpolator
             .interpolate(input.data(), input_indices.clone());

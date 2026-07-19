@@ -132,5 +132,6 @@ pub fn cpr_apply_reference<B: Backend>(
         Point::new([-half_width, 0.0]),
         Spacing::new([cs_step, path_step]),
         Direction::identity(),
-    ))
+    )
+    .expect("invariant: fixture tensor has the declared rank"))
 }

@@ -1,4 +1,4 @@
-﻿//! VTK composite multi-block dataset.
+//! VTK composite multi-block dataset.
 //!
 //! # Mathematical Specification
 //!
@@ -24,13 +24,15 @@ pub enum Block {
     /// Terminal block containing one VTK dataset.
     Leaf(VtkDataObject),
     /// Nested multi-block subtree.
-    Composite(VtkMultiBlockDataSet) }
+    Composite(VtkMultiBlockDataSet),
+}
 
 /// VTK composite multi-block dataset â€” an ordered, optionally named collection
 /// of `Block` entries that can be nested to arbitrary depth.
 #[derive(Debug, Clone, Default)]
 pub struct VtkMultiBlockDataSet {
-    blocks: Vec<(Option<String>, Block)> }
+    blocks: Vec<(Option<String>, Block)>,
+}
 
 impl VtkMultiBlockDataSet {
     /// Construct an empty multi-block dataset.
@@ -67,7 +69,8 @@ impl VtkMultiBlockDataSet {
             .iter()
             .map(|(_, b)| match b {
                 Block::Leaf(_) => 1,
-                Block::Composite(sub) => sub.leaf_count() })
+                Block::Composite(sub) => sub.leaf_count(),
+            })
             .sum()
     }
 
@@ -76,7 +79,8 @@ impl VtkMultiBlockDataSet {
     /// Uses an explicit stack; no allocation per `next()` call (amortised O(1)).
     pub fn iter_leaves(&self) -> LeafIter<'_> {
         LeafIter {
-            stack: vec![self.blocks.iter()] }
+            stack: vec![self.blocks.iter()],
+        }
     }
 }
 
@@ -85,7 +89,8 @@ impl VtkMultiBlockDataSet {
 /// Maintains an explicit stack of iterators (one per nesting level) to avoid
 /// recursive calls and `Box<dyn Iterator>` overhead.
 pub struct LeafIter<'a> {
-    stack: Vec<std::slice::Iter<'a, (Option<String>, Block)>> }
+    stack: Vec<std::slice::Iter<'a, (Option<String>, Block)>>,
+}
 
 impl<'a> Iterator for LeafIter<'a> {
     type Item = &'a VtkDataObject;
@@ -187,7 +192,8 @@ mod tests {
             .iter_leaves()
             .map(|obj| match obj {
                 VtkDataObject::PolyData(p) => p.points.len(),
-                _ => panic!("expected PolyData") })
+                _ => panic!("expected PolyData"),
+            })
             .collect();
         assert_eq!(counts, vec![1, 2, 3]);
     }
@@ -207,7 +213,8 @@ mod tests {
             .iter_leaves()
             .map(|obj| match obj {
                 VtkDataObject::PolyData(p) => p.points.len(),
-                _ => panic!("expected PolyData") })
+                _ => panic!("expected PolyData"),
+            })
             .collect();
         // DFS: outer[0]=1, then composite's leaves 10,20, then outer[2]=99
         assert_eq!(counts, vec![1, 10, 20, 99]);

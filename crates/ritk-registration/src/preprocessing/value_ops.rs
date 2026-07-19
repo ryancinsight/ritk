@@ -1,4 +1,4 @@
-﻿//! Shared scalar preprocessing operations.
+//! Shared scalar preprocessing operations.
 
 use anyhow::{anyhow, Result};
 
@@ -13,7 +13,8 @@ pub(crate) fn normalize_values(vals: &[f32], mode: &IntensityRescaleMode) -> Vec
 
     match mode {
         IntensityRescaleMode::ZScore => zscore(vals),
-        IntensityRescaleMode::MinMax { out_min, out_max } => minmax(vals, *out_min, *out_max) }
+        IntensityRescaleMode::MinMax { out_min, out_max } => minmax(vals, *out_min, *out_max),
+    }
 }
 
 pub(crate) fn clamp_values(vals: &[f32], lower: f32, upper: f32) -> Vec<f32> {

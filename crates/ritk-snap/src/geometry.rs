@@ -1,4 +1,4 @@
-﻿use ritk_io::DicomReadMetadata;
+use ritk_io::DicomReadMetadata;
 use serde::{Deserialize, Serialize};
 
 /// Geometry summary for display and validation.
@@ -17,7 +17,8 @@ pub struct GeometrySummary {
     /// Image origin derived from the loaded image geometry.
     pub origin: [f64; 3],
     /// Direction matrix flattened in row-major display order derived from the loaded image geometry.
-    pub direction: [f64; 9] }
+    pub direction: [f64; 9],
+}
 
 impl GeometrySummary {
     /// Build a geometry summary from DICOM metadata.
@@ -26,7 +27,8 @@ impl GeometrySummary {
             dimensions: metadata.dimensions,
             spacing: metadata.spacing,
             origin: metadata.origin,
-            direction: metadata.direction }
+            direction: metadata.direction,
+        }
     }
 }
 
@@ -34,13 +36,15 @@ impl GeometrySummary {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ViewerStatus {
     /// Status message.
-    pub message: String }
+    pub message: String,
+}
 
 impl ViewerStatus {
     /// Create a new status message.
     pub fn new(message: impl Into<String>) -> Self {
         Self {
-            message: message.into() }
+            message: message.into(),
+        }
     }
 }
 
@@ -66,7 +70,8 @@ pub struct ModalityDisplay {
     /// Window centre for intensity display.
     pub window_center: f64,
     /// Window width for intensity display.
-    pub window_width: f64 }
+    pub window_width: f64,
+}
 
 impl ModalityDisplay {
     /// Return display defaults for the given DICOM modality string.
@@ -77,15 +82,20 @@ impl ModalityDisplay {
         match modality {
             Some("CT") => Self {
                 window_center: -400.0,
-                window_width: 1500.0 },
+                window_width: 1500.0,
+            },
             Some("MR" | "MRI") => Self {
                 window_center: 600.0,
-                window_width: 1200.0 },
+                window_width: 1200.0,
+            },
             Some("US") => Self {
                 window_center: 128.0,
-                window_width: 256.0 },
+                window_width: 256.0,
+            },
             _ => Self {
                 window_center: 128.0,
-                window_width: 256.0 } }
+                window_width: 256.0,
+            },
+        }
     }
 }

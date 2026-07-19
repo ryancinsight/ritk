@@ -1,4 +1,4 @@
-﻿//! Tests for the VTK XML PolyData (.vtp) reader.
+//! Tests for the VTK XML PolyData (.vtp) reader.
 
 use super::*;
 use crate::domain::vtk_data_object::{AttributeArray, VtkPolyData};
@@ -32,14 +32,16 @@ fn test_scalars_roundtrip() {
         "pressure".to_string(),
         AttributeArray::Scalars {
             values: vec![1.0, 2.0, 3.0],
-            num_components: 1 },
+            num_components: 1,
+        },
     );
     let p = parse_vtp(&write_vtp_str(&pd)).unwrap();
     match p.point_data.get("pressure") {
         Some(AttributeArray::Scalars { values, .. }) => {
             assert!((values[0] - 1.0).abs() < 1e-4);
         }
-        _ => panic!("not Scalars") }
+        _ => panic!("not Scalars"),
+    }
 }
 #[test]
 fn test_lines_parse() {
@@ -57,14 +59,16 @@ fn test_vectors_roundtrip() {
     pd.point_data.insert(
         "vel".to_string(),
         AttributeArray::Vectors {
-            values: vec![[1.0, 2.0, 3.0]] },
+            values: vec![[1.0, 2.0, 3.0]],
+        },
     );
     let p = parse_vtp(&write_vtp_str(&pd)).unwrap();
     match p.point_data.get("vel") {
         Some(AttributeArray::Vectors { values }) => {
             assert!((values[0][0] - 1.0).abs() < 1e-4);
         }
-        _ => panic!("not Vectors") }
+        _ => panic!("not Vectors"),
+    }
 }
 #[test]
 fn test_missing_points_error() {

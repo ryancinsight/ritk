@@ -1,4 +1,4 @@
-﻿use super::{CtxState, QE_TABLE};
+use super::{CtxState, QE_TABLE};
 
 /// MQ arithmetic encoder (ISO 15444-1 Â§C.2).
 pub struct MqEncoder {
@@ -14,7 +14,8 @@ pub struct MqEncoder {
     b: u32,
     /// `true` until the first `byteout` commit: the initial pending byte is a
     /// dummy (OpenJPEG's `bp = start - 1` slot) and is discarded, not emitted.
-    first: bool }
+    first: bool,
+}
 
 impl Default for MqEncoder {
     fn default() -> Self {
@@ -31,7 +32,8 @@ impl MqEncoder {
             c: 0,
             ct: 12,
             b: 0,
-            first: true }
+            first: true,
+        }
     }
 
     /// Encode one binary symbol `d` (0 or 1) using the given context.

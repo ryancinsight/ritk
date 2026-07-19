@@ -1,4 +1,4 @@
-﻿//! JPEG lossless (SOF3) scan decode.
+//! JPEG lossless (SOF3) scan decode.
 //!
 //! # Specification
 //! ITU-T T.81 Â§H: Lossless sequential Huffman-coded JPEG.
@@ -130,7 +130,8 @@ pub(crate) fn decode_lossless_scan(
                 0 => 0,
                 1..=15 => receive_and_extend(&mut reader, category)?,
                 16 => 32768,
-                _ => bail!("invalid DC difference magnitude category {category}") };
+                _ => bail!("invalid DC difference magnitude category {category}"),
+            };
             let reconstructed = (px + diff) & maxval;
             samples[y * width + x] = reconstructed;
         }
@@ -143,7 +144,8 @@ pub(crate) fn decode_lossless_scan(
             width,
             height,
             pixel_format: JpegPixelFormat::L8,
-            pixels })
+            pixels,
+        })
     } else {
         // 9â€“16 bit: pack as native-endian u16.
         let mut pixels = Vec::with_capacity(n_pixels * 2);
@@ -154,7 +156,8 @@ pub(crate) fn decode_lossless_scan(
             width,
             height,
             pixel_format: JpegPixelFormat::L16,
-            pixels })
+            pixels,
+        })
     }
 }
 

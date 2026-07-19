@@ -1,4 +1,4 @@
-﻿//! Viewer UI components.
+//! Viewer UI components.
 //!
 //! # Sub-modules
 //!
@@ -75,19 +75,22 @@ pub use colorbar::{draw_colorbar, show_colorbar, COLORBAR_PANEL_WIDTH, COLORBAR_
 pub use cursor_info::{format_lps, voxel_to_lps};
 pub use dropped_input::{decide_dropped_input_action, DroppedInputAction};
 pub use export_plan::{
-    axis_folder_name, axis_slice_total, plan_all_mpr_exports, PlannedSliceExport };
+    axis_folder_name, axis_slice_total, plan_all_mpr_exports, PlannedSliceExport,
+};
 pub use layout::{LayoutMode, ViewportId};
 pub use measurements::MeasurementLayer;
 pub use mpr_cursor::{
     axis_slice_dimensions, map_view_row_col_to_voxel, map_voxel_to_view_row_col,
-    viewport_point_to_voxel, LinkedCursor };
+    viewport_point_to_voxel, LinkedCursor,
+};
 pub use overlay::OverlayRenderer;
 pub use pan::pan_from_drag_delta;
 pub use pet_suv_panel::{draw_pet_suv_panel, PetSuvPanelAction};
 pub use pointer_intensity::intensity_at_voxel;
 pub use preset_panel::draw_preset_buttons;
 pub use rt_dose_analytics::{
-    compute_roi_dose_analytics, draw_dvh_curve, RoiDoseAnalytics, VolumeGeometry };
+    compute_roi_dose_analytics, draw_dvh_curve, RoiDoseAnalytics, VolumeGeometry,
+};
 pub use rtstruct_overlay::{project_rt_struct_contours_for_slice, ProjectedRtContour};
 pub use sidebar::SidebarPanel;
 pub use slice_navigation::{advance_wrapped, axis_total, clamp_index, step_clamped};
@@ -95,12 +98,15 @@ pub use tool_shortcuts::tool_kind_for_key;
 pub use toolbar::{ToolbarPanel, ToolbarState};
 pub(crate) use view_transform::apply_to_image_into;
 pub use view_transform::{
-    apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image, RotationSteps, ViewTransform };
+    apply_to_image, flip_h_image, flip_v_image, rotate_90_cw_image, RotationSteps, ViewTransform,
+};
 pub use viewport::{ViewportPanel, ViewportState};
 pub use window_level::MIN_WINDOW_WIDTH;
 pub use window_level::{
-    clamp_window_width, window_level_from_drag_delta, WINDOW_LEVEL_SENSITIVITY };
+    clamp_window_width, window_level_from_drag_delta, WINDOW_LEVEL_SENSITIVITY,
+};
 pub use window_presets::WindowPreset;
 pub use zoom::{
     fit_view_transform, should_zoom_with_scroll, zoom_from_drag_delta, zoom_from_scroll, FIT_ZOOM,
-    MAX_ZOOM, MIN_ZOOM };
+    MAX_ZOOM, MIN_ZOOM,
+};

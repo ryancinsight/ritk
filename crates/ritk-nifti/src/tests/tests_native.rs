@@ -1,7 +1,8 @@
-﻿//! Value-semantic coverage for the native NIfTI reader path.
+//! Value-semantic coverage for the native NIfTI reader path.
 
 use crate::header::{
-    write_single_file_bytes, HeaderDims, HeaderSpatial, NiftiDatatype, NiftiHeader };
+    write_single_file_bytes, HeaderDims, HeaderSpatial, NiftiDatatype, NiftiHeader,
+};
 use coeus_core::SequentialBackend;
 
 #[test]
@@ -12,13 +13,15 @@ fn read_nifti_native_preserves_shape_and_voxels() {
         HeaderDims {
             nx: 2,
             ny: 2,
-            nz: 2 },
+            nz: 2,
+        },
         NiftiDatatype::Float32,
         HeaderSpatial {
             pixdim: [1.0, 0.75, 1.5, 2.0, 1.0, 1.0, 1.0, 1.0],
             srow_x: [-0.75, 0.0, 0.0, -11.0],
             srow_y: [0.0, -1.5, 0.0, 7.5],
-            srow_z: [0.0, 0.0, 2.0, 3.25] },
+            srow_z: [0.0, 0.0, 2.0, 3.25],
+        },
     )
     .expect("valid header");
 
@@ -58,15 +61,9 @@ fn test_volume() -> (Vec<f32>, [usize; 3], Point<3>, Spacing<3>, Direction<3>) {
 fn native_writer_round_trips_through_native_reader() {
     let (voxels, dims, origin, spacing, direction) = test_volume();
     let backend = SequentialBackend;
-    let image = ritk_image::native::Image::from_flat_on(
-        voxels.clone(),
-        dims,
-        origin,
-        spacing,
-        direction,
-        &backend,
-    )
-    .expect("native image");
+    let image =
+        ritk_image::Image::from_flat_on(voxels.clone(), dims, origin, spacing, direction, &backend)
+            .expect("native image");
 
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("coeus_roundtrip.nii");

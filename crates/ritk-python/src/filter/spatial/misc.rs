@@ -1,5 +1,5 @@
 use crate::errors::{RitkPyError, RitkResult};
-use crate::image::{burn_into_py_image, into_py_image, py_image_to_burn, PyImage};
+use crate::image::{image_from_py, into_py_image, PyImage};
 use coeus_core::MoiraiBackend;
 use pyo3::prelude::*;
 use std::sync::Arc;
@@ -34,9 +34,9 @@ pub fn stochastic_fractal_dimension(
 /// default spline order 3.
 #[pyfunction]
 pub fn bspline_decomposition(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    let arc = py_image_to_burn(image);
+    let arc = image_from_py(image);
     py.allow_threads(|| {
         ritk_filter::bspline_decomposition(&arc).map_err(|e| RitkPyError::runtime(e.to_string()))
     })
-    .map(burn_into_py_image)
+    .map(into_py_image)
 }

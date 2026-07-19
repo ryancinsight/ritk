@@ -1,9 +1,10 @@
-﻿use super::*;
+use super::*;
 
 #[test]
 fn native_region_growing_cli_family_matches_legacy_boundaries_exactly() {
     use ritk_segmentation::{
-        ConfidenceConnectedFilter, ConnectedThresholdFilter, NeighborhoodConnectedFilter };
+        ConfidenceConnectedFilter, ConnectedThresholdFilter, NeighborhoodConnectedFilter,
+    };
 
     let dir = tempdir().unwrap();
     for method in [
@@ -36,11 +37,12 @@ fn native_region_growing_cli_family_matches_legacy_boundaries_exactly() {
                     .with_radius([radius; 3])
                     .apply(&fixture)
             }
-            _ => unreachable!("test enumerates only region-growing methods") };
+            _ => unreachable!("test enumerates only region-growing methods"),
+        };
         ritk_io::write_nifti(&input, &fixture).unwrap();
 
         run(args).unwrap();
-        let actual = crate::commands::read_image_native(&output)
+        let actual = crate::commands::read_image(&output)
             .expect("region-growing output is natively readable");
 
         assert_eq!(actual.shape(), expected.shape());
@@ -48,8 +50,12 @@ fn native_region_growing_cli_family_matches_legacy_boundaries_exactly() {
         assert_eq!(*actual.spacing(), *expected.spacing());
         assert_eq!(*actual.direction(), *expected.direction());
         assert_eq!(
-            actual.data_slice().expect("contiguous native mask"),
-            expected.data_slice().as_ref(),
+            actual
+                .data_slice()
+                .expect("invariant: image storage is contiguous"),
+            expected
+                .data_slice()
+                .expect("invariant: contiguous host storage"),
             "{label} native CLI output diverged from its legacy public boundary"
         );
     }
@@ -164,14 +170,17 @@ fn test_segment_connected_threshold_output_is_strictly_binary() {
     .unwrap();
 
     let mask = ritk_io::read_metaimage::<Backend, _>(&output, &Default::default()).unwrap();
-    mask.with_data_slice(|values| {
+    {
+        let values = mask
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in values {
             assert!(
                 v == 0.0 || v == 1.0,
                 "connected-threshold output must be strictly binary, got {v}"
             );
         }
-    });
+    }
 }
 
 // â”€â”€ Negative: connected-threshold missing --lower â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -392,14 +401,17 @@ fn test_segment_confidence_connected_output_is_binary() {
     run(args).unwrap();
 
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    mask.with_data_slice(|vals| {
+    {
+        let vals = mask
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in vals {
             assert!(
                 v == 0.0 || v == 1.0,
                 "all voxels must be 0.0 or 1.0, found {v}"
             );
         }
-    });
+    }
 }
 
 #[test]
@@ -490,12 +502,15 @@ fn test_segment_neighborhood_connected_output_is_binary() {
     run(args).unwrap();
 
     let mask = ritk_io::read_nifti::<Backend, _>(&output, &Default::default()).unwrap();
-    mask.with_data_slice(|vals| {
+    {
+        let vals = mask
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in vals {
             assert!(
                 v == 0.0 || v == 1.0,
                 "all voxels must be 0.0 or 1.0, found {v}"
             );
         }
-    });
+    }
 }

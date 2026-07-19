@@ -1,4 +1,4 @@
-﻿//! Secondary / fused-compare viewport renderer for [`SnapApp`].
+//! Secondary / fused-compare viewport renderer for [`SnapApp`].
 //!
 //! Handles the side-by-side or fused overlay comparison viewport that
 //! displays a secondary volume against the primary, including fused-slice
@@ -76,13 +76,15 @@ impl SnapApp {
                             axis: primary_axis,
                             slice: primary_idx,
                             wl: WindowLevel::new(primary_wc, primary_ww),
-                            colormap: self.colormap },
+                            colormap: self.colormap,
+                        },
                         FusedSliceParams {
                             volume: secondary,
                             axis: secondary_axis,
                             slice: secondary_idx,
                             wl: WindowLevel::new(secondary_wc, secondary_ww),
-                            colormap: self.secondary_colormap },
+                            colormap: self.secondary_colormap,
+                        },
                         self.compare_fusion_alpha,
                     );
                     let color_image = apply_to_image_into(

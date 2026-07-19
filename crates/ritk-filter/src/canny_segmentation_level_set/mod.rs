@@ -144,7 +144,10 @@ impl CannySegmentationLevelSet {
         &self,
         initial_level_set: &Image<f32, B, 3>,
         feature_image: &Image<f32, B, 3>,
-    ) -> anyhow::Result<Image<f32, B, 3>> {
+    ) -> anyhow::Result<Image<f32, B, 3>>
+    where
+        B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
+    {
         let dims = initial_level_set.shape();
         if dims != feature_image.shape() {
             anyhow::bail!(
@@ -188,10 +191,10 @@ impl CannySegmentationLevelSet {
     /// Coeus-native counterpart to the legacy application method.
     pub fn apply_native<B>(
         &self,
-        initial_level_set: &ritk_image::native::Image<f32, B, 3>,
-        feature_image: &ritk_image::native::Image<f32, B, 3>,
+        initial_level_set: &ritk_image::Image<f32, B, 3>,
+        feature_image: &ritk_image::Image<f32, B, 3>,
         backend: &B,
-    ) -> anyhow::Result<ritk_image::native::Image<f32, B, 3>>
+    ) -> anyhow::Result<ritk_image::Image<f32, B, 3>>
     where
         B: coeus_core::ComputeBackend,
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

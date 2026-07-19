@@ -33,7 +33,7 @@
 //!   pp. 679â€“698.
 
 use super::GaussianSigma;
-use ritk_image::native::Image;
+use ritk_image::Image;
 use ritk_spatial::Spacing;
 use std::collections::VecDeque;
 

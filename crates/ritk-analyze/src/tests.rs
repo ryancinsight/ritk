@@ -11,8 +11,8 @@ fn make_image(
     origin: Point<3>,
     spacing: Spacing<3>,
     backend: &SequentialBackend,
-) -> Result<ritk_image::native::Image<f32, SequentialBackend, 3>> {
-    ritk_image::native::Image::from_flat_on(
+) -> Result<ritk_image::Image<f32, SequentialBackend, 3>> {
+    ritk_image::Image::from_flat_on(
         values,
         shape,
         origin,

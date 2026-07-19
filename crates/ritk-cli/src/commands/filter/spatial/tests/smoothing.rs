@@ -11,8 +11,8 @@ fn test_filter_median_creates_output_with_correct_shape() {
 
     run_median(&default_args(input, output.clone(), FilterKind::Median))
         .expect("median must succeed");
-    let filtered = crate::commands::read_image_native(&output)
-        .expect("median output must be natively readable");
+    let filtered =
+        crate::commands::read_image(&output).expect("median output must be natively readable");
     assert_eq!(
         filtered.shape(),
         [5, 5, 5],
@@ -62,14 +62,17 @@ fn test_filter_canny_creates_output_with_binary_values() {
     );
 
     // Canny output is binary: every voxel must be 0.0 or 1.0.
-    filtered.with_data_slice(|values| {
+    {
+        let values = filtered
+            .data_slice()
+            .expect("invariant: image storage is contiguous");
         for &v in values {
             assert!(
                 v == 0.0 || v == 1.0,
                 "Canny output must be strictly binary (0.0 or 1.0), got {v}"
             );
         }
-    });
+    }
 }
 
 // ── Sobel ────────────────────────────────────────────────────────────────────

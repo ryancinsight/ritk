@@ -1,4 +1,4 @@
-﻿//! Measurement annotation rendering layer.
+//! Measurement annotation rendering layer.
 //!
 //! # Drawing conventions
 //!
@@ -191,7 +191,8 @@ impl MeasurementLayer {
             ToolState::RoiDrag {
                 start,
                 current,
-                kind } => {
+                kind,
+            } => {
                 let ss = img_to_screen(*start);
                 let sc = img_to_screen(*current);
                 match kind {
@@ -208,7 +209,8 @@ impl MeasurementLayer {
                             center,
                             radius: radii,
                             fill: Color32::TRANSPARENT,
-                            stroke: Stroke::new(LINE_WIDTH, COLOR_ROI) });
+                            stroke: Stroke::new(LINE_WIDTH, COLOR_ROI),
+                        });
                     }
                 }
             }
@@ -360,7 +362,8 @@ fn draw_roi_ellipse_annotation(
         center,
         radius: Vec2::new(radius_x, radius_y),
         fill: Color32::TRANSPARENT,
-        stroke: Stroke::new(LINE_WIDTH, COLOR_ROI) });
+        stroke: Stroke::new(LINE_WIDTH, COLOR_ROI),
+    });
     // Corner handles at cardinal points.
     for handle in &[
         Pos2::new(center.x, center.y - radius_y), // top
