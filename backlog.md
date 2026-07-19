@@ -1,6 +1,6 @@
 # RITK Backlog - Active Planning
 
-- **MIG-661-01 [arch] - Complete the Coeus/Leto/Hephaestus cutover (REVIEW;
+- **MIG-661-01 [arch] - Complete the Coeus/Leto/Hephaestus cutover (DONE;
   owner=Codex `/root`; scope=workspace source, manifests, lockfile, migration
   audit, and PM artifacts).** Every workspace package now builds on the
   provider-native image/tensor graph with zero Burn/ndarray manifest edges.
@@ -8,13 +8,14 @@
   I/O consumers use the canonical Coeus path. Acceptance evidence: clean
   migration audit, warning-denied workspace Clippy, and 4,644/4,644 Nextest
   tests with 12 explicitly skipped, plus clean doctest and Rustdoc gates. The
-  hosted dependency action now pins merged Coeus `5ee07a26`; PR publication
-  and merge remain. Hosted Python testing exposed a stale Burn-only CMA
-  contract and a missing global-MI cutover; the CMA surface is deleted and
-  global MI now executes through the native Leto classical engine. Wheel parity
-  then exposed the legacy displacement-warp export and reversed physical
-  component mapping; the duplicate path is deleted and the canonical Coeus
-  sampler now owns warp execution.
+  hosted dependency action now pins merged Coeus `5ee07a26`. PR #42 is merged
+  on `main` at `db41b6e9`; every hosted migration, Rust, Python, wheel, and
+  operating-system check passed. Hosted Python testing exposed a stale
+  Burn-only CMA contract and a missing global-MI cutover; the CMA surface is
+  deleted and global MI now executes through the native Leto classical engine.
+  Wheel parity then exposed the legacy displacement-warp export and reversed
+  physical component mapping; the duplicate path is deleted and the canonical
+  Coeus sampler now owns warp execution.
 
 - **MIG-660-01 [patch] - Remove stale Burn contract text from native owner
   crates (BLOCKED; owner=Codex `/root`; scope=`crates/ritk-core/src/
