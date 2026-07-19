@@ -2,17 +2,17 @@
 //!
 //! # Algorithm
 //! Greedy SyN (Avants 2008) with local cross-correlation metric.
-//! Both forward (fixedâ†’midpoint) and inverse (movingâ†’midpoint) velocity fields
+//! Both forward (fixed→midpoint) and inverse (moving→midpoint) velocity fields
 //! are updated symmetrically each iteration so the midpoint is equidistant from
 //! both images.
 //!
 //! **Per-iteration steps:**
-//! 1. Ï†â‚ = exp(vâ‚), Ï†â‚‚ = exp(vâ‚‚)
-//! 2. I_w = warp(F, Ï†â‚), J_w = warp(M, Ï†â‚‚)
-//! 3. uâ‚ = CC_gradient(I_w, J_w, âˆ‡I_w); normalise max|uâ‚| â† gradient_step
-//! 4. uâ‚‚ = CC_gradient(J_w, I_w, âˆ‡J_w); normalise max|uâ‚‚| â† gradient_step
-//! 5. vâ‚ â† vâ‚ + uâ‚; vâ‚ â† G_Ïƒ âˆ— vâ‚
-//! 6. vâ‚‚ â† vâ‚‚ + uâ‚‚; vâ‚‚ â† G_Ïƒ âˆ— vâ‚‚
+//! 1. φ₁ = exp(v₁), φ₂ = exp(v₂)
+//! 2. I_w = warp(F, φ₁), J_w = warp(M, φ₂)
+//! 3. u₁ = CC_gradient(I_w, J_w, ∇I_w); normalise max|u₁| ← gradient_step
+//! 4. u₂ = CC_gradient(J_w, I_w, ∇J_w); normalise max|u₂| ← gradient_step
+//! 5. v₁ ← v₁ + u₁; v₁ ← G_σ ∗ v₁
+//! 6. v₂ ← v₂ + u₂; v₂ ← G_σ ∗ v₂
 //! 7. Convergence: stop when variance of last `convergence_window` CC values
 //!    is below `convergence_threshold`.
 //!
@@ -38,18 +38,18 @@ use crate::deformable_field_ops::{
 use crate::error::RegistrationError;
 use buffers::SyNBuffers;
 
-// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public types ──────────────────────────────────────────────────────────────
 
 /// Result returned by [`SyNRegistration::register`].
 #[derive(Debug, Clone)]
 pub struct SyNResult {
-    /// Forward velocity field `vâ‚` components (fixedâ†’midpoint), in (z, y, x) order.
+    /// Forward velocity field `v₁` components (fixed→midpoint), in (z, y, x) order.
     pub forward_field: VelocityField,
-    /// Inverse velocity field `vâ‚‚` components (movingâ†’midpoint), in (z, y, x) order.
+    /// Inverse velocity field `v₂` components (moving→midpoint), in (z, y, x) order.
     pub inverse_field: VelocityField,
-    /// Fixed image warped to the midpoint by Ï†â‚ = exp(vâ‚).
+    /// Fixed image warped to the midpoint by φ₁ = exp(v₁).
     pub warped_fixed: Vec<f32>,
-    /// Moving image warped to the midpoint by Ï†â‚‚ = exp(vâ‚‚).
+    /// Moving image warped to the midpoint by φ₂ = exp(v₂).
     pub warped_moving: Vec<f32>,
     /// Final mean local CC value (higher is better; 1.0 = perfect alignment).
     pub final_cc: f64,
@@ -100,7 +100,7 @@ impl SyNRegistration {
     /// [`FieldSmoother`] backend (CPU, GPU, or custom).
     ///
     /// # Arguments
-    /// - `smoother` â€” field smoother.  Its sigma must match
+    /// - `smoother` — field smoother.  Its sigma must match
     ///   `self.config.sigma_smooth`.
     ///
     /// # Errors
@@ -222,7 +222,7 @@ impl SyNRegistration {
                 &mut buf.cc_slices,
             );
 
-            // Normalise forces so max|uâ‚| = max|uâ‚‚| = gradient_step
+            // Normalise forces so max|u₁| = max|u₂| = gradient_step
             normalize_forces_into(
                 &mut buf.u1z,
                 &mut buf.u1y,
@@ -243,7 +243,7 @@ impl SyNRegistration {
                 buf.v2x[i] += buf.u2x[i];
             }
 
-            // Gaussian smooth â€” dispatched via FieldSmoother trait
+            // Gaussian smooth — dispatched via FieldSmoother trait
             if self.config.sigma_smooth > 0.0 {
                 smoother.smooth_field(&mut buf.v1z, &mut buf.v1y, &mut buf.v1x);
                 smoother.smooth_field(&mut buf.v2z, &mut buf.v2y, &mut buf.v2x);

@@ -5,22 +5,22 @@
 //! For a 3-D image I defined on a regular grid with physical spacing (sz, sy, sx),
 //! the gradient at interior voxel (iz, iy, ix) is estimated by central differences:
 //!
-//!   âˆ‚I/âˆ‚z â‰ˆ (I[iz+1, iy, ix] âˆ’ I[izâˆ’1, iy, ix]) / (2 Â· sz)
-//!   âˆ‚I/âˆ‚y â‰ˆ (I[iz, iy+1, ix] âˆ’ I[iz, iyâˆ’1, ix]) / (2 Â· sy)
-//!   âˆ‚I/âˆ‚x â‰ˆ (I[iz, iy, ix+1] âˆ’ I[iz, iy, ixâˆ’1]) / (2 Â· sx)
+//!   ∂I/∂z ≈ (I[iz+1, iy, ix] − I[iz−1, iy, ix]) / (2 · sz)
+//!   ∂I/∂y ≈ (I[iz, iy+1, ix] − I[iz, iy−1, ix]) / (2 · sy)
+//!   ∂I/∂x ≈ (I[iz, iy, ix+1] − I[iz, iy, ix−1]) / (2 · sx)
 //!
 //! At boundary voxels the same central stencil is evaluated with the
 //! out-of-range neighbour clamped to the edge voxel (ZeroFluxNeumann boundary
-//! condition), i.e. at `i = 0` the lower neighbour is `I[0]` and at `i = nâˆ’1`
-//! the upper neighbour is `I[nâˆ’1]`. This reproduces ITK's
+//! condition), i.e. at `i = 0` the lower neighbour is `I[0]` and at `i = n−1`
+//! the upper neighbour is `I[n−1]`. This reproduces ITK's
 //! `GradientMagnitudeImageFilter`, which couples a central `DerivativeOperator`
 //! with `ZeroFluxNeumannBoundaryCondition`, to within float rounding.
 //!
-//! Gradient magnitude: |âˆ‡I| = âˆš(gzÂ² + gyÂ² + gxÂ²)
+//! Gradient magnitude: |∇I| = √(gz² + gy² + gx²)
 //!
 //! # Reference
 //! Standard finite difference approximation of the gradient (see e.g., Press et al.,
-//! *Numerical Recipes in C*, 3rd ed., Â§18.1); boundary handling per ITK
+//! *Numerical Recipes in C*, 3rd ed., §18.1); boundary handling per ITK
 //! `itk::ZeroFluxNeumannBoundaryCondition`.
 
 use ritk_image::tensor::Backend;
@@ -56,7 +56,7 @@ impl GradientMagnitudeFilter {
 
     /// Compute the gradient magnitude image.
     ///
-    /// Returns an `Image` whose voxel values are |âˆ‡I(x)| at each position x.
+    /// Returns an `Image` whose voxel values are |∇I(x)| at each position x.
     pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec(image)?;
         self.apply_from_slice(&vals, dims, image)
@@ -86,9 +86,9 @@ impl GradientMagnitudeFilter {
     /// slice via `NdArrayTensor::as_slice_memory_order()`.
     ///
     /// # Arguments
-    /// * `vals`  â€” Flat voxel data in \[Z, Y, X\] C-order, length `dims[0]*dims[1]*dims[2]`.
-    /// * `dims`  â€” Image dimensions `[nz, ny, nx]`.
-    /// * `src`   â€” Reference image; spatial metadata (origin, spacing, direction) is cloned.
+    /// * `vals`  — Flat voxel data in \[Z, Y, X\] C-order, length `dims[0]*dims[1]*dims[2]`.
+    /// * `dims`  — Image dimensions `[nz, ny, nx]`.
+    /// * `src`   — Reference image; spatial metadata (origin, spacing, direction) is cloned.
     ///
     /// # Errors
     /// Returns an error only if `dims` is inconsistent with `vals.len()` (debug_assert).
@@ -111,7 +111,7 @@ impl GradientMagnitudeFilter {
     }
 }
 
-// â”€â”€ Coeus-native path â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Coeus-native path ─────────────────────────────────────────────────────────
 
 impl GradientMagnitudeFilter {
     /// Coeus-native sister of [`GradientMagnitudeFilter::apply`].
@@ -119,7 +119,7 @@ impl GradientMagnitudeFilter {
     /// Runs the identical central finite-difference gradient magnitude
     /// (ZeroFluxNeumann boundary) via the shared `gradient_magnitude_vec` host
     /// core on the image's contiguous host buffer, so the result is
-    /// bitwise-identical to the Burn path. No Burn tensor is constructed. Spatial
+    /// bitwise-identical to the Coeus path. No Burn tensor is constructed. Spatial
     /// metadata is preserved.
     ///
     /// # Errors
@@ -139,15 +139,15 @@ impl GradientMagnitudeFilter {
     }
 }
 
-// â”€â”€ gradient_magnitude_vec â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── gradient_magnitude_vec ─────────────────────────────────────────────────────
 
 /// Central finite-difference gradient magnitude on a flat 3-D volume.
 ///
 /// # Invariants
-/// - Central second-order differences divided by `2Â·spacing` per axis.
+/// - Central second-order differences divided by `2·spacing` per axis.
 /// - Boundary voxels clamp the out-of-range neighbour to the edge voxel
 ///   (ZeroFluxNeumann), matching ITK; a length-1 axis yields a zero component.
-/// - `|âˆ‡I| = âˆš(gzÂ² + gyÂ² + gxÂ²)`; output length equals `nz Â· ny Â· nx`.
+/// - `|∇I| = √(gz² + gy² + gx²)`; output length equals `nz · ny · nx`.
 ///
 /// Single host realization shared by the Burn [`GradientMagnitudeFilter::apply`]
 /// path and the Coeus-native [`GradientMagnitudeFilter::apply_native`] path.
@@ -182,12 +182,12 @@ pub(crate) fn gradient_magnitude_vec(
     })
 }
 
-// â”€â”€ gradient_vecs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── gradient_vecs ────────────────────────────────────────────────────────────────
 
 /// Compute gradient component vectors (gz, gy, gx) via finite differences.
 ///
 /// # Invariants
-/// - Central second-order differences divided by 2Â·spacing everywhere.
+/// - Central second-order differences divided by 2·spacing everywhere.
 /// - Boundary voxels clamp the out-of-range neighbour to the edge voxel
 ///   (ZeroFluxNeumann), matching ITK; a length-1 axis yields a zero component.
 /// - Output lengths equal `nz * ny * nx`.
@@ -236,7 +236,7 @@ fn gradient_vecs(
     (gz, gy, gx)
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_gradient_magnitude.rs"]

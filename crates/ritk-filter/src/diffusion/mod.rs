@@ -5,7 +5,7 @@ pub mod gradient_anisotropic;
 pub mod min_max_curvature_flow;
 pub mod perona_malik;
 
-// â”€â”€ Shared finite-difference stencil helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Shared finite-difference stencil helpers ──────────────────────────────────
 // Used by the ITK-matching anisotropic-diffusion functions (gradient + curvature),
 // which share the same spacing-scaled derivatives and ZeroFluxNeumann boundary.
 
@@ -21,7 +21,7 @@ pub(crate) fn clamp_at(buf: &[f32], dims: [usize; 3], z: isize, y: isize, x: isi
 }
 
 /// Spacing-scaled central first derivative in dimension `d` at `(z, y, x)`:
-/// `(I(+d) âˆ’ I(âˆ’d)) / (2Â·spacing[d])`, where `inv_2sp[d] = 0.5 / spacing[d]`.
+/// `(I(+d) − I(−d)) / (2·spacing[d])`, where `inv_2sp[d] = 0.5 / spacing[d]`.
 #[inline]
 pub(crate) fn central_diff(
     buf: &[f32],

@@ -12,14 +12,14 @@
 //!
 //! Coordinate mapping is delegated entirely to the image's canonical
 //! [`ritk_image::Image::index_to_world_native`] /
-//! [`ritk_image::Image::world_to_index_native`] â€” the same transforms
+//! [`ritk_image::Image::world_to_index_native`] — the same transforms
 //! `ResampleImageFilter` uses and which are verified float-exact to SimpleITK on
 //! loaded anisotropic data. Operating on the tensor directly (rather than a
 //! hand-rolled flat-index loop) makes the filter agnostic to image construction
 //! and honours spacing, origin, and direction (including the axis-reversal
 //! Direction that `ritk.io` assigns NRRD-loaded images). Trilinear interpolation
 //! samples the moving image; samples whose continuous index leaves the moving
-//! buffer (`c_a âˆ‰ [âˆ’0.5, N_a âˆ’ 0.5)` on any axis) take the edge-padding value 0
+//! buffer (`c_a ∉ [−0.5, N_a − 0.5)` on any axis) take the edge-padding value 0
 //! (ITK's `IsInsideBuffer`).
 //!
 //! Displacement components are supplied as three scalar images `(D_z, D_y, D_x)`

@@ -57,7 +57,7 @@ impl<B: Backend> ImageWriter<Image<f32, B, 3>> for MghWriter {
 ///
 /// Transitional module: names inside are the plain end-state names; the
 /// module itself disambiguates from the Burn types during coexistence and
-/// folds away when the Burn path is deleted (ADR 0002).
+/// folds away when the Coeus path is deleted (ADR 0002).
 pub mod native {
     use crate::domain::{to_io_err, ImageReader, ImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};

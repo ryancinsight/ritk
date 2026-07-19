@@ -65,7 +65,7 @@ pub(super) fn make_test_metadata() -> DicomReadMetadata {
         series_date: Some(ArrayString::from("20240102").unwrap()),
         series_time: Some(ArrayString::from("123456").unwrap()),
         dimensions: [4, 4, 3],
-        // Axial convention: spacing=[Î”z,Î”Row,Î”Col], direction cols=[NÌ‚, F_c, F_r]
+        // Axial convention: spacing=[Δz,ΔRow,ΔCol], direction cols=[NÌ‚, F_c, F_r]
         // NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]
         spacing: [2.5, 0.5, 0.5],
         origin: [10.0, 20.0, 30.0],

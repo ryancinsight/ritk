@@ -88,7 +88,7 @@ pub(crate) fn parse_dicom_bytes(
 /// per-slice metadata, image dimensions, and SeriesInstanceUID.
 ///
 /// Unlike [`parse_dicom_bytes`], this function does not wrap the bytes in an
-/// SCP Part-10 header â€” the input must already be a valid DICOM Part 10 file
+/// SCP Part-10 header — the input must already be a valid DICOM Part 10 file
 /// (128-byte preamble + DICM magic + File Meta Information + dataset).
 ///
 /// `synthetic_path` is used for diagnostics; the SOP Instance UID is extracted
@@ -215,7 +215,7 @@ fn extract_dicom_metadata(
             .and_then(|s| s.trim().parse().ok())
             .unwrap_or(16);
     }
-    // WindowCenter (0028,1050) â€” first value of potentially multi-valued DS.
+    // WindowCenter (0028,1050) — first value of potentially multi-valued DS.
     if let Ok(elem) = obj.element(Tag(0x0028, 0x1050)) {
         slice_meta.window_center = elem.to_str().ok().and_then(|s| {
             s.trim()
@@ -224,7 +224,7 @@ fn extract_dicom_metadata(
                 .and_then(|v| v.trim().parse().ok())
         });
     }
-    // WindowWidth (0028,1051) â€” first value of potentially multi-valued DS.
+    // WindowWidth (0028,1051) — first value of potentially multi-valued DS.
     if let Ok(elem) = obj.element(Tag(0x0028, 0x1051)) {
         slice_meta.window_width = elem.to_str().ok().and_then(|s| {
             s.trim()
@@ -375,7 +375,7 @@ fn extract_dicom_metadata(
             first.decay_correction = elem.to_str().ok().map(|s| cs_to_arraystring(s.trim()));
         }
     }
-    // RadiopharmaceuticalInformationSequence (0054,0016) â†’ first item sub-fields.
+    // RadiopharmaceuticalInformationSequence (0054,0016) → first item sub-fields.
     if first.radionuclide_total_dose_bq.is_none()
         || first.radionuclide_half_life_s.is_none()
         || first.radiopharmaceutical_start_time.is_none()

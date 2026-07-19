@@ -1,14 +1,14 @@
-//! STAPLE â€“ Simultaneous Truth and Performance Level Estimation.
+//! STAPLE – Simultaneous Truth and Performance Level Estimation.
 //!
-//! Reference: Warfield, Zou, Wells (2004) IEEE Trans. Med. Imaging 23(7):903â€“921.
+//! Reference: Warfield, Zou, Wells (2004) IEEE Trans. Med. Imaging 23(7):903–921.
 //!
 //! # Mathematical Specification
 //!
-//! Given K binary segmentation masks D = {D_1, ..., D_K} with D_k âˆˆ {0,1}^N,
-//! STAPLE estimates via Expectationâ€“Maximisation (EM):
-//! - W âˆˆ `[0, 1]^N`  probabilistic ground truth
-//! - p âˆˆ (0,1)^K  per-rater sensitivity
-//! - q âˆˆ (0,1)^K  per-rater specificity
+//! Given K binary segmentation masks D = {D_1, ..., D_K} with D_k ∈ {0,1}^N,
+//! STAPLE estimates via Expectation–Maximisation (EM):
+//! - W ∈ `[0, 1]^N`  probabilistic ground truth
+//! - p ∈ (0,1)^K  per-rater sensitivity
+//! - q ∈ (0,1)^K  per-rater specificity
 //!
 //! ## Initialisation
 //!
@@ -20,34 +20,34 @@
 //!
 //! For each voxel i:
 //! ```text
-//! log Î±_i = log f      + Î£_k [ D_k[i]Â·log(p_k)   + (1âˆ’D_k[i])Â·log(1âˆ’p_k) ]
-//! log Î²_i = log(1âˆ’f)   + Î£_k [ D_k[i]Â·log(1âˆ’q_k) + (1âˆ’D_k[i])Â·log(q_k)   ]
-//! W_i = 1 / (1 + exp(log Î²_i âˆ’ log Î±_i))
+//! log α_i = log f      + Σ_k [ D_k[i]·log(p_k)   + (1−D_k[i])·log(1−p_k) ]
+//! log β_i = log(1−f)   + Σ_k [ D_k[i]·log(1−q_k) + (1−D_k[i])·log(q_k)   ]
+//! W_i = 1 / (1 + exp(log β_i − log α_i))
 //! ```
 //!
 //! ## M-step
 //!
 //! ```text
-//! W_sum = Î£_i W_i
+//! W_sum = Σ_i W_i
 //! f     = W_sum / N
-//! p_k   = clamp( Î£_i(D_k[i] Â· W_i)          / W_sum,       Îµ, 1âˆ’Îµ )
-//! q_k   = clamp( Î£_i((1âˆ’D_k[i]) Â· (1âˆ’W_i))  / (Nâˆ’W_sum),   Îµ, 1âˆ’Îµ )
+//! p_k   = clamp( Σ_i(D_k[i] · W_i)          / W_sum,       ε, 1−ε )
+//! q_k   = clamp( Σ_i((1−D_k[i]) · (1−W_i))  / (N−W_sum),   ε, 1−ε )
 //! ```
-//! where Îµ = 1e-10 prevents log-domain underflow at parameter boundaries.
+//! where ε = 1e-10 prevents log-domain underflow at parameter boundaries.
 //!
 //! ## Convergence
 //!
 //! ```text
-//! max_k( |p_k_new âˆ’ p_k_old| + |q_k_new âˆ’ q_k_old| ) < tol
+//! max_k( |p_k_new − p_k_old| + |q_k_new − q_k_old| ) < tol
 //! ```
 
 /// Guard against log(0): clamping boundary for p_k and q_k.
 ///
-/// Chosen as 1e-6 rather than a smaller value so that the clamped f64 value `1 âˆ’ EPS`
-/// is below the rounding midpoint `1 âˆ’ 2^-25 â‰ˆ 0.9999999702` between 1.0 and the
-/// largest sub-1.0 f32 representable value. This guarantees `(1 âˆ’ EPS) as f32 < 1.0_f32`,
+/// Chosen as 1e-6 rather than a smaller value so that the clamped f64 value `1 − EPS`
+/// is below the rounding midpoint `1 − 2^-25 ≈ 0.9999999702` between 1.0 and the
+/// largest sub-1.0 f32 representable value. This guarantees `(1 − EPS) as f32 < 1.0_f32`,
 /// preserving the strict-(0,1) invariant in the f32 output without sacrificing log safety
-/// (`log(1e-6) â‰ˆ âˆ’13.8`, bounded).
+/// (`log(1e-6) ≈ −13.8`, bounded).
 pub(crate) const EPS: f64 = 1e-6;
 
 /// Convergence outcome of the STAPLE algorithm.
@@ -62,11 +62,11 @@ pub enum StapleConvergence {
 /// Result of the STAPLE algorithm.
 #[derive(Debug, Clone)]
 pub struct StapleResult {
-    /// Probabilistic ground-truth estimate W âˆˆ \[0,1\]^N.
+    /// Probabilistic ground-truth estimate W ∈ \[0,1\]^N.
     pub probabilistic_truth: Vec<f32>,
-    /// Per-rater sensitivity p_k âˆˆ (0,1). Length = K.
+    /// Per-rater sensitivity p_k ∈ (0,1). Length = K.
     pub sensitivity: Vec<f32>,
-    /// Per-rater specificity q_k âˆˆ (0,1). Length = K.
+    /// Per-rater specificity q_k ∈ (0,1). Length = K.
     pub specificity: Vec<f32>,
     /// Number of EM iterations executed.
     pub iterations: usize,
@@ -76,7 +76,7 @@ pub struct StapleResult {
 
 /// Numerically stable log-domain sigmoid.
 ///
-/// Computes W = exp(log_a) / (exp(log_a) + exp(log_b)) = 1 / (1 + exp(log_b âˆ’ log_a)).
+/// Computes W = exp(log_a) / (exp(log_a) + exp(log_b)) = 1 / (1 + exp(log_b − log_a)).
 /// Finite for all finite inputs; no catastrophic cancellation.
 #[inline]
 fn sigmoid_log_domain(log_a: f64, log_b: f64) -> f64 {
@@ -96,7 +96,7 @@ fn sigmoid_log_domain(log_a: f64, log_b: f64) -> f64 {
 /// - If any two masks have different lengths.
 ///
 /// # Reference
-/// Warfield, Zou, Wells (2004) IEEE TMI 23(7):903â€“921.
+/// Warfield, Zou, Wells (2004) IEEE TMI 23(7):903–921.
 pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
     assert!(!raters.is_empty(), "staple: raters must be non-empty");
 
@@ -114,7 +114,7 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
         );
     }
 
-    // Threshold input masks at 0.5 â†’ bool (avoids repeated f32 comparisons in the hot path).
+    // Threshold input masks at 0.5 → bool (avoids repeated f32 comparisons in the hot path).
     // Flat vector representation (O(1) total allocations instead of O(K) separate heap allocations).
     let mut d = vec![false; k * n];
     for (k_idx, r) in raters.iter().enumerate() {
@@ -123,7 +123,7 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
         }
     }
 
-    // â”€â”€ Initialise parameters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Initialise parameters ────────────────────────────────────────────────
     let mut p = vec![0.99_f64; k];
     let mut q = vec![0.99_f64; k];
     let mut f = 0.5_f64;
@@ -135,7 +135,7 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
     let mut iterations = 0usize;
 
     // SEG-06: pre-allocate log-domain parameter vectors before the iteration loop
-    // so that each EM iteration recomputes in-place rather than allocating 4 Ã— K Vecs.
+    // so that each EM iteration recomputes in-place rather than allocating 4 × K Vecs.
     let mut log_p = vec![0.0_f64; k];
     let mut log_1mp = vec![0.0_f64; k];
     let mut log_q = vec![0.0_f64; k];
@@ -154,7 +154,7 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
             log_1mq[i] = (1.0 - q[i]).ln();
         }
 
-        // â”€â”€ E-step: voxels are independent â†’ parallel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── E-step: voxels are independent → parallel ────────────────────────
         moirai::enumerate_mut_with::<moirai::Adaptive, _, _>(&mut w, |i, val| {
             let mut log_alpha = log_f;
             let mut log_beta = log_1mf;
@@ -170,7 +170,7 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
             *val = sigmoid_log_domain(log_alpha, log_beta);
         });
 
-        // â”€â”€ M-step: update prevalence and per-rater parameters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── M-step: update prevalence and per-rater parameters ───────────────
         let w_sum: f64 = moirai::reduce_index_with::<moirai::Adaptive, _, _, _>(
             w.len(),
             0.0,
@@ -205,7 +205,7 @@ pub fn staple(raters: &[Vec<f32>], max_iter: usize, tol: f64) -> StapleResult {
             q_new[k_idx] = (num_q / denom_q).clamp(EPS, 1.0 - EPS);
         }
 
-        // â”€â”€ Convergence: max over raters of joint parameter change â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Convergence: max over raters of joint parameter change ───────────
         let max_change = p_new
             .iter()
             .zip(p.iter())

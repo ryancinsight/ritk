@@ -7,7 +7,7 @@
 //!
 //! `out[iz][iy][ix] = I[start_z + iz][start_y + iy][start_x + ix]`
 //!
-//! for `iz âˆˆ [0, size_z)`, `iy âˆˆ [0, size_y)`, `ix âˆˆ [0, size_x)`.
+//! for `iz ∈ [0, size_z)`, `iy ∈ [0, size_y)`, `ix ∈ [0, size_x)`.
 //!
 //! ## Origin Update
 //!
@@ -26,8 +26,8 @@
 //!
 //! ## Invariants
 //!
-//! - `start_k + size_k â‰¤ N_k` for k âˆˆ {z, y, x} (validated at runtime).
-//! - `size_k â‰¥ 1` for all k.
+//! - `start_k + size_k ≤ N_k` for k ∈ {z, y, x} (validated at runtime).
+//! - `size_k ≥ 1` for all k.
 //! - Output shape = `[size_z, size_y, size_x]`.
 //! - Spacing and direction are preserved exactly.
 //! - Origin is updated to the physical position of the first cropped voxel.

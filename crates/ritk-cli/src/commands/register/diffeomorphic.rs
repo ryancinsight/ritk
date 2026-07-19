@@ -10,7 +10,7 @@ impl From<CliInverseConsistency> for InverseConsistency {
     }
 }
 
-// â”€â”€ SyN diffeomorphic registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SyN diffeomorphic registration ────────────────────────────────────────────
 
 /// Run greedy SyN diffeomorphic registration.
 ///
@@ -57,7 +57,7 @@ pub(super) fn run_syn(args: &RegisterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ BSpline FFD registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── BSpline FFD registration ───────────────────────────────────────────────
 
 /// Run B-Spline Free-Form Deformation registration.
 ///
@@ -113,7 +113,7 @@ pub(super) fn run_bspline_ffd(args: &RegisterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Multi-resolution SyN registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Multi-resolution SyN registration ────────────────────────────────────────────
 
 /// Run Multi-Resolution SyN diffeomorphic registration.
 ///
@@ -165,7 +165,7 @@ pub(super) fn run_multires_syn(args: &RegisterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ BSpline SyN registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── BSpline SyN registration ──────────────────────────────────────────────
 
 /// Run BSpline SyN diffeomorphic registration.
 ///
@@ -276,7 +276,7 @@ mod tests {
         (dir, output)
     }
 
-    // â”€â”€ Positive: syn creates output file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Positive: syn creates output file ─────────────────────────────────
 
     /// Running `syn` on identical fixed/moving images must produce a warped
     /// output file whose shape matches the input.
@@ -295,7 +295,7 @@ mod tests {
         );
     }
 
-    // â”€â”€ Positive: syn identity registration produces finite voxels â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Positive: syn identity registration produces finite voxels ────────
 
     /// When fixed == moving, the SyN output voxels must all be finite.
     #[test]
@@ -315,7 +315,7 @@ mod tests {
         }
     }
 
-    // â”€â”€ BSpline FFD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── BSpline FFD ──────────────────────────────────────────────────────────────
 
     #[test]
     fn test_register_bspline_ffd_creates_output_with_correct_shape() {
@@ -339,7 +339,7 @@ mod tests {
         }
     }
 
-    // â”€â”€ Multi-resolution SyN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Multi-resolution SyN ─────────────────────────────────────────────────────
 
     #[test]
     fn test_register_multires_syn_creates_output_with_correct_shape() {
@@ -363,7 +363,7 @@ mod tests {
         }
     }
 
-    // â”€â”€ BSpline SyN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── BSpline SyN ─────────────────────────────────────────────────────────────
 
     #[test]
     fn test_register_bspline_syn_creates_output_with_correct_shape() {

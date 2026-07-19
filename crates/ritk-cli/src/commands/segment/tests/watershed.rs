@@ -1,8 +1,8 @@
 use super::*;
 
-// â”€â”€ Helper: uniform gradient and two-seed marker images â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Helper: uniform gradient and two-seed marker images ───────────────────────
 
-/// Build a 3Ã—3Ã—3 image with uniform intensity 0.5.
+/// Build a 3×3×3 image with uniform intensity 0.5.
 ///
 /// Used as a synthetic gradient image for marker-watershed tests.
 /// A flat gradient means all pairwise edge weights are equal, so the
@@ -20,11 +20,11 @@ fn make_uniform_gradient_image() -> Image<f32, Backend, 3> {
     .expect("invariant: fixture tensor has the declared rank")
 }
 
-/// Build a 3Ã—3Ã—3 marker image with two seeds at opposite corners.
+/// Build a 3×3×3 marker image with two seeds at opposite corners.
 ///
-/// Flat index 0  (z=0, y=0, x=0) â†’ label 1.0
-/// Flat index 26 (z=2, y=2, x=2) â†’ label 2.0
-/// All other voxels               â†’ 0.0 (unmarked).
+/// Flat index 0  (z=0, y=0, x=0) → label 1.0
+/// Flat index 26 (z=2, y=2, x=2) → label 2.0
+/// All other voxels               → 0.0 (unmarked).
 fn make_two_seed_marker_image() -> Image<f32, Backend, 3> {
     let backend = Backend::default();
     let mut values = vec![0.0_f32; 27];
@@ -40,7 +40,7 @@ fn make_two_seed_marker_image() -> Image<f32, Backend, 3> {
     .expect("invariant: fixture tensor has the declared rank")
 }
 
-// â”€â”€ Positive: Watershed creates output with basin labels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: Watershed creates output with basin labels ──────────────────
 
 #[test]
 fn test_segment_watershed_creates_output() {
@@ -102,7 +102,7 @@ fn native_watershed_cli_rejects_nonfinite_relief_before_output() {
     assert!(!output.exists());
 }
 
-// â”€â”€ Negative: marker-watershed missing markers path returns error â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Negative: marker-watershed missing markers path returns error ─────────
 
 #[test]
 fn test_segment_marker_watershed_missing_markers_returns_error() {
@@ -128,9 +128,9 @@ fn test_segment_marker_watershed_missing_markers_returns_error() {
     );
 }
 
-// â”€â”€ Positive: Marker-watershed creates output with correct shape â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: Marker-watershed creates output with correct shape ──────────
 
-/// Marker-watershed must produce a 3Ã—3Ã—3 output image when given valid
+/// Marker-watershed must produce a 3×3×3 output image when given valid
 /// gradient and marker inputs.
 ///
 /// Invariant: output shape == input shape == [3, 3, 3].
@@ -169,7 +169,7 @@ fn test_segment_marker_watershed_creates_output_with_correct_shape() {
 
 /// Marker-watershed must propagate both seed labels into the output image.
 ///
-/// With two seeds at opposite corners of a uniform-gradient 3Ã—3Ã—3 volume,
+/// With two seeds at opposite corners of a uniform-gradient 3×3×3 volume,
 /// the flood fill assigns every voxel to the nearer seed.  At minimum the
 /// seed voxels themselves carry their original labels, so label 1.0 and
 /// label 2.0 must each appear at least once in the output.

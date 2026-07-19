@@ -4,11 +4,11 @@
 //!
 //! A "peak" is a bright regional maximum enclosed by a darker surround that is
 //! not connected to the image boundary. Grind-peak grinds each such peak down to
-//! the level of the highest "saddle" connecting it to the border â€” the dual of
+//! the level of the highest "saddle" connecting it to the border — the dual of
 //! [`super::grayscale_fillhole`], which raises enclosed dark pits.
 //!
 //! Computed as a morphological reconstruction by dilation:
-//! `GrindPeak(f) = R^Î´_f(J)` where the marker `J` equals `f` on the image border
+//! `GrindPeak(f) = R^δ_f(J)` where the marker `J` equals `f` on the image border
 //! and the global minimum of `f` in the interior. Reconstruction by dilation
 //! lifts the interior marker back up to `f`, but bright peaks not reachable from
 //! the border (where the marker stayed at the global minimum) are ground down to
@@ -17,10 +17,10 @@
 //! # ITK / SimpleITK Parity
 //!
 //! Matches `itk::GrayscaleGrindPeakImageFilter` / `sitk.GrayscaleGrindPeak`
-//! (`FullyConnectedOff` â†’ 6-connected in 3-D). Output satisfies `g[x] â‰¤ f[x]`.
+//! (`FullyConnectedOff` → 6-connected in 3-D). Output satisfies `g[x] ≤ f[x]`.
 //!
 //! # References
-//! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer, Â§6.3.
+//! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer, §6.3.
 
 use crate::morphology::label_morphology::{MorphologicalReconstruction, ReconstructionMode};
 use crate::morphology::{on_image_border, Connectivity};
@@ -111,7 +111,7 @@ impl GrayscaleGrindPeakFilter {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_grayscale_grind_peak.rs"]

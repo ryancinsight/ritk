@@ -1,5 +1,5 @@
 //! Differential coverage: each native binary-morphology wrapper must be
-//! value-identical to the Burn filter it mirrors â€” both call the identical
+//! value-identical to the Coeus filter it mirrors — both call the identical
 //! substrate-agnostic core (shared harness in `native_support`).
 
 use super::{binary_closing, binary_dilate, binary_erode, binary_fill_holes, binary_opening};
@@ -26,17 +26,17 @@ mod erode {
     }
 
     #[test]
-    fn matches_burn_radius_zero_identity() {
+    fn matches_coeus_radius_zero_identity() {
         check(vec![0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0], [2, 2, 2], 0);
     }
 
     #[test]
-    fn matches_burn_all_foreground_radius_one() {
+    fn matches_coeus_all_foreground_radius_one() {
         check(vec![1.0f32; 27], [3, 3, 3], 1);
     }
 
     #[test]
-    fn matches_burn_scattered_foreground_radius_one() {
+    fn matches_coeus_scattered_foreground_radius_one() {
         let dims = [6usize, 5, 4];
         let n = dims[0] * dims[1] * dims[2];
         let vals: Vec<f32> = (0..n).map(|i| if i % 3 == 0 { 1.0 } else { 0.0 }).collect();
@@ -44,7 +44,7 @@ mod erode {
     }
 
     #[test]
-    fn matches_burn_all_background() {
+    fn matches_coeus_all_background() {
         check(vec![0.0f32; 8], [2, 2, 2], 1);
     }
 }
@@ -66,12 +66,12 @@ mod dilate {
     }
 
     #[test]
-    fn matches_burn_radius_zero_identity() {
+    fn matches_coeus_radius_zero_identity() {
         check(vec![0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0], [2, 2, 2], 0);
     }
 
     #[test]
-    fn matches_burn_single_seed_radius_one() {
+    fn matches_coeus_single_seed_radius_one() {
         let dims = [3usize, 3, 3];
         let mut vals = vec![0.0f32; 27];
         vals[13] = 1.0; // centre
@@ -79,7 +79,7 @@ mod dilate {
     }
 
     #[test]
-    fn matches_burn_scattered_foreground_radius_one() {
+    fn matches_coeus_scattered_foreground_radius_one() {
         let dims = [6usize, 5, 4];
         let n = dims[0] * dims[1] * dims[2];
         let vals: Vec<f32> = (0..n).map(|i| if i % 5 == 0 { 1.0 } else { 0.0 }).collect();
@@ -87,7 +87,7 @@ mod dilate {
     }
 
     #[test]
-    fn matches_burn_all_background() {
+    fn matches_coeus_all_background() {
         check(vec![0.0f32; 8], [2, 2, 2], 1);
     }
 }
@@ -109,19 +109,19 @@ mod closing {
     }
 
     #[test]
-    fn matches_burn_fills_small_gap_radius_one() {
+    fn matches_coeus_fills_small_gap_radius_one() {
         // Two foreground blocks separated by a one-voxel gap along x; closing at
         // r=1 bridges it. 1x1x5 line: fg at x=0,1 and x=3,4, gap at x=2.
         check(vec![1.0, 1.0, 0.0, 1.0, 1.0], [1, 1, 5], 1);
     }
 
     #[test]
-    fn matches_burn_all_foreground_radius_one() {
+    fn matches_coeus_all_foreground_radius_one() {
         check(vec![1.0f32; 27], [3, 3, 3], 1);
     }
 
     #[test]
-    fn matches_burn_scattered_foreground_radius_one() {
+    fn matches_coeus_scattered_foreground_radius_one() {
         let dims = [6usize, 5, 4];
         let n = dims[0] * dims[1] * dims[2];
         let vals: Vec<f32> = (0..n).map(|i| if i % 4 == 0 { 1.0 } else { 0.0 }).collect();
@@ -129,7 +129,7 @@ mod closing {
     }
 
     #[test]
-    fn matches_burn_all_background() {
+    fn matches_coeus_all_background() {
         check(vec![0.0f32; 8], [2, 2, 2], 1);
     }
 }
@@ -151,7 +151,7 @@ mod opening {
     }
 
     #[test]
-    fn matches_burn_removes_thin_protrusion_radius_one() {
+    fn matches_coeus_removes_thin_protrusion_radius_one() {
         // A 3x3x3 solid block plus one isolated foreground voxel that opening at
         // r=1 removes. Use a 3x3x3 all-fg cube (opening keeps the interior that
         // survives erosion then dilation).
@@ -159,15 +159,15 @@ mod opening {
     }
 
     #[test]
-    fn matches_burn_isolated_voxel_removed_radius_one() {
+    fn matches_coeus_isolated_voxel_removed_radius_one() {
         let dims = [3usize, 3, 3];
         let mut vals = vec![0.0f32; 27];
-        vals[13] = 1.0; // lone centre voxel â€” erosion kills it, opening yields all-bg
+        vals[13] = 1.0; // lone centre voxel — erosion kills it, opening yields all-bg
         check(vals, dims, 1);
     }
 
     #[test]
-    fn matches_burn_scattered_foreground_radius_one() {
+    fn matches_coeus_scattered_foreground_radius_one() {
         let dims = [6usize, 5, 4];
         let n = dims[0] * dims[1] * dims[2];
         let vals: Vec<f32> = (0..n).map(|i| if i % 3 == 0 { 1.0 } else { 0.0 }).collect();
@@ -175,7 +175,7 @@ mod opening {
     }
 
     #[test]
-    fn matches_burn_all_background() {
+    fn matches_coeus_all_background() {
         check(vec![0.0f32; 8], [2, 2, 2], 1);
     }
 }
@@ -184,7 +184,7 @@ mod fill_holes {
     use super::*;
 
     #[test]
-    fn matches_burn_for_enclosed_center_hole() {
+    fn matches_coeus_for_enclosed_center_hole() {
         let mut values = vec![1.0; 27];
         values[13] = 0.0;
         assert_coeus_matches_coeus(
@@ -200,7 +200,7 @@ mod fill_holes {
     }
 
     #[test]
-    fn matches_burn_for_border_connected_background() {
+    fn matches_coeus_for_border_connected_background() {
         let mut values = vec![1.0; 27];
         values[0] = 0.0;
         values[1] = 0.0;

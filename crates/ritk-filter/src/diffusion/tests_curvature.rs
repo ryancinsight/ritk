@@ -14,7 +14,7 @@ fn image_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
     img.data().to_vec()
 }
 
-// â”€â”€ Test 1: constant image must be unchanged â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test 1: constant image must be unchanged ───────────────────────────────
 
 #[test]
 fn test_constant_image_unchanged() {
@@ -74,7 +74,7 @@ fn native_curvature_preserves_geometry_and_matches_kernel() {
     );
 }
 
-// â”€â”€ Test 2: linear field â€” deep interior must be unchanged â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test 2: linear field — deep interior must be unchanged ─────────────────
 // A linear ramp has zero curvature, so the MCDE speed is identically 0 wherever
 // the stencil sees only real (unclamped) data. ITK's ZeroFluxNeumann boundary
 // does perturb the ramp at the edges (the boundary acts as a reflecting wall),
@@ -122,7 +122,7 @@ fn test_linear_field_deep_interior_unchanged() {
     );
 }
 
-// â”€â”€ Test 3: mean conservation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test 3: mean conservation ──────────────────────────────────────────────
 
 #[test]
 fn test_mean_conservation() {
@@ -159,7 +159,7 @@ fn test_mean_conservation() {
     );
 }
 
-// â”€â”€ Test 4: spherical blob smoothed (gradient reduced) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test 4: spherical blob smoothed (gradient reduced) ────────────────────
 
 #[test]
 fn test_spherical_blob_smoothed() {
@@ -198,7 +198,7 @@ fn test_spherical_blob_smoothed() {
         );
 }
 
-// â”€â”€ Test 5: stability â€” outputs finite and within intensity range â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test 5: stability — outputs finite and within intensity range ──────────
 
 #[test]
 fn test_stability_small_timestep() {
@@ -239,7 +239,7 @@ fn test_stability_small_timestep() {
     }
 }
 
-// â”€â”€ Helper: max gradient magnitude via central differences â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Helper: max gradient magnitude via central differences ─────────────────
 
 fn max_gradient_magnitude(data: &[f32], dims: [usize; 3]) -> f32 {
     let [nz, ny, nx] = dims;

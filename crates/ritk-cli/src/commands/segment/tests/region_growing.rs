@@ -112,7 +112,7 @@ fn region_growing_rejects_nonnative_output_before_io() {
     assert!(!output.exists());
 }
 
-// â”€â”€ Positive: Connected-threshold grows sphere region â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: Connected-threshold grows sphere region ─────────────────────
 
 /// Seeding at the centre of the sphere must grow exactly the 7 high-intensity
 /// voxels (centre + 6 face-adjacent neighbours).
@@ -146,7 +146,7 @@ fn test_segment_connected_threshold_grows_sphere_from_centre_seed() {
     );
 }
 
-// â”€â”€ Positive: Connected-threshold output is strictly binary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: Connected-threshold output is strictly binary ───────────────
 
 #[test]
 fn test_segment_connected_threshold_output_is_strictly_binary() {
@@ -183,7 +183,7 @@ fn test_segment_connected_threshold_output_is_strictly_binary() {
     }
 }
 
-// â”€â”€ Negative: connected-threshold missing --lower â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Negative: connected-threshold missing --lower ─────────────────────────
 
 #[test]
 fn test_segment_connected_threshold_missing_lower_returns_error() {
@@ -212,7 +212,7 @@ fn test_segment_connected_threshold_missing_lower_returns_error() {
     );
 }
 
-// â”€â”€ Negative: connected-threshold missing --upper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Negative: connected-threshold missing --upper ─────────────────────────
 
 #[test]
 fn test_segment_connected_threshold_missing_upper_returns_error() {
@@ -241,7 +241,7 @@ fn test_segment_connected_threshold_missing_upper_returns_error() {
     );
 }
 
-// â”€â”€ Negative: connected-threshold missing --seed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Negative: connected-threshold missing --seed ──────────────────────────
 
 #[test]
 fn test_segment_connected_threshold_missing_seed_returns_error() {
@@ -270,7 +270,7 @@ fn test_segment_connected_threshold_missing_seed_returns_error() {
     );
 }
 
-// â”€â”€ Negative: connected-threshold lower > upper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Negative: connected-threshold lower > upper ───────────────────────────
 
 #[test]
 fn test_segment_connected_threshold_lower_gt_upper_returns_error() {
@@ -299,7 +299,7 @@ fn test_segment_connected_threshold_lower_gt_upper_returns_error() {
     );
 }
 
-// â”€â”€ Negative: out-of-bounds seed returns error â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Negative: out-of-bounds seed returns error ────────────────────────────
 
 #[test]
 fn test_segment_connected_threshold_out_of_bounds_seed_returns_error() {
@@ -328,7 +328,7 @@ fn test_segment_connected_threshold_out_of_bounds_seed_returns_error() {
     );
 }
 
-// â”€â”€ Negative: malformed seed string returns error â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Negative: malformed seed string returns error ─────────────────────────
 
 #[test]
 fn test_segment_malformed_seed_returns_error() {

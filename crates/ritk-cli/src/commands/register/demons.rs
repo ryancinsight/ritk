@@ -1,6 +1,6 @@
 use super::*;
 
-// â”€â”€ Thirion Demons registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Thirion Demons registration ───────────────────────────────────────────────
 
 /// Run Thirion Demons deformable registration.
 ///
@@ -44,7 +44,7 @@ pub(super) fn run_demons(args: &RegisterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Multi-resolution Demons registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Multi-resolution Demons registration ─────────────────────────────────────────
 
 /// Run multi-resolution Demons deformable registration.
 ///
@@ -96,7 +96,7 @@ pub(super) fn run_multires_demons(args: &RegisterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Inverse-consistent diffeomorphic Demons registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Inverse-consistent diffeomorphic Demons registration ──────────────────────
 
 /// Run inverse-consistent diffeomorphic Demons registration.
 ///

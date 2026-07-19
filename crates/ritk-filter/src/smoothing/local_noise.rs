@@ -8,8 +8,8 @@
 //! voxel, so the neighbourhood count `n` is constant everywhere):
 //!
 //! ```text
-//! n   = âˆ_a (2Â·r_a + 1)
-//! out = sqrt( (Î£_k I(k)Â² âˆ’ (Î£_k I(k))Â² / n) / (n âˆ’ 1) )
+//! n   = ∏_a (2·r_a + 1)
+//! out = sqrt( (Σ_k I(k)² − (Σ_k I(k))² / n) / (n − 1) )
 //! ```
 //!
 //! Accumulation is in `f64` (ITK `InputRealType` for a floating-point input).
@@ -19,7 +19,7 @@
 //! This differs from [`super::box_sigma::BoxSigmaImageFilter`] only at the
 //! border: `BoxSigma` clips the window to the image (a smaller `n`), whereas
 //! `NoiseImageFilter` keeps the full window and repeats the edge value
-//! (ZeroFluxNeumann). Interior voxels (â‰¥ `r` from every face) are identical.
+//! (ZeroFluxNeumann). Interior voxels (≥ `r` from every face) are identical.
 //!
 //! # ITK parity
 //!

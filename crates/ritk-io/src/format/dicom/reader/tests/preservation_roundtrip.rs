@@ -30,7 +30,7 @@ fn test_scan_preserves_private_text_and_bytes_through_write_read_cycle() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let dir = tmp.path().join("priv_rt");
 
-    // Build a 1-slice 4Ã—4 image.
+    // Build a 1-slice 4×4 image.
     let device = B::default();
     let tensor = Tensor::<f32, B>::from_slice_on([1_usize, 4, 4], &[42.0_f32; 4 * 4], &device);
     let image = Image::new(

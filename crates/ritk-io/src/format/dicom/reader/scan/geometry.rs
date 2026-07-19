@@ -50,7 +50,7 @@ pub(super) fn sort_slices_spatially(
 
 /// GantryDetectorTilt synthesis (GAP-R62-01):
 ///
-/// When IOP is absent or effectively axial and `|tilt| > 0.01Â°`, synthesize
+/// When IOP is absent or effectively axial and `|tilt| > 0.01°`, synthesize
 /// an oblique IOP from the tilt angle.
 pub(super) fn synthesize_gantry_tilt(slices: &mut [DicomSliceMetadata]) {
     let ref_iop = slices.first().and_then(|s| s.image_orientation_patient);
@@ -164,7 +164,7 @@ pub(super) fn compute_spacing_z(
     }
 }
 
-/// Assemble the 3Ã—3 direction cosine matrix (row-major `[f64; 9]`).
+/// Assemble the 3×3 direction cosine matrix (row-major `[f64; 9]`).
 ///
 /// Convention: col 0 = NÌ‚, col 1 = F_c, col 2 = F_r.
 pub(super) fn assemble_direction(slices: &[DicomSliceMetadata]) -> [f64; 9] {

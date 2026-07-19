@@ -10,12 +10,12 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 ///
 /// Convention:
 /// - Background voxels: `+dist` (positive = outside the object)
-/// - Foreground voxels: `âˆ’dist` (negative = inside the object, distance to nearest background)
+/// - Foreground voxels: `−dist` (negative = inside the object, distance to nearest background)
 ///
 /// # Mathematical Specification
 ///
-/// `SEDT(x) = EDT_bg(x)` if `in(x) â‰¤ threshold` (outside object)
-/// `SEDT(x) = âˆ’EDT_fg(x)` if `in(x) > threshold` (inside object)
+/// `SEDT(x) = EDT_bg(x)` if `in(x) ≤ threshold` (outside object)
+/// `SEDT(x) = −EDT_fg(x)` if `in(x) > threshold` (inside object)
 ///
 /// where `EDT_bg` = distance to nearest background voxel **centre**, `EDT_fg` =
 /// distance to nearest foreground voxel **centre**.
@@ -23,10 +23,10 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 /// # Parity
 ///
 /// Float-exact to `scipy.ndimage.distance_transform_edt` applied to each region
-/// (signed: `âˆ’edt(mask)` inside, `+edt(Â¬mask)` outside), with `UseImageSpacing`.
-/// This is **distance to the nearest opposite-class voxel centre** â€” it does NOT
+/// (signed: `−edt(mask)` inside, `+edt(¬mask)` outside), with `UseImageSpacing`.
+/// This is **distance to the nearest opposite-class voxel centre** — it does NOT
 /// match ITK `SignedMaurerDistanceMapImageFilter`, which measures distance to the
-/// object *boundary/interface* (the two differ by up to âˆš2 voxel; an earlier doc
+/// object *boundary/interface* (the two differ by up to √2 voxel; an earlier doc
 /// claimed Maurer parity in error).
 #[derive(Debug, Clone)]
 pub struct SignedDistanceTransformImageFilter {

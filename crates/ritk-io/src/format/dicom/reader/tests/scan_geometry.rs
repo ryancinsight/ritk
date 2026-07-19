@@ -36,7 +36,7 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
     std::fs::create_dir_all(&mixed).unwrap();
 
     let device = B::default();
-    let data = vec![500.0f32; 4]; // 1Ã—2Ã—2
+    let data = vec![500.0f32; 4]; // 1×2×2
 
     // Axial series: IOP=[1,0,0,0,1,0], normal=[0,0,1], origin=[0,0,0].
     // IPP for slice 0 = [0,0,0].
@@ -82,8 +82,8 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
     }
 
     // Coronal series: IOP=[1,0,0,0,0,-1], normal=[0,1,0], origin=[0,1,0].
-    // IPP for slice 0 = origin + 0Ã—spacingÃ—normal = [0,1,0].
-    // Projected onto any normal: axial IPP=0 â‰¤ coronal IPPâ‰¥0 â†’ axial sorts first.
+    // IPP for slice 0 = origin + 0×spacing×normal = [0,1,0].
+    // Projected onto any normal: axial IPP=0 ≤ coronal IPP≥0 → axial sorts first.
     {
         let tensor = Tensor::<f32, B>::from_slice_on([1usize, 2, 2], &(data.clone()), &device);
         let image = Image::<f32, B, 3>::new(
@@ -148,7 +148,7 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
 
     // Canonical IOP is the first (lowest-position) slice after sort = axial.
     // Axial IPP=[0,0,0] projects to 0 along any normal; coronal IPP=[0,1,0]
-    // projects to â‰¥0; when equal, filename tiebreak puts slice_0000 (axial) first.
+    // projects to ≥0; when equal, filename tiebreak puts slice_0000 (axial) first.
     // RITK direction[0..3] = NÌ‚ for axial = [0,0,1]; direction[3..6] = F_c = [0,1,0].
     let expected_dir_prefix = [0.0f64, 0.0, 1.0, 0.0, 1.0, 0.0];
     let tol = 1e-5_f64;
@@ -159,7 +159,7 @@ fn test_scan_directory_warns_on_inconsistent_iop() {
     {
         assert!(
             (actual - expected).abs() < tol,
-            "direction[{i}] must be {expected:.1} Â± 1e-5 (axial: NÌ‚=[0,0,1], F_c=[0,1,0]); got {actual}"
+            "direction[{i}] must be {expected:.1} ± 1e-5 (axial: NÌ‚=[0,0,1], F_c=[0,1,0]); got {actual}"
         );
     }
 }
@@ -179,7 +179,7 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
     std::fs::create_dir_all(&mixed).unwrap();
 
     let device = B::default();
-    let data = vec![500.0f32; 4]; // 1Ã—2Ã—2
+    let data = vec![500.0f32; 4]; // 1×2×2
 
     // Series A: pixel_spacing=[0.8,0.8], origin=[0,0,0], IPP=[0,0,0].
     {
@@ -291,16 +291,16 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
     );
 
     // spacing[1] and spacing[2] reflect the first slice's pixel spacing (0.8 mm).
-    // RITK convention: spacing = [Î”z, Î”Row, Î”Col].
+    // RITK convention: spacing = [Δz, ΔRow, ΔCol].
     let tol = 1e-5_f64;
     assert!(
         (info.metadata.spacing[1] - 0.8).abs() < tol,
-        "spacing[1] (Î”Row) must be 0.8 Â± 1e-5 (first slice pixel spacing row); got {}",
+        "spacing[1] (ΔRow) must be 0.8 ± 1e-5 (first slice pixel spacing row); got {}",
         info.metadata.spacing[1]
     );
     assert!(
         (info.metadata.spacing[2] - 0.8).abs() < tol,
-        "spacing[2] (Î”Col) must be 0.8 Â± 1e-5 (first slice pixel spacing col); got {}",
+        "spacing[2] (ΔCol) must be 0.8 ± 1e-5 (first slice pixel spacing col); got {}",
         info.metadata.spacing[2]
     );
 }
@@ -308,8 +308,8 @@ fn test_scan_directory_warns_on_inconsistent_pixel_spacing() {
 #[test]
 fn test_physical_transform_depth_index_advances_along_slice_normal() {
     // Invariant: advancing the depth index by 1 must move the physical point by exactly
-    // Î”z along the slice normal NÌ‚. With spacing=[Î”z, Î”Row, Î”Col] and direction
-    // cols=[NÌ‚, F_c, F_r]: point(1,0,0) = origin + 1*Î”z*NÌ‚.
+    // Δz along the slice normal NÌ‚. With spacing=[Δz, ΔRow, ΔCol] and direction
+    // cols=[NÌ‚, F_c, F_r]: point(1,0,0) = origin + 1*Δz*NÌ‚.
     use ritk_image::tensor::{Shape, Tensor};
     use ritk_spatial::{Direction, Point, Spacing};
     type B = coeus_core::SequentialBackend;
@@ -317,10 +317,10 @@ fn test_physical_transform_depth_index_advances_along_slice_normal() {
 
     let device = B::default();
     let tensor = Tensor::<f32, B>::from_slice_on([2, 4, 4], &[0.0f32; 2 * 4 * 4], &device);
-    // Axial: NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0], Î”z=2.5, Î”Row=0.8, Î”Col=0.8
+    // Axial: NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0], Δz=2.5, ΔRow=0.8, ΔCol=0.8
     let origin = Point::new([10.0, 20.0, -50.0]);
     let spacing = Spacing::new([2.5, 0.8, 0.8]);
-    // direction from_column_major([0,0,1, 0,1,0, 1,0,0]) â€” axial RITK convention
+    // direction from_column_major([0,0,1, 0,1,0, 1,0,0]) — axial RITK convention
     let dir = Direction::from_column_major([
         0.0, 0.0, 1.0, // col 0 = NÌ‚
         0.0, 1.0, 0.0, // col 1 = F_c
@@ -335,7 +335,7 @@ fn test_physical_transform_depth_index_advances_along_slice_normal() {
     assert!((p0[1] - 20.0).abs() < TOL, "origin y; got {}", p0[1]);
     assert!((p0[2] + 50.0).abs() < TOL, "origin z; got {}", p0[2]);
 
-    // Voxel (1,0,0): depth=1 â†’ origin + 2.5*[0,0,1] = [10,20,-47.5]
+    // Voxel (1,0,0): depth=1 → origin + 2.5*[0,0,1] = [10,20,-47.5]
     let p1 = image.transform_continuous_index_to_physical_point(&Point::new([1.0, 0.0, 0.0]));
     assert!(
         (p1[0] - 10.0).abs() < TOL,
@@ -353,7 +353,7 @@ fn test_physical_transform_depth_index_advances_along_slice_normal() {
         p1[2]
     );
 
-    // Voxel (0,1,0): row=1 â†’ origin + 0.8*F_c = origin + 0.8*[0,1,0]
+    // Voxel (0,1,0): row=1 → origin + 0.8*F_c = origin + 0.8*[0,1,0]
     let p2 = image.transform_continuous_index_to_physical_point(&Point::new([0.0, 1.0, 0.0]));
     assert!((p2[0] - 10.0).abs() < TOL, "row=1: x stays; got {}", p2[0]);
     assert!(
@@ -363,7 +363,7 @@ fn test_physical_transform_depth_index_advances_along_slice_normal() {
     );
     assert!((p2[2] + 50.0).abs() < TOL, "row=1: z stays; got {}", p2[2]);
 
-    // Voxel (0,0,1): col=1 â†’ origin + 0.8*F_r = origin + 0.8*[1,0,0]
+    // Voxel (0,0,1): col=1 → origin + 0.8*F_r = origin + 0.8*[1,0,0]
     let p3 = image.transform_continuous_index_to_physical_point(&Point::new([0.0, 0.0, 1.0]));
     assert!(
         (p3[0] - 10.8).abs() < TOL,

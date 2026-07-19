@@ -10,22 +10,22 @@ use ritk_segmentation::GeodesicActiveContourSegmentation;
 #[pyclass(name = "GeodesicActiveContourOptions")]
 #[derive(Clone)]
 pub struct PyGacOptions {
-    /// Balloon force Î½ (expansion if > 0).
+    /// Balloon force ν (expansion if > 0).
     #[pyo3(get, set)]
     pub propagation_weight: f64,
     /// Weight on curvature regularisation.
     #[pyo3(get, set)]
     pub curvature_weight: f64,
-    /// Weight on âˆ‡gÂ·âˆ‡Ï† edge attraction.
+    /// Weight on ∇g·∇φ edge attraction.
     #[pyo3(get, set)]
     pub advection_weight: f64,
     /// Edge stopping sensitivity parameter k.
     #[pyo3(get, set)]
     pub edge_k: f64,
-    /// Gaussian pre-smoothing Ïƒ for gradient.
+    /// Gaussian pre-smoothing σ for gradient.
     #[pyo3(get, set)]
     pub sigma: f64,
-    /// Euler forward time step Î”t.
+    /// Euler forward time step Δt.
     #[pyo3(get, set)]
     pub dt: f64,
     /// Maximum PDE iterations.
@@ -67,11 +67,11 @@ impl PyGacOptions {
 /// Args:
 ///     image: Input PyImage.
 ///     initial_phi: Initial level set function PyImage (same shape as image).
-///         Ï† < 0 inside the initial contour, Ï† > 0 outside.
+///         φ < 0 inside the initial contour, φ > 0 outside.
 ///     opts: `GeodesicActiveContourOptions` controlling PDE parameters.
 ///
 /// Returns:
-///     Binary mask PyImage (1.0 where Ï† < 0, 0.0 elsewhere).
+///     Binary mask PyImage (1.0 where φ < 0, 0.0 elsewhere).
 ///
 /// Raises:
 ///     RuntimeError: if image and initial_phi shapes do not match.

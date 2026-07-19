@@ -16,8 +16,8 @@ use crate::format::dicom::writer::utils::{generate_series_uid, MONOCHROME2};
 /// # Invariants
 /// - SOP Class UID = 1.2.840.10008.5.1.4.1.1.66.4 (Segmentation Storage).
 /// - BitsAllocated = 1 (BINARY) or 8 (FRACTIONAL) based on `seg.bits_allocated`.
-/// - BINARY pixel data is packed MSB-first within each byte per DICOM PS3.5 Â§8.2:
-///   pixel i â†’ byte = i/8, bit = 7-(i%8).
+/// - BINARY pixel data is packed MSB-first within each byte per DICOM PS3.5 §8.2:
+///   pixel i → byte = i/8, bit = 7-(i%8).
 /// - `seg.pixel_data.len()` must equal `seg.n_frames`.
 /// - Each `seg.pixel_data[f].len()` must equal `seg.rows * seg.cols`.
 pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Result<()> {
@@ -51,7 +51,7 @@ pub fn write_dicom_seg<P: AsRef<Path>>(path: P, seg: &DicomSegmentation) -> Resu
     let study_instance_uid = generate_series_uid();
     let series_instance_uid = generate_series_uid();
 
-    // BINARY: MSB-first packing â€” inverse of unpack_pixel_data (BitsAllocated == 1).
+    // BINARY: MSB-first packing — inverse of unpack_pixel_data (BitsAllocated == 1).
     // FRACTIONAL: raw byte-per-pixel concatenation (BitsAllocated == 8).
     let pixel_bytes: Vec<u8> = match seg.bits_allocated {
         1 => {

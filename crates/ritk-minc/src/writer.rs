@@ -5,14 +5,14 @@
 //! ```text
 //! / (root)
 //!   Attributes: ident, minc_version
-//!   Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ minc-2.0/ (group)
-//!       Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ dimensions/ (group)
-//!       Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ xspace (group, attrs: start, step, length, direction_cosines)
-//!       Ã¢â€â€š   Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ yspace (group, same attrs)
-//!       Ã¢â€â€š   Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ zspace (group, same attrs)
-//!       Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ image/ (group)
-//!           Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ 0/ (group)
-//!               Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ image (dataset: f32 voxel data, contiguous layout)
+//!   └── minc-2.0/ (group)
+//!       ├── dimensions/ (group)
+//!       │   ├── xspace (group, attrs: start, step, length, direction_cosines)
+//!       │   ├── yspace (group, same attrs)
+//!       │   └── zspace (group, same attrs)
+//!       └── image/ (group)
+//!           └── 0/ (group)
+//!               └── image (dataset: f32 voxel data, contiguous layout)
 //!                   Attributes: dimorder, valid_range, signtype, complete
 //! ```
 //!
@@ -31,7 +31,7 @@ use crate::hdf5_binary::write_minc2_hdf5;
 use anyhow::{bail, Result};
 use std::path::Path;
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Public API Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Public API ────────────────────────────────────────────────────────────
 
 /// Write a 3-D `Image` as a MINC2 (.mnc) HDF5 file.
 ///

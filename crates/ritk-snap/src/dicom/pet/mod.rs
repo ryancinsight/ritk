@@ -6,13 +6,13 @@
 //! DICOM PET fields) and [`super::suv::SuvParams`] (which performs the SUVbw
 //! formula). All field validation and decay-correction mode dispatch live here.
 //!
-//! # Decay correction modes (DICOM PS3.3 Â§C.8.9.1)
+//! # Decay correction modes (DICOM PS3.3 §C.8.9.1)
 //!
 //! | (0054,1102) value | Meaning                                  | Decay factor |
 //! |-------------------|------------------------------------------|--------------|
 //! | `"START"`         | Corrected to series start (injection)    | 1.0          |
 //! | `"ADMIN"`         | Corrected to administration time         | 1.0          |
-//! | `"NONE"`          | Raw pixel activity at scan acquisition   | exp(âˆ’Î»Î”t)    |
+//! | `"NONE"`          | Raw pixel activity at scan acquisition   | exp(−λΔt)    |
 //!
 //! # Usage
 //!
@@ -25,7 +25,7 @@
 use super::suv::{compute_suvbw, SuvParams};
 use crate::LoadedVolume;
 
-// â”€â”€ DecayCorrectionKind â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── DecayCorrectionKind ───────────────────────────────────────────────────────
 
 /// Pixel decay-correction mode as encoded in DICOM (0054,1102).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,8 +41,8 @@ pub enum DecayCorrectionKind {
 impl DecayCorrectionKind {
     /// Parse a DICOM (0054,1102) Decay Correction string (case-sensitive, per PS3.3).
     ///
-    /// "START" â†’ [`Start`][Self::Start], "ADMIN" â†’ [`Admin`][Self::Admin],
-    /// anything else (including "NONE" and absent) â†’ [`None`][Self::None].
+    /// "START" → [`Start`][Self::Start], "ADMIN" → [`Admin`][Self::Admin],
+    /// anything else (including "NONE" and absent) → [`None`][Self::None].
     pub fn from_dicom_str(s: &str) -> Self {
         match s.trim() {
             "START" => Self::Start,
@@ -52,7 +52,7 @@ impl DecayCorrectionKind {
     }
 }
 
-// â”€â”€ PetAcquisitionParams â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── PetAcquisitionParams ──────────────────────────────────────────────────────
 
 /// Acquisition parameters required for SUVbw normalisation of a PET series.
 ///
@@ -60,7 +60,7 @@ impl DecayCorrectionKind {
 ///
 /// All numeric fields are strictly positive (enforced by
 /// [`from_loaded_volume`][Self::from_loaded_volume], which returns `None` when
-/// any required field is absent or â‰¤ 0).
+/// any required field is absent or ≤ 0).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PetAcquisitionParams {
     /// Patient body weight \[kg\]. Converted to \[g\] internally for `SuvParams`.
@@ -77,7 +77,7 @@ impl PetAcquisitionParams {
     /// Attempt to construct from a [`LoadedVolume`].
     ///
     /// Returns `None` when any of `patient_weight_kg`, `injected_dose_bq`, or
-    /// `radionuclide_half_life_s` is absent or â‰¤ 0.
+    /// `radionuclide_half_life_s` is absent or ≤ 0.
     ///
     /// `decay_correction` defaults to [`DecayCorrectionKind::None`] when the
     /// DICOM field is absent.
@@ -148,13 +148,13 @@ impl PetAcquisitionParams {
     }
 }
 
-// â”€â”€ DICOM TM time-field parsing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── DICOM TM time-field parsing ───────────────────────────────────────────────
 
 /// Parse a DICOM TM value string (HH[MM[SS[.FFFFFF]]]) to seconds since midnight.
 ///
-/// DICOM PS3.5 Â§6.2 TM format: each integer component is exactly 2 ASCII digits.
+/// DICOM PS3.5 §6.2 TM format: each integer component is exactly 2 ASCII digits.
 /// Returns `None` when the string is malformed, has non-digit characters in the
-/// integer part, or the hours component is â‰¥ 24.
+/// integer part, or the hours component is ≥ 24.
 pub fn parse_dicom_tm(s: &str) -> Option<f64> {
     let s = s.trim();
     if s.len() < 2 {
@@ -203,7 +203,7 @@ pub fn parse_dicom_tm(s: &str) -> Option<f64> {
 /// Compute elapsed time \[s\] from radiopharmaceutical injection to series acquisition.
 ///
 /// Handles midnight rollover: if `series_time_s < rph_start_s`, the scan crossed
-/// midnight and 86 400 s is added. Result âˆˆ [0, 86 400).
+/// midnight and 86 400 s is added. Result ∈ [0, 86 400).
 pub fn compute_delta_t_s(rph_start_s: f64, series_time_s: f64) -> f64 {
     let diff = series_time_s - rph_start_s;
     if diff < 0.0 {

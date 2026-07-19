@@ -6,11 +6,11 @@
 //!
 //! The bending energy term is:
 //!
-//! R(u) = âˆ«_Î© [|âˆ‚Â²u/âˆ‚xÂ²|Â² + |âˆ‚Â²u/âˆ‚yÂ²|Â² + 2|âˆ‚Â²u/âˆ‚xâˆ‚y|Â²] dx  (2D)
+//! R(u) = ∫_Ω [|∂²u/∂x²|² + |∂²u/∂y²|² + 2|∂²u/∂x∂y|²] dx  (2D)
 //!
-//! R(u) = âˆ«_Î© [|âˆ‡Â²u|Â²] dx  (simplified form)
+//! R(u) = ∫_Ω [|∇²u|²] dx  (simplified form)
 //!
-//! where âˆ‡Â²u is the Laplacian of the displacement field.
+//! where ∇²u is the Laplacian of the displacement field.
 //!
 //! This is also known as:
 //! - Thin-plate bending energy

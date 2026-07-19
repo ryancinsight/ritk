@@ -30,14 +30,14 @@
 //!
 //! ```text
 //! ritk-registration (unified crate)
-//! â”œâ”€â”€ classical/     - Non-ML algorithms
-//! â”‚   â”œâ”€â”€ engine/    - Registration orchestrator
-//! â”‚   â”œâ”€â”€ error.rs   - Error types
-//! â”‚   â”œâ”€â”€ spatial/   - Kabsch SVD, transforms
-//! â”‚   â””â”€â”€ temporal/  - Temporal sync
-//! â”œâ”€â”€ metric/        - Coeus differentiable operations
-//! â”œâ”€â”€ regularization/ - Regularization terms
-//! â””â”€â”€ validation/   - Quality metrics
+//! ├── classical/     - Non-ML algorithms
+//! │   ├── engine/    - Registration orchestrator
+//! │   ├── error.rs   - Error types
+//! │   ├── spatial/   - Kabsch SVD, transforms
+//! │   └── temporal/  - Temporal sync
+//! ├── metric/        - Coeus differentiable operations
+//! ├── regularization/ - Regularization terms
+//! └── validation/   - Quality metrics
 //! ```
 
 pub mod atlas;
@@ -55,14 +55,14 @@ pub mod types;
 pub mod validation;
 
 // ============================================================================
-// Re-exports â€” SSOT for quality metrics
+// Re-exports — SSOT for quality metrics
 // ============================================================================
 pub use error::{RegistrationError, Result};
 pub use types::AffineTransform;
 pub use validation::{NumericalCheck, ShapeValidation, ValidationConfig};
 
 // ============================================================================
-// Re-exports â€” Demons-family deformable registration
+// Re-exports — Demons-family deformable registration
 // ============================================================================
 pub use demons::{
     DemonsConfig, DemonsResult, DiffeomorphicDemonsRegistration, InverseConsistentDemonsConfig,
@@ -72,12 +72,12 @@ pub use demons::{
 };
 
 // ============================================================================
-// Re-exports â€” B-Spline FFD registration
+// Re-exports — B-Spline FFD registration
 // ============================================================================
 pub use bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, BSplineFFDResult};
 
 // ============================================================================
-// Re-exports â€” SyN diffeomorphic registration
+// Re-exports — SyN diffeomorphic registration
 // ============================================================================
 pub use deformable_field_ops::{
     warp_image, CpuFieldSmoother, CpuOrGpu, FieldSmoother, GpuFieldSmoother, VelocityField,
@@ -86,18 +86,18 @@ pub use deformable_field_ops::{
 pub use diffeomorphic::{SyNConfig, SyNRegistration, SyNResult};
 
 // ============================================================================
-// Re-exports â€” Multi-Resolution SyN and BSpline SyN
+// Re-exports — Multi-Resolution SyN and BSpline SyN
 // ============================================================================
 pub use diffeomorphic::bspline_syn::{BSplineSyNConfig, BSplineSyNRegistration, BSplineSyNResult};
 pub use diffeomorphic::multires_syn::{MultiResSyNConfig, MultiResSyNRegistration};
 
 // ============================================================================
-// Re-exports â€” LDDMM registration
+// Re-exports — LDDMM registration
 // ============================================================================
 pub use lddmm::{LddmmConfig, LddmmRegistration, LddmmResult};
 
 // ============================================================================
-// Re-exports â€” Atlas / Groupwise registration + Label Fusion
+// Re-exports — Atlas / Groupwise registration + Label Fusion
 // ============================================================================
 pub use atlas::label_fusion::{
     joint_label_fusion, majority_vote, LabelFusionConfig, LabelFusionResult,
@@ -105,7 +105,7 @@ pub use atlas::label_fusion::{
 pub use atlas::{AtlasConfig, AtlasRegistration, AtlasResult, SubjectResult};
 
 // ============================================================================
-// Re-exports â€” Classical (non-ML) registration
+// Re-exports — Classical (non-ML) registration
 // ============================================================================
 pub use classical::{
     register_translation, ImageRegistration, MeanSquaredDifference, NormalizedCrossCorrelation,
@@ -114,12 +114,12 @@ pub use classical::{
 };
 
 // ============================================================================
-// Re-exports â€” atlas / label-map transfer (apply a transform to a label map)
+// Re-exports — atlas / label-map transfer (apply a transform to a label map)
 // ============================================================================
 pub use label_transfer::{label_centroids, warp_label_map};
 
 // ============================================================================
-// Re-exports â€” ANTs preprocessing pipeline
+// Re-exports — ANTs preprocessing pipeline
 // ============================================================================
 pub mod preprocessing;
 pub use preprocessing::{

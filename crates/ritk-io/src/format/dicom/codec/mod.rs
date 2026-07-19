@@ -12,7 +12,7 @@
 //!   LE reassembly). This bypasses `dicom-transfer-syntax-registry v0.8.2`,
 //!   which has an off-by-one write-start offset (`start = 1` instead of `0`)
 //!   for 8-bit grayscale images, silently corrupting `pixel[0]` and losing
-//!   `pixel[Nâˆ’1]` for any file where `pixel[0] â‰  0`.
+//!   `pixel[N−1]` for any file where `pixel[0] ≠ 0`.
 //! - **JPEG-LS (lossless + near-lossless), JPEG 2000, and RLE Lossless**:
 //!   dispatched through `ritk-dicom::NativeCodecBackend`.
 //! - **Remaining external compressed transfer syntaxes**: calls the configured
@@ -38,18 +38,18 @@
 //! # Mathematical contract
 //!
 //! `decode_compressed_frame(obj, f, bits, repr, slope, intercept)`:
-//!   `Output[i] = codec_sample[i] Ã— slope + intercept`
+//!   `Output[i] = codec_sample[i] × slope + intercept`
 //!
 //! where `codec_sample[i]` is the integer produced by the codec for pixel i.
 //! Identical semantics to `decode_pixel_bytes` (DICOM PS3.3 C.7.6.3.1.4).
-//! - JPEG Extended tolerance: `|decoded[i] âˆ’ original[i]| â‰¤ 16` (same Q75 bound as Baseline).
-//! - RLE Lossless exact fidelity: `max|decoded[i] âˆ’ original[i]| = 0` (lossless by spec).
+//! - JPEG Extended tolerance: `|decoded[i] − original[i]| ≤ 16` (same Q75 bound as Baseline).
+//! - RLE Lossless exact fidelity: `max|decoded[i] − original[i]| = 0` (lossless by spec).
 //!
 //! # Invariants
 //!
-//! - `is_codec_supported() âŸ¹ is_compressed()`: codec path only for compressed TS.
-//! - `is_natively_supported() âŸ¹ !is_codec_supported()`: disjoint decode paths.
-//! - Output length equals `rows Ã— cols` for a single-frame decode.
+//! - `is_codec_supported() ⟹ is_compressed()`: codec path only for compressed TS.
+//! - `is_natively_supported() ⟹ !is_codec_supported()`: disjoint decode paths.
+//! - Output length equals `rows × cols` for a single-frame decode.
 //! - Rescale is always applied; identity rescale (slope=1, intercept=0) is valid.
 
 #[cfg(test)]
@@ -70,12 +70,12 @@ use ritk_dicom::{
 /// - `frame_idx`: zero-based frame index (0 for single-frame objects).
 /// - `bits_allocated`: from (0028,0100); drives byte interpretation in `decode_pixel_bytes`.
 /// - `pixel_representation`: from (0028,0103); unsigned or signed.
-/// - `slope`: RescaleSlope from (0028,1053); absent â‡’ 1.0.
-/// - `intercept`: RescaleIntercept from (0028,1052); absent â‡’ 0.0.
+/// - `slope`: RescaleSlope from (0028,1053); absent ⇒ 1.0.
+/// - `intercept`: RescaleIntercept from (0028,1052); absent ⇒ 0.0.
 ///
 /// # Returns
 ///
-/// `Vec<f32>` of length `rows Ã— cols` with modality LUT applied.
+/// `Vec<f32>` of length `rows × cols` with modality LUT applied.
 ///
 /// # Errors
 ///

@@ -4,27 +4,27 @@
 //!
 //! SyN (Avants et al. 2008) minimises the symmetric energy:
 //!
-//!   E(Ï†â‚, Ï†â‚‚) = D(Iâˆ˜Ï†â‚â»Â¹, Jâˆ˜Ï†â‚‚â»Â¹) + Reg(Ï†â‚) + Reg(Ï†â‚‚)
+//!   E(φ₁, φ₂) = D(I∘φ₁⁻¹, J∘φ₂⁻¹) + Reg(φ₁) + Reg(φ₂)
 //!
-//! where Ï†â‚ (fixedâ†’midpoint) and Ï†â‚‚ (movingâ†’midpoint) are independently evolved
+//! where φ₁ (fixed→midpoint) and φ₂ (moving→midpoint) are independently evolved
 //! diffeomorphisms.  The **greedy SyN** variant (implemented here) uses
 //! first-order gradient descent on the local cross-correlation (CC) metric and
 //! represents each diffeomorphism as the exponential map of a stationary velocity
 //! field, computed via scaling-and-squaring.
 //!
-//! **Local CC gradient** (Avants 2008, eq. 10) for force on Ï†â‚:
+//! **Local CC gradient** (Avants 2008, eq. 10) for force on φ₁:
 //!
-//!   `fz[p] = [(J_w[p]âˆ’Î¼_J)/(Ïƒ_IÂ·Ïƒ_J) âˆ’ CCÂ·(I_w[p]âˆ’Î¼_I)/Ïƒ_IÂ²] Â· gIz[p]`
+//!   `fz[p] = [(J_w[p]−μ_J)/(σ_I·σ_J) − CC·(I_w[p]−μ_I)/σ_I²] · gIz[p]`
 //!
-//! where cc_num = Î£_{qâˆˆW}(I_w(q)-Î¼_I)(J_w(q)-Î¼_J), Ïƒ_I = sqrt(Î£_{qâˆˆW}(I_w(q)-Î¼_I)Â²),
-//! Ïƒ_J = sqrt(Î£_{qâˆˆW}(J_w(q)-Î¼_J)Â²), CC = cc_num / (Ïƒ_IÂ·Ïƒ_J), and W is the local
+//! where cc_num = Σ_{q∈W}(I_w(q)-μ_I)(J_w(q)-μ_J), σ_I = sqrt(Σ_{q∈W}(I_w(q)-μ_I)²),
+//! σ_J = sqrt(Σ_{q∈W}(J_w(q)-μ_J)²), CC = cc_num / (σ_I·σ_J), and W is the local
 //! window of radius r.
 //!
 //! # References
 //! - Avants, B. B., Epstein, C. L., Grossman, M. & Gee, J. C. (2008).
 //!   Symmetric diffeomorphic image registration with cross-correlation:
 //!   Evaluating automated labeling of elderly and neurodegenerative brain.
-//!   *Medical Image Analysis* 12(1):26â€“41.
+//!   *Medical Image Analysis* 12(1):26–41.
 
 pub mod bspline_syn;
 pub mod local_cc;
@@ -35,7 +35,7 @@ pub use bspline_syn::{BSplineSyNConfig, BSplineSyNRegistration, BSplineSyNResult
 pub use multires_syn::{InverseConsistency, MultiResSyNConfig, MultiResSyNRegistration};
 pub use syn_core::{SyNRegistration, SyNResult};
 
-// â”€â”€ Configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Configuration ─────────────────────────────────────────────────────────────
 
 /// Configuration for SyN (Symmetric Normalization) registration.
 #[derive(Debug, Clone)]

@@ -25,10 +25,10 @@ fn radius_zero_is_identity() {
     assert_eq!(flat(&out), vals);
 }
 
-/// T2: Single foreground voxel dilates to (2r+1)Â³ cube.
+/// T2: Single foreground voxel dilates to (2r+1)³ cube.
 ///
-/// 1Ã—1Ã—5 image with fg at centre (index 2), r=1:
-/// Expected output: [0, fg, fg, fg, 0] â€” centre Â± 1.
+/// 1×1×5 image with fg at centre (index 2), r=1:
+/// Expected output: [0, fg, fg, fg, 0] — centre ± 1.
 #[test]
 fn single_voxel_dilates_to_cube() {
     let img = make_image(vec![0.0, 0.0, 1.0, 0.0, 0.0], [1, 1, 5]);
@@ -36,7 +36,7 @@ fn single_voxel_dilates_to_cube() {
     assert_eq!(flat(&out), vec![0.0, 1.0, 1.0, 1.0, 0.0]);
 }
 
-/// T3: r=1 on a 1Ã—1Ã—5 image, fg at index 0 â€” cannot dilate left (border).
+/// T3: r=1 on a 1×1×5 image, fg at index 0 — cannot dilate left (border).
 /// Expected: [fg, fg, 0, 0, 0].
 #[test]
 fn border_dilation_bounded_by_image_edge() {
@@ -45,7 +45,7 @@ fn border_dilation_bounded_by_image_edge() {
     assert_eq!(flat(&out), vec![1.0, 1.0, 0.0, 0.0, 0.0]);
 }
 
-/// T4: All-background image â†’ all background after dilation.
+/// T4: All-background image → all background after dilation.
 #[test]
 fn all_background_unchanged() {
     let img = make_image(vec![0.0; 8], [2, 2, 2]);
@@ -53,7 +53,7 @@ fn all_background_unchanged() {
     assert!(flat(&out).iter().all(|&v| v == 0.0));
 }
 
-/// T5: All-foreground image â†’ all foreground after dilation.
+/// T5: All-foreground image → all foreground after dilation.
 #[test]
 fn all_foreground_unchanged() {
     let img = make_image(vec![1.0; 8], [2, 2, 2]);
@@ -74,15 +74,15 @@ fn custom_foreground_value() {
 
 /// T7: Dilation produces a known analytically correct output.
 ///
-/// Input `f = [0, 0, 1, 0, 0]` in 1Ã—1Ã—5.  With r=1, each voxel is fg if
+/// Input `f = [0, 0, 1, 0, 0]` in 1×1×5.  With r=1, each voxel is fg if
 /// EXISTS an in-bounds X-neighbour that is fg (Z/Y neighbours are OOB at
-/// nz=ny=1, but dilation only requires EXISTS â€” OOB does not contribute fg).
+/// nz=ny=1, but dilation only requires EXISTS — OOB does not contribute fg).
 ///
-/// Voxel (0,0,0): in-bounds X-neighbours = {(0,0,0)=0,(0,0,1)=0} â†’ no fg â†’ bg.
-/// Voxel (0,0,1): in-bounds X-neighbour (0,0,2) = 1 â†’ fg.
-/// Voxel (0,0,2): self = 1 â†’ fg.
-/// Voxel (0,0,3): in-bounds X-neighbour (0,0,2) = 1 â†’ fg.
-/// Voxel (0,0,4): in-bounds X-neighbours = {(0,0,3)=0,(0,0,4)=0} â†’ no fg â†’ bg.
+/// Voxel (0,0,0): in-bounds X-neighbours = {(0,0,0)=0,(0,0,1)=0} → no fg → bg.
+/// Voxel (0,0,1): in-bounds X-neighbour (0,0,2) = 1 → fg.
+/// Voxel (0,0,2): self = 1 → fg.
+/// Voxel (0,0,3): in-bounds X-neighbour (0,0,2) = 1 → fg.
+/// Voxel (0,0,4): in-bounds X-neighbours = {(0,0,3)=0,(0,0,4)=0} → no fg → bg.
 ///
 /// Expected: [0, 1, 1, 1, 0].
 #[test]
@@ -93,7 +93,7 @@ fn dilation_known_output() {
     assert_eq!(flat(&out), vec![0.0, 1.0, 1.0, 1.0, 0.0]);
 }
 
-/// Brute-force `(2r+1)Â³` cubic dilation â€” the direct definition, used as the
+/// Brute-force `(2r+1)³` cubic dilation — the direct definition, used as the
 /// differential oracle for the separable implementation.
 fn cubic_reference(data: &[f32], dims: [usize; 3], radius: usize, fg: f32) -> Vec<f32> {
     let [nz, ny, nx] = dims;
@@ -134,7 +134,7 @@ fn cubic_reference(data: &[f32], dims: [usize; 3], radius: usize, fg: f32) -> Ve
 }
 
 /// T9: separable 3-D dilation is bitwise-identical to the brute-force cubic
-/// definition across radii on a non-trivial asymmetric volume (5Ã—6Ã—7) with
+/// definition across radii on a non-trivial asymmetric volume (5×6×7) with
 /// scattered foreground seeds, exercising interior, edge, and corner voxels.
 #[test]
 fn separable_matches_cubic_3d() {

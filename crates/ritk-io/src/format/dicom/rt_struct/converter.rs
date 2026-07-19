@@ -1,4 +1,4 @@
-//! RT ROI converters: [`RtRoiInfo`] â†” [`VtkPolyData`] and label map â†’ [`RtStructureSet`].
+//! RT ROI converters: [`RtRoiInfo`] ↔ [`VtkPolyData`] and label map → [`RtStructureSet`].
 
 use anyhow::{bail, Result};
 
@@ -44,7 +44,7 @@ pub fn rt_roi_to_polydata(roi: &RtRoiInfo) -> VtkPolyData {
     poly
 }
 
-// â”€â”€ Label map â†’ RT Structure Set â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Label map → RT Structure Set ─────────────────────────────────────────────
 
 const DX: [i32; 8] = [1, 1, 0, -1, -1, -1, 0, 1];
 const DY: [i32; 8] = [0, 1, 1, 1, 0, -1, -1, -1];
@@ -117,7 +117,7 @@ fn trace_closed_contour(mask: &[u8], ny: usize, nx: usize) -> Option<Vec<(usize,
 /// `spacing = [dz, dy, dx]` where dz = slice thickness, dy = row spacing,
 /// dx = column spacing.
 ///
-/// `direction` is a flat 3Ã—3 matrix in row-major order:
+/// `direction` is a flat 3×3 matrix in row-major order:
 /// ```text
 /// [ row_x  col_x  slice_x
 ///   row_y  col_y  slice_y

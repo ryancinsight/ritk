@@ -1,6 +1,6 @@
 //! VTK legacy structured points format reader.
 //!
-//! Parses the VTK legacy file format (version 1.0â€“5.1) restricted to
+//! Parses the VTK legacy file format (version 1.0–5.1) restricted to
 //! `DATASET STRUCTURED_POINTS` with scalar point data. Both ASCII and
 //! BINARY encoding are supported.
 //!
@@ -97,7 +97,7 @@ struct VtkHeader {
 /// Returns `(data, dims, origin, spacing)` where:
 /// - `data` is row-major scalar data with X varying fastest, Y next, Z slowest
 ///   (VTK's native storage order, matching RITK's `[nz, ny, nx]` tensor layout).
-/// - `dims` is `[nx, ny, nz]` â€” VTK header `DIMENSIONS` **[X, Y, Z]** order, not
+/// - `dims` is `[nx, ny, nz]` — VTK header `DIMENSIONS` **[X, Y, Z]** order, not
 ///   yet permuted to tensor `[nz, ny, nx]` order.
 /// - `origin` / `spacing` are `[ox, oy, oz]` / `[sx, sy, sz]` in VTK **[X, Y, Z]**
 ///   order, transferring directly to RITK spatial metadata without permutation.
@@ -132,7 +132,7 @@ pub fn read_vtk_flat<P: AsRef<Path>>(
     let expected_voxels = nx
         .checked_mul(ny)
         .and_then(|plane| plane.checked_mul(nz))
-        .with_context(|| format!("VTK DIMENSIONS product overflows usize: {nx}Ã—{ny}Ã—{nz}"))?;
+        .with_context(|| format!("VTK DIMENSIONS product overflows usize: {nx}×{ny}×{nz}"))?;
 
     if header.point_data_n != expected_voxels {
         bail!(
@@ -364,7 +364,7 @@ fn read_binary_scalars(
     // the bytes actually present. `read_exact_bounded` grows the buffer per
     // confirmed chunk and reports truncation rather than aborting on OOM.
     let raw = consus_io::read_exact_bounded(reader, total_bytes).with_context(|| {
-        format!("failed to read {total_bytes} bytes of VTK binary data ({count} voxels Ã— {byte_width} bytes)")
+        format!("failed to read {total_bytes} bytes of VTK binary data ({count} voxels × {byte_width} bytes)")
     })?;
 
     let mut out = Vec::with_capacity(count);

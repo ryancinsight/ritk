@@ -25,6 +25,9 @@
 - Added Coeus host `Cow` materialization at explicit I/O boundaries and
   consolidated CLI and Analyze/DICOM consumers onto the provider-native image
   contract.
+- Level-set reinitialization now rejects non-finite iso-values and image
+  samples with contextual errors instead of panicking during partial-order
+  sorting or applying undefined crossing interpolation.
 - Intensity projections now borrow contiguous Coeus image storage through the
   canonical `Cow` host contract instead of copying the complete input before
   read-only reduction. Non-contiguous views still materialize once in logical

@@ -250,7 +250,7 @@ fn test_single_vertex_cell_roundtrip() {
 
 #[test]
 fn test_mixed_cell_sizes_connectivity_reconstruction() {
-    // Mixing a triangle (3 pts) and a tetra (4 pts) â€” offsets [3, 7].
+    // Mixing a triangle (3 pts) and a tetra (4 pts) — offsets [3, 7].
     let mut g = VtkUnstructuredGrid::new();
     g.points = vec![[0.0; 3]; 5];
     g.cells = vec![vec![0u32, 1, 2], vec![0u32, 1, 2, 3]];

@@ -2,12 +2,12 @@
 //!
 //! # Algorithm
 //! Lorensen, W.E. & Cline, H.E. (1987). Marching Cubes: A High Resolution 3D Surface
-//! Construction Algorithm. SIGGRAPH '87 Proceedings, pp. 163â€“169.
+//! Construction Algorithm. SIGGRAPH '87 Proceedings, pp. 163–169.
 //!
 //! For each axis-aligned voxel cube, the 256-entry edge table maps the binary
 //! above/below-isovalue pattern of the 8 corners to the 12-bit mask of cut edges.
 //! The triangle table maps the same index to up to 5 triangles (15 edge-index slots,
-//! âˆ’1 terminated). Vertex positions are computed by linear interpolation along each
+//! −1 terminated). Vertex positions are computed by linear interpolation along each
 //! cut edge between the two corner physical positions.
 //!
 //! # Coordinate convention
@@ -239,7 +239,7 @@ impl MarchingCubesFilter {
     }
 }
 
-// â”€â”€â”€ Lookup Tables â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Lookup Tables ────────────────────────────────────────────────────────────
 #[path = "mc_tables.rs"]
 mod mc_tables;
 use mc_tables::{EDGE_TABLE, TRI_TABLE};

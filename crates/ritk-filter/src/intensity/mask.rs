@@ -2,13 +2,13 @@
 //!
 //! # Mathematical Specification
 //!
-//! Let `I : Ã¢â€žÂ¤Ã‚Â³ Ã¢â€ â€™ Ã¢â€žÂ` be the input image and `M : Ã¢â€žÂ¤Ã‚Â³ Ã¢â€ â€™ Ã¢â€žÂ` the mask image.
+//! Let `I : ℝ³ → ℝ` be the input image and `M : ℝ³ → ℝ` the mask image.
 //!
 //! **`MaskImageFilter`** (inside mask):
 //! `out(x) = I(x)` if `M(x) > threshold`, else `outside_value`
 //!
 //! **`MaskNegatedImageFilter`** (outside mask):
-//! `out(x) = I(x)` if `M(x) Ã¢â€°Â¤ threshold`, else `outside_value`
+//! `out(x) = I(x)` if `M(x) ≤ threshold`, else `outside_value`
 //!
 //! Default `threshold = 0.5`, `outside_value = 0.0`.
 //! Spatial metadata (origin, spacing, direction) is taken from the input image `I`.
@@ -50,9 +50,9 @@ pub(crate) enum MaskFill {
 /// `on_inactive`. Encoding every family as a single predicate (`mask > thr`)
 /// with a per-branch [`MaskFill`] collapses the three previously-identical zips
 /// to one entry point:
-/// - [`MaskImageFilter`]: active â†’ `Keep`, inactive â†’ `Constant(outside)`.
-/// - [`MaskNegatedImageFilter`]: active â†’ `Constant(outside)`, inactive â†’ `Keep`.
-/// - [`MaskedAssignImageFilter`]: active â†’ `Constant(assign)`, inactive â†’ `Keep`.
+/// - [`MaskImageFilter`]: active → `Keep`, inactive → `Constant(outside)`.
+/// - [`MaskNegatedImageFilter`]: active → `Constant(outside)`, inactive → `Keep`.
+/// - [`MaskedAssignImageFilter`]: active → `Constant(assign)`, inactive → `Keep`.
 pub(crate) fn mask_combine(
     image: &[f32],
     mask: &[f32],
@@ -77,7 +77,7 @@ pub(crate) fn mask_combine(
         .collect()
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ MaskImageFilter Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── MaskImageFilter ───────────────────────────────────────────────────────
 
 /// Retain image values where the mask is active (> threshold); replace elsewhere.
 ///
@@ -139,7 +139,7 @@ impl MaskImageFilter {
     ///
     /// Runs the identical mask selection via the shared `mask_combine` host
     /// core on both images' contiguous host buffers, so the result is
-    /// bitwise-identical to the Burn path. No Burn tensor is constructed.
+    /// bitwise-identical to the Coeus path. No Burn tensor is constructed.
     ///
     /// # Errors
     /// Returns an error on shape mismatch, non-contiguous buffers, or failed
@@ -162,11 +162,11 @@ impl MaskImageFilter {
     }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ MaskNegatedImageFilter Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── MaskNegatedImageFilter ────────────────────────────────────────────────
 
-/// Retain image values where the mask is **inactive** (Ã¢â€°Â¤ threshold); replace elsewhere.
+/// Retain image values where the mask is **inactive** (≤ threshold); replace elsewhere.
 ///
-/// `out(x) = image(x)` if `mask(x) Ã¢â€°Â¤ threshold`, else `outside_value`
+/// `out(x) = image(x)` if `mask(x) ≤ threshold`, else `outside_value`
 ///
 /// # ITK Parity: `MaskNegatedImageFilter`
 #[derive(Debug, Clone)]
@@ -223,7 +223,7 @@ impl MaskNegatedImageFilter {
     /// Coeus-native sister of [`MaskNegatedImageFilter::apply`].
     ///
     /// Runs the identical negated mask selection via the shared `mask_combine`
-    /// host core, bitwise-identical to the Burn path. No Burn tensor is
+    /// host core, bitwise-identical to the Coeus path. No Burn tensor is
     /// constructed.
     ///
     /// # Errors
@@ -247,10 +247,10 @@ impl MaskNegatedImageFilter {
     }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Tests Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Tests ─────────────────────────────────────────────────────────────────
 
 /// Assign `assign_value` where the mask is **active** (> threshold); keep the
-/// image elsewhere â€” the role-inverse of [`MaskImageFilter`].
+/// image elsewhere — the role-inverse of [`MaskImageFilter`].
 ///
 /// `out(x) = assign_value` if `mask(x) > threshold`, else `image(x)`
 ///
@@ -304,7 +304,7 @@ impl MaskedAssignImageFilter {
     /// Coeus-native sister of [`MaskedAssignImageFilter::apply`].
     ///
     /// Runs the identical masked-assign via the shared `mask_combine` host
-    /// core, bitwise-identical to the Burn path. No Burn tensor is constructed.
+    /// core, bitwise-identical to the Coeus path. No Burn tensor is constructed.
     ///
     /// # Errors
     /// Returns an error on shape mismatch, non-contiguous buffers, or failed

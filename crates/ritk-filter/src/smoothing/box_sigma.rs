@@ -3,17 +3,17 @@
 //! # Mathematical Specification
 //!
 //! For per-axis radii `[rz, ry, rx]`, each voxel is replaced by the **sample**
-//! standard deviation (Bessel-corrected, divisor `n âˆ’ 1`) over the axis-aligned
+//! standard deviation (Bessel-corrected, divisor `n − 1`) over the axis-aligned
 //! `(2r+1)` window clipped to the image bounds:
 //!
 //! ```text
-//! W   = ([zâˆ’rz, z+rz] Ã— [yâˆ’ry, y+ry] Ã— [xâˆ’rx, x+rx]) âˆ© image,  n = |W|
-//! out = sqrt( (Î£_{kâˆˆW} I(k)Â² âˆ’ (Î£_{kâˆˆW} I(k))Â² / n) / (n âˆ’ 1) )
+//! W   = ([z−rz, z+rz] × [y−ry, y+ry] × [x−rx, x+rx]) ∩ image,  n = |W|
+//! out = sqrt( (Σ_{k∈W} I(k)² − (Σ_{k∈W} I(k))² / n) / (n − 1) )
 //! ```
 //!
-//! Windows with `n â‰¤ 1` yield `0`. Matches `itk::BoxSigmaImageFilter` /
-//! `sitk.BoxSigma`, which uses the sample (not population) divisor â€” pinned by a
-//! probe: `[10,20,30,40,50]` r=1 â†’ interior `[20,30,40]` gives `10` (sample),
+//! Windows with `n ≤ 1` yield `0`. Matches `itk::BoxSigmaImageFilter` /
+//! `sitk.BoxSigma`, which uses the sample (not population) divisor — pinned by a
+//! probe: `[10,20,30,40,50]` r=1 → interior `[20,30,40]` gives `10` (sample),
 //! not `8.165` (population); the clipped boundary window `[10,20]` gives
 //! `7.071`. Shares the clipped-window/shrink-boundary convention with
 //! [`super::box_mean::BoxMeanImageFilter`].
@@ -22,7 +22,7 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
-/// Box sigma filter â€” clipped-window sample standard deviation
+/// Box sigma filter — clipped-window sample standard deviation
 /// (ITK `BoxSigmaImageFilter`).
 #[derive(Debug, Clone, Copy)]
 pub struct BoxSigmaImageFilter {

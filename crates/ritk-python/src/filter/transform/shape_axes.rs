@@ -91,7 +91,7 @@ pub fn permute_axes(
     .map(into_py_image)
 }
 
-/// Reorient the image to a target DICOM orientation code (`"LPS"`, `"RAI"`, â€¦),
+/// Reorient the image to a target DICOM orientation code (`"LPS"`, `"RAI"`, …),
 /// relabeling the axes consistently across data, spacing, origin, and direction.
 /// ITK Parity: DICOMOrientImageFilter (`sitk.DICOMOrient`).
 #[pyfunction]

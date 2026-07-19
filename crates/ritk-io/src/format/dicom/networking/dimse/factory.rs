@@ -2,10 +2,10 @@
 
 use super::*;
 
-// â”€â”€ Factory methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Factory methods ───────────────────────────────────────────────────────────
 
 impl DimseMessage {
-    /// C-ECHO-RQ. PS3.7 Â§9.1.5.1.
+    /// C-ECHO-RQ. PS3.7 §9.1.5.1.
     pub fn c_echo_rq(message_id: u16) -> Self {
         Self {
             command_set: vec![
@@ -34,7 +34,7 @@ impl DimseMessage {
         }
     }
 
-    /// C-ECHO-RSP. PS3.7 Â§9.1.5.2.
+    /// C-ECHO-RSP. PS3.7 §9.1.5.2.
     pub fn c_echo_rsp(message_id: u16, status: u16) -> Self {
         Self {
             command_set: vec![
@@ -68,7 +68,7 @@ impl DimseMessage {
         }
     }
 
-    /// C-FIND-RQ. PS3.7 Â§9.1.2.1.
+    /// C-FIND-RQ. PS3.7 §9.1.2.1.
     pub fn c_find_rq(message_id: u16, sop_class_uid: &str, identifier: Vec<u8>) -> Self {
         Self {
             command_set: vec![
@@ -107,7 +107,7 @@ impl DimseMessage {
         }
     }
 
-    /// C-FIND-RSP. PS3.7 Â§9.1.2.2.
+    /// C-FIND-RSP. PS3.7 §9.1.2.2.
     pub fn c_find_rsp(
         message_id: u16,
         sop_class_uid: &str,
@@ -147,7 +147,7 @@ impl DimseMessage {
         }
     }
 
-    /// C-STORE-RQ. PS3.7 Â§9.1.1.1.
+    /// C-STORE-RQ. PS3.7 §9.1.1.1.
     pub fn c_store_rq(
         message_id: u16,
         sop_class_uid: &str,
@@ -192,7 +192,7 @@ impl DimseMessage {
         }
     }
 
-    /// C-STORE-RSP. PS3.7 Â§9.1.1.2.
+    /// C-STORE-RSP. PS3.7 §9.1.1.2.
     pub fn c_store_rsp(
         message_id: u16,
         sop_class_uid: &str,
@@ -236,7 +236,7 @@ impl DimseMessage {
         }
     }
 
-    /// C-MOVE-RQ. PS3.7 Â§9.1.3.1.
+    /// C-MOVE-RQ. PS3.7 §9.1.3.1.
     pub fn c_move_rq(
         message_id: u16,
         sop_class_uid: &str,
@@ -280,7 +280,7 @@ impl DimseMessage {
         }
     }
 
-    /// C-MOVE-RSP. PS3.7 Â§9.1.3.2.
+    /// C-MOVE-RSP. PS3.7 §9.1.3.2.
     pub fn c_move_rsp(
         message_id: u16,
         sop_class_uid: &str,

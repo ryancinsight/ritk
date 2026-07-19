@@ -1,4 +1,4 @@
-//! Meijsterâ€“Roerdinkâ€“Hesselink (2000) core EDT routines.
+//! Meijster–Roerdink–Hesselink (2000) core EDT routines.
 //!
 //! Pure mathematical functions: no image I/O, no burn dependency.
 #![forbid(unsafe_code)]
@@ -7,7 +7,7 @@ pub(super) const INF: f64 = 1e30_f64;
 
 /// 1-D first pass: squared 1-D distance to nearest foreground along one axis.
 /// `fg_row[i] = true` iff voxel i is foreground. `s` is the voxel spacing in mm.
-/// Writes squared distances `(dist_mm)Â²` into `out[0..n]`.
+/// Writes squared distances `(dist_mm)²` into `out[0..n]`.
 pub(super) fn phase1_row(fg_row: &[bool], n: usize, s: f64, out: &mut [f64]) {
     // Forward scan: accumulate distance from left-most foreground
     if fg_row[0] {
@@ -41,8 +41,8 @@ pub(super) fn phase1_row(fg_row: &[bool], n: usize, s: f64, out: &mut [f64]) {
 /// overtakes the one centered at `i`, given accumulated squared distances `gi` and `gu`
 /// and spacing `s` in mm.
 ///
-/// Derivation: solve `(xâˆ’i)Â²sÂ² + gi = (xâˆ’u)Â²sÂ² + gu` for x:
-/// `x = (sÂ²(uÂ²âˆ’iÂ²) + gu âˆ’ gi) / (2sÂ²(uâˆ’i))`
+/// Derivation: solve `(x−i)²s² + gi = (x−u)²s² + gu` for x:
+/// `x = (s²(u²−i²) + gu − gi) / (2s²(u−i))`
 #[inline]
 pub(super) fn sep(i: isize, u: isize, gi: f64, gu: f64, s: f64) -> isize {
     let s2 = s * s;
@@ -86,7 +86,7 @@ pub(super) fn meijster_row(
     let mut q: usize = 0;
 
     // Seed the stack with the first finite entry.
-    // INF parabolas (no foreground in upstream pass) are skipped â€” they never
+    // INF parabolas (no foreground in upstream pass) are skipped — they never
     // contribute a finite minimum so they can never become dominant.
     let mut initialized = false;
     for u0 in 0..n {
@@ -178,13 +178,13 @@ pub(crate) fn euclidean_dt_with_measure(
     let [sz, sy, sx] = spacing;
     let n_total = nz * ny * nx;
 
-    // Phase 1: 1-D DT along X for each (iz, iy) row â€” parallel over rows.
+    // Phase 1: 1-D DT along X for each (iz, iy) row — parallel over rows.
     //
     // Each (iz, iy) row is an independent nx-element contiguous chunk of g1:
     // chunk_idx = iz * ny + iy, so iz = chunk_idx / ny, iy = chunk_idx % ny.
     //
     // Safety: `fg` is `&[bool]` (Sync); each closure writes to a disjoint
-    // nx-element chunk of g1 â€” no aliasing across threads.
+    // nx-element chunk of g1 — no aliasing across threads.
     let mut g1 = vec![INF; n_total];
     moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
         &mut g1,
@@ -200,13 +200,13 @@ pub(crate) fn euclidean_dt_with_measure(
         },
     );
 
-    // Phase 2: parabolic envelope along Y for each (iz, ix) column â€” parallel over z-slices.
+    // Phase 2: parabolic envelope along Y for each (iz, ix) column — parallel over z-slices.
     //
     // Each z-slice is an independent ny*nx-element contiguous chunk of g2:
     // chunk_idx = iz; within the closure all nx Y-columns for that slice are processed.
     //
     // Safety: `g1` is `&[f64]` (Sync); each closure writes to a disjoint
-    // ny*nx-element chunk of g2 â€” no aliasing across threads.
+    // ny*nx-element chunk of g2 — no aliasing across threads.
     let mut g2 = vec![INF; n_total];
     moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
         &mut g2,
@@ -237,7 +237,7 @@ pub(crate) fn euclidean_dt_with_measure(
         },
     );
 
-    // Phase 3: parabolic envelope along Z for each (iy, ix) column â€” parallel.
+    // Phase 3: parabolic envelope along Z for each (iy, ix) column — parallel.
     //
     // Strategy: transpose g2 from [nz, ny, nx] to [ny*nx, nz] layout so that
     // each Z-column is a contiguous nz-element chunk in g2_t. moirai then

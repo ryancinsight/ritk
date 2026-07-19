@@ -63,8 +63,8 @@ pub type ViewerResult<T> = Result<T, anyhow::Error>;
 /// | Default | 128 | 256 | Conservative unsigned 8-bit equivalent |
 ///
 /// # Mathematical basis
-/// For a window (c, w), the display range is [c âˆ’ w/2, c + w/2].
-/// CT lung: [-400 âˆ’ 750, -400 + 750] = [-1150, 350] HU (standard lung protocol).
+/// For a window (c, w), the display range is [c − w/2, c + w/2].
+/// CT lung: [-400 − 750, -400 + 750] = [-1150, 350] HU (standard lung protocol).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ModalityDisplay {
     /// Window centre for intensity display.

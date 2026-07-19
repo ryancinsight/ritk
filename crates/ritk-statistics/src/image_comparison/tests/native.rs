@@ -1,5 +1,5 @@
 //! Coeus-native image comparison metrics: analytical oracles plus differential
-//! parity against the Burn path.
+//! parity against the Coeus path.
 //!
 //! ## Tolerances
 //! - `hausdorff_distance`, `mean_surface_distance`, `ssim`, `similarity_index`:
@@ -7,7 +7,7 @@
 //!   (`hausdorff_from_flat` / `msd_from_flat` / `ssim_from_slices` /
 //!   `similarity_index_from_slices`), so results are bitwise identical — asserted
 //!   with `PARITY_EXACT = 0.0`.
-//! - `dice_coefficient`, `psnr`: the Burn path reduces in `f32`, the native core
+//! - `dice_coefficient`, `psnr`: the Coeus path reduces in `f32`, the native core
 //!   in `f64`, so the two agree only to the `f32` accumulation error. For the
 //!   `n ≤ 64` fixtures here the bound is `n · ε_f32 · max|term| ≈ 64 · 6e-8 · 1 ≈
 //!   4e-6`; `PARITY_DIFF = 1e-4` covers it with margin.
@@ -67,7 +67,7 @@ fn dice_known_half_overlap() {
 }
 
 #[test]
-fn dice_matches_burn() {
+fn dice_matches_coeus() {
     let pred = vec![1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0];
     let gt = vec![0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0];
     let bd = burn_metrics::dice_coefficient(
@@ -90,7 +90,7 @@ fn dice_length_mismatch_errors() {
 // ── Similarity index ─────────────────────────────────────────────────────────
 
 #[test]
-fn similarity_index_matches_burn_exactly() {
+fn similarity_index_matches_coeus_exactly() {
     let a = vec![0.0, 1.0, 1.0, 0.0, 2.0, 2.0];
     let b = vec![0.0, 1.0, 0.0, 1.0, 2.0, 0.0];
     let bs =
@@ -121,7 +121,7 @@ fn psnr_known_value() {
 }
 
 #[test]
-fn psnr_matches_burn() {
+fn psnr_matches_coeus() {
     let a = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
     let b = vec![0.2, 0.9, 2.3, 2.7, 4.1, 5.4, 5.6, 7.2];
     let bp = burn_metrics::psnr(
@@ -146,7 +146,7 @@ fn ssim_identical_is_one() {
 }
 
 #[test]
-fn ssim_matches_burn_exactly() {
+fn ssim_matches_coeus_exactly() {
     let a = vec![1.0, 3.0, 5.0, 7.0];
     let b = vec![2.0, 4.0, 6.0, 8.0];
     let bs = burn_metrics::ssim(
@@ -173,7 +173,7 @@ fn hausdorff_identical_is_zero() {
 }
 
 #[test]
-fn hausdorff_matches_burn_exactly() {
+fn hausdorff_matches_coeus_exactly() {
     let mut pred = vec![0.0f32; 27];
     let mut gt = vec![0.0f32; 27];
     for v in pred.iter_mut().take(9) {
@@ -198,7 +198,7 @@ fn hausdorff_matches_burn_exactly() {
 }
 
 #[test]
-fn mean_surface_distance_matches_burn_exactly() {
+fn mean_surface_distance_matches_coeus_exactly() {
     let mut pred = vec![0.0f32; 27];
     let mut gt = vec![0.0f32; 27];
     for v in pred.iter_mut().take(9) {

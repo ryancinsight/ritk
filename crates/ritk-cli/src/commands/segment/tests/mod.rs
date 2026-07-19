@@ -18,12 +18,12 @@ mod threshold;
 mod threshold_negative;
 mod watershed;
 
-// â”€â”€ Test image factories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test image factories ──────────────────────────────────────────────────────
 
-/// Build a 4Ã—4Ã—4 bimodal image.
+/// Build a 4×4×4 bimodal image.
 ///
-/// The first half of voxels (flat indices 0â€“31) have intensity 20.0;
-/// the second half (32â€“63) have intensity 200.0.
+/// The first half of voxels (flat indices 0–31) have intensity 20.0;
+/// the second half (32–63) have intensity 200.0.
 /// The analytically correct Otsu threshold lies between 20.0 and 200.0.
 pub fn make_bimodal_image() -> Image<f32, Backend, 3> {
     let backend = Backend::default();
@@ -40,7 +40,7 @@ pub fn make_bimodal_image() -> Image<f32, Backend, 3> {
     .expect("invariant: fixture tensor has the declared rank")
 }
 
-/// Build a 6Ã—6Ã—6 trimodal image for multi-Otsu tests.
+/// Build a 6×6×6 trimodal image for multi-Otsu tests.
 ///
 /// Voxels are split into three equal groups with intensities 30, 130, 230.
 pub fn make_trimodal_image() -> Image<f32, Backend, 3> {
@@ -67,7 +67,7 @@ pub fn make_trimodal_image() -> Image<f32, Backend, 3> {
     .expect("invariant: fixture tensor has the declared rank")
 }
 
-/// Build a 5Ã—5Ã—5 image with a high-intensity sphere at the centre.
+/// Build a 5×5×5 image with a high-intensity sphere at the centre.
 ///
 /// Centre voxel (2,2,2) and its 6 face-adjacent neighbours have intensity
 /// 200.0; all other voxels have intensity 10.0.
@@ -77,11 +77,11 @@ pub fn make_sphere_image() -> Image<f32, Backend, 3> {
     let mut values = vec![10.0_f32; nz * ny * nx];
     let high_indices: &[(usize, usize, usize)] = &[
         (2, 2, 2), // centre
-        (1, 2, 2), // âˆ’Z
+        (1, 2, 2), // −Z
         (3, 2, 2), // +Z
-        (2, 1, 2), // âˆ’Y
+        (2, 1, 2), // −Y
         (2, 3, 2), // +Y
-        (2, 2, 1), // âˆ’X
+        (2, 2, 1), // −X
         (2, 2, 3), // +X
     ];
     for &(z, y, x) in high_indices {
@@ -97,7 +97,7 @@ pub fn make_sphere_image() -> Image<f32, Backend, 3> {
     .expect("invariant: fixture tensor has the declared rank")
 }
 
-/// Build a 5Ã—5Ã—5 binary sphere image: centre and its 6 face-adjacent neighbours
+/// Build a 5×5×5 binary sphere image: centre and its 6 face-adjacent neighbours
 /// have intensity 1.0, and all other voxels have intensity 0.0.
 pub fn make_binary_sphere_image() -> Image<f32, Backend, 3> {
     let backend = Backend::default();
@@ -105,11 +105,11 @@ pub fn make_binary_sphere_image() -> Image<f32, Backend, 3> {
     let mut values = vec![0.0_f32; nz * ny * nx];
     let high_indices: &[(usize, usize, usize)] = &[
         (2, 2, 2), // centre
-        (1, 2, 2), // âˆ’Z
+        (1, 2, 2), // −Z
         (3, 2, 2), // +Z
-        (2, 1, 2), // âˆ’Y
+        (2, 1, 2), // −Y
         (2, 3, 2), // +Y
-        (2, 2, 1), // âˆ’X
+        (2, 2, 1), // −X
         (2, 2, 3), // +X
     ];
     for &(z, y, x) in high_indices {
@@ -125,7 +125,7 @@ pub fn make_binary_sphere_image() -> Image<f32, Backend, 3> {
     .expect("invariant: fixture tensor has the declared rank")
 }
 
-/// Build a 4Ã—4Ã—4 binary image: first 32 voxels = 1.0 (foreground),
+/// Build a 4×4×4 binary image: first 32 voxels = 1.0 (foreground),
 /// remaining 32 = 0.0 (background).  Used for distance-transform tests.
 pub fn make_binary_image() -> Image<f32, Backend, 3> {
     let backend = Backend::default();
@@ -142,7 +142,7 @@ pub fn make_binary_image() -> Image<f32, Backend, 3> {
     .expect("invariant: fixture tensor has the declared rank")
 }
 
-/// Build a 4Ã—4Ã—4 image with a smooth ramp 0..63 for watershed / gradient
+/// Build a 4×4×4 image with a smooth ramp 0..63 for watershed / gradient
 /// tests.
 pub fn make_ramp_image() -> Image<f32, Backend, 3> {
     let backend = Backend::default();
@@ -157,7 +157,7 @@ pub fn make_ramp_image() -> Image<f32, Backend, 3> {
     .expect("invariant: fixture tensor has the declared rank")
 }
 
-// â”€â”€ Helper: default SegmentArgs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Helper: default SegmentArgs ───────────────────────────────────────────────
 
 pub fn default_args(
     input: std::path::PathBuf,

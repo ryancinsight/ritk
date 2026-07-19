@@ -25,7 +25,7 @@ pub(super) fn parse_space_directions(s: &str) -> Result<[[f64; 3]; 3]> {
 }
 
 /// Parse a 2-D `space directions` field "(a,b) (c,d)" and promote it to a 3-D
-/// row-major direction matrix `[[a,b,0],[c,d,0],[0,0,1]]` â€” the in-plane axes
+/// row-major direction matrix `[[a,b,0],[c,d,0],[0,0,1]]` — the in-plane axes
 /// keep their cosines and an identity through-plane z-axis is appended (the
 /// 2-D-as-z=1 convention).
 pub(super) fn parse_space_directions_planar(s: &str) -> Result<[[f64; 3]; 3]> {

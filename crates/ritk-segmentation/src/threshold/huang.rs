@@ -88,7 +88,7 @@ impl AutoThreshold for HuangThreshold {
             return meas(first) as f32;
         }
 
-        // Cumulative frequency S and cumulative measurementÂ·frequency W.
+        // Cumulative frequency S and cumulative measurement·frequency W.
         let mut s = vec![0.0_f64; last + 1];
         let mut w = vec![0.0_f64; last + 1];
         s[0] = hist[0] as f64;
@@ -111,7 +111,7 @@ impl AutoThreshold for HuangThreshold {
         let mut best_entropy = f64::MAX;
         for threshold in first..last {
             let mut entropy = 0.0_f64;
-            // Background class mean â†’ its bin index.
+            // Background class mean → its bin index.
             let mu = (w[threshold] / s[threshold]).round();
             let mu_idx = index_of(mu) as isize;
             for (i, &count) in hist[first..=threshold].iter().enumerate() {
@@ -119,7 +119,7 @@ impl AutoThreshold for HuangThreshold {
                 let d = (i as isize - mu_idx).unsigned_abs();
                 entropy += smu_at(d) * count as f64;
             }
-            // Foreground class mean â†’ its bin index.
+            // Foreground class mean → its bin index.
             let mu2 = ((w[last] - w[threshold]) / (s[last] - s[threshold])).round();
             let mu2_idx = index_of(mu2) as isize;
             for (i, &count) in hist[threshold + 1..=last].iter().enumerate() {

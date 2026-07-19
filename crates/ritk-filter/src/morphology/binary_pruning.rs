@@ -2,16 +2,16 @@
 //!
 //! # Mathematical Specification
 //!
-//! Ports `itk::BinaryPruningImageFilter` â€” removes short spurs from a binary
+//! Ports `itk::BinaryPruningImageFilter` — removes short spurs from a binary
 //! skeleton. Operating on the `z`-plane of a `z = 1` image, the input is
-//! binarized (`â‰  0 â†’ 1`) and the image is swept `iteration` times in raster
+//! binarized (`≠ 0 → 1`) and the image is swept `iteration` times in raster
 //! order; **in place**, every foreground pixel whose 8-neighbour on-count is
 //! below 2 (an endpoint or isolated pixel) is set to 0, so a deletion is visible
 //! to later pixels within the same sweep (ZeroFluxNeumann boundary).
 //!
 //! ```text
-//! genus = Î£_{8-neighbours} p
-//! if center == 1 and genus < 2:  center â† 0
+//! genus = Σ_{8-neighbours} p
+//! if center == 1 and genus < 2:  center ← 0
 //! ```
 //!
 //! Pure binary topology (no floating point), so it is bit-exact to

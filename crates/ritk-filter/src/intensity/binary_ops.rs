@@ -5,16 +5,16 @@
 //!
 //! # Mathematical Specification
 //!
-//! Let `A, B : â„¤Â³ â†’ â„` be two images with identical shape `[nz, ny, nx]`:
+//! Let `A, B : ℤ³ → ℝ` be two images with identical shape `[nz, ny, nx]`:
 //!
 //! - `AddImageFilter`: `out(x) = A(x) + B(x)`
-//! - `SubtractImageFilter`: `out(x) = A(x) âˆ’ B(x)`
-//! - `MultiplyImageFilter`: `out(x) = A(x) Ã— B(x)`
+//! - `SubtractImageFilter`: `out(x) = A(x) − B(x)`
+//! - `MultiplyImageFilter`: `out(x) = A(x) × B(x)`
 //! - `DivideImageFilter`: `out(x) = A(x) / B(x)` (division by zero yields 0)
 //! - `ImageMinFilter`: `out(x) = min(A(x), B(x))`
 //! - `ImageMaxFilter`: `out(x) = max(A(x), B(x))`
-//! - `SquaredDifferenceImageFilter`: `out(x) = (A(x) âˆ’ B(x))Â²`
-//! - `AbsoluteValueDifferenceImageFilter`: `out(x) = |A(x) âˆ’ B(x)|`
+//! - `SquaredDifferenceImageFilter`: `out(x) = (A(x) − B(x))²`
+//! - `AbsoluteValueDifferenceImageFilter`: `out(x) = |A(x) − B(x)|`
 //! - `Atan2ImageFilter`: `out(x) = atan2(A(x), B(x))`
 //! - `PowImageFilter`: `out(x) = A(x)^{B(x)}`
 //!
@@ -38,10 +38,10 @@
 //! | `DivideImageFilter` | `DivideImageFilter` | Divide |
 //! | `ImageMinFilter` | `MinimumImageFilter` | Min |
 //! | `ImageMaxFilter` | `MaximumImageFilter` | Max |
-//! | `SquaredDifferenceImageFilter` | `SquaredDifferenceImageFilter` | â€” |
+//! | `SquaredDifferenceImageFilter` | `SquaredDifferenceImageFilter` | — |
 //! | `AbsoluteValueDifferenceImageFilter` | `AbsoluteValueDifferenceImageFilter` | Difference |
-//! | `Atan2ImageFilter` | `Atan2ImageFilter` | â€” |
-//! | `PowImageFilter` | `PowImageFilter` | â€” |
+//! | `Atan2ImageFilter` | `Atan2ImageFilter` | — |
+//! | `PowImageFilter` | `PowImageFilter` | — |
 
 use coeus_core::ComputeBackend;
 use ritk_image::tensor::Backend;
@@ -49,7 +49,7 @@ use ritk_image::Image as NativeImage;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec as extract, rebuild};
 
-// â”€â”€ Trait â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Trait ─────────────────────────────────────────────────────────────────────
 
 /// Trait for pointwise binary operations on voxel pairs.
 ///
@@ -61,17 +61,17 @@ pub trait BinaryOp: Default {
     fn apply(a: f32, b: f32) -> f32;
 }
 
-// â”€â”€ ZST operation types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── ZST operation types ───────────────────────────────────────────────────────
 
 /// Addition: `a + b`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct AddOp;
 
-/// Subtraction: `a âˆ’ b`.
+/// Subtraction: `a − b`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct SubtractOp;
 
-/// Multiplication: `a Ã— b`.
+/// Multiplication: `a × b`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct MultiplyOp;
 
@@ -84,7 +84,7 @@ pub struct DivideOp;
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct DivideRealOp;
 
-/// Floored division: `âŒŠa / bâŒ‹`, returning `f32::MAX` where `b = 0` (ITK
+/// Floored division: `⌊a / b⌋`, returning `f32::MAX` where `b = 0` (ITK
 /// `DivideFloorImageFilter`).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct DivideFloorOp;
@@ -97,11 +97,11 @@ pub struct MinOp;
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct MaxOp;
 
-/// Squared difference: `(a âˆ’ b)Â²`.
+/// Squared difference: `(a − b)²`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct SquaredDifferenceOp;
 
-/// Absolute value of the difference: `|a âˆ’ b|`.
+/// Absolute value of the difference: `|a − b|`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct AbsoluteValueDifferenceOp;
 
@@ -113,7 +113,7 @@ pub struct Atan2Op;
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct PowOp;
 
-/// Binary magnitude: `âˆš(aÂ² + bÂ²)`.
+/// Binary magnitude: `√(a² + b²)`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct BinaryMagnitudeOp;
 
@@ -320,7 +320,7 @@ impl BinaryOp for LessEqualOp {
     }
 }
 
-// â”€â”€ Generic filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Generic filter ────────────────────────────────────────────────────────────
 
 /// Generic pixelwise binary image filter parameterized by operation type.
 ///
@@ -391,7 +391,7 @@ impl<Op: BinaryOp> BinaryOpFilter<Op> {
     }
 }
 
-// â”€â”€ Shape validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Shape validation ──────────────────────────────────────────────────────────
 
 fn check_shapes(a: [usize; 3], b: [usize; 3]) -> anyhow::Result<()> {
     anyhow::ensure!(
@@ -403,7 +403,7 @@ fn check_shapes(a: [usize; 3], b: [usize; 3]) -> anyhow::Result<()> {
     Ok(())
 }
 
-// â”€â”€ Type aliases preserving public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Type aliases preserving public API ────────────────────────────────────────
 
 /// Pixelwise addition of two images.
 ///
@@ -414,14 +414,14 @@ pub type AddImageFilter = BinaryOpFilter<AddOp>;
 
 /// Pixelwise subtraction of two images.
 ///
-/// `out(x) = a(x) âˆ’ b(x)`
+/// `out(x) = a(x) − b(x)`
 ///
 /// # ITK Parity: `SubtractImageFilter`
 pub type SubtractImageFilter = BinaryOpFilter<SubtractOp>;
 
 /// Pixelwise multiplication of two images.
 ///
-/// `out(x) = a(x) Ã— b(x)`
+/// `out(x) = a(x) × b(x)`
 ///
 /// # ITK Parity: `MultiplyImageFilter`
 pub type MultiplyImageFilter = BinaryOpFilter<MultiplyOp>;
@@ -437,7 +437,7 @@ pub type DivideImageFilter = BinaryOpFilter<DivideOp>;
 /// # ITK Parity: `DivideRealImageFilter` (`sitk.DivideReal`)
 pub type DivideRealImageFilter = BinaryOpFilter<DivideRealOp>;
 
-/// Pixelwise floored division `âŒŠa/bâŒ‹`, `f32::MAX` where `b = 0`.
+/// Pixelwise floored division `⌊a/b⌋`, `f32::MAX` where `b = 0`.
 /// # ITK Parity: `DivideFloorImageFilter` (`sitk.DivideFloor`)
 pub type DivideFloorImageFilter = BinaryOpFilter<DivideFloorOp>;
 
@@ -457,14 +457,14 @@ pub type ImageMaxFilter = BinaryOpFilter<MaxOp>;
 
 /// Pixelwise squared difference of two images.
 ///
-/// `out(x) = (a(x) âˆ’ b(x))Â²`
+/// `out(x) = (a(x) − b(x))²`
 ///
 /// # ITK Parity: `SquaredDifferenceImageFilter`
 pub type SquaredDifferenceImageFilter = BinaryOpFilter<SquaredDifferenceOp>;
 
 /// Pixelwise absolute difference of two images.
 ///
-/// `out(x) = |a(x) âˆ’ b(x)|`
+/// `out(x) = |a(x) − b(x)|`
 ///
 /// # ITK Parity: `AbsoluteValueDifferenceImageFilter`
 pub type AbsoluteValueDifferenceImageFilter = BinaryOpFilter<AbsoluteValueDifferenceOp>;
@@ -485,7 +485,7 @@ pub type PowImageFilter = BinaryOpFilter<PowOp>;
 
 /// Pixelwise magnitude of two images.
 ///
-/// `out(x) = âˆš(a(x)Â² + b(x)Â²)`
+/// `out(x) = √(a(x)² + b(x)²)`
 ///
 /// # ITK Parity: `BinaryMagnitudeImageFilter`
 pub type BinaryMagnitudeImageFilter = BinaryOpFilter<BinaryMagnitudeOp>;
@@ -519,7 +519,7 @@ pub type LessImageFilter = BinaryOpFilter<LessOp>;
 /// Pixelwise less-or-equal mask. # ITK Parity: `LessEqualImageFilter`
 pub type LessEqualImageFilter = BinaryOpFilter<LessEqualOp>;
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests_binary_ops;

@@ -1,19 +1,19 @@
-//! Richardson-Lucy iterative deconvolution â€” 2-D and 3-D.
+//! Richardson-Lucy iterative deconvolution — 2-D and 3-D.
 //!
 //! # Theory
 //!
 //! For Poisson noise model (photon-counting detectors), EM update:
 //!
 //! ```text
-//! uâ‚€ = g
-//! uâ‚–â‚Šâ‚ = uâ‚– Â· (h* â‹† (g / (h â‹† uâ‚–)))
+//! u₀ = g
+//! uₖ₊₁ = uₖ · (h* ⋆ (g / (h ⋆ uₖ)))
 //! ```
 //!
 //! where `h*` is the reversed (transposed) PSF kernel.
 //!
 //! # Properties
 //! - Preserves non-negativity when initialized with non-negative input
-//! - Preserves total flux: Î£ uâ‚– = Î£ g for all k
+//! - Preserves total flux: Σ uₖ = Σ g for all k
 //! - Converges to the maximum-likelihood estimate under Poisson noise
 
 use super::regularization::{
@@ -29,19 +29,19 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 /// For Poisson noise model (appropriate for photon-counting detectors):
 ///
 /// ```text
-/// uâ‚€ = g (or uniform)
-/// uâ‚–â‚Šâ‚ = uâ‚– Â· (h* â‹† (g / (h â‹† uâ‚–)))
+/// u₀ = g (or uniform)
+/// uₖ₊₁ = uₖ · (h* ⋆ (g / (h ⋆ uₖ)))
 /// ```
 ///
 /// where `h*` is the reversed (transposed) PSF kernel.
 ///
 /// # Properties
 /// - Preserves non-negativity if initialized with non-negative values
-/// - Preserves total flux: Î£ uâ‚– = Î£ g for all k
+/// - Preserves total flux: Σ uₖ = Σ g for all k
 /// - Converges to the maximum-likelihood estimate under Poisson noise
 ///
 /// # Complexity
-/// O(iterations Â· N log N) for FFT-based convolution.
+/// O(iterations · N log N) for FFT-based convolution.
 pub struct RichardsonLucyDeconvolution {
     /// Maximum number of iterations (default: 30).
     pub max_iterations: usize,

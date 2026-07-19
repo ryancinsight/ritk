@@ -134,7 +134,7 @@ impl Default for DicomSequenceItem {
 
 /// DICOM element classification: standard (even group) vs private (odd group).
 ///
-/// Per DICOM PS3.5 Â§7.8: elements with odd group numbers are private elements.
+/// Per DICOM PS3.5 §7.8: elements with odd group numbers are private elements.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DicomElementClass {
     /// Standard DICOM element (even group number).

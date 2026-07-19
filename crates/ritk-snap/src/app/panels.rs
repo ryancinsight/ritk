@@ -136,7 +136,7 @@ impl SnapApp {
         }
     }
 
-    // â”€â”€ Left panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Left panel ────────────────────────────────────────────────────────────
 
     pub(crate) fn show_left_panel(&mut self, ctx: &egui::Context) {
         egui::SidePanel::left("info_panel")
@@ -194,7 +194,7 @@ impl SnapApp {
             });
     }
 
-    // â”€â”€ Bottom status bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Bottom status bar ─────────────────────────────────────────────────────
 
     pub(crate) fn show_bottom_bar(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
@@ -259,7 +259,7 @@ impl SnapApp {
         }
         self.show_colorbar = show_cb;
 
-        // â”€â”€ PACS Network Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── PACS Network Panel ────────────────────────────────────────────────
         let mut show_pacs = self.show_pacs_panel;
         if show_pacs {
             egui::Window::new("PACS Network")
@@ -343,10 +343,10 @@ impl SnapApp {
                         let axis_name = self.axis_label(self.status_axis);
                         row(ui, axis_name, &format!("{}/{}", slice_idx + 1, total));
 
-                        row(ui, "Dims:", &format!("{depth}Ã—{rows}Ã—{cols}"));
-                        row(ui, "Spacing:", &format!("{dz:.2}Ã—{dy:.2}Ã—{dx:.2} mm"));
-                        row(ui, "Modality:", vol.modality.as_deref().unwrap_or("â€”"));
-                        row(ui, "Patient:", vol.patient_name.as_deref().unwrap_or("â€”"));
+                        row(ui, "Dims:", &format!("{depth}×{rows}×{cols}"));
+                        row(ui, "Spacing:", &format!("{dz:.2}×{dy:.2}×{dx:.2} mm"));
+                        row(ui, "Modality:", vol.modality.as_deref().unwrap_or("—"));
+                        row(ui, "Patient:", vol.patient_name.as_deref().unwrap_or("—"));
                     });
 
                 ui.separator();

@@ -1,6 +1,6 @@
 use super::*;
 
-// â”€â”€ Helper: signed-distance function for a sphere â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Helper: signed-distance function for a sphere ────────────────────────────
 
 fn make_phi_sphere(dims: [usize; 3], center: [f64; 3], radius: f64) -> Image<f32, Backend, 3> {
     let backend = Backend::default();

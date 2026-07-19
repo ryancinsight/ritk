@@ -5,19 +5,19 @@
 //! Otsu's method selects the intensity threshold t* that maximises the
 //! between-class variance of two intensity classes:
 //!
-//!   ÏƒÂ²_B(t) = Pâ‚(t) Â· Pâ‚‚(t) Â· (Î¼â‚(t) âˆ’ Î¼â‚‚(t))Â²
+//!   σ²_B(t) = P₁(t) · P₂(t) · (μ₁(t) − μ₂(t))²
 //!
 //! where:
-//! - Pâ‚(t) = Î£_{i=0}^{tâˆ’1} h\[i\]              (weight of class 1, bins 0..tâˆ’1)
-//! - Pâ‚‚(t) = 1 âˆ’ Pâ‚(t)                         (weight of class 2, bins t..Nâˆ’1)
-//! - Î¼â‚(t) = Î£_{i=0}^{tâˆ’1} iÂ·h\[i\] / Pâ‚(t)   (mean bin index of class 1)
-//! - Î¼â‚‚(t) = Î£_{i=t}^{Nâˆ’1} iÂ·h\[i\] / Pâ‚‚(t)   (mean bin index of class 2)
+//! - P₁(t) = Σ_{i=0}^{t−1} h\[i\]              (weight of class 1, bins 0..t−1)
+//! - P₂(t) = 1 − P₁(t)                         (weight of class 2, bins t..N−1)
+//! - μ₁(t) = Σ_{i=0}^{t−1} i·h\[i\] / P₁(t)   (mean bin index of class 1)
+//! - μ₂(t) = Σ_{i=t}^{N−1} i·h\[i\] / P₂(t)   (mean bin index of class 2)
 //! - h\[i\] = count\[i\] / n_total              (normalised histogram)
 //!
 //! The optimal threshold in original intensity units is the right edge of the
 //! selected bin under ITK's histogram geometry (see `auto_threshold`):
 //!
-//!   t*_intensity = x_min + (t* + 1) Â· bin_width
+//!   t*_intensity = x_min + (t* + 1) · bin_width
 //!
 //! # Complexity
 //! Histogram construction: O(n) voxels.
@@ -29,7 +29,7 @@ use ritk_image::Image;
 
 use super::auto_threshold::{bin_right_edge, itk_bin_width, threshold_from_slice, AutoThreshold};
 
-// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public API ─────────────────────────────────────────────────────────────────
 
 /// Single-threshold Otsu segmentation.
 ///
@@ -67,8 +67,8 @@ impl OtsuThreshold {
 
     /// Apply the Otsu threshold to produce a binary mask.
     ///
-    /// - Pixels with intensity â‰¥ t* â†’ 1.0 (foreground).
-    /// - Pixels with intensity <  t* â†’ 0.0 (background).
+    /// - Pixels with intensity ≥ t* → 1.0 (foreground).
+    /// - Pixels with intensity <  t* → 0.0 (background).
     ///
     /// Spatial metadata (origin, spacing, direction) is preserved exactly.
     ///
@@ -102,7 +102,7 @@ impl Default for OtsuThreshold {
     }
 }
 
-// â”€â”€ AutoThreshold implementation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── AutoThreshold implementation ───────────────────────────────────────────────
 
 impl AutoThreshold for OtsuThreshold {
     fn num_bins(&self) -> usize {
@@ -113,10 +113,10 @@ impl AutoThreshold for OtsuThreshold {
     ///
     /// # Algorithm
     /// 1. Normalise `hist` to probabilities `h[i] = count[i] / n_total`.
-    /// 2. Compute the total weighted mean `Î¼ = Î£ iÂ·h[i]`.
-    /// 3. O(N) prefix-sum scan over t âˆˆ [1, Nâˆ’1]:
-    ///    ÏƒÂ²_B(t) = Pâ‚(t)Â·Pâ‚‚(t)Â·(Î¼â‚(t)âˆ’Î¼â‚‚(t))Â²
-    /// 4. t* = argmax ÏƒÂ²_B.
+    /// 2. Compute the total weighted mean `μ = Σ i·h[i]`.
+    /// 3. O(N) prefix-sum scan over t ∈ [1, N−1]:
+    ///    σ²_B(t) = P₁(t)·P₂(t)·(μ₁(t)−μ₂(t))²
+    /// 4. t* = argmax σ²_B.
     /// 5. t*_intensity = right edge of the selected bin (ITK `GetBinMax`).
     fn compute_threshold(&self, hist: &[u32], n_bins: usize, x_min: f32, x_max: f32) -> f32 {
         let n: u64 = hist.iter().map(|&c| c as u64).sum();
@@ -133,8 +133,8 @@ impl AutoThreshold for OtsuThreshold {
         // O(N) prefix-sum scan.
         let mut best_sigma2 = 0.0_f64;
         let mut best_t = 0_usize;
-        let mut w1 = 0.0_f64; // Î£ h[0..tâˆ’1]
-        let mut mu1_partial = 0.0_f64; // Î£ iÂ·h[i] for i âˆˆ [0, tâˆ’1]
+        let mut w1 = 0.0_f64; // Σ h[0..t−1]
+        let mut mu1_partial = 0.0_f64; // Σ i·h[i] for i ∈ [0, t−1]
 
         for t in 1..n_bins {
             w1 += h[t - 1];
@@ -156,8 +156,8 @@ impl AutoThreshold for OtsuThreshold {
         }
 
         // ritk's scan marks `best_t` as the first foreground bin (class 1 =
-        // [0, best_tâˆ’1]).  ITK's OtsuThresholdCalculator reports the right edge of
-        // the last background bin (`best_tâˆ’1`), i.e. the class boundary.
+        // [0, best_t−1]).  ITK's OtsuThresholdCalculator reports the right edge of
+        // the last background bin (`best_t−1`), i.e. the class boundary.
         bin_right_edge(
             x_min,
             itk_bin_width(x_min, x_max, n_bins),
@@ -166,7 +166,7 @@ impl AutoThreshold for OtsuThreshold {
     }
 }
 
-// â”€â”€ Convenience functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Convenience functions ──────────────────────────────────────────────────────
 
 /// Convenience function: compute the Otsu threshold with 256 bins.
 pub fn otsu_threshold<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> f32 {

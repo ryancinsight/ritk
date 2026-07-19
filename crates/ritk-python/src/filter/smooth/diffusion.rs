@@ -1,4 +1,4 @@
-//! Diffusion-family filters: Peronaâ€“Malik anisotropic, curvature anisotropic, and coherence-enhancing diffusion.
+//! Diffusion-family filters: Perona–Malik anisotropic, curvature anisotropic, and coherence-enhancing diffusion.
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_from_py, into_py_image, PyImage};
 use pyo3::prelude::*;
@@ -17,9 +17,9 @@ use ritk_filter::{
 /// Conductance function kind for anisotropic diffusion, replacing `exponential: bool`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PyConductanceKind {
-    /// Quadratic conductance: c(s) = 1/(1+(s/K)Â²)
+    /// Quadratic conductance: c(s) = 1/(1+(s/K)²)
     Quadratic,
-    /// Exponential conductance: c(s) = exp(-(s/K)Â²)
+    /// Exponential conductance: c(s) = exp(-(s/K)²)
     Exponential,
 }
 
@@ -44,21 +44,21 @@ impl<'a> From<Option<&'a str>> for PyConductanceKind {
 /// Apply Perona-Malik anisotropic diffusion for edge-preserving smoothing.
 ///
 /// Reduces noise while preserving edges via the PDE:
-/// âˆ‚I/âˆ‚t = div(c(|âˆ‡I|) Â· âˆ‡I)
+/// ∂I/∂t = div(c(|∇I|) · ∇I)
 ///
 /// The default `"exponential"` kind dispatches to the ITK-exact
 /// `GradientAnisotropicDiffusionImageFilter` (face-gradient conductance with the
 /// per-iteration average-gradient-magnitude `K` rescaling), so it matches
 /// SimpleITK's `GradientAnisotropicDiffusion`. The `"quadratic"` kind uses the
-/// crate's simpler Perona-Malik conductance `1/(1+(s/K)Â²)` (no SimpleITK
+/// crate's simpler Perona-Malik conductance `1/(1+(s/K)²)` (no SimpleITK
 /// equivalent).
 ///
 /// Args:
 /// image: Input PyImage.
 /// iterations: Number of explicit Euler time steps (default 20).
 /// conductance: Edge-stopping parameter K (default 3.0; larger = more smoothing).
-/// time_step: Euler step size Î”t (default 0.0625; must be â‰¤ 1/6 for 3-D stability).
-/// conductance_kind: Conductance function kind â€” "exponential" (default) or "quadratic".
+/// time_step: Euler step size Δt (default 0.0625; must be ≤ 1/6 for 3-D stability).
+/// conductance_kind: Conductance function kind — "exponential" (default) or "quadratic".
 ///
 /// Returns:
 /// Smoothed PyImage with identical shape and spatial metadata.
@@ -104,14 +104,14 @@ pub fn anisotropic_diffusion(
 /// Apply curvature anisotropic diffusion (ITK `CurvatureAnisotropicDiffusion`).
 ///
 /// Modified Curvature Diffusion Equation (Whitaker & Xue 2001):
-/// âˆ‚I/âˆ‚t = |âˆ‡I| Â· âˆ‡Â·( c(|âˆ‡I|) Â· âˆ‡I/|âˆ‡I| )
+/// ∂I/∂t = |∇I| · ∇·( c(|∇I|) · ∇I/|∇I| )
 ///
 /// Args:
 ///     image: Input PyImage.
 ///     iterations: Number of explicit Euler time steps (default 20).
-///     time_step: Euler Î”t (default 0.0625; ITK's stable step is smaller for
-///         fine spacing â€” keep â‰² 0.044 for ~0.35 mm CT to avoid instability).
-///     conductance: Conductance parameter K (default 3.0). Larger K â†’ more
+///     time_step: Euler Δt (default 0.0625; ITK's stable step is smaller for
+///         fine spacing — keep ≲ 0.044 for ~0.35 mm CT to avoid instability).
+///     conductance: Conductance parameter K (default 3.0). Larger K → more
 ///         isotropic smoothing.
 ///
 /// Returns:
@@ -142,7 +142,7 @@ pub fn curvature_anisotropic_diffusion(
     .map(into_py_image)
 }
 
-/// Apply pure mean-curvature flow: âˆ‚I/âˆ‚t = Îº for `iterations` explicit-Euler
+/// Apply pure mean-curvature flow: ∂I/∂t = κ for `iterations` explicit-Euler
 /// steps. ITK Parity: CurvatureFlowImageFilter (`sitk.CurvatureFlow`).
 #[pyfunction]
 #[pyo3(signature = (image, time_step=0.0625, iterations=5))]
@@ -228,7 +228,7 @@ pub fn binary_min_max_curvature_flow(
 ///     sigma: Gaussian sigma for structure tensor smoothing (integration scale, default 3.0).
 ///     contrast: Contrast parameter C (default 1e-10).
 ///     alpha: Smoothing parameter in flat regions (default 0.001).
-///     time_step: Euler step Î”t (default 0.0625).
+///     time_step: Euler step Δt (default 0.0625).
 ///     iterations: Number of iterations (default 10).
 ///
 /// Returns:
@@ -262,7 +262,7 @@ pub fn coherence_enhancing_diffusion(
     into_py_image(result)
 }
 
-// â”€â”€ AntiAliasBinary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── AntiAliasBinary ─────────────────────────────────────────────────────
 
 /// Narrow-band level-set smoothing of binary image boundaries,
 /// matching `SimpleITK.AntiAliasBinaryImageFilter` (bit-exact).
@@ -272,7 +272,7 @@ pub fn coherence_enhancing_diffusion(
 /// `max_rms_error` or `number_of_iterations` steps complete. Returns the
 /// floating-point level set: **positive inside** the (foreground) object,
 /// negative outside, with the zero crossing at the anti-aliased sub-voxel
-/// boundary â€” the per-voxel sign is locked to the input binary.
+/// boundary — the per-voxel sign is locked to the input binary.
 ///
 /// Args:
 ///     image:                Binary float32 PyImage (foreground = max value).
@@ -300,22 +300,22 @@ pub fn anti_alias_binary(
     into_py_image(result)
 }
 
-// â”€â”€ ScalarChanAndVeseDenseLevelSet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── ScalarChanAndVeseDenseLevelSet ──────────────────────────────────────
 
 /// Dense Chan-Vese level set segmentation, bit-exact to
 /// `SimpleITK.ScalarChanAndVeseDenseLevelSet`.
 ///
 /// Minimises the Chan-Vese energy (region-based active contour without edges)
 /// from a user-supplied signed-distance level set with per-iteration Maurer
-/// reinitialization. Returns the **binary segmentation** (`1` where Ï† < 0).
+/// reinitialization. Returns the **binary segmentation** (`1` where φ < 0).
 ///
 /// Args:
-///     initial_level_set: Ï†â‚€ image; negative = inside region (float32 3-D PyImage).
-///     feature_image:     uâ‚€ for the Chan-Vese energy data term.
+///     initial_level_set: φ₀ image; negative = inside region (float32 3-D PyImage).
+///     feature_image:     u₀ for the Chan-Vese energy data term.
 ///     number_of_iterations: dense PDE steps (default 20).
 ///     lambda1:           Inside-region data weight (default 1.0).
 ///     lambda2:           Outside-region data weight (default 1.0).
-///     curvature_weight:  Curvature (length) penalty Î¼ (default 1.0).
+///     curvature_weight:  Curvature (length) penalty μ (default 1.0).
 ///     area_weight:       Area penalty subtracted from the data term (default 0.0).
 ///     epsilon:           Heaviside/Dirac regularisation width (default 1.0).
 ///

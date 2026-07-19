@@ -24,7 +24,7 @@ pub mod native;
 /// This is often the inverse of the registration transform (Fixed -> Moving).
 ///
 /// # Type Parameters
-/// * `B` - The Burn backend
+/// * `B` - The Coeus backend
 /// * `T` - The transform type
 /// * `I` - The interpolator type
 /// * `D` - The dimensionality (2 or 3)
@@ -115,7 +115,7 @@ where
     }
 
     /// Resample the values for one block of output grid indices: map output
-    /// indices â†’ output physical points â†’ input physical points â†’ input
+    /// indices → output physical points → input physical points → input
     /// continuous indices, interpolate, then substitute the default pixel value
     /// for samples that fall outside the input buffer (matching ITK).
     fn resample_indices(
@@ -141,10 +141,10 @@ where
     /// interpolator's own edge-clamping handles taps that reach one voxel past
     /// the border (so a sample at index `N - 0.75` still interpolates against the
     /// clamped edge value); outside it, ITK emits the default pixel value rather
-    /// than the clamped edge â€” without this check ritk edge-clamped the entire
+    /// than the clamped edge — without this check ritk edge-clamped the entire
     /// out-of-FOV halo instead.
     ///
-    /// `input_indices` columns are innermost-first (`column c` â†” spatial axis
+    /// `input_indices` columns are innermost-first (`column c` ↔ spatial axis
     /// `D - 1 - c`), matching `world_to_index_tensor` and the interpolators.
     fn apply_default_outside_buffer(
         &self,

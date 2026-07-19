@@ -16,7 +16,7 @@ fn vals(img: &Image<f32, B, 3>) -> Vec<f32> {
         .to_vec()
 }
 
-/// Auto maximum: [1,2,3] â†’ max=3, out=[2,1,0].
+/// Auto maximum: [1,2,3] → max=3, out=[2,1,0].
 #[test]
 fn invert_auto_max() {
     let img = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
@@ -29,7 +29,7 @@ fn invert_auto_max() {
     );
 }
 
-/// Fixed maximum: [1,4,7] with max=10 â†’ [9,6,3].
+/// Fixed maximum: [1,4,7] with max=10 → [9,6,3].
 #[test]
 fn invert_fixed_max() {
     let img = make_image(vec![1.0, 4.0, 7.0], [1, 1, 3]);
@@ -49,17 +49,17 @@ fn invert_max_maps_to_zero_min_maps_to_range() {
     let out = InvertIntensityFilter::new().apply(&img);
     let v = vals(&out);
     // auto max = 5.0; 5 - 5 = 0, 5 - 2 = 3
-    assert_eq!(v[0], 3.0_f32, "minimum voxel 2 with max=5 â†’ 5-2=3");
-    assert_eq!(v[1], 0.0_f32, "maximum voxel 5 with max=5 â†’ 5-5=0");
+    assert_eq!(v[0], 3.0_f32, "minimum voxel 2 with max=5 → 5-2=3");
+    assert_eq!(v[1], 0.0_f32, "maximum voxel 5 with max=5 → 5-5=0");
 }
 
-/// Constant image with auto max â†’ all zero.
+/// Constant image with auto max → all zero.
 #[test]
 fn invert_constant_auto_max_all_zero() {
     let img = make_image(vec![4.0, 4.0, 4.0], [1, 1, 3]);
     let out = InvertIntensityFilter::new().apply(&img);
     for &v in vals(&out).iter() {
-        assert_eq!(v, 0.0_f32, "constant image with auto max â†’ 0 everywhere");
+        assert_eq!(v, 0.0_f32, "constant image with auto max → 0 everywhere");
     }
 }
 

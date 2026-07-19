@@ -33,7 +33,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 /// ```no_run
 /// # use ritk_filter::ShiftScaleImageFilter;
 /// let filter = ShiftScaleImageFilter::new(-1024.0, 0.001);
-/// // Converts Hounsfield units centred at Ã¢â‚¬â€œ1024 to linear attenuation values
+/// // Converts Hounsfield units centred at ‗œ1024 to linear attenuation values
 /// ```
 #[derive(Debug, Clone)]
 pub struct ShiftScaleImageFilter {

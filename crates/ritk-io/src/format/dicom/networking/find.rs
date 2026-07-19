@@ -1,4 +1,4 @@
-//! C-FIND SCU â€” Study Root Query/Retrieve: FIND (PS3.4 Â§C.4.1).
+//! C-FIND SCU — Study Root Query/Retrieve: FIND (PS3.4 §C.4.1).
 
 use super::association::{release_client_association, FindResult, NetworkingError};
 use super::command::{
@@ -12,7 +12,7 @@ use super::echo::{find_ctx_id, receive_command_pdv, receive_data_pdv};
 use dicom_ul::association::client::ClientAssociationOptions;
 use dicom_ul::pdu::{PDataValue, PDataValueType, Pdu};
 
-/// DICOM query retrieve level for C-FIND (PS3.4 Â§C.3.4 Table C.3-1).
+/// DICOM query retrieve level for C-FIND (PS3.4 §C.3.4 Table C.3-1).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FindLevel {
     Patient,

@@ -1,9 +1,9 @@
 //! Min-max intensity normalization.
 //!
 //! # Mathematical Specification
-//! Given an image X with intensity range [xâ‚˜áµ¢â‚™, xâ‚˜â‚â‚“]:
+//! Given an image X with intensity range [xₘᵢₙ, xₘₐₓ]:
 //!
-//!   N(x) = (x âˆ’ xâ‚˜áµ¢â‚™) / (xâ‚˜â‚â‚“ âˆ’ xâ‚˜áµ¢â‚™ + Îµ),   Îµ = 1e-8
+//!   N(x) = (x − xₘᵢₙ) / (xₘₐₓ − xₘᵢₙ + ε),   ε = 1e-8
 //!
 //! This maps intensities to [0, 1].  An optional affine remap then applies:
 //!
@@ -81,7 +81,7 @@ impl MinMaxNormalizer {
     /// affine remap `R(x) = N(x)·span + range.min()` to a host buffer.
     ///
     /// Single host realization shared by [`MinMaxNormalizer::normalize_native`];
-    /// the Burn path expresses the identical arithmetic through on-device tensor
+    /// the Coeus path expresses the identical arithmetic through on-device tensor
     /// scalar ops.
     fn remap_values(&self, values: &mut [f32], min: f32, max: f32) {
         let input_range = (max - min) + super::NORMALIZER_EPSILON;

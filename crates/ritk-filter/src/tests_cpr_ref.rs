@@ -46,7 +46,7 @@ pub fn cpr_apply_reference<B: Backend>(
     }
     let total_length = arc_lengths[dense_pts.len() - 1];
     if total_length < 1e-12 {
-        anyhow::bail!("CPR path has zero total length â€” all control points coincident");
+        anyhow::bail!("CPR path has zero total length — all control points coincident");
     }
 
     let mut path_pts = Vec::with_capacity(num_path);

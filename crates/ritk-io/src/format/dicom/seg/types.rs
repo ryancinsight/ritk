@@ -68,7 +68,7 @@ impl SegmentationType {
 /// Metadata for one segment label defined in the Segment Sequence (0062,0002).
 #[derive(Debug, Clone)]
 pub struct DicomSegmentInfo {
-    /// SegmentNumber (0062,0004) US â€” 1-based segment index.
+    /// SegmentNumber (0062,0004) US — 1-based segment index.
     pub segment_number: u16,
     /// SegmentLabel (0062,0005) LO.
     pub segment_label: String,
@@ -83,7 +83,7 @@ pub struct DicomSegmentInfo {
 /// # Invariants
 /// - `pixel_data.len() == n_frames`
 /// - `pixel_data[f].len() == rows * cols` for all f
-/// - For BINARY: pixel_data\[f\]\[i\] âˆˆ {0, 1}
+/// - For BINARY: pixel_data\[f\]\[i\] ∈ {0, 1}
 /// - `frame_segment_numbers.len() == n_frames`
 /// - `image_position_per_frame.len() == n_frames`
 #[derive(Debug, Clone)]
@@ -105,12 +105,12 @@ pub struct DicomSegmentation {
     /// Decoded pixel values per frame; each inner vec length == rows*cols.
     /// BINARY: 0 or 1. FRACTIONAL: raw byte values \[0, 255\].
     pub pixel_data: Vec<Vec<u8>>,
-    /// ImagePositionPatient per frame from (5200,9230) â†’ (0020,9113) â†’ (0020,0032).
+    /// ImagePositionPatient per frame from (5200,9230) → (0020,9113) → (0020,0032).
     pub image_position_per_frame: Vec<Option<[f64; 3]>>,
-    /// ImageOrientationPatient from shared FG (5200,9229) â†’ (0020,9116) â†’ (0020,0037).
+    /// ImageOrientationPatient from shared FG (5200,9229) → (0020,9116) → (0020,0037).
     pub image_orientation: Option<[f64; 6]>,
-    /// PixelSpacing from shared FG (5200,9229) â†’ (0028,9110) â†’ (0028,0030).
+    /// PixelSpacing from shared FG (5200,9229) → (0028,9110) → (0028,0030).
     pub pixel_spacing: Option<[f64; 2]>,
-    /// SliceThickness from shared FG (5200,9229) â†’ (0028,9110) â†’ (0018,0050).
+    /// SliceThickness from shared FG (5200,9229) → (0028,9110) → (0018,0050).
     pub slice_thickness: Option<f64>,
 }

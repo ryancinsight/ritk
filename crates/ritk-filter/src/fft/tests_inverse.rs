@@ -30,7 +30,7 @@ use ritk_tensor_ops::extract_vec;
 
 type B = coeus_core::SequentialBackend;
 
-// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 /// Construct a 2-D complex image with shape `[h, w_complex]`.
 ///
@@ -61,7 +61,7 @@ fn make_complex_3d(data: Vec<f32>, depth: usize, h: usize, w_complex: usize) -> 
     .expect("invariant: fixture tensor has the declared rank")
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 /// Shape contract: `apply_2d([4, 12])` -> `[4, 6]`.
 ///
@@ -160,7 +160,7 @@ fn dc_only_complex_input_reconstructs_to_constant() {
     }
 }
 
-// â”€â”€ Half-Hermitian inverse FFT round-trip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Half-Hermitian inverse FFT round-trip ────────────────────────────────────
 
 /// Construct a 3-D real image `[d, h, w]`.
 fn make_real_3d(data: Vec<f32>, d: usize, h: usize, w: usize) -> Image<f32, B, 3> {
@@ -174,8 +174,8 @@ fn make_real_3d(data: Vec<f32>, d: usize, h: usize, w: usize) -> Image<f32, B, 3
     .expect("invariant: fixture tensor has the declared rank")
 }
 
-/// HalfHermitianToReal âˆ˜ RealToHalfHermitian is the identity (to f32 rounding),
-/// for both even and odd last-axis widths â€” the Hermitian reconstruction is
+/// HalfHermitianToReal ∘ RealToHalfHermitian is the identity (to f32 rounding),
+/// for both even and odd last-axis widths — the Hermitian reconstruction is
 /// exact, so the round-trip equals a full forward/inverse round-trip.
 #[test]
 fn half_hermitian_inverse_round_trip() {

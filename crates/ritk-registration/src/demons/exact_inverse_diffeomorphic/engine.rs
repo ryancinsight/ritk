@@ -12,17 +12,17 @@ use crate::error::RegistrationError;
 
 /// Inverse-consistent diffeomorphic Demons registration.
 ///
-/// Maintains Ï†_fwd = exp(v) and Ï†_inv = exp(âˆ’v) simultaneously.
-/// Uses a symmetric bilateral force: (1âˆ’w)Â·forward + wÂ·(âˆ’backward).
+/// Maintains φ_fwd = exp(v) and φ_inv = exp(−v) simultaneously.
+/// Uses a symmetric bilateral force: (1−w)·forward + w·(−backward).
 ///
 /// # Bilateral Objective
 ///
-/// E(v) = (1âˆ’w)Â·â€–F âˆ’ Mâˆ˜exp(v)â€–Â² + wÂ·â€–M âˆ’ Fâˆ˜exp(âˆ’v)â€–Â²
+/// E(v) = (1−w)·—–F − M∘exp(v)—–² + w·—–M − F∘exp(−v)—–²
 ///
 /// # Update Rule (first-order BCH)
 ///
-/// v â† v + (1âˆ’w)Â·u_fwd âˆ’ wÂ·u_bwd
-/// v â† G_{Ïƒ_diff} âˆ— v
+/// v ← v + (1−w)·u_fwd − w·u_bwd
+/// v ← G_{σ_diff} ∗ v
 #[derive(Debug, Clone)]
 pub struct InverseConsistentDiffeomorphicDemonsRegistration {
     pub config: InverseConsistentDemonsConfig,
@@ -117,11 +117,11 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
             iter = it + 1;
 
             // m_warped is at the iter's starting phi: identity (== moving) at
-            // iter 0, or the previous iter's post-update re-warp for iter â‰¥ 1.
+            // iter 0, or the previous iter's post-update re-warp for iter ≥ 1.
             // We therefore skip the top S&S phi + top warp m_warped here,
             // saving one `scaling_and_squaring_into` + one `warp_image_into`
-            // per iteration â€” the dominant cost of the previous top-warp path
-            // on 256Â³ fields.
+            // per iteration — the dominant cost of the previous top-warp path
+            // on 256³ fields.
             //
             // f_warped must be re-warped every iter because `psi` changes per
             // iteration (it depends on the current velocity).
@@ -190,15 +190,15 @@ impl InverseConsistentDiffeomorphicDemonsRegistration {
                 vel_x[i] += w_fwd * fx_fwd[i] - w_bwd * fx_bwd[i];
             }
 
-            // Diffusion regularisation â€” dispatched via FieldSmoother trait
+            // Diffusion regularisation — dispatched via FieldSmoother trait
             if cfg.sigma_diffusion.is_some() {
                 smoother.smooth_field(&mut vel_z, &mut vel_y, &mut vel_x);
             }
 
             // BOTTOM S&S phi (with the post-update velocity) + re-warp
             // m_warped so the next iter's forces and this iter's final_mse
-            // see the post-update state â€” matching the previous code's
-            // semantics â€” without a streaming-warp inside compute_mse_streaming.
+            // see the post-update state — matching the previous code's
+            // semantics — without a streaming-warp inside compute_mse_streaming.
             scaling_and_squaring_into(
                 &vel_z,
                 &vel_y,

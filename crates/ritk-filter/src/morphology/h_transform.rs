@@ -3,23 +3,23 @@
 //!
 //! # Mathematical Specification
 //!
-//! Let `f` be the input image, `h > 0` a contrast height, and `R^Î´` / `R^Îµ` the
+//! Let `f` be the input image, `h > 0` a contrast height, and `R^δ` / `R^ε` the
 //! morphological reconstruction by dilation / erosion (geodesic reconstruction,
 //! Vincent 1993).
 //!
 //! - **H-maxima** suppresses all regional maxima whose dynamic (contrast to the
 //!   surrounding) is below `h`:
-//!   `HMAX_h(f) = R^Î´_f(f âˆ’ h)`
+//!   `HMAX_h(f) = R^δ_f(f − h)`
 //! - **H-minima** suppresses regional minima of dynamic below `h`:
-//!   `HMIN_h(f) = R^Îµ_f(f + h)`
+//!   `HMIN_h(f) = R^ε_f(f + h)`
 //! - **H-convex** extracts the suppressed bright dynamic:
-//!   `HCONVEX_h(f) = f âˆ’ HMAX_h(f)`
+//!   `HCONVEX_h(f) = f − HMAX_h(f)`
 //! - **H-concave** extracts the suppressed dark dynamic:
-//!   `HCONCAVE_h(f) = HMIN_h(f) âˆ’ f`
+//!   `HCONCAVE_h(f) = HMIN_h(f) − f`
 //!
-//! Because the reconstruction marker satisfies `f âˆ’ h â‰¤ f` (dilation) and
-//! `f + h â‰¥ f` (erosion) by construction, the reconstruction preconditions hold
-//! for every `h â‰¥ 0`.
+//! Because the reconstruction marker satisfies `f − h ≤ f` (dilation) and
+//! `f + h ≥ f` (erosion) by construction, the reconstruction preconditions hold
+//! for every `h ≥ 0`.
 //!
 //! # ITK / SimpleITK Parity
 //!
@@ -36,9 +36,9 @@
 //!
 //! # References
 //! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer,
-//!   Â§6.3 (h-transforms, dynamics).
+//!   §6.3 (h-transforms, dynamics).
 //! - Vincent, L. (1993). Morphological grayscale reconstruction in image
-//!   analysis. *IEEE Trans. Image Process.* 2(2):176â€“201.
+//!   analysis. *IEEE Trans. Image Process.* 2(2):176–201.
 
 use crate::morphology::label_morphology::{MorphologicalReconstruction, ReconstructionMode};
 use crate::morphology::Connectivity;
@@ -46,10 +46,10 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-/// Reconstruct an h-extrema image: shift the input by `Â±height` to form the
+/// Reconstruct an h-extrema image: shift the input by `±height` to form the
 /// marker, then reconstruct it under the original image.
 ///
-/// `mode = Dilation` with `âˆ’height` yields the h-maxima image; `mode = Erosion`
+/// `mode = Dilation` with `−height` yields the h-maxima image; `mode = Erosion`
 /// with `+height` yields the h-minima image.
 fn reconstruct_h_extrema<B: Backend>(
     image: &Image<f32, B, 3>,
@@ -132,7 +132,7 @@ fn validate_height_and_samples(height: f32, values: &[f32]) -> anyhow::Result<()
     Ok(())
 }
 
-/// Pointwise difference `a âˆ’ b` of two co-shaped images (helper for h-convex /
+/// Pointwise difference `a − b` of two co-shaped images (helper for h-convex /
 /// h-concave). Spatial metadata is taken from `a`.
 fn difference<B: Backend>(
     a: &Image<f32, B, 3>,
@@ -144,9 +144,9 @@ fn difference<B: Backend>(
     Ok(rebuild(out, dims, a))
 }
 
-// â”€â”€ HMaximaFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── HMaximaFilter ─────────────────────────────────────────────────────────────
 
-/// H-maxima filter: `HMAX_h(f) = R^Î´_f(f âˆ’ h)`.
+/// H-maxima filter: `HMAX_h(f) = R^δ_f(f − h)`.
 ///
 /// Suppresses every bright regional maximum whose contrast to the surrounding
 /// is below `height`, leaving the rest of the intensity surface unchanged.
@@ -183,9 +183,9 @@ impl HMaximaFilter {
     }
 }
 
-// â”€â”€ HMinimaFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── HMinimaFilter ─────────────────────────────────────────────────────────────
 
-/// H-minima filter: `HMIN_h(f) = R^Îµ_f(f + h)`.
+/// H-minima filter: `HMIN_h(f) = R^ε_f(f + h)`.
 ///
 /// Suppresses every dark regional minimum whose contrast is below `height`.
 #[derive(Debug, Clone)]
@@ -244,12 +244,12 @@ impl HMinimaFilter {
     }
 }
 
-// â”€â”€ HConvexFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── HConvexFilter ─────────────────────────────────────────────────────────────
 
-/// H-convex filter: `HCONVEX_h(f) = f âˆ’ HMAX_h(f)`.
+/// H-convex filter: `HCONVEX_h(f) = f − HMAX_h(f)`.
 ///
-/// Extracts the bright dynamic suppressed by the h-maxima transform â€” non-zero
-/// only on regional maxima of contrast â‰¥ `height`.
+/// Extracts the bright dynamic suppressed by the h-maxima transform — non-zero
+/// only on regional maxima of contrast ≥ `height`.
 #[derive(Debug, Clone)]
 pub struct HConvexFilter {
     height: f32,
@@ -283,9 +283,9 @@ impl HConvexFilter {
     }
 }
 
-// â”€â”€ HConcaveFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── HConcaveFilter ────────────────────────────────────────────────────────────
 
-/// H-concave filter: `HCONCAVE_h(f) = HMIN_h(f) âˆ’ f`.
+/// H-concave filter: `HCONCAVE_h(f) = HMIN_h(f) − f`.
 ///
 /// Extracts the dark dynamic suppressed by the h-minima transform.
 #[derive(Debug, Clone)]
@@ -321,7 +321,7 @@ impl HConcaveFilter {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_h_transform.rs"]

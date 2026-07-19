@@ -18,7 +18,7 @@ use ritk_filter::{
 ///
 /// Matches `SimpleITK.WienerDeconvolution`. In the frequency domain:
 /// ```text
-/// U(Ï‰) = G(Ï‰) Â· H*(Ï‰) / ( |H(Ï‰)|Â² + Pn / (|G(Ï‰)|Â² âˆ’ Pn) )
+/// U(ω) = G(ω) · H*(ω) / ( |H(ω)|² + Pn / (|G(ω)|² − Pn) )
 /// ```
 ///
 /// Args:
@@ -50,16 +50,16 @@ pub fn wiener_deconvolution(
 
 /// Apply Tikhonov-regularized deconvolution to a 3-D image.
 ///
-/// Matches `SimpleITK.TikhonovDeconvolution` â€” a constant-regularised inverse
+/// Matches `SimpleITK.TikhonovDeconvolution` — a constant-regularised inverse
 /// filter. In the frequency domain:
 /// ```text
-/// U(Ï‰) = G(Ï‰) Â· H*(Ï‰) / (|H(Ï‰)|Â² + Î»)
+/// U(ω) = G(ω) · H*(ω) / (|H(ω)|² + λ)
 /// ```
 ///
 /// Args:
 ///     image: Degraded PyImage (any shape [Z, Y, X]).
 ///     kernel: 3-D PSF kernel PyImage.
-///     lambda: Regularization parameter Î» (default 0.01).
+///     lambda: Regularization parameter λ (default 0.01).
 ///
 /// Returns:
 ///     Restored PyImage with the same shape as `image`.
@@ -85,16 +85,16 @@ pub fn tikhonov_deconvolution(
 ///
 /// Matches `SimpleITK.InverseDeconvolution`. In the frequency domain:
 /// ```text
-/// U(Ï‰) = G(Ï‰) / H(Ï‰)   if |H(Ï‰)| >= Ï„, else 0
+/// U(ω) = G(ω) / H(ω)   if |H(ω)| >= τ, else 0
 /// ```
 ///
 /// Args:
 ///     image: Degraded PyImage (any shape [Z, Y, X]).
 ///     kernel: 3-D PSF kernel PyImage.
-///     kernel_zero_magnitude_threshold: OTF magnitude threshold Ï„ below which a
+///     kernel_zero_magnitude_threshold: OTF magnitude threshold τ below which a
 ///         frequency is zeroed (sitk `kernelZeroMagnitudeThreshold`, default
-///         1e-4). Parity with sitk is tightest near the default; larger Ï„ may
-///         flip borderline frequencies (|H| â‰ˆ Ï„) due to FFT-magnitude rounding.
+///         1e-4). Parity with sitk is tightest near the default; larger τ may
+///         flip borderline frequencies (|H| ≈ τ) due to FFT-magnitude rounding.
 ///
 /// Returns:
 ///     Restored PyImage with the same shape as `image`.
@@ -121,8 +121,8 @@ pub fn inverse_deconvolution(
 /// Expectation-maximization algorithm for Poisson-noise restoration:
 ///
 /// ```text
-/// uâ‚€ = g
-/// uâ‚–â‚Šâ‚ = uâ‚– Â· (h* â‹† (g / (h â‹† uâ‚–)))
+/// u₀ = g
+/// uₖ₊₁ = uₖ · (h* ⋆ (g / (h ⋆ uₖ)))
 /// ```
 ///
 /// Preserves non-negativity and total flux.
@@ -158,17 +158,17 @@ pub fn richardson_lucy_deconvolution(
 
 /// Apply Landweber iterative deconvolution to a 3-D image.
 ///
-/// Gradient descent minimization of `||g âˆ’ h âˆ— u||Â²`:
+/// Gradient descent minimization of `||g − h ∗ u||²`:
 ///
 /// ```text
-/// uâ‚€ = g
-/// uâ‚–â‚Šâ‚ = uâ‚– + Î± Â· h* â‹† (g âˆ’ h â‹† uâ‚–)
+/// u₀ = g
+/// uₖ₊₁ = uₖ + α · h* ⋆ (g − h ⋆ uₖ)
 /// ```
 ///
 /// Args:
 ///     image: Degraded PyImage (any shape [Z, Y, X]).
 ///     kernel: 3-D PSF kernel PyImage.
-///     step_size: Gradient descent step size Î± (default 0.1).
+///     step_size: Gradient descent step size α (default 0.1).
 ///     max_iterations: Maximum iterations (default 100).
 ///     tolerance: Convergence tolerance (default 1e-6).
 ///
@@ -206,7 +206,7 @@ pub fn landweber_deconvolution(
 /// Args:
 ///     image: Degraded PyImage (any shape [Z, Y, X]).
 ///     kernel: 3-D PSF kernel PyImage.
-///     step_size: Gradient descent step size Î± (default 0.1).
+///     step_size: Gradient descent step size α (default 0.1).
 ///     max_iterations: Maximum iterations (default 100).
 ///     tolerance: Convergence tolerance (default 1e-6).
 ///

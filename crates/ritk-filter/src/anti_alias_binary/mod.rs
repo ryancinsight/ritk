@@ -16,7 +16,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 mod curvature;
 mod solver;
 
-// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 /// ITK `CurvatureFlowImageFilter` default explicit-Euler time step.
 const DT: f32 = 0.05;
@@ -31,11 +31,11 @@ const ST_CHG: i32 = -2;
 const ST_CUP: i32 = -3;
 const ST_CDN: i32 = -4;
 
-// â”€â”€ Filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Filter ────────────────────────────────────────────────────────────────────
 
 /// Anti-alias binary image filter (faithful ITK SparseField solver).
 ///
-/// Smooths the boundary of a binary object, returning the signed level-set Ï†
+/// Smooths the boundary of a binary object, returning the signed level-set φ
 /// (negative inside the smoothed object, positive outside; the zero crossing is
 /// the anti-aliased sub-voxel boundary). Bit-exact to `sitk.AntiAliasBinary`.
 ///
@@ -85,7 +85,7 @@ impl AntiAliasBinaryImageFilter {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "../tests_anti_alias_binary.rs"]

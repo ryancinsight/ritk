@@ -11,7 +11,7 @@
 //!
 //! This is computed exactly by a flat-zone flood: BFS each connected
 //! equal-valued component, then mark it extremal iff no out-of-zone neighbour is
-//! strictly more extreme. Unlike the `f âˆ’ R^Î´_f(f âˆ’ 1)` reconstruction shortcut,
+//! strictly more extreme. Unlike the `f − R^δ_f(f − 1)` reconstruction shortcut,
 //! this is correct for arbitrary float values (the shortcut merges extrema whose
 //! contrast is below the unit shift).
 //!
@@ -26,11 +26,11 @@
 //!
 //! Binary filters emit `foreground` on extrema and `background` elsewhere
 //! (ITK defaults 1 / 0). Valued filters keep the input value on extrema and set
-//! non-extrema to the type's non-extremal sentinel â€” `f32::MIN` (`âˆ’FLT_MAX`) for
-//! maxima, `f32::MAX` (`+FLT_MAX`) for minima â€” matching ITK's `NumericTraits`.
+//! non-extrema to the type's non-extremal sentinel — `f32::MIN` (`−FLT_MAX`) for
+//! maxima, `f32::MAX` (`+FLT_MAX`) for minima — matching ITK's `NumericTraits`.
 //!
 //! # References
-//! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer, Â§6.3.
+//! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer, §6.3.
 
 use crate::morphology::Connectivity;
 use ritk_image::tensor::Backend;
@@ -191,7 +191,7 @@ where
     )
 }
 
-// â”€â”€ Binary regional maxima / minima â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Binary regional maxima / minima ───────────────────────────────────────────
 
 /// Binary regional-maxima filter: `foreground` on regional maxima, `background`
 /// elsewhere. ITK `RegionalMaximaImageFilter` (defaults foreground 1.0 / 0.0).
@@ -335,10 +335,10 @@ impl RegionalMinimaFilter {
     }
 }
 
-// â”€â”€ Valued regional maxima / minima â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Valued regional maxima / minima ───────────────────────────────────────────
 
 /// Valued regional-maxima filter: keep the input value on regional maxima, set
-/// non-maxima to `f32::MIN` (`âˆ’FLT_MAX`). ITK `ValuedRegionalMaximaImageFilter`.
+/// non-maxima to `f32::MIN` (`−FLT_MAX`). ITK `ValuedRegionalMaximaImageFilter`.
 #[derive(Debug, Clone)]
 pub struct ValuedRegionalMaximaFilter {
     connectivity: Connectivity,
@@ -415,7 +415,7 @@ impl ValuedRegionalMinimaFilter {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_regional_extrema.rs"]

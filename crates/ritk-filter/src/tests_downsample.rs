@@ -11,7 +11,7 @@ fn make_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
     ts::make_image::<f32, B, 3>(data, shape)
 }
 
-// â”€â”€ DownsampleFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── DownsampleFilter ───────────────────────────────────────────────────────
 
 /// Factor 1 in every dimension: shape, spacing, and voxel values are unchanged.
 #[test]

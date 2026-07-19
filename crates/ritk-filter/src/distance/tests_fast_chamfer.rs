@@ -10,7 +10,7 @@ fn img(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 /// A single zero seed in a far field propagates the face weight `0.92644` per
-/// step (two passes resolve both directions): `[20,20,0,20,20] â†’ [2w,w,0,w,2w]`.
+/// step (two passes resolve both directions): `[20,20,0,20,20] → [2w,w,0,w,2w]`.
 #[test]
 fn fast_chamfer_propagates_face_weight() {
     let f = FastChamferDistanceFilter {

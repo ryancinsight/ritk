@@ -16,10 +16,10 @@ fn cfg(iters: usize, dt: f32) -> CurvatureFlowConfig {
     }
 }
 
-// â”€â”€ Analytical tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Analytical tests ──────────────────────────────────────────────────────
 
-/// Constant image: every derivative is zero â†’ Îº = 0 â†’ image unchanged.
-/// Proof: âˆ‡I = 0 everywhere â†’ N = 0 â†’ Îº = 0 â†’ Î”I = 0 each iteration.
+/// Constant image: every derivative is zero → κ = 0 → image unchanged.
+/// Proof: ∇I = 0 everywhere → N = 0 → κ = 0 → ΔI = 0 each iteration.
 #[test]
 fn constant_image_unchanged() {
     let img = make_image(vec![42.0f32; 27], [3, 3, 3]);
@@ -50,7 +50,7 @@ fn zero_iterations_identity() {
 }
 
 /// Single voxel image: boundary conditions clamp all neighbours to same value
-/// â†’ all derivatives are zero â†’ Îº = 0 â†’ identity.
+/// → all derivatives are zero → κ = 0 → identity.
 #[test]
 fn single_voxel_identity() {
     let img = make_image(vec![100.0f32], [1, 1, 1]);
@@ -137,7 +137,7 @@ fn default_config_values() {
         (cfg.time_step - 0.0625f32).abs() < 1e-7,
         "default dt = 0.0625"
     );
-    // Stability: dt â‰¤ 1/6 â‰ˆ 0.1667
+    // Stability: dt ≤ 1/6 ≈ 0.1667
     assert!(
         cfg.time_step <= 1.0 / 6.0 + 1e-6,
         "default dt must be within stability bound"

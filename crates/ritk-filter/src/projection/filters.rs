@@ -4,7 +4,7 @@ use anyhow::Result;
 use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 
-// â”€â”€ MaxIntensityProjectionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── MaxIntensityProjectionFilter ──────────────────────────────────────────────
 
 /// Maximum intensity projection along a chosen axis.
 pub struct MaxIntensityProjectionFilter {
@@ -76,7 +76,7 @@ impl MaxIntensityProjectionFilter {
     }
 }
 
-// â”€â”€ MinIntensityProjectionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── MinIntensityProjectionFilter ──────────────────────────────────────────────
 
 /// Minimum intensity projection along a chosen axis.
 pub struct MinIntensityProjectionFilter {
@@ -104,7 +104,7 @@ impl MinIntensityProjectionFilter {
     }
 }
 
-// â”€â”€ MeanIntensityProjectionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── MeanIntensityProjectionFilter ─────────────────────────────────────────────
 
 /// Mean intensity projection along a chosen axis (f64 accumulation).
 pub struct MeanIntensityProjectionFilter {
@@ -121,7 +121,7 @@ impl MeanIntensityProjectionFilter {
     }
 }
 
-// â”€â”€ SumIntensityProjectionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SumIntensityProjectionFilter ──────────────────────────────────────────────
 
 /// Sum intensity projection along a chosen axis (f64 accumulation).
 pub struct SumIntensityProjectionFilter {
@@ -138,7 +138,7 @@ impl SumIntensityProjectionFilter {
     }
 }
 
-// â”€â”€ StdDevIntensityProjectionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── StdDevIntensityProjectionFilter ───────────────────────────────────────────
 
 /// Population standard-deviation projection along a chosen axis (f64 accumulation).
 pub struct StdDevIntensityProjectionFilter {
@@ -155,7 +155,7 @@ impl StdDevIntensityProjectionFilter {
     }
 }
 
-// â”€â”€ MedianIntensityProjectionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── MedianIntensityProjectionFilter ───────────────────────────────────────────
 
 /// Median intensity projection along a chosen axis.
 pub struct MedianIntensityProjectionFilter {
@@ -172,7 +172,7 @@ impl MedianIntensityProjectionFilter {
     }
 }
 
-// â”€â”€ BinaryProjectionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── BinaryProjectionFilter ────────────────────────────────────────────────────
 
 /// Binary projection along a chosen axis: a result pixel is `foreground` if
 /// **any** voxel along the collapsed axis equals `foreground`, else `background`.
@@ -203,7 +203,7 @@ impl BinaryProjectionFilter {
     }
 }
 
-// â”€â”€ BinaryThresholdProjectionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── BinaryThresholdProjectionFilter ───────────────────────────────────────────
 
 /// Binary-threshold projection: a result pixel is `foreground` if **any** voxel
 /// along the collapsed axis is `>= threshold`, else `background`.

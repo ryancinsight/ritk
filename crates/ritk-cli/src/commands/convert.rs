@@ -1,4 +1,4 @@
-//! `ritk convert` â€” format conversion command.
+//! `ritk convert` — format conversion command.
 //!
 //! Reads an image from any supported input format (inferred from extension)
 //! and writes it to any supported output format (inferred from extension or
@@ -20,7 +20,7 @@ use tracing::info;
 
 use super::{infer_format, is_read_capable, is_write_capable, read_image, write_image};
 
-// â”€â”€ CLI arguments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CLI arguments ─────────────────────────────────────────────────────────────
 
 /// Override output format.
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -55,7 +55,7 @@ pub struct ConvertArgs {
     pub format: Option<OutputFormat>,
 }
 
-// â”€â”€ Command handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Command handler ───────────────────────────────────────────────────────────
 
 /// Execute the `convert` subcommand.
 ///
@@ -140,7 +140,7 @@ pub fn run(args: ConvertArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -169,7 +169,7 @@ mod tests {
         .expect("invariant: image data matches shape")
     }
 
-    // â”€â”€ Positive: NIfTI round-trip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Positive: NIfTI round-trip ────────────────────────────────────────────
 
     /// Writing a NIfTI file and converting it back to another NIfTI must
     /// produce an output file with the same shape.
@@ -198,7 +198,7 @@ mod tests {
         );
     }
 
-    // â”€â”€ Positive: NIfTI â†’ MetaImage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Positive: NIfTI → MetaImage ───────────────────────────────────────────
 
     /// Converting a NIfTI to a MetaImage must produce a `.mha` file with the
     /// same shape.
@@ -223,7 +223,7 @@ mod tests {
         assert_eq!(recovered.shape(), [3, 4, 5]);
     }
 
-    // â”€â”€ Positive: NIfTI â†’ NRRD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Positive: NIfTI → NRRD ───────────────────────────────────────────────
 
     /// Converting a NIfTI to NRRD must produce a `.nrrd` file with the
     /// same shape.
@@ -248,7 +248,7 @@ mod tests {
         assert_eq!(recovered.shape(), [3, 4, 5]);
     }
 
-    // â”€â”€ Positive: explicit --format overrides extension â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Positive: explicit --format overrides extension ───────────────────────
 
     /// When `--format nifti` is passed the output extension is ignored and a
     /// valid NIfTI file is produced.
@@ -272,7 +272,7 @@ mod tests {
         assert!(output.exists());
     }
 
-    // â”€â”€ Negative: unknown output extension without --format â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Negative: unknown output extension without --format ───────────────────
 
     /// When the output path has an unrecognised extension and no `--format`
     /// flag is provided, the command must return an error (not panic).
@@ -301,7 +301,7 @@ mod tests {
         );
     }
 
-    // â”€â”€ Negative: non-existent input file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Negative: non-existent input file ─────────────────────────────────────
 
     /// Attempting to convert a path that does not exist must return an error.
     #[test]
@@ -318,7 +318,7 @@ mod tests {
         assert!(result.is_err(), "missing input must yield an error");
     }
 
-    // â”€â”€ Boundary: MetaImage round-trip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Boundary: MetaImage round-trip ────────────────────────────────────────
 
     /// Writing a MetaImage and converting it back to NIfTI must preserve shape.
     #[test]
@@ -342,7 +342,7 @@ mod tests {
         assert_eq!(recovered.shape(), [3, 4, 5]);
     }
 
-    // â”€â”€ ADR 0003 Phase A: native-dispatch coverage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── ADR 0003 Phase A: native-dispatch coverage ────────────────────────────
 
     /// `is_read_capable`/`is_write_capable` must agree exactly
     /// with the native format matrix: VTK is now read and written through its

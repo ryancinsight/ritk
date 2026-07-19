@@ -2,9 +2,9 @@
 //! paths (erosion, dilation, opening, closing, white/black top-hat,
 //! hit-or-miss).
 //!
-//! Each native wrapper must be value-identical to the Burn filter it mirrors â€”
+//! Each native wrapper must be value-identical to the Coeus filter it mirrors —
 //! both call the identical substrate-agnostic host core (shared harness in
-//! `native_support::assert_coeus_matches_coeus`) â€” plus analytical oracles that
+//! `native_support::assert_coeus_matches_coeus`) — plus analytical oracles that
 //! pin the morphological algebra independent of the Burn reference.
 
 use crate::morphology::{
@@ -19,7 +19,7 @@ fn scattered(dims: [usize; 3]) -> Vec<f32> {
     (0..n).map(|i| ((i * 37) % 17) as f32).collect()
 }
 
-// â”€â”€ Erosion / dilation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Erosion / dilation ────────────────────────────────────────────────────────
 
 #[test]
 fn erosion_matches_coeus() {
@@ -80,7 +80,7 @@ fn oracle_erosion_le_original_le_dilation() {
     }
 }
 
-// â”€â”€ Opening / closing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Opening / closing ─────────────────────────────────────────────────────────
 
 #[test]
 fn opening_matches_coeus() {
@@ -143,7 +143,7 @@ fn oracle_opening_le_original_le_closing() {
     }
 }
 
-// â”€â”€ Top-hat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Top-hat ───────────────────────────────────────────────────────────────────
 
 #[test]
 fn white_top_hat_matches_coeus() {
@@ -208,7 +208,7 @@ fn oracle_top_hat_non_negative() {
     }
 }
 
-// â”€â”€ Hit-or-miss â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Hit-or-miss ───────────────────────────────────────────────────────────────
 
 #[test]
 fn hit_or_miss_matches_coeus() {
@@ -239,14 +239,14 @@ fn hit_or_miss_matches_coeus() {
     );
 }
 
-// â”€â”€ Morphological gradient / Laplacian (added: native path) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Morphological gradient / Laplacian (added: native path) ─────────────────────
 
 mod gradient_and_laplace {
     use super::*;
     use crate::morphology::{GrayscaleMorphologicalGradientFilter, MorphologicalLaplacian};
 
     #[test]
-    fn gradient_matches_burn() {
+    fn gradient_matches_coeus() {
         let dims = [4usize, 5, 6];
         assert_coeus_matches_coeus(
             scattered(dims),
@@ -272,7 +272,7 @@ mod gradient_and_laplace {
     }
 
     #[test]
-    fn laplace_matches_burn() {
+    fn laplace_matches_coeus() {
         let dims = [4usize, 5, 6];
         assert_coeus_matches_coeus(
             scattered(dims),
@@ -301,7 +301,7 @@ mod gradient_and_laplace {
     }
 }
 
-// â”€â”€ Fill-hole (grayscale + binary) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Fill-hole (grayscale + binary) ──────────────────────────────────────────────
 
 mod fillhole {
     use super::*;
@@ -316,7 +316,7 @@ mod fillhole {
     }
 
     #[test]
-    fn grayscale_matches_burn() {
+    fn grayscale_matches_coeus() {
         let (dims, v) = walled_pit();
         assert_coeus_matches_coeus(
             v,
@@ -346,7 +346,7 @@ mod fillhole {
     }
 
     #[test]
-    fn binary_matches_burn() {
+    fn binary_matches_coeus() {
         let (dims, v) = walled_pit();
         // Binary image: wall = 1, pit = 0.
         let bin: Vec<f32> = v.iter().map(|&x| if x > 5.0 { 1.0 } else { 0.0 }).collect();
@@ -363,14 +363,14 @@ mod fillhole {
     }
 }
 
-// â”€â”€ Voting binary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Voting binary ──────────────────────────────────────────────────────────────
 
 mod voting_binary {
     use super::*;
     use crate::morphology::VotingBinaryImageFilter;
 
     #[test]
-    fn matches_burn() {
+    fn matches_coeus() {
         let dims = [4usize, 4, 4];
         let n = dims[0] * dims[1] * dims[2];
         let vals: Vec<f32> = (0..n).map(|i| if i % 3 == 0 { 1.0 } else { 0.0 }).collect();
@@ -387,7 +387,7 @@ mod voting_binary {
     }
 }
 
-// â”€â”€ Geodesic reconstruction (two-input) + reconstruction opening/closing â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Geodesic reconstruction (two-input) + reconstruction opening/closing ────────
 
 mod reconstruction {
     use super::*;
@@ -402,7 +402,7 @@ mod reconstruction {
         let dims = [3usize, 4, 5];
         let n = dims[0] * dims[1] * dims[2];
         let mask: Vec<f32> = (0..n).map(|i| ((i * 11) % 19) as f32).collect();
-        // Marker â‰¤ mask (dilation reconstruction precondition).
+        // Marker ≤ mask (dilation reconstruction precondition).
         let marker: Vec<f32> = mask.iter().map(|&m| m * 0.5).collect();
         assert_coeus_matches_coeus_pair(
             marker,
@@ -418,7 +418,7 @@ mod reconstruction {
     }
 
     #[test]
-    fn opening_by_reconstruction_matches_burn() {
+    fn opening_by_reconstruction_matches_coeus() {
         let dims = [4usize, 5, 6];
         assert_coeus_matches_coeus(
             scattered(dims),
@@ -433,7 +433,7 @@ mod reconstruction {
     }
 
     #[test]
-    fn closing_by_reconstruction_matches_burn() {
+    fn closing_by_reconstruction_matches_coeus() {
         let dims = [4usize, 5, 6];
         assert_coeus_matches_coeus(
             scattered(dims),

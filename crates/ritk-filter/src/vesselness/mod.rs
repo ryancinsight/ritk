@@ -6,7 +6,7 @@ pub mod sato;
 
 use serde::{Deserialize, Serialize};
 
-/// Vessel polarity â€” whether the target structures are bright or dark relative
+/// Vessel polarity — whether the target structures are bright or dark relative
 /// to the background.
 ///
 /// - `Dark`: detect dark structures on a bright background.

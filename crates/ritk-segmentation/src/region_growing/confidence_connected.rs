@@ -2,30 +2,30 @@
 //!
 //! # Mathematical Specification
 //!
-//! Given an intensity image I and a seed voxel s âˆˆ â„¤Â³, the confidence-connected
+//! Given an intensity image I and a seed voxel s ∈ ℤ³, the confidence-connected
 //! region growing algorithm iteratively expands based on adaptive intensity
 //! statistics computed from the current region.
 //!
 //! ## Theorem (Yanowitz/Bruckstein Adaptive Region Growing)
 //!
-//! For iteration i with region Ráµ¢:
-//! - Î¼áµ¢ = (1/|Ráµ¢|) Î£_{pâˆˆRáµ¢} I(p)        (sample mean)
-//! - Ïƒáµ¢ = âˆš[(1/|Ráµ¢|) Î£_{pâˆˆRáµ¢} (I(p) - Î¼áµ¢)Â²]  (sample standard deviation)
+//! For iteration i with region Rᵢ:
+//! - μᵢ = (1/|Rᵢ|) Σ_{p∈Rᵢ} I(p)        (sample mean)
+//! - σᵢ = √[(1/|Rᵢ|) Σ_{p∈Rᵢ} (I(p) - μᵢ)²]  (sample standard deviation)
 //!
-//! The inclusion predicate for voxel q âˆˆ Nâ‚†(p) where p âˆˆ Ráµ¢:
+//! The inclusion predicate for voxel q ∈ N₆(p) where p ∈ Rᵢ:
 //!
-//! P(q âˆˆ Ráµ¢â‚Šâ‚) â‰¡ Î¼áµ¢ - kÂ·Ïƒáµ¢ â‰¤ I(q) â‰¤ Î¼áµ¢ + kÂ·Ïƒáµ¢
+//! P(q ∈ Rᵢ₊₁) ≡ μᵢ - k·σᵢ ≤ I(q) ≤ μᵢ + k·σᵢ
 //!
 //! where k is the confidence interval multiplier.
 //!
-//! ## Algorithm â€” Iterative Re-Flood (ITK `ConfidenceConnectedImageFilter`)
+//! ## Algorithm — Iterative Re-Flood (ITK `ConfidenceConnectedImageFilter`)
 //!
 //! 1. Flood-fill the **entire** 6-connected region reachable from the seed whose
-//!    intensity lies in the initial interval `[lowerâ‚€, upperâ‚€]`.
+//!    intensity lies in the initial interval `[lower₀, upper₀]`.
 //! 2. For each of `max_iterations` passes:
-//!    a. Recompute Î¼ and Ïƒ over **all** voxels currently in the region, using the
-//!       sample (N âˆ’ 1) variance estimator.
-//!    b. Set the interval to `[Î¼ âˆ’ kÂ·Ïƒ, Î¼ + kÂ·Ïƒ]`, widened if necessary to contain
+//!    a. Recompute μ and σ over **all** voxels currently in the region, using the
+//!       sample (N − 1) variance estimator.
+//!    b. Set the interval to `[μ − k·σ, μ + k·σ]`, widened if necessary to contain
 //!       the seed intensity.
 //!    c. Discard the region and **re-flood from scratch** from the seed with the
 //!       new interval (a complete connected-threshold flood, not one BFS ring).
@@ -34,19 +34,19 @@
 //!
 //! The earlier implementation advanced exactly **one BFS wavefront per iteration**
 //! and recomputed statistics after each ring, so `max_iterations` capped growth at
-//! that many rings (â‰ˆ a tiny diamond around the seed) instead of the full region â€”
-//! the source of a ~180Ã— under-segmentation versus ITK. Each iteration is now a
+//! that many rings (≈ a tiny diamond around the seed) instead of the full region —
+//! the source of a ~180× under-segmentation versus ITK. Each iteration is now a
 //! complete flood, matching ITK's "clear output, re-flood from seeds" loop.
 //!
 //! # Complexity
-//! - Time: O(|R| Â· iter) â€” one full flood per iteration, each visiting the region
+//! - Time: O(|R| · iter) — one full flood per iteration, each visiting the region
 //!   plus its boundary once.
 //! - Space: O(n) for the visited buffer and BFS queue.
 //!
 //! # References
 //! Yanowitz, S.D., & Bruckstein, A.M. (1989). "A New Method for Image
 //! Segmentation." *Computer Vision, Graphics, and Image Processing*, 46(1), 82-95.
-//! ITK `itkConfidenceConnectedImageFilter.hxx` (Nâˆ’1 variance, per-iteration
+//! ITK `itkConfidenceConnectedImageFilter.hxx` (N−1 variance, per-iteration
 //! re-flood, seed-clamped inclusive bounds).
 
 use ritk_core::spatial::VoxelIndex;
@@ -55,7 +55,7 @@ use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 use std::collections::VecDeque;
 
-// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public types ─────────────────────────────────────────────────────────────
 
 /// Confidence-connected region-growing filter (Yanowitz/Bruckstein variant).
 ///
@@ -64,11 +64,11 @@ use std::collections::VecDeque;
 pub struct ConfidenceConnectedFilter {
     /// Seed voxel in [z, y, x] index space.
     seed: VoxelIndex,
-    /// Initial lower bound for first iteration when Ïƒ = 0.
+    /// Initial lower bound for first iteration when σ = 0.
     initial_lower: f32,
-    /// Initial upper bound for first iteration when Ïƒ = 0.
+    /// Initial upper bound for first iteration when σ = 0.
     initial_upper: f32,
-    /// Multiplier k for kÂ·Ïƒ interval expansion (typically 2.5).
+    /// Multiplier k for k·σ interval expansion (typically 2.5).
     multiplier: f32,
     /// Maximum number of iterations before forced termination.
     max_iterations: usize,
@@ -78,9 +78,9 @@ impl ConfidenceConnectedFilter {
     /// Create a `ConfidenceConnectedFilter` with required parameters.
     ///
     /// # Arguments
-    /// * `seed` â€” starting voxel in [z, y, x] index space.
-    /// * `initial_lower` â€” inclusive lower bound when Ïƒ = 0 (first iteration).
-    /// * `initial_upper` â€” inclusive upper bound when Ïƒ = 0 (first iteration).
+    /// * `seed` — starting voxel in [z, y, x] index space.
+    /// * `initial_lower` — inclusive lower bound when σ = 0 (first iteration).
+    /// * `initial_upper` — inclusive upper bound when σ = 0 (first iteration).
     ///
     /// # Panics
     /// Panics if either bound is NaN or `initial_lower > initial_upper`.
@@ -98,7 +98,7 @@ impl ConfidenceConnectedFilter {
         }
     }
 
-    /// Set the confidence interval multiplier (k for kÂ·Ïƒ interval).
+    /// Set the confidence interval multiplier (k for k·σ interval).
     ///
     /// Default: 2.5. Larger values produce more permissive region growing.
     ///
@@ -198,7 +198,7 @@ impl ConfidenceConnectedFilter {
     }
 }
 
-// â”€â”€ Public function â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public function ───────────────────────────────────────────────────────────
 
 /// Confidence-connected region growing starting from `seed`.
 ///
@@ -206,16 +206,16 @@ impl ConfidenceConnectedFilter {
 /// Voxels included in the grown region are set to 1.0; all others to 0.0.
 ///
 /// The algorithm iteratively updates intensity statistics (mean, std deviation)
-/// from the current region and uses [Î¼ - kÂ·Ïƒ, Î¼ + kÂ·Ïƒ] as the inclusion interval.
-/// For the first iteration, Ïƒ = 0, so the initial bounds are used instead.
+/// from the current region and uses [μ - k·σ, μ + k·σ] as the inclusion interval.
+/// For the first iteration, σ = 0, so the initial bounds are used instead.
 ///
 /// # Arguments
-/// * `image` â€” input intensity image (3-D).
-/// * `seed` â€” starting voxel [z, y, x].
-/// * `initial_lower` â€” lower bound for first iteration.
-/// * `initial_upper` â€” upper bound for first iteration.
-/// * `multiplier` â€” k value for confidence interval scaling.
-/// * `max_iterations` â€” hard limit on iteration count.
+/// * `image` — input intensity image (3-D).
+/// * `seed` — starting voxel [z, y, x].
+/// * `initial_lower` — lower bound for first iteration.
+/// * `initial_upper` — upper bound for first iteration.
+/// * `multiplier` — k value for confidence interval scaling.
+/// * `max_iterations` — hard limit on iteration count.
 ///
 /// # Panics
 /// Panics if `initial_lower > initial_upper`, `multiplier` is non-finite or
@@ -266,9 +266,9 @@ pub fn confidence_connected<B: Backend>(
     .expect("invariant: segmentation output tensor preserves the image rank")
 }
 
-// â”€â”€ Core iterative growing algorithm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Core iterative growing algorithm ─────────────────────────────────────────
 
-/// Perform iterative confidence-connected region growing on flat `[nz Ã— ny Ã— nx]` data.
+/// Perform iterative confidence-connected region growing on flat `[nz × ny × nx]` data.
 ///
 /// Returns a flat binary `Vec<f32>` of the same length as `data`.
 pub(crate) fn grow_region(
@@ -316,7 +316,7 @@ pub(crate) fn grow_region(
         );
 
         // Recompute the interval from the whole region using the sample (N-1)
-        // variance estimator, matching ITK. A 1-voxel region has Ïƒ = 0.
+        // variance estimator, matching ITK. A 1-voxel region has σ = 0.
         let count = region.len();
         let (mut new_lower, mut new_upper) = if count <= 1 {
             (seed_val, seed_val)
@@ -430,7 +430,7 @@ fn validate_multiplier(multiplier: f32) -> anyhow::Result<()> {
     Ok(())
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_confidence_connected.rs"]

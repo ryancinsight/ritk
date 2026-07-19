@@ -1,20 +1,20 @@
-//! Landweber iterative deconvolution â€” 2-D and 3-D.
+//! Landweber iterative deconvolution — 2-D and 3-D.
 //!
 //! # Theory
 //!
-//! Minimizes `||g âˆ’ h âˆ— u||Â²` via steepest descent:
+//! Minimizes `||g − h ∗ u||²` via steepest descent:
 //!
 //! ```text
-//! uâ‚€ = g
-//! uâ‚–â‚Šâ‚ = uâ‚– + Î± Â· h* â‹† (g âˆ’ h â‹† uâ‚–)
+//! u₀ = g
+//! uₖ₊₁ = uₖ + α · h* ⋆ (g − h ⋆ uₖ)
 //! ```
 //!
 //! # Convergence condition
-//! Î± must satisfy `0 < Î± < 2 / Ïƒ_maxÂ²` where Ïƒ_max is the largest singular
-//! value of the convolution operator H (â‰ˆ max|H(Ï‰)| in frequency domain).
+//! α must satisfy `0 < α < 2 / σ_max²` where σ_max is the largest singular
+//! value of the convolution operator H (≈ max|H(ω)| in frequency domain).
 //!
 //! # Properties
-//! - Guaranteed convergence for sufficiently small Î±
+//! - Guaranteed convergence for sufficiently small α
 //! - Slower than conjugate-gradient methods but simple and analyzable
 
 use super::regularization::{
@@ -28,24 +28,24 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 
 /// Landweber iterative deconvolution (gradient descent).
 ///
-/// Minimizes `||g âˆ’ h âˆ— u||Â²` via steepest descent:
+/// Minimizes `||g − h ∗ u||²` via steepest descent:
 ///
 /// ```text
-/// uâ‚€ = g
-/// uâ‚–â‚Šâ‚ = uâ‚– + Î± Â· h* â‹† (g âˆ’ h â‹† uâ‚–)
+/// u₀ = g
+/// uₖ₊₁ = uₖ + α · h* ⋆ (g − h ⋆ uₖ)
 /// ```
 ///
-/// where Î± must satisfy `0 < Î± < 2 / Ïƒ_maxÂ²` for convergence.
+/// where α must satisfy `0 < α < 2 / σ_max²` for convergence.
 ///
 /// # Properties
 /// - Simple to implement and analyze
 /// - Slower convergence than conjugate gradient methods
-/// - Guaranteed convergence for small enough Î±
+/// - Guaranteed convergence for small enough α
 ///
 /// # Complexity
-/// O(iterations Â· N log N).
+/// O(iterations · N log N).
 pub struct LandweberDeconvolution {
-    /// Step size Î± (default: 0.1).
+    /// Step size α (default: 0.1).
     pub step_size: f32,
     /// Maximum number of iterations (default: 100).
     pub max_iterations: usize,
@@ -75,7 +75,7 @@ impl LandweberDeconvolution {
         self
     }
 
-    /// Set the gradient descent step size Î±.
+    /// Set the gradient descent step size α.
     pub fn with_step_size(mut self, alpha: f32) -> Self {
         self.step_size = alpha;
         self

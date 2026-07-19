@@ -85,7 +85,7 @@ fn make_sphere(nz: usize, ny: usize, nx: usize, cz: f32, cy: f32, cx: f32, r: f3
         .collect()
 }
 
-// â”€â”€ Test 1 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test 1 ────────────────────────────────────────────────────────────────
 
 /// A bright cylinder along the z-axis must produce a high Sato response
 /// at its centre compared to the background.
@@ -125,11 +125,11 @@ fn test_cylindrical_tube_detects_line() {
     );
     assert!(
         median_centre > median_bg * 3.0,
-        "centre response ({median_centre:.6}) should exceed background ({median_bg:.6}) by 3Ã—"
+        "centre response ({median_centre:.6}) should exceed background ({median_bg:.6}) by 3×"
     );
 }
 
-// â”€â”€ Test 2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test 2 ────────────────────────────────────────────────────────────────
 
 /// A bright sphere has a lower peak Sato response than the cylinder tube
 /// produced by test 1, because spheres are blob-like, not line-like.
@@ -161,7 +161,7 @@ fn test_sphere_lower_response_than_tube() {
     );
 }
 
-// â”€â”€ Test 3 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test 3 ────────────────────────────────────────────────────────────────
 
 /// With `bright_tubes = true`, a dark tube (intensity 0, background 1)
 /// must produce near-zero response everywhere.
@@ -176,7 +176,7 @@ fn test_dark_tube_rejected_by_bright_gate() {
     let config = SatoConfig {
         scales: vec![1.5],
         alpha: 0.5,
-        polarity: VesselPolarity::Bright, // bright gate â€” should reject the dark tube
+        polarity: VesselPolarity::Bright, // bright gate — should reject the dark tube
     };
     let filter = SatoLineFilter::new(config);
     let result = filter.apply(&make_image(dark_tube, [N, N, N])).unwrap();
@@ -189,7 +189,7 @@ fn test_dark_tube_rejected_by_bright_gate() {
     );
 }
 
-// â”€â”€ Test 4 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test 4 ────────────────────────────────────────────────────────────────
 
 /// A uniform image has zero Hessian everywhere, so all Sato responses are zero.
 #[test]
@@ -209,7 +209,7 @@ fn test_uniform_image_zero_response() {
     );
 }
 
-// â”€â”€ Test 5 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test 5 ────────────────────────────────────────────────────────────────
 
 /// All output voxels must be finite for any non-trivial input.
 #[test]

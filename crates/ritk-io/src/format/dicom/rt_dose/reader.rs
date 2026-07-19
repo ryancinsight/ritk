@@ -1,4 +1,4 @@
-//! RT Dose reader â€” parse a DICOM RT Dose Storage file into [`RtDoseGrid`].
+//! RT Dose reader — parse a DICOM RT Dose Storage file into [`RtDoseGrid`].
 
 use anyhow::{bail, Context, Result};
 use arrayvec::ArrayString;
@@ -15,7 +15,7 @@ use crate::format::dicom::reader::types::truncate_arraystring;
 ///
 /// # Errors
 /// - `path` does not exist or is not readable.
-/// - The file's `MediaStorageSOPClassUID` â‰  `1.2.840.10008.5.1.4.1.1.481.2`.
+/// - The file's `MediaStorageSOPClassUID` ≠ `1.2.840.10008.5.1.4.1.1.481.2`.
 /// - Required tags (Rows, Columns, PixelData) are absent.
 /// - `PixelData` length is not exactly `n_frames * rows * cols * 4` bytes.
 /// - Present DS vector fields have the wrong component count or invalid components.
@@ -111,14 +111,11 @@ pub fn read_rt_dose<P: AsRef<Path>>(path: P) -> Result<RtDoseGrid> {
             )
         })?;
     let expected_bytes = n_voxels.checked_mul(4).ok_or_else(|| {
-        anyhow::anyhow!(
-            "RT Dose byte count overflow: {} voxels Ã— 4 bytes",
-            n_voxels
-        )
+        anyhow::anyhow!("RT Dose byte count overflow: {} voxels × 4 bytes", n_voxels)
     })?;
     if px_bytes.len() != expected_bytes {
         bail!(
-            "PixelData length mismatch for RT Dose: got {} bytes, expected {} ({} voxels Ã— 4 bytes)",
+            "PixelData length mismatch for RT Dose: got {} bytes, expected {} ({} voxels × 4 bytes)",
             px_bytes.len(),
             expected_bytes,
             n_voxels

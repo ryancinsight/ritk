@@ -4,21 +4,21 @@
 //!
 //! For a general displacement field `u`, the inverse `u^{-1}` satisfies:
 //!
-//!   `Ï†(x + u^{-1}(x)) = x  âŸ¹  u^{-1}(x) = âˆ’u(x + u^{-1}(x))`
+//!   `φ(x + u^{-1}(x)) = x  ⟹  u^{-1}(x) = −u(x + u^{-1}(x))`
 //!
 //! **Fixed-point iteration** (Christensen & Johnson 2001):
 //!
-//!   `u^{-1}_0(x)      = âˆ’u(x)`                         (initialisation)
-//!   `u^{-1}_{k+1}(x)  = âˆ’u(x + u^{-1}_k(x))`           (update rule)
+//!   `u^{-1}_0(x)      = −u(x)`                         (initialisation)
+//!   `u^{-1}_{k+1}(x)  = −u(x + u^{-1}_k(x))`           (update rule)
 //!
-//! **Convergence guarantee:** When the Lipschitz constant `L = maxâ€–âˆ‡uâ€– < 1`,
+//! **Convergence guarantee:** When the Lipschitz constant `L = max—–∇u—– < 1`,
 //! the update map is a contraction and the iterate error satisfies:
 //!
-//!   `â€–u^{-1}_{k+1} âˆ’ u^{-1}_*â€–_âˆž  â‰¤  L^k Â· â€–u^{-1}_1 âˆ’ u^{-1}_0â€–_âˆž`
+//!   `—–u^{-1}_{k+1} − u^{-1}_*—–_∞  ≤  L^k · —–u^{-1}_1 − u^{-1}_0—–_∞`
 //!
 //! # References
 //! - Christensen, G. E. & Johnson, H. J. (2001). Consistent image registration.
-//!   *IEEE Trans. Med. Imaging* 20(7):568â€“582.
+//!   *IEEE Trans. Med. Imaging* 20(7):568–582.
 
 use crate::deformable_field_ops::{
     trilinear_interpolate_field, VectorField, VectorFieldMut, VelocityField,
@@ -42,7 +42,7 @@ pub struct InverseFieldConfig {
     /// Terminates early when the maximum per-voxel Euclidean norm of the change
     /// between successive iterates drops below this value:
     ///
-    ///   `max_i â€–u^{-1}_{k+1}(i) âˆ’ u^{-1}_k(i)â€–_2 < tolerance`
+    ///   `max_i —–u^{-1}_{k+1}(i) − u^{-1}_k(i)—–_2 < tolerance`
     pub tolerance: f64,
 }
 

@@ -1,7 +1,7 @@
 //! Renyi-entropy thresholding (Kapur/Sahoo/Wong generalisation, Renyi 1961).
 //!
 //! Matches ITK's `RenyiEntropyThresholdCalculator`: compute the maximum-entropy
-//! threshold at three Renyi orders (Î± = 1, Â½, 2), then combine them with
+//! threshold at three Renyi orders (α = 1, ½, 2), then combine them with
 //! proximity-dependent weights.
 
 use ritk_image::tensor::Backend;
@@ -68,7 +68,7 @@ impl Default for RenyiEntropyThreshold {
     }
 }
 
-/// Shannon-entropy (Î± = 1) maximum-entropy threshold.
+/// Shannon-entropy (α = 1) maximum-entropy threshold.
 fn max_entropy_a1(
     norm: &[f64],
     p1: &[f64],
@@ -103,7 +103,7 @@ fn max_entropy_a1(
     threshold
 }
 
-/// Renyi Î± = Â½ maximum-entropy threshold.
+/// Renyi α = ½ maximum-entropy threshold.
 fn max_entropy_a_half(
     norm: &[f64],
     p1: &[f64],
@@ -138,7 +138,7 @@ fn max_entropy_a_half(
     threshold
 }
 
-/// Renyi Î± = 2 maximum-entropy threshold.
+/// Renyi α = 2 maximum-entropy threshold.
 fn max_entropy_a2(
     norm: &[f64],
     p1: &[f64],

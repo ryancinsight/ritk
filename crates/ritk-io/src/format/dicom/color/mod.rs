@@ -41,7 +41,7 @@ pub fn is_rgb_dicom_series<P: AsRef<Path>>(path: P) -> Result<bool> {
         bail!("no files found in '{}'", dir.display());
     }
 
-    // Try each file until one parses as valid DICOM â€” skips DICOMDIR,
+    // Try each file until one parses as valid DICOM — skips DICOMDIR,
     // thumbnails, and other non-DICOM files.
     for entry in entries {
         let obj = match parse_file_with::<DicomRsBackend, _>(entry.path()) {
@@ -63,7 +63,7 @@ pub fn is_rgb_dicom_series<P: AsRef<Path>>(path: P) -> Result<bool> {
 /// Read a DICOM RGB series directory into a flat interleaved-RGB buffer.
 ///
 /// Substrate-agnostic counterpart of [`load_color_volume_flat`] that scans a
-/// directory first. The returned buffer holds `depthÂ·rowsÂ·colsÂ·3` `f32`
+/// directory first. The returned buffer holds `depth·rows·cols·3` `f32`
 /// samples in `[depth, rows, cols, 3]` row-major order (channel fastest),
 /// paired with that shape and the resolved series metadata. Only
 /// byte-addressable unsigned interleaved RGB data is accepted; scalar,

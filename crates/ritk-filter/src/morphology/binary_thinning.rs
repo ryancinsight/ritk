@@ -2,20 +2,20 @@
 //!
 //! # Mathematical Specification
 //!
-//! Ports `itk::BinaryThinningImageFilter` â€” the Gonzalez & Woods iterative
+//! Ports `itk::BinaryThinningImageFilter` — the Gonzalez & Woods iterative
 //! thinning that reduces a binary object to a 1-pixel-wide 8-connected skeleton.
 //! Operating on the single `z`-plane of a `z = 1` image, the input is binarized
-//! (`â‰  0 â†’ 1`) and then, until no pixel changes, four sub-iterations sweep the
+//! (`≠ 0 → 1`) and then, until no pixel changes, four sub-iterations sweep the
 //! image; in each sweep every foreground pixel `p1` with 8-neighbours
 //! `p2..p9` (clockwise from north, ZeroFluxNeumann boundary) is marked for
 //! deletion when **all** hold, and marked pixels are removed only after the full
 //! sweep:
 //!
 //! ```text
-//! A: 1 < Î£ p_i < 7                          (not an endpoint / not interior)
-//! B: (Î£ |p_{i+1} âˆ’ p_i|)/2 == 1             (exactly one 0â†’1 transition)
-//! step 1: p4 == 0 âˆ¨ p6 == 0   step 2: p2 == 0 âˆ§ p8 == 0
-//! step 3: p2 == 0 âˆ¨ p8 == 0   step 4: p4 == 0 âˆ§ p6 == 0
+//! A: 1 < Σ p_i < 7                          (not an endpoint / not interior)
+//! B: (Σ |p_{i+1} − p_i|)/2 == 1             (exactly one 0→1 transition)
+//! step 1: p4 == 0 ∨ p6 == 0   step 2: p2 == 0 ∧ p8 == 0
+//! step 3: p2 == 0 ∨ p8 == 0   step 4: p4 == 0 ∧ p6 == 0
 //! ```
 //!
 //! The output is binary (`1.0` skeleton, `0.0` background). The process is pure

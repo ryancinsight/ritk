@@ -60,7 +60,7 @@ fn speckle_preserves_mean_approx() {
     let result = filter.apply(&img).unwrap();
     let vals = result.data().to_vec();
     let mean: f64 = vals.iter().map(|&v| v as f64).sum::<f64>() / vals.len() as f64;
-    // Multiplicative N(0, Ïƒ) has mean multiplicative factor 1.0
+    // Multiplicative N(0, σ) has mean multiplicative factor 1.0
     assert!(
         (mean - 50.0).abs() < 1.0,
         "speckle should approximately preserve mean, got {mean}"
@@ -89,8 +89,8 @@ fn speckle_positive_input_no_negatives() {
     let filter = SpeckleNoiseFilter::new(0.3).with_seed(42);
     let result = filter.apply(&img).unwrap();
     let vals = result.data().to_vec();
-    // With Ïƒ=0.3 the multiplicative factor is (1+N(0,0.3)).
-    // The 3Ïƒ range is [0.1, 1.9] so all outputs should be â‰¥ 0.
+    // With σ=0.3 the multiplicative factor is (1+N(0,0.3)).
+    // The 3σ range is [0.1, 1.9] so all outputs should be ≥ 0.
     // (Values slightly below 0 due to extreme tail draws are clamped by the
     // statistical test: check that no value is significantly negative.)
     for (i, &v) in vals.iter().enumerate() {

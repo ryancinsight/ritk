@@ -16,7 +16,7 @@
 //!
 //! ## Invariants
 //!
-//! - All output values satisfy `lower Ã¢â€°Â¤ out(x) Ã¢â€°Â¤ upper`.
+//! - All output values satisfy `lower ≤ out(x) ≤ upper`.
 //! - If all input values already lie in `[lower, upper]`, the output equals
 //!   the input exactly.
 //! - `lower > upper` is a logic error; the constructor panics.
@@ -34,7 +34,7 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Filter struct Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Filter struct ─────────────────────────────────────────────────────────
 
 /// Clamp image intensity to the closed interval `[lower, upper]`.
 ///
@@ -44,7 +44,7 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 ///
 /// # Invariants
 ///
-/// - `lower Ã¢â€°Â¤ upper` (enforced by constructor panic).
+/// - `lower ≤ upper` (enforced by constructor panic).
 /// - All output values lie in `[lower, upper]`.
 #[derive(Debug, Clone)]
 pub struct ClampImageFilter {
@@ -63,7 +63,7 @@ impl ClampImageFilter {
     pub fn new(lower: f32, upper: f32) -> Self {
         assert!(
             lower <= upper,
-            "ClampImageFilter: lower bound {lower} must be Ã¢â€°Â¤ upper bound {upper}"
+            "ClampImageFilter: lower bound {lower} must be ≤ upper bound {upper}"
         );
         Self { lower, upper }
     }
@@ -85,7 +85,7 @@ impl ClampImageFilter {
     ///
     /// Runs the identical pointwise clamp via the shared `clamp_vec` host core
     /// on the image's contiguous host buffer, so the result is bitwise-identical
-    /// to the Burn path. No Burn tensor is constructed. Spatial metadata
+    /// to the Coeus path. No Burn tensor is constructed. Spatial metadata
     /// (origin, spacing, direction) is preserved.
     ///
     /// # Errors
@@ -115,7 +115,7 @@ pub(crate) fn clamp_vec(vals: &[f32], lower: f32, upper: f32) -> Vec<f32> {
     vals.iter().map(|&v| v.clamp(lower, upper)).collect()
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_clamp.rs"]

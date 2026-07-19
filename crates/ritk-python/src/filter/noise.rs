@@ -49,7 +49,7 @@ pub fn additive_gaussian_noise(
 ///
 /// Args:
 ///     image: Input 3-D PyImage.
-///     probability: Probability of each voxel being replaced (0.0â€“1.0).
+///     probability: Probability of each voxel being replaced (0.0–1.0).
 ///     seed: Random seed (default 42).
 ///
 /// Returns:
@@ -76,12 +76,12 @@ pub fn salt_and_pepper_noise(
 /// Apply Poisson (shot) noise to a 3-D image.
 ///
 /// ```text
-/// I'(x) = Poisson(scale Â· max(I(x), 0)) / scale
+/// I'(x) = Poisson(scale · max(I(x), 0)) / scale
 /// ```
 ///
 /// Args:
 ///     image: Input 3-D PyImage.
-///     scale: Photon-count scale (higher = less noise). Typical: 0.1â€“100.0.
+///     scale: Photon-count scale (higher = less noise). Typical: 0.1–100.0.
 ///     seed: Random seed (default 42).
 ///
 /// Returns:
@@ -99,7 +99,7 @@ pub fn shot_noise(py: Python<'_>, image: &PyImage, scale: f64, seed: u32) -> Rit
 /// Apply speckle (multiplicative) noise to a 3-D image.
 ///
 /// ```text
-/// I'(x) = I(x) Â· (1 + N(0, std))
+/// I'(x) = I(x) · (1 + N(0, std))
 /// ```
 ///
 /// Characteristic of ultrasound / coherent imaging modalities.
@@ -121,7 +121,7 @@ pub fn speckle_noise(py: Python<'_>, image: &PyImage, std: f64, seed: u32) -> Ri
     Ok(into_py_image(result))
 }
 
-// â”€â”€ PatchBasedDenoising â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── PatchBasedDenoising ───────────────────────────────────────────────────────
 
 /// Patch-based denoising, bit-exact to single-threaded
 /// `SimpleITK.PatchBasedDenoising` (Gaussian noise model, fixed bandwidth).
@@ -131,12 +131,12 @@ pub fn speckle_noise(py: Python<'_>, image: &PyImage, std: f64, seed: u32) -> Ri
 /// visited in ImageBoundaryFacesCalculator order.
 ///
 /// Args:
-///     image:                    Input 3-D PyImage (nz==1 â‡’ 2-D).
+///     image:                    Input 3-D PyImage (nz==1 ⇒ 2-D).
 ///     number_of_iterations:     Denoising passes (default 1).
 ///     number_of_sample_patches: Patches sampled per pixel (default 200).
 ///     patch_radius:             Half-size of each patch per axis (default 4).
 ///     sample_variance:          Variance of the Gaussian sampling domain (default 400).
-///     kernel_sigma:             Gaussian kernel bandwidth Ïƒ (default 400).
+///     kernel_sigma:             Gaussian kernel bandwidth σ (default 400).
 ///
 /// Returns:
 ///     Denoised PyImage (matches single-threaded sitk).

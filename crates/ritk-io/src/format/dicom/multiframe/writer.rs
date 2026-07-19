@@ -23,7 +23,7 @@ use crate::format::dicom::writer::utils::{
 /// ## Invariants
 /// - `n_frames >= 1`, `rows >= 1`, `cols >= 1`; returns `Err` otherwise.
 /// - A single linear rescale (slope/intercept) maps the full f32 volume to
-///   the [0, 65535] u16 range. When max == min, slope â‰ˆ Îµ/65535 and
+///   the [0, 65535] u16 range. When max == min, slope ≈ ε/65535 and
 ///   intercept = min_val (flat-image degenerate case; reconstruction is exact).
 /// - The emitted file is readable by `load_dicom_multiframe` (round-trip
 ///   invariant: abs(recovered - original) <= rescale_slope + 1.0).
@@ -67,7 +67,7 @@ pub fn write_dicom_multiframe_with_options<B: Backend, P: AsRef<Path>>(
 ///
 /// ## Invariants
 /// - `n_frames >= 1`, `rows >= 1`, `cols >= 1`; returns `Err` otherwise.
-/// - Round-trip invariant: |recovered âˆ’ original| â‰¤ rescale_slope + 1.0.
+/// - Round-trip invariant: |recovered − original| ≤ rescale_slope + 1.0.
 pub fn write_dicom_multiframe_with_config<B: Backend, P: AsRef<Path>>(
     path: P,
     image: &Image<f32, B, 3>,
@@ -184,7 +184,7 @@ fn write_multiframe_flat(
         PrimitiveValue::from(sop_instance_uid.as_str()),
     ));
 
-    // Patient Module â€” Type 2 mandatory (PS3.3 C.7.1.1)
+    // Patient Module — Type 2 mandatory (PS3.3 C.7.1.1)
     obj.put(DataElement::new(
         Tag(0x0010, 0x0010),
         VR::PN,
@@ -196,7 +196,7 @@ fn write_multiframe_flat(
         PrimitiveValue::from(""),
     ));
 
-    // General Study Module â€” Type 1/2 mandatory (PS3.3 C.7.2.1)
+    // General Study Module — Type 1/2 mandatory (PS3.3 C.7.2.1)
     obj.put(DataElement::new(
         Tag(0x0020, 0x000D),
         VR::UI,
@@ -218,7 +218,7 @@ fn write_multiframe_flat(
         PrimitiveValue::from(""),
     ));
 
-    // General Series Module â€” Type 1/2 mandatory (PS3.3 C.7.3.1)
+    // General Series Module — Type 1/2 mandatory (PS3.3 C.7.3.1)
     obj.put(DataElement::new(
         Tag(0x0020, 0x000E),
         VR::UI,

@@ -5,37 +5,37 @@
 //! **Reference:** Sato, Y., Nakajima, S., Shiraga, N., Atsumi, H., Yoshida, S.,
 //! Koller, T., Gerig, G. & Kikinis, R. (1998). Three-dimensional multi-scale line
 //! filter for segmentation and visualization of curvilinear structures in medical
-//! images. *Medical Image Analysis* 2(2):143â€“168.
+//! images. *Medical Image Analysis* 2(2):143–168.
 //!
-//! At each Gaussian scale Ïƒ the normalised Hessian `H_Ïƒ = ÏƒÂ² Â· H(I_Ïƒ)` is
-//! computed, where `I_Ïƒ = G_Ïƒ âˆ— I`.  The three eigenvalues
-//! `Î»â‚, Î»â‚‚, Î»â‚ƒ` are sorted by absolute value so that `|Î»â‚| â‰¤ |Î»â‚‚| â‰¤ |Î»â‚ƒ|`.
+//! At each Gaussian scale σ the normalised Hessian `H_σ = σ² · H(I_σ)` is
+//! computed, where `I_σ = G_σ ∗ I`.  The three eigenvalues
+//! `λ₁, λ₂, λ₃` are sorted by absolute value so that `|λ₁| ≤ |λ₂| ≤ |λ₃|`.
 //!
 //! For a bright tubular structure on a dark background the expected pattern is:
 //!
 //! ```text
-//!   Î»â‚ â‰ˆ 0,  Î»â‚‚ < 0,  Î»â‚ƒ < 0   (two strongly negative, one near zero)
+//!   λ₁ ≈ 0,  λ₂ < 0,  λ₃ < 0   (two strongly negative, one near zero)
 //! ```
 //!
-//! **Line response function** (Sato 1998, eq. 5â€“7):
+//! **Line response function** (Sato 1998, eq. 5–7):
 //!
-//! If `Î»â‚‚ < 0` AND `Î»â‚ƒ < 0`:
+//! If `λ₂ < 0` AND `λ₃ < 0`:
 //!
 //! ```text
-//!   V(Î»â‚,Î»â‚‚,Î»â‚ƒ) = |Î»â‚ƒ| Â· (Î»â‚‚/Î»â‚ƒ)^Î± Â· f(Î»â‚,Î»â‚‚)
+//!   V(λ₁,λ₂,λ₃) = |λ₃| · (λ₂/λ₃)^α · f(λ₁,λ₂)
 //!
-//!   where  f(Î»â‚,Î»â‚‚) = 1                                  if Î»â‚ â‰¤ 0
-//!                     = exp(âˆ’Î»â‚Â² / (2Â·(Î±Â·Î»â‚‚)Â²))           if Î»â‚ > 0
+//!   where  f(λ₁,λ₂) = 1                                  if λ₁ ≤ 0
+//!                     = exp(−λ₁² / (2·(α·λ₂)²))           if λ₁ > 0
 //! ```
 //!
-//! `Î±` (default 0.5) controls cross-section anisotropy tolerance.
-//! Higher Î± â†’ more permissive to elliptical cross-sections.
+//! `α` (default 0.5) controls cross-section anisotropy tolerance.
+//! Higher α → more permissive to elliptical cross-sections.
 //!
 //! For dark tubes on a bright background set `bright_tubes = false`, which
-//! inverts the sign convention: `Î»â‚‚ > 0` and `Î»â‚ƒ > 0` are required and the
-//! response is computed using `|Î»â‚‚|` and `|Î»â‚ƒ|` with the same formula.
+//! inverts the sign convention: `λ₂ > 0` and `λ₃ > 0` are required and the
+//! response is computed using `|λ₂|` and `|λ₃|` with the same formula.
 //!
-//! The final output is the **maximum** response over all scales Ïƒ.
+//! The final output is the **maximum** response over all scales σ.
 
 use super::hessian::symmetric_3x3_eigenvalues;
 use super::VesselPolarity;
@@ -44,16 +44,16 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public types ──────────────────────────────────────────────────────────────
 
 /// Configuration for the Sato line filter.
 #[derive(Debug, Clone)]
 pub struct SatoConfig {
-    /// Gaussian scale values Ïƒ (physical units, e.g. mm) at which to evaluate
+    /// Gaussian scale values σ (physical units, e.g. mm) at which to evaluate
     /// the filter. The output is the per-voxel maximum over all scales.
     pub scales: Vec<f64>,
     /// Cross-section anisotropy exponent. Controls how strongly the ratio
-    /// `Î»â‚‚/Î»â‚ƒ` is penalised. Typical range: [0.5, 2.0]. Default: 0.5.
+    /// `λ₂/λ₃` is penalised. Typical range: [0.5, 2.0]. Default: 0.5.
     pub alpha: f64,
     /// Vessel polarity: detect bright structures on a dark background
     /// or dark structures on a bright background.
@@ -72,7 +72,7 @@ impl Default for SatoConfig {
 
 /// Multi-scale Sato line filter.
 ///
-/// Produces a line-probability map in `[0, âˆž)` (not normalised to 1 because the
+/// Produces a line-probability map in `[0, ∞)` (not normalised to 1 because the
 /// raw Hessian eigenvalue magnitudes carry scale information useful for
 /// downstream thresholding).  The output has the same shape and spatial metadata
 /// as the input image.
@@ -117,7 +117,7 @@ impl SatoLineFilter {
     /// Runs the identical multi-scale Sato line response (Hessian eigen-analysis
     /// via recursive-Gaussian derivatives) through the shared
     /// `compute_sato_multiscale` host core on the image's contiguous host
-    /// buffer, so the result is bitwise-identical to the Burn path. No Burn
+    /// buffer, so the result is bitwise-identical to the Coeus path. No Burn
     /// tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors
@@ -139,7 +139,7 @@ impl SatoLineFilter {
     }
 }
 
-// â”€â”€ Core computation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Core computation ──────────────────────────────────────────────────────────
 
 /// Compute per-voxel maximum Sato line response over all scales.
 fn compute_sato_multiscale(
@@ -152,11 +152,11 @@ fn compute_sato_multiscale(
     let mut max_response = vec![0.0_f32; n];
 
     for &sigma in &config.scales {
-        // Compute Hessian via second-order Deriche IIR recursion â€”
+        // Compute Hessian via second-order Deriche IIR recursion —
         // matching ITK HessianRecursiveGaussianImageFilter.
         let hessian = compute_hessian_iir(data, dims, spacing, sigma);
 
-        // Per-voxel line response (scale-normalised by ÏƒÂ²).
+        // Per-voxel line response (scale-normalised by σ²).
         let sigma2 = (sigma * sigma) as f32;
         let hessian_ref = &hessian;
         moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
@@ -167,7 +167,7 @@ fn compute_sato_multiscale(
                 for (offset, max_val) in slice.iter_mut().enumerate() {
                     let i = start_idx + offset;
                     let h = hessian_ref[i];
-                    // Scale-normalise Hessian (ÏƒÂ² Â· H_Ïƒ convention).
+                    // Scale-normalise Hessian (σ² · H_σ convention).
                     let h_scaled = [
                         h[0] * sigma2,
                         h[1] * sigma2,
@@ -193,11 +193,11 @@ fn compute_sato_multiscale(
 /// eigenvalues in arbitrary order.
 ///
 /// # Algorithm
-/// 1. Sort eigenvalues by absolute value: `|Î»â‚| â‰¤ |Î»â‚‚| â‰¤ |Î»â‚ƒ|`.
-/// 2. For bright tubes: require `Î»â‚‚ < 0` and `Î»â‚ƒ < 0`.
-///    For dark tubes:  require `Î»â‚‚ > 0` and `Î»â‚ƒ > 0`.
+/// 1. Sort eigenvalues by absolute value: `|λ₁| ≤ |λ₂| ≤ |λ₃|`.
+/// 2. For bright tubes: require `λ₂ < 0` and `λ₃ < 0`.
+///    For dark tubes:  require `λ₂ > 0` and `λ₃ > 0`.
 ///    Inversion for dark tubes: negate all eigenvalues before the test.
-/// 3. Compute `V = |Î»â‚ƒ| Â· (Î»â‚‚/Î»â‚ƒ)^Î± Â· f(Î»â‚,Î»â‚‚)`.
+/// 3. Compute `V = |λ₃| · (λ₂/λ₃)^α · f(λ₁,λ₂)`.
 #[inline]
 fn sato_response(eigenvalues: [f32; 3], alpha: f64, polarity: VesselPolarity) -> f32 {
     // Sort by absolute value (bubble-sort on 3 elements; branchless-friendly).
@@ -211,7 +211,7 @@ fn sato_response(eigenvalues: [f32; 3], alpha: f64, polarity: VesselPolarity) ->
     if e[0].abs() > e[1].abs() {
         e.swap(0, 1);
     }
-    // Now |e[0]| â‰¤ |e[1]| â‰¤ |e[2]|  (Î»â‚, Î»â‚‚, Î»â‚ƒ).
+    // Now |e[0]| ≤ |e[1]| ≤ |e[2]|  (λ₁, λ₂, λ₃).
     let [lam1, lam2, lam3] = e;
 
     // For dark tubes invert all signs so that the bright-tube gate applies.
@@ -231,17 +231,17 @@ fn sato_response(eigenvalues: [f32; 3], alpha: f64, polarity: VesselPolarity) ->
         return 0.0;
     }
 
-    // Ratio Î»â‚‚/Î»â‚ƒ âˆˆ (0, 1] (both negative â†’ positive ratio).
-    let ratio = l2 / l3; // âˆˆ (0,1] since |l2| â‰¤ |l3| and both negative.
+    // Ratio λ₂/λ₃ ∈ (0, 1] (both negative → positive ratio).
+    let ratio = l2 / l3; // ∈ (0,1] since |l2| ≤ |l3| and both negative.
 
-    // Shape anisotropy term: (Î»â‚‚/Î»â‚ƒ)^Î±
+    // Shape anisotropy term: (λ₂/λ₃)^α
     let shape_term = (ratio as f64).powf(alpha) as f32;
 
-    // Perpendicular modulation: f(Î»â‚, Î»â‚‚)
+    // Perpendicular modulation: f(λ₁, λ₂)
     let perp_term = if l1 <= 0.0 {
         1.0_f32
     } else {
-        // exp(âˆ’Î»â‚Â² / (2Â·(Î±Â·Î»â‚‚)Â²))
+        // exp(−λ₁² / (2·(α·λ₂)²))
         let denom = 2.0 * (alpha * l2 as f64) * (alpha * l2 as f64);
         if denom < 1e-30 {
             0.0
@@ -253,7 +253,7 @@ fn sato_response(eigenvalues: [f32; 3], alpha: f64, polarity: VesselPolarity) ->
     abs_l3 * shape_term * perp_term
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 #[cfg(test)]
 #[path = "tests_sato.rs"]
 mod tests;
@@ -265,7 +265,7 @@ mod tests_native {
     use coeus_core::SequentialBackend;
 
     #[test]
-    fn matches_burn() {
+    fn matches_coeus() {
         let vals: Vec<f32> = (0..210).map(|i| ((i * 5) % 23) as f32).collect();
         assert_coeus_matches_coeus(
             vals,
@@ -281,7 +281,7 @@ mod tests_native {
 
     #[test]
     fn oracle_constant_field_zero_response() {
-        // The Hessian of a constant field is zero â†’ all eigenvalues zero â†’
+        // The Hessian of a constant field is zero → all eigenvalues zero →
         // vesselness response is exactly zero everywhere.
         let img = make_native_image(vec![9.0f32; 343], [7, 7, 7]);
         let out = SatoLineFilter::new(SatoConfig::default())

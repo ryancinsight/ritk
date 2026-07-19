@@ -8,25 +8,25 @@
 //! Deriche (1993) approximation. For each dimension the 1-D Gaussian is the SUM
 //! of a causal (forward) and an anticausal (backward) pass over the same input:
 //!
-//! Causal:     y_c\[n\] = Î£_{k=0..3} n_kÂ·x\[nâˆ’k\] âˆ’ Î£_{k=1..4} d_kÂ·y_c\[nâˆ’k\]
-//! Anticausal: y_a\[n\] = Î£_{k=1..4} m_kÂ·x\[n+k\] âˆ’ Î£_{k=1..4} d_kÂ·y_a\[n+k\]
+//! Causal:     y_c\[n\] = Σ_{k=0..3} n_k·x\[n−k\] − Σ_{k=1..4} d_k·y_c\[n−k\]
+//! Anticausal: y_a\[n\] = Σ_{k=1..4} m_k·x\[n+k\] − Σ_{k=1..4} d_k·y_a\[n+k\]
 //! Output:     y\[n\] = y_c\[n\] + y_a\[n\]
 //!
-//! The coefficients (`n_k`, `d_k`, `m_k`) depend only on Ïƒ in pixel units and
+//! The coefficients (`n_k`, `d_k`, `m_k`) depend only on σ in pixel units and
 //! are DC-normalised so the smoothing has unit gain (see `iir::DericheCoefficients`).
 //! The interior is float-exact to SimpleITK; boundaries use constant (replicate)
 //! extension.
 //!
-//! Derivative orders use the ITK/SimpleITK separable structure â€” the
+//! Derivative orders use the ITK/SimpleITK separable structure — the
 //! corresponding-order Deriche recursion along the differentiated axis and the
 //! zero-order (smoothing) recursion along the others, combined:
 //!
 //! - **Order 0 (smoothing)**: Two-pass IIR as described above.
 //! - **Order 1 (gradient magnitude)**: for each axis `d`, first-order Deriche
-//!   along `d` and zero-order along the others; `|âˆ‡I| = âˆš(Î£_d (âˆ‚I/âˆ‚x_d / s_d)Â²)`.
+//!   along `d` and zero-order along the others; `|∇I| = √(Σ_d (∂I/∂x_d / s_d)²)`.
 //!   Float-exact to `GradientMagnitudeRecursiveGaussian`.
 //! - **Order 2 (Laplacian)**: for each axis `d`, second-order Deriche along `d`
-//!   and zero-order along the others; `âˆ‡Â²I = Î£_d âˆ‚Â²I/âˆ‚x_dÂ² / s_dÂ²`. Float-exact
+//!   and zero-order along the others; `∇²I = Σ_d ∂²I/∂x_d² / s_d²`. Float-exact
 //!   to `LaplacianRecursiveGaussian`.
 //!
 //! Physical spacing is respected: `pixel_sigma = sigma / spacing[dim]`, and the
@@ -35,14 +35,14 @@
 //! # Complexity
 //!
 //! O(N) per dimension where N is the number of voxels along that axis,
-//! applied separably across all D dimensions. Total: O(D Â· N_total).
+//! applied separably across all D dimensions. Total: O(D · N_total).
 //!
 //! # References
 //!
 //! - Young, I.T. & van Vliet, L.J. (1995). Recursive implementation of the
-//!   Gaussian filter. *Signal Processing* 44(2), pp. 139â€“151.
+//!   Gaussian filter. *Signal Processing* 44(2), pp. 139–151.
 //! - van Vliet, L.J., Young, I.T., Verbeek, P.W. (1998). Recursive Gaussian
-//!   derivative filters. *Proc. 14th ICPR*, pp. 509â€“514.
+//!   derivative filters. *Proc. 14th ICPR*, pp. 509–514.
 
 use crate::edge::GaussianSigma;
 use ritk_image::Image;
@@ -52,33 +52,33 @@ use serde::{Deserialize, Serialize};
 mod iir;
 use iir::*;
 
-// â”€â”€ Scale normalization enum â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Scale normalization enum ─────────────────────────────────────────────────
 
-/// Whether to multiply the output by Ïƒ^order for comparable cross-scale magnitudes.
+/// Whether to multiply the output by σ^order for comparable cross-scale magnitudes.
 ///
 /// - `Skip`: no scale normalization (default for `RecursiveGaussianFilter::new`).
-/// - `Normalize`: multiply output by Ïƒ^order so that responses are comparable
+/// - `Normalize`: multiply output by σ^order so that responses are comparable
 ///   across scales.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum ScaleNormalization {
     /// No scale normalization.
     #[default]
     Skip,
-    /// Multiply output by Ïƒ^order for cross-scale comparability.
+    /// Multiply output by σ^order for cross-scale comparability.
     Normalize,
 }
 
-// â”€â”€ Derivative order enum â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Derivative order enum ─────────────────────────────────────────────────────
 
 /// Derivative order for the recursive Gaussian filter.
 ///
 /// Selects which derivative of the Gaussian kernel to approximate:
 /// - `Zero`: Gaussian smoothing (zeroth derivative).
-/// - `First`: First derivative â€” smoothing + gradient magnitude.
-/// - `Second`: Second derivative â€” smoothing + Laplacian.
+/// - `First`: First derivative — smoothing + gradient magnitude.
+/// - `Second`: Second derivative — smoothing + Laplacian.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DerivativeOrder {
-    /// Zeroth derivative â€” Gaussian smoothing.
+    /// Zeroth derivative — Gaussian smoothing.
     Zero,
     /// First derivative of Gaussian.
     First,
@@ -86,9 +86,9 @@ pub enum DerivativeOrder {
     Second,
 }
 
-// â”€â”€ Filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Filter struct ─────────────────────────────────────────────────────────────
 
-/// Recursive Gaussian filter using a 3rd-order Youngâ€“van Vliet IIR
+/// Recursive Gaussian filter using a 3rd-order Young–van Vliet IIR
 /// approximation.
 ///
 /// Applies a separable recursive Gaussian (or its first/second derivative)
@@ -174,7 +174,7 @@ impl RecursiveGaussianFilter {
     /// Both the legacy Burn and Coeus-native paths call this single
     /// realization; order 0 smooths all axes, orders 1 and 2 apply the
     /// first/second-order Deriche recursion along each axis (zero-order along
-    /// the others) and combine â€” magnitude for order 1, sum for order 2.
+    /// the others) and combine — magnitude for order 1, sum for order 2.
     fn filter_vals(&self, mut vals: Vec<f32>, dims: [usize; 3], sp: [f64; 3]) -> Vec<f32> {
         let sigma = self.sigma.get();
         vals = match self.derivative_order {
@@ -193,7 +193,7 @@ impl RecursiveGaussianFilter {
             DerivativeOrder::Second => laplacian_rg_vals(&vals, dims, sp, sigma),
         };
 
-        // Scale normalization: multiply by Ïƒ^order
+        // Scale normalization: multiply by σ^order
         if let ScaleNormalization::Normalize = self.scale_normalization {
             let scale_factor = match self.derivative_order {
                 DerivativeOrder::Zero => 1.0,
@@ -212,12 +212,12 @@ impl RecursiveGaussianFilter {
     }
 }
 
-// â”€â”€ Recursive-Gaussian derivative operators (ITK structure) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Recursive-Gaussian derivative operators (ITK structure) ───────────────────
 
-/// `âˆ‡Â²(G_Ïƒ * I) = Î£_d âˆ‚Â²/âˆ‚x_dÂ²(G_Ïƒ * I)` as a flat z-major buffer. For each axis
+/// `∇²(G_σ * I) = Σ_d ∂²/∂x_d²(G_σ * I)` as a flat z-major buffer. For each axis
 /// `d` the volume is filtered with the **second-order** Deriche recursion along
 /// `d` and the **zero-order** (smoothing) recursion along the others; each
-/// per-axis second derivative is divided by `spacing[d]Â²` for physical units.
+/// per-axis second derivative is divided by `spacing[d]²` for physical units.
 /// Float-exact to ITK/SimpleITK `LaplacianRecursiveGaussian`.
 pub(crate) fn laplacian_rg_vals(
     vals: &[f32],
@@ -249,7 +249,7 @@ pub(crate) fn laplacian_rg_vals(
     laplacian
 }
 
-/// `|âˆ‡(G_Ïƒ * I)| = âˆš(Î£_d (âˆ‚/âˆ‚x_d(G_Ïƒ * I))Â²)` as a flat z-major buffer. For each
+/// `|∇(G_σ * I)| = √(Σ_d (∂/∂x_d(G_σ * I))²)` as a flat z-major buffer. For each
 /// axis `d` the volume is filtered with the **first-order** Deriche recursion
 /// along `d` and the **zero-order** recursion along the others; each per-axis
 /// first derivative is divided by `spacing[d]` (physical units), squared and
@@ -288,7 +288,7 @@ pub(crate) fn gradient_magnitude_rg_vals(
     sum_sq
 }
 
-/// Compute `âˆ‡Â²(G_Ïƒ * I)` matching ITK/SimpleITK `LaplacianRecursiveGaussian`
+/// Compute `∇²(G_σ * I)` matching ITK/SimpleITK `LaplacianRecursiveGaussian`
 /// (float-exact). See `laplacian_rg_vals`.
 ///
 /// # Errors
@@ -308,7 +308,7 @@ where
     ritk_tensor_ops::native::rebuild_image(out, dims, image, backend)
 }
 
-/// Compute `|âˆ‡(G_Ïƒ * I)|` matching ITK/SimpleITK `GradientMagnitudeRecursiveGaussian`
+/// Compute `|∇(G_σ * I)|` matching ITK/SimpleITK `GradientMagnitudeRecursiveGaussian`
 /// (float-exact). See `gradient_magnitude_rg_vals`.
 ///
 /// # Errors
@@ -329,7 +329,7 @@ where
 }
 
 /// Single-axis recursive (Deriche) Gaussian or its directional derivative along
-/// one axis only (the other axes are untouched) â€” matching ITK/SimpleITK
+/// one axis only (the other axes are untouched) — matching ITK/SimpleITK
 /// `RecursiveGaussian(sigma, normalizeAcrossScale=false, order, direction)`
 /// (float-exact). `direction` is a ritk axis index (`0 = z, 1 = y, 2 = x`); note
 /// SimpleITK's `direction` is in `(x, y, z)` order, so sitk direction `0` (x) is
@@ -367,14 +367,14 @@ where
 }
 
 /// Compute the three first-order recursive-Gaussian gradient components on raw
-/// buffers, returned in **ritk axis order** `[âˆ‚/âˆ‚(axis0=z), âˆ‚/âˆ‚(axis1=y),
-/// âˆ‚/âˆ‚(axis2=x)]`, each divided once by its axis spacing.
+/// buffers, returned in **ritk axis order** `[∂/∂(axis0=z), ∂/∂(axis1=y),
+/// ∂/∂(axis2=x)]`, each divided once by its axis spacing.
 ///
 /// Component `k` is order-0 (smoothing) Deriche along the two non-`k` axes then
 /// order-1 (derivative) Deriche along axis `k`. Operating directly on `Vec<f32>`
 /// buffers avoids round-tripping each intermediate through an [`Image`] (tensor
 /// rebuild) and re-extracting it, so a full vector gradient does one tensor
-/// extraction instead of nine â€” float-identical to chaining
+/// extraction instead of nine — float-identical to chaining
 /// [`recursive_gaussian_directional`], but with the per-pass `Image`
 /// alloc/rebuild eliminated.
 ///
@@ -469,20 +469,20 @@ pub(crate) fn smoothing_recursive_gaussian_vals(
 }
 
 /// Compute all 6 independent Hessian components at every voxel using the
-/// Deriche IIR recursion â€” matching ITK `HessianRecursiveGaussianImageFilter`.
+/// Deriche IIR recursion — matching ITK `HessianRecursiveGaussianImageFilter`.
 ///
 /// For each axis `d` (z=0, y=1, x=2):
 /// - H_{dd}: `second_order` Deriche along axis `d`, `zero_order` along the
-///   other two, divided by `spacing[d]Â²`.
+///   other two, divided by `spacing[d]²`.
 /// - H_{di} (d<i): `first_order` along `d`, `first_order` along `i`,
-///   `zero_order` along the remaining axis, divided by `spacing[d]Â·spacing[i]`.
+///   `zero_order` along the remaining axis, divided by `spacing[d]·spacing[i]`.
 ///
-/// Output layout per voxel: `[Hzz, Hzy, Hzx, Hyy, Hyx, Hxx]` â€” identical to
+/// Output layout per voxel: `[Hzz, Hzy, Hzx, Hyy, Hyx, Hxx]` — identical to
 /// `compute_hessian` in `vesselness/hessian/mod.rs` so callers are drop-in.
 ///
 /// Evidence tier: matches ITK source `itkHessianRecursiveGaussianImageFilter.hxx`
 /// structure; verified against LoG (sum of diagonal = Laplacian via IIR) and
-/// differential tests against FD Hessian at Ïƒ=3.0 (large Ïƒ where both converge).
+/// differential tests against FD Hessian at σ=3.0 (large σ where both converge).
 pub(crate) fn compute_hessian_iir(
     vals: &[f32],
     dims: [usize; 3],
@@ -503,7 +503,7 @@ pub(crate) fn compute_hessian_iir(
     };
 
     // Diagonal H_{dd}: second_order along d, zero_order along others.
-    // Divided by spacing[d]Â² for physical units.
+    // Divided by spacing[d]² for physical units.
     let hessian_diag = |d: usize| -> Vec<f32> {
         let others: [usize; 2] = match d {
             0 => [1, 2],
@@ -521,9 +521,9 @@ pub(crate) fn compute_hessian_iir(
     };
 
     // Cross H_{di} (d < i): first_order along d, first_order along i, zero_order along k.
-    // Divided by spacing[d]Â·spacing[i] for physical units.
+    // Divided by spacing[d]·spacing[i] for physical units.
     let hessian_cross = |d: usize, i: usize| -> Vec<f32> {
-        // k = the remaining axis; formula works for (0,1)â†’k=2, (0,2)â†’k=1, (1,2)â†’k=0.
+        // k = the remaining axis; formula works for (0,1)→k=2, (0,2)→k=1, (1,2)→k=0.
         let k = 3 - d - i;
         let mut buf = pass(vals, k, DerivativeOrder::Zero);
         buf = pass(&buf, d, DerivativeOrder::First);

@@ -7,7 +7,7 @@ use ritk_filter::PasteImageFilter;
 
 /// Extract a strided sub-region (numpy-style `start:stop:step` per axis).
 /// `start`/`stop`/`step` are `(z, y, x)` in ritk tensor order; each axis keeps
-/// indices `start, start+step, â€¦ < stop` (clamped to `[0, dim]`, `step â‰¥ 1`).
+/// indices `start, start+step, … < stop` (clamped to `[0, dim]`, `step ≥ 1`).
 ///
 /// ITK Parity: SliceImageFilter (`sitk.Slice`, with `[x,y,z]` parameters).
 #[pyfunction]
@@ -144,7 +144,7 @@ pub fn tile(
     }
     let (nx, ny, nz) = layout;
     if nx == 0 || ny == 0 || nz == 0 {
-        return Err(RitkPyError::value("tile: layout dimensions must be â‰¥ 1"));
+        return Err(RitkPyError::value("tile: layout dimensions must be ≥ 1"));
     }
     let arcs: Vec<_> = images
         .iter()
@@ -191,8 +191,8 @@ pub fn tile(
     )))
 }
 
-/// Stack a list of images along the Z axis (concatenate `[záµ¢, Y, X]` volumes
-/// into `[Î£záµ¢, Y, X]`). All inputs must share the same `Y`/`X` extent.
+/// Stack a list of images along the Z axis (concatenate `[zᵢ, Y, X]` volumes
+/// into `[Σzᵢ, Y, X]`). All inputs must share the same `Y`/`X` extent.
 ///
 /// ITK Parity: JoinSeriesImageFilter (`sitk.JoinSeries`, which stacks N 2-D
 /// slices into a 3-D volume along the new last axis = ritk's Z).

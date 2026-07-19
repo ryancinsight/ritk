@@ -6,11 +6,11 @@
 //! maximises a correlation criterion derived from the second-order statistics
 //! of the thresholded image:
 //!
-//!   C(t) = âˆ’log( A(t)Â² + B(t)Â² )
+//!   C(t) = −log( A(t)² + B(t)² )
 //!
 //! where:
-//! - A(t) = Î£_{i=0}^{t}   p(i)Â²
-//! - B(t) = Î£_{i=t+1}^{Nâˆ’1} p(i)Â²
+//! - A(t) = Σ_{i=0}^{t}   p(i)²
+//! - B(t) = Σ_{i=t+1}^{N−1} p(i)²
 //! - p(i) = h\[i\] / n_total   (normalised histogram probability)
 //!
 //! The optimal threshold is:
@@ -30,19 +30,19 @@
 //! # References
 //! - Yen, J.-C., Chang, F.-J., & Chang, S. (1995). "A new criterion for
 //!   automatic multilevel thresholding." *IEEE Trans. Image Process.*, 4(3),
-//!   370â€“378.
+//!   370–378.
 
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 
 use super::auto_threshold::{bin_center, itk_bin_width, threshold_from_slice, AutoThreshold};
 
-// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public API ─────────────────────────────────────────────────────────────────
 
 /// Yen's maximum correlation threshold segmentation.
 ///
 /// Selects a threshold t* that maximises the correlation criterion
-/// C(t) = âˆ’log(A(t)Â² + B(t)Â²), then applies it to produce a binary mask.
+/// C(t) = −log(A(t)² + B(t)²), then applies it to produce a binary mask.
 #[derive(Debug, Clone)]
 pub struct YenThreshold {
     /// Number of equally-spaced histogram bins. Default 256.
@@ -76,8 +76,8 @@ impl YenThreshold {
 
     /// Apply the Yen threshold to produce a binary mask.
     ///
-    /// - Pixels with intensity â‰¥ t* â†’ 1.0 (foreground).
-    /// - Pixels with intensity <  t* â†’ 0.0 (background).
+    /// - Pixels with intensity ≥ t* → 1.0 (foreground).
+    /// - Pixels with intensity <  t* → 0.0 (background).
     ///
     /// Spatial metadata (origin, spacing, direction) is preserved exactly.
     ///
@@ -111,7 +111,7 @@ impl Default for YenThreshold {
     }
 }
 
-// â”€â”€ AutoThreshold implementation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── AutoThreshold implementation ───────────────────────────────────────────────
 
 impl AutoThreshold for YenThreshold {
     fn num_bins(&self) -> usize {
@@ -122,17 +122,17 @@ impl AutoThreshold for YenThreshold {
     ///
     /// # Algorithm
     /// 1. Normalise `hist` to probabilities `p[i] = count[i] / n_total`.
-    /// 2. Cumulative probability `P1(t) = Î£_{iâ‰¤t} p(i)`, `P2(t) = 1 âˆ’ P1(t)`, and
-    ///    cumulative squared probability `P1sq(t) = Î£_{iâ‰¤t} p(i)Â²`,
-    ///    `P2sq(t) = total_sq âˆ’ P1sq(t)`.
-    /// 3. For each t: `C(t) = âˆ’log(P1sqÂ·P2sq) + 2Â·log(P1Â·P2)` (each `log` term is
-    ///    taken as 0 when its argument is â‰¤ 0, matching ITK).
+    /// 2. Cumulative probability `P1(t) = Σ_{i≤t} p(i)`, `P2(t) = 1 − P1(t)`, and
+    ///    cumulative squared probability `P1sq(t) = Σ_{i≤t} p(i)²`,
+    ///    `P2sq(t) = total_sq − P1sq(t)`.
+    /// 3. For each t: `C(t) = −log(P1sq·P2sq) + 2·log(P1·P2)` (each `log` term is
+    ///    taken as 0 when its argument is ≤ 0, matching ITK).
     /// 4. t* = argmax C(t).
     /// 5. t*_intensity = centre of the selected bin (ITK `GetMeasurement`).
     ///
     /// Note: the criterion must keep the squared-probability masses `P1sq`/`P2sq`
-    /// separate â€” their *sum* `P1sq + P2sq = total_sq` is constant in t, so the
-    /// old `âˆ’log(P1sq + P2sq)` was degenerate (every bin scored identically,
+    /// separate — their *sum* `P1sq + P2sq = total_sq` is constant in t, so the
+    /// old `−log(P1sq + P2sq)` was degenerate (every bin scored identically,
     /// collapsing the threshold to the first bin).
     fn compute_threshold(&self, hist: &[u32], n_bins: usize, x_min: f32, x_max: f32) -> f32 {
         let n: u64 = hist.iter().map(|&c| c as u64).sum();
@@ -140,10 +140,10 @@ impl AutoThreshold for YenThreshold {
             return x_min;
         }
 
-        // Normalise to probabilities and accumulate cumulative prob and probÂ².
+        // Normalise to probabilities and accumulate cumulative prob and prob².
         let p: Vec<f64> = hist.iter().map(|&c| c as f64 / n as f64).collect();
-        let mut p1 = vec![0.0_f64; n_bins]; // Î£_{iâ‰¤t} p(i)
-        let mut p1_sq = vec![0.0_f64; n_bins]; // Î£_{iâ‰¤t} p(i)Â²
+        let mut p1 = vec![0.0_f64; n_bins]; // Σ_{i≤t} p(i)
+        let mut p1_sq = vec![0.0_f64; n_bins]; // Σ_{i≤t} p(i)²
         p1[0] = p[0];
         p1_sq[0] = p[0] * p[0];
         for i in 1..n_bins {
@@ -182,7 +182,7 @@ impl AutoThreshold for YenThreshold {
     }
 }
 
-// â”€â”€ Convenience functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Convenience functions ──────────────────────────────────────────────────────
 
 /// Convenience function: compute the Yen threshold with 256 bins.
 pub fn yen_threshold<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> f32 {

@@ -16,7 +16,7 @@ use super::contour::connectivity_from;
 /// Geodesic morphological reconstruction.
 ///
 /// Args:
-///     marker: seed image (marker â‰¤ mask for dilation, marker â‰¥ mask for erosion).
+///     marker: seed image (marker ≤ mask for dilation, marker ≥ mask for erosion).
 ///     mask: constraint image.
 ///     mode: "dilation" or "erosion".
 ///     fully_connected: if False (default), use face connectivity (6-connected in
@@ -95,7 +95,7 @@ pub fn h_minima(
     .map(native_into_py_image)
 }
 
-/// H-convex transform: `f âˆ’ HMaxima_h(f)`, the bright dynamic suppressed by
+/// H-convex transform: `f − HMaxima_h(f)`, the bright dynamic suppressed by
 /// the h-maxima transform. ITK Parity: HConvexImageFilter (`sitk.HConvex`).
 #[pyfunction]
 #[pyo3(signature = (image, height, fully_connected = false))]
@@ -116,7 +116,7 @@ pub fn h_convex(
     .map(into_py_image)
 }
 
-/// H-concave transform: `HMinima_h(f) âˆ’ f`, the dark dynamic suppressed by the
+/// H-concave transform: `HMinima_h(f) − f`, the dark dynamic suppressed by the
 /// h-minima transform. ITK Parity: HConcaveImageFilter (`sitk.HConcave`).
 #[pyfunction]
 #[pyo3(signature = (image, height, fully_connected = false))]
@@ -184,7 +184,7 @@ pub fn regional_minima(
 }
 
 /// Valued regional maxima: keep the input value on regional maxima, set
-/// non-maxima to âˆ’FLT_MAX. ITK Parity: ValuedRegionalMaximaImageFilter
+/// non-maxima to −FLT_MAX. ITK Parity: ValuedRegionalMaximaImageFilter
 /// (`sitk.ValuedRegionalMaxima`).
 #[pyfunction]
 #[pyo3(signature = (image, fully_connected = false))]

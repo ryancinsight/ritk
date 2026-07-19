@@ -25,9 +25,9 @@ fn radius_zero_is_identity() {
     assert_eq!(flat(&out), vals);
 }
 
-/// T2: Anti-extensivity â€” opening does not add foreground voxels.
+/// T2: Anti-extensivity — opening does not add foreground voxels.
 ///
-/// For any f and B: O_B(f)(x) â‰¤ f(x).
+/// For any f and B: O_B(f)(x) ≤ f(x).
 /// Equivalently: no background voxel in input becomes foreground in output.
 #[test]
 fn anti_extensivity_no_new_foreground() {
@@ -44,9 +44,9 @@ fn anti_extensivity_no_new_foreground() {
 
 /// T3: Small isolated foreground blob is removed by opening.
 ///
-/// 1Ã—1Ã—7 image: [0, 0, 1, 0, 0, 0, 0] â€” isolated single fg voxel at index 2.
-/// r=1: erode â†’ all background (single voxel cannot survive r=1 erosion).
-/// dilate(background) â†’ all background.
+/// 1×1×7 image: [0, 0, 1, 0, 0, 0, 0] — isolated single fg voxel at index 2.
+/// r=1: erode → all background (single voxel cannot survive r=1 erosion).
+/// dilate(background) → all background.
 #[test]
 fn small_spike_removed_by_opening() {
     let img = make_image(vec![0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0], [1, 1, 7]);
@@ -56,21 +56,21 @@ fn small_spike_removed_by_opening() {
 
 /// T4: Large 3D fg block (wider than 2r+1 in all dimensions) survives opening.
 ///
-/// 3Ã—3Ã—9 image: fg at izâˆˆ{0..2}, iyâˆˆ{0..2}, ixâˆˆ{2..6} â€” a 3Ã—3Ã—5 block.
+/// 3×3×9 image: fg at iz∈{0..2}, iy∈{0..2}, ix∈{2..6} — a 3×3×5 block.
 ///
 /// Opening analysis (r=1):
 /// 1. Erode: voxels needing ALL SE positions fg.
-///    - iz: need izÂ±1 âˆˆ [0,2] â†’ iz=1 only.
-///    - iy: need iyÂ±1 âˆˆ [0,2] â†’ iy=1 only.
-///    - ix: need ixÂ±1 âˆˆ [2,6] â†’ ix âˆˆ {3,4,5}.
+///    - iz: need iz±1 ∈ [0,2] → iz=1 only.
+///    - iy: need iy±1 ∈ [0,2] → iy=1 only.
+///    - ix: need ix±1 ∈ [2,6] → ix ∈ {3,4,5}.
 ///      Surviving erode: (1,1,{3,4,5}).
 /// 2. Dilate {(1,1,3),(1,1,4),(1,1,5)} by r=1: expands back to the original
-///    3Ã—3Ã—5 block (izâˆˆ{0..2}, iyâˆˆ{0..2}, ixâˆˆ{2..6}).
+///    3×3×5 block (iz∈{0..2}, iy∈{0..2}, ix∈{2..6}).
 ///
-/// Centre voxels at (1,1,{3,4,5}) survive; flat indices 39, 40, 41 (3Ã—3Ã—9 grid).
+/// Centre voxels at (1,1,{3,4,5}) survive; flat indices 39, 40, 41 (3×3×9 grid).
 #[test]
 fn large_region_survives_opening() {
-    let mut vals = vec![0.0_f32; 81]; // 3Ã—3Ã—9
+    let mut vals = vec![0.0_f32; 81]; // 3×3×9
     for iz in 0..3usize {
         for iy in 0..3usize {
             for ix in 2..=6usize {
@@ -107,7 +107,7 @@ fn all_background_stays_background() {
     assert!(flat(&out).iter().all(|&v| v == 0.0));
 }
 
-/// T6: Idempotence â€” applying opening twice gives the same result as once.
+/// T6: Idempotence — applying opening twice gives the same result as once.
 #[test]
 fn idempotence() {
     let vals: Vec<f32> = vec![1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0];

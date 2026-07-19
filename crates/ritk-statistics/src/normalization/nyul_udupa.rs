@@ -2,14 +2,14 @@
 //!
 //! # Mathematical Specification
 //!
-//! Given K training images {Iâ‚, â€¦, I_K} and a set of target percentile ranks
-//! P = {pâ‚, pâ‚‚, â€¦, p_M} (e.g. {1, 10, 20, â€¦, 90, 99}):
+//! Given K training images {I₁, …, I_K} and a set of target percentile ranks
+//! P = {p₁, p₂, …, p_M} (e.g. {1, 10, 20, …, 90, 99}):
 //!
 //! ## Training phase (`learn_standard`)
 //!
 //! 1. For each training image Iₖ, compute the intensity landmarks:
 //!
-//!      Lâ‚– = [ Q(Iâ‚–, pâ‚), Q(Iâ‚–, pâ‚‚), â€¦, Q(Iâ‚–, p_M) ]
+//!      Lₖ = [ Q(Iₖ, p₁), Q(Iₖ, p₂), …, Q(Iₖ, p_M) ]
 //!
 //!    where Q(I, p) is the p-th percentile of the image intensities, computed
 //!    via linear interpolation on the sorted value array.
@@ -20,14 +20,14 @@
 //!
 //! ## Transform phase (`apply`)
 //!
-//! For a new image I with landmarks L = [ Q(I, pâ‚), â€¦, Q(I, p_M) ]:
+//! For a new image I with landmarks L = [ Q(I, p₁), …, Q(I, p_M) ]:
 //!
-//! 1. For each voxel intensity v, find the interval [Lâ±¼, Lâ±¼â‚Šâ‚] containing v.
+//! 1. For each voxel intensity v, find the interval [Lⱼ, Lⱼ₊₁] containing v.
 //! 2. Apply piecewise-linear interpolation to map v → v':
 //!
-//!      v' = Sâ±¼ + (v âˆ’ Lâ±¼) Â· (Sâ±¼â‚Šâ‚ âˆ’ Sâ±¼) / (Lâ±¼â‚Šâ‚ âˆ’ Lâ±¼)
+//!      v' = Sⱼ + (v − Lⱼ) · (Sⱼ₊₁ − Sⱼ) / (Lⱼ₊₁ − Lⱼ)
 //!
-//! 3. Values below Lâ‚ are clamped to Sâ‚; values above L_M are clamped to S_M.
+//! 3. Values below L₁ are clamped to S₁; values above L_M are clamped to S_M.
 //!
 //! ## Percentile computation
 //!
@@ -91,7 +91,7 @@ fn compute_percentile(sorted: &[f32], p: f64) -> f32 {
 ///
 /// Values below `source_landmarks[0]` clamp to `target_landmarks[0]`.
 /// Values above `source_landmarks[last]` clamp to `target_landmarks[last]`.
-/// Within each interval \[Lâ±¼, Lâ±¼â‚Šâ‚\], linearly interpolates to \[Sâ±¼, Sâ±¼â‚Šâ‚\].
+/// Within each interval \[Lⱼ, Lⱼ₊₁\], linearly interpolates to \[Sⱼ, Sⱼ₊₁\].
 #[inline]
 fn piecewise_linear_map(value: f32, source_landmarks: &[f32], target_landmarks: &[f32]) -> f32 {
     debug_assert_eq!(source_landmarks.len(), target_landmarks.len());
@@ -106,7 +106,7 @@ fn piecewise_linear_map(value: f32, source_landmarks: &[f32], target_landmarks: 
         return target_landmarks[m - 1];
     }
 
-    // Find the interval [Lâ±¼, Lâ±¼â‚Šâ‚] containing value via linear scan.
+    // Find the interval [Lⱼ, Lⱼ₊₁] containing value via linear scan.
     // For typical landmark counts (≤ 11 entries), linear scan is faster
     // than binary search due to branch prediction and cache locality.
     for j in 0..m - 1 {
@@ -195,7 +195,7 @@ impl NyulUdupaNormalizer {
     /// # Algorithm
     /// For each image Iₖ:
     /// 1. Extract voxel intensities and sort.
-    /// 2. Compute landmarks Lâ‚– = \[Q(Iâ‚–, pâ‚), â€¦, Q(Iâ‚–, p_M)\].
+    /// 2. Compute landmarks Lₖ = \[Q(Iₖ, p₁), …, Q(Iₖ, p_M)\].
     ///
     /// Standard landmarks: Sⱼ = (1/K) · Σₖ Lₖⱼ.
     ///

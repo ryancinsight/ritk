@@ -6,7 +6,7 @@ use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 
-// â”€â”€ Test helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test helpers ──────────────────────────────────────────────────────────────
 
 fn write_rt_dose_file(obj: InMemDicomObject, path: &std::path::Path) {
     obj.with_meta(
@@ -117,7 +117,7 @@ fn build_rt_dose_obj(
     obj
 }
 
-// â”€â”€ Test A: missing file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test A: missing file ──────────────────────────────────────────────────────
 
 /// Invariant: a nonexistent path must produce Err mentioning the path or open failure.
 #[test]
@@ -131,9 +131,9 @@ fn test_read_rt_dose_missing_file_returns_error() {
     );
 }
 
-// â”€â”€ Test B: wrong SOP class â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test B: wrong SOP class ───────────────────────────────────────────────────
 
-/// Invariant: a file whose SOP Class UID â‰  RT Dose must produce Err
+/// Invariant: a file whose SOP Class UID ≠ RT Dose must produce Err
 /// containing the rejected UID in the message.
 #[test]
 fn test_read_rt_dose_wrong_sop_class_returns_error() {
@@ -150,10 +150,10 @@ fn test_read_rt_dose_wrong_sop_class_returns_error() {
     );
 }
 
-// â”€â”€ Test C: synthetic 4Ã—4Ã—2 grid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test C: synthetic 4×4×2 grid ─────────────────────────────────────────────
 
 /// Invariant: for pixel_val = 1000 and dose_grid_scaling = 0.001,
-/// every dose_gy[i] = 1000 Ã— 0.001 = 1.0 Gy (exact in f64 representation).
+/// every dose_gy[i] = 1000 × 0.001 = 1.0 Gy (exact in f64 representation).
 #[test]
 fn test_read_rt_dose_synthetic_grid() {
     let tmp = tempfile::tempdir().expect("tempdir");
@@ -270,9 +270,9 @@ fn test_read_rt_dose_rejects_extra_pixel_bytes() {
     );
 }
 
-// â”€â”€ Test D: validation rejects mismatched voxel count â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test D: validation rejects mismatched voxel count ────────────────────────
 
-/// Invariant: write_rt_dose must return Err when dose_gy.len() â‰  n_frames * rows * cols.
+/// Invariant: write_rt_dose must return Err when dose_gy.len() ≠ n_frames * rows * cols.
 #[test]
 fn test_write_rt_dose_rejects_mismatched_voxel_count() {
     let tmp = tempfile::tempdir().expect("tempdir");
@@ -300,7 +300,7 @@ fn test_write_rt_dose_rejects_mismatched_voxel_count() {
     );
 }
 
-// â”€â”€ Test E: round-trip write/read preserves all fields â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test E: round-trip write/read preserves all fields ───────────────────────
 
 /// Invariant: write_rt_dose followed by read_rt_dose reconstructs all fields
 /// within the quantization tolerance of dose_grid_scaling.

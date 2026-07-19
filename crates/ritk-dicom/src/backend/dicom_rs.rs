@@ -128,10 +128,10 @@ fn decode_via_dicom_rs(
                 request.transfer_syntax.uid()
             )
         })?;
-    // dicom-pixeldata applies the modality LUT (RescaleSlope Ã— stored +
-    // RescaleIntercept) internally per DICOM PS3.3 Â§C.7.6.3.1.4. Passing the
+    // dicom-pixeldata applies the modality LUT (RescaleSlope × stored +
+    // RescaleIntercept) internally per DICOM PS3.3 §C.7.6.3.1.4. Passing the
     // layout with rescale applied again would double-apply the linear
-    // transformation: (sample Ã— slope + intercept) Ã— slope + intercept.
+    // transformation: (sample × slope + intercept) × slope + intercept.
     // Use identity rescale (slope=1, intercept=0) so decode_native_pixel_bytes_checked
     // only performs the required integer-to-f32 conversion and byte-length validation.
     let identity_layout = PixelLayout {

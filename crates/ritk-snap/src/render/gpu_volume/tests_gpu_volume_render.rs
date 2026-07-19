@@ -5,7 +5,7 @@
 //! # Headless GPU guard
 //!
 //! All tests call `GpuVolumeRenderer::try_create()`. If this returns `None`
-//! (no GPU available â€” typical on headless CI), the test logs a skip and
+//! (no GPU available — typical on headless CI), the test logs a skip and
 //! returns successfully. Tests never fail due to missing GPU hardware.
 
 use std::sync::Arc;
@@ -16,7 +16,7 @@ use crate::LoadedVolume;
 
 use super::GpuVolumeRenderer;
 
-// â”€â”€ Test helpers (VR-specific) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test helpers (VR-specific) ──────────────────────────────────────────────
 
 /// Submit VR work, block until the GPU completes, then collect and return
 /// the result. Mirrors the two-round protocol of `render_mip_sync`.
@@ -98,12 +98,12 @@ fn make_test_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
 ///
 /// # Invariant
 ///
-/// For all pixels: max(|Î”r|, |Î”g|, |Î”b|) â‰¤ 2.
-/// Bound: LUT truncation (â‰¤1) + pack4x8unorm rounding (â‰¤1) = â‰¤2 total.
+/// For all pixels: max(|Δr|, |Δg|, |Δb|) ≤ 2.
+/// Bound: LUT truncation (≤1) + pack4x8unorm rounding (≤1) = ≤2 total.
 #[test]
 fn gpu_vr_matches_cpu_vr_grayscale() {
     let Some(mut renderer) = GpuVolumeRenderer::try_create() else {
-        tracing::info!("No GPU available â€” skipping GPU VR differential test");
+        tracing::info!("No GPU available — skipping GPU VR differential test");
         return;
     };
 
@@ -134,20 +134,20 @@ fn gpu_vr_matches_cpu_vr_grayscale() {
         }
         assert!(
             diff <= 2,
-            "Pixel {i}: CPU={c:?} GPU={g:?} max_channel_diff={diff} exceeds Â±2 tolerance"
+            "Pixel {i}: CPU={c:?} GPU={g:?} max_channel_diff={diff} exceeds ±2 tolerance"
         );
     }
     tracing::info!(max_diff, "GPU vs CPU VR max |channel diff|");
 }
 
-/// GPU VR: zero-intensity uniform volume â†’ transparent black pixels.
+/// GPU VR: zero-intensity uniform volume → transparent black pixels.
 ///
 /// # Derivation
 ///
-/// wl_lo = 0; wl_range = 256. voxel = 0.0 â†’ norm = 0 â†’ a = 0.06 Ã— 0 = 0.
-/// No accumulation â†’ acc_r=0, acc_g=0, acc_b=0, acc_alpha=0.
-/// pack4x8unorm(0,0,0,0) â†’ bytes [0,0,0,0] â†’ from_rgba_unmultiplied(0,0,0,0)
-/// â†’ Color32::TRANSPARENT.
+/// wl_lo = 0; wl_range = 256. voxel = 0.0 → norm = 0 → a = 0.06 × 0 = 0.
+/// No accumulation → acc_r=0, acc_g=0, acc_b=0, acc_alpha=0.
+/// pack4x8unorm(0,0,0,0) → bytes [0,0,0,0] → from_rgba_unmultiplied(0,0,0,0)
+/// → Color32::TRANSPARENT.
 #[test]
 fn gpu_vr_below_window_floor_transparent_black() {
     let Some(mut renderer) = GpuVolumeRenderer::try_create() else {
@@ -239,23 +239,23 @@ fn gpu_vr_repeated_render_identical() {
     }
 }
 
-// â”€â”€ Sprint 274: async contract tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Sprint 274: async contract tests ─────────────────────────────────────────
 
 /// Async readback contract: first `render_mip` call returns `None`; after
 /// `poll_blocking`, the second call returns `Some` with valid pixel data.
 ///
 /// # Formal contract
 ///
-/// Let `râ‚€ = render_mip(v, wl, cm)` (first call, no cached result).
-/// Let `râ‚ = render_mip(v, wl, cm)` (after `poll_blocking`).
+/// Let `r₀ = render_mip(v, wl, cm)` (first call, no cached result).
+/// Let `r₁ = render_mip(v, wl, cm)` (after `poll_blocking`).
 ///
-/// Invariant 1: `râ‚€ = None` â€” no blocking of the calling thread.
-/// Invariant 2: `râ‚ = Some(img)` where `img.size = [cols, rows]`.
-/// Invariant 3: `img` contains â‰¥1 non-zero pixel for a non-zero input volume.
+/// Invariant 1: `r₀ = None` — no blocking of the calling thread.
+/// Invariant 2: `r₁ = Some(img)` where `img.size = [cols, rows]`.
+/// Invariant 3: `img` contains ≥1 non-zero pixel for a non-zero input volume.
 #[test]
 fn gpu_mip_async_first_call_none_then_yields_result() {
     let Some(mut renderer) = GpuVolumeRenderer::try_create() else {
-        tracing::info!("No GPU available â€” skipping async contract test");
+        tracing::info!("No GPU available — skipping async contract test");
         return;
     };
 
@@ -282,7 +282,7 @@ fn gpu_mip_async_first_call_none_then_yields_result() {
     assert_eq!(
         r1.pixels.len(),
         8 * 8,
-        "Pixel buffer length must equal rows Ã— cols = 64"
+        "Pixel buffer length must equal rows × cols = 64"
     );
     let has_nonzero = r1
         .pixels
@@ -303,13 +303,13 @@ fn gpu_mip_async_first_call_none_then_yields_result() {
 ///
 /// # Formal contract (parallel to MIP contract)
 ///
-/// Invariant 1: `render_vr(v, wl, cm, Î±)` on first call = `None`.
-/// Invariant 2: after `poll_blocking`, `render_vr(v, wl, cm, Î±)` = `Some(img)`.
+/// Invariant 1: `render_vr(v, wl, cm, α)` on first call = `None`.
+/// Invariant 2: after `poll_blocking`, `render_vr(v, wl, cm, α)` = `Some(img)`.
 /// Invariant 3: `img.size = [cols, rows]`.
 #[test]
 fn gpu_vr_async_first_call_none_then_yields_result() {
     let Some(mut renderer) = GpuVolumeRenderer::try_create() else {
-        tracing::info!("No GPU available â€” skipping async VR contract test");
+        tracing::info!("No GPU available — skipping async VR contract test");
         return;
     };
 

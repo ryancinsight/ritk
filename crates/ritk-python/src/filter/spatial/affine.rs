@@ -12,7 +12,7 @@ use ritk_transform::affine::translation::TranslationTransform;
 ///
 /// The result matches SimpleITK's
 /// `Euler3DTransform.SetRotation(angle_x, angle_y, angle_z)` (with its default
-/// `ComputeZYX = false`, i.e. `R = R_zÂ·R_xÂ·R_y`) about the image centre, for
+/// `ComputeZYX = false`, i.e. `R = R_z·R_x·R_y`) about the image centre, for
 /// arbitrary single- or multi-axis rotations, spacings, and origins. Each
 /// `angle_<axis>` rotates about the corresponding physical axis.
 ///
@@ -24,7 +24,7 @@ use ritk_transform::affine::translation::TranslationTransform;
 ///     angle_x:             Rotation about physical X axis in radians (default 0.0).
 ///     angle_y:             Rotation about physical Y axis in radians (default 0.0).
 ///     angle_z:             Rotation about physical Z axis in radians (default 0.0).
-///     mode:                Interpolation mode â€” "linear" (default), "nearest",
+///     mode:                Interpolation mode — "linear" (default), "nearest",
 ///                          "bspline", "lanczos".
 ///     default_pixel_value: Fill value for voxels outside the field of view
 ///                          (default 0.0).
@@ -66,11 +66,11 @@ pub fn rotate_image(
         let translation = Tensor::<f32, Backend>::zeros_on([3], &device);
         // Build the rotation to match SimpleITK's `Euler3DTransform`
         // (`ComputeZYX = false`, the default), whose matrix in physical [x, y, z]
-        // space is `M = R_z(angle_z) Â· R_x(angle_x) Â· R_y(angle_y)`. ritk's
-        // resample operates in tensor-axis [z, y, x] space â€” the reverse of the
-        // physical axes â€” so the applied matrix is `P Â· M Â· Páµ€` with `P` the
+        // space is `M = R_z(angle_z) · R_x(angle_x) · R_y(angle_y)`. ritk's
+        // resample operates in tensor-axis [z, y, x] space — the reverse of the
+        // physical axes — so the applied matrix is `P · M · Páµ€` with `P` the
         // axis-reversal permutation, i.e. `A[i][j] = M[2-i][2-j]`. Using the
-        // explicit matrix (instead of `RigidTransform`'s `R_zÂ·R_yÂ·R_x` Euler
+        // explicit matrix (instead of `RigidTransform`'s `R_z·R_y·R_x` Euler
         // builder) reproduces SimpleITK's composition for simultaneous
         // multi-axis rotations, not just one axis at a time.
         let m = euler_zxy_matrix(angle_x, angle_y, angle_z);
@@ -123,7 +123,7 @@ pub fn rotate_image(
 ///     shift_z:             Translation along Z axis in physical units (mm, default 0.0).
 ///     shift_y:             Translation along Y axis in physical units (mm, default 0.0).
 ///     shift_x:             Translation along X axis in physical units (mm, default 0.0).
-///     mode:                Interpolation mode â€” "linear" (default), "nearest",
+///     mode:                Interpolation mode — "linear" (default), "nearest",
 ///                          "bspline", "lanczos".
 ///     default_pixel_value: Fill value for voxels outside the field of view
 ///                          (default 0.0).
@@ -154,9 +154,9 @@ pub fn shift_image(
         let dir = *inner.direction();
         let device = Backend::default();
 
-        // TranslationTransform shifts the OUTPUTâ†’INPUT mapping, so we negate:
+        // TranslationTransform shifts the OUTPUT→INPUT mapping, so we negate:
         // to shift the image by (dz, dy, dx), the transform must map
-        // out_point â†’ out_point - [dz, dy, dx] in physical space.
+        // out_point → out_point - [dz, dy, dx] in physical space.
         let translation = Tensor::<f32, Backend>::from_slice_on(
             [3],
             &[-shift_z as f32, -shift_y as f32, -shift_x as f32],
@@ -215,7 +215,7 @@ pub fn shift_image(
     .map(into_py_image)
 }
 
-/// 3Ã—3 product of two row-major matrices.
+/// 3×3 product of two row-major matrices.
 fn matmul3(a: [[f64; 3]; 3], b: [[f64; 3]; 3]) -> [[f64; 3]; 3] {
     let mut c = [[0.0f64; 3]; 3];
     for (i, ci) in c.iter_mut().enumerate() {
@@ -226,8 +226,8 @@ fn matmul3(a: [[f64; 3]; 3], b: [[f64; 3]; 3]) -> [[f64; 3]; 3] {
     c
 }
 
-/// Rotation matrix `R_z(angle_z) Â· R_x(angle_x) Â· R_y(angle_y)` in physical
-/// [x, y, z] coordinates â€” the composition SimpleITK's `Euler3DTransform` uses
+/// Rotation matrix `R_z(angle_z) · R_x(angle_x) · R_y(angle_y)` in physical
+/// [x, y, z] coordinates — the composition SimpleITK's `Euler3DTransform` uses
 /// with its default `ComputeZYX = false`.
 fn euler_zxy_matrix(angle_x: f64, angle_y: f64, angle_z: f64) -> [[f64; 3]; 3] {
     let (sa, ca) = angle_x.sin_cos();
@@ -243,15 +243,15 @@ fn euler_zxy_matrix(angle_x: f64, angle_y: f64, angle_z: f64) -> [[f64; 3]; 3] {
 /// field, matching `SimpleITK.TransformToDisplacementField` for an
 /// `AffineTransform`.
 ///
-/// Returns the field `D(p) = T(p) âˆ’ p`, `T(p) = MÂ·(p âˆ’ c) + c + t`, as three
-/// scalar component images `(disp_z, disp_y, disp_x)` on the reference grid â€”
-/// the order `filter.warp` consumes. `matrix` is row-major 3Ã—3, `translation`
+/// Returns the field `D(p) = T(p) − p`, `T(p) = M·(p − c) + c + t`, as three
+/// scalar component images `(disp_z, disp_y, disp_x)` on the reference grid —
+/// the order `filter.warp` consumes. `matrix` is row-major 3×3, `translation`
 /// and `center` are length-3, all in the physical `(x, y, z)` frame (SimpleITK's
 /// `AffineTransform` convention).
 ///
 /// The reference should carry its loaded geometry (e.g. via `ritk.io.read_image`)
 /// so its Direction matches the file; physical points are taken from the
-/// canonical indexâ†’world transform.
+/// canonical index→world transform.
 #[pyfunction]
 #[pyo3(signature = (reference, matrix, translation, center=[0.0, 0.0, 0.0]))]
 pub fn transform_to_displacement_field(
@@ -273,8 +273,8 @@ pub fn transform_to_displacement_field(
 /// leaving the voxel data and spacing unchanged. Matches
 /// `SimpleITK.TransformGeometry` for an `AffineTransform`.
 ///
-/// ITK applies the inverse linear map: `origin' = Aâ»Â¹Â·(origin âˆ’ c âˆ’ t) + c`,
-/// `direction' = Aâ»Â¹Â·direction`. `matrix` is row-major 3Ã—3, `translation` and
+/// ITK applies the inverse linear map: `origin' = A⁻¹·(origin − c − t) + c`,
+/// `direction' = A⁻¹·direction`. `matrix` is row-major 3×3, `translation` and
 /// `center` are length-3, all in the physical `(x, y, z)` frame.
 ///
 /// The image should carry its loaded geometry (e.g. via `ritk.io.read_image`) so

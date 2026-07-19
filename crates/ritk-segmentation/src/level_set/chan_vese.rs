@@ -6,43 +6,43 @@
 //! regions without relying on gradient (edge) information. The energy functional:
 //!
 //! ```text
-//! E(Ï†, câ‚, câ‚‚) = Î¼Â·Length(C) + Î½Â·Area(inside(C))
-//!               + Î»â‚ âˆ« |uâ‚€ - câ‚|Â² H(Ï†) dx
-//!               + Î»â‚‚ âˆ« |uâ‚€ - câ‚‚|Â² (1 - H(Ï†)) dx
+//! E(φ, c₁, c₂) = μ·Length(C) + ν·Area(inside(C))
+//!               + λ₁ ∫ |u₀ - c₁|² H(φ) dx
+//!               + λ₂ ∫ |u₀ - c₂|² (1 - H(φ)) dx
 //! ```
 //!
 //! where:
-//! - `Ï†` is the level set function (C = {Ï† = 0} is the contour)
-//! - `câ‚` = mean intensity inside C (where Ï† > 0 after Heaviside)
-//! - `câ‚‚` = mean intensity outside C
-//! - `Î¼` = curvature (length) penalty weight
-//! - `Î½` = area penalty weight
-//! - `Î»â‚`, `Î»â‚‚` = data fidelity weights for inside/outside regions
+//! - `φ` is the level set function (C = {φ = 0} is the contour)
+//! - `c₁` = mean intensity inside C (where φ > 0 after Heaviside)
+//! - `c₂` = mean intensity outside C
+//! - `μ` = curvature (length) penalty weight
+//! - `ν` = area penalty weight
+//! - `λ₁`, `λ₂` = data fidelity weights for inside/outside regions
 //!
 //! ## PDE Evolution (Euler-Lagrange)
 //!
 //! ```text
-//! âˆ‚Ï†/âˆ‚t = Î´_Îµ(Ï†) [ Î¼ Â· div(âˆ‡Ï†/|âˆ‡Ï†|) - Î½ - Î»â‚(uâ‚€ - câ‚)Â² + Î»â‚‚(uâ‚€ - câ‚‚)Â² ]
+//! ∂φ/∂t = δ_ε(φ) [ μ · div(∇φ/|∇φ|) - ν - λ₁(u₀ - c₁)² + λ₂(u₀ - c₂)² ]
 //! ```
 //!
 //! ## Regularised Heaviside and Dirac
 //!
 //! ```text
-//! H_Îµ(z) = 0.5 Â· (1 + (2/Ï€) Â· arctan(z/Îµ))
-//! Î´_Îµ(z) = (Îµ/Ï€) / (ÎµÂ² + zÂ²)
+//! H_ε(z) = 0.5 · (1 + (2/π) · arctan(z/ε))
+//! δ_ε(z) = (ε/π) / (ε² + z²)
 //! ```
 //!
 //! ## Mean Intensity Updates
 //!
 //! ```text
-//! câ‚ = âˆ« uâ‚€ Â· H_Îµ(Ï†) dx  /  âˆ« H_Îµ(Ï†) dx
-//! câ‚‚ = âˆ« uâ‚€ Â· (1 - H_Îµ(Ï†)) dx  /  âˆ« (1 - H_Îµ(Ï†)) dx
+//! c₁ = ∫ u₀ · H_ε(φ) dx  /  ∫ H_ε(φ) dx
+//! c₂ = ∫ u₀ · (1 - H_ε(φ)) dx  /  ∫ (1 - H_ε(φ)) dx
 //! ```
 //!
 //! ## Curvature
 //!
 //! ```text
-//! Îº = div(âˆ‡Ï†/|âˆ‡Ï†|)
+//! κ = div(∇φ/|∇φ|)
 //! ```
 //!
 //! computed via second-order central finite differences with clamped boundaries.
@@ -52,33 +52,33 @@
 //! Checkerboard signed distance function:
 //!
 //! ```text
-//! Ï†â‚€(x,y,z) = -cos(Ï€x/5) Â· cos(Ï€y/5) Â· cos(Ï€z/5)
+//! φ₀(x,y,z) = -cos(πx/5) · cos(πy/5) · cos(πz/5)
 //! ```
 //!
 //! where x, y, z are voxel indices. Negative regions seed the interior.
 //!
 //! ## Convergence
 //!
-//! Iteration stops when `max|Ï†^{n+1} - Ï†^n| / dt < tolerance` or
+//! Iteration stops when `max|φ^{n+1} - φ^n| / dt < tolerance` or
 //! `max_iterations` is reached.
 //!
 //! # Complexity
 //!
 //! - Per iteration: O(N) where N = total voxels (two passes: mean update + PDE step)
-//! - Total: O(max_iterations Â· N)
-//! - Memory: O(N) for Ï†, curvature buffer, and scratch arrays
+//! - Total: O(max_iterations · N)
+//! - Memory: O(N) for φ, curvature buffer, and scratch arrays
 //!
 //! # References
 //!
 //! - Chan, T. F. & Vese, L. A. (2001). "Active Contours Without Edges."
-//!   *IEEE Transactions on Image Processing*, 10(2), 266â€“277.
+//!   *IEEE Transactions on Image Processing*, 10(2), 266–277.
 
 use super::helpers::{self, compute_curvature_into, regularised_dirac, regularised_heaviside};
 use ritk_image::tensor::{Backend, Tensor};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
 
-// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public API ─────────────────────────────────────────────────────────────────
 
 /// Chan-Vese level set segmentation filter.
 ///
@@ -87,21 +87,21 @@ use ritk_tensor_ops::extract_vec;
 /// required; the model is driven purely by region statistics.
 #[derive(Debug, Clone)]
 pub struct ChanVeseSegmentation {
-    /// Length (curvature) penalty weight Î¼. Controls boundary smoothness.
+    /// Length (curvature) penalty weight μ. Controls boundary smoothness.
     pub mu: f64,
-    /// Area penalty weight Î½. Positive values penalise large interior regions.
+    /// Area penalty weight ν. Positive values penalise large interior regions.
     pub nu: f64,
     /// Data fidelity weight for the inside region.
     pub lambda1: f64,
     /// Data fidelity weight for the outside region.
     pub lambda2: f64,
-    /// Regularisation width Îµ for Heaviside and Dirac approximations.
+    /// Regularisation width ε for Heaviside and Dirac approximations.
     pub epsilon: f64,
-    /// Euler forward time step Î”t.
+    /// Euler forward time step Δt.
     pub dt: f64,
     /// Maximum number of PDE evolution iterations.
     pub max_iterations: usize,
-    /// Convergence tolerance on max|Î”Ï†|/dt.
+    /// Convergence tolerance on max|Δφ|/dt.
     pub tolerance: f64,
 }
 
@@ -133,14 +133,14 @@ impl ChanVeseSegmentation {
 
     /// Segment `image` into a binary mask via Chan-Vese level set evolution.
     ///
-    /// Returns an `Image<f32, B, 3>` with values 1.0 (inside, where Ï† â‰¥ 0 at
+    /// Returns an `Image<f32, B, 3>` with values 1.0 (inside, where φ ≥ 0 at
     /// convergence) and 0.0 (outside). Spatial metadata (origin, spacing,
     /// direction) is preserved from `image`.
     ///
-    /// Initialisation: the level set Ï†â‚€ is set to `I(x) âˆ’ t*` where t* is the
+    /// Initialisation: the level set φ₀ is set to `I(x) − t*` where t* is the
     /// Otsu between-class-variance-maximising threshold of the image histogram.
-    /// This immediately separates the bright and dark classes so câ‚ â‰ˆ mean_bright
-    /// and câ‚‚ â‰ˆ mean_dark from iteration 1, enabling fast convergence on bimodal
+    /// This immediately separates the bright and dark classes so c₁ ≈ mean_bright
+    /// and c₂ ≈ mean_dark from iteration 1, enabling fast convergence on bimodal
     /// images.
     ///
     /// # Errors
@@ -188,7 +188,7 @@ impl Default for ChanVeseSegmentation {
     }
 }
 
-// â”€â”€ Core algorithm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Core algorithm ─────────────────────────────────────────────────────────────
 
 impl ChanVeseSegmentation {
     /// Run the PDE evolution on a flat f32 slice with shape `[nz, ny, nx]`.
@@ -204,16 +204,16 @@ impl ChanVeseSegmentation {
 
         let img_f64: Vec<f64> = img.iter().map(|&v| v as f64).collect();
 
-        // Initialise Ï† via Otsu-threshold bipartition.
+        // Initialise φ via Otsu-threshold bipartition.
         //
-        // The checkerboard heuristic (Ï† = -cos(Ï€x/5)Â·cos(Ï€y/5)Â·cos(Ï€z/5)) fails for
-        // objects that occupy a small fraction of the image: câ‚ â‰ˆ câ‚‚ â‰ˆ background_mean
+        // The checkerboard heuristic (φ = -cos(πx/5)·cos(πy/5)·cos(πz/5)) fails for
+        // objects that occupy a small fraction of the image: c₁ ≈ c₂ ≈ background_mean
         // initially, so the data-fidelity terms cancel and only curvature drives the
         // evolution, which typically converges to the wrong partition.
         //
         // Otsu-based initialisation: compute the between-class-variance-maximising
-        // threshold t* in O(n + 256) time; set Ï†(x) = I(x) âˆ’ t*. This ensures
-        // câ‚ â‰ˆ mean of bright class and câ‚‚ â‰ˆ mean of dark class from iteration 1,
+        // threshold t* in O(n + 256) time; set φ(x) = I(x) − t*. This ensures
+        // c₁ ≈ mean of bright class and c₂ ≈ mean of dark class from iteration 1,
         // so the data-fidelity terms immediately drive the contour toward the correct
         // bimodal boundary.
         let otsu_t = local_otsu_threshold(&img_f64);
@@ -225,13 +225,13 @@ impl ChanVeseSegmentation {
         let mut max_dphis = vec![0.0_f64; nz];
 
         for _iter in 0..self.max_iterations {
-            // â”€â”€ 1. Compute region means c1, c2 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── 1. Compute region means c1, c2 ────────────────────────────
             let (c1, c2) = compute_region_means(&img_f64, &phi, eps);
 
-            // â”€â”€ 2. Compute curvature Îº = div(âˆ‡Ï†/|âˆ‡Ï†|) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── 2. Compute curvature κ = div(∇φ/|∇φ|) ───────────────────
             compute_curvature_into(&phi, dims, &mut kappa);
 
-            // â”€â”€ 3. Evolve Ï† â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── 3. Evolve φ ──────────────────────────────────────────────
             let slice_len = ny * nx;
 
             helpers::evolve_slices_with_metric(&mut phi, &mut max_dphis, slice_len, |iz, phi_s| {
@@ -260,26 +260,26 @@ impl ChanVeseSegmentation {
 
             let max_dphi = max_dphis.iter().copied().fold(0.0_f64, f64::max);
 
-            // â”€â”€ 4. Convergence check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── 4. Convergence check ─────────────────────────────────────
             if max_dphi / self.dt < self.tolerance {
                 break;
             }
         }
 
-        // â”€â”€ Threshold Ï† â†’ binary mask â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Threshold φ → binary mask ────────────────────────────────────
         phi.iter()
             .map(|&v| if v >= 0.0 { 1.0_f32 } else { 0.0_f32 })
             .collect()
     }
 }
 
-// â”€â”€ Region mean computation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Region mean computation ────────────────────────────────────────────────────
 
-/// Compute câ‚ (mean intensity inside) and câ‚‚ (mean intensity outside).
+/// Compute c₁ (mean intensity inside) and c₂ (mean intensity outside).
 ///
 /// ```text
-/// câ‚ = Î£ uâ‚€Â·H_Îµ(Ï†) / Î£ H_Îµ(Ï†)
-/// câ‚‚ = Î£ uâ‚€Â·(1 - H_Îµ(Ï†)) / Î£ (1 - H_Îµ(Ï†))
+/// c₁ = Σ u₀·H_ε(φ) / Σ H_ε(φ)
+/// c₂ = Σ u₀·(1 - H_ε(φ)) / Σ (1 - H_ε(φ))
 /// ```
 ///
 /// If either denominator is zero (degenerate partition), the corresponding
@@ -309,7 +309,7 @@ fn compute_region_means(img: &[f64], phi: &[f64], eps: f64) -> (f64, f64) {
     (c1, c2)
 }
 
-// â”€â”€ Otsu threshold (f64 slice) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Otsu threshold (f64 slice) ─────────────────────────────────────────────────
 
 /// Near-zero class-weight guard used inside the local Otsu computation: threshold
 /// candidates where either class weight falls below this value are skipped to
@@ -322,7 +322,7 @@ const WEIGHT_ZERO_GUARD: f64 = 1e-12;
 /// between-class variance:
 ///
 /// ```text
-/// ÏƒÂ²_B(t) = Pâ‚(t) Â· Pâ‚‚(t) Â· (Î¼â‚(t) âˆ’ Î¼â‚‚(t))Â²
+/// σ²_B(t) = P₁(t) · P₂(t) · (μ₁(t) − μ₂(t))²
 /// ```
 ///
 /// For a constant image returns the uniform intensity. Complexity: O(n + 256).

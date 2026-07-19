@@ -1,6 +1,6 @@
 //! Differential + analytical coverage for the Coeus-native median-filter path.
 //!
-//! The native wrapper shares the exact `median_3d` host core the Burn path
+//! The native wrapper shares the exact `median_3d` host core the Coeus path
 //! calls, so the differential assertion is bitwise-exact (shared harness).
 //! Analytical oracles pin the constant-preservation and impulse-removal
 //! contracts directly on the native path.
@@ -9,7 +9,7 @@ use crate::median::MedianFilter;
 use crate::native_support::{assert_coeus_matches_coeus, make_native_image, native_vals};
 
 #[test]
-fn matches_burn_radius_one() {
+fn matches_coeus_radius_one() {
     let dims = [6, 5, 7];
     let n = dims[0] * dims[1] * dims[2];
     let vals: Vec<f32> = (0..n).map(|i| ((i * 17) % 43) as f32 * 0.3 - 5.0).collect();

@@ -3,35 +3,35 @@
 //! Implements two algorithms for combining segmentation results from multiple
 //! registered atlas label maps into a single consensus segmentation:
 //!
-//! 1. **Majority Voting** â€” baseline: the mode of atlas labels at each voxel.
-//! 2. **Joint Label Fusion** (JLF) â€” weighted voting where per-voxel weights
+//! 1. **Majority Voting** — baseline: the mode of atlas labels at each voxel.
+//! 2. **Joint Label Fusion** (JLF) — weighted voting where per-voxel weights
 //!    are derived from local patch intensity similarity between warped atlas
 //!    images and the target image.
 //!
-//! # Joint Label Fusion â€” Mathematical Specification
+//! # Joint Label Fusion — Mathematical Specification
 //!
-//! Given N atlas label maps {Lâ‚, ..., Lâ‚™} registered to target space,
-//! corresponding warped atlas intensity images {Aâ‚, ..., Aâ‚™}, and target
+//! Given N atlas label maps {L₁, ..., Lₙ} registered to target space,
+//! corresponding warped atlas intensity images {A₁, ..., Aₙ}, and target
 //! image T:
 //!
-//! For each voxel x with patch P(x) of radius r (a (2r+1)Â³ cube clipped to
+//! For each voxel x with patch P(x) of radius r (a (2r+1)³ cube clipped to
 //! image boundaries):
 //!
 //! 1. Compute per-atlas patch distance:
-//!    dáµ¢(x) = â€–P_{Aáµ¢}(x) âˆ’ P_T(x)â€–Â² = Î£_{q âˆˆ P(x)} (Aáµ¢(q) âˆ’ T(q))Â²
+//!    dᵢ(x) = —–P_{Aᵢ}(x) − P_T(x)—–² = Σ_{q ∈ P(x)} (Aᵢ(q) − T(q))²
 //!
-//! 2. Build pairwise similarity matrix M(x) âˆˆ â„^{NÃ—N}:
-//!    M_{ij}(x) = dáµ¢(x) + dâ±¼(x)
+//! 2. Build pairwise similarity matrix M(x) ∈ ℝ^{N×N}:
+//!    M_{ij}(x) = dᵢ(x) + dⱼ(x)
 //!
-//! 3. Regularize: M_{ij}(x) += Î± Â· Î´_{ij}, where Î± = Î² Â· min_{ij}(M_{ij})
-//!    and Î² is a user-specified parameter (default 0.1).
+//! 3. Regularize: M_{ij}(x) += α · δ_{ij}, where α = β · min_{ij}(M_{ij})
+//!    and β is a user-specified parameter (default 0.1).
 //!
 //! 4. Solve for weights w(x): M w = 1 via Gaussian elimination with partial
-//!    pivoting. Clamp negative weights to 0, then normalize: w = w / Î£wáµ¢.
+//!    pivoting. Clamp negative weights to 0, then normalize: w = w / Σwᵢ.
 //!    If the system is singular or all weights are non-positive, fall back to
-//!    uniform weights wáµ¢ = 1/N.
+//!    uniform weights wᵢ = 1/N.
 //!
-//! 5. Fused label: L(x) = argmax_l Î£áµ¢ wáµ¢(x) Â· \[Láµ¢(x) = l\]
+//! 5. Fused label: L(x) = argmax_l Σᵢ wᵢ(x) · \[Lᵢ(x) = l\]
 //!    Ties are broken by selecting the smallest label value.
 //!
 //! # References
@@ -39,7 +39,7 @@
 //! - Wang, H., Suh, J. W., Das, S. R., Pluta, J. B., Craige, C. &
 //!   Yushkevich, P. A. (2013). Multi-atlas segmentation with joint label
 //!   fusion. *IEEE Trans. Pattern Analysis and Machine Intelligence*
-//!   35(3):611â€“623.
+//!   35(3):611–623.
 
 mod jlf;
 mod mv;
@@ -57,10 +57,10 @@ use crate::error::RegistrationError;
 #[derive(Debug, Clone)]
 pub struct LabelFusionConfig {
     /// Patch radius (voxels) for computing local similarity.
-    /// A radius of r yields a (2r+1)Â³ patch clipped at image boundaries.
+    /// A radius of r yields a (2r+1)³ patch clipped at image boundaries.
     pub patch_radius: usize,
-    /// Regularization factor Î². The diagonal regularization added to the
-    /// pairwise similarity matrix is Î± = Î² Â· min_{ij}(M_{ij}).
+    /// Regularization factor β. The diagonal regularization added to the
+    /// pairwise similarity matrix is α = β · min_{ij}(M_{ij}).
     pub beta: f64,
 }
 

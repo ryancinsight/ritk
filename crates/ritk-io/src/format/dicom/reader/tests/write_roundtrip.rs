@@ -31,7 +31,7 @@ fn test_write_series_load_series_intensity_roundtrip() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let series_path = tmp.path().join("e2e_roundtrip_series");
 
-    // 4 slices Ã— 4 rows Ã— 4 cols = 64 voxels.
+    // 4 slices × 4 rows × 4 cols = 64 voxels.
     // Intensities 0..=63, row-major order.
     let (depth, rows, cols) = (4usize, 4usize, 4usize);
     let original_data: Vec<f32> = (0..(depth * rows * cols)).map(|i| i as f32).collect();
@@ -60,11 +60,11 @@ fn test_write_series_load_series_intensity_roundtrip() {
         original_data.len(),
         "loaded voxel count must equal original"
     );
-    // Analytical bound per slice: slope = range / 65535 = 15 / 65535 â‰ˆ 2.29e-4.
+    // Analytical bound per slice: slope = range / 65535 = 15 / 65535 ≈ 2.29e-4.
     // DS format {:.6} stores the slope/intercept with at most 0.5e-6 rounding error
     // per coefficient. Accumulated slope error over max u16 (65535):
-    // 65535 * 0.5e-6 â‰ˆ 0.033.
-    // Quantization from round(): slope / 2 â‰ˆ 1.14e-4.
+    // 65535 * 0.5e-6 ≈ 0.033.
+    // Quantization from round(): slope / 2 ≈ 1.14e-4.
     // Total analytical bound: 65535 * 0.5e-6 + 0.5e-6 + slope / 2.
     let slice_range = 15.0f32;
     let slope = slice_range / 65535.0_f32;
@@ -220,8 +220,8 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
     // Analytical slope per slice: each slice has range=15, slope = 15/65535.
     // DS format {:.6} stores the slope/intercept with at most 0.5e-6 rounding error
     // per coefficient. Accumulated slope error over max u16 (65535):
-    // 65535 * 0.5e-6 â‰ˆ 0.033.
-    // Quantization from round(): slope / 2 â‰ˆ 1.14e-4.
+    // 65535 * 0.5e-6 ≈ 0.033.
+    // Quantization from round(): slope / 2 ≈ 1.14e-4.
     // Total analytical bound: 65535 * 0.5e-6 + 0.5e-6 + slope / 2.
     let slice_range = 15.0f32;
     let slope = slice_range / 65535.0_f32;
@@ -254,17 +254,17 @@ fn test_write_metadata_series_load_series_intensity_roundtrip() {
     );
     assert!(
         (loaded_meta.spacing[0] - 1.5).abs() < pos_tol,
-        "spacing[0] (Î”z) must be 1.5; got {}",
+        "spacing[0] (Δz) must be 1.5; got {}",
         loaded_meta.spacing[0]
     );
     assert!(
         (loaded_meta.spacing[1] - 0.5).abs() < pos_tol,
-        "spacing[1] (Î”Row) must be 0.5; got {}",
+        "spacing[1] (ΔRow) must be 0.5; got {}",
         loaded_meta.spacing[1]
     );
     assert!(
         (loaded_meta.spacing[2] - 0.5).abs() < pos_tol,
-        "spacing[2] (Î”Col) must be 0.5; got {}",
+        "spacing[2] (ΔCol) must be 0.5; got {}",
         loaded_meta.spacing[2]
     );
 }

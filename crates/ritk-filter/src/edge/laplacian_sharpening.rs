@@ -8,32 +8,32 @@
 //! range. All intermediate computation is in `f64` (ITK's `RealType` for a
 //! floating-point input), matching the reference exactly.
 //!
-//! Let `I` be the input, `L = âˆ‡Â²I` its Laplacian (ZeroFluxNeumann boundary; the
-//! axis stencil is `[1, âˆ’2, 1]Â·s_aÂ²`, with `s_a = 1/spacing_a` when
+//! Let `I` be the input, `L = ∇²I` its Laplacian (ZeroFluxNeumann boundary; the
+//! axis stencil is `[1, −2, 1]·s_a²`, with `s_a = 1/spacing_a` when
 //! `use_image_spacing`, else `s_a = 1`). With
 //!
 //! ```text
-//! i_shift = min I,   i_scale = max I âˆ’ min I,
-//! f_shift = min L,   f_scale = max L âˆ’ min L,
+//! i_shift = min I,   i_scale = max I − min I,
+//! f_shift = min L,   f_scale = max L − min L,
 //! ```
 //!
 //! the combined image is
 //!
 //! ```text
-//! C = I âˆ’ ( (L âˆ’ f_shift)Â·(i_scale / f_scale) + i_shift )
+//! C = I − ( (L − f_shift)·(i_scale / f_scale) + i_shift )
 //! ```
 //!
 //! and the output restores the mean and clamps to the input range:
 //!
 //! ```text
-//! O = clamp( C âˆ’ mean(C) + mean(I),  min I,  max I ).
+//! O = clamp( C − mean(C) + mean(I),  min I,  max I ).
 //! ```
 //!
 //! # ITK parity
 //!
 //! Corresponds to `itk::LaplacianSharpeningImageFilter` with default
 //! `UseImageSpacing = true`. The Laplacian operator is ITK's `LaplacianOperator`
-//! with derivative scalings `1/spacing` (so the axis coefficient is `1/spacingÂ²`)
+//! with derivative scalings `1/spacing` (so the axis coefficient is `1/spacing²`)
 //! under `ZeroFluxNeumannBoundaryCondition`.
 
 use ritk_image::tensor::Backend;
@@ -43,7 +43,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 /// Laplacian sharpening filter (`itk::LaplacianSharpeningImageFilter`).
 #[derive(Debug, Clone, Copy)]
 pub struct LaplacianSharpeningFilter {
-    /// Divide each axis second-derivative by `spacingÂ²` when `true` (ITK default),
+    /// Divide each axis second-derivative by `spacing²` when `true` (ITK default),
     /// else use unit scalings.
     pub use_image_spacing: bool,
 }
@@ -67,7 +67,7 @@ impl LaplacianSharpeningFilter {
         let (vals, dims) = extract_vec_infallible(image);
         let n = vals.len();
 
-        // Per-axis inverse-spacing-squared scalings (s_aÂ²) for the Laplacian.
+        // Per-axis inverse-spacing-squared scalings (s_a²) for the Laplacian.
         let inv2 = |s: f64| 1.0 / (s * s);
         let scal = if self.use_image_spacing {
             [
@@ -113,7 +113,7 @@ impl LaplacianSharpeningFilter {
             vals[i] as f64 - ((lap[i] - f_shift) * gain + i_shift)
         });
         // Sequential left-fold preserves associativity order of the ITK
-        // ComputeMean loop â€” identical to the original `c_sum += c` loop.
+        // ComputeMean loop — identical to the original `c_sum += c` loop.
         let c_mean = combined.iter().copied().sum::<f64>() / n as f64;
 
         // Restore mean and clamp to the input range.
@@ -136,7 +136,7 @@ impl LaplacianSharpeningFilter {
         let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
         let n = vals.len();
 
-        // Per-axis inverse-spacing-squared scalings (s_aÂ²) for the Laplacian.
+        // Per-axis inverse-spacing-squared scalings (s_a²) for the Laplacian.
         let inv2 = |s: f64| 1.0 / (s * s);
         let scal = if self.use_image_spacing {
             [
@@ -182,7 +182,7 @@ impl LaplacianSharpeningFilter {
             vals[i] as f64 - ((lap[i] - f_shift) * gain + i_shift)
         });
         // Sequential left-fold preserves associativity order of the ITK
-        // ComputeMean loop â€” identical to the original `c_sum += c` loop.
+        // ComputeMean loop — identical to the original `c_sum += c` loop.
         let c_mean = combined.iter().copied().sum::<f64>() / n as f64;
 
         // Restore mean and clamp to the input range.
@@ -194,7 +194,7 @@ impl LaplacianSharpeningFilter {
     }
 }
 
-/// Discrete Laplacian in `f64` â€” parallelised over the flat voxel index.
+/// Discrete Laplacian in `f64` — parallelised over the flat voxel index.
 ///
 /// PERF-378-02: each output voxel depends only on its 6-neighbour stencil of
 /// the read-only `data` slice; no inter-voxel write dependency. Output order

@@ -6,9 +6,9 @@
 //!
 //! ```text
 //! SeriesTree
-//! â””â”€â”€ PatientNode (keyed by patient_id)
-//!     â””â”€â”€ StudyNode (keyed by study_uid or study_date)
-//!         â””â”€â”€ SeriesNode (one per DICOM series folder)
+//! └── PatientNode (keyed by patient_id)
+//!     └── StudyNode (keyed by study_uid or study_date)
+//!         └── SeriesNode (one per DICOM series folder)
 //! ```
 //!
 //! [`SeriesTree::from_entries`] builds this hierarchy from a flat
@@ -29,7 +29,7 @@ use ritk_io::DicomSeriesInfo;
 use std::borrow::Cow;
 use std::path::Path;
 
-// â”€â”€ SeriesEntryView â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SeriesEntryView ──────────────────────────────────────────────────────────
 
 /// A zero-copy view abstraction over a DICOM series entry.
 ///
@@ -50,7 +50,7 @@ pub trait SeriesEntryView {
     fn num_slices(&self) -> usize;
 }
 
-// â”€â”€ ModalityMapper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── ModalityMapper ───────────────────────────────────────────────────────────
 
 /// Helper to map modality strings to emoji or text icons using a const-generic mapping array.
 #[derive(Debug, Clone, Copy)]
@@ -72,23 +72,23 @@ impl<const N: usize> ModalityMapper<N> {
                 return icon;
             }
         }
-        "ðŸ—‚"
+        "🗂"
     }
 }
 
 /// Default list of DICOM modalities and their corresponding icons.
 pub const DEFAULT_MODALITY_ICONS: [(&str, &str); 11] = [
-    ("CT", "ðŸ«"),
-    ("MR", "ðŸ§ "),
-    ("PT", "â˜¢"),
-    ("NM", "â˜¢"),
-    ("US", "ã€°"),
-    ("CR", "ðŸ“·"),
-    ("DR", "ðŸ“·"),
-    ("DX", "ðŸ“·"),
-    ("MG", "ðŸŽ—"),
-    ("XA", "ðŸ’‰"),
-    ("RF", "ðŸ“¡"),
+    ("CT", "🫁"),
+    ("MR", "🧠"),
+    ("PT", "☢"),
+    ("NM", "☢"),
+    ("US", "〰"),
+    ("CR", "📷"),
+    ("DR", "📷"),
+    ("DX", "📷"),
+    ("MG", "🎗"),
+    ("XA", "💉"),
+    ("RF", "📡"),
 ];
 
 /// Global default instance of the modality mapper.
@@ -122,7 +122,7 @@ pub fn format_series_label<S: SeriesEntryView, const N: usize>(
     format!("{icon} {mod_tag}{desc} ({} slices)", entry.num_slices())
 }
 
-// â”€â”€ SeriesEntry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SeriesEntry ──────────────────────────────────────────────────────────────
 
 /// A single flat DICOM series representation as populated by directory scanning.
 #[derive(Debug, Clone)]
@@ -211,7 +211,7 @@ impl<'a> SeriesEntry<'a> {
     }
 }
 
-// â”€â”€ SeriesNode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SeriesNode ───────────────────────────────────────────────────────────────
 
 /// A leaf node in the DICOM series tree, containing only series-specific data.
 ///
@@ -270,14 +270,14 @@ impl<'a> SeriesNode<'a> {
     }
 }
 
-// â”€â”€ StudyNode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── StudyNode ────────────────────────────────────────────────────────────────
 
 /// One study within a patient, containing one or more series.
 #[derive(Debug, Clone)]
 pub struct StudyNode<'a> {
-    /// Study Instance UID â€” `None` when absent from metadata.
+    /// Study Instance UID — `None` when absent from metadata.
     pub study_uid: Option<Cow<'a, str>>,
-    /// Study date in `YYYYMMDD` format â€” `None` when absent.
+    /// Study date in `YYYYMMDD` format — `None` when absent.
     pub study_date: Option<Cow<'a, str>>,
     /// Series belonging to this study, in insertion order.
     pub series: Vec<SeriesNode<'a>>,
@@ -293,7 +293,7 @@ impl<'a> StudyNode<'a> {
     }
 }
 
-// â”€â”€ PatientNode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── PatientNode ──────────────────────────────────────────────────────────────
 
 /// One patient, containing one or more studies.
 #[derive(Debug, Clone)]
@@ -306,9 +306,9 @@ pub struct PatientNode<'a> {
     pub studies: Vec<StudyNode<'a>>,
 }
 
-// â”€â”€ SeriesTree â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SeriesTree ───────────────────────────────────────────────────────────────
 
-/// Hierarchical patient â†’ study â†’ series tree for the series browser.
+/// Hierarchical patient → study → series tree for the series browser.
 #[derive(Debug, Clone, Default)]
 pub struct SeriesTree<'a> {
     /// Top-level patient nodes, in insertion order.

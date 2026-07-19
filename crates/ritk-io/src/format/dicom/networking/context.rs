@@ -1,4 +1,4 @@
-//! DICOM association context types â€” presentation context negotiation,
+//! DICOM association context types — presentation context negotiation,
 //! transfer syntax UID constants, and association configuration.
 //!
 //! Extracted from `association.rs` to satisfy the 500-line structural limit.
@@ -9,17 +9,17 @@ use crate::format::dicom::reader::types::literal_arraystring;
 use arrayvec::ArrayString;
 use std::time::Duration;
 
-// â”€â”€ Transfer syntax UIDs (PS 3.6 Table A-1) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Transfer syntax UIDs (PS 3.6 Table A-1) ──────────────────────────────────
 
 /// DICOM standard transfer syntax UIDs (PS 3.6 Table A-1).
 pub mod transfer_syntax {
-    /// Implicit VR Little Endian â€” default transfer syntax.
+    /// Implicit VR Little Endian — default transfer syntax.
     pub const IMPLICIT_VR_LE: &str = "1.2.840.10008.1.2";
-    /// Explicit VR Little Endian â€” re-exported from the crate-canonical location.
+    /// Explicit VR Little Endian — re-exported from the crate-canonical location.
     pub const EXPLICIT_VR_LE: &str = crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
     /// Explicit VR Big Endian (retired; included for compatibility).
     pub const EXPLICIT_VR_BE: &str = "1.2.840.10008.1.2.2";
-    /// JPEG Baseline (Process 1) â€” lossy 8-bit.
+    /// JPEG Baseline (Process 1) — lossy 8-bit.
     pub const JPEG_BASELINE: &str = "1.2.840.10008.1.2.4.50";
     /// JPEG Lossless (Process 14, SV1).
     pub const JPEG_LOSSLESS: &str = "1.2.840.10008.1.2.4.70";
@@ -31,7 +31,7 @@ pub mod transfer_syntax {
     pub const JPEG_2000: &str = "1.2.840.10008.1.2.4.91";
 }
 
-// â”€â”€ AssociationConfig â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── AssociationConfig ─────────────────────────────────────────────────────────
 
 /// Association-level DICOM connection configuration.
 ///
@@ -97,16 +97,16 @@ impl AssociationConfig {
     }
 }
 
-// â”€â”€ Presentation context types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Presentation context types ────────────────────────────────────────────────
 
-/// A requested presentation context sent in A-ASSOCIATE-RQ (PS 3.8 Â§9.3.2).
+/// A requested presentation context sent in A-ASSOCIATE-RQ (PS 3.8 §9.3.2).
 #[derive(Debug, Clone)]
 pub struct RequestedPresentationContext {
     pub abstract_syntax_uid: ArrayString<64>,
     pub transfer_syntax_uids: Vec<ArrayString<64>>,
 }
 
-/// A negotiated (accepted) presentation context from A-ASSOCIATE-AC (PS 3.8 Â§9.3.3).
+/// A negotiated (accepted) presentation context from A-ASSOCIATE-AC (PS 3.8 §9.3.3).
 #[derive(Debug, Clone, PartialEq)]
 pub struct NegotiatedContext {
     pub presentation_context_id: u8,

@@ -3,15 +3,15 @@
 //! # Overlay layout
 //!
 //! ```text
-//! â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-//! â”‚ Patient Name          Series Desc       â”‚
-//! â”‚ Patient ID            Modality / Date   â”‚
-//! â”‚                                         â”‚
-//! â”‚                                         â”‚
-//! â”‚ Slice N/M             W: WWWW C: CCCC   â”‚
-//! â”‚ Spacing               Zoom: ZZZ%        â”‚
-//! â”‚ Dimensions            HU: VVVV          â”‚
-//! â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+//! ┌─────────────────────────────────────────┐
+//! │ Patient Name          Series Desc       │
+//! │ Patient ID            Modality / Date   │
+//! │                                         │
+//! │                                         │
+//! │ Slice N/M             W: WWWW C: CCCC   │
+//! │ Spacing               Zoom: ZZZ%        │
+//! │ Dimensions            HU: VVVV          │
+//! └─────────────────────────────────────────┘
 //! ```
 //!
 //! # Orientation label convention
@@ -34,7 +34,7 @@ use super::anatomical_label_for_axis;
 use crate::render::slice_render::WindowLevel;
 use crate::LoadedVolume;
 
-// â”€â”€ constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── constants ──────────────────────────────────────────────────────────────────
 
 /// Font size for overlay text (points).
 const OVERLAY_FONT_SIZE: f32 = 12.0;
@@ -48,7 +48,7 @@ const ORIENT_LABEL_COLOR: Color32 = Color32::WHITE;
 /// Margin from the viewport edge (pixels).
 const MARGIN: f32 = 6.0;
 
-// â”€â”€ OverlayRenderer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── OverlayRenderer ───────────────────────────────────────────────────────────
 
 /// Per-frame display state passed to `OverlayRenderer::draw`.
 ///
@@ -72,7 +72,7 @@ pub struct OverlayContext {
 pub struct OverlayRenderer;
 
 impl OverlayRenderer {
-    // â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Public API ────────────────────────────────────────────────────────────
 
     /// Draw the standard 4-corner DICOM text overlay.
     ///
@@ -86,16 +86,16 @@ impl OverlayRenderer {
     /// | Bottom-right| Window width/centre, Zoom %, cursor HU value    |
     ///
     /// # Parameters
-    /// - `painter`      â€” egui painter for the viewport.
-    /// - `rect`         â€” viewport rectangle in screen coordinates.
-    /// - `volume`       â€” loaded volume supplying metadata.
-    /// - `axis`         â€” current MPR axis (0=axial, 1=coronal, 2=sagittal).
-    /// - `slice_index`  â€” currently displayed slice index.
-    /// - `wl`           â€” current window/level settings.
-    /// - `zoom`         â€” current zoom factor (1.0 = fit-to-viewport).
-    /// - `cursor_value` â€” pixel value (HU) at the cursor position, or `None`.
-    /// - `pointer_suv`  â€” SUVbw value under the pointer (PT only), or `None`.
-    /// - `cursor_suv`   â€” SUVbw value at the linked-cursor voxel (PT only), or `None`.
+    /// - `painter`      — egui painter for the viewport.
+    /// - `rect`         — viewport rectangle in screen coordinates.
+    /// - `volume`       — loaded volume supplying metadata.
+    /// - `axis`         — current MPR axis (0=axial, 1=coronal, 2=sagittal).
+    /// - `slice_index`  — currently displayed slice index.
+    /// - `wl`           — current window/level settings.
+    /// - `zoom`         — current zoom factor (1.0 = fit-to-viewport).
+    /// - `cursor_value` — pixel value (HU) at the cursor position, or `None`.
+    /// - `pointer_suv`  — SUVbw value under the pointer (PT only), or `None`.
+    /// - `cursor_suv`   — SUVbw value at the linked-cursor voxel (PT only), or `None`.
     pub fn draw(painter: &Painter, rect: Rect, volume: &LoadedVolume, ctx: OverlayContext) {
         let OverlayContext {
             axis,
@@ -109,7 +109,7 @@ impl OverlayRenderer {
         } = ctx;
         let [depth, rows, cols] = volume.shape;
 
-        // â”€â”€ Top-left: patient information â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Top-left: patient information ──────────────────────────────────
         let patient_name = volume
             .patient_name
             .as_deref()
@@ -130,7 +130,7 @@ impl OverlayRenderer {
             OVERLAY_TEXT_COLOR,
         );
 
-        // â”€â”€ Top-right: series / modality / date â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Top-right: series / modality / date ────────────────────────────
         let series_desc = volume
             .series_description
             .as_deref()
@@ -159,7 +159,7 @@ impl OverlayRenderer {
             );
         }
 
-        // â”€â”€ Bottom-left: slice, spacing, dimensions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Bottom-left: slice, spacing, dimensions ────────────────────────
         let (total_slices, dim_w, dim_h) = match axis {
             0 => (depth, cols, rows),
             1 => (rows, cols, depth),
@@ -168,10 +168,10 @@ impl OverlayRenderer {
         let axis_name = anatomical_label_for_axis(Some(volume), axis);
 
         let [dz, dy, dx] = volume.spacing;
-        let spacing_str = format!("{:.2} Ã— {:.2} Ã— {:.2} mm", dx, dy, dz);
-        let dims_str = format!("{}Ã—{}Ã—{}", cols, rows, depth);
+        let spacing_str = format!("{:.2} × {:.2} × {:.2} mm", dx, dy, dz);
+        let dims_str = format!("{}×{}×{}", cols, rows, depth);
         let slice_str = format!(
-            "{}: {}/{}   {}Ã—{}",
+            "{}: {}/{}   {}×{}",
             axis_name,
             slice_index + 1,
             total_slices,
@@ -190,7 +190,7 @@ impl OverlayRenderer {
             OVERLAY_TEXT_COLOR,
         );
 
-        // â”€â”€ Bottom-right: W/L, zoom, cursor, pointer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Bottom-right: W/L, zoom, cursor, pointer ──────────────────────
         let wl_str = format!("W:{:.0} C:{:.0}", wl.width, wl.center);
         let zoom_str = format!("Zoom: {:.0}%", zoom * 100.0);
         let cursor_val_str = format_cursor_str(cursor_value, cursor_suv);
@@ -222,7 +222,7 @@ impl OverlayRenderer {
     ///
     /// # Direction matrix convention (RITK)
     ///
-    /// `direction` is a row-major 3Ã—3 matrix stored as 9 f64 values.
+    /// `direction` is a row-major 3×3 matrix stored as 9 f64 values.
     /// Column 0 = depth axis (NÌ‚), column 1 = row axis, column 2 = column axis.
     ///
     /// For display purposes:
@@ -234,10 +234,10 @@ impl OverlayRenderer {
     ///   vertical   = depth axis (col 0).
     ///
     /// # Parameters
-    /// - `painter`   â€” egui painter for the viewport.
-    /// - `rect`      â€” viewport rectangle in screen coordinates.
-    /// - `axis`      â€” current MPR axis.
-    /// - `direction` â€” 3Ã—3 direction cosine matrix (row-major, 9 elements).
+    /// - `painter`   — egui painter for the viewport.
+    /// - `rect`      — viewport rectangle in screen coordinates.
+    /// - `axis`      — current MPR axis.
+    /// - `direction` — 3×3 direction cosine matrix (row-major, 9 elements).
     pub fn draw_orientation_labels(
         painter: &Painter,
         rect: Rect,
@@ -289,7 +289,7 @@ impl OverlayRenderer {
         );
     }
 
-    // â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Private helpers ───────────────────────────────────────────────────────
 
     /// Draw `text` anchored at the given corner of `rect`.
     ///
@@ -379,7 +379,7 @@ fn lps_label(v: [f64; 3], positive: bool) -> &'static str {
     }
 }
 
-// â”€â”€ Pure display-string helpers (testable) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Pure display-string helpers (testable) ────────────────────────────────────
 
 /// Format the pointer-position intensity label.
 ///
@@ -405,7 +405,7 @@ pub(crate) fn format_cursor_str(cursor_value: Option<f32>, cursor_suv: Option<f3
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests;

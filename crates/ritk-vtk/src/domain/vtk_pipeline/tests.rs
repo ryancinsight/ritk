@@ -172,7 +172,7 @@ fn test_pipeline_chained_filters_cumulative() {
     assert!((p.points[0][0] - 3.0).abs() < 1e-6);
 }
 
-// â”€â”€ Modifiable + Observable + execute_if_needed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Modifiable + Observable + execute_if_needed ──────────────────────────
 
 #[test]
 fn test_pipeline_modifiable_mtime_updates_on_execute() {
@@ -278,7 +278,7 @@ fn test_pipeline_execute_if_needed_skips_when_up_to_date() {
     pipeline.execute().unwrap();
     let mtime_after_execute = pipeline.get_mtime();
 
-    // No source or filter mtime change since last execute â†’ no update needed.
+    // No source or filter mtime change since last execute → no update needed.
     let result = pipeline.execute_if_needed().unwrap();
     assert!(
         result.is_none(),
@@ -305,7 +305,7 @@ fn test_pipeline_execute_if_needed_executes_when_stale() {
         source_mtime.value()
     );
 
-    // No stage mtime change since execute â†’ no re-execution.
+    // No stage mtime change since execute → no re-execution.
     let result = pipeline.execute_if_needed().unwrap();
     assert!(
         result.is_none(),

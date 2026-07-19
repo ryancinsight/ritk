@@ -11,7 +11,7 @@ use ritk_registration::bspline_ffd::VolumeDims;
 fn bench_displacement_evaluation(c: &mut Criterion) {
     let mut group = c.benchmark_group("bspline_displacement");
 
-    // Small volume: 64x64x64, 4x4x4 control spacing â†’ ~4K control points
+    // Small volume: 64x64x64, 4x4x4 control spacing → ~4K control points
     let dims_small = [64usize, 64, 64];
     let ctrl_spacing_small = [8.0_f64, 8.0, 8.0];
     let ctrl_dims_small = init_control_grid(VolumeDims(dims_small), &ctrl_spacing_small);

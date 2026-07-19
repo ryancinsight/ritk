@@ -1,6 +1,6 @@
 //! Verification of the gradient-descent registration driver.
 //!
-//! Evidence tier: end-to-end optimizability â€” on a linear moving field (convex
+//! Evidence tier: end-to-end optimizability — on a linear moving field (convex
 //! MSE landscape) the driver drives the loss to ~0 and recovers a known
 //! translation offset; it is also generic over the transform (exercised with
 //! both `Translation` and `Affine`). Deterministic `SequentialBackend`.

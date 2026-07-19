@@ -138,7 +138,7 @@ fn test_spacing_from_space_directions() -> Result<()> {
 /// Uses anisotropic spacing and a non-zero origin so an axis transposition or
 /// metadata reorder in either path would diverge.
 #[test]
-fn native_reader_matches_burn_reader() -> Result<()> {
+fn native_reader_matches_coeus_reader() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("differential.nrrd");
 
@@ -164,21 +164,21 @@ fn native_reader_matches_burn_reader() -> Result<()> {
     let backend = coeus_core::SequentialBackend;
     let native = crate::read_nrrd(&path, &backend)?;
 
-    assert_eq!(native.shape(), burn.shape(), "shape must match Burn path");
+    assert_eq!(native.shape(), burn.shape(), "shape must match Coeus path");
     assert_eq!(
         native.origin(),
         burn.origin(),
-        "origin must match Burn path"
+        "origin must match Coeus path"
     );
     assert_eq!(
         native.spacing(),
         burn.spacing(),
-        "spacing must match Burn path"
+        "spacing must match Coeus path"
     );
     assert_eq!(
         native.direction(),
         burn.direction(),
-        "direction must match Burn path"
+        "direction must match Coeus path"
     );
 
     let native_vox = native.data_slice().expect("contiguous native voxels");

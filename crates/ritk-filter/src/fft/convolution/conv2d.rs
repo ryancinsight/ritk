@@ -9,7 +9,7 @@ use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
 use std::marker::PhantomData;
 
-// â”€â”€ FftConvolutionFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── FftConvolutionFilter ───────────────────────────────────────────────────────
 
 /// FFT-based 2-D convolution filter ("same" output convention).
 ///
@@ -20,7 +20,7 @@ use std::marker::PhantomData;
 ///
 /// # Complexity
 ///
-/// O(N log N) where N = pad_r Â· pad_c.
+/// O(N log N) where N = pad_r · pad_c.
 ///
 /// # Output
 ///
@@ -55,7 +55,7 @@ impl<B: Backend> FftConvolutionFilter<B> {
     ///
     /// # Mathematical contract
     ///
-    /// For an odd-sized kernel with `Î´[kr/2, kc/2] = 1` and all other entries
+    /// For an odd-sized kernel with `δ[kr/2, kc/2] = 1` and all other entries
     /// zero, `apply(image)` reproduces `image` within floating-point precision.
     pub fn apply(&self, image: &Image<f32, B, 2>) -> Result<Image<f32, B, 2>> {
         let [h, w] = image.shape();
@@ -100,7 +100,7 @@ impl<B: Backend> FftConvolutionFilter<B> {
         let kr = self.kernel_rows;
         let kc = self.kernel_cols;
 
-        // Padding must be >= h + kr âˆ’ 1 to suppress circular aliasing.
+        // Padding must be >= h + kr − 1 to suppress circular aliasing.
         let fft_shape = checked_fft_shape_2d(dims, [kr, kc], "FftConvolutionFilter")?;
         let (pad_r, pad_c, pad_n) = (fft_shape.rows, fft_shape.cols, fft_shape.len);
 
@@ -124,7 +124,7 @@ impl<B: Backend> FftConvolutionFilter<B> {
         fft2d::<ForwardFft>(&mut ker_buf, pad_r, pad_c);
 
         // Point-wise complex multiply: img_buf[i] *= ker_buf[i].
-        // (a + bi)(c + di) = (ac âˆ’ bd) + (ad + bc)i
+        // (a + bi)(c + di) = (ac − bd) + (ad + bc)i
         for i in 0..pad_n {
             let a = img_buf[i];
             let b = ker_buf[i];
@@ -133,7 +133,7 @@ impl<B: Backend> FftConvolutionFilter<B> {
 
         fft2d::<InverseFft>(&mut img_buf, pad_r, pad_c);
 
-        // Normalize by 1/pad_n and extract "same" window at (âŒŠkr/2âŒ‹, âŒŠkc/2âŒ‹).
+        // Normalize by 1/pad_n and extract "same" window at (⌊kr/2⌋, ⌊kc/2⌋).
         let scale = 1.0_f32 / pad_n as f32;
         let off_r = kr / 2;
         let off_c = kc / 2;

@@ -1,7 +1,7 @@
 //! Endian-aware byte-field primitives for NIfTI header (de)serialization.
 //!
 //! Pure little/big-endian scalar reads and little-endian writes over byte
-//! slices, with bounds-checked reads. No NIfTI semantics live here â€” only the
+//! slices, with bounds-checked reads. No NIfTI semantics live here — only the
 //! byte-layer codec the NIfTI-1/2 header parser and encoder build on.
 
 use super::convert::f64_to_f32;

@@ -1,6 +1,6 @@
 ﻿//! Criterion benchmarks for BSpline interpolation hot-path.
 //!
-//! Covers the Sprint 294 regression scenario: 1000 random points on a 64Â³ volume.
+//! Covers the Sprint 294 regression scenario: 1000 random points on a 64³ volume.
 
 use coeus_core::SequentialBackend;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
@@ -9,13 +9,13 @@ use ritk_interpolation::{BSplineInterpolator, Interpolator};
 
 type B = SequentialBackend;
 
-/// 3-D benchmark: 1000 points on a 64Ã—64Ã—64 f32 volume.
-/// This is the primary Sprint 294 regression scenario (~850Ã— speedup).
+/// 3-D benchmark: 1000 points on a 64×64×64 f32 volume.
+/// This is the primary Sprint 294 regression scenario (~850× speedup).
 fn bench_bspline_3d(c: &mut Criterion) {
     let n = 64usize;
     let n_pts = 1000usize;
 
-    // Build a 64Â³ volume with gradient values.
+    // Build a 64³ volume with gradient values.
     let data_vec: Vec<f32> = (0..n * n * n).map(|i| i as f32).collect();
     let data = Tensor::<f32, B>::from_slice([n, n, n], &data_vec);
 
@@ -31,18 +31,18 @@ fn bench_bspline_3d(c: &mut Criterion) {
     let interp = BSplineInterpolator::new();
 
     let mut group = c.benchmark_group("BSpline");
-    group.bench_with_input(BenchmarkId::new("3d_64Â³_1000pts", ""), &(), |b, _| {
+    group.bench_with_input(BenchmarkId::new("3d_64³_1000pts", ""), &(), |b, _| {
         b.iter(|| interp.interpolate(&data, indices.clone()));
     });
     group.finish();
 }
 
-/// 2-D benchmark: 1000 points on a 64Ã—64 f32 image.
+/// 2-D benchmark: 1000 points on a 64×64 f32 image.
 fn bench_bspline_2d(c: &mut Criterion) {
     let n = 64usize;
     let n_pts = 1000usize;
 
-    // Build a 64Â² image with gradient values.
+    // Build a 64² image with gradient values.
     let data_vec: Vec<f32> = (0..n * n).map(|i| i as f32).collect();
     let data = Tensor::<f32, B>::from_slice([n, n], &data_vec);
 
@@ -58,7 +58,7 @@ fn bench_bspline_2d(c: &mut Criterion) {
     let interp = BSplineInterpolator::new();
 
     let mut group = c.benchmark_group("BSpline");
-    group.bench_with_input(BenchmarkId::new("2d_64Â²_1000pts", ""), &(), |b, _| {
+    group.bench_with_input(BenchmarkId::new("2d_64²_1000pts", ""), &(), |b, _| {
         b.iter(|| interp.interpolate(&data, indices.clone()));
     });
     group.finish();

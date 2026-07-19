@@ -12,7 +12,7 @@ pub use command_value::{CommandElement, CommandValue, CommandVr};
 use anyhow::{bail, Context, Result};
 use arrayvec::ArrayString;
 
-// â”€â”€ DIMSE Command Field Values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── DIMSE Command Field Values ────────────────────────────────────────────────
 
 /// DIMSE command field (Tag 0000,0100). PS3.7 Table E.1-1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -49,7 +49,7 @@ impl TryFrom<u16> for CommandField {
     }
 }
 
-// â”€â”€ Status codes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Status codes ──────────────────────────────────────────────────────────────
 
 /// DIMSE response status codes (Tag 0000,0900). PS3.7 Annex C.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,9 +71,9 @@ pub enum DimseStatus {
     Cancel = 0xFE00,
 }
 
-// â”€â”€ DIMSE message â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── DIMSE message ─────────────────────────────────────────────────────────────
 
-/// DIMSE message â€” command set plus optional data set.
+/// DIMSE message — command set plus optional data set.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DimseMessage {
     /// Command set elements (group 0x0000).
@@ -82,7 +82,7 @@ pub struct DimseMessage {
     pub data_set: Option<Vec<u8>>,
 }
 
-// â”€â”€ Value decoding helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Value decoding helpers ────────────────────────────────────────────────────
 
 pub(crate) fn decode_us(bytes: &[u8]) -> Option<u16> {
     (bytes.len() >= 2).then(|| u16::from_le_bytes([bytes[0], bytes[1]]))
@@ -110,7 +110,7 @@ pub(crate) fn decode_ae(bytes: &[u8]) -> ArrayString<16> {
     arr
 }
 
-// â”€â”€ Command tag constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Command tag constants ─────────────────────────────────────────────────────
 
 pub(crate) const TAG_CMD_GROUP_LENGTH: (u16, u16) = (0x0000, 0x0000);
 pub(crate) const TAG_AFFECTED_SOP_CLASS: (u16, u16) = (0x0000, 0x0002);
@@ -127,7 +127,7 @@ pub(crate) const TAG_NUM_SUBOPS: (u16, u16) = (0x0000, 0x1001);
 pub(crate) const NO_DATASET: u16 = 0x0101;
 pub(crate) const HAS_DATASET: u16 = 0x0001;
 
-// â”€â”€ Encoding / Decoding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Encoding / Decoding ───────────────────────────────────────────────────────
 
 impl DimseMessage {
     /// Write the Explicit VR LE encoding of a single command element into `buf`.
@@ -177,7 +177,7 @@ impl DimseMessage {
             Self::encode_element_into(&mut body, elem.tag, elem.vr, elem.value.as_bytes());
         }
 
-        // Encode the group-length element (always UL â€” long-form: 12 bytes overhead)
+        // Encode the group-length element (always UL — long-form: 12 bytes overhead)
         let mut full = Vec::with_capacity(12 + 4 + body_size);
         Self::encode_element_into(
             &mut full,
@@ -298,25 +298,25 @@ impl DimseMessage {
     }
 }
 
-// â”€â”€ SOP Class UIDs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SOP Class UIDs ────────────────────────────────────────────────────────────
 
 pub mod sop_class {
-    /// Verification SOP Class (C-ECHO) â€” re-exported from canonical location in command module.
+    /// Verification SOP Class (C-ECHO) — re-exported from canonical location in command module.
     pub use super::super::command::VERIFICATION_SOP_CLASS as VERIFICATION;
     pub const FIND_STUDY: &str = "1.2.840.10008.5.1.4.1.2.1.1";
     pub const FIND_PATIENT: &str = "1.2.840.10008.5.1.4.1.2.1.3";
-    /// Study Root Q/R FIND â€” re-exported from canonical location in command module.
+    /// Study Root Q/R FIND — re-exported from canonical location in command module.
     pub use super::super::command::STUDY_ROOT_FIND_SOP_CLASS as FIND_SERIES;
     pub const FIND_INSTANCE: &str = "1.2.840.10008.5.1.4.1.2.3.1";
     pub const MOVE_STUDY: &str = "1.2.840.10008.5.1.4.1.2.1.2";
     pub const MOVE_PATIENT: &str = "1.2.840.10008.5.1.4.1.2.1.4";
-    /// Study Root Q/R MOVE â€” re-exported from canonical location in command module.
+    /// Study Root Q/R MOVE — re-exported from canonical location in command module.
     pub use super::super::command::STUDY_ROOT_MOVE_SOP_CLASS as MOVE_SERIES;
     pub const GET_STUDY: &str = "1.2.840.10008.5.1.4.1.2.1.3";
     pub const STORAGE_COMMITMENT: &str = "1.2.840.10008.1.20.1";
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests.rs"]

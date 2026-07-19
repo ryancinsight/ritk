@@ -114,48 +114,48 @@ fn test_scan_metadata_round_trip_spatial_fields() {
         cols, m.dimensions[1]
     );
 
-    // Spacing: RITK convention [Î”z, Î”Row, Î”Col] = [2.5, 0.8, 0.8].
+    // Spacing: RITK convention [Δz, ΔRow, ΔCol] = [2.5, 0.8, 0.8].
     let tol = 1e-4_f64;
     assert!(
         (m.spacing[0] - 2.5).abs() < tol,
-        "spacing[0] (Î”z) must be 2.5 Â± 1e-4; got {}",
+        "spacing[0] (Δz) must be 2.5 ± 1e-4; got {}",
         m.spacing[0]
     );
     assert!(
         (m.spacing[1] - 0.8).abs() < tol,
-        "spacing[1] (Î”Row) must be 0.8 Â± 1e-4; got {}",
+        "spacing[1] (ΔRow) must be 0.8 ± 1e-4; got {}",
         m.spacing[1]
     );
     assert!(
         (m.spacing[2] - 0.8).abs() < tol,
-        "spacing[2] (Î”Col) must be 0.8 Â± 1e-4; got {}",
+        "spacing[2] (ΔCol) must be 0.8 ± 1e-4; got {}",
         m.spacing[2]
     );
 
     // Origin: within 1e-4 of [10.0, 20.0, -50.0] (first-slice IPP).
     assert!(
         (m.origin[0] - 10.0).abs() < tol,
-        "origin[0] must be 10.0 Â± 1e-4; got {}",
+        "origin[0] must be 10.0 ± 1e-4; got {}",
         m.origin[0]
     );
     assert!(
         (m.origin[1] - 20.0).abs() < tol,
-        "origin[1] must be 20.0 Â± 1e-4; got {}",
+        "origin[1] must be 20.0 ± 1e-4; got {}",
         m.origin[1]
     );
     assert!(
         (m.origin[2] - (-50.0_f64)).abs() < tol,
-        "origin[2] must be -50.0 Â± 1e-4; got {}",
+        "origin[2] must be -50.0 ± 1e-4; got {}",
         m.origin[2]
     );
 
-    // Direction: RITK axial convention â€” NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0].
+    // Direction: RITK axial convention — NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0].
     // from_column_slice([0,0,1, 0,1,0, 1,0,0])
     let axial_dir = [0.0f64, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0];
     for (i, (&actual, &expected)) in m.direction.iter().zip(axial_dir.iter()).enumerate() {
         assert!(
             (actual - expected).abs() < 1e-5,
-            "direction[{i}] must be {expected:.1} Â± 1e-5 (axial: NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]); got {actual}"
+            "direction[{i}] must be {expected:.1} ± 1e-5 (axial: NÌ‚=[0,0,1], F_c=[0,1,0], F_r=[1,0,0]); got {actual}"
         );
     }
 
@@ -177,7 +177,7 @@ fn test_scan_metadata_round_trip_spatial_fields() {
         for (j, (&a, &e)) in iop.iter().zip(expected_iop.iter()).enumerate() {
             assert!(
                 (a - e).abs() < 1e-5,
-                "slice {i} IOP[{j}] must be {e:.1} Â± 1e-5; got {a}"
+                "slice {i} IOP[{j}] must be {e:.1} ± 1e-5; got {a}"
             );
         }
 
@@ -187,12 +187,12 @@ fn test_scan_metadata_round_trip_spatial_fields() {
             .unwrap_or_else(|| panic!("slice {i} must have pixel_spacing"));
         assert!(
             (ps[0] - 0.8).abs() < tol,
-            "slice {i} pixel_spacing[0] must be 0.8 Â± 1e-4; got {}",
+            "slice {i} pixel_spacing[0] must be 0.8 ± 1e-4; got {}",
             ps[0]
         );
         assert!(
             (ps[1] - 0.8).abs() < tol,
-            "slice {i} pixel_spacing[1] must be 0.8 Â± 1e-4; got {}",
+            "slice {i} pixel_spacing[1] must be 0.8 ± 1e-4; got {}",
             ps[1]
         );
     }
@@ -206,17 +206,17 @@ fn test_scan_metadata_round_trip_spatial_fields() {
             .unwrap_or_else(|| panic!("slice {i} must have IPP"));
         assert!(
             (ipp[0] - 10.0).abs() < tol,
-            "slice {i} IPP[0] must be 10.0 Â± 1e-4; got {}",
+            "slice {i} IPP[0] must be 10.0 ± 1e-4; got {}",
             ipp[0]
         );
         assert!(
             (ipp[1] - 20.0).abs() < tol,
-            "slice {i} IPP[1] must be 20.0 Â± 1e-4; got {}",
+            "slice {i} IPP[1] must be 20.0 ± 1e-4; got {}",
             ipp[1]
         );
         assert!(
             (ipp[2] - ez).abs() < tol,
-            "slice {i} IPP[2] must be {ez} Â± 1e-4; got {}",
+            "slice {i} IPP[2] must be {ez} ± 1e-4; got {}",
             ipp[2]
         );
     }

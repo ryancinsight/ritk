@@ -7,26 +7,26 @@
 //! range into `bins` equal-width intervals:
 //!
 //! ```text
-//! w   = (max âˆ’ min) / bins            (bin width)
-//! i(v) = floor((v âˆ’ min) / w)          (raw bin index)
+//! w   = (max − min) / bins            (bin width)
+//! i(v) = floor((v − min) / w)          (raw bin index)
 //! ```
 //!
-//! Values below `min` are clamped into bin 0; values â‰¥ `max` are clamped into
-//! bin `bins âˆ’ 1`. This ensures all finite voxel values are counted regardless
+//! Values below `min` are clamped into bin 0; values ≥ `max` are clamped into
+//! bin `bins − 1`. This ensures all finite voxel values are counted regardless
 //! of the chosen range.
 //!
 //! # Degenerate inputs
 //!
-//! If `max â‰¤ min`, `bins == 0`, or either bound is non-finite, an empty
+//! If `max ≤ min`, `bins == 0`, or either bound is non-finite, an empty
 //! `Histogram` (zero bins, empty counts vector) is returned.
 //!
 //! # Complexity
 //!
-//! O(N) time and O(bins) space. Suitable for volumes up to ~512Â³ voxels
+//! O(N) time and O(bins) space. Suitable for volumes up to ~512³ voxels
 //! without pre-filtering; a typical 256-bin histogram over a CT volume runs
 //! in < 20 ms on a single core.
 
-// â”€â”€ Histogram â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Histogram ──────────────────────────────────────────────────────────────────
 
 /// Output of [`compute_histogram`]: per-bin voxel counts plus the input range.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -71,24 +71,24 @@ impl Histogram {
     }
 }
 
-// â”€â”€ compute_histogram â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── compute_histogram ──────────────────────────────────────────────────────────
 
 /// Compute a `bins`-bin histogram of `data` over the range `[min, max]`.
 ///
 /// # Mathematical specification
 ///
-/// `w = (max âˆ’ min) / bins`.  For each value `v`:
-/// * `raw_f = (v âˆ’ min) / w`
+/// `w = (max − min) / bins`.  For each value `v`:
+/// * `raw_f = (v − min) / w`
 /// * `i = 0`             if `raw_f < 0.0`
-/// * `i = bins âˆ’ 1`      if `raw_f â‰¥ bins as f32`
+/// * `i = bins − 1`      if `raw_f ≥ bins as f32`
 /// * `i = raw_f as usize` otherwise
 ///
-/// All finite values in `data` are counted. Non-finite values (`NaN`, Â±âˆž)
+/// All finite values in `data` are counted. Non-finite values (`NaN`, ±∞)
 /// are silently skipped.
 ///
 /// # Degenerate inputs
 ///
-/// Returns an empty histogram when `max â‰¤ min`, `bins == 0`, or either
+/// Returns an empty histogram when `max ≤ min`, `bins == 0`, or either
 /// bound is non-finite.
 ///
 /// # Examples
@@ -132,7 +132,7 @@ pub fn compute_histogram(data: &[f32], min: f32, max: f32, bins: usize) -> Histo
     }
 }
 
-// â”€â”€ histogram_peak_count â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── histogram_peak_count ───────────────────────────────────────────────────────
 
 /// Return the maximum count across all bins.
 ///
@@ -142,11 +142,11 @@ pub fn histogram_peak_count(h: &Histogram) -> u64 {
     h.counts.iter().copied().max().unwrap_or(0)
 }
 
-// â”€â”€ histogram_bin_center â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── histogram_bin_center ───────────────────────────────────────────────────────
 
 /// Return the centre intensity value of bin `i`.
 ///
-/// `center(i) = min + (i + 0.5) Ã— w`  where `w = (max âˆ’ min) / bins`.
+/// `center(i) = min + (i + 0.5) × w`  where `w = (max − min) / bins`.
 ///
 /// Returns `min` for an empty (zero-bin) histogram.
 #[inline]

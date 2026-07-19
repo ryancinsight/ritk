@@ -1,4 +1,4 @@
-//! `IntensityRescaleMode` and `PreprocessingStep` â€” step type definitions.
+//! `IntensityRescaleMode` and `PreprocessingStep` — step type definitions.
 
 /// Intensity normalization (rescaling) mode for the preprocessing pipeline.
 #[derive(Debug, Clone)]

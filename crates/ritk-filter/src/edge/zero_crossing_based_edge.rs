@@ -7,8 +7,8 @@
 //!
 //! 1. **Discrete Gaussian** smoothing with per-axis `variance` (physical units,
 //!    `UseImageSpacing`) and `maximum_error` truncation.
-//! 2. **Laplacian** `âˆ‡Â²` of the smoothed image (ZeroFluxNeumann boundary,
-//!    divided by `spacingÂ²` per axis).
+//! 2. **Laplacian** `∇²` of the smoothed image (ZeroFluxNeumann boundary,
+//!    divided by `spacing²` per axis).
 //! 3. **Zero crossing** detection on the Laplacian, marking edge voxels with
 //!    `foreground_value` and the rest with `background_value`.
 //!
@@ -68,7 +68,7 @@ impl ZeroCrossingBasedEdgeDetectionFilter {
         }
     }
 
-    /// Run the Gaussian â†’ Laplacian â†’ zero-crossing mini-pipeline.
+    /// Run the Gaussian → Laplacian → zero-crossing mini-pipeline.
     pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> anyhow::Result<Image<f32, B, 3>>
     where
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,

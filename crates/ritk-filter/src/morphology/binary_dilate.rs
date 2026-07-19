@@ -4,15 +4,15 @@
 //!
 //! Binary dilation with a flat cubic structuring element B of half-width r:
 //!
-//!   (D_B f)(x) = fg  iff  âˆƒ b âˆˆ B: f(x âˆ’ b) = fg
+//!   (D_B f)(x) = fg  iff  ∃ b ∈ B: f(x − b) = fg
 //!             = bg  otherwise
 //!
 //! Equivalently: a voxel x is foreground in the output iff any voxel in its
-//! `(2r+1)Â³` cubic neighbourhood is foreground in the input.
+//! `(2r+1)³` cubic neighbourhood is foreground in the input.
 //!
 //! # Boundary Handling
 //!
-//! Out-of-bounds positions are treated as background â€” they do not contribute
+//! Out-of-bounds positions are treated as background — they do not contribute
 //! foreground.  This is equivalent to `itk::BinaryDilateImageFilter` with
 //! `BoundaryToForeground = false` (the ITK default).
 //!
@@ -29,14 +29,14 @@
 //! O(N) where N is the total voxel count, independent of the radius `r`.
 //! A flat cubic structuring element is the Minkowski sum of three orthogonal
 //! line segments, and dilation distributes over the Minkowski sum
-//! (`D_{AâŠ•B} = D_A âˆ˜ D_B`), so the `(2r+1)Â³` cube is computed as three separable
+//! (`D_{A⊕B} = D_A ∘ D_B`), so the `(2r+1)³` cube is computed as three separable
 //! 1-D passes. Each pass is a linear nearest-foreground distance transform, so
-//! total work is `O(3N)` rather than the direct `O(N Â· (2r+1)Â³)`.
+//! total work is `O(3N)` rather than the direct `O(N · (2r+1)³)`.
 //!
 //! # References
 //!
 //! - Haralick, R.M., Sternberg, S.R., & Zhuang, X. (1987). Image analysis
-//!   using mathematical morphology. *IEEE TPAMI*, 9(4), 532â€“550.
+//!   using mathematical morphology. *IEEE TPAMI*, 9(4), 532–550.
 //! - Soille, P. (2003). *Morphological Image Analysis*, 2nd ed. Springer.
 
 use super::types::ForegroundValue;
@@ -44,12 +44,12 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// â”€â”€ Filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Filter struct ─────────────────────────────────────────────────────────────
 
 /// Binary dilation filter for 3-D images.
 ///
 /// Grows foreground regions by one layer of `radius` voxels.  Each voxel is
-/// foreground in the output iff at least one voxel in its `(2r+1)Â³` cubic
+/// foreground in the output iff at least one voxel in its `(2r+1)³` cubic
 /// neighbourhood is foreground in the input.
 ///
 /// Out-of-bounds positions are treated as background, so the foreground
@@ -112,15 +112,15 @@ impl Default for BinaryDilateFilter {
     }
 }
 
-// â”€â”€ Core algorithm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Core algorithm ────────────────────────────────────────────────────────────
 
-/// Binary dilation on a flat ZÃ—YÃ—X volume.
+/// Binary dilation on a flat Z×Y×X volume.
 ///
 /// # Invariants
 ///
-/// - Output length = `nz Ã— ny Ã— nx`.
-/// - `Output[i]` âˆˆ {foreground_value, 0.0}.
-/// - `Output[i]` = foreground_value iff any (2r+1)Â³ in-bounds neighbour = fg.
+/// - Output length = `nz × ny × nx`.
+/// - `Output[i]` ∈ {foreground_value, 0.0}.
+/// - `Output[i]` = foreground_value iff any (2r+1)³ in-bounds neighbour = fg.
 pub(crate) fn dilate_binary_3d(
     data: &[f32],
     dims: [usize; 3],
@@ -135,10 +135,10 @@ pub(crate) fn dilate_binary_3d(
     }
 
     // Work in a boolean buffer, then map back to {fg, 0.0}. Three separable
-    // 1-D dilations (x, then y, then z) reproduce the (2r+1)Â³ cubic result
+    // 1-D dilations (x, then y, then z) reproduce the (2r+1)³ cubic result
     // exactly: each pass marks a voxel foreground iff some in-bounds neighbour
     // within `radius` along that axis is foreground, and out-of-bounds positions
-    // never contribute foreground â€” matching the cubic filter's boundary rule.
+    // never contribute foreground — matching the cubic filter's boundary rule.
     let mut buf: Vec<bool> = data.iter().map(|&v| v == fg).collect();
     let mut scratch = vec![false; nx.max(ny).max(nz)];
 
@@ -167,7 +167,7 @@ pub(crate) fn dilate_binary_3d(
 /// half-width `radius`. Output voxel `i` is foreground iff some in-bounds
 /// position within `radius` of `i` is foreground in the input line. Linear in
 /// the line length via a two-sided nearest-foreground sweep; `scratch` (length
-/// â‰¥ `len`) is reused across calls to avoid per-line allocation.
+/// ≥ `len`) is reused across calls to avoid per-line allocation.
 fn dilate_line(
     buf: &mut [bool],
     start: usize,
@@ -200,7 +200,7 @@ fn dilate_line(
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_binary_dilate.rs"]

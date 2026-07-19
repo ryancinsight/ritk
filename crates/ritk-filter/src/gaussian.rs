@@ -4,7 +4,7 @@ use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
 use ritk_spatial::Spacing;
 
-/// Default Gaussian kernel half-extent cap (`radiusÂ·2 + 1`), bounding the
+/// Default Gaussian kernel half-extent cap (`radius·2 + 1`), bounding the
 /// per-axis convolution cost. Shared by [`GaussianFilter::new`] and the
 /// burn-free [`gaussian_smooth_flat_3d`] entry so both smooth identically.
 pub const DEFAULT_MAX_KERNEL_WIDTH: usize = 32;
@@ -51,17 +51,17 @@ impl<B> GaussianFilter<B> {
     /// Coeus-native sister of the legacy [`apply`](Self::apply) for 3-D images.
     ///
     /// Runs the identical separable zero-padded Gaussian smoothing as the Burn
-    /// [`apply`](Self::apply) path â€” the same per-axis `axis_kernel` builder
+    /// [`apply`](Self::apply) path — the same per-axis `axis_kernel` builder
     /// (shared SSOT for the kernel) and the same zero (constant-0) boundary
-    /// convolution that Burn's `conv1d(padding = k/2)` performs â€” via the pure
+    /// convolution that Burn's `conv1d(padding = k/2)` performs — via the pure
     /// host core `convolve_zero_pad_3d`. No Burn tensor is constructed;
     /// spatial metadata is preserved.
     ///
-    /// The result matches the Burn path to a derived floating-point tolerance
+    /// The result matches the Coeus path to a derived floating-point tolerance
     /// (not bitwise): both evaluate the same separable zero-pad convolution with
     /// the same kernels, but Burn's `conv1d` and this host core sum the taps in
     /// different orders, so results differ only by accumulation rounding
-    /// (`O(width Â· Îµ Â· â€–Iâ€–âˆž)` per axis; see the differential tests).
+    /// (`O(width · ε · —–I—–∞)` per axis; see the differential tests).
     ///
     /// # Errors
     /// Returns an error when the image tensor is not host-addressable/contiguous
@@ -170,7 +170,7 @@ fn convolve_zero_pad_nd<const D: usize>(
 /// [`GaussianFilter::apply`] path and the Coeus-native
 /// [`GaussianFilter::apply_native`] path, so both convolve with identical
 /// coefficients. The pixel-space sigma is `sigma_phys / spacing`; the kernel
-/// half-width is `âŒˆ3Â·pixel_sigmaâŒ‰` capped at `max_kernel_width` and forced odd,
+/// half-width is `⌈3·pixel_sigma⌉` capped at `max_kernel_width` and forced odd,
 /// then the coefficients are the normalised sampled Gaussian
 /// ([`crate::gaussian_kernel`]).
 fn axis_kernel(sigma_phys: f64, spacing: f64, max_kernel_width: usize) -> Vec<f32> {
@@ -189,15 +189,15 @@ fn axis_kernel(sigma_phys: f64, spacing: f64, max_kernel_width: usize) -> Vec<f3
 /// `conv1d(padding = k/2)` contract (per-axis `axis_kernel` +
 /// `convolve_zero_pad_3d`). Shared by the native Gaussian path and the native
 /// [`CannyEdgeDetector`](crate::edge::CannyEdgeDetector) smoothing stage, so no
-/// Burn backend is needed to smooth.
+/// Coeus backend is needed to smooth.
 ///
-/// The result matches the Burn path to a derived floating-point tolerance (not
+/// The result matches the Coeus path to a derived floating-point tolerance (not
 /// bitwise): both evaluate the same kernels but sum the taps in different orders
 /// (`conv1d` vs this correlation), differing only by accumulation rounding
-/// (`O(width Â· Îµ Â· â€–Iâ€–âˆž)` per axis).
-/// Burn-free separable Gaussian smoothing of a flat z-major 3-D volume â€” the
+/// (`O(width · ε · —–I—–∞)` per axis).
+/// Burn-free separable Gaussian smoothing of a flat z-major 3-D volume — the
 /// public entry to the [`GaussianFilter::apply_native`] host core for callers
-/// operating directly on flat host buffers (no Burn backend, no native `Image`
+/// operating directly on flat host buffers (no Coeus backend, no native `Image`
 /// construction). Physical `sigmas`/`spacing` per axis; uses the shared
 /// [`DEFAULT_MAX_KERNEL_WIDTH`], so the result matches [`GaussianFilter::apply`]
 /// to the same derived accumulation-rounding tolerance as `apply_native`.
@@ -234,7 +234,7 @@ pub(crate) fn gaussian_smooth_native_flat(
 /// using zero (constant-0) boundary padding.
 ///
 /// This reproduces Burn `conv1d` with `padding = kernel.len() / 2`: for output
-/// position `p`, `out[p] = Î£_k in[p âˆ’ r + k] Â· kernel[k]` with `r = k/2` and any
+/// position `p`, `out[p] = Σ_k in[p − r + k] · kernel[k]` with `r = k/2` and any
 /// out-of-range tap treated as `0`. The kernel is applied as correlation;
 /// Gaussian kernels are symmetric, so this equals convolution. Zero padding
 /// darkens boundary voxels (a constant field is *not* preserved at the edge),

@@ -27,13 +27,13 @@ impl<'a> ViewportPanel<'a> {
         let _ = rect; // used by context menu, acknowledged
         let mut crosshair_result = None;
 
-        // â”€â”€ scroll wheel: change slice (or zoom with Ctrl) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── scroll wheel: change slice (or zoom with Ctrl) ────────────────
         if response.hovered() {
             let scroll = response.ctx.input(|i| i.smooth_scroll_delta);
             let ctrl = response.ctx.input(|i| i.modifiers.ctrl);
             if scroll.y != 0.0 {
                 if ctrl {
-                    // Zoom: each notch changes zoom by Â±10 %.
+                    // Zoom: each notch changes zoom by ±10 %.
                     let factor = if scroll.y > 0.0 { 1.1_f32 } else { 1.0 / 1.1 };
                     self.state.zoom = (self.state.zoom * factor).clamp(0.05, 32.0);
                     self.state.invalidate_texture();
@@ -50,7 +50,7 @@ impl<'a> ViewportPanel<'a> {
             }
         }
 
-        // â”€â”€ drag: tool-dependent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── drag: tool-dependent ──────────────────────────────────────────
         if response.drag_started_by(egui::PointerButton::Primary) {
             match self.active_tool {
                 ToolKind::Pan => {
@@ -86,7 +86,7 @@ impl<'a> ViewportPanel<'a> {
                                 ToolState::MeasureLength1 { p1 } => {
                                     let p1 = *p1;
                                     let p2 = Pos2::new(col, row);
-                                    // Convert Pos2{x=col, y=row} â†’ [row, col]
+                                    // Convert Pos2{x=col, y=row} → [row, col]
                                     let p1_arr = [p1.y, p1.x];
                                     let p2_arr = [p2.y, p2.x];
                                     let sp = volume.spacing;
@@ -126,7 +126,7 @@ impl<'a> ViewportPanel<'a> {
                                 ToolState::MeasureAngle2 { p1, p2 } => {
                                     let p1 = *p1;
                                     let p2 = *p2;
-                                    // Convert Pos2{x=col, y=row} â†’ [row, col]
+                                    // Convert Pos2{x=col, y=row} → [row, col]
                                     let p1_arr = [p1.y, p1.x];
                                     let p2_arr = [p2.y, p2.x];
                                     let p3_arr = [pt.y, pt.x];
@@ -183,7 +183,7 @@ impl<'a> ViewportPanel<'a> {
             }
         }
 
-        // â”€â”€ drag update â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── drag update ───────────────────────────────────────────────────
         if response.dragged_by(egui::PointerButton::Primary) {
             match self.state.tool_state.clone() {
                 ToolState::Panning {
@@ -201,7 +201,7 @@ impl<'a> ViewportPanel<'a> {
                 } => {
                     if let Some(current_pos) = response.interact_pointer_pos() {
                         let delta = current_pos - start;
-                        // Horizontal drag â†’ window width; vertical drag â†’ centre.
+                        // Horizontal drag → window width; vertical drag → centre.
                         // 2 HU per pixel is a clinically comfortable sensitivity.
                         self.state.wl.width = (original_width + delta.x as f64 * 2.0).max(1.0);
                         self.state.wl.center = original_center - delta.y as f64 * 2.0;
@@ -223,7 +223,7 @@ impl<'a> ViewportPanel<'a> {
             }
         }
 
-        // â”€â”€ drag released â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── drag released ─────────────────────────────────────────────────
         if response.drag_stopped_by(egui::PointerButton::Primary) {
             match &self.state.tool_state.clone() {
                 ToolState::Panning { .. } => {
@@ -240,7 +240,7 @@ impl<'a> ViewportPanel<'a> {
                     let tl = Pos2::new(start.x.min(current.x), start.y.min(current.y));
                     let br = Pos2::new(start.x.max(current.x), start.y.max(current.y));
                     if (br.x - tl.x) > 0.5 && (br.y - tl.y) > 0.5 {
-                        // Convert Pos2{x=col,y=row} â†’ [row, col]
+                        // Convert Pos2{x=col,y=row} → [row, col]
                         let tl_arr = [tl.y, tl.x];
                         let br_arr = [br.y, br.x];
                         let sp = volume.spacing;
@@ -309,7 +309,7 @@ impl<'a> ViewportPanel<'a> {
             }
         }
 
-        // â”€â”€ Zoom tool: scroll-wheel zooms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Zoom tool: scroll-wheel zooms ─────────────────────────────────
         if self.active_tool == ToolKind::Zoom && response.hovered() {
             // Right-drag for continuous zoom.
             if response.dragged_by(egui::PointerButton::Secondary) {
@@ -320,7 +320,7 @@ impl<'a> ViewportPanel<'a> {
             }
         }
 
-        // â”€â”€ Crosshair tool: click to place linked position â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Crosshair tool: click to place linked position ────────────────
         if self.active_tool == ToolKind::Crosshair && response.clicked() {
             if let Some(cursor) = response.interact_pointer_pos() {
                 if let Some((col, row)) = screen_to_img(cursor, offset, scale, img_w, img_h) {

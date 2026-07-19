@@ -3,15 +3,15 @@
 //! # Mathematical Specification
 //!
 //! Voxel `x` is marked a zero crossing when some 6-connected neighbour `y` has a
-//! **sign change** â€” opposite signs (`I(x)Â·I(y) < 0`) or exactly one of the two
-//! is zero â€” **and** `x` is the side closer to zero. Per axis the forward (+)
-//! neighbour is accepted with `|I(x)| <= |I(y)|` and the backward (âˆ’) neighbour
+//! **sign change** — opposite signs (`I(x)·I(y) < 0`) or exactly one of the two
+//! is zero — **and** `x` is the side closer to zero. Per axis the forward (+)
+//! neighbour is accepted with `|I(x)| <= |I(y)|` and the backward (−) neighbour
 //! with the strict `|I(x)| < |I(y)|`, so an exact-magnitude tie is resolved
 //! toward the forward voxel.
 //!
 //! This is float-exact to ITK `ZeroCrossingImageFilter`, which marks only the
 //! voxel on the near-zero side of each crossing. An exact zero is a crossing only
-//! when it has a non-zero neighbour â€” a zero with all-zero neighbours (e.g. the
+//! when it has a non-zero neighbour — a zero with all-zero neighbours (e.g. the
 //! Laplacian of a flat region) is **not** marked, otherwise whole constant
 //! regions would be flagged.
 //!
@@ -85,7 +85,7 @@ impl ZeroCrossingImageFilter {
     ///
     /// Runs the identical 6-connected sign-change detection via the shared
     /// `zero_crossing_vec` host core on the image's contiguous host buffer, so
-    /// the result is bitwise-identical to the Burn path. No Burn tensor is
+    /// the result is bitwise-identical to the Coeus path. No Burn tensor is
     /// constructed. Spatial metadata is preserved.
     ///
     /// # Errors
@@ -127,7 +127,7 @@ pub(crate) fn zero_crossing_vec(vals: &[f32], dims: [usize; 3], fg: f32, bg: f32
                 // exactly one of the two is zero) AND it is the side *closer to
                 // zero* (`|v| < |nv|` strictly; an exact-magnitude tie is broken
                 // toward the forward `+` neighbour via `<=`). An exact zero is
-                // NOT a crossing on its own â€” only when it has a non-zero
+                // NOT a crossing on its own — only when it has a non-zero
                 // neighbour (otherwise flat zero regions, e.g. the Laplacian of
                 // constant background, would be marked wholesale).
                 let in_b = |z: isize, y: isize, x: isize| {
@@ -170,7 +170,7 @@ pub(crate) fn zero_crossing_vec(vals: &[f32], dims: [usize; 3], fg: f32, bg: f32
     out
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_zero_crossing.rs"]

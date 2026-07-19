@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 /// 3 orders of magnitude above f32 epsilon (~1.2e-7).
 const NCC_DENOM_FLOOR: f32 = 1e-10;
 
-// â”€â”€ FftNormalizedCorrelation3DFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── FftNormalizedCorrelation3DFilter ───────────────────────────────────────────
 
 /// FFT-based 3-D normalized cross-correlation filter (Lewis 1995, full NCC).
 ///
@@ -22,22 +22,22 @@ const NCC_DENOM_FLOOR: f32 = 1e-10;
 ///
 /// # Mathematical specification
 ///
-/// At lag `(z, r, c)`, with template window `N = tdÂ·trÂ·tc` and
-/// `TÌ‚ = T âˆ’ mean(T)`,
+/// At lag `(z, r, c)`, with template window `N = td·tr·tc` and
+/// `TÌ‚ = T − mean(T)`,
 ///
 /// ```text
-/// num         = Î£ V(z+k, r+i, c+j) Â· TÌ‚(k, i, j)              (= Î£ (V âˆ’ VÌ„win)Â·TÌ‚)
-/// Î£ V, Î£ VÂ²   = local window sum / sum-of-squares of V         (box correlation)
-/// energy      = Î£ VÂ² âˆ’ (Î£ V)Â² / N                             (= Î£ (V âˆ’ VÌ„win)Â²)
-/// out         = num / ( sqrt(energy) Â· â€–TÌ‚â€–â‚‚ )
+/// num         = Σ V(z+k, r+i, c+j) · TÌ‚(k, i, j)              (= Σ (V − VÌ„win)·TÌ‚)
+/// Σ V, Σ V²   = local window sum / sum-of-squares of V         (box correlation)
+/// energy      = Σ V² − (Σ V)² / N                             (= Σ (V − VÌ„win)²)
+/// out         = num / ( sqrt(energy) · —–TÌ‚—–₂ )
 /// ```
 ///
-/// The window sums come from correlating `V` and `VÂ²` with a box of ones of the
+/// The window sums come from correlating `V` and `V²` with a box of ones of the
 /// template's size, all via FFT, keeping the cost `O(N log N)`.
 ///
 /// # Output interpretation
 ///
-/// `out[z,r,c]` is the normalized correlation at lag `(z,r,c)` in `[âˆ’1, 1]`. For
+/// `out[z,r,c]` is the normalized correlation at lag `(z,r,c)` in `[−1, 1]`. For
 /// template matching, locate the position of maximum `out[z,r,c]`.
 pub struct FftNormalizedCorrelation3DFilter<B: Backend> {
     /// Mean-centred template values (row-major, placed at origin).
@@ -45,7 +45,7 @@ pub struct FftNormalizedCorrelation3DFilter<B: Backend> {
     template_depth: usize,
     template_rows: usize,
     template_cols: usize,
-    /// Lâ‚‚ norm of the mean-centred template â€–TÌ‚â€–â‚‚ used in the NCC denominator.
+    /// L₂ norm of the mean-centred template —–TÌ‚—–₂ used in the NCC denominator.
     template_norm: f32,
     _phantom: PhantomData<fn() -> B>,
 }
@@ -53,7 +53,7 @@ pub struct FftNormalizedCorrelation3DFilter<B: Backend> {
 impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
     /// Construct from a 3-D template volume.
     ///
-    /// The template is mean-subtracted: `TÌ‚ = T âˆ’ mean(T)`.
+    /// The template is mean-subtracted: `TÌ‚ = T − mean(T)`.
     pub fn new(template: &Image<f32, B, 3>) -> Result<Self> {
         let [td, tr, tc] = template.shape();
         if td == 0 || tr == 0 || tc == 0 {
@@ -88,7 +88,7 @@ impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
         let tc = self.template_cols;
         let window_n = (td * tr * tc) as f32;
 
-        // Padding must be >= dim + tmpl âˆ’ 1 to suppress circular aliasing.
+        // Padding must be >= dim + tmpl − 1 to suppress circular aliasing.
         let fft_shape =
             checked_fft_shape_3d([d, h, w], [td, tr, tc], "FftNormalizedCorrelation3DFilter")?;
         let (pad_d, pad_h, pad_w, pad_n, slice) = (
@@ -99,7 +99,7 @@ impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
             fft_shape.slice_len,
         );
 
-        // Zero-padded buffers: volume V, its square VÂ², mean-centred template TÌ‚,
+        // Zero-padded buffers: volume V, its square V², mean-centred template TÌ‚,
         // and a box of ones (template footprint) for window sums.
         let mut vol_buf = vec![Complex::new(0.0_f32, 0.0); pad_n];
         let mut vol2_buf = vec![Complex::new(0.0_f32, 0.0); pad_n];
@@ -131,13 +131,13 @@ impl<B: Backend> FftNormalizedCorrelation3DFilter<B> {
         fft3d::<ForwardFft>(&mut box_buf, pad_d, pad_h, pad_w);
 
         // Correlation multiplies by the conjugate of the kernel spectrum:
-        // (a + bi)Â·conj(c + di) = (ac + bd) + (bc âˆ’ ad)i.
+        // (a + bi)·conj(c + di) = (ac + bd) + (bc − ad)i.
         let corr = |a: Complex<f32>, b: Complex<f32>| {
             Complex::new(a.re * b.re + a.im * b.im, a.im * b.re - a.re * b.im)
         };
-        let mut num_buf = vec![Complex::new(0.0_f32, 0.0); pad_n]; // Î£ VÂ·TÌ‚
-        let mut sum_buf = vec![Complex::new(0.0_f32, 0.0); pad_n]; // Î£ V (window)
-        let mut sumsq_buf = vec![Complex::new(0.0_f32, 0.0); pad_n]; // Î£ VÂ² (window)
+        let mut num_buf = vec![Complex::new(0.0_f32, 0.0); pad_n]; // Σ V·TÌ‚
+        let mut sum_buf = vec![Complex::new(0.0_f32, 0.0); pad_n]; // Σ V (window)
+        let mut sumsq_buf = vec![Complex::new(0.0_f32, 0.0); pad_n]; // Σ V² (window)
         for i in 0..pad_n {
             num_buf[i] = corr(vol_buf[i], tmpl_buf[i]);
             sum_buf[i] = corr(vol_buf[i], box_buf[i]);

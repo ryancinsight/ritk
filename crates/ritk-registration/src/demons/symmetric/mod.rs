@@ -9,29 +9,29 @@
 //!
 //! **Symmetric force at voxel p:**
 //!
-//! f(p) = (F(p) âˆ’ M_w(p)) Â· [âˆ‡F(p) + âˆ‡M_w(p)] /
-//! (|âˆ‡F(p) + âˆ‡M_w(p)|Â² / 4 + (F(p) âˆ’ M_w(p))Â² / Ïƒâ‚“Â² + Îµ)
+//! f(p) = (F(p) − M_w(p)) · [∇F(p) + ∇M_w(p)] /
+//! (|∇F(p) + ∇M_w(p)|² / 4 + (F(p) − M_w(p))² / σâ‚“² + ε)
 //!
 //! where:
-//! - M_w(p) = M(p + D(p)) â€” current warp of M
-//! - âˆ‡F(p) â€” gradient of the fixed image (constant)
-//! - âˆ‡M_w(p) â€” gradient of the warped moving image (recomputed each iteration)
-//! - Ïƒâ‚“ â€” max_step_length parameter
-//! - Îµ = 1e-5 â€” numerical floor
+//! - M_w(p) = M(p + D(p)) — current warp of M
+//! - ∇F(p) — gradient of the fixed image (constant)
+//! - ∇M_w(p) — gradient of the warped moving image (recomputed each iteration)
+//! - σâ‚“ — max_step_length parameter
+//! - ε = 1e-5 — numerical floor
 //!
-//! The |âˆ‡F + âˆ‡M_w|Â² / 4 denominator term (dividing by 4 instead of 1) comes
+//! The |∇F + ∇M_w|² / 4 denominator term (dividing by 4 instead of 1) comes
 //! from the symmetric formulation where the combined gradient is the average of
 //! the two individual gradients, so the effective gradient magnitude is halved.
 //!
 //! **Per-iteration update:**
-//! 1. Warp M with current D â†’ M_w
-//! 2. Compute âˆ‡F (fixed, cached) and âˆ‡M_w (recomputed each iteration)
+//! 1. Warp M with current D → M_w
+//! 2. Compute ∇F (fixed, cached) and ∇M_w (recomputed each iteration)
 //! 3. Compute symmetric forces f
-//! 4. Clamp |f| â‰¤ max_step_length
-//! 5. Optional fluid regularisation: smooth f with G_{Ïƒ_fluid}
-//! 6. Accumulate: D â† D + f
-//! 7. Diffusive regularisation: D â† G_{Ïƒ_diff} âˆ— D
-//! 8. Compute MSE = mean((F âˆ’ M_w)Â²) (reuses M_w from step 1)
+//! 4. Clamp |f| ≤ max_step_length
+//! 5. Optional fluid regularisation: smooth f with G_{σ_fluid}
+//! 6. Accumulate: D ← D + f
+//! 7. Diffusive regularisation: D ← G_{σ_diff} ∗ D
+//! 8. Compute MSE = mean((F − M_w)²) (reuses M_w from step 1)
 //!
 //! # Memory discipline
 //! All scratch buffers are pre-allocated before the iteration loop.
@@ -44,21 +44,21 @@
 //! # Symmetry Property
 //! When fixed and moving are swapped, the force direction reverses. More
 //! precisely: for images F and M with displacement D_{FM}, and images M and F
-//! with displacement D_{MF}, we expect D_{FM} â‰ˆ âˆ’D_{MF} for small deformations.
+//! with displacement D_{MF}, we expect D_{FM} ≈ −D_{MF} for small deformations.
 //!
 //! # References
 //! - Pennec, X., Cachier, P. & Ayache, N. (1999). Understanding the
 //!   "Demon's Algorithm": 3D Non-Rigid Registration by Gradient Descent.
-//!   *MICCAI*, LNCS 1679:597â€“605.
+//!   *MICCAI*, LNCS 1679:597–605.
 //! - Cachier, P., Bardinet, E., Dormont, D., Pennec, X. & Ayache, N. (2003).
 //!   Iconic feature based nonrigid registration: the PASHA algorithm.
-//!   *CVIU* 89(2â€“3):272â€“298.
+//!   *CVIU* 89(2–3):272–298.
 
 mod engine;
 
 use super::config::DemonsConfig;
 
-// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public types ──────────────────────────────────────────────────────────────
 
 /// Symmetric Demons registration.
 ///

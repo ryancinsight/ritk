@@ -26,14 +26,14 @@ fn test_atlas_config() -> AtlasConfig {
     }
 }
 
-// â”€â”€ Positive tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive tests ────────────────────────────────────────────────────
 
 /// Two identical constant subjects.
 ///
-/// Analytical expectation: Tâ° = c. Registration of constant c to
+/// Analytical expectation: T⁰ = c. Registration of constant c to
 /// constant c yields zero velocity fields (CC gradient is zero when
 /// image gradient is zero). Mean of warped subjects = c. Mean
-/// velocity = 0, so sharpening is identity. RMS change = 0 â†’
+/// velocity = 0, so sharpening is identity. RMS change = 0 →
 /// convergence in one iteration. Template = c everywhere.
 #[test]
 fn two_identical_constant_subjects_template_equals_constant() {
@@ -68,11 +68,11 @@ fn two_identical_constant_subjects_template_equals_constant() {
 
 /// Three uniform images with distinct values.
 ///
-/// Analytical expectation: Tâ° = mean(2, 4, 6) = 4. Registration of a
+/// Analytical expectation: T⁰ = mean(2, 4, 6) = 4. Registration of a
 /// uniform image to another uniform image produces zero displacement
 /// (gradient is zero). Mean of warped subjects = mean of originals = 4.
-/// Sharpening is identity (zero velocity). RMS change = 0 â†’ converge
-/// in 1 iteration. Template â‰ˆ 4 everywhere.
+/// Sharpening is identity (zero velocity). RMS change = 0 → converge
+/// in 1 iteration. Template ≈ 4 everywhere.
 #[test]
 fn three_uniform_images_template_is_mean() {
     let dims = [4, 4, 4];
@@ -97,12 +97,12 @@ fn three_uniform_images_template_is_mean() {
     assert!(result.convergence_history[0] < 0.1);
 }
 
-// â”€â”€ Boundary tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Boundary tests ────────────────────────────────────────────────────
 
 /// Single subject: template equals that subject.
 ///
-/// Tâ° = Iâ‚. Registration of Iâ‚ to Iâ‚ â†’ identity. Template
-/// unchanged. RMS = 0 â†’ converge in 1 iteration.
+/// T⁰ = I₁. Registration of I₁ to I₁ → identity. Template
+/// unchanged. RMS = 0 → converge in 1 iteration.
 #[test]
 fn single_subject_template_equals_subject() {
     let dims = [4, 4, 4];
@@ -125,7 +125,7 @@ fn single_subject_template_equals_subject() {
     assert_eq!(result.subject_results.len(), 1);
 }
 
-// â”€â”€ Negative tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Negative tests ────────────────────────────────────────────────────
 
 /// Empty subjects slice returns `InvalidConfiguration`.
 #[test]

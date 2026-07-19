@@ -75,7 +75,7 @@ fn test_parse_vti_origin_and_spacing() {
 
 #[test]
 fn test_parse_vti_point_data_scalars() {
-    // extent "0 1 0 1 0 1" â†’ n_points = 2*2*2 = 8
+    // extent "0 1 0 1 0 1" → n_points = 2*2*2 = 8
     let pd = concat!(
         "      <PointData>\n",
         "        <DataArray type=\"Float32\" Name=\"intensity\"",
@@ -115,7 +115,7 @@ fn test_parse_vti_point_data_scalars() {
 
 #[test]
 fn test_parse_vti_multicomponent_vectors() {
-    // extent "0 0 0 0 0 0" â†’ n_points = 1; 3-component DataArray â†’ Vectors
+    // extent "0 0 0 0 0 0" → n_points = 1; 3-component DataArray → Vectors
     let pd = concat!(
         "      <PointData>\n",
         "        <DataArray type=\"Float32\" Name=\"velocity\"",
@@ -155,7 +155,7 @@ fn test_parse_vti_multicomponent_vectors() {
 
 #[test]
 fn test_parse_vti_cell_data() {
-    // extent "0 1 0 1 0 1" â†’ n_cells = 1*1*1 = 1
+    // extent "0 1 0 1 0 1" → n_cells = 1*1*1 = 1
     let cd = concat!(
         "      <CellData>\n",
         "        <DataArray type=\"Float32\" Name=\"pressure\"",
@@ -206,7 +206,7 @@ fn test_parse_vti_empty_point_data() {
 #[test]
 fn test_read_vti_file_roundtrip() {
     // Write via write_vti_str, parse with parse_vti, verify full round-trip.
-    // extent [0,1,0,1,0,1] â†’ n_points = 8
+    // extent [0,1,0,1,0,1] → n_points = 8
     let mut img = VtkImageData {
         whole_extent: [0, 1, 0, 1, 0, 1],
         origin: [1.0, 2.0, 3.0],
@@ -306,7 +306,7 @@ fn test_from_file_roundtrip() {
 
 #[test]
 fn test_missing_piece_tag_error() {
-    // Valid ImageData tag but no Piece element â€” parse must return Err.
+    // Valid ImageData tag but no Piece element — parse must return Err.
     let vti = concat!(
         "<?xml version=\"1.0\"?>\n",
         "<VTKFile type=\"ImageData\" version=\"0.1\" byte_order=\"LittleEndian\">\n",

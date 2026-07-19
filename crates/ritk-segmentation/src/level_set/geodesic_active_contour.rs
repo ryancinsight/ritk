@@ -2,67 +2,67 @@
 //!
 //! # Mathematical Specification
 //!
-//! The Geodesic Active Contour (GAC) evolves a level set function Ï† according
+//! The Geodesic Active Contour (GAC) evolves a level set function φ according
 //! to the PDE:
 //!
 //! ```text
-//!   âˆ‚Ï†/âˆ‚t = g(|âˆ‡I|)Â·(Îº + Î½)Â·|âˆ‡Ï†| + âˆ‡gÂ·âˆ‡Ï†
+//!   ∂φ/∂t = g(|∇I|)·(κ + ν)·|∇φ| + ∇g·∇φ
 //! ```
 //!
-//! **Sign convention (Ï† < 0 inside):** The implementation uses the equivalent
+//! **Sign convention (φ < 0 inside):** The implementation uses the equivalent
 //! discretised form:
 //!
 //! ```text
-//!   âˆ‚Ï†/âˆ‚t = w_cÂ·gÂ·ÎºÂ·|âˆ‡Ï†| âˆ’ w_pÂ·gÂ·|âˆ‡Ï†| âˆ’ w_aÂ·âˆ‡gÂ·âˆ‡Ï†
+//!   ∂φ/∂t = w_c·g·κ·|∇φ| − w_p·g·|∇φ| − w_a·∇g·∇φ
 //! ```
 //!
-//! where `w_p > 0` causes expansion (decreases Ï†, enlarging the Ï† < 0 region),
-//! `w_c > 0` regularises via curvature (positive Îº for convex shapes contracts),
+//! where `w_p > 0` causes expansion (decreases φ, enlarging the φ < 0 region),
+//! `w_c > 0` regularises via curvature (positive κ for convex shapes contracts),
 //! and `w_a > 0` attracts the contour toward edges.
 //!
 //! where:
-//! - **g(|âˆ‡I|) = 1 / (1 + (|âˆ‡I| / k)Â²)** is the edge stopping function,
+//! - **g(|∇I|) = 1 / (1 + (|∇I| / k)²)** is the edge stopping function,
 //!   which approaches 0 near strong image edges and 1 in homogeneous regions.
-//! - **Îº = div(âˆ‡Ï† / |âˆ‡Ï†|)** is the mean curvature of the zero level set.
-//! - **Î½** is the balloon (propagation) force that drives expansion or
+//! - **κ = div(∇φ / |∇φ|)** is the mean curvature of the zero level set.
+//! - **ν** is the balloon (propagation) force that drives expansion or
 //!   contraction of the contour in the absence of edges.
-//! - **âˆ‡gÂ·âˆ‡Ï†** is the advection term that attracts the contour toward edges
+//! - **∇g·∇φ** is the advection term that attracts the contour toward edges
 //!   by flowing along the gradient of the edge stopping function.
 //!
 //! ## Discretisation
 //!
 //! All spatial derivatives use central finite differences with clamped boundary
-//! conditions. The image gradient magnitude |âˆ‡I| is computed after optional
-//! Gaussian pre-smoothing with standard deviation Ïƒ.
+//! conditions. The image gradient magnitude |∇I| is computed after optional
+//! Gaussian pre-smoothing with standard deviation σ.
 //!
-//! The curvature Îº is computed as:
+//! The curvature κ is computed as:
 //! ```text
-//!   Îº = div(âˆ‡Ï† / |âˆ‡Ï†|)
+//!   κ = div(∇φ / |∇φ|)
 //! ```
 //! expanded via the quotient rule into second-order central differences.
 //!
 //! ## Convergence
 //!
 //! The iteration terminates when:
-//! - `RMS(Î”Ï†) = sqrt(sum(Î”Ï†Â²) / N) < tolerance` (matches ITK's
+//! - `RMS(Δφ) = sqrt(sum(Δφ²) / N) < tolerance` (matches ITK's
 //!   `FiniteDifferenceImageFilter::GetRMSChange()` criterion), or
 //! - `iteration == max_iterations`.
 //!
 //! ## Output
 //!
 //! The final binary segmentation mask is obtained by thresholding:
-//!   mask(x) = 1.0 if Ï†(x) < 0, else 0.0.
+//!   mask(x) = 1.0 if φ(x) < 0, else 0.0.
 //!
 //! ## Complexity
 //!
 //! - Per iteration: O(N) where N = total voxels.
 //! - Gradient and edge stopping: O(N) precomputed once.
-//! - Total: O(max_iterations Â· N).
+//! - Total: O(max_iterations · N).
 //!
 //! # References
 //!
 //! - Caselles, V., Kimmel, R., & Sapiro, G. (1997). "Geodesic Active Contours."
-//!   *International Journal of Computer Vision*, 22(1), 61â€“79.
+//!   *International Journal of Computer Vision*, 22(1), 61–79.
 //! - Malladi, R., Sethian, J. A., & Vemuri, B. C. (1995). "Shape Modeling
 //!   with Front Propagation: A Level Set Approach." *IEEE TPAMI*, 17(2).
 
@@ -72,7 +72,7 @@ use ritk_image::tensor::{Backend, Tensor};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec;
 
-// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public API ─────────────────────────────────────────────────────────────────
 
 /// Geodesic Active Contour level set segmentation.
 ///
@@ -84,32 +84,32 @@ use ritk_tensor_ops::extract_vec;
 ///
 /// | Parameter            | Symbol | Role                                      |
 /// |----------------------|--------|-------------------------------------------|
-/// | `propagation_weight` | Î½      | Balloon force (expansion if > 0)          |
-/// | `curvature_weight`   | â€”      | Weight on curvature regularisation term    |
-/// | `advection_weight`   | â€”      | Weight on âˆ‡gÂ·âˆ‡Ï† edge attraction term      |
+/// | `propagation_weight` | ν      | Balloon force (expansion if > 0)          |
+/// | `curvature_weight`   | —      | Weight on curvature regularisation term    |
+/// | `advection_weight`   | —      | Weight on ∇g·∇φ edge attraction term      |
 /// | `edge_k`             | k      | Edge stopping sensitivity parameter       |
-/// | `sigma`              | Ïƒ      | Gaussian pre-smoothing for gradient        |
-/// | `dt`                 | Î”t     | Euler time step                           |
-/// | `max_iterations`     | â€”      | Upper bound on PDE iterations             |
-/// | `tolerance`          | â€”      | Convergence: RMS(Î”Ï†) < tol â‡’ stop        |
+/// | `sigma`              | σ      | Gaussian pre-smoothing for gradient        |
+/// | `dt`                 | Δt     | Euler time step                           |
+/// | `max_iterations`     | —      | Upper bound on PDE iterations             |
+/// | `tolerance`          | —      | Convergence: RMS(Δφ) < tol ⇒ stop        |
 #[derive(Debug, Clone)]
 pub struct GeodesicActiveContourSegmentation {
-    /// Balloon (propagation) force Î½. Positive expands, negative contracts.
+    /// Balloon (propagation) force ν. Positive expands, negative contracts.
     pub propagation_weight: f64,
-    /// Weight on the curvature regularisation term Îº.
+    /// Weight on the curvature regularisation term κ.
     pub curvature_weight: f64,
-    /// Weight on the advection term âˆ‡gÂ·âˆ‡Ï†.
+    /// Weight on the advection term ∇g·∇φ.
     pub advection_weight: f64,
-    /// Edge stopping parameter k in g(s) = 1/(1 + (s/k)Â²).
+    /// Edge stopping parameter k in g(s) = 1/(1 + (s/k)²).
     pub edge_k: f64,
     /// Standard deviation of Gaussian pre-smoothing for gradient computation.
     /// Must be > 0.
     pub sigma: GaussianSigma,
-    /// Euler forward time step Î”t.
+    /// Euler forward time step Δt.
     pub dt: f64,
     /// Maximum number of PDE iterations.
     pub max_iterations: usize,
-    /// Convergence: RMS(Î”Ï†) < tol â‡’ stop (matches ITK's
+    /// Convergence: RMS(Δφ) < tol ⇒ stop (matches ITK's
     /// `FiniteDifferenceImageFilter::GetRMSChange()` criterion).
     pub tolerance: f64,
 }
@@ -145,10 +145,10 @@ impl GeodesicActiveContourSegmentation {
     /// # Arguments
     /// - : input scalar 3D image.
     /// - : initial level set function (same shape as ).
-    ///   Ï† < 0 inside the initial contour, Ï† > 0 outside.
+    ///   φ < 0 inside the initial contour, φ > 0 outside.
     ///
     /// # Returns
-    /// Binary mask image: 1.0 where Ï† < 0 (inside), 0.0 elsewhere.
+    /// Binary mask image: 1.0 where φ < 0 (inside), 0.0 elsewhere.
     ///
     /// # Errors
     /// Returns  if tensor data cannot be read as  or shapes mismatch.
@@ -181,7 +181,7 @@ impl GeodesicActiveContourSegmentation {
         // Precompute gradient magnitude of smoothed image.
         let grad_mag = helpers::compute_gradient_magnitude(&smoothed, dims);
 
-        // Precompute edge stopping function g and its gradient âˆ‡g.
+        // Precompute edge stopping function g and its gradient ∇g.
         let g = helpers::compute_edge_stopping(&grad_mag, self.edge_k);
         let (g_grad_z, g_grad_y, g_grad_x) = helpers::compute_field_gradient(&g, dims);
 
@@ -190,7 +190,7 @@ impl GeodesicActiveContourSegmentation {
         let mut phi_new = phi.clone();
         // SEG-01: pre-allocate per-iteration scratch buffers outside the loop so
         // that compute_field_gradient_into / upwind_advection_into reuse them,
-        // eliminating 4 Ã— NÃ—8 heap allocations per PDE iteration.
+        // eliminating 4 × N×8 heap allocations per PDE iteration.
         let mut phi_gz = vec![0.0_f64; n];
         let mut phi_gy = vec![0.0_f64; n];
         let mut phi_gx = vec![0.0_f64; n];
@@ -201,7 +201,7 @@ impl GeodesicActiveContourSegmentation {
             // Compute curvature and gradient of phi.
             helpers::compute_curvature_into(&phi, dims, &mut kappa);
             helpers::compute_field_gradient_into(&phi, dims, &mut phi_gz, &mut phi_gy, &mut phi_gx);
-            // Upwind discretisation of the advection (transport) term âˆ‡gÂ·âˆ‡Ï†;
+            // Upwind discretisation of the advection (transport) term ∇g·∇φ;
             // central differencing it is unstable and leaks the front past edges.
             helpers::upwind_advection_into(&phi, dims, &g_grad_z, &g_grad_y, &g_grad_x, &mut adv);
 
@@ -221,13 +221,13 @@ impl GeodesicActiveContourSegmentation {
                             + phi_gx[idx] * phi_gx[idx])
                             .sqrt();
 
-                        // Curvature term (positive Îº for convex â†’ contracts): w_cÂ·gÂ·ÎºÂ·|âˆ‡Ï†|
+                        // Curvature term (positive κ for convex → contracts): w_c·g·κ·|∇φ|
                         let curv = self.curvature_weight * g[idx] * kappa[idx] * grad_phi_mag;
 
-                        // Propagation term (positive w_p â†’ expansion): âˆ’w_pÂ·gÂ·|âˆ‡Ï†|
+                        // Propagation term (positive w_p → expansion): −w_p·g·|∇φ|
                         let prop = self.propagation_weight * g[idx] * grad_phi_mag;
 
-                        // Advection term (attracts the front toward edges): +w_aÂ·âˆ‡gÂ·âˆ‡Ï†,
+                        // Advection term (attracts the front toward edges): +w_a·∇g·∇φ,
                         // upwind-discretised for stability.
                         let advection = self.advection_weight * adv[idx];
 
@@ -243,7 +243,7 @@ impl GeodesicActiveContourSegmentation {
 
             std::mem::swap(&mut phi, &mut phi_new);
 
-            // ITK RMS criterion: sqrt(sum(Î”Ï†Â²) / N) < tolerance.
+            // ITK RMS criterion: sqrt(sum(Δφ²) / N) < tolerance.
             let sum_sq: f64 = sum_sqs.iter().sum();
             let rms = (sum_sq / n as f64).sqrt();
             if rms < self.tolerance {
@@ -251,7 +251,7 @@ impl GeodesicActiveContourSegmentation {
             }
         }
 
-        // Threshold: Ï† < 0 â†’ inside (1.0), else outside (0.0).
+        // Threshold: φ < 0 → inside (1.0), else outside (0.0).
         let mask: Vec<f32> = phi
             .iter()
             .map(|&v| if v < 0.0 { 1.0_f32 } else { 0.0_f32 })
@@ -372,7 +372,7 @@ impl Default for GeodesicActiveContourSegmentation {
     }
 }
 
-// â”€â”€ Test-only wrappers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test-only wrappers ─────────────────────────────────────────────────────────────────────────
 //
 // The existing tests call  and
 // with f32 data. These thin wrappers delegate to the shared f64 helpers and
@@ -388,7 +388,7 @@ fn compute_edge_stopping(grad_mag: &[f32], k: f64) -> Vec<f32> {
         .collect()
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ──────────────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_geodesic_active_contour.rs"]

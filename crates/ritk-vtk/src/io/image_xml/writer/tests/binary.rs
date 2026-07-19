@@ -4,7 +4,7 @@ use crate::io::image_xml::writer::{
     write_vti_binary_appended_bytes, write_vti_binary_appended_to_file,
 };
 
-/// Build a 2Ã—2Ã—2-point grid (extent [0,1,0,1,0,1], 8 points, 1 cell)
+/// Build a 2×2×2-point grid (extent [0,1,0,1,0,1], 8 points, 1 cell)
 /// with a scalar point-data field named "density".
 fn grid_2x2x2_binary() -> VtkImageData {
     VtkImageData {

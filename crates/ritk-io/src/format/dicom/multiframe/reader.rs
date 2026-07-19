@@ -363,7 +363,7 @@ pub fn load_dicom_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<MultiFrameV
     //
     // When per_frame is populated (Enhanced MF), each PerFrameInfo may carry
     // image_position. Compute per-adjacent-pair distances projected onto the
-    // shared slice normal NÌ‚ = normalize(row Ã— col). Use the median as nominal
+    // shared slice normal NÌ‚ = normalize(row × col). Use the median as nominal
     // spacing; warn and resample when nonuniform or missing frames are detected.
     let (final_floats, final_n, spacing_z) = 'geometry: {
         if per_frame.len() < 2 {
@@ -419,7 +419,7 @@ pub fn load_dicom_multiframe_flat<P: AsRef<Path>>(path: P) -> Result<MultiFrameV
                 missing_between = ?report.missing_between,
                 nominal_spacing_mm = report.nominal_spacing,
                 path = ?path,
-                "DICOM multiframe: {} gap(s) exceed 1.5Ã— nominal spacing \
+                "DICOM multiframe: {} gap(s) exceed 1.5× nominal spacing \
                  ({:.4} mm), indicating missing frames; \
                  resampling to fill gaps via linear interpolation",
                 report.missing_between.len(),

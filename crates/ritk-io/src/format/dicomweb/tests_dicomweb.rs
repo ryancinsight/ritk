@@ -28,7 +28,7 @@ mod tests {
         assert_eq!(url, "http://pacs.local/qido-rs/studies?PatientID=ABC123");
     }
 
-    // 3. Multiple params â€” StudyDate and Modality both appear separated correctly.
+    // 3. Multiple params — StudyDate and Modality both appear separated correctly.
     #[test]
     fn build_qido_url_with_multiple_params() {
         let params = QidoSearchParams {

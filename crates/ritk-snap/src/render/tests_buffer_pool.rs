@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 /// Construct a minimal [`LoadedVolume`] for differential tests.
 ///
-/// Pixel value at voxel `(d, r, c)` is `(d Ã— R Ã— C + r Ã— C + c) as f32`.
+/// Pixel value at voxel `(d, r, c)` is `(d × R × C + r × C + c) as f32`.
 fn make_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
     let n = depth * rows * cols;
     let data: Vec<f32> = (0..n).map(|i| i as f32).collect();
@@ -36,7 +36,7 @@ fn make_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
 
 /// Resizing `pixel_f32` to the same length twice must not shrink capacity.
 ///
-/// Analytical: initial capacity = 0 â†’ after resize(100), capacity â‰¥ 100 â†’
+/// Analytical: initial capacity = 0 → after resize(100), capacity ≥ 100 →
 /// second resize(100) must preserve capacity (monotone non-decreasing).
 #[test]
 fn capacity_is_monotone_for_same_size() {
@@ -46,7 +46,7 @@ fn capacity_is_monotone_for_same_size() {
     let cap_after_first = pool.pixel_f32.capacity();
     assert!(
         cap_after_first >= 100,
-        "capacity must be â‰¥ 100 after resize"
+        "capacity must be ≥ 100 after resize"
     );
     pool.pixel_f32.resize(100, 0.0_f32);
     assert_eq!(
@@ -56,10 +56,10 @@ fn capacity_is_monotone_for_same_size() {
     );
 }
 
-/// Growing from 200 then requesting 50 must preserve capacity at â‰¥ 200.
+/// Growing from 200 then requesting 50 must preserve capacity at ≥ 200.
 ///
 /// Analytical: Vec::resize(n) with n < current capacity does not
-/// deallocate â€” capacity is monotone non-decreasing in observed peak.
+/// deallocate — capacity is monotone non-decreasing in observed peak.
 #[test]
 fn capacity_grows_monotonically() {
     let mut pool = RenderBufferPool::default();
@@ -68,7 +68,7 @@ fn capacity_grows_monotonically() {
     let cap_at_200 = pool.rgba_u8.capacity();
     assert!(
         cap_at_200 >= 200,
-        "capacity must be â‰¥ 200 after resize(200)"
+        "capacity must be ≥ 200 after resize(200)"
     );
     pool.resize_pixel_bytes(50);
     assert!(
@@ -202,7 +202,7 @@ fn test_render_mip_with_scratch_pixel_identical() {
 
 /// `resize_color32` must preserve monotone capacity invariant.
 ///
-/// Analytical: after resize(200), capacity â‰¥ 200 â†’ subsequent resize(50)
+/// Analytical: after resize(200), capacity ≥ 200 → subsequent resize(50)
 /// must not shrink capacity.
 #[test]
 fn test_resize_color32_capacity_monotone() {
@@ -211,7 +211,7 @@ fn test_resize_color32_capacity_monotone() {
     let cap_at_200 = pool.color32.capacity();
     assert!(
         cap_at_200 >= 200,
-        "capacity must be â‰¥ 200 after resize(200)"
+        "capacity must be ≥ 200 after resize(200)"
     );
     pool.resize_color32(50);
     assert!(

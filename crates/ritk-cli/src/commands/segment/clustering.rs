@@ -11,11 +11,11 @@ use super::super::{write_image, Backend};
 use super::args::SegmentArgs;
 use super::helpers::{count_native_foreground, read_native_input};
 
-// â”€â”€ K-Means clustering â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── K-Means clustering ────────────────────────────────────────────────────────
 
 /// Apply K-Means intensity clustering.
 ///
-/// Each voxel in the output contains its assigned cluster index (0..Kâˆ’1)
+/// Each voxel in the output contains its assigned cluster index (0..K−1)
 /// as `f32`.  Spatial metadata is preserved.
 pub(super) fn run_kmeans(args: &SegmentArgs) -> Result<()> {
     let (image, output_format) = read_native_input(&args.input, &args.output, "kmeans")?;
@@ -50,7 +50,7 @@ pub(super) fn run_kmeans(args: &SegmentArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Distance transform â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Distance transform ────────────────────────────────────────────────────────
 
 /// Compute the Euclidean distance transform of a binary mask.
 ///

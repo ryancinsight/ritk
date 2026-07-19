@@ -49,6 +49,6 @@ pub struct InverseConsistentDemonsResult {
     pub final_mse: f64,
     /// Number of iterations executed.
     pub num_iterations: usize,
-    /// IC residual: meanâ€–Ï†_fwd(Ï†_inv(x)) âˆ’ xâ€–â‚‚.
+    /// IC residual: mean—–φ_fwd(φ_inv(x)) − x—–₂.
     pub inverse_consistency_residual: f64,
 }

@@ -1,4 +1,4 @@
-//! Visual comparison of CTâ†”MR rigid registration: identity (before), native
+//! Visual comparison of CT↔MR rigid registration: identity (before), native
 //! classical mutual-information registration, and the SimpleElastix reference.
 //!
 //! Renders a mid-axial slice as an RGB overlay (R = CT, G = MR). Aligned
@@ -135,7 +135,7 @@ fn main() -> Result<()> {
         + result.transform.as_array()[5]
         + result.transform.as_array()[10];
     let angle_degrees = (((trace - 1.0) / 2.0).clamp(-1.0, 1.0)).acos().to_degrees();
-    println!("RITK MI recovered rotation {angle_degrees:.2}Â°");
+    println!("RITK MI recovered rotation {angle_degrees:.2}°");
 
     // Convert the index-space result to physical space before native sampling.
     let physical_transform = index_affine_to_physical(&result.transform, &ct, &mri)?;

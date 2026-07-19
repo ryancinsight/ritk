@@ -1,4 +1,4 @@
-// â”€â”€ Metric implementations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Metric implementations ───────────────────────────────────────────────────
 
 use anyhow::Result;
 use ritk_statistics::image_statistics::native::compute_statistics as compute_native_statistics;
@@ -10,7 +10,7 @@ use tracing::info;
 
 use super::StatsArgs;
 
-// â”€â”€ Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Summary ───────────────────────────────────────────────────────────────────
 
 /// Print min, max, mean, std, and percentiles (p25, p50, p75) for the input
 /// image.
@@ -38,7 +38,7 @@ pub(super) fn run_summary(args: &StatsArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Dice coefficient â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Dice coefficient ──────────────────────────────────────────────────────────
 
 /// Compute the Dice coefficient between two binary masks (voxels > 0.5 =
 /// foreground).
@@ -65,7 +65,7 @@ pub(super) fn run_dice(args: &StatsArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Hausdorff distance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Hausdorff distance ────────────────────────────────────────────────────────
 
 /// Compute the Hausdorff distance between two binary masks.
 ///
@@ -91,7 +91,7 @@ pub(super) fn run_hausdorff(args: &StatsArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ PSNR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── PSNR ──────────────────────────────────────────────────────────────────────
 
 /// Compute Peak Signal-to-Noise Ratio between input and reference.
 pub(super) fn run_psnr(args: &StatsArgs) -> Result<()> {
@@ -114,7 +114,7 @@ pub(super) fn run_psnr(args: &StatsArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ SSIM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SSIM ──────────────────────────────────────────────────────────────────────
 
 /// Compute the Structural Similarity Index between input and reference.
 pub(super) fn run_ssim(args: &StatsArgs) -> Result<()> {
@@ -137,7 +137,7 @@ pub(super) fn run_ssim(args: &StatsArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Mean surface distance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Mean surface distance ─────────────────────────────────────────────────────
 
 /// Compute the symmetric mean surface distance between two binary masks.
 ///
@@ -163,7 +163,7 @@ pub(super) fn run_mean_surface_distance(args: &StatsArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Noise estimate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Noise estimate ────────────────────────────────────────────────────────────
 
 /// Estimate Gaussian noise standard deviation using the MAD estimator.
 ///

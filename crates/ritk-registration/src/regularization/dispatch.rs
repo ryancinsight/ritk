@@ -1,7 +1,7 @@
 //! Rank dispatch and native spatial-operator kernels for regularizers.
 //!
 //! Routes regularizer loss computation to the correct rank-specific kernel
-//! based on the displacement field's runtime rank. Only rank âˆˆ {4, 5} is
+//! based on the displacement field's runtime rank. Only rank ∈ {4, 5} is
 //! supported (2-D `[B, C, H, W]` and 3-D `[B, C, D, H, W]` displacement fields).
 //!
 //! The kernels are Coeus-native: they read the field as a contiguous host slice
@@ -116,7 +116,7 @@ where
     })
 }
 
-// â”€â”€ Rank dispatch over the native kernels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Rank dispatch over the native kernels ────────────────────────────────────
 
 #[inline]
 fn laplacian_squared_mean<T: Scalar>(data: &[T], shape: &[usize], op: &str) -> T {
@@ -178,7 +178,7 @@ fn elastic<T: Scalar>(data: &[T], shape: &[usize], alpha: T, beta: T) -> T {
     }
 }
 
-// â”€â”€ Native finite-difference kernels (planar, `[BC, H, W]`) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Native finite-difference kernels (planar, `[BC, H, W]`) ───────────────────
 
 /// Forward difference along an axis, zero-padded at the last index.
 #[inline]
@@ -190,9 +190,9 @@ fn fwd_diff<T: Scalar>(data: &[T], offset: usize, local: usize, extent: usize, s
     }
 }
 
-/// Mean over all `BCÂ·HÂ·W` voxels of the squared 5-point Laplacian.
+/// Mean over all `BC·H·W` voxels of the squared 5-point Laplacian.
 ///
-/// Border voxels (`iâˆˆ{0,h-1}` or `jâˆˆ{0,w-1}`) contribute a zero Laplacian, so
+/// Border voxels (`i∈{0,h-1}` or `j∈{0,w-1}`) contribute a zero Laplacian, so
 /// the loop visits only the interior; the mean divides by the full voxel count.
 fn laplacian_squared_mean_planar<T: Scalar>(data: &[T], bc: usize, h: usize, w: usize) -> T {
     let four = T::from_f64(4.0);
@@ -210,7 +210,7 @@ fn laplacian_squared_mean_planar<T: Scalar>(data: &[T], bc: usize, h: usize, w: 
     acc / T::from_usize(bc * h * w)
 }
 
-/// Mean over all voxels of `|âˆ‡u|Â²` via forward differences (zero-padded edges).
+/// Mean over all voxels of `|∇u|²` via forward differences (zero-padded edges).
 fn gradient_squared_mean_planar<T: Scalar>(data: &[T], bc: usize, h: usize, w: usize) -> T {
     let mut acc = T::zero();
     for plane in 0..bc {
@@ -227,7 +227,7 @@ fn gradient_squared_mean_planar<T: Scalar>(data: &[T], bc: usize, h: usize, w: u
     acc / T::from_usize(bc * h * w)
 }
 
-/// Mean over all voxels of `|âˆ‡u| = âˆš(g_hÂ² + g_wÂ²)` (isotropic total variation).
+/// Mean over all voxels of `|∇u| = √(g_h² + g_w²)` (isotropic total variation).
 fn gradient_magnitude_mean_planar<T: Scalar>(data: &[T], bc: usize, h: usize, w: usize) -> T {
     let mut acc = T::zero();
     for plane in 0..bc {
@@ -244,12 +244,12 @@ fn gradient_magnitude_mean_planar<T: Scalar>(data: &[T], bc: usize, h: usize, w:
     acc / T::from_usize(bc * h * w)
 }
 
-/// Elastic loss: `Î±Â·mean(|âˆ‡u|Â²) + Î²Â·mean((div u)Â²)`.
+/// Elastic loss: `α·mean(|∇u|²) + β·mean((div u)²)`.
 ///
 /// The divergence couples channel 0's height-gradient with channel 1's
-/// width-gradient (`div u = âˆ‚u_x/âˆ‚x + âˆ‚u_y/âˆ‚y`), so the field must carry at
-/// least two displacement channels; its mean is over `BÂ·HÂ·W` (one divergence
-/// scalar per spatial site), distinct from the membrane mean over `BÂ·CÂ·HÂ·W`.
+/// width-gradient (`div u = ∂u_x/∂x + ∂u_y/∂y`), so the field must carry at
+/// least two displacement channels; its mean is over `B·H·W` (one divergence
+/// scalar per spatial site), distinct from the membrane mean over `B·C·H·W`.
 fn elastic_planar<T: Scalar>(
     data: &[T],
     b: usize,
@@ -261,7 +261,7 @@ fn elastic_planar<T: Scalar>(
 ) -> T {
     assert!(
         c >= 2,
-        "elastic (2-D) requires â‰¥2 displacement channels, got {c}"
+        "elastic (2-D) requires ≥2 displacement channels, got {c}"
     );
     let membrane_mean = gradient_squared_mean_planar(data, b * c, h, w);
 
@@ -284,7 +284,7 @@ fn elastic_planar<T: Scalar>(
     membrane_mean * alpha + divergence_mean * beta
 }
 
-// â”€â”€ Native finite-difference kernels (volumetric, `[BC, D, H, W]`) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Native finite-difference kernels (volumetric, `[BC, D, H, W]`) ────────────
 
 fn laplacian_squared_mean_volumetric<T: Scalar>(
     data: &[T],
@@ -384,7 +384,7 @@ fn elastic_volumetric<T: Scalar>(
 ) -> T {
     assert!(
         c >= 3,
-        "elastic (3-D) requires â‰¥3 displacement channels, got {c}"
+        "elastic (3-D) requires ≥3 displacement channels, got {c}"
     );
     let membrane_mean = gradient_squared_mean_volumetric(data, b * c, d, h, w);
 

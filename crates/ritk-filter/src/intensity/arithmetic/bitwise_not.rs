@@ -10,14 +10,14 @@ use ritk_tensor_ops::{extract_vec_infallible as extract_vec, rebuild};
 /// signedness:
 ///
 /// ```text
-/// unsigned n-bit:  ~x = (2â¿ âˆ’ 1) âˆ’ x
-/// signed:          ~x = âˆ’x âˆ’ 1            (two's complement)
+/// unsigned n-bit:  ~x = (2ⁿ − 1) − x
+/// signed:          ~x = −x − 1            (two's complement)
 /// ```
 ///
 /// ritk's scalar-`f32` backend carries no integer type, so the width/signedness
 /// are explicit parameters. Pixels are rounded to the nearest integer before
 /// complementing. Matches `SimpleITK.BitwiseNot` for the corresponding pixel type
-/// (e.g. `bits = 8, signed = false` â†” `uint8`; `signed = true` â†” `intN`).
+/// (e.g. `bits = 8, signed = false` ↔ `uint8`; `signed = true` ↔ `intN`).
 ///
 /// Distinct from [`BinaryNotImageFilter`](super::binary_not::BinaryNotImageFilter)
 /// (a `{0,1}` label flip) and `Not` (logical NOT to `0`/`1`).
@@ -25,7 +25,7 @@ use ritk_tensor_ops::{extract_vec_infallible as extract_vec, rebuild};
 pub struct BitwiseNotImageFilter {
     /// Bit width of the integer type (used only for the unsigned complement).
     bits: u32,
-    /// Two's-complement signed interpretation (`~x = âˆ’x âˆ’ 1`).
+    /// Two's-complement signed interpretation (`~x = −x − 1`).
     signed: bool,
 }
 
@@ -58,7 +58,7 @@ impl BitwiseNotImageFilter {
     /// Apply the bitwise NOT pixelwise (spatial metadata preserved).
     pub fn apply<B: Backend, const D: usize>(&self, image: &Image<f32, B, D>) -> Image<f32, B, D> {
         let (vals, dims) = extract_vec(image);
-        // 2â¿ âˆ’ 1 as f64 to stay exact through 53-bit mantissa for n â‰¤ 32.
+        // 2ⁿ − 1 as f64 to stay exact through 53-bit mantissa for n ≤ 32.
         let mask = ((1u64 << self.bits) - 1) as f64;
         let signed = self.signed;
         let out: Vec<f32> = vals
@@ -82,7 +82,7 @@ impl BitwiseNotImageFilter {
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
         let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
-        // 2â¿ âˆ’ 1 as f64 to stay exact through 53-bit mantissa for n â‰¤ 32.
+        // 2ⁿ − 1 as f64 to stay exact through 53-bit mantissa for n ≤ 32.
         let mask = ((1u64 << self.bits) - 1) as f64;
         let signed = self.signed;
         let out: Vec<f32> = vals

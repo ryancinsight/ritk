@@ -2,7 +2,7 @@
 //!
 //! [`TransMorphConfig`] specifies the channel widths and window/integration
 //! parameters, and [`TransMorphConfig::init`] instantiates a [`TransMorph`] with
-//! Kaiming-uniform-initialized convolutions (fan-in scaled, non-degenerate â€” the
+//! Kaiming-uniform-initialized convolutions (fan-in scaled, non-degenerate — the
 //! scheme the original relied on; the raw [`Conv3d`] constructor alone leaves
 //! weights at ones).
 
@@ -118,7 +118,7 @@ impl TransMorphConfig {
         let down3 = conv(e * 4, e * 8, 2, 2, 0);
         let stage4 = vec![block(e * 8, shift), block(e * 8, 0)];
 
-        // Decoder: skip-concatenated 3Ã—3 convolutions.
+        // Decoder: skip-concatenated 3×3 convolutions.
         let up_conv1 = conv(e * 8 + e * 4, e * 4, 3, 1, 1);
         let up_conv2 = conv(e * 4 + e * 2, e * 2, 3, 1, 1);
         let up_conv3 = conv(e * 2 + e, e, 3, 1, 1);

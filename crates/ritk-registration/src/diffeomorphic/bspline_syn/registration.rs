@@ -22,10 +22,10 @@ impl BSplineSyNRegistration {
     /// Register `moving` to `fixed` using BSplineSyN with local CC metric.
     ///
     /// # Arguments
-    /// - `fixed` â€” reference image, flat `[f32]` in Z-major order.
-    /// - `moving` â€” moving image, same shape as `fixed`.
-    /// - `dims` â€” `[nz, ny, nx]`.
-    /// - `spacing` â€” physical voxel spacing `[sz, sy, sx]`.
+    /// - `fixed` — reference image, flat `[f32]` in Z-major order.
+    /// - `moving` — moving image, same shape as `fixed`.
+    /// - `dims` — `[nz, ny, nx]`.
+    /// - `spacing` — physical voxel spacing `[sz, sy, sx]`.
     ///
     /// # Errors
     /// Returns [`RegistrationError`] on dimension mismatch or invalid config.
@@ -186,7 +186,7 @@ impl BSplineSyNRegistration {
                 &mut buf.cc_slices,
             );
 
-            // Normalise forces so max|uâ‚| = max|uâ‚‚| = gradient_step
+            // Normalise forces so max|u₁| = max|u₂| = gradient_step
             normalize_forces_into(
                 &mut buf.u1z,
                 &mut buf.u1y,
@@ -291,7 +291,7 @@ impl BSplineSyNRegistration {
             }
         }
 
-        // â”€â”€ Final dense fields and warps (reusing pre-allocated scratch) â”€â”€
+        // ── Final dense fields and warps (reusing pre-allocated scratch) ──
         evaluate_dense_into(&buf.cp1z, cp_d, dims, cs, &mut buf.v1z);
         evaluate_dense_into(&buf.cp1y, cp_d, dims, cs, &mut buf.v1y);
         evaluate_dense_into(&buf.cp1x, cp_d, dims, cs, &mut buf.v1x);

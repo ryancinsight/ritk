@@ -82,8 +82,8 @@ coeus-tensor = { path = "../coeus/coeus-tensor" }
 coeus-ops = { path = "../coeus/coeus-ops" }
 coeus-leto = { path = "../coeus/coeus-leto" }
 coeus-autograd = { path = "../coeus/coeus-autograd" }
-leto = { path = "../leto/crates/leto", version = "0.38.0" }
-leto-ops = { path = "../leto/crates/leto-ops", version = "0.38.0" }
+leto = { path = "../leto/crates/leto", version = "0.39.0" }
+leto-ops = { path = "../leto/crates/leto-ops", version = "0.39.0" }
 apollo-fft = { path = "../apollo/crates/apollo-fft", version = "0.25.0" }
 anyhow = "1.0"
 thiserror = "2.0"

@@ -17,13 +17,13 @@ fn make_test_image(data: Vec<f32>, shape: [usize; 3]) -> Image<f32, B, 3> {
     .expect("invariant: fixture tensor has the declared rank")
 }
 
-// â”€â”€ extract_vec â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── extract_vec ────────────────────────────────────────────────────────
 
 /// Round-trip: extract_vec then rebuild must reproduce the original image.
 ///
 /// # Derivation
 /// extract_vec(I) = (v, d)  and  rebuild(v, d, I) = I' must satisfy:
-///   âˆ€ i: I'(i) = I(i)    (element-wise equality within f32 precision)
+///   ∀ i: I'(i) = I(i)    (element-wise equality within f32 precision)
 ///   shape(I') = shape(I)
 #[test]
 fn extract_and_rebuild_roundtrip() {
@@ -39,7 +39,7 @@ fn extract_and_rebuild_roundtrip() {
     assert_eq!(got, data, "rebuilt image must reproduce original data");
 }
 
-/// Spatial metadata is preserved through extract â†’ rebuild.
+/// Spatial metadata is preserved through extract → rebuild.
 #[test]
 fn rebuild_preserves_metadata() {
     let sp = Spacing::new([2.5, 1.0, 0.5]);
@@ -87,7 +87,7 @@ fn rebuild_output_has_correct_shape() {
     );
 }
 
-// â”€â”€ gaussian_kernel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── gaussian_kernel ────────────────────────────────────────────────
 
 /// Kernel sums to 1.0 (wide-precision f64 variant).
 #[test]
@@ -119,12 +119,12 @@ fn gaussian_kernel_explicit_radius() {
     assert_eq!(kernel.len(), 11); // 2 * 5 + 1
 }
 
-/// Centre-to-adjacent ratio verifies the exponent denominator is exactly 2ÏƒÂ².
+/// Centre-to-adjacent ratio verifies the exponent denominator is exactly 2σ².
 ///
 /// # Derivation
-/// For d=1 from centre: wâ‚/wâ‚€ = exp(-1 / (2ÏƒÂ²)).
-/// With Ïƒ=2.0: expected = exp(-1/8) â‰ˆ 0.882497.
-/// The previous defect (`1 + ÏƒÂ²` = 5) would produce exp(-1/5) â‰ˆ 0.818731 â€” a ~7% error.
+/// For d=1 from centre: w₁/w₀ = exp(-1 / (2σ²)).
+/// With σ=2.0: expected = exp(-1/8) ≈ 0.882497.
+/// The previous defect (`1 + σ²` = 5) would produce exp(-1/5) ≈ 0.818731 — a ~7% error.
 #[test]
 fn gaussian_kernel_exponent_denominator_is_two_sigma_squared() {
     let sigma = 2.0_f64;
@@ -134,7 +134,7 @@ fn gaussian_kernel_exponent_denominator_is_two_sigma_squared() {
     let actual_ratio = kernel[centre - 1] / kernel[centre];
     assert!(
         (actual_ratio - expected_ratio).abs() < 1e-12,
-        "ratio kernel[r-1]/kernel[r] = {actual_ratio:.9}, expected exp(-1/(2ÏƒÂ²)) = {expected_ratio:.9}"
+        "ratio kernel[r-1]/kernel[r] = {actual_ratio:.9}, expected exp(-1/(2σ²)) = {expected_ratio:.9}"
     );
 }
 

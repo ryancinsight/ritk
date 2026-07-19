@@ -13,8 +13,8 @@
 //!
 //! # Complexity
 //!
-//! O(Dz Â· Dy Â· Dx Â· Kz Â· Ky Â· Kx) â€” a separable implementation would be
-//! O(N Â· (Kz + Ky + Kx)), but only separable kernels admit that optimisation;
+//! O(Dz · Dy · Dx · Kz · Ky · Kx) — a separable implementation would be
+//! O(N · (Kz + Ky + Kx)), but only separable kernels admit that optimisation;
 //! the general case requires this full product.
 
 use anyhow::{bail, Result};
@@ -32,11 +32,11 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 ///
 /// ```text
 /// output[z, y, x] =
-///     Î£_{kz=0}^{Kz-1}  Î£_{ky=0}^{Ky-1}  Î£_{kx=0}^{Kx-1}
+///     Σ_{kz=0}^{Kz-1}  Σ_{ky=0}^{Ky-1}  Σ_{kx=0}^{Kx-1}
 ///         K[kz, ky, kx]
-///         Â· I[clamp(z + kz âˆ’ Kz/2, 0, Dz-1),
-///              clamp(y + ky âˆ’ Ky/2, 0, Dy-1),
-///              clamp(x + kx âˆ’ Kx/2, 0, Dx-1)]
+///         · I[clamp(z + kz − Kz/2, 0, Dz-1),
+///              clamp(y + ky − Ky/2, 0, Dy-1),
+///              clamp(x + kx − Kx/2, 0, Dx-1)]
 /// ```
 ///
 /// where `Kz/2`, `Ky/2`, `Kx/2` are floor-division half-extents that centre
@@ -67,8 +67,8 @@ impl SpatialConvolutionFilter {
     /// Construct a `SpatialConvolutionFilter` from a flat kernel buffer and its shape.
     ///
     /// # Arguments
-    /// - `kernel`      â€” Kernel voxels in row-major `[Kz, Ky, Kx]` order.
-    /// - `kernel_dims` â€” Shape `[Kz, Ky, Kx]`. Must satisfy
+    /// - `kernel`      — Kernel voxels in row-major `[Kz, Ky, Kx]` order.
+    /// - `kernel_dims` — Shape `[Kz, Ky, Kx]`. Must satisfy
     ///   `kernel.len() == Kz * Ky * Kx`.
     ///
     /// # Errors

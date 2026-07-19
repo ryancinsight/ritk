@@ -5,40 +5,40 @@
 //! K-Means partitions the intensity space of an image into K clusters by
 //! minimising the within-cluster sum of squared distances (WCSS):
 //!
-//!   J = Î£_{k=1}^{K} Î£_{x âˆˆ C_k} (x âˆ’ Î¼_k)Â²
+//!   J = Σ_{k=1}^{K} Σ_{x ∈ C_k} (x − μ_k)²
 //!
-//! where Î¼_k is the centroid (mean intensity) of cluster C_k.
+//! where μ_k is the centroid (mean intensity) of cluster C_k.
 //!
 //! ## Initialization (k-means++)
 //!
 //! Arthur & Vassilvitskii (2007) initialization:
-//! 1. Choose the first centroid câ‚ uniformly at random from the data points.
+//! 1. Choose the first centroid c₁ uniformly at random from the data points.
 //! 2. For each subsequent centroid c_j (j = 2..K):
-//!    - For each data point x, compute D(x) = min_{i<j} |x âˆ’ c_i|.
-//!    - Choose c_j with probability proportional to D(x)Â².
+//!    - For each data point x, compute D(x) = min_{i<j} |x − c_i|.
+//!    - Choose c_j with probability proportional to D(x)².
 //! 3. This yields O(log K)-competitive initial centroids in expectation.
 //!
 //! ## Lloyd's Iteration
 //!
 //! Repeat until convergence or `max_iterations`:
-//! 1. **Assignment**: For each voxel x, assign label(x) = argmin_k |x âˆ’ Î¼_k|.
-//! 2. **Update**: Î¼_k = (1/|C_k|) Î£_{x âˆˆ C_k} x.
-//! 3. **Convergence**: max_k |Î¼_k^{new} âˆ’ Î¼_k^{old}| < tolerance.
+//! 1. **Assignment**: For each voxel x, assign label(x) = argmin_k |x − μ_k|.
+//! 2. **Update**: μ_k = (1/|C_k|) Σ_{x ∈ C_k} x.
+//! 3. **Convergence**: max_k |μ_k^{new} − μ_k^{old}| < tolerance.
 //!
 //! ## Output
 //!
-//! A label image where each voxel contains its cluster index (0..Kâˆ’1) as `f32`.
+//! A label image where each voxel contains its cluster index (0..K−1) as `f32`.
 //!
 //! # Complexity
 //!
-//! Initialization:  O(nÂ·K) distance computations.
-//! Each iteration:  O(nÂ·K) assignments + O(n) centroid updates.
-//! Total:           O(nÂ·KÂ·(I+1)) where I = number of iterations.
+//! Initialization:  O(n·K) distance computations.
+//! Each iteration:  O(n·K) assignments + O(n) centroid updates.
+//! Total:           O(n·K·(I+1)) where I = number of iterations.
 //!
 //! # References
 //!
 //! - Lloyd, S.P. (1982). "Least squares quantization in PCM." *IEEE Trans.
-//!   Information Theory*, 28(2):129â€“137.
+//!   Information Theory*, 28(2):129–137.
 //! - Arthur, D. & Vassilvitskii, S. (2007). "k-means++: The Advantages of
 //!   Careful Seeding." *Proc. 18th ACM-SIAM Symposium on Discrete Algorithms*.
 
@@ -48,11 +48,11 @@ use ritk_tensor_ops::extract_vec_infallible;
 
 const MAX_EXACT_LABELS: usize = 1 << f32::MANTISSA_DIGITS;
 
-// â”€â”€ Deterministic PRNG (xorshift64) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Deterministic PRNG (xorshift64) ────────────────────────────────────────────
 
 /// Minimal xorshift64 PRNG to avoid external dependencies.
 ///
-/// Period: 2^64 âˆ’ 1. Not cryptographically secure; sufficient for
+/// Period: 2^64 − 1. Not cryptographically secure; sufficient for
 /// reproducible k-means++ initialization.
 struct Xorshift64 {
     state: u64,
@@ -97,19 +97,19 @@ impl Xorshift64 {
     }
 }
 
-// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public API ─────────────────────────────────────────────────────────────────
 
 /// K-Means clustering segmentation.
 ///
 /// Partitions an image's intensity space into `k` clusters using Lloyd's
 /// algorithm with k-means++ initialization. The output is a label image
-/// where each voxel contains its cluster index (0..Kâˆ’1) as `f32`.
+/// where each voxel contains its cluster index (0..K−1) as `f32`.
 /// Arithmetic and centroid accumulation execute in `f32`. Inputs must be
 /// finite and their total range must be representable in `f32`; shifted means
 /// and normalized initialization weights prevent overflow within that domain.
 #[derive(Debug, Clone)]
 pub struct KMeansSegmentation {
-    /// Number of clusters. Must be â‰¥ 1.
+    /// Number of clusters. Must be ≥ 1.
     k: usize,
     /// Maximum number of Lloyd iterations. Default 100.
     max_iterations: usize,
@@ -197,7 +197,7 @@ impl KMeansSegmentation {
 
     /// Apply K-Means clustering to `image`, returning a label image.
     ///
-    /// Each voxel in the output contains its assigned cluster index (0..Kâˆ’1)
+    /// Each voxel in the output contains its assigned cluster index (0..K−1)
     /// as `f32`. Spatial metadata (origin, spacing, direction) is preserved.
     ///
     /// For a constant image (zero range), all voxels are assigned label 0.0.
@@ -283,11 +283,11 @@ pub fn kmeans_segment<B: Backend, const D: usize>(
     KMeansSegmentation::new(k)?.apply(image)
 }
 
-// â”€â”€ Core implementation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Core implementation ────────────────────────────────────────────────────────
 
 /// Core K-Means implementation operating on a flat f32 slice.
 ///
-/// Returns a `Vec<f32>` of cluster labels (0..Kâˆ’1).
+/// Returns a `Vec<f32>` of cluster labels (0..K−1).
 fn kmeans_impl(
     data: &[f32],
     k: usize,
@@ -309,7 +309,7 @@ fn kmeans_impl(
     // we proceed with k and handle empty clusters in the update step.
     let effective_k = k.min(n);
 
-    // â”€â”€ k-means++ initialization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── k-means++ initialization ───────────────────────────────────────────────
     let mut rng = Xorshift64::new(seed);
     let mut centroids = Vec::with_capacity(effective_k);
 
@@ -359,16 +359,16 @@ fn kmeans_impl(
         centroids.push(data[chosen]);
     }
 
-    // â”€â”€ Lloyd's iterations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Lloyd's iterations ─────────────────────────────────────────────────
     let mut labels = vec![0usize; n];
     // Pre-allocate accumulator buffers once; reset at the top of each iteration
-    // to avoid effective_k Ã— 2 per-iteration heap allocations.
+    // to avoid effective_k × 2 per-iteration heap allocations.
     let mut means = vec![0.0_f32; effective_k];
     let mut counts = vec![0.0_f32; effective_k];
     let mut anchors = vec![None; effective_k];
 
     for _iter in 0..max_iterations {
-        // â”€â”€ Assignment step â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Assignment step ─────────────────────────────────────────────────
         for i in 0..n {
             let val = data[i];
             let mut best_k = 0usize;
@@ -383,7 +383,7 @@ fn kmeans_impl(
             labels[i] = best_k;
         }
 
-        // â”€â”€ Update step â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Update step ────────────────────────────────────────────────────
         means.iter_mut().for_each(|value| *value = 0.0);
         counts.iter_mut().for_each(|value| *value = 0.0);
         anchors.iter_mut().for_each(|anchor| *anchor = None);
@@ -413,13 +413,13 @@ fn kmeans_impl(
             // Empty clusters retain their previous centroid position.
         }
 
-        // â”€â”€ Convergence check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Convergence check ──────────────────────────────────────────────
         if max_shift < tolerance {
             break;
         }
     }
 
-    // â”€â”€ Final assignment (in case we broke before the last assignment) â”€â”€â”€â”€â”€â”€
+    // ── Final assignment (in case we broke before the last assignment) ──────
     for i in 0..n {
         let val = data[i];
         let mut best_k = 0usize;
@@ -462,7 +462,7 @@ fn validate_samples(samples: &[f32]) -> anyhow::Result<()> {
     Ok(())
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_kmeans.rs"]

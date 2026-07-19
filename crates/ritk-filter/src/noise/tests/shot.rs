@@ -3,7 +3,7 @@ use coeus_core::SequentialBackend;
 use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
-/// Very large scale approximates identity (Poisson â†’ Gaussian at large Î»).
+/// Very large scale approximates identity (Poisson → Gaussian at large λ).
 #[test]
 fn shot_large_scale_near_identity() {
     let data: Vec<f32> = (0..27).map(|i| (i + 1) as f32 * 10.0).collect();

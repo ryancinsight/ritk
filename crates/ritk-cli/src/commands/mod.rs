@@ -20,7 +20,7 @@ use ritk_io::{is_rgb_dicom_series, ImageFormat};
 use ritk_io::{ImageReader, ImageWriter};
 use std::path::Path;
 
-// â”€â”€ Shared backend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Shared backend ────────────────────────────────────────────────────────────
 
 /// CPU backend used by every CLI command.
 ///
@@ -28,16 +28,16 @@ use std::path::Path;
 /// which is appropriate for a CLI tool that must run on any host.
 pub(crate) type Backend = SequentialBackend;
 
-// â”€â”€ Format inference â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Format inference ──────────────────────────────────────────────────────────
 
 /// Infer the image format from a file-system path.
 ///
-/// Delegates to [`ritk_io::ImageFormat::from_path`] as the SSOT for extensionâ†’format mapping.
+/// Delegates to [`ritk_io::ImageFormat::from_path`] as the SSOT for extension→format mapping.
 pub(crate) fn infer_format(path: &Path) -> Option<ImageFormat> {
     ImageFormat::from_path(path)
 }
 
-// â”€â”€ Read helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Read helper ───────────────────────────────────────────────────────────────
 
 /// Read a 3-D medical image from `path`, inferring the format from the
 /// file extension.
@@ -110,7 +110,7 @@ pub(crate) fn read_image(path: &Path) -> Result<Image<f32, Backend, 3>> {
     }
 }
 
-// â”€â”€ Write helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Write helpers ─────────────────────────────────────────────────────────────
 
 /// Write `image` to `path` using the explicitly supplied `format`.
 ///
@@ -176,7 +176,7 @@ pub(crate) fn write_image_inferred(path: &Path, image: &Image<f32, Backend, 3>) 
     write_image(path, image, fmt)
 }
 
-// â”€â”€ Capability helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Capability helpers ────────────────────────────────────────────────────────────
 
 /// True when `fmt` has an Atlas-native reader (ADR 0003 Phase A coverage).
 pub(crate) fn is_read_capable(fmt: ImageFormat) -> bool {
@@ -212,7 +212,7 @@ pub(crate) fn is_write_capable(fmt: ImageFormat) -> bool {
     )
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {

@@ -29,7 +29,7 @@ impl SnapApp {
             .clamp(0.0, smax) as usize
     }
 
-    // â”€â”€ Slice navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Slice navigation ──────────────────────────────────────────────────────
 
     /// Return `(current_slice_index, total_slices)` for `axis`.
     pub(crate) fn axis_slice_info(&self, axis: usize) -> (usize, usize) {

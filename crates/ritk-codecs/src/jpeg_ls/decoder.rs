@@ -5,7 +5,7 @@ use super::scan::{decode_scan, Predictor, ScanParams};
 use crate::dimensions::checked_pixel_count;
 use anyhow::{bail, Context, Result};
 
-/// Interleave mode from the SOS header (JPEG-LS standard Â§C.1.3).
+/// Interleave mode from the SOS header (JPEG-LS standard §C.1.3).
 ///
 /// Single-component DICOM frames require `None` (0). Multi-component
 /// encodings use `LineInterleaved` or `SampleInterleaved` but are not
@@ -137,7 +137,7 @@ mod tests {
 
     #[test]
     fn decode_fragment_rejects_oversized_dimensions_without_oom() {
-        // A hostile SOF55 can declare 65535Ã—65535 â‰ˆ 4.29e9 pixels. The guard must
+        // A hostile SOF55 can declare 65535×65535 ≈ 4.29e9 pixels. The guard must
         // reject it with a typed error rather than allocating a ~17 GiB buffer and
         // looping billions of times over an empty scan.
         let mut decoder = JpegLsDecoder::new();

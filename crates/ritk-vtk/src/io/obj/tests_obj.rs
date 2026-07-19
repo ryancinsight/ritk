@@ -4,7 +4,7 @@ use crate::io::obj::reader::parse_obj;
 use crate::io::obj::writer::write_obj_to_writer;
 use tempfile::NamedTempFile;
 
-// â”€â”€ Test fixtures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test fixtures ─────────────────────────────────────────────────────────────
 
 /// Regular tetrahedron with shared vertex topology.
 ///
@@ -35,7 +35,7 @@ fn triangle_with_normals() -> VtkPolyData {
         polygons: vec![vec![0, 1, 2]],
         ..Default::default()
     };
-    // Unit normals pointing in distinct axis directions â€” analytically exact.
+    // Unit normals pointing in distinct axis directions — analytically exact.
     mesh.point_data.insert(
         "Normals".to_string(),
         AttributeArray::Normals {
@@ -45,7 +45,7 @@ fn triangle_with_normals() -> VtkPolyData {
     mesh
 }
 
-// â”€â”€ Round-trip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Round-trip ────────────────────────────────────────────────────────────────
 
 #[test]
 fn test_obj_roundtrip_coordinates() {
@@ -79,7 +79,7 @@ fn test_obj_roundtrip_coordinates() {
     }
 }
 
-// â”€â”€ Normals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Normals ───────────────────────────────────────────────────────────────────
 
 #[test]
 fn test_obj_normals_roundtrip() {
@@ -108,7 +108,7 @@ fn test_obj_normals_roundtrip() {
     }
 }
 
-// â”€â”€ Empty mesh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Empty mesh ────────────────────────────────────────────────────────────────
 
 #[test]
 fn test_obj_empty_roundtrip() {
@@ -121,11 +121,11 @@ fn test_obj_empty_roundtrip() {
     assert!(loaded.point_data.is_empty());
 }
 
-// â”€â”€ Negative / boundary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Negative / boundary ───────────────────────────────────────────────────────
 
 #[test]
 fn test_obj_malformed_vertex_too_few_coords() {
-    // Two coordinates instead of three â†’ parse_vec3 must fail.
+    // Two coordinates instead of three → parse_vec3 must fail.
     let src = b"v 1.0 2.0\n" as &[u8];
     let result = parse_obj(src);
     assert!(

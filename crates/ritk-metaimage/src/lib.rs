@@ -17,12 +17,12 @@
 //!
 //! # File Formats
 //!
-//! - `.mha` â€” single file with header and inline binary data (`ElementDataFile = LOCAL`)
-//! - `.mhd` / `.raw` â€” ASCII header referencing a separate binary raw file
+//! - `.mha` — single file with header and inline binary data (`ElementDataFile = LOCAL`)
+//! - `.mhd` / `.raw` — ASCII header referencing a separate binary raw file
 //!
 //! # Spatial Metadata
 //!
-//! TransformMatrix encodes the 3Ã—3 direction matrix (row-major) in MetaImage
+//! TransformMatrix encodes the 3×3 direction matrix (row-major) in MetaImage
 //! `[X,Y,Z]` file-axis order. The reader/writer convert spacing and direction
 //! columns to and from RITK internal `[Z,Y,X]` image-axis order.
 

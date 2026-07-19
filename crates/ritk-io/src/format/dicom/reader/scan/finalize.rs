@@ -227,7 +227,7 @@ pub(super) fn finalize_scanned_series(
     }
 
     // SOP class policy: remove non-image-bearing instances.
-    // Files without a readable SOP class UID are retained (ambiguous â†’ permissive).
+    // Files without a readable SOP class UID are retained (ambiguous → permissive).
     let original_count = slices.len();
     let mut rejected_uids: Vec<String> = Vec::new();
     slices.retain(|s| match s.sop_class_uid.as_deref() {
@@ -259,7 +259,7 @@ pub(super) fn finalize_scanned_series(
         );
     }
 
-    // â”€â”€ Geometry pipeline â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Geometry pipeline ──────────────────────────────────────────────
 
     let maybe_normal = compute_slice_normal(&slices);
     sort_slices_spatially(&mut slices, maybe_normal, sort_tiebreaker);

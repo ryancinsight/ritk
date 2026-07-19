@@ -8,7 +8,7 @@ use crate::MincDimension;
 use anyhow::{bail, Context, Result};
 use consus_core::AttributeValue;
 
-// â”€â”€ Scalar extractors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Scalar extractors ────────────────────────────────────────────────────────
 
 /// Extract a scalar `f64` from an `AttributeValue`.
 pub fn extract_scalar_float(val: &AttributeValue) -> Result<f64> {
@@ -58,12 +58,12 @@ pub fn extract_string(val: &AttributeValue) -> Result<String> {
     }
 }
 
-// â”€â”€ Dimorder parsing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Dimorder parsing ─────────────────────────────────────────────────────────
 
 /// Extract the `dimorder` attribute from image dataset attributes.
 ///
 /// Returns a vector of dimension names in dataset axis order.
-/// Example: `"zspace,yspace,xspace"` â†’ `["zspace", "yspace", "xspace"]`.
+/// Example: `"zspace,yspace,xspace"` → `["zspace", "yspace", "xspace"]`.
 ///
 /// If `dimorder` is absent, returns the default `["zspace", "yspace", "xspace"]`.
 pub fn extract_dimorder(attrs: &[consus_hdf5::attribute::Hdf5Attribute]) -> Result<Vec<String>> {
@@ -92,7 +92,7 @@ pub fn extract_dimorder(attrs: &[consus_hdf5::attribute::Hdf5Attribute]) -> Resu
     ])
 }
 
-// â”€â”€ Dimension attribute parsing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Dimension attribute parsing ──────────────────────────────────────────────
 
 /// Parse dimension attributes into a `MincDimension`.
 ///

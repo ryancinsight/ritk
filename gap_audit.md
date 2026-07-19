@@ -16,8 +16,14 @@ configured iso-value or image sample. NaN reaches
 classification and crossing interpolation undefined. Both provider entry
 points duplicate this exposure. The correct owner-local contract is to reject
 non-finite values once through a shared validator before crossing extraction.
-Initial evidence tier: source audit; implementation and value-semantic negative
-verification remain in progress.
+Both entry points now call one finite-input validator before crossing
+extraction, and the fixed-size crossing-distance sort uses `f64::total_cmp`.
+Exact negative regressions cover an infinite configured level and a NaN image
+sample through both provider paths. Evidence tier: type/API error propagation
+plus value-semantic tests pending execution. Local compilation is temporarily
+graph-blocked because peer-owned Hermes WIP exposes `hermes-simd 0.4.0` while
+the clean Coeus checkout requires `^0.3.0`; re-open trigger: the sibling
+provider versions reconcile.
 
 ## SAFE-662-01 audit (2026-07-18)
 

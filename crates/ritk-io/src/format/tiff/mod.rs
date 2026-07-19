@@ -4,7 +4,7 @@ pub use ritk_tiff::{read_tiff_color_to_volume, TiffColorReader};
 ///
 /// Transitional module: names inside are the plain end-state names; the
 /// module itself disambiguates from the Burn types during coexistence and
-/// folds away when the Burn path is deleted (ADR 0002).
+/// folds away when the Coeus path is deleted (ADR 0002).
 pub mod native {
     use crate::domain::{to_io_err, ImageReader, ImageWriter};
     use coeus_core::{ComputeBackend, CpuAddressableStorage};
@@ -59,7 +59,7 @@ pub mod native {
         use tempfile::tempdir;
 
         /// Trait-dispatched round trip: write through `ImageWriter`, read back
-        /// through `ImageReader`, exact voxel + shape parity â€” the unified
+        /// through `ImageReader`, exact voxel + shape parity — the unified
         /// contract is usable end-to-end on the Atlas substrate.
         #[test]
         fn native_contract_round_trips_tiff() {

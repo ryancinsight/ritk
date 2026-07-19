@@ -18,7 +18,7 @@ pub enum RtRoiInterpretedType {
     Organ,
     /// External body contour.
     External,
-    /// Control region (doseâ€“volume objectives).
+    /// Control region (dose–volume objectives).
     Control,
     /// Bolus material placed on the patient.
     Bolus,
@@ -36,7 +36,7 @@ pub enum RtRoiInterpretedType {
     Isocenter,
     /// Brachytherapy channel.
     BrachyChannel,
-    /// Unrecognized type â€” preserves the original DICOM string.
+    /// Unrecognized type — preserves the original DICOM string.
     Other(arrayvec::ArrayString<16>),
 }
 
@@ -122,12 +122,12 @@ impl ContourGeometricType {
 ///
 /// # Mathematical specification
 ///
-/// A contour is a sequence of N â‰¥ 1 points in patient coordinate space (mm):
+/// A contour is a sequence of N ≥ 1 points in patient coordinate space (mm):
 /// - `CLOSED_PLANAR`: N points lie on one plane; the polygon is implicitly closed.
-/// - `OPEN_PLANAR`:   N â‰¥ 2 points on one plane; the polyline is open.
+/// - `OPEN_PLANAR`:   N ≥ 2 points on one plane; the polyline is open.
 /// - `POINT`:         N = 1 control point.
 ///
-/// Encoding: `Xâ‚€\Yâ‚€\Zâ‚€\Xâ‚\Yâ‚\Zâ‚\â€¦\X_{N-1}\Y_{N-1}\Z_{N-1}`
+/// Encoding: `X₀\Y₀\Z₀\X₁\Y₁\Z₁\…\X_{N-1}\Y_{N-1}\Z_{N-1}`
 #[derive(Debug, Clone)]
 pub struct RtContour {
     /// Geometric type of this contour.
@@ -158,7 +158,7 @@ pub struct RtRoiInfo {
 pub struct RtStructureSet {
     /// Structure Set Label `(3006,0002)`.
     pub structure_set_label: String,
-    /// Structure Set Name `(3006,0004)` â€” optional.
+    /// Structure Set Name `(3006,0004)` — optional.
     pub structure_set_name: Option<String>,
     /// ROIs sorted ascending by `roi_number`.
     pub rois: Vec<RtRoiInfo>,

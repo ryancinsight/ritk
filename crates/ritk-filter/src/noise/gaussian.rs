@@ -15,15 +15,15 @@ use ritk_tensor_ops::{extract_vec, rebuild};
 /// Adds independent Gaussian noise to every voxel:
 ///
 /// ```text
-/// I'(x) = I(x) + N(Î¼, Ïƒ)
+/// I'(x) = I(x) + N(μ, σ)
 /// ```
 ///
-/// where `N(Î¼, Ïƒ)` is a normally-distributed random variable with mean `Î¼`
-/// and standard deviation `Ïƒ`.
+/// where `N(μ, σ)` is a normally-distributed random variable with mean `μ`
+/// and standard deviation `σ`.
 ///
 /// The variates come from an exact port of `itk::Statistics::NormalVariateGenerator`
 /// (FastNorm), so the output is bit-identical to `sitk.AdditiveGaussianNoise`
-/// run single-threaded (whole image = one region, `seed = userSeedÂ·2654435761`,
+/// run single-threaded (whole image = one region, `seed = userSeed·2654435761`,
 /// scanline order).
 ///
 /// # Complexity

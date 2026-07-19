@@ -7,8 +7,8 @@
 //! | Length           | YELLOW         | 1.5 px     |
 //! | Angle            | YELLOW         | 1.5 px     |
 //! | ROI (rect)       | GREEN          | 1.5 px     |
-//! | HU point         | CYAN           | â€”          |
-//! | Labels           | WHITE          | â€”          |
+//! | HU point         | CYAN           | —          |
+//! | Labels           | WHITE          | —          |
 //!
 //! All screen positions are computed by the caller-supplied `img_to_screen`
 //! closure, which maps image-pixel coordinates (col, row as f32) to screen
@@ -22,7 +22,7 @@ use egui::{Color32, FontId, Painter, Pos2, Rect, Stroke, Vec2};
 use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::ui::live_preview::{live_angle_deg, live_length_mm};
 
-// â”€â”€ colour / style constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── colour / style constants ──────────────────────────────────────────────────
 
 const COLOR_MEASURE: Color32 = Color32::YELLOW;
 const COLOR_ROI: Color32 = Color32::GREEN;
@@ -36,7 +36,7 @@ fn label_font() -> FontId {
     FontId::proportional(FONT_SIZE)
 }
 
-// â”€â”€ MeasurementLayer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── MeasurementLayer ──────────────────────────────────────────────────────────
 
 /// Stateless annotation rendering helpers.
 ///
@@ -166,7 +166,7 @@ impl MeasurementLayer {
                 }
             }
             ToolState::MeasureAngle2 { p1, p2 } => {
-                // Two anchor handles, p1â†’p2 line, rubber-band p2â†’cursor with live angle.
+                // Two anchor handles, p1→p2 line, rubber-band p2→cursor with live angle.
                 let sp1 = img_to_screen(*p1);
                 let sp2 = img_to_screen(*p2);
                 painter.circle_filled(sp1, HANDLE_RADIUS, COLOR_MEASURE);
@@ -177,7 +177,7 @@ impl MeasurementLayer {
                     // Live angle label at the vertex (p2), offset 12 px up-right.
                     if let Some(cimg) = cursor_img {
                         let deg = live_angle_deg([p1.y, p1.x], [p2.y, p2.x], [cimg.y, cimg.x]);
-                        let label = format!("{:.1}Â°", deg);
+                        let label = format!("{:.1}°", deg);
                         painter.text(
                             sp2 + Vec2::new(8.0, -12.0),
                             egui::Align2::LEFT_CENTER,
@@ -222,7 +222,7 @@ impl MeasurementLayer {
     }
 }
 
-// â”€â”€ private drawing functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── private drawing functions ─────────────────────────────────────────────────
 
 /// Draw a length measurement annotation: a line with endpoint handles and
 /// a label showing the distance in mm.
@@ -275,7 +275,7 @@ fn draw_angle_annotation(painter: &Painter, p1: Pos2, p2: Pos2, p3: Pos2, angle_
         Vec2::new(-d1.y, d1.x)
     };
     let label_pos = p2 + bisector * 22.0;
-    let label = format!("{:.1}Â°", angle_deg);
+    let label = format!("{:.1}°", angle_deg);
     painter.text(
         label_pos,
         egui::Align2::CENTER_CENTER,
@@ -287,7 +287,7 @@ fn draw_angle_annotation(painter: &Painter, p1: Pos2, p2: Pos2, p3: Pos2, angle_
 
 /// Draw a rectangular ROI annotation with a statistics label.
 ///
-/// The rectangle is drawn with [`COLOR_ROI`]. The label shows mean Â± std.
+/// The rectangle is drawn with [`COLOR_ROI`]. The label shows mean ± std.
 ///
 /// # Label placement
 /// The label is placed immediately below the bottom edge of the rectangle.
@@ -302,7 +302,7 @@ fn draw_roi_rect_annotation(painter: &Painter, tl: Pos2, br: Pos2, mean: f32, st
         painter.circle_filled(*corner, HANDLE_RADIUS, COLOR_ROI);
     }
     // Label below the bottom edge.
-    let label = format!("Î¼={:.1} Ïƒ={:.1}", mean, std);
+    let label = format!("μ={:.1} σ={:.1}", mean, std);
     let label_pos = Pos2::new(rect.center().x, br.y + 12.0);
     painter.text(
         label_pos,
@@ -340,13 +340,13 @@ fn draw_hu_point(painter: &Painter, pos: Pos2, value: f32) {
 
 /// Draw an ellipse ROI annotation with a statistics label.
 ///
-/// The ellipse is drawn with [`COLOR_ROI`]. The label shows `Î¼ Â± Ïƒ`.
+/// The ellipse is drawn with [`COLOR_ROI`]. The label shows `μ ± σ`.
 ///
 /// # Parameters
-/// - `center` â€” ellipse centre in screen coordinates.
-/// - `radius_x` â€” horizontal screen-space radius (col direction).
-/// - `radius_y` â€” vertical screen-space radius (row direction).
-/// - `mean`, `std` â€” statistics to render in the label.
+/// - `center` — ellipse centre in screen coordinates.
+/// - `radius_x` — horizontal screen-space radius (col direction).
+/// - `radius_y` — vertical screen-space radius (row direction).
+/// - `mean`, `std` — statistics to render in the label.
 ///
 /// # Label placement
 /// The label is placed immediately below the bottom of the ellipse.
@@ -374,7 +374,7 @@ fn draw_roi_ellipse_annotation(
         painter.circle_filled(*handle, HANDLE_RADIUS, COLOR_ROI);
     }
     // Label below the bottom of the ellipse.
-    let label = format!("Î¼={:.1} Ïƒ={:.1}", mean, std);
+    let label = format!("μ={:.1} σ={:.1}", mean, std);
     let label_pos = Pos2::new(center.x, center.y + radius_y + 12.0);
     painter.text(
         label_pos,
@@ -385,12 +385,12 @@ fn draw_roi_ellipse_annotation(
     );
 }
 
-// â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── helpers ───────────────────────────────────────────────────────────────────
 
 /// Compute a perpendicular offset vector of length `distance` from the line
-/// `p1 â†’ p2`.
+/// `p1 → p2`.
 ///
-/// The perpendicular is rotated 90Â° counter-clockwise from the line direction.
+/// The perpendicular is rotated 90° counter-clockwise from the line direction.
 /// When `p1 == p2` (degenerate line), returns a straight-up offset `(0, -d)`.
 fn perpendicular_offset(p1: Pos2, p2: Pos2, distance: f32) -> Vec2 {
     let d = p2 - p1;
@@ -398,7 +398,7 @@ fn perpendicular_offset(p1: Pos2, p2: Pos2, distance: f32) -> Vec2 {
     if len < 1e-4 {
         return Vec2::new(0.0, -distance);
     }
-    // 90Â° CCW rotation: (dx, dy) â†’ (-dy, dx)
+    // 90° CCW rotation: (dx, dy) → (-dy, dx)
     Vec2::new(-d.y / len, d.x / len) * distance
 }
 

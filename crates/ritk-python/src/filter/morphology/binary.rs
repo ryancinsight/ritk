@@ -11,7 +11,7 @@ use std::sync::Arc;
 /// Thin a binary image to its 1-pixel-wide skeleton, matching
 /// `SimpleITK.BinaryThinning` (2-D Gonzalez & Woods thinning).
 ///
-/// Input is binarized (`â‰  0 â†’ 1`) and iteratively thinned per `z`-plane until
+/// Input is binarized (`≠ 0 → 1`) and iteratively thinned per `z`-plane until
 /// stable. Output is binary (`1.0` skeleton, `0.0` background). 2-D filter:
 /// apply to a `z = 1` image (each plane is thinned independently otherwise).
 ///
@@ -51,9 +51,9 @@ pub fn binary_pruning(py: Python<'_>, image: &PyImage, iteration: usize) -> PyIm
 /// Erode an object's surface with a box structuring element, matching
 /// `SimpleITK.ErodeObjectMorphology` (box kernel).
 ///
-/// Object voxels (== `object_value`) on the object boundary â€” having any 3Ã—3Ã—3
+/// Object voxels (== `object_value`) on the object boundary — having any 3×3×3
 /// neighbour that is not the object value, with out-of-image neighbours treated
-/// as non-object â€” paint their `(2r+1)Â³` box footprint with `background_value`.
+/// as non-object — paint their `(2r+1)³` box footprint with `background_value`.
 /// Unlike grayscale erosion, this erodes objects that touch the image border.
 ///
 /// Args:
@@ -107,8 +107,8 @@ pub fn hit_or_miss(
 }
 
 /// One voting (cellular-automaton) step on a binary image: a background voxel
-/// becomes foreground if â‰¥ `birth_threshold` of its `(2Â·radius+1)Â³` neighbours
-/// are foreground; a foreground voxel survives if â‰¥ `survival_threshold` are.
+/// becomes foreground if ≥ `birth_threshold` of its `(2·radius+1)³` neighbours
+/// are foreground; a foreground voxel survives if ≥ `survival_threshold` are.
 /// ITK Parity: VotingBinaryImageFilter (`sitk.VotingBinary`).
 #[pyfunction]
 #[pyo3(signature = (image, radius = 1, birth_threshold = 1, survival_threshold = 1, foreground_value = 1.0, background_value = 0.0))]
@@ -138,7 +138,7 @@ pub fn voting_binary(
 }
 
 /// Fill background holes by majority vote: a background voxel becomes foreground
-/// when â‰¥ `(Wâˆ’1)/2 + majority_threshold` of its `(2Â·radius+1)Â³` neighbours
+/// when ≥ `(W−1)/2 + majority_threshold` of its `(2·radius+1)³` neighbours
 /// (clamp boundary, `W` = full window) are foreground; foreground always
 /// survives. ITK Parity: VotingBinaryHoleFillingImageFilter (`sitk.VotingBinaryHoleFilling`).
 #[pyfunction]

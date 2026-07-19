@@ -49,7 +49,7 @@ impl RescaleIntensityFilter {
     ///
     /// Runs the identical global-min/max affine remap via the shared
     /// `rescale_vec` host core on the image's contiguous host buffer, so the
-    /// result is bitwise-identical to the Burn path. No Burn tensor is
+    /// result is bitwise-identical to the Coeus path. No Burn tensor is
     /// constructed. Spatial metadata (origin, spacing, direction) is preserved.
     ///
     /// # Errors
@@ -81,7 +81,7 @@ pub(crate) fn rescale_vec(vals: &[f32], out_min: f32, out_max: f32) -> Vec<f32> 
 
     // Fused parallel min/max reduction (one pass over the data instead of
     // two sequential folds). NaN compares `false` in `min`/`max`, leaving
-    // the running extremum unchanged â€” matching the prior `f32::min`/`max`.
+    // the running extremum unchanged — matching the prior `f32::min`/`max`.
     let (i_min, i_max) = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
         n,
         || (f32::INFINITY, f32::NEG_INFINITY),

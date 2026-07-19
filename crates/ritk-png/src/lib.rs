@@ -290,7 +290,7 @@ mod tests {
     }
 
     #[test]
-    fn native_read_png_matches_burn_single_and_series() -> anyhow::Result<()> {
+    fn native_read_png_matches_coeus_single_and_series() -> anyhow::Result<()> {
         use coeus_core::SequentialBackend;
 
         let dir = tempdir()?;

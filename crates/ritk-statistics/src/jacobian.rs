@@ -2,8 +2,8 @@
 //!
 //! # Mathematical Specification
 //!
-//! Given a displacement field **u**(x) = (uâ‚€, uâ‚, uâ‚‚) at each voxel x, the
-//! deformation Ï†(x) = x + **u**(x).  The Jacobian matrix of Ï† at x is:
+//! Given a displacement field **u**(x) = (u₀, u₁, u₂) at each voxel x, the
+//! deformation φ(x) = x + **u**(x).  The Jacobian matrix of φ at x is:
 //!
 //!   J(x) = I + ∇**u**(x)
 //!
@@ -204,7 +204,7 @@ fn det3(m: [f32; 9]) -> f32 {
 ///   each of shape [nz, ny, nx] with the same physical spacing.
 ///
 /// # Returns
-/// `Image<f32, B, 3>` of shape [nz, ny, nx] where each voxel holds det(J(Ï†)).
+/// `Image<f32, B, 3>` of shape [nz, ny, nx] where each voxel holds det(J(φ)).
 ///
 /// # Errors
 /// Returns `Err` when the three displacement components differ in shape or when

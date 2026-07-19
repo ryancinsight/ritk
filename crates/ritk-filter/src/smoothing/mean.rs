@@ -7,7 +7,7 @@
 //! neighbourhood of half-width `radius`:
 //!
 //! ```text
-//! M(iz, iy, ix) = (1 / |N|) Â· Î£_{(kz,ky,kx)âˆˆN(iz,iy,ix)} I(kz, ky, kx)
+//! M(iz, iy, ix) = (1 / |N|) · Σ_{(kz,ky,kx)∈N(iz,iy,ix)} I(kz, ky, kx)
 //! ```
 //!
 //! where `N(p)` is the set of voxels within `radius` steps in each axis
@@ -16,26 +16,26 @@
 //! # Neighbourhood cardinality
 //!
 //! ```text
-//! |N| = (min(iz, r)âˆ’max(izâˆ’r, 0) + ... = (wz)(wy)(wx)
+//! |N| = (min(iz, r)−max(iz−r, 0) + ... = (wz)(wy)(wx)
 //! ```
-//! where `wz = min(iz+r, Nz-1) âˆ’ max(izâˆ’r, 0) + 1`, etc. This accounts for
+//! where `wz = min(iz+r, Nz-1) − max(iz−r, 0) + 1`, etc. This accounts for
 //! boundary voxels that have fewer neighbours.
 //!
 //! # ITK parity
 //!
 //! Corresponds to `itk::MeanImageFilter<InputImageType, OutputImageType>`.
-//! ITK default radius = 1 (3Ã—3Ã—3 kernel). `radius = 0` is the identity.
+//! ITK default radius = 1 (3×3×3 kernel). `radius = 0` is the identity.
 //!
 //! # Complexity
 //!
-//! O(N Â· (2r+1)Â³) â€” a separable integral-image approach would be O(N) per
-//! radius, but (2r+1)Â³ â‰¤ 125 for default `r=1`, so the direct approach
+//! O(N · (2r+1)³) — a separable integral-image approach would be O(N) per
+//! radius, but (2r+1)³ ≤ 125 for default `r=1`, so the direct approach
 //! matches expected workload. Fanned out over the flat voxel index (moirai).
 //!
 //! # Reference
 //!
 //! - Gonzalez, R.C. & Woods, R.E. (2008). *Digital Image Processing*, 3rd ed.
-//!   Â§3.5.1 Smoothing Linear Filters.
+//!   §3.5.1 Smoothing Linear Filters.
 
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
@@ -44,7 +44,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 /// Mean (box) smoothing filter.
 ///
 /// Replaces each voxel with the arithmetic mean of its
-/// `(2Â·radius+1)Â³` cubic neighbourhood.
+/// `(2·radius+1)³` cubic neighbourhood.
 /// `radius = 0` is the identity transform.
 #[derive(Debug, Clone)]
 pub struct MeanImageFilter {
@@ -107,7 +107,7 @@ impl MeanImageFilter {
         }
 
         // Boundary: ITK MeanImageFilter uses a ZeroFluxNeumann (edge-replicate)
-        // neighbourhood â€” the window is always the full (2r+1)Â³ samples with
+        // neighbourhood — the window is always the full (2r+1)³ samples with
         // out-of-bounds positions clamped to the nearest edge, and the average
         // divides by the full count. (A shrinking window with a smaller divisor
         // gives different boundary values; the interior is unaffected.)
@@ -141,7 +141,7 @@ impl MeanImageFilter {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_mean.rs"]

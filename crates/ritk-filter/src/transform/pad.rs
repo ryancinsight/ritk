@@ -14,13 +14,13 @@
 //!
 //! ## ConstantPadImageFilter
 //! Padded voxels are filled with a fixed constant `c`.
-//! - `out(iz,iy,ix) = I(izâˆ’lz, iyâˆ’ly, ixâˆ’lx)` for interior voxels.
+//! - `out(iz,iy,ix) = I(iz−lz, iy−ly, ix−lx)` for interior voxels.
 //! - `out(iz,iy,ix) = c` otherwise.
 //!
 //! ## MirrorPadImageFilter
 //! Padded voxels are filled by reflecting the image about its boundaries.
-//! - `reflect(k, N) = |2Â·N âˆ’ 2 âˆ’ (k mod 2(Nâˆ’1))| mod (2(Nâˆ’1))`
-//!   (period-`2(Nâˆ’1)` symmetric extension, matching ITK MirrorPadImageFilter).
+//! - `reflect(k, N) = |2·N − 2 − (k mod 2(N−1))| mod (2(N−1))`
+//!   (period-`2(N−1)` symmetric extension, matching ITK MirrorPadImageFilter).
 //!   For `N=1`, reflected index = 0 always.
 //!
 //! ## WrapPadImageFilter
@@ -34,18 +34,18 @@
 //! - `itk::WrapPadImageFilter`: periodic extension.
 //!
 //! Origin is updated so the physical position of voxel `(0,0,0)` of the output
-//! corresponds to the physical position of voxel `(âˆ’lz, âˆ’ly, âˆ’lx)` of the input.
+//! corresponds to the physical position of voxel `(−lz, −ly, −lx)` of the input.
 //!
 //! # Reference
 //!
-//! - ITK Software Guide, 2nd ed., Â§6.2 Padding.
+//! - ITK Software Guide, 2nd ed., §6.2 Padding.
 
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_origin};
 
-// â”€â”€ Padding newtype â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Padding newtype ─────────────────────────────────────────────────────────
 
 /// Per-axis padding extents for a 3-D volume: `[pad_z, pad_y, pad_x]`.
 ///
@@ -96,7 +96,7 @@ impl AsRef<[usize; 3]> for Padding {
     }
 }
 
-// â”€â”€ Shared â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Shared ───────────────────────────────────────────────────────────────────
 
 fn updated_origin(
     origin: &Point<3>,
@@ -112,7 +112,7 @@ fn updated_origin(
     }))
 }
 
-// â”€â”€ ConstantPadImageFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── ConstantPadImageFilter ────────────────────────────────────────────────────
 
 /// Constant-value padding filter.
 ///
@@ -227,7 +227,7 @@ impl ConstantPadImageFilter {
     }
 }
 
-// â”€â”€ MirrorPadImageFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── MirrorPadImageFilter ──────────────────────────────────────────────────────
 
 /// Mirror (reflective) padding filter.
 ///
@@ -329,7 +329,7 @@ impl MirrorPadImageFilter {
     }
 }
 
-// â”€â”€ WrapPadImageFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── WrapPadImageFilter ────────────────────────────────────────────────────────
 
 /// Wrap (periodic) padding filter.
 ///
@@ -451,11 +451,11 @@ where
     )
 }
 
-// â”€â”€ ZeroFluxNeumannPadImageFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── ZeroFluxNeumannPadImageFilter ─────────────────────────────────────────────
 
 /// Zero-flux Neumann (edge-replicate / clamp) padding filter.
 ///
-/// Extends the image by repeating the nearest edge voxel â€” out-of-bounds index
+/// Extends the image by repeating the nearest edge voxel — out-of-bounds index
 /// `i` along an axis of length `n` reads `clamp(i, 0, n-1)`. Matches ITK
 /// `ZeroFluxNeumannPadImageFilter` (`sitk.ZeroFluxNeumannPad`).
 #[derive(Debug, Clone)]
@@ -569,7 +569,7 @@ impl ZeroFluxNeumannPadImageFilter {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_pad.rs"]

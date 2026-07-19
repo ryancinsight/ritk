@@ -2,13 +2,13 @@ use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec_infallible as extract_vec, rebuild};
 
-/// Pixelwise modulo filter â€” `out(x) = in(x) % dividend`.
+/// Pixelwise modulo filter — `out(x) = in(x) % dividend`.
 ///
 /// # Mathematical Specification
 ///
 /// Each (integral-valued) voxel is reduced modulo a positive `dividend` using
 /// C/C++ truncated-toward-zero remainder semantics (matching ITK, which
-/// `static_cast`s through the integer pixel type): `âˆ’7 % 3 = âˆ’1`, `âˆ’8 % 3 = âˆ’2`.
+/// `static_cast`s through the integer pixel type): `−7 % 3 = −1`, `−8 % 3 = −2`.
 /// Rust's `%` on `i64` has the identical truncation rule.
 ///
 /// Like ITK `ModulusImageFilter` / `sitk.Modulus`, this is defined on integer

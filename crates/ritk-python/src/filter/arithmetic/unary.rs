@@ -51,7 +51,7 @@ pub fn binary_not(
     Ok(into_py_image(out))
 }
 
-/// Invert intensities about `maximum`: out(x) = maximum âˆ’ in(x).
+/// Invert intensities about `maximum`: out(x) = maximum − in(x).
 /// ITK Parity: InvertIntensityImageFilter.
 #[pyfunction]
 #[pyo3(signature = (image, maximum = 255.0))]

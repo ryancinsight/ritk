@@ -2,11 +2,11 @@
 //!
 //! Coeus-native reimplementation of the Mamba/S6 selective state space block
 //! (`SelectiveStateSpace`, still Burn-typed for the
-//! registration consumer). Input-dependent parameters `Î”`, `B`, `C` are
+//! registration consumer). Input-dependent parameters `Δ`, `B`, `C` are
 //! projected from the input; the discrete-time linear recurrence
-//! `h_t = Ä€_t âŠ™ h_{t-1} + BÌ„_tÂ·x_t` is evaluated by the differentiable
+//! `h_t = Ä€_t ⊙ h_{t-1} + BÌ„_t·x_t` is evaluated by the differentiable
 //! [`coeus_autograd::selective_scan`] primitive, with the discretization
-//! `Ä€ = exp(Î”Â·A)`, `BÌ„ = Î”Â·B` and the output projection `y_t = (C_t âŠ™ h_t)`
+//! `Ä€ = exp(Δ·A)`, `BÌ„ = Δ·B` and the output projection `y_t = (C_t ⊙ h_t)`
 //! summed over the state axis composing around it from element-wise autograd
 //! ops. Gradients flow to every projection weight, to `A` (via `a_log`), and to
 //! the skip parameter `D`.
@@ -42,7 +42,7 @@ pub struct SelectiveStateSpaceConfig {
     pub state_dim: usize,
     /// Expansion factor for the inner (hidden) dimension.
     pub expand_factor: usize,
-    /// Rank for the low-rank `Î”` parameterization.
+    /// Rank for the low-rank `Δ` parameterization.
     pub dt_rank: usize,
 }
 
@@ -167,12 +167,12 @@ where
         let inner = self.input_dim * self.expand_factor;
 
         // Input projection, split into the SSM branch `x` and the gating
-        // residual (channels `[0, inner)` and `[inner, 2Â·inner)`).
+        // residual (channels `[0, inner)` and `[inner, 2·inner)`).
         let proj = self.in_proj.forward(input);
         let x = slice(&proj, &[(0, batch), (0, seq), (0, inner)]);
         let residual = slice(&proj, &[(0, batch), (0, seq), (inner, inner * 2)]);
 
-        // Input-dependent Î”: low-rank projection then softplus (Î” > 0).
+        // Input-dependent Δ: low-rank projection then softplus (Δ > 0).
         let dt = softplus(&self.dt_proj.forward(&self.dt_in_proj.forward(&x)));
         let b = self.b_proj.forward(&x); // [batch, seq, state]
         let c = self.c_proj.forward(&x); // [batch, seq, state]
@@ -184,21 +184,21 @@ where
         // [batch, seq, inner, state] so `selective_scan` sees matched shapes.
         let dt_exp = unsqueeze(&dt, 3); // [batch, seq, inner, 1]
         let a_exp = unsqueeze(&unsqueeze(&a, 0), 0); // [1, 1, inner, state]
-        let a_bar = exp(&mul(&dt_exp, &a_exp)); // Ä€ = exp(Î”Â·A)
+        let a_bar = exp(&mul(&dt_exp, &a_exp)); // Ä€ = exp(Δ·A)
 
         let b_exp = unsqueeze(&b, 2); // [batch, seq, 1, state]
-        let b_bar = mul(&dt_exp, &b_exp); // BÌ„ = Î”Â·B
+        let b_bar = mul(&dt_exp, &b_exp); // BÌ„ = Δ·B
         let x_exp = unsqueeze(&x, 3); // [batch, seq, inner, 1]
-        let u = mul(&b_bar, &x_exp); // U = BÌ„Â·x
+        let u = mul(&b_bar, &x_exp); // U = BÌ„·x
 
-        // h_t = Ä€_t âŠ™ h_{t-1} + U_t along the sequence axis.
+        // h_t = Ä€_t ⊙ h_{t-1} + U_t along the sequence axis.
         let h = selective_scan(&a_bar, &u); // [batch, seq, inner, state]
 
-        // y = (C âŠ™ h).sum(state). `sum_axis` keeps the reduced axis, so drop it.
+        // y = (C ⊙ h).sum(state). `sum_axis` keeps the reduced axis, so drop it.
         let c_exp = unsqueeze(&c, 2); // [batch, seq, 1, state]
         let y = reshape(&sum_axis(&mul(&h, &c_exp), 3), [batch, seq, inner]);
 
-        // Gated skip connection: y âŠ™ Ïƒ(residual) âŠ™ D.
+        // Gated skip connection: y ⊙ σ(residual) ⊙ D.
         let d_exp = unsqueeze(&unsqueeze(&self.d, 0), 0); // [1, 1, inner]
         let gated = mul(&mul(&y, &sigmoid(&residual)), &d_exp);
 
@@ -307,7 +307,7 @@ mod tests {
         Var::new(Tensor::from_slice_on(shape, data, &SequentialBackend), grad)
     }
 
-    /// Reduce `y` against a fixed pseudo-random linear functional `Î£ wáµ¢ yáµ¢`, a
+    /// Reduce `y` against a fixed pseudo-random linear functional `Σ wᵢ yᵢ`, a
     /// well-conditioned oracle (a bare sum is nearly flat in the input because
     /// the projection column sums cancel, so its central difference is
     /// dominated by f32 round-off).
@@ -368,8 +368,8 @@ mod tests {
     }
 
     /// Central-difference gradient check of `d(functional(forward(x)))/dx`
-    /// against autograd. Central differences are `O(hÂ²)`-accurate; the bound
-    /// `tol_factorÂ·(1+|g|)` covers truncation plus f32 rounding. A non-vacuity
+    /// against autograd. Central differences are `O(h²)`-accurate; the bound
+    /// `tol_factor·(1+|g|)` covers truncation plus f32 rounding. A non-vacuity
     /// guard rejects an all-zero probed gradient. `seq = 5` and `state = 3`
     /// give the scan and state axes extent > 1 so the recurrence is exercised.
     fn assert_fd_matches<F>(shape: &[usize], base: &[f32], probes: &[usize], forward: F)
@@ -399,19 +399,19 @@ mod tests {
             let tol = tol_factor * (1.0 + analytic.abs());
             assert!(
                 diff <= tol,
-                "grad mismatch at input[{idx}]: fd={fd}, autograd={analytic}, |Î”|={diff} > {tol}"
+                "grad mismatch at input[{idx}]: fd={fd}, autograd={analytic}, |Δ|={diff} > {tol}"
             );
         }
         assert!(
             max_analytic > 1e-6,
-            "gradient check is vacuous â€” all probed gradients are ~0 ({max_analytic})"
+            "gradient check is vacuous — all probed gradients are ~0 ({max_analytic})"
         );
     }
 
     #[test]
     fn selective_scan_block_gradient_matches_finite_difference() {
         // Exercises the full native forward/backward: input projection,
-        // input-dependent Î”/B/C projections, discretization, the differentiable
+        // input-dependent Δ/B/C projections, discretization, the differentiable
         // selective scan along the length axis, C-projection reduction, the
         // sigmoid-gated skip connection, and the output projection.
         let ssm = small_ssm();

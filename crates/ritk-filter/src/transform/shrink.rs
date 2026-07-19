@@ -3,11 +3,11 @@
 //! Two distinct downsampling operations live here, matching two distinct ITK
 //! filters:
 //!
-//! - [`ShrinkImageFilter`] â€” **subsampling** (ITK `ShrinkImageFilter` /
+//! - [`ShrinkImageFilter`] — **subsampling** (ITK `ShrinkImageFilter` /
 //!   `sitk.Shrink`): keeps one voxel per tile, no averaging, `floor(N/f)` output
 //!   size. The kept voxel is offset `f/2` into each tile and the origin is
 //!   shifted to that tile's centroid.
-//! - [`TileMeanShrinkFilter`] â€” **tile averaging** (anti-aliased display
+//! - [`TileMeanShrinkFilter`] — **tile averaging** (anti-aliased display
 //!   downsample): the arithmetic mean of every voxel in each tile, `ceil(N/f)`
 //!   output size (trailing partial tiles averaged). This is NOT ITK `Shrink`
 //!   (which subsamples); for full-bin averaging with `floor(N/f)` size use
@@ -18,28 +18,28 @@ use ritk_image::Image;
 use ritk_spatial::Spacing;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild_with_metadata};
 
-/// Integer **subsampling** filter â€” ITK `ShrinkImageFilter` / `sitk.Shrink`.
+/// Integer **subsampling** filter — ITK `ShrinkImageFilter` / `sitk.Shrink`.
 ///
 /// # Mathematical Specification
 ///
-/// For input shape `[Nz, Ny, Nx]` and factors `[fz, fy, fx]` (all â‰¥ 1):
+/// For input shape `[Nz, Ny, Nx]` and factors `[fz, fy, fx]` (all ≥ 1):
 ///
 /// ```text
 /// out_shape[d] = floor(N[d] / f[d])
 /// offset[d]    = (N[d] mod f[d] + f[d]) / 2            (integer; centers samples)
-/// out(iz,iy,ix) = I(izÂ·fz + offset_z, iyÂ·fy + offset_y, ixÂ·fx + offset_x)
+/// out(iz,iy,ix) = I(iz·fz + offset_z, iy·fy + offset_y, ix·fx + offset_x)
 /// ```
 ///
 /// ITK centers the retained samples within the full extent, so the per-axis
 /// offset depends on the trailing remainder `N mod f` (it equals `f/2` only when
-/// the axis divides evenly). The output spacing is `in_spacing[d] Â· f[d]`, and
+/// the axis divides evenly). The output spacing is `in_spacing[d] · f[d]`, and
 /// the origin is shifted by the continuous centroid offset
-/// `(N mod f + f âˆ’ 1)/2` voxels: `out_origin = in_origin + Direction Â· (in_spacing Â· shift)`.
+/// `(N mod f + f − 1)/2` voxels: `out_origin = in_origin + Direction · (in_spacing · shift)`.
 ///
 /// No averaging is performed (cf. [`TileMeanShrinkFilter`] / `BinShrink`).
 #[derive(Debug, Clone)]
 pub struct ShrinkImageFilter {
-    /// Subsampling factors per axis `\[fz, fy, fx\]`. All must be â‰¥ 1. Default \[1,1,1\].
+    /// Subsampling factors per axis `\[fz, fy, fx\]`. All must be ≥ 1. Default \[1,1,1\].
     pub shrink_factors: [usize; 3],
 }
 
@@ -91,7 +91,7 @@ impl ShrinkImageFilter {
             in_s[2] * fx as f64,
         ]);
 
-        // Origin shifts by the continuous centroid offset (N mod f + f âˆ’ 1)/2 voxels.
+        // Origin shifts by the continuous centroid offset (N mod f + f − 1)/2 voxels.
         let delta = [
             in_s[0] * ((nz % fz) as f64 + fz as f64 - 1.0) / 2.0,
             in_s[1] * ((ny % fy) as f64 + fy as f64 - 1.0) / 2.0,
@@ -123,13 +123,13 @@ impl ShrinkImageFilter {
 ///
 /// Each output voxel is the arithmetic mean of all input voxels in its tile,
 /// with `ceil(N/f)` output size (trailing partial tiles are averaged over the
-/// voxels that exist). This is NOT ITK `Shrink` (which subsamples â€” see
+/// voxels that exist). This is NOT ITK `Shrink` (which subsamples — see
 /// [`ShrinkImageFilter`]) nor ITK `BinShrink` (which uses `floor(N/f)` full
-/// bins â€” see `BinShrinkImageFilter`); it is a display-oriented anti-alias
-/// downsample. Output spacing is `in_spacing[d] Â· f[d]`; origin is unchanged.
+/// bins — see `BinShrinkImageFilter`); it is a display-oriented anti-alias
+/// downsample. Output spacing is `in_spacing[d] · f[d]`; origin is unchanged.
 #[derive(Debug, Clone)]
 pub struct TileMeanShrinkFilter {
-    /// Downsampling factors per axis `\[fz, fy, fx\]`. All must be â‰¥ 1. Default \[1,1,1\].
+    /// Downsampling factors per axis `\[fz, fy, fx\]`. All must be ≥ 1. Default \[1,1,1\].
     pub shrink_factors: [usize; 3],
 }
 
@@ -220,7 +220,7 @@ impl TileMeanShrinkFilter {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_shrink.rs"]

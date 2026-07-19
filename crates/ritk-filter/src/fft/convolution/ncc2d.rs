@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 /// 3 orders of magnitude above f32 epsilon (~1.2e-7).
 const NCC_DENOM_FLOOR: f32 = 1e-10;
 
-// â”€â”€ FftNormalizedCorrelationFilter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── FftNormalizedCorrelationFilter ────────────────────────────────────────────
 
 /// FFT-based normalized cross-correlation filter for template matching.
 ///
@@ -22,30 +22,30 @@ const NCC_DENOM_FLOOR: f32 = 1e-10;
 ///
 /// # Mathematical specification
 ///
-/// At lag `(r, c)`, with template window `N = trÂ·tc` and `TÌ‚ = T âˆ’ mean(T)`,
+/// At lag `(r, c)`, with template window `N = tr·tc` and `TÌ‚ = T − mean(T)`,
 ///
 /// ```text
-/// num(r,c)    = Î£ I(r+i, c+j) Â· TÌ‚(i, j)                       (= Î£ (Iâˆ’Äªwin)Â·TÌ‚, since Î£TÌ‚ = 0)
-/// Î£ I, Î£ IÂ²   = local window sum / sum-of-squares of I         (box correlation)
-/// energy(r,c) = Î£ IÂ² âˆ’ (Î£ I)Â² / N                             (= Î£ (I âˆ’ Äªwin)Â²)
-/// out(r,c)    = num(r,c) / ( sqrt(energy(r,c)) Â· â€–TÌ‚â€–â‚‚ )
+/// num(r,c)    = Σ I(r+i, c+j) · TÌ‚(i, j)                       (= Σ (I−Īwin)·TÌ‚, since ΣTÌ‚ = 0)
+/// Σ I, Σ I²   = local window sum / sum-of-squares of I         (box correlation)
+/// energy(r,c) = Σ I² − (Σ I)² / N                             (= Σ (I − Īwin)²)
+/// out(r,c)    = num(r,c) / ( sqrt(energy(r,c)) · —–TÌ‚—–₂ )
 /// ```
 ///
-/// The window sums are obtained by correlating `I` and `IÂ²` with a box of ones
+/// The window sums are obtained by correlating `I` and `I²` with a box of ones
 /// of the template's size, all via FFT, so the cost stays `O(N log N)`. Both
 /// `I` and the box are zero-padded, so windows overhanging the image edge use
 /// the in-bounds support (the out-of-range contribution is 0).
 ///
 /// # Output interpretation
 ///
-/// `out[r, c]` is the normalized correlation at lag `(r, c)` in `[âˆ’1, 1]`. For
+/// `out[r, c]` is the normalized correlation at lag `(r, c)` in `[−1, 1]`. For
 /// template matching, locate the position of maximum `out[r, c]`.
 pub struct FftNormalizedCorrelationFilter<B: Backend> {
     /// Mean-centred template values (row-major, placed at origin).
     template_vals: Vec<f32>,
     template_rows: usize,
     template_cols: usize,
-    /// Lâ‚‚ norm of the mean-centred template â€–TÌ‚â€–â‚‚ used in the NCC denominator.
+    /// L₂ norm of the mean-centred template —–TÌ‚—–₂ used in the NCC denominator.
     template_norm: f32,
     _phantom: PhantomData<fn() -> B>,
 }
@@ -53,7 +53,7 @@ pub struct FftNormalizedCorrelationFilter<B: Backend> {
 impl<B: Backend> FftNormalizedCorrelationFilter<B> {
     /// Construct from a 2-D template image.
     ///
-    /// The template is mean-subtracted: `TÌ‚ = T âˆ’ mean(T)`.
+    /// The template is mean-subtracted: `TÌ‚ = T − mean(T)`.
     pub fn new(template: &Image<f32, B, 2>) -> Result<Self> {
         let [tr, tc] = template.shape();
         if tr == 0 || tc == 0 {
@@ -88,7 +88,7 @@ impl<B: Backend> FftNormalizedCorrelationFilter<B> {
         let fft_shape = checked_fft_shape_2d([h, w], [tr, tc], "FftNormalizedCorrelationFilter")?;
         let (pad_r, pad_c, pad_n) = (fft_shape.rows, fft_shape.cols, fft_shape.len);
 
-        // Zero-padded buffers: image I, its square IÂ², the mean-centred template
+        // Zero-padded buffers: image I, its square I², the mean-centred template
         // TÌ‚, and a box of ones (template footprint) for window sums.
         let mut img_buf = vec![Complex::new(0.0_f32, 0.0); pad_n];
         let mut img2_buf = vec![Complex::new(0.0_f32, 0.0); pad_n];
@@ -116,13 +116,13 @@ impl<B: Backend> FftNormalizedCorrelationFilter<B> {
 
         // Three correlations share the image/template/box spectra. Correlation
         // multiplies by the conjugate of the kernel spectrum:
-        // (a + bi)Â·conj(c + di) = (ac + bd) + (bc âˆ’ ad)i.
+        // (a + bi)·conj(c + di) = (ac + bd) + (bc − ad)i.
         let corr = |a: Complex<f32>, b: Complex<f32>| {
             Complex::new(a.re * b.re + a.im * b.im, a.im * b.re - a.re * b.im)
         };
-        let mut num_buf = vec![Complex::new(0.0_f32, 0.0); pad_n]; // Î£ IÂ·TÌ‚
-        let mut sum_buf = vec![Complex::new(0.0_f32, 0.0); pad_n]; // Î£ I (window)
-        let mut sumsq_buf = vec![Complex::new(0.0_f32, 0.0); pad_n]; // Î£ IÂ² (window)
+        let mut num_buf = vec![Complex::new(0.0_f32, 0.0); pad_n]; // Σ I·TÌ‚
+        let mut sum_buf = vec![Complex::new(0.0_f32, 0.0); pad_n]; // Σ I (window)
+        let mut sumsq_buf = vec![Complex::new(0.0_f32, 0.0); pad_n]; // Σ I² (window)
         for i in 0..pad_n {
             num_buf[i] = corr(img_buf[i], tmpl_buf[i]);
             sum_buf[i] = corr(img_buf[i], box_buf[i]);
@@ -142,7 +142,7 @@ impl<B: Backend> FftNormalizedCorrelationFilter<B> {
                 let num = num_buf[idx].re * inv_pad;
                 let lsum = sum_buf[idx].re * inv_pad;
                 let lsumsq = sumsq_buf[idx].re * inv_pad;
-                // Î£ (I âˆ’ Äªwin)Â² = Î£ IÂ² âˆ’ (Î£ I)Â² / N, clamped against round-off.
+                // Σ (I − Īwin)² = Σ I² − (Σ I)² / N, clamped against round-off.
                 let energy = (lsumsq - lsum * lsum / window_n).max(0.0);
                 let denom = energy.sqrt() * t_norm;
                 out[r * w + c] = if denom > NCC_DENOM_FLOOR {

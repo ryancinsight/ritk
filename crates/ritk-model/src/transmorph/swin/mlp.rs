@@ -1,6 +1,6 @@
 //! Swin-block MLP, Coeus-native.
 //!
-//! A two-layer feed-forward network (`Linear â†’ GELU â†’ Linear`) applied along the
+//! A two-layer feed-forward network (`Linear → GELU → Linear`) applied along the
 //! channel (last) axis of a `[B, D, H, W, C]` token volume. Built on
 //! [`coeus_nn::Linear`] over [`coeus_autograd::Var`] with the exact GELU
 //! activation; gradients flow to both linear layers through the autograd graph.
@@ -22,10 +22,10 @@ impl<B> Mlp<B>
 where
     B: Backend + BackendOps<f32> + Default,
 {
-    /// Construct an MLP mapping `input_dim â†’ hidden_dim â†’ input_dim`.
+    /// Construct an MLP mapping `input_dim → hidden_dim → input_dim`.
     ///
     /// Weights are Kaiming-uniform-initialized (fan-in of each layer), biases
-    /// zero â€” the non-degenerate scheme the original Burn model relied on;
+    /// zero — the non-degenerate scheme the original Burn model relied on;
     /// [`Linear::new`] alone leaves weights at ones.
     pub fn new(input_dim: usize, hidden_dim: usize, seed: u64) -> Self {
         let mut fc1 = Linear::new(input_dim, hidden_dim, true);

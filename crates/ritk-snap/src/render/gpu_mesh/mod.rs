@@ -56,7 +56,7 @@ use passes::{collect_mesh_result, submit_mesh_async};
 #[path = "tests_gpu_mesh.rs"]
 mod tests;
 
-// â”€â”€ Configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Configuration ─────────────────────────────────────────────────────────────
 
 /// SSAO-specific render parameters.
 #[derive(Debug, Clone)]
@@ -97,7 +97,7 @@ impl Default for MeshRenderConfig {
     }
 }
 
-// â”€â”€ Pending readback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Pending readback ──────────────────────────────────────────────────────────
 
 struct PendingMeshReadback {
     rx: std::sync::mpsc::Receiver<Result<(), wgpu::BufferAsyncError>>,
@@ -105,7 +105,7 @@ struct PendingMeshReadback {
     cols: usize,
 }
 
-// â”€â”€ Public renderer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public renderer ───────────────────────────────────────────────────────────
 
 /// GPU mesh renderer: OIT depth peeling + SSAO, non-blocking async readback.
 pub struct GpuMeshRenderer {
@@ -253,7 +253,7 @@ impl GpuMeshRenderer {
     }
 }
 
-// â”€â”€ Uniform construction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Uniform construction ──────────────────────────────────────────────────────
 
 /// Build all uniform structs from public-API types.
 fn build_uniforms(
@@ -275,7 +275,7 @@ fn build_uniforms(
         _pad: [0; 3],
     };
 
-    // Transform light directions to view space using the upper-left 3Ã—3 of MV.
+    // Transform light directions to view space using the upper-left 3×3 of MV.
     let transform_dir = |d: [f32; 3]| -> [f32; 3] {
         let n = normalize(d);
         let x = view[0] * n[0] + view[4] * n[1] + view[8] * n[2];
@@ -329,7 +329,7 @@ fn build_uniforms(
     (scene, lights_block, material, ssao_u)
 }
 
-// â”€â”€ LightUniform::zeroed() helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── LightUniform::zeroed() helper ─────────────────────────────────────────────
 
 impl LightUniform {
     fn zeroed() -> Self {

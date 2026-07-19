@@ -24,7 +24,7 @@ fn all_foreground_unchanged() {
     assert!(flat(&out).iter().all(|&v| v == 1.0));
 }
 
-/// T2: All-background image â€” all voxels are external bg (reachable from
+/// T2: All-background image — all voxels are external bg (reachable from
 ///     border), so output is all background.
 #[test]
 fn all_background_stays_background() {
@@ -35,7 +35,7 @@ fn all_background_stays_background() {
 
 /// T3: Enclosed hole is filled.
 ///
-/// 3Ã—3Ã—3 volume: foreground shell (outer voxels) with a single background
+/// 3×3×3 volume: foreground shell (outer voxels) with a single background
 /// voxel at the centre (index 13 in ZYX order).
 ///
 /// The centre voxel at (1,1,1) is background and NOT reachable from any
@@ -46,7 +46,7 @@ fn all_background_stays_background() {
 #[test]
 fn enclosed_hole_filled() {
     let mut vals = vec![1.0_f32; 27];
-    vals[13] = 0.0; // centre of 3Ã—3Ã—3 = (1,1,1), index = 1*9+1*3+1 = 13
+    vals[13] = 0.0; // centre of 3×3×3 = (1,1,1), index = 1*9+1*3+1 = 13
     let img = make_image(vals, [3, 3, 3]);
     let out = BinaryFillholeFilter::new().apply(&img).unwrap();
     assert_eq!(
@@ -56,11 +56,11 @@ fn enclosed_hole_filled() {
     );
 }
 
-/// T4: Interior background region in 5Ã—5Ã—5 volume is filled.
+/// T4: Interior background region in 5×5×5 volume is filled.
 ///
-/// 5Ã—5Ã—5 volume with fg outer shell and bg interior (izâˆˆ{1..3}, iyâˆˆ{1..3}, ixâˆˆ{1..3}).
-/// The inner 3Ã—3Ã—3 = 27 voxels are bg and not reachable from any border face
-/// (all 6 immediate Z/Y/X face-neighbours of the inner region are fg â†’ no bg path).
+/// 5×5×5 volume with fg outer shell and bg interior (iz∈{1..3}, iy∈{1..3}, ix∈{1..3}).
+/// The inner 3×3×3 = 27 voxels are bg and not reachable from any border face
+/// (all 6 immediate Z/Y/X face-neighbours of the inner region are fg → no bg path).
 /// After filling, all inner voxels must be fg.
 #[test]
 fn interior_bg_region_filled() {
@@ -88,11 +88,11 @@ fn interior_bg_region_filled() {
     }
 }
 
-/// T5: Extensivity â€” no foreground voxel is removed.
+/// T5: Extensivity — no foreground voxel is removed.
 #[test]
 fn extensivity_no_foreground_removed() {
     let vals: Vec<f32> = vec![1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0];
-    // 1Ã—3Ã—3 flat slice, centre bg at index 4.
+    // 1×3×3 flat slice, centre bg at index 4.
     let img = make_image(vals.clone(), [1, 3, 3]);
     let out = BinaryFillholeFilter::new().apply(&img).unwrap();
     let result = flat(&out);
@@ -105,7 +105,7 @@ fn extensivity_no_foreground_removed() {
 
 /// T6: Custom foreground value fills enclosed bg with fg value.
 ///
-/// 3Ã—3Ã—3 shell of fg=255 with interior bg at (1,1,1) â€” same geometry as T3
+/// 3×3×3 shell of fg=255 with interior bg at (1,1,1) — same geometry as T3
 /// but with fg=255.  The centre voxel is enclosed and must be filled to 255.
 #[test]
 fn custom_foreground_value() {

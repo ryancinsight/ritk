@@ -1,6 +1,6 @@
 //! Differential + analytical coverage for the Coeus-native intensity paths.
 //!
-//! Each native wrapper must be value-identical to the Burn filter it mirrors â€”
+//! Each native wrapper must be value-identical to the Coeus filter it mirrors —
 //! both call the identical substrate-agnostic host core (shared harness in
 //! `native_support::assert_coeus_matches_coeus`). A handful of analytical
 //! oracles pin the mathematical contract independent of the Burn reference.
@@ -27,7 +27,7 @@ fn ramp(n: usize) -> Vec<f32> {
     (0..n).map(|i| i as f32).collect()
 }
 
-// â”€â”€ Rescale â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Rescale ───────────────────────────────────────────────────────────────────
 
 mod rescale {
     use super::*;
@@ -46,12 +46,12 @@ mod rescale {
     }
 
     #[test]
-    fn matches_burn_ramp() {
+    fn matches_coeus_ramp() {
         check(ramp(60), [3, 4, 5], 0.0, 1.0);
     }
 
     #[test]
-    fn matches_burn_arbitrary_range() {
+    fn matches_coeus_arbitrary_range() {
         check(
             vec![-3.0, 2.0, 7.5, -1.0, 4.0, 9.0, 0.0, 5.0],
             [2, 2, 2],
@@ -61,7 +61,7 @@ mod rescale {
     }
 
     #[test]
-    fn matches_burn_constant_field() {
+    fn matches_coeus_constant_field() {
         check(vec![3.0f32; 27], [3, 3, 3], 0.0, 1.0);
     }
 
@@ -80,7 +80,7 @@ mod rescale {
     }
 }
 
-// â”€â”€ Windowing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Windowing ─────────────────────────────────────────────────────────────────
 
 mod windowing {
     use super::*;
@@ -101,12 +101,12 @@ mod windowing {
     }
 
     #[test]
-    fn matches_burn_interior_and_saturation() {
+    fn matches_coeus_interior_and_saturation() {
         check(ramp(60), [3, 4, 5], 20.0, 40.0, 0.0, 1.0);
     }
 
     #[test]
-    fn matches_burn_degenerate_window() {
+    fn matches_coeus_degenerate_window() {
         check(ramp(8), [2, 2, 2], 5.0, 5.0, 0.0, 1.0);
     }
 
@@ -122,7 +122,7 @@ mod windowing {
     }
 }
 
-// â”€â”€ Threshold â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Threshold ─────────────────────────────────────────────────────────────────
 
 mod threshold {
     use super::*;
@@ -141,12 +141,12 @@ mod threshold {
     }
 
     #[test]
-    fn matches_burn_below() {
+    fn matches_coeus_below() {
         check_below(ramp(24), [2, 3, 4], 10.0, -1.0);
     }
 
     #[test]
-    fn matches_burn_above() {
+    fn matches_coeus_above() {
         let vals = ramp(24);
         assert_coeus_matches_coeus(
             vals,
@@ -161,7 +161,7 @@ mod threshold {
     }
 
     #[test]
-    fn matches_burn_outside() {
+    fn matches_coeus_outside() {
         let vals = ramp(24);
         assert_coeus_matches_coeus(
             vals,
@@ -189,13 +189,13 @@ mod threshold {
     }
 }
 
-// â”€â”€ Sigmoid â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Sigmoid ───────────────────────────────────────────────────────────────────
 
 mod sigmoid {
     use super::*;
 
     #[test]
-    fn matches_burn() {
+    fn matches_coeus() {
         let vals = ramp(60);
         assert_coeus_matches_coeus(
             vals,
@@ -210,7 +210,7 @@ mod sigmoid {
     }
 
     #[test]
-    fn matches_burn_step_degenerate_beta() {
+    fn matches_coeus_step_degenerate_beta() {
         let vals = ramp(8);
         assert_coeus_matches_coeus(
             vals,
@@ -240,13 +240,13 @@ mod sigmoid {
     }
 }
 
-// â”€â”€ Binary threshold â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Binary threshold ──────────────────────────────────────────────────────────
 
 mod binary_threshold {
     use super::*;
 
     #[test]
-    fn matches_burn() {
+    fn matches_coeus() {
         let vals = ramp(24);
         assert_coeus_matches_coeus(
             vals,
@@ -276,13 +276,13 @@ mod binary_threshold {
     }
 }
 
-// â”€â”€ Clamp â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Clamp ─────────────────────────────────────────────────────────────────────
 
 mod clamp {
     use super::*;
 
     #[test]
-    fn matches_burn() {
+    fn matches_coeus() {
         assert_coeus_matches_coeus(
             ramp(60),
             [3, 4, 5],
@@ -307,13 +307,13 @@ mod clamp {
     }
 }
 
-// â”€â”€ Shift-scale â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Shift-scale ───────────────────────────────────────────────────────────────
 
 mod shift_scale {
     use super::*;
 
     #[test]
-    fn matches_burn() {
+    fn matches_coeus() {
         assert_coeus_matches_coeus(
             ramp(24),
             [2, 3, 4],
@@ -342,7 +342,7 @@ mod shift_scale {
     }
 }
 
-// â”€â”€ Mask (two-input) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Mask (two-input) ──────────────────────────────────────────────────────────
 
 mod mask {
     use super::*;
@@ -352,7 +352,7 @@ mod mask {
     }
 
     #[test]
-    fn matches_burn_mask() {
+    fn matches_coeus_mask() {
         assert_coeus_matches_coeus_pair(
             ramp(24),
             mask_pattern(24),
@@ -372,7 +372,7 @@ mod mask {
     }
 
     #[test]
-    fn matches_burn_mask_negated() {
+    fn matches_coeus_mask_negated() {
         assert_coeus_matches_coeus_pair(
             ramp(24),
             mask_pattern(24),
@@ -392,7 +392,7 @@ mod mask {
     }
 
     #[test]
-    fn matches_burn_masked_assign() {
+    fn matches_coeus_masked_assign() {
         assert_coeus_matches_coeus_pair(
             ramp(24),
             mask_pattern(24),
@@ -422,13 +422,13 @@ mod mask {
     }
 }
 
-// â”€â”€ Zero-crossing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Zero-crossing ─────────────────────────────────────────────────────────────
 
 mod zero_crossing {
     use super::*;
 
     #[test]
-    fn matches_burn() {
+    fn matches_coeus() {
         // A sign-changing field so crossings actually occur.
         let vals: Vec<f32> = (0..60).map(|i| i as f32 - 29.5).collect();
         assert_coeus_matches_coeus(
@@ -456,13 +456,13 @@ mod zero_crossing {
     }
 }
 
-// â”€â”€ Histogram equalization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Histogram equalization ────────────────────────────────────────────────────
 
 mod equalization {
     use super::*;
 
     #[test]
-    fn matches_burn() {
+    fn matches_coeus() {
         let vals: Vec<f32> = (0..64).map(|i| (i * 3 % 17) as f32).collect();
         assert_coeus_matches_coeus(
             vals,
@@ -478,7 +478,7 @@ mod equalization {
 
     #[test]
     fn oracle_uniform_stays_uniform() {
-        // A single-value field has span 0 â†’ identity (module invariant).
+        // A single-value field has span 0 → identity (module invariant).
         let img = make_native_image(vec![7.0f32; 64], [4, 4, 4]);
         let out = HistogramEqualizationFilter::new(32)
             .apply_native(&img, &SequentialBackend)
@@ -489,13 +489,13 @@ mod equalization {
     }
 }
 
-// â”€â”€ Adaptive (Stark) equalization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Adaptive (Stark) equalization ─────────────────────────────────────────────
 
 mod adaptive_equalization {
     use super::*;
 
     #[test]
-    fn matches_burn() {
+    fn matches_coeus() {
         let vals: Vec<f32> = (0..60).map(|i| ((i * 7) % 13) as f32).collect();
         assert_coeus_matches_coeus(
             vals,
@@ -523,7 +523,7 @@ mod adaptive_equalization {
     }
 }
 
-// â”€â”€ Bed separation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Bed separation ────────────────────────────────────────────────────────────
 
 mod bed_separation {
     use super::*;
@@ -540,7 +540,7 @@ mod bed_separation {
     }
 
     #[test]
-    fn matches_burn() {
+    fn matches_coeus() {
         // Small CT-like volume: bright body block, dark background.
         let dims = [3usize, 4, 4];
         let n = dims[0] * dims[1] * dims[2];

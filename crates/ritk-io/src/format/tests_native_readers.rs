@@ -35,7 +35,7 @@ where
     assert_eq!(
         loaded.data_slice().expect("contiguous"),
         voxels.as_slice(),
-        "native writerâ†’reader contract must preserve voxels exactly"
+        "native writer→reader contract must preserve voxels exactly"
     );
 }
 
@@ -100,7 +100,7 @@ fn native_tiff_writer_reader_contract_round_trips() {
 }
 
 #[test]
-fn native_tiff_reader_matches_burn() {
+fn native_tiff_reader_matches_coeus() {
     let dir = tempfile::tempdir().expect("tempdir");
     assert_native_writer_reader_round_trips(
         &dir.path().join("vol.tiff"),
@@ -110,7 +110,7 @@ fn native_tiff_reader_matches_burn() {
 }
 
 #[test]
-fn native_jpeg_reader_matches_burn() {
+fn native_jpeg_reader_matches_coeus() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("slice.jpg");
     let image = NativeImage::from_flat_on(
@@ -149,7 +149,7 @@ fn write_gray_png(path: &Path, width: u32, height: u32, seed: u8) {
 }
 
 #[test]
-fn native_png_reader_matches_burn() {
+fn native_png_reader_matches_coeus() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("slice.png");
     write_gray_png(&path, 12, 8, 3);
@@ -163,7 +163,7 @@ fn native_png_reader_matches_burn() {
 }
 
 #[test]
-fn native_png_series_reader_matches_burn() {
+fn native_png_series_reader_matches_coeus() {
     let dir = tempfile::tempdir().expect("tempdir");
     write_gray_png(&dir.path().join("s000.png"), 6, 4, 11);
     write_gray_png(&dir.path().join("s001.png"), 6, 4, 71);

@@ -27,7 +27,7 @@ pub struct PyChanVeseOptions {
     /// Euler forward time step.
     #[pyo3(get, set)]
     pub dt: f64,
-    /// Convergence tolerance on max|Î”Ï†|/dt.
+    /// Convergence tolerance on max|Δφ|/dt.
     #[pyo3(get, set)]
     pub tolerance: f64,
 }

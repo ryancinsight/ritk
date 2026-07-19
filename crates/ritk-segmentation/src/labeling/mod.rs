@@ -2,17 +2,17 @@
 //!
 //! # Mathematical Specification
 //!
-//! Given a binary mask M where M\[z,y,x\] âˆˆ {0, 1}, a connected component C is
-//! the maximal set of voxels such that every pair (p, q) âˆˆ C Ã— C is connected
+//! Given a binary mask M where M\[z,y,x\] ∈ {0, 1}, a connected component C is
+//! the maximal set of voxels such that every pair (p, q) ∈ C × C is connected
 //! by a path through M where every step moves to an adjacent foreground voxel.
 //!
 //! Two adjacency models are supported:
-//! - **6-connectivity**:  faces only â€” each voxel has at most 6 neighbours.
-//! - **26-connectivity**: faces + edges + corners â€” up to 26 neighbours.
+//! - **6-connectivity**:  faces only — each voxel has at most 6 neighbours.
+//! - **26-connectivity**: faces + edges + corners — up to 26 neighbours.
 //!
-//! # Algorithm â€” Hoshen-Kopelman (two-pass)
+//! # Algorithm — Hoshen-Kopelman (two-pass)
 //!
-//! **Pass 1** (Zâ†’Yâ†’X scan order):
+//! **Pass 1** (Z→Y→X scan order):
 //!   For each foreground voxel v, examine the 3 (6-conn) or 13 (26-conn)
 //!   already-visited backward neighbours. If none are labelled, assign a new
 //!   provisional label. Otherwise assign the minimum neighbour label and union
@@ -23,7 +23,7 @@
 //!   components with consecutive integers [1, K].
 //!
 //! # Complexity
-//! - Time:  O(n Â· Î±(n)) â‰ˆ O(n) with union-find path compression.
+//! - Time:  O(n · α(n)) ≈ O(n) with union-find path compression.
 //! - Space: O(n) for provisional labels + O(K) for statistics.
 
 use ritk_core::spatial::Point;
@@ -51,7 +51,7 @@ pub use scalar_cc::{
 pub mod threshold_max_cc;
 pub use threshold_max_cc::ThresholdMaximumConnectedComponentsFilter;
 
-// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public types ──────────────────────────────────────────────────────────────
 
 /// Adjacency connectivity model for connected-component labeling.
 ///
@@ -59,10 +59,10 @@ pub use threshold_max_cc::ThresholdMaximumConnectedComponentsFilter;
 /// - [`TwentySix`](Connectivity::TwentySix): faces + edges + corners (26 neighbours).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Connectivity {
-    /// Face connectivity â€” 6 neighbours. ITK default.
+    /// Face connectivity — 6 neighbours. ITK default.
     #[default]
     Six,
-    /// Full connectivity â€” 26 neighbours (faces + edges + corners).
+    /// Full connectivity — 26 neighbours (faces + edges + corners).
     TwentySix,
 }
 
@@ -82,7 +82,7 @@ pub struct LabelStatistics {
 /// Connected-component labeling filter.
 ///
 /// Applies Hoshen-Kopelman labeling to a binary mask image, returning:
-/// - A label image whose voxels carry integer class indices (1â€¦K) cast to f32
+/// - A label image whose voxels carry integer class indices (1…K) cast to f32
 ///   (background voxels remain 0.0).
 /// - Per-component `LabelStatistics`.
 ///
@@ -205,7 +205,7 @@ impl Default for ConnectedComponentsFilter {
     }
 }
 
-/// Convenience function: label connected components with `connectivity` âˆˆ {6, 26}.
+/// Convenience function: label connected components with `connectivity` ∈ {6, 26}.
 ///
 /// Returns `(label_image, num_components)`.
 /// Voxel values in `label_image` are component indices in [1, K] as f32;
@@ -236,12 +236,12 @@ pub(crate) fn connected_components_values(
     hoshen_kopelman(mask, dims, connectivity, background_value)
 }
 
-// â”€â”€ Core algorithm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Core algorithm ────────────────────────────────────────────────────────────
 
 /// Hoshen-Kopelman two-pass connected-component labeling.
 ///
 /// Returns `(label_vec, statistics)` where `label_vec` has the same length as
-/// `mask` (flat ZÃ—YÃ—X order).
+/// `mask` (flat Z×Y×X order).
 ///
 /// `background_value`: pixel value that designates background (ITK parity).
 /// Any voxel whose value equals `background_value` is excluded from labeling.
@@ -289,7 +289,7 @@ fn hoshen_kopelman(
         backward_26
     };
 
-    // â”€â”€ Pass 1: assign provisional labels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Pass 1: assign provisional labels ────────────────────────────────────
     for iz in 0..nz {
         for iy in 0..ny {
             for ix in 0..nx {
@@ -321,7 +321,7 @@ fn hoshen_kopelman(
                 }
 
                 if nbr_labels.is_empty() {
-                    // No labelled foreground neighbour â†’ new component.
+                    // No labelled foreground neighbour → new component.
                     provisional[flat] = next_label;
                     next_label += 1;
                 } else {
@@ -345,8 +345,8 @@ fn hoshen_kopelman(
         return (vec![0.0_f32; n], Vec::new());
     }
 
-    // â”€â”€ Resolve all provisional labels to canonical roots â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    // Map canonical root â†’ consecutive final label [1, K].
+    // ── Resolve all provisional labels to canonical roots ─────────────────────
+    // Map canonical root → consecutive final label [1, K].
     let mut root_to_final = vec![0usize; next_label];
     let mut num_components = 0usize;
     for prov in provisional.iter_mut().take(n) {
@@ -360,7 +360,7 @@ fn hoshen_kopelman(
         }
     }
 
-    // â”€â”€ Compute LabelStatistics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Compute LabelStatistics ───────────────────────────────────────────────
     // Accumulate per-component: count, centroid sums, bounding box.
     let mut counts = vec![0usize; num_components + 1];
     let mut sum_z = vec![0.0f64; num_components + 1];
@@ -416,7 +416,7 @@ fn hoshen_kopelman(
         });
     }
 
-    // â”€â”€ Build output label image â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Build output label image ──────────────────────────────────────────────
     let label_vec: Vec<f32> = provisional.iter().map(|&l| l as f32).collect();
 
     (label_vec, stats)

@@ -21,7 +21,7 @@ use super::types::DicomSliceMetadata;
 /// - `bits_allocated=16`, `pixel_representation=Signed`: each LE i16 pair is one sample.
 /// - Any other combination: each LE u16 pair is one sample (unsigned default).
 ///
-/// Mathematical derivation: F(x) = x Ã— RescaleSlope + RescaleIntercept
+/// Mathematical derivation: F(x) = x × RescaleSlope + RescaleIntercept
 /// per DICOM PS3.3 C.7.6.3.1.4.
 #[cfg(test)]
 pub(super) fn decode_pixel_bytes(

@@ -57,7 +57,7 @@ fn prewitt_x_ramp_recovers_unit_gradient() {
         gx_v[interior_idx]
     );
     // Boundary voxel at ix=0 with replicate padding yields a one-sided
-    // difference: raw = I[1] âˆ’ I[0] = 1, smoothed twice by [1,1,1] gives
+    // difference: raw = I[1] − I[0] = 1, smoothed twice by [1,1,1] gives
     // 9, normalized to 9/18 = 0.5.
     let boundary_idx = 9 + 3;
     assert!(
@@ -125,7 +125,7 @@ fn prewitt_magnitude_zero_for_constant() {
 
 #[test]
 fn prewitt_magnitude_isotropic_for_diagonal_ramp() {
-    // I(z,y,x) = z + y + x => |âˆ‡I| = âˆš3 â‰ˆ 1.732
+    // I(z,y,x) = z + y + x => |∇I| = √3 ≈ 1.732
     let mut vals = Vec::with_capacity(27);
     for iz in 0..3 {
         for iy in 0..3 {
@@ -142,7 +142,7 @@ fn prewitt_magnitude_isotropic_for_diagonal_ramp() {
     let expected = (3.0_f32).sqrt();
     assert!(
         (v[interior_idx] - expected).abs() < 1e-4,
-        "diagonal magnitude should be âˆš3 â‰ˆ 1.732, got {}",
+        "diagonal magnitude should be √3 ≈ 1.732, got {}",
         v[interior_idx]
     );
 }

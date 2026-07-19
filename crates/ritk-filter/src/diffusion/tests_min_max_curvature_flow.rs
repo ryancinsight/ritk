@@ -7,7 +7,7 @@ use ritk_tensor_ops::extract_vec;
 
 type B = coeus_core::SequentialBackend;
 
-// â”€â”€ T-2: stencil_radius=0 guard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── T-2: stencil_radius=0 guard ─────────────────────────────────────────────────
 
 /// `stencil_radius = 0` is not a valid configuration: the directional
 /// threshold functions divide by `r` (radius as f64), which would produce

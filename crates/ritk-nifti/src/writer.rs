@@ -177,7 +177,7 @@ where
     )
 }
 
-/// Flatten a 3Ã—3 direction-cosine matrix to the row-major layout the header
+/// Flatten a 3×3 direction-cosine matrix to the row-major layout the header
 /// builder consumes.
 fn direction_row_major(direction: &ritk_spatial::Direction<3>) -> [f64; 9] {
     let d = direction.0;

@@ -1,6 +1,6 @@
 //! Brain-mask generation for cross-modal rigid registration.
 //!
-//! Cross-modal CTâ†”MRI mutual-information registration is prone to converging on
+//! Cross-modal CT↔MRI mutual-information registration is prone to converging on
 //! a geometrically wrong pose: evaluated over the whole field of view, the MI
 //! objective is dominated by the high-contrast skull/air boundary (and any
 //! scanner bed/headrest in the CT), whose global maximum need not coincide with
@@ -11,9 +11,9 @@
 //! morphology, with no atlas or learned model:
 //!
 //! 1. Threshold to the soft-tissue Hounsfield window (default `[0, 100]` HU).
-//! 2. Erode â€” break thin connections (skull, meninges, neck muscle).
+//! 2. Erode — break thin connections (skull, meninges, neck muscle).
 //! 3. Keep the largest 26-connected component (the brain).
-//! 4. Dilate â€” restore the eroded brain boundary.
+//! 4. Dilate — restore the eroded brain boundary.
 //! 5. Fill internal holes.
 //!
 //! The pipeline previously lived only in the RIRE brain-mask integration test;
@@ -32,14 +32,14 @@ pub struct CtBrainMaskConfig {
     pub hu_low: f32,
     /// Upper soft-tissue Hounsfield bound (inclusive).
     pub hu_high: f32,
-    /// Erosion radius \[voxels\] â€” severs thin skull/meninges/muscle bridges.
+    /// Erosion radius \[voxels\] — severs thin skull/meninges/muscle bridges.
     pub erode_radius: usize,
-    /// Dilation radius \[voxels\] â€” restores the brain boundary after erosion.
+    /// Dilation radius \[voxels\] — restores the brain boundary after erosion.
     pub dilate_radius: usize,
 }
 
 impl Default for CtBrainMaskConfig {
-    /// Soft-tissue window `[0, 100]` HU with radius-2 erode/dilate â€” the values
+    /// Soft-tissue window `[0, 100]` HU with radius-2 erode/dilate — the values
     /// validated on RIRE Patient-001.
     fn default() -> Self {
         Self {
@@ -95,7 +95,7 @@ mod tests {
 
     type B = SequentialBackend;
 
-    /// A solid soft-tissue cube (50 HU) embedded in air (âˆ’1000 HU), wrapped in a
+    /// A solid soft-tissue cube (50 HU) embedded in air (−1000 HU), wrapped in a
     /// one-voxel bone shell (1000 HU): the mask must recover the cube interior.
     #[test]
     fn recovers_soft_tissue_core() {

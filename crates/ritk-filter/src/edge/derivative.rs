@@ -4,12 +4,12 @@
 //! `order`-th central-difference operator along one axis. With
 //! `use_image_spacing = true` the result is divided by `spacing` **once**
 //! (ITK's `DerivativeOperator` scales its coefficients by `1/spacing`
-//! regardless of order â€” verified against sitk). Boundary handling is zero-flux
+//! regardless of order — verified against sitk). Boundary handling is zero-flux
 //! Neumann (edge-clamp), matching ITK's `NeighborhoodOperatorImageFilter`.
 //!
 //! Supported orders (the ITK `DerivativeOperator` coefficients):
-//! - order 1: `[âˆ’Â½, 0, Â½]`  â†’  `(f[i+1] âˆ’ f[iâˆ’1]) / 2`
-//! - order 2: `[1, âˆ’2, 1]`  â†’  `f[i+1] âˆ’ 2f[i] + f[iâˆ’1]`
+//! - order 1: `[−½, 0, ½]`  →  `(f[i+1] − f[i−1]) / 2`
+//! - order 2: `[1, −2, 1]`  →  `f[i+1] − 2f[i] + f[i−1]`
 
 use anyhow::{bail, Result};
 use ritk_image::tensor::Backend;

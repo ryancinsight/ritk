@@ -11,7 +11,7 @@
 //!
 //! # Mathematical model
 //!
-//! Let `I : â„¤Â³ â†’ â„` be a 3-D CT volume in RITK `[depth, rows, cols]` order.
+//! Let `I : ℤ³ → ℝ` be a 3-D CT volume in RITK `[depth, rows, cols]` order.
 //! The filter computes a foreground mask `M` using:
 //!
 //! 1. **Soft intensity thresholding** to remove air and low-density background.
@@ -123,7 +123,7 @@ impl BedSeparationFilter {
 
     /// Coeus-native sister of [`BedSeparationFilter::apply`].
     ///
-    /// Runs the identical threshold â†’ largest-component â†’ closing â†’ opening â†’
+    /// Runs the identical threshold → largest-component → closing → opening →
     /// masking pipeline via the shared `separate_vec` host core on the image's
     /// contiguous host buffer, so the result is bitwise-identical to the Burn
     /// path. No Burn tensor is constructed. Spatial metadata (origin, spacing,

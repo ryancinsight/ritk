@@ -14,7 +14,7 @@
 //! ```
 //!
 //! The padded voxels are filled according to the chosen boundary condition, and
-//! the origin shifts by `-lower_d * spacing_d` per axis â€” identical to the
+//! the origin shifts by `-lower_d * spacing_d` per axis — identical to the
 //! underlying pad filters, which this filter delegates to. Padding is computed
 //! independently per axis, so a unit axis (`N_d = 1`, already smooth) is left
 //! unpadded.
@@ -172,7 +172,7 @@ impl FftPadImageFilter {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_fft_pad.rs"]

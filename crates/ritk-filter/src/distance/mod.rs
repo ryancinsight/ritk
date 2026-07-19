@@ -2,9 +2,9 @@
 //!
 //! # Filters
 //!
-//! - [`DistanceTransformImageFilter`] â€” unsigned Euclidean distance transform
+//! - [`DistanceTransformImageFilter`] — unsigned Euclidean distance transform
 //!   (ITK `DanielssonDistanceMapImageFilter` parity)
-//! - [`SignedDistanceTransformImageFilter`] â€” signed Euclidean distance transform
+//! - [`SignedDistanceTransformImageFilter`] — signed Euclidean distance transform
 //!   (ITK `SignedMaurerDistanceMapImageFilter` parity)
 
 pub mod chamfer;

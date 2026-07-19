@@ -14,7 +14,7 @@
 //! direction identity.
 //!
 //! # Supported pixel types
-//! u8, u16, u32, u64, i8, i16, i32, i64, f32, f64 â€” all converted to f32.
+//! u8, u16, u32, u64, i8, i16, i32, i64, f32, f64 — all converted to f32.
 //! Only single-channel (grayscale) pages are supported.
 //!
 //! # BigTIFF
@@ -169,7 +169,7 @@ pub(crate) fn decode_page_to_scalar(result: DecodingResult) -> Result<Vec<f32>> 
     }
 }
 
-// â”€â”€ Reader struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Reader struct ─────────────────────────────────────────────────────────────
 
 /// Backend-bound reader for TIFF / BigTIFF files.
 ///
@@ -193,7 +193,7 @@ impl<B: ComputeBackend> TiffReader<B> {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_reader.rs"]

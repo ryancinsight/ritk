@@ -1,4 +1,4 @@
-//! RT Plan reader â€” parse a DICOM RT Plan Storage file into [`RtPlanInfo`].
+//! RT Plan reader — parse a DICOM RT Plan Storage file into [`RtPlanInfo`].
 
 use anyhow::{bail, Context, Result};
 use arrayvec::ArrayString;
@@ -24,7 +24,7 @@ fn parse_u32_is(raw: &str, field: &str) -> Result<u32> {
 ///
 /// # Errors
 /// - `path` does not exist or is not readable.
-/// - The file's `MediaStorageSOPClassUID` â‰  `1.2.840.10008.5.1.4.1.1.481.5`.
+/// - The file's `MediaStorageSOPClassUID` ≠ `1.2.840.10008.5.1.4.1.1.481.5`.
 /// - Present RT Plan sequence integer fields are malformed.
 /// - Present beam or fraction-group sequence elements are not DICOM sequences.
 pub fn read_rt_plan<P: AsRef<Path>>(path: P) -> Result<RtPlanInfo> {

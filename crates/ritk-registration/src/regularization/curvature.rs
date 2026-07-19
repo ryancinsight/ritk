@@ -7,9 +7,9 @@
 //! The curvature regularization term is based on the Laplacian of the
 //! displacement field:
 //!
-//! R(u) = âˆ«_Î© |âˆ‡Â²u|Â² dx
+//! R(u) = ∫_Ω |∇²u|² dx
 //!
-//! where âˆ‡Â²u is the Laplacian (sum of second derivatives).
+//! where ∇²u is the Laplacian (sum of second derivatives).
 //!
 //! Differences from bending energy:
 //! - Bending energy: Second-order (penalizes curvature directly)

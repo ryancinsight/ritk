@@ -84,8 +84,8 @@ pub fn distance_transform(
 ///
 /// Float-exact to `scipy.ndimage.distance_transform_edt` (signed, voxel-centre
 /// convention). NOTE: this is distance to the nearest opposite-class voxel
-/// **centre** â€” it does NOT match `sitk.SignedMaurerDistanceMap`, which measures
-/// distance to the object boundary/interface (differs by up to âˆš2 voxel).
+/// **centre** — it does NOT match `sitk.SignedMaurerDistanceMap`, which measures
+/// distance to the object boundary/interface (differs by up to √2 voxel).
 #[pyfunction]
 #[pyo3(signature = (image, foreground_threshold=0.5_f32))]
 pub fn signed_distance_map(
@@ -113,7 +113,7 @@ pub fn signed_distance_map(
 /// Args:
 ///     image: Input image; background is `== background_value`.
 ///     inside_is_positive: If True, inside (foreground) distances are positive.
-///     squared_distance: If True (default, matching ITK), return signed `dÂ²`.
+///     squared_distance: If True (default, matching ITK), return signed `d²`.
 ///     use_image_spacing: If True (default), use the image spacing.
 ///     background_value: Pixel value identifying background (default 0.0).
 #[pyfunction]

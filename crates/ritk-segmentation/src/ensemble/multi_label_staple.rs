@@ -3,18 +3,18 @@
 //! # Mathematical Specification
 //!
 //! Generalizes binary [`staple`](super::staple()) to `L` discrete labels. Given `K`
-//! label maps `d_k âˆˆ {0, â€¦, Lâˆ’1}^N`, it estimates a per-rater confusion matrix
-//! `Î¸_k[j][i] = P(rater k says j | true label is i)` by expectation-maximization
+//! label maps `d_k ∈ {0, …, L−1}^N`, it estimates a per-rater confusion matrix
+//! `θ_k[j][i] = P(rater k says j | true label is i)` by expectation-maximization
 //! and emits the per-voxel maximum-likelihood consensus label.
 //!
 //! - **Init** (`InitializeConfusionMatrixArrayFromVoting`): the confusion matrix is
 //!   seeded from the joint histogram of `(rater label, majority-vote consensus)`,
 //!   row-normalized. Majority voting breaks ties to the *undecided* label `L`.
-//! - **Prior**: `Ï€_i âˆ Î£_k Î£_n [d_k(n) = i]`, normalized over the `L` real labels.
-//! - **E-step**: per voxel, `W_i = Ï€_i Â· Î _k Î¸_k[d_k(n)][i]`, normalized to sum 1.
-//! - **M-step**: `Î¸_k[j][i] = Î£_n W_i(n)Â·[d_k(n)=j]`, column-normalized over `j`.
+//! - **Prior**: `π_i ∝ Σ_k Σ_n [d_k(n) = i]`, normalized over the `L` real labels.
+//! - **E-step**: per voxel, `W_i = π_i · Π_k θ_k[d_k(n)][i]`, normalized to sum 1.
+//! - **M-step**: `θ_k[j][i] = Σ_n W_i(n)·[d_k(n)=j]`, column-normalized over `j`.
 //! - **Termination**: when the maximum absolute parameter change `< threshold`.
-//! - **Output**: `argmax_i W_i`; ties (equal maxima) and all-zero `W` â†’ undecided `L`.
+//! - **Output**: `argmax_i W_i`; ties (equal maxima) and all-zero `W` → undecided `L`.
 //!
 //! Internal arithmetic is `f64`. The output is a discrete label image, so it is
 //! float-exact to `sitk.MultiLabelSTAPLE` (the argmax is insensitive to sub-ULP
@@ -34,7 +34,7 @@ pub struct MultiLabelStapleResult {
 
 /// Run multi-label STAPLE on `K` integer-valued label maps (stored as `f32`).
 ///
-/// `max_iter = None` iterates until convergence (`max |Î”Î¸| < termination_threshold`).
+/// `max_iter = None` iterates until convergence (`max |Δθ| < termination_threshold`).
 /// `label_for_undecided = None` uses `L` (max label + 1).
 ///
 /// # Panics
@@ -62,7 +62,7 @@ pub fn multi_label_staple(
 
     // Quantize to integer labels in a single voxel-major buffer `d[vox*k + kk]`
     // (one allocation, 4 B/label, and sequential access in the per-voxel rater
-    // loops below â€” the E-step/accumulate hot path iterates k for fixed voxel).
+    // loops below — the E-step/accumulate hot path iterates k for fixed voxel).
     let mut d = vec![0u32; n * k];
     for (kk, r) in raters.iter().enumerate() {
         for (vox, &v) in r.iter().enumerate() {
@@ -73,7 +73,7 @@ pub fn multi_label_staple(
     let l = d.iter().copied().max().unwrap_or(0) as usize + 1;
     let undecided = label_for_undecided.unwrap_or(l as f32);
 
-    // Confusion matrices Î¸_k: (L+1) input-label rows Ã— L output-class columns.
+    // Confusion matrices θ_k: (L+1) input-label rows × L output-class columns.
     let row = l; // columns
     let rows = l + 1;
     let mut conf = vec![0.0f64; k * rows * row];

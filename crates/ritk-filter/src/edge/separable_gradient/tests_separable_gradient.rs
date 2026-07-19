@@ -1,6 +1,6 @@
 use super::*;
 
-/// Naive (unsplit) 1-D convolution â€” the original combined-loop logic.
+/// Naive (unsplit) 1-D convolution — the original combined-loop logic.
 fn convolve_1d_axis_naive(
     data: &[f32],
     dims: [usize; 3],
@@ -81,7 +81,7 @@ fn test_convolve_split_matches_naive() {
 }
 
 /// Single-element axis: convolution with replicate padding clamps all 3 taps
-/// to the same value, so the output is (k[-1]+k[0]+k[1])Â·x.
+/// to the same value, so the output is (k[-1]+k[0]+k[1])·x.
 #[test]
 fn test_convolve_single_element_axis() {
     let dims = [1, 1, 1];

@@ -7,15 +7,15 @@ use ritk_spatial::VolumeDims;
 ///
 /// Intensity images use [`Trilinear`](WarpInterpolation::Trilinear) (smooth,
 /// the default for registration). **Integer label maps must use
-/// [`Nearest`](WarpInterpolation::Nearest)** â€” trilinear interpolation blends
+/// [`Nearest`](WarpInterpolation::Nearest)** — trilinear interpolation blends
 /// distinct label ids into meaningless fractional values, corrupting the
 /// segmentation. Nearest-neighbour preserves exact label ids.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum WarpInterpolation {
-    /// Trilinear interpolation (smooth) â€” for continuous intensity images.
+    /// Trilinear interpolation (smooth) — for continuous intensity images.
     #[default]
     Trilinear,
-    /// Nearest-neighbour â€” for integer label maps / categorical data.
+    /// Nearest-neighbour — for integer label maps / categorical data.
     Nearest,
 }
 
@@ -126,18 +126,18 @@ pub fn warp_image(
     warped
 }
 
-/// Compute `mean((fixed âˆ’ warped)Â²)` from a pre-warped moving buffer.
+/// Compute `mean((fixed − warped)²)` from a pre-warped moving buffer.
 ///
 /// Zero-allocation MSE: takes the already-warped `warped` slice directly
 /// instead of re-warping `moving` through the displacement field.  Use this
 /// in registration hot loops where `warp_image_into` has already produced
-/// `warped` for the next force computation â€” the redundant warp performed
+/// `warped` for the next force computation — the redundant warp performed
 /// by [`compute_mse_streaming`] is the dominant cost (~50% of the per-iteration
-/// MSE step on 256Â³ fields).
+/// MSE step on 256³ fields).
 ///
 /// # Arguments
-/// - `fixed`  â€” reference image (flat `[nz, ny, nx]` Z-major).
-/// - `warped` â€” pre-warped moving image, same length as `fixed`.
+/// - `fixed`  — reference image (flat `[nz, ny, nx]` Z-major).
+/// - `warped` — pre-warped moving image, same length as `fixed`.
 ///
 /// # Returns
 /// Mean squared error as `f64`.
@@ -159,9 +159,9 @@ pub(crate) fn compute_mse_inplace(fixed: &[f32], warped: &[f32]) -> f64 {
     // Parallel reduction over fixed/aligned chunks; partial sums are summed
     // in f64 to bound cross-chunk associativity error well below f32 epsilon.
     //
-    // Chunk size: 4096 f32 = 16 KB â€” fits in L1 cache on every modern x86/ARM
-    // core, and yields 4096 (â‰ˆ n/16K) chunks on 256Â³ fields, which is enough
-    // parallelism to saturate 4â€“16 worker threads without per-chunk overhead
+    // Chunk size: 4096 f32 = 16 KB — fits in L1 cache on every modern x86/ARM
+    // core, and yields 4096 (≈ n/16K) chunks on 256³ fields, which is enough
+    // parallelism to saturate 4–16 worker threads without per-chunk overhead
     // swamping the per-voxel subtraction.
     const MSE_INPLACE_CHUNK: usize = 4096;
     let chunk = MSE_INPLACE_CHUNK;
@@ -184,7 +184,7 @@ pub(crate) fn compute_mse_inplace(fixed: &[f32], warped: &[f32]) -> f64 {
     sum / n as f64
 }
 
-/// Compute `mean((fixed âˆ’ warp(moving, D))Â²)` without materialising a warped buffer.
+/// Compute `mean((fixed − warp(moving, D))²)` without materialising a warped buffer.
 ///
 /// Streams trilinear samples of `moving` under displacement `D = (dz, dy, dx)` directly
 /// into a squared-error accumulator. No intermediate `Vec<f32>` is allocated.
@@ -192,7 +192,7 @@ pub(crate) fn compute_mse_inplace(fixed: &[f32], warped: &[f32]) -> f64 {
 /// Returns the mean squared error as `f64`.
 ///
 /// **Prefer [`compute_mse_inplace`] in registration hot loops** when the warped
-/// image is already in hand â€” it avoids a redundant warp on every iteration.
+/// image is already in hand — it avoids a redundant warp on every iteration.
 pub(crate) fn compute_mse_streaming(
     fixed: &[f32],
     moving: &[f32],
@@ -258,7 +258,7 @@ mod tests {
         // Two adjacent label regions: ids 0,0,0, 5,5,5 along x.
         let labels = vec![0.0_f32, 0.0, 0.0, 5.0, 5.0, 5.0];
         let n = 6;
-        // Shift by âˆ’1 voxel in x: voxel ix samples moving(ix âˆ’ 1).
+        // Shift by −1 voxel in x: voxel ix samples moving(ix − 1).
         let dz = vec![0.0_f32; n];
         let dy = vec![0.0_f32; n];
         let dx = vec![-1.0_f32; n];
@@ -268,11 +268,11 @@ mod tests {
         for &v in &nn {
             assert!(v == 0.0 || v == 5.0, "nearest blended a label: {v}");
         }
-        // The 0â†’5 boundary shifts right by one voxel: index 4 becomes 5 (was the
+        // The 0→5 boundary shifts right by one voxel: index 4 becomes 5 (was the
         // boundary), confirming the shift direction + NN selection.
         assert_eq!(nn, vec![0.0, 0.0, 0.0, 0.0, 5.0, 5.0]);
 
-        // A half-voxel shift trilinearly blends 0 and 5 â†’ fractional; nearest does not.
+        // A half-voxel shift trilinearly blends 0 and 5 → fractional; nearest does not.
         let dx_half = vec![-0.5_f32; n];
         let tri = warp_image(
             &labels,
@@ -358,7 +358,7 @@ mod tests {
     }
 
     /// `compute_mse_inplace` matches a hand-rolled reference sum at a
-    /// non-zero displacement â€” guards against cross-chunk reduction bugs
+    /// non-zero displacement — guards against cross-chunk reduction bugs
     /// that the all-zero test cannot catch.
     #[test]
     fn inplace_matches_reference_at_nonzero_displacement() {

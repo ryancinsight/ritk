@@ -8,7 +8,7 @@ use super::coords::{decode_coords, encode_coords};
 /// approximated by central differences along each axis. Boundary voxels
 /// use forward/backward differences.
 ///
-/// Dispatches to a const-generic implementation for D âˆˆ {1, 2, 3} to
+/// Dispatches to a const-generic implementation for D ∈ {1, 2, 3} to
 /// eliminate per-voxel heap allocations.
 ///
 /// # Panics
@@ -27,7 +27,7 @@ pub fn compute_gradient(data: &[f32], shape: &[usize], ndim: usize, scale: f32) 
 ///
 /// `decode_coords` returns `[usize; D]` (stack-allocated, `Copy`),
 /// so neighbour-coordinate mutations use cheap copies instead of
-/// `Vec::clone()` â€” eliminating ~67M allocations for a 256Â³ image.
+/// `Vec::clone()` — eliminating ~67M allocations for a 256³ image.
 fn compute_gradient_impl<const D: usize>(data: &[f32], shape: &[usize], scale: f32) -> Vec<f32> {
     let shape_arr: [usize; D] = {
         let mut arr = [0usize; D];

@@ -77,7 +77,7 @@ pub fn pearson_correlation(image: &[f32], reference: &[f32]) -> anyhow::Result<f
 /// `MSE = (1/n) Σ (Iᵢ − Rᵢ)²`, `PSNR = 10·log₁₀(MAX² / MSE)`.
 ///
 /// # Precision
-/// The squared-error sum accumulates in `f64` (the Burn path reduces in `f32`);
+/// The squared-error sum accumulates in `f64` (the Coeus path reduces in `f32`);
 /// the two agree to the `f32` epsilon of the ratio, which the differential tests
 /// bound.
 pub(crate) fn psnr_from_slices(image: &[f32], reference: &[f32], max_val: f32) -> f32 {

@@ -30,7 +30,7 @@ impl Connectivity {
     /// inside this connectivity's structuring element.
     ///
     /// Face connectivity (`Face6`) admits only axis-aligned steps (Manhattan
-    /// distance â‰¤ 1); vertex connectivity (`Vertex26`) admits the whole 3Ã—3Ã—3
+    /// distance ≤ 1); vertex connectivity (`Vertex26`) admits the whole 3×3×3
     /// neighbourhood.
     #[inline]
     pub fn includes(self, dz: i32, dy: i32, dx: i32) -> bool {

@@ -344,15 +344,15 @@ fn cpr_apply_matches_brute_force_reference() {
     }
     assert!(
         max_abs <= 1e-5,
-        "max |Î”| between optimized and reference = {max_abs} exceeds 1e-5"
+        "max |Δ| between optimized and reference = {max_abs} exceeds 1e-5"
     );
-    assert!(max_rel <= 1e-5, "max relative Î” = {max_rel} exceeds 1e-5");
+    assert!(max_rel <= 1e-5, "max relative Δ = {max_rel} exceeds 1e-5");
 }
 
 #[test]
 fn cpr_apply_matches_brute_force_reference_nonidentity_direction() {
-    // Stress the direction matrix: 90Â° rotation about Z maps (x, y) â†’ (-y, x)
-    // which forces inv_dir â‰  identity and exercises every matrix entry of
+    // Stress the direction matrix: 90° rotation about Z maps (x, y) → (-y, x)
+    // which forces inv_dir ≠ identity and exercises every matrix entry of
     // the hoisted transform.
     use ritk_core::image::Image as RitkImage;
     let dim: usize = 10;
@@ -365,7 +365,7 @@ fn cpr_apply_matches_brute_force_reference_nonidentity_direction() {
         }
     }
 
-    // 90Â° rotation about Z in RITK [z, y, x] convention: direction columns
+    // 90° rotation about Z in RITK [z, y, x] convention: direction columns
     // are the image-axis vectors expressed in physical space. We place the
     // first two columns as the rotated (y, -x) pair, third as (0, 0, 1).
     let data = ritk_image::tensor::Tensor::<f32, B>::from_slice([dim, dim, dim], &vals);
@@ -409,6 +409,6 @@ fn cpr_apply_matches_brute_force_reference_nonidentity_direction() {
     }
     assert!(
         max_abs <= 1e-5,
-        "non-identity direction: max |Î”| = {max_abs} exceeds 1e-5"
+        "non-identity direction: max |Δ| = {max_abs} exceeds 1e-5"
     );
 }

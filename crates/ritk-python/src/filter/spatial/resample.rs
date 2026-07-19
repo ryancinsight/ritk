@@ -25,7 +25,7 @@ use ritk_transform::affine::translation::TranslationTransform;
 ///     Resampled PyImage with updated spacing and shape.
 ///
 /// Raises:
-///     ValueError: if any spacing is â‰¤ 0 or mode is unrecognized.
+///     ValueError: if any spacing is ≤ 0 or mode is unrecognized.
 #[pyfunction]
 #[pyo3(signature = (image, spacing_z=1.0_f64, spacing_y=1.0_f64, spacing_x=1.0_f64, mode="linear"))]
 pub fn resample_image(
@@ -124,14 +124,14 @@ pub fn resample_image(
 ///     zoom_z:   Zoom factor along Z axis (default 1.0).
 ///     zoom_y:   Zoom factor along Y axis (default 1.0).
 ///     zoom_x:   Zoom factor along X axis (default 1.0).
-///     mode:     Interpolation mode â€” "linear" (default), "nearest",
+///     mode:     Interpolation mode — "linear" (default), "nearest",
 ///               "bspline", "lanczos".
 ///
 /// Returns:
 ///     Zoomed PyImage with new shape and updated spacing.
 ///
 /// Raises:
-///     ValueError: if any zoom factor is â‰¤ 0 or `mode` is unrecognised.
+///     ValueError: if any zoom factor is ≤ 0 or `mode` is unrecognised.
 #[pyfunction]
 #[pyo3(signature = (image, zoom_z=1.0_f64, zoom_y=1.0_f64, zoom_x=1.0_f64, mode="linear"))]
 pub fn zoom_image(

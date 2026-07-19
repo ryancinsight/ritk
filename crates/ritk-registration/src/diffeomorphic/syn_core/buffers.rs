@@ -13,7 +13,7 @@ use crate::diffeomorphic::local_cc::CcSats;
 /// The smoothing scratch buffer is handled by [`crate::deformable_field_ops::FieldSmoother`] implementations;
 /// it is no longer stored here.
 pub(super) struct SyNBuffers {
-    // â”€â”€ Velocity fields vâ‚, vâ‚‚ (output) â”€â”€
+    // ── Velocity fields v₁, v₂ (output) ──
     pub v1z: Vec<f32>,
     pub v1y: Vec<f32>,
     pub v1x: Vec<f32>,
@@ -21,7 +21,7 @@ pub(super) struct SyNBuffers {
     pub v2y: Vec<f32>,
     pub v2x: Vec<f32>,
 
-    // â”€â”€ Exponential maps Ï†â‚ = exp(vâ‚), Ï†â‚‚ = exp(vâ‚‚) â”€â”€
+    // ── Exponential maps φ₁ = exp(v₁), φ₂ = exp(v₂) ──
     pub phi1_z: Vec<f32>,
     pub phi1_y: Vec<f32>,
     pub phi1_x: Vec<f32>,
@@ -29,16 +29,16 @@ pub(super) struct SyNBuffers {
     pub phi2_y: Vec<f32>,
     pub phi2_x: Vec<f32>,
 
-    // â”€â”€ Scaling-and-squaring scratch (ping-pong buffers) â”€â”€
+    // ── Scaling-and-squaring scratch (ping-pong buffers) ──
     pub scratch_ss_z: Vec<f32>,
     pub scratch_ss_y: Vec<f32>,
     pub scratch_ss_x: Vec<f32>,
 
-    // â”€â”€ Warped images â”€â”€
+    // ── Warped images ──
     pub i_w: Vec<f32>,
     pub j_w: Vec<f32>,
 
-    // â”€â”€ Image gradients â”€â”€
+    // ── Image gradients ──
     pub gi_z: Vec<f32>,
     pub gi_y: Vec<f32>,
     pub gi_x: Vec<f32>,
@@ -46,7 +46,7 @@ pub(super) struct SyNBuffers {
     pub gj_y: Vec<f32>,
     pub gj_x: Vec<f32>,
 
-    // â”€â”€ CC force fields â”€â”€
+    // ── CC force fields ──
     pub u1z: Vec<f32>,
     pub u1y: Vec<f32>,
     pub u1x: Vec<f32>,
@@ -54,7 +54,7 @@ pub(super) struct SyNBuffers {
     pub u2y: Vec<f32>,
     pub u2x: Vec<f32>,
 
-    // â”€â”€ Per-z-slice CC reductions â”€â”€
+    // ── Per-z-slice CC reductions ──
     pub cc_slices: Vec<(f64, usize)>,
     pub cc_sats: CcSats,
 }

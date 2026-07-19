@@ -13,15 +13,15 @@ fn square_into(phi: VectorField<'_>, dims: VolumeDims, out: VectorFieldMut<'_>) 
 /// via the scaling-and-squaring algorithm.
 ///
 /// # Algorithm
-/// 1. Scale: `Ï† â† v / 2^n_steps`
-/// 2. Square n_steps times: `Ï† â† Ï† âˆ˜ Ï†`
+/// 1. Scale: `φ ← v / 2^n_steps`
+/// 2. Square n_steps times: `φ ← φ ∘ φ`
 ///
 /// Using `n_steps = 6` corresponds to 64 integration steps and is the
 /// standard choice for Diffeomorphic Demons (Vercauteren et al. 2009).
 ///
 /// # Invariants
 /// - For `v = 0` the result is the identity displacement `(0, 0, 0)`.
-/// - For small `v`, `exp(v) â‰ˆ v` (first-order approximation).
+/// - For small `v`, `exp(v) ≈ v` (first-order approximation).
 pub(crate) fn scaling_and_squaring(
     vz: &[f32],
     vy: &[f32],
@@ -167,7 +167,7 @@ mod tests {
         }
     }
 
-    /// For a small constant velocity field, exp(v) â‰ˆ v (first-order approximation).
+    /// For a small constant velocity field, exp(v) ≈ v (first-order approximation).
     #[test]
     fn scaling_and_squaring_small_velocity_approx_identity() {
         let dims = VolumeDims::new([4, 4, 4]);

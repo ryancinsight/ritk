@@ -168,9 +168,9 @@ fn test_anti_extensivity() {
 }
 
 /// Regression for the z=1 degenerate-axis trap: a 2-D (z=1) image is a genuine
-/// 2-D problem, so the structuring element is 2-D. A 5Ã—5 foreground block (in a
-/// 7Ã—7 frame) with fg_radius=1 erodes to its 3Ã—3 interior (9 voxels). Before the
-/// fix, every box query failed on the OOB z=Â±1 neighbours â†’ all-zero output.
+/// 2-D problem, so the structuring element is 2-D. A 5×5 foreground block (in a
+/// 7×7 frame) with fg_radius=1 erodes to its 3×3 interior (9 voxels). Before the
+/// fix, every box query failed on the OOB z=±1 neighbours → all-zero output.
 #[test]
 fn hit_or_miss_works_on_2d_z1_image() {
     let dims = [1, 7, 7];
@@ -184,6 +184,6 @@ fn hit_or_miss_works_on_2d_z1_image() {
     let hits = out.iter().filter(|&&x| x > 0.5).count();
     assert_eq!(
         hits, 9,
-        "2-D hit-or-miss must detect the 3Ã—3 eroded interior"
+        "2-D hit-or-miss must detect the 3×3 eroded interior"
     );
 }

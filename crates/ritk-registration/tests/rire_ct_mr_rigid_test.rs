@@ -21,16 +21,16 @@ use common::{
 };
 use std::f64::consts::PI;
 
-// â”€â”€ Group 1 â€” Pure math tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Group 1 — Pure math tests ────────────────────────────────────────────────
 
 /// # Specification
 ///
 /// The ground-truth rotation must be a proper orthogonal matrix (rotation group
-/// SO(3)): `R Â· R^T = I` and `det(R) = +1`.
+/// SO(3)): `R · R^T = I` and `det(R) = +1`.
 ///
 /// Verification:
-/// - Each diagonal element of `R Â· R^T` must equal `1.0` to within `1e-9`.
-/// - Each off-diagonal element of `R Â· R^T` must equal `0.0` to within `1e-9`.
+/// - Each diagonal element of `R · R^T` must equal `1.0` to within `1e-9`.
+/// - Each off-diagonal element of `R · R^T` must equal `0.0` to within `1e-9`.
 /// - `det(R)` must equal `+1.0` to within `1e-9`.
 ///
 /// A failure here would indicate a transcription error in `GT_ROT` and would
@@ -44,7 +44,7 @@ fn test_rire_gt_rotation_matrix_is_proper_orthogonal() {
             let actual = rrt[i * 3 + j];
             assert!(
                 (actual - expected).abs() < 1e-9,
-                "RÂ·R^T[{},{}] = {:.12e}, expected {:.1} (tol 1e-9)",
+                "R·R^T[{},{}] = {:.12e}, expected {:.1} (tol 1e-9)",
                 i,
                 j,
                 actual,
@@ -65,7 +65,7 @@ fn test_rire_gt_rotation_matrix_is_proper_orthogonal() {
 /// The GT transform must reproduce all 8 RIRE `ct_T1.standard` corners with
 /// residual < 0.001 mm (fiducial-based gold standard).
 ///
-/// Each source point `(src_x, src_y, src_z)` transformed by `T(p) = RÂ·p + t`
+/// Each source point `(src_x, src_y, src_z)` transformed by `T(p) = R·p + t`
 /// must land within 0.001 mm of the corresponding destination point
 /// `(dst_x, dst_y, dst_z)` from `ct_T1.standard`.
 ///
@@ -109,17 +109,17 @@ fn test_rire_gt_eight_corner_verification() {
 ///
 /// Validates the `rigid_inverse()` formula:
 /// - `R^{-1} = R^T`
-/// - `t^{-1} = âˆ’R^T Â· t`
+/// - `t^{-1} = −R^T · t`
 ///
 /// The 12 non-trivial probe points are distributed throughout the CT physical
-/// volume (x, y âˆˆ [0, 334] mm; z âˆˆ [0, 112] mm).
+/// volume (x, y ∈ [0, 334] mm; z ∈ [0, 112] mm).
 ///
 /// ## Tolerance rationale
 ///
 /// `GT_ROT` is tabulated to 9 decimal places, so `R^T` is not the bit-exact
-/// inverse of `R`. The measured orthogonality residual `â€–RÂ·Ráµ€ âˆ’ Iâ€– â‰ˆ 1e-9`
-/// combined with `|p| â‰ˆ 50â€“334 mm` yields a roundtrip error of order
-/// `|p| Ã— 1e-9 â‰ˆ 1e-7 mm`. The tolerance 1e-6 mm is far below any
+/// inverse of `R`. The measured orthogonality residual `—–R·Ráµ€ − I—– ≈ 1e-9`
+/// combined with `|p| ≈ 50–334 mm` yields a roundtrip error of order
+/// `|p| × 1e-9 ≈ 1e-7 mm`. The tolerance 1e-6 mm is far below any
 /// physically meaningful threshold (sub-nanometer) while comfortably
 /// accommodating finite-precision tabulation.
 #[test]

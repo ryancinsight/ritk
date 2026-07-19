@@ -12,7 +12,7 @@ use super::kernel::neighborhood_rank_3d;
 ///
 /// Replaces each voxel with the element at the requested percentile of its
 /// structuring-element neighbourhood. Constructed from a percentile
-/// `p âˆˆ [0, 100]` and a [`StructuringElement`] (typically `cube(r)`,
+/// `p ∈ [0, 100]` and a [`StructuringElement`] (typically `cube(r)`,
 /// `cross(r)`, or `ball(r)`).
 ///
 /// # Validation
@@ -96,13 +96,13 @@ impl PercentileFilter {
             ));
         }
 
-        // Identity fast path: radius = 0 â†’ SE = {(0,0,0)} â†’ output = input.
+        // Identity fast path: radius = 0 → SE = {(0,0,0)} → output = input.
         if self.se.is_empty() || self.se.len() == 1 {
             return Ok(Cow::Borrowed(image));
         }
 
-        // Map continuous percentile p âˆˆ [0, 100] to a discrete rank index
-        // k âˆˆ [0, |B|). Standard floor((p/100) Â· (|B| - 1)) matches
+        // Map continuous percentile p ∈ [0, 100] to a discrete rank index
+        // k ∈ [0, |B|). Standard floor((p/100) · (|B| - 1)) matches
         // scipy.ndimage.percentile_filter and ITK's percentile terminology.
         let n = self.se.len();
         let raw = ((self.percentile / 100.0) * ((n - 1) as f32)).floor() as usize;

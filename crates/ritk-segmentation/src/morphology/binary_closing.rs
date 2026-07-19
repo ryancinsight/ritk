@@ -7,7 +7,7 @@
 //!   closing(I) = erode(dilate(I, S), S)
 //!
 //! # Complexity
-//! O(n Â· (2r+1)^D) where n = total voxels, r = radius, D = image dimension.
+//! O(n · (2r+1)^D) where n = total voxels, r = radius, D = image dimension.
 
 use super::MorphologicalOperation;
 use ritk_image::tensor::{Backend, Tensor};
@@ -48,13 +48,13 @@ impl<B: Backend, const D: usize> MorphologicalOperation<B, D> for BinaryClosing 
     /// Apply closing (dilate then erode) to `mask`.
     ///
     /// # Arguments
-    /// * `mask` â€“ Binary mask image (0.0 = background, 1.0 = foreground).
+    /// * `mask` – Binary mask image (0.0 = background, 1.0 = foreground).
     ///
     /// # Returns
     /// A new `Image<f32, B, D>` with holes filled, preserving spatial metadata.
     ///
     /// Uses ITK's default "safe border": the mask is padded with `radius`
-    /// background voxels on every face before the dilateâ†’erode, then cropped
+    /// background voxels on every face before the dilate→erode, then cropped
     /// back. Without this, the trailing erosion treats out-of-bounds neighbours
     /// as foreground, leaving spurious foreground within `radius` of the volume
     /// border (closing is *not* border-invariant otherwise). This reproduces
@@ -88,7 +88,7 @@ fn strides_of<const D: usize>(shape: &[usize; D]) -> [usize; D] {
 }
 
 /// Pad `mask` with `r` background (0.0) voxels on every face. Spatial metadata is
-/// carried through unchanged â€” the padded image is a transient processing buffer
+/// carried through unchanged — the padded image is a transient processing buffer
 /// that `crop_border` reverses.
 fn pad_background<B: Backend, const D: usize>(
     mask: &Image<f32, B, D>,
@@ -155,12 +155,12 @@ fn crop_border<B: Backend, const D: usize>(
     .expect("invariant: segmentation output tensor preserves the image rank")
 }
 
-// â”€â”€ Shared implementation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Shared implementation ─────────────────────────────────────────────────────
 
 /// Apply a binary morphological operation (erosion or dilation) in D dimensions.
 ///
-/// `op = MorphOp::Erosion`  â†’ erosion  (output = 1 iff ALL neighbours are 1)
-/// `op = MorphOp::Dilation` â†’ dilation (output = 1 iff ANY neighbour is 1)
+/// `op = MorphOp::Erosion`  → erosion  (output = 1 iff ALL neighbours are 1)
+/// `op = MorphOp::Dilation` → dilation (output = 1 iff ANY neighbour is 1)
 pub(super) fn apply_morphological_op<B: Backend, const D: usize>(
     mask: &Image<f32, B, D>,
     radius: usize,
@@ -203,7 +203,7 @@ pub(super) fn apply_morphological_op<B: Backend, const D: usize>(
 /// Scan the hypercube neighbourhood of `center` and return the erosion/dilation
 /// result.
 ///
-/// Iterates all offsets in `[âˆ’r, r]^D` using a D-dimensional counter.
+/// Iterates all offsets in `[−r, r]^D` using a D-dimensional counter.
 /// Out-of-bounds neighbours are skipped (treated as absent).
 fn scan_neighborhood<const D: usize>(
     data: &[f32],
@@ -213,7 +213,7 @@ fn scan_neighborhood<const D: usize>(
     r: isize,
     op: MorphOp,
 ) -> bool {
-    // D-dimensional counter, initialised to (âˆ’r, âˆ’r, â€¦, âˆ’r).
+    // D-dimensional counter, initialised to (−r, −r, …, −r).
     let mut offsets = [-r; D];
 
     loop {
@@ -232,10 +232,10 @@ fn scan_neighborhood<const D: usize>(
         if in_bounds {
             let is_foreground = data[flat] >= super::FOREGROUND_THRESHOLD;
             if op == MorphOp::Erosion && !is_foreground {
-                return false; // Found a background voxel â†’ erosion output = 0.
+                return false; // Found a background voxel → erosion output = 0.
             }
             if op == MorphOp::Dilation && is_foreground {
-                return true; // Found a foreground voxel â†’ dilation output = 1.
+                return true; // Found a foreground voxel → dilation output = 1.
             }
         }
 
@@ -257,7 +257,7 @@ fn scan_neighborhood<const D: usize>(
     }
 
     // Exhausted all neighbours:
-    // Erosion â†’ all foreground (would have returned false on first background).
-    // Dilation â†’ all background (would have returned true on first foreground).
+    // Erosion → all foreground (would have returned false on first background).
+    // Dilation → all background (would have returned true on first foreground).
     matches!(op, MorphOp::Erosion)
 }

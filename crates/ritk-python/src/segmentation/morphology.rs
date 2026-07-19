@@ -123,7 +123,7 @@ pub fn binary_fill_holes(py: Python<'_>, image: &PyImage) -> PyImage {
 /// Uses a box (hypercube) structuring element of half-width `radius`, matching
 /// `sitk.MorphologicalGradient(..., sitk.sitkBox)` exactly (the binary
 /// dilation/erosion it is built from are box-SE, like the rest of ritk's binary
-/// morphology â€” *not* a ball).
+/// morphology — *not* a ball).
 ///
 /// Args:
 ///     image: Binary mask PyImage (values in {0.0, 1.0}).

@@ -2,14 +2,14 @@
 //!
 //! # Verified mathematical properties
 //!
-//! 1. Shape contract: `[H, W]` input â†’ `[H, 2*W]` output; `[D, H, W]` â†’ `[D, H, 2*W]`.
+//! 1. Shape contract: `[H, W]` input → `[H, 2*W]` output; `[D, H, W]` → `[D, H, 2*W]`.
 //! 2. DC component: for a constant image f(x,y) = v,
-//!    Re(F[0,0]) = HÂ·WÂ·v  and  Im(F[0,0]) = 0.
-//!    Proof: F(0,0) = Î£_{x,y} f(x,y)Â·e^{-2Ï€iÂ·0} = Î£ f(x,y) = HÂ·WÂ·v.
-//! 3. Parseval (unnormalized DFT): Î£_{u,v} |F[u,v]|Â² = HÂ·W Â· Î£_{x,y} |f[x,y]|Â².
+//!    Re(F[0,0]) = H·W·v  and  Im(F[0,0]) = 0.
+//!    Proof: F(0,0) = Σ_{x,y} f(x,y)·e^{-2πi·0} = Σ f(x,y) = H·W·v.
+//! 3. Parseval (unnormalized DFT): Σ_{u,v} |F[u,v]|² = H·W · Σ_{x,y} |f[x,y]|².
 //!    Reference: DFT Parseval's theorem.
-//! 4. Zero input: f(x,y) = 0 âŸ¹ F(u,v) = 0 for all u, v.
-//!    Proof: F(u,v) = Î£ 0Â·e^{...} = 0.
+//! 4. Zero input: f(x,y) = 0 ⟹ F(u,v) = 0 for all u, v.
+//!    Proof: F(u,v) = Σ 0·e^{...} = 0.
 
 use crate::fft::ForwardFftFilter;
 use ritk_image::Image;
@@ -42,9 +42,9 @@ fn make_real_3d(data: Vec<f32>, d: usize, h: usize, w: usize) -> Image<f32, B, 3
     .expect("invariant: fixture tensor has the declared rank")
 }
 
-// â”€â”€ Shape contract â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Shape contract ─────────────────────────────────────────────────────────────
 
-/// Shape contract 2-D: input `[H, W]` â†’ output `[H, 2*W]`.
+/// Shape contract 2-D: input `[H, W]` → output `[H, 2*W]`.
 #[test]
 fn output_shape_matches_input_planar() {
     let img = make_real_2d(vec![0.0_f32; 4 * 6], 4, 6);
@@ -56,7 +56,7 @@ fn output_shape_matches_input_planar() {
     );
 }
 
-/// Shape contract 3-D: input `[D, H, W]` â†’ output `[D, H, 2*W]`.
+/// Shape contract 3-D: input `[D, H, W]` → output `[D, H, 2*W]`.
 #[test]
 fn output_shape_matches_input_volume() {
     let img = make_real_3d(vec![0.0_f32; 3 * 4 * 6], 3, 4, 6);
@@ -68,11 +68,11 @@ fn output_shape_matches_input_volume() {
     );
 }
 
-// â”€â”€ DC component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── DC component ───────────────────────────────────────────────────────────────
 
-/// For a constant image f(x,y) = v, F(0,0) = HÂ·WÂ·v and Im(F[0,0]) = 0.
+/// For a constant image f(x,y) = v, F(0,0) = H·W·v and Im(F[0,0]) = 0.
 ///
-/// Proof: F(0,0) = Î£_{x,y} f(x,y)Â·e^{-2Ï€iÂ·0} = Î£ f(x,y) = HÂ·WÂ·v.
+/// Proof: F(0,0) = Σ_{x,y} f(x,y)·e^{-2πi·0} = Σ f(x,y) = H·W·v.
 /// The imaginary part vanishes because all phases are zero at u=0, v=0.
 #[test]
 fn dc_component_equals_sum_of_values() {
@@ -99,9 +99,9 @@ fn dc_component_equals_sum_of_values() {
     );
 }
 
-// â”€â”€ Parseval's theorem â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Parseval's theorem ─────────────────────────────────────────────────────────
 
-/// Parseval's theorem (unnormalized DFT): Î£|F[u,v]|Â² = HÂ·W Â· Î£|f[x,y]|Â².
+/// Parseval's theorem (unnormalized DFT): Σ|F[u,v]|² = H·W · Σ|f[x,y]|².
 ///
 /// Reference: DFT Parseval's theorem for the unnormalized forward transform.
 #[test]
@@ -113,10 +113,10 @@ fn energy_scales_with_normalization() {
     let freq = ForwardFftFilter::new().apply(&img).unwrap();
     let (vals, _) = extract_vec(&freq).unwrap();
 
-    // Spatial energy: Î£|f[x,y]|Â².
+    // Spatial energy: Σ|f[x,y]|².
     let spatial_energy: f32 = data.iter().map(|&x| x * x).sum();
 
-    // Spectral energy: Î£(ReÂ² + ImÂ²) over all W frequency bins across all H rows.
+    // Spectral energy: Σ(Re² + Im²) over all W frequency bins across all H rows.
     let spectral_energy: f32 = vals
         .chunks_exact(2)
         .map(|pair| pair[0] * pair[0] + pair[1] * pair[1])
@@ -129,16 +129,16 @@ fn energy_scales_with_normalization() {
 
     assert!(
         relative_err < 1e-4,
-        "Parseval: Î£|F|Â² must equal H*WÂ·Î£|f|Â². \
+        "Parseval: Σ|F|² must equal H*W·Σ|f|². \
          expected={expected:.6}, got={spectral_energy:.6}, rel_err={relative_err:.2e}"
     );
 }
 
-// â”€â”€ Zero input â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Zero input ─────────────────────────────────────────────────────────────────
 
 /// F(u,v) = 0 for all u,v when f(x,y) = 0.
 ///
-/// Proof: F(u,v) = Î£_{x,y} 0Â·e^{...} = 0.
+/// Proof: F(u,v) = Σ_{x,y} 0·e^{...} = 0.
 #[test]
 fn all_zero_input_gives_all_zero_output() {
     let h = 3_usize;
@@ -161,10 +161,10 @@ fn all_zero_input_gives_all_zero_output() {
     }
 }
 
-// â”€â”€ Half-Hermitian forward FFT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Half-Hermitian forward FFT ───────────────────────────────────────────────
 
 /// The half-Hermitian forward FFT keeps the first `W/2+1` complex columns of the
-/// full forward FFT, bitwise. Shape: `[D, H, W]` â†’ `[D, H, 2*(W/2+1)]`, and the
+/// full forward FFT, bitwise. Shape: `[D, H, W]` → `[D, H, 2*(W/2+1)]`, and the
 /// retained interleaved values equal the full transform's leading columns.
 #[test]
 fn half_hermitian_matches_full_forward_leading_columns() {

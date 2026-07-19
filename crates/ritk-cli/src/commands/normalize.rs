@@ -1,11 +1,11 @@
-//! `ritk normalize` â€” image intensity normalization command.
+//! `ritk normalize` — image intensity normalization command.
 //!
 //! Applies one of five normalization strategies to a 3-D medical image:
 //!
 //! | Method             | Description                                        |
 //! |--------------------|----------------------------------------------------|
 //! | `histogram-match`  | CDF-based histogram matching to a reference image  |
-//! | `nyul`             | NyÃºl-Udupa piecewise-linear standardization        |
+//! | `nyul`             | Nyúl-Udupa piecewise-linear standardization        |
 //! | `zscore`           | Zero-mean, unit-variance normalization             |
 //! | `minmax`           | Rescale intensities to \[0, 1\]                    |
 //! | `white-stripe`     | Brain MRI white-stripe normalization               |
@@ -22,7 +22,7 @@ use ritk_statistics::normalization::{
 
 use super::{infer_format, is_read_capable, is_write_capable, read_image, write_image};
 
-// â”€â”€ CLI arguments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CLI arguments ─────────────────────────────────────────────────────────────
 
 /// MRI contrast type for white-stripe normalization.
 #[derive(clap::ValueEnum, Clone, Debug)]
@@ -103,7 +103,7 @@ pub struct NormalizeArgs {
 
     /// Optional binary mask image path for masked Z-score normalization.
     ///
-    /// Only used with `--method zscore`. When supplied, Î¼ and Ïƒ are computed
+    /// Only used with `--method zscore`. When supplied, μ and σ are computed
     /// from foreground voxels (mask > 0.5); all voxels are still transformed.
     /// If the mask contains no foreground voxels, the method falls back to
     /// full-image statistics.
@@ -111,7 +111,7 @@ pub struct NormalizeArgs {
     pub mask: Option<PathBuf>,
 }
 
-// â”€â”€ Command handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Command handler ───────────────────────────────────────────────────────────
 
 /// Execute the `normalize` subcommand.
 ///

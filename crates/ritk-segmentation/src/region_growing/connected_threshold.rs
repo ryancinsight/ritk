@@ -9,7 +9,7 @@ use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 use std::collections::VecDeque;
 
-// â”€â”€ Public type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public type ───────────────────────────────────────────────────────────────
 
 /// Connected-threshold region-growing filter.
 ///
@@ -45,7 +45,7 @@ impl ConnectedThresholdFilter {
     ///
     /// Returns a binary mask (values in {0.0, 1.0}) with the same shape and
     /// spatial metadata as `image`.  If the seed voxel's intensity does not
-    /// satisfy `lower â‰¤ I(seed) â‰¤ upper`, the output is all-zero.
+    /// satisfy `lower ≤ I(seed) ≤ upper`, the output is all-zero.
     pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         connected_threshold(image, self.seed, self.lower, self.upper)
     }
@@ -101,7 +101,7 @@ impl ConnectedThresholdFilter {
     }
 }
 
-// â”€â”€ Public function â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public function ───────────────────────────────────────────────────────────
 
 /// Connected-threshold region growing starting from `seed`.
 ///
@@ -151,9 +151,9 @@ pub fn connected_threshold<B: Backend>(
     .expect("invariant: segmentation output tensor preserves the image rank")
 }
 
-// â”€â”€ Core BFS flood fill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Core BFS flood fill ───────────────────────────────────────────────────────
 
-/// Perform BFS flood fill on a flat `[nz Ã— ny Ã— nx]` intensity slice.
+/// Perform BFS flood fill on a flat `[nz × ny × nx]` intensity slice.
 ///
 /// Returns a flat binary `Vec<f32>` of the same length as `data`.
 pub(crate) fn flood_fill(

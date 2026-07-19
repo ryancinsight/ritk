@@ -35,7 +35,7 @@ fn apply_auto_threshold_native<A: AutoThreshold>(
     Ok((threshold, foreground))
 }
 
-// â”€â”€ Otsu thresholding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Otsu thresholding ─────────────────────────────────────────────────────────
 
 /// Apply single-threshold Otsu segmentation.
 ///
@@ -62,12 +62,12 @@ pub(super) fn run_otsu(args: &SegmentArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Multi-Otsu thresholding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Multi-Otsu thresholding ───────────────────────────────────────────────────
 
 /// Apply multi-class Otsu segmentation with `args.classes` intensity classes.
 ///
-/// Computes Kâˆ’1 optimal thresholds and maps each voxel to the class label
-/// (0.0, 1.0, â€¦, Kâˆ’1.0) whose intensity interval it falls into.
+/// Computes K−1 optimal thresholds and maps each voxel to the class label
+/// (0.0, 1.0, …, K−1.0) whose intensity interval it falls into.
 ///
 /// # Errors
 ///
@@ -118,7 +118,7 @@ pub(super) fn run_multi_otsu(args: &SegmentArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Li thresholding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Li thresholding ───────────────────────────────────────────────────────────
 
 /// Apply Li minimum cross-entropy thresholding.
 ///
@@ -144,7 +144,7 @@ pub(super) fn run_li(args: &SegmentArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Yen thresholding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Yen thresholding ──────────────────────────────────────────────────────────
 
 /// Apply Yen maximum correlation criterion thresholding.
 ///
@@ -170,7 +170,7 @@ pub(super) fn run_yen(args: &SegmentArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Kapur thresholding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Kapur thresholding ────────────────────────────────────────────────────────
 
 /// Apply Kapur maximum entropy thresholding.
 ///
@@ -196,7 +196,7 @@ pub(super) fn run_kapur(args: &SegmentArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Triangle thresholding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Triangle thresholding ─────────────────────────────────────────────────────
 
 /// Apply Triangle (geometric) thresholding.
 ///
@@ -223,12 +223,12 @@ pub(super) fn run_triangle(args: &SegmentArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Binary threshold segmentation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Binary threshold segmentation ─────────────────────────────────────────────
 
 /// Apply user-specified binary threshold segmentation.
 ///
 /// Classifies voxels in `[lower, upper]` as foreground (1.0) and all others as
-/// background (0.0).  Bounds default to `[-âˆž, +âˆž]` when not supplied, making
+/// background (0.0).  Bounds default to `[-∞, +∞]` when not supplied, making
 /// all finite voxels foreground.
 ///
 /// # Mathematical Specification
@@ -273,7 +273,7 @@ pub(super) fn run_binary(args: &SegmentArgs) -> Result<()> {
     write_image(&args.output, &mask, output_format)?;
 
     println!(
-        "Segmented {} (binary): [{lower:.4}, {upper:.4}] â†’ {n_foreground} foreground voxels",
+        "Segmented {} (binary): [{lower:.4}, {upper:.4}] → {n_foreground} foreground voxels",
         args.input.display(),
     );
     info!(

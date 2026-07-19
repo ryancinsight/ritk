@@ -1,7 +1,7 @@
 //! DIMSE command set encoding and decoding (Implicit VR Little Endian).
 //!
 //! DIMSE command sets are always encoded using Implicit VR Little Endian
-//! regardless of the negotiated transfer syntax (PS3.7 Â§6.3.1).
+//! regardless of the negotiated transfer syntax (PS3.7 §6.3.1).
 //!
 //! # Format (IVR-LE element):
 //! ```text
@@ -14,23 +14,23 @@ use arrayvec::ArrayString;
 
 use super::association::NetworkingError;
 
-// â”€â”€ SOP Class UIDs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SOP Class UIDs ────────────────────────────────────────────────────────────
 
-/// Verification SOP Class (C-ECHO) â€” PS3.4 Â§A.5.
+/// Verification SOP Class (C-ECHO) — PS3.4 §A.5.
 pub const VERIFICATION_SOP_CLASS: &str = "1.2.840.10008.1.1";
-/// Study Root Query/Retrieve â€” FIND â€” PS3.4 Â§C.4.1.
+/// Study Root Query/Retrieve — FIND — PS3.4 §C.4.1.
 pub const STUDY_ROOT_FIND_SOP_CLASS: &str = "1.2.840.10008.5.1.4.1.2.2.1";
-/// Study Root Query/Retrieve â€” MOVE â€” PS3.4 Â§C.4.2.
+/// Study Root Query/Retrieve — MOVE — PS3.4 §C.4.2.
 pub const STUDY_ROOT_MOVE_SOP_CLASS: &str = "1.2.840.10008.5.1.4.1.2.2.2";
 
-// â”€â”€ Transfer Syntax UIDs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Transfer Syntax UIDs ──────────────────────────────────────────────────────
 
 /// Implicit VR Little Endian transfer syntax UID.
 pub const IMPLICIT_VR_LE_TS: &str = "1.2.840.10008.1.2";
 /// Explicit VR Little Endian transfer syntax UID.
 pub const EXPLICIT_VR_LE_TS: &str = "1.2.840.10008.1.2.1";
 
-// â”€â”€ Command Field values (PS3.7 Table E.1-1) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Command Field values (PS3.7 Table E.1-1) ─────────────────────────────────
 
 /// C-STORE-RQ command field.
 pub const C_STORE_RQ: u16 = 0x0001;
@@ -49,28 +49,28 @@ pub const C_ECHO_RQ: u16 = 0x0030;
 /// C-ECHO-RSP command field.
 pub const C_ECHO_RSP: u16 = 0x8030;
 
-// â”€â”€ Command Data Set Type values (PS3.7 Â§9.3.1) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Command Data Set Type values (PS3.7 §9.3.1) ──────────────────────────────
 
 /// No accompanying dataset.
 pub const NO_DATASET: u16 = 0x0101;
 /// Accompanying dataset present.
 pub const HAS_DATASET: u16 = 0xFEFF;
 
-// â”€â”€ Priority (PS3.7 Â§9.3.1) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Priority (PS3.7 §9.3.1) ──────────────────────────────────────────────────
 
 /// MEDIUM priority (0x0002). Used for all commands in this implementation.
 pub const PRIORITY_MEDIUM: u16 = 0x0002;
 
-// â”€â”€ DIMSE status codes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── DIMSE status codes ────────────────────────────────────────────────────────
 
 /// Success (0x0000).
 pub const STATUS_SUCCESS: u16 = 0x0000;
-/// Pending â€” matches may still be outstanding (C-FIND/C-MOVE).
+/// Pending — matches may still be outstanding (C-FIND/C-MOVE).
 pub const STATUS_PENDING: u16 = 0xFF00;
 /// Pending with warning (C-MOVE sub-operation warning).
 pub const STATUS_PENDING_WARN: u16 = 0xFF01;
 
-// â”€â”€ Value encoding helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Value encoding helpers ────────────────────────────────────────────────────
 
 /// Write a UID string as IVR-LE UI value into `buf`: null-padded to even length.
 pub fn encode_ui_into(buf: &mut Vec<u8>, uid: &str) {
@@ -94,7 +94,7 @@ fn padded_len(s: &str) -> usize {
     l + (l & 1)
 }
 
-/// Encode a string (AE/CS/LO/SH) as IVR-LE: space-padded to even length (PS3.5 Â§6.2).
+/// Encode a string (AE/CS/LO/SH) as IVR-LE: space-padded to even length (PS3.5 §6.2).
 pub fn encode_str(s: &str) -> Vec<u8> {
     let mut b = Vec::with_capacity(padded_len(s));
     encode_str_into(&mut b, s);
@@ -110,7 +110,7 @@ pub enum CommandElementValue<'a> {
     Str(&'a str),
 }
 
-// â”€â”€ Command PDU construction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Command PDU construction ──────────────────────────────────────────────────
 
 /// Build a complete DIMSE command PDV body (IVR-LE) from a sequence of typed
 /// command element values. Values are encoded directly into the body buffer,
@@ -198,7 +198,7 @@ pub fn build_dataset_ivr_le(elements: &[(u32, &[u8])]) -> Vec<u8> {
     buf
 }
 
-// â”€â”€ Command response parsing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Command response parsing ──────────────────────────────────────────────────
 
 /// Parsed fields from a received DIMSE command response PDV.
 #[derive(Debug, Default)]

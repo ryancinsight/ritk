@@ -6,26 +6,26 @@
 //! # Pipeline
 //!
 //! ```text
-//! input â†’ ForwardFFT â†’ FFTShift â†’ mask â†’ FFTShiftâ»Â¹ â†’ InverseFFT â†’ output
+//! input → ForwardFFT → FFTShift → mask → FFTShift⁻¹ → InverseFFT → output
 //! ```
 //!
 //! # Filter transfer functions
 //!
-//! Let `r = sqrt(fxÂ² + fyÂ² [+ fzÂ²])` be the normalised frequency radius,
-//! `c âˆˆ (0, 0.5]` the cutoff, and `n âˆˆ â„•` the Butterworth order.
+//! Let `r = sqrt(fx² + fy² [+ fz²])` be the normalised frequency radius,
+//! `c ∈ (0, 0.5]` the cutoff, and `n ∈ ℕ` the Butterworth order.
 //!
 //! | Filter | H(r) |
 //! |---|---|
-//! | Ideal low-pass | 1 if r â‰¤ c, else 0 |
-//! | Ideal high-pass | 1 if r â‰¥ c, else 0 |
+//! | Ideal low-pass | 1 if r ≤ c, else 0 |
+//! | Ideal high-pass | 1 if r ≥ c, else 0 |
 //! | Butterworth low-pass | 1 / (1 + (r/c)^(2n)) |
-//! | Butterworth high-pass | 1 âˆ’ 1 / (1 + (r/c)^(2n)) |
+//! | Butterworth high-pass | 1 − 1 / (1 + (r/c)^(2n)) |
 //!
 //! # Normalised frequency convention
 //!
 //! After FFT shift, the DC component is at the centre of the array.
-//! Frequencies are mapped to the range [âˆ’0.5, +0.5] in each axis,
-//! where Â±0.5 corresponds to the Nyquist frequency.
+//! Frequencies are mapped to the range [−0.5, +0.5] in each axis,
+//! where ±0.5 corresponds to the Nyquist frequency.
 //!
 //! # References
 //!
@@ -38,7 +38,7 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// â”€â”€ Filter type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Filter type ───────────────────────────────────────────────────────────────
 
 /// Frequency-domain filter transfer function.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -53,7 +53,7 @@ pub enum FftFilterKind {
     ButterworthHighPass,
 }
 
-// â”€â”€ Frequency response trait â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Frequency response trait ──────────────────────────────────────────────────
 
 /// Trait for frequency-domain transfer functions.
 ///
@@ -68,7 +68,7 @@ pub trait FrequencyResponse: Default {
     ///
     /// The mask has shape matching `spatial_dims`. After FFT shift, the DC
     /// component is at the centre of the array; frequencies are mapped to
-    /// `[âˆ’0.5, +0.5]` per axis.
+    /// `[−0.5, +0.5]` per axis.
     fn compute_mask<const D: usize>(
         spatial_dims: &[usize; D],
         cutoff: f64,
@@ -103,11 +103,11 @@ pub trait FrequencyResponse: Default {
     }
 }
 
-/// Ideal low-pass transfer function: H(r) = 1 if r â‰¤ c, else 0.
+/// Ideal low-pass transfer function: H(r) = 1 if r ≤ c, else 0.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IdealLowPass;
 
-/// Ideal high-pass transfer function: H(r) = 1 if r â‰¥ c, else 0.
+/// Ideal high-pass transfer function: H(r) = 1 if r ≥ c, else 0.
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IdealHighPass;
 
@@ -115,7 +115,7 @@ pub struct IdealHighPass;
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ButterworthLowPass;
 
-/// Butterworth high-pass transfer function: H(r) = 1 âˆ’ 1 / (1 + (r/c)^(2n)).
+/// Butterworth high-pass transfer function: H(r) = 1 − 1 / (1 + (r/c)^(2n)).
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ButterworthHighPass;
 
@@ -155,12 +155,12 @@ impl FrequencyResponse for ButterworthHighPass {
     }
 }
 
-// â”€â”€ Filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Filter struct ─────────────────────────────────────────────────────────────
 
 /// Frequency-domain image filter.
 ///
 /// Applies a real-valued mask in the shifted frequency domain to a **real**
-/// input image. The full FFT round-trip (forward â†’ shift â†’ mask â†’ unshift â†’
+/// input image. The full FFT round-trip (forward → shift → mask → unshift →
 /// inverse) is handled internally.
 ///
 /// # Example
@@ -187,10 +187,10 @@ impl FrequencyDomainFilter {
     ///
     /// # Arguments
     ///
-    /// * `image` â€” Real-valued input.
-    /// * `kind` â€” Transfer function kind.
-    /// * `cutoff` â€” Normalised cutoff frequency in `(0, 0.5]`.
-    /// * `order` â€” Butterworth order (ignored for ideal filters).
+    /// * `image` — Real-valued input.
+    /// * `kind` — Transfer function kind.
+    /// * `cutoff` — Normalised cutoff frequency in `(0, 0.5]`.
+    /// * `order` — Butterworth order (ignored for ideal filters).
     pub fn apply<B: Backend, const D: usize>(
         &self,
         image: &Image<f32, B, D>,
@@ -201,7 +201,7 @@ impl FrequencyDomainFilter {
         Self::validate_cutoff(cutoff)?;
         let spatial_dims = image.shape();
 
-        // Forward FFT â†’ shift.
+        // Forward FFT → shift.
         let freq = ForwardFftFilter::new().apply(image)?;
         let shifted = FftShiftFilter::new().apply(&freq)?;
         let cw = shifted.shape()[D - 1];
@@ -233,7 +233,7 @@ impl FrequencyDomainFilter {
         }
         let masked = rebuild(out, dims, &shifted);
 
-        // Unshift â†’ inverse FFT.
+        // Unshift → inverse FFT.
         let unshifted = FftShiftFilter::new().apply(&masked)?;
         InverseFftFilter::new().apply(&unshifted)
     }
@@ -276,7 +276,7 @@ impl FrequencyDomainFilter {
         InverseFftFilter::new().apply_native(&unshifted, backend)
     }
 
-    // â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Private helpers ────────────────────────────────────────────────
 
     fn validate_cutoff(cutoff: f64) -> Result<()> {
         if cutoff <= 0.0 || cutoff > 0.5 {
@@ -318,7 +318,7 @@ impl Default for FrequencyDomainFilter {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 #[cfg(test)]
 #[path = "tests_frequency_filter.rs"]
 mod tests;

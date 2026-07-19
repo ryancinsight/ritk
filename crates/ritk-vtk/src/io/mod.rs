@@ -1,4 +1,4 @@
-//! VTK I/O module â€” free functions, VtkReader/VtkWriter wrappers, and sub-modules.
+//! VTK I/O module — free functions, VtkReader/VtkWriter wrappers, and sub-modules.
 
 pub mod polydata;
 pub use polydata::{read_vtk_polydata, write_vtk_polydata};

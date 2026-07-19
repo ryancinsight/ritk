@@ -97,7 +97,7 @@ impl SnapApp {
             Ok(grid) => {
                 let max_dose_gy = grid.dose_gy.iter().copied().fold(0.0_f64, f64::max);
                 self.status_message = format!(
-                    "Loaded RT-DOSE ({} type, {}Ã—{}Ã—{} grid) from {}",
+                    "Loaded RT-DOSE ({} type, {}×{}×{} grid) from {}",
                     grid.dose_type.as_dicom_str(),
                     grid.rows,
                     grid.cols,

@@ -10,7 +10,7 @@ use crate::deformable_field_ops::{VectorField, VectorFieldMut};
 /// `cc_forces_into` pattern used in the SyN diffeomorphic path.
 ///
 /// # Arguments
-/// * `dims` â€” `[nz, ny, nx]` spatial extent; required for z-slice dispatch.
+/// * `dims` — `[nz, ny, nx]` spatial extent; required for z-slice dispatch.
 pub(crate) fn thirion_forces_into(
     fixed: &[f32],
     m_warped: &[f32],

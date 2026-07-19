@@ -2,8 +2,8 @@
 //!
 //! # Mathematical Specification
 //!
-//! Given a binary image M: â„¤á´° â†’ {0, 1}, skeletonization produces a thin
-//! subset S âŠ† M that preserves the topology of M (same number of connected
+//! Given a binary image M: ℤá´° → {0, 1}, skeletonization produces a thin
+//! subset S ⊆ M that preserves the topology of M (same number of connected
 //! components, tunnels, and cavities) while removing as many foreground
 //! voxels as possible.
 //!
@@ -12,53 +12,53 @@
 //! A foreground point p is **simple** if its removal does not change the
 //! topology of the image. For the (FG=26, BG=6) adjacency pair in 3-D:
 //!
-//! p is simple âŸº Tâ‚‚â‚†(p) = 1
+//! p is simple ⟺ T₂₆(p) = 1
 //!
-//! where Tâ‚‚â‚†(p) is the number of 26-connected foreground components in
-//! Nâ‚‚â‚†(p) \ {p} (the 26-neighborhood excluding the center).
+//! where T₂₆(p) is the number of 26-connected foreground components in
+//! N₂₆(p) \ {p} (the 26-neighborhood excluding the center).
 //!
 //! **Proof sketch (Bertrand & Malandain, 1994):** For (26, 6) adjacency,
-//! Tâ‚‚â‚†(p) = 1 implies TÌ„â‚†(p) = 1 (exactly one 6-connected background
-//! component 6-adjacent to p in Nâ‚â‚ˆ(p) \ {p}). Both conditions together
+//! T₂₆(p) = 1 implies TÌ„₆(p) = 1 (exactly one 6-connected background
+//! component 6-adjacent to p in N₁₈(p) \ {p}). Both conditions together
 //! are necessary and sufficient for simplicity. Since the first implies the
-//! second under (26, 6) adjacency, Tâ‚‚â‚†(p) = 1 alone suffices.
+//! second under (26, 6) adjacency, T₂₆(p) = 1 alone suffices.
 //!
 //! ## Definition (Endpoint)
 //!
 //! A foreground point p is an **endpoint** if it has at most one foreground
 //! neighbor in its full connectivity neighborhood:
-//! - D = 2: |{q âˆˆ Nâ‚ˆ(p) \ {p} : M(q) = 1}| â‰¤ 1
-//! - D = 3: |{q âˆˆ Nâ‚‚â‚†(p) \ {p} : M(q) = 1}| â‰¤ 1
+//! - D = 2: |{q ∈ N₈(p) \ {p} : M(q) = 1}| ≤ 1
+//! - D = 3: |{q ∈ N₂₆(p) \ {p} : M(q) = 1}| ≤ 1
 //!
 //! Endpoints are never removed, ensuring the skeleton retains branch tips
 //! and produces a **curve skeleton** (medial axis).
 //!
-//! ## Algorithm â€” D = 2: Zhangâ€“Suen Thinning (1984)
+//! ## Algorithm — D = 2: Zhang–Suen Thinning (1984)
 //!
 //! Two sub-iterations per pass on 8-connected foreground / 4-connected background.
-//! Neighbors Pâ‚‚..Pâ‚‰ are labeled clockwise from north. Let:
-//! - B(p) = Î£ Páµ¢ (count of foreground 8-neighbors)
-//! - A(p) = number of 0â†’1 transitions in the cyclic sequence Pâ‚‚..Pâ‚‰,Pâ‚‚
+//! Neighbors P₂..P₉ are labeled clockwise from north. Let:
+//! - B(p) = Σ Pᵢ (count of foreground 8-neighbors)
+//! - A(p) = number of 0→1 transitions in the cyclic sequence P₂..P₉,P₂
 //!
-//! **Sub-iteration 1:** Delete p if 2 â‰¤ B(p) â‰¤ 6, A(p) = 1,
-//! Pâ‚‚Â·Pâ‚„Â·Pâ‚† = 0, and Pâ‚„Â·Pâ‚†Â·Pâ‚ˆ = 0.
+//! **Sub-iteration 1:** Delete p if 2 ≤ B(p) ≤ 6, A(p) = 1,
+//! P₂·P₄·P₆ = 0, and P₄·P₆·P₈ = 0.
 //!
-//! **Sub-iteration 2:** Delete p if 2 â‰¤ B(p) â‰¤ 6, A(p) = 1,
-//! Pâ‚‚Â·Pâ‚„Â·Pâ‚ˆ = 0, and Pâ‚‚Â·Pâ‚†Â·Pâ‚ˆ = 0.
+//! **Sub-iteration 2:** Delete p if 2 ≤ B(p) ≤ 6, A(p) = 1,
+//! P₂·P₄·P₈ = 0, and P₂·P₆·P₈ = 0.
 //!
 //! Repeat until neither sub-iteration removes any pixel.
 //!
-//! ## Algorithm â€” D = 3: 6-Directional Sequential Thinning
+//! ## Algorithm — D = 3: 6-Directional Sequential Thinning
 //!
 //! Each iteration comprises 6 sub-iterations (one per face direction:
-//! Â±z, Â±y, Â±x). In each sub-iteration:
+//! ±z, ±y, ±x). In each sub-iteration:
 //!
 //! 1. Identify **border voxels**: foreground voxels whose face-neighbor in
 //!    the current direction is background (or out of bounds).
 //! 2. For each border voxel p (raster order), re-check:
 //!    a. p is still foreground (may have been removed earlier in this pass).
-//!    b. p is not an endpoint (|Nâ‚‚â‚†(p) âˆ© FG| > 1).
-//!    c. p is a simple point (Tâ‚‚â‚†(p) = 1).
+//!    b. p is not an endpoint (|N₂₆(p) ∩ FG| > 1).
+//!    c. p is a simple point (T₂₆(p) = 1).
 //!    If all hold, delete p immediately (sequential deletion).
 //! 3. Repeat until a full pass (all 6 directions) removes zero voxels.
 //!
@@ -66,18 +66,18 @@
 //! in the current configuration, which preserves topology by definition.
 //! Sequential re-checking ensures no two conflicting deletions occur.
 //!
-//! ## Algorithm â€” D = 1: Medial Point Extraction
+//! ## Algorithm — D = 1: Medial Point Extraction
 //!
 //! For each maximal connected foreground run [a, b], retain only the
-//! midpoint âŒŠ(a + b) / 2âŒ‹. This preserves one point per connected
+//! midpoint ⌊(a + b) / 2⌋. This preserves one point per connected
 //! component (topology) and selects the medial position.
 //!
 //! ## Complexity
 //!
 //! - D = 1: O(n) single pass.
-//! - D = 2: O(n Â· k) where k is the number of passes (bounded by
+//! - D = 2: O(n · k) where k is the number of passes (bounded by
 //!   max(ny, nx) / 2).
-//! - D = 3: O(n Â· k Â· 6) where k is the iteration count, plus O(26Â²)
+//! - D = 3: O(n · k · 6) where k is the iteration count, plus O(26²)
 //!   per simple-point test (constant).
 //!
 //! # References
@@ -90,7 +90,7 @@
 //! - Lee, T.C., Kashyap, R.L. & Chu, C.N. (1994). "Building Skeleton
 //!   Models via 3-D Medial Surface/Axis Thinning Algorithms." *CVGIP:
 //!   Graphical Models and Image Processing*, 56(6), 462-478.
-//! - PalÃ¡gyi, K. & Kuba, A. (1999). "A Parallel 3D 12-Subiteration
+//! - Palágyi, K. & Kuba, A. (1999). "A Parallel 3D 12-Subiteration
 //!   Thinning Algorithm." *Graphical Models and Image Processing*, 61(4),
 //!   199-221.
 
@@ -101,7 +101,7 @@ use ritk_core::image::Image;
 use ritk_image::tensor::{Backend, Tensor};
 use ritk_tensor_ops::extract_vec_infallible;
 
-// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public types ─────────────────────────────────────────────────────────────
 
 /// Topology-preserving skeletonization (thinning) filter.
 ///
@@ -173,7 +173,7 @@ impl<B: Backend, const D: usize> super::MorphologicalOperation<B, D> for Skeleto
     }
 }
 
-// â”€â”€ Dispatcher â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Dispatcher ───────────────────────────────────────────────────────────────
 
 fn skeleton_nd(flat: &[f32], shape: &[usize]) -> Vec<f32> {
     match shape.len() {
@@ -190,6 +190,6 @@ fn skeleton_nd(flat: &[f32], shape: &[usize]) -> Vec<f32> {
 #[cfg(test)]
 pub(crate) use thin_3d::fg_components_26;
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 #[cfg(test)]
 mod tests_skeletonization;

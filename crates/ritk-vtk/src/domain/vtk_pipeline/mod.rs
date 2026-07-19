@@ -17,7 +17,7 @@
 //!
 //! Given pipeline P with output mtime M_out and the maximum mtime M_dep of
 //! its source and filter stages, P must re-execute iff M_dep > M_out.
-//! When M_dep â‰¤ M_out, the cached output is valid and `execute_if_needed`
+//! When M_dep ≤ M_out, the cached output is valid and `execute_if_needed`
 //! returns `Ok(None)`.
 //!
 //! # Event Notification Invariant
@@ -178,9 +178,9 @@ impl VtkPipeline {
     ///
     /// # Returns
     ///
-    /// - `Ok(None)` â€” no re-execution needed; cached output is valid.
-    /// - `Ok(Some(data))` â€” execution happened and produced new output.
-    /// - `Err(e)` â€” execution failed.
+    /// - `Ok(None)` — no re-execution needed; cached output is valid.
+    /// - `Ok(Some(data))` — execution happened and produced new output.
+    /// - `Err(e)` — execution failed.
     pub fn execute_if_needed(&mut self) -> Result<Option<VtkDataObject>> {
         let max_dep = self.source.mtime().max(
             self.filters

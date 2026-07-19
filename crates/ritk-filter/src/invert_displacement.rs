@@ -3,21 +3,21 @@
 //!
 //! # Mathematical Specification
 //!
-//! Given a forward displacement field `u` (the transform `x â†¦ x + u(x)` in world
-//! coordinates), find the inverse field `v` such that `v(x) + u(x + v(x)) â‰ˆ 0`.
+//! Given a forward displacement field `u` (the transform `x ↦ x + u(x)` in world
+//! coordinates), find the inverse field `v` such that `v(x) + u(x + v(x)) ≈ 0`.
 //! ITK uses the fixed-point scheme of Chen et al. (2008):
 //!
 //! ```text
 //! c(x)  = v(x) + u(x + v(x))                 (composed residual; u interpolated)
-//! s(x)  = â€–c(x) âŠ˜ spacingâ€–                   (spacing-scaled norm)
-//! Îµ     = 0.75 on iteration 1, else 0.5
-//! r(x)  = âˆ’c(x), clamped so â€–r âŠ˜ spacingâ€– â‰¤ ÎµÂ·max_x s(x)
-//! v(x) â† v(x) + ÎµÂ·r(x)                        (0 on the boundary if enforced)
+//! s(x)  = —–c(x) ⊘ spacing—–                   (spacing-scaled norm)
+//! ε     = 0.75 on iteration 1, else 0.5
+//! r(x)  = −c(x), clamped so —–r ⊘ spacing—– ≤ ε·max_x s(x)
+//! v(x) ← v(x) + ε·r(x)                        (0 on the boundary if enforced)
 //! ```
 //!
-//! iterating until `max_x s(x) â‰¤ max_tol` and `mean_x s(x) â‰¤ mean_tol`, or
+//! iterating until `max_x s(x) ≤ max_tol` and `mean_x s(x) ≤ mean_tol`, or
 //! `max_iter` is reached. `u` is sampled with **vector linear interpolation**
-//! matching ITK: a point whose continuous index lies outside `[âˆ’0.5, sizeâˆ’0.5]`
+//! matching ITK: a point whose continuous index lies outside `[−0.5, size−0.5]`
 //! in any axis contributes the zero vector; otherwise the eight neighbours are
 //! clamped to the buffer. Internal arithmetic is `f64` (ITK's `RealType` for a
 //! float field), so the result is float-exact to `sitk.InvertDisplacementField`.
@@ -28,7 +28,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 /// Vector linear interpolation of one displacement component at continuous index
 /// `(cz, cy, cx)`, matching ITK's `VectorLinearInterpolateImageFunction` +
-/// `IsInsideBuffer`: a point outside `[âˆ’0.5, sizeâˆ’0.5]` in any axis contributes
+/// `IsInsideBuffer`: a point outside `[−0.5, size−0.5]` in any axis contributes
 /// the zero vector; otherwise the eight neighbours are clamped to the buffer.
 /// Shared by the displacement-field inversion filters.
 pub(crate) fn interp_component(ud: &[f64], dims: [usize; 3], cz: f64, cy: f64, cx: f64) -> f64 {
@@ -109,7 +109,7 @@ impl InvertDisplacementField {
         let (uz, _) = extract_vec_infallible(dz);
         let [nz, ny, nx] = dims;
         let n = nz * ny * nx;
-        // spacing is tensor-major [sz, sy, sx]; world x â†” axis 2.
+        // spacing is tensor-major [sz, sy, sx]; world x ↔ axis 2.
         let sp = dx.spacing();
         let (sx, sy, sz) = (sp[2], sp[1], sp[0]);
         let (inv_sx, inv_sy, inv_sz) = (1.0 / sx, 1.0 / sy, 1.0 / sz);
@@ -218,7 +218,7 @@ impl InvertDisplacementField {
         let (uz, _) = ritk_tensor_ops::native::extract_image_vec(dz)?;
         let [nz, ny, nx] = dims;
         let n = nz * ny * nx;
-        // spacing is tensor-major [sz, sy, sx]; world x â†” axis 2.
+        // spacing is tensor-major [sz, sy, sx]; world x ↔ axis 2.
         let sp = dx.spacing();
         let (sx, sy, sz) = (sp[2], sp[1], sp[0]);
         let (inv_sx, inv_sy, inv_sz) = (1.0 / sx, 1.0 / sy, 1.0 / sz);

@@ -1,9 +1,9 @@
 //! Grid-to-center search index and voxel assignment for SLIC.
 //!
 //! The search-window optimization maps each voxel to its grid cell and
-//! checks only the cluster centers whose Â±2S search region overlaps
-//! that cell. This yields O(N Â· 2^D) amortized cost per iteration
-//! instead of O(N Â· K).
+//! checks only the cluster centers whose ±2S search region overlaps
+//! that cell. This yields O(N · 2^D) amortized cost per iteration
+//! instead of O(N · K).
 
 use super::coords::{decode_coords, encode_coords, encode_coords_dyn};
 use super::grid::Center;
@@ -11,7 +11,7 @@ use super::grid::Center;
 const ASSIGN_CHUNK_LEN: usize = 1024;
 
 /// Build a mapping from grid cell index to the list of center indices whose
-/// search region (Â±2S per axis) overlaps that cell.
+/// search region (±2S per axis) overlaps that cell.
 pub fn build_grid_map(
     centers: &[Center],
     grid_sizes: &[usize],
@@ -129,7 +129,7 @@ fn enumerate_cells_range(
 /// Uses the grid-based index for O(2^D) amortized cost per voxel.
 /// Parallelized via Moirai over disjoint `distances`/`labels` chunks.
 ///
-/// Dispatches to a const-generic implementation for D âˆˆ {2, 3} to
+/// Dispatches to a const-generic implementation for D ∈ {2, 3} to
 /// eliminate per-voxel heap allocations (SLIC is only meaningful in 2-D/3-D).
 ///
 /// # Panics

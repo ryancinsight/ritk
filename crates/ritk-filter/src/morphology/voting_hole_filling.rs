@@ -8,20 +8,20 @@
 //! majority threshold:
 //!
 //! ```text
-//! threshold = (W âˆ’ 1) / 2 + majority_threshold,   W = Î _d (2 r_d + 1)
+//! threshold = (W − 1) / 2 + majority_threshold,   W = Π_d (2 r_d + 1)
 //! I_out(p) = fg   if I(p) = fg                                   (foreground survives)
-//!          = fg   if I(p) = bg  AND  N_fg(p) â‰¥ threshold         (hole filled)
+//!          = fg   if I(p) = bg  AND  N_fg(p) ≥ threshold         (hole filled)
 //!          = I(p) otherwise
 //! ```
 //!
 //! # Boundary
 //!
-//! Replicate (clamp) â€” out-of-bounds neighbours take the edge voxel's value, and
+//! Replicate (clamp) — out-of-bounds neighbours take the edge voxel's value, and
 //! the neighbourhood size `W` is the **full** `(2r+1)^D` regardless of image
 //! extent. On a `z = 1` (2-D) volume the `z` neighbours clamp onto the single
 //! plane, so each in-plane pixel is counted three times and `W = 27` for
 //! `r = 1`. Pinned against `sitk.VotingBinaryHoleFilling`: a corner background
-//! voxel with in-bounds foreground neighbours fills (clamped fg count 15 â‰¥ 14),
+//! voxel with in-bounds foreground neighbours fills (clamped fg count 15 ≥ 14),
 //! which a constant/zero boundary (count 9) would not.
 //!
 //! # ITK Parity
@@ -111,7 +111,7 @@ impl VotingBinaryHoleFillingImageFilter {
         let (snz, sny, snx) = (nz as isize, ny as isize, nx as isize);
         let slab = ny * nx;
         let bg = self.background_value;
-        // PERF-378-01: parallelise over flat voxel index â€” clamp-boundary window read
+        // PERF-378-01: parallelise over flat voxel index — clamp-boundary window read
         // is read-only from vals; no inter-voxel write dependency; bit-identical to serial.
         moirai::map_collect_index_with::<moirai::Adaptive, _, _>(vals.len(), |flat| {
             if vals[flat] == fg {
@@ -233,7 +233,7 @@ mod tests_native {
     /// single-pass and iterative outputs must be bitwise-identical. Uses a binary
     /// volume with an interior pit (background voxel enclosed by foreground).
     #[test]
-    fn matches_burn() {
+    fn matches_coeus() {
         let dims = [3, 3, 3];
         let mut vals = vec![1.0f32; 27];
         vals[13] = 0.0; // center pit
@@ -258,12 +258,12 @@ mod tests_native {
     }
 
     /// Oracle: an interior background pit fully enclosed by foreground is raised
-    /// to foreground (26 fg neighbours â‰¥ threshold 14), and a pre-existing
+    /// to foreground (26 fg neighbours ≥ threshold 14), and a pre-existing
     /// foreground voxel is never cleared (hole-filling only adds foreground).
     #[test]
     fn oracle_pit_is_raised() {
         let mut vals = vec![1.0f32; 27];
-        vals[13] = 0.0; // center pit â†’ should fill
+        vals[13] = 0.0; // center pit → should fill
         let out = filter()
             .apply_native(&make_native_image(vals, [3, 3, 3]), &SequentialBackend)
             .expect("native hole fill");
@@ -272,7 +272,7 @@ mod tests_native {
         assert_eq!(out[1], 1.0, "existing foreground must survive");
     }
 
-    /// Oracle: an all-background volume gains no foreground â€” every voxel has a
+    /// Oracle: an all-background volume gains no foreground — every voxel has a
     /// zero foreground count, far below the majority threshold.
     #[test]
     fn oracle_empty_stays_empty() {

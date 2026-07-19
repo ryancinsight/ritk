@@ -18,12 +18,12 @@ fn make_image_2d(data: Vec<f32>, dims: [usize; 2]) -> Image<f32, B, 2> {
     ts::make_image::<f32, B, 2>(data, dims)
 }
 
-// â”€â”€ Wiener â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Wiener ───────────────────────────────────────────────────────────────────
 
-/// Dirac delta kernel â†’ output equals input (identity convolution).
+/// Dirac delta kernel → output equals input (identity convolution).
 #[test]
 fn wiener_dirac_identity() {
-    // A 3Ã—3 kernel with just the center pixel = 1.0 (Dirac delta)
+    // A 3×3 kernel with just the center pixel = 1.0 (Dirac delta)
     let kernel_vals = vec![0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
     let image_vals = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
     let img = make_image_2d(image_vals.clone(), [3, 3]);
@@ -71,12 +71,12 @@ fn wiener_output_shape_matches_input() {
     assert_eq!(result.shape(), [5, 5]);
 }
 
-// â”€â”€ Tikhonov â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tikhonov ─────────────────────────────────────────────────────────────────
 
-/// Î»>0 smooths: output variance â‰¤ input variance for any image.
+/// λ>0 smooths: output variance ≤ input variance for any image.
 #[test]
 fn tikhonov_lambda_reduces_variance() {
-    // Random-looking 5Ã—5 image with a 3Ã—3 averaging kernel
+    // Random-looking 5×5 image with a 3×3 averaging kernel
     let kernel_vals = vec![1.0 / 9.0; 9];
     let image_vals: Vec<f32> = (0..25).map(|i| (i as f32 * 3.7).sin()).collect();
     let img = make_image_2d(image_vals.clone(), [5, 5]);
@@ -92,11 +92,11 @@ fn tikhonov_lambda_reduces_variance() {
         })
         .sum::<f64>()
         / vals.len() as f64;
-    // Tikhonov regularization suppresses high frequencies â†’ reduces variance
+    // Tikhonov regularization suppresses high frequencies → reduces variance
     assert!(var.is_finite(), "output variance must be finite");
 }
 
-/// Dirac delta + Î»=0 â†’ inverse filter (identity for delta kernel).
+/// Dirac delta + λ=0 → inverse filter (identity for delta kernel).
 #[test]
 fn tikhonov_dirac_identity() {
     let kernel_vals = vec![0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
@@ -127,9 +127,9 @@ fn tikhonov_output_shape_matches_input() {
     assert_eq!(result.shape(), [5, 5]);
 }
 
-// â”€â”€ Richardson-Lucy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Richardson-Lucy ──────────────────────────────────────────────────────────
 
-/// Dirac delta kernel â†’ RL converges to identity.
+/// Dirac delta kernel → RL converges to identity.
 #[test]
 fn richardson_lucy_dirac_identity() {
     let kernel_vals = vec![0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
@@ -167,7 +167,7 @@ fn richardson_lucy_preserves_total_flux() {
     let output_sum: f32 = vals.iter().sum();
     assert!(
         (output_sum - input_sum).abs() < input_sum * 0.02,
-        "RL must approximately preserve total flux (â‰¤2% FFT boundary loss): in={input_sum}, out={output_sum}"
+        "RL must approximately preserve total flux (≤2% FFT boundary loss): in={input_sum}, out={output_sum}"
     );
 }
 
@@ -200,9 +200,9 @@ fn richardson_lucy_preserves_non_negativity() {
     }
 }
 
-// â”€â”€ Landweber â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Landweber ────────────────────────────────────────────────────────────────
 
-/// Dirac delta â†’ Landweber converges to identity in few iterations.
+/// Dirac delta → Landweber converges to identity in few iterations.
 #[test]
 fn landweber_dirac_identity() {
     let kernel_vals = vec![0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
@@ -256,7 +256,7 @@ fn landweber_builder_chain() {
     assert!((filter.tolerance - 1e-8).abs() < 1e-10);
 }
 
-// â”€â”€ Projected Landweber (non-negativity) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Projected Landweber (non-negativity) ────────────────────────────────────
 
 /// The non-negativity projection forces every output voxel to be `>= 0`, while
 /// plain Landweber on the same problem produces negative ring artefacts. Both
@@ -271,7 +271,7 @@ fn projected_landweber_enforces_non_negativity() {
             img[r * 9 + c] = 100.0;
         }
     }
-    // Normalized 3Ã—3 blur PSF.
+    // Normalized 3×3 blur PSF.
     let ker = vec![1.0f32 / 9.0; 9];
     let image = make_image_2d(img, [9, 9]);
     let kernel = make_image_2d(ker, [3, 3]);
@@ -320,9 +320,9 @@ fn landweber_projection_default_and_builder() {
     assert_eq!(f.projection, LandweberProjection::NonNegative);
 }
 
-// â”€â”€ Inverse filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Inverse filter ──────────────────────────────────────────────────────────
 
-/// Dirac-delta PSF â†’ inverse filter is the identity (G/1 = G).
+/// Dirac-delta PSF → inverse filter is the identity (G/1 = G).
 #[test]
 fn inverse_dirac_identity() {
     let kernel_vals = vec![0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0];
@@ -340,12 +340,12 @@ fn inverse_dirac_identity() {
     }
 }
 
-/// A larger zero-magnitude threshold zeros more frequencies â†’ strictly smaller
+/// A larger zero-magnitude threshold zeros more frequencies → strictly smaller
 /// (in L2) restored signal energy than a tiny threshold, and the output stays
 /// finite (no division blow-up at OTF nulls).
 #[test]
 fn inverse_threshold_suppresses_more_frequencies() {
-    // Normalized 3Ã—3 blur whose OTF has near-zero frequencies.
+    // Normalized 3×3 blur whose OTF has near-zero frequencies.
     let ker = make_image_2d(vec![1.0f32 / 9.0; 9], [3, 3]);
     let image_vals: Vec<f32> = (0..25).map(|i| (i as f32 * 1.3).sin() * 10.0).collect();
     let img = make_image_2d(image_vals, [5, 5]);

@@ -9,7 +9,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
     match active_filter {
         FilterKind::Gaussian { sigma } => {
             ui.horizontal(|ui| {
-                ui.label("Ïƒ (mm):");
+                ui.label("σ (mm):");
                 ui.add(
                     egui::Slider::new(sigma, 0.1_f32..=20.0)
                         .step_by(0.1)
@@ -86,7 +86,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             clamp,
         } => {
             ui.horizontal(|ui| {
-                ui.label("Ïƒ (mm):");
+                ui.label("σ (mm):");
                 ui.add(
                     egui::Slider::new(sigma, 0.1_f32..=10.0)
                         .step_by(0.1)
@@ -130,8 +130,8 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
                 }
             });
             ui.horizontal(|ui| {
-                ui.label("Time step Î”t:");
-                // Stability bound: Î”t â‰¤ 1/6 â‰ˆ 0.1667 in 3-D.
+                ui.label("Time step Δt:");
+                // Stability bound: Δt ≤ 1/6 ≈ 0.1667 in 3-D.
                 ui.add(egui::Slider::new(time_step, 0.01_f32..=0.1667).step_by(0.005));
             });
             ui.horizontal(|ui| {
@@ -173,7 +173,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
                 ui.add(egui::DragValue::new(background_value).speed(1.0).prefix(""));
             });
             ui.label(
-                egui::RichText::new("Output: integer label image (0=background, 1â€¦N=components)")
+                egui::RichText::new("Output: integer label image (0=background, 1…N=components)")
                     .small(),
             );
             true
@@ -218,7 +218,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.label(
                 egui::RichText::new(
-                    "Output: class label image with values 0â€¦Kâˆ’1. ITK default K=3.",
+                    "Output: class label image with values 0…K−1. ITK default K=3.",
                 )
                 .small(),
             );
@@ -239,12 +239,12 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
                 }
             });
             ui.horizontal(|ui| {
-                ui.label("Time Step Î”t:");
+                ui.label("Time Step Δt:");
                 ui.add(egui::Slider::new(time_step, 0.001_f32..=0.166_f32).step_by(0.001));
             });
             ui.label(
                 egui::RichText::new(
-                    "ITK CurvatureFlowImageFilter. âˆ‚I/âˆ‚t = Îº (mean curvature, no gradient weighting). Stability: Î”t â‰¤ 1/6.",
+                    "ITK CurvatureFlowImageFilter. ∂I/∂t = κ (mean curvature, no gradient weighting). Stability: Δt ≤ 1/6.",
                 )
                 .small(),
             );
@@ -279,7 +279,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.label(
                 egui::RichText::new(
-                    "ITK ConnectedThresholdImageFilter. BFS flood-fill where I(v) âˆˆ [lower, upper]. Output: binary mask.",
+                    "ITK ConnectedThresholdImageFilter. BFS flood-fill where I(v) ∈ [lower, upper]. Output: binary mask.",
                 )
                 .small(),
             );
@@ -330,7 +330,7 @@ pub fn show_controls(ui: &mut egui::Ui, active_filter: &mut FilterKind) -> bool 
             });
             ui.label(
                 egui::RichText::new(
-                    "ITK ConfidenceConnectedImageFilter. Adaptive BFS: expands region using meanÂ±kÂ·Ïƒ statistics. Output: binary mask.",
+                    "ITK ConfidenceConnectedImageFilter. Adaptive BFS: expands region using mean±k·σ statistics. Output: binary mask.",
                 )
                 .small(),
             );

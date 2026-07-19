@@ -3,7 +3,7 @@
 use super::super::kind::ToolKind;
 use egui::Pos2;
 
-// â”€â”€ In-progress tool state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── In-progress tool state ────────────────────────────────────────────────────
 
 /// In-progress interaction state for the active tool.
 ///

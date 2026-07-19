@@ -1,5 +1,5 @@
 //! Differential coverage: `distance_transform` must be value-identical
-//! to the Burn-generic `DistanceTransformImageFilter::apply` it mirrors â€”
+//! to the Burn-generic `DistanceTransformImageFilter::apply` it mirrors —
 //! both call the same `euclidean_dt` core (shared harness in `coeus_support`).
 
 use crate::distance::euclidean::{
@@ -31,7 +31,7 @@ fn check_measure(vals: Vec<f32>, dims: [usize; 3], measure: DistanceMeasure) {
 }
 
 #[test]
-fn matches_burn_single_foreground_voxel() {
+fn matches_coeus_single_foreground_voxel() {
     let dims = [5usize, 5, 5];
     let mut fg = vec![0.0f32; 5 * 5 * 5];
     fg[0] = 1.0;
@@ -39,17 +39,17 @@ fn matches_burn_single_foreground_voxel() {
 }
 
 #[test]
-fn matches_burn_all_foreground() {
+fn matches_coeus_all_foreground() {
     check(vec![1.0f32; 4 * 4 * 4], [4, 4, 4]);
 }
 
 #[test]
-fn matches_burn_all_background() {
+fn matches_coeus_all_background() {
     check(vec![0.0f32; 3 * 3 * 3], [3, 3, 3]);
 }
 
 #[test]
-fn matches_burn_scattered_foreground() {
+fn matches_coeus_scattered_foreground() {
     let dims = [6usize, 5, 4];
     let n = dims[0] * dims[1] * dims[2];
     let vals: Vec<f32> = (0..n).map(|i| if i % 7 == 0 { 1.0 } else { 0.0 }).collect();

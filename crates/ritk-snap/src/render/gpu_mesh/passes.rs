@@ -1,11 +1,11 @@
 //! GPU render pass execution: depth peeling, SSAO, composite, async readback.
 //!
 //! All GPU work is encoded into a single `CommandBuffer` per frame:
-//!  1. Pass 0 (base): geometry â†’ `color_array[0]` + `depth_texes[0]` + normal_depth_tex
-//!  2. Passes 1..N-1 (peel): geometry with depth discard â†’ `color_array[i]` + `depth_texes[i]`
-//!  3. SSAO compute: normal_depth_tex â†’ ao_buf
-//!  4. Composite compute: color_array + ao_buf â†’ output_buf
-//!  5. Copy: output_buf â†’ staging_buf (COPY_SRC â†’ COPY_DST)
+//!  1. Pass 0 (base): geometry → `color_array[0]` + `depth_texes[0]` + normal_depth_tex
+//!  2. Passes 1..N-1 (peel): geometry with depth discard → `color_array[i]` + `depth_texes[i]`
+//!  3. SSAO compute: normal_depth_tex → ao_buf
+//!  4. Composite compute: color_array + ao_buf → output_buf
+//!  5. Copy: output_buf → staging_buf (COPY_SRC → COPY_DST)
 //!
 //! `submit_mesh_async` submits this command buffer and registers `map_async` on
 //! the staging buffer.  `collect_mesh_result` reads the mapped data and returns
@@ -22,7 +22,7 @@ use super::{
     params::{CompositeUniforms, LightBlock, MaterialUniforms, SceneUniforms, SsaoUniforms},
 };
 
-// â”€â”€ Public interface â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public interface ──────────────────────────────────────────────────────────
 
 /// Submit all GPU passes for one mesh frame and register non-blocking readback.
 ///
@@ -107,7 +107,7 @@ pub(super) fn collect_mesh_result(cache: &GpuMeshFrameCache) -> ColorImage {
     }
 }
 
-// â”€â”€ Geometry passes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Geometry passes ───────────────────────────────────────────────────────────
 
 fn encode_geometry_passes(
     ctx: &GpuMeshContext,
@@ -120,7 +120,7 @@ fn encode_geometry_passes(
     let w = cache.cols as u32;
     let h = cache.rows as u32;
 
-    // Pass 0: base pass â€” writes color_array[0] + depth_texes[0] + normal_depth_tex.
+    // Pass 0: base pass — writes color_array[0] + depth_texes[0] + normal_depth_tex.
     {
         let color0_view = cache
             .color_array_tex
@@ -193,7 +193,7 @@ fn encode_geometry_passes(
         rpass.draw_indexed(0..mesh.n_indices, 0, 0..1);
     }
 
-    // Passes 1..layers-1: peel passes, each discarding geometry â‰¤ prev depth.
+    // Passes 1..layers-1: peel passes, each discarding geometry ≤ prev depth.
     for i in 1..layers {
         let color_view = cache
             .color_array_tex
@@ -262,7 +262,7 @@ fn encode_geometry_passes(
     }
 }
 
-// â”€â”€ SSAO pass â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SSAO pass ─────────────────────────────────────────────────────────────────
 
 fn encode_ssao_pass(
     ctx: &GpuMeshContext,
@@ -307,7 +307,7 @@ fn encode_ssao_pass(
     cpass.dispatch_workgroups(wx, wy, 1);
 }
 
-// â”€â”€ Composite pass â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Composite pass ────────────────────────────────────────────────────────────
 
 fn encode_composite_pass(
     ctx: &GpuMeshContext,

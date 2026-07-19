@@ -1,4 +1,4 @@
-//! Voting binary image filter â€” cellular-automata label voting.
+//! Voting binary image filter — cellular-automata label voting.
 //!
 //! # Mathematical Specification
 //!
@@ -26,7 +26,7 @@
 //! # Reference
 //!
 //! - Breu, H. et al. (1995). Linear time Euclidean distance algorithms.
-//!   *IEEE Trans. PAMI* 17(5):529â€“533.
+//!   *IEEE Trans. PAMI* 17(5):529–533.
 
 use super::types::ForegroundValue;
 use ritk_image::tensor::Backend;
@@ -97,7 +97,7 @@ impl VotingBinaryImageFilter {
     ///
     /// Runs the identical single voting step via the shared `voting_binary_vec`
     /// host core on the image's contiguous host buffer, so the result is
-    /// bitwise-identical to the Burn path. No Burn tensor is constructed.
+    /// bitwise-identical to the Coeus path. No Burn tensor is constructed.
     /// Spatial metadata is preserved.
     ///
     /// # Errors
@@ -139,7 +139,7 @@ pub(crate) fn voting_binary_vec(
 ) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let slab = ny * nx;
-    // PERF-378-01: parallelise over flat voxel index â€” each voxel reads a window from
+    // PERF-378-01: parallelise over flat voxel index — each voxel reads a window from
     // vals (read-only) with no inter-voxel output dependencies; bit-identical to serial.
     moirai::map_collect_index_with::<moirai::Adaptive, _, _>(nz * ny * nx, |flat| {
         let iz = flat / slab;
@@ -182,7 +182,7 @@ pub(crate) fn voting_binary_vec(
     })
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_voting_binary.rs"]

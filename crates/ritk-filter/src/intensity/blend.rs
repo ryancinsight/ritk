@@ -2,10 +2,10 @@
 //!
 //! # Mathematical Specification
 //!
-//! Let `A, B : â„¤Â³ â†’ â„` be two images with identical shape `[nz, ny, nx]`,
-//! and let `Î± âˆˆ [0, 1]` be a blending weight.
+//! Let `A, B : ℤ³ → ℝ` be two images with identical shape `[nz, ny, nx]`,
+//! and let `α ∈ [0, 1]` be a blending weight.
 //!
-//! `out(x) = (1 - Î±) * A(x) + Î± * B(x)`
+//! `out(x) = (1 - α) * A(x) + α * B(x)`
 //!
 //! Spatial metadata (origin, spacing, direction) is taken from the **first** input image.
 //! Both images must have identical shapes; a shape mismatch returns `Err`.

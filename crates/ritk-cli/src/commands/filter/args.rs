@@ -128,9 +128,9 @@ impl std::fmt::Display for FilterKind {
     }
 }
 
-// â”€â”€ Per-family Args structs (#[command(flatten)] chunks) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Per-family Args structs (#[command(flatten)] chunks) ─────────────────────
 
-/// Smoothing Ïƒ (Gaussian family: gaussian, canny, log, recursive-gaussian).
+/// Smoothing σ (Gaussian family: gaussian, canny, log, recursive-gaussian).
 #[derive(Args, Debug, Default)]
 pub struct SmoothingArgs {
     /// Gaussian standard deviation in physical units (mm).
@@ -151,8 +151,8 @@ pub struct DiffusionArgs {
     /// diffusion. Lower values preserve edges more aggressively.
     #[arg(long, default_value = "3.0", value_name = "FLOAT")]
     pub conductance: f64,
-    /// Explicit Euler time step Î”t for curvature anisotropic diffusion.
-    /// Stability requires Î”t â‰¤ 1/6 for unit spacing.
+    /// Explicit Euler time step Δt for curvature anisotropic diffusion.
+    /// Stability requires Δt ≤ 1/6 for unit spacing.
     #[arg(long, default_value = "0.0625", value_name = "FLOAT")]
     pub time_step: f64,
 }
@@ -164,13 +164,13 @@ pub struct VesselnessArgs {
     /// / Sato vesselness enhancement.
     #[arg(long, value_name = "FLOATS", value_delimiter = ',', default_values = ["0.5", "1.0", "2.0"])]
     pub scales: Vec<f64>,
-    /// Frangi Î± (plate-like sensitivity) / Sato polarity weight.
+    /// Frangi α (plate-like sensitivity) / Sato polarity weight.
     #[arg(long, default_value = "0.5", value_name = "FLOAT")]
     pub alpha: f64,
-    /// Frangi Î² parameter (blob-like sensitivity).
+    /// Frangi β parameter (blob-like sensitivity).
     #[arg(long, default_value = "0.5", value_name = "FLOAT")]
     pub beta: f64,
-    /// Frangi Î³ parameter (background-noise sensitivity).
+    /// Frangi γ parameter (background-noise sensitivity).
     #[arg(long, default_value = "15.0", value_name = "FLOAT")]
     pub gamma: f64,
 }
@@ -179,10 +179,10 @@ pub struct VesselnessArgs {
 /// `#[command(flatten)]` collisions with `SmoothingArgs::sigma`.
 #[derive(Args, Debug, Default)]
 pub struct EdgeArgs {
-    /// Spatial Gaussian Ïƒ in voxels for the bilateral filter.
+    /// Spatial Gaussian σ in voxels for the bilateral filter.
     #[arg(long, default_value = "3.0", value_name = "FLOAT")]
     pub sigma_spatial: f64,
-    /// Intensity-range Gaussian Ïƒ for the bilateral filter.
+    /// Intensity-range Gaussian σ for the bilateral filter.
     #[arg(long, default_value = "50.0", value_name = "FLOAT")]
     pub sigma_range: f64,
     /// Lower hysteresis threshold for the Canny edge detector.
@@ -196,7 +196,7 @@ pub struct EdgeArgs {
 /// Discrete Gaussian parameters (variance-based smoothing).
 #[derive(Args, Debug, Default)]
 pub struct DiscreteArgs {
-    /// Gaussian variance ÏƒÂ² in physical unitsÂ².
+    /// Gaussian variance σ² in physical units².
     #[arg(long, default_value = "1.0", value_name = "FLOAT")]
     pub variance: f64,
     /// Kernel truncation tolerance in (0, 1).
@@ -214,7 +214,7 @@ pub struct DiscreteArgs {
 
 /// Neighbourhood radius (median + morphology family).
 ///
-/// A radius of 1 produces a 3Ã—3Ã—3 kernel (27 samples per voxel).
+/// A radius of 1 produces a 3×3×3 kernel (27 samples per voxel).
 #[derive(Args, Debug, Default)]
 pub struct KernelArgs {
     /// Neighbourhood half-width in voxels.

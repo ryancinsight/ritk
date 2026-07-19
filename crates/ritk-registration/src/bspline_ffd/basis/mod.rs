@@ -7,7 +7,7 @@
 //!
 //! The [`BasisCache`] pre-computes the 4 basis values + control-point indices once
 //! per axis coordinate (Sprint 308), converting the hot path from compute to lookup.
-//! Interior-range detection eliminates ~1B bounds-check branches for a 256Â³ volume.
+//! Interior-range detection eliminates ~1B bounds-check branches for a 256³ volume.
 
 pub(super) mod cache;
 pub(super) mod evaluate;

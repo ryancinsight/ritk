@@ -7,25 +7,25 @@
 //! For an image with N pixels and intensity range [v_min, v_max]:
 //!
 //! 1. **Binning**: `bin(p) = floor((p - v_min) / span * (B - 1))`, clamped to `[0, B-1]`.
-//! 2. **Histogram**: `H[b] = |{p : bin(p) = b}|`, with `ÃŽÂ£ H[b] = N`.
-//! 3. **CDF**: `F[b] = ÃŽÂ£_{i=0}^{b} H[i]` (cumulative histogram count).
+//! 2. **Histogram**: `H[b] = |{p : bin(p) = b}|`, with `Σ H[b] = N`.
+//! 3. **CDF**: `F[b] = Σ_{i=0}^{b} H[i]` (cumulative histogram count).
 //! 4. **Normalised CDF**: `f[b] = F[b] / N`, with `f[B-1] = 1.0`.
 //! 5. **Mapping**: `output(p) = v_min + f[bin(p)] * span`.
 //!
-//! Output invariant: `output Ã¢Ë†Ë† [v_min, v_max]`.
+//! Output invariant: `output ∈ [v_min, v_max]`.
 //! When all pixels have the same value (span = 0), output equals input (identity).
 //!
 //! ## Relationship to CLAHE
 //!
-//! Global HE is equivalent to CLAHE with a single tile (`n_tiles = 1 Ãƒâ€” 1`) and
-//! no clipping (`clip_limit Ã¢â€ â€™ Ã¢Ë†Å¾`). CLAHE generalises global HE by applying it
+//! Global HE is equivalent to CLAHE with a single tile (`n_tiles = 1 × 1`) and
+//! no clipping (`clip_limit â— —™ ∞`). CLAHE generalises global HE by applying it
 //! locally per tile with clip-limiting to reduce over-enhancement of noise.
 //!
 //! # References
 //!
 //! - Gonzalez & Woods (2018). *Digital Image Processing*, 4th ed. Chapter 3.
 //! - ITK: `HistogramEqualizationImageFilter`.
-//! - ImageJ: Process Ã¢â€ â€™ Enhance Contrast (Equalize Histogram).
+//! - ImageJ: Process â— —™ Enhance Contrast (Equalize Histogram).
 
 use anyhow::Result;
 use ritk_image::tensor::Backend;
@@ -45,7 +45,7 @@ use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 /// - `bins`: number of histogram bins (default 256).
 ///
 /// # Complexity
-/// O(N Ãƒâ€” log(B)) where N is the voxel count and B is the bin count.
+/// O(N × log(B)) where N is the voxel count and B is the bin count.
 pub struct HistogramEqualizationFilter {
     /// Number of histogram bins. Default 256.
     pub bins: usize,
@@ -55,7 +55,7 @@ impl HistogramEqualizationFilter {
     /// Create a new histogram equalization filter.
     ///
     /// # Arguments
-    /// * `bins` Ã¢â‚¬â€ number of histogram bins (minimum 2).
+    /// * `bins` ‗ number of histogram bins (minimum 2).
     pub fn new(bins: usize) -> Self {
         Self { bins: bins.max(2) }
     }
@@ -80,7 +80,7 @@ impl HistogramEqualizationFilter {
     ///
     /// Runs the identical global histogram equalization via the shared
     /// `histogram_equalize_global` host core on the image's contiguous host
-    /// buffer, so the result is bitwise-identical to the Burn path. No Burn
+    /// buffer, so the result is bitwise-identical to the Coeus path. No Burn
     /// tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors
@@ -101,7 +101,7 @@ impl HistogramEqualizationFilter {
     }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Internal Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Internal ──────────────────────────────────────────────────────────────
 
 /// Apply global histogram equalization to a flat voxel array.
 ///
@@ -163,7 +163,7 @@ pub(crate) fn histogram_equalize_global(vals: &[f32], bins: usize) -> Vec<f32> {
         .collect()
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Tests Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Tests ─────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_equalization.rs"]

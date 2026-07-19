@@ -5,7 +5,7 @@
 //! for connected-component detection and iterative merging.
 //!
 //! All neighbor lookups use precomputed C-contiguous strides for pure
-//! arithmetic O(1) neighbor-index computation â€” no per-voxel Vec allocation.
+//! arithmetic O(1) neighbor-index computation — no per-voxel Vec allocation.
 
 /// Compute C-contiguous (row-major) strides for the given shape.
 ///
@@ -70,7 +70,7 @@ pub fn enforce_connectivity(
         return;
     }
 
-    // Precompute C-contiguous strides once â€” reused across all passes and
+    // Precompute C-contiguous strides once — reused across all passes and
     // both inner loops, eliminating per-voxel decode/encode allocations.
     let strides = compute_strides(shape);
 
@@ -134,7 +134,7 @@ pub fn enforce_connectivity(
                     continue;
                 }
 
-                // Check all face-adjacent neighbors (Â±1 per axis).
+                // Check all face-adjacent neighbors (±1 per axis).
                 for (d, &stride) in strides.iter().enumerate() {
                     for &delta in &[-1isize, 1] {
                         if let Some(nbr) = neighbor_index(i, d, delta, shape, stride) {
@@ -184,7 +184,7 @@ pub fn enforce_connectivity(
     }
 }
 
-// â”€â”€ Union-Find â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Union-Find ────────────────────────────────────────────────────────────────
 
 struct UnionFind {
     parent: Vec<usize>,

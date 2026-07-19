@@ -3,15 +3,15 @@
 //! # Mathematical Specification
 //!
 //! A multi-block dataset is a rooted tree MB = (N, E) where:
-//! - Leaf nodes N_leaf âŠ† N each hold one `VtkDataObject`.
-//! - Inner nodes N_inner âŠ† N each hold an ordered sequence of `Block` children.
+//! - Leaf nodes N_leaf ⊆ N each hold one `VtkDataObject`.
+//! - Inner nodes N_inner ⊆ N each hold an ordered sequence of `Block` children.
 //! - `Block` = `Leaf(VtkDataObject)` | `Composite(VtkMultiBlockDataSet)`.
 //!
 //! Invariant: the tree is acyclic (ownership is direct, no shared references).
 //!
 //! `leaf_count()` = |N_leaf| (recursive sum over the full subtree).
 //! `iter_leaves()` performs a depth-first traversal of all leaves using an
-//! explicit stack (`LeafIter`) â€” no heap allocation per iteration step.
+//! explicit stack (`LeafIter`) — no heap allocation per iteration step.
 
 use crate::domain::vtk_data_object::VtkDataObject;
 
@@ -27,7 +27,7 @@ pub enum Block {
     Composite(VtkMultiBlockDataSet),
 }
 
-/// VTK composite multi-block dataset â€” an ordered, optionally named collection
+/// VTK composite multi-block dataset — an ordered, optionally named collection
 /// of `Block` entries that can be nested to arbitrary depth.
 #[derive(Debug, Clone, Default)]
 pub struct VtkMultiBlockDataSet {
@@ -111,7 +111,7 @@ impl<'a> Iterator for LeafIter<'a> {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {

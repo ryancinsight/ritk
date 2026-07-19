@@ -65,7 +65,7 @@ impl GpuMeshBufs {
     }
 }
 
-// â”€â”€ CPU mesh construction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CPU mesh construction ─────────────────────────────────────────────────────
 
 /// Fan-triangulate all polygons and triangle strips, compute vertex normals,
 /// and return `(Vec<MeshVertex>, Vec<u32>)`.
@@ -195,7 +195,7 @@ fn get_precomputed_normals(mesh: &VtkPolyData) -> Option<Vec<[f32; 3]>> {
     }
 }
 
-// â”€â”€ Vector math helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Vector math helpers ───────────────────────────────────────────────────────
 
 fn face_normal(p0: [f32; 3], p1: [f32; 3], p2: [f32; 3]) -> [f32; 3] {
     let e0 = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
@@ -264,7 +264,7 @@ mod tests {
         assert_eq!(
             idxs.len(),
             6,
-            "2 triangles Ã— 3 indices = 6, got {}",
+            "2 triangles × 3 indices = 6, got {}",
             idxs.len()
         );
     }

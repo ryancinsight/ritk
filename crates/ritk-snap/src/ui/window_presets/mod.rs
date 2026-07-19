@@ -5,12 +5,12 @@
 //! A [`WindowPreset`] defines a linear intensity windowing function:
 //!
 //! ```text
-//! L = center âˆ’ width / 2   (lower display bound)
+//! L = center − width / 2   (lower display bound)
 //! U = center + width / 2   (upper display bound)
 //!
-//! output(v) = 0   if v â‰¤ L
-//!           = 255 if v â‰¥ U
-//!           = round((v âˆ’ L) / (U âˆ’ L) Ã— 255)  otherwise
+//! output(v) = 0   if v ≤ L
+//!           = 255 if v ≥ U
+//!           = round((v − L) / (U − L) × 255)  otherwise
 //! ```
 //!
 //! Center and width values are given in Hounsfield Units (HU) for CT and in
@@ -19,19 +19,19 @@
 //! ## CT reference values
 //!
 //! Derived from radiology standards and verified against:
-//! - DICOM PS3.3 Â§C.7.6.3.1.5 (VOI LUT)
+//! - DICOM PS3.3 §C.7.6.3.1.5 (VOI LUT)
 //! - Prokop & Galanski, *Spiral and Multislice Computed Tomography of the Body*
-//! - ACRâ€“AAPM Technical Standard for Diagnostic Medical Physics Performance
+//! - ACR–AAPM Technical Standard for Diagnostic Medical Physics Performance
 //!   Monitoring of Computed Tomography Equipment
 //!
 //! ## MR reference values
 //!
 //! MR signal is modality- and sequence-specific; values are expressed in
-//! relative intensity units (scanner ADU range â‰ˆ 0â€“4095 for most clinical MR
+//! relative intensity units (scanner ADU range ≈ 0–4095 for most clinical MR
 //! systems). The supplied presets represent typical starting points for
 //! interactive adjustment.
 
-// â”€â”€ WindowPreset â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── WindowPreset ──────────────────────────────────────────────────────────────
 
 /// A named clinical window/level display preset.
 ///
@@ -51,7 +51,7 @@ pub struct WindowPreset {
 }
 
 impl WindowPreset {
-    // â”€â”€ CT presets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── CT presets ────────────────────────────────────────────────────────────
 
     /// Standard CT window/level presets, derived from published radiology
     /// references.
@@ -59,19 +59,19 @@ impl WindowPreset {
     /// | Name                   | Centre (HU) | Width (HU) | Visible range (HU)   |
     /// |--------------------------|-------------|------------|----------------------|
     /// | Brain                  | 40          | 80         | [0, 80]              |
-    /// | Brain (wide)           | 40          | 375        | [âˆ’147, 228]          |
-    /// | Subdural               | 80          | 200        | [âˆ’20, 180]           |
+    /// | Brain (wide)           | 40          | 375        | [−147, 228]          |
+    /// | Subdural               | 80          | 200        | [−20, 180]           |
     /// | Stroke                 | 32          | 8          | [28, 36]             |
-    /// | Lung                   | âˆ’400        | 1 500      | [âˆ’1 150, 350]        |
-    /// | Lung (soft)            | âˆ’600        | 1 600      | [âˆ’1 400, 200]        |
-    /// | Mediastinum            | 50          | 350        | [âˆ’125, 225]          |
-    /// | Bone                   | 400         | 1 000      | [âˆ’100, 900]          |
-    /// | Abdomen                | 60          | 400        | [âˆ’140, 260]          |
-    /// | Liver                  | 60          | 160        | [âˆ’20, 140]           |
-    /// | Spine (soft tissue)    | 50          | 250        | [âˆ’75, 175]           |
-    /// | Spine (bone)           | 400         | 1 000      | [âˆ’100, 900]          |
+    /// | Lung                   | −400        | 1 500      | [−1 150, 350]        |
+    /// | Lung (soft)            | −600        | 1 600      | [−1 400, 200]        |
+    /// | Mediastinum            | 50          | 350        | [−125, 225]          |
+    /// | Bone                   | 400         | 1 000      | [−100, 900]          |
+    /// | Abdomen                | 60          | 400        | [−140, 260]          |
+    /// | Liver                  | 60          | 160        | [−20, 140]           |
+    /// | Spine (soft tissue)    | 50          | 250        | [−75, 175]           |
+    /// | Spine (bone)           | 400         | 1 000      | [−100, 900]          |
     /// | Angio                  | 300         | 600        | [0, 600]             |
-    /// | Head (temporal bone)   | 500         | 4 000      | [âˆ’1 500, 2 500]      |
+    /// | Head (temporal bone)   | 500         | 4 000      | [−1 500, 2 500]      |
     pub fn ct_presets() -> &'static [WindowPreset] {
         &[
             WindowPreset {
@@ -147,12 +147,12 @@ impl WindowPreset {
         ]
     }
 
-    // â”€â”€ PT (PET) presets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── PT (PET) presets ──────────────────────────────────────────────────────
 
     /// Standard PET window/level presets expressed in SUVbw units \[g/mL\].
     ///
-    /// At tissue density â‰ˆ 1 g/mL, SUVbw is effectively dimensionless.
-    /// SUVbw = 1.0 âŸº voxel uptake equals the whole-body average.
+    /// At tissue density ≈ 1 g/mL, SUVbw is effectively dimensionless.
+    /// SUVbw = 1.0 ⟺ voxel uptake equals the whole-body average.
     ///
     /// | Name              | Centre (SUV) | Width (SUV) | Visible range (SUV) |
     /// |-------------------|-------------|------------|---------------------|
@@ -161,7 +161,7 @@ impl WindowPreset {
     /// | SUV tumour        | 5.0         | 10.0       | [0.0, 10.0]         |
     ///
     /// References:
-    /// - SNMMI Procedure Guideline for Â¹â¸F-FDG PET/CT, v4.0 (2022)
+    /// - SNMMI Procedure Guideline for ¹â¸F-FDG PET/CT, v4.0 (2022)
     /// - EANM FDG PET/CT: EANM Procedure Guidelines for Tumour Imaging (2015)
     pub fn pt_presets() -> &'static [WindowPreset] {
         &[
@@ -183,12 +183,12 @@ impl WindowPreset {
         ]
     }
 
-    // â”€â”€ MR presets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── MR presets ────────────────────────────────────────────────────────────
 
     /// Standard MR window/level presets for common brain and spine sequences.
     ///
     /// Values are expressed in relative intensity units (typical 12-bit ADU
-    /// range 0â€“4095).
+    /// range 0–4095).
     ///
     /// | Name        | Centre | Width |
     /// |-------------|--------|-------|
@@ -221,7 +221,7 @@ impl WindowPreset {
         ]
     }
 
-    // â”€â”€ Modality dispatch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Modality dispatch ─────────────────────────────────────────────────────
 
     /// Auto-select the appropriate preset list for `modality`.
     ///

@@ -24,7 +24,7 @@ use ritk_tensor_ops::native as tensor_ops;
 /// Apply the z-score transform `(v − mean) / (std + ε)` to a host buffer.
 ///
 /// Single host realization of the z-score formula shared by the Coeus-native
-/// paths; the Burn paths express the identical arithmetic through on-device
+/// paths; the Coeus paths express the identical arithmetic through on-device
 /// tensor scalar ops so GPU backends stay lazy.
 #[inline]
 fn zscore_values(values: &mut [f32], mean: f32, std: f32) {

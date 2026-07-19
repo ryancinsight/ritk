@@ -25,7 +25,7 @@ pub struct DiffeomorphicDemonsRegistration {
     /// Algorithm configuration (shared with Thirion Demons).
     pub config: DemonsConfig,
     /// Number of scaling-and-squaring steps for computing `exp(v)`.
-    /// Standard value: 6 (2â¶ = 64 integration steps).
+    /// Standard value: 6 (2⁶ = 64 integration steps).
     pub n_squarings: usize,
 }
 
@@ -68,7 +68,7 @@ impl DiffeomorphicDemonsRegistration {
     /// a pluggable [`FieldSmoother`] backend.
     ///
     /// # Arguments
-    /// - `smoother` â€” field smoother.  Its sigma must match
+    /// - `smoother` — field smoother.  Its sigma must match
     ///   `self.config.sigma_diffusion`.
     ///
     /// # Errors
@@ -114,10 +114,10 @@ impl DiffeomorphicDemonsRegistration {
             iter = it + 1;
 
             // m_warped is at the iter's starting phi: identity (== moving) at
-            // iter 0, and the previous iter's post-update re-warp for iter â‰¥ 1.
+            // iter 0, and the previous iter's post-update re-warp for iter ≥ 1.
             // Reading it directly (no top S&S phi, no top warp) saves a
-            // `scaling_and_squaring_into` + `warp_image_into` per iter â€” the
-            // dominant cost of the previous top-warp path on 256Â³ fields.
+            // `scaling_and_squaring_into` + `warp_image_into` per iter — the
+            // dominant cost of the previous top-warp path on 256³ fields.
             thirion_forces_into(
                 fixed,
                 &m_warped,
@@ -141,15 +141,15 @@ impl DiffeomorphicDemonsRegistration {
                 vel_x[i] += fx[i];
             }
 
-            // Diffusion regularisation â€” dispatched via FieldSmoother trait
+            // Diffusion regularisation — dispatched via FieldSmoother trait
             if self.config.sigma_diffusion.is_some() {
                 smoother.smooth_field(&mut vel_z, &mut vel_y, &mut vel_x);
             }
 
             // BOTTOM S&S phi (with the post-update velocity) + re-warp
             // m_warped so the next iter's forces and this iter's final_mse
-            // see the post-update state â€” matching the previous code's
-            // semantics â€” without a streaming-warp inside compute_mse_streaming.
+            // see the post-update state — matching the previous code's
+            // semantics — without a streaming-warp inside compute_mse_streaming.
             scaling_and_squaring_into(
                 &vel_z,
                 &vel_y,

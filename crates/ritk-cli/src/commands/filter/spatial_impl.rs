@@ -6,7 +6,7 @@ use super::super::{
 };
 use super::FilterArgs;
 
-// â”€â”€ Gradient magnitude â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Gradient magnitude ────────────────────────────────────────────────────────
 
 pub(super) fn run_gradient_magnitude(args: &FilterArgs) -> Result<()> {
     use ritk_filter::GradientMagnitudeFilter;
@@ -31,7 +31,7 @@ pub(super) fn run_gradient_magnitude(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Laplacian â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Laplacian ─────────────────────────────────────────────────────────────────
 
 pub(super) fn run_laplacian(args: &FilterArgs) -> Result<()> {
     use ritk_filter::LaplacianFilter;
@@ -56,7 +56,7 @@ pub(super) fn run_laplacian(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Frangi vesselness â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Frangi vesselness ─────────────────────────────────────────────────────────
 
 pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
     use ritk_filter::vesselness::FrangiConfig;
@@ -106,11 +106,11 @@ pub(super) fn run_frangi(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Median filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Median filter ─────────────────────────────────────────────────────────────
 
 /// Apply a median filter with the given neighbourhood radius.
 ///
-/// Radius 1 â†’ 3Ã—3Ã—3 kernel (27 samples per voxel).
+/// Radius 1 → 3×3×3 kernel (27 samples per voxel).
 pub(super) fn run_median(args: &FilterArgs) -> Result<()> {
     use ritk_filter::MedianFilter;
 
@@ -142,11 +142,11 @@ pub(super) fn run_median(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Bilateral filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Bilateral filter ──────────────────────────────────────────────────────────
 
 /// Apply a bilateral filter preserving edges.
 ///
-/// Edge Ïƒ values control bilateral spatial/intensity Gaussians.
+/// Edge σ values control bilateral spatial/intensity Gaussians.
 pub(super) fn run_bilateral(args: &FilterArgs) -> Result<()> {
     use ritk_filter::BilateralFilter;
 
@@ -175,7 +175,7 @@ pub(super) fn run_bilateral(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Canny edge detector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Canny edge detector ───────────────────────────────────────────────────────
 
 /// Apply the Canny edge detector.  Reads shared `sigma` from
 /// [`crate::commands::filter::SmoothingArgs`] (Gaussian family) and edge
@@ -213,7 +213,7 @@ pub(super) fn run_canny(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Sobel filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Sobel filter ──────────────────────────────────────────────────────────────
 
 /// Apply the Sobel gradient magnitude filter.
 ///
@@ -241,9 +241,9 @@ pub(super) fn run_sobel(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Laplacian of Gaussian (LoG) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Laplacian of Gaussian (LoG) ───────────────────────────────────────────────
 
-/// Apply the Laplacian of Gaussian filter.  Reads Ïƒ from `SmoothingArgs`.
+/// Apply the Laplacian of Gaussian filter.  Reads σ from `SmoothingArgs`.
 pub(super) fn run_log(args: &FilterArgs) -> Result<()> {
     use ritk_filter::edge::GaussianSigma;
     use ritk_filter::LaplacianOfGaussianFilter;
@@ -273,9 +273,9 @@ pub(super) fn run_log(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Recursive Gaussian filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Recursive Gaussian filter ─────────────────────────────────────────────────
 
-/// Apply the recursive Gaussian (Youngâ€“van Vliet IIR) filter.
+/// Apply the recursive Gaussian (Young–van Vliet IIR) filter.
 pub(super) fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
     use crate::commands::filter::CliDerivativeOrder;
     use ritk_filter::recursive_gaussian::DerivativeOrder;
@@ -312,7 +312,7 @@ pub(super) fn run_recursive_gaussian(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ CPR (Curved Planar Reformation) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CPR (Curved Planar Reformation) ────────────────────────────────────────
 pub(super) fn run_cpr(args: &FilterArgs) -> Result<()> {
     use ritk_filter::{CprConfig, CprImageFilter};
     use ritk_spatial::{Direction, Point, Spacing};
@@ -368,7 +368,7 @@ pub(super) fn run_cpr(args: &FilterArgs) -> Result<()> {
 
     let image_2d = cpr_filter.apply_native(&image, &backend)?;
 
-    // Promote 2-D [rows, cols] â†’ 3-D [1, rows, cols] for the 3-D writer pipeline.
+    // Promote 2-D [rows, cols] → 3-D [1, rows, cols] for the 3-D writer pipeline.
     let [nr, nc] = image_2d.shape();
     let origin = image_2d.origin();
     let spacing = image_2d.spacing();
@@ -386,7 +386,7 @@ pub(super) fn run_cpr(args: &FilterArgs) -> Result<()> {
     write_image(&args.output, &image_3d, output_format)?;
 
     println!(
-        "Applied CPR to {} â†’ {}",
+        "Applied CPR to {} → {}",
         args.input.display(),
         args.output.display()
     );

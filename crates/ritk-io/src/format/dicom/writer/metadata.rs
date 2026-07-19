@@ -169,13 +169,13 @@ pub fn write_dicom_series_with_metadata<B: Backend, P: AsRef<Path>>(
             obj.put(DataElement::new(
                 Tag(0x0028, 0x0030),
                 VR::DS,
-                // PixelSpacing = [Î”Row, Î”Col] = [spacing[1], spacing[2]]
+                // PixelSpacing = [ΔRow, ΔCol] = [spacing[1], spacing[2]]
                 PrimitiveValue::from(format_pair([spacing[1], spacing[2]])),
             ));
             obj.put(DataElement::new(
                 Tag(0x0018, 0x0050),
                 VR::DS,
-                // SliceThickness = Î”z = spacing[0]
+                // SliceThickness = Δz = spacing[0]
                 PrimitiveValue::from(format!("{:.6}", spacing[0])),
             ));
         }

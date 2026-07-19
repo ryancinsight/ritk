@@ -15,25 +15,25 @@
 //!
 //! | Direction | Welding | Precision | Notes |
 //! |-----------|---------|-----------|-------|
-//! | `IndexedMesh â†’ VtkPolyData` | Preserved | `f64 â†’ f32` | One point per welded vertex; normals in `point_data["Normals"]` |
-//! | `VtkPolyData â†’ IndexedMesh` | Applied | `f32 â†’ f64` | Only triangular polygons are converted; non-triangles are skipped |
+//! | `IndexedMesh → VtkPolyData` | Preserved | `f64 → f32` | One point per welded vertex; normals in `point_data["Normals"]` |
+//! | `VtkPolyData → IndexedMesh` | Applied | `f32 → f64` | Only triangular polygons are converted; non-triangles are skipped |
 //!
 //! # Invariants
 //!
 //! **Theorem (round-trip vertex count)**: For any `IndexedMesh M`,
-//! `poly_to_indexed_mesh(indexed_mesh_to_poly(M)).vertex_count() â‰¤ M.vertex_count()`.
+//! `poly_to_indexed_mesh(indexed_mesh_to_poly(M)).vertex_count() ≤ M.vertex_count()`.
 //!
 //! Equality holds when every pair of vertices in `M` is farther apart than
-//! `gaia::Scalar::tolerance()` for `f64` (â‰ˆ 1 nm). Positions narrowed to
+//! `gaia::Scalar::tolerance()` for `f64` (≈ 1 nm). Positions narrowed to
 //! `f32` and back to `f64` may collapse vertices that were distinguishable
-//! only in the sub-10 Âµm range â€” below the `f32` tolerance threshold.
+//! only in the sub-10 µm range — below the `f32` tolerance threshold.
 
 use gaia::domain::core::index::VertexId;
 use gaia::{IndexedMesh, MeshBuilder};
 
 use super::vtk_data_object::{AttributeArray, VtkPolyData};
 
-// â”€â”€ IndexedMesh â†’ VtkPolyData â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── IndexedMesh → VtkPolyData ─────────────────────────────────────────────────
 
 /// Convert a [`gaia::IndexedMesh<f64>`] to a [`VtkPolyData`].
 ///
@@ -42,7 +42,7 @@ use super::vtk_data_object::{AttributeArray, VtkPolyData};
 /// triangle face becomes one polygon entry with three vertex indices.
 ///
 /// Precision: vertex coordinates are narrowed from `f64` to `f32` to match
-/// `VtkPolyData::points`' element type. Sub-10 Âµm differences are lost.
+/// `VtkPolyData::points`' element type. Sub-10 µm differences are lost.
 pub fn indexed_mesh_to_poly(mesh: &IndexedMesh) -> VtkPolyData {
     let nv = mesh.vertex_count();
     let nf = mesh.face_count();
@@ -76,14 +76,14 @@ pub fn indexed_mesh_to_poly(mesh: &IndexedMesh) -> VtkPolyData {
     poly
 }
 
-// â”€â”€ VtkPolyData â†’ IndexedMesh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── VtkPolyData → IndexedMesh ─────────────────────────────────────────────────
 
 /// Convert a [`VtkPolyData`] triangle mesh to a [`gaia::IndexedMesh<f64>`].
 ///
 /// Only triangular polygon cells (exactly 3 vertex indices) are processed.
 /// Quad and higher-arity polygon cells are silently skipped. Vertex positions
 /// are promoted from `f32` to `f64`. Welding is applied via `MeshBuilder`'s
-/// internal `VertexPool` (tolerance â‰ˆ 1 nm), so coincident vertices in the
+/// internal `VertexPool` (tolerance ≈ 1 nm), so coincident vertices in the
 /// source mesh are automatically deduplicated.
 ///
 /// Out-of-bounds polygon indices (violating `VtkPolyData`'s invariant) are
@@ -109,7 +109,7 @@ pub fn poly_to_indexed_mesh(poly: &VtkPolyData) -> IndexedMesh {
     builder.build()
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {

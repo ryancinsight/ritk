@@ -35,9 +35,9 @@ impl HitOrMissTransform {
 
     /// Coeus-native sister of [`HitOrMissTransform::apply`].
     ///
-    /// Runs the identical `(M âŠ– SE1) âˆ§ (Má¶œ âŠ– SE2)` transform via the shared
+    /// Runs the identical `(M ⊖ SE1) ∧ (Má¶œ ⊖ SE2)` transform via the shared
     /// `hit_or_miss_3d` host core on the image's contiguous host buffer, so the
-    /// result is bitwise-identical to the Burn path. No Burn tensor is
+    /// result is bitwise-identical to the Coeus path. No Burn tensor is
     /// constructed. Spatial metadata is preserved.
     ///
     /// # Errors
@@ -59,7 +59,7 @@ impl HitOrMissTransform {
 }
 
 /// True if the offset addresses a **degenerate (size-1) axis** off its only
-/// plane â€” such an axis has no extent, so the structuring element carries no
+/// plane — such an axis has no extent, so the structuring element carries no
 /// component along it (a 2-D `z = 1` image uses a 2-D SE). These offsets are
 /// skipped rather than counted as out-of-bounds, which otherwise made every
 /// hit-or-miss query fail on a 2-D image (all-zero output).
@@ -181,7 +181,7 @@ fn hit_or_miss_3d(data: &[f32], dims: [usize; 3], fg_r: usize, bg_r: usize) -> V
     out
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_hit_or_miss.rs"]

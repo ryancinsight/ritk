@@ -1,4 +1,4 @@
-//! DICOM de-identification and anonymization â€” PS 3.15 Annex E.
+//! DICOM de-identification and anonymization — PS 3.15 Annex E.
 //!
 //! # Design
 //! - `anonymize_object` is the canonical entry point for single-object mutation.
@@ -96,7 +96,7 @@ pub struct AnonymizeResult {
     pub uids_remapped: usize,
     /// Number of private tags removed.
     pub private_tags_removed: usize,
-    /// Map of original UID â†’ replacement UID for cross-reference tracking.
+    /// Map of original UID → replacement UID for cross-reference tracking.
     pub uid_map: HashMap<String, String>,
 }
 
@@ -113,19 +113,19 @@ pub struct AnonymizeStats {
     pub errors: Vec<(PathBuf, String)>,
 }
 
-// â”€â”€â”€ UID generation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── UID generation ───────────────────────────────────────────────────────────
 
 /// Produce a deterministic DICOM-conformant UID from `original` and `salt`.
 ///
 /// # Algorithm
 /// SHA-256 over `original || "||" || salt`, the first 19 bytes of the digest
-/// are converted to decimal digits (each byte â†’ 2 or 3 decimal digits),
+/// are converted to decimal digits (each byte → 2 or 3 decimal digits),
 /// producing at most 57 decimal characters. The result is prefixed with
-/// `"2.25."` (ISO/IEC 9834-8 UUID arc), yielding a UID â‰¤ 64 characters.
+/// `"2.25."` (ISO/IEC 9834-8 UUID arc), yielding a UID ≤ 64 characters.
 ///
 /// # Invariants
-/// - Same `(original, salt)` â†’ same output (pure function).
-/// - Output matches `^2\.25\.[0-9]+$` and is â‰¤ 64 characters.
+/// - Same `(original, salt)` → same output (pure function).
+/// - Output matches `^2\.25\.[0-9]+$` and is ≤ 64 characters.
 /// - Original UID cannot be recovered without the salt.
 /// - Collision probability is O(1/2^152) (19 bytes of SHA-256 entropy).
 pub(crate) fn generate_uid_from_hash(original: &str, salt: &str) -> String {
@@ -136,8 +136,8 @@ pub(crate) fn generate_uid_from_hash(original: &str, salt: &str) -> String {
     let digest = hasher.finalize();
 
     // Convert first 19 bytes of SHA-256 digest to decimal string.
-    // Each byte [0,255] â†’ 2 or 3 decimal digits â†’ max 57 characters.
-    // With "2.25." prefix (5 chars), total â‰¤ 62 characters < 64 max.
+    // Each byte [0,255] → 2 or 3 decimal digits → max 57 characters.
+    // With "2.25." prefix (5 chars), total ≤ 62 characters < 64 max.
     let decimal: String = digest[..19]
         .iter()
         .flat_map(|b| {
@@ -187,7 +187,7 @@ pub(crate) fn generate_uid_from_hash(original: &str, salt: &str) -> String {
     uid
 }
 
-// â”€â”€â”€ Action dispatch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Action dispatch ──────────────────────────────────────────────────────────
 
 /// Apply `action` to `tag` in `obj`, tracking statistics in `result`.
 ///
@@ -263,7 +263,7 @@ fn apply_action(
     }
 }
 
-// â”€â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Public API ───────────────────────────────────────────────────────────────
 
 /// Apply anonymization to a single in-memory DICOM object.
 ///

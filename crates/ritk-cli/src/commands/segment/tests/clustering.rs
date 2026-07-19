@@ -1,6 +1,6 @@
 use super::*;
 
-// â”€â”€ Helper: binary image with specified components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Helper: binary image with specified components ────────────────────────────
 
 fn make_binary_image_with_components(
     dims: [usize; 3],
@@ -29,7 +29,7 @@ fn make_binary_image_with_components(
     .expect("invariant: fixture tensor has the declared rank")
 }
 
-// â”€â”€ Positive: K-Means creates output with cluster labels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: K-Means creates output with cluster labels ──────────────────
 
 #[test]
 fn test_segment_kmeans_creates_output_with_valid_labels() {
@@ -198,7 +198,7 @@ fn native_kmeans_cli_rejects_invalid_configuration() {
     assert_eq!(invalid_k.to_string(), "k must be at least 1, got 0");
 }
 
-// â”€â”€ Positive: Distance transform creates output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: Distance transform creates output ───────────────────────────
 
 #[test]
 fn test_segment_distance_transform_creates_output() {
@@ -308,7 +308,7 @@ fn native_distance_transform_cli_preserves_exact_physical_values_and_geometry() 
     assert_eq!(actual.direction(), image.direction());
 }
 
-// â”€â”€ Fill-holes tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Fill-holes tests ──────────────────────────────────────────────────────
 
 #[test]
 fn test_segment_fill_holes_fills_enclosed_cavity() {
@@ -373,7 +373,7 @@ fn test_segment_fill_holes_fills_enclosed_cavity() {
     }
 }
 
-// â”€â”€ Morphological gradient tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Morphological gradient tests ─────────────────────────────────────────
 
 #[test]
 fn test_segment_morphological_gradient_extracts_boundary() {
@@ -404,7 +404,7 @@ fn test_segment_morphological_gradient_extracts_boundary() {
     }
 }
 
-// â”€â”€ Skeletonization tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Skeletonization tests ─────────────────────────────────────────────────
 
 #[test]
 fn test_segment_skeletonization_creates_output() {
@@ -503,7 +503,7 @@ fn native_postprocessing_cli_matches_legacy_exactly() {
     }
 }
 
-// â”€â”€ Connected-components tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Connected-components tests ────────────────────────────────────────────
 
 #[test]
 fn test_segment_connected_components_creates_output_with_correct_shape() {

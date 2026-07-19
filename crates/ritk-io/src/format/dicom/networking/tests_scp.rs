@@ -4,7 +4,7 @@
 //! `Association::connect`, sends one or more C-STORE-RQ messages, then polls
 //! `StoreScpHandle::try_recv` to verify the received instances.
 //!
-//! No external PACS is required â€” all tests run fully in-process.
+//! No external PACS is required — all tests run fully in-process.
 
 use crate::format::dicom::networking::association::Association;
 use crate::format::dicom::networking::context::transfer_syntax;
@@ -14,11 +14,11 @@ use crate::format::dicom::networking::scp::{ScpConfig, StoreScp};
 use arrayvec::ArrayString;
 use std::time::Duration;
 
-// â”€â”€ SOP class constant â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SOP class constant ────────────────────────────────────────────────────────
 
 const CT_IMAGE_STORAGE: &str = "1.2.840.10008.5.1.4.1.1.2";
 
-// â”€â”€ Helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Helper ────────────────────────────────────────────────────────────────────
 
 fn scu_config(port: u16) -> AssociationConfig {
     AssociationConfig {
@@ -49,7 +49,7 @@ fn synthetic_dataset() -> Vec<u8> {
     buf
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 /// Positive: SCP receives a single C-STORE-RQ and exposes it via `try_recv`.
 ///
@@ -111,7 +111,7 @@ fn test_store_scp_single_instance_received() {
 /// Positive: SCP receives two C-STORE-RQs on the same association.
 ///
 /// Analytical basis:
-/// - `Association::c_store` does not release the association â€” caller may
+/// - `Association::c_store` does not release the association — caller may
 ///   call it multiple times before `release()`.
 /// - SCP must process all messages in the message loop before releasing.
 #[test]
@@ -191,16 +191,16 @@ fn test_store_scp_ephemeral_port_is_nonzero() {
     assert_eq!(handle.ae_title(), "RITKSNAP", "ae_title must match config");
 }
 
-// â”€â”€ Unit tests for SCP-LOAD-01 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Unit tests for SCP-LOAD-01 ───────────────────────────────────────────────
 
 /// `make_part10_bytes` must produce a valid DICOM Part 10 preamble and
 /// File Meta Information header.
 ///
-/// Analytical basis (PS3.10 Â§7, PS3.5 Â§7.1):
-/// - Bytes 0â€“127: zero-valued preamble.
-/// - Bytes 128â€“131: ASCII "DICM" magic.
-/// - Bytes 132â€“135: File Meta Information Group Length tag (0002,0000).
-/// - Bytes 136â€“137: VR "UL" for (0002,0000).
+/// Analytical basis (PS3.10 §7, PS3.5 §7.1):
+/// - Bytes 0–127: zero-valued preamble.
+/// - Bytes 128–131: ASCII "DICM" magic.
+/// - Bytes 132–135: File Meta Information Group Length tag (0002,0000).
+/// - Bytes 136–137: VR "UL" for (0002,0000).
 #[test]
 fn test_make_part10_bytes_produces_valid_dicom_preamble() {
     let inst = super::StoredInstance {
@@ -237,7 +237,7 @@ fn test_make_part10_bytes_produces_valid_dicom_preamble() {
 }
 
 /// `pad_uid` must append a null byte when the input has odd length,
-/// producing an even-length result per DICOM VR::UI padding rules (PS3.5 Â§6.2).
+/// producing an even-length result per DICOM VR::UI padding rules (PS3.5 §6.2).
 #[test]
 fn test_pad_uid_odd_length_padded_with_null() {
     // "1.2.3" is 5 bytes (odd)
@@ -249,13 +249,13 @@ fn test_pad_uid_odd_length_padded_with_null() {
 /// `pad_uid` must return even-length UIDs unchanged (no padding needed).
 #[test]
 fn test_pad_uid_even_length_unchanged() {
-    // "1.2.840.10008.1.21" is 18 bytes (even) â€” no padding
+    // "1.2.840.10008.1.21" is 18 bytes (even) — no padding
     let result = super::pad_uid("1.2.840.10008.1.21");
     assert_eq!(result, b"1.2.840.10008.1.21");
     assert_eq!(result.len() % 2, 0, "even-length UID must remain even");
 }
 
-// â”€â”€ Poll helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Poll helper ───────────────────────────────────────────────────────────────
 
 fn poll_instance(
     handle: &crate::format::dicom::networking::scp::StoreScpHandle,

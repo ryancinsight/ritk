@@ -10,7 +10,7 @@
 //!
 //! # Properties
 //!
-//! - **Extensivity**: `C_B(f) â‰¥ f` â€” closing does not remove foreground voxels.
+//! - **Extensivity**: `C_B(f) ≥ f` — closing does not remove foreground voxels.
 //! - **Hole filling**: removes dark cavities / holes smaller than B.
 //! - **Idempotence**: `C_B(C_B(f)) = C_B(f)`.
 //!
@@ -23,7 +23,7 @@
 //!
 //! # Complexity
 //!
-//! O(2 Â· N Â· (2r + 1)Â³): one dilation pass + one erosion pass.
+//! O(2 · N · (2r + 1)³): one dilation pass + one erosion pass.
 //!
 //! # References
 //!
@@ -37,7 +37,7 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// â”€â”€ Filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Filter struct ─────────────────────────────────────────────────────────────
 
 /// Binary morphological closing filter for 3-D images.
 ///
@@ -105,7 +105,7 @@ impl Default for BinaryMorphologicalClosing {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[allow(clippy::identity_op, clippy::erasing_op)]

@@ -9,21 +9,21 @@
 //! three details that materially shift the result on skewed histograms; all
 //! three are reproduced here:
 //!
-//! Given a histogram `h[0..Nâˆ’1]` with peak bin `p = argmax h`:
+//! Given a histogram `h[0..N−1]` with peak bin `p = argmax h`:
 //!
 //! 1. The line endpoints are the **1st and 99th percentile bins**
-//!    (`p_lo`, `p_hi`) â€” the first bin whose cumulative count reaches 1 % / 99 %
-//!    of the total â€” not the first/last non-empty bins. This makes the endpoint
+//!    (`p_lo`, `p_hi`) — the first bin whose cumulative count reaches 1 % / 99 %
+//!    of the total — not the first/last non-empty bins. This makes the endpoint
 //!    robust to single-voxel outlier tails.
 //! 2. The active side is the one **farther** from the peak:
-//!    `|p âˆ’ p_lo| > |p âˆ’ p_hi|` selects the low side, otherwise the high side.
+//!    `|p − p_lo| > |p − p_hi|` selects the low side, otherwise the high side.
 //! 3. The bin of maximum distance is **incremented by one**, and the threshold
-//!    is the **bin centre**: `x_min + (idx + 0.5) Â· (x_max âˆ’ x_min)/N`.
+//!    is the **bin centre**: `x_min + (idx + 0.5) · (x_max − x_min)/N`.
 //!
-//! For the high side the distance at bin `k âˆˆ [p, p_hi)` is
-//! `slopeÂ·(k âˆ’ p) + h[p] âˆ’ h[k]` with `slope = âˆ’h[p]/(p_hi âˆ’ p)`; for the low
-//! side, bin `k âˆˆ [p_lo, p)` uses `slopeÂ·(k âˆ’ p_lo) âˆ’ h[k]` with
-//! `slope = h[p]/(p âˆ’ p_lo)`. The normalising `1/âˆš(AÂ²+BÂ²)` of the perpendicular
+//! For the high side the distance at bin `k ∈ [p, p_hi)` is
+//! `slope·(k − p) + h[p] − h[k]` with `slope = −h[p]/(p_hi − p)`; for the low
+//! side, bin `k ∈ [p_lo, p)` uses `slope·(k − p_lo) − h[k]` with
+//! `slope = h[p]/(p − p_lo)`. The normalising `1/√(A²+B²)` of the perpendicular
 //! distance is a positive constant over the search range, so `argmax` is
 //! unaffected and the cheaper signed triangle height is used.
 //!
@@ -32,7 +32,7 @@
 //!
 //! # References
 //! - Zack G.W., Rogers W.E., Latt S.A. (1977). "Automatic measurement of
-//!   sister chromatid exchange frequency." *J. Histochem. Cytochem.* 25(7):741â€“753.
+//!   sister chromatid exchange frequency." *J. Histochem. Cytochem.* 25(7):741–753.
 //! - ITK `itkTriangleThresholdCalculator.hxx` (percentile endpoints, +1 shift).
 
 use ritk_image::tensor::Backend;
@@ -40,7 +40,7 @@ use ritk_image::Image;
 
 use super::auto_threshold::{itk_bin_width, threshold_from_slice, AutoThreshold};
 
-// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public API ─────────────────────────────────────────────────────────────────
 
 /// Triangle thresholding segmentation.
 ///
@@ -70,7 +70,7 @@ impl TriangleThreshold {
     /// Compute the optimal triangle threshold for `image`.
     ///
     /// Returns the intensity value t* that maximises the perpendicular distance
-    /// to the peakâ€“tail line. For a constant image, returns the image's uniform
+    /// to the peak–tail line. For a constant image, returns the image's uniform
     /// intensity (degenerate case).
     ///
     /// Delegates to [`AutoThreshold::compute`].
@@ -80,8 +80,8 @@ impl TriangleThreshold {
 
     /// Apply the triangle threshold to produce a binary mask.
     ///
-    /// - Pixels with intensity â‰¥ t* â†’ 1.0 (foreground).
-    /// - Pixels with intensity <  t* â†’ 0.0 (background).
+    /// - Pixels with intensity ≥ t* → 1.0 (foreground).
+    /// - Pixels with intensity <  t* → 0.0 (background).
     ///
     /// Spatial metadata (origin, spacing, direction) is preserved exactly.
     ///
@@ -115,7 +115,7 @@ impl Default for TriangleThreshold {
     }
 }
 
-// â”€â”€ AutoThreshold implementation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── AutoThreshold implementation ───────────────────────────────────────────────
 
 impl AutoThreshold for TriangleThreshold {
     fn num_bins(&self) -> usize {
@@ -131,9 +131,9 @@ impl AutoThreshold for TriangleThreshold {
     }
 }
 
-// â”€â”€ ITK-faithful core â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── ITK-faithful core ────────────────────────────────────────────────────────
 
-/// First bin index whose cumulative count reaches `quantile Â· total`
+/// First bin index whose cumulative count reaches `quantile · total`
 /// (the bin containing the `quantile` percentile), mirroring ITK's use of
 /// `Histogram::Quantile` followed by `GetIndex`.
 fn percentile_bin(counts: &[u64], total: u64, quantile: f64) -> usize {
@@ -150,7 +150,7 @@ fn percentile_bin(counts: &[u64], total: u64, quantile: f64) -> usize {
 
 /// Compute the triangle threshold intensity from a histogram, following
 /// `itk::TriangleThresholdCalculator`. `x_min` is the lower intensity bound and
-/// `bin_size = (x_max âˆ’ x_min)/N`; the returned value is the bin centre of the
+/// `bin_size = (x_max − x_min)/N`; the returned value is the bin centre of the
 /// selected (`+1`-shifted) bin.
 #[allow(clippy::needless_range_loop)]
 fn triangle_from_counts(counts: &[u64], x_min: f64, bin_size: f64) -> f32 {
@@ -207,7 +207,7 @@ fn triangle_from_counts(counts: &[u64], x_min: f64, bin_size: f64) -> f32 {
     bin_centre((best_idx + 1).min(n - 1))
 }
 
-// â”€â”€ Convenience functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Convenience functions ──────────────────────────────────────────────────────
 
 /// Convenience function: compute the triangle threshold with 256 bins.
 pub fn triangle_threshold<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> f32 {
@@ -223,7 +223,7 @@ pub fn compute_triangle_threshold_from_slice(slice: &[f32], num_bins: usize) -> 
     threshold_from_slice(&TriangleThreshold::with_bins(num_bins), slice)
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_triangle.rs"]

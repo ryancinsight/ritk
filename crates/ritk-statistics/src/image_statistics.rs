@@ -4,7 +4,7 @@
 //! full image or restricted to a foreground mask.
 //!
 //! # Mathematical Specification
-//! Given a vector of intensity values V = {vâ‚, â€¦, vâ‚™}:
+//! Given a vector of intensity values V = {v₁, …, vₙ}:
 //! - min     = min(V)
 //! - max     = max(V)
 //! - mean    = (1/n) · Σ vᵢ

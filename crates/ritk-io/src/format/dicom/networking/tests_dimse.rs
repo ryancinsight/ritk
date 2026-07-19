@@ -13,7 +13,7 @@ use super::command::{
 use super::find::{FindLevel, FindQuery};
 use super::move_::MoveDestination;
 
-// â”€â”€ AeTitle validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── AeTitle validation ────────────────────────────────────────────────────────
 
 #[test]
 fn ae_title_accepts_single_char() {
@@ -75,11 +75,11 @@ fn ae_title_rejects_del() {
     ));
 }
 
-// â”€â”€ encode_ui_into â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── encode_ui_into ───────────────────────────────────────────────────────────
 
 #[test]
 fn encode_ui_into_odd_length_uid_padded_with_null() {
-    // "1.2.3.4" has 7 chars â†’ padded to 8 with null byte.
+    // "1.2.3.4" has 7 chars → padded to 8 with null byte.
     let uid = "1.2.3.4";
     let mut buf = Vec::new();
     encode_ui_into(&mut buf, uid);
@@ -90,7 +90,7 @@ fn encode_ui_into_odd_length_uid_padded_with_null() {
 
 #[test]
 fn encode_ui_into_verification_sop_class_odd_gets_null_pad() {
-    // "1.2.840.10008.1.1" = 17 chars (odd) â†’ null-padded to 18 bytes.
+    // "1.2.840.10008.1.1" = 17 chars (odd) → null-padded to 18 bytes.
     let mut buf = Vec::new();
     encode_ui_into(&mut buf, VERIFICATION_SOP_CLASS);
     assert_eq!(buf.len() % 2, 0);
@@ -98,7 +98,7 @@ fn encode_ui_into_verification_sop_class_odd_gets_null_pad() {
     assert_eq!(buf[17], 0x00, "null pad byte for odd-length UID");
 }
 
-// â”€â”€ encode_str â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── encode_str ────────────────────────────────────────────────────────────────
 
 #[test]
 fn encode_str_odd_length_padded_with_space() {
@@ -114,7 +114,7 @@ fn encode_str_even_length_no_pad() {
     assert_eq!(&enc, b"ABCD");
 }
 
-// â”€â”€ build_command_pdu â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── build_command_pdu ─────────────────────────────────────────────────────────
 
 #[test]
 fn build_command_pdu_group_length_correct() {
@@ -159,7 +159,7 @@ fn build_command_pdu_round_trips_through_parse() {
     assert_eq!(parsed.status, STATUS_SUCCESS, "status");
 }
 
-// â”€â”€ build_dataset_ivr_le â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── build_dataset_ivr_le ──────────────────────────────────────────────────────
 
 #[test]
 fn build_dataset_ivr_le_single_element() {
@@ -179,7 +179,7 @@ fn build_dataset_ivr_le_single_element() {
     assert_eq!(&ds[8..14], b"STUDY ");
 }
 
-// â”€â”€ parse_command_response â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── parse_command_response ────────────────────────────────────────────────────
 
 #[test]
 fn parse_command_response_missing_command_field_errors() {
@@ -204,7 +204,7 @@ fn parse_command_response_c_echo_rsp_from_synthetic_bytes() {
     assert_eq!(resp.status, STATUS_SUCCESS, "status");
 }
 
-// â”€â”€ parse_dataset_ivr_le â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── parse_dataset_ivr_le ──────────────────────────────────────────────────────
 
 #[test]
 fn parse_dataset_ivr_le_round_trips_two_elements() {
@@ -222,7 +222,7 @@ fn parse_dataset_ivr_le_round_trips_two_elements() {
     assert_eq!(elements[1].0, (0x0020, 0x000D));
 }
 
-// â”€â”€ FindQuery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── FindQuery ─────────────────────────────────────────────────────────────────
 
 #[test]
 fn find_query_builder_stores_keys_in_order() {
@@ -236,7 +236,7 @@ fn find_query_builder_stores_keys_in_order() {
     assert_eq!(q.keys[1], (0x0020, 0x000D, "".to_owned()));
 }
 
-// â”€â”€ MoveDestination â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── MoveDestination ───────────────────────────────────────────────────────────
 
 #[test]
 fn move_destination_holds_ae_title() {

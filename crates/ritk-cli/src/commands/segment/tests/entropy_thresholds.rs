@@ -1,4 +1,4 @@
-use super::*; // â”€â”€ Positive: Li threshold creates binary output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ /// Li thresholding on a bimodal image must produce a binary mask with the
+use super::*; // ── Positive: Li threshold creates binary output ────────────────────────── /// Li thresholding on a bimodal image must produce a binary mask with the
 /// threshold between the two modes.
 #[test]
 fn test_segment_li_creates_output_and_threshold_between_modes() {
@@ -33,7 +33,7 @@ fn test_segment_li_creates_output_and_threshold_between_modes() {
     );
 }
 
-// â”€â”€ Positive: Yen threshold creates binary output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: Yen threshold creates binary output ─────────────────────────
 #[test]
 fn test_segment_yen_creates_output_and_threshold_between_modes() {
     let dir = tempdir().unwrap();
@@ -67,7 +67,7 @@ fn test_segment_yen_creates_output_and_threshold_between_modes() {
     );
 }
 
-// â”€â”€ Positive: Kapur threshold creates binary output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: Kapur threshold creates binary output ───────────────────────
 #[test]
 fn test_segment_kapur_creates_output_and_threshold_between_modes() {
     let dir = tempdir().unwrap();
@@ -101,7 +101,7 @@ fn test_segment_kapur_creates_output_and_threshold_between_modes() {
     );
 }
 
-// â”€â”€ Positive: Triangle threshold creates binary output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: Triangle threshold creates binary output ────────────────────
 #[test]
 fn test_segment_triangle_creates_output_and_threshold_between_modes() {
     let dir = tempdir().unwrap();
@@ -135,7 +135,7 @@ fn test_segment_triangle_creates_output_and_threshold_between_modes() {
     );
 }
 
-// â”€â”€ Positive: foreground count tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: foreground count tests ──────────────────────────────────────
 #[test]
 fn test_segment_li_foreground_count() {
     let dir = tempdir().unwrap();

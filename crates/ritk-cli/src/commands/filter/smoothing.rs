@@ -6,12 +6,12 @@ use super::{
     FilterArgs,
 };
 
-// â”€â”€ Gaussian filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Gaussian filter ───────────────────────────────────────────────────────────
 /// Apply a Gaussian smoothing filter to the input image and write the result.
 ///
 /// The sigma value from `args.smoothing.sigma` is applied uniformly along all
 /// three spatial dimensions. The `GaussianFilter` implementation skips any
-/// dimension whose sigma is â‰¤ 1e-6, so `--sigma 0.0` is a valid no-op.
+/// dimension whose sigma is ≤ 1e-6, so `--sigma 0.0` is a valid no-op.
 pub(super) fn run_gaussian(args: &FilterArgs) -> Result<()> {
     use ritk_filter::GaussianFilter;
     use ritk_filter::GaussianSigma;
@@ -28,7 +28,7 @@ pub(super) fn run_gaussian(args: &FilterArgs) -> Result<()> {
     let image = read_image(&args.input)?;
     let backend = Backend::default();
 
-    // sigma â‰¤ 0 is documented as a no-op at the CLI level; skip the filter
+    // sigma ≤ 0 is documented as a no-op at the CLI level; skip the filter
     // and return the image unmodified rather than constructing a near-zero sigma.
     let filtered = if sigma > 0.0 {
         let sigma = GaussianSigma::new(sigma)
@@ -57,7 +57,7 @@ pub(super) fn run_gaussian(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ N4 bias field correction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── N4 bias field correction ──────────────────────────────────────────────────
 pub(super) fn run_n4_bias(args: &FilterArgs) -> Result<()> {
     use ritk_filter::bias::N4Config;
     use ritk_filter::N4BiasFieldCorrectionFilter;
@@ -101,7 +101,7 @@ pub(super) fn run_n4_bias(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Anisotropic diffusion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Anisotropic diffusion ─────────────────────────────────────────────────────
 pub(super) fn run_anisotropic(args: &FilterArgs) -> Result<()> {
     use ritk_filter::diffusion::{ConductanceFunction, DiffusionConfig};
     use ritk_filter::AnisotropicDiffusionFilter;
@@ -256,7 +256,7 @@ pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
         return Ok(());
     }
 
-    // CLI accepts variance (ÏƒÂ²); DiscreteGaussianFilter API takes sigma (Ïƒ).
+    // CLI accepts variance (σ²); DiscreteGaussianFilter API takes sigma (σ).
     let sigma = GaussianSigma::new(variance.sqrt())
         .expect("invariant: sqrt of positive variance yields positive sigma");
     let filter = DiscreteGaussianFilter::<Backend>::new(vec![sigma])
@@ -279,7 +279,7 @@ pub(super) fn run_discrete_gaussian(args: &FilterArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -289,7 +289,7 @@ mod tests {
     use ritk_io::ImageFormat;
     use tempfile::tempdir;
 
-    // â”€â”€ Positive: Gaussian creates output file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Positive: Gaussian creates output file ────────────────────────────
     /// Applying the Gaussian filter must create the output file.
     #[test]
     fn test_filter_gaussian_creates_output_file() {
@@ -308,7 +308,7 @@ mod tests {
         assert!(output.exists(), "output file must be created");
     }
 
-    // â”€â”€ Positive: Gaussian preserves shape â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Positive: Gaussian preserves shape ───────────────────────────────
     /// The output image must have the same voxel dimensions as the input.
     #[test]
     fn test_filter_gaussian_preserves_shape() {
@@ -333,9 +333,9 @@ mod tests {
         );
     }
 
-    // â”€â”€ Positive: Gaussian with sigma=0 is a no-op â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Positive: Gaussian with sigma=0 is a no-op ──────────────────────
     /// `--sigma 0.0` must leave voxel values unchanged (GaussianFilter skips
-    /// dimensions with Ïƒ â‰¤ 1e-6).
+    /// dimensions with σ ≤ 1e-6).
     #[test]
     fn test_filter_gaussian_sigma_zero_is_noop() {
         let dir = tempdir().unwrap();
@@ -359,7 +359,7 @@ mod tests {
             .expect("invariant: result storage is contiguous")
             .to_vec();
 
-        // Sigma = 0 â†’ no convolution â†’ values must be identical after round-trip.
+        // Sigma = 0 → no convolution → values must be identical after round-trip.
         // NIfTI/MetaImage round-trip may reorder axes; compare sums as a
         // scalar invariant that is permutation-independent.
         let orig_sum: f32 = original_data.iter().sum();
@@ -370,7 +370,7 @@ mod tests {
         );
     }
 
-    // â”€â”€ Positive: N4 bias-field correction creates output file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Positive: N4 bias-field correction creates output file ───────────
     #[test]
     fn test_filter_n4_applies_correction() {
         let dir = tempdir().unwrap();
@@ -388,7 +388,7 @@ mod tests {
         assert_eq!(output.shape(), [5, 5, 5], "output shape must match input");
     }
 
-    // â”€â”€ Positive: anisotropic diffusion creates output file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Positive: anisotropic diffusion creates output file ──────────────
     #[test]
     fn test_filter_anisotropic_creates_output() {
         let dir = tempdir().unwrap();

@@ -4,7 +4,7 @@
 //!
 //! Min/max curvature flow is mean curvature flow whose speed is gated to suppress
 //! the smoothing of features finer than a stencil of radius `R`: each voxel's
-//! curvature-flow speed `v = |âˆ‡I|Â·Îº` is replaced by `max(v, 0)` when the
+//! curvature-flow speed `v = |∇I|·κ` is replaced by `max(v, 0)` when the
 //! `R`-sphere average of the neighbourhood is below a directional threshold, and
 //! by `min(v, 0)` otherwise.  The threshold is the average of the two (2-D) or
 //! four (3-D) neighbourhood samples perpendicular to the gradient at distance
@@ -12,10 +12,10 @@
 //!
 //! The base curvature-flow update reuses the exact discretization of
 //! [`CurvatureFlowImageFilter`](super::CurvatureFlowImageFilter) (speed
-//! `= N / |âˆ‡I|Â²`), and the effective time step is `time_step / RÂ²` where `R` is
-//! the stencil radius â€” the ITK-internal CFL scaling that
+//! `= N / |∇I|²`), and the effective time step is `time_step / R²` where `R` is
+//! the stencil radius — the ITK-internal CFL scaling that
 //! `MinMaxCurvatureFlowImageFilter` applies, independent of image dimension
-//! (recovered from sitk: `R=1 â†’ /1`, `R=2 â†’ /4`, `R=3 â†’ /9`, in both 2-D and 3-D).
+//! (recovered from sitk: `R=1 → /1`, `R=2 → /4`, `R=3 → /9`, in both 2-D and 3-D).
 //!
 //! # ITK / SimpleITK parity
 //! Float-exact to `sitk.MinMaxCurvatureFlow` across stencil radii (1, 2, 3),
@@ -34,7 +34,7 @@ const GRAD_MAG_EPSILON: f64 = 1e-9;
 pub struct MinMaxCurvatureFlowConfig {
     /// Number of evolution iterations (ITK default 5).
     pub num_iterations: usize,
-    /// User time step; the effective step is `time_step / RÂ²` (ITK default 0.05).
+    /// User time step; the effective step is `time_step / R²` (ITK default 0.05).
     pub time_step: f32,
     /// Stencil radius `R` for the min/max gate (ITK default 2).
     pub stencil_radius: usize,
@@ -131,7 +131,7 @@ fn min_max_curvature_flow_evolve(
     let mut cur: Vec<f64> = vals.iter().map(|&v| v as f64).collect();
 
     // Reusable double buffer: each sweep reads `cur`, writes `next`, then
-    // swaps â€” avoids the per-iteration `cur.clone()` + `collect()` (two
+    // swaps — avoids the per-iteration `cur.clone()` + `collect()` (two
     // N-element f64 allocations per iteration). Bit-identical: reading `cur`
     // after the swap is exactly the previous sweep's `prev` clone.
     let mut next: Vec<f64> = vec![0.0f64; n];
@@ -205,7 +205,7 @@ fn sphere_offsets(r: isize, two_d: bool) -> (Vec<[isize; 3]>, f64) {
     (sphere, w)
 }
 
-/// Mean curvature-flow speed `N / |âˆ‡I|Â²` at a voxel, plus the first derivatives
+/// Mean curvature-flow speed `N / |∇I|²` at a voxel, plus the first derivatives
 /// `(dx, dy, dz)` (reused by the directional threshold).  Matches the covered
 /// [`CurvatureFlowImageFilter`](super::CurvatureFlowImageFilter) discretization.
 fn curvature_speed<F: Fn(isize, isize, isize) -> f64>(
@@ -257,7 +257,7 @@ fn curvature_speed<F: Fn(isize, isize, isize) -> f64>(
 pub struct BinaryMinMaxCurvatureFlowConfig {
     /// Number of evolution iterations (ITK default 5).
     pub num_iterations: usize,
-    /// User time step; effective step is `time_step / (2Â·D)` (ITK default 0.05).
+    /// User time step; effective step is `time_step / (2·D)` (ITK default 0.05).
     pub time_step: f32,
     /// Stencil radius `R` (ITK default 2).
     pub stencil_radius: usize,
@@ -279,7 +279,7 @@ impl Default for BinaryMinMaxCurvatureFlowConfig {
 /// Binary min/max curvature flow (`itk::BinaryMinMaxCurvatureFlowImageFilter`).
 ///
 /// Like [`MinMaxCurvatureFlowImageFilter`] but the speed gate compares the
-/// `R`-sphere average to a fixed scalar `threshold`: `avg < threshold â‡’
+/// `R`-sphere average to a fixed scalar `threshold`: `avg < threshold ⇒
 /// min(v, 0)`, else `max(v, 0)` (note the direction is opposite to the
 /// directional-threshold variant).  Float-exact to `sitk.BinaryMinMaxCurvatureFlow`.
 #[derive(Debug, Clone, Copy)]
@@ -312,7 +312,7 @@ impl BinaryMinMaxCurvatureFlowImageFilter {
     /// Runs the identical scalar-threshold binary min/max curvature-flow
     /// evolution via the shared `binary_min_max_curvature_flow_evolve` host
     /// core on the image's contiguous host buffer, so the result is
-    /// bitwise-identical to the Burn path. No Burn tensor is constructed.
+    /// bitwise-identical to the Coeus path. No Burn tensor is constructed.
     /// Spatial metadata is preserved.
     ///
     /// # Errors
@@ -364,7 +364,7 @@ fn binary_min_max_curvature_flow_evolve(
 
     let mut cur: Vec<f64> = vals.iter().map(|&v| v as f64).collect();
     // Reusable double buffer (see the min/max path above): read `cur`, write
-    // `next`, swap â€” drops the per-iteration clone + collect allocations.
+    // `next`, swap — drops the per-iteration clone + collect allocations.
     let mut next: Vec<f64> = vec![0.0f64; n];
     for _ in 0..config.num_iterations {
         {
@@ -504,7 +504,7 @@ mod tests_native {
     use coeus_core::SequentialBackend;
 
     #[test]
-    fn min_max_matches_burn() {
+    fn min_max_matches_coeus() {
         let vals: Vec<f32> = (0..60).map(|i| ((i * 13) % 19) as f32).collect();
         assert_coeus_matches_coeus(
             vals,
@@ -522,7 +522,7 @@ mod tests_native {
     }
 
     #[test]
-    fn binary_min_max_matches_burn() {
+    fn binary_min_max_matches_coeus() {
         let vals: Vec<f32> = (0..60).map(|i| ((i * 5) % 7) as f32).collect();
         assert_coeus_matches_coeus(
             vals,

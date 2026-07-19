@@ -16,20 +16,20 @@ pub(crate) use writer::BitWriter;
 use crate::jpeg_2000::subband::Subband;
 use crate::jpeg_2000::tag_tree::TagTree;
 
-/// Wavelet transform family selected for a tile (ISO 15444-1 Â§A.6.1, COD
+/// Wavelet transform family selected for a tile (ISO 15444-1 §A.6.1, COD
 /// `SPcod` wavelet field).  `Reversible` is the integer 5/3 (lossless);
 /// `Irreversible` is the floating-point 9/7 (lossy, scalar-quantized).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum WaveletTransform {
-    /// 5/3 integer lifting â€” bit-exact, no quantization.
+    /// 5/3 integer lifting — bit-exact, no quantization.
     Reversible,
-    /// 9/7 floating-point lifting â€” lossy, dead-zone scalar quantization.
+    /// 9/7 floating-point lifting — lossy, dead-zone scalar quantization.
     Irreversible,
 }
 
-// â”€â”€ Code-block partitioning â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Code-block partitioning ───────────────────────────────────────────────────
 
-/// Nominal code-block size (COD `xcb = ycb = 4` â†’ 2^(4+2) = 64), shared by the
+/// Nominal code-block size (COD `xcb = ycb = 4` → 2^(4+2) = 64), shared by the
 /// encoder's COD emission and both tier-2 directions.
 pub(crate) const CBLK_SIZE: usize = 64;
 
@@ -100,10 +100,10 @@ pub(crate) fn band_trees(bands: &[Subband]) -> Vec<Option<BandTrees>> {
         .collect()
 }
 
-// â”€â”€ Lblock byte-count encoding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Lblock byte-count encoding ────────────────────────────────────────────────
 
 /// Extra length bits beyond the stored `Lblock` for a packet contributing
-/// `ncp` passes: `âŒŠlogâ‚‚ ncpâŒ‹` (ISO 15444-1 Â§B.10.7.1).
+/// `ncp` passes: `⌊log₂ ncp⌋` (ISO 15444-1 §B.10.7.1).
 pub(crate) fn lblock_extra_bits(ncp: u32) -> u8 {
     if ncp == 0 {
         return 0;

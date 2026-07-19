@@ -1,4 +1,4 @@
-//! RT Structure Set reader â€” parse a DICOM RT Structure Set file into [`RtStructureSet`].
+//! RT Structure Set reader — parse a DICOM RT Structure Set file into [`RtStructureSet`].
 
 use anyhow::{bail, Context, Result};
 use dicom::core::value::Value;
@@ -17,7 +17,7 @@ use super::utils::{parse_color, parse_contour_data};
 ///
 /// # Errors
 /// - Returns `Err` when the path does not exist or is unreadable.
-/// - Returns `Err` when the SOP Class UID â‰  `1.2.840.10008.5.1.4.1.1.481.3`.
+/// - Returns `Err` when the SOP Class UID ≠ `1.2.840.10008.5.1.4.1.1.481.3`.
 ///
 /// # Invariants
 /// 1. ROIs are sorted ascending by `roi_number`.

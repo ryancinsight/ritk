@@ -1,18 +1,18 @@
-//! Stateless GPU VR rendering pass â€” non-blocking async readback.
+//! Stateless GPU VR rendering pass — non-blocking async readback.
 //!
 //! Mirrors the protocol in [`super::mip_pass`]:
 //!
-//! 1. [`submit_vr_async`] â€” encodes the VR compute dispatch (front-to-back
-//!    alpha compositing), copies output â†’ staging, submits, and registers
+//! 1. [`submit_vr_async`] — encodes the VR compute dispatch (front-to-back
+//!    alpha compositing), copies output → staging, submits, and registers
 //!    a non-blocking `map_async`.
 //!
-//! 2. [`collect_vr_result`] â€” reads the mapped staging buffer and returns a
+//! 2. [`collect_vr_result`] — reads the mapped staging buffer and returns a
 //!    [`ColorImage`].  Must only be called after the receiver fires `Ok(Ok(()))`.
 //!
 //! # Memory efficiency
 //!
 //! The VR shader emits one packed u32 per pixel (4 bytes) via `pack4x8unorm`,
-//! giving 4Ã— smaller staging buffers than the previous 4Ã—f32 layout and
+//! giving 4× smaller staging buffers than the previous 4×f32 layout and
 //! eliminating the O(n_pixels) CPU conversion loop.
 //!
 //! # Per-frame zero-allocation
@@ -35,16 +35,16 @@ use super::params::VrParams;
 ///
 /// Updates `cache.params_buf` (VrParams) and `cache.lut_buf` via
 /// `queue.write_buffer`, encodes the front-to-back compositing dispatch +
-/// outputâ†’staging copy, submits, and registers `map_async` on
+/// output→staging copy, submits, and registers `map_async` on
 /// `cache.staging_buf`.
 ///
 /// # Returns
 ///
 /// An `mpsc::Receiver` that fires:
-/// - `Ok(Ok(()))` â€” GPU finished; `cache.staging_buf` is mapped and readable
+/// - `Ok(Ok(()))` — GPU finished; `cache.staging_buf` is mapped and readable
 ///   via [`collect_vr_result`].
-/// - `Ok(Err(_))` â€” `map_async` failed; caller retries on next render cycle.
-/// - `Err(Disconnected)` â€” internal error; treat as failure.
+/// - `Ok(Err(_))` — `map_async` failed; caller retries on next render cycle.
+/// - `Err(Disconnected)` — internal error; treat as failure.
 ///
 /// # Non-blocking guarantee
 ///
@@ -61,7 +61,7 @@ pub(super) fn submit_vr_async(
     alpha_scale: f32,
 ) -> mpsc::Receiver<Result<(), wgpu::BufferAsyncError>> {
     let [depth, rows, cols] = vol_shape;
-    // Output: 1 packed u32 per pixel = 4 bytes (was 4Ã—f32 = 16 bytes).
+    // Output: 1 packed u32 per pixel = 4 bytes (was 4×f32 = 16 bytes).
     let output_bytes = rows as u64 * cols as u64 * std::mem::size_of::<u32>() as u64;
 
     let center = wl.center as f32;

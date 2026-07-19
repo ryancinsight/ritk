@@ -44,9 +44,9 @@ pub fn load_volume_from_scanned_series(
 /// [`load_dicom_volume`] and [`load_volume_from_scanned_series`].
 ///
 /// # Parameters
-/// - `image` â€” the reconstructed 3-D scalar image.
-/// - `meta` â€” per-series DICOM metadata.
-/// - `source` â€” optional filesystem source path (absent for SCP-received instances).
+/// - `image` — the reconstructed 3-D scalar image.
+/// - `meta` — per-series DICOM metadata.
+/// - `source` — optional filesystem source path (absent for SCP-received instances).
 fn loaded_volume_from_scalar_image(
     image: ritk_image::Image<f32, SequentialBackend, 3>,
     meta: ritk_io::DicomReadMetadata,

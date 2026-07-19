@@ -30,8 +30,8 @@ fn image_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
     img.data().to_vec()
 }
 
-// â”€â”€ Test 1: constant image must be unchanged â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// âˆ‡I = 0 â†’ J_Ï = 0 â†’ D = Î±Â·I â†’ div(DÂ·âˆ‡I) = 0 â†’ I_new = I
+// ── Test 1: constant image must be unchanged ───────────────────────────────
+// ∇I = 0 → J_ρ = 0 → D = α·I → div(D·∇I) = 0 → I_new = I
 #[test]
 fn test_constant_image_unchanged() {
     let dims = [8, 8, 8];
@@ -61,10 +61,10 @@ fn test_constant_image_unchanged() {
     );
 }
 
-// â”€â”€ Test 2: linear image must be unchanged â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// âˆ‡I = const â†’ J_Ï rank-1 â†’ Î»â‚ = Î»â‚‚ = 0, Î»â‚ƒ > 0
-// Î±â‚ = Î±â‚‚ = Î± (no excess diffusion), Î±â‚ƒ = Î± â†’ D = Î±Â·I
-// div(Î±Â·âˆ‡I) = Î±Â·Î”I = 0 for linear I â†’ unchanged.
+// ── Test 2: linear image must be unchanged ─────────────────────────────────
+// ∇I = const → J_ρ rank-1 → λ₁ = λ₂ = 0, λ₃ > 0
+// α₁ = α₂ = α (no excess diffusion), α₃ = α → D = α·I
+// div(α·∇I) = α·ΔI = 0 for linear I → unchanged.
 #[test]
 fn test_linear_image_unchanged() {
     let [nz, ny, nx] = [10usize, 10, 10];
@@ -108,7 +108,7 @@ fn test_linear_image_unchanged() {
     );
 }
 
-// â”€â”€ Test 3: noise reduction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test 3: noise reduction ────────────────────────────────────────────────
 // Adding noise to a smooth image: CED should reduce variance while
 // preserving the underlying structure.
 #[test]
@@ -165,7 +165,7 @@ fn test_noise_reduction() {
     );
 }
 
-// â”€â”€ Test 4: zero iterations â†’ identical output â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test 4: zero iterations → identical output ──────────────────────────────
 #[test]
 fn test_zero_iterations() {
     let dims = [8, 8, 8];
@@ -188,8 +188,8 @@ fn test_zero_iterations() {
     }
 }
 
-// â”€â”€ Test 5: small image with step edge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// An 8Ã—8Ã—8 image with a step edge at z=4. CED should smooth along the
+// ── Test 5: small image with step edge ─────────────────────────────────────
+// An 8×8×8 image with a step edge at z=4. CED should smooth along the
 // edge (z-plane) but not across it (z-direction).
 #[test]
 fn test_step_edge() {
@@ -234,7 +234,7 @@ fn test_step_edge() {
     );
 }
 
-// â”€â”€ Test 6: stability â€” output finite after many iterations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test 6: stability — output finite after many iterations ────────────────
 #[test]
 fn test_stability() {
     let dims = [10, 10, 10];
@@ -268,8 +268,8 @@ fn test_stability() {
     }
 }
 
-// â”€â”€ Test 7: determinism â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Same input + same config â†’ same output.
+// ── Test 7: determinism ────────────────────────────────────────────────────
+// Same input + same config → same output.
 #[test]
 fn test_determinism() {
     let dims = [8, 8, 8];
@@ -301,7 +301,7 @@ fn test_determinism() {
     }
 }
 
-// â”€â”€ Test 8: spatial metadata preservation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test 8: spatial metadata preservation ──────────────────────────────────
 #[test]
 fn test_metadata_preservation() {
     let dims = [8, 8, 8];
@@ -336,7 +336,7 @@ fn test_metadata_preservation() {
     }
 }
 
-// â”€â”€ Test 9: default config values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test 9: default config values ──────────────────────────────────────────
 #[test]
 fn test_default_config() {
     let cfg = CoherenceConfig::default();

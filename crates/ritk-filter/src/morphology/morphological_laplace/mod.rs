@@ -5,16 +5,16 @@
 //! The morphological Laplacian is the difference between the dilated and
 //! eroded versions of an image, scaled so that the original image cancels:
 //!
-//!   L_B(f) = (D_B f)(x) + (E_B f)(x) âˆ’ 2 f(x)
+//!   L_B(f) = (D_B f)(x) + (E_B f)(x) − 2 f(x)
 //!
 //! where:
 //!
-//!   (D_B f)(x) = max_{b âˆˆ B} f(x âˆ’ b)
-//!   (E_B f)(x) = min_{b âˆˆ B} f(x + b)
+//!   (D_B f)(x) = max_{b ∈ B} f(x − b)
+//!   (E_B f)(x) = min_{b ∈ B} f(x + b)
 //!
 //! and B is the cubic structuring element of half-width `radius`:
 //!
-//!   B = { b âˆˆ â„¤Â³ : |b_i| â‰¤ r  for i âˆˆ {0, 1, 2} }
+//!   B = { b ∈ ℤ³ : |b_i| ≤ r  for i ∈ {0, 1, 2} }
 //!
 //! # Relationship to scipy
 //!
@@ -24,14 +24,14 @@
 //!
 //!   tmp1 = scipy.ndimage.grey_dilation(f, size, mode='reflect', cval=0.0)
 //!   tmp2 = scipy.ndimage.grey_erosion (f, size, mode='reflect', cval=0.0)
-//!   out  = tmp1 + tmp2 âˆ’ 2 f
+//!   out  = tmp1 + tmp2 − 2 f
 //!
 //! # Boundary Handling
 //!
 //! Half-sample symmetric reflection (scipy's `mode='reflect'`):
 //!
 //! The reflect extension has period `2 * n` and follows the pattern
-//! `[0, 1, â€¦, nâˆ’1, nâˆ’1, nâˆ’2, â€¦, 1, 0, 0, 1, â€¦]` â€” the edge value is
+//! `[0, 1, …, n−1, n−1, n−2, …, 1, 0, 0, 1, …]` — the edge value is
 //! repeated once (no double repeat). For `n == 1` the only valid index
 //! is 0, so every OOB index maps to 0.
 //!
@@ -44,13 +44,13 @@
 //! # Properties
 //!
 //! - **Idempotence on constant fields**: L_B(c) = 0 for all constants c.
-//! - **Translation invariance**: L_B(f(Â· âˆ’ t))(x) = (L_B f)(x âˆ’ t).
-//! - **Increasing**: f â‰¤ g â‡’ L_B f â‰¤ L_B g (since both D and E are increasing).
+//! - **Translation invariance**: L_B(f(· − t))(x) = (L_B f)(x − t).
+//! - **Increasing**: f ≤ g ⇒ L_B f ≤ L_B g (since both D and E are increasing).
 //! - **Self-cancelling**: L_B(f) = 0 everywhere if f is locally constant.
 //!
 //! # Complexity
 //!
-//! O(N Â· (2r + 1)Â³) where N = n_z Â· n_y Â· n_x is the total voxel count
+//! O(N · (2r + 1)³) where N = n_z · n_y · n_x is the total voxel count
 //! (3 passes: one dilation, one erosion, one elementwise combination).
 //!
 //! # References
@@ -64,11 +64,11 @@ use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// â”€â”€ Filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Filter struct ─────────────────────────────────────────────────────────────
 
 /// Morphological Laplacian filter for 3-D images.
 ///
-/// Computes `L_B(f) = D_B(f) + E_B(f) âˆ’ 2 f` using a cubic structuring
+/// Computes `L_B(f) = D_B(f) + E_B(f) − 2 f` using a cubic structuring
 /// element of half-width `radius` and half-sample symmetric reflection
 /// (scipy's `mode='reflect'`) at the boundaries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -79,7 +79,7 @@ pub struct MorphologicalLaplacian {
 impl MorphologicalLaplacian {
     /// Construct a morphological Laplacian with cubic structuring element of
     /// half-width `radius`. The structuring element has side length
-    /// `2 * radius + 1`; a value of `0` collapses to the 1Ã—1Ã—1 trivial
+    /// `2 * radius + 1`; a value of `0` collapses to the 1×1×1 trivial
     /// element and yields the zero image.
     #[inline]
     pub const fn new(radius: usize) -> Self {
@@ -105,9 +105,9 @@ impl MorphologicalLaplacian {
 
     /// Coeus-native sister of [`MorphologicalLaplacian::apply`].
     ///
-    /// Runs the identical `dilate + erode âˆ’ 2Â·f` (reflect-boundary cubic SE) via
+    /// Runs the identical `dilate + erode − 2·f` (reflect-boundary cubic SE) via
     /// the shared `laplace_vec` host core on the image's contiguous host
-    /// buffer, so the result is bitwise-identical to the Burn path. No Burn
+    /// buffer, so the result is bitwise-identical to the Coeus path. No Burn
     /// tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors
@@ -131,7 +131,7 @@ impl MorphologicalLaplacian {
 
 /// Substrate-agnostic host core for [`MorphologicalLaplacian`].
 ///
-/// `L_B(f) = D_B(f) + E_B(f) âˆ’ 2Â·f` over the reflect-boundary cubic SE of the
+/// `L_B(f) = D_B(f) + E_B(f) − 2·f` over the reflect-boundary cubic SE of the
 /// given `radius` (scipy `mode='reflect'` parity). Zero on locally-constant
 /// regions.
 pub(crate) fn laplace_vec(vals: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
@@ -144,7 +144,7 @@ pub(crate) fn laplace_vec(vals: &[f32], dims: [usize; 3], radius: usize) -> Vec<
         .collect()
 }
 
-// â”€â”€ Core computation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Core computation ──────────────────────────────────────────────────────────
 
 /// Reflect an out-of-bounds index back into `[0, n)` using half-sample
 /// symmetric reflection (scipy's `mode='reflect'`).
@@ -165,7 +165,7 @@ fn reflect_index(i: isize, n: usize) -> usize {
 /// Dilation with half-sample symmetric reflection at the boundary.
 ///
 /// PERF-378-02: each output voxel reads its neighbourhood from `data` (read-only)
-/// with no inter-voxel write dependency â€” parallelised over the flat voxel index.
+/// with no inter-voxel write dependency — parallelised over the flat voxel index.
 pub(crate) fn dilate_3d_reflect(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     let [nz, ny, nx] = dims;
     let r = radius as isize;
@@ -194,7 +194,7 @@ pub(crate) fn dilate_3d_reflect(data: &[f32], dims: [usize; 3], radius: usize) -
 
 /// Erosion with half-sample symmetric reflection at the boundary.
 ///
-/// PERF-378-02: mirror of `dilate_3d_reflect` â€” per-voxel min-fold over neighbourhood;
+/// PERF-378-02: mirror of `dilate_3d_reflect` — per-voxel min-fold over neighbourhood;
 /// read-only input; parallelised over the flat voxel index.
 pub(crate) fn erode_3d_reflect(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     let [nz, ny, nx] = dims;

@@ -5,7 +5,7 @@
 //! `log10`, `exp_negative`), which differed only in one closure.  Variation is
 //! encoded through the sealed `UnaryPixelOp` trait; each ZST marker struct
 //! implements one operation.  Type aliases (`AbsImageFilter`, `SqrtImageFilter`,
-//! â€¦) preserve the original public API.
+//! …) preserve the original public API.
 
 use std::marker::PhantomData;
 
@@ -13,13 +13,13 @@ use ritk_core::image::Image;
 use ritk_image::tensor::Backend;
 use ritk_tensor_ops::{extract_vec_infallible as extract_vec, rebuild};
 
-// â”€â”€ Sealed trait infrastructure â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Sealed trait infrastructure ──────────────────────────────────────────────
 
 mod sealed {
     pub trait Sealed {}
 }
 
-/// Elementwise `f32 â†’ f32` operation applied by [`UnaryImageFilter`].
+/// Elementwise `f32 → f32` operation applied by [`UnaryImageFilter`].
 ///
 /// This trait is **sealed**: external crates cannot implement it.  Only the
 /// marker structs defined in this module (`Abs`, `Sqrt`, `Exp`, `Log`,
@@ -29,13 +29,13 @@ pub trait UnaryPixelOp: sealed::Sealed {
     fn apply(v: f32) -> f32;
 }
 
-// â”€â”€ Operation marker ZSTs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Operation marker ZSTs ────────────────────────────────────────────────────
 
 /// Operation marker for `out(x) = |in(x)|`.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Abs;
 
-/// Operation marker for `out(x) = âˆšin(x)`.
+/// Operation marker for `out(x) = √in(x)`.
 ///
 /// IEEE 754: negative inputs yield `NaN` (matching ITK behaviour).
 #[derive(Debug, Clone, Copy, Default)]
@@ -47,28 +47,28 @@ pub struct Exp;
 
 /// Operation marker for `out(x) = ln(in(x))`.
 ///
-/// IEEE 754: `ln(0) = âˆ’âˆž`, `ln(negative) = NaN` (matching ITK behaviour).
+/// IEEE 754: `ln(0) = −∞`, `ln(negative) = NaN` (matching ITK behaviour).
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Log;
 
-/// Operation marker for `out(x) = in(x)Â²`.
+/// Operation marker for `out(x) = in(x)²`.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Square;
 
-/// Operation marker for `out(x) = logâ‚â‚€(in(x))`.
+/// Operation marker for `out(x) = log₁₀(in(x))`.
 ///
-/// IEEE 754: `logâ‚â‚€(0) = âˆ’âˆž`, `logâ‚â‚€(negative) = NaN` (matching ITK
+/// IEEE 754: `log₁₀(0) = −∞`, `log₁₀(negative) = NaN` (matching ITK
 /// `Log10ImageFilter`).
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Log10;
 
-/// Operation marker for `out(x) = e^{âˆ’in(x)}`.
+/// Operation marker for `out(x) = e^{−in(x)}`.
 ///
 /// Matches ITK `ExpNegativeImageFilter` (`std::exp(-x)`).
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ExpNegative;
 
-/// Operation marker for `out(x) = âˆ’in(x)`.
+/// Operation marker for `out(x) = −in(x)`.
 ///
 /// Matches ITK `UnaryMinusImageFilter`.
 #[derive(Debug, Clone, Copy, Default)]
@@ -76,10 +76,10 @@ pub struct UnaryMinus;
 
 /// Operation marker for `out(x) = round(in(x))` to the nearest integer.
 ///
-/// Matches ITK `RoundImageFilter` / `itk::Math::Round` â€” **round half-integer
-/// up** (toward +âˆž): `floor(x + 0.5)`. This differs from Rust `f32::round`
-/// (round half away from zero) on negative half-integers (e.g. âˆ’2.5 â†’ âˆ’2 here,
-/// âˆ’3 for `f32::round`).
+/// Matches ITK `RoundImageFilter` / `itk::Math::Round` — **round half-integer
+/// up** (toward +∞): `floor(x + 0.5)`. This differs from Rust `f32::round`
+/// (round half away from zero) on negative half-integers (e.g. −2.5 → −2 here,
+/// −3 for `f32::round`).
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Round;
 
@@ -87,7 +87,7 @@ pub struct Round;
 /// `in(x) == 0`, else `0`.
 ///
 /// Matches ITK `NotImageFilter` (`!A` in NumericTraits): any nonzero input is
-/// "true" â†’ `0`, only an exact zero is "false" â†’ `1`.
+/// "true" → `0`, only an exact zero is "false" → `1`.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Not;
 
@@ -198,7 +198,7 @@ impl UnaryPixelOp for Round {
 impl UnaryPixelOp for Not {
     #[inline]
     fn apply(v: f32) -> f32 {
-        // ITK `!A`: nonzero â†’ false (0), exact zero â†’ true (1).
+        // ITK `!A`: nonzero → false (0), exact zero → true (1).
         (v == 0.0) as u8 as f32
     }
 }
@@ -246,7 +246,7 @@ impl UnaryPixelOp for BoundedReciprocal {
     }
 }
 
-// â”€â”€ Generic filter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Generic filter ────────────────────────────────────────────────────────────
 
 /// Generic pixelwise unary intensity filter parameterised by an [`UnaryPixelOp`].
 ///
@@ -288,7 +288,7 @@ impl<Op: UnaryPixelOp> UnaryImageFilter<Op> {
     ///
     /// Mirrors [`Self::apply`] on the Atlas-native substrate for the common
     /// 3-D medical-image case. Spatial metadata (origin, spacing, direction) is
-    /// preserved. The operation is identical to the Burn path â€” both route
+    /// preserved. The operation is identical to the Coeus path — both route
     /// through the same flat-buffer core.
     pub fn apply_native<B>(
         &self,
@@ -305,7 +305,7 @@ impl<Op: UnaryPixelOp> UnaryImageFilter<Op> {
     }
 }
 
-// â”€â”€ Public type aliases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public type aliases ───────────────────────────────────────────────────────
 
 /// Pixelwise absolute value filter.  `out(x) = |in(x)|`.
 ///
@@ -314,7 +314,7 @@ impl<Op: UnaryPixelOp> UnaryImageFilter<Op> {
 /// - ImageJ Process > Math > Abs.
 pub type AbsImageFilter = UnaryImageFilter<Abs>;
 
-/// Pixelwise square-root filter.  `out(x) = âˆšin(x)`.
+/// Pixelwise square-root filter.  `out(x) = √in(x)`.
 ///
 /// Negative inputs produce `NaN` (IEEE 754 / ITK behaviour).
 ///
@@ -332,14 +332,14 @@ pub type ExpImageFilter = UnaryImageFilter<Exp>;
 
 /// Pixelwise natural logarithm filter.  `out(x) = ln(in(x))`.
 ///
-/// `ln(0) = âˆ’âˆž`, `ln(negative) = NaN` (IEEE 754 / ITK behaviour).
+/// `ln(0) = −∞`, `ln(negative) = NaN` (IEEE 754 / ITK behaviour).
 ///
 /// # References
 /// - ITK `itk::LogImageFilter<TInputImage, TOutputImage>`.
 /// - ImageJ Process > Math > Log.
 pub type LogImageFilter = UnaryImageFilter<Log>;
 
-/// Pixelwise squaring filter.  `out(x) = in(x)Â²`.
+/// Pixelwise squaring filter.  `out(x) = in(x)²`.
 ///
 /// Non-negative output for all real inputs.
 ///
@@ -348,29 +348,29 @@ pub type LogImageFilter = UnaryImageFilter<Log>;
 /// - ImageJ Process > Math > Square.
 pub type SquareImageFilter = UnaryImageFilter<Square>;
 
-/// Pixelwise base-10 logarithm filter.  `out(x) = logâ‚â‚€(in(x))`.
+/// Pixelwise base-10 logarithm filter.  `out(x) = log₁₀(in(x))`.
 ///
-/// `logâ‚â‚€(0) = âˆ’âˆž`, `logâ‚â‚€(negative) = NaN` (IEEE 754 / ITK behaviour).
+/// `log₁₀(0) = −∞`, `log₁₀(negative) = NaN` (IEEE 754 / ITK behaviour).
 ///
 /// # References
 /// - ITK `itk::Log10ImageFilter<TInputImage, TOutputImage>`.
 pub type Log10ImageFilter = UnaryImageFilter<Log10>;
 
-/// Pixelwise negative-exponential filter.  `out(x) = e^{âˆ’in(x)}`.
+/// Pixelwise negative-exponential filter.  `out(x) = e^{−in(x)}`.
 ///
 /// # References
 /// - ITK `itk::ExpNegativeImageFilter<TInputImage, TOutputImage>`.
 pub type ExpNegativeImageFilter = UnaryImageFilter<ExpNegative>;
 
-/// Pixelwise unary minus filter.  `out(x) = âˆ’in(x)`.
+/// Pixelwise unary minus filter.  `out(x) = −in(x)`.
 ///
 /// # References
 /// - ITK `itk::UnaryMinusImageFilter<TInputImage, TOutputImage>`.
 pub type UnaryMinusImageFilter = UnaryImageFilter<UnaryMinus>;
 
-/// Pixelwise round-to-nearest-integer filter.  `out(x) = âŒŠin(x) + Â½âŒ‹`.
+/// Pixelwise round-to-nearest-integer filter.  `out(x) = ⌊in(x) + ½⌋`.
 ///
-/// Round half-integer up (toward +âˆž), matching ITK `itk::Math::Round`.
+/// Round half-integer up (toward +∞), matching ITK `itk::Math::Round`.
 ///
 /// # References
 /// - ITK `itk::RoundImageFilter<TInputImage, TOutputImage>`.
@@ -378,8 +378,8 @@ pub type RoundImageFilter = UnaryImageFilter<Round>;
 
 /// Pixelwise logical NOT of a mask.  `out(x) = 1` where `in(x) == 0`, else `0`.
 ///
-/// Any nonzero value is treated as "true" (â†’ `0`); only an exact zero is
-/// "false" (â†’ `1`).
+/// Any nonzero value is treated as "true" (→ `0`); only an exact zero is
+/// "false" (→ `1`).
 ///
 /// # References
 /// - ITK `itk::NotImageFilter<TInputImage, TOutputImage>`.
@@ -406,7 +406,7 @@ mod tests {
     use crate::native_support::{make_native_image, native_vals};
     use coeus_core::SequentialBackend;
 
-    /// `logâ‚â‚€(10â¿) = n` for exact powers of ten, matching ITK `Log10ImageFilter`.
+    /// `log₁₀(10ⁿ) = n` for exact powers of ten, matching ITK `Log10ImageFilter`.
     #[test]
     fn log10_of_powers_of_ten() {
         let img = make_native_image(vec![1.0, 10.0, 100.0, 1000.0], [1, 1, 4]);
@@ -419,7 +419,7 @@ mod tests {
         }
     }
 
-    /// `e^{âˆ’0} = 1` and `e^{âˆ’x}` is the reciprocal of `e^{x}`, matching ITK
+    /// `e^{−0} = 1` and `e^{−x}` is the reciprocal of `e^{x}`, matching ITK
     /// `ExpNegativeImageFilter`.
     #[test]
     fn exp_negative_matches_reciprocal_exp() {
@@ -448,7 +448,7 @@ mod tests {
         assert_eq!(native_vals(&out), vec![0.0, -3.0, 2.5, -7.0]);
     }
 
-    /// Round half-integer up (ITK `Math::Round`): note âˆ’2.5 â†’ âˆ’2, not âˆ’3.
+    /// Round half-integer up (ITK `Math::Round`): note −2.5 → −2, not −3.
     #[test]
     fn round_half_integer_up() {
         let img = make_native_image(vec![2.4, 2.5, 2.6, -2.5, -2.4, -0.5], [1, 1, 6]);

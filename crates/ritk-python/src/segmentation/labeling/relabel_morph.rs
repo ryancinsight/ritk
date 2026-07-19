@@ -37,7 +37,7 @@ pub fn relabel_components(
     Ok(into_py_image(out))
 }
 
-/// Relabel non-zero labels to consecutive integers `1, 2, â€¦, K` in ascending
+/// Relabel non-zero labels to consecutive integers `1, 2, …, K` in ascending
 /// original-label order (background 0 unchanged).
 ///
 /// ITK Parity: matches `sitk.RelabelLabelMap` (via the LabelMap round-trip
@@ -59,7 +59,7 @@ pub fn relabel_label_map(py: Python<'_>, label_image: &PyImage) -> PyImage {
 }
 
 /// Merge several label images into one, matching
-/// `sitk.LabelMapToLabel(sitk.MergeLabelMap([â€¦], method))`.
+/// `sitk.LabelMapToLabel(sitk.MergeLabelMap([…], method))`.
 ///
 /// Each input's distinct non-zero values become label objects; the inputs are
 /// folded into the first under one of four methods.
@@ -187,7 +187,7 @@ fn label_set_morph_py(
 ///
 /// Args:
 ///     label_image: an integer-valued label image.
-///     change_map: dict mapping old label â†’ new label.
+///     change_map: dict mapping old label → new label.
 ///
 /// Returns:
 ///     the remapped image (same shape and spatial metadata).

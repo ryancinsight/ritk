@@ -10,42 +10,42 @@
 //!
 //! ## Length (Euclidean distance in physical space)
 //!
-//! Given two image points pâ‚ = (râ‚, câ‚) and pâ‚‚ = (râ‚‚, câ‚‚) and pixel spacing
+//! Given two image points p₁ = (r₁, c₁) and p₂ = (r₂, c₂) and pixel spacing
 //! s = (s_r, s_c) in mm/pixel:
 //!
 //! ```text
-//! length_mm = âˆš( ((râ‚‚ âˆ’ râ‚) Â· s_r)Â² + ((câ‚‚ âˆ’ câ‚) Â· s_c)Â² )
+//! length_mm = √( ((r₂ − r₁) · s_r)² + ((c₂ − c₁) · s_c)² )
 //! ```
 //!
-//! ## Angle (at vertex pâ‚‚, between vectors pâ‚‚â†’pâ‚ and pâ‚‚â†’pâ‚ƒ)
+//! ## Angle (at vertex p₂, between vectors p₂→p₁ and p₂→p₃)
 //!
 //! ```text
-//! vâ‚ = pâ‚ âˆ’ pâ‚‚, vâ‚‚ = pâ‚ƒ âˆ’ pâ‚‚
-//! cos Î¸ = (vâ‚ Â· vâ‚‚) / (|vâ‚| Â· |vâ‚‚|)
-//! Î¸ = arccos(clamp(cos Î¸, âˆ’1, 1)) [degrees]
+//! v₁ = p₁ − p₂, v₂ = p₃ − p₂
+//! cos θ = (v₁ · v₂) / (|v₁| · |v₂|)
+//! θ = arccos(clamp(cos θ, −1, 1)) [degrees]
 //! ```
 //!
 //! ## ROI rectangle statistics
 //!
 //! Pixels whose row index lies in [min_r, max_r] and column index lies in
-//! [min_c, max_c] (inclusive, integer bounds derived from pâ‚ and pâ‚‚) are
+//! [min_c, max_c] (inclusive, integer bounds derived from p₁ and p₂) are
 //! collected into a sample set S.
 //!
 //! ```text
-//! mean = (1/|S|) Î£ v
-//! std_dev = âˆš( (1/|S|) Î£ (v âˆ’ mean)Â² ) [population std dev]
+//! mean = (1/|S|) Σ v
+//! std_dev = √( (1/|S|) Σ (v − mean)² ) [population std dev]
 //! min = min S
 //! max = max S
-//! area = (max_r âˆ’ min_r + 1) Â· s_r Ã— (max_c âˆ’ min_c + 1) Â· s_c [mmÂ²]
+//! area = (max_r − min_r + 1) · s_r × (max_c − min_c + 1) · s_c [mm²]
 //! ```
 
-// â”€â”€ Completed annotations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Completed annotations ─────────────────────────────────────────────────────
 
 /// A completed measurement annotation stored on a viewport.
 ///
 /// Positions are stored as `[row, col]` in image pixel coordinates. Computed
 /// values (lengths, angles, statistics) are stored in physical units (mm,
-/// degrees, HU) and are derived quantities â€” they can be recomputed from the
+/// degrees, HU) and are derived quantities — they can be recomputed from the
 /// position data and the volume spacing at any time.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Annotation {
@@ -59,7 +59,7 @@ pub enum Annotation {
         length_mm: f32,
     },
 
-    /// Angle at vertex `p2` between the rays `p2â†’p1` and `p2â†’p3`.
+    /// Angle at vertex `p2` between the rays `p2→p1` and `p2→p3`.
     Angle {
         /// First ray endpoint as `[row, col]` in image pixels.
         p1: [f32; 2],
@@ -85,7 +85,7 @@ pub enum Annotation {
         min: f32,
         /// Maximum intensity within the ROI.
         max: f32,
-        /// ROI area in mmÂ².
+        /// ROI area in mm².
         area_mm2: f32,
     },
 
@@ -97,7 +97,7 @@ pub enum Annotation {
     /// A pixel at integer coordinates `(r, c)` is included when:
     ///
     /// ```text
-    /// ((r âˆ’ center[0]) / radii[0])Â² + ((c âˆ’ center[1]) / radii[1])Â² â‰¤ 1
+    /// ((r − center[0]) / radii[0])² + ((c − center[1]) / radii[1])² ≤ 1
     /// ```
     ///
     /// When `radii[0]` or `radii[1]` is zero (degenerate ellipse), no pixels
@@ -106,7 +106,7 @@ pub enum Annotation {
     /// # Physical area
     ///
     /// ```text
-    /// area_mmÂ² = Ï€ Ã— radii[0] Ã— spacing[0] Ã— radii[1] Ã— spacing[1]
+    /// area_mm² = π × radii[0] × spacing[0] × radii[1] × spacing[1]
     /// ```
     RoiEllipse {
         /// Centre of the ellipse as `[row, col]` in image pixels.
@@ -121,7 +121,7 @@ pub enum Annotation {
         min: f32,
         /// Maximum intensity within the ellipse mask.
         max: f32,
-        /// Physical area of the ellipse in mmÂ².
+        /// Physical area of the ellipse in mm².
         area_mm2: f32,
     },
 
@@ -138,13 +138,13 @@ impl Annotation {
     /// Compute the Euclidean distance between two image points in physical space.
     ///
     /// # Parameters
-    /// - `p1`, `p2` â€” image coordinates `[row, col]` in pixels.
-    /// - `spacing` â€” pixel spacing `[row_spacing, col_spacing]` in mm/pixel.
+    /// - `p1`, `p2` — image coordinates `[row, col]` in pixels.
+    /// - `spacing` — pixel spacing `[row_spacing, col_spacing]` in mm/pixel.
     ///
     /// # Formula
     /// ```text
-    /// length = âˆš( ((p2[0] âˆ’ p1[0]) Â· spacing[0])Â²
-    ///            + ((p2[1] âˆ’ p1[1]) Â· spacing[1])Â² )
+    /// length = √( ((p2[0] − p1[0]) · spacing[0])²
+    ///            + ((p2[1] − p1[1]) · spacing[1])² )
     /// ```
     pub fn compute_length(p1: [f32; 2], p2: [f32; 2], spacing: [f32; 2]) -> f32 {
         let dr = (p2[0] - p1[0]) * spacing[0];
@@ -152,18 +152,18 @@ impl Annotation {
         (dr * dr + dc * dc).sqrt()
     }
 
-    /// Compute the angle at vertex `p2` between the rays `p2â†’p1` and `p2â†’p3`.
+    /// Compute the angle at vertex `p2` between the rays `p2→p1` and `p2→p3`.
     ///
-    /// Returns the angle in degrees in the range `[0Â°, 180Â°]`.
+    /// Returns the angle in degrees in the range `[0°, 180°]`.
     ///
     /// Returns `0.0` when either input ray has zero length (degenerate case:
     /// two coincident points), avoiding division by zero without panicking.
     ///
     /// # Formula
     /// ```text
-    /// vâ‚ = pâ‚ âˆ’ pâ‚‚, vâ‚‚ = pâ‚ƒ âˆ’ pâ‚‚
-    /// cos Î¸ = clamp( (vâ‚ Â· vâ‚‚) / (|vâ‚| Â· |vâ‚‚|), âˆ’1, 1 )
-    /// Î¸ = arccos(cos Î¸) [converted to degrees]
+    /// v₁ = p₁ − p₂, v₂ = p₃ − p₂
+    /// cos θ = clamp( (v₁ · v₂) / (|v₁| · |v₂|), −1, 1 )
+    /// θ = arccos(cos θ) [converted to degrees]
     /// ```
     pub fn compute_angle(p1: [f32; 2], p2: [f32; 2], p3: [f32; 2]) -> f32 {
         let v1 = [p1[0] - p2[0], p1[1] - p2[1]];
@@ -183,11 +183,11 @@ impl Annotation {
     /// defined by corners `p1` and `p2` (order-independent).
     ///
     /// # Parameters
-    /// - `p1`, `p2` â€” opposite corners of the ROI as `[row, col]` in pixels.
-    /// - `pixels` â€” flat row-major pixel buffer of the slice.
-    /// - `width` â€” number of columns in the slice.
-    /// - `height` â€” number of rows in the slice.
-    /// - `spacing` â€” pixel spacing `[row_spacing, col_spacing]` in mm/pixel.
+    /// - `p1`, `p2` — opposite corners of the ROI as `[row, col]` in pixels.
+    /// - `pixels` — flat row-major pixel buffer of the slice.
+    /// - `width` — number of columns in the slice.
+    /// - `height` — number of rows in the slice.
+    /// - `spacing` — pixel spacing `[row_spacing, col_spacing]` in mm/pixel.
     ///
     /// # Returns
     /// `(mean, std_dev, min, max, area_mm2)` using population statistics.
@@ -197,11 +197,11 @@ impl Annotation {
     ///
     /// # Formula
     /// ```text
-    /// S = { pixels[r Ã— width + c] | r âˆˆ [min_r, max_r], c âˆˆ [min_c, max_c] }
-    /// mean = Î£ S / |S|
-    /// std_dev = âˆš( Î£ (v âˆ’ mean)Â² / |S| )
-    /// area = (max_r âˆ’ min_r + 1) Â· spacing[0]
-    ///       Ã— (max_c âˆ’ min_c + 1) Â· spacing[1]
+    /// S = { pixels[r × width + c] | r ∈ [min_r, max_r], c ∈ [min_c, max_c] }
+    /// mean = Σ S / |S|
+    /// std_dev = √( Σ (v − mean)² / |S| )
+    /// area = (max_r − min_r + 1) · spacing[0]
+    ///       × (max_c − min_c + 1) · spacing[1]
     /// ```
     pub fn compute_roi_rect_stats(
         p1: [f32; 2],
@@ -259,11 +259,11 @@ impl Annotation {
     /// ellipse defined by two opposite corners `p1` and `p2`.
     ///
     /// # Parameters
-    /// - `p1`, `p2` â€” opposite corners of the bounding rectangle as `[row, col]`.
-    /// - `pixels` â€” flat row-major pixel buffer of the slice.
-    /// - `width` â€” number of columns in the slice.
-    /// - `height` â€” number of rows in the slice.
-    /// - `spacing` â€” pixel spacing `[row_spacing, col_spacing]` in mm/pixel.
+    /// - `p1`, `p2` — opposite corners of the bounding rectangle as `[row, col]`.
+    /// - `pixels` — flat row-major pixel buffer of the slice.
+    /// - `width` — number of columns in the slice.
+    /// - `height` — number of rows in the slice.
+    /// - `spacing` — pixel spacing `[row_spacing, col_spacing]` in mm/pixel.
     ///
     /// # Returns
     /// `(center, radii, mean, std_dev, min, max, area_mm2)`.
@@ -276,12 +276,12 @@ impl Annotation {
     /// ```text
     /// cy = (p1[0] + p2[0]) / 2
     /// cx = (p1[1] + p2[1]) / 2
-    /// a = |p2[0] âˆ’ p1[0]| / 2   (row semi-axis)
-    /// b = |p2[1] âˆ’ p1[1]| / 2   (col semi-axis)
+    /// a = |p2[0] − p1[0]| / 2   (row semi-axis)
+    /// b = |p2[1] − p1[1]| / 2   (col semi-axis)
     ///
-    /// pixel (r,c) is inside âŸº ((râˆ’cy)/a)Â² + ((câˆ’cx)/b)Â² â‰¤ 1
+    /// pixel (r,c) is inside ⟺ ((r−cy)/a)² + ((c−cx)/b)² ≤ 1
     ///
-    /// area_mmÂ² = Ï€ Ã— a Ã— spacing[0] Ã— b Ã— spacing[1]
+    /// area_mm² = π × a × spacing[0] × b × spacing[1]
     /// ```
     pub fn compute_roi_ellipse_stats(
         p1: [f32; 2],
@@ -314,7 +314,7 @@ impl Annotation {
             let dr = (r as f32 - cy) / a;
             for c in c_min..=c_max {
                 let dc = (c as f32 - cx) / b;
-                // Membership: (dr)Â² + (dc)Â² â‰¤ 1
+                // Membership: (dr)² + (dc)² ≤ 1
                 if dr * dr + dc * dc <= 1.0 {
                     let idx = r * width + c;
                     if idx < pixels.len() {
@@ -335,7 +335,7 @@ impl Annotation {
         let min = vals.iter().copied().fold(f32::INFINITY, f32::min);
         let max = vals.iter().copied().fold(f32::NEG_INFINITY, f32::max);
 
-        // Physical area of the ellipse: Ï€ Ã— a Ã— dr Ã— b Ã— dc
+        // Physical area of the ellipse: π × a × dr × b × dc
         let area_mm2 = std::f32::consts::PI * a * spacing[0] * b * spacing[1];
 
         (center, radii, mean, std_dev, min, max, area_mm2)

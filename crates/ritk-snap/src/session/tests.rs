@@ -1,7 +1,7 @@
 use super::*;
 use crate::tools::interaction::Annotation;
 
-// â”€â”€â”€ Helper: build a canonical snapshot with known values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helper: build a canonical snapshot with known values ─────────────────────
 
 fn canonical_snapshot_no_annotations() -> ViewerSessionSnapshot {
     ViewerSessionSnapshot {
@@ -35,9 +35,9 @@ fn canonical_snapshot_no_annotations() -> ViewerSessionSnapshot {
 /// Build all Annotation variants with analytically exact values.
 ///
 /// Values are chosen so that equality is exact under f32 bit representation:
-/// - Length: |p2 - p1| in each axis is 3.0 and 4.0 px â†’ Pythagoras gives
-///   length_mm = âˆš((3Ã—1.0)Â² + (4Ã—1.0)Â²) = 5.0 mm exactly.
-/// - Angle: 90Â° vertex â€” rays (0,1)â†’(0,0) and (0,0)â†’(1,0) are orthogonal.
+/// - Length: |p2 - p1| in each axis is 3.0 and 4.0 px → Pythagoras gives
+///   length_mm = √((3×1.0)² + (4×1.0)²) = 5.0 mm exactly.
+/// - Angle: 90° vertex — rays (0,1)→(0,0) and (0,0)→(1,0) are orthogonal.
 /// - HU point: exact integer-valued position and intensity.
 fn all_annotation_variants() -> Vec<Annotation> {
     vec![
@@ -77,7 +77,7 @@ fn all_annotation_variants() -> Vec<Annotation> {
     ]
 }
 
-// â”€â”€â”€ Snapshot defaults â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Snapshot defaults ────────────────────────────────────────────────────────
 
 #[test]
 fn session_snapshot_default_matches_viewer_defaults() {
@@ -108,7 +108,7 @@ fn session_snapshot_default_matches_viewer_defaults() {
     );
 }
 
-// â”€â”€â”€ JSON in-memory round-trips â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── JSON in-memory round-trips ───────────────────────────────────────────────
 
 #[test]
 fn session_snapshot_json_round_trip_preserves_values_no_annotations() {
@@ -156,7 +156,7 @@ fn session_snapshot_json_round_trip_preserves_all_annotation_variants() {
             assert_eq!(*p1, [0.0f32, 1.0f32]);
             assert_eq!(*p2, [0.0f32, 0.0f32]);
             assert_eq!(*p3, [1.0f32, 0.0f32]);
-            assert_eq!(*angle_deg, 90.0f32, "orthogonal rays form 90Â°");
+            assert_eq!(*angle_deg, 90.0f32, "orthogonal rays form 90°");
         }
         other => panic!("expected Angle, got {:?}", other),
     }
@@ -205,7 +205,7 @@ fn session_snapshot_json_annotations_field_defaults_to_empty_when_absent() {
     );
 }
 
-// â”€â”€â”€ File I/O SSOT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── File I/O SSOT ────────────────────────────────────────────────────────────
 
 #[test]
 fn save_to_file_and_load_from_file_round_trip_with_annotations() {

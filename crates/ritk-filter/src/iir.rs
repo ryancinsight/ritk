@@ -10,9 +10,9 @@
 //! derivative (finite-difference) loops keep their boundary/interior split for
 //! auto-vectorisation.
 
-// â”€â”€ Deriche coefficient set â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Deriche coefficient set ────────────────────────────────────────────────────
 
-// ITK Deriche pole constants (FarnebÃ¤ck). Index [0]=zero-order, [2]=second-order.
+// ITK Deriche pole constants (Farnebäck). Index [0]=zero-order, [2]=second-order.
 const DERICHE_W1: f64 = 0.6681;
 const DERICHE_L1: f64 = -1.3932;
 const DERICHE_W2: f64 = 2.0787;
@@ -75,8 +75,8 @@ fn deriche_n_coefficients(sigma: f64, idx: usize) -> ([f64; 4], f64, f64, f64) {
 ///
 /// The output is the SUM of a causal and an anticausal pass on the same input
 /// (parallel, not cascaded):
-/// causal:     `yc[n] = Î£_{k=0..3} n_kÂ·x[nâˆ’k] âˆ’ Î£_{k=1..4} d_kÂ·yc[nâˆ’k]`
-/// anticausal: `ya[n] = Î£_{k=1..4} m_kÂ·x[n+k] âˆ’ Î£_{k=1..4} d_kÂ·ya[n+k]`
+/// causal:     `yc[n] = Σ_{k=0..3} n_k·x[n−k] − Σ_{k=1..4} d_k·yc[n−k]`
+/// anticausal: `ya[n] = Σ_{k=1..4} m_k·x[n+k] − Σ_{k=1..4} d_k·ya[n+k]`
 /// out\[n\] = yc\[n\] + ya\[n\].
 pub(super) struct DericheCoefficients {
     /// Causal numerator coefficients n0..n3.
@@ -88,7 +88,7 @@ pub(super) struct DericheCoefficients {
 }
 
 impl DericheCoefficients {
-    /// Symmetric anticausal coefficients (`M_k = N_k âˆ’ D_kÂ·N0`, `M4 = âˆ’D4Â·N0`),
+    /// Symmetric anticausal coefficients (`M_k = N_k − D_k·N0`, `M4 = −D4·N0`),
     /// used by the even (zero/second) orders.
     fn symmetric(n: [f64; 4], d: [f64; 4]) -> Self {
         let m = [
@@ -100,8 +100,8 @@ impl DericheCoefficients {
         Self { n, d, m }
     }
 
-    /// Antisymmetric anticausal coefficients (`M_k = âˆ’(N_k âˆ’ D_kÂ·N0)`,
-    /// `M4 = +D4Â·N0`), used by the odd (first) order (ITK
+    /// Antisymmetric anticausal coefficients (`M_k = −(N_k − D_k·N0)`,
+    /// `M4 = +D4·N0`), used by the odd (first) order (ITK
     /// `ComputeRemainingCoefficients(symmetric=false)`).
     fn antisymmetric(n: [f64; 4], d: [f64; 4]) -> Self {
         let m = [
@@ -115,7 +115,7 @@ impl DericheCoefficients {
 
     /// Zero-order (smoothing) coefficients from a pixel-space sigma.
     ///
-    /// DC-normalised by `alpha0 = 2Â·SN/SD âˆ’ N0` (ITK `SetUp`, `ZeroOrder`).
+    /// DC-normalised by `alpha0 = 2·SN/SD − N0` (ITK `SetUp`, `ZeroOrder`).
     pub(super) fn from_sigma(sigma: f64) -> Self {
         let (d, sd, _dd, _ed) = deriche_d_coefficients(sigma);
         let (n, sn, _dn, _en) = deriche_n_coefficients(sigma, 0);
@@ -124,8 +124,8 @@ impl DericheCoefficients {
         Self::symmetric(n, d)
     }
 
-    /// First-order (âˆ‚/âˆ‚x) coefficients from a pixel-space sigma (ITK `SetUp`,
-    /// `FirstOrder`): normalised by `alpha1 = 2Â·(SNÂ·DD âˆ’ DNÂ·SD)/SDÂ²`, with the
+    /// First-order (∂/∂x) coefficients from a pixel-space sigma (ITK `SetUp`,
+    /// `FirstOrder`): normalised by `alpha1 = 2·(SN·DD − DN·SD)/SD²`, with the
     /// antisymmetric anticausal pass. Sign convention is ITK's `direction = +1`.
     pub(super) fn first_order(sigma: f64) -> Self {
         let (d, sd, dd, _ed) = deriche_d_coefficients(sigma);
@@ -135,9 +135,9 @@ impl DericheCoefficients {
         Self::antisymmetric(n, d)
     }
 
-    /// Second-order (âˆ‚Â²/âˆ‚xÂ²) coefficients from a pixel-space sigma (ITK `SetUp`,
+    /// Second-order (∂²/∂x²) coefficients from a pixel-space sigma (ITK `SetUp`,
     /// `SecondOrder`): mixes the order-0 and order-2 constant sets via `beta`,
-    /// then normalises by `alpha2 = (ENÂ·SDÂ² âˆ’ EDÂ·SNÂ·SD âˆ’ 2Â·DNÂ·DDÂ·SD + 2Â·DDÂ²Â·SN)/SDÂ³`.
+    /// then normalises by `alpha2 = (EN·SD² − ED·SN·SD − 2·DN·DD·SD + 2·DD²·SN)/SD³`.
     pub(super) fn second_order(sigma: f64) -> Self {
         let (d, sd, dd, ed) = deriche_d_coefficients(sigma);
         let (n0c, sn0, dn0, en0) = deriche_n_coefficients(sigma, 0);
@@ -154,7 +154,7 @@ impl DericheCoefficients {
     }
 }
 
-// â”€â”€ 1-D line iteration helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── 1-D line iteration helpers ────────────────────────────────────────────────
 
 /// Information needed to iterate over a 1-D line within a 3-D volume along a
 /// given dimension.
@@ -219,16 +219,16 @@ pub(super) fn line_params(dims: [usize; 3], dim: usize) -> LineParams {
     }
 }
 
-// â”€â”€ Deriche two-pass IIR (order-agnostic) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Deriche two-pass IIR (order-agnostic) ─────────────────────────────────────
 
 /// Apply a Deriche 4th-order recursive pass along dimension `dim`. The `coeffs`
-/// select the order (zero = smoothing, second = âˆ‚Â²/âˆ‚xÂ²); the recursion is
+/// select the order (zero = smoothing, second = ∂²/∂x²); the recursion is
 /// identical (ITK `RecursiveGaussianImageFilter`).
 ///
 /// The output is the sum of a causal (forward) and an anticausal (backward)
 /// pass over the SAME input:
-///   `yc[n] = Î£ n_kÂ·x[nâˆ’k] âˆ’ Î£ d_kÂ·yc[nâˆ’k]`  (k: n 0..3, d 1..4)
-///   `ya[n] = Î£ m_kÂ·x[n+k] âˆ’ Î£ d_kÂ·ya[n+k]`  (k: 1..4)
+///   `yc[n] = Σ n_k·x[n−k] − Σ d_k·yc[n−k]`  (k: n 0..3, d 1..4)
+///   `ya[n] = Σ m_k·x[n+k] − Σ d_k·ya[n+k]`  (k: 1..4)
 ///   `out[n] = yc[n] + ya[n]`.
 ///
 /// Boundary: constant (replicate) extension realised by padding each line with
@@ -249,9 +249,9 @@ pub(super) fn apply_deriche_1d(
         return output;
     }
 
-    // Pad enough that the dominant pole |exp(L/Ïƒ)| (L â‰ˆ âˆ’1.37) decays below
-    // ~1e-8 before the data starts: pad â‰ˆ 13Â·Ïƒ (independent of the line length,
-    // so short lines with large Ïƒ still settle).
+    // Pad enough that the dominant pole |exp(L/σ)| (L ≈ −1.37) decays below
+    // ~1e-8 before the data starts: pad ≈ 13·σ (independent of the line length,
+    // so short lines with large σ still settle).
     let pad = ((13.0 * pixel_sigma).ceil() as usize).max(8);
     let plen = len + 2 * pad;
     let [_nz, ny, nx] = dims;
@@ -291,7 +291,7 @@ pub(super) fn apply_deriche_1d(
             );
         }
         1 => {
-            // Y-lines: column `ix` within the slice is `[ix, ix+nx, â€¦]`
+            // Y-lines: column `ix` within the slice is `[ix, ix+nx, …]`
             // (stride `nx`, length `ny`).
             moirai::for_each_chunk_mut_enumerated_with::<moirai::Adaptive, _, _>(
                 &mut output,
@@ -317,7 +317,7 @@ pub(super) fn apply_deriche_1d(
             );
         }
         _ => {
-            // Z-lines: strided by `nyx` across the whole buffer â€” serial.
+            // Z-lines: strided by `nyx` across the whole buffer — serial.
             let mut scratch = LineScratch::new(plen);
             for li in 0..lp.num_lines {
                 let base = line_base(dims, 0, li);
@@ -357,13 +357,13 @@ impl LineScratch {
     }
 }
 
-/// Filter one 1-D line: read `input[in_off + iÂ·in_stride]` for `i âˆˆ [0, len)`,
+/// Filter one 1-D line: read `input[in_off + i·in_stride]` for `i ∈ [0, len)`,
 /// run the causal+anticausal Deriche recursion (edge-replicated padding), and
-/// write the sum into `output[out_off + iÂ·out_stride]`.
+/// write the sum into `output[out_off + i·out_stride]`.
 ///
-/// `scratch.{xp,yc,ya}` must be exactly `len + 2Â·pad` long. Arithmetic is
-/// identical to the original single-loop form â€” only the line addressing is
-/// parameterised â€” so results are bit-identical regardless of how lines are
+/// `scratch.{xp,yc,ya}` must be exactly `len + 2·pad` long. Arithmetic is
+/// identical to the original single-loop form — only the line addressing is
+/// parameterised — so results are bit-identical regardless of how lines are
 /// scheduled across threads.
 #[inline]
 #[allow(clippy::too_many_arguments)]
@@ -431,7 +431,7 @@ fn deriche_line(
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 #[cfg(test)]
 #[path = "tests_iir.rs"]
 mod tests;

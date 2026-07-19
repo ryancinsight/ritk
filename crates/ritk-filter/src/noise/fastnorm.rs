@@ -1,9 +1,9 @@
-//! Exact port of `itk::Statistics::NormalVariateGenerator` (Marsagliaâ€“MacLaren
+//! Exact port of `itk::Statistics::NormalVariateGenerator` (Marsaglia–MacLaren
 //! *FastNorm*), the deterministic generator behind `AdditiveGaussianNoise`.
 //!
 //! Reproduces `sitk.AdditiveGaussianNoise` bit-for-bit when seeded identically
-//! (`Hash(userSeed, regionStart) = userSeedÂ·2654435761`) and applied in scanline
-//! order â€” verified against SimpleITK's noise sequence.
+//! (`Hash(userSeed, regionStart) = userSeed·2654435761`) and applied in scanline
+//! order — verified against SimpleITK's noise sequence.
 
 const SCALE: f64 = 30_000_000.0;
 const RSCALE: f64 = 1.0 / SCALE;

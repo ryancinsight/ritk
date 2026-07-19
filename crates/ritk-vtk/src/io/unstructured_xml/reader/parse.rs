@@ -17,13 +17,13 @@ pub fn read_vtu_unstructured_grid<P: AsRef<Path>>(path: P) -> Result<VtkUnstruct
 
 /// Parse an ASCII-inline VTU XML string into a [`VtkUnstructuredGrid`].
 pub(crate) fn parse_vtu(input: &str) -> Result<VtkUnstructuredGrid> {
-    // â”€â”€ Piece header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Piece header ─────────────────────────────────────────────────────────
     let piece = find_tag(input, "Piece")
         .ok_or_else(|| anyhow::anyhow!("missing <Piece> tag in VTU document"))?;
     let n_points: usize = attr_usize(&piece, "NumberOfPoints")?;
     let n_cells: usize = attr_usize(&piece, "NumberOfCells")?;
 
-    // â”€â”€ Points â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Points ────────────────────────────────────────────────────────────────
     let points_sec =
         find_section(input, "Points").ok_or_else(|| anyhow::anyhow!("missing <Points> section"))?;
     let coords = parse_floats(&extract_da_content(&points_sec));
@@ -37,7 +37,7 @@ pub(crate) fn parse_vtu(input: &str) -> Result<VtkUnstructuredGrid> {
     }
     let points: Vec<[f32; 3]> = coords.chunks_exact(3).map(|c| [c[0], c[1], c[2]]).collect();
 
-    // â”€â”€ Cells â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Cells ─────────────────────────────────────────────────────────────────
     let cells_sec =
         find_section(input, "Cells").ok_or_else(|| anyhow::anyhow!("missing <Cells> section"))?;
 
@@ -114,7 +114,7 @@ pub(crate) fn parse_vtu(input: &str) -> Result<VtkUnstructuredGrid> {
         })
         .collect::<Result<_>>()?;
 
-    // â”€â”€ Attribute sections â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Attribute sections ───────────────────────────────────────────────────
     let point_data = find_section(input, "PointData")
         .map(|sec| parse_attrs(&sec))
         .unwrap_or_default();

@@ -2,31 +2,31 @@
 //!
 //! # Mathematical specification
 //!
-//! Every colormap maps a normalized intensity t âˆˆ [0.0, 1.0] to an RGB
+//! Every colormap maps a normalized intensity t ∈ [0.0, 1.0] to an RGB
 //! triple [u8; 3]. Inputs outside [0, 1] are clamped before mapping.
 //!
 //! ## Grayscale
-//! R = G = B = round(t Ã— 255)
+//! R = G = B = round(t × 255)
 //!
 //! ## Inverted
-//! R = G = B = round((1 âˆ’ t) Ã— 255)
+//! R = G = B = round((1 − t) × 255)
 //!
 //! ## Hot (classic MATLAB hot)
-//! R = clamp(3t,       0, 1) Ã— 255
-//! G = clamp(3t âˆ’ 1,   0, 1) Ã— 255
-//! B = clamp(3t âˆ’ 2,   0, 1) Ã— 255
+//! R = clamp(3t,       0, 1) × 255
+//! G = clamp(3t − 1,   0, 1) × 255
+//! B = clamp(3t − 2,   0, 1) × 255
 //!
 //! ## Cool
-//! R = t Ã— 255,  G = (1 âˆ’ t) Ã— 255,  B = 255
+//! R = t × 255,  G = (1 − t) × 255,  B = 255
 //!
 //! ## Bone (matplotlib `bone`, piecewise linear)
-//! Derived from (7/8)Â·gray + (1/8)Â·flip(hot), sampled at standard breakpoints.
+//! Derived from (7/8)·gray + (1/8)·flip(hot), sampled at standard breakpoints.
 //!
 //! ## Jet (matplotlib `jet`, piecewise linear)
-//! Blueâ†’Cyanâ†’Greenâ†’Yellowâ†’Red with breakpoints taken from the matplotlib source.
+//! Blue→Cyan→Green→Yellow→Red with breakpoints taken from the matplotlib source.
 //!
 //! ## Plasma (matplotlib `plasma`, piecewise linear approximation)
-//! Purpleâ†’Magentaâ†’Orangeâ†’Yellow with five sampled breakpoints per channel.
+//! Purple→Magenta→Orange→Yellow with five sampled breakpoints per channel.
 
 /// Named colormaps for medical image display.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -40,7 +40,7 @@ pub enum Colormap {
     Plasma,
 }
 
-// â”€â”€ piecewise-linear helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── piecewise-linear helpers ─────────────────────────────────────────────────
 
 /// Linear interpolation between two f32 values.
 #[inline]
@@ -89,11 +89,11 @@ fn clamp_to_byte(v: f32) -> u8 {
     (v.clamp(0.0, 1.0) * super::U8_MAX_F32).round() as u8
 }
 
-// â”€â”€ Bone breakpoints (matplotlib `bone`) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Bone breakpoints (matplotlib `bone`) ─────────────────────────────────────
 //
-// bone = (7/8)Â·gray + (1/8)Â·flip(hot)
+// bone = (7/8)·gray + (1/8)·flip(hot)
 // Evaluated at the six canonical breakpoints shared by matplotlib's ListedColormap
-// approximation and verified against the reference LUT at t âˆˆ {0, 3/8, 5/8, 3/4, 1}.
+// approximation and verified against the reference LUT at t ∈ {0, 3/8, 5/8, 3/4, 1}.
 
 const BONE_R: &[(f32, f32)] = &[(0.0, 0.0), (0.746_03, 0.652_78), (1.0, 1.0)];
 
@@ -106,10 +106,10 @@ const BONE_G: &[(f32, f32)] = &[
 
 const BONE_B: &[(f32, f32)] = &[(0.0, 0.0), (0.365_08, 0.444_44), (1.0, 1.0)];
 
-// â”€â”€ Jet breakpoints (matplotlib `jet`) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Jet breakpoints (matplotlib `jet`) ───────────────────────────────────────
 //
 // Breakpoints derived from the matplotlib source for the `jet` colormap and
-// verified at t âˆˆ {0, 0.125, 0.375, 0.5, 0.625, 0.875, 1}.
+// verified at t ∈ {0, 0.125, 0.375, 0.5, 0.625, 0.875, 1}.
 
 const JET_R: &[(f32, f32)] = &[
     (0.0, 0.0),
@@ -136,7 +136,7 @@ const JET_B: &[(f32, f32)] = &[
     (1.0, 0.0),
 ];
 
-// â”€â”€ Plasma breakpoints (matplotlib `plasma`, 5-point approximation) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Plasma breakpoints (matplotlib `plasma`, 5-point approximation) ──────────
 //
 // Sampled from the matplotlib 256-entry LUT at indices {0, 64, 128, 192, 255}
 // and normalised to [0, 1].
@@ -165,10 +165,10 @@ const PLASMA_B: &[(f32, f32)] = &[
     (1.0, 0.130),
 ];
 
-// â”€â”€ Colormap impl â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Colormap impl ────────────────────────────────────────────────────────────
 
 impl Colormap {
-    /// Map a normalised intensity `t âˆˆ [0.0, 1.0]` to an RGB triple `[u8; 3]`.
+    /// Map a normalised intensity `t ∈ [0.0, 1.0]` to an RGB triple `[u8; 3]`.
     ///
     /// Values outside [0, 1] are clamped before mapping so the function never
     /// panics regardless of input.
@@ -192,7 +192,7 @@ impl Colormap {
                 [r, g, b]
             }
             Colormap::Cool => {
-                // R = t, G = 1âˆ’t, B = 1 (constant cyanâ†’magenta sweep).
+                // R = t, G = 1−t, B = 1 (constant cyan→magenta sweep).
                 let r = clamp_to_byte(t);
                 let g = clamp_to_byte(1.0 - t);
                 [r, g, 255]

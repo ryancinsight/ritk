@@ -1,6 +1,6 @@
 //! TransMorph model, Coeus-native.
 //!
-//! Encoderâ€“decoder registration network: a Swin-transformer encoder (patch
+//! Encoder–decoder registration network: a Swin-transformer encoder (patch
 //! embedding + four hierarchical stages with strided-conv downsampling), a
 //! U-Net-style decoder with nearest-neighbor upsampling and skip connections,
 //! optional diffeomorphic velocity integration, and a differentiable spatial
@@ -92,7 +92,7 @@ where
         TransMorphOutput { warped, flow }
     }
 
-    /// Run one Swin stage: `[B, C, D, H, W]` â†’ channels-last blocks â†’ back.
+    /// Run one Swin stage: `[B, C, D, H, W]` → channels-last blocks → back.
     fn run_stage(&self, x: &Var<f32, B>, blocks: &[SwinTransformerBlock<B>]) -> Var<f32, B> {
         let mut y = permute(x, &[0, 2, 3, 4, 1]);
         for block in blocks {

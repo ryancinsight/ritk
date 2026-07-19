@@ -36,7 +36,7 @@ fn parse_axis(axis: usize) -> RitkResult<ProjectionAxis> {
 ///
 /// Args:
 ///     image: Input PyImage [D, H, W].
-///     axis:  Axis to project along â€” 0 (Z), 1 (Y), or 2 (X).
+///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
 ///
 /// Returns:
 ///     Projected PyImage with size 1 along `axis`.
@@ -65,7 +65,7 @@ pub fn max_intensity_projection(
 ///
 /// Args:
 ///     image: Input PyImage [D, H, W].
-///     axis:  Axis to project along â€” 0 (Z), 1 (Y), or 2 (X).
+///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
 ///
 /// Returns:
 ///     Projected PyImage with size 1 along `axis`.
@@ -94,7 +94,7 @@ pub fn min_intensity_projection(
 ///
 /// Args:
 ///     image: Input PyImage [D, H, W].
-///     axis:  Axis to project along â€” 0 (Z), 1 (Y), or 2 (X).
+///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
 ///
 /// Returns:
 ///     Projected PyImage with size 1 along `axis`.
@@ -189,7 +189,7 @@ pub fn median_intensity_projection(
 ///
 /// Args:
 ///     image: Input PyImage [D, H, W].
-///     axis:  Axis to project along â€” 0 (Z), 1 (Y), or 2 (X).
+///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
 ///
 /// Returns:
 ///     Projected PyImage with size 1 along `axis`.
@@ -221,7 +221,7 @@ pub fn sum_intensity_projection(
 ///
 /// Args:
 ///     image: Input PyImage [D, H, W].
-///     axis:  Axis to project along â€” 0 (Z), 1 (Y), or 2 (X).
+///     axis:  Axis to project along — 0 (Z), 1 (Y), or 2 (X).
 ///
 /// Returns:
 ///     Projected PyImage with size 1 along `axis`.

@@ -1,4 +1,4 @@
-//! `SpatialError` â€” error variants for classical spatial transform operations.
+//! `SpatialError` — error variants for classical spatial transform operations.
 
 use thiserror::Error;
 

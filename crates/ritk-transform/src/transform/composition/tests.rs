@@ -4,7 +4,7 @@ use super::io::{CompositeTransform, TransformDescription};
 
 // -- helpers ----------------------------------------------------------
 
-/// 3-D identity matrix in row-major order (4Ã—4 homogeneous).
+/// 3-D identity matrix in row-major order (4×4 homogeneous).
 fn identity_4x4() -> Vec<f64> {
     vec![
         1.0, 0.0, 0.0, 0.0, // row 0
@@ -14,11 +14,11 @@ fn identity_4x4() -> Vec<f64> {
     ]
 }
 
-/// 3-D rotation matrix: 90Â° about Z axis (row-major, 3Ã—3).
+/// 3-D rotation matrix: 90° about Z axis (row-major, 3×3).
 ///
-/// R_z(Ï€/2) = [[0, -1, 0], [1, 0, 0], [0, 0, 1]]
+/// R_z(π/2) = [[0, -1, 0], [1, 0, 0], [0, 0, 1]]
 ///
-/// Analytically: cos(Ï€/2) = 0, sin(Ï€/2) = 1.
+/// Analytically: cos(π/2) = 0, sin(π/2) = 1.
 fn rotation_z_90_3x3() -> Vec<f64> {
     vec![
         0.0, -1.0, 0.0, // row 0
@@ -98,7 +98,7 @@ fn roundtrip_affine() {
 
 #[test]
 fn roundtrip_displacement_field() {
-    // 2Ã—2Ã—2 displacement field in 3-D.
+    // 2×2×2 displacement field in 3-D.
     // Total voxels: 8.  Three component vectors of length 8.
     let dims = vec![2, 2, 2];
     let n: usize = dims.iter().product();
@@ -393,7 +393,7 @@ fn implied_dimensionality_rigid_consistency() {
 
 #[test]
 fn implied_dimensionality_affine() {
-    // 4Ã—4 = 16 elements â†’ D = 3.
+    // 4×4 = 16 elements → D = 3.
     assert_eq!(
         TransformDescription::Affine {
             matrix: identity_4x4()
@@ -401,13 +401,13 @@ fn implied_dimensionality_affine() {
         .implied_dimensionality(),
         Some(3)
     );
-    // 3Ã—3 = 9 elements â†’ D = 2.
+    // 3×3 = 9 elements → D = 2.
     let id_3x3 = vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
     assert_eq!(
         TransformDescription::Affine { matrix: id_3x3 }.implied_dimensionality(),
         Some(2)
     );
-    // Non-square element count â†’ None.
+    // Non-square element count → None.
     assert_eq!(
         TransformDescription::Affine {
             matrix: vec![1.0; 7]

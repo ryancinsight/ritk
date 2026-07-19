@@ -20,7 +20,7 @@ use dicom_ul::pdu::{PDataValue, PDataValueType, Pdu};
 use std::net::TcpListener;
 use std::time::Duration;
 
-// â”€â”€ Loopback helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Loopback helpers ──────────────────────────────────────────────────────────
 
 fn loopback_config(port: u16) -> AssociationConfig {
     AssociationConfig::new(
@@ -31,7 +31,7 @@ fn loopback_config(port: u16) -> AssociationConfig {
     .with_read_timeout(Duration::from_secs(5))
 }
 
-// â”€â”€ C-ECHO loopback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── C-ECHO loopback ───────────────────────────────────────────────────────────
 
 #[test]
 fn c_echo_loopback_returns_success_status() {
@@ -111,7 +111,7 @@ fn c_echo_loopback_returns_success_status() {
     scp.join().expect("SCP thread panicked");
 }
 
-// â”€â”€ C-FIND loopback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── C-FIND loopback ───────────────────────────────────────────────────────────
 
 #[test]
 fn c_find_loopback_returns_synthetic_study_result() {
@@ -250,7 +250,7 @@ fn c_find_loopback_returns_synthetic_study_result() {
     scp.join().expect("SCP thread panicked");
 }
 
-// â”€â”€ C-MOVE loopback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── C-MOVE loopback ───────────────────────────────────────────────────────────
 
 #[test]
 fn c_move_loopback_returns_final_success_status() {

@@ -1,10 +1,10 @@
-//! Label contour filter â€” boundaries between labelled regions.
+//! Label contour filter — boundaries between labelled regions.
 //!
 //! # Mathematical Specification
 //!
-//! Given a label image `L : â„¤Â³ â†’ â„•â‚€`, a voxel `p` is a **label contour voxel** if:
-//! - `L(p) â‰  background_label`, AND
-//! - at least one neighbour `q âˆˆ N(p)` satisfies `L(q) â‰  L(p)`.
+//! Given a label image `L : ℤ³ → ℕ₀`, a voxel `p` is a **label contour voxel** if:
+//! - `L(p) ≠ background_label`, AND
+//! - at least one neighbour `q ∈ N(p)` satisfies `L(q) ≠ L(p)`.
 //!
 //! The connectivity topology `N(p)` is determined by [`Connectivity`]:
 //! - [`Connectivity::Face6`] (default): 6-connected face neighbours (ITK default).
@@ -109,7 +109,7 @@ impl LabelContourImageFilter {
                     }
                     // A labelled voxel is a contour voxel iff an IN-BOUNDS
                     // neighbour has a different label. Out-of-bounds neighbours
-                    // are skipped, NOT treated as a different label â€” ITK /
+                    // are skipped, NOT treated as a different label — ITK /
                     // `sitk.LabelContour` leaves a single full-label image empty
                     // and never marks the image border. (Treating OOB as a
                     // different label also broke z=1 images.)
@@ -206,7 +206,7 @@ impl LabelContourImageFilter {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_label_contour.rs"]

@@ -1,14 +1,14 @@
-//! Binary contour filter â€” foreground border voxels of binary objects.
+//! Binary contour filter — foreground border voxels of binary objects.
 //!
 //! # Mathematical Specification
 //!
-//! Given a binary image `I âˆˆ {0, fg}`, a voxel `p` is a **border voxel** if:
+//! Given a binary image `I ∈ {0, fg}`, a voxel `p` is a **border voxel** if:
 //! - `I(p) = fg` (is foreground), AND
-//! - at least one neighbour `q âˆˆ N(p)` satisfies `I(q) â‰  fg`.
+//! - at least one neighbour `q ∈ N(p)` satisfies `I(q) ≠ fg`.
 //!
 //! The connectivity topology `N(p)` is determined by [`Connectivity`]:
-//! - [`Connectivity::Face6`] (default): 6-connected â€” 6 face-neighbours in â„¤Â³ (ITK default).
-//! - [`Connectivity::Vertex26`]: 26-connected â€” all 26 neighbours within the unit cube.
+//! - [`Connectivity::Face6`] (default): 6-connected — 6 face-neighbours in ℤ³ (ITK default).
+//! - [`Connectivity::Vertex26`]: 26-connected — all 26 neighbours within the unit cube.
 //!
 //! # ITK Parity
 //!
@@ -67,7 +67,7 @@ impl Default for BinaryContourImageFilter {
     }
 }
 
-/// 6-connected face neighbours (Â±z, Â±y, Â±x).
+/// 6-connected face neighbours (±z, ±y, ±x).
 const N6: [(i32, i32, i32); 6] = [
     (-1, 0, 0),
     (1, 0, 0),
@@ -77,7 +77,7 @@ const N6: [(i32, i32, i32); 6] = [
     (0, 0, 1),
 ];
 
-/// 26-connected neighbours (all offsets in {-1,0,1}Â³ except (0,0,0)).
+/// 26-connected neighbours (all offsets in {-1,0,1}³ except (0,0,0)).
 fn n26() -> Vec<(i32, i32, i32)> {
     let mut v = Vec::with_capacity(26);
     for dz in -1i32..=1 {
@@ -201,7 +201,7 @@ impl BinaryContourImageFilter {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_binary_contour.rs"]

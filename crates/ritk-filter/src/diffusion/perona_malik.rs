@@ -4,16 +4,16 @@
 //!
 //! The Perona-Malik anisotropic diffusion PDE (Perona & Malik 1990):
 //!
-//! âˆ‚I/âˆ‚t = div(c(|âˆ‡I|) Â· âˆ‡I)
+//! ∂I/∂t = div(c(|∇I|) · ∇I)
 //!
 //! where the conductance function c controls the amount of diffusion at each
 //! location:
 //!
-//! - Exponential: c(s) = exp(âˆ’(s/K)Â²)
-//! - Quadratic: c(s) = 1 / (1 + (s/K)Â²)
+//! - Exponential: c(s) = exp(−(s/K)²)
+//! - Quadratic: c(s) = 1 / (1 + (s/K)²)
 //!
 //! Both functions satisfy c(0) = 1 (maximum diffusion where gradient is zero)
-//! and c(s) â†’ 0 as s â†’ âˆž (no diffusion across strong edges).
+//! and c(s) → 0 as s → ∞ (no diffusion across strong edges).
 //!
 //! # Discretisation
 //!
@@ -21,38 +21,38 @@
 //! (sz, sy, sx). For each voxel (iz, iy, ix), six nearest-neighbour fluxes
 //! are computed:
 //!
-//! Î”Â±z I = I[izÂ±1, iy, ix] âˆ’ I[iz, iy, ix] (zero at boundaries â†’ Neumann BC)
-//! fluxÂ±z = c(|Î”Â±z I| / sz) Â· Î”Â±z I / szÂ²
+//! Δ±z I = I[iz±1, iy, ix] − I[iz, iy, ix] (zero at boundaries → Neumann BC)
+//! flux±z = c(|Δ±z I| / sz) · Δ±z I / sz²
 //!
 //! Update:
-//! I_new = I + Î”t Â· (flux+z + fluxâˆ’z + flux+y + fluxâˆ’y + flux+x + fluxâˆ’x)
+//! I_new = I + Δt · (flux+z + flux−z + flux+y + flux−y + flux+x + flux−x)
 //!
-//! Stability condition for explicit Euler in 3-D: Î”t â‰¤ 1/6 (unit spacing).
+//! Stability condition for explicit Euler in 3-D: Δt ≤ 1/6 (unit spacing).
 //! The default time-step 1/16 provides a safety factor of ~2.67.
 //!
 //! # Reference
 //! Perona, P. & Malik, J. (1990). Scale-space and edge detection using
 //! anisotropic diffusion. *IEEE Trans. Pattern Anal. Mach. Intell.*
-//! 12(7):629â€“639. doi:10.1109/34.56205
+//! 12(7):629–639. doi:10.1109/34.56205
 
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// â”€â”€ ZST conductance strategy â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── ZST conductance strategy ─────────────────────────────────────────────────
 
 /// Trait for diffusion conductance (edge-stopping) functions.
 ///
 /// Each implementation is a zero-sized type so that the compiler monomorphises
 /// the diffusion loop with the conductance call fully inlined and the match
-/// branch eliminated â€” zero runtime overhead versus a hand-written variant.
+/// branch eliminated — zero runtime overhead versus a hand-written variant.
 pub trait ConductanceKernel: Default {
     /// Evaluate the conductance function at gradient magnitude `s` with
     /// conductance parameter `k`.
     fn conductance(s: f32, k: f32) -> f32;
 }
 
-/// c(s) = exp(âˆ’(s/K)Â²) â€” Perona-Malik option 1.
+/// c(s) = exp(−(s/K)²) — Perona-Malik option 1.
 ///
 /// Favours high-contrast edges over low-contrast ones.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -65,7 +65,7 @@ impl ConductanceKernel for ExponentialConductance {
     }
 }
 
-/// c(s) = 1 / (1 + (s/K)Â²) â€” Perona-Malik option 2.
+/// c(s) = 1 / (1 + (s/K)²) — Perona-Malik option 2.
 ///
 /// Favours wide regions over smaller ones.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -79,7 +79,7 @@ impl ConductanceKernel for QuadraticConductance {
     }
 }
 
-// â”€â”€ Backward-compatible enum â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Backward-compatible enum ─────────────────────────────────────────────────
 
 /// Choice of conductance (edge-stopping) function.
 ///
@@ -87,12 +87,12 @@ impl ConductanceKernel for QuadraticConductance {
 /// corresponding ZST strategy type before computation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ConductanceFunction {
-    /// c(s) = exp(âˆ’(s/K)Â²) â€” Perona-Malik option 1.
+    /// c(s) = exp(−(s/K)²) — Perona-Malik option 1.
     ///
     /// Favours high-contrast edges over low-contrast ones.
     #[default]
     Exponential,
-    /// c(s) = 1 / (1 + (s/K)Â²) â€” Perona-Malik option 2.
+    /// c(s) = 1 / (1 + (s/K)²) — Perona-Malik option 2.
     ///
     /// Favours wide regions over smaller ones.
     Quadratic,
@@ -103,11 +103,11 @@ pub enum ConductanceFunction {
 pub struct DiffusionConfig {
     /// Number of explicit Euler time steps to perform.
     pub num_iterations: usize,
-    /// Time step Î”t. Must satisfy Î”t â‰¤ 1/(2Â·D) where D is the number of
+    /// Time step Δt. Must satisfy Δt ≤ 1/(2·D) where D is the number of
     /// spatial dimensions. Default: 0.0625 = 1/16 (safe for 3-D).
     pub time_step: f32,
     /// Conductance parameter K. Controls the gradient threshold below which
-    /// diffusion is strong. Larger K â†’ more smoothing across edges.
+    /// diffusion is strong. Larger K → more smoothing across edges.
     pub conductance: f32,
     /// Which conductance function to use.
     pub function: ConductanceFunction,
@@ -124,7 +124,7 @@ impl Default for DiffusionConfig {
     }
 }
 
-// â”€â”€ Generic filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Generic filter struct ────────────────────────────────────────────────────
 
 /// Anisotropic diffusion filter (Perona & Malik 1990).
 ///
@@ -173,9 +173,9 @@ impl<K: ConductanceKernel> AnisotropicDiffusionFilter<K> {
 
     /// Coeus-native sister of [`AnisotropicDiffusionFilter::apply`].
     ///
-    /// Runs the identical explicit-Euler Peronaâ€“Malik PDE (double-buffered on a
+    /// Runs the identical explicit-Euler Perona–Malik PDE (double-buffered on a
     /// flat host array) via the shared `diffuse` host core, so the result is
-    /// bitwise-identical to the Burn path. No Burn tensor is constructed.
+    /// bitwise-identical to the Coeus path. No Burn tensor is constructed.
     /// Spatial metadata is preserved.
     ///
     /// # Errors
@@ -201,7 +201,7 @@ impl<K: ConductanceKernel> AnisotropicDiffusionFilter<K> {
     }
 }
 
-// â”€â”€ Backward-compatible non-generic entry point â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Backward-compatible non-generic entry point ──────────────────────────────
 
 impl DiffusionConfig {
     /// Apply anisotropic diffusion using the conductance function selected in
@@ -227,7 +227,7 @@ impl DiffusionConfig {
     /// Coeus-native sister of [`DiffusionConfig::apply`].
     ///
     /// Dispatches to the conductance kernel selected in `self.function` and runs
-    /// the shared `diffuse` host core, bitwise-identical to the Burn path. No
+    /// the shared `diffuse` host core, bitwise-identical to the Coeus path. No
     /// Burn tensor is constructed.
     ///
     /// # Errors
@@ -258,12 +258,12 @@ impl DiffusionConfig {
     }
 }
 
-// â”€â”€ Core computation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Core computation ─────────────────────────────────────────────────────────
 
 /// Run the anisotropic diffusion PDE for the requested number of iterations.
 ///
 /// Neumann (zero-flux) boundary conditions: at the image edge the neighbour
-/// index is clamped to the same voxel, so the difference Î” is zero and the
+/// index is clamped to the same voxel, so the difference Δ is zero and the
 /// matched flux term contributes nothing.
 fn diffuse<K: ConductanceKernel>(
     data: &[f32],
@@ -308,19 +308,19 @@ fn diffuse<K: ConductanceKernel>(
             let ix_p = if ix + 1 < nx { ix + 1 } else { ix };
             let ix_m = if ix > 0 { ix - 1 } else { ix };
 
-            // â”€â”€ z-axis fluxes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── z-axis fluxes ────────────────────────────────────────
             let delta_zp = (src[idx(iz_p, iy, ix)] - v) / sz;
             let fluxz_pos = K::conductance(delta_zp.abs(), k) * delta_zp / sz;
             let delta_zn = (src[idx(iz_m, iy, ix)] - v) / sz;
             let fluxz_neg = K::conductance(delta_zn.abs(), k) * delta_zn / sz;
 
-            // â”€â”€ y-axis fluxes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── y-axis fluxes ────────────────────────────────────────
             let delta_yp = (src[idx(iz, iy_p, ix)] - v) / sy;
             let fluxy_pos = K::conductance(delta_yp.abs(), k) * delta_yp / sy;
             let delta_yn = (src[idx(iz, iy_m, ix)] - v) / sy;
             let fluxy_neg = K::conductance(delta_yn.abs(), k) * delta_yn / sy;
 
-            // â”€â”€ x-axis fluxes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── x-axis fluxes ────────────────────────────────────────
             let delta_xp = (src[idx(iz, iy, ix_p)] - v) / sx;
             let fluxx_pos = K::conductance(delta_xp.abs(), k) * delta_xp / sx;
             let delta_xn = (src[idx(iz, iy, ix_m)] - v) / sx;
@@ -337,7 +337,7 @@ fn diffuse<K: ConductanceKernel>(
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_perona_malik.rs"]
@@ -350,7 +350,7 @@ mod tests_native {
     use coeus_core::SequentialBackend;
 
     #[test]
-    fn matches_burn() {
+    fn matches_coeus() {
         let vals: Vec<f32> = (0..60).map(|i| ((i * 7) % 13) as f32).collect();
         assert_coeus_matches_coeus(
             vals,
@@ -366,7 +366,7 @@ mod tests_native {
 
     #[test]
     fn oracle_constant_field_preserved() {
-        // Zero gradients everywhere â†’ zero flux â†’ the field is a fixed point.
+        // Zero gradients everywhere → zero flux → the field is a fixed point.
         let img = make_native_image(vec![5.0f32; 27], [3, 3, 3]);
         let out = DiffusionConfig::default()
             .apply_native(&img, &SequentialBackend)

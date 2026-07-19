@@ -51,8 +51,8 @@ impl ThirionDemonsRegistration {
     /// Register `moving` to `fixed` with pluggable [`FieldSmoother`] backends.
     ///
     /// # Arguments
-    /// - `fluid` â€” smoother for fluid regularisation (`sigma_fluid`).
-    /// - `diffusion` â€” smoother for diffusion regularisation (`sigma_diffusion`).
+    /// - `fluid` — smoother for fluid regularisation (`sigma_fluid`).
+    /// - `diffusion` — smoother for diffusion regularisation (`sigma_diffusion`).
     ///
     /// # Errors
     /// Returns [`RegistrationError`] if `fixed` and `moving` have different
@@ -78,7 +78,7 @@ impl ThirionDemonsRegistration {
         let grad = compute_gradient(fixed, dims.into(), spacing);
 
         // m_warped is the iter's working warped buffer.  We initialise it to
-        // the identity-warp (a copy of `moving` â€” the cost of one `n`-element
+        // the identity-warp (a copy of `moving` — the cost of one `n`-element
         // memcpy is amortised across all iterations).  This lets the iter
         // body skip the top warp on every iteration: the first iteration
         // starts with m_warped == moving (identity), and each subsequent
@@ -94,7 +94,7 @@ impl ThirionDemonsRegistration {
             iter = it + 1;
 
             // m_warped is at the iter's starting disp: identity at iter 0, and
-            // the previous iter's post-update re-warp for iter â‰¥ 1.  Reading
+            // the previous iter's post-update re-warp for iter ≥ 1.  Reading
             // it directly (no top warp) saves a `warp_image_into` per iter.
             thirion_forces_into(
                 fixed,
@@ -131,8 +131,8 @@ impl ThirionDemonsRegistration {
 
             // Re-warp m_warped with the post-update disp so the next iter's
             // forces see the new state and this iter's MSE is reported at the
-            // post-update (look-ahead) disp â€” matching the previous code's
-            // semantics â€” without a streaming-warp inside compute_mse_streaming.
+            // post-update (look-ahead) disp — matching the previous code's
+            // semantics — without a streaming-warp inside compute_mse_streaming.
             warp_image_into(
                 moving,
                 dims.into(),

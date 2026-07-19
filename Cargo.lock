@@ -1222,7 +1222,6 @@ version = "0.9.0"
 dependencies = [
  "bytemuck",
  "eunomia",
- "half",
  "hermes-simd",
  "mnemosyne",
  "moirai",
@@ -1261,7 +1260,7 @@ dependencies = [
  "coeus-leto",
  "coeus-sparse",
  "coeus-tensor",
- "half",
+ "eunomia",
  "leto-ops",
  "melinoe",
  "smallvec",
@@ -2258,10 +2257,9 @@ checksum = "dea2df4cf52843e0452895c455a1a2cfbb842a1e7329671acf418fdc53ed4c59"
 
 [[package]]
 name = "eunomia"
-version = "0.4.0"
+version = "0.6.0"
 dependencies = [
  "bytemuck",
- "half",
  "libm",
  "rkyv 0.7.46",
 ]
@@ -2916,10 +2914,9 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hermes-simd"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "eunomia",
- "half",
  "hermes-simd-core",
  "hermes-simd-intrinsics",
  "hermes-simd-macros",
@@ -2929,11 +2926,10 @@ dependencies = [
 
 [[package]]
 name = "hermes-simd-core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bytemuck",
  "eunomia",
- "half",
  "mnemosyne",
  "rkyv 0.7.46",
  "themis",
@@ -2941,16 +2937,15 @@ dependencies = [
 
 [[package]]
 name = "hermes-simd-intrinsics"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "eunomia",
- "half",
  "hermes-simd-core",
 ]
 
 [[package]]
 name = "hermes-simd-macros"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2959,9 +2954,8 @@ dependencies = [
 
 [[package]]
 name = "hermes-simd-types"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
- "half",
  "hermes-simd-core",
  "hermes-simd-intrinsics",
 ]
@@ -3745,11 +3739,10 @@ checksum = "7a79a3332a6609480d7d0c9eab957bca6b455b91bb84e66d19f5ff66294b85b8"
 
 [[package]]
 name = "leto"
-version = "0.38.2"
+version = "0.39.0"
 dependencies = [
  "bytemuck",
  "eunomia",
- "half",
  "mnemosyne",
  "serde",
  "thiserror 2.0.18",
@@ -3757,11 +3750,10 @@ dependencies = [
 
 [[package]]
 name = "leto-ops"
-version = "0.38.2"
+version = "0.39.0"
 dependencies = [
  "bytemuck",
  "eunomia",
- "half",
  "hermes-simd",
  "leto",
  "moirai",

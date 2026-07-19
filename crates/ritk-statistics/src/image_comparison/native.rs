@@ -3,11 +3,11 @@
 //! These are the Coeus-backend counterparts to the Burn-generic free functions
 //! in the parent module. Each adapter borrows contiguous host storage from a
 //! [`ritk_image::Image`] via the [`ritk_tensor_ops::native`] seam and
-//! delegates to the same shared host core the Burn path uses, so the metric math
+//! delegates to the same shared host core the Coeus path uses, so the metric math
 //! has exactly one home per metric (no cloned algorithm).
 //!
-//! Metrics whose Burn path stays on-device (`dice_coefficient`, `psnr`) share
-//! their *host* core with the native path here; metrics whose Burn path already
+//! Metrics whose Coeus path stays on-device (`dice_coefficient`, `psnr`) share
+//! their *host* core with the native path here; metrics whose Coeus path already
 //! computes on host slices (`similarity_index`, `ssim`, `hausdorff_distance`,
 //! `mean_surface_distance`) share the identical core.
 

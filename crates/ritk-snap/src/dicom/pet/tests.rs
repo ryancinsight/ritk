@@ -2,7 +2,7 @@ use super::*;
 use arrayvec::ArrayString;
 use std::sync::Arc;
 
-/// Â¹â¸F physical half-life = 6 584.04 s. Source: NNDC Nuclear Data (2023).
+/// ¹â¸F physical half-life = 6 584.04 s. Source: NNDC Nuclear Data (2023).
 const F18_HALF_LIFE_S: f64 = 6_584.04;
 
 fn minimal_vol(
@@ -34,7 +34,7 @@ fn minimal_vol(
     }
 }
 
-// â”€â”€ from_loaded_volume â€” missing field guards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── from_loaded_volume — missing field guards ─────────────────────────────
 
 #[test]
 fn from_loaded_volume_returns_none_when_weight_absent() {
@@ -87,7 +87,7 @@ fn from_loaded_volume_returns_none_when_dose_negative() {
     let vol = minimal_vol(Some(70.0), Some(-1.0), Some(F18_HALF_LIFE_S), Some("START"));
     assert!(
         PetAcquisitionParams::from_loaded_volume(&vol).is_none(),
-        "must return None when injected_dose_bq â‰¤ 0"
+        "must return None when injected_dose_bq ≤ 0"
     );
 }
 
@@ -118,7 +118,7 @@ fn from_loaded_volume_absent_decay_correction_defaults_to_none_kind() {
     );
 }
 
-// â”€â”€ DecayCorrectionKind::from_dicom_str â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── DecayCorrectionKind::from_dicom_str ───────────────────────────────────
 
 #[test]
 fn decay_correction_kind_start_parses_correctly() {
@@ -160,9 +160,9 @@ fn decay_correction_kind_trims_whitespace() {
     );
 }
 
-// â”€â”€ to_suv_params â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── to_suv_params ─────────────────────────────────────────────────────────
 
-/// Start correction â†’ decay_factor = 1.0 regardless of delta_t_s.
+/// Start correction → decay_factor = 1.0 regardless of delta_t_s.
 #[test]
 fn to_suv_params_start_gives_unit_decay_factor() {
     let pet = PetAcquisitionParams {
@@ -179,7 +179,7 @@ fn to_suv_params_start_gives_unit_decay_factor() {
     );
 }
 
-/// Admin correction â†’ decay_factor = 1.0 (treated as Start).
+/// Admin correction → decay_factor = 1.0 (treated as Start).
 #[test]
 fn to_suv_params_admin_gives_unit_decay_factor() {
     let pet = PetAcquisitionParams {
@@ -196,9 +196,9 @@ fn to_suv_params_admin_gives_unit_decay_factor() {
     );
 }
 
-/// None correction at Î”t = TÂ½ â†’ decay_factor = 0.5.
+/// None correction at Δt = T½ → decay_factor = 0.5.
 ///
-/// Proof: F(TÂ½) = exp(âˆ’ln 2 Â· TÂ½ / TÂ½) = exp(âˆ’ln 2) = 0.5.
+/// Proof: F(T½) = exp(−ln 2 · T½ / T½) = exp(−ln 2) = 0.5.
 #[test]
 fn to_suv_params_none_at_half_life_gives_half_decay_factor() {
     let pet = PetAcquisitionParams {
@@ -210,14 +210,14 @@ fn to_suv_params_none_at_half_life_gives_half_decay_factor() {
     let params = pet.to_suv_params(F18_HALF_LIFE_S);
     assert!(
         (params.decay_factor - 0.5).abs() < 1e-12,
-        "decay_factor at Î”t = TÂ½ must equal 0.5; got {}",
+        "decay_factor at Δt = T½ must equal 0.5; got {}",
         params.decay_factor
     );
 }
 
-/// `to_suv_params` must convert kg â†’ g for patient_weight_g.
+/// `to_suv_params` must convert kg → g for patient_weight_g.
 ///
-/// Proof: patient_weight_g = patient_weight_kg Ã— 1000.
+/// Proof: patient_weight_g = patient_weight_kg × 1000.
 #[test]
 fn to_suv_params_converts_kg_to_g() {
     let pet = PetAcquisitionParams {
@@ -229,17 +229,17 @@ fn to_suv_params_converts_kg_to_g() {
     let params = pet.to_suv_params(0.0);
     assert_eq!(
         params.patient_weight_g, 70_000.0,
-        "patient_weight_g must be patient_weight_kg Ã— 1000; got {}",
+        "patient_weight_g must be patient_weight_kg × 1000; got {}",
         params.patient_weight_g
     );
 }
 
-// â”€â”€ pixel_to_suvbw â€” realistic Â¹â¸F-FDG case â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── pixel_to_suvbw — realistic ¹â¸F-FDG case ──────────────────────────────
 
-/// Â¹â¸F-FDG PET: 370 MBq injected, 70 kg, 1 h PI, 10 000 Bq/mL tumour voxel.
+/// ¹â¸F-FDG PET: 370 MBq injected, 70 kg, 1 h PI, 10 000 Bq/mL tumour voxel.
 ///
-/// DICOM pixels are already decay-corrected (Start); SUVbw = pixel Ã— BW / dose.
-/// Expected: 10 000 Ã— 70 000 / 370 000 000 â‰ˆ 1.8919 g/mL.
+/// DICOM pixels are already decay-corrected (Start); SUVbw = pixel × BW / dose.
+/// Expected: 10 000 × 70 000 / 370 000 000 ≈ 1.8919 g/mL.
 #[test]
 fn pixel_to_suvbw_start_corrected_realistic_fdg() {
     let pet = PetAcquisitionParams {
@@ -283,12 +283,12 @@ fn pixel_to_suvbw_none_correction_exceeds_start_correction() {
 
     assert!(
         suv_none > suv_start,
-        "None-corrected SUVbw must exceed Start-corrected at Î”t > 0; \
+        "None-corrected SUVbw must exceed Start-corrected at Δt > 0; \
          start = {suv_start:.4}, none = {suv_none:.4}"
     );
 }
 
-// â”€â”€ parse_dicom_tm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── parse_dicom_tm ────────────────────────────────────────────────────────
 
 #[test]
 fn parse_dicom_tm_hhmmss_gives_correct_seconds() {
@@ -334,11 +334,11 @@ fn parse_dicom_tm_invalid_returns_none() {
     assert!(parse_dicom_tm("250000").is_none(), "HH=25 must be None");
 }
 
-// â”€â”€ compute_delta_t_s â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── compute_delta_t_s ─────────────────────────────────────────────────────
 
 #[test]
 fn compute_delta_t_s_normal_same_day() {
-    // inject 08:00:00, scan 09:00:00 â†’ 3600 s
+    // inject 08:00:00, scan 09:00:00 → 3600 s
     let d = compute_delta_t_s(28_800.0, 32_400.0);
     assert!(
         (d - 3_600.0).abs() < 1e-9,
@@ -348,7 +348,7 @@ fn compute_delta_t_s_normal_same_day() {
 
 #[test]
 fn compute_delta_t_s_midnight_rollover() {
-    // inject 23:50:00 (85800 s), scan 00:10:00 (600 s) â†’ 1200 s
+    // inject 23:50:00 (85800 s), scan 00:10:00 (600 s) → 1200 s
     let d = compute_delta_t_s(85_800.0, 600.0);
     assert!(
         (d - 1_200.0).abs() < 1e-9,
@@ -356,7 +356,7 @@ fn compute_delta_t_s_midnight_rollover() {
     );
 }
 
-// â”€â”€ delta_t_s_from_vol â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── delta_t_s_from_vol ────────────────────────────────────────────────────
 
 #[test]
 fn delta_t_s_from_vol_parses_both_fields() {

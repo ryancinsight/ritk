@@ -7,18 +7,18 @@
 //! is the transform applied minus the point itself:
 //!
 //! ```text
-//! D(p) = T(p) âˆ’ p,    T(p) = MÂ·(p âˆ’ c) + c + t
+//! D(p) = T(p) − p,    T(p) = M·(p − c) + c + t
 //! ```
 //!
-//! where `M` is the 3Ã—3 matrix, `t` the translation, and `c` the centre, all in
+//! where `M` is the 3×3 matrix, `t` the translation, and `c` the centre, all in
 //! the physical `(x, y, z)` frame (SimpleITK's `AffineTransform` convention).
 //! Physical points come from the image's canonical
 //! [`Image::index_to_world_native`], whose innermost-first columns are exactly
 //! `(x, y, z)`, so the result is float-exact to `sitk.TransformToDisplacementField`.
 //!
 //! The field is returned as three scalar component images `(D_z, D_y, D_x)` on
-//! the reference grid â€” the same `(disp_z, disp_y, disp_x)` order
-//! [`crate::warp::warp_image`] consumes, so `warp(moving, â€¦) â‰¡ resample(moving,
+//! the reference grid — the same `(disp_z, disp_y, disp_x)` order
+//! [`crate::warp::warp_image`] consumes, so `warp(moving, …) ≡ resample(moving,
 //! transform)`.
 
 use anyhow::Result;
@@ -29,8 +29,8 @@ use ritk_spatial::Point;
 
 type DisplacementImages<B> = (Image<f32, B, 3>, Image<f32, B, 3>, Image<f32, B, 3>);
 
-/// Sample an affine transform `T(p) = MÂ·(p âˆ’ c) + c + t` onto the reference
-/// grid, returning the dense displacement field `D(p) = T(p) âˆ’ p` as
+/// Sample an affine transform `T(p) = M·(p − c) + c + t` onto the reference
+/// grid, returning the dense displacement field `D(p) = T(p) − p` as
 /// `(disp_z, disp_y, disp_x)` scalar component images.
 ///
 /// `matrix`, `translation`, and `center` are in the physical `(x, y, z)` frame

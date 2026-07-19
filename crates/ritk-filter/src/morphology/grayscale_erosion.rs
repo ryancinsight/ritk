@@ -4,13 +4,13 @@
 //!
 //! Grayscale erosion with a flat structuring element B is defined as:
 //!
-//!   (E_B f)(x) = min_{b âˆˆ B} f(x + b)
+//!   (E_B f)(x) = min_{b ∈ B} f(x + b)
 //!
 //! where B is a cubic neighbourhood of half-width `radius`:
 //!
-//!   B = { b âˆˆ â„¤Â³ : |b_i| â‰¤ r  for i âˆˆ {0, 1, 2} }
+//!   B = { b ∈ ℤ³ : |b_i| ≤ r  for i ∈ {0, 1, 2} }
 //!
-//! giving |B| = (2r + 1)Â³ voxels per neighbourhood.
+//! giving |B| = (2r + 1)³ voxels per neighbourhood.
 //!
 //! # Boundary Handling
 //!
@@ -21,15 +21,15 @@
 //! # Properties
 //!
 //! - **Idempotence on constant fields**: E_B(c) = c for all constants c.
-//! - **Anti-extensivity**: (E_B f)(x) â‰¤ f(x) for all x (with flat B containing
+//! - **Anti-extensivity**: (E_B f)(x) ≤ f(x) for all x (with flat B containing
 //!   the origin).
-//! - **Translation invariance**: E_B(f(Â· âˆ’ t))(x) = (E_B f)(x âˆ’ t).
-//! - **Increasing**: f â‰¤ g â‡’ E_B f â‰¤ E_B g.
-//! - **Duality with dilation**: E_B f = âˆ’(D_B(âˆ’f)) for flat structuring elements.
+//! - **Translation invariance**: E_B(f(· − t))(x) = (E_B f)(x − t).
+//! - **Increasing**: f ≤ g ⇒ E_B f ≤ E_B g.
+//! - **Duality with dilation**: E_B f = −(D_B(−f)) for flat structuring elements.
 //!
 //! # Complexity
 //!
-//! O(N Â· (2r + 1)Â³) where N = n_z Â· n_y Â· n_x is the total voxel count.
+//! O(N · (2r + 1)³) where N = n_z · n_y · n_x is the total voxel count.
 //!
 //! # References
 //!
@@ -40,11 +40,11 @@ use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec, rebuild};
 
-// â”€â”€ Filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Filter struct ─────────────────────────────────────────────────────────────
 
 /// Grayscale erosion filter for 3-D images.
 ///
-/// Replaces each voxel with the minimum value in its `(2r+1)Â³` cubic
+/// Replaces each voxel with the minimum value in its `(2r+1)³` cubic
 /// neighbourhood. Out-of-bounds positions use replicate (clamp) padding.
 #[derive(Debug, Clone)]
 pub struct GrayscaleErosion {
@@ -56,7 +56,7 @@ impl GrayscaleErosion {
     /// Create a new grayscale erosion filter with the given radius.
     ///
     /// A radius of 0 yields identity (each voxel is its own sole neighbour).
-    /// A radius of 1 produces a 3Ã—3Ã—3 cubic structuring element.
+    /// A radius of 1 produces a 3×3×3 cubic structuring element.
     pub fn new(radius: usize) -> Self {
         Self { radius }
     }
@@ -85,9 +85,9 @@ impl GrayscaleErosion {
 
     /// Coeus-native sister of [`GrayscaleErosion::apply`].
     ///
-    /// Runs the identical `(2r+1)Â³` cubic-neighbourhood minimum (replicate
+    /// Runs the identical `(2r+1)³` cubic-neighbourhood minimum (replicate
     /// boundary) via the shared `erode_3d` host core on the image's contiguous
-    /// host buffer, so the result is bitwise-identical to the Burn path. No Burn
+    /// host buffer, so the result is bitwise-identical to the Coeus path. No Burn
     /// tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors
@@ -108,25 +108,25 @@ impl GrayscaleErosion {
     }
 }
 
-// â”€â”€ Core computation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Core computation ──────────────────────────────────────────────────────────
 
-/// Compute grayscale erosion on a flat 3-D volume stored in ZÃ—YÃ—X order.
+/// Compute grayscale erosion on a flat 3-D volume stored in Z×Y×X order.
 ///
 /// # Arguments
 ///
-/// * `data`   â€” flat voxel values in row-major (Z-major) order.
-/// * `dims`   â€” `[nz, ny, nx]`.
-/// * `radius` â€” structuring element half-width in voxels.
+/// * `data`   — flat voxel values in row-major (Z-major) order.
+/// * `dims`   — `[nz, ny, nx]`.
+/// * `radius` — structuring element half-width in voxels.
 ///
 /// # Invariants
 ///
 /// - Output length equals `nz * ny * nx`.
-/// - Each output voxel equals `min_{b âˆˆ B} data[clamp(x + b)]`.
+/// - Each output voxel equals `min_{b ∈ B} data[clamp(x + b)]`.
 pub(crate) fn erode_3d(data: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     super::separable_box_3d(data, dims, radius, super::Extremum::Min)
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_grayscale_erosion.rs"]

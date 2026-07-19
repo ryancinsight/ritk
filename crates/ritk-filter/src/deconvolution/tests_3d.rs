@@ -2,10 +2,10 @@
 #![allow(clippy::identity_op, clippy::erasing_op)]
 //!
 //! Each test derives expected values analytically:
-//! - Dirac delta kernel in 3-D â†’ identity: u_out â‰ˆ u_in within tolerance
+//! - Dirac delta kernel in 3-D → identity: u_out ≈ u_in within tolerance
 //! - Shape invariant: output shape equals input shape
 //! - Non-negativity: RL with non-negative input and PSF preserves sign
-//! - Variance: Tikhonov Î»>0 produces finite output variance
+//! - Variance: Tikhonov λ>0 produces finite output variance
 
 use super::{
     LandweberDeconvolution, RichardsonLucyDeconvolution, TikhonovDeconvolution, WienerDeconvolution,
@@ -20,22 +20,22 @@ fn make_image_3d(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
     ts::make_image::<f32, B, 3>(data, dims)
 }
 
-/// 3Ã—3Ã—3 Dirac delta kernel â€” exactly 1.0 at center [1,1,1], 0.0 elsewhere.
+/// 3×3×3 Dirac delta kernel — exactly 1.0 at center [1,1,1], 0.0 elsewhere.
 ///
 /// Convolving with the Dirac delta is the identity operation:
-///   (u âˆ— Î´)(x) = u(x)  for all x.
+///   (u ∗ δ)(x) = u(x)  for all x.
 fn dirac_kernel_3x3x3() -> Vec<f32> {
     let mut k = vec![0.0_f32; 27];
-    k[1 * 9 + 1 * 3 + 1] = 1.0; // center of 3Ã—3Ã—3
+    k[1 * 9 + 1 * 3 + 1] = 1.0; // center of 3×3×3
     k
 }
 
-// â”€â”€ Wiener 3-D â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Wiener 3-D ───────────────────────────────────────────────────────────────
 
-/// Dirac delta kernel â†’ Wiener output equals input.
+/// Dirac delta kernel → Wiener output equals input.
 ///
-/// Since u âˆ— Î´ = u, the Wiener filter with K=0.01 attenuates by 1/(1+K).
-/// Maximum attenuation error: max_val Ã— K/(1+K) = 27 Ã— 0.01/1.01 â‰ˆ 0.267.
+/// Since u ∗ δ = u, the Wiener filter with K=0.01 attenuates by 1/(1+K).
+/// Maximum attenuation error: max_val × K/(1+K) = 27 × 0.01/1.01 ≈ 0.267.
 /// Tolerance 0.3 per voxel is analytically tight for this input range.
 #[test]
 fn wiener_3d_dirac_identity() {
@@ -47,7 +47,7 @@ fn wiener_3d_dirac_identity() {
     let vals = result.data().to_vec();
     assert_eq!(vals.len(), 27, "output length must equal 27");
     for (i, &v) in vals.iter().enumerate() {
-        // Tolerance accounts for K-attenuation: err â‰¤ input[i] Ã— K/(1+K)
+        // Tolerance accounts for K-attenuation: err ≤ input[i] × K/(1+K)
         let max_err = image_vals[i] * 0.01 / 1.01 + 0.05;
         assert!(
             (v - image_vals[i]).abs() < max_err,
@@ -88,11 +88,11 @@ fn wiener_3d_output_shape_matches_input() {
     );
 }
 
-// â”€â”€ Tikhonov 3-D â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tikhonov 3-D ─────────────────────────────────────────────────────────────
 
-/// Tikhonov Î»=0 with Dirac kernel must recover original values.
+/// Tikhonov λ=0 with Dirac kernel must recover original values.
 ///
-/// Î»=0 reduces to inverse filtering; Dirac convolution is identity.
+/// λ=0 reduces to inverse filtering; Dirac convolution is identity.
 #[test]
 fn tikhonov_3d_dirac_identity() {
     let image_vals: Vec<f32> = (0..27).map(|i| (i as f32 + 1.0) * 2.0).collect();
@@ -110,19 +110,19 @@ fn tikhonov_3d_dirac_identity() {
     }
 }
 
-/// Tikhonov Î»>0 with blurring kernel produces finite output variance.
+/// Tikhonov λ>0 with blurring kernel produces finite output variance.
 ///
 /// Finite variance verifies the 3-D Laplacian regularization path is executed.
 #[test]
 fn tikhonov_3d_lambda_reduces_variance() {
-    // Averaging 3Ã—3Ã—3 kernel (uniform blur)
+    // Averaging 3×3×3 kernel (uniform blur)
     let kernel_vals = vec![1.0_f32 / 27.0; 27];
     let image_vals: Vec<f32> = (0..125).map(|i| (i as f32 * 2.7).sin()).collect();
     let img = make_image_3d(image_vals, [5, 5, 5]);
     let ker = make_image_3d(kernel_vals, [3, 3, 3]);
     let result = TikhonovDeconvolution::new(1.0).apply(&img, &ker).unwrap();
     let vals = result.data().to_vec();
-    // All outputs must be finite â€” verifies no NaN/Inf in 3-D Laplacian path
+    // All outputs must be finite — verifies no NaN/Inf in 3-D Laplacian path
     for &v in &vals {
         assert!(v.is_finite(), "Tikhonov 3-D output must be finite, got {v}");
     }
@@ -137,12 +137,12 @@ fn tikhonov_3d_output_shape_matches_input() {
     assert_eq!(result.shape(), [4, 5, 6]);
 }
 
-// â”€â”€ Richardson-Lucy 3-D â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Richardson-Lucy 3-D ──────────────────────────────────────────────────────
 
-/// Dirac delta kernel â†’ RL converges to identity in few iterations.
+/// Dirac delta kernel → RL converges to identity in few iterations.
 ///
-/// Since u âˆ— Î´ = u, the ratio (g / (Î´ âˆ— u)) = (u / u) = 1, and
-/// h* âˆ— 1 â‰ˆ 1, so uâ‚–â‚Šâ‚ = uâ‚– Â· 1 = uâ‚– â€” tolerance within 1.0 per voxel.
+/// Since u ∗ δ = u, the ratio (g / (δ ∗ u)) = (u / u) = 1, and
+/// h* ∗ 1 ≈ 1, so uₖ₊₁ = uₖ · 1 = uₖ — tolerance within 1.0 per voxel.
 #[test]
 fn richardson_lucy_3d_dirac_identity() {
     let image_vals: Vec<f32> = (0..27).map(|i| i as f32 + 1.0).collect();
@@ -164,7 +164,7 @@ fn richardson_lucy_3d_dirac_identity() {
 /// non-negative output (Poisson-model invariant).
 #[test]
 fn richardson_lucy_3d_preserves_non_negativity() {
-    // Gaussian-like 3Ã—3Ã—3 kernel (positive, normalized)
+    // Gaussian-like 3×3×3 kernel (positive, normalized)
     let mut kernel_vals = vec![0.0_f32; 27];
     for kz in 0..3_usize {
         for ky in 0..3_usize {
@@ -204,12 +204,12 @@ fn richardson_lucy_3d_output_shape_matches_input() {
     assert_eq!(result.shape(), [4, 5, 6]);
 }
 
-// â”€â”€ Landweber 3-D â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Landweber 3-D ────────────────────────────────────────────────────────────
 
-/// Dirac delta â†’ Landweber converges toward identity.
+/// Dirac delta → Landweber converges toward identity.
 ///
-/// Residual after each step is (g âˆ’ Î´ âˆ— uâ‚–) â†’ 0 as uâ‚– â†’ g.
-/// Tolerance 0.5 per voxel for Î±=0.5, 50 iterations.
+/// Residual after each step is (g − δ ∗ uₖ) → 0 as uₖ → g.
+/// Tolerance 0.5 per voxel for α=0.5, 50 iterations.
 #[test]
 fn landweber_3d_dirac_identity() {
     let image_vals: Vec<f32> = (0..27).map(|i| i as f32 + 1.0).collect();

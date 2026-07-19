@@ -17,9 +17,9 @@ use std::path::Path;
 /// by that many bytes of `float32 LE` values.
 ///
 /// Component interpretation mirrors `parse_attrs`:
-/// - `NumberOfComponents="3"` â†’ `Vectors` (or `Normals` when name contains "normal").
-/// - `NumberOfComponents="2"` â†’ `TextureCoords` with `dim=2`.
-/// - All other counts â†’ `Scalars` with that `num_components`.
+/// - `NumberOfComponents="3"` → `Vectors` (or `Normals` when name contains "normal").
+/// - `NumberOfComponents="2"` → `TextureCoords` with `dim=2`.
+/// - All other counts → `Scalars` with that `num_components`.
 fn parse_appended_attrs(
     section: &str,
     binary_block: &[u8],
@@ -112,7 +112,7 @@ fn parse_appended_attrs(
 /// `<ImageData>` tag or its required attributes are missing, if any DataArray
 /// offset/length is out of range, or if the header is not valid UTF-8.
 pub fn read_vti_binary_appended_bytes(data: &[u8]) -> Result<VtkImageData> {
-    // â”€â”€ Locate the AppendedData block and the `_` binary marker â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Locate the AppendedData block and the `_` binary marker ─────────────
     let ad_needle = b"<AppendedData";
     let ad_pos = data
         .windows(ad_needle.len())
@@ -143,7 +143,7 @@ pub fn read_vti_binary_appended_bytes(data: &[u8]) -> Result<VtkImageData> {
     let header_str = std::str::from_utf8(header_bytes)
         .context("VTI binary-appended header is not valid UTF-8")?;
 
-    // â”€â”€ Parse ImageData attributes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Parse ImageData attributes ───────────────────────────────────────────
     let image_tag = find_tag(header_str, "ImageData")
         .ok_or_else(|| anyhow::anyhow!("missing <ImageData> tag in binary VTI document"))?;
 
@@ -175,7 +175,7 @@ pub fn read_vti_binary_appended_bytes(data: &[u8]) -> Result<VtkImageData> {
         *dst = spacing_vals.get(i).copied().unwrap_or(1.0);
     }
 
-    // â”€â”€ Parse PointData and CellData sections â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Parse PointData and CellData sections ────────────────────────────────
     let point_data = find_section(header_str, "PointData")
         .map(|sec| parse_appended_attrs(&sec, binary_block))
         .transpose()?

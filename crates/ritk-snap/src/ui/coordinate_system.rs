@@ -4,7 +4,7 @@
 //! - Anatomical frame conversion (`LPS` <-> `RAS`)
 //! - DICOM patient position parsing (`(0018,5100)`)
 
-// Re-export PatientPosition from ritk-io (SSOT â€” eliminates duplicate enum).
+// Re-export PatientPosition from ritk-io (SSOT — eliminates duplicate enum).
 pub use ritk_io::PatientPosition;
 
 /// Anatomical coordinate frame.

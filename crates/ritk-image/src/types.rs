@@ -296,7 +296,7 @@ where
     ///
     /// The layout-independent host-extraction surface format writers and
     /// boundary code need (ADR 0002 cutover prerequisite): unlike
-    /// [`Self::data_slice`], it never fails on a strided view â€” it pays the
+    /// [`Self::data_slice`], it never fails on a strided view — it pays the
     /// copy exactly when the layout requires one (`Cow::Owned`), and is
     /// zero-copy otherwise (`Cow::Borrowed`). Mirrors the Burn `Image`'s
     /// `data_slice() -> Cow` contract. (`B: Default` follows from
@@ -414,10 +414,10 @@ where
     /// - Output indices are `[N, D]` with columns in **innermost-first** order
     ///   (column `c` = spatial axis `D-1-c`, i.e. column 0 = x = axis `D-1`),
     ///   matching `grid::generate_grid` and the interpolation kernels.
-    /// - Per point: `index_axis = (Direction^-1 Â· (point âˆ’ origin)) âŠ˜ spacing`,
+    /// - Per point: `index_axis = (Direction^-1 · (point − origin)) ⊘ spacing`,
     ///   emitted innermost-first. Arithmetic runs in `T` (the metadata-derived
     ///   `Direction^-1 / spacing` and `origin` are narrowed from `f64` to `T`
-    ///   once, matching the Burn path's `as f32` cast before the batched apply).
+    ///   once, matching the Coeus path's `as f32` cast before the batched apply).
     ///
     /// # Panics
     ///
@@ -471,10 +471,10 @@ where
     ///   (column `r` = spatial axis `D-1-r`), matching `grid::generate_grid`.
     /// - Output points are `[N, D]` with columns in **axis-major** order
     ///   (column `a` = spatial axis `a`, the same order as `origin`).
-    /// - Per point: `point = origin + Direction Â· (index âŠ™ spacing)`, consuming
+    /// - Per point: `point = origin + Direction · (index ⊙ spacing)`, consuming
     ///   the innermost-first index columns. Arithmetic runs in `T` (the
-    ///   metadata-derived `spacing Â· Direction` and `origin` are narrowed from
-    ///   `f64` to `T` once, matching the Burn path's `as f32` cast).
+    ///   metadata-derived `spacing · Direction` and `origin` are narrowed from
+    ///   `f64` to `T` once, matching the Coeus path's `as f32` cast).
     ///
     /// # Panics
     ///
@@ -510,7 +510,7 @@ where
         Tensor::from_slice_on([n, D], &out, backend)
     }
 
-    /// Narrow the `f64` origin into `T` once (mirrors the Burn path's `as f32`).
+    /// Narrow the `f64` origin into `T` once (mirrors the Coeus path's `as f32`).
     fn origin_narrowed(&self) -> [T; D] {
         let mut origin_t = [T::zero(); D];
         for (i, o) in origin_t.iter_mut().enumerate() {
@@ -725,7 +725,7 @@ mod tests {
     fn data_cow_materializes_logical_order_for_permuted_view() {
         // Build a [2, 3] image, permute the tensor to [3, 2] (non-contiguous
         // strided view), and re-wrap. Logical row-major order of the permuted
-        // view is the host transpose â€” the oracle the extraction must match.
+        // view is the host transpose — the oracle the extraction must match.
         let (origin, spacing, direction) = metadata_2d();
         let base =
             Tensor::<f32, SequentialBackend>::from_slice([2, 3], &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
@@ -809,11 +809,11 @@ mod tests {
         );
     }
 
-    // â”€â”€ Batch point transforms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Batch point transforms ──────────────────────────────────────────────
 
-    /// Rotation of 90Â° about the z-axis: rows [0,-1,0], [1,0,0], [0,0,1].
-    /// Orthonormal (inverse = transpose), determinant 1 â€” exercises the
-    /// direction terms and the axis-major â†” innermost-first column reordering.
+    /// Rotation of 90° about the z-axis: rows [0,-1,0], [1,0,0], [0,0,1].
+    /// Orthonormal (inverse = transpose), determinant 1 — exercises the
+    /// direction terms and the axis-major ↔ innermost-first column reordering.
     fn rotated_metadata_3d() -> (Point<3>, Spacing<3>, Direction<3>) {
         (
             Point::new([10.5, -3.25, 7.0]),
@@ -846,10 +846,10 @@ mod tests {
         Image::from_flat(vec![T::zero()], dims, origin, spacing, direction).unwrap()
     }
 
-    /// Analytical oracle â€” identity geometry. `world_to_index` maps a physical
+    /// Analytical oracle — identity geometry. `world_to_index` maps a physical
     /// point (axis-major columns) to its index (innermost-first columns), which
     /// under identity origin/spacing/direction equals the point with reversed
-    /// column order; `index_to_world` is the exact inverse. Exact in f64 (Ã—1,
+    /// column order; `index_to_world` is the exact inverse. Exact in f64 (×1,
     /// +0 only).
     #[test]
     fn native_batch_identity_reverses_columns_exactly() {
@@ -870,7 +870,7 @@ mod tests {
         assert_eq!(back.as_slice(), &world);
     }
 
-    /// Independent oracle â€” the batch transforms agree with the single-point
+    /// Independent oracle — the batch transforms agree with the single-point
     /// `transform_*` methods (mathematically independent code path) under
     /// non-trivial anisotropic, rotated geometry. Accounts for the batch
     /// innermost-first index column order vs the single-point axis-major
@@ -889,7 +889,7 @@ mod tests {
             // Single-point index (axis-major).
             let idx_axis = img.transform_physical_point_to_continuous_index(&p);
             let batch_row = &idx_batch.as_slice()[row * 3..row * 3 + 3];
-            // batch column c â†” axis D-1-c.
+            // batch column c ↔ axis D-1-c.
             for c in 0..3 {
                 assert!(
                     (batch_row[c] - idx_axis[2 - c]).abs() <= 1e-9,
@@ -899,7 +899,7 @@ mod tests {
                 );
             }
 
-            // index â†’ world: feed the batch (innermost-first) index back.
+            // index → world: feed the batch (innermost-first) index back.
             let world_batch = img.index_to_world_native(
                 &Tensor::<f64, SequentialBackend>::from_slice([1, 3], batch_row),
             );
@@ -916,7 +916,7 @@ mod tests {
         }
     }
 
-    /// Round-trip: index â†’ world â†’ index recovers the original index within f64
+    /// Round-trip: index → world → index recovers the original index within f64
     /// eps under non-trivial geometry (composition consistency of the pair).
     #[test]
     fn native_batch_index_world_roundtrip_identity() {

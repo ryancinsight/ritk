@@ -22,7 +22,7 @@ use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 /// Field conventions mirror [`crate::format::dicom::series`]' `decode_series`
 /// exactly so a written series round-trips through the native/Burn series
 /// readers to the same voxels and geometry:
-/// - `spacing` is image-axis spacing `[Î”x(col), Î”y(row), Î”z(slice)]`, matching
+/// - `spacing` is image-axis spacing `[Δx(col), Δy(row), Δz(slice)]`, matching
 ///   the reader's `Spacing::new([dx, dy, dz])`.
 /// - `direction_columns` are the direction-cosine columns `[dir_x, dir_y,
 ///   dir_z]` (image row-axis, column-axis, slice-axis), matching the reader's
@@ -79,16 +79,16 @@ pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(
 /// ## Geometry conventions (round-trip contract with the series reader)
 /// - Slice ordering: slice `z` is written to `slice_{z:04}.dcm` with
 ///   InstanceNumber (0020,0013) = `z + 1`.
-/// - ImagePositionPatient (0020,0032) of slice `z` = `origin + z Â· Î”z Â· dir_z`,
-///   where `Î”z = spacing[2]` and `dir_z` is the slice-axis direction column.
-///   Because `Î”z > 0` and `dir_z` is a unit vector, the per-slice position
+/// - ImagePositionPatient (0020,0032) of slice `z` = `origin + z · Δz · dir_z`,
+///   where `Δz = spacing[2]` and `dir_z` is the slice-axis direction column.
+///   Because `Δz > 0` and `dir_z` is a unit vector, the per-slice position
 ///   projected onto `dir_z` increases monotonically with `z`, so the reader's
 ///   projection sort recovers the original slice order.
 /// - ImageOrientationPatient (0020,0037) = `[dir_x, dir_y]` (row-axis then
 ///   column-axis direction cosines).
-/// - PixelSpacing (0028,0030) = `[Î”y(row), Î”x(col)]` = `[spacing[1],
+/// - PixelSpacing (0028,0030) = `[Δy(row), Δx(col)]` = `[spacing[1],
 ///   spacing[0]]`.
-/// - SliceThickness (0018,0050) = `Î”z = spacing[2]` (also the single-slice
+/// - SliceThickness (0018,0050) = `Δz = spacing[2]` (also the single-slice
 ///   spacing fallback the reader uses when `depth == 1`).
 /// - Pixel representation: unsigned 16-bit MONOCHROME2; a single per-slice
 ///   linear rescale (slope/intercept) maps the slice's f32 range onto
@@ -127,7 +127,7 @@ fn write_series_flat(
     let series_instance_uid = format!("{}.1", series_uid);
 
     let [dir_x, dir_y, dir_z] = geom.direction_columns;
-    // Reader convention: PixelSpacing = [row spacing, col spacing] = [Î”y, Î”x].
+    // Reader convention: PixelSpacing = [row spacing, col spacing] = [Δy, Δx].
     let pixel_spacing = [geom.spacing[1], geom.spacing[0]];
     let slice_spacing = geom.spacing[2];
     let orientation = [dir_x[0], dir_x[1], dir_x[2], dir_y[0], dir_y[1], dir_y[2]];

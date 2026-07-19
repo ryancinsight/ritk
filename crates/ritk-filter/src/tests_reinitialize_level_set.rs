@@ -5,6 +5,10 @@ use ritk_tensor_ops::extract_vec_infallible;
 
 type B = coeus_core::SequentialBackend;
 
+fn backend() -> B {
+    B::default()
+}
+
 fn img(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
     ts::make_image::<f32, B, 3>(data, dims)
 }
@@ -49,4 +53,60 @@ fn reinitialize_preserves_geometry() {
         .unwrap();
     assert_eq!(out.shape(), dims);
     assert_eq!(out.spacing()[0], 1.0);
+}
+
+#[test]
+fn reinitialize_rejects_non_finite_level() {
+    let image = img(vec![-1.0, 1.0], [1, 1, 2]);
+    for (level, expected) in [
+        (f64::NAN, "level-set value must be finite, got NaN"),
+        (f64::INFINITY, "level-set value must be finite, got inf"),
+        (
+            f64::NEG_INFINITY,
+            "level-set value must be finite, got -inf",
+        ),
+    ] {
+        let filter = ReinitializeLevelSetFilter::new(level);
+        let error = filter
+            .apply(&image)
+            .expect_err("a non-finite iso-value has no sign-classification contract");
+        assert_eq!(error.to_string(), expected);
+
+        let b = backend();
+        let error = filter
+            .apply_native(&image, &b)
+            .expect_err("the Coeus provider path shares the finite-level contract");
+        assert_eq!(error.to_string(), expected);
+    }
+}
+
+#[test]
+fn reinitialize_rejects_non_finite_sample_for_every_provider_entry() {
+    let filter = ReinitializeLevelSetFilter::new(0.0);
+    for (sample, expected) in [
+        (
+            f32::NAN,
+            "level-set sample at flat index 1 must be finite, got NaN",
+        ),
+        (
+            f32::INFINITY,
+            "level-set sample at flat index 1 must be finite, got inf",
+        ),
+        (
+            f32::NEG_INFINITY,
+            "level-set sample at flat index 1 must be finite, got -inf",
+        ),
+    ] {
+        let image = img(vec![-1.0, sample, 1.0], [1, 1, 3]);
+        let error = filter
+            .apply(&image)
+            .expect_err("a non-finite sample cannot define a level-set side");
+        assert_eq!(error.to_string(), expected);
+
+        let b = backend();
+        let error = filter
+            .apply_native(&image, &b)
+            .expect_err("the Coeus provider path shares the finite-sample contract");
+        assert_eq!(error.to_string(), expected);
+    }
 }

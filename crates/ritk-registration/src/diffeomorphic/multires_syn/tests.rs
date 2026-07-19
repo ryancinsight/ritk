@@ -2,7 +2,7 @@ use super::super::local_cc::{cc_forces, mean_local_cc};
 use super::pyramid::{downsample, upsample_field};
 use super::{InverseConsistency, MultiResSyNConfig, MultiResSyNRegistration};
 
-/// `I[z,y,x] = sin(Ï€Â·z/nz) Â· cos(Ï€Â·y/ny) Â· (x + 1)`.
+/// `I[z,y,x] = sin(π·z/nz) · cos(π·y/ny) · (x + 1)`.
 /// Analytically non-trivial gradients in all three axes.
 fn make_test_image(dims: [usize; 3]) -> Vec<f32> {
     let [nz, ny, nx] = dims;
@@ -49,7 +49,7 @@ fn make_config(num_levels: usize, iters: Vec<usize>, ic: bool) -> MultiResSyNCon
     }
 }
 
-// â”€â”€ Downsample / upsample â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Downsample / upsample ─────────────────────────────────────────────────────
 
 /// Average-pool of constant field preserves value (analytical: mean(c) = c).
 #[test]
@@ -63,8 +63,8 @@ fn downsample_constant_preserves_value() {
     }
 }
 
-/// Upsample constant field with component=0: output = value Ã— (new_nz / old_nz).
-/// Analytical: 3.0 Ã— (8/4) = 6.0.
+/// Upsample constant field with component=0: output = value × (new_nz / old_nz).
+/// Analytical: 3.0 × (8/4) = 6.0.
 #[test]
 fn upsample_constant_field_scales_correctly() {
     let old = [4, 4, 4];
@@ -77,9 +77,9 @@ fn upsample_constant_field_scales_correctly() {
     }
 }
 
-// â”€â”€ Registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Registration ──────────────────────────────────────────────────────────────
 
-/// Identical images â†’ CC > 0.9 (analytical: perfect correlation).
+/// Identical images → CC > 0.9 (analytical: perfect correlation).
 #[test]
 fn identity_registration_high_cc() {
     let dims = [10, 10, 10];
@@ -176,7 +176,7 @@ fn inverse_consistency_produces_finite_fields() {
     );
 }
 
-// â”€â”€ Error cases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Error cases ───────────────────────────────────────────────────────────────
 
 #[test]
 fn mismatched_fixed_length_returns_error() {
@@ -214,9 +214,9 @@ fn zero_levels_returns_error() {
     assert!(reg.register(&img, &img, dims, [1.0; 3]).is_err());
 }
 
-// â”€â”€ CC primitive tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CC primitive tests ────────────────────────────────────────────────────────
 
-/// Identical non-constant images â†’ CC â‰ˆ 1.0 (analytical: perfect correlation).
+/// Identical non-constant images → CC ≈ 1.0 (analytical: perfect correlation).
 #[test]
 fn mean_local_cc_identical_images() {
     let dims = [6, 6, 6];
@@ -224,11 +224,11 @@ fn mean_local_cc_identical_images() {
     let cc = mean_local_cc(&image, &image, dims, 1);
     assert!(
         cc > 0.99,
-        "CC of identical images should be â‰ˆ 1.0, got {cc}"
+        "CC of identical images should be ≈ 1.0, got {cc}"
     );
 }
 
-/// Constant images â†’ CC = 0 (zero variance, degenerate).
+/// Constant images → CC = 0 (zero variance, degenerate).
 #[test]
 fn mean_local_cc_constant_images_is_zero() {
     let dims = [5, 5, 5];
@@ -258,7 +258,7 @@ fn cc_forces_identical_images_bounded() {
     );
 }
 
-// â”€â”€ Cow::Borrowed path (factor == 1) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Cow::Borrowed path (factor == 1) ──────────────────────────────────────────
 
 /// Single-level registration (num_levels=1, factor=1 throughout) exercises the
 /// Cow::Borrowed path for both fixed and moving volumes, since the finest
@@ -268,7 +268,7 @@ fn cc_forces_identical_images_bounded() {
 fn single_level_cow_borrowed_produces_valid_displacement() {
     let dims = [8, 8, 8];
     let image = make_test_image(dims);
-    // num_levels=1 â†’ factor = 2^(1-0-1) = 1 â†’ Cow::Borrowed path
+    // num_levels=1 → factor = 2^(1-0-1) = 1 → Cow::Borrowed path
     let reg = MultiResSyNRegistration::new(make_config(1, vec![10], false));
     let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).unwrap();
 

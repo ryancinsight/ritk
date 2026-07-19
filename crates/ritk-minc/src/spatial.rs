@@ -13,14 +13,14 @@ use crate::{
 use anyhow::{bail, Result};
 use ritk_spatial::{Direction, Point, Spacing, Vector};
 
-// â”€â”€ Canonical direction cosines â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Canonical direction cosines ───────────────────────────────────────────────
 
 /// Default direction cosines for a named spatial dimension.
 ///
-/// - `xspace` â†’ `[1, 0, 0]`
-/// - `yspace` â†’ `[0, 1, 0]`
-/// - `zspace` â†’ `[0, 0, 1]`
-/// - unknown  â†’ `[1, 0, 0]`
+/// - `xspace` → `[1, 0, 0]`
+/// - `yspace` → `[0, 1, 0]`
+/// - `zspace` → `[0, 0, 1]`
+/// - unknown  → `[1, 0, 0]`
 pub fn default_direction_cosines(name: &str) -> [f64; 3] {
     match name {
         "xspace" => [1.0, 0.0, 0.0],
@@ -30,7 +30,7 @@ pub fn default_direction_cosines(name: &str) -> [f64; 3] {
     }
 }
 
-// â”€â”€ Dimension metadata reading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Dimension metadata reading ────────────────────────────────────────────────
 
 /// Read spatial dimension metadata from the MINC2 HDF5 dimensions group.
 ///
@@ -75,7 +75,7 @@ pub fn read_dimension_metadata<R: consus_io::ReadAt + Sync>(
     Ok(dimensions)
 }
 
-// â”€â”€ Dimension ordering â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Dimension ordering ────────────────────────────────────────────────────────
 
 /// Order parsed dimensions according to the dimorder specification.
 ///
@@ -115,14 +115,14 @@ pub fn order_dimensions_by_dimorder(
     Ok(ordered)
 }
 
-// â”€â”€ Image attribute helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Image attribute helpers ───────────────────────────────────────────────────
 
 /// Extract `dimorder` from image dataset attributes.
 pub fn read_dimorder(attrs: &[consus_hdf5::attribute::Hdf5Attribute]) -> Result<Vec<String>> {
     extract_dimorder(attrs)
 }
 
-// â”€â”€ Spatial metadata construction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Spatial metadata construction ─────────────────────────────────────────────
 
 /// Build RITK spatial metadata from ordered dimension metadata.
 ///

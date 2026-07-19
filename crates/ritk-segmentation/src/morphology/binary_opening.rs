@@ -7,7 +7,7 @@
 //!
 //!   Opening(M) = Dilation(Erosion(M, B), B)
 //!
-//! Invariant: Opening(M) âŠ† M (opening can only remove foreground, never add).
+//! Invariant: Opening(M) ⊆ M (opening can only remove foreground, never add).
 
 use super::MorphologicalOperation;
 use ritk_image::tensor::Backend;

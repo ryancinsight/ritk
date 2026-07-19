@@ -80,7 +80,7 @@ fn write_metaimage_flat(
         ));
     }
 
-    // â”€â”€ Spatial metadata â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Spatial metadata ──────────────────────────────────────────────────
     let dir = direction.0;
     let spatial_fields = file_spatial_fields_from_internal(
         [spacing[0], spacing[1], spacing[2]],
@@ -98,12 +98,12 @@ fn write_metaimage_flat(
     );
     let tm = spatial_fields.transform_matrix_row_major;
 
-    // â”€â”€ File I/O â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── File I/O ──────────────────────────────────────────────────────────
     let file = std::fs::File::create(path)
         .with_context(|| format!("Cannot create MetaImage file {:?}", path))?;
     let mut writer = BufWriter::new(file);
 
-    // Header â€” field order matches the ITK MetaImageIO convention.
+    // Header — field order matches the ITK MetaImageIO convention.
     writeln!(writer, "ObjectType = Image")?;
     writeln!(writer, "NDims = 3")?;
     writeln!(writer, "BinaryData = True")?;
@@ -129,9 +129,9 @@ fn write_metaimage_flat(
     // LOCAL signals that binary data follows immediately.
     writeln!(writer, "ElementDataFile = LOCAL")?;
 
-    // Binary payload â€” little-endian f32, written in a single bulk call.
+    // Binary payload — little-endian f32, written in a single bulk call.
     // On little-endian targets the f32 slice reinterprets to bytes with no copy
-    // (BinaryDataByteOrderMSB = False); a per-element `write_all` loop is ~10Ã—
+    // (BinaryDataByteOrderMSB = False); a per-element `write_all` loop is ~10×
     // slower from the per-call overhead across millions of voxels.
     #[cfg(target_endian = "little")]
     writer.write_all(bytemuck::cast_slice(f32_slice))?;
@@ -151,7 +151,7 @@ fn write_metaimage_flat(
     Ok(())
 }
 
-// â”€â”€ Public writer struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public writer struct ──────────────────────────────────────────────────────
 
 /// Thin writer struct for MetaImage files.
 ///

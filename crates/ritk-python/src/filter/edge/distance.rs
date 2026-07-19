@@ -11,8 +11,8 @@ use ritk_filter::{
 /// Zero-crossing-based edge detection, matching
 /// `SimpleITK.ZeroCrossingBasedEdgeDetection`.
 ///
-/// Pipeline: DiscreteGaussian (isotropic `variance`, `maximum_error`) â†’ Laplacian
-/// â†’ zero-crossing detection. Edge voxels take `foreground_value`, the rest
+/// Pipeline: DiscreteGaussian (isotropic `variance`, `maximum_error`) → Laplacian
+/// → zero-crossing detection. Edge voxels take `foreground_value`, the rest
 /// `background_value`.
 ///
 /// Args:
@@ -53,7 +53,7 @@ pub fn zero_crossing_based_edge_detection(
 ///
 /// Voxels straddling the `level_set_value` iso-surface get a first-order signed
 /// distance estimate (averaged-gradient interpolation, combined by minimum
-/// magnitude); voxels away from it keep `Â±far_value`.
+/// magnitude); voxels away from it keep `±far_value`.
 ///
 /// Args:
 ///     image: Input PyImage (a level-set / scalar field).

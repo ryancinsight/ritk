@@ -1,12 +1,12 @@
-//! Analyze 7.5 writer â€” produces a `.hdr` header file and a `.img` raw-data file.
+//! Analyze 7.5 writer — produces a `.hdr` header file and a `.img` raw-data file.
 //!
 //! # Format Overview
 //!
 //! Analyze 7.5 (Mayo Clinic, 1989) stores a 3-D volume as two files sharing the
 //! same base name:
 //!
-//! * `<name>.hdr` â€” 348-byte binary header (little-endian).
-//! * `<name>.img` â€” raw IEEE-754 single-precision voxel values (little-endian).
+//! * `<name>.hdr` — 348-byte binary header (little-endian).
+//! * `<name>.img` — raw IEEE-754 single-precision voxel values (little-endian).
 //!
 //! # Axis Convention
 //!
@@ -14,13 +14,13 @@
 //! (column-major for the [X, Y, Z] axis order):
 //!
 //! ```text
-//!   flat_index(ix, iy, iz) = ix + nxÂ·iy + nxÂ·nyÂ·iz
+//!   flat_index(ix, iy, iz) = ix + nx·iy + nx·ny·iz
 //! ```
 //!
 //! RITK stores tensors with shape `[nz, ny, nx]` using Z-major order:
 //!
 //! ```text
-//!   flat_index(iz, iy, ix) = izÂ·nyÂ·nx + iyÂ·nx + ix
+//!   flat_index(iz, iy, ix) = iz·ny·nx + iy·nx + ix
 //! ```
 //!
 //! Both layouts produce the **same byte sequence** for equal (nx, ny, nz), so
@@ -43,7 +43,7 @@ use ritk_spatial::{Point, Spacing};
 use crate::codec::{write_le, DT_FLOAT, EXTENTS, HDR_SIZE};
 use std::path::Path;
 
-// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public API ────────────────────────────────────────────────────────────────
 
 /// Write a 3-D image to an Analyze 7.5 `.hdr` + `.img` file pair.
 ///
@@ -103,14 +103,14 @@ fn write_analyze_flat(
         }
     }
 
-    // â”€â”€ Build 348-byte header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Build 348-byte header ─────────────────────────────────────────────────
     let mut hdr = [0u8; HDR_SIZE];
 
     write_le::<i32>(&mut hdr, 0, HDR_SIZE as i32); // sizeof_hdr
     write_le::<i32>(&mut hdr, 32, EXTENTS); // extents
     hdr[38] = b'r'; // regular
 
-    // image_dimension â€” dim[8] at offset 40
+    // image_dimension — dim[8] at offset 40
     write_le::<i16>(&mut hdr, 40, 4); // dim[0] = num dimensions
     write_le::<i16>(&mut hdr, 42, nx as i16); // dim[1] = X
     write_le::<i16>(&mut hdr, 44, ny as i16); // dim[2] = Y
@@ -130,11 +130,11 @@ fn write_analyze_flat(
     write_le::<f32>(&mut hdr, 108, 0.0_f32); // vox_offset
     write_le::<f32>(&mut hdr, 112, 1.0_f32); // funused1 = scale factor (1 = no scaling)
 
-    // data_history â€” descrip[80] at offset 148
+    // data_history — descrip[80] at offset 148
     let descrip = b"RITK";
     hdr[148..148 + descrip.len()].copy_from_slice(descrip);
 
-    // originator[10] at offset 253 â€” voxel-space origin (5 Ã— i16)
+    // originator[10] at offset 253 — voxel-space origin (5 × i16)
     let ox_vox = vox_coord(orig[0], sx);
     let oy_vox = vox_coord(orig[1], sy);
     let oz_vox = vox_coord(orig[2], sz);
@@ -145,8 +145,8 @@ fn write_analyze_flat(
     // Write .hdr
     std::fs::write(&hdr_path, hdr).context("Failed to write Analyze header")?;
 
-    // â”€â”€ Write .img (raw f32 little-endian, same memory order as RITK) â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    // RITK layout: flat[iz*ny*nx + iy*nx + ix] â€” identical to Analyze X-fastest.
+    // ── Write .img (raw f32 little-endian, same memory order as RITK) ─────────
+    // RITK layout: flat[iz*ny*nx + iy*nx + ix] — identical to Analyze X-fastest.
     let mut img_data = Vec::with_capacity(vals.len() * 4);
     for v in vals {
         img_data.extend_from_slice(&v.to_le_bytes());
@@ -161,7 +161,7 @@ fn write_analyze_flat(
     Ok(())
 }
 
-// â”€â”€ Analyze writer wrapper type â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Analyze writer wrapper type ───────────────────────────────────────────────
 
 /// Write-side type implementing the `ImageWriter` domain trait.
 pub struct AnalyzeWriter<B: ComputeBackend> {

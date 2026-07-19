@@ -8,24 +8,24 @@ use crate::native_support::map_flat_image;
 ///
 /// # Mathematical Specification
 ///
-/// Let `N = n_z Â· n_y Â· n_x` be the total voxel count.
+/// Let `N = n_z · n_y · n_x` be the total voxel count.
 /// Define (matching ITK, whose `NormalizeImageFilter` divides by the
-/// `StatisticsImageFilter` *sample* sigma â€” Bessel-corrected, `Ã· (Nâˆ’1)`):
+/// `StatisticsImageFilter` *sample* sigma — Bessel-corrected, `÷ (N−1)`):
 ///
-///   `Î¼  = Î£_{x} in(x) / N`
-///   `ÏƒÂ² = Î£_{x} (in(x) âˆ’ Î¼)Â² / (N âˆ’ 1)`
-///   `Ïƒ  = âˆšÏƒÂ²`
+///   `μ  = Σ_{x} in(x) / N`
+///   `σ² = Σ_{x} (in(x) − μ)² / (N − 1)`
+///   `σ  = √σ²`
 ///
 /// Then:
 ///
-///   `out(x) = (in(x) âˆ’ Î¼) / Ïƒ`      if N > 1 and Ïƒ > 0
-///   `out(x) = 0`                      otherwise (N â‰¤ 1, or constant image)
+///   `out(x) = (in(x) − μ) / σ`      if N > 1 and σ > 0
+///   `out(x) = 0`                      otherwise (N ≤ 1, or constant image)
 ///
 /// # Properties
-/// - `Î£ out(x) / N = 0` (zero mean, exactly by construction).
-/// - `Î£ (out(x))Â² / (N âˆ’ 1) = 1` (unit *sample* variance, by construction); the
-///   output population variance is `(N âˆ’ 1) / N`.
-/// - Constant image â†’ all-zero output (undefined normalisation â†’ zero by convention).
+/// - `Σ out(x) / N = 0` (zero mean, exactly by construction).
+/// - `Σ (out(x))² / (N − 1) = 1` (unit *sample* variance, by construction); the
+///   output population variance is `(N − 1) / N`.
+/// - Constant image → all-zero output (undefined normalisation → zero by convention).
 ///
 /// # References
 /// - ITK `itk::NormalizeImageFilter<TInputImage, TOutputImage>` (float-exact).
@@ -42,11 +42,11 @@ impl NormalizeImageFilter {
     pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Image<f32, B, 3> {
         let (vals, dims) = extract_vec(image);
         let n = vals.len() as f64;
-        // PRECISION: f64 accumulation required â€” f32 sum of n>10^7 elements loses
+        // PRECISION: f64 accumulation required — f32 sum of n>10^7 elements loses
         // precision; see numerical_discipline in AGENTS.md.
         let mean = vals.iter().map(|&v| v as f64).sum::<f64>() / n;
         // Sample (Bessel-corrected) variance to match ITK NormalizeImageFilter.
-        // n â‰¤ 1 has no defined sample variance â†’ fall through to the zero output.
+        // n ≤ 1 has no defined sample variance → fall through to the zero output.
         let variance = if n > 1.0 {
             vals.iter()
                 .map(|&v| {
@@ -109,7 +109,7 @@ impl NormalizeImageFilter {
 
 /// Scale an image so that the sum of all voxels equals a target `constant`.
 ///
-/// `out(x) = in(x) Â· constant / Î£ in`. Matches ITK `NormalizeToConstantImageFilter`
+/// `out(x) = in(x) · constant / Σ in`. Matches ITK `NormalizeToConstantImageFilter`
 /// (`sitk.NormalizeToConstant`). A zero-sum image yields all zeros.
 #[derive(Debug, Clone, Copy)]
 pub struct NormalizeToConstantImageFilter {

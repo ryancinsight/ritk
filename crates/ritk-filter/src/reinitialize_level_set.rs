@@ -3,26 +3,42 @@
 //!
 //! # Mathematical Specification
 //!
-//! Deterministic (NOT an iterative PDE). The zero level set of `Ï†` is located by
+//! Deterministic (NOT an iterative PDE). The zero level set of `phi` is located by
 //! a neighbourhood crossing extractor: a voxel adjacent to a sign change of
-//! `Ï† âˆ’ level` is a fast-marching seed whose sub-pixel arrival time is
+//! `phi - level` is a fast-marching seed whose sub-pixel arrival time is
 //!
 //! ```text
-//! distâ±¼ = centerVal / (centerVal âˆ’ neighVal) Â· spacingâ±¼   (nearest crossing along axis j)
-//! trial = 1 / âˆš( Î£â±¼ 1/distâ±¼Â² )                            (multi-axis crossing distance)
+//! dist_j = centerVal / (centerVal - neighVal) * spacing_j
+//! trial = 1 / sqrt(sum_j 1 / dist_j^2)
 //! ```
 //!
 //! Then [`FastMarchingFilter`] propagates unit speed
 //! from the *outside* seeds (`centerVal > 0`) and the *inside* seeds
-//! (`centerVal â‰¤ 0`); the output is `+T_out` on outside voxels and `âˆ’T_in` on
-//! inside voxels â€” a signed distance to the level set. Float-exact to SimpleITK.
+//! (`centerVal <= 0`); the output is `+T_out` on outside voxels and `-T_in` on
+//! inside voxels: a signed distance to the level set. Float-exact to SimpleITK.
 
-use anyhow::Result;
+use anyhow::{ensure, Result};
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::{extract_vec_infallible, rebuild};
 
 use crate::FastMarchingFilter;
+
+fn validate_finite_input(values: &[f32], level: f64) -> Result<()> {
+    ensure!(
+        level.is_finite(),
+        "level-set value must be finite, got {level}"
+    );
+    if let Some((index, value)) = values
+        .iter()
+        .copied()
+        .enumerate()
+        .find(|(_, value)| !value.is_finite())
+    {
+        anyhow::bail!("level-set sample at flat index {index} must be finite, got {value}");
+    }
+    Ok(())
+}
 
 /// Reinitialize a level-set image to a signed distance function.
 #[derive(Debug, Clone, Default)]
@@ -38,8 +54,15 @@ impl ReinitializeLevelSetFilter {
     }
 
     /// Reinitialize the level set.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the configured iso-value or any image sample is
+    /// non-finite, because sign classification and crossing interpolation are
+    /// undefined for NaN and infinity.
     pub fn apply<B: Backend>(&self, image: &Image<f32, B, 3>) -> Result<Image<f32, B, 3>> {
         let (vals, dims) = extract_vec_infallible(image);
+        validate_finite_input(&vals, self.level_set_value)?;
         let [nz, ny, nx] = dims;
         let n = nz * ny * nx;
         let sp = image.spacing(); // [sz, sy, sx]
@@ -92,7 +115,7 @@ impl ReinitializeLevelSetFilter {
                         }
                         node[j] = best;
                     }
-                    node.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    node.sort_by(f64::total_cmp);
                     let mut dsum = 0.0;
                     for &nd in &node {
                         if nd >= f64::MAX {
@@ -151,7 +174,12 @@ impl ReinitializeLevelSetFilter {
         Ok(rebuild(out, dims, image))
     }
 
-    /// Coeus-native counterpart to the legacy application method.
+    /// Apply reinitialization through a Coeus compute backend.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when host extraction fails or when the configured
+    /// iso-value or any image sample is non-finite.
     pub fn apply_native<B>(
         &self,
         image: &ritk_image::Image<f32, B, 3>,
@@ -162,6 +190,7 @@ impl ReinitializeLevelSetFilter {
         B::DeviceBuffer<f32>: coeus_core::CpuAddressableStorage<f32>,
     {
         let (vals, dims) = ritk_tensor_ops::native::extract_image_vec(image)?;
+        validate_finite_input(&vals, self.level_set_value)?;
         let [nz, ny, nx] = dims;
         let n = nz * ny * nx;
         let sp = image.spacing();
@@ -212,7 +241,7 @@ impl ReinitializeLevelSetFilter {
                         }
                         node[j] = best;
                     }
-                    node.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                    node.sort_by(f64::total_cmp);
                     let mut dsum = 0.0;
                     for &nd in &node {
                         if nd >= f64::MAX {

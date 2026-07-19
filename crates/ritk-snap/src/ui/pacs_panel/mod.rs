@@ -1,4 +1,4 @@
-//! PACS network panel â€” egui UI for PACS server configuration, C-ECHO, C-FIND,
+//! PACS network panel — egui UI for PACS server configuration, C-ECHO, C-FIND,
 //! and C-MOVE triggers.
 //!
 //! # Overview
@@ -11,31 +11,31 @@
 //! # Layout
 //!
 //! ```text
-//! â”Œâ”€ Connection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-//! â”‚ Calling AE â”‚ [RITKSNAP ]  Called AE â”‚ [ORTHANC   ]              â”‚
-//! â”‚ Host       â”‚ [localhost ]  Port     â”‚ [4242      ]              â”‚
-//! â”‚ Move dest  â”‚ [RITKSNAP ]  Timeout(s)â”‚ [30        ]              â”‚
-//! â”‚ [Test Connection (C-ECHO)]  â— Connected (0x0000)                â”‚
-//! â”œâ”€ Query â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-//! â”‚ Patient Name: [*        ]  Modality: [    ]                     â”‚
-//! â”‚ [Search (C-FIND)]  [Clear]                                       â”‚
-//! â”œâ”€ Results â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-//! â”‚ 3 result(s)                                                      â”‚
-//! â”‚ PatientName â”‚ Date â”‚ Modality â”‚ #S â”‚ Description â”‚               â”‚
-//! â”‚ DOE^JOHN    â”‚ 20240115 â”‚ CT   â”‚ 3  â”‚ CHEST CT    â”‚               â”‚
-//! â”‚ [Retrieve (C-MOVE)]  â†’ destination AE: RITKSNAP                 â”‚
-//! â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+//! ┌─ Connection ──────────────────────────────────────────────────────┐
+//! │ Calling AE │ [RITKSNAP ]  Called AE │ [ORTHANC   ]              │
+//! │ Host       │ [localhost ]  Port     │ [4242      ]              │
+//! │ Move dest  │ [RITKSNAP ]  Timeout(s)│ [30        ]              │
+//! │ [Test Connection (C-ECHO)]  ● Connected (0x0000)                │
+//! ├─ Query ────────────────────────────────────────────────────────────┤
+//! │ Patient Name: [*        ]  Modality: [    ]                     │
+//! │ [Search (C-FIND)]  [Clear]                                       │
+//! ├─ Results ──────────────────────────────────────────────────────────┤
+//! │ 3 result(s)                                                      │
+//! │ PatientName │ Date │ Modality │ #S │ Description │               │
+//! │ DOE^JOHN    │ 20240115 │ CT   │ 3  │ CHEST CT    │               │
+//! │ [Retrieve (C-MOVE)]  → destination AE: RITKSNAP                 │
+//! └───────────────────────────────────────────────────────────────────┘
 //! ```
 
 use crate::pacs::{AutoLoadPolicy, PacsConfig, QueryState};
 
 mod results;
 
-// â”€â”€ PacsPanelAction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── PacsPanelAction ───────────────────────────────────────────────────────────
 
 /// Action triggered by the PACS panel on a given egui frame.
 ///
-/// The panel is purely declarative â€” it returns an action and the caller
+/// The panel is purely declarative — it returns an action and the caller
 /// (`SnapApp`) performs the resulting state transition or network call.
 #[derive(Debug, Default)]
 pub enum PacsPanelAction {
@@ -72,22 +72,22 @@ pub enum PacsPanelAction {
     LoadReceived,
 }
 
-// â”€â”€ show_pacs_panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── show_pacs_panel ───────────────────────────────────────────────────────────
 
 /// Render the PACS panel into `ui`.
 ///
 /// # Parameters
 ///
-/// - `config` â€” mutable reference to the current PACS server configuration.
-/// - `query_state` â€” mutable reference to the current query state machine.
-/// - `echo_display` â€” human-readable result of the last C-ECHO (empty if none).
-/// - `patient_name` â€” patient name filter string (DICOM wildcard format).
-/// - `modality` â€” modality filter (empty = all).
-/// - `study_date` â€” study date range filter (DICOM range format, empty = all).
-/// - `accession_number` â€” accession number filter (exact match, empty = all).
-/// - `selected_row` â€” index of the currently selected study result row (for C-MOVE).
-/// - `selected_series_row` â€” index of the currently selected series result row.
-/// - `study_context_uid` â€” StudyInstanceUID of the study being drilled into via series.
+/// - `config` — mutable reference to the current PACS server configuration.
+/// - `query_state` — mutable reference to the current query state machine.
+/// - `echo_display` — human-readable result of the last C-ECHO (empty if none).
+/// - `patient_name` — patient name filter string (DICOM wildcard format).
+/// - `modality` — modality filter (empty = all).
+/// - `study_date` — study date range filter (DICOM range format, empty = all).
+/// - `accession_number` — accession number filter (exact match, empty = all).
+/// - `selected_row` — index of the currently selected study result row (for C-MOVE).
+/// - `selected_series_row` — index of the currently selected series result row.
+/// - `study_context_uid` — StudyInstanceUID of the study being drilled into via series.
 ///
 /// # Returns
 ///
@@ -112,7 +112,7 @@ pub fn show_pacs_panel(
 ) -> PacsPanelAction {
     let mut action = PacsPanelAction::None;
 
-    // â”€â”€ Connection configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Connection configuration ──────────────────────────────────────────────
     ui.heading("Connection");
 
     egui::Grid::new("pacs_config_grid")
@@ -241,7 +241,7 @@ pub fn show_pacs_panel(
 
     ui.separator();
 
-    // â”€â”€ Query form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Query form ────────────────────────────────────────────────────────────
     ui.heading("Query");
 
     egui::Grid::new("pacs_query_grid")
@@ -258,7 +258,7 @@ pub fn show_pacs_panel(
             ui.add(
                 egui::TextEdit::singleline(modality)
                     .desired_width(60.0)
-                    .hint_text("CT, MR â€¦ (empty=all)"),
+                    .hint_text("CT, MR … (empty=all)"),
             );
             ui.end_row();
 
@@ -299,7 +299,7 @@ pub fn show_pacs_panel(
 
     ui.separator();
 
-    // â”€â”€ Results â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Results ───────────────────────────────────────────────────────────────
     ui.heading("Results");
     results::show_results_section(
         ui,

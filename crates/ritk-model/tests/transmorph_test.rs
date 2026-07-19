@@ -10,7 +10,7 @@ type Backend = SequentialBackend;
 
 #[test]
 fn test_transmorph_forward() {
-    // Minimum input is 32Â³: patch-4 embedding followed by three stride-2
+    // Minimum input is 32³: patch-4 embedding followed by three stride-2
     // downsamplings requires divisibility by 32.
     let config = TransMorphConfig {
         in_channels: 1,

@@ -4,8 +4,8 @@
 //! pointwise ternary operation applied independently to every voxel.
 //!
 //! - `TernaryAddImageFilter`: `out(x) = a(x) + b(x) + c(x)`
-//! - `TernaryMagnitudeImageFilter`: `out(x) = âˆš(aÂ² + bÂ² + cÂ²)`
-//! - `TernaryMagnitudeSquaredImageFilter`: `out(x) = aÂ² + bÂ² + cÂ²`
+//! - `TernaryMagnitudeImageFilter`: `out(x) = √(a² + b² + c²)`
+//! - `TernaryMagnitudeSquaredImageFilter`: `out(x) = a² + b² + c²`
 //!
 //! Spatial metadata is taken from the first input. A shape mismatch returns
 //! `Err`. One generic [`TernaryOpFilter<Op>`] over a [`TernaryOp`] ZST covers
@@ -31,11 +31,11 @@ pub trait TernaryOp: Default {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct TernaryAddOp;
 
-/// Magnitude: `âˆš(aÂ² + bÂ² + cÂ²)`.
+/// Magnitude: `√(a² + b² + c²)`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct TernaryMagnitudeOp;
 
-/// Squared magnitude: `aÂ² + bÂ² + cÂ²`.
+/// Squared magnitude: `a² + b² + c²`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct TernaryMagnitudeSquaredOp;
 

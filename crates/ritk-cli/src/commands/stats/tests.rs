@@ -11,7 +11,7 @@ use ritk_statistics::{
 use std::path::PathBuf;
 use tempfile::tempdir;
 
-/// Build a 4Ã—4Ã—4 image filled with the given constant value.
+/// Build a 4×4×4 image filled with the given constant value.
 fn native_image(values: Vec<f32>) -> Image<f32, Backend, 3> {
     Image::from_flat_on(
         values,
@@ -28,12 +28,12 @@ fn make_constant_image(value: f32) -> Image<f32, Backend, 3> {
     native_image(vec![value; 64])
 }
 
-/// Build a 4Ã—4Ã—4 ramp image whose voxel at flat index i has value `i as f32`.
+/// Build a 4×4×4 ramp image whose voxel at flat index i has value `i as f32`.
 fn make_ramp_image() -> Image<f32, Backend, 3> {
     native_image((0..64).map(|i| i as f32).collect())
 }
 
-/// Build a 4Ã—4Ã—4 binary mask with the first `n_foreground` voxels set to
+/// Build a 4×4×4 binary mask with the first `n_foreground` voxels set to
 /// 1.0 and the remainder set to 0.0.
 fn make_binary_mask(n_foreground: usize) -> Image<f32, Backend, 3> {
     native_image(
@@ -50,7 +50,7 @@ fn write_nifti_tmp(dir: &std::path::Path, name: &str, image: &Image<f32, Backend
     path
 }
 
-// â”€â”€ Positive: summary computes correct statistics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: summary computes correct statistics ─────────────────────
 
 /// For a constant image, min == max == mean == value, std == 0.
 #[test]
@@ -89,7 +89,7 @@ fn test_stats_summary_ramp_image_values() {
     );
 }
 
-// â”€â”€ Positive: dice on identical masks returns 1.0 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: dice on identical masks returns 1.0 ─────────────────────
 
 #[test]
 fn test_stats_dice_identical_masks_returns_one() {
@@ -115,7 +115,7 @@ fn test_stats_dice_identical_masks_returns_one() {
     );
 }
 
-// â”€â”€ Positive: dice on disjoint masks returns 0.0 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: dice on disjoint masks returns 0.0 ──────────────────────
 
 #[test]
 fn test_stats_dice_disjoint_masks_returns_zero() {
@@ -132,7 +132,7 @@ fn test_stats_dice_disjoint_masks_returns_zero() {
     );
 }
 
-// â”€â”€ Positive: psnr on identical images returns infinity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: psnr on identical images returns infinity ───────────────
 
 #[test]
 fn test_stats_psnr_identical_images_returns_inf() {
@@ -157,7 +157,7 @@ fn test_stats_psnr_identical_images_returns_inf() {
     );
 }
 
-// â”€â”€ Positive: ssim on identical images returns 1.0 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: ssim on identical images returns 1.0 ────────────────────
 
 #[test]
 fn test_stats_ssim_identical_images_returns_one() {
@@ -182,7 +182,7 @@ fn test_stats_ssim_identical_images_returns_one() {
     );
 }
 
-// â”€â”€ Positive: hausdorff on identical masks returns 0.0 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: hausdorff on identical masks returns 0.0 ────────────────
 
 #[test]
 fn test_stats_hausdorff_identical_masks_returns_zero() {
@@ -209,11 +209,11 @@ fn test_stats_hausdorff_identical_masks_returns_zero() {
     );
 }
 
-// â”€â”€ Negative: invalid metric names are rejected by clap at parse time;
+// ── Negative: invalid metric names are rejected by clap at parse time;
 //    the `run()` function is exhaustive over `StatMetric` and cannot receive
-//    an unknown variant. â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+//    an unknown variant. ─────────────────────────────────────────────────
 
-// â”€â”€ Negative: comparison metric without --reference returns error â”€â”€â”€â”€â”€
+// ── Negative: comparison metric without --reference returns error ─────
 
 #[test]
 fn test_stats_dice_without_reference_returns_error() {
@@ -302,7 +302,7 @@ fn test_stats_hausdorff_without_reference_returns_error() {
     );
 }
 
-// â”€â”€ Boundary: missing input file returns error â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Boundary: missing input file returns error ────────────────────────
 
 #[test]
 fn test_stats_missing_input_returns_error() {
@@ -318,7 +318,7 @@ fn test_stats_missing_input_returns_error() {
     assert!(result.is_err(), "missing input must yield an error");
 }
 
-// â”€â”€ Positive: mean-surface-distance identical masks returns 0.0 â”€â”€â”€â”€â”€â”€
+// ── Positive: mean-surface-distance identical masks returns 0.0 ──────
 
 #[test]
 fn test_stats_mean_surface_distance_identical_masks_returns_zero() {
@@ -336,7 +336,7 @@ fn test_stats_mean_surface_distance_identical_masks_returns_zero() {
     run(args).expect("mean-surface-distance must succeed");
 }
 
-// â”€â”€ Positive: noise-estimate on constant image returns without error â”€â”€
+// ── Positive: noise-estimate on constant image returns without error ──
 
 #[test]
 fn test_stats_noise_estimate_constant_image_returns_zero() {
@@ -353,7 +353,7 @@ fn test_stats_noise_estimate_constant_image_returns_zero() {
     run(args).expect("noise-estimate must succeed");
 }
 
-// â”€â”€ Negative: mean-surface-distance without --reference returns error â”€
+// ── Negative: mean-surface-distance without --reference returns error ─
 
 #[test]
 fn test_stats_mean_surface_distance_without_reference_returns_error() {

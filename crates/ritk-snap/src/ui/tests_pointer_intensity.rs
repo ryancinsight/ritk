@@ -28,8 +28,8 @@ fn test_volume(shape: [usize; 3], data: Vec<f32>) -> LoadedVolume {
 
 /// In-bounds voxel lookup must return the correct value from the buffer.
 ///
-/// Analytical: 3Ã—3Ã—3 volume (27 pixels total), uniform value 5.0.
-/// Lookup [1, 1, 1] (center voxel) â†’ idx = 1 Ã— 9 + 1 Ã— 3 + 1 = 13.
+/// Analytical: 3×3×3 volume (27 pixels total), uniform value 5.0.
+/// Lookup [1, 1, 1] (center voxel) → idx = 1 × 9 + 1 × 3 + 1 = 13.
 /// pixels[13] = 5.0.
 #[test]
 fn test_intensity_at_voxel_in_bounds() {
@@ -40,7 +40,7 @@ fn test_intensity_at_voxel_in_bounds() {
 
 /// Out-of-bounds depth coordinate must return 0.0.
 ///
-/// Analytical: 2Ã—2Ã—2 volume, d=2 is out-of-bounds (shape[0]=2, valid: 0â€“1).
+/// Analytical: 2×2×2 volume, d=2 is out-of-bounds (shape[0]=2, valid: 0–1).
 #[test]
 fn test_intensity_at_voxel_out_of_bounds_depth() {
     let vol = test_volume([2, 2, 2], vec![42.0; 8]);
@@ -66,9 +66,9 @@ fn test_intensity_at_voxel_out_of_bounds_column() {
 
 /// Boundary voxels (at edges) must return correct values.
 ///
-/// Analytical: 2Ã—2Ã—2 volume with pixels [0,1,2,3,4,5,6,7] (row-major).
-/// Voxel [0,0,0] â†’ idx = 0 â†’ pixels[0] = 0.0
-/// Voxel [1,1,1] â†’ idx = 1Ã—4 + 1Ã—2 + 1 = 7 â†’ pixels[7] = 7.0
+/// Analytical: 2×2×2 volume with pixels [0,1,2,3,4,5,6,7] (row-major).
+/// Voxel [0,0,0] → idx = 0 → pixels[0] = 0.0
+/// Voxel [1,1,1] → idx = 1×4 + 1×2 + 1 = 7 → pixels[7] = 7.0
 #[test]
 fn test_intensity_at_voxel_boundary_corners() {
     let vol = test_volume([2, 2, 2], (0..8).map(|i| i as f32).collect());

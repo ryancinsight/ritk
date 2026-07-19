@@ -4,14 +4,14 @@
 //!
 //! Provides [`draw_histogram`], a stateless function that renders an
 //! intensity histogram bar chart with a W/L range overlay into any egui
-//! `Ui`. The histogram bars use a logâ‚â‚Šâ‚ scale so that high-count bins
+//! `Ui`. The histogram bars use a log₁₊₁ scale so that high-count bins
 //! (e.g. air background in CT) do not visually dominate the display.
 //!
 //! # Pure helper functions (tested independently)
 //!
 //! | Function | Contract |
 //! |----------|---------|
-//! | [`bar_height_log`] | logâ‚â‚Šâ‚-scaled bar height from count and peak |
+//! | [`bar_height_log`] | log₁₊₁-scaled bar height from count and peak |
 //! | [`wl_to_x`] | linear mapping of an intensity value to an x-pixel |
 //!
 //! Both functions are O(1), allocation-free, and deterministic; they are
@@ -30,7 +30,7 @@ use crate::ui::histogram_interact::{
     wl_center_from_click, wl_from_histogram_drag, HistogramCanvasGeometry,
 };
 
-// â”€â”€ visual constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── visual constants ───────────────────────────────────────────────────────────
 
 /// Background fill for the histogram canvas.
 const BACKGROUND_COLOR: Color32 = Color32::from_gray(20);
@@ -50,13 +50,13 @@ const WL_CENTER_COLOR: Color32 = Color32::from_rgb(255, 190, 60);
 /// Height in pixels allocated for the histogram canvas.
 const CANVAS_HEIGHT: f32 = 80.0;
 
-// â”€â”€ bar_height_log â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── bar_height_log ─────────────────────────────────────────────────────────────
 
-/// Compute the display height of a histogram bar using a logâ‚â‚Šâ‚ scale.
+/// Compute the display height of a histogram bar using a log₁₊₁ scale.
 ///
 /// # Contract
 ///
-/// `height(count, peak, h) = ln(count + 1) / ln(peak + 1) Ã— h`
+/// `height(count, peak, h) = ln(count + 1) / ln(peak + 1) × h`
 ///
 /// where `ln` is the natural logarithm. The invariants are:
 /// - `bar_height_log(peak, peak, h) = h` (tallest bar fills the canvas).
@@ -64,7 +64,7 @@ const CANVAS_HEIGHT: f32 = 80.0;
 /// - `bar_height_log(count, 0, h) = 0.0` (no data, no bars).
 ///
 /// Uses `f64` internally to avoid significant rounding errors for large
-/// counts (up to ~2Â³Â² per bin).
+/// counts (up to ~2³² per bin).
 #[inline]
 pub fn bar_height_log(count: u64, peak: u64, available_height: f32) -> f32 {
     if peak == 0 || count == 0 {
@@ -74,18 +74,18 @@ pub fn bar_height_log(count: u64, peak: u64, available_height: f32) -> f32 {
     (ratio * available_height as f64) as f32
 }
 
-// â”€â”€ wl_to_x â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── wl_to_x ───────────────────────────────────────────────────────────────────
 
 /// Map an intensity `value` from histogram range `[hist_min, hist_max]`
 /// linearly to a pixel x-coordinate in `[x_left, x_right]`.
 ///
 /// # Contract
 ///
-/// `x(v) = x_left + (v âˆ’ hist_min) / (hist_max âˆ’ hist_min) Ã— (x_right âˆ’ x_left)`
+/// `x(v) = x_left + (v − hist_min) / (hist_max − hist_min) × (x_right − x_left)`
 ///
 /// clamped to `[x_left, x_right]`.
 ///
-/// Returns `x_left` when the range is degenerate (`hist_max âˆ’ hist_min < Îµ`).
+/// Returns `x_left` when the range is degenerate (`hist_max − hist_min < ε`).
 #[inline]
 pub fn wl_to_x(value: f32, hist_min: f32, hist_max: f32, x_left: f32, x_right: f32) -> f32 {
     let span = hist_max - hist_min;
@@ -97,7 +97,7 @@ pub fn wl_to_x(value: f32, hist_min: f32, hist_max: f32, x_left: f32, x_right: f
     x.clamp(x_left, x_right)
 }
 
-// â”€â”€ draw_histogram â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── draw_histogram ─────────────────────────────────────────────────────────────
 
 /// Render an intensity histogram with a W/L range overlay into `ui`.
 ///
@@ -105,8 +105,8 @@ pub fn wl_to_x(value: f32, hist_min: f32, hist_max: f32, x_left: f32, x_right: f
 /// width, then:
 ///
 /// 1. Fills the background.
-/// 2. Draws one bar per bin (logâ‚â‚Šâ‚-scaled height).
-/// 3. Overlays the W/L window band (centre Â± width/2) as a semi-transparent
+/// 2. Draws one bar per bin (log₁₊₁-scaled height).
+/// 3. Overlays the W/L window band (centre ± width/2) as a semi-transparent
 ///    blue rectangle with an orange centre line.
 /// 4. Draws `min` and `max` intensity labels below the canvas.
 ///
@@ -124,7 +124,7 @@ pub fn draw_histogram(
     ui: &mut Ui,
 ) -> Option<(f32, f32)> {
     if histogram.bins == 0 {
-        ui.label("(no histogram â€” load a study first)");
+        ui.label("(no histogram — load a study first)");
         return None;
     }
 
@@ -136,10 +136,10 @@ pub fn draw_histogram(
 
     let painter: Painter = ui.painter_at(rect);
 
-    // â”€â”€ background â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── background ────────────────────────────────────────────────────────────
     painter.rect_filled(rect, 2.0, BACKGROUND_COLOR);
 
-    // â”€â”€ bars â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── bars ──────────────────────────────────────────────────────────────────
     let peak = histogram_peak_count(histogram);
     let n = histogram.bins;
     let bar_w = rect.width() / n as f32;
@@ -158,7 +158,7 @@ pub fn draw_histogram(
         painter.rect_filled(bar_rect, 0.0, BAR_COLOR);
     }
 
-    // â”€â”€ W/L range overlay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── W/L range overlay ─────────────────────────────────────────────────────
     let hist_min = histogram.min();
     let hist_max = histogram.max();
     let span = hist_max - hist_min;
@@ -185,7 +185,7 @@ pub fn draw_histogram(
         );
     }
 
-    // â”€â”€ axis labels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── axis labels ───────────────────────────────────────────────────────────
     ui.horizontal(|ui| {
         ui.label(
             egui::RichText::new(format!("{:.0}", hist_min))
@@ -201,7 +201,7 @@ pub fn draw_histogram(
         });
     });
 
-    // â”€â”€ interaction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── interaction ───────────────────────────────────────────────────────────
     if response.dragged() {
         let delta = response.drag_delta();
         let (new_c, new_w) = wl_from_histogram_drag(

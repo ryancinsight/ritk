@@ -9,7 +9,7 @@
 //! All displayed SUV values are computed by the canonical
 //! [`crate::dicom::suv::compute_suvbw`] kernel using parameters from
 //! [`crate::dicom::pet::PetAcquisitionParams`]. This panel performs no
-//! independent SUV computation â€” it is a read-only display surface.
+//! independent SUV computation — it is a read-only display surface.
 
 use egui::Ui;
 
@@ -27,14 +27,14 @@ pub enum PetSuvPanelAction {
 /// interactive controls).
 ///
 /// # Parameters
-/// - `ui` â€” egui UI context for the sidebar panel.
-/// - `modality` â€” DICOM modality string; panel renders only when `Some("PT")`.
-/// - `pointer_suv` â€” SUVbw at the current pointer position.
-/// - `cursor_suv` â€” SUVbw at the linked-cursor position.
-/// - `patient_weight_kg` â€” patient body weight.
-/// - `injected_dose_bq` â€” injected radionuclide activity.
-/// - `half_life_s` â€” radionuclide physical half-life.
-/// - `decay_correction` â€” decay correction mode string.
+/// - `ui` — egui UI context for the sidebar panel.
+/// - `modality` — DICOM modality string; panel renders only when `Some("PT")`.
+/// - `pointer_suv` — SUVbw at the current pointer position.
+/// - `cursor_suv` — SUVbw at the linked-cursor position.
+/// - `patient_weight_kg` — patient body weight.
+/// - `injected_dose_bq` — injected radionuclide activity.
+/// - `half_life_s` — radionuclide physical half-life.
+/// - `decay_correction` — decay correction mode string.
 pub fn draw_pet_suv_panel(
     ui: &mut Ui,
     modality: Option<&str>,
@@ -54,7 +54,7 @@ pub fn draw_pet_suv_panel(
         ui.heading("PET / SUV");
         ui.separator();
 
-        // â”€â”€ SUV readouts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── SUV readouts ────────────────────────────────────────
         ui.label("SUVbw Readouts");
         match pointer_suv {
             Some(v) if v.is_finite() => {
@@ -64,7 +64,7 @@ pub fn draw_pet_suv_panel(
                 );
             }
             _ => {
-                ui.label("Pointer: â€”");
+                ui.label("Pointer: —");
             }
         }
         match cursor_suv {
@@ -75,21 +75,21 @@ pub fn draw_pet_suv_panel(
                 );
             }
             _ => {
-                ui.label("Cursor: â€”");
+                ui.label("Cursor: —");
             }
         }
 
         ui.add_space(4.0);
         ui.separator();
 
-        // â”€â”€ Acquisition parameters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Acquisition parameters ──────────────────────────────
         ui.label("Acquisition Parameters");
         match patient_weight_kg {
             Some(w) if w > 0.0 => {
                 ui.label(format!("Weight: {:.1} kg", w));
             }
             _ => {
-                ui.label("Weight: â€”");
+                ui.label("Weight: —");
             }
         }
         match injected_dose_bq {
@@ -98,16 +98,16 @@ pub fn draw_pet_suv_panel(
                 ui.label(format!("Dose: {:.1} MBq", d_mbq));
             }
             _ => {
-                ui.label("Dose: â€”");
+                ui.label("Dose: —");
             }
         }
         match half_life_s {
             Some(h) if h > 0.0 => {
                 let h_min = h / 60.0;
-                ui.label(format!("TÂ½: {:.2} min", h_min));
+                ui.label(format!("T½: {:.2} min", h_min));
             }
             _ => {
-                ui.label("TÂ½: â€”");
+                ui.label("T½: —");
             }
         }
         match decay_correction {
@@ -115,7 +115,7 @@ pub fn draw_pet_suv_panel(
                 ui.label(format!("Decay: {}", dc));
             }
             _ => {
-                ui.label("Decay: â€”");
+                ui.label("Decay: —");
             }
         }
     });
@@ -204,11 +204,11 @@ mod tests {
     /// Half-life display converts seconds to minutes correctly.
     #[test]
     fn half_life_display_converts_s_to_min() {
-        // Â¹â¸F: 6584.04 s = 109.734 min
+        // ¹â¸F: 6584.04 s = 109.734 min
         let h_min = 6584.04_f64 / 60.0;
         assert!(
             (h_min - 109.734).abs() < 1e-3,
-            "Â¹â¸F half-life must be 109.734 min, got {h_min}"
+            "¹â¸F half-life must be 109.734 min, got {h_min}"
         );
     }
 }

@@ -5,9 +5,9 @@
 //!
 //! The elastic regularization term is derived from linear elasticity theory:
 //!
-//! R(u) = âˆ«_Î© [Î¼|âˆ‡u + (âˆ‡u)^T|Â² + Î»(div u)Â²] dx
+//! R(u) = ∫_Ω [μ|∇u + (∇u)^T|² + λ(div u)²] dx
 //!
-//! where Î¼ is the shear modulus and Î» is the first LamÃ© parameter.
+//! where μ is the shear modulus and λ is the first Lamé parameter.
 //!
 //! Simplified forms used in practice:
 //! - Hyperelastic: Combines membrane energy with volume preservation

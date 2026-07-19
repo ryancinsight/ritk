@@ -13,7 +13,7 @@
 //!   across inputs.
 //! - **Aggregate** (1): objects sharing a label are unioned; new labels are kept.
 //! - **Pack** (2): every object from every input is appended and relabeled
-//!   `1, 2, 3, â€¦` in (input order, ascending-label) sequence.
+//!   `1, 2, 3, …` in (input order, ascending-label) sequence.
 //! - **Strict** (3): like Keep, but a label collision is an error rather than a
 //!   relabel.
 //!
@@ -22,8 +22,8 @@
 //! `itk::LabelMapToLabelImageFilter`).
 //!
 //! # ITK / SimpleITK parity
-//! Bit-exact to `sitk.LabelMapToLabel(sitk.MergeLabelMap([â€¦], method))` for all
-//! four methods, including the persistent-deferred-queue behavior with â‰¥3 inputs.
+//! Bit-exact to `sitk.LabelMapToLabel(sitk.MergeLabelMap([…], method))` for all
+//! four methods, including the persistent-deferred-queue behavior with ≥3 inputs.
 
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
@@ -40,7 +40,7 @@ pub enum MergeLabelMethod {
     Keep,
     /// Union objects that share a label.
     Aggregate,
-    /// Append all objects and relabel `1, 2, 3, â€¦`.
+    /// Append all objects and relabel `1, 2, 3, …`.
     Pack,
     /// Keep labels; a collision is a hard error.
     Strict,
@@ -138,7 +138,7 @@ pub fn merge_label_maps<B: Backend>(
 
     let out_flat = match method {
         MergeLabelMethod::Pack => {
-            // Append every object from every input, relabel 1, 2, 3, â€¦.
+            // Append every object from every input, relabel 1, 2, 3, ….
             let mut next: u32 = 0;
             let mut objects: Vec<(u32, Vec<usize>)> = Vec::new();
             for flat in &flats {
@@ -193,7 +193,7 @@ pub fn merge_label_maps<B: Backend>(
     Ok(rebuild(out_flat, dims, first))
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_merge_label_map.rs"]

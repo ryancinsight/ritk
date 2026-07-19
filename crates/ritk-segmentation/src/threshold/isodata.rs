@@ -1,4 +1,4 @@
-//! IsoData (Ridlerâ€“Calvard iterative intermeans) thresholding.
+//! IsoData (Ridler–Calvard iterative intermeans) thresholding.
 //!
 //! Matches ITK's `IsoDataThresholdCalculator` / the Fiji Auto_Threshold
 //! "IsoData" method: iteratively refine the threshold to the midpoint of the
@@ -9,7 +9,7 @@ use ritk_image::Image;
 
 use super::auto_threshold::{bin_center, itk_bin_width, threshold_from_slice, AutoThreshold};
 
-/// IsoData (Ridlerâ€“Calvard) iterative-intermeans threshold.
+/// IsoData (Ridler–Calvard) iterative-intermeans threshold.
 #[derive(Debug, Clone)]
 pub struct IsoDataThreshold {
     /// Number of equally-spaced histogram bins. Default 256.
@@ -71,7 +71,7 @@ impl AutoThreshold for IsoDataThreshold {
         self.num_bins
     }
 
-    /// Ridlerâ€“Calvard iteration, faithful to `itk::IsoDataThresholdCalculator`.
+    /// Ridler–Calvard iteration, faithful to `itk::IsoDataThresholdCalculator`.
     ///
     /// The means are computed over the bin-centre **measurements** (not indices),
     /// the background is `[0, pos]` (inclusive) and the foreground `[pos+1, N)`,

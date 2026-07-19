@@ -21,8 +21,8 @@ use ritk_dicom::TransferSyntaxKind;
 use ritk_spatial::{Direction, Point, Spacing};
 #[test]
 fn test_gantry_tilt_synthesizes_oblique_orientation() {
-    // Invariant: axial IOP [1,0,0,0,1,0] + GantryDetectorTilt=15Â° must produce
-    // synthesized F_c=[0,cos(15Â°),-sin(15Â°)] and NÌ‚=[0,sin(15Â°),cos(15Â°)].
+    // Invariant: axial IOP [1,0,0,0,1,0] + GantryDetectorTilt=15° must produce
+    // synthesized F_c=[0,cos(15°),-sin(15°)] and NÌ‚=[0,sin(15°),cos(15°)].
     use dicom::core::{Tag, VR};
     use dicom::object::{FileMetaTableBuilder, InMemDicomObject};
     use dicom_core::smallvec::SmallVec;
@@ -120,13 +120,13 @@ fn test_gantry_tilt_synthesizes_oblique_orientation() {
         VR::DS,
         PrimitiveValue::from("1.000000"),
     ));
-    // GantryDetectorTilt = 15Â°
+    // GantryDetectorTilt = 15°
     obj.put(dicom::core::DataElement::new(
         Tag(0x0018, 0x1120),
         VR::DS,
         PrimitiveValue::from(format!("{:.6}", tilt_deg).as_str()),
     ));
-    // Pixel data: 2Ã—2 u16 = 8 bytes
+    // Pixel data: 2×2 u16 = 8 bytes
     let pixel_u16: Vec<u16> = vec![100, 200, 300, 400];
     obj.put(dicom::core::DataElement::new(
         Tag(0x7FE0, 0x0010),
@@ -187,7 +187,7 @@ fn test_gantry_tilt_synthesizes_oblique_orientation() {
         "iop[2]=F_r[2] must be 0; got {}",
         iop[2]
     );
-    // F_c = [0, cos(Î¸), -sin(Î¸)]
+    // F_c = [0, cos(θ), -sin(θ)]
     assert!(
         iop[3].abs() < TOL,
         "iop[3]=F_c[0] must be 0; got {}",
@@ -195,29 +195,29 @@ fn test_gantry_tilt_synthesizes_oblique_orientation() {
     );
     assert!(
         (iop[4] - expected_cos).abs() < TOL,
-        "iop[4]=F_c[1] must be cos(15Â°)={:.10}; got {}",
+        "iop[4]=F_c[1] must be cos(15°)={:.10}; got {}",
         expected_cos,
         iop[4]
     );
     assert!(
         (iop[5] + expected_sin).abs() < TOL,
-        "iop[5]=F_c[2] must be -sin(15Â°)={:.10}; got {}",
+        "iop[5]=F_c[2] must be -sin(15°)={:.10}; got {}",
         -expected_sin,
         iop[5]
     );
 
-    // direction[0..3] = NÌ‚ = F_r Ã— F_c = [0, sin(15Â°), cos(15Â°)]
+    // direction[0..3] = NÌ‚ = F_r × F_c = [0, sin(15°), cos(15°)]
     let dir = &info.metadata.direction;
     assert!(dir[0].abs() < TOL, "NÌ‚[0] must be 0; got {}", dir[0]);
     assert!(
         (dir[1] - expected_sin).abs() < TOL,
-        "NÌ‚[1] must be sin(15Â°)={:.10}; got {}",
+        "NÌ‚[1] must be sin(15°)={:.10}; got {}",
         expected_sin,
         dir[1]
     );
     assert!(
         (dir[2] - expected_cos).abs() < TOL,
-        "NÌ‚[2] must be cos(15Â°)={:.10}; got {}",
+        "NÌ‚[2] must be cos(15°)={:.10}; got {}",
         expected_cos,
         dir[2]
     );

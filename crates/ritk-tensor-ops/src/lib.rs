@@ -100,7 +100,7 @@ pub fn extract_vec_infallible<B: Backend, const D: usize>(
 ///   copied.
 ///
 /// # Panics
-/// Does not panic; the only possible failure is a Burn backend OOM, which is
+/// Does not panic; the only possible failure is a Coeus backend OOM, which is
 /// unrecoverable by the filter layer.
 ///
 /// # Invariant

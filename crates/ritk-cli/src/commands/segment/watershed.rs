@@ -8,7 +8,7 @@ use super::super::{infer_format, is_read_capable, read_image, write_image, Backe
 use super::args::SegmentArgs;
 use super::helpers::read_native_input;
 
-// â”€â”€ Watershed segmentation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Watershed segmentation ────────────────────────────────────────────────────
 
 /// Apply watershed flooding segmentation.
 ///
@@ -46,7 +46,7 @@ pub(super) fn run_watershed(args: &SegmentArgs) -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Marker-controlled watershed segmentation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Marker-controlled watershed segmentation ──────────────────────────────────
 
 /// Apply marker-controlled watershed segmentation.
 ///

@@ -4,7 +4,7 @@
 //!
 //! Ports `itk::FastMarchingImageFilter`. Given a non-negative speed image `F`
 //! and a set of trial (seed) points with initial arrival times, it solves the
-//! Eikonal equation `â€–âˆ‡Tâ€–Â·F = 1` by ordered upwind propagation: a min-heap pops
+//! Eikonal equation `—–∇T—–·F = 1` by ordered upwind propagation: a min-heap pops
 //! the smallest tentative arrival time (which is then final), marks it *alive*,
 //! and re-solves each non-alive neighbour.
 //!
@@ -13,7 +13,7 @@
 //! `u_a`:
 //!
 //! ```text
-//! Î£_a (1/spacing_aÂ²)Â·(T âˆ’ u_a)Â² = (normalization_factor / F)Â²
+//! Σ_a (1/spacing_a²)·(T − u_a)² = (normalization_factor / F)²
 //! ```
 //!
 //! Because the popped value is final, heap tie-ordering cannot change the
@@ -36,11 +36,11 @@ const LARGE_VALUE: f64 = f32::MAX as f64;
 pub struct FastMarchingFilter {
     /// Trial (seed) points as `[z, y, x]` indices.
     pub trial_points: Vec<[usize; 3]>,
-    /// Initial arrival time per trial point; empty â‡’ all `0.0`.
+    /// Initial arrival time per trial point; empty ⇒ all `0.0`.
     pub initial_trial_values: Vec<f64>,
     /// Speed normalization factor (ITK default `1.0`).
     pub normalization_factor: f64,
-    /// Stop once the smallest tentative arrival time exceeds this (ITK default âˆž).
+    /// Stop once the smallest tentative arrival time exceeds this (ITK default ∞).
     pub stopping_value: f64,
 }
 
@@ -82,7 +82,7 @@ impl FastMarchingFilter {
         // 0 = far, 1 = trial, 2 = alive.
         let mut label = vec![0u8; n];
         let mut t = vec![LARGE_VALUE; n];
-        // Min-heap on (arrival-time bits, index); arrival times are â‰¥ 0 so the
+        // Min-heap on (arrival-time bits, index); arrival times are ≥ 0 so the
         // f64 bit pattern is monotonic, giving a correct min-heap via Reverse.
         let mut heap: BinaryHeap<Reverse<(u64, usize)>> = BinaryHeap::new();
 
@@ -97,7 +97,7 @@ impl FastMarchingFilter {
             heap.push(Reverse((v.to_bits(), i)));
         }
 
-        // Per-axis Â±1 neighbour offsets in (z, y, x).
+        // Per-axis ±1 neighbour offsets in (z, y, x).
         let axis_neighbors = |z: usize, y: usize, x: usize, axis: usize| -> [Option<usize>; 2] {
             let (zi, yi, xi) = (z as isize, y as isize, x as isize);
             let step = |s: isize| -> Option<usize> {
@@ -169,7 +169,7 @@ impl FastMarchingFilter {
             if val > self.stopping_value {
                 break;
             }
-            label[i] = 2; // alive â€” `t[i]` is now final
+            label[i] = 2; // alive — `t[i]` is now final
             let (z, y, x) = coords(i);
             for axis in 0..3 {
                 for ni in axis_neighbors(z, y, x, axis).into_iter().flatten() {
@@ -216,7 +216,7 @@ impl FastMarchingFilter {
         // 0 = far, 1 = trial, 2 = alive.
         let mut label = vec![0u8; n];
         let mut t = vec![LARGE_VALUE; n];
-        // Min-heap on (arrival-time bits, index); arrival times are â‰¥ 0 so the
+        // Min-heap on (arrival-time bits, index); arrival times are ≥ 0 so the
         // f64 bit pattern is monotonic, giving a correct min-heap via Reverse.
         let mut heap: BinaryHeap<Reverse<(u64, usize)>> = BinaryHeap::new();
 
@@ -231,7 +231,7 @@ impl FastMarchingFilter {
             heap.push(Reverse((v.to_bits(), i)));
         }
 
-        // Per-axis Â±1 neighbour offsets in (z, y, x).
+        // Per-axis ±1 neighbour offsets in (z, y, x).
         let axis_neighbors = |z: usize, y: usize, x: usize, axis: usize| -> [Option<usize>; 2] {
             let (zi, yi, xi) = (z as isize, y as isize, x as isize);
             let step = |s: isize| -> Option<usize> {
@@ -303,7 +303,7 @@ impl FastMarchingFilter {
             if val > self.stopping_value {
                 break;
             }
-            label[i] = 2; // alive â€” `t[i]` is now final
+            label[i] = 2; // alive — `t[i]` is now final
             let (z, y, x) = coords(i);
             for axis in 0..3 {
                 for ni in axis_neighbors(z, y, x, axis).into_iter().flatten() {

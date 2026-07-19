@@ -6,7 +6,7 @@ pub use ritk_png::{
 ///
 /// Transitional module: names inside are the plain end-state names; the
 /// module itself disambiguates from the Burn types during coexistence and
-/// folds away when the Burn path is deleted (ADR 0002).
+/// folds away when the Coeus path is deleted (ADR 0002).
 pub mod native {
     use crate::domain::{to_io_err, ImageReader};
     use coeus_core::ComputeBackend;

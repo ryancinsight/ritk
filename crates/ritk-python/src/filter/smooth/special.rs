@@ -26,7 +26,7 @@ pub fn mean_filter(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResult
 
 /// Apply a box mean filter with per-axis radii: each voxel becomes the average
 /// over the `(2r+1)` window clipped to the image bounds (dividing by the
-/// in-bounds count â€” shrink boundary, unlike `mean_filter`'s clamped full
+/// in-bounds count — shrink boundary, unlike `mean_filter`'s clamped full
 /// window). ITK Parity: BoxMeanImageFilter (`sitk.BoxMean`, radius `[rx,ry,rz]`).
 #[pyfunction]
 #[pyo3(signature = (image, radius_z=1, radius_y=1, radius_x=1))]
@@ -45,7 +45,7 @@ pub fn box_mean(
 
 /// Apply a box sigma filter: the per-axis sample standard deviation over the
 /// `(2r+1)` window clipped to the image bounds (Bessel-corrected, divisor
-/// `nâˆ’1`; shrink boundary). ITK Parity: BoxSigmaImageFilter (`sitk.BoxSigma`,
+/// `n−1`; shrink boundary). ITK Parity: BoxSigmaImageFilter (`sitk.BoxSigma`,
 /// radius `[rx,ry,rz]`).
 #[pyfunction]
 #[pyo3(signature = (image, radius_z=1, radius_y=1, radius_x=1))]
@@ -82,7 +82,7 @@ pub fn local_noise(
     into_py_image(out)
 }
 
-/// Apply a box rank filter: the order statistic at `floor(rankÂ·(nâˆ’1))` of the
+/// Apply a box rank filter: the order statistic at `floor(rank·(n−1))` of the
 /// sorted `(2r+1)` window clipped to the image bounds (`rank=0.5` is the median;
 /// shrink boundary). ITK Parity: RankImageFilter (`sitk.Rank`, radius `[rx,ry,rz]`).
 #[pyfunction]
@@ -101,7 +101,7 @@ pub fn rank(
     into_py_image(out)
 }
 
-/// Apply a binomial blur: the separable `[Â¼,Â½,Â¼]` kernel along each axis,
+/// Apply a binomial blur: the separable `[¼,½,¼]` kernel along each axis,
 /// repeated `repetitions` times (reflect boundary). ITK Parity:
 /// BinomialBlurImageFilter (`sitk.BinomialBlur`).
 #[pyfunction]
@@ -120,7 +120,7 @@ pub fn binomial_blur(py: Python<'_>, image: &PyImage, repetitions: usize) -> PyI
 ///
 /// Args:
 ///     image: Input PyImage.
-///     radius: Neighbourhood half-width in voxels (default 1 â†’ 3Ã—3Ã—3 cube).
+///     radius: Neighbourhood half-width in voxels (default 1 → 3×3×3 cube).
 ///         The kernel contains `(2*radius + 1)^3` samples.
 ///
 /// Returns:
@@ -145,8 +145,8 @@ pub fn median_filter(py: Python<'_>, image: &PyImage, radius: usize) -> RitkResu
 ///
 /// Each output voxel is a weighted average of its neighbourhood, where the
 /// weight combines:
-/// - A **spatial** Gaussian: `exp(âˆ’||p âˆ’ q||Â² / (2 Ïƒ_sÂ²))`
-/// - A **range** Gaussian: `exp(âˆ’(I(p) âˆ’ I(q))Â² / (2 Ïƒ_rÂ²))`
+/// - A **spatial** Gaussian: `exp(−||p − q||² / (2 σ_s²))`
+/// - A **range** Gaussian: `exp(−(I(p) − I(q))² / (2 σ_r²))`
 ///
 /// Args:
 ///     image: Input PyImage.
@@ -179,11 +179,11 @@ pub fn bilateral_filter(
 ///
 /// Corrects low-frequency multiplicative intensity inhomogeneity caused by
 /// RF coil non-uniformity. Based on Tustison et al. (2010),
-/// *IEEE Trans. Med. Imaging* 29(6):1310â€“1320.
+/// *IEEE Trans. Med. Imaging* 29(6):1310–1320.
 ///
 /// This is a from-scratch N4 (not a wrapper around ITK) that follows the ITK/ANTs
 /// algorithm: ITK `SharpenImage` histogram sharpening (Wiener deconvolution + the
-/// E[v|u] expectation map) and the Leeâ€“Wolbergâ€“Shin multilevel B-spline
+/// E[v|u] expectation map) and the Lee–Wolberg–Shin multilevel B-spline
 /// (scattered-data) fit, with the bias estimated on the input downsampled by a
 /// shrink factor and the log-bias control lattice evaluated at full resolution.
 /// It reduces within-tissue coefficient of variation comparably to ANTsPy's
@@ -199,8 +199,8 @@ pub fn bilateral_filter(
 ///     shrink_factor: The bias field is estimated on the input downsampled by
 ///         this isotropic factor (ITK/ANTs `shrinkFactor`, default 4), then
 ///         evaluated at full resolution. The factor is adapted down so the
-///         smallest shrunk dimension stays â‰¥ 4; for small volumes (â‰² 32 voxels
-///         per side) pass ``shrink_factor=1`` â€” the default 4 is tuned for
+///         smallest shrunk dimension stays ≥ 4; for small volumes (≲ 32 voxels
+///         per side) pass ``shrink_factor=1`` — the default 4 is tuned for
 ///         clinical-resolution images and, like ANTs at shrink 4, under-corrects
 ///         small phantoms.
 ///
@@ -283,10 +283,10 @@ pub fn bin_shrink(
 ///
 /// ```text
 /// output[z, y, x] =
-///     Î£_{kz,ky,kx}  kernel[kz, ky, kx]
-///     Â· image[clamp(z + kz âˆ’ hz, 0, Dzâˆ’1),
-///              clamp(y + ky âˆ’ hy, 0, Dyâˆ’1),
-///              clamp(x + kx âˆ’ hx, 0, Dxâˆ’1)]
+///     Σ_{kz,ky,kx}  kernel[kz, ky, kx]
+///     · image[clamp(z + kz − hz, 0, Dz−1),
+///              clamp(y + ky − hy, 0, Dy−1),
+///              clamp(x + kx − hx, 0, Dx−1)]
 /// ```
 ///
 /// Args:

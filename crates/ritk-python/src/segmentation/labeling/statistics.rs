@@ -70,13 +70,13 @@ pub fn label_shape_statistics(
 ///
 /// Args:
 ///     image:           Input PyImage.
-///     k:               Number of clusters (â‰¥ 1).  Default 3.
+///     k:               Number of clusters (≥ 1).  Default 3.
 ///     max_iterations:  Maximum Lloyd iterations.  Default 100.
 ///     tolerance:       Centroid-displacement convergence tolerance.  Default 1e-6.
 ///     seed:            Deterministic seed for k-means++ initialization.  Default 42.
 ///
 /// Returns:
-///     Label PyImage with cluster indices in [0, kâˆ’1].
+///     Label PyImage with cluster indices in [0, k−1].
 #[pyfunction]
 #[pyo3(signature = (image, k=3, max_iterations=None, tolerance=None, seed=None))]
 pub fn kmeans_segment(

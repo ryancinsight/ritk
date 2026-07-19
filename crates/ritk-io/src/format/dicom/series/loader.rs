@@ -1,4 +1,4 @@
-//! Series loading â€” `load_dicom_series`, `read_dicom_series`, and the `DicomReader` facade.
+//! Series loading — `load_dicom_series`, `read_dicom_series`, and the `DicomReader` facade.
 
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;

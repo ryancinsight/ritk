@@ -2,7 +2,7 @@ use super::*;
 
 /// Construct a minimal [`LoadedVolume`] for shape and value tests.
 ///
-/// Pixel value at voxel `(d, r, c)` is `(dÃ—RÃ—C + rÃ—C + c) as f32`, giving
+/// Pixel value at voxel `(d, r, c)` is `(d×R×C + r×C + c) as f32`, giving
 /// each voxel a unique, analytically derivable value.
 fn make_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
     let n = depth * rows * cols;
@@ -30,20 +30,20 @@ fn make_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
     }
 }
 
-// â”€â”€ WindowLevel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── WindowLevel ───────────────────────────────────────────────────────────
 
-/// v â‰¤ L must map to 0 (lower saturation).
+/// v ≤ L must map to 0 (lower saturation).
 ///
-/// Analytical: WL(centre=500, width=1000) â†’ L = 0.
-/// v = âˆ’100 < 0 â†’ output = 0.  v = 0 = L â†’ output = 0.
+/// Analytical: WL(centre=500, width=1000) → L = 0.
+/// v = −100 < 0 → output = 0.  v = 0 = L → output = 0.
 #[test]
 fn test_window_level_clamp_lower() {
     let wl = WindowLevel::new(500.0, 1000.0);
-    // L = 500 âˆ’ 500 = 0.
+    // L = 500 − 500 = 0.
     assert_eq!(
         wl.apply(-100.0),
         0u8,
-        "v = âˆ’100 (below lower bound L=0) must clamp to 0"
+        "v = −100 (below lower bound L=0) must clamp to 0"
     );
     assert_eq!(
         wl.apply(0.0),
@@ -52,10 +52,10 @@ fn test_window_level_clamp_lower() {
     );
 }
 
-/// v â‰¥ U must map to 255 (upper saturation).
+/// v ≥ U must map to 255 (upper saturation).
 ///
-/// Analytical: WL(centre=500, width=1000) â†’ U = 1000.
-/// v = 1100 > 1000 â†’ output = 255.  v = 1000 = U â†’ output = 255.
+/// Analytical: WL(centre=500, width=1000) → U = 1000.
+/// v = 1100 > 1000 → output = 255.  v = 1000 = U → output = 255.
 #[test]
 fn test_window_level_clamp_upper() {
     let wl = WindowLevel::new(500.0, 1000.0);
@@ -72,12 +72,12 @@ fn test_window_level_clamp_upper() {
     );
 }
 
-/// v = centre must map to â‰ˆ 128 (within Â±1 LSB of 127.5).
+/// v = centre must map to ≈ 128 (within ±1 LSB of 127.5).
 ///
-/// Analytical: output = round((centre âˆ’ L) / (U âˆ’ L) Ã— 255)
-///   = round(width/2 / width Ã— 255) = round(0.5 Ã— 255) = round(127.5) = 128.
+/// Analytical: output = round((centre − L) / (U − L) × 255)
+///   = round(width/2 / width × 255) = round(0.5 × 255) = round(127.5) = 128.
 ///
-/// Rust's `f64::round` uses round-half-away-from-zero, so 127.5 â†’ 128.
+/// Rust's `f64::round` uses round-half-away-from-zero, so 127.5 → 128.
 #[test]
 fn test_window_level_midpoint() {
     let wl = WindowLevel::new(500.0, 1000.0);
@@ -93,7 +93,7 @@ fn test_window_level_midpoint() {
 /// the analytically derived WL formula.
 ///
 /// Pixel values 0..=8 with WL(centre=4, width=8): L=0, U=8.
-///   i=0 â†’ 0 (v â‰¤ L),  i=1..7 â†’ round(i/8Ã—255),  i=8 â†’ 255 (v â‰¥ U).
+///   i=0 → 0 (v ≤ L),  i=1..7 → round(i/8×255),  i=8 → 255 (v ≥ U).
 #[test]
 fn test_window_level_apply_slice_analytic() {
     let wl = WindowLevel::new(4.0, 8.0);
@@ -102,28 +102,28 @@ fn test_window_level_apply_slice_analytic() {
     let out = wl.apply_slice(&pixels);
     // Analytically derived expected values.
     let expected: Vec<u8> = vec![
-        0u8,                                   // i=0, v=L â†’ 0
-        (1.0_f64 / 8.0 * 255.0).round() as u8, // i=1 â†’ 32
-        (2.0_f64 / 8.0 * 255.0).round() as u8, // i=2 â†’ 64
-        (3.0_f64 / 8.0 * 255.0).round() as u8, // i=3 â†’ 96
-        (4.0_f64 / 8.0 * 255.0).round() as u8, // i=4 â†’ 128
-        (5.0_f64 / 8.0 * 255.0).round() as u8, // i=5 â†’ 159
-        (6.0_f64 / 8.0 * 255.0).round() as u8, // i=6 â†’ 191
-        (7.0_f64 / 8.0 * 255.0).round() as u8, // i=7 â†’ 223
-        255u8,                                 // i=8, v=U â†’ 255
+        0u8,                                   // i=0, v=L → 0
+        (1.0_f64 / 8.0 * 255.0).round() as u8, // i=1 → 32
+        (2.0_f64 / 8.0 * 255.0).round() as u8, // i=2 → 64
+        (3.0_f64 / 8.0 * 255.0).round() as u8, // i=3 → 96
+        (4.0_f64 / 8.0 * 255.0).round() as u8, // i=4 → 128
+        (5.0_f64 / 8.0 * 255.0).round() as u8, // i=5 → 159
+        (6.0_f64 / 8.0 * 255.0).round() as u8, // i=6 → 191
+        (7.0_f64 / 8.0 * 255.0).round() as u8, // i=7 → 223
+        255u8,                                 // i=8, v=U → 255
     ];
     assert_eq!(
         out, expected,
-        "apply_slice output must match DICOM PS 3.3 Â§C.7.6.3.1.5 formula"
+        "apply_slice output must match DICOM PS 3.3 §C.7.6.3.1.5 formula"
     );
 }
 
-// â”€â”€ SliceRenderer shape tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SliceRenderer shape tests ─────────────────────────────────────────────
 
 /// Axial slice (axis=0) at depth index `d` must produce a ColorImage of
 /// egui size `[cols, rows]` (width = C, height = R).
 ///
-/// Analytical: volume [D=4, R=5, C=6], d=2 â†’ width=6, height=5.
+/// Analytical: volume [D=4, R=5, C=6], d=2 → width=6, height=5.
 #[test]
 fn test_slice_render_axial_shape() {
     let vol = make_volume(4, 5, 6);
@@ -138,14 +138,14 @@ fn test_slice_render_axial_shape() {
     assert_eq!(
         img.pixels.len(),
         5 * 6,
-        "axial pixel count must equal rows Ã— cols = 30"
+        "axial pixel count must equal rows × cols = 30"
     );
 }
 
 /// Coronal slice (axis=1) at row index `r` must produce a ColorImage of
 /// egui size `[cols, depth]` (width = C, height = D).
 ///
-/// Analytical: volume [D=4, R=5, C=6], r=2 â†’ width=6, height=4.
+/// Analytical: volume [D=4, R=5, C=6], r=2 → width=6, height=4.
 #[test]
 fn test_slice_render_coronal_shape() {
     let vol = make_volume(4, 5, 6);
@@ -160,14 +160,14 @@ fn test_slice_render_coronal_shape() {
     assert_eq!(
         img.pixels.len(),
         4 * 6,
-        "coronal pixel count must equal depth Ã— cols = 24"
+        "coronal pixel count must equal depth × cols = 24"
     );
 }
 
 /// Sagittal slice (axis=2) at column index `c` must produce a ColorImage
 /// of egui size `[rows, depth]` (width = R, height = D).
 ///
-/// Analytical: volume [D=4, R=5, C=6], c=1 â†’ width=5, height=4.
+/// Analytical: volume [D=4, R=5, C=6], c=1 → width=5, height=4.
 #[test]
 fn test_slice_render_sagittal_shape() {
     let vol = make_volume(4, 5, 6);
@@ -182,15 +182,15 @@ fn test_slice_render_sagittal_shape() {
     assert_eq!(
         img.pixels.len(),
         4 * 5,
-        "sagittal pixel count must equal depth Ã— rows = 20"
+        "sagittal pixel count must equal depth × rows = 20"
     );
 }
 
 /// Verify axial pixel values against the analytically derived WL formula.
 ///
-/// Volume [D=2, R=3, C=3]: pixel at (d,r,c) = dÃ—9 + rÃ—3 + c.
+/// Volume [D=2, R=3, C=3]: pixel at (d,r,c) = d×9 + r×3 + c.
 /// Axial slice d=0: pixels 0..=8 in row-major order.
-/// WL(centre=4, width=8) â†’ L=0, U=8.
+/// WL(centre=4, width=8) → L=0, U=8.
 /// With Grayscale colormap the R channel equals the WL output exactly.
 #[test]
 fn test_slice_render_axial_pixel_values() {

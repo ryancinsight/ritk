@@ -32,7 +32,7 @@ fn roi_full_image_is_identity() {
 
 #[test]
 fn roi_extracts_correct_sub_volume() {
-    // 3Ã—3Ã—3 with values 1..27; extract [1..3, 1..3, 1..3] (2Ã—2Ã—2)
+    // 3×3×3 with values 1..27; extract [1..3, 1..3, 1..3] (2×2×2)
     let vals: Vec<f32> = (1..=27).map(|x| x as f32).collect();
     let img = make_image(vals, [3, 3, 3]);
     let out = RegionOfInterestImageFilter::new([1, 1, 1], [2, 2, 2])
@@ -40,11 +40,11 @@ fn roi_extracts_correct_sub_volume() {
         .unwrap();
     assert_eq!(out.shape(), [2, 2, 2]);
     let v = voxels(&out);
-    // Voxel (1,1,1) in 3Ã—3Ã—3 = index 1*9 + 1*3 + 1 = 13 â†’ value 14
+    // Voxel (1,1,1) in 3×3×3 = index 1*9 + 1*3 + 1 = 13 → value 14
     assert_eq!(v[0], 14.0, "first voxel of sub-volume mismatch");
-    // Voxel (1,1,2) = 1*9 + 1*3 + 2 = 14 â†’ value 15
+    // Voxel (1,1,2) = 1*9 + 1*3 + 2 = 14 → value 15
     assert_eq!(v[1], 15.0);
-    // Voxel (2,2,2) = 2*9 + 2*3 + 2 = 26 â†’ value 27
+    // Voxel (2,2,2) = 2*9 + 2*3 + 2 = 26 → value 27
     assert_eq!(v[7], 27.0, "last voxel of sub-volume mismatch");
 }
 
@@ -52,7 +52,7 @@ fn roi_extracts_correct_sub_volume() {
 fn roi_single_voxel_extract() {
     let vals: Vec<f32> = (1..=8).map(|x| x as f32).collect();
     let img = make_image(vals, [2, 2, 2]);
-    // Extract voxel (1,1,1) â€” index 7, value 8
+    // Extract voxel (1,1,1) — index 7, value 8
     let out = RegionOfInterestImageFilter::new([1, 1, 1], [1, 1, 1])
         .apply(&img)
         .unwrap();
@@ -100,7 +100,7 @@ fn roi_updates_origin_with_identity_direction() {
 #[test]
 fn roi_out_of_bounds_returns_error() {
     let img = make_image(vec![1.0; 8], [2, 2, 2]);
-    // start=[0,0,0], size=[3,2,2] â†’ Z range [0..3) exceeds depth 2
+    // start=[0,0,0], size=[3,2,2] → Z range [0..3) exceeds depth 2
     let result = RegionOfInterestImageFilter::new([0, 0, 0], [3, 2, 2]).apply(&img);
     assert!(result.is_err(), "out-of-bounds ROI must return Err");
 }

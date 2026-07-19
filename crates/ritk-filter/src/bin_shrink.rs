@@ -6,10 +6,10 @@
 //! arithmetic mean of all voxels within each non-overlapping bin:
 //!
 //! ```text
-//! O(oâ‚€, oâ‚, â€¦, o_{D-1}) = (1/N) Â· Î£_{bâ‚€=0}^{fâ‚€-1} Î£_{bâ‚=0}^{fâ‚-1} â€¦ Î£_{b_{D-1}=0}^{f_{D-1}-1}
-//!     I(oâ‚€Â·fâ‚€ + bâ‚€, oâ‚Â·fâ‚ + bâ‚, â€¦, o_{D-1}Â·f_{D-1} + b_{D-1})
+//! O(o₀, o₁, …, o_{D-1}) = (1/N) · Σ_{b₀=0}^{f₀-1} Σ_{b₁=0}^{f₁-1} … Σ_{b_{D-1}=0}^{f_{D-1}-1}
+//!     I(o₀·f₀ + b₀, o₁·f₁ + b₁, …, o_{D-1}·f_{D-1} + b_{D-1})
 //!
-//! where N = fâ‚€ Â· fâ‚ Â· â€¦ Â· f_{D-1}  (bin volume)
+//! where N = f₀ · f₁ · … · f_{D-1}  (bin volume)
 //! ```
 //!
 //! Output shape per dimension: `out_shape[d] = floor(in_shape[d] / factor[d])`.
@@ -28,7 +28,7 @@
 //! along each axis. For each axis d with factor f_d:
 //!
 //! ```text
-//! temp'(o_d, rest) = (1/f_d) Â· Î£_{b=0}^{f_d-1} temp(o_dÂ·f_d + b, rest)
+//! temp'(o_d, rest) = (1/f_d) · Σ_{b=0}^{f_d-1} temp(o_d·f_d + b, rest)
 //! ```
 //!
 //! This is applied iteratively: first shrink axis 0, then axis 1 from the
@@ -280,12 +280,12 @@ fn bin_mean_at_output<const D: usize>(
 ///
 /// # Invariant
 /// `strides[d] = product of shape[0..d]` (leftmost dimension varies fastest)
-/// Row-major (C-contiguous) strides for a `[dâ‚€, â€¦, d_{D-1}]` shape, matching the
-/// `[Z, Y, X]` layout of ritk tensors (`vals[zÂ·nyÂ·nx + yÂ·nx + x]`, X innermost).
+/// Row-major (C-contiguous) strides for a `[d₀, …, d_{D-1}]` shape, matching the
+/// `[Z, Y, X]` layout of ritk tensors (`vals[z·ny·nx + y·nx + x]`, X innermost).
 ///
 /// The bin-shrink slab walk indexes the flat buffer with these strides; using
-/// column-major strides averaged voxels along the wrong axes â€” invisible on
-/// `1Ã—1Ã—N` or constant inputs (where the two stride orders coincide or averaging
+/// column-major strides averaged voxels along the wrong axes — invisible on
+/// `1×1×N` or constant inputs (where the two stride orders coincide or averaging
 /// is layout-invariant), but corrupting any genuine anisotropic 3-D volume.
 fn row_major_strides<const D: usize>(shape: &[usize; D]) -> [usize; D] {
     let mut strides = [0usize; D];

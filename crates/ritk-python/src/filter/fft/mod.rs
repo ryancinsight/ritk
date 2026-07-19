@@ -107,7 +107,7 @@ pub fn real_and_imaginary_to_complex(real: &PyImage, imaginary: &PyImage) -> Rit
     build_complex(real, imaginary, |re, im| (re, im))
 }
 
-/// Build a complex image from magnitude and phase: `re = mÂ·cos(p)`, `im = mÂ·sin(p)`.
+/// Build a complex image from magnitude and phase: `re = m·cos(p)`, `im = m·sin(p)`.
 /// ITK Parity: MagnitudeAndPhaseToComplexImageFilter (`sitk.MagnitudeAndPhaseToComplex`).
 #[pyfunction]
 pub fn magnitude_and_phase_to_complex(magnitude: &PyImage, phase: &PyImage) -> RitkResult<PyImage> {
@@ -128,7 +128,7 @@ pub fn complex_to_imaginary(image: &PyImage) -> RitkResult<PyImage> {
     complex_map(image, |_, im| im)
 }
 
-/// Modulus (magnitude) `âˆš(reÂ²+imÂ²)` of a complex image. ITK Parity:
+/// Modulus (magnitude) `√(re²+im²)` of a complex image. ITK Parity:
 /// ComplexToModulusImageFilter (`sitk.ComplexToModulus`).
 #[pyfunction]
 pub fn complex_to_modulus(image: &PyImage) -> RitkResult<PyImage> {
@@ -148,7 +148,7 @@ pub fn complex_to_phase(image: &PyImage) -> RitkResult<PyImage> {
 /// domain. The output has the same Z and Y dimensions as the input, but the
 /// X dimension is doubled to hold interleaved real and imaginary parts:
 ///
-/// output shape [D, H, W] â†’ [D, H, 2*W]
+/// output shape [D, H, W] → [D, H, 2*W]
 /// output[d, h, 2*x] = Re(F[d, h, x])
 /// output[d, h, 2*x+1] = Im(F[d, h, x])
 ///
@@ -179,7 +179,7 @@ pub fn forward_fft(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
 ///
 /// The DFT of a real image is Hermitian-symmetric, so only the first `W/2+1`
 /// last-axis columns are independent. This returns that non-redundant half:
-/// input `[D, H, W]` â†’ output `[D, H, 2*(W/2+1)]` interleaved `(Re, Im)`. The
+/// input `[D, H, W]` → output `[D, H, 2*(W/2+1)]` interleaved `(Re, Im)`. The
 /// retained values equal `forward_fft`'s leading columns bitwise.
 ///
 /// Args:

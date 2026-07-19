@@ -116,7 +116,7 @@ pub struct WhiteStripeResult<B: Backend> {
     pub normalized: Image<f32, B, 3>,
     /// White stripe mean (μ_ws).
     pub mu: f64,
-    /// White stripe standard deviation (Ïƒ_ws), population std.
+    /// White stripe standard deviation (σ_ws), population std.
     ///
     /// Guaranteed > 0 by construction (var_ws + ε under sqrt).
     pub sigma: f64,
@@ -136,7 +136,7 @@ pub struct NativeWhiteStripeResult<B: ComputeBackend> {
     pub normalized: NativeImage<f32, B, 3>,
     /// White stripe mean (μ_ws).
     pub mu: f64,
-    /// White stripe standard deviation (Ïƒ_ws), population std (guaranteed > 0).
+    /// White stripe standard deviation (σ_ws), population std (guaranteed > 0).
     pub sigma: f64,
     /// Detected white matter peak intensity.
     pub wm_peak: f64,
@@ -438,7 +438,7 @@ fn silverman_bandwidth(sorted: &[f64]) -> f64 {
 /// in [lo, hi]. Returns (grid_points, density_values).
 ///
 /// Uses the direct O(n · num_bins) evaluation. For the typical use case
-/// (n ~ 10âµâ€“10â¶ voxels, num_bins = 2048), this is acceptable.
+/// (n ~ 10⁵–10⁶ voxels, num_bins = 2048), this is acceptable.
 ///
 /// Each density value:
 ///   f̂(x_j) = (1 / (n · h)) · Σᵢ K((x_j − vᵢ) / h)
@@ -461,7 +461,7 @@ fn kde_gaussian(
     let norm = 1.0 / (n as f64 * bandwidth * (2.0 * std::f64::consts::PI).sqrt());
 
     for &v in sorted {
-        // For each data point, find the range of grid bins within ~4Ïƒ.
+        // For each data point, find the range of grid bins within ~4σ.
         let lo_idx = {
             let x = ((v - 4.0 * bandwidth - lo) / step).floor() as isize;
             x.max(0) as usize

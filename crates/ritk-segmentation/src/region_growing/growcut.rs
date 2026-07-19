@@ -1,21 +1,21 @@
 //! GrowCut interactive segmentation via cellular automaton.
 //!
 //! # Algorithm
-//! Vezhnevets & Konouchine (2005) "GrowCut â€” Interactive Multi-Label
+//! Vezhnevets & Konouchine (2005) "GrowCut — Interactive Multi-Label
 //! N-D Image Segmentation by Cellular Automata", GRAPHITE 2005.
 //!
-//! Each voxel i maintains a label L\[i\] âˆˆ {0,1,â€¦,K} and a strength C\[i\] âˆˆ \[0,1\].
+//! Each voxel i maintains a label L\[i\] ∈ {0,1,…,K} and a strength C\[i\] ∈ \[0,1\].
 //! Seeds are initialized with L\[i\] = seed, C\[i\] = 1.0. Unlabeled voxels start
 //! with L\[i\] = 0, C\[i\] = 0.0. Seed voxels are immutable.
 //!
 //! At each iteration a labeled neighbor j "attacks" i if:
-//! C\[j\] Â· g(j,i) > C\[i\] where g(j,i) = 1 âˆ’ |I\[j\]âˆ’I\[i\]| / max_diff
-//! On a successful attack L\[i\] â† L\[j\], C\[i\] â† C\[j\]Â·g(j,i).
+//! C\[j\] · g(j,i) > C\[i\] where g(j,i) = 1 − |I\[j\]−I\[i\]| / max_diff
+//! On a successful attack L\[i\] ← L\[j\], C\[i\] ← C\[j\]·g(j,i).
 //!
 //! Terminates when no voxel changes label or `max_iter` is reached.
 //!
 //! # Complexity
-//! O(max_iter Â· N Â· 6) = O(max_iter Â· N). Each iteration is fully data-parallel.
+//! O(max_iter · N · 6) = O(max_iter · N). Each iteration is fully data-parallel.
 //!
 //! # ITK Parity
 //! `itk::FastMarchingSegmentationModule` / GrowCut filter (3D Slicer extension).
@@ -25,7 +25,7 @@ use ritk_image::tensor::Tensor;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
-// â”€â”€ Public types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public types ──────────────────────────────────────────────────────────────
 
 /// GrowCut interactive segmentation filter for 3-D images.
 pub struct GrowCutFilter {
@@ -79,7 +79,7 @@ impl GrowCutFilter {
     }
 }
 
-// â”€â”€ Public function â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public function ───────────────────────────────────────────────────────────
 
 /// Run GrowCut segmentation on a 3-D image.
 ///
@@ -117,7 +117,7 @@ pub fn growcut<B: Backend>(
     .expect("invariant: segmentation output tensor preserves the image rank")
 }
 
-// â”€â”€ Core automaton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Core automaton ────────────────────────────────────────────────────────────
 
 /// Run GrowCut automaton on flat slices.
 ///
@@ -250,7 +250,7 @@ pub fn growcut_slice(
     labels.into_iter().map(|l| l as f32).collect()
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_growcut.rs"]

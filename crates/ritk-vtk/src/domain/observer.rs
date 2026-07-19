@@ -3,8 +3,8 @@
 //! # Mathematical Specification
 //!
 //! Let O = { (tag, event, callback) } be the observer registry.
-//! `add_observer(event, cb)` appends a new entry with a fresh unique tag Ï„
-//! and returns Ï„.  Tag uniqueness invariant: Ï„ â‰  Ï„' for all distinct
+//! `add_observer(event, cb)` appends a new entry with a fresh unique tag τ
+//! and returns τ.  Tag uniqueness invariant: τ ≠ τ' for all distinct
 //! `add_observer` calls on the same `EventHandlers` instance.
 //! `remove_observer(tag)` removes the unique entry with the given tag (O(n)).
 //! `invoke_event(event)` calls cb(event) for every entry where event' == event,
@@ -124,7 +124,7 @@ pub trait Observable {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {

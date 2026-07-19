@@ -57,7 +57,7 @@ impl<B: Backend, const D: usize> MultiResolutionPyramid<B, D> {
             // 1. Smooth
             // Only smooth if sigmas are significant. GaussianFilter::new takes
             // a `Vec<GaussianSigma>`, so we materialise the per-axis sigmas into
-            // a small D-entry Vec here â€” one allocation per pyramid level, not a hot
+            // a small D-entry Vec here — one allocation per pyramid level, not a hot
             // path.
             let smoothed = if !is_identity_smooth {
                 let sigmas_val: Vec<GaussianSigma> = sigmas

@@ -1,7 +1,7 @@
 //! Differential + analytical coverage for the Coeus-native discrete-Gaussian path.
 //!
 //! The native wrapper shares the exact kernel builder (`kernels_for_spacing`)
-//! and substrate-agnostic `convolve_separable` host core the Burn path calls,
+//! and substrate-agnostic `convolve_separable` host core the Coeus path calls,
 //! so the differential assertion is bitwise-exact (shared harness). The
 //! analytical oracle pins the uniform-image identity invariant directly on the
 //! native path: replicate-padded normalized convolution of a constant field is
@@ -17,7 +17,7 @@ fn filter() -> DiscreteGaussianFilter<BurnB> {
 }
 
 #[test]
-fn matches_burn() {
+fn matches_coeus() {
     let dims = [6, 7, 5];
     let n = dims[0] * dims[1] * dims[2];
     let vals: Vec<f32> = (0..n).map(|i| (i as f32) * 0.37 - (i % 5) as f32).collect();

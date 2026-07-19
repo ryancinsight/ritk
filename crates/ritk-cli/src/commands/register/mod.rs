@@ -1,4 +1,4 @@
-//! `ritk register` â€” image registration command.
+//! `ritk register` — image registration command.
 //!
 //! Registers a moving image to a fixed reference image.
 //!
@@ -24,10 +24,10 @@
 //! 3. Convert both images to `leto::Array3<f64>` (for MI methods) or
 //!    flat `Vec<f32>` (for deformable methods).
 //! 4. Run the selected registration method; initial transform is identity.
-//! 5. Apply the estimated 4Ã—4 homogeneous transform to the moving image
+//! 5. Apply the estimated 4×4 homogeneous transform to the moving image
 //!    (MI methods) or reconstruct from warped output (deformable methods).
 //! 6. Write the warped image to `--output`.
-//! 7. Optionally serialise the 4Ã—4 transform matrix to JSON at
+//! 7. Optionally serialise the 4×4 transform matrix to JSON at
 //!    `--output-transform` (MI methods only).
 //! 8. Print a registration summary (iterations, metric value, convergence status).
 
@@ -69,7 +69,7 @@ fn parse_gaussian_sigma(s: &str) -> Result<GaussianSigma, String> {
     GaussianSigma::new(v).ok_or_else(|| format!("sigma must be > 0, got {v}"))
 }
 
-// â”€â”€ CLI types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CLI types ────────────────────────────────────────────────────────────────
 
 /// CLI representation of the `--inverse-consistency` flag for Multi-Resolution SyN.
 ///
@@ -120,7 +120,7 @@ impl std::fmt::Display for RegistrationMethod {
     }
 }
 
-// â”€â”€ CLI arguments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CLI arguments ─────────────────────────────────────────────────────────────
 
 /// Arguments for the `register` subcommand.
 #[derive(Args, Debug)]
@@ -145,7 +145,7 @@ pub struct RegisterArgs {
     pub method: RegistrationMethod,
 
     /// Output path for the estimated transform (JSON array of 16 floats
-    /// representing a row-major 4Ã—4 homogeneous matrix). Optional.
+    /// representing a row-major 4×4 homogeneous matrix). Optional.
     /// Only produced by `rigid-mi` and `affine-mi`.
     #[arg(long, value_name = "PATH")]
     pub output_transform: Option<PathBuf>,
@@ -211,7 +211,7 @@ pub struct RegisterArgs {
     pub n_squarings: usize,
 }
 
-// â”€â”€ Image â†” Leto volume conversion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Image ↔ Leto volume conversion ────────────────────────────────────────────
 
 /// Convert a 3-D `Image<f32, Backend, 3>` to a `leto::Array3<f64>`.
 ///
@@ -252,7 +252,7 @@ pub(super) fn leto_volume_to_image(
     .expect("image reconstruction from flat data must succeed")
 }
 
-// â”€â”€ Image â†” flat Vec<f32> conversion (for demons / SyN) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Image ↔ flat Vec<f32> conversion (for demons / SyN) ──────────────────────
 
 /// Extract a flat `Vec<f32>` in Z-major order and the `[nz, ny, nx]` shape
 /// from a 3-D image.
@@ -284,7 +284,7 @@ pub(super) fn flat_vec_to_image(
     .expect("image reconstruction from flat data must succeed")
 }
 
-// â”€â”€ Command handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Command handler ───────────────────────────────────────────────────────────
 
 /// Execute the `register` subcommand.
 ///
@@ -322,7 +322,7 @@ pub fn run(args: RegisterArgs) -> Result<()> {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -333,7 +333,7 @@ mod tests {
     use ritk_spatial::{Direction, Point, Spacing};
     use tempfile::tempdir;
 
-    /// Build a deterministic 4Ã—4Ã—4 image from a ramp of intensities.
+    /// Build a deterministic 4×4×4 image from a ramp of intensities.
     ///
     /// Using a ramp (not constant) so the MI metric has a non-degenerate
     /// joint histogram to work with.
@@ -351,11 +351,11 @@ mod tests {
         .expect("invariant: tensor has the declared image rank")
     }
 
-    // â”€â”€ Negative: invalid method names are rejected by clap at parse time;
+    // ── Negative: invalid method names are rejected by clap at parse time;
     //    `run()` is exhaustive over `RegistrationMethod` and cannot receive
-    //    an unknown variant. â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    //    an unknown variant. ─────────────────────────────────────────────
 
-    // â”€â”€ Negative: missing fixed image returns error â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Negative: missing fixed image returns error ───────────────────────
 
     #[test]
     fn test_register_missing_fixed_returns_error() {

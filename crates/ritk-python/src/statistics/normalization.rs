@@ -27,7 +27,7 @@ pub(super) fn validate_range(target_min: f32, target_max: f32) -> Result<(), Str
 pub(super) fn validate_percentiles(p: &[f64]) -> Result<(), String> {
     if p.len() < 2 {
         return Err(format!(
-            "nyul_udupa_normalize: percentiles must contain â‰¥ 2 values, got {}",
+            "nyul_udupa_normalize: percentiles must contain ≥ 2 values, got {}",
             p.len()
         ));
     }
@@ -35,7 +35,7 @@ pub(super) fn validate_percentiles(p: &[f64]) -> Result<(), String> {
         if p[i] <= p[i - 1] {
             return Err(format!(
                 "nyul_udupa_normalize: percentiles must be strictly ascending: \
-                 p[{}]={} â‰¤ p[{}]={}",
+                 p[{}]={} ≤ p[{}]={}",
                 i,
                 p[i],
                 i - 1,
@@ -48,7 +48,7 @@ pub(super) fn validate_percentiles(p: &[f64]) -> Result<(), String> {
 
 /// Normalize image intensities to [0, 1] via min-max rescaling.
 ///
-/// Formula: output = (input âˆ’ min) / (max âˆ’ min + Îµ), Îµ = 1e-8.
+/// Formula: output = (input − min) / (max − min + ε), ε = 1e-8.
 ///
 /// Args:
 ///     image: Input PyImage.
@@ -62,7 +62,7 @@ pub fn minmax_normalize(image: &PyImage) -> PyImage {
 
 /// Normalize image intensities to [target_min, target_max] via min-max rescaling.
 ///
-/// Formula: N(x) = (x âˆ’ min) / (max âˆ’ min + Îµ); output = N(x) Â· (target_max âˆ’ target_min) + target_min.
+/// Formula: N(x) = (x − min) / (max − min + ε); output = N(x) · (target_max − target_min) + target_min.
 ///
 /// Args:
 ///     image:      Input PyImage.
@@ -87,7 +87,7 @@ pub fn minmax_normalize_range(
 
 /// Normalize image intensities to zero mean and unit variance (Z-score).
 ///
-/// Formula: output = (input âˆ’ Î¼) / (Ïƒ + Îµ), Îµ = 1e-8.
+/// Formula: output = (input − μ) / (σ + ε), ε = 1e-8.
 ///
 /// Args:
 ///     image: Input PyImage.
@@ -95,7 +95,7 @@ pub fn minmax_normalize_range(
 ///            same element count as `image`. Defaults to None (full-image stats).
 ///
 /// Returns:
-///     Normalized PyImage with E\[output\] â‰ˆ 0, Var\[output\] â‰ˆ 1.
+///     Normalized PyImage with E\[output\] ≈ 0, Var\[output\] ≈ 1.
 #[pyfunction]
 #[pyo3(signature = (image, mask = None))]
 pub fn zscore_normalize(
@@ -148,7 +148,7 @@ pub fn histogram_match(
 ) -> RitkResult<PyImage> {
     if num_bins < 2 {
         return Err(RitkPyError::value(format!(
-            "histogram_match: num_bins must be â‰¥ 2, got {num_bins}"
+            "histogram_match: num_bins must be ≥ 2, got {num_bins}"
         )));
     }
     let source_arc = image_from_py(source);
@@ -165,7 +165,7 @@ pub fn histogram_match(
 /// Normalize a brain MRI using the Shinohara et al. (2014) white stripe method.
 ///
 /// Detects the WM peak via KDE, selects voxels within a quantile stripe,
-/// and normalizes: I_norm = (I âˆ’ Î¼_ws) / (Ïƒ_ws + Îµ).
+/// and normalizes: I_norm = (I − μ_ws) / (σ_ws + ε).
 ///
 /// Args:
 ///     image:    Input brain MRI PyImage.
@@ -229,7 +229,7 @@ pub fn white_stripe_normalize(
 ///     image:           Image to normalize.
 ///     training_images: List of PyImage used to learn the standard landmarks.
 ///     percentiles:     Optional list of percentile ranks in [0, 100] (strictly
-///                      ascending, â‰¥ 2 values). Default: [1,10,20,...,90,99].
+///                      ascending, ≥ 2 values). Default: [1,10,20,...,90,99].
 ///
 /// Returns:
 ///     Normalized PyImage with the same shape and spatial metadata as `image`.
@@ -286,8 +286,8 @@ mod tests {
         assert!(result.is_err(), "empty slice must be rejected");
         let msg = result.unwrap_err();
         assert!(
-            msg.contains("â‰¥ 2"),
-            "error must mention â‰¥ 2 values, got: {msg}"
+            msg.contains("≥ 2"),
+            "error must mention ≥ 2 values, got: {msg}"
         );
     }
 
@@ -297,8 +297,8 @@ mod tests {
         assert!(result.is_err(), "single element must be rejected");
         let msg = result.unwrap_err();
         assert!(
-            msg.contains("â‰¥ 2"),
-            "error must mention â‰¥ 2 values, got: {msg}"
+            msg.contains("≥ 2"),
+            "error must mention ≥ 2 values, got: {msg}"
         );
     }
 

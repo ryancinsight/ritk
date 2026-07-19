@@ -3,34 +3,34 @@
 //! # Mathematical Specification
 //!
 //! Faithful port of `sitk.PatchBasedDenoising` with `NoiseModel = GAUSSIAN`
-//! (fidelity weight 0 â‡’ no-op) and `KernelBandwidthEstimation = false`. The
+//! (fidelity weight 0 ⇒ no-op) and `KernelBandwidthEstimation = false`. The
 //! per-pixel update is the Gaussian-kernel joint-entropy gradient
 //! (`itk::PatchBasedDenoisingImageFilter::ComputeGradientJointEntropy`):
 //!
 //! ```text
-//! update[p] = 0.2 Â· Î£_q (I[q] âˆ’ I[p]) Â· exp(âˆ’Î£_jj w[jj]Â²Â·(I[p+jj] âˆ’ I[q+jj])Â² / (2ÏƒÂ²)) / Î£_q g
+//! update[p] = 0.2 · Σ_q (I[q] − I[p]) · exp(−Σ_jj w[jj]²·(I[p+jj] − I[q+jj])² / (2σ²)) / Σ_q g
 //! new[p]    = I[p] + update[p]
 //! ```
 //!
 //! over patches `q` selected by the `GaussianRandomSpatialNeighborSubsampler`:
 //! per query pixel, `min(number_of_sample_patches, region_size)` patches are
-//! drawn **with replacement**, each coordinate `q[d] = âŒŠN(p[d], sample_variance)âŒ‹`
+//! drawn **with replacement**, each coordinate `q[d] = ⌊N(p[d], sample_variance)⌋`
 //! (rejected to the intersection of the valid-patch region and the sampler's
-//! `âŒŠ2.5Â·âˆšsample_varianceâŒ‹` neighborhood), using ITK's
+//! `⌊2.5·√sample_variance⌋` neighborhood), using ITK's
 //! `MersenneTwisterRandomVariateGenerator` (seeded `0`). `w` are the cubic-spline
 //! smooth-disc patch weights constructed through ITK's `f32` weight-image
 //! rounding boundary. Pixel differences likewise execute in input `f32` before
-//! widening into the `f64` entropy accumulator; `Ïƒ = kernel_sigma`.
+//! widening into the `f64` entropy accumulator; `σ = kernel_sigma`.
 //!
 //! Pixels are visited in `itk::ImageBoundaryFacesCalculator` order (interior
 //! region first, then each boundary face, each raster-scanned), because the
-//! shared RNG state threads through every draw â€” the visitation order is part
+//! shared RNG state threads through every draw — the visitation order is part
 //! of the contract. Within each patch, ITK's partial loop unroll interleaves
 //! offsets from the lower and upper halves, then accumulates the center last;
 //! that floating-point reduction order is also preserved.
 //!
 //! Validated within one final output rounding step against single-threaded
-//! `sitk.PatchBasedDenoising` across patch radii 1/2/4 and 1â€“2 iterations.
+//! `sitk.PatchBasedDenoising` across patch radii 1/2/4 and 1–2 iterations.
 //!
 //! ## References
 //! - Awate, S.P. & Whitaker, R.T. (2006). "Unsupervised, Information-Theoretic,
@@ -107,7 +107,7 @@ fn sampling_interval(
     )
 }
 
-// â”€â”€ ITK MersenneTwister (MT19937) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── ITK MersenneTwister (MT19937) ───────────────────────────────────────────────
 
 /// Bit-exact port of `itk::Statistics::MersenneTwisterRandomVariateGenerator`.
 struct ItkMt {
@@ -181,7 +181,7 @@ impl ItkMt {
     }
 
     /// `GaussianRandomSpatialNeighborSubsampler::GetIntegerVariate`: draw
-    /// `âŒŠN(mean, variance)âŒ‹`, rejecting until within `[lo, hi]`.
+    /// `⌊N(mean, variance)⌋`, rejecting until within `[lo, hi]`.
     #[inline]
     fn gauss_int(&mut self, lo: i64, hi: i64, mean: f64, variance: f64) -> i64 {
         loop {
@@ -193,7 +193,7 @@ impl ItkMt {
     }
 }
 
-// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public API ─────────────────────────────────────────────────────────────────
 
 /// Patch-based denoising (faithful ITK port), bit-exact to single-threaded
 /// `sitk.PatchBasedDenoising` within one final output rounding step.
@@ -217,7 +217,7 @@ pub struct PatchBasedDenoisingImageFilter {
     pub patch_radius: usize,
     /// Variance of the Gaussian patch-sampling domain (`SampleVariance`).
     pub sample_variance: f64,
-    /// Gaussian kernel bandwidth Ïƒ (`KernelBandwidthSigma`).
+    /// Gaussian kernel bandwidth σ (`KernelBandwidthSigma`).
     pub kernel_sigma: f64,
 }
 
@@ -234,7 +234,7 @@ impl Default for PatchBasedDenoisingImageFilter {
 }
 
 impl PatchBasedDenoisingImageFilter {
-    /// Apply patch-based denoising to a 3-D image (`nz == 1` â‡’ 2-D).
+    /// Apply patch-based denoising to a 3-D image (`nz == 1` ⇒ 2-D).
     ///
     /// # Errors
     /// Returns `Err` if the configuration is invalid, the image is smaller than
@@ -346,7 +346,7 @@ impl PatchBasedDenoisingImageFilter {
     }
 }
 
-// â”€â”€ Core single iteration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Core single iteration ───────────────────────────────────────────────────────
 
 impl PatchBasedDenoisingImageFilter {
     fn pass(&self, data: &[f32], dims: [usize; 3]) -> Vec<f32> {
@@ -580,7 +580,7 @@ impl PatchBasedDenoisingImageFilter {
     }
 }
 
-// â”€â”€ Smooth-disc patch weights â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Smooth-disc patch weights ────────────────────────────────────────────────────
 
 /// `InitializePatchWeightsSmoothDisc` (isotropic unit spacing), squared, in
 /// patch-offset order matching the `(dz, dy, dx)` triple loop.
@@ -623,12 +623,12 @@ fn smooth_disc_weights_sq(patch_radius: usize, ndim: usize) -> Vec<f64> {
     w
 }
 
-// â”€â”€ ImageBoundaryFacesCalculator visitation order â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── ImageBoundaryFacesCalculator visitation order ────────────────────────────────
 
 /// Pixel visitation order (ITK `(x, y, z)` index space) reproducing
 /// `itk::NeighborhoodAlgorithm::ImageBoundaryFacesCalculator`: the interior
 /// (non-boundary) region first, then each boundary face, each raster-scanned
-/// (x fastest). `radius` is the patch radius; `ndim` âˆˆ {2, 3}.
+/// (x fastest). `radius` is the patch radius; `ndim` ∈ {2, 3}.
 fn face_calculator_order(sizes: [i64; 3], radius: i64, ndim: usize) -> Vec<(i64, i64, i64)> {
     // Each face is a region [start, start+size) in ITK (x, y, z).
     let mut faces: Vec<([i64; 3], [i64; 3])> = Vec::new();
@@ -683,7 +683,7 @@ fn face_calculator_order(sizes: [i64; 3], radius: i64, ndim: usize) -> Vec<(i64,
     order
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_patch_based_denoising.rs"]

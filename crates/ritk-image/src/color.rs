@@ -198,11 +198,11 @@ where
     }
 
     /// Deinterleave the volume into `C` scalar component buffers, each of length
-    /// `depthÂ·rowsÂ·cols` in `[depth, rows, cols]` row-major order.
+    /// `depth·rows·cols` in `[depth, rows, cols]` row-major order.
     ///
     /// The interleaved layout is `[depth, rows, cols, channel]` (channel is the
     /// fastest-varying axis), so component `k`'s buffer is `flat[k], flat[k+C],
-    /// flat[k+2C], â€¦`.
+    /// flat[k+2C], …`.
     pub fn into_component_buffers(&self) -> Vec<Vec<T>>
     where
         T: Clone + Default,
@@ -222,7 +222,7 @@ where
     ///
     /// # Errors
     /// Returns `Err` if the number of buffers is not `C`, any buffer length is
-    /// not `depthÂ·rowsÂ·cols`, or `C == 0`.
+    /// not `depth·rows·cols`, or `C == 0`.
     pub fn from_component_buffers(
         channels: &[Vec<T>],
         spatial: [usize; 3],

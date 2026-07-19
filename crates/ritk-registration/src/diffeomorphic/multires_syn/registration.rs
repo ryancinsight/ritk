@@ -18,9 +18,9 @@ use crate::diffeomorphic::local_cc::{bidirectional_cc_from_sats_into, CcSats};
 
 /// Velocity fields and dimensions carried between resolution levels.
 struct PrevLevelState {
-    /// Forward velocity field vâ‚ (fixedâ†’midpoint) from the previous level.
+    /// Forward velocity field v₁ (fixed→midpoint) from the previous level.
     forward: VelocityField,
-    /// Inverse velocity field vâ‚‚ (movingâ†’midpoint) from the previous level.
+    /// Inverse velocity field v₂ (moving→midpoint) from the previous level.
     inverse: VelocityField,
     /// Image dimensions `[nz, ny, nx]` at the previous level.
     dims: [usize; 3],
@@ -52,11 +52,11 @@ impl super::MultiResSyNRegistration {
     /// user-provided [`CpuOrGpu`] factory.
     ///
     /// When the factory returns [`CpuOrGpu::Gpu`], the per-iteration
-    /// velocity-field smoothing runs on the GPU â€” 10â€“50Ã— faster than the
-    /// CPU path for typical 256Â³ fields.
+    /// velocity-field smoothing runs on the GPU — 10–50× faster than the
+    /// CPU path for typical 256³ fields.
     ///
     /// A fresh smoother is constructed per resolution level (because
-    /// dimensions change). The [`CpuOrGpu`] enum is stack-allocated â€”
+    /// dimensions change). The [`CpuOrGpu`] enum is stack-allocated —
     /// zero heap allocation, zero dynamic dispatch per `smooth_field` call.
     pub fn register_with<B: Backend>(
         &self,
@@ -157,10 +157,10 @@ impl super::MultiResSyNRegistration {
             let mut cc_hist: VecDeque<f64> = VecDeque::new();
             let r = self.config.cc_window_radius;
 
-            // â”€â”€ Per-level smoother (dimensions change each level) â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Per-level smoother (dimensions change each level) ─────────
             let mut smoother = smoother_factory(ld);
 
-            // â”€â”€ Per-level scratch (zero alloc inside the inner loop) â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Per-level scratch (zero alloc inside the inner loop) ─────────
             let mut p1z = vec![0.0_f32; ln];
             let mut p1y = vec![0.0_f32; ln];
             let mut p1x = vec![0.0_f32; ln];

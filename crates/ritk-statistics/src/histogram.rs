@@ -2,7 +2,7 @@
 //!
 //! # Mathematical Specification
 //!
-//! Given a vector of intensity values `V = {vâ‚, â€¦, vâ‚™}` and a range
+//! Given a vector of intensity values `V = {v₁, …, vₙ}` and a range
 //! `[min, max]` partitioned into `bins` equal-width subintervals
 //!
 //!   Δw = (max − min) / bins

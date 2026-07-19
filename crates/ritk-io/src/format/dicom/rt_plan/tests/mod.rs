@@ -7,7 +7,7 @@ use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 
-// â”€â”€ Test helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test helpers ──────────────────────────────────────────────────────────────
 
 fn write_rt_plan_file(obj: InMemDicomObject, path: &std::path::Path) {
     obj.with_meta(
@@ -122,7 +122,7 @@ fn make_fraction_group_item(
     item
 }
 
-// â”€â”€ Test A: missing file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test A: missing file ──────────────────────────────────────────────────────
 
 /// Invariant: a nonexistent path must produce Err mentioning the path or open failure.
 #[test]
@@ -136,9 +136,9 @@ fn test_read_rt_plan_missing_file_returns_error() {
     );
 }
 
-// â”€â”€ Test B: wrong SOP class â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test B: wrong SOP class ───────────────────────────────────────────────────
 
-/// Invariant: a file whose SOP Class UID â‰  RT Plan must produce Err
+/// Invariant: a file whose SOP Class UID ≠ RT Plan must produce Err
 /// containing the rejected UID.
 #[test]
 fn test_read_rt_plan_wrong_sop_class_returns_error() {
@@ -155,7 +155,7 @@ fn test_read_rt_plan_wrong_sop_class_returns_error() {
     );
 }
 
-// â”€â”€ Test C: synthetic plan roundtrip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test C: synthetic plan roundtrip ─────────────────────────────────────────
 
 /// Invariant: rt_plan_label, beam count, beam names, radiation type,
 /// fraction count, and referenced beam numbers preserved through write-read cycle.
@@ -437,7 +437,7 @@ fn test_read_rt_plan_rejects_non_sequence_referenced_beam_sequence() {
     );
 }
 
-// â”€â”€ Test D: empty plan writes and reads back â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test D: empty plan writes and reads back ──────────────────────────────────
 
 /// Invariant: write_rt_plan with empty beams and fraction_groups must succeed;
 /// rt_plan_label must be preserved.
@@ -469,7 +469,7 @@ fn test_write_rt_plan_rejects_nothing_but_writes_empty() {
     );
 }
 
-// â”€â”€ Test E: full round-trip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Test E: full round-trip ───────────────────────────────────────────────────
 
 /// Invariant: all plan fields, beam fields, and fraction group fields preserved
 /// through the DICOM write-read cycle.

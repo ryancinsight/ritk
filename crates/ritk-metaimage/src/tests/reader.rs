@@ -18,7 +18,7 @@ fn make_image(
         .expect("valid image")
 }
 
-// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Helpers ───────────────────────────────────────────────────────────
 
 /// Write a minimal `.mha` file with MET_FLOAT data and identity metadata.
 fn write_minimal_mha(
@@ -103,7 +103,7 @@ fn test_compressed_hostile_dimsize_errors_without_oom() {
     );
 }
 
-// â”€â”€ Shape and metadata â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Shape and metadata ─────────────────────────────────────────────────
 
 /// The reader must shape X-fastest MetaImage payloads directly as RITK [Z,Y,X].
 /// A header with `DimSize = 4 3 2` (nx=4, ny=3, nz=2) must produce
@@ -195,7 +195,7 @@ fn test_file_identity_direction_reordered_to_internal_axes() -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Round-trip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Round-trip ─────────────────────────────────────────────────────────
 
 /// Write an Image via `write_metaimage` and read it back; verify shape,
 /// spatial metadata, and every voxel value.
@@ -244,7 +244,7 @@ fn test_round_trip_mha() -> Result<()> {
     Ok(())
 }
 
-// â”€â”€ Error paths â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Error paths ────────────────────────────────────────────────────────
 
 /// Reading a non-existent file must return an error (not panic).
 #[test]

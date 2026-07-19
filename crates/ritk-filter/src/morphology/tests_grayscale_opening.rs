@@ -19,7 +19,7 @@ fn extract_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
 /// O_B(c) = c for constant image c.
 ///
 /// **Proof**: E_B(c) = c (erosion of constant), D_B(c) = c (dilation of
-/// constant), so O_B(c) = D_B(E_B(c)) = c. âˆŽ
+/// constant), so O_B(c) = D_B(E_B(c)) = c. ∎
 #[test]
 fn constant_image_unchanged() {
     let c = 17.0_f32;
@@ -33,7 +33,7 @@ fn constant_image_unchanged() {
 
 /// Radius 0 is identity: O_B(f) = f when |B| = 1 (only the centre voxel).
 ///
-/// **Proof**: erosion r=0 returns min of {f(x)} = f(x); same for dilation. âˆŽ
+/// **Proof**: erosion r=0 returns min of {f(x)} = f(x); same for dilation. ∎
 #[test]
 fn radius_zero_is_identity() {
     let vals: Vec<f32> = (0..216_u32).map(|i| i as f32).collect();
@@ -44,20 +44,20 @@ fn radius_zero_is_identity() {
     for (i, (&a, &b)) in vals.iter().zip(out_vals.iter()).enumerate() {
         assert!(
             (a - b).abs() < 1e-6,
-            "radius-0 identity: voxel {i} {a} â‰  {b}"
+            "radius-0 identity: voxel {i} {a} ≠ {b}"
         );
     }
 }
 
 /// Bright spike removed by opening.
 ///
-/// Volume: 3Ã—3Ã—5 all zeros except centre column ix=2 which equals 1.
+/// Volume: 3×3×5 all zeros except centre column ix=2 which equals 1.
 /// After opening (r=1) the spike must be removed.
 ///
 /// **Proof**:
-/// - Erosion r=1 at ix=2: min includes ix=1 and ix=3 (both 0) â†’ 0.
+/// - Erosion r=1 at ix=2: min includes ix=1 and ix=3 (both 0) → 0.
 /// - After erosion entire volume = 0.
-/// - Dilation r=1 of constant 0 = 0 everywhere. âˆŽ
+/// - Dilation r=1 of constant 0 = 0 everywhere. ∎
 #[test]
 fn bright_spike_removed() {
     let [nz, ny, nx] = [3usize, 3, 5];
@@ -80,7 +80,7 @@ fn bright_spike_removed() {
     }
 }
 
-/// Anti-extensivity: O_B(f)(x) â‰¤ f(x) for all x.
+/// Anti-extensivity: O_B(f)(x) ≤ f(x) for all x.
 ///
 /// Verified over a non-trivial gradient volume.
 #[test]
@@ -145,14 +145,14 @@ fn all_foreground_unchanged() {
 
 /// Large bright feature (> SE size) is NOT removed by opening.
 ///
-/// A 5Ã—5Ã—5 fully-bright block within a 9Ã—9Ã—9 background is too large
+/// A 5×5×5 fully-bright block within a 9×9×9 background is too large
 /// for r=1 to remove.  The core of the block must remain bright.
 #[test]
 fn large_bright_region_unchanged() {
     let [nz, ny, nx] = [9usize, 9, 9];
     let n = nz * ny * nx;
     let mut vals = vec![0.0_f32; n];
-    // Set a 5Ã—5Ã—5 bright block at iz/iy/ix âˆˆ {2..6}
+    // Set a 5×5×5 bright block at iz/iy/ix ∈ {2..6}
     for iz in 2..7 {
         for iy in 2..7 {
             for ix in 2..7 {
@@ -163,7 +163,7 @@ fn large_bright_region_unchanged() {
     let img = make_image(vals, [nz, ny, nx]);
     let out = GrayscaleOpeningFilter::new(1).apply(&img).unwrap();
     let out_vals = extract_vals(&out);
-    // Interior of the 5Ã—5Ã—5 block (iz/iy/ix âˆˆ {3..5}) must remain bright
+    // Interior of the 5×5×5 block (iz/iy/ix ∈ {3..5}) must remain bright
     for iz in 3..6 {
         for iy in 3..6 {
             for ix in 3..6 {

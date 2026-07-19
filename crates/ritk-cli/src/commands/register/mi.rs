@@ -52,7 +52,7 @@ pub(super) fn run_mi_registration(args: &RegisterArgs) -> Result<()> {
 
     let quality = &result.quality;
     println!(
-        "Registered {} â†’ {} (method={}, iterations={}, converged={:?}, MI={:.6}, cost={:.6})",
+        "Registered {} → {} (method={}, iterations={}, converged={:?}, MI={:.6}, cost={:.6})",
         args.moving.display(),
         args.output.display(),
         args.method,

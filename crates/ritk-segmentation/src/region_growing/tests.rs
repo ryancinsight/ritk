@@ -1,4 +1,4 @@
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 use super::{connected_threshold, ConnectedThresholdFilter};
 use coeus_core::SequentialBackend;
@@ -16,11 +16,11 @@ fn count_foreground(image: &Image<f32, TestBackend, 3>) -> usize {
     get_values(image).iter().filter(|&&v| v > 0.5).count()
 }
 
-// â”€â”€ Positive tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive tests ────────────────────────────────────────────────────────────
 
 #[test]
 fn test_uniform_image_grows_entire_volume() {
-    // All voxels have intensity 100; lower=50, upper=150 â†’ entire 4Ã—4Ã—4 grown.
+    // All voxels have intensity 100; lower=50, upper=150 → entire 4×4×4 grown.
     let image = make_image(vec![100.0_f32; 64], [4, 4, 4]);
     let result = connected_threshold(&image, [0, 0, 0], 50.0, 150.0);
     assert_eq!(count_foreground(&result), 64);
@@ -28,7 +28,7 @@ fn test_uniform_image_grows_entire_volume() {
 
 #[test]
 fn test_single_voxel_exactly_on_lower_bound() {
-    // Seed has intensity exactly equal to lower â†’ should be included.
+    // Seed has intensity exactly equal to lower → should be included.
     let image = make_image(vec![50.0_f32; 8], [2, 2, 2]);
     let result = connected_threshold(&image, [0, 0, 0], 50.0, 100.0);
     assert_eq!(count_foreground(&result), 8);
@@ -43,8 +43,8 @@ fn test_single_voxel_exactly_on_upper_bound() {
 
 #[test]
 fn test_two_regions_seed_selects_one() {
-    // 1Ã—1Ã—6 volume: [100, 100, 100, 10, 10, 10].
-    // Seed at (0,0,0) with lower=50, upper=200 â†’ only first 3 voxels.
+    // 1×1×6 volume: [100, 100, 100, 10, 10, 10].
+    // Seed at (0,0,0) with lower=50, upper=200 → only first 3 voxels.
     let values = vec![100.0, 100.0, 100.0, 10.0, 10.0, 10.0];
     let image = make_image(values, [1, 1, 6]);
     let result = connected_threshold(&image, [0, 0, 0], 50.0, 200.0);
@@ -59,7 +59,7 @@ fn test_two_regions_seed_selects_one() {
 
 #[test]
 fn test_connectivity_is_6_not_diagonal() {
-    // 3Ã—3Ã—1 slice:
+    // 3×3×1 slice:
     //   A 0 0
     //   0 0 0
     //   0 0 B
@@ -93,11 +93,11 @@ fn test_filter_struct_matches_function() {
     );
 }
 
-// â”€â”€ Negative / boundary tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Negative / boundary tests ─────────────────────────────────────────────────
 
 #[test]
 fn test_seed_outside_range_returns_all_zero() {
-    // Seed intensity = 5.0, range [50, 200] â†’ seed excluded â†’ empty mask.
+    // Seed intensity = 5.0, range [50, 200] → seed excluded → empty mask.
     let image = make_image(vec![5.0_f32; 8], [2, 2, 2]);
     let result = connected_threshold(&image, [0, 0, 0], 50.0, 200.0);
     assert_eq!(count_foreground(&result), 0);
@@ -146,11 +146,11 @@ fn test_spatial_metadata_preserved() {
     assert_eq!(result.direction(), &direction);
 }
 
-// â”€â”€ 3-D volumetric test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── 3-D volumetric test ───────────────────────────────────────────────────────
 
 #[test]
 fn test_3d_sphere_region_growing() {
-    // 9Ã—9Ã—9 image with a sphere of radius 3 at center (4,4,4) with intensity 200;
+    // 9×9×9 image with a sphere of radius 3 at center (4,4,4) with intensity 200;
     // background intensity 50; lower=150, upper=255.
     // Region growing from center should capture exactly the sphere.
     let (nz, ny, nx) = (9, 9, 9);

@@ -5,25 +5,25 @@
 //!
 //! Padfield's (2012) masked normalized cross-correlation. Given a fixed image `F`
 //! with mask `Mf` and a moving image `T` with mask `Mt`, the NCC over every
-//! relative translation is computed with a handful of FFTs at a size `â‰¥ Nf+Ntâˆ’1`
+//! relative translation is computed with a handful of FFTs at a size `≥ Nf+Nt−1`
 //! (so the circular correlation equals the linear one over the valid full output):
 //!
 //! ```text
-//! rotate T, Mt by 180Â°
-//! overlap   = round(IFFT(MÌ‚fÂ·MÌ‚t_rot))                     (clamped â‰¥ 0)
-//! corrF     = IFFT(FÌ‚Â·MÌ‚t_rot),  corrM = IFFT(MÌ‚fÂ·TÌ‚_rot)
-//! numerator = IFFT(FÌ‚Â·TÌ‚_rot) âˆ’ corrFÂ·corrM/overlap
-//! fixedDen  = max(IFFT(FÂ²Ì‚Â·MÌ‚t_rot) âˆ’ corrFÂ²/overlap, 0)
-//! movingDen = max(IFFT(MÌ‚fÂ·TÂ²Ì‚_rot) âˆ’ corrMÂ²/overlap, 0)
-//! NCC       = numerator / âˆš(fixedDenÂ·movingDen)
+//! rotate T, Mt by 180°
+//! overlap   = round(IFFT(MÌ‚f·MÌ‚t_rot))                     (clamped ≥ 0)
+//! corrF     = IFFT(FÌ‚·MÌ‚t_rot),  corrM = IFFT(MÌ‚f·TÌ‚_rot)
+//! numerator = IFFT(FÌ‚·TÌ‚_rot) − corrF·corrM/overlap
+//! fixedDen  = max(IFFT(F²Ì‚·MÌ‚t_rot) − corrF²/overlap, 0)
+//! movingDen = max(IFFT(MÌ‚f·T²Ì‚_rot) − corrM²/overlap, 0)
+//! NCC       = numerator / √(fixedDen·movingDen)
 //! ```
 //!
 //! post-processed: 0 where `denominator < precisionTolerance`, where `overlap`
-//! is below the required overlap (`max(fractionÂ·maxOverlap, requiredNumber, 1)`),
-//! and clamped to `[âˆ’1, 1]`. Hats denote the FFT of the corresponding
-//! (masked / squared-masked) field. Output extent is `Nf+Ntâˆ’1` per axis.
+//! is below the required overlap (`max(fraction·maxOverlap, requiredNumber, 1)`),
+//! and clamped to `[−1, 1]`. Hats denote the FFT of the corresponding
+//! (masked / squared-masked) field. Output extent is `Nf+Nt−1` per axis.
 //!
-//! Voxels with very low overlap (e.g. a single overlapping pixel â‡’ zero local
+//! Voxels with very low overlap (e.g. a single overlapping pixel ⇒ zero local
 //! variance) are numerically degenerate and rounding-dependent; the
 //! `required_fraction`/`required_number` parameters gate them, and with a
 //! non-trivial fraction the result is float-exact to SimpleITK.
@@ -47,7 +47,7 @@ pub struct MaskedFftNormalizedCorrelationFilter {
 }
 
 /// Zero-pad a real field into a complex buffer of shape `dims`, optionally
-/// 180Â°-rotating it (placing the rotated content at the origin).
+/// 180°-rotating it (placing the rotated content at the origin).
 fn pad(src: &[f32], sdims: [usize; 3], dims: [usize; 3], rotate: bool) -> Vec<Complex<f32>> {
     let [sz, sy, sx] = sdims;
     let [_nz, ny, nx] = dims;
@@ -84,7 +84,7 @@ fn corr(a: &[Complex<f32>], b: &[Complex<f32>], dims: [usize; 3]) -> Vec<f32> {
 
 impl MaskedFftNormalizedCorrelationFilter {
     /// Compute the masked FFT NCC. `fixed`/`fixed_mask` share a shape, as do
-    /// `moving`/`moving_mask`. Output extent is `fixed + moving âˆ’ 1` per axis.
+    /// `moving`/`moving_mask`. Output extent is `fixed + moving − 1` per axis.
     pub fn apply<B: Backend>(
         &self,
         fixed: &Image<f32, B, 3>,

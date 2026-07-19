@@ -31,13 +31,13 @@ fn make_volume(depth: usize, rows: usize, cols: usize) -> LoadedVolume {
     }
 }
 
-// â”€â”€ image_transform â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── image_transform ───────────────────────────────────────────────────────
 
 /// For zoom=1.0 and a square image fitting exactly in the viewport,
 /// `scale` must equal `vp_size / img_size`.
 ///
-/// Analytical: viewport 100Ã—100, image 50Ã—50 â†’ base_scale = 2.0,
-/// zoom = 1.0 â†’ scale = 2.0.
+/// Analytical: viewport 100×100, image 50×50 → base_scale = 2.0,
+/// zoom = 1.0 → scale = 2.0.
 #[test]
 fn test_image_transform_scale_fit_square() {
     let state = ViewportState::new(0, WindowLevel::new(0.0, 1.0));
@@ -45,11 +45,11 @@ fn test_image_transform_scale_fit_square() {
     let (_, scale) = state.image_transform(rect, 50, 50);
     assert!(
         (scale - 2.0).abs() < 1e-4,
-        "scale must be 2.0 for 100Ã—100 viewport and 50Ã—50 image, got {scale}"
+        "scale must be 2.0 for 100×100 viewport and 50×50 image, got {scale}"
     );
 }
 
-/// For a landscape viewport (200Ã—100) and a square image (50Ã—50),
+/// For a landscape viewport (200×100) and a square image (50×50),
 /// the constraining dimension is the height, so `scale = 100/50 = 2.0`.
 #[test]
 fn test_image_transform_scale_fit_landscape_viewport() {
@@ -70,7 +70,7 @@ fn test_image_transform_zoom_doubles_scale() {
     state.zoom = 2.0;
     let rect = Rect::from_min_size(pos2(0.0, 0.0), vec2(100.0, 100.0));
     let (_, scale) = state.image_transform(rect, 50, 50);
-    // base=2.0, zoom=2.0 â†’ scale=4.0
+    // base=2.0, zoom=2.0 → scale=4.0
     assert!(
         (scale - 4.0).abs() < 1e-4,
         "zoom=2.0 must double scale to 4.0, got {scale}"
@@ -87,7 +87,7 @@ fn test_image_transform_zero_image_no_panic() {
     assert_eq!(scale, 1.0, "zero-size image must return scale=1.0");
 }
 
-// â”€â”€ slice_dims â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── slice_dims ────────────────────────────────────────────────────────────
 
 /// Axial slice of [D=4, R=5, C=6] must have (width, height) = (6, 5).
 #[test]
@@ -116,33 +116,33 @@ fn test_slice_dims_sagittal() {
     assert_eq!(h, 4, "sagittal height must equal depth=4");
 }
 
-// â”€â”€ img_to_volume â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── img_to_volume ─────────────────────────────────────────────────────────
 
-/// Axial axis: img_col â†’ volume col, img_row â†’ volume row,
-/// slice â†’ volume depth.
+/// Axial axis: img_col → volume col, img_row → volume row,
+/// slice → volume depth.
 #[test]
 fn test_img_to_volume_axial() {
     let vox = img_to_volume(3, 7, 10, 0);
     assert_eq!(vox, [10, 7, 3], "axial: [slice, img_row, img_col]");
 }
 
-/// Coronal axis: img_col â†’ volume col, img_row â†’ volume depth,
-/// slice â†’ volume row.
+/// Coronal axis: img_col → volume col, img_row → volume depth,
+/// slice → volume row.
 #[test]
 fn test_img_to_volume_coronal() {
     let vox = img_to_volume(3, 7, 10, 1);
     assert_eq!(vox, [7, 10, 3], "coronal: [img_row, slice, img_col]");
 }
 
-/// Sagittal axis: img_col â†’ volume row, img_row â†’ volume depth,
-/// slice â†’ volume col.
+/// Sagittal axis: img_col → volume row, img_row → volume depth,
+/// slice → volume col.
 #[test]
 fn test_img_to_volume_sagittal() {
     let vox = img_to_volume(3, 7, 10, 2);
     assert_eq!(vox, [7, 3, 10], "sagittal: [img_row, img_col, slice]");
 }
 
-// â”€â”€ screen_to_img â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── screen_to_img ─────────────────────────────────────────────────────────
 
 /// screen_to_img must return `None` for positions outside the image
 /// bounds.
@@ -161,7 +161,7 @@ fn test_screen_to_img_out_of_bounds() {
 /// an in-bounds position.
 ///
 /// Analytical: offset=(0,0), scale=2.0, screen=(7.9, 5.0)
-/// â†’ col_f = 3.95 â†’ col = 3; row_f = 2.5 â†’ row = 2.
+/// → col_f = 3.95 → col = 3; row_f = 2.5 → row = 2.
 #[test]
 fn test_screen_to_img_in_bounds() {
     let offset = Vec2::new(0.0, 0.0);
@@ -230,9 +230,9 @@ fn test_screen_to_img_exact_rejects_non_positive_scale() {
     );
 }
 
-// â”€â”€ clamp_slice_index â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── clamp_slice_index ─────────────────────────────────────────────────────
 
-/// `clamp_slice_index` must reduce an out-of-range index to `dim âˆ’ 1`.
+/// `clamp_slice_index` must reduce an out-of-range index to `dim − 1`.
 #[test]
 fn test_clamp_slice_index() {
     let vol = make_volume(10, 20, 30);
@@ -268,7 +268,7 @@ fn test_new_defaults_to_slice_mode() {
     );
 }
 
-// â”€â”€ invalidate_texture â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── invalidate_texture ────────────────────────────────────────────────────
 
 /// `invalidate_texture` must clear both `texture` and `texture_slice_key`.
 #[test]

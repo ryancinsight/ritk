@@ -136,7 +136,7 @@ impl OnnxGraph {
         for node in &self.nodes {
             // Check all inputs are available
             for input in &node.inputs {
-                // Skip empty input names â€” these are Constant nodes whose values
+                // Skip empty input names — these are Constant nodes whose values
                 // are embedded and referenced via the Constant node itself, not a
                 // separate name in the available set.
                 if input.is_empty() {

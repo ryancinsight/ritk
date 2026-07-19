@@ -1,6 +1,6 @@
 use super::*;
 
-// â”€â”€ LDDMM registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── LDDMM registration ────────────────────────────────────────────────────
 
 /// Run LDDMM (Large Deformation Diffeomorphic Metric Mapping) registration.
 ///
@@ -54,7 +54,7 @@ mod tests {
     use ritk_registration::demons::DemonsVariant;
     use tempfile::tempdir;
 
-    // â”€â”€ LDDMM: output shape â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── LDDMM: output shape ────────────────────────────────────────────────────────────
 
     #[test]
     fn test_register_lddmm_creates_output_with_correct_shape() {
@@ -141,7 +141,7 @@ mod tests {
         }
     }
 
-    // â”€â”€ Boundary: Leto volume round-trip preserves values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Boundary: Leto volume round-trip preserves values ────────────────
 
     /// Converting an image to `leto::Array3<f64>` and back must preserve voxel
     /// values within f32 precision.
@@ -157,7 +157,7 @@ mod tests {
             "array shape must match image shape"
         );
 
-        // Verify values: flat index i â†’ value i * 4.0.
+        // Verify values: flat index i → value i * 4.0.
         let flat: Vec<f64> = volume.iter().copied().collect();
         for (i, &v) in flat.iter().enumerate() {
             let expected = i as f64 * 4.0;
@@ -187,7 +187,7 @@ mod tests {
         );
     }
 
-    // â”€â”€ Boundary: image_to_flat_vec round-trip preserves values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Boundary: image_to_flat_vec round-trip preserves values ───────────
 
     /// Converting an image to flat vec and back must preserve voxel values.
     #[test]

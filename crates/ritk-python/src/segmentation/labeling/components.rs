@@ -87,7 +87,7 @@ pub fn scalar_connected_component(
 /// Vector connected-component labeling, matching `sitk.VectorConnectedComponent`.
 ///
 /// Labels a multi-channel (vector) image: two face- or fully-connected
-/// neighbours join when `1 âˆ’ |a Â· b| â‰¤ distance_threshold` over their channel
+/// neighbours join when `1 − |a · b| ≤ distance_threshold` over their channel
 /// vectors (ITK assumes the vectors are normalized).  The component **partition**
 /// matches SimpleITK; label integers are renumbered consecutively (the standard
 /// connected-component parity convention).
@@ -128,8 +128,8 @@ pub fn vector_connected_component(
 /// components, matching `SimpleITK.ThresholdMaximumConnectedComponents`.
 ///
 /// Binary-searches the threshold `T` maximizing the count of connected
-/// components (size â‰¥ `minimum_object_size`, face connectivity) in the band
-/// `T â‰¤ I â‰¤ upper_boundary`, then returns that binary mask (1 inside, 0 outside).
+/// components (size ≥ `minimum_object_size`, face connectivity) in the band
+/// `T ≤ I ≤ upper_boundary`, then returns that binary mask (1 inside, 0 outside).
 ///
 /// Args:
 ///     image: Input (integer-valued) PyImage.

@@ -5,11 +5,11 @@
 //! Given variance v_d (physical units^2) and voxel spacing h_d, the pixel
 //! variance is t = v_d / h_d^2. The kernel is ITK's *discrete* Gaussian
 //! (`GaussianOperator`), the discrete analog of the Gaussian (Lindeberg 1990):
-//!   g\[k\] = e^{-t} Â· I_{|k|}(t)   for k in {-r,...,r}
+//!   g\[k\] = e^{-t} · I_{|k|}(t)   for k in {-r,...,r}
 //! where I_n is the modified Bessel function of the first kind. One-sided
-//! coefficients are accumulated until the mass g\[0\] + 2Â·Sum_{i>=1} g\[i\]
+//! coefficients are accumulated until the mass g\[0\] + 2·Sum_{i>=1} g\[i\]
 //! reaches 1 - maximum_error (radius capped at 32), then normalised by that sum.
-//! This is NOT a sampled continuous Gaussian â€” it is float-exact to SimpleITK.
+//! This is NOT a sampled continuous Gaussian — it is float-exact to SimpleITK.
 //!
 //! # Boundary Conditions
 //! Replicate (edge) padding is used for all convolutions. This preserves the
@@ -94,7 +94,7 @@ pub struct DiscreteGaussianFilter<B: Backend> {
 impl<B: Backend> DiscreteGaussianFilter<B> {
     /// Create with per-dimension Gaussian sigmas (physical units).
     ///
-    /// Variance is computed internally as `sigmaÂ²` for each dimension.
+    /// Variance is computed internally as `sigma²` for each dimension.
     /// Panics if `sigmas` is empty.
     pub fn new(sigmas: Vec<GaussianSigma>) -> Self {
         assert!(!sigmas.is_empty(), "sigmas list must not be empty");
@@ -223,8 +223,8 @@ const VARIANCE_MIN: f64 = 1e-18;
 ///
 /// Returns `[Option<Vec<f32>>; D]`: `None` for an axis whose pixel variance is
 /// below [`VARIANCE_MIN`] or whose kernel collapses to the identity impulse
-/// (length â‰¤ 1). `variance` is the per-axis physical-variance schedule
-/// (broadcast from the last entry); `spacing_mode` selects the physicalâ†’pixel
+/// (length ≤ 1). `variance` is the per-axis physical-variance schedule
+/// (broadcast from the last entry); `spacing_mode` selects the physical→pixel
 /// conversion. Shared by [`DiscreteGaussianFilter::kernels_for_spacing`] and
 /// [`discrete_gaussian_smooth_flat`].
 pub(crate) fn discrete_gaussian_kernels<const D: usize>(
@@ -260,7 +260,7 @@ pub(crate) fn discrete_gaussian_kernels<const D: usize>(
 /// buffer (ITK `GaussianOperator` kernel, replicate boundary via
 /// `convolve_separable`). Bitwise-identical to
 /// [`DiscreteGaussianFilter::apply`]/`apply_native`; used by the Canny filters
-/// so their native paths need no Burn backend to smooth.
+/// so their native paths need no Coeus backend to smooth.
 pub(crate) fn discrete_gaussian_smooth_flat(
     vals: Vec<f32>,
     dims: [usize; 3],
@@ -281,9 +281,9 @@ pub(crate) fn discrete_gaussian_smooth_flat(
 const GAUSSIAN_MAX_KERNEL_RADIUS: usize = 32;
 
 /// Build ITK's discrete Gaussian operator (`GaussianOperator`): the symmetric,
-/// normalised coefficients `g[k] = e^{-t}Â·I_{|k|}(t)` where `t` is the pixel
+/// normalised coefficients `g[k] = e^{-t}·I_{|k|}(t)` where `t` is the pixel
 /// variance and `I_n` is the modified Bessel function. One-sided coefficients
-/// accumulate until the running mass reaches `1 âˆ’ maximum_error`, capped at
+/// accumulate until the running mass reaches `1 − maximum_error`, capped at
 /// radius 32. Float-exact to SimpleITK `DiscreteGaussian`.
 pub(crate) fn gaussian_operator_1d(pixel_variance: f64, maximum_error: f64) -> Vec<f32> {
     let t = pixel_variance;

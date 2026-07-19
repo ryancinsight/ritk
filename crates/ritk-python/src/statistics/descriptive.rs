@@ -36,7 +36,7 @@ pub(super) fn stats_to_dict(py: Python<'_>, stats: &ImageStatistics) -> RitkResu
 /// Args:
 ///     image: Input PyImage.
 ///     ddof:  Delta degrees of freedom for `std` (numpy convention). 0 (default)
-///            = population std (Ã·N); 1 = sample std (Ã·N-1), matching
+///            = population std (÷N); 1 = sample std (÷N-1), matching
 ///            SimpleITK's StatisticsImageFilter.GetSigma().
 ///
 /// Returns:
@@ -94,7 +94,7 @@ pub fn masked_statistics(
     stats_to_dict(py, &stats)
 }
 
-/// Compute the SÃ¸rensenâ€“Dice coefficient between two binary masks.
+/// Compute the Sørensen–Dice coefficient between two binary masks.
 ///
 /// Delegates to `ritk_statistics::dice_coefficient`.
 ///
@@ -122,7 +122,7 @@ pub fn dice_coefficient(image1: &PyImage, image2: &PyImage) -> RitkResult<f32> {
 ///     image2: Second label/mask PyImage (same shape as image1).
 ///
 /// Returns:
-///     Similarity index 2|Aâˆ©B|/(|A|+|B|) in [0, 1].
+///     Similarity index 2|A∩B|/(|A|+|B|) in [0, 1].
 #[pyfunction]
 pub fn similarity_index(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> RitkResult<f32> {
     let arc1 = image_from_py(image1);
@@ -134,7 +134,7 @@ pub fn similarity_index(py: Python<'_>, image1: &PyImage, image2: &PyImage) -> R
 /// Compute the symmetric Hausdorff distance between two binary masks.
 ///
 /// Delegates to `ritk_statistics::hausdorff_distance`.
-/// HD(A, B) = max( hd(âˆ‚Aâ†’âˆ‚B), hd(âˆ‚Bâ†’âˆ‚A) ). Distance in mm.
+/// HD(A, B) = max( hd(∂A→∂B), hd(∂B→∂A) ). Distance in mm.
 ///
 /// Args:
 ///     image1: First binary mask PyImage.
@@ -154,7 +154,7 @@ pub fn hausdorff_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage) ->
 /// Compute the symmetric mean surface distance between two binary masks.
 ///
 /// Delegates to `ritk_statistics::mean_surface_distance`.
-/// MSD = ( MSD(âˆ‚Aâ†’âˆ‚B) + MSD(âˆ‚Bâ†’âˆ‚A) ) / 2. Distance in mm.
+/// MSD = ( MSD(∂A→∂B) + MSD(∂B→∂A) ) / 2. Distance in mm.
 ///
 /// Args:
 ///     image1: First binary mask PyImage.
@@ -174,7 +174,7 @@ pub fn mean_surface_distance(py: Python<'_>, image1: &PyImage, image2: &PyImage)
 /// Compute the Peak Signal-to-Noise Ratio between two images.
 ///
 /// Delegates to `ritk_statistics::psnr`.
-/// Formula: PSNR = 10 Â· logâ‚â‚€(MAXÂ² / MSE).
+/// Formula: PSNR = 10 · log₁₀(MAX² / MSE).
 ///
 /// Args:
 ///     image1:  Test image (PyImage).
@@ -194,7 +194,7 @@ pub fn psnr(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
 /// Compute the Structural Similarity Index (SSIM) between two images.
 ///
 /// Delegates to `ritk_statistics::ssim`.
-/// Wang et al. (2004), Câ‚ = (0.01Â·MAX)Â², Câ‚‚ = (0.03Â·MAX)Â².
+/// Wang et al. (2004), C₁ = (0.01·MAX)², C₂ = (0.03·MAX)².
 ///
 /// Args:
 ///     image1:  Test image (PyImage).
@@ -211,10 +211,10 @@ pub fn ssim(image1: &PyImage, image2: &PyImage, max_val: f32) -> f32 {
     core_ssim(&a, &b, max_val)
 }
 
-/// Estimate additive Gaussian noise ÏƒÌ‚ via the Median Absolute Deviation (MAD).
+/// Estimate additive Gaussian noise σÌ‚ via the Median Absolute Deviation (MAD).
 ///
-/// Formula: ÏƒÌ‚ = 1.4826 Â· median(|Xáµ¢ âˆ’ median(X)|).
-/// The 1.4826 constant is 1 / Î¦â»Â¹(3/4) (Hampel 1974).
+/// Formula: σÌ‚ = 1.4826 · median(|Xᵢ − median(X)|).
+/// The 1.4826 constant is 1 / Φ⁻¹(3/4) (Hampel 1974).
 ///
 /// Args:
 ///     image: Input PyImage.

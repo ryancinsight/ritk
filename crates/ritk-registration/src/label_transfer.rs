@@ -1,4 +1,4 @@
-//! Atlas / label-map transfer â€” the ANTs-style "apply a transform to a label map".
+//! Atlas / label-map transfer — the ANTs-style "apply a transform to a label map".
 //!
 //! ritk has classical [`crate::ImageRegistration`] and deformable
 //! [`crate::MultiResSyNRegistration`] registration
@@ -7,11 +7,11 @@
 //! resamples a moving-space label image onto a reference grid with NEAREST-NEIGHBOUR
 //! interpolation, so integer region IDs are preserved exactly (no label blending).
 //!
-//! Atlas-to-patient pipeline (e.g. MNI152 â†’ patient T1):
+//! Atlas-to-patient pipeline (e.g. MNI152 → patient T1):
 //! 1. Register the patient (fixed) to the atlas (moving) with any ritk registration,
-//!    obtaining a [`Transform`] that maps patient â†’ atlas world coordinates.
+//!    obtaining a [`Transform`] that maps patient → atlas world coordinates.
 //! 2. `let patient_labels = warp_label_map(&atlas_labels, &transform, &patient_t1);`
-//!    â€” the atlas region labels now live on the patient grid; read region centroids
+//!    — the atlas region labels now live on the patient grid; read region centroids
 //!    for targeting.
 //!
 //! For a deformable result the displacement/velocity field implements [`Transform`]
@@ -26,7 +26,7 @@ use ritk_transform::Transform;
 use std::collections::BTreeMap;
 
 /// Warp a moving-space label/atlas image onto `reference`'s grid through
-/// `transform` (mapping reference â†’ moving world coordinates), using
+/// `transform` (mapping reference → moving world coordinates), using
 /// nearest-neighbour interpolation so integer labels are preserved exactly.
 /// Reference-grid voxels whose mapped point falls outside the label image are set
 /// to `0` (background).
@@ -45,13 +45,13 @@ where
     let backend = B::default();
     let shape = reference.shape();
 
-    // reference voxel â†’ world â†’ (transform) â†’ label-image world â†’ label index.
+    // reference voxel → world → (transform) → label-image world → label index.
     let indices = generate_grid(shape, &backend);
     let ref_world = reference.index_to_world_native(&indices);
     let label_world = transform.transform_points(ref_world);
     let label_idx = labels.world_to_index_native(&label_world);
 
-    // Nearest-neighbour keeps integer labels intact; zero-pad â†’ background outside FOV.
+    // Nearest-neighbour keeps integer labels intact; zero-pad → background outside FOV.
     let warped = NearestNeighborInterpolator::new_zero_pad()
         .interpolate(labels.data(), label_idx)
         .reshape(shape);
@@ -110,7 +110,7 @@ where
         .into_iter()
         .map(|(lab, (sum, cnt))| {
             let mean = [sum[0] / cnt, sum[1] / cnt, sum[2] / cnt];
-            // world[c] = origin[c] + Î£_axis mean[axis]Â·spacing[axis]Â·direction[(c, axis)]
+            // world[c] = origin[c] + Σ_axis mean[axis]·spacing[axis]·direction[(c, axis)]
             let mut world = [0.0_f64; 3];
             for (c, wc) in world.iter_mut().enumerate() {
                 let mut a = origin[c];
@@ -154,7 +154,7 @@ mod tests {
     }
 
     /// Identity warp reproduces the label map exactly (validates the full chain:
-    /// grid â†’ indexâ†”world â†’ nearest interpolate â†’ reshape).
+    /// grid → index↔world → nearest interpolate → reshape).
     #[test]
     fn identity_warp_preserves_labels_exactly() {
         let (d, h, w) = (6usize, 6, 6);
@@ -213,14 +213,14 @@ mod tests {
     }
 
     /// Region centroids land at the geometric centres (identity direction + unit
-    /// spacing + zero origin â‡’ world centroid == mean voxel multi-index [d0,d1,d2]).
+    /// spacing + zero origin ⇒ world centroid == mean voxel multi-index [d0,d1,d2]).
     #[test]
     fn label_centroids_finds_region_centres() {
         let (d, h, w) = (10usize, 10, 10);
         let mut v = vec![0.0f32; d * h * w];
         // Label 1: single voxel at index (d0,d1,d2) = (2, 3, 4).
         v[(2 * h + 3) * w + 4] = 1.0;
-        // Label 2: 2Ã—2Ã—2 block over [6,8) on each axis â†’ centroid 6.5 each.
+        // Label 2: 2×2×2 block over [6,8) on each axis → centroid 6.5 each.
         for z in 6..8 {
             for y in 6..8 {
                 for x in 6..8 {

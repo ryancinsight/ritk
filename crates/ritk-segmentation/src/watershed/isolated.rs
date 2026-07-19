@@ -86,8 +86,8 @@ fn almost_equal(left: f32, right: f32) -> bool {
 }
 
 /// ITK `GradientMagnitudeImageFilter`: per-axis central difference
-/// `(f[+1] âˆ’ f[âˆ’1]) / 2` with ZeroFluxNeumann (edge-clamp) boundaries, magnitude
-/// `sqrt(Î£ dáµ¢Â²)`. Unit spacing is the isolated-watershed internal convention. A
+/// `(f[+1] − f[−1]) / 2` with ZeroFluxNeumann (edge-clamp) boundaries, magnitude
+/// `sqrt(Σ dᵢ²)`. Unit spacing is the isolated-watershed internal convention. A
 /// `z == 1` volume yields `dz == 0` via the clamp, reducing to the 2-D gradient.
 fn gradient_magnitude(vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
     let [nz, ny, nx] = dims;
@@ -196,7 +196,7 @@ pub(super) fn watershed_basins_gd(g: &[f32], dims: [usize; 3]) -> Vec<usize> {
         .collect()
 }
 
-// â”€â”€ Configuration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Configuration ─────────────────────────────────────────────────────────────
 
 /// Parameters for isolated watershed segmentation.
 ///
@@ -265,14 +265,14 @@ impl Default for IsolatedWatershedConfig {
     }
 }
 
-// â”€â”€ Core algorithm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Core algorithm ─────────────────────────────────────────────────────────────
 
 /// Gradient-descent watershed segmentation matching ITK's
 /// `IsolatedWatershedImageFilter`.
 ///
 /// Each voxel is assigned the label of the seed whose gradient-descent basin
 /// it belongs to.  `seed1`/`seed2` are flat linear indices
-/// (`flat = zÂ·nyÂ·nx + yÂ·nx + x`).
+/// (`flat = z·ny·nx + y·nx + x`).
 ///
 fn isolated_watershed_values(
     vals: &[f32],
@@ -315,7 +315,7 @@ fn isolated_watershed_values(
         .collect()
 }
 
-// â”€â”€ Public filter struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public filter struct ───────────────────────────────────────────────────────
 
 /// Isolated watershed segmentation filter.
 ///
@@ -442,7 +442,7 @@ fn validate_image_and_seeds(
     Ok(())
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ──────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_isolated.rs"]

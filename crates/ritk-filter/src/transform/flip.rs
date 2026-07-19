@@ -2,15 +2,15 @@
 //!
 //! # Mathematical Specification
 //!
-//! For a 3-D image `I : â„¤Â³ â†’ â„` with shape `[nz, ny, nx]` and flip policies
+//! For a 3-D image `I : ℤ³ → ℝ` with shape `[nz, ny, nx]` and flip policies
 //! `flip = [fz, fy, fx]` where each `f*` is [`FlipPolicy::Keep`] or [`FlipPolicy::Flip`]:
 //!
 //! `out(iz, iy, ix) = I(iz', iy', ix')`
 //!
 //! where:
-//! - `iz' = if fz { nz âˆ’ 1 âˆ’ iz } else { iz }`
-//! - `iy' = if fy { ny âˆ’ 1 âˆ’ iy } else { iy }`
-//! - `ix' = if fx { nx âˆ’ 1 âˆ’ ix } else { ix }`
+//! - `iz' = if fz { nz − 1 − iz } else { iz }`
+//! - `iy' = if fy { ny − 1 − iy } else { iy }`
+//! - `ix' = if fx { nx − 1 − ix } else { ix }`
 //!
 //! # Properties
 //!
@@ -178,7 +178,7 @@ impl FlipImageFilter {
     }
 }
 
-// â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 #[path = "tests_flip.rs"]

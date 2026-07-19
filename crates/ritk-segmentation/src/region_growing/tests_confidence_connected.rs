@@ -18,12 +18,12 @@ fn count_foreground(image: &Image<f32, TestBackend, 3>) -> usize {
     get_values(image).iter().filter(|&&v| v > 0.5).count()
 }
 
-// â”€â”€ Positive tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive tests ────────────────────────────────────────────────────────
 
 #[test]
 fn test_seed_in_uniform_region_grows_entire_volume() {
     // All voxels have intensity 100; seed intensity 100 within [50, 150].
-    // With Î¼=100, Ïƒ=0 initially, then Ïƒ=0 for uniform region,
+    // With μ=100, σ=0 initially, then σ=0 for uniform region,
     // all voxels qualify on first iteration.
     let image = make_image(vec![100.0_f32; 64], [4, 4, 4]);
     let result = confidence_connected(&image, [0, 0, 0], 50.0, 150.0, 2.5, 15);
@@ -38,7 +38,7 @@ fn test_seed_in_uniform_region_grows_entire_volume() {
 fn test_iterative_update_converges_to_stable_region() {
     // Two-region image: center 2x2x2 = 200, surrounding = 50.
     // Seed in center; initial bounds [150, 255] only capture center.
-    // After first iteration, Î¼=200, Ïƒ=0, so same bounds â†’ stable.
+    // After first iteration, μ=200, σ=0, so same bounds → stable.
     let mut values = vec![50.0_f32; 64]; // 4x4x4
                                          // Center 2x2x2 at [1..3, 1..3, 1..3].
     for z in 1..3 {
@@ -72,7 +72,7 @@ fn test_multiplier_affects_region_size() {
                 let dy = iy as isize - cy;
                 let dx = ix as isize - cx;
                 let dist_sq = dz * dz + dy * dy + dx * dx;
-                // Intensity = 200 - 10*distanceÂ², clipped at 50.
+                // Intensity = 200 - 10*distance², clipped at 50.
                 let intensity = (200.0 - 10.0 * (dist_sq as f32)).max(50.0);
                 values[iz * ny * nx + iy * nx + ix] = intensity;
             }
@@ -101,7 +101,7 @@ fn test_max_iteration_limit_respected() {
     values[13] = 200.0; // center
     let image = make_image(values, [3, 3, 3]);
     let result = confidence_connected(&image, [1, 1, 1], 150.0, 250.0, 2.5, 1);
-    // First iteration: center only (Ïƒ=0). No growth, so just 1 voxel.
+    // First iteration: center only (σ=0). No growth, so just 1 voxel.
     assert_eq!(
         count_foreground(&result),
         1,
@@ -135,11 +135,11 @@ fn test_binary_output_verification() {
     }
 }
 
-// â”€â”€ 3-D volumetric test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── 3-D volumetric test ───────────────────────────────────────────────────
 
 #[test]
 fn test_3d_sphere_region_growing() {
-    // 9Ã—9Ã—9 image with a sphere of radius 3 at center (4,4,4) with intensity 200;
+    // 9×9×9 image with a sphere of radius 3 at center (4,4,4) with intensity 200;
     // background intensity 50; initial bounds [150, 255].
     // Region growing from center should capture exactly the sphere.
     let (nz, ny, nx) = (9, 9, 9);
@@ -161,7 +161,7 @@ fn test_3d_sphere_region_growing() {
         }
     }
     let image = make_image(values, [nz, ny, nx]);
-    // Sphere voxels are uniform (200), so once entered, Î¼=200, Ïƒ=0,
+    // Sphere voxels are uniform (200), so once entered, μ=200, σ=0,
     // initial bounds continue to apply, sphere captured completely.
     let result = confidence_connected(&image, [4, 4, 4], 150.0, 255.0, 2.5, 15);
     assert_eq!(
@@ -171,11 +171,11 @@ fn test_3d_sphere_region_growing() {
     );
 }
 
-// â”€â”€ Negative tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Negative tests ─────────────────────────────────────────────────────────
 
 #[test]
 fn test_seed_outside_initial_range_returns_empty() {
-    // Seed intensity = 5.0, initial range [50, 200] â†’ seed excluded â†’ empty mask.
+    // Seed intensity = 5.0, initial range [50, 200] → seed excluded → empty mask.
     let image = make_image(vec![5.0_f32; 8], [2, 2, 2]);
     let result = confidence_connected(&image, [0, 0, 0], 50.0, 200.0, 2.5, 15);
     assert_eq!(
@@ -202,12 +202,12 @@ fn test_filter_struct_builder_pattern() {
     );
 }
 
-// â”€â”€ Adversarial tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Adversarial tests ─────────────────────────────────────────────────────
 
 /// Two isolated uniform-intensity cubes separated by zero-intensity background.
 /// Seeding from cube A must not bleed to cube B, and vice versa.
 ///
-/// Image: 1Ã—1Ã—8 = [100, 100, 100, 0, 0, 200, 200, 200]
+/// Image: 1×1×8 = [100, 100, 100, 0, 0, 200, 200, 200]
 ///   A = positions 0..3 (intensity 100), background = 4..5 (intensity 0)
 ///   B = positions 5..8 (intensity 200)
 /// Seed A at [0,0,0] with initial=[50,150]: grows exactly 3 voxels (cube A).
@@ -218,8 +218,8 @@ fn test_multi_seed_two_cubes_no_cross_contamination() {
     let image = make_image(values, [1, 1, 8]);
 
     // Seed in cube A: bounds [50, 150], k=2.5.
-    // Iter 1: Ïƒ=0, bounds=[50,150]. Grows x=1 (100) and then x=2 (100).
-    // x=3 has intensity 0.0 < 50 â†’ rejected. Result: 3 voxels.
+    // Iter 1: σ=0, bounds=[50,150]. Grows x=1 (100) and then x=2 (100).
+    // x=3 has intensity 0.0 < 50 → rejected. Result: 3 voxels.
     let result_a = confidence_connected(&image, [0, 0, 0], 50.0, 150.0, 2.5, 15);
     assert_eq!(
         count_foreground(&result_a),
@@ -266,11 +266,11 @@ fn test_multi_seed_two_cubes_no_cross_contamination() {
 /// Large multiplier expands the confidence interval to include more voxels
 /// in a gradient image than a small multiplier.
 ///
-/// Image: 1Ã—1Ã—3 = [100, 130, 10]. Seed at [0,0,0], initial=[50, 200].
-/// First flood [50,200] captures {100, 130} (10 âˆ‰ [50,200]); sample stats over
-/// those two are Î¼=115, Ïƒ=âˆš(((100Â²+130Â²) âˆ’ 115Â²Â·2)/(2âˆ’1))=âˆš450â‰ˆ21.2.
-/// k=2.0: boundsâ‰ˆ[115âˆ’42, 115+42]=[73, 157]; 10 âˆ‰ â†’ fixed point at 2 voxels.
-/// k=10.0: boundsâ‰ˆ[115âˆ’212, 115+212]=[âˆ’97, 327]; re-flood now reaches 10 â†’ 3 voxels.
+/// Image: 1×1×3 = [100, 130, 10]. Seed at [0,0,0], initial=[50, 200].
+/// First flood [50,200] captures {100, 130} (10 ∉ [50,200]); sample stats over
+/// those two are μ=115, σ=√(((100²+130²) − 115²·2)/(2−1))=√450≈21.2.
+/// k=2.0: bounds≈[115−42, 115+42]=[73, 157]; 10 ∉ → fixed point at 2 voxels.
+/// k=10.0: bounds≈[115−212, 115+212]=[−97, 327]; re-flood now reaches 10 → 3 voxels.
 #[test]
 fn test_large_multiplier_expands_region_over_gradient() {
     let values = vec![100.0_f32, 130.0, 10.0];
@@ -293,11 +293,11 @@ fn test_large_multiplier_expands_region_over_gradient() {
     );
     assert!(
         count_large > count_small,
-        "large k must always produce region â‰¥ small k"
+        "large k must always produce region ≥ small k"
     );
 }
 
-/// Seed placed at volume corner [0,0,0] of a 4Ã—4Ã—4 uniform image must still
+/// Seed placed at volume corner [0,0,0] of a 4×4×4 uniform image must still
 /// grow the entire 64-voxel volume via BFS without out-of-bounds access.
 #[test]
 fn test_seed_at_volume_corner_grows_full_uniform_volume() {
@@ -306,7 +306,7 @@ fn test_seed_at_volume_corner_grows_full_uniform_volume() {
     assert_eq!(
         count_foreground(&result),
         64,
-        "corner seed on uniform 4Ã—4Ã—4 image must grow all 64 voxels"
+        "corner seed on uniform 4×4×4 image must grow all 64 voxels"
     );
 }
 
@@ -315,7 +315,7 @@ fn test_seed_at_volume_corner_grows_full_uniform_volume() {
 /// the result must contain exactly 1 foreground voxel (the seed itself).
 #[test]
 fn test_zero_max_iterations_returns_only_seed_voxel() {
-    // 3Ã—3Ã—3 uniform image; seed at center with max_iterations=0.
+    // 3×3×3 uniform image; seed at center with max_iterations=0.
     let image = make_image(vec![100.0_f32; 27], [3, 3, 3]);
     let result = confidence_connected(&image, [1, 1, 1], 50.0, 150.0, 2.5, 0);
     assert_eq!(
@@ -333,17 +333,17 @@ fn test_zero_max_iterations_returns_only_seed_voxel() {
 }
 
 /// Voxels with intensity exactly equal to `initial_lower` or `initial_upper`
-/// must be included (inclusive bounds: L â‰¤ I(v) â‰¤ U).
+/// must be included (inclusive bounds: L ≤ I(v) ≤ U).
 ///
-/// Image: 1Ã—1Ã—3 = [50, 100, 200]. initial_lower=50, initial_upper=200.
+/// Image: 1×1×3 = [50, 100, 200]. initial_lower=50, initial_upper=200.
 /// Seed at [0,0,0] (value 50 == initial_lower): must be included.
 ///
 /// The first flood uses the full initial interval [50, 200], and 50, 100, 200 are
 /// all in it and connected, so the *entire* line is captured in one pass (this is
 /// ITK's behaviour: each iteration floods the whole connected region within the
-/// current interval). Recomputed stats over {50,100,200} are Î¼=116.67,
-/// Ïƒ=âˆš(((2500+10000+40000) âˆ’ Î¼Â²Â·3)/(3âˆ’1))â‰ˆ76.38, so with k=2.5 the interval widens
-/// to â‰ˆ[âˆ’74, 308] and the region is a fixed point at all 3 voxels.
+/// current interval). Recomputed stats over {50,100,200} are μ=116.67,
+/// σ=√(((2500+10000+40000) − μ²·3)/(3−1))≈76.38, so with k=2.5 the interval widens
+/// to ≈[−74, 308] and the region is a fixed point at all 3 voxels.
 ///
 /// (The earlier 2-voxel expectation came from a defect that advanced one BFS ring
 /// per iteration and narrowed the band before voxel 200 was ever tested.)
@@ -360,16 +360,16 @@ fn test_initial_bound_exact_values_are_inclusive() {
         vals[0], 1.0,
         "voxel at exact initial_lower (50.0) must be foreground"
     );
-    // Adjacent voxel 100 âˆˆ [50, 200] must be included.
-    assert_eq!(vals[1], 1.0, "voxel 100 âˆˆ [50, 200] must be foreground");
+    // Adjacent voxel 100 ∈ [50, 200] must be included.
+    assert_eq!(vals[1], 1.0, "voxel 100 ∈ [50, 200] must be foreground");
     // Voxel 200 == initial_upper is in the first flood's interval, so it is
     // captured in the initial pass and the widened bounds keep it.
     assert_eq!(
         vals[2], 1.0,
-        "voxel at exact initial_upper (200.0) âˆˆ [50, 200] must be foreground"
+        "voxel at exact initial_upper (200.0) ∈ [50, 200] must be foreground"
     );
 
-    // Separate test: seed exactly at initial_upper (1Ã—1Ã—1 single voxel).
+    // Separate test: seed exactly at initial_upper (1×1×1 single voxel).
     let image_upper = make_image(vec![200.0_f32], [1, 1, 1]);
     let result_upper = confidence_connected(&image_upper, [0, 0, 0], 100.0, 200.0, 2.5, 15);
     assert_eq!(

@@ -5,20 +5,20 @@ fn quant_boundary_mapping() {
     // T1=3, T2=7, T3=21
     let (t1, t2, t3) = (3, 7, 21);
     assert_eq!(quant(-30, t1, t2, t3, 0), -4); // d <= -T3
-    assert_eq!(quant(-21, t1, t2, t3, 0), -4); // d == -T3 â†’ â‰¤ -T3
-    assert_eq!(quant(-10, t1, t2, t3, 0), -3); // -T3 < d â‰¤ -T2
-    assert_eq!(quant(-7, t1, t2, t3, 0), -3); // d == -T2 â†’ â‰¤ -T2
+    assert_eq!(quant(-21, t1, t2, t3, 0), -4); // d == -T3 → ≤ -T3
+    assert_eq!(quant(-10, t1, t2, t3, 0), -3); // -T3 < d ≤ -T2
+    assert_eq!(quant(-7, t1, t2, t3, 0), -3); // d == -T2 → ≤ -T2
     assert_eq!(quant(-5, t1, t2, t3, 0), -2);
-    assert_eq!(quant(-3, t1, t2, t3, 0), -2); // d == -T1 â†’ â‰¤ -T1
+    assert_eq!(quant(-3, t1, t2, t3, 0), -2); // d == -T1 → ≤ -T1
     assert_eq!(quant(-1, t1, t2, t3, 0), -1);
     assert_eq!(quant(0, t1, t2, t3, 0), 0);
     assert_eq!(quant(1, t1, t2, t3, 0), 1);
     assert_eq!(quant(2, t1, t2, t3, 0), 1); // d < T1
-    assert_eq!(quant(3, t1, t2, t3, 0), 2); // d == T1 â†’ â‰¥ T1
+    assert_eq!(quant(3, t1, t2, t3, 0), 2); // d == T1 → ≥ T1
     assert_eq!(quant(6, t1, t2, t3, 0), 2);
     assert_eq!(quant(7, t1, t2, t3, 0), 3);
     assert_eq!(quant(20, t1, t2, t3, 0), 3);
-    assert_eq!(quant(21, t1, t2, t3, 0), 4); // d â‰¥ T3
+    assert_eq!(quant(21, t1, t2, t3, 0), 4); // d ≥ T3
     assert_eq!(quant(100, t1, t2, t3, 0), 4);
 }
 
@@ -51,37 +51,37 @@ fn sign_normalize_all_zero() {
 
 #[test]
 fn context_index_q1q2q3_all_zero() {
-    // Q3=0 â†’ index 0
+    // Q3=0 → index 0
     assert_eq!(context_index(0, 0, 0), 0);
 }
 
 #[test]
 fn context_index_q1q2_zero_q3_4() {
-    // Q3=4 â†’ index 4
+    // Q3=4 → index 4
     assert_eq!(context_index(0, 0, 4), 4);
 }
 
 #[test]
 fn context_index_q1_zero_q2_1_q3_neg4() {
-    // Q2=1, Q3=-4 â†’ 5 + 0*9 + 0 = 5
+    // Q2=1, Q3=-4 → 5 + 0*9 + 0 = 5
     assert_eq!(context_index(0, 1, -4), 5);
 }
 
 #[test]
 fn context_index_q1_zero_q2_4_q3_4() {
-    // Q2=4, Q3=4 â†’ 5 + 3*9 + 8 = 5 + 27 + 8 = 40
+    // Q2=4, Q3=4 → 5 + 3*9 + 8 = 5 + 27 + 8 = 40
     assert_eq!(context_index(0, 4, 4), 40);
 }
 
 #[test]
 fn context_index_q1_1_min() {
-    // Q1=1, Q2=-4, Q3=-4 â†’ 41 + 0 + 0 + 0 = 41
+    // Q1=1, Q2=-4, Q3=-4 → 41 + 0 + 0 + 0 = 41
     assert_eq!(context_index(1, -4, -4), 41);
 }
 
 #[test]
 fn context_index_q1_4_max() {
-    // Q1=4, Q2=4, Q3=4 â†’ 41 + 3*81 + 8*9 + 8 = 41+243+72+8 = 364
+    // Q1=4, Q2=4, Q3=4 → 41 + 3*81 + 8*9 + 8 = 41+243+72+8 = 364
     assert_eq!(context_index(4, 4, 4), 364);
 }
 
@@ -93,7 +93,7 @@ fn context_index_max_value_is_364() {
 #[test]
 fn default_thresholds_8bit() {
     // ISO 14495-1 C.2.4.1.1.1, maxval=255, NEAR=0:
-    // factor = (min(255,4095)+128)/256 = 1 â†’ T1 = 1+2 = 3, T2 = 4+3 = 7,
+    // factor = (min(255,4095)+128)/256 = 1 → T1 = 1+2 = 3, T2 = 4+3 = 7,
     // T3 = 17+4 = 21 (the canonical 8-bit defaults).
     let (t1, t2, t3) = default_thresholds(255, 0);
     assert_eq!(t1, 3);
@@ -105,9 +105,9 @@ fn default_thresholds_8bit() {
 fn default_thresholds_16bit() {
     // ISO 14495-1 C.2.4.1.1.1, maxval=65535, NEAR=0:
     // factor = (min(65535,4095)+128)/256 = 4223/256 = 16
-    // T1 = 16Â·(3âˆ’2)+2 = 18, T2 = 16Â·(7âˆ’3)+3 = 67, T3 = 16Â·(21âˆ’4)+4 = 276.
+    // T1 = 16·(3−2)+2 = 18, T2 = 16·(7−3)+3 = 67, T3 = 16·(21−4)+4 = 276.
     // (Previous assertions 768/1792/5376 derived FACTOR without the 4095 cap
-    // and used BASICÂ·FACTOR instead of FACTORÂ·(BASICâˆ’k)+k â€” non-conformant.)
+    // and used BASIC·FACTOR instead of FACTOR·(BASIC−k)+k — non-conformant.)
     let (t1, t2, t3) = default_thresholds(65535, 0);
     assert_eq!(t1, 18);
     assert_eq!(t2, 67);
@@ -116,14 +116,14 @@ fn default_thresholds_16bit() {
 
 #[test]
 fn default_thresholds_12bit_matches_iso_factor_cap() {
-    // maxval=4095: factor = (4095+128)/256 = 16 â†’ same as 16-bit (cap at 4095).
+    // maxval=4095: factor = (4095+128)/256 = 16 → same as 16-bit (cap at 4095).
     let (t1, t2, t3) = default_thresholds(4095, 0);
     assert_eq!((t1, t2, t3), (18, 67, 276));
 }
 
 #[test]
 fn default_thresholds_near_lossless_offsets() {
-    // NEAR=2, maxval=255: T1 = 3+3Â·2 = 9, T2 = 7+5Â·2 = 17, T3 = 21+7Â·2 = 35.
+    // NEAR=2, maxval=255: T1 = 3+3·2 = 9, T2 = 7+5·2 = 17, T3 = 21+7·2 = 35.
     let (t1, t2, t3) = default_thresholds(255, 2);
     assert_eq!((t1, t2, t3), (9, 17, 35));
 }
@@ -135,25 +135,25 @@ fn inverse_map_even_zero() {
 
 #[test]
 fn inverse_map_even_positive() {
-    // MErrval=4 (even) â†’ errval = 2
+    // MErrval=4 (even) → errval = 2
     assert_eq!(inverse_map(4), 2);
 }
 
 #[test]
 fn inverse_map_odd_negative() {
-    // MErrval=1 (odd) â†’ errval = -(1+1)/2 = -1
+    // MErrval=1 (odd) → errval = -(1+1)/2 = -1
     assert_eq!(inverse_map(1), -1);
 }
 
 #[test]
 fn inverse_map_odd_large() {
-    // MErrval=7 (odd) â†’ errval = -(7+1)/2 = -4
+    // MErrval=7 (odd) → errval = -(7+1)/2 = -4
     assert_eq!(inverse_map(7), -4);
 }
 
 #[test]
 fn inverse_map_forward_inverse_bijection() {
-    // Forward: errval â‰¥ 0 â†’ 2*errval; errval < 0 â†’ -2*errval - 1
+    // Forward: errval ≥ 0 → 2*errval; errval < 0 → -2*errval - 1
     for errval in -50i32..=50i32 {
         let me = if errval >= 0 {
             (errval * 2) as u32
@@ -171,13 +171,13 @@ fn inverse_map_forward_inverse_bijection() {
 
 #[test]
 fn compute_k_zero_when_a_small() {
-    // A=1, N=1: N<<0 = 1 >= 1 = A â†’ k=0
+    // A=1, N=1: N<<0 = 1 >= 1 = A → k=0
     assert_eq!(compute_k(1, 1, 8), 0);
 }
 
 #[test]
 fn compute_k_increases_with_large_a() {
-    // A=8, N=1: N<<0=1 < 8, N<<1=2 < 8, N<<2=4 < 8, N<<3=8 >= 8 â†’ k=3
+    // A=8, N=1: N<<0=1 < 8, N<<1=2 < 8, N<<2=4 < 8, N<<3=8 >= 8 → k=3
     assert_eq!(compute_k(8, 1, 8), 3);
 }
 
@@ -203,13 +203,13 @@ fn update_context_bias_positive_decrements_b() {
         c: 0,
         n: 4,
     };
-    // b > 0 â†’ b -= n â†’ b = 5 - 4 = 1 â†’ clamp to min(1, 0) = 0 in the code?
+    // b > 0 → b -= n → b = 5 - 4 = 1 → clamp to min(1, 0) = 0 in the code?
     // Actually: b = (b - n).min(0) = (1).min(0) = 0. Wait let me re-check the code.
     // After errval=0: ctx.b += 0*(2*0+1) = 0, so b stays 5.
-    // Then: b > 0 â†’ b -= n (=4) â†’ b = 1 â†’ b.min(0) = 0? No: `b -= n` then `b = b.min(0)`.
-    // Hmm, actually: b = b - n = 5 - 5 (n=5 after += 1) â†’ b = 0.
+    // Then: b > 0 → b -= n (=4) → b = 1 → b.min(0) = 0? No: `b -= n` then `b = b.min(0)`.
+    // Hmm, actually: b = b - n = 5 - 5 (n=5 after += 1) → b = 0.
     update_context(&mut ctx, 0, 0);
     assert_eq!(ctx.n, 5);
-    // b=5, n becomes 5: b -= n â†’ b = 0 â†’ min(0,0) = 0
+    // b=5, n becomes 5: b -= n → b = 0 → min(0,0) = 0
     assert_eq!(ctx.b, 0);
 }

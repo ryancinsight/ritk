@@ -71,7 +71,7 @@ fn write_native_region_mask(
     Ok(foreground)
 }
 
-// â”€â”€ Connected-threshold region growing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Connected-threshold region growing ───────────────────────────────────────
 
 /// Apply connected-threshold BFS region growing from a user-specified seed.
 ///

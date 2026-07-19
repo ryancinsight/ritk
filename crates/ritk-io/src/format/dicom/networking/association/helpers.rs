@@ -1,4 +1,4 @@
-//! Association helper functions â€” request building, context negotiation, PDV fragmentation.
+//! Association helper functions — request building, context negotiation, PDV fragmentation.
 
 use super::super::context::{transfer_syntax, AssociationConfig, NegotiatedContext};
 use super::super::pdu::*;
@@ -113,7 +113,7 @@ impl Association {
     }
 }
 
-/// Build a map of presentation-context ID â†’ abstract-syntax UID from an RQ PDU.
+/// Build a map of presentation-context ID → abstract-syntax UID from an RQ PDU.
 pub(super) fn rq_iter_abstracts(pdu: &Pdu) -> HashMap<u8, ArrayString<64>> {
     let mut m = if let Pdu::AssociateRq(rq) = pdu {
         HashMap::with_capacity(rq.presentation_contexts.len())
@@ -129,7 +129,7 @@ pub(super) fn rq_iter_abstracts(pdu: &Pdu) -> HashMap<u8, ArrayString<64>> {
 }
 
 /// Build the transfer-syntax list for a presentation context, ensuring
-/// Implicit VR Little Endian (PS 3.7 Â§7.1.1.13) is always present as fallback.
+/// Implicit VR Little Endian (PS 3.7 §7.1.1.13) is always present as fallback.
 ///
 /// If IVR-LE is already in `uids`, returns a clone of the slice directly.
 /// Otherwise appends IVR-LE to a copy. Using a slice reference avoids an

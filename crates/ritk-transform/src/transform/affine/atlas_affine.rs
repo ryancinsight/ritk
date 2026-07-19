@@ -4,7 +4,7 @@
 //! host storage. Tensor-backed trainable transforms remain separate. To avoid a
 //! `thiserror` dep-add, the [`AtlasAffineError`] enum derives
 //! `Debug+Clone+PartialEq+Eq` only and carries a hand-rolled `Display`
-//! impl via [`std::fmt::Display`] + [`std::error::Error`] â€” zero new
+//! impl via [`std::fmt::Display`] + [`std::error::Error`] — zero new
 //! crate-graph edges in this file.
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage, MoiraiBackend};
@@ -12,15 +12,15 @@ use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_tensor_ops::native as tensor_ops;
 
-// â”€â”€ Sister struct â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Sister struct ─────────────────────────────────────────────────────────
 
 /// Atlas-side sister struct to `AffineTransform`.
 ///
 /// Field shape mirrors the legacy (matrix / translation / center) but
 /// stored on plain host slices (`Vec<f32>`) so the construct-time path
-/// stays compute-backend-agnostic. **No** `coeus_nn::Module` derive â€”
+/// stays compute-backend-agnostic. **No** `coeus_nn::Module` derive —
 /// deep forward contracts are reserved for sub-batch #5 \[major\] per ADR
-/// 0012 Â§Decision Â§3.
+/// 0012 §Decision §3.
 #[derive(Debug, Clone)]
 pub struct AtlasAffineTransform<B: ComputeBackend, const D: usize> {
     /// `[D, D]` linear transformation matrix stored row-major on a host slice.
@@ -33,7 +33,7 @@ pub struct AtlasAffineTransform<B: ComputeBackend, const D: usize> {
     _backend: std::marker::PhantomData<B>,
 }
 
-// â”€â”€ Error semantics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Error semantics ───────────────────────────────────────────────────────
 
 /// Atlas-side error variants for affine math. Carries the actual lengths
 /// to make the error text containable by callers (the Display impl emits
@@ -83,7 +83,7 @@ impl std::fmt::Display for AtlasAffineError {
 
 impl std::error::Error for AtlasAffineError {}
 
-// â”€â”€ Constructors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Constructors ──────────────────────────────────────────────────────────
 
 impl<B: ComputeBackend, const D: usize> AtlasAffineTransform<B, D> {
     /// Construct a new Atlas affine transform from host-slice params.
@@ -165,7 +165,7 @@ impl<B: ComputeBackend, const D: usize> AtlasAffineTransform<B, D> {
     /// `T(x) = A(x - c) + c + t` per point on the host slice and
     /// re-wraps the result in the Atlas-typed image carrier.
     /// `points` is always rank-2 with shape `[N, D]` (last axis width =
-    /// outer `D`), and the output is also rank-2 â€” matching the legacy
+    /// outer `D`), and the output is also rank-2 — matching the legacy
     /// `Tensor<f32, B>::transform_points` contract verbatim (legacy never
     /// varies by per-rank generic for the points carrier).
     pub fn transform_points<BB>(
@@ -207,11 +207,11 @@ impl<B: ComputeBackend, const D: usize> AtlasAffineTransform<B, D> {
     }
 }
 
-// â”€â”€ Row-major rotation-matrix builders (host math) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Row-major rotation-matrix builders (host math) ────────────────────────
 
-/// Row-major `[DÂ·D]` rotation matrix from Euler angles (radians). 3D uses the
-/// ZYX composition `R = R_z(Î³)Â·R_y(Î²)Â·R_x(Î±)` (`angles = [Î±, Î², Î³]`), 2D uses a
-/// single angle, 1D/4D are identity â€” matching the Burn
+/// Row-major `[D·D]` rotation matrix from Euler angles (radians). 3D uses the
+/// ZYX composition `R = R_z(γ)·R_y(β)·R_x(α)` (`angles = [α, β, γ]`), 2D uses a
+/// single angle, 1D/4D are identity — matching the Burn
 /// `RigidTransform::build_rotation_matrix` host formulation.
 fn euler_rotation_matrix<const D: usize>(angles: &[f32]) -> Vec<f32> {
     if D == 3 {
@@ -278,7 +278,7 @@ fn quaternion_rotation_matrix(quat: &[f32]) -> Vec<f32> {
     .collect()
 }
 
-// â”€â”€ Specialization constructors (SSOT: one affine type) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Specialization constructors (SSOT: one affine type) ───────────────────
 
 impl<B: ComputeBackend, const D: usize> AtlasAffineTransform<B, D> {
     /// Native sister of `TranslationTransform`: `T(x) = x + t` (identity matrix,
@@ -291,7 +291,7 @@ impl<B: ComputeBackend, const D: usize> AtlasAffineTransform<B, D> {
         Self::construct(&matrix, translation, &vec![0.0f32; D])
     }
 
-    /// Native sister of `ScaleTransform`: `T(x) = S(x âˆ’ c) + c` (diagonal scale
+    /// Native sister of `ScaleTransform`: `T(x) = S(x − c) + c` (diagonal scale
     /// matrix, zero translation).
     pub fn from_scale(scale: &[f32], center: &[f32]) -> Self {
         let mut matrix = vec![0.0f32; D * D];
@@ -301,7 +301,7 @@ impl<B: ComputeBackend, const D: usize> AtlasAffineTransform<B, D> {
         Self::construct(&matrix, &vec![0.0f32; D], center)
     }
 
-    /// Native sister of `RigidTransform`: `T(x) = R(x âˆ’ c) + c + t` with `R`
+    /// Native sister of `RigidTransform`: `T(x) = R(x − c) + c + t` with `R`
     /// built from Euler `rotation` angles (radians; see `euler_rotation_matrix`).
     pub fn from_euler_rigid(translation: &[f32], rotation: &[f32], center: &[f32]) -> Self {
         let matrix = euler_rotation_matrix::<D>(rotation);
@@ -310,7 +310,7 @@ impl<B: ComputeBackend, const D: usize> AtlasAffineTransform<B, D> {
 }
 
 impl<B: ComputeBackend> AtlasAffineTransform<B, 3> {
-    /// Native sister of `VersorRigid3DTransform`: `T(x) = R(x âˆ’ c) + c + t` with
+    /// Native sister of `VersorRigid3DTransform`: `T(x) = R(x − c) + c + t` with
     /// `R` built from the `quaternion` `[x, y, z, w]` (see
     /// `quaternion_rotation_matrix`).
     pub fn from_versor(translation: &[f32], quaternion: &[f32], center: &[f32]) -> Self {

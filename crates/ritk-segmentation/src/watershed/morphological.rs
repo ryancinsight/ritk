@@ -14,7 +14,7 @@
 //! fills basins shallower than `level`, so only sufficiently deep minima seed a
 //! basin. The composition is bit-exact, label-for-label, to
 //! `sitk.MorphologicalWatershed(level, markWatershedLine=True,
-//! fullyConnected=False)` â€” verified for level 0/5/10 on the cthead gradient.
+//! fullyConnected=False)` — verified for level 0/5/10 on the cthead gradient.
 //!
 //! Watershed-line voxels are label 0. Face (6-)connectivity throughout.
 
@@ -64,7 +64,7 @@ impl MorphologicalWatershed {
         } else {
             image.clone()
         };
-        // Regional minima â†’ binary seeds â†’ labelled markers.
+        // Regional minima → binary seeds → labelled markers.
         let minima = RegionalMinimaFilter::new()
             .with_values(1.0, 0.0)
             .apply(&base)?;

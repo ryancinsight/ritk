@@ -9,7 +9,7 @@ fn default_app() -> SnapApp {
     app
 }
 
-// â”€â”€ apply_pacs_response â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── apply_pacs_response ─────────────────────────────────────────────────
 
 /// FindSeriesOk transitions to SeriesResults and clears selection state.
 #[test]
@@ -70,7 +70,7 @@ fn apply_pacs_find_series_ok_empty_list_uses_default_uid() {
         } => {
             assert!(
                 study_instance_uid.is_empty(),
-                "empty series â†’ empty uid default"
+                "empty series → empty uid default"
             );
             assert!(series.is_empty(), "series list empty");
         }
@@ -121,7 +121,7 @@ fn apply_pacs_retrieve_series_err_transitions_to_error() {
     }
 }
 
-// â”€â”€ handle_pacs_action â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── handle_pacs_action ──────────────────────────────────────────────────
 
 /// SubmitFindSeries transitions to Pending when no worker is active.
 #[test]
@@ -129,7 +129,7 @@ fn handle_submit_find_series_sets_pending_state() {
     let mut app = default_app();
     app.pacs_worker = None;
 
-    // On WASM this sets Error â€” we check the cfg-gated path at compile time.
+    // On WASM this sets Error — we check the cfg-gated path at compile time.
     // On native, it spawns a worker. In both, state leaves Idle.
     app.handle_pacs_action(PacsPanelAction::SubmitFindSeries {
         study_instance_uid: "STUDY-UID".into(),

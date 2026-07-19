@@ -16,7 +16,7 @@ pub enum PyInverseConsistency {
     /// No inverse-consistency enforcement (relaxed update, default).
     #[default]
     Relaxed,
-    /// Enforce inverse consistency via `v â† (v âˆ’ compose(vâ‚,vâ‚‚)) / 2`.
+    /// Enforce inverse consistency via `v ← (v − compose(v₁,v₂)) / 2`.
     Enforced,
 }
 

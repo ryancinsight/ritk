@@ -18,7 +18,7 @@ pub use vtk_scene::{RenderProperties, VtkActor, VtkScene};
 /// dimension and never appears in trait or implementor names): implementors
 /// read the Burn `ritk_image::Image<f32, B, D>` today and the Atlas
 /// `ritk_image::Image<T, B, D>` on the migration path, monomorphized
-/// per container â€” one contract, zero-cost, no parallel branded trait family.
+/// per container — one contract, zero-cost, no parallel branded trait family.
 pub trait ImageReader<I> {
     /// Read an image natively from a path returning bounded topological structures.
     fn read<P: AsRef<Path>>(&self, path: P) -> std::io::Result<I>;
@@ -26,7 +26,7 @@ pub trait ImageReader<I> {
 
 /// High-level trait for abstracting image writing.
 ///
-/// Generic over the image container `I` â€” see [`ImageReader`].
+/// Generic over the image container `I` — see [`ImageReader`].
 pub trait ImageWriter<I> {
     /// Write a constrained topology image onto disk avoiding approximations.
     fn write<P: AsRef<Path>>(&self, path: P, image: &I) -> std::io::Result<()>;

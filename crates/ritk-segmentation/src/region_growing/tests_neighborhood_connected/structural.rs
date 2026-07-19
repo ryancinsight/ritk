@@ -1,6 +1,6 @@
 use super::*;
 
-// â”€â”€ Structural tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Structural tests ──────────────────────────────────────────────────────
 
 #[test]
 fn test_spatial_metadata_preserved() {
@@ -50,16 +50,16 @@ fn test_filter_struct_default_radius() {
     );
 }
 
-// â”€â”€ Anisotropic radius test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Anisotropic radius test ───────────────────────────────────────────────
 
 #[test]
 fn test_anisotropic_radius() {
-    // 1Ã—5Ã—5 image: center 1Ã—3Ã—3 has intensity 200, border intensity 50.
+    // 1×5×5 image: center 1×3×3 has intensity 200, border intensity 50.
     // Bounds [150, 255].
     //
     // With radius [0,1,1]: neighborhood in z is just the voxel itself (nz=1),
-    // in y and x extends Â±1. The voxels whose 1Ã—3Ã—3 neighborhood is fully
-    // inside the 1Ã—3Ã—3 high-intensity region are those at y=2,x=2 (center only).
+    // in y and x extends ±1. The voxels whose 1×3×3 neighborhood is fully
+    // inside the 1×3×3 high-intensity region are those at y=2,x=2 (center only).
     let (nz, ny, nx) = (1, 5, 5);
     let mut values = vec![50.0_f32; nz * ny * nx];
     for iy in 1..4 {
@@ -69,12 +69,12 @@ fn test_anisotropic_radius() {
     }
     let image = make_image(values, [nz, ny, nx]);
     let result = neighborhood_connected(&image, [0, 2, 2], 150.0, 255.0, [0, 1, 1]);
-    // Center voxel (0,2,2): neighborhood yâˆˆ{1,2,3}, xâˆˆ{1,2,3} â†’ all 200.0 âœ“
+    // Center voxel (0,2,2): neighborhood y∈{1,2,3}, x∈{1,2,3} → all 200.0 ✓
     // Its face-neighbors in-plane: (0,1,2),(0,3,2),(0,2,1),(0,2,3).
-    // (0,1,2): neighborhood yâˆˆ{0,1,2}, xâˆˆ{1,2,3} â†’ includes (0,0,{1,2,3})=50 âœ—
-    // Same reasoning for (0,3,2): includes y=4 which is 50. âœ—
-    // (0,2,1): neighborhood xâˆˆ{0,1,2} â†’ includes x=0 which is 50. âœ—
-    // (0,2,3): neighborhood xâˆˆ{2,3,4} â†’ includes x=4 which is 50. âœ—
+    // (0,1,2): neighborhood y∈{0,1,2}, x∈{1,2,3} → includes (0,0,{1,2,3})=50 ✗
+    // Same reasoning for (0,3,2): includes y=4 which is 50. ✗
+    // (0,2,1): neighborhood x∈{0,1,2} → includes x=0 which is 50. ✗
+    // (0,2,3): neighborhood x∈{2,3,4} → includes x=4 which is 50. ✗
     // So only the center voxel is admissible.
     assert_eq!(
         count_foreground(&result),
@@ -83,11 +83,11 @@ fn test_anisotropic_radius() {
     );
 }
 
-// â”€â”€ 3-D volumetric test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── 3-D volumetric test ───────────────────────────────────────────────────
 
 #[test]
 fn test_3d_sphere_region_growing_radius_zero() {
-    // 9Ã—9Ã—9 image with a sphere of radius 3 at center (4,4,4) with intensity 200;
+    // 9×9×9 image with a sphere of radius 3 at center (4,4,4) with intensity 200;
     // background intensity 50; bounds [150, 255]; neighborhood radius [0,0,0].
     // This should behave exactly like connected-threshold.
     let (nz, ny, nx) = (9, 9, 9);
@@ -121,17 +121,17 @@ fn test_3d_sphere_region_growing_radius_zero() {
 
 #[test]
 fn test_3d_sphere_neighborhood_erodes_boundary() {
-    // 9Ã—9Ã—9 image with a sphere of radius 3 at center (4,4,4) with intensity 200;
+    // 9×9×9 image with a sphere of radius 3 at center (4,4,4) with intensity 200;
     // background intensity 50; bounds [150, 255]; neighborhood radius [1,1,1].
     //
-    // Sphere voxels whose 3Ã—3Ã—3 neighborhood extends outside the sphere will be
+    // Sphere voxels whose 3×3×3 neighborhood extends outside the sphere will be
     // rejected (some neighbors have intensity 50). This effectively erodes the
-    // sphere boundary: only interior voxels (where the entire 3Ã—3Ã—3 neighborhood
+    // sphere boundary: only interior voxels (where the entire 3×3×3 neighborhood
     // is also within the sphere) are admitted.
     //
-    // A voxel at (z,y,x) is admissible iff all 27 neighbors in its 3Ã—3Ã—3 box
+    // A voxel at (z,y,x) is admissible iff all 27 neighbors in its 3×3×3 box
     // are also within the sphere. This is equivalent to requiring
-    // (zÂ±1, yÂ±1, xÂ±1) all satisfy dÂ² â‰¤ 9 where dÂ² is measured from center.
+    // (z±1, y±1, x±1) all satisfy d² ≤ 9 where d² is measured from center.
     // The worst case is the corner offset (+1,+1,+1) from the voxel.
     let (nz, ny, nx) = (9, 9, 9);
     let mut values = vec![50.0_f32; nz * ny * nx];
@@ -153,8 +153,8 @@ fn test_3d_sphere_neighborhood_erodes_boundary() {
     }
 
     // Count analytically: voxel (z,y,x) is admissible iff for ALL (dz,dy,dx)
-    // with |dz|â‰¤1, |dy|â‰¤1, |dx|â‰¤1, the neighbor (z+dz, y+dy, x+dx) is within
-    // the sphere (or outside the image domain â€” but at the center of a 9Ã—9Ã—9
+    // with |dz|≤1, |dy|≤1, |dx|≤1, the neighbor (z+dz, y+dy, x+dx) is within
+    // the sphere (or outside the image domain — but at the center of a 9×9×9
     // image with sphere radius 3, no neighborhood extends outside domain).
     let mut expected_count = 0;
     for iz in 0..nz {
@@ -189,8 +189,8 @@ fn test_3d_sphere_neighborhood_erodes_boundary() {
                 if all_in_sphere {
                     // Also must be 6-connected to the seed region.
                     // For a convex shape centered at (4,4,4), all admissible
-                    // voxels form a 6-connected region â€” verified analytically
-                    // for the Euclidean sphere with rÂ²â‰¤9.
+                    // voxels form a 6-connected region — verified analytically
+                    // for the Euclidean sphere with r²≤9.
                     // We check that the voxel is in the original sphere itself
                     // (otherwise it's background that happens to have all
                     // in-bounds neighbors in the sphere, which is not possible

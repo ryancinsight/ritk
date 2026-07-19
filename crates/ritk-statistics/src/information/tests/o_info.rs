@@ -180,7 +180,7 @@ fn oi_four_identical_channels_is_positive() {
 fn oi_four_independent_channels_near_zero() {
     // Analytical: independent uniform channels over 256 samples with 4 bins.
     // a[i]=i%4, b[i]=(i/4)%4, c[i]=(i/16)%4, d[i]=(i/64)%4 tile perfectly.
-    // TC = 4H(X) âˆ’ H(Xâ‚,Xâ‚‚,Xâ‚ƒ,Xâ‚„) = 4Â·2 âˆ’ 8 = 0; DTC = 0 similarly; Î© = 0.
+    // TC = 4H(X) − H(X₁,X₂,X₃,X₄) = 4·2 − 8 = 0; DTC = 0 similarly; Ω = 0.
     let n = 256_usize;
     let a: Vec<f32> = (0..n).map(|i| (i % 4) as f32).collect();
     let b: Vec<f32> = (0..n).map(|i| ((i / 4) % 4) as f32).collect();
@@ -211,8 +211,8 @@ fn oi_direct_matches_for_n4() {
 
 #[test]
 fn dtc_n4_independent_near_zero() {
-    // DTC(Xâ‚,Xâ‚‚,Xâ‚ƒ,Xâ‚„) = 0 for independent uniform channels (Han 1978).
-    // Each H(Xâ‚,Xâ‚‚,Xâ‚ƒ) = 3Â·logâ‚‚(4) = 6 for independent 4-symbol vars over 256 samples.
+    // DTC(X₁,X₂,X₃,X₄) = 0 for independent uniform channels (Han 1978).
+    // Each H(X₁,X₂,X₃) = 3·log₂(4) = 6 for independent 4-symbol vars over 256 samples.
     // DTC = 4·6 − 3·8 = 24 − 24 = 0.
     let n = 256_usize;
     let a: Vec<f32> = (0..n).map(|i| (i % 4) as f32).collect();

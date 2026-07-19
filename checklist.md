@@ -13,11 +13,11 @@
 **Sprint phase**: Execution
 
 - [x] Audit reinitialization and fast-marching special-value propagation.
-- [ ] Add one canonical finite-input validator shared by both provider entry
+- [x] Add one canonical finite-input validator shared by both provider entry
       points.
-- [ ] Add exact NaN/infinity error regressions without weakening finite-value
+- [x] Add exact NaN/infinity error regressions without weakening finite-value
       oracles.
-- [ ] Synchronize Rustdoc, `CHANGELOG.md`, and `gap_audit.md`.
+- [x] Synchronize Rustdoc, `CHANGELOG.md`, and `gap_audit.md`.
 - [ ] Run formatting, warning-denied `ritk-filter` Clippy, focused Nextest,
       doctests, and warning-clean Rustdoc.
 - [ ] Commit, push, and merge the verified increment.

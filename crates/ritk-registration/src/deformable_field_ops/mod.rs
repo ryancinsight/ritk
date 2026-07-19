@@ -4,13 +4,13 @@
 //! (Z-major / row-major order): flat index = `iz * ny * nx + iy * nx + ix`.
 //!
 //! # Conventions
-//! - `dims = [nz, ny, nx]`  â€” image dimensions
-//! - `spacing = [sz, sy, sx]` â€” physical voxel size (mm or arbitrary units)
+//! - `dims = [nz, ny, nx]`  — image dimensions
+//! - `spacing = [sz, sy, sx]` — physical voxel size (mm or arbitrary units)
 //! - Displacement components are stored in voxel units (not physical units)
 //!
 //! # Boundary conditions
 //! All sampling operations use **clamp-to-border** (replicate boundary):
-//! coordinates outside `[0, dim âˆ’ 1]` are clamped to the nearest valid index.
+//! coordinates outside `[0, dim − 1]` are clamped to the nearest valid index.
 
 mod compose;
 mod gradient;
@@ -36,13 +36,13 @@ pub(crate) use smooth::gaussian_smooth_field_inplace;
 pub(crate) use smooth::gaussian_smooth_with_scratch_per_axis;
 pub(crate) use smooth::{gaussian_smooth_field_with_kernel, gaussian_smooth_inplace};
 
-// â”€â”€ GPU-accelerated smoothing  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── GPU-accelerated smoothing  ─────────────────────────────
 pub use smooth::GpuFieldSmoother;
 pub(crate) use validation::{cc_converged, validate_image, validate_image_pair};
 pub(crate) use warp::{compute_mse_inplace, compute_mse_streaming, warp_image_into};
 pub use warp::{warp_image, WarpInterpolation};
 
-// â”€â”€ FieldSmoother trait â€” zero-cost abstraction over CPU/GPU smoothing â”€â”€â”€â”€â”€â”€â”€
+// ── FieldSmoother trait — zero-cost abstraction over CPU/GPU smoothing ───────
 
 /// Smooth a 3-component displacement or velocity field in place.
 ///
@@ -139,13 +139,13 @@ impl FieldSmoother for CpuFieldSmoother {
     }
 }
 
-// â”€â”€ CpuOrGpu enum â€” static dispatch without Box heap allocation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CpuOrGpu enum — static dispatch without Box heap allocation ──────────────
 
 /// Static-dispatch union of [`CpuFieldSmoother`] and [`GpuFieldSmoother`].
 ///
 /// Replaces `Box<dyn FieldSmoother>` in multi-resolution registration loops
 /// where a per-level smoother must be created.  The enum is stack-allocated
-/// and uses a match arm instead of vtable dispatch â€” zero heap allocations,
+/// and uses a match arm instead of vtable dispatch — zero heap allocations,
 /// zero dynamic dispatch.
 ///
 /// # Type parameter
@@ -169,7 +169,7 @@ impl<B: Backend> FieldSmoother for CpuOrGpu<B> {
     }
 }
 
-// â”€â”€ 3D vector field grouping structs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── 3D vector field grouping structs ─────────────────────────────────────────
 
 /// Immutable 3D vector field: three co-equal flat component slices (z, y, x).
 ///
@@ -249,7 +249,7 @@ impl VelocityField {
     }
 }
 
-// â”€â”€ Indexing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Indexing ──────────────────────────────────────────────────────────────────
 
 /// Flat voxel index for shape `[nz, ny, nx]`.
 #[inline(always)]
@@ -257,7 +257,7 @@ pub(crate) fn flat(iz: usize, iy: usize, ix: usize, ny: usize, nx: usize) -> usi
     iz * ny * nx + iy * nx + ix
 }
 
-// â”€â”€ Trilinear interpolation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Trilinear interpolation ───────────────────────────────────────────────────
 
 #[derive(Clone, Copy)]
 struct TrilinearStencil {
@@ -316,7 +316,7 @@ impl TrilinearStencil {
 ///
 /// # Invariants
 /// - At integer positions the result equals `data[flat(round(z), round(y), round(x))]`.
-/// - Positions outside `[0, nZâˆ’1] Ã— [0, nYâˆ’1] Ã— [0, nXâˆ’1]` are clamped.
+/// - Positions outside `[0, nZ−1] × [0, nY−1] × [0, nX−1]` are clamped.
 #[inline]
 pub(crate) fn trilinear_interpolate(data: &[f32], dims: VolumeDims, z: f32, y: f32, x: f32) -> f32 {
     TrilinearStencil::new(dims, z, y, x).sample(data)

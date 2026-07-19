@@ -17,7 +17,7 @@ fn get_values(image: &Image<f32, TestBackend, 3>) -> Vec<f32> {
 
 #[test]
 fn test_single_component_6_connectivity() {
-    // A 3Ã—3Ã—3 all-foreground cube: one component.
+    // A 3×3×3 all-foreground cube: one component.
     let mask = make_mask(vec![1.0_f32; 27], [3, 3, 3]);
     let (_, num) = connected_components(&mask, Connectivity::Six);
     assert_eq!(num, 1, "solid cube must be a single component");
@@ -25,7 +25,7 @@ fn test_single_component_6_connectivity() {
 
 #[test]
 fn test_two_separated_components_6_connectivity() {
-    // 1Ã—1Ã—4 volume: two foreground voxels separated by a background gap.
+    // 1×1×4 volume: two foreground voxels separated by a background gap.
     // Indices: [1,0,0,1] along X.
     let values = vec![1.0, 0.0, 0.0, 1.0];
     let mask = make_mask(values, [1, 1, 4]);
@@ -35,7 +35,7 @@ fn test_two_separated_components_6_connectivity() {
 
 #[test]
 fn test_two_components_connected_by_diagonal_6_not_connected() {
-    // In a 3Ã—3Ã—1 slice two diagonal foreground voxels are NOT connected
+    // In a 3×3×1 slice two diagonal foreground voxels are NOT connected
     // under 6-connectivity but ARE connected under 26-connectivity.
     // Layout (z=0):
     //   1 0 0
@@ -72,8 +72,8 @@ fn test_label_values_are_consecutive_integers() {
     for v in values.iter_mut().skip(8) {
         *v = 1.0;
     }
-    // Make a gap at z=1 boundary: set z=1 layer to 0 for a 4Ã—2Ã—2 split.
-    // Actually just use 1Ã—1Ã—8 with gap in middle.
+    // Make a gap at z=1 boundary: set z=1 layer to 0 for a 4×2×2 split.
+    // Actually just use 1×1×8 with gap in middle.
     let gap_values = vec![1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
     let mask = make_mask(gap_values, [1, 1, 8]);
     let (label_img, num) = connected_components(&mask, Connectivity::Six);
@@ -106,7 +106,7 @@ fn test_statistics_voxel_count() {
 
 #[test]
 fn test_statistics_centroid_single_voxel() {
-    // Single foreground voxel at (2, 3, 4) in a 5Ã—5Ã—5 image.
+    // Single foreground voxel at (2, 3, 4) in a 5×5×5 image.
     let mut values = vec![0.0_f32; 125];
     let flat = 2 * 25 + 3 * 5 + 4;
     values[flat] = 1.0;
@@ -119,8 +119,8 @@ fn test_statistics_centroid_single_voxel() {
 
 #[test]
 fn test_statistics_bounding_box() {
-    // A 3Ã—3Ã—3 cube of foreground in a 5Ã—5Ã—5 background.
-    // Cube occupies z âˆˆ [1,3], y âˆˆ [1,3], x âˆˆ [1,3].
+    // A 3×3×3 cube of foreground in a 5×5×5 background.
+    // Cube occupies z ∈ [1,3], y ∈ [1,3], x ∈ [1,3].
     let mut values = vec![0.0_f32; 125];
     for iz in 1..4 {
         for iy in 1..4 {

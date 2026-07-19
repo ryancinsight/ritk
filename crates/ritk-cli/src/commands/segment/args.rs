@@ -89,14 +89,14 @@ pub struct SegmentArgs {
     #[arg(long, value_enum, value_name = "METHOD")]
     pub method: SegmentMethod,
 
-    // â”€â”€ Multi-Otsu / K-Means â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Multi-Otsu / K-Means ──────────────────────────────────────────────
     /// Number of intensity classes for `multi-otsu` or `kmeans`.
     ///
-    /// Must be â‰¥ 2 for `multi-otsu`.  For `kmeans`, must be â‰¥ 1.
+    /// Must be ≥ 2 for `multi-otsu`.  For `kmeans`, must be ≥ 1.
     #[arg(long, default_value = "3", value_name = "INT")]
     pub classes: usize,
 
-    // â”€â”€ K-Means extended parameters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── K-Means extended parameters ────────────────────────────────────────
     /// Maximum Lloyd iterations for `kmeans`. Default: 100.
     #[arg(long, value_name = "INT")]
     pub kmeans_max_iterations: Option<usize>,
@@ -109,7 +109,7 @@ pub struct SegmentArgs {
     #[arg(long, value_name = "INT")]
     pub kmeans_seed: Option<u64>,
 
-    // â”€â”€ Connected-threshold â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Connected-threshold ───────────────────────────────────────────────
     /// Inclusive lower intensity bound for `connected-threshold`.
     #[arg(long, value_name = "FLOAT")]
     pub lower: Option<f32>,
@@ -138,13 +138,13 @@ pub struct SegmentArgs {
     #[arg(long, default_value = "1", value_name = "INT")]
     pub neighborhood_radius: usize,
     // -- Shape-detection / Threshold-level-set / Laplacian-level-set ------
-    /// Path to initial level set Ï† image for `shape-detection`, `threshold-level-set`, or `laplacian-level-set`.
+    /// Path to initial level set φ image for `shape-detection`, `threshold-level-set`, or `laplacian-level-set`.
     #[arg(long, value_name = "PATH")]
     pub initial_phi: Option<PathBuf>,
     /// Curvature weight for level-set methods.
     #[arg(long, default_value = "1.0", value_name = "FLOAT")]
     pub curvature_weight: f32,
-    /// Gaussian pre-smoothing Ïƒ for shape-detection and laplacian-level-set.
+    /// Gaussian pre-smoothing σ for shape-detection and laplacian-level-set.
     #[arg(long, default_value = "1.0", value_name = "FLOAT")]
     pub sigma: f32,
     /// Propagation (balloon) weight for level-set methods.
@@ -156,7 +156,7 @@ pub struct SegmentArgs {
     /// Edge-stopping sensitivity k for shape-detection.
     #[arg(long, default_value = "1.0", value_name = "FLOAT")]
     pub edge_k: f32,
-    /// Euler forward time step Î”t for level-set methods.
+    /// Euler forward time step Δt for level-set methods.
     #[arg(long, default_value = "0.05", value_name = "FLOAT")]
     pub dt: f32,
     /// Maximum iterations for level-set methods (shape-detection, threshold-level-set, laplacian-level-set).
@@ -166,7 +166,7 @@ pub struct SegmentArgs {
         value_name = "INT"
     )]
     pub level_set_max_iterations: usize,
-    /// Convergence tolerance on max |dÏ†|/dt.
+    /// Convergence tolerance on max |dφ|/dt.
     #[arg(long, default_value = "1e-3", value_name = "FLOAT")]
     pub tolerance: f32,
     /// Lower intensity threshold for threshold-level-set.
@@ -180,10 +180,10 @@ pub struct SegmentArgs {
     #[arg(long, default_value = "6", value_name = "INT")]
     pub connectivity: u32,
     // -- Chan-Vese -----------------------------------------------------------
-    /// Length (curvature) penalty weight Î¼ for chan-vese.
+    /// Length (curvature) penalty weight μ for chan-vese.
     #[arg(long, default_value = "0.1", value_name = "FLOAT")]
     pub mu: f64,
-    /// Area penalty weight Î½ for chan-vese. Positive penalises large regions.
+    /// Area penalty weight ν for chan-vese. Positive penalises large regions.
     #[arg(long, default_value = "0.0", value_name = "FLOAT")]
     pub nu: f64,
     /// Data fidelity weight for inside region in chan-vese.
@@ -192,7 +192,7 @@ pub struct SegmentArgs {
     /// Data fidelity weight for outside region in chan-vese.
     #[arg(long, default_value = "1.0", value_name = "FLOAT")]
     pub lambda2: f64,
-    /// Regularisation width Îµ for Heaviside/Dirac in chan-vese.
+    /// Regularisation width ε for Heaviside/Dirac in chan-vese.
     #[arg(long, default_value = "1.0", value_name = "FLOAT")]
     pub epsilon: f64,
     // -- Marker-watershed --------------------------------------------------

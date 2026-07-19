@@ -4,7 +4,7 @@ use crate::commands::register::tests::make_ramp_image;
 use ritk_registration::demons::DemonsVariant;
 use tempfile::tempdir;
 
-// â”€â”€ Positive: demons creates output file â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: demons creates output file ──────────────────────────────
 
 /// Running `demons` on identical fixed/moving images must produce a
 /// warped output file whose shape matches the input.
@@ -54,7 +54,7 @@ fn test_register_demons_creates_output_with_correct_shape() {
     );
 }
 
-// â”€â”€ Positive: demons identity registration has low MSE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Positive: demons identity registration has low MSE ────────────────
 
 /// When fixed == moving, the Thirion Demons final MSE must be near zero.
 #[test]
@@ -208,7 +208,7 @@ fn test_register_multires_demons_identity_low_mse() {
     }
 }
 
-// â”€â”€ Inverse-consistent Demons: output shape â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Inverse-consistent Demons: output shape ──────────────────────────────
 
 #[test]
 fn test_register_ic_demons_creates_output_with_correct_shape() {

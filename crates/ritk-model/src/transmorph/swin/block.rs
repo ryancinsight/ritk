@@ -1,7 +1,7 @@
 //! Swin transformer block (3-D), Coeus-native.
 //!
-//! One Swin block: `LayerNorm â†’ (shifted) window attention â†’ residual`, then
-//! `LayerNorm â†’ MLP â†’ residual`, over a `[B, D, H, W, C]` token volume. Window
+//! One Swin block: `LayerNorm → (shifted) window attention → residual`, then
+//! `LayerNorm → MLP → residual`, over a `[B, D, H, W, C]` token volume. Window
 //! partitioning, cyclic shift, and the shifted-window connectivity mask are all
 //! expressed with [`coeus_autograd`] shape ops, so gradients flow end to end.
 //! No Burn tensors, modules, or backends cross this boundary.
@@ -145,7 +145,7 @@ where
     }
 
     /// Partition `[B, D, H, W, C]` into non-overlapping cubic windows,
-    /// producing `[BÂ·(D/ws)Â·(H/ws)Â·(W/ws), wsÂ³, C]`.
+    /// producing `[B·(D/ws)·(H/ws)·(W/ws), ws³, C]`.
     ///
     /// Reshapes proceed one axis at a time to keep every intermediate tensor at
     /// most rank-6.
@@ -169,7 +169,7 @@ where
     }
 
     /// Inverse of [`Self::window_partition`]: reassemble `[B, D, H, W, C]` from
-    /// `[BÂ·num_windows, wsÂ³, C]`.
+    /// `[B·num_windows, ws³, C]`.
     fn window_reverse(
         &self,
         windows: &Var<f32, B>,
@@ -192,10 +192,10 @@ where
         reshape(&x, [b, d, h, w, c])
     }
 
-    /// Build the shifted-window attention mask `[bÂ·num_windows, 1, N, N]`.
+    /// Build the shifted-window attention mask `[b·num_windows, 1, N, N]`.
     ///
     /// Voxels are labeled by the shift region they belong to; window-local pairs
-    /// spanning two regions receive [`MASK_PENALTY`] (softmax â†’ ~0), the rest
+    /// spanning two regions receive [`MASK_PENALTY`] (softmax → ~0), the rest
     /// `0`. The region volume is partitioned by the identical
     /// [`Self::window_partition`] routing, so mask columns align exactly with the
     /// attention windows.
@@ -229,7 +229,7 @@ where
             false,
         );
 
-        // Route region ids through the same window partition to get [nw, wsÂ³].
+        // Route region ids through the same window partition to get [nw, ws³].
         let ids = self.window_partition(&img_var);
         let ids = ids.tensor.as_slice();
         let n = ws * ws * ws;

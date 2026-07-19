@@ -1,28 +1,28 @@
 //! Cubic B-spline coefficient prefiltering.
 //!
 //! True B-spline *interpolation* reconstructs a continuous function
-//! `f(x) = Î£_k c_k Â· Î²Â³(x âˆ’ k)` that passes through the samples `s_k` at the
-//! integers. Because the cubic basis is `Î²Â³(0) = 2/3`, `Î²Â³(Â±1) = 1/6`, the
-//! samples are the discrete convolution `s = b âŠ› c` with `b = [1/6, 2/3, 1/6]`;
+//! `f(x) = Σ_k c_k · β³(x − k)` that passes through the samples `s_k` at the
+//! integers. Because the cubic basis is `β³(0) = 2/3`, `β³(±1) = 1/6`, the
+//! samples are the discrete convolution `s = b ⊛ c` with `b = [1/6, 2/3, 1/6]`;
 //! the coefficients `c` must therefore be recovered by *inverting* that filter
 //! before any basis convolution. Applying the basis directly to the samples (no
 //! prefilter) yields a B-spline *approximation* (a smoothing), not interpolation.
 //!
-//! The inverse filter factors into one real pole `zâ‚ = âˆš3 âˆ’ 2` and is applied as
+//! The inverse filter factors into one real pole `z₁ = √3 − 2` and is applied as
 //! a causal + anti-causal recursive pass per axis, with whole-sample mirror
 //! boundary conditions (matching ITK's `BSplineDecompositionImageFilter`).
 //!
 //! # Reference
 //! Unser, M., Aldroubi, A. & Eden, M. (1991). "Fast B-spline transforms for
 //! continuous image representation and interpolation." *IEEE TPAMI* 13(3),
-//! 277â€“285. â€” and the direct-filter form in Unser (1999), "Splines: A perfect
+//! 277–285. — and the direct-filter form in Unser (1999), "Splines: A perfect
 //! fit for signal and image processing," *IEEE Signal Processing Magazine*.
 
-/// The single cubic B-spline pole `zâ‚ = âˆš3 âˆ’ 2 â‰ˆ âˆ’0.2679491924311227`.
+/// The single cubic B-spline pole `z₁ = √3 − 2 ≈ −0.2679491924311227`.
 const POLE: f64 = -0.267_949_192_431_122_7;
 
 /// Recover cubic B-spline coefficients in place for one 1-D line (mirror
-/// boundary). A line shorter than two samples is left unchanged â€” its single
+/// boundary). A line shorter than two samples is left unchanged — its single
 /// coefficient already equals the sample.
 fn prefilter_line(line: &mut [f64]) {
     let n = line.len();
@@ -31,7 +31,7 @@ fn prefilter_line(line: &mut [f64]) {
     }
     let z = POLE;
 
-    // Overall gain for the single pole: (1 âˆ’ z)(1 âˆ’ 1/z), which is exactly 6 for
+    // Overall gain for the single pole: (1 − z)(1 − 1/z), which is exactly 6 for
     // the cubic spline. Applied to every sample before the recursive passes.
     let lambda = (1.0 - z) * (1.0 - 1.0 / z);
     for v in line.iter_mut() {
@@ -51,21 +51,21 @@ fn prefilter_line(line: &mut [f64]) {
     }
 }
 
-/// Exact causal initial coefficient `câº[0]` for whole-sample mirror boundary
-/// conditions (period `2n âˆ’ 2`), matching ITK's full (non-truncated) branch.
+/// Exact causal initial coefficient `c⁺[0]` for whole-sample mirror boundary
+/// conditions (period `2n − 2`), matching ITK's full (non-truncated) branch.
 fn initial_causal_coefficient(c: &[f64], z: f64) -> f64 {
     let n = c.len();
     let iz = 1.0 / z;
     let mut zn = z; // z^k, k = 1..
     let mut z2n = z.powi((n - 1) as i32); // z^(n-1)
     let mut sum = c[0] + z2n * c[n - 1];
-    z2n = z2n * z2n * iz; // z^(2n-2) Â· (1/z) = z^(2n-3)
+    z2n = z2n * z2n * iz; // z^(2n-2) · (1/z) = z^(2n-3)
     for ck in c.iter().take(n - 1).skip(1) {
         sum += (zn + z2n) * ck;
         zn *= z;
         z2n *= iz;
     }
-    // After the loop zn = z^(n-1); the normaliser is 1 âˆ’ z^(2n-2).
+    // After the loop zn = z^(n-1); the normaliser is 1 − z^(2n-2).
     sum / (1.0 - zn * zn)
 }
 
@@ -81,39 +81,39 @@ fn strides(dims: &[usize]) -> Vec<usize> {
 
 /// Flat offset of the first element of the `line_idx`-th line along `axis`.
 ///
-/// Only rank 2 and 3 are instantiated (the interpolator asserts `D âˆˆ {2, 3}`).
+/// Only rank 2 and 3 are instantiated (the interpolator asserts `D ∈ {2, 3}`).
 fn line_base(line_idx: usize, axis: usize, dims: &[usize], stride: &[usize]) -> usize {
     match (dims.len(), axis) {
-        // â”€â”€ rank 3, dims = [d0, d1, d2] â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── rank 3, dims = [d0, d1, d2] ──────────────────────────────────────
         (3, 0) => {
-            // Line along axis 0; identified by (i1, i2): base = i1Â·s1 + i2.
+            // Line along axis 0; identified by (i1, i2): base = i1·s1 + i2.
             let i1 = line_idx / dims[2];
             let i2 = line_idx % dims[2];
             i1 * stride[1] + i2
         }
         (3, 1) => {
-            // Line along axis 1; identified by (i0, i2): base = i0Â·s0 + i2.
+            // Line along axis 1; identified by (i0, i2): base = i0·s0 + i2.
             let i0 = line_idx / dims[2];
             let i2 = line_idx % dims[2];
             i0 * stride[0] + i2
         }
         (3, 2) => {
-            // Line along axis 2; identified by (i0, i1): base = i0Â·s0 + i1Â·s1.
+            // Line along axis 2; identified by (i0, i1): base = i0·s0 + i1·s1.
             let i0 = line_idx / dims[1];
             let i1 = line_idx % dims[1];
             i0 * stride[0] + i1 * stride[1]
         }
-        // â”€â”€ rank 2, dims = [d0, d1] â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── rank 2, dims = [d0, d1] ──────────────────────────────────────────
         (2, 0) => line_idx,             // base = i1
-        (2, 1) => line_idx * stride[0], // base = i0Â·s0
+        (2, 1) => line_idx * stride[0], // base = i0·s0
         _ => unreachable!("B-spline prefilter only supports rank 2 and 3"),
     }
 }
 
 /// Recover the separable cubic B-spline coefficients for a flat row-major volume.
 ///
-/// Prefilters along every axis whose length is â‰¥ 2 (a degenerate size-1 axis is
-/// skipped â€” its coefficients equal the samples). The recursion runs in `f64`
+/// Prefilters along every axis whose length is ≥ 2 (a degenerate size-1 axis is
+/// skipped — its coefficients equal the samples). The recursion runs in `f64`
 /// for numerical stability and the result is returned as `f32`, matching the
 /// interpolation pipeline.
 pub(super) fn compute_coefficients(volume: &[f32], dims: &[usize]) -> Vec<f32> {

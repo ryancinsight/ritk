@@ -6,7 +6,7 @@
 //! [`SpatialTransformer`] (differentiable [`coeus_autograd::grid_sample_3d`]), so
 //! the whole integration is differentiable.
 //!
-//! `Ï† = exp(v)`, realized as `v â† v + v âˆ˜ (Id + v)` iterated `N` times.
+//! `φ = exp(v)`, realized as `v ← v + v ∘ (Id + v)` iterated `N` times.
 
 use super::spatial_transform::SpatialTransformer;
 use coeus_autograd::{add, scalar_mul, Var};

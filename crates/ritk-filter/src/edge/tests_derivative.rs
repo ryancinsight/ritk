@@ -12,7 +12,7 @@ fn vals(image: &Image<f32, B, 3>) -> Vec<f32> {
 
 /// Order-1 derivative of a ramp along X (axis 2), unit spacing: central
 /// difference with edge-clamp. Verified against the `sitk.Derivative` probe:
-/// `[0,10,20,30,40] â†’ [5,10,10,10,5]`.
+/// `[0,10,20,30,40] → [5,10,10,10,5]`.
 #[test]
 fn derivative_order1_ramp_matches_sitk_probe() {
     let img = ts::make_image::<f32, B, 3>(vec![0.0, 10.0, 20.0, 30.0, 40.0], [1, 1, 5]);
@@ -25,7 +25,7 @@ fn derivative_order1_ramp_matches_sitk_probe() {
 fn derivative_order2_of_ramp_is_zero_interior() {
     let img = ts::make_image::<f32, B, 3>(vec![0.0, 10.0, 20.0, 30.0, 40.0], [1, 1, 5]);
     let out = vals(&DerivativeImageFilter::new(2, 2, true).apply(&img).unwrap());
-    // interior (indices 1..4) of dÂ²/dxÂ² of a line = 0.
+    // interior (indices 1..4) of d²/dx² of a line = 0.
     for &v in &out[1..4] {
         assert!(
             v.abs() < 1e-5,
@@ -34,14 +34,14 @@ fn derivative_order2_of_ramp_is_zero_interior() {
     }
 }
 
-/// Order-2 of a parabola xÂ² gives the constant 2 in the interior.
+/// Order-2 of a parabola x² gives the constant 2 in the interior.
 #[test]
 fn derivative_order2_of_parabola_is_two() {
     let f: Vec<f32> = (0..6).map(|i| (i * i) as f32).collect(); // 0,1,4,9,16,25
     let img = ts::make_image::<f32, B, 3>(f, [1, 1, 6]);
     let out = vals(&DerivativeImageFilter::new(2, 2, true).apply(&img).unwrap());
     for &v in &out[1..5] {
-        assert!((v - 2.0).abs() < 1e-4, "dÂ²/dxÂ²(xÂ²) = 2; got {v}");
+        assert!((v - 2.0).abs() < 1e-4, "d²/dx²(x²) = 2; got {v}");
     }
 }
 

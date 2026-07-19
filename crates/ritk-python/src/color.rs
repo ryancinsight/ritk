@@ -134,7 +134,7 @@ pub fn color_mean(py: Python<'_>, image: &PyColorImage, radius: usize) -> RitkRe
 }
 
 /// Generate a physical-point vector image: each voxel holds its own physical
-/// coordinate `(origin_d + index_dÂ·spacing_d)` as a 3-component vector (sitk
+/// coordinate `(origin_d + index_d·spacing_d)` as a 3-component vector (sitk
 /// `(x, y, z)` component order). ITK Parity: PhysicalPointImageSource
 /// (`sitk.PhysicalPointSource`).
 #[pyfunction]
@@ -195,8 +195,8 @@ pub fn compose(c0: &PyImage, c1: &PyImage, c2: &PyImage) -> RitkResult<PyColorIm
     })
 }
 
-/// Central-difference image gradient â†’ 3-component vector image with components
-/// in sitk axis order `(âˆ‚/âˆ‚x, âˆ‚/âˆ‚y, âˆ‚/âˆ‚z)`.
+/// Central-difference image gradient → 3-component vector image with components
+/// in sitk axis order `(∂/∂x, ∂/∂y, ∂/∂z)`.
 ///
 /// ITK Parity: GradientImageFilter (`sitk.Gradient`).
 #[pyfunction]
@@ -217,8 +217,8 @@ pub fn gradient(
     })
 }
 
-/// Gaussian-smoothed image gradient â†’ 3-component vector image with components
-/// in sitk axis order `(âˆ‚/âˆ‚x, âˆ‚/âˆ‚y, âˆ‚/âˆ‚z)`.
+/// Gaussian-smoothed image gradient → 3-component vector image with components
+/// in sitk axis order `(∂/∂x, ∂/∂y, ∂/∂z)`.
 ///
 /// ITK Parity: GradientRecursiveGaussianImageFilter (`sitk.GradientRecursiveGaussian`).
 #[pyfunction]
@@ -241,7 +241,7 @@ pub fn gradient_recursive_gaussian(
 
 /// Map a scalar image to a 3-component RGB image via a colormap (channel values
 /// in `[0, 255]`). Only the linear LUTs `grey`/`red`/`green`/`blue` are
-/// supported; perceptual maps (hot/jet/â€¦) raise an error.
+/// supported; perceptual maps (hot/jet/…) raise an error.
 ///
 /// ITK Parity: ScalarToRGBColormapImageFilter (`sitk.ScalarToRGBColormap`).
 #[pyfunction]
@@ -262,7 +262,7 @@ pub fn scalar_to_rgb_colormap(
 }
 
 /// Map a label image to RGB using ITK's default 30-colour label table
-/// (background voxels â†’ black). ITK Parity: LabelToRGBImageFilter
+/// (background voxels → black). ITK Parity: LabelToRGBImageFilter
 /// (`sitk.LabelToRGB`).
 #[pyfunction]
 #[pyo3(signature = (image, background=0))]
@@ -326,7 +326,7 @@ pub fn label_map_contour_overlay(
     })
 }
 
-/// Extract one component (`index` âˆˆ [0, 2]) of a color image as a scalar image.
+/// Extract one component (`index` ∈ [0, 2]) of a color image as a scalar image.
 ///
 /// ITK Parity: VectorIndexSelectionCastImageFilter (`sitk.VectorIndexSelectionCast`).
 #[pyfunction]
@@ -347,7 +347,7 @@ pub fn vector_index_selection_cast(image: &PyColorImage, index: usize) -> RitkRe
     )))
 }
 
-/// Per-voxel Euclidean magnitude of a color image: `âˆš(Î£_k component_kÂ²)`.
+/// Per-voxel Euclidean magnitude of a color image: `√(Σ_k component_k²)`.
 ///
 /// ITK Parity: VectorMagnitudeImageFilter (`sitk.VectorMagnitude`).
 #[pyfunction]
@@ -363,7 +363,7 @@ pub fn vector_magnitude(image: &PyColorImage) -> PyImage {
     ))
 }
 
-/// Per-voxel Euclidean magnitude `sqrt(Î£_k c_kÂ²)` of the channel buffers.
+/// Per-voxel Euclidean magnitude `sqrt(Σ_k c_k²)` of the channel buffers.
 fn vector_magnitude_buffer(comps: &[Vec<f32>], n: usize) -> Vec<f32> {
     let mut mag = vec![0.0_f32; n];
     for buf in comps {
@@ -377,7 +377,7 @@ fn vector_magnitude_buffer(comps: &[Vec<f32>], n: usize) -> Vec<f32> {
     mag
 }
 
-/// Edge potential `exp(âˆ’|vector|)` of a vector (gradient) image: small where the
+/// Edge potential `exp(−|vector|)` of a vector (gradient) image: small where the
 /// gradient is large (edges), near 1 in flat regions.
 ///
 /// ITK Parity: EdgePotentialImageFilter (`sitk.EdgePotential`).

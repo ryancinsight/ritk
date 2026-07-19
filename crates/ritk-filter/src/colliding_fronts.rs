@@ -3,22 +3,22 @@
 //! # Mathematical Specification
 //!
 //! Ports `itk::CollidingFrontsImageFilter`. Two fast-marching fronts are
-//! propagated through the speed image â€” one from `seeds1`, one from `seeds2` â€”
-//! and their **upwind gradients** `âˆ‡T1`, `âˆ‡T2` are combined into the potential
+//! propagated through the speed image — one from `seeds1`, one from `seeds2` —
+//! and their **upwind gradients** `∇T1`, `∇T2` are combined into the potential
 //!
 //! ```text
-//! P = âˆ‡T1 Â· âˆ‡T2
+//! P = ∇T1 · ∇T2
 //! ```
 //!
 //! which is strongly negative where the two fronts meet head-on (their gradients
-//! oppose). Seed voxels are pinned to `negative_epsilon` (`âˆ’1e-6`). With
+//! oppose). Seed voxels are pinned to `negative_epsilon` (`−1e-6`). With
 //! `apply_connectivity` the output is restricted to the connected region of
-//! `P â‰¤ negative_epsilon` reachable from `seeds1` (the corridor between the seed
+//! `P ≤ negative_epsilon` reachable from `seeds1` (the corridor between the seed
 //! sets); elsewhere 0. Without it, `P` is returned directly.
 //!
 //! The upwind gradient matches `itk::FastMarchingUpwindGradientImageFilter`:
-//! per axis, `dx_back = T(p) âˆ’ T(pâˆ’e)` and `dx_fwd = T(p+e) âˆ’ T(p)` over reached
-//! neighbours, choosing `0` if `max(dx_back, âˆ’dx_fwd) < 0`, else the larger of
+//! per axis, `dx_back = T(p) − T(p−e)` and `dx_fwd = T(p+e) − T(p)` over reached
+//! neighbours, choosing `0` if `max(dx_back, −dx_fwd) < 0`, else the larger of
 //! the two, divided by spacing. Seed voxels' gradients are irrelevant (they are
 //! overwritten). This is float-exact to `sitk.CollidingFronts` (default
 //! `stop_on_targets = false`, full march).
@@ -43,7 +43,7 @@ pub struct CollidingFrontsFilter {
     pub seeds2: Vec<[usize; 3]>,
     /// Restrict the output to the connected colliding corridor (ITK default `true`).
     pub apply_connectivity: bool,
-    /// Value pinned at the seeds / connectivity threshold (ITK default `âˆ’1e-6`).
+    /// Value pinned at the seeds / connectivity threshold (ITK default `−1e-6`).
     pub negative_epsilon: f64,
 }
 
@@ -95,7 +95,7 @@ impl CollidingFrontsFilter {
             return rebuild(mult, dims, speed);
         }
 
-        // Flood from seeds1 over {P â‰¤ negative_epsilon}, copying P; rest 0.
+        // Flood from seeds1 over {P ≤ negative_epsilon}, copying P; rest 0.
         let mut out = vec![0.0f32; n];
         let mut visited = vec![false; n];
         let mut queue: VecDeque<usize> = VecDeque::new();

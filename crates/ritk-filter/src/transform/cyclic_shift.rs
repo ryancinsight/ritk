@@ -1,7 +1,7 @@
 //! Cyclic (periodic) shift of a 3-D image.
 //!
 //! Rolls the image by an integer per-axis offset with wrap-around: the voxel at
-//! output index `i` reads input index `(i âˆ’ shift) mod n` along each axis, so
+//! output index `i` reads input index `(i − shift) mod n` along each axis, so
 //! every voxel is preserved and merely repositioned (no interpolation, no data
 //! loss). Matches ITK `CyclicShiftImageFilter` / `sitk.CyclicShift`.
 

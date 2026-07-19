@@ -2,7 +2,7 @@
 //!
 //! Matches ITK's `ShanbhagThresholdCalculator`: choose the threshold that
 //! balances the information measures of the background and foreground fuzzy
-//! membership distributions (minimises `|ent_back âˆ’ ent_obj|`).
+//! membership distributions (minimises `|ent_back − ent_obj|`).
 
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
