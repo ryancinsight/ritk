@@ -8,9 +8,21 @@
 
 # RITK Sprint Checklist — Active
 
-## SAFE-663-01 — Finite level-set reinitialization contract
+## CI-664-01 — Atlas-owned provider checkout
 **Target version**: Unreleased patch
 **Sprint phase**: Execution
+
+- [x] Reconcile the merged Atlas action, all RITK workflow call sites, and the
+      stale finite-input PM claim.
+- [ ] Replace the consumer-owned provider list with the immutable Atlas action
+      in every hosted Rust, Python, audit, and release workflow.
+- [ ] Verify action syntax, exact path closure, formatting, and repository
+      documentation consistency.
+- [ ] Commit, push, open a PR, and merge after exact-head hosted CI is green.
+
+## SAFE-663-01 — Finite level-set reinitialization contract
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
 
 - [x] Audit reinitialization and fast-marching special-value propagation.
 - [x] Add one canonical finite-input validator shared by both provider entry
@@ -18,9 +30,10 @@
 - [x] Add exact NaN/infinity error regressions without weakening finite-value
       oracles.
 - [x] Synchronize Rustdoc, `CHANGELOG.md`, and `gap_audit.md`.
-- [ ] Run formatting, warning-denied `ritk-filter` Clippy, focused Nextest,
+- [x] Run formatting, warning-denied `ritk-filter` Clippy, focused Nextest,
       doctests, and warning-clean Rustdoc.
-- [ ] Commit, push, and merge the verified increment.
+- [x] Commit the verified increment at `090eadc9`; subsequent `main` commits
+      retain the contract.
 
 ## SAFE-662-01 — Copy-on-write, total-ordered projections
 **Target version**: Unreleased patch
