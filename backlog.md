@@ -4,15 +4,18 @@
   (IN PROGRESS; owner=Codex `/root`; scope=`.github/workflows/{ci,
   python_ci,legacy-migration-audit,release}.yml`, deletion of
   `.github/actions/checkout-atlas-dependencies/action.yml`, `README.md`, PM
-  artifacts, `docs/adr/0010-atlas-provider-checkout.md`).** RITK currently
-  duplicates eleven provider URLs and revisions
+  artifacts, `docs/adr/0010-atlas-provider-checkout.md`,
+  `crates/ritk-nrrd/src/tests/reader.rs`).** RITK currently duplicates eleven
+  provider URLs and revisions
   in a consumer-owned action. Replace every hosted workflow call with the
   Atlas composite action pinned to merge `9a651ff539e314ff26c4a5b69fe89448c1770859`,
   deriving the exact dependency closure from `ritk/Cargo.toml`. Acceptance:
   no consumer-owned provider list remains, all eight workflow call sites use
   the immutable Atlas revision and the same manifest/destination contract,
-  action syntax and path resolution pass locally, and exact-head hosted CI is
-  green.
+  action syntax and path resolution pass locally, exact-head hosted PR CI is
+  green, and the tag-only release workflow remains syntax-verified without
+  publishing. The current-main `ritk-nrrd` formatting drift found by the
+  package-scoped CI command is corrected without behavioral change.
 
 - **SAFE-663-01 [patch] - Reject non-finite level-set reinitialization input
   (DONE; owner=Codex `/root`; scope=`crates/ritk-filter/src/
