@@ -1,18 +1,18 @@
 //! Coeus-native LNCC engine (`Image<f32, B, 3>` substrate).
 //!
 //! Atlas migration (burn → coeus): the register-engine parallel path for the
-//! Local Normalized Cross Correlation. The Burn-generic
+//! Local Normalized Cross Correlation. The Coeus-generic
 //! [`super::LocalNormalizedCrossCorrelation`] surface stays unchanged (its
-//! consumers remain on Burn until their own cutover); this module ADDS the
+//! consumers remain on Coeus until their own cutover); this module ADDS the
 //! native substrate alongside so registration's eventual `Image<B>` → native
 //! cutover is unblocked.
 //!
 //! The moving resample is the shared `ritk_filter::resample::native` substrate;
-//! the local means/variances/covariance are the burn-free separable Gaussian
+//! the local means/variances/covariance are the native separable Gaussian
 //! [`ritk_filter::gaussian::gaussian_smooth_flat_3d`] (the flat-buffer sister of
-//! the Burn `conv1d` path both metrics use). All arithmetic runs on flat host
-//! buffers — no Burn tensor, no native `Image` reconstruction. The reduction is
-//! identical to the Burn engine (Cachier et al. 2003): local covariance over the
+//! the Coeus `conv1d` path both metrics use). All arithmetic runs on flat host
+//! buffers — no Coeus tensor, no native `Image` reconstruction. The reduction is
+//! identical to the Coeus engine (Cachier et al. 2003): local covariance over the
 //! geometric mean of local variances, negated and averaged.
 //!
 //! 3-D only: the register engine operates on volumes, and both the native
@@ -27,7 +27,7 @@ use ritk_transform::transform::affine::AtlasAffineTransform;
 
 /// Local mean `μ = K∗I` and local variance `v = max(K∗I² − μ², 0)` of the flat
 /// z-major volume `vals` (with its precomputed square `sq`), via the shared
-/// burn-free separable Gaussian — the flat-buffer sister of the Burn
+/// native separable Gaussian — the flat-buffer sister of the Coeus
 /// `compute_local_stats`.
 fn local_stats(
     vals: &[f32],
@@ -53,7 +53,7 @@ fn local_stats(
 ///
 /// `LNCC = cov / (√(v_F · v_M) + ε)` per voxel, where `μ, v, cov` are the local
 /// Gaussian-weighted mean/variance/covariance (Cachier et al. 2003); the returned
-/// value is `−mean(LNCC)`. `epsilon` matches the Burn engine default (`1e-5`).
+/// value is `−mean(LNCC)`. `epsilon` matches the Coeus engine default (`1e-5`).
 pub fn lncc_loss_native<B>(
     fixed: &Image<f32, B, 3>,
     moving: &Image<f32, B, 3>,

@@ -1,15 +1,15 @@
 //! Coeus-native NCC engine (`Image<f32, B, 3>` substrate).
 //!
 //! Atlas migration (burn → coeus): the register-engine parallel path for the
-//! zero-normalized cross correlation. The Burn-generic
+//! zero-normalized cross correlation. The Coeus-generic
 //! [`super::NormalizedCrossCorrelation`] surface stays unchanged (its consumers
-//! remain on Burn until their own cutover); this module ADDS the native
+//! remain on Coeus until their own cutover); this module ADDS the native
 //! substrate alongside so registration's eventual `Image<B>` → native cutover
 //! is unblocked.
 //!
 //! The resample path is the shared `ritk_filter::resample::native` substrate;
 //! only the reduction differs — the identical single-pass five-moment ZNCC
-//! (Lewis 1995) as the Burn engine, evaluated on the resampled host values.
+//! (Lewis 1995) as the Coeus engine, evaluated on the resampled host values.
 //!
 //! 3-D only: the register engine operates on volumes, and the native trilinear
 //! kernel is 3-D.
@@ -20,7 +20,7 @@ use ritk_image::Image;
 use ritk_transform::transform::affine::AtlasAffineTransform;
 
 /// Variance clamp guaranteeing a finite denominator for constant/identical
-/// inputs — identical to the Burn engine's `clamp_min(epsilon)`.
+/// inputs — identical to the Coeus engine's `clamp_min(epsilon)`.
 const NCC_EPS: f32 = 1e-10;
 
 /// Zero-normalized cross correlation framed as a minimization loss (`−NCC`) of

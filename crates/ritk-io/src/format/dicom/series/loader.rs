@@ -37,7 +37,7 @@ pub fn load_dicom_series<B: Backend>(
 ///
 /// Performs the same spatial consistency checks and pixel decode as
 /// [`load_dicom_series`], but constructs the image on the Atlas native tensor
-/// substrate instead of a Burn tensor.
+/// substrate instead of a Coeus tensor.
 pub fn load_native_dicom_series<B: ComputeBackend>(
     series: &DicomSeriesInfo,
     backend: &B,

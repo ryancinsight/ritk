@@ -312,7 +312,7 @@ impl BinaryMinMaxCurvatureFlowImageFilter {
     /// Runs the identical scalar-threshold binary min/max curvature-flow
     /// evolution via the shared `binary_min_max_curvature_flow_evolve` host
     /// core on the image's contiguous host buffer, so the result is
-    /// bitwise-identical to the Coeus path. No Coeus tensor is constructed.
+    /// bitwise-identical to the Coeus path. No tensor is constructed.
     /// Spatial metadata is preserved.
     ///
     /// # Errors

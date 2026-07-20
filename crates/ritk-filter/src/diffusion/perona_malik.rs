@@ -175,7 +175,7 @@ impl<K: ConductanceKernel> AnisotropicDiffusionFilter<K> {
     ///
     /// Runs the identical explicit-Euler Perona–Malik PDE (double-buffered on a
     /// flat host array) via the shared `diffuse` host core, so the result is
-    /// bitwise-identical to the Coeus path. No Coeus tensor is constructed.
+    /// bitwise-identical to the Coeus path. No tensor is constructed.
     /// Spatial metadata is preserved.
     ///
     /// # Errors

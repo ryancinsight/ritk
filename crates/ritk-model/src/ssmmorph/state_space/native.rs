@@ -1,7 +1,7 @@
 //! Selective State Space (S6) module, Coeus-native.
 //!
 //! Coeus-native reimplementation of the Mamba/S6 selective state space block
-//! (`SelectiveStateSpace`, still Burn-typed for the
+//! (`SelectiveStateSpace`, still Coeus-typed for the
 //! registration consumer). Input-dependent parameters `Δ`, `B`, `C` are
 //! projected from the input; the discrete-time linear recurrence
 //! `h_t = Ä€_t ⊙ h_{t-1} + BÌ„_t·x_t` is evaluated by the differentiable
@@ -12,7 +12,7 @@
 //! the skip parameter `D`.
 //!
 //! Built on [`coeus_nn`]/[`coeus_autograd`] over [`coeus_autograd::Var`]; no
-//! Burn tensors, modules, or backends cross this boundary. Concrete `f32`,
+//! Coeus tensors, modules, or backends cross this boundary. Concrete `f32`,
 //! matching the [`coeus_autograd::selective_scan`]/interpolation subsystem.
 
 use coeus_autograd::{
@@ -102,7 +102,7 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     /// Construct with Kaiming-uniform projection weights (fan-in scaled, the
-    /// scheme the original Burn model relied on), zero biases, HiPPO-real
+    /// scheme the original Coeus model relied on), zero biases, HiPPO-real
     /// `a_log` initialization (`A[n] = -(n+1)`, i.e. `a_log[n] = ln(n+1)`), and
     /// `D = 1`. `seed` seeds the deterministic weight draws.
     #[must_use]

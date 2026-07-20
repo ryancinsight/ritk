@@ -5,7 +5,7 @@ pub use ritk_png::{
 /// Atlas-native-substrate implementors of [`crate::domain::ImageReader`].
 ///
 /// Transitional module: names inside are the plain end-state names; the
-/// module itself disambiguates from the Burn types during coexistence and
+/// module itself disambiguates from the Coeus types during coexistence and
 /// folds away when the Coeus path is deleted (ADR 0002).
 pub mod native {
     use crate::domain::{to_io_err, ImageReader};
@@ -13,7 +13,7 @@ pub mod native {
     use ritk_image::Image;
     use std::path::Path;
 
-    /// Backend-bound Atlas-native reader (counterpart of the Burn `PngReader`).
+    /// Backend-bound Atlas-native reader (counterpart of the Coeus `PngReader`).
     pub struct PngReader<B: ComputeBackend> {
         backend: B,
     }
@@ -31,7 +31,7 @@ pub mod native {
         }
     }
 
-    /// Backend-bound Atlas-native reader (counterpart of the Burn `PngSeriesReader`).
+    /// Backend-bound Atlas-native reader (counterpart of the Coeus `PngSeriesReader`).
     pub struct PngSeriesReader<B: ComputeBackend> {
         backend: B,
     }

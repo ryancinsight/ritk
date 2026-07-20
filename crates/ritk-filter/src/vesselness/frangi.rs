@@ -114,7 +114,7 @@ impl FrangiVesselnessFilter {
     /// Runs the identical multi-scale Frangi vesselness (recursive-Gaussian
     /// Hessian + eigen-analysis, max over scales) via the shared `compute`
     /// host core on the image's contiguous host buffer, so the result is
-    /// bitwise-identical to the Coeus path. No Coeus tensor is constructed.
+    /// bitwise-identical to the Coeus path. No tensor is constructed.
     /// Spatial metadata is preserved.
     ///
     /// `compute`: FrangiVesselnessFilter::compute

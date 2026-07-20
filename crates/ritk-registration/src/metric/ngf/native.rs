@@ -1,9 +1,9 @@
 //! Coeus-native NGF engine (`Image<f32, B, 3>` substrate).
 //!
 //! Atlas migration (burn → coeus): the register-engine parallel path for the
-//! Normalized Gradient Fields metric. The Burn-generic [`super::fixed_prep`]
+//! Normalized Gradient Fields metric. The Coeus-generic [`super::fixed_prep`]
 //! /[`super::NormalizedGradientField`] surface stays unchanged (its consumers —
-//! [`crate::ngf_rigid`], cli/python — remain on Burn until their own cutover);
+//! [`crate::ngf_rigid`], cli/python — remain on Coeus until their own cutover);
 //! this module ADDS the native substrate alongside so registration's eventual
 //! `Image<B>` → native cutover is unblocked.
 //!
@@ -13,15 +13,15 @@
 //! substrate that produces the resampled moving volume differs — Coeus batch
 //! point transforms ([`Image::index_to_world_native`]/
 //! [`Image::world_to_index_native`], differential-verified bit-faithful to the
-//! Burn `index_to_world_tensor`/`world_to_index_tensor`), the native affine
+//! Coeus `index_to_world_tensor`/`world_to_index_tensor`), the native affine
 //! [`AtlasAffineTransform`], and the native
 //! [`trilinear_interpolation`](ritk_interpolation::native::trilinear_interpolation)
-//! kernel replace the Burn grid/tensor/`LinearInterpolator` path.
+//! kernel replace the Coeus grid/tensor/`LinearInterpolator` path.
 //!
 //! 3-D only: the register engine operates on volumes, and the native trilinear
 //! kernel is 3-D. This mirrors `NgfFixedPrep`'s dense path
 //! (`sampling: None`); the stochastic-sample estimator has no native consumer
-//! yet and is left on Burn (recorded as a residual gap).
+//! yet and is left on Coeus (recorded as a residual gap).
 
 use super::scalar::{
     compute_gradient_field, row_major_strides, weighted_eta2, weighted_ngf_from_fixed,

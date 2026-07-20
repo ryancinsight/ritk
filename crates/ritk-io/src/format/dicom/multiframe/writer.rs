@@ -140,7 +140,7 @@ fn write_native_impl(
 /// Serialize a flat `[n_frames, rows, cols]` row-major `f32` buffer as a
 /// multi-frame DICOM Part 10 file.
 ///
-/// Substrate-free encode core shared by the Burn and native writers. The single
+/// Substrate-free encode core shared by the Coeus and native writers. The single
 /// global linear rescale, tag emission, and file layout are defined here so the
 /// two carriers produce byte-identical output for identical voxels.
 fn write_multiframe_flat(

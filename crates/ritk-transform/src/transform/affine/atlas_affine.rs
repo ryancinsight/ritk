@@ -211,7 +211,7 @@ impl<B: ComputeBackend, const D: usize> AtlasAffineTransform<B, D> {
 
 /// Row-major `[D·D]` rotation matrix from Euler angles (radians). 3D uses the
 /// ZYX composition `R = R_z(γ)·R_y(β)·R_x(α)` (`angles = [α, β, γ]`), 2D uses a
-/// single angle, 1D/4D are identity — matching the Burn
+/// single angle, 1D/4D are identity — matching the Coeus
 /// `RigidTransform::build_rotation_matrix` host formulation.
 fn euler_rotation_matrix<const D: usize>(angles: &[f32]) -> Vec<f32> {
     if D == 3 {
@@ -242,7 +242,7 @@ fn euler_rotation_matrix<const D: usize>(angles: &[f32]) -> Vec<f32> {
 }
 
 /// Row-major `[9]` rotation matrix from a quaternion `[x, y, z, w]`, normalised
-/// with the same `1e-12` guard as the Burn `VersorRigid3DTransform`; products
+/// with the same `1e-12` guard as the Coeus `VersorRigid3DTransform`; products
 /// accumulate in `f64` to mirror that path's intermediate precision.
 fn quaternion_rotation_matrix(quat: &[f32]) -> Vec<f32> {
     const QUAT_NORM_GUARD: f32 = 1e-12;

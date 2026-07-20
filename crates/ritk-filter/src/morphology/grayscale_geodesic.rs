@@ -88,7 +88,7 @@ impl GrayscaleGeodesicDilationFilter {
     /// Coeus-native sister of [`GrayscaleGeodesicDilationFilter::apply`].
     ///
     /// Delegates to the native [`MorphologicalReconstruction::apply_native`],
-    /// bitwise-identical to the Coeus path. No Coeus tensor is constructed.
+    /// bitwise-identical to the Coeus path. No tensor is constructed.
     ///
     /// # Errors
     /// Returns an error on shape mismatch or non-contiguous buffers.
@@ -160,7 +160,7 @@ impl GrayscaleGeodesicErosionFilter {
     /// Coeus-native sister of [`GrayscaleGeodesicErosionFilter::apply`].
     ///
     /// Delegates to the native [`MorphologicalReconstruction::apply_native`],
-    /// bitwise-identical to the Coeus path. No Coeus tensor is constructed.
+    /// bitwise-identical to the Coeus path. No tensor is constructed.
     ///
     /// # Errors
     /// Returns an error on shape mismatch or non-contiguous buffers.

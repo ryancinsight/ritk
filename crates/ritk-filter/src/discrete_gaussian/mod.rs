@@ -147,10 +147,10 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
 
     /// Build the per-axis discrete-Gaussian kernels for the given spacing.
     ///
-    /// Delegates to the burn-free [`discrete_gaussian_kernels`] free function
+    /// Delegates to the native [`discrete_gaussian_kernels`] free function
     /// (single source of truth for kernel construction), shared by the Coeus
     /// [`apply_inner`](Self::apply_inner) path, the Coeus-native
-    /// [`apply_native`](Self::apply_native) path, and the burn-free
+    /// [`apply_native`](Self::apply_native) path, and the native
     /// [`discrete_gaussian_smooth_flat`] core the Canny filters call.
     fn kernels_for_spacing<const D: usize>(
         &self,

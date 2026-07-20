@@ -127,7 +127,7 @@ impl CannyEdgeDetector {
 
     /// Apply the Canny edge detector to a 3-D Coeus-native image.
     ///
-    /// Smooths natively via the burn-free
+    /// Smooths natively via the native
     /// `gaussian_smooth_native_flat`
     /// core, then runs the identical gradient / non-maximum-suppression /
     /// hysteresis pipeline via the shared `canny_edges_flat` host core. No Coeus

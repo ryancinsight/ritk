@@ -4,7 +4,7 @@
 //! `LayerNorm → MLP → residual`, over a `[B, D, H, W, C]` token volume. Window
 //! partitioning, cyclic shift, and the shifted-window connectivity mask are all
 //! expressed with [`coeus_autograd`] shape ops, so gradients flow end to end.
-//! No Burn tensors, modules, or backends cross this boundary.
+//! No Coeus tensors, modules, or backends cross this boundary.
 
 use super::{attention::WindowAttention, mlp::Mlp};
 use coeus_autograd::{add, cat, permute, reshape, roll, slice, Parameter, Var};
@@ -14,7 +14,7 @@ use coeus_nn::normalization::LayerNorm;
 use coeus_ops::BackendOps;
 use coeus_tensor::Tensor;
 
-/// LayerNorm numerical-stability constant (matches the Burn `LayerNorm` default).
+/// LayerNorm numerical-stability constant (matches the Coeus `LayerNorm` default).
 const NORM_EPS: f64 = 1e-5;
 /// Masked-attention additive penalty for cross-region window pairs.
 const MASK_PENALTY: f32 = -100.0;

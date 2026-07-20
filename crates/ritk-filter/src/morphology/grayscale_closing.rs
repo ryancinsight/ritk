@@ -91,7 +91,7 @@ impl GrayscaleClosingFilter {
     ///
     /// Runs the identical safe-border dilate→erode closing via the shared
     /// `close_3d` host core on the image's contiguous host buffer, so the
-    /// result is bitwise-identical to the Coeus path. No Coeus tensor is
+    /// result is bitwise-identical to the Coeus path. No tensor is
     /// constructed. Spatial metadata is preserved.
     ///
     /// # Errors

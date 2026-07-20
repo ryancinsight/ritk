@@ -2,7 +2,7 @@
 //!
 //! # Design
 //!
-//! The [`Transform<B, D>`](crate::Transform) trait is generic over a Burn
+//! The [`Transform<B, D>`](crate::Transform) trait is generic over a Coeus
 //! tensor backend `B`, which makes direct serialization of live transform objects
 //! backend-dependent.  This module provides a **parameter-only** representation
 //! ([`TransformDescription`]) that captures each supported transform type as plain
@@ -45,7 +45,7 @@ use std::path::Path;
 /// Backend-independent description of a single transform's parameters.
 ///
 /// Each variant stores its parameters as flat `f64` vectors in row-major order
-/// so that no Burn tensor types appear in the serialized representation.
+/// so that no Coeus tensor types appear in the serialized representation.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum TransformDescription {
     /// Translation: offset vector of length D.

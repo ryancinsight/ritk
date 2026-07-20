@@ -18,7 +18,7 @@
 
 pub mod config;
 pub mod model;
-/// Coeus-native selective state space block (burn-free), added alongside the
+/// Coeus-native selective state space block (native), added alongside the
 /// Coeus-typed [`model`] during the Coeus→Coeus migration.
 pub mod native;
 pub mod scan;

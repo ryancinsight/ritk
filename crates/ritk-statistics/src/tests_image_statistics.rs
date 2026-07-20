@@ -151,7 +151,7 @@ fn test_two_values() {
 fn test_reverse_order_input_matches_sorted() {
     // Sort order of input must not change the result (statistics are
     // permutation-invariant). Verifies the native API's algorithm is
-    // re-order agnostic like the Burn reference path.
+    // re-order agnostic like the Coeus reference path.
     let sorted: Native1DImage = make_native_image(vec![1.0, 2.0, 3.0, 4.0], [4]);
     let reversed: Native1DImage = make_native_image(vec![4.0, 3.0, 2.0, 1.0], [4]);
 

@@ -4,7 +4,7 @@
 //! The second intensity-metric reduction (after [`super::mse`]);
 //! together they justify the `Metric` seam (ADR 0001, deferred to its own
 //! increment). Computed via the single-pass algebraic-moments form (Lewis 1995)
-//! that the Burn `NormalizedCrossCorrelation` also uses, but entirely on the
+//! that the Coeus `NormalizedCrossCorrelation` also uses, but entirely on the
 //! autograd tape so the reverse pass reaches the sampled-intensity leaf (hence
 //! the transform parameters upstream).
 //!

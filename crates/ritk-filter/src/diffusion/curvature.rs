@@ -106,7 +106,7 @@ impl CurvatureAnisotropicDiffusionFilter {
     /// Runs the identical ITK `CurvatureNDAnisotropicDiffusionFunction` (MCDE)
     /// explicit Euler PDE (double-buffered on a flat host array) via the shared
     /// `curvature_diffuse` host core, so the result is bitwise-identical to the
-    /// Coeus path. No Coeus tensor is constructed. Spatial metadata is preserved.
+    /// Coeus path. No tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors
     /// Returns an error when the image tensor is not host-addressable/contiguous

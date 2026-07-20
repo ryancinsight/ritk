@@ -56,7 +56,7 @@ impl<B: Backend> ImageWriter<Image<f32, B, 3>> for MghWriter {
 /// Atlas-native-substrate implementors of [`crate::domain::ImageReader`].
 ///
 /// Transitional module: names inside are the plain end-state names; the
-/// module itself disambiguates from the Burn types during coexistence and
+/// module itself disambiguates from the Coeus types during coexistence and
 /// folds away when the Coeus path is deleted (ADR 0002).
 pub mod native {
     use crate::domain::{to_io_err, ImageReader, ImageWriter};
@@ -64,7 +64,7 @@ pub mod native {
     use ritk_image::Image;
     use std::path::Path;
 
-    /// Backend-bound Atlas-native reader (counterpart of the Burn [`super::MghReader`]).
+    /// Backend-bound Atlas-native reader (counterpart of the Coeus [`super::MghReader`]).
     pub struct MghReader<B: ComputeBackend> {
         backend: B,
     }
@@ -82,7 +82,7 @@ pub mod native {
         }
     }
 
-    /// Backend-bound Atlas-native writer (counterpart of the Burn writer).
+    /// Backend-bound Atlas-native writer (counterpart of the Coeus writer).
     pub struct MghWriter<B: ComputeBackend> {
         backend: B,
     }

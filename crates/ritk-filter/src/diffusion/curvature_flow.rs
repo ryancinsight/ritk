@@ -185,7 +185,7 @@ impl CurvatureFlowImageFilter {
     /// Runs the identical level-set mean-curvature-flow explicit-Euler PDE
     /// (double-buffered f64 stencils, ZeroFluxNeumann boundary) via the shared
     /// `curvature_flow_evolve` host core on the image's contiguous host
-    /// buffer, so the result is bitwise-identical to the Coeus path. No Coeus
+    /// buffer, so the result is bitwise-identical to the Coeus path. No
     /// tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors

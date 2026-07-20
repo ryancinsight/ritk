@@ -26,7 +26,7 @@
 //!
 //! # Performance notes
 //!
-//! The legacy `Image<B, D>` helpers cross the Burn tensor ↔ CPU memory boundary
+//! The legacy `Image<B, D>` helpers cross the Coeus tensor ↔ CPU memory boundary
 //! and are therefore inherently O(N) in both time and space. The `coeus` feature
 //! adds borrowed extraction for contiguous Coeus tensors and Coeus-backed images
 //! so read-only kernels can avoid a copy.
@@ -50,7 +50,7 @@ pub mod native;
 ///
 /// # Invariants
 /// - `voxels.len() == shape[0] * shape[1] * … * shape[D-1]`
-/// - The flat layout is row-major (C-order), matching Burn's default memory
+/// - The flat layout is row-major (C-order), matching Coeus's default memory
 ///   layout.
 ///
 /// # Example

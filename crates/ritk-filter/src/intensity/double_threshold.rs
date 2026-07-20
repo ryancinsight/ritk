@@ -72,7 +72,7 @@ impl DoubleThresholdImageFilter {
     /// via the shared `double_threshold_flat` host core (which delegates to
     /// `MorphologicalReconstruction::reconstruct_flat`)
     /// on the image's contiguous host buffer, so the result is bitwise-identical
-    /// to the Coeus path. No Coeus tensor is constructed. Spatial metadata is
+    /// to the Coeus path. No tensor is constructed. Spatial metadata is
     /// preserved.
     ///
     /// # Errors

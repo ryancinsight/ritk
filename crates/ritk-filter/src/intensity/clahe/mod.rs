@@ -189,7 +189,7 @@ impl ClaheFilter {
     /// Runs the identical per-axial-slice CLAHE via the shared
     /// `clahe_flat` host core (per-slice driver over
     /// `clahe_2d_with_scratch`) on the image's contiguous host buffer, so the
-    /// result is bitwise-identical to the Coeus path. No Coeus tensor is
+    /// result is bitwise-identical to the Coeus path. No tensor is
     /// constructed. Spatial metadata is preserved.
     ///
     /// # Errors

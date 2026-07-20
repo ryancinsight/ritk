@@ -88,7 +88,7 @@ impl<K: GradientKernel> SeparableGradientFilter<K> {
     /// Runs the identical separable-convolution gradient magnitude (replicate
     /// boundary) via the shared `gradient_magnitude_vec` host core on the
     /// image's contiguous host buffer, so the result is bitwise-identical to the
-    /// Coeus path. No Coeus tensor is constructed. Spatial metadata is preserved.
+    /// Coeus path. No tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors
     /// Returns an error when the image tensor is not host-addressable/contiguous

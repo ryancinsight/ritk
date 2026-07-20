@@ -97,7 +97,7 @@ impl VotingBinaryImageFilter {
     ///
     /// Runs the identical single voting step via the shared `voting_binary_vec`
     /// host core on the image's contiguous host buffer, so the result is
-    /// bitwise-identical to the Coeus path. No Coeus tensor is constructed.
+    /// bitwise-identical to the Coeus path. No tensor is constructed.
     /// Spatial metadata is preserved.
     ///
     /// # Errors

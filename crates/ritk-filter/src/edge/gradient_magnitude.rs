@@ -119,7 +119,7 @@ impl GradientMagnitudeFilter {
     /// Runs the identical central finite-difference gradient magnitude
     /// (ZeroFluxNeumann boundary) via the shared `gradient_magnitude_vec` host
     /// core on the image's contiguous host buffer, so the result is
-    /// bitwise-identical to the Coeus path. No Coeus tensor is constructed. Spatial
+    /// bitwise-identical to the Coeus path. No tensor is constructed. Spatial
     /// metadata is preserved.
     ///
     /// # Errors

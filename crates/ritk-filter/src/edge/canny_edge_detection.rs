@@ -82,12 +82,12 @@ impl CannyEdgeDetectionImageFilter {
 
     /// Coeus-native sister of [`CannyEdgeDetectionImageFilter::apply`].
     ///
-    /// Smooths natively via the burn-free `discrete_gaussian_smooth_flat` core
+    /// Smooths natively via the native `discrete_gaussian_smooth_flat` core
     /// (same ITK discrete-Gaussian kernel and replicate-boundary convolution the
     /// Coeus `DiscreteGaussianFilter::apply` uses) and runs the identical
     /// second-directional-derivative / zero-crossing / hysteresis pipeline via
     /// the shared `canny_edge_detection_flat` host core, so the result is
-    /// bitwise-identical to the Coeus path. No Coeus tensor is constructed.
+    /// bitwise-identical to the Coeus path. No tensor is constructed.
     /// Spatial metadata is preserved.
     ///
     /// # Errors

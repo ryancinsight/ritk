@@ -140,7 +140,7 @@ fn native_jpeg_reader_matches_coeus() {
     assert!(values[2] >= 228.0);
 }
 
-/// Write a synthetic 8-bit grayscale PNG (no Burn PNG writer exists).
+/// Write a synthetic 8-bit grayscale PNG (no Coeus PNG writer exists).
 fn write_gray_png(path: &Path, width: u32, height: u32, seed: u8) {
     let img = image::GrayImage::from_fn(width, height, |x, y| {
         image::Luma([((x * 7 + y * 13) as u8).wrapping_add(seed)])

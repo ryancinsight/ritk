@@ -7,7 +7,7 @@
 //! spatial-transformer initialization).
 //!
 //! Built on [`coeus_nn`] layers over [`coeus_autograd::Var`]; gradients flow to
-//! every layer parameter through the autograd graph. No Burn tensors, modules,
+//! every layer parameter through the autograd graph. No Coeus tensors, modules,
 //! or backends cross this boundary.
 
 use coeus_autograd::{add, relu, reshape, Parameter, Var};
@@ -67,7 +67,7 @@ impl AffineNetworkConfig {
     /// Instantiate an [`AffineNetwork`] over element type `T` and backend `B`.
     ///
     /// Convolution and linear weights are Kaiming-uniform-initialized (the
-    /// fan-in-scaled scheme the original Burn model relied on), keeping the
+    /// fan-in-scaled scheme the original Coeus model relied on), keeping the
     /// per-filter response non-degenerate; biases start at zero.
     ///
     /// # Panics

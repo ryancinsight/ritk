@@ -25,7 +25,7 @@ where
     /// Construct an MLP mapping `input_dim → hidden_dim → input_dim`.
     ///
     /// Weights are Kaiming-uniform-initialized (fan-in of each layer), biases
-    /// zero — the non-degenerate scheme the original Burn model relied on;
+    /// zero — the non-degenerate scheme the original Coeus model relied on;
     /// [`Linear::new`] alone leaves weights at ones.
     pub fn new(input_dim: usize, hidden_dim: usize, seed: u64) -> Self {
         let mut fc1 = Linear::new(input_dim, hidden_dim, true);

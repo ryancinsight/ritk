@@ -77,7 +77,7 @@ impl AdaptiveHistogramEqualizationFilter {
     ///
     /// Runs the identical Stark adaptive equalization via the shared
     /// `adaptive_equalize_vec` host core on the image's contiguous host buffer,
-    /// so the result is bitwise-identical to the Coeus path. No Coeus tensor is
+    /// so the result is bitwise-identical to the Coeus path. No tensor is
     /// constructed. Spatial metadata is preserved.
     ///
     /// # Errors

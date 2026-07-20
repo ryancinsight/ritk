@@ -37,7 +37,7 @@ impl HitOrMissTransform {
     ///
     /// Runs the identical `(M ⊖ SE1) ∧ (Má¶œ ⊖ SE2)` transform via the shared
     /// `hit_or_miss_3d` host core on the image's contiguous host buffer, so the
-    /// result is bitwise-identical to the Coeus path. No Coeus tensor is
+    /// result is bitwise-identical to the Coeus path. No tensor is
     /// constructed. Spatial metadata is preserved.
     ///
     /// # Errors

@@ -5,7 +5,7 @@
 //! U-Net-style decoder with nearest-neighbor upsampling and skip connections,
 //! optional diffeomorphic velocity integration, and a differentiable spatial
 //! transformer. Built entirely on [`coeus_nn`]/[`coeus_autograd`] over
-//! [`coeus_autograd::Var`]; no Burn tensors, modules, or backends cross this
+//! [`coeus_autograd::Var`]; no Coeus tensors, modules, or backends cross this
 //! boundary.
 //!
 //! Reference: Chen et al., "TransMorph: Transformer for unsupervised medical

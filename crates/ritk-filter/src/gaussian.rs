@@ -6,7 +6,7 @@ use ritk_spatial::Spacing;
 
 /// Default Gaussian kernel half-extent cap (`radius·2 + 1`), bounding the
 /// per-axis convolution cost. Shared by [`GaussianFilter::new`] and the
-/// burn-free [`gaussian_smooth_flat_3d`] entry so both smooth identically.
+/// native [`gaussian_smooth_flat_3d`] entry so both smooth identically.
 pub const DEFAULT_MAX_KERNEL_WIDTH: usize = 32;
 
 /// Gaussian smoothing filter.
@@ -184,20 +184,20 @@ fn axis_kernel(sigma_phys: f64, spacing: f64, max_kernel_width: usize) -> Vec<f3
     crate::gaussian_kernel(pixel_sigma as f32, Some(actual_radius))
 }
 
-/// Burn-free host core for [`GaussianFilter::apply_native`]: separable
+/// Native host core for [`GaussianFilter::apply_native`]: separable
 /// zero-padded Gaussian smoothing on a flat z-major buffer, matching the Coeus
 /// `conv1d(padding = k/2)` contract (per-axis `axis_kernel` +
 /// `convolve_zero_pad_3d`). Shared by the native Gaussian path and the native
 /// [`CannyEdgeDetector`](crate::edge::CannyEdgeDetector) smoothing stage, so no
-/// Coeus backend is needed to smooth.
+/// backend is needed to smooth.
 ///
 /// The result matches the Coeus path to a derived floating-point tolerance (not
 /// bitwise): both evaluate the same kernels but sum the taps in different orders
 /// (`conv1d` vs this correlation), differing only by accumulation rounding
 /// (`O(width · ε · —–I—–∞)` per axis).
-/// Burn-free separable Gaussian smoothing of a flat z-major 3-D volume — the
+/// Separable Gaussian smoothing of a flat z-major 3-D volume — the
 /// public entry to the [`GaussianFilter::apply_native`] host core for callers
-/// operating directly on flat host buffers (no Coeus backend, no native `Image`
+/// operating directly on flat host buffers (no backend, no native `Image`
 /// construction). Physical `sigmas`/`spacing` per axis; uses the shared
 /// [`DEFAULT_MAX_KERNEL_WIDTH`], so the result matches [`GaussianFilter::apply`]
 /// to the same derived accumulation-rounding tolerance as `apply_native`.

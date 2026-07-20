@@ -42,7 +42,7 @@ impl WhiteTopHatFilter {
     ///
     /// Runs the identical `f - D_B(E_B(f))` clamped subtraction via the shared
     /// `white_top_hat_vec` host core on the image's contiguous host buffer, so
-    /// the result is bitwise-identical to the Coeus path. No Coeus tensor is
+    /// the result is bitwise-identical to the Coeus path. No tensor is
     /// constructed. Spatial metadata is preserved.
     ///
     /// # Errors
@@ -87,7 +87,7 @@ impl BlackTopHatFilter {
     ///
     /// Runs the identical `E_B(D_B(f)) - f` clamped subtraction via the shared
     /// `black_top_hat_vec` host core on the image's contiguous host buffer, so
-    /// the result is bitwise-identical to the Coeus path. No Coeus tensor is
+    /// the result is bitwise-identical to the Coeus path. No tensor is
     /// constructed. Spatial metadata is preserved.
     ///
     /// # Errors

@@ -20,7 +20,7 @@ use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 /// Spatial geometry inputs for the substrate-free series encode core.
 ///
 /// Field conventions mirror [`crate::format::dicom::series`]' `decode_series`
-/// exactly so a written series round-trips through the native/Burn series
+/// exactly so a written series round-trips through the native/Coeus series
 /// readers to the same voxels and geometry:
 /// - `spacing` is image-axis spacing `[Δx(col), Δy(row), Δz(slice)]`, matching
 ///   the reader's `Spacing::new([dx, dy, dz])`.
@@ -53,9 +53,9 @@ fn series_geometry(
 /// Write a 3-D `Image<f32, B, 3>` with shape `[depth, rows, cols]` as a series of
 /// per-slice single-frame DICOM Part 10 files.
 ///
-/// Delegates to the substrate-free `write_series_flat` encode core; the Burn
+/// Delegates to the substrate-free `write_series_flat` encode core; the Coeus
 /// carrier only supplies the host pixel buffer and spatial geometry. Retained
-/// for consumers not yet migrated off the Burn `Image`; new native code uses
+/// for consumers not yet migrated off the Coeus `Image`; new native code uses
 /// [`write_dicom_series_native`].
 pub fn write_dicom_series<B: Backend, P: AsRef<Path>>(
     path: P,
@@ -107,7 +107,7 @@ pub fn write_dicom_series_native<P: AsRef<Path>>(
 /// Serialize a flat `[depth, rows, cols]` row-major `f32` buffer as a series of
 /// per-slice single-frame DICOM Part 10 files.
 ///
-/// Substrate-free encode core shared by the Burn and native series writers. The
+/// Substrate-free encode core shared by the Coeus and native series writers. The
 /// per-slice pixel rescale, tag emission, geometry derivation, and file layout
 /// are defined here so the two carriers produce pixel-and-geometry-identical
 /// output for identical voxels (SSOT).
