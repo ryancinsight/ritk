@@ -386,7 +386,7 @@ mod tests {
     /// Conversion preserves native NIfTI serialization bytes when no format
     /// conversion is requested.
     #[test]
-    fn test_native_convert_output_is_byte_identical_to_burn_writer() {
+    fn test_native_convert_output_is_byte_identical_to_coeus_writer() {
         let dir = tempdir().unwrap();
         let input = dir.path().join("input.nii");
         let native_output = dir.path().join("via_convert.nii");

@@ -1,7 +1,7 @@
 //! Coeus-native registration seams (ADR 0001): [`Transform`] (coordinate
 //! transform) and [`Metric`] (intensity-loss reduction).
 //!
-//! Both are parallel to the burn-bound `ritk_core`/`ritk_registration` traits
+//! Both are parallel to the coeus-bound `ritk_core`/`ritk_registration` traits
 //! but over Coeus autograd `Var`s, with trainable state on the tape so a loss
 //! gradient reaches it. Each is introduced once it has ≥2 real implementors
 //! (seam-first, not speculative): `Transform` has

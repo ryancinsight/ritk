@@ -13,7 +13,7 @@
 //!   4e-6`; `PARITY_DIFF = 1e-4` covers it with margin.
 
 use super::{make_image, F32_TOL};
-use crate::image_comparison as burn_metrics;
+use crate::image_comparison as coeus_metrics;
 use crate::image_comparison::native as native_metrics;
 use coeus_core::MoiraiBackend;
 use ritk_image::Image as NativeImage;
@@ -70,7 +70,7 @@ fn dice_known_half_overlap() {
 fn dice_matches_coeus() {
     let pred = vec![1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0];
     let gt = vec![0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0];
-    let bd = burn_metrics::dice_coefficient(
+    let bd = coeus_metrics::dice_coefficient(
         &make_image(pred.clone(), [8]),
         &make_image(gt.clone(), [8]),
     )
@@ -94,7 +94,7 @@ fn similarity_index_matches_coeus_exactly() {
     let a = vec![0.0, 1.0, 1.0, 0.0, 2.0, 2.0];
     let b = vec![0.0, 1.0, 0.0, 1.0, 2.0, 0.0];
     let bs =
-        burn_metrics::similarity_index(&make_image(a.clone(), [6]), &make_image(b.clone(), [6]))
+        coeus_metrics::similarity_index(&make_image(a.clone(), [6]), &make_image(b.clone(), [6]))
             .expect("matched image shapes");
     let ns = native_metrics::similarity_index(&make_native(a, [6]), &make_native(b, [6])).unwrap();
     assert!((bs - ns).abs() <= PARITY_EXACT, "SI burn={bs} native={ns}");
@@ -124,7 +124,7 @@ fn psnr_known_value() {
 fn psnr_matches_coeus() {
     let a = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
     let b = vec![0.2, 0.9, 2.3, 2.7, 4.1, 5.4, 5.6, 7.2];
-    let bp = burn_metrics::psnr(
+    let bp = coeus_metrics::psnr(
         &make_image(a.clone(), [8]),
         &make_image(b.clone(), [8]),
         10.0,
@@ -149,7 +149,7 @@ fn ssim_identical_is_one() {
 fn ssim_matches_coeus_exactly() {
     let a = vec![1.0, 3.0, 5.0, 7.0];
     let b = vec![2.0, 4.0, 6.0, 8.0];
-    let bs = burn_metrics::ssim(
+    let bs = coeus_metrics::ssim(
         &make_image(a.clone(), [4]),
         &make_image(b.clone(), [4]),
         10.0,
@@ -183,7 +183,7 @@ fn hausdorff_matches_coeus_exactly() {
         *v = 1.0; // second z-slice
     }
     let spacing = [1.0, 1.0, 1.0];
-    let bh = burn_metrics::hausdorff_distance(
+    let bh = coeus_metrics::hausdorff_distance(
         &make_image(pred.clone(), [3, 3, 3]),
         &make_image(gt.clone(), [3, 3, 3]),
         &spacing,
@@ -208,7 +208,7 @@ fn mean_surface_distance_matches_coeus_exactly() {
         *v = 1.0;
     }
     let spacing = [1.0, 1.0, 1.0];
-    let bm = burn_metrics::mean_surface_distance(
+    let bm = coeus_metrics::mean_surface_distance(
         &make_image(pred.clone(), [3, 3, 3]),
         &make_image(gt.clone(), [3, 3, 3]),
         &spacing,

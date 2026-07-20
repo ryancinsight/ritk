@@ -86,7 +86,7 @@ struct VtkHeader {
 /// Decode a VTK legacy structured-points file into substrate-free flat voxel
 /// data plus geometry, without constructing any tensor or image carrier.
 ///
-/// This is the shared core underlying both the burn-backed [`read_vtk`] and the
+/// This is the shared core underlying both the coeus-backed [`read_vtk`] and the
 /// Coeus-backed `ritk_io` native reader: it performs the complete decode (header
 /// parse, POINT_DATA validation, ASCII/binary scalar decode to `f32`) and
 /// returns the raw ingredients so each caller can build its own carrier from an

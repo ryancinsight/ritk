@@ -462,7 +462,7 @@ pub fn bitwise_not(
     bits: u32,
     signed: bool,
 ) -> RitkResult<PyImage> {
-    // TODO: BitwiseNotImageFilter still lacks apply_native; keep Burn roundtrip for now.
+    // TODO: BitwiseNotImageFilter still lacks apply_native; keep the Coeus tensor roundtrip for now.
     let arc = image_from_py(image);
     let filter = if signed {
         BitwiseNotImageFilter::signed()

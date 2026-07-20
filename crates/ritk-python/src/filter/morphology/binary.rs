@@ -22,7 +22,7 @@ use std::sync::Arc;
 ///     Skeleton PyImage, same shape and spatial metadata as input.
 #[pyfunction]
 pub fn binary_thinning(py: Python<'_>, image: &PyImage) -> PyImage {
-    // TODO: BinaryThinningFilter still lacks apply_native; keep Burn roundtrip for now.
+    // TODO: BinaryThinningFilter still lacks apply_native; keep the Coeus tensor roundtrip for now.
     let arc = image_from_py(image);
     let out = py.allow_threads(|| BinaryThinningFilter::new().apply(&arc));
     into_py_image(out)
@@ -42,7 +42,7 @@ pub fn binary_thinning(py: Python<'_>, image: &PyImage) -> PyImage {
 #[pyfunction]
 #[pyo3(signature = (image, iteration=3))]
 pub fn binary_pruning(py: Python<'_>, image: &PyImage, iteration: usize) -> PyImage {
-    // TODO: BinaryPruningFilter still lacks apply_native; keep Burn roundtrip for now.
+    // TODO: BinaryPruningFilter still lacks apply_native; keep the Coeus tensor roundtrip for now.
     let arc = image_from_py(image);
     let out = py.allow_threads(|| BinaryPruningFilter::new(iteration).apply(&arc));
     into_py_image(out)
@@ -73,7 +73,7 @@ pub fn erode_object_morphology(
     object_value: f32,
     background_value: f32,
 ) -> PyImage {
-    // TODO: ErodeObjectMorphologyFilter still lacks apply_native; keep Burn roundtrip for now.
+    // TODO: ErodeObjectMorphologyFilter still lacks apply_native; keep the Coeus tensor roundtrip for now.
     let arc = image_from_py(image);
     let out = py.allow_threads(|| {
         ErodeObjectMorphologyFilter::new([radius, radius, radius], object_value, background_value)

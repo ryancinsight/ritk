@@ -29,7 +29,7 @@ pub fn derivative(
     }
     // sitk direction [x,y,z] → ritk tensor axis [z,y,x].
     let axis = 2 - direction;
-    // TODO: DerivativeImageFilter still lacks apply_native; keep Burn roundtrip for now.
+    // TODO: DerivativeImageFilter still lacks apply_native; keep the Coeus tensor roundtrip for now.
     let arc = image_from_py(image);
     py.allow_threads(|| {
         DerivativeImageFilter::new(axis, order, use_image_spacing)
@@ -110,7 +110,7 @@ pub fn laplacian_sharpening(
     image: &PyImage,
     use_image_spacing: bool,
 ) -> RitkResult<PyImage> {
-    // TODO: LaplacianSharpeningFilter still lacks apply_native; keep Burn roundtrip for now.
+    // TODO: LaplacianSharpeningFilter still lacks apply_native; keep the Coeus tensor roundtrip for now.
     let arc = image_from_py(image);
     let out = py.allow_threads(|| LaplacianSharpeningFilter::new(use_image_spacing).apply(&arc));
     Ok(into_py_image(out))
@@ -133,7 +133,7 @@ pub fn laplacian_sharpening(
 ///     RuntimeError: on internal computation failure.
 #[pyfunction]
 pub fn sobel_gradient(py: Python<'_>, image: &PyImage) -> RitkResult<PyImage> {
-    // TODO: SobelFilter still lacks apply_native; keep Burn roundtrip for now.
+    // TODO: SobelFilter still lacks apply_native; keep the Coeus tensor roundtrip for now.
     let image = image_from_py(image);
     py.allow_threads(|| {
         let spacing = image.spacing();

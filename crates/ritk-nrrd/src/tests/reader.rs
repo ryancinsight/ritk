@@ -158,38 +158,37 @@ fn native_reader_matches_coeus_reader() -> Result<()> {
         [5.0, 10.0, 15.0],
     );
 
-    let backend = SequentialBackend;
-    let burn = crate::read_nrrd(&path, &backend)?;
+    let parallel = coeus_core::MoiraiBackend::new();
+    let par = crate::read_nrrd(&path, &parallel)?;
 
-    let backend = coeus_core::SequentialBackend;
-    let native = crate::read_nrrd(&path, &backend)?;
+    let seq = crate::read_nrrd(&path, &SequentialBackend)?;
 
-    assert_eq!(native.shape(), burn.shape(), "shape must match Coeus path");
+    assert_eq!(seq.shape(), par.shape(), "shape must be backend-independent");
     assert_eq!(
-        native.origin(),
-        burn.origin(),
-        "origin must match Coeus path"
+        seq.origin(),
+        par.origin(),
+        "origin must be backend-independent"
     );
     assert_eq!(
-        native.spacing(),
-        burn.spacing(),
-        "spacing must match Coeus path"
+        seq.spacing(),
+        par.spacing(),
+        "spacing must be backend-independent"
     );
     assert_eq!(
-        native.direction(),
-        burn.direction(),
-        "direction must match Coeus path"
+        seq.direction(),
+        par.direction(),
+        "direction must be backend-independent"
     );
 
-    let native_vox = native.data_slice().expect("contiguous native voxels");
+    let seq_vox = seq.data_slice().expect("contiguous sequential voxels");
     {
-        let burn_vox = burn.data_slice().expect("contiguous host data");
-        assert_eq!(native_vox.len(), burn_vox.len(), "voxel count must match");
-        for (i, (&n, &b)) in native_vox.iter().zip(burn_vox.iter()).enumerate() {
+        let par_vox = par.data_slice().expect("contiguous host data");
+        assert_eq!(seq_vox.len(), par_vox.len(), "voxel count must match");
+        for (i, (&n, &b)) in seq_vox.iter().zip(par_vox.iter()).enumerate() {
             assert_eq!(
                 n.to_bits(),
                 b.to_bits(),
-                "voxel[{i}] must be bitwise-identical to the Coeus reader"
+                "voxel[{i}] must be bitwise-identical across backends"
             );
         }
     }

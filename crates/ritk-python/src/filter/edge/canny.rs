@@ -163,7 +163,7 @@ pub fn canny_segmentation_level_set(
     number_of_iterations: usize,
     iso_surface_value: f32,
 ) -> RitkResult<PyImage> {
-    // TODO: CannySegmentationLevelSet still lacks apply_native; keep Burn roundtrip for now.
+    // TODO: CannySegmentationLevelSet still lacks apply_native; keep the Coeus tensor roundtrip for now.
     let arc_init = image_from_py(initial_level_set);
     let arc_feat = image_from_py(feature_image);
     let result = py.allow_threads(|| {

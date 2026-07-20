@@ -24,7 +24,7 @@ use std::path::Path;
 /// Encode flat voxel data plus geometry as a VTK legacy structured-points
 /// stream (BINARY) into an arbitrary writer.
 ///
-/// This is the shared, substrate-free core underlying both the burn-backed
+/// This is the shared, substrate-free core underlying both the coeus-backed
 /// [`write_vtk`] and the Coeus-backed `ritk_io` native writer: identical byte
 /// output given identical inputs, since neither carrier participates in the
 /// encode.

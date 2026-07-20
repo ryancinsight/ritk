@@ -218,16 +218,10 @@ mod tests {
     use std::path::Path;
     use tempfile::tempdir;
 
-    type TestBackend = SequentialBackend;
-
     fn write_gray_png(path: &Path, width: u32, height: u32, pixels: &[u8]) {
         let image = image::GrayImage::from_raw(width, height, pixels.to_vec())
             .expect("test image dimensions must match pixel count");
         image.save(path).expect("test PNG write must succeed");
-    }
-
-    fn tensor_values(image: &ritk_image::Image<f32, TestBackend, 3>) -> Vec<f32> {
-        image.data_slice().expect("contiguous image data").to_vec()
     }
 
     #[test]
@@ -290,25 +284,25 @@ mod tests {
     }
 
     #[test]
-    fn native_read_png_matches_coeus_single_and_series() -> anyhow::Result<()> {
-        use coeus_core::SequentialBackend;
+    fn read_png_is_backend_consistent_single_and_series() -> anyhow::Result<()> {
+        use coeus_core::{MoiraiBackend, SequentialBackend};
 
         let dir = tempdir()?;
         let single = dir.path().join("slice.png");
         write_gray_png(&single, 3, 2, &[10, 20, 30, 40, 50, 60]);
-        let backend = SequentialBackend;
+        let parallel = MoiraiBackend::new();
 
-        let burn = crate::read_png_to_image(&single, &backend)?;
-        let coeus = crate::read_png_to_image(&single, &SequentialBackend)?;
-        assert_eq!(coeus.shape(), burn.shape());
-        assert_eq!(coeus.data_slice()?, tensor_values(&burn).as_slice());
+        let par = crate::read_png_to_image(&single, &parallel)?;
+        let seq = crate::read_png_to_image(&single, &SequentialBackend)?;
+        assert_eq!(seq.shape(), par.shape());
+        assert_eq!(seq.data_slice()?, par.data_slice()?);
 
         let series_dir = tempdir()?;
         write_gray_png(&series_dir.path().join("s1.png"), 2, 1, &[1, 4]);
         write_gray_png(&series_dir.path().join("s2.png"), 2, 1, &[2, 3]);
-        let burn_series = crate::read_png_series(series_dir.path(), &backend)?;
-        let coeus_series = crate::read_png_series(series_dir.path(), &SequentialBackend)?;
-        assert_eq!(coeus_series.shape(), burn_series.shape());
+        let par_series = crate::read_png_series(series_dir.path(), &parallel)?;
+        let seq_series = crate::read_png_series(series_dir.path(), &SequentialBackend)?;
+        assert_eq!(seq_series.shape(), par_series.shape());
         assert_eq!(
             natural_cmp("slice99999999999999999999", "slice100000000000000000000"),
             Ordering::Less

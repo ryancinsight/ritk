@@ -239,22 +239,22 @@ mod tests_native {
         vals[13] = 0.0; // center pit
         vals[0] = 0.0; // corner background (should stay bg)
 
-        let burn_img = ts::make_image::<f32, coeus_core::SequentialBackend, 3>(vals.clone(), dims);
-        let burn_out = filter().apply(&burn_img);
-        let burn_vals = burn_out.data().to_vec();
+        let coeus_img = ts::make_image::<f32, coeus_core::SequentialBackend, 3>(vals.clone(), dims);
+        let coeus_out = filter().apply(&coeus_img);
+        let coeus_vals = coeus_out.data().to_vec();
 
         let native_out = filter()
             .apply_native(&make_native_image(vals.clone(), dims), &SequentialBackend)
             .expect("native hole fill");
-        assert_eq!(native_vals(&native_out), burn_vals);
+        assert_eq!(native_vals(&native_out), coeus_vals);
 
         // Iterative parity (2 passes).
-        let burn_it = filter().apply_iterative(&burn_img, 2);
-        let burn_it_vals = burn_it.data().to_vec();
+        let coeus_it = filter().apply_iterative(&coeus_img, 2);
+        let coeus_it_vals = coeus_it.data().to_vec();
         let native_it = filter()
             .apply_iterative_native(&make_native_image(vals, dims), 2, &SequentialBackend)
             .expect("native iterative hole fill");
-        assert_eq!(native_vals(&native_it), burn_it_vals);
+        assert_eq!(native_vals(&native_it), coeus_it_vals);
     }
 
     /// Oracle: an interior background pit fully enclosed by foreground is raised
