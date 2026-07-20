@@ -1,14 +1,37 @@
 # RITK Backlog - Active Planning
 
+- **CI-664-01 [arch] [patch] - Consume the Atlas-owned provider graph
+  (REVIEW; owner=Codex `/root`; scope=`.github/workflows/{ci,
+  python_ci,legacy-migration-audit,release}.yml`, deletion of
+  `.github/actions/checkout-atlas-dependencies/action.yml`, `README.md`, PM
+  artifacts, `docs/adr/0010-atlas-provider-checkout.md`,
+  `crates/ritk-nrrd/src/tests/reader.rs`).** RITK currently duplicates eleven
+  provider URLs and revisions
+  in a consumer-owned action. Replace every hosted workflow call with the
+  Atlas composite action pinned to merge `9a651ff539e314ff26c4a5b69fe89448c1770859`,
+  deriving the exact dependency closure from `ritk/Cargo.toml`. Acceptance:
+  no consumer-owned provider list remains, all eight workflow call sites use
+  the immutable Atlas revision and the same manifest/destination contract,
+  action syntax and path resolution pass locally, exact-head hosted PR CI is
+  green, and the tag-only release workflow remains syntax-verified without
+  publishing. The current-main `ritk-nrrd` formatting drift found by the
+  package-scoped CI command is corrected without behavioral change.
+  Implementation head `116d9826` passes CI run `29767323538`, Python run
+  `29767322311`, and migration-audit run `29767322329` across every configured
+  Linux, macOS, Windows, Python 3.9–3.13, wheel, lint, alignment, test, and
+  audit lane. The external `recurseml/analysis` service error is non-required
+  and contains no RITK build or test evidence.
+
 - **SAFE-663-01 [patch] - Reject non-finite level-set reinitialization input
-  (IN PROGRESS; owner=Codex `/root`; scope=`crates/ritk-filter/src/
+  (DONE; owner=Codex `/root`; scope=`crates/ritk-filter/src/
   {reinitialize_level_set.rs,tests_reinitialize_level_set.rs}`, PM
   artifacts).** `ReinitializeLevelSetFilter::apply` is fallible but currently
   lets NaN reach a partial-order sort and panic; infinity produces undefined
   crossing classification. Acceptance: both provider entry points reject a
   non-finite configured level and non-finite image samples with contextual
   errors, finite behavior remains value-identical, exact negative regressions
-  pass, and focused package gates are clean.
+  pass, and focused package gates are clean. The implementation is on `main`
+  at `090eadc9`; subsequent cleanup commits retain the contract.
 
 - **SAFE-662-01 [patch] - Make projections copy-on-write and total-ordered
   (DONE; owner=Codex `/root`; scope=`crates/ritk-filter/src/projection/

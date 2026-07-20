@@ -8,6 +8,34 @@
 
 # RITK Gap Audit - Active
 
+## CI-664-01 audit (2026-07-20)
+
+RITK's local checkout action repeated eleven provider repository URLs and
+revisions across eight hosted workflow call sites. Atlas already owns those
+URLs in `.gitmodules`, the exact revisions in gitlinks, and the dependency
+closure resolver in its merged `checkout-path-dependencies` action. The local
+list is therefore deleted. Each Rust, Python, migration-audit, and release
+workflow now invokes Atlas merge `9a651ff539e314ff26c4a5b69fe89448c1770859`
+for both the action implementation and provider graph while deriving the
+closure from `ritk/Cargo.toml`.
+
+Local structural evidence finds exactly eight action references and eight
+matching `atlas_ref` values, no reference to the deleted action or its provider
+list, balanced README code fences, a clean diff check, and successful YAML
+parsing of all four workflow files. The package-scoped formatting command also
+exposed one current-main `ritk-nrrd` assertion that was not Rustfmt-clean; the
+mechanical correction now passes direct Rustfmt verification. Focused
+warning-denied all-target/all-feature `ritk-filter` Clippy passes, as do all
+1,123 Nextest cases, 2 executable doctests with 11 pre-existing ignored
+examples, and warning-denied Rustdoc. This establishes syntax, static
+ownership, and unchanged native behavior. Implementation head `116d9826`
+passes CI run `29767323538`, Python run `29767322311`, and migration-audit run
+`29767322329`: all configured Linux, macOS, Windows, Python 3.9–3.13, wheel,
+lint, alignment, test, and audit lanes are green. The external
+`recurseml/analysis` error contains no repository build or test evidence and
+is non-required. The tag-only release workflow is syntax-checked but is not
+executed because this change does not authorize a release.
+
 ## SAFE-663-01 audit (2026-07-19)
 
 `ReinitializeLevelSetFilter::apply` returns `Result` but accepts a non-finite
@@ -19,11 +47,13 @@ non-finite values once through a shared validator before crossing extraction.
 Both entry points now call one finite-input validator before crossing
 extraction, and the fixed-size crossing-distance sort uses `f64::total_cmp`.
 Exact negative regressions cover an infinite configured level and a NaN image
-sample through both provider paths. Evidence tier: type/API error propagation
-plus value-semantic tests pending execution. Local compilation is temporarily
-graph-blocked because peer-owned Hermes WIP exposes `hermes-simd 0.4.0` while
-the clean Coeus checkout requires `^0.3.0`; re-open trigger: the sibling
-provider versions reconcile.
+sample through both provider paths. The implementation landed at `090eadc9`;
+that exact increment compiled every workspace target and passed 1,165
+`ritk-filter` and `ritk-minc` Nextest cases. Evidence tier: type/API error
+propagation, native compilation, and value-semantic tests. A current-main
+recheck passes warning-denied all-target/all-feature `ritk-filter` Clippy,
+1,123/1,123 Nextest cases, the executable doctests, and warning-denied
+Rustdoc. Later cleanup commits on `main` retain the contract.
 
 ## SAFE-662-01 audit (2026-07-18)
 
