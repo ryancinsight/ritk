@@ -1,7 +1,7 @@
 # RITK Backlog - Active Planning
 
 - **CI-664-01 [arch] [patch] - Consume the Atlas-owned provider graph
-  (IN PROGRESS; owner=Codex `/root`; scope=`.github/workflows/{ci,
+  (REVIEW; owner=Codex `/root`; scope=`.github/workflows/{ci,
   python_ci,legacy-migration-audit,release}.yml`, deletion of
   `.github/actions/checkout-atlas-dependencies/action.yml`, `README.md`, PM
   artifacts, `docs/adr/0010-atlas-provider-checkout.md`,
@@ -16,6 +16,11 @@
   green, and the tag-only release workflow remains syntax-verified without
   publishing. The current-main `ritk-nrrd` formatting drift found by the
   package-scoped CI command is corrected without behavioral change.
+  Implementation head `116d9826` passes CI run `29767323538`, Python run
+  `29767322311`, and migration-audit run `29767322329` across every configured
+  Linux, macOS, Windows, Python 3.9–3.13, wheel, lint, alignment, test, and
+  audit lane. The external `recurseml/analysis` service error is non-required
+  and contains no RITK build or test evidence.
 
 - **SAFE-663-01 [patch] - Reject non-finite level-set reinitialization input
   (DONE; owner=Codex `/root`; scope=`crates/ritk-filter/src/

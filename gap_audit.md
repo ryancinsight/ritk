@@ -28,11 +28,13 @@ mechanical correction now passes direct Rustfmt verification. Focused
 warning-denied all-target/all-feature `ritk-filter` Clippy passes, as do all
 1,123 Nextest cases, 2 executable doctests with 11 pre-existing ignored
 examples, and warning-denied Rustdoc. This establishes syntax, static
-ownership, and unchanged native behavior. Exact-head hosted CI is the
-integration oracle for provider materialization and the Linux, macOS, Windows,
-Python, migration-audit, and wheel-smoke paths; it remains pending until the
-branch is published. The tag-only release workflow is syntax-checked but is
-not executed because this change does not authorize a release.
+ownership, and unchanged native behavior. Implementation head `116d9826`
+passes CI run `29767323538`, Python run `29767322311`, and migration-audit run
+`29767322329`: all configured Linux, macOS, Windows, Python 3.9–3.13, wheel,
+lint, alignment, test, and audit lanes are green. The external
+`recurseml/analysis` error contains no repository build or test evidence and
+is non-required. The tag-only release workflow is syntax-checked but is not
+executed because this change does not authorize a release.
 
 ## SAFE-663-01 audit (2026-07-19)
 

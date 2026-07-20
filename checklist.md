@@ -18,7 +18,10 @@
       in every hosted Rust, Python, audit, and release workflow.
 - [x] Verify action syntax, static path closure, formatting, and repository
       documentation consistency.
-- [ ] Commit, push, open a PR, and merge after exact-head hosted CI is green.
+- [x] Commit, push, and open PR #45; verify implementation head `116d9826`
+      across the complete hosted CI, Python, and migration-audit matrices.
+- [ ] Merge PR #45 after the final documentation head repeats required hosted
+      checks.
 
 ## SAFE-663-01 — Finite level-set reinitialization contract
 **Target version**: Unreleased patch

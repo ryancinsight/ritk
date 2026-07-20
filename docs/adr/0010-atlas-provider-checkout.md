@@ -57,3 +57,9 @@ or provider repository list, and parse every workflow as YAML. Exact-head
 hosted PR CI remains the integration oracle for Linux, macOS, Windows, Python,
 and migration-audit paths. The tag-only release workflow is syntax-checked but
 is not executed because this change does not authorize a release.
+
+Implementation head `116d9826` passes CI run `29767323538`, Python run
+`29767322311`, and migration-audit run `29767322329` across all configured
+operating-system, Python-version, wheel, lint, alignment, test, and audit
+lanes. The external `recurseml/analysis` service error is non-required and
+contains no repository build or test evidence.
