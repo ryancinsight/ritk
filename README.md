@@ -1,16 +1,21 @@
 # RITK — Rust Image Toolkit
 
-A high-performance medical image processing and registration toolkit built in Rust, inspired by ITK concepts with GPU acceleration through Burn.
+A high-performance medical image processing and registration toolkit built in
+Rust, inspired by ITK concepts and integrated with the Coeus and Leto compute
+stack.
 
 ## Overview
 
 RITK provides a comprehensive framework for medical image analysis:
 
-- **GPU Acceleration**: Built on the Burn framework for efficient GPU/CPU tensor computation with automatic differentiation
+- **Backend-Parametric Compute**: Coeus tensor and autograd contracts execute
+  over Leto-owned storage; current RITK entry points use deterministic
+  sequential or Moirai-parallel CPU backends
 - **Deep Module Hierarchy**: Strict DIP/SSOT/SoC/SRP architecture across workspace crates
 - **Broad Format Support**: DICOM, NIfTI, MetaImage, NRRD, PNG, TIFF/BigTIFF, MGH/MGZ, VTK, JPEG
 - **Classical & Deformable Registration**: Rigid, affine, B-Spline FFD, Demons, SyN, LDDMM, Atlas/Groupwise
-- **Deep-Learning Registration**: TransMorph, SSMMorph via Burn autodiff
+- **Deep-Learning Registration**: TransMorph and SSMMorph through Coeus
+  autodiff
 - **Image Processing Pipeline**: Filtering, segmentation, statistics, normalization
 - **CT Visualization Support**: Bed separation filter for CT foreground/body masking
 - **Native DICOM Viewer**: `ritk-snap` desktop viewer with DICOM folder/DICOMDIR launch, MPR viewports, overlays, measurements, and tag inspection
@@ -19,80 +24,18 @@ RITK provides a comprehensive framework for medical image analysis:
 
 ## Crate Structure
 
-```
-ritk/
-├── Cargo.toml                    # Workspace root
-├── crates/
-│   ├── ritk-core/                # Core types, filters, segmentation, statistics
-│   │   └── src/
-│   │       ├── spatial/          # Point, Vector, Spacing, Direction (nalgebra)
-│   │       ├── image/            # Image<B,D> with physical metadata
-│   │       ├── transform/        # Transform trait + implementations
-│   │       ├── interpolation/    # Interpolator trait + implementations
-│   │       ├── filter/           # Image filters
-│   │       ├── segmentation/     # Segmentation algorithms + distance transform
-│   │       └── statistics/       # Image statistics, normalization, comparison
-│   ├── ritk-dicom/               # DICOM transfer syntax, pixel codec contracts, backend boundary
-│   │   └── src/
-│   │       ├── syntax/           # Canonical TransferSyntaxKind and predicates
-│   │       ├── pixel/            # PixelLayout and modality LUT byte decode
-│   │       ├── codec/native/     # Native PackBits, RLE Lossless, and JPEG grayscale decoders
-│   │       └── backend/          # NativeCodecBackend, FrameDecodeBackend, and dicom-rs fallback adapter
-│   ├── ritk-io/                  # Format readers/writers
-│   │   └── src/format/
-│   │       ├── dicom/
-│   │       ├── nifti/
-│   │       ├── metaimage/        # .mha/.mhd
-│   │       ├── nrrd/
-│   │       ├── png/
-│   │       ├── tiff/             # TIFF/BigTIFF
-│   │       ├── mgh/              # MGH/MGZ (FreeSurfer)
-│   │       ├── vtk/              # VTK legacy structured points
-│   │       └── jpeg/             # JPEG 2D grayscale
-│   ├── ritk-registration/        # Registration framework
-│   │   └── src/
-│   │       ├── metric/           # Similarity metrics
-│   │       ├── optimizer/        # Optimization algorithms
-│   │       ├── regularization/   # Deformation regularizers
-│   │       ├── classical/        # Kabsch SVD, MI-based rigid/affine
-│   │       ├── demons/           # Thirion, Diffeomorphic, Symmetric
-│   │       ├── diffeomorphic/    # Greedy SyN, Multi-Resolution SyN, BSpline SyN
-│   │       ├── bspline_ffd/      # BSpline free-form deformation
-│   │       ├── lddmm/           # Large Deformation Diffeomorphic Metric Mapping
-│   │       ├── atlas/            # Groupwise atlas registration + label fusion
-│   │       ├── registration/     # DL registration losses, SSM registration
-│   │       ├── validation/       # Registration quality assessment
-│   │       └── progress/         # Progress reporting
-│   ├── ritk-model/               # Deep-learning registration models
-│   │   └── src/
-│   │       ├── transmorph/       # TransMorph architecture
-│   │       ├── ssmmorph/         # SSMMorph architecture
-│   │       ├── affine/           # Learned affine alignment
-│   │       └── io/               # Model I/O
-│   ├── ritk-python/              # Python bindings (PyO3 + maturin)
-│   │   └── src/
-│   │       ├── filter.rs         # 34 filter functions
-│   │       ├── segmentation.rs   # 27 segmentation functions
-│   │       ├── registration.rs   # 13 registration / atlas / label-fusion functions
-│   │       ├── statistics.rs     # 13 statistics/normalization/comparison functions
-│   │       ├── image.rs          # Image wrapper
-│   │       └── io.rs             # Image + composite transform I/O
-│   ├── ritk-snap/                # Native DICOM/NIfTI viewer
-│   │   └── src/
-│   │       ├── dicom/            # Input path normalization, series tree, loader bridge, metadata tag table
-│   │       ├── label/            # Segmentation label editor over ritk-core annotation primitives
-│   │       ├── render/           # Slice extraction, window/level, colormap LUTs
-│   │       ├── session/          # Serializable viewer session snapshots
-│   │       ├── tools/            # Measurement and interaction state
-│   │       └── ui/               # egui layout, linked MPR cursor, viewport, sidebar, toolbar, overlays
-│   └── ritk-cli/                 # CLI binary
-│       └── src/commands/
-│           ├── convert.rs
-│           ├── filter.rs
-│           ├── register.rs
-│           ├── segment.rs
-│           └── stats.rs
-```
+| Layer | Crates | Responsibility |
+|---|---|---|
+| Domain contracts | `ritk-spatial`, `ritk-image`, `ritk-transform`, `ritk-interpolation`, `ritk-annotation` | Physical coordinates, typed images, transforms, interpolation, and annotation state |
+| Operations | `ritk-filter`, `ritk-segmentation`, `ritk-morphology`, `ritk-statistics`, `ritk-tensor-ops` | Image algorithms and shared Coeus host-buffer operations |
+| Registration | `ritk-registration`, `ritk-model` | Classical, deformable, differentiable, and learned registration |
+| Format owners | `ritk-dicom`, `ritk-codecs`, `ritk-nifti`, `ritk-nrrd`, `ritk-metaimage`, `ritk-mgh`, `ritk-analyze`, `ritk-png`, `ritk-jpeg`, `ritk-tiff`, `ritk-minc`, `ritk-vtk` | Validated byte-level codecs and format-specific I/O |
+| Integration | `ritk-io`, `ritk-core`, `ritk-wgpu-compat` | Unified I/O dispatch, public facade contracts, and graphics interop |
+| Deliverables | `ritk-cli`, `ritk-snap`, `ritk-python` | CLI, native viewer, and thin PyO3 bindings |
+
+Dependencies point inward toward domain contracts. Format crates own byte-level
+parsing, `ritk-io` owns cross-format dispatch, and applications and bindings
+depend on those contracts without moving domain logic into their boundaries.
 
 ### Viewer (`ritk-snap`)
 
@@ -150,11 +93,13 @@ await start_web("ritk-snap-canvas");
 
 ## Features
 
-### Core Types (`ritk-core`)
+### Core contracts
 
 **Spatial types** — `Point<D>`, `Vector<D>`, `Spacing<D>`, `Direction<D>` backed by nalgebra.
 
-**Image** — `Image<B, D>` carrying tensor data plus physical metadata (origin, spacing, direction) with index↔physical coordinate transforms.
+**Image** — `ritk_image::Image<T, B, D>` carries typed Coeus storage plus
+origin, spacing, and direction metadata with index-to-physical and
+physical-to-index transforms.
 
 **Transforms**
 
@@ -269,11 +214,13 @@ await start_web("ritk-snap-canvas");
 
 PyO3 + maturin package exposing:
 
-- **14 filter functions** (Gaussian, median, bilateral, Canny, Frangi, N4, etc.)
-- **16 segmentation functions** (Otsu family, morphology, connected components, watershed, level sets, etc.)
-- **11 registration functions** (Thirion/Diffeomorphic/Symmetric Demons, SyN, Multi-Res SyN, BSpline SyN, BSpline FFD, LDDMM, atlas building, majority-vote fusion, joint label fusion)
-- **13 statistics functions** (descriptive stats, Dice, Hausdorff, PSNR, SSIM, noise estimation, normalization, white stripe)
-- NumPy ↔ `Image` zero-copy bridge
+- Filters including Gaussian, median, bilateral, Canny, Frangi, and N4
+- Segmentation spanning Otsu methods, morphology, connected components,
+  watershed, and level sets
+- Classical and deformable registration, atlas construction, and label fusion
+- Descriptive statistics, similarity metrics, noise estimation, and
+  normalization
+- Validated NumPy ↔ `Image` conversion at the PyO3 ownership boundary
 - Composite transform JSON I/O (`read_transform`, `write_transform`)
 - Packaged `.pyi` type stubs and `py.typed`
 - Format I/O for all supported formats
@@ -306,50 +253,32 @@ Selected method-specific options:
 - `threshold-level-set`: `--initial-phi`, `--lower-threshold`, `--upper-threshold`, `--propagation-weight`, `--curvature-weight`, `--dt`, `--level-set-max-iterations`, `--tolerance`
 - `confidence-connected`: `--seed`, `--multiplier`, `--max-iterations`
 - `neighborhood-connected`: `--seed`, `--lower`, `--upper`, `--neighborhood-radius`
-```
-```
 
 ## Usage Example
 
-```rust
-use burn::backend::Autodiff;
-use burn_ndarray::NdArray;
-use ritk_core::image::Image;
-use ritk_core::transform::RigidTransform;
-use ritk_registration::metric::MeanSquaredError;
-use ritk_registration::optimizer::GradientDescent;
-use ritk_registration::registration::Registration;
-use ritk_io::read_nifti;
+```rust,no_run
+use ritk_io::{read_image_native, write_image_native};
 
-type Backend = Autodiff<NdArray<f32>>;
-
-// Load images
-let device = Default::default();
-let fixed: Image<Backend, 3> = read_nifti("fixed.nii", &device)?;
-let moving: Image<Backend, 3> = read_nifti("moving.nii", &device)?;
-
-// Set up registration components
-let transform = RigidTransform::<Backend, 3>::identity(None, &device);
-let metric = MeanSquaredError::new();
-let optimizer = GradientDescent::new(0.01);
-
-// Run registration
-let mut registration = Registration::new(optimizer, metric);
-let result = registration.execute(&fixed, &moving, transform, 100, 0.01);
+fn main() -> anyhow::Result<()> {
+    let image = read_image_native("input.nii.gz")?;
+    write_image_native("roundtrip.nrrd", &image)?;
+    Ok(())
+}
 ```
 
 ## Dependencies
 
 | Crate | Role |
 |---|---|
-| `burn` | GPU/CPU tensor ops with autodiff |
+| `coeus` | Tensor, backend, and autodiff contracts |
+| `leto` | Array storage and numerical operations |
 | `nalgebra` | Linear algebra, spatial types |
 | `dicom` | DICOM format support |
 | `nifti` | NIfTI format support |
 | `moirai` | CPU parallelism and task execution |
 | `mnemosyne` | Optional workspace allocator |
+| `wgpu` | Viewer rendering and graphics interop |
 | `apollo-fft` | FFT planning and execution |
-| `coeus` / `leto` / `hephaestus` | Atlas tensor, linear algebra, and GPU migration targets |
 | `pyo3` / `numpy` | Python bindings |
 | `serde` | Serialization (transform I/O) |
 | `anyhow` / `thiserror` | Error handling |
@@ -370,6 +299,12 @@ cd crates/ritk-python && maturin develop --release
 # Install CLI
 cargo install --path crates/ritk-cli
 ```
+
+Hosted workflows check out RITK at `ritk/` and invoke the Atlas-owned
+`checkout-path-dependencies` composite action at an immutable Atlas commit.
+The action reads `ritk/Cargo.toml` and materializes only its external sibling
+path dependencies at the exact Atlas gitlinks. Provider URLs and revisions do
+not have a second RITK-owned list.
 
 ## Development
 
@@ -393,14 +328,17 @@ cargo install --path crates/ritk-cli
 ## Testing
 
 ```bash
-# Full test suite
-cargo test --all
+# Native test suite through the committed time budgets
+cargo nextest run --workspace --lib --tests
 
-# Per-crate
-cargo test -p ritk-core
-cargo test -p ritk-io
-cargo test -p ritk-registration
-cargo test -p ritk-model
+# Documentation tests
+cargo test --workspace --doc
+
+# Focused package examples
+cargo nextest run -p ritk-core
+cargo nextest run -p ritk-io
+cargo nextest run -p ritk-registration
+cargo nextest run -p ritk-model
 ```
 
 ## Future Work
@@ -439,5 +377,5 @@ Contributions are welcome. Requirements:
 ## Acknowledgments
 
 - Inspired by [ITK](https://itk.org/) (Insight Segmentation and Registration Toolkit)
-- Built on [Burn](https://burn.dev/) for GPU-accelerated tensor computation
+- Uses Coeus and Leto for tensor and numerical execution
 - Uses [nalgebra](https://nalgebra.org/) for linear algebra

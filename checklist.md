@@ -14,9 +14,9 @@
 
 - [x] Reconcile the merged Atlas action, all RITK workflow call sites, and the
       stale finite-input PM claim.
-- [ ] Replace the consumer-owned provider list with the immutable Atlas action
+- [x] Replace the consumer-owned provider list with the immutable Atlas action
       in every hosted Rust, Python, audit, and release workflow.
-- [ ] Verify action syntax, exact path closure, formatting, and repository
+- [x] Verify action syntax, static path closure, formatting, and repository
       documentation consistency.
 - [ ] Commit, push, open a PR, and merge after exact-head hosted CI is green.
 

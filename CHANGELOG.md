@@ -22,6 +22,10 @@
   wholly owned by the deleted Burn autodiff/CMA stack.
 
 ### Changed
+- Replaced the RITK-owned list of eleven hosted provider checkouts with the
+  Atlas `checkout-path-dependencies` action pinned to merge `9a651ff5`.
+  Rust, Python, migration-audit, and release workflows now derive the exact
+  sibling dependency closure from `ritk/Cargo.toml` and Atlas gitlinks.
 - Added Coeus host `Cow` materialization at explicit I/O boundaries and
   consolidated CLI and Analyze/DICOM consumers onto the provider-native image
   contract.
