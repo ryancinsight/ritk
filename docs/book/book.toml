@@ -1,0 +1,20 @@
+# mdBook configuration for the atlas/RITK book.
+# Build:  mdbook build docs/book      Serve:  mdbook serve docs/book
+# The chapter Markdown lives alongside this file (src = "."); the table of
+# contents and part structure are defined in SUMMARY.md.
+[book]
+title = "atlas/RITK: Medical Image Processing and Registration"
+authors = ["Ryan Clanton"]
+description = "Redundancy-free Coeus-native medical image processing, registration, and analysis — the atlas Rust workspace."
+src = "."
+language = "en"
+
+[build]
+build-dir = "../../target/book"
+create-missing = false
+
+[output.html]
+no-section-label = false
+mathjax-support = true
+git-repository-url = "https://github.com/ryancinsight/atlas"
+default-theme = "rust"
