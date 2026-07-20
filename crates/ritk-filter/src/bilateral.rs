@@ -347,7 +347,7 @@ mod tests_native {
             |img| {
                 BilateralFilter::new(1.5, 2.0)
                     .apply(img)
-                    .expect("burn bilateral")
+                    .expect("coeus bilateral")
             },
             |img, backend| BilateralFilter::new(1.5, 2.0).apply_native(img, backend),
         );

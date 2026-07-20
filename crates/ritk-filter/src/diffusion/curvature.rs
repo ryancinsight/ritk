@@ -286,7 +286,7 @@ mod tests_native {
             |img| {
                 CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig::default())
                     .apply(img)
-                    .expect("burn curvature diffusion")
+                    .expect("coeus curvature diffusion")
             },
             |img, backend| {
                 CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig::default())

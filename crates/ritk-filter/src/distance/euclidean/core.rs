@@ -1,6 +1,6 @@
 //! Meijster–Roerdink–Hesselink (2000) core EDT routines.
 //!
-//! Pure mathematical functions: no image I/O, no burn dependency.
+//! Pure mathematical functions: no image I/O, no coeus dependency.
 #![forbid(unsafe_code)]
 
 pub(super) const INF: f64 = 1e30_f64;

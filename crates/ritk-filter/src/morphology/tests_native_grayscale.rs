@@ -27,7 +27,7 @@ fn erosion_matches_coeus() {
     assert_coeus_matches_coeus(
         scattered(dims),
         dims,
-        |img| GrayscaleErosion::new(1).apply(img).expect("burn erosion"),
+        |img| GrayscaleErosion::new(1).apply(img).expect("coeus erosion"),
         |img, backend| GrayscaleErosion::new(1).apply_native(img, backend),
     );
 }
@@ -38,7 +38,7 @@ fn dilation_matches_coeus() {
     assert_coeus_matches_coeus(
         scattered(dims),
         dims,
-        |img| GrayscaleDilation::new(1).apply(img).expect("burn dilation"),
+        |img| GrayscaleDilation::new(1).apply(img).expect("coeus dilation"),
         |img, backend| GrayscaleDilation::new(1).apply_native(img, backend),
     );
 }
@@ -91,7 +91,7 @@ fn opening_matches_coeus() {
         |img| {
             GrayscaleOpeningFilter::new(1)
                 .apply(img)
-                .expect("burn opening")
+                .expect("coeus opening")
         },
         |img, backend| GrayscaleOpeningFilter::new(1).apply_native(img, backend),
     );
@@ -106,7 +106,7 @@ fn closing_matches_coeus() {
         |img| {
             GrayscaleClosingFilter::new(1)
                 .apply(img)
-                .expect("burn closing")
+                .expect("coeus closing")
         },
         |img, backend| GrayscaleClosingFilter::new(1).apply_native(img, backend),
     );
@@ -154,7 +154,7 @@ fn white_top_hat_matches_coeus() {
         |img| {
             WhiteTopHatFilter::new(1)
                 .apply(img)
-                .expect("burn white top-hat")
+                .expect("coeus white top-hat")
         },
         |img, backend| WhiteTopHatFilter::new(1).apply_native(img, backend),
     );
@@ -169,7 +169,7 @@ fn black_top_hat_matches_coeus() {
         |img| {
             BlackTopHatFilter::new(1)
                 .apply(img)
-                .expect("burn black top-hat")
+                .expect("coeus black top-hat")
         },
         |img, backend| BlackTopHatFilter::new(1).apply_native(img, backend),
     );
@@ -233,7 +233,7 @@ fn hit_or_miss_matches_coeus() {
         |img| {
             HitOrMissTransform::new(1, 1)
                 .apply(img)
-                .expect("burn hit-or-miss")
+                .expect("coeus hit-or-miss")
         },
         |img, backend| HitOrMissTransform::new(1, 1).apply_native(img, backend),
     );
@@ -254,7 +254,7 @@ mod gradient_and_laplace {
             |img| {
                 GrayscaleMorphologicalGradientFilter::new(1)
                     .apply(img)
-                    .expect("burn gradient")
+                    .expect("coeus gradient")
             },
             |img, backend| GrayscaleMorphologicalGradientFilter::new(1).apply_native(img, backend),
         );
@@ -280,7 +280,7 @@ mod gradient_and_laplace {
             |img| {
                 MorphologicalLaplacian::new(1)
                     .apply(img)
-                    .expect("burn laplace")
+                    .expect("coeus laplace")
             },
             |img, backend| MorphologicalLaplacian::new(1).apply_native(img, backend),
         );
@@ -324,7 +324,7 @@ mod fillhole {
             |img| {
                 GrayscaleFillholeFilter::new()
                     .apply(img)
-                    .expect("burn fillhole")
+                    .expect("coeus fillhole")
             },
             |img, backend| GrayscaleFillholeFilter::new().apply_native(img, backend),
         );
@@ -356,7 +356,7 @@ mod fillhole {
             |img| {
                 BinaryFillholeFilter::new()
                     .apply(img)
-                    .expect("burn binary fillhole")
+                    .expect("coeus binary fillhole")
             },
             |img, backend| BinaryFillholeFilter::new().apply_native(img, backend),
         );
@@ -380,7 +380,7 @@ mod voting_binary {
             |img| {
                 VotingBinaryImageFilter::default()
                     .apply(img)
-                    .expect("burn voting")
+                    .expect("coeus voting")
             },
             |img, backend| VotingBinaryImageFilter::default().apply_native(img, backend),
         );
@@ -411,7 +411,7 @@ mod reconstruction {
             |mk, ms| {
                 GrayscaleGeodesicDilationFilter::new()
                     .apply(mk, ms)
-                    .expect("burn geodesic")
+                    .expect("coeus geodesic")
             },
             |mk, ms, backend| GrayscaleGeodesicDilationFilter::new().apply_native(mk, ms, backend),
         );
@@ -426,7 +426,7 @@ mod reconstruction {
             |img| {
                 OpeningByReconstructionFilter::new(1)
                     .apply(img)
-                    .expect("burn OBR")
+                    .expect("coeus OBR")
             },
             |img, backend| OpeningByReconstructionFilter::new(1).apply_native(img, backend),
         );
@@ -441,7 +441,7 @@ mod reconstruction {
             |img| {
                 ClosingByReconstructionFilter::new(1)
                     .apply(img)
-                    .expect("burn CBR")
+                    .expect("coeus CBR")
             },
             |img, backend| ClosingByReconstructionFilter::new(1).apply_native(img, backend),
         );

@@ -77,7 +77,7 @@ fn dice_matches_coeus() {
     .expect("matched image shapes");
     let nd =
         native_metrics::dice_coefficient(&make_native(pred, [8]), &make_native(gt, [8])).unwrap();
-    assert!((bd - nd).abs() <= PARITY_DIFF, "dice burn={bd} native={nd}");
+    assert!((bd - nd).abs() <= PARITY_DIFF, "dice coeus={bd} native={nd}");
 }
 
 #[test]
@@ -97,7 +97,7 @@ fn similarity_index_matches_coeus_exactly() {
         coeus_metrics::similarity_index(&make_image(a.clone(), [6]), &make_image(b.clone(), [6]))
             .expect("matched image shapes");
     let ns = native_metrics::similarity_index(&make_native(a, [6]), &make_native(b, [6])).unwrap();
-    assert!((bs - ns).abs() <= PARITY_EXACT, "SI burn={bs} native={ns}");
+    assert!((bs - ns).abs() <= PARITY_EXACT, "SI coeus={bs} native={ns}");
     // 4/7 analytical oracle.
     assert!((ns - 4.0 / 7.0).abs() < F32_TOL, "SI = 4/7, got {ns}");
 }
@@ -130,7 +130,7 @@ fn psnr_matches_coeus() {
         10.0,
     );
     let np = native_metrics::psnr(&make_native(a, [8]), &make_native(b, [8]), 10.0).unwrap();
-    assert!((bp - np).abs() <= PARITY_DIFF, "psnr burn={bp} native={np}");
+    assert!((bp - np).abs() <= PARITY_DIFF, "psnr coeus={bp} native={np}");
 }
 
 // ── SSIM ────────────────────────────────────────────────────────────────────
@@ -157,7 +157,7 @@ fn ssim_matches_coeus_exactly() {
     let ns = native_metrics::ssim(&make_native(a, [4]), &make_native(b, [4]), 10.0).unwrap();
     assert!(
         (bs - ns).abs() <= PARITY_EXACT,
-        "SSIM burn={bs} native={ns}"
+        "SSIM coeus={bs} native={ns}"
     );
 }
 
@@ -194,7 +194,7 @@ fn hausdorff_matches_coeus_exactly() {
         &spacing,
     )
     .unwrap();
-    assert!((bh - nh).abs() <= PARITY_EXACT, "HD burn={bh} native={nh}");
+    assert!((bh - nh).abs() <= PARITY_EXACT, "HD coeus={bh} native={nh}");
 }
 
 #[test]
@@ -219,5 +219,5 @@ fn mean_surface_distance_matches_coeus_exactly() {
         &spacing,
     )
     .unwrap();
-    assert!((bm - nm).abs() <= PARITY_EXACT, "MSD burn={bm} native={nm}");
+    assert!((bm - nm).abs() <= PARITY_EXACT, "MSD coeus={bm} native={nm}");
 }

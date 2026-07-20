@@ -115,10 +115,10 @@ pub fn vector_connected_component(
             "vector_connected_component: at least one channel is required",
         ));
     }
-    let burns: Vec<_> = channels.iter().map(|p| image_from_py(p)).collect();
+    let channel_images: Vec<_> = channels.iter().map(|p| image_from_py(p)).collect();
     let conn = if fully_connected { 26 } else { 6 };
     let out = py.allow_threads(|| {
-        let refs: Vec<_> = burns.iter().collect();
+        let refs: Vec<_> = channel_images.iter().collect();
         core_vector_connected_components(&refs, distance_threshold, conn)
     });
     Ok(into_py_image(out))

@@ -291,7 +291,7 @@ mod tests_native {
             |img| {
                 GradientAnisotropicDiffusionFilter::new(GradientDiffusionConfig::default())
                     .apply(img)
-                    .expect("burn gradient diffusion")
+                    .expect("coeus gradient diffusion")
             },
             |img, backend| {
                 GradientAnisotropicDiffusionFilter::new(GradientDiffusionConfig::default())

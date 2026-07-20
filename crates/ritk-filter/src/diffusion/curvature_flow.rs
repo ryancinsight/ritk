@@ -418,7 +418,7 @@ mod tests_native {
             |img| {
                 CurvatureFlowImageFilter::new(CurvatureFlowConfig::default())
                     .apply(img)
-                    .expect("burn curvature flow")
+                    .expect("coeus curvature flow")
             },
             |img, backend| {
                 CurvatureFlowImageFilter::new(CurvatureFlowConfig::default())

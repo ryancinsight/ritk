@@ -16,7 +16,7 @@ fn matches_coeus_radius_one() {
     assert_coeus_matches_coeus(
         vals,
         dims,
-        |img| MedianFilter::new(1).apply(img).expect("burn"),
+        |img| MedianFilter::new(1).apply(img).expect("coeus median"),
         |img, _b| MedianFilter::new(1).apply_native(img),
     );
 }

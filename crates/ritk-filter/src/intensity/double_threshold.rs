@@ -144,7 +144,7 @@ mod tests_native {
             |img| {
                 DoubleThresholdImageFilter::new(2.0, 8.0, 12.0, 18.0, 1.0, 0.0)
                     .apply(img)
-                    .expect("burn double threshold")
+                    .expect("coeus double threshold")
             },
             |img, backend| {
                 DoubleThresholdImageFilter::new(2.0, 8.0, 12.0, 18.0, 1.0, 0.0)

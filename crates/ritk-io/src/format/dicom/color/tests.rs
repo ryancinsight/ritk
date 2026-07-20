@@ -323,7 +323,7 @@ fn native_color_from_series_preserves_values_and_metadata() {
 /// The substrate-free RGB core exposes the canonical interleaved host order.
 ///
 /// `flat` is first pinned to a known interleaved-RGB value oracle, so this is
-/// a value-semantic check rather than a self-consistency tautology; the burn
+/// a value-semantic check rather than a self-consistency tautology; the coeus
 /// and native carriers are then asserted to preserve that exact buffer.
 #[test]
 fn flat_rgb_volume_preserves_layout() {

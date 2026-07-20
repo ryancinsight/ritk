@@ -319,7 +319,7 @@ mod tests_native {
             |img| {
                 ClaheFilter::new([2, 2], 4.0, 32)
                     .apply(img)
-                    .expect("burn clahe")
+                    .expect("coeus clahe")
             },
             |img, backend| ClaheFilter::new([2, 2], 4.0, 32).apply_native(img, backend),
         );

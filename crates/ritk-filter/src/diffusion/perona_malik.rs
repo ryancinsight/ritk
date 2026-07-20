@@ -358,7 +358,7 @@ mod tests_native {
             |img| {
                 DiffusionConfig::default()
                     .apply(img)
-                    .expect("burn diffusion")
+                    .expect("coeus diffusion")
             },
             |img, backend| DiffusionConfig::default().apply_native(img, backend),
         );

@@ -512,7 +512,7 @@ mod tests_native {
             |img| {
                 MinMaxCurvatureFlowImageFilter::new(MinMaxCurvatureFlowConfig::default())
                     .apply(img)
-                    .expect("burn min/max curvature flow")
+                    .expect("coeus min/max curvature flow")
             },
             |img, backend| {
                 MinMaxCurvatureFlowImageFilter::new(MinMaxCurvatureFlowConfig::default())
@@ -530,7 +530,7 @@ mod tests_native {
             |img| {
                 BinaryMinMaxCurvatureFlowImageFilter::new(BinaryMinMaxCurvatureFlowConfig::default())
                     .apply(img)
-                    .expect("burn binary min/max curvature flow")
+                    .expect("coeus binary min/max curvature flow")
             },
             |img, backend| {
                 BinaryMinMaxCurvatureFlowImageFilter::new(BinaryMinMaxCurvatureFlowConfig::default())

@@ -188,5 +188,5 @@ mod tests {
     }
 }
 
-// No burn-compat helpers remain; use `make_image` and friends above for
+// No compat helpers remain; use `make_image` and friends above for
 // Coeus-backed test images.

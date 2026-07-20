@@ -273,7 +273,7 @@ mod tests_native {
             |img| {
                 SatoLineFilter::new(SatoConfig::default())
                     .apply(img)
-                    .expect("burn sato")
+                    .expect("coeus sato")
             },
             |img, backend| SatoLineFilter::new(SatoConfig::default()).apply_native(img, backend),
         );

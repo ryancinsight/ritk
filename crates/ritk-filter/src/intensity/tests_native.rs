@@ -39,7 +39,7 @@ mod rescale {
             |img| {
                 RescaleIntensityFilter::new(out_min, out_max)
                     .apply(img)
-                    .expect("burn rescale")
+                    .expect("coeus rescale")
             },
             |img, backend| RescaleIntensityFilter::new(out_min, out_max).apply_native(img, backend),
         );
@@ -92,7 +92,7 @@ mod windowing {
             |img| {
                 IntensityWindowingFilter::new(wmin, wmax, omin, omax)
                     .apply(img)
-                    .expect("burn windowing")
+                    .expect("coeus windowing")
             },
             |img, backend| {
                 IntensityWindowingFilter::new(wmin, wmax, omin, omax).apply_native(img, backend)
@@ -134,7 +134,7 @@ mod threshold {
             |img| {
                 ThresholdImageFilter::below(t, out)
                     .apply(img)
-                    .expect("burn below")
+                    .expect("coeus below")
             },
             |img, backend| ThresholdImageFilter::below(t, out).apply_native(img, backend),
         );
@@ -154,7 +154,7 @@ mod threshold {
             |img| {
                 ThresholdImageFilter::above(15.0, -1.0)
                     .apply(img)
-                    .expect("burn above")
+                    .expect("coeus above")
             },
             |img, backend| ThresholdImageFilter::above(15.0, -1.0).apply_native(img, backend),
         );
@@ -169,7 +169,7 @@ mod threshold {
             |img| {
                 ThresholdImageFilter::outside(6.0, 18.0, 0.0)
                     .apply(img)
-                    .expect("burn outside")
+                    .expect("coeus outside")
             },
             |img, backend| ThresholdImageFilter::outside(6.0, 18.0, 0.0).apply_native(img, backend),
         );
@@ -203,7 +203,7 @@ mod sigmoid {
             |img| {
                 SigmoidImageFilter::new(30.0, 8.0, 0.0, 1.0)
                     .apply(img)
-                    .expect("burn sigmoid")
+                    .expect("coeus sigmoid")
             },
             |img, backend| SigmoidImageFilter::new(30.0, 8.0, 0.0, 1.0).apply_native(img, backend),
         );
@@ -218,7 +218,7 @@ mod sigmoid {
             |img| {
                 SigmoidImageFilter::new(3.5, 0.0, 0.0, 1.0)
                     .apply(img)
-                    .expect("burn sigmoid step")
+                    .expect("coeus sigmoid step")
             },
             |img, backend| SigmoidImageFilter::new(3.5, 0.0, 0.0, 1.0).apply_native(img, backend),
         );
@@ -254,7 +254,7 @@ mod binary_threshold {
             |img| {
                 BinaryThresholdImageFilter::new(6.0, 18.0, 1.0, 0.0)
                     .apply(img)
-                    .expect("burn binary threshold")
+                    .expect("coeus binary threshold")
             },
             |img, backend| {
                 BinaryThresholdImageFilter::new(6.0, 18.0, 1.0, 0.0).apply_native(img, backend)
@@ -289,7 +289,7 @@ mod clamp {
             |img| {
                 ClampImageFilter::new(10.0, 40.0)
                     .apply(img)
-                    .expect("burn clamp")
+                    .expect("coeus clamp")
             },
             |img, backend| ClampImageFilter::new(10.0, 40.0).apply_native(img, backend),
         );
@@ -320,7 +320,7 @@ mod shift_scale {
             |img| {
                 ShiftScaleImageFilter::new(-5.0, 0.5)
                     .apply(img)
-                    .expect("burn shift-scale")
+                    .expect("coeus shift-scale")
             },
             |img, backend| ShiftScaleImageFilter::new(-5.0, 0.5).apply_native(img, backend),
         );
@@ -361,7 +361,7 @@ mod mask {
                 MaskImageFilter::new()
                     .with_outside_value(-1.0)
                     .apply(img, m)
-                    .expect("burn mask")
+                    .expect("coeus mask")
             },
             |img, m, backend| {
                 MaskImageFilter::new()
@@ -381,7 +381,7 @@ mod mask {
                 MaskNegatedImageFilter::new()
                     .with_outside_value(-1.0)
                     .apply(img, m)
-                    .expect("burn mask negated")
+                    .expect("coeus mask negated")
             },
             |img, m, backend| {
                 MaskNegatedImageFilter::new()
@@ -400,7 +400,7 @@ mod mask {
             |img, m| {
                 MaskedAssignImageFilter::new(99.0)
                     .apply(img, m)
-                    .expect("burn masked assign")
+                    .expect("coeus masked assign")
             },
             |img, m, backend| MaskedAssignImageFilter::new(99.0).apply_native(img, m, backend),
         );
@@ -437,7 +437,7 @@ mod zero_crossing {
             |img| {
                 ZeroCrossingImageFilter::new()
                     .apply(img)
-                    .expect("burn zero-crossing")
+                    .expect("coeus zero-crossing")
             },
             |img, backend| ZeroCrossingImageFilter::new().apply_native(img, backend),
         );
@@ -470,7 +470,7 @@ mod equalization {
             |img| {
                 HistogramEqualizationFilter::new(32)
                     .apply(img)
-                    .expect("burn equalize")
+                    .expect("coeus equalize")
             },
             |img, backend| HistogramEqualizationFilter::new(32).apply_native(img, backend),
         );
@@ -503,7 +503,7 @@ mod adaptive_equalization {
             |img| {
                 AdaptiveHistogramEqualizationFilter::new([1, 1, 1])
                     .apply(img)
-                    .expect("burn adaptive")
+                    .expect("coeus adaptive")
             },
             |img, backend| {
                 AdaptiveHistogramEqualizationFilter::new([1, 1, 1]).apply_native(img, backend)
@@ -551,7 +551,7 @@ mod bed_separation {
         assert_coeus_matches_coeus(
             vals,
             dims,
-            move |img| BedSeparationFilter::new(cfg).apply(img).expect("burn bed"),
+            move |img| BedSeparationFilter::new(cfg).apply(img).expect("coeus bed"),
             move |img, backend| BedSeparationFilter::new(cfg).apply_native(img, backend),
         );
     }

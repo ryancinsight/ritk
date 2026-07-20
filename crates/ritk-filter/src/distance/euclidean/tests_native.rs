@@ -20,7 +20,7 @@ fn check_measure(vals: Vec<f32>, dims: [usize; 3], measure: DistanceMeasure) {
             DistanceTransformImageFilter::new()
                 .with_measure(measure)
                 .apply(img)
-                .expect("burn distance transform")
+                .expect("coeus distance transform")
         },
         |img, backend| {
             DistanceTransformImageFilter::new()
@@ -71,7 +71,7 @@ fn signed_matches_coeus() {
         |image| {
             SignedDistanceTransformImageFilter::new()
                 .apply(image)
-                .expect("burn signed distance transform")
+                .expect("coeus signed distance transform")
         },
         |image, backend| SignedDistanceTransformImageFilter::new().apply_native(image, backend),
     );

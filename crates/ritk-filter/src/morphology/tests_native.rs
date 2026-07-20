@@ -19,7 +19,7 @@ mod erode {
             |img| {
                 BinaryErodeFilter::new(radius)
                     .apply(img)
-                    .expect("burn erode")
+                    .expect("coeus erode")
             },
             |img, backend| binary_erode(img, radius, Default::default(), backend),
         );
@@ -59,7 +59,7 @@ mod dilate {
             |img| {
                 BinaryDilateFilter::new(radius)
                     .apply(img)
-                    .expect("burn dilate")
+                    .expect("coeus dilate")
             },
             |img, backend| binary_dilate(img, radius, Default::default(), backend),
         );
@@ -102,7 +102,7 @@ mod closing {
             |img| {
                 BinaryMorphologicalClosing::new(radius)
                     .apply(img)
-                    .expect("burn closing")
+                    .expect("coeus closing")
             },
             |img, backend| binary_closing(img, radius, Default::default(), backend),
         );
@@ -144,7 +144,7 @@ mod opening {
             |img| {
                 BinaryMorphologicalOpening::new(radius)
                     .apply(img)
-                    .expect("burn opening")
+                    .expect("coeus opening")
             },
             |img, backend| binary_opening(img, radius, Default::default(), backend),
         );
@@ -193,7 +193,7 @@ mod fill_holes {
             |image| {
                 BinaryFillholeFilter::new()
                     .apply(image)
-                    .expect("burn fill holes")
+                    .expect("coeus fill holes")
             },
             |image, backend| binary_fill_holes(image, Default::default(), backend),
         );
@@ -211,7 +211,7 @@ mod fill_holes {
             |image| {
                 BinaryFillholeFilter::new()
                     .apply(image)
-                    .expect("burn fill holes")
+                    .expect("coeus fill holes")
             },
             |image, backend| binary_fill_holes(image, Default::default(), backend),
         );

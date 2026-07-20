@@ -267,7 +267,7 @@ mod tests_native {
         assert_coeus_matches_coeus(
             vals,
             [3, 4, 5],
-            |img| filter().apply(img).expect("burn unsharp mask"),
+            |img| filter().apply(img).expect("coeus unsharp mask"),
             |img, backend| filter().apply_native(img, backend),
         );
     }

@@ -159,7 +159,7 @@ fn constant_field_resampling_preserves_values() {
 }
 
 #[test]
-fn static_planar_field_transforms_and_resamples_without_burn() {
+fn static_planar_field_transforms_and_resamples_without_coeus() {
     let backend = MoiraiBackend;
     let field = StaticDisplacementField::new(
         vec![
