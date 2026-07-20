@@ -334,7 +334,7 @@ cargo nextest run --workspace --lib --tests
 # Documentation tests
 cargo test --workspace --doc
 
-# Focused package examples
+# Focused package test suites
 cargo nextest run -p ritk-core
 cargo nextest run -p ritk-io
 cargo nextest run -p ritk-registration
