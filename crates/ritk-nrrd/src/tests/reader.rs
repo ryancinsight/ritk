@@ -163,7 +163,11 @@ fn native_reader_matches_coeus_reader() -> Result<()> {
 
     let seq = crate::read_nrrd(&path, &SequentialBackend)?;
 
-    assert_eq!(seq.shape(), par.shape(), "shape must be backend-independent");
+    assert_eq!(
+        seq.shape(),
+        par.shape(),
+        "shape must be backend-independent"
+    );
     assert_eq!(
         seq.origin(),
         par.origin(),
