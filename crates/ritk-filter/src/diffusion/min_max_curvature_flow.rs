@@ -76,8 +76,8 @@ impl MinMaxCurvatureFlowImageFilter {
     ///
     /// Runs the identical directional-threshold min/max curvature-flow evolution
     /// via the shared `min_max_curvature_flow_evolve` host core on the image's
-    /// contiguous host buffer, so the result is bitwise-identical to the Burn
-    /// path. No Burn tensor is constructed. Spatial metadata is preserved.
+    /// contiguous host buffer, so the result is bitwise-identical to the Coeus
+    /// path. No Coeus tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors
     /// Returns an error when the image tensor is not host-addressable/contiguous
@@ -102,7 +102,7 @@ impl MinMaxCurvatureFlowImageFilter {
 /// Substrate-agnostic host core for [`MinMaxCurvatureFlowImageFilter`]: the
 /// directional-threshold min/max curvature-flow explicit-Euler evolution on a
 /// flat z-major buffer (f64 double buffer, per-iteration f32 rounding to match
-/// ITK's image-pixel-type accumulation). Single source of truth for the Burn
+/// ITK's image-pixel-type accumulation). Single source of truth for the Coeus
 /// [`apply`](MinMaxCurvatureFlowImageFilter::apply) and Coeus-native
 /// [`apply_native`](MinMaxCurvatureFlowImageFilter::apply_native) paths.
 fn min_max_curvature_flow_evolve(
@@ -312,7 +312,7 @@ impl BinaryMinMaxCurvatureFlowImageFilter {
     /// Runs the identical scalar-threshold binary min/max curvature-flow
     /// evolution via the shared `binary_min_max_curvature_flow_evolve` host
     /// core on the image's contiguous host buffer, so the result is
-    /// bitwise-identical to the Coeus path. No Burn tensor is constructed.
+    /// bitwise-identical to the Coeus path. No Coeus tensor is constructed.
     /// Spatial metadata is preserved.
     ///
     /// # Errors
@@ -337,7 +337,7 @@ impl BinaryMinMaxCurvatureFlowImageFilter {
 
 /// Substrate-agnostic host core for [`BinaryMinMaxCurvatureFlowImageFilter`]:
 /// the scalar-threshold binary min/max curvature-flow explicit-Euler evolution
-/// on a flat z-major buffer. Single source of truth for the Burn
+/// on a flat z-major buffer. Single source of truth for the Coeus
 /// [`apply`](BinaryMinMaxCurvatureFlowImageFilter::apply) and Coeus-native
 /// [`apply_native`](BinaryMinMaxCurvatureFlowImageFilter::apply_native) paths.
 fn binary_min_max_curvature_flow_evolve(

@@ -42,7 +42,7 @@ impl WhiteTopHatFilter {
     ///
     /// Runs the identical `f - D_B(E_B(f))` clamped subtraction via the shared
     /// `white_top_hat_vec` host core on the image's contiguous host buffer, so
-    /// the result is bitwise-identical to the Coeus path. No Burn tensor is
+    /// the result is bitwise-identical to the Coeus path. No Coeus tensor is
     /// constructed. Spatial metadata is preserved.
     ///
     /// # Errors
@@ -87,7 +87,7 @@ impl BlackTopHatFilter {
     ///
     /// Runs the identical `E_B(D_B(f)) - f` clamped subtraction via the shared
     /// `black_top_hat_vec` host core on the image's contiguous host buffer, so
-    /// the result is bitwise-identical to the Coeus path. No Burn tensor is
+    /// the result is bitwise-identical to the Coeus path. No Coeus tensor is
     /// constructed. Spatial metadata is preserved.
     ///
     /// # Errors
@@ -111,7 +111,7 @@ impl BlackTopHatFilter {
 /// Substrate-agnostic host core for [`WhiteTopHatFilter`].
 ///
 /// `WTH_B(f) = max(f - D_B(E_B(f)), 0)`. The opening here is the naive
-/// erode→dilate pair (no safe-border padding), matching the historical Burn
+/// erode→dilate pair (no safe-border padding), matching the historical Coeus
 /// path. Non-negative for all inputs (opening is anti-extensive).
 pub(crate) fn white_top_hat_vec(vals: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     let eroded = erode_3d(vals, dims, radius);
@@ -122,7 +122,7 @@ pub(crate) fn white_top_hat_vec(vals: &[f32], dims: [usize; 3], radius: usize) -
 /// Substrate-agnostic host core for [`BlackTopHatFilter`].
 ///
 /// `BTH_B(f) = max(E_B(D_B(f)) - f, 0)`. The closing here is the naive
-/// dilate→erode pair (no safe-border padding), matching the historical Burn
+/// dilate→erode pair (no safe-border padding), matching the historical Coeus
 /// path. Non-negative for all inputs (closing is extensive).
 pub(crate) fn black_top_hat_vec(vals: &[f32], dims: [usize; 3], radius: usize) -> Vec<f32> {
     let dilated = dilate_3d(vals, dims, radius);

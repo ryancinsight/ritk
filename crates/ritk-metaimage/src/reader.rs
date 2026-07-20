@@ -43,7 +43,7 @@ pub fn read_metaimage<B: ComputeBackend, P: AsRef<Path>>(
 }
 
 /// Backend-agnostic decoded MetaImage volume: voxels in `[nz, ny, nx]` order plus
-/// the derived physical metadata. Shared by the Burn and Coeus reader paths.
+/// the derived physical metadata. Shared by the Coeus and Coeus reader paths.
 struct DecodedMetaImage {
     data: Vec<f32>,
     dims: [usize; 3],

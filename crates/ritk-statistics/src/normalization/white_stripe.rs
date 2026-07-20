@@ -128,7 +128,7 @@ pub struct WhiteStripeResult<B: Backend> {
 
 /// Coeus-native white stripe result (sister of [`WhiteStripeResult`]).
 ///
-/// Field-shape identical to the Burn-keyed result except the `normalized` image
+/// Field-shape identical to the Coeus-keyed result except the `normalized` image
 /// is the Coeus-backed [`ritk_image::Image`].
 #[derive(Debug, Clone)]
 pub struct NativeWhiteStripeResult<B: ComputeBackend> {
@@ -156,13 +156,13 @@ struct WhiteStripeComputed {
 /// Shared host core: compute white stripe statistics and the normalized flat
 /// buffer from an image slice and an optional mask slice.
 ///
-/// Both the Burn-backed [`WhiteStripeNormalizer::normalize`] and the Coeus-native
+/// Both the Coeus-backed [`WhiteStripeNormalizer::normalize`] and the Coeus-native
 /// [`WhiteStripeNormalizer::normalize_native`] delegate here, so the KDE, peak
 /// detection, and normalization math have exactly one home.
 ///
 /// # Panics
 /// Panics when no foreground voxels exist, when image and mask element counts
-/// differ, or when the white stripe is empty — matching the Burn contract.
+/// differ, or when the white stripe is empty — matching the Coeus contract.
 fn compute_white_stripe(
     all_slice: &[f32],
     mask_slice: Option<&[f32]>,

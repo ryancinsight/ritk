@@ -92,7 +92,7 @@ impl GrayscaleDilation {
     ///
     /// Runs the identical `(2r+1)³` cubic-neighbourhood maximum (replicate
     /// boundary) via the shared `dilate_3d` host core on the image's contiguous
-    /// host buffer, so the result is bitwise-identical to the Coeus path. No Burn
+    /// host buffer, so the result is bitwise-identical to the Coeus path. No Coeus
     /// tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors

@@ -298,7 +298,7 @@ where
     /// boundary code need (ADR 0002 cutover prerequisite): unlike
     /// [`Self::data_slice`], it never fails on a strided view — it pays the
     /// copy exactly when the layout requires one (`Cow::Owned`), and is
-    /// zero-copy otherwise (`Cow::Borrowed`). Mirrors the Burn `Image`'s
+    /// zero-copy otherwise (`Cow::Borrowed`). Mirrors the Coeus `Image`'s
     /// `data_slice() -> Cow` contract. (`B: Default` follows from
     /// `Tensor::to_contiguous_on`'s own bound.)
     #[must_use]
@@ -309,7 +309,7 @@ where
     /// Owned host image data in logical row-major order (layout-independent).
     ///
     /// Thin wrapper over [`Self::data_cow_on`] for callers that need a `Vec`
-    /// (the Coeus counterpart of the Burn `Image`'s `try_data_vec`).
+    /// (the `Image` type's `try_data_vec` equivalent).
     #[must_use]
     pub fn data_vec_on(&self, backend: &B) -> Vec<T> {
         self.data_cow_on(backend).into_owned()
@@ -358,8 +358,8 @@ where
     ///
     /// `point = origin + Direction * (index * spacing)`
     ///
-    /// This is the Coeus counterpart of the Burn `Image`'s
-    /// `transform_continuous_index_to_physical_point`.
+    /// Reproduces the exact arithmetic and column conventions of the
+    /// `transform_continuous_index_to_physical_point` operation.
     pub fn transform_continuous_index_to_physical_point(
         &self,
         index: &ritk_spatial::Point<D>,
@@ -376,8 +376,8 @@ where
     ///
     /// `index = (Direction^-1 * (point - origin)) / spacing`
     ///
-    /// This is the Coeus counterpart of the Burn `Image`'s
-    /// `transform_physical_point_to_continuous_index`.
+    /// Reproduces the exact arithmetic and column conventions of the
+    /// `transform_physical_point_to_continuous_index` operation.
     pub fn transform_physical_point_to_continuous_index(
         &self,
         point: &ritk_spatial::Point<D>,
@@ -404,7 +404,7 @@ where
 {
     /// Batch transform physical points to continuous indices.
     ///
-    /// Coeus counterpart of the Burn `Image`'s `world_to_index_tensor`,
+    /// Reproduces the `Image` type's `world_to_index_tensor`,
     /// reproducing its exact arithmetic and column conventions bit-faithfully.
     ///
     /// # Conventions
@@ -434,7 +434,7 @@ where
 
         // t[r][c] maps axis-major input column r to innermost-first output column
         // c (axis = D-1-c): t[r][c] = inv_dir[(axis, r)] / spacing[axis]. The
-        // division is performed in f64 then narrowed to T, matching the Burn
+        // division is performed in f64 then narrowed to T, matching the Coeus
         // matrix build's `as f32`.
         let mut t = [[T::zero(); D]; D];
         for (r, row) in t.iter_mut().enumerate() {
@@ -462,7 +462,7 @@ where
 
     /// Batch transform continuous indices to physical points.
     ///
-    /// Coeus counterpart of the Burn `Image`'s `index_to_world_tensor`,
+    /// Reproduces the `Image` type's `index_to_world_tensor`,
     /// reproducing its exact arithmetic and column conventions bit-faithfully.
     ///
     /// # Conventions
@@ -485,7 +485,7 @@ where
 
         // m[r][c] maps innermost-first index column r (axis = D-1-r) to axis-major
         // output column c: m[r][c] = spacing[axis] * direction[(c, axis)]. Product
-        // in f64 then narrowed to T, matching the Burn matrix build's `as f32`.
+        // in f64 then narrowed to T, matching the Coeus matrix build's `as f32`.
         let mut m = [[T::zero(); D]; D];
         for (r, row) in m.iter_mut().enumerate() {
             let axis = D - 1 - r;
@@ -545,7 +545,7 @@ where
 {
     /// [`Self::world_to_index_native_on`] on `B::default()`.
     ///
-    /// The single-argument form that most directly replaces the Burn
+    /// The single-argument form that most directly replaces the Coeus
     /// `world_to_index_tensor` at call sites.
     #[inline]
     #[must_use]
@@ -555,7 +555,7 @@ where
 
     /// [`Self::index_to_world_native_on`] on `B::default()`.
     ///
-    /// The single-argument form that most directly replaces the Burn
+    /// The single-argument form that most directly replaces the Coeus
     /// `index_to_world_tensor` at call sites.
     #[inline]
     #[must_use]

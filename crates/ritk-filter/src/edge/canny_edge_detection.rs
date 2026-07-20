@@ -84,10 +84,10 @@ impl CannyEdgeDetectionImageFilter {
     ///
     /// Smooths natively via the burn-free `discrete_gaussian_smooth_flat` core
     /// (same ITK discrete-Gaussian kernel and replicate-boundary convolution the
-    /// Burn `DiscreteGaussianFilter::apply` uses) and runs the identical
+    /// Coeus `DiscreteGaussianFilter::apply` uses) and runs the identical
     /// second-directional-derivative / zero-crossing / hysteresis pipeline via
     /// the shared `canny_edge_detection_flat` host core, so the result is
-    /// bitwise-identical to the Coeus path. No Burn tensor is constructed.
+    /// bitwise-identical to the Coeus path. No Coeus tensor is constructed.
     /// Spatial metadata is preserved.
     ///
     /// # Errors
@@ -121,7 +121,7 @@ impl CannyEdgeDetectionImageFilter {
 /// Substrate-agnostic host core: ITK zero-crossing Canny stages 2–6 on the
 /// already-smoothed flat z-major buffer `sm` — second directional derivative,
 /// gradient-maximum masking, zero crossing of `D`, product, and hysteresis
-/// flood. Single source of truth for the Burn
+/// flood. Single source of truth for the Coeus
 /// [`apply`](CannyEdgeDetectionImageFilter::apply) and Coeus-native
 /// [`apply_native`](CannyEdgeDetectionImageFilter::apply_native) paths.
 fn canny_edge_detection_flat(

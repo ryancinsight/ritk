@@ -20,7 +20,7 @@ use std::path::Path;
 /// in `[frames, rows, cols]` order plus the resolved spatial metadata.
 ///
 /// This is the shared, tensor-free core of the multi-frame read path. Both the
-/// Burn carrier ([`load_dicom_multiframe`]) and the native Coeus carrier
+/// Coeus carrier ([`load_dicom_multiframe`]) and the native Coeus carrier
 /// ([`load_dicom_multiframe_native`]) construct their image from the same
 /// instance, so the pixel decode and geometry analysis live in exactly one
 /// place ([`load_dicom_multiframe_flat`]).

@@ -85,7 +85,7 @@ impl ClampImageFilter {
     ///
     /// Runs the identical pointwise clamp via the shared `clamp_vec` host core
     /// on the image's contiguous host buffer, so the result is bitwise-identical
-    /// to the Coeus path. No Burn tensor is constructed. Spatial metadata
+    /// to the Coeus path. No Coeus tensor is constructed. Spatial metadata
     /// (origin, spacing, direction) is preserved.
     ///
     /// # Errors

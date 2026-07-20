@@ -114,7 +114,7 @@ impl FrangiVesselnessFilter {
     /// Runs the identical multi-scale Frangi vesselness (recursive-Gaussian
     /// Hessian + eigen-analysis, max over scales) via the shared `compute`
     /// host core on the image's contiguous host buffer, so the result is
-    /// bitwise-identical to the Coeus path. No Burn tensor is constructed.
+    /// bitwise-identical to the Coeus path. No Coeus tensor is constructed.
     /// Spatial metadata is preserved.
     ///
     /// `compute`: FrangiVesselnessFilter::compute
@@ -139,7 +139,7 @@ impl FrangiVesselnessFilter {
 
     /// Substrate-agnostic host core: per-voxel maximum Frangi vesselness over all
     /// configured scales, on a flat `[nz, ny, nx]` buffer. Shared single source
-    /// of truth for the Burn [`apply`](Self::apply) and Coeus-native
+    /// of truth for the Coeus [`apply`](Self::apply) and Coeus-native
     /// [`apply_native`](Self::apply_native) paths.
     fn compute(&self, vals: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f32> {
         let n = dims[0] * dims[1] * dims[2];

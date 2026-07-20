@@ -185,7 +185,7 @@ impl CurvatureFlowImageFilter {
     /// Runs the identical level-set mean-curvature-flow explicit-Euler PDE
     /// (double-buffered f64 stencils, ZeroFluxNeumann boundary) via the shared
     /// `curvature_flow_evolve` host core on the image's contiguous host
-    /// buffer, so the result is bitwise-identical to the Coeus path. No Burn
+    /// buffer, so the result is bitwise-identical to the Coeus path. No Coeus
     /// tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors
@@ -216,7 +216,7 @@ impl CurvatureFlowImageFilter {
 /// `PixelRealType = double`); the per-iteration update is narrowed to `f32` on
 /// write. Boundary voxels use the clamped (ZeroFluxNeumann) accessor.
 ///
-/// Single source of truth for the Burn [`apply`](CurvatureFlowImageFilter::apply)
+/// Single source of truth for the Coeus [`apply`](CurvatureFlowImageFilter::apply)
 /// and Coeus-native [`apply_native`](CurvatureFlowImageFilter::apply_native)
 /// paths — both call this, so their outputs are bitwise-identical.
 fn curvature_flow_evolve(

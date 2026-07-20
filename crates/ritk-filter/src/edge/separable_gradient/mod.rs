@@ -88,7 +88,7 @@ impl<K: GradientKernel> SeparableGradientFilter<K> {
     /// Runs the identical separable-convolution gradient magnitude (replicate
     /// boundary) via the shared `gradient_magnitude_vec` host core on the
     /// image's contiguous host buffer, so the result is bitwise-identical to the
-    /// Coeus path. No Burn tensor is constructed. Spatial metadata is preserved.
+    /// Coeus path. No Coeus tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors
     /// Returns an error when the image tensor is not host-addressable/contiguous
@@ -173,7 +173,7 @@ fn gradient_components<K: GradientKernel>(
 
 /// Gradient magnitude `√(gz² + gy² + gx²)` from the separable components.
 ///
-/// Single host realization shared by the Burn [`SeparableGradientFilter::apply`]
+/// Single host realization shared by the Coeus [`SeparableGradientFilter::apply`]
 /// path and the Coeus-native [`SeparableGradientFilter::apply_native`] path.
 pub(crate) fn gradient_magnitude_vec<K: GradientKernel>(
     data: &[f32],

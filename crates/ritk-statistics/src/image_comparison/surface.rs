@@ -44,7 +44,7 @@ pub(super) fn coords_to_flat(coords: &[usize], strides: &[usize]) -> usize {
 /// Returns `Vec<[f64; D]>` — one stack-sized array per boundary point — rather
 /// than `Vec<Vec<f64>>`, eliminating the inner heap allocation per point.
 ///
-/// Operates on the extracted `flat`/`shape` pair so the Burn and Coeus-native
+/// Operates on the extracted `flat`/`shape` pair so the Coeus and Coeus-native
 /// adapters share one boundary-extraction implementation.
 pub(crate) fn extract_boundary_physical<const D: usize>(
     flat: &[f32],
@@ -134,7 +134,7 @@ fn directed_msd<const D: usize>(from_set: &[[f64; D]], to_set: &[[f64; D]]) -> f
 
 /// Symmetric Hausdorff distance over two flat binary masks (shared host core).
 ///
-/// The Burn-backed [`hausdorff_distance`] and the Coeus-native
+/// The Coeus-backed [`hausdorff_distance`] and the Coeus-native
 /// `native::hausdorff_distance` both extract `(flat, shape)` and delegate here,
 /// so the boundary extraction and directed-distance math have exactly one home.
 pub(crate) fn hausdorff_from_flat<const D: usize>(

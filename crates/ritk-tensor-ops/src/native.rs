@@ -1,6 +1,6 @@
 //! Coeus tensor host-buffer helpers.
 //!
-//! These functions are the Coeus counterpart to the legacy Burn-backed
+//! These functions are the Coeus counterpart to the legacy Coeus-backed
 //! `Image<f32, B, D>` helpers in the crate root. They keep the migration boundary
 //! explicit: callers that already own a Coeus tensor can borrow contiguous host
 //! data without allocating, and only request an owned buffer when mutation or

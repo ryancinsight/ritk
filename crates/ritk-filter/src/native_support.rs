@@ -21,7 +21,7 @@ use ritk_image::Image;
 /// `f` receives the source's contiguous voxel data and `[nz, ny, nx]` shape
 /// and returns a same-length output buffer. The length invariant is an
 /// algorithm-specific contract enforced by each caller's differential
-/// tests against its Burn-generic counterpart, not by this helper — this
+/// tests against its Coeus-generic counterpart, not by this helper — this
 /// function only owns the `Image` boundary, never the algorithm.
 pub(crate) fn map_flat_image<B, F>(
     image: &Image<f32, B, 3>,

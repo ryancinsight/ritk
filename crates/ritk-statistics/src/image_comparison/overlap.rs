@@ -3,7 +3,7 @@ use ritk_image::Image;
 
 /// Dice similarity coefficient over two flat host buffers.
 ///
-/// This is the single host implementation shared by the Burn-backed
+/// This is the single host implementation shared by the Coeus-backed
 /// [`dice_coefficient`] and the Coeus-native `native::dice_coefficient`; both
 /// backend adapters extract contiguous `&[f32]` storage and delegate here so the
 /// overlap math has exactly one home.
@@ -35,7 +35,7 @@ pub(crate) fn dice_from_slices(prediction: &[f32], ground_truth: &[f32]) -> f32 
 }
 
 /// ITK `SimilarityIndex` over two flat host buffers (binarized: any nonzero voxel
-/// is foreground). Shared host core for the Burn and Coeus-native adapters.
+/// is foreground). Shared host core for the Coeus and Coeus-native adapters.
 ///
 /// # Formula
 /// `SI = 2 * |A ∩ B| / (|A| + |B|)` over `A = {x : a(x) ≠ 0}`,

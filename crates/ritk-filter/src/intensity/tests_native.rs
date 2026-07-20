@@ -3,7 +3,7 @@
 //! Each native wrapper must be value-identical to the Coeus filter it mirrors —
 //! both call the identical substrate-agnostic host core (shared harness in
 //! `native_support::assert_coeus_matches_coeus`). A handful of analytical
-//! oracles pin the mathematical contract independent of the Burn reference.
+//! oracles pin the mathematical contract independent of the Coeus reference.
 
 use crate::native_support::{
     assert_coeus_matches_coeus, assert_coeus_matches_coeus_pair, make_native_image, native_vals,

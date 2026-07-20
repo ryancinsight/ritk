@@ -76,8 +76,8 @@ impl VotingBinaryHoleFillingImageFilter {
     ///
     /// Runs the identical single-pass majority-vote hole fill via the shared
     /// `hole_fill_flat` host core on the image's
-    /// contiguous host buffer, so the result is bitwise-identical to the Burn
-    /// path. No Burn tensor is constructed. Spatial metadata is preserved.
+    /// contiguous host buffer, so the result is bitwise-identical to the Coeus
+    /// path. No Coeus tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors
     /// Returns an error when the image tensor is not host-addressable/contiguous
@@ -98,7 +98,7 @@ impl VotingBinaryHoleFillingImageFilter {
 
     /// Substrate-agnostic host core: one majority-vote hole-filling pass
     /// (replicate boundary, full `(2r+1)^D` window) on a flat z-major buffer.
-    /// Single source of truth for the Burn [`apply`](Self::apply) and
+    /// Single source of truth for the Coeus [`apply`](Self::apply) and
     /// Coeus-native [`apply_native`](Self::apply_native) paths.
     fn hole_fill_flat(&self, vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
         let [nz, ny, nx] = dims;
@@ -179,8 +179,8 @@ impl VotingBinaryHoleFillingImageFilter {
     ///
     /// Iterates the shared `hole_fill_flat` host core on
     /// a flat host buffer up to `max_iterations` times, stopping early when a
-    /// pass changes no voxel, so the result is bitwise-identical to the Burn
-    /// iterative path. No Burn tensor is constructed. Spatial metadata is
+    /// pass changes no voxel, so the result is bitwise-identical to the Coeus
+    /// iterative path. No Coeus tensor is constructed. Spatial metadata is
     /// preserved.
     ///
     /// # Errors
@@ -229,7 +229,7 @@ mod tests_native {
         VotingBinaryHoleFillingImageFilter::new([1, 1, 1], 1, 1.0, 0.0)
     }
 
-    /// Differential vs Burn: both `apply` paths share `hole_fill_flat`, so the
+    /// Differential vs Coeus: both `apply` paths share `hole_fill_flat`, so the
     /// single-pass and iterative outputs must be bitwise-identical. Uses a binary
     /// volume with an interior pit (background voxel enclosed by foreground).
     #[test]

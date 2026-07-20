@@ -99,7 +99,7 @@ impl MorphologicalReconstruction {
     }
 
     /// Substrate-agnostic host core: Vincent hybrid reconstruction dispatched on
-    /// [`ReconstructionMode`]. Shared single source of truth for the Burn
+    /// [`ReconstructionMode`]. Shared single source of truth for the Coeus
     /// [`apply`](Self::apply) and Coeus-native [`apply_native`](Self::apply_native)
     /// paths; `marker` and `mask` must be the same length as `dims`'s product.
     pub(crate) fn reconstruct_flat(
@@ -122,8 +122,8 @@ impl MorphologicalReconstruction {
     ///
     /// Runs the identical Vincent hybrid reconstruction via the shared
     /// `reconstruct_flat` host core on both images'
-    /// contiguous host buffers, so the result is bitwise-identical to the Burn
-    /// path. No Burn tensor is constructed. Output geometry comes from `marker`.
+    /// contiguous host buffers, so the result is bitwise-identical to the Coeus
+    /// path. No Coeus tensor is constructed. Output geometry comes from `marker`.
     ///
     /// # Errors
     /// Returns an error on shape mismatch, non-contiguous buffers, or failed

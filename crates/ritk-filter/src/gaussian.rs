@@ -50,16 +50,16 @@ impl<B> GaussianFilter<B> {
 
     /// Coeus-native sister of the legacy [`apply`](Self::apply) for 3-D images.
     ///
-    /// Runs the identical separable zero-padded Gaussian smoothing as the Burn
+    /// Runs the identical separable zero-padded Gaussian smoothing as the Coeus
     /// [`apply`](Self::apply) path — the same per-axis `axis_kernel` builder
     /// (shared SSOT for the kernel) and the same zero (constant-0) boundary
-    /// convolution that Burn's `conv1d(padding = k/2)` performs — via the pure
-    /// host core `convolve_zero_pad_3d`. No Burn tensor is constructed;
+    /// convolution that Coeus's `conv1d(padding = k/2)` performs — via the pure
+    /// host core `convolve_zero_pad_3d`. No Coeus tensor is constructed;
     /// spatial metadata is preserved.
     ///
     /// The result matches the Coeus path to a derived floating-point tolerance
     /// (not bitwise): both evaluate the same separable zero-pad convolution with
-    /// the same kernels, but Burn's `conv1d` and this host core sum the taps in
+    /// the same kernels, but Coeus's `conv1d` and this host core sum the taps in
     /// different orders, so results differ only by accumulation rounding
     /// (`O(width · ε · —–I—–∞)` per axis; see the differential tests).
     ///
@@ -166,7 +166,7 @@ fn convolve_zero_pad_nd<const D: usize>(
 
 /// Build the 1-D Gaussian smoothing kernel for one axis.
 ///
-/// Shared SSOT for the per-axis kernel used by both the Burn
+/// Shared SSOT for the per-axis kernel used by both the Coeus
 /// [`GaussianFilter::apply`] path and the Coeus-native
 /// [`GaussianFilter::apply_native`] path, so both convolve with identical
 /// coefficients. The pixel-space sigma is `sigma_phys / spacing`; the kernel
@@ -185,7 +185,7 @@ fn axis_kernel(sigma_phys: f64, spacing: f64, max_kernel_width: usize) -> Vec<f3
 }
 
 /// Burn-free host core for [`GaussianFilter::apply_native`]: separable
-/// zero-padded Gaussian smoothing on a flat z-major buffer, matching the Burn
+/// zero-padded Gaussian smoothing on a flat z-major buffer, matching the Coeus
 /// `conv1d(padding = k/2)` contract (per-axis `axis_kernel` +
 /// `convolve_zero_pad_3d`). Shared by the native Gaussian path and the native
 /// [`CannyEdgeDetector`](crate::edge::CannyEdgeDetector) smoothing stage, so no
@@ -233,12 +233,12 @@ pub(crate) fn gaussian_smooth_native_flat(
 /// Convolve a flat C-order `[nz, ny, nx]` volume along `dim` with `kernel`,
 /// using zero (constant-0) boundary padding.
 ///
-/// This reproduces Burn `conv1d` with `padding = kernel.len() / 2`: for output
+/// This reproduces Coeus `conv1d` with `padding = kernel.len() / 2`: for output
 /// position `p`, `out[p] = Σ_k in[p − r + k] · kernel[k]` with `r = k/2` and any
 /// out-of-range tap treated as `0`. The kernel is applied as correlation;
 /// Gaussian kernels are symmetric, so this equals convolution. Zero padding
 /// darkens boundary voxels (a constant field is *not* preserved at the edge),
-/// matching the Burn Gaussian filter exactly in contract.
+/// matching the Coeus Gaussian filter exactly in contract.
 pub(crate) fn convolve_zero_pad_3d(
     data: &[f32],
     dims: [usize; 3],

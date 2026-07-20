@@ -1,5 +1,5 @@
 //! Differential coverage: `distance_transform` must be value-identical
-//! to the Burn-generic `DistanceTransformImageFilter::apply` it mirrors —
+//! to the Coeus-generic `DistanceTransformImageFilter::apply` it mirrors —
 //! both call the same `euclidean_dt` core (shared harness in `coeus_support`).
 
 use crate::distance::euclidean::{

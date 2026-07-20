@@ -72,8 +72,8 @@ impl OpeningByReconstructionFilter {
     /// Coeus-native sister of [`OpeningByReconstructionFilter::apply`].
     ///
     /// Composes the native grayscale erosion (marker) with the native dilation
-    /// reconstruction under `image`, both bitwise-identical to their Burn
-    /// counterparts. No Burn tensor is constructed.
+    /// reconstruction under `image`, both bitwise-identical to their Coeus
+    /// counterparts. No Coeus tensor is constructed.
     ///
     /// # Errors
     /// Returns an error when the image tensor is not host-addressable/contiguous
@@ -131,8 +131,8 @@ impl ClosingByReconstructionFilter {
     /// Coeus-native sister of [`ClosingByReconstructionFilter::apply`].
     ///
     /// Composes the native grayscale dilation (marker) with the native erosion
-    /// reconstruction under `image`, both bitwise-identical to their Burn
-    /// counterparts. No Burn tensor is constructed.
+    /// reconstruction under `image`, both bitwise-identical to their Coeus
+    /// counterparts. No Coeus tensor is constructed.
     ///
     /// # Errors
     /// Returns an error when the image tensor is not host-addressable/contiguous

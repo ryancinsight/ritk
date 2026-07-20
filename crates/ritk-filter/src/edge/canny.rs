@@ -130,12 +130,12 @@ impl CannyEdgeDetector {
     /// Smooths natively via the burn-free
     /// `gaussian_smooth_native_flat`
     /// core, then runs the identical gradient / non-maximum-suppression /
-    /// hysteresis pipeline via the shared `canny_edges_flat` host core. No Burn
+    /// hysteresis pipeline via the shared `canny_edges_flat` host core. No Coeus
     /// tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Parity
     /// Stages 2–4 are bitwise-identical to the legacy Coeus path (shared core).
-    /// The native Gaussian (`convolve_zero_pad_3d`) and the legacy Burn
+    /// The native Gaussian (`convolve_zero_pad_3d`) and the legacy Coeus
     /// Gaussian (`conv1d`) evaluate the same kernels but sum taps in different
     /// orders, so the pre-threshold magnitude field differs by accumulation
     /// rounding only (`O(width·ε·—–I—–∞)`); the binary edge map is unaffected
@@ -176,7 +176,7 @@ impl CannyEdgeDetector {
 /// magnitude/direction, non-maximum suppression along the continuous gradient,
 /// and double-hysteresis thresholding with BFS connectivity, on an
 /// already-smoothed flat z-major buffer. Returns the binary edge map (`1.0`
-/// edge, `0.0` else). Single source of truth for the legacy Burn and
+/// edge, `0.0` else). Single source of truth for the legacy Coeus and
 /// Coeus-native paths.
 fn canny_edges_flat(
     smoothed: &[f32],

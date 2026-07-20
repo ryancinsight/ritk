@@ -87,7 +87,7 @@ impl GrayscaleErosion {
     ///
     /// Runs the identical `(2r+1)³` cubic-neighbourhood minimum (replicate
     /// boundary) via the shared `erode_3d` host core on the image's contiguous
-    /// host buffer, so the result is bitwise-identical to the Coeus path. No Burn
+    /// host buffer, so the result is bitwise-identical to the Coeus path. No Coeus
     /// tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors

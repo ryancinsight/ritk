@@ -95,7 +95,7 @@ impl GrayscaleFillholeFilter {
     ///
     /// Runs the identical minimax-path fill-hole via the shared `fill_holes_3d`
     /// host core on the image's contiguous host buffer, so the result is
-    /// bitwise-identical to the Coeus path. No Burn tensor is constructed.
+    /// bitwise-identical to the Coeus path. No Coeus tensor is constructed.
     /// Spatial metadata is preserved.
     ///
     /// # Errors

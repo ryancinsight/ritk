@@ -72,7 +72,7 @@ impl DoubleThresholdImageFilter {
     /// via the shared `double_threshold_flat` host core (which delegates to
     /// `MorphologicalReconstruction::reconstruct_flat`)
     /// on the image's contiguous host buffer, so the result is bitwise-identical
-    /// to the Coeus path. No Burn tensor is constructed. Spatial metadata is
+    /// to the Coeus path. No Coeus tensor is constructed. Spatial metadata is
     /// preserved.
     ///
     /// # Errors
@@ -94,7 +94,7 @@ impl DoubleThresholdImageFilter {
 
     /// Substrate-agnostic host core: the inner-band marker `[t2, t3]` is
     /// binary-morphologically reconstructed under the outer-band mask `[t1, t4]`,
-    /// then mapped to inside/outside values. Single source of truth for the Burn
+    /// then mapped to inside/outside values. Single source of truth for the Coeus
     /// [`apply`](Self::apply) and Coeus-native [`apply_native`](Self::apply_native)
     /// paths.
     fn double_threshold_flat(&self, vals: &[f32], dims: [usize; 3]) -> Vec<f32> {

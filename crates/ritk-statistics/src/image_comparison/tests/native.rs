@@ -3,7 +3,7 @@
 //!
 //! ## Tolerances
 //! - `hausdorff_distance`, `mean_surface_distance`, `ssim`, `similarity_index`:
-//!   the native adapter and the Burn adapter delegate to the **same** host core
+//!   the native adapter and the Coeus adapter delegate to the **same** host core
 //!   (`hausdorff_from_flat` / `msd_from_flat` / `ssim_from_slices` /
 //!   `similarity_index_from_slices`), so results are bitwise identical — asserted
 //!   with `PARITY_EXACT = 0.0`.
@@ -19,7 +19,7 @@ use coeus_core::MoiraiBackend;
 use ritk_image::Image as NativeImage;
 use ritk_spatial::{Direction, Point, Spacing};
 
-/// Native adapter and Burn adapter share the identical host core → bitwise equal.
+/// Native adapter and Coeus adapter share the identical host core → bitwise equal.
 const PARITY_EXACT: f32 = 0.0;
 /// f64-core vs f32-reduction differential bound for the fixtures used here.
 const PARITY_DIFF: f32 = 1e-4;

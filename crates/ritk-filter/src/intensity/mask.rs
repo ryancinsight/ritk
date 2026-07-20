@@ -139,7 +139,7 @@ impl MaskImageFilter {
     ///
     /// Runs the identical mask selection via the shared `mask_combine` host
     /// core on both images' contiguous host buffers, so the result is
-    /// bitwise-identical to the Coeus path. No Burn tensor is constructed.
+    /// bitwise-identical to the Coeus path. No Coeus tensor is constructed.
     ///
     /// # Errors
     /// Returns an error on shape mismatch, non-contiguous buffers, or failed
@@ -223,7 +223,7 @@ impl MaskNegatedImageFilter {
     /// Coeus-native sister of [`MaskNegatedImageFilter::apply`].
     ///
     /// Runs the identical negated mask selection via the shared `mask_combine`
-    /// host core, bitwise-identical to the Coeus path. No Burn tensor is
+    /// host core, bitwise-identical to the Coeus path. No Coeus tensor is
     /// constructed.
     ///
     /// # Errors
@@ -304,7 +304,7 @@ impl MaskedAssignImageFilter {
     /// Coeus-native sister of [`MaskedAssignImageFilter::apply`].
     ///
     /// Runs the identical masked-assign via the shared `mask_combine` host
-    /// core, bitwise-identical to the Coeus path. No Burn tensor is constructed.
+    /// core, bitwise-identical to the Coeus path. No Coeus tensor is constructed.
     ///
     /// # Errors
     /// Returns an error on shape mismatch, non-contiguous buffers, or failed

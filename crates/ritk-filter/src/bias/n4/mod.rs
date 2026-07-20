@@ -149,7 +149,7 @@ impl N4BiasFieldCorrectionFilter {
 
 /// Apply N4 bias-field correction to flat z-major 3-D image values.
 ///
-/// This is the backend-neutral N4 SSOT used by both the legacy Burn image
+/// This is the backend-neutral N4 SSOT used by both the legacy Coeus image
 /// filter and the Coeus-backed registration preprocessing executor.
 ///
 /// # Errors

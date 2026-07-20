@@ -119,7 +119,7 @@ impl GradientMagnitudeFilter {
     /// Runs the identical central finite-difference gradient magnitude
     /// (ZeroFluxNeumann boundary) via the shared `gradient_magnitude_vec` host
     /// core on the image's contiguous host buffer, so the result is
-    /// bitwise-identical to the Coeus path. No Burn tensor is constructed. Spatial
+    /// bitwise-identical to the Coeus path. No Coeus tensor is constructed. Spatial
     /// metadata is preserved.
     ///
     /// # Errors
@@ -149,7 +149,7 @@ impl GradientMagnitudeFilter {
 ///   (ZeroFluxNeumann), matching ITK; a length-1 axis yields a zero component.
 /// - `|∇I| = √(gz² + gy² + gx²)`; output length equals `nz · ny · nx`.
 ///
-/// Single host realization shared by the Burn [`GradientMagnitudeFilter::apply`]
+/// Single host realization shared by the Coeus [`GradientMagnitudeFilter::apply`]
 /// path and the Coeus-native [`GradientMagnitudeFilter::apply_native`] path.
 pub(crate) fn gradient_magnitude_vec(
     vals: &[f32],

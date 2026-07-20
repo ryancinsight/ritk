@@ -29,7 +29,7 @@ use super::traits::Transform;
 /// requires grad. This is the general affine that a rigid/similarity/affine
 /// registration optimizer parameterizes; `R` is the natural `[3, 3]` parameter
 /// tensor (contrast the per-axis scalar form, which would need 9 separate
-/// scalars). Uses Coeus `matmul` — the Atlas replacement for the Burn/nalgebra
+/// scalars). Uses Coeus `matmul` — the Atlas replacement for the Coeus/nalgebra
 /// matrix path.
 ///
 /// # Panics

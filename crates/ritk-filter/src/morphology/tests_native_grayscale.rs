@@ -5,7 +5,7 @@
 //! Each native wrapper must be value-identical to the Coeus filter it mirrors —
 //! both call the identical substrate-agnostic host core (shared harness in
 //! `native_support::assert_coeus_matches_coeus`) — plus analytical oracles that
-//! pin the morphological algebra independent of the Burn reference.
+//! pin the morphological algebra independent of the Coeus reference.
 
 use crate::morphology::{
     BlackTopHatFilter, GrayscaleClosingFilter, GrayscaleDilation, GrayscaleErosion,

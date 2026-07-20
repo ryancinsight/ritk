@@ -189,7 +189,7 @@ impl ClaheFilter {
     /// Runs the identical per-axial-slice CLAHE via the shared
     /// `clahe_flat` host core (per-slice driver over
     /// `clahe_2d_with_scratch`) on the image's contiguous host buffer, so the
-    /// result is bitwise-identical to the Coeus path. No Burn tensor is
+    /// result is bitwise-identical to the Coeus path. No Coeus tensor is
     /// constructed. Spatial metadata is preserved.
     ///
     /// # Errors
@@ -211,7 +211,7 @@ impl ClaheFilter {
 
     /// Substrate-agnostic host core: applies CLAHE independently to each axial
     /// (Z=depth) slice of a flat z-major buffer. Single source of truth for the
-    /// Burn [`apply`](Self::apply) and Coeus-native
+    /// Coeus [`apply`](Self::apply) and Coeus-native
     /// [`apply_native`](Self::apply_native) paths.
     fn clahe_flat(&self, vals: &[f32], dims: [usize; 3]) -> Vec<f32> {
         let [depth, rows, cols] = dims;

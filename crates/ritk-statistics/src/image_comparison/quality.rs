@@ -70,7 +70,7 @@ pub fn pearson_correlation(image: &[f32], reference: &[f32]) -> anyhow::Result<f
 
 /// PSNR over two flat host buffers of length `n`.
 ///
-/// Shared host core for the Burn-backed [`psnr`] and the Coeus-native
+/// Shared host core for the Coeus-backed [`psnr`] and the Coeus-native
 /// `native::psnr`. Returns `f32::INFINITY` when MSE is (near) zero.
 ///
 /// # Formula
@@ -99,7 +99,7 @@ pub(crate) fn psnr_from_slices(image: &[f32], reference: &[f32], max_val: f32) -
 }
 
 /// Global SSIM over two flat host buffers (Wang et al. 2004, single global
-/// window). Shared host core for the Burn-backed [`ssim`] and the Coeus-native
+/// window). Shared host core for the Coeus-backed [`ssim`] and the Coeus-native
 /// `native::ssim`.
 pub(crate) fn ssim_from_slices(
     image: &[f32],

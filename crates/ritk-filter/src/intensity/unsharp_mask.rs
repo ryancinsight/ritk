@@ -160,8 +160,8 @@ impl UnsharpMaskFilter {
     ///
     /// Runs the identical recursive-Gaussian unsharp-mask formula via the shared
     /// `unsharp_mask_flat` host core on the image's
-    /// contiguous host buffer, so the result is bitwise-identical to the Burn
-    /// path. No Burn tensor is constructed. Spatial metadata is preserved.
+    /// contiguous host buffer, so the result is bitwise-identical to the Coeus
+    /// path. No Coeus tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors
     /// Returns an error when the image tensor is not host-addressable/contiguous
@@ -184,7 +184,7 @@ impl UnsharpMaskFilter {
 
     /// Substrate-agnostic host core: recursive-Gaussian blur, thresholded
     /// mask-add, and optional input-range clamp on a flat z-major buffer. Single
-    /// source of truth for the Burn [`apply`](Self::apply) and Coeus-native
+    /// source of truth for the Coeus [`apply`](Self::apply) and Coeus-native
     /// [`apply_native`](Self::apply_native) paths.
     fn unsharp_mask_flat(&self, input: &[f32], dims: [usize; 3], spacing: [f64; 3]) -> Vec<f32> {
         let n = input.len();

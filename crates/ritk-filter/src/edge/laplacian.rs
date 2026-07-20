@@ -69,8 +69,8 @@ impl LaplacianFilter {
     ///
     /// Runs the identical `[1, −2, 1]` second-difference stencil (ZeroFluxNeumann
     /// boundary) via the shared `laplacian_vec` host core on the image's
-    /// contiguous host buffer, so the result is bitwise-identical to the Burn
-    /// path. No Burn tensor is constructed. Spatial metadata is preserved.
+    /// contiguous host buffer, so the result is bitwise-identical to the Coeus
+    /// path. No Coeus tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors
     /// Returns an error when the image tensor is not host-addressable/contiguous

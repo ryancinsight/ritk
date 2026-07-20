@@ -9,7 +9,7 @@
 //!
 //! # Layout convention
 //!
-//! Burn `NdArray` tensors use row-major (C-contiguous) memory layout, matching
+//! Coeus `NdArray` tensors use row-major (C-contiguous) memory layout, matching
 //! the rest of ritk. For a shape [Z, Y, X], the flat index is
 //!
 //! flat(z, y, x) = z·Y·X + y·X + x

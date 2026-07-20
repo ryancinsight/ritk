@@ -1,7 +1,7 @@
 //! Coeus-native binary-morphology operations.
 //!
 //! Each wrapper marshals a [`ritk_image::Image`] boundary around the
-//! same substrate-agnostic core its Burn counterpart calls, via
+//! same substrate-agnostic core its Coeus counterpart calls, via
 //! `crate::native_support::map_flat_image` — generic over
 //! `B: ComputeBackend`, statically dispatched, zero-cost.
 
@@ -102,7 +102,7 @@ where
 ///
 /// See [`super::binary_fillhole::BinaryFillholeFilter`] for the mathematical
 /// specification and ITK parity. This boundary calls the same 6-connected
-/// flood-fill core as the Burn image implementation.
+/// flood-fill core as the Coeus image implementation.
 pub fn binary_fill_holes<B>(
     image: &Image<f32, B, 3>,
     foreground_value: ForegroundValue,

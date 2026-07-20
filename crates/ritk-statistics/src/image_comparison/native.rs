@@ -1,6 +1,6 @@
 //! Coeus-native image comparison metrics.
 //!
-//! These are the Coeus-backend counterparts to the Burn-generic free functions
+//! These are the Coeus-backend counterparts to the Coeus-generic free functions
 //! in the parent module. Each adapter borrows contiguous host storage from a
 //! [`ritk_image::Image`] via the [`ritk_tensor_ops::native`] seam and
 //! delegates to the same shared host core the Coeus path uses, so the metric math

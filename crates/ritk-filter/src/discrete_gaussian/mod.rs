@@ -148,7 +148,7 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
     /// Build the per-axis discrete-Gaussian kernels for the given spacing.
     ///
     /// Delegates to the burn-free [`discrete_gaussian_kernels`] free function
-    /// (single source of truth for kernel construction), shared by the Burn
+    /// (single source of truth for kernel construction), shared by the Coeus
     /// [`apply_inner`](Self::apply_inner) path, the Coeus-native
     /// [`apply_native`](Self::apply_native) path, and the burn-free
     /// [`discrete_gaussian_smooth_flat`] core the Canny filters call.
@@ -191,8 +191,8 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
     /// `GaussianOperator` kernel, replicate boundary) via the shared
     /// `kernels_for_spacing` kernel builder and the substrate-agnostic
     /// `convolve_separable` host core on the image's
-    /// contiguous host buffer, so the result is bitwise-identical to the Burn
-    /// path. No Burn tensor is constructed. Spatial metadata is preserved.
+    /// contiguous host buffer, so the result is bitwise-identical to the Coeus
+    /// path. No Coeus tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors
     /// Returns an error when the image tensor is not host-addressable/contiguous

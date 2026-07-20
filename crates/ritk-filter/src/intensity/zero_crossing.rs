@@ -85,7 +85,7 @@ impl ZeroCrossingImageFilter {
     ///
     /// Runs the identical 6-connected sign-change detection via the shared
     /// `zero_crossing_vec` host core on the image's contiguous host buffer, so
-    /// the result is bitwise-identical to the Coeus path. No Burn tensor is
+    /// the result is bitwise-identical to the Coeus path. No Coeus tensor is
     /// constructed. Spatial metadata is preserved.
     ///
     /// # Errors

@@ -175,7 +175,7 @@ impl<K: ConductanceKernel> AnisotropicDiffusionFilter<K> {
     ///
     /// Runs the identical explicit-Euler Perona–Malik PDE (double-buffered on a
     /// flat host array) via the shared `diffuse` host core, so the result is
-    /// bitwise-identical to the Coeus path. No Burn tensor is constructed.
+    /// bitwise-identical to the Coeus path. No Coeus tensor is constructed.
     /// Spatial metadata is preserved.
     ///
     /// # Errors
@@ -228,7 +228,7 @@ impl DiffusionConfig {
     ///
     /// Dispatches to the conductance kernel selected in `self.function` and runs
     /// the shared `diffuse` host core, bitwise-identical to the Coeus path. No
-    /// Burn tensor is constructed.
+    /// Coeus tensor is constructed.
     ///
     /// # Errors
     /// Returns an error when the image tensor is not host-addressable/contiguous

@@ -10,10 +10,10 @@
 use super::DiscreteGaussianFilter;
 use crate::native_support::{assert_coeus_matches_coeus, make_native_image, native_vals};
 
-type BurnB = coeus_core::SequentialBackend;
+type CoeusB = coeus_core::SequentialBackend;
 
-fn filter() -> DiscreteGaussianFilter<BurnB> {
-    DiscreteGaussianFilter::<BurnB>::new_isotropic(2.0)
+fn filter() -> DiscreteGaussianFilter<CoeusB> {
+    DiscreteGaussianFilter::<CoeusB>::new_isotropic(2.0)
 }
 
 #[test]

@@ -9,7 +9,7 @@
 //!
 //! # Layout convention
 //!
-//! Burn tensors use column-major (Fortran) memory layout. For a shape
+//! Coeus tensors use column-major (Fortran) memory layout. For a shape
 //! [Z, Y, X], the flat index is computed as:
 //!
 //! flat(z, y, x) = z + Z·y + Z·Y·x

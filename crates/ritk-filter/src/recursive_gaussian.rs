@@ -147,7 +147,7 @@ impl RecursiveGaussianFilter {
     ///
     /// Runs the identical separable Deriche IIR recursion (order 0/1/2 plus
     /// scale normalization; constant/replicate boundary) via the shared
-    /// `filter_vals` host core on the image's contiguous host buffer. No Burn
+    /// `filter_vals` host core on the image's contiguous host buffer. No Coeus
     /// tensor is constructed. Spatial metadata is preserved.
     ///
     /// # Errors
@@ -171,7 +171,7 @@ impl RecursiveGaussianFilter {
     /// Shared host core: separable Deriche recursion with the configured
     /// derivative order and scale normalization, on a flat z-major buffer.
     ///
-    /// Both the legacy Burn and Coeus-native paths call this single
+    /// Both the legacy Coeus and Coeus-native paths call this single
     /// realization; order 0 smooths all axes, orders 1 and 2 apply the
     /// first/second-order Deriche recursion along each axis (zero-order along
     /// the others) and combine — magnitude for order 1, sum for order 2.
@@ -446,7 +446,7 @@ where
 /// Substrate-agnostic host core for [`smoothing_recursive_gaussian`]: the
 /// separable zero-order Deriche IIR smoothing on a flat z-major buffer, with
 /// per-dimension physical `sigmas` broadcast from the last entry. Shared single
-/// source of truth for the legacy Burn free function above and the Coeus-native
+/// source of truth for the legacy Coeus free function above and the Coeus-native
 /// consumers (e.g. `UnsharpMaskFilter::apply_native`), so results are
 /// bitwise-identical across substrates.
 pub(crate) fn smoothing_recursive_gaussian_vals(
