@@ -4,7 +4,8 @@
   (IN PROGRESS; owner=Codex `/root`; scope=`.github/workflows/{ci,
   python_ci,legacy-migration-audit,release}.yml`, deletion of
   `.github/actions/checkout-atlas-dependencies/action.yml`, `README.md`, PM
-  artifacts).** RITK currently duplicates eleven provider URLs and revisions
+  artifacts, `docs/adr/0010-atlas-provider-checkout.md`).** RITK currently
+  duplicates eleven provider URLs and revisions
   in a consumer-owned action. Replace every hosted workflow call with the
   Atlas composite action pinned to merge `9a651ff539e314ff26c4a5b69fe89448c1770859`,
   deriving the exact dependency closure from `ritk/Cargo.toml`. Acceptance:
