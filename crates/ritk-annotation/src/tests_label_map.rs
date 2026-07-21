@@ -26,7 +26,8 @@ fn test_label_map_set_and_get() {
 #[test]
 fn test_label_map_from_data_valid() {
     let data: Vec<u32> = (0u32..60).collect();
-    let lm = LabelMap::from_data([3, 4, 5], data.clone(), empty_table()).expect("infallible: validated precondition");
+    let lm = LabelMap::from_data([3, 4, 5], data.clone(), empty_table())
+        .expect("infallible: validated precondition");
     assert_eq!(lm.as_slice(), data.as_slice());
 }
 

@@ -59,7 +59,9 @@ fn test_canny_seg_level_set_structural() {
         iso_surface_value: 0.0,
     };
 
-    let out = filter.apply(&phi_img, &feat_img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&phi_img, &feat_img)
+        .expect("infallible: validated precondition");
     let result = extract_vals(&out);
 
     assert_eq!(result.len(), ny * nx, "output size must match input");

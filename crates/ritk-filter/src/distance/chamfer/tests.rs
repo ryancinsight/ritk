@@ -21,7 +21,9 @@ fn make_image_with_spacing(vals: Vec<f32>, dims: [usize; 3], sp: [f64; 3]) -> Im
 }
 
 fn values_finite(img: &Image<f32, B, 3>) -> Vec<f32> {
-    ritk_tensor_ops::extract_vec(img).expect("infallible: validated precondition").0
+    ritk_tensor_ops::extract_vec(img)
+        .expect("infallible: validated precondition")
+        .0
 }
 
 // ── Chessboard (scipy parity) ─────────────────────────────────────────────

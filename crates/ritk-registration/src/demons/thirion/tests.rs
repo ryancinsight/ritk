@@ -42,7 +42,9 @@ fn identity_registration_near_zero_mse() {
         max_iterations: 20,
         ..Default::default()
     });
-    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
+    let result = reg
+        .register(&image, &image, dims, [1.0, 1.0, 1.0])
+        .expect("infallible: validated precondition");
     assert!(
         result.final_mse < 1e-3,
         "identity MSE should be < 1e-3, got {}",
@@ -136,7 +138,9 @@ fn constant_image_zero_forces() {
         max_iterations: 10,
         ..Default::default()
     });
-    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
+    let result = reg
+        .register(&image, &image, dims, [1.0, 1.0, 1.0])
+        .expect("infallible: validated precondition");
 
     let max_disp = result
         .disp_x

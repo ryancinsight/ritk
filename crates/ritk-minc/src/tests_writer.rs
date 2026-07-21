@@ -83,7 +83,9 @@ fn write_minc_eof_field_matches_file_size() {
     let path = dir.path().join("eof.mnc");
     crate::write_minc(&image, &path, &backend).expect("infallible: validated precondition");
     let bytes = std::fs::read(&path).expect("infallible: validated precondition");
-    let eof_bytes: [u8; 8] = bytes[28..36].try_into().expect("infallible: validated precondition");
+    let eof_bytes: [u8; 8] = bytes[28..36]
+        .try_into()
+        .expect("infallible: validated precondition");
     let eof_addr = u64::from_le_bytes(eof_bytes);
     assert_eq!(eof_addr, bytes.len() as u64, "EOF address mismatch");
 }

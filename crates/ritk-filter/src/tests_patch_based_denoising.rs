@@ -78,8 +78,20 @@ fn test_patch_based_denoising_deterministic() {
         number_of_iterations: 1,
         ..Default::default()
     };
-    let a = extract_vec(&filt.apply(&img).expect("infallible: validated precondition")).expect("infallible: validated precondition").0;
-    let b = extract_vec(&filt.apply(&img).expect("infallible: validated precondition")).expect("infallible: validated precondition").0;
+    let a = extract_vec(
+        &filt
+            .apply(&img)
+            .expect("infallible: validated precondition"),
+    )
+    .expect("infallible: validated precondition")
+    .0;
+    let b = extract_vec(
+        &filt
+            .apply(&img)
+            .expect("infallible: validated precondition"),
+    )
+    .expect("infallible: validated precondition")
+    .0;
     assert_eq!(a, b, "seeded denoising must be deterministic");
     assert!(a.iter().all(|v| v.is_finite()));
 }
@@ -338,7 +350,9 @@ fn test_patch_based_denoising_constant_is_fixed_point() {
     }
     .apply(&img)
     .expect("infallible: validated precondition");
-    let r = extract_vec(&out).expect("infallible: validated precondition").0;
+    let r = extract_vec(&out)
+        .expect("infallible: validated precondition")
+        .0;
     assert!(
         r.iter().all(|&v| (v - 42.0).abs() < 1e-4),
         "constant image must be preserved"

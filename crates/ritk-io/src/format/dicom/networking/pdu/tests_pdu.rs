@@ -6,18 +6,23 @@ fn sample_rq() -> AssociateRqPdu {
         protocol_version: 1,
         called_ae_title: ArrayString::from("SCP").expect("infallible: validated precondition"),
         calling_ae_title: ArrayString::from("SCU").expect("infallible: validated precondition"),
-        application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME).expect("infallible: validated precondition"),
+        application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME)
+            .expect("infallible: validated precondition"),
         presentation_contexts: vec![PresentationContextItemRq {
             presentation_context_id: 1,
-            abstract_syntax_uid: ArrayString::from("1.2.840.10008.1.1").expect("infallible: validated precondition"),
-            transfer_syntax_uids: vec![ArrayString::from("1.2.840.10008.1.2").expect("infallible: validated precondition")],
+            abstract_syntax_uid: ArrayString::from("1.2.840.10008.1.1")
+                .expect("infallible: validated precondition"),
+            transfer_syntax_uids: vec![
+                ArrayString::from("1.2.840.10008.1.2").expect("infallible: validated precondition")
+            ],
         }],
         user_information: UserInformation {
             maximum_length: MaximumLengthSubItem {
                 maximum_length_received: 16384,
             },
             implementation_class_uid: ImplementationClassUidSubItem {
-                implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID).expect("infallible: validated precondition"),
+                implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID)
+                    .expect("infallible: validated precondition"),
             },
             implementation_version_name: Some(ImplementationVersionNameSubItem {
                 implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION)
@@ -46,11 +51,13 @@ fn test_pdu_type_byte() {
         protocol_version: 1,
         called_ae_title: ArrayString::from("SCP").expect("infallible: validated precondition"),
         calling_ae_title: ArrayString::from("SCU").expect("infallible: validated precondition"),
-        application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME).expect("infallible: validated precondition"),
+        application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME)
+            .expect("infallible: validated precondition"),
         presentation_contexts: vec![PresentationContextItemAc {
             presentation_context_id: 1,
             result_reason: 0,
-            transfer_syntax_uid: ArrayString::from("1.2.840.10008.1.2").expect("infallible: validated precondition"),
+            transfer_syntax_uid: ArrayString::from("1.2.840.10008.1.2")
+                .expect("infallible: validated precondition"),
         }],
         user_information: UserInformation::default(),
     };
@@ -137,9 +144,15 @@ fn test_release_round_trip() {
     let rq = Pdu::ReleaseRq(ReleaseRqPdu);
     let enc = rq.encode();
     assert_eq!(enc.len(), 6);
-    assert_eq!(Pdu::decode(&enc).expect("infallible: validated precondition"), rq);
+    assert_eq!(
+        Pdu::decode(&enc).expect("infallible: validated precondition"),
+        rq
+    );
     let rp = Pdu::ReleaseRp(ReleaseRpPdu);
-    assert_eq!(Pdu::decode(&rp.encode()).expect("infallible: validated precondition"), rp);
+    assert_eq!(
+        Pdu::decode(&rp.encode()).expect("infallible: validated precondition"),
+        rp
+    );
 }
 
 #[test]
@@ -147,7 +160,10 @@ fn test_abort_round_trip() {
     let pdu = Pdu::Abort(AbortPdu {
         source: AbortSource::DicomUlServiceProviderAcse,
     });
-    assert_eq!(Pdu::decode(&pdu.encode()).expect("infallible: validated precondition"), pdu);
+    assert_eq!(
+        Pdu::decode(&pdu.encode()).expect("infallible: validated precondition"),
+        pdu
+    );
 }
 
 #[test]
@@ -157,7 +173,10 @@ fn test_associate_rj_round_trip() {
         source: AssociationRejectSource::DicomUlServiceProviderPresentation,
         reason: 3,
     });
-    assert_eq!(Pdu::decode(&pdu.encode()).expect("infallible: validated precondition"), pdu);
+    assert_eq!(
+        Pdu::decode(&pdu.encode()).expect("infallible: validated precondition"),
+        pdu
+    );
 }
 
 #[test]

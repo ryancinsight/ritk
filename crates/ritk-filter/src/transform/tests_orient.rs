@@ -56,8 +56,14 @@ fn orient_permutation_preserves_multiset() {
         .expect("infallible: validated precondition");
     let (mut ov, _) = extract_vec_infallible(&out);
     let mut sorted = data;
-    ov.sort_by(|a, b| a.partial_cmp(b).expect("infallible: validated precondition"));
-    sorted.sort_by(|a, b| a.partial_cmp(b).expect("infallible: validated precondition"));
+    ov.sort_by(|a, b| {
+        a.partial_cmp(b)
+            .expect("infallible: validated precondition")
+    });
+    sorted.sort_by(|a, b| {
+        a.partial_cmp(b)
+            .expect("infallible: validated precondition")
+    });
     assert_eq!(ov, sorted, "orientation must preserve the voxel multiset");
     assert_eq!(out.shape(), [4, 3, 2], "tensor axes z and x swap");
 }

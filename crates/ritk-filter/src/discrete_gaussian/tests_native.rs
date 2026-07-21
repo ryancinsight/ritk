@@ -36,7 +36,9 @@ fn constant_field_preserved() {
     let dims = [8, 8, 8];
     let c = 12.25_f32;
     let img = make_native_image(vec![c; dims[0] * dims[1] * dims[2]], dims);
-    let out = filter().apply_native(&img).expect("infallible: validated precondition");
+    let out = filter()
+        .apply_native(&img)
+        .expect("infallible: validated precondition");
     for v in native_vals(&out) {
         assert!(
             (v - c).abs() < 1e-4,

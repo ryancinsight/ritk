@@ -73,7 +73,12 @@ fn paint_sphere_radius_one_changes_center_and_axis_neighbors() {
 #[test]
 fn erase_sphere_restores_background_inside_brush() {
     let mut editor = LabelEditor::new([3, 3, 3]);
-    assert_eq!(editor.paint_sphere([1, 1, 1], 1).expect("infallible: validated precondition"), 7);
+    assert_eq!(
+        editor
+            .paint_sphere([1, 1, 1], 1)
+            .expect("infallible: validated precondition"),
+        7
+    );
 
     let erased = editor.erase_voxel([1, 1, 1]).expect("erase must succeed");
 
@@ -153,9 +158,19 @@ fn out_of_bounds_paint_returns_error_without_history_change() {
 fn repeat_paint_noop_does_not_create_history_entry() {
     let mut editor = LabelEditor::new([1, 1, 1]);
 
-    assert_eq!(editor.paint_voxel([0, 0, 0]).expect("infallible: validated precondition"), 1);
+    assert_eq!(
+        editor
+            .paint_voxel([0, 0, 0])
+            .expect("infallible: validated precondition"),
+        1
+    );
     let depth_after_first_paint = editor.history_depth();
-    assert_eq!(editor.paint_voxel([0, 0, 0]).expect("infallible: validated precondition"), 0);
+    assert_eq!(
+        editor
+            .paint_voxel([0, 0, 0])
+            .expect("infallible: validated precondition"),
+        0
+    );
 
     assert_eq!(editor.history_depth(), depth_after_first_paint);
     assert_eq!(editor.current_map().label_at([0, 0, 0]), LabelId(1));
@@ -177,7 +192,8 @@ fn from_label_map_preserves_voxel_data() {
         .expect("infallible: validated precondition");
 
     let data: Vec<u32> = (0..8u32).map(|i| if i % 2 == 0 { 1 } else { 0 }).collect();
-    let map = LabelMap::from_data([2, 2, 2], data.clone(), table).expect("infallible: validated precondition");
+    let map = LabelMap::from_data([2, 2, 2], data.clone(), table)
+        .expect("infallible: validated precondition");
 
     let editor = LabelEditor::from_label_map(map);
 

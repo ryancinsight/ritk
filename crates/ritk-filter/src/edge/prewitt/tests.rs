@@ -18,14 +18,18 @@ fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, TestBackend, 3> {
 }
 
 fn values(img: &Image<f32, TestBackend, 3>) -> Vec<f32> {
-    ritk_tensor_ops::extract_vec(img).expect("infallible: validated precondition").0
+    ritk_tensor_ops::extract_vec(img)
+        .expect("infallible: validated precondition")
+        .0
 }
 
 #[test]
 fn prewitt_constant_image_has_zero_gradient() {
     let img = make_image(vec![5.0_f32; 27], [3, 3, 3]);
     let filt = PrewittFilter::unit();
-    let out = filt.apply(&img).expect("infallible: validated precondition");
+    let out = filt
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let v = values(&out);
     assert!(
         v.iter().all(|&x| x.abs() < 1e-5),
@@ -47,7 +51,9 @@ fn prewitt_x_ramp_recovers_unit_gradient() {
     }
     let img = make_image(vals, [3, 3, 3]);
     let filt = PrewittFilter::unit();
-    let (_gz, _gy, gx) = filt.apply_components(&img).expect("infallible: validated precondition");
+    let (_gz, _gy, gx) = filt
+        .apply_components(&img)
+        .expect("infallible: validated precondition");
     let gx_v = values(&gx);
     // Interior voxel (iz=1, iy=1, ix=1): dI/dx = 1
     let interior_idx = 9 + 3 + 1;
@@ -80,7 +86,9 @@ fn prewitt_y_ramp_recovers_unit_gradient() {
     }
     let img = make_image(vals, [3, 3, 3]);
     let filt = PrewittFilter::unit();
-    let (_gz, gy, _gx) = filt.apply_components(&img).expect("infallible: validated precondition");
+    let (_gz, gy, _gx) = filt
+        .apply_components(&img)
+        .expect("infallible: validated precondition");
     let gy_v = values(&gy);
     let interior_idx = 9 + 3 + 1;
     assert!(
@@ -103,7 +111,9 @@ fn prewitt_z_ramp_recovers_unit_gradient() {
     }
     let img = make_image(vals, [3, 3, 3]);
     let filt = PrewittFilter::unit();
-    let (gz, _gy, _gx) = filt.apply_components(&img).expect("infallible: validated precondition");
+    let (gz, _gy, _gx) = filt
+        .apply_components(&img)
+        .expect("infallible: validated precondition");
     let gz_v = values(&gz);
     let interior_idx = 9 + 3 + 1;
     assert!(
@@ -117,7 +127,9 @@ fn prewitt_z_ramp_recovers_unit_gradient() {
 fn prewitt_magnitude_zero_for_constant() {
     let img = make_image(vec![std::f32::consts::PI; 64], [4, 4, 4]);
     let filt = PrewittFilter::unit();
-    let out = filt.apply(&img).expect("infallible: validated precondition");
+    let out = filt
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let v = values(&out);
     let max_abs = v.iter().fold(0.0_f32, |a, &b| a.max(b.abs()));
     assert!(max_abs < 1e-5);
@@ -136,7 +148,9 @@ fn prewitt_magnitude_isotropic_for_diagonal_ramp() {
     }
     let img = make_image(vals, [3, 3, 3]);
     let filt = PrewittFilter::unit();
-    let out = filt.apply(&img).expect("infallible: validated precondition");
+    let out = filt
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let v = values(&out);
     let interior_idx = 9 + 3 + 1;
     let expected = (3.0_f32).sqrt();
@@ -161,7 +175,9 @@ fn prewitt_anisotropic_spacing() {
     }
     let img = make_image(vals, [3, 3, 3]);
     let filt = PrewittFilter::new([1.0, 1.0, 0.5].into());
-    let (_gz, _gy, gx) = filt.apply_components(&img).expect("infallible: validated precondition");
+    let (_gz, _gy, gx) = filt
+        .apply_components(&img)
+        .expect("infallible: validated precondition");
     let gx_v = values(&gx);
     let interior_idx = 9 + 3 + 1;
     assert!(
@@ -184,7 +200,9 @@ fn prewitt_zero_orthogonal_components_for_axial_ramp() {
     }
     let img = make_image(vals, [3, 3, 3]);
     let filt = PrewittFilter::unit();
-    let (gz, gy, _gx) = filt.apply_components(&img).expect("infallible: validated precondition");
+    let (gz, gy, _gx) = filt
+        .apply_components(&img)
+        .expect("infallible: validated precondition");
     let gz_v = values(&gz);
     let gy_v = values(&gy);
     let max_ortho = gz_v
@@ -203,7 +221,9 @@ fn prewitt_preserves_shape() {
     let vals = vec![0.0_f32; 24];
     let img = make_image(vals, [2, 3, 4]);
     let filt = PrewittFilter::unit();
-    let out = filt.apply(&img).expect("infallible: validated precondition");
+    let out = filt
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let v = values(&out);
     assert_eq!(v.len(), 24);
 }
@@ -213,7 +233,9 @@ fn prewitt_single_voxel_returns_zero() {
     // 1-voxel image: all axes degenerate, replicate padding returns self
     let img = make_image(vec![7.0_f32], [1, 1, 1]);
     let filt = PrewittFilter::unit();
-    let out = filt.apply(&img).expect("infallible: validated precondition");
+    let out = filt
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let v = values(&out);
     assert!(
         v[0].abs() < 1e-5,

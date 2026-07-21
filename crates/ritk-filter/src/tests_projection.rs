@@ -33,7 +33,9 @@ fn extract_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
 fn max_projection_z_shape() {
     let img = make_volume(vec![0.0_f32; 4 * 3 * 2], [4, 3, 2]);
     let filter = MaxIntensityProjectionFilter::new(ProjectionAxis::Z);
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 3, 2], "MaxIP-Z shape must be [1, 3, 2]");
 }
 
@@ -53,7 +55,9 @@ fn max_projection_z_values() {
     let data: Vec<f32> = vec![1., 2., 3., 4., 5., 6., 7., 8., 2., 3., 1., 9.];
     let img = make_volume(data, [3, 2, 2]);
     let filter = MaxIntensityProjectionFilter::new(ProjectionAxis::Z);
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 2, 2]);
     let vals = extract_vals(&out);
     let expected = [5.0_f32, 6.0, 7.0, 9.0];
@@ -72,7 +76,9 @@ fn max_projection_z_values() {
 fn min_projection_y_shape() {
     let img = make_volume(vec![0.0_f32; 3 * 5 * 4], [3, 5, 4]);
     let filter = MinIntensityProjectionFilter::new(ProjectionAxis::Y);
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [3, 1, 4], "MinIP-Y shape must be [3, 1, 4]");
 }
 
@@ -83,7 +89,9 @@ fn min_projection_y_shape() {
 fn mean_projection_x_shape() {
     let img = make_volume(vec![0.0_f32; 3 * 4 * 6], [3, 4, 6]);
     let filter = MeanIntensityProjectionFilter::new(ProjectionAxis::X);
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [3, 4, 1], "MeanIP-X shape must be [3, 4, 1]");
 }
 
@@ -96,7 +104,9 @@ fn mean_projection_x_shape() {
 fn mean_projection_x_values() {
     let img = make_volume(vec![1.0_f32; 4 * 3 * 2], [4, 3, 2]);
     let filter = MeanIntensityProjectionFilter::new(ProjectionAxis::X);
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [4, 3, 1]);
     let vals = extract_vals(&out);
     for (i, &v) in vals.iter().enumerate() {
@@ -119,7 +129,9 @@ fn sum_projection_z_values() {
     let data: Vec<f32> = vec![1., 1., 1., 1., 2., 2., 2., 2.];
     let img = make_volume(data, [2, 2, 2]);
     let filter = SumIntensityProjectionFilter::new(ProjectionAxis::Z);
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 2, 2]);
     let vals = extract_vals(&out);
     for (i, &v) in vals.iter().enumerate() {
@@ -142,7 +154,9 @@ fn sum_projection_z_values() {
 fn stddev_projection_z_values() {
     let img = make_volume(vec![0.0_f32, 1.0_f32], [2, 1, 1]);
     let filter = StdDevIntensityProjectionFilter::new(ProjectionAxis::Z);
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 1, 1]);
     let vals = extract_vals(&out);
     assert_eq!(vals.len(), 1);

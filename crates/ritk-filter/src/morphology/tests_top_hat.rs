@@ -41,7 +41,9 @@ fn test_wth_bright_spike() {
     let mut v = vec![bg; n];
     let c = 4 * ny * nx + 4 * nx + 4;
     v[c] = 10.0;
-    let out = vv(&WhiteTopHatFilter::new(1).apply(&img(v, d)).expect("infallible: validated precondition"));
+    let out = vv(&WhiteTopHatFilter::new(1)
+        .apply(&img(v, d))
+        .expect("infallible: validated precondition"));
     assert!(out[c] > 1.0, "WTH spike not detected: {}", out[c]);
     for &x in &out {
         assert!(x >= 0.0, "WTH non-negative");
@@ -52,7 +54,9 @@ fn test_wth_radius_zero() {
     let d = [6, 6, 6];
     let n = d[0] * d[1] * d[2];
     let v: Vec<f32> = (0..n).map(|i| (i % 10) as f32).collect();
-    let out = vv(&WhiteTopHatFilter::new(0).apply(&img(v, d)).expect("infallible: validated precondition"));
+    let out = vv(&WhiteTopHatFilter::new(0)
+        .apply(&img(v, d))
+        .expect("infallible: validated precondition"));
     for &x in &out {
         assert!(x.abs() < 1e-5, "WTH(r=0)={x}");
     }
@@ -78,7 +82,9 @@ fn test_wth_non_negative() {
     let d = [8, 8, 8];
     let n = d[0] * d[1] * d[2];
     let v: Vec<f32> = (0..n).map(|i| (i as f32 * 0.7 + 1.0) % 20.0).collect();
-    let out = vv(&WhiteTopHatFilter::new(1).apply(&img(v, d)).expect("infallible: validated precondition"));
+    let out = vv(&WhiteTopHatFilter::new(1)
+        .apply(&img(v, d))
+        .expect("infallible: validated precondition"));
     for &x in &out {
         assert!(x >= -1e-5, "WTH neg: {x}");
     }
@@ -103,7 +109,9 @@ fn test_bth_dark_hole() {
     let mut v = vec![bg; n];
     let c = 4 * ny * nx + 4 * nx + 4;
     v[c] = 2.0;
-    let out = vv(&BlackTopHatFilter::new(1).apply(&img(v, d)).expect("infallible: validated precondition"));
+    let out = vv(&BlackTopHatFilter::new(1)
+        .apply(&img(v, d))
+        .expect("infallible: validated precondition"));
     assert!(out[c] > 1.0, "BTH hole not detected: {}", out[c]);
     for &x in &out {
         assert!(x >= 0.0, "BTH non-negative");
@@ -114,7 +122,9 @@ fn test_bth_radius_zero() {
     let d = [6, 6, 6];
     let n = d[0] * d[1] * d[2];
     let v: Vec<f32> = (0..n).map(|i| (i % 10) as f32).collect();
-    let out = vv(&BlackTopHatFilter::new(0).apply(&img(v, d)).expect("infallible: validated precondition"));
+    let out = vv(&BlackTopHatFilter::new(0)
+        .apply(&img(v, d))
+        .expect("infallible: validated precondition"));
     for &x in &out {
         assert!(x.abs() < 1e-5, "BTH(r=0)={x}");
     }
@@ -140,7 +150,9 @@ fn test_bth_non_negative() {
     let d = [8, 8, 8];
     let n = d[0] * d[1] * d[2];
     let v: Vec<f32> = (0..n).map(|i| (i as f32 * 0.5 + 1.0) % 15.0).collect();
-    let out = vv(&BlackTopHatFilter::new(1).apply(&img(v, d)).expect("infallible: validated precondition"));
+    let out = vv(&BlackTopHatFilter::new(1)
+        .apply(&img(v, d))
+        .expect("infallible: validated precondition"));
     for &x in &out {
         assert!(x >= -1e-5, "BTH neg: {x}");
     }

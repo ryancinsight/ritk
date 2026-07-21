@@ -62,7 +62,8 @@ fn test_server_info_missing_optional_fields_default() {
 /// ModelType::Segmentation round-trips through serde.
 #[test]
 fn test_model_type_segmentation_roundtrip() {
-    let mt: ModelType = serde_json::from_str(r#""segmentation""#).expect("infallible: validated precondition");
+    let mt: ModelType =
+        serde_json::from_str(r#""segmentation""#).expect("infallible: validated precondition");
     assert_eq!(mt, ModelType::Segmentation);
     let serialised = serde_json::to_string(&mt).expect("infallible: validated precondition");
     assert_eq!(serialised, r#""segmentation""#);
@@ -71,7 +72,8 @@ fn test_model_type_segmentation_roundtrip() {
 /// Unknown ModelType strings are preserved through serde without data loss.
 #[test]
 fn test_model_type_unknown_preserves_string() {
-    let mt: ModelType = serde_json::from_str(r#""custom_net""#).expect("infallible: validated precondition");
+    let mt: ModelType =
+        serde_json::from_str(r#""custom_net""#).expect("infallible: validated precondition");
     assert_eq!(mt, ModelType::Unknown("custom_net".to_owned()));
     let s = serde_json::to_string(&mt).expect("infallible: validated precondition");
     assert_eq!(s, r#""custom_net""#);
@@ -96,7 +98,10 @@ fn test_infer_request_new_has_empty_params_object() {
     assert_eq!(req.image_id, "img-001");
     assert!(req.params.is_object(), "params must be a JSON object");
     assert_eq!(
-        req.params.as_object().expect("infallible: validated precondition").len(),
+        req.params
+            .as_object()
+            .expect("infallible: validated precondition")
+            .len(),
         0,
         "default params object must be empty"
     );
@@ -123,11 +128,15 @@ fn test_parse_infer_response_label_and_params() {
     let resp = parse_infer_response(&ct, &body).expect("infallible: validated precondition");
     assert_eq!(resp.label, label_bytes, "label bytes must match exactly");
     assert_eq!(
-        resp.params["model"].as_str().expect("infallible: validated precondition"),
+        resp.params["model"]
+            .as_str()
+            .expect("infallible: validated precondition"),
         "seg",
         "model field must round-trip"
     );
-    let total = resp.params["latencies"]["total"].as_f64().expect("infallible: validated precondition");
+    let total = resp.params["latencies"]["total"]
+        .as_f64()
+        .expect("infallible: validated precondition");
     assert!(
         (total - 0.5).abs() < 1e-9,
         "latency must be 0.5; got {total}"
@@ -246,14 +255,20 @@ fn test_infer_success_returns_label_and_params() {
         .create();
     let client = MonaiLabelClient::new(server.url());
     let req = InferRequest::new("seg_ct", "img-001");
-    let resp = client.infer(&req).expect("infallible: validated precondition");
+    let resp = client
+        .infer(&req)
+        .expect("infallible: validated precondition");
     assert_eq!(resp.label, label_bytes, "label bytes must match");
     assert_eq!(
-        resp.params["model"].as_str().expect("infallible: validated precondition"),
+        resp.params["model"]
+            .as_str()
+            .expect("infallible: validated precondition"),
         "seg_ct",
         "model name must round-trip"
     );
-    let total = resp.params["latencies"]["total"].as_f64().expect("infallible: validated precondition");
+    let total = resp.params["latencies"]["total"]
+        .as_f64()
+        .expect("infallible: validated precondition");
     assert!(
         (total - 1.2).abs() < 1e-9,
         "latency must be 1.2; got {total}"

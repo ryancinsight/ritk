@@ -30,7 +30,9 @@ fn test_uniform_image_unchanged() {
         num_iterations: 20,
         ..Default::default()
     });
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
 
     let (result, _) = extract_vec_infallible(&out);
     for &v in &result {
@@ -112,7 +114,9 @@ fn test_step_edge_preservation() {
         conductance: 30.0, // large K → moderate edge inhibition
         ..Default::default()
     });
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
 
     let (result, _) = extract_vec_infallible(&out);
 
@@ -169,7 +173,9 @@ fn test_mean_conservation() {
         num_iterations: 30,
         ..Default::default()
     });
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
 
     let (result, _) = extract_vec_infallible(&out);
     let (final_mean, _) = image_stats(&result);
@@ -193,7 +199,9 @@ fn test_quadratic_conductance_stable() {
         num_iterations: 20,
         ..Default::default()
     });
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
 
     let (result, _) = extract_vec_infallible(&out);
 

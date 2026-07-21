@@ -24,8 +24,10 @@
       warning-clean Rustdoc gates.
 - [x] Confirm the public break with `cargo-semver-checks`: one removed VTK
       enum and the removed Snap enum/module; no unclassified break remains.
-- [ ] Commit, publish, merge, and register the exact RITK and Iris revisions in
-      Atlas.
+- [x] Commit and merge RITK PR 46 as `1bc665d4` after exact-head CI
+      `29831435735`, Python CI `29831435956`, and migration audit
+      `29831435835`; register the exact RITK and Iris revisions through Atlas
+      PR 71 at `6740296b`.
 
 ## CI-664-01 — Atlas-owned provider checkout
 **Target version**: Unreleased patch

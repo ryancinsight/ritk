@@ -85,7 +85,9 @@ fn identity_registration_high_cc() {
     let dims = [10, 10, 10];
     let image = make_test_image(dims);
     let reg = MultiResSyNRegistration::new(make_config(2, vec![10, 10], false));
-    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
+    let result = reg
+        .register(&image, &image, dims, [1.0, 1.0, 1.0])
+        .expect("infallible: validated precondition");
     assert!(
         result.final_cc > 0.9,
         "identity CC should be > 0.9, got {}",
@@ -99,7 +101,9 @@ fn single_level_equivalent_to_syn() {
     let dims = [8, 8, 8];
     let image = make_test_image(dims);
     let reg = MultiResSyNRegistration::new(make_config(1, vec![15], false));
-    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
+    let result = reg
+        .register(&image, &image, dims, [1.0, 1.0, 1.0])
+        .expect("infallible: validated precondition");
     assert!(
         result.final_cc > 0.9,
         "single-level CC should be > 0.9, got {}",
@@ -270,7 +274,9 @@ fn single_level_cow_borrowed_produces_valid_displacement() {
     let image = make_test_image(dims);
     // num_levels=1 → factor = 2^(1-0-1) = 1 → Cow::Borrowed path
     let reg = MultiResSyNRegistration::new(make_config(1, vec![10], false));
-    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
+    let result = reg
+        .register(&image, &image, dims, [1.0, 1.0, 1.0])
+        .expect("infallible: validated precondition");
 
     // All displacement field components must be finite
     for &v in result

@@ -261,7 +261,11 @@ fn native_color_from_series_preserves_values_and_metadata() {
     let slice = DicomSliceMetadata {
         path: path.clone(),
         preservation: Default::default(),
-        sop_instance_uid: Some("2.25.4101".try_into().expect("infallible: validated precondition")),
+        sop_instance_uid: Some(
+            "2.25.4101"
+                .try_into()
+                .expect("infallible: validated precondition"),
+        ),
         instance_number: Some(1),
         slice_location: None,
         image_position_patient: Some([0.0, 0.0, 0.0]),
@@ -271,7 +275,11 @@ fn native_color_from_series_preserves_values_and_metadata() {
         rescale_slope: 1.0,
         rescale_intercept: 0.0,
         sop_class_uid: None,
-        transfer_syntax_uid: Some("1.2.840.10008.1.2.1".try_into().expect("infallible: validated precondition")),
+        transfer_syntax_uid: Some(
+            "1.2.840.10008.1.2.1"
+                .try_into()
+                .expect("infallible: validated precondition"),
+        ),
         private_tags: Default::default(),
         pixel_representation: PixelSignedness::Unsigned,
         bits_allocated: 8,
@@ -283,7 +291,11 @@ fn native_color_from_series_preserves_values_and_metadata() {
     };
 
     let metadata = DicomReadMetadata {
-        series_instance_uid: Some("2.25.4001".try_into().expect("infallible: validated precondition")),
+        series_instance_uid: Some(
+            "2.25.4001"
+                .try_into()
+                .expect("infallible: validated precondition"),
+        ),
         study_instance_uid: None,
         frame_of_reference_uid: None,
         series_description: None,
@@ -300,7 +312,9 @@ fn native_color_from_series_preserves_values_and_metadata() {
         bits_allocated: Some(8),
         bits_stored: Some(8),
         high_bit: Some(7),
-        photometric_interpretation: Some(ArrayString::from("RGB").expect("infallible: validated precondition")),
+        photometric_interpretation: Some(
+            ArrayString::from("RGB").expect("infallible: validated precondition"),
+        ),
         slices: vec![slice],
         private_tags: Default::default(),
         preservation: Default::default(),

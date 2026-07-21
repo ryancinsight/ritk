@@ -163,7 +163,9 @@ fn test_find_by_folder_found() {
     let found = tree.find_by_folder(Path::new("/data/scan2"));
     assert!(found.is_some(), "find_by_folder must find '/data/scan2'");
     assert_eq!(
-        found.expect("infallible: validated precondition").series_uid,
+        found
+            .expect("infallible: validated precondition")
+            .series_uid,
         "S2",
         "found entry must be the MR series with uid S2"
     );

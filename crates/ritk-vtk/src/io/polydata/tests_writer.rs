@@ -95,7 +95,8 @@ fn test_roundtrip_validate() {
     };
     let tmp = NamedTempFile::new().expect("infallible: validated precondition");
     write_vtk_polydata(tmp.path(), &poly).expect("infallible: validated precondition");
-    let result = crate::io::polydata::reader::read_vtk_polydata(tmp.path()).expect("infallible: validated precondition");
+    let result = crate::io::polydata::reader::read_vtk_polydata(tmp.path())
+        .expect("infallible: validated precondition");
     assert!(
         result.validate().is_ok(),
         "round-trip result must satisfy VtkPolyData::validate()"

@@ -85,7 +85,9 @@ fn test_shape_detection_expands_in_homogeneous_region() {
     ls.edge_k = 1.0;
     ls.max_iterations = 200;
 
-    let result = ls.apply(&image, &phi).expect("infallible: validated precondition");
+    let result = ls
+        .apply(&image, &phi)
+        .expect("infallible: validated precondition");
     let final_fg = count_foreground(&result);
 
     assert!(
@@ -139,7 +141,9 @@ fn test_shape_detection_stops_at_edges() {
     ls.sigma = GaussianSigma::new_unchecked(1.0);
     ls.max_iterations = 200;
 
-    let result = ls.apply(&image, &phi).expect("infallible: validated precondition");
+    let result = ls
+        .apply(&image, &phi)
+        .expect("infallible: validated precondition");
     let final_fg = count_foreground(&result);
 
     assert!(

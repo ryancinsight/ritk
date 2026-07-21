@@ -17,7 +17,8 @@ fn img_with_origin(origin: [f64; 3]) -> Image<f32, B, 3> {
 #[test]
 fn transform_geometry_identity_is_noop() {
     let img = img_with_origin([10.0, 20.0, 30.0]);
-    let out = transform_geometry(&img, ID, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]).expect("infallible: validated precondition");
+    let out = transform_geometry(&img, ID, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0])
+        .expect("infallible: validated precondition");
     assert_eq!(out.origin(), img.origin());
     assert_eq!(out.spacing(), img.spacing());
     assert_eq!(out.direction().0, img.direction().0);
@@ -31,7 +32,8 @@ fn transform_geometry_identity_is_noop() {
 #[test]
 fn transform_geometry_translation_shifts_origin() {
     let img = img_with_origin([10.0, 20.0, 30.0]);
-    let out = transform_geometry(&img, ID, [2.0, -1.0, 0.5], [5.0, 5.0, 5.0]).expect("infallible: validated precondition");
+    let out = transform_geometry(&img, ID, [2.0, -1.0, 0.5], [5.0, 5.0, 5.0])
+        .expect("infallible: validated precondition");
     let o = out.origin();
     assert!((o[0] - 8.0).abs() < 1e-12, "origin x {} != 8", o[0]);
     assert!((o[1] - 21.0).abs() < 1e-12, "origin y {} != 21", o[1]);
@@ -45,7 +47,8 @@ fn transform_geometry_translation_shifts_origin() {
 fn transform_geometry_rotation_inverts_direction() {
     let img = img_with_origin([0.0, 0.0, 0.0]);
     let rot = [[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]];
-    let out = transform_geometry(&img, rot, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]).expect("infallible: validated precondition");
+    let out = transform_geometry(&img, rot, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0])
+        .expect("infallible: validated precondition");
     let d = out.direction().0;
     // A⁻¹ = Aᵀ = [[0,1,0],[-1,0,0],[0,0,1]]
     let expected = Direction::from_rows([[0.0, 1.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]);

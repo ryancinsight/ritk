@@ -23,7 +23,9 @@ fn test_constant_image_unchanged() {
     let img = make_image(vals.clone(), dims);
 
     let filter = CurvatureAnisotropicDiffusionFilter::new(CurvatureConfig::default());
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let out_vals = image_vals(&out);
 
     let max_diff = out_vals
@@ -101,7 +103,9 @@ fn test_linear_field_deep_interior_unchanged() {
         time_step: 1.0 / 16.0,
         conductance: 3.0,
     });
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let out_vals = image_vals(&out);
 
     // Margin of (iters + 1) keeps every stencil access away from the propagated
@@ -148,7 +152,9 @@ fn test_mean_conservation() {
         time_step: 1.0 / 16.0,
         conductance: 3.0,
     });
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let out_vals = image_vals(&out);
     let mean_out: f32 = out_vals.iter().sum::<f32>() / n as f32;
 
@@ -188,7 +194,9 @@ fn test_spherical_blob_smoothed() {
         time_step: 1.0 / 16.0,
         conductance: 3.0,
     });
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let out_vals = image_vals(&out);
     let max_grad_out = max_gradient_magnitude(&out_vals, [nz, ny, nx]);
 
@@ -221,7 +229,9 @@ fn test_stability_small_timestep() {
         time_step: 1.0 / 16.0,
         conductance: 3.0,
     });
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let out_vals = image_vals(&out);
 
     for &v in &out_vals {

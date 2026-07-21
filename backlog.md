@@ -1,7 +1,7 @@
 # RITK Backlog - Active Planning
 
 - **VIS-665-01 [arch] [major] - Consume Iris color laws
-  (REVIEW; owner=Codex `/root`; scope=`Cargo.toml`, `Cargo.lock`,
+  (DONE; owner=Codex `/root`; scope=`Cargo.toml`, `Cargo.lock`,
   `crates/ritk-snap/{Cargo.toml,src/{render,app,session,tools,ui}/**}`,
   `crates/ritk-vtk/{Cargo.toml,src/{lib.rs,domain/{mod.rs,mapper.rs}}}`,
   `README.md`, `CHANGELOG.md`, PM artifacts).** Replace the independent
@@ -16,6 +16,10 @@
   warning-denied all-target Clippy, doctests, and warning-clean Rustdoc pass.
   `cargo-semver-checks` reports only the intended major removals: VTK's
   `ColormapPreset`, Snap's `Colormap`, and Snap's `render::colormap` module.
+  PR 46 merged as `1bc665d4` from exact head `33855845` after CI
+  `29831435735`, Python CI `29831435956`, and migration audit `29831435835`
+  passed. Atlas PR 71 registered Iris and the consumer revision at
+  `6740296b`.
 
 - **CI-664-01 [arch] [patch] - Consume the Atlas-owned provider graph
   (REVIEW; owner=Codex `/root`; scope=`.github/workflows/{ci,

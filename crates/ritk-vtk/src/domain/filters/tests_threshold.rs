@@ -21,7 +21,9 @@ fn image_2x2x1(values: [f32; 4]) -> VtkImageData {
 fn all_below_lower_bound_gives_empty_output() {
     let f = ThresholdFilter::new("scalars", 10.0, 20.0);
     let img = image_2x2x1([0.1, 0.2, 0.3, 0.4]);
-    let out = f.execute(VtkDataObject::ImageData(img)).expect("infallible: validated precondition");
+    let out = f
+        .execute(VtkDataObject::ImageData(img))
+        .expect("infallible: validated precondition");
     let VtkDataObject::UnstructuredGrid(ug) = out else {
         panic!()
     };
@@ -33,7 +35,9 @@ fn all_below_lower_bound_gives_empty_output() {
 fn all_above_upper_bound_gives_empty_output() {
     let f = ThresholdFilter::new("scalars", -20.0, -10.0);
     let img = image_2x2x1([0.1, 0.2, 0.3, 0.4]);
-    let out = f.execute(VtkDataObject::ImageData(img)).expect("infallible: validated precondition");
+    let out = f
+        .execute(VtkDataObject::ImageData(img))
+        .expect("infallible: validated precondition");
     let VtkDataObject::UnstructuredGrid(ug) = out else {
         panic!()
     };
@@ -44,7 +48,9 @@ fn all_above_upper_bound_gives_empty_output() {
 fn all_in_range_passes_all_points() {
     let f = ThresholdFilter::new("scalars", 0.0, 1.0);
     let img = image_2x2x1([0.1, 0.2, 0.3, 0.4]);
-    let out = f.execute(VtkDataObject::ImageData(img)).expect("infallible: validated precondition");
+    let out = f
+        .execute(VtkDataObject::ImageData(img))
+        .expect("infallible: validated precondition");
     let VtkDataObject::UnstructuredGrid(ug) = out else {
         panic!()
     };
@@ -57,7 +63,9 @@ fn boundary_values_are_inclusive() {
     // values = [0.1, 0.5, 0.8, 1.2]; threshold [0.5, 0.8] → passes indices 1 and 2
     let f = ThresholdFilter::new("scalars", 0.5, 0.8);
     let img = image_2x2x1([0.1, 0.5, 0.8, 1.2]);
-    let out = f.execute(VtkDataObject::ImageData(img)).expect("infallible: validated precondition");
+    let out = f
+        .execute(VtkDataObject::ImageData(img))
+        .expect("infallible: validated precondition");
     let VtkDataObject::UnstructuredGrid(ug) = out else {
         panic!()
     };
@@ -67,7 +75,8 @@ fn boundary_values_are_inclusive() {
         "exactly lower and upper boundary values pass: got {} points",
         ug.points.len()
     );
-    let AttributeArray::Scalars { values, .. } = ug.cell_data.get("scalars").expect("valid index") else {
+    let AttributeArray::Scalars { values, .. } = ug.cell_data.get("scalars").expect("valid index")
+    else {
         panic!()
     };
     // Both passing scalars must be within [0.5, 0.8]
@@ -95,12 +104,16 @@ fn threshold_on_unstructured_grid_filters_cells() {
         },
     );
     let f = ThresholdFilter::new("pressure", 4.0, 6.0);
-    let out = f.execute(VtkDataObject::UnstructuredGrid(ug)).expect("infallible: validated precondition");
+    let out = f
+        .execute(VtkDataObject::UnstructuredGrid(ug))
+        .expect("infallible: validated precondition");
     let VtkDataObject::UnstructuredGrid(result) = out else {
         panic!()
     };
     assert_eq!(result.n_cells(), 1, "only cell with scalar=5.0 must pass");
-    let AttributeArray::Scalars { values, .. } = result.cell_data.get("pressure").expect("valid index") else {
+    let AttributeArray::Scalars { values, .. } =
+        result.cell_data.get("pressure").expect("valid index")
+    else {
         panic!()
     };
     assert_eq!(values.len(), 1);

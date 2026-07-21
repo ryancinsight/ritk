@@ -47,7 +47,9 @@ fn identity_registration_high_cc() {
         ..Default::default()
     });
 
-    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
+    let result = reg
+        .register(&image, &image, dims, [1.0, 1.0, 1.0])
+        .expect("infallible: validated precondition");
     assert!(
         result.final_cc > 0.9,
         "identity registration should have CC > 0.9, got {}",

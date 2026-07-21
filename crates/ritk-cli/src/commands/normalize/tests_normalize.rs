@@ -55,7 +55,8 @@ fn test_normalize_zscore_output_has_near_zero_mean() {
     let input = dir.path().join("in.nii.gz");
     let output = dir.path().join("out.nii.gz");
     write_ramp_image(&input);
-    run(default_args(NormalizeMethod::Zscore, input, output.clone())).expect("infallible: validated precondition");
+    run(default_args(NormalizeMethod::Zscore, input, output.clone()))
+        .expect("infallible: validated precondition");
     let im = read_image(&output).expect("read native z-score output");
     let vals = im
         .data_slice()
@@ -72,7 +73,8 @@ fn test_normalize_minmax_output_in_zero_one() {
     let input = dir.path().join("in.nii.gz");
     let output = dir.path().join("out.nii.gz");
     write_ramp_image(&input);
-    run(default_args(NormalizeMethod::Minmax, input, output.clone())).expect("infallible: validated precondition");
+    run(default_args(NormalizeMethod::Minmax, input, output.clone()))
+        .expect("infallible: validated precondition");
     let im = read_image(&output).expect("read native minmax output");
     let vals = im
         .data_slice()
@@ -128,7 +130,8 @@ fn test_normalize_nyul_creates_output() {
     let input = dir.path().join("in.nii.gz");
     let output = dir.path().join("out.nii.gz");
     write_ramp_image(&input);
-    run(default_args(NormalizeMethod::Nyul, input, output.clone())).expect("infallible: validated precondition");
+    run(default_args(NormalizeMethod::Nyul, input, output.clone()))
+        .expect("infallible: validated precondition");
     assert!(output.exists());
 }
 

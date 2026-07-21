@@ -17,7 +17,8 @@ const ID: [[f64; 3]; 3] = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
 fn transform_to_displacement_identity_is_zero() {
     let dims = [4usize, 5, 6];
     let (dz, dy, dx) =
-        transform_to_displacement_field(&make(dims), ID, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]).expect("infallible: validated precondition");
+        transform_to_displacement_field(&make(dims), ID, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0])
+            .expect("infallible: validated precondition");
     for img in [&dz, &dy, &dx] {
         let (v, _) = extract_vec_infallible(img);
         assert!(
@@ -35,7 +36,8 @@ fn transform_to_displacement_translation_is_constant() {
     let dims = [3usize, 4, 5];
     let (tx, ty, tz) = (1.5f64, -2.0, 0.75);
     let (dz, dy, dx) =
-        transform_to_displacement_field(&make(dims), ID, [tx, ty, tz], [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
+        transform_to_displacement_field(&make(dims), ID, [tx, ty, tz], [1.0, 1.0, 1.0])
+            .expect("infallible: validated precondition");
     let check = |img: &Image<f32, B, 3>, want: f64| {
         let (v, _) = extract_vec_infallible(img);
         assert!(
@@ -53,8 +55,8 @@ fn transform_to_displacement_translation_is_constant() {
 fn transform_to_displacement_preserves_geometry() {
     let dims = [2usize, 3, 4];
     let img = make(dims);
-    let (dz, dy, dx) =
-        transform_to_displacement_field(&img, ID, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]).expect("infallible: validated precondition");
+    let (dz, dy, dx) = transform_to_displacement_field(&img, ID, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0])
+        .expect("infallible: validated precondition");
     for comp in [&dz, &dy, &dx] {
         assert_eq!(comp.shape(), dims);
         assert_eq!(comp.spacing()[0], img.spacing()[0]);

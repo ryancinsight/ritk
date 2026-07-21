@@ -16,7 +16,10 @@ use std::net::TcpStream;
 fn rpc(uid: &str, ts: &[&str]) -> RequestedPresentationContext {
     RequestedPresentationContext {
         abstract_syntax_uid: ArrayString::from(uid).expect("infallible: validated precondition"),
-        transfer_syntax_uids: ts.iter().map(|s| ArrayString::from(s).expect("infallible: validated precondition")).collect(),
+        transfer_syntax_uids: ts
+            .iter()
+            .map(|s| ArrayString::from(s).expect("infallible: validated precondition"))
+            .collect(),
     }
 }
 
@@ -69,7 +72,10 @@ fn test_build_associate_rq() {
             transfer_syntax::IMPLICIT_VR_LE
         );
     }
-    assert_eq!(pdu, Pdu::decode(&pdu.encode()).expect("infallible: validated precondition"));
+    assert_eq!(
+        pdu,
+        Pdu::decode(&pdu.encode()).expect("infallible: validated precondition")
+    );
 }
 
 #[test]
@@ -97,17 +103,22 @@ fn test_fragment_pdv_multiple() {
 fn test_find_context() {
     let l = TcpListener::bind("127.0.0.1:0").expect("infallible: validated precondition");
     let a = Association {
-        stream: TcpStream::connect(l.local_addr().expect("infallible: validated precondition")).expect("infallible: validated precondition"),
+        stream: TcpStream::connect(l.local_addr().expect("infallible: validated precondition"))
+            .expect("infallible: validated precondition"),
         negotiated_contexts: vec![
             NegotiatedContext {
                 presentation_context_id: 1,
-                abstract_syntax_uid: ArrayString::from(sop_class::VERIFICATION).expect("infallible: validated precondition"),
-                transfer_syntax_uid: ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).expect("infallible: validated precondition"),
+                abstract_syntax_uid: ArrayString::from(sop_class::VERIFICATION)
+                    .expect("infallible: validated precondition"),
+                transfer_syntax_uid: ArrayString::from(transfer_syntax::IMPLICIT_VR_LE)
+                    .expect("infallible: validated precondition"),
             },
             NegotiatedContext {
                 presentation_context_id: 3,
-                abstract_syntax_uid: ArrayString::from(sop_class::FIND_STUDY).expect("infallible: validated precondition"),
-                transfer_syntax_uid: ArrayString::from(transfer_syntax::EXPLICIT_VR_LE).expect("infallible: validated precondition"),
+                abstract_syntax_uid: ArrayString::from(sop_class::FIND_STUDY)
+                    .expect("infallible: validated precondition"),
+                transfer_syntax_uid: ArrayString::from(transfer_syntax::EXPLICIT_VR_LE)
+                    .expect("infallible: validated precondition"),
             },
         ],
         next_context_id: 7,
@@ -129,32 +140,43 @@ fn test_negotiated_context_from_ac() {
         protocol_version: 1,
         called_ae_title: ArrayString::from("SCP").expect("infallible: validated precondition"),
         calling_ae_title: ArrayString::from("RITK").expect("infallible: validated precondition"),
-        application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME).expect("infallible: validated precondition"),
+        application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME)
+            .expect("infallible: validated precondition"),
         presentation_contexts: vec![
             PresentationContextItemAc {
                 presentation_context_id: 1,
                 result_reason: 0,
-                transfer_syntax_uid: ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).expect("infallible: validated precondition"),
+                transfer_syntax_uid: ArrayString::from(transfer_syntax::IMPLICIT_VR_LE)
+                    .expect("infallible: validated precondition"),
             },
             PresentationContextItemAc {
                 presentation_context_id: 3,
                 result_reason: 1,
-                transfer_syntax_uid: ArrayString::from(transfer_syntax::EXPLICIT_VR_LE).expect("infallible: validated precondition"),
+                transfer_syntax_uid: ArrayString::from(transfer_syntax::EXPLICIT_VR_LE)
+                    .expect("infallible: validated precondition"),
             },
         ],
         user_information: UserInformation::default(),
     };
     let mut m = std::collections::HashMap::new();
-    m.insert(1u8, ArrayString::from(sop_class::VERIFICATION).expect("infallible: validated precondition"));
-    m.insert(3u8, ArrayString::from(sop_class::FIND_STUDY).expect("infallible: validated precondition"));
+    m.insert(
+        1u8,
+        ArrayString::from(sop_class::VERIFICATION).expect("infallible: validated precondition"),
+    );
+    m.insert(
+        3u8,
+        ArrayString::from(sop_class::FIND_STUDY).expect("infallible: validated precondition"),
+    );
     let n = Association::negotiated_contexts_from_ac(&ac, &m);
     assert_eq!(n.len(), 1);
     assert_eq!(
         n[0],
         NegotiatedContext {
             presentation_context_id: 1,
-            abstract_syntax_uid: ArrayString::from(sop_class::VERIFICATION).expect("infallible: validated precondition"),
-            transfer_syntax_uid: ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).expect("infallible: validated precondition")
+            abstract_syntax_uid: ArrayString::from(sop_class::VERIFICATION)
+                .expect("infallible: validated precondition"),
+            transfer_syntax_uid: ArrayString::from(transfer_syntax::IMPLICIT_VR_LE)
+                .expect("infallible: validated precondition")
         }
     );
 }

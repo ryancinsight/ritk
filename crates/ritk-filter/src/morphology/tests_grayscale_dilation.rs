@@ -59,7 +59,9 @@ fn test_constant_image_unchanged() {
     let img = make_image(vals, dims);
 
     let filter = GrayscaleDilation::new(2);
-    let result = filter.apply(&img).expect("infallible: validated precondition");
+    let result = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let out = extract_vals(&result);
 
     for (i, &v) in out.iter().enumerate() {
@@ -95,7 +97,9 @@ fn test_bright_spot_expanded() {
     let img = make_image(vals, dims);
     let radius = 1usize;
     let filter = GrayscaleDilation::new(radius);
-    let result = filter.apply(&img).expect("infallible: validated precondition");
+    let result = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let out = extract_vals(&result);
 
     // All voxels within L∞ distance ≤ radius of the centre should be bright
@@ -138,7 +142,9 @@ fn test_radius_zero_identity() {
     let img = make_image(vals.clone(), dims);
 
     let filter = GrayscaleDilation::new(0);
-    let result = filter.apply(&img).expect("infallible: validated precondition");
+    let result = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let out = extract_vals(&result);
 
     for (i, (&expected, &actual)) in vals.iter().zip(out.iter()).enumerate() {
@@ -160,7 +166,9 @@ fn test_extensivity() {
     let img = make_image(vals.clone(), dims);
 
     let filter = GrayscaleDilation::new(1);
-    let result = filter.apply(&img).expect("infallible: validated precondition");
+    let result = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let out = extract_vals(&result);
 
     for (i, (&original, &dilated)) in vals.iter().zip(out.iter()).enumerate() {
@@ -189,8 +197,16 @@ fn test_duality_with_erosion() {
     let dilation = GrayscaleDilation::new(radius);
     let erosion = crate::morphology::GrayscaleErosion::new(radius);
 
-    let dilated = extract_vals(&dilation.apply(&img).expect("infallible: validated precondition"));
-    let eroded_neg = extract_vals(&erosion.apply(&neg_img).expect("infallible: validated precondition"));
+    let dilated = extract_vals(
+        &dilation
+            .apply(&img)
+            .expect("infallible: validated precondition"),
+    );
+    let eroded_neg = extract_vals(
+        &erosion
+            .apply(&neg_img)
+            .expect("infallible: validated precondition"),
+    );
 
     for i in 0..n {
         let expected = -eroded_neg[i];

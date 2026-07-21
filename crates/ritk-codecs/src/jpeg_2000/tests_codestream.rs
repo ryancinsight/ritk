@@ -5,7 +5,9 @@ fn cursor_segment_body_round_trips_length() {
     let data: &[u8] = &[0xFF, 0x52, 0x00, 0x05, 0xAA, 0xBB, 0xCC];
     let mut cur = Cursor::new(data);
     let _m = cur.read_u16().expect("infallible: validated precondition"); // consume marker
-    let body = cur.read_segment_body().expect("infallible: validated precondition");
+    let body = cur
+        .read_segment_body()
+        .expect("infallible: validated precondition");
     assert_eq!(body, &[0xAA, 0xBB, 0xCC]);
     assert_eq!(cur.pos(), 7);
 }

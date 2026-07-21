@@ -56,7 +56,10 @@ fn test_label_table_set_visibility() {
     let ok = table.set_visibility(2, Visibility::Hidden);
     assert!(ok, "set_visibility must return true for present label");
     assert_eq!(
-        table.get_label(2).expect("infallible: validated precondition").visible,
+        table
+            .get_label(2)
+            .expect("infallible: validated precondition")
+            .visible,
         Visibility::Hidden,
         "label must be invisible after set_visibility(Hidden)"
     );

@@ -22,7 +22,9 @@ fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
 fn tile_mean_factor_one_is_identity() {
     let data: Vec<f32> = (0..24).map(|i| i as f32).collect();
     let img = make_image(data.clone(), [2, 3, 4], [1.0, 1.0, 1.0]);
-    let out = TileMeanShrinkFilter::new([1, 1, 1]).apply(&img).expect("infallible: validated precondition");
+    let out = TileMeanShrinkFilter::new([1, 1, 1])
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [2, 3, 4]);
     let v = voxels(&out);
     for (a, b) in v.iter().zip(data.iter()) {
@@ -35,7 +37,9 @@ fn tile_mean_factor_one_is_identity() {
 #[test]
 fn tile_mean_x_by_2() {
     let img = make_image(vec![0.0, 2.0, 4.0, 6.0], [1, 1, 4], [1.0, 1.0, 1.0]);
-    let out = TileMeanShrinkFilter::new([1, 1, 2]).apply(&img).expect("infallible: validated precondition");
+    let out = TileMeanShrinkFilter::new([1, 1, 2])
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 1, 2]);
     let v = voxels(&out);
     assert!((v[0] - 1.0).abs() < 1e-5, "v[0]={}", v[0]);
@@ -46,7 +50,9 @@ fn tile_mean_x_by_2() {
 #[test]
 fn tile_mean_output_spacing_scales() {
     let img = make_image(vec![1.0f32; 8], [2, 2, 2], [1.0, 2.0, 3.0]);
-    let out = TileMeanShrinkFilter::new([2, 2, 2]).apply(&img).expect("infallible: validated precondition");
+    let out = TileMeanShrinkFilter::new([2, 2, 2])
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 1, 1]);
     let s = out.spacing();
     assert!((s[0] - 2.0).abs() < 1e-10, "sz={}", s[0]);
@@ -59,7 +65,9 @@ fn tile_mean_output_spacing_scales() {
 #[test]
 fn tile_mean_odd_size_ceil_division() {
     let img = make_image(vec![0.0, 1.0, 2.0, 3.0, 4.0], [1, 1, 5], [1.0, 1.0, 1.0]);
-    let out = TileMeanShrinkFilter::new([1, 1, 2]).apply(&img).expect("infallible: validated precondition");
+    let out = TileMeanShrinkFilter::new([1, 1, 2])
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 1, 3]);
     let v = voxels(&out);
     assert!((v[0] - 0.5).abs() < 1e-5, "v[0]={}", v[0]); // mean(0,1)
@@ -109,7 +117,9 @@ fn native_tile_mean_preserves_origin_and_scales_spacing() {
 fn subsample_factor_one_is_identity() {
     let data: Vec<f32> = (0..24).map(|i| i as f32).collect();
     let img = make_image(data.clone(), [2, 3, 4], [1.0, 1.0, 1.0]);
-    let out = ShrinkImageFilter::new([1, 1, 1]).apply(&img).expect("infallible: validated precondition");
+    let out = ShrinkImageFilter::new([1, 1, 1])
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [2, 3, 4]);
     assert_eq!(voxels(&out), data);
 }
@@ -122,7 +132,9 @@ fn subsample_factor_one_is_identity() {
 fn subsample_matches_itk_offset() {
     let data: Vec<f32> = (0..24).map(|i| i as f32).collect();
     let img = make_image(data, [1, 4, 6], [1.0, 1.0, 1.0]);
-    let out = ShrinkImageFilter::new([1, 2, 2]).apply(&img).expect("infallible: validated precondition");
+    let out = ShrinkImageFilter::new([1, 2, 2])
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 2, 3]);
     assert_eq!(voxels(&out), vec![7.0, 9.0, 11.0, 19.0, 21.0, 23.0]);
 }
@@ -133,7 +145,9 @@ fn subsample_matches_itk_offset() {
 fn subsample_centers_samples_on_remainder() {
     let data: Vec<f32> = (0..12).map(|i| i as f32).collect();
     let img = make_image(data, [1, 1, 12], [1.0, 1.0, 1.0]);
-    let out = ShrinkImageFilter::new([1, 1, 5]).apply(&img).expect("infallible: validated precondition");
+    let out = ShrinkImageFilter::new([1, 1, 5])
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 1, 2]);
     assert_eq!(voxels(&out), vec![3.0, 8.0]);
     // Origin shift = (12 mod 5 + 5 − 1)/2 = (2+4)/2 = 3.0 voxels.
@@ -149,7 +163,9 @@ fn subsample_centers_samples_on_remainder() {
 #[test]
 fn subsample_spacing_and_origin() {
     let img = make_image(vec![3.0f32; 24], [1, 4, 6], [1.0, 1.0, 1.0]);
-    let out = ShrinkImageFilter::new([1, 2, 2]).apply(&img).expect("infallible: validated precondition");
+    let out = ShrinkImageFilter::new([1, 2, 2])
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let s = out.spacing();
     assert!((s[1] - 2.0).abs() < 1e-10 && (s[2] - 2.0).abs() < 1e-10);
     let o = out.origin();

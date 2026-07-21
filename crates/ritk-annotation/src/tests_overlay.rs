@@ -128,7 +128,8 @@ fn test_label_id_serde_json_is_integer() {
     let id = LabelId(42);
     let json = serde_json::to_string(&id).expect("infallible: validated precondition");
     assert_eq!(json, "42");
-    let round_tripped: LabelId = serde_json::from_str(&json).expect("infallible: validated precondition");
+    let round_tripped: LabelId =
+        serde_json::from_str(&json).expect("infallible: validated precondition");
     assert_eq!(round_tripped, LabelId(42));
 }
 
@@ -163,7 +164,8 @@ fn test_contour_overlay_label_id_serde_exact() {
     c.add_contour(vec![[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]])
         .expect("infallible: validated precondition");
     let json = serde_json::to_string(&c).expect("infallible: validated precondition");
-    let rt: ContourOverlay = serde_json::from_str(&json).expect("infallible: validated precondition");
+    let rt: ContourOverlay =
+        serde_json::from_str(&json).expect("infallible: validated precondition");
     assert_eq!(rt.label_id, LabelId(77));
     assert_eq!(u32::from(rt.label_id), 77);
 }

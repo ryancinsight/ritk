@@ -70,7 +70,9 @@ fn make_complex_3d(data: Vec<f32>, depth: usize, h: usize, w_complex: usize) -> 
 fn output_shape_preserved_after_inverse() {
     let data = vec![0.0_f32; 4 * 12];
     let img = make_complex_2d(data, 4, 12);
-    let result = InverseFftFilter::new().apply(&img).expect("infallible: validated precondition");
+    let result = InverseFftFilter::new()
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(
         result.shape(),
         [4, 6],
@@ -85,7 +87,9 @@ fn output_shape_preserved_after_inverse() {
 fn output_shape_preserved_after_inverse_volume() {
     let data = vec![0.0_f32; 3 * 4 * 12];
     let img = make_complex_3d(data, 3, 4, 12);
-    let result = InverseFftFilter::new().apply(&img).expect("infallible: validated precondition");
+    let result = InverseFftFilter::new()
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(
         result.shape(),
         [3, 4, 6],
@@ -102,7 +106,9 @@ fn all_zero_complex_image_gives_zero_real() {
     // H=4, W=4; complex shape [4, 8] = [H, 2*W].
     let data = vec![0.0_f32; 4 * 8];
     let img = make_complex_2d(data, 4, 8);
-    let result = InverseFftFilter::new().apply(&img).expect("infallible: validated precondition");
+    let result = InverseFftFilter::new()
+        .apply(&img)
+        .expect("infallible: validated precondition");
 
     assert_eq!(
         result.shape(),
@@ -140,7 +146,9 @@ fn dc_only_complex_input_reconstructs_to_constant() {
     data[1] = 0.0;
 
     let img = make_complex_2d(data, 4, 8);
-    let result = InverseFftFilter::new().apply(&img).expect("infallible: validated precondition");
+    let result = InverseFftFilter::new()
+        .apply(&img)
+        .expect("infallible: validated precondition");
 
     assert_eq!(
         result.shape(),

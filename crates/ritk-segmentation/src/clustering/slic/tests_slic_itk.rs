@@ -251,8 +251,12 @@ fn filter_native_legacy_and_sitk_outputs_are_exact() {
         .with_maximum_iterations(10)
         .expect("infallible: validated precondition");
     let filter = ItkSlicFilter::new(config);
-    let legacy_output = filter.apply(&legacy).expect("infallible: validated precondition");
-    let native_output = filter.apply_native(&native, &SequentialBackend).expect("infallible: validated precondition");
+    let legacy_output = filter
+        .apply(&legacy)
+        .expect("infallible: validated precondition");
+    let native_output = filter
+        .apply_native(&native, &SequentialBackend)
+        .expect("infallible: validated precondition");
     assert_eq!(
         legacy_output
             .data_slice()
@@ -260,7 +264,9 @@ fn filter_native_legacy_and_sitk_outputs_are_exact() {
         &FULL2D.map(|value| value as f32)
     );
     assert_eq!(
-        native_output.data_slice().expect("infallible: validated precondition"),
+        native_output
+            .data_slice()
+            .expect("infallible: validated precondition"),
         legacy_output
             .data_slice()
             .expect("invariant: contiguous host storage")
@@ -371,7 +377,9 @@ fn itk_slic_policies_and_accessors_route_exactly() {
         assert_eq!(config.maximum_iterations(), 10);
         assert_eq!(config.initialization_perturbation(), perturbation);
         assert_eq!(config.connectivity(), connectivity);
-        let actual = ItkSlicFilter::new(config).apply(&image).expect("infallible: validated precondition");
+        let actual = ItkSlicFilter::new(config)
+            .apply(&image)
+            .expect("infallible: validated precondition");
         let expected = slic_itk_impl(
             &values,
             &[12, 12],
@@ -399,7 +407,9 @@ fn itk_slic_extreme_representable_weight_keeps_exact_labels() {
         .expect("infallible: validated precondition")
         .with_initialization_perturbation(InitializationPerturbation::Disabled)
         .with_connectivity(ConnectivityEnforcement::Disabled);
-    let labels = ItkSlicFilter::new(config).apply(&image).expect("infallible: validated precondition");
+    let labels = ItkSlicFilter::new(config)
+        .apply(&image)
+        .expect("infallible: validated precondition");
     assert_eq!(
         labels
             .data_slice()

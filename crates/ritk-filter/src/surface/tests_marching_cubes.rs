@@ -114,9 +114,18 @@ fn single_corner_analytical_vertex_positions() {
     let mut xs: Vec<f64> = verts.iter().map(|v| v[0]).collect();
     let mut ys: Vec<f64> = verts.iter().map(|v| v[1]).collect();
     let mut zs: Vec<f64> = verts.iter().map(|v| v[2]).collect();
-    xs.sort_by(|a, b| a.partial_cmp(b).expect("infallible: validated precondition"));
-    ys.sort_by(|a, b| a.partial_cmp(b).expect("infallible: validated precondition"));
-    zs.sort_by(|a, b| a.partial_cmp(b).expect("infallible: validated precondition"));
+    xs.sort_by(|a, b| {
+        a.partial_cmp(b)
+            .expect("infallible: validated precondition")
+    });
+    ys.sort_by(|a, b| {
+        a.partial_cmp(b)
+            .expect("infallible: validated precondition")
+    });
+    zs.sort_by(|a, b| {
+        a.partial_cmp(b)
+            .expect("infallible: validated precondition")
+    });
     // The 3 vertices are permutations of the 3 midpoints:
     // one vertex at x=0.5 (edge 0), one at y=0.5 (edge 3), one at z=0.5 (edge 8).
     let unique_nonzero_x = xs.iter().filter(|&&v| v > 0.01).count();

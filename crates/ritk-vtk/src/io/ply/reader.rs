@@ -170,9 +170,12 @@ fn parse_ascii_body(text: &str, hdr: &PlyHeader) -> Result<VtkPolyData> {
     let has_n = hdr.has_normals();
     let (nxi, nyi, nzi) = if has_n {
         (
-            hdr.find_prop("nx").expect("infallible: validated precondition"),
-            hdr.find_prop("ny").expect("infallible: validated precondition"),
-            hdr.find_prop("nz").expect("infallible: validated precondition"),
+            hdr.find_prop("nx")
+                .expect("infallible: validated precondition"),
+            hdr.find_prop("ny")
+                .expect("infallible: validated precondition"),
+            hdr.find_prop("nz")
+                .expect("infallible: validated precondition"),
         )
     } else {
         (0, 0, 0)
@@ -253,9 +256,12 @@ fn parse_binary_le_body(body: &[u8], hdr: &PlyHeader) -> Result<VtkPolyData> {
     let has_n = hdr.has_normals();
     let (nxi, nyi, nzi) = if has_n {
         (
-            hdr.find_prop("nx").expect("infallible: validated precondition"),
-            hdr.find_prop("ny").expect("infallible: validated precondition"),
-            hdr.find_prop("nz").expect("infallible: validated precondition"),
+            hdr.find_prop("nx")
+                .expect("infallible: validated precondition"),
+            hdr.find_prop("ny")
+                .expect("infallible: validated precondition"),
+            hdr.find_prop("nz")
+                .expect("infallible: validated precondition"),
         )
     } else {
         (0, 0, 0)

@@ -120,7 +120,8 @@ fn analyze_jacobian_zero_field() {
     let dims = [4, 4, 4];
     let n = dims[0] * dims[1] * dims[2]; // 64
     let disp = zero_disp(dims);
-    let jac = jacobian_determinant(&disp, &disp, &disp).expect("infallible: validated precondition");
+    let jac =
+        jacobian_determinant(&disp, &disp, &disp).expect("infallible: validated precondition");
     let stats = analyze_jacobian(&jac).expect("infallible: validated precondition");
 
     assert!(
@@ -154,7 +155,8 @@ fn output_shape_matches_input() {
     let dims = [5, 4, 3];
     let n = dims[0] * dims[1] * dims[2];
     let disp = make_disp(vec![0.0f32; n], dims, [1.0, 1.0, 1.0]);
-    let jac = jacobian_determinant(&disp, &disp, &disp).expect("infallible: validated precondition");
+    let jac =
+        jacobian_determinant(&disp, &disp, &disp).expect("infallible: validated precondition");
     assert_eq!(jac.shape(), dims, "output shape must equal input shape");
 }
 
@@ -163,7 +165,8 @@ fn output_shape_matches_input() {
 fn analyze_jacobian_returns_correct_stats_for_identity() {
     let dims = [4, 4, 4];
     let disp = zero_disp(dims);
-    let jac = jacobian_determinant(&disp, &disp, &disp).expect("infallible: validated precondition");
+    let jac =
+        jacobian_determinant(&disp, &disp, &disp).expect("infallible: validated precondition");
     let stats = analyze_jacobian(&jac).expect("infallible: validated precondition");
 
     assert_eq!(

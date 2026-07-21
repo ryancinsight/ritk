@@ -130,7 +130,9 @@ fn test_isolated_voxel_detected() {
     let mut v = vec![0.0_f32; n];
     let c = 4 * ny * nx + 4 * nx + 4;
     v[c] = 1.0;
-    let out = vv(&HitOrMissTransform::new(0, 1).apply(&img(v, dims)).expect("infallible: validated precondition"));
+    let out = vv(&HitOrMissTransform::new(0, 1)
+        .apply(&img(v, dims))
+        .expect("infallible: validated precondition"));
     assert!(out[c] > 0.5, "centre must be detected, got {}", out[c]);
     for (i, &v) in out.iter().enumerate() {
         if i != c {
@@ -180,7 +182,9 @@ fn hit_or_miss_works_on_2d_z1_image() {
             v[y * 7 + x] = 1.0;
         }
     }
-    let out = vv(&HitOrMissTransform::new(1, 0).apply(&img(v, dims)).expect("infallible: validated precondition"));
+    let out = vv(&HitOrMissTransform::new(1, 0)
+        .apply(&img(v, dims))
+        .expect("infallible: validated precondition"));
     let hits = out.iter().filter(|&&x| x > 0.5).count();
     assert_eq!(
         hits, 9,
