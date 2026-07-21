@@ -38,7 +38,8 @@ fn order_dimensions_by_dimorder_zyx() {
         "yspace".to_string(),
         "xspace".to_string(),
     ];
-    let ordered = order_dimensions_by_dimorder(&dims, &dimorder).expect("infallible: validated precondition");
+    let ordered =
+        order_dimensions_by_dimorder(&dims, &dimorder).expect("infallible: validated precondition");
     assert_eq!(ordered[0].name, "zspace");
     assert_eq!(ordered[0].length, 48);
     assert_eq!(ordered[1].name, "yspace");

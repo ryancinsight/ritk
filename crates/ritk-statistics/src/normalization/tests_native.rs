@@ -69,8 +69,11 @@ fn zscore_ramp_has_zero_mean_unit_variance() {
     // Ramp [1..5]: mean 3, population var 2. After (x-3)/√2 the output has
     // mean 0 and population variance 1 (up to the ε in the denominator).
     let img = native(vec![1.0, 2.0, 3.0, 4.0, 5.0], [5]);
-    let out = ZScoreNormalizer::new().normalize_native(&img).expect("infallible: validated precondition");
-    let stats = crate::image_statistics::native::compute_statistics(&out).expect("infallible: validated precondition");
+    let out = ZScoreNormalizer::new()
+        .normalize_native(&img)
+        .expect("infallible: validated precondition");
+    let stats = crate::image_statistics::native::compute_statistics(&out)
+        .expect("infallible: validated precondition");
     assert!(stats.mean.abs() < 1e-5, "mean ≈ 0, got {}", stats.mean);
     assert!((stats.std - 1.0).abs() < 1e-3, "std ≈ 1, got {}", stats.std);
 }
@@ -180,7 +183,9 @@ fn nyul_udupa_matches_sequential() {
         &native(train_b.clone(), [50]),
     ])
     .expect("infallible: validated precondition");
-    let nb = n.apply_native(&native(target.clone(), [50])).expect("infallible: validated precondition");
+    let nb = n
+        .apply_native(&native(target.clone(), [50]))
+        .expect("infallible: validated precondition");
 
     let mut sequential_normalizer = NyulUdupaNormalizer::new();
     sequential_normalizer.learn_standard(&[&sequential(train_a, [50]), &sequential(train_b, [50])]);

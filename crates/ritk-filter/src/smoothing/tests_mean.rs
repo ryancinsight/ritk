@@ -21,7 +21,9 @@ fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
 #[test]
 fn constant_image_identity() {
     let img = make_image(vec![7.0f32; 27], [3, 3, 3]);
-    let out = MeanImageFilter::new(1).apply(&img).expect("infallible: validated precondition");
+    let out = MeanImageFilter::new(1)
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let v = voxels(&out);
     for &x in &v {
         assert!((x - 7.0).abs() < 1e-5, "expected 7.0 got {x}");
@@ -33,7 +35,9 @@ fn constant_image_identity() {
 fn radius_zero_is_identity() {
     let data: Vec<f32> = (0..27).map(|i| i as f32).collect();
     let img = make_image(data.clone(), [3, 3, 3]);
-    let out = MeanImageFilter::new(0).apply(&img).expect("infallible: validated precondition");
+    let out = MeanImageFilter::new(0)
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let v = voxels(&out);
     for (a, b) in v.iter().zip(data.iter()) {
         assert!((a - b).abs() < 1e-6, "{a} != {b}");
@@ -44,7 +48,9 @@ fn radius_zero_is_identity() {
 #[test]
 fn single_voxel_returns_itself() {
     let img = make_image(vec![42.0], [1, 1, 1]);
-    let out = MeanImageFilter::new(2).apply(&img).expect("infallible: validated precondition");
+    let out = MeanImageFilter::new(2)
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert!((voxels(&out)[0] - 42.0).abs() < 1e-5);
 }
 
@@ -55,7 +61,9 @@ fn step_edge_center_mean() {
     // 1×1×4 image: [0, 0, 10, 10]. With r=1, voxel at index 1:
     // neighbourhood = [0,0,10] → mean = 10/3 ≈ 3.333
     let img = make_image(vec![0.0, 0.0, 10.0, 10.0], [1, 1, 4]);
-    let out = MeanImageFilter::new(1).apply(&img).expect("infallible: validated precondition");
+    let out = MeanImageFilter::new(1)
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let v = voxels(&out);
     // voxel 1 (0-indexed): neighbourhood [0,0,10] → 10/3
     assert!((v[1] - 10.0 / 3.0).abs() < 1e-4, "v[1]={}", v[1]);
@@ -73,7 +81,9 @@ fn preserves_spatial_metadata() {
     let dir = Direction::identity();
     let img = Image::new(tensor, origin, spacing, dir)
         .expect("invariant: fixture tensor has the declared rank");
-    let out = MeanImageFilter::new(1).apply(&img).expect("infallible: validated precondition");
+    let out = MeanImageFilter::new(1)
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(*out.origin(), origin);
     assert_eq!(*out.spacing(), spacing);
 }
@@ -82,7 +92,9 @@ fn preserves_spatial_metadata() {
 #[test]
 fn output_shape_matches_input() {
     let img = make_image(vec![1.0f32; 60], [3, 4, 5]);
-    let out = MeanImageFilter::new(2).apply(&img).expect("infallible: validated precondition");
+    let out = MeanImageFilter::new(2)
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [3, 4, 5]);
 }
 

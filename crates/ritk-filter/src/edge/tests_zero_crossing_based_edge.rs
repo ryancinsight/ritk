@@ -48,7 +48,9 @@ fn zero_crossing_edge_custom_labels() {
         }
     }
     let f = ZeroCrossingBasedEdgeDetectionFilter::new(1.0, 0.01, 7.0, 3.0);
-    let out = f.apply(&make(vals, [nz, ny, nx])).expect("infallible: validated precondition");
+    let out = f
+        .apply(&make(vals, [nz, ny, nx]))
+        .expect("infallible: validated precondition");
     let (ov, _) = extract_vec_infallible(&out);
     assert!(
         ov.iter().all(|&v| v == 7.0 || v == 3.0),

@@ -27,7 +27,9 @@ fn test_add_contour_valid() {
         Point::new([1.0, 0.0, 0.0]),
         Point::new([0.5, 1.0, 0.0]),
     ];
-    state.add_contour(pts.clone()).expect("infallible: validated precondition");
+    state
+        .add_contour(pts.clone())
+        .expect("infallible: validated precondition");
     assert_eq!(state.contours.len(), 1);
     assert_eq!(state.contours[0], pts);
 }
@@ -60,7 +62,9 @@ fn test_add_polyline_valid() {
         Point::new([2.0, 0.0, 0.0]),
         Point::new([3.0, 0.0, 0.0]),
     ];
-    state.add_polyline(pts.clone()).expect("infallible: validated precondition");
+    state
+        .add_polyline(pts.clone())
+        .expect("infallible: validated precondition");
     assert_eq!(state.polylines.len(), 1);
     assert_eq!(state.polylines[0], pts);
 }

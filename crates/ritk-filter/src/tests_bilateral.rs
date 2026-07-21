@@ -28,7 +28,9 @@ fn test_bilateral_uniform_image_unchanged() {
     let img = make_image(vals, dims);
 
     let filter = BilateralFilter::new(1.5, 10.0);
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
 
     let result = extract_vals(&out);
     assert_eq!(result.len(), dims[0] * dims[1] * dims[2]);
@@ -60,7 +62,9 @@ fn test_bilateral_edge_preservation() {
     // Tight range sigma → intensity difference across edge (180) ≫ σ_r
     // so cross-edge weights are negligible.
     let filter = BilateralFilter::new(1.0, 5.0);
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let result = extract_vals(&out);
 
     // Check voxels well inside each region (≥2 voxels from boundary).
@@ -97,7 +101,9 @@ fn test_bilateral_metadata_preserved() {
     let img = make_image(vals, dims);
 
     let filter = BilateralFilter::new(1.0, 1.0);
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
 
     assert_eq!(out.origin(), img.origin());
     assert_eq!(out.spacing(), img.spacing());
@@ -143,7 +149,9 @@ fn test_bilateral_smooth_region_is_smoothed() {
 
     // Large range sigma so noise is within the range kernel → smoothed.
     let filter = BilateralFilter::new(1.5, 50.0);
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let result = extract_vals(&out);
 
     let output_mean = result.iter().sum::<f32>() / n as f32;
@@ -194,7 +202,9 @@ fn test_bilateral_matches_brute_force_reference() {
 
     let img = make_image(vals.clone(), dims);
     let filter = BilateralFilter::new(1.2, 4.0);
-    let out = filter.apply(&img).expect("infallible: validated precondition");
+    let out = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let actual = extract_vals(&out);
 
     // Brute-force reference (uses the original `compute` formula in plain

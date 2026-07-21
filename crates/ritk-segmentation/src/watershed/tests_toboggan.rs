@@ -17,7 +17,12 @@ fn z1(flat: Vec<f32>, rows: usize, cols: usize) -> ritk_image::Image<f32, B, 3> 
 }
 
 fn run(img: &ritk_image::Image<f32, B, 3>) -> Vec<f32> {
-    extract_vec_infallible(&TobogganFilter::new().apply(img).expect("infallible: validated precondition")).0
+    extract_vec_infallible(
+        &TobogganFilter::new()
+            .apply(img)
+            .expect("infallible: validated precondition"),
+    )
+    .0
 }
 
 fn f(v: &[i32]) -> Vec<f32> {
@@ -74,10 +79,16 @@ fn native_and_legacy_execution_are_exact_with_geometry() {
     )
     .expect("infallible: validated precondition");
     let filter = TobogganFilter::new();
-    let expected = filter.apply(&legacy).expect("infallible: validated precondition");
-    let actual = filter.apply_native(&native, &SequentialBackend).expect("infallible: validated precondition");
+    let expected = filter
+        .apply(&legacy)
+        .expect("infallible: validated precondition");
+    let actual = filter
+        .apply_native(&native, &SequentialBackend)
+        .expect("infallible: validated precondition");
     assert_eq!(
-        actual.data_slice().expect("infallible: validated precondition"),
+        actual
+            .data_slice()
+            .expect("infallible: validated precondition"),
         expected
             .data_slice()
             .expect("invariant: contiguous host storage")

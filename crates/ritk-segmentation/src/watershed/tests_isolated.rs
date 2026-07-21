@@ -113,7 +113,9 @@ fn test_isolated_watershed_identical_seeds_all_label1() {
 fn test_isolated_watershed_spatial_metadata_preserved() {
     let image = image_2d(RELIEF_7X7.to_vec(), 7, 7);
     let filter = IsolatedWatershed::new([0, 1, 3], [0, 5, 3], IsolatedWatershedConfig::default());
-    let result = filter.apply(&image).expect("infallible: validated precondition");
+    let result = filter
+        .apply(&image)
+        .expect("infallible: validated precondition");
     assert_eq!(result.origin(), image.origin());
     assert_eq!(result.spacing(), image.spacing());
     assert_eq!(result.direction(), image.direction());
@@ -212,10 +214,16 @@ fn native_and_legacy_execution_are_exact_with_geometry() {
     )
     .expect("infallible: validated precondition");
     let filter = IsolatedWatershed::new([0, 1, 3], [0, 5, 3], IsolatedWatershedConfig::default());
-    let expected = filter.apply(&legacy).expect("infallible: validated precondition");
-    let actual = filter.apply_native(&native, &SequentialBackend).expect("infallible: validated precondition");
+    let expected = filter
+        .apply(&legacy)
+        .expect("infallible: validated precondition");
+    let actual = filter
+        .apply_native(&native, &SequentialBackend)
+        .expect("infallible: validated precondition");
     assert_eq!(
-        actual.data_slice().expect("infallible: validated precondition"),
+        actual
+            .data_slice()
+            .expect("infallible: validated precondition"),
         expected
             .data_slice()
             .expect("invariant: contiguous host storage")
@@ -296,7 +304,14 @@ fn binary_search_stops_at_last_evaluated_level() {
     ];
     let filter = IsolatedWatershed::new([0, 1, 1], [0, 5, 6], IsolatedWatershedConfig::default());
     let image = image_2d(relief, 7, 8);
-    assert_eq!(labels(&filter.apply(&image).expect("infallible: validated precondition")), expected);
+    assert_eq!(
+        labels(
+            &filter
+                .apply(&image)
+                .expect("infallible: validated precondition")
+        ),
+        expected
+    );
 
     let label_counts = |config| {
         let output = labels(
@@ -307,15 +322,24 @@ fn binary_search_stops_at_last_evaluated_level() {
         [0.0, 1.0, 2.0].map(|label| output.iter().filter(|&&value| value == label).count())
     };
     assert_eq!(
-        label_counts(IsolatedWatershedConfig::new(0.2, 0.001, 1.0).expect("infallible: validated precondition")),
+        label_counts(
+            IsolatedWatershedConfig::new(0.2, 0.001, 1.0)
+                .expect("infallible: validated precondition")
+        ),
         [1, 31, 24]
     );
     assert_eq!(
-        label_counts(IsolatedWatershedConfig::new(0.0, 0.1, 1.0).expect("infallible: validated precondition")),
+        label_counts(
+            IsolatedWatershedConfig::new(0.0, 0.1, 1.0)
+                .expect("infallible: validated precondition")
+        ),
         [27, 8, 21]
     );
     assert_eq!(
-        label_counts(IsolatedWatershedConfig::new(0.0, 0.001, 0.8).expect("infallible: validated precondition")),
+        label_counts(
+            IsolatedWatershedConfig::new(0.0, 0.001, 0.8)
+                .expect("infallible: validated precondition")
+        ),
         [32, 8, 16]
     );
 }

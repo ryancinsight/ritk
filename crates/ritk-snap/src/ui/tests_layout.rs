@@ -82,7 +82,8 @@ fn test_layout_mode_labels_non_empty() {
 fn test_layout_mode_serde_round_trip() {
     for &mode in LayoutMode::all() {
         let json = serde_json::to_string(&mode).expect("infallible: validated precondition");
-        let recovered: LayoutMode = serde_json::from_str(&json).expect("infallible: validated precondition");
+        let recovered: LayoutMode =
+            serde_json::from_str(&json).expect("infallible: validated precondition");
         assert_eq!(
             mode, recovered,
             "{:?} serde round-trip must preserve value",

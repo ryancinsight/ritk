@@ -19,7 +19,9 @@ fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
 #[test]
 fn all_background_zero() {
     let img = make_image(vec![0.0f32; 27], [3, 3, 3]);
-    let out = BinaryContourImageFilter::default().apply(&img).expect("infallible: validated precondition");
+    let out = BinaryContourImageFilter::default()
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert!(voxels(&out).iter().all(|&v| v == 0.0));
 }
 
@@ -32,7 +34,9 @@ fn fully_solid_block_has_empty_contour() {
     // background, so the contour is empty — matching `sitk.BinaryContour`, which
     // leaves a full-foreground image all-zero.
     let img = make_image(vec![1.0f32; 27], [3, 3, 3]);
-    let out = BinaryContourImageFilter::default().apply(&img).expect("infallible: validated precondition");
+    let out = BinaryContourImageFilter::default()
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert!(
         voxels(&out).iter().all(|&x| x == 0.0),
         "full-foreground block must have an empty contour"
@@ -81,7 +85,9 @@ fn single_fg_voxel_is_border() {
     let mut data = vec![0.0f32; 27];
     data[13] = 1.0; // center of 3×3×3
     let img = make_image(data, [3, 3, 3]);
-    let out = BinaryContourImageFilter::default().apply(&img).expect("infallible: validated precondition");
+    let out = BinaryContourImageFilter::default()
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let v = voxels(&out);
     assert!((v[13] - 1.0).abs() < 1e-5, "single fg voxel must be border");
     let others: f32 = v
@@ -97,7 +103,9 @@ fn single_fg_voxel_is_border() {
 #[test]
 fn preserves_metadata() {
     let img = make_image(vec![0.0f32; 8], [2, 2, 2]);
-    let out = BinaryContourImageFilter::default().apply(&img).expect("infallible: validated precondition");
+    let out = BinaryContourImageFilter::default()
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [2, 2, 2]);
     assert_eq!(*out.origin(), *img.origin());
     assert_eq!(*out.spacing(), *img.spacing());

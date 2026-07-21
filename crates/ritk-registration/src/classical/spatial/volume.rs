@@ -31,7 +31,9 @@ pub fn apply_transform(volume: &Array3<f64>, transform: &AffineTransform) -> Arr
                     && sz >= 0
                     && sz < depth as isize
                 {
-                    let val = *volume.get([sz as usize, sy as usize, sx as usize]).expect("valid index");
+                    let val = *volume
+                        .get([sz as usize, sy as usize, sx as usize])
+                        .expect("valid index");
                     *result.get_mut([z, y, x]).expect("valid index") = val;
                 }
             }

@@ -25,15 +25,31 @@ fn metadata_fixture() -> DicomReadMetadata {
     ));
 
     DicomReadMetadata {
-        series_instance_uid: Some("1.2.840.series".try_into().expect("infallible: validated precondition")),
-        study_instance_uid: Some("1.2.840.study".try_into().expect("infallible: validated precondition")),
-        frame_of_reference_uid: Some("1.2.840.frame".try_into().expect("infallible: validated precondition")),
+        series_instance_uid: Some(
+            "1.2.840.series"
+                .try_into()
+                .expect("infallible: validated precondition"),
+        ),
+        study_instance_uid: Some(
+            "1.2.840.study"
+                .try_into()
+                .expect("infallible: validated precondition"),
+        ),
+        frame_of_reference_uid: Some(
+            "1.2.840.frame"
+                .try_into()
+                .expect("infallible: validated precondition"),
+        ),
         series_description: Some("Axial CT".to_string()),
         modality: Some(ArrayString::from("CT").expect("infallible: validated precondition")),
         patient_id: Some("P001".to_string()),
         patient_name: Some("DOE^JANE".to_string()),
-        study_date: Some(ArrayString::from("20260101").expect("infallible: validated precondition")),
-        series_date: Some(ArrayString::from("20260102").expect("infallible: validated precondition")),
+        study_date: Some(
+            ArrayString::from("20260101").expect("infallible: validated precondition"),
+        ),
+        series_date: Some(
+            ArrayString::from("20260102").expect("infallible: validated precondition"),
+        ),
         series_time: Some(ArrayString::from("120000").expect("infallible: validated precondition")),
         dimensions: [3, 4, 5],
         spacing: [0.7, 0.8, 1.5],
@@ -42,10 +58,16 @@ fn metadata_fixture() -> DicomReadMetadata {
         bits_allocated: Some(16),
         bits_stored: Some(12),
         high_bit: Some(11),
-        photometric_interpretation: Some(ArrayString::from("MONOCHROME2").expect("infallible: validated precondition")),
+        photometric_interpretation: Some(
+            ArrayString::from("MONOCHROME2").expect("infallible: validated precondition"),
+        ),
         slices: vec![DicomSliceMetadata {
             path: PathBuf::from("slice001.dcm"),
-            sop_instance_uid: Some("1.2.840.slice".try_into().expect("infallible: validated precondition")),
+            sop_instance_uid: Some(
+                "1.2.840.slice"
+                    .try_into()
+                    .expect("infallible: validated precondition"),
+            ),
             instance_number: Some(7),
             slice_location: Some(42.25),
             image_position_patient: Some([1.0, 2.0, 3.0]),
@@ -55,8 +77,16 @@ fn metadata_fixture() -> DicomReadMetadata {
             slice_thickness: Some(1.5),
             rescale_slope: 2.0,
             rescale_intercept: -1024.0,
-            sop_class_uid: Some("1.2.840.sop".try_into().expect("infallible: validated precondition")),
-            transfer_syntax_uid: Some("1.2.840.10008.1.2.1".try_into().expect("infallible: validated precondition")),
+            sop_class_uid: Some(
+                "1.2.840.sop"
+                    .try_into()
+                    .expect("infallible: validated precondition"),
+            ),
+            transfer_syntax_uid: Some(
+                "1.2.840.10008.1.2.1"
+                    .try_into()
+                    .expect("infallible: validated precondition"),
+            ),
             pixel_representation: PixelSignedness::Signed,
             bits_allocated: 16,
             window_center: Some(40.0),

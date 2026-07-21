@@ -44,7 +44,9 @@ fn two_identical_constant_subjects_template_equals_constant() {
     let s2 = vec![val; n];
     let subjects: Vec<&[f32]> = vec![&s1, &s2];
     let reg = AtlasRegistration::new(test_atlas_config());
-    let result = reg.build_atlas(&subjects, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
+    let result = reg
+        .build_atlas(&subjects, dims, [1.0, 1.0, 1.0])
+        .expect("infallible: validated precondition");
     // Template must be val at every voxel.
     for (i, &v) in result.template.iter().enumerate() {
         assert!(
@@ -83,7 +85,9 @@ fn three_uniform_images_template_is_mean() {
     let subjects: Vec<&[f32]> = vec![&s1, &s2, &s3];
     let expected = 4.0f32;
     let reg = AtlasRegistration::new(test_atlas_config());
-    let result = reg.build_atlas(&subjects, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
+    let result = reg
+        .build_atlas(&subjects, dims, [1.0, 1.0, 1.0])
+        .expect("infallible: validated precondition");
     for (i, &v) in result.template.iter().enumerate() {
         assert!(
             (v - expected).abs() < 0.1,
@@ -111,7 +115,9 @@ fn single_subject_template_equals_subject() {
     let s = vec![val; n];
     let subjects: Vec<&[f32]> = vec![&s];
     let reg = AtlasRegistration::new(test_atlas_config());
-    let result = reg.build_atlas(&subjects, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
+    let result = reg
+        .build_atlas(&subjects, dims, [1.0, 1.0, 1.0])
+        .expect("infallible: validated precondition");
     for (i, &v) in result.template.iter().enumerate() {
         assert!(
             (v - val).abs() < 1e-4,

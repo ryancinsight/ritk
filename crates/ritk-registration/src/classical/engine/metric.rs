@@ -67,8 +67,10 @@ impl MutualInformationMetric {
 
         // Compute joint and marginal probabilities
         let p_joint = &joint_hist / total;
-        let p_x = leto::sum_axis::<f64, _, 2, 1>(&p_joint, 1).expect("infallible: validated precondition");
-        let p_y = leto::sum_axis::<f64, _, 2, 1>(&p_joint, 0).expect("infallible: validated precondition");
+        let p_x = leto::sum_axis::<f64, _, 2, 1>(&p_joint, 1)
+            .expect("infallible: validated precondition");
+        let p_y = leto::sum_axis::<f64, _, 2, 1>(&p_joint, 0)
+            .expect("infallible: validated precondition");
 
         // Compute entropies - pass slices for 1D arrays
         let h_x = self.compute_entropy(p_x.storage().as_slice());

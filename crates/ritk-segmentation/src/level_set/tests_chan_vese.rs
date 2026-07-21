@@ -66,7 +66,9 @@ fn test_bimodal_sphere_segmentation() {
     let mut cv = ChanVeseSegmentation::new();
     cv.max_iterations = 300;
     cv.dt = 0.1;
-    let result = cv.apply(&image).expect("infallible: validated precondition");
+    let result = cv
+        .apply(&image)
+        .expect("infallible: validated precondition");
     let vals = get_values(&result);
 
     let seg_count: usize = vals.iter().filter(|&&v| v == 1.0).count();
@@ -112,7 +114,9 @@ fn test_uniform_image_homogeneous_output() {
 
     let mut cv = ChanVeseSegmentation::new();
     cv.max_iterations = 300;
-    let result = cv.apply(&image).expect("infallible: validated precondition");
+    let result = cv
+        .apply(&image)
+        .expect("infallible: validated precondition");
     let vals = get_values(&result);
 
     let ones: usize = vals.iter().filter(|&&v| v == 1.0).count();
@@ -145,7 +149,9 @@ fn test_output_is_strictly_binary() {
         .collect();
     let image = make_image(data, dims);
 
-    let result = ChanVeseSegmentation::new().apply(&image).expect("infallible: validated precondition");
+    let result = ChanVeseSegmentation::new()
+        .apply(&image)
+        .expect("infallible: validated precondition");
     let vals = get_values(&result);
 
     for (i, &v) in vals.iter().enumerate() {
@@ -169,7 +175,9 @@ fn test_spatial_metadata_preserved() {
     let data = vec![100.0_f32; n];
     let image = make_image_with_metadata(data, dims, origin, spacing);
 
-    let result = ChanVeseSegmentation::new().apply(&image).expect("infallible: validated precondition");
+    let result = ChanVeseSegmentation::new()
+        .apply(&image)
+        .expect("infallible: validated precondition");
 
     assert_eq!(result.origin(), image.origin(), "Origin must be preserved");
     assert_eq!(
@@ -294,7 +302,9 @@ fn test_two_region_slab() {
     let image = make_image(data.clone(), [nz, ny, nx]);
     let mut cv = ChanVeseSegmentation::new();
     cv.max_iterations = 500;
-    let result = cv.apply(&image).expect("infallible: validated precondition");
+    let result = cv
+        .apply(&image)
+        .expect("infallible: validated precondition");
     let vals = get_values(&result);
 
     let mut left_ones = 0usize;

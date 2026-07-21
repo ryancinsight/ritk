@@ -83,7 +83,8 @@ fn signed_short_le_boundary_values() {
 #[test]
 fn convert_boolean_maps_nonzero_to_one() {
     let raw = vec![0u8, 1, 0, 255];
-    let result = decode_raw_bytes(&raw, &Datatype::Boolean).expect("infallible: validated precondition");
+    let result =
+        decode_raw_bytes(&raw, &Datatype::Boolean).expect("infallible: validated precondition");
     assert_eq!(result, vec![0.0, 1.0, 0.0, 1.0]);
 }
 

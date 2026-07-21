@@ -39,7 +39,9 @@ fn test_identity_registration_has_near_zero_mse() {
     let dims = [16usize, 16, 16];
     let img = make_image(16, 16, 16);
     let reg = InverseConsistentDiffeomorphicDemonsRegistration::new(default_config());
-    let result = reg.register(&img, &img, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
+    let result = reg
+        .register(&img, &img, dims, [1.0, 1.0, 1.0])
+        .expect("infallible: validated precondition");
     assert!(
         result.final_mse < 1e-4,
         "identity MSE must be < 1e-4; got {}",
@@ -52,7 +54,9 @@ fn test_ic_residual_near_zero_for_identity_registration() {
     let dims = [16usize, 16, 16];
     let img = make_image(16, 16, 16);
     let reg = InverseConsistentDiffeomorphicDemonsRegistration::new(default_config());
-    let result = reg.register(&img, &img, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
+    let result = reg
+        .register(&img, &img, dims, [1.0, 1.0, 1.0])
+        .expect("infallible: validated precondition");
     assert!(
         result.inverse_consistency_residual < 1e-3,
         "IC residual must be < 1e-3; got {}",
@@ -100,7 +104,9 @@ fn test_forward_and_inverse_fields_have_same_length() {
     let n = dims[0] * dims[1] * dims[2];
     let img = make_image(12, 12, 12);
     let reg = InverseConsistentDiffeomorphicDemonsRegistration::new(default_config());
-    let result = reg.register(&img, &img, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
+    let result = reg
+        .register(&img, &img, dims, [1.0, 1.0, 1.0])
+        .expect("infallible: validated precondition");
     assert_eq!(result.disp_z.len(), n);
     assert_eq!(result.disp_y.len(), n);
     assert_eq!(result.disp_x.len(), n);
@@ -114,7 +120,9 @@ fn test_all_displacement_values_finite() {
     let dims = [12usize, 12, 12];
     let img = make_image(12, 12, 12);
     let reg = InverseConsistentDiffeomorphicDemonsRegistration::new(default_config());
-    let result = reg.register(&img, &img, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
+    let result = reg
+        .register(&img, &img, dims, [1.0, 1.0, 1.0])
+        .expect("infallible: validated precondition");
     for (&dz, (&dy, &dx)) in result
         .disp_z
         .iter()
@@ -155,7 +163,9 @@ fn test_weight_zero_matches_standard_diffeomorphic() {
         n_squarings: 6,
     };
     let reg_ic = InverseConsistentDiffeomorphicDemonsRegistration::new(config_ic);
-    let result_ic = reg_ic.register(&img, &img, dims, spacing).expect("infallible: validated precondition");
+    let result_ic = reg_ic
+        .register(&img, &img, dims, spacing)
+        .expect("infallible: validated precondition");
 
     let config_std = DemonsConfig {
         max_iterations: 10,
@@ -164,7 +174,9 @@ fn test_weight_zero_matches_standard_diffeomorphic() {
         max_step_length: 2.0,
     };
     let reg_std = DiffeomorphicDemonsRegistration::with_squarings(config_std, 6);
-    let result_std = reg_std.register(&img, &img, dims, spacing).expect("infallible: validated precondition");
+    let result_std = reg_std
+        .register(&img, &img, dims, spacing)
+        .expect("infallible: validated precondition");
 
     assert!(
         (result_ic.final_mse - result_std.final_mse).abs() < 1e-8,
@@ -201,8 +213,12 @@ fn test_ic_residual_decreases_with_symmetric_weight() {
             inverse_consistency_weight: 0.5,
             n_squarings: 6,
         });
-    let result_fwd = reg_fwd.register(&img, &img, dims, [1.0; 3]).expect("infallible: validated precondition");
-    let result_sym = reg_sym.register(&img, &img, dims, [1.0; 3]).expect("infallible: validated precondition");
+    let result_fwd = reg_fwd
+        .register(&img, &img, dims, [1.0; 3])
+        .expect("infallible: validated precondition");
+    let result_sym = reg_sym
+        .register(&img, &img, dims, [1.0; 3])
+        .expect("infallible: validated precondition");
 
     assert!(
         result_fwd.inverse_consistency_residual < 1e-3,

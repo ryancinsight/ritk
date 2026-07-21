@@ -223,7 +223,9 @@ pub struct RegisterArgs {
 #[allow(dead_code)]
 pub(super) fn image_to_leto_volume(image: &Image<f32, Backend, 3>) -> Array3<f64> {
     let shape = image.shape();
-    let slice = image.data_slice().expect("infallible: validated precondition");
+    let slice = image
+        .data_slice()
+        .expect("infallible: validated precondition");
     let f64_vec: Vec<f64> = slice.iter().map(|&v| v as f64).collect();
     Array3::from_shape_vec([shape[0], shape[1], shape[2]], f64_vec)
         .expect("shape derived from image must be consistent with data length")

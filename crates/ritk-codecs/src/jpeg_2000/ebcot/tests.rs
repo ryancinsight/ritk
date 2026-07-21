@@ -51,7 +51,10 @@ fn trace_encode_symbols(samples: &[i32], w: usize) -> Vec<(u32, usize)> {
     let n = w;
     let sign: Vec<bool> = samples.iter().map(|&v| v < 0).collect();
     let mag: Vec<u32> = samples.iter().map(|&v| v.unsigned_abs()).collect();
-    let max_mag = *mag.iter().max().expect("infallible: validated precondition");
+    let max_mag = *mag
+        .iter()
+        .max()
+        .expect("infallible: validated precondition");
     let num_bit_planes = u32::BITS - max_mag.leading_zeros();
     let mut state = vec![SampleState::default(); n];
     for i in 0..n {

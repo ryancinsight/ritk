@@ -236,8 +236,12 @@ fn test_ply_binary_le_header_format_in_memory() {
     let mut buf = Vec::new();
     write_ply_binary_le_to_writer(&mut buf, &mesh).expect("infallible: validated precondition");
     // The header is ASCII; scan for the marker bytes.
-    let header_end_pos = buf.windows(10).position(|w| w == b"end_header").expect("infallible: validated precondition");
-    let header = std::str::from_utf8(&buf[..header_end_pos]).expect("infallible: validated precondition");
+    let header_end_pos = buf
+        .windows(10)
+        .position(|w| w == b"end_header")
+        .expect("infallible: validated precondition");
+    let header =
+        std::str::from_utf8(&buf[..header_end_pos]).expect("infallible: validated precondition");
     assert!(header.contains("format binary_little_endian 1.0"));
     assert!(header.contains("element vertex 4"));
     assert!(header.contains("element face 4"));

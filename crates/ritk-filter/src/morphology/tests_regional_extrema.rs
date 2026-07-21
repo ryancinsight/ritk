@@ -37,10 +37,16 @@ fn regional_minima_native_matches_legacy_and_preserves_geometry() {
     )
     .expect("infallible: validated precondition");
     let filter = RegionalMinimaFilter::new().with_values(3.0, -1.0);
-    let expected = filter.apply(&legacy).expect("infallible: validated precondition");
-    let actual = filter.apply_native(&native, &SequentialBackend).expect("infallible: validated precondition");
+    let expected = filter
+        .apply(&legacy)
+        .expect("infallible: validated precondition");
+    let actual = filter
+        .apply_native(&native, &SequentialBackend)
+        .expect("infallible: validated precondition");
     assert_eq!(
-        actual.data_slice().expect("infallible: validated precondition"),
+        actual
+            .data_slice()
+            .expect("infallible: validated precondition"),
         expected
             .data_slice()
             .expect("invariant: contiguous host storage")
@@ -81,7 +87,9 @@ fn regional_minima_rejects_nonfinite_samples() {
 #[test]
 fn regional_maxima_binary_matches_reference() {
     let f = img(SIGNAL.to_vec(), [1, 1, 9]);
-    let out = RegionalMaximaFilter::new().apply(&f).expect("infallible: validated precondition");
+    let out = RegionalMaximaFilter::new()
+        .apply(&f)
+        .expect("infallible: validated precondition");
     let expected = [0.0f32, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0];
     assert_eq!(vals(&out), expected, "regional maxima binary mask");
 }
@@ -89,7 +97,9 @@ fn regional_maxima_binary_matches_reference() {
 #[test]
 fn regional_minima_binary_matches_reference() {
     let f = img(SIGNAL.to_vec(), [1, 1, 9]);
-    let out = RegionalMinimaFilter::new().apply(&f).expect("infallible: validated precondition");
+    let out = RegionalMinimaFilter::new()
+        .apply(&f)
+        .expect("infallible: validated precondition");
     let expected = [1.0f32, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
     assert_eq!(vals(&out), expected, "regional minima binary mask");
 }
@@ -97,7 +107,11 @@ fn regional_minima_binary_matches_reference() {
 #[test]
 fn valued_regional_maxima_keeps_value_else_min() {
     let f = img(SIGNAL.to_vec(), [1, 1, 9]);
-    let out = vals(&ValuedRegionalMaximaFilter::new().apply(&f).expect("infallible: validated precondition"));
+    let out = vals(
+        &ValuedRegionalMaximaFilter::new()
+            .apply(&f)
+            .expect("infallible: validated precondition"),
+    );
     let lo = f32::MIN;
     let expected = [lo, lo, 10.0, lo, 6.0, 6.0, lo, lo, 2.0];
     assert_eq!(out, expected, "valued regional maxima");
@@ -106,7 +120,11 @@ fn valued_regional_maxima_keeps_value_else_min() {
 #[test]
 fn valued_regional_minima_keeps_value_else_max() {
     let f = img(SIGNAL.to_vec(), [1, 1, 9]);
-    let out = vals(&ValuedRegionalMinimaFilter::new().apply(&f).expect("infallible: validated precondition"));
+    let out = vals(
+        &ValuedRegionalMinimaFilter::new()
+            .apply(&f)
+            .expect("infallible: validated precondition"),
+    );
     let hi = f32::MAX;
     let expected = [2.0, 2.0, hi, 2.0, hi, hi, hi, 0.0, hi];
     assert_eq!(out, expected, "valued regional minima");
@@ -118,7 +136,11 @@ fn valued_regional_minima_keeps_value_else_max() {
 #[test]
 fn subunit_contrast_detects_both_maxima() {
     let f = img(vec![0.0, 0.5, 0.0, 0.2, 0.0], [1, 1, 5]);
-    let out = vals(&RegionalMaximaFilter::new().apply(&f).expect("infallible: validated precondition"));
+    let out = vals(
+        &RegionalMaximaFilter::new()
+            .apply(&f)
+            .expect("infallible: validated precondition"),
+    );
     assert_eq!(
         out,
         [0.0, 1.0, 0.0, 1.0, 0.0],
@@ -131,8 +153,16 @@ fn subunit_contrast_detects_both_maxima() {
 #[test]
 fn constant_image_is_single_extremum() {
     let f = img(vec![3.0; 8], [2, 2, 2]);
-    let max = vals(&RegionalMaximaFilter::new().apply(&f).expect("infallible: validated precondition"));
-    let min = vals(&RegionalMinimaFilter::new().apply(&f).expect("infallible: validated precondition"));
+    let max = vals(
+        &RegionalMaximaFilter::new()
+            .apply(&f)
+            .expect("infallible: validated precondition"),
+    );
+    let min = vals(
+        &RegionalMinimaFilter::new()
+            .apply(&f)
+            .expect("infallible: validated precondition"),
+    );
     assert!(
         max.iter().all(|&v| v == 1.0),
         "constant ⇒ all regional maxima"

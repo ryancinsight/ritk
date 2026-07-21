@@ -46,7 +46,8 @@ fn test_register_demons_creates_output_with_correct_shape() {
         output_path.exists(),
         "demons warped output file must be created"
     );
-    let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).expect("infallible: validated precondition");
+    let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default())
+        .expect("infallible: validated precondition");
     assert_eq!(
         warped.shape(),
         [4, 4, 4],
@@ -92,7 +93,8 @@ fn test_register_demons_identity_low_mse() {
     .expect("infallible: validated precondition");
 
     // Verify the warped image has finite voxel values.
-    let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).expect("infallible: validated precondition");
+    let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default())
+        .expect("infallible: validated precondition");
     {
         let vals = warped
             .data_slice()
@@ -148,7 +150,8 @@ fn test_register_multires_demons_creates_output_with_correct_shape() {
         output_path.exists(),
         "multires-demons warped output file must be created"
     );
-    let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).expect("infallible: validated precondition");
+    let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default())
+        .expect("infallible: validated precondition");
     assert_eq!(
         warped.shape(),
         [4, 4, 4],
@@ -194,7 +197,8 @@ fn test_register_multires_demons_identity_low_mse() {
     .expect("infallible: validated precondition");
 
     // Verify the warped image has finite voxel values (identity => MSE near 0).
-    let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).expect("infallible: validated precondition");
+    let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default())
+        .expect("infallible: validated precondition");
     {
         let vals = warped
             .data_slice()
@@ -248,7 +252,8 @@ fn test_register_ic_demons_creates_output_with_correct_shape() {
         output_path.exists(),
         "ic-demons warped output file must be created"
     );
-    let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).expect("infallible: validated precondition");
+    let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default())
+        .expect("infallible: validated precondition");
     assert_eq!(
         warped.shape(),
         [4, 4, 4],
@@ -290,7 +295,8 @@ fn test_register_ic_demons_identity_finite_voxels() {
     })
     .expect("infallible: validated precondition");
 
-    let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default()).expect("infallible: validated precondition");
+    let warped = ritk_io::read_nifti::<Backend, _>(&output_path, &Default::default())
+        .expect("infallible: validated precondition");
     {
         let vals = warped
             .data_slice()

@@ -186,7 +186,9 @@ fn identity_registration_high_cc() {
     let image = make_test_image(dims);
     let cfg = make_default_config();
     let reg = BSplineSyNRegistration::new(cfg);
-    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
+    let result = reg
+        .register(&image, &image, dims, [1.0, 1.0, 1.0])
+        .expect("infallible: validated precondition");
     assert!(
         result.final_cc > 0.9,
         "identity registration CC should be > 0.9, got {}",

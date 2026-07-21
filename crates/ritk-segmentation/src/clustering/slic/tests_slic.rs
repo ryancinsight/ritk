@@ -53,7 +53,9 @@ fn test_uniform_image_single_label() {
     let data = vec![42.0_f32; 64];
     let image = make_image_3d(data, [4, 4, 4]);
     let config = SlicConfig::new(4).expect("infallible: validated precondition");
-    let result = SlicSuperpixelFilter::new(config).apply(&image).expect("infallible: validated precondition");
+    let result = SlicSuperpixelFilter::new(config)
+        .apply(&image)
+        .expect("infallible: validated precondition");
     let labels = get_slice_3d(&result);
     for (i, &l) in labels.iter().enumerate() {
         assert!(
@@ -76,7 +78,9 @@ fn test_two_region_boundary_respected() {
     let image = make_image_2d(data, [8, 8]);
 
     let config = config(4, 1.0, 20, 1e-6, 3);
-    let result = SlicSuperpixelFilter::new(config).apply(&image).expect("infallible: validated precondition");
+    let result = SlicSuperpixelFilter::new(config)
+        .apply(&image)
+        .expect("infallible: validated precondition");
     let labels = get_slice_2d(&result);
 
     // Compute mean intensity per label for left-half and right-half voxels.
@@ -114,7 +118,9 @@ fn test_small_image_two_superpixels() {
     let image = make_image_3d(data, [4, 4, 4]);
 
     let config = config(2, 1.0, 20, 1e-6, 0);
-    let result = SlicSuperpixelFilter::new(config).apply(&image).expect("infallible: validated precondition");
+    let result = SlicSuperpixelFilter::new(config)
+        .apply(&image)
+        .expect("infallible: validated precondition");
     let labels = get_slice_3d(&result);
 
     // The first 32 voxels (z=0,1) should share a label different from
@@ -144,7 +150,9 @@ fn test_single_superpixel_all_label_zero() {
     let image = make_image_3d(data, [4, 4, 4]);
 
     let config = SlicConfig::new(1).expect("infallible: validated precondition");
-    let result = SlicSuperpixelFilter::new(config).apply(&image).expect("infallible: validated precondition");
+    let result = SlicSuperpixelFilter::new(config)
+        .apply(&image)
+        .expect("infallible: validated precondition");
     let labels = get_slice_3d(&result);
 
     for (i, &l) in labels.iter().enumerate() {
@@ -166,7 +174,9 @@ fn test_label_count_bounded() {
     let image = make_image_3d(data, [4, 4, 16]);
 
     let config = config(k, 10.0, 10, 1e-3, 3);
-    let result = SlicSuperpixelFilter::new(config).apply(&image).expect("infallible: validated precondition");
+    let result = SlicSuperpixelFilter::new(config)
+        .apply(&image)
+        .expect("infallible: validated precondition");
     let labels = get_slice_3d(&result);
 
     let distinct: std::collections::HashSet<u32> = labels.iter().map(|&l| l as u32).collect();
@@ -199,7 +209,9 @@ fn test_deterministic_output() {
     let r1 = SlicSuperpixelFilter::new(config.clone())
         .apply(&image)
         .expect("infallible: validated precondition");
-    let r2 = SlicSuperpixelFilter::new(config).apply(&image).expect("infallible: validated precondition");
+    let r2 = SlicSuperpixelFilter::new(config)
+        .apply(&image)
+        .expect("infallible: validated precondition");
 
     let l1 = get_slice_3d(&r1);
     let l2 = get_slice_3d(&r2);
@@ -215,7 +227,9 @@ fn test_algorithm_converges() {
     let image = make_image_3d(data, [10, 10, 10]);
 
     let config = config(10, 10.0, 3, 1.0, 3);
-    let result = SlicSuperpixelFilter::new(config).apply(&image).expect("infallible: validated precondition");
+    let result = SlicSuperpixelFilter::new(config)
+        .apply(&image)
+        .expect("infallible: validated precondition");
     let labels = get_slice_3d(&result);
 
     // Verify the algorithm produced valid labels (didn't hang/crash).
@@ -233,7 +247,9 @@ fn test_spatial_metadata_preserved() {
     let image = make_image_3d(data, [2, 3, 4]);
 
     let config = SlicConfig::new(2).expect("infallible: validated precondition");
-    let result = SlicSuperpixelFilter::new(config).apply(&image).expect("infallible: validated precondition");
+    let result = SlicSuperpixelFilter::new(config)
+        .apply(&image)
+        .expect("infallible: validated precondition");
 
     assert_eq!(result.origin(), image.origin());
     assert_eq!(result.spacing(), image.spacing());
@@ -251,7 +267,9 @@ fn test_compactness_effect() {
 
     // Low compactness → labels driven by intensity, more irregular boundaries.
     let config_low = config(4, 1.0, 20, 1e-6, 3);
-    let result_low = SlicSuperpixelFilter::new(config_low).apply(&image).expect("infallible: validated precondition");
+    let result_low = SlicSuperpixelFilter::new(config_low)
+        .apply(&image)
+        .expect("infallible: validated precondition");
     let labels_low = get_slice_2d(&result_low);
 
     // High compactness → labels driven by spatial proximity, more regular.
@@ -343,9 +361,10 @@ fn test_output_shape_matches_input() {
     let n: usize = dims.iter().product();
     let data: Vec<f32> = (0..n).map(|i| (i % 5) as f32 * 50.0).collect();
     let image = make_image_3d(data, dims);
-    let result = SlicSuperpixelFilter::new(SlicConfig::new(8).expect("infallible: validated precondition"))
-        .apply(&image)
-        .expect("infallible: validated precondition");
+    let result =
+        SlicSuperpixelFilter::new(SlicConfig::new(8).expect("infallible: validated precondition"))
+            .apply(&image)
+            .expect("infallible: validated precondition");
     assert_eq!(result.shape(), dims);
 }
 
@@ -373,10 +392,16 @@ fn assert_native_legacy_exact<const D: usize>(values: Vec<f32>, dimensions: [usi
     .expect("infallible: validated precondition");
     let legacy = make_image::<f32, B, D>(values, dimensions);
     let filter = SlicSuperpixelFilter::new(config(4, 5.0, 10, 0.0, 0));
-    let native_output = filter.apply_native(&native, &SequentialBackend).expect("infallible: validated precondition");
-    let legacy_output = filter.apply(&legacy).expect("infallible: validated precondition");
+    let native_output = filter
+        .apply_native(&native, &SequentialBackend)
+        .expect("infallible: validated precondition");
+    let legacy_output = filter
+        .apply(&legacy)
+        .expect("infallible: validated precondition");
     assert_eq!(
-        native_output.data_slice().expect("infallible: validated precondition"),
+        native_output
+            .data_slice()
+            .expect("infallible: validated precondition"),
         legacy_output
             .data_slice()
             .expect("invariant: contiguous host storage")

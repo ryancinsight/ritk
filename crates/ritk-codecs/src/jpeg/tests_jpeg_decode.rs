@@ -65,7 +65,8 @@ fn jpeg_baseline_grayscale_fragment_decodes_with_modality_lut() {
     let source = [32u8, 32, 32, 32];
     let jpeg = encode_grayscale_jpeg(2, 2, &source);
 
-    let decoded = decode_jpeg_fragment(&jpeg, layout(2, 2, 2.0, -10.0)).expect("infallible: validated precondition");
+    let decoded = decode_jpeg_fragment(&jpeg, layout(2, 2, 2.0, -10.0))
+        .expect("infallible: validated precondition");
 
     assert_eq!(decoded.len(), 4);
     for value in decoded {
@@ -129,7 +130,8 @@ fn jpeg_rgb24_rejects_grayscale_layout() {
 fn jpeg_lossless_grayscale_fragment_decodes_exact_sample() {
     let jpeg = lossless_single_pixel_jpeg_8bit_gray_128();
 
-    let decoded = decode_jpeg_fragment(&jpeg, layout(1, 1, 1.5, -2.0)).expect("infallible: validated precondition");
+    let decoded = decode_jpeg_fragment(&jpeg, layout(1, 1, 1.5, -2.0))
+        .expect("infallible: validated precondition");
 
     assert_eq!(decoded, vec![190.0]);
 }

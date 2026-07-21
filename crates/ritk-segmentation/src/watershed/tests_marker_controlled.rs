@@ -224,12 +224,16 @@ fn native_legacy_and_all_policy_combinations_are_exact() {
             .with_watershed_lines(lines);
         assert_eq!(filter.connectivity(), connectivity);
         assert_eq!(filter.watershed_lines(), lines);
-        let legacy = filter.apply(&legacy_gradient, &legacy_markers).expect("infallible: validated precondition");
+        let legacy = filter
+            .apply(&legacy_gradient, &legacy_markers)
+            .expect("infallible: validated precondition");
         let native = filter
             .apply_native(&native_gradient, &native_markers, &SequentialBackend)
             .expect("infallible: validated precondition");
         assert_eq!(
-            native.data_slice().expect("infallible: validated precondition"),
+            native
+                .data_slice()
+                .expect("infallible: validated precondition"),
             legacy
                 .data_slice()
                 .expect("invariant: contiguous host storage")

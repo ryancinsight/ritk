@@ -30,7 +30,8 @@ fn minimal_vol(
         injected_dose_bq,
         radionuclide_half_life_s,
         radiopharmaceutical_start_time: None,
-        decay_correction: decay_correction.map(|s| ArrayString::from(s).expect("infallible: validated precondition")),
+        decay_correction: decay_correction
+            .map(|s| ArrayString::from(s).expect("infallible: validated precondition")),
     }
 }
 
@@ -110,7 +111,8 @@ fn from_loaded_volume_complete_fields_returns_some_with_correct_values() {
 #[test]
 fn from_loaded_volume_absent_decay_correction_defaults_to_none_kind() {
     let vol = minimal_vol(Some(70.0), Some(370_000_000.0), Some(F18_HALF_LIFE_S), None);
-    let pet = PetAcquisitionParams::from_loaded_volume(&vol).expect("infallible: validated precondition");
+    let pet =
+        PetAcquisitionParams::from_loaded_volume(&vol).expect("infallible: validated precondition");
     assert_eq!(
         pet.decay_correction,
         DecayCorrectionKind::None,
@@ -366,8 +368,10 @@ fn delta_t_s_from_vol_parses_both_fields() {
         Some(F18_HALF_LIFE_S),
         Some("START"),
     );
-    vol.radiopharmaceutical_start_time = Some(ArrayString::from("080000").expect("infallible: validated precondition"));
-    vol.series_time = Some(ArrayString::from("090000").expect("infallible: validated precondition"));
+    vol.radiopharmaceutical_start_time =
+        Some(ArrayString::from("080000").expect("infallible: validated precondition"));
+    vol.series_time =
+        Some(ArrayString::from("090000").expect("infallible: validated precondition"));
     let delta = PetAcquisitionParams::delta_t_s_from_vol(&vol);
     assert!(
         (delta - 3_600.0).abs() < 1e-9,

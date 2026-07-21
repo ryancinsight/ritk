@@ -34,7 +34,9 @@ fn flip_none_is_identity() {
 #[test]
 fn flip_x_reverses_x_axis() {
     let img = make_image(vec![1.0f32, 2.0, 3.0, 4.0], [1, 1, 4]);
-    let out = FlipImageFilter::flip_x().apply(&img).expect("infallible: validated precondition");
+    let out = FlipImageFilter::flip_x()
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let v = voxels(&out);
     let expected = [4.0f32, 3.0, 2.0, 1.0];
     for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
@@ -52,7 +54,9 @@ fn flip_x_reverses_x_axis() {
 #[test]
 fn flip_z_reverses_z_axis() {
     let img = make_image(vec![10.0f32, 20.0, 30.0, 40.0], [4, 1, 1]);
-    let out = FlipImageFilter::flip_z().apply(&img).expect("infallible: validated precondition");
+    let out = FlipImageFilter::flip_z()
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let v = voxels(&out);
     let expected = [40.0f32, 30.0, 20.0, 10.0];
     for (i, (&got, &exp)) in v.iter().zip(expected.iter()).enumerate() {
@@ -72,8 +76,12 @@ fn flip_twice_returns_original() {
     let vals = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
     let img = make_image(vals.clone(), [2, 2, 2]);
     let flip = FlipImageFilter::new([FlipPolicy::Flip, FlipPolicy::Flip, FlipPolicy::Keep]);
-    let out1 = flip.apply(&img).expect("infallible: validated precondition");
-    let out2 = flip.apply(&out1).expect("infallible: validated precondition");
+    let out1 = flip
+        .apply(&img)
+        .expect("infallible: validated precondition");
+    let out2 = flip
+        .apply(&out1)
+        .expect("infallible: validated precondition");
     let v = voxels(&out2);
     for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
         assert!(
@@ -90,7 +98,9 @@ fn flip_twice_returns_original() {
 #[test]
 fn flip_preserves_spatial_metadata() {
     let img = make_image(vec![1.0f32; 8], [2, 2, 2]);
-    let out = FlipImageFilter::flip_y().apply(&img).expect("infallible: validated precondition");
+    let out = FlipImageFilter::flip_y()
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), img.shape());
     assert_eq!(out.spacing(), img.spacing());
     assert_eq!(out.origin(), img.origin());

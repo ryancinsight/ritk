@@ -145,7 +145,8 @@ fn from_metaimage_msb_non_bool_string_defaults_to_little_endian() {
 #[test]
 fn parse_floats_f64_round_trip() {
     let s = format!("1.0 2.5 {} 4.0", -PI);
-    let v: Vec<f64> = parse_floats(&s, "test_field", 4).expect("infallible: validated precondition");
+    let v: Vec<f64> =
+        parse_floats(&s, "test_field", 4).expect("infallible: validated precondition");
     assert_eq!(v, vec![1.0, 2.5, -PI, 4.0]);
 }
 

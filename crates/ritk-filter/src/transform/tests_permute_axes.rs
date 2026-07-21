@@ -27,7 +27,9 @@ fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
 fn permute_axes_identity_order_is_noop() {
     let vals: Vec<f32> = (1..=6).map(|x| x as f32).collect();
     let img = make_image(vals.clone(), [1, 2, 3]);
-    let out = PermuteAxesImageFilter::new([0, 1, 2]).apply(&img).expect("infallible: validated precondition");
+    let out = PermuteAxesImageFilter::new([0, 1, 2])
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 2, 3]);
     let v = voxels(&out);
     for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
@@ -41,7 +43,9 @@ fn permute_axes_transpose_zx_swaps_shape_and_voxels() {
     // vals layout (ZYX): val at (iz,iy,ix) = iz*3 + iy*3 + ix + 1
     let vals: Vec<f32> = (1..=6).map(|x| x as f32).collect(); // 2×1×3
     let img = make_image(vals, [2, 1, 3]);
-    let out = PermuteAxesImageFilter::new([2, 1, 0]).apply(&img).expect("infallible: validated precondition");
+    let out = PermuteAxesImageFilter::new([2, 1, 0])
+        .apply(&img)
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [3, 1, 2], "output shape after ZX transpose");
     let v = voxels(&out);
     // out[i0][i1][i2] = in[in_idx]; in_idx[order[j]] = ij
@@ -58,7 +62,9 @@ fn permute_axes_transpose_zx_swaps_shape_and_voxels() {
 fn permute_axes_spacing_is_permuted() {
     // spacing = [1, 2, 3]; order = [2, 0, 1] → new spacing = [3, 1, 2]
     let img = make_image(vec![0.0; 6], [1, 2, 3]);
-    let out = PermuteAxesImageFilter::new([2, 0, 1]).apply(&img).expect("infallible: validated precondition");
+    let out = PermuteAxesImageFilter::new([2, 0, 1])
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let s = out.spacing();
     assert!(
         (s[0] - 3.0).abs() < 1e-9,

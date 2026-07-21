@@ -15,7 +15,9 @@ fn test_uniform_image_zero_gradient() {
     let vals = vec![5.0_f32; 8 * 8 * 8];
     let img = make_image(vals, dims, [1.0, 1.0, 1.0]);
     let filter = GradientMagnitudeFilter::unit();
-    let mag = filter.apply(&img).expect("infallible: validated precondition");
+    let mag = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
 
     let out = mag.data().as_slice();
     for &v in out {
@@ -35,7 +37,9 @@ fn test_ramp_x_gradient() {
         .collect();
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 1.0]);
     let filter = GradientMagnitudeFilter::unit();
-    let (gz, gy, gx) = filter.apply_components(&img).expect("infallible: validated precondition");
+    let (gz, gy, gx) = filter
+        .apply_components(&img)
+        .expect("infallible: validated precondition");
 
     let gz_vals = gz.data().as_slice();
     let gy_vals = gy.data().as_slice();
@@ -66,7 +70,9 @@ fn test_ramp_x_gradient() {
     }
 
     // Magnitude image interior
-    let mag = filter.apply(&img).expect("infallible: validated precondition");
+    let mag = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let mag_vals = mag.data().as_slice();
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
@@ -97,7 +103,9 @@ fn test_diagonal_ramp_gradient() {
         .collect();
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 1.0]);
     let filter = GradientMagnitudeFilter::unit();
-    let (gz, gy, gx) = filter.apply_components(&img).expect("infallible: validated precondition");
+    let (gz, gy, gx) = filter
+        .apply_components(&img)
+        .expect("infallible: validated precondition");
 
     let gz_vals = gz.data().as_slice();
     let gy_vals = gy.data().as_slice();
@@ -127,7 +135,9 @@ fn test_diagonal_ramp_gradient() {
         }
     }
 
-    let mag = filter.apply(&img).expect("infallible: validated precondition");
+    let mag = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let mag_vals = mag.data().as_slice();
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
@@ -150,7 +160,9 @@ fn test_non_unit_spacing() {
     let vals: Vec<f32> = (0..nz * ny * nx).map(|flat| (flat % nx) as f32).collect();
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 2.0]);
     let filter = GradientMagnitudeFilter::new([1.0, 1.0, 2.0].into());
-    let (_, _, gx) = filter.apply_components(&img).expect("infallible: validated precondition");
+    let (_, _, gx) = filter
+        .apply_components(&img)
+        .expect("infallible: validated precondition");
     let gx_vals = gx.data().as_slice();
     // interior gx = 1 pixel / 2.0 mm = 0.5
     for iz in 1..nz - 1 {
@@ -188,11 +200,15 @@ fn test_apply_from_slice_matches_apply() {
     let filter = GradientMagnitudeFilter::new(spacing.into());
 
     // Reference path: apply() extracts data through the canonical host transfer.
-    let mag_ref = filter.apply(&img).expect("infallible: validated precondition");
+    let mag_ref = filter
+        .apply(&img)
+        .expect("infallible: validated precondition");
     let ref_vals = mag_ref.data().as_slice();
 
     // Zero-copy path: apply_from_slice() accepts pre-extracted &[f32].
-    let mag_slice = filter.apply_from_slice(&vals, [nz, ny, nx], &img).expect("infallible: validated precondition");
+    let mag_slice = filter
+        .apply_from_slice(&vals, [nz, ny, nx], &img)
+        .expect("infallible: validated precondition");
     let slice_vals = mag_slice.data().as_slice();
 
     assert_eq!(ref_vals.len(), slice_vals.len(), "output length must match");

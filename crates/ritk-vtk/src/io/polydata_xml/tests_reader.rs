@@ -21,7 +21,8 @@ fn test_triangle_parse() {
 }
 #[test]
 fn test_empty_parse() {
-    let p = parse_vtp(&write_vtp_str(&Default::default())).expect("infallible: validated precondition");
+    let p =
+        parse_vtp(&write_vtp_str(&Default::default())).expect("infallible: validated precondition");
     assert_eq!(p.points.len(), 0);
     assert_eq!(p.polygons.len(), 0);
 }

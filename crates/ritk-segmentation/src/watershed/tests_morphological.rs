@@ -76,12 +76,19 @@ fn morphological_watershed_native_matches_legacy_at_all_levels() {
     )
     .expect("infallible: validated precondition");
     for level in [0.0, 1.0, 2.0] {
-        let filter = MorphologicalWatershed::new(level).expect("infallible: validated precondition");
+        let filter =
+            MorphologicalWatershed::new(level).expect("infallible: validated precondition");
         assert_eq!(filter.level(), level);
-        let expected = filter.apply(&legacy).expect("infallible: validated precondition");
-        let actual = filter.apply_native(&native, &SequentialBackend).expect("infallible: validated precondition");
+        let expected = filter
+            .apply(&legacy)
+            .expect("infallible: validated precondition");
+        let actual = filter
+            .apply_native(&native, &SequentialBackend)
+            .expect("infallible: validated precondition");
         assert_eq!(
-            actual.data_slice().expect("infallible: validated precondition"),
+            actual
+                .data_slice()
+                .expect("infallible: validated precondition"),
             expected
                 .data_slice()
                 .expect("invariant: contiguous host storage")

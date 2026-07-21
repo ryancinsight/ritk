@@ -168,8 +168,10 @@ pub(crate) fn build_clinical_distribution_report(
             .unwrap_or_else(|| "—".to_owned())
     )
     .expect("infallible: validated precondition");
-    writeln!(&mut report, "- Colormap: {}", summary.colormap_label).expect("infallible: validated precondition");
-    writeln!(&mut report, "- Active tool: {}", summary.active_tool_label).expect("infallible: validated precondition");
+    writeln!(&mut report, "- Colormap: {}", summary.colormap_label)
+        .expect("infallible: validated precondition");
+    writeln!(&mut report, "- Active tool: {}", summary.active_tool_label)
+        .expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "- Annotation count: {}",
