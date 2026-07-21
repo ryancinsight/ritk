@@ -69,3 +69,9 @@ format, warning-denied Clippy, Nextest, doctest, and Rustdoc gates cover the
 consumer revision. The focused suite passes 943 of 943 tests.
 `cargo-semver-checks` classifies only the intended removals described above:
 one VTK enum and the Snap enum/module.
+
+RITK PR 46 merged as `1bc665d4c2d56c97e1b2b51e7135e9a86bf14d08`
+from exact head `33855845ec27d361056a8fd62c8ae81275fbc6a8` after CI run
+`29831435735`, Python CI run `29831435956`, and migration-audit run
+`29831435835` passed. Atlas PR 71 registered Iris and this consumer revision
+at merge `6740296bf1ad45c4ff77dc4e2aaa64e2971e4ecd`.
