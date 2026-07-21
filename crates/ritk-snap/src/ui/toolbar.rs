@@ -20,7 +20,7 @@
 //!
 //! **Image Menu:**
 //! - Window/Level Presets → (Brain, Lung, Bone, Soft Tissue, Custom)
-//! - Colormap → (Grayscale, Hot, Jet, Plasma, Viridis, Turbo, Phase, Seismic)
+//! - Colormap → Iris [`NamedColorMap`] variants
 //! - Manual W/C DragValues
 //!
 //! **Tools Menu:**
@@ -57,7 +57,7 @@
 use egui::Ui;
 
 use crate::{
-    render::{colormap::Colormap, slice_render::WindowLevel},
+    render::{slice_render::WindowLevel, NamedColorMap},
     tools::kind::ToolKind,
     ui::{layout::LayoutMode, window_presets::WindowPreset},
 };
@@ -100,7 +100,7 @@ pub struct ToolbarPanel<'a> {
     /// Global window/level for all linked viewports.
     pub active_wl: &'a mut WindowLevel,
     /// Active colormap applied to all viewports.
-    pub active_colormap: &'a mut Colormap,
+    pub active_colormap: &'a mut NamedColorMap,
     /// DICOM modality hint from the loaded volume (e.g. `"CT"`, `"MR"`).
     pub modality_hint: Option<&'a str>,
 }
@@ -110,7 +110,7 @@ impl<'a> ToolbarPanel<'a> {
     pub fn new(
         state: &'a mut ToolbarState,
         active_wl: &'a mut WindowLevel,
-        active_colormap: &'a mut Colormap,
+        active_colormap: &'a mut NamedColorMap,
         modality_hint: Option<&'a str>,
     ) -> Self {
         Self {
@@ -168,7 +168,7 @@ impl<'a> ToolbarPanel<'a> {
 
             ui.separator();
 
-            // ── Image Menu (Presets, Colormap, W/L) ───────────────────────
+            // ── Image Menu (Presets, colormap, W/L) ───────────────────────────
             ui.menu_button("🎨 Image", |ui| {
                 ui.label("Window/Level Presets:");
                 let presets = WindowPreset::for_modality(self.modality_hint);
@@ -182,7 +182,7 @@ impl<'a> ToolbarPanel<'a> {
                 ui.separator();
 
                 ui.label("Colormap:");
-                for &cm in Colormap::all() {
+                for &cm in &NamedColorMap::ALL {
                     if ui
                         .selectable_label(*self.active_colormap == cm, cm.label())
                         .clicked()

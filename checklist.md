@@ -8,6 +8,25 @@
 
 # RITK Sprint Checklist — Active
 
+## VIS-665-01 — Iris color-law migration
+**Target version**: Unreleased breaking
+**Sprint phase**: Execution
+
+- [x] Audit duplicate color laws in `ritk-snap` and `ritk-vtk`; record the
+      provider boundary and breaking migration in ADR 0011.
+- [x] Add the required byte-normalization capability upstream in public Iris
+      and consume merged revision `e2edd476`.
+- [x] Replace every in-scope caller with `NamedColorMap`; delete both local
+      interpolation implementations and compatibility surfaces.
+- [x] Add exhaustive VTK table-node equivalence, Snap boundary-vector, and
+      non-finite volume-rendering regressions.
+- [x] Complete package format, warning-denied Clippy, Nextest, doctest, and
+      warning-clean Rustdoc gates.
+- [x] Confirm the public break with `cargo-semver-checks`: one removed VTK
+      enum and the removed Snap enum/module; no unclassified break remains.
+- [ ] Commit, publish, merge, and register the exact RITK and Iris revisions in
+      Atlas.
+
 ## CI-664-01 — Atlas-owned provider checkout
 **Target version**: Unreleased patch
 **Sprint phase**: Execution

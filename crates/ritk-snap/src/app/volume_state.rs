@@ -6,7 +6,7 @@ use tracing::{error, info};
 use super::state::{ProjectionMode, SeriesLoadTarget, SnapApp, DEFAULT_FUSION_ALPHA};
 use crate::dicom::select_hanging_protocol;
 use crate::label::LabelEditor;
-use crate::render::colormap::Colormap;
+use crate::render::NamedColorMap;
 use crate::tools::interaction::ToolState;
 use crate::ui::LinkedCursor;
 use crate::LoadedVolume;
@@ -161,7 +161,7 @@ impl SnapApp {
         self.series_load_target = SeriesLoadTarget::Primary;
         self.secondary_window_center = None;
         self.secondary_window_width = None;
-        self.secondary_colormap = Colormap::Grayscale;
+        self.secondary_colormap = NamedColorMap::Grayscale;
         self.multi_planar = false;
         self.dual_plane = false;
         self.compare_side_by_side = false;

@@ -11,7 +11,7 @@
 use std::sync::Arc;
 
 use crate::render::mip_vr::render_vr_axial;
-use crate::render::{Colormap, WindowLevel};
+use crate::render::{NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
 
 use super::GpuVolumeRenderer;
@@ -24,7 +24,7 @@ fn render_vr_sync(
     renderer: &mut GpuVolumeRenderer,
     volume: &LoadedVolume,
     wl: WindowLevel,
-    colormap: Colormap,
+    colormap: NamedColorMap,
     alpha_scale: f32,
 ) -> Option<egui::ColorImage> {
     let _ = renderer.render_vr(volume, wl, colormap, alpha_scale);
@@ -109,7 +109,7 @@ fn gpu_vr_matches_cpu_vr_grayscale() {
 
     let volume = make_test_volume(8, 16, 16);
     let wl = WindowLevel::new(1024.0, 2048.0);
-    let colormap = Colormap::Grayscale;
+    let colormap = NamedColorMap::Grayscale;
     let alpha_scale = 0.06f32;
 
     let cpu_img = render_vr_axial(&volume, wl, colormap, alpha_scale);
@@ -156,7 +156,7 @@ fn gpu_vr_below_window_floor_transparent_black() {
 
     let vol = make_uniform_volume(4, 8, 8, 0.0);
     let wl = WindowLevel::new(128.0, 256.0);
-    let img = render_vr_sync(&mut renderer, &vol, wl, Colormap::Grayscale, 0.06)
+    let img = render_vr_sync(&mut renderer, &vol, wl, NamedColorMap::Grayscale, 0.06)
         .expect("GPU VR must succeed when GPU is available");
 
     for &p in &img.pixels {
@@ -176,7 +176,7 @@ fn gpu_vr_nonzero_volume_has_nonzero_output() {
 
     let volume = make_test_volume(4, 8, 8);
     let wl = WindowLevel::new(128.0, 256.0);
-    let img = render_vr_sync(&mut renderer, &volume, wl, Colormap::Grayscale, 0.06)
+    let img = render_vr_sync(&mut renderer, &volume, wl, NamedColorMap::Grayscale, 0.06)
         .expect("GPU VR must succeed when GPU is available");
 
     let has_nonzero = img
@@ -198,7 +198,7 @@ fn gpu_vr_nonzero_volume_has_nonzero_output_sync() {
 
     let volume = make_test_volume(4, 8, 8);
     let wl = WindowLevel::new(128.0, 256.0);
-    let img = render_vr_sync(&mut renderer, &volume, wl, Colormap::Grayscale, 0.06)
+    let img = render_vr_sync(&mut renderer, &volume, wl, NamedColorMap::Grayscale, 0.06)
         .expect("GPU VR must succeed when GPU is available");
 
     let has_nonzero = img
@@ -221,7 +221,7 @@ fn gpu_vr_repeated_render_identical() {
 
     let vol = make_test_volume(8, 16, 16);
     let wl = WindowLevel::new(1024.0, 2048.0);
-    let cm = Colormap::Grayscale;
+    let cm = NamedColorMap::Grayscale;
 
     let img1 = render_vr_sync(&mut renderer, &vol, wl, cm, 0.06).expect("first VR render");
     let img2 =
@@ -261,7 +261,7 @@ fn gpu_mip_async_first_call_none_then_yields_result() {
 
     let vol = make_test_volume(4, 8, 8);
     let wl = WindowLevel::new(128.0, 256.0);
-    let cm = Colormap::Grayscale;
+    let cm = NamedColorMap::Grayscale;
 
     // Invariant 1: first call submits GPU work and returns None immediately.
     let r0 = renderer.render_mip(&vol, wl, cm);
@@ -315,7 +315,7 @@ fn gpu_vr_async_first_call_none_then_yields_result() {
 
     let vol = make_test_volume(4, 8, 8);
     let wl = WindowLevel::new(128.0, 256.0);
-    let cm = Colormap::Grayscale;
+    let cm = NamedColorMap::Grayscale;
     let alpha = 0.06f32;
 
     // Invariant 1.

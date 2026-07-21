@@ -1,8 +1,9 @@
 use super::*;
-use crate::render::colormap::Colormap;
 use crate::render::slice_render::WindowLevel;
+use crate::render::NamedColorMap;
 use crate::tools::ToolKind;
 use egui::Pos2;
+use iris::color::{ColorMap, Normalized};
 
 // ── compute_length ────────────────────────────────────────────────────────
 
@@ -212,19 +213,23 @@ fn test_window_level_apply_range() {
     }
 }
 
-// ── Colormap grayscale (cross-module, uses render::colormap) ─────────────
+// ── NamedColorMap grayscale (cross-module, uses Iris) ────────────────────────
 
-/// [`Colormap::Grayscale`] must produce R = G = B and must be monotonically
+/// [`NamedColorMap::Grayscale`] must produce R = G = B and must be monotonically
 /// non-decreasing in the R channel as `t` increases from 0 to 1.
 ///
 /// Analytical: R(t) = round(t × 255), which is non-decreasing for t ∈ [0, 1].
 #[test]
 fn test_colormap_grayscale_monotone() {
-    let cm = Colormap::Grayscale;
-    let mut prev_r = cm.map(0.0)[0];
+    let cm = NamedColorMap::Grayscale;
+    let mut prev_r = cm
+        .sample(Normalized::new(0.0).expect("zero is normalized"))
+        .to_rgba8()[0];
     for i in 1..=255u32 {
         let t = i as f32 / 255.0;
-        let [r, g, b] = cm.map(t);
+        let [r, g, b, _] = cm
+            .sample(Normalized::new(t).expect("generated test value is normalized"))
+            .to_rgba8();
         // R = G = B invariant.
         assert_eq!(r, g, "Grayscale R≠G at t={t}");
         assert_eq!(g, b, "Grayscale G≠B at t={t}");

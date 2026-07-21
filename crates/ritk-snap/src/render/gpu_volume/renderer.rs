@@ -9,7 +9,7 @@ use std::sync::Arc;
 use egui::ColorImage;
 use wgpu::util::DeviceExt as _;
 
-use crate::render::{Colormap, WindowLevel};
+use crate::render::{NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
 
 use super::context::GpuContext;
@@ -288,7 +288,7 @@ impl GpuVolumeRenderer {
         &mut self,
         volume: &LoadedVolume,
         wl: WindowLevel,
-        colormap: Colormap,
+        colormap: NamedColorMap,
     ) -> Option<ColorImage> {
         self.ensure_volume_uploaded(volume);
         let [_, rows, cols] = volume.shape;
@@ -372,7 +372,7 @@ impl GpuVolumeRenderer {
         &mut self,
         volume: &LoadedVolume,
         wl: WindowLevel,
-        colormap: Colormap,
+        colormap: NamedColorMap,
         alpha_scale: f32,
     ) -> Option<ColorImage> {
         self.ensure_volume_uploaded(volume);

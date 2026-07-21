@@ -8,6 +8,25 @@
 
 # CHANGELOG
 
+## [Unreleased] — Iris visualization provider (VIS-665-01)
+
+### Breaking
+
+- Replaced the RITK-owned `Colormap` and `ColormapPreset` enums with the public
+  `iris::color::NamedColorMap` contract. External callers must import
+  `NamedColorMap`; shared variant names are unchanged.
+
+### Changed
+
+- Deleted the independent `ritk-snap` and `ritk-vtk` color interpolation
+  implementations. CPU rendering, GPU lookup tables, and VTK lookup tables now
+  use Iris revision `e2edd47615454111b4b0df2e68dc6076161ba457`.
+- VTK lookup storage is a fixed 256-entry array. Snap uses Iris's validated
+  branch-free 8-bit normalization conversion and preserves deterministic
+  window endpoints for non-finite voxels.
+- Added ADR 0011 with the provider boundary, public migration, rejected
+  wrapper alternative, and differential verification contract.
+
 ## [Unreleased] — Native extended label-shape statistics (MIG-657-01)
 
 ### Breaking

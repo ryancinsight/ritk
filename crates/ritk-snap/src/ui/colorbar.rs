@@ -24,8 +24,9 @@
 //! of the bar, with the center value at the midpoint.
 
 use egui::{pos2, vec2, Color32, Painter, Rect, Rounding, Stroke, Ui};
+use iris::color::{ColorMap, Normalized};
 
-use crate::render::colormap::Colormap;
+use crate::render::NamedColorMap;
 
 /// Width of the colorbar swatch in screen pixels.
 pub const COLORBAR_WIDTH: f32 = 18.0;
@@ -50,7 +51,13 @@ const MIN_HEIGHT: f32 = 60.0;
 /// - The bottom corresponds to intensity `center − width / 2`.
 /// - All labels are drawn in white with a dark text shadow for legibility
 ///   on any background.
-pub fn draw_colorbar(painter: &Painter, rect: Rect, colormap: Colormap, center: f32, width: f32) {
+pub fn draw_colorbar(
+    painter: &Painter,
+    rect: Rect,
+    colormap: NamedColorMap,
+    center: f32,
+    width: f32,
+) {
     let bar_height = (rect.height()).max(MIN_HEIGHT);
     let bar_left = rect.left();
     let bar_right = bar_left + COLORBAR_WIDTH;
@@ -63,7 +70,8 @@ pub fn draw_colorbar(painter: &Painter, rect: Rect, colormap: Colormap, center: 
 
     for i in 0..n_rows {
         let t = 1.0 - (i as f32) / ((n_rows - 1) as f32);
-        let [r, g, b] = colormap.map(t);
+        let t = Normalized::new(t).expect("invariant: generated colorbar coordinate is normalized");
+        let [r, g, b, _] = colormap.sample(t).to_rgba8();
         let color = Color32::from_rgb(r, g, b);
 
         let row_y_top = bar_top + (i as f32 / n_rows as f32) * bar_height;
@@ -127,7 +135,7 @@ pub fn draw_colorbar(painter: &Painter, rect: Rect, colormap: Colormap, center: 
 ///
 /// Allocates space for the full colorbar panel (`COLORBAR_PANEL_WIDTH` wide)
 /// and delegates to [`draw_colorbar`].
-pub fn show_colorbar(ui: &mut Ui, colormap: Colormap, center: f32, width: f32) {
+pub fn show_colorbar(ui: &mut Ui, colormap: NamedColorMap, center: f32, width: f32) {
     let bar_height = ui.available_height().max(MIN_HEIGHT);
     let (rect, _response) =
         ui.allocate_exact_size(vec2(COLORBAR_PANEL_WIDTH, bar_height), egui::Sense::hover());

@@ -10,7 +10,7 @@
 //! for session serialization.  `app.rs` delegates to these functions; no
 //! JSON serialization logic appears outside this module.
 
-use crate::render::colormap::Colormap;
+use crate::render::NamedColorMap;
 use crate::tools::interaction::Annotation;
 use crate::tools::kind::ToolKind;
 use crate::ui::sidebar::SidebarTab;
@@ -36,7 +36,7 @@ pub struct ViewerSessionSnapshot {
     /// Primary viewer navigation and window/level state.
     pub viewer_state: ViewerState,
     /// Active colormap.
-    pub colormap: Colormap,
+    pub colormap: NamedColorMap,
     /// Primary axis: 0 axial, 1 coronal, 2 sagittal.
     pub axis: usize,
     /// Active interaction tool.
@@ -86,7 +86,7 @@ impl ViewerSessionSnapshot {
         Self {
             source: None,
             viewer_state: ViewerState::new(),
-            colormap: Colormap::Grayscale,
+            colormap: NamedColorMap::Grayscale,
             axis: 0,
             active_tool: ToolKind::WindowLevel,
             multi_planar: false,

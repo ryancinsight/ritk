@@ -25,12 +25,13 @@
 //! | 2      | c (sagittal)| data[depth×R×C + row×C + c]         | (rows=D, cols=R)  |
 //!
 //! The `SliceRenderer` converts extracted pixels through the WL LUT and then
-//! through a [`Colormap`], producing an [`egui::ColorImage`] of size
+//! through a [`NamedColorMap`], producing an [`egui::ColorImage`] of size
 //! `[width, height]` = `[cols, rows]` in egui convention.
 
 use super::buffer_pool::RenderBufferPool;
-use super::colormap::Colormap;
+use super::NamedColorMap;
 use crate::LoadedVolume;
+use iris::color::{ColorMap, Normalized};
 
 // ── WindowLevel ───────────────────────────────────────────────────────────────
 
@@ -130,7 +131,7 @@ impl SliceRenderer {
         axis: usize,
         index: usize,
         wl: WindowLevel,
-        colormap: Colormap,
+        colormap: NamedColorMap,
     ) -> egui::ColorImage {
         let (pixels, width, height) = volume.extract_slice(axis, index);
         if width == 0 || height == 0 {
@@ -145,11 +146,8 @@ impl SliceRenderer {
         let mut rgba = Vec::with_capacity(width * height * 4);
         for &p in &pixels {
             let byte = wl.apply(p as f64);
-            let [r, g, b] = colormap.map(byte as f32 / super::U8_MAX_F32);
-            rgba.push(r);
-            rgba.push(g);
-            rgba.push(b);
-            rgba.push(255);
+            let value = Normalized::from_u8(byte);
+            rgba.extend_from_slice(&colormap.sample(value).to_rgba8());
         }
 
         egui::ColorImage::from_rgba_unmultiplied([width, height], &rgba)
@@ -177,7 +175,7 @@ impl SliceRenderer {
         axis: usize,
         index: usize,
         wl: WindowLevel,
-        colormap: Colormap,
+        colormap: NamedColorMap,
     ) -> egui::ColorImage {
         let (width, height) = volume.extract_slice_into(&mut pool.pixel_f32, axis, index);
         if width == 0 || height == 0 {
@@ -190,12 +188,13 @@ impl SliceRenderer {
         let rgba = pool.rgba_u8.as_mut_slice();
         for (i, &p) in pixels.iter().enumerate() {
             let byte = wl.apply(p as f64);
-            let [r, g, b] = colormap.map(byte as f32 / super::U8_MAX_F32);
+            let value = Normalized::from_u8(byte);
+            let [r, g, b, alpha] = colormap.sample(value).to_rgba8();
             let base = i * 4;
             rgba[base] = r;
             rgba[base + 1] = g;
             rgba[base + 2] = b;
-            rgba[base + 3] = 255;
+            rgba[base + 3] = alpha;
         }
         egui::ColorImage::from_rgba_unmultiplied([width, height], &pool.rgba_u8)
     }

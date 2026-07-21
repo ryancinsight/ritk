@@ -4,7 +4,7 @@
 //! tool, measurement, colormap, segmentation loading, and RT dose/plan.
 
 use crate::app::state::SnapApp;
-use crate::render::colormap::Colormap;
+use crate::render::NamedColorMap;
 use crate::tools::kind::ToolKind;
 use crate::{LoadedVolume, ViewerState};
 use arrayvec::ArrayString;

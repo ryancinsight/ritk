@@ -15,9 +15,10 @@
 //! remains in the same interval.
 
 use egui::ColorImage;
+use iris::color::{ColorMap, Normalized};
 
 use crate::dicom::pet::PetAcquisitionParams;
-use crate::render::{Colormap, WindowLevel};
+use crate::render::{NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
 
 #[derive(Clone, Copy)]
@@ -60,7 +61,7 @@ pub struct FusedSliceParams<'a> {
     pub axis: usize,
     pub slice: usize,
     pub wl: WindowLevel,
-    pub colormap: Colormap,
+    pub colormap: NamedColorMap,
 }
 
 /// Render a fused compare slice where the output geometry follows `primary`.
@@ -110,8 +111,10 @@ pub fn render_fused_slice(
 
             let p = primary_transform.apply(primary_pixels[row * width + col]);
             let s = secondary_transform.apply(secondary_pixels[sy * secondary_width + sx]);
-            let p_rgb = primary_colormap.map(primary_wl.apply(p) as f32 / super::U8_MAX_F32);
-            let s_rgb = secondary_colormap.map(secondary_wl.apply(s) as f32 / super::U8_MAX_F32);
+            let p_value = Normalized::from_u8(primary_wl.apply(p));
+            let s_value = Normalized::from_u8(secondary_wl.apply(s));
+            let p_rgb = primary_colormap.sample(p_value).to_rgba8();
+            let s_rgb = secondary_colormap.sample(s_value).to_rgba8();
 
             let out_idx = (row * width + col) * 3;
             rgb[out_idx] = (inv_alpha * p_rgb[0] as f32 + alpha * s_rgb[0] as f32).round() as u8;

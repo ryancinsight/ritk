@@ -128,7 +128,7 @@ fn test_window_level_apply_slice_analytic() {
 fn test_slice_render_axial_shape() {
     let vol = make_volume(4, 5, 6);
     let wl = WindowLevel::new(12.0, 24.0);
-    let img = SliceRenderer::render(&vol, 0, 2, wl, Colormap::Grayscale);
+    let img = SliceRenderer::render(&vol, 0, 2, wl, NamedColorMap::Grayscale);
     // egui::ColorImage size convention: [width, height] = [cols, rows].
     assert_eq!(
         img.size,
@@ -150,7 +150,7 @@ fn test_slice_render_axial_shape() {
 fn test_slice_render_coronal_shape() {
     let vol = make_volume(4, 5, 6);
     let wl = WindowLevel::new(12.0, 24.0);
-    let img = SliceRenderer::render(&vol, 1, 2, wl, Colormap::Grayscale);
+    let img = SliceRenderer::render(&vol, 1, 2, wl, NamedColorMap::Grayscale);
     // egui::ColorImage size convention: [width, height] = [cols, depth].
     assert_eq!(
         img.size,
@@ -172,7 +172,7 @@ fn test_slice_render_coronal_shape() {
 fn test_slice_render_sagittal_shape() {
     let vol = make_volume(4, 5, 6);
     let wl = WindowLevel::new(12.0, 24.0);
-    let img = SliceRenderer::render(&vol, 2, 1, wl, Colormap::Grayscale);
+    let img = SliceRenderer::render(&vol, 2, 1, wl, NamedColorMap::Grayscale);
     // egui::ColorImage size convention: [width, height] = [rows, depth].
     assert_eq!(
         img.size,
@@ -196,7 +196,7 @@ fn test_slice_render_sagittal_shape() {
 fn test_slice_render_axial_pixel_values() {
     let vol = make_volume(2, 3, 3);
     let wl = WindowLevel::new(4.0, 8.0);
-    let img = SliceRenderer::render(&vol, 0, 0, wl, Colormap::Grayscale);
+    let img = SliceRenderer::render(&vol, 0, 0, wl, NamedColorMap::Grayscale);
     // Extract the red channel (= green = blue for Grayscale).
     let actual: Vec<u8> = img.pixels.iter().map(|p| p.r()).collect();
     // Analytically derived expected values (see test_window_level_apply_slice_analytic).

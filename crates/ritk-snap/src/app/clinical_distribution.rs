@@ -1,4 +1,4 @@
-use crate::render::colormap::Colormap;
+use crate::render::NamedColorMap;
 use crate::tools::kind::ToolKind;
 use crate::ui::anatomical_label_for_axis;
 use crate::{LoadedVolume, ViewerState};
@@ -253,7 +253,7 @@ pub(crate) fn summary_from_loaded_volume<'a>(
     volume: &'a LoadedVolume,
     viewer_state: &'a ViewerState,
     axis: usize,
-    colormap: Colormap,
+    colormap: NamedColorMap,
     active_tool: ToolKind,
     annotation_count: usize,
     segmentation_present: bool,

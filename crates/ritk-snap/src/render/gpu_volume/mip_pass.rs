@@ -31,7 +31,7 @@ use std::sync::mpsc;
 
 use egui::ColorImage;
 
-use crate::render::{Colormap, WindowLevel};
+use crate::render::{NamedColorMap, WindowLevel};
 
 use super::build_colormap_lut;
 use super::context::GpuContext;
@@ -65,7 +65,7 @@ pub(super) fn submit_mip_async(
     cache: &GpuFrameCache,
     vol_shape: [usize; 3],
     wl: WindowLevel,
-    colormap: Colormap,
+    colormap: NamedColorMap,
 ) -> mpsc::Receiver<Result<(), wgpu::BufferAsyncError>> {
     let [depth, rows, cols] = vol_shape;
     let output_bytes = rows as u64 * cols as u64 * std::mem::size_of::<u32>() as u64;

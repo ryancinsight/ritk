@@ -49,7 +49,7 @@
 //! Out-of-range indices are silently clamped by [`ViewportState::clamp_slice_index`].
 
 use crate::{
-    render::{colormap::Colormap, slice_render::WindowLevel},
+    render::{slice_render::WindowLevel, NamedColorMap},
     tools::{
         interaction::{Annotation, ToolState},
         kind::ToolKind,
@@ -87,7 +87,7 @@ pub struct ViewportState {
     /// Current window/level settings.
     pub wl: WindowLevel,
     /// Active colormap.
-    pub colormap: Colormap,
+    pub colormap: NamedColorMap,
     /// Completed measurement annotations for this viewport.
     pub annotations: Vec<Annotation>,
     /// In-progress tool state.
@@ -114,7 +114,7 @@ impl ViewportState {
             zoom: 1.0,
             pan_offset: Vec2::ZERO,
             wl,
-            colormap: Colormap::Grayscale,
+            colormap: NamedColorMap::Grayscale,
             annotations: Vec::new(),
             tool_state: ToolState::Idle,
             show_overlay: true,
