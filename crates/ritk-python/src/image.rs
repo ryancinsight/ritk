@@ -1,5 +1,6 @@
 //! Python-exposed Image class wrapping native `ritk_image::Image`.
 
+use crate::array_utils::copy_array3_to_vec;
 use crate::errors::{RitkPyError, RitkResult};
 use coeus_core::{MoiraiBackend, SequentialBackend};
 use numpy::{PyArray1, PyArray3, PyArrayMethods, PyReadonlyArray3, PyUntypedArrayMethods};
@@ -33,10 +34,8 @@ impl PyImage {
     ) -> PyResult<Self> {
         let shape = array.shape();
         let (z, y, x) = (shape[0], shape[1], shape[2]);
-        let flat: Vec<f32> = array
-            .as_slice()
-            .map_err(|e| RitkPyError::value(format!("input array must be contiguous: {e}")))?
-            .to_vec();
+        let flat: Vec<f32> = copy_array3_to_vec(&array)
+            .map_err(|e| RitkPyError::value(format!("failed to read input array: {e}")))?;
         let sp = spacing.unwrap_or([1.0, 1.0, 1.0]);
         let orig = origin.unwrap_or([0.0, 0.0, 0.0]);
         let image = NativeImage::from_flat_on(

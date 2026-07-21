@@ -13,6 +13,7 @@
 //! the submodules so they are importable as:
 //!   `import ritk; ritk.image, ritk.io, ritk.filter, ...`
 
+pub(crate) mod array_utils;
 pub mod color;
 pub mod errors;
 pub mod filter;

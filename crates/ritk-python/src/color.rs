@@ -6,6 +6,7 @@
 //! `ritk_filter::map_color_components`, matching ITK's vector-image semantics
 //! (each component filtered independently).
 
+use crate::array_utils::copy_array4_to_vec;
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
 use coeus_core::MoiraiBackend;
@@ -47,10 +48,8 @@ impl PyColorImage {
             ))
             .into());
         }
-        let flat: Vec<f32> = array
-            .as_slice()
-            .map_err(|e| RitkPyError::value(format!("input array must be contiguous: {e}")))?
-            .to_vec();
+        let flat: Vec<f32> = copy_array4_to_vec(&array)
+            .map_err(|e| RitkPyError::value(format!("failed to read input array: {e}")))?;
         let sp = spacing.unwrap_or([1.0, 1.0, 1.0]);
         let orig = origin.unwrap_or([0.0, 0.0, 0.0]);
         let vol = ColorVolume::from_flat_on(
