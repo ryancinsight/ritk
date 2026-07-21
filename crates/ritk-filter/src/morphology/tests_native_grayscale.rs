@@ -38,7 +38,11 @@ fn dilation_matches_coeus() {
     assert_coeus_matches_coeus(
         scattered(dims),
         dims,
-        |img| GrayscaleDilation::new(1).apply(img).expect("coeus dilation"),
+        |img| {
+            GrayscaleDilation::new(1)
+                .apply(img)
+                .expect("coeus dilation")
+        },
         |img, backend| GrayscaleDilation::new(1).apply_native(img, backend),
     );
 }
