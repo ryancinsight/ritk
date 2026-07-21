@@ -88,10 +88,10 @@ pub fn multi_label_staple(
         for kk in 0..k {
             counts[dl(vox, kk)] += 1;
         }
-        let maxc = *counts.iter().max().unwrap();
+        let maxc = *counts.iter().max().expect("infallible: validated precondition");
         let winners = counts.iter().filter(|&&c| c == maxc).count();
         let consensus = if winners == 1 {
-            counts.iter().position(|&c| c == maxc).unwrap()
+            counts.iter().position(|&c| c == maxc).expect("infallible: validated precondition")
         } else {
             l // undecided
         };

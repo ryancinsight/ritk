@@ -67,9 +67,9 @@ fn tet_stl() -> VtkPolyData {
 #[test]
 fn test_stl_ascii_roundtrip_coordinates() {
     let mesh = tet_stl();
-    let file = NamedTempFile::new().unwrap();
-    write_stl_ascii(file.path(), &mesh).unwrap();
-    let loaded = read_stl_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_stl_ascii(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_stl_mesh(file.path()).expect("infallible: validated precondition");
 
     assert_eq!(loaded.points.len(), 12, "4 triangles × 3 points = 12");
     assert_eq!(loaded.polygons.len(), 4);
@@ -89,9 +89,9 @@ fn test_stl_ascii_roundtrip_coordinates() {
 #[test]
 fn test_stl_ascii_roundtrip_cell_normals() {
     let mesh = tet_stl();
-    let file = NamedTempFile::new().unwrap();
-    write_stl_ascii(file.path(), &mesh).unwrap();
-    let loaded = read_stl_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_stl_ascii(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_stl_mesh(file.path()).expect("infallible: validated precondition");
 
     let normals = match loaded
         .cell_data
@@ -114,9 +114,9 @@ fn test_stl_ascii_roundtrip_cell_normals() {
 #[test]
 fn test_stl_binary_roundtrip_coordinates() {
     let mesh = tet_stl();
-    let file = NamedTempFile::new().unwrap();
-    write_stl_binary(file.path(), &mesh).unwrap();
-    let loaded = read_stl_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_stl_binary(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_stl_mesh(file.path()).expect("infallible: validated precondition");
 
     assert_eq!(loaded.points.len(), 12);
     assert_eq!(loaded.polygons.len(), 4);
@@ -132,11 +132,11 @@ fn test_stl_binary_roundtrip_coordinates() {
 #[test]
 fn test_stl_binary_roundtrip_cell_normals() {
     let mesh = tet_stl();
-    let file = NamedTempFile::new().unwrap();
-    write_stl_binary(file.path(), &mesh).unwrap();
-    let loaded = read_stl_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_stl_binary(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_stl_mesh(file.path()).expect("infallible: validated precondition");
 
-    let normals = match loaded.cell_data.get("Normals").unwrap() {
+    let normals = match loaded.cell_data.get("Normals").expect("valid index") {
         AttributeArray::Normals { values } => values.clone(),
         _ => panic!("expected Normals"),
     };
@@ -154,9 +154,9 @@ fn test_stl_binary_roundtrip_cell_normals() {
 #[test]
 fn test_stl_binary_polygon_indices_sequential() {
     let mesh = tet_stl();
-    let file = NamedTempFile::new().unwrap();
-    write_stl_binary(file.path(), &mesh).unwrap();
-    let loaded = read_stl_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_stl_binary(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_stl_mesh(file.path()).expect("infallible: validated precondition");
 
     // Each triangle's polygon indices must be 3i, 3i+1, 3i+2.
     for (i, tri) in loaded.polygons.iter().enumerate() {
@@ -174,9 +174,9 @@ fn test_stl_binary_polygon_indices_sequential() {
 #[test]
 fn test_stl_ascii_empty_roundtrip() {
     let mesh = VtkPolyData::default();
-    let file = NamedTempFile::new().unwrap();
-    write_stl_ascii(file.path(), &mesh).unwrap();
-    let loaded = read_stl_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_stl_ascii(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_stl_mesh(file.path()).expect("infallible: validated precondition");
     assert_eq!(loaded.points.len(), 0);
     assert_eq!(loaded.polygons.len(), 0);
 }
@@ -184,9 +184,9 @@ fn test_stl_ascii_empty_roundtrip() {
 #[test]
 fn test_stl_binary_empty_roundtrip() {
     let mesh = VtkPolyData::default();
-    let file = NamedTempFile::new().unwrap();
-    write_stl_binary(file.path(), &mesh).unwrap();
-    let loaded = read_stl_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_stl_binary(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_stl_mesh(file.path()).expect("infallible: validated precondition");
     assert_eq!(loaded.points.len(), 0);
     assert_eq!(loaded.polygons.len(), 0);
 }
@@ -200,7 +200,7 @@ fn test_stl_binary_rejects_quads() {
         polygons: vec![vec![0, 1, 2, 3]], // quad: invalid for STL
         ..Default::default()
     };
-    let file = NamedTempFile::new().unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
     assert!(
         write_stl_binary(file.path(), &mesh).is_err(),
         "quads must be rejected"
@@ -214,7 +214,7 @@ fn test_stl_ascii_rejects_quads() {
         polygons: vec![vec![0, 1, 2, 3]],
         ..Default::default()
     };
-    let file = NamedTempFile::new().unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
     assert!(
         write_stl_ascii(file.path(), &mesh).is_err(),
         "quads must be rejected"
@@ -225,9 +225,9 @@ fn test_stl_ascii_rejects_quads() {
 fn test_stl_binary_file_size_invariant() {
     // Binary STL for N triangles must be exactly N*50 + 84 bytes.
     let mesh = tet_stl(); // 4 triangles
-    let file = NamedTempFile::new().unwrap();
-    write_stl_binary(file.path(), &mesh).unwrap();
-    let metadata = std::fs::metadata(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_stl_binary(file.path(), &mesh).expect("infallible: validated precondition");
+    let metadata = std::fs::metadata(file.path()).expect("infallible: validated precondition");
     assert_eq!(
         metadata.len(),
         4 * 50 + 84,
@@ -251,7 +251,7 @@ fn test_stl_malformed_ascii_bad_normal() {
 fn test_stl_in_memory_binary_writer() {
     let mesh = tet_stl();
     let mut buf = Vec::new();
-    write_stl_binary_to_writer(&mut buf, &mesh).unwrap();
+    write_stl_binary_to_writer(&mut buf, &mesh).expect("infallible: validated precondition");
     // 80-byte header + 4-byte count + 4*(12+36+2) = 84 + 200 = 284
     assert_eq!(buf.len(), 4 * 50 + 84);
     // Header starts with "RITK binary STL".
@@ -264,8 +264,8 @@ fn test_stl_in_memory_binary_writer() {
 fn test_stl_in_memory_ascii_writer() {
     let mesh = tet_stl();
     let mut buf = Vec::new();
-    write_stl_ascii_to_writer(&mut buf, &mesh).unwrap();
-    let text = String::from_utf8(buf).unwrap();
+    write_stl_ascii_to_writer(&mut buf, &mesh).expect("infallible: validated precondition");
+    let text = String::from_utf8(buf).expect("infallible: validated precondition");
     assert!(
         text.starts_with("solid ritk"),
         "ASCII STL must start with 'solid'"

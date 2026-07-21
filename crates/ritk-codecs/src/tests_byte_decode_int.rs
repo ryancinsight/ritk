@@ -16,7 +16,7 @@ fn decode_i8_le_round_trips_to_f32() {
         5,
         "int8",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out, vec![0.0, 1.0, 127.0, -128.0, -1.0]);
 }
 
@@ -32,7 +32,7 @@ fn decode_i8_be_round_trips_to_f32() {
         5,
         "int8",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out, vec![0.0, 1.0, 127.0, -128.0, -1.0]);
 }
 
@@ -53,7 +53,7 @@ fn decode_i16_le_round_trips_to_f32() {
         4,
         "int16",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out, vec![1.0, -1.0, 32767.0, -32768.0]);
 }
 
@@ -74,7 +74,7 @@ fn decode_i32_le_round_trips_to_f32() {
         4,
         "int32",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out, vec![1.0, -1.0, i32::MAX as f32, i32::MIN as f32]);
 }
 
@@ -93,7 +93,7 @@ fn decode_i32_be_round_trips_to_f32() {
         4,
         "int32",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out, vec![1.0, -1.0, i32::MAX as f32, i32::MIN as f32]);
 }
 
@@ -114,7 +114,7 @@ fn decode_i64_le_round_trips_to_f32() {
         3,
         "int64",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out[0], 1.0);
     assert_eq!(out[1], -1.0);
     assert!((out[2] - 123_456_789_012_345.0_f32).abs() < 1.0);
@@ -135,7 +135,7 @@ fn decode_i64_be_round_trips_to_f32() {
         3,
         "int64",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out[0], 1.0);
     assert_eq!(out[1], -1.0);
     assert!((out[2] - 123_456_789_012_345.0_f32).abs() < 1.0);
@@ -155,7 +155,7 @@ fn decode_u8_be_round_trips_to_f32() {
         4,
         "uint8",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out, vec![0.0, 1.0, 127.0, 255.0]);
 }
 
@@ -176,7 +176,7 @@ fn decode_u16_le_round_trips_to_f32() {
         3,
         "uint16",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out, vec![1.0, 1000.0, 65535.0]);
 }
 
@@ -195,7 +195,7 @@ fn decode_u16_be_round_trips_to_f32() {
         3,
         "uint16",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out, vec![1.0, 1000.0, 65535.0]);
 }
 
@@ -216,7 +216,7 @@ fn decode_u32_le_round_trips_to_f32() {
         3,
         "uint32",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out, vec![1.0, 1_000_000.0, u32::MAX as f32]);
 }
 
@@ -235,7 +235,7 @@ fn decode_u32_be_round_trips_to_f32() {
         3,
         "uint32",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out, vec![1.0, 1_000_000.0, u32::MAX as f32]);
 }
 
@@ -256,7 +256,7 @@ fn decode_u64_le_round_trips_to_f32() {
         3,
         "uint64",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out[0], 1.0);
     assert!((out[1] - 123_456_789_012_345.0_f32).abs() < 1.0);
     assert!((out[2] - u64::MAX as f32).abs() / (u64::MAX as f32) < 1e-5);
@@ -277,7 +277,7 @@ fn decode_u64_be_round_trips_to_f32() {
         3,
         "uint64",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out[0], 1.0);
     assert!((out[1] - 123_456_789_012_345.0_f32).abs() < 1.0);
     assert!((out[2] - u64::MAX as f32).abs() / (u64::MAX as f32) < 1e-5);
@@ -297,7 +297,7 @@ fn decode_count_zero_returns_empty() {
         0,
         "float",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert!(out.is_empty());
 }
 
@@ -313,7 +313,7 @@ fn decode_type_name_passes_through_to_error() {
         1,
         "MET_CARDIAC_3D",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out, vec![0.0]);
     let err = decode_bytes_to_f32(
         &bytes,

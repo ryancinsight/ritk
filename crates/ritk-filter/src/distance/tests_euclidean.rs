@@ -93,7 +93,7 @@ fn edt_3d_anisotropic_spacing_scales_distance() {
 #[test]
 fn unsigned_edt_filter_preserves_spatial_metadata() {
     let img = make_image(vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [2, 2, 2]);
-    let out = DistanceTransformImageFilter::new().apply(&img).unwrap();
+    let out = DistanceTransformImageFilter::new().apply(&img).expect("infallible: validated precondition");
     assert_eq!(out.shape(), img.shape());
     assert_eq!(out.spacing(), img.spacing());
     assert_eq!(out.origin(), img.origin());
@@ -102,7 +102,7 @@ fn unsigned_edt_filter_preserves_spatial_metadata() {
 #[test]
 fn unsigned_edt_filter_foreground_voxel_receives_zero() {
     let img = make_image(vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [2, 2, 2]);
-    let out = DistanceTransformImageFilter::new().apply(&img).unwrap();
+    let out = DistanceTransformImageFilter::new().apply(&img).expect("infallible: validated precondition");
     let v = voxels(&out);
     // iz=0,iy=0,ix=0 is foreground → distance 0
     assert!(
@@ -118,7 +118,7 @@ fn unsigned_edt_filter_background_voxels_have_positive_distance() {
     let mut vals = vec![0.0f32; 27];
     vals[0] = 1.0;
     let img = make_image(vals, [3, 3, 3]);
-    let out = DistanceTransformImageFilter::new().apply(&img).unwrap();
+    let out = DistanceTransformImageFilter::new().apply(&img).expect("infallible: validated precondition");
     let v = voxels(&out);
     // All non-foreground voxels must have distance > 0
     for (i, &d) in v.iter().enumerate() {
@@ -207,7 +207,7 @@ fn signed_edt_filter_inside_negative_outside_positive() {
     let img = make_image(vals, [1, 1, 5]);
     let out = SignedDistanceTransformImageFilter::new()
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let v = voxels(&out);
     // ix=0 (background): positive distance to nearest fg (ix=1) = 1
     assert!(v[0] > 0.0, "background expected positive, got {}", v[0]);
@@ -235,7 +235,7 @@ fn signed_edt_filter_preserves_spatial_metadata() {
     let img = make_image(vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], [2, 2, 2]);
     let out = SignedDistanceTransformImageFilter::new()
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), img.shape());
     assert_eq!(out.spacing(), img.spacing());
 }

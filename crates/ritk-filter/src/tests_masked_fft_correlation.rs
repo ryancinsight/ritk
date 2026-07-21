@@ -23,7 +23,7 @@ fn masked_fft_ncc_self_correlation_peaks_at_one() {
             &mask,
             &img(vec![1.0; 9], dims),
         )
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 5, 5], "output extent is fixed+moving-1");
     let (v, _) = extract_vec_infallible(&out);
     let max = v.iter().cloned().fold(f32::MIN, f32::max);

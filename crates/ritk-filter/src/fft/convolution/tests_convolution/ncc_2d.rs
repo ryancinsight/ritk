@@ -14,9 +14,9 @@ fn ncc_output_shape_matches_input() {
     let tmpl = make_image_2d(vec![1.0_f32; 9], 3, 3);
 
     let result = FftNormalizedCorrelationFilter::<B>::new(&tmpl)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     assert_eq!(
         result.shape(),
@@ -36,11 +36,11 @@ fn ncc_zero_mean_template_gives_zero_output() {
     let tmpl = make_image_2d(vec![2.0_f32; 9], 3, 3); // constant → T̂ = 0
 
     let result = FftNormalizedCorrelationFilter::<B>::new(&tmpl)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
-    let (out_vals, _) = extract_vec(&result).unwrap();
+    let (out_vals, _) = extract_vec(&result).expect("infallible: validated precondition");
     for (i, &v) in out_vals.iter().enumerate() {
         assert!(
             v.abs() < 1e-6,
@@ -69,10 +69,10 @@ fn ncc_perfect_match_peaks_at_one() {
     let tmpl = make_image_2d(patch.to_vec(), 3, 3);
 
     let result = FftNormalizedCorrelationFilter::<B>::new(&tmpl)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&image)
-        .unwrap();
-    let (out, _) = extract_vec(&result).unwrap();
+        .expect("infallible: validated precondition");
+    let (out, _) = extract_vec(&result).expect("infallible: validated precondition");
 
     // NCC at the embedding lag must be 1.0; nothing may exceed it.
     let at_match = out[pr * w + pc];
@@ -98,11 +98,11 @@ fn ncc_output_is_finite() {
     let tmpl = make_image_2d(tmpl_vals, 3, 3);
 
     let result = FftNormalizedCorrelationFilter::<B>::new(&tmpl)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
-    let (out_vals, _) = extract_vec(&result).unwrap();
+    let (out_vals, _) = extract_vec(&result).expect("infallible: validated precondition");
     for (i, &v) in out_vals.iter().enumerate() {
         assert!(
             v.is_finite(),

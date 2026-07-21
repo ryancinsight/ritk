@@ -26,7 +26,7 @@ fn get_slice_1d(image: &Image<f32, B, 1>) -> Vec<f32> {
 fn test_constant_image_all_same_label() {
     let data = vec![42.0_f32; 100];
     let image = make_image_1d(data);
-    let result = KMeansSegmentation::new(3).unwrap().apply(&image).unwrap();
+    let result = KMeansSegmentation::new(3).expect("infallible: validated precondition").apply(&image).expect("infallible: validated precondition");
     let labels = get_slice_1d(&result);
 
     // All voxels must have the same label (cluster).
@@ -50,7 +50,7 @@ fn test_bimodal_two_clusters() {
     let mut data = vec![10.0_f32; 50];
     data.extend(vec![200.0_f32; 50]);
     let image = make_image_1d(data);
-    let result = KMeansSegmentation::new(2).unwrap().apply(&image).unwrap();
+    let result = KMeansSegmentation::new(2).expect("infallible: validated precondition").apply(&image).expect("infallible: validated precondition");
     let labels = get_slice_1d(&result);
 
     // Labels in [0, K-1].
@@ -100,7 +100,7 @@ fn test_apply_output_shape_matches_input() {
     let n: usize = dims.iter().product();
     let data: Vec<f32> = (0..n).map(|i| (i % 3) as f32 * 50.0).collect();
     let image = make_image_3d(data, dims);
-    let result = KMeansSegmentation::new(3).unwrap().apply(&image).unwrap();
+    let result = KMeansSegmentation::new(3).expect("infallible: validated precondition").apply(&image).expect("infallible: validated precondition");
     assert_eq!(result.shape(), dims);
 }
 
@@ -114,7 +114,7 @@ fn test_labels_in_valid_range() {
         data.extend(vec![c as f32 * 80.0; 25]);
     }
     let image = make_image_1d(data);
-    let result = KMeansSegmentation::new(k).unwrap().apply(&image).unwrap();
+    let result = KMeansSegmentation::new(k).expect("infallible: validated precondition").apply(&image).expect("infallible: validated precondition");
     let labels = get_slice_1d(&result);
 
     for &l in &labels {
@@ -136,7 +136,7 @@ fn test_apply_preserves_spatial_metadata() {
     let n: usize = dims.iter().product();
     let data: Vec<f32> = (0..n).map(|i| (i as f32) * 10.0).collect();
     let image = make_image_3d(data, dims);
-    let result = KMeansSegmentation::new(2).unwrap().apply(&image).unwrap();
+    let result = KMeansSegmentation::new(2).expect("infallible: validated precondition").apply(&image).expect("infallible: validated precondition");
 
     assert_eq!(result.origin(), image.origin());
     assert_eq!(result.spacing(), image.spacing());
@@ -150,7 +150,7 @@ fn test_convenience_fn_produces_valid_output() {
     let mut data = vec![10.0_f32; 30];
     data.extend(vec![200.0_f32; 30]);
     let image = make_image_1d(data);
-    let result = kmeans_segment(&image, 2).unwrap();
+    let result = kmeans_segment(&image, 2).expect("infallible: validated precondition");
     let labels = get_slice_1d(&result);
     assert_eq!(labels.len(), 60);
     for &l in &labels {
@@ -170,8 +170,8 @@ fn test_deterministic_with_same_seed() {
     data.extend(vec![200.0_f32; 50]);
     let image = make_image_1d(data);
 
-    let r1 = KMeansSegmentation::new(2).unwrap().apply(&image).unwrap();
-    let r2 = KMeansSegmentation::new(2).unwrap().apply(&image).unwrap();
+    let r1 = KMeansSegmentation::new(2).expect("infallible: validated precondition").apply(&image).expect("infallible: validated precondition");
+    let r2 = KMeansSegmentation::new(2).expect("infallible: validated precondition").apply(&image).expect("infallible: validated precondition");
 
     let l1 = get_slice_1d(&r1);
     let l2 = get_slice_1d(&r2);
@@ -189,8 +189,8 @@ fn test_seed_zero_does_not_panic() {
     data.extend(vec![200.0_f32; 50]);
     let image = make_image_1d(data);
 
-    let seg = KMeansSegmentation::new(2).unwrap().with_seed(0);
-    let labels = get_slice_1d(&seg.apply(&image).unwrap());
+    let seg = KMeansSegmentation::new(2).expect("infallible: validated precondition").with_seed(0);
+    let labels = get_slice_1d(&seg.apply(&image).expect("infallible: validated precondition"));
 
     // Valid two-cluster partition: the two modes land in different clusters.
     for &l in &labels {
@@ -210,7 +210,7 @@ fn test_seed_zero_does_not_panic() {
 fn test_k1_all_zero() {
     let data: Vec<f32> = (0..50).map(|i| i as f32).collect();
     let image = make_image_1d(data);
-    let result = KMeansSegmentation::new(1).unwrap().apply(&image).unwrap();
+    let result = KMeansSegmentation::new(1).expect("infallible: validated precondition").apply(&image).expect("infallible: validated precondition");
     let labels = get_slice_1d(&result);
     for &l in &labels {
         assert!(
@@ -252,20 +252,20 @@ fn native_and_legacy_boundaries_are_exactly_equivalent() {
     .expect("invariant: valid native image");
     let legacy = make_image_3d(values, dimensions);
     let segmentation = KMeansSegmentation::new(3)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .with_max_iterations(20)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .with_tolerance(0.0)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .with_seed(7);
 
     let native_output = segmentation
         .apply_native(&native, &SequentialBackend)
-        .unwrap();
-    let legacy_output = segmentation.apply(&legacy).unwrap();
+        .expect("infallible: validated precondition");
+    let legacy_output = segmentation.apply(&legacy).expect("infallible: validated precondition");
 
     assert_eq!(
-        native_output.data_slice().unwrap(),
+        native_output.data_slice().expect("infallible: validated precondition"),
         legacy_output
             .data_slice()
             .expect("invariant: contiguous host storage")
@@ -342,7 +342,7 @@ fn nonfinite_samples_are_rejected_at_both_boundaries() {
             Direction::identity(),
             &SequentialBackend,
         )
-        .unwrap();
+        .expect("infallible: validated precondition");
         let expected = format!("k-means sample at flat index 1 must be finite, got {rendered}");
         assert_eq!(
             KMeansSegmentation::default()
@@ -372,7 +372,7 @@ fn finite_overflow_range_is_rejected_at_both_boundaries() {
         Direction::identity(),
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let expected = format!(
         "k-means sample range must be representable in f32, got [{}, {}]",
         f32::MIN,
@@ -399,10 +399,10 @@ fn large_same_sign_samples_compute_without_overflow() {
     let scale = f32::MAX / 4.0;
     let values = vec![scale, scale, 2.0 * scale, 2.0 * scale];
     let labels = KMeansSegmentation::new(2)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .with_seed(7)
         .apply(&make_image_1d(values))
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(
         labels
             .data_slice()

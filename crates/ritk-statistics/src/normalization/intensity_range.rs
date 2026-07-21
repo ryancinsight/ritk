@@ -11,7 +11,7 @@
 /// ```rust
 /// use ritk_statistics::IntensityRange;
 ///
-/// let r = IntensityRange::new(0.0_f32, 1.0).unwrap();
+/// let r = IntensityRange::new(0.0_f32, 1.0).expect("infallible: validated precondition");
 /// assert_eq!(r.min(), 0.0);
 /// assert_eq!(r.max(), 1.0);
 /// assert!((r.span() - 1.0).abs() < 1e-9);

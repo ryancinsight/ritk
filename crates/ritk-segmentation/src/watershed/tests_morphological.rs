@@ -19,9 +19,9 @@ fn make(data: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
 fn morphological_watershed_two_basins_with_ridge() {
     let vals = vec![2.0, 1.0, 0.0, 1.0, 2.0, 1.0, 0.0, 1.0, 2.0];
     let out = MorphologicalWatershed::new(0.0)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&make(vals, [1, 1, 9]))
-        .unwrap();
+        .expect("infallible: validated precondition");
     let (ov, _) = extract_vec_infallible(&out);
     assert_eq!(ov, vec![1.0, 1.0, 1.0, 1.0, 0.0, 2.0, 2.0, 2.0, 2.0]);
 }
@@ -33,7 +33,7 @@ fn morphological_watershed_flat_is_single_basin() {
     let n: usize = dims.iter().product();
     let out = MorphologicalWatershed::default()
         .apply(&make(vec![3.0; n], dims))
-        .unwrap();
+        .expect("infallible: validated precondition");
     let (ov, _) = extract_vec_infallible(&out);
     assert!(ov.iter().all(|&v| v == 1.0), "constant relief is one basin");
 }
@@ -45,9 +45,9 @@ fn morphological_watershed_level_merges_shallow_minima() {
     // Deep well at x=2 (depth 5) and a shallow dip at x=6 (depth 1).
     let vals = vec![5.0, 2.0, 0.0, 2.0, 5.0, 5.0, 4.0, 5.0, 5.0];
     let out = MorphologicalWatershed::new(2.0)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&make(vals, [1, 1, 9]))
-        .unwrap();
+        .expect("infallible: validated precondition");
     let (ov, _) = extract_vec_infallible(&out);
     // The depth-1 dip (< level 2) is suppressed; a single basin remains (no
     // watershed line splitting it off).
@@ -74,14 +74,14 @@ fn morphological_watershed_native_matches_legacy_at_all_levels() {
         direction,
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     for level in [0.0, 1.0, 2.0] {
-        let filter = MorphologicalWatershed::new(level).unwrap();
+        let filter = MorphologicalWatershed::new(level).expect("infallible: validated precondition");
         assert_eq!(filter.level(), level);
-        let expected = filter.apply(&legacy).unwrap();
-        let actual = filter.apply_native(&native, &SequentialBackend).unwrap();
+        let expected = filter.apply(&legacy).expect("infallible: validated precondition");
+        let actual = filter.apply_native(&native, &SequentialBackend).expect("infallible: validated precondition");
         assert_eq!(
-            actual.data_slice().unwrap(),
+            actual.data_slice().expect("infallible: validated precondition"),
             expected
                 .data_slice()
                 .expect("invariant: contiguous host storage")

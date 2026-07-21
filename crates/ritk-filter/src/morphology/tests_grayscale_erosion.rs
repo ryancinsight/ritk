@@ -59,7 +59,7 @@ fn test_constant_image_unchanged() {
     let img = make_image(vals, dims);
 
     let filter = GrayscaleErosion::new(2);
-    let result = filter.apply(&img).unwrap();
+    let result = filter.apply(&img).expect("infallible: validated precondition");
     let out = extract_vals(&result);
 
     for (i, &v) in out.iter().enumerate() {
@@ -94,7 +94,7 @@ fn test_bright_spot_reduced() {
 
     let img = make_image(vals, dims);
     let filter = GrayscaleErosion::new(1);
-    let result = filter.apply(&img).unwrap();
+    let result = filter.apply(&img).expect("infallible: validated precondition");
     let out = extract_vals(&result);
 
     // The bright spot should be replaced by the background
@@ -130,7 +130,7 @@ fn test_radius_zero_identity() {
     let img = make_image(vals.clone(), dims);
 
     let filter = GrayscaleErosion::new(0);
-    let result = filter.apply(&img).unwrap();
+    let result = filter.apply(&img).expect("infallible: validated precondition");
     let out = extract_vals(&result);
 
     for (i, (&expected, &actual)) in vals.iter().zip(out.iter()).enumerate() {
@@ -152,7 +152,7 @@ fn test_anti_extensivity() {
     let img = make_image(vals.clone(), dims);
 
     let filter = GrayscaleErosion::new(1);
-    let result = filter.apply(&img).unwrap();
+    let result = filter.apply(&img).expect("infallible: validated precondition");
     let out = extract_vals(&result);
 
     for (i, (&original, &eroded)) in vals.iter().zip(out.iter()).enumerate() {
@@ -185,11 +185,11 @@ fn test_opening_removes_small_bright_feature() {
 
     // Erosion with radius 1
     let erosion = GrayscaleErosion::new(1);
-    let eroded = erosion.apply(&img).unwrap();
+    let eroded = erosion.apply(&img).expect("infallible: validated precondition");
 
     // Dilation with radius 1 (import from sibling module)
     let dilation = crate::morphology::GrayscaleDilation::new(1);
-    let opened = dilation.apply(&eroded).unwrap();
+    let opened = dilation.apply(&eroded).expect("infallible: validated precondition");
     let out = extract_vals(&opened);
 
     // The single bright voxel should be completely removed by opening

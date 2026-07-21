@@ -37,7 +37,7 @@ fn test_multires_thirion_identity_mse_below_threshold() {
     let reg = MultiResDemonsRegistration::new(config);
     let result = reg
         .register(&image, &image, dims, [1.0f32, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert!(
         result.final_mse < 1e-3,
         "identity MSE must be < 1e-3, got {}",
@@ -81,7 +81,7 @@ fn test_multires_thirion_shifted_image_mse_decreases() {
     let reg = MultiResDemonsRegistration::new(config);
     let result = reg
         .register(&fixed, &moving, dims, [1.0f32, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert!(
         result.final_mse < initial_mse,
         "final MSE {} must be less than initial MSE {}",
@@ -106,7 +106,7 @@ fn test_multires_diffeomorphic_identity_mse_below_threshold() {
     let reg = MultiResDemonsRegistration::new(config);
     let result = reg
         .register(&image, &image, dims, [1.0f32, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert!(
         result.final_mse < 1e-3,
         "diffeomorphic identity MSE must be < 1e-3, got {}",
@@ -127,7 +127,7 @@ fn test_multires_displacement_shape_matches_input() {
     let reg = MultiResDemonsRegistration::new(config);
     let result = reg
         .register(&image, &image, dims, [1.0f32, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(result.disp_z.len(), n);
     assert_eq!(result.disp_y.len(), n);
     assert_eq!(result.disp_x.len(), n);
@@ -151,7 +151,7 @@ fn test_multires_single_level_equals_thirion() {
     let multi_reg = MultiResDemonsRegistration::new(multi_config);
     let multi_result = multi_reg
         .register(&image, &image, dims, [1.0f32, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert!(
         multi_result.final_mse < 1e-3,
         "single-level identity MSE must be < 1e-3, got {}",

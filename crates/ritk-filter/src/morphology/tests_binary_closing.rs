@@ -21,7 +21,7 @@ fn flat(img: &Image<f32, B, 3>) -> Vec<f32> {
 fn radius_zero_is_identity() {
     let vals = vec![1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0];
     let img = make_image(vals.clone(), [2, 2, 2]);
-    let out = BinaryMorphologicalClosing::new(0).apply(&img).unwrap();
+    let out = BinaryMorphologicalClosing::new(0).apply(&img).expect("infallible: validated precondition");
     assert_eq!(flat(&out), vals);
 }
 
@@ -42,7 +42,7 @@ fn extensivity_no_foreground_lost() {
         vals[1 * 27 + 1 * 9 + ix] = 1.0;
     }
     let img = make_image(vals.clone(), [3, 3, 9]);
-    let out = BinaryMorphologicalClosing::new(1).apply(&img).unwrap();
+    let out = BinaryMorphologicalClosing::new(1).apply(&img).expect("infallible: validated precondition");
     let result = flat(&out);
     for (i, &v) in vals.iter().enumerate() {
         if v == 1.0 {
@@ -71,7 +71,7 @@ fn small_hole_filled_by_closing() {
         vals[1 * 21 + 1 * 7 + ix] = 1.0;
     }
     let img = make_image(vals, [3, 3, 7]);
-    let out = BinaryMorphologicalClosing::new(1).apply(&img).unwrap();
+    let out = BinaryMorphologicalClosing::new(1).apply(&img).expect("infallible: validated precondition");
     let result = flat(&out);
     // Gap at (1,1,3) flat index 31 must be filled.
     assert_eq!(result[31], 1.0, "gap at (1,1,3) must be filled by closing");
@@ -81,7 +81,7 @@ fn small_hole_filled_by_closing() {
 #[test]
 fn all_background_stays_background() {
     let img = make_image(vec![0.0; 8], [2, 2, 2]);
-    let out = BinaryMorphologicalClosing::new(1).apply(&img).unwrap();
+    let out = BinaryMorphologicalClosing::new(1).apply(&img).expect("infallible: validated precondition");
     assert!(flat(&out).iter().all(|&v| v == 0.0));
 }
 
@@ -92,7 +92,7 @@ fn all_background_stays_background() {
 fn all_foreground_stays_foreground() {
     // Use a 5×5×5 volume; inner voxels survive erosion.
     let img = make_image(vec![1.0; 125], [5, 5, 5]);
-    let out = BinaryMorphologicalClosing::new(1).apply(&img).unwrap();
+    let out = BinaryMorphologicalClosing::new(1).apply(&img).expect("infallible: validated precondition");
     let result = flat(&out);
     // Centre voxel (index 62) must remain fg.
     assert_eq!(result[62], 1.0);
@@ -103,8 +103,8 @@ fn all_foreground_stays_foreground() {
 fn idempotence() {
     let vals: Vec<f32> = vec![0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0];
     let img = make_image(vals, [1, 1, 9]);
-    let once = BinaryMorphologicalClosing::new(1).apply(&img).unwrap();
-    let twice = BinaryMorphologicalClosing::new(1).apply(&once).unwrap();
+    let once = BinaryMorphologicalClosing::new(1).apply(&img).expect("infallible: validated precondition");
+    let twice = BinaryMorphologicalClosing::new(1).apply(&once).expect("infallible: validated precondition");
     assert_eq!(flat(&once), flat(&twice));
 }
 
@@ -117,7 +117,7 @@ fn spatial_metadata_preserved() {
     let t = Tensor::<f32, B>::from_slice([3, 3, 3], &[1.0_f32; 27]);
     let img = Image::new(t, origin, spacing, direction)
         .expect("invariant: fixture tensor has the declared rank");
-    let out = BinaryMorphologicalClosing::new(1).apply(&img).unwrap();
+    let out = BinaryMorphologicalClosing::new(1).apply(&img).expect("infallible: validated precondition");
     assert_eq!(*out.origin(), origin);
     assert_eq!(*out.spacing(), spacing);
     assert_eq!(*out.direction(), direction);

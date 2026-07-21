@@ -162,7 +162,7 @@ fn gpu_mesh_async_yields_image_after_poll() {
         "second call after blocking poll must return Some"
     );
 
-    let img = result.unwrap();
+    let img = result.expect("infallible: validated precondition");
     assert_eq!(img.size, [64, 64], "image dimensions must match viewport");
     assert_eq!(
         img.pixels.len(),

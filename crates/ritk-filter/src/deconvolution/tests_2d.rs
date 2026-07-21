@@ -29,7 +29,7 @@ fn wiener_dirac_identity() {
     let img = make_image_2d(image_vals.clone(), [3, 3]);
     let ker = make_image_2d(kernel_vals, [3, 3]);
     let filter = WienerDeconvolution::new(0.01);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     let vals = result.data().to_vec();
     for (i, &v) in vals.iter().enumerate() {
         assert!(
@@ -48,7 +48,7 @@ fn wiener_zero_k_dirac_identity() {
     let img = make_image_2d(image_vals.clone(), [3, 3]);
     let ker = make_image_2d(kernel_vals, [3, 3]);
     let filter = WienerDeconvolution::new(0.0);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     let vals = result.data().to_vec();
     for (i, &v) in vals.iter().enumerate() {
         assert!(
@@ -67,7 +67,7 @@ fn wiener_output_shape_matches_input() {
     let img = make_image_2d(image_vals, [5, 5]);
     let ker = make_image_2d(kernel_vals, [3, 3]);
     let filter = WienerDeconvolution::new(0.01);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     assert_eq!(result.shape(), [5, 5]);
 }
 
@@ -82,7 +82,7 @@ fn tikhonov_lambda_reduces_variance() {
     let img = make_image_2d(image_vals.clone(), [5, 5]);
     let ker = make_image_2d(kernel_vals, [3, 3]);
     let filter = TikhonovDeconvolution::new(1.0);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     let vals = result.data().to_vec();
     let var: f64 = vals
         .iter()
@@ -104,7 +104,7 @@ fn tikhonov_dirac_identity() {
     let img = make_image_2d(image_vals.clone(), [3, 3]);
     let ker = make_image_2d(kernel_vals, [3, 3]);
     let filter = TikhonovDeconvolution::new(0.0);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     let vals = result.data().to_vec();
     for (i, &v) in vals.iter().enumerate() {
         assert!(
@@ -123,7 +123,7 @@ fn tikhonov_output_shape_matches_input() {
     let img = make_image_2d(image_vals, [5, 5]);
     let ker = make_image_2d(kernel_vals, [3, 3]);
     let filter = TikhonovDeconvolution::new(0.01);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     assert_eq!(result.shape(), [5, 5]);
 }
 
@@ -137,7 +137,7 @@ fn richardson_lucy_dirac_identity() {
     let img = make_image_2d(image_vals.clone(), [3, 3]);
     let ker = make_image_2d(kernel_vals, [3, 3]);
     let filter = RichardsonLucyDeconvolution::new().with_max_iterations(10);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     let vals = result.data().to_vec();
     for (i, &v) in vals.iter().enumerate() {
         assert!(
@@ -161,7 +161,7 @@ fn richardson_lucy_preserves_total_flux() {
     let filter = RichardsonLucyDeconvolution::new()
         .with_max_iterations(10)
         .with_tolerance(0.0);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     let vals = result.data().to_vec();
     let input_sum: f32 = image_vals.iter().sum();
     let output_sum: f32 = vals.iter().sum();
@@ -179,7 +179,7 @@ fn richardson_lucy_output_shape_matches_input() {
     let img = make_image_2d(image_vals, [5, 5]);
     let ker = make_image_2d(kernel_vals, [3, 3]);
     let filter = RichardsonLucyDeconvolution::new().with_max_iterations(5);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     assert_eq!(result.shape(), [5, 5]);
 }
 
@@ -193,7 +193,7 @@ fn richardson_lucy_preserves_non_negativity() {
     let img = make_image_2d(image_vals, [4, 4]);
     let ker = make_image_2d(kernel_vals, [3, 3]);
     let filter = RichardsonLucyDeconvolution::new().with_max_iterations(10);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     let vals = result.data().to_vec();
     for &v in &vals {
         assert!(v >= -0.01, "RL must preserve non-negativity, got {v}");
@@ -212,7 +212,7 @@ fn landweber_dirac_identity() {
     let filter = LandweberDeconvolution::new()
         .with_step_size(0.5)
         .with_max_iterations(50);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     let vals = result.data().to_vec();
     for (i, &v) in vals.iter().enumerate() {
         assert!(
@@ -231,7 +231,7 @@ fn landweber_output_shape_matches_input() {
     let img = make_image_2d(image_vals, [5, 5]);
     let ker = make_image_2d(kernel_vals, [3, 3]);
     let filter = LandweberDeconvolution::new().with_max_iterations(5);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     assert_eq!(result.shape(), [5, 5]);
 }
 
@@ -280,13 +280,13 @@ fn projected_landweber_enforces_non_negativity() {
         .with_step_size(0.5)
         .with_max_iterations(30)
         .apply(&image, &kernel)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let projected = LandweberDeconvolution::new()
         .with_step_size(0.5)
         .with_max_iterations(30)
         .with_projection(LandweberProjection::NonNegative)
         .apply(&image, &kernel)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     let (pv, _) = extract_vec_infallible(&plain);
     let (qv, _) = extract_vec_infallible(&projected);
@@ -329,7 +329,7 @@ fn inverse_dirac_identity() {
     let image_vals = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
     let img = make_image_2d(image_vals.clone(), [3, 3]);
     let ker = make_image_2d(kernel_vals, [3, 3]);
-    let result = InverseDeconvolution::new(1e-3).apply(&img, &ker).unwrap();
+    let result = InverseDeconvolution::new(1e-3).apply(&img, &ker).expect("infallible: validated precondition");
     let (vals, _) = extract_vec_infallible(&result);
     for (i, &v) in vals.iter().enumerate() {
         assert!(
@@ -350,8 +350,8 @@ fn inverse_threshold_suppresses_more_frequencies() {
     let image_vals: Vec<f32> = (0..25).map(|i| (i as f32 * 1.3).sin() * 10.0).collect();
     let img = make_image_2d(image_vals, [5, 5]);
 
-    let low = InverseDeconvolution::new(1e-4).apply(&img, &ker).unwrap();
-    let high = InverseDeconvolution::new(0.5).apply(&img, &ker).unwrap();
+    let low = InverseDeconvolution::new(1e-4).apply(&img, &ker).expect("infallible: validated precondition");
+    let high = InverseDeconvolution::new(0.5).apply(&img, &ker).expect("infallible: validated precondition");
     let (lv, _) = extract_vec_infallible(&low);
     let (hv, _) = extract_vec_infallible(&high);
     let energy = |v: &[f32]| v.iter().map(|&x| (x as f64) * (x as f64)).sum::<f64>();

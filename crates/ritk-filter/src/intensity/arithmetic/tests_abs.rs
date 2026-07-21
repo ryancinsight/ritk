@@ -8,7 +8,7 @@ fn abs_nonneg_is_identity() {
     let img = make_native_image(vec![0.0, 1.0, 2.5, 10.0], [1, 2, 2]);
     let out = AbsImageFilter::new()
         .apply_native(&img, &SequentialBackend)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let v = native_vals(&out);
     assert_eq!(
         v,
@@ -23,7 +23,7 @@ fn abs_negates_negative_voxels() {
     let img = make_native_image(vec![-3.0, -1.0, 0.0, 2.0], [1, 2, 2]);
     let out = AbsImageFilter::new()
         .apply_native(&img, &SequentialBackend)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let v = native_vals(&out);
     assert_eq!(
         v,
@@ -38,7 +38,7 @@ fn abs_all_negative_all_positive() {
     let img = make_native_image(vec![-5.0, -2.0, -0.5], [1, 1, 3]);
     let out = AbsImageFilter::new()
         .apply_native(&img, &SequentialBackend)
-        .unwrap();
+        .expect("infallible: validated precondition");
     for &v in native_vals(&out).iter() {
         assert!(v >= 0.0, "abs output must be non-negative; got {v}");
     }
@@ -58,10 +58,10 @@ fn abs_preserves_metadata() {
         Direction::identity(),
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let out = AbsImageFilter::new()
         .apply_native(&img, &SequentialBackend)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
 }
 
@@ -71,7 +71,7 @@ fn abs_constant_positive_unchanged() {
     let img = make_native_image(vec![7.0, 7.0, 7.0], [1, 1, 3]);
     let out = AbsImageFilter::new()
         .apply_native(&img, &SequentialBackend)
-        .unwrap();
+        .expect("infallible: validated precondition");
     for &v in native_vals(&out).iter() {
         assert_eq!(v, 7.0_f32, "constant positive image unchanged by abs");
     }

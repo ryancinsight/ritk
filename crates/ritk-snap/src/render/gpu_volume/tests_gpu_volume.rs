@@ -341,7 +341,7 @@ fn gpu_mip_empty_volume_no_panic() {
         "Single-slice volume must produce a valid MIP"
     );
 
-    let img = img.unwrap();
+    let img = img.expect("infallible: validated precondition");
     assert_eq!(
         img.size,
         [4, 4],

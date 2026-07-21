@@ -21,7 +21,7 @@ fn make_image_with_spacing(vals: Vec<f32>, dims: [usize; 3], sp: [f64; 3]) -> Im
 }
 
 fn values_finite(img: &Image<f32, B, 3>) -> Vec<f32> {
-    ritk_tensor_ops::extract_vec(img).unwrap().0
+    ritk_tensor_ops::extract_vec(img).expect("infallible: validated precondition").0
 }
 
 // ── Chessboard (scipy parity) ─────────────────────────────────────────────
@@ -34,7 +34,7 @@ fn chessboard_single_voxel_foreground() {
     data[0] = 1.0;
     let img = make_image(data, [3, 3, 3]);
     let cdt = ChamferDistanceTransform::new().with_metric(ChamferMetric::Chessboard);
-    let out = cdt.apply(&img).unwrap();
+    let out = cdt.apply(&img).expect("infallible: validated precondition");
     let v = values_finite(&out);
     assert_eq!(v[0], 1.0, "fg voxel at index 0 should be 1.0");
     // All other voxels are bg → 0.
@@ -48,7 +48,7 @@ fn chessboard_all_background_is_zero() {
     // scipy: no fg voxels → all output is 0.
     let img = make_image(vec![0.0_f32; 27], [3, 3, 3]);
     let cdt = ChamferDistanceTransform::new();
-    let out = cdt.apply(&img).unwrap();
+    let out = cdt.apply(&img).expect("infallible: validated precondition");
     let v = values_finite(&out);
     for &x in &v {
         assert_eq!(x, 0.0, "all-bg must yield 0 everywhere, got {x}");
@@ -60,7 +60,7 @@ fn chessboard_all_foreground_is_minus_one() {
     // scipy: no bg voxels → sentinel -1.
     let img = make_image(vec![1.0_f32; 27], [3, 3, 3]);
     let cdt = ChamferDistanceTransform::new();
-    let out = cdt.apply(&img).unwrap();
+    let out = cdt.apply(&img).expect("infallible: validated precondition");
     let v = values_finite(&out);
     for &x in &v {
         assert_eq!(x, -1.0, "all-fg must yield -1.0 sentinel, got {x}");
@@ -71,7 +71,7 @@ fn chessboard_all_foreground_is_minus_one() {
 fn chessboard_preserves_shape_and_metadata() {
     let img = make_image(vec![0.0_f32; 24], [2, 3, 4]);
     let cdt = ChamferDistanceTransform::new();
-    let out = cdt.apply(&img).unwrap();
+    let out = cdt.apply(&img).expect("infallible: validated precondition");
     assert_eq!(out.shape(), [2, 3, 4]);
 }
 
@@ -85,7 +85,7 @@ fn taxicab_single_voxel_foreground() {
     data[0] = 1.0;
     let img = make_image(data, [3, 3, 3]);
     let cdt = ChamferDistanceTransform::new().with_metric(ChamferMetric::Taxicab);
-    let out = cdt.apply(&img).unwrap();
+    let out = cdt.apply(&img).expect("infallible: validated precondition");
     let v = values_finite(&out);
     assert_eq!(v[0], 1.0, "fg voxel at index 0 should be 1.0");
     for (i, &x) in v.iter().enumerate().skip(1) {
@@ -114,11 +114,11 @@ fn taxicab_exceeds_or_equals_chessboard_on_fg() {
     let chess = ChamferDistanceTransform::new()
         .with_metric(ChamferMetric::Chessboard)
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let taxicab = ChamferDistanceTransform::new()
         .with_metric(ChamferMetric::Taxicab)
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let vc = values_finite(&chess);
     let vt = values_finite(&taxicab);
     // fg voxels at z=1: out=1 (1 step to z=0 or z=2 bg).
@@ -143,7 +143,7 @@ fn taxicab_l1_far_voxel() {
     data[2 * 25 + 2 * 5 + 2] = 1.0;
     let img = make_image(data, [5, 5, 5]);
     let cdt = ChamferDistanceTransform::new().with_metric(ChamferMetric::Taxicab);
-    let out = cdt.apply(&img).unwrap();
+    let out = cdt.apply(&img).expect("infallible: validated precondition");
     let v = values_finite(&out);
     let center = 2 * 25 + 2 * 5 + 2;
     assert_eq!(v[center], 1.0, "fg voxel should be 1.0");
@@ -168,7 +168,7 @@ fn chessboard_anisotropic_spacing() {
     data[0] = 1.0;
     let img = make_image_with_spacing(data, [3, 3, 3], [2.0, 1.0, 1.0]);
     let cdt = ChamferDistanceTransform::new();
-    let out = cdt.apply(&img).unwrap();
+    let out = cdt.apply(&img).expect("infallible: validated precondition");
     let v = values_finite(&out);
     assert_eq!(
         v[0], 1.0,
@@ -218,7 +218,7 @@ fn threshold_zero_means_below_or_equal_is_background() {
     let img = make_image(vec![0.0_f32; 27], [3, 3, 3]);
     let cdt = ChamferDistanceTransform::new()
         .with_threshold(BinarizationThreshold::new(0.0).expect("valid threshold"));
-    let out = cdt.apply(&img).unwrap();
+    let out = cdt.apply(&img).expect("infallible: validated precondition");
     let v = values_finite(&out);
     for &x in &v {
         assert_eq!(x, 0.0, "no fg voxels with threshold=0.0 → all 0");
@@ -233,7 +233,7 @@ fn threshold_picks_up_subunit_foreground() {
     let img = make_image(data, [3, 3, 3]);
     let cdt = ChamferDistanceTransform::new()
         .with_threshold(BinarizationThreshold::new(0.5).expect("valid threshold"));
-    let out = cdt.apply(&img).unwrap();
+    let out = cdt.apply(&img).expect("infallible: validated precondition");
     let v = values_finite(&out);
     assert_eq!(v[0], 1.0, "fg voxel at index 0 should be 1.0");
     for (i, &x) in v.iter().enumerate().skip(1) {
@@ -250,7 +250,7 @@ fn threshold_scipy_inverse_semantics() {
     let img = make_image(data, [3, 3, 3]);
     let cdt = ChamferDistanceTransform::new()
         .with_threshold(BinarizationThreshold::new(0.5).expect("valid threshold"));
-    let out = cdt.apply(&img).unwrap();
+    let out = cdt.apply(&img).expect("infallible: validated precondition");
     let v = values_finite(&out);
     // Index 0 is fg (v=0.6 > 0.5), gets distance 1.
     assert_eq!(v[0], 1.0);
@@ -278,7 +278,7 @@ fn chessboard_cube_3x3x3_center() {
     }
     let img = make_image(data, [7, 7, 7]);
     let cdt = ChamferDistanceTransform::new().with_metric(ChamferMetric::Chessboard);
-    let out = cdt.apply(&img).unwrap();
+    let out = cdt.apply(&img).expect("infallible: validated precondition");
     let v = values_finite(&out);
     // Cube center (3,3,3) → 2.0 (L∞ distance to nearest bg via cube boundary).
     let center = 3 * 49 + 3 * 7 + 3;
@@ -327,7 +327,7 @@ fn diff_vs_scipy_chessboard_3x3x3_cube() {
     }
     let img = make_image(data, [7, 7, 7]);
     let cdt = ChamferDistanceTransform::new().with_metric(ChamferMetric::Chessboard);
-    let out = cdt.apply(&img).unwrap();
+    let out = cdt.apply(&img).expect("infallible: validated precondition");
     let v = values_finite(&out);
     // z=3 (middle z plane) row-by-row expected from scipy:
     let z3 = 3 * 49;
@@ -362,7 +362,7 @@ fn diff_vs_scipy_chessboard_two_cubes() {
     }
     let img = make_image(data, [10, 10, 10]);
     let cdt = ChamferDistanceTransform::new().with_metric(ChamferMetric::Chessboard);
-    let out = cdt.apply(&img).unwrap();
+    let out = cdt.apply(&img).expect("infallible: validated precondition");
     let v = values_finite(&out);
     // Cube 1 center (2,2,2) → 2.0
     let c1_center = 2 * 100 + 2 * 10 + 2;
@@ -428,7 +428,7 @@ fn diff_vs_scipy_taxicab_3x3x3_cube() {
     }
     let img = make_image(data, [7, 7, 7]);
     let cdt = ChamferDistanceTransform::new().with_metric(ChamferMetric::Taxicab);
-    let out = cdt.apply(&img).unwrap();
+    let out = cdt.apply(&img).expect("infallible: validated precondition");
     let v = values_finite(&out);
     let center = 3 * 49 + 3 * 7 + 3;
     assert_eq!(v[center], 2.0, "cube center taxicab should be 2.0");
@@ -458,7 +458,7 @@ fn diff_vs_scipy_chessboard_column_3x3x5() {
     }
     let img = make_image(data, [3, 3, 5]);
     let cdt = ChamferDistanceTransform::new().with_metric(ChamferMetric::Chessboard);
-    let out = cdt.apply(&img).unwrap();
+    let out = cdt.apply(&img).expect("infallible: validated precondition");
     let v = values_finite(&out);
     for z in 0..3 {
         for y in 0..3 {

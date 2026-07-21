@@ -24,7 +24,7 @@ fn geodesic_dilation_marker_equals_mask_is_identity() {
     let mask = make_image(vals.clone(), [2, 2, 2]);
     let out = GrayscaleGeodesicDilationFilter::new()
         .apply(&marker, &mask)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let v = voxels(&out);
     for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
         assert!(
@@ -45,7 +45,7 @@ fn geodesic_dilation_result_bounded_by_mask() {
     let mask = make_image(vec![3.0f32, 3.0, 5.0, 3.0, 3.0], [1, 1, 5]);
     let out = GrayscaleGeodesicDilationFilter::new()
         .apply(&marker, &mask)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let v = voxels(&out);
     let mv = [3.0f32, 3.0, 5.0, 3.0, 3.0];
     for (i, (&a, &b)) in v.iter().zip(mv.iter()).enumerate() {
@@ -67,7 +67,7 @@ fn geodesic_dilation_preserves_spatial_metadata() {
     let mask = make_image(vals, [2, 2, 2]);
     let out = GrayscaleGeodesicDilationFilter::new()
         .apply(&marker, &mask)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), marker.shape());
     assert_eq!(out.spacing(), marker.spacing());
     assert_eq!(out.origin(), marker.origin());
@@ -81,7 +81,7 @@ fn geodesic_erosion_marker_equals_mask_is_identity() {
     let mask = make_image(vals.clone(), [2, 2, 2]);
     let out = GrayscaleGeodesicErosionFilter::new()
         .apply(&marker, &mask)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let v = voxels(&out);
     for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
         assert!(
@@ -114,13 +114,13 @@ fn geodesic_dilation_connectivity_controls_diagonal_propagation() {
         &GrayscaleGeodesicDilationFilter::new()
             .with_connectivity(Connectivity::Face6)
             .apply(&marker, &mask)
-            .unwrap(),
+            .expect("infallible: validated precondition"),
     );
     let full = voxels(
         &GrayscaleGeodesicDilationFilter::new()
             .with_connectivity(Connectivity::Vertex26)
             .apply(&marker, &mask)
-            .unwrap(),
+            .expect("infallible: validated precondition"),
     );
 
     // Face: only the centre carries the marker; corners stay 0.
@@ -137,7 +137,7 @@ fn geodesic_dilation_connectivity_controls_diagonal_propagation() {
     let default = voxels(
         &GrayscaleGeodesicDilationFilter::new()
             .apply(&marker, &mask)
-            .unwrap(),
+            .expect("infallible: validated precondition"),
     );
     assert_eq!(
         default, face,
@@ -153,7 +153,7 @@ fn geodesic_erosion_result_bounded_below_by_mask() {
     let mask = make_image(vec![3.0f32, 3.0, 0.0, 3.0, 3.0], [1, 1, 5]);
     let out = GrayscaleGeodesicErosionFilter::new()
         .apply(&marker, &mask)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let v = voxels(&out);
     let mask_v = [3.0f32, 3.0, 0.0, 3.0, 3.0];
     for (i, (&a, &b)) in v.iter().zip(mask_v.iter()).enumerate() {

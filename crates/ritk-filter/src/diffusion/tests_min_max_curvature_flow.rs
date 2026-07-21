@@ -47,8 +47,8 @@ fn binary_matches_sitk() {
         threshold: 0.0,
     })
     .apply(&img)
-    .unwrap();
-    let (got, _) = extract_vec(&out).unwrap();
+    .expect("infallible: validated precondition");
+    let (got, _) = extract_vec(&out).expect("infallible: validated precondition");
     let expect: [f32; 64] = [
         -1.1, -1.0, -0.91031, -1.1, -1.0, -0.91027, -1.1, -1.0, -1.0, -0.92629, -1.1, -1.0,
         -0.91108, -1.1, -1.0, -0.90996, -0.91031, -1.1, 0.90863, 1.1, 0.90984, 0.9089, -0.90878,
@@ -88,8 +88,8 @@ fn matches_sitk_min_max_curvature_flow() {
         stencil_radius: 2,
     })
     .apply(&img)
-    .unwrap();
-    let (got, _) = extract_vec(&out).unwrap();
+    .expect("infallible: validated precondition");
+    let (got, _) = extract_vec(&out).expect("infallible: validated precondition");
 
     let expect: [f32; 64] = [
         1.2649, 28.25748, 10.0, 38.25801, 20.93239, 0.0, 30.0, 11.19981, 20.0, 1.81966, 28.08779,

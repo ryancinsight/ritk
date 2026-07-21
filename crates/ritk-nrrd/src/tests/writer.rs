@@ -421,10 +421,6 @@ fn test_round_trip_nrrd() -> Result<()> {
 }
 
 /// Native writer round-trip: write and read back, verifying bit-perfect content.
-///
-/// The differential oracle (burn vs native bytes) served its migration purpose
-/// and has been removed — both paths share `write_nrrd_flat`, so parity is
-/// structural, not empirically testable once burn is gone.
 #[test]
 fn native_writer_produces_valid_nrrd() -> Result<()> {
     let nx = 4usize;

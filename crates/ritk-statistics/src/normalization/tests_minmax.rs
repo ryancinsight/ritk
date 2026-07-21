@@ -231,7 +231,7 @@ fn test_minmax_3d_shape_preserved() {
         values[0]
     );
     // Last element (max) maps to ≈ 1.
-    let last = *values.last().unwrap();
+    let last = *values.last().expect("infallible: validated precondition");
     assert!(
         (last - 1.0).abs() < 1e-4,
         "last element ≈ 1.0, got {}",

@@ -36,7 +36,7 @@ fn test_mask_preserves_foreground_and_removes_background() {
     ];
     let img = make_image(values, dims);
     let filter = BedSeparationFilter::new(BedSeparationConfig::default());
-    let out = filter.mask(&img).unwrap();
+    let out = filter.mask(&img).expect("infallible: validated precondition");
     let vals = out
         .data_slice()
         .expect("invariant: result storage is contiguous");
@@ -67,7 +67,7 @@ fn test_apply_uses_outside_value() {
     };
 
     let filter = BedSeparationFilter::new(config);
-    let out = filter.apply(&img).unwrap();
+    let out = filter.apply(&img).expect("infallible: validated precondition");
     let vals = out
         .data_slice()
         .expect("invariant: result storage is contiguous");

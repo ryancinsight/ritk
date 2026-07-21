@@ -21,7 +21,7 @@ fn flat(img: &Image<f32, B, 3>) -> Vec<f32> {
 fn radius_zero_is_identity() {
     let vals = vec![0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0];
     let img = make_image(vals.clone(), [2, 2, 2]);
-    let out = BinaryDilateFilter::new(0).apply(&img).unwrap();
+    let out = BinaryDilateFilter::new(0).apply(&img).expect("infallible: validated precondition");
     assert_eq!(flat(&out), vals);
 }
 
@@ -32,7 +32,7 @@ fn radius_zero_is_identity() {
 #[test]
 fn single_voxel_dilates_to_cube() {
     let img = make_image(vec![0.0, 0.0, 1.0, 0.0, 0.0], [1, 1, 5]);
-    let out = BinaryDilateFilter::new(1).apply(&img).unwrap();
+    let out = BinaryDilateFilter::new(1).apply(&img).expect("infallible: validated precondition");
     assert_eq!(flat(&out), vec![0.0, 1.0, 1.0, 1.0, 0.0]);
 }
 
@@ -41,7 +41,7 @@ fn single_voxel_dilates_to_cube() {
 #[test]
 fn border_dilation_bounded_by_image_edge() {
     let img = make_image(vec![1.0, 0.0, 0.0, 0.0, 0.0], [1, 1, 5]);
-    let out = BinaryDilateFilter::new(1).apply(&img).unwrap();
+    let out = BinaryDilateFilter::new(1).apply(&img).expect("infallible: validated precondition");
     assert_eq!(flat(&out), vec![1.0, 1.0, 0.0, 0.0, 0.0]);
 }
 
@@ -49,7 +49,7 @@ fn border_dilation_bounded_by_image_edge() {
 #[test]
 fn all_background_unchanged() {
     let img = make_image(vec![0.0; 8], [2, 2, 2]);
-    let out = BinaryDilateFilter::new(1).apply(&img).unwrap();
+    let out = BinaryDilateFilter::new(1).apply(&img).expect("infallible: validated precondition");
     assert!(flat(&out).iter().all(|&v| v == 0.0));
 }
 
@@ -57,7 +57,7 @@ fn all_background_unchanged() {
 #[test]
 fn all_foreground_unchanged() {
     let img = make_image(vec![1.0; 8], [2, 2, 2]);
-    let out = BinaryDilateFilter::new(1).apply(&img).unwrap();
+    let out = BinaryDilateFilter::new(1).apply(&img).expect("infallible: validated precondition");
     assert!(flat(&out).iter().all(|&v| v == 1.0));
 }
 
@@ -68,7 +68,7 @@ fn custom_foreground_value() {
     let out = BinaryDilateFilter::new(1)
         .with_foreground(255.0)
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(flat(&out), vec![0.0, 255.0, 255.0, 255.0, 0.0]);
 }
 
@@ -89,7 +89,7 @@ fn custom_foreground_value() {
 fn dilation_known_output() {
     let f: Vec<f32> = vec![0.0, 0.0, 1.0, 0.0, 0.0];
     let img = make_image(f, [1, 1, 5]);
-    let out = BinaryDilateFilter::new(1).apply(&img).unwrap();
+    let out = BinaryDilateFilter::new(1).apply(&img).expect("infallible: validated precondition");
     assert_eq!(flat(&out), vec![0.0, 1.0, 1.0, 1.0, 0.0]);
 }
 
@@ -163,7 +163,7 @@ fn spatial_metadata_preserved() {
     let t = Tensor::<f32, B>::from_slice([2, 2, 2], &[1.0_f32; 8]);
     let img = Image::new(t, origin, spacing, direction)
         .expect("invariant: fixture tensor has the declared rank");
-    let out = BinaryDilateFilter::new(0).apply(&img).unwrap();
+    let out = BinaryDilateFilter::new(0).apply(&img).expect("infallible: validated precondition");
     assert_eq!(*out.origin(), origin);
     assert_eq!(*out.spacing(), spacing);
     assert_eq!(*out.direction(), direction);

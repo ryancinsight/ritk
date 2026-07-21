@@ -22,7 +22,7 @@ fn paste_writes_source_into_destination() {
     // dest: 3×3×3 all zeros; source: 1×1×1 = [99]; paste at [1,1,1]
     let dest = make_image(vec![0.0f32; 27], [3, 3, 3]);
     let src = make_image(vec![99.0f32], [1, 1, 1]);
-    let out = PasteImageFilter::new([1, 1, 1]).apply(&dest, &src).unwrap();
+    let out = PasteImageFilter::new([1, 1, 1]).apply(&dest, &src).expect("infallible: validated precondition");
     let v = voxels(&out);
     let pasted_idx = 1 * 9 + 1 * 3 + 1;
     assert_eq!(v[pasted_idx], 99.0, "pasted voxel value");
@@ -38,7 +38,7 @@ fn paste_writes_source_into_destination() {
 fn paste_at_origin_replaces_corner() {
     let dest = make_image(vec![0.0f32; 8], [2, 2, 2]);
     let src = make_image(vec![5.0, 6.0, 7.0, 8.0], [1, 2, 2]);
-    let out = PasteImageFilter::new([0, 0, 0]).apply(&dest, &src).unwrap();
+    let out = PasteImageFilter::new([0, 0, 0]).apply(&dest, &src).expect("infallible: validated precondition");
     let v = voxels(&out);
     assert_eq!(v[0], 5.0);
     assert_eq!(v[1], 6.0);
@@ -55,7 +55,7 @@ fn paste_at_origin_replaces_corner() {
 fn paste_preserves_dest_spatial_metadata() {
     let dest = make_image(vec![0.0f32; 8], [2, 2, 2]);
     let src = make_image(vec![1.0f32], [1, 1, 1]);
-    let out = PasteImageFilter::new([0, 0, 0]).apply(&dest, &src).unwrap();
+    let out = PasteImageFilter::new([0, 0, 0]).apply(&dest, &src).expect("infallible: validated precondition");
     assert_eq!(out.shape(), dest.shape());
     assert_eq!(out.origin(), dest.origin());
     assert_eq!(out.spacing(), dest.spacing());
@@ -76,7 +76,7 @@ fn paste_full_source_into_full_dest_replaces_all() {
     let dest = make_image(vec![0.0f32; 8], [2, 2, 2]);
     let src_vals: Vec<f32> = (1..=8).map(|x| x as f32).collect();
     let src = make_image(src_vals.clone(), [2, 2, 2]);
-    let out = PasteImageFilter::new([0, 0, 0]).apply(&dest, &src).unwrap();
+    let out = PasteImageFilter::new([0, 0, 0]).apply(&dest, &src).expect("infallible: validated precondition");
     let v = voxels(&out);
     for (i, (&a, &b)) in v.iter().zip(src_vals.iter()).enumerate() {
         assert_eq!(a, b, "voxel {}: expected {} got {}", i, b, a);

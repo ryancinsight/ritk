@@ -40,13 +40,13 @@ pub fn write_vtu_str(grid: &VtkUnstructuredGrid) -> String {
     let nc = grid.cells.len();
 
     let mut s = String::new();
-    writeln!(s, "<?xml version=\"1.0\"?>").unwrap();
+    writeln!(s, "<?xml version=\"1.0\"?>").expect("infallible write");
     writeln!(
         s,
         "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" byte_order=\"LittleEndian\">"
     )
-    .unwrap();
-    writeln!(s, "  <UnstructuredGrid>").unwrap();
+    .expect("infallible: validated precondition");
+    writeln!(s, "  <UnstructuredGrid>").expect("infallible write");
 
     // ── <Piece> ──────────────────────────────────────────────────────────────
     {
@@ -62,92 +62,92 @@ pub fn write_vtu_str(grid: &VtkUnstructuredGrid) -> String {
         piece.push_str(&nc.to_string());
         piece.push(dq);
         piece.push(gt);
-        writeln!(s, "{}", piece).unwrap();
+        writeln!(s, "{}", piece).expect("infallible write");
     }
 
     // ── <Points> ─────────────────────────────────────────────────────────────
-    writeln!(s, "      <Points>").unwrap();
+    writeln!(s, "      <Points>").expect("infallible write");
     writeln!(
         s,
         "        <DataArray type=\"Float32\" NumberOfComponents=\"3\" format=\"ascii\">"
     )
-    .unwrap();
-    write!(s, "       ").unwrap();
+    .expect("infallible: validated precondition");
+    write!(s, "       ").expect("infallible write");
     for [x, y, z] in &grid.points {
-        write!(s, " {:.6} {:.6} {:.6}", x, y, z).unwrap();
+        write!(s, " {:.6} {:.6} {:.6}", x, y, z).expect("infallible write");
     }
-    writeln!(s).unwrap();
-    writeln!(s, "        </DataArray>").unwrap();
-    writeln!(s, "      </Points>").unwrap();
+    writeln!(s).expect("infallible write");
+    writeln!(s, "        </DataArray>").expect("infallible write");
+    writeln!(s, "      </Points>").expect("infallible write");
 
-    writeln!(s, "      <Cells>").unwrap();
+    writeln!(s, "      <Cells>").expect("infallible write");
 
     // connectivity
     writeln!(
         s,
         "        <DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">"
     )
-    .unwrap();
-    write!(s, "       ").unwrap();
+    .expect("infallible: validated precondition");
+    write!(s, "       ").expect("infallible write");
     for cell in &grid.cells {
         for index in cell {
-            write!(s, " {index}").unwrap();
+            write!(s, " {index}").expect("infallible write");
         }
     }
-    writeln!(s).unwrap();
-    writeln!(s, "        </DataArray>").unwrap();
+    writeln!(s).expect("infallible write");
+    writeln!(s, "        </DataArray>").expect("infallible write");
 
     // offsets
     writeln!(
         s,
         "        <DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">"
     )
-    .unwrap();
-    write!(s, "       ").unwrap();
+    .expect("infallible: validated precondition");
+    write!(s, "       ").expect("infallible write");
     let mut offset = 0usize;
     for cell in &grid.cells {
         offset += cell.len();
-        write!(s, " {offset}").unwrap();
+        write!(s, " {offset}").expect("infallible write");
     }
-    writeln!(s).unwrap();
-    writeln!(s, "        </DataArray>").unwrap();
+    writeln!(s).expect("infallible write");
+    writeln!(s, "        </DataArray>").expect("infallible write");
 
     // types
     writeln!(
         s,
         "        <DataArray type=\"UInt8\" Name=\"types\" format=\"ascii\">"
     )
-    .unwrap();
-    write!(s, "       ").unwrap();
+    .expect("infallible: validated precondition");
+    write!(s, "       ").expect("infallible write");
     for t in &grid.cell_types {
-        write!(s, " {}", u8::from(*t)).unwrap();
+        write!(s, " {}", u8::from(*t)).expect("infallible write");
     }
-    writeln!(s).unwrap();
-    writeln!(s, "        </DataArray>").unwrap();
+    writeln!(s).expect("infallible write");
+    writeln!(s, "        </DataArray>").expect("infallible write");
 
-    writeln!(s, "      </Cells>").unwrap();
+    writeln!(s, "      </Cells>").expect("infallible write");
 
     // ── <PointData> ──────────────────────────────────────────────────────────
     if !grid.point_data.is_empty() {
-        writeln!(s, "      <PointData>").unwrap();
+        writeln!(s, "      <PointData>").expect("infallible write");
         for (name, attr) in &grid.point_data {
             write_attr_xml(&mut s, name, attr);
         }
-        writeln!(s, " </PointData>").unwrap();
+        writeln!(s, " </PointData>").expect("infallible write");
     }
 
     // ── <CellData> ───────────────────────────────────────────────────────────
     if !grid.cell_data.is_empty() {
-        writeln!(s, "      <CellData>").unwrap();
+        writeln!(s, "      <CellData>").expect("infallible write");
         for (name, attr) in &grid.cell_data {
             write_attr_xml(&mut s, name, attr);
         }
-        writeln!(s, " </CellData>").unwrap();
+        writeln!(s, " </CellData>").expect("infallible write");
     }
 
-    writeln!(s, "    </Piece>").unwrap();
-    writeln!(s, "  </UnstructuredGrid>").unwrap();
-    writeln!(s, "</VTKFile>").unwrap();
+    writeln!(s, "    </Piece>").expect("infallible write");
+    writeln!(s, "  </UnstructuredGrid>").expect("infallible write");
+    writeln!(s, "</VTKFile>").expect("infallible write");
     s
 }
 

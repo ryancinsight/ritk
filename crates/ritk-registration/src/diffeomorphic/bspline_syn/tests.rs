@@ -186,7 +186,7 @@ fn identity_registration_high_cc() {
     let image = make_test_image(dims);
     let cfg = make_default_config();
     let reg = BSplineSyNRegistration::new(cfg);
-    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).unwrap();
+    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
     assert!(
         result.final_cc > 0.9,
         "identity registration CC should be > 0.9, got {}",
@@ -216,7 +216,7 @@ fn bspline_registration_non_divergence() {
     let reg = BSplineSyNRegistration::new(cfg);
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     // Velocity fields must have non-trivial x-magnitude.
     let fwd_rms_x: f64 = (result
@@ -276,7 +276,7 @@ fn bspline_field_smoothness() {
     let reg = BSplineSyNRegistration::new(cfg);
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     // Compute discrete Laplacian of the dense forward x-field.
     let vx = &result.forward_field.x;

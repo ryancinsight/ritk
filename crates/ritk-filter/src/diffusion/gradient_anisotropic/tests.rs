@@ -28,7 +28,7 @@ fn constant_image_is_identity() {
     };
     let out = GradientAnisotropicDiffusionFilter::new(cfg)
         .apply::<B>(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let result = out.data().as_slice();
     for &r in result {
         assert!((r - v).abs() < 1e-5, "expected {v}, got {r}");
@@ -50,7 +50,7 @@ fn zero_iterations_is_identity() {
     };
     let out = GradientAnisotropicDiffusionFilter::new(cfg)
         .apply::<B>(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let result = out.data().as_slice();
     for (i, (&r, &v)) in result.iter().zip(vals.iter()).enumerate() {
         assert!((r - v).abs() < 1e-6, "voxel {i}: expected {v}, got {r}");
@@ -81,7 +81,7 @@ fn large_k_produces_isotropic_smoothing() {
     };
     let out = GradientAnisotropicDiffusionFilter::new(cfg)
         .apply::<B>(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let result = out.data().as_slice();
     // Voxel 4 (boundary, v=0) must have gained from its z=5 neighbour (v=100).
     // Analytical: out[4] = 0 + 0.125 · c(100, 1e6) · 100
@@ -123,7 +123,7 @@ fn small_k_preserves_edges() {
     };
     let out = GradientAnisotropicDiffusionFilter::new(cfg)
         .apply::<B>(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let result = out.data().as_slice();
     let max_out = result.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
     let min_out = result.iter().cloned().fold(f32::INFINITY, f32::min);
@@ -142,7 +142,7 @@ fn single_voxel_is_identity() {
     let cfg = GradientDiffusionConfig::default();
     let out = GradientAnisotropicDiffusionFilter::new(cfg)
         .apply::<B>(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let result = out.data().as_slice();
     assert!(
         (result[0] - v).abs() < 1e-6,
@@ -167,7 +167,7 @@ fn spatial_metadata_preserved() {
     let cfg = GradientDiffusionConfig::default();
     let out = GradientAnisotropicDiffusionFilter::new(cfg)
         .apply::<B>(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(*out.origin(), origin);
     assert_eq!(*out.spacing(), spacing);
     assert_eq!(*out.direction(), direction);
@@ -191,7 +191,7 @@ fn symmetric_step_middle_voxel_unchanged() {
     };
     let out = GradientAnisotropicDiffusionFilter::new(cfg)
         .apply::<B>(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let result = out.data().as_slice();
     // Middle voxel must be unchanged by symmetry.
     assert!(
@@ -226,7 +226,7 @@ fn diffusion_reduces_gradient_magnitude() {
     };
     let out = GradientAnisotropicDiffusionFilter::new(cfg)
         .apply::<B>(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let result = out.data().as_slice();
     let peak_after: f32 = result
         .windows(2)

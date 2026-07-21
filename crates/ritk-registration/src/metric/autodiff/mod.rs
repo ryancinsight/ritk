@@ -1,9 +1,6 @@
 //! Differentiable registration primitives on the Atlas autodiff engine.
 //!
-//! Atlas migration (burn → coeus): the reverse-mode autodiff path for the
-//! registration metrics (`docs/coeus_migration.md`, dev-sequence step 6,
-//! gate #3 — "registration metrics preserve autodiff tape connectivity; no
-//! host extraction on differentiable paths").
+//! Reverse-mode autodiff path for the registration metrics.
 //!
 //! Each primitive here is built entirely from Coeus autograd [`coeus_autograd::Var`]
 //! ops so the reverse pass propagates gradients to the intended leaves:

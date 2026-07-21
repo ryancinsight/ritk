@@ -30,7 +30,7 @@ fn extract_and_rebuild_roundtrip() {
     let data: Vec<f32> = (0..24).map(|i| i as f32 * 0.5).collect();
     let img = make_test_image(data.clone(), [2, 3, 4]);
 
-    let (vals, dims) = extract_vec(&img).unwrap();
+    let (vals, dims) = extract_vec(&img).expect("infallible: validated precondition");
     assert_eq!(vals, data, "extracted values must equal original data");
     assert_eq!(dims, [2, 3, 4], "extracted dims must match image shape");
 
@@ -49,7 +49,7 @@ fn rebuild_preserves_metadata() {
     let img = Image::new(t, orig, sp, Direction::identity())
         .expect("invariant: fixture tensor has the declared rank");
 
-    let (vals, dims) = extract_vec(&img).unwrap();
+    let (vals, dims) = extract_vec(&img).expect("infallible: validated precondition");
     let rebuilt = rebuild(vals, dims, &img);
 
     assert_eq!(rebuilt.origin(), img.origin(), "origin must be preserved");
@@ -66,7 +66,7 @@ fn extract_vec_infallible_matches_fallible() {
     let data: Vec<f32> = (0..8).map(|i| i as f32).collect();
     let img = make_test_image(data.clone(), [2, 2, 2]);
 
-    let (v1, d1) = extract_vec(&img).unwrap();
+    let (v1, d1) = extract_vec(&img).expect("infallible: validated precondition");
     let (v2, d2) = extract_vec_infallible(&img);
 
     assert_eq!(v1, v2, "infallible variant must return same values");
@@ -78,7 +78,7 @@ fn extract_vec_infallible_matches_fallible() {
 fn rebuild_output_has_correct_shape() {
     let data = vec![1.0_f32; 3 * 4 * 5];
     let img = make_test_image(data.clone(), [3, 4, 5]);
-    let (vals, dims) = extract_vec(&img).unwrap();
+    let (vals, dims) = extract_vec(&img).expect("infallible: validated precondition");
     let out = rebuild(vals, dims, &img);
     assert_eq!(
         out.shape(),

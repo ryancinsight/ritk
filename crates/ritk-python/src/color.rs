@@ -9,7 +9,7 @@
 use crate::errors::{RitkPyError, RitkResult};
 use crate::image::{image_to_vec, into_py_image, vec_to_image, PyImage};
 use coeus_core::MoiraiBackend;
-use numpy::{ndarray::Array4, IntoPyArray, PyArray4, PyReadonlyArray4, PyUntypedArrayMethods};
+use numpy::{PyArray1, PyArray4, PyArrayMethods, PyReadonlyArray4, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_filter::{
@@ -47,7 +47,10 @@ impl PyColorImage {
             ))
             .into());
         }
-        let flat: Vec<f32> = array.as_array().iter().copied().collect();
+        let flat: Vec<f32> = array
+            .as_slice()
+            .map_err(|e| RitkPyError::value(format!("input array must be contiguous: {e}")))?
+            .to_vec();
         let sp = spacing.unwrap_or([1.0, 1.0, 1.0]);
         let orig = origin.unwrap_or([0.0, 0.0, 0.0]);
         let vol = ColorVolume::from_flat_on(
@@ -68,9 +71,9 @@ impl PyColorImage {
     fn to_numpy<'py>(&self, py: Python<'py>) -> RitkResult<Bound<'py, PyArray4<f32>>> {
         let [z, y, x, ch] = self.inner.shape();
         let vals = self.inner.data_cow_on(&MoiraiBackend).into_owned();
-        Array4::from_shape_vec((z, y, x, ch), vals)
+        PyArray1::<f32>::from_vec_bound(py, vals)
+            .reshape([z, y, x, ch])
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-            .map(|a| a.into_pyarray_bound(py))
     }
 
     /// Shape as `(Z, Y, X, C)`.

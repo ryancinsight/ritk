@@ -110,13 +110,13 @@ fn test_cylindrical_tube_detects_line() {
 
     // Centre column: z = any, y = 16, x = 16 (flat index = z*N*N + 16*N + 16).
     let mut centre_responses: Vec<f32> = (0..N).map(|iz| out[iz * N * N + 16 * N + 16]).collect();
-    centre_responses.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    centre_responses.sort_by(|a, b| a.partial_cmp(b).expect("infallible: validated precondition"));
     let median_centre = centre_responses[N / 2];
 
     // Far background voxels (corner strip x=0..2, y=0..2).
     let background: Vec<f32> = (0..N).map(|iz| out[iz * N * N]).collect();
     let mut bg = background.clone();
-    bg.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    bg.sort_by(|a, b| a.partial_cmp(b).expect("infallible: validated precondition"));
     let median_bg = bg[N / 2];
 
     assert!(
@@ -149,8 +149,8 @@ fn test_sphere_lower_response_than_tube() {
     let tube_img = make_image(tube_data, [N, N, N]);
     let sphere_img = make_image(sphere_data, [N, N, N]);
 
-    let tube_out: Vec<f32> = filter.apply(&tube_img).unwrap().data().to_vec();
-    let sphere_out: Vec<f32> = filter.apply(&sphere_img).unwrap().data().to_vec();
+    let tube_out: Vec<f32> = filter.apply(&tube_img).expect("infallible: validated precondition").data().to_vec();
+    let sphere_out: Vec<f32> = filter.apply(&sphere_img).expect("infallible: validated precondition").data().to_vec();
 
     let tube_peak = tube_out.iter().cloned().fold(0.0_f32, f32::max);
     let sphere_peak = sphere_out.iter().cloned().fold(0.0_f32, f32::max);
@@ -179,7 +179,7 @@ fn test_dark_tube_rejected_by_bright_gate() {
         polarity: VesselPolarity::Bright, // bright gate — should reject the dark tube
     };
     let filter = SatoLineFilter::new(config);
-    let result = filter.apply(&make_image(dark_tube, [N, N, N])).unwrap();
+    let result = filter.apply(&make_image(dark_tube, [N, N, N])).expect("infallible: validated precondition");
     let out: Vec<f32> = result.data().to_vec();
 
     let max_resp = out.iter().cloned().fold(0.0_f32, f32::max);
@@ -199,7 +199,7 @@ fn test_uniform_image_zero_response() {
 
     let config = SatoConfig::default();
     let filter = SatoLineFilter::new(config);
-    let result = filter.apply(&make_image(data, [N, N, N])).unwrap();
+    let result = filter.apply(&make_image(data, [N, N, N])).expect("infallible: validated precondition");
     let out: Vec<f32> = result.data().to_vec();
 
     let max_resp = out.iter().cloned().fold(0.0_f32, f32::max);
@@ -234,7 +234,7 @@ fn test_response_all_finite() {
         polarity: VesselPolarity::Bright,
     };
     let filter = SatoLineFilter::new(config);
-    let result = filter.apply(&make_image(data, [N, N, N])).unwrap();
+    let result = filter.apply(&make_image(data, [N, N, N])).expect("infallible: validated precondition");
     let out: Vec<f32> = result.data().to_vec();
 
     for (i, &v) in out.iter().enumerate() {

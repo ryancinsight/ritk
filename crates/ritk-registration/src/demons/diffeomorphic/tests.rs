@@ -43,7 +43,7 @@ fn identity_registration_near_zero_mse() {
         max_iterations: 20,
         ..Default::default()
     });
-    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).unwrap();
+    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
     assert!(
         result.final_mse < 1e-3,
         "identity MSE should be < 1e-3, got {}",
@@ -73,7 +73,7 @@ fn registration_reduces_mse() {
     });
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     assert!(
         result.final_mse < initial_mse,
@@ -99,7 +99,7 @@ fn displacement_field_finite() {
     });
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
     for (&dz, (&dy, &dx)) in result
         .disp_z
         .iter()
@@ -155,7 +155,7 @@ fn result_retains_stationary_velocity_field() {
 
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     let n = dims[0] * dims[1] * dims[2];
     assert_eq!(
@@ -191,7 +191,7 @@ fn exact_inverse_composes_to_near_identity() {
 
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
     let inv = reg.invert_result(&result, dims);
     let comp = compose_fields(
         &inv.z,
@@ -241,7 +241,7 @@ fn invert_result_matches_negated_velocity_exponential() {
 
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
     let inv = reg.invert_result(&result, dims);
 
     let vel_z = result.vel_z.as_ref().expect("vel_z must be present");

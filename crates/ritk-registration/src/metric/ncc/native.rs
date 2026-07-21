@@ -1,11 +1,10 @@
 //! Coeus-native NCC engine (`Image<f32, B, 3>` substrate).
 //!
-//! Atlas migration (burn → coeus): the register-engine parallel path for the
-//! zero-normalized cross correlation. The Coeus-generic
-//! [`super::NormalizedCrossCorrelation`] surface stays unchanged (its consumers
-//! remain on Coeus until their own cutover); this module ADDS the native
-//! substrate alongside so registration's eventual `Image<B>` → native cutover
-//! is unblocked.
+//! The register-engine native path for zero-normalized cross correlation. The
+//! Coeus-generic [`super::NormalizedCrossCorrelation`] surface stays unchanged
+//! (its consumers remain on Coeus until their own cutover); this module adds
+//! the native substrate alongside so registration's eventual `Image<B>` →
+//! native cutover is unblocked.
 //!
 //! The resample path is the shared `ritk_filter::resample::native` substrate;
 //! only the reduction differs — the identical single-pass five-moment ZNCC

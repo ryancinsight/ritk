@@ -5,8 +5,8 @@ use leto::Array2;
 
 #[test]
 fn test_kabsch_identity() {
-    let fixed = Array2::from_vec([3, 3], vec![0., 0., 0., 1., 0., 0., 0., 1., 0.]).unwrap();
-    let rotation = kabsch_algorithm(&fixed, &fixed).unwrap();
+    let fixed = Array2::from_vec([3, 3], vec![0., 0., 0., 1., 0., 0., 0., 1., 0.]).expect("valid dimension");
+    let rotation = kabsch_algorithm(&fixed, &fixed).expect("infallible: validated precondition");
 
     let expected = [1., 0., 0., 0., 1., 0., 0., 0., 1.];
     for (r, e) in rotation.iter().zip(expected.iter()) {

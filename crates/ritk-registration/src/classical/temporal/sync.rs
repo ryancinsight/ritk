@@ -132,19 +132,19 @@ impl TemporalSync {
 
         // Parabolic sub-sample refinement around peak
         let shift_frames = if peak_idx > 0 && peak_idx < correlations.size() - 1 {
-            let r_m1 = *correlations.get([peak_idx - 1]).unwrap();
-            let r_0 = *correlations.get([peak_idx]).unwrap();
-            let r_p1 = *correlations.get([peak_idx + 1]).unwrap();
+            let r_m1 = *correlations.get([peak_idx - 1]).expect("valid index");
+            let r_0 = *correlations.get([peak_idx]).expect("valid index");
+            let r_p1 = *correlations.get([peak_idx + 1]).expect("valid index");
 
             let denom = r_m1 - 2.0 * r_0 + r_p1;
             if denom.abs() > SIGNAL_VARIANCE_GUARD {
                 let delta = (r_m1 - r_p1) / (2.0 * denom);
-                (*lags.get([peak_idx]).unwrap() as f64) + delta
+                (*lags.get([peak_idx]).expect("valid index") as f64) + delta
             } else {
-                *lags.get([peak_idx]).unwrap() as f64
+                *lags.get([peak_idx]).expect("valid index") as f64
             }
         } else {
-            *lags.get([peak_idx]).unwrap() as f64
+            *lags.get([peak_idx]).expect("valid index") as f64
         };
 
         let shift_seconds = shift_frames * self.config.frame_spacing;
@@ -155,7 +155,7 @@ impl TemporalSync {
         // Phase lock stability: the peak normalized cross-correlation value.
         // For perfectly identical non-constant signals this equals 1.0.
         // For partially correlated signals it falls in [0, 1).
-        let stability = (*correlations.get([peak_idx]).unwrap()).max(0.0);
+        let stability = (*correlations.get([peak_idx]).expect("valid index")).max(0.0);
 
         // Success rate based on stability and deviation thresholds (delegated)
         let sync_success_rate = compute_success_rate(stability, max_deviation, &self.config);
@@ -198,8 +198,8 @@ impl TemporalSync {
         let lags_len = lags.len();
         let corr_len = correlations.len();
         (
-            Array1::from_vec([lags_len], lags).unwrap(),
-            Array1::from_vec([corr_len], correlations).unwrap(),
+            Array1::from_vec([lags_len], lags).expect("valid dimension"),
+            Array1::from_vec([corr_len], correlations).expect("valid dimension"),
         )
     }
 
@@ -217,8 +217,8 @@ impl TemporalSync {
         let mut var2 = 0.0;
 
         for i in 0..s1.size() {
-            let d1 = *s1.get([i]).unwrap() - mean1;
-            let d2 = *s2.get([i]).unwrap() - mean2;
+            let d1 = *s1.get([i]).expect("valid index") - mean1;
+            let d2 = *s2.get([i]).expect("valid index") - mean2;
             cov += d1 * d2;
             var1 += d1 * d1;
             var2 += d2 * d2;
@@ -245,8 +245,8 @@ impl TemporalSync {
         let mut sum1 = 0.0;
         let mut sum2 = 0.0;
         for i in 0..n {
-            sum1 += *s1.get([i]).unwrap();
-            sum2 += *s2.get([i + lag]).unwrap();
+            sum1 += *s1.get([i]).expect("valid index");
+            sum2 += *s2.get([i + lag]).expect("valid index");
         }
         let mean1 = sum1 / n_f;
         let mean2 = sum2 / n_f;
@@ -256,8 +256,8 @@ impl TemporalSync {
         let mut var1 = 0.0;
         let mut var2 = 0.0;
         for i in 0..n {
-            let d1 = *s1.get([i]).unwrap() - mean1;
-            let d2 = *s2.get([i + lag]).unwrap() - mean2;
+            let d1 = *s1.get([i]).expect("valid index") - mean1;
+            let d2 = *s2.get([i + lag]).expect("valid index") - mean2;
             cov += d1 * d2;
             var1 += d1 * d1;
             var2 += d2 * d2;

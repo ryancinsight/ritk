@@ -148,7 +148,7 @@ pub fn write_vti_binary_appended_bytes(grid: &VtkImageData) -> Result<Vec<u8>> {
     let mut offsets: Vec<usize> = Vec::with_capacity(all.len() + 1);
     offsets.push(0);
     for (_, attr) in &all {
-        let prev = *offsets.last().unwrap();
+        let prev = *offsets.last().expect("infallible: validated precondition");
         let next = prev
             .checked_add(attr_block_len(attr)?)
             .ok_or_else(|| anyhow!("VTI appended offset overflow"))?;
@@ -157,40 +157,40 @@ pub fn write_vti_binary_appended_bytes(grid: &VtkImageData) -> Result<Vec<u8>> {
     let appended_len = *offsets.last().unwrap_or(&0);
 
     let mut xml = String::new();
-    writeln!(xml, "<?xml version=\"1.0\"?>").unwrap();
+    writeln!(xml, "<?xml version=\"1.0\"?>").expect("infallible write");
     writeln!(
         xml,
         "<VTKFile type=\"ImageData\" version=\"0.1\" byte_order=\"LittleEndian\" header_type=\"UInt32\">"
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         xml,
         "  <ImageData WholeExtent=\"{}\" Origin=\"{}\" Spacing=\"{}\">",
         extent_str, origin_str, spacing_str
     )
-    .unwrap();
-    writeln!(xml, "    <Piece Extent=\"{}\">", extent_str).unwrap();
+    .expect("infallible: validated precondition");
+    writeln!(xml, "    <Piece Extent=\"{}\">", extent_str).expect("infallible write");
 
     let pd_len = pd.len();
     if !pd.is_empty() {
-        writeln!(xml, "      <PointData>").unwrap();
+        writeln!(xml, "      <PointData>").expect("infallible write");
         for (i, (name, attr)) in pd.iter().enumerate() {
             write_da_appended_tag(&mut xml, name, attr_ncomp(attr), offsets[i])?;
         }
-        writeln!(xml, "      </PointData>").unwrap();
+        writeln!(xml, "      </PointData>").expect("infallible write");
     }
 
     if !cd.is_empty() {
-        writeln!(xml, "      <CellData>").unwrap();
+        writeln!(xml, "      <CellData>").expect("infallible write");
         for (i, (name, attr)) in cd.iter().enumerate() {
             write_da_appended_tag(&mut xml, name, attr_ncomp(attr), offsets[pd_len + i])?;
         }
-        writeln!(xml, "      </CellData>").unwrap();
+        writeln!(xml, "      </CellData>").expect("infallible write");
     }
 
-    writeln!(xml, "    </Piece>").unwrap();
-    writeln!(xml, "  </ImageData>").unwrap();
-    writeln!(xml, "  <AppendedData encoding=\"raw\">").unwrap();
+    writeln!(xml, "    </Piece>").expect("infallible write");
+    writeln!(xml, "  </ImageData>").expect("infallible write");
+    writeln!(xml, "  <AppendedData encoding=\"raw\">").expect("infallible write");
 
     let mut result: Vec<u8> =
         Vec::with_capacity(xml.len() + 1 + appended_len + APPENDED_CLOSING_TAG.len());

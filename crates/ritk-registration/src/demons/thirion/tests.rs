@@ -42,7 +42,7 @@ fn identity_registration_near_zero_mse() {
         max_iterations: 20,
         ..Default::default()
     });
-    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).unwrap();
+    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
     assert!(
         result.final_mse < 1e-3,
         "identity MSE should be < 1e-3, got {}",
@@ -72,7 +72,7 @@ fn registration_reduces_mse() {
     });
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     assert!(
         result.final_mse < initial_mse,
@@ -105,7 +105,7 @@ fn translation_recovery_direction() {
     });
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     let mut sum_dx = 0.0_f64;
     let mut count = 0usize;
@@ -136,7 +136,7 @@ fn constant_image_zero_forces() {
         max_iterations: 10,
         ..Default::default()
     });
-    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).unwrap();
+    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
 
     let max_disp = result
         .disp_x
@@ -178,7 +178,7 @@ fn displacement_field_finite() {
     });
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
     for (&dz, (&dy, &dx)) in result
         .disp_z
         .iter()

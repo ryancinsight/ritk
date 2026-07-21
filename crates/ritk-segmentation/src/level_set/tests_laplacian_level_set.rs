@@ -78,7 +78,7 @@ fn test_output_is_binary() {
     let dims = [8, 8, 8];
     let image = make_image(dims, 128.0);
     let phi = sphere_phi(dims, [4.0, 4.0, 4.0], 2.0);
-    let result = LaplacianLevelSet::new().apply(&image, &phi).unwrap();
+    let result = LaplacianLevelSet::new().apply(&image, &phi).expect("infallible: validated precondition");
     let vals = image_values(&result);
     for (i, &v) in vals.iter().enumerate() {
         assert!(
@@ -98,7 +98,7 @@ fn test_metadata_preserved() {
     let spacing = [0.5, 0.5, 1.0];
     let image = make_image_with_metadata(vec![128.0; dims.iter().product()], dims, origin, spacing);
     let phi = sphere_phi(dims, [3.0, 3.0, 3.0], 2.0);
-    let result = LaplacianLevelSet::new().apply(&image, &phi).unwrap();
+    let result = LaplacianLevelSet::new().apply(&image, &phi).expect("infallible: validated precondition");
     assert_eq!(result.origin(), &Point::new(origin));
     assert_eq!(result.spacing(), &Spacing::new(spacing));
     assert_eq!(result.direction(), image.direction());
@@ -177,7 +177,7 @@ fn test_laplacian_expands_in_bright_region() {
     ls.curvature_weight = 0.1;
     ls.sigma = GaussianSigma::new_unchecked(0.5);
     ls.max_iterations = 200;
-    let result = ls.apply(&image, &phi).unwrap();
+    let result = ls.apply(&image, &phi).expect("infallible: validated precondition");
     let final_fg = count_foreground(&result);
     assert!(
         final_fg > initial_inside,
@@ -198,7 +198,7 @@ fn test_zero_iterations_returns_initial_phi_thresholded() {
     let expected_inside = count_phi_inside(&phi);
     let mut ls = LaplacianLevelSet::new();
     ls.max_iterations = 0;
-    let result = ls.apply(&image, &phi).unwrap();
+    let result = ls.apply(&image, &phi).expect("infallible: validated precondition");
     let actual_fg = count_foreground(&result);
     assert_eq!(
         actual_fg, expected_inside,

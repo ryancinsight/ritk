@@ -25,7 +25,7 @@ fn constant_image_unchanged() {
     let c = 17.0_f32;
     let dims = [6, 6, 6];
     let img = make_image(vec![c; 216], dims);
-    let out = GrayscaleOpeningFilter::new(2).apply(&img).unwrap();
+    let out = GrayscaleOpeningFilter::new(2).apply(&img).expect("infallible: validated precondition");
     for &v in extract_vals(&out).iter() {
         assert!((v - c).abs() < 1e-6, "constant unchanged: got {v}");
     }
@@ -39,7 +39,7 @@ fn radius_zero_is_identity() {
     let vals: Vec<f32> = (0..216_u32).map(|i| i as f32).collect();
     let dims = [6, 6, 6];
     let img = make_image(vals.clone(), dims);
-    let out = GrayscaleOpeningFilter::new(0).apply(&img).unwrap();
+    let out = GrayscaleOpeningFilter::new(0).apply(&img).expect("infallible: validated precondition");
     let out_vals = extract_vals(&out);
     for (i, (&a, &b)) in vals.iter().zip(out_vals.iter()).enumerate() {
         assert!(
@@ -70,7 +70,7 @@ fn bright_spike_removed() {
         }
     }
     let img = make_image(vals, [nz, ny, nx]);
-    let out = GrayscaleOpeningFilter::new(1).apply(&img).unwrap();
+    let out = GrayscaleOpeningFilter::new(1).apply(&img).expect("infallible: validated precondition");
     let out_vals = extract_vals(&out);
     for (i, &v) in out_vals.iter().enumerate() {
         assert!(
@@ -89,7 +89,7 @@ fn anti_extensivity() {
     let n = 8 * 8 * 8;
     let vals: Vec<f32> = (0..n as u32).map(|i| (i * 7919 % 256) as f32).collect();
     let img = make_image(vals.clone(), dims);
-    let out = GrayscaleOpeningFilter::new(1).apply(&img).unwrap();
+    let out = GrayscaleOpeningFilter::new(1).apply(&img).expect("infallible: validated precondition");
     let out_vals = extract_vals(&out);
     for (i, (&before, &after)) in vals.iter().zip(out_vals.iter()).enumerate() {
         assert!(
@@ -106,8 +106,8 @@ fn idempotence() {
     let n = 6 * 6 * 6;
     let vals: Vec<f32> = (0..n as u32).map(|i| (i * 3571 % 128) as f32).collect();
     let img = make_image(vals, dims);
-    let once = GrayscaleOpeningFilter::new(1).apply(&img).unwrap();
-    let twice = GrayscaleOpeningFilter::new(1).apply(&once).unwrap();
+    let once = GrayscaleOpeningFilter::new(1).apply(&img).expect("infallible: validated precondition");
+    let twice = GrayscaleOpeningFilter::new(1).apply(&once).expect("infallible: validated precondition");
     let v1 = extract_vals(&once);
     let v2 = extract_vals(&twice);
     for (i, (&a, &b)) in v1.iter().zip(v2.iter()).enumerate() {
@@ -127,7 +127,7 @@ fn spatial_metadata_preserved() {
     let tensor = Tensor::<f32, B>::from_slice([3, 3, 3], &[1.0_f32; 27]);
     let img = Image::new(tensor, origin, spacing, direction)
         .expect("invariant: fixture tensor has the declared rank");
-    let out = GrayscaleOpeningFilter::new(1).apply(&img).unwrap();
+    let out = GrayscaleOpeningFilter::new(1).apply(&img).expect("infallible: validated precondition");
     assert_eq!(out.origin(), img.origin());
     assert_eq!(out.spacing(), img.spacing());
 }
@@ -137,7 +137,7 @@ fn spatial_metadata_preserved() {
 fn all_foreground_unchanged() {
     let dims = [5, 5, 5];
     let img = make_image(vec![255.0_f32; 125], dims);
-    let out = GrayscaleOpeningFilter::new(2).apply(&img).unwrap();
+    let out = GrayscaleOpeningFilter::new(2).apply(&img).expect("infallible: validated precondition");
     for &v in extract_vals(&out).iter() {
         assert!((v - 255.0).abs() < 1e-6, "all-fg must stay 255, got {v}");
     }
@@ -161,7 +161,7 @@ fn large_bright_region_unchanged() {
         }
     }
     let img = make_image(vals, [nz, ny, nx]);
-    let out = GrayscaleOpeningFilter::new(1).apply(&img).unwrap();
+    let out = GrayscaleOpeningFilter::new(1).apply(&img).expect("infallible: validated precondition");
     let out_vals = extract_vals(&out);
     // Interior of the 5×5×5 block (iz/iy/ix ∈ {3..5}) must remain bright
     for iz in 3..6 {

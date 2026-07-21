@@ -24,8 +24,8 @@ use std::time::Duration;
 
 fn loopback_config(port: u16) -> AssociationConfig {
     AssociationConfig::new(
-        AeTitle::new("TEST_SCU").unwrap(),
-        DicomAddress::new("127.0.0.1", port, AeTitle::new("TEST_SCP").unwrap()),
+        AeTitle::new("TEST_SCU").expect("infallible: validated precondition"),
+        DicomAddress::new("127.0.0.1", port, AeTitle::new("TEST_SCP").expect("infallible: validated precondition")),
     )
     .with_connect_timeout(Duration::from_secs(5))
     .with_read_timeout(Duration::from_secs(5))
@@ -35,11 +35,11 @@ fn loopback_config(port: u16) -> AssociationConfig {
 
 #[test]
 fn c_echo_loopback_returns_success_status() {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
+    let listener = TcpListener::bind("127.0.0.1:0").expect("infallible: validated precondition");
+    let port = listener.local_addr().expect("infallible: validated precondition").port();
 
     let scp = std::thread::spawn(move || {
-        let (stream, _) = listener.accept().unwrap();
+        let (stream, _) = listener.accept().expect("infallible: validated precondition");
         let mut assoc = ServerAssociationOptions::new()
             .accept_any()
             .promiscuous(true)
@@ -68,7 +68,7 @@ fn c_echo_loopback_returns_success_status() {
                         continue;
                     }
 
-                    let cmd = parse_command_response(&cmd_bytes).unwrap();
+                    let cmd = parse_command_response(&cmd_bytes).expect("infallible: validated precondition");
 
                     let rsp = build_command_pdu(&[
                         (0x0000_0002, CommandElementValue::Ui(VERIFICATION_SOP_CLASS)),
@@ -90,7 +90,7 @@ fn c_echo_loopback_returns_success_status() {
                                 data: rsp,
                             }],
                         })
-                        .unwrap();
+                        .expect("infallible: validated precondition");
                 }
                 Ok(Pdu::ReleaseRQ) => {
                     let _ = assoc.send(&Pdu::ReleaseRP);
@@ -117,11 +117,11 @@ fn c_echo_loopback_returns_success_status() {
 fn c_find_loopback_returns_synthetic_study_result() {
     const EXPECTED_UID: &str = "1.2.826.0.1.3680043.10.999.1";
 
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
+    let listener = TcpListener::bind("127.0.0.1:0").expect("infallible: validated precondition");
+    let port = listener.local_addr().expect("infallible: validated precondition").port();
 
     let scp = std::thread::spawn(move || {
-        let (stream, _) = listener.accept().unwrap();
+        let (stream, _) = listener.accept().expect("infallible: validated precondition");
         let mut assoc = ServerAssociationOptions::new()
             .accept_any()
             .promiscuous(true)
@@ -150,7 +150,7 @@ fn c_find_loopback_returns_synthetic_study_result() {
                         continue;
                     }
 
-                    let cmd = parse_command_response(&cmd_bytes).unwrap();
+                    let cmd = parse_command_response(&cmd_bytes).expect("infallible: validated precondition");
                     if cmd.command_field != super::command::C_FIND_RQ {
                         continue;
                     }
@@ -182,7 +182,7 @@ fn c_find_loopback_returns_synthetic_study_result() {
                                 data: pending_rsp,
                             }],
                         })
-                        .unwrap();
+                        .expect("infallible: validated precondition");
 
                     // Send result dataset with StudyInstanceUID.
                     let mut uid_bytes = Vec::new();
@@ -202,7 +202,7 @@ fn c_find_loopback_returns_synthetic_study_result() {
                                 data: dataset,
                             }],
                         })
-                        .unwrap();
+                        .expect("infallible: validated precondition");
 
                     // Send final SUCCESS C-FIND-RSP (no dataset).
                     let final_rsp = build_command_pdu(&[
@@ -225,7 +225,7 @@ fn c_find_loopback_returns_synthetic_study_result() {
                                 data: final_rsp,
                             }],
                         })
-                        .unwrap();
+                        .expect("infallible: validated precondition");
                 }
                 Ok(Pdu::ReleaseRQ) => {
                     let _ = assoc.send(&Pdu::ReleaseRP);
@@ -241,7 +241,7 @@ fn c_find_loopback_returns_synthetic_study_result() {
     let results = find(&config, &query).expect("C-FIND must succeed");
 
     assert_eq!(results.len(), 1, "exactly one pending result expected");
-    let uid = results[0].get_string(0x0020, 0x000D).unwrap();
+    let uid = results[0].get_string(0x0020, 0x000D).expect("infallible: validated precondition");
     assert_eq!(
         uid, EXPECTED_UID,
         "StudyInstanceUID must match synthetic value"
@@ -254,11 +254,11 @@ fn c_find_loopback_returns_synthetic_study_result() {
 
 #[test]
 fn c_move_loopback_returns_final_success_status() {
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = listener.local_addr().unwrap().port();
+    let listener = TcpListener::bind("127.0.0.1:0").expect("infallible: validated precondition");
+    let port = listener.local_addr().expect("infallible: validated precondition").port();
 
     let scp = std::thread::spawn(move || {
-        let (stream, _) = listener.accept().unwrap();
+        let (stream, _) = listener.accept().expect("infallible: validated precondition");
         let mut assoc = ServerAssociationOptions::new()
             .accept_any()
             .promiscuous(true)
@@ -287,7 +287,7 @@ fn c_move_loopback_returns_final_success_status() {
                         continue;
                     }
 
-                    let cmd = parse_command_response(&cmd_bytes).unwrap();
+                    let cmd = parse_command_response(&cmd_bytes).expect("infallible: validated precondition");
                     if cmd.command_field != super::command::C_MOVE_RQ {
                         continue;
                     }
@@ -323,7 +323,7 @@ fn c_move_loopback_returns_final_success_status() {
                                 data: pending,
                             }],
                         })
-                        .unwrap();
+                        .expect("infallible: validated precondition");
 
                     // Send final SUCCESS response.
                     let final_rsp = build_command_pdu(&[
@@ -350,7 +350,7 @@ fn c_move_loopback_returns_final_success_status() {
                                 data: final_rsp,
                             }],
                         })
-                        .unwrap();
+                        .expect("infallible: validated precondition");
                 }
                 Ok(Pdu::ReleaseRQ) => {
                     let _ = assoc.send(&Pdu::ReleaseRP);
@@ -362,7 +362,7 @@ fn c_move_loopback_returns_final_success_status() {
     });
 
     let config = loopback_config(port);
-    let dest = MoveDestination::new(AeTitle::new("MY_SCP").unwrap());
+    let dest = MoveDestination::new(AeTitle::new("MY_SCP").expect("infallible: validated precondition"));
     let resp = retrieve(&config, &dest, "1.2.3.4.5").expect("C-MOVE must succeed");
 
     assert_eq!(

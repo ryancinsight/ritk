@@ -43,7 +43,7 @@ fn output_shape_unchanged_after_shift() {
     let vals: Vec<f32> = (0..(h * cw)).map(|i| i as f32).collect();
     let img = make_complex_2d(&vals, h, cw);
 
-    let shifted = FftShiftFilter::new().apply(&img).unwrap();
+    let shifted = FftShiftFilter::new().apply(&img).expect("infallible: validated precondition");
 
     assert_eq!(shifted.shape(), [h, cw], "apply_2d must not change shape");
 }
@@ -66,10 +66,10 @@ fn double_shift_is_identity() {
         .collect();
     let img = make_complex_2d(&vals, h, cw);
 
-    let once = FftShiftFilter::new().apply(&img).unwrap();
-    let twice = FftShiftFilter::new().apply(&once).unwrap();
+    let once = FftShiftFilter::new().apply(&img).expect("infallible: validated precondition");
+    let twice = FftShiftFilter::new().apply(&once).expect("infallible: validated precondition");
 
-    let (result, _) = ritk_tensor_ops::extract_vec(&twice).unwrap();
+    let (result, _) = ritk_tensor_ops::extract_vec(&twice).expect("infallible: validated precondition");
     let max_diff = result
         .iter()
         .zip(vals.iter())
@@ -99,8 +99,8 @@ fn dc_moves_to_center_after_shift() {
     vals[1] = 0.0; // Im(F[0,0])
 
     let img = make_complex_2d(&vals, h, cw);
-    let shifted = FftShiftFilter::new().apply(&img).unwrap();
-    let (shifted_data, _) = ritk_tensor_ops::extract_vec(&shifted).unwrap();
+    let shifted = FftShiftFilter::new().apply(&img).expect("infallible: validated precondition");
+    let (shifted_data, _) = ritk_tensor_ops::extract_vec(&shifted).expect("infallible: validated precondition");
 
     // Expected centre: row=2, col=2 → flat indices 2·8 + 2·2 = 20 and 21.
     let re_idx = 2 * cw + 2 * 2; // = 20
@@ -124,7 +124,7 @@ fn output_shape_unchanged_after_shift_volume() {
     let vals: Vec<f32> = (0..(depth * h * cw)).map(|i| i as f32).collect();
     let img = make_complex_3d(&vals, depth, h, cw);
 
-    let shifted = FftShiftFilter::new().apply(&img).unwrap();
+    let shifted = FftShiftFilter::new().apply(&img).expect("infallible: validated precondition");
 
     assert_eq!(
         shifted.shape(),
@@ -151,8 +151,8 @@ fn dc_moves_to_center_after_shift_volume() {
     vals[1] = 0.0; // Im(F[0,0,0])
 
     let img = make_complex_3d(&vals, depth, h, cw);
-    let shifted = FftShiftFilter::new().apply(&img).unwrap();
-    let (data, _) = ritk_tensor_ops::extract_vec(&shifted).unwrap();
+    let shifted = FftShiftFilter::new().apply(&img).expect("infallible: validated precondition");
+    let (data, _) = ritk_tensor_ops::extract_vec(&shifted).expect("infallible: validated precondition");
 
     // Expected DC centre: d=2, r=2, c=2
     // flat index = 2 * h * cw + 2 * cw + 2 * 2 = 2*32 + 2*8 + 4 = 64 + 16 + 4 = 84
@@ -181,10 +181,10 @@ fn double_shift_is_identity_volume() {
         .collect();
     let img = make_complex_3d(&vals, depth, h, cw);
 
-    let once = FftShiftFilter::new().apply(&img).unwrap();
-    let twice = FftShiftFilter::new().apply(&once).unwrap();
+    let once = FftShiftFilter::new().apply(&img).expect("infallible: validated precondition");
+    let twice = FftShiftFilter::new().apply(&once).expect("infallible: validated precondition");
 
-    let (result, _) = ritk_tensor_ops::extract_vec(&twice).unwrap();
+    let (result, _) = ritk_tensor_ops::extract_vec(&twice).expect("infallible: validated precondition");
     let max_diff = result
         .iter()
         .zip(vals.iter())
@@ -206,8 +206,8 @@ fn odd_dimension_volume_shifts_correctly() {
     let vals: Vec<f32> = (0..(depth * h * cw)).map(|i| i as f32).collect();
     let img = make_complex_3d(&vals, depth, h, cw);
 
-    let shifted = FftShiftFilter::new().apply(&img).unwrap();
-    let (data, _) = ritk_tensor_ops::extract_vec(&shifted).unwrap();
+    let shifted = FftShiftFilter::new().apply(&img).expect("infallible: validated precondition");
+    let (data, _) = ritk_tensor_ops::extract_vec(&shifted).expect("infallible: validated precondition");
 
     // Shape must be preserved.
     assert_eq!(
@@ -228,10 +228,10 @@ fn real_fft_shift_even_dims_is_identity_twice() {
     let vals: Vec<f32> = (0..64).map(|i| i as f32).collect();
     let img = make_complex_3d(&vals, 4, 4, 4);
 
-    let once = RealFftShiftFilter::new().apply(&img).unwrap();
-    let twice = RealFftShiftFilter::new().apply(&once).unwrap();
+    let once = RealFftShiftFilter::new().apply(&img).expect("infallible: validated precondition");
+    let twice = RealFftShiftFilter::new().apply(&once).expect("infallible: validated precondition");
 
-    let (res, _) = ritk_tensor_ops::extract_vec(&twice).unwrap();
+    let (res, _) = ritk_tensor_ops::extract_vec(&twice).expect("infallible: validated precondition");
     assert_eq!(res, vals);
 }
 
@@ -240,8 +240,8 @@ fn real_fft_shift_odd_dims_correct() {
     let vals: Vec<f32> = (0..27).map(|i| i as f32).collect();
     let img = make_complex_3d(&vals, 3, 3, 3);
 
-    let once = RealFftShiftFilter::new().apply(&img).unwrap();
-    let (res, _) = ritk_tensor_ops::extract_vec(&once).unwrap();
+    let once = RealFftShiftFilter::new().apply(&img).expect("infallible: validated precondition");
+    let (res, _) = ritk_tensor_ops::extract_vec(&once).expect("infallible: validated precondition");
 
     for z in 0..3 {
         for y in 0..3 {

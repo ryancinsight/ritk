@@ -55,7 +55,7 @@ fn write_nifti_tmp(dir: &std::path::Path, name: &str, image: &Image<f32, Backend
 /// For a constant image, min == max == mean == value, std == 0.
 #[test]
 fn test_stats_summary_constant_image() {
-    let dir = tempdir().unwrap();
+    let dir = tempdir().expect("infallible: validated precondition");
     let image = make_constant_image(42.0);
     let input = write_nifti_tmp(dir.path(), "const.nii", &image);
 
@@ -93,7 +93,7 @@ fn test_stats_summary_ramp_image_values() {
 
 #[test]
 fn test_stats_dice_identical_masks_returns_one() {
-    let dir = tempdir().unwrap();
+    let dir = tempdir().expect("infallible: validated precondition");
     let mask = make_binary_mask(32);
     let input = write_nifti_tmp(dir.path(), "mask_a.nii", &mask);
     let reference = write_nifti_tmp(dir.path(), "mask_b.nii", &mask);
@@ -136,7 +136,7 @@ fn test_stats_dice_disjoint_masks_returns_zero() {
 
 #[test]
 fn test_stats_psnr_identical_images_returns_inf() {
-    let dir = tempdir().unwrap();
+    let dir = tempdir().expect("infallible: validated precondition");
     let image = make_ramp_image();
     let input = write_nifti_tmp(dir.path(), "img_a.nii", &image);
     let reference = write_nifti_tmp(dir.path(), "img_b.nii", &image);
@@ -161,7 +161,7 @@ fn test_stats_psnr_identical_images_returns_inf() {
 
 #[test]
 fn test_stats_ssim_identical_images_returns_one() {
-    let dir = tempdir().unwrap();
+    let dir = tempdir().expect("infallible: validated precondition");
     let image = make_ramp_image();
     let input = write_nifti_tmp(dir.path(), "img_a.nii", &image);
     let reference = write_nifti_tmp(dir.path(), "img_b.nii", &image);
@@ -186,7 +186,7 @@ fn test_stats_ssim_identical_images_returns_one() {
 
 #[test]
 fn test_stats_hausdorff_identical_masks_returns_zero() {
-    let dir = tempdir().unwrap();
+    let dir = tempdir().expect("infallible: validated precondition");
     let mask = make_binary_mask(32);
     let input = write_nifti_tmp(dir.path(), "mask_a.nii", &mask);
     let reference = write_nifti_tmp(dir.path(), "mask_b.nii", &mask);
@@ -217,7 +217,7 @@ fn test_stats_hausdorff_identical_masks_returns_zero() {
 
 #[test]
 fn test_stats_dice_without_reference_returns_error() {
-    let dir = tempdir().unwrap();
+    let dir = tempdir().expect("infallible: validated precondition");
     let image = make_binary_mask(32);
     let input = write_nifti_tmp(dir.path(), "mask.nii", &image);
 
@@ -238,7 +238,7 @@ fn test_stats_dice_without_reference_returns_error() {
 
 #[test]
 fn test_stats_psnr_without_reference_returns_error() {
-    let dir = tempdir().unwrap();
+    let dir = tempdir().expect("infallible: validated precondition");
     let image = make_ramp_image();
     let input = write_nifti_tmp(dir.path(), "img.nii", &image);
 
@@ -259,7 +259,7 @@ fn test_stats_psnr_without_reference_returns_error() {
 
 #[test]
 fn test_stats_ssim_without_reference_returns_error() {
-    let dir = tempdir().unwrap();
+    let dir = tempdir().expect("infallible: validated precondition");
     let image = make_ramp_image();
     let input = write_nifti_tmp(dir.path(), "img.nii", &image);
 
@@ -280,7 +280,7 @@ fn test_stats_ssim_without_reference_returns_error() {
 
 #[test]
 fn test_stats_hausdorff_without_reference_returns_error() {
-    let dir = tempdir().unwrap();
+    let dir = tempdir().expect("infallible: validated precondition");
     let image = make_binary_mask(32);
     let input = write_nifti_tmp(dir.path(), "mask.nii", &image);
 
@@ -306,7 +306,7 @@ fn test_stats_hausdorff_without_reference_returns_error() {
 
 #[test]
 fn test_stats_missing_input_returns_error() {
-    let dir = tempdir().unwrap();
+    let dir = tempdir().expect("infallible: validated precondition");
     let input = dir.path().join("does_not_exist.nii");
 
     let result = run(StatsArgs {
@@ -322,7 +322,7 @@ fn test_stats_missing_input_returns_error() {
 
 #[test]
 fn test_stats_mean_surface_distance_identical_masks_returns_zero() {
-    let dir = tempdir().unwrap();
+    let dir = tempdir().expect("infallible: validated precondition");
     let mask = make_binary_mask(32);
     let path_a = write_nifti_tmp(dir.path(), "a.nii", &mask);
     let path_b = write_nifti_tmp(dir.path(), "b.nii", &mask);
@@ -340,7 +340,7 @@ fn test_stats_mean_surface_distance_identical_masks_returns_zero() {
 
 #[test]
 fn test_stats_noise_estimate_constant_image_returns_zero() {
-    let dir = tempdir().unwrap();
+    let dir = tempdir().expect("infallible: validated precondition");
     let img = make_constant_image(128.0);
     let path = write_nifti_tmp(dir.path(), "const.nii", &img);
 
@@ -357,7 +357,7 @@ fn test_stats_noise_estimate_constant_image_returns_zero() {
 
 #[test]
 fn test_stats_mean_surface_distance_without_reference_returns_error() {
-    let dir = tempdir().unwrap();
+    let dir = tempdir().expect("infallible: validated precondition");
     let mask = make_binary_mask(32);
     let path = write_nifti_tmp(dir.path(), "a.nii", &mask);
 

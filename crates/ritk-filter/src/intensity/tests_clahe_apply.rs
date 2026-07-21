@@ -70,12 +70,12 @@ fn native_apply_preserves_uniform_values_and_metadata() {
         Direction::identity(),
         &backend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let output = ClaheFilter::new([1, 1], 40.0, 256)
         .apply_native(&source, &backend)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
-    assert_eq!(output.data_slice().unwrap(), &[42.5; 4]);
+    assert_eq!(output.data_slice().expect("infallible: validated precondition"), &[42.5; 4]);
     assert_eq!(output.shape(), source.shape());
     assert_eq!(output.origin(), source.origin());
     assert_eq!(output.spacing(), source.spacing());

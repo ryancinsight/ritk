@@ -28,7 +28,7 @@ fn constant_image_unchanged() {
     let c = 7.0_f32;
     let dims = [5, 5, 5];
     let img = make_image(vec![c; 125], dims);
-    let out = GrayscaleFillholeFilter::new().apply(&img).unwrap();
+    let out = GrayscaleFillholeFilter::new().apply(&img).expect("infallible: validated precondition");
     for &v in extract_vals(&out).iter() {
         assert!((v - c).abs() < 1e-6, "constant unchanged: got {v}");
     }
@@ -41,7 +41,7 @@ fn output_ge_input_everywhere() {
     let n = 216;
     let vals: Vec<f32> = (0..n as u32).map(|i| (i * 7919 % 128) as f32).collect();
     let img = make_image(vals.clone(), dims);
-    let out = GrayscaleFillholeFilter::new().apply(&img).unwrap();
+    let out = GrayscaleFillholeFilter::new().apply(&img).expect("infallible: validated precondition");
     let out_vals = extract_vals(&out);
     for (i, (&before, &after)) in vals.iter().zip(out_vals.iter()).enumerate() {
         assert!(
@@ -63,7 +63,7 @@ fn border_voxels_unchanged() {
     // Put a dark pit in the interior at (2,2,2)
     vals[flat(2, 2, 2, ny, nx)] = 0.0;
     let img = make_image(vals.clone(), [nz, ny, nx]);
-    let out = GrayscaleFillholeFilter::new().apply(&img).unwrap();
+    let out = GrayscaleFillholeFilter::new().apply(&img).expect("infallible: validated precondition");
     let out_vals = extract_vals(&out);
     for iz in 0..nz {
         for iy in 0..ny {
@@ -98,7 +98,7 @@ fn enclosed_pit_filled_to_border_level() {
     let mut vals = vec![5.0_f32; n];
     vals[flat(1, 1, 1, 3, 3)] = 0.0;
     let img = make_image(vals, dims);
-    let out = GrayscaleFillholeFilter::new().apply(&img).unwrap();
+    let out = GrayscaleFillholeFilter::new().apply(&img).expect("infallible: validated precondition");
     let out_vals = extract_vals(&out);
     let pit_out = out_vals[flat(1, 1, 1, 3, 3)];
     assert!(
@@ -147,7 +147,7 @@ fn pit_filled_to_wall_level_not_border_level() {
     vals[flat(2, 2, 2, ny, nx)] = 2.0;
 
     let img = make_image(vals, [nz, ny, nx]);
-    let out = GrayscaleFillholeFilter::new().apply(&img).unwrap();
+    let out = GrayscaleFillholeFilter::new().apply(&img).expect("infallible: validated precondition");
     let out_vals = extract_vals(&out);
     let pit_out = out_vals[flat(2, 2, 2, ny, nx)];
     assert!(
@@ -164,7 +164,7 @@ fn pit_filled_to_wall_level_not_border_level() {
 fn border_connected_dark_not_filled() {
     let dims = [3usize, 3, 3];
     let img = make_image(vec![0.0_f32; 27], dims);
-    let out = GrayscaleFillholeFilter::new().apply(&img).unwrap();
+    let out = GrayscaleFillholeFilter::new().apply(&img).expect("infallible: validated precondition");
     for &v in extract_vals(&out).iter() {
         assert!(v.abs() < 1e-6, "border-connected dark must stay 0, got {v}");
     }
@@ -179,7 +179,7 @@ fn spatial_metadata_preserved() {
     let tensor = Tensor::<f32, B>::from_slice([3, 3, 3], &[1.0_f32; 27]);
     let img = Image::new(tensor, origin, spacing, direction)
         .expect("invariant: fixture tensor has the declared rank");
-    let out = GrayscaleFillholeFilter::new().apply(&img).unwrap();
+    let out = GrayscaleFillholeFilter::new().apply(&img).expect("infallible: validated precondition");
     assert_eq!(out.origin(), img.origin());
     assert_eq!(out.spacing(), img.spacing());
 }
@@ -192,7 +192,7 @@ fn all_border_volume_unchanged() {
     let vals = vec![5.0_f32, 1.0, 2.0, 8.0, 3.0, 6.0, 4.0, 7.0];
     let dims = [2, 2, 2];
     let img = make_image(vals.clone(), dims);
-    let out = GrayscaleFillholeFilter::new().apply(&img).unwrap();
+    let out = GrayscaleFillholeFilter::new().apply(&img).expect("infallible: validated precondition");
     let out_vals = extract_vals(&out);
     for (i, (&a, &b)) in vals.iter().zip(out_vals.iter()).enumerate() {
         assert!((a - b).abs() < 1e-6, "all-border voxel {i}: {a} ≠ {b}");
@@ -210,7 +210,7 @@ fn degenerate_axis_interior_pits_are_filled() {
     let out = extract_vals(
         &GrayscaleFillholeFilter::new()
             .apply(&make_image(vals, [1, 1, 7]))
-            .unwrap(),
+            .expect("infallible: validated precondition"),
     );
     let expected = [5.0f32, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0];
     for (i, (&got, exp)) in out.iter().zip(expected).enumerate() {

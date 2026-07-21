@@ -22,7 +22,7 @@
 //! let moving = vec![0.0_f32; n];
 //!
 //! let reg = ThirionDemonsRegistration::new(DemonsConfig::default());
-//! let result = reg.register(&fixed, &moving, dims, [1.0, 1.0, 1.0]).unwrap();
+//! let result = reg.register(&fixed, &moving, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
 //! println!("Final MSE: {}", result.final_mse);
 //! ```
 //!

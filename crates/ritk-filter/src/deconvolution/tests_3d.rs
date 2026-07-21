@@ -43,7 +43,7 @@ fn wiener_3d_dirac_identity() {
     let img = make_image_3d(image_vals.clone(), [3, 3, 3]);
     let ker = make_image_3d(dirac_kernel_3x3x3(), [3, 3, 3]);
     let filter = WienerDeconvolution::new(0.01);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     let vals = result.data().to_vec();
     assert_eq!(vals.len(), 27, "output length must equal 27");
     for (i, &v) in vals.iter().enumerate() {
@@ -64,7 +64,7 @@ fn wiener_3d_zero_k_dirac_identity() {
     let img = make_image_3d(image_vals.clone(), [3, 3, 3]);
     let ker = make_image_3d(dirac_kernel_3x3x3(), [3, 3, 3]);
     let filter = WienerDeconvolution::new(0.0);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     let vals = result.data().to_vec();
     for (i, &v) in vals.iter().enumerate() {
         assert!(
@@ -80,7 +80,7 @@ fn wiener_3d_zero_k_dirac_identity() {
 fn wiener_3d_output_shape_matches_input() {
     let img = make_image_3d(vec![1.0_f32; 4 * 5 * 6], [4, 5, 6]);
     let ker = make_image_3d(dirac_kernel_3x3x3(), [3, 3, 3]);
-    let result = WienerDeconvolution::new(0.01).apply(&img, &ker).unwrap();
+    let result = WienerDeconvolution::new(0.01).apply(&img, &ker).expect("infallible: validated precondition");
     assert_eq!(
         result.shape(),
         [4, 5, 6],
@@ -99,7 +99,7 @@ fn tikhonov_3d_dirac_identity() {
     let img = make_image_3d(image_vals.clone(), [3, 3, 3]);
     let ker = make_image_3d(dirac_kernel_3x3x3(), [3, 3, 3]);
     let filter = TikhonovDeconvolution::new(0.0);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     let vals = result.data().to_vec();
     for (i, &v) in vals.iter().enumerate() {
         assert!(
@@ -120,7 +120,7 @@ fn tikhonov_3d_lambda_reduces_variance() {
     let image_vals: Vec<f32> = (0..125).map(|i| (i as f32 * 2.7).sin()).collect();
     let img = make_image_3d(image_vals, [5, 5, 5]);
     let ker = make_image_3d(kernel_vals, [3, 3, 3]);
-    let result = TikhonovDeconvolution::new(1.0).apply(&img, &ker).unwrap();
+    let result = TikhonovDeconvolution::new(1.0).apply(&img, &ker).expect("infallible: validated precondition");
     let vals = result.data().to_vec();
     // All outputs must be finite — verifies no NaN/Inf in 3-D Laplacian path
     for &v in &vals {
@@ -133,7 +133,7 @@ fn tikhonov_3d_lambda_reduces_variance() {
 fn tikhonov_3d_output_shape_matches_input() {
     let img = make_image_3d(vec![1.0_f32; 4 * 5 * 6], [4, 5, 6]);
     let ker = make_image_3d(dirac_kernel_3x3x3(), [3, 3, 3]);
-    let result = TikhonovDeconvolution::new(0.01).apply(&img, &ker).unwrap();
+    let result = TikhonovDeconvolution::new(0.01).apply(&img, &ker).expect("infallible: validated precondition");
     assert_eq!(result.shape(), [4, 5, 6]);
 }
 
@@ -149,7 +149,7 @@ fn richardson_lucy_3d_dirac_identity() {
     let img = make_image_3d(image_vals.clone(), [3, 3, 3]);
     let ker = make_image_3d(dirac_kernel_3x3x3(), [3, 3, 3]);
     let filter = RichardsonLucyDeconvolution::new().with_max_iterations(10);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     let vals = result.data().to_vec();
     for (i, &v) in vals.iter().enumerate() {
         assert!(
@@ -185,7 +185,7 @@ fn richardson_lucy_3d_preserves_non_negativity() {
     let result = RichardsonLucyDeconvolution::new()
         .with_max_iterations(10)
         .apply(&img, &ker)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let vals = result.data().to_vec();
     for &v in &vals {
         assert!(v >= -0.01, "RL 3-D must preserve non-negativity, got {v}");
@@ -200,7 +200,7 @@ fn richardson_lucy_3d_output_shape_matches_input() {
     let result = RichardsonLucyDeconvolution::new()
         .with_max_iterations(5)
         .apply(&img, &ker)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(result.shape(), [4, 5, 6]);
 }
 
@@ -218,7 +218,7 @@ fn landweber_3d_dirac_identity() {
     let filter = LandweberDeconvolution::new()
         .with_step_size(0.5)
         .with_max_iterations(50);
-    let result = filter.apply(&img, &ker).unwrap();
+    let result = filter.apply(&img, &ker).expect("infallible: validated precondition");
     let vals = result.data().to_vec();
     for (i, &v) in vals.iter().enumerate() {
         assert!(
@@ -237,6 +237,6 @@ fn landweber_3d_output_shape_matches_input() {
     let result = LandweberDeconvolution::new()
         .with_max_iterations(5)
         .apply(&img, &ker)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(result.shape(), [4, 5, 6]);
 }

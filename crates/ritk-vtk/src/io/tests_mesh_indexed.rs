@@ -14,9 +14,9 @@ fn single_triangle() -> IndexedMesh {
 #[test]
 fn stl_binary_roundtrip_vertex_and_face_counts() {
     let mesh = single_triangle();
-    let f = NamedTempFile::new().unwrap();
-    write_indexed_stl_binary(f.path(), &mesh).unwrap();
-    let loaded = read_stl_indexed(f.path()).unwrap();
+    let f = NamedTempFile::new().expect("infallible: validated precondition");
+    write_indexed_stl_binary(f.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_stl_indexed(f.path()).expect("infallible: validated precondition");
     assert_eq!(loaded.face_count(), 1, "one triangle round-tripped");
     // Vertex count: exactly 3 unique welded vertices.
     assert_eq!(
@@ -29,9 +29,9 @@ fn stl_binary_roundtrip_vertex_and_face_counts() {
 #[test]
 fn stl_ascii_roundtrip_vertex_and_face_counts() {
     let mesh = single_triangle();
-    let f = NamedTempFile::new().unwrap();
-    write_indexed_stl_ascii(f.path(), "test", &mesh).unwrap();
-    let loaded = read_stl_indexed(f.path()).unwrap();
+    let f = NamedTempFile::new().expect("infallible: validated precondition");
+    write_indexed_stl_ascii(f.path(), "test", &mesh).expect("infallible: validated precondition");
+    let loaded = read_stl_indexed(f.path()).expect("infallible: validated precondition");
     assert_eq!(loaded.face_count(), 1);
     assert_eq!(loaded.vertex_count(), 3);
 }
@@ -39,9 +39,9 @@ fn stl_ascii_roundtrip_vertex_and_face_counts() {
 #[test]
 fn stl_binary_roundtrip_coords() {
     let mesh = single_triangle();
-    let f = NamedTempFile::new().unwrap();
-    write_indexed_stl_binary(f.path(), &mesh).unwrap();
-    let loaded = read_stl_indexed(f.path()).unwrap();
+    let f = NamedTempFile::new().expect("infallible: validated precondition");
+    write_indexed_stl_binary(f.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_stl_indexed(f.path()).expect("infallible: validated precondition");
     use gaia::domain::core::index::VertexId;
     // Collect all vertex positions.
     let pts: Vec<_> = (0..loaded.vertex_count())
@@ -62,9 +62,9 @@ fn stl_binary_roundtrip_coords() {
 #[test]
 fn obj_roundtrip_vertex_and_face_counts() {
     let mesh = single_triangle();
-    let f = NamedTempFile::new().unwrap();
-    write_indexed_obj(f.path(), &mesh).unwrap();
-    let loaded = read_obj_indexed(f.path()).unwrap();
+    let f = NamedTempFile::new().expect("infallible: validated precondition");
+    write_indexed_obj(f.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_obj_indexed(f.path()).expect("infallible: validated precondition");
     assert_eq!(loaded.face_count(), 1);
     assert_eq!(loaded.vertex_count(), 3);
 }
@@ -74,9 +74,9 @@ fn obj_roundtrip_vertex_and_face_counts() {
 #[test]
 fn ply_roundtrip_vertex_and_face_counts() {
     let mesh = single_triangle();
-    let f = NamedTempFile::new().unwrap();
-    write_indexed_ply(f.path(), &mesh).unwrap();
-    let loaded = read_ply_indexed(f.path()).unwrap();
+    let f = NamedTempFile::new().expect("infallible: validated precondition");
+    write_indexed_ply(f.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_ply_indexed(f.path()).expect("infallible: validated precondition");
     assert_eq!(loaded.face_count(), 1);
     assert_eq!(loaded.vertex_count(), 3);
 }
@@ -86,9 +86,9 @@ fn ply_roundtrip_vertex_and_face_counts() {
 #[test]
 fn glb_write_produces_valid_glb_header() {
     let mesh = single_triangle();
-    let f = NamedTempFile::new().unwrap();
-    write_indexed_glb(f.path(), &mesh).unwrap();
-    let bytes = std::fs::read(f.path()).unwrap();
+    let f = NamedTempFile::new().expect("infallible: validated precondition");
+    write_indexed_glb(f.path(), &mesh).expect("infallible: validated precondition");
+    let bytes = std::fs::read(f.path()).expect("infallible: validated precondition");
     // GLB magic = 0x46546C67 ("glTF" in little-endian).
     assert!(
         bytes.len() >= 4,

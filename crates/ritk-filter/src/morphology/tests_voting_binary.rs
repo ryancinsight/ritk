@@ -21,7 +21,7 @@ fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
 fn all_background_stays_background() {
     let img = make_image(vec![0.0f32; 27], [3, 3, 3]);
     let filter = VotingBinaryImageFilter::default(); // birth=1
-    let out = filter.apply(&img).unwrap();
+    let out = filter.apply(&img).expect("infallible: validated precondition");
     // No foreground neighbours anywhere → all voxels stay background.
     assert!(voxels(&out).iter().all(|&v| v == 0.0));
 }
@@ -31,7 +31,7 @@ fn all_background_stays_background() {
 fn all_foreground_survives() {
     let img = make_image(vec![1.0f32; 27], [3, 3, 3]);
     let filter = VotingBinaryImageFilter::default(); // survival=1
-    let out = filter.apply(&img).unwrap();
+    let out = filter.apply(&img).expect("infallible: validated precondition");
     // Every fg voxel has at least 1 fg neighbour → survives.
     assert!(voxels(&out).iter().all(|&v| (v - 1.0).abs() < 1e-5));
 }
@@ -46,12 +46,12 @@ fn isolated_fg_behavior() {
 
     // survival_threshold = 1 -> survives
     let filter1 = VotingBinaryImageFilter::new(1, 1, 1, 1.0, 0.0);
-    let out1 = filter1.apply(&img).unwrap();
+    let out1 = filter1.apply(&img).expect("infallible: validated precondition");
     assert_eq!(voxels(&out1)[13], 1.0);
 
     // survival_threshold = 2 -> dies
     let filter2 = VotingBinaryImageFilter::new(1, 1, 2, 1.0, 0.0);
-    let out2 = filter2.apply(&img).unwrap();
+    let out2 = filter2.apply(&img).expect("infallible: validated precondition");
     assert_eq!(voxels(&out2)[13], 0.0);
 }
 
@@ -63,7 +63,7 @@ fn birth_from_fg_neighbor() {
     // voxel 2 (bg): neighbours = [1,1] → fg_count=2 ≥ 1 → born.
     let img = make_image(vec![1.0, 1.0, 0.0], [1, 1, 3]);
     let filter = VotingBinaryImageFilter::new(1, 1, 1, 1.0, 0.0);
-    let out = filter.apply(&img).unwrap();
+    let out = filter.apply(&img).expect("infallible: validated precondition");
     let v = voxels(&out);
     assert!(
         (v[2] - 1.0).abs() < 1e-5,
@@ -76,7 +76,7 @@ fn birth_from_fg_neighbor() {
 #[test]
 fn preserves_metadata() {
     let img = make_image(vec![0.0f32; 8], [2, 2, 2]);
-    let out = VotingBinaryImageFilter::default().apply(&img).unwrap();
+    let out = VotingBinaryImageFilter::default().apply(&img).expect("infallible: validated precondition");
     assert_eq!(out.shape(), [2, 2, 2]);
     assert_eq!(*out.origin(), *img.origin());
 }

@@ -39,7 +39,7 @@ fn approximate_signed_distance_sign_convention() {
     }
     let out = ApproximateSignedDistanceMapFilter::default()
         .apply(&img(data.clone(), dims))
-        .unwrap();
+        .expect("infallible: validated precondition");
     let (v, _) = extract_vec_infallible(&out);
     let center = 3 * 7 + 3; // inside the blob
     let corner = 0; // far outside
@@ -61,7 +61,7 @@ fn approximate_signed_distance_preserves_geometry() {
     data[20 + 2 * 5 + 2] = 1.0; // z=1, y=2, x=2: flat index = 1*20 + 2*5 + 2
     let out = ApproximateSignedDistanceMapFilter::default()
         .apply(&img(data, dims))
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), dims);
     assert_eq!(out.spacing()[0], 1.0);
 }

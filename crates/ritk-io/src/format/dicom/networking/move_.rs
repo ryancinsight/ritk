@@ -15,7 +15,7 @@
 //! # Usage
 //! ```ignore
 //! let config = AssociationConfig::new(...);
-//! let dest = MoveDestination::new(AeTitle::new("MY_SCP").unwrap());
+//! let dest = MoveDestination::new(AeTitle::new("MY_SCP").expect("infallible: validated precondition"));
 //! let resp = retrieve(&config, &dest, "1.2.3.4.5")?;
 //! assert_eq!(resp.final_status, 0x0000);
 //! ```

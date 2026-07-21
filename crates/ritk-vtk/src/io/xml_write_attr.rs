@@ -19,40 +19,40 @@ pub(crate) fn write_attr_xml(s: &mut String, name: &str, attr: &AttributeArray) 
             values,
             num_components,
         } => {
-            writeln!(s, "{}", hdr(*num_components)).unwrap();
-            write!(s, " ").unwrap();
+            writeln!(s, "{}", hdr(*num_components)).expect("infallible write");
+            write!(s, " ").expect("infallible write");
             for x in values {
-                write!(s, " {:.6}", x).unwrap();
+                write!(s, " {:.6}", x).expect("infallible write");
             }
-            writeln!(s).unwrap();
-            writeln!(s, " </DataArray>").unwrap();
+            writeln!(s).expect("infallible write");
+            writeln!(s, " </DataArray>").expect("infallible write");
         }
         AttributeArray::Vectors { values } => {
-            writeln!(s, "{}", hdr(3)).unwrap();
-            write!(s, " ").unwrap();
+            writeln!(s, "{}", hdr(3)).expect("infallible write");
+            write!(s, " ").expect("infallible write");
             for [x, y, z] in values {
-                write!(s, " {:.6} {:.6} {:.6}", x, y, z).unwrap();
+                write!(s, " {:.6} {:.6} {:.6}", x, y, z).expect("infallible write");
             }
-            writeln!(s).unwrap();
-            writeln!(s, " </DataArray>").unwrap();
+            writeln!(s).expect("infallible write");
+            writeln!(s, " </DataArray>").expect("infallible write");
         }
         AttributeArray::Normals { values } => {
-            writeln!(s, "{}", hdr(3)).unwrap();
-            write!(s, " ").unwrap();
+            writeln!(s, "{}", hdr(3)).expect("infallible write");
+            write!(s, " ").expect("infallible write");
             for [x, y, z] in values {
-                write!(s, " {:.6} {:.6} {:.6}", x, y, z).unwrap();
+                write!(s, " {:.6} {:.6} {:.6}", x, y, z).expect("infallible write");
             }
-            writeln!(s).unwrap();
-            writeln!(s, " </DataArray>").unwrap();
+            writeln!(s).expect("infallible write");
+            writeln!(s, " </DataArray>").expect("infallible write");
         }
         AttributeArray::TextureCoords { values, dim } => {
-            writeln!(s, "{}", hdr(*dim)).unwrap();
-            write!(s, " ").unwrap();
+            writeln!(s, "{}", hdr(*dim)).expect("infallible write");
+            write!(s, " ").expect("infallible write");
             for x in values {
-                write!(s, " {:.6}", x).unwrap();
+                write!(s, " {:.6}", x).expect("infallible write");
             }
-            writeln!(s).unwrap();
-            writeln!(s, " </DataArray>").unwrap();
+            writeln!(s).expect("infallible write");
+            writeln!(s, " </DataArray>").expect("infallible write");
         }
     }
 }

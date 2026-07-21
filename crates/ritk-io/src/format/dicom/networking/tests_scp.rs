@@ -22,15 +22,15 @@ const CT_IMAGE_STORAGE: &str = "1.2.840.10008.5.1.4.1.1.2";
 
 fn scu_config(port: u16) -> AssociationConfig {
     AssociationConfig {
-        called_ae_title: ArrayString::from("RITKSNAP").unwrap(),
-        calling_ae_title: ArrayString::from("RITK_TEST").unwrap(),
+        called_ae_title: ArrayString::from("RITKSNAP").expect("infallible: validated precondition"),
+        calling_ae_title: ArrayString::from("RITK_TEST").expect("infallible: validated precondition"),
         host: "127.0.0.1".into(),
         port,
         max_pdu_length: 16384,
         timeout: Duration::from_secs(10),
         presentation_contexts: vec![RequestedPresentationContext {
-            abstract_syntax_uid: ArrayString::from(CT_IMAGE_STORAGE).unwrap(),
-            transfer_syntax_uids: vec![ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap()],
+            abstract_syntax_uid: ArrayString::from(CT_IMAGE_STORAGE).expect("infallible: validated precondition"),
+            transfer_syntax_uids: vec![ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).expect("infallible: validated precondition")],
         }],
         user_identity: None,
     }
@@ -204,10 +204,10 @@ fn test_store_scp_ephemeral_port_is_nonzero() {
 #[test]
 fn test_make_part10_bytes_produces_valid_dicom_preamble() {
     let inst = super::StoredInstance {
-        sop_class_uid: ArrayString::from("1.2.840.10008.5.1.4.1.1.2").unwrap(),
-        sop_instance_uid: ArrayString::from("1.2.3.4.5.6.7.8.9").unwrap(),
+        sop_class_uid: ArrayString::from("1.2.840.10008.5.1.4.1.1.2").expect("infallible: validated precondition"),
+        sop_instance_uid: ArrayString::from("1.2.3.4.5.6.7.8.9").expect("infallible: validated precondition"),
         dataset_bytes: Vec::new(),
-        transfer_syntax_uid: ArrayString::from("1.2.840.10008.1.2.1").unwrap(),
+        transfer_syntax_uid: ArrayString::from("1.2.840.10008.1.2.1").expect("infallible: validated precondition"),
     };
     let bytes = inst.make_part10_bytes();
 

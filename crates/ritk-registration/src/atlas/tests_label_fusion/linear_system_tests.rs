@@ -9,7 +9,7 @@ use crate::atlas::label_fusion::jlf::solve_linear_system;
 fn solve_identity_2x2() {
     let mut a = vec![1.0, 0.0, 0.0, 1.0];
     let mut b = vec![3.0, 7.0];
-    let x = solve_linear_system(&mut a, 2, &mut b).unwrap();
+    let x = solve_linear_system(&mut a, 2, &mut b).expect("infallible: validated precondition");
     assert!((x[0] - 3.0).abs() < 1e-12, "x[0] = {}", x[0]);
     assert!((x[1] - 7.0).abs() < 1e-12, "x[1] = {}", x[1]);
 }
@@ -21,7 +21,7 @@ fn solve_identity_2x2() {
 fn solve_2x2_known() {
     let mut a = vec![2.0, 1.0, 1.0, 3.0];
     let mut b = vec![5.0, 10.0];
-    let x = solve_linear_system(&mut a, 2, &mut b).unwrap();
+    let x = solve_linear_system(&mut a, 2, &mut b).expect("infallible: validated precondition");
     assert!((x[0] - 1.0).abs() < 1e-12, "x[0] = {}", x[0]);
     assert!((x[1] - 3.0).abs() < 1e-12, "x[1] = {}", x[1]);
 }
@@ -39,6 +39,6 @@ fn solve_singular_returns_none() {
 fn solve_1x1() {
     let mut a = vec![4.0];
     let mut b = vec![8.0];
-    let x = solve_linear_system(&mut a, 1, &mut b).unwrap();
+    let x = solve_linear_system(&mut a, 1, &mut b).expect("infallible: validated precondition");
     assert!((x[0] - 2.0).abs() < 1e-12, "x[0] = {}", x[0]);
 }

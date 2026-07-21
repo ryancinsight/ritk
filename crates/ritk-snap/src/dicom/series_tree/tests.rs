@@ -78,7 +78,7 @@ fn test_from_entries_groups_by_patient() {
         .patients
         .iter()
         .find(|p| p.patient_id == "P001")
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(alice.studies.len(), 1, "Alice must have one study");
     assert_eq!(
         alice.studies[0].series.len(),
@@ -91,7 +91,7 @@ fn test_from_entries_groups_by_patient() {
         .patients
         .iter()
         .find(|p| p.patient_id == "P002")
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(bob.studies.len(), 1, "Bob must have one study");
     assert_eq!(
         bob.studies[0].series.len(),
@@ -163,7 +163,7 @@ fn test_find_by_folder_found() {
     let found = tree.find_by_folder(Path::new("/data/scan2"));
     assert!(found.is_some(), "find_by_folder must find '/data/scan2'");
     assert_eq!(
-        found.unwrap().series_uid,
+        found.expect("infallible: validated precondition").series_uid,
         "S2",
         "found entry must be the MR series with uid S2"
     );

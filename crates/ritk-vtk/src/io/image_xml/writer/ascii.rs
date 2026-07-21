@@ -33,38 +33,38 @@ pub fn write_vti_str(grid: &VtkImageData) -> String {
     );
 
     let mut s = String::new();
-    writeln!(s, "<?xml version=\"1.0\"?>").unwrap();
+    writeln!(s, "<?xml version=\"1.0\"?>").expect("infallible write");
     writeln!(
         s,
         "<VTKFile type=\"ImageData\" version=\"0.1\" byte_order=\"LittleEndian\">"
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         s,
         "  <ImageData WholeExtent=\"{}\" Origin=\"{}\" Spacing=\"{}\">",
         extent_str, origin_str, spacing_str
     )
-    .unwrap();
-    writeln!(s, "    <Piece Extent=\"{}\">", extent_str).unwrap();
+    .expect("infallible: validated precondition");
+    writeln!(s, "    <Piece Extent=\"{}\">", extent_str).expect("infallible write");
 
     if !grid.point_data.is_empty() {
-        writeln!(s, "      <PointData>").unwrap();
+        writeln!(s, "      <PointData>").expect("infallible write");
         for (name, attr) in &grid.point_data {
             write_attr_xml(&mut s, name, attr);
         }
-        writeln!(s, "      </PointData>").unwrap();
+        writeln!(s, "      </PointData>").expect("infallible write");
     }
 
     if !grid.cell_data.is_empty() {
-        writeln!(s, "      <CellData>").unwrap();
+        writeln!(s, "      <CellData>").expect("infallible write");
         for (name, attr) in &grid.cell_data {
             write_attr_xml(&mut s, name, attr);
         }
-        writeln!(s, "      </CellData>").unwrap();
+        writeln!(s, "      </CellData>").expect("infallible write");
     }
 
-    writeln!(s, "    </Piece>").unwrap();
-    writeln!(s, "  </ImageData>").unwrap();
-    writeln!(s, "</VTKFile>").unwrap();
+    writeln!(s, "    </Piece>").expect("infallible write");
+    writeln!(s, "  </ImageData>").expect("infallible write");
+    writeln!(s, "</VTKFile>").expect("infallible write");
     s
 }

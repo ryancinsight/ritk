@@ -23,7 +23,7 @@ fn opening_by_reconstruction_removes_spike_keeps_plateau() {
         vec![0.0, 0.0, 5.0, 5.0, 5.0, 0.0, 10.0, 0.0, 0.0],
         [1, 1, 9],
     );
-    let out = OpeningByReconstructionFilter::new(1).apply(&f).unwrap();
+    let out = OpeningByReconstructionFilter::new(1).apply(&f).expect("infallible: validated precondition");
     let expected = [0.0f32, 0.0, 5.0, 5.0, 5.0, 0.0, 0.0, 0.0, 0.0];
     for (got, exp) in vals(&out).iter().zip(expected) {
         assert!((got - exp).abs() < 1e-5, "OBR: got {got}, expected {exp}");
@@ -38,7 +38,7 @@ fn closing_by_reconstruction_fills_pit_keeps_plateau() {
         vec![10.0, 10.0, 5.0, 5.0, 5.0, 10.0, 0.0, 10.0, 10.0],
         [1, 1, 9],
     );
-    let out = ClosingByReconstructionFilter::new(1).apply(&f).unwrap();
+    let out = ClosingByReconstructionFilter::new(1).apply(&f).expect("infallible: validated precondition");
     let expected = [10.0f32, 10.0, 5.0, 5.0, 5.0, 10.0, 10.0, 10.0, 10.0];
     for (got, exp) in vals(&out).iter().zip(expected) {
         assert!((got - exp).abs() < 1e-5, "CBR: got {got}, expected {exp}");
@@ -49,8 +49,8 @@ fn closing_by_reconstruction_fills_pit_keeps_plateau() {
 #[test]
 fn radius_zero_is_identity() {
     let f = img(vec![1.0, 7.0, 2.0, 9.0, 3.0], [1, 1, 5]);
-    let obr = OpeningByReconstructionFilter::new(0).apply(&f).unwrap();
-    let cbr = ClosingByReconstructionFilter::new(0).apply(&f).unwrap();
+    let obr = OpeningByReconstructionFilter::new(0).apply(&f).expect("infallible: validated precondition");
+    let cbr = ClosingByReconstructionFilter::new(0).apply(&f).expect("infallible: validated precondition");
     assert_eq!(vals(&obr), vals(&f), "OBR(f, r=0) must equal f");
     assert_eq!(vals(&cbr), vals(&f), "CBR(f, r=0) must equal f");
 }
@@ -59,8 +59,8 @@ fn radius_zero_is_identity() {
 #[test]
 fn ordering_invariants() {
     let f = img(vec![2.0, 9.0, 1.0, 6.0, 3.0, 8.0, 4.0], [1, 1, 7]);
-    let obr = vals(&OpeningByReconstructionFilter::new(1).apply(&f).unwrap());
-    let cbr = vals(&ClosingByReconstructionFilter::new(1).apply(&f).unwrap());
+    let obr = vals(&OpeningByReconstructionFilter::new(1).apply(&f).expect("infallible: validated precondition"));
+    let cbr = vals(&ClosingByReconstructionFilter::new(1).apply(&f).expect("infallible: validated precondition"));
     for ((&a, &o), &c) in vals(&f).iter().zip(obr.iter()).zip(cbr.iter()) {
         assert!(o <= a + 1e-6, "OBR must be ≤ input: {o} > {a}");
         assert!(c >= a - 1e-6, "CBR must be ≥ input: {c} < {a}");

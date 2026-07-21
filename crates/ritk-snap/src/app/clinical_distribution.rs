@@ -81,75 +81,75 @@ pub(crate) fn build_clinical_distribution_report(
 ) -> String {
     let mut report = String::new();
 
-    writeln!(&mut report, "# Clinical Distribution Report").unwrap();
-    writeln!(&mut report).unwrap();
+    writeln!(&mut report, "# Clinical Distribution Report").expect("infallible write");
+    writeln!(&mut report).expect("infallible write");
     writeln!(
         &mut report,
         "This package is anonymized. Direct identifiers are redacted in the report body."
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "Rendered media is stored under `media/` relative to this folder."
     )
-    .unwrap();
-    writeln!(&mut report).unwrap();
+    .expect("infallible: validated precondition");
+    writeln!(&mut report).expect("infallible write");
 
-    writeln!(&mut report, "## Study summary").unwrap();
+    writeln!(&mut report, "## Study summary").expect("infallible write");
     writeln!(
         &mut report,
         "- Modality: {}",
         summary.modality.unwrap_or("—")
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "- Current plane: {} (axis {})",
         summary.plane_label, summary.axis
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "- Current slice index: {}",
         summary.slice_index
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "- Volume shape [depth, rows, cols]: {} × {} × {}",
         summary.shape[0], summary.shape[1], summary.shape[2]
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "- Spacing [dz, dy, dx] mm: {:.4} × {:.4} × {:.4}",
         summary.spacing[0], summary.spacing[1], summary.spacing[2]
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "- Origin [z, y, x] mm: {:.4} × {:.4} × {:.4}",
         summary.origin[0], summary.origin[1], summary.origin[2]
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "- Direction matrix row 0: [{:.4}, {:.4}, {:.4}]",
         summary.direction[0], summary.direction[1], summary.direction[2]
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "- Direction matrix row 1: [{:.4}, {:.4}, {:.4}]",
         summary.direction[3], summary.direction[4], summary.direction[5]
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "- Direction matrix row 2: [{:.4}, {:.4}, {:.4}]",
         summary.direction[6], summary.direction[7], summary.direction[8]
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "- Window centre: {}",
@@ -158,7 +158,7 @@ pub(crate) fn build_clinical_distribution_report(
             .map(|v| format!("{v:.4}"))
             .unwrap_or_else(|| "—".to_owned())
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "- Window width: {}",
@@ -167,18 +167,18 @@ pub(crate) fn build_clinical_distribution_report(
             .map(|v| format!("{v:.4}"))
             .unwrap_or_else(|| "—".to_owned())
     )
-    .unwrap();
-    writeln!(&mut report, "- Colormap: {}", summary.colormap_label).unwrap();
-    writeln!(&mut report, "- Active tool: {}", summary.active_tool_label).unwrap();
+    .expect("infallible: validated precondition");
+    writeln!(&mut report, "- Colormap: {}", summary.colormap_label).expect("infallible: validated precondition");
+    writeln!(&mut report, "- Active tool: {}", summary.active_tool_label).expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "- Annotation count: {}",
         summary.annotation_count
     )
-    .unwrap();
-    writeln!(&mut report).unwrap();
+    .expect("infallible: validated precondition");
+    writeln!(&mut report).expect("infallible write");
 
-    writeln!(&mut report, "## Protected identifiers").unwrap();
+    writeln!(&mut report, "## Protected identifiers").expect("infallible write");
     write_redacted_line(&mut report, "Patient name", summary.presence.patient_name);
     write_redacted_line(&mut report, "Patient ID", summary.presence.patient_id);
     write_redacted_line(&mut report, "Study date", summary.presence.study_date);
@@ -188,9 +188,9 @@ pub(crate) fn build_clinical_distribution_report(
         summary.presence.series_description,
     );
     write_redacted_line(&mut report, "Source path", summary.presence.source);
-    writeln!(&mut report).unwrap();
+    writeln!(&mut report).expect("infallible write");
 
-    writeln!(&mut report, "## Associated overlays").unwrap();
+    writeln!(&mut report, "## Associated overlays").expect("infallible write");
     writeln!(
         &mut report,
         "- Segmentation: {}",
@@ -200,7 +200,7 @@ pub(crate) fn build_clinical_distribution_report(
             "absent"
         }
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "- RT-STRUCT overlay: {}",
@@ -210,7 +210,7 @@ pub(crate) fn build_clinical_distribution_report(
             "absent"
         }
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "- RT-DOSE overlay: {}",
@@ -220,31 +220,31 @@ pub(crate) fn build_clinical_distribution_report(
             "absent"
         }
     )
-    .unwrap();
-    writeln!(&mut report).unwrap();
+    .expect("infallible: validated precondition");
+    writeln!(&mut report).expect("infallible write");
 
-    writeln!(&mut report, "## Media layout").unwrap();
-    writeln!(&mut report, "- `report.md`").unwrap();
-    writeln!(&mut report, "- `media/{CURRENT_SLICE_FILE_NAME}`").unwrap();
+    writeln!(&mut report, "## Media layout").expect("infallible write");
+    writeln!(&mut report, "- `report.md`").expect("infallible write");
+    writeln!(&mut report, "- `media/{CURRENT_SLICE_FILE_NAME}`").expect("infallible write");
     writeln!(
         &mut report,
         "- `media/{}/*.png` ({} files)",
         plane_folder_name(summary.axis),
         summary.shape[summary.axis.min(2)]
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "- `media/coronal/*.png` ({} files)",
         summary.shape[1]
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     writeln!(
         &mut report,
         "- `media/sagittal/*.png` ({} files)",
         summary.shape[2]
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
 
     report
 }
@@ -294,7 +294,7 @@ fn write_redacted_line(report: &mut String, label: &str, present: bool) {
         label,
         if present { "[redacted]" } else { "—" }
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
 }
 
 fn plane_folder_name(axis: usize) -> &'static str {

@@ -41,7 +41,7 @@ fn opj_reference_trace(coeffs: &[i32], w: usize, h: usize) -> Vec<(usize, u32)> 
     let n = w * h;
     let mag: Vec<u32> = coeffs.iter().map(|&v| v.unsigned_abs()).collect();
     let sign: Vec<bool> = coeffs.iter().map(|&v| v < 0).collect();
-    let max = *mag.iter().max().unwrap();
+    let max = *mag.iter().max().expect("infallible: validated precondition");
     let numbps = u32::BITS - max.leading_zeros();
     let mut flags = vec![0u8; n];
     let mut trace = Vec::new();

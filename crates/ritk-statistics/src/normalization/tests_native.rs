@@ -69,8 +69,8 @@ fn zscore_ramp_has_zero_mean_unit_variance() {
     // Ramp [1..5]: mean 3, population var 2. After (x-3)/√2 the output has
     // mean 0 and population variance 1 (up to the ε in the denominator).
     let img = native(vec![1.0, 2.0, 3.0, 4.0, 5.0], [5]);
-    let out = ZScoreNormalizer::new().normalize_native(&img).unwrap();
-    let stats = crate::image_statistics::native::compute_statistics(&out).unwrap();
+    let out = ZScoreNormalizer::new().normalize_native(&img).expect("infallible: validated precondition");
+    let stats = crate::image_statistics::native::compute_statistics(&out).expect("infallible: validated precondition");
     assert!(stats.mean.abs() < 1e-5, "mean ≈ 0, got {}", stats.mean);
     assert!((stats.std - 1.0).abs() < 1e-3, "std ≈ 1, got {}", stats.std);
 }
@@ -80,7 +80,7 @@ fn zscore_matches_sequential() {
     let data = vec![2.0, -1.0, 4.0, 7.0, 0.5, 3.3];
     let nb = ZScoreNormalizer::new()
         .normalize_native(&native(data.clone(), [6]))
-        .unwrap();
+        .expect("infallible: validated precondition");
     let sequential_result = ZScoreNormalizer::new().normalize(&sequential(data, [6]));
     assert_close(
         &native_values(&nb),
@@ -96,7 +96,7 @@ fn zscore_masked_matches_sequential() {
     let mask = vec![1.0, 1.0, 0.0, 0.0, 1.0, 0.0];
     let nb = ZScoreNormalizer::new()
         .normalize_masked_native(&native(data.clone(), [6]), &native(mask.clone(), [6]))
-        .unwrap();
+        .expect("infallible: validated precondition");
     let sequential_result =
         ZScoreNormalizer::new().normalize_masked(&sequential(data, [6]), &sequential(mask, [6]));
     assert_close(
@@ -113,7 +113,7 @@ fn zscore_masked_matches_sequential() {
 fn minmax_known_unit_range() {
     let out = MinMaxNormalizer::new()
         .normalize_native(&native(vec![0.0, 5.0, 10.0], [3]))
-        .unwrap();
+        .expect("infallible: validated precondition");
     let v = native_values(&out);
     assert!(v[0].abs() < 1e-5, "N(0) ≈ 0, got {}", v[0]);
     assert!((v[1] - 0.5).abs() < 1e-4, "N(5) ≈ 0.5, got {}", v[1]);
@@ -125,7 +125,7 @@ fn minmax_custom_range_matches_sequential() {
     let data = vec![-3.0, 1.0, 4.0, 9.0, 2.0];
     let nb = MinMaxNormalizer::with_range(-1.0, 2.0)
         .normalize_native(&native(data.clone(), [5]))
-        .unwrap();
+        .expect("infallible: validated precondition");
     let sequential_result =
         MinMaxNormalizer::with_range(-1.0, 2.0).normalize(&sequential(data, [5]));
     assert_close(
@@ -145,7 +145,7 @@ fn histogram_matching_matches_sequential() {
     let matcher = HistogramMatcher::new(32);
     let nb = matcher
         .match_histograms_native(&native(src.clone(), [64]), &native(reference.clone(), [64]))
-        .unwrap();
+        .expect("infallible: validated precondition");
     let sequential_result =
         matcher.match_histograms(&sequential(src, [64]), &sequential(reference, [64]));
     assert_close(
@@ -162,7 +162,7 @@ fn histogram_matching_constant_source_unchanged() {
     let reference: Vec<f32> = (0..16).map(|i| i as f32).collect();
     let out = HistogramMatcher::new(16)
         .match_histograms_native(&native(src.clone(), [16]), &native(reference, [16]))
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_close(&native_values(&out), &src, PARITY, "constant-source");
 }
 
@@ -179,14 +179,14 @@ fn nyul_udupa_matches_sequential() {
         &native(train_a.clone(), [50]),
         &native(train_b.clone(), [50]),
     ])
-    .unwrap();
-    let nb = n.apply_native(&native(target.clone(), [50])).unwrap();
+    .expect("infallible: validated precondition");
+    let nb = n.apply_native(&native(target.clone(), [50])).expect("infallible: validated precondition");
 
     let mut sequential_normalizer = NyulUdupaNormalizer::new();
     sequential_normalizer.learn_standard(&[&sequential(train_a, [50]), &sequential(train_b, [50])]);
     let sequential_result = sequential_normalizer
         .apply(&sequential(target, [50]))
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     assert_close(
         &native_values(&nb),
@@ -219,7 +219,7 @@ fn white_stripe_matches_sequential() {
     let cfg = WhiteStripeConfig::default();
     let nb =
         WhiteStripeNormalizer::normalize_native(&native(data.clone(), [400, 1, 1]), None, &cfg)
-            .unwrap();
+            .expect("infallible: validated precondition");
     let sequential_result =
         WhiteStripeNormalizer::normalize(&sequential(data, [400, 1, 1]), None, &cfg);
 

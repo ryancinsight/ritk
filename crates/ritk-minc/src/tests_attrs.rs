@@ -3,25 +3,25 @@ use super::*;
 #[test]
 fn extract_scalar_float_from_float() {
     let val = AttributeValue::Float(std::f64::consts::PI);
-    assert!((extract_scalar_float(&val).unwrap() - std::f64::consts::PI).abs() < 1e-10);
+    assert!((extract_scalar_float(&val).expect("infallible: validated precondition") - std::f64::consts::PI).abs() < 1e-10);
 }
 
 #[test]
 fn extract_scalar_float_from_int() {
     let val = AttributeValue::Int(42);
-    assert!((extract_scalar_float(&val).unwrap() - 42.0).abs() < 1e-10);
+    assert!((extract_scalar_float(&val).expect("infallible: validated precondition") - 42.0).abs() < 1e-10);
 }
 
 #[test]
 fn extract_scalar_float_from_uint() {
     let val = AttributeValue::Uint(7);
-    assert!((extract_scalar_float(&val).unwrap() - 7.0).abs() < 1e-10);
+    assert!((extract_scalar_float(&val).expect("infallible: validated precondition") - 7.0).abs() < 1e-10);
 }
 
 #[test]
 fn extract_scalar_float_from_single_element_array() {
     let val = AttributeValue::FloatArray(vec![2.5]);
-    assert!((extract_scalar_float(&val).unwrap() - 2.5).abs() < 1e-10);
+    assert!((extract_scalar_float(&val).expect("infallible: validated precondition") - 2.5).abs() < 1e-10);
 }
 
 #[test]
@@ -33,13 +33,13 @@ fn extract_scalar_float_rejects_multi_element_array() {
 #[test]
 fn extract_i64_from_int() {
     let val = AttributeValue::Int(-5);
-    assert_eq!(extract_i64(&val).unwrap(), -5);
+    assert_eq!(extract_i64(&val).expect("infallible: validated precondition"), -5);
 }
 
 #[test]
 fn extract_i64_from_uint() {
     let val = AttributeValue::Uint(100);
-    assert_eq!(extract_i64(&val).unwrap(), 100);
+    assert_eq!(extract_i64(&val).expect("infallible: validated precondition"), 100);
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn extract_i64_rejects_uint_overflow() {
 #[test]
 fn extract_float_array_3_from_exact() {
     let val = AttributeValue::FloatArray(vec![0.5, 0.7, 0.3]);
-    let arr = extract_float_array_3(&val).unwrap();
+    let arr = extract_float_array_3(&val).expect("infallible: validated precondition");
     assert!((arr[0] - 0.5).abs() < 1e-10);
     assert!((arr[1] - 0.7).abs() < 1e-10);
     assert!((arr[2] - 0.3).abs() < 1e-10);
@@ -100,18 +100,18 @@ fn extract_float_array_3_rejects_scalar() {
 #[test]
 fn extract_string_from_string() {
     let val = AttributeValue::String("zspace,yspace,xspace".to_string());
-    assert_eq!(extract_string(&val).unwrap(), "zspace,yspace,xspace");
+    assert_eq!(extract_string(&val).expect("infallible: validated precondition"), "zspace,yspace,xspace");
 }
 
 #[test]
 fn extract_string_from_bytes_strips_null() {
     let val = AttributeValue::Bytes(b"hello\0\0\0".to_vec());
-    assert_eq!(extract_string(&val).unwrap(), "hello");
+    assert_eq!(extract_string(&val).expect("infallible: validated precondition"), "hello");
 }
 
 #[test]
 fn extract_dimorder_default_when_absent() {
     let attrs: Vec<consus_hdf5::attribute::Hdf5Attribute> = vec![];
-    let order = extract_dimorder(&attrs).unwrap();
+    let order = extract_dimorder(&attrs).expect("infallible: validated precondition");
     assert_eq!(order, vec!["zspace", "yspace", "xspace"]);
 }

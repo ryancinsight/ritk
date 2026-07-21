@@ -70,7 +70,7 @@ fn make_complex_3d(data: Vec<f32>, depth: usize, h: usize, w_complex: usize) -> 
 fn output_shape_preserved_after_inverse() {
     let data = vec![0.0_f32; 4 * 12];
     let img = make_complex_2d(data, 4, 12);
-    let result = InverseFftFilter::new().apply(&img).unwrap();
+    let result = InverseFftFilter::new().apply(&img).expect("infallible: validated precondition");
     assert_eq!(
         result.shape(),
         [4, 6],
@@ -85,7 +85,7 @@ fn output_shape_preserved_after_inverse() {
 fn output_shape_preserved_after_inverse_volume() {
     let data = vec![0.0_f32; 3 * 4 * 12];
     let img = make_complex_3d(data, 3, 4, 12);
-    let result = InverseFftFilter::new().apply(&img).unwrap();
+    let result = InverseFftFilter::new().apply(&img).expect("infallible: validated precondition");
     assert_eq!(
         result.shape(),
         [3, 4, 6],
@@ -102,7 +102,7 @@ fn all_zero_complex_image_gives_zero_real() {
     // H=4, W=4; complex shape [4, 8] = [H, 2*W].
     let data = vec![0.0_f32; 4 * 8];
     let img = make_complex_2d(data, 4, 8);
-    let result = InverseFftFilter::new().apply(&img).unwrap();
+    let result = InverseFftFilter::new().apply(&img).expect("infallible: validated precondition");
 
     assert_eq!(
         result.shape(),
@@ -110,7 +110,7 @@ fn all_zero_complex_image_gives_zero_real() {
         "IFFT of zero [4,8] must have output shape [4,4]"
     );
 
-    let (vals, _) = extract_vec(&result).unwrap();
+    let (vals, _) = extract_vec(&result).expect("infallible: validated precondition");
     assert_eq!(vals.len(), 16, "output must contain H*W = 4*4 = 16 pixels");
     for (i, &v) in vals.iter().enumerate() {
         assert!(
@@ -140,7 +140,7 @@ fn dc_only_complex_input_reconstructs_to_constant() {
     data[1] = 0.0;
 
     let img = make_complex_2d(data, 4, 8);
-    let result = InverseFftFilter::new().apply(&img).unwrap();
+    let result = InverseFftFilter::new().apply(&img).expect("infallible: validated precondition");
 
     assert_eq!(
         result.shape(),
@@ -148,7 +148,7 @@ fn dc_only_complex_input_reconstructs_to_constant() {
         "DC-only IFFT of [4,8] must produce shape [4,4]"
     );
 
-    let (vals, _) = extract_vec(&result).unwrap();
+    let (vals, _) = extract_vec(&result).expect("infallible: validated precondition");
     assert_eq!(vals.len(), 16, "output must contain H*W = 4*4 = 16 pixels");
     for (i, &v) in vals.iter().enumerate() {
         assert!(
@@ -188,12 +188,12 @@ fn half_hermitian_inverse_round_trip() {
         let img = make_real_3d(data.clone(), d, h, w);
         let half = RealToHalfHermitianForwardFftFilter::new()
             .apply(&img)
-            .unwrap();
+            .expect("infallible: validated precondition");
         let back = HalfHermitianToRealInverseFftFilter::new(w % 2 == 1)
             .apply(&half)
-            .unwrap();
+            .expect("infallible: validated precondition");
         assert_eq!(back.shape(), [d, h, w], "round-trip must restore W={w}");
-        let (bv, _) = extract_vec(&back).unwrap();
+        let (bv, _) = extract_vec(&back).expect("infallible: validated precondition");
         for (i, (&got, &want)) in bv.iter().zip(data.iter()).enumerate() {
             assert!(
                 (got - want).abs() < 1e-3,

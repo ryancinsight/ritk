@@ -8,7 +8,7 @@ fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 fn extract_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
-    let (vals, _) = ritk_tensor_ops::extract_vec(img).unwrap();
+    let (vals, _) = ritk_tensor_ops::extract_vec(img).expect("infallible: validated precondition");
     vals
 }
 
@@ -39,7 +39,7 @@ fn test_chan_and_vese_binary_output_captures_feature() {
         &make_image(phi0, [1, ny, nx]),
         &make_image(feat.clone(), [1, ny, nx]),
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let result = extract_vals(&out);
 
     assert_eq!(result.len(), ny * nx);
@@ -94,7 +94,7 @@ fn test_chan_and_vese_3d_binary_stable() {
         &make_image(phi0, [nz, ny, nx]),
         &make_image(feat, [nz, ny, nx]),
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let result = extract_vals(&out);
 
     assert_eq!(out.shape(), [nz, ny, nx]);

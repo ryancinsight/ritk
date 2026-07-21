@@ -236,7 +236,7 @@ fn test_lut_endpoints_clamp_correctly() {
         values[0]
     );
     // Last source pixel (src_max=31) → should map close to ref_max=131.
-    let last = *values.last().unwrap();
+    let last = *values.last().expect("infallible: validated precondition");
     assert!(
         (last - 131.0).abs() < 1.0,
         "src_max should map near ref_max=131, got {}",

@@ -20,7 +20,7 @@ fn reinitialize_unit_gradient_linear_is_identity() {
     let phi: Vec<f32> = (0..7).map(|x| x as f32 - 3.5).collect();
     let out = ReinitializeLevelSetFilter::new(0.0)
         .apply(&img(phi.clone(), [1, 1, 7]))
-        .unwrap();
+        .expect("infallible: validated precondition");
     let (v, _) = extract_vec_infallible(&out);
     for (g, e) in v.iter().zip(&phi) {
         assert!((g - e).abs() < 1e-5, "reinit {g} != input {e}");
@@ -34,7 +34,7 @@ fn reinitialize_normalizes_gradient() {
     let phi: Vec<f32> = (0..7).map(|x| 2.0 * (x as f32 - 3.5)).collect();
     let out = ReinitializeLevelSetFilter::new(0.0)
         .apply(&img(phi, [1, 1, 7]))
-        .unwrap();
+        .expect("infallible: validated precondition");
     let (v, _) = extract_vec_infallible(&out);
     let expected: Vec<f32> = (0..7).map(|x| x as f32 - 3.5).collect();
     for (g, e) in v.iter().zip(&expected) {
@@ -50,7 +50,7 @@ fn reinitialize_preserves_geometry() {
     let phi: Vec<f32> = (0..n).map(|i| i as f32 - (n as f32 / 2.0)).collect();
     let out = ReinitializeLevelSetFilter::new(0.0)
         .apply(&img(phi, dims))
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), dims);
     assert_eq!(out.spacing()[0], 1.0);
 }

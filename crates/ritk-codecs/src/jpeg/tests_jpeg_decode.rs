@@ -65,7 +65,7 @@ fn jpeg_baseline_grayscale_fragment_decodes_with_modality_lut() {
     let source = [32u8, 32, 32, 32];
     let jpeg = encode_grayscale_jpeg(2, 2, &source);
 
-    let decoded = decode_jpeg_fragment(&jpeg, layout(2, 2, 2.0, -10.0)).unwrap();
+    let decoded = decode_jpeg_fragment(&jpeg, layout(2, 2, 2.0, -10.0)).expect("infallible: validated precondition");
 
     assert_eq!(decoded.len(), 4);
     for value in decoded {
@@ -102,7 +102,7 @@ fn jpeg_rgb24_fragment_decodes_interleaved_samples() {
         rescale_intercept: 0.0,
     };
 
-    let decoded = decode_jpeg_fragment(&jpeg, layout).unwrap();
+    let decoded = decode_jpeg_fragment(&jpeg, layout).expect("infallible: validated precondition");
 
     assert_eq!(decoded.len(), source.len());
     for (i, (actual, expected)) in decoded.iter().zip(source).enumerate() {
@@ -129,7 +129,7 @@ fn jpeg_rgb24_rejects_grayscale_layout() {
 fn jpeg_lossless_grayscale_fragment_decodes_exact_sample() {
     let jpeg = lossless_single_pixel_jpeg_8bit_gray_128();
 
-    let decoded = decode_jpeg_fragment(&jpeg, layout(1, 1, 1.5, -2.0)).unwrap();
+    let decoded = decode_jpeg_fragment(&jpeg, layout(1, 1, 1.5, -2.0)).expect("infallible: validated precondition");
 
     assert_eq!(decoded, vec![190.0]);
 }
@@ -139,7 +139,7 @@ fn jpeg_lossless_signed_l8_fragment_decodes_exact_sample() {
     let jpeg = lossless_single_pixel_jpeg_8bit_gray_128();
     let layout = layout_with_bits(1, 1, 8, PixelSignedness::Signed, 2.0, 5.0);
 
-    let decoded = decode_jpeg_fragment(&jpeg, layout).unwrap();
+    let decoded = decode_jpeg_fragment(&jpeg, layout).expect("infallible: validated precondition");
 
     assert_eq!(decoded, vec![-251.0]);
 }
@@ -148,7 +148,7 @@ fn jpeg_lossless_signed_l8_fragment_decodes_exact_sample() {
 fn jpeg_backend_l16_output_uses_native_endian_contract() {
     let jpeg = lossless_single_pixel_jpeg_16bit_gray_0x1234();
 
-    let decoded = RitkJpegDecoder::decode(&jpeg).unwrap();
+    let decoded = RitkJpegDecoder::decode(&jpeg).expect("infallible: validated precondition");
 
     assert_eq!(
         decoded.pixel_format,
@@ -162,7 +162,7 @@ fn jpeg_lossless_l16_fragment_decodes_exact_unsigned_sample() {
     let jpeg = lossless_single_pixel_jpeg_16bit_gray_0x1234();
     let layout = layout_with_bits(1, 1, 16, PixelSignedness::Unsigned, 2.0, -4.0);
 
-    let decoded = decode_jpeg_fragment(&jpeg, layout).unwrap();
+    let decoded = decode_jpeg_fragment(&jpeg, layout).expect("infallible: validated precondition");
 
     assert_eq!(decoded, vec![9316.0]);
 }

@@ -35,7 +35,7 @@ fn constant_image_uniform_output() {
             num_cross_samples: 10,
         },
     );
-    let out = cpr.apply(&img).unwrap();
+    let out = cpr.apply(&img).expect("infallible: validated precondition");
     let (v, _) = extract_vec_infallible(&out);
     assert_eq!(v.len(), 100);
     for &x in &v {
@@ -98,7 +98,7 @@ fn linear_path_along_z() {
             num_cross_samples: 5,
         },
     );
-    let out = cpr.apply(&img).unwrap();
+    let out = cpr.apply(&img).expect("infallible: validated precondition");
     let (v, dims) = extract_vec_infallible(&out);
     assert_eq!(dims, [5, 5]);
     let center_val = v[2 * 5 + 2];
@@ -127,7 +127,7 @@ fn handles_non_zero_origin() {
             num_cross_samples: 3,
         },
     );
-    let out = cpr.apply(&img).unwrap();
+    let out = cpr.apply(&img).expect("infallible: validated precondition");
     let (v, _) = extract_vec_infallible(&out);
     let center = v[1 * 2 + 0];
     assert!(
@@ -155,7 +155,7 @@ fn handles_non_unit_spacing() {
             num_cross_samples: 3,
         },
     );
-    let out = cpr.apply(&img).unwrap();
+    let out = cpr.apply(&img).expect("infallible: validated precondition");
     let (v, _) = extract_vec_infallible(&out);
     let center = v[1 * 2 + 0];
     assert!(
@@ -189,7 +189,7 @@ fn output_shape_matches_config() {
             num_cross_samples: 5,
         },
     );
-    let out = cpr.apply(&img).unwrap();
+    let out = cpr.apply(&img).expect("infallible: validated precondition");
     assert_eq!(out.shape(), [5, 7]);
 }
 
@@ -204,7 +204,7 @@ fn output_metadata_is_reasonable() {
             num_cross_samples: 10,
         },
     );
-    let out = cpr.apply(&img).unwrap();
+    let out = cpr.apply(&img).expect("infallible: validated precondition");
     assert!((out.origin()[0] + 5.0).abs() < 1e-6);
     assert!((out.origin()[1] - 0.0).abs() < 1e-6);
     assert!((out.spacing()[0] - 10.0 / 9.0).abs() < 1e-6);

@@ -106,7 +106,7 @@ fn test_identity_both_zero() {
     let v: Vec<f32> = (0..n).map(|i| if i % 3 == 0 { 1.0 } else { 0.0 }).collect();
     let r = HitOrMissTransform::new(0, 0)
         .apply(&img(v.clone(), dims))
-        .unwrap();
+        .expect("infallible: validated precondition");
     for (i, (&e, &a)) in v.iter().zip(vv(&r).iter()).enumerate() {
         assert!((a - e).abs() < 1e-6, "voxel {i}: expected {e}, got {a}");
     }
@@ -117,7 +117,7 @@ fn test_constant_fg_zeroes() {
     let n = dims[0] * dims[1] * dims[2];
     let out = vv(&HitOrMissTransform::new(0, 1)
         .apply(&img(vec![1.0; n], dims))
-        .unwrap());
+        .expect("infallible: validated precondition"));
     for (i, &v) in out.iter().enumerate() {
         assert!(v < 0.5, "voxel {i}={v}");
     }
@@ -130,7 +130,7 @@ fn test_isolated_voxel_detected() {
     let mut v = vec![0.0_f32; n];
     let c = 4 * ny * nx + 4 * nx + 4;
     v[c] = 1.0;
-    let out = vv(&HitOrMissTransform::new(0, 1).apply(&img(v, dims)).unwrap());
+    let out = vv(&HitOrMissTransform::new(0, 1).apply(&img(v, dims)).expect("infallible: validated precondition"));
     assert!(out[c] > 0.5, "centre must be detected, got {}", out[c]);
     for (i, &v) in out.iter().enumerate() {
         if i != c {
@@ -150,7 +150,7 @@ fn test_metadata_preserved() {
             &Image::new(t, o, s, Direction::identity())
                 .expect("invariant: fixture tensor has the declared rank"),
         )
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(*r.origin(), o);
     assert_eq!(*r.spacing(), s);
 }
@@ -161,7 +161,7 @@ fn test_anti_extensivity() {
     let v: Vec<f32> = (0..n).map(|i| if i % 2 == 0 { 1.0 } else { 0.0 }).collect();
     let out = vv(&HitOrMissTransform::new(1, 1)
         .apply(&img(v.clone(), dims))
-        .unwrap());
+        .expect("infallible: validated precondition"));
     for (i, (&orig, &res)) in v.iter().zip(out.iter()).enumerate() {
         assert!(res <= orig + 1e-6, "anti-ext at {i}: res={res}>orig={orig}");
     }
@@ -180,7 +180,7 @@ fn hit_or_miss_works_on_2d_z1_image() {
             v[y * 7 + x] = 1.0;
         }
     }
-    let out = vv(&HitOrMissTransform::new(1, 0).apply(&img(v, dims)).unwrap());
+    let out = vv(&HitOrMissTransform::new(1, 0).apply(&img(v, dims)).expect("infallible: validated precondition"));
     let hits = out.iter().filter(|&&x| x > 0.5).count();
     assert_eq!(
         hits, 9,

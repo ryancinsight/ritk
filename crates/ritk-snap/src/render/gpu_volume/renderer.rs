@@ -314,7 +314,7 @@ impl GpuVolumeRenderer {
                 Ok(Ok(())) => {
                     // GPU finished — read the mapped staging buffer.
                     let img = {
-                        let cache = self.mip_cache.as_ref().unwrap();
+                        let cache = self.mip_cache.as_ref().expect("infallible: validated precondition");
                         collect_mip_result(&cache.staging_buf, pending.rows, pending.cols)
                     };
                     self.mip_last = Some(img);
@@ -338,7 +338,7 @@ impl GpuVolumeRenderer {
         // Submit new GPU work (only when no readback is in-flight).
         if let Some(vol_buf) = &self.vol_buffer {
             let rx = {
-                let cache = self.mip_cache.as_ref().unwrap();
+                let cache = self.mip_cache.as_ref().expect("infallible: validated precondition");
                 submit_mip_async(
                     &self.ctx,
                     &self.mip_pipeline,
@@ -397,7 +397,7 @@ impl GpuVolumeRenderer {
             match pending.rx.try_recv() {
                 Ok(Ok(())) => {
                     let img = {
-                        let cache = self.vr_cache.as_ref().unwrap();
+                        let cache = self.vr_cache.as_ref().expect("infallible: validated precondition");
                         collect_vr_result(&cache.staging_buf, pending.rows, pending.cols)
                     };
                     self.vr_last = Some(img);
@@ -418,7 +418,7 @@ impl GpuVolumeRenderer {
         // Submit new GPU work.
         if let Some(vol_buf) = &self.vol_buffer {
             let rx = {
-                let cache = self.vr_cache.as_ref().unwrap();
+                let cache = self.vr_cache.as_ref().expect("infallible: validated precondition");
                 submit_vr_async(
                     &self.ctx,
                     &self.vr_pipeline,

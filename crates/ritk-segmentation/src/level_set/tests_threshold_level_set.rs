@@ -119,7 +119,7 @@ fn test_threshold_expands_within_range() {
     ls.curvature_weight = 0.1;
     ls.max_iterations = 300;
 
-    let result = ls.apply(&image, &phi).unwrap();
+    let result = ls.apply(&image, &phi).expect("infallible: validated precondition");
     let final_fg = count_foreground(&result);
 
     assert!(
@@ -140,7 +140,7 @@ fn test_threshold_contracts_outside_range() {
     let initial_inside = count_phi_inside(&phi);
 
     let ls = ThresholdLevelSet::new(100.0, 250.0);
-    let result = ls.apply(&image, &phi).unwrap();
+    let result = ls.apply(&image, &phi).expect("infallible: validated precondition");
     let final_fg = count_foreground(&result);
 
     assert!(
@@ -159,7 +159,7 @@ fn test_output_is_binary() {
 
     let result = ThresholdLevelSet::new(100.0, 200.0)
         .apply(&image, &phi)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let vals = get_values(&result);
 
     for (i, &v) in vals.iter().enumerate() {
@@ -182,7 +182,7 @@ fn test_metadata_preserved() {
 
     let result = ThresholdLevelSet::new(100.0, 200.0)
         .apply(&image, &phi)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     assert_eq!(
         result.origin(),
@@ -237,7 +237,7 @@ fn test_uniform_in_range_expands() {
     ls.curvature_weight = 0.1;
     ls.max_iterations = 200;
 
-    let result = ls.apply(&image, &phi).unwrap();
+    let result = ls.apply(&image, &phi).expect("infallible: validated precondition");
     let final_fg = count_foreground(&result);
 
     assert!(

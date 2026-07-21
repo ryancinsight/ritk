@@ -19,7 +19,7 @@ fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
 #[test]
 fn all_background_zero() {
     let img = make_image(vec![0.0f32; 27], [3, 3, 3]);
-    let out = BinaryContourImageFilter::default().apply(&img).unwrap();
+    let out = BinaryContourImageFilter::default().apply(&img).expect("infallible: validated precondition");
     assert!(voxels(&out).iter().all(|&v| v == 0.0));
 }
 
@@ -32,7 +32,7 @@ fn fully_solid_block_has_empty_contour() {
     // background, so the contour is empty — matching `sitk.BinaryContour`, which
     // leaves a full-foreground image all-zero.
     let img = make_image(vec![1.0f32; 27], [3, 3, 3]);
-    let out = BinaryContourImageFilter::default().apply(&img).unwrap();
+    let out = BinaryContourImageFilter::default().apply(&img).expect("infallible: validated precondition");
     assert!(
         voxels(&out).iter().all(|&x| x == 0.0),
         "full-foreground block must have an empty contour"
@@ -52,7 +52,7 @@ fn block_in_background_yields_outer_shell() {
         }
     }
     let out = BinaryContourImageFilter::default().apply(&make_image(data, [5, 5, 5]));
-    let v = voxels(&out.unwrap());
+    let v = voxels(&out.expect("infallible: validated precondition"));
     // Block centre (2,2,2) = 62 is interior; the 26 surrounding fg voxels are shell.
     assert_eq!(v[62], 0.0, "block centre is interior");
     let shell: f32 = (1..4)
@@ -69,7 +69,7 @@ fn five_cube_center_is_interior_6conn() {
     let img = make_image(vec![1.0f32; 125], [5, 5, 5]);
     let out = BinaryContourImageFilter::new(Connectivity::Face6, 1.0)
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let v = voxels(&out);
     // Center voxel index = 2*25+2*5+2 = 62
     assert_eq!(v[62], 0.0, "center of 5×5×5 should be interior (6-conn)");
@@ -81,7 +81,7 @@ fn single_fg_voxel_is_border() {
     let mut data = vec![0.0f32; 27];
     data[13] = 1.0; // center of 3×3×3
     let img = make_image(data, [3, 3, 3]);
-    let out = BinaryContourImageFilter::default().apply(&img).unwrap();
+    let out = BinaryContourImageFilter::default().apply(&img).expect("infallible: validated precondition");
     let v = voxels(&out);
     assert!((v[13] - 1.0).abs() < 1e-5, "single fg voxel must be border");
     let others: f32 = v
@@ -97,7 +97,7 @@ fn single_fg_voxel_is_border() {
 #[test]
 fn preserves_metadata() {
     let img = make_image(vec![0.0f32; 8], [2, 2, 2]);
-    let out = BinaryContourImageFilter::default().apply(&img).unwrap();
+    let out = BinaryContourImageFilter::default().apply(&img).expect("infallible: validated precondition");
     assert_eq!(out.shape(), [2, 2, 2]);
     assert_eq!(*out.origin(), *img.origin());
     assert_eq!(*out.spacing(), *img.spacing());
@@ -109,7 +109,7 @@ fn five_cube_center_interior_26conn() {
     let img = make_image(vec![1.0f32; 125], [5, 5, 5]);
     let out = BinaryContourImageFilter::new(Connectivity::Vertex26, 1.0)
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let v = voxels(&out);
     assert_eq!(v[62], 0.0, "center of 5×5×5 should be interior (26-conn)");
 }

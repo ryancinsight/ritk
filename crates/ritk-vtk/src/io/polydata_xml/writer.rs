@@ -18,13 +18,13 @@ pub(crate) fn write_vtp_str(poly: &VtkPolyData) -> String {
     let nl = poly.lines.len();
     let np2 = poly.polygons.len();
     let ns = poly.triangle_strips.len();
-    writeln!(s, r#"<?xml version="1.0"?>"#).unwrap();
+    writeln!(s, r#"<?xml version="1.0"?>"#).expect("infallible write");
     writeln!(
         s,
         r#"<VTKFile type="PolyData" version="0.1" byte_order="LittleEndian">"#
     )
-    .unwrap();
-    writeln!(s, "  <PolyData>").unwrap();
+    .expect("infallible: validated precondition");
+    writeln!(s, "  <PolyData>").expect("infallible write");
     {
         let mut piece = String::from("    <Piece");
         for (k, v) in &[
@@ -42,42 +42,42 @@ pub(crate) fn write_vtp_str(poly: &VtkPolyData) -> String {
             piece.push('"');
         }
         piece.push('>');
-        writeln!(s, "{}", piece).unwrap();
+        writeln!(s, "{}", piece).expect("infallible write");
     }
-    writeln!(s, "      <Points>").unwrap();
+    writeln!(s, "      <Points>").expect("infallible write");
     writeln!(
         s,
         r#"        <DataArray type="Float32" NumberOfComponents="3" format="ascii">"#
     )
-    .unwrap();
-    write!(s, "       ").unwrap();
+    .expect("infallible: validated precondition");
+    write!(s, "       ").expect("infallible write");
     for [x, y, z] in &poly.points {
-        write!(s, " {:.6} {:.6} {:.6}", x, y, z).unwrap();
+        write!(s, " {:.6} {:.6} {:.6}", x, y, z).expect("infallible write");
     }
-    writeln!(s).unwrap();
-    writeln!(s, "        </DataArray>").unwrap();
-    writeln!(s, "      </Points>").unwrap();
+    writeln!(s).expect("infallible write");
+    writeln!(s, "        </DataArray>").expect("infallible write");
+    writeln!(s, "      </Points>").expect("infallible write");
     write_cells(&mut s, "Verts", &poly.vertices);
     write_cells(&mut s, "Lines", &poly.lines);
     write_cells(&mut s, "Polys", &poly.polygons);
     write_cells(&mut s, "Strips", &poly.triangle_strips);
     if !poly.point_data.is_empty() {
-        writeln!(s, "      <PointData>").unwrap();
+        writeln!(s, "      <PointData>").expect("infallible write");
         for (name, attr) in &poly.point_data {
             write_attr_xml(&mut s, name, attr);
         }
-        writeln!(s, "      </PointData>").unwrap();
+        writeln!(s, "      </PointData>").expect("infallible write");
     }
     if !poly.cell_data.is_empty() {
-        writeln!(s, "      <CellData>").unwrap();
+        writeln!(s, "      <CellData>").expect("infallible write");
         for (name, attr) in &poly.cell_data {
             write_attr_xml(&mut s, name, attr);
         }
-        writeln!(s, "      </CellData>").unwrap();
+        writeln!(s, "      </CellData>").expect("infallible write");
     }
-    writeln!(s, "    </Piece>").unwrap();
-    writeln!(s, "  </PolyData>").unwrap();
-    writeln!(s, "</VTKFile>").unwrap();
+    writeln!(s, "    </Piece>").expect("infallible write");
+    writeln!(s, "  </PolyData>").expect("infallible write");
+    writeln!(s, "</VTKFile>").expect("infallible write");
     s
 }
 
@@ -90,30 +90,30 @@ fn write_cells(s: &mut String, tag: &str, cells: &[Vec<u32>]) {
         cum += cell.len() as u32;
         offs.push(cum);
     }
-    writeln!(s, "      <{}>", tag).unwrap();
+    writeln!(s, "      <{}>", tag).expect("infallible write");
     writeln!(
         s,
         r#"        <DataArray type="Int32" Name="connectivity" format="ascii">"#
     )
-    .unwrap();
-    write!(s, "       ").unwrap();
+    .expect("infallible: validated precondition");
+    write!(s, "       ").expect("infallible write");
     for v in &conn {
-        write!(s, " {}", v).unwrap();
+        write!(s, " {}", v).expect("infallible write");
     }
-    writeln!(s).unwrap();
-    writeln!(s, "        </DataArray>").unwrap();
+    writeln!(s).expect("infallible write");
+    writeln!(s, "        </DataArray>").expect("infallible write");
     writeln!(
         s,
         r#"        <DataArray type="Int32" Name="offsets" format="ascii">"#
     )
-    .unwrap();
-    write!(s, "       ").unwrap();
+    .expect("infallible: validated precondition");
+    write!(s, "       ").expect("infallible write");
     for v in &offs {
-        write!(s, " {}", v).unwrap();
+        write!(s, " {}", v).expect("infallible write");
     }
-    writeln!(s).unwrap();
-    writeln!(s, "        </DataArray>").unwrap();
-    writeln!(s, "      </{}>", tag).unwrap();
+    writeln!(s).expect("infallible write");
+    writeln!(s, "        </DataArray>").expect("infallible write");
+    writeln!(s, "      </{}>", tag).expect("infallible write");
 }
 
 #[cfg(test)]

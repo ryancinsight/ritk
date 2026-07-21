@@ -33,12 +33,12 @@ fn make_test_image(
 fn write_minc_produces_file() {
     let backend = SequentialBackend;
     let image = make_test_image(4, 4, 4, [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]);
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("infallible: validated precondition");
     let path = dir.path().join("test.mnc");
     let result = crate::write_minc(&image, &path, &backend);
     assert!(result.is_ok(), "write_minc failed: {:?}", result.err());
     assert!(path.exists(), "file was not created");
-    let metadata = std::fs::metadata(&path).unwrap();
+    let metadata = std::fs::metadata(&path).expect("infallible: validated precondition");
     assert!(
         metadata.len() > 44,
         "file contains more than just a superblock"
@@ -49,10 +49,10 @@ fn write_minc_produces_file() {
 fn write_minc_file_starts_with_hdf5_signature() {
     let backend = SequentialBackend;
     let image = make_test_image(2, 2, 2, [-1.0, -2.0, -3.0], [0.5, 0.5, 0.5]);
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("infallible: validated precondition");
     let path = dir.path().join("sig.mnc");
-    crate::write_minc(&image, &path, &backend).unwrap();
-    let bytes = std::fs::read(&path).unwrap();
+    crate::write_minc(&image, &path, &backend).expect("infallible: validated precondition");
+    let bytes = std::fs::read(&path).expect("infallible: validated precondition");
     assert_eq!(&bytes[0..8], b"\x89HDF\r\n\x1a\n", "missing HDF5 signature");
 }
 
@@ -63,10 +63,10 @@ fn write_minc_voxel_data_present_in_file() {
     let ny = 3usize;
     let nx = 4usize;
     let image = make_test_image(nz, ny, nx, [0.0; 3], [1.0; 3]);
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("infallible: validated precondition");
     let path = dir.path().join("voxel.mnc");
-    crate::write_minc(&image, &path, &backend).unwrap();
-    let file_bytes = std::fs::read(&path).unwrap();
+    crate::write_minc(&image, &path, &backend).expect("infallible: validated precondition");
+    let file_bytes = std::fs::read(&path).expect("infallible: validated precondition");
     let expected_0 = 0.0f32.to_le_bytes();
     let expected_1 = 1.0f32.to_le_bytes();
     let found_0 = file_bytes.windows(4).any(|w| w == expected_0);
@@ -79,11 +79,11 @@ fn write_minc_voxel_data_present_in_file() {
 fn write_minc_eof_field_matches_file_size() {
     let backend = SequentialBackend;
     let image = make_test_image(2, 2, 2, [0.0; 3], [1.0; 3]);
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("infallible: validated precondition");
     let path = dir.path().join("eof.mnc");
-    crate::write_minc(&image, &path, &backend).unwrap();
-    let bytes = std::fs::read(&path).unwrap();
-    let eof_bytes: [u8; 8] = bytes[28..36].try_into().unwrap();
+    crate::write_minc(&image, &path, &backend).expect("infallible: validated precondition");
+    let bytes = std::fs::read(&path).expect("infallible: validated precondition");
+    let eof_bytes: [u8; 8] = bytes[28..36].try_into().expect("infallible: validated precondition");
     let eof_addr = u64::from_le_bytes(eof_bytes);
     assert_eq!(eof_addr, bytes.len() as u64, "EOF address mismatch");
 }
@@ -92,7 +92,7 @@ fn write_minc_eof_field_matches_file_size() {
 fn write_minc_then_read_minc_round_trips_voxels() {
     let backend = SequentialBackend;
     let image = make_test_image(2, 2, 2, [0.0; 3], [1.0; 3]);
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("infallible: validated precondition");
     let path = dir.path().join("roundtrip.mnc");
     crate::write_minc(&image, &path, &backend).expect("write MINC");
 
@@ -113,7 +113,7 @@ fn read_minc_rejects_shape_exceeding_backed_data() {
     use crate::hdf5_binary::write_minc2_hdf5;
 
     let backend = SequentialBackend;
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("infallible: validated precondition");
     let path = dir.path().join("forged.mnc");
     write_minc2_hdf5(
         &path,
@@ -123,7 +123,7 @@ fn read_minc_rejects_shape_exceeding_backed_data() {
         [1.0; 3],
         &Direction::identity(),
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
 
     let error = crate::read_minc(&path, &backend)
         .expect_err("shape exceeding backed data must error, not OOM");

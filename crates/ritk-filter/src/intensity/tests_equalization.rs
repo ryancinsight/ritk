@@ -142,12 +142,12 @@ fn native_apply_maps_through_the_global_cdf_and_preserves_metadata() {
         Direction::identity(),
         &backend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let output = HistogramEqualizationFilter::new(2)
         .apply_native(&source, &backend)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
-    assert_eq!(output.data_slice().unwrap(), &[2.0 / 3.0, 2.0 / 3.0, 1.0]);
+    assert_eq!(output.data_slice().expect("infallible: validated precondition"), &[2.0 / 3.0, 2.0 / 3.0, 1.0]);
     assert_eq!(output.shape(), source.shape());
     assert_eq!(output.origin(), source.origin());
     assert_eq!(output.spacing(), source.spacing());

@@ -1,11 +1,11 @@
 //! Coeus-native NGF engine (`Image<f32, B, 3>` substrate).
 //!
-//! Atlas migration (burn → coeus): the register-engine parallel path for the
-//! Normalized Gradient Fields metric. The Coeus-generic [`super::fixed_prep`]
-//! /[`super::NormalizedGradientField`] surface stays unchanged (its consumers —
-//! [`crate::ngf_rigid`], cli/python — remain on Coeus until their own cutover);
-//! this module ADDS the native substrate alongside so registration's eventual
-//! `Image<B>` → native cutover is unblocked.
+//! The register-engine native path for the Normalized Gradient Fields metric.
+//! The Coeus-generic [`super::fixed_prep`]/[`super::NormalizedGradientField`]
+//! surface stays unchanged (its consumers — [`crate::ngf_rigid`], cli/python —
+//! remain on Coeus until their own cutover); this module adds the native
+//! substrate alongside so registration's eventual `Image<B>` → native cutover
+//! is unblocked.
 //!
 //! The metric arithmetic is unchanged: the fixed/moving gradient fields, the
 //! edge-noise scale `η`, and the weighted squared-normalized-dot reduction all

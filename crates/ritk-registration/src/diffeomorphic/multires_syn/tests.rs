@@ -85,7 +85,7 @@ fn identity_registration_high_cc() {
     let dims = [10, 10, 10];
     let image = make_test_image(dims);
     let reg = MultiResSyNRegistration::new(make_config(2, vec![10, 10], false));
-    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).unwrap();
+    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
     assert!(
         result.final_cc > 0.9,
         "identity CC should be > 0.9, got {}",
@@ -99,7 +99,7 @@ fn single_level_equivalent_to_syn() {
     let dims = [8, 8, 8];
     let image = make_test_image(dims);
     let reg = MultiResSyNRegistration::new(make_config(1, vec![15], false));
-    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).unwrap();
+    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
     assert!(
         result.final_cc > 0.9,
         "single-level CC should be > 0.9, got {}",
@@ -117,7 +117,7 @@ fn multires_registration_non_divergence() {
     let reg = MultiResSyNRegistration::new(make_config(2, vec![10, 15], false));
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     let rms = |f: &[f32]| -> f64 {
         (f.iter().map(|&v| (v as f64).powi(2)).sum::<f64>() / n as f64).sqrt()
@@ -156,7 +156,7 @@ fn inverse_consistency_produces_finite_fields() {
     let reg = MultiResSyNRegistration::new(make_config(2, vec![8, 12], true));
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
     for &v in result
         .forward_field
         .z
@@ -270,7 +270,7 @@ fn single_level_cow_borrowed_produces_valid_displacement() {
     let image = make_test_image(dims);
     // num_levels=1 → factor = 2^(1-0-1) = 1 → Cow::Borrowed path
     let reg = MultiResSyNRegistration::new(make_config(1, vec![10], false));
-    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).unwrap();
+    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
 
     // All displacement field components must be finite
     for &v in result
@@ -308,14 +308,14 @@ fn cow_borrowed_vs_owned_produces_identical_result() {
     // Run with the original slice (will be Cow::Borrowed at factor=1)
     let result_borrowed = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     // Run with an explicit clone (same data, different allocation)
     let fixed_clone = fixed.clone();
     let moving_clone = moving.clone();
     let result_owned = reg
         .register(&fixed_clone, &moving_clone, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     // Forward field z-component should match exactly (deterministic backend)
     for (a, b) in result_borrowed

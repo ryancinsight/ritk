@@ -9,7 +9,7 @@ fn exp_of_zero_is_one() {
     let img = make_native_image(vec![0.0, 0.0], [1, 1, 2]);
     let out = ExpImageFilter::new()
         .apply_native(&img, &SequentialBackend)
-        .unwrap();
+        .expect("infallible: validated precondition");
     for &v in native_vals(&out).iter() {
         assert!((v - 1.0).abs() < 1e-6, "exp(0) = 1; got {v}");
     }
@@ -22,7 +22,7 @@ fn exp_of_one_is_e() {
     let img = make_native_image(vec![1.0], [1, 1, 1]);
     let out = ExpImageFilter::new()
         .apply_native(&img, &SequentialBackend)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let v = native_vals(&out)[0];
     assert!((v - e).abs() < 1e-5, "exp(1) must be ≈ e = {e}; got {v}");
 }
@@ -34,7 +34,7 @@ fn exp_of_two_is_e_squared() {
     let img = make_native_image(vec![2.0], [1, 1, 1]);
     let out = ExpImageFilter::new()
         .apply_native(&img, &SequentialBackend)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let v = native_vals(&out)[0];
     assert!(
         (v - e2).abs() < 1e-3,
@@ -48,7 +48,7 @@ fn exp_output_always_positive() {
     let img = make_native_image(vec![-5.0, -1.0, 0.0, 1.0, 5.0], [1, 1, 5]);
     let out = ExpImageFilter::new()
         .apply_native(&img, &SequentialBackend)
-        .unwrap();
+        .expect("infallible: validated precondition");
     for &v in native_vals(&out).iter() {
         assert!(v > 0.0, "exp(x) must be > 0 for finite x; got {v}");
     }
@@ -68,10 +68,10 @@ fn exp_preserves_metadata() {
         Direction::identity(),
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let out = ExpImageFilter::new()
         .apply_native(&img, &SequentialBackend)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
 }
 
@@ -82,10 +82,10 @@ fn log_exp_roundtrip() {
     let img = make_native_image(vals_in.clone(), [1, 1, 3]);
     let exp_out = ExpImageFilter::new()
         .apply_native(&img, &SequentialBackend)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let log_out = LogImageFilter::new()
         .apply_native(&exp_out, &SequentialBackend)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let v = native_vals(&log_out);
     for (a, b) in v.iter().zip(vals_in.iter()) {
         assert!(

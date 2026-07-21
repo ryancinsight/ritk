@@ -23,7 +23,7 @@ fn vals(image: &Image<f32, B, 3>) -> Vec<f32> {
 #[test]
 fn hmaxima_lowers_isolated_peak_by_h() {
     let f = img(vec![0.0, 0.0, 10.0, 0.0, 0.0], [1, 1, 5]);
-    let out = HMaximaFilter::new(3.0).apply(&f).unwrap();
+    let out = HMaximaFilter::new(3.0).apply(&f).expect("infallible: validated precondition");
     let expected = [0.0f32, 0.0, 7.0, 0.0, 0.0];
     for (got, exp) in vals(&out).iter().zip(expected) {
         assert!(
@@ -37,7 +37,7 @@ fn hmaxima_lowers_isolated_peak_by_h() {
 #[test]
 fn hmaxima_h_zero_is_identity() {
     let f = img(vec![1.0, 5.0, 2.0, 8.0, 3.0], [1, 1, 5]);
-    let out = HMaximaFilter::new(0.0).apply(&f).unwrap();
+    let out = HMaximaFilter::new(0.0).apply(&f).expect("infallible: validated precondition");
     assert_eq!(vals(&out), vals(&f), "HMaxima(f, 0) must equal f");
 }
 
@@ -46,7 +46,7 @@ fn hmaxima_h_zero_is_identity() {
 #[test]
 fn hconvex_extracts_peak_dynamic() {
     let f = img(vec![0.0, 0.0, 10.0, 0.0, 0.0], [1, 1, 5]);
-    let out = HConvexFilter::new(3.0).apply(&f).unwrap();
+    let out = HConvexFilter::new(3.0).apply(&f).expect("infallible: validated precondition");
     let expected = [0.0f32, 0.0, 3.0, 0.0, 0.0];
     for (got, exp) in vals(&out).iter().zip(expected) {
         assert!(
@@ -61,7 +61,7 @@ fn hconvex_extracts_peak_dynamic() {
 #[test]
 fn hminima_raises_isolated_pit_by_h() {
     let f = img(vec![10.0, 10.0, 0.0, 10.0, 10.0], [1, 1, 5]);
-    let out = HMinimaFilter::new(3.0).apply(&f).unwrap();
+    let out = HMinimaFilter::new(3.0).apply(&f).expect("infallible: validated precondition");
     let expected = [10.0f32, 10.0, 3.0, 10.0, 10.0];
     for (got, exp) in vals(&out).iter().zip(expected) {
         assert!(
@@ -75,7 +75,7 @@ fn hminima_raises_isolated_pit_by_h() {
 #[test]
 fn hconcave_extracts_pit_dynamic() {
     let f = img(vec![10.0, 10.0, 0.0, 10.0, 10.0], [1, 1, 5]);
-    let out = HConcaveFilter::new(3.0).apply(&f).unwrap();
+    let out = HConcaveFilter::new(3.0).apply(&f).expect("infallible: validated precondition");
     let expected = [0.0f32, 0.0, 3.0, 0.0, 0.0];
     for (got, exp) in vals(&out).iter().zip(expected) {
         assert!(
@@ -89,8 +89,8 @@ fn hconcave_extracts_pit_dynamic() {
 #[test]
 fn h_extrema_respect_ordering_invariants() {
     let f = img(vec![2.0, 7.0, 1.0, 9.0, 4.0, 6.0], [1, 1, 6]);
-    let hmax = vals(&HMaximaFilter::new(2.5).apply(&f).unwrap());
-    let hmin = vals(&HMinimaFilter::new(2.5).apply(&f).unwrap());
+    let hmax = vals(&HMaximaFilter::new(2.5).apply(&f).expect("infallible: validated precondition"));
+    let hmin = vals(&HMinimaFilter::new(2.5).apply(&f).expect("infallible: validated precondition"));
     for ((&a, &lo), &hi) in vals(&f).iter().zip(hmax.iter()).zip(hmin.iter()) {
         assert!(lo <= a + 1e-6, "HMaxima must be ≤ input: {lo} > {a}");
         assert!(hi >= a - 1e-6, "HMinima must be ≥ input: {hi} < {a}");
@@ -112,12 +112,12 @@ fn hminima_native_matches_legacy_and_preserves_geometry() {
         direction,
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let filter = HMinimaFilter::new(3.0);
-    let expected = filter.apply(&legacy).unwrap();
-    let actual = filter.apply_native(&native, &SequentialBackend).unwrap();
+    let expected = filter.apply(&legacy).expect("infallible: validated precondition");
+    let actual = filter.apply_native(&native, &SequentialBackend).expect("infallible: validated precondition");
     assert_eq!(
-        actual.data_slice().unwrap(),
+        actual.data_slice().expect("infallible: validated precondition"),
         expected
             .data_slice()
             .expect("invariant: contiguous host storage")
@@ -171,7 +171,7 @@ fn hminima_validation_errors_are_exact() {
         Direction::identity(),
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(
         HMinimaFilter::new(f32::MAX)
             .apply_native(&native, &SequentialBackend)
@@ -194,7 +194,7 @@ fn hminima_validation_errors_are_exact() {
         Direction::identity(),
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(
         HMinimaFilter::new(1.0)
             .apply_native(&native_invalid, &SequentialBackend)

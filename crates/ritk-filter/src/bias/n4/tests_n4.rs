@@ -366,7 +366,7 @@ fn dft_round_trip() {
 fn histogram_sharpen_passthrough_for_constant_input() {
     let w = vec![2.71f32; 64];
     let mut scratch = HistogramSharpenScratch::new(100, w.len());
-    histogram_sharpen(&w, 100, 0.01, 0.01, &mut scratch).unwrap();
+    histogram_sharpen(&w, 100, 0.01, 0.01, &mut scratch).expect("infallible: validated precondition");
     let out = scratch.w_sharp;
     for (&o, &i) in out.iter().zip(w.iter()) {
         assert_eq!(o, i);

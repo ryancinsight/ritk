@@ -27,7 +27,7 @@ fn scene() -> (Vec<Vec<f32>>, [usize; 3]) {
 }
 
 fn config() -> VectorConfidenceConnectedConfig {
-    VectorConfidenceConnectedConfig::new(3.0, 4, 1, 1.0).unwrap()
+    VectorConfidenceConnectedConfig::new(3.0, 4, 1, 1.0).expect("infallible: validated precondition")
 }
 
 fn expected_blob() -> Vec<f32> {
@@ -44,14 +44,14 @@ fn expected_blob() -> Vec<f32> {
 fn borrowed_core_matches_simpleitk_blob_exactly() {
     let (channels, dimensions) = scene();
     for iterations in [0, 1, 4] {
-        let config = VectorConfidenceConnectedConfig::new(3.0, iterations, 1, 1.0).unwrap();
+        let config = VectorConfidenceConnectedConfig::new(3.0, iterations, 1, 1.0).expect("infallible: validated precondition");
         let output = segment_values(
             &channels,
             dimensions,
             &[[0, 5, 5].into(), [0, 4, 6].into()],
             config,
         )
-        .unwrap();
+        .expect("infallible: validated precondition");
         assert_eq!(output, expected_blob());
     }
 }
@@ -115,8 +115,8 @@ fn corner_seed_uses_simpleitk_zero_flux_neighborhood() {
             1.315_103_8,
         ],
     ];
-    let config = VectorConfidenceConnectedConfig::new(0.5, 0, 1, 1.0).unwrap();
-    let output = segment_values(&channels, [1, 5, 5], &[[0, 0, 0].into()], config).unwrap();
+    let config = VectorConfidenceConnectedConfig::new(0.5, 0, 1, 1.0).expect("infallible: validated precondition");
+    let output = segment_values(&channels, [1, 5, 5], &[[0, 0, 0].into()], config).expect("infallible: validated precondition");
     let mut expected = vec![0.0; 25];
     expected[0] = 1.0;
     assert_eq!(output, expected);
@@ -126,7 +126,7 @@ fn corner_seed_uses_simpleitk_zero_flux_neighborhood() {
 fn empty_seeds_produce_an_exact_empty_mask() {
     let (channels, dimensions) = scene();
     assert_eq!(
-        segment_values(&channels, dimensions, &[], config()).unwrap(),
+        segment_values(&channels, dimensions, &[], config()).expect("infallible: validated precondition"),
         vec![0.0; 100]
     );
 }
@@ -164,7 +164,7 @@ fn configuration_and_input_errors_are_exact() {
     );
     let (channels, dimensions) = scene();
     assert_eq!(
-        segment_values(&channels, dimensions, &[[0, 10, 0].into()], config()).unwrap(),
+        segment_values(&channels, dimensions, &[[0, 10, 0].into()], config()).expect("infallible: validated precondition"),
         vec![0.0; 100]
     );
 }
@@ -172,31 +172,31 @@ fn configuration_and_input_errors_are_exact() {
 #[test]
 fn maximal_radius_is_bounded_by_unique_image_voxels() {
     let channels = vec![vec![1.0]];
-    let config = VectorConfidenceConnectedConfig::new(1.0, 0, usize::MAX, 1.0).unwrap();
+    let config = VectorConfidenceConnectedConfig::new(1.0, 0, usize::MAX, 1.0).expect("infallible: validated precondition");
     assert_eq!(
-        segment_values(&channels, [1, 1, 1], &[[0, 0, 0].into()], config).unwrap(),
+        segment_values(&channels, [1, 1, 1], &[[0, 0, 0].into()], config).expect("infallible: validated precondition"),
         vec![1.0]
     );
 }
 
 #[test]
 fn covariance_inversion_obeys_itk_determinant_boundary() {
-    let singular = inverse_covariance(&[0.000_488_281_25, 0.0, 0.0, 0.000_488_281_25], 2).unwrap();
+    let singular = inverse_covariance(&[0.000_488_281_25, 0.0, 0.0, 0.000_488_281_25], 2).expect("infallible: validated precondition");
     assert_eq!(singular[0], f64::MAX.powf(1.0 / 3.0) / 2.0);
     assert_eq!(singular[1], 0.0);
     assert_eq!(singular[2], 0.0);
     assert_eq!(singular[3], singular[0]);
 
-    let regular = inverse_covariance(&[0.001_953_125, 0.0, 0.0, 0.001_953_125], 2).unwrap();
+    let regular = inverse_covariance(&[0.001_953_125, 0.0, 0.0, 0.001_953_125], 2).expect("infallible: validated precondition");
     assert_eq!(regular, vec![512.0, 0.0, 0.0, 512.0]);
 }
 
 #[test]
 fn face_connectivity_excludes_diagonal_only_members() {
     let channels = vec![vec![1.0, 0.0, 0.0, 1.0]];
-    let config = VectorConfidenceConnectedConfig::new(1.0, 0, 0, 1.0).unwrap();
+    let config = VectorConfidenceConnectedConfig::new(1.0, 0, 0, 1.0).expect("infallible: validated precondition");
     assert_eq!(
-        segment_values(&channels, [1, 2, 2], &[[0, 0, 0].into()], config).unwrap(),
+        segment_values(&channels, [1, 2, 2], &[[0, 0, 0].into()], config).expect("infallible: validated precondition"),
         vec![1.0, 0.0, 0.0, 0.0]
     );
 }
@@ -204,9 +204,9 @@ fn face_connectivity_excludes_diagonal_only_members() {
 #[test]
 fn seed_distance_raises_the_membership_threshold() {
     let channels = vec![vec![0.0, 1.0]];
-    let config = VectorConfidenceConnectedConfig::new(0.01, 0, 1, 1.0).unwrap();
+    let config = VectorConfidenceConnectedConfig::new(0.01, 0, 1, 1.0).expect("infallible: validated precondition");
     assert_eq!(
-        segment_values(&channels, [1, 1, 2], &[[0, 0, 1].into()], config).unwrap(),
+        segment_values(&channels, [1, 1, 2], &[[0, 0, 1].into()], config).expect("infallible: validated precondition"),
         vec![0.0, 1.0]
     );
 }
@@ -220,7 +220,7 @@ fn invalid_seeds_are_ignored_without_discarding_valid_seeds() {
         &[[0, 10, 0].into(), [0, 5, 5].into(), [0, 4, 6].into()],
         config(),
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(output, expected_blob());
 }
 
@@ -255,18 +255,18 @@ fn legacy_and_native_outputs_are_exact_with_nonidentity_geometry() {
                 direction,
                 &SequentialBackend,
             )
-            .unwrap()
+            .expect("infallible: validated precondition")
         })
         .collect();
     let filter = VectorConfidenceConnectedFilter::new([[0, 5, 5], [0, 4, 6]], config());
     let legacy_refs: Vec<_> = legacy.iter().collect();
     let native_refs: Vec<_> = native.iter().collect();
-    let expected = filter.apply(&legacy_refs).unwrap();
+    let expected = filter.apply(&legacy_refs).expect("infallible: validated precondition");
     let actual = filter
         .apply_native(&native_refs, &SequentialBackend)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(
-        actual.data_slice().unwrap(),
+        actual.data_slice().expect("infallible: validated precondition"),
         expected
             .data_slice()
             .expect("invariant: contiguous host storage")

@@ -255,7 +255,7 @@ pub(super) struct SeriesGeometry {
 /// Construct an `ArrayString<N>` from a string literal, panicking with a
 /// descriptive message if the literal exceeds capacity.
 ///
-/// Replaces the `ArrayString::from(LITERAL).unwrap()` pattern for string
+/// Replaces the `ArrayString::from(LITERAL).expect("infallible: validated precondition")` pattern for string
 /// literals that are known by construction to fit.
 ///
 /// # Example

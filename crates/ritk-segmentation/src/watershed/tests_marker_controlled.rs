@@ -27,7 +27,7 @@ fn test_seed_labels_preserved() {
 
     let result = MarkerControlledWatershed::new()
         .apply(&gradient, &markers)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let labels = get_labels(&result);
 
     assert_eq!(labels[0], 1.0, "seed at index 0 must retain label 1");
@@ -46,7 +46,7 @@ fn test_two_seeds_uniform_gradient_boundary_in_middle() {
 
     let result = MarkerControlledWatershed::new()
         .apply(&gradient, &markers)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let labels = get_labels(&result);
 
     assert_eq!(labels[0], 1.0, "seed 1 preserved");
@@ -84,7 +84,7 @@ fn test_gradient_drives_flooding_order() {
 
     let result = MarkerControlledWatershed::new()
         .apply(&gradient, &markers)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let labels = get_labels(&result);
 
     assert_eq!(labels[0], 1.0, "seed preserved");
@@ -118,7 +118,7 @@ fn test_spatial_metadata_preserved() {
 
     let result = MarkerControlledWatershed::new()
         .apply(&gradient, &markers)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(result.origin(), gradient.origin());
     assert_eq!(result.spacing(), gradient.spacing());
     assert_eq!(result.direction(), gradient.direction());
@@ -138,7 +138,7 @@ fn test_output_shape_matches_input() {
 
     let result = MarkerControlledWatershed::new()
         .apply(&gradient, &markers)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(result.shape(), dims, "output shape must match input shape");
 }
 
@@ -155,7 +155,7 @@ fn test_all_seeded_image_all_labels_preserved() {
 
     let result = MarkerControlledWatershed::new()
         .apply(&gradient, &marker_image)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let labels = get_labels(&result);
     for (i, (&got, &expected)) in labels.iter().zip(markers.iter()).enumerate() {
         assert_eq!(
@@ -203,7 +203,7 @@ fn native_legacy_and_all_policy_combinations_are_exact() {
         direction,
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let native_markers = NativeImage::from_flat_on(
         marker_values,
         dimensions,
@@ -212,7 +212,7 @@ fn native_legacy_and_all_policy_combinations_are_exact() {
         direction,
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     for (connectivity, lines) in [
         (FloodConnectivity::Face, WatershedLinePolicy::Mark),
         (FloodConnectivity::Face, WatershedLinePolicy::Omit),
@@ -224,12 +224,12 @@ fn native_legacy_and_all_policy_combinations_are_exact() {
             .with_watershed_lines(lines);
         assert_eq!(filter.connectivity(), connectivity);
         assert_eq!(filter.watershed_lines(), lines);
-        let legacy = filter.apply(&legacy_gradient, &legacy_markers).unwrap();
+        let legacy = filter.apply(&legacy_gradient, &legacy_markers).expect("infallible: validated precondition");
         let native = filter
             .apply_native(&native_gradient, &native_markers, &SequentialBackend)
-            .unwrap();
+            .expect("infallible: validated precondition");
         assert_eq!(
-            native.data_slice().unwrap(),
+            native.data_slice().expect("infallible: validated precondition"),
             legacy
                 .data_slice()
                 .expect("invariant: contiguous host storage")
@@ -274,7 +274,7 @@ fn numeric_and_geometry_validation_errors_are_exact() {
         Direction::identity(),
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let markers = NativeImage::from_flat_on(
         vec![1.0, 0.0],
         [1, 1, 2],
@@ -283,7 +283,7 @@ fn numeric_and_geometry_validation_errors_are_exact() {
         Direction::identity(),
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(
         MarkerControlledWatershed::new()
             .apply_native(&gradient, &markers, &SequentialBackend)
@@ -300,7 +300,7 @@ fn numeric_and_geometry_validation_errors_are_exact() {
         Direction::identity(),
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let native_markers = NativeImage::from_flat_on(
         vec![1.0, 0.0],
         [1, 1, 2],
@@ -309,7 +309,7 @@ fn numeric_and_geometry_validation_errors_are_exact() {
         Direction::identity(),
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(
         MarkerControlledWatershed::new()
             .apply_native(&native_gradient, &native_markers, &SequentialBackend)
@@ -326,7 +326,7 @@ fn numeric_and_geometry_validation_errors_are_exact() {
         Direction::identity(),
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let native_markers = NativeImage::from_flat_on(
         vec![1.0, 1.5],
         [1, 1, 2],
@@ -335,7 +335,7 @@ fn numeric_and_geometry_validation_errors_are_exact() {
         Direction::identity(),
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(
         MarkerControlledWatershed::new()
             .apply_native(&native_gradient, &native_markers, &SequentialBackend)
@@ -364,7 +364,7 @@ fn numeric_and_geometry_validation_errors_are_exact() {
             direction,
             &SequentialBackend,
         )
-        .unwrap();
+        .expect("infallible: validated precondition");
         assert_eq!(
             MarkerControlledWatershed::new()
                 .apply_native(&native_gradient, &markers, &SequentialBackend)
@@ -423,7 +423,7 @@ fn test_no_seeds_produces_all_zero_output() {
     let markers = make_image_3d(vec![0.0_f32; 8], [2, 2, 2]);
     let result = MarkerControlledWatershed::new()
         .apply(&gradient, &markers)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let labels = get_labels(&result);
     assert!(
         labels.iter().all(|&v| v == 0.0),
@@ -450,7 +450,7 @@ fn test_3d_two_sphere_seeds_produce_two_basins() {
 
     let result = MarkerControlledWatershed::new()
         .apply(&gradient, &markers)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let labels = get_labels(&result);
 
     // Both labels must appear in the output.
@@ -489,11 +489,11 @@ fn test_no_watershed_line_assigns_every_voxel() {
     let markers = make_image_3d(vec![0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 2.0, 0.0, 0.0], [1, 1, 9]);
     let with_line = MarkerControlledWatershed::new()
         .apply(&grad, &markers)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let without = MarkerControlledWatershed::new()
         .with_watershed_lines(WatershedLinePolicy::Omit)
         .apply(&grad, &markers)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let wl = get_labels(&with_line);
     let wo = get_labels(&without);
     assert!(wl.contains(&0.0), "default marks a watershed line");

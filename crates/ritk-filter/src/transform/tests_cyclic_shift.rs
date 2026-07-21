@@ -46,7 +46,7 @@ fn preserves_all_values() {
     let out = vals(&CyclicShiftImageFilter::new([1, -1, 2]).apply(&f));
     let mut a = v.clone();
     let mut b = out.clone();
-    a.sort_by(|x, y| x.partial_cmp(y).unwrap());
-    b.sort_by(|x, y| x.partial_cmp(y).unwrap());
+    a.sort_by(|x, y| x.partial_cmp(y).expect("infallible: validated precondition"));
+    b.sort_by(|x, y| x.partial_cmp(y).expect("infallible: validated precondition"));
     assert_eq!(a, b, "cyclic shift must preserve all values");
 }

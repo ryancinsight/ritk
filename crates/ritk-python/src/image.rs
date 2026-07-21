@@ -2,7 +2,7 @@
 
 use crate::errors::{RitkPyError, RitkResult};
 use coeus_core::{MoiraiBackend, SequentialBackend};
-use numpy::{ndarray::Array3, IntoPyArray, PyArray3, PyReadonlyArray3, PyUntypedArrayMethods};
+use numpy::{PyArray1, PyArray3, PyArrayMethods, PyReadonlyArray3, PyUntypedArrayMethods};
 use pyo3::prelude::*;
 use ritk_core::spatial::{Direction, Point, Spacing};
 use ritk_image::Image as NativeImage;
@@ -33,7 +33,10 @@ impl PyImage {
     ) -> PyResult<Self> {
         let shape = array.shape();
         let (z, y, x) = (shape[0], shape[1], shape[2]);
-        let flat: Vec<f32> = array.as_array().iter().copied().collect();
+        let flat: Vec<f32> = array
+            .as_slice()
+            .map_err(|e| RitkPyError::value(format!("input array must be contiguous: {e}")))?
+            .to_vec();
         let sp = spacing.unwrap_or([1.0, 1.0, 1.0]);
         let orig = origin.unwrap_or([0.0, 0.0, 0.0]);
         let image = NativeImage::from_flat_on(
@@ -55,9 +58,9 @@ impl PyImage {
         let shape = self.inner.shape();
         let backend = MoiraiBackend;
         let cow = self.inner.data_cow_on(&backend);
-        Array3::from_shape_vec((shape[0], shape[1], shape[2]), cow.into_owned())
+        PyArray1::<f32>::from_vec_bound(py, cow.into_owned())
+            .reshape([shape[0], shape[1], shape[2]])
             .map_err(|e| RitkPyError::runtime(e.to_string()))
-            .map(|arr| arr.into_pyarray_bound(py))
     }
 
     /// Image shape as (Z, Y, X).

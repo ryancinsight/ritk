@@ -40,7 +40,7 @@ fn identity_registration_low_mse() {
         regularization_weight: 1.0,
         convergence_threshold: 1e-12,
     });
-    let result = reg.register(&img, &img, dims, [1.0; 3]).unwrap();
+    let result = reg.register(&img, &img, dims, [1.0; 3]).expect("infallible: validated precondition");
 
     assert!(
         result.final_metric < 1e-10,
@@ -94,7 +94,7 @@ fn metric_improves_over_iterations() {
         regularization_weight: 0.01,
         convergence_threshold: 1e-12,
     });
-    let result = reg.register(&fixed, &moving, dims, [1.0; 3]).unwrap();
+    let result = reg.register(&fixed, &moving, dims, [1.0; 3]).expect("infallible: validated precondition");
 
     assert!(
         result.final_metric < initial_mse,
@@ -114,7 +114,7 @@ fn displacement_field_is_finite() {
         kernel_sigma: GaussianSigma::new_unchecked(1.0),
         ..LddmmConfig::default()
     });
-    let result = reg.register(&img, &img, dims, [1.0; 3]).unwrap();
+    let result = reg.register(&img, &img, dims, [1.0; 3]).expect("infallible: validated precondition");
 
     for &v in result
         .displacement_field

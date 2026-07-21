@@ -18,7 +18,7 @@ fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
 fn mask_filter_passes_image_values_where_mask_active() {
     let img = make_image(vec![10.0, 20.0, 30.0, 40.0], [1, 2, 2]);
     let mask = make_image(vec![1.0, 0.0, 1.0, 0.0], [1, 2, 2]);
-    let out = MaskImageFilter::new().apply(&img, &mask).unwrap();
+    let out = MaskImageFilter::new().apply(&img, &mask).expect("infallible: validated precondition");
     let v = voxels(&out);
     assert!(
         (v[0] - 10.0).abs() < 1e-5,
@@ -47,7 +47,7 @@ fn mask_filter_full_mask_is_identity() {
     let vals = vec![5.0f32, 6.0, 7.0, 8.0];
     let img = make_image(vals.clone(), [1, 2, 2]);
     let mask = make_image(vec![1.0; 4], [1, 2, 2]);
-    let out = MaskImageFilter::new().apply(&img, &mask).unwrap();
+    let out = MaskImageFilter::new().apply(&img, &mask).expect("infallible: validated precondition");
     let v = voxels(&out);
     for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
         assert!((a - b).abs() < 1e-5, "[{}] expected {}, got {}", i, b, a);
@@ -61,7 +61,7 @@ fn mask_filter_custom_outside_value() {
     let out = MaskImageFilter::new()
         .with_outside_value(-1.0)
         .apply(&img, &mask)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let v = voxels(&out);
     assert!(
         (v[0] - (-1.0)).abs() < 1e-5,
@@ -86,7 +86,7 @@ fn mask_filter_shape_mismatch_returns_error() {
 fn mask_filter_preserves_spatial_metadata() {
     let img = make_image(vec![1.0; 8], [2, 2, 2]);
     let mask = make_image(vec![1.0; 8], [2, 2, 2]);
-    let out = MaskImageFilter::new().apply(&img, &mask).unwrap();
+    let out = MaskImageFilter::new().apply(&img, &mask).expect("infallible: validated precondition");
     assert_eq!(out.shape(), img.shape());
     assert_eq!(out.spacing(), img.spacing());
 }
@@ -134,7 +134,7 @@ fn native_threshold_mask_retains_only_strictly_greater_values() {
 fn mask_negated_filter_passes_values_where_mask_inactive() {
     let img = make_image(vec![10.0, 20.0, 30.0, 40.0], [1, 2, 2]);
     let mask = make_image(vec![1.0, 0.0, 1.0, 0.0], [1, 2, 2]);
-    let out = MaskNegatedImageFilter::new().apply(&img, &mask).unwrap();
+    let out = MaskNegatedImageFilter::new().apply(&img, &mask).expect("infallible: validated precondition");
     let v = voxels(&out);
     // mask active → outside (0); mask inactive → pass through
     assert!(
@@ -163,7 +163,7 @@ fn mask_negated_filter_passes_values_where_mask_inactive() {
 fn mask_negated_full_mask_zeros_everything() {
     let img = make_image(vec![5.0, 6.0, 7.0, 8.0], [1, 2, 2]);
     let mask = make_image(vec![1.0; 4], [1, 2, 2]);
-    let out = MaskNegatedImageFilter::new().apply(&img, &mask).unwrap();
+    let out = MaskNegatedImageFilter::new().apply(&img, &mask).expect("infallible: validated precondition");
     let v = voxels(&out);
     for &val in &v {
         assert!((val - 0.0).abs() < 1e-5, "expected 0, got {}", val);
@@ -178,7 +178,7 @@ fn masked_assign_writes_constant_where_mask_active() {
     let mask = make_image(vec![0.0, 1.0, 0.0, 1.0], [1, 1, 4]);
     let out = MaskedAssignImageFilter::new(99.0)
         .apply(&img, &mask)
-        .unwrap();
+        .expect("infallible: validated precondition");
     // mask active at 1,3 → 99; keep image at 0,2.
     assert_eq!(voxels(&out), vec![1.0, 99.0, 3.0, 99.0]);
 }
@@ -189,7 +189,7 @@ fn masked_assign_all_inactive_is_identity() {
     let mask = make_image(vec![0.0, 0.0, 0.0], [1, 1, 3]);
     let out = MaskedAssignImageFilter::new(-1.0)
         .apply(&img, &mask)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(voxels(&out), voxels(&img));
 }
 

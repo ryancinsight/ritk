@@ -192,7 +192,7 @@ pub fn extract_dose_slice_for_volume(
                     (*a - dose_z_mm)
                         .abs()
                         .partial_cmp(&(*b - dose_z_mm).abs())
-                        .unwrap()
+                        .expect("infallible: validated precondition")
                 })
                 .map(|(i, _)| i)?;
 

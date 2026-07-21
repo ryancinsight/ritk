@@ -145,14 +145,14 @@ fn from_metaimage_msb_non_bool_string_defaults_to_little_endian() {
 #[test]
 fn parse_floats_f64_round_trip() {
     let s = format!("1.0 2.5 {} 4.0", -PI);
-    let v: Vec<f64> = parse_floats(&s, "test_field", 4).unwrap();
+    let v: Vec<f64> = parse_floats(&s, "test_field", 4).expect("infallible: validated precondition");
     assert_eq!(v, vec![1.0, 2.5, -PI, 4.0]);
 }
 
 #[test]
 fn parse_floats_usize_round_trip() {
     let s = "10 20 30";
-    let v: Vec<usize> = parse_floats(s, "sizes", 3).unwrap();
+    let v: Vec<usize> = parse_floats(s, "sizes", 3).expect("infallible: validated precondition");
     assert_eq!(v, vec![10, 20, 30]);
 }
 
@@ -206,7 +206,7 @@ fn decode_u8_le_round_trips_to_f32() {
         4,
         "uint8",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out, vec![0.0, 1.0, 127.0, 255.0]);
 }
 
@@ -225,7 +225,7 @@ fn decode_i16_be_round_trips_to_f32() {
         4,
         "int16",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out, vec![1.0, -1.0, 32767.0, -32768.0]);
 }
 
@@ -244,7 +244,7 @@ fn decode_f32_le_round_trips() {
         4,
         "float",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     for (i, expected) in [0.0_f32, 1.0, -1.0, std::f32::consts::PI]
         .iter()
         .enumerate()
@@ -268,7 +268,7 @@ fn decode_f64_be_narrows_to_f32() {
         2,
         "double",
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(out.len(), 2);
     assert!((out[0] - 1.5_f32).abs() < 1e-6);
     assert!((out[1] - -2.5_f32).abs() < 1e-6);

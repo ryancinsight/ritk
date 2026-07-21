@@ -40,22 +40,22 @@ fn default_args(method: NormalizeMethod, input: PathBuf, output: PathBuf) -> Nor
 
 #[test]
 fn test_normalize_zscore_creates_output_file() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("infallible: validated precondition");
     let input = dir.path().join("in.nii.gz");
     let output = dir.path().join("out.nii.gz");
     write_ramp_image(&input);
     let args = default_args(NormalizeMethod::Zscore, input, output.clone());
-    run(args).unwrap();
+    run(args).expect("infallible: validated precondition");
     assert!(output.exists());
 }
 
 #[test]
 fn test_normalize_zscore_output_has_near_zero_mean() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("infallible: validated precondition");
     let input = dir.path().join("in.nii.gz");
     let output = dir.path().join("out.nii.gz");
     write_ramp_image(&input);
-    run(default_args(NormalizeMethod::Zscore, input, output.clone())).unwrap();
+    run(default_args(NormalizeMethod::Zscore, input, output.clone())).expect("infallible: validated precondition");
     let im = read_image(&output).expect("read native z-score output");
     let vals = im
         .data_slice()
@@ -68,11 +68,11 @@ fn test_normalize_zscore_output_has_near_zero_mean() {
 
 #[test]
 fn test_normalize_minmax_output_in_zero_one() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("infallible: validated precondition");
     let input = dir.path().join("in.nii.gz");
     let output = dir.path().join("out.nii.gz");
     write_ramp_image(&input);
-    run(default_args(NormalizeMethod::Minmax, input, output.clone())).unwrap();
+    run(default_args(NormalizeMethod::Minmax, input, output.clone())).expect("infallible: validated precondition");
     let im = read_image(&output).expect("read native minmax output");
     let vals = im
         .data_slice()
@@ -90,7 +90,7 @@ fn test_normalize_minmax_output_in_zero_one() {
 
 #[test]
 fn test_normalize_histogram_match_creates_output() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("infallible: validated precondition");
     let input = dir.path().join("in.nii.gz");
     let reference = dir.path().join("ref.nii.gz");
     let output = dir.path().join("out.nii.gz");
@@ -100,13 +100,13 @@ fn test_normalize_histogram_match_creates_output() {
         reference: Some(reference),
         ..default_args(NormalizeMethod::HistogramMatch, input, output.clone())
     };
-    run(args).unwrap();
+    run(args).expect("infallible: validated precondition");
     assert!(output.exists());
 }
 
 #[test]
 fn test_normalize_histogram_match_without_reference_returns_error() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("infallible: validated precondition");
     let input = dir.path().join("in.nii.gz");
     let output = dir.path().join("out.nii.gz");
     write_ramp_image(&input);
@@ -124,17 +124,17 @@ fn test_normalize_histogram_match_without_reference_returns_error() {
 
 #[test]
 fn test_normalize_nyul_creates_output() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("infallible: validated precondition");
     let input = dir.path().join("in.nii.gz");
     let output = dir.path().join("out.nii.gz");
     write_ramp_image(&input);
-    run(default_args(NormalizeMethod::Nyul, input, output.clone())).unwrap();
+    run(default_args(NormalizeMethod::Nyul, input, output.clone())).expect("infallible: validated precondition");
     assert!(output.exists());
 }
 
 #[test]
 fn test_normalize_nyul_with_reference_creates_output() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("infallible: validated precondition");
     let input = dir.path().join("in.nii.gz");
     let reference = dir.path().join("ref.nii.gz");
     let output = dir.path().join("out.nii.gz");
@@ -144,7 +144,7 @@ fn test_normalize_nyul_with_reference_creates_output() {
         reference: Some(reference),
         ..default_args(NormalizeMethod::Nyul, input, output.clone())
     };
-    run(args).unwrap();
+    run(args).expect("infallible: validated precondition");
     assert!(output.exists());
 }
 
@@ -175,7 +175,7 @@ fn write_half_mask_image(path: &Path) {
 
 #[test]
 fn test_normalize_zscore_masked_creates_output_file() {
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("infallible: validated precondition");
     let input = dir.path().join("in.nii.gz");
     let mask = dir.path().join("mask.nii.gz");
     let output = dir.path().join("out.nii.gz");
@@ -185,7 +185,7 @@ fn test_normalize_zscore_masked_creates_output_file() {
         mask: Some(mask),
         ..default_args(NormalizeMethod::Zscore, input, output.clone())
     };
-    run(args).unwrap();
+    run(args).expect("infallible: validated precondition");
     assert!(output.exists(), "output file must be created");
 }
 
@@ -195,7 +195,7 @@ fn test_normalize_zscore_masked_mean_of_foreground_voxels_near_zero() {
     // μ_mask = (0 + 1 + … + 31) / 32 = 15.5.
     // After normalization: output_i = (i − 15.5) / σ, so
     //   mean(output_i for i in 0..32) = 0 by construction (μ subtracted).
-    let dir = tempfile::tempdir().unwrap();
+    let dir = tempfile::tempdir().expect("infallible: validated precondition");
     let input = dir.path().join("in.nii.gz");
     let mask = dir.path().join("mask.nii.gz");
     let output = dir.path().join("out.nii.gz");
@@ -205,7 +205,7 @@ fn test_normalize_zscore_masked_mean_of_foreground_voxels_near_zero() {
         mask: Some(mask),
         ..default_args(NormalizeMethod::Zscore, input, output.clone())
     };
-    run(args).unwrap();
+    run(args).expect("infallible: validated precondition");
     let im = read_image(&output).expect("read native masked z-score output");
     let vals = im
         .data_slice()

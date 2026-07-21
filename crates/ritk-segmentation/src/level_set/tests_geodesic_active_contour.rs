@@ -90,7 +90,7 @@ fn test_step_edge_contour_expands_to_edge() {
     gac.dt = 0.05;
     gac.max_iterations = 500;
 
-    let result = gac.apply(&image, &phi_image).unwrap();
+    let result = gac.apply(&image, &phi_image).expect("infallible: validated precondition");
     let mask = get_values(&result);
 
     // Count segmented voxels.
@@ -207,7 +207,7 @@ fn test_advection_does_not_leak_through_edges() {
     gac.dt = 0.05;
     gac.max_iterations = 300;
 
-    let mask = get_values(&gac.apply(&image, &phi_image).unwrap());
+    let mask = get_values(&gac.apply(&image, &phi_image).expect("infallible: validated precondition"));
     let seg: usize = mask.iter().filter(|&&v| v == 1.0).count();
     let init: usize = sphere_phi(dims, center, 2.0)
         .iter()
@@ -247,7 +247,7 @@ fn test_uniform_image_no_edges() {
     gac.dt = 0.1;
     gac.max_iterations = 300;
 
-    let result = gac.apply(&image, &phi_image).unwrap();
+    let result = gac.apply(&image, &phi_image).expect("infallible: validated precondition");
     let mask = get_values(&result);
 
     let seg_count: usize = mask.iter().filter(|&&v| v == 1.0).count();
@@ -282,7 +282,7 @@ fn test_output_is_binary() {
     let mut gac = GeodesicActiveContourSegmentation::new();
     gac.max_iterations = 20;
 
-    let result = gac.apply(&image, &phi_image).unwrap();
+    let result = gac.apply(&image, &phi_image).expect("infallible: validated precondition");
     let mask = get_values(&result);
 
     for (i, &v) in mask.iter().enumerate() {
@@ -315,7 +315,7 @@ fn test_metadata_preserved() {
     let mut gac = GeodesicActiveContourSegmentation::new();
     gac.max_iterations = 5;
 
-    let result = gac.apply(&image, &phi_image).unwrap();
+    let result = gac.apply(&image, &phi_image).expect("infallible: validated precondition");
 
     assert_eq!(result.origin(), image.origin(), "origin must be preserved");
     assert_eq!(
@@ -428,7 +428,7 @@ fn rms_convergence_terminates_early_on_zero_force() {
     gac.max_iterations = 500;
     gac.tolerance = 1.0;
 
-    let result = gac.apply(&image, &phi_image).unwrap();
+    let result = gac.apply(&image, &phi_image).expect("infallible: validated precondition");
     let mask = get_values(&result);
 
     // The expected mask is simply phi < 0 from the initial level set.

@@ -16,7 +16,7 @@ fn majority_vote_unanimous() {
     let l3 = vec![7u32; n];
     let atlas_labels: Vec<&[u32]> = vec![&l1, &l2, &l3];
 
-    let result = majority_vote(&atlas_labels, dims).unwrap();
+    let result = majority_vote(&atlas_labels, dims).expect("infallible: validated precondition");
     assert_eq!(result.labels.len(), n);
     assert_eq!(result.confidence.len(), n);
     for i in 0..n {
@@ -37,7 +37,7 @@ fn majority_vote_majority_label() {
     let l3 = vec![2u32; n];
     let atlas_labels: Vec<&[u32]> = vec![&l1, &l2, &l3];
 
-    let result = majority_vote(&atlas_labels, dims).unwrap();
+    let result = majority_vote(&atlas_labels, dims).expect("infallible: validated precondition");
     let expected_conf = 2.0f32 / 3.0;
     for i in 0..n {
         assert_eq!(result.labels[i], 1, "voxel {}", i);
@@ -60,7 +60,7 @@ fn majority_vote_tie_smallest_label_wins() {
     let l2 = vec![1u32; 2];
     let atlas_labels: Vec<&[u32]> = vec![&l1, &l2];
 
-    let result = majority_vote(&atlas_labels, dims).unwrap();
+    let result = majority_vote(&atlas_labels, dims).expect("infallible: validated precondition");
     for i in 0..2 {
         assert_eq!(
             result.labels[i], 1,
@@ -84,7 +84,7 @@ fn majority_vote_single_atlas() {
     }
     let atlas_labels: Vec<&[u32]> = vec![&labels];
 
-    let result = majority_vote(&atlas_labels, dims).unwrap();
+    let result = majority_vote(&atlas_labels, dims).expect("infallible: validated precondition");
     for i in 0..n {
         assert_eq!(result.labels[i], i as u32 + 10, "voxel {}", i);
         assert!((result.confidence[i] - 1.0).abs() < 1e-6);

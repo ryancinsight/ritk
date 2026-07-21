@@ -219,7 +219,7 @@ impl<B: Backend> DiscreteGaussianFilter<B> {
 /// Minimum pixel variance below which a per-axis kernel is the identity impulse.
 const VARIANCE_MIN: f64 = 1e-18;
 
-/// Burn-free single source of truth for the per-axis discrete-Gaussian kernels.
+/// Single source of truth for the per-axis discrete-Gaussian kernels.
 ///
 /// Returns `[Option<Vec<f32>>; D]`: `None` for an axis whose pixel variance is
 /// below [`VARIANCE_MIN`] or whose kernel collapses to the identity impulse
@@ -256,11 +256,10 @@ pub(crate) fn discrete_gaussian_kernels<const D: usize>(
     })
 }
 
-/// Burn-free host core: separable discrete-Gaussian smoothing on a flat z-major
-/// buffer (ITK `GaussianOperator` kernel, replicate boundary via
-/// `convolve_separable`). Bitwise-identical to
-/// [`DiscreteGaussianFilter::apply`]/`apply_native`; used by the Canny filters
-/// so their native paths need no Coeus backend to smooth.
+/// Separable discrete-Gaussian smoothing on a flat z-major buffer (ITK
+/// `GaussianOperator` kernel, replicate boundary via `convolve_separable`).
+/// Bitwise-identical to [`DiscreteGaussianFilter::apply`]/`apply_native`; used
+/// by the Canny filters so their native paths need no Coeus backend to smooth.
 pub(crate) fn discrete_gaussian_smooth_flat(
     vals: Vec<f32>,
     dims: [usize; 3],

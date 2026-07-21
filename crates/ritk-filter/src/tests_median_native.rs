@@ -28,7 +28,7 @@ fn constant_field_preserved() {
     let dims = [6, 6, 6];
     let c = 42.0_f32;
     let img = make_native_image(vec![c; dims[0] * dims[1] * dims[2]], dims);
-    let out = MedianFilter::new(2).apply_native(&img).unwrap();
+    let out = MedianFilter::new(2).apply_native(&img).expect("infallible: validated precondition");
     for v in native_vals(&out) {
         assert_eq!(v, c, "median of a constant must equal that constant");
     }
@@ -45,7 +45,7 @@ fn impulse_removed() {
     let spike_idx = 4 * dims[1] * dims[2] + 4 * dims[2] + 4;
     vals[spike_idx] = 1000.0;
     let img = make_native_image(vals, dims);
-    let out = MedianFilter::new(1).apply_native(&img).unwrap();
+    let out = MedianFilter::new(1).apply_native(&img).expect("infallible: validated precondition");
     assert_eq!(
         native_vals(&out)[spike_idx],
         bg,

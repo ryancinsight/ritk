@@ -44,7 +44,7 @@ fn identity_field_gives_determinant_one() {
     let jac = jacobian_determinant(&disp, &disp, &disp)
         .expect("jacobian_determinant must succeed on zero field");
 
-    let (vals, jac_dims) = extract_vec(&jac).unwrap();
+    let (vals, jac_dims) = extract_vec(&jac).expect("infallible: validated precondition");
     assert_eq!(jac_dims, dims, "output shape must match input shape");
 
     for (i, &v) in vals.iter().enumerate() {
@@ -95,7 +95,7 @@ fn uniform_expansion_gives_correct_determinant() {
     let jac = jacobian_determinant(&disp_z, &disp_y, &disp_x)
         .expect("jacobian_determinant must succeed on uniform expansion field");
 
-    let (vals, _) = extract_vec(&jac).unwrap();
+    let (vals, _) = extract_vec(&jac).expect("infallible: validated precondition");
 
     // Interior voxel [4, 4, 4] uses central differences on all three axes.
     let interior_idx = 4 * ny * nx + 4 * nx + 4;
@@ -120,8 +120,8 @@ fn analyze_jacobian_zero_field() {
     let dims = [4, 4, 4];
     let n = dims[0] * dims[1] * dims[2]; // 64
     let disp = zero_disp(dims);
-    let jac = jacobian_determinant(&disp, &disp, &disp).unwrap();
-    let stats = analyze_jacobian(&jac).unwrap();
+    let jac = jacobian_determinant(&disp, &disp, &disp).expect("infallible: validated precondition");
+    let stats = analyze_jacobian(&jac).expect("infallible: validated precondition");
 
     assert!(
         (stats.min - 1.0).abs() < 1e-5,
@@ -154,7 +154,7 @@ fn output_shape_matches_input() {
     let dims = [5, 4, 3];
     let n = dims[0] * dims[1] * dims[2];
     let disp = make_disp(vec![0.0f32; n], dims, [1.0, 1.0, 1.0]);
-    let jac = jacobian_determinant(&disp, &disp, &disp).unwrap();
+    let jac = jacobian_determinant(&disp, &disp, &disp).expect("infallible: validated precondition");
     assert_eq!(jac.shape(), dims, "output shape must equal input shape");
 }
 
@@ -163,8 +163,8 @@ fn output_shape_matches_input() {
 fn analyze_jacobian_returns_correct_stats_for_identity() {
     let dims = [4, 4, 4];
     let disp = zero_disp(dims);
-    let jac = jacobian_determinant(&disp, &disp, &disp).unwrap();
-    let stats = analyze_jacobian(&jac).unwrap();
+    let jac = jacobian_determinant(&disp, &disp, &disp).expect("infallible: validated precondition");
+    let stats = analyze_jacobian(&jac).expect("infallible: validated precondition");
 
     assert_eq!(
         stats.num_folded, 0,

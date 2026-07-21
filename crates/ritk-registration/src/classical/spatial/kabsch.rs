@@ -48,13 +48,13 @@ pub(crate) fn kabsch_algorithm(
 
     let mut h = Matrix3::zeros();
     for i in 0..shape_f[0] {
-        let pf0 = *fixed_centered.get([i, 0]).unwrap();
-        let pf1 = *fixed_centered.get([i, 1]).unwrap();
-        let pf2 = *fixed_centered.get([i, 2]).unwrap();
+        let pf0 = *fixed_centered.get([i, 0]).expect("valid index");
+        let pf1 = *fixed_centered.get([i, 1]).expect("valid index");
+        let pf2 = *fixed_centered.get([i, 2]).expect("valid index");
 
-        let pm0 = *moving_centered.get([i, 0]).unwrap();
-        let pm1 = *moving_centered.get([i, 1]).unwrap();
-        let pm2 = *moving_centered.get([i, 2]).unwrap();
+        let pm0 = *moving_centered.get([i, 0]).expect("valid index");
+        let pm1 = *moving_centered.get([i, 1]).expect("valid index");
+        let pm2 = *moving_centered.get([i, 2]).expect("valid index");
 
         h += Matrix3::from_rows([
             [pm0 * pf0, pm0 * pf1, pm0 * pf2],
@@ -109,19 +109,19 @@ fn matrix_from_svd_columns(matrix: &Array2<f64>) -> Result<Matrix3, SpatialError
 
     Ok(Matrix3::from_rows([
         [
-            *matrix.get([0, 0]).unwrap(),
-            *matrix.get([0, 1]).unwrap(),
-            *matrix.get([0, 2]).unwrap(),
+            *matrix.get([0, 0]).expect("valid index"),
+            *matrix.get([0, 1]).expect("valid index"),
+            *matrix.get([0, 2]).expect("valid index"),
         ],
         [
-            *matrix.get([1, 0]).unwrap(),
-            *matrix.get([1, 1]).unwrap(),
-            *matrix.get([1, 2]).unwrap(),
+            *matrix.get([1, 0]).expect("valid index"),
+            *matrix.get([1, 1]).expect("valid index"),
+            *matrix.get([1, 2]).expect("valid index"),
         ],
         [
-            *matrix.get([2, 0]).unwrap(),
-            *matrix.get([2, 1]).unwrap(),
-            *matrix.get([2, 2]).unwrap(),
+            *matrix.get([2, 0]).expect("valid index"),
+            *matrix.get([2, 1]).expect("valid index"),
+            *matrix.get([2, 2]).expect("valid index"),
         ],
     ]))
 }
@@ -146,14 +146,14 @@ pub(crate) fn compute_fre(
     let mut sum_sq = 0.0_f64;
     for i in 0..shape[0] {
         let pf = Vector3::new([
-            *fixed.get([i, 0]).unwrap(),
-            *fixed.get([i, 1]).unwrap(),
-            *fixed.get([i, 2]).unwrap(),
+            *fixed.get([i, 0]).expect("valid index"),
+            *fixed.get([i, 1]).expect("valid index"),
+            *fixed.get([i, 2]).expect("valid index"),
         ]);
         let pm = Vector3::new([
-            *moving.get([i, 0]).unwrap(),
-            *moving.get([i, 1]).unwrap(),
-            *moving.get([i, 2]).unwrap(),
+            *moving.get([i, 0]).expect("valid index"),
+            *moving.get([i, 1]).expect("valid index"),
+            *moving.get([i, 2]).expect("valid index"),
         ]);
         let err = pf - (r * pm + t);
         sum_sq += err.dot(&err);

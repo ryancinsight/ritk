@@ -102,7 +102,7 @@ impl VtkSource for FailingSource {
 #[test]
 fn test_pipeline_source_only() {
     let mut pipeline = VtkPipeline::new(Box::new(StaticSource(make_triangle())));
-    let out = pipeline.execute().unwrap();
+    let out = pipeline.execute().expect("infallible: validated precondition");
     let VtkDataObject::PolyData(p) = out else {
         panic!("expected PolyData variant")
     };
@@ -115,7 +115,7 @@ fn test_pipeline_with_identity_filter() {
     let mut pipeline = VtkPipeline::new(Box::new(StaticSource(make_triangle())));
     pipeline.add_filter(Box::new(IdentityFilter));
     pipeline.add_filter(Box::new(IdentityFilter));
-    let out = pipeline.execute().unwrap();
+    let out = pipeline.execute().expect("infallible: validated precondition");
     let VtkDataObject::PolyData(p) = out else {
         panic!("expected PolyData variant")
     };
@@ -128,7 +128,7 @@ fn test_pipeline_with_sink() {
     let counter = Arc::new(AtomicUsize::new(0));
     let mut pipeline = VtkPipeline::new(Box::new(StaticSource(make_triangle())));
     pipeline.set_sink(Box::new(CountingSink(Arc::clone(&counter))));
-    pipeline.execute().unwrap();
+    pipeline.execute().expect("infallible: validated precondition");
     assert_eq!(counter.load(Ordering::SeqCst), 1);
 }
 
@@ -137,7 +137,7 @@ fn test_pipeline_filter_transforms_data() {
     let delta = 10.0_f32;
     let mut pipeline = VtkPipeline::new(Box::new(StaticSource(make_triangle())));
     pipeline.add_filter(Box::new(TranslateFilter(delta)));
-    let out = pipeline.execute().unwrap();
+    let out = pipeline.execute().expect("infallible: validated precondition");
     let VtkDataObject::PolyData(p) = out else {
         panic!("expected PolyData variant")
     };
@@ -164,7 +164,7 @@ fn test_pipeline_chained_filters_cumulative() {
     let mut pipeline = VtkPipeline::new(Box::new(StaticSource(make_triangle())));
     pipeline.add_filter(Box::new(TranslateFilter(1.0)));
     pipeline.add_filter(Box::new(TranslateFilter(2.0)));
-    let out = pipeline.execute().unwrap();
+    let out = pipeline.execute().expect("infallible: validated precondition");
     let VtkDataObject::PolyData(p) = out else {
         panic!("expected PolyData variant")
     };
@@ -178,7 +178,7 @@ fn test_pipeline_chained_filters_cumulative() {
 fn test_pipeline_modifiable_mtime_updates_on_execute() {
     let mut pipeline = VtkPipeline::new(Box::new(StaticSource(make_triangle())));
     let mtime_before = pipeline.get_mtime();
-    pipeline.execute().unwrap();
+    pipeline.execute().expect("infallible: validated precondition");
     let mtime_after = pipeline.get_mtime();
     assert!(
         mtime_after > mtime_before,
@@ -209,7 +209,7 @@ fn test_pipeline_observable_fires_start_and_end_events() {
         }),
     );
 
-    pipeline.execute().unwrap();
+    pipeline.execute().expect("infallible: validated precondition");
 
     assert_eq!(
         start_count.load(Ordering::SeqCst),
@@ -275,11 +275,11 @@ fn test_pipeline_observable_fires_error_event_on_failure() {
 fn test_pipeline_execute_if_needed_skips_when_up_to_date() {
     let mut pipeline = VtkPipeline::new(Box::new(StaticSource(make_triangle())));
     // First execution stamps the pipeline's mtime.
-    pipeline.execute().unwrap();
+    pipeline.execute().expect("infallible: validated precondition");
     let mtime_after_execute = pipeline.get_mtime();
 
     // No source or filter mtime change since last execute → no update needed.
-    let result = pipeline.execute_if_needed().unwrap();
+    let result = pipeline.execute_if_needed().expect("infallible: validated precondition");
     assert!(
         result.is_none(),
         "execute_if_needed must return Ok(None) when no stage mtime exceeds pipeline mtime ({})",
@@ -295,7 +295,7 @@ fn test_pipeline_execute_if_needed_executes_when_stale() {
     let source = MutatingSource::new(make_triangle());
     let source_mtime = source.mtime();
     let mut pipeline = VtkPipeline::new(Box::new(source));
-    pipeline.execute().unwrap();
+    pipeline.execute().expect("infallible: validated precondition");
     let pipeline_mtime = pipeline.get_mtime();
 
     assert!(
@@ -306,7 +306,7 @@ fn test_pipeline_execute_if_needed_executes_when_stale() {
     );
 
     // No stage mtime change since execute → no re-execution.
-    let result = pipeline.execute_if_needed().unwrap();
+    let result = pipeline.execute_if_needed().expect("infallible: validated precondition");
     assert!(
         result.is_none(),
         "execute_if_needed must skip when no stage mtime exceeds pipeline mtime"
@@ -329,7 +329,7 @@ fn test_pipeline_filter_mtime_default_zero() {
 #[test]
 fn test_add_filter_bumps_mtime_causing_execute_if_needed_to_rerun() {
     let mut pipeline = VtkPipeline::new(Box::new(StaticSource(make_triangle())));
-    pipeline.execute().unwrap();
+    pipeline.execute().expect("infallible: validated precondition");
     let mtime_after_first_execute = pipeline.get_mtime();
 
     // add_filter must advance mtime beyond the post-execute stamp.
@@ -385,12 +385,12 @@ fn test_pipeline_source_mtime_change_triggers_rerun() {
     let mut pipeline = VtkPipeline::new(Box::new(source));
 
     // First execute: stamps pipeline mtime.
-    pipeline.execute().unwrap();
+    pipeline.execute().expect("infallible: validated precondition");
     let pipeline_mtime = pipeline.get_mtime();
 
     // First execute_if_needed: source.mtime() is called once (count=0),
     // returns the initial value which is < pipeline_mtime. No re-execution.
-    let result1 = pipeline.execute_if_needed().unwrap();
+    let result1 = pipeline.execute_if_needed().expect("infallible: validated precondition");
     assert!(
         result1.is_none(),
         "no re-execution when source mtime ({}) <= pipeline mtime ({})",
@@ -400,7 +400,7 @@ fn test_pipeline_source_mtime_change_triggers_rerun() {
 
     // Second execute_if_needed: source.mtime() is called again (count=1),
     // which bumps the source mtime. Now source.mtime > pipeline_mtime.
-    let result2 = pipeline.execute_if_needed().unwrap();
+    let result2 = pipeline.execute_if_needed().expect("infallible: validated precondition");
     assert!(
         result2.is_some(),
         "execute_if_needed must re-execute when source mtime advances beyond pipeline mtime"
@@ -415,7 +415,7 @@ fn test_pipeline_filter_parameter_change_triggers_rerun() {
 
     let mut pipeline = VtkPipeline::new(Box::new(StaticSource(make_triangle())));
     pipeline.add_filter(Box::new(SmoothFilter::new(0.5, 0)));
-    pipeline.execute().unwrap();
+    pipeline.execute().expect("infallible: validated precondition");
     let pipeline_mtime = pipeline.get_mtime();
 
     let filter = pipeline
@@ -435,14 +435,14 @@ fn test_pipeline_filter_parameter_change_triggers_rerun() {
         filter_mtime_after.value()
     );
 
-    let result = pipeline.execute_if_needed().unwrap();
+    let result = pipeline.execute_if_needed().expect("infallible: validated precondition");
     assert!(
         result.is_some(),
         "execute_if_needed must re-execute when a boxed filter mtime advances beyond pipeline mtime ({})",
         pipeline_mtime.value()
     );
 
-    let VtkDataObject::PolyData(p) = result.unwrap() else {
+    let VtkDataObject::PolyData(p) = result.expect("infallible: validated precondition") else {
         panic!("expected PolyData variant")
     };
     assert!(

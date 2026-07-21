@@ -20,7 +20,7 @@ fn minimal_vol(
         direction: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
         metadata: None,
         source: None,
-        modality: Some(ArrayString::from("PT").unwrap()),
+        modality: Some(ArrayString::from("PT").expect("infallible: validated precondition")),
         patient_name: None,
         patient_id: None,
         study_date: None,
@@ -30,7 +30,7 @@ fn minimal_vol(
         injected_dose_bq,
         radionuclide_half_life_s,
         radiopharmaceutical_start_time: None,
-        decay_correction: decay_correction.map(|s| ArrayString::from(s).unwrap()),
+        decay_correction: decay_correction.map(|s| ArrayString::from(s).expect("infallible: validated precondition")),
     }
 }
 
@@ -110,7 +110,7 @@ fn from_loaded_volume_complete_fields_returns_some_with_correct_values() {
 #[test]
 fn from_loaded_volume_absent_decay_correction_defaults_to_none_kind() {
     let vol = minimal_vol(Some(70.0), Some(370_000_000.0), Some(F18_HALF_LIFE_S), None);
-    let pet = PetAcquisitionParams::from_loaded_volume(&vol).unwrap();
+    let pet = PetAcquisitionParams::from_loaded_volume(&vol).expect("infallible: validated precondition");
     assert_eq!(
         pet.decay_correction,
         DecayCorrectionKind::None,
@@ -293,7 +293,7 @@ fn pixel_to_suvbw_none_correction_exceeds_start_correction() {
 #[test]
 fn parse_dicom_tm_hhmmss_gives_correct_seconds() {
     // 13:30:45 = 13*3600 + 30*60 + 45 = 48645 s
-    let s = parse_dicom_tm("133045").unwrap();
+    let s = parse_dicom_tm("133045").expect("infallible: validated precondition");
     assert!(
         (s - 48_645.0).abs() < 1e-9,
         "133045 must be 48645 s; got {s}"
@@ -303,21 +303,21 @@ fn parse_dicom_tm_hhmmss_gives_correct_seconds() {
 #[test]
 fn parse_dicom_tm_hhmm_gives_correct_seconds() {
     // 08:00 = 8*3600 = 28800 s
-    let s = parse_dicom_tm("0800").unwrap();
+    let s = parse_dicom_tm("0800").expect("infallible: validated precondition");
     assert!((s - 28_800.0).abs() < 1e-9, "0800 must be 28800 s; got {s}");
 }
 
 #[test]
 fn parse_dicom_tm_hh_gives_correct_seconds() {
     // 06h = 6*3600 = 21600 s
-    let s = parse_dicom_tm("06").unwrap();
+    let s = parse_dicom_tm("06").expect("infallible: validated precondition");
     assert!((s - 21_600.0).abs() < 1e-9, "06 must be 21600 s; got {s}");
 }
 
 #[test]
 fn parse_dicom_tm_fractional_seconds_parsed_correctly() {
     // 12:00:00.500 = 43200.5 s
-    let s = parse_dicom_tm("120000.500").unwrap();
+    let s = parse_dicom_tm("120000.500").expect("infallible: validated precondition");
     assert!(
         (s - 43_200.5).abs() < 1e-9,
         "120000.500 must be 43200.5 s; got {s}"
@@ -366,8 +366,8 @@ fn delta_t_s_from_vol_parses_both_fields() {
         Some(F18_HALF_LIFE_S),
         Some("START"),
     );
-    vol.radiopharmaceutical_start_time = Some(ArrayString::from("080000").unwrap());
-    vol.series_time = Some(ArrayString::from("090000").unwrap());
+    vol.radiopharmaceutical_start_time = Some(ArrayString::from("080000").expect("infallible: validated precondition"));
+    vol.series_time = Some(ArrayString::from("090000").expect("infallible: validated precondition"));
     let delta = PetAcquisitionParams::delta_t_s_from_vol(&vol);
     assert!(
         (delta - 3_600.0).abs() < 1e-9,

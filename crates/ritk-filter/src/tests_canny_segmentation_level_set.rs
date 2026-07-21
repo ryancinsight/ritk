@@ -8,7 +8,7 @@ fn make_image(vals: Vec<f32>, dims: [usize; 3]) -> Image<f32, B, 3> {
 }
 
 fn extract_vals(img: &Image<f32, B, 3>) -> Vec<f32> {
-    let (vals, _) = ritk_tensor_ops::extract_vec(img).unwrap();
+    let (vals, _) = ritk_tensor_ops::extract_vec(img).expect("infallible: validated precondition");
     vals
 }
 
@@ -59,7 +59,7 @@ fn test_canny_seg_level_set_structural() {
         iso_surface_value: 0.0,
     };
 
-    let out = filter.apply(&phi_img, &feat_img).unwrap();
+    let out = filter.apply(&phi_img, &feat_img).expect("infallible: validated precondition");
     let result = extract_vals(&out);
 
     assert_eq!(result.len(), ny * nx, "output size must match input");
@@ -123,7 +123,7 @@ fn test_canny_seg_level_set_3d_finite() {
         ..Default::default()
     }
     .apply(&phi_img, &feat_img)
-    .unwrap();
+    .expect("infallible: validated precondition");
     let result = extract_vals(&out);
 
     assert_eq!(out.shape(), [nz, ny, nx]);

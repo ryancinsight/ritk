@@ -18,7 +18,7 @@ fn ncc_self_match_is_one() {
     let image = img(tpl.clone(), dims);
     let template = img(tpl, dims);
     let mask = img(vec![1.0; 9], dims);
-    let out = normalized_correlation(&image, &mask, &template).unwrap();
+    let out = normalized_correlation(&image, &mask, &template).expect("infallible: validated precondition");
     let (v, _) = extract_vec_infallible(&out);
     let center = 3 + 1; // (z,y,x) = (0,1,1); flat index = 0*9 + 1*3 + 1
     assert!(
@@ -40,7 +40,7 @@ fn ncc_affine_invariance() {
         &img(vec![1.0; 9], dims),
         &img(tpl, dims),
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let (v, _) = extract_vec_infallible(&out);
     assert!(
         (v[4] - 1.0).abs() < 1e-5,
@@ -57,7 +57,7 @@ fn ncc_masked_out_is_zero() {
     let mut mask = vec![1.0f32; 9];
     mask[0] = 0.0;
     let out =
-        normalized_correlation(&img(tpl.clone(), dims), &img(mask, dims), &img(tpl, dims)).unwrap();
+        normalized_correlation(&img(tpl.clone(), dims), &img(mask, dims), &img(tpl, dims)).expect("infallible: validated precondition");
     let (v, _) = extract_vec_infallible(&out);
     assert_eq!(v[0], 0.0, "masked-out voxel is zero");
 }

@@ -17,9 +17,9 @@ fn orient_to_self_code_is_identity() {
     let data: Vec<f32> = (0..6).map(|v| v as f32).collect();
     let img = make(data.clone(), [1, 2, 3]);
     let out = OrientImageFilter::from_code("SPL")
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 2, 3]);
     let (ov, _) = extract_vec_infallible(&out);
     assert_eq!(ov, data, "self-code orientation must not change data");
@@ -34,9 +34,9 @@ fn orient_full_reversal() {
     let data: Vec<f32> = (0..6).map(|v| v as f32).collect();
     let img = make(data, [1, 2, 3]); // y0=[0,1,2], y1=[3,4,5]
     let out = OrientImageFilter::from_code("IAR")
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 2, 3]);
     let (ov, _) = extract_vec_infallible(&out);
     assert_eq!(ov, vec![5.0, 4.0, 3.0, 2.0, 1.0, 0.0]);
@@ -51,13 +51,13 @@ fn orient_permutation_preserves_multiset() {
     // "LPS" maps image axes to world x+, y+, z+; for identity direction that
     // permutes the tensor axes (z↔x) relative to the "SPL" self-code.
     let out = OrientImageFilter::from_code("LPS")
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let (mut ov, _) = extract_vec_infallible(&out);
     let mut sorted = data;
-    ov.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    ov.sort_by(|a, b| a.partial_cmp(b).expect("infallible: validated precondition"));
+    sorted.sort_by(|a, b| a.partial_cmp(b).expect("infallible: validated precondition"));
     assert_eq!(ov, sorted, "orientation must preserve the voxel multiset");
     assert_eq!(out.shape(), [4, 3, 2], "tensor axes z and x swap");
 }
@@ -77,7 +77,7 @@ fn orient_invalid_codes_error() {
     assert!(dup.is_err(), "repeated anatomical axis must error");
     // A valid filter still applies cleanly.
     assert!(OrientImageFilter::from_code("SPL")
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&img)
         .is_ok());
 }

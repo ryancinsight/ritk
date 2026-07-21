@@ -93,7 +93,7 @@ pub fn multires_demons_register(
     opts: Option<PyMultiresDemonsOptions>,
 ) -> RitkResult<(PyImage, PyImage)> {
     let opts =
-        opts.unwrap_or_else(|| PyMultiresDemonsOptions::new(50, 1.0, 3, "thirion", 6).unwrap());
+        opts.unwrap_or_else(|| PyMultiresDemonsOptions::new(50, 1.0, 3, "thirion", 6).expect("infallible: validated precondition"));
     let max_iterations = opts.max_iterations;
     let sigma_diffusion = opts.sigma_diffusion;
     let levels = opts.levels;

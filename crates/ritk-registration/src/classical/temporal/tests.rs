@@ -12,9 +12,9 @@ use super::sync::TemporalSync;
 #[test]
 fn test_sync_identical_signals() {
     let sync = TemporalSync::default();
-    let signal = Array1::from_vec([100], (0..100).map(|i| (i as f64).sin()).collect()).unwrap();
+    let signal = Array1::from_vec([100], (0..100).map(|i| (i as f64).sin()).collect()).expect("infallible: validated precondition");
 
-    let (shift, metrics) = sync.synchronize(&signal, &signal).unwrap();
+    let (shift, metrics) = sync.synchronize(&signal, &signal).expect("infallible: validated precondition");
 
     // Identical signals should have zero shift
     assert!(
@@ -42,13 +42,13 @@ fn test_sync_lagged_signal() {
     let mut signal2 = Array1::zeros([n]);
 
     for i in 0..n {
-        *signal1.get_mut([i]).unwrap() = (i as f64 * 0.1).sin();
+        *signal1.get_mut([i]).expect("valid index") = (i as f64 * 0.1).sin();
         if i >= 5 {
-            *signal2.get_mut([i]).unwrap() = ((i - 5) as f64 * 0.1).sin();
+            *signal2.get_mut([i]).expect("valid index") = ((i - 5) as f64 * 0.1).sin();
         }
     }
 
-    let (shift, _metrics) = sync.synchronize(&signal1, &signal2).unwrap();
+    let (shift, _metrics) = sync.synchronize(&signal1, &signal2).expect("infallible: validated precondition");
 
     // Shift should be approximately 5 * frame_spacing
     let expected_shift = 5.0 * sync.config.frame_spacing;
@@ -66,7 +66,7 @@ fn test_sync_constant_signals() {
     let signal1 = Array1::from_elem([100], 1.0);
     let signal2 = Array1::from_elem([100], 1.0);
 
-    let (shift, metrics) = sync.synchronize(&signal1, &signal2).unwrap();
+    let (shift, metrics) = sync.synchronize(&signal1, &signal2).expect("infallible: validated precondition");
 
     assert!(
         shift.abs() < 1e-6,
@@ -106,10 +106,10 @@ fn test_success_rate_thresholds() {
     let sync = TemporalSync::with_config(config);
 
     // Both signals constant - should have high stability
-    let signal1 = Array1::from_vec([100], (0..100).map(|i| i as f64).collect()).unwrap();
-    let signal2 = Array1::from_vec([100], (0..100).map(|i| i as f64).collect()).unwrap();
+    let signal1 = Array1::from_vec([100], (0..100).map(|i| i as f64).collect()).expect("valid dimension");
+    let signal2 = Array1::from_vec([100], (0..100).map(|i| i as f64).collect()).expect("valid dimension");
 
-    let (_, metrics) = sync.synchronize(&signal1, &signal2).unwrap();
+    let (_, metrics) = sync.synchronize(&signal1, &signal2).expect("infallible: validated precondition");
     assert!(
         metrics.sync_success_rate >= 0.5,
         "Success rate should be at least 0.5, got {}",

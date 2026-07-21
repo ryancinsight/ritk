@@ -22,7 +22,7 @@ fn roi_full_image_is_identity() {
     let img = make_image(vals.clone(), [3, 3, 3]);
     let out = RegionOfInterestImageFilter::new([0, 0, 0], [3, 3, 3])
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [3, 3, 3]);
     let v = voxels(&out);
     for (i, (&a, &b)) in v.iter().zip(vals.iter()).enumerate() {
@@ -37,7 +37,7 @@ fn roi_extracts_correct_sub_volume() {
     let img = make_image(vals, [3, 3, 3]);
     let out = RegionOfInterestImageFilter::new([1, 1, 1], [2, 2, 2])
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [2, 2, 2]);
     let v = voxels(&out);
     // Voxel (1,1,1) in 3×3×3 = index 1*9 + 1*3 + 1 = 13 → value 14
@@ -55,7 +55,7 @@ fn roi_single_voxel_extract() {
     // Extract voxel (1,1,1) — index 7, value 8
     let out = RegionOfInterestImageFilter::new([1, 1, 1], [1, 1, 1])
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 1, 1]);
     let v = voxels(&out);
     assert_eq!(v[0], 8.0, "expected voxel (1,1,1) = 8");
@@ -78,7 +78,7 @@ fn roi_updates_origin_with_identity_direction() {
     .expect("invariant: fixture tensor has the declared rank");
     let out = RegionOfInterestImageFilter::new([1, 1, 1], [2, 2, 2])
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let o = out.origin();
     assert!(
         (o[0] - 2.0).abs() < 1e-9,

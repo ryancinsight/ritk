@@ -348,7 +348,7 @@ fn assemble_polylines(segments: Vec<[ContourPoint; 2]>) -> Vec<Contour> {
 
         // Extend forward from pts.last().
         loop {
-            let tip = *pts.last().unwrap();
+            let tip = *pts.last().expect("infallible: validated precondition");
             let tip_key = to_key(tip);
             let next = adj
                 .get(&tip_key)

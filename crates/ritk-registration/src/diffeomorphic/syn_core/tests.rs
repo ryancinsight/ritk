@@ -47,7 +47,7 @@ fn identity_registration_high_cc() {
         ..Default::default()
     });
 
-    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).unwrap();
+    let result = reg.register(&image, &image, dims, [1.0, 1.0, 1.0]).expect("infallible: validated precondition");
     assert!(
         result.final_cc > 0.9,
         "identity registration should have CC > 0.9, got {}",
@@ -97,7 +97,7 @@ fn syn_registration_non_divergence_and_non_trivial_fields() {
 
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     let fwd_rms_x = field_rms(&result.forward_field.x);
     let inv_rms_x = field_rms(&result.inverse_field.x);
@@ -143,7 +143,7 @@ fn forward_inverse_field_symmetry() {
 
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     let fwd_rms = field_rms(&result.forward_field.x);
     let inv_rms = field_rms(&result.inverse_field.x);
@@ -179,7 +179,7 @@ fn velocity_fields_finite() {
 
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     for &v in result
         .forward_field
@@ -282,7 +282,7 @@ fn syn_recovers_translation_ncc_improves() {
 
     let result = reg
         .register(&fixed, &moving, dims, [1.0, 1.0, 1.0])
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     assert!(
         result.final_cc > ncc_before,

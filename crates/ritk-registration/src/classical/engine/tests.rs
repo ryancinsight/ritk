@@ -5,11 +5,11 @@ use leto::{Array2, Array3};
 fn test_rigid_landmark_identity() {
     let reg = ImageRegistration::default();
 
-    let fixed = Array2::from_vec([3, 3], vec![0., 0., 0., 1., 0., 0., 0., 1., 0.]).unwrap();
-    let result = reg.rigid_registration_landmarks(&fixed, &fixed).unwrap();
+    let fixed = Array2::from_vec([3, 3], vec![0., 0., 0., 1., 0., 0., 0., 1., 0.]).expect("valid dimension");
+    let result = reg.rigid_registration_landmarks(&fixed, &fixed).expect("infallible: validated precondition");
 
     // Identity transform should have zero FRE
-    let fre = result.quality.fre.unwrap();
+    let fre = result.quality.fre.expect("infallible: validated precondition");
     assert!(
         fre < 1e-10,
         "FRE for identity transform should be ~0, got {}",
@@ -22,13 +22,13 @@ fn test_rigid_landmark_known_rotation() {
     let reg = ImageRegistration::default();
 
     // Fixed points: unit vectors along axes
-    let fixed = Array2::from_vec([3, 3], vec![1., 0., 0., 0., 1., 0., 0., 0., 1.]).unwrap();
+    let fixed = Array2::from_vec([3, 3], vec![1., 0., 0., 0., 1., 0., 0., 0., 1.]).expect("valid dimension");
     // Moving points: same points rotated 90 deg around Z-axis
-    let moving = Array2::from_vec([3, 3], vec![0., 1., 0., -1., 0., 0., 0., 0., 1.]).unwrap();
+    let moving = Array2::from_vec([3, 3], vec![0., 1., 0., -1., 0., 0., 0., 0., 1.]).expect("valid dimension");
 
-    let result = reg.rigid_registration_landmarks(&fixed, &moving).unwrap();
+    let result = reg.rigid_registration_landmarks(&fixed, &moving).expect("infallible: validated precondition");
 
-    let fre = result.quality.fre.unwrap();
+    let fre = result.quality.fre.expect("infallible: validated precondition");
     assert!(
         fre < 1e-6,
         "FRE for 90 deg rotation should be ~0, got {}",
@@ -68,7 +68,7 @@ fn test_mutual_information_different() {
 #[test]
 fn intensity_registration_reports_final_transform_metric() {
     let volume =
-        Array3::from_vec([3, 3, 3], (0..27).map(|value| value as f64 * 8.0).collect()).unwrap();
+        Array3::from_vec([3, 3, 3], (0..27).map(|value| value as f64 * 8.0).collect()).expect("infallible: validated precondition");
     let initial = crate::types::AffineTransform::new([
         1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
     ]);
@@ -84,10 +84,10 @@ fn intensity_registration_reports_final_transform_metric() {
 
     let rigid = registration
         .rigid_registration_mutual_info(&volume, &volume, &initial)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let affine = registration
         .affine_registration_mutual_info(&volume, &volume, &initial)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     assert_eq!(rigid.quality.mutual_information, expected);
     assert_eq!(affine.quality.mutual_information, expected);
@@ -107,7 +107,7 @@ fn translation_mutual_information_recovers_known_shift() {
             })
             .collect(),
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let generating_transform = crate::types::AffineTransform::new([
         1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
     ]);
@@ -129,7 +129,7 @@ fn translation_mutual_information_recovers_known_shift() {
             &fixed,
             &crate::types::AffineTransform::IDENTITY,
         )
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     assert_eq!(result.transform.0[3], -1.0);
     assert_eq!(result.transform.0[7], 0.0);

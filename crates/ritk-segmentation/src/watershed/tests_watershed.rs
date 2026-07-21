@@ -25,7 +25,7 @@ fn test_constant_image_single_basin() {
     let n: usize = dims.iter().product();
     let data = vec![5.0_f32; n];
     let image = make_image_3d(data, dims);
-    let result = WatershedSegmentation::new().apply(&image).unwrap();
+    let result = WatershedSegmentation::new().apply(&image).expect("infallible: validated precondition");
     let labels = get_labels(&result);
 
     // Every voxel should have the same non-zero label.
@@ -47,7 +47,7 @@ fn test_two_minima_produce_two_basins_with_boundary() {
     let dims = [1, 1, 5];
     let data = vec![0.0, 10.0, 100.0, 10.0, 0.0];
     let image = make_image_3d(data, dims);
-    let result = WatershedSegmentation::new().apply(&image).unwrap();
+    let result = WatershedSegmentation::new().apply(&image).expect("infallible: validated precondition");
     let labels = get_labels(&result);
 
     // Voxels 0 and 4 have the lowest intensities; they get distinct labels.
@@ -76,7 +76,7 @@ fn test_output_shape_matches_input() {
     let n: usize = dims.iter().product();
     let data: Vec<f32> = (0..n).map(|i| (i % 7) as f32 * 10.0).collect();
     let image = make_image_3d(data, dims);
-    let result = WatershedSegmentation::new().apply(&image).unwrap();
+    let result = WatershedSegmentation::new().apply(&image).expect("infallible: validated precondition");
     assert_eq!(result.shape(), dims, "output shape must match input shape");
 }
 
@@ -87,7 +87,7 @@ fn test_spatial_metadata_preserved() {
     let dims = [2, 2, 2];
     let data = vec![0.0_f32; 8];
     let image = make_image_3d(data, dims);
-    let result = WatershedSegmentation::new().apply(&image).unwrap();
+    let result = WatershedSegmentation::new().apply(&image).expect("infallible: validated precondition");
 
     assert_eq!(result.origin(), image.origin());
     assert_eq!(result.spacing(), image.spacing());
@@ -113,7 +113,7 @@ fn test_labels_are_nonneg_integers() {
         })
         .collect();
     let image = make_image_3d(data, dims);
-    let result = WatershedSegmentation::new().apply(&image).unwrap();
+    let result = WatershedSegmentation::new().apply(&image).expect("infallible: validated precondition");
     let labels = get_labels(&result);
 
     for (i, &v) in labels.iter().enumerate() {
@@ -133,7 +133,7 @@ fn test_single_voxel_single_basin() {
     let dims = [1, 1, 1];
     let data = vec![42.0_f32];
     let image = make_image_3d(data, dims);
-    let result = WatershedSegmentation::new().apply(&image).unwrap();
+    let result = WatershedSegmentation::new().apply(&image).expect("infallible: validated precondition");
     let labels = get_labels(&result);
     assert_eq!(labels.len(), 1);
     assert_eq!(labels[0], 1.0, "single voxel must be labelled 1");
@@ -157,18 +157,18 @@ fn native_and_legacy_execution_are_exact_and_deterministic() {
         direction,
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let filter = WatershedSegmentation::new();
-    let expected = filter.apply(&legacy).unwrap();
-    let first = filter.apply_native(&native, &SequentialBackend).unwrap();
-    let second = filter.apply_native(&native, &SequentialBackend).unwrap();
+    let expected = filter.apply(&legacy).expect("infallible: validated precondition");
+    let first = filter.apply_native(&native, &SequentialBackend).expect("infallible: validated precondition");
+    let second = filter.apply_native(&native, &SequentialBackend).expect("infallible: validated precondition");
     assert_eq!(
-        first.data_slice().unwrap(),
+        first.data_slice().expect("infallible: validated precondition"),
         expected
             .data_slice()
             .expect("invariant: contiguous host storage")
     );
-    assert_eq!(second.data_slice().unwrap(), first.data_slice().unwrap());
+    assert_eq!(second.data_slice().expect("infallible: validated precondition"), first.data_slice().expect("infallible: validated precondition"));
     assert_eq!(*first.origin(), origin);
     assert_eq!(*first.spacing(), spacing);
     assert_eq!(*first.direction(), direction);
@@ -216,7 +216,7 @@ fn plateau_flooding_matches_simpleitk_oracle_exactly() {
     // SimpleITK MorphologicalWatershed(level=0, markWatershedLine=true,
     // fullyConnected=false) returns this symmetric geodesic split.
     let image = make_image_3d(vec![0.0, 100.0, 100.0, 100.0, 0.0], [1, 1, 5]);
-    let labels = WatershedSegmentation::new().apply(&image).unwrap();
+    let labels = WatershedSegmentation::new().apply(&image).expect("infallible: validated precondition");
     assert_eq!(
         labels
             .data_slice()
@@ -229,8 +229,8 @@ fn plateau_flooding_matches_simpleitk_oracle_exactly() {
 fn signed_zero_substitution_preserves_plateau_partition() {
     let positive = make_image_3d(vec![0.0, 0.0, 0.0, 1.0, 0.0], [1, 1, 5]);
     let signed = make_image_3d(vec![-0.0, 0.0, -0.0, 1.0, -0.0], [1, 1, 5]);
-    let positive_labels = WatershedSegmentation::new().apply(&positive).unwrap();
-    let signed_labels = WatershedSegmentation::new().apply(&signed).unwrap();
+    let positive_labels = WatershedSegmentation::new().apply(&positive).expect("infallible: validated precondition");
+    let signed_labels = WatershedSegmentation::new().apply(&signed).expect("infallible: validated precondition");
     assert_eq!(
         signed_labels
             .data_slice()
@@ -245,8 +245,8 @@ fn signed_zero_substitution_preserves_plateau_partition() {
 fn plateau_partition_is_reversal_invariant() {
     let forward = make_image_3d(vec![0.0, 5.0, 5.0, 5.0, 1.0], [1, 1, 5]);
     let reverse = make_image_3d(vec![1.0, 5.0, 5.0, 5.0, 0.0], [1, 1, 5]);
-    let forward_labels = WatershedSegmentation::new().apply(&forward).unwrap();
-    let reverse_labels = WatershedSegmentation::new().apply(&reverse).unwrap();
+    let forward_labels = WatershedSegmentation::new().apply(&forward).expect("infallible: validated precondition");
+    let reverse_labels = WatershedSegmentation::new().apply(&reverse).expect("infallible: validated precondition");
     let mut reflected = reverse_labels
         .data_slice()
         .expect("invariant: contiguous host storage")

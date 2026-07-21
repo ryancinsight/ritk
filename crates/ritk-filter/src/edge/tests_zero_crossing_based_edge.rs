@@ -25,7 +25,7 @@ fn zero_crossing_edge_output_is_binary() {
         }
     }
     let out = ZeroCrossingBasedEdgeDetectionFilter::default().apply(&make(vals, [nz, ny, nx]));
-    let (ov, _) = extract_vec_infallible(&out.unwrap());
+    let (ov, _) = extract_vec_infallible(&out.expect("infallible: validated precondition"));
     assert!(
         ov.iter().all(|&v| v == 0.0 || v == 1.0),
         "output must be binary {{0, 1}}"
@@ -48,7 +48,7 @@ fn zero_crossing_edge_custom_labels() {
         }
     }
     let f = ZeroCrossingBasedEdgeDetectionFilter::new(1.0, 0.01, 7.0, 3.0);
-    let out = f.apply(&make(vals, [nz, ny, nx])).unwrap();
+    let out = f.apply(&make(vals, [nz, ny, nx])).expect("infallible: validated precondition");
     let (ov, _) = extract_vec_infallible(&out);
     assert!(
         ov.iter().all(|&v| v == 7.0 || v == 3.0),
@@ -65,7 +65,7 @@ fn zero_crossing_edge_preserves_geometry() {
     let img = make(vals, dims);
     let out = ZeroCrossingBasedEdgeDetectionFilter::default()
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), dims);
     assert_eq!(out.spacing()[0], img.spacing()[0]);
 }

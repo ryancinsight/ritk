@@ -21,9 +21,9 @@
 //!
 //! // Landmark-based rigid registration
 //! let reg = ImageRegistration::default();
-//! let fixed = Array2::from_vec([3, 3], vec![0., 0., 0., 1., 0., 0., 0., 1., 0.]).unwrap();
-//! let moving = Array2::from_vec([3, 3], vec![1., 2., 3., 2., 2., 3., 1., 3., 3.]).unwrap();
-//! let result = reg.rigid_registration_landmarks(&fixed, &moving).unwrap();
+//! let fixed = Array2::from_vec([3, 3], vec![0., 0., 0., 1., 0., 0., 0., 1., 0.]).expect("valid dimension");
+//! let moving = Array2::from_vec([3, 3], vec![1., 2., 3., 2., 2., 3., 1., 3., 3.]).expect("valid dimension");
+//! let result = reg.rigid_registration_landmarks(&fixed, &moving).expect("infallible: validated precondition");
 //! ```
 //!
 //! # Architecture

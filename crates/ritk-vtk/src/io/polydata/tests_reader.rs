@@ -22,7 +22,7 @@ POLYGONS 1 4\n\
 
 #[test]
 fn test_read_ascii_triangle() {
-    let poly = parse_str(TRIANGLE_ASCII).unwrap();
+    let poly = parse_str(TRIANGLE_ASCII).expect("infallible: validated precondition");
     assert_eq!(poly.points.len(), 3);
     assert!((poly.points[0][0]).abs() < 1e-6);
     assert!((poly.points[1][0] - 1.0).abs() < 1e-6);
@@ -36,7 +36,7 @@ fn test_read_ascii_polydata_with_lines() {
     let s = "# vtk DataFile Version 2.0\ntest\nASCII\nDATASET POLYDATA\n\
 POINTS 3 float\n0.0 0.0 0.0\n1.0 0.0 0.0\n2.0 0.0 0.0\n\
 LINES 1 3\n2 0 1\n";
-    let poly = parse_str(s).unwrap();
+    let poly = parse_str(s).expect("infallible: validated precondition");
     assert_eq!(poly.lines.len(), 1);
     assert_eq!(poly.lines[0], vec![0u32, 1]);
 }
@@ -50,8 +50,8 @@ POINT_DATA 3\n\
 SCALARS intensity float 1\n\
 LOOKUP_TABLE default\n\
 10.0\n20.0\n30.0\n";
-    let poly = parse_str(s).unwrap();
-    let attr = poly.point_data.get("intensity").unwrap();
+    let poly = parse_str(s).expect("infallible: validated precondition");
+    let attr = poly.point_data.get("intensity").expect("valid index");
     match attr {
         AttributeArray::Scalars {
             values,
@@ -86,8 +86,8 @@ CELL_DATA 1\n\
 SCALARS pressure float 1\n\
 LOOKUP_TABLE default\n\
 42.5\n";
-    let poly = parse_str(s).unwrap();
-    let attr = poly.cell_data.get("pressure").unwrap();
+    let poly = parse_str(s).expect("infallible: validated precondition");
+    let attr = poly.cell_data.get("pressure").expect("valid index");
     match attr {
         AttributeArray::Scalars { values, .. } => {
             assert!(
@@ -106,7 +106,7 @@ fn test_read_ascii_multiple_cell_types() {
 POINTS 4 float\n0 0 0\n1 0 0\n1 1 0\n0 1 0\n\
 VERTICES 2 4\n1 0\n1 1\n\
 POLYGONS 1 5\n4 0 1 2 3\n";
-    let poly = parse_str(s).unwrap();
+    let poly = parse_str(s).expect("infallible: validated precondition");
     assert_eq!(poly.vertices.len(), 2);
     assert_eq!(poly.polygons.len(), 1);
     assert_eq!(poly.num_cells(), 3);
@@ -122,8 +122,8 @@ VECTORS velocity float\n\
 1.0 0.0 0.0\n0.0 1.0 0.0\n\
 NORMALS norm float\n\
 0.0 0.0 1.0\n0.0 0.0 1.0\n";
-    let poly = parse_str(s).unwrap();
-    match poly.point_data.get("velocity").unwrap() {
+    let poly = parse_str(s).expect("infallible: validated precondition");
+    match poly.point_data.get("velocity").expect("valid index") {
         AttributeArray::Vectors { values } => {
             assert_eq!(values.len(), 2);
             assert!((values[0][0] - 1.0).abs() < 1e-6);
@@ -131,7 +131,7 @@ NORMALS norm float\n\
         }
         _ => panic!("expected Vectors"),
     }
-    match poly.point_data.get("norm").unwrap() {
+    match poly.point_data.get("norm").expect("valid index") {
         AttributeArray::Normals { values } => {
             assert_eq!(values.len(), 2);
             assert!((values[0][2] - 1.0).abs() < 1e-6);

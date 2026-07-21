@@ -13,7 +13,7 @@
 //! All functions raise `IOError` on read/write failure.
 
 use crate::errors::{RitkPyError, RitkResult};
-use numpy::{ndarray::Array2, IntoPyArray};
+use numpy::{PyArray1, PyArrayMethods};
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 use ritk_io::{
@@ -47,14 +47,15 @@ impl PyMesh {
     /// Point coordinates as a float32 numpy array of shape [N, 3].
     #[getter]
     fn points<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, numpy::PyArray2<f32>>> {
-        let n = self.inner.points.len();
-        let mut arr = Array2::<f32>::zeros((n, 3));
-        for (i, p) in self.inner.points.iter().enumerate() {
-            arr[[i, 0]] = p[0];
-            arr[[i, 1]] = p[1];
-            arr[[i, 2]] = p[2];
+        let mut data = Vec::with_capacity(self.inner.points.len() * 3);
+        for p in &self.inner.points {
+            data.push(p[0]);
+            data.push(p[1]);
+            data.push(p[2]);
         }
-        Ok(arr.into_pyarray_bound(py))
+        Ok(PyArray1::<f32>::from_vec_bound(py, data)
+            .reshape([self.inner.points.len(), 3])
+            .map_err(|e| RitkPyError::runtime(e.to_string()))?)
     }
 
     /// Polygon connectivity as a Python list of lists of int indices.
@@ -77,13 +78,16 @@ impl PyMesh {
         use ritk_io::AttributeArray;
         if let Some(AttributeArray::Normals { values }) = self.inner.point_data.get("Normals") {
             let n = values.len();
-            let mut arr = Array2::<f32>::zeros((n, 3));
-            for (i, v) in values.iter().enumerate() {
-                arr[[i, 0]] = v[0];
-                arr[[i, 1]] = v[1];
-                arr[[i, 2]] = v[2];
+            let mut data = Vec::with_capacity(n * 3);
+            for v in values {
+                data.push(v[0]);
+                data.push(v[1]);
+                data.push(v[2]);
             }
-            Ok(Some(arr.into_pyarray_bound(py)))
+            let arr = PyArray1::<f32>::from_vec_bound(py, data)
+                .reshape([n, 3])
+                .map_err(|e| RitkPyError::runtime(e.to_string()))?;
+            Ok(Some(arr))
         } else {
             Ok(None)
         }

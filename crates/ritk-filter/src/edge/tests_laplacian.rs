@@ -16,7 +16,7 @@ fn test_uniform_zero_laplacian() {
     let vals = vec![7.0_f32; 8 * 8 * 8];
     let img = make_image(vals, dims, [1.0, 1.0, 1.0]);
     let filter = LaplacianFilter::unit();
-    let lap = filter.apply(&img).unwrap();
+    let lap = filter.apply(&img).expect("infallible: validated precondition");
 
     let (out, _) = extract_vec_infallible(&lap);
     for (i, &v) in out.iter().enumerate() {
@@ -40,7 +40,7 @@ fn test_quadratic_x_laplacian() {
         .collect();
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 1.0]);
     let filter = LaplacianFilter::unit();
-    let lap = filter.apply(&img).unwrap();
+    let lap = filter.apply(&img).expect("infallible: validated precondition");
 
     let (out, _) = extract_vec_infallible(&lap);
 
@@ -71,7 +71,7 @@ fn test_non_unit_spacing() {
         .collect();
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 2.0]);
     let filter = LaplacianFilter::new([1.0, 1.0, 2.0].into());
-    let lap = filter.apply(&img).unwrap();
+    let lap = filter.apply(&img).expect("infallible: validated precondition");
 
     let (out, _) = extract_vec_infallible(&lap);
 
@@ -104,7 +104,7 @@ fn test_isotropic_quadratic() {
         .collect();
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 1.0]);
     let filter = LaplacianFilter::unit();
-    let lap = filter.apply(&img).unwrap();
+    let lap = filter.apply(&img).expect("infallible: validated precondition");
 
     let (out, _) = extract_vec_infallible(&lap);
 
@@ -142,7 +142,7 @@ fn test_linear_field_zero_laplacian_interior() {
         .collect();
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 1.0]);
     let filter = LaplacianFilter::unit();
-    let lap = filter.apply(&img).unwrap();
+    let lap = filter.apply(&img).expect("infallible: validated precondition");
 
     let (out, _) = extract_vec_infallible(&lap);
     for iz in 1..nz - 1 {

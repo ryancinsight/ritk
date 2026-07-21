@@ -72,7 +72,7 @@ fn pad_extents_symmetric_split() {
 fn apply_zero_flux_neumann_default() {
     // 1x1x7 ramp; 7 -> next smooth = 8, total pad 1 -> low 0, high 1.
     let img = make_image(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0], [1, 1, 7]);
-    let out = FftPadImageFilter::default().apply(&img).unwrap();
+    let out = FftPadImageFilter::default().apply(&img).expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 1, 8]);
     // low pad 0, high pad 1 replicates the last edge voxel 7.0.
     assert_eq!(voxels(&out), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 7.0]);
@@ -86,7 +86,7 @@ fn apply_zero_boundary_constant_fill() {
     let img = make_image(vec![1.0; 11], [1, 1, 11]);
     let out = FftPadImageFilter::new(5, FftPadBoundary::Zero)
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 1, 12]);
     let v = voxels(&out);
     assert_eq!(v[..11], [1.0; 11]);
@@ -100,7 +100,7 @@ fn apply_periodic_boundary_wraps() {
     let img = make_image(data, [1, 1, 13]);
     let out = FftPadImageFilter::new(5, FftPadBoundary::Periodic)
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 1, 15]);
     let v = voxels(&out);
     // low pad 1 wraps the last voxel (12); high pad 1 wraps the first (0).
@@ -113,7 +113,7 @@ fn apply_periodic_boundary_wraps() {
 #[test]
 fn apply_smooth_shape_unchanged() {
     let img = make_image(vec![9.0; 8], [1, 1, 8]); // 8 = 2^3, smooth
-    let out = FftPadImageFilter::default().apply(&img).unwrap();
+    let out = FftPadImageFilter::default().apply(&img).expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 1, 8]);
     assert_eq!(voxels(&out), vec![9.0; 8]);
 }

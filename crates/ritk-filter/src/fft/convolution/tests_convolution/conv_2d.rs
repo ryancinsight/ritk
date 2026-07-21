@@ -31,9 +31,9 @@ fn output_shape_matches_input() {
     let kernel = make_image_2d(vec![0.0_f32; 9], 3, 3);
 
     let result = FftConvolutionFilter::<B>::new(&kernel)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     assert_eq!(
         result.shape(),
@@ -70,11 +70,11 @@ fn identity_kernel_convolution() {
     let kernel = make_image_2d(delta, 3, 3);
 
     let result = FftConvolutionFilter::<B>::new(&kernel)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
-    let (out_vals, _) = extract_vec(&result).unwrap();
+    let (out_vals, _) = extract_vec(&result).expect("infallible: validated precondition");
     assert_eq!(
         out_vals.len(),
         img_vals.len(),
@@ -104,11 +104,11 @@ fn constant_kernel_sum() {
     let kernel = make_image_2d(vec![1.0_f32; 9], 3, 3);
 
     let result = FftConvolutionFilter::<B>::new(&kernel)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
-    let (out_vals, _) = extract_vec(&result).unwrap();
+    let (out_vals, _) = extract_vec(&result).expect("infallible: validated precondition");
 
     // Interior pixel index: row 8, col 8 → flat index = 8 * 16 + 8 = 136.
     let interior = out_vals[8 * 16 + 8];
@@ -130,11 +130,11 @@ fn zero_kernel_gives_zero_output() {
     let kernel = make_image_2d(vec![0.0_f32; 9], 3, 3);
 
     let result = FftConvolutionFilter::<B>::new(&kernel)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
-    let (out_vals, _) = extract_vec(&result).unwrap();
+    let (out_vals, _) = extract_vec(&result).expect("infallible: validated precondition");
     for (i, &v) in out_vals.iter().enumerate() {
         assert!(
             v.abs() < 1e-6,

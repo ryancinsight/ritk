@@ -6,9 +6,9 @@ use tempfile::NamedTempFile;
 
 fn round_trip(poly: &VtkPolyData) -> VtkPolyData {
     let mut buf = Vec::new();
-    write_polydata(&mut buf, poly).unwrap();
+    write_polydata(&mut buf, poly).expect("infallible: validated precondition");
     let mut cursor = Cursor::new(buf);
-    parse_polydata(&mut cursor).unwrap()
+    parse_polydata(&mut cursor).expect("infallible: validated precondition")
 }
 
 #[test]
@@ -48,7 +48,7 @@ fn test_write_with_point_data_scalars() {
         },
     );
     let result = round_trip(&poly);
-    match result.point_data.get("temperature").unwrap() {
+    match result.point_data.get("temperature").expect("valid index") {
         AttributeArray::Scalars { values, .. } => {
             assert!((values[0] - 36.0).abs() < 1e-5);
             assert!((values[1] - 37.0).abs() < 1e-5);
@@ -93,9 +93,9 @@ fn test_roundtrip_validate() {
         polygons: vec![vec![0, 1, 2]],
         ..Default::default()
     };
-    let tmp = NamedTempFile::new().unwrap();
-    write_vtk_polydata(tmp.path(), &poly).unwrap();
-    let result = crate::io::polydata::reader::read_vtk_polydata(tmp.path()).unwrap();
+    let tmp = NamedTempFile::new().expect("infallible: validated precondition");
+    write_vtk_polydata(tmp.path(), &poly).expect("infallible: validated precondition");
+    let result = crate::io::polydata::reader::read_vtk_polydata(tmp.path()).expect("infallible: validated precondition");
     assert!(
         result.validate().is_ok(),
         "round-trip result must satisfy VtkPolyData::validate()"
@@ -116,7 +116,7 @@ fn test_write_vectors_round_trip() {
         },
     );
     let result = round_trip(&poly);
-    match result.point_data.get("velocity").unwrap() {
+    match result.point_data.get("velocity").expect("valid index") {
         AttributeArray::Vectors { values } => {
             assert_eq!(values.len(), 2);
             assert!((values[0][0] - 1.0).abs() < 1e-5);

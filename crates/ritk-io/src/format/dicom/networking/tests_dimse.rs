@@ -17,20 +17,20 @@ use super::move_::MoveDestination;
 
 #[test]
 fn ae_title_accepts_single_char() {
-    let t = AeTitle::new("A").unwrap();
+    let t = AeTitle::new("A").expect("infallible: validated precondition");
     assert_eq!(t.as_str(), "A");
 }
 
 #[test]
 fn ae_title_accepts_max_length() {
     let s = "ABCDEFGHIJKLMNOP"; // 16 chars
-    let t = AeTitle::new(s).unwrap();
+    let t = AeTitle::new(s).expect("infallible: validated precondition");
     assert_eq!(t.as_str(), s);
 }
 
 #[test]
 fn ae_title_accepts_with_spaces() {
-    let t = AeTitle::new("MY SCU AET").unwrap();
+    let t = AeTitle::new("MY SCU AET").expect("infallible: validated precondition");
     assert_eq!(t.as_str(), "MY SCU AET");
 }
 
@@ -152,7 +152,7 @@ fn build_command_pdu_round_trips_through_parse() {
         (0x0000_0900, CommandElementValue::Us(STATUS_SUCCESS)),
     ]);
 
-    let parsed = parse_command_response(&cmd).unwrap();
+    let parsed = parse_command_response(&cmd).expect("infallible: validated precondition");
     assert_eq!(parsed.command_field, C_ECHO_RSP, "command_field");
     assert_eq!(parsed.message_id_responded, 1, "message_id_responded");
     assert_eq!(parsed.data_set_type, NO_DATASET, "data_set_type");
@@ -197,7 +197,7 @@ fn parse_command_response_c_echo_rsp_from_synthetic_bytes() {
         (0x0000_0900, CommandElementValue::Us(STATUS_SUCCESS)),
     ]);
 
-    let resp = parse_command_response(&cmd).unwrap();
+    let resp = parse_command_response(&cmd).expect("infallible: validated precondition");
     assert_eq!(resp.command_field, C_ECHO_RSP, "command_field");
     assert_eq!(resp.message_id_responded, 1, "message_id_responded");
     assert_eq!(resp.data_set_type, NO_DATASET, "data_set_type");
@@ -240,7 +240,7 @@ fn find_query_builder_stores_keys_in_order() {
 
 #[test]
 fn move_destination_holds_ae_title() {
-    let ae = AeTitle::new("DEST_SCU").unwrap();
+    let ae = AeTitle::new("DEST_SCU").expect("infallible: validated precondition");
     let dest = MoveDestination::new(ae);
     assert_eq!(dest.as_str(), "DEST_SCU");
 }

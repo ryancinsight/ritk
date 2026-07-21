@@ -13,7 +13,7 @@ fn triangle() -> VtkPolyData {
 
 #[test]
 fn test_triangle_parse() {
-    let p = parse_vtp(&write_vtp_str(&triangle())).unwrap();
+    let p = parse_vtp(&write_vtp_str(&triangle())).expect("infallible: validated precondition");
     assert_eq!(p.points.len(), 3);
     assert_eq!(p.polygons.len(), 1);
     assert_eq!(p.polygons[0], vec![0u32, 1, 2]);
@@ -21,7 +21,7 @@ fn test_triangle_parse() {
 }
 #[test]
 fn test_empty_parse() {
-    let p = parse_vtp(&write_vtp_str(&Default::default())).unwrap();
+    let p = parse_vtp(&write_vtp_str(&Default::default())).expect("infallible: validated precondition");
     assert_eq!(p.points.len(), 0);
     assert_eq!(p.polygons.len(), 0);
 }
@@ -35,7 +35,7 @@ fn test_scalars_roundtrip() {
             num_components: 1,
         },
     );
-    let p = parse_vtp(&write_vtp_str(&pd)).unwrap();
+    let p = parse_vtp(&write_vtp_str(&pd)).expect("infallible: validated precondition");
     match p.point_data.get("pressure") {
         Some(AttributeArray::Scalars { values, .. }) => {
             assert!((values[0] - 1.0).abs() < 1e-4);
@@ -48,7 +48,7 @@ fn test_lines_parse() {
     let mut pd = VtkPolyData::default();
     pd.points = vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]];
     pd.lines = vec![vec![0, 1, 2]];
-    let p = parse_vtp(&write_vtp_str(&pd)).unwrap();
+    let p = parse_vtp(&write_vtp_str(&pd)).expect("infallible: validated precondition");
     assert_eq!(p.lines.len(), 1);
     assert_eq!(p.lines[0], vec![0u32, 1, 2]);
 }
@@ -62,7 +62,7 @@ fn test_vectors_roundtrip() {
             values: vec![[1.0, 2.0, 3.0]],
         },
     );
-    let p = parse_vtp(&write_vtp_str(&pd)).unwrap();
+    let p = parse_vtp(&write_vtp_str(&pd)).expect("infallible: validated precondition");
     match p.point_data.get("vel") {
         Some(AttributeArray::Vectors { values }) => {
             assert!((values[0][0] - 1.0).abs() < 1e-4);

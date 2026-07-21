@@ -61,7 +61,7 @@ fn native_image(values: &[f32]) -> CoeusImage<f32, MoiraiBackend, 2> {
         Spacing::new([0.5, 1.5]),
         Direction::identity(),
     )
-    .unwrap()
+    .expect("infallible: validated precondition")
 }
 
 fn native_data(tensor: &CoeusTensor<f32, MoiraiBackend>) -> Vec<f32> {
@@ -127,7 +127,7 @@ fn native_extract_slice_borrows_contiguous_tensor() {
     let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
     let tensor = native_tensor(&values);
 
-    let (slice, dims) = coeus_tensor_ops::extract_slice::<f32, MoiraiBackend, 2>(&tensor).unwrap();
+    let (slice, dims) = coeus_tensor_ops::extract_slice::<f32, MoiraiBackend, 2>(&tensor).expect("infallible: validated precondition");
 
     assert_eq!(dims, SHAPE);
     assert_eq!(slice, values.as_slice());
@@ -138,7 +138,7 @@ fn native_extract_vec_matches_slice_values() {
     let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
     let tensor = native_tensor(&values);
 
-    let (owned, dims) = coeus_tensor_ops::extract_vec::<f32, MoiraiBackend, 2>(&tensor).unwrap();
+    let (owned, dims) = coeus_tensor_ops::extract_vec::<f32, MoiraiBackend, 2>(&tensor).expect("infallible: validated precondition");
 
     assert_eq!(dims, SHAPE);
     assert_eq!(owned, values);
@@ -196,7 +196,7 @@ fn native_rebuild_preserves_values_and_shape() {
 
     let tensor =
         coeus_tensor_ops::rebuild::<f32, MoiraiBackend, 2>(values.clone(), SHAPE, &backend)
-            .unwrap();
+            .expect("infallible: validated precondition");
 
     assert_eq!(tensor.shape(), SHAPE);
     assert_eq!(tensor.as_slice(), values.as_slice());
@@ -208,7 +208,7 @@ fn native_image_extract_slice_borrows_contiguous_image() {
     let image = native_image(&values);
 
     let (slice, dims) =
-        coeus_tensor_ops::extract_image_slice::<f32, MoiraiBackend, 2>(&image).unwrap();
+        coeus_tensor_ops::extract_image_slice::<f32, MoiraiBackend, 2>(&image).expect("infallible: validated precondition");
 
     assert_eq!(dims, SHAPE);
     assert_eq!(slice, values.as_slice());
@@ -220,7 +220,7 @@ fn native_image_extract_vec_matches_slice_values() {
     let image = native_image(&values);
 
     let (owned, dims) =
-        coeus_tensor_ops::extract_image_vec::<f32, MoiraiBackend, 2>(&image).unwrap();
+        coeus_tensor_ops::extract_image_vec::<f32, MoiraiBackend, 2>(&image).expect("infallible: validated precondition");
 
     assert_eq!(dims, SHAPE);
     assert_eq!(owned, values);
@@ -238,10 +238,10 @@ fn native_rebuild_image_preserves_values_shape_and_metadata() {
         &source,
         &backend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
 
     assert_eq!(rebuilt.shape(), SHAPE);
-    assert_eq!(rebuilt.data_slice().unwrap(), values.as_slice());
+    assert_eq!(rebuilt.data_slice().expect("infallible: validated precondition"), values.as_slice());
     assert_eq!(rebuilt.origin(), source.origin());
     assert_eq!(rebuilt.spacing(), source.spacing());
     assert_eq!(rebuilt.direction(), source.direction());

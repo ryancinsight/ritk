@@ -19,7 +19,7 @@ fn voxels(img: &Image<f32, B, 3>) -> Vec<f32> {
 #[test]
 fn all_background_zero() {
     let img = make_image(vec![0.0f32; 27], [3, 3, 3]);
-    let out = LabelContourImageFilter::default().apply(&img).unwrap();
+    let out = LabelContourImageFilter::default().apply(&img).expect("infallible: validated precondition");
     assert!(voxels(&out).iter().all(|&v| v == 0.0));
 }
 
@@ -31,7 +31,7 @@ fn single_label_fills_whole_image_has_empty_contour() {
     // empty — matching `sitk.LabelContour`, which leaves a single full-label
     // image all-zero.
     let img = make_image(vec![2.0f32; 27], [3, 3, 3]);
-    let out = LabelContourImageFilter::default().apply(&img).unwrap();
+    let out = LabelContourImageFilter::default().apply(&img).expect("infallible: validated precondition");
     assert!(
         voxels(&out).iter().all(|&x| x == 0.0),
         "single full-image label must have an empty contour"
@@ -44,7 +44,7 @@ fn single_label_fills_whole_image_has_empty_contour() {
 fn two_labels_interface_marked() {
     // 1×1×6: [1,1,1,2,2,2]
     let img = make_image(vec![1.0, 1.0, 1.0, 2.0, 2.0, 2.0], [1, 1, 6]);
-    let out = LabelContourImageFilter::default().apply(&img).unwrap();
+    let out = LabelContourImageFilter::default().apply(&img).expect("infallible: validated precondition");
     let v = voxels(&out);
     // voxel 2 (label 1, right edge of label-1): neighbour voxel 3 = label 2 → contour
     assert!(
@@ -68,7 +68,7 @@ fn two_labels_interface_marked() {
 fn contour_voxels_preserve_label_value() {
     // 1×1×4: [0, 5, 5, 0]
     let img = make_image(vec![0.0, 5.0, 5.0, 0.0], [1, 1, 4]);
-    let out = LabelContourImageFilter::default().apply(&img).unwrap();
+    let out = LabelContourImageFilter::default().apply(&img).expect("infallible: validated precondition");
     let v = voxels(&out);
     // voxel 1 (label 5): neighbour 0 is bg → contour → value = 5
     assert!((v[1] - 5.0).abs() < 1e-5, "v[1]={}", v[1]);
@@ -80,6 +80,6 @@ fn contour_voxels_preserve_label_value() {
 #[test]
 fn preserves_metadata() {
     let img = make_image(vec![0.0f32; 8], [2, 2, 2]);
-    let out = LabelContourImageFilter::default().apply(&img).unwrap();
+    let out = LabelContourImageFilter::default().apply(&img).expect("infallible: validated precondition");
     assert_eq!(out.shape(), [2, 2, 2]);
 }

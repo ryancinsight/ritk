@@ -23,7 +23,7 @@ fn adaptive_eq_rank_remap_alpha_beta_zero() {
         alpha: 0.0,
         beta: 0.0,
     };
-    let out = f.apply(&img(vec![0.0, 100.0, 200.0], [1, 1, 3])).unwrap();
+    let out = f.apply(&img(vec![0.0, 100.0, 200.0], [1, 1, 3])).expect("infallible: validated precondition");
     let (v, _) = extract_vec_infallible(&out);
     assert!(
         (v[0] - 200.0 / 6.0).abs() < 1e-3,
@@ -43,7 +43,7 @@ fn adaptive_eq_rank_remap_alpha_beta_zero() {
 fn adaptive_eq_constant_is_identity() {
     let out = AdaptiveHistogramEqualizationFilter::default()
         .apply(&img(vec![7.0; 27], [3, 3, 3]))
-        .unwrap();
+        .expect("infallible: validated precondition");
     let (v, _) = extract_vec_infallible(&out);
     assert!(v.iter().all(|&x| x == 7.0), "constant image is unchanged");
 }
@@ -56,7 +56,7 @@ fn adaptive_eq_preserves_geometry() {
     let data: Vec<f32> = (0..n).map(|i| (i % 13) as f32).collect();
     let out = AdaptiveHistogramEqualizationFilter::new([1, 1, 1])
         .apply(&img(data, dims))
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), dims);
     assert_eq!(out.spacing()[0], 1.0);
 }

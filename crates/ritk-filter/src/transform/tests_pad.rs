@@ -25,7 +25,7 @@ fn constant_pad_zero() {
     let img = make_image(vec![3.0, 7.0], [1, 1, 2]);
     let out = ConstantPadImageFilter::new(Padding::new([0, 0, 1]), Padding::new([0, 0, 1]), 0.0)
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 1, 4]);
     let v = voxels(&out);
     assert_eq!(v, vec![0.0, 3.0, 7.0, 0.0]);
@@ -37,7 +37,7 @@ fn constant_pad_custom_value() {
     let img = make_image(vec![5.0], [1, 1, 1]);
     let out = ConstantPadImageFilter::new(Padding::new([0, 0, 2]), Padding::new([0, 0, 2]), -1.0)
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 1, 5]);
     let v = voxels(&out);
     assert_eq!(v, vec![-1.0, -1.0, 5.0, -1.0, -1.0]);
@@ -57,7 +57,7 @@ fn constant_pad_origin_updated() {
     .expect("invariant: fixture tensor has the declared rank");
     let out = ConstantPadImageFilter::new(Padding::new([0, 0, 1]), Padding::new([0, 0, 0]), 0.0)
         .apply(&img2)
-        .unwrap();
+        .expect("infallible: validated precondition");
     // Origin x (axis 2) shifts by -1 * spacing[2] = -1 * 2.0 = -2.0 → new origin[2] = 10 - 2 = 8.
     let ox = out.origin()[2];
     assert!((ox - 8.0).abs() < 1e-10, "origin[2]={ox}");
@@ -126,7 +126,7 @@ fn mirror_pad_1d() {
     let img = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
     let out = MirrorPadImageFilter::new(Padding::new([0, 0, 2]), Padding::new([0, 0, 2]))
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 1, 7]);
     let v = voxels(&out);
     // index -2 → 1 (val 2), -1 → 0 (val 1), [1,2,3], +3 → 2 (val 3), +4 → 1 (val 2)
@@ -175,7 +175,7 @@ fn wrap_pad_1d() {
     let img = make_image(vec![10.0, 20.0, 30.0], [1, 1, 3]);
     let out = WrapPadImageFilter::new(Padding::new([0, 0, 2]), Padding::new([0, 0, 2]))
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 1, 7]);
     let v = voxels(&out);
     // index shifts: output i → input wrap(i-2, 3)
@@ -220,7 +220,7 @@ fn wrap_pad_shape() {
     let img = make_image(vec![0.0f32; 24], [2, 3, 4]);
     let out = WrapPadImageFilter::new(Padding::new([1, 2, 3]), Padding::new([1, 2, 3]))
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [4, 7, 10]);
 }
 
@@ -233,7 +233,7 @@ fn zero_flux_neumann_pad_replicates_edges() {
     let img = make_image(vec![1.0, 2.0, 3.0], [1, 1, 3]);
     let out = ZeroFluxNeumannPadImageFilter::new(Padding::new([0, 0, 2]), Padding::new([0, 0, 1]))
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [1, 1, 6]);
     // [1,1] + [1,2,3] + [3] = repeat edges
     assert_eq!(voxels(&out), vec![1.0, 1.0, 1.0, 2.0, 3.0, 3.0]);
@@ -245,6 +245,6 @@ fn zero_flux_neumann_pad_zero_is_identity() {
     let img = make_image((0..24).map(|i| i as f32).collect(), [2, 3, 4]);
     let out = ZeroFluxNeumannPadImageFilter::new(Padding::new([0, 0, 0]), Padding::new([0, 0, 0]))
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(voxels(&out), voxels(&img));
 }

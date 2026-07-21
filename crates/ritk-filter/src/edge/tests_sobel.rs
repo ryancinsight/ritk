@@ -25,7 +25,7 @@ fn test_uniform_image_zero_gradient() {
     let vals = vec![42.0_f32; 8 * 8 * 8];
     let img = make_image(vals, dims, [1.0, 1.0, 1.0]);
     let filter = SobelFilter::unit();
-    let mag = filter.apply(&img).unwrap();
+    let mag = filter.apply(&img).expect("infallible: validated precondition");
 
     let (out, _) = extract_vec_infallible(&mag);
     for (i, &v) in out.iter().enumerate() {
@@ -55,7 +55,7 @@ fn test_ramp_x_unit_spacing() {
     let vals: Vec<f32> = (0..nz * ny * nx).map(|flat| (flat % nx) as f32).collect();
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 1.0]);
     let filter = SobelFilter::unit();
-    let (gz, gy, gx) = filter.apply_components(&img).unwrap();
+    let (gz, gy, gx) = filter.apply_components(&img).expect("infallible: validated precondition");
 
     let (gz_vals, _) = extract_vec_infallible(&gz);
     let (gy_vals, _) = extract_vec_infallible(&gy);
@@ -86,7 +86,7 @@ fn test_ramp_x_unit_spacing() {
     }
 
     // Verify magnitude at interior.
-    let mag = filter.apply(&img).unwrap();
+    let mag = filter.apply(&img).expect("infallible: validated precondition");
     let (mag_vals, _) = extract_vec_infallible(&mag);
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
@@ -124,7 +124,7 @@ fn test_diagonal_ramp_magnitude() {
         .collect();
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 1.0]);
     let filter = SobelFilter::unit();
-    let (gz, gy, gx) = filter.apply_components(&img).unwrap();
+    let (gz, gy, gx) = filter.apply_components(&img).expect("infallible: validated precondition");
 
     let (gz_vals, _) = extract_vec_infallible(&gz);
     let (gy_vals, _) = extract_vec_infallible(&gy);
@@ -152,7 +152,7 @@ fn test_diagonal_ramp_magnitude() {
             }
         }
     }
-    let mag = filter.apply(&img).unwrap();
+    let mag = filter.apply(&img).expect("infallible: validated precondition");
     let (mag_vals, _) = extract_vec_infallible(&mag);
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
@@ -181,7 +181,7 @@ fn test_non_unit_spacing() {
     let vals: Vec<f32> = (0..nz * ny * nx).map(|flat| (flat % nx) as f32).collect();
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 2.0]);
     let filter = SobelFilter::new([1.0, 1.0, 2.0].into());
-    let (gz, gy, gx) = filter.apply_components(&img).unwrap();
+    let (gz, gy, gx) = filter.apply_components(&img).expect("infallible: validated precondition");
 
     let (gz_vals, _) = extract_vec_infallible(&gz);
     let (gy_vals, _) = extract_vec_infallible(&gy);
@@ -209,7 +209,7 @@ fn test_non_unit_spacing() {
         }
     }
     // Verify magnitude = 0.5 at interior.
-    let mag = filter.apply(&img).unwrap();
+    let mag = filter.apply(&img).expect("infallible: validated precondition");
     let (mag_vals, _) = extract_vec_infallible(&mag);
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {
@@ -247,14 +247,14 @@ fn test_metadata_preserved() {
     let filter = SobelFilter::new([0.5, 1.5, 2.5].into());
 
     // Check apply (magnitude).
-    let mag = filter.apply(&img).unwrap();
+    let mag = filter.apply(&img).expect("infallible: validated precondition");
     assert_eq!(mag.origin(), &origin);
     assert_eq!(mag.spacing(), &spacing_val);
     assert_eq!(mag.direction(), &direction);
     assert_eq!(mag.shape(), dims);
 
     // Check apply_components.
-    let (gz, gy, gx) = filter.apply_components(&img).unwrap();
+    let (gz, gy, gx) = filter.apply_components(&img).expect("infallible: validated precondition");
     for (label, component) in [("gz", &gz), ("gy", &gy), ("gx", &gx)] {
         assert_eq!(component.origin(), &origin, "{label}: origin mismatch");
         assert_eq!(
@@ -287,7 +287,7 @@ fn test_ramp_y_axis_separation() {
         .collect();
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 1.0]);
     let filter = SobelFilter::unit();
-    let (gz, gy, gx) = filter.apply_components(&img).unwrap();
+    let (gz, gy, gx) = filter.apply_components(&img).expect("infallible: validated precondition");
 
     let (gz_vals, _) = extract_vec_infallible(&gz);
     let (gy_vals, _) = extract_vec_infallible(&gy);
@@ -330,7 +330,7 @@ fn test_ramp_z_axis_separation() {
         .collect();
     let img = make_image(vals, [nz, ny, nx], [1.0, 1.0, 1.0]);
     let filter = SobelFilter::unit();
-    let (gz, gy, gx) = filter.apply_components(&img).unwrap();
+    let (gz, gy, gx) = filter.apply_components(&img).expect("infallible: validated precondition");
 
     let (gz_vals, _) = extract_vec_infallible(&gz);
     let (gy_vals, _) = extract_vec_infallible(&gy);
@@ -380,7 +380,7 @@ fn test_anisotropic_spacing_diagonal() {
     let sp = [0.5, 1.0, 2.0];
     let img = make_image(vals, [nz, ny, nx], sp);
     let filter = SobelFilter::new(sp.into());
-    let (gz, gy, gx) = filter.apply_components(&img).unwrap();
+    let (gz, gy, gx) = filter.apply_components(&img).expect("infallible: validated precondition");
 
     let (gz_vals, _) = extract_vec_infallible(&gz);
     let (gy_vals, _) = extract_vec_infallible(&gy);
@@ -415,7 +415,7 @@ fn test_anisotropic_spacing_diagonal() {
         }
     }
 
-    let mag = filter.apply(&img).unwrap();
+    let mag = filter.apply(&img).expect("infallible: validated precondition");
     let (mag_vals, _) = extract_vec_infallible(&mag);
     for iz in 1..nz - 1 {
         for iy in 1..ny - 1 {

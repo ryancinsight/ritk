@@ -50,9 +50,9 @@ fn tetrahedron_with_normals() -> VtkPolyData {
 #[test]
 fn test_ply_ascii_roundtrip_coordinates() {
     let mesh = tetrahedron();
-    let file = NamedTempFile::new().unwrap();
-    write_ply_ascii(file.path(), &mesh).unwrap();
-    let loaded = read_ply_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_ply_ascii(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_ply_mesh(file.path()).expect("infallible: validated precondition");
 
     assert_eq!(
         loaded.points.len(),
@@ -82,9 +82,9 @@ fn test_ply_ascii_roundtrip_coordinates() {
 #[test]
 fn test_ply_ascii_roundtrip_polygon_indices() {
     let mesh = tetrahedron();
-    let file = NamedTempFile::new().unwrap();
-    write_ply_ascii(file.path(), &mesh).unwrap();
-    let loaded = read_ply_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_ply_ascii(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_ply_mesh(file.path()).expect("infallible: validated precondition");
 
     let expected: Vec<Vec<u32>> = vec![vec![0, 1, 2], vec![0, 1, 3], vec![0, 2, 3], vec![1, 2, 3]];
     for (i, (e, g)) in expected.iter().zip(loaded.polygons.iter()).enumerate() {
@@ -97,9 +97,9 @@ fn test_ply_ascii_roundtrip_polygon_indices() {
 #[test]
 fn test_ply_binary_le_roundtrip_coordinates() {
     let mesh = tetrahedron();
-    let file = NamedTempFile::new().unwrap();
-    write_ply_binary_le(file.path(), &mesh).unwrap();
-    let loaded = read_ply_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_ply_binary_le(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_ply_mesh(file.path()).expect("infallible: validated precondition");
 
     assert_eq!(loaded.points.len(), 4);
     assert_eq!(loaded.polygons.len(), 4);
@@ -116,9 +116,9 @@ fn test_ply_binary_le_roundtrip_coordinates() {
 #[test]
 fn test_ply_binary_le_roundtrip_polygon_indices() {
     let mesh = tetrahedron();
-    let file = NamedTempFile::new().unwrap();
-    write_ply_binary_le(file.path(), &mesh).unwrap();
-    let loaded = read_ply_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_ply_binary_le(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_ply_mesh(file.path()).expect("infallible: validated precondition");
 
     let expected: Vec<Vec<u32>> = vec![vec![0, 1, 2], vec![0, 1, 3], vec![0, 2, 3], vec![1, 2, 3]];
     for (i, (e, g)) in expected.iter().zip(loaded.polygons.iter()).enumerate() {
@@ -131,9 +131,9 @@ fn test_ply_binary_le_roundtrip_polygon_indices() {
 #[test]
 fn test_ply_ascii_normals_roundtrip() {
     let mesh = tetrahedron_with_normals();
-    let file = NamedTempFile::new().unwrap();
-    write_ply_ascii(file.path(), &mesh).unwrap();
-    let loaded = read_ply_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_ply_ascii(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_ply_mesh(file.path()).expect("infallible: validated precondition");
 
     let got = match loaded
         .point_data
@@ -153,11 +153,11 @@ fn test_ply_ascii_normals_roundtrip() {
 #[test]
 fn test_ply_binary_le_normals_roundtrip() {
     let mesh = tetrahedron_with_normals();
-    let file = NamedTempFile::new().unwrap();
-    write_ply_binary_le(file.path(), &mesh).unwrap();
-    let loaded = read_ply_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_ply_binary_le(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_ply_mesh(file.path()).expect("infallible: validated precondition");
 
-    let got = match loaded.point_data.get("Normals").unwrap() {
+    let got = match loaded.point_data.get("Normals").expect("valid index") {
         AttributeArray::Normals { values } => values.clone(),
         _ => panic!("expected Normals"),
     };
@@ -173,9 +173,9 @@ fn test_ply_binary_le_normals_roundtrip() {
 #[test]
 fn test_ply_ascii_empty_roundtrip() {
     let mesh = VtkPolyData::default();
-    let file = NamedTempFile::new().unwrap();
-    write_ply_ascii(file.path(), &mesh).unwrap();
-    let loaded = read_ply_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_ply_ascii(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_ply_mesh(file.path()).expect("infallible: validated precondition");
     assert_eq!(loaded.points.len(), 0);
     assert_eq!(loaded.polygons.len(), 0);
 }
@@ -183,9 +183,9 @@ fn test_ply_ascii_empty_roundtrip() {
 #[test]
 fn test_ply_binary_le_empty_roundtrip() {
     let mesh = VtkPolyData::default();
-    let file = NamedTempFile::new().unwrap();
-    write_ply_binary_le(file.path(), &mesh).unwrap();
-    let loaded = read_ply_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_ply_binary_le(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_ply_mesh(file.path()).expect("infallible: validated precondition");
     assert_eq!(loaded.points.len(), 0);
     assert_eq!(loaded.polygons.len(), 0);
 }
@@ -217,8 +217,8 @@ fn test_ply_missing_end_header() {
 fn test_ply_header_format_in_memory() {
     let mesh = tetrahedron();
     let mut buf = Vec::new();
-    write_ply_ascii_to_writer(&mut buf, &mesh).unwrap();
-    let text = String::from_utf8(buf).unwrap();
+    write_ply_ascii_to_writer(&mut buf, &mesh).expect("infallible: validated precondition");
+    let text = String::from_utf8(buf).expect("infallible: validated precondition");
 
     assert!(text.starts_with("ply\n"), "must start with ply");
     assert!(
@@ -234,10 +234,10 @@ fn test_ply_header_format_in_memory() {
 fn test_ply_binary_le_header_format_in_memory() {
     let mesh = tetrahedron();
     let mut buf = Vec::new();
-    write_ply_binary_le_to_writer(&mut buf, &mesh).unwrap();
+    write_ply_binary_le_to_writer(&mut buf, &mesh).expect("infallible: validated precondition");
     // The header is ASCII; scan for the marker bytes.
-    let header_end_pos = buf.windows(10).position(|w| w == b"end_header").unwrap();
-    let header = std::str::from_utf8(&buf[..header_end_pos]).unwrap();
+    let header_end_pos = buf.windows(10).position(|w| w == b"end_header").expect("infallible: validated precondition");
+    let header = std::str::from_utf8(&buf[..header_end_pos]).expect("infallible: validated precondition");
     assert!(header.contains("format binary_little_endian 1.0"));
     assert!(header.contains("element vertex 4"));
     assert!(header.contains("element face 4"));

@@ -40,9 +40,9 @@ fn isolated_connected_separates_two_blobs() {
     let (ny, nx) = (10usize, 16);
     let img = make(two_blob_values(150.0), [1, ny, nx]);
     let config =
-        IsolatedConnectedConfig::new(50.0, 200.0, 1.0, 1.0, IsolationThreshold::Upper).unwrap();
+        IsolatedConnectedConfig::new(50.0, 200.0, 1.0, 1.0, IsolationThreshold::Upper).expect("infallible: validated precondition");
     let f = IsolatedConnectedFilter::new([0, 4, 2], [0, 4, 13], config);
-    let result = f.apply(&img).unwrap();
+    let result = f.apply(&img).expect("infallible: validated precondition");
     assert!(!result.thresholding_failed());
     let out = result.into_image();
     let (ov, _) = extract_vec_infallible(&out);
@@ -74,9 +74,9 @@ fn isolated_connected_custom_replace_value() {
     }
     let img = make(v, [1, ny, nx]);
     let config =
-        IsolatedConnectedConfig::new(50.0, 200.0, 7.0, 1.0, IsolationThreshold::Upper).unwrap();
+        IsolatedConnectedConfig::new(50.0, 200.0, 7.0, 1.0, IsolationThreshold::Upper).expect("infallible: validated precondition");
     let f = IsolatedConnectedFilter::new([0, 2, 2], [0, 0, 0], config);
-    let result = f.apply(&img).unwrap();
+    let result = f.apply(&img).expect("infallible: validated precondition");
     assert!(!result.thresholding_failed());
     let out = result.into_image();
     let (ov, _) = extract_vec_infallible(&out);
@@ -87,11 +87,11 @@ fn isolated_connected_custom_replace_value() {
 #[test]
 fn lower_threshold_search_separates_low_bridge() {
     let config =
-        IsolatedConnectedConfig::new(0.0, 200.0, 1.0, 1.0, IsolationThreshold::Lower).unwrap();
+        IsolatedConnectedConfig::new(0.0, 200.0, 1.0, 1.0, IsolationThreshold::Lower).expect("infallible: validated precondition");
     let filter = IsolatedConnectedFilter::new([0, 4, 2], [0, 4, 13], config);
     let result = filter
         .apply(&make(two_blob_values(40.0), [1, 10, 16]))
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert!(!result.thresholding_failed());
     let output = result.into_image();
     let (values, _) = extract_vec_infallible(&output);
@@ -116,17 +116,17 @@ fn native_and_legacy_outputs_are_exact_with_nonidentity_geometry() {
         direction,
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let config =
-        IsolatedConnectedConfig::new(50.0, 200.0, 1.0, 1.0, IsolationThreshold::Upper).unwrap();
+        IsolatedConnectedConfig::new(50.0, 200.0, 1.0, 1.0, IsolationThreshold::Upper).expect("infallible: validated precondition");
     let filter = IsolatedConnectedFilter::new([0, 4, 2], [0, 4, 13], config);
-    let expected = filter.apply(&legacy).unwrap();
-    let actual = filter.apply_native(&native, &SequentialBackend).unwrap();
+    let expected = filter.apply(&legacy).expect("infallible: validated precondition");
+    let actual = filter.apply_native(&native, &SequentialBackend).expect("infallible: validated precondition");
     assert_eq!(actual.thresholding_failed(), expected.thresholding_failed());
     let expected = expected.into_image();
     let actual = actual.into_image();
     assert_eq!(
-        actual.data_slice().unwrap(),
+        actual.data_slice().expect("infallible: validated precondition"),
         expected
             .data_slice()
             .expect("invariant: contiguous host storage")
@@ -139,10 +139,10 @@ fn native_and_legacy_outputs_are_exact_with_nonidentity_geometry() {
 #[test]
 fn lower_threshold_failure_retains_the_final_mask() {
     let config =
-        IsolatedConnectedConfig::new(50.0, 200.0, 1.0, 1.0, IsolationThreshold::Lower).unwrap();
+        IsolatedConnectedConfig::new(50.0, 200.0, 1.0, 1.0, IsolationThreshold::Lower).expect("infallible: validated precondition");
     let result = IsolatedConnectedFilter::new([0, 4, 2], [0, 4, 13], config)
         .apply(&make(two_blob_values(150.0), [1, 10, 16]))
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert!(result.thresholding_failed());
     let (values, _) = extract_vec_infallible(&result.into_image());
     assert_eq!(values.iter().filter(|&&value| value == 1.0).count(), 0);
@@ -172,7 +172,7 @@ fn configuration_and_input_failures_are_exact() {
         "isolated connected tolerance must be finite and positive, got 0"
     );
     let config =
-        IsolatedConnectedConfig::new(0.0, 2.0, 1.0, 0.1, IsolationThreshold::Upper).unwrap();
+        IsolatedConnectedConfig::new(0.0, 2.0, 1.0, 0.1, IsolationThreshold::Upper).expect("infallible: validated precondition");
     let invalid_seed = IsolatedConnectedFilter::new([0, 0, 0], [0, 0, 2], config);
     assert_eq!(
         invalid_seed

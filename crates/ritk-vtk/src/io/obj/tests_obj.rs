@@ -50,9 +50,9 @@ fn triangle_with_normals() -> VtkPolyData {
 #[test]
 fn test_obj_roundtrip_coordinates() {
     let mesh = tetrahedron();
-    let file = NamedTempFile::new().unwrap();
-    write_obj_mesh(file.path(), &mesh).unwrap();
-    let loaded = read_obj_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_obj_mesh(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_obj_mesh(file.path()).expect("infallible: validated precondition");
 
     assert_eq!(
         loaded.points.len(),
@@ -84,9 +84,9 @@ fn test_obj_roundtrip_coordinates() {
 #[test]
 fn test_obj_normals_roundtrip() {
     let mesh = triangle_with_normals();
-    let file = NamedTempFile::new().unwrap();
-    write_obj_mesh(file.path(), &mesh).unwrap();
-    let loaded = read_obj_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_obj_mesh(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_obj_mesh(file.path()).expect("infallible: validated precondition");
 
     let got_normals = match loaded
         .point_data
@@ -113,9 +113,9 @@ fn test_obj_normals_roundtrip() {
 #[test]
 fn test_obj_empty_roundtrip() {
     let mesh = VtkPolyData::default();
-    let file = NamedTempFile::new().unwrap();
-    write_obj_mesh(file.path(), &mesh).unwrap();
-    let loaded = read_obj_mesh(file.path()).unwrap();
+    let file = NamedTempFile::new().expect("infallible: validated precondition");
+    write_obj_mesh(file.path(), &mesh).expect("infallible: validated precondition");
+    let loaded = read_obj_mesh(file.path()).expect("infallible: validated precondition");
     assert_eq!(loaded.points.len(), 0);
     assert_eq!(loaded.polygons.len(), 0);
     assert!(loaded.point_data.is_empty());
@@ -166,7 +166,7 @@ fn test_obj_face_v_slash_slash_n_format() {
     let poly = parse_obj(src).expect("v//n face format must parse");
     assert_eq!(poly.points.len(), 3);
     assert_eq!(poly.polygons[0], vec![0, 1, 2]);
-    let normals = match poly.point_data.get("Normals").unwrap() {
+    let normals = match poly.point_data.get("Normals").expect("valid index") {
         AttributeArray::Normals { values } => values.clone(),
         _ => panic!("expected Normals"),
     };
@@ -184,8 +184,8 @@ fn test_obj_face_v_slash_slash_n_format() {
 fn test_obj_writer_in_memory() {
     let mesh = tetrahedron();
     let mut buf = Vec::new();
-    write_obj_to_writer(&mut buf, &mesh).unwrap();
-    let text = String::from_utf8(buf).unwrap();
+    write_obj_to_writer(&mut buf, &mesh).expect("infallible: validated precondition");
+    let text = String::from_utf8(buf).expect("infallible: validated precondition");
     // Must contain the RITK header comment.
     assert!(text.contains("# Written by RITK"), "header comment missing");
     // Must contain 4 vertex lines.

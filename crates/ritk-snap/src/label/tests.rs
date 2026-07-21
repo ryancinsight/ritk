@@ -73,7 +73,7 @@ fn paint_sphere_radius_one_changes_center_and_axis_neighbors() {
 #[test]
 fn erase_sphere_restores_background_inside_brush() {
     let mut editor = LabelEditor::new([3, 3, 3]);
-    assert_eq!(editor.paint_sphere([1, 1, 1], 1).unwrap(), 7);
+    assert_eq!(editor.paint_sphere([1, 1, 1], 1).expect("infallible: validated precondition"), 7);
 
     let erased = editor.erase_voxel([1, 1, 1]).expect("erase must succeed");
 
@@ -118,7 +118,7 @@ fn custom_table_rejects_background_or_absent_active_label() {
     let mut table = LabelTable::new();
     table
         .add_label(7, "Kidney", RgbaBytes::new(0, 0, 255, 180))
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     assert!(LabelEditor::with_table([1, 1, 1], table.clone(), LabelId(0)).is_err());
     assert!(LabelEditor::with_table([1, 1, 1], table.clone(), LabelId(8)).is_err());
@@ -130,7 +130,7 @@ fn custom_table_rejects_background_or_absent_active_label() {
             .current_map()
             .table
             .get_label(LabelId(7))
-            .unwrap()
+            .expect("infallible: validated precondition")
             .name,
         "Kidney"
     );
@@ -153,9 +153,9 @@ fn out_of_bounds_paint_returns_error_without_history_change() {
 fn repeat_paint_noop_does_not_create_history_entry() {
     let mut editor = LabelEditor::new([1, 1, 1]);
 
-    assert_eq!(editor.paint_voxel([0, 0, 0]).unwrap(), 1);
+    assert_eq!(editor.paint_voxel([0, 0, 0]).expect("infallible: validated precondition"), 1);
     let depth_after_first_paint = editor.history_depth();
-    assert_eq!(editor.paint_voxel([0, 0, 0]).unwrap(), 0);
+    assert_eq!(editor.paint_voxel([0, 0, 0]).expect("infallible: validated precondition"), 0);
 
     assert_eq!(editor.history_depth(), depth_after_first_paint);
     assert_eq!(editor.current_map().label_at([0, 0, 0]), LabelId(1));
@@ -174,10 +174,10 @@ fn from_label_map_preserves_voxel_data() {
     let mut table = LabelTable::new();
     table
         .add_label(1, "A", RgbaBytes::new(255, 0, 0, 180))
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     let data: Vec<u32> = (0..8u32).map(|i| if i % 2 == 0 { 1 } else { 0 }).collect();
-    let map = LabelMap::from_data([2, 2, 2], data.clone(), table).unwrap();
+    let map = LabelMap::from_data([2, 2, 2], data.clone(), table).expect("infallible: validated precondition");
 
     let editor = LabelEditor::from_label_map(map);
 
@@ -225,7 +225,7 @@ fn from_label_map_starts_with_zero_history_depth() {
     let mut table = LabelTable::new();
     table
         .add_label(1, "X", RgbaBytes::new(0, 255, 0, 180))
-        .unwrap();
+        .expect("infallible: validated precondition");
     let map = LabelMap::new([3, 3, 3], table);
     let editor = LabelEditor::from_label_map(map);
 

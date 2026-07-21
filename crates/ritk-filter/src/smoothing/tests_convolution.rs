@@ -26,10 +26,10 @@ fn identity_kernel_is_noop() {
     let mut kernel = vec![0.0_f32; 27];
     kernel[13] = 1.0;
 
-    let filter = SpatialConvolutionFilter::new(kernel, [3, 3, 3]).unwrap();
-    let out = filter.apply(&img).unwrap();
+    let filter = SpatialConvolutionFilter::new(kernel, [3, 3, 3]).expect("infallible: validated precondition");
+    let out = filter.apply(&img).expect("infallible: validated precondition");
 
-    let (res, _) = ritk_tensor_ops::extract_vec(&out).unwrap();
+    let (res, _) = ritk_tensor_ops::extract_vec(&out).expect("infallible: validated precondition");
     assert_eq!(res, vals);
     assert_eq!(out.origin().to_array(), [1.1, 2.2, 3.3]);
 }
@@ -44,10 +44,10 @@ fn box_blur_correct() {
     // Box blur kernel (all ones)
     let kernel = vec![1.0_f32; 27];
 
-    let filter = SpatialConvolutionFilter::new(kernel, [3, 3, 3]).unwrap();
-    let out = filter.apply(&img).unwrap();
+    let filter = SpatialConvolutionFilter::new(kernel, [3, 3, 3]).expect("infallible: validated precondition");
+    let out = filter.apply(&img).expect("infallible: validated precondition");
 
-    let (res, _) = ritk_tensor_ops::extract_vec(&out).unwrap();
+    let (res, _) = ritk_tensor_ops::extract_vec(&out).expect("infallible: validated precondition");
     // Every voxel gets kernel_sum * input_val = 1 * 27 = 27.0 (due to Neumann clamping
     // clamping the single 27.0 at centre for all neighborhood evaluations)
     // Wait, let's verify exact math:

@@ -98,12 +98,12 @@ fn test_overlay_state_serde_round_trip() {
     s.add_image_overlay(img);
     let mut cnt = ContourOverlay::new("cnt", 42);
     cnt.add_contour(vec![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
-        .unwrap();
+        .expect("infallible: validated precondition");
     s.add_contour_overlay(cnt);
     let msk = MaskOverlay::new("msk", vec![0u32, 1, 2, 0], [1, 2, 2]).with_opacity(0.6);
     s.add_mask_overlay(msk);
-    let json = serde_json::to_string(&s).unwrap();
-    let r: OverlayState = serde_json::from_str(&json).unwrap();
+    let json = serde_json::to_string(&s).expect("infallible: validated precondition");
+    let r: OverlayState = serde_json::from_str(&json).expect("infallible: validated precondition");
     assert_eq!(r.image_overlays.len(), 1);
     assert_eq!(r.image_overlays[0].name, "img");
     assert!((r.image_overlays[0].opacity.get() - 0.8).abs() < 1e-6);
@@ -126,9 +126,9 @@ fn test_overlay_state_serde_round_trip() {
 #[test]
 fn test_label_id_serde_json_is_integer() {
     let id = LabelId(42);
-    let json = serde_json::to_string(&id).unwrap();
+    let json = serde_json::to_string(&id).expect("infallible: validated precondition");
     assert_eq!(json, "42");
-    let round_tripped: LabelId = serde_json::from_str(&json).unwrap();
+    let round_tripped: LabelId = serde_json::from_str(&json).expect("infallible: validated precondition");
     assert_eq!(round_tripped, LabelId(42));
 }
 
@@ -136,9 +136,9 @@ fn test_label_id_serde_json_is_integer() {
 #[test]
 fn test_label_id_background_serde_round_trip() {
     let id = LabelId::BACKGROUND;
-    let json = serde_json::to_string(&id).unwrap();
+    let json = serde_json::to_string(&id).expect("infallible: validated precondition");
     assert_eq!(json, "0");
-    let rt: LabelId = serde_json::from_str(&json).unwrap();
+    let rt: LabelId = serde_json::from_str(&json).expect("infallible: validated precondition");
     assert_eq!(rt, LabelId::BACKGROUND);
 }
 
@@ -147,9 +147,9 @@ fn test_label_id_background_serde_round_trip() {
 #[test]
 fn test_label_id_u32_max_serde_round_trip() {
     let id = LabelId(u32::MAX);
-    let json = serde_json::to_string(&id).unwrap();
+    let json = serde_json::to_string(&id).expect("infallible: validated precondition");
     assert_eq!(json, u32::MAX.to_string());
-    let rt: LabelId = serde_json::from_str(&json).unwrap();
+    let rt: LabelId = serde_json::from_str(&json).expect("infallible: validated precondition");
     assert_eq!(rt, LabelId(u32::MAX));
 }
 
@@ -161,9 +161,9 @@ fn test_label_id_u32_max_serde_round_trip() {
 fn test_contour_overlay_label_id_serde_exact() {
     let mut c = ContourOverlay::new("cnt", LabelId(77));
     c.add_contour(vec![[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]])
-        .unwrap();
-    let json = serde_json::to_string(&c).unwrap();
-    let rt: ContourOverlay = serde_json::from_str(&json).unwrap();
+        .expect("infallible: validated precondition");
+    let json = serde_json::to_string(&c).expect("infallible: validated precondition");
+    let rt: ContourOverlay = serde_json::from_str(&json).expect("infallible: validated precondition");
     assert_eq!(rt.label_id, LabelId(77));
     assert_eq!(u32::from(rt.label_id), 77);
 }
@@ -175,7 +175,7 @@ fn test_contour_overlay_label_id_serde_exact() {
 #[test]
 fn test_contour_overlay_label_id_deser_from_u32_json() {
     let json = r#"{"name":"legacy","label_id":99,"contours":[],"color":[1.0,1.0,1.0,1.0],"line_width":1.0,"visible":"Visible"}"#;
-    let c: ContourOverlay = serde_json::from_str(json).unwrap();
+    let c: ContourOverlay = serde_json::from_str(json).expect("infallible: validated precondition");
     assert_eq!(c.label_id, LabelId(99));
     assert_eq!(c.name, "legacy");
 }

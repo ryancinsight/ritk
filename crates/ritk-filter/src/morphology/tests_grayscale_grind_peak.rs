@@ -37,7 +37,7 @@ fn grind_peak_removes_enclosed_peak_keeps_border_connected() {
     ];
     let out = GrayscaleGrindPeakFilter::new()
         .apply(&img(f, [1, 5, 5]))
-        .unwrap();
+        .expect("infallible: validated precondition");
     for (i, (got, exp)) in vals(&out).iter().zip(expected).enumerate() {
         assert!(
             (got - exp).abs() < 1e-5,
@@ -59,7 +59,7 @@ fn grind_peak_is_anti_extensive() {
     let out = vals(
         &GrayscaleGrindPeakFilter::new()
             .apply(&img(f.clone(), [1, 4, 4]))
-            .unwrap(),
+            .expect("infallible: validated precondition"),
     );
     for (&g, &a) in out.iter().zip(f.iter()) {
         assert!(g <= a + 1e-6, "grind_peak must be ≤ input: {g} > {a}");

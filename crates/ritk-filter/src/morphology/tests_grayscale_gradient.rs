@@ -29,7 +29,7 @@ fn constant_image_zero_gradient() {
     let img = make_image(vec![5.0; 27], [3, 3, 3]);
     let out = GrayscaleMorphologicalGradientFilter::new(1)
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     for &v in vals(&out).iter() {
         assert_eq!(
             v, 0.0_f32,
@@ -47,7 +47,7 @@ fn radius_zero_always_zero() {
     let img = make_image(vec![0.0, 5.0, 10.0, 3.0, 8.0, 1.0], [1, 2, 3]);
     let out = GrayscaleMorphologicalGradientFilter::new(0)
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     for &v in vals(&out).iter() {
         assert_eq!(v, 0.0_f32, "radius=0 must yield zero gradient; got {v}");
     }
@@ -65,7 +65,7 @@ fn output_nonnegative_everywhere() {
     let img = make_image(data, [3, 3, 3]);
     let out = GrayscaleMorphologicalGradientFilter::new(1)
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     for &v in vals(&out).iter() {
         assert!(v >= 0.0, "gradient must be non-negative; got {v}");
     }
@@ -91,7 +91,7 @@ fn step_edge_gradient_at_boundary() {
     let img = make_image(data, [1, 1, 7]);
     let out = GrayscaleMorphologicalGradientFilter::new(1)
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let v = vals(&out);
     // Interior voxels far from the edge: gradient = 0
     assert_eq!(v[0], 0.0_f32, "voxel at x=0 (far left): gradient must be 0");
@@ -119,7 +119,7 @@ fn spatial_metadata_preserved() {
         .expect("invariant: fixture tensor has the declared rank");
     let out = GrayscaleMorphologicalGradientFilter::new(1)
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.spacing(), img.spacing(), "spacing must be preserved");
 }
 
@@ -141,7 +141,7 @@ fn single_bright_voxel_gradient_ring() {
     let img = make_image(data, [1, 5, 5]);
     let out = GrayscaleMorphologicalGradientFilter::new(1)
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let v = vals(&out);
     // Corners of the 5×5 image (flat z=0): indices 0, 4, 20, 24 are ≥ 2 away
     // from center (2,2) in the x dimension — no contact with the bright voxel.

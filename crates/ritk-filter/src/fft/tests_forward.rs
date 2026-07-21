@@ -48,7 +48,7 @@ fn make_real_3d(data: Vec<f32>, d: usize, h: usize, w: usize) -> Image<f32, B, 3
 #[test]
 fn output_shape_matches_input_planar() {
     let img = make_real_2d(vec![0.0_f32; 4 * 6], 4, 6);
-    let freq = ForwardFftFilter::new().apply(&img).unwrap();
+    let freq = ForwardFftFilter::new().apply(&img).expect("infallible: validated precondition");
     assert_eq!(
         freq.shape(),
         [4, 12],
@@ -60,7 +60,7 @@ fn output_shape_matches_input_planar() {
 #[test]
 fn output_shape_matches_input_volume() {
     let img = make_real_3d(vec![0.0_f32; 3 * 4 * 6], 3, 4, 6);
-    let freq = ForwardFftFilter::new().apply(&img).unwrap();
+    let freq = ForwardFftFilter::new().apply(&img).expect("infallible: validated precondition");
     assert_eq!(
         freq.shape(),
         [3, 4, 12],
@@ -80,8 +80,8 @@ fn dc_component_equals_sum_of_values() {
     let w = 4_usize;
     let v = 3.0_f32;
     let img = make_real_2d(vec![v; h * w], h, w);
-    let freq = ForwardFftFilter::new().apply(&img).unwrap();
-    let (vals, _) = extract_vec(&freq).unwrap();
+    let freq = ForwardFftFilter::new().apply(&img).expect("infallible: validated precondition");
+    let (vals, _) = extract_vec(&freq).expect("infallible: validated precondition");
 
     // Output layout: data[r * 2*W + 2*c] = Re(F[r,c]), data[r * 2*W + 2*c + 1] = Im(F[r,c]).
     // F[0,0] occupies indices 0 (Re) and 1 (Im).
@@ -110,8 +110,8 @@ fn energy_scales_with_normalization() {
     let w = 5_usize;
     let data: Vec<f32> = (0..h * w).map(|i| (i as f32 * 0.37_f32).sin()).collect();
     let img = make_real_2d(data.clone(), h, w);
-    let freq = ForwardFftFilter::new().apply(&img).unwrap();
-    let (vals, _) = extract_vec(&freq).unwrap();
+    let freq = ForwardFftFilter::new().apply(&img).expect("infallible: validated precondition");
+    let (vals, _) = extract_vec(&freq).expect("infallible: validated precondition");
 
     // Spatial energy: Σ|f[x,y]|².
     let spatial_energy: f32 = data.iter().map(|&x| x * x).sum();
@@ -144,8 +144,8 @@ fn all_zero_input_gives_all_zero_output() {
     let h = 3_usize;
     let w = 4_usize;
     let img = make_real_2d(vec![0.0_f32; h * w], h, w);
-    let freq = ForwardFftFilter::new().apply(&img).unwrap();
-    let (vals, _) = extract_vec(&freq).unwrap();
+    let freq = ForwardFftFilter::new().apply(&img).expect("infallible: validated precondition");
+    let (vals, _) = extract_vec(&freq).expect("infallible: validated precondition");
 
     assert_eq!(
         vals.len(),
@@ -175,10 +175,10 @@ fn half_hermitian_matches_full_forward_leading_columns() {
         .collect();
     let img = make_real_3d(data, d, h, w);
 
-    let full = ForwardFftFilter::new().apply(&img).unwrap();
+    let full = ForwardFftFilter::new().apply(&img).expect("infallible: validated precondition");
     let half = RealToHalfHermitianForwardFftFilter::new()
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     let half_cols = w / 2 + 1;
     assert_eq!(
@@ -187,8 +187,8 @@ fn half_hermitian_matches_full_forward_leading_columns() {
         "half-Hermitian output shape must be [D, H, 2*(W/2+1)]"
     );
 
-    let (fv, _) = extract_vec(&full).unwrap();
-    let (hv, _) = extract_vec(&half).unwrap();
+    let (fv, _) = extract_vec(&full).expect("infallible: validated precondition");
+    let (hv, _) = extract_vec(&half).expect("infallible: validated precondition");
     let full_row = 2 * w;
     let keep = 2 * half_cols;
     let rows = d * h;

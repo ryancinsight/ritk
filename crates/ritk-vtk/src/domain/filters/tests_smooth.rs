@@ -16,7 +16,7 @@ fn zero_iterations_leaves_points_unchanged() {
     let original = triangle();
     let out = f
         .execute(VtkDataObject::PolyData(original.clone()))
-        .unwrap();
+        .expect("infallible: validated precondition");
     let VtkDataObject::PolyData(p) = out else {
         panic!()
     };
@@ -31,7 +31,7 @@ fn one_iteration_moves_vertex_toward_neighbor_mean() {
     // adj[0] = {1, 2}: mean = ([1,0,0]+[0.5,1,0])/2 = [0.75, 0.5, 0]
     // v0' = 0.5*[0,0,0] + 0.5*[0.75,0.5,0] = [0.375, 0.25, 0]
     let f = SmoothFilter::new(0.5, 1);
-    let out = f.execute(VtkDataObject::PolyData(triangle())).unwrap();
+    let out = f.execute(VtkDataObject::PolyData(triangle())).expect("infallible: validated precondition");
     let VtkDataObject::PolyData(p) = out else {
         panic!()
     };
@@ -53,7 +53,7 @@ fn one_iteration_moves_vertex_toward_neighbor_mean() {
 fn relaxation_factor_one_snaps_fully_to_mean() {
     // λ=1 → v_i' = mean(neighbors(v_i)) after 1 iteration.
     let f = SmoothFilter::new(1.0, 1);
-    let out = f.execute(VtkDataObject::PolyData(triangle())).unwrap();
+    let out = f.execute(VtkDataObject::PolyData(triangle())).expect("infallible: validated precondition");
     let VtkDataObject::PolyData(p) = out else {
         panic!()
     };
@@ -76,7 +76,7 @@ fn topology_preserved_after_smoothing() {
     let f = SmoothFilter::default();
     let original = triangle();
     let original_polygons = original.polygons.clone();
-    let out = f.execute(VtkDataObject::PolyData(original)).unwrap();
+    let out = f.execute(VtkDataObject::PolyData(original)).expect("infallible: validated precondition");
     let VtkDataObject::PolyData(p) = out else {
         panic!()
     };
@@ -109,7 +109,7 @@ fn isolated_vertex_stays_unchanged() {
         ..Default::default()
     };
     let f = SmoothFilter::new(0.5, 50);
-    let out = f.execute(VtkDataObject::PolyData(poly)).unwrap();
+    let out = f.execute(VtkDataObject::PolyData(poly)).expect("infallible: validated precondition");
     let VtkDataObject::PolyData(p) = out else {
         panic!()
     };

@@ -303,7 +303,7 @@ fn decode_baseline_ycbcr(
                     .components
                     .iter()
                     .position(|c| c.id == sc.id)
-                    .unwrap();
+                    .expect("infallible: validated precondition");
                 let fc = &frame.sof.components[fc_idx];
                 let scale_x = max_h as usize / fc.h_samp as usize;
                 let scale_y = max_v as usize / fc.v_samp as usize;

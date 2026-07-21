@@ -19,13 +19,13 @@ fn test_node_attribute_extraction() {
     node.attributes
         .insert("epsilon".to_string(), OnnxAttribute::Float(1e-5));
 
-    let kernel_size: Vec<i64> = node.get_attr("kernel_size").unwrap();
+    let kernel_size: Vec<i64> = node.get_attr("kernel_size").expect("infallible: validated precondition");
     assert_eq!(kernel_size, vec![3, 3]);
 
-    let stride: i64 = node.get_attr("stride").unwrap();
+    let stride: i64 = node.get_attr("stride").expect("infallible: validated precondition");
     assert_eq!(stride, 1);
 
-    let epsilon: f32 = node.get_attr("epsilon").unwrap();
+    let epsilon: f32 = node.get_attr("epsilon").expect("infallible: validated precondition");
     assert!((epsilon - 1e-5).abs() < 1e-10);
 }
 
@@ -33,10 +33,10 @@ fn test_node_attribute_extraction() {
 fn test_optional_attribute() {
     let node = OnnxNode::new("relu1".to_string(), "Relu".to_string());
 
-    let alpha: Option<f32> = node.get_attr_opt("alpha").unwrap();
+    let alpha: Option<f32> = node.get_attr_opt("alpha").expect("infallible: validated precondition");
     assert!(alpha.is_none());
 
-    let default_alpha = node.get_attr_or("alpha", 0.0f32).unwrap();
+    let default_alpha = node.get_attr_or("alpha", 0.0f32).expect("infallible: validated precondition");
     assert!((default_alpha - 0.0).abs() < 1e-10);
 }
 

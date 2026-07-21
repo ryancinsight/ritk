@@ -136,7 +136,7 @@ impl FastMarchingFilter {
                 }
                 *node = (best, axis);
             }
-            nodes.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            nodes.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("infallible: validated precondition"));
 
             let speed_val = spd[idx(z, y, x)] as f64;
             let mut cc = speed_val / nf;
@@ -270,7 +270,7 @@ impl FastMarchingFilter {
                 }
                 *node = (best, axis);
             }
-            nodes.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+            nodes.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("infallible: validated precondition"));
 
             let speed_val = spd[idx(z, y, x)] as f64;
             let mut cc = speed_val / nf;

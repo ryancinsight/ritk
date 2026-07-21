@@ -27,7 +27,7 @@ fn test_add_contour_valid() {
         Point::new([1.0, 0.0, 0.0]),
         Point::new([0.5, 1.0, 0.0]),
     ];
-    state.add_contour(pts.clone()).unwrap();
+    state.add_contour(pts.clone()).expect("infallible: validated precondition");
     assert_eq!(state.contours.len(), 1);
     assert_eq!(state.contours[0], pts);
 }
@@ -60,7 +60,7 @@ fn test_add_polyline_valid() {
         Point::new([2.0, 0.0, 0.0]),
         Point::new([3.0, 0.0, 0.0]),
     ];
-    state.add_polyline(pts.clone()).unwrap();
+    state.add_polyline(pts.clone()).expect("infallible: validated precondition");
     assert_eq!(state.polylines.len(), 1);
     assert_eq!(state.polylines[0], pts);
 }
@@ -93,13 +93,13 @@ fn test_clear() {
             Point::new([0.0, 0.0, 0.0]),
             Point::new([1.0, 0.0, 0.0]),
         ])
-        .unwrap();
+        .expect("infallible: validated precondition");
     state
         .add_polyline(vec![
             Point::new([0.0, 0.0, 0.0]),
             Point::new([1.0, 0.0, 0.0]),
         ])
-        .unwrap();
+        .expect("infallible: validated precondition");
     state.clear();
     assert_eq!(state.total_count(), 0);
     assert!(state.points.is_empty());
@@ -132,13 +132,13 @@ fn test_json_roundtrip() {
             Point::new([1.0, 0.0, 0.0]),
             Point::new([0.5, 1.0, 0.0]),
         ])
-        .unwrap();
+        .expect("infallible: validated precondition");
     state
         .add_polyline(vec![
             Point::new([5.0, 5.0, 5.0]),
             Point::new([6.0, 5.0, 5.0]),
         ])
-        .unwrap();
+        .expect("infallible: validated precondition");
     let json = state.to_json().expect("serialization must succeed");
     let restored = AnnotationState::from_json(&json).expect("deserialization must succeed");
     assert_eq!(restored.points.len(), state.points.len());

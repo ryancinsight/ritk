@@ -111,9 +111,9 @@ fn test_learn_and_apply_single_image_roundtrip() {
     let mut normalizer = NyulUdupaNormalizer::new();
     normalizer.learn_standard(&[&image]);
 
-    let standard = normalizer.standard_landmarks.as_ref().unwrap();
+    let standard = normalizer.standard_landmarks.as_ref().expect("infallible: validated precondition");
     let lo = standard[0]; // p1 landmark value
-    let hi = *standard.last().unwrap(); // p99 landmark value
+    let hi = *standard.last().expect("infallible: validated precondition"); // p99 landmark value
 
     let result = normalizer.apply(&image).expect("apply must succeed");
     let result_vals = get_values(&result);
@@ -139,7 +139,7 @@ fn test_learn_and_apply_single_image_roundtrip() {
         lo,
         result_vals[0]
     );
-    let last = *result_vals.last().unwrap();
+    let last = *result_vals.last().expect("infallible: validated precondition");
     assert!(
         (last - hi).abs() < 1e-2,
         "above-p99 voxel clamped to p99 landmark {}, got {}",
@@ -267,9 +267,9 @@ fn test_custom_percentiles() {
     let mut normalizer = NyulUdupaNormalizer::with_percentiles(vec![5.0, 25.0, 50.0, 75.0, 95.0]);
     normalizer.learn_standard(&[&image]);
 
-    let standard = normalizer.standard_landmarks.as_ref().unwrap();
+    let standard = normalizer.standard_landmarks.as_ref().expect("infallible: validated precondition");
     let lo = standard[0]; // p5 landmark value
-    let hi = *standard.last().unwrap(); // p95 landmark value
+    let hi = *standard.last().expect("infallible: validated precondition"); // p95 landmark value
 
     let result = normalizer.apply(&image).expect("apply");
     let result_vals = get_values(&result);
@@ -296,7 +296,7 @@ fn test_custom_percentiles() {
         result_vals[0]
     );
     // Values above p95 clamp to the p95 landmark.
-    let last = *result_vals.last().unwrap();
+    let last = *result_vals.last().expect("infallible: validated precondition");
     assert!(
         (last - hi).abs() < 1e-2,
         "above-p95 voxel clamped to p95 landmark {}, got {}",
@@ -317,7 +317,7 @@ fn test_learn_from_multiple_images_averages_landmarks() {
     let mut normalizer = NyulUdupaNormalizer::new();
     normalizer.learn_standard(&[&image_a, &image_b]);
 
-    let standard = normalizer.standard_landmarks.as_ref().unwrap();
+    let standard = normalizer.standard_landmarks.as_ref().expect("infallible: validated precondition");
 
     // For uniform data [0..100): p50 ≈ 49.5. For [100..200): p50 ≈ 149.5.
     // Average p50 ≈ 99.5. Verify it's in a reasonable range.
@@ -325,7 +325,7 @@ fn test_learn_from_multiple_images_averages_landmarks() {
         .percentiles
         .iter()
         .position(|&p| (p - 50.0).abs() < 1e-9)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let avg_p50 = standard[p50_idx];
     assert!(
         (avg_p50 - 99.5).abs() < 1.0,

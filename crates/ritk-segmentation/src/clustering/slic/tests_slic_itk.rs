@@ -243,16 +243,16 @@ fn filter_native_legacy_and_sitk_outputs_are_exact() {
         Direction::identity(),
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     let config = ItkSlicConfig::new(4)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .with_spatial_proximity_weight(10.0)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .with_maximum_iterations(10)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let filter = ItkSlicFilter::new(config);
-    let legacy_output = filter.apply(&legacy).unwrap();
-    let native_output = filter.apply_native(&native, &SequentialBackend).unwrap();
+    let legacy_output = filter.apply(&legacy).expect("infallible: validated precondition");
+    let native_output = filter.apply_native(&native, &SequentialBackend).expect("infallible: validated precondition");
     assert_eq!(
         legacy_output
             .data_slice()
@@ -260,7 +260,7 @@ fn filter_native_legacy_and_sitk_outputs_are_exact() {
         &FULL2D.map(|value| value as f32)
     );
     assert_eq!(
-        native_output.data_slice().unwrap(),
+        native_output.data_slice().expect("infallible: validated precondition"),
         legacy_output
             .data_slice()
             .expect("invariant: contiguous host storage")
@@ -278,7 +278,7 @@ fn itk_slic_validation_errors_are_exact() {
     );
     assert_eq!(
         ItkSlicConfig::new(3)
-            .unwrap()
+            .expect("infallible: validated precondition")
             .with_maximum_iterations(0)
             .unwrap_err()
             .to_string(),
@@ -286,7 +286,7 @@ fn itk_slic_validation_errors_are_exact() {
     );
     let invalid = make_image::<f32, B, 3>(vec![0.0, f32::NAN], [1, 1, 2]);
     assert_eq!(
-        ItkSlicFilter::new(ItkSlicConfig::new(1).unwrap())
+        ItkSlicFilter::new(ItkSlicConfig::new(1).expect("infallible: validated precondition"))
             .apply(&invalid)
             .unwrap_err()
             .to_string(),
@@ -295,7 +295,7 @@ fn itk_slic_validation_errors_are_exact() {
     for value in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY, -1.0] {
         assert_eq!(
             ItkSlicConfig::new(3)
-                .unwrap()
+                .expect("infallible: validated precondition")
                 .with_spatial_proximity_weight(value)
                 .unwrap_err()
                 .to_string(),
@@ -310,9 +310,9 @@ fn itk_slic_validation_errors_are_exact() {
         Direction::identity(),
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(
-        ItkSlicFilter::new(ItkSlicConfig::new(1).unwrap())
+        ItkSlicFilter::new(ItkSlicConfig::new(1).expect("infallible: validated precondition"))
             .apply_native(&native_invalid, &SequentialBackend)
             .unwrap_err()
             .to_string(),
@@ -326,9 +326,9 @@ fn itk_slic_validation_errors_are_exact() {
         Direction::identity(),
         &SequentialBackend,
     )
-    .unwrap();
+    .expect("infallible: validated precondition");
     assert_eq!(
-        ItkSlicFilter::new(ItkSlicConfig::new(1).unwrap())
+        ItkSlicFilter::new(ItkSlicConfig::new(1).expect("infallible: validated precondition"))
             .apply_native(&empty, &SequentialBackend)
             .unwrap_err()
             .to_string(),
@@ -359,11 +359,11 @@ fn itk_slic_policies_and_accessors_route_exactly() {
         ),
     ] {
         let config = ItkSlicConfig::new(4)
-            .unwrap()
+            .expect("infallible: validated precondition")
             .with_spatial_proximity_weight(10.0)
-            .unwrap()
+            .expect("infallible: validated precondition")
             .with_maximum_iterations(10)
-            .unwrap()
+            .expect("infallible: validated precondition")
             .with_initialization_perturbation(perturbation)
             .with_connectivity(connectivity);
         assert_eq!(config.super_grid(), 4);
@@ -371,7 +371,7 @@ fn itk_slic_policies_and_accessors_route_exactly() {
         assert_eq!(config.maximum_iterations(), 10);
         assert_eq!(config.initialization_perturbation(), perturbation);
         assert_eq!(config.connectivity(), connectivity);
-        let actual = ItkSlicFilter::new(config).apply(&image).unwrap();
+        let actual = ItkSlicFilter::new(config).apply(&image).expect("infallible: validated precondition");
         let expected = slic_itk_impl(
             &values,
             &[12, 12],
@@ -394,12 +394,12 @@ fn itk_slic_policies_and_accessors_route_exactly() {
 fn itk_slic_extreme_representable_weight_keeps_exact_labels() {
     let image = make_image::<f32, B, 3>((0..16).map(|index| index as f32).collect(), [1, 4, 4]);
     let config = ItkSlicConfig::new(2)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .with_spatial_proximity_weight((f64::MAX / 4.0).sqrt())
-        .unwrap()
+        .expect("infallible: validated precondition")
         .with_initialization_perturbation(InitializationPerturbation::Disabled)
         .with_connectivity(ConnectivityEnforcement::Disabled);
-    let labels = ItkSlicFilter::new(config).apply(&image).unwrap();
+    let labels = ItkSlicFilter::new(config).apply(&image).expect("infallible: validated precondition");
     assert_eq!(
         labels
             .data_slice()

@@ -23,8 +23,8 @@ fn test_signed_maurer_3x3_block_values() {
         ..Default::default()
     }
     .apply(&ts::make_image::<f32, B, 3>(img, [1, ny, nx]))
-    .unwrap();
-    let (d, _) = extract_vec(&out).unwrap();
+    .expect("infallible: validated precondition");
+    let (d, _) = extract_vec(&out).expect("infallible: validated precondition");
     let at = |y: usize, x: usize| d[y * nx + x];
 
     // Foreground centre: nearest border voxel at distance 1 → −1.
@@ -56,8 +56,8 @@ fn test_signed_maurer_squared() {
         ..Default::default()
     }
     .apply(&ts::make_image::<f32, B, 3>(img, [1, ny, nx]))
-    .unwrap();
-    let (d, _) = extract_vec(&out).unwrap();
+    .expect("infallible: validated precondition");
+    let (d, _) = extract_vec(&out).expect("infallible: validated precondition");
     // Far corner squared: 18; sign positive (background).
     assert!((d[0] - 18.0).abs() < 1e-4, "corner² = {}", d[0]);
     // Centre squared: 1; sign negative (foreground).
@@ -84,8 +84,8 @@ fn test_signed_maurer_inside_positive() {
         ..Default::default()
     }
     .apply(&ts::make_image::<f32, B, 3>(img, [1, ny, nx]))
-    .unwrap();
-    let (d, _) = extract_vec(&out).unwrap();
+    .expect("infallible: validated precondition");
+    let (d, _) = extract_vec(&out).expect("infallible: validated precondition");
     // Foreground centre now positive.
     assert!(
         (d[4 * nx + 4] - 1.0).abs() < 1e-5,

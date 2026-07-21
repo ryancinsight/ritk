@@ -4,7 +4,7 @@ use super::*;
 fn test_c_echo_rq_encode_decode() {
     let msg = DimseMessage::c_echo_rq(7);
     let encoded = msg.encode_command_set();
-    let decoded = DimseMessage::decode_command_set(&encoded).unwrap();
+    let decoded = DimseMessage::decode_command_set(&encoded).expect("infallible: validated precondition");
     assert_eq!(decoded.command_field(), Some(CommandField::CEchoRq));
     assert_eq!(decoded.message_id(), Some(7));
     assert_eq!(
@@ -27,7 +27,7 @@ fn test_c_find_rq_has_data_set() {
     assert_eq!(msg.command_data_set_type(), Some(HAS_DATASET));
     assert!(msg.data_set.is_some());
     let encoded = msg.encode_command_set();
-    let decoded = DimseMessage::decode_command_set(&encoded).unwrap();
+    let decoded = DimseMessage::decode_command_set(&encoded).expect("infallible: validated precondition");
     assert_eq!(decoded.command_field(), Some(CommandField::CFindRq));
 }
 
@@ -36,7 +36,7 @@ fn test_c_store_rq_round_trip() {
     let ds = vec![0xDE, 0xAD, 0xBE, 0xEF];
     let msg = DimseMessage::c_store_rq(42, "1.2.840.10008.5.1.4.1.1.2", "1.2.3.4.5.6", 0x0000, ds);
     let encoded = msg.encode_command_set();
-    let decoded = DimseMessage::decode_command_set(&encoded).unwrap();
+    let decoded = DimseMessage::decode_command_set(&encoded).expect("infallible: validated precondition");
     assert_eq!(
         decoded.affected_sop_class_uid().as_deref(),
         Some("1.2.840.10008.5.1.4.1.1.2")
@@ -58,7 +58,7 @@ fn test_c_move_rq_encode() {
 fn test_command_group_length() {
     let msg = DimseMessage::c_echo_rq(1);
     let encoded = msg.encode_command_set();
-    let decoded = DimseMessage::decode_command_set(&encoded).unwrap();
+    let decoded = DimseMessage::decode_command_set(&encoded).expect("infallible: validated precondition");
 
     let gl_elem = decoded
         .find_element(TAG_CMD_GROUP_LENGTH)
@@ -117,7 +117,7 @@ fn test_sop_class_uids() {
 fn test_pending_status_decode() {
     let msg = DimseMessage::c_find_rsp(3, sop_class::FIND_STUDY, 0xFF00, None);
     let encoded = msg.encode_command_set();
-    let decoded = DimseMessage::decode_command_set(&encoded).unwrap();
+    let decoded = DimseMessage::decode_command_set(&encoded).expect("infallible: validated precondition");
     assert_eq!(decoded.status(), Some(0xFF00));
     assert_eq!(decoded.command_field(), Some(CommandField::CFindRsp));
     assert!(decoded.data_set.is_none());

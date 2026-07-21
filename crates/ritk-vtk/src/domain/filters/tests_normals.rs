@@ -13,11 +13,11 @@ fn xy_triangle() -> VtkPolyData {
 #[test]
 fn flat_xy_triangle_normals_are_positive_z() {
     let f = ComputeNormalsFilter;
-    let out = f.execute(VtkDataObject::PolyData(xy_triangle())).unwrap();
+    let out = f.execute(VtkDataObject::PolyData(xy_triangle())).expect("infallible: validated precondition");
     let VtkDataObject::PolyData(p) = out else {
         panic!("expected PolyData")
     };
-    let AttributeArray::Normals { values } = p.point_data.get("Normals").unwrap() else {
+    let AttributeArray::Normals { values } = p.point_data.get("Normals").expect("valid index") else {
         panic!("expected Normals attribute")
     };
     for n in values {
@@ -30,11 +30,11 @@ fn flat_xy_triangle_normals_are_positive_z() {
 #[test]
 fn computed_normals_are_unit_length() {
     let f = ComputeNormalsFilter;
-    let out = f.execute(VtkDataObject::PolyData(xy_triangle())).unwrap();
+    let out = f.execute(VtkDataObject::PolyData(xy_triangle())).expect("infallible: validated precondition");
     let VtkDataObject::PolyData(p) = out else {
         panic!("expected PolyData")
     };
-    let AttributeArray::Normals { values } = p.point_data.get("Normals").unwrap() else {
+    let AttributeArray::Normals { values } = p.point_data.get("Normals").expect("valid index") else {
         panic!("expected Normals")
     };
     for n in values {
@@ -52,11 +52,11 @@ fn normals_stored_in_point_data_with_correct_count() {
     let f = ComputeNormalsFilter;
     let poly = xy_triangle();
     let n_points = poly.points.len();
-    let out = f.execute(VtkDataObject::PolyData(poly)).unwrap();
+    let out = f.execute(VtkDataObject::PolyData(poly)).expect("infallible: validated precondition");
     let VtkDataObject::PolyData(p) = out else {
         panic!()
     };
-    let AttributeArray::Normals { values } = p.point_data.get("Normals").unwrap() else {
+    let AttributeArray::Normals { values } = p.point_data.get("Normals").expect("valid index") else {
         panic!()
     };
     assert_eq!(values.len(), n_points);
@@ -73,11 +73,11 @@ fn xz_triangle_normals_are_negative_y() {
         ..Default::default()
     };
     let f = ComputeNormalsFilter;
-    let out = f.execute(VtkDataObject::PolyData(poly)).unwrap();
+    let out = f.execute(VtkDataObject::PolyData(poly)).expect("infallible: validated precondition");
     let VtkDataObject::PolyData(p) = out else {
         panic!()
     };
-    let AttributeArray::Normals { values } = p.point_data.get("Normals").unwrap() else {
+    let AttributeArray::Normals { values } = p.point_data.get("Normals").expect("valid index") else {
         panic!()
     };
     for n in values {
@@ -104,12 +104,12 @@ fn degenerate_polygon_skipped_without_panic() {
         ..Default::default()
     };
     let f = ComputeNormalsFilter;
-    let out = f.execute(VtkDataObject::PolyData(poly)).unwrap();
+    let out = f.execute(VtkDataObject::PolyData(poly)).expect("infallible: validated precondition");
     let VtkDataObject::PolyData(p) = out else {
         panic!()
     };
     // accumulator remains [0,0,0] → fallback [0,0,1]
-    let AttributeArray::Normals { values } = p.point_data.get("Normals").unwrap() else {
+    let AttributeArray::Normals { values } = p.point_data.get("Normals").expect("valid index") else {
         panic!()
     };
     for n in values {

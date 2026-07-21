@@ -19,7 +19,7 @@ fn constant_field_is_zero() {
     let vals = vec![5.0_f32; 27];
     let img = make_image(vals.clone(), [3, 3, 3]);
     let lap = MorphologicalLaplacian::new(1);
-    let out = lap.apply(&img).unwrap();
+    let out = lap.apply(&img).expect("infallible: validated precondition");
     let got = extract_vals(&out);
     assert_eq!(got, vec![0.0_f32; 27]);
 }
@@ -30,7 +30,7 @@ fn all_ones_is_zero() {
     let vals = vec![1.0_f32; 27];
     let img = make_image(vals, [3, 3, 3]);
     let lap = MorphologicalLaplacian::new(1);
-    let out = lap.apply(&img).unwrap();
+    let out = lap.apply(&img).expect("infallible: validated precondition");
     let got = extract_vals(&out);
     for &v in &got {
         assert_eq!(v, 0.0);
@@ -51,7 +51,7 @@ fn linear_ramp_3x3x3() {
     }
     let img = make_image(vals, [3, 3, 3]);
     let lap = MorphologicalLaplacian::new(1);
-    let out = lap.apply(&img).unwrap();
+    let out = lap.apply(&img).expect("infallible: validated precondition");
     let got = extract_vals(&out);
     let expected_left = 1.0_f32;
     let expected_mid = 0.0_f32;
@@ -72,7 +72,7 @@ fn single_voxel_5x5x5_size_3() {
     vals[31] = 1.0; // voxel (1,1,1): 1*25 + 1*5 + 1 = 31
     let img = make_image(vals, [5, 5, 5]);
     let lap = MorphologicalLaplacian::new(1);
-    let out = lap.apply(&img).unwrap();
+    let out = lap.apply(&img).expect("infallible: validated precondition");
     let got = extract_vals(&out);
 
     for iz in 0..5 {
@@ -105,7 +105,7 @@ fn single_voxel_5x5x5_size_5() {
     vals[2 * 25 + 2 * 5 + 2] = 1.0; // voxel (2,2,2)
     let img = make_image(vals, [5, 5, 5]);
     let lap = MorphologicalLaplacian::new(2);
-    let out = lap.apply(&img).unwrap();
+    let out = lap.apply(&img).expect("infallible: validated precondition");
     let got = extract_vals(&out);
 
     for iz in 0..5 {
@@ -141,7 +141,7 @@ fn single_voxel_3x3x3() {
     vals[13] = 1.0; // voxel (1,1,1): 1*9 + 1*3 + 1
     let img = make_image(vals, [3, 3, 3]);
     let lap = MorphologicalLaplacian::new(1);
-    let out = lap.apply(&img).unwrap();
+    let out = lap.apply(&img).expect("infallible: validated precondition");
     let got = extract_vals(&out);
     let mut count_neg1 = 0;
     let mut count_pos1 = 0;
@@ -171,7 +171,7 @@ fn degenerate_axis_size_1() {
     let vals = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
     let img = make_image(vals, [1, 3, 3]);
     let lap = MorphologicalLaplacian::new(1);
-    let out = lap.apply(&img).unwrap();
+    let out = lap.apply(&img).expect("infallible: validated precondition");
     let got = extract_vals(&out);
     let expected = [4.0, 3.0, 2.0, 1.0, 0.0, -1.0, -2.0, -3.0, -4.0];
     assert_eq!(got.len(), expected.len());
@@ -190,7 +190,7 @@ fn operator_is_not_identity() {
     }
     let img = make_image(vals.clone(), [3, 3, 3]);
     let lap = MorphologicalLaplacian::new(1);
-    let out = lap.apply(&img).unwrap();
+    let out = lap.apply(&img).expect("infallible: validated precondition");
     let got = extract_vals(&out);
     assert_ne!(got, vals, "morphological_laplace should change the input");
 }
@@ -210,7 +210,7 @@ fn differential_two_corner_voxels_4x4x4() {
     vals[63] = 1.0; // (3,3,3): index 3*16 + 3*4 + 3 = 63
     let img = make_image(vals, [4, 4, 4]);
     let lap = MorphologicalLaplacian::new(1);
-    let out = lap.apply(&img).unwrap();
+    let out = lap.apply(&img).expect("infallible: validated precondition");
     let got = extract_vals(&out);
 
     let z0 = [

@@ -25,7 +25,7 @@ fn constant_image_unchanged() {
     let img = make_image(vec![42.0f32; 27], [3, 3, 3]);
     let out = CurvatureFlowImageFilter::new(cfg(5, 0.0625))
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let (v, _) = extract_vec_infallible(&out);
     for &x in &v {
         assert!(
@@ -42,7 +42,7 @@ fn zero_iterations_identity() {
     let img = make_image(vals.clone(), [3, 3, 3]);
     let out = CurvatureFlowImageFilter::new(cfg(0, 0.0625))
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let (v, _) = extract_vec_infallible(&out);
     for (&o, &e) in v.iter().zip(vals.iter()) {
         assert_eq!(o, e, "0-iter output must equal input");
@@ -56,7 +56,7 @@ fn single_voxel_identity() {
     let img = make_image(vec![100.0f32], [1, 1, 1]);
     let out = CurvatureFlowImageFilter::new(cfg(3, 0.0625))
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let (v, _) = extract_vec_infallible(&out);
     assert!(
         (v[0] - 100.0f32).abs() < 1e-4,
@@ -71,7 +71,7 @@ fn preserves_metadata() {
     let img = make_image(vec![5.0f32; 27], [3, 3, 3]);
     let out = CurvatureFlowImageFilter::new(cfg(2, 0.0625))
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.origin(), img.origin());
     assert_eq!(out.spacing(), img.spacing());
     assert_eq!(out.direction(), img.direction());
@@ -84,7 +84,7 @@ fn output_shape_matches_input() {
     let img = make_image(vec![1.0f32; 60], [3, 4, 5]);
     let out = CurvatureFlowImageFilter::new(cfg(2, 0.0625))
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     assert_eq!(out.shape(), [3, 4, 5]);
 }
 
@@ -107,7 +107,7 @@ fn step_edge_range_decreases() {
     let img = make_image(vals.clone(), [3, 3, 3]);
     let out = CurvatureFlowImageFilter::new(cfg(10, 0.0625))
         .apply(&img)
-        .unwrap();
+        .expect("infallible: validated precondition");
     let (v, _) = extract_vec_infallible(&out);
     let out_max = v.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
     let out_min = v.iter().cloned().fold(f32::INFINITY, f32::min);

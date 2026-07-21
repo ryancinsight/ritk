@@ -34,7 +34,7 @@ fn decomposition_inverts_cubic_basis_along_x() {
     let samples = vec![3.0f32, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0];
     let n = samples.len();
     let img = make(samples.clone(), [1, 1, n]);
-    let out = bspline_decomposition(&img).unwrap();
+    let out = bspline_decomposition(&img).expect("infallible: validated precondition");
     let (c, _) = extract_vec_infallible(&out);
     for k in 0..n {
         let ki = k as isize;
@@ -54,7 +54,7 @@ fn decomposition_inverts_cubic_basis_along_x() {
 #[test]
 fn constant_image_is_fixed_point() {
     let img = make(vec![7.0f32; 3 * 4 * 5], [3, 4, 5]);
-    let out = bspline_decomposition(&img).unwrap();
+    let out = bspline_decomposition(&img).expect("infallible: validated precondition");
     let (c, _) = extract_vec_infallible(&out);
     assert!(
         c.iter().all(|&v| (v - 7.0).abs() < 1e-3),
@@ -66,6 +66,6 @@ fn constant_image_is_fixed_point() {
 #[test]
 fn output_shape_preserved() {
     let img = make(vec![0.0f32; 2 * 3 * 4], [2, 3, 4]);
-    let out = bspline_decomposition(&img).unwrap();
+    let out = bspline_decomposition(&img).expect("infallible: validated precondition");
     assert_eq!(out.shape(), [2, 3, 4]);
 }

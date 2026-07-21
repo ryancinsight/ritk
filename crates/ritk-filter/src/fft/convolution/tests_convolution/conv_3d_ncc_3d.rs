@@ -33,9 +33,9 @@ fn output_shape_matches_input() {
     let kernel = make_image_3d(vec![0.0_f32; 27], 3, 3, 3);
 
     let result = FftConvolution3DFilter::<B>::new(&kernel)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&vol)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     assert_eq!(
         result.shape(),
@@ -62,11 +62,11 @@ fn identity_kernel_is_passthrough() {
     let kernel = make_image_3d(delta, 3, 3, 3);
 
     let result = FftConvolution3DFilter::<B>::new(&kernel)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&vol)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
-    let (out_vals, _) = extract_vec(&result).unwrap();
+    let (out_vals, _) = extract_vec(&result).expect("infallible: validated precondition");
     assert_eq!(
         out_vals.len(),
         vol_vals.len(),
@@ -91,11 +91,11 @@ fn zero_kernel_gives_zero_output() {
     let kernel = make_image_3d(vec![0.0_f32; 8], 2, 2, 2);
 
     let result = FftConvolution3DFilter::<B>::new(&kernel)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&vol)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
-    let (out_vals, _) = extract_vec(&result).unwrap();
+    let (out_vals, _) = extract_vec(&result).expect("infallible: validated precondition");
     for (i, &v) in out_vals.iter().enumerate() {
         assert!(
             v.abs() < 1e-6,
@@ -119,11 +119,11 @@ fn constant_kernel_sums_neighborhood() {
     let kernel = make_image_3d(vec![1.0_f32; 24], 2, 3, 4);
 
     let result = FftConvolution3DFilter::<B>::new(&kernel)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&vol)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
-    let (out_vals, _) = extract_vec(&result).unwrap();
+    let (out_vals, _) = extract_vec(&result).expect("infallible: validated precondition");
 
     // Interior voxel at [3, 3, 3]: flat index = 3*36 + 3*6 + 3 = 129.
     let interior = out_vals[3 * 36 + 3 * 6 + 3];
@@ -142,9 +142,9 @@ fn ncc3d_output_shape_matches_input() {
     let tmpl = make_image_3d(vec![1.0_f32; 27], 3, 3, 3);
 
     let result = FftNormalizedCorrelation3DFilter::<B>::new(&tmpl)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&vol)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
     assert_eq!(
         result.shape(),
@@ -165,11 +165,11 @@ fn ncc3d_zero_mean_template_gives_zero_output() {
     let tmpl = make_image_3d(vec![2.0_f32; 27], 3, 3, 3);
 
     let result = FftNormalizedCorrelation3DFilter::<B>::new(&tmpl)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&vol)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
-    let (out_vals, _) = extract_vec(&result).unwrap();
+    let (out_vals, _) = extract_vec(&result).expect("infallible: validated precondition");
     for (i, &v) in out_vals.iter().enumerate() {
         assert!(
             v.abs() < 1e-6,
@@ -188,11 +188,11 @@ fn ncc3d_output_is_finite() {
     let tmpl = make_image_3d(tmpl_vals, 2, 2, 2);
 
     let result = FftNormalizedCorrelation3DFilter::<B>::new(&tmpl)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&vol)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
-    let (out_vals, _) = extract_vec(&result).unwrap();
+    let (out_vals, _) = extract_vec(&result).expect("infallible: validated precondition");
     for (i, &v) in out_vals.iter().enumerate() {
         assert!(
             v.is_finite(),
@@ -239,11 +239,11 @@ fn ncc3d_identity_template() {
     let tmpl = make_image_3d(vec![1.0_f32, 0.0_f32], 1, 1, 2);
 
     let result = FftNormalizedCorrelation3DFilter::<B>::new(&tmpl)
-        .unwrap()
+        .expect("infallible: validated precondition")
         .apply(&vol)
-        .unwrap();
+        .expect("infallible: validated precondition");
 
-    let (out_vals, _) = extract_vec(&result).unwrap();
+    let (out_vals, _) = extract_vec(&result).expect("infallible: validated precondition");
     assert_eq!(
         out_vals.len(),
         27,

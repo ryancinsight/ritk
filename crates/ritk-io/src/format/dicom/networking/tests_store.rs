@@ -24,8 +24,8 @@ use std::time::Duration;
 
 fn rpc(uid: &str, ts: &[&str]) -> RequestedPresentationContext {
     RequestedPresentationContext {
-        abstract_syntax_uid: ArrayString::from(uid).unwrap(),
-        transfer_syntax_uids: ts.iter().map(|s| ArrayString::from(s).unwrap()).collect(),
+        abstract_syntax_uid: ArrayString::from(uid).expect("infallible: validated precondition"),
+        transfer_syntax_uids: ts.iter().map(|s| ArrayString::from(s).expect("infallible: validated precondition")).collect(),
     }
 }
 
@@ -86,25 +86,25 @@ fn scp_thread(listener: TcpListener) {
                 .transfer_syntax_uids
                 .first()
                 .cloned()
-                .unwrap_or_else(|| ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).unwrap()),
+                .unwrap_or_else(|| ArrayString::from(transfer_syntax::IMPLICIT_VR_LE).expect("infallible: validated precondition")),
         })
         .collect();
     let ac_pdu = Pdu::AssociateAc(AssociateAcPdu {
         protocol_version: 1,
         called_ae_title: rq.called_ae_title,
         calling_ae_title: rq.calling_ae_title,
-        application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME).unwrap(),
+        application_context_name: ArrayString::from(APPLICATION_CONTEXT_NAME).expect("infallible: validated precondition"),
         presentation_contexts: pc_acs,
         user_information: UserInformation {
             maximum_length: MaximumLengthSubItem {
                 maximum_length_received: 16384,
             },
             implementation_class_uid: ImplementationClassUidSubItem {
-                implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID).unwrap(),
+                implementation_class_uid: ArrayString::from(RITK_IMPLEMENTATION_CLASS_UID).expect("infallible: validated precondition"),
             },
             implementation_version_name: Some(ImplementationVersionNameSubItem {
                 implementation_version_name: ArrayString::from(RITK_IMPLEMENTATION_VERSION)
-                    .unwrap(),
+                    .expect("infallible: validated precondition"),
             }),
             ..Default::default()
         },
@@ -228,15 +228,15 @@ fn test_c_store_loopback_success() {
     let dataset: Vec<u8> = vec![0x08, 0x00, 0x5A, 0x44, 0x04, 0x00, 0x54, 0x45, 0x53, 0x54]; // dummy tag+VR+value
 
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
-    let port = listener.local_addr().unwrap().port();
+    let port = listener.local_addr().expect("infallible: validated precondition").port();
     let scp_handle = std::thread::spawn(move || {
         scp_thread(listener);
     });
 
     // SCU side
     let config = AssociationConfig {
-        called_ae_title: ArrayString::from("TESTSCP").unwrap(),
-        calling_ae_title: ArrayString::from("RITK_TEST").unwrap(),
+        called_ae_title: ArrayString::from("TESTSCP").expect("infallible: validated precondition"),
+        calling_ae_title: ArrayString::from("RITK_TEST").expect("infallible: validated precondition"),
         host: "127.0.0.1".into(),
         port,
         max_pdu_length: 16384,
@@ -276,14 +276,14 @@ fn test_c_store_loopback_empty_dataset() {
     let dataset: Vec<u8> = vec![];
 
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind loopback");
-    let port = listener.local_addr().unwrap().port();
+    let port = listener.local_addr().expect("infallible: validated precondition").port();
     let scp_handle = std::thread::spawn(move || {
         scp_thread(listener);
     });
 
     let config = AssociationConfig {
-        called_ae_title: ArrayString::from("TESTSCP").unwrap(),
-        calling_ae_title: ArrayString::from("RITK_TEST").unwrap(),
+        called_ae_title: ArrayString::from("TESTSCP").expect("infallible: validated precondition"),
+        calling_ae_title: ArrayString::from("RITK_TEST").expect("infallible: validated precondition"),
         host: "127.0.0.1".into(),
         port,
         max_pdu_length: 16384,

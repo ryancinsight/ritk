@@ -34,7 +34,7 @@ fn shape_preserved_through_filter() {
     ] {
         let result = FrequencyDomainFilter::new()
             .apply(&img, *kind, 0.3, 2)
-            .unwrap();
+            .expect("infallible: validated precondition");
         assert_eq!(
             result.shape(),
             [8_usize, 8_usize],
@@ -55,8 +55,8 @@ fn constant_image_preserved_by_low_pass() {
     let img = make_image_2d(vec![42.0_f32; 64], 8, 8);
     let result = FrequencyDomainFilter::new()
         .apply(&img, FftFilterKind::IdealLowPass, 0.3, 2)
-        .unwrap();
-    let (out, _) = extract_vec(&result).unwrap();
+        .expect("infallible: validated precondition");
+    let (out, _) = extract_vec(&result).expect("infallible: validated precondition");
     for (i, &v) in out.iter().enumerate() {
         assert!(
             (v - 42.0).abs() < 1e-4,
@@ -77,8 +77,8 @@ fn constant_image_removed_by_high_pass() {
     let img = make_image_2d(vec![42.0_f32; 64], 8, 8);
     let result = FrequencyDomainFilter::new()
         .apply(&img, FftFilterKind::IdealHighPass, 0.3, 2)
-        .unwrap();
-    let (out, _) = extract_vec(&result).unwrap();
+        .expect("infallible: validated precondition");
+    let (out, _) = extract_vec(&result).expect("infallible: validated precondition");
     for (i, &v) in out.iter().enumerate() {
         assert!(
             v.abs() < 1e-4,
@@ -111,8 +111,8 @@ fn checkerboard_attenuated_by_low_pass() {
     let img = make_image_2d(vals, 8, 8);
     let result = FrequencyDomainFilter::new()
         .apply(&img, FftFilterKind::IdealLowPass, 0.2, 2)
-        .unwrap();
-    let (out, _) = extract_vec(&result).unwrap();
+        .expect("infallible: validated precondition");
+    let (out, _) = extract_vec(&result).expect("infallible: validated precondition");
     let rms: f32 = (out.iter().map(|v| v * v).sum::<f32>() / out.len() as f32).sqrt();
     assert!(
         rms < 0.5,
@@ -127,8 +127,8 @@ fn butterworth_low_pass_gives_finite_output() {
     let img = make_image_2d(vals, 10, 10);
     let result = FrequencyDomainFilter::new()
         .apply(&img, FftFilterKind::ButterworthLowPass, 0.3, 4)
-        .unwrap();
-    let (out, _) = extract_vec(&result).unwrap();
+        .expect("infallible: validated precondition");
+    let (out, _) = extract_vec(&result).expect("infallible: validated precondition");
     for (i, &v) in out.iter().enumerate() {
         assert!(
             v.is_finite(),
@@ -144,8 +144,8 @@ fn butterworth_high_pass_gives_finite_output() {
     let img = make_image_2d(vals, 10, 10);
     let result = FrequencyDomainFilter::new()
         .apply(&img, FftFilterKind::ButterworthHighPass, 0.3, 4)
-        .unwrap();
-    let (out, _) = extract_vec(&result).unwrap();
+        .expect("infallible: validated precondition");
+    let (out, _) = extract_vec(&result).expect("infallible: validated precondition");
     for (i, &v) in out.iter().enumerate() {
         assert!(
             v.is_finite(),
@@ -168,7 +168,7 @@ fn shape_preserved_through_filter_volume() {
     ] {
         let result = FrequencyDomainFilter::new()
             .apply(&vol, *kind, 0.3, 2)
-            .unwrap();
+            .expect("infallible: validated precondition");
         assert_eq!(
             result.shape(),
             [4_usize, 4_usize, 4_usize],
@@ -183,8 +183,8 @@ fn constant_volume_preserved_by_low_pass() {
     let vol = make_image_3d(vec![std::f32::consts::PI; 64], 4, 4, 4);
     let result = FrequencyDomainFilter::new()
         .apply(&vol, FftFilterKind::IdealLowPass, 0.3, 2)
-        .unwrap();
-    let (out, _) = extract_vec(&result).unwrap();
+        .expect("infallible: validated precondition");
+    let (out, _) = extract_vec(&result).expect("infallible: validated precondition");
     for (i, &v) in out.iter().enumerate() {
         assert!(
             (v - std::f32::consts::PI).abs() < 1e-4,
@@ -199,8 +199,8 @@ fn constant_volume_removed_by_high_pass() {
     let vol = make_image_3d(vec![std::f32::consts::PI; 64], 4, 4, 4);
     let result = FrequencyDomainFilter::new()
         .apply(&vol, FftFilterKind::IdealHighPass, 0.3, 2)
-        .unwrap();
-    let (out, _) = extract_vec(&result).unwrap();
+        .expect("infallible: validated precondition");
+    let (out, _) = extract_vec(&result).expect("infallible: validated precondition");
     for (i, &v) in out.iter().enumerate() {
         assert!(
             v.abs() < 1e-4,
