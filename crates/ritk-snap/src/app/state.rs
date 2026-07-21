@@ -1,5 +1,5 @@
 use crate::label::LabelEditor;
-use crate::render::colormap::Colormap;
+use crate::render::NamedColorMap;
 use crate::render::RenderBufferPool;
 use crate::tools::interaction::{Annotation, ToolState};
 use crate::tools::kind::ToolKind;
@@ -48,9 +48,9 @@ pub(crate) struct SnapApp {
     /// Secondary compare viewport W/L width.
     pub(crate) secondary_window_width: Option<f32>,
     /// Active colormap for intensity mapping.
-    pub(crate) colormap: Colormap,
+    pub(crate) colormap: NamedColorMap,
     /// Secondary colormap for compare panel.
-    pub(crate) secondary_colormap: Colormap,
+    pub(crate) secondary_colormap: NamedColorMap,
     /// Primary MPR axis for single-viewport and tool operations:
     /// 0 = axial, 1 = coronal, 2 = sagittal.
     pub(crate) axis: usize,
@@ -266,8 +266,8 @@ impl Default for SnapApp {
             viewer_state: ViewerState::new(),
             secondary_window_center: None,
             secondary_window_width: None,
-            colormap: Colormap::Grayscale,
-            secondary_colormap: Colormap::Grayscale,
+            colormap: NamedColorMap::Grayscale,
+            secondary_colormap: NamedColorMap::Grayscale,
             axis: 0,
             active_tool: ToolKind::WindowLevel,
             tool_state: ToolState::Idle,

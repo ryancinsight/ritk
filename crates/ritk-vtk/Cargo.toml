@@ -7,6 +7,7 @@ authors = ["Ryan Clanton <ryanclanton@outlook.com>"]
 license.workspace = true
 
 [dependencies]
+iris = { workspace = true }
 ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }
 coeus-core = { workspace = true }

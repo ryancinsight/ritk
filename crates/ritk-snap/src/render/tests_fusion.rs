@@ -1,7 +1,14 @@
 use super::*;
 use crate::render::SliceRenderer;
 use egui::Color32;
+use iris::color::{ColorMap, Normalized};
 use ritk_io::literal_arraystring;
+
+fn rgb8(map: NamedColorMap, value: f32) -> [u8; 3] {
+    let value = Normalized::new(value).expect("test value is normalized");
+    let [red, green, blue, _] = map.sample(value).to_rgba8();
+    [red, green, blue]
+}
 
 fn test_volume(shape: [usize; 3], scale: f32) -> LoadedVolume {
     let [d, r, c] = shape;
@@ -47,18 +54,18 @@ fn alpha_zero_equals_primary_render() {
             axis: 0,
             slice: 1,
             wl,
-            colormap: Colormap::Grayscale,
+            colormap: NamedColorMap::Grayscale,
         },
         FusedSliceParams {
             volume: &s,
             axis: 0,
             slice: 1,
             wl,
-            colormap: Colormap::Hot,
+            colormap: NamedColorMap::Hot,
         },
         0.0,
     );
-    let primary = SliceRenderer::render(&p, 0, 1, wl, Colormap::Grayscale);
+    let primary = SliceRenderer::render(&p, 0, 1, wl, NamedColorMap::Grayscale);
     assert_eq!(fused.size, primary.size);
     assert_eq!(fused.pixels, primary.pixels);
 }
@@ -74,14 +81,14 @@ fn output_size_matches_primary_slice_geometry() {
             axis: 1,
             slice: 2,
             wl,
-            colormap: Colormap::Grayscale,
+            colormap: NamedColorMap::Grayscale,
         },
         FusedSliceParams {
             volume: &s,
             axis: 2,
             slice: 3,
             wl,
-            colormap: Colormap::Jet,
+            colormap: NamedColorMap::Jet,
         },
         0.5,
     );
@@ -110,20 +117,20 @@ fn pet_secondary_is_windowed_in_suv_units() {
             axis: 0,
             slice: 0,
             wl: WindowLevel::new(40.0, 400.0),
-            colormap: Colormap::Grayscale,
+            colormap: NamedColorMap::Grayscale,
         },
         FusedSliceParams {
             volume: &pet,
             axis: 0,
             slice: 0,
             wl: WindowLevel::new(3.0, 6.0),
-            colormap: Colormap::Hot,
+            colormap: NamedColorMap::Hot,
         },
         1.0,
     );
 
     let expected_wl = WindowLevel::new(3.0, 6.0).apply(1.0);
-    let [r, g, b] = Colormap::Hot.map(f32::from(expected_wl) / 255.0);
+    let [r, g, b] = rgb8(NamedColorMap::Hot, f32::from(expected_wl) / 255.0);
     assert_eq!(fused.size, [1, 1]);
     assert_eq!(
         fused.pixels[0],
@@ -152,20 +159,20 @@ fn non_pet_secondary_with_pet_fields_uses_raw_window_units() {
             axis: 0,
             slice: 0,
             wl: WindowLevel::new(40.0, 400.0),
-            colormap: Colormap::Grayscale,
+            colormap: NamedColorMap::Grayscale,
         },
         FusedSliceParams {
             volume: &secondary,
             axis: 0,
             slice: 0,
             wl: WindowLevel::new(3.0, 6.0),
-            colormap: Colormap::Hot,
+            colormap: NamedColorMap::Hot,
         },
         1.0,
     );
 
     let expected_wl = WindowLevel::new(3.0, 6.0).apply(f64::from(raw_bqml));
-    let [r, g, b] = Colormap::Hot.map(f32::from(expected_wl) / 255.0);
+    let [r, g, b] = rgb8(NamedColorMap::Hot, f32::from(expected_wl) / 255.0);
     assert_eq!(
         fused.pixels[0],
         Color32::from_rgb(r, g, b),

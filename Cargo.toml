@@ -38,6 +38,7 @@ resolver = "2"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
+iris = { git = "https://github.com/ryancinsight/iris", rev = "e2edd47615454111b4b0df2e68dc6076161ba457" }
 ritk-filter = { path = "crates/ritk-filter" }
 ritk-segmentation = { path = "crates/ritk-segmentation" }
 ritk-core = { path = "crates/ritk-core" }

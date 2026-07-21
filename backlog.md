@@ -1,5 +1,22 @@
 # RITK Backlog - Active Planning
 
+- **VIS-665-01 [arch] [major] - Consume Iris color laws
+  (REVIEW; owner=Codex `/root`; scope=`Cargo.toml`, `Cargo.lock`,
+  `crates/ritk-snap/{Cargo.toml,src/{render,app,session,tools,ui}/**}`,
+  `crates/ritk-vtk/{Cargo.toml,src/{lib.rs,domain/{mod.rs,mapper.rs}}}`,
+  `README.md`, `CHANGELOG.md`, PM artifacts).** Replace the independent
+  `ritk-snap` and `ritk-vtk` named-colormap computations with Iris 0.1 at the
+  public commit pinned by the workspace. Update every in-scope caller to the
+  canonical `NamedColorMap` contract and delete both superseded map
+  implementations. Acceptance: focused package checks, warning-denied Clippy,
+  Nextest, doctests, and Rustdoc pass; differential vectors preserve the
+  `ritk-snap` contract; VTK tests verify the canonical Iris contract; no local
+  named-map interpolation remains.
+  Local closure is green: 943/943 focused Nextest tests, package formatting,
+  warning-denied all-target Clippy, doctests, and warning-clean Rustdoc pass.
+  `cargo-semver-checks` reports only the intended major removals: VTK's
+  `ColormapPreset`, Snap's `Colormap`, and Snap's `render::colormap` module.
+
 - **CI-664-01 [arch] [patch] - Consume the Atlas-owned provider graph
   (REVIEW; owner=Codex `/root`; scope=`.github/workflows/{ci,
   python_ci,legacy-migration-audit,release}.yml`, deletion of

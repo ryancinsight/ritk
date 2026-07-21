@@ -37,6 +37,12 @@ Dependencies point inward toward domain contracts. Format crates own byte-level
 parsing, `ritk-io` owns cross-format dispatch, and applications and bindings
 depend on those contracts without moving domain logic into their boundaries.
 
+Domain-neutral normalized color laws and fixed lookup-table construction come
+from the public [Iris](https://github.com/ryancinsight/iris) provider.
+`ritk-snap` retains medical windowing, UI state, and GPU resource ownership;
+`ritk-vtk` retains VTK mapping and serialization. Both consume the same Iris
+`NamedColorMap` contract without local color interpolation.
+
 ### Viewer (`ritk-snap`)
 
 `ritk-snap [PATH]` launches the native viewer directly against a DICOM folder,

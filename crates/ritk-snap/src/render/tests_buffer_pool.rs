@@ -1,7 +1,7 @@
 use super::RenderBufferPool;
-use crate::render::colormap::Colormap;
-use crate::render::mip_vr::{render_mip_axial, render_mip_axial_with_scratch};
+use crate::render::mip_vr::{render_mip_axial, render_mip_axial_with_scratch, render_vr_axial};
 use crate::render::slice_render::{SliceRenderer, WindowLevel};
+use crate::render::NamedColorMap;
 use crate::LoadedVolume;
 use std::sync::Arc;
 
@@ -115,9 +115,10 @@ fn pixel_bytes_new_elements_are_zero_initialized() {
 fn test_render_with_scratch_axial_pixel_identical() {
     let vol = make_volume(4, 5, 6);
     let wl = WindowLevel::new(12.0, 24.0);
-    let expected = SliceRenderer::render(&vol, 0, 2, wl, Colormap::Grayscale);
+    let expected = SliceRenderer::render(&vol, 0, 2, wl, NamedColorMap::Grayscale);
     let mut pool = RenderBufferPool::default();
-    let actual = SliceRenderer::render_with_scratch(&mut pool, &vol, 0, 2, wl, Colormap::Grayscale);
+    let actual =
+        SliceRenderer::render_with_scratch(&mut pool, &vol, 0, 2, wl, NamedColorMap::Grayscale);
     assert_eq!(
         actual.size, expected.size,
         "scratch render must produce identical dimensions"
@@ -135,9 +136,10 @@ fn test_render_with_scratch_axial_pixel_identical() {
 fn test_render_with_scratch_coronal_pixel_identical() {
     let vol = make_volume(4, 5, 6);
     let wl = WindowLevel::new(12.0, 24.0);
-    let expected = SliceRenderer::render(&vol, 1, 2, wl, Colormap::Grayscale);
+    let expected = SliceRenderer::render(&vol, 1, 2, wl, NamedColorMap::Grayscale);
     let mut pool = RenderBufferPool::default();
-    let actual = SliceRenderer::render_with_scratch(&mut pool, &vol, 1, 2, wl, Colormap::Grayscale);
+    let actual =
+        SliceRenderer::render_with_scratch(&mut pool, &vol, 1, 2, wl, NamedColorMap::Grayscale);
     assert_eq!(actual.size, expected.size, "coronal dimensions must match");
     assert_eq!(
         actual.pixels, expected.pixels,
@@ -152,9 +154,10 @@ fn test_render_with_scratch_coronal_pixel_identical() {
 fn test_render_with_scratch_sagittal_pixel_identical() {
     let vol = make_volume(4, 5, 6);
     let wl = WindowLevel::new(12.0, 24.0);
-    let expected = SliceRenderer::render(&vol, 2, 1, wl, Colormap::Grayscale);
+    let expected = SliceRenderer::render(&vol, 2, 1, wl, NamedColorMap::Grayscale);
     let mut pool = RenderBufferPool::default();
-    let actual = SliceRenderer::render_with_scratch(&mut pool, &vol, 2, 1, wl, Colormap::Grayscale);
+    let actual =
+        SliceRenderer::render_with_scratch(&mut pool, &vol, 2, 1, wl, NamedColorMap::Grayscale);
     assert_eq!(actual.size, expected.size, "sagittal dimensions must match");
     assert_eq!(
         actual.pixels, expected.pixels,
@@ -171,8 +174,10 @@ fn test_render_with_scratch_pool_reuse_produces_consistent_results() {
     let vol = make_volume(4, 5, 6);
     let wl = WindowLevel::new(12.0, 24.0);
     let mut pool = RenderBufferPool::default();
-    let first = SliceRenderer::render_with_scratch(&mut pool, &vol, 0, 2, wl, Colormap::Grayscale);
-    let second = SliceRenderer::render_with_scratch(&mut pool, &vol, 0, 2, wl, Colormap::Grayscale);
+    let first =
+        SliceRenderer::render_with_scratch(&mut pool, &vol, 0, 2, wl, NamedColorMap::Grayscale);
+    let second =
+        SliceRenderer::render_with_scratch(&mut pool, &vol, 0, 2, wl, NamedColorMap::Grayscale);
     assert_eq!(
         first.pixels, second.pixels,
         "two renders with the same pool and inputs must be identical"
@@ -187,9 +192,9 @@ fn test_render_with_scratch_pool_reuse_produces_consistent_results() {
 fn test_render_mip_with_scratch_pixel_identical() {
     let vol = make_volume(4, 5, 6);
     let wl = WindowLevel::new(12.0, 24.0);
-    let expected = render_mip_axial(&vol, wl, Colormap::Grayscale);
+    let expected = render_mip_axial(&vol, wl, NamedColorMap::Grayscale);
     let mut scratch = Vec::new();
-    let actual = render_mip_axial_with_scratch(&mut scratch, &vol, wl, Colormap::Grayscale);
+    let actual = render_mip_axial_with_scratch(&mut scratch, &vol, wl, NamedColorMap::Grayscale);
     assert_eq!(
         actual.size, expected.size,
         "MIP scratch render must produce identical dimensions"
@@ -198,6 +203,32 @@ fn test_render_mip_with_scratch_pixel_identical() {
         actual.pixels, expected.pixels,
         "MIP scratch render must produce pixel-identical output"
     );
+}
+
+/// Windowing gives non-finite voxels a deterministic display contract: NaN
+/// and negative infinity map to the lower endpoint, while positive infinity
+/// maps to the upper endpoint.
+#[test]
+fn volume_renderers_map_non_finite_voxels_to_window_endpoints() {
+    let mut volume = make_volume(1, 1, 3);
+    volume.data = Arc::new(vec![f32::NAN, f32::NEG_INFINITY, f32::INFINITY]);
+    let wl = WindowLevel::new(0.0, 2.0);
+
+    let mip = render_mip_axial(&volume, wl, NamedColorMap::Grayscale);
+    let vr = render_vr_axial(&volume, wl, NamedColorMap::Grayscale, 1.0);
+
+    let expected_mip = [
+        egui::Color32::BLACK,
+        egui::Color32::BLACK,
+        egui::Color32::WHITE,
+    ];
+    let expected_vr = [
+        egui::Color32::TRANSPARENT,
+        egui::Color32::TRANSPARENT,
+        egui::Color32::WHITE,
+    ];
+    assert_eq!(mip.pixels, expected_mip);
+    assert_eq!(vr.pixels, expected_vr);
 }
 
 /// `resize_color32` must preserve monotone capacity invariant.

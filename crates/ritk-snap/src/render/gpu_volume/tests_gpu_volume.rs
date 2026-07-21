@@ -6,7 +6,7 @@
 //! ```
 //!
 //! The ±2 tolerance accounts for:
-//! - LUT index truncation (`floor(norm * 255)`) vs CPU `colormap.map(norm)`.
+//! - LUT index truncation (`floor(norm * 255)`) vs Iris's nearest-node sampling.
 //! - `pack4x8unorm` rounding vs CPU integer truncation (`as u8`).
 //!
 //! # Sprint 272 additions
@@ -25,7 +25,7 @@ use std::sync::Arc;
 use egui::ColorImage;
 
 use crate::render::mip_vr::render_mip_axial;
-use crate::render::{Colormap, WindowLevel};
+use crate::render::{NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
 
 use super::GpuVolumeRenderer;
@@ -51,7 +51,7 @@ fn render_mip_sync(
     renderer: &mut GpuVolumeRenderer,
     volume: &LoadedVolume,
     wl: WindowLevel,
-    colormap: Colormap,
+    colormap: NamedColorMap,
 ) -> Option<ColorImage> {
     // Round 1: flush any in-flight work from a previous render call.
     let _ = renderer.render_mip(volume, wl, colormap);
@@ -141,7 +141,7 @@ fn gpu_mip_matches_cpu_mip_grayscale() {
 
     let volume = make_test_volume(8, 16, 16);
     let wl = WindowLevel::new(1024.0, 2048.0);
-    let colormap = Colormap::Grayscale;
+    let colormap = NamedColorMap::Grayscale;
 
     let cpu_img = render_mip_axial(&volume, wl, colormap);
     let gpu_img = render_mip_sync(&mut renderer, &volume, wl, colormap)
@@ -210,7 +210,7 @@ fn gpu_mip_cache_invalidated_on_volume_change() {
     // wl_lo = 100 - 0.5*200 = 0; wl_range = 200.
     // vol_b norm = (0 - 0) / 200 = 0 → black; alpha always 255 (MIP).
     let wl = WindowLevel::new(100.0, 200.0);
-    let cm = Colormap::Grayscale;
+    let cm = NamedColorMap::Grayscale;
 
     let img_a = render_mip_sync(&mut renderer, &vol_a, wl, cm).expect("render vol_a");
     let img_b = render_mip_sync(&mut renderer, &vol_b, wl, cm).expect("render vol_b");
@@ -246,7 +246,7 @@ fn gpu_mip_wl_clamps_below_floor_all_black() {
 
     let vol = make_uniform_volume(4, 8, 8, -100.0);
     let wl = WindowLevel::new(128.0, 256.0);
-    let img = render_mip_sync(&mut renderer, &vol, wl, Colormap::Grayscale)
+    let img = render_mip_sync(&mut renderer, &vol, wl, NamedColorMap::Grayscale)
         .expect("GPU MIP must succeed when GPU is available");
 
     assert_eq!(
@@ -277,7 +277,7 @@ fn gpu_mip_wl_clamps_above_ceiling_all_white() {
 
     let vol = make_uniform_volume(4, 8, 8, 5000.0);
     let wl = WindowLevel::new(128.0, 256.0);
-    let img = render_mip_sync(&mut renderer, &vol, wl, Colormap::Grayscale)
+    let img = render_mip_sync(&mut renderer, &vol, wl, NamedColorMap::Grayscale)
         .expect("GPU MIP must succeed when GPU is available");
 
     assert_eq!(
@@ -310,7 +310,7 @@ fn gpu_mip_repeated_render_identical() {
 
     let vol = make_test_volume(8, 16, 16);
     let wl = WindowLevel::new(1024.0, 2048.0);
-    let cm = Colormap::Grayscale;
+    let cm = NamedColorMap::Grayscale;
 
     let img1 = render_mip_sync(&mut renderer, &vol, wl, cm).expect("first MIP render");
     let img2 =
@@ -335,7 +335,7 @@ fn gpu_mip_empty_volume_no_panic() {
     let vol = make_test_volume(1, 4, 4);
     let wl = WindowLevel::new(0.0, 1.0);
 
-    let img = render_mip_sync(&mut renderer, &vol, wl, Colormap::Grayscale);
+    let img = render_mip_sync(&mut renderer, &vol, wl, NamedColorMap::Grayscale);
     assert!(
         img.is_some(),
         "Single-slice volume must produce a valid MIP"

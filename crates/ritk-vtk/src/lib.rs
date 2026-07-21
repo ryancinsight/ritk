@@ -9,8 +9,8 @@ pub mod domain;
 pub mod io;
 
 pub use domain::{
-    AttributeArray, Block, ColormapPreset, ComputeNormalsFilter, EventHandlers, EventId, LeafIter,
-    Modifiable, ModifiedTime, Observable, ObserverCallback, ObserverTag, PolygonMode,
+    AttributeArray, Block, ComputeNormalsFilter, EventHandlers, EventId, LeafIter, Modifiable,
+    ModifiedTime, NamedColorMap, Observable, ObserverCallback, ObserverTag, PolygonMode,
     RenderProperties, ScalarVisibility, SmoothFilter, SurfaceMapper, ThresholdFilter, Visibility,
     VtkActor, VtkCellType, VtkDataObject, VtkFilter, VtkImageData, VtkLookupTable, VtkMapper,
     VtkMultiBlockDataSet, VtkPipeline, VtkPolyData, VtkScene, VtkSink, VtkSource,

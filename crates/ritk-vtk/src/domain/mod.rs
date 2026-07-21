@@ -13,9 +13,8 @@ pub mod vtk_pipeline;
 pub mod vtk_scene;
 
 pub use filters::{ComputeNormalsFilter, SmoothFilter, ThresholdFilter};
-pub use mapper::{
-    ColormapPreset, PolygonMode, ScalarVisibility, SurfaceMapper, VtkLookupTable, VtkMapper,
-};
+pub use iris::color::NamedColorMap;
+pub use mapper::{PolygonMode, ScalarVisibility, SurfaceMapper, VtkLookupTable, VtkMapper};
 pub use mtime::{Modifiable, ModifiedTime};
 pub use multi_block::{Block, LeafIter, VtkMultiBlockDataSet};
 pub use observer::{EventHandlers, EventId, Observable, ObserverCallback, ObserverTag};

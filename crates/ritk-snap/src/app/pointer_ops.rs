@@ -1,5 +1,5 @@
 use super::state::SnapApp;
-use crate::render::colormap::Colormap;
+use crate::render::NamedColorMap;
 use crate::tools::interaction::{Annotation, RoiKind, ToolState};
 use crate::tools::kind::ToolKind;
 use crate::ui::{
@@ -356,12 +356,12 @@ impl SnapApp {
 
     /// Select the default colormap for a modality string.
     ///
-    /// PT → `Colormap::Hot` (standard PET display); all others → `Colormap::Grayscale`.
-    pub(crate) fn colormap_for_modality(modality: Option<&str>) -> Colormap {
+    /// PT → `NamedColorMap::Hot` (standard PET display); all others → `NamedColorMap::Grayscale`.
+    pub(crate) fn colormap_for_modality(modality: Option<&str>) -> NamedColorMap {
         if modality == Some("PT") {
-            Colormap::Hot
+            NamedColorMap::Hot
         } else {
-            Colormap::Grayscale
+            NamedColorMap::Grayscale
         }
     }
 

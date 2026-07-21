@@ -10,6 +10,7 @@ name = "ritk-snap"
 path = "src/main.rs"
 
 [dependencies]
+iris = { workspace = true, features = ["serde"] }
 coeus-core = { workspace = true }
 anyhow = { workspace = true }
 arrayvec = { workspace = true }

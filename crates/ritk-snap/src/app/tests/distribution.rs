@@ -2,7 +2,7 @@ use super::*;
 use crate::app::clinical_distribution::{
     build_clinical_distribution_report, report_path, summary_from_loaded_volume,
 };
-use crate::render::colormap::Colormap;
+use crate::render::NamedColorMap;
 use crate::tools::kind::ToolKind;
 use crate::ui::anatomical_label_for_axis;
 use crate::{LoadedVolume, ViewerState};
@@ -45,7 +45,7 @@ fn clinical_distribution_report_redacts_identifiers_and_lists_media_layout() {
         &volume,
         &viewer_state,
         0,
-        Colormap::Grayscale,
+        NamedColorMap::Grayscale,
         ToolKind::WindowLevel,
         3,
         false,
@@ -86,7 +86,7 @@ fn clinical_distribution_export_writes_report_and_media_with_expected_counts() {
     app.viewer_state.window_center = Some(1.0);
     app.viewer_state.window_width = Some(2.0);
     app.active_tool = ToolKind::WindowLevel;
-    app.colormap = Colormap::Grayscale;
+    app.colormap = NamedColorMap::Grayscale;
     app.loaded = Some(LoadedVolume {
         data: Arc::new((0..24).map(|v| v as f32).collect()),
         shape: [2, 3, 4],

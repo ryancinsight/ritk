@@ -49,7 +49,8 @@
 //! The ±2 tolerance accounts for f32→u8 rounding (LUT truncation vs round)
 //! and pack4x8unorm rounding vs CPU truncation.
 
-use crate::render::Colormap;
+use crate::render::NamedColorMap;
+use iris::color::LookupTable;
 
 pub(crate) mod context;
 mod frame_cache;
@@ -71,25 +72,24 @@ use frame_cache::GpuFrameCache;
 
 /// Build a 256-entry f32 RGBA colormap LUT for GPU upload.
 ///
-/// Entry `i` maps `i / 255.0` through `colormap.map()` and stores the result
+/// Entry `i` samples the Iris map at `i / 255.0` and stores the result
 /// as `[R, G, B, 1.0]` in f32 ∈ [0, 1]. Stored flat as 256 × 4 = 1 024 f32
 /// values for direct upload to the `lut` storage buffer.
 ///
 /// # Invariant
 ///
-/// `lut[i * 4 + 0]` = `colormap.map(i as f32 / 255.0)[0] as f32 / 255.0`
-/// `lut[i * 4 + 1]` = `colormap.map(i as f32 / 255.0)[1] as f32 / 255.0`
-/// `lut[i * 4 + 2]` = `colormap.map(i as f32 / 255.0)[2] as f32 / 255.0`
+/// `lut[i * 4 + channel]` is the Iris sample quantized to u8 and normalized
+/// back to f32, preserving the CPU renderer's byte-level contract.
 /// `lut[i * 4 + 3]` = `1.0` (unused alpha slot for alignment)
-fn build_colormap_lut(colormap: Colormap) -> Vec<f32> {
+fn build_colormap_lut(colormap: NamedColorMap) -> Vec<f32> {
+    let table = LookupTable::<NamedColorMap, 256>::from_map(colormap);
     let mut lut = Vec::with_capacity(256 * 4);
-    for i in 0u32..256 {
-        let norm = i as f32 / super::U8_MAX_F32;
-        let [r, g, b] = colormap.map(norm);
-        lut.push(r as f32 / super::U8_MAX_F32);
-        lut.push(g as f32 / super::U8_MAX_F32);
-        lut.push(b as f32 / super::U8_MAX_F32);
-        lut.push(1.0f32);
+    for color in table.entries() {
+        let [red, green, blue, alpha] = color.to_rgba8();
+        lut.push(f32::from(red) / super::U8_MAX_F32);
+        lut.push(f32::from(green) / super::U8_MAX_F32);
+        lut.push(f32::from(blue) / super::U8_MAX_F32);
+        lut.push(f32::from(alpha) / super::U8_MAX_F32);
     }
     lut
 }

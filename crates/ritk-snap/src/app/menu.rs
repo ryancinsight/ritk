@@ -1,5 +1,5 @@
 use super::state::SnapApp;
-use crate::render::colormap::Colormap;
+use crate::render::NamedColorMap;
 use crate::ui::window_presets::WindowPreset;
 use crate::ui::AnatomicalPlane;
 use crate::ModalityDisplay;
@@ -288,7 +288,7 @@ impl SnapApp {
 
                     // Colormap sub-menu kept in View.
                     ui.menu_button("Colormap", |ui| {
-                        for &cm in Colormap::all() {
+                        for &cm in &NamedColorMap::ALL {
                             if ui
                                 .selectable_label(self.colormap == cm, cm.label())
                                 .clicked()

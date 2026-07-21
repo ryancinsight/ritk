@@ -6,7 +6,7 @@ use super::*;
 fn colormap_for_modality_pt_yields_hot() {
     assert_eq!(
         SnapApp::colormap_for_modality(Some("PT")),
-        Colormap::Hot,
+        NamedColorMap::Hot,
         "PT modality must auto-select Hot colormap"
     );
 }
@@ -15,7 +15,7 @@ fn colormap_for_modality_pt_yields_hot() {
 fn colormap_for_modality_ct_yields_grayscale() {
     assert_eq!(
         SnapApp::colormap_for_modality(Some("CT")),
-        Colormap::Grayscale,
+        NamedColorMap::Grayscale,
         "CT modality must auto-select Grayscale colormap"
     );
 }
@@ -24,7 +24,7 @@ fn colormap_for_modality_ct_yields_grayscale() {
 fn colormap_for_modality_none_yields_grayscale() {
     assert_eq!(
         SnapApp::colormap_for_modality(None),
-        Colormap::Grayscale,
+        NamedColorMap::Grayscale,
         "absent modality must default to Grayscale colormap"
     );
 }
@@ -32,11 +32,11 @@ fn colormap_for_modality_none_yields_grayscale() {
 #[test]
 fn secondary_colormap_auto_selects_hot_when_secondary_is_pt() {
     let mut app = SnapApp::default();
-    assert_eq!(app.secondary_colormap, Colormap::Grayscale);
+    assert_eq!(app.secondary_colormap, NamedColorMap::Grayscale);
     app.secondary_colormap = SnapApp::colormap_for_modality(Some("PT"));
     assert_eq!(
         app.secondary_colormap,
-        Colormap::Hot,
+        NamedColorMap::Hot,
         "secondary PT volume must produce Hot secondary colormap"
     );
 }
@@ -47,7 +47,7 @@ fn secondary_colormap_remains_grayscale_when_secondary_is_ct() {
     app.secondary_colormap = SnapApp::colormap_for_modality(Some("CT"));
     assert_eq!(
         app.secondary_colormap,
-        Colormap::Grayscale,
+        NamedColorMap::Grayscale,
         "secondary CT volume must retain Grayscale secondary colormap"
     );
 }
@@ -55,11 +55,11 @@ fn secondary_colormap_remains_grayscale_when_secondary_is_ct() {
 #[test]
 fn primary_colormap_auto_selects_hot_when_primary_is_pt() {
     let mut app = SnapApp::default();
-    assert_eq!(app.colormap, Colormap::Grayscale);
+    assert_eq!(app.colormap, NamedColorMap::Grayscale);
     app.colormap = SnapApp::colormap_for_modality(Some("PT"));
     assert_eq!(
         app.colormap,
-        Colormap::Hot,
+        NamedColorMap::Hot,
         "primary PT volume must produce Hot primary colormap"
     );
 }

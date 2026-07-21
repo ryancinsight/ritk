@@ -2,8 +2,8 @@
 //!
 //! # Architecture
 //!
-//! `VtkLookupTable` converts a scalar value to an RGBA colour via a 256-entry
-//! piecewise linear LUT sampled at construction from a `ColormapPreset`.
+//! `VtkLookupTable` converts a scalar value to an RGBA colour via an Iris-owned
+//! 256-entry lookup table sampled at construction from a [`NamedColorMap`].
 //!
 //! `VtkMapper` is a sealed trait implemented by `SurfaceMapper` (and future
 //! volume mappers).  Selecting a mapper type is a compile-time decision encoded
@@ -17,6 +17,10 @@
 //! The LUT index is:  i = round(t × 255) ∈ {0, …, 255}
 //! The mapped colour is: rgba = lut\[i\]
 
+use iris::color::LookupTable;
+
+use super::NamedColorMap;
+
 /// Polygon display mode for surface rendering.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PolygonMode {
@@ -29,32 +33,17 @@ pub enum PolygonMode {
     Points,
 }
 
-/// Built-in colormap presets for `VtkLookupTable`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum ColormapPreset {
-    /// Scalar → greyscale; R=G=B=t.
-    #[default]
-    Grayscale,
-    /// Classic MATLAB-style jet (blue–cyan–green–yellow–red).
-    Jet,
-    /// Diverging blue–white–red (Moreland 2009).
-    CoolWarm,
-    /// Perceptually uniform dark-purple → yellow (Matplotlib viridis).
-    Viridis,
-    /// HSV rainbow hue sweep blue → red.
-    Rainbow,
-}
-
 /// 256-entry RGBA lookup table mapping normalised scalars to colours.
 ///
-/// Constructed by sampling a `ColormapPreset` at 256 uniform steps in [0, 1].
+/// Constructed by sampling an Iris [`NamedColorMap`] at 256 uniform steps in
+/// `[0, 1]`.
 #[derive(Debug, Clone)]
 pub struct VtkLookupTable {
     /// `[scalar_min, scalar_max]` — input range mapped to [0, 1].
     pub range: [f64; 2],
     /// The colormap used to build the table.
-    pub preset: ColormapPreset,
-    table: Vec<[f32; 4]>, // 256 RGBA entries
+    pub preset: NamedColorMap,
+    table: [[f32; 4]; 256],
 }
 
 impl VtkLookupTable {
@@ -62,18 +51,13 @@ impl VtkLookupTable {
     ///
     /// # Panics
     /// Panics if `range[0] == range[1]` (degenerate range).
-    pub fn new(range: [f64; 2], preset: ColormapPreset) -> Self {
+    pub fn new(range: [f64; 2], preset: NamedColorMap) -> Self {
         assert!(
             (range[1] - range[0]).abs() > f64::EPSILON,
             "VtkLookupTable: range[0] and range[1] must differ"
         );
-        let table = (0usize..256)
-            .map(|i| {
-                let t = i as f32 / 255.0;
-                let [r, g, b] = sample_colormap(preset, t);
-                [r, g, b, 1.0_f32]
-            })
-            .collect();
+        let iris_table = LookupTable::<NamedColorMap, 256>::from_map(preset);
+        let table = core::array::from_fn(|index| *iris_table.entries()[index].channels());
         Self {
             range,
             preset,
@@ -99,125 +83,6 @@ impl VtkLookupTable {
     pub fn raw_table(&self) -> &[[f32; 4]] {
         &self.table
     }
-}
-
-// ── Colormap helpers ───────────────────────────────────────────────────────
-
-/// Sample a colormap preset at normalised parameter `t ∈ [0, 1]`.
-fn sample_colormap(preset: ColormapPreset, t: f32) -> [f32; 3] {
-    match preset {
-        ColormapPreset::Grayscale => [t, t, t],
-        ColormapPreset::Jet => jet_color(t),
-        ColormapPreset::CoolWarm => cool_warm_color(t),
-        ColormapPreset::Viridis => viridis_color(t),
-        ColormapPreset::Rainbow => rainbow_color(t),
-    }
-}
-
-/// MATLAB-style jet colormap: piecewise linear blue→cyan→green→yellow→red.
-///
-/// Segments (each spanning 1/4 of `[0, 1]`):
-///   Blue peak at t=0.25, green peak at t=0.5, red peak at t=0.75.
-fn jet_color(t: f32) -> [f32; 3] {
-    let r = if t < 3.0 / 8.0 {
-        0.0
-    } else if t < 5.0 / 8.0 {
-        (t - 3.0 / 8.0) * 4.0
-    } else if t < 7.0 / 8.0 {
-        1.0
-    } else {
-        (9.0 / 8.0 - t) * 4.0
-    };
-    let g = if t < 1.0 / 8.0 {
-        0.0
-    } else if t < 3.0 / 8.0 {
-        (t - 1.0 / 8.0) * 4.0
-    } else if t < 5.0 / 8.0 {
-        1.0
-    } else if t < 7.0 / 8.0 {
-        (7.0 / 8.0 - t) * 4.0
-    } else {
-        0.0
-    };
-    let b = if t < 1.0 / 8.0 {
-        0.5 + t * 4.0
-    } else if t < 3.0 / 8.0 {
-        1.0
-    } else if t < 5.0 / 8.0 {
-        (5.0 / 8.0 - t) * 4.0
-    } else {
-        0.0
-    };
-    [r.clamp(0.0, 1.0), g.clamp(0.0, 1.0), b.clamp(0.0, 1.0)]
-}
-
-/// Moreland (2009) diverging blue–white–red colormap.
-///
-/// t=0 → cool blue [0.23, 0.30, 0.75]
-/// t=0.5 → white [1.0, 1.0, 1.0]
-/// t=1 → warm red [0.71, 0.016, 0.15]
-fn cool_warm_color(t: f32) -> [f32; 3] {
-    let cool = [0.23_f32, 0.30, 0.75];
-    let white = [1.0_f32; 3];
-    let warm = [0.71_f32, 0.016, 0.15];
-    if t <= 0.5 {
-        let s = t * 2.0;
-        lerp3(cool, white, s)
-    } else {
-        let s = (t - 0.5) * 2.0;
-        lerp3(white, warm, s)
-    }
-}
-
-/// Perceptually uniform viridis colormap — 5 anchor colours.
-///
-/// Anchors (t=0, 0.25, 0.5, 0.75, 1.0) taken from Matplotlib's viridis.
-fn viridis_color(t: f32) -> [f32; 3] {
-    const KEYS: [[f32; 3]; 5] = [
-        [0.267, 0.005, 0.329], // dark purple
-        [0.128, 0.407, 0.549], // blue-green
-        [0.204, 0.636, 0.469], // teal
-        [0.632, 0.829, 0.195], // yellow-green
-        [0.993, 0.906, 0.144], // yellow
-    ];
-    let seg = (t * 4.0).floor().min(3.0) as usize;
-    let s = (t * 4.0) - seg as f32;
-    lerp3(KEYS[seg], KEYS[seg + 1], s.clamp(0.0, 1.0))
-}
-
-/// HSV rainbow: hue sweeps 240° (blue) → 0° (red) as t goes 0 → 1.
-fn rainbow_color(t: f32) -> [f32; 3] {
-    // Hue in [0, 360) decreasing from 240 to 0.
-    let hue = 240.0_f32 * (1.0 - t);
-    hsv_to_rgb(hue, 1.0, 1.0)
-}
-
-/// Convert HSV (hue ∈ `[0, 360)`, s ∈ `[0, 1]`, v ∈ `[0, 1]`) to RGB.
-fn hsv_to_rgb(h: f32, s: f32, v: f32) -> [f32; 3] {
-    let h = h.rem_euclid(360.0);
-    let i = (h / 60.0) as u32;
-    let f = h / 60.0 - i as f32;
-    let p = v * (1.0 - s);
-    let q = v * (1.0 - s * f);
-    let t = v * (1.0 - s * (1.0 - f));
-    match i {
-        0 => [v, t, p],
-        1 => [q, v, p],
-        2 => [p, v, t],
-        3 => [p, q, v],
-        4 => [t, p, v],
-        _ => [v, p, q],
-    }
-}
-
-/// Linear interpolation between two RGB triples.
-#[inline]
-fn lerp3(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
-    [
-        a[0] + (b[0] - a[0]) * t,
-        a[1] + (b[1] - a[1]) * t,
-        a[2] + (b[2] - a[2]) * t,
-    ]
 }
 
 // ── Mapper trait & SurfaceMapper ───────────────────────────────────────────
@@ -263,7 +128,7 @@ impl Default for SurfaceMapper {
         Self {
             mode: PolygonMode::Surface,
             opacity: 1.0,
-            lut: VtkLookupTable::new([0.0, 1.0], ColormapPreset::Grayscale),
+            lut: VtkLookupTable::new([0.0, 1.0], NamedColorMap::Grayscale),
             scalar_visibility: ScalarVisibility::Visible,
         }
     }
@@ -301,8 +166,10 @@ impl VtkMapper for SurfaceMapper {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use iris::color::{ColorMap, Normalized};
 
-    const EPS: f32 = 1.0 / 255.0 + 1e-5; // one LUT quantisation step
+    // One uniform LUT step plus four rounding errors in the affine map.
+    const EPS: f32 = 1.0 / 255.0 + 4.0 * f32::EPSILON;
 
     fn approx_eq(a: f32, b: f32) -> bool {
         (a - b).abs() < EPS
@@ -312,8 +179,23 @@ mod tests {
     }
 
     #[test]
+    fn lookup_tables_match_every_iris_map_at_all_sample_nodes() {
+        for map in NamedColorMap::ALL {
+            let lut = VtkLookupTable::new([0.0, 1.0], map);
+            for index in 0_u8..=u8::MAX {
+                let coordinate = Normalized::from_u8(index);
+                assert_eq!(
+                    lut.raw_table()[usize::from(index)].map(f32::to_bits),
+                    map.sample(coordinate).channels().map(f32::to_bits),
+                    "map={map:?}, index={index}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn grayscale_lut_min_is_black() {
-        let lut = VtkLookupTable::new([0.0, 1.0], ColormapPreset::Grayscale);
+        let lut = VtkLookupTable::new([0.0, 1.0], NamedColorMap::Grayscale);
         let c = lut.map_value(0.0);
         assert!(approx_eq(c[0], 0.0), "R must be 0 at min: got {}", c[0]);
         assert!(approx_eq(c[1], 0.0), "G must be 0 at min: got {}", c[1]);
@@ -323,7 +205,7 @@ mod tests {
 
     #[test]
     fn grayscale_lut_max_is_white() {
-        let lut = VtkLookupTable::new([0.0, 1.0], ColormapPreset::Grayscale);
+        let lut = VtkLookupTable::new([0.0, 1.0], NamedColorMap::Grayscale);
         let c = lut.map_value(1.0);
         assert!(approx_eq(c[0], 1.0), "R must be 1 at max: got {}", c[0]);
         assert!(approx_eq(c[1], 1.0), "G must be 1 at max: got {}", c[1]);
@@ -332,7 +214,7 @@ mod tests {
 
     #[test]
     fn grayscale_lut_midpoint_is_grey() {
-        let lut = VtkLookupTable::new([0.0, 1.0], ColormapPreset::Grayscale);
+        let lut = VtkLookupTable::new([0.0, 1.0], NamedColorMap::Grayscale);
         let c = lut.map_value(0.5);
         assert!(approx_eq(c[0], 0.5), "R at mid: got {}", c[0]);
         assert!(approx_eq(c[1], 0.5), "G at mid: got {}", c[1]);
@@ -341,7 +223,7 @@ mod tests {
 
     #[test]
     fn jet_lut_min_is_dark_blue() {
-        let lut = VtkLookupTable::new([0.0, 1.0], ColormapPreset::Jet);
+        let lut = VtkLookupTable::new([0.0, 1.0], NamedColorMap::Jet);
         let c = lut.map_value(0.0);
         // jet at t=0: R=0, G=0, B=0.5
         assert!(approx_eq(c[0], 0.0), "jet R at 0: got {}", c[0]);
@@ -351,7 +233,7 @@ mod tests {
 
     #[test]
     fn jet_lut_max_has_nonzero_red_zero_blue() {
-        let lut = VtkLookupTable::new([0.0, 1.0], ColormapPreset::Jet);
+        let lut = VtkLookupTable::new([0.0, 1.0], NamedColorMap::Jet);
         let c = lut.map_value(1.0);
         // jet at t=1: R>0, G=0, B=0
         assert!(c[0] > 0.0, "jet R at 1 must be > 0: got {}", c[0]);
@@ -361,7 +243,7 @@ mod tests {
 
     #[test]
     fn cool_warm_midpoint_is_white() {
-        let lut = VtkLookupTable::new([0.0, 1.0], ColormapPreset::CoolWarm);
+        let lut = VtkLookupTable::new([0.0, 1.0], NamedColorMap::CoolWarm);
         let c = lut.map_value(0.5);
         assert!(
             rgba_approx_eq(c, [1.0, 1.0, 1.0, 1.0]),
@@ -372,7 +254,7 @@ mod tests {
 
     #[test]
     fn viridis_lut_min_is_dark_purple() {
-        let lut = VtkLookupTable::new([0.0, 1.0], ColormapPreset::Viridis);
+        let lut = VtkLookupTable::new([0.0, 1.0], NamedColorMap::Viridis);
         let c = lut.map_value(0.0);
         // viridis[0] = [0.267, 0.005, 0.329]; allow LUT quantisation
         assert!(
@@ -384,7 +266,7 @@ mod tests {
 
     #[test]
     fn lut_clamps_below_range_to_min_color() {
-        let lut = VtkLookupTable::new([10.0, 20.0], ColormapPreset::Grayscale);
+        let lut = VtkLookupTable::new([10.0, 20.0], NamedColorMap::Grayscale);
         let c_min = lut.map_value(10.0);
         let c_below = lut.map_value(-999.0);
         assert!(
@@ -397,7 +279,7 @@ mod tests {
 
     #[test]
     fn lut_clamps_above_range_to_max_color() {
-        let lut = VtkLookupTable::new([10.0, 20.0], ColormapPreset::Grayscale);
+        let lut = VtkLookupTable::new([10.0, 20.0], NamedColorMap::Grayscale);
         let c_max = lut.map_value(20.0);
         let c_above = lut.map_value(1e9);
         assert!(

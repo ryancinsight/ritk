@@ -77,7 +77,10 @@ fn dice_matches_coeus() {
     .expect("matched image shapes");
     let nd =
         native_metrics::dice_coefficient(&make_native(pred, [8]), &make_native(gt, [8])).unwrap();
-    assert!((bd - nd).abs() <= PARITY_DIFF, "dice coeus={bd} native={nd}");
+    assert!(
+        (bd - nd).abs() <= PARITY_DIFF,
+        "dice coeus={bd} native={nd}"
+    );
 }
 
 #[test]
@@ -130,7 +133,10 @@ fn psnr_matches_coeus() {
         10.0,
     );
     let np = native_metrics::psnr(&make_native(a, [8]), &make_native(b, [8]), 10.0).unwrap();
-    assert!((bp - np).abs() <= PARITY_DIFF, "psnr coeus={bp} native={np}");
+    assert!(
+        (bp - np).abs() <= PARITY_DIFF,
+        "psnr coeus={bp} native={np}"
+    );
 }
 
 // ── SSIM ────────────────────────────────────────────────────────────────────
@@ -219,5 +225,8 @@ fn mean_surface_distance_matches_coeus_exactly() {
         &spacing,
     )
     .unwrap();
-    assert!((bm - nm).abs() <= PARITY_EXACT, "MSD coeus={bm} native={nm}");
+    assert!(
+        (bm - nm).abs() <= PARITY_EXACT,
+        "MSD coeus={bm} native={nm}"
+    );
 }

@@ -11,7 +11,7 @@ fn canonical_snapshot_no_annotations() -> ViewerSessionSnapshot {
             window_center: Some(40.0),
             window_width: Some(400.0),
         },
-        colormap: Colormap::Bone,
+        colormap: NamedColorMap::Bone,
         axis: 2,
         active_tool: ToolKind::MeasureAngle,
         multi_planar: true,
@@ -87,7 +87,7 @@ fn session_snapshot_default_matches_viewer_defaults() {
     assert_eq!(snapshot.viewer_state.slice_index, 0);
     assert_eq!(snapshot.viewer_state.window_center, None);
     assert_eq!(snapshot.viewer_state.window_width, None);
-    assert_eq!(snapshot.colormap, Colormap::Grayscale);
+    assert_eq!(snapshot.colormap, NamedColorMap::Grayscale);
     assert_eq!(snapshot.axis, 0);
     assert_eq!(snapshot.active_tool, ToolKind::WindowLevel);
     assert!(!snapshot.multi_planar);
@@ -227,7 +227,7 @@ fn save_to_file_and_load_from_file_round_trip_with_annotations() {
 
     // Confirm navigation state survives.
     assert_eq!(recovered.viewer_state.slice_index, 12);
-    assert_eq!(recovered.colormap, Colormap::Bone);
+    assert_eq!(recovered.colormap, NamedColorMap::Bone);
     assert_eq!(recovered.axis, 2);
     assert_eq!(recovered.zoom, 2.5f32);
 

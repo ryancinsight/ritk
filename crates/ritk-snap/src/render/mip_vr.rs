@@ -23,9 +23,10 @@
 //!   == render_vr_axial_with_scratch(&mut s, v, wl, cm, a).pixels
 //! ```
 
-use crate::render::{Colormap, WindowLevel};
+use crate::render::{NamedColorMap, WindowLevel};
 use crate::LoadedVolume;
 use egui::ColorImage;
+use iris::color::{ColorMap, Normalized};
 
 // ── MIP ───────────────────────────────────────────────────────────────────────
 
@@ -33,7 +34,11 @@ use egui::ColorImage;
 ///
 /// Allocates a local scratch buffer internally. Use `render_mip_axial_with_scratch`
 /// on hot paths where a pre-allocated scratch buffer is available.
-pub fn render_mip_axial(volume: &LoadedVolume, wl: WindowLevel, colormap: Colormap) -> ColorImage {
+pub fn render_mip_axial(
+    volume: &LoadedVolume,
+    wl: WindowLevel,
+    colormap: NamedColorMap,
+) -> ColorImage {
     let mut scratch = Vec::new();
     render_mip_axial_with_scratch(&mut scratch, volume, wl, colormap)
 }
@@ -47,12 +52,10 @@ pub(crate) fn render_mip_axial_with_scratch(
     scratch: &mut Vec<u8>,
     volume: &LoadedVolume,
     wl: WindowLevel,
-    colormap: Colormap,
+    colormap: NamedColorMap,
 ) -> ColorImage {
     let shape = volume.shape;
     let (depth, rows, cols) = (shape[0], shape[1], shape[2]);
-    let center = wl.center as f32;
-    let width = (wl.width as f32).max(1.0);
     let len = rows * cols * 4;
     scratch.resize(len, 0);
     for row in 0..rows {
@@ -64,8 +67,8 @@ pub(crate) fn render_mip_axial_with_scratch(
                     max_val = v;
                 }
             }
-            let norm = ((max_val - (center - 0.5 * width)) / width).clamp(0.0, 1.0);
-            let rgb = colormap.map(norm);
+            let norm = Normalized::from_u8(wl.apply(f64::from(max_val)));
+            let rgb = colormap.sample(norm).to_rgba8();
             let idx = (row * cols + col) * 4;
             scratch[idx] = rgb[0];
             scratch[idx + 1] = rgb[1];
@@ -85,7 +88,7 @@ pub(crate) fn render_mip_axial_with_scratch(
 pub fn render_vr_axial(
     volume: &LoadedVolume,
     wl: WindowLevel,
-    colormap: Colormap,
+    colormap: NamedColorMap,
     alpha: f32,
 ) -> ColorImage {
     let mut scratch = Vec::new();
@@ -101,13 +104,11 @@ pub(crate) fn render_vr_axial_with_scratch(
     scratch: &mut Vec<u8>,
     volume: &LoadedVolume,
     wl: WindowLevel,
-    colormap: Colormap,
+    colormap: NamedColorMap,
     alpha: f32,
 ) -> ColorImage {
     let shape = volume.shape;
     let (depth, rows, cols) = (shape[0], shape[1], shape[2]);
-    let center = wl.center as f32;
-    let width = (wl.width as f32).max(1.0);
     let len = rows * cols * 4;
     scratch.resize(len, 0);
     for row in 0..rows {
@@ -116,9 +117,9 @@ pub(crate) fn render_vr_axial_with_scratch(
             let mut accum_alpha = 0.0f32;
             for z in 0..depth {
                 let v = volume.pixel_at(z, row, col);
-                let norm = ((v - (center - 0.5 * width)) / width).clamp(0.0, 1.0);
-                let rgb = colormap.map(norm);
-                let a = alpha * norm;
+                let norm = Normalized::from_u8(wl.apply(f64::from(v)));
+                let rgb = colormap.sample(norm).to_rgba8();
+                let a = alpha * norm.get();
                 for i in 0..3 {
                     accum[i] += (1.0 - accum_alpha) * (rgb[i] as f32 / super::U8_MAX_F32) * a;
                 }
