@@ -28,8 +28,9 @@ where
     // Fallback: allocate a C-contiguous copy and read it back element-by-element.
     // `cast` with `is_fortran=false` produces a C-order copy of the same dtype.
     let copy = array.cast::<T>(false)?;
-    copy.to_vec()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("failed to read contiguous copy: {e}")))
+    copy.to_vec().map_err(|e| {
+        pyo3::exceptions::PyRuntimeError::new_err(format!("failed to read contiguous copy: {e}"))
+    })
 }
 
 /// Copy the contents of a 4-D NumPy array into a Rust `Vec` in C-contiguous order.
@@ -44,6 +45,7 @@ where
     }
 
     let copy = array.cast::<T>(false)?;
-    copy.to_vec()
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("failed to read contiguous copy: {e}")))
+    copy.to_vec().map_err(|e| {
+        pyo3::exceptions::PyRuntimeError::new_err(format!("failed to read contiguous copy: {e}"))
+    })
 }
