@@ -37,6 +37,14 @@ Dependencies point inward toward domain contracts. Format crates own byte-level
 parsing, `ritk-io` owns cross-format dispatch, and applications and bindings
 depend on those contracts without moving domain logic into their boundaries.
 
+Provider ownership follows the same hierarchy. Each provider repository owns
+its implementation, Atlas owns repository checkout revisions, and RITK owns
+only its versioned consumption contracts. The root manifest maps transitive
+provider Git sources onto the same sibling path packages used directly, so one
+crate identity carries each trait and type through the graph. This prevents
+parallel provider types, makes superseded consumer code deletable, and leaves
+`Cargo.lock` as a projection of one source graph rather than a second topology.
+
 Domain-neutral normalized color laws and fixed lookup-table construction come
 from the public [Iris](https://github.com/ryancinsight/iris) provider.
 `ritk-snap` retains medical windowing, UI state, and GPU resource ownership;

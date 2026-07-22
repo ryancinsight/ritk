@@ -3,7 +3,7 @@
 - Status: Accepted
 - Change class: [arch] [patch]
 - Date: 2026-07-20
-- Related: CI-664-01, [Atlas ADR 0027](https://github.com/ryancinsight/atlas/blob/9a651ff539e314ff26c4a5b69fe89448c1770859/docs/adr/0027-provider-checkout-ssot.md)
+- Related: CI-664-01, DEP-666-01, [Atlas ADR 0027](https://github.com/ryancinsight/atlas/blob/9a651ff539e314ff26c4a5b69fe89448c1770859/docs/adr/0027-provider-checkout-ssot.md)
 
 ## Context
 
@@ -63,3 +63,23 @@ Implementation head `116d9826` passes CI run `29767323538`, Python run
 operating-system, Python-version, wheel, lint, alignment, test, and audit
 lanes. The external `recurseml/analysis` service error is non-required and
 contains no repository build or test evidence.
+
+## Amendment A1 (2026-07-21) — Cargo source identity is singular
+
+Atlas ownership of checkout revisions does not by itself prevent Cargo from
+instantiating a sibling package once from its path and again from a transitive
+Git source. RITK therefore owns one additional consumer-side invariant: each
+provider contract resolves to one Cargo source identity.
+
+The workspace dependency table states compatible provider versions. Existing
+Cargo patch tables map transitive provider Git source keys to the canonical
+sibling path packages that Atlas materializes. Source URLs in patch-table keys
+identify Cargo sources; they are not a second checkout inventory and carry no
+revision. Atlas remains the only owner of repository revisions, provider
+repositories remain the only owners of implementations, and RITK owns only
+the mapping required to consume one graph.
+
+Leaving direct Apollo FFT on a path while its Coeus edge remained on Git was
+rejected because it instantiated `apollo-leto-interop` twice and split its
+type identity. A RITK wrapper was also rejected because it would preserve the
+duplicate substrate behind another consumer-owned API instead of removing it.

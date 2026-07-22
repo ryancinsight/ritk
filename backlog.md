@@ -1,5 +1,21 @@
 # RITK Backlog - Active Planning
 
+- **DEP-666-01 [arch] [patch] - Consolidate the provider source graph
+  (DONE; owner=Codex `/root`; scope=`Cargo.toml`, `Cargo.lock`,
+  `README.md`, `CHANGELOG.md`, PM artifacts, and ADR 0010).** Raise RITK's
+  Leto/Eunomia requirements to the current provider contracts and map every
+  affected transitive Git source to the same sibling package used by direct
+  consumers. This is source-identity consolidation, not a new RITK abstraction
+  or provider implementation. Acceptance: locked metadata resolves exactly
+  one Aequitas, Eunomia, Hermes, Leto, Apollo FFT, Apollo/Leto interop, and
+  Coeus core package; duplicate-tree inspection shows no parallel instance;
+  workspace format, check, warning-denied Clippy, Nextest, doctest, and
+  warning-clean Rustdoc gates pass. Evidence: locked metadata contains one
+  instance of each of the nine affected packages; workspace check and
+  warning-denied Clippy pass; Nextest passes 4,647/4,647 tests with 12
+  repository-configured skips in 182.126 seconds; doctests pass 12 executable
+  examples with 36 ignored; formatting and warning-denied Rustdoc pass.
+
 - **VIS-665-01 [arch] [major] - Consume Iris color laws
   (DONE; owner=Codex `/root`; scope=`Cargo.toml`, `Cargo.lock`,
   `crates/ritk-snap/{Cargo.toml,src/{render,app,session,tools,ui}/**}`,

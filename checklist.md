@@ -8,6 +8,23 @@
 
 # RITK Sprint Checklist — Active
 
+## DEP-666-01 — Provider source-identity consolidation
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Raise Leto/Leto Ops to 0.40 and make Eunomia 0.7 an explicit versioned
+      consumption contract.
+- [x] Map Aequitas and Apollo Git sources to the canonical sibling packages;
+      remove the duplicate Git `apollo-leto-interop` instance.
+- [x] Verify locked metadata contains exactly one instance of every affected
+      provider and complete workspace check across all targets.
+- [x] Complete format, warning-denied Clippy, Nextest, doctest, and
+      warning-clean Rustdoc gates. Nextest passes 4,647/4,647 tests with 12
+      repository-configured skips; doctests pass 12 executable examples with
+      36 ignored.
+- [x] Commit and publish the verified provider graph; register the resulting
+      consumer revision in Atlas planning and integration state.
+
 ## VIS-665-01 — Iris color-law migration
 **Target version**: Unreleased breaking
 **Sprint phase**: Execution

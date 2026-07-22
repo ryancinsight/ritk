@@ -8,6 +8,15 @@
 
 # CHANGELOG
 
+## [Unreleased] — Provider graph consolidation (DEP-666-01)
+
+### Changed
+
+- Raised the Leto contract to 0.40 and the Eunomia contract to 0.7, then mapped
+  Aequitas and Apollo transitive Git sources to their canonical sibling path
+  packages. RITK now resolves one source identity for every affected provider
+  package instead of mixing path and Git instances of the same contract.
+
 ## [Unreleased] — Iris visualization provider (VIS-665-01)
 
 ### Breaking

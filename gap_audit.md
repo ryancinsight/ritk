@@ -8,6 +8,26 @@
 
 # RITK Gap Audit - Active
 
+## DEP-666-01 audit (2026-07-21)
+
+RITK's direct Apollo FFT dependency used the sibling path package while Coeus's
+transitive Apollo dependency still resolved the same package family from Git.
+Cargo therefore instantiated `apollo-leto-interop` twice across two sources,
+splitting a zero-copy interop contract into parallel crate identities. The
+lockfile also retained Leto 0.39, Eunomia 0.6, Hermes 0.4.0, and an obsolete
+revision-qualified Aequitas source after their sibling providers advanced.
+
+The root manifest now states Leto 0.40 and Eunomia 0.7 contracts and maps the
+Aequitas and Apollo Git source keys to the same sibling packages consumed by
+the rest of the workspace. Locked metadata resolves one Aequitas, Eunomia,
+Hermes SIMD, Leto, Leto Ops, Apollo FFT, Apollo FFT macros, Apollo/Leto interop,
+and Coeus core package. Workspace all-target check passes. Closure evidence
+also includes warning-denied all-target Clippy, 4,647/4,647 passing Nextest
+cases with 12 repository-configured skips in 182.126 seconds, 12 passing
+doctests with 36 ignored examples, formatting, and warning-denied Rustdoc.
+These gates establish one static dependency identity and unchanged tested
+consumer behavior; they do not establish a performance improvement.
+
 ## CI-664-01 audit (2026-07-20)
 
 RITK's local checkout action repeated eleven provider repository URLs and
