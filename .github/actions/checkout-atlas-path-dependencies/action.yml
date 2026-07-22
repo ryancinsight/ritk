@@ -1,0 +1,20 @@
+name: Checkout Atlas path dependencies
+description: Materialize RITK's pinned Atlas provider graph
+
+inputs:
+  manifest:
+    description: Cargo manifest relative to the workflow workspace
+    required: true
+  destination:
+    description: Provider parent directory relative to the workflow workspace
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Materialize canonical Atlas provider graph
+      uses: ryancinsight/atlas/.github/actions/checkout-path-dependencies@d94753e628469f4900f877d830895ebe067ca8b6
+      with:
+        manifest: ${{ inputs.manifest }}
+        destination: ${{ inputs.destination }}
+        atlas_ref: d94753e628469f4900f877d830895ebe067ca8b6
