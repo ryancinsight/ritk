@@ -41,7 +41,6 @@ gaia = { workspace = true }
 consus-hdf5 = { workspace = true }
 consus-core = { workspace = true }
 consus-io = { workspace = true }
-reqwest = { workspace = true }
 serde_json = { workspace = true }
 arrayvec = { workspace = true }
 
