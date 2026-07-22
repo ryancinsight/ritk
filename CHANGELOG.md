@@ -55,10 +55,10 @@
 
 ### Changed
 - Replaced the RITK-owned list of eleven hosted provider checkouts with one
-  local composite action pinned to Atlas `d94753e6`, whose Leto gitlink
-  satisfies RITK's 0.40 contract. Rust, Python, migration-audit, and release
-  workflows derive the exact sibling dependency closure from `ritk/Cargo.toml`
-  and one shared Atlas revision.
+  local composite action pinned to Atlas `1393fd88`, whose Coeus and Leto
+  gitlinks share the 0.40 contract required by RITK. Rust, Python,
+  migration-audit, and release workflows derive the exact sibling dependency
+  closure from `ritk/Cargo.toml` and one shared Atlas revision.
 - Added Coeus host `Cow` materialization at explicit I/O boundaries and
   consolidated CLI and Analyze/DICOM consumers onto the provider-native image
   contract.
