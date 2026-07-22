@@ -26,11 +26,10 @@ jobs:
           path: ritk
           persist-credentials: false
       - name: Checkout provider dependencies
-        uses: ryancinsight/atlas/.github/actions/checkout-path-dependencies@9a651ff539e314ff26c4a5b69fe89448c1770859
+        uses: ./ritk/.github/actions/checkout-atlas-path-dependencies
         with:
           manifest: ritk/Cargo.toml
           destination: .
-          atlas_ref: 9a651ff539e314ff26c4a5b69fe89448c1770859
 
       - name: Install stable toolchain with rustfmt
         uses: dtolnay/rust-toolchain@stable
@@ -56,11 +55,10 @@ jobs:
           path: ritk
           persist-credentials: false
       - name: Checkout provider dependencies
-        uses: ryancinsight/atlas/.github/actions/checkout-path-dependencies@9a651ff539e314ff26c4a5b69fe89448c1770859
+        uses: ./ritk/.github/actions/checkout-atlas-path-dependencies
         with:
           manifest: ritk/Cargo.toml
           destination: .
-          atlas_ref: 9a651ff539e314ff26c4a5b69fe89448c1770859
 
       - name: Install stable toolchain with clippy
         uses: dtolnay/rust-toolchain@stable
@@ -83,11 +81,10 @@ jobs:
           path: ritk
           persist-credentials: false
       - name: Checkout provider dependencies
-        uses: ryancinsight/atlas/.github/actions/checkout-path-dependencies@9a651ff539e314ff26c4a5b69fe89448c1770859
+        uses: ./ritk/.github/actions/checkout-atlas-path-dependencies
         with:
           manifest: ritk/Cargo.toml
           destination: .
-          atlas_ref: 9a651ff539e314ff26c4a5b69fe89448c1770859
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -120,11 +117,10 @@ jobs:
           path: ritk
           persist-credentials: false
       - name: Checkout provider dependencies
-        uses: ryancinsight/atlas/.github/actions/checkout-path-dependencies@9a651ff539e314ff26c4a5b69fe89448c1770859
+        uses: ./ritk/.github/actions/checkout-atlas-path-dependencies
         with:
           manifest: ritk/Cargo.toml
           destination: .
-          atlas_ref: 9a651ff539e314ff26c4a5b69fe89448c1770859
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -176,11 +172,10 @@ jobs:
           path: ritk
           persist-credentials: false
       - name: Checkout provider dependencies
-        uses: ryancinsight/atlas/.github/actions/checkout-path-dependencies@9a651ff539e314ff26c4a5b69fe89448c1770859
+        uses: ./ritk/.github/actions/checkout-atlas-path-dependencies
         with:
           manifest: ritk/Cargo.toml
           destination: .
-          atlas_ref: 9a651ff539e314ff26c4a5b69fe89448c1770859
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@stable

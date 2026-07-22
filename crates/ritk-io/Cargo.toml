@@ -25,6 +25,7 @@ ritk-png = { workspace = true }
 ritk-tiff = { workspace = true }
 ritk-minc = { workspace = true }
 dicom = { workspace = true }
+reqwest = { workspace = true }
 dicom-core = { workspace = true }
 dicom-ul = { workspace = true }
 anyhow = { workspace = true }
@@ -39,7 +40,6 @@ gaia = { workspace = true }
 consus-hdf5 = { workspace = true }
 consus-core = { workspace = true }
 consus-io = { workspace = true }
-reqwest = { workspace = true }
 serde_json = { workspace = true }
 arrayvec = { workspace = true }
 
