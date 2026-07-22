@@ -12,6 +12,10 @@
 
 ### Changed
 
+- Centralized the Reqwest transport policy in the workspace dependency table
+  and disabled its native-TLS default. RITK network clients now use rustls
+  without linking the system OpenSSL transport or redeclaring Reqwest in
+  member manifests.
 - Raised the Leto contract to 0.40 and the Eunomia contract to 0.7, then mapped
   Aequitas and Apollo transitive Git sources to their canonical sibling path
   packages. RITK now resolves one source identity for every affected provider

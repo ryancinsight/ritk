@@ -25,8 +25,7 @@ ritk-png = { workspace = true }
 ritk-tiff = { workspace = true }
 ritk-minc = { workspace = true }
 dicom = { workspace = true }
-# rustls replaces native-tls: no system OpenSSL needed
-reqwest = { workspace = true, features = ["blocking", "stream", "json", "rustls-tls"] }
+reqwest = { workspace = true }
 dicom-core = { workspace = true }
 dicom-ul = { workspace = true }
 anyhow = { workspace = true }

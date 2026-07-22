@@ -18,8 +18,7 @@ onnx-ir = { workspace = true }
 coeus-optim = { workspace = true }
 consus-io = { workspace = true }
 consus-onnx = { workspace = true }
-# rustls replaces native-tls: no system OpenSSL needed
-reqwest = { workspace = true, features = ["blocking", "stream", "json", "rustls-tls"] }
+reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
