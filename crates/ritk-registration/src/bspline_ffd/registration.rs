@@ -1,8 +1,9 @@
 //! B-Spline FFD registration engine.
 
 use super::basis::{
-    evaluate_bspline_displacement, evaluate_bspline_displacement_fast_into, init_control_grid,
-    BasisCache,
+    evaluate_bspline_displacement, evaluate_bspline_displacement_dense_with,
+    evaluate_bspline_displacement_fast_into, init_control_grid, should_use_dense_path, BasisCache,
+    DenseSupport,
 };
 use super::config::{BSplineFFDConfig, BSplineFFDResult};
 use super::metric::{
@@ -108,6 +109,16 @@ impl BSplineFFDRegistration {
             // Pre-compute basis cache once per level (dims & ctrl_spacing
             // are constant for all iterations at this level).
             let basis_cache = BasisCache::new(dims, &ctrl_spacing);
+            // Pre-compute the dense support table once per qualifying
+            // level so the dense inner loop is alloc-free on every
+            // iteration. The dispatch predicate is itself allocation-
+            // free (single product + comparison); the table build here
+            // is the only allocation amortised across iterations.
+            let dense_support: Option<DenseSupport> = if should_use_dense_path(&ctrl_dims) {
+                Some(DenseSupport::build(dims, ctrl_dims, &ctrl_spacing))
+            } else {
+                None
+            };
 
             // Re-size scratch buffers when the control grid changed at a level boundary.
             metric_scratch.resize(dims, ctrl_dims.into());
@@ -119,17 +130,39 @@ impl BSplineFFDRegistration {
 
             for iter in 0..config.max_iterations_per_level {
                 // 1. Evaluate dense displacement from current control points.
-                evaluate_bspline_displacement_fast_into(
-                    &cp_z,
-                    &cp_y,
-                    &cp_x,
-                    &ctrl_dims,
-                    dims,
-                    &basis_cache,
-                    &mut disp_z,
-                    &mut disp_y,
-                    &mut disp_x,
-                );
+                //
+                // Dispatch to the bounded dense support-matrix path when
+                // the lattice qualifies (see `should_use_dense_path` /
+                // `DENSE_LATTICE_CUTOFF`). Both paths produce numerically
+                // identical outputs (verified by
+                // `bspline_dense_matches_sparse_on_small_lattice` in
+                // `tests/basis.rs`); the dense path avoids the per-voxel
+                // basis-cache lookup overhead by pre-encoding the
+                // 12-entry support stencil in a single dense table.
+                if let Some(support) = dense_support.as_ref() {
+                    evaluate_bspline_displacement_dense_with(
+                        support,
+                        &cp_z,
+                        &cp_y,
+                        &cp_x,
+                        &ctrl_dims,
+                        &mut disp_z,
+                        &mut disp_y,
+                        &mut disp_x,
+                    );
+                } else {
+                    evaluate_bspline_displacement_fast_into(
+                        &cp_z,
+                        &cp_y,
+                        &cp_x,
+                        &ctrl_dims,
+                        dims,
+                        &basis_cache,
+                        &mut disp_z,
+                        &mut disp_y,
+                        &mut disp_x,
+                    );
+                }
 
                 // 2. Warp moving image.
                 warp_image_into(moving, dims, &disp_z, &disp_y, &disp_x, &mut warped);

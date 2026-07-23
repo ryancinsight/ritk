@@ -15,7 +15,9 @@ pub(super) mod scalar;
 
 pub use cache::BasisCache;
 pub use evaluate::{
-    evaluate_bspline_displacement, evaluate_bspline_displacement_fast,
-    evaluate_bspline_displacement_fast_into, init_control_grid,
+    evaluate_bspline_displacement, evaluate_bspline_displacement_dense_into,
+    evaluate_bspline_displacement_dense_with, evaluate_bspline_displacement_fast,
+    evaluate_bspline_displacement_fast_into, init_control_grid, should_use_dense_path,
+    DenseSupport, DENSE_LATTICE_CUTOFF,
 };
 pub use scalar::{cubic_bspline_basis, AxisBasis};

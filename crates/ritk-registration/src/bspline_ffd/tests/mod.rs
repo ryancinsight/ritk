@@ -5,6 +5,9 @@ pub(super) mod pyramid;
 pub(super) mod regularization;
 pub(super) mod warp;
 
+// Re-export the dispatch constant so sub-tests can reference `super::DENSE_LATTICE_CUTOFF`.
+pub(super) use super::basis::DENSE_LATTICE_CUTOFF;
+
 /// Smooth 3D test image: `I[z,y,x] = sin(π z/nz) · cos(π y/ny) · (x + 1)`.
 pub(super) fn make_test_image(dims: [usize; 3]) -> Vec<f32> {
     let [nz, ny, nx] = dims;
