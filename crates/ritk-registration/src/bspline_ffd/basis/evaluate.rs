@@ -359,14 +359,14 @@ impl DenseSupport {
 #[inline]
 fn build_axis_idx_table(dim: usize, ctrl_spacing: f64, ctrl_axis: usize) -> Vec<[u32; 4]> {
     let mut table = vec![[0_u32; 4]; dim];
-    for i in 0..dim {
+    for (i, row) in table.iter_mut().enumerate() {
         let u = i as f64 / ctrl_spacing + 1.0;
         let ki = u.floor() as isize - 1;
-        for k in 0..4usize {
+        for (k, slot) in row.iter_mut().enumerate() {
             let cidx = ki + k as isize;
             // Clamp OOB indices to 0 (a safe valid index; the paired mask
             // zeroes the contribution so clamping has no numerical effect).
-            table[i][k] = if cidx < 0 || cidx >= ctrl_axis as isize {
+            *slot = if cidx < 0 || cidx >= ctrl_axis as isize {
                 0
             } else {
                 cidx as u32
@@ -382,13 +382,12 @@ fn build_axis_idx_table(dim: usize, ctrl_spacing: f64, ctrl_axis: usize) -> Vec<
 #[inline]
 fn build_axis_w_table(dim: usize, ctrl_spacing: f64) -> Vec<[f64; 4]> {
     let mut table = vec![[0_f64; 4]; dim];
-    for i in 0..dim {
+    for (i, row) in table.iter_mut().enumerate() {
         let u = i as f64 / ctrl_spacing + 1.0;
         let ki = u.floor() as isize - 1;
         let t = u - (ki + 1) as f64;
-        let b = cubic_bspline_basis(t);
         // All 4 weights are copied verbatim — the `mask` table zeroes OOB cells.
-        table[i] = b;
+        *row = cubic_bspline_basis(t);
     }
     table
 }
@@ -397,12 +396,12 @@ fn build_axis_w_table(dim: usize, ctrl_spacing: f64) -> Vec<[f64; 4]> {
 #[inline]
 fn build_axis_mask_table(dim: usize, ctrl_spacing: f64, ctrl_axis: usize) -> Vec<[f64; 4]> {
     let mut table = vec![[0_f64; 4]; dim];
-    for i in 0..dim {
+    for (i, row) in table.iter_mut().enumerate() {
         let u = i as f64 / ctrl_spacing + 1.0;
         let ki = u.floor() as isize - 1;
-        for k in 0..4usize {
+        for (k, slot) in row.iter_mut().enumerate() {
             let cidx = ki + k as isize;
-            table[i][k] = if cidx < 0 || cidx >= ctrl_axis as isize {
+            *slot = if cidx < 0 || cidx >= ctrl_axis as isize {
                 0.0
             } else {
                 1.0

@@ -3693,6 +3693,7 @@ dependencies = [
  "hermes-simd",
  "leto",
  "moirai",
+ "serde",
  "themis",
  "thiserror 2.0.18",
 ]
@@ -4106,6 +4107,7 @@ name = "moirai-parallel"
 version = "0.4.0"
 dependencies = [
  "melinoe",
+ "moirai-core",
  "moirai-executor",
 ]
 

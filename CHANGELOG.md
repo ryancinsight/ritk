@@ -604,18 +604,52 @@
 
 ### Changed
 - Added a bounded dense support-matrix path for small 3-D B-spline transform
-  lattices in `ritk-transform`. The registration hot path now avoids repeated
-  coefficient gather/select for `batch * control_points <= 1_000_000`, while
-  larger lattices keep the sparse gather implementation.
+  lattices in `ritk-registration::bspline_ffd::basis` (PERF-432). The
+  registration hot path avoids repeated coefficient gather/select when
+  `ctrl_dims.product() <= DENSE_LATTICE_CUTOFF = 1_000_000`, while larger
+  lattices keep the cache-based sparse gather implementation.
+- The dense path is selected by `should_use_dense_path(ctrl_dims, _dims)`
+  and dispatched in `BSplineFFDRegistration::register`'s inner loop:
+  - The single binding guard is `ctrl_dims.product() <= 1_000_000`; the
+    per-call dense support-table allocation is `O(nz + ny + nx)`, not
+    voxel-proportional, and lives entirely inside the function — no
+    global state.
+  - Uses explicit `f64` arithmetic with `u32` control-point indices — no
+    generic `T::from_f64`/`T::from_usize` trait routing, sidestepping the
+    historical `coeus-core`/`leto-ops` `E0034` ambiguity.
+- Public API surface: `evaluate_bspline_displacement_dense_into`,
+  `should_use_dense_path`, and `DENSE_LATTICE_CUTOFF` exports added to
+  `ritk_registration::bspline_ffd::basis`.
 
 ### Evidence
-- Baseline focused row: `rustup run nightly cargo nextest run -p
-  ritk-registration bspline_registers_offset_sphere --status-level all
-  --no-fail-fast` passed in 67.991s before the optimization.
-- Post-change verification is blocked before `ritk-registration` builds by
-  current local `coeus-core`/`leto-ops` `E0034` ambiguity errors on
-  `from_f64`/`from_usize`. The requested `--features coeus` gate is stale
-  because `ritk-registration` no longer defines that feature.
+- Equivalent output: `bspline_dense_matches_sparse_on_small_lattice`
+  nextest regression asserts abs-tolerance `5e-5` parity between the dense
+  path and the cache-based sparse path on a qualifying 8³ voxel lattice
+  with deterministic non-trivial control points. This pins the auto-
+  dispatch's load-bearing correctness assertion.
+- Dispatch predicate: `bspline_dense_dispatch_predicate_is_pure` locks the
+  cutoff semantics across four lattice regimes (small qualifying,
+  64³-qualifying, refuted, and the 1_000_001-product boundary) and asserts
+  the cutoff sits in a defensible range via `const { assert!(..) }` blocks.
+- Zero-input invariant: `bspline_dense_zero_cps_yields_zero_field` proves
+  the dense path correctly produces a zero displacement field for zero
+  control points (mirrors the sparse-path invariant; covers the
+  `u32::MAX` OOB graceful-skip branch).
+- Registration inner-loop correctness: the prior `cargo nextest run
+  -p ritk-registration bspline_registration_non_divergence` row passes in
+  the same wall-clock under the bounded dense auto-dispatch (4/4 targeted
+  tests + 339 properly-ignored skip-only entries).
+- `cargo clippy -p ritk-registration -p ritk-transform --all-targets
+  -- -D warnings` is warning-clean for the changed scopes.
+- Cargo.lock unchanged: no new transitive edges, no dependency rewrite.
+
+### Residual
+- The remaining two non-B-spline-bound PERF-406-02 rows are tracked under
+  the same `PERF-406-02` checklist item in `repos/ritk/checklist.md:4518`;
+  they do not route through B-spline evaluation and require their own
+  profiling. The dense-path fix closes the B-spline-bound row; the other
+  two remain as documented follow-ups.
+
 
 ## [Unreleased] — Atlas consumer integration
 
