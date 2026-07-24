@@ -68,8 +68,8 @@ ritk-tensor-ops = { path = "crates/ritk-tensor-ops" }
 ritk-statistics = { path = "crates/ritk-statistics" }
 gaia = { path = "../gaia", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
-coeus-nn = { path = "../coeus/coeus-nn" }
-coeus-optim = { path = "../coeus/coeus-optim" }
+coeus-nn = { path = "../coeus/crates/coeus-nn" }
+coeus-optim = { path = "../coeus/crates/coeus-optim" }
 onnx-ir = "0.20.1"
 pyo3 = { version = "0.22", features = ["abi3-py39"] }
 numpy = "0.22"
@@ -78,11 +78,11 @@ moirai = { path = "../moirai/moirai", features = ["melinoe"] }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
 mnemosyne = { path = "../mnemosyne/crates/mnemosyne", version = "^0.2.0", default-features = false, features = ["std_tls", "eunomia"] }
 eunomia = { version = "0.7.0", git = "https://github.com/ryancinsight/eunomia", default-features = false }
-coeus-core = { path = "../coeus/coeus-core" }
-coeus-tensor = { path = "../coeus/coeus-tensor" }
-coeus-ops = { path = "../coeus/coeus-ops" }
-coeus-leto = { path = "../coeus/coeus-leto" }
-coeus-autograd = { path = "../coeus/coeus-autograd" }
+coeus-core = { path = "../coeus/crates/coeus-core" }
+coeus-tensor = { path = "../coeus/crates/coeus-tensor" }
+coeus-ops = { path = "../coeus/crates/coeus-ops" }
+coeus-leto = { path = "../coeus/crates/coeus-leto" }
+coeus-autograd = { path = "../coeus/crates/coeus-autograd" }
 leto = { path = "../leto/crates/leto", version = "0.40.0" }
 leto-ops = { path = "../leto/crates/leto-ops", version = "0.40.0" }
 apollo-fft = { path = "../apollo/crates/apollo-fft", version = "0.25.0" }
