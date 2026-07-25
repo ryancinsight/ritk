@@ -1,7 +1,7 @@
 # RITK Backlog - Active Planning
 
 - **DOC-667-01 [patch] - Publish the RITK medical-imaging book**
-  (IN PROGRESS; owner=Codex; scope=`docs/book/**`,
+  (IN REVIEW; owner=Codex; scope=`docs/book/**`,
   `crates/ritk-filter/examples/book_filter_gallery.rs`,
   `crates/ritk-registration/examples/book_registration.rs`,
   `.github/workflows/book-pages.yml`, `README.md`). Replace the planned-only
@@ -15,7 +15,12 @@
   `mdbook test docs/book` pass; the focused Nextest gate passes 1,456 tests
   with 11 skips; both examples compile and run against the public RITK APIs;
   and both SVG figures are regenerated from those outputs and render as valid
-  XML/image previews.
+  XML/image previews. PR #50 is published, but hosted merge verification is
+  blocked outside this change: Pages is not enabled for the repository, and
+  the pinned Atlas checkout action resolves Coeus revision `eb93d124` with
+  root-level packages while RITK's current manifests require
+  `coeus/crates/coeus-*`; the hosted jobs fail before compiling RITK. The
+  external `recurseml/analysis` check also reports a generic analysis failure.
 
 - **DEP-666-01 [arch] [patch] - Consolidate the provider source graph
   (DONE; owner=Codex `/root`; scope=`Cargo.toml`, `Cargo.lock`,

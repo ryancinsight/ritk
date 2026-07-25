@@ -23,7 +23,9 @@
       configured verification budgets. `mdbook build docs/book` and
       `mdbook test docs/book` pass; the focused Nextest gate passes 1,456
       tests with 11 skips; both example commands pass.
-- [ ] Review the exact diff, commit the verified slice, and publish the branch.
+- [x] Review the exact diff, commit the verified slice, and publish the branch.
+      PR #50 is open; merge remains blocked by repository Pages enablement and
+      the stale hosted Atlas/CoEus source graph recorded in `backlog.md`.
 
 ## DEP-666-01 — Provider source-identity consolidation
 **Target version**: Unreleased patch
