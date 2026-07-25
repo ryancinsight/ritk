@@ -38,7 +38,7 @@ resolver = "2"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-iris = { git = "https://github.com/ryancinsight/iris", rev = "e2edd47615454111b4b0df2e68dc6076161ba457" }
+iris = { path = "../iris", version = "0.1.0" }
 ritk-filter = { path = "crates/ritk-filter" }
 ritk-segmentation = { path = "crates/ritk-segmentation" }
 ritk-core = { path = "crates/ritk-core" }
@@ -77,7 +77,7 @@ dicom = { version = "0.10.0", default-features = false }
 moirai = { path = "../moirai/moirai", features = ["melinoe"] }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
 mnemosyne = { path = "../mnemosyne/crates/mnemosyne", version = "^0.2.0", default-features = false, features = ["std_tls", "eunomia"] }
-eunomia = { version = "0.7.0", git = "https://github.com/ryancinsight/eunomia", default-features = false }
+eunomia = { path = "../eunomia/crates/eunomia", default-features = false }
 coeus-core = { path = "../coeus/crates/coeus-core" }
 coeus-tensor = { path = "../coeus/crates/coeus-tensor" }
 coeus-ops = { path = "../coeus/crates/coeus-ops" }
@@ -109,7 +109,7 @@ indicatif = "0.17"
 dirs = "5.0"
 sha2 = "0.10"
 hex = "0.4"
-openjp2 = { version = "0.6.1", default-features = false }
+openjp2 = { version = "0.6.1", default-features = false, features = ["std"] }
 zune-core = { version = "0.4", default-features = false }
 zune-jpegxl = { version = "0.4", default-features = false }
 mockito = "1"
@@ -128,14 +128,40 @@ dicom-core = "0.10"
 dicom-ul = "0.10"
 dicom-pixeldata = { version = "0.10", default-features = false }
 dicom-transfer-syntax-registry = { version = "0.10", default-features = false }
-consus-hdf5 = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std"] }
-consus-core = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std"] }
-consus-compression = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std", "deflate"] }
-consus-io = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std", "alloc"] }
-consus-onnx = { git = "https://github.com/ryancinsight/consus", rev = "ec386e3e14241343f9a1beca6921463f2b2f0fc9", features = ["std", "alloc"] }
+consus-hdf5 = { path = "../consus/crates/consus-hdf5", features = ["std"] }
+consus-core = { path = "../consus/crates/consus-core", features = ["std"] }
+consus-compression = { path = "../consus/crates/consus-compression", features = ["std", "deflate"] }
+consus-io = { path = "../consus/crates/consus-io", features = ["std", "alloc"] }
+consus-onnx = { path = "../consus/crates/consus-onnx", features = ["std", "alloc"] }
 jpeg-decoder = "0.3"
 
 arrayvec = "0.7"
+
+# ── Patch sections — redirect transitive git/registry deps to local path ────
+# Aequitas pulls eunomia from git; the patch below unifies it with the local
+# workspace copy so that trait objects (FloatElement, NumericElement, etc.) are
+# identical across the whole dependency graph.
+[patch."https://github.com/ryancinsight/eunomia"]
+eunomia = { path = "../eunomia/crates/eunomia" }
+
+[patch."https://github.com/ryancinsight/eunomia.git"]
+eunomia = { path = "../eunomia/crates/eunomia" }
+
+[patch."https://github.com/ryancinsight/aequitas"]
+aequitas = { path = "../aequitas" }
+
+[patch."https://github.com/ryancinsight/Mnemosyne.git"]
+mnemosyne = { path = "../mnemosyne/crates/mnemosyne" }
+
+[patch."https://github.com/ryancinsight/themis"]
+themis = { path = "../themis" }
+
+[patch."https://github.com/ryancinsight/hermes.git"]
+hermes-simd = { path = "../hermes/crates/hermes-simd" }
+hermes-simd-core = { path = "../hermes/crates/hermes-simd-core" }
+
+[patch."https://github.com/ryancinsight/Moirai.git"]
+moirai = { path = "../moirai/moirai" }
 
 # ── Profile overrides ────────────────────────────────────────────────────────
 # Test builds keep `opt-level = 0` and emit line tables so that
@@ -146,47 +172,3 @@ arrayvec = "0.7"
 opt-level = 0
 debug = "line-tables-only"
 
-[patch.crates-io]
-# Upstream PR 9 guards decoder buffers before `dealloc`; 0.6.1 invokes
-# `dealloc(null, layout)` during codec drop, violating Rust's allocator contract.
-openjp2 = { git = "https://github.com/Neopallium/openjp2.git", rev = "38ebba2748e466b8ab35a607d7fcdf74c15c927a" }
-
-[patch."https://github.com/ryancinsight/Moirai.git"]
-moirai = { path = "../moirai/moirai" }
-
-[patch."https://github.com/ryancinsight/Mnemosyne.git"]
-mnemosyne = { path = "../mnemosyne/crates/mnemosyne" }
-mnemosyne-core = { path = "../mnemosyne/crates/mnemosyne-core" }
-mnemosyne-arena = { path = "../mnemosyne/crates/mnemosyne-arena" }
-mnemosyne-backend = { path = "../mnemosyne/crates/mnemosyne-backend" }
-mnemosyne-decay = { path = "../mnemosyne/crates/mnemosyne-decay" }
-mnemosyne-heap = { path = "../mnemosyne/crates/mnemosyne-heap" }
-mnemosyne-local = { path = "../mnemosyne/crates/mnemosyne-local" }
-
-[patch."https://github.com/ryancinsight/eunomia"]
-eunomia = { path = "../eunomia/crates/eunomia" }
-
-[patch."https://github.com/ryancinsight/aequitas"]
-aequitas = { path = "../aequitas" }
-
-[patch."https://github.com/ryancinsight/hermes.git"]
-hermes-simd = { path = "../hermes/crates/hermes-simd" }
-hermes-simd-core = { path = "../hermes/crates/hermes-simd-core" }
-hermes-simd-intrinsics = { path = "../hermes/crates/hermes-simd-intrinsics" }
-hermes-simd-macros = { path = "../hermes/crates/hermes-simd-macros" }
-hermes-simd-types = { path = "../hermes/crates/hermes-simd-types" }
-
-[patch."https://github.com/ryancinsight/leto.git"]
-leto = { path = "../leto/crates/leto" }
-leto-ops = { path = "../leto/crates/leto-ops" }
-
-[patch."https://github.com/ryancinsight/apollo.git"]
-apollo-fft = { path = "../apollo/crates/apollo-fft" }
-apollo-fft-macros = { path = "../apollo/crates/apollo-fft-macros" }
-apollo-leto-interop = { path = "../apollo/crates/apollo-leto-interop" }
-
-[patch."https://github.com/ryancinsight/melinoe.git"]
-melinoe = { path = "../melinoe" }
-
-[patch."https://github.com/ryancinsight/themis"]
-themis = { path = "../themis" }

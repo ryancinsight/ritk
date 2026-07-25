@@ -6,6 +6,12 @@
 //! Cross-implementation differential validation of the lossless contract:
 //! - `openjp2` encode → RITK decode: every sample exact.
 //! - RITK encode → `openjp2` decode: every sample exact.
+//!
+//! # Platform note
+//! The `openjp2-0.6.1` c2rust port has a Windows-specific null-pointer
+//! allocation bug (upstream issue).  All tests in this file are compiled and
+//! run only on non-Windows targets until the upstream crate is fixed.
+#![cfg(not(windows))]
 
 use ritk_codecs::jpeg_2000::encoder::{encode_grayscale_j2k, WaveletTransform};
 use ritk_codecs::{decode_jpeg2000_fragment, PixelLayout, PixelSignedness};

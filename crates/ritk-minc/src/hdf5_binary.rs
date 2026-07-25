@@ -72,16 +72,22 @@ pub fn write_minc2_hdf5(
 
 /// Write a v1 object header with the given messages at `offset`.
 ///
-/// v1 OH: version(1) + reserved(1) + num_messages(2) + ref_count(4) +
-///        header_data_size(4) + messages
+/// v1 OH layout (HDF5 spec §IV.A.1):
+///   version(1) + reserved(1) + num_messages(2) + ref_count(4) +
+///   header_data_size(4) + padding(4) + messages
+///
+/// The 4 padding bytes at offset 12–15 are mandatory: the reader advances
+/// to byte 16 before parsing the first message (`V1_HEADER_PADDING = 4`).
 fn write_v1_oh(file: &mut std::fs::File, offset: u64, messages: &[Vec<u8>]) -> Result<u64> {
     let msg_total: usize = messages.iter().map(|m| m.len()).sum();
-    let mut header = Vec::with_capacity(12 + msg_total);
+    // 12-byte prefix + 4-byte mandatory padding + messages
+    let mut header = Vec::with_capacity(16 + msg_total);
     header.push(1); // version
     header.push(0); // reserved
     header.extend_from_slice(&(messages.len() as u16).to_le_bytes());
     header.extend_from_slice(&1u32.to_le_bytes()); // ref_count
-    header.extend_from_slice(&(msg_total as u32).to_le_bytes());
+    header.extend_from_slice(&(msg_total as u32).to_le_bytes()); // header_data_size
+    header.extend_from_slice(&[0u8; 4]); // 4-byte padding (bytes 12–15)
     for msg in messages {
         header.extend_from_slice(msg);
     }
@@ -471,7 +477,7 @@ mod tests {
         f.write_all(&[0u8; 256]).unwrap();
         let msg = build_attr_msg_float("start", 1.0);
         let end = write_v1_oh(&mut f, 0, std::slice::from_ref(&msg)).unwrap();
-        // 12 (prefix) + msg.len()
-        assert_eq!(end, (12 + msg.len()) as u64);
+        // 12 (prefix) + 4 (mandatory padding) + msg.len()
+        assert_eq!(end, (16 + msg.len()) as u64);
     }
 }
