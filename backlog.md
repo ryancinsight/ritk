@@ -1,5 +1,18 @@
 # RITK Backlog - Active Planning
 
+- **DOC-667-01 [patch] - Publish the RITK medical-imaging book**
+  (IN PROGRESS; owner=Codex; scope=`docs/book/**`,
+  `crates/ritk-filter/examples/book_filter_gallery.rs`,
+  `crates/ritk-registration/examples/book_registration.rs`,
+  `.github/workflows/book-pages.yml`, `README.md`). Replace the planned-only
+  filter and registration examples with runnable Rust programs that generate
+  deterministic SVG figures from real RITK algorithms, expose the examples in
+  the mdBook, and deploy the book as a GitHub Pages project site. Acceptance:
+  `mdbook build docs/book` succeeds, both examples compile and generate the
+  committed figures, the book contains no stale source claims for the shipped
+  examples, and the Pages workflow is syntax-complete with the `/ritk/` site
+  base path.
+
 - **DEP-666-01 [arch] [patch] - Consolidate the provider source graph
   (DONE; owner=Codex `/root`; scope=`Cargo.toml`, `Cargo.lock`,
   `README.md`, `CHANGELOG.md`, PM artifacts, and ADR 0010).** Raise RITK's
