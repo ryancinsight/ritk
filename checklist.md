@@ -8,6 +8,21 @@
 
 # RITK Sprint Checklist — Active
 
+## DOC-667-01 — Publish the RITK medical-imaging book
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [ ] Add the mdBook project-site workflow and `/ritk/` asset base path.
+- [ ] Add a runnable filter gallery for Gaussian smoothing and Canny edges;
+      generate and inspect its deterministic SVG figure.
+- [ ] Add a runnable synthetic Thirion Demons registration example; generate
+      and inspect its before/after overlay and displacement figure.
+- [ ] Replace planned-only pages for these examples with source-linked code,
+      algorithm contracts, and figure provenance.
+- [ ] Build the book and compile/run both examples under the repository's
+      configured verification budgets.
+- [ ] Review the exact diff, commit the verified slice, and publish the branch.
+
 ## DEP-666-01 — Provider source-identity consolidation
 **Target version**: Unreleased patch
 **Sprint phase**: Execution
