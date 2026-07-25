@@ -13,7 +13,7 @@ in the hot path.
 ## Perona-Malik
 
 Edge-preserving smoothing via the Perona-Malik PDE:
-```
+```text
 dI/dt = div(g(|∇I|) ∇I)
 ```
 where `g` is the edge-stopping function. Two variants: `g1` (exponential)
@@ -21,21 +21,21 @@ and `g2` (inverse quadratic).
 
 ## Curvature Flow
 
-```
+```text
 dI/dt = ∇·(∇I/|∇I|) |∇I|
 ```
 Smooths along edges while preserving across-edge structure.
 
 ## Curvature Diffusion
 
-```
+```text
 dI/dt = ∇²I
 ```
 Isotropic smoothing equivalent to heat equation.
 
 ## Gradient Anisotropic Diffusion
 
-```
+```text
 dI/dt = ∇·(g(|∇I|) ∇I)
 ```
 where `g` is a function of gradient magnitude. Smoothing is

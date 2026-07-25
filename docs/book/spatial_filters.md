@@ -7,15 +7,16 @@ Canny edge detection, and separable gradient computation.
 
 All spatial filters operate on flat z-major host buffers via substrate-agnostic
 pure functions. The gradient magnitude and Canny detectors share a common
-`canny_edges_flat` host core that implements stages 2-4 of the Canny
-algorithm (gradient computation, non-maximum suppression, hysteresis).
+host core that implements gradient computation, non-maximum suppression, and
+hysteresis. Public `apply_native` methods preserve the `ritk-image::Image`
+geometry boundary while executing those kernels without constructing a second
+tensor representation.
 
 ## Gaussian Smoothing
 
-Separable zero-padded Gaussian smoothing using `convolve_zero_pad_3d`.
-The per-axis kernel is constructed via `gaussian_kernel`; the separable
-application uses `convolve_separable` from `ritk-filter`. No Coeus tensor
-is constructed.
+`GaussianFilter` builds one normalized sampled kernel per axis from physical
+sigma and voxel spacing, then applies separable zero-padded convolution. The
+native path and the generic path share the kernel and host-core contracts.
 
 ## Gradient Magnitude
 
@@ -24,14 +25,28 @@ optionally smooths with a discrete Gaussian kernel.
 
 ## Canny Edge Detection
 
-Five-stage pipeline:
-1. Gaussian smoothing (optional, via shared `discrete_gaussian_smooth_flat` core)
-2. Gradient magnitude + direction
-3. Non-maximum suppression (via shared `canny_edges_flat` core)
-4. Hysteresis thresholding
+Four stages form the binary edge map:
+
+1. Gaussian smoothing.
+2. Gradient magnitude and direction.
+3. Non-maximum suppression along the continuous gradient direction.
+4. Hysteresis thresholding.
+
+The complete filter gallery uses the real public pipeline on a deterministic
+phantom and writes the figure below:
+
+![Input, Gaussian smoothing, and Canny edge map](figures/filter_gallery.svg)
+
+Run it from the repository root with:
+
+```text
+cargo run -p ritk-filter --example book_filter_gallery -- \
+  docs/book/figures/filter_gallery.svg
+```
 
 ## Verification
 
-Each filter is differentially tested against its Coeus-generic counterpart
-via `assert_coeus_matches_coeus`. The Canny detector is compared against
-SimpleITK ground truth.
+The filter example is source-linked from [Gaussian Smoothing](examples/gaussian_smoothing.md)
+and [Canny Edge Detection](examples/canny_edges.md). Package tests provide
+the value-semantic and differential coverage; the figure is a visual smoke
+check of the same public calls.

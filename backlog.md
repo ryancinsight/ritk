@@ -11,7 +11,11 @@
   `mdbook build docs/book` succeeds, both examples compile and generate the
   committed figures, the book contains no stale source claims for the shipped
   examples, and the Pages workflow is syntax-complete with the `/ritk/` site
-  base path.
+  base path. Current verification: `mdbook build docs/book` and
+  `mdbook test docs/book` pass; the focused Nextest gate passes 1,456 tests
+  with 11 skips; both examples compile and run against the public RITK APIs;
+  and both SVG figures are regenerated from those outputs and render as valid
+  XML/image previews.
 
 - **DEP-666-01 [arch] [patch] - Consolidate the provider source graph
   (DONE; owner=Codex `/root`; scope=`Cargo.toml`, `Cargo.lock`,
