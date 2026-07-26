@@ -1,23 +1,24 @@
 # Example: Gaussian Smoothing
 
-> **Status**: Planned — implementation forthcoming.
-> **Source**: `crates/ritk-filter/examples/gaussian_smoothing.rs` *(not yet created)*
+This example is the Gaussian stage of the shared filter gallery. It constructs
+a deterministic scalar phantom, wraps it in `ritk_image::Image<f32, _, 3>`,
+and applies `GaussianFilter::apply_native` with a physical sigma of 2.0.
 
-## Description
+The figure compares the input with the smoothed image and the Canny edge map
+that consumes the same image boundary:
 
-This planned example will demonstrate Gaussian smoothing as the canonical low-pass filter in ritk. It should cover both isotropic smoothing with one sigma value and anisotropic smoothing where each axis is smoothed differently to respect voxel spacing or acquisition characteristics. The relevant API surface comes from `ritk-filter`'s Gaussian and recursive or discrete Gaussian filters, but the example should keep the user-facing story simple: start from a noisy scalar volume, blur it in a controlled way, and preserve spatial metadata so later stages can still reason about the output physically.
+![Gaussian smoothing result](../figures/filter_gallery.svg)
 
-Atlas integration shows up in two places. First, the same `ritk-image::Image` boundary is used before and after smoothing, so no extra format logic is needed. Second, Gaussian smoothing is one of the filters whose host-core implementation is reused across wrapper paths, making it a good conceptual bridge to later benchmarking and backend-dispatch chapters.
+## Source and command
 
-## Planned workflow
+Source: `crates/ritk-filter/examples/book_filter_gallery.rs`
 
-- Load or synthesize a noisy 3-D image.
-- Apply isotropic Gaussian smoothing with one sigma.
-- Repeat with anisotropic sigma values aligned to the image axes.
-- Compare output ranges and local edge softness.
+```text
+cargo run -p ritk-filter --example book_filter_gallery -- \
+  docs/book/figures/filter_gallery.svg
+```
 
-## Verification goals
-
-- Smoothing reduces local variance while preserving shape.
-- Anisotropic settings blur more strongly along selected axes.
-- Output geometry matches the input exactly.
+The image shape and spatial metadata are unchanged by the filter. The package
+tests cover native/generic parity; the committed SVG is the visual output of
+this example's figure contract. Rerun the command after changing the example
+to regenerate the artifact from the computed values.

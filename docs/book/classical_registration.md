@@ -11,3 +11,8 @@ Under Atlas, this chapter is where Coeus and Leto meet most visibly. Images arri
 | [Geometry Validation](examples/geometry_check.md) | Available | Confirms that file-space geometry is correct before classical registration consumes it. |
 | [Deep Learning Registration](examples/dl_registration.md) | Available | Useful contrast with the differentiable path that shares the same image boundary. |
 | [Deep Learning Training](examples/dl_train.md) | Available | Shows how Coeus-native training sits alongside, rather than replacing, the classical stack. |
+
+Deformable registration has its own chapter because it solves for a spatially
+varying displacement field rather than a finite-dimensional rigid or affine
+transform. The deterministic Thirion Demons example is documented in
+[Deformable Registration](demons_registration.md).

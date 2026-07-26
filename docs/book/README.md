@@ -14,7 +14,7 @@ hermes, moirai, coeus).
 The workspace follows the atlas deep vertical hierarchy with strict
 Separation of Concerns:
 
-```
+```text
 ritk/
 ├── crates/
 │   ├── ritk-core/          # Image data structures and spatial primitives

@@ -41,6 +41,8 @@
   - [Example: DL Training](examples/dl_train.md)
 - [Multi-modal Registration](multi_modal_registration.md)
   - [Example: Registration Comparison Figure](examples/registration_compare_figure.md)
+- [Deformable Registration](demons_registration.md)
+  - [Example: Thirion Demons](examples/thirion_demons.md)
 - [Validation and Benchmarking](validation_benchmarking.md)
   - [Example: Validation Suite](examples/validation_suite.md)
 

@@ -4,6 +4,14 @@ A high-performance medical image processing and registration toolkit built in
 Rust, inspired by ITK concepts and integrated with the Coeus and Leto compute
 stack.
 
+## Documentation
+
+- [RITK medical imaging book](https://ryancinsight.github.io/ritk/) — hosted
+  GitHub Pages mdBook with algorithms, runnable Rust examples, and filter and
+  registration figure examples.
+- [Book source](docs/book/) — Markdown chapters, source-linked examples, and
+  figure-generation commands.
+
 ## Overview
 
 RITK provides a comprehensive framework for medical image analysis:
