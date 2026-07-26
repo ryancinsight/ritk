@@ -108,6 +108,32 @@ fn intensity_registration_reports_final_transform_metric() {
 }
 
 #[test]
+fn rigid_and_affine_registration_reject_invalid_step_multiplier() {
+    let volume = Array3::from_elem([3, 3, 3], 1.0);
+    let invalid_config = ClassicalConfig {
+        max_iterations: 1,
+        step_multiplier: 0.0,
+        ..ClassicalConfig::default()
+    };
+    let registration =
+        ImageRegistration::with_config(invalid_config, MutualInformationMetric::default());
+
+    let rigid_error = registration
+        .rigid_registration_mutual_info(&volume, &volume, &crate::types::AffineTransform::IDENTITY)
+        .expect_err("zero rigid step multiplier must be rejected");
+    assert!(rigid_error
+        .to_string()
+        .contains("rigid step_multiplier must be finite and positive"));
+
+    let affine_error = registration
+        .affine_registration_mutual_info(&volume, &volume, &crate::types::AffineTransform::IDENTITY)
+        .expect_err("zero affine step multiplier must be rejected");
+    assert!(affine_error
+        .to_string()
+        .contains("affine step_multiplier must be finite and positive"));
+}
+
+#[test]
 fn translation_mutual_information_recovers_known_shift() {
     let fixed = Array3::from_vec(
         [5, 5, 5],

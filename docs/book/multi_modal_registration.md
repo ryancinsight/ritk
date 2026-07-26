@@ -8,5 +8,5 @@ Atlas integration again spans both compute families. Classical mutual-informatio
 
 | Example | Status | Focus |
 | --- | --- | --- |
-| [Registration Comparison Figure](examples/registration_compare_figure.md) | Available | CT-to-MR overlay that makes multi-modal alignment success or failure visually obvious. |
+| [CT/MR Mutual-Information Registration](examples/registration_compare_figure.md) | Available | RIRE CT-to-MR overlay with identity, RITK native-resampler, and fiducial-reference panels. |
 | [Validation Suite](examples/validation_suite.md) | Planned | Planned companion for overlap and geometry checks after multi-modal alignment. |
