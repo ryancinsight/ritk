@@ -20,6 +20,7 @@
   - [Example: Windowing and Rescaling](examples/windowing_rescale.md)
   - [Example: Thresholding](examples/thresholding.md)
   - [Example: Sigmoid and Arithmetic](examples/sigmoid_arithmetic.md)
+  - [Example: N4 Bias-Field Correction](examples/n4_bias_correction.md)
 - [Spatial Filtering](spatial_filters.md)
   - [Example: Gaussian Smoothing](examples/gaussian_smoothing.md)
   - [Example: Gradient Magnitude](examples/gradient_magnitude.md)
