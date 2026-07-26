@@ -14,9 +14,7 @@ use image::{Rgb, RgbImage};
 use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
 use ritk_image::Image;
 use ritk_io::{format::metaimage::native::MetaImageReader, ImageReader};
-use ritk_registration::{
-    classical::{engine::MutualInformationMetric, image_to_leto_volume},
-};
+use ritk_registration::classical::{engine::MutualInformationMetric, image_to_leto_volume};
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::transform::affine::AtlasAffineTransform;
 use std::path::{Path, PathBuf};
