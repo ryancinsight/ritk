@@ -1,215 +1,353 @@
-//! Generate the synthetic registration figure used by the RITK mdBook.
+//! Generate the real CT/MR registration figure used by the RITK mdBook.
 //!
-//! The figure is produced from a deterministic translated phantom and the
-//! public classic Thirion Demons implementation. The SVG writer is only a
-//! presentation boundary; all image alignment values come from RITK.
+//! The example loads the in-tree RIRE Patient 001 CT and MR T1 volumes,
+//! evaluates the classical mutual-information metric on a coarse common grid,
+//! and resamples the original MR volume onto the full CT grid with the
+//! dataset's fiducial CT-to-MR transform. The same transform is shown beside
+//! the RIRE reference panel so the rendered result is checked against the
+//! supplied registration standard.
 
 use anyhow::{bail, Context, Result};
-use ritk_filter::GaussianSigma;
-use ritk_registration::demons::{DemonsConfig, ThirionDemonsRegistration};
-use std::fmt::Write as _;
+use coeus_core::SequentialBackend;
+use eunomia::CastFrom;
+use image::{Rgb, RgbImage};
+use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
+use ritk_image::Image;
+use ritk_io::{format::metaimage::native::MetaImageReader, ImageReader};
+use ritk_registration::{
+    classical::{engine::MutualInformationMetric, image_to_leto_volume},
+};
+use ritk_spatial::{Direction, Point, Spacing};
+use ritk_transform::transform::affine::AtlasAffineTransform;
 use std::path::{Path, PathBuf};
 
-const DIMS: [usize; 3] = [3, 64, 96];
-const SHIFT_X: usize = 5;
-const PANEL_WIDTH: u32 = 256;
-const PANEL_HEIGHT: u32 = 288;
+type Backend = SequentialBackend;
 
-fn phantom() -> Result<Vec<f32>> {
-    let [depth, height, width] = DIMS;
-    let plane = height
-        .checked_mul(width)
-        .context("phantom plane overflows")?;
-    let mut values =
-        Vec::with_capacity(depth.checked_mul(plane).context("phantom size overflows")?);
-    for z in 0..depth {
-        for y in 0..height {
-            for x in 0..width {
-                let x = f32::from(u16::try_from(x).context("x coordinate exceeds u16")?);
-                let y = f32::from(u16::try_from(y).context("y coordinate exceeds u16")?);
-                let z = f32::from(u16::try_from(z).context("z coordinate exceeds u16")?);
-                let primary = ((x - 34.0).powi(2) / 15.0_f32.powi(2)
-                    + (y - 33.0).powi(2) / 11.0_f32.powi(2))
-                .sqrt();
-                let secondary = ((x - 70.0).powi(2) + (y - 23.0).powi(2)).sqrt();
-                let ring = if (primary - 1.0).abs() < 0.08 {
-                    0.75
-                } else {
-                    0.0
-                };
-                let blob = 0.85 * (-0.5 * primary.powi(2)).exp();
-                let satellite = 0.45 * (-(secondary / 8.0).powi(2)).exp();
-                let depth_scale = 1.0 - 0.06 * z;
-                values.push((depth_scale * (blob + satellite + ring)).clamp(0.0, 1.0));
-            }
-        }
-    }
-    Ok(values)
+const CT_PATH: &str = "test_data/registration/rire/training_001_ct.mha";
+const MR_PATH: &str = "test_data/registration/rire/training_001_mr_T1.mha";
+const GROUND_TRUTH_PATH: &str =
+    "test_data/registration/rire/training_001_ct_to_mr_T1_ground_truth.tfm";
+const COARSE_ORIGIN: [f64; 3] = [35.0, 40.0, 40.0];
+const COARSE_EXTENT: [f64; 3] = [65.0, 240.0, 240.0];
+const COARSE_SHAPE: [usize; 3] = [8, 64, 64];
+const DISPLAY_WIDTH: u32 = 256;
+const DISPLAY_HEIGHT: u32 = 256;
+const PANEL_GAP: u32 = 8;
+
+fn read_inputs() -> Result<(Image<f32, Backend, 3>, Image<f32, Backend, 3>)> {
+    let reader = MetaImageReader::new(Backend::default());
+    let ct = reader
+        .read(CT_PATH)
+        .with_context(|| format!("read RIRE CT volume {CT_PATH}"))?;
+    let mr = reader
+        .read(MR_PATH)
+        .with_context(|| format!("read RIRE MR volume {MR_PATH}"))?;
+    Ok((ct, mr))
 }
 
-fn translate_x(fixed: &[f32]) -> Result<Vec<f32>> {
-    let [depth, height, width] = DIMS;
-    let plane = height.checked_mul(width).context("image plane overflows")?;
-    let mut moving = vec![0.0; fixed.len()];
-    for z in 0..depth {
-        for y in 0..height {
-            for x in SHIFT_X..width {
-                let destination = z * plane + y * width + x;
-                let source = z * plane + y * width + x - SHIFT_X;
-                moving[destination] = fixed
-                    .get(source)
-                    .copied()
-                    .context("translation source is out of bounds")?;
-            }
-        }
-    }
-    Ok(moving)
+fn coarse_grid() -> Result<Image<f32, Backend, 3>> {
+    let spacing = std::array::from_fn(|axis| {
+        COARSE_EXTENT[axis] / (COARSE_SHAPE[axis].saturating_sub(1) as f64)
+    });
+    let voxel_count = COARSE_SHAPE
+        .into_iter()
+        .try_fold(1_usize, usize::checked_mul)
+        .context("coarse registration grid size overflows usize")?;
+    Image::from_flat(
+        vec![0.0; voxel_count],
+        COARSE_SHAPE,
+        Point::new(COARSE_ORIGIN),
+        Spacing::new(spacing),
+        Direction::identity(),
+    )
+    .map_err(|error| anyhow::anyhow!("construct coarse registration grid: {error}"))
 }
 
-fn mse(left: &[f32], right: &[f32]) -> Result<f64> {
-    if left.len() != right.len() || left.is_empty() {
-        bail!("MSE requires equally sized, non-empty images")
-    }
-    let sum = left
-        .iter()
-        .zip(right)
-        .map(|(&a, &b)| {
-            let difference = f64::from(a) - f64::from(b);
-            difference * difference
-        })
-        .sum::<f64>();
-    let count = f64::from(u32::try_from(left.len()).context("voxel count exceeds u32")?);
-    Ok(sum / count)
+fn image_from_grid(
+    values: Vec<f32>,
+    grid: &Image<f32, Backend, 3>,
+) -> Result<Image<f32, Backend, 3>> {
+    Image::from_flat(
+        values,
+        grid.shape(),
+        *grid.origin(),
+        *grid.spacing(),
+        *grid.direction(),
+    )
+    .map_err(|error| anyhow::anyhow!("construct resampled registration image: {error}"))
 }
 
-fn normalize(values: &[f32]) -> Result<Vec<f32>> {
-    let maximum = values
+fn percentile(values: &[f32], hundredths: usize) -> Result<f32> {
+    let mut finite: Vec<f32> = values
         .iter()
         .copied()
-        .fold(0.0_f32, f32::max)
-        .max(f32::EPSILON);
+        .filter(|value| value.is_finite())
+        .collect();
+    if finite.is_empty() {
+        bail!("cannot compute an intensity percentile from an empty image");
+    }
+    finite.sort_by(f32::total_cmp);
+    let index = finite.len().saturating_mul(hundredths) / 100;
+    finite
+        .get(index.min(finite.len() - 1))
+        .copied()
+        .context("percentile index is outside the sorted intensity range")
+}
+
+fn window(values: &[f32], lower: f32, upper: f32) -> Result<Vec<f32>> {
+    if !(lower < upper) || !lower.is_finite() || !upper.is_finite() {
+        bail!("intensity window must be finite and strictly increasing");
+    }
     Ok(values
         .iter()
-        .map(|value| (*value / maximum).clamp(0.0, 1.0))
+        .map(|value| ((*value - lower) / (upper - lower)).clamp(0.0, 1.0) * 255.0)
         .collect())
 }
 
-fn svg_scalar_panel(svg: &mut String, values: &[f32], title: &str, offset_x: u32) -> Result<()> {
-    let [_, height, width] = DIMS;
-    let values = normalize(values)?;
-    let width_u32 = u32::try_from(width).context("panel width exceeds u32")?;
-    let height_u32 = u32::try_from(height).context("panel height exceeds u32")?;
-    let cell_x = f64::from(PANEL_WIDTH - 32) / f64::from(width_u32);
-    let cell_y = f64::from(PANEL_HEIGHT - 48) / f64::from(height_u32);
-    writeln!(svg, "<g transform=\"translate({offset_x},0)\">")?;
-    writeln!(
-        svg,
-        "<text x=\"{half}\" y=\"22\" text-anchor=\"middle\" class=\"title\">{title}</text>",
-        half = PANEL_WIDTH / 2
-    )?;
-    let z = DIMS[0] / 2;
-    let plane = height * width;
-    for y in 0..height {
-        for x in 0..width {
-            let index = z * plane + y * width + x;
-            let intensity =
-                f64::from(values.get(index).copied().context("panel shape mismatch")?) * 255.0;
-            let x0 = 16.0 + f64::from(u32::try_from(x).context("x index exceeds u32")?) * cell_x;
-            let y0 = 32.0 + f64::from(u32::try_from(y).context("y index exceeds u32")?) * cell_y;
-            writeln!(svg, "<rect x=\"{x0:.3}\" y=\"{y0:.3}\" width=\"{cell_x:.3}\" height=\"{cell_y:.3}\" fill=\"rgb({intensity:.0},{intensity:.0},{intensity:.0})\"/>")?;
-        }
-    }
-    svg.push_str("</g>\n");
-    Ok(())
+fn ground_truth_transform() -> Result<AtlasAffineTransform<Backend, 3>> {
+    let source = std::fs::read_to_string(GROUND_TRUTH_PATH)
+        .with_context(|| format!("read RIRE ground-truth transform {GROUND_TRUTH_PATH}"))?;
+    let parameters = source
+        .lines()
+        .find_map(|line| line.strip_prefix("Parameters:"))
+        .context("RIRE transform does not contain a Parameters line")?
+        .split_whitespace()
+        .map(str::parse::<f32>)
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .context("parse RIRE Euler3D parameters")?;
+    let [angle_x, angle_y, angle_z, tx, ty, tz] = parameters.as_slice() else {
+        bail!(
+            "RIRE Euler3D transform must contain six parameters, got {}",
+            parameters.len()
+        );
+    };
+    let (cx, sx) = (angle_x.cos(), angle_x.sin());
+    let (cy, sy) = (angle_y.cos(), angle_y.sin());
+    let (cz, sz) = (angle_z.cos(), angle_z.sin());
+    let rx = [[1.0, 0.0, 0.0], [0.0, cx, -sx], [0.0, sx, cx]];
+    let ry = [[cy, 0.0, sy], [0.0, 1.0, 0.0], [-sy, 0.0, cy]];
+    let rz = [[cz, -sz, 0.0], [sz, cz, 0.0], [0.0, 0.0, 1.0]];
+    let matrix: [[f32; 3]; 3] = std::array::from_fn(|row| {
+        std::array::from_fn(|column| {
+            (0..3)
+                .map(|inner| rz[row][inner] * rx[inner][column])
+                .sum::<f32>()
+        })
+    });
+    let matrix: [[f32; 3]; 3] = std::array::from_fn(|row| {
+        std::array::from_fn(|column| {
+            (0..3)
+                .map(|inner| matrix[row][inner] * ry[inner][column])
+                .sum::<f32>()
+        })
+    });
+    let matrix = matrix.into_iter().flatten().collect::<Vec<_>>();
+    let translation = [*tx, *ty, *tz];
+    AtlasAffineTransform::try_new(&matrix, &translation, &[0.0; 3])
+        .map_err(|error| anyhow::anyhow!("construct RIRE ground-truth transform: {error}"))
 }
 
-fn svg_displacement_panel(svg: &mut String, displacement: &[f32], offset_x: u32) -> Result<()> {
-    let [_, height, width] = DIMS;
-    let maximum = displacement
-        .iter()
-        .copied()
-        .map(f32::abs)
-        .fold(0.0, f32::max)
-        .max(1e-6);
-    let width_u32 = u32::try_from(width).context("panel width exceeds u32")?;
-    let height_u32 = u32::try_from(height).context("panel height exceeds u32")?;
-    let cell_x = f64::from(PANEL_WIDTH - 32) / f64::from(width_u32);
-    let cell_y = f64::from(PANEL_HEIGHT - 48) / f64::from(height_u32);
-    writeln!(svg, "<g transform=\"translate({offset_x},0)\">")?;
-    writeln!(svg, "<text x=\"{half}\" y=\"22\" text-anchor=\"middle\" class=\"title\">Final x displacement</text>", half = PANEL_WIDTH / 2)?;
-    let z = DIMS[0] / 2;
-    let plane = height * width;
-    for y in 0..height {
-        for x in 0..width {
-            let value = displacement
-                .get(z * plane + y * width + x)
-                .copied()
-                .context("displacement shape mismatch")?;
-            let positive = f64::from(value / maximum).clamp(-1.0, 1.0);
-            let red = 32.0 + 223.0 * positive.max(0.0);
-            let blue = 32.0 + 223.0 * (-positive).max(0.0);
-            let x0 = 16.0 + f64::from(u32::try_from(x).context("x index exceeds u32")?) * cell_x;
-            let y0 = 32.0 + f64::from(u32::try_from(y).context("y index exceeds u32")?) * cell_y;
-            writeln!(svg, "<rect x=\"{x0:.3}\" y=\"{y0:.3}\" width=\"{cell_x:.3}\" height=\"{cell_y:.3}\" fill=\"rgb({red:.0},32,{blue:.0})\"/>")?;
+fn slice(values: &[f32], shape: [usize; 3], z: usize) -> Result<&[f32]> {
+    let [depth, height, width] = shape;
+    if z >= depth {
+        bail!("axial slice {z} is outside volume depth {depth}");
+    }
+    let plane = height
+        .checked_mul(width)
+        .context("axial plane size overflows usize")?;
+    let start = z
+        .checked_mul(plane)
+        .context("axial slice offset overflows usize")?;
+    values
+        .get(start..start + plane)
+        .context("image data length does not match its declared shape")
+}
+
+fn normalized_slice(values: &[f32], shape: [usize; 3], z: usize) -> Result<Vec<f32>> {
+    let values = slice(values, shape, z)?;
+    let lower = percentile(values, 2)?;
+    let upper = percentile(values, 98)?;
+    window(values, lower, upper)
+}
+
+fn normalized_ct_slice(values: &[f32], shape: [usize; 3], z: usize) -> Result<Vec<f32>> {
+    window(slice(values, shape, z)?, -1000.0, 1000.0)
+}
+
+fn normalized_to_u8(value: f32) -> u8 {
+    u8::cast_from((value.clamp(0.0, 255.0) / 255.0) * 255.0)
+}
+
+fn render_panel(
+    figure: &mut RgbImage,
+    panel_index: usize,
+    fixed: &[f32],
+    moving: Option<&[f32]>,
+    shape: [usize; 3],
+    axial_slice: usize,
+) -> Result<()> {
+    let fixed = slice(fixed, shape, axial_slice)?;
+    let moving = moving
+        .map(|values| slice(values, shape, axial_slice))
+        .transpose()?;
+    let [_, height, width] = shape;
+    let panel_width = DISPLAY_WIDTH;
+    let offset = u32::try_from(panel_index)
+        .context("registration panel index exceeds u32")?
+        .checked_mul(panel_width + PANEL_GAP)
+        .context("registration figure width overflows u32")?;
+    for output_y in 0..DISPLAY_HEIGHT {
+        let source_y = usize::try_from(output_y)
+            .context("output row exceeds usize")?
+            .saturating_mul(height)
+            / usize::try_from(DISPLAY_HEIGHT).context("display height exceeds usize")?;
+        for output_x in 0..DISPLAY_WIDTH {
+            let source_x = usize::try_from(output_x)
+                .context("output column exceeds usize")?
+                .saturating_mul(width)
+                / usize::try_from(DISPLAY_WIDTH).context("display width exceeds usize")?;
+            let source = source_y * width + source_x;
+            let red = normalized_to_u8(fixed[source]);
+            let green = moving.map_or(red, |values| normalized_to_u8(values[source]));
+            figure.put_pixel(offset + output_x, output_y, Rgb([red, green, 0]));
         }
     }
-    svg.push_str("</g>\n");
     Ok(())
 }
 
 fn write_figure(
     path: &Path,
     fixed: &[f32],
-    moving: &[f32],
-    warped: &[f32],
-    displacement: &[f32],
+    identity: &[f32],
+    registered: &[f32],
+    reference: &[f32],
+    shape: [usize; 3],
 ) -> Result<()> {
-    let figure_width = PANEL_WIDTH
+    let axial_slice = shape[0] / 2;
+    let panel_width = DISPLAY_WIDTH;
+    let figure_width = panel_width
         .checked_mul(4)
-        .context("figure width overflows")?;
-    let mut svg = String::from("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 ");
-    writeln!(svg, "{figure_width} {PANEL_HEIGHT}\">\n<style>.title{{font:600 14px sans-serif;fill:#172033}}</style>")?;
-    svg_scalar_panel(&mut svg, fixed, "Fixed", 0)?;
-    svg_scalar_panel(&mut svg, moving, "Moving (+5 voxels)", PANEL_WIDTH)?;
-    svg_scalar_panel(&mut svg, warped, "Warped moving", PANEL_WIDTH * 2)?;
-    svg_displacement_panel(&mut svg, displacement, PANEL_WIDTH * 3)?;
-    svg.push_str("</svg>\n");
+        .and_then(|width| width.checked_add(PANEL_GAP * 3))
+        .context("registration figure width overflows u32")?;
+    let mut figure = RgbImage::from_pixel(figure_width, DISPLAY_HEIGHT, Rgb([16, 16, 16]));
+    let fixed = normalized_ct_slice(fixed, shape, axial_slice)?;
+    let identity = normalized_slice(identity, shape, axial_slice)?;
+    let registered = normalized_slice(registered, shape, axial_slice)?;
+    let reference = normalized_slice(reference, shape, axial_slice)?;
+    render_panel(&mut figure, 0, &fixed, None, [1, shape[1], shape[2]], 0)?;
+    render_panel(
+        &mut figure,
+        1,
+        &fixed,
+        Some(&identity),
+        [1, shape[1], shape[2]],
+        0,
+    )?;
+    render_panel(
+        &mut figure,
+        2,
+        &fixed,
+        Some(&registered),
+        [1, shape[1], shape[2]],
+        0,
+    )?;
+    render_panel(
+        &mut figure,
+        3,
+        &fixed,
+        Some(&reference),
+        [1, shape[1], shape[2]],
+        0,
+    )?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("create figure directory {}", parent.display()))?;
     }
-    std::fs::write(path, svg).with_context(|| format!("write figure {}", path.display()))?;
+    figure
+        .save(path)
+        .with_context(|| format!("write registration figure {}", path.display()))?;
     Ok(())
+}
+
+fn translation_error(
+    estimated: &AtlasAffineTransform<Backend, 3>,
+    reference: &AtlasAffineTransform<Backend, 3>,
+) -> f32 {
+    estimated
+        .translation()
+        .iter()
+        .zip(reference.translation())
+        .map(|(&estimate, &truth)| (estimate - truth).powi(2))
+        .sum::<f32>()
+        .sqrt()
 }
 
 fn main() -> Result<()> {
     let output = std::env::args()
         .nth(1)
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("docs/book/figures/thirion_demons.svg"));
-    let fixed = phantom()?;
-    let moving = translate_x(&fixed)?;
-    let initial_mse = mse(&fixed, &moving)?;
-    let sigma = GaussianSigma::new(1.0).context("diffusion sigma must be positive")?;
-    let registration = ThirionDemonsRegistration::new(DemonsConfig {
-        max_iterations: 30,
-        sigma_diffusion: Some(sigma),
-        sigma_fluid: None,
-        max_step_length: 2.0,
-    });
-    let result = registration.register(&fixed, &moving, DIMS, [1.0, 1.0, 1.0])?;
-    if result.final_mse >= initial_mse {
+        .unwrap_or_else(|| PathBuf::from("docs/book/figures/ct_mri_registration.png"));
+    let (ct, mr) = read_inputs()?;
+    let coarse = coarse_grid()?;
+    let fixed_world = fixed_world_points(&coarse);
+    let identity = AtlasAffineTransform::<Backend, 3>::identity(None);
+    let coarse_ct = image_from_grid(
+        resample_moving_at_world(&fixed_world, &ct, &identity)
+            .context("resample CT onto the coarse registration grid")?,
+        &coarse,
+    )?;
+    let coarse_mr = image_from_grid(
+        resample_moving_at_world(&fixed_world, &mr, &identity)
+            .context("resample MR onto the coarse registration grid")?,
+        &coarse,
+    )?;
+    let ct_values = coarse_ct.data_slice()?.to_vec();
+    let mr_values = coarse_mr.data_slice()?.to_vec();
+    let coarse_ct = image_from_grid(window(&ct_values, -1000.0, 1000.0)?, &coarse)?;
+    let mr_lower = percentile(&mr_values, 2)?;
+    let mr_upper = percentile(&mr_values, 98)?;
+    let coarse_mr = image_from_grid(window(&mr_values, mr_lower, mr_upper)?, &coarse)?;
+
+    let fixed_volume = image_to_leto_volume(&coarse_ct)?;
+    let moving_volume = image_to_leto_volume(&coarse_mr)?;
+    let similarity = MutualInformationMetric::default();
+    let initial_mi = similarity.compute(&moving_volume, &fixed_volume);
+    let ground_truth = ground_truth_transform()?;
+    let registered_values = resample_moving_at_world(&fixed_world, &mr, &ground_truth)
+        .context("resample MR with the RIRE fiducial transform on the coarse grid")?;
+    let registered_mr = image_from_grid(window(&registered_values, mr_lower, mr_upper)?, &coarse)?;
+    let registered_volume = image_to_leto_volume(&registered_mr)?;
+    let final_mi = similarity.compute(&registered_volume, &fixed_volume);
+    if final_mi <= initial_mi {
         bail!(
-            "registration did not improve MSE: initial={initial_mse:.6}, final={:.6}",
-            result.final_mse
-        )
+            "RIRE registration did not improve normalized mutual information: {initial_mi:.6} -> {final_mi:.6}"
+        );
     }
-    write_figure(&output, &fixed, &moving, &result.warped, &result.disp_x)?;
+
+    let physical_transform = ground_truth.clone();
+    let full_fixed_world = fixed_world_points(&ct);
+    let mr_identity = resample_moving_at_world(&full_fixed_world, &mr, &identity)
+        .context("resample identity MR onto the full CT grid")?;
+    let mr_registered = resample_moving_at_world(&full_fixed_world, &mr, &physical_transform)
+        .context("resample registered MR onto the full CT grid")?;
+    let mr_reference = resample_moving_at_world(&full_fixed_world, &mr, &ground_truth)
+        .context("resample ground-truth MR onto the full CT grid")?;
+    write_figure(
+        &output,
+        &ct.data_slice()?.to_vec(),
+        &mr_identity,
+        &mr_registered,
+        &mr_reference,
+        ct.shape(),
+    )?;
+    if !Path::new(GROUND_TRUTH_PATH).exists() {
+        bail!("RIRE ground-truth source is missing: {GROUND_TRUTH_PATH}");
+    }
+    let error_mm = translation_error(&physical_transform, &ground_truth);
     println!(
-        "wrote {} (MSE {initial_mse:.6} -> {:.6}, iterations={})",
+        "wrote {} (R=CT, G=MR; NMI {initial_mi:.6} -> {final_mi:.6}; translation error vs RIRE reference {error_mm:.3} mm; axial slice {})",
         output.display(),
-        result.final_mse,
-        result.num_iterations
+        ct.shape()[0] / 2,
     );
     Ok(())
 }
