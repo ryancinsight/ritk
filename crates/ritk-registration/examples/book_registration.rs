@@ -93,7 +93,10 @@ fn percentile(values: &[f32], hundredths: usize) -> Result<f32> {
 }
 
 fn window(values: &[f32], lower: f32, upper: f32) -> Result<Vec<f32>> {
-    if !(lower < upper) || !lower.is_finite() || !upper.is_finite() {
+    if !lower.is_finite()
+        || !upper.is_finite()
+        || !matches!(lower.partial_cmp(&upper), Some(std::cmp::Ordering::Less))
+    {
         bail!("intensity window must be finite and strictly increasing");
     }
     Ok(values
@@ -332,7 +335,7 @@ fn main() -> Result<()> {
         .context("resample ground-truth MR onto the full CT grid")?;
     write_figure(
         &output,
-        &ct.data_slice()?.to_vec(),
+        ct.data_slice()?,
         &mr_identity,
         &mr_registered,
         &mr_reference,
