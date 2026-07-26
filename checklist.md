@@ -23,9 +23,8 @@
       configured verification budgets. `mdbook build docs/book` and
       `mdbook test docs/book` pass; the focused Nextest gate passes 1,456
       tests with 11 skips; both example commands pass.
-- [x] Review the exact diff, commit the verified slice, and publish the branch.
-      PR #51 is open with the complete hosted verification matrix passing;
-      merge remains the delivery transition.
+- [x] Review the exact diff, commit the verified slice, publish the branch,
+      merge PR #51, and verify the deployed Pages book and SVG figures.
 
 ## DEP-666-01 — Provider source-identity consolidation
 **Target version**: Unreleased patch

@@ -1,7 +1,7 @@
 # RITK Backlog - Active Planning
 
 - **DOC-667-01 [patch] - Publish the RITK medical-imaging book**
-  (IN REVIEW; owner=Codex; scope=`docs/book/**`,
+  (DONE; owner=Codex; scope=`docs/book/**`,
   `crates/ritk-filter/examples/book_filter_gallery.rs`,
   `crates/ritk-registration/examples/book_registration.rs`,
   `.github/workflows/book-pages.yml`, `README.md`). Replace the planned-only
@@ -19,7 +19,8 @@
   workspace dependency check, all native test matrices, the Python matrix,
   the wheel smoke test, the migration audit, and the mdBook build. The first
   Python 3.10/macOS ARM64 failure was a pip VTK `IncompleteRead`; its rerun
-  passed. The deploy job is correctly skipped on pull requests.
+  passed. PR #51 merged as `b3e12bc7`; the main-branch Pages deployment and
+  live checks for the book and both SVG figures return HTTP 200.
 
 - **DEP-666-01 [arch] [patch] - Consolidate the provider source graph
   (DONE; owner=Codex `/root`; scope=`Cargo.toml`, `Cargo.lock`,
