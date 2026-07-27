@@ -151,42 +151,4 @@ debug = "line-tables-only"
 # `dealloc(null, layout)` during codec drop, violating Rust's allocator contract.
 openjp2 = { git = "https://github.com/Neopallium/openjp2.git", rev = "38ebba2748e466b8ab35a607d7fcdf74c15c927a" }
 
-[patch."https://github.com/ryancinsight/Moirai.git"]
-moirai = { path = "../moirai/moirai" }
-
-[patch."https://github.com/ryancinsight/Mnemosyne.git"]
-mnemosyne = { path = "../mnemosyne/crates/mnemosyne" }
-mnemosyne-core = { path = "../mnemosyne/crates/mnemosyne-core" }
-mnemosyne-arena = { path = "../mnemosyne/crates/mnemosyne-arena" }
-mnemosyne-backend = { path = "../mnemosyne/crates/mnemosyne-backend" }
-mnemosyne-decay = { path = "../mnemosyne/crates/mnemosyne-decay" }
-mnemosyne-heap = { path = "../mnemosyne/crates/mnemosyne-heap" }
-mnemosyne-local = { path = "../mnemosyne/crates/mnemosyne-local" }
-
-[patch."https://github.com/ryancinsight/eunomia"]
-eunomia = { path = "../eunomia/crates/eunomia" }
-
-[patch."https://github.com/ryancinsight/aequitas"]
-aequitas = { path = "../aequitas" }
-
-[patch."https://github.com/ryancinsight/hermes.git"]
-hermes-simd = { path = "../hermes/crates/hermes-simd" }
-hermes-simd-core = { path = "../hermes/crates/hermes-simd-core" }
-hermes-simd-intrinsics = { path = "../hermes/crates/hermes-simd-intrinsics" }
-hermes-simd-macros = { path = "../hermes/crates/hermes-simd-macros" }
-hermes-simd-types = { path = "../hermes/crates/hermes-simd-types" }
-
-[patch."https://github.com/ryancinsight/leto.git"]
-leto = { path = "../leto/crates/leto" }
-leto-ops = { path = "../leto/crates/leto-ops" }
-
-[patch."https://github.com/ryancinsight/apollo.git"]
-apollo-fft = { path = "../apollo/crates/apollo-fft" }
-apollo-fft-macros = { path = "../apollo/crates/apollo-fft-macros" }
-apollo-leto-interop = { path = "../apollo/crates/apollo-leto-interop" }
-
-[patch."https://github.com/ryancinsight/melinoe.git"]
-melinoe = { path = "../melinoe" }
-
-[patch."https://github.com/ryancinsight/themis"]
-themis = { path = "../themis" }
+# ATLAS-PATH-DEP-AUDIT-2 round-4 closure
