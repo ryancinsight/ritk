@@ -57,7 +57,10 @@ jobs:
 
       - name: Generate deterministic book figures
         run: |
-          cargo run --locked -p ritk-filter --example book_processing_pipeline -- \
+          # The provider checkout is a local path overlay, so Cargo must
+          # resolve a temporary CI lock instead of enforcing the git-source
+          # lock committed for standalone and release builds.
+          cargo run -p ritk-filter --example book_processing_pipeline -- \
             docs/book/figures/processing_pipeline.svg
 
       - name: Build book
