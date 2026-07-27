@@ -20,13 +20,19 @@ in the hot path.
 - **Equalization**: `HistogramEqualizationFilter`, `AdaptiveHistogramEqualizationFilter`
 - **Clamp/Shift-Scale**: `ClampImageFilter`, `ShiftScaleImageFilter`
 
+The [windowing and rescaling example](examples/windowing_rescale.md) uses the
+RIRE CT fixture to show why a tissue-specific HU window is not equivalent to a
+global output rescale. Its histogram and labeled panels are the reference
+visual for this chapter.
+
 ## Spatial Intensity Non-Uniformity
 
 `N4BiasFieldCorrectionFilter` estimates a smooth multiplicative MRI bias field
 in log-intensity space with histogram sharpening and multi-resolution cubic
 B-spline fitting. It is a spatial correction rather than a pointwise remap;
 the [N4 book example](examples/n4_bias_correction.md) shows the source slice,
-the corrected slice, and the estimated field on the RIRE MR fixture.
+the corrected slice, the relative change map, and the estimated field on the
+RIRE MR fixture.
 
 ## Verification
 
