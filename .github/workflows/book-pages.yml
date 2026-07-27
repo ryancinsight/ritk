@@ -77,14 +77,14 @@ jobs:
         with:
           name: book-generated-figures-${{ github.sha }}
           path: |
-            docs/book/figures/processing_pipeline.svg
-            docs/book/figures/windowing_rescale.svg
+            ritk/docs/book/figures/processing_pipeline.svg
+            ritk/docs/book/figures/windowing_rescale.svg
           if-no-files-found: error
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
-          path: target/book/ritk
+          path: ritk/target/book/ritk
 
   deploy:
     if: github.event_name != 'pull_request'
