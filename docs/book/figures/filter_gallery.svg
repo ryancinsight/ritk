@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 288">
 <style>.title{font:600 14px sans-serif;fill:#172033}</style>
-<g transform="translate(0,0)">
+<rect width="768" height="288" fill="#ffffff"/>
+<g transform="translate(0,0)"><rect x="8" y="8" width="240" height="272" rx="4" fill="#f8fafc" stroke="#cbd5e1"/>
 <text x="128" y="22" text-anchor="middle" class="title">Input phantom</text>
 <rect x="16.000" y="32.000" width="2.333" height="2.500" fill="rgb(0,0,0)"/>
 <rect x="18.333" y="32.000" width="2.333" height="2.500" fill="rgb(9,9,9)"/>
@@ -9219,7 +9220,7 @@
 <rect x="235.333" y="269.500" width="2.333" height="2.500" fill="rgb(0,0,0)"/>
 <rect x="237.667" y="269.500" width="2.333" height="2.500" fill="rgb(0,0,0)"/>
 </g>
-<g transform="translate(256,0)">
+<g transform="translate(256,0)"><rect x="8" y="8" width="240" height="272" rx="4" fill="#f8fafc" stroke="#cbd5e1"/>
 <text x="128" y="22" text-anchor="middle" class="title">Gaussian σ = 2</text>
 <rect x="16.000" y="32.000" width="2.333" height="2.500" fill="rgb(0,0,0)"/>
 <rect x="18.333" y="32.000" width="2.333" height="2.500" fill="rgb(1,1,1)"/>
@@ -18438,7 +18439,7 @@
 <rect x="235.333" y="269.500" width="2.333" height="2.500" fill="rgb(0,0,0)"/>
 <rect x="237.667" y="269.500" width="2.333" height="2.500" fill="rgb(0,0,0)"/>
 </g>
-<g transform="translate(512,0)">
+<g transform="translate(512,0)"><rect x="8" y="8" width="240" height="272" rx="4" fill="#f8fafc" stroke="#cbd5e1"/>
 <text x="128" y="22" text-anchor="middle" class="title">Canny edges</text>
 <rect x="16.000" y="32.000" width="2.333" height="2.500" fill="rgb(0,0,0)"/>
 <rect x="18.333" y="32.000" width="2.333" height="2.500" fill="rgb(0,0,0)"/>
