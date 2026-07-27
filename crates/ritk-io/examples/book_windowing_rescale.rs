@@ -100,11 +100,11 @@ fn draw_image_panel(svg: &mut String, panel: ImagePanel<'_>) -> Result<()> {
         svg,
         "<text x=\"16\" y=\"34\" class=\"subtitle\">{subtitle}</text>"
     )?;
-    writeln!(svg, "<text x=\"16\" y=\"242\" class=\"note\">{note}</text>")?;
     writeln!(
         svg,
         "<rect x=\"16\" y=\"42\" width=\"248\" height=\"208\" class=\"panel\"/>"
     )?;
+    writeln!(svg, "<text x=\"16\" y=\"242\" class=\"note\">{note}</text>")?;
     for output_y in 0..display_size {
         let source_y = output_y.saturating_mul(height) / display_size;
         for output_x in 0..display_size {
