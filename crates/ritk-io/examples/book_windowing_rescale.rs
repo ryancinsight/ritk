@@ -66,17 +66,28 @@ fn intensity_to_gray(value: f32, lower: f32, upper: f32) -> f64 {
     f64::from(((value - lower) / (upper - lower)).clamp(0.0, 1.0)) * 255.0
 }
 
-fn draw_image_panel(
-    svg: &mut String,
-    values: &[f32],
+struct ImagePanel<'a> {
+    values: &'a [f32],
     shape: [usize; 3],
     display_range: (f32, f32),
-    title: &str,
-    subtitle: &str,
-    note: &str,
+    title: &'a str,
+    subtitle: &'a str,
+    note: &'a str,
     offset_x: u32,
     offset_y: u32,
-) -> Result<()> {
+}
+
+fn draw_image_panel(svg: &mut String, panel: ImagePanel<'_>) -> Result<()> {
+    let ImagePanel {
+        values,
+        shape,
+        display_range,
+        title,
+        subtitle,
+        note,
+        offset_x,
+        offset_y,
+    } = panel;
     let [_, height, width] = shape;
     let display_size = usize::try_from(IMAGE_SIZE).context("image size exceeds usize")?;
     let (lower, upper) = display_range;
@@ -275,47 +286,55 @@ fn write_figure(
     writeln!(svg, "<rect width=\"{figure_width}\" height=\"{figure_height}\" fill=\"#ffffff\"/>\n<style>.title{{font:600 15px sans-serif;fill:#172033}}.subtitle{{font:12px sans-serif;fill:#475569}}.note{{font:11px sans-serif;fill:#475569}}.panel{{fill:#ffffff;stroke:#cbd5e1;stroke-width:1}}.axis{{stroke:#172033;stroke-width:1}}.axis-label,.legend{{font:11px sans-serif;fill:#172033}}.contract{{font:12px sans-serif;fill:#172033}}</style>")?;
     draw_image_panel(
         &mut svg,
-        input_slice,
-        [1, shape[1], shape[2]],
-        CT_DISPLAY_WINDOW,
-        "Input CT",
-        "display window [-1000, 1000] HU",
-        "fixed display mapping for comparison",
-        0,
-        0,
+        ImagePanel {
+            values: input_slice,
+            shape: [1, shape[1], shape[2]],
+            display_range: CT_DISPLAY_WINDOW,
+            title: "Input CT",
+            subtitle: "display window [-1000, 1000] HU",
+            note: "fixed display mapping for comparison",
+            offset_x: 0,
+            offset_y: 0,
+        },
     )?;
     draw_image_panel(
         &mut svg,
-        soft_slice,
-        [1, shape[1], shape[2]],
-        (0.0, 1.0),
-        "Soft-tissue window",
-        "IntensityWindowingFilter [-160, 240] HU → [0, 1]",
-        &soft_note,
-        PANEL_WIDTH,
-        0,
+        ImagePanel {
+            values: soft_slice,
+            shape: [1, shape[1], shape[2]],
+            display_range: (0.0, 1.0),
+            title: "Soft-tissue window",
+            subtitle: "IntensityWindowingFilter [-160, 240] HU → [0, 1]",
+            note: &soft_note,
+            offset_x: PANEL_WIDTH,
+            offset_y: 0,
+        },
     )?;
     draw_image_panel(
         &mut svg,
-        lung_slice,
-        [1, shape[1], shape[2]],
-        (0.0, 1.0),
-        "Lung window",
-        "IntensityWindowingFilter [-1000, 400] HU → [0, 1]",
-        &lung_note,
-        PANEL_WIDTH * 2,
-        0,
+        ImagePanel {
+            values: lung_slice,
+            shape: [1, shape[1], shape[2]],
+            display_range: (0.0, 1.0),
+            title: "Lung window",
+            subtitle: "IntensityWindowingFilter [-1000, 400] HU → [0, 1]",
+            note: &lung_note,
+            offset_x: PANEL_WIDTH * 2,
+            offset_y: 0,
+        },
     )?;
     draw_image_panel(
         &mut svg,
-        rescaled_slice,
-        [1, shape[1], shape[2]],
-        (0.0, 255.0),
-        "Global rescale",
-        &global_subtitle,
-        "global affine map; same source geometry",
-        0,
-        PANEL_HEIGHT,
+        ImagePanel {
+            values: rescaled_slice,
+            shape: [1, shape[1], shape[2]],
+            display_range: (0.0, 255.0),
+            title: "Global rescale",
+            subtitle: &global_subtitle,
+            note: "global affine map; same source geometry",
+            offset_x: 0,
+            offset_y: PANEL_HEIGHT,
+        },
     )?;
     draw_histogram_panel(
         &mut svg,
