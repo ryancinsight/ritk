@@ -87,6 +87,12 @@ fn svg_panel(svg: &mut String, values: &[f32], title: &str, offset_x: u32) -> Re
     writeln!(svg, "<g transform=\"translate({offset_x},0)\">")?;
     writeln!(
         svg,
+        "<rect x=\"8\" y=\"8\" width=\"{}\" height=\"{}\" rx=\"4\" fill=\"#f8fafc\" stroke=\"#cbd5e1\"/>",
+        PANEL_WIDTH - 16,
+        PANEL_HEIGHT - 16
+    )?;
+    writeln!(
+        svg,
         "<text x=\"{half}\" y=\"22\" text-anchor=\"middle\" class=\"title\">{title}</text>",
         half = PANEL_WIDTH / 2
     )?;
@@ -112,7 +118,10 @@ fn write_figure(path: &Path, input: &[f32], smoothed: &[f32], edges: &[f32]) -> 
         .checked_mul(3)
         .context("figure width overflows")?;
     let mut svg = String::from("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 ");
-    writeln!(svg, "{figure_width} {PANEL_HEIGHT}\">\n<style>.title{{font:600 14px sans-serif;fill:#172033}}</style>")?;
+    writeln!(
+        svg,
+        "{figure_width} {PANEL_HEIGHT}\">\n<style>.title{{font:600 14px sans-serif;fill:#172033}}</style>\n<rect width=\"{figure_width}\" height=\"{PANEL_HEIGHT}\" fill=\"#ffffff\"/>"
+    )?;
     svg_panel(&mut svg, &input, "Input phantom", 0)?;
     svg_panel(&mut svg, &smoothed, "Gaussian σ = 2", PANEL_WIDTH)?;
     svg_panel(&mut svg, &edges, "Canny edges", PANEL_WIDTH * 2)?;
