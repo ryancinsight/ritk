@@ -7,12 +7,14 @@ on:
       - "docs/book/**"
       - "crates/ritk-filter/examples/book_processing_pipeline.rs"
       - "crates/ritk-io/examples/book_windowing_rescale.rs"
+      - ".github/actions/checkout-atlas-path-dependencies/action.yml"
       - ".github/workflows/book-pages.yml"
   pull_request:
     paths:
       - "docs/book/**"
       - "crates/ritk-filter/examples/book_processing_pipeline.rs"
       - "crates/ritk-io/examples/book_windowing_rescale.rs"
+      - ".github/actions/checkout-atlas-path-dependencies/action.yml"
       - ".github/workflows/book-pages.yml"
   workflow_dispatch:
 
