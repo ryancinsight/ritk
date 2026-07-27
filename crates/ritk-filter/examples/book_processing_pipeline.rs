@@ -224,7 +224,7 @@ fn write_figure(
     )?;
     svg.push_str("<style>.title{font:600 14px sans-serif;fill:#172033}.subtitle{font:11px sans-serif;fill:#475569}.note{font:11px sans-serif;fill:#475569}.contract{font:11px sans-serif;fill:#172033}.panel{fill:#ffffff;stroke:#cbd5e1;stroke-width:1}</style>\n");
     draw_image_panel(
-        svg.as_mut(),
+        &mut svg,
         input,
         "Input phantom",
         "raw scalar values",
@@ -232,7 +232,7 @@ fn write_figure(
         0,
     )?;
     draw_image_panel(
-        svg.as_mut(),
+        &mut svg,
         sigmoid,
         "Sigmoid",
         "alpha .42; beta .10",
@@ -240,7 +240,7 @@ fn write_figure(
         1,
     )?;
     draw_image_panel(
-        svg.as_mut(),
+        &mut svg,
         threshold,
         "Threshold suppression",
         "retain [0.00, 0.58]",
@@ -248,7 +248,7 @@ fn write_figure(
         2,
     )?;
     draw_image_panel(
-        svg.as_mut(),
+        &mut svg,
         gradient,
         "Gradient magnitude",
         "central differences",
@@ -256,7 +256,7 @@ fn write_figure(
         3,
     )?;
     draw_image_panel(
-        svg.as_mut(),
+        &mut svg,
         opened,
         "Binary opening",
         "erode → dilate; r = 1",
@@ -264,7 +264,7 @@ fn write_figure(
         4,
     )?;
     draw_image_panel(
-        svg.as_mut(),
+        &mut svg,
         closed,
         "Binary closing",
         "dilate → erode; r = 1",
@@ -272,7 +272,7 @@ fn write_figure(
         5,
     )?;
     draw_image_panel(
-        svg.as_mut(),
+        &mut svg,
         grayscale_opened,
         "Grayscale opening",
         "local min → max; r = 2",
@@ -280,7 +280,7 @@ fn write_figure(
         6,
     )?;
     draw_image_panel(
-        svg.as_mut(),
+        &mut svg,
         diffused,
         "Perona–Malik",
         "12 steps; K = .08",
@@ -288,7 +288,7 @@ fn write_figure(
         7,
     )?;
     draw_image_panel(
-        svg.as_mut(),
+        &mut svg,
         &change,
         "Diffusion change",
         "absolute value delta",
@@ -296,7 +296,7 @@ fn write_figure(
         8,
     )?;
     draw_image_panel(
-        svg.as_mut(),
+        &mut svg,
         curvature_flow,
         "Curvature flow",
         "5 steps; dt = .0625",
@@ -304,7 +304,7 @@ fn write_figure(
         9,
     )?;
     draw_image_panel(
-        svg.as_mut(),
+        &mut svg,
         &curvature_change,
         "Curvature change",
         "absolute value delta",
@@ -326,7 +326,7 @@ fn main() -> Result<()> {
         .nth(1)
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("docs/book/figures/processing_pipeline.svg"));
-    let backend = Backend;
+    let backend = SequentialBackend;
     let input_values = phantom()?;
     let input = image(input_values.clone(), &backend)?;
     let sigmoid = SigmoidImageFilter::new(0.42, 0.10, 0.0, 1.0)
