@@ -273,10 +273,8 @@ fn write_figure(
     let lung_clipped = clipped_percentage(input_slice, LUNG_WINDOW)?;
     let global_subtitle =
         format!("RescaleIntensityFilter [{input_lower:.0}, {input_upper:.0}] HU → [0, 255]");
-    let soft_note =
-        format!("IntensityWindowingFilter; {soft_clipped:.1}% of source voxels saturated");
-    let lung_note =
-        format!("IntensityWindowingFilter; {lung_clipped:.1}% of source voxels saturated");
+    let soft_note = format!("saturated source voxels: {soft_clipped:.1}%");
+    let lung_note = format!("saturated source voxels: {lung_clipped:.1}%");
     let figure_width = PANEL_WIDTH
         .checked_mul(3)
         .context("figure width overflows u32")?;

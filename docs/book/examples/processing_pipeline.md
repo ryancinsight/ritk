@@ -21,7 +21,9 @@ Read the panels left-to-right, then continue on the next row:
 11. the absolute curvature change; and
 12. the contract summary.
 
-The input, sigmoid, grayscale, and diffusion panels share [0, 1]. The binary
+The input is a smooth phantom with deterministic speckle, making the diffusion
+change visible without introducing a directional stripe pattern. The input,
+sigmoid, grayscale, and diffusion panels share [0, 1]. The binary
 panels use the same range because their values are exactly 0 or 1. Gradient
 and change panels use their own data-derived upper bounds, which are printed
 under the panel. The phantom has three identical depth slices and the figure

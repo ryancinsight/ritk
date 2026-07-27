@@ -48,9 +48,16 @@ fn phantom() -> Result<Vec<f32>> {
                     0.0
                 };
                 let hole = ((x - 57.0).powi(2) + (y - 65.0).powi(2)) < 6.0_f32.powi(2);
-                let residue = i16::try_from((x_index * 19 + y_index * 31) % 29)
-                    .context("phantom residue exceeds i16")?;
-                let noise = f32::from(residue - 14) / 320.0;
+                let x_seed = u32::try_from(x_index).context("x coordinate exceeds u32")?;
+                let y_seed = u32::try_from(y_index).context("y coordinate exceeds u32")?;
+                let mut noise_seed =
+                    x_seed.wrapping_mul(0x9e37_79b9) ^ y_seed.wrapping_mul(0x85eb_ca6b);
+                noise_seed ^= noise_seed >> 16;
+                noise_seed = noise_seed.wrapping_mul(0x7feb_352d);
+                noise_seed ^= noise_seed >> 15;
+                let noise_byte =
+                    u8::try_from(noise_seed & u32::from(u8::MAX)).context("noise exceeds u8")?;
+                let noise = (f32::from(noise_byte) / f32::from(u8::MAX) - 0.5) * 0.04;
                 let tissue = 0.72 * (-main).exp() + 0.35 * (-secondary).exp() + crescent + noise;
                 values.push(if hole { 0.22 } else { tissue.clamp(0.0, 1.0) });
             }
@@ -236,7 +243,7 @@ fn write_figure(
         &mut svg,
         input,
         "Input phantom",
-        "raw scalar values",
+        "raw scalar values + speckle",
         (0.0, 1.0),
         0,
     )?;
