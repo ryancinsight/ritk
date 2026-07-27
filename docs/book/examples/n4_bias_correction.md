@@ -16,18 +16,26 @@ filter's Rustdoc.
 
 The figure uses the real RIRE Patient 001 T1 volume:
 
-![N4 bias-field correction on RIRE MR](../figures/n4_bias_correction.png)
+![Top row: source and N4-corrected RIRE MR slices on a shared intensity scale. Bottom row: relative intensity change and estimated multiplicative bias field.](../figures/n4_bias_correction.png)
 
-The panels are, from left to right:
+The four panels use a two-by-two layout:
 
-1. the source MR slice, windowed to its 2nd–98th percentile;
-2. the native N4-corrected slice, independently windowed to its 2nd–98th
-   percentile; and
-3. the estimated multiplicative field \(I / I_{corrected}\), also shown with a
-   robust percentile window.
+1. the source MR slice;
+2. the native N4-corrected slice;
+3. the voxel-wise intensity change \(100(I_{corrected}/I - 1)\), using blue
+   for decreased intensity and red for increased intensity; and
+4. the estimated multiplicative field \(I / I_{corrected}\).
 
-The third panel is computed from the same input and corrected output. It is a
-diagnostic of the field estimated by N4, not a hand-authored illustration.
+The first two panels intentionally use one shared robust intensity window
+formed from both slices' 2nd–98th percentile ranges. This makes the correction
+visible: independent contrast windows would make the pre- and post-processed
+images look deceptively alike. The change map is masked outside the bright
+foreground and clipped only to its 98th-percentile absolute change for display;
+the underlying values are not altered.
+
+The third and fourth panels are computed from the same input and corrected
+output. They are diagnostics of the correction estimated by N4, not
+hand-authored illustrations.
 
 ## Source and command
 
