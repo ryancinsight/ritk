@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 type Backend = SequentialBackend;
 type ScalarImage = Image<f32, Backend, 3>;
 
-const DIMS: [usize; 3] = [1, 128, 128];
+const DIMS: [usize; 3] = [3, 128, 128];
 const PANEL_WIDTH: u32 = 256;
 const PANEL_HEIGHT: u32 = 280;
 const PANEL_COLUMNS: u32 = 4;
@@ -28,28 +28,32 @@ const PANEL_ROWS: u32 = 3;
 const DISPLAY_SIZE: usize = 208;
 
 fn phantom() -> Result<Vec<f32>> {
-    let [_, height, width] = DIMS;
-    let capacity = height
-        .checked_mul(width)
+    let [depth, height, width] = DIMS;
+    let capacity = depth
+        .checked_mul(height)
+        .and_then(|size| size.checked_mul(width))
         .context("phantom size overflows")?;
     let mut values = Vec::with_capacity(capacity);
-    for y_index in 0..height {
-        for x_index in 0..width {
-            let x = f32::from(u16::try_from(x_index).context("x coordinate exceeds u16")?);
-            let y = f32::from(u16::try_from(y_index).context("y coordinate exceeds u16")?);
-            let main = ((x - 58.0).powi(2) + (y - 66.0).powi(2)) / (2.0 * 28.0_f32.powi(2));
-            let secondary = ((x - 91.0).powi(2) + (y - 45.0).powi(2)) / (2.0 * 13.0_f32.powi(2));
-            let crescent = if (x - 46.0).abs() < 17.0 && (y - 93.0).abs() < 9.0 {
-                0.16
-            } else {
-                0.0
-            };
-            let hole = ((x - 57.0).powi(2) + (y - 65.0).powi(2)) < 6.0_f32.powi(2);
-            let residue = i16::try_from((x_index * 19 + y_index * 31) % 29)
-                .context("phantom residue exceeds i16")?;
-            let noise = f32::from(residue - 14) / 320.0;
-            let tissue = 0.72 * (-main).exp() + 0.35 * (-secondary).exp() + crescent + noise;
-            values.push(if hole { 0.22 } else { tissue.clamp(0.0, 1.0) });
+    for _ in 0..depth {
+        for y_index in 0..height {
+            for x_index in 0..width {
+                let x = f32::from(u16::try_from(x_index).context("x coordinate exceeds u16")?);
+                let y = f32::from(u16::try_from(y_index).context("y coordinate exceeds u16")?);
+                let main = ((x - 58.0).powi(2) + (y - 66.0).powi(2)) / (2.0 * 28.0_f32.powi(2));
+                let secondary =
+                    ((x - 91.0).powi(2) + (y - 45.0).powi(2)) / (2.0 * 13.0_f32.powi(2));
+                let crescent = if (x - 46.0).abs() < 17.0 && (y - 93.0).abs() < 9.0 {
+                    0.16
+                } else {
+                    0.0
+                };
+                let hole = ((x - 57.0).powi(2) + (y - 65.0).powi(2)) < 6.0_f32.powi(2);
+                let residue = i16::try_from((x_index * 19 + y_index * 31) % 29)
+                    .context("phantom residue exceeds i16")?;
+                let noise = f32::from(residue - 14) / 320.0;
+                let tissue = 0.72 * (-main).exp() + 0.35 * (-secondary).exp() + crescent + noise;
+                values.push(if hole { 0.22 } else { tissue.clamp(0.0, 1.0) });
+            }
         }
     }
     Ok(values)
@@ -110,7 +114,12 @@ fn draw_image_panel(
     let offset_y = PANEL_HEIGHT
         .checked_mul(u32::try_from(row).context("panel row exceeds u32")?)
         .context("figure height overflows")?;
-    let [_, height, width] = DIMS;
+    let [depth, height, width] = DIMS;
+    let display_slice = depth / 2;
+    let slice_offset = display_slice
+        .checked_mul(height)
+        .and_then(|offset| offset.checked_mul(width))
+        .context("display slice offset overflows")?;
     let cell_x = f64::from(u32::try_from(DISPLAY_SIZE)?) / f64::from(u32::try_from(width)?);
     let cell_y = f64::from(u32::try_from(DISPLAY_SIZE)?) / f64::from(u32::try_from(height)?);
     writeln!(svg, "<g transform=\"translate({offset_x},{offset_y})\">")?;
@@ -129,7 +138,7 @@ fn draw_image_panel(
     for y in 0..height {
         for x in 0..width {
             let value = *values
-                .get(y * width + x)
+                .get(slice_offset + y * width + x)
                 .context("panel shape does not match phantom")?;
             let intensity = gray(value, display_range.0, display_range.1);
             let x0 = 24.0 + f64::from(u32::try_from(x)?) * cell_x;
@@ -142,7 +151,7 @@ fn draw_image_panel(
     }
     writeln!(
         svg,
-        "<text x=\"16\" y=\"276\" class=\"note\">display [{:.3}, {:.3}]</text>",
+        "<text x=\"16\" y=\"276\" class=\"note\">center z={display_slice}; display [{:.3}, {:.3}]</text>",
         display_range.0, display_range.1
     )?;
     svg.push_str("</g>\n");
@@ -167,11 +176,11 @@ fn draw_contract_panel(svg: &mut String, index: usize) -> Result<()> {
     for (line, text) in [
         (62, "all stages preserve [z, y, x] geometry"),
         (92, "sigmoid: bounded intensity remap"),
-        (122, "threshold: foreground/background classes"),
-        (152, "morphology: topology changes only"),
+        (122, "threshold: suppress outside [0, .58]"),
+        (152, "morphology: binary topology changes"),
         (182, "gradient: physical intensity slope"),
         (212, "diffusion: denoise with edge stopping"),
-        (242, "change panel: absolute diffusion delta"),
+        (242, "change panels: absolute output deltas"),
     ] {
         writeln!(
             svg,
@@ -180,7 +189,7 @@ fn draw_contract_panel(svg: &mut String, index: usize) -> Result<()> {
     }
     writeln!(
         svg,
-        "<text x=\"16\" y=\"264\" class=\"note\">deterministic phantom; native API</text>"
+        "<text x=\"16\" y=\"264\" class=\"note\">three slices; center slice shown; native API</text>"
     )?;
     svg.push_str("</g>\n");
     Ok(())

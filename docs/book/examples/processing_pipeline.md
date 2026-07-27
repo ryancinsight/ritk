@@ -6,7 +6,7 @@ filters, and renders every result with an explicit display range.
 
 ![RITK processing pipeline showing intensity remapping, thresholding, gradients, morphology, diffusion, and a change map](../figures/processing_pipeline.svg)
 
-Read the panels left-to-right:
+Read the panels left-to-right, then continue on the next row:
 
 1. the noisy scalar input;
 2. a bounded sigmoid remap;
@@ -17,13 +17,18 @@ Read the panels left-to-right:
 7. grayscale opening;
 8. Perona–Malik diffusion;
 9. the absolute diffusion change;
-10. the contract summary.
+10. curvature flow;
+11. the absolute curvature change; and
+12. the contract summary.
 
 The input, sigmoid, grayscale, and diffusion panels share [0, 1]. The binary
 panels use the same range because their values are exactly 0 or 1. Gradient
 and change panels use their own data-derived upper bounds, which are printed
-under the panel. This avoids the common documentation error where every output
-is independently contrast-stretched and therefore appears unchanged.
+under the panel. The phantom has three identical depth slices and the figure
+shows the center slice, so radius-one 3-D morphology and diffusion operate on
+a genuine volume rather than a depth-one edge case. This avoids the common
+documentation error where every output is independently contrast-stretched
+and therefore appears unchanged.
 
 ## Source and command
 
