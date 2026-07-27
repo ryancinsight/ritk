@@ -1,6 +1,6 @@
 # Example: Geometry Validation
 
-Verify ritk's NIfTI import + index-to-world against SimpleITK ground truth.
+Verify RITK's NIfTI import and index-to-world mapping before registration.
 
 ## Source
 
@@ -8,19 +8,25 @@ Verify ritk's NIfTI import + index-to-world against SimpleITK ground truth.
 
 ## Description
 
-Tests that the NIfTI import pipeline correctly converts file-axis metadata
-to internal spatial coordinates. Prints geometry and index-to-world for
-fixed voxel indices; compare output to sitk reference.
+The example accepts a CT and MR NIfTI path, prints each image's shape,
+spacing, origin, direction, and several index-to-world samples. The output
+is the geometry contract to check before a registration metric or resampler
+combines the images.
 
 ## Usage
 
 ```bash
-cargo run --example geometry_check
+cargo run -p ritk-registration --example geometry_check -- \
+  /data/ct.nii.gz /data/mr.nii.gz
 ```
+
+The example does not assume a particular dataset or filesystem layout. For
+the repository's downloaded fixture, replace the two paths with the CT/MR
+files available in your local data directory.
 
 ## Verification
 
-- Loads NIfTI file with known affine
-- Computes index-to-world for corner/mid-volume voxels
-- Compares against SimpleITK ground truth
-- Exercises the `ritk-io::format::nifti` spatial boundary
+- Loads both NIfTI files through `ritk_io::format::nifti::native::NiftiReader`
+- Computes index-to-world for corner and interior voxels that fit each volume
+- Makes axis order explicit: RITK stores the native volume as `[z, y, x]`
+- Exercises the `ritk-io::format::nifti` spatial boundary without private paths
