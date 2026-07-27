@@ -19,7 +19,9 @@ type Backend = SequentialBackend;
 const MR_PATH: &str = "test_data/registration/rire/training_001_mr_T1.mha";
 const DISPLAY_WIDTH: u32 = 256;
 const DISPLAY_HEIGHT: u32 = 256;
-const PANEL_GAP: u32 = 8;
+const PANEL_COLUMNS: u32 = 2;
+const PANEL_ROWS: u32 = 2;
+const PANEL_GAP: u32 = 12;
 
 fn read_input() -> Result<ritk_image::Image<f32, Backend, 3>> {
     MetaImageReader::new(Backend::default())
@@ -60,7 +62,7 @@ fn slice(values: &[f32], shape: [usize; 3], z: usize) -> Result<&[f32]> {
         .context("image data length does not match its declared shape")
 }
 
-fn normalized(values: &[f32], lower: f32, upper: f32) -> Result<Vec<u8>> {
+fn grayscale(values: &[f32], lower: f32, upper: f32) -> Result<Vec<Rgb<u8>>> {
     if !lower.is_finite()
         || !upper.is_finite()
         || !matches!(lower.partial_cmp(&upper), Some(std::cmp::Ordering::Less))
@@ -71,7 +73,42 @@ fn normalized(values: &[f32], lower: f32, upper: f32) -> Result<Vec<u8>> {
         .iter()
         .map(|value| {
             let intensity = ((*value - lower) / (upper - lower)).clamp(0.0, 1.0) * 255.0;
-            u8::cast_from(intensity.round())
+            let intensity = u8::cast_from(intensity.round());
+            Rgb([intensity, intensity, intensity])
+        })
+        .collect())
+}
+
+fn absolute_percentile(values: &[f32], hundredths: usize) -> Result<f32> {
+    let magnitudes: Vec<f32> = values
+        .iter()
+        .filter(|value| value.is_finite())
+        .map(|value| value.abs())
+        .collect();
+    percentile(&magnitudes, hundredths)
+}
+
+fn diverging(values: &[f32], extent: f32) -> Result<Vec<Rgb<u8>>> {
+    if !extent.is_finite() || extent <= 0.0 {
+        bail!("diverging display extent must be finite and positive");
+    }
+    Ok(values
+        .iter()
+        .map(|value| {
+            if !value.is_finite() {
+                return Rgb([16, 16, 16]);
+            }
+            let position = ((*value / extent).clamp(-1.0, 1.0) + 1.0) * 0.5;
+            let channel = if position < 0.5 {
+                u8::cast_from((position * 2.0 * 255.0).round())
+            } else {
+                u8::cast_from(((1.0 - position) * 2.0 * 255.0).round())
+            };
+            if position < 0.5 {
+                Rgb([channel, channel, 255])
+            } else {
+                Rgb([255, channel, channel])
+            }
         })
         .collect())
 }
@@ -79,16 +116,24 @@ fn normalized(values: &[f32], lower: f32, upper: f32) -> Result<Vec<u8>> {
 fn render_panel(
     figure: &mut RgbImage,
     panel_index: usize,
-    values: &[u8],
+    values: &[Rgb<u8>],
     shape: [usize; 3],
 ) -> Result<()> {
     let [_, height, width] = shape;
     let panel_width = usize::try_from(DISPLAY_WIDTH).context("display width exceeds usize")?;
     let panel_height = usize::try_from(DISPLAY_HEIGHT).context("display height exceeds usize")?;
-    let panel_offset = u32::try_from(panel_index)
-        .context("panel index exceeds u32")?
+    let panel_index = u32::try_from(panel_index).context("panel index exceeds u32")?;
+    let panel_column = panel_index % PANEL_COLUMNS;
+    let panel_row = panel_index / PANEL_COLUMNS;
+    if panel_row >= PANEL_ROWS {
+        bail!("panel index {panel_index} exceeds the figure grid");
+    }
+    let panel_offset_x = panel_column
         .checked_mul(DISPLAY_WIDTH + PANEL_GAP)
         .context("figure width overflows u32")?;
+    let panel_offset_y = panel_row
+        .checked_mul(DISPLAY_HEIGHT + PANEL_GAP)
+        .context("figure height overflows u32")?;
     for output_y in 0..panel_height {
         let source_y = output_y.saturating_mul(height) / panel_height;
         for output_x in 0..panel_width {
@@ -97,16 +142,21 @@ fn render_panel(
                 .get(source_y * width + source_x)
                 .context("normalized panel shape mismatch")?;
             figure.put_pixel(
-                panel_offset + u32::try_from(output_x).context("output x exceeds u32")?,
-                u32::try_from(output_y).context("output y exceeds u32")?,
-                Rgb([value, value, value]),
+                panel_offset_x + u32::try_from(output_x).context("output x exceeds u32")?,
+                panel_offset_y + u32::try_from(output_y).context("output y exceeds u32")?,
+                value,
             );
         }
     }
     Ok(())
 }
 
-fn write_figure(path: &Path, input: &[f32], corrected: &[f32], shape: [usize; 3]) -> Result<()> {
+fn write_figure(
+    path: &Path,
+    input: &[f32],
+    corrected: &[f32],
+    shape: [usize; 3],
+) -> Result<(f32, f32)> {
     let axial_slice = shape[0] / 2;
     let input_slice = slice(input, shape, axial_slice)?;
     let corrected_slice = slice(corrected, shape, axial_slice)?;
@@ -114,6 +164,20 @@ fn write_figure(path: &Path, input: &[f32], corrected: &[f32], shape: [usize; 3]
     let input_upper = percentile(input_slice, 98)?;
     let corrected_lower = percentile(corrected_slice, 2)?;
     let corrected_upper = percentile(corrected_slice, 98)?;
+    let display_lower = input_lower.min(corrected_lower);
+    let display_upper = input_upper.max(corrected_upper);
+    let relative_change: Vec<f32> = input_slice
+        .iter()
+        .zip(corrected_slice.iter())
+        .map(|(&source, &estimate)| {
+            if source.is_finite() && estimate.is_finite() && source > input_lower && source > 0.0 {
+                ((estimate / source) - 1.0) * 100.0
+            } else {
+                f32::NAN
+            }
+        })
+        .collect();
+    let relative_extent = absolute_percentile(&relative_change, 98)?.max(1.0);
     let field: Vec<f32> = input
         .iter()
         .zip(corrected.iter())
@@ -128,19 +192,25 @@ fn write_figure(path: &Path, input: &[f32], corrected: &[f32], shape: [usize; 3]
     let field_slice = slice(&field, shape, axial_slice)?;
     let field_lower = percentile(field_slice, 2)?;
     let field_upper = percentile(field_slice, 98)?;
-    let input_panel = normalized(input_slice, input_lower, input_upper)?;
-    let corrected_panel = normalized(corrected_slice, corrected_lower, corrected_upper)?;
-    let field_panel = normalized(field_slice, field_lower, field_upper)?;
+    let input_panel = grayscale(input_slice, display_lower, display_upper)?;
+    let corrected_panel = grayscale(corrected_slice, display_lower, display_upper)?;
+    let relative_panel = diverging(&relative_change, relative_extent)?;
+    let field_panel = grayscale(field_slice, field_lower, field_upper)?;
 
     let figure_width = DISPLAY_WIDTH
-        .checked_mul(3)
-        .and_then(|width| width.checked_add(PANEL_GAP * 2))
+        .checked_mul(PANEL_COLUMNS)
+        .and_then(|width| width.checked_add(PANEL_GAP))
         .context("N4 figure width overflows u32")?;
-    let mut figure = RgbImage::from_pixel(figure_width, DISPLAY_HEIGHT, Rgb([16, 16, 16]));
+    let figure_height = DISPLAY_HEIGHT
+        .checked_mul(PANEL_ROWS)
+        .and_then(|height| height.checked_add(PANEL_GAP))
+        .context("N4 figure height overflows u32")?;
+    let mut figure = RgbImage::from_pixel(figure_width, figure_height, Rgb([16, 16, 16]));
     let panel_shape = [1, shape[1], shape[2]];
     render_panel(&mut figure, 0, &input_panel, panel_shape)?;
     render_panel(&mut figure, 1, &corrected_panel, panel_shape)?;
-    render_panel(&mut figure, 2, &field_panel, panel_shape)?;
+    render_panel(&mut figure, 2, &relative_panel, panel_shape)?;
+    render_panel(&mut figure, 3, &field_panel, panel_shape)?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("create figure directory {}", parent.display()))?;
@@ -148,7 +218,7 @@ fn write_figure(path: &Path, input: &[f32], corrected: &[f32], shape: [usize; 3]
     figure
         .save(path)
         .with_context(|| format!("write N4 figure {}", path.display()))?;
-    Ok(())
+    Ok((display_lower, display_upper))
 }
 
 fn main() -> Result<()> {
@@ -187,9 +257,10 @@ fn main() -> Result<()> {
     {
         bail!("N4 correction did not preserve geometry or change the positive finite image volume");
     }
-    write_figure(&output, &input_values, &corrected_values, input.shape())?;
+    let (display_lower, display_upper) =
+        write_figure(&output, &input_values, &corrected_values, input.shape())?;
     println!(
-        "wrote {} (RIRE MR axial slice {}; N4 levels {}, iterations {})",
+        "wrote {} (RIRE MR axial slice {}; shared window [{display_lower:.3}, {display_upper:.3}]; N4 levels {}, iterations {})",
         output.display(),
         input.shape()[0] / 2,
         2,
