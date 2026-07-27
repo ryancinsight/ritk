@@ -273,8 +273,10 @@ fn write_figure(
     let lung_clipped = clipped_percentage(input_slice, LUNG_WINDOW)?;
     let global_subtitle =
         format!("RescaleIntensityFilter [{input_lower:.0}, {input_upper:.0}] HU → [0, 255]");
-    let soft_note = format!("{soft_clipped:.1}% of source voxels saturated");
-    let lung_note = format!("{lung_clipped:.1}% of source voxels saturated");
+    let soft_note =
+        format!("IntensityWindowingFilter; {soft_clipped:.1}% of source voxels saturated");
+    let lung_note =
+        format!("IntensityWindowingFilter; {lung_clipped:.1}% of source voxels saturated");
     let figure_width = PANEL_WIDTH
         .checked_mul(3)
         .context("figure width overflows u32")?;
@@ -304,7 +306,7 @@ fn write_figure(
             shape: [1, shape[1], shape[2]],
             display_range: (0.0, 1.0),
             title: "Soft-tissue window",
-            subtitle: "IntensityWindowingFilter [-160, 240] HU → [0, 1]",
+            subtitle: "HU [-160, 240] → output [0, 1]",
             note: &soft_note,
             offset_x: PANEL_WIDTH,
             offset_y: 0,
@@ -317,7 +319,7 @@ fn write_figure(
             shape: [1, shape[1], shape[2]],
             display_range: (0.0, 1.0),
             title: "Lung window",
-            subtitle: "IntensityWindowingFilter [-1000, 400] HU → [0, 1]",
+            subtitle: "HU [-1000, 400] → output [0, 1]",
             note: &lung_note,
             offset_x: PANEL_WIDTH * 2,
             offset_y: 0,
@@ -331,7 +333,7 @@ fn write_figure(
             display_range: (0.0, 255.0),
             title: "Global rescale",
             subtitle: &global_subtitle,
-            note: "global affine map; same source geometry",
+            note: "RescaleIntensityFilter; same source geometry",
             offset_x: 0,
             offset_y: PANEL_HEIGHT,
         },

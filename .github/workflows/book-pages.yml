@@ -6,11 +6,13 @@ on:
     paths:
       - "docs/book/**"
       - "crates/ritk-filter/examples/book_processing_pipeline.rs"
+      - "crates/ritk-io/examples/book_windowing_rescale.rs"
       - ".github/workflows/book-pages.yml"
   pull_request:
     paths:
       - "docs/book/**"
       - "crates/ritk-filter/examples/book_processing_pipeline.rs"
+      - "crates/ritk-io/examples/book_windowing_rescale.rs"
       - ".github/workflows/book-pages.yml"
   workflow_dispatch:
 
@@ -62,6 +64,8 @@ jobs:
           # lock committed for standalone and release builds.
           cargo run -p ritk-filter --example book_processing_pipeline -- \
             docs/book/figures/processing_pipeline.svg
+          cargo run -p ritk-io --example book_windowing_rescale -- \
+            docs/book/figures/windowing_rescale.svg
 
       - name: Build book
         run: |
@@ -71,8 +75,10 @@ jobs:
       - name: Upload generated book figures
         uses: actions/upload-artifact@v4
         with:
-          name: book-generated-figures-\${{ github.sha }}
-          path: docs/book/figures/processing_pipeline.svg
+          name: book-generated-figures-${{ github.sha }}
+          path: |
+            docs/book/figures/processing_pipeline.svg
+            docs/book/figures/windowing_rescale.svg
           if-no-files-found: error
 
       - name: Upload Pages artifact
