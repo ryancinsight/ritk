@@ -48,17 +48,14 @@ fn phantom() -> Result<Vec<f32>> {
                     0.0
                 };
                 let hole = ((x - 57.0).powi(2) + (y - 65.0).powi(2)) < 6.0_f32.powi(2);
-                let x_seed = u32::try_from(x_index).context("x coordinate exceeds u32")?;
-                let y_seed = u32::try_from(y_index).context("y coordinate exceeds u32")?;
-                let mut noise_seed =
-                    x_seed.wrapping_mul(0x9e37_79b9) ^ y_seed.wrapping_mul(0x85eb_ca6b);
-                noise_seed ^= noise_seed >> 16;
-                noise_seed = noise_seed.wrapping_mul(0x7feb_352d);
-                noise_seed ^= noise_seed >> 15;
-                let noise_byte =
-                    u8::try_from(noise_seed & u32::from(u8::MAX)).context("noise exceeds u8")?;
-                let noise = (f32::from(noise_byte) / f32::from(u8::MAX) - 0.5) * 0.04;
-                let tissue = 0.72 * (-main).exp() + 0.35 * (-secondary).exp() + crescent + noise;
+                let perturbation_a =
+                    ((x - 31.0).powi(2) + (y - 38.0).powi(2)) / (2.0 * 3.5_f32.powi(2));
+                let perturbation_b =
+                    ((x - 101.0).powi(2) + (y - 84.0).powi(2)) / (2.0 * 4.5_f32.powi(2));
+                let perturbation = 0.045 * (-perturbation_a).exp()
+                    - 0.035 * (-perturbation_b).exp();
+                let tissue =
+                    0.72 * (-main).exp() + 0.35 * (-secondary).exp() + crescent + perturbation;
                 values.push(if hole { 0.22 } else { tissue.clamp(0.0, 1.0) });
             }
         }
@@ -243,7 +240,7 @@ fn write_figure(
         &mut svg,
         input,
         "Input phantom",
-        "raw scalar values + speckle",
+        "raw scalar values + local perturbations",
         (0.0, 1.0),
         0,
     )?;

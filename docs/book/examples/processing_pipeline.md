@@ -21,8 +21,9 @@ Read the panels left-to-right, then continue on the next row:
 11. the absolute curvature change; and
 12. the contract summary.
 
-The input is a smooth phantom with deterministic speckle, making the diffusion
-change visible without introducing a directional stripe pattern. The input,
+The input is a smooth phantom with two deterministic local perturbations,
+making the diffusion change visible as spatial structures rather than a
+directional stripe or fine-grain noise pattern. The input,
 sigmoid, grayscale, and diffusion panels share [0, 1]. The binary
 panels use the same range because their values are exactly 0 or 1. Gradient
 and change panels use their own data-derived upper bounds, which are printed
