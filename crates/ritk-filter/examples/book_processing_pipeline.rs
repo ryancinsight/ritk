@@ -52,8 +52,8 @@ fn phantom() -> Result<Vec<f32>> {
                     ((x - 31.0).powi(2) + (y - 38.0).powi(2)) / (2.0 * 3.5_f32.powi(2));
                 let perturbation_b =
                     ((x - 101.0).powi(2) + (y - 84.0).powi(2)) / (2.0 * 4.5_f32.powi(2));
-                let perturbation = 0.045 * (-perturbation_a).exp()
-                    - 0.035 * (-perturbation_b).exp();
+                let perturbation =
+                    0.045 * (-perturbation_a).exp() - 0.035 * (-perturbation_b).exp();
                 let tissue =
                     0.72 * (-main).exp() + 0.35 * (-secondary).exp() + crescent + perturbation;
                 values.push(if hole { 0.22 } else { tissue.clamp(0.0, 1.0) });
