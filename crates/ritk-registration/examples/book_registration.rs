@@ -10,6 +10,7 @@
 
 use anyhow::{bail, Context, Result};
 use coeus_core::SequentialBackend;
+use eunomia::CastFrom;
 use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
 use ritk_image::Image;
 use ritk_io::{format::metaimage::native::MetaImageReader, ImageReader};
@@ -202,7 +203,7 @@ fn absolute_difference(left: &[f32], right: &[f32]) -> Result<(Vec<f32>, f32, f3
         .context("registration comparison has no maximum")?;
     let sample_count = u32::try_from(difference.len())
         .context("registration comparison sample count exceeds u32")?;
-    let mean = difference.iter().sum::<f32>() / f32::from(sample_count);
+    let mean = difference.iter().sum::<f32>() / f32::cast_from(sample_count);
     Ok((difference, maximum, mean))
 }
 
@@ -229,9 +230,10 @@ fn draw_panel(svg: &mut String, panel: SvgPanel<'_>, shape: [usize; 3]) -> Resul
     let plane_size = height
         .checked_mul(width)
         .context("registration panel plane size overflows usize")?;
-    let image_offset_x = (PANEL_WIDTH
-        .checked_sub(u32::try_from(DISPLAY_SIDE).context("display side exceeds u32")?)?)
-    .context("registration panel is narrower than its image")?
+    let display_side = u32::try_from(DISPLAY_SIDE).context("display side exceeds u32")?;
+    let image_offset_x = PANEL_WIDTH
+        .checked_sub(display_side)
+        .context("registration panel is narrower than its image")?
         / 2;
     let image_offset_y = 58_u32;
     let cell_size = 1_u32;
