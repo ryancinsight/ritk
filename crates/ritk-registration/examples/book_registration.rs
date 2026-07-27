@@ -3,20 +3,20 @@
 //! The example loads the in-tree RIRE Patient 001 CT and MR T1 volumes,
 //! evaluates the classical mutual-information metric on a coarse common grid,
 //! and resamples the original MR volume onto the full CT grid with the
-//! dataset's fiducial CT-to-MR transform. The same transform is shown beside
-//! the RIRE reference panel so the rendered result is checked against the
-//! supplied registration standard.
+//! dataset's fiducial CT-to-MR transform. The rendered figure compares the
+//! identity and registered overlays and shows the MR intensity change caused
+//! by resampling, rather than repeating the same transform call as a second
+//! duplicate reference panel.
 
 use anyhow::{bail, Context, Result};
 use coeus_core::SequentialBackend;
-use eunomia::CastFrom;
-use image::{Rgb, RgbImage};
 use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
 use ritk_image::Image;
 use ritk_io::{format::metaimage::native::MetaImageReader, ImageReader};
 use ritk_registration::classical::{engine::MutualInformationMetric, image_to_leto_volume};
 use ritk_spatial::{Direction, Point, Spacing};
 use ritk_transform::transform::affine::AtlasAffineTransform;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 type Backend = SequentialBackend;
@@ -28,9 +28,10 @@ const GROUND_TRUTH_PATH: &str =
 const COARSE_ORIGIN: [f64; 3] = [35.0, 40.0, 40.0];
 const COARSE_EXTENT: [f64; 3] = [65.0, 240.0, 240.0];
 const COARSE_SHAPE: [usize; 3] = [8, 64, 64];
-const DISPLAY_WIDTH: u32 = 256;
-const DISPLAY_HEIGHT: u32 = 256;
-const PANEL_GAP: u32 = 8;
+const DISPLAY_SIDE: usize = 160;
+const PANEL_WIDTH: u32 = 320;
+const PANEL_HEIGHT: u32 = 250;
+const PANEL_GAP: u32 = 16;
 
 fn read_inputs() -> Result<(Image<f32, Backend, 3>, Image<f32, Backend, 3>)> {
     let reader = MetaImageReader::new(Backend::default());
@@ -164,55 +165,147 @@ fn slice(values: &[f32], shape: [usize; 3], z: usize) -> Result<&[f32]> {
         .context("image data length does not match its declared shape")
 }
 
-fn normalized_slice(values: &[f32], shape: [usize; 3], z: usize) -> Result<Vec<f32>> {
-    let values = slice(values, shape, z)?;
-    let lower = percentile(values, 2)?;
-    let upper = percentile(values, 98)?;
-    window(values, lower, upper)
+fn normalized_slice(
+    values: &[f32],
+    shape: [usize; 3],
+    z: usize,
+    lower: f32,
+    upper: f32,
+) -> Result<Vec<f32>> {
+    window(slice(values, shape, z)?, lower, upper)
 }
 
 fn normalized_ct_slice(values: &[f32], shape: [usize; 3], z: usize) -> Result<Vec<f32>> {
     window(slice(values, shape, z)?, -1000.0, 1000.0)
 }
 
-fn normalized_to_u8(value: f32) -> u8 {
-    u8::cast_from((value.clamp(0.0, 255.0) / 255.0) * 255.0)
+fn absolute_difference(left: &[f32], right: &[f32]) -> Result<(Vec<f32>, f32, f32)> {
+    if left.len() != right.len() {
+        bail!(
+            "registration comparison requires equal planes, got {} and {} samples",
+            left.len(),
+            right.len()
+        );
+    }
+    if left.is_empty() {
+        bail!("registration comparison cannot use an empty plane");
+    }
+    let difference = left
+        .iter()
+        .zip(right)
+        .map(|(&left, &right)| (left - right).abs())
+        .collect::<Vec<_>>();
+    let maximum = difference
+        .iter()
+        .copied()
+        .max_by(f32::total_cmp)
+        .context("registration comparison has no maximum")?;
+    let sample_count = u32::try_from(difference.len())
+        .context("registration comparison sample count exceeds u32")?;
+    let mean = difference.iter().sum::<f32>() / f32::from(sample_count);
+    Ok((difference, maximum, mean))
 }
 
-fn render_panel(
-    figure: &mut RgbImage,
-    panel_index: usize,
-    fixed: &[f32],
-    moving: Option<&[f32]>,
-    shape: [usize; 3],
-    axial_slice: usize,
-) -> Result<()> {
-    let fixed = slice(fixed, shape, axial_slice)?;
-    let moving = moving
-        .map(|values| slice(values, shape, axial_slice))
-        .transpose()?;
+enum PanelContent<'a> {
+    Ct(&'a [f32]),
+    Overlay { fixed: &'a [f32], moving: &'a [f32] },
+    Difference { values: &'a [f32], scale: f32 },
+}
+
+struct SvgPanel<'a> {
+    offset_x: u32,
+    offset_y: u32,
+    title: &'a str,
+    subtitle: &'a str,
+    content: PanelContent<'a>,
+}
+
+fn channel(value: f32) -> f32 {
+    value.clamp(0.0, 255.0)
+}
+
+fn draw_panel(svg: &mut String, panel: SvgPanel<'_>, shape: [usize; 3]) -> Result<()> {
     let [_, height, width] = shape;
-    let panel_width = DISPLAY_WIDTH;
-    let offset = u32::try_from(panel_index)
-        .context("registration panel index exceeds u32")?
-        .checked_mul(panel_width + PANEL_GAP)
-        .context("registration figure width overflows u32")?;
-    for output_y in 0..DISPLAY_HEIGHT {
-        let source_y = usize::try_from(output_y)
-            .context("output row exceeds usize")?
-            .saturating_mul(height)
-            / usize::try_from(DISPLAY_HEIGHT).context("display height exceeds usize")?;
-        for output_x in 0..DISPLAY_WIDTH {
-            let source_x = usize::try_from(output_x)
-                .context("output column exceeds usize")?
-                .saturating_mul(width)
-                / usize::try_from(DISPLAY_WIDTH).context("display width exceeds usize")?;
-            let source = source_y * width + source_x;
-            let red = normalized_to_u8(fixed[source]);
-            let green = moving.map_or(red, |values| normalized_to_u8(values[source]));
-            figure.put_pixel(offset + output_x, output_y, Rgb([red, green, 0]));
+    let plane_size = height
+        .checked_mul(width)
+        .context("registration panel plane size overflows usize")?;
+    let image_offset_x = (PANEL_WIDTH
+        .checked_sub(u32::try_from(DISPLAY_SIDE).context("display side exceeds u32")?)?)
+    .context("registration panel is narrower than its image")?
+        / 2;
+    let image_offset_y = 58_u32;
+    let cell_size = 1_u32;
+    writeln!(
+        svg,
+        "<g transform=\"translate({}, {})\"><rect width=\"{}\" height=\"{}\" rx=\"8\" fill=\"#f8fafc\" stroke=\"#cbd5e1\"/>",
+        panel.offset_x, panel.offset_y, PANEL_WIDTH, PANEL_HEIGHT
+    )?;
+    writeln!(
+        svg,
+        "<text x=\"{}\" y=\"24\" text-anchor=\"middle\" class=\"title\">{}</text>",
+        PANEL_WIDTH / 2,
+        panel.title
+    )?;
+    writeln!(
+        svg,
+        "<text x=\"{}\" y=\"43\" text-anchor=\"middle\" class=\"subtitle\">{}</text>",
+        PANEL_WIDTH / 2,
+        panel.subtitle
+    )?;
+    for display_y in 0..DISPLAY_SIDE {
+        let source_y = display_y * height / DISPLAY_SIDE;
+        for display_x in 0..DISPLAY_SIDE {
+            let source_x = display_x * width / DISPLAY_SIDE;
+            let source = source_y
+                .checked_mul(width)
+                .and_then(|offset| offset.checked_add(source_x))
+                .context("registration panel source index overflows usize")?;
+            if source >= plane_size {
+                bail!("registration panel source index exceeds its plane");
+            }
+            let (red, green, blue) = match &panel.content {
+                PanelContent::Ct(values) => {
+                    let value = *values
+                        .get(source)
+                        .context("CT panel does not match its declared shape")?;
+                    (value, value, value)
+                }
+                PanelContent::Overlay { fixed, moving } => (
+                    *fixed
+                        .get(source)
+                        .context("overlay CT panel does not match its declared shape")?,
+                    *moving
+                        .get(source)
+                        .context("overlay MR panel does not match its declared shape")?,
+                    0.0,
+                ),
+                PanelContent::Difference { values, scale } => {
+                    let value = values
+                        .get(source)
+                        .copied()
+                        .context("difference panel does not match its declared shape")?
+                        / *scale
+                        * 255.0;
+                    (value, value, value)
+                }
+            };
+            let x =
+                image_offset_x + u32::try_from(display_x).context("display column exceeds u32")?;
+            let y = image_offset_y + u32::try_from(display_y).context("display row exceeds u32")?;
+            writeln!(
+                svg,
+                "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"rgb({:.0},{:.0},{:.0})\"/>",
+                x,
+                y,
+                cell_size,
+                cell_size,
+                channel(red),
+                channel(green),
+                channel(blue)
+            )?;
         }
     }
+    svg.push_str("</g>\n");
     Ok(())
 }
 
@@ -221,73 +314,95 @@ fn write_figure(
     fixed: &[f32],
     identity: &[f32],
     registered: &[f32],
-    reference: &[f32],
     shape: [usize; 3],
-) -> Result<()> {
+    mr_lower: f32,
+    mr_upper: f32,
+) -> Result<(f32, f32)> {
     let axial_slice = shape[0] / 2;
-    let panel_width = DISPLAY_WIDTH;
-    let figure_width = panel_width
-        .checked_mul(4)
-        .and_then(|width| width.checked_add(PANEL_GAP * 3))
-        .context("registration figure width overflows u32")?;
-    let mut figure = RgbImage::from_pixel(figure_width, DISPLAY_HEIGHT, Rgb([16, 16, 16]));
     let fixed = normalized_ct_slice(fixed, shape, axial_slice)?;
-    let identity = normalized_slice(identity, shape, axial_slice)?;
-    let registered = normalized_slice(registered, shape, axial_slice)?;
-    let reference = normalized_slice(reference, shape, axial_slice)?;
-    render_panel(&mut figure, 0, &fixed, None, [1, shape[1], shape[2]], 0)?;
-    render_panel(
-        &mut figure,
-        1,
-        &fixed,
-        Some(&identity),
-        [1, shape[1], shape[2]],
-        0,
+    let identity = normalized_slice(identity, shape, axial_slice, mr_lower, mr_upper)?;
+    let registered = normalized_slice(registered, shape, axial_slice, mr_lower, mr_upper)?;
+    let (difference, maximum, mean) = absolute_difference(&identity, &registered)?;
+    let figure_width = PANEL_WIDTH
+        .checked_mul(2)
+        .and_then(|width| width.checked_add(PANEL_GAP))
+        .context("registration figure width overflows u32")?;
+    let figure_height = PANEL_HEIGHT
+        .checked_mul(2)
+        .and_then(|height| height.checked_add(PANEL_GAP))
+        .context("registration figure height overflows u32")?;
+    let mut svg = String::from("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 ");
+    writeln!(svg, "{figure_width} {figure_height}\">\n<style>.title{{font:600 16px sans-serif;fill:#172033}}.subtitle{{font:12px sans-serif;fill:#475569}}</style>")?;
+    let plane_shape = [1, shape[1], shape[2]];
+    draw_panel(
+        &mut svg,
+        SvgPanel {
+            offset_x: 0,
+            offset_y: 0,
+            title: "CT reference",
+            subtitle: "windowed to [-1000, 1000] HU",
+            content: PanelContent::Ct(&fixed),
+        },
+        plane_shape,
     )?;
-    render_panel(
-        &mut figure,
-        2,
-        &fixed,
-        Some(&registered),
-        [1, shape[1], shape[2]],
-        0,
+    draw_panel(
+        &mut svg,
+        SvgPanel {
+            offset_x: PANEL_WIDTH + PANEL_GAP,
+            offset_y: 0,
+            title: "Identity overlay",
+            subtitle: "R=CT, G=MR; no transform",
+            content: PanelContent::Overlay {
+                fixed: &fixed,
+                moving: &identity,
+            },
+        },
+        plane_shape,
     )?;
-    render_panel(
-        &mut figure,
-        3,
-        &fixed,
-        Some(&reference),
-        [1, shape[1], shape[2]],
-        0,
+    draw_panel(
+        &mut svg,
+        SvgPanel {
+            offset_x: 0,
+            offset_y: PANEL_HEIGHT + PANEL_GAP,
+            title: "Registered overlay",
+            subtitle: "R=CT, G=MR; RIRE rigid transform",
+            content: PanelContent::Overlay {
+                fixed: &fixed,
+                moving: &registered,
+            },
+        },
+        plane_shape,
     )?;
+    let difference_subtitle = format!("|registered - identity|; max {maximum:.2}, mean {mean:.2}");
+    draw_panel(
+        &mut svg,
+        SvgPanel {
+            offset_x: PANEL_WIDTH + PANEL_GAP,
+            offset_y: PANEL_HEIGHT + PANEL_GAP,
+            title: "MR resampling change",
+            subtitle: &difference_subtitle,
+            content: PanelContent::Difference {
+                values: &difference,
+                scale: maximum.max(f32::EPSILON),
+            },
+        },
+        plane_shape,
+    )?;
+    svg.push_str("</svg>\n");
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("create figure directory {}", parent.display()))?;
     }
-    figure
-        .save(path)
+    std::fs::write(path, svg)
         .with_context(|| format!("write registration figure {}", path.display()))?;
-    Ok(())
-}
-
-fn translation_error(
-    estimated: &AtlasAffineTransform<Backend, 3>,
-    reference: &AtlasAffineTransform<Backend, 3>,
-) -> f32 {
-    estimated
-        .translation()
-        .iter()
-        .zip(reference.translation())
-        .map(|(&estimate, &truth)| (estimate - truth).powi(2))
-        .sum::<f32>()
-        .sqrt()
+    Ok((maximum, mean))
 }
 
 fn main() -> Result<()> {
     let output = std::env::args()
         .nth(1)
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("docs/book/figures/ct_mri_registration.png"));
+        .unwrap_or_else(|| PathBuf::from("docs/book/figures/ct_mri_registration.svg"));
     let (ct, mr) = read_inputs()?;
     let coarse = coarse_grid()?;
     let fixed_world = fixed_world_points(&coarse);
@@ -325,28 +440,22 @@ fn main() -> Result<()> {
         );
     }
 
-    let physical_transform = ground_truth.clone();
     let full_fixed_world = fixed_world_points(&ct);
     let mr_identity = resample_moving_at_world(&full_fixed_world, &mr, &identity)
         .context("resample identity MR onto the full CT grid")?;
-    let mr_registered = resample_moving_at_world(&full_fixed_world, &mr, &physical_transform)
+    let mr_registered = resample_moving_at_world(&full_fixed_world, &mr, &ground_truth)
         .context("resample registered MR onto the full CT grid")?;
-    let mr_reference = resample_moving_at_world(&full_fixed_world, &mr, &ground_truth)
-        .context("resample ground-truth MR onto the full CT grid")?;
-    write_figure(
+    let (maximum_change, mean_change) = write_figure(
         &output,
         ct.data_slice()?,
         &mr_identity,
         &mr_registered,
-        &mr_reference,
         ct.shape(),
+        mr_lower,
+        mr_upper,
     )?;
-    if !Path::new(GROUND_TRUTH_PATH).exists() {
-        bail!("RIRE ground-truth source is missing: {GROUND_TRUTH_PATH}");
-    }
-    let error_mm = translation_error(&physical_transform, &ground_truth);
     println!(
-        "wrote {} (R=CT, G=MR; NMI {initial_mi:.6} -> {final_mi:.6}; translation error vs RIRE reference {error_mm:.3} mm; axial slice {})",
+        "wrote {} (R=CT, G=MR; NMI {initial_mi:.6} -> {final_mi:.6}; MR change max {maximum_change:.2}, mean {mean_change:.2}; axial slice {})",
         output.display(),
         ct.shape()[0] / 2,
     );
