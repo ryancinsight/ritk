@@ -24,9 +24,21 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ritk
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          path: ritk
+          persist-credentials: false
+
+      - name: Checkout provider dependencies
+        uses: ./ritk/.github/actions/checkout-atlas-path-dependencies
+        with:
+          manifest: ritk/Cargo.toml
+          destination: .
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
