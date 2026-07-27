@@ -1,23 +1,44 @@
-# Example: Validation Suite
+# Example: Registration Validation
 
-> **Status**: Planned — implementation forthcoming.
-> **Source**: `crates/ritk-registration/examples/validation_suite.rs` *(not yet created)*
+Validation is a separate stage from optimization. A registration can improve a
+metric while violating geometry, producing an empty resample, or moving a
+label boundary in the wrong direction. A useful report combines:
 
-## Description
+- shape and physical-frame checks;
+- metric values before and after;
+- overlap measures when labels exist; and
+- convergence state and iteration budget.
 
-This planned example will gather the main post-registration checks in one place: geometry consistency, transformation sanity, label-overlap metrics, and summary quality values such as correlation or convergence state. Rather than introducing a new algorithm, the point is to show how `ritk-registration::validation` can be used to decide whether a registration result is believable. A useful implementation would combine image-space checks with label-space checks, so the report covers both continuous alignment quality and discrete structure agreement.
+The CT/MR registration example demonstrates the visual part of this contract:
+it renders identity and registered overlays with red/green fringes and a
+data-derived MR resampling-change map.
 
-The Atlas integration angle is especially important here because validation often crosses every major boundary in the stack. Images may originate from `ritk-io`, metrics may be computed on Coeus-backed images or Leto-converted classical volumes, and label maps may be warped through the same transform used for the intensity registration itself. The suite should therefore act as the final guardrail that ties algorithm output back to reproducible evidence.
+![Registration validation output](../figures/ct_mri_registration.svg)
 
-## Planned workflow
+For a label-space check, use the statistics facade after resampling both label
+maps onto one grid:
 
-- Load fixed and moving images plus optional fixed and moving label maps.
-- Compute geometry checks before and after applying the transform.
-- Report overlap measures such as Dice or Jaccard on labels.
-- Summarize convergence, similarity, and physical error metrics together.
+~~~rust,ignore
+let dice = ritk_statistics::dice_coefficient(&fixed_labels, &moving_labels)?;
+let hausdorff = ritk_statistics::hausdorff_distance(&fixed_labels, &moving_labels)?;
+~~~
 
-## Verification goals
+The exact statistics signature depends on the label representation, so the
+validation layer must keep the conversion at the boundary and report the
+input shapes with the metric values. Never accept only an is_ok result: record
+the value, units, reference frame, and threshold used for the decision.
 
-- The report flags geometry mismatches before metric interpretation.
-- Overlap scores improve after a successful registration.
-- Numerical summaries are stable and reproducible on the same inputs.
+## Source and verification
+
+The visual source is crates/ritk-registration/examples/book_registration.rs.
+
+~~~text
+cargo run -p ritk-registration --example book_registration -- \
+  docs/book/figures/ct_mri_registration.svg
+~~~
+
+The registration example requires normalized mutual information to improve from
+identity to the dataset transform, preserves the full CT grid, and reports
+maximum and mean absolute MR resampling change. The registration and
+statistics test suites provide the numerical oracles; the figures are checked
+for correct labels, shared display conventions, and visible pre/post change.

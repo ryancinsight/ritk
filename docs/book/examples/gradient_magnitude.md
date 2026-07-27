@@ -1,23 +1,36 @@
 # Example: Gradient Magnitude
 
-> **Status**: Planned — implementation forthcoming.
-> **Source**: `crates/ritk-filter/examples/gradient_magnitude.rs` *(not yet created)*
+For a scalar image I on a regular grid, RITK estimates physical derivatives
+with central differences and reports
 
-## Description
+|grad I| = sqrt((dI/dz)^2 + (dI/dy)^2 + (dI/dx)^2).
 
-This planned example will compare two common ways of measuring local intensity change in ritk: direct gradient magnitude filters and gradient recursive Gaussian variants that smooth and differentiate in one pipeline. The example should start from a scalar image with visible edges, then show how Sobel-style discrete gradients and recursive-Gaussian derivatives emphasize different structures or noise levels. That makes it a natural prelude to edge detection, vesselness, and registration metrics such as NGF.
+Spacing is part of the calculation. A two-voxel intensity change represents a
+different physical slope when the voxel spacing changes.
 
-The Atlas integration story is the same one used throughout ritk: the volume is a Coeus-backed `ritk-image::Image`, and the filters operate through the standard image boundary rather than through a format-specific or backend-specific API. Once implemented, the example would also be a good place to connect conceptual behavior to the existing benchmark page, since recursive Gaussian gradients already have a dedicated performance example in the repository.
+![Gradient magnitude in the complete processing pipeline](../figures/processing_pipeline.svg)
 
-## Planned workflow
+~~~rust,ignore
+let gradient = GradientMagnitudeFilter::new(*input.spacing())
+    .apply_native(&input)?;
+~~~
 
-- Load a scalar volume or synthetic phantom with clear edges.
-- Compute a basic gradient magnitude image.
-- Compute recursive-Gaussian gradient components or magnitude with a chosen sigma.
-- Compare noise sensitivity and edge localization qualitatively.
+GradientMagnitudeFilter::unit() is useful only when the image has unit
+spacing. For physical measurements, pass the image spacing explicitly. The
+native implementation uses a zero-flux boundary stencil and preserves the
+input geometry.
 
-## Verification goals
+## Source and verification
 
-- Flat regions produce near-zero response.
-- Strong boundaries produce higher magnitude than smooth interiors.
-- Output retains the input image geometry.
+Source: crates/ritk-filter/examples/book_processing_pipeline.rs
+
+~~~text
+cargo run -p ritk-filter --example book_processing_pipeline -- \
+  docs/book/figures/processing_pipeline.svg
+~~~
+
+The figure uses one data-derived upper bound for the gradient panel and prints
+that bound below the image. This prevents a gradient map from looking
+identical to the input merely because both were independently normalized.
+Filter tests cover constant fields, linear fields with known spacing, boundary
+behavior, and native/generic parity.

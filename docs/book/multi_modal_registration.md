@@ -1,12 +1,26 @@
 # Multi-modal Registration
 
-Multi-modal registration in ritk focuses on the practical problem that CT, MR, PET, dose, and derived label maps do not share a simple intensity relationship. The toolkit therefore leans on modality-robust objectives such as mutual information, LNCC, and NGF, plus preprocessing steps like windowing, smoothing, and resampling that normalize inputs before optimization starts. This chapter frames multi-modal registration as a pipeline problem: choose a metric that tolerates contrast differences, ensure spatial metadata is trustworthy, and compare alignment visually as well as numerically.
+CT, MR, PET, dose, and derived maps do not share a simple intensity
+relationship. Multi-modal registration therefore needs a modality-robust
+objective, trustworthy physical metadata, and visual validation.
 
-Atlas integration again spans both compute families. Classical mutual-information registration operates on Leto volumes after explicit conversion, while Coeus-native metrics and differentiable models can evaluate edge- or correlation-based losses directly on the tensor-backed image representation. Because both paths share the same `ritk-image` geometry contract, ritk can compare classical and learned multi-modal workflows without changing how data is loaded, validated, or written back out.
+The minimum workflow is:
+
+1. load both volumes and inspect their physical frames;
+2. choose mutual information, LNCC, or NGF rather than assuming MSE is valid;
+3. resample the moving image in the fixed frame;
+4. compare identity and candidate transforms; and
+5. retain a numerical change map and a labeled overlay.
+
+The CT/MR fixture uses mutual information plus a reference transform so the
+example is reproducible rather than optimizer-seed dependent. The registered
+overlay is visibly different from identity because red and green fringes expose
+residual misalignment, while the MR change panel exposes where resampling
+actually changed the sampled values.
 
 ## Example Summary
 
 | Example | Status | Focus |
 | --- | --- | --- |
-| [CT/MR Mutual-Information Registration](examples/registration_compare_figure.md) | Available | Labeled RIRE CT-to-MR overlays with identity, registered, and MR-change diagnostic panels. |
-| [Validation Suite](examples/validation_suite.md) | Planned | Planned companion for overlap and geometry checks after multi-modal alignment. |
+| [CT/MR Mutual-Information Registration](examples/registration_compare_figure.md) | Available | Labeled RIRE CT-to-MR overlays with identity, registered, and change diagnostic panels. |
+| [Validation Suite](examples/validation_suite.md) | Available | Geometry, metric, overlap, convergence, and visible pre/post checks. |

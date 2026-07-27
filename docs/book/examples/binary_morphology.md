@@ -1,23 +1,40 @@
-# Example: Binary Erosion/Dilation
+# Example: Binary Morphology
 
-> **Status**: Planned — implementation forthcoming.
-> **Source**: `crates/ritk-morphology/examples/binary_morphology.rs` *(not yet created)*
+Binary morphology operates on a foreground value and a structuring element.
+For a cubic radius r, erosion retains a voxel only when its neighborhood is
+foreground; dilation retains it when any neighborhood voxel is foreground.
+Opening is erosion followed by dilation. Closing is dilation followed by
+erosion.
 
-## Description
+![Binary opening and closing in the complete processing pipeline](../figures/processing_pipeline.svg)
 
-This planned example will pair ritk's binary morphology filters with the structuring-element types exported by `ritk-morphology`. The intended walkthrough is erosion, dilation, opening, and closing on a binary mask, using simple `Cube`, `Cross`, or `Ball` neighborhoods to show how foreground topology changes under each operation. By keeping the input binary, the example can emphasize the algebraic meaning of each transform: erosion removes thin foreground structures, dilation expands them, opening removes small protrusions, and closing fills narrow gaps.
+~~~rust,ignore
+let eroded = BinaryErodeFilter::new(1)
+    .apply_native(&mask, &backend)?;
+let opened = BinaryDilateFilter::new(1)
+    .apply_native(&eroded, &backend)?;
 
-Atlas integration matters because the structuring element and the image have different ownership roles. `ritk-morphology` provides zero-sized shape markers and borrowed offset lists, while the actual image still lives in the standard Coeus-backed `ritk-image::Image` boundary consumed by the filters. That split is intentional and worth documenting because it keeps morphology shape definitions zero-cost while letting the rest of the pipeline reuse ordinary image abstractions.
+let dilated = BinaryDilateFilter::new(1)
+    .apply_native(&mask, &backend)?;
+let closed = BinaryErodeFilter::new(1)
+    .apply_native(&dilated, &backend)?;
+~~~
 
-## Planned workflow
+The default foreground is 1.0 and out-of-bounds neighbors are background.
+That boundary policy intentionally removes foreground touching the image edge
+during erosion. If your segmentation uses another label, set it with
+with_foreground and keep the background value consistent with the mask
+contract.
 
-- Create or load a binary mask with small holes and thin bridges.
-- Apply erosion and dilation with a chosen neighborhood.
-- Compose them into opening and closing.
-- Compare foreground voxel counts and qualitative topology changes.
+## Source and verification
 
-## Verification goals
+Source: crates/ritk-filter/examples/book_processing_pipeline.rs
 
-- Radius-zero structuring elements behave as identity.
-- Opening is anti-extensive and closing is extensive.
-- Output masks preserve the input geometry contract.
+~~~text
+cargo run -p ritk-filter --example book_processing_pipeline -- \
+  docs/book/figures/processing_pipeline.svg
+~~~
+
+The figure uses the same mask for both compositions and a fixed binary display
+range. Tests cover radius zero identity, topology changes, border behavior,
+foreground values, and native/generic parity.

@@ -1,23 +1,42 @@
-# Example: Perona-Malik Diffusion
+# Example: Perona–Malik Diffusion
 
-> **Status**: Planned — implementation forthcoming.
-> **Source**: `crates/ritk-filter/examples/perona_malik.rs` *(not yet created)*
+Perona–Malik diffusion evolves
 
-## Description
+dI/dt = div(c(|grad I|) grad I),
 
-This planned example will demonstrate Perona-Malik anisotropic diffusion as an edge-preserving alternative to ordinary smoothing. The core idea is to smooth strongly inside relatively uniform regions while reducing diffusion across steep gradients, so homogeneous tissue becomes less noisy without blurring away meaningful boundaries. The page should compare at least two conductance choices or parameter settings so readers can see the trade-off between denoising strength and edge preservation.
+where the conductance c is large in homogeneous regions and small across
+strong gradients. RITK provides exponential and quadratic conductance
+strategies and an explicit Euler configuration.
 
-In Atlas terms, this example belongs squarely in the Coeus-backed image pipeline: the image is loaded once, diffusion iterations update intensity content only, and the same geometry metadata flows unchanged into whatever follows next. Because anisotropic diffusion often serves as a preprocessing step for segmentation or registration, the planned example should highlight both visual improvement and the practical downstream motivation for the filter.
+![Perona–Malik diffusion and its absolute change map](../figures/processing_pipeline.svg)
 
-## Planned workflow
+~~~rust,ignore
+let config = DiffusionConfig {
+    num_iterations: 12,
+    time_step: 0.0625,
+    conductance: 0.08,
+    function: ConductanceFunction::Exponential,
+};
+let diffused = config.apply_native(&input, &backend)?;
+~~~
 
-- Load a noisy scalar volume with visible boundaries.
-- Run Perona-Malik diffusion for several iteration counts.
-- Compare exponential and inverse-quadratic conductance behavior.
-- Inspect denoised regions and preserved edges side by side.
+For a three-dimensional unit grid, the explicit time step must satisfy the
+stability bound dt <= 1/6. The example uses 1/16. Conductance is expressed in
+the same intensity-gradient units as the image; it is not a display contrast
+parameter.
 
-## Verification goals
+The figure uses a shared [0, 1] scale for input and output and adds an
+absolute change panel. That diagnostic is required when visual contrast alone
+cannot show whether a denoiser changed the data.
 
-- Interior noise decreases as iterations increase.
-- Major edges remain sharper than with comparable isotropic smoothing.
-- Shape and physical metadata are preserved.
+## Source and verification
+
+Source: crates/ritk-filter/examples/book_processing_pipeline.rs
+
+~~~text
+cargo run -p ritk-filter --example book_processing_pipeline -- \
+  docs/book/figures/processing_pipeline.svg
+~~~
+
+Tests cover constant-field invariance, conductance selection, stability-sized
+steps, metadata preservation, and native/generic parity.

@@ -1,13 +1,27 @@
 # Validation and Benchmarking
 
-Registration work is only trustworthy when ritk can prove both correctness and performance. The validation side of `ritk-registration` defines `ShapeValidation`, `NumericalCheck`, `ValidationConfig`, and quality summaries such as `RegistrationQualityMetrics`, covering fiducial error, target error, mutual information, correlation, convergence state, and iteration counts. The benchmarking side asks a different question: how much of total runtime belongs to file I/O, resampling, metric evaluation, or wrapper overhead, and how does that change across backends or optimizer families? This chapter treats those as one discipline rather than two separate chores.
+Validation and performance are separate acceptance axes. A faster run is not an
+accuracy result, and a lower metric is not proof of correct geometry.
 
-In Atlas terms, validation usually crosses boundaries: geometry may come from `ritk-io`, tensors may be evaluated in Coeus, and classical metrics may run on Leto arrays. Benchmarking then measures whether that boundary design is paying off or adding avoidable copies and dispatch overhead. The goal is not just to report a fast number, but to relate accuracy, convergence, and execution cost so users can choose the simplest pipeline that still meets their clinical or research requirement.
+Registration validation should combine:
+
+- shape, spacing, origin, and direction checks;
+- metric values before and after;
+- overlap measures when labels exist;
+- convergence state and iteration budget; and
+- a labeled overlay plus an input-to-output change map.
+
+Benchmarking should measure loading, preprocessing, metric evaluation,
+resampling, and optimizer loops separately. This makes a regression
+attributable to an algorithm rather than a hidden boundary copy.
 
 ## Example Summary
 
 | Example | Status | Focus |
 | --- | --- | --- |
-| [Geometry Validation](examples/geometry_check.md) | Available | Baseline spatial-contract check before trusting any registration result. |
-| [Validation Suite](examples/validation_suite.md) | Planned | Planned aggregate report for geometry metrics, overlap metrics, and convergence summaries. |
-| [Gradient Recursive Gaussian Benchmark](examples/bench_gradient_rg.md) | Available | Performance methodology that also informs how registration helpers should be profiled. |
+| [Geometry Validation](examples/geometry_check.md) | Available | Baseline spatial-contract check before trusting a registration result. |
+| [Validation Suite](examples/validation_suite.md) | Available | Aggregate geometry, metric, overlap, and convergence checks. |
+| [Gradient Recursive Gaussian Benchmark](examples/bench_gradient_rg.md) | Available | Performance methodology for reusable filter kernels. |
+
+The CT/MR example records both the identity-to-registered metric change and the
+visible resampling change so those claims remain distinguishable.

@@ -5,10 +5,12 @@ on:
     branches: [main]
     paths:
       - "docs/book/**"
+      - "crates/ritk-filter/examples/book_processing_pipeline.rs"
       - ".github/workflows/book-pages.yml"
   pull_request:
     paths:
       - "docs/book/**"
+      - "crates/ritk-filter/examples/book_processing_pipeline.rs"
       - ".github/workflows/book-pages.yml"
   workflow_dispatch:
 
@@ -41,10 +43,22 @@ jobs:
           export PATH="$PWD:$PATH"
           mdbook --version
 
+      - name: Generate deterministic book figures
+        run: |
+          cargo run --locked -p ritk-filter --example book_processing_pipeline -- \
+            docs/book/figures/processing_pipeline.svg
+
       - name: Build book
         run: |
           mdbook build docs/book
           test -f target/book/ritk/index.html
+
+      - name: Upload generated book figures
+        uses: actions/upload-artifact@v4
+        with:
+          name: book-generated-figures-\${{ github.sha }}
+          path: docs/book/figures/processing_pipeline.svg
+          if-no-files-found: error
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4

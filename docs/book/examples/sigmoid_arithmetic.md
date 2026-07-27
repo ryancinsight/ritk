@@ -1,23 +1,40 @@
 # Example: Sigmoid and Arithmetic
 
-> **Status**: Planned — implementation forthcoming.
-> **Source**: `crates/ritk-filter/examples/sigmoid_arithmetic.rs` *(not yet created)*
+The sigmoid maps an input intensity through
 
-## Description
+S(I) = (M - m) / (1 + exp(-(I - alpha) / beta)) + m.
 
-This planned example will combine `SigmoidImageFilter` with simple arithmetic intensity operators such as add, subtract, multiply, and divide. The goal is to show a practical normalization pattern: use a sigmoid remap to compress dynamic range around a meaningful center value, then apply arithmetic filters to shift, scale, or combine images for downstream processing. Because the operations are pointwise, they are good demonstrations of ritk's substrate-agnostic host-core design and of the fact that the `ritk-image::Image` boundary stays intact across chained transforms.
+Alpha is the midpoint and beta controls the transition width. RITK keeps the
+output range explicit, which makes a preprocessing contract reproducible
+across displays and downstream metrics.
 
-The Atlas angle is that these are inexpensive building blocks that can execute through the same Coeus-backed image abstraction used elsewhere in the toolkit. An eventual implementation could easily compare sequential and Moirai execution without changing the actual filter composition. The example should therefore read as a miniature pipeline rather than as isolated API calls, showing how normalization and arithmetic cooperate before filtering or registration.
+![Sigmoid remapping in the complete processing pipeline](../figures/processing_pipeline.svg)
 
-## Planned workflow
+~~~rust,ignore
+let normalized = SigmoidImageFilter::new(0.42, 0.10, 0.0, 1.0)
+    .apply_native(&input, &backend)?;
+~~~
 
-- Start from a scalar volume or synthetic ramp image.
-- Apply a sigmoid centered on a chosen intensity with tunable slope.
-- Shift and scale the result into a normalized range.
-- Optionally combine two images with add or subtract for contrast enhancement.
+Pointwise arithmetic filters use the same image boundary. Add, subtract,
+multiply, and divide are binary image operations: both operands must have
+compatible shapes and metadata. Use them to combine a corrected image with a
+mask or to apply a calibrated scale after the nonlinear remap. Do not use a
+display-only conversion as a substitute for a numeric arithmetic stage.
 
-## Verification goals
+The pipeline figure makes the sigmoid effect readable by keeping the input and
+sigmoid panels on the same [0, 1] display range. The output is visibly
+different because the remap is data-derived, not because the renderer chooses
+a new contrast window.
 
-- The sigmoid output stays bounded in the requested range.
-- Arithmetic steps match analytically expected voxel values.
-- Chaining operations preserves shape and physical metadata.
+## Source and verification
+
+Source: crates/ritk-filter/examples/book_processing_pipeline.rs
+
+~~~text
+cargo run -p ritk-filter --example book_processing_pipeline -- \
+  docs/book/figures/processing_pipeline.svg
+~~~
+
+The sigmoid tests cover midpoint, monotonicity, bounded output, and the
+degenerate beta step contract. Binary arithmetic tests cover shape mismatch and
+value-semantic results.

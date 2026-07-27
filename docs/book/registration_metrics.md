@@ -1,12 +1,26 @@
 # Registration Metrics
 
-Registration quality in ritk is driven by two families of similarity metrics. The differentiable path in `ritk-registration::metric` exposes native MSE, NCC, LNCC, and NGF evaluators plus autodiff traits used by gradient-based optimization. The classical path complements that with mutual information for multi-modal alignment and sealed translation metrics such as mean squared difference and normalized cross-correlation. This chapter explains when each metric is appropriate: MSE and NCC for same-modality volumes, LNCC for local contrast robustness, NGF for edge-driven alignment, and mutual information when intensity relationships are not linear across modalities.
+Metric selection follows the intensity relationship, not the optimizer.
 
-Atlas integration matters because the same public image boundary feeds both implementations. Coeus-backed tensors power autodiff metrics and learning-based registration, while classical mutual-information evaluation operates on Leto arrays after an explicit native conversion. The metric layer therefore forms the bridge between file and geometry correctness and optimizer behavior: if spatial metadata is wrong, every metric will look unreliable; if the metric is mismatched to the modality pair, the optimizer may converge to the wrong transform even when backend execution is correct.
+| Pair | Starting metric |
+| --- | --- |
+| Same modality, similar calibration | MSE or NCC |
+| Same modality, local contrast variation | LNCC |
+| Edge-driven alignment | NGF |
+| CT/MR or another non-linear intensity relationship | Mutual information |
+
+The differentiable path exposes native MSE, NCC, LNCC, and NGF evaluators. The
+classical path complements them with mutual information and sealed translation
+metrics. Both paths consume the RITK image geometry contract; the classical
+path performs an explicit conversion to Leto arrays at its numeric boundary.
+
+Evaluate the identity transform before optimization. A post-registration metric
+is meaningful only when the identity value, transform convention, sampled
+frame, and optimizer state are recorded beside it.
 
 ## Example Summary
 
 | Example | Status | Focus |
 | --- | --- | --- |
 | [Registration Comparison Figure](examples/registration_compare_figure.md) | Available | Visual comparison of identity, classical MI, and reference alignment behavior. |
-| [Validation Suite](examples/validation_suite.md) | Planned | Pair metric values with geometry and overlap checks to interpret whether a registration really improved. |
+| [Validation Suite](examples/validation_suite.md) | Available | Pair metric values with geometry and overlap checks. |
