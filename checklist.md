@@ -10,7 +10,7 @@
 
 ## SAFE-669-01 — Bound JPEG 2000 tile geometry
 **Target version**: Unreleased patch
-**Sprint phase**: Execution
+**Sprint phase**: Closure
 
 - [x] Reconcile the deferred SEC-457-04 audit against current main: baseline
       JPEG is bounded before scan allocation; JPEG 2000 tile geometry remains
@@ -26,7 +26,8 @@
 - [x] Run focused formatting, warning-denied Clippy, Nextest, doctest, and
       Rustdoc gates. All 260 codec tests, Clippy, formatting, doctests, and
       warning-denied Rustdoc pass locally.
-- [ ] Publish and merge only after exact-head CI is green.
+- [x] Record exact-head hosted evidence before publication and merge. PR #63
+      exact head `b6d2bd84` passes every repository-owned hosted check.
 
 ## DEP-668-01 — Remove the OpenJPEG test-runtime dependency
 **Target version**: Unreleased patch

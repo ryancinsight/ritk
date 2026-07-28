@@ -35,6 +35,13 @@ Warning-denied all-target Clippy passes. These checks establish bounded
 allocation arithmetic and preserved tested codec behavior; they do not
 establish a measured throughput change.
 
+PR #63 exact head `b6d2bd84` passes CI run `30375833486`, Python CI run
+`30375833366`, and migration-audit run `30375833069`: formatting,
+warning-denied Clippy, dependency alignment, wheel smoke, all three operating
+system suites, Python 3.9-3.13, and the migration audit are green. The external
+`recurseml/analysis` service error is non-required and contains no RITK build
+or test evidence.
+
 ## DEP-668-01 audit (2026-07-28)
 
 RITK's JPEG 2000 production encoder and decoder were already native Rust, but
