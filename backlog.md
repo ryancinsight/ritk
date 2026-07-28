@@ -1,5 +1,18 @@
 # RITK Backlog - Active Planning
 
+- **PERF-671-01 [patch] - Profile and optimize native codec hot loops
+  (IN PROGRESS; owner=Codex; scope=`crates/ritk-codecs/{benches/
+  codec_throughput.rs,src/jpeg_2000/**,src/jpeg_ls/**}`, `CHANGELOG.md`, and
+  PM artifacts).** Reconcile the historical `CODEC-PERF` gap against the
+  current pure-Rust codecs, capture a controlled Criterion baseline, and
+  optimize one measured JPEG 2000 or JPEG-LS production bottleneck without
+  changing the benchmark workload. Acceptance: the selected hot path has an
+  analytical bound and profile evidence; the implementation reduces matched
+  median runtime without increasing allocation amplification; native
+  round-trip and captured OpenJPEG interoperability values remain within their
+  existing exact or derived-error contracts; focused benchmark, test, lint,
+  documentation, and hosted gates pass.
+
 - **SAFE-670-01 [patch] - Bound DICOM RGB series geometry without metadata
   duplication (DONE; owner=Codex; scope=`crates/ritk-io/src/format/
   dicom/color/{mod.rs,tests.rs}`, `CHANGELOG.md`, and PM artifacts).** Close
