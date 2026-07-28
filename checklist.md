@@ -8,6 +8,28 @@
 
 # RITK Sprint Checklist — Active
 
+## PERF-671-01 — Profile and optimize native codec hot loops
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Reconcile the historical `CODEC-PERF` entry with the current native
+      JPEG 2000 and JPEG-LS implementations and benchmark harness.
+- [x] Record a controlled Criterion baseline and identify the dominant
+      production hot path before changing it.
+- [x] State the selected path's compute, bandwidth, or latency bound and its
+      allocation behavior.
+- [x] Implement one measured production optimization without changing the
+      benchmark workload or codec semantics.
+- [x] Preserve exact native round trips and the captured OpenJPEG
+      interoperability corpus. The full codec suite passes in hosted native
+      Nextest on Linux, macOS, and Windows at code head `824f1c30`.
+- [x] Record matched baseline evidence. The unchanged 512×512 five-level
+      encoder improves from 54.089 ms to 50.757 ms median (6.16%, p < 0.05);
+      repeated decode measurement shows no significant change.
+- [x] Run focused format, test, lint, documentation, and hosted gates. Exact
+      code head `824f1c30` passes CI run `30390535716`, Python run
+      `30390535769`, and migration-audit run `30390535869`.
+
 ## SAFE-670-01 — Bound DICOM RGB series geometry without metadata duplication
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
