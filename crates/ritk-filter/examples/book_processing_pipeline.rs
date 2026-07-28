@@ -4,7 +4,7 @@
 //! every panel. Each stage runs through RITK's public Coeus-native image API;
 //! the SVG renderer only visualizes the resulting voxel values.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use coeus_core::SequentialBackend;
 use eunomia::CastFrom;
 use ritk_filter::{
@@ -21,6 +21,7 @@ type Backend = SequentialBackend;
 type ScalarImage = Image<f32, Backend, 3>;
 
 const DIMS: [usize; 3] = [3, 128, 128];
+const BINARY_RADIUS: usize = 1;
 const PANEL_WIDTH: u32 = 256;
 const PANEL_HEIGHT: u32 = 280;
 const PANEL_COLUMNS: u32 = 4;
@@ -54,9 +55,22 @@ fn phantom() -> Result<Vec<f32>> {
                     ((x - 101.0).powi(2) + (y - 84.0).powi(2)) / (2.0 * 4.5_f32.powi(2));
                 let perturbation =
                     0.045 * (-perturbation_a).exp() - 0.035 * (-perturbation_b).exp();
+                // These two small structures make the binary morphology
+                // semantics visible at radius one: opening removes the
+                // isolated foreground island, while closing fills the small
+                // background hole. They are replicated through depth with
+                // the rest of the deterministic volume fixture.
+                let binary_island = (16..18).contains(&x_index) && (102..105).contains(&y_index);
+                let binary_hole = (70..72).contains(&x_index) && (65..68).contains(&y_index);
                 let tissue =
                     0.72 * (-main).exp() + 0.35 * (-secondary).exp() + crescent + perturbation;
-                values.push(if hole { 0.22 } else { tissue.clamp(0.0, 1.0) });
+                values.push(if binary_island {
+                    0.95
+                } else if hole || binary_hole {
+                    0.22
+                } else {
+                    tissue.clamp(0.0, 1.0)
+                });
             }
         }
     }
@@ -202,6 +216,7 @@ fn draw_contract_panel(svg: &mut String, index: usize) -> Result<()> {
 struct PipelineFigures<'a> {
     input: &'a [f32],
     sigmoid: &'a [f32],
+    binary_seed: &'a [f32],
     threshold: &'a [f32],
     gradient: &'a [f32],
     opened: &'a [f32],
@@ -215,6 +230,7 @@ fn write_figure(path: &Path, figures: PipelineFigures<'_>) -> Result<()> {
     let PipelineFigures {
         input,
         sigmoid,
+        binary_seed,
         threshold,
         gradient,
         opened,
@@ -236,6 +252,18 @@ fn write_figure(path: &Path, figures: PipelineFigures<'_>) -> Result<()> {
         .map(|(&source, &filtered)| (filtered - source).abs())
         .collect();
     let curvature_change_range = min_max(&curvature_change)?;
+    let opening_removed = binary_seed
+        .iter()
+        .zip(opened.iter())
+        .filter(|&(&before, &after)| before == 1.0 && after == 0.0)
+        .count();
+    let closing_filled = binary_seed
+        .iter()
+        .zip(closed.iter())
+        .filter(|&(&before, &after)| before == 0.0 && after == 1.0)
+        .count();
+    let opening_subtitle = format!("erode → dilate; removed {opening_removed} voxels");
+    let closing_subtitle = format!("dilate → erode; filled {closing_filled} voxels");
     let figure_width = PANEL_WIDTH * PANEL_COLUMNS;
     let figure_height = PANEL_HEIGHT * PANEL_ROWS;
     let mut svg = String::new();
@@ -284,7 +312,7 @@ fn write_figure(path: &Path, figures: PipelineFigures<'_>) -> Result<()> {
         &mut svg,
         opened,
         "Binary opening",
-        "erode → dilate; r = 1",
+        &opening_subtitle,
         (0.0, 1.0),
         4,
     )?;
@@ -292,7 +320,7 @@ fn write_figure(path: &Path, figures: PipelineFigures<'_>) -> Result<()> {
         &mut svg,
         closed,
         "Binary closing",
-        "dilate → erode; r = 1",
+        &closing_subtitle,
         (0.0, 1.0),
         5,
     )?;
@@ -366,17 +394,17 @@ fn main() -> Result<()> {
     let binary_seed = ritk_filter::BinaryThresholdImageFilter::new(0.62, 1.0, 1.0, 0.0)
         .apply_native(&sigmoid, &backend)
         .context("create binary mask")?;
-    let opened = BinaryDilateFilter::new(1)
+    let opened = BinaryDilateFilter::new(BINARY_RADIUS)
         .apply_native(
-            &BinaryErodeFilter::new(1)
+            &BinaryErodeFilter::new(BINARY_RADIUS)
                 .apply_native(&binary_seed, &backend)
                 .context("erode binary mask")?,
             &backend,
         )
         .context("dilate eroded mask")?;
-    let closed = BinaryErodeFilter::new(1)
+    let closed = BinaryErodeFilter::new(BINARY_RADIUS)
         .apply_native(
-            &BinaryDilateFilter::new(1)
+            &BinaryDilateFilter::new(BINARY_RADIUS)
                 .apply_native(&binary_seed, &backend)
                 .context("dilate binary mask")?,
             &backend,
@@ -404,6 +432,7 @@ fn main() -> Result<()> {
         PipelineFigures {
             input: &input_values,
             sigmoid: sigmoid.data_slice()?,
+            binary_seed: binary_seed.data_slice()?,
             threshold: threshold.data_slice()?,
             gradient: gradient.data_slice()?,
             opened: opened.data_slice()?,
