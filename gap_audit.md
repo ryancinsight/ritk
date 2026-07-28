@@ -30,8 +30,16 @@ The unchanged end-to-end Criterion workload improves to 50.757 ms median, a
 6.16% reduction with p < 0.05. A repeated 512×512 decode comparison detects no
 statistically significant change. These measurements establish the production
 encode and state-memory effects on this Windows x86-64 GNU host; they do not
-claim cross-machine scaling. Exact native and captured OpenJPEG corpus gates
-remain required before closure.
+claim cross-machine scaling.
+
+Exact code head `824f1c30` passes the full provider-pinned hosted matrix:
+native Nextest on Linux, macOS, and Windows, Rustfmt, warning-denied Clippy,
+dependency alignment, wheel smoke, Python 3.9-3.13, and the migration audit in
+runs `30390535716`, `30390535769`, and `30390535869`. The full codec suite
+therefore revalidates exact native round trips and the captured OpenJPEG corpus.
+Thread-aware review inspection found no review threads; the optional CodeRabbit
+review reported its rate limit, and the external RecurseML analysis failed
+before producing repository test evidence.
 
 ## SAFE-670-01 audit (2026-07-28)
 

@@ -28,6 +28,8 @@
 
 - Pin the one-byte state layout and verify that clearing the per-pass visit
   flag preserves significance, sign, and refinement state.
+- Revalidate the full native codec suite on Linux, macOS, and Windows, including
+  exact round trips and the captured OpenJPEG interoperability corpus.
 
 ## [Unreleased] — DICOM RGB series allocation safety (SAFE-670-01)
 

@@ -1,7 +1,7 @@
 # RITK Backlog - Active Planning
 
 - **PERF-671-01 [patch] - Profile and optimize native codec hot loops
-  (CODE COMPLETE / HOSTED VERIFICATION PENDING; owner=Codex;
+  (DONE; owner=Codex;
   scope=`crates/ritk-codecs/src/jpeg_2000/ebcot/**`, `CHANGELOG.md`, and PM
   artifacts).** Reconcile the historical `CODEC-PERF` gap against the current
   pure-Rust codecs, capture a controlled Criterion baseline, and optimize one
@@ -14,9 +14,10 @@
   benchmark improves to 50.757 ms median (6.16%, p < 0.05); repeated decode
   measurement detects no significant change. Acceptance remains exact native
   round trips and captured OpenJPEG interoperability plus warning-denied
-  lint, documentation, and hosted gates. Local semantic-test execution is
-  queued out by the shared Cargo target lock and Windows junction source
-  identities; the optimized bench profile compiles and runs the exact code.
+  lint, documentation, and hosted gates. Exact code head `824f1c30` passes
+  native Nextest on Linux, macOS, and Windows, Rustfmt, warning-denied Clippy,
+  dependency alignment, wheel smoke, Python 3.9-3.13, and the migration audit
+  in runs `30390535716`, `30390535769`, and `30390535869`.
 
 - **SAFE-670-01 [patch] - Bound DICOM RGB series geometry without metadata
   duplication (DONE; owner=Codex; scope=`crates/ritk-io/src/format/
