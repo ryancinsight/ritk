@@ -18,6 +18,27 @@ fn write_rgb_slice(
     planar_configuration: Option<u16>,
 ) {
     assert_eq!(samples.len(), 2 * RGB_CHANNELS);
+    write_rgb_slice_with_dimensions(
+        path,
+        sop_instance_uid,
+        instance_number,
+        z_mm,
+        [1, 2],
+        samples,
+        planar_configuration,
+    );
+}
+
+fn write_rgb_slice_with_dimensions(
+    path: &Path,
+    sop_instance_uid: &str,
+    instance_number: u16,
+    z_mm: f64,
+    dimensions: [u16; 2],
+    samples: &[u8],
+    planar_configuration: Option<u16>,
+) {
+    let [rows, cols] = dimensions;
     let mut obj = InMemDicomObject::new_empty();
     obj.put(DataElement::new(
         Tag(0x0008, 0x0016),
@@ -79,12 +100,12 @@ fn write_rgb_slice(
     obj.put(DataElement::new(
         Tag(0x0028, 0x0010),
         VR::US,
-        PrimitiveValue::from(1_u16),
+        PrimitiveValue::from(rows),
     ));
     obj.put(DataElement::new(
         Tag(0x0028, 0x0011),
         VR::US,
-        PrimitiveValue::from(2_u16),
+        PrimitiveValue::from(cols),
     ));
     obj.put(DataElement::new(
         Tag(0x0028, 0x0030),
@@ -240,6 +261,35 @@ fn native_color_series_rejects_planar_rgb_samples() {
     assert!(
         msg.contains("PlanarConfiguration=0") && msg.contains("declares 1"),
         "expected planar RGB rejection, got {msg}"
+    );
+}
+
+#[test]
+fn native_color_series_rejects_hostile_dimensions_before_volume_allocation() {
+    let declared_side = u16::MAX;
+    let declared_frame_bytes = usize::from(declared_side)
+        .checked_mul(usize::from(declared_side))
+        .and_then(|pixels| pixels.checked_mul(RGB_CHANNELS))
+        .expect("64-bit test target must represent the declared frame");
+    let dir = tempfile::tempdir().expect("tempdir");
+    write_rgb_slice_with_dimensions(
+        &dir.path().join("hostile.dcm"),
+        "2.25.3152",
+        1,
+        0.0,
+        [declared_side, declared_side],
+        &[255, 0, 0, 0, 255, 0],
+        Some(0),
+    );
+
+    let error = load_color_volume_flat_from_path(dir.path())
+        .expect_err("short Pixel Data must reject hostile Rows and Columns");
+    let message = format!("{error:#}");
+    assert!(
+        message.contains("frame 0 out of range")
+            && message.contains(&format!("frame byte length {declared_frame_bytes}"))
+            && message.contains("byte length 6"),
+        "expected bounded Pixel Data length rejection, got {message}"
     );
 }
 

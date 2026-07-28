@@ -8,6 +8,40 @@
 
 # RITK Gap Audit - Active
 
+## SAFE-670-01 audit (2026-07-28)
+
+The directory-based DICOM RGB loader bounded its volume reservation but made a
+full clone of `DicomReadMetadata::slices` first. When callers retained Part-10
+bytes in each slice, that clone duplicated every encoded instance before
+decoding. It also reserved the bounded output buffer before validating that
+the first Pixel Data element could satisfy its declared Rows and Columns.
+
+The loader now borrows slice metadata, defers output reservation until one
+frame has decoded to the declared geometry, and moves that first decoded frame
+into the output buffer instead of copying it. A format-level regression
+declares 65,535×65,535 interleaved RGB pixels with a six-byte Pixel Data element
+and requires the native frame-length error. This closes TEST-461-05 and
+establishes that hostile geometry reaches decoder validation before the volume
+allocation; valid color-series tests remain the value and spatial-metadata
+oracle.
+
+The previously open TEST-447-05 entry was stale: the MINC shape-exceeds-data
+regression merged in `eb1a6e3b` and is already recorded in the Sprint 459 audit
+and changelog. Its active-backlog state is now reconciled to DONE.
+
+Behavioral evidence is six passing RGB series tests in 0.104 seconds, covering
+the hostile declaration, scalar and planar rejection, exact interleaved
+samples, flat-carrier layout, and spatial metadata. Direct Rustfmt and diff
+checks pass. Full local locked/package gates are not closure evidence in this
+lane: live Coeus/Mnemosyne source edges differ from RITK's committed provider
+pins, and the canonical Cargo target is under sustained peer contention. The
+provider-pinned hosted matrix supplies closure at code head `4adba6dd`: CI run
+`30385224980` passes Rustfmt, warning-denied Clippy, dependency alignment,
+wheel smoke, and native Nextest on Linux, macOS, and Windows;
+migration-audit run `30385224900` passes; Python run `30385224738` passes the
+complete supported platform/version matrix. The PM-only closure head must
+remain green before merge.
+
 ## SAFE-669-01 audit (2026-07-28)
 
 The earlier SEC-457-04 pass bounded full-image JPEG and JPEG 2000 pixel counts,
@@ -2816,9 +2850,9 @@ converge: 105 → 36 (excluding Cargo-auto-discovered `tests/`/`benches/`/
   basename heuristics — attempted and abandoned this pass (too noisy:
   `tests.rs`/`helpers.rs`/etc. legitimately recur via relative `#[path]` across
   many unrelated parents).
-- **[TEST-461-05 OPEN]** The color-series path lacks its own hostile-dimension
-  regression (lower priority — same underlying mechanism proven safe by the
-  multiframe test).
+- **[TEST-461-05 CLOSED]** The color-series path now has a format-level
+  hostile-dimension regression that reaches native Pixel Data length
+  validation before volume allocation.
 - **[Backlog]** Neither ritk-cli nor ritk-snap auto-detects single-file RGB
   multiframe DICOM objects for dispatch to the now-restored loader; only
   directory-based RGB series detection (`is_rgb_dicom_series`) exists.
@@ -3161,10 +3195,9 @@ converge: 105 → 36 (excluding Cargo-auto-discovered `tests/`/`benches/`/
 
 ### Residual Risk
 
-- **[TEST-447-05 OPEN]** MINC lacks a format-level hostile-fixture regression
-  because forging a shape≠data HDF5 file is non-trivial; the `read_bounded_with`
-  primitive it uses is unit-tested in `ritk-core`. Tracked as a READY backlog
-  item.
+- **[TEST-447-05 CLOSED IN SPRINT 459]** This Sprint 447 audit originally found
+  no format-level hostile fixture. Commit `eb1a6e3b` later forged shape≠data
+  MINC2 input and closed the gap through the real `read_bounded_with` path.
 
 ## Sprint 446 Audit (2026-06-28) — VTK Reader Untrusted-Input Allocation Hardening
 
