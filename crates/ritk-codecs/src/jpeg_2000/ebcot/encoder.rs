@@ -31,11 +31,12 @@ pub fn encode_code_block(
         "EBCOT encode: samples length must equal width × height"
     );
 
-    // Determine sign and magnitude from DC-shifted samples.
     let n = width * height;
-    let mag: Vec<u32> = samples.iter().map(|&v| v.unsigned_abs()).collect();
-
-    let max_mag = *mag.iter().max().unwrap_or(&0);
+    let max_mag = samples
+        .iter()
+        .map(|sample| sample.unsigned_abs())
+        .max()
+        .unwrap_or(0);
     if max_mag == 0 {
         // All samples are zero: produce an empty bitstream.
         return EncodedBlock {
@@ -83,7 +84,7 @@ pub fn encode_code_block(
                             continue;
                         }
                         state[idx].set_visited();
-                        let sig_bit = (mag[idx] >> bp) & 1;
+                        let sig_bit = (samples[idx].unsigned_abs() >> bp) & 1;
                         let ctx = zc_context(orient, h, v, d);
                         trace(ctx, sig_bit);
                         mq.encode(sig_bit, &mut ctxs[ctx]);
@@ -114,7 +115,7 @@ pub fn encode_code_block(
                         }
                         let has_sig_other = any_neighbour_sig(&state, width, height, x, y);
                         let ctx = mr_context(has_sig_other, state[idx].was_refined());
-                        let bit = (mag[idx] >> bp) & 1;
+                        let bit = (samples[idx].unsigned_abs() >> bp) & 1;
                         trace(ctx, bit);
                         mq.encode(bit, &mut ctxs[ctx]);
                         state[idx].set_refined();
@@ -140,13 +141,16 @@ pub fn encode_code_block(
 
                 if can_rlc {
                     // Check if all 4 rows are zero at this bit-plane.
-                    let all_zero = (y..y + 4).all(|yy| (mag[yy * width + x] >> bp) & 1 == 0);
+                    let all_zero = (y..y + 4)
+                        .all(|yy| (samples[yy * width + x].unsigned_abs() >> bp) & 1 == 0);
                     trace(CTX_AGG, u32::from(!all_zero));
                     mq.encode(u32::from(!all_zero), &mut ctxs[CTX_AGG]);
                     if !all_zero {
                         // Find the first non-zero row.
                         let run_pos = (y..y + 4)
-                            .position(|yy| (mag[yy * width + x] >> bp) & 1 == 1)
+                            .position(|yy| {
+                                (samples[yy * width + x].unsigned_abs() >> bp) & 1 == 1
+                            })
                             .unwrap_or(0) as u32;
                         trace(CTX_UNI, (run_pos >> 1) & 1);
                         mq.encode((run_pos >> 1) & 1, &mut ctxs[CTX_UNI]);
@@ -167,7 +171,7 @@ pub fn encode_code_block(
                                     mq.encode(sb, &mut ctxs[sc_ctx]);
                                 }
                             } else if row_off > run_pos as usize && !state[idx].is_significant() {
-                                let sig_bit = (mag[idx] >> bp) & 1;
+                                let sig_bit = (samples[idx].unsigned_abs() >> bp) & 1;
                                 let (h, v, d) = neighbour_sig_counts(&state, width, height, x, yy);
                                 let ctx = zc_context(orient, h, v, d);
                                 trace(ctx, sig_bit);
@@ -195,7 +199,7 @@ pub fn encode_code_block(
                     if state[idx].is_significant() || state[idx].was_visited() {
                         continue;
                     }
-                    let sig_bit = (mag[idx] >> bp) & 1;
+                    let sig_bit = (samples[idx].unsigned_abs() >> bp) & 1;
                     let (h, v, d) = neighbour_sig_counts(&state, width, height, x, yy);
                     let ctx = zc_context(orient, h, v, d);
                     trace(ctx, sig_bit);

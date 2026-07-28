@@ -8,6 +8,38 @@
 
 # RITK Gap Audit - Active
 
+## PERF-672-01 audit (2026-07-28)
+
+After PERF-671 packed significance, sign, visit, and refinement state into one
+byte, `encode_code_block` still copied every borrowed `i32` coefficient's
+unsigned magnitude into a read-only `Vec<u32>`. A 64×64 block therefore kept
+4 KiB of state beside a 16 KiB magnitude plane throughout all coding passes.
+Blocks are encoded sequentially, so the plane cost is 16 KiB of peak auxiliary
+storage and one allocation per block rather than the sum over an image. The
+unchanged 512×512 five-level workload contains 70 blocks.
+
+The encoder now reads `i32::unsigned_abs` directly from its borrowed sample
+slice at each bit test. This preserves coding order, MQ contexts, and symbol
+generation while reducing auxiliary EBCOT encoder storage from 20 KiB to
+4 KiB per full block and removing 70 allocations from the measured image.
+The test-only symbol-trace oracle uses the same borrowed representation, and
+an exact round trip covers `-32_768` through `32_767`.
+
+On the unchanged Windows x86-64 Criterion workload, the baseline median is
+52.609 ms and the changed median is 52.576 ms. The estimated change interval
+is -2.50% to +2.30% with p = 0.95, so no performance change is detected. This
+supports the memory reduction without a measured latency tradeoff; it does not
+claim a speedup or cross-machine timing effect.
+
+All 262 codec tests pass in 21.617 seconds, including exact native round trips,
+the 190-case captured OpenJPEG corpus, and RITK-encoder interoperability.
+Warning-denied all-target Clippy, formatting, diff checks, doctests, and
+warning-denied Rustdoc pass. Local Cargo verification used an alternate
+generated lock under the shared target tree because the stack overlay maps the
+same Apollo checkout through both `repos/` and a worktree junction; the actual
+RITK lockfile remained byte-identical to `HEAD`. `ritk-codecs` has no provider
+dependency, but exact hosted CI remains the cross-platform closure gate.
+
 ## PERF-671-01 audit (2026-07-28)
 
 The current native codec benchmark measures JPEG-LS and JPEG 2000 end to end
