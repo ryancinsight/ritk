@@ -1,23 +1,56 @@
 # Example: Windowing and Rescaling
 
-> **Status**: Planned — implementation forthcoming.
-> **Source**: `crates/ritk-filter/examples/windowing_rescale.rs` *(not yet created)*
+CT voxels carry Hounsfield units (HU), but the useful display range depends on
+the tissue being inspected. Windowing is a saturating affine map:
 
-## Description
+\[
+W(I) = \operatorname{clamp}(I, a, b), \qquad
+O(I) = \frac{W(I)-a}{b-a}(o_{max}-o_{min}) + o_{min}.
+\]
 
-This planned example will demonstrate two common pointwise intensity workflows on a `ritk-image::Image<f32, _, 3>`: CT windowing and linear output rescaling. The intended pipeline is to load a scalar volume, apply `IntensityWindowingFilter` with clinically familiar HU presets such as soft-tissue and lung windows, then apply `RescaleIntensityFilter` to map the result into a display- or model-friendly range. Because both filters only remap voxel values, the example should make it obvious that origin, spacing, direction, and shape are preserved exactly.
+Values below `a` map to `o_min`, values above `b` map to `o_max`, and values
+inside the window retain their relative order. Rescaling is different: it
+uses the global image minimum and maximum as `a` and `b`, so it changes the
+representation range without selecting a tissue-specific interval.
 
-The page will also show how ritk fits into Atlas internals. The public image boundary stays Coeus-backed, so the same logic can run on the default sequential backend or on Moirai without rewriting the example. The important behavior to verify is endpoint mapping: intensities below the window clamp to the output minimum, intensities above the window clamp to the maximum, and values inside the window are transformed affinely.
+The runnable example applies both native filters to the real RIRE Patient 001
+CT volume. The generated figure is deliberately labeled and uses one fixed
+display convention per panel:
 
-## Planned workflow
+![RIRE CT windowing and rescaling figure with labeled output panels and an HU histogram](../figures/windowing_rescale.svg)
 
-- Load a CT volume and report the native min/max range.
-- Apply soft-tissue and lung windows with different center/width pairs.
-- Rescale one result to `0..255` and another to `0.0..1.0`.
-- Inspect representative HU anchor values before and after mapping.
+1. **Input CT** uses a fixed `[-1000, 1000]` HU display window.
+2. **Soft-tissue window** applies `[-160, 240]` HU and emits `[0, 1]`.
+3. **Lung window** applies `[-1000, 400]` HU and emits `[0, 1]`.
+4. **Global rescale** uses the observed CT extrema and emits `[0, 255]`.
+5. **Input distribution** plots the same axial slice and marks both HU windows.
+6. **Filter contract** states the saturation and output-range behavior next to
+   the image panels.
 
-## Verification goals
+The histogram prevents a common interpretation error: the soft-tissue and lung
+panels are not alternative contrast adjustments applied after rendering. They
+are different numeric maps of the same CT slice, and the marked intervals show
+which input HU values are expanded or saturated.
 
-- Known HU values land at expected output intensities.
-- Geometry metadata is unchanged after each transform.
-- Output min/max matches the requested target range.
+## Source and command
+
+Source: `crates/ritk-io/examples/book_windowing_rescale.rs`
+
+```text
+cargo run -p ritk-io --example book_windowing_rescale -- \
+  docs/book/figures/windowing_rescale.svg
+```
+
+The source image, filtered outputs, and histogram all come from the in-tree
+RIRE fixture. The example uses the Coeus-native path and does not write a
+second copy of the image through a separate display library.
+
+## Verification
+
+- Each filter preserves the CT shape and physical metadata through the native
+  image boundary.
+- Windowed values stay inside `[0, 1]`; the global rescale stays inside
+  `[0, 255]`.
+- The figure is regenerated from the actual source and filter outputs.
+- Analytical endpoint and saturation behavior is covered by the filter's
+  native tests; the figure checks the real-data visual behavior separately.

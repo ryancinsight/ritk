@@ -1,23 +1,36 @@
-# Example: Grayscale Opening/Closing
+# Example: Grayscale Morphology
 
-> **Status**: Planned — implementation forthcoming.
-> **Source**: `crates/ritk-morphology/examples/grayscale_morphology.rs` *(not yet created)*
+Grayscale opening is a local minimum followed by a local maximum. It removes
+bright protrusions smaller than the structuring element while retaining the
+image geometry. Grayscale closing performs the dual maximum-then-minimum
+operation and fills small dark holes.
 
-## Description
+![Grayscale opening in the complete processing pipeline](../figures/processing_pipeline.svg)
 
-This planned example will extend the morphology story to grayscale data, demonstrating erosion, dilation, opening, closing, and possibly top-hat residues on a scalar image. The purpose is to show that grayscale morphology is not merely binary masking with different output types: it acts as local min/max filtering and can suppress bright speckle, fill dark pits, or estimate background structure without leaving the spatial frame of the original image. A small phantom or microscopy-style slice would make these behaviors easy to see.
+~~~rust,ignore
+let opened = GrayscaleOpeningFilter::new(2)
+    .apply_native(&sigmoid, &backend)?;
+let closed = GrayscaleClosingFilter::new(2)
+    .apply_native(&sigmoid, &backend)?;
+~~~
 
-The Atlas boundary is again straightforward. The image remains a Coeus-backed `ritk-image::Image`, while morphology-specific neighborhood definitions come from the `ritk-morphology` crate. That separation lets grayscale morphology compose naturally with thresholding, edge detection, and diffusion filters without introducing a special image container or backend rule just for morphology.
+The radius is measured in voxels, not physical units. Choose it from the
+feature size you intend to remove and account for anisotropic spacing before
+using the filter on a clinical volume. Both operations use replicate padding
+at the boundary, so their behavior differs from binary erosion's
+background-outside policy.
 
-## Planned workflow
+## Source and verification
 
-- Load a grayscale image with bright spots and dark gaps.
-- Apply grayscale erosion and dilation with one structuring element.
-- Form opening and closing from those primitives.
-- Inspect white- or black-top-hat style residual behavior.
+Source: crates/ritk-filter/examples/book_processing_pipeline.rs
 
-## Verification goals
+~~~text
+cargo run -p ritk-filter --example book_processing_pipeline -- \
+  docs/book/figures/processing_pipeline.svg
+~~~
 
-- Erosion never raises local intensities and dilation never lowers them.
-- Opening suppresses small bright artifacts; closing suppresses small dark artifacts.
-- Output geometry is identical to the input geometry.
+The figure renders the opening stage on [0, 1]; the closing call above follows
+the same image contract and can be inspected with the same display helper. The
+opening result therefore shows local intensity removal directly. Tests cover
+radius zero identity, monotonicity, idempotence, safe-border behavior, and
+native/generic parity.

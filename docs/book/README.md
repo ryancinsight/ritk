@@ -1,65 +1,71 @@
-# atlas/RITK: Medical Image Processing and Registration
+# RITK: Medical Image Processing and Registration
 
-Redundancy-free Coeus-native medical image processing, registration, and analysis.
+RITK is a Rust toolkit for loading medical images, preserving their physical
+geometry, applying ITK-style filters, evaluating similarity, and producing
+classical or differentiable registrations. The book is organized as a
+user-facing workflow:
 
-## Overview
+1. load a volume through ritk-io;
+2. inspect shape, spacing, origin, and direction;
+3. preprocess intensities and spatial structure;
+4. choose a same-modality or multi-modal metric;
+5. resample and validate the result; and
+6. write the output without losing the spatial contract.
 
-RITK is the atlas medical image processing and registration toolkit. It provides
-Coeus-native implementations of ITK-style image filters, registration metrics,
-and format I/O, all built on the atlas foundation crates (leto, eunomia,
-hermes, moirai, coeus).
+The examples use real RITK APIs and committed fixtures where a dataset is
+needed. Synthetic examples are deterministic, small, and input-sensitive so
+they can generate figures in CI.
 
-## Architecture
+## First runnable workflow
 
-The workspace follows the atlas deep vertical hierarchy with strict
-Separation of Concerns:
+~~~rust,ignore
+use coeus_core::SequentialBackend;
+use ritk_filter::IntensityWindowingFilter;
+use ritk_io::read_image_native;
 
-```
-ritk/
-├── crates/
-│   ├── ritk-core/          # Image data structures and spatial primitives
-│   ├── ritk-image/         # Image type and boundary traits
-│   ├── ritk-filter/        # Image filter implementations (intensity, morphology, diffusion)
-│   ├── ritk-registration/  # Registration metrics and optimization
-│   ├── ritk-io/            # Format readers/writers (DICOM, NIfTI, NRRD, PNG, JPEG, VTK)
-│   ├── ritk-statistics/    # Image comparison metrics (Dice, PSNR, SSIM)
-│   ├── ritk-transform/     # Coordinate transformations
-│   ├── ritk-interpolation/ # Resampling and interpolation
-│   ├── ritk-morphology/    # Morphological operations
-│   ├── ritk-snap/          # 3D mesh visualization
-│   └── ritk-python/        # PyO3 bindings for Python interop
-├── docs/
-│   ├── book/               # mdBook documentation (this file)
-│   ├── adr/               # Architecture Decision Records
-│   └── atlas-migration/    # Migration documentation
-└── xtask/                 # Build utilities and CI helpers
-```
+let backend = SequentialBackend;
+let input = read_image_native("volume.nii.gz")?;
+let windowed = IntensityWindowingFilter::new(-160.0, 240.0, 0.0, 1.0)
+    .apply_native(&input, &backend)?;
+println!("shape = {:?}, spacing = {:?}", windowed.shape(), windowed.spacing());
+~~~
 
-## Key Design Principles
+The NativeImage alias is Image<f32, SequentialBackend, 3>. RITK stores voxels
+in [depth, row, column] order while origin, spacing, and direction describe
+the physical frame. Filters generally preserve that metadata; resampling and
+transforms are the deliberate exceptions.
 
-- **Zero-cost abstractions**: All filter implementations compile to machine code
-  identical to hand-written concrete specializations via monomorphization.
-- **Zero-copy I/O**: Deserialize/parse into borrowed views over source buffers;
-  use Coeus tensor views instead of owned copies where possible.
-- **Redundancy-free**: One canonical implementation per operation family; no
-  cloned algorithm variants across scalar types or backends.
-- **SSOT boundaries**: Each format owns its file-axis contract in a dedicated
-  `spatial.rs` module.
+## Workspace map
 
-## Build and Test
+| Crate | User-facing role |
+| --- | --- |
+| ritk-io | Format inference, native readers, native writers, and DICOM series handling |
+| ritk-image | Coeus-backed image storage and physical-coordinate metadata |
+| ritk-filter | Intensity, smoothing, edge, morphology, diffusion, and spatial filters |
+| ritk-registration | Metrics, transforms, classical registration, and differentiable registration |
+| ritk-statistics | Histogram, similarity, overlap, and image-quality statistics |
+| ritk-transform / ritk-interpolation | Transform parameterization and physical resampling |
 
-```bash
-# Build all crates
-cargo check -p ritk-filter --lib
+## Build the book and examples
 
-# Run tests
-cargo test -p ritk-filter --lib
-
-# Build docs
+~~~text
 mdbook build docs/book
-```
+mdbook test docs/book
+cargo build -p ritk-filter --examples
+cargo build -p ritk-io --examples
+cargo build -p ritk-registration --examples
+~~~
 
-## References
+For native tests use the repository's configured cargo nextest command.
+Doctests use cargo test --doc. A figure is valid only after its generating
+example succeeds and the rendered artifact has been inspected.
 
-- [atlas Migration Summary](coeus_migration.md)
-- [atlas Architecture Decision Records](adr/)
+## How to read the chapters
+
+- Part I explains format boundaries and spatial-axis conventions.
+- Part II builds filtering pipelines from intensity, spatial, morphology, and
+  diffusion operations.
+- Part III covers metrics, transforms, classical and differentiable
+  registration, and post-registration validation.
+- Part IV explains backend dispatch, zero-copy boundaries, and measurements.
+- Part V maps the public RITK surface onto Coeus, Leto, and Moirai.

@@ -1,0 +1,107 @@
+name: Deploy mdBook
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/book/**"
+      - "crates/ritk-filter/examples/book_processing_pipeline.rs"
+      - "crates/ritk-io/examples/book_windowing_rescale.rs"
+      - ".github/actions/checkout-atlas-path-dependencies/action.yml"
+      - ".github/workflows/book-pages.yml"
+  pull_request:
+    paths:
+      - "docs/book/**"
+      - "crates/ritk-filter/examples/book_processing_pipeline.rs"
+      - "crates/ritk-io/examples/book_windowing_rescale.rs"
+      - ".github/actions/checkout-atlas-path-dependencies/action.yml"
+      - ".github/workflows/book-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: book-pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ritk
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: ritk
+          persist-credentials: false
+
+      - name: Checkout provider dependencies
+        uses: ./ritk/.github/actions/checkout-atlas-path-dependencies
+        with:
+          manifest: ritk/Cargo.toml
+          destination: .
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Install mdBook
+        env:
+          MDBOOK_VERSION: "0.5.4"
+        run: |
+          curl --fail --location --silent --show-error \
+            "https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/mdbook-v${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz" \
+            --output mdbook.tar.gz
+          tar -xzf mdbook.tar.gz
+          echo "$PWD" >> "$GITHUB_PATH"
+          export PATH="$PWD:$PATH"
+          mdbook --version
+
+      - name: Generate deterministic book figures
+        run: |
+          # The provider checkout is a local path overlay, so Cargo must
+          # resolve a temporary CI lock instead of enforcing the git-source
+          # lock committed for standalone and release builds.
+          cargo run -p ritk-filter --example book_processing_pipeline -- \
+            docs/book/figures/processing_pipeline.svg
+          cargo run -p ritk-io --example book_windowing_rescale -- \
+            docs/book/figures/windowing_rescale.svg
+
+      - name: Build book
+        run: |
+          mdbook build docs/book
+          test -f target/book/ritk/index.html
+
+      - name: Upload generated book figures
+        uses: actions/upload-artifact@v4
+        with:
+          name: book-generated-figures-${{ github.sha }}
+          path: |
+            ritk/docs/book/figures/processing_pipeline.svg
+            ritk/docs/book/figures/windowing_rescale.svg
+          if-no-files-found: error
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ritk/target/book/ritk
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

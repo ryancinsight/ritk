@@ -111,6 +111,12 @@ impl ImageRegistration {
         reference: &Array3<f64>,
         initial_transform: &AffineTransform,
     ) -> Result<RegistrationResult> {
+        if self.config.step_multiplier <= 0.0 || !self.config.step_multiplier.is_finite() {
+            return Err(RegistrationError::InvalidInput(format!(
+                "rigid step_multiplier must be finite and positive, got {}",
+                self.config.step_multiplier
+            )));
+        }
         let mut current_transform = *initial_transform;
         let mut iteration = 0;
         let mut prev_loss = f64::MAX;
@@ -132,13 +138,14 @@ impl ImageRegistration {
             let mut best_perturbation: Option<[f64; 6]> = None;
 
             for perturb in perturbations.iter() {
-                let perturbed = apply_transform_perturbation(&current_transform, perturb);
+                let perturb = perturb.map(|value| value * self.config.step_multiplier);
+                let perturbed = apply_transform_perturbation(&current_transform, &perturb);
                 let transformed = super::super::spatial::apply_transform(volume, &perturbed);
                 let loss = -self.similarity.compute(&transformed, reference);
 
                 if loss < best_loss {
                     best_loss = loss;
-                    best_perturbation = Some(*perturb);
+                    best_perturbation = Some(perturb);
                 }
             }
 
@@ -260,6 +267,12 @@ impl ImageRegistration {
         reference: &Array3<f64>,
         initial_transform: &AffineTransform,
     ) -> Result<RegistrationResult> {
+        if self.config.step_multiplier <= 0.0 || !self.config.step_multiplier.is_finite() {
+            return Err(RegistrationError::InvalidInput(format!(
+                "affine step_multiplier must be finite and positive, got {}",
+                self.config.step_multiplier
+            )));
+        }
         let mut current_transform = *initial_transform;
         let mut iteration = 0;
         let mut prev_loss = f64::MAX;
@@ -281,13 +294,14 @@ impl ImageRegistration {
             let mut best_perturbation: Option<[f64; 9]> = None;
 
             for perturb in perturbations.iter() {
-                let perturbed = apply_affine_perturbation(&current_transform, perturb);
+                let perturb = perturb.map(|value| value * self.config.step_multiplier);
+                let perturbed = apply_affine_perturbation(&current_transform, &perturb);
                 let transformed = super::super::spatial::apply_transform(volume, &perturbed);
                 let loss = -self.similarity.compute(&transformed, reference);
 
                 if loss < best_loss {
                     best_loss = loss;
-                    best_perturbation = Some(*perturb);
+                    best_perturbation = Some(perturb);
                 }
             }
 

@@ -1,15 +1,17 @@
-//! Verify ritk's NIfTI import + index→world against SimpleITK ground truth.
-//! Prints geometry and index→world for fixed voxel indices; compare to sitk.
+//! Report NIfTI geometry and index-to-world coordinates for a CT/MR pair.
+//! Pass the two NIfTI paths explicitly so the example is portable across datasets.
+use anyhow::{Context, Result};
 use coeus_core::SequentialBackend;
 use ritk_image::{grid, Image};
 use ritk_io::{format::nifti::native::NiftiReader, ImageReader};
+use std::path::{Path, PathBuf};
 
 type B = SequentialBackend;
 
-fn dump(name: &str, img: &Image<f32, B, 3>) {
+fn dump(name: &str, path: &Path, img: &Image<f32, B, 3>) {
     let backend = B::default();
     let shape = img.shape(); // [d0, d1, d2] = [z, y, x]
-    println!("=== {name}");
+    println!("=== {name}: {}", path.display());
     println!(" shape    {:?}", shape);
     println!(" spacing  {:?}", img.spacing().to_array());
     println!(" origin   {:?}", img.origin());
@@ -19,27 +21,39 @@ fn dump(name: &str, img: &Image<f32, B, 3>) {
     let grid = grid::generate_grid::<f32, B, 3>(shape, &backend);
     let world = img.index_to_world_native(&grid).as_slice().to_vec();
     let (ny, nx) = (shape[1], shape[2]);
-    // Probe the sitk voxel (x,y,z)=(255,255,20): row-major [z,y,x] flat index.
     for (x, y, z) in [(0usize, 0usize, 0usize), (255, 255, 20), (100, 200, 15)] {
         if z < shape[0] && y < ny && x < nx {
             let flat = z * ny * nx + y * nx + x;
             let w = &world[flat * 3..flat * 3 + 3];
             println!(
-                "  sitk(x={x},y={y},z={z}) -> ritk world ({:.2}, {:.2}, {:.2})",
+                "  index (x={x}, y={y}, z={z}) -> world ({:.2}, {:.2}, {:.2})",
                 w[0], w[1], w[2]
             );
         }
     }
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<()> {
+    let mut arguments = std::env::args_os().skip(1);
+    let ct_path = arguments.next().map(PathBuf::from).context(
+        "usage: cargo run -p ritk-registration --example geometry_check -- <ct.nii.gz> <mr.nii.gz>",
+    )?;
+    let mri_path = arguments.next().map(PathBuf::from).context(
+        "usage: cargo run -p ritk-registration --example geometry_check -- <ct.nii.gz> <mr.nii.gz>",
+    )?;
+    if arguments.next().is_some() {
+        anyhow::bail!(
+            "usage: cargo run -p ritk-registration --example geometry_check -- <ct.nii.gz> <mr.nii.gz>"
+        );
+    }
+
     let reader = NiftiReader::new(B::default());
-    let ct: Image<f32, B, 3> = reader.read("D:/kwavers/leoneuro/data/brain_ct.nii.gz")?;
-    let mri: Image<f32, B, 3> = reader.read("D:/kwavers/leoneuro/data/brain_mri_t1.nii.gz")?;
-    dump("brain_ct.nii.gz", &ct);
-    dump("brain_mri_t1.nii.gz", &mri);
+    let ct: Image<f32, B, 3> = reader.read(&ct_path)?;
+    let mri: Image<f32, B, 3> = reader.read(&mri_path)?;
+    dump("CT", &ct_path, &ct);
+    dump("MR", &mri_path, &mri);
     println!(
-        "\nsitk reference: CT idx(255,255,20)->(-103.11,-103.11,60.0); direction diag(-1,-1,1)"
+        "\nUse the reported spacing, origin, and direction as the registration geometry contract."
     );
     Ok(())
 }

@@ -10,4 +10,4 @@ Atlas integration is split but coherent. Coeus provides the autodiff graph, tens
 | --- | --- | --- |
 | [Deep Learning Registration](examples/dl_registration.md) | Available | End-to-end differentiable optimization of rigid parameters with Coeus autodiff. |
 | [Deep Learning Training](examples/dl_train.md) | Available | Extends the same optimization ideas to a learned registration model and training loop. |
-| [Registration Comparison Figure](examples/registration_compare_figure.md) | Available | Shows the practical effect of optimizer choice on final alignment quality. |
+| [Registration Comparison Figure](examples/registration_compare_figure.md) | Available | Validates multi-modal MI against the RIRE CT-to-MR transform and native resampling. |

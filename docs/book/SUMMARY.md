@@ -18,8 +18,10 @@
 
 - [Intensity Transformations](intensity_transforms.md)
   - [Example: Windowing and Rescaling](examples/windowing_rescale.md)
+  - [Example: Complete Processing Pipeline](examples/processing_pipeline.md)
   - [Example: Thresholding](examples/thresholding.md)
   - [Example: Sigmoid and Arithmetic](examples/sigmoid_arithmetic.md)
+  - [Example: N4 Bias-Field Correction](examples/n4_bias_correction.md)
 - [Spatial Filtering](spatial_filters.md)
   - [Example: Gaussian Smoothing](examples/gaussian_smoothing.md)
   - [Example: Gradient Magnitude](examples/gradient_magnitude.md)
@@ -40,7 +42,8 @@
   - [Example: DL Registration](examples/dl_registration.md)
   - [Example: DL Training](examples/dl_train.md)
 - [Multi-modal Registration](multi_modal_registration.md)
-  - [Example: Registration Comparison Figure](examples/registration_compare_figure.md)
+  - [Example: CT/MR Mutual-Information Registration](examples/registration_compare_figure.md)
+- [Deformable Registration](demons_registration.md)
 - [Validation and Benchmarking](validation_benchmarking.md)
   - [Example: Validation Suite](examples/validation_suite.md)
 

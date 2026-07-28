@@ -171,4 +171,3 @@ moirai = { path = "../moirai/moirai" }
 [profile.test]
 opt-level = 0
 debug = "line-tables-only"
-
