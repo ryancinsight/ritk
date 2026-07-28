@@ -15,16 +15,18 @@
 - [x] Reconcile the deferred SEC-457-04 audit against current main: baseline
       JPEG is bounded before scan allocation; JPEG 2000 tile geometry remains
       unchecked.
-- [ ] Validate SIZ image/tile origins, checked tile counts, and component
+- [x] Validate SIZ image/tile origins, checked tile counts, and component
       sampling factors at the parser boundary.
-- [ ] Intersect each tile with the image domain, reject invalid SOT tile
+- [x] Intersect each tile with the image domain, reject invalid SOT tile
       indices, and pass a checked tile sample count into packet allocation.
-- [ ] Add hostile marker-only regressions for invalid geometry and tile index;
+- [x] Add hostile marker-only regressions for invalid geometry and tile index;
       retain value-exact native and interoperability corpus coverage.
-- [ ] Synchronize codec documentation, changelog, audit state, and the
+- [x] Synchronize codec documentation, changelog, audit state, and the
       superseded SEC-457-04 checklist entry.
-- [ ] Run focused formatting, warning-denied Clippy, Nextest, doctest, and
-      Rustdoc gates; publish and merge only after exact-head CI is green.
+- [x] Run focused formatting, warning-denied Clippy, Nextest, doctest, and
+      Rustdoc gates. All 260 codec tests, Clippy, formatting, doctests, and
+      warning-denied Rustdoc pass locally.
+- [ ] Publish and merge only after exact-head CI is green.
 
 ## DEP-668-01 — Remove the OpenJPEG test-runtime dependency
 **Target version**: Unreleased patch
@@ -2759,8 +2761,9 @@ fixes were reverted after verification; see rationale below)
 - jpeg_2000 has openjp2 differential interop tests (`jpeg2000_interop`).
 
 ### Deferred / carry-forward
-- [ ] SEC-457-04 [patch]: Audit jpeg (baseline) and jpeg_2000 decoders for the
-  same dimension-driven allocation pattern (SOF/SIZ width×height).
+- [x] SEC-457-04 [patch]: Audit jpeg (baseline) and jpeg_2000 decoders for the
+  same dimension-driven allocation pattern (SOF/SIZ width×height). Completed
+  by Sprint 458 plus SAFE-669-01 tile-geometry closure.
 - [ ] MIG-456-04 [minor]: Color-volume Coeus variants; DICOM Coeus reader.
 - [ ] TEST-447-05 [patch]: MINC format-level hostile-fixture regression.
 - [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.

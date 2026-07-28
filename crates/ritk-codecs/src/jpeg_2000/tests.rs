@@ -82,6 +82,56 @@ fn decode_returns_error_for_truncated_codestream() {
     );
 }
 
+#[test]
+fn decode_rejects_out_of_range_sot_before_packet_decode() {
+    let pixels = [17i32];
+    let mut j2k = encode_grayscale_j2k(
+        &pixels,
+        1,
+        1,
+        8,
+        PixelSignedness::Unsigned,
+        0,
+        WaveletTransform::Reversible,
+    );
+    let sot = j2k
+        .windows(2)
+        .position(|bytes| bytes == [0xFF, 0x90])
+        .expect("encoder output must contain SOT");
+    j2k[sot + 4..sot + 6].copy_from_slice(&1u16.to_be_bytes());
+
+    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+        .expect_err("single-tile image must reject Isot=1");
+    let msg = format!("{err:#}");
+    assert!(msg.contains("Isot=1"), "got: {msg}");
+    assert!(msg.contains("outside 0..0"), "got: {msg}");
+}
+
+#[test]
+fn decode_rejects_tile_part_length_beyond_codestream() {
+    let pixels = [17i32];
+    let mut j2k = encode_grayscale_j2k(
+        &pixels,
+        1,
+        1,
+        8,
+        PixelSignedness::Unsigned,
+        0,
+        WaveletTransform::Reversible,
+    );
+    let sot = j2k
+        .windows(2)
+        .position(|bytes| bytes == [0xFF, 0x90])
+        .expect("encoder output must contain SOT");
+    j2k[sot + 6..sot + 10].copy_from_slice(&u32::MAX.to_be_bytes());
+
+    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+        .expect_err("Psot beyond the codestream must fail");
+    let msg = format!("{err:#}");
+    assert!(msg.contains("Psot=4294967295"), "got: {msg}");
+    assert!(msg.contains("beyond the"), "got: {msg}");
+}
+
 // ── Lossless round-trip tests ────────────────────────────────────────────
 
 #[test]

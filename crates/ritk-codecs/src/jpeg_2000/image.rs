@@ -13,6 +13,7 @@ use anyhow::{bail, Context, Result};
 use super::codestream::{parse_main_header, parse_sot};
 use super::marker;
 use super::packet::{decode_tile_part, TileCodingParams, WaveletTransform};
+use crate::dimensions::{checked_pixel_count, checked_sample_count};
 use crate::PixelLayout;
 
 /// Decode a DICOM-encapsulated J2K codestream, returning rescaled `f32` pixel values.
@@ -55,6 +56,19 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
             expected_comps
         );
     }
+    if let Some((index, component)) = siz
+        .components
+        .iter()
+        .enumerate()
+        .find(|(_, component)| component.xr_siz != 1 || component.yr_siz != 1)
+    {
+        bail!(
+            "J2K: component {index} uses unsupported sampling XRsiz={} YRsiz={}; \
+             DICOM interleaved decode requires 1x1 sampling",
+            component.xr_siz,
+            component.yr_siz
+        );
+    }
 
     let img_w = siz.width() as usize;
     let img_h = siz.height() as usize;
@@ -68,10 +82,7 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
         );
     }
 
-    let num_tiles = siz.num_tiles_x() * siz.num_tiles_y();
-    if num_tiles == 0 {
-        bail!("J2K: image has 0 tiles");
-    }
+    siz.num_tiles().context("J2K: validate tile grid")?;
 
     // For the RITK DICOM use case, single-tile images are the norm (DICOM
     // encapsulates one frame per fragment with a single tile).  Multi-tile
@@ -83,10 +94,10 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
     // Bound the pixel count against a hostile/corrupt header before allocating
     // the full `f32` output (defense-in-depth: SIZ is already required to match
     // the DICOM layout above).
-    let pixels =
-        crate::dimensions::checked_pixel_count(layout.cols, layout.rows).context("J2K image")?;
-    let total_pixels = pixels * layout.samples_per_pixel;
-    let mut out = vec![0f32; total_pixels];
+    let pixels = checked_pixel_count(layout.cols, layout.rows).context("J2K image")?;
+    let total_samples =
+        checked_sample_count(pixels, layout.samples_per_pixel).context("J2K output samples")?;
+    let mut out = vec![0f32; total_samples];
 
     // State machine: walk the tile-part markers.
     let mut tiles_decoded = 0u32;
@@ -99,34 +110,47 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
                 let (sot, after_sot) = parse_sot(data, pos).context("J2K: parse SOT")?;
                 pos = after_sot;
 
-                // Locate SOD inside this tile-part.
-                let sod_pos =
-                    find_sod(data, pos).with_context(|| "J2K: SOD not found in tile-part")?;
-                let tile_data_start = sod_pos + 2; // skip SOD marker
-
                 // Determine tile-part byte extent.
                 let tile_end = if sot.psot > 0 {
                     // psot is from start of SOT marker.
-                    let sot_start = pos - 12; // pos advanced past SOT segment
-                    sot_start + sot.psot as usize
+                    let sot_start = pos
+                        .checked_sub(12)
+                        .context("J2K: SOT parser returned an invalid end offset")?;
+                    let declared_end = sot_start
+                        .checked_add(
+                            usize::try_from(sot.psot)
+                                .context("J2K: Psot does not fit the platform address size")?,
+                        )
+                        .context("J2K: Psot overflows the platform address size")?;
+                    if declared_end > data.len() {
+                        bail!(
+                            "J2K: tile-part Psot={} ends at byte {declared_end}, beyond the \
+                             {}-byte codestream",
+                            sot.psot,
+                            data.len()
+                        );
+                    }
+                    declared_end
                 } else {
                     // psot=0: extends to next SOT or EOC.
-                    find_next_sot_or_eoc(data, tile_data_start).unwrap_or(data.len())
+                    find_next_sot_or_eoc(data, pos).unwrap_or(data.len())
                 };
 
-                let tile_end = tile_end.min(data.len());
+                // Locate SOD inside this tile-part only. A marker in a later
+                // tile-part must not satisfy a malformed current header.
+                let sod_pos = find_sod(&data[..tile_end], pos)
+                    .with_context(|| "J2K: SOD not found in tile-part")?;
+                let tile_data_start = sod_pos + 2; // skip SOD marker
                 let tile_data = &data[tile_data_start..tile_end];
 
-                // Compute tile (tx, ty) from Isot.
-                let isot = sot.isot as u32;
-                let ntx = siz.num_tiles_x();
-                let tx = isot % ntx;
-                let ty = isot / ntx;
-
-                let tw = siz.tile_width(tx) as usize;
-                let th = siz.tile_height(ty) as usize;
-                let tile_x0 = (siz.xto_siz + tx * siz.xt_siz).saturating_sub(siz.xo_siz) as usize;
-                let tile_y0 = (siz.yto_siz + ty * siz.yt_siz).saturating_sub(siz.yo_siz) as usize;
+                let isot = sot.isot;
+                let bounds = siz
+                    .tile_bounds(isot)
+                    .context("J2K: validate SOT tile index")?;
+                let tw = bounds.width;
+                let th = bounds.height;
+                let tile_x0 = bounds.x0;
+                let tile_y0 = bounds.y0;
 
                 // Decode each component.
                 for ci in 0..siz.csiz as usize {
@@ -206,7 +230,6 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
     if tiles_decoded == 0 {
         bail!("J2K: no tile-parts were decoded");
     }
-
     Ok(out)
 }
 

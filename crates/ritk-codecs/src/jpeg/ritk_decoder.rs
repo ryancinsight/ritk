@@ -9,7 +9,7 @@ use anyhow::{bail, Context, Result};
 use super::backend::{JpegDecodeBackend, JpegDecoded};
 use super::marker::{parse_jpeg, SOF0, SOF1, SOF3};
 use super::{scan_dct, scan_lossless};
-use crate::dimensions::checked_pixel_count;
+use crate::dimensions::{checked_pixel_count, checked_sample_count};
 
 /// RITK-owned JPEG decoder. Implements the sealed `JpegDecodeBackend` trait.
 /// Replaces the external `jpeg-decoder` crate dependency.
@@ -23,8 +23,9 @@ impl JpegDecodeBackend for RitkJpegDecoder {
         let frame = parse_jpeg(fragment)?;
         // Bound the decode against a hostile/corrupt SOF before the scan
         // allocates per-pixel buffers from `width × height` (each a u16 field).
-        checked_pixel_count(frame.sof.width as usize, frame.sof.height as usize)
+        let pixels = checked_pixel_count(frame.sof.width as usize, frame.sof.height as usize)
             .context("JPEG frame dimensions")?;
+        checked_sample_count(pixels, frame.sof.components.len()).context("JPEG frame samples")?;
         let entropy = &fragment[frame.scan_data_start..];
         match frame.sof.sof_marker {
             SOF0 | SOF1 => scan_dct::decode_baseline_scan(&frame, entropy),

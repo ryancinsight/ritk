@@ -1,7 +1,7 @@
 # RITK Backlog - Active Planning
 
 - **SAFE-669-01 [patch] - Bound JPEG 2000 tile geometry
-  (IN PROGRESS; owner=Codex; scope=`crates/ritk-codecs/src/
+  (REVIEW; owner=Codex; scope=`crates/ritk-codecs/src/
   jpeg_2000/{codestream.rs,image.rs,packet/reader.rs,tests_codestream.rs}`,
   codec tests, `CHANGELOG.md`, and PM artifacts).** Complete the deferred
   SEC-457-04 allocation audit. Baseline JPEG already validates SOF dimensions,
@@ -12,7 +12,9 @@
   image domain and bounded before allocation; invalid SOT indices fail before
   packet decode; hostile marker-only regressions assert the exact failure
   contract; the existing native/OpenJPEG corpus and focused codec gates remain
-  green.
+  green. Local evidence: all 260 codec tests pass, including the complete
+  190-case captured OpenJPEG corpus; warning-denied all-target Clippy,
+  formatting, doctests, and warning-denied Rustdoc pass.
 
 - **DEP-668-01 [patch] - Remove the OpenJPEG test-runtime dependency
   (DONE; owner=Codex; scope=`Cargo.toml`, `Cargo.lock`,
