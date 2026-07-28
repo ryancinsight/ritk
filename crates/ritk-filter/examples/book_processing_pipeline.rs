@@ -4,7 +4,7 @@
 //! every panel. Each stage runs through RITK's public Coeus-native image API;
 //! the SVG renderer only visualizes the resulting voxel values.
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use coeus_core::SequentialBackend;
 use eunomia::CastFrom;
 use ritk_filter::{
