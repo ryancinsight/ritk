@@ -8,6 +8,24 @@
 
 # RITK Sprint Checklist — Active
 
+## SAFE-669-01 — Bound JPEG 2000 tile geometry
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Reconcile the deferred SEC-457-04 audit against current main: baseline
+      JPEG is bounded before scan allocation; JPEG 2000 tile geometry remains
+      unchecked.
+- [ ] Validate SIZ image/tile origins, checked tile counts, and component
+      sampling factors at the parser boundary.
+- [ ] Intersect each tile with the image domain, reject invalid SOT tile
+      indices, and pass a checked tile sample count into packet allocation.
+- [ ] Add hostile marker-only regressions for invalid geometry and tile index;
+      retain value-exact native and interoperability corpus coverage.
+- [ ] Synchronize codec documentation, changelog, audit state, and the
+      superseded SEC-457-04 checklist entry.
+- [ ] Run focused formatting, warning-denied Clippy, Nextest, doctest, and
+      Rustdoc gates; publish and merge only after exact-head CI is green.
+
 ## DEP-668-01 — Remove the OpenJPEG test-runtime dependency
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
