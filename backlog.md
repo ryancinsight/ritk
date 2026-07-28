@@ -1,7 +1,7 @@
 # RITK Backlog - Active Planning
 
 - **SAFE-670-01 [patch] - Bound DICOM RGB series geometry without metadata
-  duplication (REVIEW; owner=Codex; scope=`crates/ritk-io/src/format/
+  duplication (DONE; owner=Codex; scope=`crates/ritk-io/src/format/
   dicom/color/{mod.rs,tests.rs}`, `CHANGELOG.md`, and PM artifacts).** Close
   TEST-461-05 with a format-level hostile-dimension regression for the
   directory-based RGB series path. Remove the full `DicomReadMetadata::slices`
@@ -11,12 +11,11 @@
   values and geometry remain exact; the color loader borrows slice metadata;
   focused format, lint, documentation, and full package gates pass. Reconcile
   the stale TEST-447-05 backlog entry with its already-merged MINC regression.
-  Local evidence: all six RGB series tests pass in 0.104 seconds, including
-  hostile geometry and exact valid values/metadata; direct Rustfmt and diff
-  checks pass. The full clean provider-pinned matrix remains the hosted PR
-  gate because the live shared provider graph has advanced beyond this
-  revision's lockfile and the canonical Cargo cache is under sustained peer
-  contention.
+  Evidence: all six RGB series tests pass in 0.104 seconds, including hostile
+  geometry and exact valid values/metadata; direct Rustfmt and diff checks
+  pass. The provider-pinned hosted matrix is green at code head `4adba6dd`:
+  CI run `30385224980`, migration-audit run `30385224900`, and Python run
+  `30385224738`. The PM-only closure head must remain green before merge.
 
 - **SAFE-669-01 [patch] - Bound JPEG 2000 tile geometry
   (DONE; owner=Codex; scope=`crates/ritk-codecs/src/

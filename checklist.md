@@ -10,7 +10,7 @@
 
 ## SAFE-670-01 — Bound DICOM RGB series geometry without metadata duplication
 **Target version**: Unreleased patch
-**Sprint phase**: Review
+**Sprint phase**: Closure
 
 - [x] Reconcile TEST-447-05 against current main and confirm its MINC
       shape-exceeds-data regression already merged in `eb1a6e3b`.
@@ -22,12 +22,14 @@
       focused value-semantic tests.
 - [x] Synchronize changelog and audit state, including closure of TEST-461-05
       and the stale TEST-447-05 backlog duplicate.
-- [ ] Run focused format, warning-denied Clippy, Nextest, doctest, and Rustdoc
-      gates; record exact evidence before delivery. Focused Nextest passes 6/6
-      in 0.104 seconds and direct Rustfmt/diff checks pass. Warning-denied
-      Clippy, package Nextest, doctest, and Rustdoc remain hosted PR gates
-      because the local provider graph has advanced beyond the committed lock
-      and the shared Cargo cache is under sustained peer contention.
+- [x] Run focused format and clean provider-pinned hosted gates. Focused
+      Nextest passes 6/6 in 0.104 seconds and direct Rustfmt/diff checks pass.
+      At code head `4adba6dd`, hosted CI run `30385224980` passes Rustfmt,
+      warning-denied Clippy, dependency alignment, wheel smoke, and native
+      Nextest on Linux, macOS, and Windows; migration-audit run `30385224900`
+      passes; Python run `30385224738` passes the complete supported
+      platform/version matrix. The PM-only closure head must remain green
+      before merge.
 
 ## SAFE-669-01 — Bound JPEG 2000 tile geometry
 **Target version**: Unreleased patch

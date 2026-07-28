@@ -35,7 +35,12 @@ samples, flat-carrier layout, and spatial metadata. Direct Rustfmt and diff
 checks pass. Full local locked/package gates are not closure evidence in this
 lane: live Coeus/Mnemosyne source edges differ from RITK's committed provider
 pins, and the canonical Cargo target is under sustained peer contention. The
-clean hosted PR matrix remains required before merge.
+provider-pinned hosted matrix supplies closure at code head `4adba6dd`: CI run
+`30385224980` passes Rustfmt, warning-denied Clippy, dependency alignment,
+wheel smoke, and native Nextest on Linux, macOS, and Windows;
+migration-audit run `30385224900` passes; Python run `30385224738` passes the
+complete supported platform/version matrix. The PM-only closure head must
+remain green before merge.
 
 ## SAFE-669-01 audit (2026-07-28)
 
