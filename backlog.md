@@ -5,13 +5,16 @@
   `crates/ritk-codecs/{Cargo.toml,tests/jpeg2000_interop.rs,
   src/jpeg_2000/mod.rs}`, PM artifacts).** Replace the live `openjp2`
   differential oracle, whose unsafe allocator teardown aborts the hosted test
-  matrix, with small codestream fixtures produced by OpenJPEG 2.5.2 and decoded
-  entirely by RITK. Preserve exact lossless sample checks, bounded lossy PSNR
-  checks, and byte-level conformance coverage while removing `openjp2` from
-  every manifest and the lockfile. Acceptance: repository scans and locked
-  metadata contain no `openjp2` package or dependency; the focused codec suite,
-  warning-denied Clippy, doctests, and all formerly failing hosted test lanes
-  pass without FFI.
+  matrix, with a deterministic 190-case corpus produced and independently
+  decoded by OpenJPEG 2.5.4. Preserve exact lossless sample checks, bounded
+  lossy PSNR checks, and byte-level conformance coverage while removing
+  `openjp2` from every manifest and the lockfile. Acceptance: repository scans
+  and locked metadata contain no `openjp2` package or dependency; the focused
+  codec suite, warning-denied Clippy, doctests, and all formerly failing hosted
+  test lanes pass without FFI. Local evidence: all five fixture-backed tests
+  pass across 190 cases, warning-denied focused Clippy passes, formatting is
+  clean, and the corpus SHA-256 is
+  `7F465C13986524ABB017C9A91F7636095D5033FCE1817C0EF8E1B06A1729FD9A`.
 
 - **DOC-667-01 [patch] - Publish the RITK medical-imaging book**
   (DONE; owner=Codex; scope=`docs/book/**`,

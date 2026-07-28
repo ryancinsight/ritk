@@ -8,6 +8,35 @@
 
 # RITK Gap Audit - Active
 
+## DEP-668-01 audit (2026-07-28)
+
+RITK's JPEG 2000 production encoder and decoder were already native Rust, but
+the interoperability integration test still compiled and executed the
+`openjp2` c2rust port. Its translated allocator teardown aborts hosted Linux
+and macOS test processes in `NonNull::new_unchecked`, so a development-only FFI
+oracle prevented the native codec suite from completing.
+
+The live oracle is replaced by one committed corpus captured with OpenJPEG
+2.5.4: 72 OpenJPEG lossless streams, 54 OpenJPEG lossy streams with reference
+PSNR, 54 RITK streams accepted and decoded exactly by OpenJPEG, and ten
+byte-exact MQ/EBCOT escalation cases. The pure-Rust test parser asserts that
+the complete former 190-case matrix is present before running the value
+checks. Capture also exposed a defect in the old reverse-direction test: it
+passed rows and columns to the RITK encoder in the wrong order and compared
+only flattened samples. The captured RITK streams use the documented argument
+order and were accepted only after OpenJPEG reported the expected geometry and
+exact samples.
+
+Local evidence is all five fixture-backed integration tests passing,
+warning-denied focused Clippy, clean Rust formatting, no `openjp2` dependency
+edge in the manifests or lockfile, and corpus SHA-256
+`7F465C13986524ABB017C9A91F7636095D5033FCE1817C0EF8E1B06A1729FD9A`.
+The isolated local package gate cannot validate the complete workspace lock
+because this bounded worktree resolves sibling-provider path dependencies
+under `D:\atlas\worktrees`; the first missing edge is
+`D:\atlas\worktrees\eunomia\crates\eunomia\Cargo.toml`. Hosted locked metadata
+and the cross-platform suite remain the closure gate.
+
 ## DEP-666-01 audit (2026-07-21)
 
 RITK's direct Apollo FFT dependency used the sibling path package while Coeus's
