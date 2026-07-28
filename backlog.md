@@ -1,5 +1,36 @@
 # RITK Backlog - Active Planning
 
+- **DEP-672-02 [patch] - Consolidate the hosted Leto source identity
+  (DONE; owner=Codex; scope=`Cargo.toml`, `CHANGELOG.md`, and PM
+  artifacts).** Current Coeus declares Leto 0.40 from the `.git` URL while
+  RITK owns direct path packages but no corresponding root patch. Hosted
+  Python builds therefore compile local Leto and Git Leto `91c0c16`; the Git
+  copy resolves an older Eunomia surface and fails to import `UnitScalar`.
+  Map both Leto URL spellings to the existing local `leto` and `leto-ops`
+  packages. Local metadata contains one path source identity for each package,
+  all 262 `ritk-codecs` tests pass, and exact code head `80464ff6` passes CI
+  run `30404675078`, Python run `30404675093`, and migration-audit run
+  `30404675262` without compiling a duplicate Git Leto.
+
+- **PERF-672-01 [patch] - Remove the EBCOT encoder magnitude plane
+  (DONE; owner=Codex;
+  scope=`crates/ritk-codecs/src/jpeg_2000/ebcot/{encoder.rs,tests.rs}`,
+  `CHANGELOG.md`, and PM artifacts).** The encoder materializes a `Vec<u32>`
+  containing `i32::unsigned_abs` for every input sample, then keeps that
+  read-only plane beside the borrowed source throughout all coding passes.
+  Replace it with direct magnitude reads from `samples`, removing one 16 KiB
+  allocation for each 64×64 code block and reducing auxiliary EBCOT encoder
+  storage from 20 KiB to 4 KiB after PERF-671's packed state. Acceptance:
+  exact native and captured OpenJPEG interoperability tests remain green;
+  the unchanged 512×512 five-level Criterion workload shows no statistically
+  significant regression; warning-denied lint, documentation, and hosted
+  gates pass. Local closure removes the allocation, passes all 262 codec tests
+  in 21.617 seconds, and passes warning-denied Clippy, doctests, Rustdoc,
+  formatting, and diff checks. Matched Criterion medians are 52.609 ms before
+  and 52.576 ms after with p = 0.95, detecting no performance change. Exact
+  code head `80464ff6` passes the complete hosted CI and Python matrices on
+  Linux, macOS, and Windows.
+
 - **PERF-671-01 [patch] - Profile and optimize native codec hot loops
   (DONE; owner=Codex;
   scope=`crates/ritk-codecs/src/jpeg_2000/ebcot/**`, `CHANGELOG.md`, and PM

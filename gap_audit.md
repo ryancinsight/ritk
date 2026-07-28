@@ -8,6 +8,64 @@
 
 # RITK Gap Audit - Active
 
+## DEP-672-02 audit (2026-07-28)
+
+PR #66's first hosted Python lanes failed before compiling RITK. Their logs
+show both local Leto and Git Leto `91c0c16`; the Git copy then fails to import
+`eunomia::UnitScalar`. Current Coeus declares `leto` and `leto-ops` from
+`https://github.com/ryancinsight/leto.git`, but RITK's root manifest only
+patched Eunomia and other provider URLs to sibling paths. Provider-head drift
+therefore exposed a pre-existing source-identity hole that is unrelated to the
+EBCOT diff.
+
+RITK now maps both Leto URL spellings to its existing local `leto` and
+`leto-ops` 0.40 packages. This keeps one provider implementation and one trait
+identity in hosted builds instead of adapting or retaining the stale Git copy.
+Full metadata resolves exactly one `leto` 0.40.0 and one `leto-ops` 0.40.0,
+both from the sibling worktree and neither from Git. The corrected graph passes
+all 262 `ritk-codecs` tests under nextest in 17.929 seconds. Exact code head
+`80464ff6` passes hosted CI run `30404675078`, all 13 Python lanes in run
+`30404675093`, and migration-audit run `30404675262`; no hosted job compiles
+the duplicate Git Leto.
+
+## PERF-672-01 audit (2026-07-28)
+
+After PERF-671 packed significance, sign, visit, and refinement state into one
+byte, `encode_code_block` still copied every borrowed `i32` coefficient's
+unsigned magnitude into a read-only `Vec<u32>`. A 64×64 block therefore kept
+4 KiB of state beside a 16 KiB magnitude plane throughout all coding passes.
+Blocks are encoded sequentially, so the plane cost is 16 KiB of peak auxiliary
+storage and one allocation per block rather than the sum over an image. The
+unchanged 512×512 five-level workload contains 70 blocks.
+
+The encoder now reads `i32::unsigned_abs` directly from its borrowed sample
+slice at each bit test. This preserves coding order, MQ contexts, and symbol
+generation while reducing auxiliary EBCOT encoder storage from 20 KiB to
+4 KiB per full block and removing 70 allocations from the measured image.
+The test-only mirrored symbol trace remains an MQ-level regression rather than
+an independent EBCOT oracle. Independent behavioral evidence comes from the
+end-to-end round trips, including exact coverage from `-32_768` through
+`32_767`, and the captured OpenJPEG interoperability corpus.
+
+On the unchanged Windows x86-64 Criterion workload, the baseline median is
+52.609 ms and the changed median is 52.576 ms. The estimated change interval
+is -2.50% to +2.30% with p = 0.95, so no performance change is detected. This
+supports the memory reduction without a measured latency tradeoff; it does not
+claim a speedup or cross-machine timing effect.
+
+All 262 codec tests pass in 21.617 seconds, including exact native round trips,
+the 190-case captured OpenJPEG corpus, and RITK-encoder interoperability.
+Warning-denied all-target Clippy, formatting, diff checks, doctests, and
+warning-denied Rustdoc pass. Local Cargo verification used an alternate
+generated lock under the shared target tree because the stack overlay maps the
+same Apollo checkout through both `repos/` and a worktree junction; the actual
+RITK lockfile remained byte-identical to `HEAD`. `ritk-codecs` has no provider
+dependency. Exact code head `80464ff6` passes hosted Clippy, Rustfmt, wheel
+smoke, dependency alignment, migration audit, workspace tests on Linux, macOS,
+and Windows, and all 13 Python lanes. CodeRabbit's first-head review completed;
+its one evidence-classification finding is corrected above, while the final
+review status is a passing rate-limit result.
+
 ## PERF-671-01 audit (2026-07-28)
 
 The current native codec benchmark measures JPEG-LS and JPEG 2000 end to end

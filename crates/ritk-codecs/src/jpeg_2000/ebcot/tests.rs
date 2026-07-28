@@ -57,6 +57,12 @@ fn ebcot_signed_mixed_round_trip() {
 }
 
 #[test]
+fn ebcot_signed_16_bit_extrema_round_trip() {
+    let samples = [-32_768, -16_384, -1, 0, 1, 16_384, 32_767, 42];
+    enc_dec_roundtrip(&samples, 4, 2, SubbandOrientation::LlOrLh);
+}
+
+#[test]
 fn ebcot_1x1_nonzero_round_trip() {
     enc_dec_roundtrip(&[42i32], 1, 1, SubbandOrientation::LlOrLh);
 }
@@ -66,16 +72,15 @@ fn ebcot_1x1_nonzero_round_trip() {
 fn trace_encode_symbols(samples: &[i32], w: usize) -> Vec<(u32, usize)> {
     let h = 1usize;
     let n = w;
-    let sign: Vec<bool> = samples.iter().map(|&v| v < 0).collect();
-    let mag: Vec<u32> = samples.iter().map(|&v| v.unsigned_abs()).collect();
-    let max_mag = *mag
+    let max_mag = samples
         .iter()
+        .map(|sample| sample.unsigned_abs())
         .max()
         .expect("infallible: validated precondition");
     let num_bit_planes = u32::BITS - max_mag.leading_zeros();
     let mut state = vec![SampleState::default(); n];
     for i in 0..n {
-        if sign[i] {
+        if samples[i] < 0 {
             state[i].mark_negative();
         }
     }
@@ -92,7 +97,7 @@ fn trace_encode_symbols(samples: &[i32], w: usize) -> Vec<(u32, usize)> {
                 continue;
             }
             state[idx].set_visited();
-            let sig_bit = (mag[idx] >> bp) & 1;
+            let sig_bit = (samples[idx].unsigned_abs() >> bp) & 1;
             out.push((sig_bit, zc_context(SubbandOrientation::LlOrLh, hh, vv, dd)));
             if sig_bit == 1 {
                 state[idx].set_significant();
@@ -109,7 +114,7 @@ fn trace_encode_symbols(samples: &[i32], w: usize) -> Vec<(u32, usize)> {
             }
             let has = any_neighbour_sig(&state, w, h, x, 0);
             let ctx = mr_context(has, state[idx].was_refined());
-            out.push(((mag[idx] >> bp) & 1, ctx));
+            out.push(((samples[idx].unsigned_abs() >> bp) & 1, ctx));
             state[idx].set_refined();
         }
         // CUP (height 1 → no RLC)
@@ -118,7 +123,7 @@ fn trace_encode_symbols(samples: &[i32], w: usize) -> Vec<(u32, usize)> {
             if state[idx].is_significant() || state[idx].was_visited() {
                 continue;
             }
-            let sig_bit = (mag[idx] >> bp) & 1;
+            let sig_bit = (samples[idx].unsigned_abs() >> bp) & 1;
             let (hh, vv, dd) = neighbour_sig_counts(&state, w, h, x, 0);
             out.push((sig_bit, zc_context(SubbandOrientation::LlOrLh, hh, vv, dd)));
             if sig_bit == 1 {

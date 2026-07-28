@@ -8,6 +8,34 @@
 
 # CHANGELOG
 
+## [Unreleased] — Leto source identity (DEP-672-02)
+
+### Fixed
+
+- Map both Leto Git URL spellings to RITK's existing local `leto` and
+  `leto-ops` packages so transitive Coeus edges cannot compile a second,
+  incompatible provider copy during hosted builds.
+
+## [Unreleased] — Borrowed EBCOT magnitudes (PERF-672-01)
+
+### Changed
+
+- Read coefficient magnitudes directly from the encoder's borrowed sample
+  slice instead of materializing an identical `Vec<u32>` for every code block.
+
+### Performance
+
+- Remove one 16 KiB allocation for each 64×64 code block, reducing auxiliary
+  EBCOT encoder storage from 20 KiB to 4 KiB after the packed-state change.
+  The unchanged 512×512 five-level Criterion workload detects no timing
+  change: 52.609 ms before and 52.576 ms after (p = 0.95).
+
+### Tests
+
+- Add an exact EBCOT round trip spanning signed 16-bit extrema.
+- Revalidate all 262 codec tests, including the 190-case captured OpenJPEG
+  corpus and RITK-encoder interoperability.
+
 ## [Unreleased] — Compact JPEG 2000 EBCOT state (PERF-671-01)
 
 ### Changed

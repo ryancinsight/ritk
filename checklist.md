@@ -8,6 +8,34 @@
 
 # RITK Sprint Checklist — Active
 
+## DEP-672-02 — Consolidate the hosted Leto source identity
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Confirm the hosted failure compiles both local Leto and Git Leto.
+- [x] Trace the Git edge to current Coeus workspace dependencies.
+- [x] Map both Leto Git URL spellings to the existing local packages.
+- [x] Verify metadata resolves one `leto` and one `leto-ops` identity.
+- [x] Re-run exact-head hosted gates. Code head `80464ff6` passes CI run
+      `30404675078`, Python run `30404675093`, and migration-audit run
+      `30404675262`.
+
+## PERF-672-01 — Remove the EBCOT encoder magnitude plane
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Capture the unchanged 512×512 five-level encoder Criterion baseline.
+- [x] Replace the read-only magnitude allocation with direct borrowed-sample
+      magnitude reads without changing coding order or bitstream semantics.
+- [x] Add a regression that proves mixed signed extrema retain exact EBCOT
+      round-trip values without an auxiliary magnitude plane.
+- [x] Run exact native and captured OpenJPEG interoperability tests.
+- [x] Compare the unchanged Criterion workload and reject a statistically
+      significant regression.
+- [x] Run warning-denied lint and documentation gates.
+- [x] Run exact-head hosted gates. Code head `80464ff6` passes the complete
+      Linux, macOS, and Windows workspace and Python matrices.
+
 ## PERF-671-01 — Profile and optimize native codec hot loops
 **Target version**: Unreleased patch
 **Sprint phase**: Closure

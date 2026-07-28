@@ -146,6 +146,14 @@ eunomia = { path = "../eunomia/crates/eunomia" }
 [patch."https://github.com/ryancinsight/eunomia.git"]
 eunomia = { path = "../eunomia/crates/eunomia" }
 
+[patch."https://github.com/ryancinsight/leto"]
+leto = { path = "../leto/crates/leto" }
+leto-ops = { path = "../leto/crates/leto-ops" }
+
+[patch."https://github.com/ryancinsight/leto.git"]
+leto = { path = "../leto/crates/leto" }
+leto-ops = { path = "../leto/crates/leto-ops" }
+
 [patch."https://github.com/ryancinsight/aequitas"]
 aequitas = { path = "../aequitas" }
 
