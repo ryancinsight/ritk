@@ -8,6 +8,24 @@
 
 # RITK Sprint Checklist — Active
 
+## DEP-668-01 — Remove the OpenJPEG test-runtime dependency
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Audit the native JPEG 2000 implementation and every remaining `openjp2`
+      use; confirm production encode/decode is already pure Rust and the live
+      differential integration test is the sole dependency owner.
+- [ ] Capture a compact, deterministic OpenJPEG 2.5.2 fixture set covering
+      lossless 5/3 and lossy 9/7 codestreams at representative precision,
+      geometry, and decomposition levels.
+- [ ] Replace the unsafe live oracle with fixture-backed exact/analytical
+      assertions and synchronize the JPEG 2000 module evidence contract.
+- [ ] Remove `openjp2` from workspace/package manifests and `Cargo.lock`;
+      confirm locked metadata and source scans contain no dependency edge.
+- [ ] Run package formatting, warning-denied Clippy, focused Nextest,
+      doctests, and the formerly failing hosted matrix.
+- [ ] Commit, push, merge, and record exact verification and residual risk.
+
 ## DOC-667-01 — Publish the RITK medical-imaging book
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
