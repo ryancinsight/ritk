@@ -31,11 +31,16 @@ Local evidence is all five fixture-backed integration tests passing,
 warning-denied focused Clippy, clean Rust formatting, no `openjp2` dependency
 edge in the manifests or lockfile, and corpus SHA-256
 `7F465C13986524ABB017C9A91F7636095D5033FCE1817C0EF8E1B06A1729FD9A`.
-The isolated local package gate cannot validate the complete workspace lock
+The isolated local package gate could not validate the complete workspace lock
 because this bounded worktree resolves sibling-provider path dependencies
-under `D:\atlas\worktrees`; the first missing edge is
-`D:\atlas\worktrees\eunomia\crates\eunomia\Cargo.toml`. Hosted locked metadata
-and the cross-platform suite remain the closure gate.
+under `D:\atlas\worktrees`; the first missing edge was
+`D:\atlas\worktrees\eunomia\crates\eunomia\Cargo.toml`. Hosted PR #62 supplies
+the closure evidence: locked dependency alignment, warning-denied workspace
+Clippy, Rustfmt, the wheel smoke test, and 4,643/4,643 passing Nextest cases on
+Ubuntu, macOS, and Windows with 12 repository-configured skips. The Python
+matrix and migration audit also pass. This establishes dependency removal and
+tested behavior; it does not establish additional JPEG 2000 profile coverage
+beyond the captured matrix.
 
 ## DEP-666-01 audit (2026-07-21)
 

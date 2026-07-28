@@ -1,7 +1,7 @@
 # RITK Backlog - Active Planning
 
 - **DEP-668-01 [patch] - Remove the OpenJPEG test-runtime dependency
-  (IN PROGRESS; owner=Codex; scope=`Cargo.toml`, `Cargo.lock`,
+  (DONE; owner=Codex; scope=`Cargo.toml`, `Cargo.lock`,
   `crates/ritk-codecs/{Cargo.toml,tests/jpeg2000_interop.rs,
   src/jpeg_2000/mod.rs}`, PM artifacts).** Replace the live `openjp2`
   differential oracle, whose unsafe allocator teardown aborts the hosted test
@@ -15,6 +15,11 @@
   pass across 190 cases, warning-denied focused Clippy passes, formatting is
   clean, and the corpus SHA-256 is
   `7F465C13986524ABB017C9A91F7636095D5033FCE1817C0EF8E1B06A1729FD9A`.
+  Hosted PR #62 passes Rustfmt, warning-denied workspace Clippy, locked
+  dependency alignment, the wheel smoke test, and all 4,643 Nextest cases on
+  Ubuntu, macOS, and Windows with 12 repository-configured skips. The Python
+  matrix and migration audit also pass. No hosted test process compiles or
+  executes `openjp2`.
 
 - **DOC-667-01 [patch] - Publish the RITK medical-imaging book**
   (DONE; owner=Codex; scope=`docs/book/**`,

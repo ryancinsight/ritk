@@ -230,6 +230,12 @@ fn psnr(mse: f64, precision: u8) -> f64 {
     10.0 * (peak * peak / mse).log10()
 }
 
+fn fixtures_for(producer: Producer) -> impl Iterator<Item = &'static Fixture<'static>> {
+    corpus()
+        .iter()
+        .filter(move |fixture| fixture.producer == producer)
+}
+
 #[test]
 fn corpus_covers_the_complete_previous_interop_matrix() {
     let actual: BTreeSet<_> = corpus()
@@ -277,10 +283,7 @@ fn corpus_covers_the_complete_previous_interop_matrix() {
 
 #[test]
 fn openjpeg_lossless_corpus_decodes_exactly() {
-    let fixtures = corpus()
-        .iter()
-        .filter(|fixture| fixture.producer == Producer::OpenJpegLossless);
-    for &fixture in fixtures {
+    for &fixture in fixtures_for(Producer::OpenJpegLossless) {
         let source = pixels(fixture);
         let expected: Vec<f32> = source.iter().map(|&sample| sample as f32).collect();
         assert_eq!(decode(fixture), expected, "lossless OpenJPEG fixture");
@@ -289,10 +292,7 @@ fn openjpeg_lossless_corpus_decodes_exactly() {
 
 #[test]
 fn ritk_lossless_encoder_remains_openjpeg_accepted() {
-    let fixtures = corpus()
-        .iter()
-        .filter(|fixture| fixture.producer == Producer::RitkLossless);
-    for &fixture in fixtures {
+    for &fixture in fixtures_for(Producer::RitkLossless) {
         let source = pixels(fixture);
         let encoded = encode(fixture, &source);
         let first_difference = encoded
@@ -321,10 +321,7 @@ fn ritk_lossless_encoder_remains_openjpeg_accepted() {
 
 #[test]
 fn openjpeg_escalation_corpus_matches_tile_bodies() {
-    let fixtures = corpus()
-        .iter()
-        .filter(|fixture| fixture.producer == Producer::OpenJpegEscalation);
-    for &fixture in fixtures {
+    for &fixture in fixtures_for(Producer::OpenJpegEscalation) {
         let source = pixels(fixture);
         let expected: Vec<f32> = source.iter().map(|&sample| sample as f32).collect();
         assert_eq!(decode(fixture), expected, "escalation fixture decode");
@@ -339,10 +336,7 @@ fn openjpeg_escalation_corpus_matches_tile_bodies() {
 
 #[test]
 fn openjpeg_lossy_corpus_tracks_reference_psnr() {
-    let fixtures = corpus()
-        .iter()
-        .filter(|fixture| fixture.producer == Producer::OpenJpegLossy);
-    for &fixture in fixtures {
+    for &fixture in fixtures_for(Producer::OpenJpegLossy) {
         assert!(
             fixture.reference_psnr.is_finite(),
             "lossy fixture must carry a finite OpenJPEG PSNR baseline"
