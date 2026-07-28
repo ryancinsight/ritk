@@ -18,14 +18,67 @@ mod tests;
 
 // ── Per-sample state flags ────────────────────────────────────────────────────
 
-/// Compact per-sample state used during EBCOT processing.
+/// Bit-packed per-sample state used during EBCOT processing.
+///
+/// Tier-1 repeatedly scans an entire 64×64 code-block, so storing four flags
+/// in one byte keeps the state plane cache-resident without changing its
+/// semantics.
 #[derive(Clone, Copy, Default)]
-pub(crate) struct SampleState {
-    pub(crate) sig: bool,    // sample is significant
-    pub(crate) sign: bool,   // sign (true = negative)
-    pub(crate) visit: bool,  // visited in current SPP
-    pub(crate) refine: bool, // has been magnitude-refined at least once
+pub(crate) struct SampleState(u8);
+
+impl SampleState {
+    const SIGNIFICANT: u8 = 1 << 0;
+    const NEGATIVE: u8 = 1 << 1;
+    const VISITED: u8 = 1 << 2;
+    const REFINED: u8 = 1 << 3;
+
+    #[inline(always)]
+    pub(crate) fn is_significant(self) -> bool {
+        self.0 & Self::SIGNIFICANT != 0
+    }
+
+    #[inline(always)]
+    pub(crate) fn set_significant(&mut self) {
+        self.0 |= Self::SIGNIFICANT;
+    }
+
+    #[inline(always)]
+    pub(crate) fn is_negative(self) -> bool {
+        self.0 & Self::NEGATIVE != 0
+    }
+
+    #[inline(always)]
+    pub(crate) fn mark_negative(&mut self) {
+        self.0 |= Self::NEGATIVE;
+    }
+
+    #[inline(always)]
+    pub(crate) fn was_visited(self) -> bool {
+        self.0 & Self::VISITED != 0
+    }
+
+    #[inline(always)]
+    pub(crate) fn set_visited(&mut self) {
+        self.0 |= Self::VISITED;
+    }
+
+    #[inline(always)]
+    pub(crate) fn clear_visited(&mut self) {
+        self.0 &= !Self::VISITED;
+    }
+
+    #[inline(always)]
+    pub(crate) fn was_refined(self) -> bool {
+        self.0 & Self::REFINED != 0
+    }
+
+    #[inline(always)]
+    pub(crate) fn set_refined(&mut self) {
+        self.0 |= Self::REFINED;
+    }
 }
+
+const _: () = assert!(std::mem::size_of::<SampleState>() == 1);
 
 // ── Neighbour utilities ───────────────────────────────────────────────────────
 
@@ -41,28 +94,28 @@ pub(crate) fn neighbour_sig_counts(
     let mut h = 0u32;
     let mut v = 0u32;
     let mut d = 0u32;
-    if x > 0 && state[y * width + x - 1].sig {
+    if x > 0 && state[y * width + x - 1].is_significant() {
         h += 1;
     }
-    if x + 1 < width && state[y * width + x + 1].sig {
+    if x + 1 < width && state[y * width + x + 1].is_significant() {
         h += 1;
     }
-    if y > 0 && state[(y - 1) * width + x].sig {
+    if y > 0 && state[(y - 1) * width + x].is_significant() {
         v += 1;
     }
-    if y + 1 < height && state[(y + 1) * width + x].sig {
+    if y + 1 < height && state[(y + 1) * width + x].is_significant() {
         v += 1;
     }
-    if x > 0 && y > 0 && state[(y - 1) * width + x - 1].sig {
+    if x > 0 && y > 0 && state[(y - 1) * width + x - 1].is_significant() {
         d += 1;
     }
-    if x + 1 < width && y > 0 && state[(y - 1) * width + x + 1].sig {
+    if x + 1 < width && y > 0 && state[(y - 1) * width + x + 1].is_significant() {
         d += 1;
     }
-    if x > 0 && y + 1 < height && state[(y + 1) * width + x - 1].sig {
+    if x > 0 && y + 1 < height && state[(y + 1) * width + x - 1].is_significant() {
         d += 1;
     }
-    if x + 1 < width && y + 1 < height && state[(y + 1) * width + x + 1].sig {
+    if x + 1 < width && y + 1 < height && state[(y + 1) * width + x + 1].is_significant() {
         d += 1;
     }
     (h, v, d)
@@ -110,26 +163,26 @@ pub(crate) fn sign_contributions(
 
     if x > 0 {
         let s = &state[y * width + x - 1];
-        if s.sig {
-            h_raw += if s.sign { -1 } else { 1 };
+        if s.is_significant() {
+            h_raw += if s.is_negative() { -1 } else { 1 };
         }
     }
     if x + 1 < width {
         let s = &state[y * width + x + 1];
-        if s.sig {
-            h_raw += if s.sign { -1 } else { 1 };
+        if s.is_significant() {
+            h_raw += if s.is_negative() { -1 } else { 1 };
         }
     }
     if y > 0 {
         let s = &state[(y - 1) * width + x];
-        if s.sig {
-            v_raw += if s.sign { -1 } else { 1 };
+        if s.is_significant() {
+            v_raw += if s.is_negative() { -1 } else { 1 };
         }
     }
     if y + 1 < height {
         let s = &state[(y + 1) * width + x];
-        if s.sig {
-            v_raw += if s.sign { -1 } else { 1 };
+        if s.is_significant() {
+            v_raw += if s.is_negative() { -1 } else { 1 };
         }
     }
 

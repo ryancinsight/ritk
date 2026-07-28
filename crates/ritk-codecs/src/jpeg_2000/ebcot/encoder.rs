@@ -33,7 +33,6 @@ pub fn encode_code_block(
 
     // Determine sign and magnitude from DC-shifted samples.
     let n = width * height;
-    let sign: Vec<bool> = samples.iter().map(|&v| v < 0).collect();
     let mag: Vec<u32> = samples.iter().map(|&v| v.unsigned_abs()).collect();
 
     let max_mag = *mag.iter().max().unwrap_or(&0);
@@ -52,9 +51,11 @@ pub fn encode_code_block(
     // Per-sample significance / refinement state (mirrors the decoder's view).
     let mut state = vec![SampleState::default(); n];
 
-    // Assign sign from the input samples.
-    for i in 0..n {
-        state[i].sign = sign[i];
+    // Assign sign from the input samples without a second sign allocation.
+    for (sample_state, sample) in state.iter_mut().zip(samples) {
+        if *sample < 0 {
+            sample_state.mark_negative();
+        }
     }
 
     let mut mq = MqEncoder::new();
@@ -74,24 +75,24 @@ pub fn encode_code_block(
                 for x in 0..width {
                     for y in sy..height.min(sy + 4) {
                         let idx = y * width + x;
-                        if state[idx].sig || state[idx].visit {
+                        if state[idx].is_significant() || state[idx].was_visited() {
                             continue;
                         }
                         let (h, v, d) = neighbour_sig_counts(&state, width, height, x, y);
                         if h + v + d == 0 {
                             continue;
                         }
-                        state[idx].visit = true;
+                        state[idx].set_visited();
                         let sig_bit = (mag[idx] >> bp) & 1;
                         let ctx = zc_context(orient, h, v, d);
                         trace(ctx, sig_bit);
                         mq.encode(sig_bit, &mut ctxs[ctx]);
                         if sig_bit == 1 {
-                            state[idx].sig = true;
+                            state[idx].set_significant();
                             let (kh, kv) = sign_contributions(&state, width, height, x, y);
                             let (sc_ctx, xor_bit) = sc_context(kh, kv);
                             {
-                                let sb = u32::from(state[idx].sign) ^ xor_bit;
+                                let sb = u32::from(state[idx].is_negative()) ^ xor_bit;
                                 trace(sc_ctx, sb);
                                 mq.encode(sb, &mut ctxs[sc_ctx]);
                             }
@@ -108,15 +109,15 @@ pub fn encode_code_block(
                 for x in 0..width {
                     for y in sy..height.min(sy + 4) {
                         let idx = y * width + x;
-                        if !state[idx].sig || state[idx].visit {
+                        if !state[idx].is_significant() || state[idx].was_visited() {
                             continue;
                         }
                         let has_sig_other = any_neighbour_sig(&state, width, height, x, y);
-                        let ctx = mr_context(has_sig_other, state[idx].refine);
+                        let ctx = mr_context(has_sig_other, state[idx].was_refined());
                         let bit = (mag[idx] >> bp) & 1;
                         trace(ctx, bit);
                         mq.encode(bit, &mut ctxs[ctx]);
-                        state[idx].refine = true;
+                        state[idx].set_refined();
                     }
                 }
                 sy += 4;
@@ -132,8 +133,8 @@ pub fn encode_code_block(
                 let can_rlc = y + 4 <= height
                     && (y..y + 4).all(|yy| {
                         let i = yy * width + x;
-                        !state[i].sig
-                            && !state[i].visit
+                        !state[i].is_significant()
+                            && !state[i].was_visited()
                             && neighbour_sig_total(&state, width, height, x, yy) == 0
                     });
 
@@ -157,25 +158,25 @@ pub fn encode_code_block(
                             let idx = yy * width + x;
                             if row_off == run_pos as usize {
                                 // Became significant: encode sign.
-                                state[idx].sig = true;
+                                state[idx].set_significant();
                                 let (kh, kv) = sign_contributions(&state, width, height, x, yy);
                                 let (sc_ctx, xor_bit) = sc_context(kh, kv);
                                 {
-                                    let sb = u32::from(state[idx].sign) ^ xor_bit;
+                                    let sb = u32::from(state[idx].is_negative()) ^ xor_bit;
                                     trace(sc_ctx, sb);
                                     mq.encode(sb, &mut ctxs[sc_ctx]);
                                 }
-                            } else if row_off > run_pos as usize && !state[idx].sig {
+                            } else if row_off > run_pos as usize && !state[idx].is_significant() {
                                 let sig_bit = (mag[idx] >> bp) & 1;
                                 let (h, v, d) = neighbour_sig_counts(&state, width, height, x, yy);
                                 let ctx = zc_context(orient, h, v, d);
                                 trace(ctx, sig_bit);
                                 mq.encode(sig_bit, &mut ctxs[ctx]);
                                 if sig_bit == 1 {
-                                    state[idx].sig = true;
+                                    state[idx].set_significant();
                                     let (kh, kv) = sign_contributions(&state, width, height, x, yy);
                                     let (sc_ctx, xor_bit) = sc_context(kh, kv);
-                                    let sb = u32::from(state[idx].sign) ^ xor_bit;
+                                    let sb = u32::from(state[idx].is_negative()) ^ xor_bit;
                                     trace(sc_ctx, sb);
                                     mq.encode(sb, &mut ctxs[sc_ctx]);
                                 }
@@ -191,7 +192,7 @@ pub fn encode_code_block(
                 // Normal cleanup coding.
                 for yy in y..height.min(y + 4) {
                     let idx = yy * width + x;
-                    if state[idx].sig || state[idx].visit {
+                    if state[idx].is_significant() || state[idx].was_visited() {
                         continue;
                     }
                     let sig_bit = (mag[idx] >> bp) & 1;
@@ -200,11 +201,11 @@ pub fn encode_code_block(
                     trace(ctx, sig_bit);
                     mq.encode(sig_bit, &mut ctxs[ctx]);
                     if sig_bit == 1 {
-                        state[idx].sig = true;
+                        state[idx].set_significant();
                         let (kh, kv) = sign_contributions(&state, width, height, x, yy);
                         let (sc_ctx, xor_bit) = sc_context(kh, kv);
                         {
-                            let sb = u32::from(state[idx].sign) ^ xor_bit;
+                            let sb = u32::from(state[idx].is_negative()) ^ xor_bit;
                             trace(sc_ctx, sb);
                             mq.encode(sb, &mut ctxs[sc_ctx]);
                         }
@@ -218,7 +219,7 @@ pub fn encode_code_block(
 
         // Clear visit flags.
         for s in &mut state {
-            s.visit = false;
+            s.clear_visited();
         }
     }
 

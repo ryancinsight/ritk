@@ -8,6 +8,31 @@
 
 # RITK Gap Audit - Active
 
+## PERF-671-01 audit (2026-07-28)
+
+The current native codec benchmark measures JPEG-LS and JPEG 2000 end to end
+on deterministic images. Its 512×512 five-level lossless JPEG 2000 encoder is
+the slowest encode regime at 54.089 ms median. The available Windows stack
+sampler cannot run without elevation, so a temporary matched Criterion
+microprofile measured the forward 5/3 DWT separately at 1.631 ms. The image
+produces 70 code-blocks; therefore approximately 97% of encode time remains in
+EBCOT tier-1 and packet work rather than the transform. The temporary profiling
+hook and module visibility are removed from the delivered diff.
+
+EBCOT previously stored significance, sign, visit, and refinement as four
+independent booleans and allocated a separate sign bit-vector during encoding.
+The state is now a one-byte bit field pinned by a compile-time layout assertion,
+and the encoder writes signs directly into it. A 64×64 code-block state plane
+therefore falls from 16 KiB to 4 KiB and one allocation is removed without
+changing pass order, context selection, or MQ symbols.
+
+The unchanged end-to-end Criterion workload improves to 50.757 ms median, a
+6.16% reduction with p < 0.05. A repeated 512×512 decode comparison detects no
+statistically significant change. These measurements establish the production
+encode and state-memory effects on this Windows x86-64 GNU host; they do not
+claim cross-machine scaling. Exact native and captured OpenJPEG corpus gates
+remain required before closure.
+
 ## SAFE-670-01 audit (2026-07-28)
 
 The directory-based DICOM RGB loader bounded its volume reservation but made a

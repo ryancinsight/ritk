@@ -8,6 +8,27 @@
 
 # CHANGELOG
 
+## [Unreleased] — Compact JPEG 2000 EBCOT state (PERF-671-01)
+
+### Changed
+
+- Pack EBCOT significance, sign, visit, and refinement flags into one byte per
+  coefficient instead of four independent booleans.
+- Populate coefficient signs directly into the packed state plane, removing
+  the encoder's separate bit-vector allocation.
+
+### Performance
+
+- Reduce a 64×64 code-block state plane from 16 KiB to 4 KiB. On the matched
+  512×512 five-level Criterion workload, median lossless JPEG 2000 encode time
+  falls from 54.089 ms to 50.757 ms (6.16%, p < 0.05). Decode shows no
+  statistically significant change.
+
+### Tests
+
+- Pin the one-byte state layout and verify that clearing the per-pass visit
+  flag preserves significance, sign, and refinement state.
+
 ## [Unreleased] — DICOM RGB series allocation safety (SAFE-670-01)
 
 ### Fixed

@@ -4,6 +4,23 @@ use super::contexts::{
 use super::*;
 use crate::jpeg_2000::mq_coder::{initial_contexts, MqDecoder, MqEncoder};
 
+#[test]
+fn sample_state_packs_independent_flags_into_one_byte() {
+    assert_eq!(std::mem::size_of::<SampleState>(), 1);
+
+    let mut state = SampleState::default();
+    state.set_significant();
+    state.mark_negative();
+    state.set_visited();
+    state.set_refined();
+    state.clear_visited();
+
+    assert!(state.is_significant());
+    assert!(state.is_negative());
+    assert!(!state.was_visited());
+    assert!(state.was_refined());
+}
+
 fn enc_dec_roundtrip(samples: &[i32], w: usize, h: usize, orient: SubbandOrientation) {
     let enc = encode_code_block(samples, w, h, orient);
     let dec = decode_code_block(&enc.bytes, w, h, enc.num_bit_planes, enc.num_passes, orient);
@@ -58,59 +75,61 @@ fn trace_encode_symbols(samples: &[i32], w: usize) -> Vec<(u32, usize)> {
     let num_bit_planes = u32::BITS - max_mag.leading_zeros();
     let mut state = vec![SampleState::default(); n];
     for i in 0..n {
-        state[i].sign = sign[i];
+        if sign[i] {
+            state[i].mark_negative();
+        }
     }
     let mut out = Vec::new();
     for bp in (0..num_bit_planes).rev() {
         // SPP
         for x in 0..w {
             let idx = x;
-            if state[idx].sig || state[idx].visit {
+            if state[idx].is_significant() || state[idx].was_visited() {
                 continue;
             }
             let (hh, vv, dd) = neighbour_sig_counts(&state, w, h, x, 0);
             if hh + vv + dd == 0 {
                 continue;
             }
-            state[idx].visit = true;
+            state[idx].set_visited();
             let sig_bit = (mag[idx] >> bp) & 1;
             out.push((sig_bit, zc_context(SubbandOrientation::LlOrLh, hh, vv, dd)));
             if sig_bit == 1 {
-                state[idx].sig = true;
+                state[idx].set_significant();
                 let (kh, kv) = sign_contributions(&state, w, h, x, 0);
                 let (sc_ctx, xor_bit) = sc_context(kh, kv);
-                out.push((u32::from(state[idx].sign) ^ xor_bit, sc_ctx));
+                out.push((u32::from(state[idx].is_negative()) ^ xor_bit, sc_ctx));
             }
         }
         // MRP
         for x in 0..w {
             let idx = x;
-            if !state[idx].sig || state[idx].visit {
+            if !state[idx].is_significant() || state[idx].was_visited() {
                 continue;
             }
             let has = any_neighbour_sig(&state, w, h, x, 0);
-            let ctx = mr_context(has, state[idx].refine);
+            let ctx = mr_context(has, state[idx].was_refined());
             out.push(((mag[idx] >> bp) & 1, ctx));
-            state[idx].refine = true;
+            state[idx].set_refined();
         }
         // CUP (height 1 → no RLC)
         for x in 0..w {
             let idx = x;
-            if state[idx].sig || state[idx].visit {
+            if state[idx].is_significant() || state[idx].was_visited() {
                 continue;
             }
             let sig_bit = (mag[idx] >> bp) & 1;
             let (hh, vv, dd) = neighbour_sig_counts(&state, w, h, x, 0);
             out.push((sig_bit, zc_context(SubbandOrientation::LlOrLh, hh, vv, dd)));
             if sig_bit == 1 {
-                state[idx].sig = true;
+                state[idx].set_significant();
                 let (kh, kv) = sign_contributions(&state, w, h, x, 0);
                 let (sc_ctx, xor_bit) = sc_context(kh, kv);
-                out.push((u32::from(state[idx].sign) ^ xor_bit, sc_ctx));
+                out.push((u32::from(state[idx].is_negative()) ^ xor_bit, sc_ctx));
             }
         }
         for s in &mut state {
-            s.visit = false;
+            s.clear_visited();
         }
     }
     out

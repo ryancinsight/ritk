@@ -1,17 +1,22 @@
 # RITK Backlog - Active Planning
 
 - **PERF-671-01 [patch] - Profile and optimize native codec hot loops
-  (IN PROGRESS; owner=Codex; scope=`crates/ritk-codecs/{benches/
-  codec_throughput.rs,src/jpeg_2000/**,src/jpeg_ls/**}`, `CHANGELOG.md`, and
-  PM artifacts).** Reconcile the historical `CODEC-PERF` gap against the
-  current pure-Rust codecs, capture a controlled Criterion baseline, and
-  optimize one measured JPEG 2000 or JPEG-LS production bottleneck without
-  changing the benchmark workload. Acceptance: the selected hot path has an
-  analytical bound and profile evidence; the implementation reduces matched
-  median runtime without increasing allocation amplification; native
-  round-trip and captured OpenJPEG interoperability values remain within their
-  existing exact or derived-error contracts; focused benchmark, test, lint,
-  documentation, and hosted gates pass.
+  (CODE COMPLETE / HOSTED VERIFICATION PENDING; owner=Codex;
+  scope=`crates/ritk-codecs/src/jpeg_2000/ebcot/**`, `CHANGELOG.md`, and PM
+  artifacts).** Reconcile the historical `CODEC-PERF` gap against the current
+  pure-Rust codecs, capture a controlled Criterion baseline, and optimize one
+  measured JPEG 2000 or JPEG-LS production bottleneck without changing the
+  benchmark workload. The 512×512 five-level encoder spends 54.089 ms median
+  end to end while its forward DWT costs 1.631 ms, placing approximately 97%
+  in the 70 code-block EBCOT/packet path. EBCOT state now packs four booleans
+  into one byte and writes signs directly, reducing each 64×64 state plane
+  from 16 KiB to 4 KiB and removing one allocation. The unchanged end-to-end
+  benchmark improves to 50.757 ms median (6.16%, p < 0.05); repeated decode
+  measurement detects no significant change. Acceptance remains exact native
+  round trips and captured OpenJPEG interoperability plus warning-denied
+  lint, documentation, and hosted gates. Local semantic-test execution is
+  queued out by the shared Cargo target lock and Windows junction source
+  identities; the optimized bench profile compiles and runs the exact code.
 
 - **SAFE-670-01 [patch] - Bound DICOM RGB series geometry without metadata
   duplication (DONE; owner=Codex; scope=`crates/ritk-io/src/format/
