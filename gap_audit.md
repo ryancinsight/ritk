@@ -40,8 +40,10 @@ The encoder now reads `i32::unsigned_abs` directly from its borrowed sample
 slice at each bit test. This preserves coding order, MQ contexts, and symbol
 generation while reducing auxiliary EBCOT encoder storage from 20 KiB to
 4 KiB per full block and removing 70 allocations from the measured image.
-The test-only symbol-trace oracle uses the same borrowed representation, and
-an exact round trip covers `-32_768` through `32_767`.
+The test-only mirrored symbol trace remains an MQ-level regression rather than
+an independent EBCOT oracle. Independent behavioral evidence comes from the
+end-to-end round trips, including exact coverage from `-32_768` through
+`32_767`, and the captured OpenJPEG interoperability corpus.
 
 On the unchanged Windows x86-64 Criterion workload, the baseline median is
 52.609 ms and the changed median is 52.576 ms. The estimated change interval
