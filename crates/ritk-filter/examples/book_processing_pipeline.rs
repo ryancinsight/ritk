@@ -199,18 +199,30 @@ fn draw_contract_panel(svg: &mut String, index: usize) -> Result<()> {
     Ok(())
 }
 
-fn write_figure(
-    path: &Path,
-    input: &[f32],
-    sigmoid: &[f32],
-    threshold: &[f32],
-    gradient: &[f32],
-    opened: &[f32],
-    closed: &[f32],
-    grayscale_opened: &[f32],
-    diffused: &[f32],
-    curvature_flow: &[f32],
-) -> Result<()> {
+struct PipelineFigures<'a> {
+    input: &'a [f32],
+    sigmoid: &'a [f32],
+    threshold: &'a [f32],
+    gradient: &'a [f32],
+    opened: &'a [f32],
+    closed: &'a [f32],
+    grayscale_opened: &'a [f32],
+    diffused: &'a [f32],
+    curvature_flow: &'a [f32],
+}
+
+fn write_figure(path: &Path, figures: PipelineFigures<'_>) -> Result<()> {
+    let PipelineFigures {
+        input,
+        sigmoid,
+        threshold,
+        gradient,
+        opened,
+        closed,
+        grayscale_opened,
+        diffused,
+        curvature_flow,
+    } = figures;
     let gradient_range = min_max(gradient)?;
     let change: Vec<f32> = input
         .iter()
@@ -389,15 +401,17 @@ fn main() -> Result<()> {
     .context("apply curvature flow")?;
     write_figure(
         &output,
-        &input_values,
-        sigmoid.data_slice()?,
-        threshold.data_slice()?,
-        gradient.data_slice()?,
-        opened.data_slice()?,
-        closed.data_slice()?,
-        grayscale_opened.data_slice()?,
-        diffused.data_slice()?,
-        curvature_flow.data_slice()?,
+        PipelineFigures {
+            input: &input_values,
+            sigmoid: sigmoid.data_slice()?,
+            threshold: threshold.data_slice()?,
+            gradient: gradient.data_slice()?,
+            opened: opened.data_slice()?,
+            closed: closed.data_slice()?,
+            grayscale_opened: grayscale_opened.data_slice()?,
+            diffused: diffused.data_slice()?,
+            curvature_flow: curvature_flow.data_slice()?,
+        },
     )?;
     println!("wrote {}", output.display());
     Ok(())
