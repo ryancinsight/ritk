@@ -8,6 +8,24 @@
 
 # RITK Gap Audit - Active
 
+> **Retired tooling note**: The `burn-migration-audit` xtask command,
+> `xtask/burn_surface.allowlist`, and the `legacy-migration-audit` CI
+> workflow were removed after the Burn-to-Coeus migration completed.
+> References to these tools in the evidence below are historical.
+
+## MIG-673-01 audit (2026-07-28)
+
+The completed provider cutover left an empty Burn allowlist, a 518-line lexical
+scanner, and a dedicated hosted workflow that could no longer detect an
+approved migration surface. Direct scans across production manifests and Rust
+sources find no `burn`, `burn-ndarray`, `ndarray`, `rustfft`, `approx`, or
+`num-traits` dependencies and no corresponding source paths. The removal is
+therefore migration-tool retirement, not weakening an active compatibility
+gate. Focused formatting and warning-denied Clippy pass; all 5 `xtask`
+Nextest cases pass in 4.237 seconds; and warning-denied Rustdoc passes.
+`cargo test --doc -p xtask` reports no library target, so doctests are not an
+applicable gate for this binary-only package.
+
 ## DEP-666-01 audit (2026-07-21)
 
 RITK's direct Apollo FFT dependency used the sibling path package while Coeus's

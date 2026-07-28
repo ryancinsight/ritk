@@ -20,11 +20,10 @@ layered at `docs:` follow-up — both anchored under the
 - **0** call-sites of `rayon::` / `tokio::` / `par_iter` /
   `ndarray::Zip::indexed().par_*` across the 31 ritk-* production
   crates' source.
-- The tokens appear only as string literals in
-  `repos/ritk/xtask/src/migration_audit.rs`'s `LEGACY_SOURCE_TOKENS`
-  const list (banned patterns), where the audit *detects* their
-  presence and fails the build — exactly the SSOT enforcement
-  mechanism we want.
+- These legacy tokens are banned by workspace policy; they were
+  historically detected by the now-retired `burn-migration-audit`
+  tooling (`xtask/src/migration_audit.rs`). The audit scaffolding has
+  been removed because the migration to Atlas providers is complete.
 
 ### Atlas-typed moirai coverage (in flight)
 

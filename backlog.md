@@ -1,5 +1,24 @@
 # RITK Backlog - Active Planning
 
+> **Retired tooling note**: The `burn-migration-audit` xtask command,
+> `xtask/burn_surface.allowlist`, and the `legacy-migration-audit` CI
+> workflow were removed after the Burn-to-Coeus migration completed.
+> References to these tools in the entries below are historical.
+
+- **MIG-673-01 [patch] - Retire the completed Burn migration audit**
+  (DONE; owner=Codex stale-claim takeover; scope=
+  `.github/workflows/legacy-migration-audit.yml`,
+  `xtask/{burn_surface.allowlist,src/{main.rs,migration_audit.rs}}`,
+  migration documentation, `CHANGELOG.md`, and PM artifacts). Remove the
+  migration-only command, empty allowlist, and dedicated workflow after the
+  provider cutover reached zero Burn and standalone-legacy source/manifest
+  tokens. Acceptance: residue scans confirm the retired command has no active
+  caller, `xtask` compiles warning-free, its value-semantic Nextest suite
+  passes, and historical documentation is explicitly classified as such.
+  Verification: focused formatting and warning-denied Clippy pass; all 5
+  `xtask` Nextest cases pass in 4.237 seconds; warning-denied Rustdoc passes;
+  and doctests are not applicable because `xtask` has no library target.
+
 - **DOC-667-01 [patch] - Publish the RITK medical-imaging book**
   (DONE; owner=Codex; scope=`docs/book/**`,
   `crates/ritk-filter/examples/book_filter_gallery.rs`,

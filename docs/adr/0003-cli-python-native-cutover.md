@@ -10,7 +10,9 @@
 
 ADR 0002 established the strategy: build native (Atlas-substrate) capability
 bottom-up, then remove Burn top-down (consumers first, core `Image` last), with
-the `burn-migration-audit` token counts as the done-metric.
+the historical `burn-migration-audit` token counts as the done-metric.
+(The `burn-migration-audit` xtask command and `xtask/burn_surface.allowlist`
+were retired after the migration completed.)
 
 Since ADR 0002 the **standard image-I/O layer reached native parity**
 (MIG-493/494/495): all standard file formats wired through the CLI format matrix
@@ -99,10 +101,10 @@ Cut over **incrementally, per command**, not in one breaking change.
      migrates.
 
 3. **Delete Burn per format crate only when dead.** After a command migrates,
-   re-run `burn-migration-audit`; when a format crate's Burn reader/writer has
-   no remaining caller (cli, python, ritk-io re-export, or test), delete it and
-   drop `burn` from that crate's manifest. This is the step that moves the SSOT
-   number.
+   re-run the historical `burn-migration-audit` (or verify with `cargo tree` /
+   ripgrep); when a format crate's Burn reader/writer has no remaining caller
+   (cli, python, ritk-io re-export, or test), delete it and drop `burn` from
+   that crate's manifest. This was the step that moved the SSOT number.
 
 ## Alternatives considered
 
@@ -137,8 +139,9 @@ Cut over **incrementally, per command**, not in one breaking change.
 - Per command: a differential test reading a fixture, running the command via
   the native path and the Burn path, asserting identical output file bytes
   (writers) / identical decoded voxels + metadata (readers).
-- `burn-migration-audit` re-run after each format-crate Burn deletion; the delta
-  is the evidence a slice moved the SSOT.
+- `burn-migration-audit` re-run after each format-crate Burn deletion
+  (historical; use `cargo tree` / ripgrep after the audit tooling was retired);
+  the delta was the evidence a slice moved the SSOT.
 - Full `cargo nextest run` on cli/python after each command cutover; clippy
   `-D warnings`; doc sync of the command's help text and any migration notes.
 

@@ -8,6 +8,15 @@
 
 # CHANGELOG
 
+## [Unreleased] — Retired migration audit (MIG-673-01)
+
+### Changed
+
+- Removed the completed Burn-to-Coeus migration audit command, empty
+  allowlist, and dedicated hosted workflow. Ordinary manifest/source scans and
+  dependency-tree checks now enforce the provider-only boundary without
+  retaining migration-era tooling.
+
 ## [Unreleased] — Provider graph consolidation (DEP-666-01)
 
 ### Changed

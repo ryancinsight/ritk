@@ -8,6 +8,26 @@
 
 # RITK Sprint Checklist — Active
 
+> **Retired tooling note**: The `burn-migration-audit` xtask command,
+> `xtask/burn_surface.allowlist`, and the `legacy-migration-audit` CI
+> workflow were removed after the Burn-to-Coeus migration completed.
+> References to these tools in the entries below are historical.
+
+## MIG-673-01 — Retire completed migration audit
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Delete the migration-only xtask command, empty allowlist, and dedicated
+      hosted workflow.
+- [x] Reclassify active documentation references while retaining historical
+      evidence.
+- [x] Confirm no Burn or standalone-legacy dependency/source tokens remain in
+      production crates.
+- [x] Run formatting, warning-denied `xtask` Clippy, focused Nextest, and
+      warning-denied Rustdoc. All 5 Nextest cases pass in 4.237 seconds;
+      doctests are not applicable because `xtask` has no library target.
+- [x] Commit the recovered stale work before integrating current `main`.
+
 ## DOC-667-01 — Publish the RITK medical-imaging book
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
