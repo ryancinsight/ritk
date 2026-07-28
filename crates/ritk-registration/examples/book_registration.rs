@@ -202,7 +202,7 @@ fn absolute_difference(left: &[f32], right: &[f32]) -> Result<(Vec<f32>, f32, f3
         .context("registration comparison has no maximum")?;
     let sample_count = u32::try_from(difference.len())
         .context("registration comparison sample count exceeds u32")?;
-    let mean = difference.iter().sum::<f32>() / f32::from(sample_count);
+    let mean = difference.iter().sum::<f32>() / (sample_count as f32);
     Ok((difference, maximum, mean))
 }
 
