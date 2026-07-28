@@ -60,8 +60,8 @@ fn phantom() -> Result<Vec<f32>> {
                 // isolated foreground island, while closing fills the small
                 // background hole. They are replicated through depth with
                 // the rest of the deterministic volume fixture.
-                let binary_island = (16..18).contains(&x_index) && (102..105).contains(&y_index);
-                let binary_hole = (70..72).contains(&x_index) && (65..68).contains(&y_index);
+                let binary_island = (16..18).contains(&x_index) && (98..106).contains(&y_index);
+                let binary_hole = (70..72).contains(&x_index) && (61..69).contains(&y_index);
                 let tissue =
                     0.72 * (-main).exp() + 0.35 * (-secondary).exp() + crescent + perturbation;
                 values.push(if binary_island {
