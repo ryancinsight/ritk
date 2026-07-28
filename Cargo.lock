@@ -1399,6 +1399,7 @@ dependencies = [
 [[package]]
 name = "consus-compression"
 version = "0.1.0"
+source = "git+https://github.com/ryancinsight/consus?rev=ec386e3e14241343f9a1beca6921463f2b2f0fc9#ec386e3e14241343f9a1beca6921463f2b2f0fc9"
 dependencies = [
  "byteorder",
  "consus-core",
@@ -1407,6 +1408,7 @@ dependencies = [
 [[package]]
 name = "consus-core"
 version = "0.1.0"
+source = "git+https://github.com/ryancinsight/consus?rev=ec386e3e14241343f9a1beca6921463f2b2f0fc9#ec386e3e14241343f9a1beca6921463f2b2f0fc9"
 dependencies = [
  "byteorder",
  "smallvec",
@@ -1416,6 +1418,7 @@ dependencies = [
 [[package]]
 name = "consus-hdf5"
 version = "0.1.0"
+source = "git+https://github.com/ryancinsight/consus?rev=ec386e3e14241343f9a1beca6921463f2b2f0fc9#ec386e3e14241343f9a1beca6921463f2b2f0fc9"
 dependencies = [
  "byteorder",
  "consus-compression",
@@ -1426,6 +1429,7 @@ dependencies = [
 [[package]]
 name = "consus-io"
 version = "0.1.0"
+source = "git+https://github.com/ryancinsight/consus?rev=ec386e3e14241343f9a1beca6921463f2b2f0fc9#ec386e3e14241343f9a1beca6921463f2b2f0fc9"
 dependencies = [
  "consus-core",
 ]
@@ -1433,6 +1437,7 @@ dependencies = [
 [[package]]
 name = "consus-onnx"
 version = "0.1.0"
+source = "git+https://github.com/ryancinsight/consus?rev=ec386e3e14241343f9a1beca6921463f2b2f0fc9#ec386e3e14241343f9a1beca6921463f2b2f0fc9"
 
 [[package]]
 name = "convert_case"
@@ -3303,6 +3308,7 @@ checksum = "469fb0b9cefa57e3ef31275ee7cacb78f2fdca44e4765491884a2b119d4eb130"
 [[package]]
 name = "iris"
 version = "0.1.0"
+source = "git+https://github.com/ryancinsight/iris?rev=e2edd47615454111b4b0df2e68dc6076161ba457#e2edd47615454111b4b0df2e68dc6076161ba457"
 dependencies = [
  "serde",
 ]
@@ -8929,63 +8935,3 @@ dependencies = [
  "quote",
  "syn 2.0.118",
 ]
-
-[[patch.unused]]
-name = "hephaestus-core"
-version = "0.18.0"
-
-[[patch.unused]]
-name = "hephaestus-cuda"
-version = "0.18.0"
-
-[[patch.unused]]
-name = "hephaestus-metal"
-version = "0.18.0"
-
-[[patch.unused]]
-name = "hephaestus-rocm"
-version = "0.18.0"
-
-[[patch.unused]]
-name = "hephaestus-wgpu"
-version = "0.18.0"
-
-[[patch.unused]]
-name = "tyche-core"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "athena-core"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "proteus"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "consus-npy"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "consus-zarr"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "hyperion"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "moirai-gpu"
-version = "0.4.0"
-
-[[patch.unused]]
-name = "horae"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "asclepius"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "asclepius-coeus"
-version = "0.1.0"
