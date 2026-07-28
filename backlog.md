@@ -1,5 +1,20 @@
 # RITK Backlog - Active Planning
 
+- **PERF-672-01 [patch] - Remove the EBCOT encoder magnitude plane
+  (IN PROGRESS; owner=Codex;
+  scope=`crates/ritk-codecs/src/jpeg_2000/ebcot/{encoder.rs,tests.rs}`,
+  `CHANGELOG.md`, and PM artifacts).** The encoder materializes a `Vec<u32>`
+  containing `i32::unsigned_abs` for every input sample, then keeps that
+  read-only plane beside the borrowed source throughout all coding passes.
+  Replace it with direct magnitude reads from `samples`, removing one 16 KiB
+  allocation for each 64×64 code block and reducing auxiliary EBCOT encoder
+  storage from 20 KiB to 4 KiB after PERF-671's packed state. Acceptance:
+  exact native and captured OpenJPEG interoperability tests remain green;
+  the unchanged 512×512 five-level Criterion workload shows no statistically
+  significant regression; warning-denied lint, documentation, and hosted
+  gates pass. Stop and reject the change if matched timing detects a
+  significant regression.
+
 - **PERF-671-01 [patch] - Profile and optimize native codec hot loops
   (DONE; owner=Codex;
   scope=`crates/ritk-codecs/src/jpeg_2000/ebcot/**`, `CHANGELOG.md`, and PM

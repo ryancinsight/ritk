@@ -8,6 +8,20 @@
 
 # RITK Sprint Checklist — Active
 
+## PERF-672-01 — Remove the EBCOT encoder magnitude plane
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [ ] Capture the unchanged 512×512 five-level encoder Criterion baseline.
+- [ ] Replace the read-only magnitude allocation with direct borrowed-sample
+      magnitude reads without changing coding order or bitstream semantics.
+- [ ] Add a regression that proves mixed signed extrema retain exact EBCOT
+      round-trip values without an auxiliary magnitude plane.
+- [ ] Run exact native and captured OpenJPEG interoperability tests.
+- [ ] Compare the unchanged Criterion workload and reject a statistically
+      significant regression.
+- [ ] Run warning-denied lint, documentation, and hosted gates.
+
 ## PERF-671-01 — Profile and optimize native codec hot loops
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
