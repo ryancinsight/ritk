@@ -15,9 +15,11 @@ on deterministic images. Its 512×512 five-level lossless JPEG 2000 encoder is
 the slowest encode regime at 54.089 ms median. The available Windows stack
 sampler cannot run without elevation, so a temporary matched Criterion
 microprofile measured the forward 5/3 DWT separately at 1.631 ms. The image
-produces 70 code-blocks; therefore approximately 97% of encode time remains in
-EBCOT tier-1 and packet work rather than the transform. The temporary profiling
-hook and module visibility are removed from the delivered diff.
+produces 70 code-blocks. Assuming the matched microprofile represents the
+end-to-end workload, `(54.089 - 1.631) / 54.089 = 96.98%` implies that
+approximately 97% of encode time remains in EBCOT tier-1 and packet work rather
+than the transform. The temporary profiling hook and module visibility are
+removed from the delivered diff.
 
 EBCOT previously stored significance, sign, visit, and refinement as four
 independent booleans and allocated a separate sign bit-vector during encoding.
@@ -37,9 +39,10 @@ native Nextest on Linux, macOS, and Windows, Rustfmt, warning-denied Clippy,
 dependency alignment, wheel smoke, Python 3.9-3.13, and the migration audit in
 runs `30390535716`, `30390535769`, and `30390535869`. The full codec suite
 therefore revalidates exact native round trips and the captured OpenJPEG corpus.
-Thread-aware review inspection found no review threads; the optional CodeRabbit
-review reported its rate limit, and the external RecurseML analysis failed
-before producing repository test evidence.
+Thread-aware review inspection found no review threads. CodeRabbit's final
+review found one documentation nit about the 97% timing attribution; the
+derivation above addresses it. The external RecurseML analysis failed before
+producing repository test evidence.
 
 ## SAFE-670-01 audit (2026-07-28)
 
