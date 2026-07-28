@@ -5,6 +5,33 @@ use crate::jpeg_2000::ebcot::{decode_code_block, encode_code_block};
 use crate::jpeg_2000::tag_tree::TagTree;
 
 #[test]
+fn tile_decode_rejects_oversized_dimensions_before_allocation() {
+    let result = decode_tile_part(
+        &[],
+        crate::dimensions::MAX_DECODED_PIXELS + 1,
+        1,
+        TileCodingParams {
+            num_guard_bits: 1,
+            precision: 8,
+            num_decomp_levels: 0,
+            num_layers: 1,
+            exponents: &[],
+            mantissas: &[],
+            transform: WaveletTransform::Reversible,
+        },
+    );
+    let Err(err) = result else {
+        panic!("oversized tile dimensions must fail");
+    };
+
+    assert!(
+        format!("{err:#}").contains("J2K tile-component dimensions"),
+        "got: {err:#}"
+    );
+    assert!(format!("{err:#}").contains("decode limit"), "got: {err:#}");
+}
+
+#[test]
 fn bit_writer_reader_round_trip() {
     let mut bw = BitWriter::new();
     let bits = [1u32, 0, 1, 1, 0, 0, 1, 0, 1];

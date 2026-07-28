@@ -8,6 +8,21 @@
 
 # CHANGELOG
 
+## [Unreleased] — Bounded JPEG 2000 tile geometry (SAFE-669-01)
+
+### Fixed
+
+- Validate JPEG 2000 SIZ image/tile origins, tile-grid cardinality, component
+  precision and sampling, plus reserved and length-constrained SOT fields
+  before packet decoding.
+- Compute edge-tile buffers from the normative image-area intersection instead
+  of the full reference tile, eliminating off-image coefficient planes for
+  cropped images and preventing `u32` tile arithmetic from wrapping.
+- Reject out-of-range tile indices and tile-part lengths beyond the codestream
+  before slicing or allocating.
+- Bound total multi-component samples for baseline JPEG and JPEG 2000 so a
+  valid pixel count cannot be amplified into an unbounded output allocation.
+
 ## [Unreleased] — Native JPEG 2000 test closure (DEP-668-01)
 
 ### Changed

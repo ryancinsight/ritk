@@ -1,5 +1,26 @@
 # RITK Backlog - Active Planning
 
+- **SAFE-669-01 [patch] - Bound JPEG 2000 tile geometry
+  (DONE; owner=Codex; scope=`crates/ritk-codecs/src/
+  jpeg_2000/{codestream.rs,image.rs,packet/reader.rs,tests_codestream.rs}`,
+  codec tests, `CHANGELOG.md`, and PM artifacts).** Complete the deferred
+  SEC-457-04 allocation audit. Baseline JPEG already validates SOF dimensions,
+  but JPEG 2000 computes tile extents outside the image domain, multiplies tile
+  counts without overflow checking, and accepts out-of-range SOT tile indices
+  before allocating coefficient planes. Acceptance: SIZ geometry is validated
+  without panics or wrapping; decoded tile extents are intersected with the
+  image domain and bounded before allocation; invalid SOT indices fail before
+  packet decode; hostile marker-only regressions assert the exact failure
+  contract; the existing native/OpenJPEG corpus and focused codec gates remain
+  green. Local evidence: all 260 codec tests pass, including the complete
+  190-case captured OpenJPEG corpus; warning-denied all-target Clippy,
+  formatting, doctests, and warning-denied Rustdoc pass. PR #63 exact head
+  `b6d2bd84` passes CI run `30375833486`, Python CI run `30375833366`, and
+  migration-audit run `30375833069`: Rustfmt, warning-denied Clippy, dependency
+  alignment, wheel smoke, Linux/macOS/Windows native suites, Python 3.9-3.13,
+  and the migration audit are green. The external `recurseml/analysis` service
+  error is non-required and contains no RITK build or test evidence.
+
 - **DEP-668-01 [patch] - Remove the OpenJPEG test-runtime dependency
   (DONE; owner=Codex; scope=`Cargo.toml`, `Cargo.lock`,
   `crates/ritk-codecs/{Cargo.toml,tests/jpeg2000_interop.rs,

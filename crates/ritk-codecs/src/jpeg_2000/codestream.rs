@@ -2,6 +2,9 @@
 //!
 //! Parses SIZ, COD, QCD (and skips other markers) up to the first SOT.
 //! All fields match the ISO 15444-1 §A.5–§A.6 naming exactly.
+//! Tile-grid validation and bounds follow
+//! [ITU-T T.800 (11/2015)](https://www.itu.int/rec/T-REC-T.800-201511-S),
+//! Annex B.3, Equations B-3 through B-11.
 
 #![allow(dead_code)] // All struct fields are spec-mandated; consumed when full parsing support is added.
 
@@ -69,25 +72,81 @@ impl SizMarker {
         self.ysiz.saturating_sub(self.yo_siz)
     }
     /// Number of tiles horizontally.
-    pub fn num_tiles_x(&self) -> u32 {
-        (self.xsiz.saturating_sub(self.xto_siz)).div_ceil(self.xt_siz.max(1))
+    pub fn num_tiles_x(&self) -> u64 {
+        u64::from(self.xsiz - self.xto_siz).div_ceil(u64::from(self.xt_siz))
     }
     /// Number of tiles vertically.
-    pub fn num_tiles_y(&self) -> u32 {
-        (self.ysiz.saturating_sub(self.yto_siz)).div_ceil(self.yt_siz.max(1))
+    pub fn num_tiles_y(&self) -> u64 {
+        u64::from(self.ysiz - self.yto_siz).div_ceil(u64::from(self.yt_siz))
     }
-    /// Width of tile `tx` (0-based column index).
-    pub fn tile_width(&self, tx: u32) -> u32 {
-        let x0 = self.xto_siz + tx * self.xt_siz;
-        let x1 = (self.xto_siz + (tx + 1) * self.xt_siz).min(self.xsiz);
-        x1.saturating_sub(x0)
+
+    /// Number of tiles in the image.
+    ///
+    /// The SOT `Isot` field permits tile indices 0 through 65,534, so a
+    /// conforming codestream contains at most 65,535 tiles.
+    pub fn num_tiles(&self) -> Result<u32> {
+        let count = self
+            .num_tiles_x()
+            .checked_mul(self.num_tiles_y())
+            .filter(|&n| n <= u64::from(u16::MAX))
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "J2K: tile grid {}x{} exceeds the 65535-tile SOT index range",
+                    self.num_tiles_x(),
+                    self.num_tiles_y()
+                )
+            })?;
+        u32::try_from(count).context("J2K: tile count does not fit u32")
     }
-    /// Height of tile `ty` (0-based row index).
-    pub fn tile_height(&self, ty: u32) -> u32 {
-        let y0 = self.yto_siz + ty * self.yt_siz;
-        let y1 = (self.yto_siz + (ty + 1) * self.yt_siz).min(self.ysiz);
-        y1.saturating_sub(y0)
+
+    /// Image-domain bounds for the tile identified by `Isot`.
+    ///
+    /// The max/min intersection is the normative T.800 B-7 through B-10
+    /// definition. Computing in `u64` prevents the marker's `u32` tile size
+    /// and index fields from wrapping before the image-domain clamp.
+    pub fn tile_bounds(&self, isot: u16) -> Result<TileBounds> {
+        let tile_count = self.num_tiles()?;
+        let tile_index = u32::from(isot);
+        if tile_index >= tile_count {
+            bail!(
+                "J2K: SOT tile index Isot={tile_index} is outside 0..{}",
+                tile_count - 1
+            );
+        }
+
+        let tiles_x = self.num_tiles_x();
+        let tx = u64::from(tile_index) % tiles_x;
+        let ty = u64::from(tile_index) / tiles_x;
+        let tile_width = u64::from(self.xt_siz);
+        let tile_height = u64::from(self.yt_siz);
+
+        let x0 = (u64::from(self.xto_siz) + tx * tile_width).max(u64::from(self.xo_siz));
+        let y0 = (u64::from(self.yto_siz) + ty * tile_height).max(u64::from(self.yo_siz));
+        let x1 = (u64::from(self.xto_siz) + (tx + 1) * tile_width).min(u64::from(self.xsiz));
+        let y1 = (u64::from(self.yto_siz) + (ty + 1) * tile_height).min(u64::from(self.ysiz));
+
+        Ok(TileBounds {
+            x0: usize::try_from(x0 - u64::from(self.xo_siz))
+                .context("J2K: tile x origin does not fit usize")?,
+            y0: usize::try_from(y0 - u64::from(self.yo_siz))
+                .context("J2K: tile y origin does not fit usize")?,
+            width: usize::try_from(x1 - x0).context("J2K: tile width does not fit usize")?,
+            height: usize::try_from(y1 - y0).context("J2K: tile height does not fit usize")?,
+        })
     }
+}
+
+/// One tile's half-open bounds after intersection with the image area.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TileBounds {
+    /// Horizontal offset from the image area's left edge.
+    pub x0: usize,
+    /// Vertical offset from the image area's top edge.
+    pub y0: usize,
+    /// Tile width inside the image area.
+    pub width: usize,
+    /// Tile height inside the image area.
+    pub height: usize,
 }
 
 /// ISO 15444-1 §A.6.1 – Coding style default.
@@ -353,6 +412,15 @@ pub fn parse_sot(data: &[u8], offset: usize) -> Result<(SotMarker, usize)> {
     let psot = marker::read_u32(data, offset + 6)?;
     let tpsot = data[offset + 10];
     let tnsot = data[offset + 11];
+    if isot == u16::MAX {
+        bail!("J2K: Isot=65535 is reserved; the maximum tile index is 65534");
+    }
+    if psot != 0 && psot < 14 {
+        bail!("J2K: Psot={psot} is invalid; expected 0 or at least 14 bytes");
+    }
+    if tpsot == u8::MAX {
+        bail!("J2K: TPsot=255 is reserved; the maximum tile-part index is 254");
+    }
     Ok((
         SotMarker {
             isot,
@@ -404,7 +472,43 @@ fn parse_siz(body: &[u8]) -> Result<SizMarker> {
     if xt_siz == 0 || yt_siz == 0 {
         bail!("J2K: tile dimensions XTsiz={xt_siz} YTsiz={yt_siz} must be > 0");
     }
-    Ok(SizMarker {
+    if xsiz <= xo_siz || ysiz <= yo_siz {
+        bail!(
+            "J2K: image extent Xsiz={xsiz} Ysiz={ysiz} must exceed \
+             XOsiz={xo_siz} YOsiz={yo_siz}"
+        );
+    }
+    if xto_siz > xo_siz || yto_siz > yo_siz {
+        bail!(
+            "J2K: tile origin XTOsiz={xto_siz} YTOsiz={yto_siz} must not exceed \
+             image origin XOsiz={xo_siz} YOsiz={yo_siz}"
+        );
+    }
+    if u64::from(xto_siz) + u64::from(xt_siz) <= u64::from(xo_siz)
+        || u64::from(yto_siz) + u64::from(yt_siz) <= u64::from(yo_siz)
+    {
+        bail!(
+            "J2K: first tile XTOsiz={xto_siz} YTOsiz={yto_siz} \
+             XTsiz={xt_siz} YTsiz={yt_siz} does not intersect the image origin"
+        );
+    }
+    for (index, component) in components.iter().enumerate() {
+        if component.precision() > 38 {
+            bail!(
+                "J2K: component {index} precision {} exceeds 38 bits",
+                component.precision()
+            );
+        }
+        if component.xr_siz == 0 || component.yr_siz == 0 {
+            bail!(
+                "J2K: component {index} sampling XRsiz={} YRsiz={} must be in 1..=255",
+                component.xr_siz,
+                component.yr_siz
+            );
+        }
+    }
+
+    let siz = SizMarker {
         rsiz,
         xsiz,
         ysiz,
@@ -416,7 +520,9 @@ fn parse_siz(body: &[u8]) -> Result<SizMarker> {
         yto_siz,
         csiz,
         components,
-    })
+    };
+    siz.num_tiles()?;
+    Ok(siz)
 }
 
 /// Parse COD segment body.

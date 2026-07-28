@@ -8,6 +8,40 @@
 
 # RITK Gap Audit - Active
 
+## SAFE-669-01 audit (2026-07-28)
+
+The earlier SEC-457-04 pass bounded full-image JPEG and JPEG 2000 pixel counts,
+but it did not inspect the JPEG 2000 tile path. SIZ tile counts still multiplied
+as `u32`, edge tiles used the full reference-tile extent instead of its
+intersection with the image area, SOT accepted invalid tile indices and
+tile-part lengths, and packet decode independently allocated three
+`width*height` coefficient planes. A valid pixel grid with many components
+could also exceed the intended memory bound at output allocation.
+
+SIZ parsing now enforces ITU-T T.800 Annex B.3 Equations B-3 and B-4, the
+65,535-tile SOT index range, component precision, and non-zero sampling.
+Tile bounds use the normative B-7 through B-11 max/min intersection computed
+in `u64`; SOT validates reserved values and Psot length before slicing; packet
+decode validates one checked tile sample count and reuses it for every
+coefficient plane. Baseline JPEG and JPEG 2000 both enforce the shared
+multi-component sample cap. The DICOM extraction path rejects subsampled
+components because its interleaved output contract does not yet implement the
+component-domain mapping in B-12.
+
+Behavioral evidence comprises 260 passing codec tests, including marker-only
+hostile SIZ/SOT cases, exact cropped-edge tile bounds, the 190-case captured
+OpenJPEG interoperability corpus, and all native lossless/lossy round trips.
+Warning-denied all-target Clippy passes. These checks establish bounded
+allocation arithmetic and preserved tested codec behavior; they do not
+establish a measured throughput change.
+
+PR #63 exact head `b6d2bd84` passes CI run `30375833486`, Python CI run
+`30375833366`, and migration-audit run `30375833069`: formatting,
+warning-denied Clippy, dependency alignment, wheel smoke, all three operating
+system suites, Python 3.9-3.13, and the migration audit are green. The external
+`recurseml/analysis` service error is non-required and contains no RITK build
+or test evidence.
+
 ## DEP-668-01 audit (2026-07-28)
 
 RITK's JPEG 2000 production encoder and decoder were already native Rust, but
@@ -2881,12 +2915,6 @@ converge: 105 → 36 (excluding Cargo-auto-discovered `tests/`/`benches/`/
   `decode_fragment`, before the per-pixel buffers allocate. Oversized-dimension
   regression added. Run mode's exponential expansion means the bound must be on
   declared dimensions, not scan length (documented at the constant).
-
-### Residual Risk
-
-- **[SEC-457-04 OPEN]** The baseline JPEG (SOF) and JPEG 2000 (SIZ) decoders
-  likely share the same dimension-driven allocation pattern; audit + bound them
-  the same way.
 
 ## Sprint 456 Audit (2026-06-29) — TIFF Coeus Reader Path
 
