@@ -8,7 +8,7 @@ filters, and renders every result with an explicit display range.
 
 Read the panels left-to-right, then continue on the next row:
 
-1. the noisy scalar input;
+1. the smooth scalar input with local perturbations;
 2. a bounded sigmoid remap;
 3. threshold suppression;
 4. physical gradient magnitude;
@@ -23,7 +23,11 @@ Read the panels left-to-right, then continue on the next row:
 
 The input is a smooth phantom with two deterministic local perturbations,
 making the diffusion change visible as spatial structures rather than a
-directional stripe or fine-grain noise pattern. The input,
+directional stripe or fine-grain noise pattern. It also contains a small
+isolated foreground island and a small background hole, replicated through
+the three slices. With the radius-one cubic structuring element used below,
+opening removes the island while closing fills the hole, so the two binary
+panels are intentionally not interchangeable. The input,
 sigmoid, grayscale, and diffusion panels share [0, 1]. The binary
 panels use the same range because their values are exactly 0 or 1. Gradient
 and change panels use their own data-derived upper bounds, which are printed
@@ -31,7 +35,9 @@ under the panel. The phantom has three identical depth slices and the figure
 shows the center slice, so radius-one 3-D morphology and diffusion operate on
 a genuine volume rather than a depth-one edge case. This avoids the common
 documentation error where every output is independently contrast-stretched
-and therefore appears unchanged.
+and therefore appears unchanged. The binary panel subtitles also report the
+number of foreground voxels removed by opening and background voxels filled by
+closing.
 
 ## Source and command
 
