@@ -148,9 +148,7 @@ pub fn encode_code_block(
                     if !all_zero {
                         // Find the first non-zero row.
                         let run_pos = (y..y + 4)
-                            .position(|yy| {
-                                (samples[yy * width + x].unsigned_abs() >> bp) & 1 == 1
-                            })
+                            .position(|yy| (samples[yy * width + x].unsigned_abs() >> bp) & 1 == 1)
                             .unwrap_or(0) as u32;
                         trace(CTX_UNI, (run_pos >> 1) & 1);
                         mq.encode((run_pos >> 1) & 1, &mut ctxs[CTX_UNI]);
