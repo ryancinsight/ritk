@@ -1,5 +1,16 @@
 # RITK Backlog - Active Planning
 
+- **DEP-672-02 [patch] - Consolidate the hosted Leto source identity
+  (REVIEW; owner=Codex; scope=`Cargo.toml`, `CHANGELOG.md`, and PM
+  artifacts).** Current Coeus declares Leto 0.40 from the `.git` URL while
+  RITK owns direct path packages but no corresponding root patch. Hosted
+  Python builds therefore compile local Leto and Git Leto `91c0c16`; the Git
+  copy resolves an older Eunomia surface and fails to import `UnitScalar`.
+  Map both Leto URL spellings to the existing local `leto` and `leto-ops`
+  packages. Local metadata now contains one path source identity for each
+  package, and all 262 `ritk-codecs` tests pass. Acceptance remains the exact
+  hosted matrix passing without the duplicate Git compilation.
+
 - **PERF-672-01 [patch] - Remove the EBCOT encoder magnitude plane
   (REVIEW; owner=Codex;
   scope=`crates/ritk-codecs/src/jpeg_2000/ebcot/{encoder.rs,tests.rs}`,

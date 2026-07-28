@@ -8,6 +8,16 @@
 
 # RITK Sprint Checklist — Active
 
+## DEP-672-02 — Consolidate the hosted Leto source identity
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Confirm the hosted failure compiles both local Leto and Git Leto.
+- [x] Trace the Git edge to current Coeus workspace dependencies.
+- [x] Map both Leto Git URL spellings to the existing local packages.
+- [x] Verify metadata resolves one `leto` and one `leto-ops` identity.
+- [ ] Re-run exact-head hosted gates.
+
 ## PERF-672-01 — Remove the EBCOT encoder magnitude plane
 **Target version**: Unreleased patch
 **Sprint phase**: Review

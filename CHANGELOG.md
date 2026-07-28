@@ -8,6 +8,14 @@
 
 # CHANGELOG
 
+## [Unreleased] — Leto source identity (DEP-672-02)
+
+### Fixed
+
+- Map both Leto Git URL spellings to RITK's existing local `leto` and
+  `leto-ops` packages so transitive Coeus edges cannot compile a second,
+  incompatible provider copy during hosted builds.
+
 ## [Unreleased] — Borrowed EBCOT magnitudes (PERF-672-01)
 
 ### Changed

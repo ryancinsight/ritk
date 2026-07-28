@@ -8,6 +8,24 @@
 
 # RITK Gap Audit - Active
 
+## DEP-672-02 audit (2026-07-28)
+
+PR #66's first hosted Python lanes failed before compiling RITK. Their logs
+show both local Leto and Git Leto `91c0c16`; the Git copy then fails to import
+`eunomia::UnitScalar`. Current Coeus declares `leto` and `leto-ops` from
+`https://github.com/ryancinsight/leto.git`, but RITK's root manifest only
+patched Eunomia and other provider URLs to sibling paths. Provider-head drift
+therefore exposed a pre-existing source-identity hole that is unrelated to the
+EBCOT diff.
+
+RITK now maps both Leto URL spellings to its existing local `leto` and
+`leto-ops` 0.40 packages. This keeps one provider implementation and one trait
+identity in hosted builds instead of adapting or retaining the stale Git copy.
+Full metadata resolves exactly one `leto` 0.40.0 and one `leto-ops` 0.40.0,
+both from the sibling worktree and neither from Git. The corrected graph passes
+all 262 `ritk-codecs` tests under nextest in 17.929 seconds. The exact-head
+hosted matrix remains the closure evidence.
+
 ## PERF-672-01 audit (2026-07-28)
 
 After PERF-671 packed significance, sign, visit, and refinement state into one
