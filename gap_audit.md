@@ -23,8 +23,10 @@ RITK now maps both Leto URL spellings to its existing local `leto` and
 identity in hosted builds instead of adapting or retaining the stale Git copy.
 Full metadata resolves exactly one `leto` 0.40.0 and one `leto-ops` 0.40.0,
 both from the sibling worktree and neither from Git. The corrected graph passes
-all 262 `ritk-codecs` tests under nextest in 17.929 seconds. The exact-head
-hosted matrix remains the closure evidence.
+all 262 `ritk-codecs` tests under nextest in 17.929 seconds. Exact code head
+`80464ff6` passes hosted CI run `30404675078`, all 13 Python lanes in run
+`30404675093`, and migration-audit run `30404675262`; no hosted job compiles
+the duplicate Git Leto.
 
 ## PERF-672-01 audit (2026-07-28)
 
@@ -58,7 +60,11 @@ warning-denied Rustdoc pass. Local Cargo verification used an alternate
 generated lock under the shared target tree because the stack overlay maps the
 same Apollo checkout through both `repos/` and a worktree junction; the actual
 RITK lockfile remained byte-identical to `HEAD`. `ritk-codecs` has no provider
-dependency, but exact hosted CI remains the cross-platform closure gate.
+dependency. Exact code head `80464ff6` passes hosted Clippy, Rustfmt, wheel
+smoke, dependency alignment, migration audit, workspace tests on Linux, macOS,
+and Windows, and all 13 Python lanes. CodeRabbit's first-head review completed;
+its one evidence-classification finding is corrected above, while the final
+review status is a passing rate-limit result.
 
 ## PERF-671-01 audit (2026-07-28)
 
