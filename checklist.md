@@ -8,6 +8,23 @@
 
 # RITK Sprint Checklist — Active
 
+## SAFE-670-01 — Bound DICOM RGB series geometry without metadata duplication
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Reconcile TEST-447-05 against current main and confirm its MINC
+      shape-exceeds-data regression already merged in `eb1a6e3b`.
+- [ ] Add a format-level hostile Rows/Columns regression for the directory
+      color-series path that reaches the real decoder and returns an error.
+- [ ] Borrow `DicomReadMetadata::slices` during sequential decode instead of
+      cloning every slice and optional in-memory Part-10 payload.
+- [ ] Preserve exact valid RGB values, shape, and spatial metadata through
+      focused value-semantic tests.
+- [ ] Synchronize changelog and audit state, including closure of TEST-461-05
+      and the stale TEST-447-05 backlog duplicate.
+- [ ] Run focused format, warning-denied Clippy, Nextest, doctest, and Rustdoc
+      gates; record exact evidence before delivery.
+
 ## SAFE-669-01 — Bound JPEG 2000 tile geometry
 **Target version**: Unreleased patch
 **Sprint phase**: Closure

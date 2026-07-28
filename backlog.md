@@ -1,5 +1,17 @@
 # RITK Backlog - Active Planning
 
+- **SAFE-670-01 [patch] - Bound DICOM RGB series geometry without metadata
+  duplication (IN PROGRESS; owner=Codex; scope=`crates/ritk-io/src/format/
+  dicom/color/{mod.rs,tests.rs}`, `CHANGELOG.md`, and PM artifacts).** Close
+  TEST-461-05 with a format-level hostile-dimension regression for the
+  directory-based RGB series path. Remove the full `DicomReadMetadata::slices`
+  clone before sequential decode so in-memory Part-10 payloads are not
+  duplicated. Acceptance: hostile Rows/Columns claims fail from the real
+  decoder without allocation amplification or panic; valid interleaved RGB
+  values and geometry remain exact; the color loader borrows slice metadata;
+  focused format, lint, documentation, and full package gates pass. Reconcile
+  the stale TEST-447-05 backlog entry with its already-merged MINC regression.
+
 - **SAFE-669-01 [patch] - Bound JPEG 2000 tile geometry
   (DONE; owner=Codex; scope=`crates/ritk-codecs/src/
   jpeg_2000/{codestream.rs,image.rs,packet/reader.rs,tests_codestream.rs}`,
