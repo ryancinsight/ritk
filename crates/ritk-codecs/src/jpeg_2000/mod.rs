@@ -30,15 +30,15 @@
 //!   unit-step near-lossless encoder); a rate-controlled quality knob is pending.
 //!
 //! # Interop validation
-//! The reversible (5/3 lossless) path is differentially validated against the
-//! `openjp2` reference both directions and bit-exactly (`tests/jpeg2000_interop.rs`:
-//! `openjp2_to_ritk_matrix`, `ritk_to_openjp2_matrix`, `escalation_byte_compare_with_openjp2`).
-//! The irreversible (9/7 lossy) decode is differentially validated against
-//! `openjp2` across the full `numres = 1..=6` matrix (`lossy_openjp2_to_ritk_matrix`):
-//! RITK reconstructs an openjp2-encoded 9/7 stream within 1 dB PSNR of the
-//! reference, validating the 9/7 inverse lifting, the QCD step-size parsing, and
-//! the dequantization reconstruction. Internal round-trips additionally cover
-//! lossy encode→decode (PSNR/bounded-error tests in this module).
+//! The reversible (5/3 lossless) path is validated against a captured OpenJPEG
+//! 2.5.4 corpus in both directions: 72 OpenJPEG-produced streams decode exactly,
+//! 54 RITK streams remain byte-identical to outputs accepted and decoded exactly
+//! by OpenJPEG, and ten MQ/EBCOT patterns match tile bodies byte-for-byte. The
+//! irreversible (9/7 lossy) corpus covers 54 geometry, precision, and resolution
+//! combinations. RITK reconstruction must remain within 1 dB PSNR of each
+//! captured OpenJPEG decoder baseline, validating inverse lifting, QCD step-size
+//! parsing, and dequantization. Tests execute only the RITK-native Rust codec.
+//! Internal round-trips additionally cover lossy encode→decode.
 //!
 //! Reconstruction (ISO 15444-1 §E.1.1.2) is source-aware: a transformed subband
 //! coefficient (`num_decomp_levels ≥ 1`) is a continuous value with sub-step

@@ -109,7 +109,6 @@ indicatif = "0.17"
 dirs = "5.0"
 sha2 = "0.10"
 hex = "0.4"
-openjp2 = { version = "0.6.1", default-features = false, features = ["std"] }
 zune-core = { version = "0.4", default-features = false }
 zune-jpegxl = { version = "0.4", default-features = false }
 mockito = "1"

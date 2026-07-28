@@ -8,6 +8,20 @@
 
 # CHANGELOG
 
+## [Unreleased] — Native JPEG 2000 test closure (DEP-668-01)
+
+### Changed
+
+- Replaced the live `openjp2` differential-test runtime with a 190-case corpus
+  captured from OpenJPEG 2.5.4. The pure-Rust tests retain the complete
+  lossless, lossy, and byte-level interoperability matrices without compiling
+  or executing the unsafe translated allocator path.
+- Removed `openjp2` from the workspace and `ritk-codecs` development dependency
+  tables and from the lockfile.
+- Corrected the interoperability oracle's non-square RITK encoder calls to pass
+  rows and columns in API order and validate decoded geometry, closing a case
+  where flat sample equality could hide transposed dimensions.
+
 ## [Unreleased] — Provider graph consolidation (DEP-666-01)
 
 ### Changed
