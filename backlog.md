@@ -1,7 +1,7 @@
 # RITK Backlog - Active Planning
 
 - **SAFE-670-01 [patch] - Bound DICOM RGB series geometry without metadata
-  duplication (IN PROGRESS; owner=Codex; scope=`crates/ritk-io/src/format/
+  duplication (REVIEW; owner=Codex; scope=`crates/ritk-io/src/format/
   dicom/color/{mod.rs,tests.rs}`, `CHANGELOG.md`, and PM artifacts).** Close
   TEST-461-05 with a format-level hostile-dimension regression for the
   directory-based RGB series path. Remove the full `DicomReadMetadata::slices`
@@ -11,6 +11,12 @@
   values and geometry remain exact; the color loader borrows slice metadata;
   focused format, lint, documentation, and full package gates pass. Reconcile
   the stale TEST-447-05 backlog entry with its already-merged MINC regression.
+  Local evidence: all six RGB series tests pass in 0.104 seconds, including
+  hostile geometry and exact valid values/metadata; direct Rustfmt and diff
+  checks pass. The full clean provider-pinned matrix remains the hosted PR
+  gate because the live shared provider graph has advanced beyond this
+  revision's lockfile and the canonical Cargo cache is under sustained peer
+  contention.
 
 - **SAFE-669-01 [patch] - Bound JPEG 2000 tile geometry
   (DONE; owner=Codex; scope=`crates/ritk-codecs/src/
@@ -732,13 +738,12 @@ re-enter. Reserved inner tag: `ritk/atlas-migration-push/batch3`.
 
 ## Open safety items
 
-- **TEST-447-05 [patch] — MINC format-level hostile-fixture regression. READY.**
-  Acceptance: construct (or extend the MINC writer to forge) an HDF5 file whose
-  image dataset shape claims more bytes than are backed on disk, and assert
-  `read_minc` returns a typed error without OOM. Blocked on a way to emit a
-  shape≠data HDF5 fixture; the underlying `read_bounded_with` primitive is
-  unit-tested in `ritk-core::io_bounds`. Driver: complete Sprint 447 per-crate
-  regression coverage.
+- **TEST-447-05 [patch] — MINC format-level hostile-fixture regression. DONE.**
+  Commit `eb1a6e3b` uses the native MINC2 writer to forge a 64³ dataset backed
+  by only eight voxels. The format-level regression confirms `read_minc`
+  returns the contextual voxel-data error through `read_bounded_with` without
+  reserving the declared payload. The earlier READY entry was stale relative
+  to the merged test, changelog, and Sprint 459 audit.
 
 - **SEC-446-05 [patch] — Untrusted-input allocation hardening for the remaining
   format-parser crates. DONE (Sprint 447).**

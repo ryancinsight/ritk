@@ -10,20 +10,24 @@
 
 ## SAFE-670-01 — Bound DICOM RGB series geometry without metadata duplication
 **Target version**: Unreleased patch
-**Sprint phase**: Execution
+**Sprint phase**: Review
 
 - [x] Reconcile TEST-447-05 against current main and confirm its MINC
       shape-exceeds-data regression already merged in `eb1a6e3b`.
-- [ ] Add a format-level hostile Rows/Columns regression for the directory
+- [x] Add a format-level hostile Rows/Columns regression for the directory
       color-series path that reaches the real decoder and returns an error.
-- [ ] Borrow `DicomReadMetadata::slices` during sequential decode instead of
+- [x] Borrow `DicomReadMetadata::slices` during sequential decode instead of
       cloning every slice and optional in-memory Part-10 payload.
-- [ ] Preserve exact valid RGB values, shape, and spatial metadata through
+- [x] Preserve exact valid RGB values, shape, and spatial metadata through
       focused value-semantic tests.
-- [ ] Synchronize changelog and audit state, including closure of TEST-461-05
+- [x] Synchronize changelog and audit state, including closure of TEST-461-05
       and the stale TEST-447-05 backlog duplicate.
 - [ ] Run focused format, warning-denied Clippy, Nextest, doctest, and Rustdoc
-      gates; record exact evidence before delivery.
+      gates; record exact evidence before delivery. Focused Nextest passes 6/6
+      in 0.104 seconds and direct Rustfmt/diff checks pass. Warning-denied
+      Clippy, package Nextest, doctest, and Rustdoc remain hosted PR gates
+      because the local provider graph has advanced beyond the committed lock
+      and the shared Cargo cache is under sustained peer contention.
 
 ## SAFE-669-01 — Bound JPEG 2000 tile geometry
 **Target version**: Unreleased patch
@@ -2660,9 +2664,9 @@ fixes were reverted after verification; see rationale below)
 
 ### Deferred / carry-forward
 - [ ] SEC-461-04 [patch]: Tooling-based orphaned-module sweep (see note above).
-- [ ] TEST-461-05 [patch]: Hostile-dimension regression for the color-series
-  path (color/mod.rs) — structurally identical to the multiframe one added
-  this sprint; lower priority since the underlying mechanism is proven safe.
+- [x] TEST-461-05 [patch]: SAFE-670-01 adds the color-series
+  hostile-dimension regression and moves allocation after first-frame
+  validation.
 - [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
 - [ ] MIG-456-04 [minor]: Color-volume Coeus variants; DICOM Coeus reader.
 - [ ] MIG-433-06 / MIG-437-04 / MIG-439-03 [minor]: burn→Atlas backend migration.

@@ -8,6 +8,24 @@
 
 # CHANGELOG
 
+## [Unreleased] — DICOM RGB series allocation safety (SAFE-670-01)
+
+### Fixed
+
+- Borrow DICOM RGB slice metadata during sequential decoding instead of
+  cloning every slice and its optional in-memory Part-10 payload.
+- Defer the bounded output-volume reservation until the first frame validates
+  its declared Rows, Columns, channel count, and Pixel Data length, then reuse
+  that decoded frame as the output buffer instead of copying it.
+
+### Tests
+
+- Add a format-level directory-series regression whose DICOM header declares
+  65,535×65,535 interleaved RGB pixels while backing only six bytes. The loader
+  must return the native frame-length error before volume allocation.
+- Reconcile TEST-447-05 to DONE; its MINC shape-exceeds-data regression already
+  merged in `eb1a6e3b`.
+
 ## [Unreleased] — Bounded JPEG 2000 tile geometry (SAFE-669-01)
 
 ### Fixed
