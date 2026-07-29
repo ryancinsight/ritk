@@ -19,16 +19,24 @@
 
 - [x] Reconcile the current book, GrowCut implementation, board, origin, and
       peer state; exclude overlay-derived `Cargo.lock` changes.
-- [ ] Add a regression that requires propagation after a same-label
+- [x] Add a regression that requires propagation after a same-label
       strength-only automaton update.
-- [ ] Detect complete GrowCut state convergence and aggregate the shared
+- [x] Detect complete GrowCut state convergence and aggregate the shared
       convergence signal once per changed parallel chunk.
-- [ ] Add a bounded public-API example, segmentation chapter, generated
+- [x] Add a bounded public-API example, segmentation chapter, generated
       figure, and analytical region/error assertions.
-- [ ] Regenerate and visually inspect the figure.
-- [ ] Run focused formatting, warning-denied Clippy, Nextest, doctest,
+- [x] Regenerate and visually inspect the figure. The 6,198-byte SVG contains
+      four raster-backed panels; Dice is 1.000 with zero label errors.
+- [x] Run focused formatting, warning-denied Clippy, Nextest, doctest,
       warning-denied Rustdoc, mdBook test/build, and example runtime gates.
-- [ ] Self-review, commit, push, and merge after hosted gates pass.
+      GrowCut is 9/9 in 0.424 seconds; the full package is 483/483 in 7.600
+      seconds; the already-built example runs in 0.551 seconds.
+- [x] Self-review the code, rendered figure, generated HTML, workflow, and
+      exact lockfile delta; retain only the three required example
+      dependencies in `Cargo.lock`.
+- [ ] Commit, push, open the PR, and collect hosted gates. Merge remains
+      outside this slice because the book workflow deploys Pages on a
+      `main`-branch documentation change and release/deploy is not authorized.
 
 ## PERF-678-01 — Eliminate tag-tree path allocations
 **Target version**: Unreleased patch

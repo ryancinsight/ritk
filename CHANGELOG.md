@@ -8,6 +8,27 @@
 
 # CHANGELOG
 
+## [Unreleased] — GrowCut convergence and book coverage (SAFE-679-01)
+
+### Fixed
+
+- Continue GrowCut iterations while either labels or strengths change. A
+  same-label strength update can enable a later competing label change, so
+  label-only convergence could stop before the cellular automaton reached a
+  stable state.
+
+### Changed
+
+- Aggregate the parallel convergence signal once per changed chunk instead of
+  writing the shared atomic once per changed voxel.
+- Add a runnable native GrowCut example, analytical label/Dice oracle,
+  generated figure, and seeded-segmentation book chapter.
+
+### Tests
+
+- Add a value-semantic fixture in which a strength-only update must precede a
+  later boundary-label correction.
+
 ## [Unreleased] — Stack-backed tag-tree paths (PERF-678-01)
 
 ### Changed

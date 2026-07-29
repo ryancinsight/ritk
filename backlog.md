@@ -6,24 +6,31 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-679-01 [patch] - Correct GrowCut convergence and document
-  segmentation** (IN PROGRESS; owner=Codex; scope=
+  segmentation** (REVIEW; owner=Codex; scope=
   `crates/ritk-segmentation/src/region_growing/{growcut.rs,
   tests_growcut.rs}`, `crates/ritk-segmentation/examples/
-  book_growcut.rs`, `docs/book/{segmentation.md,examples/growcut.md,
-  figures/growcut.svg,SUMMARY.md,README.md}`, `CHANGELOG.md`, and PM
-  artifacts; non-goal=public API changes, unrelated segmentation algorithms,
-  or release/deploy). GrowCut currently terminates when labels stop changing
-  even if same-label strength updates remain, and its parallel hot loop writes
-  the shared convergence atomic once per changed voxel. Track the complete
-  automaton state and aggregate convergence once per changed chunk. Add a
-  deterministic, runnable two-tissue segmentation example and an inspected
-  figure that exposes seeds, result, and error against analytical ground
-  truth. Acceptance: a value-semantic regression proves propagation continues
-  through a same-label strength-only iteration; existing GrowCut behavior
-  remains green; the generated figure reports exact region/error metrics and
-  renders clearly; the example stays within the committed runtime budget; and
-  focused formatting, warning-denied Clippy, Nextest, doctest, Rustdoc, and
-  mdBook gates pass.
+  book_growcut.rs`, `crates/ritk-segmentation/Cargo.toml`,
+  `docs/book/{segmentation.md,examples/growcut.md,figures/growcut.svg,
+  SUMMARY.md,README.md}`, `.github/workflows/book-pages.yml`, `CHANGELOG.md`,
+  and PM artifacts; non-goal=public API changes, unrelated segmentation
+  algorithms, or release/deploy). GrowCut currently terminates when labels
+  stop changing even if same-label strength updates remain, and its parallel
+  hot loop writes the shared convergence atomic once per changed voxel. Track
+  the complete automaton state and aggregate convergence once per changed
+  chunk. Add a deterministic, runnable two-tissue segmentation example and an
+  inspected figure that exposes seeds, result, and error against analytical
+  ground truth. Acceptance: a value-semantic regression proves propagation
+  continues through a same-label strength-only iteration; existing GrowCut
+  behavior remains green; the generated figure reports exact region/error
+  metrics and renders clearly; the example stays within the committed runtime
+  budget; and focused formatting, warning-denied Clippy, Nextest, doctest,
+  Rustdoc, and mdBook gates pass. Local closure: complete state convergence
+  corrects the later boundary label in the 4x4 regression, while one relaxed
+  atomic write per changed chunk replaces per-voxel convergence writes. All
+  483 segmentation tests pass in 7.600 seconds; warning-denied all-target
+  Clippy, doctests, warning-denied Rustdoc, mdBook test/build, formatting, and
+  diff checks pass. The inspected 6,198-byte SVG reports Dice 1.000 and zero
+  label errors; the already-built example runs in 0.551 seconds.
 
 - **PERF-678-01 [patch] - Eliminate tag-tree path allocations**
   (DONE; owner=Codex; scope=
