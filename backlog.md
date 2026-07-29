@@ -5,8 +5,28 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **SAFE-679-01 [patch] - Correct GrowCut convergence and document
+  segmentation** (IN PROGRESS; owner=Codex; scope=
+  `crates/ritk-segmentation/src/region_growing/{growcut.rs,
+  tests_growcut.rs}`, `crates/ritk-segmentation/examples/
+  book_growcut.rs`, `docs/book/{segmentation.md,examples/growcut.md,
+  figures/growcut.svg,SUMMARY.md,README.md}`, `CHANGELOG.md`, and PM
+  artifacts; non-goal=public API changes, unrelated segmentation algorithms,
+  or release/deploy). GrowCut currently terminates when labels stop changing
+  even if same-label strength updates remain, and its parallel hot loop writes
+  the shared convergence atomic once per changed voxel. Track the complete
+  automaton state and aggregate convergence once per changed chunk. Add a
+  deterministic, runnable two-tissue segmentation example and an inspected
+  figure that exposes seeds, result, and error against analytical ground
+  truth. Acceptance: a value-semantic regression proves propagation continues
+  through a same-label strength-only iteration; existing GrowCut behavior
+  remains green; the generated figure reports exact region/error metrics and
+  renders clearly; the example stays within the committed runtime budget; and
+  focused formatting, warning-denied Clippy, Nextest, doctest, Rustdoc, and
+  mdBook gates pass.
+
 - **PERF-678-01 [patch] - Eliminate tag-tree path allocations**
-  (REVIEW; owner=Codex; scope=
+  (DONE; owner=Codex; scope=
   `crates/ritk-codecs/src/jpeg_2000/tag_tree.rs`, `CHANGELOG.md`, and PM
   artifacts; non-goal=tag-tree representation changes, public API changes,
   or codec release). Every tag-tree encode/decode operation currently
@@ -25,7 +45,9 @@
   codec tests pass, including the 190-case captured OpenJPEG corpus. The
   unchanged encode median improves from 54.353 ms to 52.511 ms (3.39%,
   p < 0.05); decode changes from 52.363 ms to 52.418 ms (p = 0.89), detecting
-  no decode latency change.
+  no decode latency change. PR #71 merged as `007b3048` from exact head
+  `9903fb0d` after CI run `30420692116` and Python run `30420692114` passed
+  every repository-owned lane.
 
 - **PERF-677-01 [patch] - Reuse reversible wavelet workspace**
   (DONE; owner=Codex; scope=
