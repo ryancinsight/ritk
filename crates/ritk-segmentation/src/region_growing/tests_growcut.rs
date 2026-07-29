@@ -87,6 +87,22 @@ fn test_high_contrast_barrier_limits_propagation() {
     assert_eq!(labels[5], 2, "right of barrier must be label 2");
 }
 
+/// An intensity jump spanning the complete image range has zero attack
+/// strength, including at intermediate iteration limits.
+#[test]
+fn test_complete_range_boundary_blocks_transient_propagation() {
+    let image = [0.85_f32, 0.85, 0.15, 0.15];
+    let seeds = [2.0_f32, 0.0, 0.0, 0.0];
+
+    let labels = growcut_slice(&image, &seeds, [1, 1, 4], 4);
+
+    assert_eq!(
+        labels,
+        vec![2.0, 2.0, 0.0, 0.0],
+        "a zero-strength attack must not label the opposite intensity class"
+    );
+}
+
 /// Single label seed fills the entire volume when all voxels are uniform.
 #[test]
 fn test_single_seed_fills_entire_volume() {

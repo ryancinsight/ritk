@@ -31,6 +31,13 @@ order does not change the result. The process stops only when the complete
 same-label confidence increase matters: it can strengthen a later attack at a
 class boundary even though the current label did not change.
 
+The [worked GrowCut figure](examples/growcut.md) makes this update visible over
+time. Orange and cyan are competing labels, while the underlying light/dark
+image is the evidence controlling attack strength. Pixels that retain that
+grayscale image are still unlabeled. The figure evaluates \(g\) on each side
+of its known boundary so the final circle follows from the update rule rather
+than from the appearance of the last panel alone.
+
 This follows the state and transition rule in Vezhnevets and Konouchine,
 ["GrowCut — Interactive Multi-Label N-D Image Segmentation by Cellular
 Automata," §2.1](https://www.graphicon.ru/oldgr/en/publications/text/gc2005vk.pdf).

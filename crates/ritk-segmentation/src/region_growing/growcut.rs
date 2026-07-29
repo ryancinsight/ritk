@@ -144,7 +144,9 @@ pub fn growcut_slice(
         .fold((f32::INFINITY, f32::NEG_INFINITY), |(mn, mx), &v| {
             (mn.min(v), mx.max(v))
         });
-    let max_diff = (i_max - i_min).max(f32::EPSILON) as f64;
+    // The attack difference below is f64. Convert the extrema before
+    // subtracting so a full-range edge produces exactly zero attack strength.
+    let max_diff = (f64::from(i_max) - f64::from(i_min)).max(f64::from(f32::EPSILON));
 
     // Initialize state: (label u32, strength f64).
     let mut labels: Vec<u32> = seed_slice.iter().map(|&v| v as u32).collect();

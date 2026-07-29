@@ -4,15 +4,27 @@ The runnable example constructs a deterministic two-tissue image with a
 circular target, places a \(3\times3\) background seed and a \(3\times3\)
 target seed, and executes `GrowCutFilter::apply_native`.
 
-![GrowCut input, sparse seeds, analytical truth, and the matching segmented result](../figures/growcut.svg)
+![GrowCut labels spreading from sparse seeds and stopping at an intensity boundary](../figures/growcut.svg)
 
-The four panels keep the algorithm's inputs and oracle separate:
+Read the four numbered panels from left to right:
 
-- the input panel shows the two intensity classes;
-- orange and cyan marks show the actual seed voxels;
-- the truth panel is generated analytically from the known circle equation;
-- the result panel is generated from RITK's returned label image and reports
-  foreground Dice and the exact label-error count.
+- orange marks the background label and cyan marks the circular target label;
+- the first panel overlays only the two \(3\times3\) seed regions on the
+  grayscale input;
+- the next two panels are actual `GrowCutFilter` outputs after 8 and 40
+  synchronous sweeps, not illustrative drawings;
+- the last panel is the converged RITK output. It reports foreground Dice and
+  the exact label-error count against the analytical circle.
+
+At each sweep, labeled voxels try to transfer their label to face-connected
+neighbors. A transfer is strong when the two intensities are similar. In this
+phantom, equal-intensity neighbors have \(g=1\), so both colored fronts spread
+without losing confidence. At the circular boundary the intensity difference
+equals the complete image range, giving \(g=0\); neither label can attack
+across it. The calculation under the panels uses these exact phantom values.
+
+Pixels that retain the grayscale input in the two middle panels remain
+undecided at that iteration. They are not a third output class.
 
 ## Source and command
 
@@ -30,6 +42,8 @@ The example fails unless GrowCut:
 - returns zero false labels; and
 - produces foreground Dice \(=1\).
 
-The analytical phantom verifies label propagation, competition at a
-high-contrast boundary, and spatial metadata. It does not establish clinical
-accuracy on heterogeneous anatomy.
+The truth image remains an independent oracle generated from the circle
+equation, even though it is no longer a standalone panel. The analytical
+phantom verifies label propagation, competition at a high-contrast boundary,
+and spatial metadata. It does not establish clinical accuracy on heterogeneous
+anatomy.

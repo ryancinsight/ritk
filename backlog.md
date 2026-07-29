@@ -6,7 +6,7 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-679-01 [patch] - Correct GrowCut convergence and document
-  segmentation** (IN PROGRESS; owner=Codex; scope=
+  segmentation** (REVIEW; owner=Codex; scope=
   `crates/ritk-segmentation/src/region_growing/{growcut.rs,
   tests_growcut.rs}`, `crates/ritk-segmentation/examples/
   book_growcut.rs`, `crates/ritk-segmentation/Cargo.toml`,
@@ -37,8 +37,20 @@
   carries the code, book, and workflow changes. Exact code head `a59dfb9f`
   passes complete Rust CI run `30424915304`, Python 3.9-3.13 matrix run
   `30424915350`, and book build/artifact run `30424915331`. The Pages deploy
-  job is correctly skipped on the pull request; merge remains blocked on
-  explicit release/deploy authority.
+  job is correctly skipped on the pull request. Figure-clarity review then
+  exposed 1,226 transient cross-boundary labels at iteration 40: the intensity
+  range was subtracted in f32 while neighbor differences used f64, making a
+  theoretically zero attack positive. Computing both in f64 removes every
+  transient error. The revised 8,957-byte figure shows real outputs at 8 and
+  40 sweeps, convergence, and exact same-tissue/cross-edge attack
+  calculations. It was inspected from a 960x456 PNG; the already-built
+  example completes in 1.437 seconds. GrowCut is 10/10 and the full package is
+  484/484 in 2.925 seconds. Formatting, focused warning-denied all-target
+  Clippy, doctest, warning-denied Rustdoc, and mdBook test/build pass. The
+  dependency-inclusive Clippy lane remains blocked by an existing
+  `ritk-filter` `missing_const_for_thread_local` diagnostic on an initializer
+  already written as `const`. Merge remains blocked on explicit
+  release/deploy authority.
 
 - **PERF-678-01 [patch] - Eliminate tag-tree path allocations**
   (DONE; owner=Codex; scope=
