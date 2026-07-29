@@ -55,6 +55,9 @@ tensor-reduction regression. The test now matches the Atlas-pinned Coeus
 scalar-return API. The local Atlas overlay currently resolves an unrelated
 dirty Coeus branch whose reduction API returns `Result`, so the hosted rerun
 is the authoritative pinned-provider check for that two-line correction.
+PR #56 merged as `2bb787ab` from head `d30b3d68` after Rustfmt, Clippy,
+dependency alignment, Linux/macOS/Windows Nextest, the Python 3.9–3.13
+matrix, wheel smoke testing, and the mdBook build all passed.
 
 ## MIG-673-01 audit (2026-07-28)
 

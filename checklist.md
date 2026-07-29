@@ -46,7 +46,8 @@
       package Clippy is blocked by an unrelated dirty Coeus provider branch
       whose reduction API has already advanced to a fallible return type;
       hosted Clippy is the pinned-provider verification lane.
-- [ ] Push the verified merge commit and merge PR #56 after hosted gates pass.
+- [x] Push the verified merge commit and merge PR #56 after hosted gates pass.
+      PR #56 merged as `2bb787ab` from green head `d30b3d68`.
 
 ## MIG-673-01 — Retire completed migration audit
 **Target version**: Unreleased patch
