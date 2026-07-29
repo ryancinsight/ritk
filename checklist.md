@@ -13,9 +13,26 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
-## PERF-678-01 — Eliminate tag-tree path allocations
+## SAFE-679-01 — Correct GrowCut convergence and document segmentation
 **Target version**: Unreleased patch
 **Sprint phase**: Execution
+
+- [x] Reconcile the current book, GrowCut implementation, board, origin, and
+      peer state; exclude overlay-derived `Cargo.lock` changes.
+- [ ] Add a regression that requires propagation after a same-label
+      strength-only automaton update.
+- [ ] Detect complete GrowCut state convergence and aggregate the shared
+      convergence signal once per changed parallel chunk.
+- [ ] Add a bounded public-API example, segmentation chapter, generated
+      figure, and analytical region/error assertions.
+- [ ] Regenerate and visually inspect the figure.
+- [ ] Run focused formatting, warning-denied Clippy, Nextest, doctest,
+      warning-denied Rustdoc, mdBook test/build, and example runtime gates.
+- [ ] Self-review, commit, push, and merge after hosted gates pass.
+
+## PERF-678-01 — Eliminate tag-tree path allocations
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
 
 - [x] Trace tag-tree path construction through tier-2 packet encode/decode
       and exclude the already-completed packet-suffix and wavelet work.
@@ -33,7 +50,9 @@
       warning-denied Rustdoc gates.
 - [x] Self-review the exact delivered diff and exclude overlay-derived
       lockfile rewrites.
-- [ ] Commit, push, and merge after hosted gates pass.
+- [x] Commit, push, and merge after hosted gates pass. PR #71 merged as
+      `007b3048` from exact head `9903fb0d`; CI `30420692116` and Python
+      `30420692114` passed every repository-owned lane.
 
 ## PERF-677-01 — Reuse reversible wavelet workspace
 **Target version**: Unreleased patch
