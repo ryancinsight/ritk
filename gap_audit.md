@@ -13,6 +13,37 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## PERF-677-01 audit (2026-07-28)
+
+The reversible 5/3 transform previously cloned every interleaved row or
+column inside both lifting kernels. Each level also allocated fresh general
+and line scratch. For a 512×512 five-level forward or inverse transform, the
+row and column counts sum to 1,984 1-D calls and 698,368 `i32` values. The
+complete transform therefore performed 1,994 allocations and copied
+2,793,472 bytes inside the lifting kernels.
+
+Each forward phase reads only original even samples while writing odds, then
+reads only transformed odds while writing evens. The inverse applies the
+opposite phase order with the same parity independence. Both lifts now update
+their consumed parity exactly in place. One two-line workspace is allocated
+once and split into disjoint general and line scratch reused across all rows,
+columns, and levels. The measured transform now performs one allocation,
+copies no input lines inside the lifting kernels, and reduces peak transform
+scratch from three 512-element lines (6 KiB) to two (4 KiB).
+
+The unchanged Windows x86-64 Criterion workload measures 55.209 ms before and
+54.463 ms after for 512×512 five-level encode, with a -3.10% to +0.18%
+change interval and p = 0.09. Decode measures 52.545 ms before and 52.665 ms
+after, with a -1.48% to +1.93% interval and p = 0.80. No latency change is
+detected; the result supports the structural allocation and memory reduction,
+not a speedup claim.
+
+All 268 codec Nextest cases pass, including analytical 1-D signals, odd/even
+and single-axis 2-D geometry, exact multilevel round trips, new dimension
+overflow, zero-geometry, and excessive-depth errors, and the 190-case captured
+OpenJPEG corpus. Formatting, warning-denied all-target Clippy, doctests, and
+warning-denied Rustdoc also pass.
+
 ## SAFE-676-01 audit (2026-07-28)
 
 The native JPEG 2000 tier-2 reader previously returned synthetic zero bits

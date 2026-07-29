@@ -5,8 +5,29 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
-- **SAFE-676-01 [patch] - Reject malformed JPEG 2000 packet headers**
+- **PERF-677-01 [patch] - Reuse reversible wavelet workspace**
   (REVIEW; owner=Codex; scope=
+  `crates/ritk-codecs/src/jpeg_2000/wavelet.rs`, `CHANGELOG.md`, and PM
+  artifacts; non-goal=9/7 wavelet changes, public API changes, or codec
+  release). Each 1-D reversible 5/3 lift clones its full line and each DWT
+  level allocates fresh row/column scratch. A 512×512 five-level forward or
+  inverse transform therefore performs 1,994 allocations and copies
+  2,793,472 bytes inside the 1-D kernels. Make the lifting phases exact
+  in-place and reuse one workspace allocation across all levels. Acceptance:
+  existing analytical, odd/even boundary, multilevel, native round-trip, and
+  captured OpenJPEG cases remain exact; the unchanged Criterion workload
+  detects no regression; formatting, warning-denied Clippy, Nextest,
+  doctest, and Rustdoc gates pass. Matched baseline medians are 55.209 ms
+  encode and 52.545 ms decode on the 512×512 five-level workload. Local
+  closure: exact in-place lifting plus one reusable workspace reduces each
+  measured transform from 1,994 allocations to one, removes 2,793,472 copied
+  bytes, and reduces peak transform scratch from 6 KiB to 4 KiB. Changed
+  medians are 54.463 ms encode (p = 0.09) and 52.665 ms decode (p = 0.80), so
+  no latency change is detected. All 268 codec tests pass;
+  formatting, warning-denied Clippy, doctests, and warning-denied Rustdoc pass.
+
+- **SAFE-676-01 [patch] - Reject malformed JPEG 2000 packet headers**
+  (DONE; owner=Codex; scope=
   `crates/ritk-codecs/src/jpeg_2000/{packet/{reader.rs,tests.rs},
   tag_tree.rs}`, `CHANGELOG.md`, and PM artifacts; non-goal=public packet API
   changes or codec release). The tier-2 packet parser currently synthesizes
@@ -23,7 +44,9 @@
   malformed-header regressions and a bounded arbitrary-byte proptest pass.
   All 265 codec tests pass in 5.644 seconds, including the 190-case captured
   OpenJPEG corpus; formatting, warning-denied all-target Clippy, doctests, and
-  warning-denied Rustdoc pass.
+  warning-denied Rustdoc pass. PR #69 merged as `a8ba7cb4` from exact head
+  `aef1deae` after CI run `30418333287` and Python run `30418333294` passed
+  every repository-owned lane.
 
 - **DOC-675-01 [patch] - Render deformable registration behavior**
   (DONE; owner=Codex; scope=

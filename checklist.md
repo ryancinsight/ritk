@@ -13,6 +13,25 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## PERF-677-01 — Reuse reversible wavelet workspace
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Capture matched 512×512 five-level encode and decode Criterion
+      baselines: 55.209 ms and 52.545 ms medians.
+- [x] Prove the forward and inverse lifting phase dependencies permit exact
+      in-place updates without retaining an input clone.
+- [x] Reuse one transform workspace across every row, column, and level,
+      reducing each measured transform from 1,994 allocations to one.
+- [x] Revalidate analytical, odd/even boundary, multilevel, native
+      round-trip, and captured OpenJPEG behavior.
+- [x] Compare the unchanged Criterion workload. Encode changes from
+      55.209 ms to 54.463 ms (p = 0.09); decode changes from 52.545 ms to
+      52.665 ms (p = 0.80), detecting no regression.
+- [x] Run formatting, warning-denied Clippy, all 268 codec tests, doctests,
+      and warning-denied Rustdoc.
+- [ ] Commit, push, and merge after hosted gates pass.
+
 ## SAFE-676-01 — Reject malformed JPEG 2000 packet headers
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
@@ -30,7 +49,9 @@
       All 265 codec tests pass in 5.644 seconds.
 - [x] Run formatting, warning-denied all-target Clippy, doctest, and
       warning-denied Rustdoc gates.
-- [ ] Commit, push, and merge after hosted gates pass.
+- [x] Commit, push, and merge after hosted gates pass. PR #69 merged as
+      `a8ba7cb4` from exact head `aef1deae`; CI `30418333287` and Python
+      `30418333294` passed every repository-owned lane.
 
 ## DOC-675-01 — Render deformable registration behavior
 **Target version**: Unreleased patch
