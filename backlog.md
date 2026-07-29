@@ -31,7 +31,11 @@
   Clippy, doctests, warning-denied Rustdoc, mdBook test/build, formatting, and
   diff checks pass. The inspected 6,198-byte SVG reports Dice 1.000 and zero
   label errors; the already-built example runs in 0.551 seconds. Draft PR #72
-  carries the code, book, and workflow changes; hosted gates are pending.
+  carries the code, book, and workflow changes. Exact code head `a59dfb9f`
+  passes complete Rust CI run `30424915304`, Python 3.9-3.13 matrix run
+  `30424915350`, and book build/artifact run `30424915331`. The Pages deploy
+  job is correctly skipped on the pull request; merge remains blocked on
+  explicit release/deploy authority.
 
 - **PERF-678-01 [patch] - Eliminate tag-tree path allocations**
   (DONE; owner=Codex; scope=
