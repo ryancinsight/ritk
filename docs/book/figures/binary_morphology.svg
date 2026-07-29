@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1050 245">
+<style>.title{font:600 15px sans-serif;fill:#172033}.subtitle{font:11px sans-serif;fill:#475569}</style>
+<g transform="translate(0,0)">
+<rect width="210" height="245" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="105" y="21" text-anchor="middle" class="title">Input mask</text>
+<text x="105" y="38" text-anchor="middle" class="subtitle">specks, spur, and holes</text>
+<image x="17" y="48" width="176" height="176" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAIAAABt+uBvAAACHUlEQVR4Ae3AA6AkWZbG8f937o3IzKdyS2Oubdu2bdu2bdu2bWmMnpZKr54yMyLu+Xa3anqmhztr1a8eu/axXPUCUbnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGovABPeeJfAA9/1Mvx/xqVq14YdOzax3LVC0TlqheGylUvDJWrXhgqV70wVK56Yahc9cJQueqFoXLVC0PlqheGyr/DU574F/xv8PBHvRz/RlSuemGoXPXCULnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGoXPXCULnqhaFy1QtD5aoXhspVLwyVq14YKv+FHv6olwOe8sS/4H8NKv+1nvLEv+B/Eyr/hZ7yxL/gfxkqV70wVK56Yahc9cJQueqFoXLVC0PlqheGylUvDJWrXhgq/w885Yl/wQvw8Ee9HC8Mlf8HHv6ol+PfiMpVLwyVq14YKle9MFSuemGoXPXCULnqhaFy1QtD5aoXhspVLwyVq14YKle9MAT/Gzz8US/Hfw8q/xs85Yl/wX8PKle9MFSuemGoXPXCULnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGoXPXCULnqhaFy1QtD5aoXBh279rFc9QJRueqFoXLVC0PlqheGylUvDJWrXhgqV70wVK56Yahc9cJQueqFoXLVC0PlqheGylUvDJWrXhgqV70wVK56Yahc9cJQueqFoXLVC0PlqheGfwT3XRbrdmBYUwAAAABJRU5ErkJggg==" image-rendering="pixelated"/>
+</g>
+<g transform="translate(210,0)">
+<rect width="210" height="245" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="105" y="21" text-anchor="middle" class="title">Opening</text>
+<text x="105" y="38" text-anchor="middle" class="subtitle">erode then dilate</text>
+<image x="17" y="48" width="176" height="176" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAIAAABt+uBvAAAB/UlEQVR4Ae3AA6AkWZbG8f937o3IzKdyS2Oubdu2bdu2bdu2bWmMnpZKr54yMyLu+Xa3anqmhztr1a8eu/axXPUCUbnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGoXPXCULnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGoXPXCULnqhaFy1QtD5aoXhsq/w1Oe+Bf8b/DwR70c/0ZUrnphqFz1wlC56oWhctULQ+WqF4bKVS8MlateGCpXvTBUrnphqFz1wlC56oWhctULQ+WqF4bKVS8MlateGCr/hR7+qJcDnvLEv+B/DSr/tZ7yxL/gfxMq/4We8sS/4H8ZKle9MFSuemGoXPXCULnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGoXPXCULnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGoXPXCULnqhaFy1QtD8L/Bwx/1cvz3oPK/wVOe+Bf896By1QtD5aoXhspVLwyVq14YKle9MFSuemGoXPXCULnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemHQsWsfy1UvEJWrXhgqV70wVK56Yahc9cJQueqFoXLVC0PlqheGylUvDJWrXhgqV70wVK56Yahc9cJQueqFoXLVC0PlqheGylUvDJWrXhgqV70wVK56YfhHgR8QIKN+JQcAAAAASUVORK5CYII=" image-rendering="pixelated"/>
+</g>
+<g transform="translate(420,0)">
+<rect width="210" height="245" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="105" y="21" text-anchor="middle" class="title">Opening change</text>
+<text x="105" y="38" text-anchor="middle" class="subtitle">13 foreground voxels removed</text>
+<image x="17" y="48" width="176" height="176" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAIAAABt+uBvAAACHklEQVR4Ae3AA6AkWZbG8f937o3IzKdyS2Oubdu2bdu2bdu2bWmMnpZKr54yMyLu+Xa3anqmhztr1a8eu/axXPUCUbnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGovAC3vsQNwIP/7i7+X6Ny1QuDjl37WK56gahc9cJQueqFoXLVC0PlqheGylUvDJWrXhgqV70wVK56Yahc9cJQ+Xf49d/8Jf43eP3XfRP+jahc9cJQueqFoXLVC0PlqheGylUvDJWrXhgqV70wVK56Yahc9cJQueqFoXLVC0PlqheGylUvDJWrXhgqV70wVP4Lvf7rvgnw67/5S/yvQeW/1q//5i/xvwmV/0K//pu/xP8yVK56Yahc9cJQueqFoXLVC0PlqheGylUvDJWrXhgqV70wVP4fuPUlbuAFePDf3cULQ+X/gQf/3V38G1G56oWhctULQ+WqF4bKVS8MlateGCpXvTBUrnphqFz1wlC56oWhctULQ+WqF4bgf4PXf9034b8Hlf8Nfv03f4n/HlSuemGoXPXCULnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGoXPXCULnqhaFy1QtD5aoXhspVLww6du1jueoFonLVC0PlqheGylUvDJWrXhgqV70wVK56Yahc9cJQueqFoXLVC0PlqheGylUvDJWrXhgqV70wVK56Yahc9cJQueqFoXLVC0PlqheGylUvDP8Iqw8XpJpBgewAAAAASUVORK5CYII=" image-rendering="pixelated"/>
+</g>
+<g transform="translate(630,0)">
+<rect width="210" height="245" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="105" y="21" text-anchor="middle" class="title">Closing</text>
+<text x="105" y="38" text-anchor="middle" class="subtitle">dilate then erode</text>
+<image x="17" y="48" width="176" height="176" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAIAAABt+uBvAAAB+0lEQVR4Ae3AA6AkWZbG8f937o3IzKdyS2Oubdu2bdu2bdu2bWmMnpZKr54yMyLu+Xa3anqmhztr1a8eu/axXPUCUbnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGovABPeeJfAA9/1Mvx/xqVq14YdOzax3LVC0TlqheGylUvDJWrXhgqV70wVK56Yahc9cJQueqFoXLVC0PlqheGyr/DU574F/xv8PBHvRz/RlSuemGoXPXCULnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGoXPXCULnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGoXPXCULnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGoXPXCUPl/4ClP/AtegIc/6uV4Yaj8P/DwR70c/0ZUrnphqFz1wlC56oWhctULQ+WqF4bKVS8MlateGCpXvTBUrnphqFz1wlC56oWhctULQ+WqF4bKVS8MlateGCpXvTBUrnphqFz1wlC56oWhctULQ+WqF4bKVS8MlateGCpXvTBUrnphqFz1wlC56oVBx659LFe9QFSuemGoXPXCULnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGoXPXCULnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGoXPXCULnqheEfARgAC+mTDHS4AAAAAElFTkSuQmCC" image-rendering="pixelated"/>
+</g>
+<g transform="translate(840,0)">
+<rect width="210" height="245" fill="#ffffff" stroke="#cbd5e1"/>
+<text x="105" y="21" text-anchor="middle" class="title">Closing change</text>
+<text x="105" y="38" text-anchor="middle" class="subtitle">4 background voxels filled</text>
+<image x="17" y="48" width="176" height="176" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAIAAABt+uBvAAACHklEQVR4Ae3AA6AkWZbG8f937o3IzKdyS2Oubdu2bdu2bdu2bWmMnpZKr54yMyLu+Xa3anqmhztr1a8eu/axXPUCUbnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGovAC//pu/BLz+674J/69RueqFQceufSxXvUBUrnphqFz1wlC56oWhctULQ+WqF4bKVS8MlateGCpXvTBUrnphqPw7/Ppv/hL/G7z+674J/0ZUrnphqFz1wlC56oWhctULQ+WqF4bKVS8MlateGCpXvTBUrnphqFz1wlC56oWhctULQ+WqF4bKVS8MlateGCr/hd5p9zOAHzn+efyvQeW/1o8c/zz+N6HyX+hHjn8e/8tQueqFoXLVC0PlqheGylUvDJWrXhgqV70wVK56Yahc9cJQ+X/g13/zl3gBXv9134QXhsr/A6//um/CvxGVq14YKle9MFSuemGoXPXCULnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemEI/jd4p93P4L8Hlf8NfuT45/Hfg8pVLwyVq14YKle9MFSuemGoXPXCULnqhaFy1QtD5aoXhspVLwyVq14YKle9MFSuemGoXPXCULnqhUHHrn0sV71AVK56Yahc9cJQueqFoXLVC0PlqheGylUvDJWrXhgqV70wVK56Yahc9cJQueqFoXLVC0PlqheGylUvDJWrXhgqV70wVK56Yahc9cJQueqF4R8B7JEUsM10DuEAAAAASUVORK5CYII=" image-rendering="pixelated"/>
+</g>
+</svg>

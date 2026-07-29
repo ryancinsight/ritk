@@ -13,6 +13,31 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## DOC-674-01 — Clarify and validate book figures
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Replace per-pixel SVG rectangles with embedded PNG panels in the
+      filter, windowing, registration, and N4 figure generators.
+- [x] Remove full-volume documentation-only copies from windowing, N4, and
+      registration examples; make histogram construction single-pass.
+- [x] Correct review findings for mdBook checksum verification, N4 config
+      reporting, MI operand order, invalid multiplier coverage, diffusion
+      mathematics, and canonical example titles.
+- [x] Add a binary morphology example whose value-semantic assertions and
+      red/green change maps distinguish opening from closing.
+- [x] Compile and run every touched example; regenerate all figures. Direct
+      runtimes: binary morphology 0.063 s, filter gallery 0.063 s, windowing
+      1.086 s, registration 9.152 s, and N4 28.011 s.
+- [x] Inspect rendered figures and correct unclear or illogical output. The
+      final morphology change maps, shared-window filter/N4 comparisons,
+      registered CT/MR overlay, and window labels are distinct and legible.
+- [x] Run focused Nextest, warning-denied Clippy, mdBook test/build, and
+      warning-denied Rustdoc. Morphology passes 53 focused cases,
+      registration invalid-multiplier coverage passes, and every named
+      documentation gate is green.
+- [ ] Integrate current `main`, reconcile the lockfile, push, and merge PR #56.
+
 ## MIG-673-01 — Retire completed migration audit
 **Target version**: Unreleased patch
 **Sprint phase**: Closure

@@ -122,6 +122,7 @@ js-sys = "0.3"
 getrandom = "0.3"
 getrandom_02 = { package = "getrandom", version = "0.2" }
 image = "0.24"
+base64 = "0.22"
 tiff = "0.9"
 
 dicom-core = "0.10"

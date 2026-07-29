@@ -43,6 +43,7 @@ ritk-io = { path = "../ritk-io" }
 tracing-subscriber = { workspace = true }
 walkdir = { workspace = true }
 image = { workspace = true }
+base64 = { workspace = true }
 criterion = { workspace = true }
 rand = { workspace = true }
 proptest = { workspace = true }

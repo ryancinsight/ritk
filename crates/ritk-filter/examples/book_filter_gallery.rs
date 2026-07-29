@@ -5,7 +5,10 @@
 //! the SVG writer only renders the resulting values for documentation.
 
 use anyhow::{bail, Context, Result};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use coeus_core::SequentialBackend;
+use eunomia::CastFrom;
+use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
 use ritk_filter::{CannyEdgeDetector, GaussianFilter, GaussianSigma};
 use ritk_image::Image;
 use ritk_spatial::{Direction, Point, Spacing};
@@ -61,17 +64,15 @@ fn build_image(
     )
 }
 
-fn normalized(values: &[f32], fixed_range: Option<(f32, f32)>) -> Result<Vec<f32>> {
-    let (lower, upper) = fixed_range.unwrap_or_else(|| {
-        values.iter().copied().fold(
-            (f32::INFINITY, f32::NEG_INFINITY),
-            |(lower, upper), value| (lower.min(value), upper.max(value)),
-        )
-    });
-    let range = (upper - lower).max(f32::EPSILON);
+fn normalized(values: &[f32], range: (f32, f32)) -> Result<Vec<f32>> {
+    let (lower, upper) = range;
     if !lower.is_finite() || !upper.is_finite() {
         anyhow::bail!("figure input contains no finite intensity range")
     }
+    if values.iter().any(|value| !value.is_finite()) {
+        bail!("figure input contains a non-finite intensity")
+    }
+    let range = (upper - lower).max(f32::EPSILON);
     Ok(values
         .iter()
         .map(|value| ((*value - lower) / range).clamp(0.0, 1.0))
@@ -82,32 +83,46 @@ fn svg_panel(svg: &mut String, values: &[f32], title: &str, offset_x: u32) -> Re
     let [_, height, width] = DIMS;
     let width_u32 = u32::try_from(width).context("panel width exceeds u32")?;
     let height_u32 = u32::try_from(height).context("panel height exceeds u32")?;
-    let cell_x = f64::from(PANEL_WIDTH - 32) / f64::from(width_u32);
-    let cell_y = f64::from(PANEL_HEIGHT - 48) / f64::from(height_u32);
+    let raster_capacity = width
+        .checked_mul(height)
+        .and_then(|pixels| pixels.checked_mul(3))
+        .context("filter panel raster size overflows usize")?;
+    let mut raster = Vec::with_capacity(raster_capacity);
+    for value in values {
+        let intensity = u8::cast_from((value.clamp(0.0, 1.0) * 255.0).round());
+        raster.extend_from_slice(&[intensity, intensity, intensity]);
+    }
+    let mut png = Vec::new();
+    PngEncoder::new(&mut png)
+        .write_image(&raster, width_u32, height_u32, ColorType::Rgb8)
+        .context("encode filter panel as PNG")?;
+    let encoded = STANDARD.encode(png);
     writeln!(svg, "<g transform=\"translate({offset_x},0)\">")?;
     writeln!(
         svg,
         "<text x=\"{half}\" y=\"22\" text-anchor=\"middle\" class=\"title\">{title}</text>",
         half = PANEL_WIDTH / 2
     )?;
-    for y in 0..height {
-        for x in 0..width {
-            let index = y * width + x;
-            let intensity =
-                f64::from(values.get(index).copied().context("panel shape mismatch")?) * 255.0;
-            let x0 = 16.0 + f64::from(u32::try_from(x).context("x index exceeds u32")?) * cell_x;
-            let y0 = 32.0 + f64::from(u32::try_from(y).context("y index exceeds u32")?) * cell_y;
-            writeln!(svg, "<rect x=\"{x0:.3}\" y=\"{y0:.3}\" width=\"{cell_x:.3}\" height=\"{cell_y:.3}\" fill=\"rgb({intensity:.0},{intensity:.0},{intensity:.0})\"/>")?;
-        }
-    }
+    writeln!(
+        svg,
+        "<image x=\"16\" y=\"32\" width=\"{}\" height=\"{}\" href=\"data:image/png;base64,{encoded}\" image-rendering=\"pixelated\"/>",
+        PANEL_WIDTH - 32,
+        PANEL_HEIGHT - 48
+    )?;
     svg.push_str("</g>\n");
     Ok(())
 }
 
 fn write_figure(path: &Path, input: &[f32], smoothed: &[f32], edges: &[f32]) -> Result<()> {
-    let input = normalized(input, None)?;
-    let smoothed = normalized(smoothed, None)?;
-    let edges = normalized(edges, Some((0.0, 1.0)))?;
+    let input_range = normalized_range(input)?;
+    let smoothed_range = normalized_range(smoothed)?;
+    let shared_range = (
+        input_range.0.min(smoothed_range.0),
+        input_range.1.max(smoothed_range.1),
+    );
+    let input = normalized(input, shared_range)?;
+    let smoothed = normalized(smoothed, shared_range)?;
+    let edges = normalized(edges, (0.0, 1.0))?;
     let figure_width = PANEL_WIDTH
         .checked_mul(3)
         .context("figure width overflows")?;
@@ -123,6 +138,20 @@ fn write_figure(path: &Path, input: &[f32], smoothed: &[f32], edges: &[f32]) -> 
     }
     std::fs::write(path, svg).with_context(|| format!("write figure {}", path.display()))?;
     Ok(())
+}
+
+fn normalized_range(values: &[f32]) -> Result<(f32, f32)> {
+    let range = values
+        .iter()
+        .copied()
+        .filter(|value| value.is_finite())
+        .fold(None::<(f32, f32)>, |range, value| {
+            Some(match range {
+                Some((lower, upper)) => (lower.min(value), upper.max(value)),
+                None => (value, value),
+            })
+        });
+    range.context("figure input contains no finite intensities")
 }
 
 fn main() -> Result<()> {

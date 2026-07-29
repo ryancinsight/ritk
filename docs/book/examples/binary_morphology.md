@@ -1,23 +1,44 @@
-# Example: Binary Erosion/Dilation
+# Example: Binary Opening and Closing
 
-> **Status**: Planned — implementation forthcoming.
-> **Source**: `crates/ritk-morphology/examples/binary_morphology.rs` *(not yet created)*
+Binary opening and closing are dual compositions with visibly different
+purposes:
 
-## Description
+\[
+\operatorname{open}_B(A)=(A\ominus B)\oplus B,\qquad
+\operatorname{close}_B(A)=(A\oplus B)\ominus B.
+\]
 
-This planned example will pair ritk's binary morphology filters with the structuring-element types exported by `ritk-morphology`. The intended walkthrough is erosion, dilation, opening, and closing on a binary mask, using simple `Cube`, `Cross`, or `Ball` neighborhoods to show how foreground topology changes under each operation. By keeping the input binary, the example can emphasize the algebraic meaning of each transform: erosion removes thin foreground structures, dilation expands them, opening removes small protrusions, and closing fills narrow gaps.
+Opening is anti-extensive: it removes foreground structures that cannot
+contain the structuring element. Closing is extensive: it fills background
+gaps that cannot contain the reflected element.
 
-Atlas integration matters because the structuring element and the image have different ownership roles. `ritk-morphology` provides zero-sized shape markers and borrowed offset lists, while the actual image still lives in the standard Coeus-backed `ritk-image::Image` boundary consumed by the filters. That split is intentional and worth documenting because it keeps morphology shape definitions zero-cost while letting the rest of the pipeline reuse ordinary image abstractions.
+The runnable example uses one deterministic 3-D mask containing both defect
+classes. The isolated speck and one-voxel spur give opening something to
+remove; the small internal holes give closing something to fill. The red and
+green change maps make those distinct effects explicit:
 
-## Planned workflow
+![Binary opening removes foreground specks in red while binary closing fills background holes in green](../figures/binary_morphology.svg)
 
-- Create or load a binary mask with small holes and thin bridges.
-- Apply erosion and dilation with a chosen neighborhood.
-- Compose them into opening and closing.
-- Compare foreground voxel counts and qualitative topology changes.
+## Source and command
 
-## Verification goals
+Source: `crates/ritk-filter/examples/book_binary_morphology.rs`
 
-- Radius-zero structuring elements behave as identity.
-- Opening is anti-extensive and closing is extensive.
-- Output masks preserve the input geometry contract.
+```text
+cargo run -p ritk-filter --example book_binary_morphology -- \
+  docs/book/figures/binary_morphology.svg
+```
+
+The example executes `BinaryMorphologicalOpening::apply_native` and
+`BinaryMorphologicalClosing::apply_native` with radius one. It fails unless:
+
+- opening preserves geometry and every displayed interior output voxel is
+  less than or equal to its input voxel;
+- closing preserves geometry and every displayed interior output voxel is
+  greater than or equal to its input voxel;
+- opening removes at least one foreground voxel;
+- closing fills at least one background voxel; and
+- the opening and closing outputs differ.
+
+The contract is checked on the center slice because RITK's documented
+zero-background boundary condition can remove foreground at the outermost
+volume planes during the erosion stage of closing.

@@ -13,6 +13,28 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## DOC-674-01 audit (2026-07-28)
+
+The recovered book branch contained a 474-byte placeholder registration SVG,
+a 6.5 MB windowing SVG, and a 2.2 MB filter-gallery SVG because each source
+voxel was emitted as an XML rectangle. The N4 PNG had no panel labels, its
+source/corrected anatomy appeared nearly identical, and its relative-change
+panel was dominated by global scale. The binary morphology page was still
+planned-only, while the parent chapter reversed the definitions of opening
+and closing. These are visual and mathematical correctness defects rather
+than cosmetic issues. The active correction uses compressed raster panels
+inside labeled SVGs, slice-only diagnostics, shared display windows, explicit
+change maps, and value-semantic assertions. All five examples compile and run:
+binary morphology and filter gallery each complete in 0.063 seconds, windowing
+in 1.086 seconds, registration in 9.152 seconds, and N4 in 28.011 seconds. The
+generated SVGs are 5,945, 42,368, 114,948, 218,556, and 432,321 bytes,
+respectively. Rendered inspection confirms that opening removals and closing
+fills are distinct, smoothing uses a shared display window, registration
+changes the CT/MR overlay from separated red/green edges toward coincidence,
+and the N4 diagnostic exposes the estimated smooth bias rather than global
+scale. Focused Nextest, warning-denied Clippy and Rustdoc, `mdbook test`, and
+`mdbook build` pass. Current-main integration remains the delivery gate.
+
 ## MIG-673-01 audit (2026-07-28)
 
 The completed provider cutover left an empty Burn allowlist, a 518-line lexical

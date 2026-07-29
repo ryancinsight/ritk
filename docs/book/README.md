@@ -52,8 +52,8 @@ ritk/
 # Build all crates
 cargo check -p ritk-filter --lib
 
-# Run tests
-cargo test -p ritk-filter --lib
+# Run tests with the repository's bounded native-test runner
+cargo nextest run -p ritk-filter
 
 # Build docs
 mdbook build docs/book
@@ -61,5 +61,5 @@ mdbook build docs/book
 
 ## References
 
-- [atlas Migration Summary](coeus_migration.md)
-- [atlas Architecture Decision Records](adr/)
+- [atlas Migration Summary](../coeus_migration.md)
+- [atlas Architecture Decision Records](../adr/README.md)

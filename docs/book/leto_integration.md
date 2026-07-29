@@ -8,5 +8,5 @@ The Atlas boundary remains deliberate. RITK does not expose Leto as the main ima
 
 | Example | Status | Focus |
 | --- | --- | --- |
-| [Registration Comparison Figure](examples/registration_compare_figure.md) | Available | Classical mutual-information validation on Leto volumes before native resampling. |
+| [CT/MR Mutual-Information Registration](examples/registration_compare_figure.md) | Available | Classical mutual-information validation on Leto volumes before native resampling. |
 | [Geometry Validation](examples/geometry_check.md) | Available | Verifies the image-geometry assumptions that must hold before conversion to Leto volumes. |

@@ -16,22 +16,24 @@ filter's Rustdoc.
 
 The figure uses the real RIRE Patient 001 T1 volume:
 
-![Top row: source and N4-corrected RIRE MR slices on a shared intensity scale. Bottom row: relative intensity change and estimated multiplicative bias field.](../figures/n4_bias_correction.png)
+![Labeled source and N4-corrected RIRE MR slices on a shared intensity scale, with an amplified bias-deviation map and estimated multiplicative field.](../figures/n4_bias_correction.svg)
 
 The four panels use a two-by-two layout:
 
 1. the source MR slice;
 2. the native N4-corrected slice;
-3. the voxel-wise intensity change \(100(I_{corrected}/I - 1)\), using blue
-   for decreased intensity and red for increased intensity; and
+3. the estimated field's percentage deviation from its foreground median,
+   using blue for lower and red for higher multiplicative bias; and
 4. the estimated multiplicative field \(I / I_{corrected}\).
 
 The first two panels intentionally use one shared robust intensity window
-formed from both slices' 2nd–98th percentile ranges. This makes the correction
-visible: independent contrast windows would make the pre- and post-processed
-images look deceptively alike. The change map is masked outside the bright
-foreground and clipped only to its 98th-percentile absolute change for display;
-the underlying values are not altered.
+formed from both slices' 2nd–98th percentile ranges. Their labels repeat that
+window so the comparison cannot be mistaken for independently normalized
+images. Because N4 correction is spatially smooth and can remain subtle in
+anatomical views, the third panel removes the field's global median scale and
+amplifies its spatial deviation. It is masked outside the bright foreground
+and clipped only to its 98th-percentile absolute deviation for display; the
+underlying correction is not altered.
 
 The third and fourth panels are computed from the same input and corrected
 output. They are diagnostics of the correction estimated by N4, not
@@ -43,7 +45,7 @@ Source: `crates/ritk-registration/examples/book_n4_bias.rs`
 
 ```text
 cargo run -p ritk-registration --example book_n4_bias -- \
-  docs/book/figures/n4_bias_correction.png
+  docs/book/figures/n4_bias_correction.svg
 ```
 
 The example reads `test_data/registration/rire/training_001_mr_T1.mha`, runs

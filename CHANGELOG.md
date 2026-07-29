@@ -8,6 +8,18 @@
 
 # CHANGELOG
 
+## [Unreleased] — Book figure validation (DOC-674-01)
+
+### Changed
+
+- Replaced placeholder and oversized documentation figures with labeled,
+  raster-backed outputs generated from real filters and RIRE CT/MR data.
+- Added a binary opening/closing example with explicit removal/fill maps and
+  corrected the morphology and curvature-diffusion mathematics.
+- Removed documentation-only full-volume copies, made histogram construction
+  single-pass, and limited the N4 diagnostic field to the displayed slice.
+- Hardened the Pages mdBook download with SHA-256 verification.
+
 ## [Unreleased] — Retired migration audit (MIG-673-01)
 
 ### Changed

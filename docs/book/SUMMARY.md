@@ -26,7 +26,7 @@
   - [Example: Gradient Magnitude](examples/gradient_magnitude.md)
   - [Example: Canny Edge Detection](examples/canny_edges.md)
 - [Morphological Operations](morphology.md)
-  - [Example: Binary Erosion/Dilation](examples/binary_morphology.md)
+  - [Example: Binary Opening and Closing](examples/binary_morphology.md)
   - [Example: Grayscale Opening/Closing](examples/grayscale_morphology.md)
 - [Diffusion Filtering](diffusion_filters.md)
   - [Example: Perona-Malik Diffusion](examples/perona_malik.md)

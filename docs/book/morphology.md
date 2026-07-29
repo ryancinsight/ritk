@@ -15,14 +15,14 @@ boundaries); grayscale operations preserve spatial metadata.
   connectivity (6-connectivity for 3D)
 - `BinaryFillholeFilter` — flood-fill based hole filling
 - `BinaryMorphologicalClosing`, `BinaryMorphologicalOpening` —
-  erosion followed by dilation (closing) or dilation followed by erosion (opening)
+  dilation followed by erosion (closing) or erosion followed by dilation (opening)
 
 ## Grayscale Morphology
 
 - `GrayscaleErosion`, `GrayscaleDilation` — min/max filter with
   safe-border padding
-- `GrayscaleClosingFilter`, `GrayscaleOpeningFilter` — anti-extensive/
-  extensive operations
+- `GrayscaleClosingFilter`, `GrayscaleOpeningFilter` — extensive and
+  anti-extensive operations, respectively
 - `WhiteTopHatFilter`, `BlackTopHatFilter` — residue of opening/closing
 - `GrayscaleGradientFilter` — erosion minus dilation
 
@@ -37,4 +37,10 @@ Each operation is differentially tested against its Coeus-generic counterpart
 via `assert_coeus_matches_coeus`. Analytical oracles verify:
 - Radius 0 is identity
 - All-foreground/all-background edge cases
-- Opening is anti-extensive, closing is extensive
+- Opening is anti-extensive; closing is extensive away from the finite-image
+  boundary where the documented zero-background padding applies
+
+The [binary opening and closing example](examples/binary_morphology.md)
+constructs a mask with both removable foreground artifacts and fillable
+background holes, then renders explicit red removal and green fill maps from
+the native filter outputs.

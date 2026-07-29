@@ -9,4 +9,4 @@ The Atlas integration story is still important. Once decoded, JPEG data becomes 
 | Example | Status | Focus |
 | --- | --- | --- |
 | Dedicated JPEG read/write walkthrough | Planned | Show tolerant round-trip expectations and recommend JPEG for previews rather than metric-sensitive pipelines. |
-| [Registration Comparison Figure](examples/registration_compare_figure.md) | Available | Representative visualization workflow where compressed export is acceptable after alignment is complete. |
+| [CT/MR Mutual-Information Registration](examples/registration_compare_figure.md) | Available | Representative visualization workflow where compressed export is acceptable after alignment is complete. |

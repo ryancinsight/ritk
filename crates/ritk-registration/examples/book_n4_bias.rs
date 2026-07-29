@@ -6,12 +6,14 @@
 //! derived from the dataset or from the filter output.
 
 use anyhow::{bail, Context, Result};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use coeus_core::SequentialBackend;
 use eunomia::CastFrom;
-use image::{Rgb, RgbImage};
+use image::{codecs::png::PngEncoder, ColorType, ImageEncoder, Rgb, RgbImage};
 use ritk_filter::{bias::N4Config, N4BiasFieldCorrectionFilter};
 use ritk_io::{format::metaimage::native::MetaImageReader, ImageReader};
 use ritk_spatial::VolumeDims;
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 type Backend = SequentialBackend;
@@ -19,8 +21,8 @@ type Backend = SequentialBackend;
 const MR_PATH: &str = "test_data/registration/rire/training_001_mr_T1.mha";
 const DISPLAY_WIDTH: u32 = 256;
 const DISPLAY_HEIGHT: u32 = 256;
-const PANEL_COLUMNS: u32 = 2;
-const PANEL_ROWS: u32 = 2;
+const PANEL_WIDTH: u32 = 300;
+const PANEL_HEIGHT: u32 = 320;
 const PANEL_GAP: u32 = 12;
 
 fn read_input() -> Result<ritk_image::Image<f32, Backend, 3>> {
@@ -113,27 +115,11 @@ fn diverging(values: &[f32], extent: f32) -> Result<Vec<Rgb<u8>>> {
         .collect())
 }
 
-fn render_panel(
-    figure: &mut RgbImage,
-    panel_index: usize,
-    values: &[Rgb<u8>],
-    shape: [usize; 3],
-) -> Result<()> {
+fn render_panel(values: &[Rgb<u8>], shape: [usize; 3]) -> Result<RgbImage> {
     let [_, height, width] = shape;
     let panel_width = usize::try_from(DISPLAY_WIDTH).context("display width exceeds usize")?;
     let panel_height = usize::try_from(DISPLAY_HEIGHT).context("display height exceeds usize")?;
-    let panel_index = u32::try_from(panel_index).context("panel index exceeds u32")?;
-    let panel_column = panel_index % PANEL_COLUMNS;
-    let panel_row = panel_index / PANEL_COLUMNS;
-    if panel_row >= PANEL_ROWS {
-        bail!("panel index {panel_index} exceeds the figure grid");
-    }
-    let panel_offset_x = panel_column
-        .checked_mul(DISPLAY_WIDTH + PANEL_GAP)
-        .context("figure width overflows u32")?;
-    let panel_offset_y = panel_row
-        .checked_mul(DISPLAY_HEIGHT + PANEL_GAP)
-        .context("figure height overflows u32")?;
+    let mut panel = RgbImage::from_pixel(DISPLAY_WIDTH, DISPLAY_HEIGHT, Rgb([16, 16, 16]));
     for output_y in 0..panel_height {
         let source_y = output_y.saturating_mul(height) / panel_height;
         for output_x in 0..panel_width {
@@ -141,13 +127,64 @@ fn render_panel(
             let value = *values
                 .get(source_y * width + source_x)
                 .context("normalized panel shape mismatch")?;
-            figure.put_pixel(
-                panel_offset_x + u32::try_from(output_x).context("output x exceeds u32")?,
-                panel_offset_y + u32::try_from(output_y).context("output y exceeds u32")?,
+            panel.put_pixel(
+                u32::try_from(output_x).context("output x exceeds u32")?,
+                u32::try_from(output_y).context("output y exceeds u32")?,
                 value,
             );
         }
     }
+    Ok(panel)
+}
+
+fn panel_data_uri(panel: &RgbImage) -> Result<String> {
+    let mut png = Vec::new();
+    PngEncoder::new(&mut png)
+        .write_image(
+            panel.as_raw(),
+            panel.width(),
+            panel.height(),
+            ColorType::Rgb8,
+        )
+        .context("encode N4 figure panel as PNG")?;
+    Ok(STANDARD.encode(png))
+}
+
+fn draw_panel(
+    svg: &mut String,
+    index: usize,
+    title: &str,
+    subtitle: &str,
+    panel: &RgbImage,
+) -> Result<()> {
+    let index = u32::try_from(index).context("N4 panel index exceeds u32")?;
+    let offset_x = (index % 2)
+        .checked_mul(PANEL_WIDTH + PANEL_GAP)
+        .context("N4 panel x offset overflows u32")?;
+    let offset_y = (index / 2)
+        .checked_mul(PANEL_HEIGHT + PANEL_GAP)
+        .context("N4 panel y offset overflows u32")?;
+    let encoded = panel_data_uri(panel)?;
+    writeln!(svg, "<g transform=\"translate({offset_x},{offset_y})\">")?;
+    writeln!(
+        svg,
+        "<rect width=\"{PANEL_WIDTH}\" height=\"{PANEL_HEIGHT}\" rx=\"8\" fill=\"#f8fafc\" stroke=\"#cbd5e1\"/>"
+    )?;
+    writeln!(
+        svg,
+        "<text x=\"{}\" y=\"23\" text-anchor=\"middle\" class=\"title\">{title}</text>",
+        PANEL_WIDTH / 2
+    )?;
+    writeln!(
+        svg,
+        "<text x=\"{}\" y=\"42\" text-anchor=\"middle\" class=\"subtitle\">{subtitle}</text>",
+        PANEL_WIDTH / 2
+    )?;
+    writeln!(
+        svg,
+        "<image x=\"22\" y=\"54\" width=\"{DISPLAY_WIDTH}\" height=\"{DISPLAY_HEIGHT}\" href=\"data:image/png;base64,{encoded}\" image-rendering=\"pixelated\"/>"
+    )?;
+    svg.push_str("</g>\n");
     Ok(())
 }
 
@@ -156,7 +193,7 @@ fn write_figure(
     input: &[f32],
     corrected: &[f32],
     shape: [usize; 3],
-) -> Result<(f32, f32)> {
+) -> Result<(f32, f32, f32)> {
     let axial_slice = shape[0] / 2;
     let input_slice = slice(input, shape, axial_slice)?;
     let corrected_slice = slice(corrected, shape, axial_slice)?;
@@ -166,68 +203,99 @@ fn write_figure(
     let corrected_upper = percentile(corrected_slice, 98)?;
     let display_lower = input_lower.min(corrected_lower);
     let display_upper = input_upper.max(corrected_upper);
-    let relative_change: Vec<f32> = input_slice
+    let field: Vec<f32> = input_slice
         .iter()
         .zip(corrected_slice.iter())
         .map(|(&source, &estimate)| {
-            if source.is_finite() && estimate.is_finite() && source > input_lower && source > 0.0 {
-                ((estimate / source) - 1.0) * 100.0
-            } else {
-                f32::NAN
-            }
-        })
-        .collect();
-    let relative_extent = absolute_percentile(&relative_change, 98)?.max(1.0);
-    let field: Vec<f32> = input
-        .iter()
-        .zip(corrected.iter())
-        .map(|(&source, &estimate)| {
-            if estimate > 0.0 && estimate.is_finite() {
+            if source > input_lower
+                && source > 0.0
+                && source.is_finite()
+                && estimate > 0.0
+                && estimate.is_finite()
+            {
                 source / estimate
             } else {
                 f32::NAN
             }
         })
         .collect();
-    let field_slice = slice(&field, shape, axial_slice)?;
-    let field_lower = percentile(field_slice, 2)?;
-    let field_upper = percentile(field_slice, 98)?;
-    let input_panel = grayscale(input_slice, display_lower, display_upper)?;
-    let corrected_panel = grayscale(corrected_slice, display_lower, display_upper)?;
-    let relative_panel = diverging(&relative_change, relative_extent)?;
-    let field_panel = grayscale(field_slice, field_lower, field_upper)?;
+    let field_median = percentile(&field, 50)?;
+    let field_deviation: Vec<f32> = field
+        .iter()
+        .map(|value| {
+            if value.is_finite() {
+                ((*value / field_median) - 1.0) * 100.0
+            } else {
+                f32::NAN
+            }
+        })
+        .collect();
+    let relative_extent = absolute_percentile(&field_deviation, 98)?.max(1.0);
+    let field_lower = percentile(&field, 2)?;
+    let field_upper = percentile(&field, 98)?;
+    let panel_shape = [1, shape[1], shape[2]];
+    let input_panel = render_panel(
+        &grayscale(input_slice, display_lower, display_upper)?,
+        panel_shape,
+    )?;
+    let corrected_panel = render_panel(
+        &grayscale(corrected_slice, display_lower, display_upper)?,
+        panel_shape,
+    )?;
+    let relative_panel = render_panel(&diverging(&field_deviation, relative_extent)?, panel_shape)?;
+    let field_panel = render_panel(&grayscale(&field, field_lower, field_upper)?, panel_shape)?;
 
-    let figure_width = DISPLAY_WIDTH
-        .checked_mul(PANEL_COLUMNS)
+    let figure_width = PANEL_WIDTH
+        .checked_mul(2)
         .and_then(|width| width.checked_add(PANEL_GAP))
         .context("N4 figure width overflows u32")?;
-    let figure_height = DISPLAY_HEIGHT
-        .checked_mul(PANEL_ROWS)
+    let figure_height = PANEL_HEIGHT
+        .checked_mul(2)
         .and_then(|height| height.checked_add(PANEL_GAP))
         .context("N4 figure height overflows u32")?;
-    let mut figure = RgbImage::from_pixel(figure_width, figure_height, Rgb([16, 16, 16]));
-    let panel_shape = [1, shape[1], shape[2]];
-    render_panel(&mut figure, 0, &input_panel, panel_shape)?;
-    render_panel(&mut figure, 1, &corrected_panel, panel_shape)?;
-    render_panel(&mut figure, 2, &relative_panel, panel_shape)?;
-    render_panel(&mut figure, 3, &field_panel, panel_shape)?;
+    let shared_window = format!("shared p2/p98 window [{display_lower:.1}, {display_upper:.1}]");
+    let deviation_scale = format!("blue/red = ±{relative_extent:.1}% about median field");
+    let field_window = format!("field p2/p98 [{field_lower:.3}, {field_upper:.3}]");
+    let mut figure = format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {figure_width} {figure_height}\">\n<style>.title{{font:600 16px sans-serif;fill:#172033}}.subtitle{{font:12px sans-serif;fill:#475569}}</style>\n"
+    );
+    draw_panel(&mut figure, 0, "Input MR", &shared_window, &input_panel)?;
+    draw_panel(
+        &mut figure,
+        1,
+        "N4-corrected MR",
+        &shared_window,
+        &corrected_panel,
+    )?;
+    draw_panel(
+        &mut figure,
+        2,
+        "Amplified bias deviation",
+        &deviation_scale,
+        &relative_panel,
+    )?;
+    draw_panel(
+        &mut figure,
+        3,
+        "Estimated multiplicative field",
+        &field_window,
+        &field_panel,
+    )?;
+    figure.push_str("</svg>\n");
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("create figure directory {}", parent.display()))?;
     }
-    figure
-        .save(path)
-        .with_context(|| format!("write N4 figure {}", path.display()))?;
-    Ok((display_lower, display_upper))
+    std::fs::write(path, figure).with_context(|| format!("write N4 figure {}", path.display()))?;
+    Ok((display_lower, display_upper, relative_extent))
 }
 
 fn main() -> Result<()> {
     let output = std::env::args()
         .nth(1)
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("docs/book/figures/n4_bias_correction.png"));
+        .unwrap_or_else(|| PathBuf::from("docs/book/figures/n4_bias_correction.svg"));
     let input = read_input()?;
-    let input_values = input.data_slice()?.to_vec();
     let config = N4Config {
         num_fitting_levels: 2,
         num_iterations: 12,
@@ -238,10 +306,13 @@ fn main() -> Result<()> {
         noise_estimate: 0.01,
         shrink_factor: 4,
     };
+    let fitting_levels = config.num_fitting_levels;
+    let iterations = config.num_iterations;
     let corrected = N4BiasFieldCorrectionFilter::new(config)
         .apply_native(&input, &Backend::default())
         .context("apply native N4 bias-field correction")?;
-    let corrected_values = corrected.data_slice()?.to_vec();
+    let input_values = input.data_slice()?;
+    let corrected_values = corrected.data_slice()?;
     let changed = input_values
         .iter()
         .zip(corrected_values.iter())
@@ -257,14 +328,14 @@ fn main() -> Result<()> {
     {
         bail!("N4 correction did not preserve geometry or change the positive finite image volume");
     }
-    let (display_lower, display_upper) =
-        write_figure(&output, &input_values, &corrected_values, input.shape())?;
+    let (display_lower, display_upper, bias_deviation_extent) =
+        write_figure(&output, input_values, corrected_values, input.shape())?;
     println!(
-        "wrote {} (RIRE MR axial slice {}; shared window [{display_lower:.3}, {display_upper:.3}]; N4 levels {}, iterations {})",
+        "wrote {} (RIRE MR axial slice {}; shared window [{display_lower:.3}, {display_upper:.3}]; amplified bias deviation ±{bias_deviation_extent:.3}%; N4 levels {}, iterations {})",
         output.display(),
         input.shape()[0] / 2,
-        2,
-        12
+        fitting_levels,
+        iterations
     );
     Ok(())
 }

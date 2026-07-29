@@ -28,6 +28,8 @@ coeus-tensor = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
+base64 = { workspace = true }
+image = { workspace = true }
 ritk-segmentation = { path = "../ritk-segmentation" }
 
 [[bench]]

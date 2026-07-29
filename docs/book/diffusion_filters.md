@@ -29,9 +29,12 @@ Smooths along edges while preserving across-edge structure.
 ## Curvature Diffusion
 
 ```text
-dI/dt = ∇²I
+∂I/∂t = |∇I| ∇·(c(|∇I|) ∇I/|∇I|)
 ```
-Isotropic smoothing equivalent to heat equation.
+RITK implements the Modified Curvature Diffusion Equation: each intensity
+level set evolves by conductance-modulated mean curvature. Unlike heat-equation
+diffusion, the gradient-normalized flux and edge-stopping conductance preserve
+strong boundaries while smoothing along their geometry.
 
 ## Gradient Anisotropic Diffusion
 
