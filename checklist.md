@@ -34,9 +34,11 @@
 - [x] Self-review the code, rendered figure, generated HTML, workflow, and
       exact lockfile delta; retain only the three required example
       dependencies in `Cargo.lock`.
-- [ ] Commit, push, open the PR, and collect hosted gates. Merge remains
-      outside this slice because the book workflow deploys Pages on a
-      `main`-branch documentation change and release/deploy is not authorized.
+- [x] Commit and push the implementation at `6f025a84`; open draft PR #72.
+- [ ] Collect hosted gates on the final PR head.
+- [ ] Merge remains outside this slice because the book workflow deploys Pages
+      on a `main`-branch documentation change and release/deploy is not
+      authorized.
 
 ## PERF-678-01 — Eliminate tag-tree path allocations
 **Target version**: Unreleased patch
