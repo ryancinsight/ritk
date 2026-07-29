@@ -5,6 +5,18 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **DOC-675-01 [patch] - Render deformable registration behavior**
+  (IN PROGRESS; owner=Codex; scope=
+  `crates/ritk-registration/examples/book_demons_registration.rs`,
+  `docs/book/{demons_registration.md,figures/demons_registration.svg}`,
+  `CHANGELOG.md`, and PM artifacts; non-goal=release/deploy). Replace the
+  deformable-registration chapter's unrelated CT/MR mutual-information figure
+  with a same-modality RIRE MR example that applies a known displacement and
+  runs Thirion Demons. Acceptance: the example finishes within the committed
+  runtime budget, asserts finite displacement and lower post-registration MSE,
+  renders distinct fixed/moving/registered overlays plus a displacement panel,
+  and passes focused formatting, Clippy, Nextest, mdBook, and visual checks.
+
 - **DOC-674-01 [patch] - Clarify and validate book figures**
   (DONE; owner=Codex stale-claim takeover; scope=
   `crates/ritk-{filter,io,registration}/examples/book_*.rs`,
