@@ -30,7 +30,8 @@
   483 segmentation tests pass in 7.600 seconds; warning-denied all-target
   Clippy, doctests, warning-denied Rustdoc, mdBook test/build, formatting, and
   diff checks pass. The inspected 6,198-byte SVG reports Dice 1.000 and zero
-  label errors; the already-built example runs in 0.551 seconds.
+  label errors; the already-built example runs in 0.551 seconds. Draft PR #72
+  carries the code, book, and workflow changes; hosted gates are pending.
 
 - **PERF-678-01 [patch] - Eliminate tag-tree path allocations**
   (DONE; owner=Codex; scope=
