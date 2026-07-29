@@ -15,6 +15,11 @@ use anyhow::{Context, Result};
 
 use super::packet::{BitReader, BitWriter};
 
+/// A tag tree halves each dimension at every level. Starting from the largest
+/// representable dimension therefore needs at most one leaf level plus
+/// `usize::BITS` parent levels.
+const MAX_TAG_TREE_LEVELS: usize = usize::BITS as usize + 1;
+
 #[derive(Clone, Copy, Debug)]
 struct Node {
     /// Leaf/internal value (min of children for internal nodes).
@@ -37,10 +42,21 @@ pub(crate) struct TagTree {
 }
 
 impl TagTree {
+    fn required_levels(mut w: usize, mut h: usize) -> usize {
+        let mut levels = 1;
+        while w > 1 || h > 1 {
+            w = w.div_ceil(2);
+            h = h.div_ceil(2);
+            levels += 1;
+        }
+        levels
+    }
+
     /// Build a tree for a `w × h` leaf grid (`w, h ≥ 1`); all values start 0.
     pub(crate) fn new(w: usize, h: usize) -> Self {
         assert!(w >= 1 && h >= 1, "tag tree requires a non-empty leaf grid");
-        let mut level_dims = vec![(w, h)];
+        let mut level_dims = Vec::with_capacity(Self::required_levels(w, h));
+        level_dims.push((w, h));
         let (mut lw, mut lh) = (w, h);
         while lw > 1 || lh > 1 {
             lw = lw.div_ceil(2);
@@ -86,20 +102,23 @@ impl TagTree {
         self.level_offsets[0] + y * w + x
     }
 
-    /// Root-to-leaf node path for `(x, y)`.
-    fn path(&self, x: usize, y: usize) -> Vec<usize> {
-        let mut path = Vec::with_capacity(self.level_dims.len());
+    /// Fill `path` from leaf to root and return its initialized length.
+    fn fill_path(&self, x: usize, y: usize, path: &mut [usize; MAX_TAG_TREE_LEVELS]) -> usize {
         let mut idx = self.leaf_index(x, y);
+        let mut len = 0;
         loop {
-            path.push(idx);
+            let Some(slot) = path.get_mut(len) else {
+                unreachable!("invariant: halving usize dimensions fits MAX_TAG_TREE_LEVELS");
+            };
+            *slot = idx;
+            len += 1;
             let p = self.nodes[idx].parent;
             if p == usize::MAX {
                 break;
             }
             idx = p;
         }
-        path.reverse();
-        path
+        len
     }
 
     /// Set the value of leaf `(x, y)` (encoder side). Call [`Self::finalize`]
@@ -134,8 +153,10 @@ impl TagTree {
     /// Encode information about leaf `(x, y)` up to `threshold`
     /// (§B.10.2 / jasper `jpc_tagtree_encode`).
     pub(crate) fn encode(&mut self, bw: &mut BitWriter, x: usize, y: usize, threshold: u32) {
+        let mut path = [0; MAX_TAG_TREE_LEVELS];
+        let path_len = self.fill_path(x, y, &mut path);
         let mut low = 0u32;
-        for idx in self.path(x, y) {
+        for &idx in path[..path_len].iter().rev() {
             let node = &mut self.nodes[idx];
             if node.low < low {
                 node.low = low;
@@ -164,8 +185,20 @@ impl TagTree {
         y: usize,
         threshold: u32,
     ) -> Result<bool> {
+        let mut path = [0; MAX_TAG_TREE_LEVELS];
+        let path_len = self.fill_path(x, y, &mut path);
+        self.decode_path(br, &path[..path_len], threshold)
+    }
+
+    /// Decode one threshold using a leaf-to-root path prepared by the caller.
+    fn decode_path(
+        &mut self,
+        br: &mut BitReader<'_>,
+        path: &[usize],
+        threshold: u32,
+    ) -> Result<bool> {
         let mut low = 0u32;
-        for idx in self.path(x, y) {
+        for &idx in path.iter().rev() {
             let node = &mut self.nodes[idx];
             if node.low < low {
                 node.low = low;
@@ -180,7 +213,10 @@ impl TagTree {
             }
             low = node.low;
         }
-        let leaf = &self.nodes[self.leaf_index(x, y)];
+        let Some(&leaf_index) = path.first() else {
+            unreachable!("invariant: every tag-tree path contains its leaf");
+        };
+        let leaf = &self.nodes[leaf_index];
         Ok(leaf.known && leaf.value < threshold)
     }
 
@@ -192,17 +228,23 @@ impl TagTree {
         x: usize,
         y: usize,
     ) -> Result<u32> {
-        let mut t = self.nodes[self.leaf_index(x, y)]
+        let mut path = [0; MAX_TAG_TREE_LEVELS];
+        let path_len = self.fill_path(x, y, &mut path);
+        let path = &path[..path_len];
+        let Some(&leaf_index) = path.first() else {
+            unreachable!("invariant: every tag-tree path contains its leaf");
+        };
+        let mut t = self.nodes[leaf_index]
             .low
             .checked_add(1)
             .context("J2K tag-tree value exceeds u32 range")?;
-        while !self.nodes[self.leaf_index(x, y)].known {
-            self.decode(br, x, y, t)?;
+        while !self.nodes[leaf_index].known {
+            self.decode_path(br, path, t)?;
             t = t
                 .checked_add(1)
                 .context("J2K tag-tree value exceeds u32 range")?;
         }
-        Ok(self.nodes[self.leaf_index(x, y)].value)
+        Ok(self.nodes[leaf_index].value)
     }
 }
 
@@ -255,6 +297,44 @@ mod tests {
     #[test]
     fn grid_3x2_round_trip_iso_example_shape() {
         round_trip(3, 2, &[1, 3, 2, 3, 2, 0]);
+    }
+
+    #[test]
+    fn grid_2x2_bitstream_is_stable() {
+        let mut tree = TagTree::new(2, 2);
+        let values = [3, 0, 7, 2];
+        for (index, &value) in values.iter().enumerate() {
+            tree.set_value(index % 2, index / 2, value);
+        }
+        tree.finalize();
+
+        let mut writer = BitWriter::new();
+        for (index, &value) in values.iter().enumerate() {
+            tree.encode(&mut writer, index % 2, index / 2, value + 1);
+        }
+
+        assert_eq!(writer.flush(), vec![140, 4, 128]);
+    }
+
+    #[test]
+    fn maximum_dimension_level_count_fits_fixed_path() {
+        assert_eq!(
+            TagTree::required_levels(usize::MAX, usize::MAX),
+            MAX_TAG_TREE_LEVELS
+        );
+        assert_eq!(TagTree::required_levels(1, usize::MAX), MAX_TAG_TREE_LEVELS);
+        assert_eq!(TagTree::required_levels(1, 1), 1);
+    }
+
+    #[test]
+    fn deep_rectangular_tree_round_trip() {
+        let values = (0..257)
+            .map(|index| {
+                u32::try_from(index * 17 % 31)
+                    .expect("invariant: generated tag-tree value is at most 30")
+            })
+            .collect::<Vec<_>>();
+        round_trip(1, values.len(), &values);
     }
 
     #[test]

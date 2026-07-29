@@ -13,6 +13,39 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## PERF-678-01 audit (2026-07-28)
+
+Every tag-tree `encode` and `decode` operation previously allocated a
+`Vec<usize>`, followed parent links from the leaf, and reversed the vector
+before traversing root to leaf. Exact missing-MSB decoding called that path
+again for every successive threshold. The 512×512 five-level codec geometry
+contains 70 code blocks, so an all-contributing packet performs 70 inclusion
+and 70 missing-MSB tag-tree operations before accounting for repeated
+exact-value thresholds.
+
+Tag-tree dimensions halve with ceiling division at every level. Even a
+`usize::MAX` dimension therefore has at most one leaf level plus
+`usize::BITS` parent levels. Each operation now fills a fixed
+`usize::BITS + 1` stack array from leaf to root and traverses the initialized
+slice in reverse. Exact-value decoding prepares this path once and reuses it
+for all thresholds. Tree construction also derives the final level count and
+allocates its persistent dimension table at that capacity. These are
+structural allocation reductions; no allocator instrumentation is used to
+claim a process-wide allocation count.
+
+The unchanged Windows x86-64 Criterion encode workload measures 54.353 ms
+before and 52.511 ms after, with a -5.06% to -1.53% change interval and
+p < 0.05. The measured median improves by 3.39%. Decode measures 52.363 ms
+before and 52.418 ms after, with a -1.34% to +1.64% interval and p = 0.89;
+no decode latency change is detected.
+
+A golden 2×2 tree preserves the exact `[140, 4, 128]` byte stream. Additional
+tests cover a 257-leaf-axis rectangular tree and prove that maximum platform
+dimensions fit the fixed path. All 271 codec Nextest cases pass in 5.258
+seconds, including native round trips and the 190-case captured OpenJPEG
+corpus. Formatting, warning-denied all-target Clippy, doctests, and
+warning-denied Rustdoc also pass.
+
 ## PERF-677-01 audit (2026-07-28)
 
 The reversible 5/3 transform previously cloned every interleaved row or

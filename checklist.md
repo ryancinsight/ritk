@@ -13,9 +13,31 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
-## PERF-677-01 — Reuse reversible wavelet workspace
+## PERF-678-01 — Eliminate tag-tree path allocations
 **Target version**: Unreleased patch
 **Sprint phase**: Execution
+
+- [x] Trace tag-tree path construction through tier-2 packet encode/decode
+      and exclude the already-completed packet-suffix and wavelet work.
+- [x] Capture matched 512×512 five-level encode and decode Criterion
+      baselines: 54.353 ms and 52.363 ms medians.
+- [x] Replace per-operation heap paths with a depth-bounded stack
+      representation and reuse one path across exact-value thresholds.
+- [x] Add maximum-depth, rectangular-tree, and exact-bitstream regressions.
+- [x] Revalidate native round trips and the captured OpenJPEG corpus. All 271
+      codec tests pass in 5.258 seconds.
+- [x] Compare the unchanged Criterion workload. Encode improves from
+      54.353 ms to 52.511 ms (3.39%, p < 0.05); decode changes from
+      52.363 ms to 52.418 ms (p = 0.89), detecting no decode latency change.
+- [x] Run formatting, warning-denied all-target Clippy, doctest, and
+      warning-denied Rustdoc gates.
+- [x] Self-review the exact delivered diff and exclude overlay-derived
+      lockfile rewrites.
+- [ ] Commit, push, and merge after hosted gates pass.
+
+## PERF-677-01 — Reuse reversible wavelet workspace
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
 
 - [x] Capture matched 512×512 five-level encode and decode Criterion
       baselines: 55.209 ms and 52.545 ms medians.
@@ -30,7 +52,9 @@
       52.665 ms (p = 0.80), detecting no regression.
 - [x] Run formatting, warning-denied Clippy, all 268 codec tests, doctests,
       and warning-denied Rustdoc.
-- [ ] Commit, push, and merge after hosted gates pass.
+- [x] Commit, push, and merge after hosted gates pass. PR #70 merged as
+      `34d16106` from exact head `6ffcd909`; CI `30419505151` and Python
+      `30419505162` passed every repository-owned lane.
 
 ## SAFE-676-01 — Reject malformed JPEG 2000 packet headers
 **Target version**: Unreleased patch

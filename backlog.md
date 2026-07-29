@@ -5,8 +5,30 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
-- **PERF-677-01 [patch] - Reuse reversible wavelet workspace**
+- **PERF-678-01 [patch] - Eliminate tag-tree path allocations**
   (REVIEW; owner=Codex; scope=
+  `crates/ritk-codecs/src/jpeg_2000/tag_tree.rs`, `CHANGELOG.md`, and PM
+  artifacts; non-goal=tag-tree representation changes, public API changes,
+  or codec release). Every tag-tree encode/decode operation currently
+  allocates and reverses a `Vec<usize>` containing the root-to-leaf path, and
+  exact-value decoding rebuilds that path at every threshold. Replace the
+  heap path with a bounded stack representation and reuse it throughout
+  exact-value decoding. Acceptance: tag-tree bitstreams and incremental state
+  remain exact for singleton, rectangular, and maximum-depth trees; native
+  and captured OpenJPEG codec cases remain exact; the unchanged 512×512
+  five-level Criterion workload detects no regression; formatting,
+  warning-denied Clippy, Nextest, doctest, and Rustdoc gates pass. Local
+  closure: every tag-tree operation now uses a fixed stack path bounded by
+  `usize::BITS + 1`, and exact-value decode prepares that path once instead of
+  allocating it at every threshold. The 2×2 golden stream remains
+  `[140, 4, 128]`; deep rectangular and maximum-depth bounds pass. All 271
+  codec tests pass, including the 190-case captured OpenJPEG corpus. The
+  unchanged encode median improves from 54.353 ms to 52.511 ms (3.39%,
+  p < 0.05); decode changes from 52.363 ms to 52.418 ms (p = 0.89), detecting
+  no decode latency change.
+
+- **PERF-677-01 [patch] - Reuse reversible wavelet workspace**
+  (DONE; owner=Codex; scope=
   `crates/ritk-codecs/src/jpeg_2000/wavelet.rs`, `CHANGELOG.md`, and PM
   artifacts; non-goal=9/7 wavelet changes, public API changes, or codec
   release). Each 1-D reversible 5/3 lift clones its full line and each DWT
@@ -25,6 +47,9 @@
   medians are 54.463 ms encode (p = 0.09) and 52.665 ms decode (p = 0.80), so
   no latency change is detected. All 268 codec tests pass;
   formatting, warning-denied Clippy, doctests, and warning-denied Rustdoc pass.
+  PR #70 merged as `34d16106` from exact head `6ffcd909` after CI run
+  `30419505151` and Python run `30419505162` passed every repository-owned
+  lane.
 
 - **SAFE-676-01 [patch] - Reject malformed JPEG 2000 packet headers**
   (DONE; owner=Codex; scope=
