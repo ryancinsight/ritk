@@ -1,6 +1,6 @@
 use super::super::reader::DicomReadMetadata;
 use super::preservation::emit_preservation_nodes;
-use super::utils::{
+use super::pixel_encoding::{
     emit_pixel_format_tags, ensure_series_directory, format_pair, format_six, format_triplet,
     generate_instance_uid, generate_series_uid, normalize_to_u16, writer_exclusion_tags,
     DICOM_SOP_CLASS_SECONDARY_CAPTURE,
@@ -344,3 +344,4 @@ impl<B> Default for DicomWriter<B> {
         Self::new()
     }
 }
+

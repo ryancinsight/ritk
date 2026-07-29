@@ -8,7 +8,7 @@ use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::path::Path;
 
 use super::types::{RtDoseGrid, RtDoseSummationType, RtDoseType, RT_DOSE_SOP_CLASS_UID};
-use super::utils::{parse_ds_backslash, parse_frame_offsets};
+use super::ds_parse::{parse_ds_backslash, parse_frame_offsets};
 use crate::format::dicom::reader::types::truncate_arraystring;
 
 /// Read an RT Dose Storage DICOM file at `path` into an [`RtDoseGrid`].
@@ -206,3 +206,4 @@ pub fn read_rt_dose<P: AsRef<Path>>(path: P) -> Result<RtDoseGrid> {
         referenced_rt_plan_sop_instance_uid,
     })
 }
+

@@ -22,7 +22,7 @@ pub(super) mod pixel;
 mod preservation;
 pub(super) mod scan;
 pub(crate) mod types;
-pub(super) mod utils;
+pub(super) mod detection;
 
 #[cfg(test)]
 mod tests;

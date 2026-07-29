@@ -1,4 +1,4 @@
-use super::utils::{
+use super::pixel_encoding::{
     emit_pixel_format_tags, ensure_series_directory, format_pair, format_six, format_triplet,
     generate_instance_uid, generate_series_uid, normalize_to_u16,
     DICOM_SOP_CLASS_SECONDARY_CAPTURE, MONOCHROME2,
@@ -281,3 +281,4 @@ fn write_series_flat(
     }
     Ok(())
 }
+

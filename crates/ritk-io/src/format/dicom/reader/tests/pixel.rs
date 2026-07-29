@@ -11,7 +11,7 @@ use super::super::scan::scan_dicom_directory;
 use super::super::types::{
     DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata, PatientPosition,
 };
-use super::super::utils::is_likely_dicom_file;
+use super::super::detection::is_likely_dicom_file;
 use super::support::*;
 use crate::format::dicom::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
@@ -294,3 +294,4 @@ fn test_read_slice_pixels_rejects_rgb_scalar_volume() {
         "expected scalar loader RGB rejection, got {err:#}"
     );
 }
+

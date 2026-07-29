@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use tracing::{info, warn};
 
 mod impls;
-pub(crate) mod utils;
+pub(crate) mod validation;
 
 pub use impls::{
     AntsExampleDataset, BrainWebDataset, IxiDataset, Learn2RegDataset, OasisDataset,
@@ -61,7 +61,7 @@ impl DatasetManager {
             let download_path = dataset_dir.join(filename);
 
             // Download with progress bar
-            let data = utils::download_with_progress(url)?;
+            let data = validation::download_with_progress(url)?;
 
             // Verify hash if provided
             if !expected_hash.is_empty() {
@@ -80,11 +80,11 @@ impl DatasetManager {
 
             // Extract based on file type
             if filename.ends_with(".tar.gz") || filename.ends_with(".tgz") {
-                utils::extract_tar_gz(&data, &dataset_dir)?;
+                validation::extract_tar_gz(&data, &dataset_dir)?;
             } else if filename.ends_with(".zip") {
-                utils::extract_zip(&data, &dataset_dir)?;
+                validation::extract_zip(&data, &dataset_dir)?;
             } else if filename.ends_with(".nii.gz") || filename.ends_with(".nii") {
-                utils::validate_nifti_payload(filename, &data)?;
+                validation::validate_nifti_payload(filename, &data)?;
                 // Direct NIfTI file - save as-is
                 std::fs::write(&download_path, &data)?;
             } else {
@@ -114,16 +114,16 @@ impl DatasetManager {
                 info!("Checking dataset: {}", name);
 
                 // Count NIfTI files
-                let nifti_count = utils::count_nifti_files(&path)?;
+                let nifti_count = validation::count_nifti_files(&path)?;
                 info!("  Found {} NIfTI files", nifti_count);
 
-                for nifti_path in utils::list_nifti_files(&path)? {
+                for nifti_path in validation::list_nifti_files(&path)? {
                     let data = std::fs::read(&nifti_path)?;
                     let filename = nifti_path
                         .file_name()
                         .and_then(|n| n.to_str())
                         .unwrap_or("<unknown>");
-                    if let Err(err) = utils::validate_nifti_payload(filename, &data) {
+                    if let Err(err) = validation::validate_nifti_payload(filename, &data) {
                         invalid_nifti_files.push(format!("{} ({})", nifti_path.display(), err));
                     }
                 }

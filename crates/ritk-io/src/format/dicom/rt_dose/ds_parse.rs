@@ -1,4 +1,4 @@
-//! Private helper utilities for RT Dose I/O.
+//! DICOM DS decimal-string parsing for RT Dose I/O.
 
 use anyhow::{bail, Context, Result};
 

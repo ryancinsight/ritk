@@ -1,4 +1,4 @@
-//! Miscellaneous utilities for the DICOM reader.
+//! DICOM Part 10 file detection.
 
 use crate::ImageFormat;
 use std::path::Path;

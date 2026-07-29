@@ -12,7 +12,7 @@ use super::super::scan::scan_dicom_directory;
 use super::super::types::{
     DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata, PatientPosition,
 };
-use super::super::utils::is_likely_dicom_file;
+use super::super::detection::is_likely_dicom_file;
 use super::support::*;
 use crate::format::dicom::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
@@ -323,3 +323,4 @@ fn test_load_from_series_oblique_direction_uses_column_slice_convention() {
         dir[(2, 2)]
     );
 }
+

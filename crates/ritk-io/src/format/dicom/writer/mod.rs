@@ -9,7 +9,7 @@
 mod metadata;
 mod preservation;
 mod series;
-pub(crate) mod utils;
+pub(crate) mod pixel_encoding;
 
 #[cfg(test)]
 mod tests;
@@ -18,4 +18,4 @@ pub use metadata::{write_dicom_series_with_metadata, DicomWriter};
 pub use series::{write_dicom_series, write_dicom_series_native};
 
 #[cfg(test)]
-pub(crate) use utils::generate_series_uid;
+pub(crate) use pixel_encoding::generate_series_uid;

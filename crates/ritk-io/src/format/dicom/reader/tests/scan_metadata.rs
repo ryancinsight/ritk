@@ -11,7 +11,7 @@ use super::super::scan::scan_dicom_directory;
 use super::super::types::{
     DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata, PatientPosition,
 };
-use super::super::utils::is_likely_dicom_file;
+use super::super::detection::is_likely_dicom_file;
 use super::support::*;
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 use crate::format::dicom::{
@@ -396,3 +396,4 @@ fn test_scan_metadata_round_trip_transfer_syntax() {
         );
     }
 }
+

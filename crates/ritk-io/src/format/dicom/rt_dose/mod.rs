@@ -19,7 +19,7 @@
 
 mod reader;
 mod types;
-mod utils;
+mod ds_parse;
 mod writer;
 
 pub use reader::read_rt_dose;

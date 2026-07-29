@@ -1,5 +1,5 @@
 use super::super::object_model::{DicomPreservationSet, DicomSequenceItem, DicomValue};
-use super::utils::{str_to_vr, writer_tag_key};
+use super::pixel_encoding::{str_to_vr, writer_tag_key};
 use dicom::core::header::Length;
 use dicom::core::smallvec::SmallVec;
 use dicom::core::value::{DataSetSequence, Value as DicomCoreValue};
@@ -122,3 +122,4 @@ pub(super) fn emit_preservation_nodes(
         ));
     }
 }
+
