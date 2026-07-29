@@ -6,7 +6,7 @@
 > References to these tools in the entries below are historical.
 
 - **DOC-674-01 [patch] - Clarify and validate book figures**
-  (IN PROGRESS; owner=Codex stale-claim takeover; scope=
+  (DONE; owner=Codex stale-claim takeover; scope=
   `crates/ritk-{filter,io,registration}/examples/book_*.rs`,
   `docs/book/**`, `.github/workflows/book-pages.yml`, example-only
   dependencies, `CHANGELOG.md`, and PM artifacts; non-goal=release/deploy).
@@ -20,7 +20,8 @@
   mdBook gates pass, and the current `main` branch is integrated before merge.
   Current-main integration exposed a 30.405-second N4 run. Linearity-based
   control-lattice accumulation reduces that unchanged run to 5.189 seconds and
-  passes all 18 focused N4/B-spline tests.
+  passes all 18 focused N4/B-spline tests. PR #56 merged as `2bb787ab` after
+  the complete hosted matrix passed at head `d30b3d68`.
 
 - **MIG-673-01 [patch] - Retire the completed Burn migration audit**
   (DONE; owner=Codex stale-claim takeover; scope=
