@@ -38,12 +38,18 @@
 - [x] Collect hosted gates on the final code head. Head `a59dfb9f` passes Rust
       CI `30424915304`, Python CI `30424915350`, and book build/artifact run
       `30424915331`.
-- [ ] Replace the static GrowCut comparison with public-API iteration
+- [x] Replace the static GrowCut comparison with public-API iteration
       snapshots that show both labels expanding from their seeds.
-- [ ] Add an exact boundary attack explanation using the phantom's measured
-      intensities and inspect the regenerated figure at rendered size.
-- [ ] Re-run the example, focused segmentation tests, Clippy, mdBook gates,
-      and hosted checks against the revised figure.
+- [x] Add an exact boundary attack explanation using the phantom's measured
+      intensities and inspect the regenerated 960x456 figure.
+- [x] Correct mixed-precision range rounding that allowed 1,226 transient
+      cross-boundary labels; add a value-semantic intermediate-state
+      regression.
+- [x] Re-run the example, focused and full segmentation tests, focused Clippy,
+      doctest, Rustdoc, and mdBook gates against the revised figure. The
+      example runs in 1.437 seconds and all 484 package tests pass in 2.925
+      seconds.
+- [ ] Push the revised implementation and collect hosted PR checks.
 - [ ] Merge remains outside this slice because the book workflow deploys Pages
       on a `main`-branch documentation change and release/deploy is not
       authorized.
