@@ -35,7 +35,9 @@
       exact lockfile delta; retain only the three required example
       dependencies in `Cargo.lock`.
 - [x] Commit and push the implementation at `6f025a84`; open draft PR #72.
-- [ ] Collect hosted gates on the final PR head.
+- [x] Collect hosted gates on the final code head. Head `a59dfb9f` passes Rust
+      CI `30424915304`, Python CI `30424915350`, and book build/artifact run
+      `30424915331`.
 - [ ] Merge remains outside this slice because the book workflow deploys Pages
       on a `main`-branch documentation change and release/deploy is not
       authorized.
