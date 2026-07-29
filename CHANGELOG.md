@@ -8,6 +8,17 @@
 
 # CHANGELOG
 
+## [Unreleased] — Deformable registration figure (DOC-675-01)
+
+### Changed
+
+- Added a runnable same-modality RIRE MR example for Thirion Demons with
+  identity and registered overlays, a signed displacement map, and
+  value-semantic MSE and finite-field checks.
+- Replaced the deformable-registration chapter's unrelated CT/MR
+  mutual-information figure reference with output from the algorithm it
+  documents.
+
 ## [Unreleased] — Book figure validation (DOC-674-01)
 
 ### Changed

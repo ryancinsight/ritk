@@ -13,6 +13,27 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## DOC-675-01 audit (2026-07-28)
+
+The deformable-registration chapter documented Thirion Demons but delegated
+its only visual result to the CT/MR mutual-information example. That figure
+could not demonstrate the documented algorithm, and using raw CT and MR
+directly with Demons would be invalid because its force is driven by intensity
+difference. The correction loads the RIRE Patient 001 T1 MR volume, extracts a
+bounded same-modality crop, creates a known three-voxel translation, and runs
+the public `ThirionDemonsRegistration` API.
+
+The generated 46,084-byte SVG renders fixed anatomy, the translated identity
+overlay, the registered overlay, and the signed x-displacement field. Visual
+inspection confirms that separated red/green boundaries approach
+coincidence after registration and that the interior displacement direction is
+positive under RITK's forward-warp convention. The example independently
+measures MSE, rejects non-finite displacement, and improves from 0.049194 to
+0.005062 in 35 iterations. Its already-built dev executable runs in 0.160
+seconds. All 42 focused Demons Nextest cases pass in 0.739 seconds, as do
+focused formatting, warning-denied all-target Clippy, two executable package
+doctests, warning-denied Rustdoc, `mdbook test`, and `mdbook build`.
+
 ## DOC-674-01 audit (2026-07-28)
 
 The recovered book branch contained a 474-byte placeholder registration SVG,
