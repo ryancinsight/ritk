@@ -5,8 +5,21 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **SAFE-676-01 [patch] - Reject malformed JPEG 2000 packet headers**
+  (IN PROGRESS; owner=Codex; scope=
+  `crates/ritk-codecs/src/jpeg_2000/{packet/{reader.rs,tests.rs},
+  tag_tree.rs}`, `CHANGELOG.md`, and PM artifacts; non-goal=public packet API
+  changes or codec release). The tier-2 packet parser currently synthesizes
+  zero bits after packet-header EOF and increments the untrusted `Lblock`
+  unary field without checked arithmetic. Make every production header read
+  explicitly fallible while preserving the existing public `BitReader`
+  surface. Acceptance: truncated tag-tree/pass/length fields and excessive
+  `Lblock` growth return contextual errors without panic or wrap; valid native
+  and captured OpenJPEG packet vectors remain exact; focused formatting,
+  warning-denied Clippy, Nextest, doctest, and Rustdoc gates pass.
+
 - **DOC-675-01 [patch] - Render deformable registration behavior**
-  (REVIEW; owner=Codex; scope=
+  (DONE; owner=Codex; scope=
   `crates/ritk-registration/examples/book_demons_registration.rs`,
   `docs/book/{demons_registration.md,figures/demons_registration.svg}`,
   `CHANGELOG.md`, and PM artifacts; non-goal=release/deploy). Replace the
@@ -21,6 +34,9 @@
   3.787-voxel displayed extent, and emits a 46,084-byte inspected SVG. All 42
   focused Demons tests, warning-denied all-target Clippy, package doctests,
   warning-denied Rustdoc, and mdBook test/build pass.
+  PR #68 merged as `f372d73c` from exact head `57f60064` after CI run
+  `30416895700`, Python run `30416895692`, and book run `30416895687` passed
+  every repository-owned lane.
 
 - **DOC-674-01 [patch] - Clarify and validate book figures**
   (DONE; owner=Codex stale-claim takeover; scope=
