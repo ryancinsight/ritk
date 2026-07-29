@@ -1,5 +1,6 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 
+use crate::dimensions::checked_pixel_count;
 use crate::jpeg_2000::ebcot::decode_code_block;
 use crate::jpeg_2000::quantization::{dequantize, step_size};
 use crate::jpeg_2000::subband::{resolution_band_range, subband_layout, Subband};
@@ -166,14 +167,17 @@ pub struct TileCodingParams<'a> {
 /// multiple quality layers (per-code-block pass accumulation).
 ///
 /// # Errors
-/// Returns an error when a signalled packet-body length exceeds the available
-/// tile data or the inverse DWT geometry is inconsistent.
+/// Returns an error when the tile dimensions exceed the shared decode bound, a
+/// signalled packet-body length exceeds the available tile data, or the inverse
+/// DWT geometry is inconsistent.
 pub fn decode_tile_part(
     tile_data: &[u8],
     width: usize,
     height: usize,
     coding: TileCodingParams<'_>,
 ) -> Result<TileComponentSamples> {
+    let sample_count =
+        checked_pixel_count(width, height).context("J2K tile-component dimensions")?;
     let bands = subband_layout(width, height, coding.num_decomp_levels);
     let cblks: Vec<CblkRef> = bands
         .iter()
@@ -264,8 +268,8 @@ pub fn decode_tile_part(
     // records, per coefficient, the lowest bit-plane its code-block decoded so
     // the irreversible reconstruction can place the dequantized value at the
     // midpoint of the still-undecoded interval (ISO 15444-1 §E.1.1.2).
-    let mut mallat = vec![0i32; width * height];
-    let mut bp_plane = vec![0u32; width * height];
+    let mut mallat = vec![0i32; sample_count];
+    let mut bp_plane = vec![0u32; sample_count];
     for (ci, c) in cblks.iter().enumerate() {
         let b = &bands[c.band];
         let st = &states[ci];
@@ -310,7 +314,7 @@ pub fn decode_tile_part(
             // levels the single LL band is the original integer image captured
             // losslessly (exact → no reconstruction bias).
             let continuous = coding.num_decomp_levels > 0;
-            let mut coeffs = vec![0f32; width * height];
+            let mut coeffs = vec![0f32; sample_count];
             for (bi, b) in bands.iter().enumerate() {
                 let r_b = coding.precision + b.gain;
                 let exponent = coding.exponents.get(bi).copied().unwrap_or(r_b);

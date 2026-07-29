@@ -90,6 +90,23 @@ fn jpeg_dimension_mismatch_is_rejected() {
 }
 
 #[test]
+fn jpeg_rejects_component_amplified_dimensions_before_scan_allocation() {
+    let mut jpeg = encode_rgb_jpeg(1, 1, &[120, 64, 32]);
+    let sof = jpeg
+        .windows(2)
+        .position(|bytes| bytes == [0xFF, 0xC0])
+        .expect("encoded JPEG must contain SOF0");
+    jpeg[sof + 5..sof + 7].copy_from_slice(&16_384u16.to_be_bytes());
+    jpeg[sof + 7..sof + 9].copy_from_slice(&16_384u16.to_be_bytes());
+
+    let err = RitkJpegDecoder::decode(&jpeg)
+        .expect_err("three-component frame over the sample cap must fail");
+    let msg = format!("{err:#}");
+    assert!(msg.contains("JPEG frame samples"), "got: {msg}");
+    assert!(msg.contains("sample decode limit"), "got: {msg}");
+}
+
+#[test]
 fn jpeg_rgb24_fragment_decodes_interleaved_samples() {
     let source = [120u8, 64, 32, 120, 64, 32];
     let jpeg = encode_rgb_jpeg(2, 1, &source);

@@ -1,12 +1,27 @@
 # Benchmarking
 
-The benchmarking chapter focuses on measuring host-core cost separately from boundary overhead. Many ritk algorithms are written as substrate-agnostic flat-buffer kernels with lightweight wrappers that reconstruct `ritk-image::Image` values or dispatch on a backend only once. A good benchmark therefore asks more than “how long did the function call take?” It compares release builds, warm-cache versus cold-cache behavior, and native host-core execution against per-image wrapper paths so regressions can be attributed to actual algorithmic work rather than avoidable allocations or metadata shuffling.
+Benchmarking keeps algorithm cost separate from file I/O, image extraction,
+metadata reconstruction, and dispatch. Many filters operate on flat buffers,
+so a useful benchmark compares the public image call with the reusable buffer
+core and records where any boundary copy occurs.
 
-This is where Atlas integration becomes visible at the systems level. Coeus provides the image and backend abstractions, Moirai provides a parallel execution target, and Leto may appear indirectly when classical registration converts through array-based numerics. Benchmarking keeps those layers honest by showing when the same public API is effectively zero-cost and when a boundary crossing introduces measurable overhead that deserves a dedicated optimization.
+Use release builds, fixed inputs, and a benchmark closure that returns the
+computed result. Record median and confidence intervals. A benchmark that only
+checks that a call succeeds cannot detect a dead computation or wrong value.
+
+## Registration measurements
+
+Registration uses the same separation. Time image loading and preprocessing
+outside the timed region, then measure metric evaluation, resampling, and
+optimizer steps independently. Keep fixed and moving images and the optimizer
+configuration in the benchmark input. Report accuracy and runtime separately.
+
+The repository's runnable benchmark lane is the source of truth for command
+names and budgets. Build it in release mode and run the smallest case before
+collecting a full baseline.
 
 ## Example Summary
 
 | Example | Status | Focus |
 | --- | --- | --- |
-| [Gradient Recursive Gaussian Benchmark](examples/bench_gradient_rg.md) | Available | Compares optimized buffer-level execution against per-`Image` wrapper passes. |
-| Registration microbench suite | Planned | Extend the same method to metric evaluation, resampling, and optimizer loops. |
+| [Gradient Recursive Gaussian Benchmark](examples/bench_gradient_rg.md) | Available | Compares optimized buffer-level execution against image-wrapper passes. |

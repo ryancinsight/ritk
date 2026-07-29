@@ -20,6 +20,31 @@ fn constant_control_points_partition_of_unity() {
     }
 }
 
+#[test]
+fn accumulated_control_lattices_match_separate_evaluations() {
+    let dims = [5, 6, 7];
+    let control_dims = [4, 4, 4];
+    let first = vec![1.25f64; 4 * 4 * 4];
+    let second = vec![-0.5f64; 4 * 4 * 4];
+    let first_field = bspline_evaluate(&first, control_dims, dims);
+    let second_field = bspline_evaluate(&second, control_dims, dims);
+    let combined_control = first
+        .iter()
+        .zip(&second)
+        .map(|(left, right)| left + right)
+        .collect::<Vec<_>>();
+    let combined_field = bspline_evaluate(&combined_control, control_dims, dims);
+
+    for ((combined, left), right) in combined_field.iter().zip(&first_field).zip(&second_field) {
+        let expected = left + right;
+        let bound = 16.0 * f32::EPSILON * expected.abs().max(1.0);
+        assert!(
+            (combined - expected).abs() <= bound,
+            "B-spline linearity error: combined={combined}, expected={expected}, bound={bound}"
+        );
+    }
+}
+
 /// Partition of unity holds with larger control grid and non-cubic dimensions.
 #[test]
 fn partition_of_unity_larger_grid() {

@@ -7,9 +7,10 @@
 //! product turns a tiny file into a multi-gigabyte allocation (and, where the
 //! decode loop runs once per declared pixel, billions of iterations).
 //!
-//! This is the single source of truth for the pixel-count cap; every decoder
+//! This is the single source of truth for decode-size caps; every decoder
 //! validates declared dimensions through [`checked_pixel_count`] before
-//! allocating.
+//! allocating. Multi-component decoders additionally validate their total
+//! sample count through [`checked_sample_count`].
 
 use anyhow::{anyhow, Result};
 
@@ -36,6 +37,26 @@ pub(crate) fn checked_pixel_count(width: usize, height: usize) -> Result<usize> 
         })
 }
 
+/// Validate the total sample count for a decoded multi-component frame.
+///
+/// The sample cap equals the pixel cap so increasing the component count
+/// cannot amplify a valid pixel grid into an unbounded output allocation.
+///
+/// # Errors
+/// Returns an error when `pixels * samples_per_pixel` overflows `usize`, is
+/// zero, or exceeds [`MAX_DECODED_PIXELS`].
+pub(crate) fn checked_sample_count(pixels: usize, samples_per_pixel: usize) -> Result<usize> {
+    pixels
+        .checked_mul(samples_per_pixel)
+        .filter(|&n| n > 0 && n <= MAX_DECODED_PIXELS)
+        .ok_or_else(|| {
+            anyhow!(
+                "frame with {pixels} pixels and {samples_per_pixel} samples per pixel exceeds \
+                 the {MAX_DECODED_PIXELS}-sample decode limit"
+            )
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -59,5 +80,19 @@ mod tests {
     fn rejects_overflowing_product() {
         let err = checked_pixel_count(usize::MAX, 2).expect_err("must reject overflow");
         assert!(err.to_string().contains("decode limit"), "got: {err}");
+    }
+
+    #[test]
+    fn rejects_component_amplified_sample_count() {
+        let err = checked_sample_count(MAX_DECODED_PIXELS, 3).expect_err("must reject");
+        assert!(
+            err.to_string().contains("sample decode limit"),
+            "got: {err}"
+        );
+    }
+
+    #[test]
+    fn accepts_bounded_multicomponent_sample_count() {
+        assert_eq!(checked_sample_count(512 * 512, 3).unwrap(), 786_432);
     }
 }

@@ -33,7 +33,20 @@ fills are distinct, smoothing uses a shared display window, registration
 changes the CT/MR overlay from separated red/green edges toward coincidence,
 and the N4 diagnostic exposes the estimated smooth bias rather than global
 scale. Focused Nextest, warning-denied Clippy and Rustdoc, `mdbook test`, and
-`mdbook build` pass. Current-main integration remains the delivery gate.
+`mdbook build` pass.
+
+After current-main integration, the unchanged N4 example crossed the runtime
+budget at 30.405 seconds. Sampling was unavailable because the Windows
+`dtrace` and `blondie` paths require administrator access, but the analytical
+cost is explicit: every iteration evaluated a 64-term cubic B-spline over the
+full CT/MR volume and allocated a full-volume result even though evaluation is
+linear in the control lattice. The implementation now sums iterative control
+lattices at each fitting level, retains per-iteration shrunk-grid evaluation
+for convergence, and performs one allocation-free full-grid accumulation per
+level. The unchanged example completes in 5.189 seconds and reports the same
+display window and ±2.878% bias extent. All 18 focused N4/B-spline tests pass,
+including a derived-epsilon linearity regression. Warning-denied and book
+gates remain the delivery checks on the merged state.
 
 ## MIG-673-01 audit (2026-07-28)
 
@@ -47,6 +60,201 @@ gate. Focused formatting and warning-denied Clippy pass; all 5 `xtask`
 Nextest cases pass in 4.237 seconds; and warning-denied Rustdoc passes.
 `cargo test --doc -p xtask` reports no library target, so doctests are not an
 applicable gate for this binary-only package.
+## DEP-672-02 audit (2026-07-28)
+
+PR #66's first hosted Python lanes failed before compiling RITK. Their logs
+show both local Leto and Git Leto `91c0c16`; the Git copy then fails to import
+`eunomia::UnitScalar`. Current Coeus declares `leto` and `leto-ops` from
+`https://github.com/ryancinsight/leto.git`, but RITK's root manifest only
+patched Eunomia and other provider URLs to sibling paths. Provider-head drift
+therefore exposed a pre-existing source-identity hole that is unrelated to the
+EBCOT diff.
+
+RITK now maps both Leto URL spellings to its existing local `leto` and
+`leto-ops` 0.40 packages. This keeps one provider implementation and one trait
+identity in hosted builds instead of adapting or retaining the stale Git copy.
+Full metadata resolves exactly one `leto` 0.40.0 and one `leto-ops` 0.40.0,
+both from the sibling worktree and neither from Git. The corrected graph passes
+all 262 `ritk-codecs` tests under nextest in 17.929 seconds. Exact code head
+`80464ff6` passes hosted CI run `30404675078`, all 13 Python lanes in run
+`30404675093`, and migration-audit run `30404675262`; no hosted job compiles
+the duplicate Git Leto.
+
+## PERF-672-01 audit (2026-07-28)
+
+After PERF-671 packed significance, sign, visit, and refinement state into one
+byte, `encode_code_block` still copied every borrowed `i32` coefficient's
+unsigned magnitude into a read-only `Vec<u32>`. A 64×64 block therefore kept
+4 KiB of state beside a 16 KiB magnitude plane throughout all coding passes.
+Blocks are encoded sequentially, so the plane cost is 16 KiB of peak auxiliary
+storage and one allocation per block rather than the sum over an image. The
+unchanged 512×512 five-level workload contains 70 blocks.
+
+The encoder now reads `i32::unsigned_abs` directly from its borrowed sample
+slice at each bit test. This preserves coding order, MQ contexts, and symbol
+generation while reducing auxiliary EBCOT encoder storage from 20 KiB to
+4 KiB per full block and removing 70 allocations from the measured image.
+The test-only mirrored symbol trace remains an MQ-level regression rather than
+an independent EBCOT oracle. Independent behavioral evidence comes from the
+end-to-end round trips, including exact coverage from `-32_768` through
+`32_767`, and the captured OpenJPEG interoperability corpus.
+
+On the unchanged Windows x86-64 Criterion workload, the baseline median is
+52.609 ms and the changed median is 52.576 ms. The estimated change interval
+is -2.50% to +2.30% with p = 0.95, so no performance change is detected. This
+supports the memory reduction without a measured latency tradeoff; it does not
+claim a speedup or cross-machine timing effect.
+
+All 262 codec tests pass in 21.617 seconds, including exact native round trips,
+the 190-case captured OpenJPEG corpus, and RITK-encoder interoperability.
+Warning-denied all-target Clippy, formatting, diff checks, doctests, and
+warning-denied Rustdoc pass. Local Cargo verification used an alternate
+generated lock under the shared target tree because the stack overlay maps the
+same Apollo checkout through both `repos/` and a worktree junction; the actual
+RITK lockfile remained byte-identical to `HEAD`. `ritk-codecs` has no provider
+dependency. Exact code head `80464ff6` passes hosted Clippy, Rustfmt, wheel
+smoke, dependency alignment, migration audit, workspace tests on Linux, macOS,
+and Windows, and all 13 Python lanes. CodeRabbit's first-head review completed;
+its one evidence-classification finding is corrected above, while the final
+review status is a passing rate-limit result.
+
+## PERF-671-01 audit (2026-07-28)
+
+The current native codec benchmark measures JPEG-LS and JPEG 2000 end to end
+on deterministic images. Its 512×512 five-level lossless JPEG 2000 encoder is
+the slowest encode regime at 54.089 ms median. The available Windows stack
+sampler cannot run without elevation, so a temporary matched Criterion
+microprofile measured the forward 5/3 DWT separately at 1.631 ms. The image
+produces 70 code-blocks. Assuming the matched microprofile represents the
+end-to-end workload, `(54.089 - 1.631) / 54.089 = 96.98%` implies that
+approximately 97% of encode time remains in EBCOT tier-1 and packet work rather
+than the transform. The temporary profiling hook and module visibility are
+removed from the delivered diff.
+
+EBCOT previously stored significance, sign, visit, and refinement as four
+independent booleans and allocated a separate sign bit-vector during encoding.
+The state is now a one-byte bit field pinned by a compile-time layout assertion,
+and the encoder writes signs directly into it. A 64×64 code-block state plane
+therefore falls from 16 KiB to 4 KiB and one allocation is removed without
+changing pass order, context selection, or MQ symbols.
+
+The unchanged end-to-end Criterion workload improves to 50.757 ms median, a
+6.16% reduction with p < 0.05. A repeated 512×512 decode comparison detects no
+statistically significant change. These measurements establish the production
+encode and state-memory effects on this Windows x86-64 GNU host; they do not
+claim cross-machine scaling.
+
+Exact code head `824f1c30` passes the full provider-pinned hosted matrix:
+native Nextest on Linux, macOS, and Windows, Rustfmt, warning-denied Clippy,
+dependency alignment, wheel smoke, Python 3.9-3.13, and the migration audit in
+runs `30390535716`, `30390535769`, and `30390535869`. The full codec suite
+therefore revalidates exact native round trips and the captured OpenJPEG corpus.
+Thread-aware review inspection found no review threads. CodeRabbit's final
+review found one documentation nit about the 97% timing attribution; the
+derivation above addresses it. The external RecurseML analysis failed before
+producing repository test evidence.
+
+## SAFE-670-01 audit (2026-07-28)
+
+The directory-based DICOM RGB loader bounded its volume reservation but made a
+full clone of `DicomReadMetadata::slices` first. When callers retained Part-10
+bytes in each slice, that clone duplicated every encoded instance before
+decoding. It also reserved the bounded output buffer before validating that
+the first Pixel Data element could satisfy its declared Rows and Columns.
+
+The loader now borrows slice metadata, defers output reservation until one
+frame has decoded to the declared geometry, and moves that first decoded frame
+into the output buffer instead of copying it. A format-level regression
+declares 65,535×65,535 interleaved RGB pixels with a six-byte Pixel Data element
+and requires the native frame-length error. This closes TEST-461-05 and
+establishes that hostile geometry reaches decoder validation before the volume
+allocation; valid color-series tests remain the value and spatial-metadata
+oracle.
+
+The previously open TEST-447-05 entry was stale: the MINC shape-exceeds-data
+regression merged in `eb1a6e3b` and is already recorded in the Sprint 459 audit
+and changelog. Its active-backlog state is now reconciled to DONE.
+
+Behavioral evidence is six passing RGB series tests in 0.104 seconds, covering
+the hostile declaration, scalar and planar rejection, exact interleaved
+samples, flat-carrier layout, and spatial metadata. Direct Rustfmt and diff
+checks pass. Full local locked/package gates are not closure evidence in this
+lane: live Coeus/Mnemosyne source edges differ from RITK's committed provider
+pins, and the canonical Cargo target is under sustained peer contention. The
+provider-pinned hosted matrix supplies closure at code head `4adba6dd`: CI run
+`30385224980` passes Rustfmt, warning-denied Clippy, dependency alignment,
+wheel smoke, and native Nextest on Linux, macOS, and Windows;
+migration-audit run `30385224900` passes; Python run `30385224738` passes the
+complete supported platform/version matrix. The PM-only closure head must
+remain green before merge.
+
+## SAFE-669-01 audit (2026-07-28)
+
+The earlier SEC-457-04 pass bounded full-image JPEG and JPEG 2000 pixel counts,
+but it did not inspect the JPEG 2000 tile path. SIZ tile counts still multiplied
+as `u32`, edge tiles used the full reference-tile extent instead of its
+intersection with the image area, SOT accepted invalid tile indices and
+tile-part lengths, and packet decode independently allocated three
+`width*height` coefficient planes. A valid pixel grid with many components
+could also exceed the intended memory bound at output allocation.
+
+SIZ parsing now enforces ITU-T T.800 Annex B.3 Equations B-3 and B-4, the
+65,535-tile SOT index range, component precision, and non-zero sampling.
+Tile bounds use the normative B-7 through B-11 max/min intersection computed
+in `u64`; SOT validates reserved values and Psot length before slicing; packet
+decode validates one checked tile sample count and reuses it for every
+coefficient plane. Baseline JPEG and JPEG 2000 both enforce the shared
+multi-component sample cap. The DICOM extraction path rejects subsampled
+components because its interleaved output contract does not yet implement the
+component-domain mapping in B-12.
+
+Behavioral evidence comprises 260 passing codec tests, including marker-only
+hostile SIZ/SOT cases, exact cropped-edge tile bounds, the 190-case captured
+OpenJPEG interoperability corpus, and all native lossless/lossy round trips.
+Warning-denied all-target Clippy passes. These checks establish bounded
+allocation arithmetic and preserved tested codec behavior; they do not
+establish a measured throughput change.
+
+PR #63 exact head `b6d2bd84` passes CI run `30375833486`, Python CI run
+`30375833366`, and migration-audit run `30375833069`: formatting,
+warning-denied Clippy, dependency alignment, wheel smoke, all three operating
+system suites, Python 3.9-3.13, and the migration audit are green. The external
+`recurseml/analysis` service error is non-required and contains no RITK build
+or test evidence.
+
+## DEP-668-01 audit (2026-07-28)
+
+RITK's JPEG 2000 production encoder and decoder were already native Rust, but
+the interoperability integration test still compiled and executed the
+`openjp2` c2rust port. Its translated allocator teardown aborts hosted Linux
+and macOS test processes in `NonNull::new_unchecked`, so a development-only FFI
+oracle prevented the native codec suite from completing.
+
+The live oracle is replaced by one committed corpus captured with OpenJPEG
+2.5.4: 72 OpenJPEG lossless streams, 54 OpenJPEG lossy streams with reference
+PSNR, 54 RITK streams accepted and decoded exactly by OpenJPEG, and ten
+byte-exact MQ/EBCOT escalation cases. The pure-Rust test parser asserts that
+the complete former 190-case matrix is present before running the value
+checks. Capture also exposed a defect in the old reverse-direction test: it
+passed rows and columns to the RITK encoder in the wrong order and compared
+only flattened samples. The captured RITK streams use the documented argument
+order and were accepted only after OpenJPEG reported the expected geometry and
+exact samples.
+
+Local evidence is all five fixture-backed integration tests passing,
+warning-denied focused Clippy, clean Rust formatting, no `openjp2` dependency
+edge in the manifests or lockfile, and corpus SHA-256
+`7F465C13986524ABB017C9A91F7636095D5033FCE1817C0EF8E1B06A1729FD9A`.
+The isolated local package gate could not validate the complete workspace lock
+because this bounded worktree resolves sibling-provider path dependencies
+under `D:\atlas\worktrees`; the first missing edge was
+`D:\atlas\worktrees\eunomia\crates\eunomia\Cargo.toml`. Hosted PR #62 supplies
+the closure evidence: locked dependency alignment, warning-denied workspace
+Clippy, Rustfmt, the wheel smoke test, and 4,643/4,643 passing Nextest cases on
+Ubuntu, macOS, and Windows with 12 repository-configured skips. The Python
+matrix and migration audit also pass. This establishes dependency removal and
+tested behavior; it does not establish additional JPEG 2000 profile coverage
+beyond the captured matrix.
 
 ## DEP-666-01 audit (2026-07-21)
 
@@ -2788,9 +2996,9 @@ converge: 105 → 36 (excluding Cargo-auto-discovered `tests/`/`benches/`/
   basename heuristics — attempted and abandoned this pass (too noisy:
   `tests.rs`/`helpers.rs`/etc. legitimately recur via relative `#[path]` across
   many unrelated parents).
-- **[TEST-461-05 OPEN]** The color-series path lacks its own hostile-dimension
-  regression (lower priority — same underlying mechanism proven safe by the
-  multiframe test).
+- **[TEST-461-05 CLOSED]** The color-series path now has a format-level
+  hostile-dimension regression that reaches native Pixel Data length
+  validation before volume allocation.
 - **[Backlog]** Neither ritk-cli nor ritk-snap auto-detects single-file RGB
   multiframe DICOM objects for dispatch to the now-restored loader; only
   directory-based RGB series detection (`is_rgb_dicom_series`) exists.
@@ -2887,12 +3095,6 @@ converge: 105 → 36 (excluding Cargo-auto-discovered `tests/`/`benches/`/
   `decode_fragment`, before the per-pixel buffers allocate. Oversized-dimension
   regression added. Run mode's exponential expansion means the bound must be on
   declared dimensions, not scan length (documented at the constant).
-
-### Residual Risk
-
-- **[SEC-457-04 OPEN]** The baseline JPEG (SOF) and JPEG 2000 (SIZ) decoders
-  likely share the same dimension-driven allocation pattern; audit + bound them
-  the same way.
 
 ## Sprint 456 Audit (2026-06-29) — TIFF Coeus Reader Path
 
@@ -3139,10 +3341,9 @@ converge: 105 → 36 (excluding Cargo-auto-discovered `tests/`/`benches/`/
 
 ### Residual Risk
 
-- **[TEST-447-05 OPEN]** MINC lacks a format-level hostile-fixture regression
-  because forging a shape≠data HDF5 file is non-trivial; the `read_bounded_with`
-  primitive it uses is unit-tested in `ritk-core`. Tracked as a READY backlog
-  item.
+- **[TEST-447-05 CLOSED IN SPRINT 459]** This Sprint 447 audit originally found
+  no format-level hostile fixture. Commit `eb1a6e3b` later forged shape≠data
+  MINC2 input and closed the gap through the real `read_bounded_with` path.
 
 ## Sprint 446 Audit (2026-06-28) — VTK Reader Untrusted-Input Allocation Hardening
 

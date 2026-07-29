@@ -36,6 +36,9 @@
       warning-denied Rustdoc. Morphology passes 53 focused cases,
       registration invalid-multiplier coverage passes, and every named
       documentation gate is green.
+- [x] Remove repeated full-resolution N4 B-spline evaluation from the iteration
+      loop. The unchanged merged example drops from 30.405 s to 5.189 s; all 18
+      focused N4/B-spline Nextest cases pass.
 - [ ] Integrate current `main`, reconcile the lockfile, push, and merge PR #56.
 
 ## MIG-673-01 — Retire completed migration audit
@@ -52,6 +55,118 @@
       warning-denied Rustdoc. All 5 Nextest cases pass in 4.237 seconds;
       doctests are not applicable because `xtask` has no library target.
 - [x] Commit the recovered stale work before integrating current `main`.
+## DEP-672-02 — Consolidate the hosted Leto source identity
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Confirm the hosted failure compiles both local Leto and Git Leto.
+- [x] Trace the Git edge to current Coeus workspace dependencies.
+- [x] Map both Leto Git URL spellings to the existing local packages.
+- [x] Verify metadata resolves one `leto` and one `leto-ops` identity.
+- [x] Re-run exact-head hosted gates. Code head `80464ff6` passes CI run
+      `30404675078`, Python run `30404675093`, and migration-audit run
+      `30404675262`.
+
+## PERF-672-01 — Remove the EBCOT encoder magnitude plane
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Capture the unchanged 512×512 five-level encoder Criterion baseline.
+- [x] Replace the read-only magnitude allocation with direct borrowed-sample
+      magnitude reads without changing coding order or bitstream semantics.
+- [x] Add a regression that proves mixed signed extrema retain exact EBCOT
+      round-trip values without an auxiliary magnitude plane.
+- [x] Run exact native and captured OpenJPEG interoperability tests.
+- [x] Compare the unchanged Criterion workload and reject a statistically
+      significant regression.
+- [x] Run warning-denied lint and documentation gates.
+- [x] Run exact-head hosted gates. Code head `80464ff6` passes the complete
+      Linux, macOS, and Windows workspace and Python matrices.
+
+## PERF-671-01 — Profile and optimize native codec hot loops
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Reconcile the historical `CODEC-PERF` entry with the current native
+      JPEG 2000 and JPEG-LS implementations and benchmark harness.
+- [x] Record a controlled Criterion baseline and identify the dominant
+      production hot path before changing it.
+- [x] State the selected path's compute, bandwidth, or latency bound and its
+      allocation behavior.
+- [x] Implement one measured production optimization without changing the
+      benchmark workload or codec semantics.
+- [x] Preserve exact native round trips and the captured OpenJPEG
+      interoperability corpus. The full codec suite passes in hosted native
+      Nextest on Linux, macOS, and Windows at code head `824f1c30`.
+- [x] Record matched baseline evidence. The unchanged 512×512 five-level
+      encoder improves from 54.089 ms to 50.757 ms median (6.16%, p < 0.05);
+      repeated decode measurement shows no significant change.
+- [x] Run focused format, test, lint, documentation, and hosted gates. Exact
+      code head `824f1c30` passes CI run `30390535716`, Python run
+      `30390535769`, and migration-audit run `30390535869`.
+
+## SAFE-670-01 — Bound DICOM RGB series geometry without metadata duplication
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Reconcile TEST-447-05 against current main and confirm its MINC
+      shape-exceeds-data regression already merged in `eb1a6e3b`.
+- [x] Add a format-level hostile Rows/Columns regression for the directory
+      color-series path that reaches the real decoder and returns an error.
+- [x] Borrow `DicomReadMetadata::slices` during sequential decode instead of
+      cloning every slice and optional in-memory Part-10 payload.
+- [x] Preserve exact valid RGB values, shape, and spatial metadata through
+      focused value-semantic tests.
+- [x] Synchronize changelog and audit state, including closure of TEST-461-05
+      and the stale TEST-447-05 backlog duplicate.
+- [x] Run focused format and clean provider-pinned hosted gates. Focused
+      Nextest passes 6/6 in 0.104 seconds and direct Rustfmt/diff checks pass.
+      At code head `4adba6dd`, hosted CI run `30385224980` passes Rustfmt,
+      warning-denied Clippy, dependency alignment, wheel smoke, and native
+      Nextest on Linux, macOS, and Windows; migration-audit run `30385224900`
+      passes; Python run `30385224738` passes the complete supported
+      platform/version matrix. The PM-only closure head must remain green
+      before merge.
+
+## SAFE-669-01 — Bound JPEG 2000 tile geometry
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Reconcile the deferred SEC-457-04 audit against current main: baseline
+      JPEG is bounded before scan allocation; JPEG 2000 tile geometry remains
+      unchecked.
+- [x] Validate SIZ image/tile origins, checked tile counts, and component
+      sampling factors at the parser boundary.
+- [x] Intersect each tile with the image domain, reject invalid SOT tile
+      indices, and pass a checked tile sample count into packet allocation.
+- [x] Add hostile marker-only regressions for invalid geometry and tile index;
+      retain value-exact native and interoperability corpus coverage.
+- [x] Synchronize codec documentation, changelog, audit state, and the
+      superseded SEC-457-04 checklist entry.
+- [x] Run focused formatting, warning-denied Clippy, Nextest, doctest, and
+      Rustdoc gates. All 260 codec tests, Clippy, formatting, doctests, and
+      warning-denied Rustdoc pass locally.
+- [x] Record exact-head hosted evidence before publication and merge. PR #63
+      exact head `b6d2bd84` passes every repository-owned hosted check.
+
+## DEP-668-01 — Remove the OpenJPEG test-runtime dependency
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Audit the native JPEG 2000 implementation and every remaining `openjp2`
+      use; confirm production encode/decode is already pure Rust and the live
+      differential integration test is the sole dependency owner.
+- [x] Capture a deterministic OpenJPEG 2.5.4 fixture set covering
+      lossless 5/3 and lossy 9/7 codestreams at representative precision,
+      geometry, and decomposition levels.
+- [x] Replace the unsafe live oracle with fixture-backed exact/analytical
+      assertions and synchronize the JPEG 2000 module evidence contract.
+- [x] Remove `openjp2` from workspace/package manifests and `Cargo.lock`;
+      confirm locked metadata and source scans contain no dependency edge.
+- [x] Run package formatting, warning-denied Clippy, focused tests, and the
+      formerly failing hosted matrix; confirm the codec crate's ten fenced
+      documentation blocks are all non-runnable `text` diagrams.
+- [x] Commit, push, merge, and record exact verification and residual risk.
 
 ## DOC-667-01 — Publish the RITK medical-imaging book
 **Target version**: Unreleased patch
@@ -2648,9 +2763,9 @@ fixes were reverted after verification; see rationale below)
 
 ### Deferred / carry-forward
 - [ ] SEC-461-04 [patch]: Tooling-based orphaned-module sweep (see note above).
-- [ ] TEST-461-05 [patch]: Hostile-dimension regression for the color-series
-  path (color/mod.rs) — structurally identical to the multiframe one added
-  this sprint; lower priority since the underlying mechanism is proven safe.
+- [x] TEST-461-05 [patch]: SAFE-670-01 adds the color-series
+  hostile-dimension regression and moves allocation after first-frame
+  validation.
 - [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.
 - [ ] MIG-456-04 [minor]: Color-volume Coeus variants; DICOM Coeus reader.
 - [ ] MIG-433-06 / MIG-437-04 / MIG-439-03 [minor]: burn→Atlas backend migration.
@@ -2767,8 +2882,9 @@ fixes were reverted after verification; see rationale below)
 - jpeg_2000 has openjp2 differential interop tests (`jpeg2000_interop`).
 
 ### Deferred / carry-forward
-- [ ] SEC-457-04 [patch]: Audit jpeg (baseline) and jpeg_2000 decoders for the
-  same dimension-driven allocation pattern (SOF/SIZ width×height).
+- [x] SEC-457-04 [patch]: Audit jpeg (baseline) and jpeg_2000 decoders for the
+  same dimension-driven allocation pattern (SOF/SIZ width×height). Completed
+  by Sprint 458 plus SAFE-669-01 tile-geometry closure.
 - [ ] MIG-456-04 [minor]: Color-volume Coeus variants; DICOM Coeus reader.
 - [ ] TEST-447-05 [patch]: MINC format-level hostile-fixture regression.
 - [ ] PERF-432-01 [patch]: Remaining B-spline registration runtime defect.

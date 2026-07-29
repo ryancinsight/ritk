@@ -86,12 +86,15 @@ pub fn load_color_volume_flat_from_path<P: AsRef<Path>>(
 ///
 /// Returns `(flat, [depth, rows, cols, 3], metadata)` with `metadata.dimensions`
 /// normalised to `[rows, cols, depth]`.
+///
+/// Slice metadata and optional Part-10 payloads remain borrowed during decode.
+/// The first validated frame becomes the output buffer, so malformed first
+/// frames do not trigger a speculative volume allocation and valid series do
+/// not copy that frame into a second allocation.
 pub fn load_color_volume_flat(
     mut metadata: DicomReadMetadata,
 ) -> Result<(Vec<f32>, [usize; 4], DicomReadMetadata)> {
-    let slices = metadata.slices.clone();
-
-    if slices.is_empty() {
+    if metadata.slices.is_empty() {
         bail!("DICOM color series is empty");
     }
 
@@ -103,10 +106,10 @@ pub fn load_color_volume_flat(
         bail!("DICOM color series has invalid zero dimensions");
     }
 
-    if slices.len() != depth {
+    if metadata.slices.len() != depth {
         bail!(
             "DICOM color series slice count {} does not match metadata depth {}",
-            slices.len(),
+            metadata.slices.len(),
             depth
         );
     }
@@ -120,17 +123,11 @@ pub fn load_color_volume_flat(
         .checked_mul(depth)
         .context("DICOM color volume sample count overflow")?;
 
-    // `rows`/`cols` are header-derived (DICOM Rows/Columns), so a hostile or
-    // corrupt file could otherwise force an up-front multi-gigabyte zero-fill
-    // before any slice is decoded. Cap the speculative reservation and grow
-    // the buffer by appending each validated, sequentially-decoded slice
-    // instead of pre-sizing and indexing into it.
-    let mut volume = Vec::with_capacity(consus_io::bounded_capacity(
-        total_samples,
-        std::mem::size_of::<f32>(),
-    ));
+    let bounded_volume_capacity =
+        consus_io::bounded_capacity(total_samples, std::mem::size_of::<f32>());
+    let mut volume = Vec::new();
 
-    for slice in slices.iter() {
+    for slice in &metadata.slices {
         let frame = if let Some(ref bytes) = slice.part10_bytes {
             read_rgb_slice_samples_from_bytes(bytes, slice, rows, cols)
         } else {
@@ -147,7 +144,19 @@ pub fn load_color_volume_flat(
             );
         }
 
-        volume.extend_from_slice(&frame);
+        if volume.is_empty() {
+            // `rows`/`cols` are header-derived. Defer even the bounded
+            // reservation until one frame has decoded to the declared
+            // geometry, so a hostile short Pixel Data element fails without
+            // allocating the speculative volume buffer. Reuse the decoded
+            // frame as the output allocation instead of copying it.
+            volume = frame;
+            if bounded_volume_capacity > volume.len() {
+                volume.reserve(bounded_volume_capacity - volume.len());
+            }
+        } else {
+            volume.extend(frame);
+        }
     }
 
     metadata.dimensions = [rows, cols, depth];

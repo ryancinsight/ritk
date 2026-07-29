@@ -4,6 +4,23 @@ use super::contexts::{
 use super::*;
 use crate::jpeg_2000::mq_coder::{initial_contexts, MqDecoder, MqEncoder};
 
+#[test]
+fn sample_state_packs_independent_flags_into_one_byte() {
+    assert_eq!(std::mem::size_of::<SampleState>(), 1);
+
+    let mut state = SampleState::default();
+    state.set_significant();
+    state.mark_negative();
+    state.set_visited();
+    state.set_refined();
+    state.clear_visited();
+
+    assert!(state.is_significant());
+    assert!(state.is_negative());
+    assert!(!state.was_visited());
+    assert!(state.was_refined());
+}
+
 fn enc_dec_roundtrip(samples: &[i32], w: usize, h: usize, orient: SubbandOrientation) {
     let enc = encode_code_block(samples, w, h, orient);
     let dec = decode_code_block(&enc.bytes, w, h, enc.num_bit_planes, enc.num_passes, orient);
@@ -40,6 +57,12 @@ fn ebcot_signed_mixed_round_trip() {
 }
 
 #[test]
+fn ebcot_signed_16_bit_extrema_round_trip() {
+    let samples = [-32_768, -16_384, -1, 0, 1, 16_384, 32_767, 42];
+    enc_dec_roundtrip(&samples, 4, 2, SubbandOrientation::LlOrLh);
+}
+
+#[test]
 fn ebcot_1x1_nonzero_round_trip() {
     enc_dec_roundtrip(&[42i32], 1, 1, SubbandOrientation::LlOrLh);
 }
@@ -49,68 +72,69 @@ fn ebcot_1x1_nonzero_round_trip() {
 fn trace_encode_symbols(samples: &[i32], w: usize) -> Vec<(u32, usize)> {
     let h = 1usize;
     let n = w;
-    let sign: Vec<bool> = samples.iter().map(|&v| v < 0).collect();
-    let mag: Vec<u32> = samples.iter().map(|&v| v.unsigned_abs()).collect();
-    let max_mag = *mag
+    let max_mag = samples
         .iter()
+        .map(|sample| sample.unsigned_abs())
         .max()
         .expect("infallible: validated precondition");
     let num_bit_planes = u32::BITS - max_mag.leading_zeros();
     let mut state = vec![SampleState::default(); n];
     for i in 0..n {
-        state[i].sign = sign[i];
+        if samples[i] < 0 {
+            state[i].mark_negative();
+        }
     }
     let mut out = Vec::new();
     for bp in (0..num_bit_planes).rev() {
         // SPP
         for x in 0..w {
             let idx = x;
-            if state[idx].sig || state[idx].visit {
+            if state[idx].is_significant() || state[idx].was_visited() {
                 continue;
             }
             let (hh, vv, dd) = neighbour_sig_counts(&state, w, h, x, 0);
             if hh + vv + dd == 0 {
                 continue;
             }
-            state[idx].visit = true;
-            let sig_bit = (mag[idx] >> bp) & 1;
+            state[idx].set_visited();
+            let sig_bit = (samples[idx].unsigned_abs() >> bp) & 1;
             out.push((sig_bit, zc_context(SubbandOrientation::LlOrLh, hh, vv, dd)));
             if sig_bit == 1 {
-                state[idx].sig = true;
+                state[idx].set_significant();
                 let (kh, kv) = sign_contributions(&state, w, h, x, 0);
                 let (sc_ctx, xor_bit) = sc_context(kh, kv);
-                out.push((u32::from(state[idx].sign) ^ xor_bit, sc_ctx));
+                out.push((u32::from(state[idx].is_negative()) ^ xor_bit, sc_ctx));
             }
         }
         // MRP
         for x in 0..w {
             let idx = x;
-            if !state[idx].sig || state[idx].visit {
+            if !state[idx].is_significant() || state[idx].was_visited() {
                 continue;
             }
             let has = any_neighbour_sig(&state, w, h, x, 0);
-            let ctx = mr_context(has, state[idx].refine);
-            out.push(((mag[idx] >> bp) & 1, ctx));
-            state[idx].refine = true;
+            let ctx = mr_context(has, state[idx].was_refined());
+            out.push(((samples[idx].unsigned_abs() >> bp) & 1, ctx));
+            state[idx].set_refined();
         }
         // CUP (height 1 → no RLC)
         for x in 0..w {
             let idx = x;
-            if state[idx].sig || state[idx].visit {
+            if state[idx].is_significant() || state[idx].was_visited() {
                 continue;
             }
-            let sig_bit = (mag[idx] >> bp) & 1;
+            let sig_bit = (samples[idx].unsigned_abs() >> bp) & 1;
             let (hh, vv, dd) = neighbour_sig_counts(&state, w, h, x, 0);
             out.push((sig_bit, zc_context(SubbandOrientation::LlOrLh, hh, vv, dd)));
             if sig_bit == 1 {
-                state[idx].sig = true;
+                state[idx].set_significant();
                 let (kh, kv) = sign_contributions(&state, w, h, x, 0);
                 let (sc_ctx, xor_bit) = sc_context(kh, kv);
-                out.push((u32::from(state[idx].sign) ^ xor_bit, sc_ctx));
+                out.push((u32::from(state[idx].is_negative()) ^ xor_bit, sc_ctx));
             }
         }
         for s in &mut state {
-            s.visit = false;
+            s.clear_visited();
         }
     }
     out

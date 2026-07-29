@@ -86,26 +86,28 @@ pub fn decode_code_block(
                 for x in 0..width {
                     for y in sy..height.min(sy + 4) {
                         let idx = y * width + x;
-                        if state[idx].sig || state[idx].visit {
+                        if state[idx].is_significant() || state[idx].was_visited() {
                             continue;
                         }
                         let (h, v, d) = neighbour_sig_counts(&state, width, height, x, y);
                         if h + v + d == 0 {
                             continue;
                         }
-                        state[idx].visit = true;
+                        state[idx].set_visited();
                         let ctx = zc_context(orient, h, v, d);
                         let sig_bit = mq.decode(&mut ctxs[ctx]);
                         trace(ctx, sig_bit);
                         if sig_bit == 1 {
                             mag[idx] |= 1 << bp;
-                            state[idx].sig = true;
+                            state[idx].set_significant();
                             let (kh, kv) = sign_contributions(&state, width, height, x, y);
                             let (sc_ctx, xor_bit) = sc_context(kh, kv);
                             let raw_sign = mq.decode(&mut ctxs[sc_ctx]);
                             trace(sc_ctx, raw_sign);
                             let sign_bit = raw_sign ^ xor_bit;
-                            state[idx].sign = sign_bit != 0;
+                            if sign_bit != 0 {
+                                state[idx].mark_negative();
+                            }
                         }
                     }
                 }
@@ -116,7 +118,7 @@ pub fn decode_code_block(
             if passes_remaining == 0 {
                 // Reset visit flags before leaving.
                 for s in &mut state {
-                    s.visit = false;
+                    s.clear_visited();
                 }
                 break;
             }
@@ -127,15 +129,15 @@ pub fn decode_code_block(
                 for x in 0..width {
                     for y in sy..height.min(sy + 4) {
                         let idx = y * width + x;
-                        if !state[idx].sig || state[idx].visit {
+                        if !state[idx].is_significant() || state[idx].was_visited() {
                             continue;
                         }
                         let has_sig_other = any_neighbour_sig(&state, width, height, x, y);
-                        let ctx = mr_context(has_sig_other, state[idx].refine);
+                        let ctx = mr_context(has_sig_other, state[idx].was_refined());
                         let bit = mq.decode(&mut ctxs[ctx]);
                         trace(ctx, bit);
                         mag[idx] |= bit << bp;
-                        state[idx].refine = true;
+                        state[idx].set_refined();
                     }
                 }
                 sy += 4;
@@ -145,7 +147,7 @@ pub fn decode_code_block(
         // ── Cleanup Pass ──────────────────────────────────────────────────────
         if passes_remaining == 0 {
             for s in &mut state {
-                s.visit = false;
+                s.clear_visited();
             }
             break;
         }
@@ -160,8 +162,8 @@ pub fn decode_code_block(
                 let can_rlc = y + 4 <= height
                     && (y..y + 4).all(|yy| {
                         let i = yy * width + x;
-                        !state[i].sig
-                            && !state[i].visit
+                        !state[i].is_significant()
+                            && !state[i].was_visited()
                             && neighbour_sig_total(&state, width, height, x, yy) == 0
                     });
 
@@ -190,29 +192,33 @@ pub fn decode_code_block(
                         } else if row_off == run_pos as usize {
                             // This sample becomes significant.
                             mag[idx] |= 1 << bp;
-                            state[idx].sig = true;
+                            state[idx].set_significant();
                             let (kh, kv) = sign_contributions(&state, width, height, x, yy);
                             let (sc_ctx, xor_bit) = sc_context(kh, kv);
                             let raw_sign = mq.decode(&mut ctxs[sc_ctx]);
                             trace(sc_ctx, raw_sign);
                             let sign_bit = raw_sign ^ xor_bit;
-                            state[idx].sign = sign_bit != 0;
+                            if sign_bit != 0 {
+                                state[idx].mark_negative();
+                            }
                         } else {
                             // Remaining samples: code normally via ZC.
-                            if !state[idx].sig {
+                            if !state[idx].is_significant() {
                                 let (h, v, d) = neighbour_sig_counts(&state, width, height, x, yy);
                                 let ctx = zc_context(orient, h, v, d);
                                 let sig_bit = mq.decode(&mut ctxs[ctx]);
                                 trace(ctx, sig_bit);
                                 if sig_bit == 1 {
                                     mag[idx] |= 1 << bp;
-                                    state[idx].sig = true;
+                                    state[idx].set_significant();
                                     let (kh, kv) = sign_contributions(&state, width, height, x, yy);
                                     let (sc_ctx, xor_bit) = sc_context(kh, kv);
                                     let raw_sign = mq.decode(&mut ctxs[sc_ctx]);
                                     trace(sc_ctx, raw_sign);
                                     let sign_bit = raw_sign ^ xor_bit;
-                                    state[idx].sign = sign_bit != 0;
+                                    if sign_bit != 0 {
+                                        state[idx].mark_negative();
+                                    }
                                 }
                             }
                         }
@@ -226,7 +232,7 @@ pub fn decode_code_block(
                 // Normal cleanup: decode each sample not yet sig/visited.
                 for yy in y..height.min(y + 4) {
                     let idx = yy * width + x;
-                    if state[idx].sig || state[idx].visit {
+                    if state[idx].is_significant() || state[idx].was_visited() {
                         continue;
                     }
                     let (h, v, d) = neighbour_sig_counts(&state, width, height, x, yy);
@@ -235,13 +241,15 @@ pub fn decode_code_block(
                     trace(ctx, sig_bit);
                     if sig_bit == 1 {
                         mag[idx] |= 1 << bp;
-                        state[idx].sig = true;
+                        state[idx].set_significant();
                         let (kh, kv) = sign_contributions(&state, width, height, x, yy);
                         let (sc_ctx, xor_bit) = sc_context(kh, kv);
                         let raw_sign = mq.decode(&mut ctxs[sc_ctx]);
                         trace(sc_ctx, raw_sign);
                         let sign_bit = raw_sign ^ xor_bit;
-                        state[idx].sign = sign_bit != 0;
+                        if sign_bit != 0 {
+                            state[idx].mark_negative();
+                        }
                     }
                 }
                 x += 1;
@@ -251,7 +259,7 @@ pub fn decode_code_block(
 
         // Clear visit flags for next bit-plane.
         for s in &mut state {
-            s.visit = false;
+            s.clear_visited();
         }
     }
 
@@ -260,11 +268,11 @@ pub fn decode_code_block(
         .iter()
         .zip(mag.iter())
         .map(|(s, &m)| {
-            if !s.sig {
+            if !s.is_significant() {
                 0i32
             } else {
                 let v = m as i32;
-                if s.sign {
+                if s.is_negative() {
                     -v
                 } else {
                     v

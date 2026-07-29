@@ -18,6 +18,9 @@
   corrected the morphology and curvature-diffusion mathematics.
 - Removed documentation-only full-volume copies, made histogram construction
   single-pass, and limited the N4 diagnostic field to the displayed slice.
+- Accumulated N4 control-lattice corrections per fitting level before
+  full-resolution evaluation, replacing one full-volume evaluation and
+  temporary allocation per iteration with one accumulation pass per level.
 - Hardened the Pages mdBook download with SHA-256 verification.
 
 ## [Unreleased] — Retired migration audit (MIG-673-01)
@@ -28,6 +31,103 @@
   allowlist, and dedicated hosted workflow. Ordinary manifest/source scans and
   dependency-tree checks now enforce the provider-only boundary without
   retaining migration-era tooling.
+## [Unreleased] — Leto source identity (DEP-672-02)
+
+### Fixed
+
+- Map both Leto Git URL spellings to RITK's existing local `leto` and
+  `leto-ops` packages so transitive Coeus edges cannot compile a second,
+  incompatible provider copy during hosted builds.
+
+## [Unreleased] — Borrowed EBCOT magnitudes (PERF-672-01)
+
+### Changed
+
+- Read coefficient magnitudes directly from the encoder's borrowed sample
+  slice instead of materializing an identical `Vec<u32>` for every code block.
+
+### Performance
+
+- Remove one 16 KiB allocation for each 64×64 code block, reducing auxiliary
+  EBCOT encoder storage from 20 KiB to 4 KiB after the packed-state change.
+  The unchanged 512×512 five-level Criterion workload detects no timing
+  change: 52.609 ms before and 52.576 ms after (p = 0.95).
+
+### Tests
+
+- Add an exact EBCOT round trip spanning signed 16-bit extrema.
+- Revalidate all 262 codec tests, including the 190-case captured OpenJPEG
+  corpus and RITK-encoder interoperability.
+
+## [Unreleased] — Compact JPEG 2000 EBCOT state (PERF-671-01)
+
+### Changed
+
+- Pack EBCOT significance, sign, visit, and refinement flags into one byte per
+  coefficient instead of four independent booleans.
+- Populate coefficient signs directly into the packed state plane, removing
+  the encoder's separate bit-vector allocation.
+
+### Performance
+
+- Reduce a 64×64 code-block state plane from 16 KiB to 4 KiB. On the matched
+  512×512 five-level Criterion workload, median lossless JPEG 2000 encode time
+  falls from 54.089 ms to 50.757 ms (6.16%, p < 0.05). Decode shows no
+  statistically significant change.
+
+### Tests
+
+- Pin the one-byte state layout and verify that clearing the per-pass visit
+  flag preserves significance, sign, and refinement state.
+- Revalidate the full native codec suite on Linux, macOS, and Windows, including
+  exact round trips and the captured OpenJPEG interoperability corpus.
+
+## [Unreleased] — DICOM RGB series allocation safety (SAFE-670-01)
+
+### Fixed
+
+- Borrow DICOM RGB slice metadata during sequential decoding instead of
+  cloning every slice and its optional in-memory Part-10 payload.
+- Defer the bounded output-volume reservation until the first frame validates
+  its declared Rows, Columns, channel count, and Pixel Data length, then reuse
+  that decoded frame as the output buffer instead of copying it.
+
+### Tests
+
+- Add a format-level directory-series regression whose DICOM header declares
+  65,535×65,535 interleaved RGB pixels while backing only six bytes. The loader
+  must return the native frame-length error before volume allocation.
+- Reconcile TEST-447-05 to DONE; its MINC shape-exceeds-data regression already
+  merged in `eb1a6e3b`.
+
+## [Unreleased] — Bounded JPEG 2000 tile geometry (SAFE-669-01)
+
+### Fixed
+
+- Validate JPEG 2000 SIZ image/tile origins, tile-grid cardinality, component
+  precision and sampling, plus reserved and length-constrained SOT fields
+  before packet decoding.
+- Compute edge-tile buffers from the normative image-area intersection instead
+  of the full reference tile, eliminating off-image coefficient planes for
+  cropped images and preventing `u32` tile arithmetic from wrapping.
+- Reject out-of-range tile indices and tile-part lengths beyond the codestream
+  before slicing or allocating.
+- Bound total multi-component samples for baseline JPEG and JPEG 2000 so a
+  valid pixel count cannot be amplified into an unbounded output allocation.
+
+## [Unreleased] — Native JPEG 2000 test closure (DEP-668-01)
+
+### Changed
+
+- Replaced the live `openjp2` differential-test runtime with a 190-case corpus
+  captured from OpenJPEG 2.5.4. The pure-Rust tests retain the complete
+  lossless, lossy, and byte-level interoperability matrices without compiling
+  or executing the unsafe translated allocator path.
+- Removed `openjp2` from the workspace and `ritk-codecs` development dependency
+  tables and from the lockfile.
+- Corrected the interoperability oracle's non-square RITK encoder calls to pass
+  rows and columns in API order and validate decoded geometry, closing a case
+  where flat sample equality could hide transposed dimensions.
 
 ## [Unreleased] — Provider graph consolidation (DEP-666-01)
 

@@ -31,7 +31,7 @@
 mod dft;
 mod histogram_sharpen;
 
-use super::bspline_bias::{bspline_evaluate, bspline_fit};
+use super::bspline_bias::{bspline_accumulate, bspline_evaluate, bspline_fit};
 use anyhow::{anyhow, bail};
 use coeus_core::ComputeBackend;
 use histogram_sharpen::{histogram_sharpen, HistogramSharpenScratch};
@@ -113,9 +113,9 @@ impl N4BiasFieldCorrectionFilter {
     ///
     /// The EM bias estimation runs on the input downsampled by `shrink_factor`
     /// (ITK/ANTs strategy): histogram sharpening and B-spline fitting operate on
-    /// the shrunk grid, and each iteration's fitted control lattice is also
-    /// evaluated at full resolution to accumulate the full-resolution log-bias
-    /// field used for the final correction.
+    /// the shrunk grid. Because B-spline evaluation is linear, each level sums
+    /// its iterative control-lattice corrections and evaluates that sum once at
+    /// full resolution for the final log-bias field.
     ///
     /// # Errors
     /// Returns `Err` if the tensor data cannot be read as `f32`.
@@ -207,6 +207,8 @@ pub fn apply_n4_bias_correction_values(
                 .min(sdims[d])
                 .max(4)
         });
+        let control_count = cg.iter().product();
+        let mut level_control = vec![0.0f64; control_count];
 
         for _ in 0..config.num_iterations {
             // w = v_s − b_s
@@ -231,10 +233,14 @@ pub fn apply_n4_bias_correction_values(
 
             // Fit a smooth B-spline to the residual at shrunk resolution.
             let ctrl = bspline_fit(&r, sdims, cg)?;
+            for (accumulated, delta) in level_control.iter_mut().zip(&ctrl) {
+                *accumulated += *delta;
+            }
 
-            // Evaluate the same control lattice at both resolutions.
+            // The shrunk field is required every iteration for convergence and
+            // the next residual. Full-resolution evaluation is linear in the
+            // control lattice, so it is deferred until this level completes.
             let delta_s = bspline_evaluate(&ctrl, cg, sdims);
-            let delta_full = bspline_evaluate(&ctrl, cg, dims);
 
             // Convergence criterion: —–Δb—–_RMS (shrunk grid) < threshold.
             let change: f64 = {
@@ -245,14 +251,12 @@ pub fn apply_n4_bias_correction_values(
             for i in 0..n_s {
                 b_s[i] += delta_s[i];
             }
-            for i in 0..n_full {
-                b_full[i] += delta_full[i];
-            }
 
             if change < config.convergence_threshold {
                 break;
             }
         }
+        bspline_accumulate(&level_control, cg, dims, &mut b_full);
     }
 
     // ── 4. Corrected image at full resolution: exp(v − b) ──────────────

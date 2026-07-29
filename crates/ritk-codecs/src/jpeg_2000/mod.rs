@@ -26,19 +26,28 @@
 //! # Current limitations
 //! - One precinct per resolution/band (no precinct partitioning; code-blocks
 //!   are 64×64 within each subband).
+//! - DICOM pixel extraction currently requires every component to use 1×1
+//!   reference-grid sampling. Subsampled components are rejected before tile
+//!   allocation rather than reconstructed with incorrect geometry.
 //! - Lossy 9/7 irreversible encode and decode are supported (scalar quantization,
 //!   unit-step near-lossless encoder); a rate-controlled quality knob is pending.
 //!
+//! # Untrusted-input bounds
+//! SIZ image/tile geometry and SOT tile-part fields are validated before packet
+//! decode. Tile buffers use the image-domain intersection defined by T.800
+//! Annex B.3 rather than the full reference tile, and both pixel and
+//! multi-component sample counts share a fixed allocation cap.
+//!
 //! # Interop validation
-//! The reversible (5/3 lossless) path is differentially validated against the
-//! `openjp2` reference both directions and bit-exactly (`tests/jpeg2000_interop.rs`:
-//! `openjp2_to_ritk_matrix`, `ritk_to_openjp2_matrix`, `escalation_byte_compare_with_openjp2`).
-//! The irreversible (9/7 lossy) decode is differentially validated against
-//! `openjp2` across the full `numres = 1..=6` matrix (`lossy_openjp2_to_ritk_matrix`):
-//! RITK reconstructs an openjp2-encoded 9/7 stream within 1 dB PSNR of the
-//! reference, validating the 9/7 inverse lifting, the QCD step-size parsing, and
-//! the dequantization reconstruction. Internal round-trips additionally cover
-//! lossy encode→decode (PSNR/bounded-error tests in this module).
+//! The reversible (5/3 lossless) path is validated against a captured OpenJPEG
+//! 2.5.4 corpus in both directions: 72 OpenJPEG-produced streams decode exactly,
+//! 54 RITK streams remain byte-identical to outputs accepted and decoded exactly
+//! by OpenJPEG, and ten MQ/EBCOT patterns match tile bodies byte-for-byte. The
+//! irreversible (9/7 lossy) corpus covers 54 geometry, precision, and resolution
+//! combinations. RITK reconstruction must remain within 1 dB PSNR of each
+//! captured OpenJPEG decoder baseline, validating inverse lifting, QCD step-size
+//! parsing, and dequantization. Tests execute only the RITK-native Rust codec.
+//! Internal round-trips additionally cover lossy encode→decode.
 //!
 //! Reconstruction (ISO 15444-1 §E.1.1.2) is source-aware: a transformed subband
 //! coefficient (`num_decomp_levels ≥ 1`) is a continuous value with sub-step
@@ -82,7 +91,10 @@ pub(crate) const SOI: u16 = 0xFFD8;
 /// # Errors
 /// Returns an error if:
 /// - `fragment` does not begin with the SOC marker (0xFF4F).
-/// - the JPEG 2000 decoder fails to parse or decode the codestream.
+/// - SIZ or SOT geometry is invalid, outside the supported allocation bound,
+///   or identifies a tile outside the image's tile grid.
+/// - a component uses sampling other than 1×1.
+/// - packet or coefficient decoding fails.
 /// - decoded component metadata does not match `layout`.
 pub fn decode_jpeg2000_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
     if !is_jpeg2000_codestream(fragment) {

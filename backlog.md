@@ -18,6 +18,9 @@
   figures are visually inspected and substantially smaller, analytical
   assertions validate the depicted behavior, focused Nextest/Clippy and
   mdBook gates pass, and the current `main` branch is integrated before merge.
+  Current-main integration exposed a 30.405-second N4 run. Linearity-based
+  control-lattice accumulation reduces that unchanged run to 5.189 seconds and
+  passes all 18 focused N4/B-spline tests.
 
 - **MIG-673-01 [patch] - Retire the completed Burn migration audit**
   (DONE; owner=Codex stale-claim takeover; scope=
@@ -32,6 +35,114 @@
   Verification: focused formatting and warning-denied Clippy pass; all 5
   `xtask` Nextest cases pass in 4.237 seconds; warning-denied Rustdoc passes;
   and doctests are not applicable because `xtask` has no library target.
+- **DEP-672-02 [patch] - Consolidate the hosted Leto source identity
+  (DONE; owner=Codex; scope=`Cargo.toml`, `CHANGELOG.md`, and PM
+  artifacts).** Current Coeus declares Leto 0.40 from the `.git` URL while
+  RITK owns direct path packages but no corresponding root patch. Hosted
+  Python builds therefore compile local Leto and Git Leto `91c0c16`; the Git
+  copy resolves an older Eunomia surface and fails to import `UnitScalar`.
+  Map both Leto URL spellings to the existing local `leto` and `leto-ops`
+  packages. Local metadata contains one path source identity for each package,
+  all 262 `ritk-codecs` tests pass, and exact code head `80464ff6` passes CI
+  run `30404675078`, Python run `30404675093`, and migration-audit run
+  `30404675262` without compiling a duplicate Git Leto.
+
+- **PERF-672-01 [patch] - Remove the EBCOT encoder magnitude plane
+  (DONE; owner=Codex;
+  scope=`crates/ritk-codecs/src/jpeg_2000/ebcot/{encoder.rs,tests.rs}`,
+  `CHANGELOG.md`, and PM artifacts).** The encoder materializes a `Vec<u32>`
+  containing `i32::unsigned_abs` for every input sample, then keeps that
+  read-only plane beside the borrowed source throughout all coding passes.
+  Replace it with direct magnitude reads from `samples`, removing one 16 KiB
+  allocation for each 64×64 code block and reducing auxiliary EBCOT encoder
+  storage from 20 KiB to 4 KiB after PERF-671's packed state. Acceptance:
+  exact native and captured OpenJPEG interoperability tests remain green;
+  the unchanged 512×512 five-level Criterion workload shows no statistically
+  significant regression; warning-denied lint, documentation, and hosted
+  gates pass. Local closure removes the allocation, passes all 262 codec tests
+  in 21.617 seconds, and passes warning-denied Clippy, doctests, Rustdoc,
+  formatting, and diff checks. Matched Criterion medians are 52.609 ms before
+  and 52.576 ms after with p = 0.95, detecting no performance change. Exact
+  code head `80464ff6` passes the complete hosted CI and Python matrices on
+  Linux, macOS, and Windows.
+
+- **PERF-671-01 [patch] - Profile and optimize native codec hot loops
+  (DONE; owner=Codex;
+  scope=`crates/ritk-codecs/src/jpeg_2000/ebcot/**`, `CHANGELOG.md`, and PM
+  artifacts).** Reconcile the historical `CODEC-PERF` gap against the current
+  pure-Rust codecs, capture a controlled Criterion baseline, and optimize one
+  measured JPEG 2000 or JPEG-LS production bottleneck without changing the
+  benchmark workload. The 512×512 five-level encoder spends 54.089 ms median
+  end to end while its forward DWT costs 1.631 ms, placing approximately 97%
+  in the 70 code-block EBCOT/packet path. EBCOT state now packs four booleans
+  into one byte and writes signs directly, reducing each 64×64 state plane
+  from 16 KiB to 4 KiB and removing one allocation. The unchanged end-to-end
+  benchmark improves to 50.757 ms median (6.16%, p < 0.05); repeated decode
+  measurement detects no significant change. Acceptance remains exact native
+  round trips and captured OpenJPEG interoperability plus warning-denied
+  lint, documentation, and hosted gates. Exact code head `824f1c30` passes
+  native Nextest on Linux, macOS, and Windows, Rustfmt, warning-denied Clippy,
+  dependency alignment, wheel smoke, Python 3.9-3.13, and the migration audit
+  in runs `30390535716`, `30390535769`, and `30390535869`.
+
+- **SAFE-670-01 [patch] - Bound DICOM RGB series geometry without metadata
+  duplication (DONE; owner=Codex; scope=`crates/ritk-io/src/format/
+  dicom/color/{mod.rs,tests.rs}`, `CHANGELOG.md`, and PM artifacts).** Close
+  TEST-461-05 with a format-level hostile-dimension regression for the
+  directory-based RGB series path. Remove the full `DicomReadMetadata::slices`
+  clone before sequential decode so in-memory Part-10 payloads are not
+  duplicated. Acceptance: hostile Rows/Columns claims fail from the real
+  decoder without allocation amplification or panic; valid interleaved RGB
+  values and geometry remain exact; the color loader borrows slice metadata;
+  focused format, lint, documentation, and full package gates pass. Reconcile
+  the stale TEST-447-05 backlog entry with its already-merged MINC regression.
+  Evidence: all six RGB series tests pass in 0.104 seconds, including hostile
+  geometry and exact valid values/metadata; direct Rustfmt and diff checks
+  pass. The provider-pinned hosted matrix is green at code head `4adba6dd`:
+  CI run `30385224980`, migration-audit run `30385224900`, and Python run
+  `30385224738`. The PM-only closure head must remain green before merge.
+
+- **SAFE-669-01 [patch] - Bound JPEG 2000 tile geometry
+  (DONE; owner=Codex; scope=`crates/ritk-codecs/src/
+  jpeg_2000/{codestream.rs,image.rs,packet/reader.rs,tests_codestream.rs}`,
+  codec tests, `CHANGELOG.md`, and PM artifacts).** Complete the deferred
+  SEC-457-04 allocation audit. Baseline JPEG already validates SOF dimensions,
+  but JPEG 2000 computes tile extents outside the image domain, multiplies tile
+  counts without overflow checking, and accepts out-of-range SOT tile indices
+  before allocating coefficient planes. Acceptance: SIZ geometry is validated
+  without panics or wrapping; decoded tile extents are intersected with the
+  image domain and bounded before allocation; invalid SOT indices fail before
+  packet decode; hostile marker-only regressions assert the exact failure
+  contract; the existing native/OpenJPEG corpus and focused codec gates remain
+  green. Local evidence: all 260 codec tests pass, including the complete
+  190-case captured OpenJPEG corpus; warning-denied all-target Clippy,
+  formatting, doctests, and warning-denied Rustdoc pass. PR #63 exact head
+  `b6d2bd84` passes CI run `30375833486`, Python CI run `30375833366`, and
+  migration-audit run `30375833069`: Rustfmt, warning-denied Clippy, dependency
+  alignment, wheel smoke, Linux/macOS/Windows native suites, Python 3.9-3.13,
+  and the migration audit are green. The external `recurseml/analysis` service
+  error is non-required and contains no RITK build or test evidence.
+
+- **DEP-668-01 [patch] - Remove the OpenJPEG test-runtime dependency
+  (DONE; owner=Codex; scope=`Cargo.toml`, `Cargo.lock`,
+  `crates/ritk-codecs/{Cargo.toml,tests/jpeg2000_interop.rs,
+  src/jpeg_2000/mod.rs}`, PM artifacts).** Replace the live `openjp2`
+  differential oracle, whose unsafe allocator teardown aborts the hosted test
+  matrix, with a deterministic 190-case corpus produced and independently
+  decoded by OpenJPEG 2.5.4. Preserve exact lossless sample checks, bounded
+  lossy PSNR checks, and byte-level conformance coverage while removing
+  `openjp2` from every manifest and the lockfile. Acceptance: repository scans
+  and locked metadata contain no `openjp2` package or dependency; the focused
+  codec suite, warning-denied Clippy, doctests, and all formerly failing hosted
+  test lanes pass without FFI. Local evidence: all five fixture-backed tests
+  pass across 190 cases, warning-denied focused Clippy passes, formatting is
+  clean, and the corpus SHA-256 is
+  `7F465C13986524ABB017C9A91F7636095D5033FCE1817C0EF8E1B06A1729FD9A`.
+  Hosted PR #62 passes Rustfmt, warning-denied workspace Clippy, locked
+  dependency alignment, the wheel smoke test, and all 4,643 Nextest cases on
+  Ubuntu, macOS, and Windows with 12 repository-configured skips. The Python
+  matrix and migration audit also pass. No hosted test process compiles or
+  executes `openjp2`.
 
 - **DOC-667-01 [patch] - Publish the RITK medical-imaging book**
   (DONE; owner=Codex; scope=`docs/book/**`,
@@ -711,13 +822,12 @@ re-enter. Reserved inner tag: `ritk/atlas-migration-push/batch3`.
 
 ## Open safety items
 
-- **TEST-447-05 [patch] — MINC format-level hostile-fixture regression. READY.**
-  Acceptance: construct (or extend the MINC writer to forge) an HDF5 file whose
-  image dataset shape claims more bytes than are backed on disk, and assert
-  `read_minc` returns a typed error without OOM. Blocked on a way to emit a
-  shape≠data HDF5 fixture; the underlying `read_bounded_with` primitive is
-  unit-tested in `ritk-core::io_bounds`. Driver: complete Sprint 447 per-crate
-  regression coverage.
+- **TEST-447-05 [patch] — MINC format-level hostile-fixture regression. DONE.**
+  Commit `eb1a6e3b` uses the native MINC2 writer to forge a 64³ dataset backed
+  by only eight voxels. The format-level regression confirms `read_minc`
+  returns the contextual voxel-data error through `read_bounded_with` without
+  reserving the declared payload. The earlier READY entry was stale relative
+  to the merged test, changelog, and Sprint 459 audit.
 
 - **SEC-446-05 [patch] — Untrusted-input allocation hardening for the remaining
   format-parser crates. DONE (Sprint 447).**

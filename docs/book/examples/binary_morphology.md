@@ -42,3 +42,7 @@ The example executes `BinaryMorphologicalOpening::apply_native` and
 The contract is checked on the center slice because RITK's documented
 zero-background boundary condition can remove foreground at the outermost
 volume planes during the erosion stage of closing.
+
+The [complete processing pipeline](processing_pipeline.md) shows the same
+operations in a longer filter chain. Tests additionally cover radius-zero
+identity, border behavior, foreground values, and native/generic parity.

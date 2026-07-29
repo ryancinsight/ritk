@@ -18,6 +18,7 @@
 
 - [Intensity Transformations](intensity_transforms.md)
   - [Example: Windowing and Rescaling](examples/windowing_rescale.md)
+  - [Example: Complete Processing Pipeline](examples/processing_pipeline.md)
   - [Example: Thresholding](examples/thresholding.md)
   - [Example: Sigmoid and Arithmetic](examples/sigmoid_arithmetic.md)
   - [Example: N4 Bias-Field Correction](examples/n4_bias_correction.md)

@@ -31,4 +31,7 @@ The produced book figure uses the separate multi-modal CT/MR
 mutual-information path because raw MSE between CT and MR intensities is not a
 valid cross-modality registration objective. See
 [Example: CT/MR Mutual-Information Registration](examples/registration_compare_figure.md)
-for the dataset-backed figure and its independent geometric reference.
+for the dataset-backed figure. That example uses the RIRE fiducial transform
+as its geometric reference, renders an identity baseline beside the registered
+overlay, and includes a data-derived MR-change diagnostic; it does not render
+the same reference resampling twice.
