@@ -13,6 +13,32 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## SAFE-676-01 audit (2026-07-28)
+
+The native JPEG 2000 tier-2 reader previously returned synthetic zero bits
+after packet-header EOF. Truncated inclusion, missing-MSB, coding-pass,
+`Lblock`, and body-length fields could therefore be interpreted as valid
+zero-valued fields. The unary `Lblock` loop also incremented an input-driven
+`u8` without overflow checking before the existing packet-body length bound.
+
+Production packet reads now return contextual errors on EOF, reject length
+widths beyond the reader's 32-bit representation, and check coding-pass,
+`Lblock`, field-width, and packet-offset arithmetic. Tag-tree decoding
+propagates those errors instead of continuing threshold growth. The
+crate-private `BitReader` borrows the remaining tile bytes, structurally
+removing one allocation and a suffix-sized copy for every LRCP
+layer/resolution packet; no latency claim is made without a matched benchmark.
+
+Exact regressions cover a truncated four-bit body-length field and 253 unary
+`Lblock` increments. A bounded proptest feeds arbitrary 0–127-byte packet
+headers through a 1×1 tile decode and validates exact geometry for every
+successful parse; any panic fails the property. All 265 codec Nextest cases
+pass in 5.644 seconds, including the 190-case captured OpenJPEG corpus.
+Formatting, warning-denied all-target Clippy, doctests, and warning-denied
+Rustdoc also pass. Local Cargo commands rewrite only the Atlas overlay's
+Melinoe source identity and unused patches; those derived lockfile changes
+are excluded from the delivered diff.
+
 ## DOC-675-01 audit (2026-07-28)
 
 The deformable-registration chapter documented Thirion Demons but delegated

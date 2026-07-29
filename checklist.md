@@ -15,16 +15,21 @@
 
 ## SAFE-676-01 — Reject malformed JPEG 2000 packet headers
 **Target version**: Unreleased patch
-**Sprint phase**: Execution
+**Sprint phase**: Closure
 
 - [x] Trace packet-header EOF and `Lblock` arithmetic through the production
       tier-2 decoder and confirm the existing packet-body bound runs later.
-- [ ] Preserve the public `BitReader` contract while making production bit,
+- [x] Keep the exported codec API unchanged while making crate-private bit,
       tag-tree, pass-count, and alignment reads explicitly fallible.
-- [ ] Add value-semantic regressions for truncated headers and excessive
+- [x] Borrow packet-header input from the tile buffer, removing one allocation
+      and suffix-sized copy per layer/resolution packet.
+- [x] Add value-semantic regressions for truncated headers and excessive
       `Lblock` unary growth.
-- [ ] Revalidate captured OpenJPEG packet conformance and the full codec suite.
-- [ ] Run formatting, warning-denied Clippy, doctest, and Rustdoc gates.
+- [x] Add a bounded arbitrary-byte packet-header proptest.
+- [x] Revalidate captured OpenJPEG packet conformance and the full codec suite.
+      All 265 codec tests pass in 5.644 seconds.
+- [x] Run formatting, warning-denied all-target Clippy, doctest, and
+      warning-denied Rustdoc gates.
 - [ ] Commit, push, and merge after hosted gates pass.
 
 ## DOC-675-01 — Render deformable registration behavior

@@ -10,11 +10,11 @@ use crate::jpeg_2000::wavelet_9_7::inverse_dwt_9_7;
 
 use super::{band_cblks, cblk_grid, lblock_extra_bits, CblkRef, WaveletTransform};
 
-/// Read individual bits (MSB first) from a §B.10.1 bit-stuffed header: after
-/// a 0xFF byte, the following byte contributes only its low 7 bits
-/// (= OpenJPEG `opj_bio_bytein`).
-pub struct BitReader {
-    bytes: Vec<u8>,
+/// Read individual bits (MSB first) from a borrowed §B.10.1 bit-stuffed
+/// header: after a 0xFF byte, the following byte contributes only its low
+/// 7 bits (= OpenJPEG `opj_bio_bytein`).
+pub struct BitReader<'a> {
+    bytes: &'a [u8],
     /// Next unread byte index.
     pos: usize,
     /// 16-bit sliding window (high byte = previously consumed byte).
@@ -23,72 +23,82 @@ pub struct BitReader {
     ct: u8,
 }
 
-impl BitReader {
+impl<'a> BitReader<'a> {
     /// Create a `BitReader` over a raw packet-header byte slice.
-    pub fn new(raw: &[u8]) -> Self {
+    pub fn new(raw: &'a [u8]) -> Self {
         Self {
-            bytes: raw.to_vec(),
+            bytes: raw,
             pos: 0,
             buf: 0,
             ct: 0,
         }
     }
 
-    fn bytein(&mut self) {
+    fn bytein(&mut self) -> Result<()> {
         self.buf = (self.buf << 8) & 0xFFFF;
         self.ct = if self.buf == 0xFF00 { 7 } else { 8 };
         if self.pos < self.bytes.len() {
             self.buf |= u32::from(self.bytes[self.pos]);
             self.pos += 1;
+            Ok(())
+        } else {
+            bail!(
+                "J2K: truncated packet header while reading byte {}",
+                self.pos
+            )
         }
     }
 
     #[inline]
-    pub fn read_bit(&mut self) -> u32 {
+    pub fn read_bit(&mut self) -> Result<u32> {
         if self.ct == 0 {
-            self.bytein();
+            self.bytein()?;
         }
         self.ct -= 1;
-        (self.buf >> self.ct) & 1
+        Ok((self.buf >> self.ct) & 1)
     }
 
-    pub fn read_bits(&mut self, n: u8) -> u32 {
-        let mut v = 0u32;
-        for _ in 0..n {
-            v = (v << 1) | self.read_bit();
+    /// Read at most 32 packet-header bits, rejecting truncated input.
+    pub fn read_bits(&mut self, n: u8) -> Result<u32> {
+        if u32::from(n) > u32::BITS {
+            bail!("J2K: packet-header field width {n} exceeds 32-bit decode limit");
         }
-        v
+        let mut value = 0u32;
+        for _ in 0..n {
+            value = (value << 1) | self.read_bit()?;
+        }
+        Ok(value)
     }
 
     /// Align past the header to the packet body and return its RAW byte
     /// offset (= OpenJPEG `opj_bio_inalign`): if the last consumed header
     /// byte is 0xFF, the mandatory stuffed follow byte is skipped too.
-    pub fn byte_pos(&mut self) -> usize {
+    pub fn byte_pos(&mut self) -> Result<usize> {
         if self.buf & 0xFF == 0xFF {
-            self.bytein();
+            self.bytein()?;
         }
         self.ct = 0;
-        self.pos
+        Ok(self.pos)
     }
 }
 
 /// Decode the number-of-passes code from a `BitReader` (ISO 15444-1 Table B.4).
-pub(crate) fn read_num_passes(br: &mut BitReader) -> u32 {
-    if br.read_bit() == 0 {
-        return 1;
+pub(crate) fn read_num_passes(br: &mut BitReader<'_>) -> Result<u32> {
+    if br.read_bit()? == 0 {
+        return Ok(1);
     }
-    if br.read_bit() == 0 {
-        return 2;
+    if br.read_bit()? == 0 {
+        return Ok(2);
     }
-    let n = br.read_bits(2);
+    let n = br.read_bits(2)?;
     if n != 3 {
-        return 3 + n;
+        return Ok(3 + n);
     }
-    let n = br.read_bits(5);
+    let n = br.read_bits(5)?;
     if n != 31 {
-        return 6 + n;
+        return Ok(6 + n);
     }
-    37 + br.read_bits(7)
+    Ok(37 + br.read_bits(7)?)
 }
 
 /// Per-code-block decode state accumulated across quality layers.
@@ -167,9 +177,10 @@ pub struct TileCodingParams<'a> {
 /// multiple quality layers (per-code-block pass accumulation).
 ///
 /// # Errors
-/// Returns an error when the tile dimensions exceed the shared decode bound, a
-/// signalled packet-body length exceeds the available tile data, or the inverse
-/// DWT geometry is inconsistent.
+/// Returns an error when the tile dimensions exceed the shared decode bound,
+/// a packet header is truncated or carries an unsupported length width, a
+/// signalled packet-body length exceeds the available tile data, or the
+/// inverse DWT geometry is inconsistent.
 pub fn decode_tile_part(
     tile_data: &[u8],
     width: usize,
@@ -216,7 +227,7 @@ pub fn decode_tile_part(
             let mut br = BitReader::new(&tile_data[pos..]);
             // (flat code-block index, body length) included in this packet.
             let mut included: Vec<(usize, usize)> = Vec::new();
-            if br.read_bit() == 1 {
+            if br.read_bit()? == 1 {
                 for bi in s..e {
                     let Some(t) = trees[bi].as_mut() else {
                         continue;
@@ -227,29 +238,41 @@ pub fn decode_tile_part(
                         // Inclusion (§B.10.4): tag tree before first
                         // inclusion, a single raw bit afterwards.
                         let included_now = if st.included_before {
-                            br.read_bit() == 1
+                            br.read_bit()? == 1
                         } else {
-                            t.incl.decode(&mut br, c.gx, c.gy, layer + 1)
+                            t.incl.decode(&mut br, c.gx, c.gy, layer + 1)?
                         };
                         if !included_now {
                             continue;
                         }
                         if !st.included_before {
-                            st.msbs = t.msbs.decode_value(&mut br, c.gx, c.gy);
+                            st.msbs = t.msbs.decode_value(&mut br, c.gx, c.gy)?;
                             st.included_before = true;
                         }
-                        let np = read_num_passes(&mut br);
-                        st.num_passes += np;
-                        while br.read_bit() == 1 {
-                            st.lblock += 1;
+                        let np = read_num_passes(&mut br)?;
+                        st.num_passes = st
+                            .num_passes
+                            .checked_add(np)
+                            .context("J2K packet coding-pass count overflow")?;
+                        while br.read_bit()? == 1 {
+                            st.lblock = st
+                                .lblock
+                                .checked_add(1)
+                                .context("J2K packet Lblock unary value overflow")?;
                         }
-                        let bits = st.lblock + lblock_extra_bits(np);
-                        let len = br.read_bits(bits) as usize;
+                        let bits = st
+                            .lblock
+                            .checked_add(lblock_extra_bits(np))
+                            .context("J2K packet length field width overflow")?;
+                        let len = br.read_bits(bits)? as usize;
                         included.push((ci, len));
                     }
                 }
             }
-            pos += br.byte_pos();
+            pos = pos
+                .checked_add(br.byte_pos()?)
+                .filter(|&header_end| header_end <= tile_data.len())
+                .context("J2K packet-header offset exceeds tile data")?;
             for (ci, len) in included {
                 let end = pos.checked_add(len).filter(|&e2| e2 <= tile_data.len());
                 let Some(end) = end else {

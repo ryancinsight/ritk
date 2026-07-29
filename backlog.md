@@ -6,17 +6,24 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-676-01 [patch] - Reject malformed JPEG 2000 packet headers**
-  (IN PROGRESS; owner=Codex; scope=
+  (REVIEW; owner=Codex; scope=
   `crates/ritk-codecs/src/jpeg_2000/{packet/{reader.rs,tests.rs},
   tag_tree.rs}`, `CHANGELOG.md`, and PM artifacts; non-goal=public packet API
   changes or codec release). The tier-2 packet parser currently synthesizes
   zero bits after packet-header EOF and increments the untrusted `Lblock`
   unary field without checked arithmetic. Make every production header read
-  explicitly fallible while preserving the existing public `BitReader`
-  surface. Acceptance: truncated tag-tree/pass/length fields and excessive
+  explicitly fallible without changing the exported codec API. Acceptance:
+  truncated tag-tree/pass/length fields and excessive
   `Lblock` growth return contextual errors without panic or wrap; valid native
   and captured OpenJPEG packet vectors remain exact; focused formatting,
   warning-denied Clippy, Nextest, doctest, and Rustdoc gates pass.
+  Local closure: packet headers now borrow their tile suffix, removing one
+  allocation and suffix copy per layer/resolution packet; bit, tag-tree,
+  pass-count, `Lblock`, length-width, and alignment reads are fallible. Exact
+  malformed-header regressions and a bounded arbitrary-byte proptest pass.
+  All 265 codec tests pass in 5.644 seconds, including the 190-case captured
+  OpenJPEG corpus; formatting, warning-denied all-target Clippy, doctests, and
+  warning-denied Rustdoc pass.
 
 - **DOC-675-01 [patch] - Render deformable registration behavior**
   (DONE; owner=Codex; scope=
