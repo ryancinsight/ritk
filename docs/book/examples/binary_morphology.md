@@ -1,40 +1,48 @@
-# Example: Binary Morphology
+# Example: Binary Opening and Closing
 
-Binary morphology operates on a foreground value and a structuring element.
-For a cubic radius r, erosion retains a voxel only when its neighborhood is
-foreground; dilation retains it when any neighborhood voxel is foreground.
-Opening is erosion followed by dilation. Closing is dilation followed by
-erosion.
+Binary opening and closing are dual compositions with visibly different
+purposes:
 
-![Binary opening and closing in the complete processing pipeline](../figures/processing_pipeline.svg)
+\[
+\operatorname{open}_B(A)=(A\ominus B)\oplus B,\qquad
+\operatorname{close}_B(A)=(A\oplus B)\ominus B.
+\]
 
-~~~rust,ignore
-let eroded = BinaryErodeFilter::new(1)
-    .apply_native(&mask, &backend)?;
-let opened = BinaryDilateFilter::new(1)
-    .apply_native(&eroded, &backend)?;
+Opening is anti-extensive: it removes foreground structures that cannot
+contain the structuring element. Closing is extensive: it fills background
+gaps that cannot contain the reflected element.
 
-let dilated = BinaryDilateFilter::new(1)
-    .apply_native(&mask, &backend)?;
-let closed = BinaryErodeFilter::new(1)
-    .apply_native(&dilated, &backend)?;
-~~~
+The runnable example uses one deterministic 3-D mask containing both defect
+classes. The isolated speck and one-voxel spur give opening something to
+remove; the small internal holes give closing something to fill. The red and
+green change maps make those distinct effects explicit:
 
-The default foreground is 1.0 and out-of-bounds neighbors are background.
-That boundary policy intentionally removes foreground touching the image edge
-during erosion. If your segmentation uses another label, set it with
-with_foreground and keep the background value consistent with the mask
-contract.
+![Binary opening removes foreground specks in red while binary closing fills background holes in green](../figures/binary_morphology.svg)
 
-## Source and verification
+## Source and command
 
-Source: crates/ritk-filter/examples/book_processing_pipeline.rs
+Source: `crates/ritk-filter/examples/book_binary_morphology.rs`
 
-~~~text
-cargo run -p ritk-filter --example book_processing_pipeline -- \
-  docs/book/figures/processing_pipeline.svg
-~~~
+```text
+cargo run -p ritk-filter --example book_binary_morphology -- \
+  docs/book/figures/binary_morphology.svg
+```
 
-The figure uses the same mask for both compositions and a fixed binary display
-range. Tests cover radius zero identity, topology changes, border behavior,
-foreground values, and native/generic parity.
+The example executes `BinaryMorphologicalOpening::apply_native` and
+`BinaryMorphologicalClosing::apply_native` with radius one. It fails unless:
+
+- opening preserves geometry and every displayed interior output voxel is
+  less than or equal to its input voxel;
+- closing preserves geometry and every displayed interior output voxel is
+  greater than or equal to its input voxel;
+- opening removes at least one foreground voxel;
+- closing fills at least one background voxel; and
+- the opening and closing outputs differ.
+
+The contract is checked on the center slice because RITK's documented
+zero-background boundary condition can remove foreground at the outermost
+volume planes during the erosion stage of closing.
+
+The [complete processing pipeline](processing_pipeline.md) shows the same
+operations in a longer filter chain. Tests additionally cover radius-zero
+identity, border behavior, foreground values, and native/generic parity.

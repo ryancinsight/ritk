@@ -5709,12 +5709,14 @@ version = "0.2.60"
 dependencies = [
  "anyhow",
  "apollo-fft",
+ "base64",
  "coeus-core",
  "coeus-ops",
  "coeus-tensor",
  "criterion",
  "eunomia",
  "gaia",
+ "image 0.24.9",
  "moirai",
  "rand 0.9.5",
  "ritk-annotation",
@@ -5772,6 +5774,7 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "arrayvec",
+ "base64",
  "coeus-core",
  "coeus-tensor",
  "consus-core",
@@ -5782,6 +5785,7 @@ dependencies = [
  "dicom-pixeldata",
  "dicom-transfer-syntax-registry",
  "dicom-ul",
+ "eunomia",
  "flate2",
  "gaia",
  "image 0.24.9",
@@ -5962,6 +5966,7 @@ name = "ritk-registration"
 version = "0.53.0"
 dependencies = [
  "anyhow",
+ "base64",
  "bytemuck",
  "coeus-autograd",
  "coeus-core",

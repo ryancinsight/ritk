@@ -2,11 +2,15 @@
 
 ## Status
 
-RITK still uses Burn as its tensor, autodiff, and model backend. Coeus is the
-target replacement, but it is not yet a drop-in dependency for RITK because the
-RITK surface spans image containers, I/O construction, registration metrics,
-autodiff transforms, neural models, CLI boundaries, Python bindings, and GPU
-execution.
+> **Retired tooling note**: The `burn-migration-audit` xtask command and
+> `xtask/burn_surface.allowlist` were removed after the Burn-to-Coeus migration
+> completed. References to the audit in this doc are historical; progress is now
+> measured by the absence of Burn in manifests and source, verified with ordinary
+> ripgrep / `cargo tree`.
+
+**The Burn-to-Coeus cutover is complete** (see ADR 0002 Amendment A4). This
+document is now a historical record of the migration strategy and the Coeus
+capabilities that were built. Burn is no longer a dependency of RITK.
 
 Evidence tier: manifest audit and source audit. No migration proof is claimed.
 
@@ -27,13 +31,14 @@ Key findings from the 2026-06-30 audit that ADR 0002 acts on:
 
 ## Current Burn Surface
 
-Run the repeatable audit from the RITK workspace root:
+The historical repeatable audit was run from the RITK workspace root:
 
 ```sh
+# Retired after migration completion; kept here for historical context.
 cargo run -p xtask -- burn-migration-audit
 ```
 
-The audit reports:
+The audit reported:
 
 - crate manifests that depend on `burn` or `burn-ndarray`;
 - Rust source files containing Burn-surface tokens such as `burn::`,
@@ -42,7 +47,7 @@ The audit reports:
 - a crate-level summary of manifest and source references;
 - the Coeus capabilities required before dependency replacement.
 
-The audit is intentionally lexical. It is a synchronization gate for planning,
+The audit was intentionally lexical. It was a synchronization gate for planning,
 not a type-level compatibility proof.
 
 Baseline result on 2026-06-08:
@@ -275,7 +280,8 @@ Landed, evidence-backed steps of the sequence below (most recent first):
 ## Development Sequence
 
 1. Keep Burn as the production backend.
-2. Maintain `burn-migration-audit` as the authoritative migration surface.
+2. Maintain `burn-migration-audit` as the authoritative migration surface
+   (historical; the audit tooling was retired after migration completion).
 3. Introduce a RITK-owned tensor contract only after Coeus exposes all required
    CPU operations.
 4. Add CPU Coeus differential tests behind an explicit feature.

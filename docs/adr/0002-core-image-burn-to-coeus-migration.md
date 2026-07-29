@@ -6,13 +6,17 @@
 - Related: `docs/coeus_migration.md`, ADR 0001 (registration traits), backlog
   MIG-471…482 (parallel Coeus registration capability)
 
+> **Retired tooling note**: The `burn-migration-audit` xtask command and
+> `xtask/burn_surface.allowlist` were removed after the Burn-to-Coeus migration
+> completed. References to the audit in this ADR are historical.
+
 ## Context
 
-`cargo run -p xtask -- burn-migration-audit` (this sprint) shows every RITK
-crate still depends on Burn (manifest=true) and the source-token surface is
-concentrated in `ritk-registration` (1374), `ritk-filter` (879),
-`ritk-interpolation` (594), `ritk-transform` (407), `ritk-model` (333),
-`ritk-segmentation` (284), `ritk-io` (243). The other stated migration targets
+The historical `cargo run -p xtask -- burn-migration-audit` (this sprint)
+showed every RITK crate still depends on Burn (manifest=true) and the
+source-token surface was concentrated in `ritk-registration` (1374),
+`ritk-filter` (879), `ritk-interpolation` (594), `ritk-transform` (407),
+`ritk-model` (333), `ritk-segmentation` (284), `ritk-io` (243). The other stated migration targets
 are already clean in RITK: **no `rayon`, `tokio`, `nalgebra`, `ndarray`, or
 `rustfft` direct dependencies remain** (audit + manifest grep). Burn is the
 entire remaining substrate surface.
@@ -115,10 +119,10 @@ same change that removes the last caller (no compatibility shim — integrity).
 
 ## Verification
 
-- The audit tool (`burn-migration-audit`) is the migration SSOT; each cutover
-  increment must lower a crate's `source_tokens` and, when complete, flip its
-  `manifest` to false, with differential parity tests proving the Coeus path
-  matches the removed Burn path before deletion.
+- The historical audit tool (`burn-migration-audit`) was the migration SSOT;
+  each cutover increment had to lower a crate's `source_tokens` and, when
+  complete, flip its `manifest` to false, with differential parity tests proving
+  the Coeus path matches the removed Burn path before deletion.
 
 ## Amendment A1 (2026-07-02) — Naming: no substrate brands in API names; one image-generic I/O contract
 
@@ -177,8 +181,8 @@ problem.
 
 The cutover is accepted only when registration examples compile against the
 same public image type as library targets, focused value-semantic transform/I/O
-tests pass, and `xtask burn-migration-audit` removes rather than allowlists the
-compatibility surfaces.
+tests pass, and the compatibility surfaces are removed (historically verified
+with `xtask burn-migration-audit`) rather than allowlisted.
 
 ## Amendment A3 (2026-07-17) — Scalar-provider migration does not imply Burn removal
 

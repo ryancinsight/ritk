@@ -49,6 +49,10 @@ transforms are the deliberate exceptions.
 ## Build the book and examples
 
 ~~~text
+# Run tests with the repository's bounded native-test runner
+cargo nextest run -p ritk-filter
+
+# Build docs
 mdbook build docs/book
 mdbook test docs/book
 cargo build -p ritk-filter --examples
@@ -69,3 +73,6 @@ example succeeds and the rendered artifact has been inspected.
   registration, and post-registration validation.
 - Part IV explains backend dispatch, zero-copy boundaries, and measurements.
 - Part V maps the public RITK surface onto Coeus, Leto, and Moirai.
+
+- [Provider migration summary](../coeus_migration.md)
+- [Architecture decision records](../adr/README.md)

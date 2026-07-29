@@ -22,5 +22,5 @@ frame, and optimizer state are recorded beside it.
 
 | Example | Status | Focus |
 | --- | --- | --- |
-| [Registration Comparison Figure](examples/registration_compare_figure.md) | Available | Visual comparison of identity, classical MI, and reference alignment behavior. |
-| [Validation Suite](examples/validation_suite.md) | Available | Pair metric values with geometry and overlap checks. |
+| [CT/MR Mutual-Information Registration](examples/registration_compare_figure.md) | Available | Visual comparison of identity, classical MI, and reference alignment behavior. |
+| [Validation Suite](examples/validation_suite.md) | Available | Pair metric values with geometry and overlap checks to interpret whether a registration really improved. |

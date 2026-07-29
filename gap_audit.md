@@ -8,6 +8,66 @@
 
 # RITK Gap Audit - Active
 
+> **Retired tooling note**: The `burn-migration-audit` xtask command,
+> `xtask/burn_surface.allowlist`, and the `legacy-migration-audit` CI
+> workflow were removed after the Burn-to-Coeus migration completed.
+> References to these tools in the evidence below are historical.
+
+## DOC-674-01 audit (2026-07-28)
+
+The recovered book branch contained a 474-byte placeholder registration SVG,
+a 6.5 MB windowing SVG, and a 2.2 MB filter-gallery SVG because each source
+voxel was emitted as an XML rectangle. The N4 PNG had no panel labels, its
+source/corrected anatomy appeared nearly identical, and its relative-change
+panel was dominated by global scale. The binary morphology page was still
+planned-only, while the parent chapter reversed the definitions of opening
+and closing. These are visual and mathematical correctness defects rather
+than cosmetic issues. The active correction uses compressed raster panels
+inside labeled SVGs, slice-only diagnostics, shared display windows, explicit
+change maps, and value-semantic assertions. All five examples compile and run:
+binary morphology and filter gallery each complete in 0.063 seconds, windowing
+in 1.086 seconds, registration in 9.152 seconds, and N4 in 28.011 seconds. The
+generated SVGs are 5,945, 42,368, 114,948, 218,556, and 432,321 bytes,
+respectively. Rendered inspection confirms that opening removals and closing
+fills are distinct, smoothing uses a shared display window, registration
+changes the CT/MR overlay from separated red/green edges toward coincidence,
+and the N4 diagnostic exposes the estimated smooth bias rather than global
+scale. Focused Nextest, warning-denied Clippy and Rustdoc, `mdbook test`, and
+`mdbook build` pass.
+
+After current-main integration, the unchanged N4 example crossed the runtime
+budget at 30.405 seconds. Sampling was unavailable because the Windows
+`dtrace` and `blondie` paths require administrator access, but the analytical
+cost is explicit: every iteration evaluated a 64-term cubic B-spline over the
+full CT/MR volume and allocated a full-volume result even though evaluation is
+linear in the control lattice. The implementation now sums iterative control
+lattices at each fitting level, retains per-iteration shrunk-grid evaluation
+for convergence, and performs one allocation-free full-grid accumulation per
+level. The unchanged example completes in 5.189 seconds and reports the same
+display window and ±2.878% bias extent. All 18 focused N4/B-spline tests pass,
+including a derived-epsilon linearity regression. Warning-denied and book
+gates pass on the merged state: all-target Clippy for the three affected
+packages, package doctests, warning-denied Rustdoc, `mdbook test`, and
+`mdbook build`. The final filter-gallery size after current-main integration
+is 42,668 bytes; the other four sizes are unchanged. Hosted Clippy then
+identified two stale `.expect(...)` calls retained during integration in the
+tensor-reduction regression. The test now matches the Atlas-pinned Coeus
+scalar-return API. The local Atlas overlay currently resolves an unrelated
+dirty Coeus branch whose reduction API returns `Result`, so the hosted rerun
+is the authoritative pinned-provider check for that two-line correction.
+
+## MIG-673-01 audit (2026-07-28)
+
+The completed provider cutover left an empty Burn allowlist, a 518-line lexical
+scanner, and a dedicated hosted workflow that could no longer detect an
+approved migration surface. Direct scans across production manifests and Rust
+sources find no `burn`, `burn-ndarray`, `ndarray`, `rustfft`, `approx`, or
+`num-traits` dependencies and no corresponding source paths. The removal is
+therefore migration-tool retirement, not weakening an active compatibility
+gate. Focused formatting and warning-denied Clippy pass; all 5 `xtask`
+Nextest cases pass in 4.237 seconds; and warning-denied Rustdoc passes.
+`cargo test --doc -p xtask` reports no library target, so doctests are not an
+applicable gate for this binary-only package.
 ## DEP-672-02 audit (2026-07-28)
 
 PR #66's first hosted Python lanes failed before compiling RITK. Their logs

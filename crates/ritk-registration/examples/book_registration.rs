@@ -9,8 +9,10 @@
 //! duplicate reference panel.
 
 use anyhow::{bail, Context, Result};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use coeus_core::SequentialBackend;
 use eunomia::CastFrom;
+use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
 use ritk_filter::resample::native::{fixed_world_points, resample_moving_at_world};
 use ritk_image::Image;
 use ritk_io::{format::metaimage::native::MetaImageReader, ImageReader};
@@ -221,39 +223,20 @@ struct SvgPanel<'a> {
     content: PanelContent<'a>,
 }
 
-fn channel(value: f32) -> f32 {
-    value.clamp(0.0, 255.0)
+fn channel(value: f32) -> u8 {
+    u8::cast_from(value.clamp(0.0, 255.0).round())
 }
 
-fn draw_panel(svg: &mut String, panel: SvgPanel<'_>, shape: [usize; 3]) -> Result<()> {
+fn panel_png_data_uri(content: &PanelContent<'_>, shape: [usize; 3]) -> Result<String> {
     let [_, height, width] = shape;
     let plane_size = height
         .checked_mul(width)
         .context("registration panel plane size overflows usize")?;
-    let display_side = u32::try_from(DISPLAY_SIDE).context("display side exceeds u32")?;
-    let image_offset_x = PANEL_WIDTH
-        .checked_sub(display_side)
-        .context("registration panel is narrower than its image")?
-        / 2;
-    let image_offset_y = 58_u32;
-    let cell_size = 1_u32;
-    writeln!(
-        svg,
-        "<g transform=\"translate({}, {})\"><rect width=\"{}\" height=\"{}\" rx=\"8\" fill=\"#f8fafc\" stroke=\"#cbd5e1\"/>",
-        panel.offset_x, panel.offset_y, PANEL_WIDTH, PANEL_HEIGHT
-    )?;
-    writeln!(
-        svg,
-        "<text x=\"{}\" y=\"24\" text-anchor=\"middle\" class=\"title\">{}</text>",
-        PANEL_WIDTH / 2,
-        panel.title
-    )?;
-    writeln!(
-        svg,
-        "<text x=\"{}\" y=\"43\" text-anchor=\"middle\" class=\"subtitle\">{}</text>",
-        PANEL_WIDTH / 2,
-        panel.subtitle
-    )?;
+    let raster_capacity = DISPLAY_SIDE
+        .checked_mul(DISPLAY_SIDE)
+        .and_then(|pixels| pixels.checked_mul(3))
+        .context("registration panel raster size overflows usize")?;
+    let mut raster = Vec::with_capacity(raster_capacity);
     for display_y in 0..DISPLAY_SIDE {
         let source_y = display_y * height / DISPLAY_SIDE;
         for display_x in 0..DISPLAY_SIDE {
@@ -265,7 +248,7 @@ fn draw_panel(svg: &mut String, panel: SvgPanel<'_>, shape: [usize; 3]) -> Resul
             if source >= plane_size {
                 bail!("registration panel source index exceeds its plane");
             }
-            let (red, green, blue) = match &panel.content {
+            let (red, green, blue) = match content {
                 PanelContent::Ct(values) => {
                     let value = *values
                         .get(source)
@@ -291,22 +274,46 @@ fn draw_panel(svg: &mut String, panel: SvgPanel<'_>, shape: [usize; 3]) -> Resul
                     (value, value, value)
                 }
             };
-            let x =
-                image_offset_x + u32::try_from(display_x).context("display column exceeds u32")?;
-            let y = image_offset_y + u32::try_from(display_y).context("display row exceeds u32")?;
-            writeln!(
-                svg,
-                "<rect x=\"{}\" y=\"{}\" width=\"{}\" height=\"{}\" fill=\"rgb({:.0},{:.0},{:.0})\"/>",
-                x,
-                y,
-                cell_size,
-                cell_size,
-                channel(red),
-                channel(green),
-                channel(blue)
-            )?;
+            raster.extend_from_slice(&[channel(red), channel(green), channel(blue)]);
         }
     }
+    let display_side = u32::try_from(DISPLAY_SIDE).context("display side exceeds u32")?;
+    let mut png = Vec::new();
+    PngEncoder::new(&mut png)
+        .write_image(&raster, display_side, display_side, ColorType::Rgb8)
+        .context("encode registration panel as PNG")?;
+    Ok(STANDARD.encode(png))
+}
+
+fn draw_panel(svg: &mut String, panel: SvgPanel<'_>, shape: [usize; 3]) -> Result<()> {
+    let image_offset_x = PANEL_WIDTH
+        .checked_sub(u32::try_from(DISPLAY_SIDE).context("display side exceeds u32")?)
+        .context("registration panel is narrower than its image")?
+        / 2;
+    let image_offset_y = 58_u32;
+    let display_side = u32::try_from(DISPLAY_SIDE).context("display side exceeds u32")?;
+    let encoded = panel_png_data_uri(&panel.content, shape)?;
+    writeln!(
+        svg,
+        "<g transform=\"translate({}, {})\"><rect width=\"{}\" height=\"{}\" rx=\"8\" fill=\"#f8fafc\" stroke=\"#cbd5e1\"/>",
+        panel.offset_x, panel.offset_y, PANEL_WIDTH, PANEL_HEIGHT
+    )?;
+    writeln!(
+        svg,
+        "<text x=\"{}\" y=\"24\" text-anchor=\"middle\" class=\"title\">{}</text>",
+        PANEL_WIDTH / 2,
+        panel.title
+    )?;
+    writeln!(
+        svg,
+        "<text x=\"{}\" y=\"43\" text-anchor=\"middle\" class=\"subtitle\">{}</text>",
+        PANEL_WIDTH / 2,
+        panel.subtitle
+    )?;
+    writeln!(
+        svg,
+        "<image x=\"{image_offset_x}\" y=\"{image_offset_y}\" width=\"{display_side}\" height=\"{display_side}\" href=\"data:image/png;base64,{encoded}\" image-rendering=\"pixelated\"/>"
+    )?;
     svg.push_str("</g>\n");
     Ok(())
 }
@@ -419,26 +426,28 @@ fn main() -> Result<()> {
             .context("resample MR onto the coarse registration grid")?,
         &coarse,
     )?;
-    let ct_values = coarse_ct.data_slice()?.to_vec();
-    let mr_values = coarse_mr.data_slice()?.to_vec();
-    let coarse_ct = image_from_grid(window(&ct_values, -1000.0, 1000.0)?, &coarse)?;
-    let mr_lower = percentile(&mr_values, 2)?;
-    let mr_upper = percentile(&mr_values, 98)?;
-    let coarse_mr = image_from_grid(window(&mr_values, mr_lower, mr_upper)?, &coarse)?;
+    let coarse_ct = image_from_grid(window(coarse_ct.data_slice()?, -1000.0, 1000.0)?, &coarse)?;
+    let mr_lower = percentile(coarse_mr.data_slice()?, 2)?;
+    let mr_upper = percentile(coarse_mr.data_slice()?, 98)?;
+    let coarse_mr = image_from_grid(
+        window(coarse_mr.data_slice()?, mr_lower, mr_upper)?,
+        &coarse,
+    )?;
 
     let fixed_volume = image_to_leto_volume(&coarse_ct)?;
     let moving_volume = image_to_leto_volume(&coarse_mr)?;
     let similarity = MutualInformationMetric::default();
-    let initial_mi = similarity.compute(&moving_volume, &fixed_volume);
+    let initial_mi = similarity.compute(&fixed_volume, &moving_volume);
     let ground_truth = ground_truth_transform()?;
     let registered_values = resample_moving_at_world(&fixed_world, &mr, &ground_truth)
         .context("resample MR with the RIRE fiducial transform on the coarse grid")?;
     let registered_mr = image_from_grid(window(&registered_values, mr_lower, mr_upper)?, &coarse)?;
     let registered_volume = image_to_leto_volume(&registered_mr)?;
-    let final_mi = similarity.compute(&registered_volume, &fixed_volume);
+    let final_mi = similarity.compute(&fixed_volume, &registered_volume);
     if final_mi <= initial_mi {
         bail!(
-            "RIRE registration did not improve normalized mutual information: {initial_mi:.6} -> {final_mi:.6}"
+            "RIRE registration did not improve normalized mutual information on the {:?} coarse grid with CT [-1000, 1000] and MR p2/p98 [{mr_lower:.3}, {mr_upper:.3}] windows: {initial_mi:.6} -> {final_mi:.6}",
+            COARSE_SHAPE
         );
     }
 

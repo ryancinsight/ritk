@@ -22,4 +22,4 @@ filter pipeline as any other input.
 | Example | Status | Focus |
 | --- | --- | --- |
 | Native JPEG read/write boundary | Available | Uses path inference and toleranced pixel validation. |
-| [Registration Comparison Figure](examples/registration_compare_figure.md) | Available | Representative visualization workflow where compressed export is acceptable after alignment. |
+| [CT/MR Mutual-Information Registration](examples/registration_compare_figure.md) | Available | Representative visualization workflow where compressed export is acceptable after alignment is complete. |

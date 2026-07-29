@@ -7,7 +7,10 @@
 //! unexplained display settings.
 
 use anyhow::{bail, Context, Result};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
 use coeus_core::SequentialBackend;
+use eunomia::CastFrom;
+use image::{codecs::png::PngEncoder, ColorType, ImageEncoder};
 use ritk_filter::{IntensityWindowingFilter, RescaleIntensityFilter};
 use ritk_io::{format::metaimage::native::MetaImageReader, ImageReader};
 use std::fmt::Write as _;
@@ -59,11 +62,11 @@ fn slice(values: &[f32], shape: [usize; 3], z: usize) -> Result<&[f32]> {
         .context("image data length does not match its declared shape")
 }
 
-fn intensity_to_gray(value: f32, lower: f32, upper: f32) -> f64 {
+fn intensity_to_gray(value: f32, lower: f32, upper: f32) -> u8 {
     if !value.is_finite() {
-        return 0.0;
+        return 0;
     }
-    f64::from(((value - lower) / (upper - lower)).clamp(0.0, 1.0)) * 255.0
+    u8::cast_from(((((value - lower) / (upper - lower)).clamp(0.0, 1.0)) * 255.0).round())
 }
 
 struct ImagePanel<'a> {
@@ -91,6 +94,27 @@ fn draw_image_panel(svg: &mut String, panel: ImagePanel<'_>) -> Result<()> {
     let [_, height, width] = shape;
     let display_size = usize::try_from(IMAGE_SIZE).context("image size exceeds usize")?;
     let (lower, upper) = display_range;
+    let raster_capacity = display_size
+        .checked_mul(display_size)
+        .and_then(|pixels| pixels.checked_mul(3))
+        .context("image panel raster size overflows usize")?;
+    let mut raster = Vec::with_capacity(raster_capacity);
+    for output_y in 0..display_size {
+        let source_y = output_y.saturating_mul(height) / display_size;
+        for output_x in 0..display_size {
+            let source_x = output_x.saturating_mul(width) / display_size;
+            let value = *values
+                .get(source_y * width + source_x)
+                .context("image panel shape mismatch")?;
+            let intensity = intensity_to_gray(value, lower, upper);
+            raster.extend_from_slice(&[intensity, intensity, intensity]);
+        }
+    }
+    let mut png = Vec::new();
+    PngEncoder::new(&mut png)
+        .write_image(&raster, IMAGE_SIZE, IMAGE_SIZE, ColorType::Rgb8)
+        .context("encode image panel as PNG")?;
+    let encoded = STANDARD.encode(png);
     writeln!(svg, "<g transform=\"translate({offset_x},{offset_y})\">")?;
     writeln!(
         svg,
@@ -100,27 +124,15 @@ fn draw_image_panel(svg: &mut String, panel: ImagePanel<'_>) -> Result<()> {
         svg,
         "<text x=\"16\" y=\"34\" class=\"subtitle\">{subtitle}</text>"
     )?;
+    writeln!(svg, "<text x=\"16\" y=\"242\" class=\"note\">{note}</text>")?;
     writeln!(
         svg,
         "<rect x=\"16\" y=\"42\" width=\"248\" height=\"208\" class=\"panel\"/>"
     )?;
-    writeln!(svg, "<text x=\"16\" y=\"242\" class=\"note\">{note}</text>")?;
-    for output_y in 0..display_size {
-        let source_y = output_y.saturating_mul(height) / display_size;
-        for output_x in 0..display_size {
-            let source_x = output_x.saturating_mul(width) / display_size;
-            let value = *values
-                .get(source_y * width + source_x)
-                .context("image panel shape mismatch")?;
-            let intensity = intensity_to_gray(value, lower, upper);
-            let x0 = f64::from(IMAGE_LEFT) + f64::from(u32::try_from(output_x)?);
-            let y0 = f64::from(IMAGE_TOP) + f64::from(u32::try_from(output_y)?);
-            writeln!(
-                svg,
-                "<rect x=\"{x0:.0}\" y=\"{y0:.0}\" width=\"1\" height=\"1\" fill=\"rgb({intensity:.0},{intensity:.0},{intensity:.0})\"/>"
-            )?;
-        }
-    }
+    writeln!(
+        svg,
+        "<image x=\"{IMAGE_LEFT}\" y=\"{IMAGE_TOP}\" width=\"{IMAGE_SIZE}\" height=\"{IMAGE_SIZE}\" href=\"data:image/png;base64,{encoded}\" image-rendering=\"pixelated\"/>"
+    )?;
     writeln!(svg, "</g>")?;
     Ok(())
 }
@@ -135,24 +147,17 @@ fn draw_histogram_panel(
     let lower = CT_DISPLAY_WINDOW.0;
     let upper = CT_DISPLAY_WINDOW.1;
     let bin_count = f32::from(u16::try_from(HISTOGRAM_BINS)?);
-    let bin_width_hu = (upper - lower) / bin_count;
     let mut bins = [0_usize; HISTOGRAM_BINS];
-    for (index, bin) in bins.iter_mut().enumerate() {
-        let index_f32 = f32::from(u16::try_from(index)?);
-        let bin_lower = lower + index_f32 * bin_width_hu;
-        let bin_upper = bin_lower + bin_width_hu;
-        *bin = values
-            .iter()
-            .copied()
-            .filter(|value| value.is_finite())
-            .filter(|value| {
-                if index + 1 == HISTOGRAM_BINS {
-                    *value >= bin_lower && *value <= bin_upper
-                } else {
-                    *value >= bin_lower && *value < bin_upper
-                }
-            })
-            .count();
+    for value in values
+        .iter()
+        .copied()
+        .filter(|value| value.is_finite() && *value >= lower && *value <= upper)
+    {
+        let scaled = ((value - lower) / (upper - lower)) * bin_count;
+        let index = usize::cast_from(scaled.floor()).min(HISTOGRAM_BINS - 1);
+        bins[index] = bins[index]
+            .checked_add(1)
+            .context("histogram bin count overflows usize")?;
     }
     let maximum = bins
         .iter()
@@ -272,9 +277,9 @@ fn write_figure(
     let soft_clipped = clipped_percentage(input_slice, SOFT_TISSUE_WINDOW)?;
     let lung_clipped = clipped_percentage(input_slice, LUNG_WINDOW)?;
     let global_subtitle =
-        format!("RescaleIntensityFilter [{input_lower:.0}, {input_upper:.0}] HU → [0, 255]");
-    let soft_note = format!("saturated source voxels: {soft_clipped:.1}%");
-    let lung_note = format!("saturated source voxels: {lung_clipped:.1}%");
+        format!("input [{input_lower:.0}, {input_upper:.0}] HU → output [0, 255]");
+    let soft_note = format!("{soft_clipped:.1}% of source voxels saturated");
+    let lung_note = format!("{lung_clipped:.1}% of source voxels saturated");
     let figure_width = PANEL_WIDTH
         .checked_mul(3)
         .context("figure width overflows u32")?;
@@ -304,7 +309,7 @@ fn write_figure(
             shape: [1, shape[1], shape[2]],
             display_range: (0.0, 1.0),
             title: "Soft-tissue window",
-            subtitle: "HU [-160, 240] → output [0, 1]",
+            subtitle: "input [-160, 240] HU → output [0, 1]",
             note: &soft_note,
             offset_x: PANEL_WIDTH,
             offset_y: 0,
@@ -317,7 +322,7 @@ fn write_figure(
             shape: [1, shape[1], shape[2]],
             display_range: (0.0, 1.0),
             title: "Lung window",
-            subtitle: "HU [-1000, 400] → output [0, 1]",
+            subtitle: "input [-1000, 400] HU → output [0, 1]",
             note: &lung_note,
             offset_x: PANEL_WIDTH * 2,
             offset_y: 0,
@@ -331,7 +336,7 @@ fn write_figure(
             display_range: (0.0, 255.0),
             title: "Global rescale",
             subtitle: &global_subtitle,
-            note: "RescaleIntensityFilter; same source geometry",
+            note: "global affine map; same source geometry",
             offset_x: 0,
             offset_y: PANEL_HEIGHT,
         },
@@ -386,7 +391,6 @@ fn main() -> Result<()> {
     let input = MetaImageReader::new(Backend::default())
         .read(CT_PATH)
         .with_context(|| format!("read RIRE CT volume {CT_PATH}"))?;
-    let input_values = input.data_slice()?.to_vec();
     let soft_filter =
         IntensityWindowingFilter::new(SOFT_TISSUE_WINDOW.0, SOFT_TISSUE_WINDOW.1, 0.0, 1.0);
     let lung_filter = IntensityWindowingFilter::new(LUNG_WINDOW.0, LUNG_WINDOW.1, 0.0, 1.0);
@@ -405,13 +409,14 @@ fn main() -> Result<()> {
     {
         bail!("intensity filters changed CT geometry");
     }
-    let soft_values = soft.data_slice()?.to_vec();
-    let lung_values = lung.data_slice()?.to_vec();
-    let rescaled_values = rescaled.data_slice()?.to_vec();
+    let input_values = input.data_slice()?;
+    let soft_values = soft.data_slice()?;
+    let lung_values = lung.data_slice()?;
+    let rescaled_values = rescaled.data_slice()?;
     for (name, values, expected) in [
-        ("soft-tissue window", &soft_values, (0.0, 1.0)),
-        ("lung window", &lung_values, (0.0, 1.0)),
-        ("global rescale", &rescaled_values, (0.0, 255.0)),
+        ("soft-tissue window", soft_values, (0.0, 1.0)),
+        ("lung window", lung_values, (0.0, 1.0)),
+        ("global rescale", rescaled_values, (0.0, 255.0)),
     ] {
         let (lower, upper) = min_max(values)?;
         if lower < expected.0 || upper > expected.1 {
@@ -424,13 +429,13 @@ fn main() -> Result<()> {
     }
     write_figure(
         &output,
-        &input_values,
+        input_values,
         input.shape(),
-        &soft_values,
-        &lung_values,
-        &rescaled_values,
+        soft_values,
+        lung_values,
+        rescaled_values,
     )?;
-    let axial_slice = slice(&input_values, input.shape(), input.shape()[0] / 2)?;
+    let axial_slice = slice(input_values, input.shape(), input.shape()[0] / 2)?;
     let (input_lower, input_upper) = min_max(axial_slice)?;
     let p02 = percentile(axial_slice, 2)?;
     let p98 = percentile(axial_slice, 98)?;

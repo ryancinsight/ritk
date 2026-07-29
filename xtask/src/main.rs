@@ -5,7 +5,6 @@ use tracing::{info, warn};
 
 mod datasets;
 mod dependency_alignment;
-mod migration_audit;
 
 use datasets::{Dataset, DatasetManager};
 
@@ -79,10 +78,6 @@ enum Commands {
         python: String,
     },
 
-    /// Report the current Burn dependency surface for the future Coeus migration.
-    BurnMigrationAudit,
-    /// Refresh the Burn migration allowlist baseline file.
-    RefreshBurnAllowlist,
     /// Enforce workspace dependency inheritance in member manifests.
     DependencyAlignment,
 }
@@ -119,12 +114,6 @@ fn main() -> Result<()> {
         }
         Commands::PythonParityReport { python } => {
             python_parity_report(&python)?;
-        }
-        Commands::BurnMigrationAudit => {
-            migration_audit::print_burn_migration_audit(Path::new("."))?;
-        }
-        Commands::RefreshBurnAllowlist => {
-            migration_audit::refresh_burn_allowlist(Path::new("."))?;
         }
         Commands::DependencyAlignment => {
             dependency_alignment::verify()?;

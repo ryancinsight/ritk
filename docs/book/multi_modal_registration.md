@@ -22,5 +22,5 @@ actually changed the sampled values.
 
 | Example | Status | Focus |
 | --- | --- | --- |
-| [CT/MR Mutual-Information Registration](examples/registration_compare_figure.md) | Available | Labeled RIRE CT-to-MR overlays with identity, registered, and change diagnostic panels. |
+| [CT/MR Mutual-Information Registration](examples/registration_compare_figure.md) | Available | Labeled RIRE CT-to-MR overlays with identity, registered, and MR-change diagnostic panels. |
 | [Validation Suite](examples/validation_suite.md) | Available | Geometry, metric, overlap, convergence, and visible pre/post checks. |

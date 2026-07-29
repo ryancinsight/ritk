@@ -46,15 +46,33 @@ pub fn bspline_evaluate(
     image_dims: [usize; 3],
 ) -> Vec<f32> {
     let [nz, ny, nx] = image_dims;
+    let mut result = vec![0.0f32; nz * ny * nx];
+    bspline_accumulate(control_points, ctrl_grid, image_dims, &mut result);
+    result
+}
+
+/// Add a cubic B-spline surface directly into an existing image buffer.
+///
+/// This preserves the linear evaluation contract while allowing callers that
+/// accumulate several bias-field levels to avoid a full-volume temporary.
+pub(crate) fn bspline_accumulate(
+    control_points: &[f64],
+    ctrl_grid: [usize; 3],
+    image_dims: [usize; 3],
+    result: &mut [f32],
+) {
+    let [nz, ny, nx] = image_dims;
     let [cz, cy, cx] = ctrl_grid;
     debug_assert_eq!(
         control_points.len(),
         cz * cy * cx,
         "control_points length must equal cz*cy*cx"
     );
-
-    let mut result = vec![0.0f32; nz * ny * nx];
-
+    debug_assert_eq!(
+        result.len(),
+        nz * ny * nx,
+        "result length must equal nz*ny*nx"
+    );
     for iz in 0..nz {
         let (kz, bz) = basis_and_span(iz, nz, cz);
         for iy in 0..ny {
@@ -70,12 +88,10 @@ pub fn bspline_evaluate(
                         }
                     }
                 }
-                result[iz * ny * nx + iy * nx + ix] = val as f32;
+                result[iz * ny * nx + iy * nx + ix] += val as f32;
             }
         }
     }
-
-    result
 }
 
 /// Denominator floor below which a control point is treated as unconstrained

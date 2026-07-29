@@ -8,6 +8,60 @@
 
 # RITK Sprint Checklist — Active
 
+> **Retired tooling note**: The `burn-migration-audit` xtask command,
+> `xtask/burn_surface.allowlist`, and the `legacy-migration-audit` CI
+> workflow were removed after the Burn-to-Coeus migration completed.
+> References to these tools in the entries below are historical.
+
+## DOC-674-01 — Clarify and validate book figures
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Replace per-pixel SVG rectangles with embedded PNG panels in the
+      filter, windowing, registration, and N4 figure generators.
+- [x] Remove full-volume documentation-only copies from windowing, N4, and
+      registration examples; make histogram construction single-pass.
+- [x] Correct review findings for mdBook checksum verification, N4 config
+      reporting, MI operand order, invalid multiplier coverage, diffusion
+      mathematics, and canonical example titles.
+- [x] Add a binary morphology example whose value-semantic assertions and
+      red/green change maps distinguish opening from closing.
+- [x] Compile and run every touched example; regenerate all figures. Direct
+      merged-state runtimes: binary morphology 1.939 s, filter gallery 1.997 s,
+      windowing 2.959 s, registration 10.133 s, and optimized N4 5.189 s.
+- [x] Inspect rendered figures and correct unclear or illogical output. The
+      final morphology change maps, shared-window filter/N4 comparisons,
+      registered CT/MR overlay, and window labels are distinct and legible.
+- [x] Run focused Nextest, warning-denied Clippy, mdBook test/build, and
+      warning-denied Rustdoc. The merged state passes 48 focused morphology
+      cases, 18 N4/B-spline cases, the registration invalid-multiplier case,
+      package doctests, and every named documentation gate.
+- [x] Remove repeated full-resolution N4 B-spline evaluation from the iteration
+      loop. The unchanged merged example drops from 30.405 s to 5.189 s; all 18
+      focused N4/B-spline Nextest cases pass.
+- [x] Integrate current `main` and reconcile the lockfile to its committed
+      provider sources plus the five example-dependency edges.
+- [x] Align the merged tensor-reduction regression with the Atlas-pinned Coeus
+      API after hosted Clippy exposed two stale `.expect(...)` calls. Local
+      package Clippy is blocked by an unrelated dirty Coeus provider branch
+      whose reduction API has already advanced to a fallible return type;
+      hosted Clippy is the pinned-provider verification lane.
+- [ ] Push the verified merge commit and merge PR #56 after hosted gates pass.
+
+## MIG-673-01 — Retire completed migration audit
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Delete the migration-only xtask command, empty allowlist, and dedicated
+      hosted workflow.
+- [x] Reclassify active documentation references while retaining historical
+      evidence.
+- [x] Confirm no Burn or standalone-legacy dependency/source tokens remain in
+      production crates.
+- [x] Run formatting, warning-denied `xtask` Clippy, focused Nextest, and
+      warning-denied Rustdoc. All 5 Nextest cases pass in 4.237 seconds;
+      doctests are not applicable because `xtask` has no library target.
+- [x] Commit the recovered stale work before integrating current `main`.
 ## DEP-672-02 — Consolidate the hosted Leto source identity
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
