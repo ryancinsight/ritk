@@ -103,6 +103,36 @@ fn test_single_seed_fills_entire_volume() {
     );
 }
 
+/// Same-label strength updates must keep the automaton active because a
+/// stronger path can change a competing boundary label in a later iteration.
+#[test]
+fn test_strength_only_update_can_enable_later_label_change() {
+    let image = [
+        1.0, 0.0, 0.0, 3.0, //
+        6.0, 2.0, 4.0, 4.0, //
+        4.0, 0.0, 2.0, 3.0, //
+        4.0, 7.0, 9.0, 2.0,
+    ];
+    let seeds = [
+        0.0, 0.0, 2.0, 1.0, //
+        0.0, 0.0, 0.0, 0.0, //
+        0.0, 0.0, 0.0, 0.0, //
+        0.0, 0.0, 0.0, 0.0,
+    ];
+
+    let labels = growcut_slice(&image, &seeds, [1, 4, 4], 20);
+
+    assert_eq!(
+        labels,
+        vec![
+            2.0, 2.0, 2.0, 1.0, //
+            2.0, 2.0, 1.0, 1.0, //
+            2.0, 2.0, 1.0, 1.0, //
+            2.0, 2.0, 2.0, 1.0,
+        ]
+    );
+}
+
 /// Spatial metadata (origin, spacing, direction) is preserved.
 #[test]
 fn test_spatial_metadata_preserved() {

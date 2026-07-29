@@ -42,6 +42,7 @@ transforms are the deliberate exceptions.
 | ritk-io | Format inference, native readers, native writers, and DICOM series handling |
 | ritk-image | Coeus-backed image storage and physical-coordinate metadata |
 | ritk-filter | Intensity, smoothing, edge, morphology, diffusion, and spatial filters |
+| ritk-segmentation | Thresholding, labeling, seeded region growth, watershed, level sets, and consensus segmentation |
 | ritk-registration | Metrics, transforms, classical registration, and differentiable registration |
 | ritk-statistics | Histogram, similarity, overlap, and image-quality statistics |
 | ritk-transform / ritk-interpolation | Transform parameterization and physical resampling |
@@ -51,6 +52,7 @@ transforms are the deliberate exceptions.
 ~~~text
 # Run tests with the repository's bounded native-test runner
 cargo nextest run -p ritk-filter
+cargo nextest run -p ritk-segmentation
 
 # Build docs
 mdbook build docs/book
@@ -58,6 +60,7 @@ mdbook test docs/book
 cargo build -p ritk-filter --examples
 cargo build -p ritk-io --examples
 cargo build -p ritk-registration --examples
+cargo build -p ritk-segmentation --examples
 ~~~
 
 For native tests use the repository's configured cargo nextest command.
@@ -67,8 +70,8 @@ example succeeds and the rendered artifact has been inspected.
 ## How to read the chapters
 
 - Part I explains format boundaries and spatial-axis conventions.
-- Part II builds filtering pipelines from intensity, spatial, morphology, and
-  diffusion operations.
+- Part II builds filtering and segmentation pipelines from intensity, spatial,
+  morphology, diffusion, and seeded-label operations.
 - Part III covers metrics, transforms, classical and differentiable
   registration, and post-registration validation.
 - Part IV explains backend dispatch, zero-copy boundaries, and measurements.

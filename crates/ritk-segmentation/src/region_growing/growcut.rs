@@ -1,8 +1,9 @@
 //! GrowCut interactive segmentation via cellular automaton.
 //!
 //! # Algorithm
-//! Vezhnevets & Konouchine (2005) "GrowCut — Interactive Multi-Label
-//! N-D Image Segmentation by Cellular Automata", GRAPHITE 2005.
+//! Vezhnevets & Konouchine (2005), ["GrowCut — Interactive Multi-Label
+//! N-D Image Segmentation by Cellular Automata"][growcut-paper], GRAPHICON
+//! 2005.
 //!
 //! Each voxel i maintains a label L\[i\] ∈ {0,1,…,K} and a strength C\[i\] ∈ \[0,1\].
 //! Seeds are initialized with L\[i\] = seed, C\[i\] = 1.0. Unlabeled voxels start
@@ -12,13 +13,16 @@
 //! C\[j\] · g(j,i) > C\[i\] where g(j,i) = 1 − |I\[j\]−I\[i\]| / max_diff
 //! On a successful attack L\[i\] ← L\[j\], C\[i\] ← C\[j\]·g(j,i).
 //!
-//! Terminates when no voxel changes label or `max_iter` is reached.
+//! Terminates when neither label nor strength changes at any voxel, or when
+//! `max_iter` is reached.
 //!
 //! # Complexity
 //! O(max_iter · N · 6) = O(max_iter · N). Each iteration is fully data-parallel.
 //!
 //! # ITK Parity
 //! `itk::FastMarchingSegmentationModule` / GrowCut filter (3D Slicer extension).
+//!
+//! [growcut-paper]: https://www.graphicon.ru/oldgr/en/publications/text/gc2005vk.pdf
 
 use ritk_image::tensor::Backend;
 use ritk_image::tensor::Tensor;
@@ -172,11 +176,11 @@ pub fn growcut_slice(
     use std::sync::atomic::{AtomicBool, Ordering};
 
     for _ in 0..max_iter {
-        let changed = AtomicBool::new(false);
+        let state_changed = AtomicBool::new(false);
 
         let labels_old = &labels;
         let strengths_old = &strengths;
-        let changed_ref = &changed;
+        let state_changed_ref = &state_changed;
 
         moirai::for_each_chunk_pair_mut_enumerated_with::<moirai::Adaptive, _, _, _>(
             &mut next_strengths,
@@ -184,6 +188,7 @@ pub fn growcut_slice(
             GROWCUT_CHUNK_LEN,
             |chunk_idx, strength_chunk, label_chunk| {
                 let base = chunk_idx * GROWCUT_CHUNK_LEN;
+                let mut chunk_changed = false;
                 for (local, (strength_mut, label_mut)) in strength_chunk
                     .iter_mut()
                     .zip(label_chunk.iter_mut())
@@ -232,14 +237,19 @@ pub fn growcut_slice(
 
                     *strength_mut = best_strength;
                     *label_mut = best_label;
-                    if best_label != labels_old[idx] {
-                        changed_ref.store(true, Ordering::Relaxed);
-                    }
+                    chunk_changed |=
+                        best_label != labels_old[idx] || best_strength != strengths_old[idx];
+                }
+                if chunk_changed {
+                    // The atomic carries only the monotone convergence flag;
+                    // the parallel primitive's join publishes output buffers.
+                    state_changed_ref.store(true, Ordering::Relaxed);
                 }
             },
         );
 
-        if !changed.load(Ordering::Relaxed) {
+        // The worker join above, not this flag, synchronizes buffer writes.
+        if !state_changed.load(Ordering::Relaxed) {
             break;
         }
 
