@@ -13,9 +13,26 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
-## PERF-677-01 — Reuse reversible wavelet workspace
+## PERF-678-01 — Eliminate tag-tree path allocations
 **Target version**: Unreleased patch
 **Sprint phase**: Execution
+
+- [x] Trace tag-tree path construction through tier-2 packet encode/decode
+      and exclude the already-completed packet-suffix and wavelet work.
+- [ ] Capture matched 512×512 five-level encode and decode Criterion
+      baselines.
+- [ ] Replace per-operation heap paths with a depth-bounded stack
+      representation and reuse one path across exact-value thresholds.
+- [ ] Add maximum-depth and rectangular-tree value-semantic regressions.
+- [ ] Revalidate native round trips and the captured OpenJPEG corpus.
+- [ ] Compare the unchanged Criterion workload for regressions.
+- [ ] Run formatting, warning-denied Clippy, Nextest, doctest, and
+      warning-denied Rustdoc.
+- [ ] Commit, push, and merge after hosted gates pass.
+
+## PERF-677-01 — Reuse reversible wavelet workspace
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
 
 - [x] Capture matched 512×512 five-level encode and decode Criterion
       baselines: 55.209 ms and 52.545 ms medians.
@@ -30,7 +47,9 @@
       52.665 ms (p = 0.80), detecting no regression.
 - [x] Run formatting, warning-denied Clippy, all 268 codec tests, doctests,
       and warning-denied Rustdoc.
-- [ ] Commit, push, and merge after hosted gates pass.
+- [x] Commit, push, and merge after hosted gates pass. PR #70 merged as
+      `34d16106` from exact head `6ffcd909`; CI `30419505151` and Python
+      `30419505162` passed every repository-owned lane.
 
 ## SAFE-676-01 — Reject malformed JPEG 2000 packet headers
 **Target version**: Unreleased patch
