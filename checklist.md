@@ -21,12 +21,15 @@
       baselines: 55.209 ms and 52.545 ms medians.
 - [x] Prove the forward and inverse lifting phase dependencies permit exact
       in-place updates without retaining an input clone.
-- [ ] Reuse one transform workspace across every row, column, and level.
-- [ ] Revalidate analytical, odd/even boundary, multilevel, native
+- [x] Reuse one transform workspace across every row, column, and level,
+      reducing each measured transform from 1,994 allocations to one.
+- [x] Revalidate analytical, odd/even boundary, multilevel, native
       round-trip, and captured OpenJPEG behavior.
-- [ ] Compare the unchanged Criterion workload and reject a statistically
-      significant regression.
-- [ ] Run formatting, warning-denied Clippy, doctest, and Rustdoc gates.
+- [x] Compare the unchanged Criterion workload. Encode changes from
+      55.209 ms to 54.463 ms (p = 0.09); decode changes from 52.545 ms to
+      52.665 ms (p = 0.80), detecting no regression.
+- [x] Run formatting, warning-denied Clippy, all 268 codec tests, doctests,
+      and warning-denied Rustdoc.
 - [ ] Commit, push, and merge after hosted gates pass.
 
 ## SAFE-676-01 — Reject malformed JPEG 2000 packet headers

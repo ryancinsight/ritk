@@ -6,7 +6,7 @@
 > References to these tools in the entries below are historical.
 
 - **PERF-677-01 [patch] - Reuse reversible wavelet workspace**
-  (IN PROGRESS; owner=Codex; scope=
+  (REVIEW; owner=Codex; scope=
   `crates/ritk-codecs/src/jpeg_2000/wavelet.rs`, `CHANGELOG.md`, and PM
   artifacts; non-goal=9/7 wavelet changes, public API changes, or codec
   release). Each 1-D reversible 5/3 lift clones its full line and each DWT
@@ -18,7 +18,13 @@
   captured OpenJPEG cases remain exact; the unchanged Criterion workload
   detects no regression; formatting, warning-denied Clippy, Nextest,
   doctest, and Rustdoc gates pass. Matched baseline medians are 55.209 ms
-  encode and 52.545 ms decode on the 512×512 five-level workload.
+  encode and 52.545 ms decode on the 512×512 five-level workload. Local
+  closure: exact in-place lifting plus one reusable workspace reduces each
+  measured transform from 1,994 allocations to one, removes 2,793,472 copied
+  bytes, and reduces peak transform scratch from 6 KiB to 4 KiB. Changed
+  medians are 54.463 ms encode (p = 0.09) and 52.665 ms decode (p = 0.80), so
+  no latency change is detected. All 268 codec tests pass;
+  formatting, warning-denied Clippy, doctests, and warning-denied Rustdoc pass.
 
 - **SAFE-676-01 [patch] - Reject malformed JPEG 2000 packet headers**
   (DONE; owner=Codex; scope=

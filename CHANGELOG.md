@@ -8,6 +8,29 @@
 
 # CHANGELOG
 
+## [Unreleased] — Reused reversible wavelet workspace (PERF-677-01)
+
+### Changed
+
+- Perform reversible 5/3 lifting exactly in place and reuse one row/column
+  workspace across every transform level. A 512×512 five-level transform now
+  performs one scratch allocation instead of 1,994 and avoids 2,793,472 bytes
+  of line cloning.
+- Reject overflowing dimensions, zero-sized multilevel geometry, and
+  decomposition depths wider than the platform geometry arithmetic.
+
+### Performance
+
+- On the unchanged 512×512 five-level Criterion workloads, encode medians are
+  55.209 ms before and 54.463 ms after (p = 0.09); decode medians are
+  52.545 ms before and 52.665 ms after (p = 0.80). No latency change is
+  detected.
+
+### Tests
+
+- Extend reversible-wavelet boundary coverage for dimension overflow, zero
+  geometry, and excessive decomposition depth; all 268 codec tests pass.
+
 ## [Unreleased] — JPEG 2000 packet bounds (SAFE-676-01)
 
 ### Fixed
