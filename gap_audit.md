@@ -46,7 +46,10 @@ for convergence, and performs one allocation-free full-grid accumulation per
 level. The unchanged example completes in 5.189 seconds and reports the same
 display window and ±2.878% bias extent. All 18 focused N4/B-spline tests pass,
 including a derived-epsilon linearity regression. Warning-denied and book
-gates remain the delivery checks on the merged state.
+gates pass on the merged state: all-target Clippy for the three affected
+packages, package doctests, warning-denied Rustdoc, `mdbook test`, and
+`mdbook build`. The final filter-gallery size after current-main integration
+is 42,668 bytes; the other four sizes are unchanged.
 
 ## MIG-673-01 audit (2026-07-28)
 

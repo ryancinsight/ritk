@@ -15,7 +15,7 @@
 
 ## DOC-674-01 — Clarify and validate book figures
 **Target version**: Unreleased patch
-**Sprint phase**: Execution
+**Sprint phase**: Closure
 
 - [x] Replace per-pixel SVG rectangles with embedded PNG panels in the
       filter, windowing, registration, and N4 figure generators.
@@ -27,19 +27,21 @@
 - [x] Add a binary morphology example whose value-semantic assertions and
       red/green change maps distinguish opening from closing.
 - [x] Compile and run every touched example; regenerate all figures. Direct
-      runtimes: binary morphology 0.063 s, filter gallery 0.063 s, windowing
-      1.086 s, registration 9.152 s, and N4 28.011 s.
+      merged-state runtimes: binary morphology 1.939 s, filter gallery 1.997 s,
+      windowing 2.959 s, registration 10.133 s, and optimized N4 5.189 s.
 - [x] Inspect rendered figures and correct unclear or illogical output. The
       final morphology change maps, shared-window filter/N4 comparisons,
       registered CT/MR overlay, and window labels are distinct and legible.
 - [x] Run focused Nextest, warning-denied Clippy, mdBook test/build, and
-      warning-denied Rustdoc. Morphology passes 53 focused cases,
-      registration invalid-multiplier coverage passes, and every named
-      documentation gate is green.
+      warning-denied Rustdoc. The merged state passes 48 focused morphology
+      cases, 18 N4/B-spline cases, the registration invalid-multiplier case,
+      package doctests, and every named documentation gate.
 - [x] Remove repeated full-resolution N4 B-spline evaluation from the iteration
       loop. The unchanged merged example drops from 30.405 s to 5.189 s; all 18
       focused N4/B-spline Nextest cases pass.
-- [ ] Integrate current `main`, reconcile the lockfile, push, and merge PR #56.
+- [x] Integrate current `main` and reconcile the lockfile to its committed
+      provider sources plus the five example-dependency edges.
+- [ ] Push the verified merge commit and merge PR #56 after hosted gates pass.
 
 ## MIG-673-01 — Retire completed migration audit
 **Target version**: Unreleased patch
