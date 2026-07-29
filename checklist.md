@@ -38,6 +38,12 @@
 - [x] Collect hosted gates on the final code head. Head `a59dfb9f` passes Rust
       CI `30424915304`, Python CI `30424915350`, and book build/artifact run
       `30424915331`.
+- [ ] Replace the static GrowCut comparison with public-API iteration
+      snapshots that show both labels expanding from their seeds.
+- [ ] Add an exact boundary attack explanation using the phantom's measured
+      intensities and inspect the regenerated figure at rendered size.
+- [ ] Re-run the example, focused segmentation tests, Clippy, mdBook gates,
+      and hosted checks against the revised figure.
 - [ ] Merge remains outside this slice because the book workflow deploys Pages
       on a `main`-branch documentation change and release/deploy is not
       authorized.

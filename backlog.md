@@ -6,7 +6,7 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-679-01 [patch] - Correct GrowCut convergence and document
-  segmentation** (REVIEW; owner=Codex; scope=
+  segmentation** (IN PROGRESS; owner=Codex; scope=
   `crates/ritk-segmentation/src/region_growing/{growcut.rs,
   tests_growcut.rs}`, `crates/ritk-segmentation/examples/
   book_growcut.rs`, `crates/ritk-segmentation/Cargo.toml`,
@@ -18,12 +18,15 @@
   hot loop writes the shared convergence atomic once per changed voxel. Track
   the complete automaton state and aggregate convergence once per changed
   chunk. Add a deterministic, runnable two-tissue segmentation example and an
-  inspected figure that exposes seeds, result, and error against analytical
+  inspected figure that exposes seeds, actual intermediate competition
+  states, the boundary attack mechanism, result, and error against analytical
   ground truth. Acceptance: a value-semantic regression proves propagation
   continues through a same-label strength-only iteration; existing GrowCut
   behavior remains green; the generated figure reports exact region/error
   metrics and renders clearly; the example stays within the committed runtime
-  budget; and focused formatting, warning-denied Clippy, Nextest, doctest,
+  budget; a reader can trace foreground/background growth and understand why
+  an attack crosses equal-intensity neighbors but stops at the tissue edge;
+  and focused formatting, warning-denied Clippy, Nextest, doctest,
   Rustdoc, and mdBook gates pass. Local closure: complete state convergence
   corrects the later boundary label in the 4x4 regression, while one relaxed
   atomic write per changed chunk replaces per-voxel convergence writes. All
