@@ -13,6 +13,22 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## DOC-675-01 — Render deformable registration behavior
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Identify the unrelated CT/MR mutual-information figure in the Demons
+      chapter and preserve MI as the correct cross-modality path.
+- [x] Add a runnable RIRE MR example with a known same-modality translation,
+      Thirion Demons registration, finite-field validation, and an MSE oracle.
+- [x] Generate and inspect fixed, identity-overlay, registered-overlay, and
+      signed x-displacement panels.
+- [x] Run focused formatting, warning-denied Clippy, Nextest, mdBook test/build,
+      and exact runtime/figure checks. All 42 focused Demons tests pass; the
+      already-built example runs in 0.160 seconds and reduces MSE from
+      0.049194 to 0.005062; the inspected SVG is 46,084 bytes.
+- [ ] Commit, push, and merge after hosted gates pass.
+
 ## DOC-674-01 — Clarify and validate book figures
 **Target version**: Unreleased patch
 **Sprint phase**: Closure

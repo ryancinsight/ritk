@@ -6,7 +6,7 @@
 > References to these tools in the entries below are historical.
 
 - **DOC-675-01 [patch] - Render deformable registration behavior**
-  (IN PROGRESS; owner=Codex; scope=
+  (REVIEW; owner=Codex; scope=
   `crates/ritk-registration/examples/book_demons_registration.rs`,
   `docs/book/{demons_registration.md,figures/demons_registration.svg}`,
   `CHANGELOG.md`, and PM artifacts; non-goal=release/deploy). Replace the
@@ -16,6 +16,11 @@
   runtime budget, asserts finite displacement and lower post-registration MSE,
   renders distinct fixed/moving/registered overlays plus a displacement panel,
   and passes focused formatting, Clippy, Nextest, mdBook, and visual checks.
+  Local closure: the already-built example runs in 0.160 seconds, reduces MSE
+  from 0.049194 to 0.005062, recovers a positive x displacement with a
+  3.787-voxel displayed extent, and emits a 46,084-byte inspected SVG. All 42
+  focused Demons tests, warning-denied all-target Clippy, package doctests,
+  warning-denied Rustdoc, and mdBook test/build pass.
 
 - **DOC-674-01 [patch] - Clarify and validate book figures**
   (DONE; owner=Codex stale-claim takeover; scope=
