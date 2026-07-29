@@ -49,7 +49,12 @@ including a derived-epsilon linearity regression. Warning-denied and book
 gates pass on the merged state: all-target Clippy for the three affected
 packages, package doctests, warning-denied Rustdoc, `mdbook test`, and
 `mdbook build`. The final filter-gallery size after current-main integration
-is 42,668 bytes; the other four sizes are unchanged.
+is 42,668 bytes; the other four sizes are unchanged. Hosted Clippy then
+identified two stale `.expect(...)` calls retained during integration in the
+tensor-reduction regression. The test now matches the Atlas-pinned Coeus
+scalar-return API. The local Atlas overlay currently resolves an unrelated
+dirty Coeus branch whose reduction API returns `Result`, so the hosted rerun
+is the authoritative pinned-provider check for that two-line correction.
 
 ## MIG-673-01 audit (2026-07-28)
 

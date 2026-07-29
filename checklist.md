@@ -41,6 +41,11 @@
       focused N4/B-spline Nextest cases pass.
 - [x] Integrate current `main` and reconcile the lockfile to its committed
       provider sources plus the five example-dependency edges.
+- [x] Align the merged tensor-reduction regression with the Atlas-pinned Coeus
+      API after hosted Clippy exposed two stale `.expect(...)` calls. Local
+      package Clippy is blocked by an unrelated dirty Coeus provider branch
+      whose reduction API has already advanced to a fallible return type;
+      hosted Clippy is the pinned-provider verification lane.
 - [ ] Push the verified merge commit and merge PR #56 after hosted gates pass.
 
 ## MIG-673-01 — Retire completed migration audit
