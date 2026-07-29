@@ -8,6 +8,24 @@
 
 # CHANGELOG
 
+## [Unreleased] — JPEG 2000 packet bounds (SAFE-676-01)
+
+### Fixed
+
+- Reject truncated tier-2 packet headers, excessive `Lblock` unary growth,
+  coding-pass overflow, and packet-length fields wider than the decoder's
+  integer representation instead of synthesizing zero bits or wrapping.
+
+### Changed
+
+- Borrow packet-header bytes from the tile buffer instead of allocating and
+  copying the remaining tile once per layer and resolution packet.
+
+### Tests
+
+- Add exact malformed length and `Lblock` regressions plus a bounded proptest
+  over arbitrary packet-header bytes.
+
 ## [Unreleased] — Deformable registration figure (DOC-675-01)
 
 ### Changed

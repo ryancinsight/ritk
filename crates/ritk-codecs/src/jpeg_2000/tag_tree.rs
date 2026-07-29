@@ -11,6 +11,8 @@
 //! packets, so inclusion and missing-MSB information accumulate correctly
 //! over quality layers.
 
+use anyhow::{Context, Result};
+
 use super::packet::{BitReader, BitWriter};
 
 #[derive(Clone, Copy, Debug)]
@@ -157,11 +159,11 @@ impl TagTree {
     /// `true` when the leaf value is known to be `< threshold`.
     pub(crate) fn decode(
         &mut self,
-        br: &mut BitReader,
+        br: &mut BitReader<'_>,
         x: usize,
         y: usize,
         threshold: u32,
-    ) -> bool {
+    ) -> Result<bool> {
         let mut low = 0u32;
         for idx in self.path(x, y) {
             let node = &mut self.nodes[idx];
@@ -169,7 +171,7 @@ impl TagTree {
                 node.low = low;
             }
             while node.low < threshold && !node.known {
-                if br.read_bit() == 1 {
+                if br.read_bit()? == 1 {
                     node.value = node.low;
                     node.known = true;
                 } else {
@@ -179,18 +181,28 @@ impl TagTree {
             low = node.low;
         }
         let leaf = &self.nodes[self.leaf_index(x, y)];
-        leaf.known && leaf.value < threshold
+        Ok(leaf.known && leaf.value < threshold)
     }
 
     /// Decode the exact value of leaf `(x, y)` by growing the threshold until
     /// it is known (used for missing-MSB coding, §B.10.5).
-    pub(crate) fn decode_value(&mut self, br: &mut BitReader, x: usize, y: usize) -> u32 {
-        let mut t = self.nodes[self.leaf_index(x, y)].low + 1;
+    pub(crate) fn decode_value(
+        &mut self,
+        br: &mut BitReader<'_>,
+        x: usize,
+        y: usize,
+    ) -> Result<u32> {
+        let mut t = self.nodes[self.leaf_index(x, y)]
+            .low
+            .checked_add(1)
+            .context("J2K tag-tree value exceeds u32 range")?;
         while !self.nodes[self.leaf_index(x, y)].known {
-            self.decode(br, x, y, t);
-            t += 1;
+            self.decode(br, x, y, t)?;
+            t = t
+                .checked_add(1)
+                .context("J2K tag-tree value exceeds u32 range")?;
         }
-        self.nodes[self.leaf_index(x, y)].value
+        Ok(self.nodes[self.leaf_index(x, y)].value)
     }
 }
 
@@ -219,7 +231,8 @@ mod tests {
         for y in 0..h {
             for x in 0..w {
                 assert_eq!(
-                    dec.decode_value(&mut br, x, y),
+                    dec.decode_value(&mut br, x, y)
+                        .expect("encoded tag-tree value must decode"),
                     values[y * w + x],
                     "leaf ({x},{y})"
                 );
@@ -258,8 +271,14 @@ mod tests {
         let bytes = bw.flush();
         let mut dec = TagTree::new(1, 1);
         let mut br = BitReader::new(&bytes);
-        assert!(!dec.decode(&mut br, 0, 0, 1));
-        assert!(!dec.decode(&mut br, 0, 0, 2));
-        assert!(dec.decode(&mut br, 0, 0, 3));
+        assert!(!dec
+            .decode(&mut br, 0, 0, 1)
+            .expect("threshold 1 must decode"));
+        assert!(!dec
+            .decode(&mut br, 0, 0, 2)
+            .expect("threshold 2 must decode"));
+        assert!(dec
+            .decode(&mut br, 0, 0, 3)
+            .expect("threshold 3 must decode"));
     }
 }

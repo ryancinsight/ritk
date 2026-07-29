@@ -13,9 +13,28 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## SAFE-676-01 — Reject malformed JPEG 2000 packet headers
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Trace packet-header EOF and `Lblock` arithmetic through the production
+      tier-2 decoder and confirm the existing packet-body bound runs later.
+- [x] Keep the exported codec API unchanged while making crate-private bit,
+      tag-tree, pass-count, and alignment reads explicitly fallible.
+- [x] Borrow packet-header input from the tile buffer, removing one allocation
+      and suffix-sized copy per layer/resolution packet.
+- [x] Add value-semantic regressions for truncated headers and excessive
+      `Lblock` unary growth.
+- [x] Add a bounded arbitrary-byte packet-header proptest.
+- [x] Revalidate captured OpenJPEG packet conformance and the full codec suite.
+      All 265 codec tests pass in 5.644 seconds.
+- [x] Run formatting, warning-denied all-target Clippy, doctest, and
+      warning-denied Rustdoc gates.
+- [ ] Commit, push, and merge after hosted gates pass.
+
 ## DOC-675-01 — Render deformable registration behavior
 **Target version**: Unreleased patch
-**Sprint phase**: Execution
+**Sprint phase**: Closure
 
 - [x] Identify the unrelated CT/MR mutual-information figure in the Demons
       chapter and preserve MI as the correct cross-modality path.
@@ -27,7 +46,9 @@
       and exact runtime/figure checks. All 42 focused Demons tests pass; the
       already-built example runs in 0.160 seconds and reduces MSE from
       0.049194 to 0.005062; the inspected SVG is 46,084 bytes.
-- [ ] Commit, push, and merge after hosted gates pass.
+- [x] Commit, push, and merge after hosted gates pass. PR #68 merged as
+      `f372d73c` from head `57f60064`; CI `30416895700`, Python
+      `30416895692`, and book `30416895687` completed successfully.
 
 ## DOC-674-01 — Clarify and validate book figures
 **Target version**: Unreleased patch

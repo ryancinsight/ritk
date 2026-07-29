@@ -3,6 +3,19 @@ use super::writer::{write_num_passes, BitWriter};
 use super::*;
 use crate::jpeg_2000::ebcot::{decode_code_block, encode_code_block};
 use crate::jpeg_2000::tag_tree::TagTree;
+use proptest::prelude::*;
+
+fn reversible_coding() -> TileCodingParams<'static> {
+    TileCodingParams {
+        num_guard_bits: 1,
+        precision: 8,
+        num_decomp_levels: 0,
+        num_layers: 1,
+        exponents: &[],
+        mantissas: &[],
+        transform: WaveletTransform::Reversible,
+    }
+}
 
 #[test]
 fn tile_decode_rejects_oversized_dimensions_before_allocation() {
@@ -10,15 +23,7 @@ fn tile_decode_rejects_oversized_dimensions_before_allocation() {
         &[],
         crate::dimensions::MAX_DECODED_PIXELS + 1,
         1,
-        TileCodingParams {
-            num_guard_bits: 1,
-            precision: 8,
-            num_decomp_levels: 0,
-            num_layers: 1,
-            exponents: &[],
-            mantissas: &[],
-            transform: WaveletTransform::Reversible,
-        },
+        reversible_coding(),
     );
     let Err(err) = result else {
         panic!("oversized tile dimensions must fail");
@@ -32,6 +37,58 @@ fn tile_decode_rejects_oversized_dimensions_before_allocation() {
 }
 
 #[test]
+fn tile_decode_rejects_truncated_packet_length_field() {
+    // Packet present, first inclusion, zero missing MSBs, one coding pass,
+    // one Lblock increment, terminator, then only two of four length bits.
+    let result = decode_tile_part(&[0b1110_1000], 1, 1, reversible_coding());
+    let Err(err) = result else {
+        panic!("truncated packet length field must fail");
+    };
+
+    assert!(
+        format!("{err:#}").contains("truncated packet header"),
+        "got: {err:#}"
+    );
+}
+
+#[test]
+fn tile_decode_rejects_excessive_lblock_growth() {
+    let mut writer = BitWriter::new();
+    writer.write_bit(1); // packet present
+    writer.write_bit(1); // first inclusion
+    writer.write_bit(1); // zero missing MSBs
+    write_num_passes(&mut writer, 1);
+    for _ in 0..253 {
+        writer.write_bit(1);
+    }
+    writer.write_bit(0);
+    let packet = writer.flush();
+
+    let result = decode_tile_part(&packet, 1, 1, reversible_coding());
+    let Err(err) = result else {
+        panic!("excessive Lblock growth must fail");
+    };
+
+    assert!(
+        format!("{err:#}").contains("Lblock unary value overflow"),
+        "got: {err:#}"
+    );
+}
+
+proptest! {
+    #[test]
+    fn arbitrary_packet_headers_are_panic_free(
+        packet in proptest::collection::vec(any::<u8>(), 0..128),
+    ) {
+        if let Ok(decoded) = decode_tile_part(&packet, 1, 1, reversible_coding()) {
+            prop_assert_eq!(decoded.width, 1);
+            prop_assert_eq!(decoded.height, 1);
+            prop_assert_eq!(decoded.samples.len(), 1);
+        }
+    }
+}
+
+#[test]
 fn bit_writer_reader_round_trip() {
     let mut bw = BitWriter::new();
     let bits = [1u32, 0, 1, 1, 0, 0, 1, 0, 1];
@@ -41,7 +98,11 @@ fn bit_writer_reader_round_trip() {
     let bytes = bw.flush();
     let mut br = BitReader::new(&bytes);
     for (i, &expected) in bits.iter().enumerate() {
-        assert_eq!(br.read_bit(), expected, "bit[{i}]");
+        assert_eq!(
+            br.read_bit().expect("encoded bit must decode"),
+            expected,
+            "bit[{i}]"
+        );
     }
 }
 
@@ -52,7 +113,7 @@ fn num_passes_encode_decode_round_trip() {
         write_num_passes(&mut bw, ncp);
         let bytes = bw.flush();
         let mut br = BitReader::new(&bytes);
-        let decoded = read_num_passes(&mut br);
+        let decoded = read_num_passes(&mut br).expect("encoded pass count must decode");
         assert_eq!(decoded, ncp, "ncp={ncp}");
     }
 }
@@ -252,19 +313,31 @@ fn openjp2_captured_packet_conformance() {
         0x19, 0xD7, 0x94, 0x36, 0x8E,
     ];
     let mut br = BitReader::new(&body);
-    assert_eq!(br.read_bit(), 1, "non-empty packet bit");
+    assert_eq!(
+        br.read_bit().expect("packet-present bit must decode"),
+        1,
+        "non-empty packet bit"
+    );
     let mut incl = TagTree::new(1, 1);
-    assert!(incl.decode(&mut br, 0, 0, 1), "cblk included in layer 0");
+    assert!(
+        incl.decode(&mut br, 0, 0, 1)
+            .expect("captured inclusion tree must decode"),
+        "cblk included in layer 0"
+    );
     let mut msbs_tree = TagTree::new(1, 1);
-    let msbs = msbs_tree.decode_value(&mut br, 0, 0);
-    let ncp = read_num_passes(&mut br);
+    let msbs = msbs_tree
+        .decode_value(&mut br, 0, 0)
+        .expect("captured missing-MSB tree must decode");
+    let ncp = read_num_passes(&mut br).expect("captured pass count must decode");
     let mut lblock = 3u8;
-    while br.read_bit() == 1 {
+    while br.read_bit().expect("captured Lblock must decode") == 1 {
         lblock += 1;
     }
     let bits = lblock + lblock_extra_bits(ncp);
-    let len = br.read_bits(bits) as usize;
-    let header_bytes = br.byte_pos();
+    let len = br
+        .read_bits(bits)
+        .expect("captured packet length must decode") as usize;
+    let header_bytes = br.byte_pos().expect("captured header must align");
     eprintln!(
         "PROBE msbs={msbs} ncp={ncp} lblock={lblock} len={len} header_bytes={header_bytes} body_total={}",
         body.len()
