@@ -19,15 +19,20 @@
 
 - [x] Trace tag-tree path construction through tier-2 packet encode/decode
       and exclude the already-completed packet-suffix and wavelet work.
-- [ ] Capture matched 512×512 five-level encode and decode Criterion
-      baselines.
-- [ ] Replace per-operation heap paths with a depth-bounded stack
+- [x] Capture matched 512×512 five-level encode and decode Criterion
+      baselines: 54.353 ms and 52.363 ms medians.
+- [x] Replace per-operation heap paths with a depth-bounded stack
       representation and reuse one path across exact-value thresholds.
-- [ ] Add maximum-depth and rectangular-tree value-semantic regressions.
-- [ ] Revalidate native round trips and the captured OpenJPEG corpus.
-- [ ] Compare the unchanged Criterion workload for regressions.
-- [ ] Run formatting, warning-denied Clippy, Nextest, doctest, and
-      warning-denied Rustdoc.
+- [x] Add maximum-depth, rectangular-tree, and exact-bitstream regressions.
+- [x] Revalidate native round trips and the captured OpenJPEG corpus. All 271
+      codec tests pass in 5.258 seconds.
+- [x] Compare the unchanged Criterion workload. Encode improves from
+      54.353 ms to 52.511 ms (3.39%, p < 0.05); decode changes from
+      52.363 ms to 52.418 ms (p = 0.89), detecting no decode latency change.
+- [x] Run formatting, warning-denied all-target Clippy, doctest, and
+      warning-denied Rustdoc gates.
+- [x] Self-review the exact delivered diff and exclude overlay-derived
+      lockfile rewrites.
 - [ ] Commit, push, and merge after hosted gates pass.
 
 ## PERF-677-01 — Reuse reversible wavelet workspace

@@ -8,6 +8,29 @@
 
 # CHANGELOG
 
+## [Unreleased] — Stack-backed tag-tree paths (PERF-678-01)
+
+### Changed
+
+- Encode and decode JPEG 2000 tag trees with a platform-depth-bounded stack
+  path instead of allocating and reversing a node-index vector for every
+  operation.
+- Reuse one prepared path while exact-value decoding advances through
+  successive thresholds, and allocate the persistent level table at its
+  derived final capacity.
+
+### Performance
+
+- On the unchanged 512×512 five-level Criterion workload, encode improves
+  from 54.353 ms to 52.511 ms median (3.39%, p < 0.05). Decode changes from
+  52.363 ms to 52.418 ms (p = 0.89), detecting no decode latency change.
+
+### Tests
+
+- Pin a representative tag-tree byte stream and cover deep rectangular
+  round trips plus the maximum platform hierarchy bound; all 271 codec tests
+  pass.
+
 ## [Unreleased] — Reused reversible wavelet workspace (PERF-677-01)
 
 ### Changed

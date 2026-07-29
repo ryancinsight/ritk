@@ -6,7 +6,7 @@
 > References to these tools in the entries below are historical.
 
 - **PERF-678-01 [patch] - Eliminate tag-tree path allocations**
-  (IN PROGRESS; owner=Codex; scope=
+  (REVIEW; owner=Codex; scope=
   `crates/ritk-codecs/src/jpeg_2000/tag_tree.rs`, `CHANGELOG.md`, and PM
   artifacts; non-goal=tag-tree representation changes, public API changes,
   or codec release). Every tag-tree encode/decode operation currently
@@ -17,7 +17,15 @@
   remain exact for singleton, rectangular, and maximum-depth trees; native
   and captured OpenJPEG codec cases remain exact; the unchanged 512×512
   five-level Criterion workload detects no regression; formatting,
-  warning-denied Clippy, Nextest, doctest, and Rustdoc gates pass.
+  warning-denied Clippy, Nextest, doctest, and Rustdoc gates pass. Local
+  closure: every tag-tree operation now uses a fixed stack path bounded by
+  `usize::BITS + 1`, and exact-value decode prepares that path once instead of
+  allocating it at every threshold. The 2×2 golden stream remains
+  `[140, 4, 128]`; deep rectangular and maximum-depth bounds pass. All 271
+  codec tests pass, including the 190-case captured OpenJPEG corpus. The
+  unchanged encode median improves from 54.353 ms to 52.511 ms (3.39%,
+  p < 0.05); decode changes from 52.363 ms to 52.418 ms (p = 0.89), detecting
+  no decode latency change.
 
 - **PERF-677-01 [patch] - Reuse reversible wavelet workspace**
   (DONE; owner=Codex; scope=
