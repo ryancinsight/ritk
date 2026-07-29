@@ -33,8 +33,9 @@
   483 segmentation tests pass in 7.600 seconds; warning-denied all-target
   Clippy, doctests, warning-denied Rustdoc, mdBook test/build, formatting, and
   diff checks pass. The inspected 6,198-byte SVG reports Dice 1.000 and zero
-  label errors; the already-built example runs in 0.551 seconds. Draft PR #72
-  carries the code, book, and workflow changes. Exact code head `a59dfb9f`
+  label errors; the already-built example runs in 0.551 seconds. The original
+  draft PR #72 carried the code, book, and workflow changes. Exact code head
+  `a59dfb9f`
   passes complete Rust CI run `30424915304`, Python 3.9-3.13 matrix run
   `30424915350`, and book build/artifact run `30424915331`. The Pages deploy
   job is correctly skipped on the pull request. Figure-clarity review then
@@ -49,8 +50,9 @@
   Clippy, doctest, warning-denied Rustdoc, and mdBook test/build pass. The
   dependency-inclusive Clippy lane remains blocked by an existing
   `ritk-filter` `missing_const_for_thread_local` diagnostic on an initializer
-  already written as `const`. Merge remains blocked on explicit
-  release/deploy authority.
+  already written as `const`. Clean draft PR #73 isolates the GrowCut history
+  from unrelated architecture commits that had entered the original branch.
+  Merge remains blocked on explicit release/deploy authority.
 
 - **PERF-678-01 [patch] - Eliminate tag-tree path allocations**
   (DONE; owner=Codex; scope=

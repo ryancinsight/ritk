@@ -34,7 +34,8 @@
 - [x] Self-review the code, rendered figure, generated HTML, workflow, and
       exact lockfile delta; retain only the three required example
       dependencies in `Cargo.lock`.
-- [x] Commit and push the implementation at `6f025a84`; open draft PR #72.
+- [x] Commit and push the initial implementation at `6f025a84`; open the
+      original draft PR #72.
 - [x] Collect hosted gates on the final code head. Head `a59dfb9f` passes Rust
       CI `30424915304`, Python CI `30424915350`, and book build/artifact run
       `30424915331`.
@@ -49,7 +50,9 @@
       doctest, Rustdoc, and mdBook gates against the revised figure. The
       example runs in 1.437 seconds and all 484 package tests pass in 2.925
       seconds.
-- [ ] Push the revised implementation and collect hosted PR checks.
+- [x] Isolate the GrowCut history from unrelated architecture commits; push
+      `codex/growcut-figure-clarity` and open clean draft PR #73.
+- [ ] Collect hosted checks on PR #73.
 - [ ] Merge remains outside this slice because the book workflow deploys Pages
       on a `main`-branch documentation change and release/deploy is not
       authorized.
