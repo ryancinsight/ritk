@@ -52,7 +52,9 @@
       seconds.
 - [x] Isolate the GrowCut history from unrelated architecture commits; push
       `codex/growcut-figure-clarity` and open clean draft PR #73.
-- [ ] Collect hosted checks on PR #73.
+- [x] Collect hosted checks on PR #73. Head `7d887d36` passes complete Rust CI
+      run `30489263987`, Python 3.9-3.13 matrix run `30489264000`, and book
+      build/artifact run `30489263986`; Pages deployment is skipped.
 - [ ] Merge remains outside this slice because the book workflow deploys Pages
       on a `main`-branch documentation change and release/deploy is not
       authorized.

@@ -52,6 +52,10 @@
   `ritk-filter` `missing_const_for_thread_local` diagnostic on an initializer
   already written as `const`. Clean draft PR #73 isolates the GrowCut history
   from unrelated architecture commits that had entered the original branch.
+  Head `7d887d36` passes complete Rust CI run `30489263987`, Python
+  3.9-3.13 matrix run `30489264000`, and book build/artifact run
+  `30489263986`; the Pages deploy job is correctly skipped on the pull
+  request.
   Merge remains blocked on explicit release/deploy authority.
 
 - **PERF-678-01 [patch] - Eliminate tag-tree path allocations**
