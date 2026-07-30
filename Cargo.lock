@@ -6008,14 +6008,17 @@ name = "ritk-segmentation"
 version = "0.2.0"
 dependencies = [
  "anyhow",
+ "base64",
  "coeus-core",
  "coeus-tensor",
+ "image 0.24.9",
  "leto",
  "leto-ops",
  "moirai",
  "ritk-core",
  "ritk-filter",
  "ritk-image",
+ "ritk-spatial",
  "ritk-tensor-ops",
  "tracing",
 ]

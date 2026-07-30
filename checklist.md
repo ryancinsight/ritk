@@ -42,12 +42,58 @@
 - [x] Self-review, commit, push, open draft PR #74, and collect exact-head
       hosted gates. At code head `3abfaa67`, CI `30503828578`, Python
       `30503828528`, and book build `30503828541` pass every repository-owned
-      lane; Pages deployment is skipped. Merge remains outside this slice
-      because it triggers Pages deployment.
+      lane; Pages deployment is skipped.
+- [ ] Integrate the merged GrowCut book slice, rerun exact-head hosted gates,
+      and merge PR #74.
+
+## SAFE-679-01 — Correct GrowCut convergence and document segmentation
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Reconcile the current book, GrowCut implementation, board, origin, and
+      peer state; exclude overlay-derived `Cargo.lock` changes.
+- [x] Add a regression that requires propagation after a same-label
+      strength-only automaton update.
+- [x] Detect complete GrowCut state convergence and aggregate the shared
+      convergence signal once per changed parallel chunk.
+- [x] Add a bounded public-API example, segmentation chapter, generated
+      figure, and analytical region/error assertions.
+- [x] Regenerate and visually inspect the figure. The 6,198-byte SVG contains
+      four raster-backed panels; Dice is 1.000 with zero label errors.
+- [x] Run focused formatting, warning-denied Clippy, Nextest, doctest,
+      warning-denied Rustdoc, mdBook test/build, and example runtime gates.
+      GrowCut is 9/9 in 0.424 seconds; the full package is 483/483 in 7.600
+      seconds; the already-built example runs in 0.551 seconds.
+- [x] Self-review the code, rendered figure, generated HTML, workflow, and
+      exact lockfile delta; retain only the three required example
+      dependencies in `Cargo.lock`.
+- [x] Commit and push the initial implementation at `6f025a84`; open the
+      original draft PR #72.
+- [x] Collect hosted gates on the final code head. Head `a59dfb9f` passes Rust
+      CI `30424915304`, Python CI `30424915350`, and book build/artifact run
+      `30424915331`.
+- [x] Replace the static GrowCut comparison with public-API iteration
+      snapshots that show both labels expanding from their seeds.
+- [x] Add an exact boundary attack explanation using the phantom's measured
+      intensities and inspect the regenerated 960x456 figure.
+- [x] Correct mixed-precision range rounding that allowed 1,226 transient
+      cross-boundary labels; add a value-semantic intermediate-state
+      regression.
+- [x] Re-run the example, focused and full segmentation tests, focused Clippy,
+      doctest, Rustdoc, and mdBook gates against the revised figure. The
+      example runs in 1.437 seconds and all 484 package tests pass in 2.925
+      seconds.
+- [x] Isolate the GrowCut history from unrelated architecture commits; push
+      `codex/growcut-figure-clarity` and open clean draft PR #73.
+- [x] Collect hosted checks on PR #73. Head `7d887d36` passes complete Rust CI
+      run `30489263987`, Python 3.9-3.13 matrix run `30489264000`, and book
+      build/artifact run `30489263986`; Pages deployment is skipped.
+- [x] Merge PR #73 to `main` as `0ed4a87f` after every repository-owned lane
+      passes at exact head `96432bbd`.
 
 ## PERF-678-01 — Eliminate tag-tree path allocations
 **Target version**: Unreleased patch
-**Sprint phase**: Execution
+**Sprint phase**: Closure
 
 - [x] Trace tag-tree path construction through tier-2 packet encode/decode
       and exclude the already-completed packet-suffix and wavelet work.
@@ -66,7 +112,8 @@
 - [x] Self-review the exact delivered diff and exclude overlay-derived
       lockfile rewrites.
 - [x] Commit, push, and merge after hosted gates pass. PR #71 merged as
-      `007b3048` from exact head `9903fb0d`.
+      `007b3048` from exact head `9903fb0d`; CI `30420692116` and Python
+      `30420692114` passed every repository-owned lane.
 
 ## PERF-677-01 — Reuse reversible wavelet workspace
 **Target version**: Unreleased patch

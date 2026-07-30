@@ -41,6 +41,35 @@
   declared sample ranges while preserving exact native and captured OpenJPEG
   reversible round trips.
 
+## [Unreleased] — GrowCut convergence and book coverage (SAFE-679-01)
+
+### Fixed
+
+- Continue GrowCut iterations while either labels or strengths change. A
+  same-label strength update can enable a later competing label change, so
+  label-only convergence could stop before the cellular automaton reached a
+  stable state.
+- Compute the intensity-range denominator in the same precision as neighbor
+  differences. This prevents a full-range boundary from acquiring a positive
+  attack through mixed-precision rounding.
+
+### Changed
+
+- Aggregate the parallel convergence signal once per changed chunk instead of
+  writing the shared atomic once per changed voxel.
+- Add a runnable native GrowCut example, analytical label/Dice oracle,
+  generated figure, and seeded-segmentation book chapter.
+- Show public-API iteration snapshots and the exact boundary attack
+  calculation in the GrowCut figure so seed propagation and convergence are
+  visually distinguishable.
+
+### Tests
+
+- Add a value-semantic fixture in which a strength-only update must precede a
+  later boundary-label correction.
+- Assert that an attack spanning the complete intensity range cannot create
+  transient labels across the boundary.
+
 ## [Unreleased] — Stack-backed tag-tree paths (PERF-678-01)
 
 ### Changed
