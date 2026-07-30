@@ -14,6 +14,7 @@
 //! - μ and σ are computed from the full image population (not a sample).
 
 use crate::image_statistics::{compute_statistics, masked_statistics};
+use crate::StatisticsError;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
 use ritk_image::Image as NativeImage;
@@ -55,14 +56,14 @@ impl ZScoreNormalizer {
     pub fn normalize<B: Backend, const D: usize>(
         &self,
         image: &Image<f32, B, D>,
-    ) -> Image<f32, B, D>
+    ) -> Result<Image<f32, B, D>, StatisticsError>
     where
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        let stats = compute_statistics(image);
+        let stats = compute_statistics(image)?;
         let (mut values, dims) = extract_vec_infallible(image);
         zscore_values(&mut values, stats.mean, stats.std);
-        ritk_tensor_ops::rebuild(values, dims, image)
+        Ok(ritk_tensor_ops::rebuild(values, dims, image))
     }
 
     /// Normalize `image` to zero mean, unit variance using statistics derived
@@ -72,8 +73,7 @@ impl ZScoreNormalizer {
     /// `output = (input − μ_mask) / (σ_mask + 1e-8)`
     ///
     /// μ_mask and σ_mask are population statistics computed from voxels where
-    /// `mask > 0.5`. If the mask contains no foreground voxels the method falls
-    /// back to full-image population statistics (identical to \[`normalize`\]).
+    /// `mask > 0.5`.
     ///
     /// All voxels — including background voxels — are transformed using the
     /// same μ_mask and σ_mask parameters. Spatial metadata is preserved exactly.
@@ -81,31 +81,24 @@ impl ZScoreNormalizer {
     /// # Arguments
     /// * `image` — Input image.
     /// * `mask`  — Binary mask (foreground > 0.5). Must have the same element
-    ///   count as `image`; a shape mismatch propagates as a panic from
-    ///   [`masked_statistics`].
+    ///   count as `image`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed error for empty or non-finite image data, a non-finite
+    /// mask, a length mismatch, or a mask with no foreground samples.
     pub fn normalize_masked<B: Backend, const D: usize>(
         &self,
         image: &Image<f32, B, D>,
         mask: &Image<f32, B, D>,
-    ) -> Image<f32, B, D>
+    ) -> Result<Image<f32, B, D>, StatisticsError>
     where
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        // Extract mask slice once to check for foreground before calling
-        // masked_statistics, which panics on an empty foreground set.
-        let (mask_vals, _) = extract_vec_infallible(mask);
-        let mask_slice: &[f32] = &mask_vals;
-        let has_foreground = mask_slice.iter().any(|&m| m > crate::FOREGROUND_THRESHOLD);
-
-        let stats = if has_foreground {
-            masked_statistics(image, mask)
-        } else {
-            compute_statistics(image)
-        };
-
+        let stats = masked_statistics(image, mask)?;
         let (mut values, dims) = extract_vec_infallible(image);
         zscore_values(&mut values, stats.mean, stats.std);
-        ritk_tensor_ops::rebuild(values, dims, image)
+        Ok(ritk_tensor_ops::rebuild(values, dims, image))
     }
 }
 
@@ -135,8 +128,7 @@ impl ZScoreNormalizer {
     }
 
     /// Normalize a Coeus-backed `image` using statistics from masked foreground
-    /// voxels only (`mask > 0.5`); falls back to full-image statistics when the
-    /// mask has no foreground.
+    /// voxels only (`mask > 0.5`).
     ///
     /// Coeus-native sister of [`ZScoreNormalizer::normalize_masked`]. All voxels
     /// are transformed with the same `μ_mask`, `σ_mask`.
@@ -153,14 +145,7 @@ impl ZScoreNormalizer {
         B: ComputeBackend + Default,
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        let (mask_slice, _) = tensor_ops::extract_image_slice(mask)?;
-        let has_foreground = mask_slice.iter().any(|&m| m > crate::FOREGROUND_THRESHOLD);
-
-        let stats = if has_foreground {
-            crate::image_statistics::native::masked_statistics(image, mask)?
-        } else {
-            crate::image_statistics::native::compute_statistics(image)?
-        };
+        let stats = crate::image_statistics::native::masked_statistics(image, mask)?;
 
         let (mut values, dims) = tensor_ops::extract_image_vec(image)?;
         zscore_values(&mut values, stats.mean, stats.std);

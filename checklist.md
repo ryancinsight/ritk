@@ -15,25 +15,30 @@
 
 ## SAFE-682-01 — Fallible descriptive statistics and histograms
 **Target version**: Next major release
-**Sprint phase**: Foundation
+**Sprint phase**: Closure
 
 - [x] Reconcile origin, worktrees, peer-owned dirt, current statistics/book
       coverage, callers, and panic/non-finite failure modes.
-- [ ] Record the typed public error boundary and finite-input contract in ADR
+- [x] Record the typed public error boundary and finite-input contract in ADR
       0014; update all in-repository callers without a compatibility wrapper.
-- [ ] Replace empty-input, empty-foreground, shape, histogram-bin/range, and
+- [x] Replace empty-input, empty-foreground, shape, histogram-bin/range, and
       non-finite panic or silent-corruption paths with typed errors.
-- [ ] Preserve f64 accumulation, percentile ranks, one-workspace slice
+- [x] Preserve f64 accumulation, percentile ranks, one-workspace slice
       allocation, and foreground-buffer reuse; add analytical, boundary, and
       adversarial value-semantic tests.
-- [ ] Map invalid Python inputs to `ValueError` and verify Python-visible
+- [x] Map invalid Python inputs to `ValueError` and verify Python-visible
       messages and values.
-- [ ] Add a runnable Rust example, generated distribution figure, statistics
+- [x] Add a runnable Rust example, generated distribution figure, statistics
       chapter, worked example, and CI figure regeneration.
-- [ ] Render and inspect the figure; cross-check histogram totals, mean,
+- [x] Render and inspect the figure; cross-check histogram totals, mean,
       median, quartiles, and masked/full differences against raw example data.
 - [ ] Run formatting, warning-denied Clippy, Nextest, doctest, Rustdoc,
-      mdBook, semantic-version, example-runtime, and hosted gates.
+      mdBook, semantic-version, example-runtime, and hosted gates. Local
+      evidence: 341/341 Nextest, 15/15 Python binding tests, statistics
+      all-target warning-denied Clippy, two doctests, warning-denied Rustdoc,
+      mdBook test/build, the deterministic example, and the declared-major
+      semantic check against `7c2f2ac5` pass. The broader Python Clippy command
+      reaches the recorded pre-existing `ritk-filter` diagnostic.
 - [ ] Reconcile CHANGELOG, audit, backlog, and checklist evidence; commit,
       push, review, and merge.
 

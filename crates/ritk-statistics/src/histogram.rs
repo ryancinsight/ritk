@@ -12,8 +12,9 @@
 //!
 //!   h_k = |{ v ∈ V : min + k·Δw ≤ v < min + (k+1)·Δw }|
 //!
-//! The **last bin is half-open `[…, max]`** so that `v == max` is included;
-//! the contract matches `numpy.histogram` and `scipy.ndimage.histogram`.
+//! Every bin except the last is half-open. The last is right-closed
+//! `[…, max]` so that `v == max` is included; the contract matches
+//! `numpy.histogram` and `scipy.ndimage.histogram`.
 //!
 //! Values strictly below `min` or strictly above `max` are silently
 //! excluded — this is the scipy.ndimage semantic, not numpy's full
@@ -22,9 +23,8 @@
 //!
 //! # Complexity
 //!
-//! O(n) where n = |V|. One pass; per-element cost is one comparison, one
-//! multiply, one floor, and one bounds check. `bins + 1` returns the
-//! vector storage (excluding the `min`, `max` scalars).
+//! O(n + bins) where n = |V|. Validation and binning each traverse the input
+//! once; the count buffer stores `bins` `usize` values.
 //!
 //! # Type-class dispatch
 //!
@@ -37,6 +37,8 @@ use coeus_core::CpuAddressableStorage;
 use ritk_image::tensor::Backend;
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
+
+use crate::StatisticsError;
 
 /// Histogram counts over a fixed `[min, max]` range.
 ///
@@ -67,11 +69,11 @@ impl Histogram {
 
     /// Bin width Δw = (max − min) / bins.
     ///
-    /// Returns 0 if `max == min` (degenerate range; all in-range voxels
-    /// fall into bin 0).
+    /// The return type preserves the finite width of extreme `f32` ranges
+    /// whose subtraction would overflow in `f32`.
     #[inline]
-    pub fn bin_width(&self) -> f32 {
-        (self.max - self.min) / self.bins as f32
+    pub fn bin_width(&self) -> f64 {
+        (f64::from(self.max) - f64::from(self.min)) / self.bins as f64
     }
 }
 
@@ -85,51 +87,70 @@ impl Histogram {
 ///
 /// ```ignore
 /// let img = Image::<f32, 3>::from_vec_f32([2, 2, 2], vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0])?;
-/// let h = histogram(&img, 0.0, 7.0, 7);
+/// let h = histogram(&img, 0.0, 7.0, 7)?;
 /// assert_eq!(h.counts, vec![1, 1, 1, 1, 1, 1, 2]);
 /// // last bin is inclusive of max=7.0
 /// ```
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics if `bins == 0` or `min >= max`.
+/// Returns a typed error for an empty image, zero bins, non-finite samples or
+/// bounds, an invalid range, or a count buffer that cannot be allocated.
 pub fn histogram<B: Backend, const D: usize>(
     image: &Image<f32, B, D>,
     min: f32,
     max: f32,
     bins: usize,
-) -> Histogram
+) -> Result<Histogram, StatisticsError>
 where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
-    assert!(bins >= 1, "histogram: bins must be ≥ 1, got {}", bins);
-    assert!(
-        min < max,
-        "histogram: min must be strictly less than max (min={}, max={})",
-        min,
-        max
-    );
-
     let (vals, _) = extract_vec_infallible(image);
-    let slice: &[f32] = &vals;
-    histogram_from_slice(slice, min, max, bins)
+    histogram_from_slice(&vals, min, max, bins)
 }
 
-/// Slice-level histogram: zero domain logic, public for callers that
-/// already have borrowed f32 storage.
-pub fn histogram_from_slice(slice: &[f32], min: f32, max: f32, bins: usize) -> Histogram {
-    assert!(bins >= 1, "histogram_from_slice: bins must be ≥ 1");
-    assert!(
-        min < max,
-        "histogram_from_slice: min must be strictly less than max"
-    );
+/// Compute a histogram from borrowed `f32` storage.
+///
+/// # Errors
+///
+/// Returns a typed error for empty input, zero bins, non-finite samples or
+/// bounds, an invalid range, or a count buffer that cannot be allocated.
+pub fn histogram_from_slice(
+    slice: &[f32],
+    min: f32,
+    max: f32,
+    bins: usize,
+) -> Result<Histogram, StatisticsError> {
+    if slice.is_empty() {
+        return Err(StatisticsError::EmptyInput);
+    }
+    if bins == 0 {
+        return Err(StatisticsError::ZeroBins);
+    }
+    if !min.is_finite() || !max.is_finite() {
+        return Err(StatisticsError::NonFiniteRange { min, max });
+    }
+    if min >= max {
+        return Err(StatisticsError::InvalidRange { min, max });
+    }
+    if let Some((index, &value)) = slice
+        .iter()
+        .enumerate()
+        .find(|(_, value)| !value.is_finite())
+    {
+        return Err(StatisticsError::NonFiniteSample { index, value });
+    }
 
-    let mut counts = vec![0_usize; bins];
+    let mut counts = Vec::new();
+    counts
+        .try_reserve_exact(bins)
+        .map_err(|_| StatisticsError::HistogramAllocationFailed { bins })?;
+    counts.resize(bins, 0_usize);
 
     // Δw = (max − min) / bins; bin index = floor((v − min) / Δw).
     // We multiply by `inv_dw = bins / (max − min)` for one division
     // outside the hot loop.
-    let inv_dw = bins as f32 / (max - min);
+    let inv_dw = bins as f64 / (f64::from(max) - f64::from(min));
     let last = bins - 1;
 
     for &v in slice {
@@ -137,22 +158,22 @@ pub fn histogram_from_slice(slice: &[f32], min: f32, max: f32, bins: usize) -> H
             continue;
         }
         // (v − min) · inv_dw ∈ [0, bins] because v ∈ [min, max].
-        let raw = (v - min) * inv_dw;
+        let raw = (f64::from(v) - f64::from(min)) * inv_dw;
         let mut k = raw as usize;
         // Clamp floating-point edge cases: v == max → raw == bins → k == bins
         // → must collapse into last bin per scipy convention.
         if k > last {
             k = last;
         }
-        counts[k] += 1;
+        counts[k] = counts[k].saturating_add(1);
     }
 
-    Histogram {
+    Ok(Histogram {
         min,
         max,
         bins,
         counts,
-    }
+    })
 }
 
 #[cfg(test)]

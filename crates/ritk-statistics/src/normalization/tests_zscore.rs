@@ -11,9 +11,12 @@ fn test_zscore_zero_mean() {
     // After normalization the mean of the output must be ≈ 0.
     let image: Image<f32, TestBackend, 1> = make_image(vec![1.0, 2.0, 3.0, 4.0, 5.0], [5]);
     let normalizer = ZScoreNormalizer::new();
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
 
-    let stats = crate::image_statistics::compute_statistics(&result);
+    let stats =
+        crate::image_statistics::compute_statistics(&result).expect("normalized output is finite");
     assert!(
         stats.mean.abs() < 1e-5,
         "output mean must be ≈ 0, got {}",
@@ -51,9 +54,12 @@ fn test_zscore_unit_variance() {
     //   After division by (√2 + ε), output std ≈ 1.
     let image: Image<f32, TestBackend, 1> = make_image(vec![1.0, 2.0, 3.0, 4.0, 5.0], [5]);
     let normalizer = ZScoreNormalizer::new();
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
 
-    let stats = crate::image_statistics::compute_statistics(&result);
+    let stats =
+        crate::image_statistics::compute_statistics(&result).expect("normalized output is finite");
     assert!(
         (stats.std - 1.0).abs() < 1e-3,
         "output std must be ≈ 1, got {}",
@@ -75,7 +81,9 @@ fn test_zscore_preserves_metadata() {
     );
 
     let normalizer = ZScoreNormalizer::new();
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
 
     assert_eq!(result.origin(), &origin, "origin must be preserved");
     assert_eq!(result.spacing(), &spacing, "spacing must be preserved");
@@ -96,7 +104,9 @@ fn test_zscore_known_values() {
     //   z(3) = (3−2)/(1+1e-8) ≈  1.0
     let image: Image<f32, TestBackend, 1> = make_image(vec![1.0, 3.0], [2]);
     let normalizer = ZScoreNormalizer::new();
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
 
     let (slice, _) = extract_vec_infallible(&result);
 
@@ -120,7 +130,9 @@ fn test_zscore_constant_image_does_not_panic() {
     // All output values = (5 − 5) / 1e-8 = 0.
     let image: Image<f32, TestBackend, 1> = make_image(vec![5.0; 8], [8]);
     let normalizer = ZScoreNormalizer::new();
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
 
     let (slice, _) = extract_vec_infallible(&result);
     for &v in slice.iter() {
@@ -137,7 +149,9 @@ fn test_zscore_single_voxel() {
     // Single voxel: mean = value, std = 0 → output = 0.
     let image: Image<f32, TestBackend, 1> = make_image(vec![100.0], [1]);
     let normalizer = ZScoreNormalizer::new();
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
 
     let (slice, _) = extract_vec_infallible(&result);
     assert!(
@@ -168,7 +182,9 @@ fn test_zscore_masked_uses_mask_statistics() {
     let image: Image<f32, TestBackend, 1> = make_image(vec![1.0, 2.0, 3.0, 100.0, 200.0], [5]);
     let mask: Image<f32, TestBackend, 1> = make_image(vec![1.0, 1.0, 1.0, 0.0, 0.0], [5]);
     let normalizer = ZScoreNormalizer::new();
-    let result = normalizer.normalize_masked(&image, &mask);
+    let result = normalizer
+        .normalize_masked(&image, &mask)
+        .expect("valid masked statistics input");
 
     let (slice, _) = extract_vec_infallible(&result);
 
@@ -206,26 +222,15 @@ fn test_zscore_masked_uses_mask_statistics() {
 }
 
 #[test]
-fn test_zscore_masked_empty_mask_falls_back_to_full_image() {
-    // All-zero mask: masked_statistics would panic; normalize_masked must
-    // fall back to full-image statistics and produce output identical to
-    // normalize.
+fn test_zscore_masked_empty_mask_returns_typed_error() {
     let image: Image<f32, TestBackend, 1> = make_image(vec![1.0, 2.0, 3.0, 100.0, 200.0], [5]);
     let mask: Image<f32, TestBackend, 1> = make_image(vec![0.0; 5], [5]);
     let normalizer = ZScoreNormalizer::new();
 
-    let result_masked = normalizer.normalize_masked(&image, &mask);
-    let result_full = normalizer.normalize(&image);
-
-    let (masked_slice, _) = extract_vec_infallible(&result_masked);
-    let (full_slice, _) = extract_vec_infallible(&result_full);
-
-    for (i, (&m, &f)) in masked_slice.iter().zip(full_slice.iter()).enumerate() {
-        assert!(
-            (m - f).abs() < 1e-6,
-            "fallback mismatch at index {i}: masked={m} full={f}"
-        );
-    }
+    assert!(matches!(
+        normalizer.normalize_masked(&image, &mask),
+        Err(crate::StatisticsError::EmptyForeground)
+    ));
 }
 
 #[test]
@@ -254,7 +259,9 @@ fn test_zscore_masked_preserves_metadata() {
     );
 
     let normalizer = ZScoreNormalizer::new();
-    let result = normalizer.normalize_masked(&image, &mask);
+    let result = normalizer
+        .normalize_masked(&image, &mask)
+        .expect("valid masked statistics input");
 
     assert_eq!(result.origin(), &origin, "origin must be preserved");
     assert_eq!(result.spacing(), &spacing, "spacing must be preserved");
@@ -272,7 +279,9 @@ fn test_zscore_negative_values_preserved_sign() {
     // z(−2) < z(−1) < z(0) == 0 < z(1) < z(2): ordering preserved.
     let image: Image<f32, TestBackend, 1> = make_image(vec![-2.0, -1.0, 0.0, 1.0, 2.0], [5]);
     let normalizer = ZScoreNormalizer::new();
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
 
     let (slice, _) = extract_vec_infallible(&result);
 

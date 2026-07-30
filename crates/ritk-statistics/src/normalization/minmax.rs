@@ -19,6 +19,7 @@
 
 use super::intensity_range::IntensityRange;
 use crate::image_statistics::compute_statistics;
+use crate::StatisticsError;
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::tensor::Backend;
 use ritk_image::Image as NativeImage;
@@ -65,14 +66,14 @@ impl MinMaxNormalizer {
     pub fn normalize<B: Backend, const D: usize>(
         &self,
         image: &Image<f32, B, D>,
-    ) -> Image<f32, B, D>
+    ) -> Result<Image<f32, B, D>, StatisticsError>
     where
         B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
     {
-        let stats = compute_statistics(image);
+        let stats = compute_statistics(image)?;
         let (mut values, dims) = ritk_tensor_ops::extract_vec_infallible(image);
         self.remap_values(&mut values, stats.min, stats.max);
-        ritk_tensor_ops::rebuild(values, dims, image)
+        Ok(ritk_tensor_ops::rebuild(values, dims, image))
     }
 }
 

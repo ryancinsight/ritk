@@ -11,6 +11,7 @@ ritk-tensor-ops = { path = "../ritk-tensor-ops" }
 ritk-spatial = { path = "../ritk-spatial" }
 moirai = { workspace = true }
 anyhow = { workspace = true }
+thiserror = { workspace = true }
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }
 

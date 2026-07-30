@@ -84,7 +84,9 @@ fn zscore_matches_sequential() {
     let nb = ZScoreNormalizer::new()
         .normalize_native(&native(data.clone(), [6]))
         .expect("infallible: validated precondition");
-    let sequential_result = ZScoreNormalizer::new().normalize(&sequential(data, [6]));
+    let sequential_result = ZScoreNormalizer::new()
+        .normalize(&sequential(data, [6]))
+        .expect("valid statistics input");
     assert_close(
         &native_values(&nb),
         &sequential_values(&sequential_result),
@@ -100,8 +102,9 @@ fn zscore_masked_matches_sequential() {
     let nb = ZScoreNormalizer::new()
         .normalize_masked_native(&native(data.clone(), [6]), &native(mask.clone(), [6]))
         .expect("infallible: validated precondition");
-    let sequential_result =
-        ZScoreNormalizer::new().normalize_masked(&sequential(data, [6]), &sequential(mask, [6]));
+    let sequential_result = ZScoreNormalizer::new()
+        .normalize_masked(&sequential(data, [6]), &sequential(mask, [6]))
+        .expect("valid masked statistics input");
     assert_close(
         &native_values(&nb),
         &sequential_values(&sequential_result),
@@ -129,8 +132,9 @@ fn minmax_custom_range_matches_sequential() {
     let nb = MinMaxNormalizer::with_range(-1.0, 2.0)
         .normalize_native(&native(data.clone(), [5]))
         .expect("infallible: validated precondition");
-    let sequential_result =
-        MinMaxNormalizer::with_range(-1.0, 2.0).normalize(&sequential(data, [5]));
+    let sequential_result = MinMaxNormalizer::with_range(-1.0, 2.0)
+        .normalize(&sequential(data, [5]))
+        .expect("valid statistics input");
     assert_close(
         &native_values(&nb),
         &sequential_values(&sequential_result),

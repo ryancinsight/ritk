@@ -8,7 +8,7 @@ use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::Image;
 use ritk_tensor_ops::native as tensor_ops;
 
-use super::{compute_from_owned, compute_statistics_from_slice, ImageStatistics};
+use super::{compute_statistics_from_slice, masked_statistics_from_slices, ImageStatistics};
 
 /// Compute statistics over all voxels in a Coeus-backed image.
 ///
@@ -23,7 +23,7 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
     let (values, _) = tensor_ops::extract_image_slice(image)?;
-    Ok(compute_statistics_from_slice(values, 0))
+    Ok(compute_statistics_from_slice(values, 0)?)
 }
 
 /// Compute statistics over voxels where `mask > 0.5`.
@@ -42,24 +42,5 @@ where
     let (image_values, _) = tensor_ops::extract_image_slice(image)?;
     let (mask_values, _) = tensor_ops::extract_image_slice(mask)?;
 
-    if image_values.len() != mask_values.len() {
-        anyhow::bail!(
-            "coeus image statistics: image element count {} does not match mask element count {}",
-            image_values.len(),
-            mask_values.len()
-        );
-    }
-
-    let values: Vec<f32> = image_values
-        .iter()
-        .zip(mask_values.iter())
-        .filter(|(_, &mask)| mask > crate::FOREGROUND_THRESHOLD)
-        .map(|(&value, _)| value)
-        .collect();
-
-    if values.is_empty() {
-        anyhow::bail!("coeus image statistics: mask contains no foreground voxels");
-    }
-
-    Ok(compute_from_owned(values, 0))
+    Ok(masked_statistics_from_slices(image_values, mask_values, 0)?)
 }
