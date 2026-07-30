@@ -16,7 +16,7 @@
 mod converter;
 mod reader;
 mod types;
-mod utils;
+mod contour_parse;
 mod writer;
 
 pub use converter::{label_map_to_rt_struct, rt_roi_to_polydata};
@@ -26,3 +26,4 @@ pub use writer::write_rt_struct;
 
 #[cfg(test)]
 mod tests;
+

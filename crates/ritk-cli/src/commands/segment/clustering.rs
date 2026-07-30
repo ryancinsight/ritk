@@ -9,7 +9,7 @@ use ritk_segmentation::{
 
 use super::super::{write_image, Backend};
 use super::args::SegmentArgs;
-use super::helpers::{count_native_foreground, read_native_input};
+use super::io::{count_native_foreground, read_native_input};
 
 // ── K-Means clustering ────────────────────────────────────────────────────────
 
@@ -186,3 +186,4 @@ pub(super) fn run_skeletonization(args: &SegmentArgs) -> Result<()> {
     );
     Ok(())
 }
+

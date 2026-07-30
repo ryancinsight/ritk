@@ -1,4 +1,4 @@
-use crate::fft::convolution::helpers::{fft2d, ForwardFft, InverseFft};
+use crate::fft::convolution::fft_strategy::{fft2d, ForwardFft, InverseFft};
 use crate::fft::convolution::padding::{
     checked_edge_shape_2d, checked_fft_shape_2d, edge_source_index,
 };

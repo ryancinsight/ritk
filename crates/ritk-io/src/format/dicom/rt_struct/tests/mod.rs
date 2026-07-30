@@ -6,7 +6,8 @@ use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
 use dicom::object::meta::FileMetaTableBuilder;
 use dicom::object::InMemDicomObject;
 
-mod helpers;
+mod fixtures;
 mod poly_tests;
 mod read_tests;
 mod write_tests;
+

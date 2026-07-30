@@ -1,5 +1,5 @@
 use super::super::{generate_series_uid, write_dicom_series};
-use super::helpers::{make_image, Backend};
+use super::fixtures::{make_image, Backend};
 use dicom::core::Tag;
 use dicom::object::open_file;
 use ritk_core::image::Image;
@@ -203,3 +203,4 @@ fn test_series_uid_distinct_on_rapid_successive_calls() {
         "uid_b={uid_b} must start with 2.25."
     );
 }
+

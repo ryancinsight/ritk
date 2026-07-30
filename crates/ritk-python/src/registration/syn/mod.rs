@@ -8,10 +8,11 @@ mod bspline_syn;
 mod greedy;
 mod lddmm;
 mod multires;
-mod shared;
+mod py_convert;
 
 pub use bspline_ffd::*;
 pub use bspline_syn::*;
 pub use greedy::*;
 pub use lddmm::*;
 pub use multires::*;
+

@@ -10,7 +10,7 @@ use super::super::{
     infer_format, is_read_capable, is_write_capable, read_image, write_image, Backend,
 };
 use super::args::SegmentArgs;
-use super::helpers::read_native_input;
+use super::io::read_native_input;
 
 /// Apply one automatic-threshold strategy through the shared native boundary.
 ///
@@ -282,3 +282,4 @@ pub(super) fn run_binary(args: &SegmentArgs) -> Result<()> {
     );
     Ok(())
 }
+

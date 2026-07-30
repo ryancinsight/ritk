@@ -7,7 +7,7 @@ use ritk_segmentation::{
 
 use super::super::{write_image, Backend};
 use super::args::SegmentArgs;
-use super::helpers::{count_native_foreground, parse_seed, read_native_input};
+use super::io::{count_native_foreground, parse_seed, read_native_input};
 
 struct NativeRegionInput {
     image: ritk_image::Image<f32, Backend, 3>,
@@ -172,3 +172,4 @@ pub(super) fn run_neighborhood_connected(args: &SegmentArgs) -> Result<()> {
     info!("segment: neighborhood-connected complete input={} seed={:?} lower={} upper={} radius={} foreground={}", args.input.display(), input.seed, input.lower, input.upper, r, n_foreground);
     Ok(())
 }
+

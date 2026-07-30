@@ -8,7 +8,7 @@ use std::path::Path;
 use super::types::{
     DicomSegmentInfo, DicomSegmentation, SegmentAlgorithmType, SegmentationType, SEG_SOP_CLASS_UID,
 };
-use crate::format::dicom::helpers::read_nested_scalar;
+use crate::format::dicom::tag_parse::read_nested_scalar;
 
 /// Read a DICOM Segmentation Storage file at `path` into [`DicomSegmentation`].
 ///
@@ -346,3 +346,4 @@ fn unpack_pixel_data(
         ),
     }
 }
+

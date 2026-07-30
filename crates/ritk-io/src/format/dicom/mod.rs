@@ -3,7 +3,7 @@ mod codec;
 mod color;
 mod color_common;
 mod color_multiframe;
-mod helpers;
+mod tag_parse;
 mod multiframe;
 pub mod networking;
 mod object_model;
@@ -104,3 +104,4 @@ pub mod native {
         }
     }
 }
+

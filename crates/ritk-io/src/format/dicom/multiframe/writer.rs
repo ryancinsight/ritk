@@ -13,7 +13,7 @@ use std::path::Path;
 
 use super::types::{MultiFrameSpatialMetadata, MultiFrameWriterConfig};
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
-use crate::format::dicom::writer::utils::{
+use crate::format::dicom::writer::pixel_encoding::{
     emit_pixel_format_tags, generate_series_uid, normalize_to_u16, MONOCHROME2,
 };
 

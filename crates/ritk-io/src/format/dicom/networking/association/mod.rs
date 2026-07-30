@@ -4,7 +4,7 @@
 //! frames, sends/receives DIMSE messages over negotiated presentation
 //! contexts, and releases or aborts the association.
 
-mod helpers;
+mod negotiation;
 mod lifecycle;
 mod scu;
 
@@ -90,7 +90,7 @@ impl Association {
         let mut next_id: u8 = 1;
         let mut pc_items = Vec::with_capacity(config.presentation_contexts.len());
         for rpc in &config.presentation_contexts {
-            let ts = helpers::build_ts_list(&rpc.transfer_syntax_uids);
+            let ts = negotiation::build_ts_list(&rpc.transfer_syntax_uids);
             pc_items.push(PresentationContextItemRq {
                 presentation_context_id: next_id,
                 abstract_syntax_uid: rpc.abstract_syntax_uid,
@@ -137,7 +137,7 @@ impl Association {
 
         match assoc.recv_pdu()? {
             Pdu::AssociateAc(ac) => {
-                let rq_map = helpers::rq_iter_abstracts(&rq);
+                let rq_map = negotiation::rq_iter_abstracts(&rq);
                 for pc in &ac.presentation_contexts {
                     if pc.result_reason == 0 {
                         assoc.negotiated_contexts.push(NegotiatedContext {
@@ -267,7 +267,7 @@ impl Association {
         loop {
             match self.recv_pdu()? {
                 Pdu::PDataTf(pd) => {
-                    let last_data = helpers::pdv_last_data(&pd);
+                    let last_data = negotiation::pdv_last_data(&pd);
                     for pdv in &pd.presentation_data_value_items {
                         cid = pdv.presentation_context_id;
                         match pdv.message_control_header.message_type {
@@ -355,3 +355,5 @@ mod tests;
 #[cfg(test)]
 #[path = "../tests_store.rs"]
 mod tests_store;
+
+

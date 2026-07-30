@@ -1,5 +1,5 @@
 use super::super::write_dicom_series_with_metadata;
-use super::helpers::make_image;
+use super::fixtures::make_image;
 use crate::format::dicom::object_model::{
     DicomElementClass, DicomObjectNode, DicomPreservationSet, DicomPreservedElement,
     DicomSequenceItem, DicomTag, DicomValue,
@@ -16,7 +16,7 @@ fn test_preservation_private_text_round_trip() {
         "LO",
         "PRIVATE_ROUND_TRIP",
     ));
-    let mut meta = super::helpers::make_test_metadata();
+    let mut meta = super::fixtures::make_test_metadata();
     meta.preservation = preservation;
 
     let image = make_image(1, 4, 4, 10.0);
@@ -53,7 +53,7 @@ fn test_preservation_sequence_round_trip() {
         source: None,
     });
 
-    let mut meta = super::helpers::make_test_metadata();
+    let mut meta = super::fixtures::make_test_metadata();
     meta.preservation = preservation;
 
     let image = make_image(1, 4, 4, 20.0);
@@ -92,7 +92,7 @@ fn test_preservation_raw_bytes_round_trip() {
         vec![0xDE_u8, 0xAD, 0xBE, 0xEF],
     ));
 
-    let mut meta = super::helpers::make_test_metadata();
+    let mut meta = super::fixtures::make_test_metadata();
     meta.preservation = preservation;
 
     let image = make_image(1, 4, 4, 30.0);
@@ -112,3 +112,4 @@ fn test_preservation_raw_bytes_round_trip() {
         "raw byte payload must survive write"
     );
 }
+

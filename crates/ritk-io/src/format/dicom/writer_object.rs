@@ -12,7 +12,7 @@ use super::object_model::{
     DicomObjectModel, DicomObjectNode, DicomSequenceItem, DicomTag, DicomValue,
 };
 use super::transfer_syntax::EXPLICIT_VR_LE;
-use super::writer::utils::{str_to_vr, DICOM_SOP_CLASS_SECONDARY_CAPTURE};
+use super::writer::pixel_encoding::{str_to_vr, DICOM_SOP_CLASS_SECONDARY_CAPTURE};
 use anyhow::{Context, Result};
 use dicom::core::header::Length;
 use dicom::core::smallvec::SmallVec;

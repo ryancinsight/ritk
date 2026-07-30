@@ -38,7 +38,7 @@ resolver = "2"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-iris = { path = "../iris", version = "0.1.0" }
+iris = { version = "0.1.0", git = "https://github.com/ryancinsight/iris" }
 ritk-filter = { path = "crates/ritk-filter" }
 ritk-segmentation = { path = "crates/ritk-segmentation" }
 ritk-core = { path = "crates/ritk-core" }
@@ -66,26 +66,26 @@ ritk-morphology = { path = "crates/ritk-morphology" }
 ritk-annotation = { path = "crates/ritk-annotation" }
 ritk-tensor-ops = { path = "crates/ritk-tensor-ops" }
 ritk-statistics = { path = "crates/ritk-statistics" }
-gaia = { path = "../gaia", default-features = false }
+gaia = { version = "0.3.0", git = "https://github.com/ryancinsight/gaia", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
-coeus-nn = { path = "../coeus/crates/coeus-nn" }
-coeus-optim = { path = "../coeus/crates/coeus-optim" }
+coeus-nn = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
+coeus-optim = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
 onnx-ir = "0.20.1"
 pyo3 = { version = "0.22", features = ["abi3-py39"] }
 numpy = "0.22"
 dicom = { version = "0.10.0", default-features = false }
-moirai = { path = "../moirai/moirai", features = ["melinoe"] }
+moirai = { version = "0.4.0", git = "https://github.com/ryancinsight/Moirai.git", features = ["melinoe"] }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
-mnemosyne = { path = "../mnemosyne/crates/mnemosyne", version = "^0.2.0", default-features = false, features = ["std_tls", "eunomia"] }
-eunomia = { path = "../eunomia/crates/eunomia", default-features = false }
-coeus-core = { path = "../coeus/crates/coeus-core" }
-coeus-tensor = { path = "../coeus/crates/coeus-tensor" }
-coeus-ops = { path = "../coeus/crates/coeus-ops" }
-coeus-leto = { path = "../coeus/crates/coeus-leto" }
-coeus-autograd = { path = "../coeus/crates/coeus-autograd" }
-leto = { path = "../leto/crates/leto", version = "0.40.0" }
-leto-ops = { path = "../leto/crates/leto-ops", version = "0.40.0" }
-apollo-fft = { path = "../apollo/crates/apollo-fft", version = "0.25.0" }
+mnemosyne = { version = "0.6.0", git = "https://github.com/ryancinsight/Mnemosyne.git", default-features = false, features = ["std_tls", "eunomia"] }
+eunomia = { version = "0.7.0", git = "https://github.com/ryancinsight/eunomia", default-features = false }
+coeus-core = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
+coeus-tensor = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
+coeus-ops = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
+coeus-leto = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
+coeus-autograd = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
+leto = { version = "0.40.0", git = "https://github.com/ryancinsight/leto.git" }
+leto-ops = { version = "0.40.0", git = "https://github.com/ryancinsight/leto.git" }
+apollo-fft = { version = "0.25.0", git = "https://github.com/ryancinsight/apollo" }
 anyhow = "1.0"
 thiserror = "2.0"
 tracing = "0.1"
@@ -128,48 +128,14 @@ dicom-core = "0.10"
 dicom-ul = "0.10"
 dicom-pixeldata = { version = "0.10", default-features = false }
 dicom-transfer-syntax-registry = { version = "0.10", default-features = false }
-consus-hdf5 = { path = "../consus/crates/consus-hdf5", features = ["std"] }
-consus-core = { path = "../consus/crates/consus-core", features = ["std"] }
-consus-compression = { path = "../consus/crates/consus-compression", features = ["std", "deflate"] }
-consus-io = { path = "../consus/crates/consus-io", features = ["std", "alloc"] }
-consus-onnx = { path = "../consus/crates/consus-onnx", features = ["std", "alloc"] }
+consus-hdf5 = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
+consus-core = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std"] }
+consus-compression = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "deflate"] }
+consus-io = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
+consus-onnx = { version = "0.1.0", git = "https://github.com/ryancinsight/consus.git", features = ["std", "alloc"] }
 jpeg-decoder = "0.3"
 
 arrayvec = "0.7"
-
-# ── Patch sections — redirect transitive git/registry deps to local path ────
-# Aequitas pulls eunomia from git; the patch below unifies it with the local
-# workspace copy so that trait objects (FloatElement, NumericElement, etc.) are
-# identical across the whole dependency graph.
-[patch."https://github.com/ryancinsight/eunomia"]
-eunomia = { path = "../eunomia/crates/eunomia" }
-
-[patch."https://github.com/ryancinsight/eunomia.git"]
-eunomia = { path = "../eunomia/crates/eunomia" }
-
-[patch."https://github.com/ryancinsight/leto"]
-leto = { path = "../leto/crates/leto" }
-leto-ops = { path = "../leto/crates/leto-ops" }
-
-[patch."https://github.com/ryancinsight/leto.git"]
-leto = { path = "../leto/crates/leto" }
-leto-ops = { path = "../leto/crates/leto-ops" }
-
-[patch."https://github.com/ryancinsight/aequitas"]
-aequitas = { path = "../aequitas" }
-
-[patch."https://github.com/ryancinsight/Mnemosyne.git"]
-mnemosyne = { path = "../mnemosyne/crates/mnemosyne" }
-
-[patch."https://github.com/ryancinsight/themis"]
-themis = { path = "../themis" }
-
-[patch."https://github.com/ryancinsight/hermes.git"]
-hermes-simd = { path = "../hermes/crates/hermes-simd" }
-hermes-simd-core = { path = "../hermes/crates/hermes-simd-core" }
-
-[patch."https://github.com/ryancinsight/Moirai.git"]
-moirai = { path = "../moirai/moirai" }
 
 # ── Profile overrides ────────────────────────────────────────────────────────
 # Test builds keep `opt-level = 0` and emit line tables so that

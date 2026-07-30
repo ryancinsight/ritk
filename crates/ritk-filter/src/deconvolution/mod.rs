@@ -30,7 +30,7 @@
 //! Direct inverse filtering `U = G / H` amplifies noise where |H| is small.
 //! Regularization suppresses this amplification.
 
-mod helpers;
+mod fft_convolve;
 mod inverse;
 mod landweber;
 mod regularization;
@@ -52,3 +52,4 @@ mod tests_2d;
 #[cfg(test)]
 #[path = "tests_3d.rs"]
 mod tests_3d;
+

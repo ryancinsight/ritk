@@ -55,7 +55,7 @@
 //!   `itkSparseFieldLevelSetImageFilter.hxx`.
 
 mod advection;
-mod helpers;
+mod spatial;
 mod solver;
 
 use ritk_core::image::Image;
@@ -240,3 +240,4 @@ impl CannySegmentationLevelSet {
 #[cfg(test)]
 #[path = "../tests_canny_segmentation_level_set.rs"]
 mod tests;
+

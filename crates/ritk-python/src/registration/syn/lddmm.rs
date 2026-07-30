@@ -4,7 +4,7 @@ use pyo3::prelude::*;
 use ritk_filter::GaussianSigma;
 use ritk_registration::lddmm::{LddmmConfig, LddmmRegistration};
 
-use super::shared::{load_matching_inputs, to_py_warped_and_displacement};
+use super::py_convert::{load_matching_inputs, to_py_warped_and_displacement};
 
 /// Configuration options for [`lddmm_register`].
 #[pyclass(name = "LddmmConfig")]
@@ -96,3 +96,4 @@ pub fn lddmm_register(
         to_py_warped_and_displacement(result.warped_moving, result.displacement_field, &inputs)
     })
 }
+

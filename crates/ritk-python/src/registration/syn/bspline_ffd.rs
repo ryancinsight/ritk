@@ -3,7 +3,7 @@ use crate::image::PyImage;
 use pyo3::prelude::*;
 use ritk_registration::bspline_ffd::{BSplineFFDConfig, BSplineFFDRegistration, VolumeDims};
 
-use super::shared::{load_matching_inputs, to_py_moving};
+use super::py_convert::{load_matching_inputs, to_py_moving};
 
 /// Configuration options for [`bspline_ffd_register`].
 #[pyclass(name = "BSplineFfdConfig")]
@@ -97,3 +97,4 @@ pub fn bspline_ffd_register(
     .map_err(crate::errors::RitkPyError::runtime)
     .map(|result| to_py_moving(result.warped_moving, &inputs))
 }
+

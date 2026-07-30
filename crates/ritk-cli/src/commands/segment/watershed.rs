@@ -6,7 +6,7 @@ use ritk_segmentation::{MarkerControlledWatershed, WatershedSegmentation};
 
 use super::super::{infer_format, is_read_capable, read_image, write_image, Backend};
 use super::args::SegmentArgs;
-use super::helpers::read_native_input;
+use super::io::read_native_input;
 
 // ── Watershed segmentation ────────────────────────────────────────────────────
 
@@ -102,3 +102,4 @@ pub(super) fn run_marker_watershed(args: &SegmentArgs) -> Result<()> {
     );
     Ok(())
 }
+

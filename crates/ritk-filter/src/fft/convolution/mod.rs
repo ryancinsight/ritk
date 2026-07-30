@@ -35,16 +35,17 @@
 
 mod conv2d;
 mod conv3d;
-mod helpers;
+mod fft_strategy;
 mod ncc2d;
 mod ncc3d;
 mod padding;
 
 pub use conv2d::FftConvolutionFilter;
 pub use conv3d::FftConvolution3DFilter;
-pub use helpers::{fft_nd, FftDirection, ForwardFft, InverseFft};
+pub use fft_strategy::{fft_nd, FftDirection, ForwardFft, InverseFft};
 pub use ncc2d::FftNormalizedCorrelationFilter;
 pub use ncc3d::FftNormalizedCorrelation3DFilter;
 
 #[cfg(test)]
 mod tests_convolution;
+

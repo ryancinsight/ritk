@@ -1,4 +1,4 @@
-use super::helpers::*;
+use super::fixtures::*;
 use super::*;
 
 /// Invariant: a nonexistent path must produce Err.
@@ -220,3 +220,4 @@ fn test_read_rt_struct_roi_interpreted_type() {
         "roi_interpreted_type must be Some(Gtv)"
     );
 }
+

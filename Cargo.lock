@@ -1274,7 +1274,7 @@ dependencies = [
  "eunomia",
  "leto",
  "leto-ops",
- "melinoe 0.9.0",
+ "melinoe",
  "smallvec",
  "thiserror 2.0.19",
 ]
@@ -2565,7 +2565,7 @@ dependencies = [
  "hashbrown 0.15.5",
  "indexmap",
  "leto",
- "melinoe 0.9.0",
+ "melinoe",
  "rand 0.8.7",
  "serde",
  "serde_json",
@@ -3826,11 +3826,6 @@ name = "melinoe"
 version = "0.9.0"
 
 [[package]]
-name = "melinoe"
-version = "0.9.0"
-source = "git+https://github.com/ryancinsight/melinoe.git#3fa730d1da78f036c1b5ca8df4cecf5dae7242f1"
-
-[[package]]
 name = "memchr"
 version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3959,7 +3954,7 @@ dependencies = [
 name = "mnemosyne-heap"
 version = "0.3.0"
 dependencies = [
- "melinoe 0.9.0",
+ "melinoe",
  "mnemosyne-arena",
  "mnemosyne-backend",
  "mnemosyne-core",
@@ -3972,7 +3967,7 @@ dependencies = [
 name = "mnemosyne-local"
 version = "0.3.0"
 dependencies = [
- "melinoe 0.9.0",
+ "melinoe",
  "mnemosyne-arena",
  "mnemosyne-backend",
  "mnemosyne-build-util",
@@ -4020,7 +4015,7 @@ dependencies = [
 name = "moirai"
 version = "0.4.0"
 dependencies = [
- "melinoe 0.9.0 (git+https://github.com/ryancinsight/melinoe.git)",
+ "melinoe",
  "mnemosyne",
  "moirai-async",
  "moirai-core",
@@ -4071,7 +4066,7 @@ dependencies = [
 name = "moirai-executor"
 version = "0.4.0"
 dependencies = [
- "melinoe 0.9.0 (git+https://github.com/ryancinsight/melinoe.git)",
+ "melinoe",
  "mnemosyne",
  "moirai-core",
  "moirai-pal",
@@ -4100,7 +4095,7 @@ version = "0.4.0"
 dependencies = [
  "js-sys",
  "libc",
- "melinoe 0.9.0 (git+https://github.com/ryancinsight/melinoe.git)",
+ "melinoe",
  "moirai-core",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -4112,7 +4107,7 @@ dependencies = [
 name = "moirai-parallel"
 version = "0.4.0"
 dependencies = [
- "melinoe 0.9.0 (git+https://github.com/ryancinsight/melinoe.git)",
+ "melinoe",
  "moirai-core",
  "moirai-executor",
 ]
@@ -6963,7 +6958,7 @@ dependencies = [
 name = "themis"
 version = "0.10.1"
 dependencies = [
- "melinoe 0.9.0 (git+https://github.com/ryancinsight/melinoe.git)",
+ "melinoe",
 ]
 
 [[package]]
@@ -8964,3 +8959,67 @@ dependencies = [
  "quote",
  "syn 2.0.119",
 ]
+
+[[patch.unused]]
+name = "hyperion"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "hephaestus-core"
+version = "0.18.0"
+
+[[patch.unused]]
+name = "hephaestus-cuda"
+version = "0.18.0"
+
+[[patch.unused]]
+name = "hephaestus-wgpu"
+version = "0.18.0"
+
+[[patch.unused]]
+name = "apollo-nufft"
+version = "0.7.0"
+
+[[patch.unused]]
+name = "athena-core"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "athena-leto"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "consus-npy"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "consus-zarr"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "asclepius"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "asclepius-coeus"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "moirai-gpu"
+version = "0.4.0"
+
+[[patch.unused]]
+name = "moirai-http"
+version = "0.4.0"
+
+[[patch.unused]]
+name = "proteus"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "tyche-core"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "horae"
+version = "0.1.0"

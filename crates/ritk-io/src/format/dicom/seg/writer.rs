@@ -9,7 +9,7 @@ use std::path::Path;
 
 use super::types::{DicomSegmentation, SEG_SOP_CLASS_UID};
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
-use crate::format::dicom::writer::utils::{generate_series_uid, MONOCHROME2};
+use crate::format::dicom::writer::pixel_encoding::{generate_series_uid, MONOCHROME2};
 
 /// Write a [`DicomSegmentation`] to a DICOM Segmentation Storage file.
 ///

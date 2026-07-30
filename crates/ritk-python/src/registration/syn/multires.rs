@@ -5,7 +5,7 @@ use ritk_registration::diffeomorphic::multires_syn::{
     InverseConsistency, MultiResSyNConfig, MultiResSyNRegistration,
 };
 
-use super::shared::{load_matching_inputs, to_py_pair};
+use super::py_convert::{load_matching_inputs, to_py_pair};
 
 /// Inverse-consistency policy for Multi-Resolution SyN, replacing `inverse_consistency: bool`.
 ///
@@ -143,3 +143,4 @@ pub fn multires_syn_register(
     .map_err(crate::errors::RitkPyError::runtime)
     .map(|result| to_py_pair(result.warped_fixed, result.warped_moving, &inputs))
 }
+

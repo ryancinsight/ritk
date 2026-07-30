@@ -115,8 +115,8 @@ fn reductions_match_exact_values() {
 
     let backend = MoiraiBackend;
     let coeus = native_tensor(&values);
-    let got_sum_coeus = coeus_ops::sum(&coeus, &backend);
-    let got_mean_coeus = coeus_ops::mean(&coeus, &backend);
+    let got_sum_coeus = coeus_ops::sum(&coeus, &backend).expect("cpu-addressable sum");
+    let got_mean_coeus = coeus_ops::mean(&coeus, &backend).expect("cpu-addressable mean");
 
     assert_eq!(got_sum_coeus, 21.0);
     assert_eq!(got_mean_coeus, 3.5);

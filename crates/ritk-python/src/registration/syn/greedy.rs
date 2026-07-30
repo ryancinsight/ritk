@@ -3,7 +3,7 @@ use crate::image::PyImage;
 use pyo3::prelude::*;
 use ritk_registration::diffeomorphic::{SyNConfig, SyNRegistration};
 
-use super::shared::{load_matching_inputs, to_py_pair};
+use super::py_convert::{load_matching_inputs, to_py_pair};
 
 /// Configuration options for [`syn_register`].
 #[pyclass(name = "SynConfig")]
@@ -93,3 +93,4 @@ pub fn syn_register(
     .map_err(crate::errors::RitkPyError::runtime)
     .map(|result| to_py_pair(result.warped_fixed, result.warped_moving, &inputs))
 }
+

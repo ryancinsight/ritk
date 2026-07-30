@@ -1,7 +1,7 @@
 //! The core SparseField solver loop for Canny segmentation level sets.
 
 use super::{
-    helpers::GridHelper, CannySegmentationLevelSet, CGV, GRAD_EPS, ST_CDN, ST_CHG, ST_CUP, ST_NULL,
+    spatial::GridHelper, CannySegmentationLevelSet, CGV, GRAD_EPS, ST_CDN, ST_CHG, ST_CUP, ST_NULL,
 };
 
 impl CannySegmentationLevelSet {

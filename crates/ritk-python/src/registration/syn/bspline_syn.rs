@@ -3,7 +3,7 @@ use crate::image::PyImage;
 use pyo3::prelude::*;
 use ritk_registration::diffeomorphic::bspline_syn::{BSplineSyNConfig, BSplineSyNRegistration};
 
-use super::shared::{load_matching_inputs, to_py_pair};
+use super::py_convert::{load_matching_inputs, to_py_pair};
 
 /// Configuration options for [`bspline_syn_register`].
 #[pyclass(name = "BSplineSynOptions")]
@@ -119,3 +119,4 @@ pub fn bspline_syn_register(
     .map_err(crate::errors::RitkPyError::runtime)
     .map(|result| to_py_pair(result.warped_fixed, result.warped_moving, &inputs))
 }
+

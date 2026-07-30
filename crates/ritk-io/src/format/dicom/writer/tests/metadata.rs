@@ -1,5 +1,5 @@
 use super::super::write_dicom_series_with_metadata;
-use super::helpers::{make_image_with_spatial, make_test_metadata};
+use super::fixtures::{make_image_with_spatial, make_test_metadata};
 use dicom::core::Tag;
 use dicom::object::open_file;
 
@@ -118,7 +118,7 @@ fn test_metadata_writer_multislice_ipp_increment() {
 
 #[test]
 fn test_metadata_writer_none_metadata_fallback() {
-    use super::helpers::make_image;
+    use super::fixtures::make_image;
     let image = make_image(2, 4, 4, 25.0);
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("no_meta_series");
@@ -150,7 +150,7 @@ fn test_metadata_writer_none_metadata_fallback() {
 
 #[test]
 fn test_metadata_writer_rejects_zero_dimension() {
-    use super::helpers::make_image;
+    use super::fixtures::make_image;
     let meta = make_test_metadata();
     let image = make_image(0, 4, 4, 0.0);
     let temp = tempfile::tempdir().unwrap();
@@ -243,7 +243,7 @@ fn test_metadata_writer_pixel_tags_precede_pixel_data_and_are_unique() {
 /// SeriesNumber (0020,0011) — all PS3.3 Type 2.
 #[test]
 fn test_metadata_writer_none_metadata_type2_tags() {
-    use super::helpers::make_image;
+    use super::fixtures::make_image;
     let tmp = tempfile::tempdir().expect("tempdir");
     let out_path = tmp.path().join("meta_none_type2_series");
     let image = make_image(2, 4, 4, 1.0);
@@ -274,3 +274,4 @@ fn test_metadata_writer_none_metadata_type2_tags() {
         "SeriesNumber (0020,0011) must be present for None metadata"
     );
 }
+

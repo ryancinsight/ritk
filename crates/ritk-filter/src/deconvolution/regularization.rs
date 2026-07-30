@@ -15,7 +15,7 @@
 //! - `apply_single_pass` — generic single-pass pipeline
 //! - `apply_iterative` — generic iterative pipeline
 
-use super::helpers::{
+use super::fft_convolve::{
     decode_coords, encode_flat, ifft_and_crop, pad_and_fft, pad_dims, pad_total, place_corner,
     run_fft,
 };
@@ -513,3 +513,4 @@ pub(super) fn apply_iterative<const D: usize>(
     let mut scratch = DeconvolutionScratch::new();
     apply_iterative_with_scratch(img_vals, img_dims, params, &mut scratch)
 }
+

@@ -6,7 +6,7 @@ use ritk_segmentation::{ChanVeseSegmentation, LaplacianLevelSet};
 
 use super::super::{read_image, write_image_inferred};
 use super::args::SegmentArgs;
-use super::helpers::count_foreground;
+use super::io::count_foreground;
 
 // -- Shape-detection level set ------------------------------------------
 
@@ -212,3 +212,4 @@ pub(super) fn run_geodesic_active_contour(args: &SegmentArgs) -> Result<()> {
     info!("segment: geodesic-active-contour complete input={} output={} foreground={} propagation={} curvature={} advection={}", args.input.display(), args.output.display(), n_foreground, args.propagation_weight, args.curvature_weight, args.advection_weight);
     Ok(())
 }
+

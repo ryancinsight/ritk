@@ -12,7 +12,7 @@ use std::path::Path;
 
 use super::types::{RtBeamInfo, RtFractionGroup, RtPlanInfo, RT_PLAN_SOP_CLASS_UID};
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
-use crate::format::dicom::writer::utils::generate_series_uid;
+use crate::format::dicom::writer::pixel_encoding::generate_series_uid;
 
 /// Write an [`RtPlanInfo`] to a DICOM RT Plan Storage file at `path`.
 ///

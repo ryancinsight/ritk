@@ -1,5 +1,5 @@
 use super::super::read_dicom_seg;
-use super::helpers::{build_seg_obj, make_per_frame_item, make_segment_item, write_seg_file};
+use super::fixtures::{build_seg_obj, make_per_frame_item, make_segment_item, write_seg_file};
 use dicom::core::header::Length;
 use dicom::core::value::{DataSetSequence, Value};
 use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
@@ -220,3 +220,4 @@ fn test_read_seg_per_frame_image_position() {
         "frame 1 position"
     );
 }
+

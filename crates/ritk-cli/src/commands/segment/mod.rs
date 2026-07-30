@@ -25,7 +25,7 @@ use tracing::info;
 
 mod args;
 mod clustering;
-mod helpers;
+mod io;
 mod level_set;
 mod region_growing;
 mod threshold;
@@ -38,7 +38,7 @@ mod tests;
 pub(crate) use super::Backend;
 pub use args::{SegmentArgs, SegmentMethod};
 #[cfg(test)]
-pub(crate) use helpers::{count_foreground, parse_seed};
+pub(crate) use io::{count_foreground, parse_seed};
 
 /// Execute the `segment` subcommand.
 ///
@@ -83,3 +83,4 @@ pub fn run(args: SegmentArgs) -> Result<()> {
         SegmentMethod::MarkerWatershed => watershed::run_marker_watershed(&args),
     }
 }
+

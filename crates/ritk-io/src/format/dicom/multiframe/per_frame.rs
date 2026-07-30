@@ -9,7 +9,7 @@ use dicom::object::InMemDicomObject;
 
 use super::reader::parse_ds_backslash;
 use super::types::PerFrameInfo;
-use crate::format::dicom::helpers::read_nested_scalar;
+use crate::format::dicom::tag_parse::read_nested_scalar;
 
 /// Navigate item → seq_tag → items()\[0\] → inner_tag and parse as `\[f64; N\]` DS array.
 ///
@@ -175,3 +175,4 @@ pub(crate) fn extract_functional_groups(
         })
         .collect()
 }
+
