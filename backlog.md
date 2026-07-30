@@ -5,8 +5,61 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **SAFE-679-01 [patch] - Correct GrowCut convergence and document
+  segmentation** (REVIEW; owner=Codex; scope=
+  `crates/ritk-segmentation/src/region_growing/{growcut.rs,
+  tests_growcut.rs}`, `crates/ritk-segmentation/examples/
+  book_growcut.rs`, `crates/ritk-segmentation/Cargo.toml`,
+  `docs/book/{segmentation.md,examples/growcut.md,figures/growcut.svg,
+  SUMMARY.md,README.md}`, `.github/workflows/book-pages.yml`, `CHANGELOG.md`,
+  and PM artifacts; non-goal=public API changes, unrelated segmentation
+  algorithms, or release/deploy). GrowCut currently terminates when labels
+  stop changing even if same-label strength updates remain, and its parallel
+  hot loop writes the shared convergence atomic once per changed voxel. Track
+  the complete automaton state and aggregate convergence once per changed
+  chunk. Add a deterministic, runnable two-tissue segmentation example and an
+  inspected figure that exposes seeds, actual intermediate competition
+  states, the boundary attack mechanism, result, and error against analytical
+  ground truth. Acceptance: a value-semantic regression proves propagation
+  continues through a same-label strength-only iteration; existing GrowCut
+  behavior remains green; the generated figure reports exact region/error
+  metrics and renders clearly; the example stays within the committed runtime
+  budget; a reader can trace foreground/background growth and understand why
+  an attack crosses equal-intensity neighbors but stops at the tissue edge;
+  and focused formatting, warning-denied Clippy, Nextest, doctest,
+  Rustdoc, and mdBook gates pass. Local closure: complete state convergence
+  corrects the later boundary label in the 4x4 regression, while one relaxed
+  atomic write per changed chunk replaces per-voxel convergence writes. All
+  483 segmentation tests pass in 7.600 seconds; warning-denied all-target
+  Clippy, doctests, warning-denied Rustdoc, mdBook test/build, formatting, and
+  diff checks pass. The inspected 6,198-byte SVG reports Dice 1.000 and zero
+  label errors; the already-built example runs in 0.551 seconds. The original
+  draft PR #72 carried the code, book, and workflow changes. Exact code head
+  `a59dfb9f`
+  passes complete Rust CI run `30424915304`, Python 3.9-3.13 matrix run
+  `30424915350`, and book build/artifact run `30424915331`. The Pages deploy
+  job is correctly skipped on the pull request. Figure-clarity review then
+  exposed 1,226 transient cross-boundary labels at iteration 40: the intensity
+  range was subtracted in f32 while neighbor differences used f64, making a
+  theoretically zero attack positive. Computing both in f64 removes every
+  transient error. The revised 8,957-byte figure shows real outputs at 8 and
+  40 sweeps, convergence, and exact same-tissue/cross-edge attack
+  calculations. It was inspected from a 960x456 PNG; the already-built
+  example completes in 1.437 seconds. GrowCut is 10/10 and the full package is
+  484/484 in 2.925 seconds. Formatting, focused warning-denied all-target
+  Clippy, doctest, warning-denied Rustdoc, and mdBook test/build pass. The
+  dependency-inclusive Clippy lane remains blocked by an existing
+  `ritk-filter` `missing_const_for_thread_local` diagnostic on an initializer
+  already written as `const`. Clean draft PR #73 isolates the GrowCut history
+  from unrelated architecture commits that had entered the original branch.
+  Head `7d887d36` passes complete Rust CI run `30489263987`, Python
+  3.9-3.13 matrix run `30489264000`, and book build/artifact run
+  `30489263986`; the Pages deploy job is correctly skipped on the pull
+  request.
+  Merge remains blocked on explicit release/deploy authority.
+
 - **PERF-678-01 [patch] - Eliminate tag-tree path allocations**
-  (REVIEW; owner=Codex; scope=
+  (DONE; owner=Codex; scope=
   `crates/ritk-codecs/src/jpeg_2000/tag_tree.rs`, `CHANGELOG.md`, and PM
   artifacts; non-goal=tag-tree representation changes, public API changes,
   or codec release). Every tag-tree encode/decode operation currently
@@ -25,7 +78,9 @@
   codec tests pass, including the 190-case captured OpenJPEG corpus. The
   unchanged encode median improves from 54.353 ms to 52.511 ms (3.39%,
   p < 0.05); decode changes from 52.363 ms to 52.418 ms (p = 0.89), detecting
-  no decode latency change.
+  no decode latency change. PR #71 merged as `007b3048` from exact head
+  `9903fb0d` after CI run `30420692116` and Python run `30420692114` passed
+  every repository-owned lane.
 
 - **PERF-677-01 [patch] - Reuse reversible wavelet workspace**
   (DONE; owner=Codex; scope=

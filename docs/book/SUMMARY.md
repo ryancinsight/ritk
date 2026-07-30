@@ -32,6 +32,8 @@
 - [Diffusion Filtering](diffusion_filters.md)
   - [Example: Perona-Malik Diffusion](examples/perona_malik.md)
   - [Example: Curvature Flow](examples/curvature_flow.md)
+- [Seeded Segmentation](segmentation.md)
+  - [Example: GrowCut from Sparse Seeds](examples/growcut.md)
 - [Registration Metrics](registration_metrics.md)
 - [Optimization and Registration](optimization_registration.md)
 
