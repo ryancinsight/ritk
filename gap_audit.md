@@ -13,6 +13,52 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## SAFE-681-01 audit (2026-07-30)
+
+The public grayscale JPEG-LS encoder asserted external metadata and narrowed
+dimensions and `NEAR` into marker fields. The decoder's marker parser could
+skip truncated segments, accept a nonzero mapping table or restart interval,
+and map an invalid SOS interleave byte to the non-interleaved profile. Both
+scan directions retained `(rows + 1) × cols` reconstructed `i32` samples even
+though the causal predictor reads only the previous row and the reconstructed
+prefix of the current row.
+
+The encoder now validates nonzero 16-bit marker geometry, checked sample
+count, 8–16-bit encoder precision, the precision-dependent `NEAR` bound, and
+the first out-of-range sample before allocating entropy state. Its public
+result is `Result<Vec<u8>, JpegLsEncodeError>`. One checked marker pass returns
+the exact scan slice and rejects malformed segment lengths, invalid
+interleave values, mapping tables, restart intervals, and unsupported LSE
+records. Decoder precision, output-size arithmetic, and sample reconstruction
+conversions are fallible.
+
+Encoder and decoder share one reconstruction component containing exactly two
+rows. For 512 × 512 input, scan scratch decreases from 1,050,624 bytes to
+4,096 bytes, a 256.5-fold structural reduction. The unchanged same-machine
+Criterion workloads compare against `perf671-baseline`: lossless encode
+changes by -13.36%, lossless decode by -19.10%, and `NEAR=2` encode by -15.74%
+at the median; every comparison has p < 0.05. This is matched local evidence,
+not a cross-machine throughput guarantee.
+
+Focused Nextest passes 290/290 codec tests in 2.317 seconds, including
+validation partitions, arbitrary 0–512-byte marker streams, exact lossless
+round trips, bounded near-lossless round trips, the rolling-row structural
+oracle, and the captured JPEG 2000 interoperability corpus. The codec doctest,
+warning-denied Rustdoc, mdBook test/build, and the declared-major
+`cargo-semver-checks` comparison against `12d555eb` pass. The broader local
+codec-plus-I/O attempt reached a shared-cache compiler-identity conflict in
+Moirai; exact-head hosted Nextest independently passes on Linux, macOS, and
+Windows in CI `30519988356`. Python CI `30519988318` and book build
+`30519988325` also pass at `a9199207`.
+
+The 96 × 96 public-API example reports 5,998 lossless bytes with zero
+mismatches and 3,435 near-lossless bytes with 8,269 changed samples. Its
+measured maximum absolute error is exactly 3 for `NEAR=3`. Source, lossless,
+and near-lossless panels share the 0–4,095 intensity scale; the difference
+panel uses a labeled 0–3 error scale. The exact-head generated SVG is
+byte-identical to the inspected committed figure at SHA-256
+`6202E9F3F82C8CA18E4AFF6F6F17ACB706F450FE9866F5F6A25AD002CA04F3F5`.
+
 ## PERF-678-01 audit (2026-07-28)
 
 Every tag-tree `encode` and `decode` operation previously allocated a

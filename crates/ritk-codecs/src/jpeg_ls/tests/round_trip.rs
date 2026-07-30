@@ -21,7 +21,8 @@ fn layout(rows: usize, cols: usize, bits: u16) -> PixelLayout {
 }
 
 fn round_trip(samples: &[u16], rows: u32, cols: u32, bpp: u32) {
-    let stream = encode_grayscale_jpeg_ls(samples, rows, cols, bpp, 0);
+    let stream = encode_grayscale_jpeg_ls(samples, rows, cols, bpp, 0)
+        .expect("valid lossless fixture must encode");
     assert_eq!(&stream[..2], &[0xFF, 0xD8], "stream must start with SOI");
     assert_eq!(
         &stream[stream.len() - 2..],
@@ -124,7 +125,8 @@ proptest::proptest! {
                 samples.push(last);
             }
         }
-        let stream = encode_grayscale_jpeg_ls(&samples, rows, cols, bpp, 0);
+        let stream = encode_grayscale_jpeg_ls(&samples, rows, cols, bpp, 0)
+            .expect("valid random lossless fixture must encode");
         let bits = if bpp <= 8 { 8u16 } else { 16 };
         let decoded = decode_jpeg_ls_fragment(
             &stream,
@@ -151,7 +153,8 @@ proptest::proptest! {
                 ((state >> 33) & 0xFF) as u16
             })
             .collect();
-        let stream = encode_grayscale_jpeg_ls(&samples, rows, cols, 8, near);
+        let stream = encode_grayscale_jpeg_ls(&samples, rows, cols, 8, near)
+            .expect("valid random near-lossless fixture must encode");
         let decoded = decode_jpeg_ls_fragment(
             &stream,
             layout(rows as usize, cols as usize, 8),

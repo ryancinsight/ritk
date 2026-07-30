@@ -7,6 +7,7 @@ on:
       - "docs/book/**"
       - "crates/ritk-filter/examples/book_processing_pipeline.rs"
       - "crates/ritk-io/examples/book_windowing_rescale.rs"
+      - "crates/ritk-codecs/examples/book_jpeg_ls.rs"
       - "crates/ritk-codecs/examples/book_jpeg_2000.rs"
       - "crates/ritk-segmentation/examples/book_growcut.rs"
       - "crates/ritk-segmentation/src/region_growing/growcut.rs"
@@ -18,6 +19,7 @@ on:
       - "docs/book/**"
       - "crates/ritk-filter/examples/book_processing_pipeline.rs"
       - "crates/ritk-io/examples/book_windowing_rescale.rs"
+      - "crates/ritk-codecs/examples/book_jpeg_ls.rs"
       - "crates/ritk-codecs/examples/book_jpeg_2000.rs"
       - "crates/ritk-segmentation/examples/book_growcut.rs"
       - "crates/ritk-segmentation/src/region_growing/growcut.rs"
@@ -78,6 +80,8 @@ jobs:
             docs/book/figures/processing_pipeline.svg
           cargo run -p ritk-io --example book_windowing_rescale -- \
             docs/book/figures/windowing_rescale.svg
+          cargo run -p ritk-codecs --example book_jpeg_ls -- \
+            docs/book/figures/jpeg_ls_codec.svg
           cargo run -p ritk-codecs --example book_jpeg_2000 -- \
             docs/book/figures/jpeg_2000_codec.svg
           cargo run -p ritk-segmentation --example book_growcut -- \
@@ -95,6 +99,7 @@ jobs:
           path: |
             ritk/docs/book/figures/processing_pipeline.svg
             ritk/docs/book/figures/windowing_rescale.svg
+            ritk/docs/book/figures/jpeg_ls_codec.svg
             ritk/docs/book/figures/jpeg_2000_codec.svg
             ritk/docs/book/figures/growcut.svg
           if-no-files-found: error

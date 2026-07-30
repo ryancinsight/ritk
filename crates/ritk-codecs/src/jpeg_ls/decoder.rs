@@ -1,6 +1,7 @@
 //! Header-derived JPEG-LS decoder state and scan dispatch.
 
 use super::bitstream::BitReader;
+use super::sample_limits::maximum_near_for_precision;
 use super::scan::{decode_scan, Predictor, ScanParams};
 use crate::dimensions::checked_pixel_count;
 use anyhow::{bail, Context, Result};
@@ -78,6 +79,20 @@ impl JpegLsDecoder {
                 self.height
             );
         }
+        if !(2..=16).contains(&self.bits_per_sample) {
+            bail!(
+                "JPEG-LS precision {} is unsupported; expected 2..=16",
+                self.bits_per_sample
+            );
+        }
+        let maximum_near = maximum_near_for_precision(self.bits_per_sample);
+        if self.near > maximum_near {
+            bail!(
+                "JPEG-LS NEAR={} exceeds the precision-dependent limit {}",
+                self.near,
+                maximum_near
+            );
+        }
         if self.components.len() != 1 {
             bail!(
                 "JPEG-LS multi-component ({}) not supported; use non-interleaved encoding",
@@ -118,13 +133,22 @@ impl JpegLsDecoder {
         let mut samples = Vec::with_capacity(pixel_count);
         decode_scan(&mut reader, &params, &mut samples).context("JPEG-LS scan decode failed")?;
 
-        let bytes_per_sample = (self.bits_per_sample as usize).div_ceil(8);
-        let mut out = vec![0u8; samples.len() * bytes_per_sample];
-        for (i, &sample) in samples.iter().enumerate() {
+        let bits_per_sample = usize::try_from(self.bits_per_sample)
+            .context("JPEG-LS precision does not fit this platform")?;
+        let bytes_per_sample = bits_per_sample.div_ceil(8);
+        let output_bytes = samples
+            .len()
+            .checked_mul(bytes_per_sample)
+            .context("JPEG-LS decoded byte count overflow")?;
+        let mut out = vec![0u8; output_bytes];
+        for (&sample, destination) in samples.iter().zip(out.chunks_exact_mut(bytes_per_sample)) {
             if bytes_per_sample == 1 {
-                out[i] = sample as u8;
+                destination[0] =
+                    u8::try_from(sample).context("JPEG-LS reconstructed sample exceeds u8")?;
             } else {
-                out[i * 2..i * 2 + 2].copy_from_slice(&(sample as u16).to_le_bytes());
+                let sample =
+                    u16::try_from(sample).context("JPEG-LS reconstructed sample exceeds u16")?;
+                destination.copy_from_slice(&sample.to_le_bytes());
             }
         }
         Ok(out)
@@ -150,6 +174,39 @@ mod tests {
         assert!(
             format!("{err:#}").contains("decode limit"),
             "unexpected error: {err:#}"
+        );
+    }
+
+    #[test]
+    fn decode_fragment_rejects_invalid_precision_before_scan() {
+        let mut decoder = JpegLsDecoder::new();
+        decoder.width = 1;
+        decoder.height = 1;
+        decoder.bits_per_sample = 17;
+        decoder.components.push(ComponentInfo {});
+        let error = decoder
+            .decode_fragment(&[])
+            .expect_err("unsupported precision must error");
+        assert!(
+            error.to_string().contains("expected 2..=16"),
+            "unexpected error: {error:#}"
+        );
+    }
+
+    #[test]
+    fn decode_fragment_rejects_near_outside_precision_range() {
+        let mut decoder = JpegLsDecoder::new();
+        decoder.width = 1;
+        decoder.height = 1;
+        decoder.bits_per_sample = 8;
+        decoder.near = 128;
+        decoder.components.push(ComponentInfo {});
+        let error = decoder
+            .decode_fragment(&[])
+            .expect_err("NEAR above the 8-bit range must error");
+        assert!(
+            error.to_string().contains("precision-dependent limit 127"),
+            "unexpected error: {error:#}"
         );
     }
 }
