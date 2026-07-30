@@ -15,7 +15,7 @@
 
 ## SAFE-681-01 — Harden and document the native JPEG-LS codec
 **Target version**: Next major release
-**Sprint phase**: Execution
+**Sprint phase**: Closure
 
 - [x] Reconcile origin, worktrees, peer-owned dirt, current codec/book
       coverage, callers, ADRs, and official JPEG-LS/DICOM contracts.
@@ -28,16 +28,22 @@
       encoder and decoder while preserving boundary guards and output order.
 - [x] Add positive, negative, boundary, adversarial, property, native
       round-trip, and DICOM round-trip value-semantic tests.
-- [ ] Run the unchanged 512x512 lossless/near-lossless Criterion workloads and
-      reject a statistically significant regression before claiming latency.
+- [x] Run the unchanged 512x512 lossless/near-lossless Criterion workloads.
+      Same-machine comparison against `perf671-baseline` measures median
+      changes of -13.36% lossless encode, -19.10% lossless decode, and -15.74%
+      near-lossless encode; all improve with p < 0.05.
 - [x] Add a runnable Rust example, generated comparison/error figure,
       native-codec chapter, and CI figure regeneration.
 - [x] Render and inspect the figure; cross-check displayed sizes, maximum
       error, and pixel values against example output.
-- [ ] Run formatting, warning-denied Clippy, Nextest, doctest, Rustdoc,
-      mdBook, semantic-version, example-runtime, and hosted gates.
-- [ ] Self-review, commit, push, open a draft PR, collect exact-head hosted
-      gates, merge, and reconcile PM state.
+- [x] Run formatting, warning-denied Clippy, Nextest, doctest, Rustdoc,
+      mdBook, semantic-version, example-runtime, and hosted gates. Evidence:
+      290/290 focused codec tests, one doctest, warning-denied Rustdoc, mdBook
+      test/build, the declared-major semantic check against `12d555eb`, and
+      exact-head CI `30519988356`, Python CI `30519988318`, and book build
+      `30519988325` pass.
+- [x] Self-review, commit, push, open PR 75, collect exact-head hosted gates,
+      and reconcile PM state for merge.
 
 ## SAFE-680-01 — Make JPEG 2000 encoding fallible and document the native codec
 **Target version**: Next major release

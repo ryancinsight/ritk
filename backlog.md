@@ -6,7 +6,7 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-681-01 [major] - Make JPEG-LS encoding fallible, bound header
-  parsing, reduce scan memory, and document the native codec** (IN PROGRESS;
+  parsing, reduce scan memory, and document the native codec** (DONE;
   owner=Codex; scope=`crates/ritk-codecs/src/jpeg_ls/{encoder.rs,
   encoder/validation.rs,scan.rs,parser.rs,decoder.rs,tests/**}`,
   `crates/ritk-codecs/{examples/book_jpeg_ls.rs,
@@ -34,7 +34,19 @@
   regression before any latency claim; the generated figure agrees with raw
   example metrics and is visually distinct; and formatting, warning-denied
   Clippy, Nextest, doctest, Rustdoc, mdBook, semantic-version, and hosted
-  gates pass.
+  gates pass. Evidence: 290/290 focused codec Nextest tests pass in 2.317
+  seconds; the codec doctest and warning-denied Rustdoc pass; the major-release
+  semantic check completes against `12d555eb`; and exact head `a9199207`
+  passes CI `30519988356`, Python CI `30519988318`, and book build
+  `30519988325`. Same-machine Criterion comparison against
+  `perf671-baseline` measures median changes of -13.36% lossless encode,
+  -19.10% lossless decode, and -15.74% near-lossless encode, all with
+  p < 0.05. The 512 × 512 scratch bound is 4,096 bytes instead of 1,050,624
+  bytes. The exact-head generated figure matches the inspected committed SVG
+  at SHA-256
+  `6202E9F3F82C8CA18E4AFF6F6F17ACB706F450FE9866F5F6A25AD002CA04F3F5`;
+  it reports zero lossless mismatches and maximum near-lossless error 3 for
+  `NEAR=3`.
 
 - **SAFE-680-01 [major] - Make JPEG 2000 encoding fallible and document the
   native codec** (DONE; owner=Codex; scope=
