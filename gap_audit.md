@@ -13,6 +13,62 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## SAFE-682-01 audit (2026-07-30)
+
+The descriptive-statistics slice API indexed an empty input, masked
+statistics asserted matching lengths and non-empty foreground, and histogram
+construction asserted its bin count and range. Non-finite samples could enter
+arithmetic or map to bin zero. Masked z-score normalization substituted the
+full population when a mask selected no samples.
+
+One public `StatisticsError` contract now rejects those inputs before
+arithmetic or histogram allocation. Sequential, native-image, normalization,
+and Python entry points delegate to the same fallible slice boundary. The
+Python layer maps invalid values to `ValueError`; no infallible compatibility
+wrapper or empty-mask fallback remains.
+
+Finite results retain the two-pass `f64` mean and variance and floor-rank
+quartiles. Full-image statistics allocate one sample-sized percentile
+workspace. Masked statistics collect foreground values once and reuse that
+allocation for selection. Histogram counts use a checked reservation, and
+bin-coordinate arithmetic uses `f64` so finite extreme `f32` bounds do not
+overflow their span. The public bin-width accessor now reports that result as
+`f64` instead of repeating the overflowing `f32` subtraction. These are
+structural memory and safety claims; no runtime speedup or process-wide
+allocation count is claimed.
+
+Focused Nextest passes 341/341 statistics tests in 2.426 seconds. The suite
+includes analytical population/sample divisors, independent sorted
+quartiles, permutation invariance, typed finite-domain errors, histogram
+edge inclusion, finite extreme bounds, and unallocatable count storage.
+Warning-denied all-target Clippy for `ritk-statistics`, two runnable doctests,
+warning-denied Rustdoc, and mdBook test/build pass. The exact-branch release
+Python extension builds, and all 15 statistics binding tests pass under Python
+3.13.12 in 0.10 seconds. A broader `ritk-python` Clippy attempt reaches a
+pre-existing warning-denied `missing_const_for_thread_local` diagnostic in
+`ritk-filter/src/morphology/mod.rs`. This is an accepted local-provider-overlay
+exception, not a SAFE-682 closure blocker: the diagnostic is outside the
+statistics/Python changes, and the provider-pinned hosted workspace Clippy
+gate passes. The declared-major
+`cargo-semver-checks` comparison against merge base `7c2f2ac5` completes in
+15.420 seconds with all 253 incompatible-change lints skipped as expected for
+a major release. Exact code head `08ba5e4e` passes Rustfmt, warning-denied
+Clippy, dependency alignment, wheel smoke, and Linux/macOS/Windows Nextest in
+CI `30527279931`; all 13 Python 3.9-3.13 platform lanes pass in
+`30527280041`; and mdBook build `30527279966` passes. CodeRabbit's sole
+PM-consistency finding is addressed in the closure commit. The external
+`recurseml/analysis` service returned an analysis error without a repository
+log or actionable finding.
+
+The deterministic 64 × 48 example reports 3,072 full samples and 1,141 masked
+samples. Full mean/median are 55.77/18.80, while masked mean/median are
+121.39/143.92. The shared-axis normalized histograms, mean and median markers,
+interquartile bands, source field, mask, and numeric table were rendered and
+inspected. Visual review found and corrected an orange-mask/white-mask caption
+contradiction and a solid median marker that contradicted the dotted legend.
+The regenerated SVG has SHA-256
+`4E18E3E19E6151A0F8C608A5EE9B9D97BD977E56C7E30847192F8BE198D0F5C0`.
+
 ## SAFE-681-01 audit (2026-07-30)
 
 The public grayscale JPEG-LS encoder asserted external metadata and narrowed

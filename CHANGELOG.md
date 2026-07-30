@@ -8,6 +8,38 @@
 
 # CHANGELOG
 
+## [Unreleased] — Fallible descriptive statistics (SAFE-682-01)
+
+### Breaking
+
+- Descriptive-statistics, histogram, min-max normalization, and z-score
+  normalization entry points now return `Result<_, StatisticsError>`. Invalid
+  populations and histogram configurations no longer panic or emit
+  misleading finite values. See
+  [ADR 0014](docs/adr/0014-fallible-descriptive-statistics.md).
+- `Histogram::bin_width` now returns `f64`, preserving valid widths for
+  finite `f32` ranges whose subtraction overflows in `f32`.
+
+### Changed
+
+- Reject empty populations, non-finite image or mask samples, invalid
+  degrees-of-freedom corrections, mismatched masks, empty masked foreground,
+  zero histogram bins, non-finite bounds, and non-increasing ranges with
+  contextual typed errors.
+- Reserve histogram count storage fallibly and compute bin coordinates in
+  `f64`, avoiding both allocation aborts and finite `f32` span overflow.
+- Reuse the masked foreground allocation as percentile workspace and delegate
+  native-image and Python calls to the same slice implementation.
+- Document the population, quartile, histogram-edge, and failure contracts
+  with a runnable example and generated full-image versus masked-distribution
+  figure.
+
+### Tests
+
+- Add analytical population/sample deviation cases, independent sorted
+  quartile references, histogram boundary and allocation cases, and Python
+  `ValueError` coverage for invalid user inputs.
+
 ## [Unreleased] — Fallible JPEG-LS encoder and bounded scan memory (SAFE-681-01)
 
 ### Breaking

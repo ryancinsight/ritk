@@ -12,6 +12,11 @@ on:
       - "crates/ritk-segmentation/examples/book_growcut.rs"
       - "crates/ritk-segmentation/src/region_growing/growcut.rs"
       - "crates/ritk-segmentation/Cargo.toml"
+      - "crates/ritk-statistics/examples/book_descriptive_statistics.rs"
+      - "crates/ritk-statistics/src/error.rs"
+      - "crates/ritk-statistics/src/histogram.rs"
+      - "crates/ritk-statistics/src/image_statistics.rs"
+      - "crates/ritk-statistics/Cargo.toml"
       - ".github/actions/checkout-atlas-path-dependencies/action.yml"
       - ".github/workflows/book-pages.yml"
   pull_request:
@@ -24,6 +29,11 @@ on:
       - "crates/ritk-segmentation/examples/book_growcut.rs"
       - "crates/ritk-segmentation/src/region_growing/growcut.rs"
       - "crates/ritk-segmentation/Cargo.toml"
+      - "crates/ritk-statistics/examples/book_descriptive_statistics.rs"
+      - "crates/ritk-statistics/src/error.rs"
+      - "crates/ritk-statistics/src/histogram.rs"
+      - "crates/ritk-statistics/src/image_statistics.rs"
+      - "crates/ritk-statistics/Cargo.toml"
       - ".github/actions/checkout-atlas-path-dependencies/action.yml"
       - ".github/workflows/book-pages.yml"
   workflow_dispatch:
@@ -86,6 +96,8 @@ jobs:
             docs/book/figures/jpeg_2000_codec.svg
           cargo run -p ritk-segmentation --example book_growcut -- \
             docs/book/figures/growcut.svg
+          cargo run -p ritk-statistics --example book_descriptive_statistics -- \
+            docs/book/figures/descriptive_statistics.svg
 
       - name: Build book
         run: |
@@ -102,6 +114,7 @@ jobs:
             ritk/docs/book/figures/jpeg_ls_codec.svg
             ritk/docs/book/figures/jpeg_2000_codec.svg
             ritk/docs/book/figures/growcut.svg
+            ritk/docs/book/figures/descriptive_statistics.svg
           if-no-files-found: error
 
       - name: Upload Pages artifact

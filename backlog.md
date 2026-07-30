@@ -5,6 +5,43 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **SAFE-682-01 [major] - Make descriptive statistics and histograms
+  fallible, finite, and teachable** (DONE; owner=Codex;
+  last-update=2026-07-30; scope=`crates/ritk-statistics/src/{error.rs,
+  image_statistics.rs,image_statistics/native.rs,histogram.rs,lib.rs,
+  tests_image_statistics.rs,tests_histogram.rs}`,
+  `crates/ritk-statistics/examples/book_descriptive_statistics.rs`,
+  affected normalization and Python callers,
+  `docs/book/{SUMMARY.md,descriptive_statistics.md,
+  examples/descriptive_statistics.md,figures/descriptive_statistics.svg}`,
+  `.github/workflows/book-pages.yml`,
+  `docs/adr/{0014-fallible-descriptive-statistics.md,README.md}`,
+  `CHANGELOG.md`, `gap_audit.md`, and PM artifacts; non-goal=changing
+  percentile ranks, variance formulas, label-statistics APIs, information
+  metrics, or release/deployment). Empty sample slices and empty masks can
+  index or assert, invalid histogram configurations assert, and NaN samples
+  are silently treated as minima or bin-zero values. Replace these paths
+  with one typed error contract, reject non-finite samples before arithmetic
+  or allocation, update every in-repository Rust/PyO3 caller without a
+  compatibility wrapper, and retain the existing f64 mean/variance
+  accumulation and in-place percentile selection. Add a deterministic Rust
+  example and inspected figure that makes full-image versus masked
+  distributions, histogram bins, mean, median, and quartiles visually
+  distinguishable. Acceptance: empty input, empty foreground, length
+  mismatch, zero bins, non-finite bounds/samples, and inverted ranges return
+  specific errors without panic or partial output; positive results match
+  analytical and NumPy/SimpleITK reference values; the slice path performs at
+  most one O(n) percentile workspace allocation and the masked path reuses
+  its foreground allocation; Python maps invalid user input to `ValueError`;
+  the generated figure agrees with raw metrics and is visually clear; and
+  formatting, warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook,
+  semantic-version, example-runtime, and hosted gates pass. Exact code head
+  `08ba5e4e` passes CI `30527279931`, all 13 Python lanes in
+  `30527280041`, and mdBook build `30527279966`. CodeRabbit review completed
+  with one PM-consistency finding addressed in the closure commit; the
+  external `recurseml/analysis` service returned an analysis error without a
+  repository log or actionable finding.
+
 - **SAFE-681-01 [major] - Make JPEG-LS encoding fallible, bound header
   parsing, reduce scan memory, and document the native codec** (DONE;
   owner=Codex; scope=`crates/ritk-codecs/src/jpeg_ls/{encoder.rs,

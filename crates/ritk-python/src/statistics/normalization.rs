@@ -13,7 +13,12 @@ use ritk_statistics::normalization::{
 
 /// Validate that `target_min < target_max` for a min-max range normalization.
 pub(super) fn validate_range(target_min: f32, target_max: f32) -> Result<(), String> {
-    if target_min >= target_max {
+    if !target_min.is_finite() || !target_max.is_finite() {
+        Err(format!(
+            "minmax_normalize_range: target bounds must be finite, got \
+             target_min={target_min}, target_max={target_max}"
+        ))
+    } else if target_min >= target_max {
         Err(format!(
             "minmax_normalize_range: target_min ({target_min}) must be strictly less than \
              target_max ({target_max})"
@@ -55,9 +60,15 @@ pub(super) fn validate_percentiles(p: &[f64]) -> Result<(), String> {
 ///
 /// Returns:
 ///     Normalized PyImage with intensities in [0, 1].
+///
+/// Raises:
+///     ValueError: if the input is empty or contains a non-finite value.
 #[pyfunction]
-pub fn minmax_normalize(image: &PyImage) -> PyImage {
-    into_py_image(MinMaxNormalizer::new().normalize(&image_from_py(image)))
+pub fn minmax_normalize(image: &PyImage) -> RitkResult<PyImage> {
+    MinMaxNormalizer::new()
+        .normalize(&image_from_py(image))
+        .map(into_py_image)
+        .map_err(RitkPyError::value)
 }
 
 /// Normalize image intensities to [target_min, target_max] via min-max rescaling.
@@ -71,6 +82,10 @@ pub fn minmax_normalize(image: &PyImage) -> PyImage {
 ///
 /// Returns:
 ///     Normalized PyImage with intensities in [target_min, target_max].
+///
+/// Raises:
+///     ValueError: if the input is empty or non-finite, or the target bounds
+///                 are non-finite or not strictly increasing.
 #[pyfunction]
 pub fn minmax_normalize_range(
     image: &PyImage,
@@ -80,9 +95,10 @@ pub fn minmax_normalize_range(
     if let Err(e) = validate_range(target_min, target_max) {
         return Err(RitkPyError::value(e));
     }
-    Ok(into_py_image(
-        MinMaxNormalizer::with_range(target_min, target_max).normalize(&image_from_py(image)),
-    ))
+    MinMaxNormalizer::with_range(target_min, target_max)
+        .normalize(&image_from_py(image))
+        .map(into_py_image)
+        .map_err(RitkPyError::value)
 }
 
 /// Normalize image intensities to zero mean and unit variance (Z-score).
@@ -96,6 +112,10 @@ pub fn minmax_normalize_range(
 ///
 /// Returns:
 ///     Normalized PyImage with E\[output\] ≈ 0, Var\[output\] ≈ 1.
+///
+/// Raises:
+///     ValueError: if the input is empty or non-finite, the mask shape differs
+///                 from the image, or a supplied mask has no foreground.
 #[pyfunction]
 #[pyo3(signature = (image, mask = None))]
 pub fn zscore_normalize(
@@ -116,7 +136,7 @@ pub fn zscore_normalize(
         }
         None => py.allow_threads(|| ZScoreNormalizer::new().normalize(&image_arc)),
     };
-    Ok(into_py_image(result))
+    result.map(into_py_image).map_err(RitkPyError::value)
 }
 
 /// Match the intensity histogram of a source image to a reference image.
@@ -368,5 +388,14 @@ mod tests {
     #[test]
     fn test_validate_range_negative_to_positive_returns_ok() {
         assert!(validate_range(-1.0, 1.0).is_ok());
+    }
+
+    #[test]
+    fn test_validate_range_non_finite_bound_returns_error() {
+        let result = validate_range(f32::NAN, 1.0);
+        assert!(
+            matches!(result, Err(message) if message.contains("must be finite")),
+            "NaN target bounds must be rejected before construction"
+        );
     }
 }

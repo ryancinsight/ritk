@@ -81,7 +81,7 @@ fn test_slice_input_preserves_input_order() {
     // user's slice must remain untouched).
     let data = vec![4.0, 1.0, 3.0, 2.0];
 
-    let stats = compute_statistics_from_slice(&data, 0);
+    let stats = compute_statistics_from_slice(&data, 0).expect("valid statistics input");
 
     assert_eq!(
         data,
@@ -235,37 +235,80 @@ fn test_masked_single_foreground_voxel() {
     assert_eq!(s.percentiles, [30.0, 30.0, 30.0]);
 }
 
-// ── Error semantics tests (native API `Result::Err` matching legacy panic text) ──
+// ── Error semantics tests ─────────────────────────────────────────────────
 
 #[test]
 fn test_masked_empty_mask_returns_empty_foreground_error() {
-    // Native failures retain a diagnostic that identifies the violated mask
-    // contract without introducing a parallel error vocabulary.
     let image: Native1DImage = make_native_image(vec![1.0, 2.0, 3.0], [3]);
     let mask: Native1DImage = make_native_image(vec![0.0, 0.0, 0.0], [3]);
 
     let err = masked_statistics(&image, &mask).unwrap_err();
-    assert_eq!(
-        err.to_string(),
-        "coeus image statistics: mask contains no foreground voxels",
-        "Display text must mirror legacy panic message verbatim (no prefix)"
-    );
+    assert_eq!(err.to_string(), "mask contains no foreground samples");
 }
 
 #[test]
 fn test_masked_shape_mismatch_returns_shape_mismatch_error() {
-    // Shape failures report both observed element counts.
     let image: Native1DImage = make_native_image(vec![1.0, 2.0, 3.0], [3]);
     let mask: Native1DImage = make_native_image(vec![1.0, 1.0], [2]);
 
     let err = masked_statistics(&image, &mask).unwrap_err();
-    let display = err.to_string();
-    assert!(
-        display.contains(
-            "coeus image statistics: image element count 3 does not match mask element count 2"
-        ),
-        "Display text must surface shape-mismatch numeric diagnostic; got: {display}"
+    assert_eq!(
+        err.to_string(),
+        "image element count 3 does not match mask element count 2"
     );
+}
+
+#[test]
+fn empty_slice_returns_typed_error() {
+    assert_eq!(
+        compute_statistics_from_slice(&[], 0),
+        Err(crate::StatisticsError::EmptyInput)
+    );
+}
+
+#[test]
+fn ddof_must_leave_a_positive_divisor() {
+    assert_eq!(
+        compute_statistics_from_slice(&[42.0], 1),
+        Err(crate::StatisticsError::DegreesOfFreedomOutOfRange {
+            sample_count: 1,
+            ddof: 1
+        })
+    );
+}
+
+#[test]
+fn sample_standard_deviation_uses_n_minus_ddof() {
+    let statistics =
+        compute_statistics_from_slice(&[1.0, 2.0, 3.0, 4.0], 1).expect("N is greater than ddof");
+    let expected = (5.0_f32 / 3.0).sqrt();
+    assert!(
+        (statistics.std - expected).abs() <= 8.0 * f32::EPSILON,
+        "sample std {} differs from analytical {expected}",
+        statistics.std
+    );
+}
+
+#[test]
+fn non_finite_sample_reports_its_index() {
+    assert_eq!(
+        compute_statistics_from_slice(&[1.0, f32::INFINITY, 3.0], 0),
+        Err(crate::StatisticsError::NonFiniteSample {
+            index: 1,
+            value: f32::INFINITY
+        })
+    );
+}
+
+#[test]
+fn masked_slice_rejects_non_finite_mask_sample() {
+    let error = super::masked_statistics_from_slices(&[1.0, 2.0], &[1.0, f32::NAN], 0)
+        .expect_err("NaN mask value must be rejected");
+    assert!(matches!(
+        error,
+        crate::StatisticsError::NonFiniteMaskSample { index: 1, value }
+            if value.is_nan()
+    ));
 }
 
 // ── Large-N f64-accumulation precision ────────────────────────────────────
@@ -289,7 +332,7 @@ fn test_large_n_ct_scale_mean_precision() {
         .collect();
 
     // Use the slice-input API for the large-N precision check.
-    let s = compute_statistics_from_slice(&data, 0);
+    let s = compute_statistics_from_slice(&data, 0).expect("valid statistics input");
 
     let expected_mean = 511.5_f32;
     assert!(
@@ -311,7 +354,7 @@ fn test_large_n_negative_mean_precision() {
     let constant = -789.0_f32;
     let data = vec![constant; n];
 
-    let s = compute_statistics_from_slice(&data, 0);
+    let s = compute_statistics_from_slice(&data, 0).expect("valid statistics input");
 
     assert!(
         (s.mean - constant).abs() < 1.0,

@@ -20,6 +20,8 @@
 
 # Part II — Image Processing Pipeline
 
+- [Descriptive Statistics and Histograms](descriptive_statistics.md)
+  - [Example: Full-image and Masked Distributions](examples/descriptive_statistics.md)
 - [Intensity Transformations](intensity_transforms.md)
   - [Example: Windowing and Rescaling](examples/windowing_rescale.md)
   - [Example: Complete Processing Pipeline](examples/processing_pipeline.md)

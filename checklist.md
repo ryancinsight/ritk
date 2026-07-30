@@ -13,6 +13,40 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## SAFE-682-01 — Fallible descriptive statistics and histograms
+**Target version**: Next major release
+**Sprint phase**: Closure
+
+- [x] Reconcile origin, worktrees, peer-owned dirt, current statistics/book
+      coverage, callers, and panic/non-finite failure modes.
+- [x] Record the typed public error boundary and finite-input contract in ADR
+      0014; update all in-repository callers without a compatibility wrapper.
+- [x] Replace empty-input, empty-foreground, shape, histogram-bin/range, and
+      non-finite panic or silent-corruption paths with typed errors.
+- [x] Preserve f64 accumulation, percentile ranks, one-workspace slice
+      allocation, and foreground-buffer reuse; add analytical, boundary, and
+      adversarial value-semantic tests.
+- [x] Map invalid Python inputs to `ValueError` and verify Python-visible
+      messages and values.
+- [x] Add a runnable Rust example, generated distribution figure, statistics
+      chapter, worked example, and CI figure regeneration.
+- [x] Render and inspect the figure; cross-check histogram totals, mean,
+      median, quartiles, and masked/full differences against raw example data.
+- [x] Run local formatting, focused warning-denied Clippy, Nextest, doctest,
+      Rustdoc, mdBook, semantic-version, and example-runtime gates. Evidence:
+      341/341 Nextest, 15/15 Python binding tests, statistics all-target
+      warning-denied Clippy, two doctests, warning-denied Rustdoc, mdBook
+      test/build, the deterministic example, and the declared-major semantic
+      check against `7c2f2ac5` pass.
+- [x] Classify the broader local Python Clippy result. It is an accepted
+      pre-existing provider-overlay exception: the command reaches
+      `ritk-filter`'s unrelated `missing_const_for_thread_local` diagnostic,
+      while the exact provider-pinned hosted workspace Clippy gate passes.
+- [x] Run exact-code-head hosted gates. CI `30527279931`, all 13 Python lanes
+      in `30527280041`, and mdBook build `30527279966` pass at `08ba5e4e`.
+- [x] Reconcile CHANGELOG, audit, backlog, and checklist evidence; commit,
+      push, and complete review in PR #76.
+
 ## SAFE-681-01 — Harden and document the native JPEG-LS codec
 **Target version**: Next major release
 **Sprint phase**: Closure

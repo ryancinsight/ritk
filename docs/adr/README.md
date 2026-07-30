@@ -19,3 +19,4 @@ consequences of a single design choice.
 - [ADR 0011 — Iris visualization provider](0011-iris-visualization-provider.md)
 - [ADR 0012 — Fallible native JPEG 2000 encoder](0012-fallible-jpeg-2000-encoder.md)
 - [ADR 0013 — Fallible native JPEG-LS encoder and rolling reconstruction rows](0013-fallible-jpeg-ls-encoder.md)
+- [ADR 0014 — Fallible finite descriptive statistics](0014-fallible-descriptive-statistics.md)
