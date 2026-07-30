@@ -5,8 +5,36 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **SAFE-680-01 [major] - Make JPEG 2000 encoding fallible and document the
+  native codec** (IN PROGRESS; owner=Codex; scope=
+  `crates/ritk-codecs/{Cargo.toml,src/{lib.rs,jpeg_2000/{encoder.rs,
+  packet/writer.rs,tests.rs}},examples/book_jpeg_2000.rs,
+  tests/jpeg2000_interop.rs,benches/codec_throughput.rs}`,
+  `crates/ritk-io/src/format/dicom/codec/tests/jpeg2000.rs`,
+  `docs/book/{SUMMARY.md,jpeg_2000_codec.md,examples/jpeg_2000_codec.md,
+  figures/jpeg_2000_codec.svg}`, `.github/workflows/book-pages.yml`,
+  `docs/adr/{0012-fallible-jpeg-2000-encoder.md,README.md}`, `CHANGELOG.md`,
+  and PM artifacts; non-goal=color-component encoding, rate control, JP2
+  containers, or release/deploy). The public grayscale encoder asserts
+  input-dependent dimensions and precision, computes `rows * cols` without
+  checked arithmetic, accepts samples outside the declared component range,
+  and allocates a complete DC-shifted image before allocating the transform
+  buffer. Replace the panic contract with a typed `Result`, validate geometry,
+  precision, decomposition depth, and sample range before encoding, and apply
+  the DC shift while constructing the single transform buffer. Add a bounded
+  public-API example and inspected figure that explain reversible 5/3
+  encoding, codestream size, exact reconstruction, and malformed-input
+  rejection. Acceptance: invalid external inputs return contextual errors
+  without panic or partial output; reversible native and captured OpenJPEG
+  cases remain value-exact; the unchanged 512x512 five-level Criterion
+  workload detects no regression; one full-image allocation is removed; crate
+  and book claims match the implemented multi-level 5/3 and 9/7 support; the
+  example stays within the committed runtime budget; and formatting,
+  warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook, semantic-version,
+  and hosted gates pass.
+
 - **PERF-678-01 [patch] - Eliminate tag-tree path allocations**
-  (REVIEW; owner=Codex; scope=
+  (DONE; owner=Codex; scope=
   `crates/ritk-codecs/src/jpeg_2000/tag_tree.rs`, `CHANGELOG.md`, and PM
   artifacts; non-goal=tag-tree representation changes, public API changes,
   or codec release). Every tag-tree encode/decode operation currently
@@ -25,7 +53,8 @@
   codec tests pass, including the 190-case captured OpenJPEG corpus. The
   unchanged encode median improves from 54.353 ms to 52.511 ms (3.39%,
   p < 0.05); decode changes from 52.363 ms to 52.418 ms (p = 0.89), detecting
-  no decode latency change.
+  no decode latency change. PR #71 merged as `007b3048` from exact head
+  `9903fb0d`.
 
 - **PERF-677-01 [patch] - Reuse reversible wavelet workspace**
   (DONE; owner=Codex; scope=

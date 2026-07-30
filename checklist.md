@@ -13,6 +13,33 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## SAFE-680-01 — Make JPEG 2000 encoding fallible and document the native codec
+**Target version**: Next major release
+**Sprint phase**: Foundation
+
+- [x] Reconcile `origin/main`, the active PR/worktree lane, peer-owned dirt,
+      codec implementation, book coverage, and official JPEG 2000/DICOM
+      contracts.
+- [ ] Record the fallible public encoder boundary in ADR 0012 and update every
+      in-repository caller without a compatibility wrapper.
+- [ ] Validate dimensions, precision, decomposition depth, and declared sample
+      range before allocation or arithmetic.
+- [ ] Fold the unsigned DC shift into construction of the transform buffer,
+      removing the separate full-image allocation.
+- [ ] Add positive, negative, boundary, and adversarial value-semantic tests;
+      preserve captured OpenJPEG interoperability.
+- [ ] Capture matched Criterion measurements on the unchanged 512x512
+      five-level workload and reject a statistically significant regression.
+- [ ] Add a runnable public-API example, generated figure, native-codec
+      chapter, and CI figure regeneration.
+- [ ] Render and inspect the figure; verify source/reconstruction/error values
+      against the example's analytical oracle.
+- [ ] Run focused and full formatting, warning-denied Clippy, Nextest,
+      doctest, Rustdoc, mdBook, and semantic-version gates.
+- [ ] Self-review, commit, push, open a draft PR, and collect exact-head hosted
+      gates. Merge remains outside this slice because documentation changes
+      trigger Pages deployment.
+
 ## PERF-678-01 — Eliminate tag-tree path allocations
 **Target version**: Unreleased patch
 **Sprint phase**: Execution
@@ -33,7 +60,8 @@
       warning-denied Rustdoc gates.
 - [x] Self-review the exact delivered diff and exclude overlay-derived
       lockfile rewrites.
-- [ ] Commit, push, and merge after hosted gates pass.
+- [x] Commit, push, and merge after hosted gates pass. PR #71 merged as
+      `007b3048` from exact head `9903fb0d`.
 
 ## PERF-677-01 — Reuse reversible wavelet workspace
 **Target version**: Unreleased patch
