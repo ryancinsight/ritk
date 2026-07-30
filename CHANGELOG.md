@@ -8,6 +8,44 @@
 
 # CHANGELOG
 
+## [Unreleased] — Safe temporal synchronization (SAFE-683-01)
+
+### Breaking
+
+- Temporal synchronization now returns
+  `Result<TemporalSyncResult, TemporalSyncError>` instead of a tuple and
+  validates construction through `TemporalSyncConfig::try_new`. The result
+  separates timing, signal-residual, overlap, correlation, and acceptance
+  status. See
+  [ADR 0015](docs/adr/0015-fallible-temporal-synchronization.md).
+
+### Changed
+
+- Use overlap-normalized Pearson correlation with a documented positive-lag
+  convention, deterministic ties, and bounded three-point fractional peak
+  refinement.
+- Reject invalid spacing, search ranges, thresholds, lengths, non-finite
+  samples, and unidentifiable constant signals with contextual typed errors.
+- Scan for the best lag with constant-size search scratch. Full correlation
+  storage is now an explicit diagnostic operation over the same kernel.
+- Compute residual RMS and maximum error from linearly interpolated valid
+  overlap and report them in signal-amplitude units.
+- Add a runnable temporal-alignment example, generated four-panel figure,
+  worked chapter, and CI figure regeneration.
+
+### Performance
+
+- On the unchanged 4,096-sample, ±64-frame Criterion workload, synchronization
+  improves from 9.920 ms to 3.756 ms median (62.1%). The measured 95%
+  intervals are 9.884–9.954 ms before and 3.627–3.910 ms after.
+
+### Tests
+
+- Cover integer and fractional delays, lag-sign symmetry, positive affine
+  intensity invariance, threshold classification, streaming/profile
+  equivalence, interpolated residual accounting, invalid configuration,
+  non-finite samples, and unidentifiable inputs.
+
 ## [Unreleased] — Fallible descriptive statistics (SAFE-682-01)
 
 ### Breaking

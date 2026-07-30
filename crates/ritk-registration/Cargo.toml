@@ -69,3 +69,7 @@ path = "examples/dl_registration.rs"
 [[example]]
 name = "dl_train"
 path = "examples/dl_train.rs"
+
+[[example]]
+name = "book_temporal_sync"
+path = "examples/book_temporal_sync.rs"

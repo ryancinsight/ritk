@@ -12,8 +12,9 @@
   engine/registration.rs,mod.rs}`, affected validation and crate exports,
   `crates/ritk-registration/{benches/temporal_sync.rs,
   examples/book_temporal_sync.rs,Cargo.toml}`,
-  `docs/book/{SUMMARY.md,classical_registration.md,
-  examples/temporal_sync.md,figures/temporal_sync.svg}`,
+  `docs/book/{SUMMARY.md,temporal_synchronization.md,
+  examples/temporal_synchronization.md,
+  figures/temporal_synchronization.svg}`,
   `.github/workflows/book-pages.yml`,
   `docs/adr/{0015-fallible-temporal-synchronization.md,README.md}`,
   `CHANGELOG.md`, `gap_audit.md`, and PM artifacts; non-goal=unequal-rate

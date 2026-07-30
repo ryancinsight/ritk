@@ -15,29 +15,29 @@
 
 ## SAFE-683-01 — Safe temporal synchronization
 **Target version**: Next major release
-**Sprint phase**: Foundation
+**Sprint phase**: Closure
 
 - [x] Reconcile merged main, worktrees, peer-owned dirt, current temporal API,
       callers, tests, book coverage, panic paths, dimensional errors,
       allocation topology, and the unresolved reference.
-- [ ] Record the validated configuration, typed result/status/error,
+- [x] Record the validated configuration, typed result/status/error,
       correlation-profile, sign, residual-unit, overlap, and interpolation
       contracts in ADR 0015; update all in-repository callers without a
       compatibility wrapper.
-- [ ] Add analytical and adversarial tests for integer/fractional shifts,
+- [x] Add analytical and adversarial tests for integer/fractional shifts,
       swap-sign symmetry, positive affine-intensity invariance, configured
       threshold behavior, invalid configuration, non-finite input, and
       unidentifiable signals.
-- [ ] Replace lag-profile allocation in `synchronize` with constant search
+- [x] Replace lag-profile allocation in `synchronize` with constant search
       scratch; retain an explicit diagnostic-profile API over the same kernel
       and prove differential equivalence.
-- [ ] Compute aligned residuals by sub-sample interpolation over valid overlap
+- [x] Compute aligned residuals by sub-sample interpolation over valid overlap
       and report them in signal units with exact overlap count.
-- [ ] Profile and benchmark the unchanged temporal workload; retain the
+- [x] Profile and benchmark the unchanged temporal workload; retain the
       stronger structure only if latency does not regress.
-- [ ] Add a deterministic Rust example, generated temporal figure, worked
+- [x] Add a deterministic Rust example, generated temporal figure, worked
       book example, chapter extension, and CI figure regeneration.
-- [ ] Render and inspect the figure; cross-check lag sign, true/estimated
+- [x] Render and inspect the figure; cross-check lag sign, true/estimated
       shift, peak correlation, overlap, aligned residuals, and status against
       raw example data.
 - [ ] Run formatting, warning-denied Clippy, Nextest, doctest, Rustdoc,
