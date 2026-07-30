@@ -58,6 +58,10 @@ harness = false
 name = "lddmm_smoothing"
 harness = false
 
+[[bench]]
+name = "temporal_sync"
+harness = false
+
 [[example]]
 name = "dl_registration"
 path = "examples/dl_registration.rs"
