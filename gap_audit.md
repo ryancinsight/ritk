@@ -13,6 +13,62 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## SAFE-683-01 audit (2026-07-30)
+
+The temporal synchronizer accepted invalid frame spacing and thresholds,
+panicked on non-finite samples, classified constant signals as synchronized,
+ignored its configured minimum correlation, allocated complete lag and
+correlation arrays to retain one peak, and labeled signal-residual magnitudes
+as seconds.
+
+One validated configuration and typed result/error boundary now owns these
+contracts. Lagged Pearson correlation uses overlap-specific means and
+normalization. Positive lag means the moving signal is delayed and is aligned
+by sampling at `reference_index + shift_frames`. Deterministic peak selection
+and bounded three-point parabolic refinement produce the sub-frame estimate.
+Below-threshold correlation is a quality status that preserves the measured
+shift; malformed or unidentifiable inputs are typed failures.
+
+The normal synchronization path retains only the best peak and adjacent
+samples, so search scratch is constant-size. The explicitly allocated
+`correlation_profile` operation uses the same correlation kernel and is
+differentially tested against streaming selection. Residual RMS and maximum
+error use linearly interpolated valid overlap, report signal-amplitude units,
+and expose the exact overlap denominator.
+
+The unchanged 4,096-sample, ±64-frame Criterion workload improves from
+9.920 ms to 3.756 ms median. The measured 95% intervals are
+9.884–9.954 ms before and 3.627–3.910 ms after, a 62.1% median reduction.
+This is workload-specific latency evidence; it is not a whole-application
+speed or allocation-count claim.
+
+Focused Nextest passes all 11 temporal tests in 0.078 seconds. The tests cover
+integer and fractional delays, sign symmetry, positive affine-intensity
+invariance, threshold status, streaming/profile equivalence, interpolated
+residual accounting, invalid configuration, non-finite samples, and constant
+signals. Target-only warning-denied all-target Clippy, two compiled doctests,
+Rustdoc, mdBook build, and the 2.291-second direct example run pass. Broader
+local Clippy reaches a pre-existing `missing_const_for_thread_local`
+diagnostic in `ritk-filter/src/morphology/mod.rs`. The standalone declared-
+major semantic-version attempt gets past the Atlas overlay but fails before
+API comparison while `aws-lc-sys` compiles under the local Windows GNU
+toolchain. Exact code head `07989fa5` passes Rustfmt, warning-denied Clippy,
+dependency alignment, wheel smoke, and Linux/macOS/Windows Nextest in CI
+`30534530687`; all 13 Python 3.9-3.13 platform lanes pass in `30534530713`;
+and mdBook build `30534530699` passes. CodeRabbit's checklist-consistency and
+Rustdoc findings are addressed in `07989fa5`; its exact-head rereview was rate
+limited. The external `recurseml/analysis` service earlier returned an
+analysis error without a repository log or actionable finding.
+
+The deterministic 240-sample example contains a known 7.250-frame delay and
+estimates 7.253 frames at correlation 0.9996. Interpolated overlap is 232 of
+240 samples; residual RMS falls from 0.5729 to 0.0081, a 98.6% reduction.
+The before, correlation-search, after, residual, and summary panels were
+rendered and inspected. Visual review added amplitude and sample-index axes,
+lag ticks, threshold labeling, discrete correlation samples, residual scale,
+and explicit signal-unit labeling. The regenerated SVG has SHA-256
+`4497DBA72901DE904BD67E952BC42B5F5065A263912B6E0A3803457C547ACBBC`.
+
 ## SAFE-682-01 audit (2026-07-30)
 
 The descriptive-statistics slice API indexed an empty input, masked

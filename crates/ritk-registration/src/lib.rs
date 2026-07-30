@@ -109,8 +109,9 @@ pub use atlas::{AtlasConfig, AtlasRegistration, AtlasResult, SubjectResult};
 // ============================================================================
 pub use classical::{
     register_translation, ImageRegistration, MeanSquaredDifference, NormalizedCrossCorrelation,
-    RegistrationQualityMetrics, RegistrationResult, SpatialTransform, TemporalQualityMetrics,
-    TemporalSync, TranslationMetric, TranslationRegistrationError,
+    RegistrationQualityMetrics, RegistrationResult, SpatialTransform, TemporalCorrelationSample,
+    TemporalSignal, TemporalSync, TemporalSyncConfig, TemporalSyncError, TemporalSyncResult,
+    TemporalSyncStatus, TranslationMetric, TranslationRegistrationError,
 };
 
 // ============================================================================

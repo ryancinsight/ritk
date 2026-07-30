@@ -5,6 +5,48 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **SAFE-683-01 [major] - Make temporal synchronization safe,
+  dimensionally correct, allocation-efficient, and teachable** (DONE;
+  owner=Codex; last-update=2026-07-30; scope=
+  `crates/ritk-registration/src/classical/{temporal/**,
+  engine/registration.rs,mod.rs}`, affected validation and crate exports,
+  `crates/ritk-registration/{benches/temporal_sync.rs,
+  examples/book_temporal_sync.rs,Cargo.toml}`,
+  `docs/book/{SUMMARY.md,temporal_synchronization.md,
+  examples/temporal_synchronization.md,
+  figures/temporal_synchronization.svg}`,
+  `.github/workflows/book-pages.yml`,
+  `docs/adr/{0015-fallible-temporal-synchronization.md,README.md}`,
+  `CHANGELOG.md`, `gap_audit.md`, and PM artifacts; non-goal=unequal-rate
+  resampling, dynamic time warping, FFT acceleration, external datasets,
+  release, or deployment). The public synchronizer can panic on non-finite
+  samples, accepts invalid frame spacing and thresholds, reports constant
+  signals as successful, ignores `min_correlation`, allocates complete lag
+  and correlation arrays to retain only one peak, and labels signal-residual
+  magnitudes as seconds. Replace the tuple and misleading metric surface with
+  typed temporal results, status, configuration, and errors; validate finite
+  and identifiable inputs; stream peak selection with constant search
+  scratch; expose an explicitly allocated diagnostic profile from the same
+  correlation kernel; compute overlap-counted interpolated residuals in
+  signal units; and update every in-repository caller without a compatibility
+  wrapper. Replace the unresolved Fowler citation with verified
+  cross-correlation and sub-sample delay sources. Add a deterministic
+  public-API example and inspected figure showing delayed signals, lag
+  profile, aligned traces, residuals, shift, correlation, overlap, and
+  acceptance status. Acceptance: analytical integer and fractional shifts,
+  swap-sign symmetry, positive affine-intensity invariance, typed invalid
+  configuration/input/flat-signal errors, configured-threshold behavior, and
+  streaming-versus-profile differential tests pass; residual units and
+  overlap are exact; the synchronized hot path performs no lag-profile
+  allocation; an unchanged Criterion workload detects no latency regression;
+  displayed metrics agree with example data; and formatting,
+  warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook, example-runtime,
+  and hosted gates pass; any semantic-version environment limitation is
+  classified with its exact blocker. Exact code head `07989fa5` passes CI
+  `30534530687`, all 13 Python lanes in `30534530713`, and mdBook build
+  `30534530699`. CodeRabbit's checklist and Rustdoc findings are addressed in
+  `07989fa5`; its exact-head rereview was rate limited.
+
 - **SAFE-682-01 [major] - Make descriptive statistics and histograms
   fallible, finite, and teachable** (DONE; owner=Codex;
   last-update=2026-07-30; scope=`crates/ritk-statistics/src/{error.rs,

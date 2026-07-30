@@ -1,274 +1,112 @@
-//! Temporal synchronization via cross-correlation phase estimation
-//! (Sprint 354 split, ARCH-350-04).
+//! Temporal synchronization by lagged Pearson cross-correlation.
 //!
-//! Provides deterministic algorithms for aligning multi-modal temporal
-//! acquisitions using phase-correlation and cross-correlation techniques.
+//! For each integer lag `k`, the algorithm evaluates Pearson-normalized
+//! correlation over the valid signal overlap. Positive `k` means the moving
+//! signal is delayed, so residual evaluation samples it at
+//! `reference_index + k`. The selected integer peak is refined with a bounded
+//! three-point parabola when both adjacent correlations are identifiable.
 //!
-//! # Theorem: Phase Correlation for Temporal Alignment
-//!
-//! Given two temporal signals S₁(t) and S₂(t) with a temporal offset Δt:
-//! ```text
-//! R(τ) = Σ S₁(i) · S₂(i + τ)
-//! τ* = argmax_τ R(τ)
-//! Δt = τ* · T_frame
-//! ```
-//!
-//! For sub-sample precision, a parabolic fit around the peak is used:
-//! ```text
-//! τ_peak = τ₀ + (R(τ₀-1) - R(τ₀+1)) / (2 · (R(τ₀-1) - 2·R(τ₀) + R(τ₀+1)))
-//! ```
-//!
-//! # References
-//!
-//! - Fowler, J., et al. (2010). Cross-correlation-based image alignment for
-//!   medical imaging. *IEEE Trans. Med. Imaging* 29(3): 597-606.
+//! The method and lag convention follow Xiao, Ding, and Hu, *Journal of
+//! Imaging* 8(5), 120 (2022), Section 2.3, Equation 1, and Algorithm 1:
+//! <https://pmc.ncbi.nlm.nih.gov/articles/PMC9145353/#sec2dot3-jimaging-08-00120>.
+//! The sub-sample estimate is an interpolation, not an exact reconstruction;
+//! its bias is characterized by Céspedes et al., *Ultrasonic Imaging* 17(2),
+//! 142–171 (1995): <https://doi.org/10.1006/uimg.1995.1007>.
 
 use leto::Array1;
 
-use super::super::error::{RegistrationError, Result};
 use super::config::TemporalSyncConfig;
-use super::quality::{compute_success_rate, compute_timing_errors};
-use crate::validation::TemporalQualityMetrics;
+use super::correlation::{correlation_profile, find_peak, validate_signals};
+use super::error::Result;
+use super::quality::aligned_residual_metrics;
+use super::result::{TemporalCorrelationSample, TemporalSyncResult, TemporalSyncStatus};
 
-/// Variance floor for correlation-based synchrony metrics.
-const SIGNAL_VARIANCE_GUARD: f64 = 1e-10;
-
-/// Temporal synchronization using cross-correlation phase estimation.
-///
-/// Aligns temporal signals from multi-modal acquisitions (e.g., MRI and PET
-/// with different slice timing) using sub-sample accurate cross-correlation.
+/// Temporal synchronization using normalized cross-correlation.
 #[derive(Debug, Clone)]
 pub struct TemporalSync {
-    pub(crate) config: TemporalSyncConfig,
+    config: TemporalSyncConfig,
 }
 
 impl TemporalSync {
-    /// Create a new TemporalSync with default configuration.
+    /// Create a synchronizer with the validated default configuration.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             config: TemporalSyncConfig::default(),
         }
     }
 
-    /// Create with explicit configuration.
-    pub fn with_config(config: TemporalSyncConfig) -> Self {
+    /// Create a synchronizer with an explicit validated configuration.
+    #[must_use]
+    pub const fn with_config(config: TemporalSyncConfig) -> Self {
         Self { config }
     }
 
-    /// Synchronize two temporal signals by computing the optimal temporal shift.
+    /// Return the active configuration.
+    #[must_use]
+    pub const fn config(&self) -> &TemporalSyncConfig {
+        &self.config
+    }
+
+    /// Estimate the moving signal's delay relative to the reference.
     ///
-    /// Returns the shift in seconds and quality metrics.
+    /// Peak search uses constant scratch space. Use
+    /// [`Self::correlation_profile`] only when an allocated diagnostic profile
+    /// is required.
     ///
-    /// # Arguments
+    /// # Errors
     ///
-    /// * `signal1` - Reference temporal signal
-    /// * `signal2` - Moving temporal signal to align to signal1
-    ///
-    /// # Returns
-    ///
-    /// Tuple of (shift_seconds, temporal_metrics)
+    /// Returns [`super::error::TemporalSyncError`] for mismatched or short inputs,
+    /// non-finite samples, unidentifiable zero-variance signals, or when no
+    /// searched overlap has a defined correlation.
     pub fn synchronize(
         &self,
-        signal1: &Array1<f64>,
-        signal2: &Array1<f64>,
-    ) -> Result<(f64, TemporalQualityMetrics)> {
-        if signal1.size() != signal2.size() {
-            return Err(RegistrationError::InvalidInput(
-                "Signals must have equal length".to_string(),
-            ));
-        }
-
-        if signal1.size() < 3 {
-            return Err(RegistrationError::InvalidInput(
-                "Signals must have at least 3 samples".to_string(),
-            ));
-        }
-
-        // ── Degenerate case: constant signals ─────────────────────────────────
-        // Constant signals have zero variance; normalized cross-correlation is
-        // undefined.  Treat two identical constants as perfectly synchronized.
-        let variance1: f64 = {
-            let n = signal1.size() as f64;
-            let mean = leto::sum_all(signal1).unwrap_or(0.0) / n;
-            signal1.iter().map(|&v| (v - mean).powi(2)).sum::<f64>() / n
-        };
-        let variance2: f64 = {
-            let n = signal2.size() as f64;
-            let mean = leto::sum_all(signal2).unwrap_or(0.0) / n;
-            signal2.iter().map(|&v| (v - mean).powi(2)).sum::<f64>() / n
-        };
-        if variance1 < SIGNAL_VARIANCE_GUARD && variance2 < SIGNAL_VARIANCE_GUARD {
-            // Both constant: synchronization is trivially zero shift.
-            // Success = 1.0 iff both are the same constant value.
-            let identical = (*signal1.get([0]).unwrap_or(&0.0) - *signal2.get([0]).unwrap_or(&0.0))
-                .abs()
-                < SIGNAL_VARIANCE_GUARD;
-            let rate = if identical { 1.0 } else { 0.0 };
-            return Ok((
-                0.0,
-                TemporalQualityMetrics {
-                    rms_timing_error: 0.0,
-                    max_timing_deviation: 0.0,
-                    phase_lock_stability: rate,
-                    sync_success_rate: rate,
-                },
-            ));
-        }
-
-        // Compute cross-correlation at integer lags
-        let (lags, correlations) = self.compute_cross_correlation_function(signal1, signal2);
-
-        // Find peak correlation
-        let (peak_idx, _peak_corr) = correlations
-            .iter()
-            .enumerate()
-            .max_by(|(_, a), (_, b)| {
-                a.partial_cmp(b)
-                    .expect("NaN in metric comparison for max_by")
-            })
-            .ok_or_else(|| {
-                RegistrationError::NumericalFailure("No correlation peak found".to_string())
-            })?;
-
-        // Parabolic sub-sample refinement around peak
-        let shift_frames = if peak_idx > 0 && peak_idx < correlations.size() - 1 {
-            let r_m1 = *correlations.get([peak_idx - 1]).expect("valid index");
-            let r_0 = *correlations.get([peak_idx]).expect("valid index");
-            let r_p1 = *correlations.get([peak_idx + 1]).expect("valid index");
-
-            let denom = r_m1 - 2.0 * r_0 + r_p1;
-            if denom.abs() > SIGNAL_VARIANCE_GUARD {
-                let delta = (r_m1 - r_p1) / (2.0 * denom);
-                (*lags.get([peak_idx]).expect("valid index") as f64) + delta
-            } else {
-                *lags.get([peak_idx]).expect("valid index") as f64
+        reference: &Array1<f64>,
+        moving: &Array1<f64>,
+    ) -> Result<TemporalSyncResult> {
+        validate_signals(reference, moving)?;
+        let peak = find_peak(reference, moving, self.config.search_range_frames())?;
+        let residuals = aligned_residual_metrics(reference, moving, peak.lag_frames);
+        let minimum_correlation = self.config.minimum_correlation();
+        let status = if peak.correlation >= minimum_correlation {
+            TemporalSyncStatus::Accepted
+        } else {
+            TemporalSyncStatus::BelowMinimumCorrelation {
+                minimum_correlation,
             }
-        } else {
-            *lags.get([peak_idx]).expect("valid index") as f64
         };
 
-        let shift_seconds = shift_frames * self.config.frame_spacing;
-
-        // Compute timing errors (delegated to quality module)
-        let (rms_error, max_deviation) = compute_timing_errors(signal1, signal2, shift_frames);
-
-        // Phase lock stability: the peak normalized cross-correlation value.
-        // For perfectly identical non-constant signals this equals 1.0.
-        // For partially correlated signals it falls in [0, 1).
-        let stability = (*correlations.get([peak_idx]).expect("valid index")).max(0.0);
-
-        // Success rate based on stability and deviation thresholds (delegated)
-        let sync_success_rate = compute_success_rate(stability, max_deviation, &self.config);
-
-        let metrics = TemporalQualityMetrics {
-            rms_timing_error: rms_error,
-            max_timing_deviation: max_deviation,
-            phase_lock_stability: stability,
-            sync_success_rate,
-        };
-
-        Ok((shift_seconds, metrics))
+        Ok(TemporalSyncResult::new(
+            peak.lag_frames,
+            peak.lag_frames * self.config.frame_spacing_seconds(),
+            peak.correlation,
+            residuals.overlap_samples,
+            residuals.rms,
+            residuals.max_abs,
+            status,
+        ))
     }
 
-    /// Compute cross-correlation function R(τ) for τ ∈ [-search_range, +search_range].
-    fn compute_cross_correlation_function(
-        &self,
-        signal1: &Array1<f64>,
-        signal2: &Array1<f64>,
-    ) -> (Array1<i32>, Array1<f64>) {
-        let n = signal1.size();
-        let search = self.config.search_range.min(n / 2);
-
-        let mut lags = Vec::with_capacity(2 * search + 1);
-        let mut correlations = Vec::with_capacity(2 * search + 1);
-
-        for lag in -(search as i32)..=(search as i32) {
-            lags.push(lag);
-
-            let corr = if lag == 0 {
-                self.compute_normalized_correlation(signal1, signal2)
-            } else if lag > 0 {
-                self.compute_lagged_correlation(signal1, signal2, lag as usize)
-            } else {
-                self.compute_lagged_correlation(signal2, signal1, (-lag) as usize)
-            };
-            correlations.push(corr);
-        }
-
-        let lags_len = lags.len();
-        let corr_len = correlations.len();
-        (
-            Array1::from_vec([lags_len], lags).expect("valid dimension"),
-            Array1::from_vec([corr_len], correlations).expect("valid dimension"),
-        )
-    }
-
-    /// Compute normalized cross-correlation between two signals.
+    /// Allocate the normalized correlation profile over the configured lags.
     ///
-    /// R = Σ(S1 - μ1)(S2 - μ2) / (N · σ1 · σ2)
-    fn compute_normalized_correlation(&self, s1: &Array1<f64>, s2: &Array1<f64>) -> f64 {
-        let n = s1.size() as f64;
-
-        let mean1 = leto::sum_all(s1).unwrap_or(0.0) / n;
-        let mean2 = leto::sum_all(s2).unwrap_or(0.0) / n;
-
-        let mut cov = 0.0;
-        let mut var1 = 0.0;
-        let mut var2 = 0.0;
-
-        for i in 0..s1.size() {
-            let d1 = *s1.get([i]).expect("valid index") - mean1;
-            let d2 = *s2.get([i]).expect("valid index") - mean2;
-            cov += d1 * d2;
-            var1 += d1 * d1;
-            var2 += d2 * d2;
-        }
-
-        let denom = (var1 * var2).sqrt();
-        if denom < SIGNAL_VARIANCE_GUARD {
-            0.0
-        } else {
-            cov / denom
-        }
-    }
-
-    /// Compute normalized cross-correlation with a temporal lag.
-    fn compute_lagged_correlation(&self, s1: &Array1<f64>, s2: &Array1<f64>, lag: usize) -> f64 {
-        let n = s1.size() - lag;
-        if n == 0 {
-            return 0.0;
-        }
-
-        let n_f = n as f64;
-
-        // Compute means for overlapping region
-        let mut sum1 = 0.0;
-        let mut sum2 = 0.0;
-        for i in 0..n {
-            sum1 += *s1.get([i]).expect("valid index");
-            sum2 += *s2.get([i + lag]).expect("valid index");
-        }
-        let mean1 = sum1 / n_f;
-        let mean2 = sum2 / n_f;
-
-        // Compute covariance and variances
-        let mut cov = 0.0;
-        let mut var1 = 0.0;
-        let mut var2 = 0.0;
-        for i in 0..n {
-            let d1 = *s1.get([i]).expect("valid index") - mean1;
-            let d2 = *s2.get([i + lag]).expect("valid index") - mean2;
-            cov += d1 * d2;
-            var1 += d1 * d1;
-            var2 += d2 * d2;
-        }
-
-        let denom = (var1 * var2).sqrt();
-        if denom < SIGNAL_VARIANCE_GUARD {
-            0.0
-        } else {
-            cov / denom
-        }
+    /// A sample has no correlation when its local overlap is constant. The
+    /// synchronizer ignores such samples during peak selection.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`super::error::TemporalSyncError`] under the same input
+    /// validation contract as [`Self::synchronize`].
+    pub fn correlation_profile(
+        &self,
+        reference: &Array1<f64>,
+        moving: &Array1<f64>,
+    ) -> Result<Box<[TemporalCorrelationSample]>> {
+        validate_signals(reference, moving)?;
+        Ok(correlation_profile(
+            reference,
+            moving,
+            self.config.search_range_frames(),
+        ))
     }
 }
 

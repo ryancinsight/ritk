@@ -49,6 +49,8 @@
   - [Example: Geometry Validation](examples/geometry_check.md)
   - [Example: DL Registration](examples/dl_registration.md)
   - [Example: DL Training](examples/dl_train.md)
+- [Temporal Signal Synchronization](temporal_synchronization.md)
+  - [Example: Before and After Temporal Alignment](examples/temporal_synchronization.md)
 - [Multi-modal Registration](multi_modal_registration.md)
   - [Example: CT/MR Mutual-Information Registration](examples/registration_compare_figure.md)
 - [Deformable Registration](demons_registration.md)

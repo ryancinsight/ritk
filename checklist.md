@@ -13,6 +13,43 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## SAFE-683-01 — Safe temporal synchronization
+**Target version**: Next major release
+**Sprint phase**: Closure
+
+- [x] Reconcile merged main, worktrees, peer-owned dirt, current temporal API,
+      callers, tests, book coverage, panic paths, dimensional errors,
+      allocation topology, and the unresolved reference.
+- [x] Record the validated configuration, typed result/status/error,
+      correlation-profile, sign, residual-unit, overlap, and interpolation
+      contracts in ADR 0015; update all in-repository callers without a
+      compatibility wrapper.
+- [x] Add analytical and adversarial tests for integer/fractional shifts,
+      swap-sign symmetry, positive affine-intensity invariance, configured
+      threshold behavior, invalid configuration, non-finite input, and
+      unidentifiable signals.
+- [x] Replace lag-profile allocation in `synchronize` with constant search
+      scratch; retain an explicit diagnostic-profile API over the same kernel
+      and prove differential equivalence.
+- [x] Compute aligned residuals by sub-sample interpolation over valid overlap
+      and report them in signal units with exact overlap count.
+- [x] Profile and benchmark the unchanged temporal workload; retain the
+      stronger structure only if latency does not regress.
+- [x] Add a deterministic Rust example, generated temporal figure, worked
+      book example, chapter extension, and CI figure regeneration.
+- [x] Render and inspect the figure; cross-check lag sign, true/estimated
+      shift, peak correlation, overlap, aligned residuals, and status against
+      raw example data.
+- [x] Run target formatting, warning-denied Clippy, focused Nextest, doctest,
+      Rustdoc, mdBook, benchmark, and example-runtime gates.
+- [x] Classify the standalone declared-major semantic-version limitation. The
+      command gets past the Atlas overlay but fails before API comparison while
+      unrelated `aws-lc-sys` compiles under the local Windows GNU toolchain.
+- [x] Run exact-code-head hosted gates. CI `30534530687`, all 13 Python lanes
+      in `30534530713`, and mdBook build `30534530699` pass at `07989fa5`.
+- [x] Reconcile CHANGELOG, audit, backlog, and checklist evidence; commit,
+      push, and complete review in PR #77.
+
 ## SAFE-682-01 — Fallible descriptive statistics and histograms
 **Target version**: Next major release
 **Sprint phase**: Closure

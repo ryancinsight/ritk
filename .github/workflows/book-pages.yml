@@ -17,6 +17,9 @@ on:
       - "crates/ritk-statistics/src/histogram.rs"
       - "crates/ritk-statistics/src/image_statistics.rs"
       - "crates/ritk-statistics/Cargo.toml"
+      - "crates/ritk-registration/examples/book_temporal_sync.rs"
+      - "crates/ritk-registration/src/classical/temporal/**"
+      - "crates/ritk-registration/Cargo.toml"
       - ".github/actions/checkout-atlas-path-dependencies/action.yml"
       - ".github/workflows/book-pages.yml"
   pull_request:
@@ -34,6 +37,9 @@ on:
       - "crates/ritk-statistics/src/histogram.rs"
       - "crates/ritk-statistics/src/image_statistics.rs"
       - "crates/ritk-statistics/Cargo.toml"
+      - "crates/ritk-registration/examples/book_temporal_sync.rs"
+      - "crates/ritk-registration/src/classical/temporal/**"
+      - "crates/ritk-registration/Cargo.toml"
       - ".github/actions/checkout-atlas-path-dependencies/action.yml"
       - ".github/workflows/book-pages.yml"
   workflow_dispatch:
@@ -98,6 +104,8 @@ jobs:
             docs/book/figures/growcut.svg
           cargo run -p ritk-statistics --example book_descriptive_statistics -- \
             docs/book/figures/descriptive_statistics.svg
+          cargo run -p ritk-registration --example book_temporal_sync -- \
+            docs/book/figures/temporal_synchronization.svg
 
       - name: Build book
         run: |
@@ -115,6 +123,7 @@ jobs:
             ritk/docs/book/figures/jpeg_2000_codec.svg
             ritk/docs/book/figures/growcut.svg
             ritk/docs/book/figures/descriptive_statistics.svg
+            ritk/docs/book/figures/temporal_synchronization.svg
           if-no-files-found: error
 
       - name: Upload Pages artifact
