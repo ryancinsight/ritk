@@ -6,7 +6,7 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-683-01 [major] - Make temporal synchronization safe,
-  dimensionally correct, allocation-efficient, and teachable** (IN PROGRESS;
+  dimensionally correct, allocation-efficient, and teachable** (DONE;
   owner=Codex; last-update=2026-07-30; scope=
   `crates/ritk-registration/src/classical/{temporal/**,
   engine/registration.rs,mod.rs}`, affected validation and crate exports,
@@ -40,8 +40,12 @@
   overlap are exact; the synchronized hot path performs no lag-profile
   allocation; an unchanged Criterion workload detects no latency regression;
   displayed metrics agree with example data; and formatting,
-  warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook,
-  semantic-version, example-runtime, and hosted gates pass.
+  warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook, example-runtime,
+  and hosted gates pass; any semantic-version environment limitation is
+  classified with its exact blocker. Exact code head `07989fa5` passes CI
+  `30534530687`, all 13 Python lanes in `30534530713`, and mdBook build
+  `30534530699`. CodeRabbit's checklist and Rustdoc findings are addressed in
+  `07989fa5`; its exact-head rereview was rate limited.
 
 - **SAFE-682-01 [major] - Make descriptive statistics and histograms
   fallible, finite, and teachable** (DONE; owner=Codex;

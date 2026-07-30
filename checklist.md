@@ -42,9 +42,13 @@
       raw example data.
 - [x] Run target formatting, warning-denied Clippy, focused Nextest, doctest,
       Rustdoc, mdBook, benchmark, and example-runtime gates.
-- [ ] Complete standalone semantic-version and hosted exact-head gates.
-- [ ] Reconcile CHANGELOG, audit, backlog, and checklist evidence; commit,
-      push, review, and merge.
+- [x] Classify the standalone declared-major semantic-version limitation. The
+      command gets past the Atlas overlay but fails before API comparison while
+      unrelated `aws-lc-sys` compiles under the local Windows GNU toolchain.
+- [x] Run exact-code-head hosted gates. CI `30534530687`, all 13 Python lanes
+      in `30534530713`, and mdBook build `30534530699` pass at `07989fa5`.
+- [x] Reconcile CHANGELOG, audit, backlog, and checklist evidence; commit,
+      push, and complete review in PR #77.
 
 ## SAFE-682-01 — Fallible descriptive statistics and histograms
 **Target version**: Next major release

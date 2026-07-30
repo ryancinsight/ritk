@@ -52,8 +52,13 @@ local Clippy reaches a pre-existing `missing_const_for_thread_local`
 diagnostic in `ritk-filter/src/morphology/mod.rs`. The standalone declared-
 major semantic-version attempt gets past the Atlas overlay but fails before
 API comparison while `aws-lc-sys` compiles under the local Windows GNU
-toolchain. Hosted exact-head gates remain the closure oracle for those
-environmental limitations.
+toolchain. Exact code head `07989fa5` passes Rustfmt, warning-denied Clippy,
+dependency alignment, wheel smoke, and Linux/macOS/Windows Nextest in CI
+`30534530687`; all 13 Python 3.9-3.13 platform lanes pass in `30534530713`;
+and mdBook build `30534530699` passes. CodeRabbit's checklist-consistency and
+Rustdoc findings are addressed in `07989fa5`; its exact-head rereview was rate
+limited. The external `recurseml/analysis` service earlier returned an
+analysis error without a repository log or actionable finding.
 
 The deterministic 240-sample example contains a known 7.250-frame delay and
 estimates 7.253 frames at correlation 0.9996. Interpolated overlap is 232 of
