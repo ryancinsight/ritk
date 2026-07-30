@@ -9,8 +9,10 @@ use super::config::ClassicalConfig;
 use super::metric::MutualInformationMetric;
 use super::result::RegistrationResult;
 use crate::types::AffineTransform;
-use crate::validation::{ConvergenceStatus, RegistrationQualityMetrics, TemporalQualityMetrics};
+use crate::validation::{ConvergenceStatus, RegistrationQualityMetrics};
 use leto::{Array1, Array2, Array3, FixedMatrix};
+
+use super::super::temporal::{TemporalSync, TemporalSyncError, TemporalSyncResult};
 
 type Matrix3 = FixedMatrix<f64, 3, 3>;
 
@@ -344,8 +346,7 @@ impl ImageRegistration {
         &self,
         signal1: &Array1<f64>,
         signal2: &Array1<f64>,
-    ) -> Result<(f64, TemporalQualityMetrics)> {
-        use super::super::temporal::TemporalSync;
+    ) -> core::result::Result<TemporalSyncResult, TemporalSyncError> {
         let sync = TemporalSync::new();
         sync.synchronize(signal1, signal2)
     }

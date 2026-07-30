@@ -33,11 +33,9 @@ fn temporal_signals() -> (Array1<f64>, Array1<f64>) {
 
 fn bench_temporal_sync(criterion: &mut Criterion) {
     let (reference, moving) = temporal_signals();
-    let synchronizer = TemporalSync::with_config(TemporalSyncConfig {
-        frame_spacing: 0.02,
-        search_range: SEARCH_RANGE,
-        min_correlation: 0.8,
-    });
+    let config = TemporalSyncConfig::try_new(0.02, SEARCH_RANGE, 0.8)
+        .expect("benchmark configuration is valid");
+    let synchronizer = TemporalSync::with_config(config);
 
     let mut group = criterion.benchmark_group("temporal_sync");
     group

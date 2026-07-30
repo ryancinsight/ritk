@@ -7,9 +7,7 @@
 /// - **Affine**: 9-DOF MI optimisation (rotation + translation + anisotropic scale)
 /// - **Temporal sync**: Cross-correlation phase estimation for multi-modal acquisitions
 ///
-/// All types in this module are re-exported from authoritative locations:
-/// - `RegistrationQualityMetrics` from [`crate::validation`]
-/// - `TemporalQualityMetrics` from [`crate::validation`]
+/// Registration quality metrics are re-exported from [`crate::validation`].
 pub mod engine;
 pub mod error;
 pub mod native;
@@ -24,11 +22,14 @@ pub use native::{
     image_to_leto_volume, index_affine_to_physical, leto_volume_to_image, NativeConversionError,
 };
 pub use spatial::SpatialTransform;
-pub use temporal::TemporalSync;
+pub use temporal::{
+    TemporalCorrelationSample, TemporalSignal, TemporalSync, TemporalSyncConfig, TemporalSyncError,
+    TemporalSyncResult, TemporalSyncStatus,
+};
 pub use translation::{
     register_translation, MeanSquaredDifference, NormalizedCrossCorrelation, TranslationMetric,
     TranslationRegistrationError,
 };
 
 // Re-export quality metrics from validation (SSOT)
-pub use crate::validation::{RegistrationQualityMetrics, TemporalQualityMetrics};
+pub use crate::validation::RegistrationQualityMetrics;
