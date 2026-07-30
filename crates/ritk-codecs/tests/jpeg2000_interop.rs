@@ -197,6 +197,7 @@ fn encode(fixture: Fixture<'_>, source: &[i32]) -> Vec<u8> {
         fixture.levels,
         WaveletTransform::Reversible,
     )
+    .expect("captured valid fixture must encode")
 }
 
 fn tile_body(codestream: &[u8]) -> &[u8] {

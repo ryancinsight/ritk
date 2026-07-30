@@ -7,7 +7,7 @@
 //! # C/C++ dependency migration status
 //! | Codec       | C/C++ dep         | Pure Rust implementation             | Status |
 //! |-------------|-------------------|--------------------------------------|--------|
-//! | JPEG 2000   | (none)            | ISO 15444-1 codec in [`jpeg_2000`]   | done (lossless, 0 DWT levels; multi-level DWT: J2K-DECODE-DWT) |
+//! | JPEG 2000   | (none)            | ISO 15444-1 codec in [`jpeg_2000`]   | done (multi-level reversible 5/3 and irreversible 9/7) |
 //! | JPEG        | `jpeg-decoder`    | Pure Rust JPEG decoder (Rust crate)  | done   |
 //! | JPEG-LS     | (none — RITK-native since Sprint 127) |                  | done   |
 //! | PackBits    | (none — pure Rust) |                                     | done   |

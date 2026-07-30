@@ -93,7 +93,8 @@ fn decode_rejects_out_of_range_sot_before_packet_decode() {
         PixelSignedness::Unsigned,
         0,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("valid image must encode");
     let sot = j2k
         .windows(2)
         .position(|bytes| bytes == [0xFF, 0x90])
@@ -118,7 +119,8 @@ fn decode_rejects_tile_part_length_beyond_codestream() {
         PixelSignedness::Unsigned,
         0,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("valid image must encode");
     let sot = j2k
         .windows(2)
         .position(|bytes| bytes == [0xFF, 0x90])
@@ -148,7 +150,8 @@ fn decode_jpeg2000_lossless_round_trip_4x4_uniform() {
         PixelSignedness::Unsigned,
         0,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("valid image must encode");
 
     assert!(
         is_jpeg2000_codestream(&j2k),
@@ -181,7 +184,8 @@ fn decode_jpeg2000_lossless_round_trip_gradient_2x4() {
         PixelSignedness::Unsigned,
         0,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("valid image must encode");
 
     let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 4, 8, PixelSignedness::Unsigned))
         .expect("gradient round-trip must succeed");
@@ -203,7 +207,8 @@ fn decode_jpeg2000_signed_samples_round_trip() {
         PixelSignedness::Signed,
         0,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("valid image must encode");
 
     let decoded = decode_jpeg2000_fragment(&j2k, layout(2, 2, 8, PixelSignedness::Signed))
         .expect("signed lossless JPEG 2000 round-trip must succeed");
@@ -222,7 +227,8 @@ fn decode_jpeg2000_lossless_rescale_applied_correctly() {
         PixelSignedness::Unsigned,
         0,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("valid image must encode");
     let mut pixel_layout = layout(1, 1, 8, PixelSignedness::Unsigned);
     pixel_layout.rescale_slope = 2.0;
     pixel_layout.rescale_intercept = -1024.0;
@@ -246,7 +252,8 @@ fn decode_jpeg2000_lossless_round_trip_unsigned_16bit() {
         PixelSignedness::Unsigned,
         0,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("valid image must encode");
     let decoded = decode_jpeg2000_fragment(&j2k, layout(4, 4, 16, PixelSignedness::Unsigned))
         .expect("16-bit lossless round-trip must succeed");
     let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
@@ -280,7 +287,12 @@ proptest::proptest! {
             })
             .collect();
         let signedness = if signed { PixelSignedness::Signed } else { PixelSignedness::Unsigned };
-        let j2k = encode_grayscale_j2k(&pixels, rows, cols, precision, signedness, num_decomp_levels, WaveletTransform::Reversible);
+        let maximum_levels =
+            u8::try_from(u32::BITS - (rows.max(cols) - 1).leading_zeros())
+                .expect("invariant: u32 bit width fits u8");
+        let num_decomp_levels = num_decomp_levels.min(maximum_levels);
+        let j2k = encode_grayscale_j2k(&pixels, rows, cols, precision, signedness, num_decomp_levels, WaveletTransform::Reversible)
+            .expect("generated valid image must encode");
         let decoded = decode_jpeg2000_fragment(
             &j2k,
             layout(rows as usize, cols as usize, precision as u16, signedness),
@@ -317,7 +329,8 @@ fn decode_jpeg2000_multi_codeblock_zero_levels() {
         PixelSignedness::Unsigned,
         0,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("valid image must encode");
     let decoded = decode_jpeg2000_fragment(&j2k, layout(70, 130, 8, PixelSignedness::Unsigned))
         .expect("multi-code-block LL0 round-trip must succeed");
     let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
@@ -336,7 +349,8 @@ fn decode_jpeg2000_multi_codeblock_two_levels_16bit() {
         PixelSignedness::Unsigned,
         2,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("valid image must encode");
     let decoded = decode_jpeg2000_fragment(&j2k, layout(100, 150, 16, PixelSignedness::Unsigned))
         .expect("multi-code-block 2-level round-trip must succeed");
     let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
@@ -356,7 +370,8 @@ fn decode_jpeg2000_lossless_round_trip_two_dwt_levels_16bit() {
         PixelSignedness::Unsigned,
         2,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("valid image must encode");
     let decoded = decode_jpeg2000_fragment(&j2k, layout(8, 12, 16, PixelSignedness::Unsigned))
         .expect("2-level DWT lossless round-trip must succeed");
     let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
@@ -376,7 +391,8 @@ fn decode_jpeg2000_lossless_round_trip_three_dwt_levels_signed_odd_dims() {
         PixelSignedness::Signed,
         3,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("valid image must encode");
     let decoded = decode_jpeg2000_fragment(&j2k, layout(7, 9, 8, PixelSignedness::Signed))
         .expect("3-level DWT signed odd-dims round-trip must succeed");
     let expected: Vec<f32> = pixels.iter().map(|&p| p as f32).collect();
@@ -394,7 +410,8 @@ fn ritk_native_decoder_replaces_openjp2_backend() {
         PixelSignedness::Unsigned,
         0,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("valid image must encode");
     let decoded = decode_jpeg2000_fragment(&j2k, layout(4, 4, 8, PixelSignedness::Unsigned))
         .expect("native codec round-trip must succeed");
     let max_err = pixels
@@ -434,7 +451,8 @@ fn decode_jpeg2000_lossy_9_7_round_trip_structured_8bit() {
         PixelSignedness::Unsigned,
         2,
         WaveletTransform::Irreversible,
-    );
+    )
+    .expect("valid image must encode");
 
     let decoded = decode_jpeg2000_fragment(
         &j2k,
@@ -482,7 +500,8 @@ fn decode_jpeg2000_lossy_9_7_round_trip_signed_16bit() {
         PixelSignedness::Signed,
         1,
         WaveletTransform::Irreversible,
-    );
+    )
+    .expect("valid image must encode");
     let decoded = decode_jpeg2000_fragment(
         &j2k,
         layout(rows as usize, cols as usize, 16, PixelSignedness::Signed),

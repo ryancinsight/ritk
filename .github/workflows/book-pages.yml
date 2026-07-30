@@ -7,6 +7,7 @@ on:
       - "docs/book/**"
       - "crates/ritk-filter/examples/book_processing_pipeline.rs"
       - "crates/ritk-io/examples/book_windowing_rescale.rs"
+      - "crates/ritk-codecs/examples/book_jpeg_2000.rs"
       - ".github/actions/checkout-atlas-path-dependencies/action.yml"
       - ".github/workflows/book-pages.yml"
   pull_request:
@@ -14,6 +15,7 @@ on:
       - "docs/book/**"
       - "crates/ritk-filter/examples/book_processing_pipeline.rs"
       - "crates/ritk-io/examples/book_windowing_rescale.rs"
+      - "crates/ritk-codecs/examples/book_jpeg_2000.rs"
       - ".github/actions/checkout-atlas-path-dependencies/action.yml"
       - ".github/workflows/book-pages.yml"
   workflow_dispatch:
@@ -70,6 +72,8 @@ jobs:
             docs/book/figures/processing_pipeline.svg
           cargo run -p ritk-io --example book_windowing_rescale -- \
             docs/book/figures/windowing_rescale.svg
+          cargo run -p ritk-codecs --example book_jpeg_2000 -- \
+            docs/book/figures/jpeg_2000_codec.svg
 
       - name: Build book
         run: |
@@ -83,6 +87,7 @@ jobs:
           path: |
             ritk/docs/book/figures/processing_pipeline.svg
             ritk/docs/book/figures/windowing_rescale.svg
+            ritk/docs/book/figures/jpeg_2000_codec.svg
           if-no-files-found: error
 
       - name: Upload Pages artifact

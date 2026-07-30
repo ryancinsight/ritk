@@ -8,6 +8,39 @@
 
 # CHANGELOG
 
+## [Unreleased] — Fallible JPEG 2000 encoder (SAFE-680-01)
+
+### Breaking
+
+- `encode_grayscale_j2k` now returns
+  `Result<Vec<u8>, Jpeg2000EncodeError>` and rejects invalid external image
+  metadata or samples instead of asserting or emitting a misleading
+  codestream. See
+  [ADR 0012](docs/adr/0012-fallible-jpeg-2000-encoder.md).
+
+### Changed
+
+- Validate nonzero checked geometry, exact sample count, 1–16-bit precision,
+  geometry-bounded decomposition depth, and signed or unsigned sample range
+  before JPEG 2000 transform allocation.
+- Apply the unsigned DC level shift while constructing the transform buffer,
+  removing one complete `i32` image allocation and write pass from reversible
+  encoding.
+- Document the native multi-level reversible 5/3 and irreversible 9/7 paths
+  with a runnable public-API example and generated reconstruction/error figure.
+
+### Performance
+
+- On the unchanged 512×512 five-level reversible Criterion workload, encoding
+  improves from 53.651 ms to 48.277 ms median (10.0%). The measured 95%
+  intervals are 52.782–54.588 ms before and 45.543–49.729 ms after.
+
+### Tests
+
+- Cover invalid geometry, precision, decomposition depth, sample count, and
+  declared sample ranges while preserving exact native and captured OpenJPEG
+  reversible round trips.
+
 ## [Unreleased] — Stack-backed tag-tree paths (PERF-678-01)
 
 ### Changed

@@ -38,7 +38,8 @@ fn write_jpeg2000_lossless_dicom_file(
         PixelSignedness::Unsigned,
         2,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("valid DICOM fixture must encode");
 
     assert!(
         j2k_bytes.len() >= 4,

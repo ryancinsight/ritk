@@ -114,7 +114,8 @@ fn bench_jpeg_2000(c: &mut Criterion) {
         PixelSignedness::Unsigned,
         0,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("benchmark fixture must encode");
     c.bench_function("jpeg2000_decode_64x64_16bit_lossless", |b| {
         b.iter(|| {
             black_box(decode_jpeg2000_fragment(
@@ -154,7 +155,8 @@ fn bench_jpeg_2000_full(c: &mut Criterion) {
         PixelSignedness::Unsigned,
         5,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("benchmark fixture must encode");
     c.bench_function("jpeg2000_decode_512x512_16bit_5levels", |b| {
         b.iter(|| {
             black_box(decode_jpeg2000_fragment(

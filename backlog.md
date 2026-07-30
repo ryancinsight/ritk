@@ -8,7 +8,8 @@
 - **SAFE-680-01 [major] - Make JPEG 2000 encoding fallible and document the
   native codec** (IN PROGRESS; owner=Codex; scope=
   `crates/ritk-codecs/{Cargo.toml,src/{lib.rs,jpeg_2000/{encoder.rs,
-  packet/writer.rs,tests.rs}},examples/book_jpeg_2000.rs,
+  encoder/validation.rs,packet/{mod.rs,writer.rs},tests.rs}},
+  examples/book_jpeg_2000.rs,
   tests/jpeg2000_interop.rs,benches/codec_throughput.rs}`,
   `crates/ritk-io/src/format/dicom/codec/tests/jpeg2000.rs`,
   `docs/book/{SUMMARY.md,jpeg_2000_codec.md,examples/jpeg_2000_codec.md,

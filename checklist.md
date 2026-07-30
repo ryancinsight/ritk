@@ -15,24 +15,24 @@
 
 ## SAFE-680-01 — Make JPEG 2000 encoding fallible and document the native codec
 **Target version**: Next major release
-**Sprint phase**: Foundation
+**Sprint phase**: Closure
 
 - [x] Reconcile `origin/main`, the active PR/worktree lane, peer-owned dirt,
       codec implementation, book coverage, and official JPEG 2000/DICOM
       contracts.
-- [ ] Record the fallible public encoder boundary in ADR 0012 and update every
+- [x] Record the fallible public encoder boundary in ADR 0012 and update every
       in-repository caller without a compatibility wrapper.
-- [ ] Validate dimensions, precision, decomposition depth, and declared sample
+- [x] Validate dimensions, precision, decomposition depth, and declared sample
       range before allocation or arithmetic.
-- [ ] Fold the unsigned DC shift into construction of the transform buffer,
+- [x] Fold the unsigned DC shift into construction of the transform buffer,
       removing the separate full-image allocation.
-- [ ] Add positive, negative, boundary, and adversarial value-semantic tests;
+- [x] Add positive, negative, boundary, and adversarial value-semantic tests;
       preserve captured OpenJPEG interoperability.
-- [ ] Capture matched Criterion measurements on the unchanged 512x512
+- [x] Capture matched Criterion measurements on the unchanged 512x512
       five-level workload and reject a statistically significant regression.
-- [ ] Add a runnable public-API example, generated figure, native-codec
+- [x] Add a runnable public-API example, generated figure, native-codec
       chapter, and CI figure regeneration.
-- [ ] Render and inspect the figure; verify source/reconstruction/error values
+- [x] Render and inspect the figure; verify source/reconstruction/error values
       against the example's analytical oracle.
 - [ ] Run focused and full formatting, warning-denied Clippy, Nextest,
       doctest, Rustdoc, mdBook, and semantic-version gates.
