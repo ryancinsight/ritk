@@ -13,6 +13,32 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## SAFE-681-01 — Harden and document the native JPEG-LS codec
+**Target version**: Next major release
+**Sprint phase**: Execution
+
+- [x] Reconcile origin, worktrees, peer-owned dirt, current codec/book
+      coverage, callers, ADRs, and official JPEG-LS/DICOM contracts.
+- [ ] Record the fallible public encoder boundary and rolling-row scan design
+      in ADR 0013; update all in-repository callers without a compatibility
+      wrapper.
+- [ ] Validate dimensions, precision, sample count/range, and `NEAR` before
+      encoding; reject invalid SOS interleave bytes during parsing.
+- [ ] Replace full reconstructed-image scan buffers with two rolling rows in
+      encoder and decoder while preserving boundary guards and output order.
+- [ ] Add positive, negative, boundary, adversarial, property, native
+      round-trip, and DICOM round-trip value-semantic tests.
+- [ ] Run the unchanged 512x512 lossless/near-lossless Criterion workloads and
+      reject a statistically significant regression before claiming latency.
+- [ ] Add a runnable Rust example, generated comparison/error figure,
+      native-codec chapter, and CI figure regeneration.
+- [ ] Render and inspect the figure; cross-check displayed sizes, maximum
+      error, and pixel values against example output.
+- [ ] Run formatting, warning-denied Clippy, Nextest, doctest, Rustdoc,
+      mdBook, semantic-version, example-runtime, and hosted gates.
+- [ ] Self-review, commit, push, open a draft PR, collect exact-head hosted
+      gates, merge, and reconcile PM state.
+
 ## SAFE-680-01 — Make JPEG 2000 encoding fallible and document the native codec
 **Target version**: Next major release
 **Sprint phase**: Closure
@@ -43,8 +69,10 @@
       hosted gates. At code head `3abfaa67`, CI `30503828578`, Python
       `30503828528`, and book build `30503828541` pass every repository-owned
       lane; Pages deployment is skipped.
-- [ ] Integrate the merged GrowCut book slice, rerun exact-head hosted gates,
-      and merge PR #74.
+- [x] Integrate the merged GrowCut book slice, rerun exact-head hosted gates,
+      and merge PR #74. Exact head `cfc18b3a` passes Rust CI `30517019185`,
+      Python CI `30517019200`, and book build `30517019189`; merge commit is
+      `12d555eb`.
 
 ## SAFE-679-01 — Correct GrowCut convergence and document segmentation
 **Target version**: Unreleased patch

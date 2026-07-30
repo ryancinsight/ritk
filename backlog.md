@@ -5,8 +5,39 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **SAFE-681-01 [major] - Make JPEG-LS encoding fallible, bound header
+  parsing, reduce scan memory, and document the native codec** (IN PROGRESS;
+  owner=Codex; scope=`crates/ritk-codecs/src/jpeg_ls/{encoder.rs,
+  encoder/validation.rs,scan.rs,parser.rs,decoder.rs,tests/**}`,
+  `crates/ritk-codecs/{examples/book_jpeg_ls.rs,
+  benches/codec_throughput.rs}`, the JPEG-LS callers in `crates/ritk-io`,
+  `docs/book/{SUMMARY.md,jpeg_ls_codec.md,examples/jpeg_ls_codec.md,
+  figures/jpeg_ls_codec.svg}`, `.github/workflows/book-pages.yml`,
+  `docs/adr/{0013-fallible-jpeg-ls-encoder.md,README.md}`, `CHANGELOG.md`,
+  `gap_audit.md`, and PM artifacts; non-goal=color or interleaved JPEG-LS,
+  rate control, release, or deployment). The public encoder asserts
+  input-dependent metadata, narrows dimensions and `NEAR` without validation,
+  and encoder/decoder scans retain a complete reconstructed image although
+  prediction uses only the previous and current rows. The SOS parser also
+  maps an invalid interleave byte to `None`. Replace those paths with typed
+  errors, validate the implemented grayscale profile before allocation,
+  preserve exact lossless and analytically bounded near-lossless behavior,
+  and use two rolling reconstruction rows. Add a bounded Rust example and
+  inspected figure showing source, lossless reconstruction, near-lossless
+  reconstruction, magnified error, encoded sizes, and the exact `NEAR`
+  bound. Acceptance: invalid dimensions, sample counts/ranges, precision,
+  `NEAR`, and SOS interleave values return contextual errors without panic,
+  truncation, or partial output; native and DICOM round trips remain
+  value-exact or satisfy `|decoded-original| <= NEAR`; scan scratch is
+  `O(cols)` and decreases from `(rows+1)*cols*sizeof(i32)` to
+  `2*cols*sizeof(i32)`; the unchanged 512x512 Criterion workloads detect no
+  regression before any latency claim; the generated figure agrees with raw
+  example metrics and is visually distinct; and formatting, warning-denied
+  Clippy, Nextest, doctest, Rustdoc, mdBook, semantic-version, and hosted
+  gates pass.
+
 - **SAFE-680-01 [major] - Make JPEG 2000 encoding fallible and document the
-  native codec** (REVIEW; owner=Codex; scope=
+  native codec** (DONE; owner=Codex; scope=
   `crates/ritk-codecs/{Cargo.toml,src/{lib.rs,jpeg_2000/{encoder.rs,
   encoder/validation.rs,packet/{mod.rs,writer.rs},tests.rs}},
   examples/book_jpeg_2000.rs,
@@ -39,9 +70,10 @@
   At code head `3abfaa67`, CI run `30503828578`, Python run `30503828528`,
   and book run `30503828541` pass every repository-owned lane, while Pages
   deployment is skipped. The external `recurseml/analysis` integration reports
-  an analysis error without a repository log or actionable finding. PR #74
-  is integrating the merged GrowCut book slice; exact-head hosted gates must
-  rerun before merge.
+  an analysis error without a repository log or actionable finding. After
+  integrating the GrowCut book slice, exact head `cfc18b3a` passes Rust CI
+  `30517019185`, Python CI `30517019200`, and book build `30517019189`.
+  PR #74 merged as `12d555eb`.
 
 - **SAFE-679-01 [patch] - Correct GrowCut convergence and document
   segmentation** (DONE; owner=Codex; scope=
@@ -1031,7 +1063,11 @@ re-enter. Reserved inner tag: `ritk/atlas-migration-push/batch3`.
 ## Open performance items
 
 - **PERF-432-01 [patch] — Registration integration tests exceed the strict
-  nextest budget. READY.**
+  nextest budget. SUPERSEDED.**
+  This duplicate historical item is closed by the profiling-backed
+  `PERF-432-01` implementation record above: the focused B-spline row passes
+  in 17.279s and the package passes 740/740. The remaining text is retained
+  as investigation history, not executable work.
   Acceptance: profile the slow registration integration tests reported by
   `cargo nextest run -p ritk-registration --features coeus` and reduce each
   unmodified test below the AGENTS.md 30s slow threshold, or replace the
