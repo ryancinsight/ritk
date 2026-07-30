@@ -115,6 +115,7 @@ impl fmt::Display for JpegLsEncodeError {
 
 impl std::error::Error for JpegLsEncodeError {}
 
+#[derive(Debug)]
 pub(super) struct ValidatedEncoding {
     pub(super) rows: usize,
     pub(super) cols: usize,

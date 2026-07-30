@@ -30,9 +30,9 @@
       round-trip, and DICOM round-trip value-semantic tests.
 - [ ] Run the unchanged 512x512 lossless/near-lossless Criterion workloads and
       reject a statistically significant regression before claiming latency.
-- [ ] Add a runnable Rust example, generated comparison/error figure,
+- [x] Add a runnable Rust example, generated comparison/error figure,
       native-codec chapter, and CI figure regeneration.
-- [ ] Render and inspect the figure; cross-check displayed sizes, maximum
+- [x] Render and inspect the figure; cross-check displayed sizes, maximum
       error, and pixel values against example output.
 - [ ] Run formatting, warning-denied Clippy, Nextest, doctest, Rustdoc,
       mdBook, semantic-version, example-runtime, and hosted gates.
