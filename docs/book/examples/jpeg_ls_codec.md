@@ -52,7 +52,7 @@ let reconstructed = decode_jpeg_ls_fragment(
         rows: usize::try_from(rows)?,
         cols: usize::try_from(columns)?,
         samples_per_pixel: 1,
-        bits_allocated: u16::try_from(bits_stored)?,
+        bits_allocated: if bits_stored <= 8 { 8 } else { 16 },
         pixel_representation: PixelSignedness::Unsigned,
         rescale_slope: 1.0,
         rescale_intercept: 0.0,

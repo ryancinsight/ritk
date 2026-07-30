@@ -15,6 +15,7 @@ pub mod encoder;
 mod marker;
 mod parser;
 mod reconstruction;
+mod sample_limits;
 mod scan;
 
 pub(crate) use decoder::{ComponentInfo, InterleaveMode, JpegLsDecoder};

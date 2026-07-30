@@ -1,6 +1,7 @@
 //! Header-derived JPEG-LS decoder state and scan dispatch.
 
 use super::bitstream::BitReader;
+use super::sample_limits::maximum_near_for_precision;
 use super::scan::{decode_scan, Predictor, ScanParams};
 use crate::dimensions::checked_pixel_count;
 use anyhow::{bail, Context, Result};
@@ -84,8 +85,7 @@ impl JpegLsDecoder {
                 self.bits_per_sample
             );
         }
-        let maximum_sample = (1u32 << self.bits_per_sample) - 1;
-        let maximum_near = u32::from(u8::MAX).min(maximum_sample / 2);
+        let maximum_near = maximum_near_for_precision(self.bits_per_sample);
         if self.near > maximum_near {
             bail!(
                 "JPEG-LS NEAR={} exceeds the precision-dependent limit {}",

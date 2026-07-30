@@ -1,9 +1,10 @@
 use std::fmt;
 
+use super::super::sample_limits::{maximum_near_for_precision, maximum_sample_for_precision};
+
 const MIN_SAMPLE_PRECISION: u32 = 8;
 const MAX_SAMPLE_PRECISION: u32 = 16;
 const MAX_FRAME_DIMENSION: u32 = u16::MAX as u32;
-const MAX_HEADER_NEAR: u32 = u8::MAX as u32;
 
 /// Errors returned by [`super::encode_grayscale_jpeg_ls`].
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -162,8 +163,9 @@ pub(super) fn validate_encoding(
             maximum: MAX_SAMPLE_PRECISION,
         });
     }
-    let maximum_sample = ((1u32 << precision) - 1) as u16;
-    let maximum_near = MAX_HEADER_NEAR.min(u32::from(maximum_sample) / 2);
+    let maximum_sample = u16::try_from(maximum_sample_for_precision(precision))
+        .expect("invariant: validated JPEG-LS precision fits in a u16 sample");
+    let maximum_near = maximum_near_for_precision(precision);
     if near > maximum_near {
         return Err(JpegLsEncodeError::NearOutOfRange {
             near,
