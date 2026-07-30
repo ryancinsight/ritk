@@ -6,7 +6,7 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-680-01 [major] - Make JPEG 2000 encoding fallible and document the
-  native codec** (IN PROGRESS; owner=Codex; scope=
+  native codec** (REVIEW; owner=Codex; scope=
   `crates/ritk-codecs/{Cargo.toml,src/{lib.rs,jpeg_2000/{encoder.rs,
   encoder/validation.rs,packet/{mod.rs,writer.rs},tests.rs}},
   examples/book_jpeg_2000.rs,
@@ -32,7 +32,16 @@
   and book claims match the implemented multi-level 5/3 and 9/7 support; the
   example stays within the committed runtime budget; and formatting,
   warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook, semantic-version,
-  and hosted gates pass.
+  and hosted gates pass. Evidence: all 277 codec tests and the focused DICOM
+  integration pass; the example completes in 0.104 seconds; reversible
+  reconstruction is exact and the irreversible example reaches 77.28 dB PSNR;
+  the unchanged Criterion workload improves from 53.651 ms to 48.277 ms median.
+  At code head `3abfaa67`, CI run `30503828578`, Python run `30503828528`,
+  and book run `30503828541` pass every repository-owned lane, while Pages
+  deployment is skipped. The external `recurseml/analysis` integration reports
+  an analysis error without a repository log or actionable finding. PR #74
+  remains draft because merge would authorize the Pages deployment excluded
+  from this slice.
 
 - **PERF-678-01 [patch] - Eliminate tag-tree path allocations**
   (DONE; owner=Codex; scope=

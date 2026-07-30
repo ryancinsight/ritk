@@ -34,11 +34,16 @@
       chapter, and CI figure regeneration.
 - [x] Render and inspect the figure; verify source/reconstruction/error values
       against the example's analytical oracle.
-- [ ] Run focused and full formatting, warning-denied Clippy, Nextest,
-      doctest, Rustdoc, mdBook, and semantic-version gates.
-- [ ] Self-review, commit, push, open a draft PR, and collect exact-head hosted
-      gates. Merge remains outside this slice because documentation changes
-      trigger Pages deployment.
+- [x] Run focused and full formatting, warning-denied Clippy, Nextest,
+      doctest, Rustdoc, mdBook, and semantic-version gates. The major-release
+      semantic check completes with all compatibility lints skipped by design;
+      its patch classifier does not recognize the nested public return-type
+      change, so ADR 0012 remains the authoritative classification.
+- [x] Self-review, commit, push, open draft PR #74, and collect exact-head
+      hosted gates. At code head `3abfaa67`, CI `30503828578`, Python
+      `30503828528`, and book build `30503828541` pass every repository-owned
+      lane; Pages deployment is skipped. Merge remains outside this slice
+      because it triggers Pages deployment.
 
 ## PERF-678-01 — Eliminate tag-tree path allocations
 **Target version**: Unreleased patch
