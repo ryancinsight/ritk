@@ -10,6 +10,7 @@ anyhow = { workspace = true }
 jpeg-decoder = { workspace = true }
 
 [dev-dependencies]
+base64 = { workspace = true }
 image = { workspace = true }
 proptest = { workspace = true }
 

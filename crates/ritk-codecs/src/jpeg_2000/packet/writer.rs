@@ -100,16 +100,18 @@ pub(crate) fn write_num_passes(bw: &mut BitWriter, ncp: u32) {
 /// resolution/band, 64×64 nominal code-blocks).
 ///
 /// # Parameters
-/// - `samples`: DC-shifted i32 samples in row-major order.
+/// - `samples`: validated source samples in row-major order.
 /// - `width` / `height`: tile dimensions.
+/// - `dc_offset`: level shift applied while constructing the transform buffer.
 /// - `num_guard_bits`: from the QCD marker (typically 2).
 /// - `precision`: component bit precision (from SIZ Ssiz).
 /// - `num_decomp_levels`: 5/3 reversible DWT levels (0 = no transform).
 #[allow(clippy::too_many_arguments)]
-pub fn encode_tile_part(
+pub(crate) fn encode_tile_part(
     samples: &[i32],
     width: usize,
     height: usize,
+    dc_offset: i32,
     num_guard_bits: u8,
     precision: u32,
     tile_index: u16,
@@ -123,13 +125,16 @@ pub fn encode_tile_part(
     // budget and entropy-coding path as the reversible 5/3 transform.
     let mallat = match transform {
         WaveletTransform::Reversible => {
-            let mut m = samples.to_vec();
+            let mut m: Vec<i32> = samples.iter().map(|&sample| sample + dc_offset).collect();
             forward_dwt_5_3(&mut m, width, height, num_decomp_levels)
                 .expect("invariant: samples.len() == width × height");
             m
         }
         WaveletTransform::Irreversible => {
-            let mut f: Vec<f32> = samples.iter().map(|&v| v as f32).collect();
+            let mut f: Vec<f32> = samples
+                .iter()
+                .map(|&sample| (sample + dc_offset) as f32)
+                .collect();
             forward_dwt_9_7(&mut f, width, height, num_decomp_levels)
                 .expect("invariant: samples.len() == width × height");
             f.iter().map(|&c| quantize(c, 1.0)).collect()

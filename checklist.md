@@ -13,9 +13,42 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## SAFE-680-01 — Make JPEG 2000 encoding fallible and document the native codec
+**Target version**: Next major release
+**Sprint phase**: Closure
+
+- [x] Reconcile `origin/main`, the active PR/worktree lane, peer-owned dirt,
+      codec implementation, book coverage, and official JPEG 2000/DICOM
+      contracts.
+- [x] Record the fallible public encoder boundary in ADR 0012 and update every
+      in-repository caller without a compatibility wrapper.
+- [x] Validate dimensions, precision, decomposition depth, and declared sample
+      range before allocation or arithmetic.
+- [x] Fold the unsigned DC shift into construction of the transform buffer,
+      removing the separate full-image allocation.
+- [x] Add positive, negative, boundary, and adversarial value-semantic tests;
+      preserve captured OpenJPEG interoperability.
+- [x] Capture matched Criterion measurements on the unchanged 512x512
+      five-level workload and reject a statistically significant regression.
+- [x] Add a runnable public-API example, generated figure, native-codec
+      chapter, and CI figure regeneration.
+- [x] Render and inspect the figure; verify source/reconstruction/error values
+      against the example's analytical oracle.
+- [x] Run focused and full formatting, warning-denied Clippy, Nextest,
+      doctest, Rustdoc, mdBook, and semantic-version gates. The major-release
+      semantic check completes with all compatibility lints skipped by design;
+      its patch classifier does not recognize the nested public return-type
+      change, so ADR 0012 remains the authoritative classification.
+- [x] Self-review, commit, push, open draft PR #74, and collect exact-head
+      hosted gates. At code head `3abfaa67`, CI `30503828578`, Python
+      `30503828528`, and book build `30503828541` pass every repository-owned
+      lane; Pages deployment is skipped.
+- [ ] Integrate the merged GrowCut book slice, rerun exact-head hosted gates,
+      and merge PR #74.
+
 ## SAFE-679-01 — Correct GrowCut convergence and document segmentation
 **Target version**: Unreleased patch
-**Sprint phase**: Execution
+**Sprint phase**: Closure
 
 - [x] Reconcile the current book, GrowCut implementation, board, origin, and
       peer state; exclude overlay-derived `Cargo.lock` changes.
@@ -55,9 +88,8 @@
 - [x] Collect hosted checks on PR #73. Head `7d887d36` passes complete Rust CI
       run `30489263987`, Python 3.9-3.13 matrix run `30489264000`, and book
       build/artifact run `30489263986`; Pages deployment is skipped.
-- [ ] Merge remains outside this slice because the book workflow deploys Pages
-      on a `main`-branch documentation change and release/deploy is not
-      authorized.
+- [x] Merge PR #73 to `main` as `0ed4a87f` after every repository-owned lane
+      passes at exact head `96432bbd`.
 
 ## PERF-678-01 — Eliminate tag-tree path allocations
 **Target version**: Unreleased patch

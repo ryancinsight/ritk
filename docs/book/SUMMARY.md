@@ -12,6 +12,8 @@
 - [MetaImage Format Boundary](metaimage_format.md)
 - [PNG Format Boundary](png_format.md)
 - [JPEG Format Boundary](jpeg_format.md)
+- [JPEG 2000 Native Codec](jpeg_2000_codec.md)
+  - [Example: Reversible and Irreversible Coding](examples/jpeg_2000_codec.md)
 - [VTK Format Boundary](vtk_format.md)
 
 # Part II — Image Processing Pipeline

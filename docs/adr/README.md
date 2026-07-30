@@ -17,3 +17,4 @@ consequences of a single design choice.
 - [ADR 0009 — Statistics native extrema](0009-statistics-native-extrema.md)
 - [ADR 0010 — Atlas provider checkout](0010-atlas-provider-checkout.md)
 - [ADR 0011 — Iris visualization provider](0011-iris-visualization-provider.md)
+- [ADR 0012 — Fallible native JPEG 2000 encoder](0012-fallible-jpeg-2000-encoder.md)

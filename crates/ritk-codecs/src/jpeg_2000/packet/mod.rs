@@ -9,7 +9,7 @@ mod tests;
 #[allow(unused_imports)]
 pub use reader::{decode_tile_part, BitReader, TileCodingParams, TileComponentSamples};
 #[allow(unused_imports)]
-pub use writer::encode_tile_part;
+pub(crate) use writer::encode_tile_part;
 #[allow(unused_imports)]
 pub(crate) use writer::BitWriter;
 

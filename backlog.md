@@ -5,8 +5,46 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **SAFE-680-01 [major] - Make JPEG 2000 encoding fallible and document the
+  native codec** (REVIEW; owner=Codex; scope=
+  `crates/ritk-codecs/{Cargo.toml,src/{lib.rs,jpeg_2000/{encoder.rs,
+  encoder/validation.rs,packet/{mod.rs,writer.rs},tests.rs}},
+  examples/book_jpeg_2000.rs,
+  tests/jpeg2000_interop.rs,benches/codec_throughput.rs}`,
+  `crates/ritk-io/src/format/dicom/codec/tests/jpeg2000.rs`,
+  `docs/book/{SUMMARY.md,jpeg_2000_codec.md,examples/jpeg_2000_codec.md,
+  figures/jpeg_2000_codec.svg}`, `.github/workflows/book-pages.yml`,
+  `docs/adr/{0012-fallible-jpeg-2000-encoder.md,README.md}`, `CHANGELOG.md`,
+  and PM artifacts; non-goal=color-component encoding, rate control, JP2
+  containers, or release/deploy). The public grayscale encoder asserts
+  input-dependent dimensions and precision, computes `rows * cols` without
+  checked arithmetic, accepts samples outside the declared component range,
+  and allocates a complete DC-shifted image before allocating the transform
+  buffer. Replace the panic contract with a typed `Result`, validate geometry,
+  precision, decomposition depth, and sample range before encoding, and apply
+  the DC shift while constructing the single transform buffer. Add a bounded
+  public-API example and inspected figure that explain reversible 5/3
+  encoding, codestream size, exact reconstruction, and malformed-input
+  rejection. Acceptance: invalid external inputs return contextual errors
+  without panic or partial output; reversible native and captured OpenJPEG
+  cases remain value-exact; the unchanged 512x512 five-level Criterion
+  workload detects no regression; one full-image allocation is removed; crate
+  and book claims match the implemented multi-level 5/3 and 9/7 support; the
+  example stays within the committed runtime budget; and formatting,
+  warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook, semantic-version,
+  and hosted gates pass. Evidence: all 277 codec tests and the focused DICOM
+  integration pass; the example completes in 0.104 seconds; reversible
+  reconstruction is exact and the irreversible example reaches 77.28 dB PSNR;
+  the unchanged Criterion workload improves from 53.651 ms to 48.277 ms median.
+  At code head `3abfaa67`, CI run `30503828578`, Python run `30503828528`,
+  and book run `30503828541` pass every repository-owned lane, while Pages
+  deployment is skipped. The external `recurseml/analysis` integration reports
+  an analysis error without a repository log or actionable finding. PR #74
+  is integrating the merged GrowCut book slice; exact-head hosted gates must
+  rerun before merge.
+
 - **SAFE-679-01 [patch] - Correct GrowCut convergence and document
-  segmentation** (REVIEW; owner=Codex; scope=
+  segmentation** (DONE; owner=Codex; scope=
   `crates/ritk-segmentation/src/region_growing/{growcut.rs,
   tests_growcut.rs}`, `crates/ritk-segmentation/examples/
   book_growcut.rs`, `crates/ritk-segmentation/Cargo.toml`,
@@ -52,11 +90,8 @@
   `ritk-filter` `missing_const_for_thread_local` diagnostic on an initializer
   already written as `const`. Clean draft PR #73 isolates the GrowCut history
   from unrelated architecture commits that had entered the original branch.
-  Head `7d887d36` passes complete Rust CI run `30489263987`, Python
-  3.9-3.13 matrix run `30489264000`, and book build/artifact run
-  `30489263986`; the Pages deploy job is correctly skipped on the pull
-  request.
-  Merge remains blocked on explicit release/deploy authority.
+  Exact head `96432bbd` passes every repository-owned lane, and PR #73 merged
+  to `main` as `0ed4a87f`.
 
 - **PERF-678-01 [patch] - Eliminate tag-tree path allocations**
   (DONE; owner=Codex; scope=

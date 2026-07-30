@@ -26,6 +26,11 @@ use super::quantization::pack_spqcd;
 use super::subband::subband_layout;
 use crate::PixelSignedness;
 
+mod validation;
+
+pub use validation::Jpeg2000EncodeError;
+use validation::{validate_geometry, validate_precision};
+
 /// Guard bits used in the QCD marker and MSBs computation.
 const GUARD_BITS: u8 = 2;
 
@@ -36,12 +41,18 @@ const GUARD_BITS: u8 = 2;
 ///   original pixel values before DC shift; for signed they are the signed
 ///   stored values).
 /// - `rows` / `cols`: image dimensions.
-/// - `precision`: bit-depth (1–16; typically 8 or 16).
+/// - `precision`: bit-depth (1–16).
 /// - `signed`: whether the component uses signed representation.
 ///
 /// # DC level shift (ISO 15444-1 §G.1.2)
 /// Unsigned components are DC-shifted by `−2^(precision−1)` before EBCOT
 /// coding and the shift is reversed during decoding.
+///
+/// # Errors
+/// Returns an error for zero or overflowing geometry, a mismatched sample
+/// count, precision outside 1–16, a decomposition depth larger than the image
+/// geometry supports, or a sample outside the range declared by `precision`
+/// and `signed`.
 pub fn encode_grayscale_j2k(
     pixels: &[i32],
     rows: u32,
@@ -50,17 +61,22 @@ pub fn encode_grayscale_j2k(
     signed: PixelSignedness,
     num_decomp_levels: u8,
     transform: WaveletTransform,
-) -> Vec<u8> {
-    assert_eq!(
-        pixels.len(),
-        (rows * cols) as usize,
-        "pixels length must equal rows × cols"
-    );
-    assert!((1..=38).contains(&precision), "precision must be in 1..=38");
-
-    let w = cols as usize;
-    let h = rows as usize;
+) -> Result<Vec<u8>, Jpeg2000EncodeError> {
+    let (w, h) = validate_geometry(pixels.len(), rows, cols, num_decomp_levels)?;
     let is_signed = signed.is_signed();
+    let (minimum, maximum) = validate_precision(precision, is_signed)?;
+    if let Some((index, &value)) = pixels
+        .iter()
+        .enumerate()
+        .find(|(_, value)| !(minimum..=maximum).contains(value))
+    {
+        return Err(Jpeg2000EncodeError::SampleOutOfRange {
+            index,
+            value,
+            minimum,
+            maximum,
+        });
+    }
 
     // Apply DC level shift for unsigned components.
     let dc_offset = if is_signed {
@@ -68,13 +84,13 @@ pub fn encode_grayscale_j2k(
     } else {
         -(1i32 << (precision - 1))
     };
-    let shifted: Vec<i32> = pixels.iter().map(|&v| v + dc_offset).collect();
 
     // Build the tile-part (SOT + SOD + packet).
     let tile_part = encode_tile_part(
-        &shifted,
+        pixels,
         w,
         h,
+        dc_offset,
         GUARD_BITS,
         precision,
         0,
@@ -165,7 +181,7 @@ pub fn encode_grayscale_j2k(
     // EOC.
     cs.extend_from_slice(&[0xFF, 0xD9]);
 
-    cs
+    Ok(cs)
 }
 
 #[cfg(test)]
@@ -197,7 +213,8 @@ mod tests {
             PixelSignedness::Unsigned,
             0,
             WaveletTransform::Reversible,
-        );
+        )
+        .expect("valid image must encode");
         assert!(
             is_soc(&j2k),
             "encoded codestream must start with SOC 0xFF4F"
@@ -214,7 +231,8 @@ mod tests {
             PixelSignedness::Unsigned,
             0,
             WaveletTransform::Reversible,
-        );
+        )
+        .expect("valid image must encode");
         let last2 = &j2k[j2k.len() - 2..];
         assert_eq!(
             last2,
@@ -235,7 +253,8 @@ mod tests {
             PixelSignedness::Unsigned,
             0,
             WaveletTransform::Reversible,
-        );
+        )
+        .expect("valid image must encode");
         let decoded = decode_j2k_fragment(&j2k, layout(4, 4, 8, PixelSignedness::Unsigned))
             .expect("round-trip decode must succeed");
         assert_eq!(decoded.len(), 16);
@@ -255,7 +274,8 @@ mod tests {
             PixelSignedness::Unsigned,
             0,
             WaveletTransform::Reversible,
-        );
+        )
+        .expect("valid image must encode");
         let decoded = decode_j2k_fragment(&j2k, layout(2, 4, 8, PixelSignedness::Unsigned))
             .expect("gradient round-trip must succeed");
         for (i, (&orig, &dec)) in pixels.iter().zip(decoded.iter()).enumerate() {
@@ -274,7 +294,8 @@ mod tests {
             PixelSignedness::Signed,
             0,
             WaveletTransform::Reversible,
-        );
+        )
+        .expect("valid image must encode");
         let decoded = decode_j2k_fragment(&j2k, layout(2, 2, 8, PixelSignedness::Signed))
             .expect("signed round-trip must succeed");
         assert_eq!(decoded, vec![-4.0f32, -1.0, 0.0, 3.0]);
@@ -291,11 +312,148 @@ mod tests {
             PixelSignedness::Unsigned,
             0,
             WaveletTransform::Reversible,
-        );
+        )
+        .expect("valid image must encode");
         let mut lyt = layout(1, 1, 8, PixelSignedness::Unsigned);
         lyt.rescale_slope = 2.0;
         lyt.rescale_intercept = -1024.0;
         let decoded = decode_j2k_fragment(&j2k, lyt).expect("single-pixel rescale must succeed");
         assert_eq!(decoded, vec![-824.0f32]); // 100 * 2 + (-1024) = -824
+    }
+
+    #[test]
+    fn encoder_rejects_zero_geometry() {
+        let error = encode_grayscale_j2k(
+            &[],
+            0,
+            1,
+            8,
+            PixelSignedness::Unsigned,
+            0,
+            WaveletTransform::Reversible,
+        )
+        .expect_err("zero-height image must fail");
+        assert_eq!(error, Jpeg2000EncodeError::EmptyImage { rows: 0, cols: 1 });
+    }
+
+    #[test]
+    fn encoder_rejects_mismatched_sample_count() {
+        let error = encode_grayscale_j2k(
+            &[0],
+            2,
+            2,
+            8,
+            PixelSignedness::Unsigned,
+            0,
+            WaveletTransform::Reversible,
+        )
+        .expect_err("mismatched sample count must fail");
+        assert_eq!(
+            error,
+            Jpeg2000EncodeError::PixelCountMismatch {
+                actual: 1,
+                expected: 4,
+            }
+        );
+    }
+
+    #[test]
+    fn encoder_rejects_unsupported_precision() {
+        for precision in [0, 17] {
+            let error = encode_grayscale_j2k(
+                &[0],
+                1,
+                1,
+                precision,
+                PixelSignedness::Signed,
+                0,
+                WaveletTransform::Reversible,
+            )
+            .expect_err("unsupported precision must fail");
+            assert_eq!(
+                error,
+                Jpeg2000EncodeError::UnsupportedPrecision {
+                    precision,
+                    maximum: 16,
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn encoder_rejects_excessive_decomposition() {
+        let error = encode_grayscale_j2k(
+            &[0; 4],
+            2,
+            2,
+            8,
+            PixelSignedness::Unsigned,
+            2,
+            WaveletTransform::Reversible,
+        )
+        .expect_err("decomposition beyond geometry must fail");
+        assert_eq!(
+            error,
+            Jpeg2000EncodeError::ExcessiveDecomposition {
+                requested: 2,
+                maximum: 1,
+            }
+        );
+    }
+
+    #[test]
+    fn encoder_rejects_samples_outside_declared_range() {
+        for (signedness, sample, minimum, maximum) in [
+            (PixelSignedness::Unsigned, -1, 0, 255),
+            (PixelSignedness::Unsigned, 256, 0, 255),
+            (PixelSignedness::Signed, -129, -128, 127),
+            (PixelSignedness::Signed, 128, -128, 127),
+        ] {
+            let error = encode_grayscale_j2k(
+                &[sample],
+                1,
+                1,
+                8,
+                signedness,
+                0,
+                WaveletTransform::Reversible,
+            )
+            .expect_err("out-of-range sample must fail");
+            assert_eq!(
+                error,
+                Jpeg2000EncodeError::SampleOutOfRange {
+                    index: 0,
+                    value: sample,
+                    minimum,
+                    maximum,
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn encoder_accepts_declared_sample_boundaries() {
+        for (signedness, pixels) in [
+            (PixelSignedness::Unsigned, [0, 255]),
+            (PixelSignedness::Signed, [-128, 127]),
+        ] {
+            let codestream = encode_grayscale_j2k(
+                &pixels,
+                1,
+                2,
+                8,
+                signedness,
+                0,
+                WaveletTransform::Reversible,
+            )
+            .expect("inclusive sample boundaries must encode");
+            let decoded = decode_j2k_fragment(&codestream, layout(1, 2, 8, signedness))
+                .expect("boundary codestream must decode");
+            assert_eq!(
+                decoded,
+                pixels.map(|sample| sample as f32),
+                "declared sample boundaries must round-trip exactly"
+            );
+        }
     }
 }
