@@ -40,8 +40,9 @@
 - [x] Render and inspect the figure; cross-check lag sign, true/estimated
       shift, peak correlation, overlap, aligned residuals, and status against
       raw example data.
-- [ ] Run formatting, warning-denied Clippy, Nextest, doctest, Rustdoc,
-      mdBook, semantic-version, benchmark, example-runtime, and hosted gates.
+- [x] Run target formatting, warning-denied Clippy, focused Nextest, doctest,
+      Rustdoc, mdBook, benchmark, and example-runtime gates.
+- [ ] Complete standalone semantic-version and hosted exact-head gates.
 - [ ] Reconcile CHANGELOG, audit, backlog, and checklist evidence; commit,
       push, review, and merge.
 

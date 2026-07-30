@@ -342,6 +342,12 @@ impl ImageRegistration {
     /// Synchronize temporal signals from multi-modal acquisitions.
     ///
     /// Uses cross-correlation phase estimation to find optimal temporal shift.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TemporalSyncError`] when the inputs have mismatched or
+    /// insufficient lengths, contain non-finite samples, are unidentifiable,
+    /// or no searched overlap has a defined correlation.
     pub fn temporal_synchronization(
         &self,
         signal1: &Array1<f64>,
