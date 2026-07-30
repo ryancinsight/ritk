@@ -46,10 +46,19 @@ warning-denied Rustdoc, and mdBook test/build pass. The exact-branch release
 Python extension builds, and all 15 statistics binding tests pass under Python
 3.13.12 in 0.10 seconds. A broader `ritk-python` Clippy attempt reaches a
 pre-existing warning-denied `missing_const_for_thread_local` diagnostic in
-`ritk-filter/src/morphology/mod.rs`. The declared-major
+`ritk-filter/src/morphology/mod.rs`. This is an accepted local-provider-overlay
+exception, not a SAFE-682 closure blocker: the diagnostic is outside the
+statistics/Python changes, and the provider-pinned hosted workspace Clippy
+gate passes. The declared-major
 `cargo-semver-checks` comparison against merge base `7c2f2ac5` completes in
 15.420 seconds with all 253 incompatible-change lints skipped as expected for
-a major release; hosted evidence is recorded at closure.
+a major release. Exact code head `08ba5e4e` passes Rustfmt, warning-denied
+Clippy, dependency alignment, wheel smoke, and Linux/macOS/Windows Nextest in
+CI `30527279931`; all 13 Python 3.9-3.13 platform lanes pass in
+`30527280041`; and mdBook build `30527279966` passes. CodeRabbit's sole
+PM-consistency finding is addressed in the closure commit. The external
+`recurseml/analysis` service returned an analysis error without a repository
+log or actionable finding.
 
 The deterministic 64 × 48 example reports 3,072 full samples and 1,141 masked
 samples. Full mean/median are 55.77/18.80, while masked mean/median are

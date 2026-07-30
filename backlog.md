@@ -6,7 +6,7 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-682-01 [major] - Make descriptive statistics and histograms
-  fallible, finite, and teachable** (IN PROGRESS; owner=Codex;
+  fallible, finite, and teachable** (DONE; owner=Codex;
   last-update=2026-07-30; scope=`crates/ritk-statistics/src/{error.rs,
   image_statistics.rs,image_statistics/native.rs,histogram.rs,lib.rs,
   tests_image_statistics.rs,tests_histogram.rs}`,
@@ -35,7 +35,12 @@
   its foreground allocation; Python maps invalid user input to `ValueError`;
   the generated figure agrees with raw metrics and is visually clear; and
   formatting, warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook,
-  semantic-version, example-runtime, and hosted gates pass.
+  semantic-version, example-runtime, and hosted gates pass. Exact code head
+  `08ba5e4e` passes CI `30527279931`, all 13 Python lanes in
+  `30527280041`, and mdBook build `30527279966`. CodeRabbit review completed
+  with one PM-consistency finding addressed in the closure commit; the
+  external `recurseml/analysis` service returned an analysis error without a
+  repository log or actionable finding.
 
 - **SAFE-681-01 [major] - Make JPEG-LS encoding fallible, bound header
   parsing, reduce scan memory, and document the native codec** (DONE;

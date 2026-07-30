@@ -32,15 +32,20 @@
       chapter, worked example, and CI figure regeneration.
 - [x] Render and inspect the figure; cross-check histogram totals, mean,
       median, quartiles, and masked/full differences against raw example data.
-- [ ] Run formatting, warning-denied Clippy, Nextest, doctest, Rustdoc,
-      mdBook, semantic-version, example-runtime, and hosted gates. Local
-      evidence: 341/341 Nextest, 15/15 Python binding tests, statistics
-      all-target warning-denied Clippy, two doctests, warning-denied Rustdoc,
-      mdBook test/build, the deterministic example, and the declared-major
-      semantic check against `7c2f2ac5` pass. The broader Python Clippy command
-      reaches the recorded pre-existing `ritk-filter` diagnostic.
-- [ ] Reconcile CHANGELOG, audit, backlog, and checklist evidence; commit,
-      push, review, and merge.
+- [x] Run local formatting, focused warning-denied Clippy, Nextest, doctest,
+      Rustdoc, mdBook, semantic-version, and example-runtime gates. Evidence:
+      341/341 Nextest, 15/15 Python binding tests, statistics all-target
+      warning-denied Clippy, two doctests, warning-denied Rustdoc, mdBook
+      test/build, the deterministic example, and the declared-major semantic
+      check against `7c2f2ac5` pass.
+- [x] Classify the broader local Python Clippy result. It is an accepted
+      pre-existing provider-overlay exception: the command reaches
+      `ritk-filter`'s unrelated `missing_const_for_thread_local` diagnostic,
+      while the exact provider-pinned hosted workspace Clippy gate passes.
+- [x] Run exact-code-head hosted gates. CI `30527279931`, all 13 Python lanes
+      in `30527280041`, and mdBook build `30527279966` pass at `08ba5e4e`.
+- [x] Reconcile CHANGELOG, audit, backlog, and checklist evidence; commit,
+      push, and complete review in PR #76.
 
 ## SAFE-681-01 — Harden and document the native JPEG-LS codec
 **Target version**: Next major release
