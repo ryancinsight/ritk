@@ -392,7 +392,7 @@ fn tile_part_round_trip_2x2_one_dwt_level() {
     // Regression (proptest seed 3404172460139922156): 2×2, 1 DWT level,
     // four 1×1 code-blocks across two LRCP packets.
     let samples = vec![64i32, -119, -42, -28];
-    let tp = encode_tile_part(&samples, 2, 2, 2, 8, 0, 1, WaveletTransform::Reversible);
+    let tp = encode_tile_part(&samples, 2, 2, 0, 2, 8, 0, 1, WaveletTransform::Reversible);
     let sod = tp
         .windows(2)
         .position(|w| w == [0xFF, 0x93])
@@ -418,7 +418,7 @@ fn tile_part_round_trip_2x2_one_dwt_level() {
 #[test]
 fn tile_part_encode_decode_round_trip_uniform() {
     let samples = vec![0i32; 16]; // all zeros (DC-shifted uniform)
-    let tp = encode_tile_part(&samples, 4, 4, 2, 8, 0, 0, WaveletTransform::Reversible);
+    let tp = encode_tile_part(&samples, 4, 4, 0, 2, 8, 0, 0, WaveletTransform::Reversible);
     // The tile-part contains SOT(12) + SOD(2) + header + body.
     assert!(tp.len() >= 14, "tile-part must be at least 14 bytes");
 }
@@ -427,7 +427,7 @@ fn tile_part_encode_decode_round_trip_uniform() {
 fn tile_part_encode_decode_round_trip_gradient() {
     // DC-shifted: pixels 0..8 → -128..-121
     let samples: Vec<i32> = (0..8i32).map(|v| v - 128).collect();
-    let tp = encode_tile_part(&samples, 4, 2, 2, 8, 0, 0, WaveletTransform::Reversible);
+    let tp = encode_tile_part(&samples, 4, 2, 0, 2, 8, 0, 0, WaveletTransform::Reversible);
     assert!(tp.len() >= 14);
     // Locate SOD (0xFF93) and parse the packet.
     let sod_pos = tp

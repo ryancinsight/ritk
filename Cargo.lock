@@ -5662,6 +5662,7 @@ name = "ritk-codecs"
 version = "0.5.3"
 dependencies = [
  "anyhow",
+ "base64",
  "criterion",
  "image 0.24.9",
  "jpeg-decoder",
@@ -6074,6 +6075,7 @@ dependencies = [
  "ritk-image",
  "ritk-spatial",
  "ritk-tensor-ops",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -8961,7 +8963,7 @@ dependencies = [
 ]
 
 [[patch.unused]]
-name = "proteus"
+name = "tyche-core"
 version = "0.1.0"
 
 [[patch.unused]]
@@ -8973,11 +8975,23 @@ name = "athena-leto"
 version = "0.1.0"
 
 [[patch.unused]]
+name = "proteus"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "hyperion"
+version = "0.1.0"
+
+[[patch.unused]]
 name = "apollo-nufft"
 version = "0.7.0"
 
 [[patch.unused]]
-name = "hyperion"
+name = "consus-npy"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "consus-zarr"
 version = "0.1.0"
 
 [[patch.unused]]
@@ -8993,8 +9007,12 @@ name = "hephaestus-wgpu"
 version = "0.18.0"
 
 [[patch.unused]]
-name = "tyche-core"
-version = "0.1.0"
+name = "moirai-gpu"
+version = "0.4.0"
+
+[[patch.unused]]
+name = "moirai-http"
+version = "0.4.0"
 
 [[patch.unused]]
 name = "horae"
@@ -9006,20 +9024,4 @@ version = "0.1.0"
 
 [[patch.unused]]
 name = "asclepius-coeus"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "moirai-gpu"
-version = "0.4.0"
-
-[[patch.unused]]
-name = "moirai-http"
-version = "0.4.0"
-
-[[patch.unused]]
-name = "consus-npy"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "consus-zarr"
 version = "0.1.0"

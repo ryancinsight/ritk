@@ -1,27 +1,16 @@
-//! Temporal synchronization module (Sprint 354 split, ARCH-350-04).
-//!
-//! Deep vertical hierarchy:
-//!
-//! ```text
-//! temporal/
-//! ├── mod.rs       (this file — module decls + re-exports)
-//! ├── config.rs    TemporalSyncConfig
-//! ├── sync.rs      TemporalSync + cross-correlation + synchronize()
-//! ├── quality.rs   compute_timing_errors + compute_success_rate
-//! └── tests.rs     #[cfg(test)] tests
-//! ```
-//!
-//! Public surface unchanged: `TemporalSync` and `TemporalSyncConfig` still
-//! re-export from this module so external callers (e.g. `classical::mod.rs`)
-//! continue to work without modification.
+//! Temporal signal synchronization with dimensionally explicit diagnostics.
 
-pub mod config;
-pub mod quality;
-pub mod sync;
+mod config;
+mod correlation;
+mod error;
+mod quality;
+mod result;
+mod sync;
 
 #[cfg(test)]
 mod tests;
 
-// ── Public re-exports (preserve public API) ───────────────────────────────
 pub use config::TemporalSyncConfig;
+pub use error::{TemporalSignal, TemporalSyncError};
+pub use result::{TemporalCorrelationSample, TemporalSyncResult, TemporalSyncStatus};
 pub use sync::TemporalSync;

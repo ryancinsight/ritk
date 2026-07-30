@@ -25,7 +25,8 @@ fn write_jpegls_dicom_file(
     );
 
     let samples: Vec<u16> = pixels_u8.iter().map(|&v| u16::from(v)).collect();
-    let jls_bytes = encode_grayscale_jpeg_ls(&samples, height, width, 8, near);
+    let jls_bytes = encode_grayscale_jpeg_ls(&samples, height, width, 8, near)
+        .expect("valid DICOM JPEG-LS fixture must encode");
 
     let (transfer_syntax, sop_instance) = if near == 0 {
         ("1.2.840.10008.1.2.4.80", "2.25.99999931")

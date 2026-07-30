@@ -23,7 +23,9 @@ fn test_minmax_known_values_unit_range() {
     //   N(10) = (10−0)/(10+1e-8) ≈ 1.0
     let image: Image<f32, TestBackend, 1> = make_image(vec![0.0, 5.0, 10.0], [3]);
     let normalizer = MinMaxNormalizer::new();
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
     let values = get_values(&result);
 
     assert!(values[0].abs() < 1e-5, "N(0) ≈ 0.0, got {}", values[0]);
@@ -68,9 +70,12 @@ fn test_minmax_min_is_zero_after_normalization() {
     let data: Vec<f32> = (1u8..=8).map(|x| x as f32).collect();
     let image: Image<f32, TestBackend, 1> = make_image(data, [8]);
     let normalizer = MinMaxNormalizer::new();
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
 
-    let stats = crate::image_statistics::compute_statistics(&result);
+    let stats =
+        crate::image_statistics::compute_statistics(&result).expect("normalized output is finite");
     assert!(
         stats.min.abs() < 1e-5,
         "min after normalization must be ≈ 0.0, got {}",
@@ -84,9 +89,12 @@ fn test_minmax_max_is_one_after_normalization() {
     let data: Vec<f32> = (1u8..=8).map(|x| x as f32).collect();
     let image: Image<f32, TestBackend, 1> = make_image(data, [8]);
     let normalizer = MinMaxNormalizer::new();
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
 
-    let stats = crate::image_statistics::compute_statistics(&result);
+    let stats =
+        crate::image_statistics::compute_statistics(&result).expect("normalized output is finite");
     assert!(
         (stats.max - 1.0).abs() < 1e-4,
         "max after normalization must be ≈ 1.0, got {}",
@@ -100,7 +108,9 @@ fn test_minmax_ordering_preserved() {
     let data: Vec<f32> = (0u8..8).map(|x| x as f32).collect();
     let image: Image<f32, TestBackend, 1> = make_image(data, [8]);
     let normalizer = MinMaxNormalizer::new();
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
     let values = get_values(&result);
 
     for i in 0..7 {
@@ -123,7 +133,9 @@ fn test_minmax_with_custom_range() {
     //   N(10) ≈ 1.0  → −1.0 + 1   * 2 =  1.0
     let image: Image<f32, TestBackend, 1> = make_image(vec![0.0, 5.0, 10.0], [3]);
     let normalizer = MinMaxNormalizer::with_range(-1.0, 1.0);
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
     let values = get_values(&result);
 
     assert!(
@@ -147,7 +159,9 @@ fn test_minmax_with_positive_shift() {
     //   N(6) ≈ 1.0 → 200.0
     let image: Image<f32, TestBackend, 1> = make_image(vec![2.0, 4.0, 6.0], [3]);
     let normalizer = MinMaxNormalizer::with_range(100.0, 200.0);
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
     let values = get_values(&result);
 
     assert!(
@@ -173,7 +187,9 @@ fn test_minmax_negative_input_values() {
     //   range = 20,  N(−10)=0, N(0)=0.5, N(10)≈1
     let image: Image<f32, TestBackend, 1> = make_image(vec![-10.0, 0.0, 10.0], [3]);
     let normalizer = MinMaxNormalizer::new();
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
     let values = get_values(&result);
 
     assert!(values[0].abs() < 1e-5, "N(−10) ≈ 0.0, got {}", values[0]);
@@ -203,7 +219,9 @@ fn test_minmax_preserves_metadata() {
     );
 
     let normalizer = MinMaxNormalizer::new();
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
 
     assert_eq!(result.origin(), &origin, "origin must be preserved");
     assert_eq!(result.spacing(), &spacing, "spacing must be preserved");
@@ -220,7 +238,9 @@ fn test_minmax_3d_shape_preserved() {
     let image: Image<f32, TestBackend, 3> =
         make_image((0..27).map(|x| x as f32).collect(), [3, 3, 3]);
     let normalizer = MinMaxNormalizer::new();
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
     assert_eq!(result.shape(), [3, 3, 3]);
 
     let values = get_values_3d(&result);
@@ -247,7 +267,9 @@ fn test_minmax_constant_image_does_not_panic() {
     // N(c) = (c − c) / ε = 0.  Remapped: range.min() + 0 * range.span() = range.min().
     let image: Image<f32, TestBackend, 1> = make_image(vec![7.0; 8], [8]);
     let normalizer = MinMaxNormalizer::new();
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
     let values = get_values(&result);
 
     for &v in &values {
@@ -265,7 +287,9 @@ fn test_minmax_constant_image_custom_range_maps_to_target_min() {
     //   N(c) = 0 → 5 + 0 * 5 = 5 = range.min().
     let image: Image<f32, TestBackend, 1> = make_image(vec![7.0; 4], [4]);
     let normalizer = MinMaxNormalizer::with_range(5.0, 10.0);
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
     let values = get_values(&result);
 
     for &v in &values {
@@ -282,7 +306,9 @@ fn test_minmax_single_voxel() {
     // Single voxel: range = 0, N = 0, output = range.min() = 0.
     let image: Image<f32, TestBackend, 1> = make_image(vec![42.0], [1]);
     let normalizer = MinMaxNormalizer::new();
-    let result = normalizer.normalize(&image);
+    let result = normalizer
+        .normalize(&image)
+        .expect("valid statistics input");
     let values = get_values(&result);
 
     assert!(

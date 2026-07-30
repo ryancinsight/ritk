@@ -1,3 +1,4 @@
+pub mod error;
 pub mod histogram;
 pub mod image_comparison;
 pub mod image_statistics;
@@ -10,13 +11,17 @@ pub mod noise_estimation;
 pub mod normalization;
 pub mod position_extrema;
 pub mod value_indices;
+pub use error::StatisticsError;
 pub use histogram::{histogram, histogram_from_slice, Histogram};
 pub use image_comparison::{
     dice_coefficient, hausdorff_distance, hausdorff_distance_native, mean_surface_distance,
     mean_surface_distance_native, pearson_correlation, psnr, psnr_native, similarity_index, ssim,
     ssim_native,
 };
-pub use image_statistics::{compute_statistics, masked_statistics, ImageStatistics};
+pub use image_statistics::{
+    compute_statistics, compute_statistics_from_slice, masked_statistics,
+    masked_statistics_from_slices, ImageStatistics,
+};
 pub use information::{
     conditional_mutual_information, interaction_information, joint_entropy, joint_entropy_n,
     marginal_entropy, multivariate_variation_of_information, mutual_information,
@@ -49,7 +54,7 @@ pub use value_indices::{value_indices, ValueIndices};
 /// Sort a mutable slice of `f32` values using total ordering (NaN sorted last).
 #[inline]
 pub(crate) fn sort_floats(values: &mut [f32]) {
-    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    values.sort_by(f32::total_cmp);
 }
 
 /// Binary-mask foreground threshold: voxels with mask value strictly above

@@ -5,7 +5,9 @@ use crate::image::{image_from_py, with_image_slice, PyImage};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use ritk_statistics::compute_label_intensity_statistics_from_slices as core_label_intensity_stats_from_slices;
-use ritk_statistics::image_statistics::compute_statistics_from_slice;
+use ritk_statistics::image_statistics::{
+    compute_statistics_from_slice, masked_statistics_from_slices,
+};
 use ritk_statistics::noise_estimation::{
     estimate_noise_mad_from_slice, estimate_noise_mad_masked_from_slices,
 };
@@ -42,12 +44,17 @@ pub(super) fn stats_to_dict(py: Python<'_>, stats: &ImageStatistics) -> RitkResu
 /// Returns:
 ///     dict with keys: min, max, mean, std, p25, p50, p75 (all float).
 ///     Percentiles correspond to the 25th, 50th (median), and 75th percentiles.
+///
+/// Raises:
+///     ValueError: if input is empty or non-finite, or `ddof` is not smaller
+///                 than the voxel count.
 #[pyfunction]
 #[pyo3(signature = (image, ddof=0))]
 pub fn compute_statistics(py: Python<'_>, image: &PyImage, ddof: usize) -> RitkResult<Py<PyDict>> {
     let stats = with_image_slice(image.inner.as_ref(), |slice| {
         compute_statistics_from_slice(slice, ddof)
-    });
+    })
+    .map_err(RitkPyError::value)?;
     stats_to_dict(py, &stats)
 }
 
@@ -65,7 +72,8 @@ pub fn compute_statistics(py: Python<'_>, image: &PyImage, ddof: usize) -> RitkR
 ///     Statistics are computed only over voxels where mask > 0.5.
 ///
 /// Raises:
-///     RuntimeError: if image and mask shapes differ or mask has no foreground voxels.
+///     ValueError: if input is empty or non-finite, image and mask lengths
+///                 differ, the mask has no foreground, or `ddof` is invalid.
 #[pyfunction]
 #[pyo3(signature = (image, mask, ddof=0))]
 pub fn masked_statistics(
@@ -76,21 +84,10 @@ pub fn masked_statistics(
 ) -> RitkResult<Py<PyDict>> {
     let stats = with_image_slice(image.inner.as_ref(), |img_slice| {
         with_image_slice(mask.inner.as_ref(), |mask_slice| {
-            assert_eq!(
-                img_slice.len(),
-                mask_slice.len(),
-                "image and mask must have identical element count"
-            );
-            let values: Vec<f32> = img_slice
-                .iter()
-                .zip(mask_slice.iter())
-                .filter(|(_, &m)| m > 0.5)
-                .map(|(&v, _)| v)
-                .collect();
-            assert!(!values.is_empty(), "mask contains no foreground voxels");
-            compute_statistics_from_slice(&values, ddof)
+            masked_statistics_from_slices(img_slice, mask_slice, ddof)
         })
-    });
+    })
+    .map_err(RitkPyError::value)?;
     stats_to_dict(py, &stats)
 }
 

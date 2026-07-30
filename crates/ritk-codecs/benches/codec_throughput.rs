@@ -52,17 +52,15 @@ fn bench_jpeg_ls(c: &mut Criterion) {
 
     c.bench_function("jpeg_ls_encode_512x512_16bit_lossless", |b| {
         b.iter(|| {
-            black_box(encode_grayscale_jpeg_ls(
-                black_box(&img),
-                rows as u32,
-                cols as u32,
-                16,
-                0,
-            ))
+            black_box(
+                encode_grayscale_jpeg_ls(black_box(&img), rows as u32, cols as u32, 16, 0)
+                    .expect("valid benchmark fixture must encode"),
+            )
         })
     });
 
-    let stream = encode_grayscale_jpeg_ls(&img, rows as u32, cols as u32, 16, 0);
+    let stream = encode_grayscale_jpeg_ls(&img, rows as u32, cols as u32, 16, 0)
+        .expect("valid benchmark fixture must encode");
     c.bench_function("jpeg_ls_decode_512x512_16bit_lossless", |b| {
         b.iter(|| {
             black_box(decode_jpeg_ls_fragment(
@@ -74,13 +72,10 @@ fn bench_jpeg_ls(c: &mut Criterion) {
 
     c.bench_function("jpeg_ls_encode_512x512_16bit_near2", |b| {
         b.iter(|| {
-            black_box(encode_grayscale_jpeg_ls(
-                black_box(&img),
-                rows as u32,
-                cols as u32,
-                16,
-                2,
-            ))
+            black_box(
+                encode_grayscale_jpeg_ls(black_box(&img), rows as u32, cols as u32, 16, 2)
+                    .expect("valid benchmark fixture must encode"),
+            )
         })
     });
 }
@@ -114,7 +109,8 @@ fn bench_jpeg_2000(c: &mut Criterion) {
         PixelSignedness::Unsigned,
         0,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("benchmark fixture must encode");
     c.bench_function("jpeg2000_decode_64x64_16bit_lossless", |b| {
         b.iter(|| {
             black_box(decode_jpeg2000_fragment(
@@ -154,7 +150,8 @@ fn bench_jpeg_2000_full(c: &mut Criterion) {
         PixelSignedness::Unsigned,
         5,
         WaveletTransform::Reversible,
-    );
+    )
+    .expect("benchmark fixture must encode");
     c.bench_function("jpeg2000_decode_512x512_16bit_5levels", |b| {
         b.iter(|| {
             black_box(decode_jpeg2000_fragment(

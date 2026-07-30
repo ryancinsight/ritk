@@ -5,8 +5,169 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **SAFE-683-01 [major] - Make temporal synchronization safe,
+  dimensionally correct, allocation-efficient, and teachable** (DONE;
+  owner=Codex; last-update=2026-07-30; scope=
+  `crates/ritk-registration/src/classical/{temporal/**,
+  engine/registration.rs,mod.rs}`, affected validation and crate exports,
+  `crates/ritk-registration/{benches/temporal_sync.rs,
+  examples/book_temporal_sync.rs,Cargo.toml}`,
+  `docs/book/{SUMMARY.md,temporal_synchronization.md,
+  examples/temporal_synchronization.md,
+  figures/temporal_synchronization.svg}`,
+  `.github/workflows/book-pages.yml`,
+  `docs/adr/{0015-fallible-temporal-synchronization.md,README.md}`,
+  `CHANGELOG.md`, `gap_audit.md`, and PM artifacts; non-goal=unequal-rate
+  resampling, dynamic time warping, FFT acceleration, external datasets,
+  release, or deployment). The public synchronizer can panic on non-finite
+  samples, accepts invalid frame spacing and thresholds, reports constant
+  signals as successful, ignores `min_correlation`, allocates complete lag
+  and correlation arrays to retain only one peak, and labels signal-residual
+  magnitudes as seconds. Replace the tuple and misleading metric surface with
+  typed temporal results, status, configuration, and errors; validate finite
+  and identifiable inputs; stream peak selection with constant search
+  scratch; expose an explicitly allocated diagnostic profile from the same
+  correlation kernel; compute overlap-counted interpolated residuals in
+  signal units; and update every in-repository caller without a compatibility
+  wrapper. Replace the unresolved Fowler citation with verified
+  cross-correlation and sub-sample delay sources. Add a deterministic
+  public-API example and inspected figure showing delayed signals, lag
+  profile, aligned traces, residuals, shift, correlation, overlap, and
+  acceptance status. Acceptance: analytical integer and fractional shifts,
+  swap-sign symmetry, positive affine-intensity invariance, typed invalid
+  configuration/input/flat-signal errors, configured-threshold behavior, and
+  streaming-versus-profile differential tests pass; residual units and
+  overlap are exact; the synchronized hot path performs no lag-profile
+  allocation; an unchanged Criterion workload detects no latency regression;
+  displayed metrics agree with example data; and formatting,
+  warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook, example-runtime,
+  and hosted gates pass; any semantic-version environment limitation is
+  classified with its exact blocker. Exact code head `07989fa5` passes CI
+  `30534530687`, all 13 Python lanes in `30534530713`, and mdBook build
+  `30534530699`. CodeRabbit's checklist and Rustdoc findings are addressed in
+  `07989fa5`; its exact-head rereview was rate limited.
+
+- **SAFE-682-01 [major] - Make descriptive statistics and histograms
+  fallible, finite, and teachable** (DONE; owner=Codex;
+  last-update=2026-07-30; scope=`crates/ritk-statistics/src/{error.rs,
+  image_statistics.rs,image_statistics/native.rs,histogram.rs,lib.rs,
+  tests_image_statistics.rs,tests_histogram.rs}`,
+  `crates/ritk-statistics/examples/book_descriptive_statistics.rs`,
+  affected normalization and Python callers,
+  `docs/book/{SUMMARY.md,descriptive_statistics.md,
+  examples/descriptive_statistics.md,figures/descriptive_statistics.svg}`,
+  `.github/workflows/book-pages.yml`,
+  `docs/adr/{0014-fallible-descriptive-statistics.md,README.md}`,
+  `CHANGELOG.md`, `gap_audit.md`, and PM artifacts; non-goal=changing
+  percentile ranks, variance formulas, label-statistics APIs, information
+  metrics, or release/deployment). Empty sample slices and empty masks can
+  index or assert, invalid histogram configurations assert, and NaN samples
+  are silently treated as minima or bin-zero values. Replace these paths
+  with one typed error contract, reject non-finite samples before arithmetic
+  or allocation, update every in-repository Rust/PyO3 caller without a
+  compatibility wrapper, and retain the existing f64 mean/variance
+  accumulation and in-place percentile selection. Add a deterministic Rust
+  example and inspected figure that makes full-image versus masked
+  distributions, histogram bins, mean, median, and quartiles visually
+  distinguishable. Acceptance: empty input, empty foreground, length
+  mismatch, zero bins, non-finite bounds/samples, and inverted ranges return
+  specific errors without panic or partial output; positive results match
+  analytical and NumPy/SimpleITK reference values; the slice path performs at
+  most one O(n) percentile workspace allocation and the masked path reuses
+  its foreground allocation; Python maps invalid user input to `ValueError`;
+  the generated figure agrees with raw metrics and is visually clear; and
+  formatting, warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook,
+  semantic-version, example-runtime, and hosted gates pass. Exact code head
+  `08ba5e4e` passes CI `30527279931`, all 13 Python lanes in
+  `30527280041`, and mdBook build `30527279966`. CodeRabbit review completed
+  with one PM-consistency finding addressed in the closure commit; the
+  external `recurseml/analysis` service returned an analysis error without a
+  repository log or actionable finding.
+
+- **SAFE-681-01 [major] - Make JPEG-LS encoding fallible, bound header
+  parsing, reduce scan memory, and document the native codec** (DONE;
+  owner=Codex; scope=`crates/ritk-codecs/src/jpeg_ls/{encoder.rs,
+  encoder/validation.rs,scan.rs,parser.rs,decoder.rs,tests/**}`,
+  `crates/ritk-codecs/{examples/book_jpeg_ls.rs,
+  benches/codec_throughput.rs}`, the JPEG-LS callers in `crates/ritk-io`,
+  `docs/book/{SUMMARY.md,jpeg_ls_codec.md,examples/jpeg_ls_codec.md,
+  figures/jpeg_ls_codec.svg}`, `.github/workflows/book-pages.yml`,
+  `docs/adr/{0013-fallible-jpeg-ls-encoder.md,README.md}`, `CHANGELOG.md`,
+  `gap_audit.md`, and PM artifacts; non-goal=color or interleaved JPEG-LS,
+  rate control, release, or deployment). The public encoder asserts
+  input-dependent metadata, narrows dimensions and `NEAR` without validation,
+  and encoder/decoder scans retain a complete reconstructed image although
+  prediction uses only the previous and current rows. The SOS parser also
+  maps an invalid interleave byte to `None`. Replace those paths with typed
+  errors, validate the implemented grayscale profile before allocation,
+  preserve exact lossless and analytically bounded near-lossless behavior,
+  and use two rolling reconstruction rows. Add a bounded Rust example and
+  inspected figure showing source, lossless reconstruction, near-lossless
+  reconstruction, magnified error, encoded sizes, and the exact `NEAR`
+  bound. Acceptance: invalid dimensions, sample counts/ranges, precision,
+  `NEAR`, and SOS interleave values return contextual errors without panic,
+  truncation, or partial output; native and DICOM round trips remain
+  value-exact or satisfy `|decoded-original| <= NEAR`; scan scratch is
+  `O(cols)` and decreases from `(rows+1)*cols*sizeof(i32)` to
+  `2*cols*sizeof(i32)`; the unchanged 512x512 Criterion workloads detect no
+  regression before any latency claim; the generated figure agrees with raw
+  example metrics and is visually distinct; and formatting, warning-denied
+  Clippy, Nextest, doctest, Rustdoc, mdBook, semantic-version, and hosted
+  gates pass. Evidence: 290/290 focused codec Nextest tests pass in 2.317
+  seconds; the codec doctest and warning-denied Rustdoc pass; the major-release
+  semantic check completes against `12d555eb`; and exact head `a9199207`
+  passes CI `30519988356`, Python CI `30519988318`, and book build
+  `30519988325`. Same-machine Criterion comparison against
+  `perf671-baseline` measures median changes of -13.36% lossless encode,
+  -19.10% lossless decode, and -15.74% near-lossless encode, all with
+  p < 0.05. The 512 × 512 scratch bound is 4,096 bytes instead of 1,050,624
+  bytes. The exact-head generated figure matches the inspected committed SVG
+  at SHA-256
+  `6202E9F3F82C8CA18E4AFF6F6F17ACB706F450FE9866F5F6A25AD002CA04F3F5`;
+  it reports zero lossless mismatches and maximum near-lossless error 3 for
+  `NEAR=3`.
+
+- **SAFE-680-01 [major] - Make JPEG 2000 encoding fallible and document the
+  native codec** (DONE; owner=Codex; scope=
+  `crates/ritk-codecs/{Cargo.toml,src/{lib.rs,jpeg_2000/{encoder.rs,
+  encoder/validation.rs,packet/{mod.rs,writer.rs},tests.rs}},
+  examples/book_jpeg_2000.rs,
+  tests/jpeg2000_interop.rs,benches/codec_throughput.rs}`,
+  `crates/ritk-io/src/format/dicom/codec/tests/jpeg2000.rs`,
+  `docs/book/{SUMMARY.md,jpeg_2000_codec.md,examples/jpeg_2000_codec.md,
+  figures/jpeg_2000_codec.svg}`, `.github/workflows/book-pages.yml`,
+  `docs/adr/{0012-fallible-jpeg-2000-encoder.md,README.md}`, `CHANGELOG.md`,
+  and PM artifacts; non-goal=color-component encoding, rate control, JP2
+  containers, or release/deploy). The public grayscale encoder asserts
+  input-dependent dimensions and precision, computes `rows * cols` without
+  checked arithmetic, accepts samples outside the declared component range,
+  and allocates a complete DC-shifted image before allocating the transform
+  buffer. Replace the panic contract with a typed `Result`, validate geometry,
+  precision, decomposition depth, and sample range before encoding, and apply
+  the DC shift while constructing the single transform buffer. Add a bounded
+  public-API example and inspected figure that explain reversible 5/3
+  encoding, codestream size, exact reconstruction, and malformed-input
+  rejection. Acceptance: invalid external inputs return contextual errors
+  without panic or partial output; reversible native and captured OpenJPEG
+  cases remain value-exact; the unchanged 512x512 five-level Criterion
+  workload detects no regression; one full-image allocation is removed; crate
+  and book claims match the implemented multi-level 5/3 and 9/7 support; the
+  example stays within the committed runtime budget; and formatting,
+  warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook, semantic-version,
+  and hosted gates pass. Evidence: all 277 codec tests and the focused DICOM
+  integration pass; the example completes in 0.104 seconds; reversible
+  reconstruction is exact and the irreversible example reaches 77.28 dB PSNR;
+  the unchanged Criterion workload improves from 53.651 ms to 48.277 ms median.
+  At code head `3abfaa67`, CI run `30503828578`, Python run `30503828528`,
+  and book run `30503828541` pass every repository-owned lane, while Pages
+  deployment is skipped. The external `recurseml/analysis` integration reports
+  an analysis error without a repository log or actionable finding. After
+  integrating the GrowCut book slice, exact head `cfc18b3a` passes Rust CI
+  `30517019185`, Python CI `30517019200`, and book build `30517019189`.
+  PR #74 merged as `12d555eb`.
+
 - **SAFE-679-01 [patch] - Correct GrowCut convergence and document
-  segmentation** (REVIEW; owner=Codex; scope=
+  segmentation** (DONE; owner=Codex; scope=
   `crates/ritk-segmentation/src/region_growing/{growcut.rs,
   tests_growcut.rs}`, `crates/ritk-segmentation/examples/
   book_growcut.rs`, `crates/ritk-segmentation/Cargo.toml`,
@@ -33,8 +194,9 @@
   483 segmentation tests pass in 7.600 seconds; warning-denied all-target
   Clippy, doctests, warning-denied Rustdoc, mdBook test/build, formatting, and
   diff checks pass. The inspected 6,198-byte SVG reports Dice 1.000 and zero
-  label errors; the already-built example runs in 0.551 seconds. Draft PR #72
-  carries the code, book, and workflow changes. Exact code head `a59dfb9f`
+  label errors; the already-built example runs in 0.551 seconds. The original
+  draft PR #72 carried the code, book, and workflow changes. Exact code head
+  `a59dfb9f`
   passes complete Rust CI run `30424915304`, Python 3.9-3.13 matrix run
   `30424915350`, and book build/artifact run `30424915331`. The Pages deploy
   job is correctly skipped on the pull request. Figure-clarity review then
@@ -49,8 +211,10 @@
   Clippy, doctest, warning-denied Rustdoc, and mdBook test/build pass. The
   dependency-inclusive Clippy lane remains blocked by an existing
   `ritk-filter` `missing_const_for_thread_local` diagnostic on an initializer
-  already written as `const`. Merge remains blocked on explicit
-  release/deploy authority.
+  already written as `const`. Clean draft PR #73 isolates the GrowCut history
+  from unrelated architecture commits that had entered the original branch.
+  Exact head `96432bbd` passes every repository-owned lane, and PR #73 merged
+  to `main` as `0ed4a87f`.
 
 - **PERF-678-01 [patch] - Eliminate tag-tree path allocations**
   (DONE; owner=Codex; scope=
@@ -990,7 +1154,11 @@ re-enter. Reserved inner tag: `ritk/atlas-migration-push/batch3`.
 ## Open performance items
 
 - **PERF-432-01 [patch] — Registration integration tests exceed the strict
-  nextest budget. READY.**
+  nextest budget. SUPERSEDED.**
+  This duplicate historical item is closed by the profiling-backed
+  `PERF-432-01` implementation record above: the focused B-spline row passes
+  in 17.279s and the package passes 740/740. The remaining text is retained
+  as investigation history, not executable work.
   Acceptance: profile the slow registration integration tests reported by
   `cargo nextest run -p ritk-registration --features coeus` and reduce each
   unmodified test below the AGENTS.md 30s slow threshold, or replace the

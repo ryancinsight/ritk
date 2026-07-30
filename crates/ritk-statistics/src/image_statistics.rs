@@ -20,6 +20,8 @@ use coeus_core::{Backend, CpuAddressableStorage};
 use ritk_image::Image;
 use ritk_tensor_ops::extract_vec_infallible;
 
+use crate::StatisticsError;
+
 pub mod native;
 
 /// Descriptive statistics over image intensities.
@@ -40,7 +42,14 @@ pub struct ImageStatistics {
 /// Compute statistics over **all** voxels in `image`.
 ///
 /// Extraction path: `tensor.clone().into_data()` → `as_slice::<f32>()` → CPU arithmetic.
-pub fn compute_statistics<B: Backend, const D: usize>(image: &Image<f32, B, D>) -> ImageStatistics
+///
+/// # Errors
+///
+/// Returns [`StatisticsError::EmptyInput`] for an empty image or
+/// [`StatisticsError::NonFiniteSample`] for NaN or infinite intensities.
+pub fn compute_statistics<B: Backend, const D: usize>(
+    image: &Image<f32, B, D>,
+) -> Result<ImageStatistics, StatisticsError>
 where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
@@ -53,49 +62,90 @@ where
 /// This is the zero-domain-logic public helper for callers that already have
 /// borrowed f32 tensor storage. The sorted copy required for percentile
 /// computation is allocated once inside [`compute_from_values`].
-pub fn compute_statistics_from_slice(slice: &[f32], ddof: usize) -> ImageStatistics {
+///
+/// # Errors
+///
+/// Returns [`StatisticsError::EmptyInput`] for an empty slice,
+/// [`StatisticsError::NonFiniteSample`] for NaN or infinite samples, and
+/// [`StatisticsError::DegreesOfFreedomOutOfRange`] when `ddof >= slice.len()`.
+pub fn compute_statistics_from_slice(
+    slice: &[f32],
+    ddof: usize,
+) -> Result<ImageStatistics, StatisticsError> {
     compute_from_values(slice, ddof)
 }
 
 /// Compute statistics restricted to voxels where `mask` > 0.5 (foreground).
 ///
-/// `mask` must have the same shape as `image` and contain 0.0 (background) or
-/// 1.0 (foreground). Panics if the shapes differ or no foreground voxels exist.
+/// `mask` must have the same element count as `image`. Values greater than 0.5
+/// select foreground voxels.
+///
+/// # Errors
+///
+/// Returns a typed error for empty or non-finite input, a length mismatch, or
+/// a mask that selects no foreground samples.
 pub fn masked_statistics<B: Backend, const D: usize>(
     image: &Image<f32, B, D>,
     mask: &Image<f32, B, D>,
-) -> ImageStatistics
+) -> Result<ImageStatistics, StatisticsError>
 where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
     let (img_vals, _) = extract_vec_infallible(image);
-    let image_slice: &[f32] = &img_vals;
     let (mask_vals, _) = extract_vec_infallible(mask);
-    let mask_slice: &[f32] = &mask_vals;
+    masked_statistics_from_slices(&img_vals, &mask_vals, 0)
+}
 
-    assert_eq!(
-        image_slice.len(),
-        mask_slice.len(),
-        "image and mask must have identical element count"
-    );
+/// Compute foreground statistics from borrowed image and mask buffers.
+///
+/// The foreground allocation is also the percentile workspace, so the masked
+/// path performs no second full-size clone.
+///
+/// # Errors
+///
+/// Returns a typed error for empty or non-finite input, a length mismatch, an
+/// empty foreground, or `ddof` greater than or equal to the foreground count.
+pub fn masked_statistics_from_slices(
+    image: &[f32],
+    mask: &[f32],
+    ddof: usize,
+) -> Result<ImageStatistics, StatisticsError> {
+    if image.len() != mask.len() {
+        return Err(StatisticsError::ImageMaskLengthMismatch {
+            image_count: image.len(),
+            mask_count: mask.len(),
+        });
+    }
+    if image.is_empty() {
+        return Err(StatisticsError::EmptyInput);
+    }
 
-    let values: Vec<f32> = image_slice
-        .iter()
-        .zip(mask_slice.iter())
-        .filter(|(_, &m)| m > crate::FOREGROUND_THRESHOLD)
-        .map(|(&v, _)| v)
-        .collect();
+    let mut foreground = Vec::new();
+    for (index, (&value, &mask_value)) in image.iter().zip(mask).enumerate() {
+        if !value.is_finite() {
+            return Err(StatisticsError::NonFiniteSample { index, value });
+        }
+        if !mask_value.is_finite() {
+            return Err(StatisticsError::NonFiniteMaskSample {
+                index,
+                value: mask_value,
+            });
+        }
+        if mask_value > crate::FOREGROUND_THRESHOLD {
+            foreground.push(value);
+        }
+    }
 
-    assert!(!values.is_empty(), "mask contains no foreground voxels");
-    compute_from_owned(values, 0)
+    if foreground.is_empty() {
+        return Err(StatisticsError::EmptyForeground);
+    }
+    validate_ddof(foreground.len(), ddof)?;
+    Ok(compute_from_validated_owned(foreground, ddof))
 }
 
 /// Core statistics computation.
 ///
-/// # Invariants
-/// - `values` is non-empty (caller enforced).
-/// - Copies `values` and partially reorders the copy in place; NaN compares
-///   `Equal` under the `partial_cmp` fallback and is ignored by min/max.
+/// Copies validated finite `values` and partially reorders the copy in place.
 ///
 /// # Algorithm
 /// The three percentiles are the order statistics at floor-division ranks
@@ -114,18 +164,58 @@ where
 /// f32 ULP (≈8192) exceeds individual element magnitudes, so additions are
 /// rounded to zero and the sum saturates.  Two-pass f64 accumulation is the
 /// algorithm's numerical contract requirement, not a convenience cast.
-pub fn compute_from_values(values: &[f32], ddof: usize) -> ImageStatistics {
-    compute_from_owned(values.to_vec(), ddof)
+///
+/// # Errors
+///
+/// Returns a typed error for empty or non-finite input, or when `ddof` is
+/// greater than or equal to the sample count.
+pub fn compute_from_values(
+    values: &[f32],
+    ddof: usize,
+) -> Result<ImageStatistics, StatisticsError> {
+    validate_values(values, ddof)?;
+    Ok(compute_from_validated_owned(values.to_vec(), ddof))
 }
 
 /// Compute statistics while consuming an owned buffer that may be reordered.
 ///
 /// Masked-statistics paths already allocate this foreground buffer, so this
 /// helper avoids cloning it before the in-place percentile selection.
-pub(crate) fn compute_from_owned(mut buffer: Vec<f32>, ddof: usize) -> ImageStatistics {
+pub(crate) fn compute_from_owned(
+    buffer: Vec<f32>,
+    ddof: usize,
+) -> Result<ImageStatistics, StatisticsError> {
+    validate_values(&buffer, ddof)?;
+    Ok(compute_from_validated_owned(buffer, ddof))
+}
+
+fn validate_values(values: &[f32], ddof: usize) -> Result<(), StatisticsError> {
+    if values.is_empty() {
+        return Err(StatisticsError::EmptyInput);
+    }
+    validate_ddof(values.len(), ddof)?;
+    if let Some((index, &value)) = values
+        .iter()
+        .enumerate()
+        .find(|(_, value)| !value.is_finite())
+    {
+        return Err(StatisticsError::NonFiniteSample { index, value });
+    }
+    Ok(())
+}
+
+fn validate_ddof(sample_count: usize, ddof: usize) -> Result<(), StatisticsError> {
+    if ddof >= sample_count {
+        return Err(StatisticsError::DegreesOfFreedomOutOfRange { sample_count, ddof });
+    }
+    Ok(())
+}
+
+fn compute_from_validated_owned(mut buffer: Vec<f32>, ddof: usize) -> ImageStatistics {
     let values = buffer.as_mut_slice();
     let n = values.len();
-    debug_assert!(n > 0, "compute_from_values requires non-empty input");
+    debug_assert!(n > 0, "validated statistics input is non-empty");
+    debug_assert!(ddof < n, "validated ddof is less than sample count");
 
     // Fused pass: min, max, and the f64 sum in parallel.
     let (min, max, sum_wide) = moirai::fold_reduce_with::<moirai::Adaptive, _, _, _, _>(
@@ -133,29 +223,13 @@ pub(crate) fn compute_from_owned(mut buffer: Vec<f32>, ddof: usize) -> ImageStat
         || (values[0], values[0], 0.0_f64),
         |(min_acc, max_acc, sum_acc), i| {
             let v = values[i];
-            let new_min = if matches!(v.partial_cmp(&min_acc), Some(std::cmp::Ordering::Less)) {
-                v
-            } else {
-                min_acc
-            };
-            let new_max = if matches!(v.partial_cmp(&max_acc), Some(std::cmp::Ordering::Greater)) {
-                v
-            } else {
-                max_acc
-            };
+            let new_min = if v < min_acc { v } else { min_acc };
+            let new_max = if v > max_acc { v } else { max_acc };
             (new_min, new_max, sum_acc + v as f64)
         },
         |(amin, amax, asum), (bmin, bmax, bsum)| {
-            let rmin = if matches!(bmin.partial_cmp(&amin), Some(std::cmp::Ordering::Less)) {
-                bmin
-            } else {
-                amin
-            };
-            let rmax = if matches!(bmax.partial_cmp(&amax), Some(std::cmp::Ordering::Greater)) {
-                bmax
-            } else {
-                amax
-            };
+            let rmin = if bmin < amin { bmin } else { amin };
+            let rmax = if bmax > amax { bmax } else { amax };
             (rmin, rmax, asum + bsum)
         },
     );
@@ -173,20 +247,13 @@ pub(crate) fn compute_from_owned(mut buffer: Vec<f32>, ddof: usize) -> ImageStat
         },
         |a, b| a + b,
     );
-    // numpy-style ddof: divisor = n − ddof. n ≤ ddof (e.g. sample std of a single
-    // voxel) yields a degenerate 0.0 rather than a NaN/∞.
-    let denom = n.saturating_sub(ddof);
-    let std = if denom == 0 {
-        0.0
-    } else {
-        (sum_sq_dev / denom as f64).sqrt() as f32
-    };
+    let denom = n - ddof;
+    let std = (sum_sq_dev / denom as f64).sqrt() as f32;
 
     // Floor-division percentile ranks (module contract). Quickselect each rank
     // on the suffix left of the previous one — O(n) average, exact order
     // statistic, no full sort.
-    let cmp = |a: &f32, b: &f32| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal);
-    let ranks = [n / 4, n / 2, (3 * n) / 4];
+    let ranks = [n / 4, n / 2, (n / 4) * 3 + ((n % 4) * 3) / 4];
     let mut percentiles = [0.0_f32; 3];
     let mut lo = 0usize;
     for (slot, &rank) in percentiles.iter_mut().zip(ranks.iter()) {
@@ -194,7 +261,7 @@ pub(crate) fn compute_from_owned(mut buffer: Vec<f32>, ddof: usize) -> ImageStat
             // Elements in `values[..lo]` are already ≤ everything in
             // `values[lo..]`, so the (rank − lo)-th smallest of the suffix is
             // the rank-th smallest overall.
-            values[lo..].select_nth_unstable_by(rank - lo, cmp);
+            values[lo..].select_nth_unstable_by(rank - lo, f32::total_cmp);
             lo = rank + 1;
         }
         *slot = values[rank];

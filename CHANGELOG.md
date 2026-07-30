@@ -8,6 +8,137 @@
 
 # CHANGELOG
 
+## [Unreleased] — Safe temporal synchronization (SAFE-683-01)
+
+### Breaking
+
+- Temporal synchronization now returns
+  `Result<TemporalSyncResult, TemporalSyncError>` instead of a tuple and
+  validates construction through `TemporalSyncConfig::try_new`. The result
+  separates timing, signal-residual, overlap, correlation, and acceptance
+  status. See
+  [ADR 0015](docs/adr/0015-fallible-temporal-synchronization.md).
+
+### Changed
+
+- Use overlap-normalized Pearson correlation with a documented positive-lag
+  convention, deterministic ties, and bounded three-point fractional peak
+  refinement.
+- Reject invalid spacing, search ranges, thresholds, lengths, non-finite
+  samples, and unidentifiable constant signals with contextual typed errors.
+- Scan for the best lag with constant-size search scratch. Full correlation
+  storage is now an explicit diagnostic operation over the same kernel.
+- Compute residual RMS and maximum error from linearly interpolated valid
+  overlap and report them in signal-amplitude units.
+- Add a runnable temporal-alignment example, generated four-panel figure,
+  worked chapter, and CI figure regeneration.
+
+### Performance
+
+- On the unchanged 4,096-sample, ±64-frame Criterion workload, synchronization
+  improves from 9.920 ms to 3.756 ms median (62.1%). The measured 95%
+  intervals are 9.884–9.954 ms before and 3.627–3.910 ms after.
+
+### Tests
+
+- Cover integer and fractional delays, lag-sign symmetry, positive affine
+  intensity invariance, threshold classification, streaming/profile
+  equivalence, interpolated residual accounting, invalid configuration,
+  non-finite samples, and unidentifiable inputs.
+
+## [Unreleased] — Fallible descriptive statistics (SAFE-682-01)
+
+### Breaking
+
+- Descriptive-statistics, histogram, min-max normalization, and z-score
+  normalization entry points now return `Result<_, StatisticsError>`. Invalid
+  populations and histogram configurations no longer panic or emit
+  misleading finite values. See
+  [ADR 0014](docs/adr/0014-fallible-descriptive-statistics.md).
+- `Histogram::bin_width` now returns `f64`, preserving valid widths for
+  finite `f32` ranges whose subtraction overflows in `f32`.
+
+### Changed
+
+- Reject empty populations, non-finite image or mask samples, invalid
+  degrees-of-freedom corrections, mismatched masks, empty masked foreground,
+  zero histogram bins, non-finite bounds, and non-increasing ranges with
+  contextual typed errors.
+- Reserve histogram count storage fallibly and compute bin coordinates in
+  `f64`, avoiding both allocation aborts and finite `f32` span overflow.
+- Reuse the masked foreground allocation as percentile workspace and delegate
+  native-image and Python calls to the same slice implementation.
+- Document the population, quartile, histogram-edge, and failure contracts
+  with a runnable example and generated full-image versus masked-distribution
+  figure.
+
+### Tests
+
+- Add analytical population/sample deviation cases, independent sorted
+  quartile references, histogram boundary and allocation cases, and Python
+  `ValueError` coverage for invalid user inputs.
+
+## [Unreleased] — Fallible JPEG-LS encoder and bounded scan memory (SAFE-681-01)
+
+### Breaking
+
+- `encode_grayscale_jpeg_ls` now returns
+  `Result<Vec<u8>, JpegLsEncodeError>` and rejects invalid image metadata or
+  samples instead of asserting or narrowing them into JPEG-LS headers. See
+  [ADR 0013](docs/adr/0013-fallible-jpeg-ls-encoder.md).
+
+### Changed
+
+- Validate nonzero SOF55 geometry, exact sample count, 8–16-bit encoder
+  precision, precision-dependent `NEAR`, and the first out-of-range sample
+  before entropy allocation.
+- Share a two-row reconstruction workspace between encoder and decoder,
+  reducing 512 × 512 scan scratch from 1,050,624 bytes to 4,096 bytes.
+- Parse marker segments once with checked declared bounds and reject
+  unsupported interleave modes, mapping tables, restart intervals, and LSE
+  parameter records instead of substituting another profile.
+- Document prediction, regular/run modes, exact near-lossless bounds, memory
+  behavior, and malformed-input handling with a runnable generated figure.
+
+### Tests
+
+- Add validation partitions, malformed marker cases, a bounded arbitrary-byte
+  parser property, a structural two-row memory assertion, and public-API
+  lossless/near-lossless figure oracles.
+
+## [Unreleased] — Fallible JPEG 2000 encoder (SAFE-680-01)
+
+### Breaking
+
+- `encode_grayscale_j2k` now returns
+  `Result<Vec<u8>, Jpeg2000EncodeError>` and rejects invalid external image
+  metadata or samples instead of asserting or emitting a misleading
+  codestream. See
+  [ADR 0012](docs/adr/0012-fallible-jpeg-2000-encoder.md).
+
+### Changed
+
+- Validate nonzero checked geometry, exact sample count, 1–16-bit precision,
+  geometry-bounded decomposition depth, and signed or unsigned sample range
+  before JPEG 2000 transform allocation.
+- Apply the unsigned DC level shift while constructing the transform buffer,
+  removing one complete `i32` image allocation and write pass from reversible
+  encoding.
+- Document the native multi-level reversible 5/3 and irreversible 9/7 paths
+  with a runnable public-API example and generated reconstruction/error figure.
+
+### Performance
+
+- On the unchanged 512×512 five-level reversible Criterion workload, encoding
+  improves from 53.651 ms to 48.277 ms median (10.0%). The measured 95%
+  intervals are 52.782–54.588 ms before and 45.543–49.729 ms after.
+
+### Tests
+
+- Cover invalid geometry, precision, decomposition depth, sample count, and
+  declared sample ranges while preserving exact native and captured OpenJPEG
+  reversible round trips.
+
 ## [Unreleased] — GrowCut convergence and book coverage (SAFE-679-01)
 
 ### Fixed

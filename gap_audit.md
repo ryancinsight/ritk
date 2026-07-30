@@ -13,6 +13,164 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## SAFE-683-01 audit (2026-07-30)
+
+The temporal synchronizer accepted invalid frame spacing and thresholds,
+panicked on non-finite samples, classified constant signals as synchronized,
+ignored its configured minimum correlation, allocated complete lag and
+correlation arrays to retain one peak, and labeled signal-residual magnitudes
+as seconds.
+
+One validated configuration and typed result/error boundary now owns these
+contracts. Lagged Pearson correlation uses overlap-specific means and
+normalization. Positive lag means the moving signal is delayed and is aligned
+by sampling at `reference_index + shift_frames`. Deterministic peak selection
+and bounded three-point parabolic refinement produce the sub-frame estimate.
+Below-threshold correlation is a quality status that preserves the measured
+shift; malformed or unidentifiable inputs are typed failures.
+
+The normal synchronization path retains only the best peak and adjacent
+samples, so search scratch is constant-size. The explicitly allocated
+`correlation_profile` operation uses the same correlation kernel and is
+differentially tested against streaming selection. Residual RMS and maximum
+error use linearly interpolated valid overlap, report signal-amplitude units,
+and expose the exact overlap denominator.
+
+The unchanged 4,096-sample, ±64-frame Criterion workload improves from
+9.920 ms to 3.756 ms median. The measured 95% intervals are
+9.884–9.954 ms before and 3.627–3.910 ms after, a 62.1% median reduction.
+This is workload-specific latency evidence; it is not a whole-application
+speed or allocation-count claim.
+
+Focused Nextest passes all 11 temporal tests in 0.078 seconds. The tests cover
+integer and fractional delays, sign symmetry, positive affine-intensity
+invariance, threshold status, streaming/profile equivalence, interpolated
+residual accounting, invalid configuration, non-finite samples, and constant
+signals. Target-only warning-denied all-target Clippy, two compiled doctests,
+Rustdoc, mdBook build, and the 2.291-second direct example run pass. Broader
+local Clippy reaches a pre-existing `missing_const_for_thread_local`
+diagnostic in `ritk-filter/src/morphology/mod.rs`. The standalone declared-
+major semantic-version attempt gets past the Atlas overlay but fails before
+API comparison while `aws-lc-sys` compiles under the local Windows GNU
+toolchain. Exact code head `07989fa5` passes Rustfmt, warning-denied Clippy,
+dependency alignment, wheel smoke, and Linux/macOS/Windows Nextest in CI
+`30534530687`; all 13 Python 3.9-3.13 platform lanes pass in `30534530713`;
+and mdBook build `30534530699` passes. CodeRabbit's checklist-consistency and
+Rustdoc findings are addressed in `07989fa5`; its exact-head rereview was rate
+limited. The external `recurseml/analysis` service earlier returned an
+analysis error without a repository log or actionable finding.
+
+The deterministic 240-sample example contains a known 7.250-frame delay and
+estimates 7.253 frames at correlation 0.9996. Interpolated overlap is 232 of
+240 samples; residual RMS falls from 0.5729 to 0.0081, a 98.6% reduction.
+The before, correlation-search, after, residual, and summary panels were
+rendered and inspected. Visual review added amplitude and sample-index axes,
+lag ticks, threshold labeling, discrete correlation samples, residual scale,
+and explicit signal-unit labeling. The regenerated SVG has SHA-256
+`4497DBA72901DE904BD67E952BC42B5F5065A263912B6E0A3803457C547ACBBC`.
+
+## SAFE-682-01 audit (2026-07-30)
+
+The descriptive-statistics slice API indexed an empty input, masked
+statistics asserted matching lengths and non-empty foreground, and histogram
+construction asserted its bin count and range. Non-finite samples could enter
+arithmetic or map to bin zero. Masked z-score normalization substituted the
+full population when a mask selected no samples.
+
+One public `StatisticsError` contract now rejects those inputs before
+arithmetic or histogram allocation. Sequential, native-image, normalization,
+and Python entry points delegate to the same fallible slice boundary. The
+Python layer maps invalid values to `ValueError`; no infallible compatibility
+wrapper or empty-mask fallback remains.
+
+Finite results retain the two-pass `f64` mean and variance and floor-rank
+quartiles. Full-image statistics allocate one sample-sized percentile
+workspace. Masked statistics collect foreground values once and reuse that
+allocation for selection. Histogram counts use a checked reservation, and
+bin-coordinate arithmetic uses `f64` so finite extreme `f32` bounds do not
+overflow their span. The public bin-width accessor now reports that result as
+`f64` instead of repeating the overflowing `f32` subtraction. These are
+structural memory and safety claims; no runtime speedup or process-wide
+allocation count is claimed.
+
+Focused Nextest passes 341/341 statistics tests in 2.426 seconds. The suite
+includes analytical population/sample divisors, independent sorted
+quartiles, permutation invariance, typed finite-domain errors, histogram
+edge inclusion, finite extreme bounds, and unallocatable count storage.
+Warning-denied all-target Clippy for `ritk-statistics`, two runnable doctests,
+warning-denied Rustdoc, and mdBook test/build pass. The exact-branch release
+Python extension builds, and all 15 statistics binding tests pass under Python
+3.13.12 in 0.10 seconds. A broader `ritk-python` Clippy attempt reaches a
+pre-existing warning-denied `missing_const_for_thread_local` diagnostic in
+`ritk-filter/src/morphology/mod.rs`. This is an accepted local-provider-overlay
+exception, not a SAFE-682 closure blocker: the diagnostic is outside the
+statistics/Python changes, and the provider-pinned hosted workspace Clippy
+gate passes. The declared-major
+`cargo-semver-checks` comparison against merge base `7c2f2ac5` completes in
+15.420 seconds with all 253 incompatible-change lints skipped as expected for
+a major release. Exact code head `08ba5e4e` passes Rustfmt, warning-denied
+Clippy, dependency alignment, wheel smoke, and Linux/macOS/Windows Nextest in
+CI `30527279931`; all 13 Python 3.9-3.13 platform lanes pass in
+`30527280041`; and mdBook build `30527279966` passes. CodeRabbit's sole
+PM-consistency finding is addressed in the closure commit. The external
+`recurseml/analysis` service returned an analysis error without a repository
+log or actionable finding.
+
+The deterministic 64 × 48 example reports 3,072 full samples and 1,141 masked
+samples. Full mean/median are 55.77/18.80, while masked mean/median are
+121.39/143.92. The shared-axis normalized histograms, mean and median markers,
+interquartile bands, source field, mask, and numeric table were rendered and
+inspected. Visual review found and corrected an orange-mask/white-mask caption
+contradiction and a solid median marker that contradicted the dotted legend.
+The regenerated SVG has SHA-256
+`4E18E3E19E6151A0F8C608A5EE9B9D97BD977E56C7E30847192F8BE198D0F5C0`.
+
+## SAFE-681-01 audit (2026-07-30)
+
+The public grayscale JPEG-LS encoder asserted external metadata and narrowed
+dimensions and `NEAR` into marker fields. The decoder's marker parser could
+skip truncated segments, accept a nonzero mapping table or restart interval,
+and map an invalid SOS interleave byte to the non-interleaved profile. Both
+scan directions retained `(rows + 1) × cols` reconstructed `i32` samples even
+though the causal predictor reads only the previous row and the reconstructed
+prefix of the current row.
+
+The encoder now validates nonzero 16-bit marker geometry, checked sample
+count, 8–16-bit encoder precision, the precision-dependent `NEAR` bound, and
+the first out-of-range sample before allocating entropy state. Its public
+result is `Result<Vec<u8>, JpegLsEncodeError>`. One checked marker pass returns
+the exact scan slice and rejects malformed segment lengths, invalid
+interleave values, mapping tables, restart intervals, and unsupported LSE
+records. Decoder precision, output-size arithmetic, and sample reconstruction
+conversions are fallible.
+
+Encoder and decoder share one reconstruction component containing exactly two
+rows. For 512 × 512 input, scan scratch decreases from 1,050,624 bytes to
+4,096 bytes, a 256.5-fold structural reduction. The unchanged same-machine
+Criterion workloads compare against `perf671-baseline`: lossless encode
+changes by -13.36%, lossless decode by -19.10%, and `NEAR=2` encode by -15.74%
+at the median; every comparison has p < 0.05. This is matched local evidence,
+not a cross-machine throughput guarantee.
+
+Focused Nextest passes 290/290 codec tests in 2.317 seconds, including
+validation partitions, arbitrary 0–512-byte marker streams, exact lossless
+round trips, bounded near-lossless round trips, the rolling-row structural
+oracle, and the captured JPEG 2000 interoperability corpus. The codec doctest,
+warning-denied Rustdoc, mdBook test/build, and the declared-major
+`cargo-semver-checks` comparison against `12d555eb` pass. The broader local
+codec-plus-I/O attempt reached a shared-cache compiler-identity conflict in
+Moirai; exact-head hosted Nextest independently passes on Linux, macOS, and
+Windows in CI `30519988356`. Python CI `30519988318` and book build
+`30519988325` also pass at `a9199207`.
+
+The 96 × 96 public-API example reports 5,998 lossless bytes with zero
+mismatches and 3,435 near-lossless bytes with 8,269 changed samples. Its
+measured maximum absolute error is exactly 3 for `NEAR=3`. Source, lossless,
+and near-lossless panels share the 0–4,095 intensity scale; the difference
+panel uses a labeled 0–3 error scale. The exact-head generated SVG is
+byte-identical to the inspected committed figure at SHA-256
+`6202E9F3F82C8CA18E4AFF6F6F17ACB706F450FE9866F5F6A25AD002CA04F3F5`.
+
 ## PERF-678-01 audit (2026-07-28)
 
 Every tag-tree `encode` and `decode` operation previously allocated a

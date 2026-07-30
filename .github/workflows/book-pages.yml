@@ -7,9 +7,19 @@ on:
       - "docs/book/**"
       - "crates/ritk-filter/examples/book_processing_pipeline.rs"
       - "crates/ritk-io/examples/book_windowing_rescale.rs"
+      - "crates/ritk-codecs/examples/book_jpeg_ls.rs"
+      - "crates/ritk-codecs/examples/book_jpeg_2000.rs"
       - "crates/ritk-segmentation/examples/book_growcut.rs"
       - "crates/ritk-segmentation/src/region_growing/growcut.rs"
       - "crates/ritk-segmentation/Cargo.toml"
+      - "crates/ritk-statistics/examples/book_descriptive_statistics.rs"
+      - "crates/ritk-statistics/src/error.rs"
+      - "crates/ritk-statistics/src/histogram.rs"
+      - "crates/ritk-statistics/src/image_statistics.rs"
+      - "crates/ritk-statistics/Cargo.toml"
+      - "crates/ritk-registration/examples/book_temporal_sync.rs"
+      - "crates/ritk-registration/src/classical/temporal/**"
+      - "crates/ritk-registration/Cargo.toml"
       - ".github/actions/checkout-atlas-path-dependencies/action.yml"
       - ".github/workflows/book-pages.yml"
   pull_request:
@@ -17,9 +27,19 @@ on:
       - "docs/book/**"
       - "crates/ritk-filter/examples/book_processing_pipeline.rs"
       - "crates/ritk-io/examples/book_windowing_rescale.rs"
+      - "crates/ritk-codecs/examples/book_jpeg_ls.rs"
+      - "crates/ritk-codecs/examples/book_jpeg_2000.rs"
       - "crates/ritk-segmentation/examples/book_growcut.rs"
       - "crates/ritk-segmentation/src/region_growing/growcut.rs"
       - "crates/ritk-segmentation/Cargo.toml"
+      - "crates/ritk-statistics/examples/book_descriptive_statistics.rs"
+      - "crates/ritk-statistics/src/error.rs"
+      - "crates/ritk-statistics/src/histogram.rs"
+      - "crates/ritk-statistics/src/image_statistics.rs"
+      - "crates/ritk-statistics/Cargo.toml"
+      - "crates/ritk-registration/examples/book_temporal_sync.rs"
+      - "crates/ritk-registration/src/classical/temporal/**"
+      - "crates/ritk-registration/Cargo.toml"
       - ".github/actions/checkout-atlas-path-dependencies/action.yml"
       - ".github/workflows/book-pages.yml"
   workflow_dispatch:
@@ -76,8 +96,16 @@ jobs:
             docs/book/figures/processing_pipeline.svg
           cargo run -p ritk-io --example book_windowing_rescale -- \
             docs/book/figures/windowing_rescale.svg
+          cargo run -p ritk-codecs --example book_jpeg_ls -- \
+            docs/book/figures/jpeg_ls_codec.svg
+          cargo run -p ritk-codecs --example book_jpeg_2000 -- \
+            docs/book/figures/jpeg_2000_codec.svg
           cargo run -p ritk-segmentation --example book_growcut -- \
             docs/book/figures/growcut.svg
+          cargo run -p ritk-statistics --example book_descriptive_statistics -- \
+            docs/book/figures/descriptive_statistics.svg
+          cargo run -p ritk-registration --example book_temporal_sync -- \
+            docs/book/figures/temporal_synchronization.svg
 
       - name: Build book
         run: |
@@ -91,7 +119,11 @@ jobs:
           path: |
             ritk/docs/book/figures/processing_pipeline.svg
             ritk/docs/book/figures/windowing_rescale.svg
+            ritk/docs/book/figures/jpeg_ls_codec.svg
+            ritk/docs/book/figures/jpeg_2000_codec.svg
             ritk/docs/book/figures/growcut.svg
+            ritk/docs/book/figures/descriptive_statistics.svg
+            ritk/docs/book/figures/temporal_synchronization.svg
           if-no-files-found: error
 
       - name: Upload Pages artifact

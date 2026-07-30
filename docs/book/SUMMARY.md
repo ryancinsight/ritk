@@ -12,10 +12,16 @@
 - [MetaImage Format Boundary](metaimage_format.md)
 - [PNG Format Boundary](png_format.md)
 - [JPEG Format Boundary](jpeg_format.md)
+- [JPEG-LS Native Codec](jpeg_ls_codec.md)
+  - [Example: Lossless and Near-Lossless Coding](examples/jpeg_ls_codec.md)
+- [JPEG 2000 Native Codec](jpeg_2000_codec.md)
+  - [Example: Reversible and Irreversible Coding](examples/jpeg_2000_codec.md)
 - [VTK Format Boundary](vtk_format.md)
 
 # Part II — Image Processing Pipeline
 
+- [Descriptive Statistics and Histograms](descriptive_statistics.md)
+  - [Example: Full-image and Masked Distributions](examples/descriptive_statistics.md)
 - [Intensity Transformations](intensity_transforms.md)
   - [Example: Windowing and Rescaling](examples/windowing_rescale.md)
   - [Example: Complete Processing Pipeline](examples/processing_pipeline.md)
@@ -43,6 +49,8 @@
   - [Example: Geometry Validation](examples/geometry_check.md)
   - [Example: DL Registration](examples/dl_registration.md)
   - [Example: DL Training](examples/dl_train.md)
+- [Temporal Signal Synchronization](temporal_synchronization.md)
+  - [Example: Before and After Temporal Alignment](examples/temporal_synchronization.md)
 - [Multi-modal Registration](multi_modal_registration.md)
   - [Example: CT/MR Mutual-Information Registration](examples/registration_compare_figure.md)
 - [Deformable Registration](demons_registration.md)

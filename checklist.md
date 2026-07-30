@@ -13,9 +13,147 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## SAFE-683-01 — Safe temporal synchronization
+**Target version**: Next major release
+**Sprint phase**: Closure
+
+- [x] Reconcile merged main, worktrees, peer-owned dirt, current temporal API,
+      callers, tests, book coverage, panic paths, dimensional errors,
+      allocation topology, and the unresolved reference.
+- [x] Record the validated configuration, typed result/status/error,
+      correlation-profile, sign, residual-unit, overlap, and interpolation
+      contracts in ADR 0015; update all in-repository callers without a
+      compatibility wrapper.
+- [x] Add analytical and adversarial tests for integer/fractional shifts,
+      swap-sign symmetry, positive affine-intensity invariance, configured
+      threshold behavior, invalid configuration, non-finite input, and
+      unidentifiable signals.
+- [x] Replace lag-profile allocation in `synchronize` with constant search
+      scratch; retain an explicit diagnostic-profile API over the same kernel
+      and prove differential equivalence.
+- [x] Compute aligned residuals by sub-sample interpolation over valid overlap
+      and report them in signal units with exact overlap count.
+- [x] Profile and benchmark the unchanged temporal workload; retain the
+      stronger structure only if latency does not regress.
+- [x] Add a deterministic Rust example, generated temporal figure, worked
+      book example, chapter extension, and CI figure regeneration.
+- [x] Render and inspect the figure; cross-check lag sign, true/estimated
+      shift, peak correlation, overlap, aligned residuals, and status against
+      raw example data.
+- [x] Run target formatting, warning-denied Clippy, focused Nextest, doctest,
+      Rustdoc, mdBook, benchmark, and example-runtime gates.
+- [x] Classify the standalone declared-major semantic-version limitation. The
+      command gets past the Atlas overlay but fails before API comparison while
+      unrelated `aws-lc-sys` compiles under the local Windows GNU toolchain.
+- [x] Run exact-code-head hosted gates. CI `30534530687`, all 13 Python lanes
+      in `30534530713`, and mdBook build `30534530699` pass at `07989fa5`.
+- [x] Reconcile CHANGELOG, audit, backlog, and checklist evidence; commit,
+      push, and complete review in PR #77.
+
+## SAFE-682-01 — Fallible descriptive statistics and histograms
+**Target version**: Next major release
+**Sprint phase**: Closure
+
+- [x] Reconcile origin, worktrees, peer-owned dirt, current statistics/book
+      coverage, callers, and panic/non-finite failure modes.
+- [x] Record the typed public error boundary and finite-input contract in ADR
+      0014; update all in-repository callers without a compatibility wrapper.
+- [x] Replace empty-input, empty-foreground, shape, histogram-bin/range, and
+      non-finite panic or silent-corruption paths with typed errors.
+- [x] Preserve f64 accumulation, percentile ranks, one-workspace slice
+      allocation, and foreground-buffer reuse; add analytical, boundary, and
+      adversarial value-semantic tests.
+- [x] Map invalid Python inputs to `ValueError` and verify Python-visible
+      messages and values.
+- [x] Add a runnable Rust example, generated distribution figure, statistics
+      chapter, worked example, and CI figure regeneration.
+- [x] Render and inspect the figure; cross-check histogram totals, mean,
+      median, quartiles, and masked/full differences against raw example data.
+- [x] Run local formatting, focused warning-denied Clippy, Nextest, doctest,
+      Rustdoc, mdBook, semantic-version, and example-runtime gates. Evidence:
+      341/341 Nextest, 15/15 Python binding tests, statistics all-target
+      warning-denied Clippy, two doctests, warning-denied Rustdoc, mdBook
+      test/build, the deterministic example, and the declared-major semantic
+      check against `7c2f2ac5` pass.
+- [x] Classify the broader local Python Clippy result. It is an accepted
+      pre-existing provider-overlay exception: the command reaches
+      `ritk-filter`'s unrelated `missing_const_for_thread_local` diagnostic,
+      while the exact provider-pinned hosted workspace Clippy gate passes.
+- [x] Run exact-code-head hosted gates. CI `30527279931`, all 13 Python lanes
+      in `30527280041`, and mdBook build `30527279966` pass at `08ba5e4e`.
+- [x] Reconcile CHANGELOG, audit, backlog, and checklist evidence; commit,
+      push, and complete review in PR #76.
+
+## SAFE-681-01 — Harden and document the native JPEG-LS codec
+**Target version**: Next major release
+**Sprint phase**: Closure
+
+- [x] Reconcile origin, worktrees, peer-owned dirt, current codec/book
+      coverage, callers, ADRs, and official JPEG-LS/DICOM contracts.
+- [x] Record the fallible public encoder boundary and rolling-row scan design
+      in ADR 0013; update all in-repository callers without a compatibility
+      wrapper.
+- [x] Validate dimensions, precision, sample count/range, and `NEAR` before
+      encoding; reject invalid SOS interleave bytes during parsing.
+- [x] Replace full reconstructed-image scan buffers with two rolling rows in
+      encoder and decoder while preserving boundary guards and output order.
+- [x] Add positive, negative, boundary, adversarial, property, native
+      round-trip, and DICOM round-trip value-semantic tests.
+- [x] Run the unchanged 512x512 lossless/near-lossless Criterion workloads.
+      Same-machine comparison against `perf671-baseline` measures median
+      changes of -13.36% lossless encode, -19.10% lossless decode, and -15.74%
+      near-lossless encode; all improve with p < 0.05.
+- [x] Add a runnable Rust example, generated comparison/error figure,
+      native-codec chapter, and CI figure regeneration.
+- [x] Render and inspect the figure; cross-check displayed sizes, maximum
+      error, and pixel values against example output.
+- [x] Run formatting, warning-denied Clippy, Nextest, doctest, Rustdoc,
+      mdBook, semantic-version, example-runtime, and hosted gates. Evidence:
+      290/290 focused codec tests, one doctest, warning-denied Rustdoc, mdBook
+      test/build, the declared-major semantic check against `12d555eb`, and
+      exact-head CI `30519988356`, Python CI `30519988318`, and book build
+      `30519988325` pass.
+- [x] Self-review, commit, push, open PR 75, collect exact-head hosted gates,
+      and reconcile PM state for merge.
+
+## SAFE-680-01 — Make JPEG 2000 encoding fallible and document the native codec
+**Target version**: Next major release
+**Sprint phase**: Closure
+
+- [x] Reconcile `origin/main`, the active PR/worktree lane, peer-owned dirt,
+      codec implementation, book coverage, and official JPEG 2000/DICOM
+      contracts.
+- [x] Record the fallible public encoder boundary in ADR 0012 and update every
+      in-repository caller without a compatibility wrapper.
+- [x] Validate dimensions, precision, decomposition depth, and declared sample
+      range before allocation or arithmetic.
+- [x] Fold the unsigned DC shift into construction of the transform buffer,
+      removing the separate full-image allocation.
+- [x] Add positive, negative, boundary, and adversarial value-semantic tests;
+      preserve captured OpenJPEG interoperability.
+- [x] Capture matched Criterion measurements on the unchanged 512x512
+      five-level workload and reject a statistically significant regression.
+- [x] Add a runnable public-API example, generated figure, native-codec
+      chapter, and CI figure regeneration.
+- [x] Render and inspect the figure; verify source/reconstruction/error values
+      against the example's analytical oracle.
+- [x] Run focused and full formatting, warning-denied Clippy, Nextest,
+      doctest, Rustdoc, mdBook, and semantic-version gates. The major-release
+      semantic check completes with all compatibility lints skipped by design;
+      its patch classifier does not recognize the nested public return-type
+      change, so ADR 0012 remains the authoritative classification.
+- [x] Self-review, commit, push, open draft PR #74, and collect exact-head
+      hosted gates. At code head `3abfaa67`, CI `30503828578`, Python
+      `30503828528`, and book build `30503828541` pass every repository-owned
+      lane; Pages deployment is skipped.
+- [x] Integrate the merged GrowCut book slice, rerun exact-head hosted gates,
+      and merge PR #74. Exact head `cfc18b3a` passes Rust CI `30517019185`,
+      Python CI `30517019200`, and book build `30517019189`; merge commit is
+      `12d555eb`.
+
 ## SAFE-679-01 — Correct GrowCut convergence and document segmentation
 **Target version**: Unreleased patch
-**Sprint phase**: Execution
+**Sprint phase**: Closure
 
 - [x] Reconcile the current book, GrowCut implementation, board, origin, and
       peer state; exclude overlay-derived `Cargo.lock` changes.
@@ -34,7 +172,8 @@
 - [x] Self-review the code, rendered figure, generated HTML, workflow, and
       exact lockfile delta; retain only the three required example
       dependencies in `Cargo.lock`.
-- [x] Commit and push the implementation at `6f025a84`; open draft PR #72.
+- [x] Commit and push the initial implementation at `6f025a84`; open the
+      original draft PR #72.
 - [x] Collect hosted gates on the final code head. Head `a59dfb9f` passes Rust
       CI `30424915304`, Python CI `30424915350`, and book build/artifact run
       `30424915331`.
@@ -49,10 +188,13 @@
       doctest, Rustdoc, and mdBook gates against the revised figure. The
       example runs in 1.437 seconds and all 484 package tests pass in 2.925
       seconds.
-- [ ] Push the revised implementation and collect hosted PR checks.
-- [ ] Merge remains outside this slice because the book workflow deploys Pages
-      on a `main`-branch documentation change and release/deploy is not
-      authorized.
+- [x] Isolate the GrowCut history from unrelated architecture commits; push
+      `codex/growcut-figure-clarity` and open clean draft PR #73.
+- [x] Collect hosted checks on PR #73. Head `7d887d36` passes complete Rust CI
+      run `30489263987`, Python 3.9-3.13 matrix run `30489264000`, and book
+      build/artifact run `30489263986`; Pages deployment is skipped.
+- [x] Merge PR #73 to `main` as `0ed4a87f` after every repository-owned lane
+      passes at exact head `96432bbd`.
 
 ## PERF-678-01 — Eliminate tag-tree path allocations
 **Target version**: Unreleased patch

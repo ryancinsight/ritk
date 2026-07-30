@@ -9,6 +9,41 @@ def _image(values: np.ndarray) -> ritk.Image:
     return ritk.Image(np.asarray(values, dtype=np.float32))
 
 
+def test_descriptive_statistics_match_numpy_population_values() -> None:
+    values = np.arange(1.0, 9.0, dtype=np.float32).reshape(2, 2, 2)
+
+    result = ritk.statistics.compute_statistics(_image(values), ddof=0)
+
+    assert result["min"] == pytest.approx(float(values.min()))
+    assert result["max"] == pytest.approx(float(values.max()))
+    assert result["mean"] == pytest.approx(float(values.mean()), abs=1e-6)
+    assert result["std"] == pytest.approx(float(values.std(ddof=0)), abs=1e-6)
+    # RITK uses discrete floor ranks [N/4, N/2, 3N/4], not interpolation.
+    assert [result["p25"], result["p50"], result["p75"]] == [3.0, 5.0, 7.0]
+
+
+def test_descriptive_statistics_invalid_ddof_is_value_error() -> None:
+    image = _image(np.array([[[42.0]]], dtype=np.float32))
+
+    with pytest.raises(ValueError, match="ddof 1 must be less than the sample count 1"):
+        ritk.statistics.compute_statistics(image, ddof=1)
+
+
+def test_descriptive_statistics_non_finite_sample_is_value_error() -> None:
+    image = _image(np.array([[[1.0, np.inf]]], dtype=np.float32))
+
+    with pytest.raises(ValueError, match="sample at index 1 must be finite"):
+        ritk.statistics.compute_statistics(image)
+
+
+def test_masked_statistics_empty_foreground_is_value_error() -> None:
+    image = _image(np.arange(8, dtype=np.float32).reshape(2, 2, 2))
+    mask = _image(np.zeros((2, 2, 2), dtype=np.float32))
+
+    with pytest.raises(ValueError, match="mask contains no foreground samples"):
+        ritk.statistics.masked_statistics(image, mask)
+
+
 def test_label_intensity_stats_single_label_two_voxels_known_values() -> None:
     # label 1 covers voxels with intensity 3.0 and 5.0
     # population mean = 4.0, population std = sqrt(1.0) = 1.0
@@ -105,6 +140,13 @@ def test_minmax_normalize_range_inverted_bounds_raises() -> None:
         ritk.statistics.minmax_normalize_range(image, 1.0, 0.0)
 
 
+def test_minmax_normalize_range_non_finite_bounds_raise() -> None:
+    image = _image(np.array([[[0.0, 1.0, 2.0]]], dtype=np.float32))
+
+    with pytest.raises(ValueError, match="target bounds must be finite"):
+        ritk.statistics.minmax_normalize_range(image, np.nan, 1.0)
+
+
 def test_zscore_normalize_masked_matches_foreground_shape() -> None:
     image = _image(np.arange(8, dtype=np.float32).reshape(2, 2, 2))
     mask = _image(
@@ -128,6 +170,21 @@ def test_zscore_normalize_mask_shape_mismatch_raises() -> None:
 
     with pytest.raises(ValueError, match="same shape as image"):
         ritk.statistics.zscore_normalize(image, mask=mask)
+
+
+def test_zscore_normalize_empty_mask_is_value_error() -> None:
+    image = _image(np.arange(8, dtype=np.float32).reshape(2, 2, 2))
+    mask = _image(np.zeros((2, 2, 2), dtype=np.float32))
+
+    with pytest.raises(ValueError, match="mask contains no foreground samples"):
+        ritk.statistics.zscore_normalize(image, mask=mask)
+
+
+def test_minmax_normalize_non_finite_sample_is_value_error() -> None:
+    image = _image(np.array([[[1.0, np.nan]]], dtype=np.float32))
+
+    with pytest.raises(ValueError, match="sample at index 1 must be finite"):
+        ritk.statistics.minmax_normalize(image)
 
 
 def test_minmax_normalize_range_and_zscore_bindings_are_available() -> None:
