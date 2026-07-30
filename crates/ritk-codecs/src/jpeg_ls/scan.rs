@@ -1,9 +1,8 @@
-//! ISO 14495-1 JPEG-LS lossless scan decoder.
+//! ISO 14495-1 JPEG-LS scan decoder.
 //!
 //! Implements both regular-mode and run-mode decoding per §A.3–§A.6.
 //! Processes one single-component scan; multi-component support is not
-//! implemented because DICOM JPEG-LS lossless is always single-component
-//! or non-interleaved (per DICOM PS 3.5 §8.2.3).
+//! implemented by RITK's grayscale DICOM codec boundary.
 
 use anyhow::Result;
 
@@ -12,6 +11,7 @@ use super::context::{
     compute_k, context_index, error_correction, inverse_map, quant, reconstruct, sign_normalize,
     update_context, CodingParams, ContextModel,
 };
+use super::reconstruction::ReconstructionRows;
 
 /// Golomb run-length table `J[0..32]` — ISO 14495-1 Table C.1.
 ///
@@ -115,7 +115,7 @@ pub(super) struct ScanParams {
     pub(super) t3: i32,
 }
 
-/// Decode a single-component JPEG-LS lossless scan into sample values.
+/// Decode a single-component JPEG-LS scan into sample values.
 ///
 /// Implements ISO 14495-1 §A.3 (regular mode) and §A.6 (run mode).
 ///
@@ -130,7 +130,8 @@ pub(super) fn decode_scan(
 ) -> Result<()> {
     let rows = params.rows;
     let cols = params.cols;
-    let near = params.near as i32;
+    let near = i32::try_from(params.near)
+        .expect("invariant: the fragment boundary validates JPEG-LS NEAR");
     let cp = CodingParams::new(params.bpp, near);
     let maxval = cp.maxval;
     let qbpp = cp.qbpp;
@@ -143,37 +144,18 @@ pub(super) fn decode_scan(
     };
 
     let mut ctx = ContextModel::new(cp.a_init);
-    // Row-major sample buffer with one extra row of zeros above (r=−1 = sentinel).
-    let mut buf = vec![0i32; (rows + 1) * cols];
-    // Row −1 (index 0) is already zeroed.
-    // Actual rows start at buf[cols..].
+    // Prediction is causal: each sample reads only the row above and samples
+    // already reconstructed in the current row. Reuse two rows so scratch is
+    // O(cols), independent of image height.
+    let mut reconstructed = ReconstructionRows::new(cols);
 
-    let mut previous_line_left_guard = 0i32;
     for r in 0..rows {
-        // Buf index for row r: (r+1)*cols, row r−1: r*cols.
-        let row_off = (r + 1) * cols;
-        let prev_off = r * cols; // row r−1 (or sentinel row if r=0)
-        let current_line_left_guard = buf[prev_off];
+        let current_line_left_guard = reconstructed.current_line_left_guard();
 
         let mut c = 0usize;
         while c < cols {
             // Causal neighborhood
-            let a = if c > 0 {
-                buf[row_off + c - 1]
-            } else {
-                current_line_left_guard
-            }; // left or top-left at col 0
-            let b = buf[prev_off + c]; // above
-            let cc = if c > 0 {
-                buf[prev_off + c - 1]
-            } else {
-                previous_line_left_guard
-            }; // above-left
-            let d = if c + 1 < cols {
-                buf[prev_off + c + 1]
-            } else {
-                buf[prev_off + c]
-            }; // above-right
+            let (a, b, cc, d) = reconstructed.neighborhood(c, current_line_left_guard);
 
             // Local gradients (ISO 14495-1 §A.2)
             let d1 = d - b; // vertical gradient (above-right − above)
@@ -222,15 +204,12 @@ pub(super) fn decode_scan(
                 }
 
                 // Fill run with run_val
-                for i in 0..run_len {
-                    buf[row_off + c + i] = run_val;
-                }
+                reconstructed.fill_current(c, run_len, run_val);
                 c += run_len;
 
                 if run_len < remaining {
                     // Run interrupt: decode interruption sample
-                    let rb = buf[prev_off + c.min(cols - 1)]; // above (b)
-                    let ra = if c > 0 { buf[row_off + c - 1] } else { rb }; // left (a)
+                    let (rb, ra) = reconstructed.interruption_neighbors(c);
                     let run_index = ctx.run_index.min(31);
                     let ri_ctx = if (rb - ra).abs() <= params.near as i32 {
                         &mut ctx.run_int_same
@@ -253,7 +232,7 @@ pub(super) fn decode_scan(
                         ctx.run_index -= 1;
                     }
 
-                    buf[row_off + c] = rx;
+                    reconstructed.set_current(c, rx);
                     c += 1;
                 }
                 continue;
@@ -283,17 +262,16 @@ pub(super) fn decode_scan(
 
             // Reconstruct sample
             let rx = reconstruct(px, errval, &cp);
-            buf[row_off + c] = rx;
+            reconstructed.set_current(c, rx);
 
             // Update context (errval relative to context sign)
             update_context(ctx_reg, errval_canon, params.near);
             c += 1;
         }
-        previous_line_left_guard = current_line_left_guard;
+        samples.extend_from_slice(reconstructed.current());
+        reconstructed.finish_row(current_line_left_guard);
     }
 
-    // Extract decoded rows (skip sentinel row 0)
-    samples.extend_from_slice(&buf[cols..cols + rows * cols]);
     Ok(())
 }
 
@@ -363,27 +341,5 @@ mod tests {
         decode_scan(&mut reader, &params, &mut samples).expect("decode_scan should succeed");
         assert_eq!(samples.len(), 4);
         assert_eq!(samples, vec![0, 0, 0, 0]);
-    }
-
-    #[test]
-    fn decode_scan_rejects_near_nonzero() {
-        let data: &[u8] = &[0xFFu8];
-        let mut reader = BitReader::new(data);
-        let params = ScanParams {
-            rows: 1,
-            cols: 1,
-            bpp: 8,
-            near: 1, // non-zero NEAR: should fail
-            predictor: Predictor::Left,
-            t1: 0,
-            t2: 0,
-            t3: 0,
-        };
-        // Actually NEAR is used in update_context; the scan itself doesn't bail on NEAR≠0 at scan level.
-        // The bail happens in decode_jpeg_ls_fragment. decode_scan itself runs.
-        // For this test, just verify the scan completes (no panic) with near=1.
-        let mut samples = Vec::new();
-        let _ = decode_scan(&mut reader, &params, &mut samples);
-        // Not asserting error here — NEAR validation is at the fragment level.
     }
 }

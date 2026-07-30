@@ -12,6 +12,8 @@
 - [MetaImage Format Boundary](metaimage_format.md)
 - [PNG Format Boundary](png_format.md)
 - [JPEG Format Boundary](jpeg_format.md)
+- [JPEG-LS Native Codec](jpeg_ls_codec.md)
+  - [Example: Lossless and Near-Lossless Coding](examples/jpeg_ls_codec.md)
 - [JPEG 2000 Native Codec](jpeg_2000_codec.md)
   - [Example: Reversible and Irreversible Coding](examples/jpeg_2000_codec.md)
 - [VTK Format Boundary](vtk_format.md)

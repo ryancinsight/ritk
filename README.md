@@ -197,7 +197,12 @@ physical-to-index transforms.
 
 *JPEG write support is limited to 2-D grayscale images represented in RITK as shape `[1, height, width]`.
 
-`ritk-dicom` owns DICOM transfer-syntax classification and native pixel-codec primitives. Native Rust decode now covers uncompressed little-endian pixels, RLE Lossless, and grayscale JPEG Baseline/Extended/Lossless fragments. `dicom-rs` remains a backend adapter for compressed transfer syntaxes not yet replaced natively, including JPEG-LS, JPEG 2000, JPEG XL, and unsupported JPEG color/high-bit-depth variants.
+`ritk-dicom` owns DICOM transfer-syntax classification and native pixel-codec
+primitives. Native Rust decode covers uncompressed little-endian pixels, RLE
+Lossless, grayscale JPEG Baseline/Extended/Lossless, grayscale JPEG-LS, and
+JPEG 2000 fragments. Pure-Rust pixel decode additionally covers JPEG XL through
+`jxl-oxide`. `dicom-rs` remains the dataset, metadata, and external-codec
+adapter; no supported DICOM pixel path requires a C or C++ codec library.
 
 ### Registration (`ritk-registration`)
 

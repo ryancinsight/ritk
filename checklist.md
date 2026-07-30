@@ -19,14 +19,14 @@
 
 - [x] Reconcile origin, worktrees, peer-owned dirt, current codec/book
       coverage, callers, ADRs, and official JPEG-LS/DICOM contracts.
-- [ ] Record the fallible public encoder boundary and rolling-row scan design
+- [x] Record the fallible public encoder boundary and rolling-row scan design
       in ADR 0013; update all in-repository callers without a compatibility
       wrapper.
-- [ ] Validate dimensions, precision, sample count/range, and `NEAR` before
+- [x] Validate dimensions, precision, sample count/range, and `NEAR` before
       encoding; reject invalid SOS interleave bytes during parsing.
-- [ ] Replace full reconstructed-image scan buffers with two rolling rows in
+- [x] Replace full reconstructed-image scan buffers with two rolling rows in
       encoder and decoder while preserving boundary guards and output order.
-- [ ] Add positive, negative, boundary, adversarial, property, native
+- [x] Add positive, negative, boundary, adversarial, property, native
       round-trip, and DICOM round-trip value-semantic tests.
 - [ ] Run the unchanged 512x512 lossless/near-lossless Criterion workloads and
       reject a statistically significant regression before claiming latency.

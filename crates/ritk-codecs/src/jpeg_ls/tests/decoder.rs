@@ -27,7 +27,8 @@ fn decode_fragment_near_lossless_bounded_error() {
     let original: Vec<u16> = vec![
         10, 50, 100, 150, 200, 245, 30, 80, 130, 180, 220, 60, 110, 160, 210, 40,
     ];
-    let stream = crate::jpeg_ls::encoder::encode_grayscale_jpeg_ls(&original, 4, 4, 8, 2);
+    let stream = crate::jpeg_ls::encoder::encode_grayscale_jpeg_ls(&original, 4, 4, 8, 2)
+        .expect("valid near-lossless fixture must encode");
     let layout = crate::PixelLayout {
         rows: 4,
         cols: 4,
@@ -51,17 +52,23 @@ fn decode_fragment_near_lossless_bounded_error() {
 
 #[test]
 fn decode_fragment_rejects_zero_dimensions() {
-    let decoder = one_component_decoder(0, 100, 8, 0, 0, 0);
-    let result = decoder.decode_fragment(&[]);
-    assert!(result.is_err());
+    let decoder = one_component_decoder(0, 100, 8, 0, InterleaveMode::None, 0);
+    let error = decoder
+        .decode_fragment(&[])
+        .expect_err("zero-width JPEG-LS fragments must fail before scan decode");
+    assert!(
+        format!("{error:#}").contains("invalid dimensions"),
+        "unexpected zero-dimension error: {error:#}"
+    );
 }
 
 #[test]
 fn decode_fragment_rejects_nonzero_point_transform() {
-    let decoder = one_component_decoder(100, 100, 8, 0, 0, 1);
-    let result = decoder.decode_fragment(&[]);
-    assert!(result.is_err());
-    let msg = format!("{:?}", result.unwrap_err());
+    let decoder = one_component_decoder(100, 100, 8, 0, InterleaveMode::None, 1);
+    let error = decoder
+        .decode_fragment(&[])
+        .expect_err("nonzero point transforms must fail before scan decode");
+    let msg = format!("{error:#}");
     assert!(
         msg.contains("point transform"),
         "Expected point-transform error, got: {msg}"
@@ -73,7 +80,7 @@ fn one_component_decoder(
     height: usize,
     bits_per_sample: u32,
     near: u32,
-    interleave_mode: u8,
+    interleave_mode: InterleaveMode,
     point_transform: u8,
 ) -> JpegLsDecoder {
     JpegLsDecoder {
@@ -82,7 +89,7 @@ fn one_component_decoder(
         bits_per_sample,
         components: vec![ComponentInfo {}],
         near,
-        interleave_mode: InterleaveMode::try_from(interleave_mode).unwrap_or(InterleaveMode::None),
+        interleave_mode,
         point_transform,
         t1: 0,
         t2: 0,

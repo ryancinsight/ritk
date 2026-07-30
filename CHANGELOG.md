@@ -8,6 +8,34 @@
 
 # CHANGELOG
 
+## [Unreleased] — Fallible JPEG-LS encoder and bounded scan memory (SAFE-681-01)
+
+### Breaking
+
+- `encode_grayscale_jpeg_ls` now returns
+  `Result<Vec<u8>, JpegLsEncodeError>` and rejects invalid image metadata or
+  samples instead of asserting or narrowing them into JPEG-LS headers. See
+  [ADR 0013](docs/adr/0013-fallible-jpeg-ls-encoder.md).
+
+### Changed
+
+- Validate nonzero SOF55 geometry, exact sample count, 8–16-bit encoder
+  precision, precision-dependent `NEAR`, and the first out-of-range sample
+  before entropy allocation.
+- Share a two-row reconstruction workspace between encoder and decoder,
+  reducing 512 × 512 scan scratch from 1,050,624 bytes to 4,096 bytes.
+- Parse marker segments once with checked declared bounds and reject
+  unsupported interleave modes, mapping tables, restart intervals, and LSE
+  parameter records instead of substituting another profile.
+- Document prediction, regular/run modes, exact near-lossless bounds, memory
+  behavior, and malformed-input handling with a runnable generated figure.
+
+### Tests
+
+- Add validation partitions, malformed marker cases, a bounded arbitrary-byte
+  parser property, a structural two-row memory assertion, and public-API
+  lossless/near-lossless figure oracles.
+
 ## [Unreleased] — Fallible JPEG 2000 encoder (SAFE-680-01)
 
 ### Breaking

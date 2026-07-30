@@ -52,17 +52,15 @@ fn bench_jpeg_ls(c: &mut Criterion) {
 
     c.bench_function("jpeg_ls_encode_512x512_16bit_lossless", |b| {
         b.iter(|| {
-            black_box(encode_grayscale_jpeg_ls(
-                black_box(&img),
-                rows as u32,
-                cols as u32,
-                16,
-                0,
-            ))
+            black_box(
+                encode_grayscale_jpeg_ls(black_box(&img), rows as u32, cols as u32, 16, 0)
+                    .expect("valid benchmark fixture must encode"),
+            )
         })
     });
 
-    let stream = encode_grayscale_jpeg_ls(&img, rows as u32, cols as u32, 16, 0);
+    let stream = encode_grayscale_jpeg_ls(&img, rows as u32, cols as u32, 16, 0)
+        .expect("valid benchmark fixture must encode");
     c.bench_function("jpeg_ls_decode_512x512_16bit_lossless", |b| {
         b.iter(|| {
             black_box(decode_jpeg_ls_fragment(
@@ -74,13 +72,10 @@ fn bench_jpeg_ls(c: &mut Criterion) {
 
     c.bench_function("jpeg_ls_encode_512x512_16bit_near2", |b| {
         b.iter(|| {
-            black_box(encode_grayscale_jpeg_ls(
-                black_box(&img),
-                rows as u32,
-                cols as u32,
-                16,
-                2,
-            ))
+            black_box(
+                encode_grayscale_jpeg_ls(black_box(&img), rows as u32, cols as u32, 16, 2)
+                    .expect("valid benchmark fixture must encode"),
+            )
         })
     });
 }
