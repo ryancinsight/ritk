@@ -13,6 +13,24 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## SAFE-685-01 — Bound and document TIFF volume decoding
+**Target version**: Unreleased patch
+**Sprint phase**: Foundation
+
+- [x] Reconcile the TIFF implementation, tests, format inventory, and book
+      coverage against current `main`.
+- [x] Specify checked geometry, color-model validation, allocation, conversion,
+      round-trip, metadata-boundary, figure, and gate acceptance criteria.
+- [ ] Record the focused entry baseline before production edits.
+- [ ] Validate grayscale/RGB page contracts and hostile geometry before decode.
+- [ ] Append decoded samples directly into fallibly reserved final storage.
+- [ ] Add value-semantic malformed, mixed-page, and supported-type regressions.
+- [ ] Add and inspect the deterministic TIFF example and generated figure.
+- [ ] Teach TIFF/BigTIFF page order, scalar conversion, color, and metadata
+      boundaries in the book.
+- [ ] Run focused format, lint, test, documentation, example-runtime, mdBook,
+      semantic-version, and hosted gates against the delivered revision.
+
 ## SAFE-684-01 — Stream and document MGH/MGZ decoding
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
