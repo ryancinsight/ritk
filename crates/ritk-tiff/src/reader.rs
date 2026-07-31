@@ -28,6 +28,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 use std::io::{BufReader, Read, Seek};
 use std::path::Path;
 use tiff::decoder::{Decoder, DecodingResult};
+use tiff::ColorType;
 
 /// Read a multi-page TIFF / BigTIFF file into a 3-D `Image`.
 ///
@@ -81,46 +82,22 @@ fn decode_tiff_from_reader<R: Read + Seek>(
     let (width, height) = decoder
         .dimensions()
         .map_err(|e| anyhow!("Failed to read TIFF dimensions: {}", e))?;
-    let nx = width as usize;
-    let ny = height as usize;
-    let pixels_per_page = nx * ny;
-
-    if pixels_per_page == 0 {
-        return Err(anyhow!(
-            "TIFF page dimensions are zero ({}x{})",
-            width,
-            height
-        ));
-    }
+    let nx = usize::try_from(width).context("TIFF width exceeds usize")?;
+    let ny = usize::try_from(height).context("TIFF height exceeds usize")?;
+    let pixels_per_page = checked_page_sample_count::<1>(width, height)?;
 
     let mut data = Vec::new();
     let mut nz = 0usize;
 
     loop {
         let page_index = nz;
+        validate_grayscale_page(&mut decoder, page_index)?;
 
         let result = decoder
             .read_image()
             .map_err(|e| anyhow!("Failed to decode TIFF page {}: {}", page_index, e))?;
-
-        let page_data = decode_page_to_scalar(result)?;
-
-        if page_data.len() != pixels_per_page {
-            return Err(anyhow!(
-                "TIFF page {} has {} values, expected {} ({}x{} single-channel); \
-                 multi-channel images are not supported",
-                page_index,
-                page_data.len(),
-                pixels_per_page,
-                nx,
-                ny,
-            ));
-        }
-
-        data.try_reserve(page_data.len())
-            .context("TIFF volume pixel allocation failed")?;
-        data.extend(page_data);
-        nz += 1;
+        append_page_to_scalar(&mut data, result, pixels_per_page, page_index)?;
+        nz = nz.checked_add(1).context("TIFF page count exceeds usize")?;
 
         if !decoder.more_images() {
             break;
@@ -149,24 +126,114 @@ fn decode_tiff_from_reader<R: Read + Seek>(
     Ok((data, [nz, ny, nx]))
 }
 
-/// Convert a [`DecodingResult`] variant to `Vec<f32>`.
-///
-/// Every integer and float variant is converted losslessly where the source
-/// fits in f32.  For u32/i32/u64/i64, large magnitudes may lose precision
-/// due to the 24-bit f32 significand.
-pub(crate) fn decode_page_to_scalar(result: DecodingResult) -> Result<Vec<f32>> {
-    match result {
-        DecodingResult::U8(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
-        DecodingResult::U16(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
-        DecodingResult::U32(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
-        DecodingResult::U64(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
-        DecodingResult::I8(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
-        DecodingResult::I16(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
-        DecodingResult::I32(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
-        DecodingResult::I64(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
-        DecodingResult::F32(v) => Ok(v),
-        DecodingResult::F64(v) => Ok(v.into_iter().map(|x| x as f32).collect()),
+pub(crate) fn checked_page_sample_count<const CHANNELS: usize>(
+    width: u32,
+    height: u32,
+) -> Result<usize> {
+    let width_usize = usize::try_from(width).context("TIFF width exceeds usize")?;
+    let height_usize = usize::try_from(height).context("TIFF height exceeds usize")?;
+    let pixels = width_usize
+        .checked_mul(height_usize)
+        .with_context(|| format!("TIFF page dimensions {width}x{height} overflow usize"))?;
+    if pixels == 0 {
+        return Err(anyhow!("TIFF page dimensions are zero ({width}x{height})"));
     }
+    pixels.checked_mul(CHANNELS).with_context(|| {
+        format!("TIFF page sample count {width}x{height}x{CHANNELS} overflows usize")
+    })
+}
+
+fn validate_grayscale_page<R: Read + Seek>(
+    decoder: &mut Decoder<R>,
+    page_index: usize,
+) -> Result<()> {
+    let color_type = decoder
+        .colortype()
+        .map_err(|e| anyhow!("Failed to read TIFF page {page_index} color type: {e}"))?;
+    match color_type {
+        ColorType::Gray(_) => Ok(()),
+        other => Err(anyhow!(
+            "TIFF grayscale loader supports only Gray pages; page {page_index} decoded as {other:?}"
+        )),
+    }
+}
+
+/// Append one decoded page directly to the final `f32` volume.
+///
+/// Integer and `f64` values convert according to Rust's numeric-cast rules.
+/// Large integer magnitudes and finite `f64` values may round because binary32
+/// has a 24-bit significand and a narrower exponent range.
+pub(crate) fn append_page_to_scalar(
+    target: &mut Vec<f32>,
+    result: DecodingResult,
+    expected: usize,
+    page_index: usize,
+) -> Result<()> {
+    match result {
+        DecodingResult::U8(values) => {
+            append_converted(target, values, expected, page_index, |value| value as f32)
+        }
+        DecodingResult::U16(values) => {
+            append_converted(target, values, expected, page_index, |value| value as f32)
+        }
+        DecodingResult::U32(values) => {
+            append_converted(target, values, expected, page_index, |value| value as f32)
+        }
+        DecodingResult::U64(values) => {
+            append_converted(target, values, expected, page_index, |value| value as f32)
+        }
+        DecodingResult::I8(values) => {
+            append_converted(target, values, expected, page_index, |value| value as f32)
+        }
+        DecodingResult::I16(values) => {
+            append_converted(target, values, expected, page_index, |value| value as f32)
+        }
+        DecodingResult::I32(values) => {
+            append_converted(target, values, expected, page_index, |value| value as f32)
+        }
+        DecodingResult::I64(values) => {
+            append_converted(target, values, expected, page_index, |value| value as f32)
+        }
+        DecodingResult::F32(values) => {
+            validate_page_length(values.len(), expected, page_index)?;
+            if target.is_empty() {
+                *target = values;
+            } else {
+                target
+                    .try_reserve_exact(values.len())
+                    .context("TIFF volume pixel allocation failed")?;
+                target.extend(values);
+            }
+            Ok(())
+        }
+        DecodingResult::F64(values) => {
+            append_converted(target, values, expected, page_index, |value| value as f32)
+        }
+    }
+}
+
+fn append_converted<T>(
+    target: &mut Vec<f32>,
+    values: Vec<T>,
+    expected: usize,
+    page_index: usize,
+    convert: impl FnMut(T) -> f32,
+) -> Result<()> {
+    validate_page_length(values.len(), expected, page_index)?;
+    target
+        .try_reserve_exact(values.len())
+        .context("TIFF volume pixel allocation failed")?;
+    target.extend(values.into_iter().map(convert));
+    Ok(())
+}
+
+fn validate_page_length(actual: usize, expected: usize, page_index: usize) -> Result<()> {
+    if actual != expected {
+        return Err(anyhow!(
+            "TIFF page {page_index} has {actual} values, expected {expected}"
+        ));
+    }
+    Ok(())
 }
 
 // ── Reader struct ─────────────────────────────────────────────────────────────

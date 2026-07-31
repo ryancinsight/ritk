@@ -13,6 +13,39 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## SAFE-685-01 audit (2026-07-31)
+
+The TIFF book inventory omitted a supported format owner. The grayscale reader
+also inferred its color contract from decoded sample count, RGB page geometry
+used unchecked `width * height * 3` arithmetic, RGB output growth used
+infallible allocation, and every non-f32 page was converted into a complete
+temporary `Vec<f32>` before being copied into the final volume.
+
+The current slice validates Gray or RGB on every IFD before decode, computes
+sample counts with checked arithmetic, and appends through fallibly reserved
+final storage. Integer and f64 pages convert directly from decoder storage;
+the first f32 page becomes the output allocation. This removes one complete
+page-sized f32 staging allocation without claiming that the decoder-owned
+typed page or final volume is free. The dependency's per-decode limits remain
+separate from the output's page-count-dependent memory bound.
+
+The deterministic public example uses page-sensitive pixel content and
+non-default source geometry. Its figure must show exact source/decoded values,
+an all-zero bitwise-difference panel, ordered IFD-to-z mapping, file size, and
+the documented reset to default geometry. Hosted and exact-revision evidence
+will be added at closure. The inspected 12,108-byte SVG satisfies those
+semantics and regenerates exactly at SHA-256
+`E52D29EE4ABD8835CFA6C789B2F8E85342D2BCA1CF7766C35693789ED653FB85`.
+The warm example completes in 67.290 ms; mdBook test/build pass.
+
+The exact production code passes warning-denied all-target Clippy and 17/17
+focused Nextest tests pass in 0.102 seconds. After the added public hostile-IFD
+regression, a repeated local Clippy collection reaches 47 unrelated
+lifetime/privacy errors in concurrently modified, uncommitted `leto-ops`
+`zip.rs` and three-dimensional differentiation code. This is a live sibling
+provider blocker rather than TIFF evidence; hosted CI checks out clean provider
+revisions and remains the merge oracle.
+
 ## SAFE-684-01 audit (2026-07-31)
 
 After validating an MGH header, the reader retained the complete encoded voxel

@@ -8,6 +8,23 @@
 
 # CHANGELOG
 
+## [Unreleased] — Bounded TIFF decoding and book coverage (SAFE-685-01)
+
+### Changed
+
+- Validate checked TIFF page geometry and the grayscale or RGB color model
+  before decoding each IFD, including later pages in a stack.
+- Convert integer and `f64` pages directly into fallibly reserved final volume
+  storage, and adopt the first decoded `f32` page as that storage instead of
+  allocating and copying a second page-sized `f32` buffer.
+- Add a TIFF/BigTIFF format chapter, public-API multi-page round-trip example,
+  generated source/decoded/difference/metadata figure, and Pages regeneration.
+
+### Tests
+
+- Cover hostile RGB sample-count overflow, mixed grayscale/RGB page stacks,
+  direct integer conversion order, and first-page `f32` buffer adoption.
+
 ## [Unreleased] — NIfTI acquisition series (ATLAS-DMRI-IO-001)
 
 ### Added

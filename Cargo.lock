@@ -6100,7 +6100,9 @@ name = "ritk-tiff"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64",
  "coeus-core",
+ "image 0.24.9",
  "ritk-image",
  "ritk-spatial",
  "tempfile",

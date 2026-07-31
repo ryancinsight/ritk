@@ -6,7 +6,7 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-685-01 [patch] - Bound and document TIFF volume decoding**
-  (IN PROGRESS; owner=Codex; last-update=2026-07-31; scope=
+  (REVIEW; owner=Codex; last-update=2026-07-31; scope=
   `crates/ritk-tiff/src/{reader.rs,color.rs,tests_reader.rs}`,
   `crates/ritk-tiff/examples/book_tiff.rs`,
   `docs/book/{SUMMARY.md,tiff_format.md,examples/tiff_roundtrip.md,
@@ -31,7 +31,14 @@
   vector; displayed metrics agree with generated data; the example stays
   within the committed runtime budget; and formatting, warning-denied
   Clippy, Nextest, doctest, Rustdoc, mdBook, semantic-version, and hosted gates
-  pass.
+  pass. Local implementation evidence: package formatting and the exact
+  production-code Clippy pass; 17/17 focused tests pass in 0.102 seconds; the
+  public example builds, runs in 67.290 ms warm, and regenerates the inspected
+  12,108-byte SVG exactly at SHA-256
+  `E52D29EE4ABD8835CFA6C789B2F8E85342D2BCA1CF7766C35693789ED653FB85`;
+  mdBook test/build pass. A subsequent local Clippy collection is blocked by
+  47 errors in concurrently edited, uncommitted sibling `leto-ops` files;
+  clean-provider hosted CI is the remaining closure oracle.
 
 - **SAFE-684-01 [patch] - Stream and document MGH/MGZ decoding**
   (DONE; owner=Codex; last-update=2026-07-31; scope=
