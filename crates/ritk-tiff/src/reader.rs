@@ -126,6 +126,11 @@ fn decode_tiff_from_reader<R: Read + Seek>(
     Ok((data, [nz, ny, nx]))
 }
 
+/// Return the representable sample count for one decoded TIFF page.
+///
+/// This guard rejects zero geometry and `usize` arithmetic overflow. Large
+/// dimensions that remain representable are bounded separately by the TIFF
+/// decoder's configured per-decode limits.
 pub(crate) fn checked_page_sample_count<const CHANNELS: usize>(
     width: u32,
     height: u32,
@@ -163,6 +168,11 @@ fn validate_grayscale_page<R: Read + Seek>(
 /// Integer and `f64` values convert according to Rust's numeric-cast rules.
 /// Large integer magnitudes and finite `f64` values may round because binary32
 /// has a 24-bit significand and a narrower exponent range.
+///
+/// The first `F32` page becomes the volume's backing allocation directly;
+/// later `F32` pages append to that allocation. The
+/// `first_float_page_becomes_the_output_allocation` regression pins this
+/// no-copy first-page invariant.
 pub(crate) fn append_page_to_scalar(
     target: &mut Vec<f32>,
     result: DecodingResult,

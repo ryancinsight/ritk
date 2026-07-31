@@ -35,12 +35,11 @@
       boundaries in the book.
 - [ ] Run focused format, lint, test, documentation, example-runtime, mdBook,
       semantic-version, and hosted gates against the delivered revision.
-      Formatting, 17/17 Nextest tests, the public example, inspected figure,
-      and mdBook test/build pass. A later local Clippy rerun is externally
-      blocked by 47 uncommitted `leto-ops` lifetime/privacy errors in the live
-      sibling tree; the entry Clippy baseline passed before that peer edit.
-      Clean-provider hosted gates and the new public hostile-header regression
-      remain the closure oracle.
+      Formatting, warning-denied all-target Clippy, 18/18 Nextest tests in
+      0.162 seconds (including the public hostile-header regression), doctests,
+      warning-denied Rustdoc, the public example, inspected figure, and mdBook
+      test/build pass. Semantic-version and remaining hosted gates are the
+      closure oracles.
 
 ## SAFE-684-01 — Stream and document MGH/MGZ decoding
 **Target version**: Unreleased patch

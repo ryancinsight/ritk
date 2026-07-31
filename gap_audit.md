@@ -38,13 +38,12 @@ semantics and regenerates exactly at SHA-256
 `E52D29EE4ABD8835CFA6C789B2F8E85342D2BCA1CF7766C35693789ED653FB85`.
 The warm example completes in 67.290 ms; mdBook test/build pass.
 
-The exact production code passes warning-denied all-target Clippy and 17/17
-focused Nextest tests pass in 0.102 seconds. After the added public hostile-IFD
-regression, a repeated local Clippy collection reaches 47 unrelated
-lifetime/privacy errors in concurrently modified, uncommitted `leto-ops`
-`zip.rs` and three-dimensional differentiation code. This is a live sibling
-provider blocker rather than TIFF evidence; hosted CI checks out clean provider
-revisions and remains the merge oracle.
+The exact production code passes warning-denied all-target Clippy and 18/18
+focused Nextest tests pass in 0.162 seconds, including the public hostile-IFD
+regression. The forged header is rejected by the dependency's consistency
+check before allocation; the independent checked-arithmetic regression reaches
+RITK's sample-count overflow boundary directly. Hosted CI remains the
+clean-provider merge oracle.
 
 ## SAFE-684-01 audit (2026-07-31)
 
