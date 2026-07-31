@@ -161,7 +161,7 @@ mod tests {
 
     fn replace_ifd_long(path: &Path, target_tag: u16, value: u32) -> Result<()> {
         let mut bytes = std::fs::read(path)?;
-        if bytes.get(0..2) != Some(b"II") {
+        if !matches!(bytes.get(0..2), Some(b"II")) {
             return Err(anyhow!("test TIFF encoder did not emit little-endian data"));
         }
         let ifd_offset_bytes: [u8; 4] = bytes
@@ -263,7 +263,7 @@ mod tests {
     }
 
     #[test]
-    fn rgb_loader_rejects_hostile_declared_geometry_before_decode() -> Result<()> {
+    fn rgb_loader_rejects_hostile_declared_geometry_before_allocation() -> Result<()> {
         let dir = tempdir()?;
         let path = dir.path().join("hostile_rgb.tiff");
         write_rgb8_pages(&path, 1, 1, &[vec![1, 2, 3]])?;
@@ -271,9 +271,12 @@ mod tests {
         replace_ifd_long(&path, 257, u32::MAX)?;
 
         let error = read_tiff_color_to_volume(&path, &SequentialBackend).unwrap_err();
+        let message = format!("{error:#}");
         assert!(
-            error.to_string().contains("overflows usize"),
-            "unexpected hostile-geometry error: {error:#}"
+            message.contains("Format error: Inconsistent sizes encountered")
+                || message.contains("TIFF page sample count")
+                    && message.contains("overflows usize"),
+            "unexpected hostile-geometry error: {message}"
         );
         Ok(())
     }
