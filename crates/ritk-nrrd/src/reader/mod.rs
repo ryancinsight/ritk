@@ -1,6 +1,7 @@
 mod decode;
 use decode::*;
 
+use crate::axes::{locate_acquisition_axis, AcquisitionAxis};
 use crate::spatial::{metadata_from_file_space_directions, metadata_from_file_spacings};
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
@@ -11,13 +12,42 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 
-/// Decode of a NRRD file into flat `[Z, Y, X]` voxels plus spatial metadata.
+/// Decode of a NRRD file into one flat `[Z, Y, X]` volume per acquisition,
+/// sharing one spatial grid.
 struct DecodedNrrd {
-    data: Vec<f32>,
+    volumes: Vec<Vec<f32>>,
     dims: [usize; 3],
     origin: Point<3>,
     spacing: Spacing<3>,
     direction: Direction<3>,
+}
+
+impl DecodedNrrd {
+    /// Take the sole volume, rejecting a series.
+    ///
+    /// The single-volume reader carries a `[nz, ny, nx]` contract, so a series
+    /// has no correct representation through it; returning volume 0 would
+    /// discard the rest of the acquisition while reporting success.
+    fn into_single_volume(mut self) -> Result<DecodedNrrd> {
+        if self.volumes.len() != 1 {
+            return Err(anyhow!(
+                "NRRD file declares {} volumes along its acquisition axis; this reader \
+                 returns one 3-D volume. Use the series reader to decode an acquisition \
+                 series (diffusion, time series) without discarding {} of its volumes.",
+                self.volumes.len(),
+                self.volumes.len() - 1
+            ));
+        }
+        self.volumes.truncate(1);
+        Ok(self)
+    }
+
+    /// The sole volume's voxels, after [`Self::into_single_volume`].
+    fn single_volume_data(mut self) -> Vec<f32> {
+        self.volumes
+            .pop()
+            .expect("invariant: single_volume_data follows into_single_volume")
+    }
 }
 
 /// Read a NRRD (Nearly Raw Raster Data) file into a 3-D `Image`.
@@ -53,17 +83,63 @@ pub fn read_nrrd<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
 ) -> Result<Image<f32, B, 3>> {
+    let decoded = decode_nrrd(path)?.into_single_volume()?;
+    let (dims, origin, spacing, direction) = (
+        decoded.dims,
+        decoded.origin,
+        decoded.spacing,
+        decoded.direction,
+    );
+
+    // NRRD raw order is X-fastest. RITK [Z,Y,X] row-major tensors are also
+    // X-fastest in flat memory, so the decoded payload is shaped directly.
+    Image::from_flat_on(
+        decoded.single_volume_data(),
+        dims,
+        origin,
+        spacing,
+        direction,
+        backend,
+    )
+}
+
+/// Read a NRRD acquisition series as one image per volume.
+///
+/// # Acquisition axis
+///
+/// A 4-D NRRD carries one non-spatial axis — the diffusion gradient index of a
+/// DWI file, a functional timepoint. Unlike NIfTI, NRRD does not fix its
+/// position: the NA-MIC convention Slicer and DTIPrep emit places it first
+/// (fastest, volumes interleaved voxel-by-voxel), while other tools place it
+/// last (slowest, volumes contiguous). Both are read here, located through
+/// `kinds` or the `none` slot in `space directions`.
+///
+/// Every returned image shares the file's single spatial grid, in acquisition
+/// order. A 2-D or 3-D file is a one-volume series, so this reader accepts an
+/// ordinary volume; [`read_nrrd`] does not accept the converse, rejecting a
+/// series rather than returning its first volume.
+///
+/// # Errors
+///
+/// Returns an error when the header is invalid, when the acquisition axis is
+/// absent or in an unsupported position on a 4-D file, or when the payload does
+/// not match the declared sizes.
+pub fn read_nrrd_series<B: ComputeBackend, P: AsRef<Path>>(
+    path: P,
+    backend: &B,
+) -> Result<Vec<Image<f32, B, 3>>> {
     let DecodedNrrd {
-        data,
+        volumes,
         dims,
         origin,
         spacing,
         direction,
     } = decode_nrrd(path)?;
 
-    // NRRD raw order is X-fastest. RITK [Z,Y,X] row-major tensors are also
-    // X-fastest in flat memory, so the decoded payload is shaped directly.
-    Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+    volumes
+        .into_iter()
+        .map(|data| Image::from_flat_on(data, dims, origin, spacing, direction, backend))
+        .collect()
 }
 
 fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
@@ -133,21 +209,56 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         .context("'dimension' is not a valid integer")?;
 
     // 2-D NRRD files are promoted to a degenerate `[1, Y, X]` (z = 1) volume,
-    // since ritk's `Image` is 3-D.
-    if dimension != 2 && dimension != 3 {
+    // since ritk's `Image` is 3-D. A 4-D file carries three spatial axes plus
+    // one acquisition axis.
+    if !(2..=4).contains(&dimension) {
         return Err(anyhow!(
-            "Expected dimension = 2 or 3 for a NRRD file, found {}",
+            "Expected dimension between 2 and 4 for a NRRD file, found {}",
             dimension
         ));
     }
+
+    // The acquisition axis must be located before `sizes` and `space
+    // directions` can be split into spatial and non-spatial parts.
+    let direction_slots = headers
+        .get("space directions")
+        .map(|s| parse_space_direction_slots(s))
+        .transpose()?;
+    let direction_flags: Option<Vec<bool>> = direction_slots
+        .as_ref()
+        .map(|slots| slots.iter().map(Option::is_some).collect());
+    let acquisition = locate_acquisition_axis(
+        dimension,
+        headers.get("kinds").map(String::as_str),
+        direction_flags.as_deref(),
+    )?;
 
     let sizes_str = headers
         .get("sizes")
         .ok_or_else(|| anyhow!("Missing 'sizes' in NRRD header"))?;
     let sizes = parse_usize_vec(sizes_str, "sizes", dimension)?;
-    let nx = sizes[0];
-    let ny = sizes[1];
-    let nz = if dimension == 3 { sizes[2] } else { 1 };
+
+    // Split `sizes` into the acquisition extent and the three spatial extents,
+    // which stay in file order `[x, y, z]` whichever side the acquisition axis
+    // sits on.
+    let (volumes, spatial_sizes): (usize, &[usize]) = match acquisition {
+        AcquisitionAxis::Absent => (1, &sizes[..]),
+        AcquisitionAxis::Fastest => (sizes[0], &sizes[1..]),
+        AcquisitionAxis::Slowest => (sizes[3], &sizes[..3]),
+    };
+    if volumes == 0 {
+        return Err(anyhow!(
+            "NRRD acquisition axis declares zero volumes; 'sizes' must be positive"
+        ));
+    }
+
+    let nx = spatial_sizes[0];
+    let ny = spatial_sizes[1];
+    let nz = if spatial_sizes.len() >= 3 {
+        spatial_sizes[2]
+    } else {
+        1
+    };
 
     // ── Encoding ──────────────────────────────────────────────────────────
     let encoding = headers
@@ -180,15 +291,24 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
     // 2-D files carry 2-component directions/spacings/origin, promoted with an
     // identity through-plane z-axis (unit z-spacing, zero z-origin).
     let spatial = if let Some(sd_str) = headers.get("space directions") {
-        let dirs = if dimension == 3 {
-            parse_space_directions(sd_str)?
-        } else {
+        // The acquisition axis contributes a `none` slot, so the spatial
+        // vectors are what remains after dropping it.
+        let dirs = if dimension == 2 {
             parse_space_directions_planar(sd_str)?
+        } else {
+            parse_space_directions(sd_str)?
         };
         metadata_from_file_space_directions(dirs)
     } else if let Some(sp_str) = headers.get("spacings") {
         let sp = parse_f64_vec(sp_str, "spacings", dimension)?;
-        let sz = if dimension == 3 { sp[2] } else { 1.0 };
+        // `spacings` covers every axis, so drop the acquisition slot the same
+        // way `space directions` drops its `none`.
+        let sp: Vec<f64> = match acquisition {
+            AcquisitionAxis::Absent => sp,
+            AcquisitionAxis::Fastest => sp[1..].to_vec(),
+            AcquisitionAxis::Slowest => sp[..3].to_vec(),
+        };
+        let sz = if sp.len() >= 3 { sp[2] } else { 1.0 };
         metadata_from_file_spacings([sp[0], sp[1], sz])
     } else {
         // Neither field present: unit spacing with canonical file-axis order.
@@ -196,21 +316,28 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
     };
 
     // ── Origin ────────────────────────────────────────────────────────────
+    // `space origin` is a point in the file's physical space, so it always has
+    // one component per *space* dimension and never a slot for the acquisition
+    // axis — unlike `sizes`, `kinds`, and `space directions`, which are
+    // per-axis.
     let origin = if let Some(so_str) = headers.get("space origin") {
-        if dimension == 3 {
-            parse_nrrd_point(so_str)?
-        } else {
+        if dimension == 2 {
             parse_nrrd_point_planar(so_str)?
+        } else {
+            parse_nrrd_point(so_str)?
         }
     } else {
         Point::new([0.0, 0.0, 0.0])
     };
 
     // ── Binary data ───────────────────────────────────────────────────────
-    let total_voxels = nx
+    let voxels_per_volume = nx
         .checked_mul(ny)
         .and_then(|plane| plane.checked_mul(nz))
         .ok_or_else(|| anyhow!("NRRD sizes [{nx}, {ny}, {nz}] voxel count overflows usize"))?;
+    let total_voxels = voxels_per_volume
+        .checked_mul(volumes)
+        .ok_or_else(|| anyhow!("NRRD series element count overflows usize"))?;
     let (element_size, _, _) = element_type_spec(&element_type)?;
     let expected_payload_bytes = total_voxels.checked_mul(element_size).ok_or_else(|| {
         anyhow!("NRRD byte count overflows usize: {total_voxels} voxels x {element_size} bytes")
@@ -268,10 +395,21 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
     }
 
     // NRRD raw order is X-fastest. RITK [Z,Y,X] row-major tensors are also
-    // X-fastest in flat memory, so the decoded payload maps directly to
-    // shape [nz, ny, nx] with no permutation.
+    // X-fastest in flat memory, so each volume's voxels map directly to shape
+    // [nz, ny, nx] with no permutation — only the acquisition stride separates
+    // one volume's voxels from the next.
+    let volume_data = (0..volumes)
+        .map(|volume| {
+            (0..voxels_per_volume)
+                .map(|voxel| {
+                    f32_data[acquisition.flat_index(volume, voxel, voxels_per_volume, volumes)]
+                })
+                .collect()
+        })
+        .collect();
+
     Ok(DecodedNrrd {
-        data: f32_data,
+        volumes: volume_data,
         dims: [nz, ny, nx],
         origin,
         spacing: spatial.spacing,

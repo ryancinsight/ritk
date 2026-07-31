@@ -7,6 +7,34 @@
 //!
 //! - [`read_nrrd`]: Read a NRRD file as a native image with spatial metadata
 //! - [`write_nrrd`]: Write an Image to a NRRD file with full space directions and origin encoding
+//! - [`read_nrrd_series`]: Read an acquisition series as one image per volume
+//! - [`write_nrrd_series`]: Write an acquisition series with a leading acquisition axis
+//!
+//! # Acquisition Axis
+//!
+//! A 4-D NRRD carries three spatial axes plus one non-spatial axis — the
+//! diffusion gradient index of a DWI file, a functional timepoint. NRRD does
+//! not fix that axis's position the way NIfTI does. The NA-MIC convention
+//! Slicer and DTIPrep emit places it first:
+//!
+//! ```text
+//! dimension: 4
+//! sizes: 33 128 128 60
+//! kinds: list domain domain domain
+//! space directions: none (1.7,0,0) (0,1.7,0) (0,0,2.2)
+//! ```
+//!
+//! while other tools place it last. The two differ in stride, not meaning: a
+//! leading axis varies fastest, so volumes interleave voxel-by-voxel; a
+//! trailing axis varies slowest, so volumes are contiguous blocks. Both are
+//! read. Writing always emits the leading form, which diffusion tooling
+//! expects.
+//!
+//! The single-volume and series entry points are asymmetric on purpose. The
+//! series reader accepts a rank-3 file as a one-volume series, because that is
+//! what it is. [`read_nrrd`] rejects a 4-D file rather than returning volume 0,
+//! because a series has no correct single-volume decoding and quietly dropping
+//! the remaining volumes would report success over lost acquisition data.
 //!
 //! # Spatial Convention
 //!
@@ -28,12 +56,13 @@
 //!
 //! Space origin encodes the physical starting point in [X, Y, Z] space.
 
+mod axes;
 pub mod reader;
 mod spatial;
 pub mod writer;
 
-pub use reader::{read_nrrd, NrrdReader};
-pub use writer::{write_nrrd, write_nrrd_with_data, NrrdWriter};
+pub use reader::{read_nrrd, read_nrrd_series, NrrdReader};
+pub use writer::{write_nrrd, write_nrrd_series, write_nrrd_with_data, NrrdWriter};
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::Image;

@@ -8,6 +8,30 @@
 
 # CHANGELOG
 
+## [Unreleased] — NRRD acquisition series (ATLAS-DMRI-IO-001)
+
+### Added
+
+- `read_nrrd_series` and `write_nrrd_series` read and write 4-D NRRD
+  acquisition series. NRRD does not fix the non-spatial axis position, so the
+  reader locates it through `kinds` (falling back to the `none` slot in `space
+  directions`) and accepts it either leading (fastest, volumes interleaved --
+  the NA-MIC convention Slicer and DTIPrep emit) or trailing (slowest, volumes
+  contiguous). The writer emits the leading form that diffusion tooling expects;
+  a one-volume series writes as an ordinary `dimension: 3` file.
+
+### Fixed
+
+- `read_nrrd` rejects a 4-D file naming its volume count instead of decoding
+  volume 0 and reporting success. The previous reader rejected `dimension` 4
+  outright, so no NRRD acquisition series could be read.
+
+### Changed
+
+- `space directions` parsing accepts the `none` token NRRD uses for a
+  non-spatial axis, and the single-volume and series writers share one
+  little-endian payload writer and one direction-flattening helper.
+
 ## [Unreleased] — Bounded TIFF decoding and book coverage (SAFE-685-01)
 
 ### Changed

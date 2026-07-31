@@ -13,15 +13,73 @@ use ritk_spatial::Point;
 /// spacing[i] = |v_i|
 /// Direction[:, i] = v_i / |v_i|
 /// ```
+///
+/// Non-spatial `none` slots are skipped, so a 4-D acquisition file and a 3-D
+/// volume both yield exactly three vectors.
 pub(super) fn parse_space_directions(s: &str) -> Result<[[f64; 3]; 3]> {
-    let vecs = parse_parenthesized_vectors(s)?;
+    let vecs = spatial_space_directions(s)?;
     if vecs.len() != 3 {
         return Err(anyhow!(
-            "'space directions' must contain 3 vectors, found {}",
+            "'space directions' must contain 3 spatial vectors, found {}",
             vecs.len()
         ));
     }
     Ok([vecs[0], vecs[1], vecs[2]])
+}
+
+/// Parse `space directions` into one slot per axis, `None` for a non-spatial
+/// axis.
+///
+/// NRRD marks an axis that spans no physical direction with the bare token
+/// `none` — the diffusion gradient axis of a DWI file, for example. Every other
+/// slot is a parenthesised direction vector.
+pub(super) fn parse_space_direction_slots(s: &str) -> Result<Vec<Option<[f64; 3]>>> {
+    let mut slots = Vec::new();
+    let mut rest = s.trim();
+
+    while !rest.is_empty() {
+        if let Some(after_none) = strip_none_token(rest) {
+            slots.push(None);
+            rest = after_none.trim_start();
+            continue;
+        }
+
+        let Some(after_open) = rest.strip_prefix('(') else {
+            return Err(anyhow!(
+                "Unexpected text outside vector group in '{}': '{}'",
+                s,
+                rest
+            ));
+        };
+        let Some(end) = after_open.find(')') else {
+            return Err(anyhow!("Unterminated vector group in '{}'", s));
+        };
+        slots.push(Some(parse_vector_components::<3>(&after_open[..end])?));
+        rest = after_open[end + 1..].trim_start();
+    }
+
+    Ok(slots)
+}
+
+/// The direction vectors of the spatial axes, dropping any `none` slots.
+pub(super) fn spatial_space_directions(s: &str) -> Result<Vec<[f64; 3]>> {
+    Ok(parse_space_direction_slots(s)?
+        .into_iter()
+        .flatten()
+        .collect())
+}
+
+/// Strip a leading case-insensitive `none` token, if the text starts with one.
+///
+/// The token must be followed by whitespace or end of input so a hypothetical
+/// future field value beginning with those letters is not silently consumed.
+fn strip_none_token(rest: &str) -> Option<&str> {
+    let candidate = rest.get(..4)?;
+    if !candidate.eq_ignore_ascii_case("none") {
+        return None;
+    }
+    let after = &rest[4..];
+    (after.is_empty() || after.starts_with(char::is_whitespace)).then_some(after)
 }
 
 /// Parse a 2-D `space directions` field "(a,b) (c,d)" and promote it to a 3-D
@@ -170,8 +228,50 @@ pub(super) fn element_type_spec(element_type: &str) -> Result<(usize, bool, bool
 mod tests {
     use super::{
         parse_nrrd_point, parse_nrrd_point_planar, parse_parenthesized_vectors,
-        parse_space_directions, parse_space_directions_planar,
+        parse_space_direction_slots, parse_space_directions, parse_space_directions_planar,
     };
+
+    #[test]
+    fn parse_space_directions_skips_none_axes() {
+        // DWI-style 4-axis header: the gradient axis spans no physical
+        // direction and is marked `none`; the 3 spatial vectors remain.
+        let directions = parse_space_directions("none (1, 0, 0) (0, 2, 0) (0, 0, 3)")
+            .expect("none slot plus 3 spatial vectors");
+        assert_eq!(
+            directions,
+            [[1.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 3.0]]
+        );
+    }
+
+    #[test]
+    fn parse_space_direction_slots_preserves_axis_positions() {
+        let slots = parse_space_direction_slots("(1, 0, 0) NONE (0, 0, 3)")
+            .expect("mixed vector/none slots");
+        assert_eq!(
+            slots,
+            vec![Some([1.0, 0.0, 0.0]), None, Some([0.0, 0.0, 3.0])]
+        );
+    }
+
+    #[test]
+    fn parse_space_direction_slots_rejects_none_prefixed_token() {
+        let err = parse_space_direction_slots("nonesuch (1, 0, 0)")
+            .expect_err("a none-prefixed word is not the none token");
+        assert!(
+            err.to_string().contains("outside vector group"),
+            "unexpected: {err}"
+        );
+    }
+
+    #[test]
+    fn parse_space_directions_rejects_wrong_spatial_count_after_none() {
+        let err = parse_space_directions("none (1, 0, 0) (0, 1, 0)")
+            .expect_err("2 spatial vectors are not enough");
+        assert!(
+            err.to_string().contains("must contain 3 spatial vectors"),
+            "unexpected: {err}"
+        );
+    }
 
     #[test]
     fn parse_space_directions_returns_fixed_vectors() {

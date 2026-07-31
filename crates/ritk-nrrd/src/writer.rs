@@ -95,21 +95,9 @@ fn write_nrrd_flat(
     }
 
     // ── Spatial metadata ──────────────────────────────────────────────────
-    let dir = direction.0;
-
     let file_directions = file_space_directions_from_internal(
         [spacing[0], spacing[1], spacing[2]],
-        [
-            dir[(0, 0)],
-            dir[(0, 1)],
-            dir[(0, 2)],
-            dir[(1, 0)],
-            dir[(1, 1)],
-            dir[(1, 2)],
-            dir[(2, 0)],
-            dir[(2, 1)],
-            dir[(2, 2)],
-        ],
+        direction_row_major(direction),
     );
     let sd0 = format_nrrd_vector(file_directions[0]);
     let sd1 = format_nrrd_vector(file_directions[1]);
@@ -143,23 +131,186 @@ fn write_nrrd_flat(
     // Blank line terminates the header; binary data follows immediately.
     writeln!(writer)?;
 
-    // Binary payload — little-endian f32, written in a single bulk call.
-    // On little-endian targets the f32 slice reinterprets to bytes with no copy
-    // (the on-disk encoding is little-endian); a per-element `write_all` loop is
-    // ~10× slower from the per-call overhead across millions of voxels.
+    write_le_f32(&mut writer, f32_slice)?;
+
+    writer.flush().context("Failed to flush NRRD output file")?;
+
+    Ok(())
+}
+
+/// Write an acquisition series to a NRRD file.
+///
+/// # Acquisition axis
+///
+/// The gradient/time axis is emitted **first**, as `kinds: list domain domain
+/// domain` with a leading `none` in `space directions` — the NA-MIC convention
+/// Slicer and DTIPrep produce and the one diffusion tooling expects. That axis
+/// varies fastest, so volumes are interleaved voxel-by-voxel in the payload.
+/// [`read_nrrd_series`](crate::read_nrrd_series) reads either that layout or a
+/// trailing acquisition axis.
+///
+/// A one-volume series writes as an ordinary `dimension: 3` file, identical to
+/// [`write_nrrd`], because that is the canonical form for a single volume.
+///
+/// # Errors
+///
+/// Returns an error when `volumes` is empty, when any volume's grid differs
+/// from the first, or when writing fails.
+pub fn write_nrrd_series<B, P>(path: P, volumes: &[Image<f32, B, 3>], backend: &B) -> Result<()>
+where
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    P: AsRef<Path>,
+{
+    let Some((first, rest)) = volumes.split_first() else {
+        return Err(anyhow!(
+            "write_nrrd_series: a series requires at least one volume"
+        ));
+    };
+
+    let shape = first.shape();
+    for (index, volume) in rest.iter().enumerate() {
+        let position = index + 1;
+        if volume.shape() != shape {
+            return Err(anyhow!(
+                "write_nrrd_series: volume {position} shape {:?} differs from volume 0 \
+                 {shape:?}; a NRRD series has one spatial grid",
+                volume.shape()
+            ));
+        }
+        if volume.origin() != first.origin() || volume.spacing() != first.spacing() {
+            return Err(anyhow!(
+                "write_nrrd_series: volume {position} origin or spacing differs from \
+                 volume 0; a NRRD series has one spatial grid"
+            ));
+        }
+    }
+
+    let payloads: Vec<_> = volumes
+        .iter()
+        .map(|volume| volume.data_cow_on(backend))
+        .collect();
+
+    write_nrrd_series_flat(
+        path.as_ref(),
+        shape,
+        first.spacing(),
+        first.origin(),
+        first.direction(),
+        &payloads,
+    )
+}
+
+fn write_nrrd_series_flat(
+    path: &Path,
+    shape: [usize; 3],
+    spacing: &Spacing<3>,
+    origin: &Point<3>,
+    direction: &Direction<3>,
+    payloads: &[impl std::ops::Deref<Target = [f32]>],
+) -> Result<()> {
+    // One volume has no acquisition axis to declare, so it takes the ordinary
+    // rank-3 path and stays byte-identical to `write_nrrd`.
+    if let [single] = payloads {
+        return write_nrrd_flat(path, shape, spacing, origin, direction, single);
+    }
+
+    let [nz, ny, nx] = shape;
+    let voxels_per_volume = nx
+        .checked_mul(ny)
+        .and_then(|plane| plane.checked_mul(nz))
+        .ok_or_else(|| anyhow!("NRRD shape [{nz}, {ny}, {nx}] voxel count overflows usize"))?;
+    for (position, payload) in payloads.iter().enumerate() {
+        if payload.len() != voxels_per_volume {
+            return Err(anyhow!(
+                "write_nrrd_series: volume {position} has {} voxels but shape \
+                 [{nz}, {ny}, {nx}] requires {voxels_per_volume}",
+                payload.len()
+            ));
+        }
+    }
+
+    let file_directions = file_space_directions_from_internal(
+        [spacing[0], spacing[1], spacing[2]],
+        direction_row_major(direction),
+    );
+
+    let file = std::fs::File::create(path)
+        .with_context(|| format!("Cannot create NRRD file {:?}", path))?;
+    let mut writer = BufWriter::new(file);
+
+    writeln!(writer, "NRRD0004")?;
+    writeln!(writer, "# Complete NRRD file written by ritk")?;
+    writeln!(writer, "type: float")?;
+    writeln!(writer, "dimension: 4")?;
+    writeln!(writer, "space: left-posterior-superior")?;
+    // The acquisition axis leads, so `sizes` and every per-axis field carry it
+    // in slot 0 while the spatial axes keep file order [x, y, z].
+    writeln!(writer, "sizes: {} {} {} {}", payloads.len(), nx, ny, nz)?;
+    writeln!(
+        writer,
+        "space directions: none {} {} {}",
+        format_nrrd_vector(file_directions[0]),
+        format_nrrd_vector(file_directions[1]),
+        format_nrrd_vector(file_directions[2])
+    )?;
+    writeln!(writer, "kinds: list domain domain domain")?;
+    writeln!(writer, "endian: little")?;
+    writeln!(writer, "encoding: raw")?;
+    writeln!(
+        writer,
+        "space origin: ({},{},{})",
+        origin[0], origin[1], origin[2]
+    )?;
+    writeln!(writer)?;
+
+    // The acquisition axis varies fastest, so voxel i of every volume is
+    // written before voxel i+1 of any of them. A bulk per-volume write is not
+    // available in this layout; the interleave is the format's own ordering.
+    let mut interleaved = Vec::with_capacity(payloads.len() * voxels_per_volume);
+    for voxel in 0..voxels_per_volume {
+        for payload in payloads {
+            interleaved.push(payload[voxel]);
+        }
+    }
+    write_le_f32(&mut writer, &interleaved)?;
+
+    writer.flush().context("Failed to flush NRRD output file")?;
+    Ok(())
+}
+
+/// Flatten a 3×3 direction-cosine matrix to the row-major layout the space
+/// directions builder consumes.
+fn direction_row_major(direction: &Direction<3>) -> [f64; 9] {
+    let d = direction.0;
+    [
+        d[(0, 0)],
+        d[(0, 1)],
+        d[(0, 2)],
+        d[(1, 0)],
+        d[(1, 1)],
+        d[(1, 2)],
+        d[(2, 0)],
+        d[(2, 1)],
+        d[(2, 2)],
+    ]
+}
+
+/// Write `values` as little-endian IEEE 754 f32.
+///
+/// On little-endian targets the slice reinterprets to bytes with no copy; a
+/// per-element `write_all` loop is far slower across millions of voxels.
+fn write_le_f32(writer: &mut impl Write, values: &[f32]) -> Result<()> {
     #[cfg(target_endian = "little")]
-    writer.write_all(bytemuck::cast_slice(f32_slice))?;
+    writer.write_all(bytemuck::cast_slice(values))?;
     #[cfg(target_endian = "big")]
     {
-        let mut bytes = Vec::with_capacity(f32_slice.len() * 4);
-        for &v in f32_slice {
+        let mut bytes = Vec::with_capacity(values.len() * 4);
+        for &v in values {
             bytes.extend_from_slice(&v.to_le_bytes());
         }
         writer.write_all(&bytes)?;
     }
-
-    writer.flush().context("Failed to flush NRRD output file")?;
-
     Ok(())
 }
 
