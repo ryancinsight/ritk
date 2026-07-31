@@ -17,8 +17,8 @@ use raw::{
 };
 use validate::{
     checked_lane, checked_spatial_pixdim, dims_for_version, qfac_from_pixdim,
-    qform_quaternion_scalar, validate_3d_dims, validate_bitpix, validate_i64_vox_offset,
-    validate_vox_offset,
+    qform_quaternion_scalar, validate_bitpix, validate_dims, validate_i64_vox_offset,
+    validate_vox_offset, volume_count,
 };
 
 const NIFTI1_HEADER_LEN: usize = 348;
@@ -122,22 +122,28 @@ pub(crate) struct HeaderSpatial {
 }
 
 impl NiftiHeader {
+    /// Build a NIfTI-1 header for a single volume.
     #[cfg(test)]
-    pub(crate) fn new_3d(
+    pub(crate) fn new_volume(
         dims: HeaderDims,
         datatype: NiftiDatatype,
         spatial: HeaderSpatial,
     ) -> Result<Self> {
-        Self::new_3d_with_version(HeaderVersion::One, dims, datatype, spatial)
+        Self::new_with_version(HeaderVersion::One, dims, 1, datatype, spatial)
     }
 
-    pub(crate) fn new_3d_with_version(
+    /// Build a header for `volumes` volumes sharing the `dims` spatial grid.
+    ///
+    /// One volume produces a rank-3 header; more produce a rank-4 header with
+    /// the count in `dim[4]`.
+    pub(crate) fn new_with_version(
         version: HeaderVersion,
         dims: HeaderDims,
+        volumes: usize,
         datatype: NiftiDatatype,
         spatial: HeaderSpatial,
     ) -> Result<Self> {
-        let dim = dims_for_version(version, dims)?;
+        let dim = dims_for_version(version, dims, volumes)?;
 
         Ok(Self {
             version,
@@ -197,7 +203,7 @@ impl NiftiHeader {
         for (index, slot) in dim.iter_mut().enumerate() {
             *slot = usize::from(read_u16(bytes, 40 + index * 2, endian)?);
         }
-        validate_3d_dims(dim)?;
+        validate_dims(dim)?;
 
         let datatype = NiftiDatatype::from_code(read_i16(bytes, 70, endian)?)?;
         validate_bitpix(datatype, read_i16(bytes, 72, endian)?)?;
@@ -252,7 +258,7 @@ impl NiftiHeader {
                 format!("NIfTI-2 dim[{index}] must be non-negative and fit usize, got {raw}")
             })?;
         }
-        validate_3d_dims(dim)?;
+        validate_dims(dim)?;
 
         let datatype = NiftiDatatype::from_code(read_i16(bytes, 12, endian)?)?;
         validate_bitpix(datatype, read_i16(bytes, 14, endian)?)?;
@@ -470,8 +476,24 @@ impl NiftiHeader {
         }
     }
 
+    /// Volumes this header declares on its spatial grid.
+    ///
+    /// One for a rank-3 volume header; `dim[4]` for a rank-4 acquisition series.
+    pub(crate) fn volume_count(&self) -> usize {
+        volume_count(self.dim)
+    }
+
+    /// Voxels in one volume of this header's spatial grid.
+    pub(crate) fn voxels_per_volume(&self) -> Result<usize> {
+        crate::shape::checked_voxel_count(self.dim[1], self.dim[2], self.dim[3])
+    }
+
+    /// Byte range of the whole payload, spanning every declared volume.
     pub(crate) fn volume_byte_range(&self, byte_len: usize) -> Result<std::ops::Range<usize>> {
-        let voxel_count = crate::shape::checked_voxel_count(self.dim[1], self.dim[2], self.dim[3])?;
+        let voxel_count = self
+            .voxels_per_volume()?
+            .checked_mul(self.volume_count())
+            .ok_or_else(|| anyhow!("NIfTI series voxel count overflows usize"))?;
         let data_len = voxel_count
             .checked_mul(self.datatype.byte_width())
             .ok_or_else(|| anyhow!("NIfTI data byte count overflows usize"))?;
@@ -501,7 +523,7 @@ mod tests {
 
     #[test]
     fn header_round_trip_preserves_nifti1_core_fields() {
-        let header = NiftiHeader::new_3d(
+        let header = NiftiHeader::new_volume(
             HeaderDims {
                 nx: 4,
                 ny: 3,
@@ -527,13 +549,14 @@ mod tests {
 
     #[test]
     fn header_round_trip_preserves_nifti2_core_fields() {
-        let header = NiftiHeader::new_3d_with_version(
+        let header = NiftiHeader::new_with_version(
             HeaderVersion::Two,
             HeaderDims {
                 nx: 70_000,
                 ny: 3,
                 nz: 2,
             },
+            1,
             NiftiDatatype::Uint32,
             HeaderSpatial {
                 pixdim: [1.0, 0.75, 1.5, 2.0, 1.0, 1.0, 1.0, 1.0],
@@ -554,7 +577,7 @@ mod tests {
 
     #[test]
     fn nifti1_rejects_dimensions_above_u16() {
-        let err = NiftiHeader::new_3d(
+        let err = NiftiHeader::new_volume(
             HeaderDims {
                 nx: 70_000,
                 ny: 1,

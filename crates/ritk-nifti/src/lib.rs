@@ -8,8 +8,9 @@
 //!
 //! The current codec supports uncompressed `.nii` and gzip-wrapped `.nii.gz`
 //! streams for the RITK image contracts used in this workspace: 3-D Float32
-//! images, UInt32 label maps, sform/qform spatial metadata, checked shape
-//! products, and bounded payload reads before allocation.
+//! images, 4-D Float32 acquisition series, UInt32 label maps, sform/qform
+//! spatial metadata, checked shape products, and bounded payload reads before
+//! allocation.
 //!
 //! Analyze 7.5 `.hdr`/`.img` pairs are owned by `ritk-analyze`. Paired NIfTI
 //! headers (`ni1`/`ni2`) are a distinct NIfTI extension point and are not mixed
@@ -20,9 +21,26 @@
 //! - [`read_nifti`]: Read a NIfTI file as a native image with spatial metadata
 //! - [`write_nifti`]: Write an Image to a NIfTI file with full sform affine encoding
 //! - [`write_nifti2`]: Write an Image to a NIfTI-2 file with full sform affine encoding
+//! - [`read_nifti_series`]: Read an acquisition series as one image per volume
+//! - [`write_nifti_series`]: Write an acquisition series to a NIfTI-1 file
+//! - [`write_nifti2_series`]: Write an acquisition series to a NIfTI-2 file
 //! - [`read_nifti_labels`]: Read label maps (segmentations) as ZYX-ordered u32 vectors
 //! - [`write_nifti_labels`]: Write label maps to NIfTI with spatial metadata
 //! - [`write_nifti2_labels`]: Write label maps to NIfTI-2 with spatial metadata
+//!
+//! # Acquisition axis
+//!
+//! NIfTI reserves `dim[4]` for the axis a repeated acquisition varies along —
+//! diffusion gradient directions, functional timepoints. A rank-3 file is one
+//! volume; a rank-4 file is a series of volumes on one shared spatial grid,
+//! stored back to back with that axis slowest.
+//!
+//! The single-volume and series entry points are asymmetric on purpose. The
+//! series readers accept a rank-3 file as a one-volume series, because that is
+//! what it is. The single-volume readers reject a rank-4 file rather than
+//! returning volume 0, because a series has no correct single-volume decoding
+//! and quietly dropping the remaining volumes would report success over lost
+//! acquisition data.
 //!
 //! # Spatial Convention
 //!
@@ -47,12 +65,18 @@ mod shape;
 mod spatial;
 mod writer;
 
-pub use reader::{read_nifti, read_nifti_from_bytes, read_nifti_labels};
+pub use reader::{
+    read_nifti, read_nifti_from_bytes, read_nifti_labels, read_nifti_series,
+    read_nifti_series_from_bytes,
+};
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_image::Image;
 use std::path::Path;
-pub use writer::{write_nifti, write_nifti2, write_nifti2_labels, write_nifti_labels};
+pub use writer::{
+    write_nifti, write_nifti2, write_nifti2_labels, write_nifti2_series, write_nifti_labels,
+    write_nifti_series,
+};
 
 /// DIP boundary executing strict spatial metadata preservation over standard NIfTI datasets.
 pub struct NiftiReader<B: ComputeBackend> {

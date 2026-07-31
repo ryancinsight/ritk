@@ -8,6 +8,24 @@
 
 # CHANGELOG
 
+## [Unreleased] — NIfTI acquisition series (ATLAS-DMRI-IO-001)
+
+### Added
+
+- `read_nifti_series`, `read_nifti_series_from_bytes`, `write_nifti_series`, and
+  `write_nifti2_series` read and write NIfTI rank-4 files, the form diffusion and
+  functional acquisitions arrive in. Volumes share one spatial grid and are
+  returned in acquisition order; the writer validates that agreement rather than
+  emitting a file whose sform applies to only part of its content. A one-volume
+  series writes as a rank-3 file, byte-identical to `write_nifti`.
+
+### Fixed
+
+- `read_nifti` and `read_nifti_labels` reject a rank-4 file naming its volume
+  count instead of decoding volume 0 and reporting success. The previous header
+  validator rejected rank 4 outright, so no NIfTI acquisition series could be
+  read at all.
+
 ## [Unreleased] — Streamed MGH/MGZ decoding (SAFE-684-01)
 
 ### Changed

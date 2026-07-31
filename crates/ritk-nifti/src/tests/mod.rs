@@ -90,7 +90,7 @@ fn test_read_nifti_from_bytes_roundtrip() -> Result<()> {
 #[test]
 fn read_nifti_from_bytes_accepts_int16_voxels() -> Result<()> {
     let backend = SequentialBackend;
-    let header = NiftiHeader::new_3d(
+    let header = NiftiHeader::new_volume(
         HeaderDims {
             nx: 3,
             ny: 2,
@@ -378,7 +378,7 @@ fn read_nifti_rejects_zero_sform_column() -> Result<()> {
     let file_path = dir.path().join("zero_sform_column.nii");
     let backend = SequentialBackend;
 
-    let header = NiftiHeader::new_3d(
+    let header = NiftiHeader::new_volume(
         HeaderDims {
             nx: 2,
             ny: 2,
@@ -408,3 +408,4 @@ mod tests_format_sources;
 mod tests_labels;
 #[path = "tests_native.rs"]
 mod tests_native;
+mod tests_series;

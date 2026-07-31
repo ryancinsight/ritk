@@ -129,7 +129,7 @@ fn imports_generated_nifti2_gzip_fixture() -> Result<()> {
 #[test]
 fn imports_generated_uint8_nifti1_fixture() -> Result<()> {
     let backend = SequentialBackend;
-    let header = NiftiHeader::new_3d(
+    let header = NiftiHeader::new_volume(
         HeaderDims {
             nx: 4,
             ny: 3,

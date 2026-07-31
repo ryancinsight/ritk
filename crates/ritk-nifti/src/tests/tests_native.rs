@@ -9,7 +9,7 @@ use coeus_core::SequentialBackend;
 fn read_nifti_native_preserves_shape_and_voxels() {
     // 2×2×2 cube: file order (x-fastest) equals output [z, y, x] order, so the
     // decoded voxels equal the input sequence 0..8 element-for-element.
-    let header = NiftiHeader::new_3d(
+    let header = NiftiHeader::new_volume(
         HeaderDims {
             nx: 2,
             ny: 2,
