@@ -15,23 +15,24 @@
 
 ## SAFE-684-01 — Stream and document MGH/MGZ decoding
 **Target version**: Unreleased patch
-**Sprint phase**: Foundation
+**Sprint phase**: Execution
 
 - [x] Reconcile `origin/main`, worktrees, peer ownership, current MGH reader,
       tests, recent frame fix, book coverage, and official format references.
 - [x] Record the exact package baseline before editing production code.
-- [ ] Add an unchanged Criterion MGH read workload and capture the baseline.
-- [ ] Replace the complete encoded-payload allocation with bounded chunked
+- [x] Add an unchanged Criterion MGH read workload and capture the baseline.
+- [x] Replace the complete encoded-payload allocation with bounded chunked
       decoding into the final voxel output.
-- [ ] Add exact datatype, chunk-boundary, truncation, hostile-allocation,
+- [x] Add exact datatype, chunk-boundary, truncation, hostile-allocation,
       geometry, gzip, and round-trip regressions.
-- [ ] Add a deterministic public-API example, generated figure, MGH/MGZ
+- [x] Add a deterministic public-API example, generated figure, MGH/MGZ
       chapter, worked example, and CI regeneration.
-- [ ] Render and inspect the figure; cross-check voxels, geometry, file sizes,
+- [x] Render and inspect the figure; cross-check voxels, geometry, file sizes,
       exact difference, and multi-frame rejection against raw output.
-- [ ] Compare the unchanged benchmark and record the analytical memory bound.
-- [ ] Run formatting, warning-denied Clippy, Nextest, doctest, Rustdoc,
-      mdBook, example-runtime, semantic-version, and hosted gates.
+- [x] Compare the unchanged benchmark and record the analytical memory bound.
+- [x] Run formatting, warning-denied Clippy, Nextest, doctest, Rustdoc,
+      mdBook, example-runtime, benchmark-smoke, and semantic-version gates.
+- [ ] Run exact-head hosted Rust and Pages gates.
 - [ ] Reconcile CHANGELOG, audit, backlog, and checklist evidence; self-review,
       commit, push, open a PR, address review, and merge after exact-head gates.
 

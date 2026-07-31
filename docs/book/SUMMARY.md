@@ -10,6 +10,8 @@
 - [NIfTI Format Boundary](nifti_format.md)
 - [NRRD Format Boundary](nrrd_format.md)
 - [MetaImage Format Boundary](metaimage_format.md)
+- [MGH and MGZ Format Boundary](mgh_format.md)
+  - [Example: MGH and MGZ Round Trip](examples/mgh_roundtrip.md)
 - [PNG Format Boundary](png_format.md)
 - [JPEG Format Boundary](jpeg_format.md)
 - [JPEG-LS Native Codec](jpeg_ls_codec.md)

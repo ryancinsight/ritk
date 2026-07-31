@@ -13,6 +13,58 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## SAFE-684-01 audit (2026-07-31)
+
+After validating an MGH header, the reader retained the complete encoded voxel
+payload and then allocated the decoded `Vec<f32>`. The existing bounded input
+reader already prevented a truncated header from reserving its complete
+declared size, but a valid 256 cubed float volume still retained 64 MiB of
+encoded bytes beside its 64 MiB decoded output during conversion.
+
+The reader now validates the scalar code into one internal `VoxelType` and
+converts fixed 16 KiB input chunks directly into the final output. Output
+capacity grows geometrically only after the corresponding chunk has been read,
+and allocation failure remains a contextual error. This changes the decoder
+allocation model from encoded payload plus decoded volume to decoded volume
+plus 16 KiB input scratch. It is not a process-RSS measurement: allocator,
+backend, gzip, and image-construction state remain outside that bound.
+
+The first growth-policy implementation reserved roughly twice the confirmed
+prefix after each chunk. The unchanged benchmark falsified it with 60–71 ms
+reads, so it was not retained. Growing only when the confirmed prefix exceeds
+capacity removes the repeated copies. On the unchanged 128 × 128 × 64 public
+reader benchmark, MGH improves from a 3.764 ms median (3.714–3.823 ms interval)
+to 3.325 ms (3.259–3.393 ms), a 14.2% reduction. MGZ improves from 6.013 ms
+(5.913–6.132 ms) to 5.058 ms (4.981–5.159 ms), a 14.5% reduction. These are
+workload-specific latency measurements on the development host.
+
+Chunk-boundary regressions cross the fixed input buffer for all four MGH
+scalar widths. Truncation tests name the first unconfirmed voxel, structured
+arbitrary byte payloads are either decoded exactly or rejected, and the
+existing hostile-dimension regression reaches a read error without committing
+the declared output. The deterministic public-API example writes and reads
+both MGH and MGZ, verifies bit-exact voxels and exact binary-representable
+geometry, and rejects a complete two-frame fixture. Its warm run completes in
+0.130 seconds.
+
+The generated figure shows source, decoded MGH, decoded MGZ, and a separately
+colored absolute-difference panel whose maximum error is zero. It reports the
+raw file sizes (553,244 MGH bytes and 15,202 MGZ bytes), geometry, and
+multi-frame safety boundary. Browser rendering was inspected after correcting
+caption overlap and replacing a clipped temporary path with the concise
+verified contract. The final SVG SHA-256 is
+`D536D54B6A1C2E60355E6E2A2F4AF90AC8F82C907258FA9D9D48397BF2BF5B39`.
+Desktop and 390-pixel book renders have no body overflow or missing images.
+
+Local Rustfmt, warning-denied all-target Clippy, 37/37 Nextest tests in
+0.274 seconds, benchmark smoke, doctest, warning-denied Rustdoc, mdBook test,
+and mdBook build pass. `cargo-semver-checks` compares `ritk-mgh` with
+`origin/main`: 196 checks pass, 57 are inapplicable, and no version change is
+required. The direct dependency tree confirms that `consus-io` is absent.
+Local `actionlint` and `zizmor` executables are unavailable; immutable action
+references, job timeouts, least-privilege permissions, and workflow syntax
+remain subject to the hosted Pages gate.
+
 ## SAFE-683-01 audit (2026-07-30)
 
 The temporal synchronizer accepted invalid frame spacing and thresholds,

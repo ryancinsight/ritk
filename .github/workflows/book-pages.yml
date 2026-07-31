@@ -20,6 +20,10 @@ on:
       - "crates/ritk-registration/examples/book_temporal_sync.rs"
       - "crates/ritk-registration/src/classical/temporal/**"
       - "crates/ritk-registration/Cargo.toml"
+      - "crates/ritk-mgh/examples/book_mgh.rs"
+      - "crates/ritk-mgh/src/reader/**"
+      - "crates/ritk-mgh/src/types.rs"
+      - "crates/ritk-mgh/Cargo.toml"
       - ".github/actions/checkout-atlas-path-dependencies/action.yml"
       - ".github/workflows/book-pages.yml"
   pull_request:
@@ -40,6 +44,10 @@ on:
       - "crates/ritk-registration/examples/book_temporal_sync.rs"
       - "crates/ritk-registration/src/classical/temporal/**"
       - "crates/ritk-registration/Cargo.toml"
+      - "crates/ritk-mgh/examples/book_mgh.rs"
+      - "crates/ritk-mgh/src/reader/**"
+      - "crates/ritk-mgh/src/types.rs"
+      - "crates/ritk-mgh/Cargo.toml"
       - ".github/actions/checkout-atlas-path-dependencies/action.yml"
       - ".github/workflows/book-pages.yml"
   workflow_dispatch:
@@ -54,12 +62,13 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: ritk
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           path: ritk
           persist-credentials: false
@@ -71,7 +80,7 @@ jobs:
           destination: .
 
       - name: Configure Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
 
       - name: Install mdBook
         env:
@@ -106,14 +115,17 @@ jobs:
             docs/book/figures/descriptive_statistics.svg
           cargo run -p ritk-registration --example book_temporal_sync -- \
             docs/book/figures/temporal_synchronization.svg
+          cargo run -p ritk-mgh --example book_mgh -- \
+            docs/book/figures/mgh_roundtrip.svg
 
       - name: Build book
         run: |
+          mdbook test docs/book
           mdbook build docs/book
           test -f target/book/ritk/index.html
 
       - name: Upload generated book figures
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: book-generated-figures-${{ github.sha }}
           path: |
@@ -124,10 +136,11 @@ jobs:
             ritk/docs/book/figures/growcut.svg
             ritk/docs/book/figures/descriptive_statistics.svg
             ritk/docs/book/figures/temporal_synchronization.svg
+            ritk/docs/book/figures/mgh_roundtrip.svg
           if-no-files-found: error
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
         with:
           path: ritk/target/book/ritk
 
@@ -135,6 +148,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     permissions:
       pages: write
@@ -147,4 +161,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

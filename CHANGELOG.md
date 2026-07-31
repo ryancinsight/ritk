@@ -8,6 +8,36 @@
 
 # CHANGELOG
 
+## [Unreleased] — Streamed MGH/MGZ decoding (SAFE-684-01)
+
+### Changed
+
+- Decode MGH and MGZ voxel payloads from a fixed 16 KiB input buffer directly
+  into the returned `f32` image storage. A truncated file retains only fixed
+  input scratch plus the already decoded prefix, while a complete file no
+  longer retains its encoded payload beside the decoded volume.
+- Validate MGH scalar codes through one typed internal representation and
+  remove the superseded `consus-io` dependency from `ritk-mgh`.
+- Add an MGH/MGZ format chapter, public-API round-trip example, generated
+  source/decoded/difference figure, and Pages regeneration.
+- Pin every third-party action used by the book workflow to an immutable
+  commit and bound both jobs with explicit timeouts.
+
+### Performance
+
+- On the unchanged 128 × 128 × 64 public-reader Criterion workload,
+  uncompressed MGH median latency improves from 3.764 ms to 3.325 ms (14.2%)
+  and MGZ improves from 6.013 ms to 5.058 ms (14.5%). The measured intervals
+  are 3.714–3.823 ms before versus 3.259–3.393 ms after for MGH, and
+  5.913–6.132 ms before versus 4.981–5.159 ms after for MGZ.
+
+### Tests
+
+- Cover all four scalar types across fixed decode-chunk boundaries, exact or
+  rejected arbitrary byte payloads, first-unconfirmed-voxel truncation
+  diagnostics, hostile declared dimensions, single-frame boundaries, gzip,
+  geometry, and bit-exact round trips.
+
 ## [Unreleased] — MGH multi-frame rejection (ATLAS-DMRI-MGH-FRAMES-002)
 
 ### Fixed
