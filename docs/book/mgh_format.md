@@ -5,7 +5,8 @@ inside gzip compression. RITK exposes both through the `ritk-mgh` crate:
 
 - `read_mgh` reads `.mgh`, `.mgz`, and `.mgh.gz`;
 - `write_mgh` writes the representation selected by the path extension;
-- `MghReader` and `MghWriter` retain a backend for repeated operations.
+- `MghReader` is a stateless adapter whose `read` method receives the backend;
+- `MghWriter` retains a backend for repeated operations.
 
 FreeSurfer describes MGH as an internal format whose field contract is defined
 by its reader and writer, and its tools report dimensions, frame count, voxel
@@ -108,13 +109,15 @@ returned as an error.
 
 For a 256 × 256 × 256 `MRI_FLOAT` volume, the decoded image itself is 64 MiB.
 The former whole-payload path additionally retained another 64 MiB encoded
-buffer while converting it. The streaming path retains the decoded output plus
-16 KiB of input scratch. This is an allocation model, not a process-RSS claim:
-allocator, backend, and gzip state still contribute to observed resident
-memory.
+buffer while converting it. The streaming path retains approximately the
+decoded output plus 16 KiB of input scratch. The output vector can have unused
+geometric capacity, and a reallocation can temporarily involve both its old
+and new allocations. This is an allocation model, not a process-RSS claim:
+allocator, backend, gzip, and image-construction state still contribute to
+observed resident memory.
 
 On the committed 128 × 128 × 64 public-reader benchmark, streaming also
-reduced median read time by 14.2% for MGH and 14.5% for MGZ on the development
+reduced median read time by 11.7% for MGH and 15.9% for MGZ on the development
 host. The benchmark includes file open, optional decompression, endian
 conversion, and image construction; it does not isolate disk hardware or
 claim the same percentage for every host.

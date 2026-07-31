@@ -25,9 +25,12 @@
   multi-frame rejection. Teach the format from the official FreeSurfer MGH
   header and `mri_info` contracts. Acceptance: chunk-boundary and truncated
   payload regressions pass for every voxel width; peak decoder scratch drops
-  from `encoded payload + decoded volume` to `decoded volume + fixed chunk`;
+  from `encoded payload + decoded volume` to approximately
+  `decoded volume + fixed chunk`, excluding vector spare capacity and
+  transient allocator reallocation state;
   the unchanged benchmark detects no latency regression; displayed metrics
-  agree with generated data; workflow actions are immutable and jobs bounded;
+  agree with generated data; workflow actions use current Node 24 runtimes,
+  immutable revisions, and bounded jobs and deployment polling;
   and formatting, warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook,
   example-runtime, semantic-version, and hosted gates pass. Entry baseline at
   `ea11f4fb`: 34/34 Nextest tests pass in 0.230 seconds, package all-target

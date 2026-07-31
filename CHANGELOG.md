@@ -44,8 +44,8 @@
 ### Performance
 
 - On the unchanged 128 × 128 × 64 public-reader Criterion workload,
-  uncompressed MGH median latency improves from 3.764 ms to 3.325 ms (14.2%)
-  and MGZ improves from 6.013 ms to 5.058 ms (14.5%). The measured intervals
+  uncompressed MGH median latency improves from 3.764 ms to 3.325 ms (11.7%)
+  and MGZ improves from 6.013 ms to 5.058 ms (15.9%). The measured intervals
   are 3.714–3.823 ms before versus 3.259–3.393 ms after for MGH, and
   5.913–6.132 ms before versus 4.981–5.159 ms after for MGZ.
 

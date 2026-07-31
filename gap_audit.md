@@ -25,17 +25,19 @@ The reader now validates the scalar code into one internal `VoxelType` and
 converts fixed 16 KiB input chunks directly into the final output. Output
 capacity grows geometrically only after the corresponding chunk has been read,
 and allocation failure remains a contextual error. This changes the decoder
-allocation model from encoded payload plus decoded volume to decoded volume
-plus 16 KiB input scratch. It is not a process-RSS measurement: allocator,
-backend, gzip, and image-construction state remain outside that bound.
+allocation model from encoded payload plus decoded volume to approximately
+decoded volume plus 16 KiB input scratch. The output vector can retain unused
+geometric capacity, and reallocation can temporarily involve the old and new
+allocations. It is not a process-RSS measurement: allocator, backend, gzip,
+and image-construction state remain outside that model.
 
 The first growth-policy implementation reserved roughly twice the confirmed
 prefix after each chunk. The unchanged benchmark falsified it with 60–71 ms
 reads, so it was not retained. Growing only when the confirmed prefix exceeds
-capacity removes the repeated copies. On the unchanged 128 × 128 × 64 public
+capacity reduces repeated copying. On the unchanged 128 × 128 × 64 public
 reader benchmark, MGH improves from a 3.764 ms median (3.714–3.823 ms interval)
-to 3.325 ms (3.259–3.393 ms), a 14.2% reduction. MGZ improves from 6.013 ms
-(5.913–6.132 ms) to 5.058 ms (4.981–5.159 ms), a 14.5% reduction. These are
+to 3.325 ms (3.259–3.393 ms), an 11.7% reduction. MGZ improves from 6.013 ms
+(5.913–6.132 ms) to 5.058 ms (4.981–5.159 ms), a 15.9% reduction. These are
 workload-specific latency measurements on the development host.
 
 Chunk-boundary regressions cross the fixed input buffer for all four MGH
