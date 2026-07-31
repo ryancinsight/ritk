@@ -6,7 +6,7 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-684-01 [patch] - Stream and document MGH/MGZ decoding**
-  (IN PROGRESS; owner=Codex; last-update=2026-07-31; scope=
+  (DONE; owner=Codex; last-update=2026-07-31; scope=
   `crates/ritk-mgh/{Cargo.toml,src/reader/**,benches/reader.rs,
   examples/book_mgh.rs}`, `docs/book/{SUMMARY.md,mgh_format.md,
   examples/mgh_roundtrip.md,figures/mgh_roundtrip.svg}`,
@@ -35,7 +35,9 @@
   example-runtime, semantic-version, and hosted gates pass. Entry baseline at
   `ea11f4fb`: 34/34 Nextest tests pass in 0.230 seconds, package all-target
   warning-denied Clippy passes, doctests contain no executable tests, and
-  warning-denied Rustdoc passes under Rust 1.97.0.
+  warning-denied Rustdoc passes under Rust 1.97.0. Delivery: PR #78; exact
+  code head `ec108bc3`; CI `30607792227`, Python `30607792237`, and book
+  `30607792226` pass.
 
 - **SAFE-683-01 [major] - Make temporal synchronization safe,
   dimensionally correct, allocation-efficient, and teachable** (DONE;

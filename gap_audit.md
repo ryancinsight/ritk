@@ -65,7 +65,23 @@ and mdBook build pass. `cargo-semver-checks` compares `ritk-mgh` with
 required. The direct dependency tree confirms that `consus-io` is absent.
 Local `actionlint` and `zizmor` executables are unavailable; immutable action
 references, job timeouts, least-privilege permissions, and workflow syntax
-remain subject to the hosted Pages gate.
+were instead exercised by the hosted Pages gate recorded below.
+
+PR #78 review identified five documentation and workflow defects. The
+benchmark medians now report their mathematically consistent 11.7% MGH and
+15.9% MGZ reductions, the memory model includes vector spare capacity and
+transient reallocation state, and the `MghReader` state contract matches the
+public type. The deploy action polls for at most 540 seconds inside its
+10-minute job, and all Pages actions use current Node 24 majors pinned to
+full SHAs verified from their GitHub `action.yml` metadata.
+
+At exact code head `ec108bc3`, hosted CI `30607792227` passes Rustfmt, Clippy,
+workspace dependency alignment, wheel smoke, and Linux/macOS/Windows test
+suites. Python workflow `30607792237` passes all 13 supported interpreter/OS
+lanes. Book workflow `30607792226` regenerates every deterministic figure,
+tests and builds the book, and uploads both figure and Pages artifacts. The
+pull-request deploy job is intentionally skipped; deployment is a main-branch
+event.
 
 ## SAFE-683-01 audit (2026-07-30)
 

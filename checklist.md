@@ -15,7 +15,7 @@
 
 ## SAFE-684-01 — Stream and document MGH/MGZ decoding
 **Target version**: Unreleased patch
-**Sprint phase**: Execution
+**Sprint phase**: Closure
 
 - [x] Reconcile `origin/main`, worktrees, peer ownership, current MGH reader,
       tests, recent frame fix, book coverage, and official format references.
@@ -32,9 +32,11 @@
 - [x] Compare the unchanged benchmark and record the analytical memory bound.
 - [x] Run formatting, warning-denied Clippy, Nextest, doctest, Rustdoc,
       mdBook, example-runtime, benchmark-smoke, and semantic-version gates.
-- [ ] Run exact-head hosted Rust and Pages gates.
-- [ ] Reconcile CHANGELOG, audit, backlog, and checklist evidence; self-review,
-      commit, push, open a PR, address review, and merge after exact-head gates.
+- [x] Run exact-code-head hosted gates. CI `30607792227`, all 13 Python lanes
+      in `30607792237`, and mdBook build `30607792226` pass at `ec108bc3`.
+- [x] Reconcile CHANGELOG, audit, backlog, and checklist evidence; self-review,
+      commit, push, open PR #78, and address all actionable review findings.
+      The final PM-only closure head remains gated before merge.
 
 ## SAFE-683-01 — Safe temporal synchronization
 **Target version**: Next major release
