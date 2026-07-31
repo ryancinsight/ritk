@@ -14,6 +14,7 @@
 //!   dedicated color loaders.
 //! - Pixel transfer syntax handling is centralized in `ritk-dicom`.
 
+pub(super) mod detection;
 mod dicomdir;
 pub(super) mod geometry;
 pub(super) mod loader;
@@ -22,7 +23,6 @@ pub(super) mod pixel;
 mod preservation;
 pub(super) mod scan;
 pub(crate) mod types;
-pub(super) mod detection;
 
 #[cfg(test)]
 mod tests;

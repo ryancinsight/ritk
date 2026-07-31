@@ -212,4 +212,3 @@ pub(super) fn run_geodesic_active_contour(args: &SegmentArgs) -> Result<()> {
     info!("segment: geodesic-active-contour complete input={} output={} foreground={} propagation={} curvature={} advection={}", args.input.display(), args.output.display(), n_foreground, args.propagation_weight, args.curvature_weight, args.advection_weight);
     Ok(())
 }
-

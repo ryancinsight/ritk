@@ -97,4 +97,3 @@ pub fn bspline_ffd_register(
     .map_err(crate::errors::RitkPyError::runtime)
     .map(|result| to_py_moving(result.warped_moving, &inputs))
 }
-

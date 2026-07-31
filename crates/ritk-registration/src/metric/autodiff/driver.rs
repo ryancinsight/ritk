@@ -95,7 +95,8 @@ where
         if initial_loss.is_none() {
             initial_loss = Some(loss.tensor.as_slice()[0]);
         }
-        loss.backward();
+        loss.backward()
+            .expect("invariant: scalar metric loss admits a backward pass");
         params = params
             .iter()
             .map(|p| sgd_step_var(p, config.learning_rate))

@@ -346,4 +346,3 @@ fn unpack_pixel_data(
         ),
     }
 }
-

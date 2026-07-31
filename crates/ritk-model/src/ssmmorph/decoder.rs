@@ -132,9 +132,9 @@ where
         input: &Var<f32, B>,
         skip: Option<&Var<f32, B>>,
     ) -> Result<Var<f32, B>, ModelError> {
-        let upsampled = self.upsample.forward(input);
+        let upsampled = self.upsample.forward(input)?;
         let fused = match (&self.fusion, skip) {
-            (Some(fusion), Some(skip)) => fusion.forward(&cat(&[&upsampled, skip], 1)),
+            (Some(fusion), Some(skip)) => fusion.forward(&cat(&[&upsampled, skip], 1))?,
             (None, None) => upsampled,
             _ => {
                 return Err(ModelError::Shape {
@@ -145,7 +145,7 @@ where
             }
         };
         let mut output = permute(
-            &self.norm.forward_nd(&permute(&fused, &[0, 2, 3, 4, 1])),
+            &self.norm.forward_nd(&permute(&fused, &[0, 2, 3, 4, 1]))?,
             &[0, 4, 1, 2, 3],
         );
         for block in &self.blocks {
@@ -172,9 +172,13 @@ where
         parameters
     }
 
-    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
-        self.forward(input, None)
-            .expect("invariant: standalone decoder stage has skips disabled")
+    fn forward(
+        &self,
+        input: &Var<f32, B>,
+    ) -> Result<Var<f32, B>, coeus_nn::ModuleError<<B as coeus_core::ComputeBackend>::Error>> {
+        Ok(self
+            .forward(input, None)
+            .expect("invariant: standalone decoder stage has skips disabled"))
     }
 
     fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {
@@ -260,7 +264,7 @@ where
                 .then(|| &skip_features[skip_features.len() - 1 - index]);
             output = stage.forward(&output, skip)?;
         }
-        Ok(self.output_projection.forward(&output))
+        Ok(self.output_projection.forward(&output)?)
     }
 
     /// Return the number of upsampling stages.
@@ -281,8 +285,11 @@ where
         parameters
     }
 
-    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
-        self.output_projection.forward(input)
+    fn forward(
+        &self,
+        input: &Var<f32, B>,
+    ) -> Result<Var<f32, B>, coeus_nn::ModuleError<<B as coeus_core::ComputeBackend>::Error>> {
+        Ok(self.output_projection.forward(input)?)
     }
 
     fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {

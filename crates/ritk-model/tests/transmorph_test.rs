@@ -30,7 +30,9 @@ fn test_transmorph_forward() {
         false,
     );
 
-    let output = model.forward(&input);
+    let output = model
+        .forward(&input)
+        .expect("module forward succeeds on the test input");
 
     assert_eq!(output.flow.tensor.shape(), &[1, 3, 32, 32, 32]);
     assert_eq!(output.warped.tensor.shape(), &[1, 1, 32, 32, 32]);

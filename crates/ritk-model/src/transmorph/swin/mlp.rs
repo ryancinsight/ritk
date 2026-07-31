@@ -5,6 +5,7 @@
 //! [`coeus_nn::Linear`] over [`coeus_autograd::Var`] with the exact GELU
 //! activation; gradients flow to both linear layers through the autograd graph.
 
+use crate::error::ModelError;
 use coeus_autograd::{gelu, Parameter, Var};
 use coeus_core::Backend;
 use coeus_nn::module::Module;
@@ -36,10 +37,10 @@ where
     }
 
     /// Forward pass over a `[B, D, H, W, C]` token volume.
-    pub fn forward(&self, x: &Var<f32, B>) -> Var<f32, B> {
-        let x = self.fc1.forward(x);
+    pub fn forward(&self, x: &Var<f32, B>) -> Result<Var<f32, B>, ModelError> {
+        let x = self.fc1.forward(x)?;
         let x = gelu(&x);
-        self.fc2.forward(&x)
+        Ok(self.fc2.forward(&x)?)
     }
 
     /// Trainable parameters in forward order.

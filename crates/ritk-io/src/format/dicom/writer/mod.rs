@@ -7,9 +7,9 @@
 //! - verify private tag propagation for supported scalar tags
 
 mod metadata;
+pub(crate) mod pixel_encoding;
 mod preservation;
 mod series;
-pub(crate) mod pixel_encoding;
 
 #[cfg(test)]
 mod tests;

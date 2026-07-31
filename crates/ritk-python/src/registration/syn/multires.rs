@@ -143,4 +143,3 @@ pub fn multires_syn_register(
     .map_err(crate::errors::RitkPyError::runtime)
     .map(|result| to_py_pair(result.warped_fixed, result.warped_moving, &inputs))
 }
-

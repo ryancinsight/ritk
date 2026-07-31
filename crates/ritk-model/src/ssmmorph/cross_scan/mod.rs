@@ -51,7 +51,9 @@ mod tests {
             .merge_3d(&sequences, 2, 2, 2)
             .expect("six volumetric sequences are valid");
         assert_eq!(merged.tensor.as_slice(), input.tensor.as_slice());
-        merged.backward();
+        merged
+            .backward()
+            .expect("backward succeeds over the test loss");
         assert!(input.grad().is_some(), "scan graph must remain connected");
     }
 

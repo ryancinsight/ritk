@@ -513,4 +513,3 @@ pub(super) fn apply_iterative<const D: usize>(
     let mut scratch = DeconvolutionScratch::new();
     apply_iterative_with_scratch(img_vals, img_dims, params, &mut scratch)
 }
-

@@ -25,7 +25,8 @@ fn step_moves_parameter_along_negative_gradient() {
     let lr = 0.1;
     let x = var(&x0, true);
     let loss = sum(&mul(&x, &x));
-    loss.backward();
+    loss.backward()
+        .expect("backward succeeds over the test loss");
     let stepped = sgd_step_var(&x, lr);
 
     let got = stepped.tensor.as_slice();
@@ -45,12 +46,15 @@ fn stepped_parameter_is_a_fresh_requires_grad_leaf() {
     // iteration can backprop through it).
     let x = var(&[2.0], true);
     let loss = sum(&mul(&x, &x));
-    loss.backward();
+    loss.backward()
+        .expect("backward succeeds over the test loss");
     let stepped = sgd_step_var(&x, 0.5);
 
     // New forward on the stepped parameter: loss2 = Σ (stepped)² ⇒ grad = 2·stepped.
     let loss2 = sum(&mul(&stepped, &stepped));
-    loss2.backward();
+    loss2
+        .backward()
+        .expect("backward succeeds over the test loss");
     let g = stepped
         .grad()
         .expect("stepped leaf must be requires_grad")

@@ -19,7 +19,9 @@ fn sequence_forward_is_finite_and_differentiable() {
         .iter()
         .all(|value| value.is_finite()));
     assert!(output.tensor.as_slice().iter().any(|&value| value != 0.0));
-    output.backward();
+    output
+        .backward()
+        .expect("backward succeeds over the test loss");
     assert!(
         input.grad().is_some(),
         "selective scan must retain its input gradient"

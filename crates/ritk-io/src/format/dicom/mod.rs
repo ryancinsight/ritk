@@ -3,7 +3,6 @@ mod codec;
 mod color;
 mod color_common;
 mod color_multiframe;
-mod tag_parse;
 mod multiframe;
 pub mod networking;
 mod object_model;
@@ -14,6 +13,7 @@ mod rt_struct;
 mod seg;
 mod series;
 mod sop_class;
+mod tag_parse;
 mod transfer_syntax;
 mod writer;
 mod writer_object;
@@ -104,4 +104,3 @@ pub mod native {
         }
     }
 }
-

@@ -231,4 +231,3 @@ pub fn write_rt_dose<P: AsRef<Path>>(path: P, grid: &RtDoseGrid) -> Result<()> {
 
     Ok(())
 }
-

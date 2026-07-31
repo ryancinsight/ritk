@@ -66,14 +66,18 @@ where
 
     /// Return pre-downsample features and an optional downsampled continuation.
     pub fn forward(&self, input: &Var<f32, B>) -> Result<EncoderStageOutput<B>, ModelError> {
-        let mut output = self
-            .projection
-            .as_ref()
-            .map_or_else(|| input.clone(), |layer| layer.forward(input));
+        let mut output = match self.projection.as_ref() {
+            Some(layer) => layer.forward(input)?,
+            None => input.clone(),
+        };
         for block in &self.blocks {
             output = block.forward(&output)?;
         }
-        let continuation = self.downsample.as_ref().map(|layer| layer.forward(&output));
+        let continuation = self
+            .downsample
+            .as_ref()
+            .map(|layer| layer.forward(&output))
+            .transpose()?;
         Ok(EncoderStageOutput {
             features: output,
             continuation,
@@ -100,10 +104,13 @@ where
         parameters
     }
 
-    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
+    fn forward(
+        &self,
+        input: &Var<f32, B>,
+    ) -> Result<Var<f32, B>, coeus_nn::ModuleError<<B as coeus_core::ComputeBackend>::Error>> {
         let output = EncoderStage::forward(self, input)
             .expect("invariant: encoder stage receives a valid volume");
-        output.continuation.unwrap_or(output.features)
+        Ok(output.continuation.unwrap_or(output.features))
     }
 
     fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {

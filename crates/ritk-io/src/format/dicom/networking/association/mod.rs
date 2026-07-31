@@ -4,8 +4,8 @@
 //! frames, sends/receives DIMSE messages over negotiated presentation
 //! contexts, and releases or aborts the association.
 
-mod negotiation;
 mod lifecycle;
+mod negotiation;
 mod scu;
 
 pub use super::context::{transfer_syntax, AssociationConfig, NegotiatedContext};
@@ -355,5 +355,3 @@ mod tests;
 #[cfg(test)]
 #[path = "../tests_store.rs"]
 mod tests_store;
-
-

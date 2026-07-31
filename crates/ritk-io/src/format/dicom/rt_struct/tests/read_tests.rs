@@ -220,4 +220,3 @@ fn test_read_rt_struct_roi_interpreted_type() {
         "roi_interpreted_type must be Some(Gtv)"
     );
 }
-

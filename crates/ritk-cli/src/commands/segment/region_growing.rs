@@ -172,4 +172,3 @@ pub(super) fn run_neighborhood_connected(args: &SegmentArgs) -> Result<()> {
     info!("segment: neighborhood-connected complete input={} seed={:?} lower={} upper={} radius={} foreground={}", args.input.display(), input.seed, input.lower, input.upper, r, n_foreground);
     Ok(())
 }
-

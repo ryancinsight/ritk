@@ -189,10 +189,14 @@ where
         parameters
     }
 
-    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
-        self.forward_combined(input)
+    fn forward(
+        &self,
+        input: &Var<f32, B>,
+    ) -> Result<Var<f32, B>, coeus_nn::ModuleError<<B as coeus_core::ComputeBackend>::Error>> {
+        Ok(self
+            .forward_combined(input)
             .expect("invariant: module input satisfies SSMMorph contract")
-            .displacement
+            .displacement)
     }
 
     fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {
@@ -295,7 +299,10 @@ mod tests {
             .as_slice()
             .iter()
             .all(|&value| value == 0.0));
-        output.displacement.backward();
+        output
+            .displacement
+            .backward()
+            .expect("backward succeeds over the test loss");
         assert!(
             input.grad().is_some(),
             "complete model graph must remain connected"

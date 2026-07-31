@@ -104,10 +104,10 @@ where
         let (batch, depth, height, width) = (shape[0], shape[2], shape[3], shape[4]);
         let normalized = self
             .first_norm
-            .forward_nd(&permute(input, &[0, 2, 3, 4, 1]));
+            .forward_nd(&permute(input, &[0, 2, 3, 4, 1]))?;
         let local = self
             .local_features
-            .forward(&permute(&normalized, &[0, 4, 1, 2, 3]));
+            .forward(&permute(&normalized, &[0, 4, 1, 2, 3]))?;
         let sequences = self.cross_scan.apply(&local)?;
         let processed = sequences
             .iter()
@@ -122,10 +122,10 @@ where
         let residual = add(input, &global);
         let normalized = self
             .second_norm
-            .forward_nd(&permute(&residual, &[0, 2, 3, 4, 1]));
+            .forward_nd(&permute(&residual, &[0, 2, 3, 4, 1]))?;
         let flat = reshape(&normalized, [batch * depth * height * width, self.channels]);
-        let hidden = gelu(&self.ffn_expand.forward(&flat));
-        let projected = self.ffn_project.forward(&hidden);
+        let hidden = gelu(&self.ffn_expand.forward(&flat)?);
+        let projected = self.ffn_project.forward(&hidden)?;
         let projected = permute(
             &reshape(&projected, [batch, depth, height, width, self.channels]),
             &[0, 4, 1, 2, 3],
@@ -149,9 +149,12 @@ where
         parameters
     }
 
-    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
-        VMambaBlock::forward(self, input)
-            .expect("invariant: module input satisfies VMamba volumetric contract")
+    fn forward(
+        &self,
+        input: &Var<f32, B>,
+    ) -> Result<Var<f32, B>, coeus_nn::ModuleError<<B as coeus_core::ComputeBackend>::Error>> {
+        Ok(VMambaBlock::forward(self, input)
+            .expect("invariant: module input satisfies VMamba volumetric contract"))
     }
 
     fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {
@@ -199,7 +202,9 @@ mod tests {
             .as_slice()
             .iter()
             .all(|value| value.is_finite()));
-        output.backward();
+        output
+            .backward()
+            .expect("backward succeeds over the test loss");
         assert!(input.grad().is_some(), "VMamba graph must remain connected");
     }
 }

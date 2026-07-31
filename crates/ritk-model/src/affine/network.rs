@@ -182,20 +182,23 @@ where
         named
     }
 
-    fn forward(&self, input: &Var<T, B>) -> Var<T, B> {
-        let mut x = relu(&self.bn1.forward(&self.conv1.forward(input)));
-        x = relu(&self.bn2.forward(&self.conv2.forward(&x)));
-        x = relu(&self.bn3.forward(&self.conv3.forward(&x)));
-        x = relu(&self.bn4.forward(&self.conv4.forward(&x)));
-        x = relu(&self.bn5.forward(&self.conv5.forward(&x)));
+    fn forward(
+        &self,
+        input: &Var<T, B>,
+    ) -> Result<Var<T, B>, coeus_nn::ModuleError<<B as coeus_core::ComputeBackend>::Error>> {
+        let mut x = relu(&self.bn1.forward(&self.conv1.forward(input)?)?);
+        x = relu(&self.bn2.forward(&self.conv2.forward(&x)?)?);
+        x = relu(&self.bn3.forward(&self.conv3.forward(&x)?)?);
+        x = relu(&self.bn4.forward(&self.conv4.forward(&x)?)?);
+        x = relu(&self.bn5.forward(&self.conv5.forward(&x)?)?);
 
         // Global average pool [B, C, D, H, W] → [B, C, 1, 1, 1] → [B, C].
-        let pooled = GlobalAvgPool3d::<T, B>::new().forward(&x);
+        let pooled = GlobalAvgPool3d::<T, B>::new().forward(&x)?;
         let shape = pooled.tensor.shape();
         let (batch, channels) = (shape[0], shape[1]);
         let pooled = reshape(&pooled, [batch, channels]);
 
-        let predicted = self.fc.forward(&pooled);
+        let predicted = self.fc.forward(&pooled)?;
 
         // Offset by the identity affine so the untrained map is near-identity.
         let identity = identity_affine::<T>();
@@ -207,7 +210,7 @@ where
             Tensor::from_slice_on([batch, AFFINE_PARAMS], &identity_batch, &B::default()),
             false,
         );
-        add(&predicted, &identity)
+        Ok(add(&predicted, &identity))
     }
 
     fn load_parameters(&mut self, params: &[Var<T, B>]) {
@@ -275,7 +278,12 @@ mod tests {
         let net = AffineNetworkConfig::default().init::<f32, B>();
         let input = sequential_input([1, 2, 8, 8, 8]);
         let out = net.forward(&input);
-        assert_eq!(out.tensor.shape(), &[1, 12]);
+        assert_eq!(
+            out.expect("module forward succeeds on the test input")
+                .tensor
+                .shape(),
+            &[1, 12]
+        );
     }
 
     #[test]
@@ -284,7 +292,9 @@ mod tests {
         // must not produce NaN (which per-batch variance would for BatchNorm).
         let net = AffineNetworkConfig::default().init::<f32, B>();
         let input = sequential_input([1, 2, 8, 8, 8]);
-        let out = net.forward(&input);
+        let out = net
+            .forward(&input)
+            .expect("module forward succeeds on the test input");
         let vals = out.tensor.as_slice();
         assert_eq!(vals.len(), 12, "output must carry 12 affine parameters");
         for (i, &v) in vals.iter().enumerate() {
@@ -344,9 +354,12 @@ mod tests {
             Tensor::from_slice_on(shape, &base, &SequentialBackend),
             true,
         );
-        let out = net.forward(&input);
+        let out = net
+            .forward(&input)
+            .expect("module forward succeeds on the test input");
         let loss = coeus_autograd::sum(&out);
-        loss.backward();
+        loss.backward()
+            .expect("backward succeeds over the test loss");
         let grad = input.grad().expect("input gradient present");
         let grad = grad.as_slice();
 
@@ -358,14 +371,20 @@ mod tests {
             let mut minus = base.clone();
             plus[idx] += h;
             minus[idx] -= h;
-            let fp = coeus_autograd::sum(&net.forward(&Var::new(
-                Tensor::from_slice_on(shape, &plus, &SequentialBackend),
-                false,
-            )));
-            let fm = coeus_autograd::sum(&net.forward(&Var::new(
-                Tensor::from_slice_on(shape, &minus, &SequentialBackend),
-                false,
-            )));
+            let fp = coeus_autograd::sum(
+                &net.forward(&Var::new(
+                    Tensor::from_slice_on(shape, &plus, &SequentialBackend),
+                    false,
+                ))
+                .expect("module forward succeeds on the test input"),
+            );
+            let fm = coeus_autograd::sum(
+                &net.forward(&Var::new(
+                    Tensor::from_slice_on(shape, &minus, &SequentialBackend),
+                    false,
+                ))
+                .expect("module forward succeeds on the test input"),
+            );
             let fd = (fp.tensor.as_slice()[0] - fm.tensor.as_slice()[0]) / (2.0 * h);
             let analytic = grad[idx];
             max_analytic = max_analytic.max(analytic.abs());

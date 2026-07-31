@@ -8,10 +8,10 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{bail, Context, Result};
 
+use super::detection::is_likely_dicom_file;
 use super::dicomdir::try_read_dicomdir;
 use super::parse::{parse_dicom_bytes, parse_dicom_file, parse_dicom_file_bytes};
 use super::types::{DicomSeriesInfo, DicomSliceMetadata, SeriesFirstSeen};
-use super::detection::is_likely_dicom_file;
 use crate::format::dicom::networking::scp::StoredInstance;
 use crate::format::dicom::object_model::{DicomObjectModel, DicomObjectNode, DicomTag};
 
@@ -269,4 +269,3 @@ fn build_series_object(path: &Path, slices: &[DicomSliceMetadata]) -> DicomObjec
     }
     series_object
 }
-

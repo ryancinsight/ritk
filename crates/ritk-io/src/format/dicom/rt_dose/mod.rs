@@ -17,9 +17,9 @@
 //!   `raw_u32 = u32::from_le_bytes(pixel_bytes[k*4 .. k*4+4])`
 //!   `dose_gy[k] = raw_u32 as f64 * dose_grid_scaling`
 
+mod ds_parse;
 mod reader;
 mod types;
-mod ds_parse;
 mod writer;
 
 pub use reader::read_rt_dose;

@@ -7,6 +7,7 @@
 //! No Coeus tensors, modules, or backends cross this boundary.
 
 use super::{attention::WindowAttention, mlp::Mlp};
+use crate::error::ModelError;
 use coeus_autograd::{add, cat, permute, reshape, roll, slice, Parameter, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::module::Module;
@@ -60,7 +61,7 @@ where
     }
 
     /// Forward pass over a `[B, D, H, W, C]` token volume.
-    pub fn forward(&self, x: &Var<f32, B>) -> Var<f32, B> {
+    pub fn forward(&self, x: &Var<f32, B>) -> Result<Var<f32, B>, ModelError> {
         let sh = x.tensor.shape();
         let (b, d, h, w, c) = (sh[0], sh[1], sh[2], sh[3], sh[4]);
         let ws = self.window_size;
@@ -71,7 +72,7 @@ where
         let needs_pad = pad_d > 0 || pad_h > 0 || pad_w > 0;
 
         let shortcut = x.clone();
-        let normed = self.norm1.forward_nd(x);
+        let normed = self.norm1.forward_nd(x)?;
 
         let (normed, pd, ph, pw) = if needs_pad {
             let padded = self.pad_tensor(&normed, pad_d, pad_h, pad_w);
@@ -89,12 +90,12 @@ where
             let shifted = roll(&normed, &[-s, -s, -s], &[1, 2, 3]);
             let windows = self.window_partition(&shifted);
             let mask = self.attention_mask(b, pd, ph, pw);
-            let attended = self.attention.forward(&windows, Some(&mask));
+            let attended = self.attention.forward(&windows, Some(&mask))?;
             let reversed = self.window_reverse(&attended, b, pd, ph, pw, c);
             roll(&reversed, &[s, s, s], &[1, 2, 3])
         } else {
             let windows = self.window_partition(&normed);
-            let attended = self.attention.forward(&windows, None);
+            let attended = self.attention.forward(&windows, None)?;
             self.window_reverse(&attended, b, pd, ph, pw, c)
         };
 
@@ -107,9 +108,9 @@ where
         let x = add(&shortcut, &x_att);
 
         // MLP branch with pre-norm residual.
-        let normed2 = self.norm2.forward_nd(&x);
-        let mlp_out = self.mlp.forward(&normed2);
-        add(&x, &mlp_out)
+        let normed2 = self.norm2.forward_nd(&x)?;
+        let mlp_out = self.mlp.forward(&normed2)?;
+        Ok(add(&x, &mlp_out))
     }
 
     /// Zero-pad `[B, D, H, W, C]` on the trailing side of the spatial axes so

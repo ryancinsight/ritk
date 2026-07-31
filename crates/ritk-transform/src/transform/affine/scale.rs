@@ -110,8 +110,11 @@ where
         vec![coeus_autograd::Parameter::new(self.scale.clone(), "scale")]
     }
 
-    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
-        self.transform_variables(input)
+    fn forward(
+        &self,
+        input: &Var<f32, B>,
+    ) -> Result<Var<f32, B>, coeus_nn::ModuleError<<B as coeus_core::ComputeBackend>::Error>> {
+        Ok(self.transform_variables(input))
     }
 
     fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {

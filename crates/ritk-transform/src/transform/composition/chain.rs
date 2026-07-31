@@ -71,8 +71,11 @@ where
             .collect()
     }
 
-    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
-        self.second.forward(&self.first.forward(input))
+    fn forward(
+        &self,
+        input: &Var<f32, B>,
+    ) -> Result<Var<f32, B>, coeus_nn::ModuleError<<B as coeus_core::ComputeBackend>::Error>> {
+        self.second.forward(&self.first.forward(input)?)
     }
 
     fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {

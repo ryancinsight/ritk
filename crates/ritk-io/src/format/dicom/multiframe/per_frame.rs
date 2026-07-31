@@ -175,4 +175,3 @@ pub(crate) fn extract_functional_groups(
         })
         .collect()
 }
-

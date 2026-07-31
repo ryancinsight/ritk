@@ -13,10 +13,10 @@
 //!    unknown types fall back to `lines`.
 //! 6. `write_rt_struct` followed by `read_rt_struct` preserves all fields invariantly.
 
+mod contour_parse;
 mod converter;
 mod reader;
 mod types;
-mod contour_parse;
 mod writer;
 
 pub use converter::{label_map_to_rt_struct, rt_roi_to_polydata};
@@ -26,4 +26,3 @@ pub use writer::write_rt_struct;
 
 #[cfg(test)]
 mod tests;
-

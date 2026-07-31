@@ -7,11 +7,11 @@ use ritk_dicom::{parse_file_with, DicomRsBackend};
 use std::collections::HashMap;
 use std::path::Path;
 
+use super::contour_parse::{parse_color, parse_contour_data};
 use super::types::{
     ContourGeometricType, RtContour, RtRoiInfo, RtRoiInterpretedType, RtStructureSet,
     RT_STRUCT_SOP_CLASS_UID,
 };
-use super::contour_parse::{parse_color, parse_contour_data};
 
 /// Read and parse a DICOM RT Structure Set file.
 ///
@@ -186,4 +186,3 @@ pub fn read_rt_struct<P: AsRef<Path>>(path: P) -> Result<RtStructureSet> {
         rois,
     })
 }
-

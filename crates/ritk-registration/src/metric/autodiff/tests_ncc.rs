@@ -80,7 +80,8 @@ fn gradient_wrt_moving_matches_central_finite_difference() {
 
     let m = var(&moving, true);
     let loss = normalized_cross_correlation(&m, &var(&fixed, false));
-    loss.backward();
+    loss.backward()
+        .expect("backward succeeds over the test loss");
     let analytic = m.grad().expect("moving grad").as_slice().to_vec();
 
     let h = 1e-7;
@@ -108,7 +109,8 @@ fn gradient_is_zero_at_perfect_correlation_optimum() {
     let moving: Vec<f64> = fixed.iter().map(|v| 2.0 * v + 3.0).collect();
     let m = var(&moving, true);
     let loss = normalized_cross_correlation(&m, &var(&fixed, false));
-    loss.backward();
+    loss.backward()
+        .expect("backward succeeds over the test loss");
     let analytic = m.grad().expect("grad").as_slice().to_vec();
     let h = 1e-6;
     for i in 0..moving.len() {

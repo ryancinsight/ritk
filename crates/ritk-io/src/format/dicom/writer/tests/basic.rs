@@ -203,4 +203,3 @@ fn test_series_uid_distinct_on_rapid_successive_calls() {
         "uid_b={uid_b} must start with 2.25."
     );
 }
-

@@ -2,6 +2,7 @@
 
 use arrayvec::ArrayString;
 
+use super::super::detection::is_likely_dicom_file;
 use super::super::geometry::{
     analyze_slice_spacing, dot, normalize, resample_frames_linear, slice_normal_from_iop,
 };
@@ -13,7 +14,6 @@ use super::super::scan::scan_dicom_directory;
 use super::super::types::{
     DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata, PatientPosition,
 };
-use super::super::detection::is_likely_dicom_file;
 use super::support::*;
 use crate::format::dicom::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
@@ -373,4 +373,3 @@ fn test_physical_transform_depth_index_advances_along_slice_normal() {
     assert!((p3[1] - 20.0).abs() < TOL, "col=1: y stays; got {}", p3[1]);
     assert!((p3[2] + 50.0).abs() < TOL, "col=1: z stays; got {}", p3[2]);
 }
-

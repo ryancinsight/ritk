@@ -77,7 +77,8 @@ fn translation_zero_loss_and_zero_gradient_at_identity_alignment() {
         loss.tensor.as_slice()[0].abs() < 1e-12,
         "loss should be 0 at alignment"
     );
-    loss.backward();
+    loss.backward()
+        .expect("backward succeeds over the test loss");
     for (j, &g) in t.grad().expect("grad").as_slice().iter().enumerate() {
         assert!(
             g.abs() < 1e-12,
@@ -104,7 +105,8 @@ fn translation_gradient_points_toward_alignment_at_known_offset() {
         (loss.tensor.as_slice()[0] - 1.0).abs() < 1e-12,
         "loss should be 1 at t=0"
     );
-    loss.backward();
+    loss.backward()
+        .expect("backward succeeds over the test loss");
     let g = t.grad().expect("grad").as_slice().to_vec();
     assert!(
         g[0].abs() < 1e-12 && g[1].abs() < 1e-12,
@@ -131,7 +133,8 @@ fn translation_tx_gradient_matches_self_consistent_finite_difference() {
         &var_shaped(&[grid_x.len(), 3], &gf, false),
         &Translation { t: t.clone() },
     );
-    loss.backward();
+    loss.backward()
+        .expect("backward succeeds over the test loss");
     let analytic = t.grad().expect("grad").as_slice()[2];
 
     let h = 1e-6;
@@ -167,7 +170,8 @@ fn translation_gradient_descent_converges_to_the_true_offset() {
             "loss must strictly decrease each step (step {step}: {lv} !< {prev_loss})"
         );
         prev_loss = lv;
-        loss.backward();
+        loss.backward()
+            .expect("backward succeeds over the test loss");
         t = sgd_step_var(&t, lr);
     }
     let tx = t.tensor.as_slice()[2];
@@ -267,7 +271,8 @@ fn affine_metric_identity_is_zero_loss_and_zero_gradient() {
         loss.tensor.as_slice()[0].abs() < 1e-12,
         "identity loss should be 0"
     );
-    loss.backward();
+    loss.backward()
+        .expect("backward succeeds over the test loss");
     for &g in r.grad().expect("R grad").as_slice() {
         assert!(
             g.abs() < 1e-10,
@@ -325,7 +330,8 @@ fn affine_metric_gradient_matches_self_consistent_finite_difference() {
         &r,
         &t,
     );
-    loss.backward();
+    loss.backward()
+        .expect("backward succeeds over the test loss");
     let gr = r.grad().expect("R grad").as_slice().to_vec();
     let gt = t.grad().expect("t grad").as_slice().to_vec();
 
@@ -398,7 +404,8 @@ fn affine_metric_gradient_descent_reduces_loss_to_zero() {
             "loss must not increase (step {step}: {lv} > {prev})"
         );
         prev = lv;
-        loss.backward();
+        loss.backward()
+            .expect("backward succeeds over the test loss");
         t = sgd_step_var(&t, lr);
     }
     assert!(

@@ -7,6 +7,7 @@
 //! softmax, and the value aggregation all run through [`coeus_autograd`] ops, so
 //! gradients flow to every projection and to the bias table.
 
+use crate::error::ModelError;
 use coeus_autograd::{
     add, index_select, matmul, permute, reshape, scalar_mul, softmax, transpose, Parameter, Var,
 };
@@ -125,18 +126,22 @@ where
     ///
     /// `mask`, when present, is `[B_windows, 1, N, N]` with `0`/`-100` entries
     /// (the shifted-window connectivity mask), added to the pre-softmax scores.
-    pub fn forward(&self, x: &Var<f32, B>, mask: Option<&Var<f32, B>>) -> Var<f32, B> {
+    pub fn forward(
+        &self,
+        x: &Var<f32, B>,
+        mask: Option<&Var<f32, B>>,
+    ) -> Result<Var<f32, B>, ModelError> {
         let shape = x.tensor.shape();
         let (b, n, c) = (shape[0], shape[1], shape[2]);
         let (nh, hd) = (self.num_heads, self.head_dim);
 
-        let project = |lin: &Linear<f32, B>| {
-            let y = lin.forward(x);
-            permute(&reshape(&y, [b, n, nh, hd]), &[0, 2, 1, 3])
+        let project = |lin: &Linear<f32, B>| -> Result<Var<f32, B>, ModelError> {
+            let y = lin.forward(x)?;
+            Ok(permute(&reshape(&y, [b, n, nh, hd]), &[0, 2, 1, 3]))
         };
-        let q = project(&self.query); // [B, nH, N, hd]
-        let k = project(&self.key);
-        let v = project(&self.value);
+        let q = project(&self.query)?; // [B, nH, N, hd]
+        let k = project(&self.key)?;
+        let v = project(&self.value)?;
 
         // Scaled dot-product scores: (Q Káµ€) · scale → [B, nH, N, N].
         let attn = scalar_mul(&matmul(&q, &transpose(&k, 2, 3)), self.scale);
@@ -160,7 +165,7 @@ where
         // Aggregate values and merge heads: [B, nH, N, hd] → [B, N, C].
         let out = matmul(&attn, &v);
         let out = reshape(&permute(&out, &[0, 2, 1, 3]), [b, n, c]);
-        self.proj.forward(&out)
+        Ok(self.proj.forward(&out)?)
     }
 
     /// Trainable parameters in forward order.

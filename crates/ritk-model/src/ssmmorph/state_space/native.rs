@@ -15,6 +15,7 @@
 //! Coeus tensors, modules, or backends cross this boundary. Concrete `f32`,
 //! matching the [`coeus_autograd::selective_scan`]/interpolation subsystem.
 
+use crate::error::ModelError;
 use coeus_autograd::{
     exp, mul, neg, permute, reshape, selective_scan, sigmoid, slice, softplus, sum_axis, unsqueeze,
     Parameter, Var,
@@ -155,8 +156,10 @@ where
     ///
     /// # Panics
     /// If `input` is not rank-3 or its last axis is not `input_dim`.
-    #[must_use]
-    pub fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
+    ///
+    /// # Errors
+    /// Propagates module failures from the projection layers.
+    pub fn forward(&self, input: &Var<f32, B>) -> Result<Var<f32, B>, ModelError> {
         let sh = input.tensor.shape();
         assert_eq!(sh.len(), 3, "SelectiveStateSpace: input must be rank-3");
         assert_eq!(
@@ -168,14 +171,14 @@ where
 
         // Input projection, split into the SSM branch `x` and the gating
         // residual (channels `[0, inner)` and `[inner, 2·inner)`).
-        let proj = self.in_proj.forward(input);
+        let proj = self.in_proj.forward(input)?;
         let x = slice(&proj, &[(0, batch), (0, seq), (0, inner)]);
         let residual = slice(&proj, &[(0, batch), (0, seq), (inner, inner * 2)]);
 
         // Input-dependent Δ: low-rank projection then softplus (Δ > 0).
-        let dt = softplus(&self.dt_proj.forward(&self.dt_in_proj.forward(&x)));
-        let b = self.b_proj.forward(&x); // [batch, seq, state]
-        let c = self.c_proj.forward(&x); // [batch, seq, state]
+        let dt = softplus(&self.dt_proj.forward(&self.dt_in_proj.forward(&x)?)?);
+        let b = self.b_proj.forward(&x)?; // [batch, seq, state]
+        let c = self.c_proj.forward(&x)?; // [batch, seq, state]
 
         // A = -exp(a_log) reshaped to [inner, state].
         let a = reshape(&neg(&exp(&self.a_log)), [inner, self.state_dim]);
@@ -202,14 +205,15 @@ where
         let d_exp = unsqueeze(&unsqueeze(&self.d, 0), 0); // [1, 1, inner]
         let gated = mul(&mul(&y, &sigmoid(&residual)), &d_exp);
 
-        self.out_proj.forward(&gated)
+        Ok(self.out_proj.forward(&gated)?)
     }
 
     /// Selective-scan forward for a `[batch, channels, D, H, W]` volume, with
     /// `channels == input_dim`. Spatial axes are flattened row-major into the
     /// sequence axis, scanned, and restored to `[batch, output_dim, D, H, W]`.
-    #[must_use]
-    pub fn forward_3d(&self, input: &Var<f32, B>) -> Var<f32, B> {
+    /// # Errors
+    /// Propagates module failures from the projection layers.
+    pub fn forward_3d(&self, input: &Var<f32, B>) -> Result<Var<f32, B>, ModelError> {
         let sh = input.tensor.shape();
         assert_eq!(sh.len(), 5, "SelectiveStateSpace: forward_3d input rank-5");
         let (batch, channels) = (sh[0], sh[1]);
@@ -217,9 +221,9 @@ where
         let seq = dd * hh * ww;
 
         let flat = reshape(&permute(input, &[0, 2, 3, 4, 1]), [batch, seq, channels]);
-        let out = self.forward(&flat); // [batch, seq, output_dim]
+        let out = self.forward(&flat)?; // [batch, seq, output_dim]
         let restored = permute(&out, &[0, 2, 1]); // [batch, output_dim, seq]
-        reshape(&restored, [batch, self.output_dim, dd, hh, ww])
+        Ok(reshape(&restored, [batch, self.output_dim, dd, hh, ww]))
     }
 }
 
@@ -267,8 +271,12 @@ where
         named
     }
 
-    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
-        SelectiveStateSpace::forward(self, input)
+    fn forward(
+        &self,
+        input: &Var<f32, B>,
+    ) -> Result<Var<f32, B>, coeus_nn::ModuleError<<B as coeus_core::ComputeBackend>::Error>> {
+        Ok(SelectiveStateSpace::forward(self, input)
+            .expect("invariant: module input satisfies selective state-space contract"))
     }
 
     fn load_parameters(&mut self, params: &[Var<f32, B>]) {
@@ -335,7 +343,9 @@ mod tests {
     fn forward_shapes_and_finite() {
         let ssm = small_ssm();
         let shape = [2usize, 5, 4];
-        let out = ssm.forward(&var(&shape, &ramp(&shape), false));
+        let out = ssm
+            .forward(&var(&shape, &ramp(&shape), false))
+            .expect("module forward succeeds on the test input");
         assert_eq!(out.tensor.shape(), &[2, 5, 4]);
         let data = out.tensor.as_slice();
         assert!(data.iter().all(|v| v.is_finite()), "output must be finite");
@@ -349,7 +359,9 @@ mod tests {
     fn forward_3d_shapes() {
         let ssm = small_ssm();
         let shape = [1usize, 4, 2, 3, 3];
-        let out = ssm.forward_3d(&var(&shape, &ramp(&shape), false));
+        let out = ssm
+            .forward_3d(&var(&shape, &ramp(&shape), false))
+            .expect("module forward succeeds on the test input");
         assert_eq!(out.tensor.shape(), &[1, 4, 2, 3, 3]);
         assert!(out.tensor.as_slice().iter().all(|v| v.is_finite()));
     }
@@ -380,7 +392,8 @@ mod tests {
         let tol_factor = 3e-2f32;
         let input = var(shape, base, true);
         let loss = functional(&forward(&input));
-        loss.backward();
+        loss.backward()
+            .expect("backward succeeds over the test loss");
         let grad = input.grad().expect("input gradient present");
         let grad = grad.as_slice();
 
@@ -417,6 +430,9 @@ mod tests {
         let ssm = small_ssm();
         let shape = [1usize, 5, 4];
         let base = ramp(&shape);
-        assert_fd_matches(&shape, &base, &[0, 7, 13, 19], |x| ssm.forward(x));
+        assert_fd_matches(&shape, &base, &[0, 7, 13, 19], |x| {
+            ssm.forward(x)
+                .expect("module forward succeeds on the test input")
+        });
     }
 }

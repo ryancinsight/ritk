@@ -220,4 +220,3 @@ fn test_read_seg_per_frame_image_position() {
         "frame 1 position"
     );
 }
-

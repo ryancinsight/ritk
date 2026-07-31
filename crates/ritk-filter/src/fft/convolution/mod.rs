@@ -48,4 +48,3 @@ pub use ncc3d::FftNormalizedCorrelation3DFilter;
 
 #[cfg(test)]
 mod tests_convolution;
-

@@ -96,4 +96,3 @@ pub fn lddmm_register(
         to_py_warped_and_displacement(result.warped_moving, result.displacement_field, &inputs)
     })
 }
-

@@ -8963,28 +8963,12 @@ dependencies = [
 ]
 
 [[patch.unused]]
-name = "tyche-core"
+name = "asclepius"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "athena-core"
+name = "asclepius-coeus"
 version = "0.1.0"
-
-[[patch.unused]]
-name = "athena-leto"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "proteus"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "hyperion"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "apollo-nufft"
-version = "0.7.0"
 
 [[patch.unused]]
 name = "consus-npy"
@@ -9007,6 +8991,10 @@ name = "hephaestus-wgpu"
 version = "0.18.0"
 
 [[patch.unused]]
+name = "tyche-core"
+version = "0.1.0"
+
+[[patch.unused]]
 name = "moirai-gpu"
 version = "0.4.0"
 
@@ -9015,13 +9003,25 @@ name = "moirai-http"
 version = "0.4.0"
 
 [[patch.unused]]
+name = "athena-core"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "athena-leto"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "hyperion"
+version = "0.1.0"
+
+[[patch.unused]]
 name = "horae"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "asclepius"
+name = "proteus"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "asclepius-coeus"
-version = "0.1.0"
+name = "apollo-nufft"
+version = "0.7.0"

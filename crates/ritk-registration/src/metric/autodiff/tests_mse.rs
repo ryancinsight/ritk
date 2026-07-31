@@ -52,7 +52,8 @@ fn gradient_wrt_moving_matches_closed_form() {
     let m = var(&moving, true);
     let f = var(&fixed, false);
     let loss = mean_squared_error(&m, &f);
-    loss.backward();
+    loss.backward()
+        .expect("backward succeeds over the test loss");
 
     let grad = m.grad().expect("moving requires_grad, grad must exist");
     let grad = grad.as_slice();
@@ -76,7 +77,8 @@ fn gradient_wrt_fixed_is_negated_moving_gradient() {
     let m = var(&moving, false);
     let f = var(&fixed, true);
     let loss = mean_squared_error(&m, &f);
-    loss.backward();
+    loss.backward()
+        .expect("backward succeeds over the test loss");
 
     let grad = f.grad().expect("fixed requires_grad, grad must exist");
     let grad = grad.as_slice();
@@ -99,7 +101,8 @@ fn gradient_matches_central_finite_difference() {
     let m = var(&moving, true);
     let f = var(&fixed, false);
     let loss = mean_squared_error(&m, &f);
-    loss.backward();
+    loss.backward()
+        .expect("backward succeeds over the test loss");
     let analytic = m.grad().expect("grad").as_slice().to_vec();
 
     // Central difference: (f(x+h) − f(x−h)) / 2h per element of `moving`.
@@ -127,7 +130,8 @@ fn zero_loss_and_zero_gradient_at_perfect_match() {
     let f = var(&vals, false);
     let loss = mean_squared_error(&m, &f);
     assert_eq!(loss.tensor.as_slice()[0], 0.0);
-    loss.backward();
+    loss.backward()
+        .expect("backward succeeds over the test loss");
     for (i, &g) in m.grad().expect("grad").as_slice().iter().enumerate() {
         assert_eq!(g, 0.0, "grad[{i}] should be zero at perfect match");
     }

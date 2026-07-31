@@ -186,4 +186,3 @@ pub(super) fn run_skeletonization(args: &SegmentArgs) -> Result<()> {
     );
     Ok(())
 }
-

@@ -108,7 +108,7 @@ where
         let batch: usize = shape[..shape.len() - 2].iter().product();
         let projected = self
             .input_projection
-            .forward(&reshape(input, [batch, sequence, self.input_dim]));
+            .forward(&reshape(input, [batch, sequence, self.input_dim]))?;
         let signal = slice(
             &projected,
             &[(0, batch), (0, sequence), (0, self.inner_dim)],
@@ -124,10 +124,10 @@ where
         let step = softplus(
             &self
                 .step_expansion
-                .forward(&self.step_contraction.forward(&signal)),
+                .forward(&self.step_contraction.forward(&signal)?)?,
         );
-        let input_matrix = self.input_matrix_projection.forward(&signal);
-        let output_matrix = self.output_matrix_projection.forward(&signal);
+        let input_matrix = self.input_matrix_projection.forward(&signal)?;
+        let output_matrix = self.output_matrix_projection.forward(&signal)?;
         let state = selective_scan(
             self.state_dim,
             &self.state_log,
@@ -139,7 +139,7 @@ where
         let gated = mul(&mul(&state, &sigmoid(&gate)), &self.skip_scale);
         let output = self
             .dropout
-            .forward(&self.output_projection.forward(&gated));
+            .forward(&self.output_projection.forward(&gated)?)?;
         let mut output_shape = shape.to_vec();
         *output_shape
             .last_mut()
@@ -191,9 +191,12 @@ where
         parameters
     }
 
-    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
-        SelectiveStateSpace::forward(self, input)
-            .expect("invariant: module input satisfies selective state-space contract")
+    fn forward(
+        &self,
+        input: &Var<f32, B>,
+    ) -> Result<Var<f32, B>, coeus_nn::ModuleError<<B as coeus_core::ComputeBackend>::Error>> {
+        Ok(SelectiveStateSpace::forward(self, input)
+            .expect("invariant: module input satisfies selective state-space contract"))
     }
 
     fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {

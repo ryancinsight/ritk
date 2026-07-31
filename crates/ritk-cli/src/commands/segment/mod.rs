@@ -83,4 +83,3 @@ pub fn run(args: SegmentArgs) -> Result<()> {
         SegmentMethod::MarkerWatershed => watershed::run_marker_watershed(&args),
     }
 }
-

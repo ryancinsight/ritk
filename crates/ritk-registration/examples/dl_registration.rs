@@ -39,7 +39,7 @@ where
     println!("Running registration...");
     let start = Instant::now();
     let input = cat(&[&moving, &fixed], 1);
-    let output = model.forward(&input);
+    let output = model.forward(&input).expect("transmorph forward");
     let flow = output.flow;
     let warped = output.warped;
 

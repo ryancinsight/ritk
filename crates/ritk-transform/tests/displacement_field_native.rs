@@ -66,7 +66,9 @@ fn volume_center_gradient_matches_multilinear_weights() {
         .transform_points(&points)
         .expect("valid interpolation");
     assert_eq!(transformed.tensor.as_slice(), &[1.5, 2.5, 3.5]);
-    sum(&transformed).backward();
+    sum(&transformed)
+        .backward()
+        .expect("backward succeeds over the test loss");
 
     for component in transform.field().components() {
         assert_eq!(

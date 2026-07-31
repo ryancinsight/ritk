@@ -238,7 +238,8 @@ mod tests {
         );
         let out = stn.forward(&image, &theta);
         let loss = sum(&out);
-        loss.backward();
+        loss.backward()
+            .expect("backward succeeds over the test loss");
         let grad = theta.grad().expect("theta gradient present");
         let grad = grad.as_slice();
 

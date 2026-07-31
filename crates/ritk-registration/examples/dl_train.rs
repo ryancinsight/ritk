@@ -45,7 +45,7 @@ where
     for epoch in 0..num_epochs {
         let start = Instant::now();
         let input = cat(&[&moving, &fixed], 1);
-        let theta = model.forward(&input);
+        let theta = model.forward(&input).expect("affine network forward");
         let warped = stn.forward(&moving, &theta);
 
         let diff = sub(&warped, &fixed);
@@ -53,7 +53,8 @@ where
 
         let loss_val = loss.tensor.as_slice()[0];
 
-        loss.backward();
+        loss.backward()
+            .expect("backward succeeds over the test loss");
         opt.step();
 
         let updated: Vec<Var<f32, B>> = opt.params.iter().map(|p| p.var.clone()).collect();

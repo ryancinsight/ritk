@@ -17,3 +17,4 @@
 | [0013](0013-fallible-jpeg-ls-encoder.md) | Fallible native JPEG-LS encoder and rolling reconstruction rows | Accepted |
 | [0014](0014-fallible-descriptive-statistics.md) | Fallible finite descriptive statistics | Accepted |
 | [0015](0015-fallible-temporal-synchronization.md) | Fallible temporal synchronization | Accepted |
+| [0016](0016-module-error-bridge.md) | Type-erased Coeus module-error bridge | Accepted |

@@ -119,9 +119,13 @@ where
             .collect()
     }
 
-    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
-        self.transform_points(input)
-            .expect("invariant: Module::forward receives valid field coordinates")
+    fn forward(
+        &self,
+        input: &Var<f32, B>,
+    ) -> Result<Var<f32, B>, coeus_nn::ModuleError<<B as coeus_core::ComputeBackend>::Error>> {
+        Ok(self
+            .transform_points(input)
+            .expect("invariant: Module::forward receives valid field coordinates"))
     }
 
     fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {

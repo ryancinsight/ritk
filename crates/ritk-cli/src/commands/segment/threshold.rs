@@ -282,4 +282,3 @@ pub(super) fn run_binary(args: &SegmentArgs) -> Result<()> {
     );
     Ok(())
 }
-

@@ -79,7 +79,9 @@ fn affine_translation_gradient_is_the_point_count() {
         &var_shaped(&[3, 3], &identity, false),
         &t,
     );
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("backward succeeds over the test loss");
     for (j, &g) in t.grad().expect("t grad").as_slice().iter().enumerate() {
         assert!(
             (g - n).abs() < 1e-12,
@@ -108,7 +110,9 @@ fn affine_matrix_gradient_matches_closed_form_and_finite_difference() {
         &r,
         &var(&t0, false),
     );
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("backward succeeds over the test loss");
     let grad = r.grad().expect("R grad").as_slice().to_vec();
 
     for j in 0..3 {

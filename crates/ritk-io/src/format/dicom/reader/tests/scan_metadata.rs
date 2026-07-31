@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 
+use super::super::detection::is_likely_dicom_file;
 use super::super::geometry::{
     analyze_slice_spacing, dot, normalize, resample_frames_linear, slice_normal_from_iop,
 };
@@ -11,7 +12,6 @@ use super::super::scan::scan_dicom_directory;
 use super::super::types::{
     DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata, PatientPosition,
 };
-use super::super::detection::is_likely_dicom_file;
 use super::support::*;
 use crate::format::dicom::transfer_syntax::EXPLICIT_VR_LE;
 use crate::format::dicom::{
@@ -396,4 +396,3 @@ fn test_scan_metadata_round_trip_transfer_syntax() {
         );
     }
 }
-

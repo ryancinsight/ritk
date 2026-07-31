@@ -149,10 +149,13 @@ where
         self.stages.iter().flat_map(Module::parameters).collect()
     }
 
-    fn forward(&self, input: &Var<f32, B>) -> Var<f32, B> {
-        SSMMorphEncoder::forward(self, input)
+    fn forward(
+        &self,
+        input: &Var<f32, B>,
+    ) -> Result<Var<f32, B>, coeus_nn::ModuleError<<B as coeus_core::ComputeBackend>::Error>> {
+        Ok(SSMMorphEncoder::forward(self, input)
             .expect("invariant: encoder module receives a valid volume")
-            .bottleneck
+            .bottleneck)
     }
 
     fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {

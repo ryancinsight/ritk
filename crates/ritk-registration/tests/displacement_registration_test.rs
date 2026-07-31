@@ -43,7 +43,9 @@ fn named_adam_optimizes_displacement_through_registration_seam() {
     };
     let initial = objective(&transform).tensor.as_slice()[0];
     optimizer.zero_grad();
-    objective(&transform).backward();
+    objective(&transform)
+        .backward()
+        .expect("backward succeeds over the test loss");
     optimizer.step();
     transform
         .load_named_parameters(&optimizer.params)

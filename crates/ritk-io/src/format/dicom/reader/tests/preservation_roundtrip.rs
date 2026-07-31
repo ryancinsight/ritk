@@ -2,6 +2,7 @@
 
 use arrayvec::ArrayString;
 
+use super::super::detection::is_likely_dicom_file;
 use super::super::geometry::{
     analyze_slice_spacing, dot, normalize, resample_frames_linear, slice_normal_from_iop,
 };
@@ -13,7 +14,6 @@ use super::super::scan::scan_dicom_directory;
 use super::super::types::{
     DicomReadMetadata, DicomSeriesInfo, DicomSliceMetadata, PatientPosition,
 };
-use super::super::detection::is_likely_dicom_file;
 use super::support::*;
 use crate::format::dicom::{
     DicomObjectNode, DicomPreservationSet, DicomPreservedElement, DicomTag, DicomValue,
@@ -129,4 +129,3 @@ fn test_scan_preserves_private_text_and_bytes_through_write_read_cycle() {
         "raw OB bytes must survive round-trip"
     );
 }
-

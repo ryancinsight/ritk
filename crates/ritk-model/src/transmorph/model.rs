@@ -11,6 +11,7 @@
 //! Reference: Chen et al., "TransMorph: Transformer for unsupervised medical
 //! image registration", Medical Image Analysis 82 (2022) 102615.
 
+use crate::ModelError;
 use coeus_autograd::{cat, permute, reshape, tile, Parameter, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut};
 use coeus_nn::{module::Module, Conv3d};
@@ -55,33 +56,33 @@ where
 {
     /// Forward pass: register `image` `[B, C, D, H, W]`, producing the warped
     /// image and the displacement field.
-    pub fn forward(&self, image: &Var<f32, B>) -> TransMorphOutput<B> {
+    pub fn forward(&self, image: &Var<f32, B>) -> Result<TransMorphOutput<B>, ModelError> {
         // Patch embedding, then four Swin stages in channels-last layout.
-        let x0 = self.patch_embed.forward(image);
+        let x0 = self.patch_embed.forward(image)?;
 
-        let x1_out = self.run_stage(&x0, &self.stage1);
-        let x1_down = self.down1.forward(&x1_out);
+        let x1_out = self.run_stage(&x0, &self.stage1)?;
+        let x1_down = self.down1.forward(&x1_out)?;
 
-        let x2_out = self.run_stage(&x1_down, &self.stage2);
-        let x2_down = self.down2.forward(&x2_out);
+        let x2_out = self.run_stage(&x1_down, &self.stage2)?;
+        let x2_down = self.down2.forward(&x2_out)?;
 
-        let x3_out = self.run_stage(&x2_down, &self.stage3);
-        let x3_down = self.down3.forward(&x3_out);
+        let x3_out = self.run_stage(&x2_down, &self.stage3)?;
+        let x3_down = self.down3.forward(&x3_out)?;
 
-        let x4_out = self.run_stage(&x3_down, &self.stage4);
+        let x4_out = self.run_stage(&x3_down, &self.stage4)?;
 
         // U-Net decoder: upsample, concatenate skip, convolve.
         let x4_up = self.upsample(&x4_out, 2);
-        let d1 = self.up_conv1.forward(&cat(&[&x4_up, &x3_out], 1));
+        let d1 = self.up_conv1.forward(&cat(&[&x4_up, &x3_out], 1))?;
 
         let d1_up = self.upsample(&d1, 2);
-        let d2 = self.up_conv2.forward(&cat(&[&d1_up, &x2_out], 1));
+        let d2 = self.up_conv2.forward(&cat(&[&d1_up, &x2_out], 1))?;
 
         let d2_up = self.upsample(&d2, 2);
-        let d3 = self.up_conv3.forward(&cat(&[&d2_up, &x1_out], 1));
+        let d3 = self.up_conv3.forward(&cat(&[&d2_up, &x1_out], 1))?;
 
         let d3_up = self.upsample(&d3, 4);
-        let flow = self.flow_conv.forward(&d3_up);
+        let flow = self.flow_conv.forward(&d3_up)?;
 
         let flow = match &self.integration {
             Some(integration) => integration.forward(&flow),
@@ -89,16 +90,20 @@ where
         };
 
         let warped = self.spatial_transform.forward(image, &flow);
-        TransMorphOutput { warped, flow }
+        Ok(TransMorphOutput { warped, flow })
     }
 
     /// Run one Swin stage: `[B, C, D, H, W]` → channels-last blocks → back.
-    fn run_stage(&self, x: &Var<f32, B>, blocks: &[SwinTransformerBlock<B>]) -> Var<f32, B> {
+    fn run_stage(
+        &self,
+        x: &Var<f32, B>,
+        blocks: &[SwinTransformerBlock<B>],
+    ) -> Result<Var<f32, B>, ModelError> {
         let mut y = permute(x, &[0, 2, 3, 4, 1]);
         for block in blocks {
-            y = block.forward(&y);
+            y = block.forward(&y)?;
         }
-        permute(&y, &[0, 4, 1, 2, 3])
+        Ok(permute(&y, &[0, 4, 1, 2, 3]))
     }
 
     /// Nearest-neighbor upsample `[B, C, D, H, W]` by an integer `scale` on each

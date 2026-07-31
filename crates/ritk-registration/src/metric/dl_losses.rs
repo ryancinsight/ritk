@@ -132,16 +132,18 @@ where
     // The autograd `avg_pool3d` only attaches the backward node; compute the
     // forward pooled field into `out` via the backend kernel first.
     let (out_storage, out_layout) = out.storage_mut_and_layout();
-    backend.avg_pool3d(
-        x.tensor.storage(),
-        x.tensor.layout(),
-        kernel_size,
-        stride,
-        pad,
-        dilation,
-        out_storage,
-        out_layout,
-    );
+    backend
+        .avg_pool3d(
+            x.tensor.storage(),
+            x.tensor.layout(),
+            kernel_size,
+            stride,
+            pad,
+            dilation,
+            out_storage,
+            out_layout,
+        )
+        .expect("invariant: pooled output shape is derived from the input shape");
     avg_pool3d(x, out, kernel_size, stride, pad, dilation)
 }
 
@@ -268,7 +270,8 @@ mod tests {
         let moving = from_vals((0..8).map(|i| i as f64).collect(), 2);
         let fixed = from_vals((0..8).map(|i| 2.0 * i as f64).collect(), 2);
         let loss = mse_loss(&fixed, &moving);
-        loss.backward();
+        loss.backward()
+            .expect("backward succeeds over the test loss");
         let g = fixed.grad().expect("fixed grad");
         for (i, &gv) in g.as_slice().iter().enumerate() {
             let expected = (2.0 / 8.0) * (2.0 * i as f64 - i as f64);

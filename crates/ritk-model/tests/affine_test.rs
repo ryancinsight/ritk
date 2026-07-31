@@ -23,7 +23,9 @@ fn affine_network_predicts_twelve_parameters() {
         Tensor::from_slice_on(shape, &deterministic(&shape, 1.0, -0.5), &SequentialBackend),
         false,
     );
-    let output = model.forward(&input);
+    let output = model
+        .forward(&input)
+        .expect("module forward succeeds on the test input");
     assert_eq!(output.tensor.shape(), &[1, 12]);
     for &v in output.tensor.as_slice() {
         assert!(v.is_finite(), "affine parameter must be finite: {v}");
@@ -77,9 +79,12 @@ fn network_is_differentiable_end_to_end() {
         Tensor::from_slice_on(shape, &deterministic(&shape, 1.0, -0.5), &SequentialBackend),
         true,
     );
-    let theta = model.forward(&input);
+    let theta = model
+        .forward(&input)
+        .expect("module forward succeeds on the test input");
     let loss = coeus_autograd::sum(&theta);
-    loss.backward();
+    loss.backward()
+        .expect("backward succeeds over the test loss");
 
     let grad = input.grad().expect("gradient reaches the network input");
     assert!(
@@ -109,7 +114,9 @@ fn network_output_drives_transform_forward() {
         ),
         false,
     );
-    let theta = model.forward(&features);
+    let theta = model
+        .forward(&features)
+        .expect("module forward succeeds on the test input");
     assert_eq!(theta.tensor.shape(), &[1, 12]);
 
     let moving_shape = [1usize, 1, 16, 16, 16];

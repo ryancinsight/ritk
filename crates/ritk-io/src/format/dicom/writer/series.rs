@@ -281,4 +281,3 @@ fn write_series_flat(
     }
     Ok(())
 }
-

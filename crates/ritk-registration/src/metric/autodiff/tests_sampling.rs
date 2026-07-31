@@ -68,7 +68,9 @@ fn coordinate_gradient_of_ramp_is_the_slope() {
 
     let c = var(&coords, true);
     let out = sample_linear_1d(&var(&signal, false), &c);
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("backward succeeds over the test loss");
 
     let grad = c.grad().expect("coords requires_grad").as_slice().to_vec();
     for (k, &g) in grad.iter().enumerate() {
@@ -87,7 +89,9 @@ fn coordinate_gradient_matches_central_finite_difference() {
 
     let c = var(&coords, true);
     let out = sample_linear_1d(&var(&signal, false), &c);
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("backward succeeds over the test loss");
     let analytic = c.grad().expect("grad").as_slice().to_vec();
 
     let h = 1e-6;
@@ -108,7 +112,9 @@ fn gather_gradient_flows_to_signal() {
     let signal = [10.0, 11.0, 12.0, 13.0, 14.0];
     let s = var(&signal, true);
     let out = sample_linear_1d(&s, &var(&[2.0], false));
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("backward succeeds over the test loss");
     let grad = s.grad().expect("signal requires_grad").as_slice().to_vec();
     let expected = [0.0, 0.0, 1.0, 0.0, 0.0];
     for (i, (&g, &e)) in grad.iter().zip(expected.iter()).enumerate() {
@@ -127,7 +133,9 @@ fn edge_clamp_extrapolates_flat_with_zero_gradient() {
     let c = var(&[-1.5], true);
     let out = sample_linear_1d(&var(&signal, false), &c);
     assert!((out.tensor.as_slice()[0] - 3.0).abs() < 1e-12);
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("backward succeeds over the test loss");
     assert!(
         c.grad().expect("grad").as_slice()[0].abs() < 1e-12,
         "flat extrapolation must have zero coordinate gradient"
@@ -224,7 +232,9 @@ fn trilinear_coordinate_gradient_of_separable_ramp_is_the_per_axis_slopes() {
     let yc = var(&[0.5, 2.0], true);
     let xc = var(&[2.5, 1.1], true);
     let out = sample_trilinear(&var(&signal, false), dims, &zc, &yc, &xc);
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("backward succeeds over the test loss");
 
     for (axis, (leaf, slope)) in [(&zc, bz), (&yc, by), (&xc, bx)].iter().enumerate() {
         let grad = leaf
@@ -254,7 +264,9 @@ fn trilinear_coordinate_gradient_matches_central_finite_difference() {
     let yc = var(&[y0], true);
     let xc = var(&[x0], true);
     let out = sample_trilinear(&var(&signal, false), dims, &zc, &yc, &xc);
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("backward succeeds over the test loss");
     let gz = zc.grad().expect("grad").as_slice()[0];
     let gy = yc.grad().expect("grad").as_slice()[0];
     let gx = xc.grad().expect("grad").as_slice()[0];
@@ -291,7 +303,9 @@ fn trilinear_value_gradient_flows_to_signal_at_integer_voxel() {
     );
     let flat = dims[1] * dims[2] + 2 * dims[2];
     assert!((out.tensor.as_slice()[0] - signal[flat]).abs() < 1e-12);
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("backward succeeds over the test loss");
     let grad = s.grad().expect("grad").as_slice().to_vec();
     for (i, &g) in grad.iter().enumerate() {
         let expected = if i == flat { 1.0 } else { 0.0 };

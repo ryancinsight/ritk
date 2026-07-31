@@ -102,4 +102,3 @@ pub(super) fn run_marker_watershed(args: &SegmentArgs) -> Result<()> {
     );
     Ok(())
 }
-

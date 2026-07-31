@@ -15,4 +15,3 @@ pub use bspline_syn::*;
 pub use greedy::*;
 pub use lddmm::*;
 pub use multires::*;
-

@@ -274,4 +274,3 @@ fn test_metadata_writer_none_metadata_type2_tags() {
         "SeriesNumber (0020,0011) must be present for None metadata"
     );
 }
-

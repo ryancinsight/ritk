@@ -110,7 +110,9 @@ fn translation_parameter_gradient_sums_over_points() {
     let (gf, n) = grid_flat();
     let t = var(&[0.0, 0.0, 0.0], true);
     let out = Translation { t: t.clone() }.transform_points(&var_shaped(&[n, 3], &gf, false));
-    sum(&out).backward();
+    sum(&out)
+        .backward()
+        .expect("backward succeeds over the test loss");
     for (j, &g) in t.grad().expect("t grad").as_slice().iter().enumerate() {
         assert!(
             (g - n as f64).abs() < 1e-12,
@@ -186,7 +188,8 @@ fn gradient_descent_through_translation_trait_reduces_loss() {
             "loss must not increase (step {step}: {lv} > {prev})"
         );
         prev = lv;
-        loss.backward();
+        loss.backward()
+            .expect("backward succeeds over the test loss");
         t = sgd_step_var(&t, lr);
     }
     assert!(
@@ -310,7 +313,8 @@ fn evaluate_ncc_gradient_reaches_affine_r_and_is_shift_invariant_in_t() {
             t: t.clone(),
         },
     );
-    loss.backward();
+    loss.backward()
+        .expect("backward succeeds over the test loss");
 
     let gr = r.grad().expect("R grad").as_slice().to_vec();
     let gt = t.grad().expect("t grad").as_slice().to_vec();
