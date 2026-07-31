@@ -13,6 +13,43 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## SAFE-685-01 audit (2026-07-31)
+
+The TIFF book inventory omitted a supported format owner. The grayscale reader
+also inferred its color contract from decoded sample count, RGB page geometry
+used unchecked `width * height * 3` arithmetic, RGB output growth used
+infallible allocation, and every non-f32 page was converted into a complete
+temporary `Vec<f32>` before being copied into the final volume.
+
+The current slice validates Gray or RGB on every IFD before decode, computes
+sample counts with checked arithmetic, and appends through fallibly reserved
+final storage. Integer and f64 pages convert directly from decoder storage;
+the first f32 page becomes the output allocation. This removes one complete
+page-sized f32 staging allocation without claiming that the decoder-owned
+typed page or final volume is free. The dependency's per-decode limits remain
+separate from the output's page-count-dependent memory bound.
+
+The deterministic public example uses page-sensitive pixel content and
+non-default source geometry. Its figure shows exact source/decoded values, an
+all-zero bitwise-difference panel, ordered IFD-to-z mapping, file size, and the
+documented reset to default geometry. The inspected 12,108-byte SVG satisfies
+those semantics and regenerates exactly at SHA-256
+`E52D29EE4ABD8835CFA6C789B2F8E85342D2BCA1CF7766C35693789ED653FB85`.
+The warm example completes in 67.290 ms; mdBook test/build pass.
+
+The exact production code passes warning-denied all-target Clippy and 18/18
+focused Nextest tests pass in 0.162 seconds, including the public hostile-IFD
+regression. The forged header is rejected by the dependency's consistency
+check before allocation; the independent checked-arithmetic regression reaches
+RITK's sample-count overflow boundary directly. `cargo semver-checks` passed
+all 223 applicable checks in 21.055 seconds. Exact code/docs head `a49d8e0d`
+passed CI run `30625615765`, Python CI run `30625615761`, and Pages artifact
+run `30625615769` across Linux, macOS, and Windows. PR #79 review corrections
+document the allocation-adoption invariant, limit ownership, and exact hostile
+test count; the suggested changelog restructuring was rejected because the
+existing repository convention deliberately uses sprint-labeled `Unreleased`
+sections.
+
 ## SAFE-684-01 audit (2026-07-31)
 
 After validating an MGH header, the reader retained the complete encoded voxel

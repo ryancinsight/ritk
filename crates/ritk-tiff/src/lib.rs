@@ -1,4 +1,4 @@
-//! TIFF / BigTIFF reader and writer for RITK.
+//! TIFF / BigTIFF reader and standard TIFF writer for RITK.
 //!
 //! Each IFD page is one Z-slice of a volumetric `Image<f32, B, 3>`.
 //! Spatial metadata (origin, spacing, direction) is not encoded in TIFF;

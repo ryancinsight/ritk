@@ -5,6 +5,46 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **SAFE-685-01 [patch] - Bound and document TIFF volume decoding**
+  (DONE; owner=Codex; last-update=2026-07-31; scope=
+  `crates/ritk-tiff/src/{reader.rs,color.rs,tests_reader.rs}`,
+  `crates/ritk-tiff/examples/book_tiff.rs`,
+  `docs/book/{SUMMARY.md,tiff_format.md,examples/tiff_roundtrip.md,
+  figures/tiff_roundtrip.svg}`, `.github/workflows/book-pages.yml`,
+  `CHANGELOG.md`, `gap_audit.md`, and PM artifacts; non-goal=TIFF color
+  writing, compression selection, pyramidal/sub-IFD images, preserving
+  spatial metadata not represented by the public writer, dependency upgrade,
+  release, or deployment). The grayscale reader relies on decoded sample
+  count instead of validating the declared color model, RGB geometry uses
+  unchecked sample-count arithmetic, RGB volume growth is infallible, and
+  every non-f32 page is converted through a complete temporary `Vec<f32>`
+  before being copied into the final volume. Validate each page's color model
+  and checked geometry before decode, reserve fallibly, and append converted
+  samples directly into the final volume while preserving page order and the
+  documented f32 conversion contract. Add a deterministic public-API
+  round-trip example and inspected figure showing source, decoded slices,
+  exact voxel difference, file size, page order, and the explicit loss of
+  physical-space metadata at the TIFF boundary. Acceptance: hostile geometry
+  and non-grayscale pages return contextual errors without panic or partial
+  output; supported grayscale and RGB stacks retain exact shapes, values, and
+  order; non-f32 decode no longer allocates a second page-sized f32 staging
+  vector; displayed metrics agree with generated data; the example stays
+  within the committed runtime budget; and formatting, warning-denied
+  Clippy, Nextest, doctest, Rustdoc, mdBook, semantic-version, and hosted gates
+  pass. Local implementation evidence: package formatting and warning-denied
+  all-target Clippy pass; 18/18 focused tests pass in 0.162 seconds, including
+  the public hostile-header regression; the
+  public example builds, runs in 67.290 ms warm, and regenerates the inspected
+  12,108-byte SVG exactly at SHA-256
+  `E52D29EE4ABD8835CFA6C789B2F8E85342D2BCA1CF7766C35693789ED653FB85`;
+  mdBook test/build pass. `cargo semver-checks` completed in 21.055 seconds
+  with 223 checks passing. Exact code/docs head `a49d8e0d` passed CI run
+  `30625615765`, Python CI run `30625615761`, and Pages artifact run
+  `30625615769` across Linux, macOS, and Windows. PR #79 review findings were
+  adjudicated: both actionable documentation defects and both valid nitpicks
+  were corrected; the duplicate-heading suggestion was rejected because
+  sprint-labeled `Unreleased` sections are the repository convention.
+
 - **SAFE-684-01 [patch] - Stream and document MGH/MGZ decoding**
   (DONE; owner=Codex; last-update=2026-07-31; scope=
   `crates/ritk-mgh/{Cargo.toml,src/reader/**,benches/reader.rs,

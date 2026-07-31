@@ -13,7 +13,7 @@ use ritk_spatial::{Direction, Point, Spacing};
 use tiff::decoder::Decoder;
 use tiff::ColorType;
 
-use crate::reader::decode_page_to_scalar;
+use crate::reader::{append_page_to_scalar, checked_page_sample_count};
 
 const RGB_CHANNELS: usize = 3;
 
@@ -48,20 +48,11 @@ fn read_tiff_color_from_reader<B: ComputeBackend, R: Read + Seek>(
     let (width, height) = decoder
         .dimensions()
         .map_err(|e| anyhow!("Failed to read TIFF dimensions: {}", e))?;
-    let nx = width as usize;
-    let ny = height as usize;
-    let pixels_per_page = nx * ny;
-    let samples_per_page = pixels_per_page * RGB_CHANNELS;
+    let nx = usize::try_from(width).context("TIFF width exceeds usize")?;
+    let ny = usize::try_from(height).context("TIFF height exceeds usize")?;
+    let samples_per_page = checked_page_sample_count::<RGB_CHANNELS>(width, height)?;
 
-    if pixels_per_page == 0 {
-        return Err(anyhow!(
-            "TIFF page dimensions are zero ({}x{})",
-            width,
-            height
-        ));
-    }
-
-    let mut data = Vec::with_capacity(samples_per_page);
+    let mut data = Vec::new();
     let mut depth = 0usize;
 
     loop {
@@ -71,21 +62,10 @@ fn read_tiff_color_from_reader<B: ComputeBackend, R: Read + Seek>(
         let result = decoder
             .read_image()
             .map_err(|e| anyhow!("Failed to decode TIFF page {}: {}", page_index, e))?;
-        let page_data = decode_page_to_scalar(result)?;
-
-        if page_data.len() != samples_per_page {
-            return Err(anyhow!(
-                "TIFF RGB page {} has {} values, expected {} ({}x{}x3)",
-                page_index,
-                page_data.len(),
-                samples_per_page,
-                nx,
-                ny,
-            ));
-        }
-
-        data.extend(page_data);
-        depth += 1;
+        append_page_to_scalar(&mut data, result, samples_per_page, page_index)?;
+        depth = depth
+            .checked_add(1)
+            .context("TIFF page count exceeds usize")?;
 
         if !decoder.more_images() {
             break;
@@ -179,6 +159,43 @@ mod tests {
         Ok(())
     }
 
+    fn replace_ifd_long(path: &Path, target_tag: u16, value: u32) -> Result<()> {
+        let mut bytes = std::fs::read(path)?;
+        if !matches!(bytes.get(0..2), Some(b"II")) {
+            return Err(anyhow!("test TIFF encoder did not emit little-endian data"));
+        }
+        let ifd_offset_bytes: [u8; 4] = bytes
+            .get(4..8)
+            .context("test TIFF header has no first-IFD offset")?
+            .try_into()
+            .context("test TIFF first-IFD offset has wrong width")?;
+        let ifd_offset = usize::try_from(u32::from_le_bytes(ifd_offset_bytes))?;
+        let entry_count_bytes: [u8; 2] = bytes
+            .get(ifd_offset..ifd_offset + 2)
+            .context("test TIFF has no IFD entry count")?
+            .try_into()
+            .context("test TIFF IFD entry count has wrong width")?;
+        let entry_count = usize::from(u16::from_le_bytes(entry_count_bytes));
+
+        for entry in 0..entry_count {
+            let entry_offset = ifd_offset + 2 + entry * 12;
+            let tag_bytes: [u8; 2] = bytes
+                .get(entry_offset..entry_offset + 2)
+                .context("test TIFF IFD entry is truncated")?
+                .try_into()
+                .context("test TIFF tag has wrong width")?;
+            if u16::from_le_bytes(tag_bytes) == target_tag {
+                bytes
+                    .get_mut(entry_offset + 8..entry_offset + 12)
+                    .context("test TIFF LONG value is truncated")?
+                    .copy_from_slice(&value.to_le_bytes());
+                std::fs::write(path, bytes)?;
+                return Ok(());
+            }
+        }
+        Err(anyhow!("test TIFF does not contain tag {target_tag}"))
+    }
+
     fn volume_values(volume: &RgbVolume<f32, TestBackend>) -> Vec<f32> {
         volume.data_cow_on(&SequentialBackend).into_owned()
     }
@@ -242,6 +259,25 @@ mod tests {
 
         assert_eq!(volume.shape(), [1, 1, 1, 3]);
         assert_eq!(volume_values(&volume), vec![32.0, 128.0, 224.0]);
+        Ok(())
+    }
+
+    #[test]
+    fn rgb_loader_rejects_hostile_declared_geometry_before_allocation() -> Result<()> {
+        let dir = tempdir()?;
+        let path = dir.path().join("hostile_rgb.tiff");
+        write_rgb8_pages(&path, 1, 1, &[vec![1, 2, 3]])?;
+        replace_ifd_long(&path, 256, u32::MAX)?;
+        replace_ifd_long(&path, 257, u32::MAX)?;
+
+        let error = read_tiff_color_to_volume(&path, &SequentialBackend).unwrap_err();
+        let message = format!("{error:#}");
+        assert!(
+            message.contains("Format error: Inconsistent sizes encountered")
+                || message.contains("TIFF page sample count")
+                    && message.contains("overflows usize"),
+            "unexpected hostile-geometry error: {message}"
+        );
         Ok(())
     }
 }

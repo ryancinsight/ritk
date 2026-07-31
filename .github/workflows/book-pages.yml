@@ -24,6 +24,9 @@ on:
       - "crates/ritk-mgh/src/reader/**"
       - "crates/ritk-mgh/src/types.rs"
       - "crates/ritk-mgh/Cargo.toml"
+      - "crates/ritk-tiff/examples/book_tiff.rs"
+      - "crates/ritk-tiff/src/**"
+      - "crates/ritk-tiff/Cargo.toml"
       - ".github/actions/checkout-atlas-path-dependencies/action.yml"
       - ".github/workflows/book-pages.yml"
   pull_request:
@@ -48,6 +51,9 @@ on:
       - "crates/ritk-mgh/src/reader/**"
       - "crates/ritk-mgh/src/types.rs"
       - "crates/ritk-mgh/Cargo.toml"
+      - "crates/ritk-tiff/examples/book_tiff.rs"
+      - "crates/ritk-tiff/src/**"
+      - "crates/ritk-tiff/Cargo.toml"
       - ".github/actions/checkout-atlas-path-dependencies/action.yml"
       - ".github/workflows/book-pages.yml"
   workflow_dispatch:
@@ -117,6 +123,8 @@ jobs:
             docs/book/figures/temporal_synchronization.svg
           cargo run -p ritk-mgh --example book_mgh -- \
             docs/book/figures/mgh_roundtrip.svg
+          cargo run -p ritk-tiff --example book_tiff -- \
+            docs/book/figures/tiff_roundtrip.svg
 
       - name: Build book
         run: |
@@ -137,6 +145,7 @@ jobs:
             ritk/docs/book/figures/descriptive_statistics.svg
             ritk/docs/book/figures/temporal_synchronization.svg
             ritk/docs/book/figures/mgh_roundtrip.svg
+            ritk/docs/book/figures/tiff_roundtrip.svg
           if-no-files-found: error
 
       - name: Upload Pages artifact

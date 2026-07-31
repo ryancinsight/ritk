@@ -13,6 +13,36 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## SAFE-685-01 — Bound and document TIFF volume decoding
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Reconcile the TIFF implementation, tests, format inventory, and book
+      coverage against current `main`.
+- [x] Specify checked geometry, color-model validation, allocation, conversion,
+      round-trip, metadata-boundary, figure, and gate acceptance criteria.
+- [x] Record the focused entry baseline before production edits: package
+      formatting, warning-denied all-target Clippy, 13/13 Nextest tests in
+      0.174 seconds, doctests, and warning-denied Rustdoc pass.
+- [x] Validate grayscale/RGB page contracts and hostile geometry before decode.
+- [x] Append decoded samples directly into fallibly reserved final storage.
+- [x] Add value-semantic malformed, mixed-page, and supported-type regressions.
+- [x] Add and inspect the deterministic TIFF example and generated figure. The
+      warm executable completes in 67.290 ms; regenerated and committed SVGs
+      match at SHA-256
+      `E52D29EE4ABD8835CFA6C789B2F8E85342D2BCA1CF7766C35693789ED653FB85`.
+- [x] Teach TIFF/BigTIFF page order, scalar conversion, color, and metadata
+      boundaries in the book.
+- [x] Run focused format, lint, test, documentation, example-runtime, mdBook,
+      semantic-version, and hosted gates against the delivered revision.
+      Formatting, warning-denied all-target Clippy, 18/18 Nextest tests in
+      0.162 seconds (including the public hostile-header regression), doctests,
+      warning-denied Rustdoc, the public example, inspected figure, and mdBook
+      test/build pass. `cargo semver-checks` passed all 223 applicable checks in
+      21.055 seconds. Exact code/docs head `a49d8e0d` passed CI
+      `30625615765`, Python CI `30625615761`, and Pages artifact build
+      `30625615769`; PR #79 review findings are adjudicated.
+
 ## SAFE-684-01 — Stream and document MGH/MGZ decoding
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
