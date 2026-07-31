@@ -33,13 +33,15 @@
       `E52D29EE4ABD8835CFA6C789B2F8E85342D2BCA1CF7766C35693789ED653FB85`.
 - [x] Teach TIFF/BigTIFF page order, scalar conversion, color, and metadata
       boundaries in the book.
-- [ ] Run focused format, lint, test, documentation, example-runtime, mdBook,
+- [x] Run focused format, lint, test, documentation, example-runtime, mdBook,
       semantic-version, and hosted gates against the delivered revision.
       Formatting, warning-denied all-target Clippy, 18/18 Nextest tests in
       0.162 seconds (including the public hostile-header regression), doctests,
       warning-denied Rustdoc, the public example, inspected figure, and mdBook
-      test/build pass. Semantic-version and remaining hosted gates are the
-      closure oracles.
+      test/build pass. `cargo semver-checks` passed all 223 applicable checks in
+      21.055 seconds. Exact code/docs head `a49d8e0d` passed CI
+      `30625615765`, Python CI `30625615761`, and Pages artifact build
+      `30625615769`; PR #79 review findings are adjudicated.
 
 ## SAFE-684-01 — Stream and document MGH/MGZ decoding
 **Target version**: Unreleased patch

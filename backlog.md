@@ -6,7 +6,7 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-685-01 [patch] - Bound and document TIFF volume decoding**
-  (REVIEW; owner=Codex; last-update=2026-07-31; scope=
+  (DONE; owner=Codex; last-update=2026-07-31; scope=
   `crates/ritk-tiff/src/{reader.rs,color.rs,tests_reader.rs}`,
   `crates/ritk-tiff/examples/book_tiff.rs`,
   `docs/book/{SUMMARY.md,tiff_format.md,examples/tiff_roundtrip.md,
@@ -37,8 +37,13 @@
   public example builds, runs in 67.290 ms warm, and regenerates the inspected
   12,108-byte SVG exactly at SHA-256
   `E52D29EE4ABD8835CFA6C789B2F8E85342D2BCA1CF7766C35693789ED653FB85`;
-  mdBook test/build pass. Semantic-version and clean-provider hosted CI remain
-  the closure oracles.
+  mdBook test/build pass. `cargo semver-checks` completed in 21.055 seconds
+  with 223 checks passing. Exact code/docs head `a49d8e0d` passed CI run
+  `30625615765`, Python CI run `30625615761`, and Pages artifact run
+  `30625615769` across Linux, macOS, and Windows. PR #79 review findings were
+  adjudicated: both actionable documentation defects and both valid nitpicks
+  were corrected; the duplicate-heading suggestion was rejected because
+  sprint-labeled `Unreleased` sections are the repository convention.
 
 - **SAFE-684-01 [patch] - Stream and document MGH/MGZ decoding**
   (DONE; owner=Codex; last-update=2026-07-31; scope=
