@@ -1,7 +1,7 @@
 //! Value-semantic coverage for the Atlas-native MGH reader path.
 
 use crate::test_support::{build_mgh_bytes, IDENTITY_DIR};
-use crate::MRI_FLOAT;
+use crate::{MRI_FLOAT, SINGLE_FRAME};
 use coeus_core::SequentialBackend;
 use tempfile::tempdir;
 
@@ -14,6 +14,7 @@ fn native_read_mgh_preserves_shape_and_voxels() {
     let mgh = build_mgh_bytes(
         1,
         [2, 2, 2],
+        SINGLE_FRAME,
         MRI_FLOAT,
         [1.5, 2.0, 2.5],
         IDENTITY_DIR,

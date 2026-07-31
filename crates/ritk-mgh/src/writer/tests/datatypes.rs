@@ -11,6 +11,7 @@ fn test_all_four_data_types_readable() -> Result<()> {
     let mgh = build_mgh_bytes(
         1,
         [2, 2, 2],
+        SINGLE_FRAME,
         MRI_UCHAR,
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,
@@ -27,6 +28,7 @@ fn test_all_four_data_types_readable() -> Result<()> {
     let mgh = build_mgh_bytes(
         1,
         [2, 2, 2],
+        SINGLE_FRAME,
         MRI_SHORT,
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,
@@ -43,6 +45,7 @@ fn test_all_four_data_types_readable() -> Result<()> {
     let mgh = build_mgh_bytes(
         1,
         [2, 2, 2],
+        SINGLE_FRAME,
         MRI_INT,
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,
@@ -67,6 +70,7 @@ fn test_all_four_data_types_readable() -> Result<()> {
     let mgh = build_mgh_bytes(
         1,
         [2, 2, 2],
+        SINGLE_FRAME,
         MRI_FLOAT,
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,
@@ -95,6 +99,7 @@ fn test_invalid_version_rejected() {
     let mgh = build_mgh_bytes(
         99,
         [2, 2, 2],
+        SINGLE_FRAME,
         MRI_FLOAT,
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,

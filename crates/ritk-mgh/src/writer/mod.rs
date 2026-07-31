@@ -5,7 +5,9 @@
 
 use crate::binary::{write_f32_be, write_i16_be, write_i32_be};
 use crate::spatial::ras_center_from_geometry;
-use crate::{is_gzip_path, MRI_FLOAT, PADDING_LEN, VERSION};
+use crate::{
+    is_gzip_path, DOF_UNSET, GOOD_RAS_VALID, MRI_FLOAT, PADDING_LEN, SINGLE_FRAME, VERSION,
+};
 use anyhow::{anyhow, Context, Result};
 use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use flate2::write::GzEncoder;
@@ -79,10 +81,10 @@ fn write_mgh_flat<W: Write>(
             .with_context(|| format!("MGH {axis}-axis extent {extent} exceeds i32"))?;
         write_i32_be(writer, extent)?;
     }
-    write_i32_be(writer, 1)?;
+    write_i32_be(writer, SINGLE_FRAME)?;
     write_i32_be(writer, MRI_FLOAT)?;
-    write_i32_be(writer, 0)?;
-    write_i16_be(writer, 1)?;
+    write_i32_be(writer, DOF_UNSET)?;
+    write_i16_be(writer, GOOD_RAS_VALID)?;
 
     for axis in 0..3 {
         write_f32_be(writer, spacing[axis] as f32)?;

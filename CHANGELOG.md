@@ -8,6 +8,25 @@
 
 # CHANGELOG
 
+## [Unreleased] — MGH multi-frame rejection (ATLAS-DMRI-MGH-FRAMES-002)
+
+### Fixed
+
+- `ritk_mgh::read_mgh` rejects a file declaring more than one frame instead of
+  logging a warning and returning frame 0. FreeSurfer stores diffusion and time
+  series as multi-frame MGH/MGZ, so the previous path reported success while
+  discarding the rest of the acquisition. The error names the declared frame
+  count and the number of frames that would have been lost. `nframes == 1` is
+  unchanged, and no signature changes.
+
+### Changed
+
+- Name the MGH header literals the reader and writer share: `SINGLE_FRAME`,
+  `GOOD_RAS_VALID`, and `DOF_UNSET` replace bare `1`/`0` at the header field
+  sites.
+- The MGH byte fixture builder takes the frame count as a parameter rather than
+  hardcoding `1`, so the multi-frame header is expressible as a test fixture.
+
 ## [Unreleased] — Safe temporal synchronization (SAFE-683-01)
 
 ### Breaking

@@ -14,6 +14,7 @@ fn test_read_nondefault_spatial() -> Result<()> {
     let mgh = build_mgh_bytes(
         1,
         [4, 3, 2],
+        SINGLE_FRAME,
         MRI_FLOAT,
         spacing,
         dir_cols,

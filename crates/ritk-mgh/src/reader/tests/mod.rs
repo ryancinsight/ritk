@@ -1,6 +1,6 @@
 use super::*;
 use crate::test_support::{build_mgh_bytes, make_image, TestBackend, IDENTITY_DIR};
-use crate::{HEADER_SIZE, MRI_FLOAT, MRI_INT, MRI_SHORT, MRI_UCHAR};
+use crate::{HEADER_SIZE, MRI_FLOAT, MRI_INT, MRI_SHORT, MRI_UCHAR, SINGLE_FRAME};
 use anyhow::Result;
 use flate2::write::GzEncoder;
 use flate2::Compression;

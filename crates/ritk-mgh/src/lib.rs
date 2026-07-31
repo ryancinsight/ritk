@@ -10,6 +10,16 @@
 //! MGZ is the gzip-compressed variant.  File extensions `.mgz` and `.mgh.gz`
 //! trigger gzip decompression on read and gzip compression on write.
 //!
+//! # Frames
+//!
+//! The header's `nframes` field counts consecutive volumes of identical
+//! geometry: one for an anatomical volume, many for a diffusion or time series.
+//! This crate carries the 3-D `Image` contract, which represents exactly one
+//! frame, so the reader accepts `nframes == 1` and rejects anything higher with
+//! an error naming the count. Returning frame 0 from a multi-frame file would
+//! report success while discarding the rest of the acquisition, which is a
+//! silent data loss rather than a partial read.
+//!
 //! # Spatial metadata
 //!
 //! When `goodRASFlag == 1` in the header, the reader extracts direction
@@ -51,6 +61,14 @@ const HEADER_SIZE: usize = 284;
 /// Valid MGH format version number.
 const VERSION: i32 = 1;
 
+/// The `nframes` header value of a single-volume MGH file.
+///
+/// MGH stores `nframes` consecutive volumes of identical geometry — one for a
+/// plain anatomical volume, many for a diffusion or time series. The reader and
+/// writer in this crate carry the 3-D `Image` contract, which represents exactly
+/// one frame, so this is the only value they read or emit.
+const SINGLE_FRAME: i32 = 1;
+
 /// Byte offset where the spatial metadata block (goodRASFlag through c_ras)
 /// ends inside the 284-byte header.  Everything from this offset to byte 284
 /// is zero-padding.
@@ -58,6 +76,17 @@ const SPATIAL_BLOCK_END: usize = 90;
 
 /// Padding length in bytes: `HEADER_SIZE - SPATIAL_BLOCK_END`.
 const PADDING_LEN: usize = HEADER_SIZE - SPATIAL_BLOCK_END;
+
+/// `goodRASFlag` value marking the header's direction cosines, spacing, and
+/// `c_ras` center as authoritative. Any other value means the spatial block is
+/// unset and the geometry is synthesized.
+const GOOD_RAS_VALID: i16 = 1;
+
+/// `dof` header value for volumes carrying no degrees-of-freedom annotation.
+///
+/// The field records the DOF of a statistical map; a plain image has none. The
+/// reader ignores it, so the writer emits the unset value.
+const DOF_UNSET: i32 = 0;
 
 /// MGH data type code: unsigned 8-bit integer.
 const MRI_UCHAR: i32 = 0;

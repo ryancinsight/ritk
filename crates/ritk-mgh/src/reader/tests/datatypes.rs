@@ -19,6 +19,7 @@ fn test_read_float_data() -> Result<()> {
     let mgh = build_mgh_bytes(
         1,
         [2, 2, 2],
+        SINGLE_FRAME,
         MRI_FLOAT,
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,
@@ -52,6 +53,7 @@ fn test_read_byte_data() -> Result<()> {
     let mgh = build_mgh_bytes(
         1,
         [2, 3, 2],
+        SINGLE_FRAME,
         MRI_UCHAR,
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,
@@ -90,6 +92,7 @@ fn test_read_signed_short_data() -> Result<()> {
     let mgh = build_mgh_bytes(
         1,
         [2, 3, 2],
+        SINGLE_FRAME,
         MRI_SHORT,
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,
@@ -129,6 +132,7 @@ fn test_read_signed_int_data() -> Result<()> {
     let mgh = build_mgh_bytes(
         1,
         [2, 3, 2],
+        SINGLE_FRAME,
         MRI_INT,
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,

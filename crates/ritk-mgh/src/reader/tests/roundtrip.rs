@@ -108,6 +108,7 @@ fn test_mgh_reader_struct_delegates() -> Result<()> {
     let mgh = build_mgh_bytes(
         1,
         [2, 2, 2],
+        SINGLE_FRAME,
         MRI_FLOAT,
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,

@@ -8,6 +8,7 @@ fn test_read_invalid_version() {
     let mgh = build_mgh_bytes(
         2,
         [2, 2, 2],
+        SINGLE_FRAME,
         MRI_FLOAT,
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,
@@ -33,6 +34,7 @@ fn test_read_unsupported_type_code() {
     let mgh = build_mgh_bytes(
         1,
         [2, 2, 2],
+        SINGLE_FRAME,
         99,
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,
@@ -69,6 +71,87 @@ fn test_read_truncated_file() {
 }
 
 #[test]
+fn test_read_multi_frame_fails_rather_than_returning_frame_zero() {
+    // A 3-frame volume with a complete payload: frame 0 alone is decodable, so
+    // the reader could return it and report success. That is the defect — a
+    // diffusion or time series would silently become its first volume. The
+    // frame count must reach the caller as a failure instead.
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("three_frames.mgh");
+    let backend = TestBackend::default();
+
+    const FRAMES: i32 = 3;
+    const VOXELS_PER_FRAME: usize = 2 * 2 * 2;
+
+    let mut payload = Vec::with_capacity(FRAMES as usize * VOXELS_PER_FRAME * 4);
+    for frame in 0..FRAMES {
+        // Distinct value per frame, so a silently truncated read is detectable
+        // by value rather than only by length.
+        let value = (frame + 1) as f32;
+        for _ in 0..VOXELS_PER_FRAME {
+            payload.extend_from_slice(&value.to_be_bytes());
+        }
+    }
+
+    let mgh = build_mgh_bytes(
+        1,
+        [2, 2, 2],
+        FRAMES,
+        MRI_FLOAT,
+        [1.0, 1.0, 1.0],
+        IDENTITY_DIR,
+        [0.0, 0.0, 0.0],
+        &payload,
+    );
+    std::fs::write(&path, &mgh).unwrap();
+
+    let err = read_mgh::<TestBackend, _>(&path, &backend)
+        .expect_err("a 3-frame MGH has no 3-D representation and must not read as one");
+
+    let msg = format!("{err:#}");
+    assert!(
+        msg.contains("3 frames"),
+        "error must name the declared frame count, got: {msg}"
+    );
+}
+
+#[test]
+fn test_read_single_frame_still_reads_at_the_rejection_boundary() {
+    // The boundary partner of the test above: nframes == SINGLE_FRAME is the
+    // largest accepted value, so the rejection cannot be an off-by-one that
+    // also refuses ordinary volumes.
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("one_frame.mgh");
+    let backend = TestBackend::default();
+
+    let voxels: Vec<f32> = (0..8).map(|i| i as f32).collect();
+    let mut payload = Vec::with_capacity(voxels.len() * 4);
+    for value in &voxels {
+        payload.extend_from_slice(&value.to_be_bytes());
+    }
+
+    let mgh = build_mgh_bytes(
+        1,
+        [2, 2, 2],
+        SINGLE_FRAME,
+        MRI_FLOAT,
+        [1.0, 1.0, 1.0],
+        IDENTITY_DIR,
+        [0.0, 0.0, 0.0],
+        &payload,
+    );
+    std::fs::write(&path, &mgh).unwrap();
+
+    let image = read_mgh::<TestBackend, _>(&path, &backend)
+        .expect("a single-frame MGH is the accepted case");
+    let loaded = image.data_slice().expect("contiguous host voxel data");
+    assert_eq!(
+        loaded, voxels,
+        "single-frame voxels must survive the frame check unchanged"
+    );
+}
+
+#[test]
 fn test_read_hostile_dims_does_not_oom() {
     // Header claims a 1024^3 float volume (~4.3 GiB) but supplies 16 bytes. The
     // bounded reader must reserve at most one chunk and fail with a read error
@@ -79,6 +162,7 @@ fn test_read_hostile_dims_does_not_oom() {
     let mgh = build_mgh_bytes(
         1,
         [1024, 1024, 1024],
+        SINGLE_FRAME,
         MRI_FLOAT,
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,

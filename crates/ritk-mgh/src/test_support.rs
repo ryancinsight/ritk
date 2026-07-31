@@ -7,9 +7,22 @@ pub(crate) type TestBackend = SequentialBackend;
 
 pub(crate) const IDENTITY_DIR: [[f32; 3]; 3] = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
 
+/// Build MGH bytes for `nframes` frames of `dims` voxels.
+///
+/// `nframes` is an explicit parameter rather than a hardcoded `1` so the
+/// multi-frame header the reader must reject is expressible as a fixture. Pass
+/// `SINGLE_FRAME` for the ordinary volumetric case.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the parameter list is the MGH header field order (version, dims, \
+              nframes, type, spacing, direction cosines, c_ras, payload); \
+              grouping the fields would hide the 1:1 mapping to the byte layout \
+              this fixture exists to construct"
+)]
 pub(crate) fn build_mgh_bytes(
     version: i32,
     dims: [i32; 3],
+    nframes: i32,
     mri_type: i32,
     spacing: [f32; 3],
     dir_cols: [[f32; 3]; 3],
@@ -21,7 +34,7 @@ pub(crate) fn build_mgh_bytes(
     buf.extend_from_slice(&dims[0].to_be_bytes());
     buf.extend_from_slice(&dims[1].to_be_bytes());
     buf.extend_from_slice(&dims[2].to_be_bytes());
-    buf.extend_from_slice(&1_i32.to_be_bytes());
+    buf.extend_from_slice(&nframes.to_be_bytes());
     buf.extend_from_slice(&mri_type.to_be_bytes());
     buf.extend_from_slice(&0_i32.to_be_bytes());
     buf.extend_from_slice(&1_i16.to_be_bytes());

@@ -7,7 +7,10 @@
 use crate::binary::{read_f32_be, read_i16_be, read_i32_be};
 use crate::spatial::{derive_image_geometry, RasValidity};
 use crate::types::bytes_per_voxel;
-use crate::{is_gzip_path, MRI_FLOAT, MRI_INT, MRI_SHORT, MRI_UCHAR, PADDING_LEN, VERSION};
+use crate::{
+    is_gzip_path, GOOD_RAS_VALID, MRI_FLOAT, MRI_INT, MRI_SHORT, MRI_UCHAR, PADDING_LEN,
+    SINGLE_FRAME, VERSION,
+};
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
 use flate2::read::GzDecoder;
@@ -22,6 +25,13 @@ mod tests;
 ///
 /// Files ending in `.mgz` or `.mgh.gz` are decompressed with gzip before
 /// parsing. All other paths are treated as uncompressed MGH.
+///
+/// # Errors
+///
+/// Returns an error when the header version, dimensions, or data type code are
+/// invalid, when the payload is shorter than the header declares, or when the
+/// file declares more than one frame — a multi-frame volume has no correct
+/// single-volume decoding, so it fails rather than silently yielding frame 0.
 pub fn read_mgh<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
@@ -93,10 +103,14 @@ fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
     if nframes <= 0 {
         bail!("Invalid MGH nframes: {}", nframes);
     }
-    if nframes > 1 {
-        tracing::warn!(
+    if nframes != SINGLE_FRAME {
+        bail!(
+            "MGH file declares {} frames; this reader returns a 3-D Image, which \
+             represents exactly one frame. Multi-frame MGH (diffusion series, \
+             time series) has no correct single-volume decoding — reading frame 0 \
+             alone would silently discard {} frames of the acquisition.",
             nframes,
-            "MGH file contains multiple frames; only frame 0 will be loaded"
+            nframes - SINGLE_FRAME
         );
     }
 
@@ -122,7 +136,7 @@ fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
     let ny = height as usize;
     let nz = depth as usize;
     let (spacing, direction, origin) = derive_image_geometry(
-        if good_ras_flag == 1 {
+        if good_ras_flag == GOOD_RAS_VALID {
             RasValidity::Valid
         } else {
             RasValidity::Synthetic
