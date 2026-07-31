@@ -5,6 +5,40 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **SAFE-684-01 [patch] - Stream and document MGH/MGZ decoding**
+  (DONE; owner=Codex; last-update=2026-07-31; scope=
+  `crates/ritk-mgh/{Cargo.toml,src/reader/**,benches/reader.rs,
+  examples/book_mgh.rs}`, `docs/book/{SUMMARY.md,mgh_format.md,
+  examples/mgh_roundtrip.md,figures/mgh_roundtrip.svg}`,
+  `.github/workflows/book-pages.yml`, `CHANGELOG.md`, `gap_audit.md`, and PM
+  artifacts; non-goal=multi-frame image support, additional voxel types,
+  acquisition-parameter tags, changing MGH geometry conventions, release, or
+  deployment). The validated single-frame reader first retains the complete
+  encoded voxel payload and then allocates the returned `Vec<f32>`. Decode
+  directly from bounded fixed-size input chunks into the final output,
+  reserving only after bytes are confirmed and reporting allocation failure
+  without panic. Preserve all four big-endian voxel types, exact values,
+  single-frame rejection, RAS geometry, and gzip behavior. Add an unchanged
+  Criterion read workload before the production edit. Add a deterministic
+  public-API round-trip example and inspected figure showing source, decoded
+  data, exact difference, geometry preservation, MGH/MGZ sizes, and malformed
+  multi-frame rejection. Teach the format from the official FreeSurfer MGH
+  header and `mri_info` contracts. Acceptance: chunk-boundary and truncated
+  payload regressions pass for every voxel width; peak decoder scratch drops
+  from `encoded payload + decoded volume` to approximately
+  `decoded volume + fixed chunk`, excluding vector spare capacity and
+  transient allocator reallocation state;
+  the unchanged benchmark detects no latency regression; displayed metrics
+  agree with generated data; workflow actions use current Node 24 runtimes,
+  immutable revisions, and bounded jobs and deployment polling;
+  and formatting, warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook,
+  example-runtime, semantic-version, and hosted gates pass. Entry baseline at
+  `ea11f4fb`: 34/34 Nextest tests pass in 0.230 seconds, package all-target
+  warning-denied Clippy passes, doctests contain no executable tests, and
+  warning-denied Rustdoc passes under Rust 1.97.0. Delivery: PR #78; exact
+  code head `ec108bc3`; CI `30607792227`, Python `30607792237`, and book
+  `30607792226` pass.
+
 - **SAFE-683-01 [major] - Make temporal synchronization safe,
   dimensionally correct, allocation-efficient, and teachable** (DONE;
   owner=Codex; last-update=2026-07-30; scope=

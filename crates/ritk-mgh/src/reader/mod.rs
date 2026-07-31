@@ -6,11 +6,8 @@
 
 use crate::binary::{read_f32_be, read_i16_be, read_i32_be};
 use crate::spatial::{derive_image_geometry, RasValidity};
-use crate::types::bytes_per_voxel;
-use crate::{
-    is_gzip_path, GOOD_RAS_VALID, MRI_FLOAT, MRI_INT, MRI_SHORT, MRI_UCHAR, PADDING_LEN,
-    SINGLE_FRAME, VERSION,
-};
+use crate::types::VoxelType;
+use crate::{is_gzip_path, GOOD_RAS_VALID, PADDING_LEN, SINGLE_FRAME, VERSION};
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
 use flate2::read::GzDecoder;
@@ -20,6 +17,7 @@ use std::path::Path;
 
 #[cfg(test)]
 mod tests;
+mod voxel_decode;
 
 /// Read an MGH or MGZ file into a 3-D `Image`.
 ///
@@ -151,18 +149,14 @@ fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
         .checked_mul(ny)
         .and_then(|v| v.checked_mul(nz))
         .ok_or_else(|| anyhow::anyhow!("Volume dimensions overflow: {}x{}x{}", nx, ny, nz))?;
-    let bpv = bytes_per_voxel(mri_type)?;
+    let voxel_type = VoxelType::try_from(mri_type)?;
+    let bpv = voxel_type.bytes_per_voxel();
     let data_size = n_voxels.checked_mul(bpv).ok_or_else(|| {
         anyhow::anyhow!("Data size overflow: {} voxels × {} bytes", n_voxels, bpv)
     })?;
 
-    // Bound the speculative allocation: `data_size` derives from the header
-    // dimensions and may exceed the bytes actually present. `read_exact_bounded`
-    // grows the buffer per confirmed chunk and reports truncation rather than
-    // reserving the full claimed size (out-of-memory abort on a hostile header).
-    let raw = consus_io::read_exact_bounded(reader, data_size)
-        .context("Failed to read MGH voxel data")?;
-    let f32_data = decode_voxels(mri_type, &raw);
+    let f32_data = voxel_decode::decode_voxels(reader, voxel_type, n_voxels)
+        .with_context(|| format!("Failed to decode {data_size} bytes of MGH voxel data"))?;
 
     Ok(DecodedMgh {
         data: f32_data,
@@ -181,25 +175,6 @@ fn read_direction_columns<R: Read>(reader: &mut R) -> Result<[[f32; 3]; 3]> {
         }
     }
     Ok(columns)
-}
-
-fn decode_voxels(mri_type: i32, raw: &[u8]) -> Vec<f32> {
-    match mri_type {
-        MRI_UCHAR => raw.iter().map(|&b| b as f32).collect(),
-        MRI_SHORT => raw
-            .chunks_exact(2)
-            .map(|c| i16::from_be_bytes([c[0], c[1]]) as f32)
-            .collect(),
-        MRI_INT => raw
-            .chunks_exact(4)
-            .map(|c| i32::from_be_bytes([c[0], c[1], c[2], c[3]]) as f32)
-            .collect(),
-        MRI_FLOAT => raw
-            .chunks_exact(4)
-            .map(|c| f32::from_be_bytes([c[0], c[1], c[2], c[3]]))
-            .collect(),
-        _ => unreachable!("bytes_per_voxel validates the type code"),
-    }
 }
 
 /// Stateless reader for MGH / MGZ files.

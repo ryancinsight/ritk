@@ -14,3 +14,4 @@ mod geometry;
 mod gzip;
 mod native;
 mod roundtrip;
+mod streaming;

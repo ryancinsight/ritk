@@ -56,28 +56,76 @@ pub(super) fn qform_quaternion_scalar(b: f64, c: f64, d: f64) -> Result<f64> {
     Ok((1.0 - squared_vector_norm).max(0.0).sqrt())
 }
 
-pub(super) fn dims_for_version(version: HeaderVersion, dims: HeaderDims) -> Result<[usize; 8]> {
+/// NIfTI rank of a volume with no acquisition axis.
+pub(super) const RANK_VOLUME: usize = 3;
+
+/// NIfTI rank of a series carrying one acquisition axis in `dim[4]`.
+pub(super) const RANK_SERIES: usize = 4;
+
+/// Build the `dim` array for `volumes` volumes on a shared spatial grid.
+///
+/// A single volume is emitted at [`RANK_VOLUME`] with `dim[4] = 1`, which is
+/// the canonical on-disk form and what every existing 3-D writer path produces.
+/// More than one volume raises the rank to [`RANK_SERIES`] and records the count
+/// in `dim[4]`, the axis NIfTI reserves for time or acquisition.
+pub(super) fn dims_for_version(
+    version: HeaderVersion,
+    dims: HeaderDims,
+    volumes: usize,
+) -> Result<[usize; 8]> {
+    if volumes == 0 {
+        bail!("NIfTI series requires at least one volume");
+    }
+
     if matches!(version, HeaderVersion::One) {
         u16::try_from(dims.nx).context("NIfTI-1 nx exceeds u16 header capacity")?;
         u16::try_from(dims.ny).context("NIfTI-1 ny exceeds u16 header capacity")?;
         u16::try_from(dims.nz).context("NIfTI-1 nz exceeds u16 header capacity")?;
+        u16::try_from(volumes).context("NIfTI-1 volume count exceeds u16 header capacity")?;
     } else {
         i64::try_from(dims.nx).context("NIfTI-2 nx exceeds i64 header capacity")?;
         i64::try_from(dims.ny).context("NIfTI-2 ny exceeds i64 header capacity")?;
         i64::try_from(dims.nz).context("NIfTI-2 nz exceeds i64 header capacity")?;
+        i64::try_from(volumes).context("NIfTI-2 volume count exceeds i64 header capacity")?;
     }
 
-    Ok([3, dims.nx, dims.ny, dims.nz, 1, 1, 1, 1])
+    let rank = if volumes == 1 {
+        RANK_VOLUME
+    } else {
+        RANK_SERIES
+    };
+    Ok([rank, dims.nx, dims.ny, dims.nz, volumes, 1, 1, 1])
 }
 
-pub(super) fn validate_3d_dims(dim: [usize; 8]) -> Result<()> {
-    if dim[0] != 3 {
-        bail!("Expected 3-D NIfTI volume, found {} dimensions", dim[0]);
+/// Volumes declared by a parsed `dim` array.
+///
+/// `dim[4]` is only meaningful at [`RANK_SERIES`] or above. Writers commonly
+/// leave it zero or uninitialized on a rank-3 header, so a volume header reports
+/// one volume without reading it.
+pub(super) fn volume_count(dim: [usize; 8]) -> usize {
+    if dim[0] >= RANK_SERIES {
+        dim[4]
+    } else {
+        1
+    }
+}
+
+/// Validate the spatial axes and the supported rank of a parsed `dim` array.
+pub(super) fn validate_dims(dim: [usize; 8]) -> Result<()> {
+    if dim[0] != RANK_VOLUME && dim[0] != RANK_SERIES {
+        bail!(
+            "NIfTI rank {} is unsupported; expected {RANK_VOLUME} (volume) or \
+             {RANK_SERIES} (acquisition series)",
+            dim[0]
+        );
     }
     for (axis, value) in dim.iter().enumerate().take(4).skip(1) {
         if *value == 0 {
             bail!("NIfTI dim[{axis}] must be positive");
         }
+    }
+    if dim[0] == RANK_SERIES && dim[4] == 0 {
+        bail!("NIfTI dim[4] must be positive on a rank-{RANK_SERIES} series");
     }
     Ok(())
 }

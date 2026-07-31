@@ -5846,9 +5846,12 @@ name = "ritk-mgh"
 version = "0.2.0"
 dependencies = [
  "anyhow",
+ "base64",
  "coeus-core",
- "consus-io",
+ "criterion",
  "flate2",
+ "image 0.24.9",
+ "proptest",
  "ritk-image",
  "ritk-spatial",
  "tempfile",

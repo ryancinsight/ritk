@@ -289,7 +289,7 @@ where
         &self,
         input: &Var<f32, B>,
     ) -> Result<Var<f32, B>, coeus_nn::ModuleError<<B as coeus_core::ComputeBackend>::Error>> {
-        Ok(self.output_projection.forward(input)?)
+        self.output_projection.forward(input)
     }
 
     fn load_parameters(&mut self, parameters: &[Var<f32, B>]) {

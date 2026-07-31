@@ -150,6 +150,128 @@ where
     write_nifti_with_version(HeaderVersion::Two, path, image, backend)
 }
 
+/// Write an acquisition series to a NIfTI-1 single-file stream.
+///
+/// Every volume must share one spatial grid — shape, origin, spacing, and
+/// direction — because a NIfTI series has exactly one sform. The grid is taken
+/// from the first volume and the rest are validated against it, so a caller that
+/// assembled volumes from different images fails here rather than writing a file
+/// whose geometry silently applies to only some of its content.
+///
+/// A one-volume series writes as an ordinary rank-3 file, byte-identical to
+/// [`write_nifti`]; more volumes raise the header to rank 4 with the count in
+/// `dim[4]`.
+///
+/// # Errors
+///
+/// Returns an error when `volumes` is empty, when any volume's grid differs from
+/// the first, when the shape or volume count exceeds the header's capacity, or
+/// when writing fails.
+pub fn write_nifti_series<B, P>(path: P, volumes: &[Image<f32, B, 3>], backend: &B) -> Result<()>
+where
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    P: AsRef<Path>,
+{
+    write_series_with_version(HeaderVersion::One, path, volumes, backend)
+}
+
+/// Write an acquisition series to a NIfTI-2 single-file stream.
+///
+/// The NIfTI-2 counterpart of [`write_nifti_series`], with the same grid
+/// agreement requirement and rank selection.
+///
+/// # Errors
+///
+/// Returns an error under the same conditions as [`write_nifti_series`].
+pub fn write_nifti2_series<B, P>(path: P, volumes: &[Image<f32, B, 3>], backend: &B) -> Result<()>
+where
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    P: AsRef<Path>,
+{
+    write_series_with_version(HeaderVersion::Two, path, volumes, backend)
+}
+
+fn write_series_with_version<B, P>(
+    version: HeaderVersion,
+    path: P,
+    volumes: &[Image<f32, B, 3>],
+    backend: &B,
+) -> Result<()>
+where
+    B: ComputeBackend + Default,
+    B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
+    P: AsRef<Path>,
+{
+    let Some((first, rest)) = volumes.split_first() else {
+        anyhow::bail!("write_nifti_series: a series requires at least one volume");
+    };
+
+    let shape = first.shape();
+    let origin = first.origin();
+    let spacing = first.spacing();
+    let direction = direction_row_major(first.direction());
+
+    for (index, volume) in rest.iter().enumerate() {
+        let position = index + 1;
+        if volume.shape() != shape {
+            anyhow::bail!(
+                "write_nifti_series: volume {position} shape {:?} differs from volume 0 {shape:?}; \
+                 a NIfTI series has one spatial grid",
+                volume.shape()
+            );
+        }
+        if volume.origin() != origin || volume.spacing() != spacing {
+            anyhow::bail!(
+                "write_nifti_series: volume {position} origin or spacing differs from volume 0; \
+                 a NIfTI series has one spatial grid"
+            );
+        }
+        if direction_row_major(volume.direction()) != direction {
+            anyhow::bail!(
+                "write_nifti_series: volume {position} direction differs from volume 0; \
+                 a NIfTI series has one spatial grid"
+            );
+        }
+    }
+
+    let [nz, ny, nx] = shape;
+    let expected = checked_voxel_count(nx, ny, nz)?;
+    let payloads = volumes
+        .iter()
+        .map(|volume| volume.data_cow_on(backend))
+        .collect::<Vec<_>>();
+    for (position, payload) in payloads.iter().enumerate() {
+        if payload.len() != expected {
+            anyhow::bail!(
+                "write_nifti_series: volume {position} data len {} != shape product {expected}",
+                payload.len()
+            );
+        }
+    }
+
+    let header = header_from_spatial_with_volumes(
+        version,
+        HeaderDims { nx, ny, nz },
+        payloads.len(),
+        NiftiDatatype::Float32,
+        [origin[0], origin[1], origin[2]],
+        [spacing[0], spacing[1], spacing[2]],
+        direction,
+    )?;
+
+    write_single_file_with(path, &header, |writer| {
+        // The acquisition axis is slowest, so volumes serialize back to back in
+        // acquisition order, each in the same ZYX-to-XYZ voxel order as a
+        // single-volume file.
+        for payload in &payloads {
+            write_voxels_xyz(writer, payload, shape)?;
+        }
+        Ok(())
+    })
+}
+
 fn write_nifti_with_version<B, P>(
     version: HeaderVersion,
     path: P,
@@ -224,15 +346,22 @@ fn write_flat_with_version(
     )?;
 
     write_single_file_with(path, &header, |writer| {
-        for z in 0..nz {
-            for y in 0..ny {
-                for x in 0..nx {
-                    writer.write_all(&voxels[z * ny * nx + y * nx + x].to_le_bytes())?;
-                }
+        write_voxels_xyz(writer, voxels, shape)
+    })
+}
+
+/// Serialize one volume from RITK `[Z, Y, X]` order into NIfTI `[X, Y, Z]` file
+/// order, x varying fastest.
+fn write_voxels_xyz(writer: &mut dyn Write, voxels: &[f32], shape: [usize; 3]) -> Result<()> {
+    let [nz, ny, nx] = shape;
+    for z in 0..nz {
+        for y in 0..ny {
+            for x in 0..nx {
+                writer.write_all(&voxels[z * ny * nx + y * nx + x].to_le_bytes())?;
             }
         }
-        Ok(())
-    })
+    }
+    Ok(())
 }
 
 fn header_from_spatial(
@@ -243,11 +372,27 @@ fn header_from_spatial(
     spacing: [f64; 3],
     direction: [f64; 9],
 ) -> Result<NiftiHeader> {
+    header_from_spatial_with_volumes(version, dims, 1, datatype, origin, spacing, direction)
+}
+
+fn header_from_spatial_with_volumes(
+    version: HeaderVersion,
+    dims: HeaderDims,
+    volumes: usize,
+    datatype: NiftiDatatype,
+    origin: [f64; 3],
+    spacing: [f64; 3],
+    direction: [f64; 9],
+) -> Result<NiftiHeader> {
     let sform = sform_from_internal_lps_metadata(origin, spacing, direction);
+    // pixdim[4] is the acquisition-axis step. A diffusion series has no
+    // meaningful step along it, so it stays at unity rather than carrying an
+    // invented repetition time.
     let pixdim = [1.0, spacing[2], spacing[1], spacing[0], 1.0, 1.0, 1.0, 1.0];
-    NiftiHeader::new_3d_with_version(
+    NiftiHeader::new_with_version(
         version,
         dims,
+        volumes,
         datatype,
         HeaderSpatial {
             pixdim,

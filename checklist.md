@@ -13,6 +13,31 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## SAFE-684-01 — Stream and document MGH/MGZ decoding
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Reconcile `origin/main`, worktrees, peer ownership, current MGH reader,
+      tests, recent frame fix, book coverage, and official format references.
+- [x] Record the exact package baseline before editing production code.
+- [x] Add an unchanged Criterion MGH read workload and capture the baseline.
+- [x] Replace the complete encoded-payload allocation with bounded chunked
+      decoding into the final voxel output.
+- [x] Add exact datatype, chunk-boundary, truncation, hostile-allocation,
+      geometry, gzip, and round-trip regressions.
+- [x] Add a deterministic public-API example, generated figure, MGH/MGZ
+      chapter, worked example, and CI regeneration.
+- [x] Render and inspect the figure; cross-check voxels, geometry, file sizes,
+      exact difference, and multi-frame rejection against raw output.
+- [x] Compare the unchanged benchmark and record the analytical memory bound.
+- [x] Run formatting, warning-denied Clippy, Nextest, doctest, Rustdoc,
+      mdBook, example-runtime, benchmark-smoke, and semantic-version gates.
+- [x] Run exact-code-head hosted gates. CI `30607792227`, all 13 Python lanes
+      in `30607792237`, and mdBook build `30607792226` pass at `ec108bc3`.
+- [x] Reconcile CHANGELOG, audit, backlog, and checklist evidence; self-review,
+      commit, push, open PR #78, and address all actionable review findings.
+      The final PM-only closure head remains gated before merge.
+
 ## SAFE-683-01 — Safe temporal synchronization
 **Target version**: Next major release
 **Sprint phase**: Closure
