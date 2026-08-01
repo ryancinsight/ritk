@@ -30,13 +30,24 @@ ended the marker loop and returned the partially populated image. Marker lengths
 are now checked exactly, EOC is mandatory, and a compact tile-presence bitset
 verifies every SIZ-declared tile before output is allocated. The packet reader
 now errors when any expected LRCP packet header is absent instead of treating
-exhaustion as successful zero-filled output. Fourteen new regressions cover
+exhaustion as successful zero-filled output. Included code-blocks now require a
+nonzero entropy-body length; tier-1 validates the announced pass budget and
+rejects MQ decoding that consumes more terminal fill than the bounded
+predictable-termination allowance. `Psot=0` now extends to terminal EOC after
+structural tile-header parsing, so marker-looking COM payload bytes cannot cut
+the tile short. EOC accepts no trailing bytes except one required DICOM
+even-length zero pad.
+
+Twenty new regressions cover
 marker tails, EOC, tile coverage, component/MCT/progression profiles, main and
 tile overrides, structural SOD discovery, tile-part marker bounds, multi-part
-declaration, empty packet data, and unsupported COD packet profiles. All 305
+declaration, empty packet data, zero-length and exhausted code-block bodies,
+`Psot=0` COM payloads, trailing payload, DICOM padding, and unsupported COD
+packet profiles. All 311
 codec tests pass, including the captured OpenJPEG 2.5.4 lossless/lossy corpus.
-Corrected-head lint, doctest, Rustdoc, and mdBook gates pass; hosted and
-independent-review gates remain. These checks prove
+Corrected-head formatting, warning-denied Clippy, doctest, warning-denied
+Rustdoc, and mdBook test/build pass. Hosted and independent-review gates remain
+for the new head. These checks prove
 the supported grayscale contract and malformed-input behavior; they do not
 claim multi-component or multi-part decode support.
 

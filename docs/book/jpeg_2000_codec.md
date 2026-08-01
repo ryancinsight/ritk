@@ -24,9 +24,21 @@ The codestream boundary is exact. Every marker segment must include a valid
 length and remain inside its tile-part or codestream boundary, SOD is found by
 structural marker parsing rather than a byte-pattern search, every tile declared
 by SIZ must appear, and EOC must terminate the stream. Every expected LRCP packet
-header must also be present. A decoded first tile followed by a truncated marker
-tail or an empty packet body therefore returns an error instead of a partially
-populated image whose missing voxels appear as valid zeros.
+header must also be present. `Psot = 0` extends only the final tile-part to the
+validated terminal EOC; marker-looking bytes inside a length-delimited COM
+payload are never treated as boundaries. Arbitrary bytes after EOC are rejected.
+The one permitted exception is a single zero byte when an odd-length codestream
+must be padded to an even DICOM Fragment Item length, as required by DICOM PS3.5
+[Section 8.2](https://dicom.nema.org/medical/dicom/current/output/chtml/part05/sect_8.2.html).
+
+An included code-block must declare a nonzero packet-body length. Tier-1 also
+checks the pass count against the code-block's bit-plane budget and tracks MQ
+terminal fill consumption. JPEG 2000 arithmetic termination permits bounded
+look-ahead into an artificial `0xFF 0xFF` marker; consuming more than the two
+terminal reads used by OpenJPEG's predictable-termination check is treated as
+truncation. A decoded first tile followed by a truncated marker tail or entropy
+body therefore returns an error instead of a partially populated image whose
+missing coefficients or voxels appear as valid zeros.
 
 JPEG 2000 is a transform codec, not the older block-DCT JPEG format. The Part 1
 pipeline is:
@@ -142,8 +154,10 @@ RITK tests the native paths at three levels:
 2. captured OpenJPEG 2.5.4 codestreams exercise independent producer/consumer
    interoperability without loading OpenJPEG at test time; and
 3. malformed geometry, unsupported component/progression overrides, truncated
-   markers, incomplete packets, multi-part declarations, missing tiles, and
-   missing EOC require typed rejection instead of a panic or partial image.
+   markers, zero-length or exhausted entropy bodies, incomplete packets,
+   multi-part declarations, missing tiles, invalid `Psot = 0` boundaries,
+   trailing payload, and missing EOC require typed rejection instead of a panic
+   or partial image.
 
 Continue with the [worked codec example](examples/jpeg_2000_codec.md) to read
 the reconstruction and error panels.

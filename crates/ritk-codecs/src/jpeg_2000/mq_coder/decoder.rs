@@ -16,6 +16,8 @@ pub struct MqDecoder<'a> {
     c: u32,
     /// Remaining bit-shifts available before the next `bytein`.
     ct: u32,
+    /// Artificial terminal markers consumed after the declared segment.
+    synthesized_marker_count: u32,
 }
 
 impl<'a> MqDecoder<'a> {
@@ -32,6 +34,7 @@ impl<'a> MqDecoder<'a> {
             a: 0,
             c: u32::from(b0) << 16,
             ct: 0,
+            synthesized_marker_count: 0,
         };
         d.bytein();
         d.c <<= 7;
@@ -66,6 +69,16 @@ impl<'a> MqDecoder<'a> {
                 d
             }
         }
+    }
+
+    /// Number of artificial `0xFF 0xFF` terminal markers consumed.
+    ///
+    /// MQ termination permits bounded look-ahead into the synthetic marker.
+    /// OpenJPEG's predictable-termination check treats more than two reads as
+    /// exhaustion, which lets tier-1 distinguish legal fill from truncation.
+    #[inline]
+    pub const fn synthesized_marker_count(&self) -> u32 {
+        self.synthesized_marker_count
     }
 
     /// Test-only register introspection: `(a, c, ct)`.
@@ -149,6 +162,9 @@ impl<'a> MqDecoder<'a> {
                 // Marker or end-of-data: add 0xFF00 without advancing.
                 self.c += 0xFF00;
                 self.ct = 8;
+                if self.pos >= self.src.len() {
+                    self.synthesized_marker_count = self.synthesized_marker_count.saturating_add(1);
+                }
             } else {
                 // Stuffed byte: advance, load with 7-bit effective contribution.
                 self.pos += 1;

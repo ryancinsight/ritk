@@ -52,6 +52,27 @@ fn tile_decode_rejects_truncated_packet_length_field() {
 }
 
 #[test]
+fn tile_decode_rejects_included_code_block_with_zero_body_length() {
+    let mut writer = BitWriter::new();
+    writer.write_bit(1); // packet present
+    writer.write_bit(1); // first inclusion at layer zero
+    writer.write_bit(1); // zero missing MSBs
+    write_num_passes(&mut writer, 1);
+    writer.write_bit(0); // no Lblock increment
+    writer.write_bits(0, 3); // declared body length
+    let packet = writer.flush();
+
+    let Err(err) = decode_tile_part(&packet, 1, 1, reversible_coding()) else {
+        panic!("an included code-block cannot have an empty entropy body");
+    };
+    let message = format!("{err:#}");
+    assert!(
+        message.contains("zero-length packet body"),
+        "got: {message}"
+    );
+}
+
+#[test]
 fn tile_decode_rejects_excessive_lblock_growth() {
     let mut writer = BitWriter::new();
     writer.write_bit(1); // packet present
@@ -383,7 +404,8 @@ fn openjp2_captured_packet_conformance() {
         (9 - msbs) as u8,
         ncp,
         crate::jpeg_2000::ebcot::SubbandOrientation::LlOrLh,
-    );
+    )
+    .expect("captured OpenJPEG code-block must decode");
     assert_eq!(block.samples, expected, "EBCOT tier-1 must match OpenJPEG");
 }
 

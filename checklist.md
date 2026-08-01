@@ -28,10 +28,12 @@
 - [x] Preflight tile headers structurally; reject POC/coding overrides, packed
       packet headers, and multi-part tiles before output allocation.
 - [x] Require every expected LRCP packet header and every SIZ-declared tile.
+- [x] Reject zero-length or over-consumed EBCOT bodies, derive `Psot=0` from
+      terminal EOC, and validate the optional DICOM zero pad exactly.
 - [x] Add value-semantic malformed-tail regressions while preserving native and
       captured OpenJPEG interoperability.
 - [x] Correct native codec ownership and parser-safety documentation.
-- [x] Run the corrected complete Nextest gate: all 305 codec tests pass,
+- [x] Run the corrected complete Nextest gate: all 311 codec tests pass,
       including the captured OpenJPEG corpus and all review counterexamples.
 - [x] Run corrected-head formatting, warning-denied Clippy, doctest, Rustdoc,
       mdBook, and diff gates.

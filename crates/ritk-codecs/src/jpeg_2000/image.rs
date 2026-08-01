@@ -212,10 +212,18 @@ pub fn is_soc(fragment: &[u8]) -> bool {
     fragment.len() >= 2 && fragment[0] == 0xFF && fragment[1] == 0x4F
 }
 
-/// Find the next SOT (0xFF90) or EOC (0xFFD9) marker after `start`.
-fn find_next_sot_or_eoc(data: &[u8], start: usize) -> Option<usize> {
-    (start..data.len().saturating_sub(1))
-        .find(|&i| data[i] == 0xFF && (data[i + 1] == 0x90 || data[i + 1] == 0xD9))
+/// Locate the terminal EOC, permitting only the single zero byte that DICOM
+/// uses to make an odd-length encapsulated item value even.
+fn terminal_eoc_position(data: &[u8]) -> Result<usize> {
+    if data.ends_with(&[0xFF, 0xD9]) {
+        return Ok(data.len() - 2);
+    }
+    if data.len() >= 3 && data.ends_with(&[0xFF, 0xD9, 0x00]) && (data.len() - 1) % 2 == 1 {
+        return Ok(data.len() - 3);
+    }
+    bail!(
+        "J2K: EOC must terminate the codestream, followed only by an optional DICOM even-length zero pad"
+    )
 }
 
 /// Return the first byte after a marker segment whose two-byte length includes
@@ -249,6 +257,7 @@ fn marker_segment_end(
 }
 
 fn scan_tile_parts(data: &[u8], start: usize, tile_count: usize) -> Result<Vec<TilePartRange>> {
+    let terminal_eoc = terminal_eoc_position(data)?;
     let mut pos = start;
     let mut tile_parts = Vec::with_capacity(tile_count);
     let mut seen_tiles = vec![false; tile_count];
@@ -287,16 +296,19 @@ fn scan_tile_parts(data: &[u8], start: usize, tile_count: usize) -> Result<Vec<T
                                 .context("J2K: Psot does not fit the platform address size")?,
                         )
                         .context("J2K: Psot overflows the platform address size")?;
-                    if declared_end > data.len() {
+                    if declared_end > terminal_eoc {
                         bail!(
-                            "J2K: tile-part Psot={} ends at byte {declared_end}, beyond the {}-byte codestream",
+                            "J2K: tile-part Psot={} ends at byte {declared_end}, beyond terminal EOC at byte {terminal_eoc}",
                             sot.psot,
-                            data.len()
                         );
                     }
                     declared_end
                 } else {
-                    find_next_sot_or_eoc(data, after_sot).unwrap_or(data.len())
+                    // ISO 15444-1 defines Psot=0 as extending the final
+                    // tile-part to EOC. Using the validated terminal marker
+                    // avoids treating marker-looking COM payload bytes as a
+                    // tile boundary.
+                    terminal_eoc
                 };
                 let tile_data_start = parse_tile_header(data, after_sot, tile_end)?;
                 tile_parts.push(TilePartRange {
@@ -307,6 +319,9 @@ fn scan_tile_parts(data: &[u8], start: usize, tile_count: usize) -> Result<Vec<T
                 pos = tile_end;
             }
             marker::EOC => {
+                if pos != terminal_eoc {
+                    bail!("J2K: EOC at byte {pos} precedes terminal EOC at byte {terminal_eoc}");
+                }
                 saw_eoc = true;
                 break;
             }

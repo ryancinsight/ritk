@@ -42,7 +42,10 @@
 //! sample counts share a fixed allocation cap. Tile headers are parsed by marker
 //! boundaries before output allocation; every segment must fit its byte extent,
 //! EOC is mandatory, every declared tile must be present, and every expected
-//! LRCP packet header must be consumed.
+//! LRCP packet header must be consumed. `Psot = 0` extends to terminal EOC,
+//! post-EOC bytes are limited to a required one-byte DICOM zero pad, and every
+//! included code-block must provide enough entropy data for its announced pass
+//! count.
 //!
 //! # Interop validation
 //! The reversible (5/3 lossless) path is validated against a captured OpenJPEG

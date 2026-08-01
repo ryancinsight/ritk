@@ -31,17 +31,22 @@
   allocation until their packet traversal exists. Structurally parse tile
   headers, reject unsupported coding/progression overrides and multi-part tiles,
   and require every expected LRCP packet. Correct the stale architecture claim
-  that production decode still uses `jpeg2k`/`openjp2`, and document the native parser boundary.
+  that production decode still uses `jpeg2k`/`openjp2`, and document the native
+  parser boundary. Reject zero-length and exhausted EBCOT bodies that claim
+  coding passes, derive `Psot=0` from terminal EOC, and accept no post-EOC data
+  except a required one-byte DICOM zero pad.
   Acceptance: complete native and captured OpenJPEG streams remain
   value-exact; marker-only, truncated-length, oversized-length, and missing-EOC
   cases and unsupported component traversal return contextual errors; focused formatting, warning-denied Clippy,
   Nextest, doctest, Rustdoc, mdBook, and review gates pass. The complete local
-  Nextest pass is 305/305, including the captured OpenJPEG corpus and fourteen
-  new malformed/unsupported-stream regressions. The first independent review
+  Nextest pass is 311/311, including the captured OpenJPEG corpus and twenty
+  new malformed/unsupported-stream regressions. Independent reviews
   exposed progression-override, tile-header scanning, and packet-completeness
-  gaps; those counterexamples now have regressions. Corrected-head formatting,
-  warning-denied Clippy, doctest, warning-denied Rustdoc, mdBook test/build, and
-  diff gates pass. Hosted gates and independent re-review remain.
+  gaps plus EBCOT exhaustion, `Psot=0`, and trailing-EOC defects; those
+  counterexamples now have regressions. Corrected-head formatting, 311/311
+  Nextest, warning-denied Clippy, doctest, warning-denied Rustdoc, and mdBook
+  test/build pass. Hosted gates and independent re-review remain for the new
+  head.
 
 - **FEAT-686-01** `[minor][arch]` - Establish a physically typed diffusion-MRI
   and tractography pipeline (REVIEW; owner=Codex;

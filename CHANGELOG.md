@@ -21,6 +21,9 @@
 - Parse tile headers structurally and reject progression or coding overrides,
   packed packet headers, multi-part tiles, and missing LRCP packets instead of
   treating incomplete data as a zero-filled image.
+- Derive `Psot = 0` tile extent from terminal EOC, reject payload after EOC
+  except a required one-byte DICOM zero pad, and reject zero-length or exhausted
+  EBCOT bodies that claim coding passes.
 - Correct codec architecture and book documentation to describe the RITK-native
   Rust decoder and its current grayscale boundary.
 

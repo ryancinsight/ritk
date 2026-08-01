@@ -23,7 +23,8 @@ fn sample_state_packs_independent_flags_into_one_byte() {
 
 fn enc_dec_roundtrip(samples: &[i32], w: usize, h: usize, orient: SubbandOrientation) {
     let enc = encode_code_block(samples, w, h, orient);
-    let dec = decode_code_block(&enc.bytes, w, h, enc.num_bit_planes, enc.num_passes, orient);
+    let dec = decode_code_block(&enc.bytes, w, h, enc.num_bit_planes, enc.num_passes, orient)
+        .expect("encoded code-block must decode");
     assert_eq!(dec.samples.len(), samples.len());
     for (i, (&orig, &decoded)) in samples.iter().zip(dec.samples.iter()).enumerate() {
         assert_eq!(
@@ -31,6 +32,31 @@ fn enc_dec_roundtrip(samples: &[i32], w: usize, h: usize, orient: SubbandOrienta
             "sample[{i}] round-trip: expected {orig}, got {decoded}"
         );
     }
+}
+
+#[test]
+fn ebcot_rejects_empty_body_with_declared_pass() {
+    let err = decode_code_block(&[], 1, 1, 1, 1, SubbandOrientation::LlOrLh)
+        .expect_err("a declared coding pass requires entropy bytes");
+    assert!(format!("{err:#}").contains("empty code-block body"));
+}
+
+#[test]
+fn ebcot_rejects_body_exhaustion_before_declared_passes() {
+    let samples: Vec<i32> = (0..4096)
+        .map(|index| ((index * 7919) % 65_535) - 32_768)
+        .collect();
+    let encoded = encode_code_block(&samples, 64, 64, SubbandOrientation::LlOrLh);
+    let err = decode_code_block(
+        &encoded.bytes[..1],
+        64,
+        64,
+        encoded.num_bit_planes,
+        encoded.num_passes,
+        SubbandOrientation::LlOrLh,
+    )
+    .expect_err("a truncated entropy body must not synthesize coefficients");
+    assert!(format!("{err:#}").contains("ended before"));
 }
 
 #[test]
