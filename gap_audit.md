@@ -114,6 +114,14 @@ Focused re-verification passes 541/541 Nextest cases, warning-denied Clippy and
 Rustdoc, doctests, standalone locked metadata, deterministic figure
 regeneration, and mdBook test/build.
 
+The first hosted wheel smoke run exposed two existing rank-2 NRRD failures on
+upstream SimpleITK fixtures: acquisition-axis discovery parsed two-component
+`space directions` with the rank-3 slot parser before the planar branch could
+run. Rank-2 files now bypass that inapplicable parser, then validate and promote
+directions and origin through the planar path. The public-reader regression
+asserts exact `[1,Y,X]` shape, spacing, origin, and voxel order; all 68
+`ritk-nrrd` Nextest cases and warning-denied package Clippy pass locally.
+
 ## SAFE-685-01 audit (2026-07-31)
 
 The TIFF book inventory omitted a supported format owner. The grayscale reader

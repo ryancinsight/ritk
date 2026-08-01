@@ -6841,5 +6841,7 @@ ritk-core: 0.8.0 → 0.9.0 | ritk-registration: 0.52.0 → 0.53.0
   tractography regressions, MGH payload validation, and explicit series-reader
   book semantics; pass 541/541 affected Nextest cases and all focused local
   documentation and lint gates.
+- [x] Fix the hosted rank-2 NRRD regression with an exact public-reader test;
+  pass 68/68 package Nextest cases and warning-denied Clippy.
 - [ ] Run focused and hosted gates, adjudicate review, merge, and verify the
   live Pages artifact.

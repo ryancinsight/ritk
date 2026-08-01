@@ -58,6 +58,9 @@
 - Validate each tractography seed before invoking the direction callback.
 - Stop tractography at the last in-domain point instead of appending the first
   proposal outside the trackable field.
+- Read rank-2 NRRD `space directions` and `space origin` through the planar
+  parser before promoting the image to `[1, Y, X]`, instead of rejecting valid
+  two-component vectors in the rank-3 acquisition-axis parser.
 
 ## [Unreleased] — NRRD acquisition series (ATLAS-DMRI-IO-001)
 

@@ -176,10 +176,17 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
 
     // The acquisition axis must be located before `sizes` and `space
     // directions` can be split into spatial and non-spatial parts.
-    let direction_slots = headers
-        .get("space directions")
-        .map(|s| parse_space_direction_slots(s))
-        .transpose()?;
+    // A rank-2 file has no acquisition axis and its direction vectors have two
+    // components. Do not route those vectors through the rank-3 slot parser;
+    // the planar metadata parser below validates and promotes them.
+    let direction_slots = if dimension == 2 {
+        None
+    } else {
+        headers
+            .get("space directions")
+            .map(|s| parse_space_direction_slots(s))
+            .transpose()?
+    };
     let direction_flags: Option<Vec<bool>> = direction_slots
         .as_ref()
         .map(|slots| slots.iter().map(Option::is_some).collect());
