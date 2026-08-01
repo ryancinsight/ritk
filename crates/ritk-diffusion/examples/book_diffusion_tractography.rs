@@ -10,7 +10,9 @@ use anyhow::{Context, Result, bail};
 use ritk_diffusion::odf::{OdField, OdfConfig, estimate_odf};
 use ritk_diffusion_scheme::{GradientFrame, GradientScheme};
 use ritk_spatial::{Point, Vector};
-use ritk_tractography::{TrackingDirection, TractographyConfig, euler_tractography};
+use ritk_tractography::{
+    TerminationReason, TrackingDirection, TractographyConfig, euler_tractography,
+};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
@@ -125,6 +127,12 @@ fn tracking_paths() -> Result<Vec<Vec<[f64; 2]>>> {
             seeds.len(),
             result.streamlines_generated()
         );
+    }
+    if result.streamlines().iter().any(|streamline| {
+        streamline.forward_termination() != TerminationReason::FieldBoundary
+            || streamline.backward_termination() != Some(TerminationReason::FieldBoundary)
+    }) {
+        bail!("expected every analytical streamline half to terminate at the field boundary");
     }
     let paths = result
         .streamlines()

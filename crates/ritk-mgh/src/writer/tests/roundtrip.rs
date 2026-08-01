@@ -78,6 +78,29 @@ fn test_round_trip_mgh_gz_extension() -> Result<()> {
 }
 
 #[test]
+fn test_round_trip_uppercase_gzip_extensions() -> Result<()> {
+    let dir = tempdir()?;
+    let backend = TestBackend::default();
+    let data_vec: Vec<f32> = (0..8u32).map(|i| i as f32 * 2.5).collect();
+    let image = make_image(data_vec.clone(), 2, 2, 2);
+
+    for name in ["TEST.MGZ", "TEST.MGH.GZ"] {
+        let path = dir.path().join(name);
+        write_mgh(&image, &path, &backend)?;
+        let bytes = std::fs::read(&path)?;
+        assert_eq!(&bytes[..2], &[0x1f, 0x8b], "{name} gzip magic");
+
+        let loaded = crate::read_mgh::<TestBackend, _>(&path, &backend)?;
+        loaded.data_slice().map(|loaded_vals| {
+            for (i, (&got, &expected)) in loaded_vals.iter().zip(data_vec.iter()).enumerate() {
+                assert_eq!(got.to_bits(), expected.to_bits(), "{name} voxel[{i}]");
+            }
+        })?;
+    }
+    Ok(())
+}
+
+#[test]
 fn test_round_trip_nondefault_spatial() -> Result<()> {
     let dir = tempdir()?;
     let path = dir.path().join("spatial_rt.mgh");

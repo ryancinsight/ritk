@@ -133,6 +133,7 @@ jobs:
             docs/book/figures/tiff_roundtrip.svg
           cargo run -p ritk-diffusion --example book_diffusion_tractography -- \
             docs/book/figures/diffusion_tractography.svg
+          git diff --exit-code -- docs/book/figures
 
       - name: Build book
         run: |

@@ -27,7 +27,8 @@ impl DiffusionWeighting {
     /// # Errors
     ///
     /// Returns [`GradientSchemeError::InvalidWeighting`] for a negative,
-    /// NaN, or infinite value.
+    /// NaN, or infinite value, or when conversion to canonical SI storage
+    /// overflows.
     pub fn from_seconds_per_square_millimeter(value: f64) -> Result<Self, GradientSchemeError> {
         Self::at_index(value, 0)
     }
@@ -36,9 +37,11 @@ impl DiffusionWeighting {
         if !value.is_finite() || value < 0.0 {
             return Err(GradientSchemeError::InvalidWeighting { index, value });
         }
-        Ok(Self(Quantity::from_base(
-            value * SQUARE_MILLIMETERS_PER_SQUARE_METER,
-        )))
+        let canonical = value * SQUARE_MILLIMETERS_PER_SQUARE_METER;
+        if !canonical.is_finite() {
+            return Err(GradientSchemeError::InvalidWeighting { index, value });
+        }
+        Ok(Self(Quantity::from_base(canonical)))
     }
 
     /// Return the value in seconds per square millimeter.

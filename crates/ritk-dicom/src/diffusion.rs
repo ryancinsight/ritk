@@ -24,10 +24,12 @@ use crate::attribute::{tags, DicomAttributeRead};
 ///
 /// # Errors
 ///
-/// Returns an error when only one element is present, the b-value cannot be
-/// decoded, the direction does not contain exactly three components, or any
-/// component is non-finite. Full unit and zero/unit-vector validation occurs
-/// when the pair enters [`GradientScheme`].
+/// Returns an error when orientation is present without a b-value, orientation
+/// is absent for a nonzero b-value, the b-value cannot be decoded, the
+/// direction does not contain exactly three components, or any component is
+/// non-finite. A zero b-value without orientation is accepted as b0 with the
+/// zero vector. Full unit and zero/unit-vector validation occurs when the pair
+/// enters [`GradientScheme`].
 pub fn extract_diffusion_pair(
     object: &impl DicomAttributeRead,
 ) -> Result<Option<(f64, Vector<3>)>> {
@@ -71,8 +73,9 @@ pub fn extract_diffusion_pair(
 ///
 /// # Errors
 ///
-/// Returns an error when the file cannot be parsed, lacks the two standard
-/// top-level diffusion elements, or violates the validated scheme contract.
+/// Returns an error when the file cannot be parsed, lacks a standard top-level
+/// b-value, lacks orientation for a nonzero b-value, or violates the validated
+/// scheme contract. A b0 instance may omit orientation.
 pub fn read_dicom_gradient_scheme_from_file<P: AsRef<Path>>(path: P) -> Result<GradientScheme> {
     read_dicom_gradient_scheme_from_files([path])
 }

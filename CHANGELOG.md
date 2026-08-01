@@ -35,6 +35,10 @@
   avoiding a complete flat decoded series followed by a second copy.
 - Release NRRD encoded payload storage before allocating deinterleaved volume
   output, and reserve the bounded volume buffers fallibly.
+- Route DICOM directories through unified native series dispatch as one
+  reconstructed 3-D volume.
+- Fail the Pages gate when regenerated book figures differ from their tracked
+  artifacts.
 
 ### Fixed
 
@@ -42,11 +46,15 @@
   malformed coordinate frames, mixed-shell or underdetermined ODF systems,
   invalid tracking configurations, and malformed direction-field samples
   without partial output or panic. Preserve the gradient frame on fitted ODFs.
+- Reject scanner-facing b-values whose canonical SI conversion overflows and
+  non-finite ODF normalization, solver, transform, residual, or evaluation
+  intermediates.
 - Accept standard zero-weight DICOM frames without an orientation sequence,
   while rejecting missing orientation for nonzero weighting; require NRRD
   gradient metadata to match the acquisition-axis extent.
 - Reject multi-frame MGH input before payload decoding through single-volume
-  APIs, and recognize `.mgh.gz` in unified native dispatch.
+  APIs, recognize `.mgh.gz` in unified native dispatch, and select gzip for
+  `.mgz` or `.mgh.gz` without ASCII case sensitivity.
 - Validate each tractography seed before invoking the direction callback.
 - Stop tractography at the last in-domain point instead of appending the first
   proposal outside the trackable field.

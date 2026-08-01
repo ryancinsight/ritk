@@ -16,7 +16,7 @@
 > References to these tools in the entries below are historical.
 
 - **FEAT-686-01 [minor][arch] - Establish a physically typed diffusion-MRI
-  and tractography pipeline** (IN PROGRESS; owner=Codex;
+  and tractography pipeline** (REVIEW; owner=Codex;
   last-update=2026-07-31; scope=`Cargo.{toml,lock}`,
   `crates/ritk-{diffusion-scheme,diffusion,tractography}/**`, diffusion
   metadata integration in `crates/ritk-{dicom,nrrd,mgh,io}/**`,

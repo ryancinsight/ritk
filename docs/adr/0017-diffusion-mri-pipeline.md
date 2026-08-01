@@ -158,14 +158,15 @@ state.
 
 ## Verification
 
-Format tests cover valid single- and multi-shell schemes, frame conversion,
-gradient scaling, volume order, and malformed/non-finite metadata. Properties
-cover construction invariants and rotation norm preservation. ODF tests compare
-the implementation with independently synthesized even-order signals and assert
-antipodal symmetry, isotropic behavior, finite output, residuals, and dominant-
-axis angular error. Tractography tests cover straight and curved fields,
-bidirectional joining, tissue boundaries, turn limits, invalid directions,
-configuration errors, and maximum length.
+Format and value-semantic tests cover valid single- and multi-shell schemes,
+frame conversion, gradient scaling, volume order, malformed/non-finite metadata,
+construction invariants, and rotation norm preservation. ODF tests use an
+independently synthesized single-tensor signal and assert antipodal symmetry,
+isotropic behavior, finite residual reporting, shell tolerance, and a
+full-sphere dominant-axis angular bound. Tractography tests cover straight and
+analytical curved fields, bidirectional joining, tissue boundaries, turn
+limits, invalid directions, configuration errors, and the exact bounded path
+length.
 
 The runnable book example uses a deterministic analytical fiber phantom. It
 asserts every displayed metric before generating the committed SVG; CI

@@ -213,7 +213,8 @@ pub fn is_native_write_capable(fmt: ImageFormat) -> bool {
 /// Read a 3-D f32 image through the native reader contract.
 ///
 /// DICOM directories are accepted before extension inference because a series
-/// directory has no image extension.
+/// directory has no image extension. Its ordered slices become one 3-D image
+/// in a one-volume acquisition series.
 ///
 /// # Errors
 ///
@@ -367,11 +368,10 @@ pub fn read_image_series_native<P: AsRef<std::path::Path>>(
     path: P,
 ) -> anyhow::Result<NativeSeries> {
     let path = path.as_ref();
+    let backend = NativeBackend::default();
     if path.is_dir() {
-        return Err(anyhow::anyhow!(
-            "series I/O from a DICOM directory is not yet supported through \
-             the native series dispatch; use `read_native_dicom_series` directly"
-        ));
+        let image = read_native_dicom_series(path, &backend)?;
+        return Ok(vec![image]);
     }
 
     let fmt = ImageFormat::from_path(path).ok_or_else(|| {
@@ -381,7 +381,6 @@ pub fn read_image_series_native<P: AsRef<std::path::Path>>(
         )
     })?;
 
-    let backend = NativeBackend::default();
     match fmt {
         ImageFormat::NIfTI => ritk_nifti::read_nifti_series(path, &backend),
         ImageFormat::Nrrd => ritk_nrrd::read_nrrd_series(path, &backend),

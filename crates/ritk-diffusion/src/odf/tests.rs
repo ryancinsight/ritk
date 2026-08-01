@@ -91,6 +91,34 @@ fn tensor_phantom_odf_peaks_on_analytical_axis() -> Result<(), OdfError> {
     assert!(x > y, "x-axis ODF {x} must exceed y-axis ODF {y}");
     assert!(x > z, "x-axis ODF {x} must exceed z-axis ODF {z}");
     assert_eq!(odf.coefficients().len(), 28);
+    assert!(odf.normalized_signal_residual().is_finite());
+    assert!(odf.normalized_signal_residual() >= 0.0);
+
+    const POLAR_INTERVALS: usize = 180;
+    const AZIMUTH_SAMPLES: usize = 360;
+    let mut peak = ([0.0; 3], f64::NEG_INFINITY);
+    for polar_index in 0..=POLAR_INTERVALS {
+        let theta = std::f64::consts::PI * polar_index as f64 / POLAR_INTERVALS as f64;
+        for azimuth_index in 0..AZIMUTH_SAMPLES {
+            let phi = std::f64::consts::TAU * azimuth_index as f64 / AZIMUTH_SAMPLES as f64;
+            let direction = [
+                theta.sin() * phi.cos(),
+                theta.sin() * phi.sin(),
+                theta.cos(),
+            ];
+            let value = odf.evaluate_at_direction(direction)?;
+            if value > peak.1 {
+                peak = (direction, value);
+            }
+        }
+    }
+    let angular_error = peak.0[0].abs().clamp(-1.0, 1.0).acos();
+    let grid_bound = std::f64::consts::PI / POLAR_INTERVALS as f64;
+    assert!(
+        angular_error <= grid_bound,
+        "ODF peak error {} degrees exceeds the one-degree scan bound",
+        angular_error.to_degrees()
+    );
     Ok(())
 }
 
@@ -116,6 +144,13 @@ fn invalid_configuration_signals_and_grid_are_typed_errors() {
     assert!(matches!(
         odf.evaluate_on_grid(0, 12),
         Err(OdfError::InvalidGrid { .. })
+    ));
+
+    let mut extreme_signals = vec![f64::MAX; 31];
+    extreme_signals[0] = f64::MIN_POSITIVE;
+    assert!(matches!(
+        estimate_odf(&scheme, &extreme_signals, OdfConfig::default()),
+        Err(OdfError::NonFiniteNormalizedSignal { index: 1, .. })
     ));
 }
 
@@ -160,6 +195,26 @@ fn mixed_shells_fail_and_frame_is_preserved() -> Result<(), OdfError> {
             .expect("single-shell image-axis scheme");
     let odf = estimate_odf(&image_axis, &signals, OdfConfig::default())?;
     assert_eq!(odf.frame(), GradientFrame::ImageAxis);
+
+    let mut tolerated_pairs = image_axis
+        .directions()
+        .iter()
+        .map(|entry| {
+            (
+                entry.weighting().seconds_per_square_millimeter(),
+                entry.direction(),
+            )
+        })
+        .collect::<Vec<_>>();
+    tolerated_pairs[2].0 = 1_000.5;
+    let tolerated_scheme = GradientScheme::from_seconds_per_square_millimeter(
+        tolerated_pairs,
+        GradientFrame::ImageAxis,
+    )
+    .expect("scheme inside the configured shell tolerance");
+    let tolerance = OdfConfig::new(4, 0.006, weighting(50.0), weighting(1.0))?;
+    let tolerated = estimate_odf(&tolerated_scheme, &signals, tolerance)?;
+    assert_eq!(tolerated.frame(), GradientFrame::ImageAxis);
     Ok(())
 }
 
@@ -172,4 +227,56 @@ fn spherical_grid_is_flat_and_finite() -> Result<(), OdfError> {
     assert_eq!(grid.values().len(), 128);
     assert!(grid.values().iter().all(|value| value.is_finite()));
     Ok(())
+}
+
+#[test]
+fn evaluation_rejects_finite_coefficient_overflow() {
+    let basis = RealSphericalHarmonicBasis::new(6).expect("valid even basis");
+    let mut coefficients = vec![0.0; basis.iter_lm().count()];
+    let degree_six_zonal = basis
+        .iter_lm()
+        .position(|(_, degree, order)| degree == 6 && order == 0)
+        .expect("degree-six zonal coefficient exists");
+    coefficients[degree_six_zonal] = f64::MAX;
+    let odf = OdField {
+        coefficients: coefficients.into_boxed_slice(),
+        basis,
+        baseline_signal: 1.0,
+        normalized_signal_residual: 0.0,
+        frame: GradientFrame::Lps,
+    };
+
+    assert!(matches!(
+        odf.evaluate(0.0, 0.0),
+        Err(OdfError::NonFiniteEvaluation { .. })
+    ));
+    assert!(matches!(
+        odf.evaluate_at_direction([0.0, 0.0, 1.0]),
+        Err(OdfError::NonFiniteEvaluation { .. })
+    ));
+
+    let grid_basis = RealSphericalHarmonicBasis::new(6).expect("valid even basis");
+    let grid_coefficients = grid_basis
+        .iter_lm()
+        .map(|(_, degree, order)| {
+            f64::MAX.copysign(real_spherical_harmonic(
+                degree,
+                order,
+                std::f64::consts::FRAC_PI_2,
+                0.0,
+            ))
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
+    let grid_odf = OdField {
+        coefficients: grid_coefficients,
+        basis: grid_basis,
+        baseline_signal: 1.0,
+        normalized_signal_residual: 0.0,
+        frame: GradientFrame::Lps,
+    };
+    assert!(matches!(
+        grid_odf.evaluate_on_grid(1, 1),
+        Err(OdfError::NonFiniteEvaluation { .. })
+    ));
 }

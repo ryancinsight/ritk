@@ -25,35 +25,72 @@ dropped geometry failures, and appended the first proposal outside the field.
 The corrected boundary stores b-values as Aequitas time-per-area quantities,
 converts scanner-facing s/mm² explicitly, validates each gradient and frame,
 implements NA-MIC nominal-weighting/measurement-frame semantics, and labels
-DICOM directions LPS. Analytical Q-ball estimation now augments the fit with
-the Laplace–Beltrami penalty and applies `2π P_l(0)` degree-wise. The known
+DICOM directions LPS while accepting the standard absence of orientation on
+b0 instances. NRRD validates the gradient count against the acquisition axis;
+MGH rejects multi-volume input from the header before payload decoding; and
+native dispatch recognizes both `.mgz` and `.mgh.gz`. Analytical Q-ball
+estimation rejects mixed nonzero shells outside a configured absolute tolerance,
+augments the fit with the Laplace–Beltrami penalty, applies `2π P_l(0)`
+degree-wise, and preserves the declared measurement frame. The known
 single-tensor test and book example recover the x-axis peak; configuration,
-finite-input, underdetermined-system, antipodal, and grid-layout partitions
-are covered by value assertions.
+finite-input, underdetermined-system, antipodal, frame, shell, and grid-layout
+partitions are covered by value assertions.
 
-The tracking API now validates all configuration and direction-field values,
-uses fallible bounded reservations, emits typed termination reasons, reports
-Gaia geometry failures, and excludes out-of-domain proposals. MGH series
-decoding removes the former full-series staging copy, and NRRD releases encoded
-payload storage before constructing volume buffers. These are ownership and
-allocation-count arguments, not measured throughput or RSS claims.
+The tracking API now validates configuration, seeds, and proposed sample
+points before invoking user callbacks; validates returned directions before
+storing geometry; uses fallible bounded reservations; emits typed termination
+reasons; reports Gaia geometry failures; and excludes out-of-domain proposals.
+MGH series decoding removes the former full-series staging copy, and NRRD
+releases encoded payload storage before constructing volume buffers. These are
+ownership and allocation-count arguments, not
+measured throughput or RSS claims.
 
-The generated diffusion/tractography SVG was rendered at 1440 pixels wide and
+The generated diffusion/tractography SVG was rendered at 1800 pixels wide and
 inspected. Its 48 acquisition directions, attenuation curve, Q-ball ODF,
-independent analytical axis, local vector glyphs, five seeds, domain bounds,
-and five streamlines are visually distinct. The generator reports 0.00° peak
-error and rejects any streamline point outside the analytical field. A warm
-run completed in 462.038 ms and reproduced SHA-256
+independent analytical axis, five seeds, domain bounds, and five streamlines
+are visually distinct. Its full-sphere peak search reports 0.00° error and the
+example rejects any streamline point outside the analytical field. A warm
+direct execution of the verified example completed in 97.820 ms and reproduced
+SHA-256
 `7BC3D251B0FF65CFD7C1E3313A1C45E665850A75A2B70AD3E840E89A8839BBE9`.
 
-Focused Nextest gates pass 19 diffusion/tractography tests, 47 MGH tests, 65
-NRRD tests, 23 DICOM tests, and 7 native-series dispatch tests. Warning-denied
-Clippy passes for the three new crates and the four affected format/I/O crates;
-their doctests and warning-denied Rustdoc also pass. `mdbook test` and
-`mdbook build` pass. SemVer checks against `d3d3d811` pass all 196 checks for
-each affected existing crate (`ritk-dicom`, `ritk-mgh`, `ritk-nrrd`, and
-`ritk-io`); the `ritk-io` wrapper exceeded its outer shell deadline only after
-the checker had printed its complete passing result.
+Independent falsification review found that the unified series-reader docs
+promised DICOM-directory dispatch while the implementation rejected it, the
+Pages workflow regenerated figures without checking the tracked diff, and ADR
+0017 overstated its behavioral test coverage. The dispatch now delegates to
+the native DICOM series reader and is differentially tested against that direct
+path; CI fails on any regenerated figure diff; and the verification contract is
+backed by full-sphere angular, shell-tolerance, analytical curved-field, and
+exact path-length tests.
+
+The second independent falsification review found five additional boundary
+defects: finite scanner b-values could overflow during canonical-unit scaling,
+extreme finite signals could produce non-finite normalized or ODF
+intermediates, uppercase MGH gzip suffixes were not recognized, DICOM b0
+documentation still required an orientation, and the figure labeled boundary
+termination without asserting the emitted termination reasons. Canonical
+conversion and every ODF stage, including spherical-harmonic evaluation, now
+reject non-finite results with typed errors;
+the MGH suffix check is allocation-free and ASCII-case-insensitive; the DICOM
+contract documents the standard b0 exception; and the example asserts both
+streamline halves terminate at the field boundary before rendering that label.
+The initial grid-overflow regression incorrectly reused a pole-sensitive
+coefficient on a one-cell grid whose cell center is the equator. The corrected
+oracle aligns finite coefficient signs with the real basis at that equatorial
+sample, so its positive finite-term sum must overflow without changing the
+grid or weakening the assertion.
+
+The focused Nextest gate passes 537 tests across nine binaries for the seven
+affected crates in 6.011 seconds. Warning-denied Clippy
+passes their complete target sets; the
+only additional change is a scoped Rust 1.97 lint expectation on an already
+const morphology thread-local initializer pulled through `ritk-io`. Their
+doctests and warning-denied Rustdoc pass. `mdbook test` and `mdbook build` pass,
+and the built book contains the generated chapter and figure. SemVer checks
+against `d3d3d811` pass all 196 checks for each affected existing crate
+(`ritk-dicom`, `ritk-mgh`, `ritk-nrrd`, and `ritk-io`); the `ritk-io` wrapper
+exceeded its outer shell deadline only after the checker printed its complete
+passing result.
 
 ## SAFE-685-01 audit (2026-07-31)
 

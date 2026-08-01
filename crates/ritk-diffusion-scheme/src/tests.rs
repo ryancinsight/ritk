@@ -19,13 +19,17 @@ fn weighting_converts_to_canonical_si() {
 
 #[test]
 fn weighting_rejects_negative_and_non_finite_values() {
-    for value in [-1.0, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+    for value in [-1.0, f64::NAN, f64::INFINITY, f64::NEG_INFINITY, f64::MAX] {
         assert!(matches!(
             DiffusionWeighting::from_seconds_per_square_millimeter(value),
             Err(GradientSchemeError::InvalidWeighting { value: actual, .. })
                 if actual.to_bits() == value.to_bits()
         ));
     }
+    let largest_representable = (f64::MAX / 1.0e6).next_down();
+    let weighting = DiffusionWeighting::from_seconds_per_square_millimeter(largest_representable)
+        .expect("largest representable canonical weighting");
+    assert!(weighting.seconds_per_square_meter().is_finite());
 }
 
 #[test]

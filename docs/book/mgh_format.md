@@ -3,7 +3,8 @@
 MGH is FreeSurfer's native volume format. MGZ stores the same byte stream
 inside gzip compression. RITK exposes both through the `ritk-mgh` crate:
 
-- `read_mgh` reads `.mgh`, `.mgz`, and `.mgh.gz`;
+- `read_mgh` reads `.mgh`, `.mgz`, and `.mgh.gz`, with ASCII
+  case-insensitive suffix matching;
 - `write_mgh` writes the representation selected by the path extension;
 - `MghReader` is a stateless adapter whose `read` method receives the backend;
 - `MghWriter` retains a backend for repeated operations.

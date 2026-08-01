@@ -34,6 +34,30 @@ pub enum OdfError {
         /// Invalid signal value.
         value: f64,
     },
+    /// Baseline normalization overflowed despite finite input samples.
+    #[error("normalized signal at acquisition index {index} is not finite: {value}")]
+    NonFiniteNormalizedSignal {
+        /// Acquisition-order index.
+        index: usize,
+        /// Non-finite normalized value.
+        value: f64,
+    },
+    /// The numerical solve or Funk-Radon transform produced a non-finite coefficient.
+    #[error("{stage} coefficient at index {index} is not finite: {value}")]
+    NonFiniteCoefficient {
+        /// Numerical stage that produced the value.
+        stage: &'static str,
+        /// Coefficient index.
+        index: usize,
+        /// Non-finite coefficient value.
+        value: f64,
+    },
+    /// Residual evaluation overflowed or otherwise became non-finite.
+    #[error("normalized signal residual is not finite: {value}")]
+    NonFiniteResidual {
+        /// Non-finite residual value.
+        value: f64,
+    },
     /// No samples fall at or below the configured b0 threshold.
     #[error("gradient scheme has no unweighted reference volumes")]
     NoB0Volumes,
@@ -89,6 +113,16 @@ pub enum OdfError {
     /// Evaluation angles or direction violate the finite domain.
     #[error("invalid ODF evaluation direction: {0}")]
     InvalidEvaluation(String),
+    /// Finite coefficients overflowed while evaluating the spherical-harmonic basis.
+    #[error("ODF evaluation at theta {theta}, phi {phi} is not finite: {value}")]
+    NonFiniteEvaluation {
+        /// Polar angle in radians.
+        theta: f64,
+        /// Azimuthal angle in radians.
+        phi: f64,
+        /// Non-finite evaluated value.
+        value: f64,
+    },
     /// Apollo rejected the even-degree basis configuration.
     #[error("spherical-harmonic basis error: {0}")]
     Basis(#[from] RealShError),
@@ -243,7 +277,9 @@ impl OdField {
     /// # Errors
     ///
     /// Returns [`OdfError::InvalidEvaluation`] unless `theta` is finite in
-    /// `[0, pi]` and `phi` is finite.
+    /// `[0, pi]` and `phi` is finite. Returns
+    /// [`OdfError::NonFiniteEvaluation`] if finite coefficients overflow while
+    /// evaluating the basis.
     pub fn evaluate(&self, theta: f64, phi: f64) -> Result<f64, OdfError> {
         if !theta.is_finite() || !(0.0..=std::f64::consts::PI).contains(&theta) {
             return Err(OdfError::InvalidEvaluation(format!(
@@ -255,7 +291,7 @@ impl OdField {
                 "phi must be finite, got {phi}"
             )));
         }
-        Ok(self.evaluate_unchecked(theta, phi))
+        self.evaluate_checked(theta, phi)
     }
 
     /// Evaluate at a finite unit Cartesian direction in [`Self::frame`].
@@ -263,7 +299,9 @@ impl OdField {
     /// # Errors
     ///
     /// Returns [`OdfError::InvalidEvaluation`] when a component is non-finite
-    /// or the norm differs from one by more than `1e-6`.
+    /// or the norm differs from one by more than `1e-6`. Returns
+    /// [`OdfError::NonFiniteEvaluation`] if finite coefficients overflow while
+    /// evaluating the basis.
     pub fn evaluate_at_direction(&self, direction: [f64; 3]) -> Result<f64, OdfError> {
         if direction.iter().any(|value| !value.is_finite()) {
             return Err(OdfError::InvalidEvaluation(format!(
@@ -282,7 +320,7 @@ impl OdField {
         }
         let theta = direction[2].clamp(-1.0, 1.0).acos();
         let phi = direction[1].atan2(direction[0]);
-        Ok(self.evaluate_unchecked(theta, phi))
+        self.evaluate_checked(theta, phi)
     }
 
     /// Evaluate a contiguous equiangular spherical grid.
@@ -292,7 +330,9 @@ impl OdField {
     /// # Errors
     ///
     /// Returns [`OdfError::InvalidGrid`] for an empty dimension, element-count
-    /// overflow, or allocation failure.
+    /// overflow, or allocation failure. Returns
+    /// [`OdfError::NonFiniteEvaluation`] if finite coefficients overflow at a
+    /// grid direction.
     pub fn evaluate_on_grid(
         &self,
         theta_samples: usize,
@@ -324,7 +364,7 @@ impl OdField {
             let theta = std::f64::consts::PI * (theta_index as f64 + 0.5) / theta_samples as f64;
             for phi_index in 0..phi_samples {
                 let phi = std::f64::consts::TAU * phi_index as f64 / phi_samples as f64;
-                values.push(self.evaluate_unchecked(theta, phi));
+                values.push(self.evaluate_checked(theta, phi)?);
             }
         }
         Ok(SphericalOdfGrid {
@@ -333,14 +373,19 @@ impl OdField {
         })
     }
 
-    fn evaluate_unchecked(&self, theta: f64, phi: f64) -> f64 {
-        self.basis
+    fn evaluate_checked(&self, theta: f64, phi: f64) -> Result<f64, OdfError> {
+        let value: f64 = self
+            .basis
             .iter_lm()
             .zip(self.coefficients.iter())
             .map(|((_, degree, order), coefficient)| {
                 coefficient * real_spherical_harmonic(degree, order, theta, phi)
             })
-            .sum()
+            .sum();
+        if !value.is_finite() {
+            return Err(OdfError::NonFiniteEvaluation { theta, phi, value });
+        }
+        Ok(value)
     }
 }
 
@@ -348,9 +393,9 @@ impl OdField {
 ///
 /// # Errors
 ///
-/// Returns a typed error for count mismatch, non-finite signals, missing b0
-/// or weighted samples, an underdetermined basis, invalid baseline, or a
-/// failed least-squares solve.
+/// Returns a typed error for count mismatch, non-finite input or intermediate
+/// values, missing b0 or weighted samples, an underdetermined basis, invalid
+/// baseline, or a failed least-squares solve.
 pub fn estimate_odf(
     scheme: &GradientScheme,
     signals: &[f64],
@@ -421,12 +466,36 @@ pub fn estimate_odf(
         .collect::<Vec<_>>();
     let normalized = dwi_indices
         .iter()
-        .map(|index| signals[*index] / baseline_signal)
-        .collect::<Vec<_>>();
+        .map(|index| {
+            let value = signals[*index] / baseline_signal;
+            if !value.is_finite() {
+                return Err(OdfError::NonFiniteNormalizedSignal {
+                    index: *index,
+                    value,
+                });
+            }
+            Ok(value)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     let design = basis.design_matrix(&directions);
     let signal_coefficients =
         solve_regularized(&design, &normalized, &basis, config.regularization())?;
+    if let Some((index, value)) = signal_coefficients
+        .iter()
+        .copied()
+        .enumerate()
+        .find(|(_, value)| !value.is_finite())
+    {
+        return Err(OdfError::NonFiniteCoefficient {
+            stage: "signal-fit",
+            index,
+            value,
+        });
+    }
     let residual = residual_norm(&design, &signal_coefficients, &normalized);
+    if !residual.is_finite() {
+        return Err(OdfError::NonFiniteResidual { value: residual });
+    }
 
     let coefficients = basis
         .iter_lm()
@@ -434,8 +503,20 @@ pub fn estimate_odf(
         .map(|((_, degree, _), coefficient)| {
             std::f64::consts::TAU * legendre_at_zero(degree) * coefficient
         })
-        .collect::<Vec<_>>()
-        .into_boxed_slice();
+        .collect::<Vec<_>>();
+    if let Some((index, value)) = coefficients
+        .iter()
+        .copied()
+        .enumerate()
+        .find(|(_, value)| !value.is_finite())
+    {
+        return Err(OdfError::NonFiniteCoefficient {
+            stage: "Funk-Radon",
+            index,
+            value,
+        });
+    }
+    let coefficients = coefficients.into_boxed_slice();
 
     Ok(OdField {
         coefficients,

@@ -32,7 +32,44 @@ fn forward_step_limit_has_exact_geometry_and_reason() -> Result<(), Tractography
     assert_eq!(line.geometry().len(), 6);
     assert_eq!(line.geometry().points()[0].x, 0.0);
     assert_eq!(line.geometry().points()[5].x, 5.0);
+    assert_eq!(line.geometry().arc_length(), 5.0);
     assert_eq!(line.forward_termination(), TerminationReason::StepLimit);
+    Ok(())
+}
+
+#[test]
+fn circular_tangent_field_has_analytical_radius_growth() -> Result<(), TractographyError> {
+    const STEP: f64 = 0.01;
+    const STEPS: usize = 100;
+    let field = |point: &Point<3>| {
+        let [x, y, _] = point.to_array();
+        let radius = x.hypot(y);
+        Some(Vector::new([-y / radius, x / radius, 0.0]))
+    };
+    let config = TractographyConfig::new(STEP, STEPS, 2.0, TrackingDirection::Forward)?;
+    let result = euler_tractography(&[Point::new([1.0, 0.0, 0.0])], config, field)?;
+    let line = &result.streamlines()[0];
+    let points = line.geometry().points();
+    let end = points[STEPS];
+
+    assert_eq!(points.len(), STEPS + 1);
+    assert_eq!(line.forward_termination(), TerminationReason::StepLimit);
+    let expected_radius_squared = 1.0 + STEPS as f64 * STEP * STEP;
+    let actual_radius_squared = end.x.mul_add(end.x, end.y * end.y);
+    let radius_roundoff_bound = 4_096.0 * f64::EPSILON * expected_radius_squared;
+    assert!(
+        (actual_radius_squared - expected_radius_squared).abs() <= radius_roundoff_bound,
+        "radius² {actual_radius_squared} differs from {expected_radius_squared}"
+    );
+    let expected_length = STEPS as f64 * STEP;
+    let length_roundoff_bound = 4_096.0 * f64::EPSILON * expected_length;
+    assert!(
+        (line.geometry().arc_length() - expected_length).abs() <= length_roundoff_bound,
+        "curved path length {} differs from {expected_length}",
+        line.geometry().arc_length()
+    );
+    assert!(end.x < points[0].x);
+    assert!(end.y > points[0].y);
     Ok(())
 }
 
