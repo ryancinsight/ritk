@@ -36,6 +36,16 @@ single-tensor test and book example recover the x-axis peak; configuration,
 finite-input, underdetermined-system, antipodal, frame, shell, and grid-layout
 partitions are covered by value assertions.
 
+Provider closure is no longer overlay-dependent. Apollo PR #69 merged the
+checked real spherical-harmonic evaluator and one-allocation design-matrix API
+as `db218665` after exact-head Rust, Python, provider, dependency, and
+byte-identical benchmark gates passed. RITK propagates those typed failures and
+pins all Apollo packages to the merge revision. Local verification passes
+537/537 affected Nextest cases, warning-denied Clippy and Rustdoc, doctests,
+deterministic figure regeneration, and mdBook test/build. The regenerated
+figure retains SHA-256
+`7BC3D251B0FF65CFD7C1E3313A1C45E665850A75A2B70AD3E840E89A8839BBE9`.
+
 The tracking API now validates configuration, seeds, and proposed sample
 points before invoking user callbacks; validates returned directions before
 storing geometry; uses fallible bounded reservations; emits typed termination

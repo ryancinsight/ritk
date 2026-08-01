@@ -46,6 +46,13 @@
   with generated data; the example stays within the committed runtime budget;
   and formatting, warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook,
   semantic-version, review, and hosted gates pass.
+  Apollo PR #69 merged as `db218665` after exact-head Rust, Python, provider,
+  dependency, and byte-identical benchmark gates passed. This branch now pins
+  every Apollo package to that merge and propagates the provider's fallible
+  real-harmonic API. Merged-provider local gates pass warning-denied Clippy,
+  537/537 affected Nextest cases, doctests, warning-denied Rustdoc, deterministic
+  figure regeneration, and mdBook test/build; hosted gates and live Pages
+  verification remain.
 
 - **SAFE-685-01 [patch] - Bound and document TIFF volume decoding**
   (DONE; owner=Codex; last-update=2026-07-31; scope=

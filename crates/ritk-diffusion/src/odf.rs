@@ -378,10 +378,10 @@ impl OdField {
             .basis
             .iter_lm()
             .zip(self.coefficients.iter())
-            .map(|((_, degree, order), coefficient)| {
-                coefficient * real_spherical_harmonic(degree, order, theta, phi)
-            })
-            .sum();
+            .try_fold(0.0, |sum, ((_, degree, order), coefficient)| {
+                real_spherical_harmonic(degree, order, theta, phi)
+                    .map(|basis_value| sum + coefficient * basis_value)
+            })?;
         if !value.is_finite() {
             return Err(OdfError::NonFiniteEvaluation { theta, phi, value });
         }
@@ -477,7 +477,7 @@ pub fn estimate_odf(
             Ok(value)
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let design = basis.design_matrix(&directions);
+    let design = basis.design_matrix(&directions)?;
     let signal_coefficients =
         solve_regularized(&design, &normalized, &basis, config.regularization())?;
     if let Some((index, value)) = signal_coefficients

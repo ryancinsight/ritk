@@ -6833,5 +6833,9 @@ ritk-core: 0.8.0 → 0.9.0 | ritk-registration: 0.52.0 → 0.53.0
 - [x] Add and inspect a deterministic runnable example and generated figure.
 - [x] Write the diffusion-MRI and tractography chapters and wire the Pages
   reproducibility gate.
+- [x] Publish the checked real spherical-harmonic provider in Apollo PR #69
+  and pin merged revision `db218665` without retaining the local-only API.
+- [x] Pass merged-provider local Clippy, 537/537 affected Nextest cases,
+  doctest, Rustdoc, deterministic figure, and mdBook test/build gates.
 - [ ] Run focused and hosted gates, adjudicate review, merge, and verify the
   live Pages artifact.

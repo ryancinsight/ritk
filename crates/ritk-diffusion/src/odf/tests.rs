@@ -259,12 +259,10 @@ fn evaluation_rejects_finite_coefficient_overflow() {
     let grid_coefficients = grid_basis
         .iter_lm()
         .map(|(_, degree, order)| {
-            f64::MAX.copysign(real_spherical_harmonic(
-                degree,
-                order,
-                std::f64::consts::FRAC_PI_2,
-                0.0,
-            ))
+            f64::MAX.copysign(
+                real_spherical_harmonic(degree, order, std::f64::consts::FRAC_PI_2, 0.0)
+                    .expect("finite analytical basis value"),
+            )
         })
         .collect::<Vec<_>>()
         .into_boxed_slice();
