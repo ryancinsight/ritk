@@ -15,20 +15,24 @@
 
 ## SAFE-687-01 — Reject truncated JPEG 2000 marker tails
 **Target version**: Unreleased patch
-**Sprint phase**: Execution
+**Sprint phase**: Review
 
 - [x] Reconcile `origin/main`, worktrees, peer-owned diffusion changes, the
       native codec parser, tests, architecture claims, and book coverage.
-- [ ] Record the exact focused baseline before editing production code.
-- [ ] Make every post-main-header marker segment exact and fallible and require
+- [x] Record the exact focused baseline before editing production code: all
+      291 codec tests pass in 6.840 seconds.
+- [x] Make every post-main-header marker segment exact and fallible and require
       EOC after all declared tiles.
-- [ ] Reject multi-component, MCT, and non-LRCP streams before output
+- [x] Reject multi-component, MCT, and non-LRCP streams before output
       allocation instead of returning duplicated or misordered channels.
-- [ ] Add value-semantic malformed-tail regressions while preserving native and
+- [x] Add value-semantic malformed-tail regressions while preserving native and
       captured OpenJPEG interoperability.
-- [ ] Correct native codec ownership and parser-safety documentation.
-- [ ] Run formatting, warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook,
-      and review gates against the delivered revision.
+- [x] Correct native codec ownership and parser-safety documentation.
+- [x] Run local formatting, warning-denied Clippy, Nextest, doctest, Rustdoc,
+      and mdBook gates. All 297 codec tests, the captured OpenJPEG corpus,
+      warning-denied all-target Clippy, doctests, warning-denied Rustdoc, and
+      mdBook test/build pass.
+- [ ] Complete independent review and exact-head hosted gates.
 - [ ] Reconcile PM evidence, commit, publish, and merge after hosted gates pass.
 
 ## SAFE-685-01 — Bound and document TIFF volume decoding
