@@ -37,12 +37,13 @@
       including the captured OpenJPEG corpus and all review counterexamples.
 - [x] Run corrected-head formatting, warning-denied Clippy, doctest, Rustdoc,
       mdBook, and diff gates.
-- [ ] Complete independent review and exact-head hosted gates. Interim head
-      `425cc147` passes CI `30709628867`, Python CI `30709628847`, and the
-      Pages artifact build `30709628871`; final CodeRabbit findings are
-      corrected locally and require exact-head revalidation.
-- [ ] Reconcile PM evidence and publish the merge-ready closure after hosted
-      gates pass.
+- [x] Complete independent review and exact-head hosted gates. Final code head
+      `324058ac` passes CI `30711180971`, Python CI `30711181015`, and Pages
+      artifact build `30711180970`; every implementation review finding is
+      addressed. The exact-head CodeRabbit rereview was rate limited.
+- [x] Reconcile PM evidence and publish the closure. PR #81 merged as
+      `23d85703`; Pages run `30712037138` regenerated figures, built the book,
+      and deployed the live site.
 
 ## SAFE-685-01 — Bound and document TIFF volume decoding
 **Target version**: Unreleased patch

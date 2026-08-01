@@ -46,14 +46,19 @@ declaration, empty packet data, zero-length and exhausted code-block bodies,
 packet profiles. All 315
 codec tests pass, including the captured OpenJPEG 2.5.4 lossless/lossy corpus.
 Corrected-head formatting, warning-denied Clippy, doctest, warning-denied
-Rustdoc, and mdBook test/build pass. Exact implementation head `425cc147`
-passes CI run `30709628867`, all Python lanes in run `30709628847`, and the Pages
-artifact build in run `30709628871` on Linux, macOS, and Windows. Thread-aware
-PR #81 inspection then exposed a boundary-straddling SOD read, coefficient
-precision overflow, one false-positive marker test, and incomplete conditional
-padding coverage. Those cases now have direct regressions. These checks prove
-the supported grayscale contract and malformed-input behavior; they do not
-claim multi-component or multi-part decode support.
+Rustdoc, and mdBook test/build pass. Exact implementation head `324058ac`
+passes CI run `30711180971`, all Python lanes in run `30711181015`, and the
+Pages artifact build in run `30711180970` on Linux, macOS, and Windows.
+Thread-aware PR #81 inspection exposed a boundary-straddling SOD read,
+coefficient precision overflow, one false-positive marker test, and incomplete
+conditional padding coverage. Those cases now have direct regressions, and
+CodeRabbit marked every implementation finding addressed. Its exact-head
+rereview was rate limited; the sole mechanically open thread refers to an old
+PR-body count that the current body corrects. PR #81 merged as `23d85703`, and
+post-merge Pages run `30712037138` regenerated the figures, built the book, and
+deployed the live site. These checks prove the supported grayscale contract and
+malformed-input behavior; they do not claim multi-component or multi-part
+decode support.
 
 ## FEAT-686-01 audit (2026-07-31)
 

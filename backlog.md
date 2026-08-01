@@ -16,7 +16,7 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
-  (CLOSURE; owner=Codex; last-update=2026-08-01; scope=
+  (DONE; owner=Codex; last-update=2026-08-01; scope=
   `crates/ritk-codecs/src/jpeg_2000/{codestream.rs,ebcot/mod.rs,image.rs,marker.rs,mod.rs,packet/reader.rs,tests.rs}`,
   `ARCHITECTURE.md`, `docs/book/jpeg_2000_codec.md`, `CHANGELOG.md`,
   `gap_audit.md`, and PM artifacts; non-goal=codec feature expansion,
@@ -34,7 +34,7 @@
   that production decode still uses `jpeg2k`/`openjp2`, and document the native
   parser boundary. Reject zero-length and exhausted EBCOT bodies that claim
   coding passes, derive `Psot=0` from terminal EOC, and accept no post-EOC data
-  except a required one-byte DICOM zero pad.
+  except one zero pad when an odd-length DICOM fragment requires it.
   Acceptance: complete native and captured OpenJPEG streams remain
   value-exact; marker-only, truncated-length, oversized-length, and missing-EOC
   cases and unsupported component traversal return contextual errors; focused formatting, warning-denied Clippy,
@@ -45,11 +45,14 @@
   gaps plus EBCOT exhaustion, `Psot=0`, and trailing-EOC defects; those
   counterexamples now have regressions. Corrected-head formatting, 315/315
   Nextest, warning-denied Clippy, doctest, warning-denied Rustdoc, and mdBook
-  test/build pass. Exact implementation head `425cc147` passes CI run
-  `30709628867`, all Python lanes in run `30709628847`, and the Pages artifact
-  build in run `30709628871` on Linux, macOS, and Windows. Thread-aware PR #81
-  inspection reports zero review threads or requested changes after CodeRabbit
-  completed its incremental-review command.
+  test/build pass. Exact implementation head `324058ac` passes CI run
+  `30711180971`, all Python lanes in run `30711181015`, and the Pages artifact
+  build in run `30711180970` on Linux, macOS, and Windows. PR #81 merged as
+  `23d85703`; post-merge Pages run `30712037138` regenerated the figures, built
+  the book, and deployed the live site. CodeRabbit marked every implementation
+  finding addressed. Its exact-head rereview was rate limited; one mechanically
+  open thread refers only to the stale PR-body count, which the current body
+  corrects to 315 tests and twenty-three regressions.
 
 - **FEAT-686-01** `[minor][arch]` - Establish a physically typed diffusion-MRI
   and tractography pipeline (REVIEW; owner=Codex;
