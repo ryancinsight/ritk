@@ -17,7 +17,7 @@
 
 - **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
   (REVIEW; owner=Codex; last-update=2026-08-01; scope=
-  `crates/ritk-codecs/src/jpeg_2000/{image.rs,mod.rs,tests.rs}`,
+  `crates/ritk-codecs/src/jpeg_2000/{ebcot/mod.rs,image.rs,mod.rs,tests.rs}`,
   `ARCHITECTURE.md`, `docs/book/jpeg_2000_codec.md`, `CHANGELOG.md`,
   `gap_audit.md`, and PM artifacts; non-goal=codec feature expansion,
   rate control, JP2 containers, changing valid codestream output, release, or
