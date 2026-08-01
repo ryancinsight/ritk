@@ -13,6 +13,22 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## SAFE-687-01 — Reject truncated JPEG 2000 marker tails
+**Target version**: Unreleased patch
+**Sprint phase**: Execution
+
+- [x] Reconcile `origin/main`, worktrees, peer-owned diffusion changes, the
+      native codec parser, tests, architecture claims, and book coverage.
+- [ ] Record the exact focused baseline before editing production code.
+- [ ] Make every post-main-header marker segment exact and fallible and require
+      EOC after all declared tiles.
+- [ ] Add value-semantic malformed-tail regressions while preserving native and
+      captured OpenJPEG interoperability.
+- [ ] Correct native codec ownership and parser-safety documentation.
+- [ ] Run formatting, warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook,
+      and review gates against the delivered revision.
+- [ ] Reconcile PM evidence, commit, publish, and merge after hosted gates pass.
+
 ## SAFE-685-01 — Bound and document TIFF volume decoding
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
