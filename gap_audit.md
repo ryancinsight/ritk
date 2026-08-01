@@ -13,6 +13,27 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## SAFE-687-01 audit (2026-08-01)
+
+The native JPEG 2000 packet reader traverses one LRCP component stream, but the
+pixel extractor invoked it from the same tile-data offset for every SIZ
+component. A valid multi-component stream could therefore return duplicated
+channel-zero data as a successful decode. COD progression order and MCT were
+parsed but not enforced. The decoder now rejects multi-component, MCT, and
+non-LRCP streams before output allocation until component-aware packet traversal
+and inverse component transformation exist.
+
+After one tile decoded, truncated PPT/COM or unknown marker tails previously
+ended the marker loop and returned the partially populated image. Marker lengths
+are now checked exactly, EOC is mandatory, and a compact tile-presence bitset
+verifies every SIZ-declared tile before output is returned. Six new regressions
+cover missing EOC, missing/short/oversized marker lengths, multi-component
+declarations, progression order, and MCT. All 297 codec tests pass, including the
+captured OpenJPEG 2.5.4 lossless/lossy corpus. Warning-denied all-target Clippy,
+doctests, warning-denied Rustdoc, and mdBook test/build pass. These checks prove
+the supported grayscale contract and malformed-input behavior; they do not
+claim multi-component decode support.
+
 ## FEAT-686-01 audit (2026-07-31)
 
 The recovered diffusion increment represented b-values with a dimensionless

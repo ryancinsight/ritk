@@ -8,6 +8,19 @@
 
 # CHANGELOG
 
+## [Unreleased] — JPEG 2000 decode safety (SAFE-687-01)
+
+### Fixed
+
+- Reject multi-component, MCT, and non-LRCP JPEG 2000 streams before packet
+  decode instead of replaying one component's packet cursor into multiple
+  channels.
+- Reject truncated or invalid post-header marker segments, missing EOC, and
+  codestreams that terminate before every declared tile is decoded instead of
+  returning partially populated output.
+- Correct codec architecture and book documentation to describe the RITK-native
+  Rust decoder and its current grayscale boundary.
+
 ## [Unreleased] — Diffusion MRI and tractography (FEAT-686-01)
 
 ### Added
