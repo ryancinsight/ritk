@@ -56,6 +56,23 @@ pub mod tags {
     pub const SLICE_THICKNESS: DicomTag = DicomTag::new(0x0018, 0x0050);
     /// Image Position Patient (0020,0032).
     pub const IMAGE_POSITION_PATIENT: DicomTag = DicomTag::new(0x0020, 0x0032);
+
+    // ── Diffusion MRI ─────────────────────────────────────────────────
+
+    /// Diffusion b-value (0018,9087).
+    ///
+    /// The diffusion weighting factor in s/mm² for this frame/slice.
+    pub const DIFFUSION_B_VALUE: DicomTag = DicomTag::new(0x0018, 0x9087);
+    /// Diffusion Gradient Direction (0018,9089).
+    ///
+    /// The unit gradient direction vector `[x, y, z]` in the patient
+    /// coordinate system for this frame/slice.
+    pub const DIFFUSION_GRADIENT_DIRECTION: DicomTag = DicomTag::new(0x0018, 0x9089);
+
+    // ── Identification ────────────────────────────────────────────────
+
+    /// Instance Number (0020,0013).
+    pub const INSTANCE_NUMBER: DicomTag = DicomTag::new(0x0020, 0x0013);
 }
 
 /// Typed attribute reads over a parsed DICOM object.

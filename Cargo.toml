@@ -30,6 +30,9 @@ members = [
   "crates/ritk-annotation",
   "crates/ritk-tensor-ops",
   "crates/ritk-statistics",
+  "crates/ritk-diffusion-scheme",
+  "crates/ritk-diffusion",
+  "crates/ritk-tractography",
   "xtask",
 ]
 resolver = "2"
@@ -66,6 +69,9 @@ ritk-morphology = { path = "crates/ritk-morphology" }
 ritk-annotation = { path = "crates/ritk-annotation" }
 ritk-tensor-ops = { path = "crates/ritk-tensor-ops" }
 ritk-statistics = { path = "crates/ritk-statistics" }
+ritk-diffusion = { path = "crates/ritk-diffusion" }
+ritk-diffusion-scheme = { path = "crates/ritk-diffusion-scheme" }
+ritk-tractography = { path = "crates/ritk-tractography" }
 gaia = { version = "0.3.0", git = "https://github.com/ryancinsight/gaia", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
 coeus-nn = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
@@ -86,6 +92,8 @@ coeus-autograd = { version = "0.9.0", git = "https://github.com/ryancinsight/Coe
 leto = { version = "0.40.0", git = "https://github.com/ryancinsight/leto.git" }
 leto-ops = { version = "0.40.0", git = "https://github.com/ryancinsight/leto.git" }
 apollo-fft = { version = "0.25.0", git = "https://github.com/ryancinsight/apollo" }
+apollo-sht = { version = "0.7.0", git = "https://github.com/ryancinsight/apollo" }
+aequitas = { version = "0.1.0", git = "https://github.com/ryancinsight/aequitas" }
 anyhow = "1.0"
 thiserror = "2.0"
 tracing = "0.1"

@@ -15,7 +15,8 @@ pub use format::dicom::{
     load_atlas_color_multiframe, load_color_multiframe_flat, load_color_volume_flat,
     load_color_volume_flat_from_path, load_dicom_from_series, load_dicom_multiframe,
     load_dicom_multiframe_flat, load_dicom_multiframe_native, load_dicom_series,
-    load_dicom_series_with_metadata, load_native_dicom_series, model_to_in_mem, read_dicom_seg,
+    load_dicom_series_with_metadata, load_native_dicom_series, model_to_in_mem,
+    read_dicom_gradient_scheme_from_file, read_dicom_gradient_scheme_from_files, read_dicom_seg,
     read_dicom_series, read_dicom_series_with_metadata, read_multiframe_info,
     read_native_dicom_series, read_rt_dose, read_rt_plan, read_rt_struct, rt_roi_to_polydata,
     scan_dicom_directory, scan_dicom_instances, scan_dicom_part10_bytes, write_dicom_multiframe,
@@ -40,12 +41,14 @@ pub use format::jpeg::{read_jpeg_color_to_volume, JpegColorReader};
 pub use format::metaimage::{
     read_metaimage, write_metaimage, write_metaimage_with_data, MetaImageReader, MetaImageWriter,
 };
-pub use format::mgh::{read_mgh, write_mgh, MghReader, MghWriter};
+pub use format::mgh::{read_mgh, read_mgh_series, write_mgh, MghReader, MghWriter};
 pub use format::nifti::{
     read_nifti, read_nifti_from_bytes, read_nifti_from_bytes_native, read_nifti_labels,
-    write_nifti, write_nifti_labels, NiftiReader, NiftiWriter,
+    read_nifti_series, write_nifti, write_nifti_labels, NiftiReader, NiftiWriter,
 };
-pub use format::nrrd::{read_nrrd, write_nrrd, write_nrrd_with_data, NrrdReader, NrrdWriter};
+pub use format::nrrd::{
+    read_nrrd, read_nrrd_series, write_nrrd, write_nrrd_with_data, NrrdReader, NrrdWriter,
+};
 pub use format::png::{
     read_png_color_series, read_png_color_to_volume, PngColorReader, PngColorSeriesReader,
 };
@@ -90,11 +93,14 @@ impl ImageFormat {
     /// `.nii.gz` is detected before the generic extension check so that the
     /// compound suffix is handled correctly.
     pub fn from_path(path: &std::path::Path) -> Option<Self> {
-        let name = path.file_name()?.to_str()?;
+        let name = path.file_name()?.to_str()?.to_ascii_lowercase();
 
         // Compound suffix must be tested before the single-extension fallback.
         if name.ends_with(".nii.gz") || name.ends_with(".nii") {
             return Some(Self::NIfTI);
+        }
+        if name.ends_with(".mgh.gz") {
+            return Some(Self::Mgh);
         }
 
         let ext = path.extension()?.to_str()?.to_ascii_lowercase();
@@ -163,6 +169,10 @@ pub type NativeBackend = coeus_core::SequentialBackend;
 /// Native 3-D f32 image used by consumer-level image I/O.
 pub type NativeImage = ritk_image::Image<f32, NativeBackend, 3>;
 
+/// Native 3-D f32 acquisition series — one image per volume, sharing one
+/// spatial grid — used by consumer-level series I/O.
+pub type NativeSeries = Vec<NativeImage>;
+
 /// True when `fmt` has a native reader in the unified `ritk-io` contract.
 #[must_use]
 pub fn is_native_read_capable(fmt: ImageFormat) -> bool {
@@ -203,7 +213,8 @@ pub fn is_native_write_capable(fmt: ImageFormat) -> bool {
 /// Read a 3-D f32 image through the native reader contract.
 ///
 /// DICOM directories are accepted before extension inference because a series
-/// directory has no image extension.
+/// directory has no image extension. Its ordered slices become one 3-D image
+/// in a one-volume acquisition series.
 ///
 /// # Errors
 ///
@@ -338,6 +349,47 @@ pub fn write_image_native<P: AsRef<std::path::Path>>(
         ),
     }
     .map_err(anyhow::Error::from)
+}
+
+/// Read a 3-D f32 acquisition series through the native reader dispatch.
+///
+/// Each returned image shares one spatial grid and is in acquisition order.
+/// A rank-3 file is a one-volume series, so this reader accepts an ordinary
+/// volume; [`read_image_native`] does not accept the converse.
+///
+/// DICOM directories are accepted before extension inference because a series
+/// directory has no image extension.
+///
+/// # Errors
+///
+/// Returns an error when the path has no supported native series reader or
+/// the selected format series reader fails.
+pub fn read_image_series_native<P: AsRef<std::path::Path>>(
+    path: P,
+) -> anyhow::Result<NativeSeries> {
+    let path = path.as_ref();
+    let backend = NativeBackend::default();
+    if path.is_dir() {
+        let image = read_native_dicom_series(path, &backend)?;
+        return Ok(vec![image]);
+    }
+
+    let fmt = ImageFormat::from_path(path).ok_or_else(|| {
+        anyhow::anyhow!(
+            "cannot infer native series input format from path: {}",
+            path.display()
+        )
+    })?;
+
+    match fmt {
+        ImageFormat::NIfTI => ritk_nifti::read_nifti_series(path, &backend),
+        ImageFormat::Nrrd => ritk_nrrd::read_nrrd_series(path, &backend),
+        ImageFormat::Mgh => ritk_mgh::read_mgh_series(path, &backend),
+        other => Err(anyhow::anyhow!(
+            "series I/O is not yet supported for {other:?} through the native \
+             dispatch; use the format-specific series reader directly"
+        )),
+    }
 }
 
 #[cfg(test)]

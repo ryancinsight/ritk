@@ -41,6 +41,18 @@ pub fn read_nrrd<B: Backend, P: AsRef<Path>>(path: P, device: &B) -> Result<Imag
     ritk_nrrd::read_nrrd(path, &SequentialBackend).map(|native| native_to_legacy(native, device))
 }
 
+/// Reads a NRRD acquisition series through the native provider.
+pub fn read_nrrd_series<B: Backend, P: AsRef<Path>>(
+    path: P,
+    device: &B,
+) -> Result<Vec<Image<f32, B, 3>>> {
+    let natives = ritk_nrrd::read_nrrd_series(path, &SequentialBackend)?;
+    natives
+        .into_iter()
+        .map(|native| Ok(native_to_legacy(native, device)))
+        .collect()
+}
+
 /// Writes a legacy image through the native NRRD provider.
 pub fn write_nrrd<B: Backend, P: AsRef<Path>>(path: P, image: &Image<f32, B, 3>) -> Result<()> {
     let native = legacy_metadata_to_native(image, image.try_data_vec()?)?;

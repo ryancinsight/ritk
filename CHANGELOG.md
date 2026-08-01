@@ -8,6 +8,60 @@
 
 # CHANGELOG
 
+## [Unreleased] — Diffusion MRI and tractography (FEAT-686-01)
+
+### Added
+
+- Add `ritk-diffusion-scheme` with physically typed s/mm² b-values, validated
+  b0/unit-direction entries, explicit image-axis and LPS frames, FSL parsing,
+  shell grouping, proper-rotation reorientation, and explicit RAS-to-LPS
+  conversion at format boundaries.
+- Add standard DICOM and NA-MIC NRRD gradient metadata readers. NRRD nominal
+  weighting, gradient-norm scaling, measurement-frame mapping, and RAS-to-LPS
+  conversion are applied as one validated contract.
+- Add regularized analytical Q-ball ODF estimation through Apollo real
+  spherical harmonics and Leto least squares, including the degree-wise
+  Funk–Radon transform and contiguous spherical-grid evaluation.
+- Add deterministic bounded Euler tractography with sign-continuous local
+  orientations, explicit forward/bidirectional regimes, typed termination
+  diagnostics, and Gaia polyline output.
+- Add diffusion-MRI and tractography book chapters plus an inspected runnable
+  figure whose analytical tensor ODF peak and curved field geometry are
+  asserted before rendering.
+
+### Changed
+
+- Decode MGH acquisition frames directly into their final per-volume buffers,
+  avoiding a complete flat decoded series followed by a second copy.
+- Release NRRD encoded payload storage before allocating deinterleaved volume
+  output, and reserve the bounded volume buffers fallibly.
+- Route DICOM directories through unified native series dispatch as one
+  reconstructed 3-D volume.
+- Fail the Pages gate when regenerated book figures differ from their tracked
+  artifacts.
+
+### Fixed
+
+- Reject non-finite signals, invalid b-values or gradient directions,
+  malformed coordinate frames, mixed-shell or underdetermined ODF systems,
+  invalid tracking configurations, and malformed direction-field samples
+  without partial output or panic. Preserve the gradient frame on fitted ODFs.
+- Reject scanner-facing b-values whose canonical SI conversion overflows and
+  non-finite ODF normalization, solver, transform, residual, or evaluation
+  intermediates.
+- Accept standard zero-weight DICOM frames without an orientation sequence,
+  while rejecting missing orientation for nonzero weighting; require NRRD
+  gradient metadata to match the acquisition-axis extent.
+- Reject multi-frame MGH input before payload decoding through single-volume
+  APIs, recognize `.mgh.gz` in unified native dispatch, and select gzip for
+  `.mgz` or `.mgh.gz` without ASCII case sensitivity.
+- Validate each tractography seed before invoking the direction callback.
+- Stop tractography at the last in-domain point instead of appending the first
+  proposal outside the trackable field.
+- Read rank-2 NRRD `space directions` and `space origin` through the planar
+  parser before promoting the image to `[1, Y, X]`, instead of rejecting valid
+  two-component vectors in the rank-3 acquisition-axis parser.
+
 ## [Unreleased] — NRRD acquisition series (ATLAS-DMRI-IO-001)
 
 ### Added

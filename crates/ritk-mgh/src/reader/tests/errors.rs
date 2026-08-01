@@ -72,27 +72,13 @@ fn test_read_truncated_file() {
 
 #[test]
 fn test_read_multi_frame_fails_rather_than_returning_frame_zero() {
-    // A 3-frame volume with a complete payload: frame 0 alone is decodable, so
-    // the reader could return it and report success. That is the defect — a
-    // diffusion or time series would silently become its first volume. The
-    // frame count must reach the caller as a failure instead.
+    // The header alone is enough to reject the wrong API. A single-volume read
+    // must not allocate or consume any declared frame payload first.
     let dir = tempdir().unwrap();
     let path = dir.path().join("three_frames.mgh");
     let backend = TestBackend::default();
 
     const FRAMES: i32 = 3;
-    const VOXELS_PER_FRAME: usize = 2 * 2 * 2;
-
-    let mut payload = Vec::with_capacity(FRAMES as usize * VOXELS_PER_FRAME * 4);
-    for frame in 0..FRAMES {
-        // Distinct value per frame, so a silently truncated read is detectable
-        // by value rather than only by length.
-        let value = (frame + 1) as f32;
-        for _ in 0..VOXELS_PER_FRAME {
-            payload.extend_from_slice(&value.to_be_bytes());
-        }
-    }
-
     let mgh = build_mgh_bytes(
         1,
         [2, 2, 2],
@@ -101,7 +87,7 @@ fn test_read_multi_frame_fails_rather_than_returning_frame_zero() {
         [1.0, 1.0, 1.0],
         IDENTITY_DIR,
         [0.0, 0.0, 0.0],
-        &payload,
+        &[],
     );
     std::fs::write(&path, &mgh).unwrap();
 

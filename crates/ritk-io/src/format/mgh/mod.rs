@@ -20,6 +20,27 @@ pub fn read_mgh<B: Backend, P: AsRef<Path>>(path: P, device: &B) -> Result<Image
     )
 }
 
+/// Reads an MGH/MGZ acquisition series through the native provider.
+pub fn read_mgh_series<B: Backend, P: AsRef<Path>>(
+    path: P,
+    device: &B,
+) -> Result<Vec<Image<f32, B, 3>>> {
+    let natives = ritk_mgh::read_mgh_series(path, &SequentialBackend)?;
+    natives
+        .into_iter()
+        .map(|native| {
+            let values = native.data_cow_on(&SequentialBackend);
+            let tensor = Tensor::<f32, B>::from_slice_on(native.shape(), values.as_ref(), device);
+            Image::new(
+                tensor,
+                *native.origin(),
+                *native.spacing(),
+                *native.direction(),
+            )
+        })
+        .collect()
+}
+
 /// Writes a legacy image through the native MGH provider.
 pub fn write_mgh<B: Backend, P: AsRef<Path>>(image: &Image<f32, B, 3>, path: P) -> Result<()> {
     let backend = SequentialBackend;

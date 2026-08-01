@@ -13,6 +13,115 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## FEAT-686-01 audit (2026-07-31)
+
+The recovered diffusion increment represented b-values with a dimensionless
+diffusivity type, interpreted NRRD's one nominal `DWMRI_b-value` as a list,
+labeled standard DICOM patient directions as image-axis coordinates, and
+called a spherical-harmonic signal fit an ODF without applying the Funk–Radon
+transform. Tractography exposed unvalidated scalar configuration, silently
+dropped geometry failures, and appended the first proposal outside the field.
+
+The corrected boundary stores b-values as Aequitas time-per-area quantities,
+converts scanner-facing s/mm² explicitly, validates each gradient and frame,
+implements NA-MIC nominal-weighting/measurement-frame semantics, and labels
+DICOM directions LPS while accepting the standard absence of orientation on
+b0 instances. NRRD validates the gradient count against the acquisition axis;
+MGH rejects multi-volume input from the header before payload decoding; and
+native dispatch recognizes both `.mgz` and `.mgh.gz`. Analytical Q-ball
+estimation rejects mixed nonzero shells outside a configured absolute tolerance,
+augments the fit with the Laplace–Beltrami penalty, applies `2π P_l(0)`
+degree-wise, and preserves the declared measurement frame. The known
+single-tensor test and book example recover the x-axis peak; configuration,
+finite-input, underdetermined-system, antipodal, frame, shell, and grid-layout
+partitions are covered by value assertions.
+
+Provider closure is no longer overlay-dependent. Apollo PR #69 merged the
+checked real spherical-harmonic evaluator and one-allocation design-matrix API
+as `db218665` after exact-head Rust, Python, provider, dependency, and
+byte-identical benchmark gates passed. RITK propagates those typed failures and
+pins all Apollo packages to the merge revision. Local verification passes
+537/537 affected Nextest cases, warning-denied Clippy and Rustdoc, doctests,
+deterministic figure regeneration, and mdBook test/build. The regenerated
+figure retains SHA-256
+`7BC3D251B0FF65CFD7C1E3313A1C45E665850A75A2B70AD3E840E89A8839BBE9`.
+
+The tracking API now validates configuration, seeds, and proposed sample
+points before invoking user callbacks; validates returned directions before
+storing geometry; uses fallible bounded reservations; emits typed termination
+reasons; reports Gaia geometry failures; and excludes out-of-domain proposals.
+MGH series decoding removes the former full-series staging copy, and NRRD
+releases encoded payload storage before constructing volume buffers. These are
+ownership and allocation-count arguments, not
+measured throughput or RSS claims.
+
+The generated diffusion/tractography SVG was rendered at 1800 pixels wide and
+inspected. Its 48 acquisition directions, attenuation curve, Q-ball ODF,
+independent analytical axis, five seeds, domain bounds, and five streamlines
+are visually distinct. Its full-sphere peak search reports 0.00° error and the
+example rejects any streamline point outside the analytical field. A warm
+direct execution of the verified example completed in 97.820 ms and reproduced
+SHA-256
+`7BC3D251B0FF65CFD7C1E3313A1C45E665850A75A2B70AD3E840E89A8839BBE9`.
+
+Independent falsification review found that the unified series-reader docs
+promised DICOM-directory dispatch while the implementation rejected it, the
+Pages workflow regenerated figures without checking the tracked diff, and ADR
+0017 overstated its behavioral test coverage. The dispatch now delegates to
+the native DICOM series reader and is differentially tested against that direct
+path; CI fails on any regenerated figure diff; and the verification contract is
+backed by full-sphere angular, shell-tolerance, analytical curved-field, and
+exact path-length tests.
+
+The second independent falsification review found five additional boundary
+defects: finite scanner b-values could overflow during canonical-unit scaling,
+extreme finite signals could produce non-finite normalized or ODF
+intermediates, uppercase MGH gzip suffixes were not recognized, DICOM b0
+documentation still required an orientation, and the figure labeled boundary
+termination without asserting the emitted termination reasons. Canonical
+conversion and every ODF stage, including spherical-harmonic evaluation, now
+reject non-finite results with typed errors;
+the MGH suffix check is allocation-free and ASCII-case-insensitive; the DICOM
+contract documents the standard b0 exception; and the example asserts both
+streamline halves terminate at the field boundary before rendering that label.
+The initial grid-overflow regression incorrectly reused a pole-sensitive
+coefficient on a one-cell grid whose cell center is the equator. The corrected
+oracle aligns finite coefficient signs with the real basis at that equatorial
+sample, so its positive finite-term sum must overflow without changing the
+grid or weakening the assertion.
+
+The focused Nextest gate passes 537 tests across nine binaries for the seven
+affected crates in 6.011 seconds. Warning-denied Clippy
+passes their complete target sets; the
+only additional change is a scoped Rust 1.97 lint expectation on an already
+const morphology thread-local initializer pulled through `ritk-io`. Their
+doctests and warning-denied Rustdoc pass. `mdbook test` and `mdbook build` pass,
+and the built book contains the generated chapter and figure. SemVer checks
+against `d3d3d811` pass all 196 checks for each affected existing crate
+(`ritk-dicom`, `ritk-mgh`, `ritk-nrrd`, and `ritk-io`); the `ritk-io` wrapper
+exceeded its outer shell deadline only after the checker printed its complete
+passing result.
+
+Review adjudication canonicalizes scanner b-values at or below the established
+50 s/mm² baseline threshold, retains finite-input validation, and adds exact
+error-partition coverage for ODF estimation and integration overflow. MGH
+series writing now validates checked per-volume voxel counts, the book names
+the single-volume versus series reader contract, and figure captions derive
+from the generated acquisition parameters. A requested manifest `rev` pin was
+rejected: the committed lockfile is this workspace's reproducible provider pin,
+while a manifest revision pin is reserved for explicit dependency quarantine.
+Focused re-verification passes 541/541 Nextest cases, warning-denied Clippy and
+Rustdoc, doctests, standalone locked metadata, deterministic figure
+regeneration, and mdBook test/build.
+
+The first hosted wheel smoke run exposed two existing rank-2 NRRD failures on
+upstream SimpleITK fixtures: acquisition-axis discovery parsed two-component
+`space directions` with the rank-3 slot parser before the planar branch could
+run. Rank-2 files now bypass that inapplicable parser, then validate and promote
+directions and origin through the planar path. The public-reader regression
+asserts exact `[1,Y,X]` shape, spacing, origin, and voxel order; all 68
+`ritk-nrrd` Nextest cases and warning-denied package Clippy pass locally.
+
 ## SAFE-685-01 audit (2026-07-31)
 
 The TIFF book inventory omitted a supported format owner. The grayscale reader

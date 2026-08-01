@@ -1,4 +1,5 @@
 mod decode;
+mod diffusion;
 use decode::*;
 
 use crate::axes::{locate_acquisition_axis, AcquisitionAxis};
@@ -149,52 +150,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
         std::fs::File::open(path).with_context(|| format!("Cannot open NRRD file {:?}", path))?;
     let mut reader = BufReader::new(file);
 
-    // ── Magic line ────────────────────────────────────────────────────────
-    let mut magic = String::new();
-    reader
-        .read_line(&mut magic)
-        .context("Failed to read NRRD magic line")?;
-    if !magic.trim_start().starts_with("NRRD") {
-        return Err(anyhow!(
-            "Not a valid NRRD file: magic line does not start with 'NRRD' (got '{}')",
-            magic.trim()
-        ));
-    }
-
-    // ── Header parsing ────────────────────────────────────────────────────
-    // Keys are lowercased for case-insensitive lookup.
-    // The first ':' is the key-value separator (handles keys containing spaces).
-    let mut headers: HashMap<String, String> = HashMap::new();
-
-    loop {
-        let mut line = String::new();
-        let n = reader
-            .read_line(&mut line)
-            .context("Error reading NRRD header line")?;
-        if n == 0 {
-            break; // EOF without blank-line terminator
-        }
-
-        let trimmed = line.trim();
-
-        // Blank line signals end of header; data follows immediately.
-        if trimmed.is_empty() {
-            break;
-        }
-
-        // Skip comment lines.
-        if trimmed.starts_with('#') {
-            continue;
-        }
-
-        // Key-value pairs are separated by ": " (NRRD spec §3).
-        // We split on the first ':' and trim whitespace from the value.
-        if let Some(colon_pos) = trimmed.find(':') {
-            let key = trimmed[..colon_pos].trim().to_lowercase();
-            let value = trimmed[colon_pos + 1..].trim().to_string();
-            headers.insert(key, value);
-        }
-    }
+    let headers = parse_nrrd_header_map_from_reader(&mut reader)?;
 
     // ── Required fields ───────────────────────────────────────────────────
     let element_type = headers
@@ -220,10 +176,17 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
 
     // The acquisition axis must be located before `sizes` and `space
     // directions` can be split into spatial and non-spatial parts.
-    let direction_slots = headers
-        .get("space directions")
-        .map(|s| parse_space_direction_slots(s))
-        .transpose()?;
+    // A rank-2 file has no acquisition axis and its direction vectors have two
+    // components. Do not route those vectors through the rank-3 slot parser;
+    // the planar metadata parser below validates and promotes them.
+    let direction_slots = if dimension == 2 {
+        None
+    } else {
+        headers
+            .get("space directions")
+            .map(|s| parse_space_direction_slots(s))
+            .transpose()?
+    };
     let direction_flags: Option<Vec<bool>> = direction_slots
         .as_ref()
         .map(|slots| slots.iter().map(Option::is_some).collect());
@@ -385,6 +348,7 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
 
     let f32_data: Vec<f32> =
         decode_element_bytes(&raw_bytes, &element_type, total_voxels, byte_order)?;
+    drop(raw_bytes);
 
     if f32_data.len() != total_voxels {
         return Err(anyhow!(
@@ -398,15 +362,24 @@ fn decode_nrrd<P: AsRef<Path>>(path: P) -> Result<DecodedNrrd> {
     // X-fastest in flat memory, so each volume's voxels map directly to shape
     // [nz, ny, nx] with no permutation — only the acquisition stride separates
     // one volume's voxels from the next.
-    let volume_data = (0..volumes)
-        .map(|volume| {
-            (0..voxels_per_volume)
-                .map(|voxel| {
-                    f32_data[acquisition.flat_index(volume, voxel, voxels_per_volume, volumes)]
-                })
-                .collect()
-        })
-        .collect();
+    let mut volume_data = Vec::new();
+    volume_data
+        .try_reserve_exact(volumes)
+        .context("cannot allocate NRRD volume table")?;
+    for _ in 0..volumes {
+        let mut volume = Vec::new();
+        volume
+            .try_reserve_exact(voxels_per_volume)
+            .context("cannot allocate decoded NRRD volume")?;
+        volume_data.push(volume);
+    }
+    for (flat_index, value) in f32_data.into_iter().enumerate() {
+        let volume = match acquisition {
+            AcquisitionAxis::Fastest => flat_index % volumes,
+            AcquisitionAxis::Absent | AcquisitionAxis::Slowest => flat_index / voxels_per_volume,
+        };
+        volume_data[volume].push(value);
+    }
 
     Ok(DecodedNrrd {
         volumes: volume_data,
@@ -434,4 +407,83 @@ impl NrrdReader {
     ) -> Result<Image<f32, B, 3>> {
         read_nrrd(path, backend)
     }
+}
+
+// ── Header-map extraction ────────────────────────────────────────────────────
+
+/// Parse the NRRD header into a key-value map without decoding the payload.
+///
+/// This is the shared header-parsing path used by [`read_nrrd`],
+/// [`read_nrrd_series`], and [`read_nrrd_gradient_scheme`]. Keys are
+/// lowercased for case-insensitive lookup. Comment lines (starting with `#`)
+/// are skipped.
+///
+/// # Errors
+///
+/// Returns an error when the file cannot be opened, when the magic line is
+/// absent or invalid, or when header lines cannot be read.
+pub fn read_nrrd_header_map<P: AsRef<Path>>(path: P) -> Result<HashMap<String, String>> {
+    let path = path.as_ref();
+    let file =
+        std::fs::File::open(path).with_context(|| format!("Cannot open NRRD file {:?}", path))?;
+    let mut reader = BufReader::new(file);
+    parse_nrrd_header_map_from_reader(&mut reader)
+}
+
+/// Parse the NRRD header from an already-opened reader.
+fn parse_nrrd_header_map_from_reader<R: BufRead>(
+    reader: &mut R,
+) -> Result<HashMap<String, String>> {
+    let mut magic = String::new();
+    reader
+        .read_line(&mut magic)
+        .context("Failed to read NRRD magic line")?;
+    if !magic.trim_start().starts_with("NRRD") {
+        return Err(anyhow!(
+            "Not a valid NRRD file: magic line does not start with 'NRRD' (got '{}')",
+            magic.trim()
+        ));
+    }
+
+    let mut headers: HashMap<String, String> = HashMap::new();
+    loop {
+        let mut line = String::new();
+        let n = reader
+            .read_line(&mut line)
+            .context("Error reading NRRD header line")?;
+        if n == 0 {
+            break; // EOF without blank-line terminator
+        }
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            break;
+        }
+        if trimmed.starts_with('#') {
+            continue;
+        }
+        if let Some(colon_pos) = trimmed.find(':') {
+            let key = trimmed[..colon_pos].trim().to_lowercase();
+            let value = trimmed[colon_pos + 1..].trim().to_string();
+            headers.insert(key, value);
+        }
+    }
+    Ok(headers)
+}
+
+/// Read the diffusion gradient scheme from a NRRD header.
+///
+/// Extracts `DWMRI_gradient_NNNN` direction keys and `DWMRI_b-value` from the
+/// NRRD header and returns a validated [`ritk_diffusion_scheme::GradientScheme`].
+/// Directions are mapped through the measurement frame into the declared
+/// world space and returned in RITK physical LPS coordinates.
+///
+/// # Errors
+///
+/// Returns an error when the file cannot be opened, the header is missing
+/// required DWMRI fields, or the gradient table fails validation.
+pub fn read_nrrd_gradient_scheme<P: AsRef<Path>>(
+    path: P,
+) -> Result<ritk_diffusion_scheme::GradientScheme> {
+    let headers = read_nrrd_header_map(path)?;
+    diffusion::scheme_from_headers(&headers)
 }

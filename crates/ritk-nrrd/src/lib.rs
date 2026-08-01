@@ -61,7 +61,9 @@ pub mod reader;
 mod spatial;
 pub mod writer;
 
-pub use reader::{read_nrrd, read_nrrd_series, NrrdReader};
+pub use reader::{
+    read_nrrd, read_nrrd_gradient_scheme, read_nrrd_header_map, read_nrrd_series, NrrdReader,
+};
 pub use writer::{write_nrrd, write_nrrd_series, write_nrrd_with_data, NrrdWriter};
 
 use coeus_core::{ComputeBackend, CpuAddressableStorage};

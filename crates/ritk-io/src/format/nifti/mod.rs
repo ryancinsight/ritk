@@ -28,6 +28,18 @@ pub fn read_nifti<B: Backend, P: AsRef<Path>>(path: P, device: &B) -> Result<Ima
     ritk_nifti::read_nifti(path, &SequentialBackend).map(|native| native_to_legacy(native, device))
 }
 
+/// Reads a NIfTI acquisition series through the native provider.
+pub fn read_nifti_series<B: Backend, P: AsRef<Path>>(
+    path: P,
+    device: &B,
+) -> Result<Vec<Image<f32, B, 3>>> {
+    let natives = ritk_nifti::read_nifti_series(path, &SequentialBackend)?;
+    natives
+        .into_iter()
+        .map(|native| Ok(native_to_legacy(native, device)))
+        .collect()
+}
+
 /// Reads in-memory NIfTI through the native provider and converts at this boundary.
 pub fn read_nifti_from_bytes<B: Backend>(bytes: &[u8], device: &B) -> Result<Image<f32, B, 3>> {
     ritk_nifti::read_nifti_from_bytes(bytes, &SequentialBackend)

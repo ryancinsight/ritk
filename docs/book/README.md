@@ -45,6 +45,9 @@ transforms are the deliberate exceptions.
 | ritk-segmentation | Thresholding, labeling, seeded region growth, watershed, level sets, and consensus segmentation |
 | ritk-registration | Metrics, transforms, classical registration, and differentiable registration |
 | ritk-statistics | Histogram, similarity, overlap, and image-quality statistics |
+| ritk-diffusion-scheme | Validated b-values, gradient directions, coordinate frames, and format metadata |
+| ritk-diffusion | Regularized analytical Q-ball ODF estimation and evaluation |
+| ritk-tractography | Deterministic bounded streamline integration into Gaia polylines |
 | ritk-transform / ritk-interpolation | Transform parameterization and physical resampling |
 
 ## Build the book and examples
@@ -62,6 +65,7 @@ cargo build -p ritk-io --examples
 cargo build -p ritk-codecs --examples
 cargo build -p ritk-registration --examples
 cargo build -p ritk-segmentation --examples
+cargo build -p ritk-diffusion --examples
 ~~~
 
 For native tests use the repository's configured cargo nextest command.
@@ -73,10 +77,11 @@ example succeeds and the rendered artifact has been inspected.
 - Part I explains format boundaries and spatial-axis conventions.
 - Part II builds filtering and segmentation pipelines from intensity, spatial,
   morphology, diffusion, and seeded-label operations.
-- Part III covers metrics, transforms, classical and differentiable
+- Part III develops diffusion-MRI acquisition, Q-ball ODFs, and tractography.
+- Part IV covers metrics, transforms, classical and differentiable
   registration, and post-registration validation.
-- Part IV explains backend dispatch, zero-copy boundaries, and measurements.
-- Part V maps the public RITK surface onto Coeus, Leto, and Moirai.
+- Part V explains backend dispatch, zero-copy boundaries, and measurements.
+- Part VI maps the public RITK surface onto Coeus, Leto, and Moirai.
 
 - [Provider migration summary](../coeus_migration.md)
 - [Architecture decision records](../adr/README.md)

@@ -6820,3 +6820,28 @@ ritk-core: 0.8.0 → 0.9.0 | ritk-registration: 0.52.0 → 0.53.0
 | SRP-361-06 | `compute_image.rs` (499L) — split cache helpers from main compute loop | Low |
 | PRIM-361-07 | `GaussianSigma` adoption in `CoherenceConfig` scratch space sigma tracking | Low |
 | UPSTREAM-359-03 | `masked_chunked.rs` + `fused.rs` clone-before-slice — blocked by Burn 0.19 lacking `slice_ref` | Blocked |
+# FEAT-686-01 - Diffusion MRI and tractography pipeline (Codex)
+
+- [x] Recover the ownerless acquisition/diffusion working increment without
+  discarding or overwriting its code.
+- [x] Record the physical-unit, crate-boundary, and failure-contract decision
+  in ADR 0017.
+- [x] Establish focused compile, lint, and value-semantic test baselines for
+  every new or affected crate.
+- [x] Correct the acquisition scheme, ODF, and tractography contracts and
+  complete format-level integration tests.
+- [x] Add and inspect a deterministic runnable example and generated figure.
+- [x] Write the diffusion-MRI and tractography chapters and wire the Pages
+  reproducibility gate.
+- [x] Publish the checked real spherical-harmonic provider in Apollo PR #69
+  and pin merged revision `db218665` without retaining the local-only API.
+- [x] Pass merged-provider local Clippy, 537/537 affected Nextest cases,
+  doctest, Rustdoc, deterministic figure, and mdBook test/build gates.
+- [x] Adjudicate review findings with baseline canonicalization, exact ODF and
+  tractography regressions, MGH payload validation, and explicit series-reader
+  book semantics; pass 541/541 affected Nextest cases and all focused local
+  documentation and lint gates.
+- [x] Fix the hosted rank-2 NRRD regression with an exact public-reader test;
+  pass 68/68 package Nextest cases and warning-denied Clippy.
+- [ ] Run focused and hosted gates, adjudicate review, merge, and verify the
+  live Pages artifact.

@@ -1,0 +1,15 @@
+[package]
+name = "ritk-tractography"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license.workspace = true
+description = "Streamline tractography using Gaia Polyline geometry"
+
+[dependencies]
+gaia = { workspace = true }
+leto = { workspace = true }
+ritk-spatial.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]

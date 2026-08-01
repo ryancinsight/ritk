@@ -26,6 +26,21 @@ the boundary.
 pixel primitive implementations. Native-owned JPEG syntaxes route exclusively
 through `NativeCodecBackend`.
 
+## Diffusion metadata
+
+`read_dicom_gradient_scheme_from_file` reads one classic single-frame volume,
+while `read_dicom_gradient_scheme_from_files` accepts one representative file
+per volume in explicit acquisition order. The reader uses only the standard
+top-level Diffusion b-value `(0018,9087)` and Diffusion Gradient Orientation
+`(0018,9089)` attributes defined by [DICOM PS3.3
+C.8.13.5.9](https://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_c.8.13.5.9.html).
+It validates finite s/mm² values and three finite direction components, then
+constructs a physically typed LPS `GradientScheme`. It does not infer volume
+grouping from a directory or guess private vendor tags; enhanced functional
+groups require a separate sequence-aware reader.
+For an unweighted frame, a finite zero b-value with no orientation is mapped
+to the required zero vector; nonzero weighting still requires an orientation.
+
 ## Invariant
 
 Every DICOM loader must reject before constructing `Image<B,3>` when the

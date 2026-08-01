@@ -47,7 +47,13 @@
 - [Registration Metrics](registration_metrics.md)
 - [Optimization and Registration](optimization_registration.md)
 
-# Part III — Registration Algorithms
+# Part III — Diffusion MRI and Tractography
+
+- [Diffusion MRI Acquisition and Q-ball ODFs](diffusion_mri.md)
+- [Deterministic Streamline Tractography](tractography.md)
+  - [Example: Signal to Streamlines](examples/diffusion_tractography.md)
+
+# Part IV — Registration Algorithms
 
 - [Classical Registration](classical_registration.md)
   - [Example: Geometry Validation](examples/geometry_check.md)
@@ -61,14 +67,14 @@
 - [Validation and Benchmarking](validation_benchmarking.md)
   - [Example: Validation Suite](examples/validation_suite.md)
 
-# Part IV — Performance and Low-level Optimizations
+# Part V — Performance and Low-level Optimizations
 
 - [Benchmarking](benchmarking.md)
   - [Example: Gradient Recursive Gaussian Benchmark](examples/bench_gradient_rg.md)
 - [Backend Dispatch](backend_dispatch.md)
 - [Zero-copy I/O](zero_copy_io.md)
 
-# Part V — Integration with atlas Foundation
+# Part VI — Integration with atlas Foundation
 
 - [Coeus Tensor Integration](coeus_integration.md)
 - [Leto Operations Integration](leto_integration.md)

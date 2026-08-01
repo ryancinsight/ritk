@@ -45,6 +45,26 @@ fn write_inline_nrrd(
     }
 }
 
+fn write_inline_planar_nrrd(path: &std::path::Path, data: &[f32], nx: usize, ny: usize) {
+    use std::io::Write;
+    let mut file = std::fs::File::create(path).expect("create planar NRRD fixture");
+    writeln!(file, "NRRD0004").expect("write magic");
+    writeln!(file, "type: float").expect("write type");
+    writeln!(file, "dimension: 2").expect("write dimension");
+    writeln!(file, "space: right-anterior-superior").expect("write space");
+    writeln!(file, "sizes: {nx} {ny}").expect("write sizes");
+    writeln!(file, "space directions: (0.5,0) (0,2)").expect("write directions");
+    writeln!(file, "kinds: domain domain").expect("write kinds");
+    writeln!(file, "endian: little").expect("write endian");
+    writeln!(file, "encoding: raw").expect("write encoding");
+    writeln!(file, "space origin: (3,4)").expect("write origin");
+    writeln!(file).expect("terminate header");
+    for &value in data {
+        file.write_all(&value.to_le_bytes())
+            .expect("write planar voxel");
+    }
+}
+
 // ── Shape and metadata ─────────────────────────────────────────────────
 
 /// `sizes: 4 3 2` (nx=4, ny=3, nz=2) must produce RITK shape [2, 3, 4].
@@ -63,6 +83,24 @@ fn test_shape_permuted_to_zyx() -> Result<()> {
     let image = crate::read_nrrd(&path, &backend)?;
 
     assert_eq!(image.shape(), [nz, ny, nx], "shape must be [nz, ny, nx]");
+    Ok(())
+}
+
+#[test]
+fn planar_space_metadata_is_promoted_to_z1() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("planar.nrrd");
+    let data = (0..12).map(|value| value as f32).collect::<Vec<_>>();
+    write_inline_planar_nrrd(&path, &data, 4, 3);
+
+    let image = crate::read_nrrd(&path, &SequentialBackend)?;
+    assert_eq!(image.shape(), [1, 3, 4]);
+    assert_eq!(image.spacing(), &Spacing::new([1.0, 2.0, 0.5]));
+    assert_eq!(image.origin(), &Point::new([3.0, 4.0, 0.0]));
+    assert_eq!(
+        image.data_slice().expect("contiguous planar voxels"),
+        data.as_slice()
+    );
     Ok(())
 }
 

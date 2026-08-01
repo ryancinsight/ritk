@@ -1,9 +1,58 @@
 # RITK Backlog - Active Planning
 
+- Composition note (2026-07-31, session-2026-07-30-board-ssot): commit
+  `c2cd7b37` on this lane carries the diffusion frontier's in-flight
+  snapshot under an unrelated commit message ("feat(metal): Delegate the
+  sparse operator seam...") — a cross-repo cwd slip while that hephaestus
+  seam was being committed from the shared session. Nothing of the
+  diffusion work is altered or lost; the message is wrong, the content is
+  this lane's own snapshot plus ADR 0017. The hephaestus seam itself landed
+  separately in hephaestus (`849a441`).
+
+
 > **Retired tooling note**: The `burn-migration-audit` xtask command,
 > `xtask/burn_surface.allowlist`, and the `legacy-migration-audit` CI
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
+
+- **FEAT-686-01** `[minor][arch]` - Establish a physically typed diffusion-MRI
+  and tractography pipeline (REVIEW; owner=Codex;
+  last-update=2026-07-31; scope=`Cargo.{toml,lock}`,
+  `crates/ritk-{diffusion-scheme,diffusion,tractography}/**`, diffusion
+  metadata integration in `crates/ritk-{dicom,nrrd,mgh,io}/**`,
+  `docs/adr/{0017-diffusion-mri-pipeline.md,README.md}`,
+  `docs/book/{SUMMARY.md,diffusion_mri.md,tractography.md,
+  examples/diffusion_tractography.md,figures/diffusion_tractography.svg}`,
+  the runnable figure example and book workflow, `CHANGELOG.md`,
+  `gap_audit.md`, and PM artifacts; non-goal=clinical tensor validation,
+  probabilistic tractography, DKI/NODDI, GPU execution, Python bindings,
+  release, or manual deployment). Recover and complete the ownerless working
+  increment following the merged acquisition-series support. Replace the
+  false dimensionless b-value contract with a physical time-per-area type,
+  validate finite signals, gradient frames, configurations, directions, and
+  integration outputs at public boundaries, and make termination stop before
+  an invalid tissue point rather than emitting an out-of-domain segment.
+  Keep format parsing bounded and contextual, split mixed-concern source files
+  into canonical modules, and retain one allocation-efficient numerical path
+  per operation. Add a deterministic end-to-end example and inspected figure
+  showing the acquisition scheme, synthetic anisotropic signal, fitted
+  orientation distribution, direction field, seeds, termination causes, and
+  generated streamlines against an analytical phantom. Acceptance: format
+  round trips preserve volume order, physical image geometry, b-values, and
+  gradient directions; invalid or non-finite external inputs return typed
+  errors without panic or partial output; ODF fitting recovers the analytical
+  dominant axis within a derived angular bound; tractography stays inside the
+  phantom and obeys step, turn, and length limits; displayed metrics agree
+  with generated data; the example stays within the committed runtime budget;
+  and formatting, warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook,
+  semantic-version, review, and hosted gates pass.
+  Apollo PR #69 merged as `db218665` after exact-head Rust, Python, provider,
+  dependency, and byte-identical benchmark gates passed. This branch now pins
+  every Apollo package to that merge and propagates the provider's fallible
+  real-harmonic API. Merged-provider local gates pass warning-denied Clippy,
+  537/537 affected Nextest cases, doctests, warning-denied Rustdoc, deterministic
+  figure regeneration, and mdBook test/build; hosted gates and live Pages
+  verification remain.
 
 - **SAFE-685-01 [patch] - Bound and document TIFF volume decoding**
   (DONE; owner=Codex; last-update=2026-07-31; scope=
