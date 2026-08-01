@@ -1,5 +1,15 @@
 # RITK Backlog - Active Planning
 
+- Composition note (2026-07-31, session-2026-07-30-board-ssot): commit
+  `c2cd7b37` on this lane carries the diffusion frontier's in-flight
+  snapshot under an unrelated commit message ("feat(metal): Delegate the
+  sparse operator seam...") — a cross-repo cwd slip while that hephaestus
+  seam was being committed from the shared session. Nothing of the
+  diffusion work is altered or lost; the message is wrong, the content is
+  this lane's own snapshot plus ADR 0017. The hephaestus seam itself landed
+  separately in hephaestus (`849a441`).
+
+
 > **Retired tooling note**: The `burn-migration-audit` xtask command,
 > `xtask/burn_surface.allowlist`, and the `legacy-migration-audit` CI
 > workflow were removed after the Burn-to-Coeus migration completed.
