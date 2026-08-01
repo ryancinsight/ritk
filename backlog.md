@@ -39,11 +39,11 @@
   value-exact; marker-only, truncated-length, oversized-length, and missing-EOC
   cases and unsupported component traversal return contextual errors; focused formatting, warning-denied Clippy,
   Nextest, doctest, Rustdoc, mdBook, and review gates pass. The complete local
-  Nextest pass is 311/311, including the captured OpenJPEG corpus and twenty
+  Nextest pass is 315/315, including the captured OpenJPEG corpus and twenty-three
   new malformed/unsupported-stream regressions. Independent reviews
   exposed progression-override, tile-header scanning, and packet-completeness
   gaps plus EBCOT exhaustion, `Psot=0`, and trailing-EOC defects; those
-  counterexamples now have regressions. Corrected-head formatting, 311/311
+  counterexamples now have regressions. Corrected-head formatting, 315/315
   Nextest, warning-denied Clippy, doctest, warning-denied Rustdoc, and mdBook
   test/build pass. Exact implementation head `425cc147` passes CI run
   `30709628867`, all Python lanes in run `30709628847`, and the Pages artifact

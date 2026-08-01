@@ -33,15 +33,15 @@
 - [x] Add value-semantic malformed-tail regressions while preserving native and
       captured OpenJPEG interoperability.
 - [x] Correct native codec ownership and parser-safety documentation.
-- [x] Run the corrected complete Nextest gate: all 311 codec tests pass,
+- [x] Run the corrected complete Nextest gate: all 315 codec tests pass,
       including the captured OpenJPEG corpus and all review counterexamples.
 - [x] Run corrected-head formatting, warning-denied Clippy, doctest, Rustdoc,
       mdBook, and diff gates.
-- [x] Complete independent review and exact-head hosted gates. Exact head
+- [ ] Complete independent review and exact-head hosted gates. Interim head
       `425cc147` passes CI `30709628867`, Python CI `30709628847`, and the
-      Pages artifact build `30709628871`; thread-aware PR inspection reports
-      no review threads or requested changes.
-- [x] Reconcile PM evidence and publish the merge-ready closure after hosted
+      Pages artifact build `30709628871`; final CodeRabbit findings are
+      corrected locally and require exact-head revalidation.
+- [ ] Reconcile PM evidence and publish the merge-ready closure after hosted
       gates pass.
 
 ## SAFE-685-01 — Bound and document TIFF volume decoding

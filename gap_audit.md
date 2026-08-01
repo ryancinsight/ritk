@@ -35,22 +35,23 @@ nonzero entropy-body length; tier-1 validates the announced pass budget and
 rejects MQ decoding that consumes more terminal fill than the bounded
 predictable-termination allowance. `Psot=0` now extends to terminal EOC after
 structural tile-header parsing, so marker-looking COM payload bytes cannot cut
-the tile short. EOC accepts no trailing bytes except one required DICOM
-even-length zero pad.
+the tile short. EOC accepts no trailing bytes, or one zero pad when an
+odd-length DICOM fragment requires an even encoded value length.
 
-Twenty new regressions cover
+Twenty-three new malformed or unsupported-stream regressions cover
 marker tails, EOC, tile coverage, component/MCT/progression profiles, main and
 tile overrides, structural SOD discovery, tile-part marker bounds, multi-part
 declaration, empty packet data, zero-length and exhausted code-block bodies,
 `Psot=0` COM payloads, trailing payload, DICOM padding, and unsupported COD
-packet profiles. All 311
+packet profiles. All 315
 codec tests pass, including the captured OpenJPEG 2.5.4 lossless/lossy corpus.
 Corrected-head formatting, warning-denied Clippy, doctest, warning-denied
 Rustdoc, and mdBook test/build pass. Exact implementation head `425cc147`
 passes CI run `30709628867`, all Python lanes in run `30709628847`, and the Pages
 artifact build in run `30709628871` on Linux, macOS, and Windows. Thread-aware
-PR #81 inspection after CodeRabbit's completed incremental-review command
-reports zero review threads or requested changes. These checks prove
+PR #81 inspection then exposed a boundary-straddling SOD read, coefficient
+precision overflow, one false-positive marker test, and incomplete conditional
+padding coverage. Those cases now have direct regressions. These checks prove
 the supported grayscale contract and malformed-input behavior; they do not
 claim multi-component or multi-part decode support.
 

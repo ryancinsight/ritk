@@ -11,8 +11,9 @@ The native decoder currently accepts a complete grayscale codestream with one
 component, LRCP progression, no progression changes, no multiple-component
 transform, inline packet headers, one tile-part per tile, and unit component
 sampling. Packet coding uses default precincts, 64 × 64 nominal code-blocks,
-default code-block style, and no SOP/EPH markers. These constraints match the
-encoder and the grayscale DICOM workflow
+default code-block style, no SOP/EPH markers, and at most 32-bit component
+precision, matching the decoder's signed coefficient representation. These
+constraints match the encoder and the grayscale DICOM workflow
 shown in this chapter. The decoder preflights main and tile headers plus complete
 tile coverage before allocating output. Color or other multi-component streams,
 chroma subsampling, progression overrides, packed packet headers, multi-part

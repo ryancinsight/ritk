@@ -58,6 +58,18 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
             siz.csiz
         );
     }
+    let component = siz
+        .components
+        .first()
+        .context("J2K: SIZ declared one component without component parameters")?;
+    let c_prec = component.precision();
+    let c_signed = component.is_signed();
+    if c_prec > i32::BITS {
+        bail!(
+            "J2K: component 0 precision {c_prec} exceeds the native decoder's {}-bit coefficient capacity",
+            i32::BITS
+        );
+    }
     if cod.progression_order != 0 {
         bail!(
             "J2K: native decode supports LRCP progression order 0; found {}",
@@ -160,9 +172,6 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
             .context("J2K: validate SOT tile index")?;
         let tw = bounds.width;
         let th = bounds.height;
-        let comp_spec = &siz.components[0];
-        let c_prec = comp_spec.precision();
-        let c_signed = comp_spec.is_signed();
         let tile_comp = decode_tile_part(
             &fragment[tile_part.data],
             tw,
@@ -187,11 +196,7 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
                     continue;
                 }
                 let dc_shifted = tile_comp.samples[py * tw + px];
-                let raw = if c_signed {
-                    dc_shifted
-                } else {
-                    dc_shifted + (1i32 << (c_prec - 1))
-                };
+                let raw = restore_component_sample(dc_shifted, c_prec, c_signed);
                 let rescaled = raw as f64 * f64::from(layout.rescale_slope)
                     + f64::from(layout.rescale_intercept);
                 let out_idx = (img_y * img_w + img_x) * layout.samples_per_pixel;
@@ -202,6 +207,15 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
         }
     }
     Ok(out)
+}
+
+fn restore_component_sample(dc_shifted: i32, precision: u32, signed: bool) -> i64 {
+    debug_assert!((1..=i32::BITS).contains(&precision));
+    if signed {
+        i64::from(dc_shifted)
+    } else {
+        i64::from(dc_shifted) + (1i64 << (precision - 1))
+    }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -346,10 +360,18 @@ fn scan_tile_parts(data: &[u8], start: usize, tile_count: usize) -> Result<Vec<T
 
 fn parse_tile_header(data: &[u8], mut pos: usize, tile_end: usize) -> Result<usize> {
     while pos < tile_end {
+        let marker_end = pos
+            .checked_add(2)
+            .context("J2K: tile-header marker position overflows the platform address size")?;
+        if marker_end > tile_end {
+            bail!(
+                "J2K: tile-header marker at byte {pos} extends beyond the tile-part end at byte {tile_end}"
+            );
+        }
         let marker_code = marker::read_u16(data, pos)
             .with_context(|| format!("J2K: truncated tile-header marker at byte {pos}"))?;
         match marker_code {
-            marker::SOD => return Ok(pos + 2),
+            marker::SOD => return Ok(marker_end),
             marker::COM | marker::PLT => {
                 pos = marker_segment_end(data, pos, marker_code, tile_end)?;
             }
@@ -413,6 +435,19 @@ mod tests {
         assert!(
             format!("{err:#}").contains("SOC") || format!("{err:#}").contains("0xFF4F"),
             "error must mention SOC; got: {err:#}"
+        );
+    }
+
+    #[test]
+    fn unsigned_dc_restoration_covers_complete_32_bit_range() {
+        assert_eq!(restore_component_sample(i32::MIN, 32, false), 0);
+        assert_eq!(
+            restore_component_sample(i32::MAX, 32, false),
+            i64::from(u32::MAX)
+        );
+        assert_eq!(
+            restore_component_sample(i32::MIN, 32, true),
+            i64::from(i32::MIN)
         );
     }
 }

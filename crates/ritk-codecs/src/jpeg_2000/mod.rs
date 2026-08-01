@@ -42,8 +42,10 @@
 //! sample counts share a fixed allocation cap. Tile headers are parsed by marker
 //! boundaries before output allocation; every segment must fit its byte extent,
 //! EOC is mandatory, every declared tile must be present, and every expected
-//! LRCP packet header must be consumed. `Psot = 0` extends to terminal EOC,
-//! post-EOC bytes are limited to a required one-byte DICOM zero pad, and every
+//! LRCP packet header must be consumed. Component precision is bounded by the
+//! decoder's 32-bit coefficient representation. `Psot = 0` extends to terminal
+//! EOC, post-EOC bytes are limited to one zero pad when an odd-length DICOM
+//! fragment requires even length, and every
 //! included code-block must provide enough entropy data for its announced pass
 //! count.
 //!
@@ -107,6 +109,7 @@ pub(crate) const SOI: u16 = 0xFFD8;
 /// - packet or coefficient decoding fails.
 /// - a marker segment or packet is truncated, EOC or a declared tile is
 ///   missing, or decoded component metadata does not match `layout`.
+/// - component precision exceeds the decoder's 32-bit coefficient capacity.
 pub fn decode_jpeg2000_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
     if !is_jpeg2000_codestream(fragment) {
         bail!(
