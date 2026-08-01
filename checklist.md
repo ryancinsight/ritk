@@ -22,6 +22,8 @@
 - [ ] Record the exact focused baseline before editing production code.
 - [ ] Make every post-main-header marker segment exact and fallible and require
       EOC after all declared tiles.
+- [ ] Reject multi-component, MCT, and non-LRCP streams before output
+      allocation instead of returning duplicated or misordered channels.
 - [ ] Add value-semantic malformed-tail regressions while preserving native and
       captured OpenJPEG interoperability.
 - [ ] Correct native codec ownership and parser-safety documentation.
