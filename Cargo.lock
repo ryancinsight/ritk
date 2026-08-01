@@ -302,6 +302,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo-sht"
+version = "0.7.0"
+dependencies = [
+ "apollo-fft",
+ "apollo-leto-interop",
+ "bytemuck",
+ "eunomia",
+ "hermes-simd",
+ "leto",
+ "mnemosyne",
+ "moirai",
+ "serde",
+ "thiserror 2.0.19",
+]
+
+[[package]]
 name = "arboard"
 version = "3.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1287,6 +1303,8 @@ dependencies = [
  "coeus-core",
  "coeus-ops",
  "coeus-tensor",
+ "leto",
+ "leto-ops",
  "thiserror 2.0.19",
 ]
 
@@ -2266,6 +2284,7 @@ dependencies = [
  "bytemuck",
  "libm",
  "rkyv 0.7.46",
+ "serde",
 ]
 
 [[package]]
@@ -5696,7 +5715,30 @@ dependencies = [
  "image 0.24.9",
  "proptest",
  "ritk-codecs",
+ "ritk-diffusion-scheme",
+ "ritk-spatial",
  "tempfile",
+]
+
+[[package]]
+name = "ritk-diffusion"
+version = "0.1.0"
+dependencies = [
+ "apollo-sht",
+ "leto",
+ "leto-ops",
+ "ritk-diffusion-scheme",
+ "ritk-spatial",
+ "thiserror 2.0.19",
+]
+
+[[package]]
+name = "ritk-diffusion-scheme"
+version = "0.1.0"
+dependencies = [
+ "aequitas",
+ "ritk-spatial",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -5922,6 +5964,7 @@ dependencies = [
  "coeus-core",
  "flate2",
  "ritk-codecs",
+ "ritk-diffusion-scheme",
  "ritk-image",
  "ritk-spatial",
  "tempfile",
@@ -6107,6 +6150,16 @@ dependencies = [
  "ritk-spatial",
  "tempfile",
  "tiff",
+]
+
+[[package]]
+name = "ritk-tractography"
+version = "0.1.0"
+dependencies = [
+ "gaia",
+ "leto",
+ "ritk-spatial",
+ "thiserror 2.0.19",
 ]
 
 [[package]]
@@ -8968,19 +9021,19 @@ dependencies = [
 ]
 
 [[patch.unused]]
+name = "tyche-core"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "proteus"
+version = "0.1.0"
+
+[[patch.unused]]
 name = "asclepius"
 version = "0.1.0"
 
 [[patch.unused]]
 name = "asclepius-coeus"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "consus-npy"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "consus-zarr"
 version = "0.1.0"
 
 [[patch.unused]]
@@ -8992,12 +9045,32 @@ name = "hephaestus-cuda"
 version = "0.18.0"
 
 [[patch.unused]]
+name = "hephaestus-metal"
+version = "0.18.0"
+
+[[patch.unused]]
+name = "hephaestus-rocm"
+version = "0.18.0"
+
+[[patch.unused]]
 name = "hephaestus-wgpu"
 version = "0.18.0"
 
 [[patch.unused]]
-name = "tyche-core"
+name = "hyperion"
 version = "0.1.0"
+
+[[patch.unused]]
+name = "consus-npy"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "consus-zarr"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "apollo-nufft"
+version = "0.7.0"
 
 [[patch.unused]]
 name = "moirai-gpu"
@@ -9016,17 +9089,5 @@ name = "athena-leto"
 version = "0.1.0"
 
 [[patch.unused]]
-name = "hyperion"
-version = "0.1.0"
-
-[[patch.unused]]
 name = "horae"
 version = "0.1.0"
-
-[[patch.unused]]
-name = "proteus"
-version = "0.1.0"
-
-[[patch.unused]]
-name = "apollo-nufft"
-version = "0.7.0"

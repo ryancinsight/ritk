@@ -43,28 +43,6 @@ pub(crate) enum AcquisitionAxis {
     Slowest,
 }
 
-impl AcquisitionAxis {
-    /// Flat element index of `voxel` within `volume`.
-    ///
-    /// `voxel` indexes one volume's spatial extent. The two layouts differ only
-    /// in which term carries the stride: a fastest axis strides the voxel term
-    /// by the volume count, a slowest axis strides the volume term by the
-    /// per-volume voxel count.
-    pub(crate) const fn flat_index(
-        self,
-        volume: usize,
-        voxel: usize,
-        voxels_in_volume: usize,
-        volumes: usize,
-    ) -> usize {
-        match self {
-            Self::Absent => voxel,
-            Self::Fastest => volume + volumes * voxel,
-            Self::Slowest => volume * voxels_in_volume + voxel,
-        }
-    }
-}
-
 /// Locate the acquisition axis of a `dimension`-axis NRRD file.
 ///
 /// `kinds` and `space_directions_present` are the raw header field values when
@@ -228,21 +206,4 @@ mod tests {
         assert!(format!("{err:#}").contains("lists 3 axes"));
     }
 
-    #[test]
-    fn fastest_layout_interleaves_volumes() {
-        // Volume v, voxel i sits at v + volumes * i.
-        assert_eq!(AcquisitionAxis::Fastest.flat_index(0, 0, 8, 3), 0);
-        assert_eq!(AcquisitionAxis::Fastest.flat_index(1, 0, 8, 3), 1);
-        assert_eq!(AcquisitionAxis::Fastest.flat_index(0, 1, 8, 3), 3);
-        assert_eq!(AcquisitionAxis::Fastest.flat_index(2, 5, 8, 3), 17);
-    }
-
-    #[test]
-    fn slowest_layout_blocks_volumes() {
-        // Volume v, voxel i sits at v * voxels + i.
-        assert_eq!(AcquisitionAxis::Slowest.flat_index(0, 0, 8, 3), 0);
-        assert_eq!(AcquisitionAxis::Slowest.flat_index(1, 0, 8, 3), 8);
-        assert_eq!(AcquisitionAxis::Slowest.flat_index(0, 1, 8, 3), 1);
-        assert_eq!(AcquisitionAxis::Slowest.flat_index(2, 5, 8, 3), 21);
-    }
 }

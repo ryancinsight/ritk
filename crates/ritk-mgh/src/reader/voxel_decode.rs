@@ -30,6 +30,24 @@ pub(super) fn decode_voxels<R: Read>(
     }
 }
 
+pub(super) fn decode_volumes<R: Read>(
+    reader: &mut R,
+    voxel_type: VoxelType,
+    voxels_per_volume: usize,
+    volume_count: usize,
+) -> Result<Vec<Vec<f32>>> {
+    let mut volumes = Vec::new();
+    volumes
+        .try_reserve_exact(volume_count)
+        .context("cannot allocate MGH volume table")?;
+    for volume in 0..volume_count {
+        let values = decode_voxels(reader, voxel_type, voxels_per_volume)
+            .with_context(|| format!("failed to decode MGH volume {volume} of {volume_count}"))?;
+        volumes.push(values);
+    }
+    Ok(volumes)
+}
+
 fn decode_stream<const BYTES_PER_VOXEL: usize, R: Read, F>(
     reader: &mut R,
     voxel_count: usize,

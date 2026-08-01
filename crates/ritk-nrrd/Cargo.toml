@@ -10,6 +10,7 @@ repository = "https://github.com/ryancinsight/ritk"
 ritk-image = { path = "../ritk-image" }
 ritk-spatial = { path = "../ritk-spatial" }
 ritk-codecs = { path = "../ritk-codecs" }
+ritk-diffusion-scheme = { path = "../ritk-diffusion-scheme" }
 coeus-core = { workspace = true }
 anyhow = { workspace = true }
 bytemuck = { workspace = true }

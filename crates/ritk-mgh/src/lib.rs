@@ -14,11 +14,13 @@
 //!
 //! The header's `nframes` field counts consecutive volumes of identical
 //! geometry: one for an anatomical volume, many for a diffusion or time series.
-//! This crate carries the 3-D `Image` contract, which represents exactly one
-//! frame, so the reader accepts `nframes == 1` and rejects anything higher with
-//! an error naming the count. Returning frame 0 from a multi-frame file would
-//! report success while discarding the rest of the acquisition, which is a
-//! silent data loss rather than a partial read.
+//!
+//! - [`read_mgh`] returns a single 3-D image and rejects multi-frame files.
+//! - [`read_mgh_series`] returns one `Image` per frame, accepting both
+//!   single-frame and multi-frame files.
+//! - [`write_mgh`] writes a single frame (`nframes = 1`).
+//! - [`write_mgh_series`] writes every image in the slice as one frame,
+//!   preserving the shared spatial grid.
 //!
 //! # Spatial metadata
 //!
@@ -50,8 +52,8 @@ mod test_support;
 mod types;
 mod writer;
 
-pub use reader::{read_mgh, MghReader};
-pub use writer::{write_mgh, MghWriter};
+pub use reader::{read_mgh, read_mgh_series, MghReader};
+pub use writer::{write_mgh, write_mgh_series, MghWriter};
 
 use std::path::Path;
 

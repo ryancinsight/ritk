@@ -66,6 +66,9 @@ pub use seg::{
     DicomSegmentInfo, DicomSegmentation, SegEncoding, SegmentAlgorithmType, SegmentationType,
 };
 // Re-export series types and functions from the series submodule.
+pub use ritk_dicom::diffusion::{
+    read_dicom_gradient_scheme_from_file, read_dicom_gradient_scheme_from_files,
+};
 pub use ritk_dicom::PixelSignedness;
 pub use series::{
     load_dicom_series, load_native_dicom_series, read_dicom_series, read_native_dicom_series,

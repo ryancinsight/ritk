@@ -18,3 +18,4 @@
 | [0014](0014-fallible-descriptive-statistics.md) | Fallible finite descriptive statistics | Accepted |
 | [0015](0015-fallible-temporal-synchronization.md) | Fallible temporal synchronization | Accepted |
 | [0016](0016-module-error-bridge.md) | Type-erased Coeus module-error bridge | Accepted |
+| [0017](0017-diffusion-mri-pipeline.md) | Physically typed diffusion MRI pipeline | Accepted |

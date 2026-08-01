@@ -1,13 +1,15 @@
-//! MGH / MGZ reader for 3-D volumetric images.
+//! MGH / MGZ reader for 3-D volumetric images and acquisition series.
 //!
 //! Voxels are stored in MGH Fortran order `x + y*nx + z*nx*ny`, which is
 //! identical to RITK row-major `[z, y, x]` order. No axis permutation is
-//! required when constructing the tensor.
+//! required when constructing the tensor. Each frame is a contiguous block
+//! of `nx * ny * nz` voxels; the `nframes` header field counts consecutive
+//! volumes of identical geometry.
 
 use crate::binary::{read_f32_be, read_i16_be, read_i32_be};
 use crate::spatial::{derive_image_geometry, RasValidity};
 use crate::types::VoxelType;
-use crate::{is_gzip_path, GOOD_RAS_VALID, PADDING_LEN, SINGLE_FRAME, VERSION};
+use crate::{is_gzip_path, GOOD_RAS_VALID, PADDING_LEN, VERSION};
 use anyhow::{bail, Context, Result};
 use coeus_core::ComputeBackend;
 use flate2::read::GzDecoder;
@@ -50,27 +52,106 @@ pub fn read_mgh<B: ComputeBackend, P: AsRef<Path>>(
     }
 }
 
-/// Decoded MGH volume: voxels in `[nz, ny, nx]` order plus physical geometry.
+/// Decoded MGH volume(s): one entry per frame, each in `[nz, ny, nx]` order,
+/// sharing one physical geometry.
 struct DecodedMgh {
-    data: Vec<f32>,
+    volumes: Vec<Vec<f32>>,
     dims: [usize; 3],
     origin: ritk_spatial::Point<3>,
     spacing: ritk_spatial::Spacing<3>,
     direction: ritk_spatial::Direction<3>,
 }
 
+impl DecodedMgh {
+    /// Take the sole volume, rejecting a multi-frame file.
+    ///
+    /// The single-volume reader carries a `[nz, ny, nx]` contract, so a
+    /// multi-frame file has no correct representation through it; returning
+    /// frame 0 would discard the rest of the acquisition while reporting
+    /// success.
+    fn into_single_volume(
+        mut self,
+    ) -> Result<(
+        Vec<f32>,
+        [usize; 3],
+        ritk_spatial::Point<3>,
+        ritk_spatial::Spacing<3>,
+        ritk_spatial::Direction<3>,
+    )> {
+        if self.volumes.len() != 1 {
+            bail!(
+                "MGH file declares {} frames; this reader returns a 3-D Image, which \
+                 represents exactly one frame. Multi-frame MGH (diffusion series, \
+                 time series) has no correct single-volume decoding — reading frame 0 \
+                 alone would silently discard {} frames of the acquisition.",
+                self.volumes.len(),
+                self.volumes.len() - 1
+            );
+        }
+        let data = self
+            .volumes
+            .pop()
+            .expect("invariant: length checked to be exactly one above");
+        Ok((data, self.dims, self.origin, self.spacing, self.direction))
+    }
+}
+
 fn read_mgh_from_reader<B: ComputeBackend, R: Read>(
     reader: &mut R,
     backend: &B,
 ) -> Result<Image<f32, B, 3>> {
+    let (data, dims, origin, spacing, direction) = decode_mgh(reader)?.into_single_volume()?;
+    Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+}
+
+/// Read an MGH or MGZ acquisition series as one image per frame.
+///
+/// Each returned image shares the file's single spatial grid, in acquisition
+/// order. A single-frame file is a one-image series, so this reader accepts
+/// an ordinary volume; [`read_mgh`] does not accept the converse, rejecting a
+/// multi-frame file rather than returning its first frame.
+///
+/// # Errors
+///
+/// Returns an error when the header version, dimensions, or data type code are
+/// invalid, when the payload is shorter than the header declares, or when the
+/// file contains zero frames.
+pub fn read_mgh_series<B: ComputeBackend, P: AsRef<Path>>(
+    path: P,
+    backend: &B,
+) -> Result<Vec<Image<f32, B, 3>>> {
+    let path = path.as_ref();
+    let file = std::fs::File::open(path)
+        .with_context(|| format!("Cannot open MGH/MGZ file {:?}", path))?;
+
+    if is_gzip_path(path) {
+        let gz = GzDecoder::new(BufReader::new(file));
+        let mut reader = BufReader::new(gz);
+        read_mgh_series_from_reader(&mut reader, backend)
+            .with_context(|| format!("Failed to parse MGZ series {:?}", path))
+    } else {
+        let mut reader = BufReader::new(file);
+        read_mgh_series_from_reader(&mut reader, backend)
+            .with_context(|| format!("Failed to parse MGH series {:?}", path))
+    }
+}
+
+fn read_mgh_series_from_reader<B: ComputeBackend, R: Read>(
+    reader: &mut R,
+    backend: &B,
+) -> Result<Vec<Image<f32, B, 3>>> {
     let DecodedMgh {
-        data,
+        volumes,
         dims,
         origin,
         spacing,
         direction,
     } = decode_mgh(reader)?;
-    Image::from_flat_on(data, dims, origin, spacing, direction, backend)
+
+    volumes
+        .into_iter()
+        .map(|data| Image::from_flat_on(data, dims, origin, spacing, direction, backend))
+        .collect()
 }
 
 fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
@@ -100,16 +181,6 @@ fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
     }
     if nframes <= 0 {
         bail!("Invalid MGH nframes: {}", nframes);
-    }
-    if nframes != SINGLE_FRAME {
-        bail!(
-            "MGH file declares {} frames; this reader returns a 3-D Image, which \
-             represents exactly one frame. Multi-frame MGH (diffusion series, \
-             time series) has no correct single-volume decoding — reading frame 0 \
-             alone would silently discard {} frames of the acquisition.",
-            nframes,
-            nframes - SINGLE_FRAME
-        );
     }
 
     let good_ras_flag = read_i16_be(reader)?;
@@ -145,21 +216,25 @@ fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
         c_ras,
     );
 
+    let nframes = nframes as usize;
     let n_voxels = nx
         .checked_mul(ny)
         .and_then(|v| v.checked_mul(nz))
         .ok_or_else(|| anyhow::anyhow!("Volume dimensions overflow: {}x{}x{}", nx, ny, nz))?;
+    let total_voxels = n_voxels.checked_mul(nframes).ok_or_else(|| {
+        anyhow::anyhow!("Series voxel count overflow: {n_voxels} voxels × {nframes} frames")
+    })?;
     let voxel_type = VoxelType::try_from(mri_type)?;
     let bpv = voxel_type.bytes_per_voxel();
-    let data_size = n_voxels.checked_mul(bpv).ok_or_else(|| {
-        anyhow::anyhow!("Data size overflow: {} voxels × {} bytes", n_voxels, bpv)
+    let data_size = total_voxels.checked_mul(bpv).ok_or_else(|| {
+        anyhow::anyhow!("Data size overflow: {total_voxels} voxels × {bpv} bytes")
     })?;
 
-    let f32_data = voxel_decode::decode_voxels(reader, voxel_type, n_voxels)
+    let volumes = voxel_decode::decode_volumes(reader, voxel_type, n_voxels, nframes)
         .with_context(|| format!("Failed to decode {data_size} bytes of MGH voxel data"))?;
 
     Ok(DecodedMgh {
-        data: f32_data,
+        volumes,
         dims: [nz, ny, nx],
         origin,
         spacing,
@@ -187,5 +262,13 @@ impl MghReader {
         backend: &B,
     ) -> Result<Image<f32, B, 3>> {
         read_mgh(path, backend)
+    }
+
+    /// Read an MGH or MGZ acquisition series as one image per frame.
+    pub fn read_series<B: ComputeBackend, P: AsRef<Path>>(
+        path: P,
+        backend: &B,
+    ) -> Result<Vec<Image<f32, B, 3>>> {
+        read_mgh_series(path, backend)
     }
 }
