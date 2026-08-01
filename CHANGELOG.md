@@ -18,6 +18,9 @@
 - Reject truncated or invalid post-header marker segments, missing EOC, and
   codestreams that terminate before every declared tile is decoded instead of
   returning partially populated output.
+- Parse tile headers structurally and reject progression or coding overrides,
+  packed packet headers, multi-part tiles, and missing LRCP packets instead of
+  treating incomplete data as a zero-filled image.
 - Correct codec architecture and book documentation to describe the RITK-native
   Rust decoder and its current grayscale boundary.
 

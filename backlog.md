@@ -16,8 +16,8 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
-  (REVIEW; owner=Codex; last-update=2026-08-01; scope=
-  `crates/ritk-codecs/src/jpeg_2000/{ebcot/mod.rs,image.rs,mod.rs,tests.rs}`,
+  (IN_PROGRESS; owner=Codex; last-update=2026-08-01; scope=
+  `crates/ritk-codecs/src/jpeg_2000/{codestream.rs,ebcot/mod.rs,image.rs,marker.rs,mod.rs,packet/reader.rs,tests.rs}`,
   `ARCHITECTURE.md`, `docs/book/jpeg_2000_codec.md`, `CHANGELOG.md`,
   `gap_audit.md`, and PM artifacts; non-goal=codec feature expansion,
   rate control, JP2 containers, changing valid codestream output, release, or
@@ -28,18 +28,20 @@
   or partial output. The same packet reader traverses one LRCP component but
   was invoked from byte zero for every declared component, silently duplicating
   channel zero; reject multi-component, MCT, and non-LRCP streams before output
-  allocation until their packet traversal exists. Correct the stale architecture claim that production
-  decode still uses `jpeg2k`/`openjp2`, and document the native parser boundary.
+  allocation until their packet traversal exists. Structurally parse tile
+  headers, reject unsupported coding/progression overrides and multi-part tiles,
+  and require every expected LRCP packet. Correct the stale architecture claim
+  that production decode still uses `jpeg2k`/`openjp2`, and document the native parser boundary.
   Acceptance: complete native and captured OpenJPEG streams remain
   value-exact; marker-only, truncated-length, oversized-length, and missing-EOC
   cases and unsupported component traversal return contextual errors; focused formatting, warning-denied Clippy,
-  Nextest, doctest, Rustdoc, mdBook, and review gates pass. Local closure:
-  all 297 codec tests pass, including the complete captured OpenJPEG corpus and
-  six new malformed/unsupported-stream regressions; warning-denied all-target
-  Clippy, doctests, warning-denied Rustdoc, mdBook test/build, formatting, and
-  diff checks pass. The package's already-const test trace initializer carries
-  a scoped Clippy 1.97 expectation because the macro expansion is diagnosed
-  despite the const block. Hosted gates and independent review remain.
+  Nextest, doctest, Rustdoc, mdBook, and review gates pass. The complete local
+  Nextest pass is 305/305, including the captured OpenJPEG corpus and fourteen
+  new malformed/unsupported-stream regressions. The first independent review
+  exposed progression-override, tile-header scanning, and packet-completeness
+  gaps; those counterexamples now have regressions. Corrected-head formatting,
+  warning-denied Clippy, doctest, warning-denied Rustdoc, mdBook test/build, and
+  diff gates pass. Hosted gates and independent re-review remain.
 
 - **FEAT-686-01** `[minor][arch]` - Establish a physically typed diffusion-MRI
   and tractography pipeline (REVIEW; owner=Codex;

@@ -15,7 +15,7 @@
 
 ## SAFE-687-01 — Reject truncated JPEG 2000 marker tails
 **Target version**: Unreleased patch
-**Sprint phase**: Review
+**Sprint phase**: Execution
 
 - [x] Reconcile `origin/main`, worktrees, peer-owned diffusion changes, the
       native codec parser, tests, architecture claims, and book coverage.
@@ -25,13 +25,16 @@
       EOC after all declared tiles.
 - [x] Reject multi-component, MCT, and non-LRCP streams before output
       allocation instead of returning duplicated or misordered channels.
+- [x] Preflight tile headers structurally; reject POC/coding overrides, packed
+      packet headers, and multi-part tiles before output allocation.
+- [x] Require every expected LRCP packet header and every SIZ-declared tile.
 - [x] Add value-semantic malformed-tail regressions while preserving native and
       captured OpenJPEG interoperability.
 - [x] Correct native codec ownership and parser-safety documentation.
-- [x] Run local formatting, warning-denied Clippy, Nextest, doctest, Rustdoc,
-      and mdBook gates. All 297 codec tests, the captured OpenJPEG corpus,
-      warning-denied all-target Clippy, doctests, warning-denied Rustdoc, and
-      mdBook test/build pass.
+- [x] Run the corrected complete Nextest gate: all 305 codec tests pass,
+      including the captured OpenJPEG corpus and all review counterexamples.
+- [x] Run corrected-head formatting, warning-denied Clippy, doctest, Rustdoc,
+      mdBook, and diff gates.
 - [ ] Complete independent review and exact-head hosted gates.
 - [ ] Reconcile PM evidence, commit, publish, and merge after hosted gates pass.
 

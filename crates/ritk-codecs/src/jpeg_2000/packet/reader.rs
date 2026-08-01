@@ -218,10 +218,12 @@ pub fn decode_tile_part(
     }
 
     let mut pos = 0usize;
-    'layers: for layer in 0..u32::from(coding.num_layers.max(1)) {
+    for layer in 0..u32::from(coding.num_layers.max(1)) {
         for r in 0..=usize::from(coding.num_decomp_levels) {
             if pos >= tile_data.len() {
-                break 'layers;
+                bail!(
+                    "J2K: tile data ended before LRCP packet header for layer {layer}, resolution {r}"
+                );
             }
             let (s, e) = resolution_band_range(r);
             let mut br = BitReader::new(&tile_data[pos..]);

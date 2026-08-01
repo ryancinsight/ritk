@@ -8,19 +8,25 @@ errors instead of crossing an unsafe foreign interface.
 ## Decoder contract
 
 The native decoder currently accepts a complete grayscale codestream with one
-component, LRCP progression, no multiple-component transform, and unit component
-sampling. These constraints match the encoder and the grayscale DICOM workflow
-shown in this chapter. Color or other multi-component streams, chroma
-subsampling, non-LRCP progression, and MCT are rejected before output allocation
-or packet decoding. Returning an error is necessary here: replaying the same
-packet cursor independently for each component can produce plausible-looking
-but duplicated channels.
+component, LRCP progression, no progression changes, no multiple-component
+transform, inline packet headers, one tile-part per tile, and unit component
+sampling. Packet coding uses default precincts, 64 × 64 nominal code-blocks,
+default code-block style, and no SOP/EPH markers. These constraints match the
+encoder and the grayscale DICOM workflow
+shown in this chapter. The decoder preflights main and tile headers plus complete
+tile coverage before allocating output. Color or other multi-component streams,
+chroma subsampling, progression overrides, packed packet headers, multi-part
+tiles, non-default packet coding, and MCT are typed errors. Returning an error is necessary here: replaying
+the same packet cursor independently for each component can produce
+plausible-looking but duplicated channels.
 
 The codestream boundary is exact. Every marker segment must include a valid
-length and remain inside the input, every tile declared by SIZ must appear, and
-EOC must terminate the stream. A decoded first tile followed by a truncated
-marker tail therefore returns an error instead of a partially populated image
-whose missing voxels appear as valid zeros.
+length and remain inside its tile-part or codestream boundary, SOD is found by
+structural marker parsing rather than a byte-pattern search, every tile declared
+by SIZ must appear, and EOC must terminate the stream. Every expected LRCP packet
+header must also be present. A decoded first tile followed by a truncated marker
+tail or an empty packet body therefore returns an error instead of a partially
+populated image whose missing voxels appear as valid zeros.
 
 JPEG 2000 is a transform codec, not the older block-DCT JPEG format. The Part 1
 pipeline is:
@@ -123,9 +129,10 @@ full-image storage and one pass that writes those bytes. Code-block coefficient
 vectors remain bounded by the 64 × 64 code-block geometry.
 
 The encoder emits one image-wide tile, one quality layer, LRCP progression,
-one precinct per resolution, and 64 × 64 nominal code-blocks. The decoder
-validates SIZ and SOT geometry before allocation and bounds packet-header
-lengths before consuming packet data.
+one precinct per resolution, and 64 × 64 nominal code-blocks. Before output
+allocation, the decoder validates SIZ/SOT geometry, tile-header marker extents,
+single-part tile coverage, and EOC. Packet decode then requires each LRCP packet
+header and bounds its declared body length before consuming packet data.
 
 ## Interoperability evidence
 
@@ -134,9 +141,9 @@ RITK tests the native paths at three levels:
 1. analytical round trips require zero error for reversible 5/3;
 2. captured OpenJPEG 2.5.4 codestreams exercise independent producer/consumer
    interoperability without loading OpenJPEG at test time; and
-3. malformed geometry, unsupported component traversal, truncated markers,
-   missing tiles, and missing EOC require typed rejection instead of a panic or
-   partial image.
+3. malformed geometry, unsupported component/progression overrides, truncated
+   markers, incomplete packets, multi-part declarations, missing tiles, and
+   missing EOC require typed rejection instead of a panic or partial image.
 
 Continue with the [worked codec example](examples/jpeg_2000_codec.md) to read
 the reconstruction and error panels.
