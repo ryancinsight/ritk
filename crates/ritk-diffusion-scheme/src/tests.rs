@@ -1,3 +1,5 @@
+mod reorient_per_volume;
+
 use ritk_spatial::Vector;
 
 use crate::{

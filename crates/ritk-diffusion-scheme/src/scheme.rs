@@ -139,21 +139,77 @@ impl GradientScheme {
         let directions = self
             .directions
             .iter()
-            .map(|entry| {
-                if entry.weighting().is_unweighted() {
-                    return Ok(*entry);
-                }
-                let [x, y, z] = entry.direction().to_array();
-                let rotated = Vector::new([
-                    rotation[0][0] * x + rotation[0][1] * y + rotation[0][2] * z,
-                    rotation[1][0] * x + rotation[1][1] * y + rotation[1][2] * z,
-                    rotation[2][0] * x + rotation[2][1] * y + rotation[2][2] * z,
-                ]);
-                GradientDirection::new(entry.weighting(), rotated)
-            })
+            .map(|entry| rotate_entry(entry, rotation))
             .collect::<Result<Vec<_>, _>>()?;
         Self::new(directions, self.frame)
     }
+
+    /// Rotate each volume's gradient by that volume's own rotation.
+    ///
+    /// [`Self::reorient`] applies one rotation to the whole scheme, which is
+    /// what a fixed frame change needs. Motion and eddy-current correction is
+    /// the other case: each volume is registered independently, so volume `i`
+    /// acquires its own rotation `R_i` and its gradient must move with it. A
+    /// correction that leaves the scheme alone — or that applies one averaged
+    /// rotation — yields a tensor field whose principal directions are wrong by
+    /// the per-volume residual, while every intermediate result still looks
+    /// entirely plausible. That silence is why this is a separate entry point
+    /// rather than a flag on the single-rotation path.
+    ///
+    /// `rotations` is in acquisition order, one entry per volume. Unweighted
+    /// (b = 0) volumes have no direction to rotate and are passed through, but
+    /// they still consume their slot so the indices stay aligned with the
+    /// series.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GradientSchemeError::RotationCountMismatch`] when `rotations`
+    /// does not have exactly one entry per volume, or
+    /// [`GradientSchemeError::InvalidRotation`] when any entry contains
+    /// non-finite values, is not orthonormal within `1e-9`, or has determinant
+    /// other than positive one within that tolerance.
+    pub fn reorient_per_volume(
+        &self,
+        rotations: &[[[f64; 3]; 3]],
+    ) -> Result<Self, GradientSchemeError> {
+        if rotations.len() != self.directions.len() {
+            return Err(GradientSchemeError::RotationCountMismatch {
+                expected: self.directions.len(),
+                actual: rotations.len(),
+            });
+        }
+        for rotation in rotations {
+            validate_rotation(*rotation)?;
+        }
+
+        let directions = self
+            .directions
+            .iter()
+            .zip(rotations)
+            .map(|(entry, rotation)| rotate_entry(entry, *rotation))
+            .collect::<Result<Vec<_>, _>>()?;
+        Self::new(directions, self.frame)
+    }
+}
+
+/// Apply one rotation to one entry, passing unweighted volumes through.
+///
+/// A b = 0 volume carries no meaningful direction, so rotating its placeholder
+/// would manufacture an orientation the acquisition never had.
+fn rotate_entry(
+    entry: &GradientDirection,
+    rotation: [[f64; 3]; 3],
+) -> Result<GradientDirection, GradientSchemeError> {
+    if entry.weighting().is_unweighted() {
+        return Ok(*entry);
+    }
+    let [x, y, z] = entry.direction().to_array();
+    let rotated = Vector::new([
+        rotation[0][0] * x + rotation[0][1] * y + rotation[0][2] * z,
+        rotation[1][0] * x + rotation[1][1] * y + rotation[1][2] * z,
+        rotation[2][0] * x + rotation[2][1] * y + rotation[2][2] * z,
+    ]);
+    GradientDirection::new(entry.weighting(), rotated)
 }
 
 fn validate_rotation(rotation: [[f64; 3]; 3]) -> Result<(), GradientSchemeError> {
