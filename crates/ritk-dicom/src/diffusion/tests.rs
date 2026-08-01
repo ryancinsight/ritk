@@ -85,6 +85,27 @@ fn incomplete_wrong_length_and_non_finite_metadata_are_rejected() {
 }
 
 #[test]
+fn zero_weighting_without_orientation_is_a_valid_b0() -> Result<()> {
+    let b0 = object_with([DataElement::new(
+        Tag::from(tags::DIFFUSION_B_VALUE),
+        VR::FD,
+        PrimitiveValue::from(0.0),
+    )]);
+    assert_eq!(
+        extract_diffusion_pair(&b0)?,
+        Some((0.0, Vector::new([0.0, 0.0, 0.0])))
+    );
+
+    let weighted = object_with([DataElement::new(
+        Tag::from(tags::DIFFUSION_B_VALUE),
+        VR::FD,
+        PrimitiveValue::from(1_000.0),
+    )]);
+    assert!(extract_diffusion_pair(&weighted).is_err());
+    Ok(())
+}
+
+#[test]
 fn file_sequence_preserves_caller_order_units_and_lps_frame() -> Result<()> {
     let directory = tempfile::tempdir()?;
     let b0 = directory.path().join("reference.dcm");

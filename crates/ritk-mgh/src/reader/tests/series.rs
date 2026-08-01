@@ -273,8 +273,8 @@ fn multi_frame_supports_all_voxel_types() -> Result<()> {
         let n_voxels = (nx * ny * nz) as usize;
         assert_eq!(series.len(), nframes as usize);
         for (frame, image) in series.iter().enumerate() {
-            let start = frame * n_voxels as usize;
-            let slice = &expected[start..start + n_voxels as usize];
+            let start = frame * n_voxels;
+            let slice = &expected[start..start + n_voxels];
             assert_eq!(
                 image.data_slice().expect("contiguous host voxels"),
                 slice,

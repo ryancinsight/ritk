@@ -15,7 +15,7 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
-- **FEAT-686-01 [major][arch] - Establish a physically typed diffusion-MRI
+- **FEAT-686-01 [minor][arch] - Establish a physically typed diffusion-MRI
   and tractography pipeline** (IN PROGRESS; owner=Codex;
   last-update=2026-07-31; scope=`Cargo.{toml,lock}`,
   `crates/ritk-{diffusion-scheme,diffusion,tractography}/**`, diffusion

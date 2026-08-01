@@ -57,8 +57,9 @@ pub fn extract_diffusion_pair(
             }
             Ok(Some((value, Vector::new(components))))
         }
-        (Some(_), None) => Err(anyhow::anyhow!(
-            "Diffusion b-value is present but Diffusion Gradient Orientation is missing"
+        (Some(value), None) if value == 0.0 => Ok(Some((value, Vector::new([0.0, 0.0, 0.0])))),
+        (Some(value), None) => Err(anyhow::anyhow!(
+            "Diffusion b-value {value} is nonzero but Diffusion Gradient Orientation is missing"
         )),
         (None, Some(_)) => Err(anyhow::anyhow!(
             "Diffusion Gradient Orientation is present but Diffusion b-value is missing"

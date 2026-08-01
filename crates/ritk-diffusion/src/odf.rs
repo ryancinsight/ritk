@@ -12,7 +12,7 @@
 
 use apollo_sht::{RealShError, RealSphericalHarmonicBasis, real_spherical_harmonic};
 use leto::{Array1, Array2};
-use ritk_diffusion_scheme::{DiffusionWeighting, GradientScheme};
+use ritk_diffusion_scheme::{DiffusionWeighting, GradientFrame, GradientScheme};
 
 /// Failure while configuring, estimating, or evaluating a Q-ball ODF.
 #[derive(Debug, thiserror::Error)]
@@ -40,6 +40,20 @@ pub enum OdfError {
     /// No samples exceed the configured b0 threshold.
     #[error("gradient scheme has no diffusion-weighted volumes")]
     NoDwiDirections,
+    /// Weighted acquisitions do not lie on one q-space shell.
+    #[error(
+        "diffusion weighting at acquisition index {index} is {value} s/mm²; expected {reference} ± {tolerance} s/mm²"
+    )]
+    MixedShells {
+        /// First weighted acquisition's b-value in s/mm².
+        reference: f64,
+        /// Acquisition index outside the configured shell tolerance.
+        index: usize,
+        /// Off-shell b-value in s/mm².
+        value: f64,
+        /// Allowed absolute shell difference in s/mm².
+        tolerance: f64,
+    },
     /// The number of weighted directions cannot identify all coefficients.
     #[error(
         "{direction_count} diffusion-weighted directions cannot identify {coefficient_count} spherical-harmonic coefficients"
@@ -89,6 +103,7 @@ pub struct OdfConfig {
     l_max: usize,
     regularization: f64,
     b0_threshold: DiffusionWeighting,
+    shell_tolerance: DiffusionWeighting,
 }
 
 impl OdfConfig {
@@ -96,7 +111,9 @@ impl OdfConfig {
     ///
     /// `l_max` must be even and at least two. `regularization` is the
     /// nonnegative Laplace-Beltrami normal-equation weight. `b0_threshold`
-    /// classifies reference and weighted volumes.
+    /// classifies reference and weighted volumes. `shell_tolerance` is the
+    /// maximum absolute b-value difference allowed among weighted samples;
+    /// analytical Q-ball fits one q-space shell.
     ///
     /// # Errors
     ///
@@ -105,6 +122,7 @@ impl OdfConfig {
         l_max: usize,
         regularization: f64,
         b0_threshold: DiffusionWeighting,
+        shell_tolerance: DiffusionWeighting,
     ) -> Result<Self, OdfError> {
         RealSphericalHarmonicBasis::new(l_max)?;
         if !regularization.is_finite() || regularization < 0.0 {
@@ -116,6 +134,7 @@ impl OdfConfig {
             l_max,
             regularization,
             b0_threshold,
+            shell_tolerance,
         })
     }
 
@@ -136,6 +155,12 @@ impl OdfConfig {
     pub const fn b0_threshold(self) -> DiffusionWeighting {
         self.b0_threshold
     }
+
+    /// Maximum absolute b-value difference within the fitted shell.
+    #[must_use]
+    pub const fn shell_tolerance(self) -> DiffusionWeighting {
+        self.shell_tolerance
+    }
 }
 
 impl Default for OdfConfig {
@@ -145,6 +170,8 @@ impl Default for OdfConfig {
             regularization: 0.006,
             b0_threshold: DiffusionWeighting::from_seconds_per_square_millimeter(50.0)
                 .expect("invariant: default b0 threshold is finite and nonnegative"),
+            shell_tolerance: DiffusionWeighting::from_seconds_per_square_millimeter(0.0)
+                .expect("invariant: default shell tolerance is zero"),
         }
     }
 }
@@ -177,6 +204,7 @@ pub struct OdField {
     basis: RealSphericalHarmonicBasis,
     baseline_signal: f64,
     normalized_signal_residual: f64,
+    frame: GradientFrame,
 }
 
 impl OdField {
@@ -204,6 +232,12 @@ impl OdField {
         self.normalized_signal_residual
     }
 
+    /// Coordinate frame used by evaluation directions and ODF peaks.
+    #[must_use]
+    pub const fn frame(&self) -> GradientFrame {
+        self.frame
+    }
+
     /// Evaluate at polar angle `theta` and azimuth `phi`, in radians.
     ///
     /// # Errors
@@ -224,7 +258,7 @@ impl OdField {
         Ok(self.evaluate_unchecked(theta, phi))
     }
 
-    /// Evaluate at a finite unit Cartesian direction.
+    /// Evaluate at a finite unit Cartesian direction in [`Self::frame`].
     ///
     /// # Errors
     ///
@@ -346,6 +380,24 @@ pub fn estimate_odf(
         return Err(OdfError::NoDwiDirections);
     }
 
+    let reference_weighting = scheme.directions()[dwi_indices[0]]
+        .weighting()
+        .seconds_per_square_millimeter();
+    let shell_tolerance = config.shell_tolerance().seconds_per_square_millimeter();
+    if let Some((index, value)) = dwi_indices.iter().copied().find_map(|index| {
+        let value = scheme.directions()[index]
+            .weighting()
+            .seconds_per_square_millimeter();
+        ((value - reference_weighting).abs() > shell_tolerance).then_some((index, value))
+    }) {
+        return Err(OdfError::MixedShells {
+            reference: reference_weighting,
+            index,
+            value,
+            tolerance: shell_tolerance,
+        });
+    }
+
     let baseline_signal =
         b0_indices.iter().map(|index| signals[*index]).sum::<f64>() / b0_indices.len() as f64;
     if !baseline_signal.is_finite() || baseline_signal <= 0.0 {
@@ -390,6 +442,7 @@ pub fn estimate_odf(
         basis,
         baseline_signal,
         normalized_signal_residual: residual,
+        frame: scheme.frame(),
     })
 }
 
@@ -453,136 +506,4 @@ fn legendre_at_zero(degree: usize) -> f64 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use ritk_diffusion_scheme::{GradientDirection, GradientFrame};
-    use ritk_spatial::Vector;
-
-    fn weighting(value: f64) -> DiffusionWeighting {
-        DiffusionWeighting::from_seconds_per_square_millimeter(value).expect("finite weighting")
-    }
-
-    fn scheme(direction_count: usize) -> GradientScheme {
-        let mut entries = vec![
-            GradientDirection::new(weighting(0.0), Vector::new([0.0, 0.0, 0.0])).expect("valid b0"),
-        ];
-        let golden_angle = std::f64::consts::PI * (3.0 - 5.0_f64.sqrt());
-        for index in 0..direction_count {
-            let z = 1.0 - 2.0 * (index as f64 + 0.5) / direction_count as f64;
-            let radius = (1.0 - z * z).sqrt();
-            let phi = golden_angle * index as f64;
-            entries.push(
-                GradientDirection::new(
-                    weighting(1_000.0),
-                    Vector::new([radius * phi.cos(), radius * phi.sin(), z]),
-                )
-                .expect("unit Fibonacci direction"),
-            );
-        }
-        GradientScheme::new(entries, GradientFrame::Lps).expect("valid scheme")
-    }
-
-    fn tensor_signal(scheme: &GradientScheme, axis: [f64; 3]) -> Vec<f64> {
-        const PARALLEL_DIFFUSIVITY: f64 = 0.0017;
-        const PERPENDICULAR_DIFFUSIVITY: f64 = 0.0003;
-        scheme
-            .directions()
-            .iter()
-            .map(|entry| {
-                let b = entry.weighting().seconds_per_square_millimeter();
-                if b == 0.0 {
-                    return 1.0;
-                }
-                let direction = entry.direction().to_array();
-                let projection = direction
-                    .iter()
-                    .zip(axis)
-                    .map(|(left, right)| left * right)
-                    .sum::<f64>();
-                let apparent = PERPENDICULAR_DIFFUSIVITY
-                    + (PARALLEL_DIFFUSIVITY - PERPENDICULAR_DIFFUSIVITY) * projection.powi(2);
-                (-b * apparent).exp()
-            })
-            .collect()
-    }
-
-    #[test]
-    fn funk_radon_legendre_factors_match_closed_forms() {
-        assert_eq!(legendre_at_zero(0), 1.0);
-        assert_eq!(legendre_at_zero(2), -0.5);
-        assert_eq!(legendre_at_zero(4), 0.375);
-        assert_eq!(legendre_at_zero(6), -0.3125);
-    }
-
-    #[test]
-    fn isotropic_signal_produces_constant_antipodal_odf() -> Result<(), OdfError> {
-        let scheme = scheme(30);
-        let signals = std::iter::once(1.0)
-            .chain(std::iter::repeat_n(0.5, 30))
-            .collect::<Vec<_>>();
-        let odf = estimate_odf(&scheme, &signals, OdfConfig::default())?;
-        let x = odf.evaluate_at_direction([1.0, 0.0, 0.0])?;
-        let negative_x = odf.evaluate_at_direction([-1.0, 0.0, 0.0])?;
-        let z = odf.evaluate_at_direction([0.0, 0.0, 1.0])?;
-        assert!((x - negative_x).abs() < 1.0e-12);
-        assert!(
-            (x - z).abs() < 2.0e-3,
-            "isotropic ODF differs by {}",
-            (x - z).abs()
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn tensor_phantom_odf_peaks_on_analytical_axis() -> Result<(), OdfError> {
-        let scheme = scheme(60);
-        let odf = estimate_odf(
-            &scheme,
-            &tensor_signal(&scheme, [1.0, 0.0, 0.0]),
-            OdfConfig::new(6, 0.002, weighting(50.0))?,
-        )?;
-        let x = odf.evaluate_at_direction([1.0, 0.0, 0.0])?;
-        let y = odf.evaluate_at_direction([0.0, 1.0, 0.0])?;
-        let z = odf.evaluate_at_direction([0.0, 0.0, 1.0])?;
-        assert!(x > y, "x-axis ODF {x} must exceed y-axis ODF {y}");
-        assert!(x > z, "x-axis ODF {x} must exceed z-axis ODF {z}");
-        assert_eq!(odf.coefficients().len(), 28);
-        Ok(())
-    }
-
-    #[test]
-    fn invalid_configuration_signals_and_grid_are_typed_errors() {
-        assert!(matches!(
-            OdfConfig::new(3, 0.0, weighting(50.0)),
-            Err(OdfError::Basis(_))
-        ));
-        assert!(matches!(
-            OdfConfig::new(4, f64::NAN, weighting(50.0)),
-            Err(OdfError::InvalidRegularization { .. })
-        ));
-        let scheme = scheme(30);
-        let mut signals = vec![1.0; 31];
-        signals[7] = f64::INFINITY;
-        assert!(matches!(
-            estimate_odf(&scheme, &signals, OdfConfig::default()),
-            Err(OdfError::NonFiniteSignal { index: 7, .. })
-        ));
-        let odf = estimate_odf(&scheme, &vec![1.0; 31], OdfConfig::default())
-            .expect("valid constant signal");
-        assert!(matches!(
-            odf.evaluate_on_grid(0, 12),
-            Err(OdfError::InvalidGrid { .. })
-        ));
-    }
-
-    #[test]
-    fn spherical_grid_is_flat_and_finite() -> Result<(), OdfError> {
-        let scheme = scheme(30);
-        let odf = estimate_odf(&scheme, &vec![1.0; 31], OdfConfig::default())?;
-        let grid = odf.evaluate_on_grid(8, 16)?;
-        assert_eq!(grid.shape(), [8, 16]);
-        assert_eq!(grid.values().len(), 128);
-        assert!(grid.values().iter().all(|value| value.is_finite()));
-        Ok(())
-    }
-}
+mod tests;

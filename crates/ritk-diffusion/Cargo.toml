@@ -15,3 +15,5 @@ ritk-spatial.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+anyhow.workspace = true
+ritk-tractography.workspace = true

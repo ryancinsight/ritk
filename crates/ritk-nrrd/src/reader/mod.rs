@@ -467,7 +467,8 @@ fn parse_nrrd_header_map_from_reader<R: BufRead>(
 ///
 /// Extracts `DWMRI_gradient_NNNN` direction keys and `DWMRI_b-value` from the
 /// NRRD header and returns a validated [`ritk_diffusion_scheme::GradientScheme`].
-/// Directions are in the image axis frame per the NRRD DWI convention.
+/// Directions are mapped through the measurement frame into the declared
+/// world space and returned in RITK physical LPS coordinates.
 ///
 /// # Errors
 ///

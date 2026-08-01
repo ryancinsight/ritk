@@ -3,10 +3,12 @@
 use std::collections::HashMap;
 
 use anyhow::{anyhow, bail, Context, Result};
+use ritk_codecs::parse_usize_vec;
 use ritk_diffusion_scheme::{GradientFrame, GradientScheme};
 use ritk_spatial::Vector;
 
-use super::decode::parse_parenthesized_vectors;
+use super::decode::{parse_parenthesized_vectors, parse_space_direction_slots};
+use crate::axes::{locate_acquisition_axis, AcquisitionAxis};
 
 /// Decode a validated gradient scheme from lowercased NRRD header fields.
 ///
@@ -55,6 +57,13 @@ pub(super) fn scheme_from_headers(headers: &HashMap<String, String>) -> Result<G
             );
         }
     }
+    let volume_count = acquisition_volume_count(headers)?;
+    if indexed.len() != volume_count {
+        bail!(
+            "NRRD DWI gradient count {} does not match acquisition-axis extent {volume_count}",
+            indexed.len()
+        );
+    }
 
     let maximum_norm = indexed
         .iter()
@@ -90,6 +99,39 @@ pub(super) fn scheme_from_headers(headers: &HashMap<String, String>) -> Result<G
 
     GradientScheme::from_seconds_per_square_millimeter(pairs, GradientFrame::Lps)
         .map_err(anyhow::Error::from)
+}
+
+fn acquisition_volume_count(headers: &HashMap<String, String>) -> Result<usize> {
+    let dimension = required_value(headers, "dimension")?
+        .parse::<usize>()
+        .context("NRRD DWI 'dimension' is not a valid integer")?;
+    if dimension != 4 {
+        bail!("NRRD DWI metadata requires dimension 4, got {dimension}");
+    }
+    let sizes = parse_usize_vec(required_value(headers, "sizes")?, "sizes", dimension)?;
+    let direction_slots = headers
+        .get("space directions")
+        .map(|value| parse_space_direction_slots(value))
+        .transpose()?;
+    let direction_flags = direction_slots
+        .as_ref()
+        .map(|slots| slots.iter().map(Option::is_some).collect::<Vec<_>>());
+    let acquisition = locate_acquisition_axis(
+        dimension,
+        headers.get("kinds").map(String::as_str),
+        direction_flags.as_deref(),
+    )?;
+    let count = match acquisition {
+        AcquisitionAxis::Fastest => sizes[0],
+        AcquisitionAxis::Slowest => sizes[3],
+        AcquisitionAxis::Absent => {
+            bail!("NRRD DWI dimension 4 has no declared acquisition axis")
+        }
+    };
+    if count == 0 {
+        bail!("NRRD DWI acquisition axis must contain at least one volume");
+    }
+    Ok(count)
 }
 
 fn required_value<'a>(headers: &'a HashMap<String, String>, key: &str) -> Result<&'a str> {

@@ -20,7 +20,7 @@ pub use backend::{
 pub use codec::{decode_jpeg_fragment, decode_rle_lossless_fragment, packbits_decode};
 pub use diffusion::{
     extract_diffusion_pair, read_dicom_gradient_scheme_from_file,
-    read_dicom_gradient_scheme_from_series,
+    read_dicom_gradient_scheme_from_files,
 };
 pub use pixel::{decode_native_pixel_bytes_checked, PixelLayout, PixelSignedness};
 pub use syntax::TransferSyntaxKind;

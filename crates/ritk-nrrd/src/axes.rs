@@ -205,5 +205,4 @@ mod tests {
             .expect_err("kinds must cover every axis");
         assert!(format!("{err:#}").contains("lists 3 axes"));
     }
-
 }

@@ -24,3 +24,12 @@ raw bytes; the writer emits RITK ZYX flat data directly.
 
 NRRD parser/writer dependency changes stay behind `ritk-nrrd`; callers
 in `ritk-io`, CLI, and viewer code consume the same authoritative API.
+
+## Diffusion gradient metadata
+
+`read_nrrd_gradient_scheme` implements the NA-MIC DWI convention. One nominal
+`DWMRI_b-value` is combined with each `DWMRI_gradient_XXXX` squared norm to
+recover the per-volume effective b-value. The measurement frame maps gradients
+to world coordinates; RAS world coordinates are converted once to RITK LPS.
+Missing indices, non-finite values, `DWMRI_NEX`, and B-matrix encodings fail
+explicitly rather than being guessed.

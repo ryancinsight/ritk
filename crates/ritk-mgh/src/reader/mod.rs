@@ -62,45 +62,38 @@ struct DecodedMgh {
     direction: ritk_spatial::Direction<3>,
 }
 
-impl DecodedMgh {
-    /// Take the sole volume, rejecting a multi-frame file.
-    ///
-    /// The single-volume reader carries a `[nz, ny, nx]` contract, so a
-    /// multi-frame file has no correct representation through it; returning
-    /// frame 0 would discard the rest of the acquisition while reporting
-    /// success.
-    fn into_single_volume(
-        mut self,
-    ) -> Result<(
-        Vec<f32>,
-        [usize; 3],
-        ritk_spatial::Point<3>,
-        ritk_spatial::Spacing<3>,
-        ritk_spatial::Direction<3>,
-    )> {
-        if self.volumes.len() != 1 {
-            bail!(
-                "MGH file declares {} frames; this reader returns a 3-D Image, which \
-                 represents exactly one frame. Multi-frame MGH (diffusion series, \
-                 time series) has no correct single-volume decoding — reading frame 0 \
-                 alone would silently discard {} frames of the acquisition.",
-                self.volumes.len(),
-                self.volumes.len() - 1
-            );
-        }
-        let data = self
-            .volumes
-            .pop()
-            .expect("invariant: length checked to be exactly one above");
-        Ok((data, self.dims, self.origin, self.spacing, self.direction))
-    }
+struct MghHeader {
+    dims: [usize; 3],
+    origin: ritk_spatial::Point<3>,
+    spacing: ritk_spatial::Spacing<3>,
+    direction: ritk_spatial::Direction<3>,
+    voxel_type: VoxelType,
+    voxels_per_frame: usize,
+    nframes: usize,
+    data_size: usize,
 }
 
 fn read_mgh_from_reader<B: ComputeBackend, R: Read>(
     reader: &mut R,
     backend: &B,
 ) -> Result<Image<f32, B, 3>> {
-    let (data, dims, origin, spacing, direction) = decode_mgh(reader)?.into_single_volume()?;
+    let header = read_mgh_header(reader)?;
+    if header.nframes != 1 {
+        bail!(
+            "MGH file declares {} frames; this reader returns a 3-D Image, which represents exactly one frame. Use read_mgh_series for this acquisition.",
+            header.nframes
+        );
+    }
+    let DecodedMgh {
+        mut volumes,
+        dims,
+        origin,
+        spacing,
+        direction,
+    } = decode_mgh_payload(reader, header)?;
+    let data = volumes
+        .pop()
+        .expect("invariant: single-frame header produces one decoded volume");
     Image::from_flat_on(data, dims, origin, spacing, direction, backend)
 }
 
@@ -154,7 +147,7 @@ fn read_mgh_series_from_reader<B: ComputeBackend, R: Read>(
         .collect()
 }
 
-fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
+fn read_mgh_header<R: Read>(reader: &mut R) -> Result<MghHeader> {
     let version = read_i32_be(reader)?;
     if version != VERSION {
         bail!(
@@ -230,16 +223,43 @@ fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
         anyhow::anyhow!("Data size overflow: {total_voxels} voxels × {bpv} bytes")
     })?;
 
-    let volumes = voxel_decode::decode_volumes(reader, voxel_type, n_voxels, nframes)
-        .with_context(|| format!("Failed to decode {data_size} bytes of MGH voxel data"))?;
-
-    Ok(DecodedMgh {
-        volumes,
+    Ok(MghHeader {
         dims: [nz, ny, nx],
         origin,
         spacing,
         direction,
+        voxel_type,
+        voxels_per_frame: n_voxels,
+        nframes,
+        data_size,
     })
+}
+
+fn decode_mgh_payload<R: Read>(reader: &mut R, header: MghHeader) -> Result<DecodedMgh> {
+    let volumes = voxel_decode::decode_volumes(
+        reader,
+        header.voxel_type,
+        header.voxels_per_frame,
+        header.nframes,
+    )
+    .with_context(|| {
+        format!(
+            "Failed to decode {} bytes of MGH voxel data",
+            header.data_size
+        )
+    })?;
+    Ok(DecodedMgh {
+        volumes,
+        dims: header.dims,
+        origin: header.origin,
+        spacing: header.spacing,
+        direction: header.direction,
+    })
+}
+
+fn decode_mgh<R: Read>(reader: &mut R) -> Result<DecodedMgh> {
+    let header = read_mgh_header(reader)?;
+    decode_mgh_payload(reader, header)
 }
 
 fn read_direction_columns<R: Read>(reader: &mut R) -> Result<[[f32; 3]; 3]> {

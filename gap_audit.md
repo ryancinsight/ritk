@@ -13,6 +13,48 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## FEAT-686-01 audit (2026-07-31)
+
+The recovered diffusion increment represented b-values with a dimensionless
+diffusivity type, interpreted NRRD's one nominal `DWMRI_b-value` as a list,
+labeled standard DICOM patient directions as image-axis coordinates, and
+called a spherical-harmonic signal fit an ODF without applying the Funk–Radon
+transform. Tractography exposed unvalidated scalar configuration, silently
+dropped geometry failures, and appended the first proposal outside the field.
+
+The corrected boundary stores b-values as Aequitas time-per-area quantities,
+converts scanner-facing s/mm² explicitly, validates each gradient and frame,
+implements NA-MIC nominal-weighting/measurement-frame semantics, and labels
+DICOM directions LPS. Analytical Q-ball estimation now augments the fit with
+the Laplace–Beltrami penalty and applies `2π P_l(0)` degree-wise. The known
+single-tensor test and book example recover the x-axis peak; configuration,
+finite-input, underdetermined-system, antipodal, and grid-layout partitions
+are covered by value assertions.
+
+The tracking API now validates all configuration and direction-field values,
+uses fallible bounded reservations, emits typed termination reasons, reports
+Gaia geometry failures, and excludes out-of-domain proposals. MGH series
+decoding removes the former full-series staging copy, and NRRD releases encoded
+payload storage before constructing volume buffers. These are ownership and
+allocation-count arguments, not measured throughput or RSS claims.
+
+The generated diffusion/tractography SVG was rendered at 1440 pixels wide and
+inspected. Its 48 acquisition directions, attenuation curve, Q-ball ODF,
+independent analytical axis, local vector glyphs, five seeds, domain bounds,
+and five streamlines are visually distinct. The generator reports 0.00° peak
+error and rejects any streamline point outside the analytical field. A warm
+run completed in 462.038 ms and reproduced SHA-256
+`7BC3D251B0FF65CFD7C1E3313A1C45E665850A75A2B70AD3E840E89A8839BBE9`.
+
+Focused Nextest gates pass 19 diffusion/tractography tests, 47 MGH tests, 65
+NRRD tests, 23 DICOM tests, and 7 native-series dispatch tests. Warning-denied
+Clippy passes for the three new crates and the four affected format/I/O crates;
+their doctests and warning-denied Rustdoc also pass. `mdbook test` and
+`mdbook build` pass. SemVer checks against `d3d3d811` pass all 196 checks for
+each affected existing crate (`ritk-dicom`, `ritk-mgh`, `ritk-nrrd`, and
+`ritk-io`); the `ritk-io` wrapper exceeded its outer shell deadline only after
+the checker had printed its complete passing result.
+
 ## SAFE-685-01 audit (2026-07-31)
 
 The TIFF book inventory omitted a supported format owner. The grayscale reader

@@ -6824,14 +6824,14 @@ ritk-core: 0.8.0 → 0.9.0 | ritk-registration: 0.52.0 → 0.53.0
 
 - [x] Recover the ownerless acquisition/diffusion working increment without
   discarding or overwriting its code.
-- [ ] Record the physical-unit, crate-boundary, and failure-contract decision
+- [x] Record the physical-unit, crate-boundary, and failure-contract decision
   in ADR 0017.
-- [ ] Establish focused compile, lint, and value-semantic test baselines for
+- [x] Establish focused compile, lint, and value-semantic test baselines for
   every new or affected crate.
-- [ ] Correct the acquisition scheme, ODF, and tractography contracts and
+- [x] Correct the acquisition scheme, ODF, and tractography contracts and
   complete format-level integration tests.
-- [ ] Add and inspect a deterministic runnable example and generated figure.
-- [ ] Write the diffusion-MRI and tractography chapters and wire the Pages
+- [x] Add and inspect a deterministic runnable example and generated figure.
+- [x] Write the diffusion-MRI and tractography chapters and wire the Pages
   reproducibility gate.
 - [ ] Run focused and hosted gates, adjudicate review, merge, and verify the
   live Pages artifact.

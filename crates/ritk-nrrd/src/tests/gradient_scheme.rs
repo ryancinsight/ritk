@@ -148,3 +148,25 @@ fn nex_and_b_matrix_encodings_fail_explicitly() -> Result<()> {
     }
     Ok(())
 }
+
+#[test]
+fn gradient_count_must_match_acquisition_extent() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("count_mismatch.nrrd");
+    write_header(
+        &path,
+        &[
+            "sizes: 4 2 2 2",
+            "modality:=DWMRI",
+            "DWMRI_b-value:=1000",
+            "DWMRI_gradient_0000:=0 0 0",
+            "DWMRI_gradient_0001:=1 0 0",
+            "DWMRI_gradient_0002:=0 1 0",
+        ],
+    )?;
+    let error = read_nrrd_gradient_scheme(path).expect_err("gradient count mismatch");
+    assert!(error
+        .to_string()
+        .contains("does not match acquisition-axis extent 4"));
+    Ok(())
+}

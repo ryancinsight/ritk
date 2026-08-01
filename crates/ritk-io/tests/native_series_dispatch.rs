@@ -1,0 +1,192 @@
+use ritk_io::{
+    read_image_native, read_image_series_native, write_image_native, NativeBackend, NativeImage,
+    NativeSeries,
+};
+use ritk_spatial::{Direction, Point, Spacing};
+
+fn native_volume() -> NativeImage {
+    let dims = [2usize, 2, 3];
+    let values: Vec<f32> = (0..12).map(|index| index as f32 * 0.5 - 1.0).collect();
+    NativeImage::from_flat(
+        values,
+        dims,
+        Point::new([1.0, 2.0, 3.0]),
+        Spacing::new([0.5, 0.75, 1.25]),
+        Direction::identity(),
+    )
+    .expect("test image")
+}
+
+fn native_series_fixture(volumes: usize, dims: [usize; 3]) -> NativeSeries {
+    let voxel_count = dims[0] * dims[1] * dims[2];
+    let backend = NativeBackend::default();
+    (0..volumes)
+        .map(|volume| {
+            let values = (0..voxel_count)
+                .map(|index| (volume * 100 + index) as f32 * 0.5 - 1.0)
+                .collect();
+            NativeImage::from_flat_on(
+                values,
+                dims,
+                Point::new([1.0, 2.0, 3.0]),
+                Spacing::new([0.5, 0.75, 1.25]),
+                Direction::identity(),
+                &backend,
+            )
+            .expect("series fixture image")
+        })
+        .collect()
+}
+
+fn assert_series_matches(actual: &NativeSeries, expected: &NativeSeries, context: &str) {
+    assert_eq!(actual.len(), expected.len(), "{context}: volume count");
+    for (position, (got, want)) in actual.iter().zip(expected).enumerate() {
+        assert_eq!(
+            got.shape(),
+            want.shape(),
+            "{context}: volume {position} shape"
+        );
+        assert_eq!(
+            got.data_slice().expect("contiguous host voxels"),
+            want.data_slice().expect("contiguous host voxels"),
+            "{context}: volume {position} voxels"
+        );
+        assert_eq!(
+            got.origin(),
+            want.origin(),
+            "{context}: volume {position} origin"
+        );
+        assert_eq!(
+            got.spacing(),
+            want.spacing(),
+            "{context}: volume {position} spacing"
+        );
+        assert_eq!(
+            got.direction(),
+            want.direction(),
+            "{context}: volume {position} direction"
+        );
+    }
+}
+
+#[test]
+fn native_dispatch_reads_nifti_series() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("series.nii");
+    let backend = NativeBackend::default();
+    let expected = native_series_fixture(4, [2, 3, 4]);
+    ritk_nifti::write_nifti_series(&path, &expected, &backend).expect("write NIfTI series");
+    let actual = read_image_series_native(&path).expect("read via dispatch");
+    assert_series_matches(&actual, &expected, "NIfTI series dispatch");
+}
+
+#[test]
+fn native_dispatch_reads_nifti_gzip_series() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("series.nii.gz");
+    let backend = NativeBackend::default();
+    let expected = native_series_fixture(3, [2, 2, 3]);
+    ritk_nifti::write_nifti_series(&path, &expected, &backend).expect("write gzipped NIfTI series");
+    let actual = read_image_series_native(&path).expect("read via dispatch");
+    assert_series_matches(&actual, &expected, "gzipped NIfTI series dispatch");
+}
+
+#[test]
+fn native_dispatch_reads_nrrd_series() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("series.nrrd");
+    let backend = NativeBackend::default();
+    let expected = native_series_fixture(5, [2, 3, 4]);
+    ritk_nrrd::write_nrrd_series(&path, &expected, &backend).expect("write NRRD series");
+    let actual = read_image_series_native(&path).expect("read via dispatch");
+    assert_series_matches(&actual, &expected, "NRRD series dispatch");
+}
+
+#[test]
+fn native_dispatch_reads_mgh_and_mgz_series() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let backend = NativeBackend::default();
+    let expected = native_series_fixture(6, [2, 3, 2]);
+    for extension in ["mgh", "mgz", "mgh.gz"] {
+        let path = dir.path().join(format!("series.{extension}"));
+        ritk_mgh::write_mgh_series(&path, &expected, &backend).expect("write MGH series");
+        let actual = read_image_series_native(&path).expect("read via dispatch");
+        assert_series_matches(&actual, &expected, extension);
+    }
+}
+
+#[test]
+fn native_dispatch_reads_compound_mgh_gzip_suffix() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("volume.mgh.gz");
+    let expected = native_volume();
+    write_image_native(&path, &expected).expect("write compressed MGH");
+    let actual = read_image_native(&path).expect("read compressed MGH through dispatch");
+    assert_eq!(actual.shape(), expected.shape());
+    assert_eq!(
+        actual.data_slice().expect("contiguous actual voxels"),
+        expected.data_slice().expect("contiguous expected voxels")
+    );
+}
+
+#[test]
+fn native_dispatch_reads_single_volume_series() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let backend = NativeBackend::default();
+    let expected = native_series_fixture(1, [2, 3, 4]);
+
+    let nifti_path = dir.path().join("one.nii");
+    ritk_nifti::write_nifti_series(&nifti_path, &expected, &backend).expect("write NIfTI");
+    assert_series_matches(
+        &read_image_series_native(&nifti_path).expect("read NIfTI"),
+        &expected,
+        "NIfTI single-volume series",
+    );
+
+    let nrrd_path = dir.path().join("one.nrrd");
+    ritk_nrrd::write_nrrd_series(&nrrd_path, &expected, &backend).expect("write NRRD");
+    assert_series_matches(
+        &read_image_series_native(&nrrd_path).expect("read NRRD"),
+        &expected,
+        "NRRD single-volume series",
+    );
+
+    let mgh_path = dir.path().join("one.mgh");
+    ritk_mgh::write_mgh_series(&mgh_path, &expected, &backend).expect("write MGH");
+    assert_series_matches(
+        &read_image_series_native(&mgh_path).expect("read MGH"),
+        &expected,
+        "MGH single-volume series",
+    );
+}
+
+#[test]
+fn cross_codec_series_differential_nifti_nrrd_mgh() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let backend = NativeBackend::default();
+    let expected = native_series_fixture(4, [3, 4, 5]);
+    let nii_path = dir.path().join("differential.nii");
+    let nrrd_path = dir.path().join("differential.nrrd");
+    let mgh_path = dir.path().join("differential.mgh");
+    ritk_nifti::write_nifti_series(&nii_path, &expected, &backend).expect("write NIfTI");
+    ritk_nrrd::write_nrrd_series(&nrrd_path, &expected, &backend).expect("write NRRD");
+    ritk_mgh::write_mgh_series(&mgh_path, &expected, &backend).expect("write MGH");
+    let nii = read_image_series_native(&nii_path).expect("read NIfTI");
+    let nrrd = read_image_series_native(&nrrd_path).expect("read NRRD");
+    let mgh = read_image_series_native(&mgh_path).expect("read MGH");
+    assert_series_matches(&nii, &expected, "NIfTI vs fixture");
+    assert_series_matches(&nrrd, &expected, "NRRD vs fixture");
+    assert_series_matches(&mgh, &expected, "MGH vs fixture");
+    assert_series_matches(&nii, &nrrd, "NIfTI vs NRRD");
+    assert_series_matches(&nii, &mgh, "NIfTI vs MGH");
+    assert_series_matches(&nrrd, &mgh, "NRRD vs MGH");
+}
+
+#[test]
+fn native_dispatch_rejects_unsupported_series_format() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let vtk_path = dir.path().join("image.vtk");
+    write_image_native(&vtk_path, &native_volume()).expect("write VTK image");
+    let error = read_image_series_native(&vtk_path).expect_err("VTK has no series reader");
+    assert!(format!("{error:#}").contains("not yet supported"));
+}

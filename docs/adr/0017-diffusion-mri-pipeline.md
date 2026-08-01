@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-31
-- Board item: [FEAT-686-01](../../backlog.md#feat-686-01-majorarch---establish-a-physically-typed-diffusion-mri-and-tractography-pipeline)
+- Board item: [FEAT-686-01](../../backlog.md#feat-686-01-minorarch---establish-a-physically-typed-diffusion-mri-and-tractography-pipeline)
 
 ## Context
 
@@ -97,11 +97,14 @@ psi_lm = 2 pi P_l(0) c_lm,
 where `P_l` is the Legendre polynomial. Calling the result an ODF is therefore
 conditional on this transform; an untransformed signal fit is not exposed as
 one. Configuration construction validates an even degree of at least two, a
-finite nonnegative regularization weight, and a valid b0 threshold. Estimation
-rejects non-finite signals and a non-positive or non-finite baseline. The
-result stores one reusable basis and one contiguous coefficient allocation;
-grid evaluation returns flat contiguous samples with explicit dimensions,
-not `Vec<Vec<_>>`.
+finite nonnegative regularization weight, a valid b0 threshold, and a
+nonnegative shell tolerance. Estimation rejects non-finite signals, a
+non-positive or non-finite baseline, and weighted samples outside one q-space
+shell; samples from different shell radii are never treated as one angular
+function. The result retains the acquisition coordinate frame, stores one
+reusable basis and one contiguous coefficient allocation, and evaluates
+directions in that frame. Grid evaluation returns flat contiguous samples with
+explicit dimensions, not `Vec<Vec<_>>`.
 
 ### Deterministic streamline integration
 
@@ -129,6 +132,8 @@ implementations without changing the acquisition or geometry contracts.
   publication; no compatibility layer is needed.
 - Physical units, coordinate frames, and termination behavior are explicit and
   testable.
+- Analytical Q-ball inputs are one-shell data within an explicit tolerance,
+  and the resulting ODF preserves the gradient frame.
 - NRRD inputs that the earlier parser interpreted incorrectly now fail rather
   than silently assigning false b-values.
 - ODF evaluation avoids rebuilding basis metadata and dense spherical samples
@@ -182,7 +187,7 @@ regenerates and diffs that artifact.
 - NA-MIC, "DTI NRRD format," DWI key/value, gradient scaling, and measurement
   frame conventions:
   <https://www.na-mic.org/wiki/NAMIC_Wiki%3ADTI%3ANrrd_format>
-- Kindlmann, "An self-contained explanation of image orientation and the
+- Kindlmann, "A self-contained explanation of image orientation and the
   measurement frame" (2010), Sections 2-3:
   <https://people.cs.uchicago.edu/~glk/unlinked/nrrd-iomf.pdf>
 - Mori, Crain, Chacko, and van Zijl, "Three-Dimensional Tracking of Axonal
@@ -193,3 +198,6 @@ regenerates and diffs that artifact.
 ## Revision history
 
 - 2026-07-31: Initial accepted decision for FEAT-686-01.
+- 2026-07-31: Reclassified the release impact from major to minor after
+  `cargo-semver-checks` found no break against `d3d3d811`; the architecture is
+  new and the existing-crate surfaces are additive.

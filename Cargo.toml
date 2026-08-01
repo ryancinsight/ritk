@@ -153,9 +153,3 @@ arrayvec = "0.7"
 [profile.test]
 opt-level = 0
 debug = "line-tables-only"
-
-# ── Local development patches ─────────────────────────────────────────────────
-# Redirect git dependencies to local working copies so changes to upstream
-# crates (gaia, apollo, leto, etc.) are immediately visible in the RITK build.
-[patch.'https://github.com/ryancinsight/apollo']
-apollo-sht = { path = "../apollo/crates/apollo-sht" }
