@@ -14,6 +14,27 @@ fn layout(rows: usize, cols: usize, bits: u16, signed: PixelSignedness) -> Pixel
     }
 }
 
+fn single_pixel_codestream() -> Vec<u8> {
+    encode_grayscale_j2k(
+        &[17],
+        1,
+        1,
+        8,
+        PixelSignedness::Unsigned,
+        0,
+        WaveletTransform::Reversible,
+    )
+    .expect("valid single-pixel image must encode")
+}
+
+fn insert_before_eoc(codestream: &mut Vec<u8>, bytes: &[u8]) {
+    let eoc = codestream
+        .windows(2)
+        .rposition(|window| window == [0xFF, 0xD9])
+        .expect("encoder output must end with EOC");
+    codestream.splice(eoc..eoc, bytes.iter().copied());
+}
+
 // ── Marker constant tests ────────────────────────────────────────────────
 
 #[test]
@@ -132,6 +153,110 @@ fn decode_rejects_tile_part_length_beyond_codestream() {
     let msg = format!("{err:#}");
     assert!(msg.contains("Psot=4294967295"), "got: {msg}");
     assert!(msg.contains("beyond the"), "got: {msg}");
+}
+
+#[test]
+fn decode_rejects_missing_eoc_after_complete_tile() {
+    let mut j2k = single_pixel_codestream();
+    assert_eq!(j2k.pop(), Some(0xD9));
+    assert_eq!(j2k.pop(), Some(0xFF));
+
+    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+        .expect_err("a complete tile without EOC must not return partial output");
+    assert!(
+        format!("{err:#}").contains("EOC marker missing"),
+        "got: {err:#}"
+    );
+}
+
+#[test]
+fn decode_rejects_marker_without_length_after_complete_tile() {
+    let mut j2k = single_pixel_codestream();
+    assert_eq!(j2k.pop(), Some(0xD9));
+    assert_eq!(j2k.pop(), Some(0xFF));
+    j2k.extend_from_slice(&[0xFF, 0x64]);
+
+    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+        .expect_err("COM without Lcom must not terminate parsing successfully");
+    let message = format!("{err:#}");
+    assert!(message.contains("0xFF64"), "got: {message}");
+    assert!(message.contains("length"), "got: {message}");
+}
+
+#[test]
+fn decode_rejects_marker_length_beyond_codestream() {
+    let mut j2k = single_pixel_codestream();
+    insert_before_eoc(&mut j2k, &[0xFF, 0x64, 0x00, 0x08, 0x01]);
+
+    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+        .expect_err("a marker segment extending beyond the codestream must fail");
+    let message = format!("{err:#}");
+    assert!(message.contains("0xFF64"), "got: {message}");
+    assert!(message.contains("beyond"), "got: {message}");
+}
+
+#[test]
+fn decode_rejects_marker_length_smaller_than_field() {
+    let mut j2k = single_pixel_codestream();
+    insert_before_eoc(&mut j2k, &[0xFF, 0x64, 0x00, 0x01]);
+
+    let err = decode_jpeg2000_fragment(&j2k, layout(1, 1, 8, PixelSignedness::Unsigned))
+        .expect_err("a marker length smaller than its length field must fail");
+    let message = format!("{err:#}");
+    assert!(message.contains("invalid length 1"), "got: {message}");
+}
+
+#[test]
+fn decode_rejects_multicomponent_stream_before_packet_decode() {
+    let mut j2k = single_pixel_codestream();
+    let siz = j2k
+        .windows(2)
+        .position(|window| window == [0xFF, 0x51])
+        .expect("encoder output must contain SIZ");
+    let old_length = u16::from_be_bytes([j2k[siz + 2], j2k[siz + 3]]);
+    let first_component = [j2k[siz + 40], j2k[siz + 41], j2k[siz + 42]];
+    let siz_end = siz + 2 + usize::from(old_length);
+    j2k.splice(
+        siz_end..siz_end,
+        first_component.into_iter().chain(first_component),
+    );
+    j2k[siz + 2..siz + 4].copy_from_slice(&(old_length + 6).to_be_bytes());
+    j2k[siz + 38..siz + 40].copy_from_slice(&3u16.to_be_bytes());
+
+    let mut rgb_layout = layout(1, 1, 8, PixelSignedness::Unsigned);
+    rgb_layout.samples_per_pixel = 3;
+    let err = decode_jpeg2000_fragment(&j2k, rgb_layout)
+        .expect_err("unsupported component packet traversal must not duplicate channel zero");
+    let message = format!("{err:#}");
+    assert!(
+        message.contains("one grayscale component"),
+        "got: {message}"
+    );
+    assert!(message.contains("Csiz=3"), "got: {message}");
+}
+
+#[test]
+fn decode_rejects_unsupported_progression_and_component_transform() {
+    let j2k = single_pixel_codestream();
+    let cod = j2k
+        .windows(2)
+        .position(|window| window == [0xFF, 0x52])
+        .expect("encoder output must contain COD");
+
+    let mut progression = j2k.clone();
+    progression[cod + 5] = 1;
+    let err = decode_jpeg2000_fragment(&progression, layout(1, 1, 8, PixelSignedness::Unsigned))
+        .expect_err("non-LRCP progression must not be decoded as LRCP");
+    assert!(
+        format!("{err:#}").contains("progression order 0"),
+        "got: {err:#}"
+    );
+
+    let mut mct = j2k;
+    mct[cod + 8] = 1;
+    let err = decode_jpeg2000_fragment(&mct, layout(1, 1, 8, PixelSignedness::Unsigned))
+        .expect_err("MCT codestream must not bypass inverse component transformation");
+    assert!(format!("{err:#}").contains("MCT=1"), "got: {err:#}");
 }
 
 // ── Lossless round-trip tests ────────────────────────────────────────────

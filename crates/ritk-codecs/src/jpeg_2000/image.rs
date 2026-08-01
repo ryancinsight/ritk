@@ -47,6 +47,29 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
         WaveletTransform::Irreversible
     };
 
+    // The packet reader currently traverses one grayscale LRCP packet stream.
+    // Replaying that stream once per component would silently duplicate the
+    // first component, so reject the unsupported shape before allocating or
+    // decoding any output.
+    if siz.csiz != 1 {
+        bail!(
+            "J2K: native decode currently supports one grayscale component; Csiz={}",
+            siz.csiz
+        );
+    }
+    if cod.progression_order != 0 {
+        bail!(
+            "J2K: native decode supports LRCP progression order 0; found {}",
+            cod.progression_order
+        );
+    }
+    if cod.mct != 0 {
+        bail!(
+            "J2K: native decode does not implement the multiple-component transform; MCT={}",
+            cod.mct
+        );
+    }
+
     // Validate layout consistency.
     let expected_comps = layout.samples_per_pixel;
     if siz.csiz as usize != expected_comps {
@@ -82,7 +105,8 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
         );
     }
 
-    siz.num_tiles().context("J2K: validate tile grid")?;
+    let tile_count = usize::try_from(siz.num_tiles().context("J2K: validate tile grid")?)
+        .context("J2K: tile count does not fit the platform address size")?;
 
     // For the RITK DICOM use case, single-tile images are the norm (DICOM
     // encapsulates one frame per fragment with a single tile).  Multi-tile
@@ -100,11 +124,14 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
     let mut out = vec![0f32; total_samples];
 
     // State machine: walk the tile-part markers.
-    let mut tiles_decoded = 0u32;
+    let mut decoded_tiles = vec![false; tile_count];
+    let mut saw_eoc = false;
     let data = fragment;
 
-    while pos + 2 <= data.len() {
-        let m = marker::read_u16(data, pos)?;
+    while pos < data.len() {
+        let marker_pos = pos;
+        let m = marker::read_u16(data, pos)
+            .with_context(|| format!("J2K: truncated marker at byte {pos}"))?;
         match m {
             marker::SOT => {
                 let (sot, after_sot) = parse_sot(data, pos).context("J2K: parse SOT")?;
@@ -201,34 +228,37 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
                     }
                 }
 
-                tiles_decoded += 1;
+                let decoded = decoded_tiles
+                    .get_mut(usize::from(isot))
+                    .context("J2K: validated tile index does not fit the tile-state buffer")?;
+                *decoded = true;
                 pos = tile_end;
             }
-            marker::EOC => break,
+            marker::EOC => {
+                saw_eoc = true;
+                break;
+            }
             // Skip optional tile-part header markers (e.g., PPT, PLT).
             marker::PPT | marker::COM => {
-                pos += 2;
-                if pos + 2 > data.len() {
-                    break;
-                }
-                let len = marker::read_u16(data, pos)? as usize;
-                pos += len;
+                pos = marker_segment_end(data, marker_pos, m)?;
             }
             _ => {
-                // Unknown marker: try to skip.
-                pos += 2;
-                if pos + 2 <= data.len() {
-                    let len = marker::read_u16(data, pos).unwrap_or(2) as usize;
-                    pos += len;
-                } else {
-                    break;
-                }
+                // ISO 15444-1 marker segments other than SOC/SOD/EOC carry a
+                // two-byte length including the length field. Unknown future
+                // segments remain skippable, but malformed lengths are errors.
+                pos = marker_segment_end(data, marker_pos, m)?;
             }
         }
     }
 
-    if tiles_decoded == 0 {
-        bail!("J2K: no tile-parts were decoded");
+    if !saw_eoc {
+        bail!("J2K: EOC marker missing after tile data");
+    }
+    if let Some(missing_tile) = decoded_tiles.iter().position(|&decoded| !decoded) {
+        bail!(
+            "J2K: EOC reached before tile {missing_tile} of {} was decoded",
+            decoded_tiles.len()
+        );
     }
     Ok(out)
 }
@@ -250,6 +280,32 @@ fn find_sod(data: &[u8], start: usize) -> Option<usize> {
 fn find_next_sot_or_eoc(data: &[u8], start: usize) -> Option<usize> {
     (start..data.len().saturating_sub(1))
         .find(|&i| data[i] == 0xFF && (data[i + 1] == 0x90 || data[i + 1] == 0xD9))
+}
+
+/// Return the first byte after a marker segment whose two-byte length includes
+/// the length field itself.
+fn marker_segment_end(data: &[u8], marker_pos: usize, marker_code: u16) -> Result<usize> {
+    let length_pos = marker_pos
+        .checked_add(2)
+        .context("J2K: marker position overflows the platform address size")?;
+    let length = usize::from(marker::read_u16(data, length_pos).with_context(|| {
+        format!("J2K: marker 0x{marker_code:04X} at byte {marker_pos} has no length field")
+    })?);
+    if length < 2 {
+        bail!(
+            "J2K: marker 0x{marker_code:04X} at byte {marker_pos} has invalid length {length}; expected at least 2"
+        );
+    }
+    let end = length_pos
+        .checked_add(length)
+        .context("J2K: marker segment end overflows the platform address size")?;
+    if end > data.len() {
+        bail!(
+            "J2K: marker 0x{marker_code:04X} at byte {marker_pos} ends at byte {end}, beyond the {}-byte codestream",
+            data.len()
+        );
+    }
+    Ok(end)
 }
 
 #[cfg(test)]

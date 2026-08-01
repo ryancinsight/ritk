@@ -91,12 +91,13 @@ Native codec replacement changes codec internals behind `ritk-codecs` / `NativeC
 
 **Boundary surface**:
 - `ritk-codecs::jpeg_2000` owns `decode_jpeg2000_fragment(fragment, PixelLayout) -> Vec<f32>`.
-- Production decode uses `jpeg2k::Image` with the `openjp2` Rust backend, not `openjpeg-sys`.
-- `image::extract_pixels` consumes `ImageComponent::data()` as raw `i32` component samples; it validates component count, dimensions, precision, and signedness before applying `output = stored_integer × slope + intercept`.
+- Production decode is the RITK-native Rust SIZ/COD/QCD, packet, EBCOT, wavelet, and pixel-extraction path; `jpeg2k`, `openjp2`, and `openjpeg-sys` are not runtime or workspace dependencies.
+- The current pixel extractor accepts one grayscale LRCP component without MCT. It rejects other progression orders, multiple or subsampled components, and MCT before packet decode rather than replaying one component's packets into multiple channels.
+- Marker-segment lengths, the EOC terminator, and coverage of every declared tile are validated before decoded output is returned. Integer samples then cross the DICOM boundary as `output = stored_integer × slope + intercept`.
 - `ritk-dicom::NativeCodecBackend` remains the only DICOM transfer-syntax dispatch point for JPEG 2000 Lossless/Lossy, so parser ownership and codec implementation ownership stay separated.
 
 **Proof obligation**:
-For any DICOM JPEG 2000 frame `C`, layout `L`, and backend `B`, if `B(C)` yields component planes `S₀..Sₙ` whose concatenated ordered samples equal the ISO 15444-1 decoded sample sequence for `C`, then `decode_jpeg2000_fragment(C,L)[i] = S[i] × L.rescale_slope + L.rescale_intercept`. Backend replacement is therefore behavior-preserving at the DICOM boundary when component metadata validation passes.
+For any supported grayscale DICOM JPEG 2000 frame `C` and layout `L`, if native packet and inverse-transform decoding yields the ISO 15444-1 integer sample sequence `S`, then `decode_jpeg2000_fragment(C,L)[i] = S[i] × L.rescale_slope + L.rescale_intercept`. Unsupported component traversal is a typed error, never a successful approximation.
 
 > **Theorem 6.3 (JPEG Backend Static Boundary)**: DICOM JPEG dependency replacement preserves frame-decode behavior when each backend yields the same validated raster metadata and integer sample stream.
 

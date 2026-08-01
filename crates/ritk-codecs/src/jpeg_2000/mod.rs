@@ -26,9 +26,10 @@
 //! # Current limitations
 //! - One precinct per resolution/band (no precinct partitioning; code-blocks
 //!   are 64×64 within each subband).
-//! - DICOM pixel extraction currently requires every component to use 1×1
-//!   reference-grid sampling. Subsampled components are rejected before tile
-//!   allocation rather than reconstructed with incorrect geometry.
+//! - Native pixel extraction currently accepts one grayscale component, LRCP
+//!   progression, and no multiple-component transform. Multi-component,
+//!   subsampled, other-progression, and MCT codestreams are rejected before
+//!   tile allocation rather than decoded with incorrect packet traversal.
 //! - Lossy 9/7 irreversible encode and decode are supported (scalar quantization,
 //!   unit-step near-lossless encoder); a rate-controlled quality knob is pending.
 //!
@@ -36,7 +37,8 @@
 //! SIZ image/tile geometry and SOT tile-part fields are validated before packet
 //! decode. Tile buffers use the image-domain intersection defined by T.800
 //! Annex B.3 rather than the full reference tile, and both pixel and
-//! multi-component sample counts share a fixed allocation cap.
+//! sample counts share a fixed allocation cap. Every marker segment must fit
+//! the codestream, EOC is mandatory, and every declared tile must be present.
 //!
 //! # Interop validation
 //! The reversible (5/3 lossless) path is validated against a captured OpenJPEG
@@ -93,9 +95,10 @@ pub(crate) const SOI: u16 = 0xFFD8;
 /// - `fragment` does not begin with the SOC marker (0xFF4F).
 /// - SIZ or SOT geometry is invalid, outside the supported allocation bound,
 ///   or identifies a tile outside the image's tile grid.
-/// - a component uses sampling other than 1×1.
+/// - the stream is not single-component grayscale LRCP without MCT.
 /// - packet or coefficient decoding fails.
-/// - decoded component metadata does not match `layout`.
+/// - a marker segment is truncated, EOC or a declared tile is missing, or
+///   decoded component metadata does not match `layout`.
 pub fn decode_jpeg2000_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
     if !is_jpeg2000_codestream(fragment) {
         bail!(

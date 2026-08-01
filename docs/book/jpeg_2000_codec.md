@@ -5,6 +5,23 @@ OpenJPEG, `openjp2`, or another C codec through FFI. This matters at a medical
 image boundary: malformed dimensions, precision, or packet lengths remain Rust
 errors instead of crossing an unsafe foreign interface.
 
+## Decoder contract
+
+The native decoder currently accepts a complete grayscale codestream with one
+component, LRCP progression, no multiple-component transform, and unit component
+sampling. These constraints match the encoder and the grayscale DICOM workflow
+shown in this chapter. Color or other multi-component streams, chroma
+subsampling, non-LRCP progression, and MCT are rejected before output allocation
+or packet decoding. Returning an error is necessary here: replaying the same
+packet cursor independently for each component can produce plausible-looking
+but duplicated channels.
+
+The codestream boundary is exact. Every marker segment must include a valid
+length and remain inside the input, every tile declared by SIZ must appear, and
+EOC must terminate the stream. A decoded first tile followed by a truncated
+marker tail therefore returns an error instead of a partially populated image
+whose missing voxels appear as valid zeros.
+
 JPEG 2000 is a transform codec, not the older block-DCT JPEG format. The Part 1
 pipeline is:
 
@@ -117,8 +134,9 @@ RITK tests the native paths at three levels:
 1. analytical round trips require zero error for reversible 5/3;
 2. captured OpenJPEG 2.5.4 codestreams exercise independent producer/consumer
    interoperability without loading OpenJPEG at test time; and
-3. malformed geometry and packet tests require typed rejection instead of a
-   panic or partial image.
+3. malformed geometry, unsupported component traversal, truncated markers,
+   missing tiles, and missing EOC require typed rejection instead of a panic or
+   partial image.
 
 Continue with the [worked codec example](examples/jpeg_2000_codec.md) to read
 the reconstruction and error panels.

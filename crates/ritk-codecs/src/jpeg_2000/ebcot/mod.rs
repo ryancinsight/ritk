@@ -194,6 +194,10 @@ pub(crate) fn sign_contributions(
 #[cfg(test)]
 thread_local! {
     /// (context index, bit) pairs recorded by the cleanup pass.
+    #[expect(
+        clippy::missing_const_for_thread_local,
+        reason = "the initializer is already const; Clippy 1.97 reports the macro expansion"
+    )]
     pub(crate) static CUP_TRACE: std::cell::RefCell<Vec<(usize, u32)>> =
         const { std::cell::RefCell::new(Vec::new()) };
 }
