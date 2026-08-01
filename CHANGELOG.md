@@ -8,6 +8,31 @@
 
 # CHANGELOG
 
+## [Unreleased] — JPEG 2000 decode safety (SAFE-687-01)
+
+### Fixed
+
+- Reject multi-component, MCT, and non-LRCP JPEG 2000 streams before packet
+  decode instead of replaying one component's packet cursor into multiple
+  channels.
+- Reject truncated or invalid post-header marker segments, missing EOC, and
+  codestreams that terminate before every declared tile is decoded instead of
+  returning partially populated output.
+- Parse tile headers structurally and reject progression or coding overrides,
+  packed packet headers, multi-part tiles, and missing LRCP packets instead of
+  treating incomplete data as a zero-filled image.
+- Derive `Psot = 0` tile extent from terminal EOC, reject payload after EOC
+  except one zero pad when an odd-length DICOM fragment requires even length,
+  and reject zero-length or exhausted EBCOT bodies that claim coding passes.
+- Correct codec architecture and book documentation to describe the RITK-native
+  Rust decoder and its current grayscale boundary.
+
+### Tests
+
+- Cover malformed marker lengths, missing EOC, incomplete tile and packet data,
+  unsupported component and coding profiles, tile-part bounds, entropy-body
+  exhaustion, `Psot = 0`, and conditional DICOM fragment padding.
+
 ## [Unreleased] — Diffusion MRI and tractography (FEAT-686-01)
 
 ### Added

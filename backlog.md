@@ -15,6 +15,42 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
+  (CLOSURE; owner=Codex; last-update=2026-08-01; scope=
+  `crates/ritk-codecs/src/jpeg_2000/{codestream.rs,ebcot/mod.rs,image.rs,marker.rs,mod.rs,packet/reader.rs,tests.rs}`,
+  `ARCHITECTURE.md`, `docs/book/jpeg_2000_codec.md`, `CHANGELOG.md`,
+  `gap_audit.md`, and PM artifacts; non-goal=codec feature expansion,
+  rate control, JP2 containers, changing valid codestream output, release, or
+  deployment). After at least one decoded tile, truncated PPT/COM or unknown
+  marker segments currently break the marker loop and return the partially
+  populated output image. Make marker-segment consumption exact and fallible,
+  require the codestream terminator, and reject malformed tails without panic
+  or partial output. The same packet reader traverses one LRCP component but
+  was invoked from byte zero for every declared component, silently duplicating
+  channel zero; reject multi-component, MCT, and non-LRCP streams before output
+  allocation until their packet traversal exists. Structurally parse tile
+  headers, reject unsupported coding/progression overrides and multi-part tiles,
+  and require every expected LRCP packet. Correct the stale architecture claim
+  that production decode still uses `jpeg2k`/`openjp2`, and document the native
+  parser boundary. Reject zero-length and exhausted EBCOT bodies that claim
+  coding passes, derive `Psot=0` from terminal EOC, and accept no post-EOC data
+  except a required one-byte DICOM zero pad.
+  Acceptance: complete native and captured OpenJPEG streams remain
+  value-exact; marker-only, truncated-length, oversized-length, and missing-EOC
+  cases and unsupported component traversal return contextual errors; focused formatting, warning-denied Clippy,
+  Nextest, doctest, Rustdoc, mdBook, and review gates pass. The complete local
+  Nextest pass is 315/315, including the captured OpenJPEG corpus and twenty-three
+  new malformed/unsupported-stream regressions. Independent reviews
+  exposed progression-override, tile-header scanning, and packet-completeness
+  gaps plus EBCOT exhaustion, `Psot=0`, and trailing-EOC defects; those
+  counterexamples now have regressions. Corrected-head formatting, 315/315
+  Nextest, warning-denied Clippy, doctest, warning-denied Rustdoc, and mdBook
+  test/build pass. Exact implementation head `425cc147` passes CI run
+  `30709628867`, all Python lanes in run `30709628847`, and the Pages artifact
+  build in run `30709628871` on Linux, macOS, and Windows. Thread-aware PR #81
+  inspection reports zero review threads or requested changes after CodeRabbit
+  completed its incremental-review command.
+
 - **FEAT-686-01** `[minor][arch]` - Establish a physically typed diffusion-MRI
   and tractography pipeline (REVIEW; owner=Codex;
   last-update=2026-07-31; scope=`Cargo.{toml,lock}`,

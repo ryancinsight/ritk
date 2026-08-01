@@ -218,10 +218,12 @@ pub fn decode_tile_part(
     }
 
     let mut pos = 0usize;
-    'layers: for layer in 0..u32::from(coding.num_layers.max(1)) {
+    for layer in 0..u32::from(coding.num_layers.max(1)) {
         for r in 0..=usize::from(coding.num_decomp_levels) {
             if pos >= tile_data.len() {
-                break 'layers;
+                bail!(
+                    "J2K: tile data ended before LRCP packet header for layer {layer}, resolution {r}"
+                );
             }
             let (s, e) = resolution_band_range(r);
             let mut br = BitReader::new(&tile_data[pos..]);
@@ -265,6 +267,11 @@ pub fn decode_tile_part(
                             .checked_add(lblock_extra_bits(np))
                             .context("J2K packet length field width overflow")?;
                         let len = br.read_bits(bits)? as usize;
+                        if len == 0 {
+                            bail!(
+                                "J2K: included code-block declares {np} coding passes with a zero-length packet body"
+                            );
+                        }
                         included.push((ci, len));
                     }
                 }
@@ -315,7 +322,8 @@ pub fn decode_tile_part(
             num_bit_planes as u8,
             st.num_passes,
             b.orient,
-        );
+        )
+        .with_context(|| format!("J2K: decode code-block {ci}"))?;
         for y in 0..c.h {
             let off = (b.y0 + c.y0 + y) * width + b.x0 + c.x0;
             mallat[off..off + c.w].copy_from_slice(&block.samples[y * c.w..(y + 1) * c.w]);

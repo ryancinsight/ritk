@@ -195,7 +195,7 @@ pub(crate) fn sign_contributions(
 thread_local! {
     /// (context index, bit) pairs recorded by the cleanup pass.
     pub(crate) static CUP_TRACE: std::cell::RefCell<Vec<(usize, u32)>> =
-        const { std::cell::RefCell::new(Vec::new()) };
+        std::cell::RefCell::default();
 }
 
 #[cfg(test)]

@@ -13,6 +13,37 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## SAFE-687-01 — Reject truncated JPEG 2000 marker tails
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Reconcile `origin/main`, worktrees, peer-owned diffusion changes, the
+      native codec parser, tests, architecture claims, and book coverage.
+- [x] Record the exact focused baseline before editing production code: all
+      291 codec tests pass in 6.840 seconds.
+- [x] Make every post-main-header marker segment exact and fallible and require
+      EOC after all declared tiles.
+- [x] Reject multi-component, MCT, and non-LRCP streams before output
+      allocation instead of returning duplicated or misordered channels.
+- [x] Preflight tile headers structurally; reject POC/coding overrides, packed
+      packet headers, and multi-part tiles before output allocation.
+- [x] Require every expected LRCP packet header and every SIZ-declared tile.
+- [x] Reject zero-length or over-consumed EBCOT bodies, derive `Psot=0` from
+      terminal EOC, and validate the optional DICOM zero pad exactly.
+- [x] Add value-semantic malformed-tail regressions while preserving native and
+      captured OpenJPEG interoperability.
+- [x] Correct native codec ownership and parser-safety documentation.
+- [x] Run the corrected complete Nextest gate: all 315 codec tests pass,
+      including the captured OpenJPEG corpus and all review counterexamples.
+- [x] Run corrected-head formatting, warning-denied Clippy, doctest, Rustdoc,
+      mdBook, and diff gates.
+- [ ] Complete independent review and exact-head hosted gates. Interim head
+      `425cc147` passes CI `30709628867`, Python CI `30709628847`, and the
+      Pages artifact build `30709628871`; final CodeRabbit findings are
+      corrected locally and require exact-head revalidation.
+- [ ] Reconcile PM evidence and publish the merge-ready closure after hosted
+      gates pass.
+
 ## SAFE-685-01 — Bound and document TIFF volume decoding
 **Target version**: Unreleased patch
 **Sprint phase**: Closure

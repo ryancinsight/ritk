@@ -9,12 +9,19 @@
 //! 6. Apply DICOM modality LUT: `output = stored_integer × slope + intercept`.
 
 use anyhow::{bail, Context, Result};
+use std::ops::Range;
 
 use super::codestream::{parse_main_header, parse_sot};
 use super::marker;
 use super::packet::{decode_tile_part, TileCodingParams, WaveletTransform};
 use crate::dimensions::{checked_pixel_count, checked_sample_count};
 use crate::PixelLayout;
+
+#[derive(Debug)]
+struct TilePartRange {
+    isot: u16,
+    data: Range<usize>,
+}
 
 /// Decode a DICOM-encapsulated J2K codestream, returning rescaled `f32` pixel values.
 ///
@@ -32,7 +39,7 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
         );
     }
 
-    let (header, mut pos) = parse_main_header(fragment).context("J2K: parse main header")?;
+    let (header, pos) = parse_main_header(fragment).context("J2K: parse main header")?;
 
     let siz = &header.siz;
     let cod = &header.cod;
@@ -41,10 +48,66 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
     let num_guard_bits = qcd.num_guard_bits();
     let qcd_exponents = qcd.exponents();
     let qcd_mantissas = qcd.mantissas();
-    let transform = if cod.is_lossless() {
-        WaveletTransform::Reversible
-    } else {
-        WaveletTransform::Irreversible
+    // The packet reader currently traverses one grayscale LRCP packet stream.
+    // Replaying that stream once per component would silently duplicate the
+    // first component, so reject the unsupported shape before allocating or
+    // decoding any output.
+    if siz.csiz != 1 {
+        bail!(
+            "J2K: native decode currently supports one grayscale component; Csiz={}",
+            siz.csiz
+        );
+    }
+    let component = siz
+        .components
+        .first()
+        .context("J2K: SIZ declared one component without component parameters")?;
+    let c_prec = component.precision();
+    let c_signed = component.is_signed();
+    if c_prec > i32::BITS {
+        bail!(
+            "J2K: component 0 precision {c_prec} exceeds the native decoder's {}-bit coefficient capacity",
+            i32::BITS
+        );
+    }
+    if cod.progression_order != 0 {
+        bail!(
+            "J2K: native decode supports LRCP progression order 0; found {}",
+            cod.progression_order
+        );
+    }
+    if cod.mct != 0 {
+        bail!(
+            "J2K: native decode does not implement the multiple-component transform; MCT={}",
+            cod.mct
+        );
+    }
+    if cod.scod != 0 {
+        bail!(
+            "J2K: native decode requires default precincts without SOP/EPH; Scod=0x{:02X}",
+            cod.scod
+        );
+    }
+    if cod.num_layers == 0 {
+        bail!("J2K: COD declares zero quality layers");
+    }
+    if cod.xcb_o != 4 || cod.ycb_o != 4 {
+        bail!(
+            "J2K: native decode requires 64x64 nominal code-blocks; found {}x{}",
+            cod.cb_width(),
+            cod.cb_height()
+        );
+    }
+    if cod.cb_style != 0 {
+        bail!(
+            "J2K: native decode requires default code-block style; found 0x{:02X}",
+            cod.cb_style
+        );
+    }
+    let transform = match cod.wavelet_transform {
+        0 => WaveletTransform::Irreversible,
+        1 => WaveletTransform::Reversible,
+        other => bail!("J2K: unsupported wavelet transform {other}; expected 0 or 1"),
     };
 
     // Validate layout consistency.
@@ -82,15 +145,18 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
         );
     }
 
-    siz.num_tiles().context("J2K: validate tile grid")?;
+    let tile_count = usize::try_from(siz.num_tiles().context("J2K: validate tile grid")?)
+        .context("J2K: tile count does not fit the platform address size")?;
+    let tile_parts = scan_tile_parts(fragment, pos, tile_count)?;
 
     // For the RITK DICOM use case, single-tile images are the norm (DICOM
     // encapsulates one frame per fragment with a single tile).  Multi-tile
     // images are handled by reconstructing each tile into the correct region
     // of the output buffer.
 
-    // Decode all tile-parts.
-    // We allocate the full output and write each tile into its region.
+    // The complete marker structure is validated before this allocation, so an
+    // unsupported progression override or incomplete tile set cannot reserve
+    // the DICOM-sized output buffer.
     // Bound the pixel count against a hostile/corrupt header before allocating
     // the full `f32` output (defense-in-depth: SIZ is already required to match
     // the DICOM layout above).
@@ -99,138 +165,57 @@ pub fn decode_j2k_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f
         checked_sample_count(pixels, layout.samples_per_pixel).context("J2K output samples")?;
     let mut out = vec![0f32; total_samples];
 
-    // State machine: walk the tile-part markers.
-    let mut tiles_decoded = 0u32;
-    let data = fragment;
+    for tile_part in tile_parts {
+        let isot = tile_part.isot;
+        let bounds = siz
+            .tile_bounds(isot)
+            .context("J2K: validate SOT tile index")?;
+        let tw = bounds.width;
+        let th = bounds.height;
+        let tile_comp = decode_tile_part(
+            &fragment[tile_part.data],
+            tw,
+            th,
+            TileCodingParams {
+                num_guard_bits,
+                precision: c_prec,
+                num_decomp_levels: cod.num_decomp_levels,
+                num_layers: cod.num_layers,
+                exponents: &qcd_exponents,
+                mantissas: &qcd_mantissas,
+                transform,
+            },
+        )
+        .with_context(|| format!("J2K: decode tile {isot} component 0"))?;
 
-    while pos + 2 <= data.len() {
-        let m = marker::read_u16(data, pos)?;
-        match m {
-            marker::SOT => {
-                let (sot, after_sot) = parse_sot(data, pos).context("J2K: parse SOT")?;
-                pos = after_sot;
-
-                // Determine tile-part byte extent.
-                let tile_end = if sot.psot > 0 {
-                    // psot is from start of SOT marker.
-                    let sot_start = pos
-                        .checked_sub(12)
-                        .context("J2K: SOT parser returned an invalid end offset")?;
-                    let declared_end = sot_start
-                        .checked_add(
-                            usize::try_from(sot.psot)
-                                .context("J2K: Psot does not fit the platform address size")?,
-                        )
-                        .context("J2K: Psot overflows the platform address size")?;
-                    if declared_end > data.len() {
-                        bail!(
-                            "J2K: tile-part Psot={} ends at byte {declared_end}, beyond the \
-                             {}-byte codestream",
-                            sot.psot,
-                            data.len()
-                        );
-                    }
-                    declared_end
-                } else {
-                    // psot=0: extends to next SOT or EOC.
-                    find_next_sot_or_eoc(data, pos).unwrap_or(data.len())
-                };
-
-                // Locate SOD inside this tile-part only. A marker in a later
-                // tile-part must not satisfy a malformed current header.
-                let sod_pos = find_sod(&data[..tile_end], pos)
-                    .with_context(|| "J2K: SOD not found in tile-part")?;
-                let tile_data_start = sod_pos + 2; // skip SOD marker
-                let tile_data = &data[tile_data_start..tile_end];
-
-                let isot = sot.isot;
-                let bounds = siz
-                    .tile_bounds(isot)
-                    .context("J2K: validate SOT tile index")?;
-                let tw = bounds.width;
-                let th = bounds.height;
-                let tile_x0 = bounds.x0;
-                let tile_y0 = bounds.y0;
-
-                // Decode each component.
-                for ci in 0..siz.csiz as usize {
-                    let comp_spec = &siz.components[ci];
-                    let c_prec = comp_spec.precision();
-                    let c_signed = comp_spec.is_signed();
-
-                    let tile_comp = decode_tile_part(
-                        tile_data,
-                        tw,
-                        th,
-                        TileCodingParams {
-                            num_guard_bits,
-                            precision: c_prec,
-                            num_decomp_levels: cod.num_decomp_levels,
-                            num_layers: cod.num_layers.max(1),
-                            exponents: &qcd_exponents,
-                            mantissas: &qcd_mantissas,
-                            transform,
-                        },
-                    )
-                    .with_context(|| format!("J2K: decode tile {isot} component {ci}"))?;
-
-                    // Write reconstructed samples into the output buffer.
-                    for py in 0..th {
-                        for px in 0..tw {
-                            let img_x = tile_x0 + px;
-                            let img_y = tile_y0 + py;
-                            if img_x >= img_w || img_y >= img_h {
-                                continue;
-                            }
-                            let dc_shifted = tile_comp.samples[py * tw + px];
-                            // Reverse DC level shift for unsigned components
-                            // (ISO 15444-1 §G.1.2).
-                            let raw = if c_signed {
-                                dc_shifted
-                            } else {
-                                dc_shifted + (1i32 << (c_prec - 1))
-                            };
-                            // Apply DICOM modality LUT.
-                            let rescaled = raw as f64 * f64::from(layout.rescale_slope)
-                                + f64::from(layout.rescale_intercept);
-                            let out_idx = (img_y * img_w + img_x) * layout.samples_per_pixel + ci;
-                            if out_idx < out.len() {
-                                out[out_idx] = rescaled as f32;
-                            }
-                        }
-                    }
+        for py in 0..th {
+            for px in 0..tw {
+                let img_x = bounds.x0 + px;
+                let img_y = bounds.y0 + py;
+                if img_x >= img_w || img_y >= img_h {
+                    continue;
                 }
-
-                tiles_decoded += 1;
-                pos = tile_end;
-            }
-            marker::EOC => break,
-            // Skip optional tile-part header markers (e.g., PPT, PLT).
-            marker::PPT | marker::COM => {
-                pos += 2;
-                if pos + 2 > data.len() {
-                    break;
-                }
-                let len = marker::read_u16(data, pos)? as usize;
-                pos += len;
-            }
-            _ => {
-                // Unknown marker: try to skip.
-                pos += 2;
-                if pos + 2 <= data.len() {
-                    let len = marker::read_u16(data, pos).unwrap_or(2) as usize;
-                    pos += len;
-                } else {
-                    break;
+                let dc_shifted = tile_comp.samples[py * tw + px];
+                let raw = restore_component_sample(dc_shifted, c_prec, c_signed);
+                let rescaled = raw as f64 * f64::from(layout.rescale_slope)
+                    + f64::from(layout.rescale_intercept);
+                let out_idx = (img_y * img_w + img_x) * layout.samples_per_pixel;
+                if out_idx < out.len() {
+                    out[out_idx] = rescaled as f32;
                 }
             }
         }
     }
-
-    if tiles_decoded == 0 {
-        bail!("J2K: no tile-parts were decoded");
-    }
     Ok(out)
+}
+
+fn restore_component_sample(dc_shifted: i32, precision: u32, signed: bool) -> i64 {
+    debug_assert!((1..=i32::BITS).contains(&precision));
+    if signed {
+        i64::from(dc_shifted)
+    } else {
+        i64::from(dc_shifted) + (1i64 << (precision - 1))
+    }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -241,15 +226,173 @@ pub fn is_soc(fragment: &[u8]) -> bool {
     fragment.len() >= 2 && fragment[0] == 0xFF && fragment[1] == 0x4F
 }
 
-/// Find the SOD marker within `data[start..]` and return its offset.
-fn find_sod(data: &[u8], start: usize) -> Option<usize> {
-    (start..data.len().saturating_sub(1)).find(|&i| data[i] == 0xFF && data[i + 1] == 0x93)
+/// Locate the terminal EOC, permitting only the single zero byte that DICOM
+/// uses to make an odd-length encapsulated item value even.
+fn terminal_eoc_position(data: &[u8]) -> Result<usize> {
+    if data.ends_with(&[0xFF, 0xD9]) {
+        return Ok(data.len() - 2);
+    }
+    if data.len() >= 3 && data.ends_with(&[0xFF, 0xD9, 0x00]) && (data.len() - 1) % 2 == 1 {
+        return Ok(data.len() - 3);
+    }
+    bail!(
+        "J2K: EOC must terminate the codestream, followed only by an optional DICOM even-length zero pad"
+    )
 }
 
-/// Find the next SOT (0xFF90) or EOC (0xFFD9) marker after `start`.
-fn find_next_sot_or_eoc(data: &[u8], start: usize) -> Option<usize> {
-    (start..data.len().saturating_sub(1))
-        .find(|&i| data[i] == 0xFF && (data[i + 1] == 0x90 || data[i + 1] == 0xD9))
+/// Return the first byte after a marker segment whose two-byte length includes
+/// the length field itself.
+fn marker_segment_end(
+    data: &[u8],
+    marker_pos: usize,
+    marker_code: u16,
+    limit: usize,
+) -> Result<usize> {
+    let length_pos = marker_pos
+        .checked_add(2)
+        .context("J2K: marker position overflows the platform address size")?;
+    let length = usize::from(marker::read_u16(data, length_pos).with_context(|| {
+        format!("J2K: marker 0x{marker_code:04X} at byte {marker_pos} has no length field")
+    })?);
+    if length < 2 {
+        bail!(
+            "J2K: marker 0x{marker_code:04X} at byte {marker_pos} has invalid length {length}; expected at least 2"
+        );
+    }
+    let end = length_pos
+        .checked_add(length)
+        .context("J2K: marker segment end overflows the platform address size")?;
+    if end > limit {
+        bail!(
+            "J2K: marker 0x{marker_code:04X} at byte {marker_pos} ends at byte {end}, beyond the byte limit {limit}"
+        );
+    }
+    Ok(end)
+}
+
+fn scan_tile_parts(data: &[u8], start: usize, tile_count: usize) -> Result<Vec<TilePartRange>> {
+    let terminal_eoc = terminal_eoc_position(data)?;
+    let mut pos = start;
+    let mut tile_parts = Vec::with_capacity(tile_count);
+    let mut seen_tiles = vec![false; tile_count];
+    let mut saw_eoc = false;
+
+    while pos < data.len() {
+        let marker_code = marker::read_u16(data, pos)
+            .with_context(|| format!("J2K: truncated marker at byte {pos}"))?;
+        match marker_code {
+            marker::SOT => {
+                let sot_start = pos;
+                let (sot, after_sot) = parse_sot(data, pos).context("J2K: parse SOT")?;
+                if sot.tpsot != 0 || sot.tnsot > 1 {
+                    bail!(
+                        "J2K: native decode supports one tile-part per tile; Isot={} TPsot={} TNsot={}",
+                        sot.isot,
+                        sot.tpsot,
+                        sot.tnsot
+                    );
+                }
+                let seen = seen_tiles.get_mut(usize::from(sot.isot)).with_context(|| {
+                    format!(
+                        "J2K: SOT tile index Isot={} is outside 0..{}",
+                        sot.isot,
+                        tile_count.saturating_sub(1)
+                    )
+                })?;
+                if *seen {
+                    bail!("J2K: tile {} has more than one tile-part", sot.isot);
+                }
+
+                let tile_end = if sot.psot > 0 {
+                    let declared_end = sot_start
+                        .checked_add(
+                            usize::try_from(sot.psot)
+                                .context("J2K: Psot does not fit the platform address size")?,
+                        )
+                        .context("J2K: Psot overflows the platform address size")?;
+                    if declared_end > terminal_eoc {
+                        bail!(
+                            "J2K: tile-part Psot={} ends at byte {declared_end}, beyond terminal EOC at byte {terminal_eoc}",
+                            sot.psot,
+                        );
+                    }
+                    declared_end
+                } else {
+                    // ISO 15444-1 defines Psot=0 as extending the final
+                    // tile-part to EOC. Using the validated terminal marker
+                    // avoids treating marker-looking COM payload bytes as a
+                    // tile boundary.
+                    terminal_eoc
+                };
+                let tile_data_start = parse_tile_header(data, after_sot, tile_end)?;
+                tile_parts.push(TilePartRange {
+                    isot: sot.isot,
+                    data: tile_data_start..tile_end,
+                });
+                *seen = true;
+                pos = tile_end;
+            }
+            marker::EOC => {
+                if pos != terminal_eoc {
+                    bail!("J2K: EOC at byte {pos} precedes terminal EOC at byte {terminal_eoc}");
+                }
+                saw_eoc = true;
+                break;
+            }
+            other => {
+                marker_segment_end(data, pos, other, data.len())?;
+                bail!("J2K: unexpected marker 0x{other:04X} at byte {pos} between tile-parts");
+            }
+        }
+    }
+
+    if !saw_eoc {
+        bail!("J2K: EOC marker missing after tile data");
+    }
+    if let Some(missing_tile) = seen_tiles.iter().position(|&seen| !seen) {
+        bail!(
+            "J2K: EOC reached before tile {missing_tile} of {} was decoded",
+            seen_tiles.len()
+        );
+    }
+    Ok(tile_parts)
+}
+
+fn parse_tile_header(data: &[u8], mut pos: usize, tile_end: usize) -> Result<usize> {
+    while pos < tile_end {
+        let marker_end = pos
+            .checked_add(2)
+            .context("J2K: tile-header marker position overflows the platform address size")?;
+        if marker_end > tile_end {
+            bail!(
+                "J2K: tile-header marker at byte {pos} extends beyond the tile-part end at byte {tile_end}"
+            );
+        }
+        let marker_code = marker::read_u16(data, pos)
+            .with_context(|| format!("J2K: truncated tile-header marker at byte {pos}"))?;
+        match marker_code {
+            marker::SOD => return Ok(marker_end),
+            marker::COM | marker::PLT => {
+                pos = marker_segment_end(data, pos, marker_code, tile_end)?;
+            }
+            marker::COD | marker::COC | marker::QCD | marker::QCC | marker::RGN | marker::POC => {
+                bail!(
+                "J2K: tile-header coding override 0x{marker_code:04X} at byte {pos} is unsupported"
+            )
+            }
+            marker::PPT => {
+                bail!("J2K: packed tile-part packet headers (PPT) are unsupported at byte {pos}")
+            }
+            marker::SOT | marker::EOC => {
+                bail!("J2K: marker 0x{marker_code:04X} reached before SOD in tile-part header")
+            }
+            other => {
+                marker_segment_end(data, pos, other, tile_end)?;
+                bail!("J2K: unsupported tile-header marker 0x{other:04X} at byte {pos}");
+            }
+        }
+    }
+    bail!("J2K: SOD not found in tile-part")
 }
 
 #[cfg(test)]
@@ -292,6 +435,19 @@ mod tests {
         assert!(
             format!("{err:#}").contains("SOC") || format!("{err:#}").contains("0xFF4F"),
             "error must mention SOC; got: {err:#}"
+        );
+    }
+
+    #[test]
+    fn unsigned_dc_restoration_covers_complete_32_bit_range() {
+        assert_eq!(restore_component_sample(i32::MIN, 32, false), 0);
+        assert_eq!(
+            restore_component_sample(i32::MAX, 32, false),
+            i64::from(u32::MAX)
+        );
+        assert_eq!(
+            restore_component_sample(i32::MIN, 32, true),
+            i64::from(i32::MIN)
         );
     }
 }

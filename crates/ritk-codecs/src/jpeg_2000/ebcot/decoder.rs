@@ -4,12 +4,14 @@ use super::{
     SampleState,
 };
 use crate::jpeg_2000::mq_coder::{initial_contexts, MqDecoder};
+use anyhow::{bail, Context, Result};
 
 // ── Decoded code-block result ─────────────────────────────────────────────────
 
 /// Output of `decode_code_block`: reconstructed sign-magnitude samples in
 /// row-major order.  Values are the DC-shifted integer sample values (i32).
 /// The caller applies DC un-shift and DICOM rescale.
+#[derive(Debug)]
 pub struct DecodedBlock {
     /// Reconstructed samples (row-major), in the order they appear in the tile.
     pub samples: Vec<i32>,
@@ -44,16 +46,33 @@ pub fn decode_code_block(
     num_bit_planes: u8,
     num_passes: u32,
     orient: SubbandOrientation,
-) -> DecodedBlock {
-    let n = width * height;
+) -> Result<DecodedBlock> {
+    let n = width
+        .checked_mul(height)
+        .context("J2K EBCOT code-block dimensions overflow")?;
     let mut state = vec![SampleState::default(); n];
     let mut mag = vec![0u32; n]; // accumulated magnitude
 
-    if data.is_empty() || num_bit_planes == 0 || num_passes == 0 {
-        return DecodedBlock {
+    if num_passes == 0 {
+        return Ok(DecodedBlock {
             samples: vec![0i32; n],
             lowest_bitplane: num_bit_planes as u32,
-        };
+        });
+    }
+    if num_bit_planes == 0 {
+        bail!("J2K EBCOT declares {num_passes} coding passes for zero bit-planes");
+    }
+    if data.is_empty() {
+        bail!("J2K EBCOT declares {num_passes} coding passes with an empty code-block body");
+    }
+    let maximum_passes = 3u32
+        .checked_mul(u32::from(num_bit_planes))
+        .and_then(|passes| passes.checked_sub(2))
+        .context("J2K EBCOT coding-pass limit overflow")?;
+    if num_passes > maximum_passes {
+        bail!(
+            "J2K EBCOT declares {num_passes} coding passes for {num_bit_planes} bit-planes; maximum is {maximum_passes}"
+        );
     }
 
     let mut mq = MqDecoder::new(data);
@@ -263,6 +282,13 @@ pub fn decode_code_block(
         }
     }
 
+    if passes_remaining != 0 {
+        bail!("J2K EBCOT ended with {passes_remaining} unconsumed coding passes");
+    }
+    if mq.synthesized_marker_count() > 2 {
+        bail!("J2K EBCOT code-block body ended before {num_passes} coding passes completed");
+    }
+
     // Reconstruct signed integer samples from sign + magnitude.
     let samples = state
         .iter()
@@ -281,8 +307,8 @@ pub fn decode_code_block(
         })
         .collect();
 
-    DecodedBlock {
+    Ok(DecodedBlock {
         samples,
         lowest_bitplane: lowest_bp,
-    }
+    })
 }
