@@ -46,8 +46,11 @@ declaration, empty packet data, zero-length and exhausted code-block bodies,
 packet profiles. All 311
 codec tests pass, including the captured OpenJPEG 2.5.4 lossless/lossy corpus.
 Corrected-head formatting, warning-denied Clippy, doctest, warning-denied
-Rustdoc, and mdBook test/build pass. Hosted and independent-review gates remain
-for the new head. These checks prove
+Rustdoc, and mdBook test/build pass. Exact implementation head `425cc147`
+passes CI run `30709628867`, all Python lanes in run `30709628847`, and the Pages
+artifact build in run `30709628871` on Linux, macOS, and Windows. Thread-aware
+PR #81 inspection after CodeRabbit's completed incremental-review command
+reports zero review threads or requested changes. These checks prove
 the supported grayscale contract and malformed-input behavior; they do not
 claim multi-component or multi-part decode support.
 

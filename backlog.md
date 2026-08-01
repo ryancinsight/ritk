@@ -16,7 +16,7 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
-  (IN_PROGRESS; owner=Codex; last-update=2026-08-01; scope=
+  (CLOSURE; owner=Codex; last-update=2026-08-01; scope=
   `crates/ritk-codecs/src/jpeg_2000/{codestream.rs,ebcot/mod.rs,image.rs,marker.rs,mod.rs,packet/reader.rs,tests.rs}`,
   `ARCHITECTURE.md`, `docs/book/jpeg_2000_codec.md`, `CHANGELOG.md`,
   `gap_audit.md`, and PM artifacts; non-goal=codec feature expansion,
@@ -45,8 +45,11 @@
   gaps plus EBCOT exhaustion, `Psot=0`, and trailing-EOC defects; those
   counterexamples now have regressions. Corrected-head formatting, 311/311
   Nextest, warning-denied Clippy, doctest, warning-denied Rustdoc, and mdBook
-  test/build pass. Hosted gates and independent re-review remain for the new
-  head.
+  test/build pass. Exact implementation head `425cc147` passes CI run
+  `30709628867`, all Python lanes in run `30709628847`, and the Pages artifact
+  build in run `30709628871` on Linux, macOS, and Windows. Thread-aware PR #81
+  inspection reports zero review threads or requested changes after CodeRabbit
+  completed its incremental-review command.
 
 - **FEAT-686-01** `[minor][arch]` - Establish a physically typed diffusion-MRI
   and tractography pipeline (REVIEW; owner=Codex;

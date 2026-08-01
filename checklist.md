@@ -15,7 +15,7 @@
 
 ## SAFE-687-01 — Reject truncated JPEG 2000 marker tails
 **Target version**: Unreleased patch
-**Sprint phase**: Execution
+**Sprint phase**: Closure
 
 - [x] Reconcile `origin/main`, worktrees, peer-owned diffusion changes, the
       native codec parser, tests, architecture claims, and book coverage.
@@ -37,8 +37,12 @@
       including the captured OpenJPEG corpus and all review counterexamples.
 - [x] Run corrected-head formatting, warning-denied Clippy, doctest, Rustdoc,
       mdBook, and diff gates.
-- [ ] Complete independent review and exact-head hosted gates.
-- [ ] Reconcile PM evidence, commit, publish, and merge after hosted gates pass.
+- [x] Complete independent review and exact-head hosted gates. Exact head
+      `425cc147` passes CI `30709628867`, Python CI `30709628847`, and the
+      Pages artifact build `30709628871`; thread-aware PR inspection reports
+      no review threads or requested changes.
+- [x] Reconcile PM evidence and publish the merge-ready closure after hosted
+      gates pass.
 
 ## SAFE-685-01 — Bound and document TIFF volume decoding
 **Target version**: Unreleased patch
