@@ -59,9 +59,11 @@ from seconds per square millimeter. Construction rejects negative and
 non-finite values. No raw constructor, dimensionless alias, or `Diffusivity`
 compatibility name remains.
 
-Gradient direction is private validated state. A b0 sample has a zero vector;
-a weighted sample has a finite unit vector. `GradientFrame` states whether
-that vector is in image axes or physical LPS. Reorientation validates a finite
+Gradient direction is private validated state. Scanner-facing values at or
+below the shared 50 s/mm² baseline threshold are canonicalized to exact zero
+weighting and direction after finite-input validation; a weighted sample above
+that threshold has a finite unit vector. `GradientFrame` states whether that
+vector is in image axes or physical LPS. Reorientation validates a finite
 orthonormal rotation before applying it and preserves unit norm within a bound
 derived from f64 arithmetic.
 

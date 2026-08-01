@@ -155,6 +155,60 @@ fn invalid_configuration_signals_and_grid_are_typed_errors() {
 }
 
 #[test]
+fn acquisition_partitions_report_exact_typed_errors() {
+    let complete = scheme(30);
+    assert!(matches!(
+        estimate_odf(&complete, &[1.0; 5], OdfConfig::default()),
+        Err(OdfError::SignalLengthMismatch {
+            signal_count: 5,
+            acquisition_count: 31,
+        })
+    ));
+
+    let weighted_only = GradientScheme::new(
+        vec![
+            GradientDirection::new(weighting(1_000.0), Vector::new([1.0, 0.0, 0.0]))
+                .expect("valid weighted entry"),
+        ],
+        GradientFrame::Lps,
+    )
+    .expect("nonempty weighted scheme");
+    assert!(matches!(
+        estimate_odf(&weighted_only, &[1.0], OdfConfig::default()),
+        Err(OdfError::NoB0Volumes)
+    ));
+
+    let baseline_only = GradientScheme::new(
+        vec![
+            GradientDirection::new(weighting(0.0), Vector::new([0.0, 0.0, 0.0]))
+                .expect("valid baseline entry"),
+        ],
+        GradientFrame::Lps,
+    )
+    .expect("nonempty baseline scheme");
+    assert!(matches!(
+        estimate_odf(&baseline_only, &[1.0], OdfConfig::default()),
+        Err(OdfError::NoDwiDirections)
+    ));
+
+    let underdetermined = scheme(6);
+    assert!(matches!(
+        estimate_odf(&underdetermined, &[1.0; 7], OdfConfig::default()),
+        Err(OdfError::Underdetermined {
+            direction_count: 6,
+            coefficient_count: 15,
+        })
+    ));
+
+    let mut invalid_baseline = [1.0; 31];
+    invalid_baseline[0] = 0.0;
+    assert!(matches!(
+        estimate_odf(&complete, &invalid_baseline, OdfConfig::default()),
+        Err(OdfError::InvalidBaseline { value: 0.0 })
+    ));
+}
+
+#[test]
 fn mixed_shells_fail_and_frame_is_preserved() -> Result<(), OdfError> {
     let mut scheme = scheme(30);
     let mut pairs = scheme

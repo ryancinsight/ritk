@@ -42,6 +42,47 @@ fn gradient_contract_distinguishes_b0_and_weighted_entries() {
 }
 
 #[test]
+fn external_low_weightings_are_canonical_b0_entries() {
+    let scheme = GradientScheme::from_seconds_per_square_millimeter(
+        vec![
+            (1.0e-9, Vector::new([0.0, 0.0, 0.0])),
+            (50.0, Vector::new([1.0, 0.0, 0.0])),
+            (50.0_f64.next_up(), Vector::new([1.0, 0.0, 0.0])),
+        ],
+        GradientFrame::Lps,
+    )
+    .expect("finite scanner baseline and weighted entries");
+
+    for entry in &scheme.directions()[..2] {
+        assert_eq!(entry.weighting(), weighting(0.0));
+        assert_eq!(entry.direction(), Vector::new([0.0, 0.0, 0.0]));
+    }
+    assert_eq!(
+        scheme.directions()[2].weighting(),
+        weighting(50.0_f64.next_up())
+    );
+    assert_eq!(
+        scheme.directions()[2].direction(),
+        Vector::new([1.0, 0.0, 0.0])
+    );
+
+    assert!(matches!(
+        GradientScheme::from_seconds_per_square_millimeter(
+            vec![(25.0, Vector::new([f64::NAN, 0.0, 0.0]))],
+            GradientFrame::Lps,
+        ),
+        Err(GradientSchemeError::InvalidDirection { index: 0, .. })
+    ));
+    assert!(matches!(
+        GradientScheme::from_seconds_per_square_millimeter(
+            vec![(50.0_f64.next_up(), Vector::new([0.0, 0.0, 0.0]))],
+            GradientFrame::Lps,
+        ),
+        Err(GradientSchemeError::InvalidDirection { index: 0, .. })
+    ));
+}
+
+#[test]
 fn fsl_round_trip_preserves_order_shells_and_frame() {
     let scheme = read_fsl_scheme("0 1000 2000", "0 1 0\n0 0 1\n0 0 0")
         .expect("valid multi-shell FSL scheme");

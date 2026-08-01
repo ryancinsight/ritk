@@ -12,7 +12,10 @@
 
 use apollo_sht::{RealShError, RealSphericalHarmonicBasis, real_spherical_harmonic};
 use leto::{Array1, Array2};
-use ritk_diffusion_scheme::{DiffusionWeighting, GradientFrame, GradientScheme};
+use ritk_diffusion_scheme::{
+    DEFAULT_B0_THRESHOLD_SECONDS_PER_SQUARE_MILLIMETER, DiffusionWeighting, GradientFrame,
+    GradientScheme,
+};
 
 /// Failure while configuring, estimating, or evaluating a Q-ball ODF.
 #[derive(Debug, thiserror::Error)]
@@ -202,8 +205,10 @@ impl Default for OdfConfig {
         Self {
             l_max: 4,
             regularization: 0.006,
-            b0_threshold: DiffusionWeighting::from_seconds_per_square_millimeter(50.0)
-                .expect("invariant: default b0 threshold is finite and nonnegative"),
+            b0_threshold: DiffusionWeighting::from_seconds_per_square_millimeter(
+                DEFAULT_B0_THRESHOLD_SECONDS_PER_SQUARE_MILLIMETER,
+            )
+            .expect("invariant: default b0 threshold is finite and nonnegative"),
             shell_tolerance: DiffusionWeighting::from_seconds_per_square_millimeter(0.0)
                 .expect("invariant: default shell tolerance is zero"),
         }

@@ -40,6 +40,12 @@ invariants:
 - a weighted entry has a finite unit direction; and
 - every direction has one declared frame: image-axis or physical LPS.
 
+At scanner and file-format boundaries, finite values at or below the default
+50 s/mm² threshold are canonicalized to exact zero weighting and direction.
+This treats small scanner baseline values consistently even when orientation
+is absent or carries a nominal finite vector. Values above the threshold must
+provide a unit direction.
+
 `GradientScheme` keeps acquisition order and provides thresholded b0/DWI
 indices and shell grouping. Reorientation accepts only a finite, proper
 orthonormal rotation. Reflections and scale/shear matrices fail because they

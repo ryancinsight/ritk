@@ -235,7 +235,8 @@ struct IntegrationHalf {
 ///
 /// Returns a typed error for an invalid field direction, non-finite proposed
 /// point, allocation failure, or invalid Gaia geometry. A seed at which the
-/// field returns `None` is an expected untrackable seed and produces no line.
+/// field returns `None`, or whose integration produces fewer than two points,
+/// is an expected untrackable seed and produces no line.
 pub fn euler_tractography<F>(
     seeds: &[Point<3>],
     config: TractographyConfig,

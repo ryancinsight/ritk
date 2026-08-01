@@ -175,12 +175,8 @@ fn panel_heading(svg: &mut String, panel: usize, title: &str, subtitle: &str) ->
 }
 
 fn draw_acquisition(svg: &mut String, directions: &[[f64; 3]]) -> Result<()> {
-    panel_heading(
-        svg,
-        0,
-        "1. Acquire directional signal",
-        "48 unit gradients at b = 1500 s/mm²",
-    )?;
+    let subtitle = format!("{GRADIENT_COUNT} unit gradients at b = {B_VALUE:.0} s/mm²");
+    panel_heading(svg, 0, "1. Acquire directional signal", &subtitle)?;
     writeln!(
         svg,
         "<circle cx=\"160\" cy=\"205\" r=\"112\" class=\"sphere\"/>"

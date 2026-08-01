@@ -40,6 +40,10 @@ sensitivity; the caller does not select a second codec API. The uncompressed
 `.mgh` path is useful when another tool requires direct field access, while
 `.mgz` is the normal storage-efficient representation.
 
+`read_mgh` deliberately rejects a file whose header declares more than one
+frame. Use `read_mgh_series` to preserve every volume of an acquisition or
+time series; the single-volume API never returns only frame zero.
+
 ## Why the explicit difference panel matters
 
 Placing source and reconstruction side by side is necessary but insufficient:

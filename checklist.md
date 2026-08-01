@@ -6837,5 +6837,9 @@ ritk-core: 0.8.0 → 0.9.0 | ritk-registration: 0.52.0 → 0.53.0
   and pin merged revision `db218665` without retaining the local-only API.
 - [x] Pass merged-provider local Clippy, 537/537 affected Nextest cases,
   doctest, Rustdoc, deterministic figure, and mdBook test/build gates.
+- [x] Adjudicate review findings with baseline canonicalization, exact ODF and
+  tractography regressions, MGH payload validation, and explicit series-reader
+  book semantics; pass 541/541 affected Nextest cases and all focused local
+  documentation and lint gates.
 - [ ] Run focused and hosted gates, adjudicate review, merge, and verify the
   live Pages artifact.

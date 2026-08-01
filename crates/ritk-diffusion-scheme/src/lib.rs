@@ -24,5 +24,13 @@ pub use gradient::{GradientDirection, GradientFrame};
 pub use scheme::GradientScheme;
 pub use weighting::DiffusionWeighting;
 
+/// Default scanner-facing threshold separating baseline and weighted volumes,
+/// in seconds per square millimeter.
+///
+/// External values at or below this threshold are canonicalized to exact b0
+/// entries because small nonzero values commonly encode scanner baseline
+/// acquisitions whose gradient orientation is absent or not meaningful.
+pub const DEFAULT_B0_THRESHOLD_SECONDS_PER_SQUARE_MILLIMETER: f64 = 50.0;
+
 #[cfg(test)]
 mod tests;

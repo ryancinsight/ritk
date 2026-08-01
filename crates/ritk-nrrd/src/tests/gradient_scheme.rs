@@ -63,6 +63,31 @@ fn nominal_weighting_and_gradient_magnitude_form_multiple_shells() -> Result<()>
 }
 
 #[test]
+fn low_effective_weighting_is_canonicalized_to_b0() -> Result<()> {
+    let directory = tempdir()?;
+    let path = directory.path().join("low_effective_weighting.nrrd");
+    write_header(
+        &path,
+        &[
+            "modality:=DWMRI",
+            "DWMRI_b-value:=1000",
+            "DWMRI_gradient_0000:=0 0 0",
+            "DWMRI_gradient_0001:=0.2 0 0",
+            "DWMRI_gradient_0002:=1 0 0",
+        ],
+    )?;
+
+    let scheme = read_nrrd_gradient_scheme(path)?;
+    assert_eq!(scheme.directions()[1].weighting(), weighting(0.0));
+    assert_eq!(
+        scheme.directions()[1].direction(),
+        Vector::new([0.0, 0.0, 0.0])
+    );
+    assert_eq!(scheme.directions()[2].weighting(), weighting(1_000.0));
+    Ok(())
+}
+
+#[test]
 fn measurement_frame_and_ras_space_convert_once_to_lps() -> Result<()> {
     let directory = tempdir()?;
     let path = directory.path().join("frame.nrrd");

@@ -102,6 +102,18 @@ against `d3d3d811` pass all 196 checks for each affected existing crate
 exceeded its outer shell deadline only after the checker printed its complete
 passing result.
 
+Review adjudication canonicalizes scanner b-values at or below the established
+50 s/mm² baseline threshold, retains finite-input validation, and adds exact
+error-partition coverage for ODF estimation and integration overflow. MGH
+series writing now validates checked per-volume voxel counts, the book names
+the single-volume versus series reader contract, and figure captions derive
+from the generated acquisition parameters. A requested manifest `rev` pin was
+rejected: the committed lockfile is this workspace's reproducible provider pin,
+while a manifest revision pin is reserved for explicit dependency quarantine.
+Focused re-verification passes 541/541 Nextest cases, warning-denied Clippy and
+Rustdoc, doctests, standalone locked metadata, deterministic figure
+regeneration, and mdBook test/build.
+
 ## SAFE-685-01 audit (2026-07-31)
 
 The TIFF book inventory omitted a supported format owner. The grayscale reader

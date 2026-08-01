@@ -5,15 +5,19 @@
 //! patient frame. RITK patient coordinates are physical LPS, so successful
 //! extraction produces [`GradientFrame::Lps`].
 //!
-//! This module supports top-level elements in classic single-frame instances.
-//! Enhanced multi-frame functional groups and vendor-private conventions need
-//! sequence- and manufacturer-specific geometry handling and are rejected by
-//! absence rather than guessed.
+//! Standard diffusion metadata normally appears in per-frame functional
+//! groups for enhanced multi-frame MR. Top-level diffusion elements in classic
+//! single-frame instances are less common and can reflect vendor-specific
+//! conventions. This module supports only those standard top-level elements;
+//! it rejects enhanced functional groups and private conventions rather than
+//! guessing sequence or manufacturer semantics.
 
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use ritk_diffusion_scheme::{GradientFrame, GradientScheme};
+use ritk_diffusion_scheme::{
+    GradientFrame, GradientScheme, DEFAULT_B0_THRESHOLD_SECONDS_PER_SQUARE_MILLIMETER,
+};
 use ritk_spatial::Vector;
 
 use crate::attribute::{tags, DicomAttributeRead};
@@ -25,11 +29,12 @@ use crate::attribute::{tags, DicomAttributeRead};
 /// # Errors
 ///
 /// Returns an error when orientation is present without a b-value, orientation
-/// is absent for a nonzero b-value, the b-value cannot be decoded, the
+/// is absent above the baseline threshold, the b-value cannot be decoded, the
 /// direction does not contain exactly three components, or any component is
-/// non-finite. A zero b-value without orientation is accepted as b0 with the
-/// zero vector. Full unit and zero/unit-vector validation occurs when the pair
-/// enters [`GradientScheme`].
+/// non-finite. A b-value at or below RITK's default 50 s/mm² baseline
+/// threshold may omit orientation and is canonicalized by [`GradientScheme`].
+/// Full unit and zero/unit-vector validation occurs when the pair enters the
+/// scheme.
 pub fn extract_diffusion_pair(
     object: &impl DicomAttributeRead,
 ) -> Result<Option<(f64, Vector<3>)>> {
@@ -59,9 +64,14 @@ pub fn extract_diffusion_pair(
             }
             Ok(Some((value, Vector::new(components))))
         }
-        (Some(value), None) if value == 0.0 => Ok(Some((value, Vector::new([0.0, 0.0, 0.0])))),
+        (Some(value), None)
+            if value.is_finite()
+                && (0.0..=DEFAULT_B0_THRESHOLD_SECONDS_PER_SQUARE_MILLIMETER).contains(&value) =>
+        {
+            Ok(Some((value, Vector::new([0.0, 0.0, 0.0]))))
+        }
         (Some(value), None) => Err(anyhow::anyhow!(
-            "Diffusion b-value {value} is nonzero but Diffusion Gradient Orientation is missing"
+            "Diffusion b-value {value} exceeds the baseline threshold but Diffusion Gradient Orientation is missing"
         )),
         (None, Some(_)) => Err(anyhow::anyhow!(
             "Diffusion Gradient Orientation is present but Diffusion b-value is missing"
@@ -74,8 +84,9 @@ pub fn extract_diffusion_pair(
 /// # Errors
 ///
 /// Returns an error when the file cannot be parsed, lacks a standard top-level
-/// b-value, lacks orientation for a nonzero b-value, or violates the validated
-/// scheme contract. A b0 instance may omit orientation.
+/// b-value, lacks orientation above the baseline threshold, or violates the
+/// validated scheme contract. A baseline instance at or below 50 s/mm² may omit
+/// orientation.
 pub fn read_dicom_gradient_scheme_from_file<P: AsRef<Path>>(path: P) -> Result<GradientScheme> {
     read_dicom_gradient_scheme_from_files([path])
 }

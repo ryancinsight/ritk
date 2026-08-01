@@ -170,3 +170,21 @@ fn non_finite_seed_fails_before_field_callback() {
         }
     ));
 }
+
+#[test]
+fn non_finite_proposal_reports_seed_and_step() -> Result<(), TractographyError> {
+    let config = TractographyConfig::new(f64::MAX, 1, 45.0, TrackingDirection::Forward)?;
+    let error = euler_tractography(&[Point::new([f64::MAX, 0.0, 0.0])], config, |_| {
+        Some(Vector::new([1.0, 0.0, 0.0]))
+    })
+    .expect_err("the first proposed x coordinate overflows");
+    assert!(matches!(
+        error,
+        TractographyError::NonFinitePoint {
+            seed_index: 0,
+            step_index: 1,
+            point: [x, 0.0, 0.0],
+        } if x == f64::INFINITY
+    ));
+    Ok(())
+}

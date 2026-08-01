@@ -1,7 +1,7 @@
 //! Diffusion MRI signal and orientation models.
 //!
 //! This crate owns diffusion-model fitting under
-//! [ADR 0017](../../../docs/adr/0017-diffusion-mri-pipeline.md). The current
+//! ADR 0017 (`diffusion-mri-pipeline`) defines the crate boundary. The current
 //! implemented model is regularized analytical Q-ball imaging. Unimplemented
 //! model families are not advertised as available APIs.
 //!

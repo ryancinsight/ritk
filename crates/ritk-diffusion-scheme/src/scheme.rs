@@ -2,7 +2,10 @@
 
 use ritk_spatial::Vector;
 
-use crate::{DiffusionWeighting, GradientDirection, GradientFrame, GradientSchemeError};
+use crate::{
+    DEFAULT_B0_THRESHOLD_SECONDS_PER_SQUARE_MILLIMETER, DiffusionWeighting, GradientDirection,
+    GradientFrame, GradientSchemeError,
+};
 
 const ROTATION_TOLERANCE: f64 = 1.0e-9;
 
@@ -41,6 +44,12 @@ impl GradientScheme {
 
     /// Construct from external s/mm² values and vectors.
     ///
+    /// Finite nonnegative values at or below
+    /// [`DEFAULT_B0_THRESHOLD_SECONDS_PER_SQUARE_MILLIMETER`] are
+    /// canonicalized to exact zero weighting and direction. The input vector
+    /// must still be finite, but its orientation is discarded because it is
+    /// not physically meaningful for a baseline acquisition.
+    ///
     /// # Errors
     ///
     /// Returns the first weighting or direction error with its acquisition
@@ -57,6 +66,21 @@ impl GradientScheme {
             .enumerate()
             .map(|(index, (value, direction))| {
                 let weighting = DiffusionWeighting::at_index(value, index)?;
+                if value <= DEFAULT_B0_THRESHOLD_SECONDS_PER_SQUARE_MILLIMETER {
+                    if direction
+                        .to_array()
+                        .iter()
+                        .any(|component| !component.is_finite())
+                    {
+                        return GradientDirection::at_index(weighting, direction, index);
+                    }
+                    let weighting = DiffusionWeighting::at_index(0.0, index)?;
+                    return GradientDirection::at_index(
+                        weighting,
+                        Vector::new([0.0, 0.0, 0.0]),
+                        index,
+                    );
+                }
                 GradientDirection::at_index(weighting, direction, index)
             })
             .collect::<Result<Vec<_>, _>>()?;
