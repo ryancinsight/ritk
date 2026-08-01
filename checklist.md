@@ -6820,3 +6820,18 @@ ritk-core: 0.8.0 → 0.9.0 | ritk-registration: 0.52.0 → 0.53.0
 | SRP-361-06 | `compute_image.rs` (499L) — split cache helpers from main compute loop | Low |
 | PRIM-361-07 | `GaussianSigma` adoption in `CoherenceConfig` scratch space sigma tracking | Low |
 | UPSTREAM-359-03 | `masked_chunked.rs` + `fused.rs` clone-before-slice — blocked by Burn 0.19 lacking `slice_ref` | Blocked |
+# FEAT-686-01 - Diffusion MRI and tractography pipeline (Codex)
+
+- [x] Recover the ownerless acquisition/diffusion working increment without
+  discarding or overwriting its code.
+- [ ] Record the physical-unit, crate-boundary, and failure-contract decision
+  in ADR 0017.
+- [ ] Establish focused compile, lint, and value-semantic test baselines for
+  every new or affected crate.
+- [ ] Correct the acquisition scheme, ODF, and tractography contracts and
+  complete format-level integration tests.
+- [ ] Add and inspect a deterministic runnable example and generated figure.
+- [ ] Write the diffusion-MRI and tractography chapters and wire the Pages
+  reproducibility gate.
+- [ ] Run focused and hosted gates, adjudicate review, merge, and verify the
+  live Pages artifact.

@@ -5,6 +5,38 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **FEAT-686-01 [major][arch] - Establish a physically typed diffusion-MRI
+  and tractography pipeline** (IN PROGRESS; owner=Codex;
+  last-update=2026-07-31; scope=`Cargo.{toml,lock}`,
+  `crates/ritk-{diffusion-scheme,diffusion,tractography}/**`, diffusion
+  metadata integration in `crates/ritk-{dicom,nrrd,mgh,io}/**`,
+  `docs/adr/{0017-diffusion-mri-pipeline.md,README.md}`,
+  `docs/book/{SUMMARY.md,diffusion_mri.md,tractography.md,
+  examples/diffusion_tractography.md,figures/diffusion_tractography.svg}`,
+  the runnable figure example and book workflow, `CHANGELOG.md`,
+  `gap_audit.md`, and PM artifacts; non-goal=clinical tensor validation,
+  probabilistic tractography, DKI/NODDI, GPU execution, Python bindings,
+  release, or manual deployment). Recover and complete the ownerless working
+  increment following the merged acquisition-series support. Replace the
+  false dimensionless b-value contract with a physical time-per-area type,
+  validate finite signals, gradient frames, configurations, directions, and
+  integration outputs at public boundaries, and make termination stop before
+  an invalid tissue point rather than emitting an out-of-domain segment.
+  Keep format parsing bounded and contextual, split mixed-concern source files
+  into canonical modules, and retain one allocation-efficient numerical path
+  per operation. Add a deterministic end-to-end example and inspected figure
+  showing the acquisition scheme, synthetic anisotropic signal, fitted
+  orientation distribution, direction field, seeds, termination causes, and
+  generated streamlines against an analytical phantom. Acceptance: format
+  round trips preserve volume order, physical image geometry, b-values, and
+  gradient directions; invalid or non-finite external inputs return typed
+  errors without panic or partial output; ODF fitting recovers the analytical
+  dominant axis within a derived angular bound; tractography stays inside the
+  phantom and obeys step, turn, and length limits; displayed metrics agree
+  with generated data; the example stays within the committed runtime budget;
+  and formatting, warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook,
+  semantic-version, review, and hosted gates pass.
+
 - **SAFE-685-01 [patch] - Bound and document TIFF volume decoding**
   (DONE; owner=Codex; last-update=2026-07-31; scope=
   `crates/ritk-tiff/src/{reader.rs,color.rs,tests_reader.rs}`,
