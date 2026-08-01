@@ -51,6 +51,7 @@ pub mod label_transfer;
 pub mod lddmm;
 pub mod metric;
 pub mod regularization;
+pub mod series;
 pub mod types;
 pub mod validation;
 
