@@ -17,7 +17,7 @@
 
 - **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
   (IN PROGRESS; owner=Codex; last-update=2026-08-01; scope=
-  `crates/ritk-codecs/src/jpeg_2000/{image.rs,tests.rs}`,
+  `crates/ritk-codecs/src/jpeg_2000/{image.rs,mod.rs,tests.rs}`,
   `ARCHITECTURE.md`, `docs/book/jpeg_2000_codec.md`, `CHANGELOG.md`,
   `gap_audit.md`, and PM artifacts; non-goal=codec feature expansion,
   rate control, JP2 containers, changing valid codestream output, release, or
@@ -25,11 +25,14 @@
   marker segments currently break the marker loop and return the partially
   populated output image. Make marker-segment consumption exact and fallible,
   require the codestream terminator, and reject malformed tails without panic
-  or partial output. Correct the stale architecture claim that production
+  or partial output. The same packet reader traverses one LRCP component but
+  was invoked from byte zero for every declared component, silently duplicating
+  channel zero; reject multi-component, MCT, and non-LRCP streams before output
+  allocation until their packet traversal exists. Correct the stale architecture claim that production
   decode still uses `jpeg2k`/`openjp2`, and document the native parser boundary.
   Acceptance: complete native and captured OpenJPEG streams remain
   value-exact; marker-only, truncated-length, oversized-length, and missing-EOC
-  cases return contextual errors; focused formatting, warning-denied Clippy,
+  cases and unsupported component traversal return contextual errors; focused formatting, warning-denied Clippy,
   Nextest, doctest, Rustdoc, mdBook, and review gates pass.
 
 - **FEAT-686-01 [minor][arch] - Establish a physically typed diffusion-MRI
