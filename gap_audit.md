@@ -13,6 +13,37 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## SAFE-688-01 audit (2026-08-01)
+
+The Analyze reader previously converted signed `i16` dimensions to `usize`
+before validation and multiplied dimensions and scalar widths without checked
+arithmetic. It then retained the complete `.img` file while allocating the
+decoded `f32` volume. The writer similarly built a second volume-sized byte
+vector and could create the header before discovering an invalid logical input
+or payload-write failure.
+
+The corrected boundary validates dimensionality, positive dimensions,
+single-volume scope, datatype/bit-depth agreement, finite metadata, whole-byte
+offset, checked byte products, and exact file length before fallibly reserving
+output. Supported scalar conversion streams through 8 KiB fixed scratch; writer
+bytes stream through an 8 KiB buffered file and the header is published after
+the payload flushes. This establishes a decoder-owned memory bound of returned
+volume plus constant scratch, excluding filesystem and backend storage.
+
+Eleven value-semantic tests cover all supported scalar types, scaling, exact
+header length, big-endian
+and multi-volume rejection, negative and hostile dimensions, non-finite
+metadata, offsets, truncated and trailing payloads, the decode-buffer boundary,
+writer preflight, and exact round trips. The generated figure compares source
+and decoded slices on one scale, includes an explicit bitwise-difference panel,
+and reports the measured 348-byte header and 65,536-byte payload. Review also
+found that finite `f64` spacing could overflow or underflow the format's `f32`
+field and that origins outside `i16` voxel coordinates were silently clamped;
+both now fail before file creation. Formatting, warning-denied all-target
+Clippy, 11/11 Nextest tests in 0.147 seconds, doctests, warning-denied Rustdoc,
+deterministic figure regeneration, mdBook test/build, and 196 semantic-
+compatibility checks pass locally. Hosted evidence remains before closure.
+
 ## SAFE-687-01 audit (2026-08-01)
 
 The native JPEG 2000 packet reader traverses one LRCP component stream, but the

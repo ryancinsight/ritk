@@ -16,7 +16,7 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-688-01 [patch] - Bound and teach Analyze 7.5 decoding**
-  (IN PROGRESS; owner=Codex; last-update=2026-08-01; scope=
+  (REVIEW; owner=Codex; last-update=2026-08-01; scope=
   `crates/ritk-analyze/**`,
   `docs/book/{SUMMARY.md,analyze_format.md,examples/analyze_roundtrip.md,
   figures/analyze_roundtrip.svg}`, `.github/workflows/book-pages.yml`,
@@ -29,7 +29,7 @@
   volume. Validate signed geometry, datatype/bit depth, finite metadata,
   offset, and exact payload length before allocation; reserve fallibly and
   stream scalar conversion into the final voxel buffer. Validate writer shape,
-  values, finite spatial metadata, and checked byte counts before creating
+  storage length, finite spatial metadata, and checked byte counts before creating
   either output file. Add adversarial and value-semantic tests plus a
   deterministic public-API round-trip figure with source, decoded, and
   absolute-difference panels on explicit scales. Acceptance: malformed
@@ -40,7 +40,15 @@
   of payload size; displayed metrics agree with generated data; the example
   stays within the committed runtime budget; and formatting, warning-denied
   Clippy, Nextest, doctest, Rustdoc, mdBook, semantic-version, review, and
-  hosted gates pass.
+  hosted gates pass. Local closure evidence: formatting, warning-denied
+  all-target Clippy, 11/11 Nextest tests in 0.147 seconds, doctests,
+  warning-denied Rustdoc, deterministic example regeneration, and mdBook
+  test/build pass. The inspected 13,082-byte SVG has SHA-256
+  `FCDB15272CAE80140F35AD765C5935C2607588DFA34309F728E504E518993E19`;
+  the warm executable completes in 939.562 ms. Semantic compatibility passes
+  196 checks with 57 inapplicable checks skipped. Review found and corrected
+  header-length, spacing-representation, and origin-range gaps. Hosted gates
+  remain.
 
 - **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
   (DONE; owner=Codex; last-update=2026-08-01; scope=

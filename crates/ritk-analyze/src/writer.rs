@@ -41,6 +41,8 @@ use coeus_core::{ComputeBackend, CpuAddressableStorage};
 use ritk_spatial::{Point, Spacing};
 
 use crate::codec::{write_le, DT_FLOAT, EXTENTS, HDR_SIZE};
+use std::fs::File;
+use std::io::{BufWriter, Write};
 use std::path::Path;
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -54,7 +56,11 @@ use std::path::Path;
 /// # Errors
 /// Returns an error if:
 /// - `path`'s parent directory does not exist.
-/// - Any dimension exceeds `i16::MAX` (32 767).
+/// - Any dimension is zero or exceeds `i16::MAX` (32 767).
+/// - The image storage length does not match its shape.
+/// - Spacing cannot be represented as a positive finite header `f32`, or any
+///   spatial metadata is non-finite.
+/// - The rounded origin voxel coordinate exceeds the format's `i16` field.
 /// - Writing the header or data file fails.
 pub fn write_analyze<B, P>(path: P, image: &ritk_image::Image<f32, B, 3>, backend: &B) -> Result<()>
 where
@@ -93,13 +99,38 @@ fn write_analyze_flat(
                        // File-axis spacing [sx, sy, sz] is the reverse of core [sz, sy, sx].
     let (sx, sy, sz) = (sp[2], sp[1], sp[0]);
 
-    // Validate dimensions fit in i16 (Analyze constraint).
+    // Validate the complete logical input before creating either file.
     for (name, &val) in [("nx", &nx), ("ny", &ny), ("nz", &nz)].iter() {
+        if val == 0 {
+            anyhow::bail!("Analyze: dimension {name} must be positive");
+        }
         if val > i16::MAX as usize {
             anyhow::bail!(
                 "Analyze: dimension {name}={val} exceeds i16::MAX ({})",
                 i16::MAX
             );
+        }
+    }
+    let voxel_count = nx
+        .checked_mul(ny)
+        .and_then(|plane| plane.checked_mul(nz))
+        .context("Analyze voxel count overflows usize")?;
+    if vals.len() != voxel_count {
+        anyhow::bail!(
+            "Analyze: image storage length {} does not match shape {:?} ({voxel_count} voxels)",
+            vals.len(),
+            shape
+        );
+    }
+    voxel_count
+        .checked_mul(size_of::<f32>())
+        .context("Analyze payload byte count overflows usize")?;
+    let sx_header = header_spacing("x", sx)?;
+    let sy_header = header_spacing("y", sy)?;
+    let sz_header = header_spacing("z", sz)?;
+    for (axis, value) in [("x", orig[0]), ("y", orig[1]), ("z", orig[2])] {
+        if !value.is_finite() {
+            anyhow::bail!("Analyze: origin[{axis}] must be finite, found {value}");
         }
     }
 
@@ -122,9 +153,9 @@ fn write_analyze_flat(
 
     // pixdim[8] at offset 76
     write_le::<f32>(&mut hdr, 76, 4.0_f32); // pixdim[0] = number of dims
-    write_le::<f32>(&mut hdr, 80, sx as f32); // pixdim[1] = sx
-    write_le::<f32>(&mut hdr, 84, sy as f32); // pixdim[2] = sy
-    write_le::<f32>(&mut hdr, 88, sz as f32); // pixdim[3] = sz
+    write_le::<f32>(&mut hdr, 80, sx_header); // pixdim[1] = sx
+    write_le::<f32>(&mut hdr, 84, sy_header); // pixdim[2] = sy
+    write_le::<f32>(&mut hdr, 88, sz_header); // pixdim[3] = sz
     write_le::<f32>(&mut hdr, 92, 1.0_f32); // pixdim[4] = TR (unused)
 
     write_le::<f32>(&mut hdr, 108, 0.0_f32); // vox_offset
@@ -135,23 +166,26 @@ fn write_analyze_flat(
     hdr[148..148 + descrip.len()].copy_from_slice(descrip);
 
     // originator[10] at offset 253 — voxel-space origin (5 × i16)
-    let ox_vox = vox_coord(orig[0], sx);
-    let oy_vox = vox_coord(orig[1], sy);
-    let oz_vox = vox_coord(orig[2], sz);
+    let ox_vox = vox_coord("x", orig[0], f64::from(sx_header))?;
+    let oy_vox = vox_coord("y", orig[1], f64::from(sy_header))?;
+    let oz_vox = vox_coord("z", orig[2], f64::from(sz_header))?;
     write_le::<i16>(&mut hdr, 253, ox_vox); // originator[0] = x voxel
     write_le::<i16>(&mut hdr, 255, oy_vox); // originator[1] = y voxel
     write_le::<i16>(&mut hdr, 257, oz_vox); // originator[2] = z voxel
 
-    // Write .hdr
-    std::fs::write(&hdr_path, hdr).context("Failed to write Analyze header")?;
-
     // ── Write .img (raw f32 little-endian, same memory order as RITK) ─────────
     // RITK layout: flat[iz*ny*nx + iy*nx + ix] — identical to Analyze X-fastest.
-    let mut img_data = Vec::with_capacity(vals.len() * 4);
+    let img_file = File::create(&img_path).context("Failed to create Analyze data file")?;
+    let mut img_data = BufWriter::with_capacity(8 * 1024, img_file);
     for v in vals {
-        img_data.extend_from_slice(&v.to_le_bytes());
+        img_data
+            .write_all(&v.to_le_bytes())
+            .context("Failed to write Analyze voxel data")?;
     }
-    std::fs::write(&img_path, &img_data).context("Failed to write Analyze data")?;
+    img_data.flush().context("Failed to flush Analyze data")?;
+
+    // Publish the header only after the complete voxel payload was written.
+    std::fs::write(&hdr_path, hdr).context("Failed to write Analyze header")?;
 
     tracing::debug!(
         shape = ?shape,
@@ -184,12 +218,115 @@ impl<B: ComputeBackend> AnalyzeWriter<B> {
     }
 }
 
-/// Convert physical origin coordinate to voxel index (rounded, clamped to i16).
-#[inline]
-fn vox_coord(origin_mm: f64, spacing_mm: f64) -> i16 {
-    if spacing_mm.abs() < f64::EPSILON {
-        return 0;
+fn header_spacing(axis: &str, spacing_mm: f64) -> Result<f32> {
+    let encoded = spacing_mm as f32;
+    if !encoded.is_finite() || encoded <= 0.0 {
+        anyhow::bail!(
+            "Analyze: spacing[{axis}]={spacing_mm} is not representable as a positive finite f32 header value"
+        );
     }
-    let vox = (origin_mm / spacing_mm).round();
-    vox.clamp(i16::MIN as f64, i16::MAX as f64) as i16
+    Ok(encoded)
+}
+
+/// Convert a physical origin coordinate to the format's rounded voxel index.
+#[inline]
+fn vox_coord(axis: &str, origin_mm: f64, spacing_mm: f64) -> Result<i16> {
+    let voxel = (origin_mm / spacing_mm).round();
+    if !voxel.is_finite() || voxel < f64::from(i16::MIN) || voxel > f64::from(i16::MAX) {
+        anyhow::bail!(
+            "Analyze: origin[{axis}]={origin_mm} maps to voxel coordinate {voxel}, outside the i16 header range"
+        );
+    }
+    Ok(voxel as i16)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::write_analyze_flat;
+    use anyhow::Result;
+    use ritk_spatial::{Point, Spacing};
+    use tempfile::tempdir;
+
+    #[test]
+    fn writer_rejects_invalid_input_before_creating_files() -> Result<()> {
+        let directory = tempdir()?;
+        let path = directory.path().join("invalid.hdr");
+
+        let error = write_analyze_flat(
+            &path,
+            [1, 1, 2],
+            &Spacing::new([1.0; 3]),
+            &Point::new([0.0; 3]),
+            &[1.0],
+        )
+        .expect_err("storage shorter than shape must be rejected");
+        assert!(
+            error.to_string().contains("storage length 1"),
+            "unexpected error: {error:#}"
+        );
+        assert!(!path.exists());
+        assert!(!path.with_extension("img").exists());
+
+        let error = write_analyze_flat(
+            &path,
+            [1, 0, 1],
+            &Spacing::new([1.0; 3]),
+            &Point::new([0.0; 3]),
+            &[],
+        )
+        .expect_err("zero dimensions must be rejected");
+        assert!(
+            error.to_string().contains("dimension ny"),
+            "unexpected error: {error:#}"
+        );
+        assert!(!path.exists());
+        assert!(!path.with_extension("img").exists());
+
+        let error = write_analyze_flat(
+            &path,
+            [1, 1, 1],
+            &Spacing::new([1.0; 3]),
+            &Point::new([0.0, f64::INFINITY, 0.0]),
+            &[1.0],
+        )
+        .expect_err("non-finite origin must be rejected");
+        assert!(
+            error.to_string().contains("origin[y]"),
+            "unexpected error: {error:#}"
+        );
+        assert!(!path.exists());
+        assert!(!path.with_extension("img").exists());
+
+        let error = write_analyze_flat(
+            &path,
+            [1, 1, 1],
+            &Spacing::new([1.0, f64::MAX, 1.0]),
+            &Point::new([0.0; 3]),
+            &[1.0],
+        )
+        .expect_err("spacing outside the header f32 range must be rejected");
+        assert!(
+            error.to_string().contains("not representable"),
+            "unexpected error: {error:#}"
+        );
+        assert!(!path.exists());
+        assert!(!path.with_extension("img").exists());
+
+        let error = write_analyze_flat(
+            &path,
+            [1, 1, 1],
+            &Spacing::new([1.0; 3]),
+            &Point::new([0.0, f64::from(i16::MAX) + 1.0, 0.0]),
+            &[1.0],
+        )
+        .expect_err("origin outside the header voxel range must be rejected");
+        assert!(
+            error.to_string().contains("outside the i16 header range"),
+            "unexpected error: {error:#}"
+        );
+        assert!(!path.exists());
+        assert!(!path.with_extension("img").exists());
+
+        Ok(())
+    }
 }

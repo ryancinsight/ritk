@@ -15,21 +15,30 @@
 
 ## SAFE-688-01 — Bound and teach Analyze 7.5 decoding
 **Target version**: Unreleased patch
-**Sprint phase**: Foundation
+**Sprint phase**: Review
 
 - [x] Reconcile `origin/main`, worktrees, peer-owned diffusion and registration
       changes, Analyze code/tests, and book coverage.
-- [ ] Record the focused package baseline before production edits.
-- [ ] Validate all external geometry, metadata, datatype, offset, payload, and
+- [x] Record the focused package baseline before production edits: 4/4 tests
+      pass in 0.437 seconds and warning-denied all-target Clippy passes.
+- [x] Validate all external geometry, metadata, datatype, offset, payload, and
       writer-buffer contracts with checked arithmetic.
-- [ ] Stream decode into one fallibly reserved output allocation.
-- [ ] Add value-semantic supported-type, malformed-input, and no-partial-output
+- [x] Stream decode into one fallibly reserved output allocation.
+- [x] Add value-semantic supported-type, malformed-input, and no-partial-output
       regressions.
-- [ ] Add and inspect the deterministic Analyze round-trip example and figure.
-- [ ] Teach the Analyze file pair, layout, geometry, scaling, and format limits
+- [x] Add and inspect the deterministic Analyze round-trip example and figure.
+- [x] Teach the Analyze file pair, layout, geometry, scaling, and format limits
       in the book and regenerate the figure in Pages CI.
 - [ ] Run focused format, lint, test, documentation, example-runtime, mdBook,
       semantic-version, review, and hosted gates against the delivered revision.
+      Local formatting, warning-denied all-target Clippy, 11/11 Nextest tests
+      in 0.147 seconds, doctests, warning-denied Rustdoc, deterministic figure
+      regeneration, mdBook test/build, and semantic compatibility pass. The
+      inspected 13,082-byte figure has SHA-256
+      `FCDB15272CAE80140F35AD765C5935C2607588DFA34309F728E504E518993E19`;
+      the warm example completes in 939.562 ms. Review findings for exact header
+      length, representable spacing, and unclamped origin range are corrected.
+      Hosted gates remain.
 - [ ] Reconcile PM evidence, commit, publish, review, merge, and verify the
       automatic Pages build without manually triggering deployment.
 
