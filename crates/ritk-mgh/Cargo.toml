@@ -1,13 +1,16 @@
 [package]
 name = "ritk-mgh"
 version = "0.2.0"
+description = "FreeSurfer MGH and MGZ image I/O for RITK"
+authors.workspace = true
+repository.workspace = true
+publish = true
 edition = "2021"
-authors = ["Ryan Clanton"]
 license.workspace = true
 
 [dependencies]
-ritk-image = { path = "../ritk-image" }
-ritk-spatial = { path = "../ritk-spatial" }
+ritk-image = { path = "../ritk-image", version = "0.2.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.1.0" }
 anyhow = { workspace = true }
 flate2 = { workspace = true }
 tracing = { workspace = true }

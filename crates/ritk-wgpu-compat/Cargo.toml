@@ -1,6 +1,10 @@
 [package]
 name = "ritk-wgpu-compat"
 version = "0.1.0"
+description = "GPU compatibility contracts for RITK"
+authors.workspace = true
+repository.workspace = true
+publish = true
 edition = "2021"
 license.workspace = true
 

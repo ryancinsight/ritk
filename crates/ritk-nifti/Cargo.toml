@@ -1,12 +1,16 @@
 [package]
 name = "ritk-nifti"
 version = "0.1.0"
+description = "NIfTI medical image I/O for RITK"
+authors.workspace = true
+repository.workspace = true
+publish = true
 edition = "2021"
 license.workspace = true
 
 [dependencies]
-ritk-image = { path = "../ritk-image" }
-ritk-spatial = { path = "../ritk-spatial" }
+ritk-image = { path = "../ritk-image", version = "0.2.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.1.0" }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 flate2 = { workspace = true }

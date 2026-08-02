@@ -1,12 +1,16 @@
 [package]
 name = "ritk-image"
 version = "0.2.0"
+description = "Native medical image storage and metadata for RITK"
+authors.workspace = true
+repository.workspace = true
+publish = true
 edition = "2021"
 license.workspace = true
 
 [dependencies]
-ritk-spatial = { path = "../ritk-spatial" }
-ritk-wgpu-compat = { path = "../ritk-wgpu-compat" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.1.0" }
+ritk-wgpu-compat = { path = "../ritk-wgpu-compat", version = "0.1.0" }
 anyhow = { workspace = true }
 coeus-core = { workspace = true }
 coeus-tensor = { workspace = true }

@@ -15,6 +15,19 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **RELEASE-689-01 [patch] - Publish the Rust library closure to crates.io**
+  (IN PROGRESS; owner=Codex; last-update=2026-08-02; scope=workspace and package
+  registry metadata, local dependency version requirements, dependency aliases,
+  `.github/workflows/rust-release.yml`, release documentation, and publication
+  of the 28 reusable Rust library packages; non-goal=publishing `ritk-cli`,
+  `ritk-snap`, `ritk-python`, `ritk-diffusion`, `ritk-tractography`, `xtask`, or
+  changing the Python release version). Acceptance: `cargo metadata` identifies
+  exactly the intended publishable set; every package passes
+  `cargo publish --dry-run` in dependency order; repository gates and hosted CI
+  pass; every version is indexed on crates.io; each crate has the exact GitHub
+  workflow configured as a trusted publisher with long-lived publishing
+  disabled; and each package version has a matching GitHub Release.
+
 - **SAFE-688-01 [patch] - Bound and teach Analyze 7.5 decoding**
   (DONE; owner=Codex; last-update=2026-08-01; scope=
   `crates/ritk-analyze/**`,

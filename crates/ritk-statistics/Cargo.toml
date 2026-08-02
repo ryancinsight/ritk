@@ -1,14 +1,17 @@
 [package]
 name = "ritk-statistics"
 version = "0.3.0"
+authors.workspace = true
+repository.workspace = true
+publish = true
 edition = "2021"
 license.workspace = true
 description = "Image statistics, information theory, image comparison metrics, normalization, and noise estimation"
 
 [dependencies]
-ritk-image = { path = "../ritk-image", features = ["test-helpers"] }
-ritk-tensor-ops = { path = "../ritk-tensor-ops" }
-ritk-spatial = { path = "../ritk-spatial" }
+ritk-image = { path = "../ritk-image", features = ["test-helpers"], version = "0.2.0" }
+ritk-tensor-ops = { path = "../ritk-tensor-ops", version = "0.1.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.1.0" }
 moirai = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }

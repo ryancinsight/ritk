@@ -1,6 +1,10 @@
 [package]
 name = "xtask"
 version = "0.1.0"
+description = "Repository maintenance tasks for RITK"
+authors.workspace = true
+repository.workspace = true
+publish = false
 edition = "2021"
 license.workspace = true
 

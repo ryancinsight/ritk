@@ -13,6 +13,29 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## RELEASE-689-01 — Publish the Rust library closure
+**Target version**: Current workspace package versions
+**Sprint phase**: Execution
+
+- [x] Reconcile the current workspace package graph and select the 28 reusable
+      Rust library packages in the dependency closure.
+- [x] Complete package metadata, explicit publish policy, local dependency
+      versions, and external package aliases.
+- [x] Add the tag-selected OIDC crates.io release workflow without changing the
+      independent Python wheel workflow.
+- [ ] Verify metadata, formatting, lint, focused native tests, documentation,
+      and each packaged source archive.
+      Exact standalone evidence: locked metadata reports 34 workspace packages
+      and exactly 28 publishable packages in an acyclic local graph; Rustfmt and
+      workspace dependency alignment pass; warning-denied all-target Clippy for
+      `ritk-filter` passes; Nextest passes 1,123/1,123 `ritk-filter` tests in
+      8.183 seconds and 484/484 `ritk-segmentation` tests in 6.643 seconds; and
+      focused doctests pass. Per-package archive verification remains pending on
+      upstream registry indexing.
+- [ ] Merge hosted gates and publish every package in dependency order.
+- [ ] Verify crates.io indexing, trusted-publishing-only enforcement, and a
+      matching GitHub Release for every published package version.
+
 ## SAFE-688-01 — Bound and teach Analyze 7.5 decoding
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
