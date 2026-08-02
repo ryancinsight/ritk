@@ -66,6 +66,14 @@ whose first attempt could not resolve `files.pythonhosted.org`; no RITK test ran
 in the failed attempt. Pages run `30733852812` regenerates the figures, builds
 the book, and uploads the artifact successfully.
 
+After the review corrections, exact head `8ad7c8f6` passes hosted CI run
+`30735629108`, all 13 Python 3.9–3.13 lanes in run `30735629133`, and Pages
+artifact run `30735629135`. PR #88 merged as `0c0a4252`. Post-merge Pages run
+`30736205149` regenerated and deployed the book successfully. The live
+`analyze_format.html`, `examples/analyze_roundtrip.html`, and
+`figures/analyze_roundtrip.svg` resources each return HTTP 200; the SVG served
+by Pages is the inspected 13,080-byte generated artifact.
+
 ## SAFE-687-01 audit (2026-08-01)
 
 The native JPEG 2000 packet reader traverses one LRCP component stream, but the

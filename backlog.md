@@ -16,7 +16,7 @@
 > References to these tools in the entries below are historical.
 
 - **SAFE-688-01 [patch] - Bound and teach Analyze 7.5 decoding**
-  (REVIEW; owner=Codex; last-update=2026-08-01; scope=
+  (DONE; owner=Codex; last-update=2026-08-01; scope=
   `crates/ritk-analyze/**`,
   `docs/book/{SUMMARY.md,analyze_format.md,examples/analyze_roundtrip.md,
   figures/analyze_roundtrip.svg}`, `.github/workflows/book-pages.yml`,
@@ -55,7 +55,10 @@
   rejects cross-format decoding. Exact corrected head `207e56ad` passes CI run
   `30733852800`, the complete Python 3.9–3.13 matrix in run `30733852838`
   after one macOS network-only retry, and Pages artifact build `30733852812`.
-  PR #88 merge and post-merge Pages deployment remain.
+  Final head `8ad7c8f6` passes CI `30735629108`, all 13 Python lanes in
+  `30735629133`, and the Pages artifact build in `30735629135`. PR #88 merged
+  as `0c0a4252`; post-merge Pages run `30736205149` built and deployed, and
+  the live chapter, example, and generated SVG each return HTTP 200.
 
 - **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
   (DONE; owner=Codex; last-update=2026-08-01; scope=
