@@ -247,6 +247,48 @@ fn read_minc_applies_per_slice_integer_scaling() {
 }
 
 #[test]
+fn read_minc_preserves_per_slice_scaling_across_stream_chunks() {
+    use scaled_fixture::{write_scaled_integer_fixture, ImageRangeFixture};
+
+    const SHAPE: [usize; 3] = [2, 33, 64];
+    const SLICE_LENGTH: usize = SHAPE[1] * SHAPE[2];
+    const STORED_PATTERN: [i16; 4] = [0, 25, 50, 100];
+    const FIRST_SLICE_PATTERN: [f32; 4] = [-1_000.0, -500.0, 0.0, 1_000.0];
+    const SECOND_SLICE_PATTERN: [f32; 4] = [0.0, 50.0, 100.0, 200.0];
+
+    let stored: Vec<i16> = (0..SHAPE.iter().product())
+        .map(|index| STORED_PATTERN[index % STORED_PATTERN.len()])
+        .collect();
+    let directory = tempfile::tempdir().expect("create temporary directory");
+    let path = directory.path().join("scaled-int16-stream-boundary.mnc");
+    write_scaled_integer_fixture(
+        &path,
+        &stored,
+        SHAPE,
+        [0, 100],
+        ImageRangeFixture::Complete {
+            minima: &[-1_000.0, 0.0],
+            maxima: &[1_000.0, 200.0],
+        },
+    )
+    .expect("write scaled stream-boundary fixture");
+
+    let image =
+        crate::read_minc(&path, &SequentialBackend).expect("read scaled stream-boundary fixture");
+    let expected: Vec<f32> = (0..stored.len())
+        .map(|index| {
+            let pattern = if index < SLICE_LENGTH {
+                FIRST_SLICE_PATTERN
+            } else {
+                SECOND_SLICE_PATTERN
+            };
+            pattern[index % pattern.len()]
+        })
+        .collect();
+    assert_eq!(image.data_slice().expect("host data"), expected);
+}
+
+#[test]
 fn read_minc_uses_default_real_range_when_image_ranges_are_absent() {
     use scaled_fixture::{write_scaled_integer_fixture, ImageRangeFixture};
 

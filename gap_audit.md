@@ -38,12 +38,15 @@ without controlled benchmark evidence.
 The analytical and real-file suite covers global and per-slice mappings,
 endpoints and midpoint, reversed valid-range order, constant real slices,
 default image ranges, incomplete range pairs, malformed shapes, and an
-out-of-range stored voxel with its exact linear index. The executable book
-figure constructs a deterministic scaled `i16` HDF5 file through the generic
+out-of-range stored voxel with its exact linear index. A 4,224-voxel fixture
+checks every mapped value while the second slice crosses the 8 KiB stream
+boundary. The executable book figure constructs a deterministic scaled `i16`
+HDF5 file through the generic
 Consus writer and displays the actual public-reader results next to the stored
 codes and mapping equation. Local formatting, warning-denied all-target
-Clippy, 57/57 Nextest tests in 0.591 seconds, doctests, warning-denied Rustdoc,
-deterministic figure regeneration, and mdBook test/build pass. The inspected
+Clippy, 58/58 debug Nextest tests in 0.397 seconds, 58/58 optimized release
+tests in 0.379 seconds, doctests, warning-denied Rustdoc, deterministic figure
+regeneration, and mdBook test/build pass. The inspected
 43,110-byte SVG has SHA-256
 `71A61FEFAF4DCA94AC45D3C902D0F8291C24B1697C6C103364419F6F859E9577`.
 `cargo-semver-checks` cannot establish a registry baseline because `ritk-minc`

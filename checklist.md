@@ -25,8 +25,9 @@
       the mapping, indexing, missing-value, and float-dataset contracts.
 - [x] Implement allocation-bounded integer scaling with typed boundary errors.
 - [x] Add analytical, malformed-input, and public-reader regressions. The
-      corrected focused suite passes 57/57 tests in 0.591 seconds against the
-      clean Git provider graph.
+      corrected focused suite passes 58/58 tests in 0.397 seconds against the
+      clean Git provider graph, including every voxel of a per-slice mapping
+      whose second slice crosses the 8 KiB stream boundary.
 - [x] Extend and inspect the deterministic public-API example and figure. The
       43,110-byte SVG has SHA-256
       `71A61FEFAF4DCA94AC45D3C902D0F8291C24B1697C6C103364419F6F859E9577`;
@@ -37,8 +38,9 @@
 - [ ] Run focused format, lint, test, documentation, example-runtime, mdBook,
       semantic-version, review, and hosted gates against the delivered head.
       Local formatting, `git diff --check`, warning-denied all-target Clippy,
-      57/57 Nextest tests, doctests, warning-denied Rustdoc, deterministic
-      example generation, and mdBook test/build pass. `cargo-semver-checks`
+      58/58 debug Nextest tests, 58/58 optimized release tests in 0.379
+      seconds, doctests, warning-denied Rustdoc, deterministic example
+      generation, and mdBook test/build pass. `cargo-semver-checks`
       cannot establish a registry baseline because `ritk-minc` is not yet
       indexed; the diff changes no public Rust item signature. Focused
       self-review resolved datatype-range validation and existence-only error
