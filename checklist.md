@@ -6938,5 +6938,8 @@ ritk-core: 0.8.0 → 0.9.0 | ritk-registration: 0.52.0 → 0.53.0
   documentation and lint gates.
 - [x] Fix the hosted rank-2 NRRD regression with an exact public-reader test;
   pass 68/68 package Nextest cases and warning-denied Clippy.
-- [ ] Run focused and hosted gates, adjudicate review, merge, and verify the
-  live Pages artifact.
+- [x] Run focused and hosted gates, adjudicate review, merge, and verify the
+  live Pages artifact. Exact head `ad9b472b` passes CI `30686402105`, all 13
+  Python lanes in `30686402102`, and Pages build `30686402101`; PR #80 merged
+  as `4d5a076a`, post-merge Pages run `30686954077` succeeded, and all four
+  live book resources return HTTP 200.

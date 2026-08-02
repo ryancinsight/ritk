@@ -231,6 +231,15 @@ directions and origin through the planar path. The public-reader regression
 asserts exact `[1,Y,X]` shape, spacing, origin, and voxel order; all 68
 `ritk-nrrd` Nextest cases and warning-denied package Clippy pass locally.
 
+Exact reviewed head `ad9b472b` passes hosted CI `30686402105`, all 13 Python
+3.9--3.13 lanes in `30686402102`, and the Pages artifact build in
+`30686402101`. PR #80 merged as `4d5a076a`; post-merge Pages run `30686954077`
+regenerated and deployed the book successfully. The live `diffusion_mri.html`,
+`tractography.html`, `examples/diffusion_tractography.html`, and
+`figures/diffusion_tractography.svg` resources each return HTTP 200. This
+closes the delivery audit without expanding the original non-goals to clinical
+validation, DKI/NODDI, or release.
+
 ## SAFE-685-01 audit (2026-07-31)
 
 The TIFF book inventory omitted a supported format owner. The grayscale reader
