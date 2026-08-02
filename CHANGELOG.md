@@ -8,6 +8,22 @@
 
 # CHANGELOG
 
+## [Unreleased] — crates.io publishing (RELEASE-689-01)
+
+### Added
+
+- Add an OIDC crates.io release workflow that validates a selected workspace
+  package, publishes it through trusted publishing, and records the exact source
+  in a matching GitHub Release.
+
+### Changed
+
+- Complete registry metadata and version every local path dependency for the
+  28 reusable Rust library packages in the publishable dependency closure.
+- Keep CLI, Snap, Python-extension, diffusion, tractography, and tooling
+  packages explicitly nonpublishable; Python wheels remain on their independent
+  maturin release pipeline.
+
 ## [Unreleased] — Analyze 7.5 boundary safety (SAFE-688-01)
 
 ### Changed

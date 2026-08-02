@@ -1,14 +1,16 @@
 [package]
 name = "ritk-png"
 version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+publish = true
 edition = "2021"
 license.workspace = true
 description = "PNG single-slice and sequential-volume I/O for RITK"
-repository = "https://github.com/ryancinsight/ritk"
 
 [dependencies]
-ritk-image = { path = "../ritk-image" }
-ritk-spatial = { path = "../ritk-spatial" }
+ritk-image = { path = "../ritk-image", version = "0.2.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.1.0" }
 anyhow = { workspace = true }
 image = { workspace = true }
 coeus-core = { workspace = true }
