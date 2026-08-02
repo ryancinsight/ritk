@@ -15,7 +15,7 @@
 
 ## SAFE-688-01 — Bound and teach Analyze 7.5 decoding
 **Target version**: Unreleased patch
-**Sprint phase**: Review
+**Sprint phase**: Closure
 
 - [x] Reconcile `origin/main`, worktrees, peer-owned diffusion and registration
       changes, Analyze code/tests, and book coverage.
@@ -45,8 +45,13 @@
       corrected head `207e56ad` passes CI `30733852800`, the Python 3.9–3.13
       matrix in `30733852838` after one macOS network-only retry, and Pages
       artifact build `30733852812`.
-- [ ] Reconcile PM evidence, commit, publish, review, merge, and verify the
-      automatic Pages build without manually triggering deployment.
+- [x] Reconcile PM evidence, commit, publish, review, merge, and verify the
+      automatic Pages build without manually triggering deployment. Final head
+      `8ad7c8f6` passes `git diff --check`, CI `30735629108`, Python run
+      `30735629133`, and Pages artifact run `30735629135`; PR #88 merged as
+      `0c0a4252`. Post-merge Pages run `30736205149` deployed successfully, and
+      the live Analyze chapter, round-trip example, and generated SVG return
+      HTTP 200.
 
 ## SAFE-687-01 — Reject truncated JPEG 2000 marker tails
 **Target version**: Unreleased patch
