@@ -220,6 +220,10 @@ where
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32>,
 {
     let [nz, ny, nx] = shape;
+    let n_voxels = nx
+        .checked_mul(ny)
+        .and_then(|plane| plane.checked_mul(nz))
+        .ok_or_else(|| anyhow!("MGH shape [{nz}, {ny}, {nx}] voxel count overflows usize"))?;
     let nframes_i32 = i32::try_from(volumes.len())
         .context("MGH series frame count exceeds i32 header capacity")?;
 
@@ -253,8 +257,15 @@ where
         .write_all(&[0u8; PADDING_LEN])
         .context("Failed to write MGH header padding")?;
 
-    for volume in volumes {
+    for (position, volume) in volumes.iter().enumerate() {
         let voxels = volume.data_cow_on(backend);
+        if voxels.len() != n_voxels {
+            return Err(anyhow!(
+                "write_mgh_series: volume {position} has {} voxels but shape \
+                 [{nz}, {ny}, {nx}] requires {n_voxels}",
+                voxels.len()
+            ));
+        }
         for &value in voxels.as_ref() {
             writer
                 .write_all(&value.to_be_bytes())

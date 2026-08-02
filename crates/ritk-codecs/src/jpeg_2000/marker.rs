@@ -23,6 +23,8 @@ pub const RGN: u16 = 0xFF5E;
 pub const POC: u16 = 0xFF5F;
 /// Tile-part lengths (§A.7.1).
 pub const TLM: u16 = 0xFF55;
+/// Packet length, tile-part header (§A.7.3).
+pub const PLT: u16 = 0xFF58;
 /// Packed packet headers, main header (§A.7.4).
 pub const PPM: u16 = 0xFF60;
 /// Packed packet headers, tile-part header (§A.7.4).

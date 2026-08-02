@@ -1,17 +1,22 @@
 [package]
 name = "ritk-analyze"
 version = "0.1.0"
+description = "Analyze 7.5 medical image I/O for RITK"
+authors.workspace = true
+repository.workspace = true
+publish = true
 edition = "2021"
-authors = ["Ryan Clanton"]
 license.workspace = true
 
 [dependencies]
 ritk-core = { workspace = true }
-ritk-image = { path = "../ritk-image" }
-ritk-spatial = { path = "../ritk-spatial" }
+ritk-image = { path = "../ritk-image", version = "0.2.0" }
+ritk-spatial = { path = "../ritk-spatial", version = "0.1.0" }
 coeus-core = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+base64 = { workspace = true }
+image = { workspace = true }

@@ -59,9 +59,11 @@ from seconds per square millimeter. Construction rejects negative and
 non-finite values. No raw constructor, dimensionless alias, or `Diffusivity`
 compatibility name remains.
 
-Gradient direction is private validated state. A b0 sample has a zero vector;
-a weighted sample has a finite unit vector. `GradientFrame` states whether
-that vector is in image axes or physical LPS. Reorientation validates a finite
+Gradient direction is private validated state. Scanner-facing values at or
+below the shared 50 s/mm² baseline threshold are canonicalized to exact zero
+weighting and direction after finite-input validation; a weighted sample above
+that threshold has a finite unit vector. `GradientFrame` states whether that
+vector is in image axes or physical LPS. Reorientation validates a finite
 orthonormal rotation before applying it and preserves unit norm within a bound
 derived from f64 arithmetic.
 
@@ -158,14 +160,15 @@ state.
 
 ## Verification
 
-Format tests cover valid single- and multi-shell schemes, frame conversion,
-gradient scaling, volume order, and malformed/non-finite metadata. Properties
-cover construction invariants and rotation norm preservation. ODF tests compare
-the implementation with independently synthesized even-order signals and assert
-antipodal symmetry, isotropic behavior, finite output, residuals, and dominant-
-axis angular error. Tractography tests cover straight and curved fields,
-bidirectional joining, tissue boundaries, turn limits, invalid directions,
-configuration errors, and maximum length.
+Format and value-semantic tests cover valid single- and multi-shell schemes,
+frame conversion, gradient scaling, volume order, malformed/non-finite metadata,
+construction invariants, and rotation norm preservation. ODF tests use an
+independently synthesized single-tensor signal and assert antipodal symmetry,
+isotropic behavior, finite residual reporting, shell tolerance, and a
+full-sphere dominant-axis angular bound. Tractography tests cover straight and
+analytical curved fields, bidirectional joining, tissue boundaries, turn
+limits, invalid directions, configuration errors, and the exact bounded path
+length.
 
 The runnable book example uses a deterministic analytical fiber phantom. It
 asserts every displayed metric before generating the committed SVG; CI

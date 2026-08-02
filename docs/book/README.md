@@ -63,6 +63,7 @@ mdbook test docs/book
 cargo build -p ritk-filter --examples
 cargo build -p ritk-io --examples
 cargo build -p ritk-codecs --examples
+cargo build -p ritk-analyze --examples
 cargo build -p ritk-registration --examples
 cargo build -p ritk-segmentation --examples
 cargo build -p ritk-diffusion --examples

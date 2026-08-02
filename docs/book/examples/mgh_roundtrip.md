@@ -35,10 +35,14 @@ let decoded_mgh = read_mgh("brain.mgh", &backend)?;
 let decoded_mgz = read_mgh("brain.mgz", &backend)?;
 ```
 
-Compression is selected by `.mgz` or `.mgh.gz`; the caller does not select a
-second codec API. The uncompressed `.mgh` path is useful when another tool
-requires direct field access, while `.mgz` is the normal storage-efficient
-representation.
+Compression is selected by `.mgz` or `.mgh.gz`, matched without ASCII case
+sensitivity; the caller does not select a second codec API. The uncompressed
+`.mgh` path is useful when another tool requires direct field access, while
+`.mgz` is the normal storage-efficient representation.
+
+`read_mgh` deliberately rejects a file whose header declares more than one
+frame. Use `read_mgh_series` to preserve every volume of an acquisition or
+time series; the single-volume API never returns only frame zero.
 
 ## Why the explicit difference panel matters
 

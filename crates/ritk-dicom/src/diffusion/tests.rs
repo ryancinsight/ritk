@@ -85,21 +85,23 @@ fn incomplete_wrong_length_and_non_finite_metadata_are_rejected() {
 }
 
 #[test]
-fn zero_weighting_without_orientation_is_a_valid_b0() -> Result<()> {
-    let b0 = object_with([DataElement::new(
-        Tag::from(tags::DIFFUSION_B_VALUE),
-        VR::FD,
-        PrimitiveValue::from(0.0),
-    )]);
-    assert_eq!(
-        extract_diffusion_pair(&b0)?,
-        Some((0.0, Vector::new([0.0, 0.0, 0.0])))
-    );
+fn baseline_weighting_without_orientation_is_valid() -> Result<()> {
+    for weighting in [0.0, 1.0e-9, 50.0] {
+        let b0 = object_with([DataElement::new(
+            Tag::from(tags::DIFFUSION_B_VALUE),
+            VR::FD,
+            PrimitiveValue::from(weighting),
+        )]);
+        assert_eq!(
+            extract_diffusion_pair(&b0)?,
+            Some((weighting, Vector::new([0.0, 0.0, 0.0])))
+        );
+    }
 
     let weighted = object_with([DataElement::new(
         Tag::from(tags::DIFFUSION_B_VALUE),
         VR::FD,
-        PrimitiveValue::from(1_000.0),
+        PrimitiveValue::from(50.0_f64.next_up()),
     )]);
     assert!(extract_diffusion_pair(&weighted).is_err());
     Ok(())

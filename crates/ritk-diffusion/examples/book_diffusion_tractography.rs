@@ -10,7 +10,9 @@ use anyhow::{Context, Result, bail};
 use ritk_diffusion::odf::{OdField, OdfConfig, estimate_odf};
 use ritk_diffusion_scheme::{GradientFrame, GradientScheme};
 use ritk_spatial::{Point, Vector};
-use ritk_tractography::{TrackingDirection, TractographyConfig, euler_tractography};
+use ritk_tractography::{
+    TerminationReason, TrackingDirection, TractographyConfig, euler_tractography,
+};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
@@ -126,6 +128,12 @@ fn tracking_paths() -> Result<Vec<Vec<[f64; 2]>>> {
             result.streamlines_generated()
         );
     }
+    if result.streamlines().iter().any(|streamline| {
+        streamline.forward_termination() != TerminationReason::FieldBoundary
+            || streamline.backward_termination() != Some(TerminationReason::FieldBoundary)
+    }) {
+        bail!("expected every analytical streamline half to terminate at the field boundary");
+    }
     let paths = result
         .streamlines()
         .iter()
@@ -167,12 +175,8 @@ fn panel_heading(svg: &mut String, panel: usize, title: &str, subtitle: &str) ->
 }
 
 fn draw_acquisition(svg: &mut String, directions: &[[f64; 3]]) -> Result<()> {
-    panel_heading(
-        svg,
-        0,
-        "1. Acquire directional signal",
-        "48 unit gradients at b = 1500 s/mm²",
-    )?;
+    let subtitle = format!("{GRADIENT_COUNT} unit gradients at b = {B_VALUE:.0} s/mm²");
+    panel_heading(svg, 0, "1. Acquire directional signal", &subtitle)?;
     writeln!(
         svg,
         "<circle cx=\"160\" cy=\"205\" r=\"112\" class=\"sphere\"/>"

@@ -13,6 +13,68 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## SAFE-688-01 audit (2026-08-01)
+
+The Analyze reader previously converted signed `i16` dimensions to `usize`
+before validation and multiplied dimensions and scalar widths without checked
+arithmetic. It then retained the complete `.img` file while allocating the
+decoded `f32` volume. The writer similarly built a second volume-sized byte
+vector and could create the header before discovering an invalid logical input
+or payload-write failure.
+
+The corrected boundary validates dimensionality, positive dimensions,
+single-volume scope, datatype/bit-depth agreement, finite metadata, whole-byte
+offset, checked byte products, and exact file length before fallibly reserving
+output. Supported scalar conversion streams through 8 KiB fixed scratch; writer
+bytes stream through an 8 KiB buffered file and the header is published after
+the payload flushes. This establishes a decoder-owned memory bound of returned
+volume plus constant scratch, excluding filesystem and backend storage.
+
+Twelve value-semantic tests cover all supported scalar types, scaling, exact
+header length, paired-NIfTI identification, big-endian
+and multi-volume rejection, negative and hostile dimensions, non-finite
+metadata, offsets, truncated and trailing payloads, the decode-buffer boundary,
+writer preflight, and exact round trips. The generated figure compares source
+and decoded slices on one scale, includes an explicit bitwise-difference panel,
+and reports the measured 348-byte header and 65,536-byte payload. Its shape,
+spacing, and origin labels now derive from the volume that generates the image.
+Review also found that finite `f64` spacing could overflow or underflow the
+format's `f32` field, origins outside `i16` voxel coordinates were silently
+clamped, and runtime payload validation duplicated the typed decoder's width
+mapping. Invalid writer metadata now fails before file creation, while one
+datatype descriptor owns code parsing, byte width, and typed dispatch.
+Formatting, warning-denied all-target Clippy, 12/12 Nextest tests in 0.286
+seconds, doctests, warning-denied Rustdoc, deterministic figure regeneration,
+mdBook test/build, and 196 semantic-compatibility checks pass locally. The
+inspected 13,080-byte SVG has SHA-256
+`10C1F40E3280B4F187A9685D46A122D17E68DB46CAD1687FA6D660B07C4FBB8E`,
+and its warm generator completes in 73.794 ms. Hosted evidence remains before
+closure.
+The first hosted wheel smoke run exposed a stale cross-format expectation:
+SimpleITK's standard `NiftiImageIO` writes a 352-byte paired NIfTI-1 header for
+an `.img` target, not a 348-byte Analyze 7.5 header. RITK now identifies its
+`ni1` magic and returns a directed NIfTI error. The differential test keeps the
+valid interoperability direction—RITK Analyze output is read by both RITK and
+SimpleITK—and separately asserts that SimpleITK's NIfTI pair cannot cross the
+Analyze boundary silently.
+
+Exact corrected head `207e56ad` passes hosted CI run `30733852800`, including
+warning-denied Clippy, formatting, dependency alignment, the wheel smoke test,
+and native Nextest on Linux, macOS, and Windows. Python run `30733852838`
+passes all configured Python 3.9–3.13 lanes after retrying one macOS setup job
+whose first attempt could not resolve `files.pythonhosted.org`; no RITK test ran
+in the failed attempt. Pages run `30733852812` regenerates the figures, builds
+the book, and uploads the artifact successfully.
+
+After the review corrections, exact head `8ad7c8f6` passes `git diff --check`,
+hosted CI run `30735629108`, all 13 Python 3.9–3.13 lanes in run
+`30735629133`, and Pages artifact run `30735629135`. PR #88 merged as
+`0c0a4252`. Post-merge Pages run `30736205149` regenerated and deployed the
+book successfully. The live
+`analyze_format.html`, `examples/analyze_roundtrip.html`, and
+`figures/analyze_roundtrip.svg` resources each return HTTP 200; the SVG served
+by Pages is the inspected 13,080-byte generated artifact.
+
 ## SAFE-687-01 audit (2026-08-01)
 
 The native JPEG 2000 packet reader traverses one LRCP component stream, but the
@@ -22,6 +84,11 @@ channel-zero data as a successful decode. COD progression order and MCT were
 parsed but not enforced. The decoder now rejects multi-component, MCT, and
 non-LRCP streams before output allocation until component-aware packet traversal
 and inverse component transformation exist.
+parsed but not enforced. Main-header POC and tile-header COD/POC could override
+the checked default, and SOD discovery scanned raw bytes rather than marker
+segment boundaries. The decoder now preflights the complete tile structure and
+rejects multi-component, MCT, non-LRCP, coding-override, packed-header, and
+multi-part streams before output allocation until their packet traversal exists.
 
 After one tile decoded, truncated PPT/COM or unknown marker tails previously
 ended the marker loop and returned the partially populated image. Marker lengths
@@ -33,6 +100,37 @@ captured OpenJPEG 2.5.4 lossless/lossy corpus. Warning-denied all-target Clippy,
 doctests, warning-denied Rustdoc, and mdBook test/build pass. These checks prove
 the supported grayscale contract and malformed-input behavior; they do not
 claim multi-component decode support.
+verifies every SIZ-declared tile before output is allocated. The packet reader
+now errors when any expected LRCP packet header is absent instead of treating
+exhaustion as successful zero-filled output. Included code-blocks now require a
+nonzero entropy-body length; tier-1 validates the announced pass budget and
+rejects MQ decoding that consumes more terminal fill than the bounded
+predictable-termination allowance. `Psot=0` now extends to terminal EOC after
+structural tile-header parsing, so marker-looking COM payload bytes cannot cut
+the tile short. EOC accepts no trailing bytes, or one zero pad when an
+odd-length DICOM fragment requires an even encoded value length.
+
+Twenty-three new malformed or unsupported-stream regressions cover
+marker tails, EOC, tile coverage, component/MCT/progression profiles, main and
+tile overrides, structural SOD discovery, tile-part marker bounds, multi-part
+declaration, empty packet data, zero-length and exhausted code-block bodies,
+`Psot=0` COM payloads, trailing payload, DICOM padding, and unsupported COD
+packet profiles. All 315
+codec tests pass, including the captured OpenJPEG 2.5.4 lossless/lossy corpus.
+Corrected-head formatting, warning-denied Clippy, doctest, warning-denied
+Rustdoc, and mdBook test/build pass. Exact implementation head `324058ac`
+passes CI run `30711180971`, all Python lanes in run `30711181015`, and the
+Pages artifact build in run `30711180970` on Linux, macOS, and Windows.
+Thread-aware PR #81 inspection exposed a boundary-straddling SOD read,
+coefficient precision overflow, one false-positive marker test, and incomplete
+conditional padding coverage. Those cases now have direct regressions, and
+CodeRabbit marked every implementation finding addressed. Its exact-head
+rereview was rate limited; the sole mechanically open thread refers to an old
+PR-body count that the current body corrects. PR #81 merged as `23d85703`, and
+post-merge Pages run `30712037138` regenerated the figures, built the book, and
+deployed the live site. These checks prove the supported grayscale contract and
+malformed-input behavior; they do not claim multi-component or multi-part
+decode support.
 
 ## FEAT-686-01 audit (2026-07-31)
 
@@ -46,35 +144,102 @@ dropped geometry failures, and appended the first proposal outside the field.
 The corrected boundary stores b-values as Aequitas time-per-area quantities,
 converts scanner-facing s/mm² explicitly, validates each gradient and frame,
 implements NA-MIC nominal-weighting/measurement-frame semantics, and labels
-DICOM directions LPS. Analytical Q-ball estimation now augments the fit with
-the Laplace–Beltrami penalty and applies `2π P_l(0)` degree-wise. The known
+DICOM directions LPS while accepting the standard absence of orientation on
+b0 instances. NRRD validates the gradient count against the acquisition axis;
+MGH rejects multi-volume input from the header before payload decoding; and
+native dispatch recognizes both `.mgz` and `.mgh.gz`. Analytical Q-ball
+estimation rejects mixed nonzero shells outside a configured absolute tolerance,
+augments the fit with the Laplace–Beltrami penalty, applies `2π P_l(0)`
+degree-wise, and preserves the declared measurement frame. The known
 single-tensor test and book example recover the x-axis peak; configuration,
-finite-input, underdetermined-system, antipodal, and grid-layout partitions
-are covered by value assertions.
+finite-input, underdetermined-system, antipodal, frame, shell, and grid-layout
+partitions are covered by value assertions.
 
-The tracking API now validates all configuration and direction-field values,
-uses fallible bounded reservations, emits typed termination reasons, reports
-Gaia geometry failures, and excludes out-of-domain proposals. MGH series
-decoding removes the former full-series staging copy, and NRRD releases encoded
-payload storage before constructing volume buffers. These are ownership and
-allocation-count arguments, not measured throughput or RSS claims.
-
-The generated diffusion/tractography SVG was rendered at 1440 pixels wide and
-inspected. Its 48 acquisition directions, attenuation curve, Q-ball ODF,
-independent analytical axis, local vector glyphs, five seeds, domain bounds,
-and five streamlines are visually distinct. The generator reports 0.00° peak
-error and rejects any streamline point outside the analytical field. A warm
-run completed in 462.038 ms and reproduced SHA-256
+Provider closure is no longer overlay-dependent. Apollo PR #69 merged the
+checked real spherical-harmonic evaluator and one-allocation design-matrix API
+as `db218665` after exact-head Rust, Python, provider, dependency, and
+byte-identical benchmark gates passed. RITK propagates those typed failures and
+pins all Apollo packages to the merge revision. Local verification passes
+537/537 affected Nextest cases, warning-denied Clippy and Rustdoc, doctests,
+deterministic figure regeneration, and mdBook test/build. The regenerated
+figure retains SHA-256
 `7BC3D251B0FF65CFD7C1E3313A1C45E665850A75A2B70AD3E840E89A8839BBE9`.
 
-Focused Nextest gates pass 19 diffusion/tractography tests, 47 MGH tests, 65
-NRRD tests, 23 DICOM tests, and 7 native-series dispatch tests. Warning-denied
-Clippy passes for the three new crates and the four affected format/I/O crates;
-their doctests and warning-denied Rustdoc also pass. `mdbook test` and
-`mdbook build` pass. SemVer checks against `d3d3d811` pass all 196 checks for
-each affected existing crate (`ritk-dicom`, `ritk-mgh`, `ritk-nrrd`, and
-`ritk-io`); the `ritk-io` wrapper exceeded its outer shell deadline only after
-the checker had printed its complete passing result.
+The tracking API now validates configuration, seeds, and proposed sample
+points before invoking user callbacks; validates returned directions before
+storing geometry; uses fallible bounded reservations; emits typed termination
+reasons; reports Gaia geometry failures; and excludes out-of-domain proposals.
+MGH series decoding removes the former full-series staging copy, and NRRD
+releases encoded payload storage before constructing volume buffers. These are
+ownership and allocation-count arguments, not
+measured throughput or RSS claims.
+
+The generated diffusion/tractography SVG was rendered at 1800 pixels wide and
+inspected. Its 48 acquisition directions, attenuation curve, Q-ball ODF,
+independent analytical axis, five seeds, domain bounds, and five streamlines
+are visually distinct. Its full-sphere peak search reports 0.00° error and the
+example rejects any streamline point outside the analytical field. A warm
+direct execution of the verified example completed in 97.820 ms and reproduced
+SHA-256
+`7BC3D251B0FF65CFD7C1E3313A1C45E665850A75A2B70AD3E840E89A8839BBE9`.
+
+Independent falsification review found that the unified series-reader docs
+promised DICOM-directory dispatch while the implementation rejected it, the
+Pages workflow regenerated figures without checking the tracked diff, and ADR
+0017 overstated its behavioral test coverage. The dispatch now delegates to
+the native DICOM series reader and is differentially tested against that direct
+path; CI fails on any regenerated figure diff; and the verification contract is
+backed by full-sphere angular, shell-tolerance, analytical curved-field, and
+exact path-length tests.
+
+The second independent falsification review found five additional boundary
+defects: finite scanner b-values could overflow during canonical-unit scaling,
+extreme finite signals could produce non-finite normalized or ODF
+intermediates, uppercase MGH gzip suffixes were not recognized, DICOM b0
+documentation still required an orientation, and the figure labeled boundary
+termination without asserting the emitted termination reasons. Canonical
+conversion and every ODF stage, including spherical-harmonic evaluation, now
+reject non-finite results with typed errors;
+the MGH suffix check is allocation-free and ASCII-case-insensitive; the DICOM
+contract documents the standard b0 exception; and the example asserts both
+streamline halves terminate at the field boundary before rendering that label.
+The initial grid-overflow regression incorrectly reused a pole-sensitive
+coefficient on a one-cell grid whose cell center is the equator. The corrected
+oracle aligns finite coefficient signs with the real basis at that equatorial
+sample, so its positive finite-term sum must overflow without changing the
+grid or weakening the assertion.
+
+The focused Nextest gate passes 537 tests across nine binaries for the seven
+affected crates in 6.011 seconds. Warning-denied Clippy
+passes their complete target sets; the
+only additional change is a scoped Rust 1.97 lint expectation on an already
+const morphology thread-local initializer pulled through `ritk-io`. Their
+doctests and warning-denied Rustdoc pass. `mdbook test` and `mdbook build` pass,
+and the built book contains the generated chapter and figure. SemVer checks
+against `d3d3d811` pass all 196 checks for each affected existing crate
+(`ritk-dicom`, `ritk-mgh`, `ritk-nrrd`, and `ritk-io`); the `ritk-io` wrapper
+exceeded its outer shell deadline only after the checker printed its complete
+passing result.
+
+Review adjudication canonicalizes scanner b-values at or below the established
+50 s/mm² baseline threshold, retains finite-input validation, and adds exact
+error-partition coverage for ODF estimation and integration overflow. MGH
+series writing now validates checked per-volume voxel counts, the book names
+the single-volume versus series reader contract, and figure captions derive
+from the generated acquisition parameters. A requested manifest `rev` pin was
+rejected: the committed lockfile is this workspace's reproducible provider pin,
+while a manifest revision pin is reserved for explicit dependency quarantine.
+Focused re-verification passes 541/541 Nextest cases, warning-denied Clippy and
+Rustdoc, doctests, standalone locked metadata, deterministic figure
+regeneration, and mdBook test/build.
+
+The first hosted wheel smoke run exposed two existing rank-2 NRRD failures on
+upstream SimpleITK fixtures: acquisition-axis discovery parsed two-component
+`space directions` with the rank-3 slot parser before the planar branch could
+run. Rank-2 files now bypass that inapplicable parser, then validate and promote
+directions and origin through the planar path. The public-reader regression
+asserts exact `[1,Y,X]` shape, spacing, origin, and voxel order; all 68
+`ritk-nrrd` Nextest cases and warning-denied package Clippy pass locally.
 
 ## SAFE-685-01 audit (2026-07-31)
 

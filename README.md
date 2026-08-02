@@ -333,6 +333,18 @@ The action reads `ritk/Cargo.toml` and materializes only its external sibling
 path dependencies at the exact Atlas gitlinks. Provider URLs and revisions do
 not have a second RITK-owned list.
 
+### Rust package distribution
+
+RITK publishes its 28 reusable Rust library packages to crates.io in local
+dependency order. A `crate-<package>-v<version>` tag triggers the release
+workflow, which verifies the packaged source and uses crates.io trusted
+publishing to obtain a short-lived credential. The matching GitHub Release is
+the source and artifact record for that package version.
+
+The CLI, Snap application, Python extension, and diffusion/tractography
+packages outside the current library closure are not crates.io packages. Python
+wheels use the separate `v<version>` maturin release workflow.
+
 ## Development
 
 ### Recent Sprints

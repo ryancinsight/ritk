@@ -1,7 +1,7 @@
 use coeus_autograd::{cat, mean, pow, sub, Var};
 use coeus_core::{Backend, CpuAddressableStorage, CpuAddressableStorageMut, SequentialBackend};
 use coeus_nn::Module;
-use coeus_ops::BackendOps;
+use coeus_ops::{BackendOps, OptimizerOps};
 use coeus_optim::{Adam, Optimizer};
 use coeus_tensor::Tensor;
 use ritk_model::affine::{AffineNetwork, AffineNetworkConfig, AffineTransform};
@@ -14,7 +14,7 @@ fn main() {
 
 fn run_training<B>()
 where
-    B: Backend + BackendOps<f32> + Default,
+    B: Backend + BackendOps<f32> + OptimizerOps<f32> + Default,
     B::DeviceBuffer<f32>: CpuAddressableStorage<f32> + CpuAddressableStorageMut<f32>,
 {
     let config = AffineNetworkConfig::default();
@@ -55,7 +55,8 @@ where
 
         loss.backward()
             .expect("backward succeeds over the test loss");
-        opt.step();
+        opt.step()
+            .expect("Adam step succeeds for finite registration gradients");
 
         let updated: Vec<Var<f32, B>> = opt.params.iter().map(|p| p.var.clone()).collect();
         model.load_parameters(&updated);

@@ -21,13 +21,17 @@ fn weighting_converts_to_canonical_si() {
 
 #[test]
 fn weighting_rejects_negative_and_non_finite_values() {
-    for value in [-1.0, f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+    for value in [-1.0, f64::NAN, f64::INFINITY, f64::NEG_INFINITY, f64::MAX] {
         assert!(matches!(
             DiffusionWeighting::from_seconds_per_square_millimeter(value),
             Err(GradientSchemeError::InvalidWeighting { value: actual, .. })
                 if actual.to_bits() == value.to_bits()
         ));
     }
+    let largest_representable = (f64::MAX / 1.0e6).next_down();
+    let weighting = DiffusionWeighting::from_seconds_per_square_millimeter(largest_representable)
+        .expect("largest representable canonical weighting");
+    assert!(weighting.seconds_per_square_meter().is_finite());
 }
 
 #[test]
@@ -37,6 +41,47 @@ fn gradient_contract_distinguishes_b0_and_weighted_entries() {
     assert!(GradientDirection::new(weighting(0.0), Vector::new([1.0, 0.0, 0.0])).is_err());
     assert!(GradientDirection::new(weighting(1_000.0), Vector::new([2.0, 0.0, 0.0])).is_err());
     assert!(GradientDirection::new(weighting(1_000.0), Vector::new([f64::NAN, 0.0, 0.0])).is_err());
+}
+
+#[test]
+fn external_low_weightings_are_canonical_b0_entries() {
+    let scheme = GradientScheme::from_seconds_per_square_millimeter(
+        vec![
+            (1.0e-9, Vector::new([0.0, 0.0, 0.0])),
+            (50.0, Vector::new([1.0, 0.0, 0.0])),
+            (50.0_f64.next_up(), Vector::new([1.0, 0.0, 0.0])),
+        ],
+        GradientFrame::Lps,
+    )
+    .expect("finite scanner baseline and weighted entries");
+
+    for entry in &scheme.directions()[..2] {
+        assert_eq!(entry.weighting(), weighting(0.0));
+        assert_eq!(entry.direction(), Vector::new([0.0, 0.0, 0.0]));
+    }
+    assert_eq!(
+        scheme.directions()[2].weighting(),
+        weighting(50.0_f64.next_up())
+    );
+    assert_eq!(
+        scheme.directions()[2].direction(),
+        Vector::new([1.0, 0.0, 0.0])
+    );
+
+    assert!(matches!(
+        GradientScheme::from_seconds_per_square_millimeter(
+            vec![(25.0, Vector::new([f64::NAN, 0.0, 0.0]))],
+            GradientFrame::Lps,
+        ),
+        Err(GradientSchemeError::InvalidDirection { index: 0, .. })
+    ));
+    assert!(matches!(
+        GradientScheme::from_seconds_per_square_millimeter(
+            vec![(50.0_f64.next_up(), Vector::new([0.0, 0.0, 0.0]))],
+            GradientFrame::Lps,
+        ),
+        Err(GradientSchemeError::InvalidDirection { index: 0, .. })
+    ));
 }
 
 #[test]

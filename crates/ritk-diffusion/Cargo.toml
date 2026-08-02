@@ -1,6 +1,9 @@
 [package]
 name = "ritk-diffusion"
 version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+publish = false
 edition = "2024"
 rust-version = "1.95"
 license.workspace = true

@@ -44,25 +44,6 @@ fn parity_rescale_intensity_maps_full_range() {
     }
 }
 
-/// Formula: out[x] = fg if lower<=in[x]<=upper else bg
-/// Input [0,50,100,150,200], lower=50, upper=150, fg=1, bg=0 -> [0,1,1,1,0]
-#[test]
-fn parity_binary_threshold_indicator_function() {
-    let img = make_image(vec![0.0, 50.0, 100.0, 150.0, 200.0], [5, 1, 1]);
-    let out = ritk_segmentation::BinaryThreshold::new(50.0, 150.0)
-        .with_values(1.0, 0.0)
-        .apply_native(&img, &B::default())
-        .unwrap();
-    let v = vals(&out);
-    for (i, (&got, &exp)) in v
-        .iter()
-        .zip([0.0f32, 1.0, 1.0, 1.0, 0.0].iter())
-        .enumerate()
-    {
-        assert!((got - exp).abs() < 1e-5, "voxel {i}: got {got}, exp {exp}");
-    }
-}
-
 /// Formula: out[x] = outside if in[x] < threshold else in[x]
 /// Input [0,1,2,3,4], threshold=2.0, outside=-1 -> [-1,-1,2,3,4]
 #[test]

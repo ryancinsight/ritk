@@ -1,6 +1,6 @@
 use ritk_io::{
-    read_image_native, read_image_series_native, write_image_native, NativeBackend, NativeImage,
-    NativeSeries,
+    read_image_native, read_image_series_native, read_native_dicom_series,
+    write_dicom_series_native, write_image_native, NativeBackend, NativeImage, NativeSeries,
 };
 use ritk_spatial::{Direction, Point, Spacing};
 
@@ -127,6 +127,31 @@ fn native_dispatch_reads_compound_mgh_gzip_suffix() {
         actual.data_slice().expect("contiguous actual voxels"),
         expected.data_slice().expect("contiguous expected voxels")
     );
+}
+
+#[test]
+fn native_dispatch_reads_dicom_directory_as_one_volume() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let path = dir.path().join("dicom-series");
+    let dims = [3, 2, 4];
+    let values = (0..dims.iter().product())
+        .map(|index| index as f32 * 1.25 - 7.0)
+        .collect();
+    let writer_image = ritk_image::Image::<f32, coeus_core::MoiraiBackend, 3>::from_flat(
+        values,
+        dims,
+        Point::new([1.0, 2.0, 3.0]),
+        Spacing::new([0.5, 0.75, 1.25]),
+        Direction::identity(),
+    )
+    .expect("DICOM writer image");
+    write_dicom_series_native(&path, &writer_image).expect("write DICOM directory");
+
+    let backend = NativeBackend::default();
+    let expected =
+        vec![read_native_dicom_series(&path, &backend).expect("read direct DICOM directory")];
+    let actual = read_image_series_native(&path).expect("read DICOM directory through dispatch");
+    assert_series_matches(&actual, &expected, "DICOM directory dispatch");
 }
 
 #[test]

@@ -34,10 +34,17 @@ constructor and accessor use s/mm² explicitly. See Stejskal and Tanner,
 Every acquisition entry combines a weighting and direction under these
 invariants:
 
-- b-values are finite and nonnegative;
+- b-values are finite and nonnegative in both scanner-facing s/mm² and
+  canonical SI storage;
 - a b0 entry has the zero direction;
 - a weighted entry has a finite unit direction; and
 - every direction has one declared frame: image-axis or physical LPS.
+
+At scanner and file-format boundaries, finite values at or below the default
+50 s/mm² threshold are canonicalized to exact zero weighting and direction.
+This treats small scanner baseline values consistently even when orientation
+is absent or carries a nominal finite vector. Values above the threshold must
+provide a unit direction.
 
 `GradientScheme` keeps acquisition order and provides thresholded b0/DWI
 indices and shell grouping. Reorientation accepts only a finite, proper
@@ -111,11 +118,13 @@ density; those quantities must not be interpreted interchangeably.
 
 `OdfConfig` validates harmonic degree, regularization, the b0 threshold, and
 the single-shell tolerance.
-Estimation fails on non-finite signals, missing b0 or weighted samples,
-nonpositive baseline, an underdetermined basis, or a failed solve. `OdField`
-stores coefficients contiguously and reuses its basis metadata for repeated
-evaluation. `evaluate_on_grid` returns one flat row-major allocation rather
-than a pointer-chasing grid of rows.
+Estimation fails on non-finite signals, non-finite values created by baseline
+normalization or the numerical solve, missing b0 or weighted samples,
+nonpositive baseline, an underdetermined basis, or a failed solve. Evaluation
+also rejects overflow created by finite coefficients and finite basis values.
+`OdField` stores coefficients contiguously and reuses its basis metadata for
+repeated evaluation. `evaluate_on_grid` returns one flat row-major allocation
+rather than a pointer-chasing grid of rows.
 
 The [signal-to-streamlines example](examples/diffusion_tractography.md) uses a
 known tensor to verify that the recovered antipodal ODF peak matches its

@@ -365,15 +365,14 @@ pub fn parse_main_header(data: &[u8]) -> Result<(MainHeader, usize)> {
                 let body = cur.read_segment_body()?;
                 qcd_opt = Some(parse_qcd(body).context("J2K: parsing QCD")?);
             }
-            // Known optional markers: skip by reading and discarding the segment body.
-            marker::COC
-            | marker::QCC
-            | marker::RGN
-            | marker::POC
-            | marker::TLM
-            | marker::PPM
-            | marker::CRG
-            | marker::COM => {
+            marker::COC | marker::QCC | marker::RGN | marker::POC => bail!(
+                "J2K: main-header coding override 0x{m:04X} is unsupported by the native decoder"
+            ),
+            marker::PPM => {
+                bail!("J2K: packed main-header packet data (PPM) is unsupported")
+            }
+            // These markers do not alter packet coding or progression.
+            marker::TLM | marker::CRG | marker::COM => {
                 cur.read_segment_body()?;
             }
             other => {

@@ -16,6 +16,72 @@
 ## SAFE-687-01 — Reject truncated JPEG 2000 marker tails
 **Target version**: Unreleased patch
 **Sprint phase**: Review
+## RELEASE-689-01 — Publish the Rust library closure
+**Target version**: Current workspace package versions
+**Sprint phase**: Execution
+
+- [x] Reconcile the current workspace package graph and select the 28 reusable
+      Rust library packages in the dependency closure.
+- [x] Complete package metadata, explicit publish policy, local dependency
+      versions, and external package aliases.
+- [x] Add the tag-selected OIDC crates.io release workflow without changing the
+      independent Python wheel workflow.
+- [ ] Verify metadata, formatting, lint, focused native tests, documentation,
+      and each packaged source archive.
+      Exact standalone evidence: locked metadata reports 34 workspace packages
+      and exactly 28 publishable packages in an acyclic local graph; Rustfmt and
+      workspace dependency alignment pass; warning-denied all-target Clippy for
+      `ritk-filter` passes; Nextest passes 1,123/1,123 `ritk-filter` tests in
+      8.183 seconds and 484/484 `ritk-segmentation` tests in 6.643 seconds; and
+      focused doctests pass. Per-package archive verification remains pending on
+      upstream registry indexing.
+- [ ] Merge hosted gates and publish every package in dependency order.
+- [ ] Verify crates.io indexing, trusted-publishing-only enforcement, and a
+      matching GitHub Release for every published package version.
+
+## SAFE-688-01 — Bound and teach Analyze 7.5 decoding
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
+
+- [x] Reconcile `origin/main`, worktrees, peer-owned diffusion and registration
+      changes, Analyze code/tests, and book coverage.
+- [x] Record the focused package baseline before production edits: 4/4 tests
+      pass in 0.437 seconds and warning-denied all-target Clippy passes.
+- [x] Validate all external geometry, metadata, datatype, offset, payload, and
+      writer-buffer contracts with checked arithmetic.
+- [x] Stream decode into one fallibly reserved output allocation.
+- [x] Add value-semantic supported-type, malformed-input, and no-partial-output
+      regressions.
+- [x] Add and inspect the deterministic Analyze round-trip example and figure.
+- [x] Teach the Analyze file pair, layout, geometry, scaling, and format limits
+      in the book and regenerate the figure in Pages CI.
+- [x] Run focused format, lint, test, documentation, example-runtime, mdBook,
+      semantic-version, review, and hosted gates against the delivered revision.
+      Local formatting, warning-denied all-target Clippy, 12/12 Nextest tests
+      in 0.286 seconds, doctests, warning-denied Rustdoc, deterministic figure
+      regeneration, mdBook test/build, and semantic compatibility pass. The
+      inspected 13,080-byte figure has SHA-256
+      `10C1F40E3280B4F187A9685D46A122D17E68DB46CAD1687FA6D660B07C4FBB8E`;
+      the warm example completes in 73.794 ms. Review findings for exact header
+      length, representable spacing, unclamped origin range, one authoritative
+      datatype-width path, and data-derived geometry labels are corrected.
+      The first hosted wheel smoke run identified SimpleITK's `.img` output as
+      paired NIfTI rather than Analyze; the corrected parser, Rust regression,
+      Python differential contract, and book explanation pass locally. Exact
+      corrected head `207e56ad` passes CI `30733852800`, the Python 3.9–3.13
+      matrix in `30733852838` after one macOS network-only retry, and Pages
+      artifact build `30733852812`.
+- [x] Reconcile PM evidence, commit, publish, review, merge, and verify the
+      automatic Pages build without manually triggering deployment. Final head
+      `8ad7c8f6` passes `git diff --check`, CI `30735629108`, Python run
+      `30735629133`, and Pages artifact run `30735629135`; PR #88 merged as
+      `0c0a4252`. Post-merge Pages run `30736205149` deployed successfully, and
+      the live Analyze chapter, round-trip example, and generated SVG return
+      HTTP 200.
+
+## SAFE-687-01 — Reject truncated JPEG 2000 marker tails
+**Target version**: Unreleased patch
+**Sprint phase**: Closure
 
 - [x] Reconcile `origin/main`, worktrees, peer-owned diffusion changes, the
       native codec parser, tests, architecture claims, and book coverage.
@@ -34,6 +100,25 @@
       mdBook test/build pass.
 - [ ] Complete independent review and exact-head hosted gates.
 - [ ] Reconcile PM evidence, commit, publish, and merge after hosted gates pass.
+- [x] Preflight tile headers structurally; reject POC/coding overrides, packed
+      packet headers, and multi-part tiles before output allocation.
+- [x] Require every expected LRCP packet header and every SIZ-declared tile.
+- [x] Reject zero-length or over-consumed EBCOT bodies, derive `Psot=0` from
+      terminal EOC, and validate the optional DICOM zero pad exactly.
+- [x] Add value-semantic malformed-tail regressions while preserving native and
+      captured OpenJPEG interoperability.
+- [x] Correct native codec ownership and parser-safety documentation.
+- [x] Run the corrected complete Nextest gate: all 315 codec tests pass,
+      including the captured OpenJPEG corpus and all review counterexamples.
+- [x] Run corrected-head formatting, warning-denied Clippy, doctest, Rustdoc,
+      mdBook, and diff gates.
+- [x] Complete independent review and exact-head hosted gates. Final code head
+      `324058ac` passes CI `30711180971`, Python CI `30711181015`, and Pages
+      artifact build `30711180970`; every implementation review finding is
+      addressed. The exact-head CodeRabbit rereview was rate limited.
+- [x] Reconcile PM evidence and publish the closure. PR #81 merged as
+      `23d85703`; Pages run `30712037138` regenerated figures, built the book,
+      and deployed the live site.
 
 ## SAFE-685-01 — Bound and document TIFF volume decoding
 **Target version**: Unreleased patch
@@ -6855,5 +6940,15 @@ ritk-core: 0.8.0 → 0.9.0 | ritk-registration: 0.52.0 → 0.53.0
 - [x] Add and inspect a deterministic runnable example and generated figure.
 - [x] Write the diffusion-MRI and tractography chapters and wire the Pages
   reproducibility gate.
+- [x] Publish the checked real spherical-harmonic provider in Apollo PR #69
+  and pin merged revision `db218665` without retaining the local-only API.
+- [x] Pass merged-provider local Clippy, 537/537 affected Nextest cases,
+  doctest, Rustdoc, deterministic figure, and mdBook test/build gates.
+- [x] Adjudicate review findings with baseline canonicalization, exact ODF and
+  tractography regressions, MGH payload validation, and explicit series-reader
+  book semantics; pass 541/541 affected Nextest cases and all focused local
+  documentation and lint gates.
+- [x] Fix the hosted rank-2 NRRD regression with an exact public-reader test;
+  pass 68/68 package Nextest cases and warning-denied Clippy.
 - [ ] Run focused and hosted gates, adjudicate review, merge, and verify the
   live Pages artifact.

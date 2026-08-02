@@ -26,9 +26,12 @@
 //! # Current limitations
 //! - One precinct per resolution/band (no precinct partitioning; code-blocks
 //!   are 64×64 within each subband).
-//! - DICOM pixel extraction currently requires every component to use 1×1
-//!   reference-grid sampling. Subsampled components are rejected before tile
-//!   allocation rather than reconstructed with incorrect geometry.
+//! - Native pixel extraction currently accepts one grayscale component, LRCP
+//!   progression without POC or tile coding overrides, inline packet headers,
+//!   default precinct and code-block styles, 64×64 nominal code-blocks, one
+//!   tile-part per tile, and no multiple-component transform. Unsupported
+//!   profiles are rejected before output allocation rather than decoded with
+//!   incorrect packet traversal.
 //! - Lossy 9/7 irreversible encode and decode are supported (scalar quantization,
 //!   unit-step near-lossless encoder); a rate-controlled quality knob is pending.
 //!
@@ -36,7 +39,15 @@
 //! SIZ image/tile geometry and SOT tile-part fields are validated before packet
 //! decode. Tile buffers use the image-domain intersection defined by T.800
 //! Annex B.3 rather than the full reference tile, and both pixel and
-//! multi-component sample counts share a fixed allocation cap.
+//! sample counts share a fixed allocation cap. Tile headers are parsed by marker
+//! boundaries before output allocation; every segment must fit its byte extent,
+//! EOC is mandatory, every declared tile must be present, and every expected
+//! LRCP packet header must be consumed. Component precision is bounded by the
+//! decoder's 32-bit coefficient representation. `Psot = 0` extends to terminal
+//! EOC, post-EOC bytes are limited to one zero pad when an odd-length DICOM
+//! fragment requires even length, and every
+//! included code-block must provide enough entropy data for its announced pass
+//! count.
 //!
 //! # Interop validation
 //! The reversible (5/3 lossless) path is validated against a captured OpenJPEG
@@ -93,9 +104,12 @@ pub(crate) const SOI: u16 = 0xFFD8;
 /// - `fragment` does not begin with the SOC marker (0xFF4F).
 /// - SIZ or SOT geometry is invalid, outside the supported allocation bound,
 ///   or identifies a tile outside the image's tile grid.
-/// - a component uses sampling other than 1×1.
+/// - the stream is not single-component grayscale LRCP without coding
+///   overrides, packed packet headers, multi-part tiles, or MCT.
 /// - packet or coefficient decoding fails.
-/// - decoded component metadata does not match `layout`.
+/// - a marker segment or packet is truncated, EOC or a declared tile is
+///   missing, or decoded component metadata does not match `layout`.
+/// - component precision exceeds the decoder's 32-bit coefficient capacity.
 pub fn decode_jpeg2000_fragment(fragment: &[u8], layout: PixelLayout) -> Result<Vec<f32>> {
     if !is_jpeg2000_codestream(fragment) {
         bail!(

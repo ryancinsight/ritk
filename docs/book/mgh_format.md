@@ -3,7 +3,9 @@
 MGH is FreeSurfer's native volume format. MGZ stores the same byte stream
 inside gzip compression. RITK exposes both through the `ritk-mgh` crate:
 
-- `read_mgh` reads `.mgh`, `.mgz`, and `.mgh.gz`;
+- `read_mgh` reads one-volume `.mgh`, `.mgz`, and `.mgh.gz` files, with
+  ASCII case-insensitive suffix matching, and rejects multi-frame input;
+- `read_mgh_series` reads every frame of an acquisition or time series;
 - `write_mgh` writes the representation selected by the path extension;
 - `MghReader` is a stateless adapter whose `read` method receives the backend;
 - `MghWriter` retains a backend for repeated operations.
@@ -53,14 +55,16 @@ A diffusion series or time series may therefore have `nframes > 1`. RITK's
 current MGH API returns `Image<_, _, 3>`, which can represent one volume but
 cannot represent a fourth frame axis.
 
-The reader consequently requires `nframes == 1`. It rejects a multi-frame
-file and names its declared frame count. Returning only frame zero would be
-more dangerous than rejecting the file: the operation would report success
-after silently discarding the rest of an acquisition.
+The single-volume `read_mgh` entry point consequently requires `nframes == 1`.
+It rejects a multi-frame file and names its declared frame count. Use
+`read_mgh_series` when every frame of an acquisition or time series is
+required. Returning only frame zero would be more dangerous than rejecting the
+file: the operation would report success after silently discarding the rest of
+an acquisition.
 
 This is a type-boundary decision, not a limitation of gzip or scalar decoding.
-A future multi-frame API must expose the additional dimension explicitly
-before the reader can accept those files.
+The series API exposes that additional dimension as an ordered collection of
+3-D images with shared geometry.
 
 ## RAS geometry
 

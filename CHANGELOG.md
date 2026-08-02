@@ -8,6 +8,53 @@
 
 # CHANGELOG
 
+## [Unreleased] — crates.io publishing (RELEASE-689-01)
+
+### Added
+
+- Add an OIDC crates.io release workflow that validates a selected workspace
+  package, publishes it through trusted publishing, and records the exact source
+  in a matching GitHub Release.
+
+### Changed
+
+- Complete registry metadata and version every local path dependency for the
+  28 reusable Rust library packages in the publishable dependency closure.
+- Keep CLI, Snap, Python-extension, diffusion, tractography, and tooling
+  packages explicitly nonpublishable; Python wheels remain on their independent
+  maturin release pipeline.
+
+## [Unreleased] — Analyze 7.5 boundary safety (SAFE-688-01)
+
+### Changed
+
+- Stream Analyze scalar conversion through a fixed 8 KiB buffer into one
+  fallibly reserved `f32` volume, and stream writer output without constructing
+  a second volume-sized byte vector.
+- Add an Analyze 7.5 book chapter and deterministic round-trip figure with a
+  shared display scale, explicit zero-difference panel, measured pair sizes,
+  and documented geometry limits.
+
+### Fixed
+
+- Reject signed or unsupported dimensions, mismatched datatype/bit depth,
+  checked geometry and byte-count overflow, non-finite metadata, unsupported
+  offsets, and truncated or trailing payloads before output allocation.
+- Validate writer shape, storage length, finite `f32` header spacing, and the
+  `i16` origin-coordinate range before creating files, and publish the header
+  only after the payload has been flushed.
+- Identify paired NIfTI-1 `ni1` headers that share `.hdr`/`.img` extensions and
+  reject them with a directed format error instead of interpreting NIfTI
+  spatial fields as Analyze metadata.
+
+### Tests
+
+- Cover all five supported scalar encodings, scale application, endian,
+  paired-NIfTI separation, and
+  dimensionality rejection, hostile declared geometry, metadata validation,
+  exact offsets and payload lengths, decode chunk boundaries, writer preflight,
+  and exact native-image round trips.
+
 ## [Unreleased] — JPEG 2000 decode safety (SAFE-687-01)
 
 ### Fixed
@@ -20,6 +67,21 @@
   returning partially populated output.
 - Correct codec architecture and book documentation to describe the RITK-native
   Rust decoder and its current grayscale boundary.
+
+- Parse tile headers structurally and reject progression or coding overrides,
+  packed packet headers, multi-part tiles, and missing LRCP packets instead of
+  treating incomplete data as a zero-filled image.
+- Derive `Psot = 0` tile extent from terminal EOC, reject payload after EOC
+  except one zero pad when an odd-length DICOM fragment requires even length,
+  and reject zero-length or exhausted EBCOT bodies that claim coding passes.
+- Correct codec architecture and book documentation to describe the RITK-native
+  Rust decoder and its current grayscale boundary.
+
+### Tests
+
+- Cover malformed marker lengths, missing EOC, incomplete tile and packet data,
+  unsupported component and coding profiles, tile-part bounds, entropy-body
+  exhaustion, `Psot = 0`, and conditional DICOM fragment padding.
 
 ## [Unreleased] — Diffusion MRI and tractography (FEAT-686-01)
 
@@ -48,6 +110,10 @@
   avoiding a complete flat decoded series followed by a second copy.
 - Release NRRD encoded payload storage before allocating deinterleaved volume
   output, and reserve the bounded volume buffers fallibly.
+- Route DICOM directories through unified native series dispatch as one
+  reconstructed 3-D volume.
+- Fail the Pages gate when regenerated book figures differ from their tracked
+  artifacts.
 
 ### Fixed
 
@@ -55,14 +121,21 @@
   malformed coordinate frames, mixed-shell or underdetermined ODF systems,
   invalid tracking configurations, and malformed direction-field samples
   without partial output or panic. Preserve the gradient frame on fitted ODFs.
+- Reject scanner-facing b-values whose canonical SI conversion overflows and
+  non-finite ODF normalization, solver, transform, residual, or evaluation
+  intermediates.
 - Accept standard zero-weight DICOM frames without an orientation sequence,
   while rejecting missing orientation for nonzero weighting; require NRRD
   gradient metadata to match the acquisition-axis extent.
 - Reject multi-frame MGH input before payload decoding through single-volume
-  APIs, and recognize `.mgh.gz` in unified native dispatch.
+  APIs, recognize `.mgh.gz` in unified native dispatch, and select gzip for
+  `.mgz` or `.mgh.gz` without ASCII case sensitivity.
 - Validate each tractography seed before invoking the direction callback.
 - Stop tractography at the last in-domain point instead of appending the first
   proposal outside the trackable field.
+- Read rank-2 NRRD `space directions` and `space origin` through the planar
+  parser before promoting the image to `[1, Y, X]`, instead of rejecting valid
+  two-component vectors in the rank-3 acquisition-axis parser.
 
 ## [Unreleased] — NRRD acquisition series (ATLAS-DMRI-IO-001)
 

@@ -34,46 +34,50 @@ members = [
   "crates/ritk-diffusion",
   "crates/ritk-tractography",
   "crates/ritk-connectome",
+  "crates/ritk-trk",
   "xtask",
 ]
 resolver = "2"
 
 [workspace.package]
 license = "MIT OR Apache-2.0"
+authors = ["Ryan Clanton <ryanclanton@outlook.com>"]
+repository = "https://github.com/ryancinsight/ritk"
 
 [workspace.dependencies]
 iris = { version = "0.1.0", git = "https://github.com/ryancinsight/iris" }
-ritk-filter = { path = "crates/ritk-filter" }
-ritk-segmentation = { path = "crates/ritk-segmentation" }
-ritk-core = { path = "crates/ritk-core" }
-ritk-dicom = { path = "crates/ritk-dicom" }
-ritk-codecs = { path = "crates/ritk-codecs" }
-ritk-nifti = { path = "crates/ritk-nifti" }
-ritk-nrrd = { path = "crates/ritk-nrrd" }
-ritk-metaimage = { path = "crates/ritk-metaimage" }
-ritk-mgh = { path = "crates/ritk-mgh" }
-ritk-analyze = { path = "crates/ritk-analyze" }
-ritk-png = { path = "crates/ritk-png" }
-ritk-jpeg = { path = "crates/ritk-jpeg" }
-ritk-tiff = { path = "crates/ritk-tiff" }
-ritk-minc = { path = "crates/ritk-minc" }
-ritk-vtk = { path = "crates/ritk-vtk" }
-ritk-io = { path = "crates/ritk-io" }
-ritk-model = { path = "crates/ritk-model" }
-ritk-registration = { path = "crates/ritk-registration" }
-ritk-transform = { path = "crates/ritk-transform" }
-ritk-interpolation = { path = "crates/ritk-interpolation" }
-ritk-spatial = { path = "crates/ritk-spatial" }
-ritk-image = { path = "crates/ritk-image" }
-ritk-wgpu-compat = { path = "crates/ritk-wgpu-compat" }
-ritk-morphology = { path = "crates/ritk-morphology" }
-ritk-annotation = { path = "crates/ritk-annotation" }
-ritk-tensor-ops = { path = "crates/ritk-tensor-ops" }
-ritk-statistics = { path = "crates/ritk-statistics" }
-ritk-diffusion = { path = "crates/ritk-diffusion" }
-ritk-diffusion-scheme = { path = "crates/ritk-diffusion-scheme" }
-ritk-tractography = { path = "crates/ritk-tractography" }
-ritk-connectome = { path = "crates/ritk-connectome" }
+ritk-filter = { path = "crates/ritk-filter", version = "0.2.60" }
+ritk-segmentation = { path = "crates/ritk-segmentation", version = "0.2.0" }
+ritk-core = { path = "crates/ritk-core", version = "0.9.0" }
+ritk-dicom = { path = "crates/ritk-dicom", version = "0.1.0" }
+ritk-codecs = { path = "crates/ritk-codecs", version = "0.5.3" }
+ritk-nifti = { path = "crates/ritk-nifti", version = "0.1.0" }
+ritk-nrrd = { path = "crates/ritk-nrrd", version = "0.1.1" }
+ritk-metaimage = { path = "crates/ritk-metaimage", version = "0.1.1" }
+ritk-mgh = { path = "crates/ritk-mgh", version = "0.2.0" }
+ritk-analyze = { path = "crates/ritk-analyze", version = "0.1.0" }
+ritk-png = { path = "crates/ritk-png", version = "0.1.0" }
+ritk-jpeg = { path = "crates/ritk-jpeg", version = "0.1.0" }
+ritk-tiff = { path = "crates/ritk-tiff", version = "0.1.0" }
+ritk-minc = { path = "crates/ritk-minc", version = "0.1.0" }
+ritk-vtk = { path = "crates/ritk-vtk", version = "0.1.0" }
+ritk-io = { path = "crates/ritk-io", version = "0.2.0" }
+ritk-model = { path = "crates/ritk-model", version = "0.1.0" }
+ritk-registration = { path = "crates/ritk-registration", version = "0.53.0" }
+ritk-transform = { path = "crates/ritk-transform", version = "0.1.0" }
+ritk-interpolation = { path = "crates/ritk-interpolation", version = "0.4.0" }
+ritk-spatial = { path = "crates/ritk-spatial", version = "0.1.0" }
+ritk-image = { path = "crates/ritk-image", version = "0.2.0" }
+ritk-wgpu-compat = { path = "crates/ritk-wgpu-compat", version = "0.1.0" }
+ritk-morphology = { path = "crates/ritk-morphology", version = "0.1.0" }
+ritk-annotation = { path = "crates/ritk-annotation", version = "0.1.0" }
+ritk-tensor-ops = { path = "crates/ritk-tensor-ops", version = "0.1.0" }
+ritk-statistics = { path = "crates/ritk-statistics", version = "0.3.0" }
+ritk-diffusion = { path = "crates/ritk-diffusion", version = "0.1.0" }
+ritk-diffusion-scheme = { path = "crates/ritk-diffusion-scheme", version = "0.1.0" }
+ritk-tractography = { path = "crates/ritk-tractography", version = "0.1.0" }
+ritk-connectome = { path = "crates/ritk-connectome", version = "0.1.0" }
+ritk-trk = { path = "crates/ritk-trk", version = "0.1.0" }
 gaia = { version = "0.3.0", git = "https://github.com/ryancinsight/gaia", default-features = false }
 criterion = { version = "0.5", features = ["html_reports"] }
 coeus-nn = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
@@ -82,9 +86,9 @@ onnx-ir = "0.20.1"
 pyo3 = { version = "0.22", features = ["abi3-py39"] }
 numpy = "0.22"
 dicom = { version = "0.10.0", default-features = false }
-moirai = { version = "0.4.0", git = "https://github.com/ryancinsight/Moirai.git", features = ["melinoe"] }
+moirai = { package = "moirai-runtime", version = "0.4.0", git = "https://github.com/ryancinsight/Moirai.git", features = ["melinoe"] }
 # Apollo FFT scratch caches use Eunomia complex values through Mnemosyne.
-mnemosyne = { version = "0.6.0", git = "https://github.com/ryancinsight/Mnemosyne.git", default-features = false, features = ["std_tls", "eunomia"] }
+mnemosyne = { package = "mnemosyne-memory", version = "0.6.0", git = "https://github.com/ryancinsight/Mnemosyne.git", default-features = false, features = ["std_tls", "eunomia"] }
 eunomia = { version = "0.7.0", git = "https://github.com/ryancinsight/eunomia", default-features = false }
 coeus-core = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }
 coeus-tensor = { version = "0.9.0", git = "https://github.com/ryancinsight/Coeus.git" }

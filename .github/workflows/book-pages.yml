@@ -27,6 +27,9 @@ on:
       - "crates/ritk-tiff/examples/book_tiff.rs"
       - "crates/ritk-tiff/src/**"
       - "crates/ritk-tiff/Cargo.toml"
+      - "crates/ritk-analyze/examples/book_analyze.rs"
+      - "crates/ritk-analyze/src/**"
+      - "crates/ritk-analyze/Cargo.toml"
       - "crates/ritk-diffusion-scheme/**"
       - "crates/ritk-diffusion/**"
       - "crates/ritk-tractography/**"
@@ -57,6 +60,9 @@ on:
       - "crates/ritk-tiff/examples/book_tiff.rs"
       - "crates/ritk-tiff/src/**"
       - "crates/ritk-tiff/Cargo.toml"
+      - "crates/ritk-analyze/examples/book_analyze.rs"
+      - "crates/ritk-analyze/src/**"
+      - "crates/ritk-analyze/Cargo.toml"
       - "crates/ritk-diffusion-scheme/**"
       - "crates/ritk-diffusion/**"
       - "crates/ritk-tractography/**"
@@ -131,8 +137,11 @@ jobs:
             docs/book/figures/mgh_roundtrip.svg
           cargo run -p ritk-tiff --example book_tiff -- \
             docs/book/figures/tiff_roundtrip.svg
+          cargo run -p ritk-analyze --example book_analyze -- \
+            docs/book/figures/analyze_roundtrip.svg
           cargo run -p ritk-diffusion --example book_diffusion_tractography -- \
             docs/book/figures/diffusion_tractography.svg
+          git diff --exit-code -- docs/book/figures
 
       - name: Build book
         run: |
@@ -154,6 +163,7 @@ jobs:
             ritk/docs/book/figures/temporal_synchronization.svg
             ritk/docs/book/figures/mgh_roundtrip.svg
             ritk/docs/book/figures/tiff_roundtrip.svg
+            ritk/docs/book/figures/analyze_roundtrip.svg
             ritk/docs/book/figures/diffusion_tractography.svg
           if-no-files-found: error
 

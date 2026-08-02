@@ -20,6 +20,13 @@ raw bytes; the writer emits RITK ZYX flat data directly.
 - Writer: NRRD `space directions` are generated from internal columns
   `[col,row,depth]`.
 
+A rank-2 NRRD carries two-component direction vectors and origin coordinates.
+The reader validates those planar values before promoting the image to a
+degenerate `[1,Y,X]` volume with unit through-plane spacing and zero
+through-plane origin. Rank-3 and rank-4 files continue through the spatial and
+acquisition-axis parser, so two-component vectors are never interpreted as
+truncated 3-D metadata.
+
 ## Invariant
 
 NRRD parser/writer dependency changes stay behind `ritk-nrrd`; callers

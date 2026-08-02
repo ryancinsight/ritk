@@ -18,6 +18,68 @@
 - **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
   (REVIEW; owner=Codex; last-update=2026-08-01; scope=
   `crates/ritk-codecs/src/jpeg_2000/{ebcot/mod.rs,image.rs,mod.rs,tests.rs}`,
+- **RELEASE-689-01 [patch] - Publish the Rust library closure to crates.io**
+  (IN PROGRESS; owner=Codex; last-update=2026-08-02; scope=workspace and package
+  registry metadata, local dependency version requirements, dependency aliases,
+  `.github/workflows/rust-release.yml`, release documentation, and publication
+  of the 28 reusable Rust library packages; non-goal=publishing `ritk-cli`,
+  `ritk-snap`, `ritk-python`, `ritk-diffusion`, `ritk-tractography`, `xtask`, or
+  changing the Python release version). Acceptance: `cargo metadata` identifies
+  exactly the intended publishable set; every package passes
+  `cargo publish --dry-run` in dependency order; repository gates and hosted CI
+  pass; every version is indexed on crates.io; each crate has the exact GitHub
+  workflow configured as a trusted publisher with long-lived publishing
+  disabled; and each package version has a matching GitHub Release.
+
+- **SAFE-688-01 [patch] - Bound and teach Analyze 7.5 decoding**
+  (DONE; owner=Codex; last-update=2026-08-01; scope=
+  `crates/ritk-analyze/**`,
+  `docs/book/{SUMMARY.md,analyze_format.md,examples/analyze_roundtrip.md,
+  figures/analyze_roundtrip.svg}`, `.github/workflows/book-pages.yml`,
+  `CHANGELOG.md`, `gap_audit.md`, and PM artifacts; non-goal=Analyze/NIfTI
+  auto-detection, big-endian Analyze variants, four-dimensional images,
+  additional scalar output types, changing valid little-endian output,
+  release, or manual deployment). The reader casts signed dimensions to
+  `usize`, multiplies dimensions and byte widths without checked arithmetic,
+  and retains the complete `.img` payload before allocating the decoded
+  volume. Validate signed geometry, datatype/bit depth, finite metadata,
+  offset, and exact payload length before allocation; reserve fallibly and
+  stream scalar conversion into the final voxel buffer. Validate writer shape,
+  storage length, finite spatial metadata, and checked byte counts before creating
+  either output file. Add adversarial and value-semantic tests plus a
+  deterministic public-API round-trip figure with source, decoded, and
+  absolute-difference panels on explicit scales. Acceptance: malformed
+  geometry, arithmetic overflow, unsupported bit depth, non-finite metadata,
+  truncated or trailing payloads, and inconsistent writer buffers return
+  contextual errors without panic or partial output; every supported input
+  scalar remains value-correct; decode peak scratch is bounded independently
+  of payload size; displayed metrics agree with generated data; the example
+  stays within the committed runtime budget; and formatting, warning-denied
+  Clippy, Nextest, doctest, Rustdoc, mdBook, semantic-version, review, and
+  hosted gates pass. Local closure evidence: formatting, warning-denied
+  all-target Clippy, 12/12 Nextest tests in 0.286 seconds, doctests,
+  warning-denied Rustdoc, deterministic example regeneration, and mdBook
+  test/build pass. After review correction, the inspected 13,080-byte SVG has
+  SHA-256 `10C1F40E3280B4F187A9685D46A122D17E68DB46CAD1687FA6D660B07C4FBB8E`;
+  the warm executable completes in 73.794 ms. Semantic compatibility passes
+  196 checks with 57 inapplicable checks skipped. Review found and corrected
+  header-length, spacing-representation, origin-range, datatype-width SSOT,
+  and generated-geometry-label gaps. The first
+  hosted wheel smoke run then exposed a stale test that treated SimpleITK's
+  352-byte paired NIfTI output as Analyze 7.5. The corrected boundary identifies
+  `ni1` explicitly, preserves RITK-Analyze-to-SimpleITK interoperability, and
+  rejects cross-format decoding. Exact corrected head `207e56ad` passes CI run
+  `30733852800`, the complete Python 3.9–3.13 matrix in run `30733852838`
+  after one macOS network-only retry, and Pages artifact build `30733852812`.
+  Final head `8ad7c8f6` passes `git diff --check`, CI `30735629108`, all 13
+  Python lanes in `30735629133`, and the Pages artifact build in
+  `30735629135`. PR #88 merged as `0c0a4252`; post-merge Pages run
+  `30736205149` built and deployed, and the live chapter, example, and generated
+  SVG each return HTTP 200.
+
+- **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
+  (DONE; owner=Codex; last-update=2026-08-01; scope=
+  `crates/ritk-codecs/src/jpeg_2000/{codestream.rs,ebcot/mod.rs,image.rs,marker.rs,mod.rs,packet/reader.rs,tests.rs}`,
   `ARCHITECTURE.md`, `docs/book/jpeg_2000_codec.md`, `CHANGELOG.md`,
   `gap_audit.md`, and PM artifacts; non-goal=codec feature expansion,
   rate control, JP2 containers, changing valid codestream output, release, or
@@ -43,6 +105,34 @@
 
 - **FEAT-686-01 [minor][arch] - Establish a physically typed diffusion-MRI
   and tractography pipeline** (IN PROGRESS; owner=Codex;
+  allocation until their packet traversal exists. Structurally parse tile
+  headers, reject unsupported coding/progression overrides and multi-part tiles,
+  and require every expected LRCP packet. Correct the stale architecture claim
+  that production decode still uses `jpeg2k`/`openjp2`, and document the native
+  parser boundary. Reject zero-length and exhausted EBCOT bodies that claim
+  coding passes, derive `Psot=0` from terminal EOC, and accept no post-EOC data
+  except one zero pad when an odd-length DICOM fragment requires it.
+  Acceptance: complete native and captured OpenJPEG streams remain
+  value-exact; marker-only, truncated-length, oversized-length, and missing-EOC
+  cases and unsupported component traversal return contextual errors; focused formatting, warning-denied Clippy,
+  Nextest, doctest, Rustdoc, mdBook, and review gates pass. The complete local
+  Nextest pass is 315/315, including the captured OpenJPEG corpus and twenty-three
+  new malformed/unsupported-stream regressions. Independent reviews
+  exposed progression-override, tile-header scanning, and packet-completeness
+  gaps plus EBCOT exhaustion, `Psot=0`, and trailing-EOC defects; those
+  counterexamples now have regressions. Corrected-head formatting, 315/315
+  Nextest, warning-denied Clippy, doctest, warning-denied Rustdoc, and mdBook
+  test/build pass. Exact implementation head `324058ac` passes CI run
+  `30711180971`, all Python lanes in run `30711181015`, and the Pages artifact
+  build in run `30711180970` on Linux, macOS, and Windows. PR #81 merged as
+  `23d85703`; post-merge Pages run `30712037138` regenerated the figures, built
+  the book, and deployed the live site. CodeRabbit marked every implementation
+  finding addressed. Its exact-head rereview was rate limited; one mechanically
+  open thread refers only to the stale PR-body count, which the current body
+  corrects to 315 tests and twenty-three regressions.
+
+- **FEAT-686-01** `[minor][arch]` - Establish a physically typed diffusion-MRI
+  and tractography pipeline (REVIEW; owner=Codex;
   last-update=2026-07-31; scope=`Cargo.{toml,lock}`,
   `crates/ritk-{diffusion-scheme,diffusion,tractography}/**`, diffusion
   metadata integration in `crates/ritk-{dicom,nrrd,mgh,io}/**`,
@@ -72,6 +162,13 @@
   with generated data; the example stays within the committed runtime budget;
   and formatting, warning-denied Clippy, Nextest, doctest, Rustdoc, mdBook,
   semantic-version, review, and hosted gates pass.
+  Apollo PR #69 merged as `db218665` after exact-head Rust, Python, provider,
+  dependency, and byte-identical benchmark gates passed. This branch now pins
+  every Apollo package to that merge and propagates the provider's fallible
+  real-harmonic API. Merged-provider local gates pass warning-denied Clippy,
+  537/537 affected Nextest cases, doctests, warning-denied Rustdoc, deterministic
+  figure regeneration, and mdBook test/build; hosted gates and live Pages
+  verification remain.
 
 - **SAFE-685-01 [patch] - Bound and document TIFF volume decoding**
   (DONE; owner=Codex; last-update=2026-07-31; scope=

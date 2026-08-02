@@ -7,8 +7,9 @@
 //! by voxel data in Fortran (column-major) order where the X axis varies
 //! fastest, then Y, then Z.
 //!
-//! MGZ is the gzip-compressed variant.  File extensions `.mgz` and `.mgh.gz`
-//! trigger gzip decompression on read and gzip compression on write.
+//! MGZ is the gzip-compressed variant. File extensions `.mgz` and `.mgh.gz`,
+//! matched without ASCII case sensitivity, trigger gzip decompression on read
+//! and gzip compression on write.
 //!
 //! # Frames
 //!
@@ -104,10 +105,14 @@ const MRI_SHORT: i32 = 4;
 
 /// Returns `true` when the file path extension indicates gzip compression.
 ///
-/// Recognized patterns: `.mgz`, `.mgh.gz`.
+/// Recognized patterns, without ASCII case sensitivity: `.mgz`, `.mgh.gz`.
 fn is_gzip_path(path: &Path) -> bool {
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-    name.ends_with(".mgz") || name.ends_with(".mgh.gz")
+    [".mgz", ".mgh.gz"].iter().any(|suffix| {
+        name.as_bytes()
+            .get(name.len().saturating_sub(suffix.len())..)
+            .is_some_and(|tail| tail.eq_ignore_ascii_case(suffix.as_bytes()))
+    })
 }
 
 #[cfg(test)]
@@ -123,6 +128,8 @@ mod tests {
     #[test]
     fn test_gzip_detection_mgh_gz() {
         assert!(is_gzip_path(Path::new("brain.mgh.gz")));
+        assert!(is_gzip_path(Path::new("BRAIN.MGH.GZ")));
+        assert!(is_gzip_path(Path::new("BRAIN.MGZ")));
     }
 
     #[test]
