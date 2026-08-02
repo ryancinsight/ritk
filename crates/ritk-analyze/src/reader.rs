@@ -63,6 +63,7 @@ use coeus_core::ComputeBackend;
 use ritk_spatial::{Direction, Point, Spacing};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
+use std::mem::size_of;
 use std::path::Path;
 
 use crate::codec::{read_le, HDR_SIZE};
@@ -71,22 +72,16 @@ pub use crate::codec::{DT_DOUBLE, DT_FLOAT, DT_SIGNED_INT, DT_SIGNED_SHORT, DT_U
 const DECODE_CHUNK_BYTES: usize = 8 * 1024;
 
 trait AnalyzeVoxel: Sized {
-    const WIDTH: usize;
-
     fn decode(bytes: &[u8]) -> f32;
 }
 
 impl AnalyzeVoxel for u8 {
-    const WIDTH: usize = 1;
-
     fn decode(bytes: &[u8]) -> f32 {
         f32::from(bytes[0])
     }
 }
 
 impl AnalyzeVoxel for i16 {
-    const WIDTH: usize = 2;
-
     fn decode(bytes: &[u8]) -> f32 {
         f32::from(i16::from_le_bytes(
             bytes
@@ -97,8 +92,6 @@ impl AnalyzeVoxel for i16 {
 }
 
 impl AnalyzeVoxel for i32 {
-    const WIDTH: usize = 4;
-
     fn decode(bytes: &[u8]) -> f32 {
         i32::from_le_bytes(
             bytes
@@ -109,8 +102,6 @@ impl AnalyzeVoxel for i32 {
 }
 
 impl AnalyzeVoxel for f32 {
-    const WIDTH: usize = 4;
-
     fn decode(bytes: &[u8]) -> f32 {
         Self::from_le_bytes(
             bytes
@@ -121,14 +112,56 @@ impl AnalyzeVoxel for f32 {
 }
 
 impl AnalyzeVoxel for f64 {
-    const WIDTH: usize = 8;
-
     fn decode(bytes: &[u8]) -> f32 {
         Self::from_le_bytes(
             bytes
                 .try_into()
                 .expect("invariant: f64 Analyze chunks contain eight bytes"),
         ) as f32
+    }
+}
+
+#[derive(Clone, Copy)]
+enum AnalyzeDatatype {
+    UnsignedChar,
+    SignedShort,
+    SignedInt,
+    Float,
+    Double,
+}
+
+impl AnalyzeDatatype {
+    fn parse(code: i16) -> Result<Self> {
+        match code {
+            DT_UNSIGNED_CHAR => Ok(Self::UnsignedChar),
+            DT_SIGNED_SHORT => Ok(Self::SignedShort),
+            DT_SIGNED_INT => Ok(Self::SignedInt),
+            DT_FLOAT => Ok(Self::Float),
+            DT_DOUBLE => Ok(Self::Double),
+            other => Err(anyhow!(
+                "Unsupported Analyze datatype {other}. Supported codes: 2 (u8), 4 (i16), 8 (i32), 16 (f32), 64 (f64)."
+            )),
+        }
+    }
+
+    fn width(self) -> usize {
+        match self {
+            Self::UnsignedChar => size_of::<u8>(),
+            Self::SignedShort => size_of::<i16>(),
+            Self::SignedInt => size_of::<i32>(),
+            Self::Float => size_of::<f32>(),
+            Self::Double => size_of::<f64>(),
+        }
+    }
+
+    fn decode(self, reader: &mut File, voxel_count: usize, scale: f32) -> Result<Vec<f32>> {
+        match self {
+            Self::UnsignedChar => decode_payload::<u8>(reader, voxel_count, scale),
+            Self::SignedShort => decode_payload::<i16>(reader, voxel_count, scale),
+            Self::SignedInt => decode_payload::<i32>(reader, voxel_count, scale),
+            Self::Float => decode_payload::<f32>(reader, voxel_count, scale),
+            Self::Double => decode_payload::<f64>(reader, voxel_count, scale),
+        }
     }
 }
 
@@ -259,14 +292,15 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
         .context("Analyze voxel count overflows usize")?;
 
     // ── Parse voxel type ──────────────────────────────────────────────────────
-    let datatype = read_le::<i16>(&hdr, 70);
-    let bytes_per_voxel = datatype_width(datatype)?;
+    let datatype_code = read_le::<i16>(&hdr, 70);
+    let datatype = AnalyzeDatatype::parse(datatype_code)?;
+    let bytes_per_voxel = datatype.width();
     let bitpix = read_le::<i16>(&hdr, 72);
     let expected_bitpix = i16::try_from(bytes_per_voxel * 8)
         .expect("invariant: supported Analyze voxel widths fit in i16 bits");
     if bitpix != expected_bitpix {
         return Err(anyhow!(
-            "Analyze bitpix {bitpix} does not match datatype {datatype}; expected {expected_bitpix}"
+            "Analyze bitpix {bitpix} does not match datatype {datatype_code}; expected {expected_bitpix}"
         ));
     }
 
@@ -326,16 +360,15 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
         .seek(SeekFrom::Start(vox_offset))
         .context("Cannot seek to Analyze voxel payload")?;
 
-    let vals = match datatype {
-        DT_UNSIGNED_CHAR => decode_payload::<u8>(&mut img_file, voxel_count, scale),
-        DT_SIGNED_SHORT => decode_payload::<i16>(&mut img_file, voxel_count, scale),
-        DT_SIGNED_INT => decode_payload::<i32>(&mut img_file, voxel_count, scale),
-        DT_FLOAT => decode_payload::<f32>(&mut img_file, voxel_count, scale),
-        DT_DOUBLE => decode_payload::<f64>(&mut img_file, voxel_count, scale),
-        _ => unreachable!("invariant: datatype_width accepted this datatype"),
-    }?;
+    let vals = datatype.decode(&mut img_file, voxel_count, scale)?;
 
-    tracing::debug!(nx, ny, nz, datatype, "decode_analyze: complete");
+    tracing::debug!(
+        nx,
+        ny,
+        nz,
+        datatype = datatype_code,
+        "decode_analyze: complete"
+    );
 
     // Spacing reverses file `[sx, sy, sz]` into core tensor-axis order
     // `[sz, sy, sx]`; origin stays a world-space `[x, y, z]` point.
@@ -372,24 +405,13 @@ fn finite_header_value(raw: f32, field: &str) -> Result<f32> {
     }
 }
 
-fn datatype_width(datatype: i16) -> Result<usize> {
-    match datatype {
-        DT_UNSIGNED_CHAR => Ok(1),
-        DT_SIGNED_SHORT => Ok(2),
-        DT_SIGNED_INT | DT_FLOAT => Ok(4),
-        DT_DOUBLE => Ok(8),
-        other => Err(anyhow!(
-            "Unsupported Analyze datatype {other}. Supported codes: 2 (u8), 4 (i16), 8 (i32), 16 (f32), 64 (f64)."
-        )),
-    }
-}
-
 fn decode_payload<T: AnalyzeVoxel>(
     reader: &mut File,
     voxel_count: usize,
     scale: f32,
 ) -> Result<Vec<f32>> {
-    let voxels_per_chunk = DECODE_CHUNK_BYTES / T::WIDTH;
+    let voxel_width = size_of::<T>();
+    let voxels_per_chunk = DECODE_CHUNK_BYTES / voxel_width;
     debug_assert!(voxels_per_chunk > 0);
     let mut values = Vec::new();
     values
@@ -401,7 +423,7 @@ fn decode_payload<T: AnalyzeVoxel>(
     while remaining > 0 {
         let chunk_voxels = remaining.min(voxels_per_chunk);
         let chunk_bytes = chunk_voxels
-            .checked_mul(T::WIDTH)
+            .checked_mul(voxel_width)
             .expect("invariant: decode chunk byte count fits its fixed buffer");
         let input = &mut bytes[..chunk_bytes];
         reader
@@ -409,7 +431,7 @@ fn decode_payload<T: AnalyzeVoxel>(
             .context("Cannot read validated Analyze voxel payload")?;
         values.extend(
             input
-                .chunks_exact(T::WIDTH)
+                .chunks_exact(voxel_width)
                 .map(|voxel| T::decode(voxel) * scale),
         );
         remaining -= chunk_voxels;

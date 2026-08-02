@@ -32,12 +32,13 @@
 - [x] Run focused format, lint, test, documentation, example-runtime, mdBook,
       semantic-version, review, and hosted gates against the delivered revision.
       Local formatting, warning-denied all-target Clippy, 12/12 Nextest tests
-      in 0.341 seconds, doctests, warning-denied Rustdoc, deterministic figure
+      in 0.286 seconds, doctests, warning-denied Rustdoc, deterministic figure
       regeneration, mdBook test/build, and semantic compatibility pass. The
-      inspected 13,082-byte figure has SHA-256
-      `FCDB15272CAE80140F35AD765C5935C2607588DFA34309F728E504E518993E19`;
-      the warm example completes in 939.562 ms. Review findings for exact header
-      length, representable spacing, and unclamped origin range are corrected.
+      inspected 13,080-byte figure has SHA-256
+      `10C1F40E3280B4F187A9685D46A122D17E68DB46CAD1687FA6D660B07C4FBB8E`;
+      the warm example completes in 73.794 ms. Review findings for exact header
+      length, representable spacing, unclamped origin range, one authoritative
+      datatype-width path, and data-derived geometry labels are corrected.
       The first hosted wheel smoke run identified SimpleITK's `.img` output as
       paired NIfTI rather than Analyze; the corrected parser, Rust regression,
       Python differential contract, and book explanation pass locally. Exact

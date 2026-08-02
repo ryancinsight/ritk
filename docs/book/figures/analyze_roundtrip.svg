@@ -30,7 +30,7 @@
 <text x="17" y="174" class="label">Round-trip geometry</text>
 <text x="17" y="193" class="small">shape [4, 64, 64]</text>
 <text x="17" y="210" class="small">spacing [2, 1.5, 0.75] mm</text>
-<text x="17" y="227" class="small">origin [3, −4.5, 8] mm</text>
+<text x="17" y="227" class="small">origin [3, -4.5, 8] mm</text>
 <text x="17" y="251" class="warning">direction is identity only</text></g>
 <text x="18" y="302" class="success">The source and decoded slices are bit-identical; the difference panel is uniformly zero.</text>
 <text x="18" y="325" class="metric">One 3-D volume · X-fastest payload · exact f32 values · trailing payload bytes rejected</text></svg>

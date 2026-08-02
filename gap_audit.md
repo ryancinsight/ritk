@@ -36,13 +36,20 @@ and multi-volume rejection, negative and hostile dimensions, non-finite
 metadata, offsets, truncated and trailing payloads, the decode-buffer boundary,
 writer preflight, and exact round trips. The generated figure compares source
 and decoded slices on one scale, includes an explicit bitwise-difference panel,
-and reports the measured 348-byte header and 65,536-byte payload. Review also
-found that finite `f64` spacing could overflow or underflow the format's `f32`
-field and that origins outside `i16` voxel coordinates were silently clamped;
-both now fail before file creation. Formatting, warning-denied all-target
-Clippy, 12/12 Nextest tests in 0.341 seconds, doctests, warning-denied Rustdoc,
-deterministic figure regeneration, mdBook test/build, and 196 semantic-
-compatibility checks pass locally. Hosted evidence remains before closure.
+and reports the measured 348-byte header and 65,536-byte payload. Its shape,
+spacing, and origin labels now derive from the volume that generates the image.
+Review also found that finite `f64` spacing could overflow or underflow the
+format's `f32` field, origins outside `i16` voxel coordinates were silently
+clamped, and runtime payload validation duplicated the typed decoder's width
+mapping. Invalid writer metadata now fails before file creation, while one
+datatype descriptor owns code parsing, byte width, and typed dispatch.
+Formatting, warning-denied all-target Clippy, 12/12 Nextest tests in 0.286
+seconds, doctests, warning-denied Rustdoc, deterministic figure regeneration,
+mdBook test/build, and 196 semantic-compatibility checks pass locally. The
+inspected 13,080-byte SVG has SHA-256
+`10C1F40E3280B4F187A9685D46A122D17E68DB46CAD1687FA6D660B07C4FBB8E`,
+and its warm generator completes in 73.794 ms. Hosted evidence remains before
+closure.
 The first hosted wheel smoke run exposed a stale cross-format expectation:
 SimpleITK's standard `NiftiImageIO` writes a 352-byte paired NIfTI-1 header for
 an `.img` target, not a 348-byte Analyze 7.5 header. RITK now identifies its

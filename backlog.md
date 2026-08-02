@@ -41,13 +41,14 @@
   stays within the committed runtime budget; and formatting, warning-denied
   Clippy, Nextest, doctest, Rustdoc, mdBook, semantic-version, review, and
   hosted gates pass. Local closure evidence: formatting, warning-denied
-  all-target Clippy, 12/12 Nextest tests in 0.341 seconds, doctests,
+  all-target Clippy, 12/12 Nextest tests in 0.286 seconds, doctests,
   warning-denied Rustdoc, deterministic example regeneration, and mdBook
-  test/build pass. The inspected 13,082-byte SVG has SHA-256
-  `FCDB15272CAE80140F35AD765C5935C2607588DFA34309F728E504E518993E19`;
-  the warm executable completes in 939.562 ms. Semantic compatibility passes
+  test/build pass. After review correction, the inspected 13,080-byte SVG has
+  SHA-256 `10C1F40E3280B4F187A9685D46A122D17E68DB46CAD1687FA6D660B07C4FBB8E`;
+  the warm executable completes in 73.794 ms. Semantic compatibility passes
   196 checks with 57 inapplicable checks skipped. Review found and corrected
-  header-length, spacing-representation, and origin-range gaps. The first
+  header-length, spacing-representation, origin-range, datatype-width SSOT,
+  and generated-geometry-label gaps. The first
   hosted wheel smoke run then exposed a stale test that treated SimpleITK's
   352-byte paired NIfTI output as Analyze 7.5. The corrected boundary identifies
   `ni1` explicitly, preserves RITK-Analyze-to-SimpleITK interoperability, and

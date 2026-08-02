@@ -196,7 +196,12 @@ fn draw_image_panel(
     Ok(())
 }
 
-fn draw_contract_panel(svg: &mut String, header_bytes: u64, image_bytes: u64) -> Result<()> {
+fn draw_contract_panel(
+    svg: &mut String,
+    source: &Volume,
+    header_bytes: u64,
+    image_bytes: u64,
+) -> Result<()> {
     let x = 3 * PANEL_WIDTH;
     writeln!(svg, "<g transform=\"translate({x},0)\">")?;
     writeln!(
@@ -233,15 +238,22 @@ fn draw_contract_panel(svg: &mut String, header_bytes: u64, image_bytes: u64) ->
     )?;
     writeln!(
         svg,
-        "<text x=\"17\" y=\"193\" class=\"small\">shape [4, 64, 64]</text>"
+        "<text x=\"17\" y=\"193\" class=\"small\">shape {:?}</text>",
+        source.shape()
     )?;
     writeln!(
         svg,
-        "<text x=\"17\" y=\"210\" class=\"small\">spacing [2, 1.5, 0.75] mm</text>"
+        "<text x=\"17\" y=\"210\" class=\"small\">spacing [{}, {}, {}] mm</text>",
+        source.spacing()[0],
+        source.spacing()[1],
+        source.spacing()[2]
     )?;
     writeln!(
         svg,
-        "<text x=\"17\" y=\"227\" class=\"small\">origin [3, −4.5, 8] mm</text>"
+        "<text x=\"17\" y=\"227\" class=\"small\">origin [{}, {}, {}] mm</text>",
+        source.origin()[0],
+        source.origin()[1],
+        source.origin()[2]
     )?;
     writeln!(
         svg,
@@ -302,7 +314,7 @@ fn write_figure(
         &difference_png,
         "max |decoded − source| = 0",
     )?;
-    draw_contract_panel(&mut svg, header_bytes, image_bytes)?;
+    draw_contract_panel(&mut svg, source, header_bytes, image_bytes)?;
     writeln!(svg, "<text x=\"18\" y=\"302\" class=\"success\">The source and decoded slices are bit-identical; the difference panel is uniformly zero.</text>")?;
     writeln!(svg, "<text x=\"18\" y=\"325\" class=\"metric\">One 3-D volume · X-fastest payload · exact f32 values · trailing payload bytes rejected</text></svg>")?;
 
