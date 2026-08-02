@@ -114,8 +114,8 @@
   corrects to 315 tests and twenty-three regressions.
 
 - **FEAT-686-01** `[minor][arch]` - Establish a physically typed diffusion-MRI
-  and tractography pipeline (REVIEW; owner=Codex;
-  last-update=2026-07-31; scope=`Cargo.{toml,lock}`,
+  and tractography pipeline (DONE; owner=Codex;
+  last-update=2026-08-02; scope=`Cargo.{toml,lock}`,
   `crates/ritk-{diffusion-scheme,diffusion,tractography}/**`, diffusion
   metadata integration in `crates/ritk-{dicom,nrrd,mgh,io}/**`,
   `docs/adr/{0017-diffusion-mri-pipeline.md,README.md}`,
@@ -148,9 +148,12 @@
   dependency, and byte-identical benchmark gates passed. This branch now pins
   every Apollo package to that merge and propagates the provider's fallible
   real-harmonic API. Merged-provider local gates pass warning-denied Clippy,
-  537/537 affected Nextest cases, doctests, warning-denied Rustdoc, deterministic
-  figure regeneration, and mdBook test/build; hosted gates and live Pages
-  verification remain.
+  541/541 affected Nextest cases, doctests, warning-denied Rustdoc, deterministic
+  figure regeneration, and mdBook test/build. Exact reviewed head `ad9b472b`
+  passes CI `30686402105`, all 13 Python lanes in `30686402102`, and the Pages
+  artifact build in `30686402101`; PR #80 merged as `4d5a076a`. Post-merge Pages
+  run `30686954077` deployed successfully, and the live diffusion, tractography,
+  worked-example, and generated-SVG resources each return HTTP 200.
 
 - **SAFE-685-01 [patch] - Bound and document TIFF volume decoding**
   (DONE; owner=Codex; last-update=2026-07-31; scope=
