@@ -4,6 +4,7 @@
 
 pub mod direction;
 pub mod point;
+pub mod rotation;
 pub mod spacing;
 pub mod vector;
 pub mod volume_dims;
@@ -11,6 +12,7 @@ pub mod voxel_index;
 
 pub use direction::Direction;
 pub use point::Point;
+pub use rotation::{rotation_from_linear, RotationExtractionError};
 pub use spacing::{InvalidSpacing, Spacing};
 pub use vector::Vector;
 pub use volume_dims::VolumeDims;
