@@ -42,9 +42,10 @@ PR #92 merged as `aeb56e5d` after exact-head CI run `30753087020`, Python run
 `30753087037`, and PR book build `30753087001` passed. Default-branch Pages run
 `30753831094` regenerated and deployed the book from that merge. The live MINC2
 format chapter, round-trip example, and SVG return HTTP 200; the deployed
-42,058-byte SVG has the same SHA-256 as the inspected local artifact. CodeRabbit
-was rate limited and Recurse failed before analysis, so neither external
-service furnished findings; focused self-review found no residual defect.
+42,058-byte SVG has the same SHA-256 as the inspected local artifact. The
+closure diff passes `git diff --check`. CodeRabbit was rate limited and Recurse
+failed before analysis, so neither external service furnished findings;
+focused self-review found no residual defect.
 
 Residual MINC2 scope is documented rather than implied: the reader supports
 contiguous datasets only and does not apply `image-min`/`image-max` real-value

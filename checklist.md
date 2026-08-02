@@ -32,14 +32,15 @@
       book and regenerate the figure in Pages CI.
 - [x] Run focused format, lint, test, documentation, example-runtime, mdBook,
       semantic-version, review, and hosted gates against the delivered head.
-      Formatting, warning-denied all-target Clippy, 45/45 Nextest tests in
-      0.272 seconds, doctests, warning-denied Rustdoc, deterministic figure
-      regeneration, and mdBook test/build pass. `cargo-semver-checks` cannot
-      establish a registry baseline because `ritk-minc` is not yet indexed;
-      the diff changes no public Rust item signature. Focused self-review found
-      no residual defect after replacing heap scratch with a fixed stack array;
-      the independent read-only reviewer did not return before shutdown, so
-      no independent local verdict was available. Exact-head CI run
+      Formatting, `git diff --check`, warning-denied all-target Clippy, 45/45
+      Nextest tests in 0.272 seconds, doctests, warning-denied Rustdoc,
+      deterministic figure regeneration, and mdBook test/build pass.
+      `cargo-semver-checks` cannot establish a registry baseline because
+      `ritk-minc` is not yet indexed; the diff changes no public Rust item
+      signature. Focused self-review found no residual defect after replacing
+      heap scratch with a fixed stack array; the independent read-only reviewer
+      did not return before shutdown, so no independent local verdict was
+      available. Exact-head CI run
       `30753087020`, Python run `30753087037`, and PR book build `30753087001`
       passed. CodeRabbit was rate limited and Recurse failed before analysis;
       neither external service produced a review finding.
