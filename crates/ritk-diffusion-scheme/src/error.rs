@@ -45,4 +45,17 @@ pub enum GradientSchemeError {
     /// A rotation matrix is non-finite, non-orthonormal, or not proper.
     #[error("invalid gradient rotation: {0}")]
     InvalidRotation(String),
+    /// Per-volume reorientation was given a rotation count other than one per
+    /// volume.
+    ///
+    /// Silently zipping to the shorter length would leave the tail of the
+    /// series unrotated, which is the defect per-volume reorientation exists to
+    /// prevent.
+    #[error("expected {expected} rotations, one per volume, got {actual}")]
+    RotationCountMismatch {
+        /// Volumes in the scheme.
+        expected: usize,
+        /// Rotations supplied.
+        actual: usize,
+    },
 }
