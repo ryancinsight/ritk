@@ -51,7 +51,10 @@
   hosted wheel smoke run then exposed a stale test that treated SimpleITK's
   352-byte paired NIfTI output as Analyze 7.5. The corrected boundary identifies
   `ni1` explicitly, preserves RITK-Analyze-to-SimpleITK interoperability, and
-  rejects cross-format decoding; exact corrected-head hosted gates remain.
+  rejects cross-format decoding. Exact corrected head `207e56ad` passes CI run
+  `30733852800`, the complete Python 3.9–3.13 matrix in run `30733852838`
+  after one macOS network-only retry, and Pages artifact build `30733852812`.
+  PR #88 merge and post-merge Pages deployment remain.
 
 - **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
   (DONE; owner=Codex; last-update=2026-08-01; scope=

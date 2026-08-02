@@ -29,7 +29,7 @@
 - [x] Add and inspect the deterministic Analyze round-trip example and figure.
 - [x] Teach the Analyze file pair, layout, geometry, scaling, and format limits
       in the book and regenerate the figure in Pages CI.
-- [ ] Run focused format, lint, test, documentation, example-runtime, mdBook,
+- [x] Run focused format, lint, test, documentation, example-runtime, mdBook,
       semantic-version, review, and hosted gates against the delivered revision.
       Local formatting, warning-denied all-target Clippy, 12/12 Nextest tests
       in 0.341 seconds, doctests, warning-denied Rustdoc, deterministic figure
@@ -40,8 +40,10 @@
       length, representable spacing, and unclamped origin range are corrected.
       The first hosted wheel smoke run identified SimpleITK's `.img` output as
       paired NIfTI rather than Analyze; the corrected parser, Rust regression,
-      Python differential contract, and book explanation pass locally.
-      Corrected-head hosted gates remain.
+      Python differential contract, and book explanation pass locally. Exact
+      corrected head `207e56ad` passes CI `30733852800`, the Python 3.9–3.13
+      matrix in `30733852838` after one macOS network-only retry, and Pages
+      artifact build `30733852812`.
 - [ ] Reconcile PM evidence, commit, publish, review, merge, and verify the
       automatic Pages build without manually triggering deployment.
 

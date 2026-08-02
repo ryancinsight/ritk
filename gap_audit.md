@@ -51,6 +51,14 @@ valid interoperability direction—RITK Analyze output is read by both RITK and
 SimpleITK—and separately asserts that SimpleITK's NIfTI pair cannot cross the
 Analyze boundary silently.
 
+Exact corrected head `207e56ad` passes hosted CI run `30733852800`, including
+warning-denied Clippy, formatting, dependency alignment, the wheel smoke test,
+and native Nextest on Linux, macOS, and Windows. Python run `30733852838`
+passes all configured Python 3.9–3.13 lanes after retrying one macOS setup job
+whose first attempt could not resolve `files.pythonhosted.org`; no RITK test ran
+in the failed attempt. Pages run `30733852812` regenerates the figures, builds
+the book, and uploads the artifact successfully.
+
 ## SAFE-687-01 audit (2026-08-01)
 
 The native JPEG 2000 packet reader traverses one LRCP component stream, but the
