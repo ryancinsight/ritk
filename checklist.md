@@ -15,7 +15,7 @@
 
 ## PERF-690-01 — Stream and teach MINC2 writing
 **Target version**: Unreleased patch
-**Sprint phase**: Execution
+**Sprint phase**: Closure
 
 - [x] Reconcile origin, worktrees, active peer claims, the MINC2 owner, and
       current book coverage.
@@ -30,17 +30,25 @@
       warm regeneration completes in 53.417 ms and is byte-identical.
 - [x] Teach MINC2 hierarchy, geometry, scalar, and storage boundaries in the
       book and regenerate the figure in Pages CI.
-- [ ] Run focused format, lint, test, documentation, example-runtime, mdBook,
+- [x] Run focused format, lint, test, documentation, example-runtime, mdBook,
       semantic-version, review, and hosted gates against the delivered head.
-      Formatting, warning-denied all-target Clippy, 45/45 Nextest tests in
-      0.272 seconds, doctests, warning-denied Rustdoc, deterministic figure
-      regeneration, and mdBook test/build pass. `cargo-semver-checks` cannot
-      establish a registry baseline because `ritk-minc` is not yet indexed;
-      the diff changes no public Rust item signature. Focused self-review found
-      no residual defect after replacing heap scratch with a fixed stack array;
-      the independent read-only reviewer did not return before shutdown, so
-      hosted review remains the independent evidence.
-- [ ] Reconcile PM evidence, commit, publish, merge, and verify Pages.
+      Formatting, `git diff --check`, warning-denied all-target Clippy, 45/45
+      Nextest tests in 0.272 seconds, doctests, warning-denied Rustdoc,
+      deterministic figure regeneration, and mdBook test/build pass.
+      `cargo-semver-checks` cannot establish a registry baseline because
+      `ritk-minc` is not yet indexed; the diff changes no public Rust item
+      signature. Focused self-review found no residual defect after replacing
+      heap scratch with a fixed stack array; the independent read-only reviewer
+      did not return before shutdown, so no independent local verdict was
+      available. Exact-head CI run
+      `30753087020`, Python run `30753087037`, and PR book build `30753087001`
+      passed. CodeRabbit was rate limited and Recurse failed before analysis;
+      neither external service produced a review finding.
+- [x] Reconcile PM evidence, commit, publish, merge, and verify Pages. PR #92
+      merged as `aeb56e5d`; default-branch Pages run `30753831094` passed. The
+      live chapter, example, and figure return HTTP 200, and the deployed SVG
+      matches the inspected artifact at SHA-256
+      `50823916BC41B330F5219F71F9D15C45ED4D1BB7FD9655F34D41CA9C5666D56C`.
 
 ## RELEASE-689-01 — Publish the Rust library closure
 **Target version**: Current workspace package versions
