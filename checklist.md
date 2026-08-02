@@ -47,10 +47,11 @@
       artifact build `30733852812`.
 - [x] Reconcile PM evidence, commit, publish, review, merge, and verify the
       automatic Pages build without manually triggering deployment. Final head
-      `8ad7c8f6` passes CI `30735629108`, Python run `30735629133`, and Pages
-      artifact run `30735629135`; PR #88 merged as `0c0a4252`. Post-merge Pages
-      run `30736205149` deployed successfully, and the live Analyze chapter,
-      round-trip example, and generated SVG return HTTP 200.
+      `8ad7c8f6` passes `git diff --check`, CI `30735629108`, Python run
+      `30735629133`, and Pages artifact run `30735629135`; PR #88 merged as
+      `0c0a4252`. Post-merge Pages run `30736205149` deployed successfully, and
+      the live Analyze chapter, round-trip example, and generated SVG return
+      HTTP 200.
 
 ## SAFE-687-01 — Reject truncated JPEG 2000 marker tails
 **Target version**: Unreleased patch
