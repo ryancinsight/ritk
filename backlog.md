@@ -15,6 +15,33 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **SAFE-688-01 [patch] - Bound and teach Analyze 7.5 decoding**
+  (IN PROGRESS; owner=Codex; last-update=2026-08-01; scope=
+  `crates/ritk-analyze/**`,
+  `docs/book/{SUMMARY.md,analyze_format.md,examples/analyze_roundtrip.md,
+  figures/analyze_roundtrip.svg}`, `.github/workflows/book-pages.yml`,
+  `CHANGELOG.md`, `gap_audit.md`, and PM artifacts; non-goal=Analyze/NIfTI
+  auto-detection, big-endian Analyze variants, four-dimensional images,
+  additional scalar output types, changing valid little-endian output,
+  release, or manual deployment). The reader casts signed dimensions to
+  `usize`, multiplies dimensions and byte widths without checked arithmetic,
+  and retains the complete `.img` payload before allocating the decoded
+  volume. Validate signed geometry, datatype/bit depth, finite metadata,
+  offset, and exact payload length before allocation; reserve fallibly and
+  stream scalar conversion into the final voxel buffer. Validate writer shape,
+  values, finite spatial metadata, and checked byte counts before creating
+  either output file. Add adversarial and value-semantic tests plus a
+  deterministic public-API round-trip figure with source, decoded, and
+  absolute-difference panels on explicit scales. Acceptance: malformed
+  geometry, arithmetic overflow, unsupported bit depth, non-finite metadata,
+  truncated or trailing payloads, and inconsistent writer buffers return
+  contextual errors without panic or partial output; every supported input
+  scalar remains value-correct; decode peak scratch is bounded independently
+  of payload size; displayed metrics agree with generated data; the example
+  stays within the committed runtime budget; and formatting, warning-denied
+  Clippy, Nextest, doctest, Rustdoc, mdBook, semantic-version, review, and
+  hosted gates pass.
+
 - **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
   (DONE; owner=Codex; last-update=2026-08-01; scope=
   `crates/ritk-codecs/src/jpeg_2000/{codestream.rs,ebcot/mod.rs,image.rs,marker.rs,mod.rs,packet/reader.rs,tests.rs}`,

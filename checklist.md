@@ -13,6 +13,26 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## SAFE-688-01 — Bound and teach Analyze 7.5 decoding
+**Target version**: Unreleased patch
+**Sprint phase**: Foundation
+
+- [x] Reconcile `origin/main`, worktrees, peer-owned diffusion and registration
+      changes, Analyze code/tests, and book coverage.
+- [ ] Record the focused package baseline before production edits.
+- [ ] Validate all external geometry, metadata, datatype, offset, payload, and
+      writer-buffer contracts with checked arithmetic.
+- [ ] Stream decode into one fallibly reserved output allocation.
+- [ ] Add value-semantic supported-type, malformed-input, and no-partial-output
+      regressions.
+- [ ] Add and inspect the deterministic Analyze round-trip example and figure.
+- [ ] Teach the Analyze file pair, layout, geometry, scaling, and format limits
+      in the book and regenerate the figure in Pages CI.
+- [ ] Run focused format, lint, test, documentation, example-runtime, mdBook,
+      semantic-version, review, and hosted gates against the delivered revision.
+- [ ] Reconcile PM evidence, commit, publish, review, merge, and verify the
+      automatic Pages build without manually triggering deployment.
+
 ## SAFE-687-01 — Reject truncated JPEG 2000 marker tails
 **Target version**: Unreleased patch
 **Sprint phase**: Closure
