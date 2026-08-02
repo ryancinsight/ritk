@@ -13,6 +13,59 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the evidence below are historical.
 
+## SAFE-688-01 audit (2026-08-01)
+
+The Analyze reader previously converted signed `i16` dimensions to `usize`
+before validation and multiplied dimensions and scalar widths without checked
+arithmetic. It then retained the complete `.img` file while allocating the
+decoded `f32` volume. The writer similarly built a second volume-sized byte
+vector and could create the header before discovering an invalid logical input
+or payload-write failure.
+
+The corrected boundary validates dimensionality, positive dimensions,
+single-volume scope, datatype/bit-depth agreement, finite metadata, whole-byte
+offset, checked byte products, and exact file length before fallibly reserving
+output. Supported scalar conversion streams through 8 KiB fixed scratch; writer
+bytes stream through an 8 KiB buffered file and the header is published after
+the payload flushes. This establishes a decoder-owned memory bound of returned
+volume plus constant scratch, excluding filesystem and backend storage.
+
+Twelve value-semantic tests cover all supported scalar types, scaling, exact
+header length, paired-NIfTI identification, big-endian
+and multi-volume rejection, negative and hostile dimensions, non-finite
+metadata, offsets, truncated and trailing payloads, the decode-buffer boundary,
+writer preflight, and exact round trips. The generated figure compares source
+and decoded slices on one scale, includes an explicit bitwise-difference panel,
+and reports the measured 348-byte header and 65,536-byte payload. Its shape,
+spacing, and origin labels now derive from the volume that generates the image.
+Review also found that finite `f64` spacing could overflow or underflow the
+format's `f32` field, origins outside `i16` voxel coordinates were silently
+clamped, and runtime payload validation duplicated the typed decoder's width
+mapping. Invalid writer metadata now fails before file creation, while one
+datatype descriptor owns code parsing, byte width, and typed dispatch.
+Formatting, warning-denied all-target Clippy, 12/12 Nextest tests in 0.286
+seconds, doctests, warning-denied Rustdoc, deterministic figure regeneration,
+mdBook test/build, and 196 semantic-compatibility checks pass locally. The
+inspected 13,080-byte SVG has SHA-256
+`10C1F40E3280B4F187A9685D46A122D17E68DB46CAD1687FA6D660B07C4FBB8E`,
+and its warm generator completes in 73.794 ms. Hosted evidence remains before
+closure.
+The first hosted wheel smoke run exposed a stale cross-format expectation:
+SimpleITK's standard `NiftiImageIO` writes a 352-byte paired NIfTI-1 header for
+an `.img` target, not a 348-byte Analyze 7.5 header. RITK now identifies its
+`ni1` magic and returns a directed NIfTI error. The differential test keeps the
+valid interoperability direction—RITK Analyze output is read by both RITK and
+SimpleITK—and separately asserts that SimpleITK's NIfTI pair cannot cross the
+Analyze boundary silently.
+
+Exact corrected head `207e56ad` passes hosted CI run `30733852800`, including
+warning-denied Clippy, formatting, dependency alignment, the wheel smoke test,
+and native Nextest on Linux, macOS, and Windows. Python run `30733852838`
+passes all configured Python 3.9–3.13 lanes after retrying one macOS setup job
+whose first attempt could not resolve `files.pythonhosted.org`; no RITK test ran
+in the failed attempt. Pages run `30733852812` regenerates the figures, builds
+the book, and uploads the artifact successfully.
+
 ## SAFE-687-01 audit (2026-08-01)
 
 The native JPEG 2000 packet reader traverses one LRCP component stream, but the

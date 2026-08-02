@@ -8,6 +8,11 @@
 //! * `<name>.hdr` — 348-byte binary header (little-endian).
 //! * `<name>.img` — raw voxel values (little-endian, type given by `datatype` field).
 //!
+//! A paired NIfTI-1 dataset can use the same extensions, but identifies itself
+//! with `ni1\0` at bytes 344–347 and is not an Analyze 7.5 file. This reader
+//! rejects that variant explicitly instead of interpreting NIfTI spatial fields
+//! as Analyze history fields.
+//!
 //! # Header Layout (key fields)
 //!
 //! | Offset | Type  | Field             | Meaning                                  |
@@ -56,11 +61,109 @@
 use anyhow::{anyhow, Context, Result};
 use coeus_core::ComputeBackend;
 use ritk_spatial::{Direction, Point, Spacing};
-use std::io::Read;
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
+use std::mem::size_of;
 use std::path::Path;
 
 use crate::codec::{read_le, HDR_SIZE};
 pub use crate::codec::{DT_DOUBLE, DT_FLOAT, DT_SIGNED_INT, DT_SIGNED_SHORT, DT_UNSIGNED_CHAR};
+
+const DECODE_CHUNK_BYTES: usize = 8 * 1024;
+
+trait AnalyzeVoxel: Sized {
+    fn decode(bytes: &[u8]) -> f32;
+}
+
+impl AnalyzeVoxel for u8 {
+    fn decode(bytes: &[u8]) -> f32 {
+        f32::from(bytes[0])
+    }
+}
+
+impl AnalyzeVoxel for i16 {
+    fn decode(bytes: &[u8]) -> f32 {
+        f32::from(i16::from_le_bytes(
+            bytes
+                .try_into()
+                .expect("invariant: i16 Analyze chunks contain two bytes"),
+        ))
+    }
+}
+
+impl AnalyzeVoxel for i32 {
+    fn decode(bytes: &[u8]) -> f32 {
+        i32::from_le_bytes(
+            bytes
+                .try_into()
+                .expect("invariant: i32 Analyze chunks contain four bytes"),
+        ) as f32
+    }
+}
+
+impl AnalyzeVoxel for f32 {
+    fn decode(bytes: &[u8]) -> f32 {
+        Self::from_le_bytes(
+            bytes
+                .try_into()
+                .expect("invariant: f32 Analyze chunks contain four bytes"),
+        )
+    }
+}
+
+impl AnalyzeVoxel for f64 {
+    fn decode(bytes: &[u8]) -> f32 {
+        Self::from_le_bytes(
+            bytes
+                .try_into()
+                .expect("invariant: f64 Analyze chunks contain eight bytes"),
+        ) as f32
+    }
+}
+
+#[derive(Clone, Copy)]
+enum AnalyzeDatatype {
+    UnsignedChar,
+    SignedShort,
+    SignedInt,
+    Float,
+    Double,
+}
+
+impl AnalyzeDatatype {
+    fn parse(code: i16) -> Result<Self> {
+        match code {
+            DT_UNSIGNED_CHAR => Ok(Self::UnsignedChar),
+            DT_SIGNED_SHORT => Ok(Self::SignedShort),
+            DT_SIGNED_INT => Ok(Self::SignedInt),
+            DT_FLOAT => Ok(Self::Float),
+            DT_DOUBLE => Ok(Self::Double),
+            other => Err(anyhow!(
+                "Unsupported Analyze datatype {other}. Supported codes: 2 (u8), 4 (i16), 8 (i32), 16 (f32), 64 (f64)."
+            )),
+        }
+    }
+
+    fn width(self) -> usize {
+        match self {
+            Self::UnsignedChar => size_of::<u8>(),
+            Self::SignedShort => size_of::<i16>(),
+            Self::SignedInt => size_of::<i32>(),
+            Self::Float => size_of::<f32>(),
+            Self::Double => size_of::<f64>(),
+        }
+    }
+
+    fn decode(self, reader: &mut File, voxel_count: usize, scale: f32) -> Result<Vec<f32>> {
+        match self {
+            Self::UnsignedChar => decode_payload::<u8>(reader, voxel_count, scale),
+            Self::SignedShort => decode_payload::<i16>(reader, voxel_count, scale),
+            Self::SignedInt => decode_payload::<i32>(reader, voxel_count, scale),
+            Self::Float => decode_payload::<f32>(reader, voxel_count, scale),
+            Self::Double => decode_payload::<f64>(reader, voxel_count, scale),
+        }
+    }
+}
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -77,10 +180,15 @@ pub use crate::codec::{DT_DOUBLE, DT_FLOAT, DT_SIGNED_INT, DT_SIGNED_SHORT, DT_U
 /// # Errors
 /// Returns an error when:
 /// - Either file cannot be opened or read.
-/// - `sizeof_hdr` is not 348 (invalid Analyze file).
-/// - Any image dimension is zero.
-/// - The `.img` file is smaller than the declared data size.
-/// - `datatype` is not one of the five supported codes.
+/// - The header is not a little-endian, 348-byte Analyze header, including
+///   paired NIfTI data using the same extensions.
+/// - The header does not describe exactly one 3-D volume with positive,
+///   non-overflowing dimensions.
+/// - `datatype` is not supported or `bitpix` does not match it.
+/// - Spacing, scale, or offset metadata is non-finite, or the offset is not a
+///   supported whole-byte position.
+/// - The `.img` file length differs from the exact declared payload size.
+/// - Output allocation, seeking, decoding, or image construction fails.
 pub fn read_analyze<B: ComputeBackend, P: AsRef<Path>>(
     path: P,
     backend: &B,
@@ -114,15 +222,45 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
     let img_path = path.with_extension("img");
 
     // ── Read and validate the 348-byte header ─────────────────────────────────
-    let mut hdr_file = std::fs::File::open(&hdr_path).context("Cannot open Analyze header")?;
+    let mut hdr_file = File::open(&hdr_path).context("Cannot open Analyze header")?;
+    let header_len = hdr_file
+        .metadata()
+        .context("Cannot inspect Analyze header")?
+        .len();
+    if header_len < HDR_SIZE as u64 {
+        return Err(anyhow!(
+            "Invalid Analyze header length: expected {HDR_SIZE} bytes, found {header_len}"
+        ));
+    }
     let mut hdr = [0u8; HDR_SIZE];
     hdr_file
         .read_exact(&mut hdr)
         .with_context(|| "Cannot read 348-byte header".to_string())?;
+    if hdr[344..348] == *b"ni1\0" {
+        return Err(anyhow!(
+            "Unsupported paired NIfTI-1 header (ni1 magic); use the NIfTI reader with a single-file .nii dataset"
+        ));
+    }
+    if header_len != HDR_SIZE as u64 {
+        return Err(anyhow!(
+            "Invalid Analyze header length: expected {HDR_SIZE} bytes, found {header_len}"
+        ));
+    }
 
-    // sizeof_hdr must be exactly 348.
+    // sizeof_hdr must be exactly 348. Identify the unsupported byte order so a
+    // big-endian file is not reported as arbitrary header corruption.
     let sizeof_hdr = read_le::<i32>(&hdr, 0);
     if sizeof_hdr != HDR_SIZE as i32 {
+        if i32::from_be_bytes(
+            hdr[0..4]
+                .try_into()
+                .expect("invariant: four-byte header field"),
+        ) == HDR_SIZE as i32
+        {
+            return Err(anyhow!(
+                "Unsupported big-endian Analyze file; RITK currently accepts little-endian Analyze 7.5 only"
+            ));
+        }
         return Err(anyhow!(
             "Invalid Analyze file: sizeof_hdr={} (expected 348)",
             sizeof_hdr
@@ -130,37 +268,66 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
     }
 
     // ── Parse image dimensions ────────────────────────────────────────────────
-    let nx = read_le::<i16>(&hdr, 42) as usize;
-    let ny = read_le::<i16>(&hdr, 44) as usize;
-    let nz = read_le::<i16>(&hdr, 46) as usize;
-
-    if nx == 0 || ny == 0 || nz == 0 {
+    let dimension_count = read_le::<i16>(&hdr, 40);
+    if !(3..=4).contains(&dimension_count) {
         return Err(anyhow!(
-            "Invalid Analyze dimensions: nx={} ny={} nz={}",
-            nx,
-            ny,
-            nz
+            "Unsupported Analyze dimension count {dimension_count}; the RITK reader accepts one 3-D volume"
+        ));
+    }
+    let nx = positive_dimension(read_le::<i16>(&hdr, 42), "nx")?;
+    let ny = positive_dimension(read_le::<i16>(&hdr, 44), "ny")?;
+    let nz = positive_dimension(read_le::<i16>(&hdr, 46), "nz")?;
+    if dimension_count == 4 {
+        let volume_count = read_le::<i16>(&hdr, 48);
+        if volume_count != 1 {
+            return Err(anyhow!(
+                "Unsupported Analyze volume count {volume_count}; the RITK reader accepts exactly one 3-D volume"
+            ));
+        }
+    }
+
+    let voxel_count = nx
+        .checked_mul(ny)
+        .and_then(|plane| plane.checked_mul(nz))
+        .context("Analyze voxel count overflows usize")?;
+
+    // ── Parse voxel type ──────────────────────────────────────────────────────
+    let datatype_code = read_le::<i16>(&hdr, 70);
+    let datatype = AnalyzeDatatype::parse(datatype_code)?;
+    let bytes_per_voxel = datatype.width();
+    let bitpix = read_le::<i16>(&hdr, 72);
+    let expected_bitpix = i16::try_from(bytes_per_voxel * 8)
+        .expect("invariant: supported Analyze voxel widths fit in i16 bits");
+    if bitpix != expected_bitpix {
+        return Err(anyhow!(
+            "Analyze bitpix {bitpix} does not match datatype {datatype_code}; expected {expected_bitpix}"
         ));
     }
 
-    // ── Parse voxel type ──────────────────────────────────────────────────────
-    let datatype = read_le::<i16>(&hdr, 70);
-
     // ── Parse physical spacing (pixdim[1..3]) ─────────────────────────────────
-    let sx_raw = read_le::<f32>(&hdr, 80) as f64;
-    let sy_raw = read_le::<f32>(&hdr, 84) as f64;
-    let sz_raw = read_le::<f32>(&hdr, 88) as f64;
+    let sx_raw = f64::from(finite_header_value(read_le::<f32>(&hdr, 80), "pixdim[1]")?);
+    let sy_raw = f64::from(finite_header_value(read_le::<f32>(&hdr, 84), "pixdim[2]")?);
+    let sz_raw = f64::from(finite_header_value(read_le::<f32>(&hdr, 88), "pixdim[3]")?);
     // Fall back to unit spacing when stored value is zero or negative.
     let sx = if sx_raw > 0.0 { sx_raw } else { 1.0 };
     let sy = if sy_raw > 0.0 { sy_raw } else { 1.0 };
     let sz = if sz_raw > 0.0 { sz_raw } else { 1.0 };
 
     // ── Parse scale factor (funused1 at offset 112) ───────────────────────────
-    let scale_raw = read_le::<f32>(&hdr, 112);
+    let scale_raw = finite_header_value(read_le::<f32>(&hdr, 112), "funused1 scale")?;
     let scale = if scale_raw == 0.0 { 1.0_f32 } else { scale_raw };
 
     // ── Parse vox_offset (offset 108) ────────────────────────────────────────
-    let vox_offset = { read_le::<f32>(&hdr, 108) as u64 };
+    let vox_offset_raw = f64::from(finite_header_value(
+        read_le::<f32>(&hdr, 108),
+        "vox_offset",
+    )?);
+    if vox_offset_raw < 0.0 || vox_offset_raw.fract() != 0.0 || vox_offset_raw > u64::MAX as f64 {
+        return Err(anyhow!(
+            "Unsupported Analyze vox_offset {vox_offset_raw}; expected a non-negative whole-byte offset"
+        ));
+    }
+    let vox_offset = vox_offset_raw as u64;
 
     // ── Parse origin from originator[10] (5 × i16 at offset 253) ─────────────
     let ox_vox = read_le::<i16>(&hdr, 253) as f64;
@@ -170,108 +337,38 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
     let oy = oy_vox * sy;
     let oz = oz_vox * sz;
 
-    // ── Read raw voxel data from .img ─────────────────────────────────────────
-    let img_bytes = std::fs::read(&img_path).context("Cannot read Analyze data file")?;
-
-    // Skip past vox_offset bytes if non-zero (uncommon for standard files).
-    let data_start = vox_offset as usize;
-    if data_start > img_bytes.len() {
+    // ── Validate and stream .img data ────────────────────────────────────────
+    let expected_bytes = voxel_count
+        .checked_mul(bytes_per_voxel)
+        .context("Analyze payload byte count overflows usize")?;
+    let expected_bytes_u64 =
+        u64::try_from(expected_bytes).context("Analyze payload byte count exceeds u64")?;
+    let expected_file_len = vox_offset
+        .checked_add(expected_bytes_u64)
+        .context("Analyze payload end offset overflows u64")?;
+    let mut img_file = File::open(&img_path).context("Cannot open Analyze data file")?;
+    let actual_file_len = img_file
+        .metadata()
+        .context("Cannot inspect Analyze data file")?
+        .len();
+    if actual_file_len != expected_file_len {
         return Err(anyhow!(
-            "Analyze vox_offset ({}) exceeds .img file size ({})",
-            data_start,
-            img_bytes.len()
+            "Analyze .img length mismatch: expected {expected_file_len} bytes ({vox_offset} offset + {expected_bytes} payload), found {actual_file_len}"
         ));
     }
-    let raw = &img_bytes[data_start..];
+    img_file
+        .seek(SeekFrom::Start(vox_offset))
+        .context("Cannot seek to Analyze voxel payload")?;
 
-    let n = nx * ny * nz;
+    let vals = datatype.decode(&mut img_file, voxel_count, scale)?;
 
-    // ── Convert to Vec<f32> ───────────────────────────────────────────────────
-    let vals: Vec<f32> = match datatype {
-        DT_UNSIGNED_CHAR => {
-            if raw.len() < n {
-                return Err(anyhow!(
-                    "Analyze .img too small for u8 data: need {} bytes, have {}",
-                    n,
-                    raw.len()
-                ));
-            }
-            raw[..n].iter().map(|&b| b as f32 * scale).collect()
-        }
-
-        DT_SIGNED_SHORT => {
-            let need = n * 2;
-            if raw.len() < need {
-                return Err(anyhow!(
-                    "Analyze .img too small for i16 data: need {} bytes, have {}",
-                    need,
-                    raw.len()
-                ));
-            }
-            raw.chunks_exact(2)
-                .take(n)
-                .map(|c| i16::from_le_bytes([c[0], c[1]]) as f32 * scale)
-                .collect()
-        }
-
-        DT_SIGNED_INT => {
-            let need = n * 4;
-            if raw.len() < need {
-                return Err(anyhow!(
-                    "Analyze .img too small for i32 data: need {} bytes, have {}",
-                    need,
-                    raw.len()
-                ));
-            }
-            raw.chunks_exact(4)
-                .take(n)
-                .map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as f32 * scale)
-                .collect()
-        }
-
-        DT_FLOAT => {
-            let need = n * 4;
-            if raw.len() < need {
-                return Err(anyhow!(
-                    "Analyze .img too small for f32 data: need {} bytes, have {}",
-                    need,
-                    raw.len()
-                ));
-            }
-            raw.chunks_exact(4)
-                .take(n)
-                .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]) * scale)
-                .collect()
-        }
-
-        DT_DOUBLE => {
-            let need = n * 8;
-            if raw.len() < need {
-                return Err(anyhow!(
-                    "Analyze .img too small for f64 data: need {} bytes, have {}",
-                    need,
-                    raw.len()
-                ));
-            }
-            raw.chunks_exact(8)
-                .take(n)
-                .map(|c| {
-                    let v = f64::from_le_bytes([c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7]]);
-                    (v * scale as f64) as f32
-                })
-                .collect()
-        }
-
-        other => {
-            return Err(anyhow!(
-                "Unsupported Analyze datatype {}. \
-                 Supported codes: 2 (u8), 4 (i16), 8 (i32), 16 (f32), 64 (f64).",
-                other
-            ));
-        }
-    };
-
-    tracing::debug!(nx, ny, nz, datatype, "decode_analyze: complete");
+    tracing::debug!(
+        nx,
+        ny,
+        nz,
+        datatype = datatype_code,
+        "decode_analyze: complete"
+    );
 
     // Spacing reverses file `[sx, sy, sz]` into core tensor-axis order
     // `[sz, sy, sx]`; origin stays a world-space `[x, y, z]` point.
@@ -282,6 +379,65 @@ fn decode_analyze<P: AsRef<Path>>(path: P) -> Result<DecodedAnalyze> {
         spacing: Spacing::new([sz, sy, sx]),
         direction: Direction::identity(),
     })
+}
+
+fn positive_dimension(raw: i16, name: &str) -> Result<usize> {
+    usize::try_from(raw)
+        .map_err(|_| anyhow!("Invalid Analyze dimension {name}={raw}; expected a positive value"))
+        .and_then(|value| {
+            if value == 0 {
+                Err(anyhow!(
+                    "Invalid Analyze dimension {name}=0; expected a positive value"
+                ))
+            } else {
+                Ok(value)
+            }
+        })
+}
+
+fn finite_header_value(raw: f32, field: &str) -> Result<f32> {
+    if raw.is_finite() {
+        Ok(raw)
+    } else {
+        Err(anyhow!(
+            "Invalid Analyze {field}: expected a finite value, found {raw}"
+        ))
+    }
+}
+
+fn decode_payload<T: AnalyzeVoxel>(
+    reader: &mut File,
+    voxel_count: usize,
+    scale: f32,
+) -> Result<Vec<f32>> {
+    let voxel_width = size_of::<T>();
+    let voxels_per_chunk = DECODE_CHUNK_BYTES / voxel_width;
+    debug_assert!(voxels_per_chunk > 0);
+    let mut values = Vec::new();
+    values
+        .try_reserve_exact(voxel_count)
+        .context("Cannot allocate Analyze output volume")?;
+    let mut bytes = [0u8; DECODE_CHUNK_BYTES];
+    let mut remaining = voxel_count;
+
+    while remaining > 0 {
+        let chunk_voxels = remaining.min(voxels_per_chunk);
+        let chunk_bytes = chunk_voxels
+            .checked_mul(voxel_width)
+            .expect("invariant: decode chunk byte count fits its fixed buffer");
+        let input = &mut bytes[..chunk_bytes];
+        reader
+            .read_exact(input)
+            .context("Cannot read validated Analyze voxel payload")?;
+        values.extend(
+            input
+                .chunks_exact(voxel_width)
+                .map(|voxel| T::decode(voxel) * scale),
+        );
+        remaining -= chunk_voxels;
+    }
+
+    Ok(values)
 }
 
 // ── Reader wrapper type ───────────────────────────────────────────────────────

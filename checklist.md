@@ -13,6 +13,41 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+## SAFE-688-01 — Bound and teach Analyze 7.5 decoding
+**Target version**: Unreleased patch
+**Sprint phase**: Review
+
+- [x] Reconcile `origin/main`, worktrees, peer-owned diffusion and registration
+      changes, Analyze code/tests, and book coverage.
+- [x] Record the focused package baseline before production edits: 4/4 tests
+      pass in 0.437 seconds and warning-denied all-target Clippy passes.
+- [x] Validate all external geometry, metadata, datatype, offset, payload, and
+      writer-buffer contracts with checked arithmetic.
+- [x] Stream decode into one fallibly reserved output allocation.
+- [x] Add value-semantic supported-type, malformed-input, and no-partial-output
+      regressions.
+- [x] Add and inspect the deterministic Analyze round-trip example and figure.
+- [x] Teach the Analyze file pair, layout, geometry, scaling, and format limits
+      in the book and regenerate the figure in Pages CI.
+- [x] Run focused format, lint, test, documentation, example-runtime, mdBook,
+      semantic-version, review, and hosted gates against the delivered revision.
+      Local formatting, warning-denied all-target Clippy, 12/12 Nextest tests
+      in 0.286 seconds, doctests, warning-denied Rustdoc, deterministic figure
+      regeneration, mdBook test/build, and semantic compatibility pass. The
+      inspected 13,080-byte figure has SHA-256
+      `10C1F40E3280B4F187A9685D46A122D17E68DB46CAD1687FA6D660B07C4FBB8E`;
+      the warm example completes in 73.794 ms. Review findings for exact header
+      length, representable spacing, unclamped origin range, one authoritative
+      datatype-width path, and data-derived geometry labels are corrected.
+      The first hosted wheel smoke run identified SimpleITK's `.img` output as
+      paired NIfTI rather than Analyze; the corrected parser, Rust regression,
+      Python differential contract, and book explanation pass locally. Exact
+      corrected head `207e56ad` passes CI `30733852800`, the Python 3.9–3.13
+      matrix in `30733852838` after one macOS network-only retry, and Pages
+      artifact build `30733852812`.
+- [ ] Reconcile PM evidence, commit, publish, review, merge, and verify the
+      automatic Pages build without manually triggering deployment.
+
 ## SAFE-687-01 — Reject truncated JPEG 2000 marker tails
 **Target version**: Unreleased patch
 **Sprint phase**: Closure

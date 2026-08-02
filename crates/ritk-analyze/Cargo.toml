@@ -15,3 +15,5 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+base64 = { workspace = true }
+image = { workspace = true }

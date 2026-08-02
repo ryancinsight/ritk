@@ -15,6 +15,48 @@
 > workflow were removed after the Burn-to-Coeus migration completed.
 > References to these tools in the entries below are historical.
 
+- **SAFE-688-01 [patch] - Bound and teach Analyze 7.5 decoding**
+  (REVIEW; owner=Codex; last-update=2026-08-01; scope=
+  `crates/ritk-analyze/**`,
+  `docs/book/{SUMMARY.md,analyze_format.md,examples/analyze_roundtrip.md,
+  figures/analyze_roundtrip.svg}`, `.github/workflows/book-pages.yml`,
+  `CHANGELOG.md`, `gap_audit.md`, and PM artifacts; non-goal=Analyze/NIfTI
+  auto-detection, big-endian Analyze variants, four-dimensional images,
+  additional scalar output types, changing valid little-endian output,
+  release, or manual deployment). The reader casts signed dimensions to
+  `usize`, multiplies dimensions and byte widths without checked arithmetic,
+  and retains the complete `.img` payload before allocating the decoded
+  volume. Validate signed geometry, datatype/bit depth, finite metadata,
+  offset, and exact payload length before allocation; reserve fallibly and
+  stream scalar conversion into the final voxel buffer. Validate writer shape,
+  storage length, finite spatial metadata, and checked byte counts before creating
+  either output file. Add adversarial and value-semantic tests plus a
+  deterministic public-API round-trip figure with source, decoded, and
+  absolute-difference panels on explicit scales. Acceptance: malformed
+  geometry, arithmetic overflow, unsupported bit depth, non-finite metadata,
+  truncated or trailing payloads, and inconsistent writer buffers return
+  contextual errors without panic or partial output; every supported input
+  scalar remains value-correct; decode peak scratch is bounded independently
+  of payload size; displayed metrics agree with generated data; the example
+  stays within the committed runtime budget; and formatting, warning-denied
+  Clippy, Nextest, doctest, Rustdoc, mdBook, semantic-version, review, and
+  hosted gates pass. Local closure evidence: formatting, warning-denied
+  all-target Clippy, 12/12 Nextest tests in 0.286 seconds, doctests,
+  warning-denied Rustdoc, deterministic example regeneration, and mdBook
+  test/build pass. After review correction, the inspected 13,080-byte SVG has
+  SHA-256 `10C1F40E3280B4F187A9685D46A122D17E68DB46CAD1687FA6D660B07C4FBB8E`;
+  the warm executable completes in 73.794 ms. Semantic compatibility passes
+  196 checks with 57 inapplicable checks skipped. Review found and corrected
+  header-length, spacing-representation, origin-range, datatype-width SSOT,
+  and generated-geometry-label gaps. The first
+  hosted wheel smoke run then exposed a stale test that treated SimpleITK's
+  352-byte paired NIfTI output as Analyze 7.5. The corrected boundary identifies
+  `ni1` explicitly, preserves RITK-Analyze-to-SimpleITK interoperability, and
+  rejects cross-format decoding. Exact corrected head `207e56ad` passes CI run
+  `30733852800`, the complete Python 3.9–3.13 matrix in run `30733852838`
+  after one macOS network-only retry, and Pages artifact build `30733852812`.
+  PR #88 merge and post-merge Pages deployment remain.
+
 - **SAFE-687-01 [patch] - Reject truncated JPEG 2000 marker tails**
   (DONE; owner=Codex; last-update=2026-08-01; scope=
   `crates/ritk-codecs/src/jpeg_2000/{codestream.rs,ebcot/mod.rs,image.rs,marker.rs,mod.rs,packet/reader.rs,tests.rs}`,

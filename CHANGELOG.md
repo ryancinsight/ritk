@@ -8,6 +8,37 @@
 
 # CHANGELOG
 
+## [Unreleased] — Analyze 7.5 boundary safety (SAFE-688-01)
+
+### Changed
+
+- Stream Analyze scalar conversion through a fixed 8 KiB buffer into one
+  fallibly reserved `f32` volume, and stream writer output without constructing
+  a second volume-sized byte vector.
+- Add an Analyze 7.5 book chapter and deterministic round-trip figure with a
+  shared display scale, explicit zero-difference panel, measured pair sizes,
+  and documented geometry limits.
+
+### Fixed
+
+- Reject signed or unsupported dimensions, mismatched datatype/bit depth,
+  checked geometry and byte-count overflow, non-finite metadata, unsupported
+  offsets, and truncated or trailing payloads before output allocation.
+- Validate writer shape, storage length, finite `f32` header spacing, and the
+  `i16` origin-coordinate range before creating files, and publish the header
+  only after the payload has been flushed.
+- Identify paired NIfTI-1 `ni1` headers that share `.hdr`/`.img` extensions and
+  reject them with a directed format error instead of interpreting NIfTI
+  spatial fields as Analyze metadata.
+
+### Tests
+
+- Cover all five supported scalar encodings, scale application, endian,
+  paired-NIfTI separation, and
+  dimensionality rejection, hostile declared geometry, metadata validation,
+  exact offsets and payload lengths, decode chunk boundaries, writer preflight,
+  and exact native-image round trips.
+
 ## [Unreleased] — JPEG 2000 decode safety (SAFE-687-01)
 
 ### Fixed
